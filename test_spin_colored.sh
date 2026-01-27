@@ -3,6 +3,9 @@
 # Integration test suite for Spin app with colored output
 
 set -e
+
+# Always clean before integration tests to ensure correct crate-type
+cargo clean
 GREEN="\033[0;32m"
 RED="\033[0;31m"
 YELLOW="\033[1;33m"

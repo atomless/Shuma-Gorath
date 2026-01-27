@@ -109,6 +109,15 @@ To run all tests (unit and integration) with clear, colorized output, use:
 ./test_all_colored.sh
 ```
 
+**Note:** All test scripts now automatically run `cargo clean` before building or testing. This ensures the correct crate-type is set for each build mode (native or WASM), preventing build/test errors due to stale build artifacts. You never need to remember to clean manually.
+
+**How crate-type switching works:**
+- When building for native (unit/integration tests), the crate-type is set to `["rlib"]`.
+- When building for WASM (Spin), the crate-type is set to `["cdylib"]`.
+- This is handled automatically by `build.rs` based on the build target.
+
+If you see errors about missing crates or WASM output, ensure you are using the provided scripts or run `cargo clean` before switching build modes.
+
 This script will:
 - Run all Rust unit tests (including quiz and ban logic) with colored output
 - Build the Spin app

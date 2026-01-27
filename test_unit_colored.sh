@@ -2,6 +2,9 @@
 # test_unit_colored.sh
 # Runs all Rust unit tests with colored, bannered output
 set -e
+
+# Always clean before running unit tests to ensure correct crate-type
+cargo clean
 GREEN="\033[0;32m"
 RED="\033[0;31m"
 YELLOW="\033[1;33m"
