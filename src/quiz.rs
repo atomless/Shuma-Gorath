@@ -21,28 +21,54 @@ impl KeyValueStore for Store {
         Store::delete(self, key).map_err(|_| ())
     }
 }
+
 use rand::Rng;
 use percent_encoding;
+use rand::prelude::*;
 
 const QUIZ_PREFIX: &str = "quiz:";
+const QUESTION_TYPES: &[&str] = &["add", "sub", "mul"];
 
-/// Generates a simple math challenge and stores the answer in KV for the IP.
+/// Generates a random math challenge (add, sub, mul) and stores the answer and question type in KV for the IP.
 pub fn serve_quiz<S: KeyValueStore>(store: &S, ip: &str) -> Response {
     let mut rng = rand::rng();
     let a: u32 = rng.random_range(10..=99);
     let b: u32 = rng.random_range(10..=99);
-    let answer = a + b;
+    let qtype = *QUESTION_TYPES.choose(&mut rng).unwrap_or(&"add");
+    let (question, answer) = match qtype {
+        "add" => (format!("{a} + {b}"), a + b),
+        "sub" => {
+            let (x, y) = if a > b { (a, b) } else { (b, a) };
+            (format!("{x} - {y}"), x - y)
+        },
+        "mul" => {
+            let a = rng.random_range(2..=12);
+            let b = rng.random_range(2..=12);
+            (format!("{a} × {b}"), a * b)
+        },
+        _ => (format!("{a} + {b}"), a + b),
+    };
     let key = format!("{}{}", QUIZ_PREFIX, ip);
-    let _ = store.set(&key, answer.to_string().as_bytes());
+    let value = format!("{}:{}", answer, qtype);
+    let _ = store.set(&key, value.as_bytes());
     let html = format!(r#"
-        <html><body>
+        <html><head><style>
+        body {{ font-family: sans-serif; background: #f9f9f9; margin: 2em; }}
+        .quiz-container {{ background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 2px 8px #ccc; max-width: 400px; margin: auto; }}
+        label {{ font-size: 1.2em; }}
+        input[type=number] {{ font-size: 1.2em; width: 80px; }}
+        button {{ font-size: 1em; padding: 0.5em 1em; }}
+        </style></head><body>
+        <div class="quiz-container">
         <h2>Are you human?</h2>
         <form method='POST' action='/quiz'>
-            <label>Solve: {a} + {b} = </label>
-            <input name='answer' type='number' required />
+            <label>Solve: {question} = </label>
+            <input name='answer' type='number' required autofocus />
             <input type='hidden' name='ip' value='{ip}' />
             <button type='submit'>Submit</button>
         </form>
+        <p style="color: #888; font-size: 0.9em;">Prove you are not a bot to regain access.</p>
+        </div>
         </body></html>
     "#);
     Response::new(200, html)
@@ -56,18 +82,22 @@ pub fn handle_quiz_submit<S: KeyValueStore>(store: &S, req: &Request) -> Respons
     if let (Some(answer), Some(ip)) = (answer, ip) {
         let key = format!("{}{}", QUIZ_PREFIX, ip);
         if let Ok(Some(val)) = store.get(&key) {
-            if let Ok(expected) = String::from_utf8(val) {
-                if answer == expected {
-                    // Unban the IP
-                    let ban_key = format!("ban:default:{}", ip);
-                    let _ = store.delete(&ban_key);
-                    let _ = store.delete(&key);
-                    return Response::new(200, "<html><body><h2>Thank you! You are unbanned. Please reload the page.</h2></body></html>");
+            if let Ok(stored) = String::from_utf8(val) {
+                let mut parts = stored.splitn(2, ':');
+                if let (Some(expected), _) = (parts.next(), parts.next()) {
+                    if answer == expected {
+                        // Unban the IP
+                        let ban_key = format!("ban:default:{}", ip);
+                        let _ = store.delete(&ban_key);
+                        let _ = store.delete(&key);
+                        return Response::new(200, "<html><body><h2>Thank you! You are unbanned. Please reload the page.</h2></body></html>");
+                    }
                 }
             }
         }
     }
-    Response::new(403, "<html><body><h2>Incorrect answer. Please try again.</h2><a href='/quiz'>Back to quiz</a></body></html>")
+    let html = "<html><body><h2 style='color:red;'>Incorrect answer. Please try again.</h2><a href='/quiz'>Back to quiz</a></body></html>";
+    Response::new(403, html)
 }
 
 fn get_form_field(form: &str, name: &str) -> Option<String> {

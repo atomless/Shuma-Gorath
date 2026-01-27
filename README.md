@@ -27,7 +27,8 @@ This project implements a customizable, behavior-based bot defense system for de
 ### Endpoints
 
 - `/health` — Health check endpoint. Returns `OK` only when accessed from localhost (127.0.0.1 or ::1). Used for liveness/readiness probes. All other sources receive 403 Forbidden.
-- `/` — Main endpoint. Applies bot trap logic: whitelist, ban, honeypot, rate limit, JS challenge, browser/geo checks.
+- `/` — Main endpoint. Applies bot trap logic: whitelist, ban, honeypot, rate limit, JS challenge, browser/geo checks, and interactive quiz for banned users.
+- `/quiz` — Interactive math quiz endpoint for banned users. Users must solve a randomized math challenge to regain access.
 - `/admin/*` — Admin API endpoints (see below).
 
 ### Admin API Endpoints
@@ -45,6 +46,18 @@ All endpoints require an `Authorization: Bearer <API_KEY>` header. The API key i
 	[component.bot-trap]
 	environment = { API_KEY = "changeme-supersecret" }
 	```
+
+
+### Interactive Quiz for Banned Users
+
+When a user is banned (e.g., by honeypot, rate limit, or admin action), they are presented with an interactive math quiz. Features:
+
+- **Randomized question types**: Addition, subtraction, and multiplication
+- **User-friendly HTML**: Styled, accessible, and mobile-friendly
+- **Automatic unban**: Correct answer removes the ban and restores access
+- **Security**: Quiz answers are stored securely per IP
+
+This feature helps reduce false positives and allows legitimate users to regain access easily.
 
 ### Configuration
 - Ban duration, rate limit, honeypot URLs, browser blocklist, geo risk, and whitelist are stored in edge KV and can be managed via future admin endpoints or direct KV updates.
@@ -90,8 +103,9 @@ spin build && ./test_spin_colored.sh
 
 To manually trigger and test each bot trap response in your browser or with curl, you can simulate the following scenarios:
 
+
 1. **Whitelist**: Add your IP to the whitelist in the config (or remove it to test blocks).
-2. **Ban**: Manually ban your IP using the admin API, or trigger a honeypot or rate limit.
+2. **Ban**: Manually ban your IP using the admin API, or trigger a honeypot or rate limit. You will be presented with an interactive math quiz to regain access.
 3. **Honeypot**: Visit a honeypot path (e.g., http://127.0.0.1:3000/bot-trap).
 4. **Rate Limit**: Send many requests quickly (e.g., with a script or curl loop) to exceed the rate limit.
 5. **JS Challenge**: Clear cookies and visit the root endpoint; you should see the JS challenge page.
@@ -102,7 +116,7 @@ You can use browser dev tools or curl to set headers and test these scenarios. S
 
 ---
 
-- Modular Rust code: see `src/` for ban, rate, JS, browser, geo, whitelist, honeypot, and admin logic.
+- Modular Rust code: see `src/` for ban, rate, JS, browser, geo, whitelist, honeypot, admin, and interactive quiz logic.
 - Integration test script: see `test_spin_colored.sh` for automated end-to-end tests.
 - Unit tests: see `src/ban_tests.rs` for ban logic tests.
 - Logging: Security events and ban actions are logged using Spin's logging macros.

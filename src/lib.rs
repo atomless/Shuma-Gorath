@@ -55,7 +55,6 @@ fn extract_client_ip(req: &Request) -> String {
 
 /// Main handler logic, testable as a plain Rust function.
 pub fn handle_bot_trap_impl(req: &Request) -> Response {
-    println!("[DEBUG] handle_bot_trap_impl path: {}", req.path());
     let store = match Store::open_default() {
         Ok(s) => Some(s),
         Err(_e) => None,

@@ -36,8 +36,10 @@ mod tests {
         // Should have stored an answer for this IP
         let key = format!("quiz:{}", ip);
         let val = store.get(&key).unwrap().expect("Quiz answer should be stored");
-        let answer: u32 = String::from_utf8(val).unwrap().parse().unwrap();
-        assert!(answer >= 20 && answer <= 198); // 10+10 to 99+99
+        let stored = String::from_utf8(val).unwrap();
+        let answer_str = stored.split(':').next().unwrap();
+        let answer: u32 = answer_str.parse().unwrap();
+        assert!(answer >= 4 && answer <= 198); // 2*2 to 99+99
     }
 
     #[test]
