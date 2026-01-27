@@ -15,6 +15,7 @@ pub struct Config {
     pub browser_block: Vec<(String, u32)>,
     pub geo_risk: Vec<String>,
     pub whitelist: Vec<String>,
+    pub test_mode: bool,
 }
 
 impl Config {
@@ -22,11 +23,16 @@ impl Config {
     pub fn load(store: &Store, site_id: &str) -> Self {
         let key = format!("config:{}", site_id);
         if let Ok(Some(val)) = store.get(&key) {
-            if let Ok(cfg) = serde_json::from_slice::<Config>(&val) {
+            if let Ok(mut cfg) = serde_json::from_slice::<Config>(&val) {
+                // Allow override from env for test_mode
+                if let Ok(val) = std::env::var("TEST_MODE") {
+                    cfg.test_mode = val == "1" || val.eq_ignore_ascii_case("true");
+                }
                 return cfg;
             }
         }
         // Defaults for all config fields
+        let test_mode = std::env::var("TEST_MODE").map(|v| v == "1" || v.eq_ignore_ascii_case("true")).unwrap_or(false);
         Config {
             ban_duration: 21600, // 6 hours
             rate_limit: 80,
@@ -34,6 +40,7 @@ impl Config {
             browser_block: vec![("Chrome".to_string(), 120), ("Firefox".to_string(), 115), ("Safari".to_string(), 15)],
             geo_risk: vec![],
             whitelist: vec![],
+            test_mode,
         }
     }
 }

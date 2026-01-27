@@ -59,8 +59,28 @@ When a user is banned (e.g., by honeypot, rate limit, or admin action), they are
 
 This feature helps reduce false positives and allows legitimate users to regain access easily.
 
+
 ### Configuration
-- Ban duration, rate limit, honeypot URLs, browser blocklist, geo risk, and whitelist are stored in edge KV and can be managed via future admin endpoints or direct KV updates.
+- Ban duration, rate limit, honeypot URLs, browser blocklist, geo risk, whitelist, and test mode are stored in edge KV and can be managed via future admin endpoints or direct KV updates.
+
+#### Test Mode (Safe Deployment/Tuning)
+
+Test mode allows you to safely deploy and tune the bot trap in production without impacting real users. When enabled, all block/ban/challenge actions are logged but not enforced—users are always allowed through. This is ideal for initial rollout, tuning, and validation.
+
+**How to enable:**
+- Set the environment variable `TEST_MODE=1` or `TEST_MODE=true` in your deployment (e.g., in `spin.toml`):
+	```toml
+	[component.bot-trap]
+	environment = { TEST_MODE = "1" }
+	```
+- Or set `"test_mode": true` in the config KV object.
+
+**When enabled:**
+- All actions (ban, block, challenge) are logged with a `[TEST MODE]` prefix
+- No user is actually blocked, banned, or challenged
+- Useful for safe validation and tuning in production
+
+**Disable test mode** to enforce real blocking/ban logic.
 
 ---
 
