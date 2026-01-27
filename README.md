@@ -61,7 +61,20 @@ This feature helps reduce false positives and allows legitimate users to regain 
 
 
 ### Configuration
-- Ban duration, rate limit, honeypot URLs, browser blocklist, geo risk, whitelist, and test mode are stored in edge KV and can be managed via future admin endpoints or direct KV updates.
+- Ban duration, rate limit, honeypot URLs, browser blocklist, geo risk, whitelist (with CIDR and comments), path-based whitelist for integrations/webhooks, and test mode are stored in edge KV and can be managed via future admin endpoints or direct KV updates.
+
+#### Whitelist Features
+- **IP/CIDR support:** Whitelist entries can be single IPs (e.g., `1.2.3.4`) or CIDR ranges (e.g., `192.168.0.0/24`).
+- **Inline comments:** Entries can include comments after a `#` (e.g., `10.0.0.0/8 # corp network`).
+- **Path-based whitelisting:** The `path_whitelist` config allows you to specify exact paths (e.g., `/webhook/stripe`) or wildcard prefixes (e.g., `/api/integration/*`) that should always bypass bot protections. Useful for trusted webhooks and integrations.
+
+Example config snippet:
+```json
+{
+	"whitelist": ["1.2.3.4", "192.168.0.0/24 # office", "10.0.0.0/8 # corp"],
+	"path_whitelist": ["/webhook/stripe", "/api/integration/* # trusted integrations"]
+}
+```
 
 #### Test Mode (Safe Deployment/Tuning)
 
