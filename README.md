@@ -55,22 +55,36 @@ All endpoints require an `Authorization: Bearer <API_KEY>` header. The API key i
 
 ## Testing
 
-### Integration Tests (Automated)
+### Full Test Suite (Unit + Integration, Colorized)
 
-Run the full integration test suite with:
+To run all tests (unit and integration) with clear, colorized output, use:
+
+```sh
+./test_all_colored.sh
+```
+
+This script will:
+- Run all Rust unit tests (including quiz and ban logic) with colored output
+- Build the Spin app
+- Run the full integration test suite (endpoints, ban logic, admin, etc.) with colored output
+
+All results are easy to review. See `test_all_colored.sh` for details.
+
+### Unit Tests Only (Colorized)
+
+To run only the Rust unit tests (with colored output):
+
+```sh
+./test_unit_colored.sh
+```
+
+### Integration Tests Only (Colorized)
+
+To run only the integration tests (Spin endpoints, colorized):
 
 ```sh
 spin build && ./test_spin_colored.sh
 ```
-
-This script will:
-- Test `/health` endpoint (OK from localhost only)
-- Test root endpoint (`/`) for JS challenge and normal OK
-- Test honeypot ban and verify ban logic
-- Test admin unban (`/admin/unban?ip=...`)
-- Test `/health` after ban/unban
-
-All results are color-coded for easy review. See `test_spin_colored.sh` for details.
 
 ### Manual Testing: Triggering Bot Trap Responses
 
@@ -85,14 +99,6 @@ To manually trigger and test each bot trap response in your browser or with curl
 7. **Geo Risk**: Add a high-risk country to the config and set the X-Geo-Country header.
 
 You can use browser dev tools or curl to set headers and test these scenarios. See the admin API section above for ban management.
-
-### Unit Tests
-
-Unit tests for ban logic are in `src/ban_tests.rs`. Run with:
-
-```sh
-cargo test --lib
-```
 
 ---
 

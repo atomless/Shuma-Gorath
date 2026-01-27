@@ -1,0 +1,26 @@
+
+running 5 tests
+test quiz_tests::tests::test_serve_quiz_stores_answer ... ok
+test quiz_tests::tests::test_handle_quiz_submit_correct_and_incorrect ... ok
+test ban_tests::tests::test_ban_entry_serialization ... ok
+test ban_tests::tests::test_ban_and_unban_unknown_ip ... ok
+test ban_tests::tests::test_ban_and_expiry ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 6 tests
+test test_admin_unauthorized ... ignored
+test test_honeypot ... ignored
+test test_banned_ip ... ok
+test test_whitelisted_ip ... ignored
+test test_js_challenge ... ok
+test test_rate_limit ... ok
+
+test result: ok. 3 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -1,0 +1,2 @@
+[alias]
+test-verbose = "test -- --nocapture"

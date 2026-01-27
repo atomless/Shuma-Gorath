@@ -2,7 +2,7 @@
 // Ban list management for WASM Bot Trap
 // Handles persistent IP bans, expiry, and ban reasons using the Spin key-value store.
 
-use spin_sdk::key_value::Store;
+use crate::quiz::KeyValueStore;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Serialize, Deserialize};
@@ -17,7 +17,7 @@ pub struct BanEntry {
 
 /// Checks if an IP is currently banned for a given site.
 /// Returns true if the ban is active, false otherwise. Cleans up expired/invalid bans.
-pub fn is_banned(store: &Store, site_id: &str, ip: &str) -> bool {
+pub fn is_banned(store: &impl KeyValueStore, site_id: &str, ip: &str) -> bool {
     let key = format!("ban:{}:{}", site_id, ip);
     match store.get(&key) {
         Ok(Some(val)) => {
@@ -41,7 +41,7 @@ pub fn is_banned(store: &Store, site_id: &str, ip: &str) -> bool {
 
 /// Bans an IP for a given site, reason, and duration (in seconds).
 /// Stores the ban entry in the key-value store.
-pub fn ban_ip(store: &Store, site_id: &str, ip: &str, reason: &str, duration_secs: u64) {
+pub fn ban_ip(store: &impl KeyValueStore, site_id: &str, ip: &str, reason: &str, duration_secs: u64) {
     let key = format!("ban:{}:{}", site_id, ip);
     let entry = BanEntry {
         reason: reason.to_string(),
