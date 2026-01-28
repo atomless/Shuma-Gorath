@@ -32,12 +32,90 @@ This project implements a customizable, behavior-based bot defense system for de
 - `/admin/*` — Admin API endpoints (see below).
 
 ### Admin API Endpoints
+
 All endpoints require an `Authorization: Bearer <API_KEY>` header. The API key is configurable via the `API_KEY` environment variable (see below).
+
+#### Endpoints
 
 - `GET /admin/ban` — List all current bans (JSON: IP, reason, expiry)
 - `POST /admin/unban?ip=...` — Unban a specific IP (removes ban immediately)
 - `GET /admin/analytics` — Get ban count analytics
+- `GET /admin/events?hours=N` — Query recent security events, top IPs, and event statistics for dashboarding (see below)
 - `GET /admin` — Usage help
+
+#### `/admin/events` — Activity & Analytics API
+
+Returns a JSON object with:
+
+- `recent_events`: up to 100 most recent events (ban, unban, challenge, block, admin actions)
+- `event_counts`: count of each event type in the time window
+- `top_ips`: top 10 IPs by event count
+
+Query params:
+- `hours=N` — How many hours of history to include (default: 24)
+
+**Example response:**
+```json
+{
+	"recent_events": [
+		{
+			"ts": 1769577600,
+			"event": "Ban",
+			"ip": "203.0.113.42",
+			"reason": "honeypot",
+			"outcome": "banned",
+			"admin": null
+		},
+		{
+			"ts": 1769577700,
+			"event": "Unban",
+			"ip": "203.0.113.42",
+			"reason": "admin_unban",
+			"outcome": "unbanned",
+			"admin": "admin"
+		}
+		// ...
+	],
+	"event_counts": {
+		"Ban": 12,
+		"Unban": 2,
+		"Challenge": 8,
+		"Block": 0,
+		"AdminAction": 5
+	},
+	"top_ips": [
+		["203.0.113.42", 7],
+		["198.51.100.10", 3]
+	]
+}
+```
+
+**Example curl queries:**
+
+List all bans:
+```sh
+curl -s -H "Authorization: Bearer $API_KEY" http://localhost:3000/admin/ban | jq
+```
+
+Unban an IP:
+```sh
+curl -X POST -H "Authorization: Bearer $API_KEY" "http://localhost:3000/admin/unban?ip=203.0.113.42"
+```
+
+Get ban count analytics:
+```sh
+curl -s -H "Authorization: Bearer $API_KEY" http://localhost:3000/admin/analytics | jq
+```
+
+Get recent events and statistics (last 24 hours):
+```sh
+curl -s -H "Authorization: Bearer $API_KEY" "http://localhost:3000/admin/events?hours=24" | jq
+```
+
+Get API usage/help:
+```sh
+curl -s -H "Authorization: Bearer $API_KEY" http://localhost:3000/admin
+```
 
 #### API Key Configuration
 - The admin API key is set via the `API_KEY` environment variable in your Spin manifest or deployment environment. If not set, it defaults to `changeme-supersecret` for development.

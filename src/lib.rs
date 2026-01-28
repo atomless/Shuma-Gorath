@@ -145,28 +145,82 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
     // Honeypot: ban and hard block
     if honeypot::is_honeypot(path, &cfg.honeypots) {
         ban::ban_ip(store, site_id, &ip, "honeypot", cfg.ban_duration);
+        // Log ban event
+        crate::admin::log_event(store, &crate::admin::EventLogEntry {
+            ts: crate::admin::now_ts(),
+            event: crate::admin::EventType::Ban,
+            ip: Some(ip.clone()),
+            reason: Some("honeypot".to_string()),
+            outcome: Some("banned".to_string()),
+            admin: None,
+        });
         return Response::new(403, "Blocked: Honeypot");
     }
     // Rate limit: ban and hard block
     if !rate::check_rate_limit(store, site_id, &ip, cfg.rate_limit) {
         ban::ban_ip(store, site_id, &ip, "rate", cfg.ban_duration);
+        // Log ban event
+        crate::admin::log_event(store, &crate::admin::EventLogEntry {
+            ts: crate::admin::now_ts(),
+            event: crate::admin::EventType::Ban,
+            ip: Some(ip.clone()),
+            reason: Some("rate".to_string()),
+            outcome: Some("banned".to_string()),
+            admin: None,
+        });
         return Response::new(429, "Blocked: Rate limit");
     }
     // Ban: serve quiz if banned
     if ban::is_banned(store, site_id, &ip) {
+        // Log challenge event
+        crate::admin::log_event(store, &crate::admin::EventLogEntry {
+            ts: crate::admin::now_ts(),
+            event: crate::admin::EventType::Challenge,
+            ip: Some(ip.clone()),
+            reason: Some("banned".to_string()),
+            outcome: Some("quiz served".to_string()),
+            admin: None,
+        });
         return quiz::serve_quiz(store, &ip);
     }
     // JS verification
     if path != "/health" && js::needs_js_verification(req, store, site_id, &ip) {
+        // Log challenge event
+        crate::admin::log_event(store, &crate::admin::EventLogEntry {
+            ts: crate::admin::now_ts(),
+            event: crate::admin::EventType::Challenge,
+            ip: Some(ip.clone()),
+            reason: Some("js_verification".to_string()),
+            outcome: Some("js challenge".to_string()),
+            admin: None,
+        });
         return js::inject_js_challenge(&ip);
     }
     // Outdated browser
     if browser::is_outdated_browser(ua, &cfg.browser_block) {
         ban::ban_ip(store, site_id, &ip, "browser", cfg.ban_duration);
+        // Log ban event
+        crate::admin::log_event(store, &crate::admin::EventLogEntry {
+            ts: crate::admin::now_ts(),
+            event: crate::admin::EventType::Ban,
+            ip: Some(ip.clone()),
+            reason: Some("browser".to_string()),
+            outcome: Some("banned".to_string()),
+            admin: None,
+        });
         return Response::new(403, "Blocked: Outdated browser");
     }
     // Geo-based escalation
     if geo::is_high_risk_geo(req, &cfg.geo_risk) {
+        // Log challenge event
+        crate::admin::log_event(store, &crate::admin::EventLogEntry {
+            ts: crate::admin::now_ts(),
+            event: crate::admin::EventType::Challenge,
+            ip: Some(ip.clone()),
+            reason: Some("geo_risk".to_string()),
+            outcome: Some("js challenge".to_string()),
+            admin: None,
+        });
         return js::inject_js_challenge(&ip);
     }
     Response::new(200, "OK (passed bot trap)")

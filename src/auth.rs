@@ -1,3 +1,11 @@
+/// Returns a simple admin identifier for event logging (e.g., 'admin' if authorized, '-' otherwise)
+pub fn get_admin_id(req: &Request) -> String {
+    if is_authorized(req) {
+        "admin".to_string()
+    } else {
+        "-".to_string()
+    }
+}
 // src/auth.rs
 // Simple API key authentication for admin endpoints
 // Checks for a static Bearer token in the Authorization header for admin access.
