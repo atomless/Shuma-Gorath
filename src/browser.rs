@@ -12,7 +12,7 @@ pub fn is_outdated_browser(user_agent: &str, block_list: &[(String, u32)]) -> bo
     false
 }
 
-fn extract_version(ua: &str, name: &str) -> Option<u32> {
+pub fn extract_version(ua: &str, name: &str) -> Option<u32> {
     let marker = format!("{}/", name);
     if let Some(idx) = ua.find(&marker) {
         let ver_str = &ua[idx + marker.len()..];

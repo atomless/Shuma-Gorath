@@ -139,20 +139,33 @@ This feature helps reduce false positives and allows legitimate users to regain 
 
 
 ### Configuration
-- Ban duration, rate limit, honeypot URLs, browser blocklist, geo risk, whitelist (with CIDR and comments), path-based whitelist for integrations/webhooks, and test mode are stored in edge KV and can be managed via future admin endpoints or direct KV updates.
+- Ban duration, rate limit, honeypot URLs, browser blocklist, **browser whitelist for JS challenge bypass**, geo risk, whitelist (with CIDR and comments), path-based whitelist for integrations/webhooks, and test mode are stored in edge KV and can be managed via future admin endpoints or direct KV updates.
 
 #### Whitelist Features
 - **IP/CIDR support:** Whitelist entries can be single IPs (e.g., `1.2.3.4`) or CIDR ranges (e.g., `192.168.0.0/24`).
 - **Inline comments:** Entries can include comments after a `#` (e.g., `10.0.0.0/8 # corp network`).
 - **Path-based whitelisting:** The `path_whitelist` config allows you to specify exact paths (e.g., `/webhook/stripe`) or wildcard prefixes (e.g., `/api/integration/*`) that should always bypass bot protections. Useful for trusted webhooks and integrations.
 
-Example config snippet:
+
+#### Browser Whitelist for JS Challenge Bypass
+
+You can specify browsers (by name and minimum version) that should bypass the JS challenge. This is useful for trusted automation, monitoring, or integrations that cannot solve JS challenges.
+
+Add a `browser_whitelist` array to your config, e.g.:
 ```json
 {
+	"browser_whitelist": [
+		["Chrome", 120],
+		["MyAutomationBot", 1]
+	],
 	"whitelist": ["1.2.3.4", "192.168.0.0/24 # office", "10.0.0.0/8 # corp"],
 	"path_whitelist": ["/webhook/stripe", "/api/integration/* # trusted integrations"]
 }
 ```
+
+- Each entry is `[browser_name, min_version]`.
+- If the User-Agent matches and version is >= min_version, the JS challenge is skipped for that request.
+- Example: Chrome/120+ or any version of MyAutomationBot will bypass JS challenge.
 
 #### Test Mode (Safe Deployment/Tuning)
 

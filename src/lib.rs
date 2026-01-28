@@ -183,8 +183,8 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
         });
         return quiz::serve_quiz(store, &ip);
     }
-    // JS verification
-    if path != "/health" && js::needs_js_verification(req, store, site_id, &ip) {
+    // JS verification (bypass for browser whitelist)
+    if path != "/health" && js::needs_js_verification_with_whitelist(req, store, site_id, &ip, &cfg.browser_whitelist) {
         // Log challenge event
         crate::admin::log_event(store, &crate::admin::EventLogEntry {
             ts: crate::admin::now_ts(),

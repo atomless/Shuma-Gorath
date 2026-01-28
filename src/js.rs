@@ -1,3 +1,18 @@
+/// Returns true if the request needs JS verification (no valid js_verified cookie),
+/// but bypasses challenge for whitelisted browsers.
+pub fn needs_js_verification_with_whitelist(req: &Request, _store: &Store, _site_id: &str, ip: &str, browser_whitelist: &[(String, u32)]) -> bool {
+    // Check for browser whitelist
+    let ua = req.header("user-agent").map(|v| v.as_str().unwrap_or("")).unwrap_or("");
+    for (name, min_version) in browser_whitelist {
+        if let Some(ver) = super::browser::extract_version(ua, name) {
+            if ver >= *min_version {
+                return false;
+            }
+        }
+    }
+    // Fallback to normal JS verification logic
+    needs_js_verification(req, _store, _site_id, ip)
+}
 // src/js.rs
 // JavaScript verification and quiz logic for WASM Bot Trap
 // Handles JS-based bot detection and challenge/response for suspicious clients.
