@@ -1,3 +1,4 @@
+mod block_page;
 #[cfg(test)]
 mod quiz_tests;
 #[cfg(test)]
@@ -154,7 +155,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
             outcome: Some("banned".to_string()),
             admin: None,
         });
-        return Response::new(403, "Blocked: Honeypot");
+        return Response::new(403, block_page::render_block_page(block_page::BlockReason::Honeypot));
     }
     // Rate limit: ban and hard block
     if !rate::check_rate_limit(store, site_id, &ip, cfg.rate_limit) {
@@ -168,7 +169,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
             outcome: Some("banned".to_string()),
             admin: None,
         });
-        return Response::new(429, "Blocked: Rate limit");
+        return Response::new(429, block_page::render_block_page(block_page::BlockReason::RateLimit));
     }
     // Ban: serve quiz if banned
     if ban::is_banned(store, site_id, &ip) {
@@ -208,7 +209,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
             outcome: Some("banned".to_string()),
             admin: None,
         });
-        return Response::new(403, "Blocked: Outdated browser");
+        return Response::new(403, block_page::render_block_page(block_page::BlockReason::OutdatedBrowser));
     }
     // Geo-based escalation
     if geo::is_high_risk_geo(req, &cfg.geo_risk) {
