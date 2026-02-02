@@ -25,6 +25,7 @@ mod whitelist;   // Whitelist logic
 mod honeypot;    // Honeypot endpoint logic
 mod admin;       // Admin API endpoints
 mod quiz;        // Interactive math quiz for banned users
+mod metrics;     // Prometheus metrics
 
 /// Main HTTP handler for the bot trap. This function is invoked for every HTTP request.
 /// It applies a series of anti-bot checks in order of cost and effectiveness, returning early on block/allow.
@@ -93,6 +94,14 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
         return Response::new(500, "Key-value store error");
     }
 
+    // Prometheus metrics endpoint
+    if path == "/metrics" {
+        if let Ok(store) = Store::open_default() {
+            return metrics::handle_metrics(&store);
+        }
+        return Response::new(500, "Key-value store error");
+    }
+
     let site_id = "default";
     let ip = extract_client_ip(req);
     let ua = req.header("user-agent").map(|v| v.as_str().unwrap_or("")).unwrap_or("");
@@ -105,20 +114,27 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
         return Response::new(200, "OK (bot trap: store unavailable, all checks bypassed)");
     }
     let store = store.as_ref().unwrap();
+
+    // Increment request counter
+    metrics::increment(store, metrics::MetricName::RequestsTotal, None);
+
     let cfg = config::Config::load(store, site_id);
 
     // Path-based whitelist (for webhooks/integrations)
     if whitelist::is_path_whitelisted(path, &cfg.path_whitelist) {
+        metrics::increment(store, metrics::MetricName::WhitelistedTotal, None);
         return Response::new(200, "OK (path whitelisted)");
     }
     // IP/CIDR whitelist
     if whitelist::is_whitelisted(&ip, &cfg.whitelist) {
+        metrics::increment(store, metrics::MetricName::WhitelistedTotal, None);
         return Response::new(200, "OK (whitelisted)");
     }
     // Test mode: log and allow all actions (no blocking, banning, or challenging)
     if cfg.test_mode {
         if honeypot::is_honeypot(path, &cfg.honeypots) {
             println!("[TEST MODE] Would ban IP {ip} for honeypot");
+            metrics::increment(store, metrics::MetricName::TestModeActions, None);
             crate::admin::log_event(store, &crate::admin::EventLogEntry {
                 ts: crate::admin::now_ts(),
                 event: crate::admin::EventType::Block,
@@ -131,6 +147,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
         }
         if !rate::check_rate_limit(store, site_id, &ip, cfg.rate_limit) {
             println!("[TEST MODE] Would ban IP {ip} for rate limit");
+            metrics::increment(store, metrics::MetricName::TestModeActions, None);
             crate::admin::log_event(store, &crate::admin::EventLogEntry {
                 ts: crate::admin::now_ts(),
                 event: crate::admin::EventType::Block,
@@ -143,6 +160,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
         }
         if ban::is_banned(store, site_id, &ip) {
             println!("[TEST MODE] Would serve quiz to banned IP {ip}");
+            metrics::increment(store, metrics::MetricName::TestModeActions, None);
             crate::admin::log_event(store, &crate::admin::EventLogEntry {
                 ts: crate::admin::now_ts(),
                 event: crate::admin::EventType::Block,
@@ -155,6 +173,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
         }
         if path != "/health" && js::needs_js_verification(req, store, site_id, &ip) {
             println!("[TEST MODE] Would inject JS challenge for IP {ip}");
+            metrics::increment(store, metrics::MetricName::TestModeActions, None);
             crate::admin::log_event(store, &crate::admin::EventLogEntry {
                 ts: crate::admin::now_ts(),
                 event: crate::admin::EventType::Challenge,
@@ -167,6 +186,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
         }
         if browser::is_outdated_browser(ua, &cfg.browser_block) {
             println!("[TEST MODE] Would ban IP {ip} for outdated browser");
+            metrics::increment(store, metrics::MetricName::TestModeActions, None);
             crate::admin::log_event(store, &crate::admin::EventLogEntry {
                 ts: crate::admin::now_ts(),
                 event: crate::admin::EventType::Block,
@@ -179,6 +199,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
         }
         if geo::is_high_risk_geo(req, &cfg.geo_risk) {
             println!("[TEST MODE] Would inject JS challenge for geo-risk IP {ip}");
+            metrics::increment(store, metrics::MetricName::TestModeActions, None);
             crate::admin::log_event(store, &crate::admin::EventLogEntry {
                 ts: crate::admin::now_ts(),
                 event: crate::admin::EventType::Challenge,
@@ -194,6 +215,8 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
     // Honeypot: ban and hard block
     if honeypot::is_honeypot(path, &cfg.honeypots) {
         ban::ban_ip(store, site_id, &ip, "honeypot", cfg.get_ban_duration("honeypot"));
+        metrics::increment(store, metrics::MetricName::BansTotal, Some("honeypot"));
+        metrics::increment(store, metrics::MetricName::BlocksTotal, None);
         // Log ban event
         crate::admin::log_event(store, &crate::admin::EventLogEntry {
             ts: crate::admin::now_ts(),
@@ -208,6 +231,8 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
     // Rate limit: ban and hard block
     if !rate::check_rate_limit(store, site_id, &ip, cfg.rate_limit) {
         ban::ban_ip(store, site_id, &ip, "rate", cfg.get_ban_duration("rate"));
+        metrics::increment(store, metrics::MetricName::BansTotal, Some("rate_limit"));
+        metrics::increment(store, metrics::MetricName::BlocksTotal, None);
         // Log ban event
         crate::admin::log_event(store, &crate::admin::EventLogEntry {
             ts: crate::admin::now_ts(),
@@ -221,6 +246,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
     }
     // Ban: always show block page if banned (no quiz)
     if ban::is_banned(store, site_id, &ip) {
+        metrics::increment(store, metrics::MetricName::BlocksTotal, None);
         // Log block event
         crate::admin::log_event(store, &crate::admin::EventLogEntry {
             ts: crate::admin::now_ts(),
@@ -234,6 +260,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
     }
     // JS verification (bypass for browser whitelist)
     if path != "/health" && js::needs_js_verification_with_whitelist(req, store, site_id, &ip, &cfg.browser_whitelist) {
+        metrics::increment(store, metrics::MetricName::ChallengesTotal, None);
         // Log challenge event
         crate::admin::log_event(store, &crate::admin::EventLogEntry {
             ts: crate::admin::now_ts(),
@@ -248,6 +275,8 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
     // Outdated browser
     if browser::is_outdated_browser(ua, &cfg.browser_block) {
         ban::ban_ip(store, site_id, &ip, "browser", cfg.get_ban_duration("browser"));
+        metrics::increment(store, metrics::MetricName::BansTotal, Some("browser"));
+        metrics::increment(store, metrics::MetricName::BlocksTotal, None);
         // Log ban event
         crate::admin::log_event(store, &crate::admin::EventLogEntry {
             ts: crate::admin::now_ts(),
@@ -261,6 +290,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
     }
     // Geo-based escalation
     if geo::is_high_risk_geo(req, &cfg.geo_risk) {
+        metrics::increment(store, metrics::MetricName::ChallengesTotal, None);
         // Log challenge event
         crate::admin::log_event(store, &crate::admin::EventLogEntry {
             ts: crate::admin::now_ts(),

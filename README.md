@@ -593,6 +593,78 @@ curl -s -H "Authorization: Bearer $API_KEY" http://localhost:3000/admin
 	environment = { API_KEY = "changeme-supersecret" }
 	```
 
+### Prometheus Metrics Endpoint
+
+The bot trap exports Prometheus-compatible metrics for integration with Grafana, Datadog, or any monitoring system that supports the Prometheus text format.
+
+#### Endpoint
+
+```
+GET /metrics
+```
+
+This endpoint requires no authentication (for Prometheus scraper compatibility) and returns metrics in Prometheus text format.
+
+#### Available Metrics
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `bot_trap_requests_total` | Counter | Total requests processed |
+| `bot_trap_bans_total{reason="..."}` | Counter | Bans issued by reason (honeypot, rate_limit, browser, admin) |
+| `bot_trap_blocks_total` | Counter | Requests blocked (403 responses) |
+| `bot_trap_challenges_total` | Counter | JS challenges served |
+| `bot_trap_whitelisted_total` | Counter | Requests bypassed via whitelist |
+| `bot_trap_test_mode_actions_total` | Counter | Actions logged in test mode |
+| `bot_trap_active_bans` | Gauge | Current number of active bans |
+| `bot_trap_test_mode_enabled` | Gauge | Whether test mode is enabled (0/1) |
+
+#### Example Response
+
+```
+# HELP bot_trap_requests_total Total requests processed by the bot trap
+# TYPE bot_trap_requests_total counter
+bot_trap_requests_total 1523
+
+# HELP bot_trap_bans_total Total bans issued
+# TYPE bot_trap_bans_total counter
+bot_trap_bans_total{reason="honeypot"} 42
+bot_trap_bans_total{reason="rate_limit"} 18
+bot_trap_bans_total{reason="browser"} 5
+bot_trap_bans_total{reason="admin"} 3
+
+# HELP bot_trap_blocks_total Total requests blocked
+# TYPE bot_trap_blocks_total counter
+bot_trap_blocks_total 68
+
+# HELP bot_trap_active_bans Current number of active bans
+# TYPE bot_trap_active_bans gauge
+bot_trap_active_bans 12
+
+# HELP bot_trap_test_mode_enabled Whether test mode is enabled
+# TYPE bot_trap_test_mode_enabled gauge
+bot_trap_test_mode_enabled 0
+```
+
+#### Grafana Integration
+
+Add the bot trap as a Prometheus scrape target:
+
+```yaml
+# prometheus.yml
+scrape_configs:
+  - job_name: 'wasm-bot-trap'
+    static_configs:
+      - targets: ['your-bot-trap-domain:3000']
+    metrics_path: /metrics
+    scrape_interval: 15s
+```
+
+Create Grafana dashboards to visualize:
+- Request rate and block rate over time
+- Ban reasons breakdown (pie chart)
+- Active bans trend
+- Test mode status
+
 
 ### Interactive Quiz for Banned Users
 

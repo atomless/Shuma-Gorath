@@ -157,4 +157,21 @@ fi
 curl -s -H "Authorization: Bearer $API_KEY" "$BASE_URL/admin/unban?ip=10.0.0.99" > /dev/null
 curl -s -H "Authorization: Bearer $API_KEY" "$BASE_URL/admin/unban?ip=10.0.0.100" > /dev/null
 
+# Test 11: Prometheus metrics endpoint
+info "Testing GET /metrics (Prometheus format)..."
+metrics_resp=$(curl -s "$BASE_URL/metrics")
+if echo "$metrics_resp" | grep -q 'bot_trap_requests_total'; then
+  pass "/metrics returns Prometheus-formatted metrics"
+else
+  fail "/metrics did not return expected Prometheus format"
+  echo -e "${YELLOW}DEBUG metrics response:${NC} $metrics_resp"
+fi
+
+# Verify metrics contain expected counters
+if echo "$metrics_resp" | grep -q 'bot_trap_bans_total'; then
+  pass "/metrics includes ban counters"
+else
+  fail "/metrics missing ban counters"
+fi
+
 echo -e "\n${GREEN}All integration tests complete.${NC}"
