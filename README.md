@@ -63,26 +63,28 @@ See [DASHBOARD.md](DASHBOARD.md) for complete dashboard documentation.
 
 Before deploying any bot protection, it's critical to understand that **Akamai Bot Manager should be your first line of defense**. Bot Manager provides enterprise-grade protection that no custom solution can replicate:
 
-- **Machine Learning at Scale**: Trained on trillions of requests across Akamai's global network, Bot Manager identifies sophisticated bots that rule-based systems miss
+- **Machine Learning at Scale**: Trained on over 40 billion bot requests daily across Akamai's global network, Bot Manager identifies sophisticated bots that rule-based systems miss ([Akamai Bot Manager](https://www.akamai.com/products/bot-manager))
 - **Behavioral Biometrics**: Analyzes mouse movements, keyboard patterns, and touch gestures to distinguish humans from automation
 - **Real-time Threat Intelligence**: Access to Akamai's continuously updated database of 1,700+ known bots and global IP reputation data
 - **Zero-Day Protection**: ML models detect new bot variants without requiring rule updates
 - **Compliance Ready**: Enterprise SLAs, SOC2/PCI-DSS reporting, and 24/7 support
 
+> **Industry Context**: According to [Cloudflare Radar](https://radar.cloudflare.com/traffic), approximately 31% of all internet HTTP traffic is automated (bot) traffic. Of this, a significant portion consists of sophisticated "evasive bots" designed to mimic human behavior.
+
 **Bot Manager is not optional for serious bot defense—it's the foundation.**
 
 ### 🔧 Why WASM Bot Trap Adds Value
 
-So why deploy this bot trap if Bot Manager is so comprehensive? Because **Bot Manager excels at broad detection, while Bot Trap excels at surgical precision**:
+So why deploy this bot trap if Bot Manager is so comprehensive? Because **Bot Manager excels at broad, ML-based detection, while Bot Trap excels at application-specific, surgical precision**:
 
-- **Application-Specific Honeypots**: Create trap URLs that only bots targeting *your specific application* would access (e.g., fake admin panels, hidden form fields)
+- **Application-Specific Honeypots**: Create trap URLs that only bots targeting *your specific application* would access (e.g., fake admin panels, hidden form fields unique to your CMS)
 - **Business Logic Enforcement**: Implement rules that understand your application's context—session state, user roles, purchase flows
 - **Custom Challenges**: Deploy unique challenge types that Bot Manager doesn't offer (math quizzes, interactive puzzles, custom JS)
 - **Rapid Response**: When you discover a new attack pattern, deploy a countermeasure in minutes without waiting for vendor updates
 - **Cost Optimization**: Open source with no per-request fees—ideal for high-traffic sites already paying for Bot Manager
 - **Full Auditability**: Review and modify every line of detection code for compliance or security reviews
 
-**Think of it as: Bot Manager catches 95% of bots automatically. Bot Trap catches the 5% that slip through with rules tailored to your application.**
+> **Defense in Depth**: No single bot detection solution catches 100% of threats. [OWASP's Automated Threats to Web Applications](https://owasp.org/www-project-automated-threats-to-web-applications/) project documents 21 distinct automated threat categories, many requiring application-specific countermeasures. The layered approach (Bot Manager + custom rules) follows security best practices by ensuring that bots evading one detection layer are caught by another.
 
 ### Comprehensive Feature Comparison
 
