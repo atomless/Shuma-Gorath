@@ -718,19 +718,6 @@ input:checked + .toggle-slider:before {
 }
 
 /* Maze Admin Controls */
-.maze-control-group {
-  background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
-  color: white;
-}
-
-.maze-control-group h3 {
-  color: white;
-}
-
-.maze-control-group .control-desc {
-  color: rgba(255, 255, 255, 0.8);
-}
-
 .maze-admin-controls {
   display: flex;
   flex-direction: column;
@@ -748,35 +735,24 @@ input:checked + .toggle-slider:before {
 .maze-admin-label {
   min-width: 100px;
   font-size: 0.9rem;
+  color: #374151;
 }
 
 .maze-threshold-row input {
   width: 80px;
   padding: 8px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid #d1d5db;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.15);
-  color: white;
+  background: white;
   font-size: 1rem;
-  font-weight: 600;
 }
 
 .maze-threshold-row input:focus {
   outline: none;
-  border-color: #a78bfa;
-  background: rgba(255, 255, 255, 0.25);
+  border-color: #3b82f6;
 }
 
 .threshold-unit {
   font-size: 0.85rem;
-  opacity: 0.7;
-}
-
-.maze-control-group button {
-  background: #a78bfa;
-  margin-top: 10px;
-}
-
-.maze-control-group button:hover {
-  background: #8b5cf6;
+  color: #6b7280;
 }
