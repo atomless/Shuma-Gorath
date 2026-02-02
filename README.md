@@ -1,4 +1,4 @@
-# WASM Stealth Bot Trap (Fermyon Spin)
+# WASM Stealth Bot Trap (For Fermyon Spin)
 
 This project implements a customizable, behavior-based bot defense system designed for **Fermyon Spin**, running WebAssembly at the edge for ultra-low latency bot protection.
 
