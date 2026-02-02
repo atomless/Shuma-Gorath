@@ -2,7 +2,21 @@
 
 This project implements a customizable, behavior-based bot defense system designed for **Fermyon Spin**, running WebAssembly at the edge for ultra-low latency bot protection.
 
-## 🚀 Primary Platform: Fermyon Cloud (Edge WASM)
+## � Documentation
+
+| Document | Description |
+|----------|-------------|
+| [README.md](README.md) | Project overview, features, deployment, and configuration |
+| [QUICK_REFERENCE.md](QUICK_REFERENCE.md) | Cheat sheet for common commands and tasks |
+| [TESTING.md](TESTING.md) | Complete testing guide (unit, integration, dashboard) |
+| [DASHBOARD.md](DASHBOARD.md) | Dashboard features, API endpoints, and usage |
+| [dashboard/README.md](dashboard/README.md) | Dashboard development notes |
+
+> **Archive**: Historical documents (code reviews, improvement notes) are in [docs/archive/](docs/archive/)
+
+---
+
+## �🚀 Primary Platform: Fermyon Cloud (Edge WASM)
 
 This bot trap is **primarily built and tested for deployment on Fermyon Cloud**. Fermyon Spin enables serverless WebAssembly execution at the edge, providing:
 
