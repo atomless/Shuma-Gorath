@@ -46,58 +46,6 @@
       </div>
     </div>
 
-    <!-- Maze Activity Section -->
-    <div class="section maze-section">
-      <h2>🕸️ Link Maze Honeypot</h2>
-      <p class="section-desc">Crawlers trapped in infinite fake pages</p>
-      <div class="maze-stats">
-        <div class="maze-stat">
-          <span class="maze-label">Total Hits</span>
-          <span class="maze-value" id="maze-total-hits">-</span>
-        </div>
-        <div class="maze-stat">
-          <span class="maze-label">Unique Crawlers</span>
-          <span class="maze-value" id="maze-unique-crawlers">-</span>
-        </div>
-        <div class="maze-stat">
-          <span class="maze-label">Auto-Banned</span>
-          <span class="maze-value" id="maze-auto-bans">-</span>
-        </div>
-      </div>
-      <div class="maze-controls">
-        <div class="maze-control-row">
-          <div class="maze-control">
-            <label>Maze Enabled</label>
-            <label class="toggle-switch maze-toggle">
-              <input type="checkbox" id="maze-enabled-toggle" checked>
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="maze-control">
-            <label>Auto-Ban</label>
-            <label class="toggle-switch maze-toggle">
-              <input type="checkbox" id="maze-auto-ban-toggle" checked>
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="maze-control">
-            <label>Ban Threshold</label>
-            <div class="threshold-input">
-              <input type="number" id="maze-threshold" value="50" min="5" max="500">
-              <span class="threshold-label">pages</span>
-            </div>
-          </div>
-          <button id="save-maze-config" class="maze-save-btn">💾 Save</button>
-        </div>
-      </div>
-      <div class="maze-crawlers">
-        <h3>🤖 Top Crawlers in Maze</h3>
-        <div class="crawler-list" id="maze-crawler-list">
-          <p class="no-data">No crawlers in maze yet</p>
-        </div>
-      </div>
-    </div>
-
     <!-- Charts Row -->
     <div class="charts-row">
       <div class="chart-container">
@@ -143,6 +91,32 @@
       </table>
     </div>
 
+    <!-- Maze Activity Section -->
+    <div class="section maze-section">
+      <h2>🕸️ Link Maze Honeypot</h2>
+      <p class="section-desc">Crawlers trapped in infinite fake pages</p>
+      <div class="maze-stats">
+        <div class="maze-stat">
+          <span class="maze-label">Total Hits</span>
+          <span class="maze-value" id="maze-total-hits">-</span>
+        </div>
+        <div class="maze-stat">
+          <span class="maze-label">Unique Crawlers</span>
+          <span class="maze-value" id="maze-unique-crawlers">-</span>
+        </div>
+        <div class="maze-stat">
+          <span class="maze-label">Auto-Banned</span>
+          <span class="maze-value" id="maze-auto-bans">-</span>
+        </div>
+      </div>
+      <div class="maze-crawlers">
+        <h3>🤖 Top Crawlers in Maze</h3>
+        <div class="crawler-list" id="maze-crawler-list">
+          <p class="no-data">No crawlers in maze yet</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Admin Controls -->
     <div class="section admin-controls">
       <h2>⚙️ Admin Controls</h2>
@@ -178,6 +152,32 @@
           <h3>Unban IP</h3>
           <input id="unban-ip" type="text" placeholder="IP address" />
           <button id="unban-btn">✅ Unban</button>
+        </div>
+        <div class="control-group maze-control-group">
+          <h3>🕸️ Link Maze</h3>
+          <p class="control-desc">Honeypot trap for crawlers</p>
+          <div class="maze-admin-controls">
+            <div class="maze-toggle-row">
+              <label class="maze-admin-label">Maze Enabled</label>
+              <label class="toggle-switch">
+                <input type="checkbox" id="maze-enabled-toggle" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="maze-toggle-row">
+              <label class="maze-admin-label">Auto-Ban</label>
+              <label class="toggle-switch">
+                <input type="checkbox" id="maze-auto-ban-toggle" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="maze-threshold-row">
+              <label class="maze-admin-label">Ban Threshold</label>
+              <input type="number" id="maze-threshold" value="50" min="5" max="500">
+              <span class="threshold-unit">pages</span>
+            </div>
+          </div>
+          <button id="save-maze-config">💾 Save Maze Settings</button>
         </div>
       </div>
       <div id="admin-msg" class="message"></div>
