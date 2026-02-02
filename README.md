@@ -1,21 +1,32 @@
 # WASM Stealth Bot Trap (Fermyon Spin)
 
-This project implements a customizable, behavior-based bot defense system for deployment at the edge using Fermyon Spin and WebAssembly.
+This project implements a customizable, behavior-based bot defense system designed for **Akamai's Fermyon platform**, running WebAssembly at the edge for ultra-low latency bot protection.
+
+## 🚀 Primary Platform: Akamai Fermyon (Edge WASM)
+
+This bot trap is **primarily built and tested for deployment on Akamai's Fermyon edge compute platform**. Fermyon Spin enables serverless WebAssembly execution at the edge, providing:
+
+- **Ultra-low latency**: WASM executes in microseconds at edge locations worldwide
+- **Global distribution**: Automatic deployment to Akamai's edge network
+- **Serverless scale**: No infrastructure management, automatic scaling
+- **Integrated KV storage**: Edge key-value store for ban lists, rate limits, and configuration
 
 ## Structure
 - `src/`: Rust source code for the Spin app
-- `spin.toml`: Spin app manifest
+- `spin.toml`: Spin app manifest (primary deployment config)
 - `README.md`: Project overview and setup
 - `.gitignore`: Standard ignores
 
-## Quick Start
+---
+
+## Quick Start (Local Development)
 
 ### Prerequisites
 1. Install [Spin](https://developer.fermyon.com/spin/install)
 2. Install Rust with wasm32-wasip1 target: `rustup target add wasm32-wasip1`
 
 ### Build and Run (Makefile)
-The easiest way to build and run:
+The easiest way to build and run locally:
 ```sh
 make local    # Build, clean, and start local server
 make prod     # Build for production and start server
@@ -44,16 +55,85 @@ The dashboard provides:
 
 See [DASHBOARD.md](DASHBOARD.md) for complete dashboard documentation.
 
-### Deploy
-Deploy to Fermyon Cloud or any Spin-compatible platform as needed.
+---
+
+## 🎯 Production Deployment: Akamai Fermyon Cloud
+
+### Deploy to Akamai Fermyon
+
+**Step 1: Build for Production**
+```sh
+make prod
+# or manually:
+cargo build --target wasm32-wasip1 --release
+cp target/wasm32-wasip1/release/wasm_bot_trap.wasm src/bot_trap.wasm
+```
+
+**Step 2: Configure Environment Variables**
+Update `spin.toml` with production settings:
+```toml
+[component.bot-trap]
+environment = { 
+  API_KEY = "your-secure-production-api-key",
+  TEST_MODE = "0"
+}
+```
+
+**Step 3: Deploy to Fermyon Cloud**
+```sh
+# Login to Fermyon Cloud (one-time setup)
+spin cloud login
+
+# Deploy the application
+spin cloud deploy
+
+# Your app will be available at: https://your-app.fermyon.app
+```
+
+**Step 4: Configure Custom Domain (Optional)**
+```sh
+spin cloud link --domain your-domain.example.com
+```
+
+### Akamai Edge Integration
+
+When deployed on Akamai's Fermyon platform, the bot trap automatically benefits from:
+
+1. **Edge Execution**: WASM runs at the nearest Akamai edge location
+2. **Global KV Store**: Ban lists and configuration sync across all edge locations
+3. **X-Forwarded-For Header**: Akamai's edge automatically sets proper client IP headers
+4. **Edge Caching**: Static dashboard assets can be cached at the edge
+
+**Architecture:**
+```
+Internet → Akamai Edge → Fermyon Spin App (WASM)
+                         ↓
+                    Edge KV Store
+                    (bans, config, rate limits)
+```
+
+### Monitoring Production Deployment
+
+```sh
+# View deployment logs
+spin cloud logs
+
+# Check application status
+spin cloud apps info
+
+# View metrics
+spin cloud apps metrics
+```
 
 ---
 
-## Production Deployment & Security
+## Alternative Deployments: CDN/Reverse Proxy Integration
+
+While **Akamai Fermyon is the primary deployment target**, the bot trap can also work behind other CDN/proxy configurations for existing infrastructure.
 
 ### ⚠️ Important: Infrastructure-Level Protection Required
 
-When deploying to production, the bot trap **must** be deployed behind a CDN or reverse proxy that sets the `X-Forwarded-For` header. This is critical for proper IP detection and security.
+When deploying outside Akamai Fermyon, the bot trap **must** be deployed behind a CDN or reverse proxy that sets the `X-Forwarded-For` header. This is critical for proper IP detection and security.
 
 **Required Setup:**
 - **CDN/Reverse Proxy**: Cloudflare, AWS CloudFront, Fastly, or similar
@@ -69,17 +149,19 @@ When deploying to production, the bot trap **must** be deployed behind a CDN or 
 - Direct origin access bypasses CDN protection and may allow attackers to hide their real IP
 - The `/health` endpoint allows "unknown" IPs for local development convenience, but in production should be restricted at infrastructure level
 
-**Example: Cloudflare Setup**
+### Alternative: Cloudflare Setup
 ```
-Internet → Cloudflare CDN → Your Spin App
+Internet → Cloudflare CDN → Your Spin App (self-hosted)
           (Sets X-Forwarded-For)
 ```
 
-**Example: AWS Setup**
+### Alternative: AWS Setup
 ```
-Internet → CloudFront → ALB/API Gateway → Your Spin App
+Internet → CloudFront → ALB/API Gateway → Your Spin App (self-hosted)
           (Sets X-Forwarded-For)
 ```
+
+**Note:** These setups require self-hosting the Spin application. For fully managed deployment, use Akamai Fermyon Cloud.
 
 **Health Endpoint Security:**
 The `/health` endpoint is accessible to IPs detected as "unknown" to support local development. In production:
@@ -91,7 +173,7 @@ The `/health` endpoint is accessible to IPs detected as "unknown" to support loc
 - Change the default API key (`changeme-supersecret`) immediately
 - Store API key in environment variable, not in code
 - Restrict `/admin/*` endpoints via CDN rules to admin IPs only
-- Use HTTPS in production (handled by CDN)
+- Use HTTPS in production (handled by CDN/Fermyon Cloud)
 - Consider adding additional authentication layers (OAuth, JWT, etc.)
 
 ---
