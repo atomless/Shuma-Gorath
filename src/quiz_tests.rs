@@ -37,33 +37,48 @@ mod tests {
         let key = format!("quiz:{}", ip);
         let val = store.get(&key).unwrap().expect("Quiz answer should be stored");
         let stored = String::from_utf8(val).unwrap();
-        let answer_str = stored.split(':').next().unwrap();
+        let mut parts = stored.split(':');
+        let answer_str = parts.next().unwrap();
+        let qtype = parts.next().unwrap_or("");
         let answer: u32 = answer_str.parse().unwrap();
-        assert!(answer >= 4 && answer <= 198); // 2*2 to 99+99
+        match qtype {
+            "add" => assert!(answer >= 20 && answer <= 198, "add: {} not in 20..=198", answer),
+            "sub" => assert!(answer <= 89, "sub: {} not in 0..=89", answer),
+            "mul" => assert!(answer >= 4 && answer <= 144, "mul: {} not in 4..=144", answer),
+            _ => panic!("Unknown quiz type: {}", qtype),
+        }
     }
 
     #[test]
     fn test_handle_quiz_submit_correct_and_incorrect() {
         let store = TestStore::default();
         let ip = "1.2.3.4";
-        let answer = 42;
-        let key = format!("quiz:{}", ip);
-        store.set(&key, answer.to_string().as_bytes()).unwrap();
-        // Correct answer
-        let body = format!("answer=42&ip={}", ip);
-        let req = Request::builder()
-            .method(Method::Post)
-            .uri("/quiz")
-            .header("content-type", "application/x-www-form-urlencoded")
-            .body(body.as_bytes().to_vec())
-            .build();
-        let resp = handle_quiz_submit(&store, &req);
-        assert_eq!(*resp.status(), 200u16);
-        assert!(resp.body().windows(b"Thank you!".len()).any(|w| w == b"Thank you!"));
-        // Should have deleted the quiz key
-        assert!(store.get(&key).unwrap().is_none());
+        // Test all quiz formats: add, sub, mul
+        let cases = vec![
+            ("75:sub", "75"),
+            ("33:add", "33"),
+            ("144:mul", "144"),
+            ("007:add", "7"), // leading zero
+        ];
+        for (stored, submitted) in &cases {
+            let key = format!("quiz:{}", ip);
+            store.set(&key, stored.as_bytes()).unwrap();
+            let body = format!("answer={}&ip={}", submitted, ip);
+            let req = Request::builder()
+                .method(Method::Post)
+                .uri("/quiz")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .body(body.as_bytes().to_vec())
+                .build();
+            let resp = handle_quiz_submit(&store, &req);
+            assert_eq!(*resp.status(), 200u16, "Should accept correct answer for stored={:?} submitted={:?}", stored, submitted);
+            assert!(resp.body().windows(b"Thank you!".len()).any(|w| w == b"Thank you!"));
+            // Should have deleted the quiz key
+            assert!(store.get(&key).unwrap().is_none());
+        }
         // Incorrect answer
-        store.set(&key, answer.to_string().as_bytes()).unwrap();
+        let key = format!("quiz:{}", ip);
+        store.set(&key, b"42:add").unwrap();
         let body = format!("answer=99&ip={}", ip);
         let req = Request::builder()
             .method(Method::Post)

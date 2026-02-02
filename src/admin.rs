@@ -22,6 +22,12 @@ pub struct EventLogEntry {
 }
 
 /// Append an event to the event log (simple append-only, time-bucketed by hour)
+/// 
+/// TODO: Implement data retention policy
+/// - Add configurable retention period (e.g., 90 days)
+/// - Create background cleanup job to periodically remove old event buckets
+/// - Consider adding admin endpoint to manually trigger cleanup
+/// - Example: Delete keys matching "eventlog:*" where hour < (now - retention_period)
 pub fn log_event(store: &Store, entry: &EventLogEntry) {
     let hour = entry.ts / 3600;
     let key = format!("eventlog:{}", hour);
@@ -53,10 +59,12 @@ fn sanitize_path(path: &str) -> bool {
 
 /// Handles all /admin API endpoints. Requires valid API key in Authorization header.
 /// Supports:
-///   - /admin/ban: List all bans for the site
-///   - /admin/unban?ip=...: Remove a ban for an IP
-///   - /admin/analytics: Return ban count
-///   - /admin: API help
+///   - GET /admin/ban: List all bans for the site
+///   - POST /admin/ban: Manually ban an IP (expects JSON body: {"ip": "1.2.3.4", "reason": "...", "duration": 3600})
+///   - POST /admin/unban?ip=...: Remove a ban for an IP
+///   - GET /admin/analytics: Return ban count
+///   - GET /admin/events: Query event log
+///   - GET /admin: API help
 pub fn handle_admin(req: &Request) -> Response {
     // Require valid API key
     if !crate::auth::is_authorized(req) {
@@ -120,7 +128,35 @@ pub fn handle_admin(req: &Request) -> Response {
                     Response::new(200, body)
                 }
         "/admin/ban" => {
-            // List all bans for this site (keys starting with ban:site_id:)
+            // POST: Manually ban an IP
+            if *req.method() == spin_sdk::http::Method::Post {
+                let body = String::from_utf8_lossy(req.body());
+                let parsed: Result<serde_json::Value, _> = serde_json::from_str(&body);
+                if let Ok(json) = parsed {
+                    if let (Some(ip), reason, duration) = (
+                        json.get("ip").and_then(|v| v.as_str()),
+                        json.get("reason").and_then(|v| v.as_str()).unwrap_or("admin_ban"),
+                        json.get("duration").and_then(|v| v.as_u64()).unwrap_or(21600),
+                    ) {
+                        crate::ban::ban_ip(&store, site_id, ip, reason, duration);
+                        // Log ban event
+                        log_event(&store, &EventLogEntry {
+                            ts: now_ts(),
+                            event: EventType::Ban,
+                            ip: Some(ip.to_string()),
+                            reason: Some(reason.to_string()),
+                            outcome: Some("banned".to_string()),
+                            admin: Some(crate::auth::get_admin_id(req)),
+                        });
+                        return Response::new(200, json!({"status": "banned", "ip": ip}).to_string());
+                    } else {
+                        return Response::new(400, "Missing 'ip' field in request body");
+                    }
+                } else {
+                    return Response::new(400, "Invalid JSON in request body");
+                }
+            }
+            // GET: List all bans for this site (keys starting with ban:site_id:)
             let mut bans = vec![];
             if let Ok(keys) = store.get_keys() {
                 for k in keys {

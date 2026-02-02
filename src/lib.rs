@@ -66,9 +66,9 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
     };
     let path = req.path();
 
-    // Health check endpoint
+    // Health check endpoint (accessible from localhost/browser)
     if path == "/health" {
-        let allowed = ["127.0.0.1", "::1"];
+        let allowed = ["127.0.0.1", "::1", "unknown"];
         let ip = extract_client_ip(req);
         if !allowed.contains(&ip.as_str()) {
             return Response::new(403, "Forbidden");
@@ -171,18 +171,18 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
         });
         return Response::new(429, block_page::render_block_page(block_page::BlockReason::RateLimit));
     }
-    // Ban: serve quiz if banned
+    // Ban: always show block page if banned (no quiz)
     if ban::is_banned(store, site_id, &ip) {
-        // Log challenge event
+        // Log block event
         crate::admin::log_event(store, &crate::admin::EventLogEntry {
             ts: crate::admin::now_ts(),
-            event: crate::admin::EventType::Challenge,
+            event: crate::admin::EventType::Ban,
             ip: Some(ip.clone()),
             reason: Some("banned".to_string()),
-            outcome: Some("quiz served".to_string()),
+            outcome: Some("block page".to_string()),
             admin: None,
         });
-        return quiz::serve_quiz(store, &ip);
+        return Response::new(403, block_page::render_block_page(block_page::BlockReason::Honeypot));
     }
     // JS verification (bypass for browser whitelist)
     if path != "/health" && js::needs_js_verification_with_whitelist(req, store, site_id, &ip, &cfg.browser_whitelist) {

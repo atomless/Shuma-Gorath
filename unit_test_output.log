@@ -1,31 +1,28 @@
 
 running 13 tests
-test whitelist_path_tests::tests::test_empty_and_comment_only_lines ... ok
 test whitelist_path_tests::tests::test_exact_path_match ... ok
+test whitelist_path_tests::tests::test_empty_and_comment_only_lines ... ok
+test ban_tests::tests::test_ban_and_expiry ... ok
 test ban_tests::tests::test_ban_entry_serialization ... ok
 test whitelist_path_tests::tests::test_inline_comment_and_whitespace ... ok
-test ban_tests::tests::test_ban_and_expiry ... ok
-test ban_tests::tests::test_ban_and_unban_unknown_ip ... ok
-test quiz_tests::tests::test_handle_quiz_submit_correct_and_incorrect ... ok
 test whitelist_path_tests::tests::test_prefix_wildcard_match ... ok
 test quiz_tests::tests::test_serve_quiz_stores_answer ... ok
 test whitelist_tests::tests::test_cidr_match ... ok
 test whitelist_tests::tests::test_empty_and_comment_only_lines ... ok
+test quiz_tests::tests::test_handle_quiz_submit_correct_and_incorrect ... ok
+test ban_tests::tests::test_ban_and_unban_unknown_ip ... ok
 test whitelist_tests::tests::test_exact_ip_match ... ok
 test whitelist_tests::tests::test_inline_comment_and_whitespace ... ok
 
 test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
 
-running 6 tests
-test test_admin_unauthorized ... ignored
-test test_honeypot ... ignored
-test test_whitelisted_ip ... ignored
+running 3 tests
 test test_banned_ip ... ok
-test test_js_challenge ... ok
 test test_rate_limit ... ok
+test test_js_challenge ... ok
 
-test result: ok. 3 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
 
 running 0 tests

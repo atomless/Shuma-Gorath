@@ -27,14 +27,17 @@ use percent_encoding;
 use rand::prelude::*;
 
 const QUIZ_PREFIX: &str = "quiz:";
-const QUESTION_TYPES: &[&str] = &["add", "sub", "mul"];
 
 /// Generates a random math challenge (add, sub, mul) and stores the answer and question type in KV for the IP.
+/// NOTE: This function is currently unused - banned users now see block page directly.
+/// Kept for potential future use if quiz-on-ban is re-enabled.
+#[allow(dead_code)]
 pub fn serve_quiz<S: KeyValueStore>(store: &S, ip: &str) -> Response {
     let mut rng = rand::rng();
     let a: u32 = rng.random_range(10..=99);
     let b: u32 = rng.random_range(10..=99);
-    let qtype = *QUESTION_TYPES.choose(&mut rng).unwrap_or(&"add");
+    let question_types = ["add", "sub", "mul"];
+    let qtype = *question_types.choose(&mut rng).unwrap_or(&"add");
     let (question, answer) = match qtype {
         "add" => (format!("{a} + {b}"), a + b),
         "sub" => {
@@ -85,12 +88,15 @@ pub fn handle_quiz_submit<S: KeyValueStore>(store: &S, req: &Request) -> Respons
             if let Ok(stored) = String::from_utf8(val) {
                 let mut parts = stored.splitn(2, ':');
                 if let (Some(expected), _) = (parts.next(), parts.next()) {
-                    if answer == expected {
-                        // Unban the IP
-                        let ban_key = format!("ban:default:{}", ip);
-                        let _ = store.delete(&ban_key);
-                        let _ = store.delete(&key);
-                        return Response::new(200, "<html><body><h2>Thank you! You are unbanned. Please reload the page.</h2></body></html>");
+                    // Compare as integers for robustness
+                    if let (Ok(expected_num), Ok(answer_num)) = (expected.trim().parse::<i64>(), answer.trim().parse::<i64>()) {
+                        if answer_num == expected_num {
+                            // Unban the IP
+                            let ban_key = format!("ban:default:{}", ip);
+                            let _ = store.delete(&ban_key);
+                            let _ = store.delete(&key);
+                            return Response::new(200, "<html><body><h2>Thank you! You are unbanned. Please reload the page.</h2></body></html>");
+                        }
                     }
                 }
             }

@@ -1,0 +1,8 @@
+[package]
+name = "bot_trap"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wasm_bot_trap = { path = ".." }
+spin-sdk = "2.2.0"

@@ -53,6 +53,12 @@ pub fn ban_ip(store: &impl KeyValueStore, site_id: &str, ip: &str, reason: &str,
     }
 }
 
+/// Unbans an IP for a given site by removing its ban entry from the key-value store.
+pub fn unban_ip(store: &impl KeyValueStore, site_id: &str, ip: &str) {
+    let key = format!("ban:{}:{}", site_id, ip);
+    let _ = store.delete(&key);
+}
+
 /// Returns the current UNIX timestamp in seconds (used for ban expiry).
 fn now_ts() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()

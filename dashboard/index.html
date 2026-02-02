@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bot Trap Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>🛡️ Bot Trap Dashboard</h1>
+      <p class="subtitle">Real-time bot detection and ban management</p>
+    </header>
+
+    <div class="config">
+      <label>API Endpoint: <input id="endpoint" value="http://127.0.0.1:3000" size="30"></label>
+      <label>API Key: <input id="apikey" value="changeme-supersecret" size="30" type="password"></label>
+      <button id="refresh">🔄 Refresh</button>
+      <span id="last-updated"></span>
+    </div>
+
+    <!-- Stats Summary Cards -->
+    <div class="stats-cards">
+      <div class="card">
+        <h3>Total Bans</h3>
+        <div class="stat-value" id="total-bans">-</div>
+      </div>
+      <div class="card">
+        <h3>Active Bans</h3>
+        <div class="stat-value" id="active-bans">-</div>
+      </div>
+      <div class="card">
+        <h3>Events (24h)</h3>
+        <div class="stat-value" id="total-events">-</div>
+      </div>
+      <div class="card">
+        <h3>Unique IPs</h3>
+        <div class="stat-value" id="unique-ips">-</div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-row">
+      <div class="chart-container">
+        <h2>Event Types (24h)</h2>
+        <canvas id="eventTypesChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h2>Top 10 IPs by Events</h2>
+        <canvas id="topIpsChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Events Over Time -->
+    <div class="section">
+      <div class="chart-header">
+        <h2>📊 Events Over Time</h2>
+        <div class="time-range-buttons">
+          <button class="time-btn active" data-range="hour">60 Mins</button>
+          <button class="time-btn" data-range="day">24 Hours</button>
+          <button class="time-btn" data-range="week">7 Days</button>
+          <button class="time-btn" data-range="month">30 Days</button>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="timeSeriesChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Ban List -->
+    <div class="section">
+      <h2>📋 Current Bans</h2>
+      <table id="bans-table">
+        <thead>
+          <tr>
+            <th>IP Address</th>
+            <th>Reason</th>
+            <th>Banned At</th>
+            <th>Expires</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Admin Controls -->
+    <div class="section admin-controls">
+      <h2>⚙️ Admin Controls</h2>
+      <div class="controls-grid">
+        <div class="control-group">
+          <h3>Ban IP</h3>
+          <input id="ban-ip" type="text" placeholder="IP address" />
+          <input id="ban-reason" type="text" placeholder="Reason (optional)" value="manual_ban" />
+          <input id="ban-duration" type="number" placeholder="Duration (seconds)" value="3600" />
+          <button id="ban-btn">🚫 Ban</button>
+        </div>
+        <div class="control-group">
+          <h3>Unban IP</h3>
+          <input id="unban-ip" type="text" placeholder="IP address" />
+          <button id="unban-btn">✅ Unban</button>
+        </div>
+      </div>
+      <div id="admin-msg" class="message"></div>
+    </div>
+
+    <!-- Recent Events -->
+    <div class="section events">
+      <h2>📊 Recent Events (Last 100)</h2>
+      <div class="table-wrapper">
+        <table id="events">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Type</th>
+              <th>IP</th>
+              <th>Reason</th>
+              <th>Outcome</th>
+              <th>Admin</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+  <script src="dashboard.js"></script>
+  <script src="admin.js"></script>
+</body>
+
+</html>

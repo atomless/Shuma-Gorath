@@ -20,12 +20,18 @@ fn get_admin_api_key() -> String {
 }
 
 /// Returns true if the request contains a valid admin API key in the Authorization header.
+/// Uses constant-time comparison to prevent timing attacks.
 pub fn is_authorized(req: &Request) -> bool {
     if let Some(header) = req.header("authorization") {
         let val = header.as_str().unwrap_or("");
         let expected = format!("Bearer {}", get_admin_api_key());
-        if val == expected {
-            return true;
+        // Use constant-time comparison to prevent timing attacks
+        if val.len() == expected.len() {
+            let mut result = 0u8;
+            for (a, b) in val.bytes().zip(expected.bytes()) {
+                result |= a ^ b;
+            }
+            return result == 0;
         }
     }
     false
