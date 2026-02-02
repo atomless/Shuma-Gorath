@@ -51,6 +51,14 @@ pub struct Config {
     pub whitelist: Vec<String>,
     pub path_whitelist: Vec<String>,
     pub test_mode: bool,
+    #[serde(default)]
+    pub maze_enabled: bool,          // Enable link maze honeypot
+    #[serde(default = "default_maze_auto_ban")]
+    pub maze_auto_ban: bool,         // Auto-ban after 50 maze page hits
+}
+
+fn default_maze_auto_ban() -> bool {
+    true
 }
 
 impl Config {
@@ -79,6 +87,8 @@ impl Config {
             whitelist: vec![],
             path_whitelist: vec![],
             test_mode,
+            maze_enabled: true,        // Maze enabled by default
+            maze_auto_ban: true,       // Auto-ban crawlers after 50 maze hits
         }
     }
     

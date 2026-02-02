@@ -15,6 +15,7 @@ pub enum MetricName {
     ChallengesTotal,
     WhitelistedTotal,
     TestModeActions,
+    MazeHits,
 }
 
 impl MetricName {
@@ -26,6 +27,7 @@ impl MetricName {
             MetricName::ChallengesTotal => "challenges_total",
             MetricName::WhitelistedTotal => "whitelisted_total",
             MetricName::TestModeActions => "test_mode_actions_total",
+            MetricName::MazeHits => "maze_hits_total",
         }
     }
 }
@@ -123,6 +125,12 @@ pub fn render_metrics(store: &Store) -> String {
     output.push_str("\n# TYPE bot_trap_test_mode_actions_total counter\n");
     let test_mode = get_counter(store, &format!("{}test_mode_actions_total", METRICS_PREFIX));
     output.push_str(&format!("bot_trap_test_mode_actions_total {}\n", test_mode));
+    
+    // Maze hits
+    output.push_str("\n# TYPE bot_trap_maze_hits_total counter\n");
+    output.push_str("# HELP bot_trap_maze_hits_total Total hits on link maze honeypot pages\n");
+    let maze_hits = get_counter(store, &format!("{}maze_hits_total", METRICS_PREFIX));
+    output.push_str(&format!("bot_trap_maze_hits_total {}\n", maze_hits));
     
     // Active bans (gauge)
     output.push_str("\n# TYPE bot_trap_active_bans gauge\n");

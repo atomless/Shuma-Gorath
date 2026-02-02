@@ -159,7 +159,7 @@ WASM Bot Trap offers distinct advantages over other bot protection solutions in 
 | **Akamai Bot Manager Integration** | Designed to complement enterprise-grade ML detection with lightweight, surgical precision |
 | **Platform Agnostic** | Works with any backend (Node.js, Python, Go, etc.)—not locked to WordPress or any CMS |
 | **Rust Performance** | Memory-safe, blazing fast (~2MB WASM binary), no garbage collection pauses |
-| **Multi-Layer Defense** | Rate limiting + honeypot traps + geo quiz + browser fingerprinting in one package |
+| **Multi-Layer Defense** | Rate limiting + honeypot traps + link maze + geo quiz + browser fingerprinting in one package |
 | **Lightweight Footprint** | ~2MB compiled WASM vs. heavyweight container deployments |
 | **Full Auditability** | 100% open source—review, modify, and audit every line of detection code |
 | **Rapid Deployment** | New detection rules deployed in minutes, not days waiting for vendor updates |
@@ -507,6 +507,8 @@ The `/health` endpoint is accessible to IPs detected as "unknown" to support loc
 	Main entry: triggers bot trap logic. You may see the block page, math quiz, or JS challenge depending on your status.
 - `http://127.0.0.1:3000/bot-trap`  
 	Honeypot: triggers a ban and then shows the block page.
+- `http://127.0.0.1:3000/trap/*` or `http://127.0.0.1:3000/maze/*`  
+	Link Maze: Infinite trap pages that waste crawler resources (see Link Maze section below).
 - `http://127.0.0.1:3000/quiz`  
 	Math quiz page (if enabled for non-blocked users).
 - `http://127.0.0.1:3000/admin`  
@@ -663,6 +665,7 @@ This endpoint requires no authentication (for Prometheus scraper compatibility) 
 | `bot_trap_challenges_total` | Counter | JS challenges served |
 | `bot_trap_whitelisted_total` | Counter | Requests bypassed via whitelist |
 | `bot_trap_test_mode_actions_total` | Counter | Actions logged in test mode |
+| `bot_trap_maze_hits_total` | Counter | Total hits on link maze honeypot pages |
 | `bot_trap_active_bans` | Gauge | Current number of active bans |
 | `bot_trap_test_mode_enabled` | Gauge | Whether test mode is enabled (0/1) |
 
@@ -713,6 +716,78 @@ Create Grafana dashboards to visualize:
 - Active bans trend
 - Test mode status
 
+---
+
+### Link Maze Honeypot
+
+The Link Maze is an advanced honeypot that traps web crawlers in an infinite loop of fake pages. Unlike a simple tarpit that sends data slowly, the link maze serves legitimate-looking HTML pages instantly, each containing links to more fake pages.
+
+#### How It Works
+
+1. **Entry Points**: Paths starting with `/trap/` or `/maze/` trigger the maze
+2. **Deterministic Generation**: Each path generates the same page every time (path hash → seed → content)
+3. **Endless Links**: Each page contains 8-15 links to other maze pages
+4. **Realistic Content**: Pages look like a corporate intranet portal with:
+   - Professional styling and CSS
+   - Fake titles, breadcrumbs, and navigation
+   - Lorem ipsum-style paragraphs about "systems," "dashboards," and "reports"
+5. **Auto-Ban**: After 50 maze page hits, the IP is automatically banned as a crawler
+
+#### Why Link Maze is Edge-Suitable
+
+Unlike tarpits, the link maze works perfectly on serverless edge platforms:
+- **Stateless**: No database or session storage needed—pages are generated from path hash
+- **Fast**: Serves responses instantly (no slow drip of data)
+- **Efficient**: No long-running connections that would timeout or cost money
+- **Cacheable**: Same path = same page, making CDN caching possible
+
+#### Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `/trap/*` | Link maze entry (e.g., `/trap/admin`, `/trap/secret`) |
+| `/maze/*` | Alternative link maze entry point |
+
+#### Testing the Link Maze
+
+```sh
+# View a maze page
+curl -s http://127.0.0.1:3000/trap/test123 | head -50
+
+# Verify determinism (same path = same content)
+curl -s http://127.0.0.1:3000/trap/test | md5
+curl -s http://127.0.0.1:3000/trap/test | md5  # Same hash!
+
+# Check links stay in maze
+curl -s http://127.0.0.1:3000/maze/entry | grep -E 'href="/maze/'
+
+# Check metrics
+curl -s http://127.0.0.1:3000/metrics | grep maze
+# Output: bot_trap_maze_hits_total 42
+```
+
+#### Configuration
+
+The maze is enabled by default. Configuration options in `config.rs`:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `maze_enabled` | `true` | Enable/disable the link maze |
+| `maze_auto_ban` | `true` | Auto-ban IPs after 50 maze hits |
+
+#### Response Headers
+
+Maze pages include special headers to prevent search engine indexing:
+- `X-Robots-Tag: noindex, nofollow`
+- `Cache-Control: no-store, no-cache, must-revalidate`
+
+#### Prometheus Metrics
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `bot_trap_maze_hits_total` | Counter | Total hits on link maze honeypot pages |
+
+---
 
 ### Interactive Quiz for Banned Users
 
@@ -1214,6 +1289,7 @@ src/
 ## Roadmap
 
 ### ✅ Recently Completed
+- **Link Maze Honeypot**: Infinite trap pages that exhaust crawler resources (`/trap/*`, `/maze/*`)
 - **Prometheus/OpenTelemetry Metrics**: `/metrics` endpoint for Grafana integration
 - **Test Mode (Dry-Run)**: Safe deployment/tuning without blocking users
 - **Configurable Ban Durations**: Per-ban-type TTLs (honeypot, rate_limit, browser, admin)
@@ -1223,7 +1299,6 @@ src/
 
 ### Near-term
 - Tarpit mode: Optional slow infinite responses to waste bot resources
-- Link maze honeypot: Fake link trees that trap crawlers in infinite loops
 - Webhook notifications: Slack/Discord/PagerDuty alerts for bans
 - Dual GeoIP providers: Fallback when primary fails (MaxMind + IP-API)
 - Expand admin API for full configuration management (update config via API)

@@ -26,6 +26,7 @@ mod honeypot;    // Honeypot endpoint logic
 mod admin;       // Admin API endpoints
 mod quiz;        // Interactive math quiz for banned users
 mod metrics;     // Prometheus metrics
+mod maze;        // Link maze honeypot
 
 /// Main HTTP handler for the bot trap. This function is invoked for every HTTP request.
 /// It applies a series of anti-bot checks in order of cost and effectiveness, returning early on block/allow.
@@ -100,6 +101,54 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
             return metrics::handle_metrics(&store);
         }
         return Response::new(500, "Key-value store error");
+    }
+
+    // Link Maze Honeypot - trap bots in infinite loops
+    if maze::is_maze_path(path) {
+        // Get store to log event and track metrics
+        if let Ok(store) = Store::open_default() {
+            let ip = extract_client_ip(req);
+            metrics::increment(&store, metrics::MetricName::MazeHits, None);
+            
+            // Log maze access event
+            crate::admin::log_event(&store, &crate::admin::EventLogEntry {
+                ts: crate::admin::now_ts(),
+                event: crate::admin::EventType::Challenge,
+                ip: Some(ip.clone()),
+                reason: Some("maze_trap".to_string()),
+                outcome: Some("maze_page_served".to_string()),
+                admin: None,
+            });
+            
+            // Check if this IP has hit too many maze pages (potential crawler)
+            let maze_key = format!("maze_hits:{}", ip);
+            let hits: u32 = store.get(&maze_key)
+                .ok()
+                .flatten()
+                .and_then(|v| String::from_utf8(v).ok())
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            
+            // Increment maze hit counter for this IP
+            let _ = store.set(&maze_key, (hits + 1).to_string().as_bytes());
+            
+            // If they've hit 50+ maze pages, they're definitely a bot - ban them
+            let cfg = config::Config::load(&store, "default");
+            if hits >= 50 && cfg.maze_auto_ban {
+                ban::ban_ip(&store, "default", &ip, "maze_crawler", cfg.get_ban_duration("honeypot"));
+                metrics::increment(&store, metrics::MetricName::BansTotal, Some("maze_crawler"));
+                crate::admin::log_event(&store, &crate::admin::EventLogEntry {
+                    ts: crate::admin::now_ts(),
+                    event: crate::admin::EventType::Ban,
+                    ip: Some(ip.clone()),
+                    reason: Some("maze_crawler".to_string()),
+                    outcome: Some("banned_after_50_maze_pages".to_string()),
+                    admin: None,
+                });
+            }
+        }
+        
+        return maze::handle_maze_request(path);
     }
 
     let site_id = "default";
