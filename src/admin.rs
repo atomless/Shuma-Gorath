@@ -54,7 +54,7 @@ use serde_json::json;
 
 /// Returns true if the path is a valid admin endpoint (prevents path traversal/abuse).
 fn sanitize_path(path: &str) -> bool {
-    matches!(path, "/admin" | "/admin/ban" | "/admin/unban" | "/admin/analytics" | "/admin/events" | "/admin/config" | "/admin/maze")
+    matches!(path, "/admin" | "/admin/ban" | "/admin/unban" | "/admin/analytics" | "/admin/events" | "/admin/config" | "/admin/maze" | "/admin/robots")
 }
 
 /// Handles all /admin API endpoints. Requires valid API key in Authorization header.
@@ -301,6 +301,28 @@ pub fn handle_admin(req: &Request) -> Response {
                         changed = true;
                     }
                     
+                    // Update robots.txt settings if provided
+                    if let Some(robots_enabled) = json.get("robots_enabled").and_then(|v| v.as_bool()) {
+                        cfg.robots_enabled = robots_enabled;
+                        changed = true;
+                    }
+                    if let Some(robots_block_ai_training) = json.get("robots_block_ai_training").and_then(|v| v.as_bool()) {
+                        cfg.robots_block_ai_training = robots_block_ai_training;
+                        changed = true;
+                    }
+                    if let Some(robots_block_ai_search) = json.get("robots_block_ai_search").and_then(|v| v.as_bool()) {
+                        cfg.robots_block_ai_search = robots_block_ai_search;
+                        changed = true;
+                    }
+                    if let Some(robots_allow_search_engines) = json.get("robots_allow_search_engines").and_then(|v| v.as_bool()) {
+                        cfg.robots_allow_search_engines = robots_allow_search_engines;
+                        changed = true;
+                    }
+                    if let Some(robots_crawl_delay) = json.get("robots_crawl_delay").and_then(|v| v.as_u64()) {
+                        cfg.robots_crawl_delay = robots_crawl_delay as u32;
+                        changed = true;
+                    }
+                    
                     // Save config to KV store
                     if changed {
                         let key = format!("config:{}", site_id);
@@ -325,7 +347,12 @@ pub fn handle_admin(req: &Request) -> Response {
                             "geo_risk": cfg.geo_risk,
                             "maze_enabled": cfg.maze_enabled,
                             "maze_auto_ban": cfg.maze_auto_ban,
-                            "maze_auto_ban_threshold": cfg.maze_auto_ban_threshold
+                            "maze_auto_ban_threshold": cfg.maze_auto_ban_threshold,
+                            "robots_enabled": cfg.robots_enabled,
+                            "robots_block_ai_training": cfg.robots_block_ai_training,
+                            "robots_block_ai_search": cfg.robots_block_ai_search,
+                            "robots_allow_search_engines": cfg.robots_allow_search_engines,
+                            "robots_crawl_delay": cfg.robots_crawl_delay
                         }
                     })).unwrap();
                     return Response::new(200, body);
@@ -361,7 +388,12 @@ pub fn handle_admin(req: &Request) -> Response {
                 "path_whitelist": cfg.path_whitelist,
                 "maze_enabled": cfg.maze_enabled,
                 "maze_auto_ban": cfg.maze_auto_ban,
-                "maze_auto_ban_threshold": cfg.maze_auto_ban_threshold
+                "maze_auto_ban_threshold": cfg.maze_auto_ban_threshold,
+                "robots_enabled": cfg.robots_enabled,
+                "robots_block_ai_training": cfg.robots_block_ai_training,
+                "robots_block_ai_search": cfg.robots_block_ai_search,
+                "robots_allow_search_engines": cfg.robots_allow_search_engines,
+                "robots_crawl_delay": cfg.robots_crawl_delay
             })).unwrap();
             Response::new(200, body)
         }
@@ -375,7 +407,7 @@ pub fn handle_admin(req: &Request) -> Response {
                 outcome: None,
                 admin: Some(crate::auth::get_admin_id(req)),
             });
-            Response::new(200, "WASM Bot Trap Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/config, /admin/maze (GET for maze stats).")
+            Response::new(200, "WASM Bot Trap Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/config, /admin/maze (GET for maze stats), /admin/robots (GET for robots.txt config & preview).")
         }
         "/admin/maze" => {
             // Return maze honeypot statistics
@@ -443,6 +475,40 @@ pub fn handle_admin(req: &Request) -> Response {
                 "maze_auto_bans": maze_bans,
                 "deepest_crawler": deepest,
                 "top_crawlers": top_crawlers
+            })).unwrap();
+            Response::new(200, body)
+        }
+        "/admin/robots" => {
+            // Return robots.txt configuration and preview
+            let cfg = crate::config::Config::load(&store, site_id);
+            
+            // Generate preview of robots.txt content
+            let preview = crate::robots::generate_robots_txt(&cfg);
+            let content_signal = crate::robots::get_content_signal_header(&cfg);
+            
+            // Log admin action
+            log_event(&store, &EventLogEntry {
+                ts: now_ts(),
+                event: EventType::AdminAction,
+                ip: None,
+                reason: Some("robots_config_view".to_string()),
+                outcome: None,
+                admin: Some(crate::auth::get_admin_id(req)),
+            });
+            
+            let body = serde_json::to_string(&json!({
+                "config": {
+                    "enabled": cfg.robots_enabled,
+                    "block_ai_training": cfg.robots_block_ai_training,
+                    "block_ai_search": cfg.robots_block_ai_search,
+                    "allow_search_engines": cfg.robots_allow_search_engines,
+                    "crawl_delay": cfg.robots_crawl_delay
+                },
+                "content_signal_header": content_signal,
+                "ai_training_bots": crate::robots::AI_TRAINING_BOTS,
+                "ai_search_bots": crate::robots::AI_SEARCH_BOTS,
+                "search_engine_bots": crate::robots::SEARCH_ENGINE_BOTS,
+                "preview": preview
             })).unwrap();
             Response::new(200, body)
         }

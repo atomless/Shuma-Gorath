@@ -371,6 +371,25 @@ function updateMazeConfig(config) {
   }
 }
 
+// Update robots.txt config controls from loaded config
+function updateRobotsConfig(config) {
+  if (config.robots_enabled !== undefined) {
+    document.getElementById('robots-enabled-toggle').checked = config.robots_enabled;
+  }
+  if (config.robots_block_ai_training !== undefined) {
+    document.getElementById('robots-block-training-toggle').checked = config.robots_block_ai_training;
+  }
+  if (config.robots_block_ai_search !== undefined) {
+    document.getElementById('robots-block-search-toggle').checked = config.robots_block_ai_search;
+  }
+  if (config.robots_allow_search_engines !== undefined) {
+    document.getElementById('robots-allow-search-toggle').checked = config.robots_allow_search_engines;
+  }
+  if (config.robots_crawl_delay !== undefined) {
+    document.getElementById('robots-crawl-delay').value = config.robots_crawl_delay;
+  }
+}
+
 // Save maze configuration
 document.getElementById('save-maze-config').onclick = async function() {
   const endpoint = document.getElementById('endpoint').value.replace(/\/$/, '');
@@ -402,16 +421,102 @@ document.getElementById('save-maze-config').onclick = async function() {
     
     btn.textContent = '✓ Saved!';
     setTimeout(() => {
-      btn.textContent = '💾 Save';
+      btn.textContent = '💾 Save Maze Settings';
       btn.disabled = false;
     }, 1500);
   } catch (e) {
     btn.textContent = '✗ Error';
     console.error('Failed to save maze config:', e);
     setTimeout(() => {
-      btn.textContent = '💾 Save';
+      btn.textContent = '💾 Save Maze Settings';
       btn.disabled = false;
     }, 2000);
+  }
+};
+
+// Save robots.txt configuration
+document.getElementById('save-robots-config').onclick = async function() {
+  const endpoint = document.getElementById('endpoint').value.replace(/\/$/, '');
+  const apikey = document.getElementById('apikey').value;
+  const btn = this;
+  
+  const robotsEnabled = document.getElementById('robots-enabled-toggle').checked;
+  const blockTraining = document.getElementById('robots-block-training-toggle').checked;
+  const blockSearch = document.getElementById('robots-block-search-toggle').checked;
+  const allowSearchEngines = document.getElementById('robots-allow-search-toggle').checked;
+  const crawlDelay = parseInt(document.getElementById('robots-crawl-delay').value) || 2;
+  
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+  
+  try {
+    const resp = await fetch(endpoint + '/admin/config', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + apikey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        robots_enabled: robotsEnabled,
+        robots_block_ai_training: blockTraining,
+        robots_block_ai_search: blockSearch,
+        robots_allow_search_engines: allowSearchEngines,
+        robots_crawl_delay: crawlDelay
+      })
+    });
+    
+    if (!resp.ok) throw new Error('Failed to save config');
+    
+    btn.textContent = '✓ Saved!';
+    // Refresh preview if it's visible
+    const preview = document.getElementById('robots-preview');
+    if (!preview.classList.contains('hidden')) {
+      document.getElementById('preview-robots').click();
+    }
+    setTimeout(() => {
+      btn.textContent = '💾 Save Robots Policy';
+      btn.disabled = false;
+    }, 1500);
+  } catch (e) {
+    btn.textContent = '✗ Error';
+    console.error('Failed to save robots config:', e);
+    setTimeout(() => {
+      btn.textContent = '💾 Save Robots Policy';
+      btn.disabled = false;
+    }, 2000);
+  }
+};
+
+// Preview robots.txt
+document.getElementById('preview-robots').onclick = async function() {
+  const endpoint = document.getElementById('endpoint').value.replace(/\/$/, '');
+  const apikey = document.getElementById('apikey').value;
+  const preview = document.getElementById('robots-preview');
+  const previewContent = document.getElementById('robots-preview-content');
+  const btn = this;
+  
+  btn.textContent = 'Loading...';
+  btn.disabled = true;
+  
+  try {
+    const resp = await fetch(endpoint + '/admin/robots', {
+      headers: { 'Authorization': 'Bearer ' + apikey }
+    });
+    
+    if (!resp.ok) throw new Error('Failed to fetch robots preview');
+    
+    const data = await resp.json();
+    previewContent.textContent = data.preview || '# No preview available';
+    preview.classList.remove('hidden');
+    
+    btn.textContent = '👁️ Preview robots.txt';
+    btn.disabled = false;
+  } catch (e) {
+    previewContent.textContent = '# Error loading preview: ' + e.message;
+    preview.classList.remove('hidden');
+    console.error('Failed to load robots preview:', e);
+    btn.textContent = '👁️ Preview robots.txt';
+    btn.disabled = false;
   }
 };
 
@@ -474,6 +579,7 @@ document.getElementById('refresh').onclick = async function() {
         const config = await configResp.json();
         updateBanDurations(config);
         updateMazeConfig(config);
+        updateRobotsConfig(config);
       }
     } catch (e) {
       console.error('Failed to load config:', e);

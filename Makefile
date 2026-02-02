@@ -28,9 +28,9 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/dashboard/index.html$(NC)"
 	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
 	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
-	@echo "$(CYAN)👀 Watching for changes... (Ctrl+C to stop)$(NC)"
+	@echo "$(CYAN)👀 Watching src/*.rs for changes... (Ctrl+C to stop)$(NC)"
 	@pkill -f "spin up" 2>/dev/null || true
-	@cargo watch -x 'build --target wasm32-wasip1 --release' -s 'pkill -f "spin up" 2>/dev/null; cp target/wasm32-wasip1/release/wasm_bot_trap.wasm src/bot_trap.wasm && spin up --listen 127.0.0.1:3000'
+	@cargo watch -w src -i '*.wasm' -x 'build --target wasm32-wasip1 --release' -s 'pkill -f "spin up" 2>/dev/null; cp target/wasm32-wasip1/release/wasm_bot_trap.wasm src/bot_trap.wasm && spin up --listen 127.0.0.1:3000'
 
 local: dev ## Alias for dev
 

@@ -179,6 +179,54 @@
           </div>
           <button id="save-maze-config">💾 Save Maze Settings</button>
         </div>
+        <div class="control-group">
+          <h3>🤖 AI Crawler Policy</h3>
+          <p class="control-desc">Control what bots can crawl via robots.txt</p>
+          <div class="robots-admin-controls">
+            <div class="robots-toggle-row">
+              <label class="robots-admin-label">Enable robots.txt</label>
+              <label class="toggle-switch">
+                <input type="checkbox" id="robots-enabled-toggle" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="robots-toggle-row">
+              <label class="robots-admin-label">Block AI Training</label>
+              <label class="toggle-switch">
+                <input type="checkbox" id="robots-block-training-toggle" checked>
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="toggle-hint">GPTBot, CCBot, etc.</span>
+            </div>
+            <div class="robots-toggle-row">
+              <label class="robots-admin-label">Block AI Search</label>
+              <label class="toggle-switch">
+                <input type="checkbox" id="robots-block-search-toggle">
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="toggle-hint">PerplexityBot, etc.</span>
+            </div>
+            <div class="robots-toggle-row">
+              <label class="robots-admin-label">Allow Search Engines</label>
+              <label class="toggle-switch">
+                <input type="checkbox" id="robots-allow-search-toggle" checked>
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="toggle-hint">Google, Bing, etc.</span>
+            </div>
+            <div class="robots-delay-row">
+              <label class="robots-admin-label">Crawl Delay</label>
+              <input type="number" id="robots-crawl-delay" value="2" min="0" max="60">
+              <span class="delay-unit">seconds</span>
+            </div>
+          </div>
+          <button id="save-robots-config">💾 Save Robots Policy</button>
+          <button id="preview-robots">👁️ Preview robots.txt</button>
+          <div id="robots-preview" class="robots-preview hidden">
+            <h4>robots.txt Preview</h4>
+            <pre id="robots-preview-content"></pre>
+          </div>
+        </div>
       </div>
       <div id="admin-msg" class="message"></div>
     </div>

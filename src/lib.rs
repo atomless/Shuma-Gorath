@@ -27,6 +27,7 @@ mod admin;       // Admin API endpoints
 mod quiz;        // Interactive math quiz for banned users
 mod metrics;     // Prometheus metrics
 mod maze;        // Link maze honeypot
+mod robots;      // robots.txt generation
 
 /// Main HTTP handler for the bot trap. This function is invoked for every HTTP request.
 /// It applies a series of anti-bot checks in order of cost and effectiveness, returning early on block/allow.
@@ -101,6 +102,27 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
             return metrics::handle_metrics(&store);
         }
         return Response::new(500, "Key-value store error");
+    }
+
+    // robots.txt - configurable AI crawler blocking
+    if path == "/robots.txt" {
+        if let Ok(store) = Store::open_default() {
+            let cfg = config::Config::load(&store, "default");
+            if cfg.robots_enabled {
+                metrics::increment(&store, metrics::MetricName::RequestsTotal, Some("robots_txt"));
+                let content = robots::generate_robots_txt(&cfg);
+                let content_signal = robots::get_content_signal_header(&cfg);
+                return Response::builder()
+                    .status(200)
+                    .header("Content-Type", "text/plain; charset=utf-8")
+                    .header("Content-Signal", content_signal)
+                    .header("Cache-Control", "public, max-age=3600")
+                    .body(content)
+                    .build();
+            }
+        }
+        // If disabled or store error, return 404
+        return Response::new(404, "Not Found");
     }
 
     // Link Maze Honeypot - trap bots in infinite loops

@@ -57,6 +57,22 @@ pub struct Config {
     pub maze_auto_ban: bool,         // Auto-ban after threshold maze page hits
     #[serde(default = "default_maze_auto_ban_threshold")]
     pub maze_auto_ban_threshold: u32, // Number of maze pages before auto-ban
+    
+    // robots.txt configuration
+    #[serde(default = "default_true")]
+    pub robots_enabled: bool,           // Serve /robots.txt endpoint
+    #[serde(default = "default_true")]
+    pub robots_block_ai_training: bool, // Block AI training crawlers (GPTBot, CCBot, etc.)
+    #[serde(default)]
+    pub robots_block_ai_search: bool,   // Block AI search assistants (PerplexityBot, etc.)
+    #[serde(default = "default_true")]
+    pub robots_allow_search_engines: bool, // Allow legitimate search engines (Google, Bing, etc.)
+    #[serde(default = "default_crawl_delay")]
+    pub robots_crawl_delay: u32,        // Crawl-delay directive (seconds)
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn default_maze_auto_ban() -> bool {
@@ -65,6 +81,10 @@ fn default_maze_auto_ban() -> bool {
 
 fn default_maze_auto_ban_threshold() -> u32 {
     50
+}
+
+fn default_crawl_delay() -> u32 {
+    2
 }
 
 impl Config {
@@ -96,6 +116,12 @@ impl Config {
             maze_enabled: true,        // Maze enabled by default
             maze_auto_ban: true,       // Auto-ban crawlers after threshold
             maze_auto_ban_threshold: 50, // Default: 50 maze pages triggers ban
+            // robots.txt defaults: block AI training, allow search engines
+            robots_enabled: true,
+            robots_block_ai_training: true,
+            robots_block_ai_search: false,
+            robots_allow_search_engines: true,
+            robots_crawl_delay: 2,
         }
     }
     
