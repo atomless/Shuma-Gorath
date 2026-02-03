@@ -446,6 +446,7 @@ code {
   width: 60px;
   height: 34px;
   margin-right: 10px;
+  flex-shrink: 0;
 }
 
 .toggle-switch input {
@@ -765,50 +766,11 @@ input:checked + .toggle-slider:before {
   color: #6b7280;
 }
 
-/* Robots.txt Admin Controls */
-.robots-admin-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin: 15px 0;
-}
-
-.robots-toggle-row,
-.robots-delay-row {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.robots-admin-label {
-  min-width: 140px;
-  font-size: 0.9rem;
-  color: #374151;
-}
-
+/* Robots.txt Preview & Buttons */
 .toggle-hint {
   font-size: 0.75rem;
   color: #9ca3af;
   margin-left: 8px;
-}
-
-.robots-delay-row input {
-  width: 80px;
-  padding: 8px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  background: white;
-  font-size: 1rem;
-}
-
-.robots-delay-row input:focus {
-  outline: none;
-  border-color: #3b82f6;
-}
-
-.delay-unit {
-  font-size: 0.85rem;
-  color: #6b7280;
 }
 
 #save-robots-config {
