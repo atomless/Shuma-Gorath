@@ -1,3 +1,19 @@
+/* Shuma-Gorath image styling for dashboard header */
+.shuma-image-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.shuma-gorath-img {
+  max-width: 220px;
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.12));
+}
 /* ===========================================
    CSS Custom Properties (Color Palette)
    High-contrast monochrome with accent
