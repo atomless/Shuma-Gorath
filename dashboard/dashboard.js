@@ -148,6 +148,11 @@ function updateEventTypesChart(eventCounts) {
   
   eventTypesChart.data.labels = labels;
   eventTypesChart.data.datasets[0].data = data;
+  // Explicitly apply Reds3 palette to ensure doughnut uses intended colors
+  const reds3 = ["#fee0d2", "#fc9272", "#de2d26"];
+  const bg = data.map((_, i) => reds3[i % reds3.length]);
+  eventTypesChart.data.datasets[0].backgroundColor = bg;
+  eventTypesChart.data.datasets[0].borderColor = bg.map(c => c);
   eventTypesChart.update();
 }
 
