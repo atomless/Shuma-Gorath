@@ -1,6 +1,6 @@
-# Bot Trap Dashboard
+# Shuma-Gorath Dashboard
 
-Real-time dashboard for monitoring and managing the WASM Bot Trap.
+Real-time dashboard for monitoring and managing Shuma-Gorath (Many-Angled Bot Defence).
 
 ## Features
 

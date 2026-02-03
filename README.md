@@ -1,6 +1,10 @@
-# WASM Stealth Bot Trap (For Fermyon Spin)
+<p align="center">
+  <img src="assets/shuma-gorath.png" alt="Shuma-Gorath" width="300">
+</p>
 
-This project implements a customizable, behavior-based bot defense system designed for **Fermyon Spin**, running WebAssembly at the edge for ultra-low latency bot protection.
+# Shuma-Gorath (Many-Angled Bot Defence)
+
+A customizable, behavior-based bot defense system designed for **Fermyon Spin**, running WebAssembly at the edge for ultra-low latency bot protection.
 
 
 ![Dashboard Overview](assets/dashboard-screenshot1.jpg)
@@ -23,7 +27,7 @@ This project implements a customizable, behavior-based bot defense system design
 
 ## 🚀 Primary Platform: Fermyon Cloud (Edge WASM)
 
-This bot trap is **primarily built and tested for deployment on Fermyon Cloud**. Fermyon Spin enables serverless WebAssembly execution at the edge, providing:
+Shuma-Gorath is **primarily built and tested for deployment on Fermyon Cloud**. Fermyon Spin enables serverless WebAssembly execution at the edge, providing:
 
 - **Ultra-low latency**: WASM executes in microseconds at edge locations worldwide
 - **Global distribution**: Automatic deployment across Fermyon's edge network
@@ -50,8 +54,8 @@ This bot trap is **primarily built and tested for deployment on Fermyon Cloud**.
 New to the project? Just two commands to get fully set up:
 
 ```sh
-git clone https://github.com/atomlessAK/WASM-BOT-TRAP.git
-cd WASM-BOT-TRAP
+git clone https://github.com/atomlessAK/shuma-gorath.git
+cd shuma-gorath
 make setup    # Installs ALL dependencies automatically
 make dev      # Build and run with file watching
 ```
@@ -293,7 +297,7 @@ Internet → Akamai Edge / Fermyon Edge
 make prod
 # or manually:
 cargo build --target wasm32-wasip1 --release
-cp target/wasm32-wasip1/release/wasm_bot_trap.wasm src/bot_trap.wasm
+cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
 ```
 
 **Step 2: Configure Environment Variables**
@@ -412,10 +416,10 @@ Internet → Linode NodeBalancer → Linode Instance(s) (Spin)
 ```sh
 #!/bin/bash
 # On your Linode instance
-cd /opt/wasm-bot-trap
+cd /opt/shuma-gorath
 git pull origin main
 make prod
-systemctl restart spin-bot-trap
+systemctl restart shuma-gorath
 ```
 
 ---
@@ -702,12 +706,12 @@ bot_trap_test_mode_enabled 0
 
 #### Grafana Integration
 
-Add the bot trap as a Prometheus scrape target:
+Add Shuma-Gorath as a Prometheus scrape target:
 
 ```yaml
 # prometheus.yml
 scrape_configs:
-  - job_name: 'wasm-bot-trap'
+  - job_name: 'shuma-gorath'
     static_configs:
       - targets: ['your-bot-trap-domain:3000']
     metrics_path: /metrics
@@ -1088,8 +1092,8 @@ When accessing the bot trap from your local browser or curl without headers, you
 
 **Before starting:** Ensure Spin is running in background:
 ```bash
-cd /Users/jtindall/SOASTA_MP/wasm_bot_trap
-nohup spin up --listen 127.0.0.1:3000 > /tmp/spin_bot_trap.log 2>&1 &
+cd /Users/jtindall/SOASTA_MP/shuma-gorath
+nohup spin up --listen 127.0.0.1:3000 > /tmp/shuma_gorath.log 2>&1 &
 # Verify it's running:
 curl http://127.0.0.1:3000/health
 # Should return: OK
@@ -1257,7 +1261,7 @@ curl -X POST -H "Authorization: Bearer changeme-supersecret" \
 **Solution:** This was fixed. Make sure you rebuild and restart Spin:
 ```bash
 cargo build --target wasm32-wasip1 --release
-cp target/wasm32-wasip1/release/wasm_bot_trap.wasm src/bot_trap.wasm
+cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
 pkill -f "spin up"
 spin up
 ```

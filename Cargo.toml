@@ -1,9 +1,9 @@
 [package]
-name = "wasm_bot_trap"
+name = "shuma_gorath"
 version = "0.1.0"
 edition = "2021"
 authors = ["Your Name <your@email.com>"]
-description = "Wasm-based stealth bot trap for Fermyon Spin."
+description = "Shuma-Gorath: Many-Angled Bot Defence for Fermyon Spin."
 
 [lib]
 crate-type = ["cdylib"]

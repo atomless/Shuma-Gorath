@@ -1,10 +1,10 @@
 spin_manifest_version = 2
 
 [application]
-name = "wasm-bot-trap-with-dashboard"
+name = "shuma-gorath-with-dashboard"
 version = "0.1.0"
 authors = ["Your Name <your@email.com>"]
-description = "Wasm-based stealth bot trap for Fermyon Spin with dashboard."
+description = "Shuma-Gorath: Many-Angled Bot Defence for Fermyon Spin with dashboard."
 
 [[trigger.http]]
 route = "/..."
@@ -21,7 +21,7 @@ key_value_stores = ["default"]
 environment = { API_KEY = "changeme-supersecret" }
 
 [component.bot-trap.build]
-command = "cargo build --target wasm32-wasip1 --release && cp target/wasm32-wasip1/release/wasm_bot_trap.wasm src/bot_trap.wasm"
+command = "cargo build --target wasm32-wasip1 --release && cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm"
 
 [component.dashboard-static]
 source = "static-fileserver"

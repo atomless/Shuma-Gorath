@@ -226,8 +226,8 @@ curl -X POST -H "X-API-Key: changeme-supersecret" \
 ```bash
 # Build and start Spin server with dashboard
 cargo build --target wasm32-wasip1 --release
-cp target/wasm32-wasip1/release/wasm_bot_trap.wasm src/bot_trap.wasm
-nohup spin up --listen 127.0.0.1:3000 > /tmp/spin_bot_trap.log 2>&1 &
+cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
+nohup spin up --listen 127.0.0.1:3000 > /tmp/shuma_gorath.log 2>&1 &
 
 # Open dashboard in browser
 open http://127.0.0.1:3000/dashboard/index.html
@@ -240,9 +240,9 @@ open http://127.0.0.1:3000/dashboard/index.html
 
 # Edit Rust code requires rebuild
 cargo build --target wasm32-wasip1 --release
-cp target/wasm32-wasip1/release/wasm_bot_trap.wasm src/bot_trap.wasm
+cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
 pkill -f "spin up"
-nohup spin up --listen 127.0.0.1:3000 > /tmp/spin_bot_trap.log 2>&1 &
+nohup spin up --listen 127.0.0.1:3000 > /tmp/shuma_gorath.log 2>&1 &
 ```
 
 ### Adding New Charts
