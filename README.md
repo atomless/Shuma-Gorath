@@ -1,6 +1,7 @@
 
+
 <p align="center">
-  <img src="dashboard/assets/shuma-gorath.png" alt="Shuma-Gorath" width="300">
+  <img src="/dashboard/assets/shuma-gorath.png" alt="Shuma-Gorath" width="300">
 </p>
 
 # Shuma-Gorath (Many-Angled Bot Defence)
@@ -9,9 +10,10 @@ A customizable, behavior-based bot defense system designed for **Fermyon Spin**,
 
 
 
-![Dashboard Overview](dashboard/assets/dashboard-screenshot1.jpg)
 
-![Dashboard Details](dashboard/assets/dashboard-screenshot2.jpg)
+![Dashboard Overview](/dashboard/assets/dashboard-screenshot1.jpg)
+
+![Dashboard Details](/dashboard/assets/dashboard-screenshot2.jpg)
 
 ## 📚 Documentation
 
