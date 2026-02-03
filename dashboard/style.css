@@ -72,6 +72,13 @@
     --radius-lg: 0;
   --radius-xl: 0;
   --radius-full: 9999px;
+  /* Semantic panel colors that follow the page theme. */
+  --page-bg: var(--color-gray-100);
+  --page-fg: var(--color-gray-900);
+  --panel-bg: var(--color-white);
+  --panel-fg: var(--color-black);
+  --muted-fg: var(--color-gray-500);
+  --heading-fg: var(--color-black);
 }
 
 * {
@@ -82,8 +89,8 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background: var(--color-gray-100);
-  color: var(--color-gray-900);
+  background: var(--page-bg);
+  color: var(--page-fg);
   padding: 20px;
   min-height: 100vh;
 }
@@ -91,9 +98,8 @@ body {
 .container {
   max-width: 1400px;
   margin: 0 auto;
-  background: var(--color-white);
-  border-radius: 0;
-  box-shadow: none;
+  background: var(--panel-bg);
+  color: var(--panel-fg);
   border: 0.5px solid var(--color-gray-300);
   padding: 30px;
 }
@@ -107,12 +113,12 @@ header {
 
 h1 {
   font-size: 2.5rem;
-  color: var(--color-black);
+  color: var(--heading-fg);
   margin-bottom: 8px;
 }
 
 .subtitle {
-  color: var(--color-gray-500);
+  color: var(--muted-fg);
   font-size: 1.1rem;
 }
 
@@ -142,8 +148,8 @@ h1 {
 
 .config button {
   padding: 10px 20px;
-  background: var(--color-accent);
-  color: var(--color-white);
+  background: var(--color-gray-200);
+  color: var(--color-gray-800);
   border: none;
   border-radius: var(--radius-md);
   font-weight: 600;
@@ -152,7 +158,7 @@ h1 {
 }
 
 .config button:hover {
-  background: var(--color-accent-hover);
+  background: var(--color-gray-300);
 }
 
 #last-updated {
@@ -170,11 +176,9 @@ h1 {
 }
 
 .card {
-  background: var(--color-gray-900);
-  color: var(--color-white);
+  background: var(--panel-bg);
+  color: var(--panel-fg);
   padding: 25px;
-  border-radius: 0;
-  box-shadow: none;
   border: 0.5px solid var(--color-gray-300);
 }
 
@@ -203,8 +207,6 @@ h1 {
 .chart-container {
   background: var(--color-gray-50);
   padding: 20px;
-  border-radius: 0;
-  box-shadow: none;
   border: 0.5px solid var(--color-gray-300);
 }
 
@@ -239,14 +241,14 @@ h1 {
 }
 
 .time-btn.active {
-  background: var(--color-accent);
-  color: var(--color-white);
-  border-color: var(--color-accent);
+  background: var(--color-gray-200);
+  color: var(--color-gray-800);
+  border-color: var(--color-gray-300);
 }
 
 .chart-container h2 {
   font-size: 1.25rem;
-  color: var(--color-black);
+  color: var(--heading-fg);
   margin-bottom: 15px;
 }
 
@@ -269,10 +271,9 @@ h1 {
 table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--color-white);
-  border-radius: 0;
+  background: var(--panel-bg);
+  color: var(--panel-fg);
   overflow: hidden;
-  box-shadow: none;
   border: 0.5px solid var(--color-gray-300);
 }
 
@@ -324,8 +325,8 @@ code {
 }
 
 .badge.ban {
-  background: var(--color-gray-900);
-  color: var(--color-white);
+  background: var(--color-gray-200);
+  color: var(--color-gray-800);
 }
 
 .badge.unban {
@@ -339,8 +340,8 @@ code {
 }
 
 .badge.block {
-  background: var(--color-gray-700);
-  color: var(--color-white);
+  background: var(--color-gray-300);
+  color: var(--color-gray-800);
 }
 
 .badge.adminaction {
@@ -350,8 +351,8 @@ code {
 
 .unban-quick {
   padding: 6px 12px;
-  background: var(--color-gray-700);
-  color: var(--color-white);
+  background: var(--color-gray-200);
+  color: var(--color-gray-800);
   border: none;
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
@@ -361,7 +362,7 @@ code {
 }
 
 .unban-quick:hover {
-  background: var(--color-gray-800);
+  background: var(--color-gray-300);
 }
 
 /* Admin Controls */
@@ -396,8 +397,8 @@ code {
 .control-group button {
   width: 100%;
   padding: 12px;
-  background: var(--color-accent);
-  color: var(--color-white);
+  background: var(--color-gray-200);
+  color: var(--color-gray-800);
   border: none;
   border-radius: var(--radius-md);
   font-weight: 600;
@@ -406,15 +407,15 @@ code {
 }
 
 .control-group button:hover {
-  background: var(--color-accent-hover);
+  background: var(--color-gray-300);
 }
 
 #ban-btn {
-  background: var(--color-gray-900);
+  background: var(--color-accent);
 }
 
 #ban-btn:hover {
-  background: var(--color-black);
+  background: var(--color-accent-hover);
 }
 
 #unban-btn {
@@ -439,8 +440,8 @@ code {
 }
 
 .message.error {
-  background: var(--color-gray-900);
-  color: var(--color-white);
+  background: var(--color-error-bg);
+  color: var(--color-error);
   border: 1px solid var(--color-gray-700);
 }
 
@@ -496,8 +497,8 @@ code {
 
 /* Test Mode Banner */
 .test-mode-banner {
-  background: var(--color-gray-800);
-  color: var(--color-white);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
   padding: 12px 20px;
   border-radius: var(--radius-lg);
   margin-top: 15px;
@@ -614,20 +615,20 @@ input:checked + .toggle-slider:before {
 
 /* Maze Section */
 .maze-section {
-  background: var(--color-gray-900);
-  color: var(--color-white);
+  background: var(--panel-bg);
+  color: var(--panel-fg);
   padding: 25px;
   border-radius: var(--radius-xl);
   margin-bottom: 30px;
 }
 
 .maze-section h2 {
-  color: var(--color-white);
+  color: var(--heading-fg);
   margin-bottom: 5px;
 }
 
 .maze-section .section-desc {
-  color: var(--color-gray-400);
+  color: var(--muted-fg);
   font-size: 0.9rem;
   margin-bottom: 20px;
 }
@@ -640,7 +641,7 @@ input:checked + .toggle-slider:before {
 }
 
 .maze-stat {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--panel-bg);
   padding: 20px;
   border-radius: var(--radius-lg);
   text-align: center;
@@ -661,7 +662,7 @@ input:checked + .toggle-slider:before {
 }
 
 .maze-crawlers {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--panel-bg);
   border-radius: var(--radius-lg);
   padding: 20px;
 }
@@ -669,11 +670,11 @@ input:checked + .toggle-slider:before {
 .maze-crawlers h3 {
   font-size: 1rem;
   margin-bottom: 15px;
-  color: var(--color-white);
+  color: var(--panel-fg);
 }
 
 .maze-controls {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--panel-bg);
   border-radius: var(--radius-lg);
   padding: 15px 20px;
   margin-bottom: 20px;
@@ -712,10 +713,10 @@ input:checked + .toggle-slider:before {
 .threshold-input input {
   width: 80px;
   padding: 8px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--color-gray-300);
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--color-white);
+  background: var(--panel-bg);
+  color: var(--panel-fg);
   font-size: 1rem;
   font-weight: 600;
 }
@@ -733,8 +734,8 @@ input:checked + .toggle-slider:before {
 
 .maze-save-btn {
   padding: 10px 20px;
-  background: var(--color-gray-600);
-  color: var(--color-white);
+  background: var(--color-gray-200);
+  color: var(--color-gray-800);
   border: none;
   border-radius: var(--radius-md);
   font-weight: 600;
@@ -744,7 +745,7 @@ input:checked + .toggle-slider:before {
 }
 
 .maze-save-btn:hover {
-  background: var(--color-gray-500);
+  background: var(--color-gray-300);
   transform: translateY(-1px);
 }
 
@@ -762,14 +763,14 @@ input:checked + .toggle-slider:before {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--panel-bg);
   padding: 12px 15px;
   border-radius: var(--radius-lg);
   transition: background 0.2s;
 }
 
 .crawler-item:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--color-gray-50);
 }
 
 .crawler-ip {
@@ -778,8 +779,8 @@ input:checked + .toggle-slider:before {
 }
 
 .crawler-hits {
-  background: var(--color-gray-700);
-  color: var(--color-white);
+  background: var(--color-gray-300);
+  color: var(--color-gray-800);
   padding: 4px 12px;
   border-radius: var(--radius-full);
   font-size: 0.85rem;
@@ -787,7 +788,7 @@ input:checked + .toggle-slider:before {
 }
 
 .crawler-hits.high {
-  background: var(--color-gray-900);
+  background: var(--color-gray-400);
   animation: pulse 1.5s infinite;
 }
 
@@ -798,7 +799,7 @@ input:checked + .toggle-slider:before {
 
 .no-data {
   text-align: center;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted-fg);
   padding: 20px;
   font-style: italic;
 }
@@ -846,7 +847,8 @@ input:checked + .toggle-slider:before {
   width: 80px;
   padding: 8px 10px;
   border-radius: var(--radius-md);
-  background: var(--color-white);
+  background: var(--panel-bg);
+  color: var(--panel-fg);
   font-size: 1rem;
 }
 
@@ -886,8 +888,8 @@ input:checked + .toggle-slider:before {
 }
 
 .slider-badge {
-  background: var(--color-gray-800);
-  color: var(--color-white);
+  background: var(--color-gray-200);
+  color: var(--color-gray-800);
   font-weight: 600;
   font-size: 0.9rem;
   padding: 4px 12px;
@@ -899,7 +901,6 @@ input:checked + .toggle-slider:before {
 .slider-control input[type="range"] {
   width: 100%;
   height: 8px;
-  border-radius: 0;
   background: var(--color-gray-200);
   outline: none;
   cursor: pointer;
@@ -910,7 +911,6 @@ input:checked + .toggle-slider:before {
   -webkit-appearance: none;
   width: 20px;
   height: 20px;
-  border-radius: 0;
   background: var(--color-gray-800);
   cursor: pointer;
   border: 0.5px solid var(--color-gray-300);
@@ -919,11 +919,9 @@ input:checked + .toggle-slider:before {
 .slider-control input[type="range"]::-moz-range-thumb {
   width: 20px;
   height: 20px;
-  border-radius: 0;
   background: var(--color-gray-800);
   cursor: pointer;
   border: 0.5px solid var(--color-gray-300);
-  box-shadow: none;
 }
 
 .slider-labels {
@@ -1012,43 +1010,39 @@ input:checked + .toggle-slider:before {
   letter-spacing: 0.5px;
 }
 
-.robots-preview pre {
-  color: var(--color-gray-300);
-  font-family: 'Courier New', Consolas, monospace;
-  font-size: 0.85rem;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-  margin: 0;
+.robots-preview {
+  margin-top: 15px;
+  background: var(--panel-bg);
+  border-radius: var(--radius-lg);
+  padding: 15px;
+  overflow-x: auto;
 }
-
-/* Flat panel styling: remove shadows, remove radii, add thin mid-grey borders */
-.card,
-.chart-container,
-.info-panel,
-.robots-preview,
-.maze-section,
-.maze-crawlers,
-.maze-controls,
-.maze-stat,
+.robots-preview h4 {
+  color: var(--muted-fg);
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+  color: var(--panel-fg);
+  padding: 20px;
+  border-radius: 0;
+  box-shadow: none;
+  border: 0.5px solid var(--color-gray-300);
+}
 table,
 thead,
 tbody,
 th,
 td,
 .stats-cards .card {
-  box-shadow: none;
-  border-radius: 0;
   border: 0.5px solid var(--color-gray-300);
 }
 
 /* Ensure header and smaller UI controls are also bordered */
 .config,
-.slider-control,
-.maze-control,
-.input-row {
+.maze-control {
   border: 0.5px solid var(--color-gray-300);
-  border-radius: 0;
 }
 
 /* ===========================================
