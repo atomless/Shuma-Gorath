@@ -12,14 +12,7 @@ function initCharts() {
     data: {
       labels: [],
       datasets: [{
-        data: [],
-        backgroundColor: [
-          '#ef4444', // Red - Ban
-          '#10b981', // Green - Unban
-          '#f59e0b', // Amber - Challenge
-          '#6366f1', // Indigo - Block
-          '#8b5cf6', // Purple - AdminAction
-        ]
+        data: []
       }]
     },
     options: {
@@ -28,6 +21,9 @@ function initCharts() {
       plugins: {
         legend: {
           position: 'bottom'
+        },
+        colorschemes: {
+          scheme: 'brewer.Greys3'
         }
       }
     }
@@ -40,8 +36,7 @@ function initCharts() {
       labels: [],
       datasets: [{
         label: 'Events',
-        data: [],
-        backgroundColor: '#3b82f6'
+        data: []
       }]
     },
     options: {
@@ -58,6 +53,9 @@ function initCharts() {
       plugins: {
         legend: {
           display: false
+        },
+        colorschemes: {
+          scheme: 'brewer.Greys3'
         }
       }
     }
@@ -71,8 +69,6 @@ function initCharts() {
       datasets: [{
         label: 'Events',
         data: [],
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
         fill: true,
         tension: 0.4
       }]
@@ -91,6 +87,9 @@ function initCharts() {
       plugins: {
         legend: {
           display: false
+        },
+        colorschemes: {
+          scheme: 'brewer.Greys3'
         }
       }
     }
