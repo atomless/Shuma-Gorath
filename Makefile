@@ -70,24 +70,45 @@ deploy: build ## Deploy to Fermyon Cloud
 # Testing
 #--------------------------
 
-test: test-unit ## Run all tests (unit + integration if server running)
+test: ## Run ALL tests: unit tests first, then integration tests (requires server)
+	@echo "$(CYAN)============================================$(NC)"
+	@echo "$(CYAN)  RUNNING ALL TESTS$(NC)"
+	@echo "$(CYAN)============================================$(NC)"
+	@echo ""
+	@echo "$(CYAN)Step 1/2: Rust Unit Tests (34 tests)$(NC)"
+	@echo "$(CYAN)--------------------------------------------$(NC)"
+	@cargo test || exit 1
+	@echo ""
+	@echo "$(CYAN)Step 2/2: Integration Tests (15 scenarios)$(NC)"
+	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@if curl -s http://127.0.0.1:3000/health > /dev/null 2>&1; then \
-		$(MAKE) test-integration; \
+		./test_spin_colored.sh || exit 1; \
 	else \
-		echo "$(YELLOW)⚠️  Spin not running. Skipping integration tests.$(NC)"; \
-		echo "$(YELLOW)   Run 'make dev' first, then 'make test-integration'$(NC)"; \
+		echo "$(YELLOW)⚠️  Spin server not running. Skipping integration tests.$(NC)"; \
+		echo "$(YELLOW)   To run integration tests:$(NC)"; \
+		echo "$(YELLOW)   1. Start server: make dev$(NC)"; \
+		echo "$(YELLOW)   2. Run tests:    make test-integration$(NC)"; \
 	fi
-	@echo "$(GREEN)✅ Tests complete!$(NC)"
+	@echo ""
+	@echo "$(GREEN)============================================$(NC)"
+	@echo "$(GREEN)  ALL TESTS COMPLETE$(NC)"
+	@echo "$(GREEN)============================================$(NC)"
 
-test-unit: ## Run Rust unit tests
-	@echo "$(CYAN)🧪 Running unit tests...$(NC)"
+test-unit: ## Run Rust unit tests only (34 tests)
+	@echo "$(CYAN)🧪 Running Rust unit tests...$(NC)"
 	@cargo test
 
-test-integration: ## Run Spin integration tests (requires running server)
+test-integration: ## Run integration tests only (15 scenarios, requires running server)
 	@echo "$(CYAN)🧪 Running integration tests...$(NC)"
-	@./test_spin_colored.sh
+	@if curl -s http://127.0.0.1:3000/health > /dev/null 2>&1; then \
+		./test_spin_colored.sh; \
+	else \
+		echo "$(RED)❌ Error: Spin server not running$(NC)"; \
+		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
+		exit 1; \
+	fi
 
-test-dashboard: ## Instructions for dashboard testing
+test-dashboard: ## Dashboard testing instructions (manual)
 	@echo "$(CYAN)🧪 Dashboard testing (manual):$(NC)"
 	@echo "1. Ensure Spin is running: make dev"
 	@echo "2. Open: http://127.0.0.1:3000/dashboard/index.html"
