@@ -128,7 +128,6 @@ h1 {
 .config {
   background: var(--color-gray-50);
   padding: 20px;
-  border-radius: var(--radius-lg);
   margin-bottom: 30px;
   display: flex;
   gap: 15px;
@@ -144,7 +143,6 @@ h1 {
 .config input {
   padding: 8px 12px;
   border: 1px solid var(--color-gray-300);
-  border-radius: var(--radius-md);
   font-size: 14px;
   font-family: 'Courier New', monospace;
 }
@@ -154,7 +152,6 @@ h1 {
   background: var(--color-gray-200);
   color: var(--color-gray-800);
   border: none;
-  border-radius: var(--radius-md);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
@@ -232,7 +229,6 @@ h1 {
   background: var(--color-gray-100);
   color: var(--color-gray-700);
   border: 1px solid var(--color-gray-300);
-  border-radius: var(--radius-md);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -315,7 +311,6 @@ tr:hover {
 code {
   background: var(--color-gray-100);
   padding: 2px 6px;
-  border-radius: var(--radius-sm);
   font-family: 'Courier New', monospace;
   font-size: 0.875rem;
   color: var(--color-gray-700);
@@ -329,7 +324,6 @@ code {
 .badge {
   display: inline-block;
   padding: 4px 8px;
-  border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -365,7 +359,6 @@ code {
   background: var(--color-gray-200);
   color: var(--color-gray-800);
   border: none;
-  border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
@@ -387,7 +380,6 @@ code {
 .control-group {
   background: var(--color-gray-50);
   padding: 20px;
-  border-radius: var(--radius-lg);
 }
 
 .control-group h3 {
@@ -401,7 +393,6 @@ code {
   padding: 10px;
   margin-bottom: 10px;
   border: 1px solid var(--color-gray-300);
-  border-radius: var(--radius-md);
   font-size: 14px;
 }
 
@@ -411,7 +402,6 @@ code {
   background: var(--color-gray-200);
   color: var(--color-gray-800);
   border: none;
-  border-radius: var(--radius-md);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
@@ -441,7 +431,6 @@ code {
 
 .message {
   padding: 12px 16px;
-  border-radius: var(--radius-md);
   margin-top: 15px;
   font-weight: 500;
 }
@@ -513,7 +502,6 @@ code {
   background: var(--color-warning-bg);
   color: var(--color-warning);
   padding: 12px 20px;
-  border-radius: var(--radius-lg);
   margin-top: 15px;
   font-weight: 600;
   text-align: center;
@@ -558,7 +546,6 @@ code {
   bottom: 0;
   background-color: var(--color-gray-300);
   transition: 0.4s;
-  border-radius: var(--radius-full);
 }
 
 .toggle-slider:before {
@@ -570,7 +557,6 @@ code {
   bottom: 4px;
   background-color: var(--color-white);
   transition: 0.4s;
-  border-radius: 50%;
 }
 
 input:checked + .toggle-slider {
@@ -613,7 +599,6 @@ input:checked + .toggle-slider:before {
   padding: 8px;
   margin-top: 4px;
   border: 1px solid var(--color-gray-300);
-  border-radius: var(--radius-md);
   font-size: 14px;
 }
 
@@ -633,7 +618,6 @@ input:checked + .toggle-slider:before {
   background: var(--panel-bg);
   color: var(--panel-fg);
   padding: 20px;
-  border-radius: 0;
   border: 0.5px solid var(--color-gray-300);
   box-shadow: none;
   margin-bottom: 30px;
@@ -660,7 +644,6 @@ input:checked + .toggle-slider:before {
 .maze-stat {
   background: var(--panel-bg);
   padding: 20px;
-  border-radius: 0;
   border: 0.5px solid var(--color-gray-300);
   text-align: center;
 }
@@ -681,7 +664,6 @@ input:checked + .toggle-slider:before {
 
 .maze-crawlers {
   background: var(--panel-bg);
-  border-radius: 0;
   padding: 20px;
   border: 0.5px solid var(--color-gray-300);
 }
@@ -694,7 +676,6 @@ input:checked + .toggle-slider:before {
 
 .maze-controls {
   background: var(--panel-bg);
-  border-radius: 0;
   padding: 15px 20px;
   margin-bottom: 20px;
   border: 0.5px solid var(--color-gray-300);
@@ -734,7 +715,6 @@ input:checked + .toggle-slider:before {
   width: 80px;
   padding: 8px 10px;
   border: 1px solid var(--color-gray-300);
-  border-radius: var(--radius-md);
   background: var(--panel-bg);
   color: var(--panel-fg);
   font-size: 1rem;
@@ -757,7 +737,6 @@ input:checked + .toggle-slider:before {
   background: var(--color-gray-200);
   color: var(--color-gray-800);
   border: none;
-  border-radius: var(--radius-md);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -785,7 +764,6 @@ input:checked + .toggle-slider:before {
   align-items: center;
   background: var(--panel-bg);
   padding: 12px 15px;
-  border-radius: 0;
   border: 0.5px solid var(--color-gray-300);
   transition: background 0.2s;
 }
@@ -803,7 +781,6 @@ input:checked + .toggle-slider:before {
   background: var(--color-gray-300);
   color: var(--color-gray-800);
   padding: 4px 12px;
-  border-radius: var(--radius-full);
   font-size: 0.85rem;
   font-weight: 600;
 }
@@ -867,7 +844,6 @@ input:checked + .toggle-slider:before {
 .input-row input {
   width: 80px;
   padding: 8px 10px;
-  border-radius: var(--radius-md);
   background: var(--panel-bg);
   color: var(--panel-fg);
   font-size: 1rem;
@@ -914,7 +890,6 @@ input:checked + .toggle-slider:before {
   font-weight: 600;
   font-size: 0.9rem;
   padding: 4px 12px;
-  border-radius: var(--radius-xl);
   min-width: 45px;
   text-align: center;
 }
@@ -959,7 +934,6 @@ input:checked + .toggle-slider:before {
 .info-panel {
   margin-top: 15px;
   background: var(--color-gray-100);
-  border-radius: var(--radius-lg);
   padding: 15px;
 }
 
@@ -1018,7 +992,6 @@ input:checked + .toggle-slider:before {
 .robots-preview {
   margin-top: 15px;
   background: var(--color-gray-900);
-  border-radius: var(--radius-lg);
   padding: 15px;
   overflow-x: auto;
 }
@@ -1034,7 +1007,6 @@ input:checked + .toggle-slider:before {
 .robots-preview {
   margin-top: 15px;
   background: var(--panel-bg);
-  border-radius: var(--radius-lg);
   padding: 15px;
   overflow-x: auto;
 }
@@ -1045,12 +1017,7 @@ input:checked + .toggle-slider:before {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-  color: var(--panel-fg);
-  padding: 20px;
-  border-radius: 0;
-  box-shadow: none;
-  border: 0.5px solid var(--color-gray-300);
-}
+ 
 table,
 thead,
 tbody,

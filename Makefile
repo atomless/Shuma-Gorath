@@ -32,7 +32,18 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	@pkill -f "spin up" 2>/dev/null || true
 	@cargo build --target wasm32-wasip1 --release
 	@cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
-	@cargo watch -w src -i '*.wasm' -x 'build --target wasm32-wasip1 --release' -s 'pkill -f "spin up" 2>/dev/null; cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm && spin up --listen 127.0.0.1:3000'
+	@cargo watch -w src -i '*.wasm' -x 'build --target wasm32-wasip1 --release' -s 'pkill -f "spin up" 2>/dev/null; cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm && spin up --env SHUMA_FAIL_MODE=closed --listen 127.0.0.1:3000'
+
+dev-closed: ## Build and run with file watching and SHUMA_FAIL_MODE=closed (fail-closed)
+	@echo "$(CYAN)🚨 Starting development server with SHUMA_FAIL_MODE=closed (fail-closed)...$(NC)"
+	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/dashboard/index.html$(NC)"
+	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
+	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
+	@echo "$(CYAN)👀 Watching src/*.rs for changes... (Ctrl+C to stop)$(NC)"
+	@pkill -f "spin up" 2>/dev/null || true
+	@cargo build --target wasm32-wasip1 --release
+	@cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
+	@cargo watch -w src -i '*.wasm' -x 'build --target wasm32-wasip1 --release' -s 'pkill -f "spin up" 2>/dev/null; cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm && spin up --env SHUMA_FAIL_MODE=closed --listen 127.0.0.1:3000'
 
 local: dev ## Alias for dev
 

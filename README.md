@@ -99,6 +99,8 @@ make help     # Show all available commands
 | `make logs` | View Spin component logs |
 | `make help` | Show all commands with descriptions |
 
+| `make dev-closed` | Build + run with file watching and `SHUMA_FAIL_MODE=closed` (fail-closed) |
+
 ### Access Points (Local Development)
 
 Once running, you can access:
@@ -309,6 +311,36 @@ environment = {
   TEST_MODE = "0"
 }
 ```
+
+### Fail-open vs Fail-closed (SHUMA_FAIL_MODE)
+
+Shuma-Gorath supports a runtime policy for how the service behaves when the edge KV store is unavailable. This is controlled by the environment variable `SHUMA_FAIL_MODE`.
+
+- Default behavior: `SHUMA_FAIL_MODE` is `open` (fail-open). If the KV store is unreachable the service will continue to serve requests (best-effort), which preserves availability.
+- Fail-closed: set `SHUMA_FAIL_MODE=closed` to make the service return errors when KV is unavailable. Use this when correctness and safety are more important than availability.
+
+Usage examples:
+
+```bash
+# Run the normal development server (default: fail-open)
+make dev
+
+# Run the development server in fail-closed mode (new target)
+make dev-closed
+
+# Or set the env var inline for a one-off run:
+SHUMA_FAIL_MODE=closed make run
+```
+
+Verify the active mode and KV status via the health endpoint (headers shown):
+
+```bash
+curl -I http://127.0.0.1:3000/health
+# Look for: X-Shuma-Fail-Mode: closed
+#           X-KV-Status: unavailable
+```
+
+Note: `SHUMA_FAIL_MODE` is read at runtime; ensure the variable is exported for the `spin up` process (the `dev-closed` Make target sets it appropriately for build and run).
 
 **Step 3: Deploy to Fermyon Cloud**
 ```sh
