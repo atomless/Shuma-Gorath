@@ -201,6 +201,9 @@ mod tests {
             robots_block_ai_search: false,
             robots_allow_search_engines: true,
             robots_crawl_delay: 2,
+            cdp_detection_enabled: false,
+            cdp_detection_threshold: 3.0,
+            cdp_auto_ban: false,
         }
     }
 
