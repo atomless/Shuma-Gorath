@@ -92,8 +92,8 @@ body {
   max-width: 1400px;
   margin: 0 auto;
   background: var(--color-white);
-  border-radius: 0 !important;
-  box-shadow: none !important;
+  border-radius: 0;
+  box-shadow: none;
   border: 0.5px solid var(--color-gray-300);
   padding: 30px;
 }
@@ -173,8 +173,8 @@ h1 {
   background: var(--color-gray-900);
   color: var(--color-white);
   padding: 25px;
-  border-radius: 0 !important;
-  box-shadow: none !important;
+  border-radius: 0;
+  box-shadow: none;
   border: 0.5px solid var(--color-gray-300);
 }
 
@@ -203,8 +203,8 @@ h1 {
 .chart-container {
   background: var(--color-gray-50);
   padding: 20px;
-  border-radius: 0 !important;
-  box-shadow: none !important;
+  border-radius: 0;
+  box-shadow: none;
   border: 0.5px solid var(--color-gray-300);
 }
 
@@ -270,9 +270,9 @@ table {
   width: 100%;
   border-collapse: collapse;
   background: var(--color-white);
-  border-radius: 0 !important;
+  border-radius: 0;
   overflow: hidden;
-  box-shadow: none !important;
+  box-shadow: none;
   border: 0.5px solid var(--color-gray-300);
 }
 
@@ -511,7 +511,7 @@ code {
 }
 
 .hidden {
-  display: none !important;
+  display: none;
 }
 
 @keyframes pulse {
@@ -845,7 +845,6 @@ input:checked + .toggle-slider:before {
 .input-row input {
   width: 80px;
   padding: 8px 10px;
-  border: 1px solid var(--color-gray-300);
   border-radius: var(--radius-md);
   background: var(--color-white);
   font-size: 1rem;
@@ -914,7 +913,6 @@ input:checked + .toggle-slider:before {
   border-radius: 0;
   background: var(--color-gray-800);
   cursor: pointer;
-  box-shadow: none !important;
   border: 0.5px solid var(--color-gray-300);
 }
 
@@ -925,7 +923,7 @@ input:checked + .toggle-slider:before {
   background: var(--color-gray-800);
   cursor: pointer;
   border: 0.5px solid var(--color-gray-300);
-  box-shadow: none !important;
+  box-shadow: none;
 }
 
 .slider-labels {
@@ -1039,9 +1037,9 @@ tbody,
 th,
 td,
 .stats-cards .card {
-  box-shadow: none !important;
-  border-radius: 0 !important;
-  border: 0.5px solid var(--color-gray-300) !important;
+  box-shadow: none;
+  border-radius: 0;
+  border: 0.5px solid var(--color-gray-300);
 }
 
 /* Ensure header and smaller UI controls are also bordered */
@@ -1050,7 +1048,7 @@ td,
 .maze-control,
 .input-row {
   border: 0.5px solid var(--color-gray-300);
-  border-radius: 0 !important;
+  border-radius: 0;
 }
 
 /* ===========================================
@@ -1089,28 +1087,28 @@ td,
   }
 
   body, .container, .card, .info-panel, .robots-preview {
-    background: var(--color-gray-100) !important;
-    color: var(--color-gray-800) !important;
+    background: var(--color-gray-100);
+    color: var(--color-gray-800);
   }
 
   .chart-container, .maze-section, .maze-crawlers, .maze-controls, .maze-stat {
-    background: var(--color-gray-200) !important;
-    color: var(--color-gray-800) !important;
+    background: var(--color-gray-200);
+    color: var(--color-gray-800);
   }
 
   .slider-badge {
-    background: var(--color-gray-700) !important;
-    color: var(--color-gray-100) !important;
+    background: var(--color-gray-700);
+    color: var(--color-gray-100);
   }
 
   input, select, textarea {
-    background: var(--color-gray-200) !important;
-    color: var(--color-gray-800) !important;
-    border-color: var(--color-gray-400) !important;
+    background: var(--color-gray-200);
+    color: var(--color-gray-800);
+    border-color: var(--color-gray-400);
   }
 
   .test-mode-banner {
-    background: var(--color-warning-bg) !important;
-    color: var(--color-warning) !important;
+    background: var(--color-warning-bg);
+    color: var(--color-warning);
   }
 }
