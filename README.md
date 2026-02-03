@@ -11,9 +11,6 @@ A customizable, behavior-based bot defense system designed for **Fermyon Spin**,
 
 
 
-![Dashboard Overview](/dashboard/assets/dashboard-screenshot1.jpg)
-
-![Dashboard Details](/dashboard/assets/dashboard-screenshot2.jpg)
 
 ## 📚 Documentation
 
