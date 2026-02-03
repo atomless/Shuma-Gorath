@@ -1,3 +1,4 @@
+/* ...existing code... */
 /* Shuma-Gorath image styling for dashboard header */
 .shuma-image-wrapper {
   display: flex;
@@ -1005,4 +1006,66 @@ input:checked + .toggle-slider:before {
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
+}
+
+/* ===========================================
+   Light/Dark Mode Support (honor OS preference)
+   Placed after :root so variables override defaults correctly
+   =========================================== */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-white: #18181b;
+    --color-gray-50: #232326;
+    --color-gray-100: #232326;
+    --color-gray-200: #27272a;
+    --color-gray-300: #3f3f46;
+    --color-gray-400: #52525b;
+    --color-gray-500: #71717a;
+    --color-gray-600: #a1a1aa;
+    --color-gray-700: #d4d4d8;
+    --color-gray-800: #e4e4e7;
+    --color-gray-900: #fafafa;
+    --color-black: #ffffff;
+
+    --color-accent: #fafafa;
+    --color-accent-hover: #e4e4e7;
+    --color-success: #e4e4e7;
+    --color-success-bg: #27272a;
+    --color-error: #fafafa;
+    --color-error-bg: #27272a;
+    --color-warning: #d4d4d8;
+    --color-warning-bg: #232326;
+    --color-toggle-active: #fafafa;
+    --shadow-sm: 0 1px 2px 0 rgba(255, 255, 255, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(255, 255, 255, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(255, 255, 255, 0.1), 0 4px 6px -2px rgba(255, 255, 255, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(255, 255, 255, 0.1), 0 10px 10px -5px rgba(255, 255, 255, 0.04);
+  }
+
+  body, .container, .card, .info-panel, .robots-preview {
+    background: var(--color-gray-100) !important;
+    color: var(--color-gray-800) !important;
+  }
+
+  .chart-container, .maze-section, .maze-crawlers, .maze-controls, .maze-stat {
+    background: var(--color-gray-200) !important;
+    color: var(--color-gray-800) !important;
+  }
+
+  .slider-badge {
+    background: var(--color-gray-700) !important;
+    color: var(--color-gray-100) !important;
+  }
+
+  input, select, textarea {
+    background: var(--color-gray-200) !important;
+    color: var(--color-gray-800) !important;
+    border-color: var(--color-gray-400) !important;
+  }
+
+  .test-mode-banner {
+    background: var(--color-warning-bg) !important;
+    color: var(--color-warning) !important;
+  }
 }
