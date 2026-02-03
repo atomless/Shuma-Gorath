@@ -1124,4 +1124,31 @@ td,
     background: var(--color-warning-bg);
     color: var(--color-warning);
   }
+
+  /* Admin controls: make panels match other panels and ensure inputs/buttons contrast */
+  .control-group,
+  .controls-grid .control-group,
+  .admin-controls {
+    background: var(--color-gray-200);
+    color: var(--color-gray-800);
+    border-color: var(--color-gray-300);
+  }
+
+  /* Buttons that are dark in light-mode become light in dark-mode; force dark text on them here */
+  #ban-btn,
+  #unban-btn,
+  #save-durations-btn,
+  #save-maze-config,
+  #save-cdp-config,
+  #save-robots-config,
+  #preview-robots {
+    /* In dark mode these buttons may have light backgrounds; use a dark foreground for contrast */
+    color: var(--color-white);
+  }
+
+  .control-group button {
+    background: var(--color-gray-400);
+    color: var(--color-gray-100);
+    border-color: var(--color-gray-300);
+  }
 }
