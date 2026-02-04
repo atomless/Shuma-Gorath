@@ -46,6 +46,74 @@ We will provide an accessible modality that serves the same purpose and is valid
 5. Server issues a short‑lived signed token (human‑verified).
 6. Token gates future requests until expiry.
 
+## 🐙 Reference Design (Option 2 + Option 3)
+
+This is the recommended first implementation:
+1. Primary challenge: micro‑interaction (SVG) for visual users.
+2. Accessible equivalent: text‑only logic prompt with equal strength.
+3. Both share a single seed format, expiry rules, and token issuance.
+
+### 🐙 Seed Format (Deterministic)
+
+The server generates a short seed and signs it:
+1. `seed_id` (random)
+2. `issued_at` (epoch seconds)
+3. `expires_at` (issued_at + TTL)
+4. `ip_bucket` (derived from request IP bucket)
+5. `risk_level` (low, medium, high)
+6. `puzzle_kind` (micro, text)
+7. `payload` (puzzle parameters)
+8. `sig` (HMAC of all fields)
+
+The client never receives the signing key, only the signed seed.
+
+### 🐙 Micro‑Interaction (SVG)
+
+Example family: “Align the shape to the outline” or “Select the two identical glyphs.”
+The puzzle parameters live entirely in `payload` so verification is deterministic.
+
+Verification rules:
+1. Reject expired seeds or invalid signature.
+2. Ensure `ip_bucket` matches current request.
+3. Ensure the answer is within tolerance for the seed.
+4. Enforce single‑use by storing `seed_id` in a short‑lived KV set.
+
+### 🐙 Text‑Only Equivalent (Accessible)
+
+Uses the same seed, but renders a text prompt derived from `payload`.
+Example family: “From this list, choose the two items that satisfy rule X.”
+
+Verification rules are identical to the SVG puzzle:
+1. Same expiry, signature, and IP bucket checks.
+2. Same single‑use enforcement.
+3. Same risk‑level gating.
+
+### 🐙 Proof‑of‑Work (Option 1)
+
+If the risk level is medium or high, require a small PoW step before the puzzle.
+The PoW token is short‑lived and bound to the same seed to prevent reuse.
+
+### 🐙 Token Issuance (Option 6)
+
+On success:
+1. Issue `human_verified` token with short TTL.
+2. Bind token to `ip_bucket` and session cookie.
+3. Require token on protected paths.
+
+### 🐙 Accessibility Parity (Non‑Bypass)
+
+The accessible path must not be a weaker bypass:
+1. Same TTL and expiry rules.
+2. Same PoW requirement.
+3. Same attempt limits.
+4. Same token issuance and replay protection.
+
+### 🐙 Suggested Endpoints
+
+1. `GET /challenge` returns a signed seed and puzzle metadata.
+2. `POST /challenge/verify` validates the answer and issues token.
+3. Optional `GET /challenge/a11y` returns the text‑only view of the same seed.
+
 ## 🐙 Challenge Families to Evaluate
 
 - Perception + transformation tasks that require human pattern recognition
