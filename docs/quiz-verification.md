@@ -53,6 +53,21 @@ This is the recommended first implementation:
 2. Accessible equivalent: text‑only logic prompt with equal strength.
 3. Both share a single seed format, expiry rules, and token issuance.
 
+## 🐙 Implementation Phases (Agreed Order)
+
+Phase 1: Option 1 (PoW only)
+- Add a small, risk‑gated PoW step with short TTL.
+- No human‑verified token yet.
+
+Phase 2: Option 2 + Option 3 (Micro‑interaction + accessible text)
+- Implement the shared seed format and verification.
+- Keep PoW as the first step on medium/high risk.
+- Still no human‑verified token.
+
+Phase 3: Option 6 (Human‑verified token)
+- Add short‑lived signed token issuance on success.
+- Gate protected paths on the token.
+
 ### 🐙 Seed Format (Deterministic)
 
 The server generates a short seed and signs it:
@@ -90,12 +105,13 @@ Verification rules are identical to the SVG puzzle:
 
 ### 🐙 Proof‑of‑Work (Option 1)
 
-If the risk level is medium or high, require a small PoW step before the puzzle.
+Phase 1 introduces PoW as the first step on medium/high risk.
+In Phase 2, PoW remains before the puzzle.
 The PoW token is short‑lived and bound to the same seed to prevent reuse.
 
 ### 🐙 Token Issuance (Option 6)
 
-On success:
+Phase 3 introduces token issuance:
 1. Issue `human_verified` token with short TTL.
 2. Bind token to `ip_bucket` and session cookie.
 3. Require token on protected paths.
