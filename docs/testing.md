@@ -95,6 +95,7 @@ curl -i -H "X-Forwarded-For: 1.2.3.4" \
   http://127.0.0.1:3000/
 ```
 Expected: an "Access Blocked" page or a JS challenge that sets a `js_verified` cookie.
+If `POW_ENABLED` is true, the JS challenge performs a short proof‑of‑work step first.
 For browser checks, use a private window and confirm the cookie is set after the first visit.
 
 3. Honeypot ban:

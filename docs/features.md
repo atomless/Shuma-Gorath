@@ -7,6 +7,7 @@
 - Browser version blocking
 - Geo-risk scoring via `X-Geo-Country`
 - JavaScript challenge with signed cookie
+- Proof-of-work (PoW) step before JS verification (edge-served)
 - Optional browser whitelist to bypass JS challenge
 - Link maze honeypot with auto-ban threshold
 - CDP automation detection and reporting (`/cdp-report`)

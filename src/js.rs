@@ -41,6 +41,14 @@ fn make_token(ip: &str) -> String {
     general_purpose::STANDARD.encode(result)
 }
 
+/// Build the js_verified cookie value for a given IP.
+pub fn js_verified_cookie(ip: &str) -> String {
+    format!(
+        "js_verified={}; path=/; SameSite=Strict; Max-Age=86400",
+        make_token(ip)
+    )
+}
+
 /// Returns true if the request needs JS verification (no valid js_verified cookie).
 /// Checks for a valid js_verified cookie matching the HMAC token for the IP.
 pub fn needs_js_verification(req: &Request, _store: &Store, _site_id: &str, ip: &str) -> bool {
@@ -62,9 +70,101 @@ pub fn needs_js_verification(req: &Request, _store: &Store, _site_id: &str, ip: 
 /// Returns a Response with a JS challenge page that sets the js_verified cookie for the client IP.
 /// Also injects CDP detection if enabled in the config.
 pub fn inject_js_challenge(ip: &str) -> Response {
-        let token = make_token(ip);
-        let cdp_script = crate::cdp::get_cdp_detection_script();
+    let cdp_script = crate::cdp::get_cdp_detection_script();
+
+    if crate::pow::pow_enabled() {
+        let challenge = crate::pow::issue_pow_challenge(ip);
         let html = format!(r#"
+        <html><head><script>{cdp_script}</script></head><body>
+        <script>
+            // Run CDP detection before allowing access
+            if (window._checkCDPAutomation) {{
+                window._checkCDPAutomation().then(function(result) {{
+                    if (result.detected) {{
+                        fetch('/cdp-report', {{
+                            method: 'POST',
+                            headers: {{ 'Content-Type': 'application/json' }},
+                            body: JSON.stringify({{
+                                cdp_detected: true,
+                                score: result.score,
+                                checks: result.checks
+                            }})
+                        }});
+                    }}
+                }});
+            }}
+
+            const POW_SEED = "{seed}";
+            const POW_DIFFICULTY = {difficulty};
+
+            function hasLeadingZeroBits(bytes, bits) {{
+                let remaining = bits;
+                for (let i = 0; i < bytes.length; i++) {{
+                    if (remaining <= 0) return true;
+                    const b = bytes[i];
+                    if (remaining >= 8) {{
+                        if (b !== 0) return false;
+                        remaining -= 8;
+                    }} else {{
+                        const mask = 0xFF << (8 - remaining);
+                        return (b & mask) === 0;
+                    }}
+                }}
+                return true;
+            }}
+
+            async function sha256(msg) {{
+                const data = new TextEncoder().encode(msg);
+                const hash = await crypto.subtle.digest('SHA-256', data);
+                return new Uint8Array(hash);
+            }}
+
+            async function solvePow(seed, difficulty) {{
+                let nonce = 0;
+                while (true) {{
+                    const hash = await sha256(seed + ':' + nonce);
+                    if (hasLeadingZeroBits(hash, difficulty)) {{
+                        return nonce.toString();
+                    }}
+                    nonce++;
+                    if (nonce % 500 === 0) {{
+                        await new Promise(r => setTimeout(r, 0));
+                    }}
+                }}
+            }}
+
+            async function runPow() {{
+                if (!window.crypto || !crypto.subtle) {{
+                    document.body.innerText = 'Proof-of-work requires a modern browser.';
+                    return;
+                }}
+                document.body.innerText = 'Verifying...';
+                const nonce = await solvePow(POW_SEED, POW_DIFFICULTY);
+                const resp = await fetch('/pow/verify', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ seed: POW_SEED, nonce: nonce }})
+                }});
+                if (resp.ok) {{
+                    window.location.reload();
+                }} else {{
+                    document.body.innerText = 'Verification failed. Please refresh.';
+                }}
+            }}
+
+            runPow();
+    </script>
+    <noscript>Please enable JavaScript to continue.</noscript>
+    </body></html>
+    "#,
+        seed = challenge.seed,
+        difficulty = challenge.difficulty
+        );
+        return Response::new(200, html);
+    }
+
+    let token = make_token(ip);
+    let html = format!(r#"
         <html><head><script>{cdp_script}</script></head><body>
         <script>
             // Run CDP detection before allowing access

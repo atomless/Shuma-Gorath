@@ -33,6 +33,7 @@ mod metrics;     // Prometheus metrics
 mod maze;        // Link maze honeypot
 mod robots;      // robots.txt generation
 mod cdp;         // CDP (Chrome DevTools Protocol) automation detection
+mod pow;         // Proof-of-work verification
 
 /// Main HTTP handler for the bot trap. This function is invoked for every HTTP request.
 /// It applies a series of anti-bot checks in order of cost and effectiveness, returning early on block/allow.
@@ -263,6 +264,9 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
     }
     // Test mode: log and allow all actions (no blocking, banning, or challenging)
     if cfg.test_mode {
+        if path.starts_with("/pow") {
+            return Response::new(200, "TEST MODE: PoW bypassed");
+        }
         if honeypot::is_honeypot(path, &cfg.honeypots) {
             println!("[TEST MODE] Would ban IP {ip} for honeypot");
             metrics::increment(store, metrics::MetricName::TestModeActions, None);
@@ -388,6 +392,16 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
             admin: None,
         });
         return Response::new(403, block_page::render_block_page(block_page::BlockReason::Honeypot));
+    }
+    // PoW endpoints (public, before JS verification)
+    if path == "/pow" {
+        if *req.method() != spin_sdk::http::Method::Get {
+            return Response::new(405, "Method Not Allowed");
+        }
+        return pow::handle_pow_challenge(&ip);
+    }
+    if path == "/pow/verify" {
+        return pow::handle_pow_verify(req, &ip);
     }
     // JS verification (bypass for browser whitelist)
     if path != "/health" && js::needs_js_verification_with_whitelist(req, store, site_id, &ip, &cfg.browser_whitelist) {

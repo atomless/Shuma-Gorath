@@ -15,6 +15,8 @@ If `FORWARDED_IP_SECRET` is set, any request that relies on `X-Forwarded-For` mu
 - `GET /health` - Health check (loopback only)
 - `GET /metrics` - Prometheus metrics (no auth)
 - `GET /bot-trap` - Honeypot (triggers ban)
+- `GET /pow` - PoW challenge seed (when enabled)
+- `POST /pow/verify` - PoW verification (sets js_verified cookie)
 - `POST /cdp-report` - Client automation reports (JSON)
 - `GET /robots.txt` - robots.txt (configurable)
 - `GET /dashboard/...` - Dashboard static assets

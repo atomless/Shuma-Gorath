@@ -62,10 +62,10 @@ fi
 info "Testing root endpoint..."
 
 root_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/")
-if echo "$root_resp" | grep -q 'Access Blocked'; then
-  pass "/ returns Access Blocked (not whitelisted or banned)"
+if echo "$root_resp" | grep -qE '(js_verified|JavaScript|Verifying|pow|Proof-of-work)'; then
+  pass "/ returns JS challenge (PoW or standard)"
 else
-  fail "/ did not return expected Access Blocked page"
+  fail "/ did not return expected JS challenge page"
   echo -e "${YELLOW}DEBUG / response:${NC} $root_resp"
 fi
 

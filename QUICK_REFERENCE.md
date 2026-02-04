@@ -43,6 +43,8 @@ make test-integration      # In terminal 2
 - `GET /bot-trap` - Honeypot (triggers ban)
 - `GET /metrics` - Prometheus metrics
 - `GET /robots.txt` - robots.txt (configurable)
+- `GET /pow` - PoW seed (when enabled)
+- `POST /pow/verify` - PoW verification
 - `POST /cdp-report` - CDP automation report intake
 - `POST /quiz` - Submit quiz answer (if quiz re-enabled)
 
@@ -73,6 +75,10 @@ environment = { API_KEY = "your-secret-key-here", JS_SECRET = "your-js-secret-he
 `EVENT_LOG_RETENTION_HOURS` controls how long event logs are kept (set to `0` to disable cleanup).
 `ADMIN_IP_ALLOWLIST` limits admin API access to specific IPs/CIDRs (comma-separated).
 `SHUMA_FAIL_MODE` controls fail-open/closed behavior when the KV store is unavailable.
+`POW_ENABLED` enables proof-of-work before JS verification (default: true in dev).
+`POW_DIFFICULTY` sets the leading-zero bit target (default: 16).
+`POW_TTL_SECONDS` controls PoW seed expiry (default: 60).
+`POW_SECRET` optionally overrides the PoW signing secret (falls back to `JS_SECRET`).
 
 ### 🐙 Forwarded IP Secret (Deployment)
 Local dev (Makefile): `make dev` sets a dev-only default and passes it to Spin. Override as needed:
