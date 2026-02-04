@@ -1,0 +1,86 @@
+# 🐙 Quiz & Human Verification Strategy
+
+This document outlines an edge‑only, self‑hosted approach to human verification in Shuma‑Gorath.
+It is designed for high usability, strong security, and accessibility without relying on third‑party services.
+
+## 🐙 Goals
+
+- Minimize friction for legitimate humans
+- Make automation materially more expensive for bots
+- Keep verification fully edge‑served and self‑hosted
+- Provide an accessible path that is not a weaker bypass
+
+## 🐙 Non‑Goals
+
+- A single, permanent “bot‑proof” puzzle
+- Dependence on third‑party CAPTCHA vendors or cloud APIs
+
+## 🐙 Design Principles
+
+- Risk‑gated: only challenge sessions with elevated risk signals
+- Edge‑only: all challenge generation and verification happens at the edge
+- Short‑lived: challenges expire quickly and are single‑use
+- Session‑bound: answers are tied to a specific request/session
+- Replay‑resistant: tokens cannot be reused
+- Accessible parity: alternate modalities must be equivalent in strength
+- No speed traps: avoid time‑based requirements that disadvantage users
+
+## 🐙 Accessibility Requirements
+
+CAPTCHAs can block users with disabilities, and WCAG requires text alternatives for non‑text content and recommends providing alternative modalities for CAPTCHAs.
+We will provide an accessible modality that serves the same purpose and is validated with the same rigor.
+
+## 🐙 Threat Model (Practical)
+
+- Headless automation with real browsers and full JS execution
+- Session replay, token reuse, and cookie theft
+- CAPTCHA‑solver farms
+- LLM‑assisted text reasoning
+
+## 🐙 Edge‑Only Verification Flow
+
+1. Risk engine decides whether to challenge.
+2. Server issues a challenge with a nonce bound to session + IP bucket.
+3. Client completes the challenge and submits response.
+4. Server verifies answer, expiry, and nonce integrity.
+5. Server issues a short‑lived signed token (human‑verified).
+6. Token gates future requests until expiry.
+
+## 🐙 Challenge Families to Evaluate
+
+- Perception + transformation tasks that require human pattern recognition
+- Interactive micro‑tasks that remain keyboard‑navigable
+- Context‑bound tasks derived from session‑specific content
+- Multi‑modal pairing where visual and non‑visual versions are equivalent
+
+Avoid relying solely on static text puzzles (e.g., letter‑counting) because they are increasingly solvable by automation.
+If used, they should only be part of a layered risk score, not the primary gate.
+
+## 🐙 Tokenization & Replay Protection
+
+Issue a short‑lived, single‑use verification token after a successful challenge.
+Bind it to the session and include a signed timestamp to enforce expiry.
+Use server‑side verification for every protected action.
+
+## 🐙 Accessibility Path (Same Strength)
+
+- Provide an alternate modality that is not easier to automate than the primary one
+- Use identical server‑side checks, expiry, and rate limits for all modalities
+- Avoid requiring speed or fine motor precision
+- Provide clear instructions and text alternatives for assistive tech
+
+## 🐙 Metrics & Rollout
+
+- Pass rate, failure rate, and abandonment rate by challenge type
+- Median solve time and tail latency
+- False‑positive rate (humans challenged repeatedly)
+- Bot bypass rate and solver‑farm signals
+
+Start with a small percentage of traffic and expand only when metrics are stable.
+
+## 🐙 Research Backlog
+
+- Track ARC‑AGI‑2 benchmark developments as inspiration (not as production puzzles)
+- Identify puzzle families that are robust against LLM‑assisted answers
+- Explore privacy‑preserving verification tokens for lower repeat friction
+- Design an accessibility modality with equal strength

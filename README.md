@@ -65,6 +65,7 @@ See `docs/deployment.md` for deployment wiring and secret handling.
 - [`docs/observability.md`](docs/observability.md) - Prometheus/Grafana integration
 - [`docs/akamai-bot-manager.md`](docs/akamai-bot-manager.md) - Positioning and layered defense
 - [`docs/features.md`](docs/features.md) - Feature list and roadmap
+- [`docs/quiz-verification.md`](docs/quiz-verification.md) - Human verification strategy
 - [`docs/maze.md`](docs/maze.md) - Link maze honeypot
 - [`SECURITY_REVIEW.md`](SECURITY_REVIEW.md) - Security audit notes
 
