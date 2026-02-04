@@ -39,24 +39,39 @@ mod cdp;         // CDP (Chrome DevTools Protocol) automation detection
 
 
 
+/// Returns true if forwarded IP headers should be trusted for this request.
+/// If FORWARDED_IP_SECRET is set, require a matching X-Shuma-Forwarded-Secret header.
+fn forwarded_ip_trusted(req: &Request) -> bool {
+    match env::var("FORWARDED_IP_SECRET") {
+        Ok(secret) => req
+            .header("x-shuma-forwarded-secret")
+            .and_then(|v| v.as_str())
+            .map(|v| v == secret)
+            .unwrap_or(false),
+        Err(_) => true,
+    }
+}
+
 /// Extract the best available client IP from the request.
 fn extract_client_ip(req: &Request) -> String {
-    // Prefer X-Forwarded-For (may be a comma-separated list)
-    if let Some(h) = req.header("x-forwarded-for") {
-        let val = h.as_str().unwrap_or("");
-        // Take the first IP in the list
-        if let Some(ip) = val.split(',').next() {
-            let ip = ip.trim();
-            if !ip.is_empty() && ip != "unknown" {
-                return ip.to_string();
+    // Prefer X-Forwarded-For (may be a comma-separated list) when trusted
+    if forwarded_ip_trusted(req) {
+        if let Some(h) = req.header("x-forwarded-for") {
+            let val = h.as_str().unwrap_or("");
+            // Take the first IP in the list
+            if let Some(ip) = val.split(',').next() {
+                let ip = ip.trim();
+                if !ip.is_empty() && ip != "unknown" {
+                    return ip.to_string();
+                }
             }
         }
-    }
-    // Fallback: X-Real-IP
-    if let Some(h) = req.header("x-real-ip") {
-        let val = h.as_str().unwrap_or("");
-        if !val.is_empty() && val != "unknown" {
-            return val.to_string();
+        // Fallback: X-Real-IP
+        if let Some(h) = req.header("x-real-ip") {
+            let val = h.as_str().unwrap_or("");
+            if !val.is_empty() && val != "unknown" {
+                return val.to_string();
+            }
         }
     }
     // Fallback: remote_addr (Spin SDK may not expose this, but placeholder for future)
@@ -81,7 +96,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
 
     // Health check endpoint (accessible from localhost/browser)
     if path == "/health" {
-        let allowed = ["127.0.0.1", "::1", "unknown"];
+        let allowed = ["127.0.0.1", "::1"];
         let ip = extract_client_ip(req);
         if !allowed.contains(&ip.as_str()) {
             return Response::new(403, "Forbidden");
@@ -155,56 +170,6 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
         return Response::new(404, "Not Found");
     }
 
-    // Link Maze Honeypot - trap bots in infinite loops
-    if maze::is_maze_path(path) {
-        // Get store to log event and track metrics
-        if let Ok(store) = Store::open_default() {
-            let ip = extract_client_ip(req);
-            metrics::increment(&store, metrics::MetricName::MazeHits, None);
-            
-            // Log maze access event
-            crate::admin::log_event(&store, &crate::admin::EventLogEntry {
-                ts: crate::admin::now_ts(),
-                event: crate::admin::EventType::Challenge,
-                ip: Some(ip.clone()),
-                reason: Some("maze_trap".to_string()),
-                outcome: Some("maze_page_served".to_string()),
-                admin: None,
-            });
-            
-            // Check if this IP has hit too many maze pages (potential crawler)
-            // Bucket the IP to reduce KV cardinality and avoid per-IP explosion
-            let maze_bucket = crate::ip::bucket_ip(&ip);
-            let maze_key = format!("maze_hits:{}", maze_bucket);
-            let hits: u32 = store.get(&maze_key)
-                .ok()
-                .flatten()
-                .and_then(|v| String::from_utf8(v).ok())
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(0);
-            
-            // Increment maze hit counter for this IP
-            let _ = store.set(&maze_key, (hits + 1).to_string().as_bytes());
-            
-            // If they've hit the threshold, they're definitely a bot - ban them
-            let cfg = config::Config::load(&store, "default");
-            if hits >= cfg.maze_auto_ban_threshold && cfg.maze_auto_ban {
-                ban::ban_ip(&store, "default", &ip, "maze_crawler", cfg.get_ban_duration("honeypot"));
-                metrics::increment(&store, metrics::MetricName::BansTotal, Some("maze_crawler"));
-                crate::admin::log_event(&store, &crate::admin::EventLogEntry {
-                    ts: crate::admin::now_ts(),
-                    event: crate::admin::EventType::Ban,
-                    ip: Some(ip.clone()),
-                    reason: Some("maze_crawler".to_string()),
-                    outcome: Some(format!("banned_after_{}_maze_pages", cfg.maze_auto_ban_threshold)),
-                    admin: None,
-                });
-            }
-        }
-        
-        return maze::handle_maze_request(path);
-    }
-
     let site_id = "default";
     let ip = extract_client_ip(req);
     let ua = req.header("user-agent").map(|v| v.as_str().unwrap_or("")).unwrap_or("");
@@ -233,10 +198,58 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
     }
     let store = store.as_ref().unwrap();
 
+    let cfg = config::Config::load(store, site_id);
+
+    // Link Maze Honeypot - trap bots in infinite loops (only if enabled)
+    if maze::is_maze_path(path) {
+        if !cfg.maze_enabled {
+            return Response::new(404, "Not Found");
+        }
+        metrics::increment(store, metrics::MetricName::MazeHits, None);
+
+        // Log maze access event
+        crate::admin::log_event(store, &crate::admin::EventLogEntry {
+            ts: crate::admin::now_ts(),
+            event: crate::admin::EventType::Challenge,
+            ip: Some(ip.clone()),
+            reason: Some("maze_trap".to_string()),
+            outcome: Some("maze_page_served".to_string()),
+            admin: None,
+        });
+
+        // Check if this IP has hit too many maze pages (potential crawler)
+        // Bucket the IP to reduce KV cardinality and avoid per-IP explosion
+        let maze_bucket = crate::ip::bucket_ip(&ip);
+        let maze_key = format!("maze_hits:{}", maze_bucket);
+        let hits: u32 = store.get(&maze_key)
+            .ok()
+            .flatten()
+            .and_then(|v| String::from_utf8(v).ok())
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
+
+        // Increment maze hit counter for this IP
+        let _ = store.set(&maze_key, (hits + 1).to_string().as_bytes());
+
+        // If they've hit the threshold, they're definitely a bot - ban them
+        if hits >= cfg.maze_auto_ban_threshold && cfg.maze_auto_ban {
+            ban::ban_ip(store, "default", &ip, "maze_crawler", cfg.get_ban_duration("honeypot"));
+            metrics::increment(store, metrics::MetricName::BansTotal, Some("maze_crawler"));
+            crate::admin::log_event(store, &crate::admin::EventLogEntry {
+                ts: crate::admin::now_ts(),
+                event: crate::admin::EventType::Ban,
+                ip: Some(ip.clone()),
+                reason: Some("maze_crawler".to_string()),
+                outcome: Some(format!("banned_after_{}_maze_pages", cfg.maze_auto_ban_threshold)),
+                admin: None,
+            });
+        }
+
+        return maze::handle_maze_request(path);
+    }
+
     // Increment request counter
     metrics::increment(store, metrics::MetricName::RequestsTotal, None);
-
-    let cfg = config::Config::load(store, site_id);
 
     // Path-based whitelist (for webhooks/integrations)
     if whitelist::is_path_whitelisted(path, &cfg.path_whitelist) {

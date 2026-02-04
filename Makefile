@@ -9,6 +9,20 @@ YELLOW := \033[1;33m
 CYAN := \033[0;36m
 NC := \033[0m
 
+# Ensure rustup-installed cargo is available in non-interactive shells
+CARGO_HOME ?= $(HOME)/.cargo
+PATH := $(CARGO_HOME)/bin:$(PATH)
+export PATH
+
+# Dev-only default for forwarded IP secret (override with FORWARDED_IP_SECRET=...)
+DEV_FORWARDED_IP_SECRET ?= changeme-dev-only-ip-secret
+FORWARDED_IP_SECRET ?= $(DEV_FORWARDED_IP_SECRET)
+export FORWARDED_IP_SECRET
+
+# Optional header/env for forwarded IP trust (only if FORWARDED_IP_SECRET is set)
+FORWARDED_SECRET_HEADER := $(if $(FORWARDED_IP_SECRET),-H "X-Shuma-Forwarded-Secret: $(FORWARDED_IP_SECRET)",)
+SPIN_FORWARD_SECRET := $(if $(FORWARDED_IP_SECRET),--env FORWARDED_IP_SECRET=$(FORWARDED_IP_SECRET),)
+
 #--------------------------
 # Setup (first-time)
 #--------------------------
@@ -30,9 +44,11 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
 	@echo "$(CYAN)👀 Watching src/*.rs for changes... (Ctrl+C to stop)$(NC)"
 	@pkill -f "spin up" 2>/dev/null || true
+	@./scripts/set_crate_type.sh cdylib
 	@cargo build --target wasm32-wasip1 --release
 	@cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
-	@cargo watch -w src -i '*.wasm' -x 'build --target wasm32-wasip1 --release' -s 'pkill -f "spin up" 2>/dev/null; cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm && spin up --env SHUMA_FAIL_MODE=closed --listen 127.0.0.1:3000'
+	@./scripts/set_crate_type.sh rlib
+	@cargo watch -w src -i '*.wasm' -x './scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release' -s 'pkill -f "spin up" 2>/dev/null; cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm && ./scripts/set_crate_type.sh rlib && spin up --env SHUMA_FAIL_MODE=closed $(SPIN_FORWARD_SECRET) --listen 127.0.0.1:3000'
 
 dev-closed: ## Build and run with file watching and SHUMA_FAIL_MODE=closed (fail-closed)
 	@echo "$(CYAN)🚨 Starting development server with SHUMA_FAIL_MODE=closed (fail-closed)...$(NC)"
@@ -41,9 +57,11 @@ dev-closed: ## Build and run with file watching and SHUMA_FAIL_MODE=closed (fail
 	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
 	@echo "$(CYAN)👀 Watching src/*.rs for changes... (Ctrl+C to stop)$(NC)"
 	@pkill -f "spin up" 2>/dev/null || true
+	@./scripts/set_crate_type.sh cdylib
 	@cargo build --target wasm32-wasip1 --release
 	@cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
-	@cargo watch -w src -i '*.wasm' -x 'build --target wasm32-wasip1 --release' -s 'pkill -f "spin up" 2>/dev/null; cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm && spin up --env SHUMA_FAIL_MODE=closed --listen 127.0.0.1:3000'
+	@./scripts/set_crate_type.sh rlib
+	@cargo watch -w src -i '*.wasm' -x './scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release' -s 'pkill -f "spin up" 2>/dev/null; cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm && ./scripts/set_crate_type.sh rlib && spin up --env SHUMA_FAIL_MODE=closed $(SPIN_FORWARD_SECRET) --listen 127.0.0.1:3000'
 
 local: dev ## Alias for dev
 
@@ -51,13 +69,15 @@ run: ## Build once and run (no file watching)
 	@echo "$(CYAN)🚀 Starting development server...$(NC)"
 	@pkill -f "spin up" 2>/dev/null || true
 	@sleep 1
+	@./scripts/set_crate_type.sh cdylib
 	@cargo build --target wasm32-wasip1 --release
 	@cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
+	@./scripts/set_crate_type.sh rlib
 	@echo "$(GREEN)✅ Build complete. Starting Spin...$(NC)"
 	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/dashboard/index.html$(NC)"
 	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
 	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
-	@spin up --listen 127.0.0.1:3000
+	@spin up $(SPIN_FORWARD_SECRET) --listen 127.0.0.1:3000
 
 #--------------------------
 # Production
@@ -65,9 +85,11 @@ run: ## Build once and run (no file watching)
 
 build: ## Build release binary only (no server start)
 	@echo "$(CYAN)🔨 Building release binary...$(NC)"
+	@./scripts/set_crate_type.sh cdylib
 	@cargo build --target wasm32-wasip1 --release
 	@cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
 	@echo "$(GREEN)✅ Build complete: src/bot_trap.wasm$(NC)"
+	@./scripts/set_crate_type.sh rlib
 
 prod: build ## Build for production and start server
 	@echo "$(CYAN)🚀 Starting production server...$(NC)"
@@ -90,11 +112,12 @@ test: ## Run ALL tests: unit tests first, then integration tests (requires serve
 	@echo ""
 	@echo "$(CYAN)Step 1/2: Rust Unit Tests (34 tests)$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
+	@./scripts/set_crate_type.sh rlib
 	@cargo test || exit 1
 	@echo ""
 	@echo "$(CYAN)Step 2/2: Integration Tests (15 scenarios)$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
-	@if curl -s http://127.0.0.1:3000/health > /dev/null 2>&1; then \
+	@if curl -sf -H "X-Forwarded-For: 127.0.0.1" $(FORWARDED_SECRET_HEADER) http://127.0.0.1:3000/health > /dev/null 2>&1; then \
 		./test_spin_colored.sh || exit 1; \
 	else \
 		echo "$(YELLOW)⚠️  Spin server not running. Skipping integration tests.$(NC)"; \
@@ -109,11 +132,12 @@ test: ## Run ALL tests: unit tests first, then integration tests (requires serve
 
 test-unit: ## Run Rust unit tests only (34 tests)
 	@echo "$(CYAN)🧪 Running Rust unit tests...$(NC)"
+	@./scripts/set_crate_type.sh rlib
 	@cargo test
 
 test-integration: ## Run integration tests only (15 scenarios, requires running server)
 	@echo "$(CYAN)🧪 Running integration tests...$(NC)"
-	@if curl -s http://127.0.0.1:3000/health > /dev/null 2>&1; then \
+	@if curl -sf -H "X-Forwarded-For: 127.0.0.1" $(FORWARDED_SECRET_HEADER) http://127.0.0.1:3000/health > /dev/null 2>&1; then \
 		./test_spin_colored.sh; \
 	else \
 		echo "$(RED)❌ Error: Spin server not running$(NC)"; \
@@ -125,7 +149,7 @@ test-dashboard: ## Dashboard testing instructions (manual)
 	@echo "$(CYAN)🧪 Dashboard testing (manual):$(NC)"
 	@echo "1. Ensure Spin is running: make dev"
 	@echo "2. Open: http://127.0.0.1:3000/dashboard/index.html"
-	@echo "3. Follow checklist in TESTING.md"
+	@echo "3. Follow checklist in docs/testing.md"
 
 #--------------------------
 # Utilities
@@ -136,7 +160,7 @@ stop: ## Stop running Spin server
 	@pkill -f "spin up" 2>/dev/null && echo "$(GREEN)✅ Stopped$(NC)" || echo "$(YELLOW)No server running$(NC)"
 
 status: ## Check if Spin server is running
-	@if curl -s http://127.0.0.1:3000/health > /dev/null 2>&1; then \
+	@if curl -sf -H "X-Forwarded-For: 127.0.0.1" http://127.0.0.1:3000/health > /dev/null 2>&1; then \
 		echo "$(GREEN)✅ Spin server is running$(NC)"; \
 		echo "   Dashboard: http://127.0.0.1:3000/dashboard/index.html"; \
 	else \

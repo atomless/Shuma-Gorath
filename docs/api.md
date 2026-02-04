@@ -1,0 +1,85 @@
+# 🐙 API & Endpoints
+
+## 🐙 Authentication
+
+All admin endpoints require:
+- `Authorization: Bearer <API_KEY>`
+- If `ADMIN_IP_ALLOWLIST` is set, the client IP must be in the allowlist
+
+If `FORWARDED_IP_SECRET` is set, any request that relies on `X-Forwarded-For` must also include:
+- `X-Shuma-Forwarded-Secret: <FORWARDED_IP_SECRET>`
+
+## 🐙 Public Endpoints
+
+- `GET /` - Main bot trap handler
+- `GET /health` - Health check (loopback only)
+- `GET /metrics` - Prometheus metrics (no auth)
+- `GET /bot-trap` - Honeypot (triggers ban)
+- `POST /cdp-report` - Client automation reports (JSON)
+- `GET /robots.txt` - robots.txt (configurable)
+- `GET /dashboard/...` - Dashboard static assets
+- `POST /quiz` - Quiz answer submission (feature currently disabled)
+
+### 🐙 Health Check Example
+
+```bash
+curl -H "X-Forwarded-For: 127.0.0.1" \
+  -H "X-Shuma-Forwarded-Secret: $FORWARDED_IP_SECRET" \
+  http://127.0.0.1:3000/health
+```
+
+The health response includes:
+- `X-KV-Status` (available/unavailable)
+- `X-Shuma-Fail-Mode` (open/closed)
+
+## 🐙 Admin Endpoints
+
+- `GET /admin` - API help
+- `GET /admin/ban` - List active bans
+- `POST /admin/ban` - Ban an IP (JSON body: `{"ip":"x.x.x.x","reason":"...","duration":3600}`)
+- `POST /admin/unban?ip=x.x.x.x` - Unban an IP
+- `GET /admin/analytics` - Ban/event statistics
+- `GET /admin/events?hours=N` - Recent events + summary stats
+- `GET /admin/config` - Read configuration
+- `POST /admin/config` - Update configuration (partial JSON)
+- `GET /admin/maze` - Link maze stats
+- `GET /admin/robots` - robots.txt config and preview
+- `GET /admin/cdp` - CDP detection config and stats
+
+### 🐙 Analytics Response
+
+`GET /admin/analytics` returns:
+- `ban_count`
+- `test_mode`
+- `fail_mode`
+
+### 🐙 Admin Events Response
+
+`GET /admin/events?hours=24` returns:
+- `recent_events` (up to 100 events)
+- `event_counts` (counts per event type)
+- `top_ips` (top 10 IPs by event count)
+- `unique_ips` (distinct IP count)
+
+### 🐙 Example: List Bans
+
+```bash
+curl -H "Authorization: Bearer $API_KEY" \
+  http://127.0.0.1:3000/admin/ban
+```
+
+### 🐙 Example: Ban an IP
+
+```bash
+curl -X POST -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"ip":"1.2.3.4","reason":"admin_ban","duration":3600}' \
+  http://127.0.0.1:3000/admin/ban
+```
+
+### 🐙 Example: Fetch Events
+
+```bash
+curl -H "Authorization: Bearer $API_KEY" \
+  http://127.0.0.1:3000/admin/events?hours=24
+```

@@ -1,0 +1,106 @@
+# 🐙 Deployment & Configuration
+
+This project is designed to run on Spin (local or cloud). Use the Makefile for official flows where possible.
+
+Shuma-Gorath is designed to **complement enterprise bot defenses** (such as Akamai Bot Manager) as a second-layer of application-specific protection, but it can also run standalone.
+
+## 🐙 Required Secrets / Env Vars
+
+- `API_KEY` - Admin API bearer token
+- `JS_SECRET` - Signs the `js_verified` cookie
+- `FORWARDED_IP_SECRET` - Optional; required to trust `X-Forwarded-For`
+- `ADMIN_IP_ALLOWLIST` - Optional; CIDR/IP allowlist for admin access
+- `EVENT_LOG_RETENTION_HOURS` - Event retention window
+- `SHUMA_FAIL_MODE` - `open` (default) or `closed`
+
+## 🐙 Forwarded IP Trust
+
+If `FORWARDED_IP_SECRET` is set, the app only trusts `X-Forwarded-For` when the request also includes:
+
+```
+X-Shuma-Forwarded-Secret: <same value>
+```
+
+Configure your CDN/reverse proxy to add that header on inbound requests.
+
+## 🐙 Fail-Open vs Fail-Closed (Critical Policy)
+
+`SHUMA_FAIL_MODE` controls what happens when the KV store is unavailable during request handling:
+
+- `open` (default): allow requests through and bypass checks
+- `closed`: return a 500 error and block
+
+Choose this deliberately for your security posture. See `docs/security-hardening.md` for guidance.
+
+## 🐙 Production Proxy Requirements
+
+Shuma-Gorath is designed to run behind a CDN or reverse proxy that sets `X-Forwarded-For`.
+In production, do not expose the Spin origin directly. Instead:
+
+- Terminate TLS at your CDN/proxy
+- Ensure the proxy injects `X-Forwarded-For` (and `X-Shuma-Forwarded-Secret` if enabled)
+- Firewall the origin to accept traffic only from the CDN/proxy IP ranges
+
+If the origin is reachable directly, client IPs may appear as `unknown`. This is safe for the `/health` endpoint but not a substitute for proper origin protection.
+
+## 🐙 Fermyon / Spin Cloud (Recommended)
+
+Use Spin application variables to avoid committing secrets.
+
+Example `spin.toml` wiring:
+
+```toml
+[variables]
+forwarded_ip_secret = { default = "" }
+api_key = { default = "" }
+js_secret = { default = "" }
+
+[component.bot-trap]
+environment = {
+  API_KEY = "{{ api_key }}",
+  JS_SECRET = "{{ js_secret }}",
+  FORWARDED_IP_SECRET = "{{ forwarded_ip_secret }}"
+}
+```
+
+Set variables in your cloud environment (CLI or console) before deploying. Use `make deploy` for the official deploy path.
+
+### 🐙 Step-by-Step (Fermyon Cloud)
+
+```bash
+spin cloud login
+make deploy
+```
+
+Optional custom domain:
+
+```bash
+spin cloud link --domain your-domain.example.com
+```
+
+### 🐙 Monitoring (Fermyon Cloud)
+
+```bash
+spin cloud logs
+spin cloud apps info
+spin cloud apps metrics
+```
+
+### 🐙 Forwarded IP Secret on Fermyon Cloud
+
+If you set `FORWARDED_IP_SECRET`, you must inject the matching `X-Shuma-Forwarded-Secret` header upstream. If you are not adding a CDN/proxy that can inject that header, leave `FORWARDED_IP_SECRET` unset and rely on the platform-provided `X-Forwarded-For`.
+
+## 🐙 Other Deploy Targets
+
+- Set environment variables in your platform’s secret/config system (Kubernetes, Docker, systemd, etc.)
+- Ensure your proxy/CDN adds `X-Shuma-Forwarded-Secret` if `FORWARDED_IP_SECRET` is set
+- Use TLS for all admin traffic
+- Restrict `/admin/*` access using `ADMIN_IP_ALLOWLIST` or platform firewall rules
+
+## 🐙 Local Dev Defaults
+
+`make dev` sets a dev-only default for `FORWARDED_IP_SECRET` and passes it to Spin. Override as needed:
+
+```bash
+make dev FORWARDED_IP_SECRET="your-dev-secret"
+```

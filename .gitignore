@@ -4,6 +4,7 @@ build/
 *.lock
 .DS_Store
 .env
+unit_test_output.log
 
 # Spin runtime data
 .spin/

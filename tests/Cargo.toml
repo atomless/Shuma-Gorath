@@ -1,8 +1,0 @@
-[package]
-name = "bot_trap"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-shuma_gorath = { path = ".." }
-spin-sdk = "2.2.0"

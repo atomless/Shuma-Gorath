@@ -1,8 +1,16 @@
-# Quick Reference - WASM Bot Trap
+# 🐙 Quick Reference - WASM Bot Trap
 
-## Common Commands
+For full documentation, see `docs/index.md`.
 
-### Build & Run
+## 🐙 Common Commands
+
+### 🐙 Setup
+```bash
+make setup          # Install dependencies (Rust, Spin, cargo-watch)
+make verify         # Verify dependencies are installed
+```
+
+### 🐙 Build & Run
 ```bash
 make dev            # Build and run with file watching (auto-rebuild)
 make run            # Build once and run (no watching)
@@ -13,13 +21,13 @@ make status         # Check if server is running
 make clean          # Clean build artifacts
 ```
 
-### Testing
+### 🐙 Testing
 ```bash
 # All tests (recommended)
 make test                  # Run unit tests + integration if server running
 
-# Unit tests only (34 tests, native Rust, NO Spin required)
-make test-unit             # Run all 34 unit tests
+# Unit tests only (native Rust, NO Spin required)
+make test-unit             # Run all unit tests
 
 # Integration tests only (15 scenarios, Spin environment required)
 make dev                   # In terminal 1
@@ -27,21 +35,18 @@ make test-integration      # In terminal 2
 ```
 **Important:** Unit tests run in native Rust. Integration tests MUST run in Spin environment.
 
-### Manual Build
-```bash
-cargo build --target wasm32-wasip1 --release
-spin up
-```
+## 🐙 API Endpoints
 
-## API Endpoints
-
-### Public Endpoints
+### 🐙 Public Endpoints
 - `GET /` - Main bot trap (may show block page, JS challenge, or pass through)
 - `GET /health` - Health check (localhost only)
 - `GET /bot-trap` - Honeypot (triggers ban)
+- `GET /metrics` - Prometheus metrics
+- `GET /robots.txt` - robots.txt (configurable)
+- `POST /cdp-report` - CDP automation report intake
 - `POST /quiz` - Submit quiz answer (if quiz re-enabled)
 
-### Admin API (requires `Authorization: Bearer <API_KEY>`)
+### 🐙 Admin API (requires `Authorization: Bearer <API_KEY>`)
 - `GET /admin/ban` - List all bans
 - `POST /admin/ban` - Manually ban IP (JSON: `{"ip":"x.x.x.x","reason":"...","duration":3600}`)
 - `POST /admin/unban?ip=x.x.x.x` - Unban an IP
@@ -54,16 +59,48 @@ spin up
 - `GET /admin/cdp` - CDP detection configuration and stats
 - `GET /admin` - API help
 
-## Configuration
+## 🐙 Configuration
 
-### API Key
+### 🐙 API Key
 Set in `spin.toml` or environment:
 ```toml
 [component.bot-trap]
-environment = { API_KEY = "your-secret-key-here" }
+environment = { API_KEY = "your-secret-key-here", JS_SECRET = "your-js-secret-here", EVENT_LOG_RETENTION_HOURS = "168", ADMIN_IP_ALLOWLIST = "203.0.113.0/24,198.51.100.10" }
 ```
 
-### Test Mode
+`JS_SECRET` is used to sign the `js_verified` cookie for the JS challenge.
+`FORWARDED_IP_SECRET` is optional and is used to trust `X-Forwarded-For` from your proxy/CDN (it must also send `X-Shuma-Forwarded-Secret`). If you set it, include that header in integration tests.
+`EVENT_LOG_RETENTION_HOURS` controls how long event logs are kept (set to `0` to disable cleanup).
+`ADMIN_IP_ALLOWLIST` limits admin API access to specific IPs/CIDRs (comma-separated).
+`SHUMA_FAIL_MODE` controls fail-open/closed behavior when the KV store is unavailable.
+
+### 🐙 Forwarded IP Secret (Deployment)
+Local dev (Makefile): `make dev` sets a dev-only default and passes it to Spin. Override as needed:
+```bash
+make dev FORWARDED_IP_SECRET="your-dev-secret"
+```
+
+Fermyon / Spin Cloud (recommended):
+1. Define an application variable in `spin.toml`.
+2. Map it into the component environment.
+3. Set the variable in your cloud environment (CLI or console) at deploy time.
+
+Example `spin.toml` wiring (no secret committed):
+```toml
+[variables]
+forwarded_ip_secret = { default = "" }
+
+[component.bot-trap]
+environment = { FORWARDED_IP_SECRET = "{{ forwarded_ip_secret }}" }
+```
+
+Other deploy targets:
+- Set `FORWARDED_IP_SECRET` as an environment variable in your platform's secrets/config (Kubernetes, Docker, systemd, etc.).
+- Ensure your proxy/CDN sends `X-Shuma-Forwarded-Secret` with the same value on each request.
+
+For more deployment detail, see `docs/deployment.md`.
+
+### 🐙 Test Mode
 Enable for safe production testing (logs but doesn't block):
 
 **Via Dashboard:** Use the Test Mode toggle in Admin Controls
@@ -86,23 +123,25 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
 environment = { TEST_MODE = "1" }
 ```
 
-### Default Config
+### 🐙 Default Config
 Located in `src/config.rs`:
 - **Ban duration**: 21600 seconds (6 hours)
 - **Rate limit**: 80 requests/minute
 - **Honeypots**: `/bot-trap`
 - **Browser blocks**: Chrome <120, Firefox <115, Safari <15
 
-## Dashboard
+Full configuration reference: `docs/configuration.md`.
 
-1. Open `dashboard/index.html` in browser
+## 🐙 Dashboard
+
+1. Open `http://127.0.0.1:3000/dashboard/index.html` in browser
 2. Enter API endpoint: `http://127.0.0.1:3000`
 3. Enter API key (default: `changeme-supersecret`)
 4. View analytics and manage bans
 
-## Common Tasks
+## 🐙 Common Tasks
 
-### Ban an IP manually
+### 🐙 Ban an IP manually
 ```bash
 curl -X POST -H "Authorization: Bearer changeme-supersecret" \
   -H "Content-Type: application/json" \
@@ -110,43 +149,47 @@ curl -X POST -H "Authorization: Bearer changeme-supersecret" \
   http://127.0.0.1:3000/admin/ban
 ```
 
-### Unban an IP
+### 🐙 Unban an IP
 ```bash
 curl -X POST -H "Authorization: Bearer changeme-supersecret" \
   "http://127.0.0.1:3000/admin/unban?ip=1.2.3.4"
 ```
 
-### View recent events
+### 🐙 View recent events
 ```bash
 curl -H "Authorization: Bearer changeme-supersecret" \
   "http://127.0.0.1:3000/admin/events?hours=24" | jq
 ```
 
-### Test honeypot
+### 🐙 Test honeypot
+If `FORWARDED_IP_SECRET` is set, include the matching header:
 ```bash
-curl -H "X-Forwarded-For: 1.2.3.4" http://127.0.0.1:3000/bot-trap
+curl -H "X-Forwarded-For: 1.2.3.4" \
+  -H "X-Shuma-Forwarded-Secret: $FORWARDED_IP_SECRET" \
+  http://127.0.0.1:3000/bot-trap
 # Subsequent requests from 1.2.3.4 will be blocked
 ```
 
-## Troubleshooting
+## 🐙 Troubleshooting
 
-### Build Errors
-- Run `cargo clean` before switching between WASM and native builds
-- Ensure `wasm32-wasip1` target installed: `rustup target add wasm32-wasip1`
+### 🐙 Build Errors
+- If switching targets and you see build issues, run `make clean`
+- Ensure dependencies are installed: `make setup` then `make verify`
 
-### Port Already in Use
-- `make local` automatically kills existing Spin instances
-- Manual: `pkill -f spin && spin up`
+### 🐙 Port Already in Use
+- Use `make stop` then `make dev`
 
-### Tests Failing
-- Use provided test scripts (they handle clean builds)
-- Integration tests require Spin to be running
+### 🐙 Tests Failing
+- Use Makefile targets (`make test`, `make test-unit`, `make test-integration`)
+- Integration tests require Spin to be running (`make dev`)
+- Check logs with `make logs`
 
-### Dashboard Not Loading
-- Open `dashboard/index.html` as a local file (file://)
-- Or configure static file serving in Spin (see `spin_static_dashboard.toml`)
+### 🐙 Dashboard Not Loading
+- Ensure Spin is running: `make status`
+- Open `http://127.0.0.1:3000/dashboard/index.html`
+- Confirm API key and check logs: `make logs`
 
-## Project Structure
+## 🐙 Project Structure
 ```
 src/
 ├── lib.rs          # Main handler
@@ -165,10 +208,10 @@ src/
 └── *_tests.rs      # Unit tests
 
 dashboard/          # Web dashboard
-tests/              # Integration tests
+test_spin_colored.sh # Integration tests (shell)
 ```
 
-## Security Notes
+## 🐙 Security Notes
 
 - **Never commit API keys** - Use environment variables
 - **Rotate keys regularly** - Change API_KEY in production
@@ -176,7 +219,7 @@ tests/              # Integration tests
 - **Restrict admin access** - Use IP allowlist or VPN
 - **Monitor event logs** - Review admin actions regularly
 
-## Next Steps
+## 🐙 Next Steps
 
 1. **Production Deployment**: Deploy to Fermyon Cloud or compatible platform
 2. **Custom Config**: Update config in KV store for your needs

@@ -1,7 +1,6 @@
 // src/rate.rs
 // Rate limiting for WASM Bot Trap
 
-use spin_sdk::key_value::Store;
 use crate::ip;
 use crate::quiz::KeyValueStore;
 use std::time::{SystemTime, UNIX_EPOCH};

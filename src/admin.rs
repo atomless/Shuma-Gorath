@@ -1,5 +1,8 @@
 use serde::{Serialize, Deserialize};
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::env;
+use once_cell::sync::Lazy;
+use std::sync::Mutex;
 /// Event types for activity logging
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum EventType {
@@ -22,22 +25,51 @@ pub struct EventLogEntry {
 }
 
 /// Append an event to the event log (simple append-only, time-bucketed by hour)
-/// 
+///
 /// TODO: Implement data retention policy
 /// - Add configurable retention period (e.g., 90 days)
 /// - Create background cleanup job to periodically remove old event buckets
 /// - Consider adding admin endpoint to manually trigger cleanup
 /// - Example: Delete keys matching "eventlog:*" where hour < (now - retention_period)
+const EVENT_PAGE_SIZE: usize = 500; // max entries per page
+const EVENT_MAX_PAGES_PER_HOUR: usize = 256; // safety cap
+const DEFAULT_EVENT_RETENTION_HOURS: u64 = 168; // 7 days
+
+static LAST_EVENTLOG_CLEANUP_HOUR: Lazy<Mutex<u64>> = Lazy::new(|| Mutex::new(0));
+
+fn event_log_retention_hours() -> u64 {
+    env::var("EVENT_LOG_RETENTION_HOURS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(DEFAULT_EVENT_RETENTION_HOURS)
+}
+
+fn maybe_cleanup_event_logs<S: crate::quiz::KeyValueStore>(store: &S, current_hour: u64) {
+    let retention = event_log_retention_hours();
+    if retention == 0 {
+        return;
+    }
+    let mut last = LAST_EVENTLOG_CLEANUP_HOUR.lock().unwrap();
+    if *last == current_hour {
+        return;
+    }
+    *last = current_hour;
+
+    let cutoff_hour = current_hour.saturating_sub(retention);
+    for page in 1..=EVENT_MAX_PAGES_PER_HOUR {
+        let key = format!("eventlog:{}:{}", cutoff_hour, page);
+        let _ = store.delete(&key);
+    }
+}
+
 pub fn log_event<S: crate::quiz::KeyValueStore>(store: &S, entry: &EventLogEntry) {
     // Use paged hourly event logs to avoid unbounded vector growth and expensive
     // read-modify-write cycles. Each hour is split into pages of limited size.
-    const EVENT_PAGE_SIZE: usize = 500; // max entries per page
-    const MAX_PAGES_PER_HOUR: usize = 256; // safety cap
-
     let hour = entry.ts / 3600;
     let prefix = format!("eventlog:{}", hour);
+    maybe_cleanup_event_logs(store, hour);
 
-    for page in 1..=MAX_PAGES_PER_HOUR {
+    for page in 1..=EVENT_MAX_PAGES_PER_HOUR {
         let page_key = format!("{}:{}", prefix, page);
         match store.get(&page_key) {
             Ok(Some(val)) => {
@@ -75,7 +107,7 @@ pub fn log_event<S: crate::quiz::KeyValueStore>(store: &S, entry: &EventLogEntry
         }
     }
 
-    // If we reach here, we've exhausted MAX_PAGES_PER_HOUR — drop the event and log
+    // If we reach here, we've exhausted EVENT_MAX_PAGES_PER_HOUR — drop the event and log
     eprintln!("[log_event] reached max pages for hour {}, dropping event", hour);
 }
 
@@ -172,6 +204,10 @@ fn sanitize_path(path: &str) -> bool {
 ///   - POST /admin/config: Update config (e.g., toggle test_mode)
 ///   - GET /admin: API help
 pub fn handle_admin(req: &Request) -> Response {
+    // Optional admin IP allowlist
+    if !crate::auth::is_admin_ip_allowed(req) {
+        return Response::new(403, "Forbidden");
+    }
     // Require valid API key
     if !crate::auth::is_authorized(req) {
         return Response::new(401, "Unauthorized: Invalid or missing API key");
@@ -180,7 +216,10 @@ pub fn handle_admin(req: &Request) -> Response {
     if !sanitize_path(path) {
         return Response::new(400, "Bad Request: Invalid admin endpoint");
     }
-    let store = Store::open_default().expect("open default store");
+    let store = match Store::open_default() {
+        Ok(s) => s,
+        Err(_) => return Response::new(500, "Key-value store error"),
+    };
     let site_id = "default";
 
     match path {
@@ -196,7 +235,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     for h in 0..hours {
                         let hour = (now / 3600).saturating_sub(h);
                         // Iterate eventlog pages for this hour
-                        for page in 1..=16 {
+                        for page in 1..=EVENT_MAX_PAGES_PER_HOUR {
                             let key = format!("eventlog:{}:{}", hour, page);
                             if let Ok(Some(val)) = store.get(&key) {
                                 if let Ok(log) = serde_json::from_slice::<Vec<EventLogEntry>>(&val) {
@@ -219,6 +258,8 @@ pub fn handle_admin(req: &Request) -> Response {
                     }
                     // Sort events by timestamp descending
                     events.sort_by(|a, b| b.ts.cmp(&a.ts));
+                    // Unique IP count before consuming the map
+                    let unique_ips = ip_counts.len();
                     // Top 10 IPs
                     let mut top_ips: Vec<_> = ip_counts.into_iter().collect();
                     top_ips.sort_by(|a, b| b.1.cmp(&a.1));
@@ -227,6 +268,7 @@ pub fn handle_admin(req: &Request) -> Response {
                         "recent_events": events.iter().take(100).collect::<Vec<_>>(),
                         "event_counts": event_counts,
                         "top_ips": top_ips,
+                        "unique_ips": unique_ips,
                     })).unwrap();
                     // Log admin analytics view
                     log_event(store, &EventLogEntry {
@@ -270,16 +312,8 @@ pub fn handle_admin(req: &Request) -> Response {
             }
             // GET: List all bans for this site (keys starting with ban:site_id:)
             let mut bans = vec![];
-            if let Ok(keys) = store.get_keys() {
-                for k in keys {
-                    if k.starts_with(&format!("ban:{}:", site_id)) {
-                        if let Ok(Some(val)) = store.get(&k) {
-                            if let Ok(ban) = serde_json::from_slice::<crate::ban::BanEntry>(&val) {
-                                bans.push(json!({"ip": k.split(':').last().unwrap_or("?"), "reason": ban.reason, "expires": ban.expires}));
-                            }
-                        }
-                    }
-                }
+            for (ip, ban) in crate::ban::list_active_bans_with_scan(&store, site_id) {
+                bans.push(json!({"ip": ip, "reason": ban.reason, "expires": ban.expires}));
             }
             // Log admin action
             log_event(&store, &EventLogEntry {
@@ -315,14 +349,8 @@ pub fn handle_admin(req: &Request) -> Response {
         "/admin/analytics" => {
             // Return analytics: ban count and test_mode status
             let cfg = crate::config::Config::load(&store, site_id);
-            let mut ban_count = 0;
-            if let Ok(keys) = store.get_keys() {
-                for k in keys {
-                    if k.starts_with(&format!("ban:{}:", site_id)) {
-                        ban_count += 1;
-                    }
-                }
-            }
+            let ban_count = crate::ban::list_active_bans_with_scan(&store, site_id).len();
+            let fail_mode = env::var("SHUMA_FAIL_MODE").unwrap_or_else(|_| "open".to_string()).to_lowercase();
             // Log admin analytics view
             log_event(&store, &EventLogEntry {
                 ts: now_ts(),
@@ -334,7 +362,8 @@ pub fn handle_admin(req: &Request) -> Response {
             });
             let body = serde_json::to_string(&json!({
                 "ban_count": ban_count,
-                "test_mode": cfg.test_mode
+                "test_mode": cfg.test_mode,
+                "fail_mode": fail_mode
             })).unwrap();
             Response::new(200, body)
         }
@@ -574,20 +603,10 @@ pub fn handle_admin(req: &Request) -> Response {
                 .collect();
             
             // Count auto-bans from maze (check bans with reason "maze_crawler")
-            let mut maze_bans = 0;
-            if let Ok(keys) = store.get_keys() {
-                for k in keys {
-                    if k.starts_with(&format!("ban:{}:", site_id)) {
-                        if let Ok(Some(val)) = store.get(&k) {
-                            if let Ok(ban) = serde_json::from_slice::<crate::ban::BanEntry>(&val) {
-                                if ban.reason == "maze_crawler" {
-                                    maze_bans += 1;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            let maze_bans = crate::ban::list_active_bans_with_scan(&store, site_id)
+                .into_iter()
+                .filter(|(_, ban)| ban.reason == "maze_crawler")
+                .count();
             
             // Log admin maze view
             log_event(&store, &EventLogEntry {

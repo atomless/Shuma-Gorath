@@ -11,6 +11,7 @@ pub fn get_admin_id(req: &Request) -> String {
 // Checks for a static Bearer token in the Authorization header for admin access.
 
 use spin_sdk::http::Request;
+use crate::whitelist;
 
 
 /// Returns the admin API key: uses the API_KEY environment variable if set, otherwise falls back to the hardcoded dev key.
@@ -35,4 +36,26 @@ pub fn is_authorized(req: &Request) -> bool {
         }
     }
     false
+}
+
+/// Returns true if admin access is allowed from this IP.
+/// If ADMIN_IP_ALLOWLIST is unset, all IPs are allowed (auth still required).
+pub fn is_admin_ip_allowed(req: &Request) -> bool {
+    let list = match std::env::var("ADMIN_IP_ALLOWLIST") {
+        Ok(v) => {
+            let items: Vec<String> = v
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            if items.is_empty() {
+                return true;
+            }
+            items
+        }
+        Err(_) => return true,
+    };
+
+    let ip = crate::extract_client_ip(req);
+    whitelist::is_whitelisted(&ip, &list)
 }

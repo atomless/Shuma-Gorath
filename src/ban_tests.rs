@@ -5,7 +5,6 @@
 mod tests {
     use super::super::ban::*;
     use std::collections::HashMap;
-    use crate::quiz::KeyValueStore;
 
     use std::cell::RefCell;
     #[derive(Default)]

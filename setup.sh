@@ -31,6 +31,7 @@ echo "╔═══════════════════════�
 echo "║     WASM Bot Trap - Development Setup             ║"
 echo "╚═══════════════════════════════════════════════════╝"
 echo -e "${NC}"
+info "If setup needs sudo (for example, to install Spin), run this in an interactive terminal so you can authorize prompts."
 
 #--------------------------
 # Check macOS
@@ -75,6 +76,30 @@ if [[ -f "$HOME/.cargo/env" ]]; then
     source "$HOME/.cargo/env"
 fi
 
+# Ensure future shells load Cargo (so make targets can find cargo)
+if [[ -f "$HOME/.cargo/env" ]]; then
+    CARGO_ENV_LINE='source "$HOME/.cargo/env"'
+    PROFILE_FILES=(
+        "$HOME/.zprofile"
+        "$HOME/.zshrc"
+        "$HOME/.bash_profile"
+        "$HOME/.bashrc"
+        "$HOME/.profile"
+    )
+    FOUND_PROFILE=0
+    for PROFILE in "${PROFILE_FILES[@]}"; do
+        if [[ -f "$PROFILE" ]]; then
+            FOUND_PROFILE=1
+            if ! grep -Fq "$CARGO_ENV_LINE" "$PROFILE"; then
+                echo "$CARGO_ENV_LINE" >> "$PROFILE"
+            fi
+        fi
+    done
+    if [[ "$FOUND_PROFILE" -eq 0 ]]; then
+        echo "$CARGO_ENV_LINE" >> "$HOME/.profile"
+    fi
+fi
+
 #--------------------------
 # WASM target
 #--------------------------
@@ -94,8 +119,35 @@ if command -v spin &> /dev/null; then
     success "Spin already installed ($SPIN_VERSION)"
 else
     info "Installing Fermyon Spin..."
-    curl -fsSL https://developer.fermyon.com/downloads/install.sh | bash
-    sudo mv spin /usr/local/bin/
+    SPIN_INSTALL_DIR="/usr/local/bin"
+    TMP_SPIN_DIR="$(mktemp -d /tmp/shuma-gorath-spin.XXXXXX)"
+    cleanup_spin_tmp() { rm -rf "$TMP_SPIN_DIR"; }
+    trap cleanup_spin_tmp EXIT
+
+    (
+        cd "$TMP_SPIN_DIR"
+        curl -fsSL https://developer.fermyon.com/downloads/install.sh | bash
+
+        if [[ ! -f "spin" ]]; then
+            error "Spin installer did not produce a 'spin' binary in $TMP_SPIN_DIR"
+        fi
+
+        if [[ -w "$SPIN_INSTALL_DIR" ]]; then
+            mv "$TMP_SPIN_DIR/spin" "$SPIN_INSTALL_DIR/spin"
+        else
+            if ! command -v sudo &> /dev/null; then
+                error "sudo not available; cannot move spin into $SPIN_INSTALL_DIR"
+            fi
+
+            if [[ ! -t 0 ]]; then
+                error "This step needs sudo to move spin into $SPIN_INSTALL_DIR. Please run ./setup.sh in an interactive terminal where you can authorize sudo."
+            fi
+
+            if ! sudo /bin/mv "$TMP_SPIN_DIR/spin" "$SPIN_INSTALL_DIR/spin"; then
+                error "Failed to move spin into $SPIN_INSTALL_DIR. Please re-run ./setup.sh in an interactive terminal and authorize sudo."
+            fi
+        fi
+    )
     success "Spin installed"
 fi
 
@@ -142,6 +194,8 @@ echo ""
 echo -e "${CYAN}═══════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}🚀 Ready to go! Run these commands:${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════════${NC}"
+echo ""
+echo "  If commands are missing, open a new terminal or run: source ~/.zshrc"
 echo ""
 echo "  make dev      # Start dev server with file watching"
 echo "  make run      # Build once and run (no watching)"

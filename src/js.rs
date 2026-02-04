@@ -24,11 +24,18 @@ use sha2::Sha256;
 use base64::{engine::general_purpose, Engine as _};
 
 /// Secret used for HMAC token generation for JS verification cookies.
-const JS_SECRET: &str = "js-challenge-secret";
+/// Pull from env to avoid a repo-known static secret in production.
+fn get_js_secret() -> String {
+    // Prefer dedicated JS_SECRET, fall back to API_KEY for dev convenience.
+    std::env::var("JS_SECRET")
+        .or_else(|_| std::env::var("API_KEY"))
+        .unwrap_or_else(|_| "changeme-js-secret".to_string())
+}
 
 /// Generates a HMAC-based token for a given IP, used in the js_verified cookie.
 fn make_token(ip: &str) -> String {
-    let mut mac = Hmac::<Sha256>::new_from_slice(JS_SECRET.as_bytes()).unwrap();
+    let secret = get_js_secret();
+    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
     mac.update(ip.as_bytes());
     let result = mac.finalize().into_bytes();
     general_purpose::STANDARD.encode(result)
@@ -76,7 +83,7 @@ pub fn inject_js_challenge(ip: &str) -> Response {
                     }}
                 }});
             }}
-            document.cookie = 'js_verified={token}; path=/; SameSite=Strict';
+            document.cookie = 'js_verified={token}; path=/; SameSite=Strict; Max-Age=86400';
             window.location.reload();
     </script>
     <noscript>Please enable JavaScript to continue.</noscript>

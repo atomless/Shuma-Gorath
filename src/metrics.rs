@@ -104,28 +104,7 @@ fn get_counter(store: &Store, key: &str) -> u64 {
 
 /// Count active bans (gauge)
 fn count_active_bans(store: &Store) -> u64 {
-    let mut count = 0;
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    
-    if let Ok(keys) = store.get_keys() {
-        for key in keys {
-            if key.starts_with("ban:default:") {
-                if let Ok(Some(val)) = store.get(&key) {
-                    if let Ok(entry) = serde_json::from_slice::<serde_json::Value>(&val) {
-                        if let Some(expires) = entry.get("expires").and_then(|v| v.as_u64()) {
-                            if expires > now {
-                                count += 1;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    count
+    crate::ban::list_active_bans_with_scan(store, "default").len() as u64
 }
 
 /// Generate Prometheus-format metrics output
@@ -143,7 +122,7 @@ pub fn render_metrics(store: &Store) -> String {
     // Bans by reason
     output.push_str("\n# TYPE bot_trap_bans_total counter\n");
     output.push_str("# HELP bot_trap_bans_total Total number of IP bans by reason\n");
-    for reason in &["honeypot", "rate_limit", "browser", "admin"] {
+    for reason in &["honeypot", "rate_limit", "browser", "admin", "maze_crawler", "cdp_automation"] {
         let key = format!("{}bans_total:{}", METRICS_PREFIX, reason);
         let count = get_counter(store, &key);
         output.push_str(&format!("bot_trap_bans_total{{reason=\"{}\"}} {}\n", reason, count));

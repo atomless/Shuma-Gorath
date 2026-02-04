@@ -1,0 +1,79 @@
+# 🐙 Dashboard Documentation
+
+## 🐙 Overview
+
+The dashboard provides real-time monitoring, analytics, and admin controls for Shuma-Gorath.
+
+## 🐙 Features
+
+Stats:
+- Total bans
+- Active bans
+- Total events
+- Unique IPs
+- Test mode banner
+- Fail-open/closed indicator (read-only)
+
+Charts:
+- Event types distribution (doughnut)
+- Top IPs by activity (bar)
+- Events over time (line, 60m/24h/7d/30d)
+
+Tables:
+- Current bans (IP, reason, expiry, quick unban)
+- Recent events (type, IP, timestamp, reason)
+
+Controls:
+- Test mode toggle
+- Manual ban/unban
+- robots.txt configuration
+- CDP detection controls
+- Link maze stats
+- Enter key submits inputs (endpoint, API key, ban, unban)
+- Auto-refresh every 30 seconds
+
+## 🐙 Access
+
+Development:
+- `http://127.0.0.1:3000/dashboard/index.html`
+- API key: `API_KEY` from environment or `spin.toml`
+
+Production (recommended):
+- Protect the dashboard with auth
+- Use `ADMIN_IP_ALLOWLIST` to restrict admin access
+- Serve over HTTPS
+- Store secrets in your platform’s secret store
+
+## 🐙 Event Retention
+
+Event log retention is controlled by `EVENT_LOG_RETENTION_HOURS` (default: `168`). Set to `0` to disable cleanup.
+
+## 🐙 API Endpoints Used
+
+- `GET  /admin/analytics`
+- `GET  /admin/events?hours=24`
+- `GET  /admin/config`
+- `POST /admin/config`
+- `POST /admin/ban`
+- `POST /admin/unban`
+- `GET  /admin/maze`
+- `GET  /admin/robots`
+- `GET  /admin/cdp`
+
+## 🐙 Files
+
+```
+dashboard/
+  index.html
+  dashboard.js
+  admin.js
+  style.css
+```
+
+## 🐙 Data Flow (High Level)
+
+1. Page loads and initializes charts
+2. Config and analytics are fetched
+3. Auto-refresh updates stats, charts, and tables
+
+Note: `SHUMA_FAIL_MODE` is an environment-level policy and is shown read-only in the dashboard.

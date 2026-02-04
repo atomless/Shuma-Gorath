@@ -111,7 +111,8 @@ function updateStatCards(analytics, events, bans) {
   document.getElementById('total-bans').textContent = analytics.ban_count || 0;
   document.getElementById('active-bans').textContent = bans.length || 0;
   document.getElementById('total-events').textContent = (events.recent_events || []).length;
-  document.getElementById('unique-ips').textContent = (events.top_ips || []).length;
+  const uniqueIps = typeof events.unique_ips === 'number' ? events.unique_ips : (events.top_ips || []).length;
+  document.getElementById('unique-ips').textContent = uniqueIps;
   
   // Update test mode banner and toggle
   const testMode = analytics.test_mode === true;
@@ -129,6 +130,16 @@ function updateStatCards(analytics, events, bans) {
     status.style.color = '#10b981';
   }
   toggle.checked = testMode;
+
+  // Update fail-open/closed status (read-only)
+  const failBanner = document.getElementById('fail-mode-banner');
+  if (failBanner) {
+    const failModeRaw = (analytics.fail_mode || 'unknown').toString().toLowerCase();
+    const failMode = (failModeRaw === 'open' || failModeRaw === 'closed') ? failModeRaw : 'unknown';
+    failBanner.textContent = `FAIL MODE: ${failMode.toUpperCase()}`;
+    failBanner.classList.remove('open', 'closed', 'unknown');
+    failBanner.classList.add(failMode);
+  }
 }
 
 // Update ban duration fields from config
@@ -177,7 +188,11 @@ function updateTimeSeriesChart() {
   const endpoint = document.getElementById('endpoint').value;
   const apikey = document.getElementById('apikey').value;
 
-  fetch(`${endpoint}/admin/events?limit=1000`, {
+  const hours = currentTimeRange === 'hour' ? 1 :
+                currentTimeRange === 'day' ? 24 :
+                currentTimeRange === 'week' ? 168 : 720;
+
+  fetch(`${endpoint}/admin/events?hours=${hours}`, {
     headers: { 'Authorization': 'Bearer ' + apikey }
   })
   .then(r => {
