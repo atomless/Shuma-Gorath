@@ -3,6 +3,9 @@
 // Stores counters in KV store and exports in Prometheus text format
 
 use spin_sdk::key_value::Store;
+use std::collections::HashMap;
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
 
 const METRICS_PREFIX: &str = "metrics:";
 
@@ -34,21 +37,59 @@ impl MetricName {
     }
 }
 
-/// Increment a counter metric, optionally with a label
+// In-memory buffer for metric increments to avoid a KV write per request.
+// This buffer is flushed to KV when it reaches `FLUSH_KEY_COUNT` distinct keys
+// or when an individual buffered counter reaches `FLUSH_VALUE_THRESHOLD`.
+static METRICS_BUFFER: Lazy<Mutex<HashMap<String, u64>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+const FLUSH_KEY_COUNT: usize = 50;
+const FLUSH_VALUE_THRESHOLD: u64 = 10;
+
+/// Increment a counter metric, optionally with a label.
+/// This updates an in-memory buffer and flushes to KV on thresholds.
 pub fn increment(store: &Store, metric: MetricName, label: Option<&str>) {
     let key = match label {
         Some(l) => format!("{}{}:{}", METRICS_PREFIX, metric.as_str(), l),
         None => format!("{}{}", METRICS_PREFIX, metric.as_str()),
     };
-    
-    let current: u64 = store.get(&key)
-        .ok()
-        .flatten()
-        .and_then(|v| String::from_utf8(v).ok())
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
-    
-    let _ = store.set(&key, (current + 1).to_string().as_bytes());
+
+    // Update in-memory buffer
+    {
+        let mut buf = METRICS_BUFFER.lock().unwrap();
+        let v = buf.entry(key.clone()).or_insert(0);
+        *v = v.saturating_add(1);
+        // if this key reached threshold, flush
+        if *v >= FLUSH_VALUE_THRESHOLD || buf.len() >= FLUSH_KEY_COUNT {
+            // drop lock then flush below
+        } else {
+            return;
+        }
+    }
+
+    // Flush buffer to KV
+    let mut to_flush = HashMap::new();
+    {
+        let mut buf = METRICS_BUFFER.lock().unwrap();
+        std::mem::swap(&mut to_flush, &mut *buf);
+    }
+
+    // Apply buffered increments to KV
+    for (k, v) in to_flush.into_iter() {
+        // read current
+        let current: u64 = store.get(&k)
+            .ok()
+            .flatten()
+            .and_then(|val| String::from_utf8(val).ok())
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
+        let new = current.saturating_add(v);
+        if let Err(e) = store.set(&k, new.to_string().as_bytes()) {
+            // If a write fails, log and re-insert the delta back into buffer for retry
+            eprintln!("[metrics] failed to write metric {} -> {}: {:?}", k, new, e);
+            let mut buf = METRICS_BUFFER.lock().unwrap();
+            let entry = buf.entry(k).or_insert(0);
+            *entry = entry.saturating_add(v);
+        }
+    }
 }
 
 /// Get current value of a counter

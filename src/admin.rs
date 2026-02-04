@@ -28,16 +28,120 @@ pub struct EventLogEntry {
 /// - Create background cleanup job to periodically remove old event buckets
 /// - Consider adding admin endpoint to manually trigger cleanup
 /// - Example: Delete keys matching "eventlog:*" where hour < (now - retention_period)
-pub fn log_event(store: &Store, entry: &EventLogEntry) {
+pub fn log_event<S: crate::quiz::KeyValueStore>(store: &S, entry: &EventLogEntry) {
+    // Use paged hourly event logs to avoid unbounded vector growth and expensive
+    // read-modify-write cycles. Each hour is split into pages of limited size.
+    const EVENT_PAGE_SIZE: usize = 500; // max entries per page
+    const MAX_PAGES_PER_HOUR: usize = 256; // safety cap
+
     let hour = entry.ts / 3600;
-    let key = format!("eventlog:{}", hour);
-    let mut log: Vec<EventLogEntry> = store.get(&key)
-        .ok()
-        .flatten()
-        .and_then(|v| serde_json::from_slice(&v).ok())
-        .unwrap_or_else(Vec::new);
-    log.push(entry.clone());
-    let _ = store.set(&key, serde_json::to_vec(&log).unwrap().as_slice());
+    let prefix = format!("eventlog:{}", hour);
+
+    for page in 1..=MAX_PAGES_PER_HOUR {
+        let page_key = format!("{}:{}", prefix, page);
+        match store.get(&page_key) {
+            Ok(Some(val)) => {
+                // Try to decode existing page
+                match serde_json::from_slice::<Vec<EventLogEntry>>(&val) {
+                    Ok(mut log) => {
+                        if log.len() < EVENT_PAGE_SIZE {
+                            log.push(entry.clone());
+                            let _ = store.set(&page_key, serde_json::to_vec(&log).unwrap().as_slice());
+                            return;
+                        } else {
+                            // page full, try next
+                            continue;
+                        }
+                    }
+                    Err(_) => {
+                        // Corrupted page: overwrite with new page containing this entry
+                        let new_page = vec![entry.clone()];
+                        let _ = store.set(&page_key, serde_json::to_vec(&new_page).unwrap().as_slice());
+                        return;
+                    }
+                }
+            }
+            Ok(None) => {
+                // Create first page entry
+                let new_page = vec![entry.clone()];
+                let _ = store.set(&page_key, serde_json::to_vec(&new_page).unwrap().as_slice());
+                return;
+            }
+            Err(_) => {
+                // KV error; best-effort: log to stderr and return without blocking
+                eprintln!("[log_event] KV error writing {}", page_key);
+                return;
+            }
+        }
+    }
+
+    // If we reach here, we've exhausted MAX_PAGES_PER_HOUR — drop the event and log
+    eprintln!("[log_event] reached max pages for hour {}, dropping event", hour);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::quiz::KeyValueStore;
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+
+    struct MockStore {
+        map: Mutex<HashMap<String, Vec<u8>>>,
+    }
+
+    impl MockStore {
+        fn new() -> Self {
+            MockStore { map: Mutex::new(HashMap::new()) }
+        }
+    }
+
+    impl crate::quiz::KeyValueStore for MockStore {
+        fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()> {
+            let m = self.map.lock().unwrap();
+            Ok(m.get(key).cloned())
+        }
+        fn set(&self, key: &str, value: &[u8]) -> Result<(), ()> {
+            let mut m = self.map.lock().unwrap();
+            m.insert(key.to_string(), value.to_vec());
+            Ok(())
+        }
+        fn delete(&self, key: &str) -> Result<(), ()> {
+            let mut m = self.map.lock().unwrap();
+            m.remove(key);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn paged_event_log_creates_pages_and_appends() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let entry = EventLogEntry { ts: now, event: EventType::AdminAction, ip: Some("1.2.3.4".to_string()), reason: Some("test".to_string()), outcome: Some("ok".to_string()), admin: Some("me".to_string()) };
+        // Log a few events
+        for _ in 0..5 {
+            log_event(&store, &entry);
+        }
+        // Verify page 1 exists and has 5 entries
+        let key = format!("eventlog:{}:1", now / 3600);
+        let val = store.get(&key).unwrap().unwrap();
+        let v: Vec<EventLogEntry> = serde_json::from_slice(&val).unwrap();
+        assert_eq!(v.len(), 5);
+    }
+
+    #[test]
+    fn corrupted_page_is_overwritten() {
+        let store = MockStore::new();
+        let hour = now_ts() / 3600;
+        let page_key = format!("eventlog:{}:1", hour);
+        // Insert corrupted data
+        store.set(&page_key, b"not-json").unwrap();
+        let entry = EventLogEntry { ts: now_ts(), event: EventType::AdminAction, ip: None, reason: None, outcome: None, admin: None };
+        log_event(&store, &entry);
+        let val = store.get(&page_key).unwrap().unwrap();
+        let v: Vec<EventLogEntry> = serde_json::from_slice(&val).unwrap();
+        assert_eq!(v.len(), 1);
+    }
 }
 
 /// Utility to get current unix timestamp
@@ -91,19 +195,25 @@ pub fn handle_admin(req: &Request) -> Response {
                     let store = &store;
                     for h in 0..hours {
                         let hour = (now / 3600).saturating_sub(h);
-                        let key = format!("eventlog:{}", hour);
-                        if let Ok(Some(val)) = store.get(&key) {
-                            if let Ok(log) = serde_json::from_slice::<Vec<EventLogEntry>>(&val) {
-                                for e in &log {
-                                    // Only include events within the time window
-                                    if e.ts >= now - hours * 3600 {
-                                        if let Some(ip) = &e.ip {
-                                            *ip_counts.entry(ip.clone()).or_insert(0u32) += 1;
+                        // Iterate eventlog pages for this hour
+                        for page in 1..=16 {
+                            let key = format!("eventlog:{}:{}", hour, page);
+                            if let Ok(Some(val)) = store.get(&key) {
+                                if let Ok(log) = serde_json::from_slice::<Vec<EventLogEntry>>(&val) {
+                                    for e in &log {
+                                        // Only include events within the time window
+                                        if e.ts >= now - hours * 3600 {
+                                            if let Some(ip) = &e.ip {
+                                                *ip_counts.entry(ip.clone()).or_insert(0u32) += 1;
+                                            }
+                                            *event_counts.entry(format!("{:?}", e.event)).or_insert(0u32) += 1;
+                                            events.push(e.clone());
                                         }
-                                        *event_counts.entry(format!("{:?}", e.event)).or_insert(0u32) += 1;
-                                        events.push(e.clone());
                                     }
                                 }
+                            } else {
+                                // No page present -> no further pages for this hour
+                                break;
                             }
                         }
                     }

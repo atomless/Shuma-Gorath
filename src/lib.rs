@@ -21,6 +21,7 @@ use std::env;
 mod ban;         // Ban logic (IP, expiry, reason)
 mod config;      // Config loading and defaults
 mod rate;        // Rate limiting
+mod ip;          // IP bucketing helpers
 mod js;          // JS challenge/verification
 mod browser;     // Browser version checks
 mod geo;         // Geo-based risk
@@ -172,7 +173,9 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
             });
             
             // Check if this IP has hit too many maze pages (potential crawler)
-            let maze_key = format!("maze_hits:{}", ip);
+            // Bucket the IP to reduce KV cardinality and avoid per-IP explosion
+            let maze_bucket = crate::ip::bucket_ip(&ip);
+            let maze_key = format!("maze_hits:{}", maze_bucket);
             let hits: u32 = store.get(&maze_key)
                 .ok()
                 .flatten()
