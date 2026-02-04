@@ -1,5 +1,7 @@
 name: CI
 
+name: CI
+
 on:
   push:
     branches: [ main ]
@@ -55,35 +57,4 @@ jobs:
         with:
           name: spin-log
           path: /tmp/spin.log
-# .github/workflows/ci.yml
-# CI workflow for WASM Stealth Bot Trap (Fermyon Spin)
 
-name: CI
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  build-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: wasm32-wasip1
-          override: true
-      - name: Install Spin CLI
-        run: |
-          curl -fsSL https://developer.fermyon.com/downloads/install.sh | bash
-          echo "$HOME/.spin" >> $GITHUB_PATH
-      - name: Build (release)
-        run: spin build --release
-      - name: Run tests
-        run: cargo test --all
-      - name: Check formatting
-        run: cargo fmt --all -- --check
