@@ -15,6 +15,7 @@ This file tracks the audit findings and remediation tasks discussed on 2026-02-0
 - [x] Reduce `get_keys()` scans for bans by maintaining a ban index. (src/ban.rs, src/admin.rs, src/metrics.rs)
 - [x] Add event log retention cleanup by hour (configurable). (src/admin.rs, spin.toml, docs)
 - [x] Add optional admin IP allowlist (env-driven). (src/auth.rs, src/admin.rs, docs)
+- [ ] Design strategy for syncing bans/unbans across global edge instances. (architecture, ops)
 
 ## 🐙 Low Priority (DX / Docs / Hygiene)
 - [x] Fix dashboard time-series request param: use `hours` instead of `limit`. (dashboard/dashboard.js)
