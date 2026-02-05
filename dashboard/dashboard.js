@@ -379,7 +379,7 @@ function updateMazeStats(data) {
   crawlerList.innerHTML = crawlers.map(crawler => {
     const isHigh = crawler.hits >= 30;
     return `
-      <div class="crawler-item">
+      <div class="crawler-item panel panel-border">
         <span class="crawler-ip">${crawler.ip}</span>
         <span class="crawler-hits ${isHigh ? 'high' : ''}">${crawler.hits} pages</span>
       </div>

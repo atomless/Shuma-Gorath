@@ -11,7 +11,7 @@
 </head>
 
 <body>
-  <div class="container">
+  <div class="container panel panel-border">
     <header>
       <div class="shuma-image-wrapper">
         <img src="assets/shuma-gorath.png" alt="Shuma-Gorath" class="shuma-gorath-img">
@@ -23,7 +23,7 @@
       <span id="last-updated"></span>
     </header>
 
-    <div class="config">
+    <div class="config panel-soft panel-border">
       <label for="endpoint">API Endpoint:</label>
       <input id="endpoint" value="http://127.0.0.1:3000" size="30" aria-label="API endpoint">
       <label for="apikey">API Key:</label>
@@ -33,19 +33,19 @@
 
     <!-- Stats Summary Cards -->
     <div class="stats-cards">
-      <div class="card">
+      <div class="card panel panel-border">
         <h3>Total Bans</h3>
         <div class="stat-value" id="total-bans">-</div>
       </div>
-      <div class="card">
+      <div class="card panel panel-border">
         <h3>Active Bans</h3>
         <div class="stat-value" id="active-bans">-</div>
       </div>
-      <div class="card">
+      <div class="card panel panel-border">
         <h3>Events (24h)</h3>
         <div class="stat-value" id="total-events">-</div>
       </div>
-      <div class="card">
+      <div class="card panel panel-border">
         <h3>Unique IPs</h3>
         <div class="stat-value" id="unique-ips">-</div>
       </div>
@@ -53,11 +53,11 @@
 
     <!-- Charts Row -->
     <div class="charts-row">
-      <div class="chart-container">
+      <div class="chart-container panel-soft panel-border">
         <h2>Event Types (24h)</h2>
         <canvas id="eventTypesChart"></canvas>
       </div>
-      <div class="chart-container">
+      <div class="chart-container panel-soft panel-border">
         <h2>Top 10 IPs by Events</h2>
         <canvas id="topIpsChart"></canvas>
       </div>
@@ -74,7 +74,7 @@
           <button class="time-btn" data-range="month">30 Days</button>
         </div>
       </div>
-      <div class="chart-container">
+      <div class="chart-container panel-soft panel-border">
         <canvas id="timeSeriesChart"></canvas>
       </div>
     </div>
@@ -82,7 +82,7 @@
     <!-- Ban List -->
     <div class="section">
       <h2>Current Bans</h2>
-      <table id="bans-table">
+      <table id="bans-table" class="panel panel-border">
         <thead>
           <tr>
             <th>IP Address</th>
@@ -97,24 +97,24 @@
     </div>
 
     <!-- Maze Activity Section -->
-    <div class="section maze-section">
+    <div class="section maze-section panel panel-border">
       <h2>Link Maze Honeypot</h2>
       <p class="section-desc">Crawlers trapped in infinite fake pages</p>
       <div class="maze-stats">
-        <div class="maze-stat">
+        <div class="maze-stat panel panel-border">
           <span class="maze-label">Total Hits</span>
           <span class="maze-value" id="maze-total-hits">-</span>
         </div>
-        <div class="maze-stat">
+        <div class="maze-stat panel panel-border">
           <span class="maze-label">Unique Crawlers</span>
           <span class="maze-value" id="maze-unique-crawlers">-</span>
         </div>
-        <div class="maze-stat">
+        <div class="maze-stat panel panel-border">
           <span class="maze-label">Auto-Banned</span>
           <span class="maze-value" id="maze-auto-bans">-</span>
         </div>
       </div>
-      <div class="maze-crawlers">
+      <div class="maze-crawlers panel panel-border">
         <h3>Top Crawlers in Maze</h3>
         <div class="crawler-list" id="maze-crawler-list">
           <p class="no-data">No crawlers in maze yet</p>
@@ -126,7 +126,7 @@
     <div class="section admin-controls">
     <h2>Admin Controls</h2>
       <div class="controls-grid">
-        <div class="control-group">
+        <div class="control-group panel-soft">
           <h3>Test Mode</h3>
           <p class="control-desc">When enabled, logs actions without blocking users</p>
           <label class="toggle-switch" for="test-mode-toggle">
@@ -135,7 +135,7 @@
           </label>
           <span id="test-mode-status">Loading...</span>
         </div>
-        <div class="control-group">
+        <div class="control-group panel-soft">
           <h3>Ban Durations</h3>
           <p class="control-desc">Configure ban duration per offense type (seconds)</p>
           <div class="duration-grid">
@@ -146,19 +146,19 @@
           </div>
           <button id="save-durations-btn">Save Durations</button>
         </div>
-        <div class="control-group">
+        <div class="control-group panel-soft">
           <h3>Ban IP</h3>
           <input id="ban-ip" type="text" placeholder="IP address" aria-label="IP address to ban" />
           <input id="ban-reason" type="text" placeholder="Reason (optional)" value="manual_ban" aria-label="Ban reason" />
           <input id="ban-duration" type="number" placeholder="Duration (seconds)" value="3600" aria-label="Ban duration in seconds" />
           <button id="ban-btn">Ban</button>
         </div>
-        <div class="control-group">
+        <div class="control-group panel-soft">
           <h3>Unban IP</h3>
           <input id="unban-ip" type="text" placeholder="IP address" aria-label="IP address to unban" />
           <button id="unban-btn">Unban</button>
         </div>
-        <div class="control-group">
+        <div class="control-group panel-soft">
           <h3>Link Maze</h3>
           <p class="control-desc">Honeypot trap for crawlers</p>
           <div class="admin-controls">
@@ -184,7 +184,7 @@
           </div>
           <button id="save-maze-config">Save Maze Settings</button>
         </div>
-        <div class="control-group">
+        <div class="control-group panel-soft">
           <h3>AI Training Opt-Out Policy</h3>
           <p class="control-desc">Declare crawling policies via robots.txt (advisory, not enforcement)</p>
           <div class="admin-controls">
@@ -227,12 +227,12 @@
           </div>
           <button id="save-robots-config" disabled>Update Policy</button>
           <button id="preview-robots">Show robots.txt</button>
-          <div id="robots-preview" class="robots-preview hidden">
+          <div id="robots-preview" class="robots-preview panel hidden">
             <h4>robots.txt Preview</h4>
             <pre id="robots-preview-content"></pre>
           </div>
         </div>
-        <div class="control-group">
+        <div class="control-group panel-soft">
           <h3>CDP (Detect Browser Automation)</h3>
           <p class="control-desc">Detects bots controlling browsers on behalf of human users (Puppeteer, Playwright,
             Selenium, etc.)</p>
@@ -264,7 +264,7 @@
             </div>
           </div>
           <button id="save-cdp-config" disabled>Save CDP Settings</button>
-          <div id="cdp-stats" class="info-panel">
+          <div id="cdp-stats" class="info-panel panel-muted">
             <h4>Detection Stats</h4>
             <div class="info-row">
               <span class="info-label">Total Detections:</span>
@@ -276,7 +276,7 @@
             </div>
           </div>
         </div>
-        <div class="control-group">
+        <div class="control-group panel-soft">
           <h3>Proof-of-Work (PoW)</h3>
           <p class="control-desc">Lightweight PoW before JS verification (tunable when allowed)</p>
           <div class="admin-controls">
@@ -290,7 +290,7 @@
               <input type="number" id="pow-ttl" min="30" max="300" value="90" aria-label="PoW seed TTL in seconds">
               <span class="input-unit">seconds</span>
             </div>
-            <div class="info-panel">
+            <div class="info-panel panel-muted">
               <h4>Status</h4>
               <div class="info-row">
                 <span class="info-label">PoW Status:</span>
@@ -312,7 +312,7 @@
     <div class="section events">
       <h2>Recent Events (Last 100)</h2>
       <div class="table-wrapper">
-        <table id="events">
+        <table id="events" class="panel panel-border">
           <thead>
             <tr>
               <th>Time</th>

@@ -63,6 +63,27 @@
   --btn-contrast-fg: var(--color-white);
 }
 
+/* ===========================================
+   Shared Utility Classes
+   =========================================== */
+
+.panel {
+  background: var(--panel-bg);
+  color: var(--panel-fg);
+}
+
+.panel-soft {
+  background: var(--color-gray-50);
+}
+
+.panel-muted {
+  background: var(--color-gray-100);
+}
+
+.panel-border {
+  border: var(--border-hairline);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -80,9 +101,6 @@ body {
 .container {
   max-width: 1400px;
   margin: 0 auto;
-  background: var(--panel-bg);
-  color: var(--panel-fg);
-  border: var(--border-hairline);
   padding: 30px;
 }
 
@@ -105,7 +123,6 @@ h1 {
 }
 
 .config {
-  background: var(--color-gray-50);
   padding: 20px;
   margin-bottom: 30px;
   display: flex;
@@ -155,10 +172,7 @@ h1 {
 }
 
 .card {
-  background: var(--panel-bg);
-  color: var(--panel-fg);
   padding: 25px;
-  border: var(--border-hairline);
 }
 
 .card h3 {
@@ -184,9 +198,7 @@ h1 {
 }
 
 .chart-container {
-  background: var(--color-gray-50);
   padding: 20px;
-  border: var(--border-hairline);
 }
 
 .chart-header {
@@ -257,10 +269,7 @@ h1 {
 table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--panel-bg);
-  color: var(--panel-fg);
   overflow: hidden;
-  border: var(--border-hairline);
 }
 
 thead {
@@ -357,7 +366,6 @@ code {
 }
 
 .control-group {
-  background: var(--color-gray-50);
   padding: 20px;
 }
 
@@ -613,10 +621,7 @@ input:checked + .toggle-slider:before {
 
 /* Maze Section */
 .maze-section {
-  background: var(--panel-bg);
-  color: var(--panel-fg);
   padding: 20px;
-  border: var(--border-hairline);
   margin-bottom: 30px;
 }
 
@@ -639,9 +644,7 @@ input:checked + .toggle-slider:before {
 }
 
 .maze-stat {
-  background: var(--panel-bg);
   padding: 20px;
-  border: var(--border-hairline);
   text-align: center;
 }
 
@@ -660,9 +663,7 @@ input:checked + .toggle-slider:before {
 }
 
 .maze-crawlers {
-  background: var(--panel-bg);
   padding: 20px;
-  border: var(--border-hairline);
 }
 
 .maze-crawlers h3 {
@@ -672,10 +673,8 @@ input:checked + .toggle-slider:before {
 }
 
 .maze-controls {
-  background: var(--panel-bg);
   padding: 15px 20px;
   margin-bottom: 20px;
-  border: var(--border-hairline);
 }
 
 .maze-control-row {
@@ -759,9 +758,7 @@ input:checked + .toggle-slider:before {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--panel-bg);
   padding: 12px 15px;
-  border: var(--border-hairline);
   transition: background 0.2s;
 }
 
@@ -930,7 +927,6 @@ input:checked + .toggle-slider:before {
 
 .info-panel {
   margin-top: 15px;
-  background: var(--color-gray-100);
   padding: 15px;
 }
 
@@ -988,7 +984,6 @@ input:checked + .toggle-slider:before {
 
 .robots-preview {
   margin-top: 15px;
-  background: var(--panel-bg);
   padding: 15px;
   overflow-x: auto;
 }
@@ -1000,17 +995,14 @@ input:checked + .toggle-slider:before {
   letter-spacing: 0.5px;
 }
  
-table,
 thead,
 tbody,
 th,
-td,
-.stats-cards .card {
+td {
   border: var(--border-hairline);
 }
 
 /* Ensure header and smaller UI controls are also bordered */
-.config,
 .maze-control {
   border: var(--border-hairline);
 }
