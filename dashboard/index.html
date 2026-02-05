@@ -290,13 +290,16 @@
               <input type="number" id="pow-ttl" min="30" max="300" value="90" aria-label="PoW seed TTL in seconds">
               <span class="input-unit">seconds</span>
             </div>
-            <div class="info-row">
-              <span class="info-label">PoW Status:</span>
-              <span id="pow-status">--</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Config:</span>
-              <span id="pow-config-status">--</span>
+            <div class="info-panel">
+              <h4>Status</h4>
+              <div class="info-row">
+                <span class="info-label">PoW Status:</span>
+                <span id="pow-status">--</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Config:</span>
+                <span id="pow-config-status">--</span>
+              </div>
             </div>
           </div>
           <button id="save-pow-config" disabled>Save PoW Settings</button>

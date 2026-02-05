@@ -28,7 +28,7 @@ Controls:
 - Manual ban/unban
 - robots.txt configuration
 - CDP detection controls
-- PoW difficulty + TTL (when `POW_CONFIG_MUTABLE=1`)
+- PoW status panel and difficulty/TTL tuning (when `POW_CONFIG_MUTABLE=1`)
 - Link maze stats
 - Enter key submits inputs (endpoint, API key, ban, unban)
 - Auto-refresh every 30 seconds
@@ -79,3 +79,4 @@ dashboard/
 
 Note: `SHUMA_FAIL_MODE` is an environment-level policy and is shown read-only in the dashboard.
 Note: PoW enable/disable is environment-level; difficulty/TTL are editable only if `POW_CONFIG_MUTABLE=1`.
+Note: PoW config changes are logged to the event log as admin actions.

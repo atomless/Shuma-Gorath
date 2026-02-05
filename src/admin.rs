@@ -480,6 +480,10 @@ pub fn handle_admin(req: &Request) -> Response {
                         changed = true;
                     }
 
+                    let old_pow_difficulty = cfg.pow_difficulty;
+                    let old_pow_ttl = cfg.pow_ttl_seconds;
+                    let mut pow_changed = false;
+
                     // Update PoW settings if provided (guarded by env flag)
                     if json.get("pow_difficulty").is_some() || json.get("pow_ttl_seconds").is_some() {
                         if !crate::config::pow_config_mutable() {
@@ -492,6 +496,7 @@ pub fn handle_admin(req: &Request) -> Response {
                         }
                         cfg.pow_difficulty = pow_difficulty as u8;
                         changed = true;
+                        pow_changed = true;
                     }
                     if let Some(pow_ttl_seconds) = json.get("pow_ttl_seconds").and_then(|v| v.as_u64()) {
                         if pow_ttl_seconds < POW_TTL_MIN || pow_ttl_seconds > POW_TTL_MAX {
@@ -499,6 +504,24 @@ pub fn handle_admin(req: &Request) -> Response {
                         }
                         cfg.pow_ttl_seconds = pow_ttl_seconds;
                         changed = true;
+                        pow_changed = true;
+                    }
+
+                    if pow_changed {
+                        log_event(&store, &EventLogEntry {
+                            ts: now_ts(),
+                            event: EventType::AdminAction,
+                            ip: None,
+                            reason: Some("pow_config_update".to_string()),
+                            outcome: Some(format!(
+                                "difficulty:{}->{} ttl:{}->{}",
+                                old_pow_difficulty,
+                                cfg.pow_difficulty,
+                                old_pow_ttl,
+                                cfg.pow_ttl_seconds
+                            )),
+                            admin: Some(crate::auth::get_admin_id(req)),
+                        });
                     }
                     
                     // Save config to KV store
