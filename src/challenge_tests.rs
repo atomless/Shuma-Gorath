@@ -10,6 +10,7 @@ mod tests {
         handle_challenge_submit,
         make_seed_token,
         parse_submission,
+        render_challenge,
         select_transform_pair,
         serve_challenge_page,
         ChallengeSeed,
@@ -158,6 +159,31 @@ mod tests {
     fn parse_submission_rejects_invalid_length() {
         let err = parse_submission("10", 4).unwrap_err();
         assert_eq!(err, "invalid length");
+    }
+
+    #[test]
+    fn render_challenge_includes_output_grid_id() {
+        let req = Request::builder()
+            .method(Method::Get)
+            .uri("/challenge")
+            .body(Vec::new())
+            .build();
+        let resp = render_challenge(&req);
+        let body = String::from_utf8(resp.into_body()).unwrap();
+        assert!(body.contains("id=\"challenge-output-grid\""));
+    }
+
+    #[test]
+    fn render_challenge_uses_hidden_output_field() {
+        let req = Request::builder()
+            .method(Method::Get)
+            .uri("/challenge")
+            .body(Vec::new())
+            .build();
+        let resp = render_challenge(&req);
+        let body = String::from_utf8(resp.into_body()).unwrap();
+        assert!(body.contains("id=\"challenge-output\""));
+        assert!(body.contains("type=\"hidden\""));
     }
 
     #[test]

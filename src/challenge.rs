@@ -403,29 +403,33 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .test-grids {{ display: inline-grid; grid-template-columns: auto auto; gap: 24px; align-items: start; }}
             .submit-row {{ grid-column: 1 / -1; margin-top: 12px; }}
             .submit-row button {{ width: 100%; }}
+            .grid-output .cell {{ cursor: pointer; }}
+            .grid-output .cell.clickable {{ cursor: pointer; }}
             button {{ padding: 8px 14px; font-size: 14px; }}
           </style>
         </head>
         <body>
-          <div class=\"challenge\">
+          <div class="challenge">
             <h2>Human Verification Challenge</h2>
             <p>Infer the rule from the examples, then complete the output grid.</p>
             {training_html}
-            <div class=\"test-block\">
-              <div class=\"pair-title\">Your turn</div>
-              <div class=\"test-grids\">
+            <div class="test-block">
+              <div class="pair-title">Your turn</div>
+              <div class="test-grids">
                 <div>
-                  <div class=\"grid-label\">Input</div>
+                  <div class="grid-label">Input</div>
                   {test_input}
                 </div>
                 <div>
-                  <div class=\"grid-label\">Output</div>
-                  {test_output}
+                  <div class="grid-label">Output</div>
+                  <div id="challenge-output-grid">
+                    {test_output}
+                  </div>
                 </div>
-                <form method=\"POST\" action=\"/challenge\" class=\"submit-row\">
-                  <input type=\"hidden\" name=\"seed\" value=\"{seed_token}\" />
-                  <input type=\"hidden\" name=\"output\" id=\"challenge-output\" value=\"{empty_bitstring}\" />
-                  <button type=\"submit\">Submit</button>
+                <form method="POST" action="/challenge" class="submit-row">
+                  <input type="hidden" name="seed" value="{seed_token}" />
+                  <input type="hidden" name="output" id="challenge-output" value="{empty_bitstring}" />
+                  <button type="submit">Submit</button>
                 </form>
               </div>
             </div>
@@ -438,13 +442,16 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
               outputField.value = output.join('');
             }}
             updateOutput();
-            document.querySelectorAll('.grid-output .cell').forEach(cell => {{
-              cell.addEventListener('click', () => {{
-                const idx = parseInt(cell.dataset.idx, 10);
-                output[idx] = output[idx] ? 0 : 1;
-                cell.classList.toggle('active');
-                updateOutput();
-              }});
+            const outputGrid = document.getElementById('challenge-output-grid');
+            outputGrid.addEventListener('click', (event) => {{
+              const cell = event.target.closest('.cell');
+              if (!cell || !cell.dataset.idx) {{
+                return;
+              }}
+              const idx = parseInt(cell.dataset.idx, 10);
+              output[idx] = output[idx] ? 0 : 1;
+              cell.classList.toggle('active');
+              updateOutput();
             }});
           </script>
         </body>
