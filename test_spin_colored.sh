@@ -67,6 +67,11 @@ curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -X POST 
   -d '{"test_mode": false}' \
   "$BASE_URL/admin/config" > /dev/null || true
 
+info "Clearing bans for test IP..."
+curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" \
+  -H "Authorization: Bearer $API_KEY" \
+  "$BASE_URL/admin/unban?ip=127.0.0.1" > /dev/null || true
+
 # Test 2: PoW challenge (if enabled)
 info "Testing PoW challenge..."
 pow_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/pow")

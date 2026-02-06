@@ -77,6 +77,13 @@ else
     info "  Without cargo-watch, use 'make run' instead of 'make dev'"
 fi
 
+# 6b. Sanity check Makefile dev target
+if grep -q "cargo watch .* -x './scripts/set_crate_type.sh" Makefile 2>/dev/null; then
+    fail "Makefile dev target uses cargo watch -x with a shell script (make dev will fail)"
+else
+    pass "Makefile dev target uses shell commands with cargo watch"
+fi
+
 echo ""
 echo -e "${CYAN}=== Testing Build ===${NC}"
 echo ""

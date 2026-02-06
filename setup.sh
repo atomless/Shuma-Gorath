@@ -163,6 +163,13 @@ else
 fi
 
 #--------------------------
+# Makefile sanity (dev target)
+#--------------------------
+if grep -q "cargo watch .* -x './scripts/set_crate_type.sh" Makefile 2>/dev/null; then
+    warn "Makefile dev target uses cargo watch -x with a shell script; make dev will fail until updated."
+fi
+
+#--------------------------
 # Verify installation
 #--------------------------
 echo ""
