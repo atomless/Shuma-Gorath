@@ -180,6 +180,75 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+mod admin_config_tests {
+    use super::*;
+    use spin_sdk::http::{Method, Request};
+    use once_cell::sync::Lazy;
+    use std::sync::Mutex;
+    use std::collections::HashMap;
+
+    static ENV_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+
+    fn make_request(method: Method, path: &str, body: Vec<u8>) -> Request {
+        let mut builder = Request::builder();
+        builder
+            .method(method)
+            .uri(path)
+            .header("authorization", "Bearer changeme-supersecret")
+            .body(body);
+        builder.build()
+    }
+
+    #[derive(Default)]
+    struct TestStore {
+        map: Mutex<HashMap<String, Vec<u8>>>,
+    }
+
+    impl crate::challenge::KeyValueStore for TestStore {
+        fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()> {
+            let m = self.map.lock().unwrap();
+            Ok(m.get(key).cloned())
+        }
+        fn set(&self, key: &str, value: &[u8]) -> Result<(), ()> {
+            let mut m = self.map.lock().unwrap();
+            m.insert(key.to_string(), value.to_vec());
+            Ok(())
+        }
+        fn delete(&self, key: &str) -> Result<(), ()> {
+            let mut m = self.map.lock().unwrap();
+            m.remove(key);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn admin_config_includes_challenge_fields() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        std::env::remove_var("CHALLENGE_CONFIG_MUTABLE");
+        let req = make_request(Method::Get, "/admin/config", Vec::new());
+        let store = TestStore::default();
+        let resp = handle_admin_config(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert!(body.get("challenge_risk_threshold").is_some());
+        assert!(body.get("challenge_config_mutable").is_some());
+        assert!(body.get("challenge_risk_threshold_default").is_some());
+    }
+
+    #[test]
+    fn admin_config_rejects_challenge_update_when_immutable() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        std::env::set_var("CHALLENGE_CONFIG_MUTABLE", "0");
+        let body = br#"{"challenge_risk_threshold":5}"#.to_vec();
+        let req = make_request(Method::Post, "/admin/config", body);
+        let store = TestStore::default();
+        let resp = handle_admin_config(&req, &store, "default");
+        assert_eq!(*resp.status(), 403u16);
+        std::env::remove_var("CHALLENGE_CONFIG_MUTABLE");
+    }
+}
+
 /// Utility to get current unix timestamp
 pub fn now_ts() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
@@ -195,6 +264,286 @@ use serde_json::json;
 /// Returns true if the path is a valid admin endpoint (prevents path traversal/abuse).
 fn sanitize_path(path: &str) -> bool {
     matches!(path, "/admin" | "/admin/ban" | "/admin/unban" | "/admin/analytics" | "/admin/events" | "/admin/config" | "/admin/maze" | "/admin/robots" | "/admin/cdp")
+}
+
+fn challenge_threshold_default() -> u8 {
+    crate::config::parse_challenge_threshold(env::var("CHALLENGE_RISK_THRESHOLD").ok().as_deref())
+}
+
+fn handle_admin_config(req: &Request, store: &impl crate::challenge::KeyValueStore, site_id: &str) -> Response {
+    // GET: Return current config
+    // POST: Update config (supports {"test_mode": true/false})
+    if *req.method() == spin_sdk::http::Method::Post {
+        let body_str = String::from_utf8_lossy(req.body());
+        let parsed: Result<serde_json::Value, _> = serde_json::from_str(&body_str);
+        if let Ok(json) = parsed {
+            // Load current config
+            let mut cfg = crate::config::Config::load(store, site_id);
+            let mut changed = false;
+            
+            // Update test_mode if provided
+            if let Some(test_mode) = json.get("test_mode").and_then(|v| v.as_bool()) {
+                let old_value = cfg.test_mode;
+                cfg.test_mode = test_mode;
+                if old_value != test_mode {
+                    changed = true;
+                    // Log test_mode toggle event
+                    log_event(store, &EventLogEntry {
+                        ts: now_ts(),
+                        event: EventType::AdminAction,
+                        ip: None,
+                        reason: Some("test_mode_toggle".to_string()),
+                        outcome: Some(format!("{} -> {}", old_value, test_mode)),
+                        admin: Some(crate::auth::get_admin_id(req)),
+                    });
+                }
+            }
+            
+            // Update other config fields if provided
+            if let Some(ban_duration) = json.get("ban_duration").and_then(|v| v.as_u64()) {
+                cfg.ban_duration = ban_duration;
+                changed = true;
+            }
+            if let Some(rate_limit) = json.get("rate_limit").and_then(|v| v.as_u64()) {
+                cfg.rate_limit = rate_limit as u32;
+                changed = true;
+            }
+            
+            // Update per-type ban durations if provided
+            if let Some(ban_durations) = json.get("ban_durations") {
+                if let Some(honeypot) = ban_durations.get("honeypot").and_then(|v| v.as_u64()) {
+                    cfg.ban_durations.honeypot = honeypot;
+                    changed = true;
+                }
+                if let Some(rate_limit) = ban_durations.get("rate_limit").and_then(|v| v.as_u64()) {
+                    cfg.ban_durations.rate_limit = rate_limit;
+                    changed = true;
+                }
+                if let Some(browser) = ban_durations.get("browser").and_then(|v| v.as_u64()) {
+                    cfg.ban_durations.browser = browser;
+                    changed = true;
+                }
+                if let Some(admin) = ban_durations.get("admin").and_then(|v| v.as_u64()) {
+                    cfg.ban_durations.admin = admin;
+                    changed = true;
+                }
+            }
+            
+            // Update maze settings if provided
+            if let Some(maze_enabled) = json.get("maze_enabled").and_then(|v| v.as_bool()) {
+                cfg.maze_enabled = maze_enabled;
+                changed = true;
+            }
+            if let Some(maze_auto_ban) = json.get("maze_auto_ban").and_then(|v| v.as_bool()) {
+                cfg.maze_auto_ban = maze_auto_ban;
+                changed = true;
+            }
+            if let Some(maze_auto_ban_threshold) = json.get("maze_auto_ban_threshold").and_then(|v| v.as_u64()) {
+                cfg.maze_auto_ban_threshold = maze_auto_ban_threshold as u32;
+                changed = true;
+            }
+            
+            // Update robots.txt settings if provided
+            if let Some(robots_enabled) = json.get("robots_enabled").and_then(|v| v.as_bool()) {
+                cfg.robots_enabled = robots_enabled;
+                changed = true;
+            }
+            if let Some(robots_block_ai_training) = json.get("robots_block_ai_training").and_then(|v| v.as_bool()) {
+                cfg.robots_block_ai_training = robots_block_ai_training;
+                changed = true;
+            }
+            if let Some(robots_block_ai_search) = json.get("robots_block_ai_search").and_then(|v| v.as_bool()) {
+                cfg.robots_block_ai_search = robots_block_ai_search;
+                changed = true;
+            }
+            if let Some(robots_allow_search_engines) = json.get("robots_allow_search_engines").and_then(|v| v.as_bool()) {
+                cfg.robots_allow_search_engines = robots_allow_search_engines;
+                changed = true;
+            }
+            if let Some(robots_crawl_delay) = json.get("robots_crawl_delay").and_then(|v| v.as_u64()) {
+                cfg.robots_crawl_delay = robots_crawl_delay as u32;
+                changed = true;
+            }
+            
+            // Update CDP detection settings if provided
+            if let Some(cdp_detection_enabled) = json.get("cdp_detection_enabled").and_then(|v| v.as_bool()) {
+                cfg.cdp_detection_enabled = cdp_detection_enabled;
+                changed = true;
+            }
+            if let Some(cdp_auto_ban) = json.get("cdp_auto_ban").and_then(|v| v.as_bool()) {
+                cfg.cdp_auto_ban = cdp_auto_ban;
+                changed = true;
+            }
+            if let Some(cdp_detection_threshold) = json.get("cdp_detection_threshold").and_then(|v| v.as_f64()) {
+                cfg.cdp_detection_threshold = cdp_detection_threshold as f32;
+                changed = true;
+            }
+
+            let old_pow_difficulty = cfg.pow_difficulty;
+            let old_pow_ttl = cfg.pow_ttl_seconds;
+            let mut pow_changed = false;
+
+            // Update PoW settings if provided (guarded by env flag)
+            if json.get("pow_difficulty").is_some() || json.get("pow_ttl_seconds").is_some() {
+                if !crate::config::pow_config_mutable() {
+                    return Response::new(403, "PoW config is immutable (set POW_CONFIG_MUTABLE=1 to allow changes)");
+                }
+            }
+            if let Some(pow_difficulty) = json.get("pow_difficulty").and_then(|v| v.as_u64()) {
+                if pow_difficulty < POW_DIFFICULTY_MIN as u64 || pow_difficulty > POW_DIFFICULTY_MAX as u64 {
+                    return Response::new(400, "pow_difficulty out of range (12-20)");
+                }
+                cfg.pow_difficulty = pow_difficulty as u8;
+                changed = true;
+                pow_changed = true;
+            }
+            if let Some(pow_ttl_seconds) = json.get("pow_ttl_seconds").and_then(|v| v.as_u64()) {
+                if pow_ttl_seconds < POW_TTL_MIN || pow_ttl_seconds > POW_TTL_MAX {
+                    return Response::new(400, "pow_ttl_seconds out of range (30-300)");
+                }
+                cfg.pow_ttl_seconds = pow_ttl_seconds;
+                changed = true;
+                pow_changed = true;
+            }
+
+            if pow_changed {
+                log_event(store, &EventLogEntry {
+                    ts: now_ts(),
+                    event: EventType::AdminAction,
+                    ip: None,
+                    reason: Some("pow_config_update".to_string()),
+                    outcome: Some(format!(
+                        "difficulty:{}->{} ttl:{}->{}",
+                        old_pow_difficulty,
+                        cfg.pow_difficulty,
+                        old_pow_ttl,
+                        cfg.pow_ttl_seconds
+                    )),
+                    admin: Some(crate::auth::get_admin_id(req)),
+                });
+            }
+
+            let mut challenge_changed = false;
+            let old_challenge_threshold = cfg.challenge_risk_threshold;
+            if json.get("challenge_risk_threshold").is_some() && !crate::config::challenge_config_mutable() {
+                return Response::new(403, "Challenge config is immutable (set CHALLENGE_CONFIG_MUTABLE=true to allow changes)");
+            }
+            if let Some(challenge_threshold) = json.get("challenge_risk_threshold").and_then(|v| v.as_u64()) {
+                if challenge_threshold < 1 || challenge_threshold > 10 {
+                    return Response::new(400, "challenge_risk_threshold out of range (1-10)");
+                }
+                cfg.challenge_risk_threshold = challenge_threshold as u8;
+                changed = true;
+                challenge_changed = true;
+            }
+
+            if challenge_changed {
+                log_event(store, &EventLogEntry {
+                    ts: now_ts(),
+                    event: EventType::AdminAction,
+                    ip: None,
+                    reason: Some("challenge_config_update".to_string()),
+                    outcome: Some(format!("threshold:{}->{}", old_challenge_threshold, cfg.challenge_risk_threshold)),
+                    admin: Some(crate::auth::get_admin_id(req)),
+                });
+            }
+            
+            // Save config to KV store
+            if changed {
+                let key = format!("config:{}", site_id);
+                if let Ok(val) = serde_json::to_vec(&cfg) {
+                    let _ = store.set(&key, &val);
+                }
+            }
+
+            let challenge_default = challenge_threshold_default();
+            
+            let body = serde_json::to_string(&json!({
+                "status": "updated",
+                "config": {
+                    "test_mode": cfg.test_mode,
+                    "ban_duration": cfg.ban_duration,
+                    "ban_durations": {
+                        "honeypot": cfg.ban_durations.honeypot,
+                        "rate_limit": cfg.ban_durations.rate_limit,
+                        "browser": cfg.ban_durations.browser,
+                        "admin": cfg.ban_durations.admin
+                    },
+                    "rate_limit": cfg.rate_limit,
+                    "honeypots": cfg.honeypots,
+                    "geo_risk": cfg.geo_risk,
+                    "maze_enabled": cfg.maze_enabled,
+                    "maze_auto_ban": cfg.maze_auto_ban,
+                    "maze_auto_ban_threshold": cfg.maze_auto_ban_threshold,
+                    "robots_enabled": cfg.robots_enabled,
+                    "robots_block_ai_training": cfg.robots_block_ai_training,
+                    "robots_block_ai_search": cfg.robots_block_ai_search,
+                    "robots_allow_search_engines": cfg.robots_allow_search_engines,
+                    "robots_crawl_delay": cfg.robots_crawl_delay,
+                    "cdp_detection_enabled": cfg.cdp_detection_enabled,
+                    "cdp_auto_ban": cfg.cdp_auto_ban,
+                    "cdp_detection_threshold": cfg.cdp_detection_threshold,
+                    "pow_enabled": crate::pow::pow_enabled(),
+                    "pow_config_mutable": crate::config::pow_config_mutable(),
+                    "pow_difficulty": cfg.pow_difficulty,
+                    "pow_ttl_seconds": cfg.pow_ttl_seconds,
+                    "challenge_risk_threshold": cfg.challenge_risk_threshold,
+                    "challenge_config_mutable": crate::config::challenge_config_mutable(),
+                    "challenge_risk_threshold_default": challenge_default
+                }
+            })).unwrap();
+            return Response::new(200, body);
+        } else {
+            return Response::new(400, "Invalid JSON in request body");
+        }
+    }
+    // GET: Return current config
+    let cfg = crate::config::Config::load(store, site_id);
+    log_event(store, &EventLogEntry {
+        ts: now_ts(),
+        event: EventType::AdminAction,
+        ip: None,
+        reason: Some("config_view".to_string()),
+        outcome: Some(format!("test_mode={}", cfg.test_mode)),
+        admin: Some(crate::auth::get_admin_id(req)),
+    });
+    let challenge_default = challenge_threshold_default();
+    let body = serde_json::to_string(&json!({
+        "test_mode": cfg.test_mode,
+        "ban_duration": cfg.ban_duration,
+        "ban_durations": {
+            "honeypot": cfg.ban_durations.honeypot,
+            "rate_limit": cfg.ban_durations.rate_limit,
+            "browser": cfg.ban_durations.browser,
+            "admin": cfg.ban_durations.admin
+        },
+        "rate_limit": cfg.rate_limit,
+        "honeypots": cfg.honeypots,
+        "browser_block": cfg.browser_block,
+        "browser_whitelist": cfg.browser_whitelist,
+        "geo_risk": cfg.geo_risk,
+        "whitelist": cfg.whitelist,
+        "path_whitelist": cfg.path_whitelist,
+        "maze_enabled": cfg.maze_enabled,
+        "maze_auto_ban": cfg.maze_auto_ban,
+        "maze_auto_ban_threshold": cfg.maze_auto_ban_threshold,
+        "robots_enabled": cfg.robots_enabled,
+        "robots_block_ai_training": cfg.robots_block_ai_training,
+        "robots_block_ai_search": cfg.robots_block_ai_search,
+        "robots_allow_search_engines": cfg.robots_allow_search_engines,
+        "robots_crawl_delay": cfg.robots_crawl_delay,
+        "cdp_detection_enabled": cfg.cdp_detection_enabled,
+        "cdp_auto_ban": cfg.cdp_auto_ban,
+        "cdp_detection_threshold": cfg.cdp_detection_threshold,
+        "pow_enabled": crate::pow::pow_enabled(),
+        "pow_config_mutable": crate::config::pow_config_mutable(),
+        "pow_difficulty": cfg.pow_difficulty,
+        "pow_ttl_seconds": cfg.pow_ttl_seconds,
+        "challenge_risk_threshold": cfg.challenge_risk_threshold,
+        "challenge_config_mutable": crate::config::challenge_config_mutable(),
+        "challenge_risk_threshold_default": challenge_default
+    })).unwrap();
+    Response::new(200, body)
 }
 
 /// Handles all /admin API endpoints. Requires valid API key in Authorization header.
@@ -372,245 +721,7 @@ pub fn handle_admin(req: &Request) -> Response {
             Response::new(200, body)
         }
         "/admin/config" => {
-            // GET: Return current config
-            // POST: Update config (supports {"test_mode": true/false})
-            if *req.method() == spin_sdk::http::Method::Post {
-                let body_str = String::from_utf8_lossy(req.body());
-                let parsed: Result<serde_json::Value, _> = serde_json::from_str(&body_str);
-                if let Ok(json) = parsed {
-                    // Load current config
-                    let mut cfg = crate::config::Config::load(&store, site_id);
-                    let mut changed = false;
-                    
-                    // Update test_mode if provided
-                    if let Some(test_mode) = json.get("test_mode").and_then(|v| v.as_bool()) {
-                        let old_value = cfg.test_mode;
-                        cfg.test_mode = test_mode;
-                        if old_value != test_mode {
-                            changed = true;
-                            // Log test_mode toggle event
-                            log_event(&store, &EventLogEntry {
-                                ts: now_ts(),
-                                event: EventType::AdminAction,
-                                ip: None,
-                                reason: Some("test_mode_toggle".to_string()),
-                                outcome: Some(format!("{} -> {}", old_value, test_mode)),
-                                admin: Some(crate::auth::get_admin_id(req)),
-                            });
-                        }
-                    }
-                    
-                    // Update other config fields if provided
-                    if let Some(ban_duration) = json.get("ban_duration").and_then(|v| v.as_u64()) {
-                        cfg.ban_duration = ban_duration;
-                        changed = true;
-                    }
-                    if let Some(rate_limit) = json.get("rate_limit").and_then(|v| v.as_u64()) {
-                        cfg.rate_limit = rate_limit as u32;
-                        changed = true;
-                    }
-                    
-                    // Update per-type ban durations if provided
-                    if let Some(ban_durations) = json.get("ban_durations") {
-                        if let Some(honeypot) = ban_durations.get("honeypot").and_then(|v| v.as_u64()) {
-                            cfg.ban_durations.honeypot = honeypot;
-                            changed = true;
-                        }
-                        if let Some(rate_limit) = ban_durations.get("rate_limit").and_then(|v| v.as_u64()) {
-                            cfg.ban_durations.rate_limit = rate_limit;
-                            changed = true;
-                        }
-                        if let Some(browser) = ban_durations.get("browser").and_then(|v| v.as_u64()) {
-                            cfg.ban_durations.browser = browser;
-                            changed = true;
-                        }
-                        if let Some(admin) = ban_durations.get("admin").and_then(|v| v.as_u64()) {
-                            cfg.ban_durations.admin = admin;
-                            changed = true;
-                        }
-                    }
-                    
-                    // Update maze settings if provided
-                    if let Some(maze_enabled) = json.get("maze_enabled").and_then(|v| v.as_bool()) {
-                        cfg.maze_enabled = maze_enabled;
-                        changed = true;
-                    }
-                    if let Some(maze_auto_ban) = json.get("maze_auto_ban").and_then(|v| v.as_bool()) {
-                        cfg.maze_auto_ban = maze_auto_ban;
-                        changed = true;
-                    }
-                    if let Some(maze_auto_ban_threshold) = json.get("maze_auto_ban_threshold").and_then(|v| v.as_u64()) {
-                        cfg.maze_auto_ban_threshold = maze_auto_ban_threshold as u32;
-                        changed = true;
-                    }
-                    
-                    // Update robots.txt settings if provided
-                    if let Some(robots_enabled) = json.get("robots_enabled").and_then(|v| v.as_bool()) {
-                        cfg.robots_enabled = robots_enabled;
-                        changed = true;
-                    }
-                    if let Some(robots_block_ai_training) = json.get("robots_block_ai_training").and_then(|v| v.as_bool()) {
-                        cfg.robots_block_ai_training = robots_block_ai_training;
-                        changed = true;
-                    }
-                    if let Some(robots_block_ai_search) = json.get("robots_block_ai_search").and_then(|v| v.as_bool()) {
-                        cfg.robots_block_ai_search = robots_block_ai_search;
-                        changed = true;
-                    }
-                    if let Some(robots_allow_search_engines) = json.get("robots_allow_search_engines").and_then(|v| v.as_bool()) {
-                        cfg.robots_allow_search_engines = robots_allow_search_engines;
-                        changed = true;
-                    }
-                    if let Some(robots_crawl_delay) = json.get("robots_crawl_delay").and_then(|v| v.as_u64()) {
-                        cfg.robots_crawl_delay = robots_crawl_delay as u32;
-                        changed = true;
-                    }
-                    
-                    // Update CDP detection settings if provided
-                    if let Some(cdp_detection_enabled) = json.get("cdp_detection_enabled").and_then(|v| v.as_bool()) {
-                        cfg.cdp_detection_enabled = cdp_detection_enabled;
-                        changed = true;
-                    }
-                    if let Some(cdp_auto_ban) = json.get("cdp_auto_ban").and_then(|v| v.as_bool()) {
-                        cfg.cdp_auto_ban = cdp_auto_ban;
-                        changed = true;
-                    }
-                    if let Some(cdp_detection_threshold) = json.get("cdp_detection_threshold").and_then(|v| v.as_f64()) {
-                        cfg.cdp_detection_threshold = cdp_detection_threshold as f32;
-                        changed = true;
-                    }
-
-                    let old_pow_difficulty = cfg.pow_difficulty;
-                    let old_pow_ttl = cfg.pow_ttl_seconds;
-                    let mut pow_changed = false;
-
-                    // Update PoW settings if provided (guarded by env flag)
-                    if json.get("pow_difficulty").is_some() || json.get("pow_ttl_seconds").is_some() {
-                        if !crate::config::pow_config_mutable() {
-                            return Response::new(403, "PoW config is immutable (set POW_CONFIG_MUTABLE=1 to allow changes)");
-                        }
-                    }
-                    if let Some(pow_difficulty) = json.get("pow_difficulty").and_then(|v| v.as_u64()) {
-                        if pow_difficulty < POW_DIFFICULTY_MIN as u64 || pow_difficulty > POW_DIFFICULTY_MAX as u64 {
-                            return Response::new(400, "pow_difficulty out of range (12-20)");
-                        }
-                        cfg.pow_difficulty = pow_difficulty as u8;
-                        changed = true;
-                        pow_changed = true;
-                    }
-                    if let Some(pow_ttl_seconds) = json.get("pow_ttl_seconds").and_then(|v| v.as_u64()) {
-                        if pow_ttl_seconds < POW_TTL_MIN || pow_ttl_seconds > POW_TTL_MAX {
-                            return Response::new(400, "pow_ttl_seconds out of range (30-300)");
-                        }
-                        cfg.pow_ttl_seconds = pow_ttl_seconds;
-                        changed = true;
-                        pow_changed = true;
-                    }
-
-                    if pow_changed {
-                        log_event(&store, &EventLogEntry {
-                            ts: now_ts(),
-                            event: EventType::AdminAction,
-                            ip: None,
-                            reason: Some("pow_config_update".to_string()),
-                            outcome: Some(format!(
-                                "difficulty:{}->{} ttl:{}->{}",
-                                old_pow_difficulty,
-                                cfg.pow_difficulty,
-                                old_pow_ttl,
-                                cfg.pow_ttl_seconds
-                            )),
-                            admin: Some(crate::auth::get_admin_id(req)),
-                        });
-                    }
-                    
-                    // Save config to KV store
-                    if changed {
-                        let key = format!("config:{}", site_id);
-                        if let Ok(val) = serde_json::to_vec(&cfg) {
-                            let _ = store.set(&key, &val);
-                        }
-                    }
-                    
-                    let body = serde_json::to_string(&json!({
-                        "status": "updated",
-                        "config": {
-                            "test_mode": cfg.test_mode,
-                            "ban_duration": cfg.ban_duration,
-                            "ban_durations": {
-                                "honeypot": cfg.ban_durations.honeypot,
-                                "rate_limit": cfg.ban_durations.rate_limit,
-                                "browser": cfg.ban_durations.browser,
-                                "admin": cfg.ban_durations.admin
-                            },
-                            "rate_limit": cfg.rate_limit,
-                            "honeypots": cfg.honeypots,
-                            "geo_risk": cfg.geo_risk,
-                            "maze_enabled": cfg.maze_enabled,
-                            "maze_auto_ban": cfg.maze_auto_ban,
-                            "maze_auto_ban_threshold": cfg.maze_auto_ban_threshold,
-                            "robots_enabled": cfg.robots_enabled,
-                            "robots_block_ai_training": cfg.robots_block_ai_training,
-                            "robots_block_ai_search": cfg.robots_block_ai_search,
-                            "robots_allow_search_engines": cfg.robots_allow_search_engines,
-                            "robots_crawl_delay": cfg.robots_crawl_delay,
-                            "cdp_detection_enabled": cfg.cdp_detection_enabled,
-                            "cdp_auto_ban": cfg.cdp_auto_ban,
-                            "cdp_detection_threshold": cfg.cdp_detection_threshold,
-                            "pow_enabled": crate::pow::pow_enabled(),
-                            "pow_config_mutable": crate::config::pow_config_mutable(),
-                            "pow_difficulty": cfg.pow_difficulty,
-                            "pow_ttl_seconds": cfg.pow_ttl_seconds
-                        }
-                    })).unwrap();
-                    return Response::new(200, body);
-                } else {
-                    return Response::new(400, "Invalid JSON in request body");
-                }
-            }
-            // GET: Return current config
-            let cfg = crate::config::Config::load(&store, site_id);
-            log_event(&store, &EventLogEntry {
-                ts: now_ts(),
-                event: EventType::AdminAction,
-                ip: None,
-                reason: Some("config_view".to_string()),
-                outcome: Some(format!("test_mode={}", cfg.test_mode)),
-                admin: Some(crate::auth::get_admin_id(req)),
-            });
-            let body = serde_json::to_string(&json!({
-                "test_mode": cfg.test_mode,
-                "ban_duration": cfg.ban_duration,
-                "ban_durations": {
-                    "honeypot": cfg.ban_durations.honeypot,
-                    "rate_limit": cfg.ban_durations.rate_limit,
-                    "browser": cfg.ban_durations.browser,
-                    "admin": cfg.ban_durations.admin
-                },
-                "rate_limit": cfg.rate_limit,
-                "honeypots": cfg.honeypots,
-                "browser_block": cfg.browser_block,
-                "browser_whitelist": cfg.browser_whitelist,
-                "geo_risk": cfg.geo_risk,
-                "whitelist": cfg.whitelist,
-                "path_whitelist": cfg.path_whitelist,
-                "maze_enabled": cfg.maze_enabled,
-                "maze_auto_ban": cfg.maze_auto_ban,
-                "maze_auto_ban_threshold": cfg.maze_auto_ban_threshold,
-                "robots_enabled": cfg.robots_enabled,
-                "robots_block_ai_training": cfg.robots_block_ai_training,
-                "robots_block_ai_search": cfg.robots_block_ai_search,
-                "robots_allow_search_engines": cfg.robots_allow_search_engines,
-                "robots_crawl_delay": cfg.robots_crawl_delay,
-                "cdp_detection_enabled": cfg.cdp_detection_enabled,
-                "cdp_auto_ban": cfg.cdp_auto_ban,
-                "cdp_detection_threshold": cfg.cdp_detection_threshold,
-                "pow_enabled": crate::pow::pow_enabled(),
-                "pow_config_mutable": crate::config::pow_config_mutable(),
-                "pow_difficulty": cfg.pow_difficulty,
-                "pow_ttl_seconds": cfg.pow_ttl_seconds
-            })).unwrap();
-            Response::new(200, body)
+            return handle_admin_config(req, &store, site_id);
         }
         "/admin" => {
             // API help endpoint

@@ -424,6 +424,12 @@ let powSavedState = {
   mutable: false
 };
 
+// Track challenge threshold saved state for change detection
+let challengeSavedState = {
+  threshold: 3,
+  mutable: false
+};
+
 function updateRobotsConfig(config) {
   // Update toggles from server config
   if (config.robots_enabled !== undefined) {
@@ -688,6 +694,29 @@ function updatePowConfig(config) {
   btn.textContent = 'Save PoW Settings';
 }
 
+function updateChallengeConfig(config) {
+  const mutable = config.challenge_config_mutable === true;
+  const threshold = parseInt(config.challenge_risk_threshold, 10);
+  const defaultThreshold = parseInt(config.challenge_risk_threshold_default, 10);
+
+  if (!Number.isNaN(threshold)) {
+    document.getElementById('challenge-threshold').value = threshold;
+  }
+
+  document.getElementById('challenge-config-status').textContent = mutable ? 'Editable' : 'Read-only (env)';
+  document.getElementById('challenge-default').textContent = Number.isNaN(defaultThreshold) ? '--' : defaultThreshold;
+  document.getElementById('challenge-threshold').disabled = !mutable;
+
+  challengeSavedState = {
+    threshold: parseInt(document.getElementById('challenge-threshold').value, 10) || (Number.isNaN(threshold) ? 3 : threshold),
+    mutable: mutable
+  };
+
+  const btn = document.getElementById('save-challenge-config');
+  btn.disabled = !mutable;
+  btn.textContent = 'Save Challenge Settings';
+}
+
 function checkPowConfigChanged() {
   const btn = document.getElementById('save-pow-config');
   if (!powSavedState.mutable) {
@@ -704,6 +733,20 @@ function checkPowConfigChanged() {
 
 document.getElementById('pow-difficulty').addEventListener('input', checkPowConfigChanged);
 document.getElementById('pow-ttl').addEventListener('input', checkPowConfigChanged);
+
+function checkChallengeConfigChanged() {
+  const btn = document.getElementById('save-challenge-config');
+  if (!challengeSavedState.mutable) {
+    btn.disabled = true;
+    return;
+  }
+  const current = parseInt(document.getElementById('challenge-threshold').value, 10);
+  const threshold = Number.isNaN(current) ? challengeSavedState.threshold : current;
+  const changed = threshold !== challengeSavedState.threshold;
+  btn.disabled = !changed;
+}
+
+document.getElementById('challenge-threshold').addEventListener('input', checkChallengeConfigChanged);
 
 // Save PoW configuration
 document.getElementById('save-pow-config').onclick = async function() {
@@ -749,6 +792,56 @@ document.getElementById('save-pow-config').onclick = async function() {
     msg.textContent = 'Error: ' + e.message;
     msg.className = 'message error';
     btn.textContent = 'Save PoW Settings';
+    btn.disabled = false;
+  }
+};
+
+// Save challenge configuration
+document.getElementById('save-challenge-config').onclick = async function() {
+  const endpoint = document.getElementById('endpoint').value.replace(/\/$/, '');
+  const apikey = document.getElementById('apikey').value;
+  const btn = this;
+  const msg = document.getElementById('admin-msg');
+
+  const challengeThreshold = parseInt(document.getElementById('challenge-threshold').value, 10);
+  if (Number.isNaN(challengeThreshold)) {
+    msg.textContent = 'Error: Invalid challenge threshold';
+    msg.className = 'message error';
+    return;
+  }
+
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+
+  try {
+    const resp = await fetch(`${endpoint}/admin/config`, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + apikey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        challenge_risk_threshold: challengeThreshold
+      })
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(text || 'Failed to save challenge config');
+    }
+
+    challengeSavedState = {
+      threshold: challengeThreshold,
+      mutable: true
+    };
+    msg.textContent = 'Challenge threshold saved';
+    msg.className = 'message success';
+    btn.textContent = 'Save Challenge Settings';
+    btn.disabled = true;
+  } catch (e) {
+    msg.textContent = 'Error: ' + e.message;
+    msg.className = 'message error';
+    btn.textContent = 'Save Challenge Settings';
     btn.disabled = false;
   }
 };
@@ -915,6 +1008,7 @@ document.getElementById('refresh').onclick = async function() {
         updateRobotsConfig(config);
         updateCdpConfig(config);
         updatePowConfig(config);
+        updateChallengeConfig(config);
       }
     } catch (e) {
       console.error('Failed to load config:', e);

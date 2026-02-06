@@ -326,6 +326,29 @@
           </div>
           <button id="save-pow-config" class="btn" disabled>Save PoW Settings</button>
         </div>
+        <div class="control-group panel-soft pad-md">
+          <h3>Challenge Threshold</h3>
+          <p class="control-desc text-muted">Serve the ARC-style challenge when the combined risk score meets or exceeds this threshold</p>
+          <div class="admin-controls">
+            <div class="input-row">
+              <label class="control-label" for="challenge-threshold">Threshold</label>
+              <input class="input-field" type="number" id="challenge-threshold" min="1" max="10" value="3" aria-label="Challenge risk threshold">
+              <span class="input-unit text-muted">score</span>
+            </div>
+            <div class="info-panel panel-muted pad-sm">
+              <h4>Status</h4>
+              <div class="info-row">
+                <span class="info-label text-muted">Config:</span>
+                <span id="challenge-config-status">--</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label text-muted">Default:</span>
+                <span id="challenge-default">--</span>
+              </div>
+            </div>
+          </div>
+          <button id="save-challenge-config" class="btn" disabled>Save Challenge Settings</button>
+        </div>
       </div>
       <div id="admin-msg" class="message"></div>
     </div>

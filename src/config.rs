@@ -2,10 +2,10 @@
 // Configuration and site settings for WASM Bot Trap
 // Loads and manages per-site configuration (ban duration, rate limits, honeypots, etc.)
 
-use spin_sdk::key_value::Store;
 use std::env;
 
 use serde::{Serialize, Deserialize};
+use crate::challenge::KeyValueStore;
 
 /// Ban duration settings per ban type (in seconds)
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -178,7 +178,7 @@ fn default_crawl_delay() -> u32 {
 
 impl Config {
     /// Loads config for a site from the key-value store, or returns defaults if not set.
-    pub fn load(store: &Store, site_id: &str) -> Self {
+    pub fn load(store: &impl KeyValueStore, site_id: &str) -> Self {
         let key = format!("config:{}", site_id);
         if let Ok(Some(val)) = store.get(&key) {
             if let Ok(mut cfg) = serde_json::from_slice::<Config>(&val) {

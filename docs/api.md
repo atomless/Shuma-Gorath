@@ -20,7 +20,8 @@ If `FORWARDED_IP_SECRET` is set, any request that relies on `X-Forwarded-For` mu
 - `POST /cdp-report` - Client automation reports (JSON)
 - `GET /robots.txt` - robots.txt (configurable)
 - `GET /dashboard/...` - Dashboard static assets
-- `POST /challenge` - Challenge answer submission (feature currently disabled)
+- `GET /challenge` - Dev-only challenge page (TEST_MODE only)
+- `POST /challenge` - Challenge answer submission
 
 ### 🐙 Health Check Example
 

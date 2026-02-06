@@ -42,6 +42,9 @@ curl -X POST -H "Authorization: Bearer $API_KEY" \
 - `POW_SECRET` (env, optional) - HMAC secret for PoW seeds (falls back to `JS_SECRET`)
 - `pow_difficulty` (config) - Runtime PoW difficulty (12–20, requires `POW_CONFIG_MUTABLE=1`)
 - `pow_ttl_seconds` (config) - Runtime PoW TTL (30–300, requires `POW_CONFIG_MUTABLE=1`)
+- `CHALLENGE_RISK_THRESHOLD` (env) - Default challenge threshold (1–10, default: 3)
+- `CHALLENGE_CONFIG_MUTABLE` (env) - Allow admin API to update challenge threshold (default: false)
+- `challenge_risk_threshold` (config) - Runtime challenge threshold (1–10, requires `CHALLENGE_CONFIG_MUTABLE=true`)
 
 ## 🐙 Example Config (Partial)
 
@@ -73,6 +76,7 @@ curl -X POST -H "Authorization: Bearer $API_KEY" \
   "cdp_auto_ban": true,
   "cdp_detection_threshold": 0.8,
   "pow_difficulty": 15,
-  "pow_ttl_seconds": 90
+  "pow_ttl_seconds": 90,
+  "challenge_risk_threshold": 3
 }
 ```
