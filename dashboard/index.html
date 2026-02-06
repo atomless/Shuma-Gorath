@@ -19,7 +19,6 @@
       <h1>Shuma-Gorath</h1>
       <p class="subtitle">Many-Angled Bot Defence</p>
       <div id="test-mode-banner" class="test-mode-banner hidden">TEST MODE ACTIVE - Logging only, no blocking</div>
-      <div id="fail-mode-banner" class="fail-mode-banner">FAIL MODE: --</div>
       <span id="last-updated"></span>
     </header>
 
@@ -126,6 +125,28 @@
     <div class="section admin-controls">
     <h2>Admin Controls</h2>
       <div class="controls-grid">
+        <div class="control-group panel-soft">
+          <h3>Fail Mode Policy</h3>
+          <p class="control-desc">
+            Controls behaviour when the KV store is unavailable. Set via the
+            SHUMA_FAIL_MODE environment variable (read-only at runtime).
+          </p>
+          <div class="info-panel panel-muted">
+            <h4>Current Policy</h4>
+            <div class="info-row">
+              <span class="info-label">Mode:</span>
+              <span id="fail-mode-value">--</span>
+            </div>
+          </div>
+          <p class="control-desc" style="margin-top: 12px;">
+            <strong>Open</strong> (default) — requests pass through when KV
+            is unreachable; bot checks are bypassed. Prioritises availability
+            over protection.<br><br>
+            <strong>Closed</strong> — all requests are blocked with a 500
+            error when KV is unreachable. Prioritises security over
+            availability.
+          </p>
+        </div>
         <div class="control-group panel-soft">
           <h3>Test Mode</h3>
           <p class="control-desc">When enabled, logs actions without blocking users</p>

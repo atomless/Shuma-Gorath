@@ -532,25 +532,21 @@ code {
   display: none;
 }
 
-.fail-mode-banner {
-  background: var(--color-gray-100);
-  color: var(--color-gray-800);
-  padding: 8px 16px;
-  margin-top: 10px;
-  font-weight: 600;
-  text-align: center;
-  border: var(--border-hairline);
+/* Fail-mode value inside admin panel */
+#fail-mode-value {
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
-/* .open intentionally omitted — inherits base .fail-mode-banner styles */
+#fail-mode-value.open {
+  color: var(--color-gray-800);
+}
 
-.fail-mode-banner.closed {
-  background: #fee2e2;
+#fail-mode-value.closed {
   color: #991b1b;
 }
 
-.fail-mode-banner.unknown {
-  background: var(--color-gray-50);
+#fail-mode-value.unknown {
   color: var(--color-gray-500);
 }
 
@@ -1043,5 +1039,9 @@ input:checked + .toggle-slider:before {
   .control-group .btn-subtle {
     background: var(--color-gray-600);
     color: var(--color-white);
+  }
+
+  #fail-mode-value.closed {
+    color: #fca5a5;
   }
 }

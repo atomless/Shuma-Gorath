@@ -131,14 +131,14 @@ function updateStatCards(analytics, events, bans) {
   }
   toggle.checked = testMode;
 
-  // Update fail-open/closed status (read-only)
-  const failBanner = document.getElementById('fail-mode-banner');
-  if (failBanner) {
+  // Update fail-open/closed status in admin panel (read-only)
+  const failModeEl = document.getElementById('fail-mode-value');
+  if (failModeEl) {
     const failModeRaw = (analytics.fail_mode || 'unknown').toString().toLowerCase();
     const failMode = (failModeRaw === 'open' || failModeRaw === 'closed') ? failModeRaw : 'unknown';
-    failBanner.textContent = `FAIL MODE: ${failMode.toUpperCase()}`;
-    failBanner.classList.remove('open', 'closed', 'unknown');
-    failBanner.classList.add(failMode);
+    failModeEl.textContent = failMode;
+    failModeEl.classList.remove('open', 'closed', 'unknown');
+    failModeEl.classList.add(failMode);
   }
 }
 
