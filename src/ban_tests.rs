@@ -11,7 +11,7 @@ mod tests {
     struct TestStore {
         map: RefCell<HashMap<String, Vec<u8>>>,
     }
-    impl super::super::quiz::KeyValueStore for TestStore {
+    impl super::super::challenge::KeyValueStore for TestStore {
         fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()> {
             Ok(self.map.borrow().get(key).cloned())
         }

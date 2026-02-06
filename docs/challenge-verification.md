@@ -1,4 +1,4 @@
-# 🐙 Quiz & Human Verification Strategy
+# 🐙 Challenge & Human Verification Strategy
 
 This document outlines an edge‑only, self‑hosted approach to human verification in Shuma‑Gorath.
 It is designed for high usability, strong security, and accessibility without relying on third‑party services.

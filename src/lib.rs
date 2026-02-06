@@ -1,6 +1,6 @@
 mod block_page;
 #[cfg(test)]
-mod quiz_tests;
+mod challenge_tests;
 #[cfg(test)]
 mod ban_tests;
 #[cfg(test)]
@@ -28,7 +28,7 @@ mod geo;         // Geo-based risk
 mod whitelist;   // Whitelist logic
 mod honeypot;    // Honeypot endpoint logic
 mod admin;       // Admin API endpoints
-mod quiz;        // Interactive math quiz for banned users
+mod challenge;   // Interactive math challenge for banned users
 mod metrics;     // Prometheus metrics
 mod maze;        // Link maze honeypot
 mod robots;      // robots.txt generation
@@ -126,10 +126,10 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
             .build();
     }
 
-    // Quiz POST handler
-    if path == "/quiz" && *req.method() == spin_sdk::http::Method::Post {
+    // Challenge POST handler
+    if path == "/challenge" && *req.method() == spin_sdk::http::Method::Post {
         if let Ok(store) = Store::open_default() {
-            return quiz::handle_quiz_submit(&store, req);
+            return challenge::handle_challenge_submit(&store, req);
         }
         return Response::new(500, "Key-value store error");
     }
@@ -294,17 +294,17 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
             return Response::new(200, "TEST MODE: Would block (rate limit)");
         }
         if ban::is_banned(store, site_id, &ip) {
-            println!("[TEST MODE] Would serve quiz to banned IP {ip}");
+            println!("[TEST MODE] Would serve challenge to banned IP {ip}");
             metrics::increment(store, metrics::MetricName::TestModeActions, None);
             crate::admin::log_event(store, &crate::admin::EventLogEntry {
                 ts: crate::admin::now_ts(),
                 event: crate::admin::EventType::Block,
                 ip: Some(ip.clone()),
                 reason: Some("banned [TEST MODE]".to_string()),
-                outcome: Some("would_serve_quiz".to_string()),
+                outcome: Some("would_serve_challenge".to_string()),
                 admin: None,
             });
-            return Response::new(200, "TEST MODE: Would serve quiz");
+            return Response::new(200, "TEST MODE: Would serve challenge");
         }
         if path != "/health" && js::needs_js_verification(req, store, site_id, &ip) {
             println!("[TEST MODE] Would inject JS challenge for IP {ip}");
@@ -379,7 +379,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
         });
         return Response::new(429, block_page::render_block_page(block_page::BlockReason::RateLimit));
     }
-    // Ban: always show block page if banned (no quiz)
+    // Ban: always show block page if banned (no challenge)
     if ban::is_banned(store, site_id, &ip) {
         metrics::increment(store, metrics::MetricName::BlocksTotal, None);
         // Log block event

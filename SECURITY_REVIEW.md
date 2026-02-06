@@ -19,8 +19,8 @@ Files & notable usages:
   - Config save: `store.set("config:{site}", serialized_config)`
   - Admin flows: some admin actions write keys (ban/unban, config updates)
   - Many admin views call `get_keys()` and enumerate keys
-- `src/quiz.rs` & `src/quiz_tests.rs`
-  - Quiz-related writes used during challenge handling and tests
+- `src/challenge.rs` & `src/challenge_tests.rs`
+  - Challenge-related writes used during challenge handling and tests
 - `src/metrics.rs`
   - `metrics::increment` performs `store.set("metric:...", current+1)` per metric increment
 

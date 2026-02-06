@@ -48,7 +48,7 @@ fn event_log_retention_hours() -> u64 {
         .unwrap_or(DEFAULT_EVENT_RETENTION_HOURS)
 }
 
-fn maybe_cleanup_event_logs<S: crate::quiz::KeyValueStore>(store: &S, current_hour: u64) {
+fn maybe_cleanup_event_logs<S: crate::challenge::KeyValueStore>(store: &S, current_hour: u64) {
     let retention = event_log_retention_hours();
     if retention == 0 {
         return;
@@ -66,7 +66,7 @@ fn maybe_cleanup_event_logs<S: crate::quiz::KeyValueStore>(store: &S, current_ho
     }
 }
 
-pub fn log_event<S: crate::quiz::KeyValueStore>(store: &S, entry: &EventLogEntry) {
+pub fn log_event<S: crate::challenge::KeyValueStore>(store: &S, entry: &EventLogEntry) {
     // Use paged hourly event logs to avoid unbounded vector growth and expensive
     // read-modify-write cycles. Each hour is split into pages of limited size.
     let hour = entry.ts / 3600;
@@ -118,7 +118,7 @@ pub fn log_event<S: crate::quiz::KeyValueStore>(store: &S, entry: &EventLogEntry
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::quiz::KeyValueStore;
+    use crate::challenge::KeyValueStore;
     use std::collections::HashMap;
     use std::sync::Mutex;
 
@@ -132,7 +132,7 @@ mod tests {
         }
     }
 
-    impl crate::quiz::KeyValueStore for MockStore {
+    impl crate::challenge::KeyValueStore for MockStore {
         fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()> {
             let m = self.map.lock().unwrap();
             Ok(m.get(key).cloned())

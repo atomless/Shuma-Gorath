@@ -14,6 +14,6 @@ Use the Makefile as the official workflow. These docs are the source of truth fo
 - [`observability.md`](observability.md) - Prometheus/Grafana integration
 - [`akamai-bot-manager.md`](akamai-bot-manager.md) - Positioning and layered defense
 - [`features.md`](features.md) - Feature list and roadmap
-- [`quiz-verification.md`](quiz-verification.md) - Human verification strategy
+- [`challenge-verification.md`](challenge-verification.md) - Human verification strategy
 - [`maze.md`](maze.md) - Link maze honeypot
 - [`../SECURITY_REVIEW.md`](../SECURITY_REVIEW.md) - Security audit notes

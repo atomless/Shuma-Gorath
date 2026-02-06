@@ -36,7 +36,7 @@ make test-unit
 
 Unit tests validate core logic in isolation (ban logic, whitelist parsing, config defaults, CDP parsing, etc.).
 Test counts may change as coverage evolves; rely on `make test-unit` output for the current total.
-Coverage includes ban/unban flows, whitelists, maze generation, quiz logic, CDP parsing, and helper utilities.
+Coverage includes ban/unban flows, whitelists, maze generation, challenge logic, CDP parsing, and helper utilities.
 
 ## 🐙 Integration Tests (Spin Environment)
 

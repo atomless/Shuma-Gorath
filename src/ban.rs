@@ -2,7 +2,7 @@
 // Ban list management for WASM Bot Trap
 // Handles persistent IP bans, expiry, and ban reasons using the Spin key-value store.
 
-use crate::quiz::KeyValueStore;
+use crate::challenge::KeyValueStore;
 use spin_sdk::key_value::Store;
 use std::time::{SystemTime, UNIX_EPOCH};
 

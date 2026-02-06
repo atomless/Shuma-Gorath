@@ -46,7 +46,7 @@ make test-integration      # In terminal 2
 - `GET /pow` - PoW seed (when enabled)
 - `POST /pow/verify` - PoW verification
 - `POST /cdp-report` - CDP automation report intake
-- `POST /quiz` - Submit quiz answer (if quiz re-enabled)
+- `POST /challenge` - Submit challenge answer (if challenge re-enabled)
 
 ### 🐙 Admin API (requires `Authorization: Bearer <API_KEY>`)
 - `GET /admin/ban` - List all bans
@@ -209,7 +209,7 @@ src/
 ├── geo.rs          # Geo detection
 ├── honeypot.rs     # Honeypot logic
 ├── js.rs           # JS challenge
-├── quiz.rs         # Math quiz (disabled)
+├── challenge.rs    # Math challenge (disabled)
 ├── rate.rs         # Rate limiting
 ├── whitelist.rs    # Whitelisting
 └── *_tests.rs      # Unit tests

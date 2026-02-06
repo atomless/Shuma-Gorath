@@ -21,17 +21,17 @@
 
 ## 🐙 Disabled or Experimental
 
-- Quiz-based human verification (disabled in current flow; only POST handler exists)
+- Challenge-based human verification (disabled in current flow; only POST handler exists)
 
 ## 🐙 Near-Term Roadmap
 
-- Human verification research (quiz vs modern alternatives) and decision on re-enabling quiz flow
+- Human verification research (challenge vs modern alternatives) and decision on re-enabling challenge flow
 - Tarpit mode (slow responses to waste bot resources)
 - Webhook notifications (Slack/Discord/PagerDuty)
 - CSV/JSON export for events and analytics
 - Additional geo/IP intelligence sources and fallbacks
 - Expanded test coverage (edge cases + negative tests)
-- Optional re-enable of quiz-on-ban feature
+- Optional re-enable of challenge-on-ban feature
 
 ## 🐙 Longer-Term / Modern Threats
 

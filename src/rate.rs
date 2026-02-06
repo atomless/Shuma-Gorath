@@ -2,7 +2,7 @@
 // Rate limiting for WASM Bot Trap
 
 use crate::ip;
-use crate::quiz::KeyValueStore;
+use crate::challenge::KeyValueStore;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn check_rate_limit<S: KeyValueStore>(store: &S, site_id: &str, ip: &str, limit: u32) -> bool {
@@ -36,7 +36,7 @@ mod tests {
         }
     }
 
-    impl crate::quiz::KeyValueStore for MockStore {
+    impl crate::challenge::KeyValueStore for MockStore {
         fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()> {
             let m = self.map.lock().unwrap();
             Ok(m.get(key).cloned())

@@ -1,4 +1,4 @@
-// src/quiz.rs
+// src/challenge.rs
 // Interactive math challenge for banned users
 
 use spin_sdk::http::{Request, Response};
@@ -26,13 +26,13 @@ use rand::Rng;
 use percent_encoding;
 use rand::prelude::*;
 
-const QUIZ_PREFIX: &str = "quiz:";
+const CHALLENGE_PREFIX: &str = "challenge:";
 
 /// Generates a random math challenge (add, sub, mul) and stores the answer and question type in KV for the IP.
 /// NOTE: This function is currently unused - banned users now see block page directly.
-/// Kept for potential future use if quiz-on-ban is re-enabled.
+/// Kept for potential future use if challenge-on-ban is re-enabled.
 #[allow(dead_code)]
-pub fn serve_quiz<S: KeyValueStore>(store: &S, ip: &str) -> Response {
+pub fn serve_challenge<S: KeyValueStore>(store: &S, ip: &str) -> Response {
     let mut rng = rand::rng();
     let a: u32 = rng.random_range(10..=99);
     let b: u32 = rng.random_range(10..=99);
@@ -51,20 +51,20 @@ pub fn serve_quiz<S: KeyValueStore>(store: &S, ip: &str) -> Response {
         },
         _ => (format!("{a} + {b}"), a + b),
     };
-    let key = format!("{}{}", QUIZ_PREFIX, ip);
+    let key = format!("{}{}", CHALLENGE_PREFIX, ip);
     let value = format!("{}:{}", answer, qtype);
     let _ = store.set(&key, value.as_bytes());
     let html = format!(r#"
         <html><head><style>
         body {{ font-family: sans-serif; background: #f9f9f9; margin: 2em; }}
-        .quiz-container {{ background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 2px 8px #ccc; max-width: 400px; margin: auto; }}
+        .challenge-container {{ background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 2px 8px #ccc; max-width: 400px; margin: auto; }}
         label {{ font-size: 1.2em; }}
         input[type=number] {{ font-size: 1.2em; width: 80px; }}
         button {{ font-size: 1em; padding: 0.5em 1em; }}
         </style></head><body>
-        <div class="quiz-container">
+        <div class="challenge-container">
         <h2>Are you human?</h2>
-        <form method='POST' action='/quiz'>
+        <form method='POST' action='/challenge'>
             <label>Solve: {question} = </label>
             <input name='answer' type='number' required autofocus />
             <input type='hidden' name='ip' value='{ip}' />
@@ -77,13 +77,13 @@ pub fn serve_quiz<S: KeyValueStore>(store: &S, ip: &str) -> Response {
     Response::new(200, html)
 }
 
-/// Validates the quiz answer. If correct, unbans the IP and returns a success page.
-pub fn handle_quiz_submit<S: KeyValueStore>(store: &S, req: &Request) -> Response {
+/// Validates the challenge answer. If correct, unbans the IP and returns a success page.
+pub fn handle_challenge_submit<S: KeyValueStore>(store: &S, req: &Request) -> Response {
     let form = String::from_utf8_lossy(req.body()).to_string();
     let answer = get_form_field(&form, "answer");
     let ip = get_form_field(&form, "ip");
     if let (Some(answer), Some(ip)) = (answer, ip) {
-        let key = format!("{}{}", QUIZ_PREFIX, ip);
+        let key = format!("{}{}", CHALLENGE_PREFIX, ip);
         if let Ok(Some(val)) = store.get(&key) {
             if let Ok(stored) = String::from_utf8(val) {
                 let mut parts = stored.splitn(2, ':');
@@ -102,7 +102,7 @@ pub fn handle_quiz_submit<S: KeyValueStore>(store: &S, req: &Request) -> Respons
             }
         }
     }
-    let html = "<html><body><h2 style='color:red;'>Incorrect answer. Please try again.</h2><a href='/quiz'>Back to quiz</a></body></html>";
+    let html = "<html><body><h2 style='color:red;'>Incorrect answer. Please try again.</h2><a href='/challenge'>Back to challenge</a></body></html>";
     Response::new(403, html)
 }
 
