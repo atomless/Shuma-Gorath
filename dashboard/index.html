@@ -22,7 +22,7 @@
       <span id="last-updated"></span>
     </header>
 
-    <div class="config panel-soft panel-border">
+    <div class="config panel-soft panel-border pad-md">
       <label for="endpoint">API Endpoint:</label>
       <input id="endpoint" class="input-field input-field--mono" value="http://127.0.0.1:3000" size="30" aria-label="API endpoint">
       <label for="apikey">API Key:</label>
@@ -32,19 +32,19 @@
 
     <!-- Stats Summary Cards -->
     <div class="stats-cards">
-      <div class="card panel panel-border">
+      <div class="card panel panel-border pad-lg">
         <h3>Total Bans</h3>
         <div class="stat-value" id="total-bans">-</div>
       </div>
-      <div class="card panel panel-border">
+      <div class="card panel panel-border pad-lg">
         <h3>Active Bans</h3>
         <div class="stat-value" id="active-bans">-</div>
       </div>
-      <div class="card panel panel-border">
+      <div class="card panel panel-border pad-lg">
         <h3>Events (24h)</h3>
         <div class="stat-value" id="total-events">-</div>
       </div>
-      <div class="card panel panel-border">
+      <div class="card panel panel-border pad-lg">
         <h3>Unique IPs</h3>
         <div class="stat-value" id="unique-ips">-</div>
       </div>
@@ -52,11 +52,11 @@
 
     <!-- Charts Row -->
     <div class="charts-row">
-      <div class="chart-container panel-soft panel-border">
+      <div class="chart-container panel-soft panel-border pad-md">
         <h2>Event Types (24h)</h2>
         <canvas id="eventTypesChart"></canvas>
       </div>
-      <div class="chart-container panel-soft panel-border">
+      <div class="chart-container panel-soft panel-border pad-md">
         <h2>Top 10 IPs by Events</h2>
         <canvas id="topIpsChart"></canvas>
       </div>
@@ -67,13 +67,13 @@
       <div class="chart-header">
         <h2>Events Over Time</h2>
         <div class="time-range-buttons">
-          <button class="time-btn active" data-range="hour">60 Mins</button>
-          <button class="time-btn" data-range="day">24 Hours</button>
-          <button class="time-btn" data-range="week">7 Days</button>
-          <button class="time-btn" data-range="month">30 Days</button>
+          <button class="btn time-btn active" data-range="hour">60 Mins</button>
+          <button class="btn time-btn" data-range="day">24 Hours</button>
+          <button class="btn time-btn" data-range="week">7 Days</button>
+          <button class="btn time-btn" data-range="month">30 Days</button>
         </div>
       </div>
-      <div class="chart-container panel-soft panel-border">
+      <div class="chart-container panel-soft panel-border pad-md">
         <canvas id="timeSeriesChart"></canvas>
       </div>
     </div>
@@ -96,24 +96,24 @@
     </div>
 
     <!-- Maze Activity Section -->
-    <div class="section maze-section panel panel-border">
+    <div class="section maze-section panel panel-border pad-md">
       <h2>Link Maze Honeypot</h2>
       <p class="section-desc">Crawlers trapped in infinite fake pages</p>
       <div class="maze-stats">
-        <div class="maze-stat panel panel-border">
+        <div class="maze-stat panel panel-border pad-md">
           <span class="maze-label">Total Hits</span>
           <span class="maze-value" id="maze-total-hits">-</span>
         </div>
-        <div class="maze-stat panel panel-border">
+        <div class="maze-stat panel panel-border pad-md">
           <span class="maze-label">Unique Crawlers</span>
           <span class="maze-value" id="maze-unique-crawlers">-</span>
         </div>
-        <div class="maze-stat panel panel-border">
+        <div class="maze-stat panel panel-border pad-md">
           <span class="maze-label">Auto-Banned</span>
           <span class="maze-value" id="maze-auto-bans">-</span>
         </div>
       </div>
-      <div class="maze-crawlers panel panel-border">
+      <div class="maze-crawlers panel panel-border pad-md">
         <h3>Top Crawlers in Maze</h3>
         <div class="crawler-list" id="maze-crawler-list">
           <p class="no-data">No crawlers in maze yet</p>
@@ -125,13 +125,13 @@
     <div class="section admin-section">
     <h2>Admin Controls</h2>
       <div class="controls-grid">
-        <div class="control-group panel-soft">
+        <div class="control-group panel-soft pad-md">
           <h3>Fail Mode Policy</h3>
           <p class="control-desc">
             What happens when the data store goes down? Set at deploy time
             via the SHUMA_FAIL_MODE environment variable.
           </p>
-          <div class="info-panel panel-muted">
+          <div class="info-panel panel-muted pad-sm">
             <h4>Current Policy</h4>
             <div class="info-row">
               <span class="info-label">Mode:</span>
@@ -148,7 +148,7 @@
             the cost of a temporary outage.
           </p>
         </div>
-        <div class="control-group panel-soft">
+        <div class="control-group panel-soft pad-md">
           <h3>Test Mode</h3>
           <p class="control-desc">When enabled, logs actions without blocking users</p>
           <label class="toggle-switch" for="test-mode-toggle">
@@ -157,7 +157,7 @@
           </label>
           <span id="test-mode-status">Loading...</span>
         </div>
-        <div class="control-group panel-soft">
+        <div class="control-group panel-soft pad-md">
           <h3>Ban Durations</h3>
           <p class="control-desc">Configure ban duration per offense type (seconds)</p>
           <div class="duration-grid">
@@ -168,19 +168,19 @@
           </div>
           <button id="save-durations-btn" class="btn btn-dark">Save Durations</button>
         </div>
-        <div class="control-group panel-soft">
+        <div class="control-group panel-soft pad-md">
           <h3>Ban IP</h3>
           <input id="ban-ip" class="input-field" type="text" placeholder="IP address" aria-label="IP address to ban" />
           <input id="ban-reason" class="input-field" type="text" placeholder="Reason (optional)" value="manual_ban" aria-label="Ban reason" />
           <input id="ban-duration" class="input-field" type="number" placeholder="Duration (seconds)" value="3600" aria-label="Ban duration in seconds" />
           <button id="ban-btn" class="btn btn-dark">Ban</button>
         </div>
-        <div class="control-group panel-soft">
+        <div class="control-group panel-soft pad-md">
           <h3>Unban IP</h3>
           <input id="unban-ip" class="input-field" type="text" placeholder="IP address" aria-label="IP address to unban" />
           <button id="unban-btn" class="btn btn-subtle">Unban</button>
         </div>
-        <div class="control-group panel-soft">
+        <div class="control-group panel-soft pad-md">
           <h3>Link Maze</h3>
           <p class="control-desc">Honeypot trap for crawlers</p>
           <div class="admin-controls">
@@ -206,7 +206,7 @@
           </div>
           <button id="save-maze-config" class="btn">Save Maze Settings</button>
         </div>
-        <div class="control-group panel-soft">
+        <div class="control-group panel-soft pad-md">
           <h3>AI Training Opt-Out Policy</h3>
           <p class="control-desc">Declare crawling policies via robots.txt (advisory, not enforcement)</p>
           <div class="admin-controls">
@@ -249,12 +249,12 @@
           </div>
           <button id="save-robots-config" class="btn" disabled>Update Policy</button>
           <button id="preview-robots" class="btn btn-subtle">Show robots.txt</button>
-          <div id="robots-preview" class="robots-preview panel hidden">
+          <div id="robots-preview" class="robots-preview panel hidden pad-sm">
             <h4>robots.txt Preview</h4>
             <pre id="robots-preview-content"></pre>
           </div>
         </div>
-        <div class="control-group panel-soft">
+        <div class="control-group panel-soft pad-md">
           <h3>CDP (Detect Browser Automation)</h3>
           <p class="control-desc">Detects bots controlling browsers on behalf of human users (Puppeteer, Playwright,
             Selenium, etc.)</p>
@@ -286,7 +286,7 @@
             </div>
           </div>
           <button id="save-cdp-config" class="btn" disabled>Save CDP Settings</button>
-          <div id="cdp-stats" class="info-panel panel-muted">
+          <div id="cdp-stats" class="info-panel panel-muted pad-sm">
             <h4>Detection Stats</h4>
             <div class="info-row">
               <span class="info-label">Total Detections:</span>
@@ -298,7 +298,7 @@
             </div>
           </div>
         </div>
-        <div class="control-group panel-soft">
+        <div class="control-group panel-soft pad-md">
           <h3>Proof-of-Work (PoW)</h3>
           <p class="control-desc">Lightweight PoW before JS verification (tunable when allowed)</p>
           <div class="admin-controls">
@@ -312,7 +312,7 @@
               <input class="input-field" type="number" id="pow-ttl" min="30" max="300" value="90" aria-label="PoW seed TTL in seconds">
               <span class="input-unit">seconds</span>
             </div>
-            <div class="info-panel panel-muted">
+            <div class="info-panel panel-muted pad-sm">
               <h4>Status</h4>
               <div class="info-row">
                 <span class="info-label">PoW Status:</span>
