@@ -719,7 +719,7 @@ fn render_transform_legend(transforms: &[Transform]) -> String {
             let value = transform_value(*transform);
             let aria_label = transform_option_label(*transform);
             format!(
-                "<div class=\"legend-row\" data-transform=\"{}\"><div class=\"legend-item\">{}</div><div class=\"legend-picks\"><label class=\"legend-pick-label\"><input type=\"radio\" class=\"legend-radio legend-radio-1\" name=\"transform_1\" value=\"{}\" aria-label=\"First transform: {}\" /><span>1</span></label><label class=\"legend-pick-label\"><input type=\"radio\" class=\"legend-radio legend-radio-2\" name=\"transform_2\" value=\"{}\" aria-label=\"Second transform: {}\" /><span>2</span></label></div></div>",
+                "<div class=\"legend-row\" data-transform=\"{}\"><div class=\"legend-item\">{}</div><div class=\"legend-picks\"><label class=\"legend-pick-label\"><input type=\"radio\" class=\"legend-radio legend-radio-1\" name=\"transform_1\" value=\"{}\" aria-label=\"First transform: {}\" /><span>1st</span></label><label class=\"legend-pick-label\"><input type=\"radio\" class=\"legend-radio legend-radio-2\" name=\"transform_2\" value=\"{}\" aria-label=\"Second transform: {}\" /><span>2nd</span></label></div></div>",
                 value, icon, value, aria_label, value, aria_label
             )
         })
