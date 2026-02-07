@@ -125,7 +125,11 @@ pub(crate) fn build_puzzle(seed: &ChallengeSeed) -> ChallengePuzzle {
         let (input, output) = generate_pair(&mut rng, size, active, &seed.transforms);
         training_pairs.push((input, output));
     }
-    let (test_input, test_output) = generate_pair(&mut rng, size, active, &seed.transforms);
+    let (test_input, test_output) = if let Some((input, output)) = training_pairs.first() {
+        (input.clone(), output.clone())
+    } else {
+        generate_pair(&mut rng, size, active, &seed.transforms)
+    };
     ChallengePuzzle {
         training_pairs,
         test_input,
@@ -367,13 +371,14 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
         grid_size,
         active_cells,
         transforms,
-        training_count: 2,
+        training_count: 1,
         seed: rng.random::<u64>(),
     };
     let puzzle = build_puzzle(&seed);
     let seed_token = make_seed_token(&seed);
     let output_size = grid_size as usize * grid_size as usize;
     let empty_output = vec![0u8; output_size];
+    let test_input_json = serde_json::to_string(&puzzle.test_input).unwrap();
 
     let training_html: String = puzzle
         .training_pairs
@@ -432,10 +437,12 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .grid-label {{ font-size: var(--font-small); color: #6b7280; margin-bottom: 6px; }}
             .test-block {{ margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee; }}
             .test-grids {{ display: grid; grid-template-columns: repeat(2, var(--puzzle-grid-size)); gap: var(--duo-grid-gap); align-items: start; justify-content: center; width: var(--duo-grid-size); margin: 0 auto; }}
+            .transform-controls {{ margin-bottom: 8px; display: grid; gap: 8px; }}
+            .transform-control {{ display: grid; gap: 4px; }}
+            .transform-control span {{ font-size: var(--font-small); color: #475569; }}
+            .transform-control select {{ font-size: var(--font-small); padding: 0.35rem 0.5rem; border: 1px solid #cbd5e1; background: #fff; color: #111; }}
             .submit-row {{ grid-column: 1 / -1; margin-top: 12px; }}
             .submit-row button {{ width: 100%; }}
-            .grid-output .cell {{ cursor: pointer; }}
-            .grid-output .cell.clickable {{ cursor: pointer; }}
             button {{ padding: 8px 14px; font-size: var(--font-body); }}
             .debug-panel {{ margin-top: 12px; padding: 10px 12px; border: 1px dashed #cbd5f5; background: #f8fafc; font-size: var(--font-small); color: #334155; }}
             .legend {{ margin: 12px 0 16px; padding: 12px; border: 1px solid #e5e7eb; background: #f8fafc; }}
@@ -487,19 +494,49 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
         </head>
         <body>
           <div class="challenge">
-            <h2>Human Verification Challenge</h2>
+            <h2>Bot Defense Challenge</h2>
             <p>Infer the rule from the examples, then complete the output grid.</p>
             {legend_html}
             {training_html}
             <div class="test-block">
               <div class="pair-title">Your turn</div>
-              <div class="turn-subtitle">Please fill in the resulting output (1 click for black, 2 for pink)</div>
+              <div class="turn-subtitle">Choose transform 1 and transform 2 to generate the output, then submit.</div>
               <div class="test-grids">
                 <div>
                   <div class="grid-label">Input</div>
                   {test_input}
                 </div>
                 <div>
+                  <div class="transform-controls">
+                    <label class="transform-control">
+                      <span>Transform 1</span>
+                      <select id="transform-1">
+                        <option value="">None</option>
+                        <option value="rotate_cw90">90° clockwise</option>
+                        <option value="rotate_ccw90">90° anticlockwise</option>
+                        <option value="mirror_horizontal">Mirror horizontally</option>
+                        <option value="mirror_vertical">Mirror vertically</option>
+                        <option value="shift_up">Shift up</option>
+                        <option value="shift_down">Shift down</option>
+                        <option value="shift_left">Shift left</option>
+                        <option value="shift_right">Shift right</option>
+                      </select>
+                    </label>
+                    <label class="transform-control">
+                      <span>Transform 2</span>
+                      <select id="transform-2">
+                        <option value="">None</option>
+                        <option value="rotate_cw90">90° clockwise</option>
+                        <option value="rotate_ccw90">90° anticlockwise</option>
+                        <option value="mirror_horizontal">Mirror horizontally</option>
+                        <option value="mirror_vertical">Mirror vertically</option>
+                        <option value="shift_up">Shift up</option>
+                        <option value="shift_down">Shift down</option>
+                        <option value="shift_left">Shift left</option>
+                        <option value="shift_right">Shift right</option>
+                      </select>
+                    </label>
+                  </div>
                   <div class="grid-label">Output</div>
                   <div id="challenge-output-grid">
                     {test_output}
@@ -518,8 +555,12 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
           </div>
           <script>
             const size = {grid_size};
+            const baseInput = {test_input_json};
             const output = Array(size * size).fill(0);
             const outputField = document.getElementById('challenge-output');
+            const outputCells = Array.from(document.querySelectorAll('#challenge-output-grid .cell'));
+            const transform1 = document.getElementById('transform-1');
+            const transform2 = document.getElementById('transform-2');
             function updateOutput() {{
               outputField.value = output.join('');
             }}
@@ -531,18 +572,76 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
                 cell.classList.add('active-alt');
               }}
             }}
-            updateOutput();
-            const outputGrid = document.getElementById('challenge-output-grid');
-            outputGrid.addEventListener('click', (event) => {{
-              const cell = event.target.closest('.cell');
-              if (!cell || !cell.dataset.idx) {{
-                return;
+            function applyTransform(grid, transform) {{
+              const out = Array(size * size).fill(0);
+              const idx = (r, c) => (r * size) + c;
+              if (transform === 'rotate_cw90') {{
+                for (let r = 0; r < size; r++) {{
+                  for (let c = 0; c < size; c++) {{
+                    out[idx(c, size - 1 - r)] = grid[idx(r, c)];
+                  }}
+                }}
+              }} else if (transform === 'rotate_ccw90') {{
+                for (let r = 0; r < size; r++) {{
+                  for (let c = 0; c < size; c++) {{
+                    out[idx(size - 1 - c, r)] = grid[idx(r, c)];
+                  }}
+                }}
+              }} else if (transform === 'mirror_horizontal') {{
+                for (let r = 0; r < size; r++) {{
+                  for (let c = 0; c < size; c++) {{
+                    out[idx(size - 1 - r, c)] = grid[idx(r, c)];
+                  }}
+                }}
+              }} else if (transform === 'mirror_vertical') {{
+                for (let r = 0; r < size; r++) {{
+                  for (let c = 0; c < size; c++) {{
+                    out[idx(r, size - 1 - c)] = grid[idx(r, c)];
+                  }}
+                }}
+              }} else if (transform === 'shift_up') {{
+                for (let r = 1; r < size; r++) {{
+                  for (let c = 0; c < size; c++) {{
+                    out[idx(r - 1, c)] = grid[idx(r, c)];
+                  }}
+                }}
+              }} else if (transform === 'shift_down') {{
+                for (let r = 0; r < size - 1; r++) {{
+                  for (let c = 0; c < size; c++) {{
+                    out[idx(r + 1, c)] = grid[idx(r, c)];
+                  }}
+                }}
+              }} else if (transform === 'shift_left') {{
+                for (let r = 0; r < size; r++) {{
+                  for (let c = 1; c < size; c++) {{
+                    out[idx(r, c - 1)] = grid[idx(r, c)];
+                  }}
+                }}
+              }} else if (transform === 'shift_right') {{
+                for (let r = 0; r < size; r++) {{
+                  for (let c = 0; c < size - 1; c++) {{
+                    out[idx(r, c + 1)] = grid[idx(r, c)];
+                  }}
+                }}
               }}
-              const idx = parseInt(cell.dataset.idx, 10);
-              output[idx] = (output[idx] + 1) % 3;
-              applyCellState(cell, output[idx]);
+              return out;
+            }}
+            function renderOutput() {{
+              const selected = [transform1.value, transform2.value].filter(Boolean);
+              let current = selected.length ? baseInput.slice() : Array(size * size).fill(0);
+              for (const t of selected) {{
+                current = applyTransform(current, t);
+              }}
+              for (let i = 0; i < current.length; i++) {{
+                output[i] = current[i];
+                applyCellState(outputCells[i], output[i]);
+              }}
               updateOutput();
-            }});
+            }}
+            updateOutput();
+            transform1.addEventListener('change', renderOutput);
+            transform2.addEventListener('change', renderOutput);
+            renderOutput();
           </script>
         </body>
         </html>
@@ -550,7 +649,8 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
     legend_html = legend_html,
     training_html = training_html,
     test_input = render_grid(&puzzle.test_input, puzzle.grid_size, "grid-static", false),
-    test_output = render_grid(&empty_output, puzzle.grid_size, "grid-output", true),
+    test_output = render_grid(&empty_output, puzzle.grid_size, "grid-output", false),
+    test_input_json = test_input_json,
     seed_token = seed_token,
     grid_size = grid_size,
     empty_tritstring = grid_to_tritstring(&empty_output),
@@ -673,16 +773,16 @@ pub fn handle_challenge_submit<S: KeyValueStore>(store: &S, req: &Request) -> Re
         }
         let _ = store.delete(&used_key);
     }
+    let _ = store.set(&used_key, seed.expires_at.to_string().as_bytes());
     let output = match parse_submission(&output_raw, seed.grid_size as usize) {
         Ok(v) => v,
         Err(e) => return Response::new(400, e),
     };
     let puzzle = build_puzzle(&seed);
     if output == puzzle.test_output {
-        let _ = store.set(&used_key, seed.expires_at.to_string().as_bytes());
         return Response::new(200, "<html><body><h2>Thank you! Challenge complete.</h2></body></html>");
     }
-    Response::new(403, "<html><body><h2 style='color:red;'>Incorrect. Try again.</h2><a href='/challenge'>Back to challenge</a></body></html>")
+    Response::new(403, "<html><body><h2 style='color:red;'>Incorrect. Challenge consumed.</h2><a href='/challenge'>Request a new challenge</a></body></html>")
 }
 
 fn get_form_field(form: &str, name: &str) -> Option<String> {

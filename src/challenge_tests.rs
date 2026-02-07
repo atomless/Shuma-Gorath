@@ -241,6 +241,21 @@ mod tests {
     }
 
     #[test]
+    fn render_challenge_has_transform_selectors_and_one_example() {
+        let req = Request::builder()
+            .method(Method::Get)
+            .uri("/challenge")
+            .body(Vec::new())
+            .build();
+        let resp = render_challenge(&req);
+        let body = String::from_utf8(resp.into_body()).unwrap();
+        assert!(body.contains("id=\"transform-1\""));
+        assert!(body.contains("id=\"transform-2\""));
+        assert!(body.contains("Example 1"));
+        assert!(!body.contains("Example 2"));
+    }
+
+    #[test]
     fn serve_challenge_page_requires_test_mode() {
         let req = Request::builder()
             .method(Method::Get)
@@ -310,6 +325,47 @@ mod tests {
             .build();
         let resp = handle_challenge_submit(&store, &req);
         assert_eq!(*resp.status(), 403u16);
+    }
+
+    #[test]
+    fn handle_challenge_submit_is_single_attempt() {
+        let store = TestStore::default();
+        let now = crate::admin::now_ts();
+        let seed = ChallengeSeed {
+            seed_id: "seed-once".to_string(),
+            issued_at: now,
+            expires_at: now + 300,
+            ip_bucket: crate::ip::bucket_ip("unknown"),
+            grid_size: 4,
+            active_cells: 7,
+            transforms: vec![Transform::RotateCw90, Transform::ShiftDown],
+            training_count: 1,
+            seed: 424242,
+        };
+        let puzzle = build_puzzle(&seed);
+        let mut wrong = grid_to_tritstring(&puzzle.test_output);
+        wrong.replace_range(0..1, if &wrong[0..1] == "1" { "0" } else { "1" });
+        let seed_token = make_seed_token(&seed);
+        let body_wrong = format!("seed={}&output={}", seed_token, wrong);
+        let req_wrong = Request::builder()
+            .method(Method::Post)
+            .uri("/challenge")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(body_wrong.as_bytes().to_vec())
+            .build();
+        let resp_wrong = handle_challenge_submit(&store, &req_wrong);
+        assert_eq!(*resp_wrong.status(), 403u16);
+
+        let correct = grid_to_tritstring(&puzzle.test_output);
+        let body_correct = format!("seed={}&output={}", seed_token, correct);
+        let req_correct = Request::builder()
+            .method(Method::Post)
+            .uri("/challenge")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(body_correct.as_bytes().to_vec())
+            .build();
+        let resp_correct = handle_challenge_submit(&store, &req_correct);
+        assert_eq!(*resp_correct.status(), 400u16);
     }
 
     #[test]
