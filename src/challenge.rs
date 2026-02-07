@@ -444,7 +444,7 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
               --legend-cell: clamp(8px, 1.2vw, 11px);
               --legend-gap: 2px;
             }}
-            .challenge h2 {{ width: var(--duo-grid-size); margin: 0 auto 0.6rem; font-size: var(--font-heading); line-height: 1.2; }}
+            .challenge h2 {{ width: var(--duo-grid-size); margin: 0 auto 0.6rem; font-size: var(--font-heading); line-height: 1.2; text-align: center; }}
             .grid {{ display: grid; gap: var(--puzzle-gap); }}
             .cell {{ width: var(--puzzle-cell); height: var(--puzzle-cell); border: 1px solid #ddd; background: #fff; }}
             .cell.active {{ background: var(--cell-on); }}
@@ -460,7 +460,7 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             button {{ padding: 8px 14px; font-size: var(--font-body); background: #111; color: #f8fafc; border: 1px solid #111; }}
             .legend {{ margin: 12px 0 16px; padding: 12px; border: 1px solid #e5e7eb; background: #f8fafc; }}
             .legend-fieldset {{ border: 0; margin: 0; padding: 0; min-width: 0; }}
-            .legend-subtitle {{ font-size: var(--font-small); color: #6b7280; margin: 0 auto 10px; width: var(--duo-grid-size); }}
+            .legend-subtitle {{ font-size: var(--font-small); color: #6b7280; margin: 0 auto 10px; width: var(--duo-grid-size); text-align: center; }}
             .legend-options {{ width: var(--duo-grid-size); margin: 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }}
             .legend-row {{ display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 6px; border: 1px solid transparent; padding: 0; }}
             .legend-row.is-selected {{ border-color: #111; background: #eef7f1; }}
@@ -486,12 +486,12 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .legend-line.line-v-75 {{ left: 75%; }}
             .legend-line.line-v-100 {{ left: 100%; }}
             .legend-arrow {{ position: absolute; color: rgb(105, 205, 135); font-size: 2.4rem; line-height: 1; font-weight: normal; z-index: 1; }}
-            .legend-arrow.arrow-center {{ top: 50%; left: 50%; transform: translate(-50%, -50%); }}
+            .legend-arrow.arrow-center {{ top: 60%; left: 50%; transform: translate(-50%, -50%); }}
             .legend-arrow.arrow-up {{ top: 0; left: 50%; transform: translateX(-50%); }}
             .legend-arrow.arrow-down {{ bottom: 0; left: 50%; transform: translateX(-50%); }}
             .legend-arrow.arrow-left {{ left: 0; top: 50%; transform: translateY(-50%); }}
             .legend-arrow.arrow-right {{ right: 0; top: 50%; transform: translateY(-50%); }}
-            .legend-label {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; text-align: center; font-size: var(--font-small); color: #111; text-transform: lowercase; line-height: 1; z-index: 2; pointer-events: none; }}
+            .legend-label {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; text-align: center; font-size: var(--font-small); color: #111; text-transform: uppercase; line-height: 1; z-index: 2; pointer-events: none; }}
             @media (max-width: 640px) {{
               .legend-options {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
             }}
