@@ -437,7 +437,7 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .grid-label {{ font-size: var(--font-small); color: #6b7280; margin-bottom: 6px; }}
             .test-block {{ margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee; }}
             .test-grids {{ display: grid; grid-template-columns: repeat(2, var(--puzzle-grid-size)); gap: var(--duo-grid-gap); align-items: start; justify-content: center; width: var(--duo-grid-size); margin: 0 auto; }}
-            .transform-controls {{ grid-column: 1 / -1; margin-bottom: 8px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--duo-grid-gap); width: 100%; }}
+            .transform-controls {{ grid-column: 1 / -1; margin-bottom: 8px; display: grid; grid-template-columns: 1fr; gap: 8px; width: 100%; }}
             .transform-control {{ display: grid; gap: 4px; min-width: 0; }}
             .transform-control span {{ font-size: var(--font-small); color: #475569; }}
             .transform-control select {{ font-size: var(--font-small); padding: 0.35rem 0.5rem; border: 1px solid #cbd5e1; background: #fff; color: #111; }}
