@@ -89,17 +89,29 @@ mod tests {
     }
 
     #[test]
-    fn transform_pair_avoids_inverse_rotation() {
+    fn transform_pair_returns_two_distinct_transforms() {
         let mut rng = StdRng::seed_from_u64(123);
         for _ in 0..50 {
             let pair = select_transform_pair(&mut rng);
-            let a = pair[0];
-            let b = pair[1];
-            let inverse = matches!(
-                (a, b),
-                (Transform::RotateCw90, Transform::RotateCcw90) | (Transform::RotateCcw90, Transform::RotateCw90)
+            assert_ne!(pair[0], pair[1]);
+        }
+    }
+
+    #[test]
+    fn transform_pair_avoids_cancel_pairs() {
+        let mut rng = StdRng::seed_from_u64(456);
+        for _ in 0..200 {
+            let pair = select_transform_pair(&mut rng);
+            let is_cancel = matches!(
+                (pair[0], pair[1]),
+                (Transform::ShiftLeft, Transform::ShiftRight)
+                    | (Transform::ShiftRight, Transform::ShiftLeft)
+                    | (Transform::ShiftUp, Transform::ShiftDown)
+                    | (Transform::ShiftDown, Transform::ShiftUp)
+                    | (Transform::RotateCw90, Transform::RotateCcw90)
+                    | (Transform::RotateCcw90, Transform::RotateCw90)
             );
-            assert!(!inverse);
+            assert!(!is_cancel);
         }
     }
 

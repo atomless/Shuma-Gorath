@@ -161,11 +161,16 @@ fn generate_grid(rng: &mut impl Rng, size: usize, active: usize) -> Vec<u8> {
     grid
 }
 
-fn is_inverse_rotation_pair(a: Transform, b: Transform) -> bool {
-    matches!(
-        (a, b),
-        (Transform::RotateCw90, Transform::RotateCcw90) | (Transform::RotateCcw90, Transform::RotateCw90)
-    )
+fn inverse_transform(transform: Transform) -> Option<Transform> {
+    match transform {
+        Transform::ShiftLeft => Some(Transform::ShiftRight),
+        Transform::ShiftRight => Some(Transform::ShiftLeft),
+        Transform::ShiftUp => Some(Transform::ShiftDown),
+        Transform::ShiftDown => Some(Transform::ShiftUp),
+        Transform::RotateCw90 => Some(Transform::RotateCcw90),
+        Transform::RotateCcw90 => Some(Transform::RotateCw90),
+        _ => None,
+    }
 }
 
 const MIN_TRANSFORM_COUNT: usize = 4;
@@ -207,14 +212,17 @@ fn enabled_transforms() -> Vec<Transform> {
 
 pub(crate) fn select_transform_pair(rng: &mut impl Rng) -> Vec<Transform> {
     let mut options = enabled_transforms();
-    loop {
-        options.shuffle(rng);
-        let a = options[0];
-        let b = options[1];
-        if !is_inverse_rotation_pair(a, b) {
-            return vec![a, b];
-        }
-    }
+    options.shuffle(rng);
+    let first = options[0];
+    let inverse = inverse_transform(first);
+    let second_choices: Vec<Transform> = options
+        .into_iter()
+        .skip(1)
+        .filter(|candidate| Some(*candidate) != inverse)
+        .collect();
+    let second_idx = rng.random_range(0..second_choices.len());
+    let second = second_choices[second_idx];
+    vec![first, second]
 }
 
 fn apply_transforms(grid: &[u8], size: usize, transforms: &[Transform]) -> Vec<u8> {
