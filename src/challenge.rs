@@ -410,6 +410,7 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .cell.clickable {{ cursor: pointer; }}
             .pair {{ margin-bottom: 16px; }}
             .pair-title {{ font-weight: 600; margin-bottom: 8px; }}
+            .turn-subtitle {{ font-size: 13px; color: #475569; margin-bottom: 10px; }}
             .pair-grids {{ display: flex; gap: 24px; align-items: flex-start; }}
             .grid-label {{ font-size: 12px; color: #6b7280; margin-bottom: 6px; }}
             .test-block {{ margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee; }}
@@ -430,8 +431,8 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .legend-cell {{ border: 1px solid #e2e8f0; background: #fff; }}
             .legend-cell.on {{ background: var(--cell-on); }}
             .legend-cell.alt {{ background: var(--cell-alt); }}
-            .legend-line {{ position: absolute; border-top: 1px dashed rgb(255,205,235); left: 0; right: 0; }}
-            .legend-line.vert {{ border-top: 0; border-left: 1px dashed rgb(255,205,235); top: 0; bottom: 0; left: 50%; }}
+            .legend-line {{ position: absolute; border-top: 2px dashed rgb(255,160,210); left: 0; right: 0; }}
+            .legend-line.vert {{ border-top: 0; border-left: 2px dashed rgb(255,160,210); top: 0; bottom: 0; left: 50%; }}
             .legend-line.line-h-0 {{ top: 0%; }}
             .legend-line.line-h-25 {{ top: 25%; }}
             .legend-line.line-h-50 {{ top: 50%; }}
@@ -442,7 +443,7 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .legend-line.line-v-50 {{ left: 50%; }}
             .legend-line.line-v-75 {{ left: 75%; }}
             .legend-line.line-v-100 {{ left: 100%; }}
-            .legend-arrow {{ position: absolute; color: #00e64d; font-size: 16px; line-height: 1; }}
+            .legend-arrow {{ position: absolute; color: #00e64d; font-size: 20px; line-height: 1; font-weight: 700; }}
             .legend-arrow.arrow-center {{ top: 50%; left: 50%; transform: translate(-50%, -50%); }}
             .legend-arrow.arrow-up {{ top: 6px; left: 50%; transform: translateX(-50%); }}
             .legend-arrow.arrow-down {{ bottom: 6px; left: 50%; transform: translateX(-50%); }}
@@ -459,6 +460,7 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             {training_html}
             <div class="test-block">
               <div class="pair-title">Your turn</div>
+              <div class="turn-subtitle">Please fill in the resulting output (1 click for black, 2 for pink)</div>
               <div class="test-grids">
                 <div>
                   <div class="grid-label">Input</div>
@@ -590,20 +592,8 @@ fn render_transform_icon(transform: &Transform) -> String {
 
 fn render_legend_grid() -> String {
     let mut html = String::from("<div class=\"legend-grid\">");
-    let pattern = [
-        1u8, 2u8, 0u8, 0u8,
-        1u8, 0u8, 0u8, 0u8,
-        0u8, 0u8, 0u8, 0u8,
-        0u8, 0u8, 0u8, 0u8,
-    ];
-    for val in pattern.iter() {
-        let mut classes = "legend-cell".to_string();
-        if *val == 1 {
-            classes.push_str(" on");
-        } else if *val == 2 {
-            classes.push_str(" alt");
-        }
-        html.push_str(&format!("<div class=\"{}\"></div>", classes));
+    for _ in 0..16 {
+        html.push_str("<div class=\"legend-cell\"></div>");
     }
     html.push_str("</div>");
     html
