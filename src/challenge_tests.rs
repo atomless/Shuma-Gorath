@@ -251,7 +251,9 @@ mod tests {
         let body = String::from_utf8(resp.into_body()).unwrap();
         assert!(body.contains("id=\"transform-1\""));
         assert!(body.contains("id=\"transform-2\""));
-        assert!(body.contains("Example"));
+        assert!(body.contains("Which 2 of these transforms are being applied?"));
+        assert!(body.contains("Choose 2 transforms:"));
+        assert!(!body.contains("Your turn"));
         assert!(!body.contains("Example 2"));
     }
 

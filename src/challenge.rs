@@ -383,10 +383,9 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
     let training_html: String = puzzle
         .training_pairs
         .iter()
-        .enumerate()
-        .map(|(_idx, (input, output))| {
+        .map(|(input, output)| {
             format!(
-                "<div class=\"pair\"><div class=\"pair-title\">Example</div>{}{}{}</div>",
+                "<div class=\"pair\">{}{}{}</div>",
                 "<div class=\"pair-grids\">",
                 format!(
                     "<div><div class=\"grid-label\">Before</div>{}</div><div><div class=\"grid-label\">After</div>{}</div>",
@@ -429,7 +428,6 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .cell.active-alt {{ background: var(--cell-alt); }}
             .cell.clickable {{ cursor: pointer; }}
             .pair {{ margin-bottom: 16px; }}
-            .pair-title {{ font-size: var(--font-subheading); font-weight: 600; margin: 0 auto 8px; width: var(--duo-grid-size); }}
             .turn-subtitle {{ font-size: var(--font-small); color: #475569; width: var(--duo-grid-size); margin: 0 auto 10px; }}
             .pair-grids {{ display: grid; grid-template-columns: repeat(2, var(--puzzle-grid-size)); gap: var(--duo-grid-gap); align-items: flex-start; justify-content: center; width: var(--duo-grid-size); margin: 0 auto; }}
             .grid-label {{ font-size: var(--font-small); color: #6b7280; margin-bottom: 6px; }}
@@ -437,7 +435,6 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .test-grids {{ display: grid; grid-template-columns: repeat(2, var(--puzzle-grid-size)); gap: var(--duo-grid-gap); align-items: start; justify-content: center; width: var(--duo-grid-size); margin: 0 auto; }}
             .transform-controls {{ grid-column: 1 / -1; margin-bottom: 8px; display: grid; grid-template-columns: 1fr; gap: 8px; width: 100%; }}
             .transform-control {{ display: grid; gap: 4px; min-width: 0; }}
-            .transform-control span {{ font-size: var(--font-small); color: #475569; }}
             .transform-control select {{ font-size: var(--font-small); padding: 0.35rem 0.5rem; border: 1px solid #cbd5e1; background: #fff; color: #111; }}
             .submit-row {{ grid-column: 1 / -1; margin-top: 12px; }}
             .submit-row button {{ width: 100%; }}
@@ -482,7 +479,7 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             }}
             @media (max-width: 400px) {{
               .challenge h2 {{ width: var(--puzzle-grid-size); }}
-              .legend-subtitle, .legend-items, .pair-title, .turn-subtitle {{ width: var(--puzzle-grid-size); }}
+              .legend-subtitle, .legend-items, .turn-subtitle {{ width: var(--puzzle-grid-size); }}
               .legend-items {{ grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }}
               .pair-grids, .test-grids {{ grid-template-columns: 1fr; width: var(--puzzle-grid-size); gap: 12px; }}
               .transform-controls {{ grid-template-columns: 1fr; gap: 8px; }}
@@ -496,13 +493,11 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             {legend_html}
             {training_html}
             <div class="test-block">
-              <div class="pair-title">Your turn</div>
-              <div class="turn-subtitle">Choose a transformation from each menu below.</div>
+              <div class="turn-subtitle">Choose 2 transforms:</div>
               <div class="test-grids">
                 <div class="transform-controls">
                   <label class="transform-control">
-                    <span>Transform 1</span>
-                    <select id="transform-1">
+                    <select id="transform-1" aria-label="Transform 1">
                       <option value="">None</option>
                       <option value="rotate_cw90">90&#176; clockwise</option>
                       <option value="rotate_ccw90">90&#176; anticlockwise</option>
@@ -515,8 +510,7 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
                     </select>
                   </label>
                   <label class="transform-control">
-                    <span>Transform 2</span>
-                    <select id="transform-2">
+                    <select id="transform-2" aria-label="Transform 2">
                       <option value="">None</option>
                       <option value="rotate_cw90">90&#176; clockwise</option>
                       <option value="rotate_ccw90">90&#176; anticlockwise</option>
@@ -684,7 +678,7 @@ fn render_transform_legend(transforms: &[Transform]) -> String {
         })
         .collect();
     format!(
-        "<div class=\"legend\"><div class=\"legend-subtitle\">Two of these are being applied to the input grids.</div><div class=\"legend-items\">{}</div></div>",
+        "<div class=\"legend\"><div class=\"legend-subtitle\">Which 2 of these transforms are being applied?</div><div class=\"legend-items\">{}</div></div>",
         items
     )
 }
