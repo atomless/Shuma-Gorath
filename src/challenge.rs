@@ -205,14 +205,6 @@ fn enabled_transforms() -> Vec<Transform> {
     transforms_for_count(configured_transform_count())
 }
 
-fn legend_columns_for_count(count: usize) -> usize {
-    match count {
-        0..=4 => count.max(1),
-        5 | 6 => 3,
-        _ => 4,
-    }
-}
-
 pub(crate) fn select_transform_pair(rng: &mut impl Rng) -> Vec<Transform> {
     let mut options = enabled_transforms();
     loop {
@@ -468,17 +460,19 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .submit-row button {{ width: 100%; }}
             button {{ padding: 8px 14px; font-size: var(--font-body); background: #111; color: #f8fafc; border: 1px solid #111; }}
             .legend {{ margin: 12px 0 16px; padding: 12px; border: 1px solid #e5e7eb; background: #f8fafc; }}
+            .legend-fieldset {{ border: 0; margin: 0; padding: 0; min-width: 0; }}
             .legend-title {{ font-size: var(--font-subheading); font-weight: 600; color: #111; margin: 0 auto 2px; width: var(--duo-grid-size); }}
             .legend-subtitle {{ font-size: var(--font-small); color: #6b7280; margin: 0 auto 10px; width: var(--duo-grid-size); }}
-            .legend-items {{ display: flex; flex-wrap: wrap; gap: 8px 10px; width: var(--duo-grid-size); margin: 0 auto; align-items: flex-start; }}
-            .legend-choice {{ display: flex; align-items: flex-start; gap: 8px; min-width: 0; flex: 1 1 calc((100% - (var(--legend-columns) - 1) * 10px) / var(--legend-columns)); max-width: calc((100% - (var(--legend-columns) - 1) * 10px) / var(--legend-columns)); cursor: pointer; border: 1px solid transparent; padding: 4px; }}
-            .legend-choice input {{ width: 16px; height: 16px; margin-top: 2px; flex: 0 0 auto; accent-color: #111; cursor: pointer; }}
-            .legend-order-badge {{ width: 1.1rem; height: 1.1rem; margin-top: 1px; border: 1px solid #94a3b8; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 600; line-height: 1; color: #334155; background: #fff; flex: 0 0 auto; }}
-            .legend-order-badge.active {{ border-color: #111; background: #111; color: #f8fafc; }}
+            .legend-table {{ width: var(--duo-grid-size); margin: 0 auto; border-collapse: separate; border-spacing: 0 8px; table-layout: fixed; }}
+            .legend-table th, .legend-table td {{ padding: 0; vertical-align: top; }}
+            .legend-table thead th {{ font-size: var(--font-small); color: #475569; font-weight: 600; text-align: center; }}
+            .legend-table thead .legend-head-transform {{ text-align: left; }}
+            .legend-col-transform {{ width: calc(var(--duo-grid-size) - 64px); }}
+            .legend-row-main {{ display: flex; align-items: flex-start; gap: 8px; border: 1px solid transparent; padding: 4px; }}
+            .legend-row-main.is-selected {{ border-color: #111; background: #eef7f1; }}
             .legend-item {{ display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; width: 100%; }}
-            .legend-choice.selected {{ border-color: #111; background: #eef7f1; }}
-            .legend-choice.locked:not(.selected) {{ opacity: 0.65; cursor: not-allowed; }}
-            .legend-choice.locked:not(.selected) input {{ cursor: not-allowed; }}
+            .legend-pick {{ width: 32px; text-align: center; }}
+            .legend-pick input {{ width: 16px; height: 16px; margin-top: 2px; accent-color: #111; cursor: pointer; }}
             .legend-icon {{ position: relative; width: var(--legend-grid-size); height: var(--legend-grid-size); flex: 0 0 auto; }}
             .legend-grid {{ position: absolute; inset: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--legend-gap); }}
             .legend-cell {{ border: 1px solid #e2e8f0; background: #fff; }}
@@ -514,8 +508,8 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             }}
             @media (max-width: 400px) {{
               .challenge h2 {{ width: var(--puzzle-grid-size); }}
-              .legend-title, .legend-subtitle, .legend-items {{ width: var(--puzzle-grid-size); }}
-              .legend-items {{ --legend-columns: 2; gap: 8px; }}
+              .legend-title, .legend-subtitle, .legend-table {{ width: var(--puzzle-grid-size); }}
+              .legend-col-transform {{ width: calc(var(--puzzle-grid-size) - 64px); }}
               .pair-grids, .test-grids {{ grid-template-columns: 1fr; width: var(--puzzle-grid-size); gap: 12px; }}
               .submit-row {{ grid-column: 1; }}
             }}
@@ -550,8 +544,9 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             const output = Array(size * size).fill(0);
             const outputField = document.getElementById('challenge-output');
             const outputCells = Array.from(document.querySelectorAll('#challenge-output-grid .cell'));
-            const transformChecks = Array.from(document.querySelectorAll('.legend-check'));
-            const selectedOrder = [];
+            const transform1Radios = Array.from(document.querySelectorAll('input[name="transform_1"]'));
+            const transform2Radios = Array.from(document.querySelectorAll('input[name="transform_2"]'));
+            const legendRows = Array.from(document.querySelectorAll('.legend-row'));
             function updateOutput() {{
               outputField.value = output.join('');
             }}
@@ -563,47 +558,24 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
                 cell.classList.add('active-alt');
               }}
             }}
-            function selectedTransforms() {{
-              return selectedOrder.slice();
+            function selectedValue(radios) {{
+              const current = radios.find((radio) => radio.checked);
+              return current ? current.value : null;
             }}
-            function reconcileSelectedOrder() {{
-              for (let i = selectedOrder.length - 1; i >= 0; i--) {{
-                const value = selectedOrder[i];
-                const check = transformChecks.find((item) => item.value === value);
-                if (!check || !check.checked) {{
-                  selectedOrder.splice(i, 1);
-                }}
-              }}
-              for (const check of transformChecks) {{
-                if (check.checked && !selectedOrder.includes(check.value)) {{
-                  selectedOrder.push(check.value);
-                }}
-              }}
-              while (selectedOrder.length > 2) {{
-                const dropped = selectedOrder.pop();
-                const droppedCheck = transformChecks.find((item) => item.value === dropped);
-                if (droppedCheck) {{
-                  droppedCheck.checked = false;
-                }}
-              }}
+            function selectedTransforms() {{
+              return [selectedValue(transform1Radios), selectedValue(transform2Radios)].filter(Boolean);
             }}
             function syncLegendState() {{
-              reconcileSelectedOrder();
-              const selectedCount = selectedOrder.length;
-              for (const check of transformChecks) {{
-                const locked = selectedCount >= 2 && !check.checked;
-                check.disabled = locked;
-                const choice = check.closest('.legend-choice');
-                const order = selectedOrder.indexOf(check.value);
-                const badge = choice ? choice.querySelector('.legend-order-badge') : null;
-                if (choice) {{
-                  choice.classList.toggle('selected', order >= 0);
-                  choice.classList.toggle('locked', locked);
+              const first = selectedValue(transform1Radios);
+              const second = selectedValue(transform2Radios);
+              for (const row of legendRows) {{
+                const value = row.dataset.transform;
+                const main = row.querySelector('.legend-row-main');
+                if (!main) {{
+                  continue;
                 }}
-                if (badge) {{
-                  badge.textContent = order >= 0 ? String(order + 1) : "";
-                  badge.classList.toggle('active', order >= 0);
-                }}
+                const selected = value === first || value === second;
+                main.classList.toggle('is-selected', selected);
               }}
             }}
             function applyTransform(grid, transform) {{
@@ -673,14 +645,23 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
               updateOutput();
             }}
             function onLegendChange(event) {{
-              if (event.target.checked && selectedOrder.length >= 2 && !selectedOrder.includes(event.target.value)) {{
-                event.target.checked = false;
+              if (event.target.name === 'transform_1') {{
+                const conflict = transform2Radios.find((radio) => radio.checked && radio.value === event.target.value);
+                if (conflict) {{
+                  conflict.checked = false;
+                }}
+              }} else if (event.target.name === 'transform_2') {{
+                const conflict = transform1Radios.find((radio) => radio.checked && radio.value === event.target.value);
+                if (conflict) {{
+                  conflict.checked = false;
+                }}
               }}
               syncLegendState();
               renderOutput();
             }}
             updateOutput();
-            transformChecks.forEach((check) => check.addEventListener('change', onLegendChange));
+            transform1Radios.forEach((radio) => radio.addEventListener('change', onLegendChange));
+            transform2Radios.forEach((radio) => radio.addEventListener('change', onLegendChange));
             syncLegendState();
             renderOutput();
           </script>
@@ -734,8 +715,7 @@ fn transform_option_label(transform: Transform) -> &'static str {
 }
 
 fn render_transform_legend(transforms: &[Transform]) -> String {
-    let columns = legend_columns_for_count(transforms.len());
-    let items: String = transforms
+    let rows: String = transforms
         .iter()
         .map(|transform| {
             let label = transform_legend_label(transform);
@@ -743,15 +723,14 @@ fn render_transform_legend(transforms: &[Transform]) -> String {
             let value = transform_value(*transform);
             let aria_label = transform_option_label(*transform);
             format!(
-                "<label class=\"legend-choice\"><input type=\"checkbox\" class=\"legend-check\" value=\"{}\" aria-label=\"{}\" /><span class=\"legend-order-badge\" aria-hidden=\"true\"></span><span class=\"legend-item\"><span class=\"legend-label\">{}</span>{}</span></label>",
-                value, aria_label, label, icon
+                "<tr class=\"legend-row\" data-transform=\"{}\"><th scope=\"row\" class=\"legend-col-transform\"><div class=\"legend-row-main\"><div class=\"legend-item\"><div class=\"legend-label\">{}</div>{}</div></div></th><td class=\"legend-pick\"><input type=\"radio\" class=\"legend-radio legend-radio-1\" name=\"transform_1\" value=\"{}\" aria-label=\"First transform: {}\" /></td><td class=\"legend-pick\"><input type=\"radio\" class=\"legend-radio legend-radio-2\" name=\"transform_2\" value=\"{}\" aria-label=\"Second transform: {}\" /></td></tr>",
+                value, label, icon, value, aria_label, value, aria_label
             )
         })
         .collect();
     format!(
-        "<div class=\"legend\"><div class=\"legend-title\">Which transforms were applied?</div><div class=\"legend-subtitle\">Choose 2</div><div class=\"legend-items\" style=\"--legend-columns:{};\">{}</div></div>",
-        columns,
-        items,
+        "<div class=\"legend\"><fieldset class=\"legend-fieldset\"><legend class=\"legend-title\">Which transforms were applied?</legend><div class=\"legend-subtitle\">Choose 2</div><table class=\"legend-table\"><thead><tr><th class=\"legend-head-transform\" scope=\"col\">Transform</th><th scope=\"col\">1</th><th scope=\"col\">2</th></tr></thead><tbody>{}</tbody></table></fieldset></div>",
+        rows
     )
 }
 
