@@ -486,7 +486,7 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .legend-line.line-v-75 {{ left: 75%; }}
             .legend-line.line-v-100 {{ left: 100%; }}
             .legend-arrow {{ position: absolute; color: rgb(105, 205, 135); font-size: 2.4rem; line-height: 1; font-weight: normal; z-index: 1; }}
-            .legend-arrow.arrow-center {{ top: 60%; left: 50%; transform: translate(-50%, -50%); }}
+            .legend-arrow.arrow-center {{ top: 65%; left: 50%; transform: translate(-50%, -50%); }}
             .legend-arrow.arrow-up {{ top: 0; left: 50%; transform: translateX(-50%); }}
             .legend-arrow.arrow-down {{ bottom: 0; left: 50%; transform: translateX(-50%); }}
             .legend-arrow.arrow-left {{ left: 0; top: 50%; transform: translateY(-50%); }}
