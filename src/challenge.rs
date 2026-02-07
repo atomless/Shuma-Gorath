@@ -168,21 +168,45 @@ fn is_inverse_rotation_pair(a: Transform, b: Transform) -> bool {
     )
 }
 
+const MIN_TRANSFORM_COUNT: usize = 4;
+const MAX_TRANSFORM_COUNT: usize = 8;
+const DEFAULT_TRANSFORM_COUNT: usize = 8;
+
 fn all_transforms() -> Vec<Transform> {
     vec![
-        Transform::RotateCw90,
-        Transform::RotateCcw90,
-        Transform::MirrorHorizontal,
-        Transform::MirrorVertical,
         Transform::ShiftUp,
         Transform::ShiftDown,
         Transform::ShiftLeft,
         Transform::ShiftRight,
+        Transform::RotateCw90,
+        Transform::RotateCcw90,
+        Transform::MirrorHorizontal,
+        Transform::MirrorVertical,
     ]
 }
 
+pub(crate) fn parse_transform_count(value: Option<&str>) -> usize {
+    let parsed = value
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(DEFAULT_TRANSFORM_COUNT);
+    parsed.clamp(MIN_TRANSFORM_COUNT, MAX_TRANSFORM_COUNT)
+}
+
+fn configured_transform_count() -> usize {
+    parse_transform_count(std::env::var("CHALLENGE_TRANSFORM_COUNT").ok().as_deref())
+}
+
+pub(crate) fn transforms_for_count(count: usize) -> Vec<Transform> {
+    let capped = count.clamp(MIN_TRANSFORM_COUNT, MAX_TRANSFORM_COUNT);
+    all_transforms().into_iter().take(capped).collect()
+}
+
+fn enabled_transforms() -> Vec<Transform> {
+    transforms_for_count(configured_transform_count())
+}
+
 pub(crate) fn select_transform_pair(rng: &mut impl Rng) -> Vec<Transform> {
-    let mut options = all_transforms();
+    let mut options = enabled_transforms();
     loop {
         options.shuffle(rng);
         let a = options[0];
@@ -397,8 +421,9 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
         })
         .collect();
 
-    let legend_transforms = all_transforms();
+    let legend_transforms = enabled_transforms();
     let legend_html = render_transform_legend(&legend_transforms);
+    let transform_options = render_transform_options(&legend_transforms);
     let html = format!(r#"
         <html>
         <head>
@@ -439,7 +464,6 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .submit-row {{ grid-column: 1 / -1; margin-top: 12px; }}
             .submit-row button {{ width: 100%; }}
             button {{ padding: 8px 14px; font-size: var(--font-body); background: #111; color: #f8fafc; border: 1px solid #111; }}
-            .debug-panel {{ margin-top: 12px; padding: 10px 12px; border: 1px dashed #cbd5f5; background: #f8fafc; font-size: var(--font-small); color: #334155; }}
             .legend {{ margin: 12px 0 16px; padding: 12px; border: 1px solid #e5e7eb; background: #f8fafc; }}
             .legend-subtitle {{ font-size: var(--font-small); color: #6b7280; margin: 0 auto 10px; width: var(--duo-grid-size); }}
             .legend-items {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 10px; width: var(--duo-grid-size); margin: 0 auto; }}
@@ -498,28 +522,12 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
                 <div class="transform-controls">
                   <label class="transform-control">
                     <select id="transform-1" aria-label="Transform 1">
-                      <option value="">None</option>
-                      <option value="rotate_cw90">90&#176; clockwise</option>
-                      <option value="rotate_ccw90">90&#176; anticlockwise</option>
-                      <option value="mirror_horizontal">Mirror horizontally</option>
-                      <option value="mirror_vertical">Mirror vertically</option>
-                      <option value="shift_up">Shift up</option>
-                      <option value="shift_down">Shift down</option>
-                      <option value="shift_left">Shift left</option>
-                      <option value="shift_right">Shift right</option>
+                      {transform_options}
                     </select>
                   </label>
                   <label class="transform-control">
                     <select id="transform-2" aria-label="Transform 2">
-                      <option value="">None</option>
-                      <option value="rotate_cw90">90&#176; clockwise</option>
-                      <option value="rotate_ccw90">90&#176; anticlockwise</option>
-                      <option value="mirror_horizontal">Mirror horizontally</option>
-                      <option value="mirror_vertical">Mirror vertically</option>
-                      <option value="shift_up">Shift up</option>
-                      <option value="shift_down">Shift down</option>
-                      <option value="shift_left">Shift left</option>
-                      <option value="shift_right">Shift right</option>
+                      {transform_options}
                     </select>
                   </label>
                 </div>
@@ -536,9 +544,6 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
                   <input type="hidden" name="output" id="challenge-output" value="{empty_tritstring}" />
                   <button type="submit">Submit</button>
                 </form>
-              </div>
-              <div class="debug-panel">
-                Debug transforms: {debug_transforms}
               </div>
             </div>
           </div>
@@ -640,29 +645,58 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
     test_input = render_grid(&puzzle.test_input, puzzle.grid_size, "grid-static", false),
     test_output = render_grid(&empty_output, puzzle.grid_size, "grid-output", false),
     test_input_json = test_input_json,
+    transform_options = transform_options,
     seed_token = seed_token,
     grid_size = grid_size,
     empty_tritstring = grid_to_tritstring(&empty_output),
-    debug_transforms = seed.transforms.iter().map(transform_label).collect::<Vec<_>>().join(" then "),
     );
     Response::new(200, html)
 }
 
-fn transform_label(transform: &Transform) -> &'static str {
+fn transform_value(transform: Transform) -> &'static str {
     match transform {
-        Transform::RotateCw90 => "rotate 90 deg clockwise",
-        Transform::RotateCcw90 => "rotate 90 deg counter-clockwise",
-        Transform::MirrorHorizontal => "mirror horizontally",
-        Transform::MirrorVertical => "mirror vertically",
-        Transform::ShiftUp => "shift up 1 row",
-        Transform::ShiftDown => "shift down 1 row",
-        Transform::ShiftLeft => "shift left 1 column",
-        Transform::ShiftRight => "shift right 1 column",
-        Transform::DropTop => "drop top row",
-        Transform::DropBottom => "drop bottom row",
-        Transform::DropLeft => "drop left column",
-        Transform::DropRight => "drop right column",
+        Transform::RotateCw90 => "rotate_cw90",
+        Transform::RotateCcw90 => "rotate_ccw90",
+        Transform::MirrorHorizontal => "mirror_horizontal",
+        Transform::MirrorVertical => "mirror_vertical",
+        Transform::ShiftUp => "shift_up",
+        Transform::ShiftDown => "shift_down",
+        Transform::ShiftLeft => "shift_left",
+        Transform::ShiftRight => "shift_right",
+        Transform::DropTop => "drop_top",
+        Transform::DropBottom => "drop_bottom",
+        Transform::DropLeft => "drop_left",
+        Transform::DropRight => "drop_right",
     }
+}
+
+fn transform_option_label(transform: Transform) -> &'static str {
+    match transform {
+        Transform::ShiftUp => "Shift up",
+        Transform::ShiftDown => "Shift down",
+        Transform::ShiftLeft => "Shift left",
+        Transform::ShiftRight => "Shift right",
+        Transform::RotateCw90 => "90&#176; clockwise",
+        Transform::RotateCcw90 => "90&#176; anticlockwise",
+        Transform::MirrorHorizontal => "Mirror horizontally",
+        Transform::MirrorVertical => "Mirror vertically",
+        Transform::DropTop => "Drop top",
+        Transform::DropBottom => "Drop bottom",
+        Transform::DropLeft => "Drop left",
+        Transform::DropRight => "Drop right",
+    }
+}
+
+fn render_transform_options(transforms: &[Transform]) -> String {
+    let mut options = String::from("<option value=\"\">None</option>");
+    for transform in transforms {
+        options.push_str(&format!(
+            "<option value=\"{}\">{}</option>",
+            transform_value(*transform),
+            transform_option_label(*transform)
+        ));
+    }
+    options
 }
 
 fn render_transform_legend(transforms: &[Transform]) -> String {

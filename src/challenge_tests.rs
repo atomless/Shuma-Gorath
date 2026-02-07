@@ -10,9 +10,11 @@ mod tests {
         handle_challenge_submit,
         make_seed_token,
         parse_submission,
+        parse_transform_count,
         render_challenge,
         select_transform_pair,
         serve_challenge_page,
+        transforms_for_count,
         ChallengeSeed,
         Transform,
     };
@@ -120,6 +122,42 @@ mod tests {
                 ));
             }
         }
+    }
+
+    #[test]
+    fn parse_transform_count_clamps_to_valid_range() {
+        assert_eq!(parse_transform_count(None), 8);
+        assert_eq!(parse_transform_count(Some("bogus")), 8);
+        assert_eq!(parse_transform_count(Some("2")), 4);
+        assert_eq!(parse_transform_count(Some("4")), 4);
+        assert_eq!(parse_transform_count(Some("6")), 6);
+        assert_eq!(parse_transform_count(Some("99")), 8);
+    }
+
+    #[test]
+    fn transforms_for_count_uses_ordered_prefix() {
+        assert_eq!(
+            transforms_for_count(4),
+            vec![
+                Transform::ShiftUp,
+                Transform::ShiftDown,
+                Transform::ShiftLeft,
+                Transform::ShiftRight,
+            ]
+        );
+        assert_eq!(
+            transforms_for_count(8),
+            vec![
+                Transform::ShiftUp,
+                Transform::ShiftDown,
+                Transform::ShiftLeft,
+                Transform::ShiftRight,
+                Transform::RotateCw90,
+                Transform::RotateCcw90,
+                Transform::MirrorHorizontal,
+                Transform::MirrorVertical,
+            ]
+        );
     }
 
     #[test]
@@ -255,6 +293,18 @@ mod tests {
         assert!(body.contains("Choose 2 transforms:"));
         assert!(!body.contains("Your turn"));
         assert!(!body.contains("Example 2"));
+    }
+
+    #[test]
+    fn render_challenge_hides_debug_transform_text() {
+        let req = Request::builder()
+            .method(Method::Get)
+            .uri("/challenge")
+            .body(Vec::new())
+            .build();
+        let resp = render_challenge(&req);
+        let body = String::from_utf8(resp.into_body()).unwrap();
+        assert!(!body.contains("Debug transforms:"));
     }
 
     #[test]

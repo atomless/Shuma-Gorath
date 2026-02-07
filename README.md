@@ -52,6 +52,9 @@ Key environment variables:
 - `POW_TTL_SECONDS` - PoW seed expiry in seconds (default: 90)
 - `POW_SECRET` - Optional PoW signing secret (defaults to `JS_SECRET`)
 - `POW_CONFIG_MUTABLE` - Allow admin API to tune PoW difficulty/TTL
+- `CHALLENGE_RISK_THRESHOLD` - Risk score to trigger step-up challenge (default: 3)
+- `CHALLENGE_CONFIG_MUTABLE` - Allow admin API to tune challenge threshold
+- `CHALLENGE_TRANSFORM_COUNT` - Number of transforms offered in challenge UI (4-8, default: 8)
 
 Deployment policy note: `SHUMA_FAIL_MODE` is a critical choice (fail-open vs fail-closed) when the KV store is unavailable. See `docs/security-hardening.md` and `docs/deployment.md`.
 
