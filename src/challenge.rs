@@ -460,7 +460,6 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .cell.active-alt {{ background: var(--cell-alt); }}
             .cell.clickable {{ cursor: pointer; }}
             .pair {{ margin-bottom: 16px; }}
-            .turn-subtitle {{ font-size: var(--font-small); color: #475569; width: var(--duo-grid-size); margin: 0 auto 10px; }}
             .pair-grids {{ display: grid; grid-template-columns: repeat(2, var(--puzzle-grid-size)); gap: var(--duo-grid-gap); align-items: flex-start; justify-content: center; width: var(--duo-grid-size); margin: 0 auto; }}
             .grid-label {{ font-size: var(--font-small); color: #6b7280; margin-bottom: 6px; }}
             .test-block {{ margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee; }}
@@ -469,13 +468,15 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .submit-row button {{ width: 100%; }}
             button {{ padding: 8px 14px; font-size: var(--font-body); background: #111; color: #f8fafc; border: 1px solid #111; }}
             .legend {{ margin: 12px 0 16px; padding: 12px; border: 1px solid #e5e7eb; background: #f8fafc; }}
+            .legend-title {{ font-size: var(--font-subheading); font-weight: 600; color: #111; margin: 0 auto 2px; width: var(--duo-grid-size); }}
             .legend-subtitle {{ font-size: var(--font-small); color: #6b7280; margin: 0 auto 10px; width: var(--duo-grid-size); }}
             .legend-items {{ display: flex; flex-wrap: wrap; gap: 8px 10px; width: var(--duo-grid-size); margin: 0 auto; align-items: flex-start; }}
-            .legend-choice {{ display: flex; justify-content: center; min-width: 0; flex: 1 1 calc((100% - (var(--legend-columns) - 1) * 10px) / var(--legend-columns)); max-width: calc((100% - (var(--legend-columns) - 1) * 10px) / var(--legend-columns)); cursor: pointer; }}
-            .legend-choice input {{ position: absolute; opacity: 0; pointer-events: none; }}
-            .legend-item {{ display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; width: 100%; padding: 4px; border: 1px solid transparent; }}
-            .legend-choice.selected .legend-item {{ border-color: #111; background: #eef7f1; }}
+            .legend-choice {{ display: flex; align-items: flex-start; gap: 8px; min-width: 0; flex: 1 1 calc((100% - (var(--legend-columns) - 1) * 10px) / var(--legend-columns)); max-width: calc((100% - (var(--legend-columns) - 1) * 10px) / var(--legend-columns)); cursor: pointer; border: 1px solid transparent; padding: 4px; }}
+            .legend-choice input {{ width: 16px; height: 16px; margin-top: 2px; flex: 0 0 auto; accent-color: #111; cursor: pointer; }}
+            .legend-item {{ display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; width: 100%; }}
+            .legend-choice.selected {{ border-color: #111; background: #eef7f1; }}
             .legend-choice.locked:not(.selected) {{ opacity: 0.65; cursor: not-allowed; }}
+            .legend-choice.locked:not(.selected) input {{ cursor: not-allowed; }}
             .legend-icon {{ position: relative; width: var(--legend-grid-size); height: var(--legend-grid-size); flex: 0 0 auto; }}
             .legend-grid {{ position: absolute; inset: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--legend-gap); }}
             .legend-cell {{ border: 1px solid #e2e8f0; background: #fff; }}
@@ -511,7 +512,7 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             }}
             @media (max-width: 400px) {{
               .challenge h2 {{ width: var(--puzzle-grid-size); }}
-              .legend-subtitle, .legend-items, .turn-subtitle {{ width: var(--puzzle-grid-size); }}
+              .legend-title, .legend-subtitle, .legend-items {{ width: var(--puzzle-grid-size); }}
               .legend-items {{ --legend-columns: 2; gap: 8px; }}
               .pair-grids, .test-grids {{ grid-template-columns: 1fr; width: var(--puzzle-grid-size); gap: 12px; }}
               .submit-row {{ grid-column: 1; }}
@@ -520,11 +521,10 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
         </head>
         <body>
           <div class="challenge">
-            <h2>Bot Defense Challenge</h2>
+            <h2>Both Challenge</h2>
             {training_html}
             {legend_html}
             <div class="test-block">
-              <div class="turn-subtitle">Choose 2 transforms:</div>
               <div class="test-grids">
                 <div>
                   {test_input}
@@ -719,7 +719,7 @@ fn render_transform_legend(transforms: &[Transform]) -> String {
         })
         .collect();
     format!(
-        "<div class=\"legend\"><div class=\"legend-subtitle\">Which 2 of these transforms are being applied?</div><div class=\"legend-items\" style=\"--legend-columns:{};\">{}</div></div>",
+        "<div class=\"legend\"><div class=\"legend-title\">Which transforms were applied?</div><div class=\"legend-subtitle\">Choose 2</div><div class=\"legend-items\" style=\"--legend-columns:{};\">{}</div></div>",
         columns,
         items,
     )
