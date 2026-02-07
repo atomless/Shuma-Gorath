@@ -464,16 +464,16 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .legend-options {{ width: var(--duo-grid-size); margin: 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }}
             .legend-row {{ display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 6px; border: 1px solid transparent; padding: 0; }}
             .legend-row.is-selected {{ border-color: #111; background: #eef7f1; }}
-            .legend-item {{ display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; width: 100%; }}
+            .legend-item {{ display: flex; flex-direction: column; align-items: center; gap: 0; min-width: 0; width: 100%; }}
             .legend-picks {{ display: flex; align-items: center; gap: 10px; }}
             .legend-pick-label {{ display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-small); color: #475569; cursor: pointer; }}
             .legend-pick-label input {{ width: 16px; height: 16px; margin: 0; accent-color: #111; cursor: pointer; }}
             .legend-icon {{ position: relative; width: 100%; max-width: 100%; aspect-ratio: 1 / 1; flex: 0 0 auto; }}
-            .legend-grid {{ position: absolute; inset: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--legend-gap); }}
+            .legend-grid {{ position: absolute; inset: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--legend-gap); z-index: 0; }}
             .legend-cell {{ border: 1px solid #e2e8f0; background: #fff; }}
             .legend-cell.on {{ background: var(--cell-on); }}
             .legend-cell.alt {{ background: var(--cell-alt); }}
-            .legend-line {{ position: absolute; border-top: 2px dashed rgb(255,160,210); left: 0; right: 0; }}
+            .legend-line {{ position: absolute; border-top: 2px dashed rgb(255,160,210); left: 0; right: 0; z-index: 1; }}
             .legend-line.vert {{ border-top: 0; border-left: 2px dashed rgb(255,160,210); top: 0; bottom: 0; left: 50%; }}
             .legend-line.line-h-0 {{ top: 0%; }}
             .legend-line.line-h-25 {{ top: 25%; }}
@@ -485,13 +485,13 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .legend-line.line-v-50 {{ left: 50%; }}
             .legend-line.line-v-75 {{ left: 75%; }}
             .legend-line.line-v-100 {{ left: 100%; }}
-            .legend-arrow {{ position: absolute; color: rgb(105, 205, 135); font-size: 2.4rem; line-height: 1; font-weight: normal; }}
+            .legend-arrow {{ position: absolute; color: rgb(105, 205, 135); font-size: 2.4rem; line-height: 1; font-weight: normal; z-index: 1; }}
             .legend-arrow.arrow-center {{ top: 50%; left: 50%; transform: translate(-50%, -50%); }}
             .legend-arrow.arrow-up {{ top: 0; left: 50%; transform: translateX(-50%); }}
             .legend-arrow.arrow-down {{ bottom: 0; left: 50%; transform: translateX(-50%); }}
             .legend-arrow.arrow-left {{ left: 0; top: 50%; transform: translateY(-50%); }}
             .legend-arrow.arrow-right {{ right: 0; top: 50%; transform: translateY(-50%); }}
-            .legend-label {{ font-size: var(--font-small); color: #111; text-transform: lowercase; width: 100%; text-align: center; }}
+            .legend-label {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; text-align: center; font-size: var(--font-small); color: #111; text-transform: lowercase; line-height: 1; z-index: 2; pointer-events: none; }}
             @media (max-width: 640px) {{
               .legend-options {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
             }}
@@ -715,12 +715,12 @@ fn render_transform_legend(transforms: &[Transform]) -> String {
         .iter()
         .map(|transform| {
             let label = transform_legend_label(transform);
-            let icon = render_transform_icon(transform);
+            let icon = render_transform_icon(transform, label);
             let value = transform_value(*transform);
             let aria_label = transform_option_label(*transform);
             format!(
-                "<div class=\"legend-row\" data-transform=\"{}\"><div class=\"legend-item\"><div class=\"legend-label\">{}</div>{}</div><div class=\"legend-picks\"><label class=\"legend-pick-label\"><input type=\"radio\" class=\"legend-radio legend-radio-1\" name=\"transform_1\" value=\"{}\" aria-label=\"First transform: {}\" /><span>1</span></label><label class=\"legend-pick-label\"><input type=\"radio\" class=\"legend-radio legend-radio-2\" name=\"transform_2\" value=\"{}\" aria-label=\"Second transform: {}\" /><span>2</span></label></div></div>",
-                value, label, icon, value, aria_label, value, aria_label
+                "<div class=\"legend-row\" data-transform=\"{}\"><div class=\"legend-item\">{}</div><div class=\"legend-picks\"><label class=\"legend-pick-label\"><input type=\"radio\" class=\"legend-radio legend-radio-1\" name=\"transform_1\" value=\"{}\" aria-label=\"First transform: {}\" /><span>1</span></label><label class=\"legend-pick-label\"><input type=\"radio\" class=\"legend-radio legend-radio-2\" name=\"transform_2\" value=\"{}\" aria-label=\"Second transform: {}\" /><span>2</span></label></div></div>",
+                value, icon, value, aria_label, value, aria_label
             )
         })
         .collect();
@@ -739,7 +739,7 @@ fn transform_legend_label(transform: &Transform) -> &'static str {
     }
 }
 
-fn render_transform_icon(transform: &Transform) -> String {
+fn render_transform_icon(transform: &Transform, label: &str) -> String {
     let mut overlays = String::new();
     match transform {
         Transform::RotateCw90 => overlays.push_str("<div class=\"legend-arrow arrow-center\">&#x21bb;</div>"),
@@ -756,7 +756,10 @@ fn render_transform_icon(transform: &Transform) -> String {
         Transform::DropRight => overlays.push_str("<div class=\"legend-line vert line-v-100\"></div><div class=\"legend-arrow arrow-right\">&#x2192;</div>"),
     }
     let grid = render_legend_grid();
-    format!("<div class=\"legend-icon\">{}{}</div>", grid, overlays)
+    format!(
+        "<div class=\"legend-icon\">{}{}<div class=\"legend-label\">{}</div></div>",
+        grid, overlays, label
+    )
 }
 
 fn render_legend_grid() -> String {
