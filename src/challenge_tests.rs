@@ -148,6 +148,19 @@ mod tests {
         let grid = grid_4x4();
         let out = apply_transform(&grid, 4, Transform::MirrorHorizontal);
         let expected = vec![
+            13, 14, 15, 16,
+            9, 10, 11, 12,
+            5, 6, 7, 8,
+            1, 2, 3, 4,
+        ];
+        assert_eq!(out, expected);
+    }
+
+    #[test]
+    fn transform_mirror_vertical_works() {
+        let grid = grid_4x4();
+        let out = apply_transform(&grid, 4, Transform::MirrorVertical);
+        let expected = vec![
             4, 3, 2, 1,
             8, 7, 6, 5,
             12, 11, 10, 9,

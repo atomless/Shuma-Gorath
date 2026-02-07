@@ -243,7 +243,7 @@ pub(crate) fn apply_transform(grid: &[u8], size: usize, transform: Transform) ->
             for r in 0..size {
                 for c in 0..size {
                     let src = idx(r, c, size);
-                    let dst = idx(r, size - 1 - c, size);
+                    let dst = idx(size - 1 - r, c, size);
                     out[dst] = grid[src];
                 }
             }
@@ -252,7 +252,7 @@ pub(crate) fn apply_transform(grid: &[u8], size: usize, transform: Transform) ->
             for r in 0..size {
                 for c in 0..size {
                     let src = idx(r, c, size);
-                    let dst = idx(size - 1 - r, c, size);
+                    let dst = idx(r, size - 1 - c, size);
                     out[dst] = grid[src];
                 }
             }
