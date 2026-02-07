@@ -443,7 +443,7 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .legend-line.line-v-50 {{ left: 50%; }}
             .legend-line.line-v-75 {{ left: 75%; }}
             .legend-line.line-v-100 {{ left: 100%; }}
-            .legend-arrow {{ position: absolute; color: #00e64d; font-size: 20px; line-height: 1; font-weight: 700; }}
+            .legend-arrow {{ position: absolute; color: #00e64d; font-size: 36px; line-height: 1; font-weight: normal; }}
             .legend-arrow.arrow-center {{ top: 50%; left: 50%; transform: translate(-50%, -50%); }}
             .legend-arrow.arrow-up {{ top: 6px; left: 50%; transform: translateX(-50%); }}
             .legend-arrow.arrow-down {{ bottom: 6px; left: 50%; transform: translateX(-50%); }}
