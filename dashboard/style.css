@@ -564,6 +564,16 @@ code {
   padding: 12px;
 }
 
+/* Keep API access bar inline inside admin config section */
+.control-group .config {
+  margin-bottom: 0;
+}
+
+.control-group .config .btn {
+  width: auto;
+  padding: 10px 16px;
+}
+
 .control-desc {
   font-size: var(--text-sm);
   margin-bottom: 10px;
