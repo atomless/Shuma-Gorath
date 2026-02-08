@@ -79,7 +79,8 @@ const STATUS_DEFINITIONS = [
     title: 'CDP Detection',
     description: () => (
       `Detects browser automation fingerprints. Primary controls: ${envVar('SHUMA_CDP_DETECTION_ENABLED')}, ` +
-      `${envVar('SHUMA_CDP_AUTO_BAN')}, and ${envVar('SHUMA_CDP_DETECTION_THRESHOLD')}.`
+      `${envVar('SHUMA_CDP_AUTO_BAN')}, and ${envVar('SHUMA_CDP_DETECTION_THRESHOLD')}. ` +
+      `Automatic bans will be triggered when CDP detection score exceeds the ${envVar('SHUMA_CDP_DETECTION_THRESHOLD')}.`
     ),
     status: state => boolStatus(state.cdpEnabled)
   },
@@ -87,29 +88,37 @@ const STATUS_DEFINITIONS = [
     title: 'Link Maze',
     description: () => (
       'Link Maze serves trap pages to suspicious traffic. ' +
-      `Primary controls are ${envVar('SHUMA_MAZE_ENABLED')}, ${envVar('SHUMA_MAZE_AUTO_BAN')}, and ${envVar('SHUMA_MAZE_AUTO_BAN_THRESHOLD')}.`
+      `Primary controls are ${envVar('SHUMA_MAZE_ENABLED')}, ${envVar('SHUMA_MAZE_AUTO_BAN')}, and ${envVar('SHUMA_MAZE_AUTO_BAN_THRESHOLD')}. ` +
+      `Automatic bans will be triggered when Link Maze hits exceed the configured ${envVar('SHUMA_MAZE_AUTO_BAN_THRESHOLD')}.`
     ),
     status: state => boolStatus(state.mazeEnabled)
   },
   {
-    title: 'Auto-Ban Actions',
-    description: () => (
-      `Automatic bans can be triggered by Link Maze (${envVar('SHUMA_MAZE_AUTO_BAN')}) ` +
-      `and CDP detection (${envVar('SHUMA_CDP_AUTO_BAN')}).`
+    title: 'JS Required',
+    description: state => (
+      `JS challenge contribution to botness scoring is weighted by ${envVar('SHUMA_BOTNESS_WEIGHT_JS_REQUIRED')} ` +
+      `(current weight: <strong>${state.botnessWeights.js_required || 0}</strong>).`
     ),
-    status: state => boolStatus(
-      (state.mazeEnabled && state.mazeAutoBan) ||
-      (state.cdpEnabled && state.cdpAutoBan)
-    )
+    status: state => boolStatus((state.botnessWeights.js_required || 0) > 0)
   },
   {
-    title: 'Botness Scoring',
+    title: 'GEO Fencing',
     description: state => (
-      `Unified scoring uses ${envVar('SHUMA_BOTNESS_WEIGHT_JS_REQUIRED')}, ${envVar('SHUMA_BOTNESS_WEIGHT_GEO_RISK')}, ` +
-      `${envVar('SHUMA_BOTNESS_WEIGHT_RATE_MEDIUM')}, ${envVar('SHUMA_BOTNESS_WEIGHT_RATE_HIGH')}, and routing thresholds ` +
-      `${envVar('SHUMA_CHALLENGE_RISK_THRESHOLD')} / ${envVar('SHUMA_BOTNESS_MAZE_THRESHOLD')} (current maze threshold: <strong>${state.mazeThreshold}</strong>).`
+      `Geography-based contribution to botness scoring is weighted by ${envVar('SHUMA_BOTNESS_WEIGHT_GEO_RISK')} ` +
+      `(current weight: <strong>${state.botnessWeights.geo_risk || 0}</strong>).`
     ),
-    status: state => botnessStatus(state)
+    status: state => boolStatus((state.botnessWeights.geo_risk || 0) > 0)
+  },
+  {
+    title: 'Rate Limiting',
+    description: state => (
+      `Rate pressure contributes to botness scoring via ${envVar('SHUMA_BOTNESS_WEIGHT_RATE_MEDIUM')} and ` +
+      `${envVar('SHUMA_BOTNESS_WEIGHT_RATE_HIGH')} (current weights: <strong>${state.botnessWeights.rate_medium || 0}</strong> / ` +
+      `<strong>${state.botnessWeights.rate_high || 0}</strong>).`
+    ),
+    status: state => boolStatus(
+      (state.botnessWeights.rate_medium || 0) > 0 || (state.botnessWeights.rate_high || 0) > 0
+    )
   }
 ];
 
@@ -125,16 +134,6 @@ function formatMutability(isMutable) {
 
 function boolStatus(enabled) {
   return enabled ? 'ENABLED' : 'DISABLED';
-}
-
-function botnessStatus(state) {
-  const weights = state.botnessWeights || {};
-  const totalWeight =
-    (weights.js_required || 0) +
-    (weights.geo_risk || 0) +
-    (weights.rate_medium || 0) +
-    (weights.rate_high || 0);
-  return totalWeight > 0 ? 'ACTIVE' : 'DISABLED';
 }
 
 function renderStatusItems() {
