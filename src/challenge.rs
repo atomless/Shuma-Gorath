@@ -782,6 +782,7 @@ fn render_legend_grid() -> String {
 const CHALLENGE_CACHE_CONTROL: &str = "no-store";
 const CHALLENGE_CONTENT_TYPE: &str = "text/html; charset=utf-8";
 const CHALLENGE_FORBIDDEN_BODY: &str = "<html><body><h2 style='color:red;'>Forbidden. Please request a new challenge.</h2><a href='/challenge'>Request new challenge.</a></body></html>";
+const CHALLENGE_EXPIRED_BODY: &str = "<html><body><h2 style='color:red;'>Expired</h2><a href='/challenge'>Request new challenge.</a></body></html>";
 
 fn challenge_response(status: u16, body: &str) -> Response {
     Response::builder()
@@ -794,6 +795,10 @@ fn challenge_response(status: u16, body: &str) -> Response {
 
 fn challenge_forbidden_response() -> Response {
     challenge_response(403, CHALLENGE_FORBIDDEN_BODY)
+}
+
+fn challenge_expired_response() -> Response {
+    challenge_response(403, CHALLENGE_EXPIRED_BODY)
 }
 
 pub(crate) fn serve_challenge_page(req: &Request, test_mode: bool) -> Response {
@@ -819,7 +824,7 @@ pub fn handle_challenge_submit<S: KeyValueStore>(store: &S, req: &Request) -> Re
     };
     let now = crate::admin::now_ts();
     if now > seed.expires_at {
-        return challenge_forbidden_response();
+        return challenge_expired_response();
     }
     let ip = crate::extract_client_ip(req);
     let ip_bucket = crate::ip::bucket_ip(&ip);
@@ -831,7 +836,7 @@ pub fn handle_challenge_submit<S: KeyValueStore>(store: &S, req: &Request) -> Re
         if let Ok(stored) = String::from_utf8(val) {
             if let Ok(exp) = stored.parse::<u64>() {
                 if now <= exp {
-                    return challenge_forbidden_response();
+                    return challenge_expired_response();
                 }
             }
         }

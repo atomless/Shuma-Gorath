@@ -489,9 +489,38 @@ mod tests {
         let resp_correct = handle_challenge_submit(&store, &req_correct);
         assert_eq!(*resp_correct.status(), 403u16);
         let correct_body = String::from_utf8(resp_correct.into_body()).unwrap();
-        assert!(correct_body.contains("Forbidden. Please request a new challenge."));
+        assert!(correct_body.contains("Expired"));
         assert!(!correct_body.contains("Seed already used"));
         assert!(correct_body.contains("Request new challenge."));
+    }
+
+    #[test]
+    fn handle_challenge_submit_expired_seed_shows_expired_message() {
+        let store = TestStore::default();
+        let now = crate::admin::now_ts();
+        let seed = ChallengeSeed {
+            seed_id: "seed-expired".to_string(),
+            issued_at: now - 1000,
+            expires_at: now - 1,
+            ip_bucket: crate::ip::bucket_ip("unknown"),
+            grid_size: 4,
+            active_cells: 7,
+            transforms: vec![Transform::RotateCw90, Transform::ShiftDown],
+            training_count: 1,
+            seed: 424243,
+        };
+        let seed_token = make_seed_token(&seed);
+        let req = Request::builder()
+            .method(Method::Post)
+            .uri("/challenge")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(format!("seed={}&output=0000000000000000", seed_token).as_bytes().to_vec())
+            .build();
+        let resp = handle_challenge_submit(&store, &req);
+        assert_eq!(*resp.status(), 403u16);
+        let body = String::from_utf8(resp.into_body()).unwrap();
+        assert!(body.contains("Expired"));
+        assert!(body.contains("Request new challenge."));
     }
 
     #[test]
