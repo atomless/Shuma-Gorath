@@ -94,15 +94,6 @@
   letter-spacing: 0.03em;
 }
 
-.status-primary {
-  text-transform: uppercase;
-}
-
-.status-mutability {
-  text-transform: none;
-  letter-spacing: 0;
-}
-
 .caps-label {
   font-weight: 600;
   text-transform: uppercase;

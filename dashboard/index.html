@@ -151,13 +151,13 @@
           </div>
         </section>
 
-        <section class="admin-group">
+        <section class="admin-group admin-group--status">
           <h3 class="admin-group-title">Status</h3>
           <div class="controls-grid controls-grid--status">
             <div class="control-group panel-soft pad-md">
               <h3>Fail Mode Policy</h3>
               <p class="control-desc text-muted">
-                Set at deploy time via <code>SHUMA_FAIL_MODE</code>. <strong>Open</strong> (default) allows requests when KV is unavailable so availability stays high but protection is bypassed. <strong>Closed</strong> blocks requests when KV is unavailable so protection stays strict but availability can drop.
+                Controlled by <code>SHUMA_FAIL_MODE</code>. <strong>Open</strong> allows requests when KV is unavailable; <strong>Closed</strong> blocks requests when KV is unavailable. Mutability: Read Only.
               </p>
               <div class="status-rows">
                 <div class="info-row">
@@ -167,7 +167,7 @@
               </div>
               <h3>Proof-of-Work (PoW)</h3>
               <p class="control-desc text-muted">
-                PoW adds a lightweight computational puzzle before JS verification to increase bot cost while keeping normal traffic usable. Runtime mutability determines whether PoW settings are editable in the admin UI.
+                PoW adds a lightweight computational puzzle before JS verification to increase bot cost. Status is driven by <code>POW_ENABLED</code>; runtime editability is controlled by <code>POW_CONFIG_MUTABLE</code>. Mutability: <span id="pow-mutability-note">Read Only</span>.
               </p>
               <div class="status-rows">
                 <div class="info-row">
