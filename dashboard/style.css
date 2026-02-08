@@ -88,6 +88,12 @@
   color: var(--muted-fg);
 }
 
+.status-value {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .caps-label {
   font-weight: 600;
   text-transform: uppercase;

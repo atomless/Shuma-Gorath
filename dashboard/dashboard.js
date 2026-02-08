@@ -122,11 +122,11 @@ function updateStatCards(analytics, events, bans) {
   
   if (testMode) {
     banner.classList.remove('hidden');
-    status.textContent = 'Enabled (logging only)';
+    status.textContent = 'ENABLED (LOGGING ONLY)';
     status.style.color = '#d97706';
   } else {
     banner.classList.add('hidden');
-    status.textContent = 'Disabled (blocking active)';
+    status.textContent = 'DISABLED (BLOCKING ACTIVE)';
     status.style.color = '#10b981';
   }
   toggle.checked = testMode;
@@ -136,7 +136,7 @@ function updateStatCards(analytics, events, bans) {
   if (failModeEl) {
     const failModeRaw = (analytics.fail_mode || 'unknown').toString().toLowerCase();
     const failMode = (failModeRaw === 'open' || failModeRaw === 'closed') ? failModeRaw : 'unknown';
-    failModeEl.textContent = failMode;
+    failModeEl.textContent = failMode.toUpperCase();
     failModeEl.classList.remove('open', 'closed', 'unknown');
     failModeEl.classList.add(failMode);
   }
@@ -707,8 +707,8 @@ function updatePowConfig(config) {
   const difficulty = parseInt(config.pow_difficulty, 10);
   const ttl = parseInt(config.pow_ttl_seconds, 10);
 
-  document.getElementById('pow-status').textContent = powEnabled ? 'Enabled' : 'Disabled';
-  document.getElementById('pow-config-status').textContent = powMutable ? 'Editable' : 'Read-only (env)';
+  document.getElementById('pow-status').textContent = powEnabled ? 'ENABLED' : 'DISABLED';
+  document.getElementById('pow-config-status').textContent = powMutable ? 'EDITABLE' : 'READ ONLY';
 
   if (!Number.isNaN(difficulty)) {
     document.getElementById('pow-difficulty').value = difficulty;
@@ -781,7 +781,7 @@ function updateChallengeConfig(config) {
   document.getElementById('weight-rate-medium').value = parseInt(weights.rate_medium, 10) || 1;
   document.getElementById('weight-rate-high').value = parseInt(weights.rate_high, 10) || 2;
 
-  document.getElementById('botness-config-status').textContent = mutable ? 'Editable' : 'Read-only (env)';
+  document.getElementById('botness-config-status').textContent = mutable ? 'EDITABLE' : 'READ ONLY';
   document.getElementById('challenge-default').textContent = Number.isNaN(challengeDefault) ? '--' : challengeDefault;
   document.getElementById('maze-threshold-default').textContent = Number.isNaN(mazeDefault) ? '--' : mazeDefault;
 
