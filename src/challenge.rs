@@ -435,54 +435,54 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
         <html>
         <head>
           <style>
-            body {{ font-family: sans-serif; font-size: 15px; line-height: 1.6; background: #f7f7f7; margin: 24px; color: #111; }}
-            .challenge {{ max-width: 980px; margin: 0 auto; background: #fff; padding: 24px; border: 1px solid #e5e7eb; }}
             :root {{
-              --cell-on: #111;
-              --cell-alt: rgb(255,205,235);
+              --color-black: #111;
+              --color-pink: rgb(255,205,235);
+              --color-green: rgb(105, 205, 135);
+              --color-dark-gray: #475569;
+              --color-border: #e2e8f0;
+              --color-legend-bg: #f8fafc;
+              --color-white: #fff;
               --font-body: 1rem;
               --font-small: clamp(0.9rem, 0.86rem + 0.25vw, 0.96rem);
               --font-heading: clamp(1.7rem, 1.45rem + 0.9vw, 2.1rem);
-              --font-subheading: clamp(1.05rem, 1rem + 0.35vw, 1.2rem);
               --puzzle-cell: clamp(30px, 5vw, 36px);
               --puzzle-gap: 4px;
               --puzzle-grid-size: calc((var(--puzzle-cell) * 4) + (var(--puzzle-gap) * 3));
               --duo-grid-gap: clamp(12px, 2vw, 24px);
               --duo-grid-size: calc((var(--puzzle-grid-size) * 2) + var(--duo-grid-gap));
-              --legend-cell: clamp(8px, 1.2vw, 11px);
               --legend-gap: 2px;
             }}
+            body {{ font-family: sans-serif; font-size: 15px; line-height: 1.6; background: var(--color-legend-bg); margin: 24px; color: var(--color-black); }}
+            .challenge {{ max-width: 980px; margin: 0 auto; background: var(--color-white); padding: 24px; border: 1px solid var(--color-border); }}
             .challenge h2 {{ width: var(--duo-grid-size); margin: 0 auto 0.6rem; font-size: var(--font-heading); line-height: 1.2; text-align: center; }}
             .grid {{ display: grid; gap: var(--puzzle-gap); }}
-            .cell {{ width: var(--puzzle-cell); height: var(--puzzle-cell); border: 1px solid #ddd; background: #fff; }}
-            .cell.active {{ background: var(--cell-on); }}
-            .cell.active-alt {{ background: var(--cell-alt); }}
-            .cell.clickable {{ cursor: pointer; }}
+            .cell {{ width: var(--puzzle-cell); height: var(--puzzle-cell); border: 1px solid var(--color-border); background: var(--color-white); }}
+            .cell.active {{ background: var(--color-black); }}
+            .cell.active-alt {{ background: var(--color-pink); }}
             .pair {{ margin-bottom: 16px; }}
             .pair-grids {{ display: grid; grid-template-columns: repeat(2, var(--puzzle-grid-size)); gap: var(--duo-grid-gap); align-items: flex-start; justify-content: center; width: var(--duo-grid-size); margin: 0 auto; }}
-            .grid-label {{ font-size: var(--font-small); color: #6b7280; margin-bottom: 6px; }}
-            .test-block {{ margin-top: 14px; padding-top: 0; border-top: 0; }}
+            .grid-label {{ font-size: var(--font-small); color: var(--color-dark-gray); margin-bottom: 6px; }}
+            .test-block {{ margin-top: 14px; }}
             .test-grids {{ display: grid; grid-template-columns: repeat(2, var(--puzzle-grid-size)); gap: var(--duo-grid-gap); align-items: start; justify-content: center; width: var(--duo-grid-size); margin: 0 auto; }}
             .submit-row {{ grid-column: 1 / -1; margin-top: 12px; }}
             .submit-row button {{ width: 100%; }}
-            button {{ padding: 8px 14px; font-size: var(--font-body); background: #111; color: #f8fafc; border: 1px solid #111; }}
-            .legend {{ margin: 12px 0 16px; padding: 12px; border: 1px solid #e5e7eb; background: #f8fafc; }}
+            button {{ padding: 8px 14px; font-size: var(--font-body); background: var(--color-black); color: var(--color-white); border: 1px solid var(--color-black); }}
+            .legend {{ margin: 12px 0 16px; padding: 12px; border: 1px solid var(--color-border); background: var(--color-legend-bg); }}
             .legend-fieldset {{ border: 0; margin: 0; padding: 0; min-width: 0; }}
-            .legend-subtitle {{ font-size: var(--font-small); color: #6b7280; margin: 0 auto 10px; width: var(--duo-grid-size); text-align: center; }}
+            .legend-subtitle {{ font-size: var(--font-small); color: var(--color-black); margin: 0 auto 10px; width: var(--duo-grid-size); text-align: center; }}
             .legend-options {{ width: var(--duo-grid-size); margin: 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }}
             .legend-row {{ display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 6px; border: 1px solid transparent; padding: 0; }}
-            .legend-row.is-selected {{ border-color: #111; background: #eef7f1; }}
+            .legend-row.is-selected {{ border-color: var(--color-black); }}
             .legend-item {{ display: flex; flex-direction: column; align-items: center; gap: 0; min-width: 0; width: 100%; }}
             .legend-picks {{ display: flex; align-items: center; gap: 10px; }}
-            .legend-pick-label {{ display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-small); color: #475569; cursor: pointer; }}
-            .legend-pick-label input {{ width: 16px; height: 16px; margin: 0; accent-color: #111; cursor: pointer; }}
+            .legend-pick-label {{ display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-small); color: var(--color-dark-gray); cursor: pointer; }}
+            .legend-pick-label input {{ width: 16px; height: 16px; margin: 0; accent-color: var(--color-black); cursor: pointer; }}
             .legend-icon {{ position: relative; width: 100%; max-width: 100%; aspect-ratio: 1 / 1; flex: 0 0 auto; }}
             .legend-grid {{ position: absolute; inset: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--legend-gap); z-index: 0; }}
-            .legend-cell {{ border: 1px solid #e2e8f0; background: #fff; }}
-            .legend-cell.on {{ background: var(--cell-on); }}
-            .legend-cell.alt {{ background: var(--cell-alt); }}
-            .legend-line {{ position: absolute; border-top: 2px dashed rgb(255,160,210); left: 0; right: 0; z-index: 1; }}
-            .legend-line.vert {{ border-top: 0; border-left: 2px dashed rgb(255,160,210); top: 0; bottom: 0; left: 50%; }}
+            .legend-cell {{ border: 1px solid var(--color-border); background: var(--color-white); }}
+            .legend-line {{ position: absolute; border-top: 2px dashed var(--color-pink); left: 0; right: 0; z-index: 1; }}
+            .legend-line.vert {{ border-top: 0; border-left: 2px dashed var(--color-pink); top: 0; bottom: 0; left: 50%; }}
             .legend-line.line-h-0 {{ top: 0%; }}
             .legend-line.line-h-25 {{ top: 25%; }}
             .legend-line.line-h-50 {{ top: 50%; }}
@@ -493,13 +493,13 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
             .legend-line.line-v-50 {{ left: 50%; }}
             .legend-line.line-v-75 {{ left: 75%; }}
             .legend-line.line-v-100 {{ left: 100%; }}
-            .legend-arrow {{ position: absolute; color: rgb(105, 205, 135); font-size: 2.4rem; line-height: 1; font-weight: normal; z-index: 1; }}
+            .legend-arrow {{ position: absolute; color: var(--color-green); font-size: 2.4rem; line-height: 1; font-weight: normal; z-index: 1; }}
             .legend-arrow.arrow-center {{ top: 65%; left: 50%; transform: translate(-50%, -50%); }}
             .legend-arrow.arrow-up {{ top: 0; left: 50%; transform: translateX(-50%); }}
             .legend-arrow.arrow-down {{ bottom: 0; left: 50%; transform: translateX(-50%); }}
             .legend-arrow.arrow-left {{ left: 0; top: 50%; transform: translateY(-50%); }}
             .legend-arrow.arrow-right {{ right: 0; top: 50%; transform: translateY(-50%); }}
-            .legend-label {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; text-align: center; font-size: var(--font-small); color: #111; text-transform: capitalize; line-height: 1; z-index: 2; pointer-events: none; }}
+            .legend-label {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; text-align: center; font-size: var(--font-small); color: var(--color-dark-gray); text-transform: capitalize; line-height: 1; z-index: 2; pointer-events: none; }}
             @media (max-width: 640px) {{
               .legend-options {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
             }}
@@ -509,7 +509,6 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
               :root {{
                 --puzzle-cell: clamp(26px, 8vw, 32px);
                 --duo-grid-gap: 12px;
-                --legend-cell: clamp(8px, 2vw, 10px);
               }}
             }}
             @media (max-width: 400px) {{
