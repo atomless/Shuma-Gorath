@@ -4,22 +4,22 @@
    =========================================== */
 :root {
   /* Monochrome scale */
-  --color-white: #ffffff;
-  --color-gray-50: #fafafa;
-  --color-gray-100: #f4f4f5;
-  --color-gray-200: #e4e4e7;
-  --color-gray-300: #d4d4d8;
-  --color-gray-400: #a1a1aa;
-  --color-gray-500: #71717a;
-  --color-gray-600: #52525b;
-  --color-gray-700: #3f3f46;
-  --color-gray-800: #27272a;
-  --color-gray-900: #18181b;
-  --color-black: #09090b;
+  --color-back: rgb(255, 249, 253);
+  --color-50: #faf2fa;
+  --color-100: #f4edf5;
+  --color-200: #e4d4e3;
+  --color-300: #d4c4d8;
+  --color-400: #a1a1aa;
+  --color-500: #71717a;
+  --color-600: #523259;
+  --color-700: #3f3f46;
+  --color-800: #27272a;
+  --color-900: #27272a;
+  --color-front: #0a0507;
   --color-env-var-bg: rgb(255, 205, 235);
 
   /* Primary accent (used sparingly) */
-  --color-accent: #18181b;
+  --color-accent: #280517;
   --color-accent-hover: #09090b;
 
   /* Semantic colors */
@@ -34,22 +34,22 @@
   --color-toggle-active: #18181b;
 
   /* Borders */
-  --border-hairline: 0.5px solid var(--color-gray-300);
+  --border-hairline: 0.5px solid var(--color-300);
   /* Semantic panel colors that follow the page theme. */
-  --page-bg: var(--color-gray-100);
-  --page-fg: var(--color-gray-900);
-  --panel-bg: var(--color-white);
-  --panel-fg: var(--color-black);
-  --muted-fg: var(--color-gray-500);
-  --heading-fg: var(--color-black);
+  --page-bg: var(--color-back);
+  --page-fg: var(--color-900);
+  --panel-bg: var(--color-back);
+  --panel-fg: var(--color-front);
+  --muted-fg: var(--color-500);
+  --heading-fg: var(--color-front);
   --field-bg: var(--panel-bg);
   --field-fg: var(--panel-fg);
-  --field-border: var(--color-gray-300);
-  --slider-track-bg: var(--color-gray-200);
-  --slider-track-border: var(--color-gray-300);
+  --field-border: var(--color-300);
+  --slider-track-bg: var(--color-200);
+  --slider-track-border: var(--color-300);
   /* Foreground for buttons that use dark backgrounds in light mode
      and become light in dark mode (swap text color accordingly) */
-  --btn-contrast-fg: var(--color-white);
+  --btn-contrast-fg: var(--color-back);
 
   /* Typography scale */
   --text-xs: 0.8571rem;
@@ -61,7 +61,7 @@
   --text-2xl: 1.4286rem;
   --text-3xl: 1.7143rem;
   --text-4xl: 2.2857rem;
-  --text-5xl: 2.8571rem;
+  --text-5xl: 3.6rem;
 }
 
 /* ===========================================
@@ -74,11 +74,11 @@
 }
 
 .panel-soft {
-  background: var(--color-gray-50);
+  background: var(--color-50);
 }
 
 .panel-muted {
-  background: var(--color-gray-100);
+  background: var(--color-100);
 }
 
 .panel-border {
@@ -131,8 +131,8 @@
 /* Light button: gray-200 bg, gray-800 fg, hover to gray-300 */
 .btn {
   padding: 10px 20px;
-  background: var(--color-gray-200);
-  color: var(--color-gray-800);
+  background: var(--color-200);
+  color: var(--color-800);
   border: none;
   font-weight: 600;
   cursor: pointer;
@@ -140,7 +140,7 @@
 }
 
 .btn:hover {
-  background: var(--color-gray-300);
+  background: var(--color-300);
 }
 
 /* Dark/accent button: dark bg, contrast fg */
@@ -155,16 +155,16 @@
 
 /* Subtle dark button (gray-600) */
 .btn-subtle {
-  background: var(--color-gray-600);
+  background: var(--color-600);
   color: var(--btn-contrast-fg);
 }
 
 .btn-subtle:hover {
-  background: var(--color-gray-700);
+  background: var(--color-700);
 }
 
 .btn:disabled {
-  background: var(--color-gray-400);
+  background: var(--color-400);
   cursor: not-allowed;
   opacity: 0.7;
 }
@@ -201,11 +201,10 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 10px;
 }
 
 .shuma-gorath-img {
-  max-width: 220px;
+  max-width: 480px;
   width: 100%;
   height: auto;
   display: block;
@@ -228,17 +227,19 @@ header {
   text-align: center;
   margin-bottom: 30px;
   padding-bottom: 20px;
-  border-bottom: 2px solid var(--color-gray-200);
+  border-bottom: 2px solid var(--color-200);
 }
 
 h1 {
   font-size: var(--text-5xl);
   color: var(--heading-fg);
   margin-bottom: 8px;
+  margin-top: -105px;
 }
 
 .subtitle {
   font-size: var(--text-xl);
+  margin-top: -20px;
 }
 
 /* ===========================================
@@ -255,7 +256,7 @@ h1 {
 
 .config label {
   font-weight: 500;
-  color: var(--color-gray-700);
+  color: var(--color-700);
 }
 
 .config input {
@@ -321,18 +322,18 @@ h1 {
 
 .time-btn {
   padding: 8px 16px;
-  background: var(--color-gray-100);
-  color: var(--color-gray-700);
-  border: 1px solid var(--color-gray-300);
+  background: var(--color-100);
+  color: var(--color-700);
+  border: 1px solid var(--color-300);
   font-size: var(--text-base);
   transition: all 0.2s;
 }
 
 .time-btn:hover,
 .time-btn.active {
-  background: var(--color-gray-200);
-  color: var(--color-gray-800);
-  border-color: var(--color-gray-300);
+  background: var(--color-200);
+  color: var(--color-800);
+  border-color: var(--color-300);
 }
 
 .chart-container h2 {
@@ -355,7 +356,7 @@ h1 {
 
 .section h2 {
   font-size: var(--text-3xl);
-  color: var(--color-black);
+  color: var(--color-front);
   margin-bottom: 15px;
 }
 
@@ -382,7 +383,7 @@ table {
 }
 
 thead {
-  background: var(--color-gray-100);
+  background: var(--color-100);
 }
 
 thead,
@@ -396,34 +397,34 @@ th {
   padding: 12px 16px;
   text-align: left;
   font-size: var(--text-base);
-  color: var(--color-gray-700);
+  color: var(--color-700);
 }
 
 td {
   padding: 12px 16px;
-  border-top: 1px solid var(--color-gray-200);
+  border-top: 1px solid var(--color-200);
   font-size: var(--text-base);
 }
 
 tr:hover {
-  background: var(--color-gray-50);
+  background: var(--color-50);
 }
 
 code {
-  background: var(--color-gray-100);
+  background: var(--color-100);
   padding: 2px 6px;
   font-family: 'Courier New', monospace;
   font-size: var(--text-base);
-  color: var(--color-gray-700);
+  color: var(--color-700);
 }
 
 code.env-var {
   background: var(--color-env-var-bg);
-  color: var(--color-black);
+  color: var(--color-front);
 }
 
 .expired {
-  color: var(--color-gray-900);
+  color: var(--color-900);
   font-weight: 600;
 }
 
@@ -447,19 +448,19 @@ code.env-var {
 
 .badge.ban,
 .badge.unban {
-  background: var(--color-gray-200);
-  color: var(--color-gray-800);
+  background: var(--color-200);
+  color: var(--color-800);
 }
 
 .badge.challenge,
 .badge.block {
-  background: var(--color-gray-300);
-  color: var(--color-gray-800);
+  background: var(--color-300);
+  color: var(--color-800);
 }
 
 .badge.adminaction {
-  background: var(--color-gray-400);
-  color: var(--color-black);
+  background: var(--color-400);
+  color: var(--color-front);
 }
 
 /* ===========================================
@@ -468,8 +469,8 @@ code.env-var {
 
 .unban-quick {
   padding: 6px 12px;
-  background: var(--color-gray-200);
-  color: var(--color-gray-800);
+  background: var(--color-200);
+  color: var(--color-800);
   border: none;
   font-size: var(--text-xs);
   font-weight: 600;
@@ -478,7 +479,7 @@ code.env-var {
 }
 
 .unban-quick:hover {
-  background: var(--color-gray-300);
+  background: var(--color-300);
 }
 
 .ban-action-cell {
@@ -488,16 +489,16 @@ code.env-var {
 .ban-details-toggle {
   padding: 6px 12px;
   margin-right: 8px;
-  background: var(--color-gray-100);
-  color: var(--color-gray-800);
-  border: 1px solid var(--color-gray-300);
+  background: var(--color-100);
+  color: var(--color-800);
+  border: 1px solid var(--color-300);
   font-size: var(--text-xs);
   font-weight: 600;
   cursor: pointer;
 }
 
 .ban-details-toggle:hover {
-  background: var(--color-gray-200);
+  background: var(--color-200);
 }
 
 .ban-signal-badge {
@@ -505,14 +506,14 @@ code.env-var {
   margin-right: 6px;
   margin-bottom: 4px;
   padding: 2px 8px;
-  background: var(--color-gray-200);
-  color: var(--color-gray-800);
+  background: var(--color-200);
+  color: var(--color-800);
   font-size: var(--text-xs);
   font-weight: 600;
 }
 
 .ban-detail-row td {
-  background: var(--color-gray-50);
+  background: var(--color-50);
 }
 
 .ban-detail-content {
@@ -572,7 +573,7 @@ code.env-var {
 
 .control-group h3 {
   font-size: var(--text-lg);
-  color: var(--color-gray-700);
+  color: var(--color-700);
   margin-bottom: 15px;
 }
 
@@ -619,27 +620,27 @@ code.env-var {
 }
 
 .message.success {
-  background: var(--color-gray-100);
-  color: var(--color-gray-800);
-  border: 1px solid var(--color-gray-300);
+  background: var(--color-100);
+  color: var(--color-800);
+  border: 1px solid var(--color-300);
 }
 
 .message.error {
   background: var(--color-error-bg);
   color: var(--color-error);
-  border: 1px solid var(--color-gray-700);
+  border: 1px solid var(--color-700);
 }
 
 .message.warning {
-  background: var(--color-gray-200);
-  color: var(--color-gray-800);
-  border: 1px solid var(--color-gray-400);
+  background: var(--color-200);
+  color: var(--color-800);
+  border: 1px solid var(--color-400);
 }
 
 .message.info {
-  background: var(--color-gray-50);
-  color: var(--color-gray-700);
-  border: 1px solid var(--color-gray-300);
+  background: var(--color-50);
+  color: var(--color-700);
+  border: 1px solid var(--color-300);
 }
 
 /* ===========================================
@@ -690,7 +691,7 @@ code.env-var {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: var(--color-gray-300);
+  background-color: var(--color-300);
   transition: 0.4s;
 }
 
@@ -701,7 +702,7 @@ code.env-var {
   width: 26px;
   left: 4px;
   bottom: 4px;
-  background-color: var(--color-white);
+  background-color: var(--color-back);
   transition: 0.4s;
 }
 
@@ -715,7 +716,7 @@ input:checked + .toggle-slider:before {
 
 #test-mode-status {
   font-weight: 500;
-  color: var(--color-gray-700);
+  color: var(--color-700);
 }
 
 /* ===========================================
@@ -734,7 +735,7 @@ input:checked + .toggle-slider:before {
   flex-direction: column;
   font-size: var(--text-sm);
   font-weight: 500;
-  color: var(--color-gray-700);
+  color: var(--color-700);
 }
 
 .duration-grid .input-field {
@@ -812,7 +813,7 @@ input:checked + .toggle-slider:before {
 }
 
 .crawler-item:hover {
-  background: var(--color-gray-50);
+  background: var(--color-50);
 }
 
 .crawler-ip {
@@ -821,15 +822,15 @@ input:checked + .toggle-slider:before {
 }
 
 .crawler-hits {
-  background: var(--color-gray-300);
-  color: var(--color-gray-800);
+  background: var(--color-300);
+  color: var(--color-800);
   padding: 4px 12px;
   font-size: var(--text-sm);
   font-weight: 600;
 }
 
 .crawler-hits.high {
-  background: var(--color-gray-400);
+  background: var(--color-400);
   animation: pulse 1.5s infinite;
 }
 
@@ -871,7 +872,7 @@ input:checked + .toggle-slider:before {
 .control-label {
   min-width: 0;
   font-size: var(--text-md);
-  color: var(--color-gray-700);
+  color: var(--color-700);
 }
 
 /* Wide variant for longer labels */
@@ -889,7 +890,7 @@ input:checked + .toggle-slider:before {
 
 .input-row input:focus {
   outline: none;
-  border-color: var(--color-gray-500);
+  border-color: var(--color-500);
 }
 
 /* Unit labels (e.g., "pages", "seconds") */
@@ -901,7 +902,7 @@ input:checked + .toggle-slider:before {
 .toggle-hint {
   grid-column: 1;
   font-size: var(--text-xs);
-  color: var(--color-gray-400);
+  color: var(--color-400);
   margin-left: 0;
 }
 
@@ -952,7 +953,7 @@ input:checked + .toggle-slider:before {
   -webkit-appearance: none;
   width: 20px;
   height: 20px;
-  background: var(--color-gray-800);
+  background: var(--color-800);
   cursor: pointer;
   border: var(--border-hairline);
 }
@@ -960,7 +961,7 @@ input:checked + .toggle-slider:before {
 .slider-control input[type="range"]::-moz-range-thumb {
   width: 20px;
   height: 20px;
-  background: var(--color-gray-800);
+  background: var(--color-800);
   cursor: pointer;
   border: var(--border-hairline);
 }
@@ -969,7 +970,7 @@ input:checked + .toggle-slider:before {
   display: flex;
   justify-content: space-between;
   font-size: var(--text-xs);
-  color: var(--color-gray-400);
+  color: var(--color-400);
 }
 
 /* ===========================================
@@ -1001,7 +1002,7 @@ input:checked + .toggle-slider:before {
 }
 
 .info-panel h4 {
-  color: var(--color-gray-700);
+  color: var(--color-700);
   font-size: var(--text-md);
 }
 
@@ -1014,7 +1015,7 @@ input:checked + .toggle-slider:before {
   display: flex;
   justify-content: space-between;
   padding: 5px 0;
-  border-bottom: 1px solid var(--color-gray-200);
+  border-bottom: 1px solid var(--color-200);
 }
 
 .info-row:last-child {
@@ -1027,16 +1028,16 @@ input:checked + .toggle-slider:before {
 
 .info-row span:last-child {
   font-weight: 600;
-  color: var(--color-black);
+  color: var(--color-front);
 }
 
 /* Status section: dotted separators for state rows */
 .admin-group--status .info-row {
-  border-bottom: 1px dotted var(--color-gray-400);
+  border-bottom: 1px dotted var(--color-400);
 }
 
 .admin-group--status .info-row:last-child {
-  border-bottom: 1px dotted var(--color-gray-300);
+  border-bottom: 1px dotted var(--color-300);
 }
 
 .status-rows {
@@ -1089,45 +1090,45 @@ input:checked + .toggle-slider:before {
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-white: #18181b;
-    --color-gray-50: #232326;
-    --color-gray-100: #232326;
-    --color-gray-200: #27272a;
-    --color-gray-300: #3f3f46;
-    --color-gray-400: #52525b;
-    --color-gray-500: #71717a;
-    --color-gray-600: #a1a1aa;
-    --color-gray-700: #d4d4d8;
-    --color-gray-800: #e4e4e7;
-    --color-gray-900: #fafafa;
-    --color-black: #ffffff;
+    --color-back: #18071b;
+    --color-50: #232326;
+    --color-100: #232326;
+    --color-200: #27272a;
+    --color-300: #3f1f46;
+    --color-400: #52525b;
+    --color-500: #71717a;
+    --color-600: #a1a1aa;
+    --color-700: #d4d4d8;
+    --color-800: #e4e4e7;
+    --color-900: #faeafa;
+    --color-front: #ffeffc;
 
-    --color-accent: #fafafa;
+    --color-accent: #fff8fc;
     --color-accent-hover: #e4e4e7;
     --color-success: #e4e4e7;
     --color-success-bg: #27272a;
-    --color-error: #fafafa;
+    --color-error: #fff8fc;
     --color-error-bg: #27272a;
     --color-warning: #d4d4d8;
     --color-warning-bg: #232326;
-    --color-toggle-active: #fafafa;
-    --field-bg: var(--color-gray-200);
-    --field-fg: var(--color-gray-800);
-    --field-border: var(--color-gray-400);
-    --slider-track-bg: var(--color-gray-500);
-    --slider-track-border: var(--color-gray-400);
-    --btn-contrast-fg: var(--color-black);
+    --color-toggle-active: #fff8fc;
+    --field-bg: var(--color-200);
+    --field-fg: var(--color-800);
+    --field-border: var(--color-400);
+    --slider-track-bg: var(--color-500);
+    --slider-track-border: var(--color-400);
+    --btn-contrast-fg: var(--color-front);
     --color-env-var-bg: rgb(125, 75, 105);
   }
 
   body, .container, .card, .info-panel, .robots-preview {
-    background: var(--color-gray-100);
-    color: var(--color-gray-800);
+    background: var(--color-100);
+    color: var(--color-800);
   }
 
   .chart-container, .maze-section, .maze-crawlers, .maze-stat {
-    background: var(--color-gray-200);
-    color: var(--color-gray-800);
+    background: var(--color-200);
+    color: var(--color-800);
   }
 
   input[type="text"],
@@ -1144,31 +1145,31 @@ input:checked + .toggle-slider:before {
      with a stronger border to make them stand out */
   .control-group,
   .controls-grid .control-group {
-    background: var(--color-gray-200);
-    color: var(--color-gray-900);
+    background: var(--color-200);
+    color: var(--color-900);
     border: var(--border-hairline);
   }
 
   /* Make control headings more prominent */
   .control-group h3 {
-    color: var(--color-gray-900);
+    color: var(--color-900);
   }
 
   .control-group .btn {
-    background: var(--color-gray-400);
-    color: var(--color-gray-900);
-    border-color: var(--color-gray-300);
+    background: var(--color-400);
+    color: var(--color-900);
+    border-color: var(--color-300);
   }
 
   /* Dark/subtle buttons retain their distinct bg & contrast-fg inside control groups */
   .control-group .btn-dark {
     background: var(--color-accent);
-    color: var(--color-white);
+    color: var(--color-back);
   }
 
   .control-group .btn-subtle {
-    background: var(--color-gray-600);
-    color: var(--color-white);
+    background: var(--color-600);
+    color: var(--color-back);
   }
 
 }
