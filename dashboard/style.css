@@ -654,24 +654,6 @@ code {
   display: none;
 }
 
-/* Fail-mode value inside admin panel */
-#fail-mode-value {
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-#fail-mode-value.open {
-  color: var(--color-gray-800);
-}
-
-#fail-mode-value.closed {
-  color: #991b1b;
-}
-
-#fail-mode-value.unknown {
-  color: var(--color-gray-500);
-}
-
 .hidden {
   display: none;
 }
@@ -1055,6 +1037,10 @@ input:checked + .toggle-slider:before {
   margin-top: 8px;
 }
 
+.status-item + .status-item {
+  margin-top: 16px;
+}
+
 /* ===========================================
    Responsive
    =========================================== */
@@ -1178,7 +1164,4 @@ input:checked + .toggle-slider:before {
     color: var(--color-white);
   }
 
-  #fail-mode-value.closed {
-    color: #fca5a5;
-  }
 }

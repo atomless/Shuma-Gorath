@@ -4,6 +4,60 @@ let topIpsChart = null;
 let timeSeriesChart = null;
 let currentTimeRange = 'hour';
 
+const statusPanelState = {
+  failMode: 'unknown',
+  powEnabled: false,
+  powMutable: false
+};
+
+const STATUS_DEFINITIONS = [
+  {
+    title: 'Fail Mode Policy',
+    description: () => (
+      'Controlled by <code>SHUMA_FAIL_MODE</code>. <strong>Open</strong> allows requests when KV is unavailable; ' +
+      '<strong>Closed</strong> blocks requests when KV is unavailable.'
+    ),
+    status: state => normalizeFailMode(state.failMode).toUpperCase()
+  },
+  {
+    title: 'Proof-of-Work (PoW)',
+    description: state => (
+      'PoW adds a lightweight computational puzzle before JS verification to increase bot cost. ' +
+      'The ENV var boolean toggle for it is <code>POW_ENABLED</code>; and runtime editability is controlled by ' +
+      `<code>POW_CONFIG_MUTABLE</code> and is currently set to ${formatPowMutability(state.powMutable)}.`
+    ),
+    status: state => (state.powEnabled ? 'ENABLED' : 'DISABLED')
+  }
+];
+
+function normalizeFailMode(value) {
+  const mode = (value || 'unknown').toString().toLowerCase();
+  if (mode === 'open' || mode === 'closed') return mode;
+  return 'unknown';
+}
+
+function formatPowMutability(isMutable) {
+  return isMutable ? 'EDITABLE' : 'READ_ONLY';
+}
+
+function renderStatusItems() {
+  const container = document.getElementById('status-items');
+  if (!container) return;
+
+  container.innerHTML = STATUS_DEFINITIONS.map(definition => `
+    <div class="status-item">
+      <h3>${definition.title}</h3>
+      <p class="control-desc text-muted">${definition.description(statusPanelState)}</p>
+      <div class="status-rows">
+        <div class="info-row">
+          <span class="info-label text-muted">Status:</span>
+          <span class="status-value">${definition.status(statusPanelState)}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
 // Initialize charts
 function initCharts() {
   const ctx1 = document.getElementById('eventTypesChart').getContext('2d');
@@ -131,15 +185,8 @@ function updateStatCards(analytics, events, bans) {
   }
   toggle.checked = testMode;
 
-  // Update fail-open/closed status in admin panel (read-only)
-  const failModeEl = document.getElementById('fail-mode-value');
-  if (failModeEl) {
-    const failModeRaw = (analytics.fail_mode || 'unknown').toString().toLowerCase();
-    const failMode = (failModeRaw === 'open' || failModeRaw === 'closed') ? failModeRaw : 'unknown';
-    failModeEl.textContent = failMode.toUpperCase();
-    failModeEl.classList.remove('open', 'closed', 'unknown');
-    failModeEl.classList.add(failMode);
-  }
+  statusPanelState.failMode = normalizeFailMode(analytics.fail_mode);
+  renderStatusItems();
 }
 
 // Update ban duration fields from config
@@ -707,12 +754,9 @@ function updatePowConfig(config) {
   const difficulty = parseInt(config.pow_difficulty, 10);
   const ttl = parseInt(config.pow_ttl_seconds, 10);
 
-  const powState = powEnabled ? 'ENABLED' : 'DISABLED';
-  document.getElementById('pow-status').textContent = powState;
-  const powMutability = document.getElementById('pow-mutability-note');
-  if (powMutability) {
-    powMutability.textContent = powMutable ? 'Editable' : 'Read Only';
-  }
+  statusPanelState.powEnabled = powEnabled;
+  statusPanelState.powMutable = powMutable;
+  renderStatusItems();
 
   if (!Number.isNaN(difficulty)) {
     document.getElementById('pow-difficulty').value = difficulty;
@@ -1275,6 +1319,7 @@ document.getElementById('save-durations-btn').onclick = async function() {
 
 // Initialize charts and load data on page load
 initCharts();
+renderStatusItems();
 document.getElementById('refresh').click();
 
 // Test Mode Toggle Handler

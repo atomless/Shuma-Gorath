@@ -155,26 +155,7 @@
           <h3 class="admin-group-title">Status</h3>
           <div class="controls-grid controls-grid--status">
             <div class="control-group panel-soft pad-md">
-              <h3>Fail Mode Policy</h3>
-              <p class="control-desc text-muted">
-                Controlled by <code>SHUMA_FAIL_MODE</code>. <strong>Open</strong> allows requests when KV is unavailable; <strong>Closed</strong> blocks requests when KV is unavailable.
-              </p>
-              <div class="status-rows">
-                <div class="info-row">
-                  <span class="info-label text-muted">Status:</span>
-                  <span id="fail-mode-value" class="status-value">--</span>
-                </div>
-              </div>
-              <h3>Proof-of-Work (PoW)</h3>
-              <p class="control-desc text-muted">
-                PoW adds a lightweight computational puzzle before JS verification to increase bot cost. Status is driven by <code>POW_ENABLED</code>; runtime editability is controlled by <code>POW_CONFIG_MUTABLE</code>. Mutability: <span id="pow-mutability-note">Read Only</span>.
-              </p>
-              <div class="status-rows">
-                <div class="info-row">
-                  <span class="info-label text-muted">Status:</span>
-                  <span id="pow-status" class="status-value">--</span>
-                </div>
-              </div>
+              <div id="status-items"></div>
             </div>
           </div>
         </section>
