@@ -1011,10 +1011,6 @@ input:checked + .toggle-slider:before {
   font-size: var(--text-md);
 }
 
-.status-subheading {
-  margin-top: 14px;
-}
-
 .robots-preview h4 {
   color: var(--muted-fg);
   font-size: var(--text-sm);

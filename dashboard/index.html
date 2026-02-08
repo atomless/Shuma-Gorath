@@ -166,15 +166,6 @@
                   <span class="info-label text-muted">Mode:</span>
                   <span id="fail-mode-value">--</span>
                 </div>
-                <h4 class="status-subheading">Proof-of-Work</h4>
-                <div class="info-row">
-                  <span class="info-label text-muted">PoW Status:</span>
-                  <span id="pow-status">--</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label text-muted">PoW Config:</span>
-                  <span id="pow-config-status">--</span>
-                </div>
               </div>
               <p class="control-desc control-desc-spaced text-muted">
                 <strong>Open</strong> (default) — if the KV store is unreachable,
@@ -185,6 +176,21 @@
                 traffic (scraping, credential stuffing, bandwidth abuse) outweighs
                 the cost of a temporary outage.
               </p>
+              <h3>Proof-of-Work (PoW)</h3>
+              <p class="control-desc text-muted">
+                PoW adds a lightweight computational puzzle before JS verification to increase bot cost while keeping normal traffic usable.
+              </p>
+              <div class="info-panel panel-muted pad-sm">
+                <h4>Current Status</h4>
+                <div class="info-row">
+                  <span class="info-label text-muted">PoW Status:</span>
+                  <span id="pow-status">--</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label text-muted">PoW Config:</span>
+                  <span id="pow-config-status">--</span>
+                </div>
+              </div>
             </div>
           </div>
         </section>
