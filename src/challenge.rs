@@ -851,7 +851,7 @@ pub fn handle_challenge_submit<S: KeyValueStore>(store: &S, req: &Request) -> Re
     if output == puzzle.test_output {
         return challenge_response(200, "<html><body><h2>Thank you! Challenge complete.</h2></body></html>");
     }
-    challenge_response(403, "<html><body><h2 style='color:red;'>Incorrect. Challenge consumed.</h2><a href='/challenge'>Request new challenge.</a></body></html>")
+    challenge_response(403, "<html><body><h2 style='color:red;'>Incorrect.</h2><a href='/challenge'>Request new challenge.</a></body></html>")
 }
 
 fn get_form_field(form: &str, name: &str) -> Option<String> {

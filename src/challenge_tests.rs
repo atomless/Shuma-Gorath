@@ -475,7 +475,7 @@ mod tests {
             Some("no-store")
         );
         let wrong_body = String::from_utf8(resp_wrong.into_body()).unwrap();
-        assert!(wrong_body.contains("Incorrect. Challenge consumed."));
+        assert!(wrong_body.contains("Incorrect."));
         assert!(wrong_body.contains("Request new challenge."));
 
         let correct = grid_to_tritstring(&puzzle.test_output);
