@@ -61,6 +61,7 @@ If you add a feature that needs external calls, explicitly allow only required h
 ## 🐙 Fermyon / Spin Cloud (Recommended)
 
 Use Spin application variables to avoid committing secrets.
+For a complete env var template, see `/.env.full.example` and `docs/configuration.md`.
 
 Example `spin.toml` wiring:
 

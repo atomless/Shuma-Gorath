@@ -61,6 +61,7 @@ Key environment variables:
 Deployment policy note: `SHUMA_KV_STORE_FAIL_MODE` is a critical choice (fail-open vs fail-closed) when the KV store is unavailable. See `docs/security-hardening.md` and `docs/deployment.md`.
 
 See `docs/deployment.md` for deployment wiring and secret handling, and `docs/configuration.md` for the full env var map for all runtime config fields.
+Use `/.env.full.example` as the canonical full env template for deployment configuration.
 
 ## 🐙 Documentation
 
