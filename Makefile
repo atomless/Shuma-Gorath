@@ -50,14 +50,13 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/dashboard/index.html$(NC)"
 	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
 	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
-	@echo "$(CYAN)👀 Watching src/*.rs and spin.toml for changes... (Ctrl+C to stop)$(NC)"
-	@echo "$(CYAN)ℹ️  Dashboard files are served directly; refresh the browser after CSS/JS/HTML edits.$(NC)"
+	@echo "$(CYAN)👀 Watching src/*.rs, dashboard/*, and spin.toml for changes... (Ctrl+C to stop)$(NC)"
 	@pkill -f "spin up" 2>/dev/null || true
 	@./scripts/set_crate_type.sh cdylib
 	@cargo build --target wasm32-wasip1 --release
 	@cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
 	@./scripts/set_crate_type.sh rlib
-	@cargo watch -w src -w spin.toml -i '*.wasm' -i 'src/bot_trap.wasm' -i '.spin/**' \
+	@cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'src/bot_trap.wasm' -i '.spin/**' \
 		-s 'if [ ! -f target/wasm32-wasip1/release/shuma_gorath.wasm ] || find src -name "*.rs" -newer target/wasm32-wasip1/release/shuma_gorath.wasm -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
 		-s 'pkill -f "spin up" 2>/dev/null; SPIN_ALWAYS_BUILD=0 spin up $(SPIN_API_KEY) $(SPIN_FORWARD_SECRET) $(SPIN_CHALLENGE_MUTABLE) $(SPIN_DEBUG_HEADERS) --listen 127.0.0.1:3000'
 
@@ -66,14 +65,13 @@ dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_MODE=clo
 	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/dashboard/index.html$(NC)"
 	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
 	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
-	@echo "$(CYAN)👀 Watching src/*.rs and spin.toml for changes... (Ctrl+C to stop)$(NC)"
-	@echo "$(CYAN)ℹ️  Dashboard files are served directly; refresh the browser after CSS/JS/HTML edits.$(NC)"
+	@echo "$(CYAN)👀 Watching src/*.rs, dashboard/*, and spin.toml for changes... (Ctrl+C to stop)$(NC)"
 	@pkill -f "spin up" 2>/dev/null || true
 	@./scripts/set_crate_type.sh cdylib
 	@cargo build --target wasm32-wasip1 --release
 	@cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
 	@./scripts/set_crate_type.sh rlib
-	@cargo watch -w src -w spin.toml -i '*.wasm' -i 'src/bot_trap.wasm' -i '.spin/**' \
+	@cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'src/bot_trap.wasm' -i '.spin/**' \
 		-s 'if [ ! -f target/wasm32-wasip1/release/shuma_gorath.wasm ] || find src -name "*.rs" -newer target/wasm32-wasip1/release/shuma_gorath.wasm -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
 		-s 'pkill -f "spin up" 2>/dev/null; SPIN_ALWAYS_BUILD=0 spin up --env SHUMA_KV_STORE_FAIL_MODE=closed $(SPIN_API_KEY) $(SPIN_FORWARD_SECRET) $(SPIN_CHALLENGE_MUTABLE) $(SPIN_DEBUG_HEADERS) --listen 127.0.0.1:3000'
 
