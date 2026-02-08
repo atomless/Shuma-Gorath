@@ -196,11 +196,16 @@
             <div class="control-group panel-soft pad-md">
               <h3>Test Mode</h3>
               <p class="control-desc text-muted">When enabled, logs actions without blocking users</p>
-              <label class="toggle-switch" for="test-mode-toggle">
-                <input type="checkbox" id="test-mode-toggle" aria-label="Enable Test Mode">
-                <span class="toggle-slider"></span>
-              </label>
-              <span id="test-mode-status">Loading...</span>
+              <div class="admin-controls">
+                <div class="toggle-row">
+                  <label class="control-label control-label--wide" for="test-mode-toggle">Enable Test Mode</label>
+                  <label class="toggle-switch" for="test-mode-toggle">
+                    <input type="checkbox" id="test-mode-toggle" aria-label="Enable Test Mode">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+              <span id="test-mode-status" class="text-muted">Loading...</span>
             </div>
             <div class="control-group panel-soft pad-md">
               <h3>AI Training Opt-Out Policy</h3>
@@ -238,9 +243,8 @@
                   <span class="toggle-hint">Google, Bing, etc.</span>
                 </div>
                 <div class="input-row">
-                  <label class="control-label control-label--wide" for="robots-crawl-delay">Crawl Delay</label>
+                  <label class="control-label control-label--wide" for="robots-crawl-delay">Crawl Delay (seconds)</label>
                   <input class="input-field" type="number" id="robots-crawl-delay" value="2" min="0" max="60" aria-label="Robots crawl delay in seconds">
-                  <span class="input-unit text-muted">seconds</span>
                 </div>
               </div>
               <button id="save-robots-config" class="btn" disabled>Update Policy</button>
@@ -269,9 +273,8 @@
                   </label>
                 </div>
                 <div class="input-row">
-                  <label class="control-label" for="maze-threshold">Ban Threshold</label>
+                  <label class="control-label" for="maze-threshold">Ban Threshold (pages)</label>
                   <input class="input-field" type="number" id="maze-threshold" value="50" min="5" max="500" aria-label="Maze ban threshold in pages">
-                  <span class="input-unit text-muted">pages</span>
                 </div>
               </div>
               <button id="save-maze-config" class="btn">Save Maze Settings</button>
@@ -342,14 +345,12 @@
               <p class="control-desc text-muted">Lightweight PoW before JS verification (tunable when allowed)</p>
               <div class="admin-controls">
                 <div class="input-row">
-                  <label class="control-label" for="pow-difficulty">Difficulty</label>
+                  <label class="control-label" for="pow-difficulty">Difficulty (bits)</label>
                   <input class="input-field" type="number" id="pow-difficulty" min="12" max="20" value="15" aria-label="PoW difficulty in leading zero bits">
-                  <span class="input-unit text-muted">bits</span>
                 </div>
                 <div class="input-row">
-                  <label class="control-label" for="pow-ttl">Seed TTL</label>
+                  <label class="control-label" for="pow-ttl">Seed TTL (seconds)</label>
                   <input class="input-field" type="number" id="pow-ttl" min="30" max="300" value="90" aria-label="PoW seed TTL in seconds">
-                  <span class="input-unit text-muted">seconds</span>
                 </div>
                 <div class="info-panel panel-muted pad-sm">
                   <h4>Status</h4>
@@ -370,34 +371,28 @@
               <p class="control-desc text-muted">Weighted signals form a unified score. Moderate scores get the challenge; higher scores route to maze.</p>
               <div class="admin-controls">
                 <div class="input-row">
-                  <label class="control-label" for="challenge-threshold">Challenge</label>
+                  <label class="control-label" for="challenge-threshold">Challenge (score)</label>
                   <input class="input-field" type="number" id="challenge-threshold" min="1" max="10" value="3" aria-label="Challenge risk threshold">
-                  <span class="input-unit text-muted">score</span>
                 </div>
                 <div class="input-row">
-                  <label class="control-label" for="maze-threshold-score">Maze</label>
+                  <label class="control-label" for="maze-threshold-score">Maze (score)</label>
                   <input class="input-field" type="number" id="maze-threshold-score" min="1" max="10" value="6" aria-label="Maze risk threshold">
-                  <span class="input-unit text-muted">score</span>
                 </div>
                 <div class="input-row">
-                  <label class="control-label" for="weight-js-required">Weight: JS</label>
+                  <label class="control-label" for="weight-js-required">Weight: JS (points)</label>
                   <input class="input-field" type="number" id="weight-js-required" min="0" max="10" value="1" aria-label="Weight for JS verification required">
-                  <span class="input-unit text-muted">points</span>
                 </div>
                 <div class="input-row">
-                  <label class="control-label" for="weight-geo-risk">Weight: Geo</label>
+                  <label class="control-label" for="weight-geo-risk">Weight: Geo (points)</label>
                   <input class="input-field" type="number" id="weight-geo-risk" min="0" max="10" value="2" aria-label="Weight for high-risk geography">
-                  <span class="input-unit text-muted">points</span>
                 </div>
                 <div class="input-row">
-                  <label class="control-label" for="weight-rate-medium">Weight: Rate 50%</label>
+                  <label class="control-label" for="weight-rate-medium">Weight: Rate 50% (points)</label>
                   <input class="input-field" type="number" id="weight-rate-medium" min="0" max="10" value="1" aria-label="Weight for medium rate pressure">
-                  <span class="input-unit text-muted">points</span>
                 </div>
                 <div class="input-row">
-                  <label class="control-label" for="weight-rate-high">Weight: Rate 80%</label>
+                  <label class="control-label" for="weight-rate-high">Weight: Rate 80% (points)</label>
                   <input class="input-field" type="number" id="weight-rate-high" min="0" max="10" value="2" aria-label="Weight for high rate pressure">
-                  <span class="input-unit text-muted">points</span>
                 </div>
                 <div class="info-panel panel-muted pad-sm">
                   <h4>Status</h4>

@@ -861,28 +861,31 @@ input:checked + .toggle-slider:before {
 /* Row with toggle switch or number/text input */
 .toggle-row,
 .input-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 15px;
+  column-gap: 15px;
+  row-gap: 4px;
 }
 
 /* Label for controls */
 .control-label {
-  min-width: 100px;
+  min-width: 0;
   font-size: var(--text-md);
   color: var(--color-gray-700);
 }
 
 /* Wide variant for longer labels */
 .control-label--wide {
-  min-width: 150px;
+  min-width: 0;
 }
 
 /* Number/text inputs in control rows */
 .input-row .input-field {
-  width: 80px;
+  width: 100px;
   padding: 8px 10px;
   font-size: var(--text-lg);
+  justify-self: end;
 }
 
 .input-row input:focus {
@@ -897,9 +900,15 @@ input:checked + .toggle-slider:before {
 
 /* Hint text next to toggles */
 .toggle-hint {
+  grid-column: 1;
   font-size: var(--text-xs);
   color: var(--color-gray-400);
-  margin-left: 8px;
+  margin-left: 0;
+}
+
+.toggle-row .toggle-switch {
+  justify-self: end;
+  margin-right: 0;
 }
 
 /* ===========================================
