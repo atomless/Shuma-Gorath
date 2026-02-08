@@ -855,7 +855,7 @@ pub fn handle_admin(req: &Request) -> Response {
             // Return analytics: ban count and test_mode status
             let cfg = crate::config::Config::load(&store, site_id);
             let ban_count = crate::ban::list_active_bans_with_scan(&store, site_id).len();
-            let fail_mode = env::var("SHUMA_FAIL_MODE").unwrap_or_else(|_| "open".to_string()).to_lowercase();
+            let fail_mode = env::var("SHUMA_KV_STORE_FAIL_MODE").unwrap_or_else(|_| "open".to_string()).to_lowercase();
             // Log admin analytics view
             log_event(&store, &EventLogEntry {
                 ts: now_ts(),

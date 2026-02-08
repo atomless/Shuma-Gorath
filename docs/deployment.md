@@ -11,7 +11,7 @@ Shuma-Gorath is designed to **complement enterprise bot defenses** (such as Akam
 - `FORWARDED_IP_SECRET` - Required when trusting `X-Forwarded-For`
 - `ADMIN_IP_ALLOWLIST` - Optional; CIDR/IP allowlist for admin access
 - `EVENT_LOG_RETENTION_HOURS` - Event retention window
-- `SHUMA_FAIL_MODE` - `open` (default) or `closed`
+- `SHUMA_KV_STORE_FAIL_MODE` - `open` (default) or `closed`
 - `SHUMA_DEBUG_HEADERS` - Optional; expose internal health/fail-mode headers (dev only)
 
 ## 🐙 Forwarded IP Trust
@@ -26,7 +26,7 @@ Configure your CDN/reverse proxy to add that header on inbound requests.
 
 ## 🐙 Fail-Open vs Fail-Closed (Critical Policy)
 
-`SHUMA_FAIL_MODE` controls what happens when the KV store is unavailable during request handling:
+`SHUMA_KV_STORE_FAIL_MODE` controls what happens when the KV store is unavailable during request handling:
 
 - `open` (default): allow requests through and bypass checks
 - `closed`: return a 500 error and block

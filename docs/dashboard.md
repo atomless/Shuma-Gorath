@@ -83,7 +83,7 @@ dashboard/
 2. Config and analytics are fetched
 3. Auto-refresh updates stats, charts, and tables
 
-Note: `SHUMA_FAIL_MODE` is an environment-level policy and is shown read-only in the dashboard.
+Note: `SHUMA_KV_STORE_FAIL_MODE` is an environment-level policy and is shown read-only in the dashboard.
 Note: PoW enable/disable is environment-level; difficulty/TTL are editable only if `POW_CONFIG_MUTABLE=1`.
 Note: PoW config changes are logged to the event log as admin actions.
 Note: Botness scoring changes are logged as `botness_config_update` admin actions.

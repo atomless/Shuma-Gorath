@@ -74,7 +74,7 @@ environment = { API_KEY = "your-secret-key-here", JS_SECRET = "your-js-secret-he
 `FORWARDED_IP_SECRET` is optional and is used to trust `X-Forwarded-For` from your proxy/CDN (it must also send `X-Shuma-Forwarded-Secret`). If you set it, include that header in integration tests.
 `EVENT_LOG_RETENTION_HOURS` controls how long event logs are kept (set to `0` to disable cleanup).
 `ADMIN_IP_ALLOWLIST` limits admin API access to specific IPs/CIDRs (comma-separated).
-`SHUMA_FAIL_MODE` controls fail-open/closed behavior when the KV store is unavailable.
+`SHUMA_KV_STORE_FAIL_MODE` controls fail-open/closed behavior when the KV store is unavailable.
 `POW_ENABLED` enables proof-of-work before JS verification (default: true in dev).
 `POW_DIFFICULTY` sets the leading-zero bit target (default: 15).
 `POW_TTL_SECONDS` controls PoW seed expiry (default: 90).

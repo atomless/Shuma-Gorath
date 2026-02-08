@@ -14,7 +14,7 @@ curl -X POST -H "Authorization: Bearer $API_KEY" \
 ## 🐙 Key Fields
 
 - `test_mode` (bool) - Log actions without enforcing blocks
-- `SHUMA_FAIL_MODE` (env) - `open` or `closed` when KV is unavailable (see `docs/security-hardening.md`)
+- `SHUMA_KV_STORE_FAIL_MODE` (env) - `open` or `closed` when KV is unavailable (see `docs/security-hardening.md`)
 - `rate_limit` (u32) - Requests per minute
 - `honeypots` (string[]) - Honeypot paths (default: `/bot-trap`)
 - `ban_duration` (u64) - Legacy single-duration fallback

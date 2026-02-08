@@ -46,7 +46,7 @@ Key environment variables:
 - `FORWARDED_IP_SECRET` - Trusts `X-Forwarded-For` only when `X-Shuma-Forwarded-Secret` matches
 - `ADMIN_IP_ALLOWLIST` - CIDR/IP allowlist for admin access
 - `EVENT_LOG_RETENTION_HOURS` - Event log retention window
-- `SHUMA_FAIL_MODE` - `open` or `closed`
+- `SHUMA_KV_STORE_FAIL_MODE` - `open` or `closed`
 - `POW_ENABLED` - Enable proof-of-work before JS verification
 - `POW_DIFFICULTY` - Leading zero bits required (default: 15)
 - `POW_TTL_SECONDS` - PoW seed expiry in seconds (default: 90)
@@ -56,7 +56,7 @@ Key environment variables:
 - `CHALLENGE_CONFIG_MUTABLE` - Allow admin API to tune challenge threshold
 - `CHALLENGE_TRANSFORM_COUNT` - Number of transforms offered in challenge UI (4-8, default: 6)
 
-Deployment policy note: `SHUMA_FAIL_MODE` is a critical choice (fail-open vs fail-closed) when the KV store is unavailable. See `docs/security-hardening.md` and `docs/deployment.md`.
+Deployment policy note: `SHUMA_KV_STORE_FAIL_MODE` is a critical choice (fail-open vs fail-closed) when the KV store is unavailable. See `docs/security-hardening.md` and `docs/deployment.md`.
 
 See `docs/deployment.md` for deployment wiring and secret handling.
 

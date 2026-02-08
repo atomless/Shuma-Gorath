@@ -20,7 +20,7 @@ const STATUS_DEFINITIONS = [
   {
     title: 'Fail Mode Policy',
     description: () => (
-      `Controlled by ${envVar('SHUMA_FAIL_MODE')}. <strong>Open</strong> allows requests when KV is unavailable; ` +
+      `Controlled by ${envVar('SHUMA_KV_STORE_FAIL_MODE')}. <strong>Open</strong> allows requests when KV is unavailable; ` +
       '<strong>Closed</strong> blocks requests when KV is unavailable.'
     ),
     status: state => normalizeFailMode(state.failMode).toUpperCase()
