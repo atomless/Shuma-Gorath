@@ -681,7 +681,7 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
     grid_size = grid_size,
     empty_tritstring = grid_to_tritstring(&empty_output),
     );
-    Response::new(200, html)
+    challenge_response(200, &html)
 }
 
 fn transform_value(transform: Transform) -> &'static str {
@@ -779,9 +779,26 @@ fn render_legend_grid() -> String {
     html
 }
 
+const CHALLENGE_CACHE_CONTROL: &str = "no-store";
+const CHALLENGE_CONTENT_TYPE: &str = "text/html; charset=utf-8";
+const CHALLENGE_FORBIDDEN_BODY: &str = "<html><body><h2 style='color:red;'>Forbidden. Please request a new challenge.</h2><a href='/challenge'>Request new challenge.</a></body></html>";
+
+fn challenge_response(status: u16, body: &str) -> Response {
+    Response::builder()
+        .status(status)
+        .header("Cache-Control", CHALLENGE_CACHE_CONTROL)
+        .header("Content-Type", CHALLENGE_CONTENT_TYPE)
+        .body(body)
+        .build()
+}
+
+fn challenge_forbidden_response() -> Response {
+    challenge_response(403, CHALLENGE_FORBIDDEN_BODY)
+}
+
 pub(crate) fn serve_challenge_page(req: &Request, test_mode: bool) -> Response {
     if !test_mode {
-        return Response::new(404, "Not Found");
+        return challenge_response(404, "Not Found");
     }
     render_challenge(req)
 }
@@ -790,31 +807,31 @@ pub fn handle_challenge_submit<S: KeyValueStore>(store: &S, req: &Request) -> Re
     let form = String::from_utf8_lossy(req.body()).to_string();
     let seed_token = match get_form_field(&form, "seed") {
         Some(v) => v,
-        None => return Response::new(400, "Missing seed"),
+        None => return challenge_forbidden_response(),
     };
     let output_raw = match get_form_field(&form, "output") {
         Some(v) => v,
-        None => return Response::new(400, "Missing output"),
+        None => return challenge_response(400, "Invalid output"),
     };
     let seed = match parse_seed_token(&seed_token) {
         Ok(s) => s,
-        Err(_) => return Response::new(400, "Invalid seed"),
+        Err(_) => return challenge_forbidden_response(),
     };
     let now = crate::admin::now_ts();
     if now > seed.expires_at {
-        return Response::new(400, "Seed expired");
+        return challenge_forbidden_response();
     }
     let ip = crate::extract_client_ip(req);
     let ip_bucket = crate::ip::bucket_ip(&ip);
     if seed.ip_bucket != ip_bucket {
-        return Response::new(400, "IP bucket mismatch");
+        return challenge_forbidden_response();
     }
     let used_key = format!("challenge_used:{}", seed.seed_id);
     if let Ok(Some(val)) = store.get(&used_key) {
         if let Ok(stored) = String::from_utf8(val) {
             if let Ok(exp) = stored.parse::<u64>() {
                 if now <= exp {
-                    return Response::new(400, "Seed already used");
+                    return challenge_forbidden_response();
                 }
             }
         }
@@ -823,13 +840,13 @@ pub fn handle_challenge_submit<S: KeyValueStore>(store: &S, req: &Request) -> Re
     let _ = store.set(&used_key, seed.expires_at.to_string().as_bytes());
     let output = match parse_submission(&output_raw, seed.grid_size as usize) {
         Ok(v) => v,
-        Err(e) => return Response::new(400, e),
+        Err(_e) => return challenge_response(400, "Invalid output"),
     };
     let puzzle = build_puzzle(&seed);
     if output == puzzle.test_output {
-        return Response::new(200, "<html><body><h2>Thank you! Challenge complete.</h2></body></html>");
+        return challenge_response(200, "<html><body><h2>Thank you! Challenge complete.</h2></body></html>");
     }
-    Response::new(403, "<html><body><h2 style='color:red;'>Incorrect. Challenge consumed.</h2><a href='/challenge'>Request a new challenge</a></body></html>")
+    challenge_response(403, "<html><body><h2 style='color:red;'>Incorrect. Challenge consumed.</h2><a href='/challenge'>Request new challenge.</a></body></html>")
 }
 
 fn get_form_field(form: &str, name: &str) -> Option<String> {

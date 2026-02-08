@@ -32,6 +32,12 @@ mod tests {
         grid.iter().map(|v| char::from(b'0' + *v)).collect()
     }
 
+    fn header_value(resp: &spin_sdk::http::Response, name: &str) -> Option<String> {
+        resp.headers()
+            .find(|(k, _)| k.eq_ignore_ascii_case(name))
+            .and_then(|(_, v)| v.as_str().map(|s| s.to_string()))
+    }
+
     #[derive(Default)]
     struct TestStore {
         map: RefCell<HashMap<String, Vec<u8>>>,
@@ -360,6 +366,20 @@ mod tests {
     }
 
     #[test]
+    fn serve_challenge_page_sets_no_store_cache_control() {
+        let req = Request::builder()
+            .method(Method::Get)
+            .uri("/challenge")
+            .body(Vec::new())
+            .build();
+        let resp = serve_challenge_page(&req, true);
+        assert_eq!(
+            header_value(&resp, "Cache-Control").as_deref(),
+            Some("no-store")
+        );
+    }
+
+    #[test]
     fn handle_challenge_submit_accepts_correct_solution() {
         let store = TestStore::default();
         let now = crate::admin::now_ts();
@@ -386,6 +406,10 @@ mod tests {
             .build();
         let resp = handle_challenge_submit(&store, &req);
         assert_eq!(*resp.status(), 200u16);
+        assert_eq!(
+            header_value(&resp, "Cache-Control").as_deref(),
+            Some("no-store")
+        );
     }
 
     #[test]
@@ -446,6 +470,13 @@ mod tests {
             .build();
         let resp_wrong = handle_challenge_submit(&store, &req_wrong);
         assert_eq!(*resp_wrong.status(), 403u16);
+        assert_eq!(
+            header_value(&resp_wrong, "Cache-Control").as_deref(),
+            Some("no-store")
+        );
+        let wrong_body = String::from_utf8(resp_wrong.into_body()).unwrap();
+        assert!(wrong_body.contains("Incorrect. Challenge consumed."));
+        assert!(wrong_body.contains("Request new challenge."));
 
         let correct = grid_to_tritstring(&puzzle.test_output);
         let body_correct = format!("seed={}&output={}", seed_token, correct);
@@ -456,7 +487,31 @@ mod tests {
             .body(body_correct.as_bytes().to_vec())
             .build();
         let resp_correct = handle_challenge_submit(&store, &req_correct);
-        assert_eq!(*resp_correct.status(), 400u16);
+        assert_eq!(*resp_correct.status(), 403u16);
+        let correct_body = String::from_utf8(resp_correct.into_body()).unwrap();
+        assert!(correct_body.contains("Forbidden. Please request a new challenge."));
+        assert!(!correct_body.contains("Seed already used"));
+        assert!(correct_body.contains("Request new challenge."));
+    }
+
+    #[test]
+    fn handle_challenge_submit_invalid_seed_uses_generic_forbidden_message() {
+        let store = TestStore::default();
+        let req = Request::builder()
+            .method(Method::Post)
+            .uri("/challenge")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(b"seed=not-a-valid-token&output=0000000000000000".to_vec())
+            .build();
+        let resp = handle_challenge_submit(&store, &req);
+        assert_eq!(*resp.status(), 403u16);
+        assert_eq!(
+            header_value(&resp, "Cache-Control").as_deref(),
+            Some("no-store")
+        );
+        let body = String::from_utf8(resp.into_body()).unwrap();
+        assert!(body.contains("Forbidden. Please request a new challenge."));
+        assert!(body.contains("Request new challenge."));
     }
 
     #[test]
