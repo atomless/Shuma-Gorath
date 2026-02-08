@@ -41,6 +41,11 @@
   --panel-fg: var(--color-black);
   --muted-fg: var(--color-gray-500);
   --heading-fg: var(--color-black);
+  --field-bg: var(--panel-bg);
+  --field-fg: var(--panel-fg);
+  --field-border: var(--color-gray-300);
+  --slider-track-bg: var(--color-gray-200);
+  --slider-track-border: var(--color-gray-300);
   /* Foreground for buttons that use dark backgrounds in light mode
      and become light in dark mode (swap text color accordingly) */
   --btn-contrast-fg: var(--color-white);
@@ -102,9 +107,9 @@
 }
 
 .input-field {
-  border: 1px solid var(--color-gray-300);
-  background: var(--panel-bg);
-  color: var(--panel-fg);
+  border: 1px solid var(--field-border);
+  background: var(--field-bg);
+  color: var(--field-fg);
   font-size: var(--text-base);
 }
 
@@ -929,8 +934,9 @@ input:checked + .toggle-slider:before {
 }
 
 .slider-badge {
-  background: var(--color-gray-200);
-  color: var(--color-gray-800);
+  border: 1px solid var(--field-border);
+  background: var(--field-bg);
+  color: var(--field-fg);
   font-weight: 600;
   font-size: var(--text-md);
   padding: 4px 12px;
@@ -941,7 +947,8 @@ input:checked + .toggle-slider:before {
 .slider-control input[type="range"] {
   width: 100%;
   height: 8px;
-  background: var(--color-gray-200);
+  background: var(--slider-track-bg);
+  border: 1px solid var(--slider-track-border);
   outline: none;
   cursor: pointer;
   -webkit-appearance: none;
@@ -1097,6 +1104,11 @@ input:checked + .toggle-slider:before {
     --color-warning: #d4d4d8;
     --color-warning-bg: #232326;
     --color-toggle-active: #fafafa;
+    --field-bg: var(--color-gray-200);
+    --field-fg: var(--color-gray-800);
+    --field-border: var(--color-gray-400);
+    --slider-track-bg: var(--color-gray-500);
+    --slider-track-border: var(--color-gray-400);
     --btn-contrast-fg: var(--color-black);
   }
 
@@ -1110,19 +1122,14 @@ input:checked + .toggle-slider:before {
     color: var(--color-gray-800);
   }
 
-  .slider-badge {
-    background: var(--color-gray-700);
-    color: var(--color-gray-100);
-  }
-
   input[type="text"],
   input[type="password"],
   input[type="number"],
   select,
   textarea {
-    background: var(--color-gray-200);
-    color: var(--color-gray-800);
-    border-color: var(--color-gray-400);
+    background: var(--field-bg);
+    color: var(--field-fg);
+    border-color: var(--field-border);
   }
 
   /* Improve admin panel separation in dark mode: slightly darker panels
