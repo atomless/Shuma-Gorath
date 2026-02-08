@@ -120,4 +120,48 @@ mod tests {
         assert!(json.contains("\"score\":0.85") || json.contains("\"score\": 0.85"));
         assert!(json.contains("cdp_timing"));
     }
+
+    #[test]
+    fn test_cdp_tier_strong_when_hard_signal_present() {
+        let report = CdpReport {
+            cdp_detected: true,
+            score: 0.2,
+            checks: vec!["webdriver".to_string()],
+        };
+        assert_eq!(classify_cdp_tier(&report, 0.8), CdpTier::Strong);
+    }
+
+    #[test]
+    fn test_cdp_tier_strong_when_soft_signals_are_high_confidence() {
+        let report = CdpReport {
+            cdp_detected: true,
+            score: 1.3,
+            checks: vec![
+                "cdp_timing".to_string(),
+                "plugins".to_string(),
+                "chrome_obj".to_string(),
+            ],
+        };
+        assert_eq!(classify_cdp_tier(&report, 0.8), CdpTier::Strong);
+    }
+
+    #[test]
+    fn test_cdp_tier_medium_when_threshold_met_without_hard_signal() {
+        let report = CdpReport {
+            cdp_detected: true,
+            score: 0.9,
+            checks: vec!["plugins".to_string()],
+        };
+        assert_eq!(classify_cdp_tier(&report, 0.8), CdpTier::Medium);
+    }
+
+    #[test]
+    fn test_cdp_tier_low_when_only_weak_signal_present() {
+        let report = CdpReport {
+            cdp_detected: false,
+            score: 0.2,
+            checks: vec!["plugins".to_string()],
+        };
+        assert_eq!(classify_cdp_tier(&report, 0.8), CdpTier::Low);
+    }
 }

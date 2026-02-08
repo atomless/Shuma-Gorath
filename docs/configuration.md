@@ -125,6 +125,12 @@ All runtime config fields can be set with env vars:
 - `SHUMA_BOTNESS_WEIGHT_RATE_MEDIUM`
 - `SHUMA_BOTNESS_WEIGHT_RATE_HIGH`
 
+CDP auto-ban policy:
+
+- Auto-ban applies only to strong CDP detections.
+- Hard checks such as `webdriver` and `automation_props` are treated as strong signals.
+- `SHUMA_CDP_DETECTION_THRESHOLD` is used only for score-only detections when hard checks are absent.
+
 Supporting control vars:
 
 - `SHUMA_POW_ENABLED`

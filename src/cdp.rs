@@ -24,6 +24,58 @@ pub struct CdpReport {
     pub checks: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CdpTier {
+    Low,
+    Medium,
+    Strong,
+}
+
+fn has_check(checks: &[String], needle: &str) -> bool {
+    checks.iter().any(|check| check.eq_ignore_ascii_case(needle))
+}
+
+fn soft_signal_count(checks: &[String]) -> usize {
+    ["cdp_timing", "chrome_obj", "plugins"]
+        .iter()
+        .filter(|name| has_check(checks, name))
+        .count()
+}
+
+/// Stateless tiering for CDP reports.
+///
+/// Tiering intentionally treats hard automation checks as strongest evidence and
+/// only uses thresholded score as supporting evidence when hard checks are absent.
+pub fn classify_cdp_tier(report: &CdpReport, threshold: f32) -> CdpTier {
+    let has_hard_signal = has_check(&report.checks, "webdriver")
+        || has_check(&report.checks, "automation_props");
+    if has_hard_signal {
+        return CdpTier::Strong;
+    }
+
+    let soft_count = soft_signal_count(&report.checks);
+    let threshold_clamped = threshold.clamp(0.0, 10.0);
+    let strong_score_without_hard = report.score >= threshold_clamped + 0.4 && soft_count >= 2;
+    if strong_score_without_hard {
+        return CdpTier::Strong;
+    }
+
+    let medium_without_hard = report.score >= threshold_clamped || has_check(&report.checks, "cdp_timing");
+    if medium_without_hard {
+        return CdpTier::Medium;
+    }
+
+    CdpTier::Low
+}
+
+fn cdp_tier_label(tier: CdpTier) -> &'static str {
+    match tier {
+        CdpTier::Low => "low",
+        CdpTier::Medium => "medium",
+        CdpTier::Strong => "strong",
+    }
+}
+
 fn increment_kv_counter(store: &Store, key: &str) {
     let current: u64 = store
         .get(key)
@@ -36,7 +88,7 @@ fn increment_kv_counter(store: &Store, key: &str) {
 }
 
 /// Handles incoming CDP detection reports from client-side JavaScript.
-/// When automation is detected above the configured threshold, the IP may be auto-banned.
+/// Auto-bans are only applied for strong-tier automation detections.
 pub fn handle_cdp_report(store: &Store, req: &Request) -> Response {
     let ip = crate::extract_client_ip(req);
     let cfg = crate::config::Config::load(store, "default");
@@ -53,12 +105,15 @@ pub fn handle_cdp_report(store: &Store, req: &Request) -> Response {
         Err(_) => return Response::new(400, "Invalid CDP report format"),
     };
     
+    let cdp_tier = classify_cdp_tier(&report, cfg.cdp_detection_threshold);
+    let tier_label = cdp_tier_label(cdp_tier);
+
     // Log the CDP detection event
     crate::admin::log_event(store, &crate::admin::EventLogEntry {
         ts: crate::admin::now_ts(),
         event: crate::admin::EventType::Challenge,
         ip: Some(ip.clone()),
-        reason: Some(format!("cdp_detected:score={:.2}", report.score)),
+        reason: Some(format!("cdp_detected:tier={} score={:.2}", tier_label, report.score)),
         outcome: Some(format!("checks:{}", report.checks.join(","))),
         admin: None,
     });
@@ -67,8 +122,8 @@ pub fn handle_cdp_report(store: &Store, req: &Request) -> Response {
     crate::metrics::increment(store, crate::metrics::MetricName::CdpDetections, None);
     increment_kv_counter(store, "cdp:detections");
     
-    // Auto-ban if score exceeds threshold and auto-ban is enabled
-    if cfg.cdp_auto_ban && report.score >= cfg.cdp_detection_threshold {
+    // Auto-ban only for strong-tier detections when enabled.
+    if cfg.cdp_auto_ban && cdp_tier == CdpTier::Strong {
         crate::ban::ban_ip_with_fingerprint(
             store,
             "default",
@@ -79,7 +134,8 @@ pub fn handle_cdp_report(store: &Store, req: &Request) -> Response {
                 score: Some((report.score * 10.0).round().clamp(0.0, 10.0) as u8),
                 signals: vec!["cdp_automation".to_string()],
                 summary: Some(format!(
-                    "cdp_score={:.2} threshold={:.2} checks={}",
+                    "cdp_tier={} score={:.2} threshold={:.2} checks={}",
+                    tier_label,
                     report.score,
                     cfg.cdp_detection_threshold,
                     report.checks.join(",")
@@ -94,7 +150,7 @@ pub fn handle_cdp_report(store: &Store, req: &Request) -> Response {
             event: crate::admin::EventType::Ban,
             ip: Some(ip.clone()),
             reason: Some("cdp_automation".to_string()),
-            outcome: Some(format!("banned:score={:.2}", report.score)),
+            outcome: Some(format!("banned:tier={} score={:.2}", tier_label, report.score)),
             admin: None,
         });
         
