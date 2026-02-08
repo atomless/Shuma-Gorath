@@ -1047,6 +1047,14 @@ input:checked + .toggle-slider:before {
   border-bottom: 1px dotted var(--color-gray-300);
 }
 
+.admin-group--status .info-row:last-child {
+  border-bottom: 1px dotted var(--color-gray-300);
+}
+
+.status-rows {
+  margin-top: 8px;
+}
+
 /* ===========================================
    Responsive
    =========================================== */
