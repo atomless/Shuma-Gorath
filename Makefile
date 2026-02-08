@@ -168,7 +168,7 @@ stop: ## Stop running Spin server
 	@pkill -f "spin up" 2>/dev/null && echo "$(GREEN)✅ Stopped$(NC)" || echo "$(YELLOW)No server running$(NC)"
 
 status: ## Check if Spin server is running
-	@if curl -sf -H "X-Forwarded-For: 127.0.0.1" http://127.0.0.1:3000/health > /dev/null 2>&1; then \
+	@if curl -sf -H "X-Forwarded-For: 127.0.0.1" $(FORWARDED_SECRET_HEADER) http://127.0.0.1:3000/health > /dev/null 2>&1; then \
 		echo "$(GREEN)✅ Spin server is running$(NC)"; \
 		echo "   Dashboard: http://127.0.0.1:3000/dashboard/index.html"; \
 	else \
