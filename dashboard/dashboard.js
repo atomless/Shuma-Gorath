@@ -17,10 +17,23 @@ const CHART_PALETTE = [
 
 const statusPanelState = {
   failMode: 'unknown',
+  testMode: false,
   powEnabled: false,
   powMutable: false,
   mazeEnabled: false,
-  cdpEnabled: false
+  mazeAutoBan: false,
+  cdpEnabled: false,
+  cdpAutoBan: false,
+  challengeThreshold: 3,
+  challengeMutable: false,
+  mazeThreshold: 6,
+  botnessMutable: false,
+  botnessWeights: {
+    js_required: 1,
+    geo_risk: 2,
+    rate_medium: 1,
+    rate_high: 2
+  }
 };
 
 function envVar(name) {
@@ -37,31 +50,66 @@ const STATUS_DEFINITIONS = [
     status: state => normalizeFailMode(state.failMode).toUpperCase()
   },
   {
+    title: 'Test Mode',
+    description: () => (
+      `When enabled, actions are logged without blocking traffic. Startup default can be set with ${envVar('TEST_MODE')} ` +
+      'and can be toggled in admin.'
+    ),
+    status: state => boolStatus(state.testMode)
+  },
+  {
     title: 'Proof-of-Work (PoW)',
     description: state => (
       'PoW adds a lightweight computational puzzle before JS verification to increase bot cost. ' +
-      `The ENV var boolean toggle for it is ${envVar('POW_ENABLED')}; and runtime editability is controlled by ` +
-      `${envVar('POW_CONFIG_MUTABLE')} and is currently set to ${formatPowMutability(state.powMutable)}.`
+      `Primary controls are ${envVar('POW_ENABLED')}, ${envVar('POW_DIFFICULTY')}, and ${envVar('POW_TTL_SECONDS')}. ` +
+      `Runtime editability is controlled by ${envVar('POW_CONFIG_MUTABLE')} and is currently ${formatMutability(state.powMutable)}.`
     ),
-    status: state => (state.powEnabled ? 'ENABLED' : 'DISABLED')
+    status: state => boolStatus(state.powEnabled)
+  },
+  {
+    title: 'Challenge',
+    description: state => (
+      `Step-up challenge is gated by ${envVar('CHALLENGE_RISK_THRESHOLD')} (current: <strong>${state.challengeThreshold}</strong>) ` +
+      `and uses ${envVar('CHALLENGE_TRANSFORM_COUNT')} for puzzle complexity. ` +
+      `Runtime threshold mutability is controlled by ${envVar('CHALLENGE_CONFIG_MUTABLE')} / ${envVar('BOTNESS_CONFIG_MUTABLE')} and is currently ${formatMutability(state.challengeMutable || state.botnessMutable)}.`
+    ),
+    status: state => boolStatus(state.challengeThreshold >= 1)
+  },
+  {
+    title: 'CDP Detection',
+    description: () => (
+      `Detects browser automation fingerprints. Primary controls: ${envVar('SHUMA_CDP_DETECTION_ENABLED')}, ` +
+      `${envVar('SHUMA_CDP_AUTO_BAN')}, and ${envVar('SHUMA_CDP_DETECTION_THRESHOLD')}.`
+    ),
+    status: state => boolStatus(state.cdpEnabled)
   },
   {
     title: 'Link Maze',
     description: () => (
-      'Link Maze serves trap pages to suspicious traffic and can auto-ban repeat crawlers. ' +
-      `Botness routing defaults can be set with ${envVar('BOTNESS_MAZE_THRESHOLD')}; ` +
-      `runtime settings are managed in admin config via ${envVar('MAZE_ENABLED')}, ${envVar('MAZE_AUTO_BAN')}, and ${envVar('MAZE_AUTO_BAN_THRESHOLD')}.`
+      'Link Maze serves trap pages to suspicious traffic. ' +
+      `Primary controls are ${envVar('SHUMA_MAZE_ENABLED')}, ${envVar('SHUMA_MAZE_AUTO_BAN')}, and ${envVar('SHUMA_MAZE_AUTO_BAN_THRESHOLD')}.`
     ),
-    status: state => (state.mazeEnabled ? 'ENABLED' : 'DISABLED')
+    status: state => boolStatus(state.mazeEnabled)
   },
   {
-    title: 'CDP (Detect Browser Automation)',
+    title: 'Auto-Ban Actions',
     description: () => (
-      'CDP detection checks browser automation fingerprints and can auto-ban high-confidence detections. ' +
-      `Runtime settings are managed in admin config via ${envVar('CDP_DETECTION_ENABLED')}, ` +
-      `${envVar('CDP_AUTO_BAN')}, and ${envVar('CDP_DETECTION_THRESHOLD')}.`
+      `Automatic bans can be triggered by Link Maze (${envVar('SHUMA_MAZE_AUTO_BAN')}) ` +
+      `and CDP detection (${envVar('SHUMA_CDP_AUTO_BAN')}).`
     ),
-    status: state => (state.cdpEnabled ? 'ENABLED' : 'DISABLED')
+    status: state => boolStatus(
+      (state.mazeEnabled && state.mazeAutoBan) ||
+      (state.cdpEnabled && state.cdpAutoBan)
+    )
+  },
+  {
+    title: 'Botness Scoring',
+    description: state => (
+      `Unified scoring uses ${envVar('BOTNESS_WEIGHT_JS_REQUIRED')}, ${envVar('BOTNESS_WEIGHT_GEO_RISK')}, ` +
+      `${envVar('BOTNESS_WEIGHT_RATE_MEDIUM')}, ${envVar('BOTNESS_WEIGHT_RATE_HIGH')}, and routing thresholds ` +
+      `${envVar('CHALLENGE_RISK_THRESHOLD')} / ${envVar('BOTNESS_MAZE_THRESHOLD')} (current maze threshold: <strong>${state.mazeThreshold}</strong>).`
+    ),
+    status: state => botnessStatus(state)
   }
 ];
 
@@ -71,8 +119,22 @@ function normalizeFailMode(value) {
   return 'unknown';
 }
 
-function formatPowMutability(isMutable) {
+function formatMutability(isMutable) {
   return isMutable ? 'EDITABLE' : 'READ_ONLY';
+}
+
+function boolStatus(enabled) {
+  return enabled ? 'ENABLED' : 'DISABLED';
+}
+
+function botnessStatus(state) {
+  const weights = state.botnessWeights || {};
+  const totalWeight =
+    (weights.js_required || 0) +
+    (weights.geo_risk || 0) +
+    (weights.rate_medium || 0) +
+    (weights.rate_high || 0);
+  return totalWeight > 0 ? 'ACTIVE' : 'DISABLED';
 }
 
 function renderStatusItems() {
@@ -214,6 +276,7 @@ function updateStatCards(analytics, events, bans) {
   }
   toggle.checked = testMode;
 
+  statusPanelState.testMode = testMode;
   statusPanelState.failMode = normalizeFailMode(analytics.fail_mode);
   renderStatusItems();
 }
@@ -498,6 +561,7 @@ function updateMazeConfig(config) {
   }
   if (config.maze_auto_ban !== undefined) {
     document.getElementById('maze-auto-ban-toggle').checked = config.maze_auto_ban;
+    statusPanelState.mazeAutoBan = config.maze_auto_ban === true;
   }
   if (config.maze_auto_ban_threshold !== undefined) {
     document.getElementById('maze-threshold').value = config.maze_auto_ban_threshold;
@@ -756,6 +820,7 @@ function updateCdpConfig(config) {
   }
   if (config.cdp_auto_ban !== undefined) {
     document.getElementById('cdp-auto-ban-toggle').checked = config.cdp_auto_ban;
+    statusPanelState.cdpAutoBan = config.cdp_auto_ban === true;
   }
   if (config.cdp_detection_threshold !== undefined) {
     document.getElementById('cdp-threshold-slider').value = config.cdp_detection_threshold;
@@ -839,6 +904,7 @@ function updateBotnessSignalDefinitions(signalDefinitions) {
 
 function updateChallengeConfig(config) {
   const mutable = config.botness_config_mutable === true;
+  const challengeMutable = config.challenge_config_mutable === true;
   const challengeThreshold = parseInt(config.challenge_risk_threshold, 10);
   const challengeDefault = parseInt(config.challenge_risk_threshold_default, 10);
   const mazeThreshold = parseInt(config.botness_maze_threshold, 10);
@@ -859,6 +925,17 @@ function updateChallengeConfig(config) {
   document.getElementById('botness-config-status').textContent = mutable ? 'EDITABLE' : 'READ ONLY';
   document.getElementById('challenge-default').textContent = Number.isNaN(challengeDefault) ? '--' : challengeDefault;
   document.getElementById('maze-threshold-default').textContent = Number.isNaN(mazeDefault) ? '--' : mazeDefault;
+
+  statusPanelState.challengeThreshold = Number.isNaN(challengeThreshold) ? 3 : challengeThreshold;
+  statusPanelState.mazeThreshold = Number.isNaN(mazeThreshold) ? 6 : mazeThreshold;
+  statusPanelState.challengeMutable = challengeMutable;
+  statusPanelState.botnessMutable = mutable;
+  statusPanelState.botnessWeights = {
+    js_required: parseInt(weights.js_required, 10) || 0,
+    geo_risk: parseInt(weights.geo_risk, 10) || 0,
+    rate_medium: parseInt(weights.rate_medium, 10) || 0,
+    rate_high: parseInt(weights.rate_high, 10) || 0
+  };
 
   const editableFields = [
     'challenge-threshold',
@@ -887,6 +964,7 @@ function updateChallengeConfig(config) {
   const btn = document.getElementById('save-botness-config');
   btn.disabled = !mutable;
   btn.textContent = 'Save Botness Settings';
+  renderStatusItems();
 }
 
 function checkPowConfigChanged() {
