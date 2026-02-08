@@ -26,7 +26,8 @@
 #   14. CDP report endpoint (POST /cdp-report)
 #   15. CDP auto-ban with high score
 #   16. CDP config via admin API
-#   17. Unban functionality test
+#   17. CDP stats counters reflect reports
+#   18. Unban functionality test
 
 set -e
 
@@ -351,7 +352,19 @@ else
   echo -e "${YELLOW}DEBUG cdp config:${NC} $cdp_config"
 fi
 
-# Test 17: unban_ip function works via admin endpoint  
+# Test 17: CDP stats counters reflect reports
+info "Testing CDP stats counters..."
+cdp_stats_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $API_KEY" "$BASE_URL/admin/cdp")
+cdp_total_detections=$(python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); print(int(d.get("stats",{}).get("total_detections",0)))' <<< "$cdp_stats_resp")
+cdp_total_autobans=$(python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); print(int(d.get("stats",{}).get("auto_bans",0)))' <<< "$cdp_stats_resp")
+if [[ "$cdp_total_detections" -ge 2 ]] && [[ "$cdp_total_autobans" -ge 1 ]]; then
+  pass "CDP stats counters increment for detections and auto-bans"
+else
+  fail "CDP stats counters did not increment as expected"
+  echo -e "${YELLOW}DEBUG /admin/cdp:${NC} $cdp_stats_resp"
+fi
+
+# Test 18: unban_ip function works via admin endpoint  
 info "Testing unban functionality..."
 # First ban an IP
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Authorization: Bearer $API_KEY" "$BASE_URL/admin/ban?ip=10.0.0.202&reason=test" > /dev/null

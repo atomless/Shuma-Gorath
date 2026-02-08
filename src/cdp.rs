@@ -24,6 +24,17 @@ pub struct CdpReport {
     pub checks: Vec<String>,
 }
 
+fn increment_kv_counter(store: &Store, key: &str) {
+    let current: u64 = store
+        .get(key)
+        .ok()
+        .flatten()
+        .and_then(|v| String::from_utf8(v).ok())
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(0);
+    let _ = store.set(key, current.saturating_add(1).to_string().as_bytes());
+}
+
 /// Handles incoming CDP detection reports from client-side JavaScript.
 /// When automation is detected above the configured threshold, the IP may be auto-banned.
 pub fn handle_cdp_report(store: &Store, req: &Request) -> Response {
@@ -54,11 +65,13 @@ pub fn handle_cdp_report(store: &Store, req: &Request) -> Response {
     
     // Increment metrics
     crate::metrics::increment(store, crate::metrics::MetricName::CdpDetections, None);
+    increment_kv_counter(store, "cdp:detections");
     
     // Auto-ban if score exceeds threshold and auto-ban is enabled
     if cfg.cdp_auto_ban && report.score >= cfg.cdp_detection_threshold {
         crate::ban::ban_ip(store, "default", &ip, "cdp_automation", cfg.get_ban_duration("cdp"));
         crate::metrics::increment(store, crate::metrics::MetricName::BansTotal, Some("cdp_automation"));
+        increment_kv_counter(store, "cdp:auto_bans");
         
         crate::admin::log_event(store, &crate::admin::EventLogEntry {
             ts: crate::admin::now_ts(),

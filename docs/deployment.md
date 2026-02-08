@@ -44,6 +44,16 @@ In production, do not expose the Spin origin directly. Instead:
 
 If the origin is reachable directly, client IPs may appear as `unknown`. This is safe for the `/health` endpoint but not a substitute for proper origin protection.
 
+## 🐙 Outbound Network Policy
+
+Runtime outbound HTTP(S) from the bot component is intentionally disabled via:
+
+```toml
+allowed_outbound_hosts = []
+```
+
+If you add a feature that needs external calls, explicitly allow only required hosts. Avoid wildcard allowlists.
+
 ## 🐙 Fermyon / Spin Cloud (Recommended)
 
 Use Spin application variables to avoid committing secrets.

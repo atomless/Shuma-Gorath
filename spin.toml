@@ -23,6 +23,8 @@ files = [{ source = "dashboard", destination = "/" }]
 [component.bot-trap]
 source = "src/bot_trap.wasm"
 key_value_stores = ["default"]
+# Tight outbound policy: this component should not initiate external HTTP(S) calls.
+allowed_outbound_hosts = []
 ## NOTE: For production/CI, do NOT commit secrets here. Move `API_KEY`,
 ## `JS_SECRET`, and `SHUMA_FAIL_MODE` into your CI/deployment secret store and inject
 ## them at deploy/runtime. This inline placeholder is for local/dev only.
