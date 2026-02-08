@@ -94,6 +94,15 @@
   letter-spacing: 0.03em;
 }
 
+.status-primary {
+  text-transform: uppercase;
+}
+
+.status-mutability {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .caps-label {
   font-weight: 600;
   text-transform: uppercase;
@@ -1044,7 +1053,7 @@ input:checked + .toggle-slider:before {
 
 /* Status section: dotted separators for state rows */
 .admin-group--status .info-row {
-  border-bottom: 1px dotted var(--color-gray-300);
+  border-bottom: 1px dotted var(--color-gray-400);
 }
 
 .admin-group--status .info-row:last-child {

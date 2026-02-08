@@ -708,8 +708,9 @@ function updatePowConfig(config) {
   const ttl = parseInt(config.pow_ttl_seconds, 10);
 
   const powState = powEnabled ? 'ENABLED' : 'DISABLED';
-  const powConfigState = powMutable ? 'EDITABLE' : 'READ ONLY';
-  document.getElementById('pow-status').textContent = `${powState} / ${powConfigState}`;
+  const powConfigState = powMutable ? 'editable' : 'read only';
+  document.getElementById('pow-status').innerHTML =
+    `<span class="status-primary">${powState}</span> <span class="status-mutability">[${powConfigState}]</span>`;
 
   if (!Number.isNaN(difficulty)) {
     document.getElementById('pow-difficulty').value = difficulty;
