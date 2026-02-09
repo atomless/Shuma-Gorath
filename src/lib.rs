@@ -601,7 +601,10 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
             );
             return Response::new(200, "TEST MODE: Would serve challenge");
         }
-        if path != "/health" && js::needs_js_verification(req, store, site_id, &ip) {
+        if cfg.js_required_enforced
+            && path != "/health"
+            && js::needs_js_verification(req, store, site_id, &ip)
+        {
             log_line(&format!(
                 "[TEST MODE] Would inject JS challenge for IP {ip}"
             ));
@@ -896,7 +899,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
         geo::GeoPolicyRoute::Allow | geo::GeoPolicyRoute::None => {}
     }
     // Compute unified botness score for challenge/maze step-up routing.
-    let needs_js = path != "/health"
+    let js_missing_verification = path != "/health"
         && js::needs_js_verification_with_whitelist(
             req,
             store,
@@ -904,6 +907,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
             &ip,
             &cfg.browser_whitelist,
         );
+    let needs_js = cfg.js_required_enforced && js_missing_verification;
     let geo_risk = geo_assessment.scored_risk;
     let rate_usage = rate::current_rate_usage(store, site_id, &ip);
     let botness = compute_botness_assessment(needs_js, geo_risk, rate_usage, cfg.rate_limit, &cfg);

@@ -28,6 +28,8 @@ Tables:
 Controls:
 - Test mode toggle
 - Manual ban/unban
+- JS Required enforcement toggle
+- Rate limit (requests/minute) config
 - robots.txt configuration
 - CDP detection controls
 - PoW status panel and difficulty/TTL tuning (when `SHUMA_POW_CONFIG_MUTABLE=1`)

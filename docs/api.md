@@ -138,6 +138,10 @@ curl -H "Authorization: Bearer $SHUMA_API_KEY" \
 
 The unified botness model uses weighted scored signals plus terminal hard-ban signals.
 
+Core enforcement fields:
+- `js_required_enforced` - enable/disable JS-required enforcement
+- `rate_limit` - per-minute request limit used for hard rate limiting and rate-pressure scoring
+
 Scored thresholds:
 - `challenge_risk_threshold` - score at/above which challenge is served
 - `botness_maze_threshold` - score at/above which requests are routed to maze

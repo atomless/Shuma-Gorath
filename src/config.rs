@@ -119,6 +119,9 @@ pub struct Config {
     #[serde(default = "default_cdp_threshold")]
     pub cdp_detection_threshold: f32,    // Score threshold for detection (0.0-1.0)
 
+    #[serde(default = "default_true")]
+    pub js_required_enforced: bool,      // Enforce JS verification challenge flow
+
     #[serde(default = "default_pow_difficulty")]
     pub pow_difficulty: u8,             // PoW leading-zero bits
     #[serde(default = "default_pow_ttl_seconds")]
@@ -411,6 +414,7 @@ fn default_config() -> Config {
         cdp_detection_enabled: true,
         cdp_auto_ban: true,
         cdp_detection_threshold: 0.8,
+        js_required_enforced: true,
         pow_difficulty: default_pow_difficulty(),
         pow_ttl_seconds: default_pow_ttl_seconds(),
         challenge_risk_threshold: default_challenge_threshold(),
@@ -506,6 +510,9 @@ fn apply_env_overrides(cfg: &mut Config) {
     }
     if let Some(v) = parse_f32_env_var("SHUMA_CDP_DETECTION_THRESHOLD") {
         cfg.cdp_detection_threshold = v.clamp(0.0, 1.0);
+    }
+    if let Some(v) = parse_bool_env_var("SHUMA_JS_REQUIRED_ENFORCED") {
+        cfg.js_required_enforced = v;
     }
     if let Some(v) = parse_u8_env_var("SHUMA_POW_DIFFICULTY") {
         cfg.pow_difficulty = clamp_pow_difficulty(v);

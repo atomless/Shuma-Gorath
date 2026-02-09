@@ -223,6 +223,31 @@
               <span id="test-mode-status" class="text-muted status-value">LOADING...</span>
             </div>
             <div class="control-group panel-soft pad-md config-edit-pane hidden">
+              <h3>JS Required</h3>
+              <p class="control-desc text-muted">When enabled, requests without JS verification are treated as JS-required.</p>
+              <div class="admin-controls">
+                <div class="toggle-row">
+                  <label class="control-label control-label--wide" for="js-required-enforced-toggle">Enforce JS Required</label>
+                  <label class="toggle-switch" for="js-required-enforced-toggle">
+                    <input type="checkbox" id="js-required-enforced-toggle" aria-label="Enforce JS required">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+              <button id="save-js-required-config" class="btn btn-submit" disabled>Save JS Required</button>
+            </div>
+            <div class="control-group panel-soft pad-md config-edit-pane hidden">
+              <h3>Rate Limiting</h3>
+              <p class="control-desc text-muted">Set the per-minute request limit used by rate limiting and botness rate-pressure scoring.</p>
+              <div class="admin-controls">
+                <div class="input-row">
+                  <label class="control-label control-label--wide" for="rate-limit-threshold">Requests Per Minute</label>
+                  <input class="input-field" type="number" id="rate-limit-threshold" min="1" max="1000000" step="1" inputmode="numeric" value="80" aria-label="Rate limit requests per minute">
+                </div>
+              </div>
+              <button id="save-rate-limit-config" class="btn btn-submit" disabled>Save Rate Limit</button>
+            </div>
+            <div class="control-group panel-soft pad-md config-edit-pane hidden">
               <h3>AI Training Opt-Out Policy</h3>
               <p class="control-desc text-muted">Declare crawling policies via robots.txt (advisory, not enforcement)</p>
               <div class="admin-controls">

@@ -29,6 +29,7 @@ environment = {
   SHUMA_KV_STORE_FAIL_OPEN = "true",
   SHUMA_DEBUG_HEADERS = "false",
   SHUMA_TEST_MODE = "false",
+  SHUMA_JS_REQUIRED_ENFORCED = "true",
   SHUMA_POW_ENABLED = "true",
   SHUMA_POW_SECRET = "",
   SHUMA_POW_DIFFICULTY = "15",
@@ -89,6 +90,7 @@ curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
 - `SHUMA_ADMIN_PAGE_CONFIG` - `false` (default) or `true`
 - `SHUMA_KV_STORE_FAIL_OPEN` - `true` (default) or `false` when KV is unavailable
 - `SHUMA_TEST_MODE` - Log-only mode (`true/false`, `1/0`)
+- `SHUMA_JS_REQUIRED_ENFORCED` - Enable/disable JS-required enforcement (`true/false`, `1/0`)
 
 ## 🐙 Full Runtime Config Via Env Vars
 
@@ -122,6 +124,7 @@ All runtime config fields can be set with env vars:
 - `SHUMA_CDP_DETECTION_ENABLED`
 - `SHUMA_CDP_AUTO_BAN`
 - `SHUMA_CDP_DETECTION_THRESHOLD`
+- `SHUMA_JS_REQUIRED_ENFORCED`
 - `SHUMA_POW_DIFFICULTY`
 - `SHUMA_POW_TTL_SECONDS`
 - `SHUMA_CHALLENGE_RISK_THRESHOLD`
@@ -177,6 +180,7 @@ Supporting control vars:
 ```json
 {
   "test_mode": false,
+  "js_required_enforced": true,
   "rate_limit": 80,
   "honeypots": ["/bot-trap"],
   "ban_durations": {

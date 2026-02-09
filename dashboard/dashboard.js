@@ -24,6 +24,7 @@ const statusPanelState = {
   mazeAutoBan: false,
   cdpEnabled: false,
   cdpAutoBan: false,
+  jsRequiredEnforced: true,
   challengeThreshold: 3,
   challengeMutable: false,
   mazeThreshold: 6,
@@ -46,6 +47,7 @@ const INTEGER_FIELD_RULES = {
   'ban-duration': { min: 60, max: 31536000, fallback: 3600, label: 'Ban duration' },
   'robots-crawl-delay': { min: 0, max: 60, fallback: 2, label: 'Crawl delay' },
   'maze-threshold': { min: 5, max: 500, fallback: 50, label: 'Maze threshold' },
+  'rate-limit-threshold': { min: 1, max: 1000000, fallback: 80, label: 'Rate limit' },
   'pow-difficulty': { min: 12, max: 20, fallback: 15, label: 'PoW difficulty' },
   'pow-ttl': { min: 30, max: 300, fallback: 90, label: 'PoW seed TTL' },
   'dur-honeypot': { min: 60, max: 31536000, fallback: 86400, label: 'Honeypot duration' },
@@ -332,6 +334,12 @@ function refreshCoreActionButtonsState() {
   if (typeof checkCdpConfigChanged === 'function') {
     checkCdpConfigChanged();
   }
+  if (typeof checkRateLimitConfigChanged === 'function') {
+    checkRateLimitConfigChanged();
+  }
+  if (typeof checkJsRequiredConfigChanged === 'function') {
+    checkJsRequiredConfigChanged();
+  }
 }
 
 function getAdminContext(messageTarget) {
@@ -548,12 +556,13 @@ const STATUS_DEFINITIONS = [
   {
     title: 'JS Required',
     description: state => (
-      `Triggered when a request does not present a valid JS verification cookie. ` +
-      `This signal contributes via ${envVar('SHUMA_BOTNESS_WEIGHT_JS_REQUIRED')} ` +
+      `Controlled by ${envVar('SHUMA_JS_REQUIRED_ENFORCED')}. ` +
+      `When enabled, requests without a valid JS verification cookie are treated as JS-required. ` +
+      `Its botness contribution is weighted separately by ${envVar('SHUMA_BOTNESS_WEIGHT_JS_REQUIRED')} ` +
       `(current weight: <strong>${state.botnessWeights.js_required || 0}</strong>). ` +
       cumulativeBotnessRoutingText(state)
     ),
-    status: state => boolStatus((state.botnessWeights.js_required || 0) > 0)
+    status: state => boolStatus(state.jsRequiredEnforced)
   },
   {
     title: 'GEO Fencing',
@@ -1153,6 +1162,14 @@ let cdpSavedState = {
   threshold: 0.6
 };
 
+let rateLimitSavedState = {
+  value: 80
+};
+
+let jsRequiredSavedState = {
+  enforced: true
+};
+
 // Track PoW saved state for change detection
 let powSavedState = {
   difficulty: 15,
@@ -1488,6 +1505,36 @@ function updateCdpConfig(config) {
   renderStatusItems();
 }
 
+function updateRateLimitConfig(config) {
+  const rateLimit = parseInt(config.rate_limit, 10) || 80;
+  const field = document.getElementById('rate-limit-threshold');
+  field.value = rateLimit;
+  rateLimitSavedState = { value: rateLimit };
+  statusPanelState.rateLimit = rateLimit;
+  renderStatusItems();
+
+  const btn = document.getElementById('save-rate-limit-config');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Save Rate Limit';
+  }
+}
+
+function updateJsRequiredConfig(config) {
+  const enforced = parseBoolLike(config.js_required_enforced, true);
+  const toggle = document.getElementById('js-required-enforced-toggle');
+  toggle.checked = enforced;
+  jsRequiredSavedState = { enforced };
+  statusPanelState.jsRequiredEnforced = enforced;
+  renderStatusItems();
+
+  const btn = document.getElementById('save-js-required-config');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Save JS Required';
+  }
+}
+
 // Update PoW config controls from loaded config
 function updatePowConfig(config) {
   const powEnabled = config.pow_enabled === true;
@@ -1577,7 +1624,6 @@ function updateChallengeConfig(config) {
 
   statusPanelState.challengeThreshold = Number.isNaN(challengeThreshold) ? 3 : challengeThreshold;
   statusPanelState.mazeThreshold = Number.isNaN(mazeThreshold) ? 6 : mazeThreshold;
-  statusPanelState.rateLimit = parseInt(config.rate_limit, 10) || 80;
   statusPanelState.challengeMutable = challengeMutable;
   statusPanelState.botnessMutable = mutable;
   statusPanelState.botnessWeights = {
@@ -1946,6 +1992,29 @@ function checkCdpConfigChanged() {
   btn.disabled = !changed || !apiValid;
 }
 
+function checkRateLimitConfigChanged() {
+  const btn = document.getElementById('save-rate-limit-config');
+  if (!btn) return;
+  const apiValid = hasValidApiContext();
+  const valueValid = validateIntegerFieldById('rate-limit-threshold');
+  const current = parseIntegerLoose('rate-limit-threshold');
+  const changed = current !== null && current !== rateLimitSavedState.value;
+  btn.disabled = !changed || !apiValid || !valueValid;
+}
+
+document.getElementById('rate-limit-threshold').addEventListener('input', checkRateLimitConfigChanged);
+
+function checkJsRequiredConfigChanged() {
+  const btn = document.getElementById('save-js-required-config');
+  if (!btn) return;
+  const apiValid = hasValidApiContext();
+  const current = document.getElementById('js-required-enforced-toggle').checked;
+  const changed = current !== jsRequiredSavedState.enforced;
+  btn.disabled = !changed || !apiValid;
+}
+
+document.getElementById('js-required-enforced-toggle').addEventListener('change', checkJsRequiredConfigChanged);
+
 // Update threshold display when slider moves
 document.getElementById('cdp-threshold-slider').addEventListener('input', function() {
   document.getElementById('cdp-threshold-value').textContent = this.value;
@@ -2006,6 +2075,83 @@ document.getElementById('save-cdp-config').onclick = async function() {
       btn.textContent = 'Save CDP Settings';
       btn.disabled = false;
     }, 2000);
+  }
+};
+
+document.getElementById('save-rate-limit-config').onclick = async function() {
+  const btn = this;
+  const msg = document.getElementById('admin-msg');
+  const ctx = getAdminContext(msg);
+  if (!ctx) return;
+  const { endpoint, apikey } = ctx;
+  const rateLimit = readIntegerFieldValue('rate-limit-threshold', msg);
+  if (rateLimit === null) return;
+
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+  try {
+    const resp = await fetch(endpoint + '/admin/config', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + apikey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ rate_limit: rateLimit })
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(text || 'Failed to save rate limit');
+    }
+    rateLimitSavedState = { value: rateLimit };
+    statusPanelState.rateLimit = rateLimit;
+    renderStatusItems();
+    msg.textContent = 'Rate limit saved';
+    msg.className = 'message success';
+    btn.textContent = 'Save Rate Limit';
+    btn.disabled = true;
+  } catch (e) {
+    msg.textContent = 'Error: ' + e.message;
+    msg.className = 'message error';
+    btn.textContent = 'Save Rate Limit';
+    btn.disabled = false;
+  }
+};
+
+document.getElementById('save-js-required-config').onclick = async function() {
+  const btn = this;
+  const msg = document.getElementById('admin-msg');
+  const ctx = getAdminContext(msg);
+  if (!ctx) return;
+  const { endpoint, apikey } = ctx;
+  const enforced = document.getElementById('js-required-enforced-toggle').checked;
+
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+  try {
+    const resp = await fetch(endpoint + '/admin/config', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + apikey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ js_required_enforced: enforced })
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(text || 'Failed to save JS Required setting');
+    }
+    jsRequiredSavedState = { enforced };
+    statusPanelState.jsRequiredEnforced = enforced;
+    renderStatusItems();
+    msg.textContent = 'JS Required setting saved';
+    msg.className = 'message success';
+    btn.textContent = 'Save JS Required';
+    btn.disabled = true;
+  } catch (e) {
+    msg.textContent = 'Error: ' + e.message;
+    msg.className = 'message error';
+    btn.textContent = 'Save JS Required';
+    btn.disabled = false;
   }
 };
 
@@ -2085,6 +2231,8 @@ document.getElementById('refresh').onclick = async function() {
         const config = await configResp.json();
         updateConfigModeUi(config);
         updateBanDurations(config);
+        updateRateLimitConfig(config);
+        updateJsRequiredConfig(config);
         updateMazeConfig(config);
         updateGeoConfig(config);
         updateRobotsConfig(config);

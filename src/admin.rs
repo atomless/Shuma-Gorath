@@ -272,6 +272,7 @@ mod admin_config_tests {
         assert!(body.get("challenge_config_mutable").is_some());
         assert!(body.get("challenge_risk_threshold_default").is_some());
         assert!(body.get("botness_maze_threshold").is_some());
+        assert!(body.get("js_required_enforced").is_some());
         assert!(body.get("botness_weights").is_some());
         assert!(body.get("botness_config_mutable").is_some());
         assert!(body.get("botness_signal_definitions").is_some());
@@ -373,6 +374,57 @@ mod admin_config_tests {
         assert_eq!(*post_resp.status(), 400u16);
         let msg = String::from_utf8_lossy(post_resp.body());
         assert!(msg.contains("invalid country code"));
+        std::env::remove_var("SHUMA_ADMIN_PAGE_CONFIG");
+    }
+
+    #[test]
+    fn admin_config_updates_js_required_enforced_flag() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        std::env::set_var("SHUMA_ADMIN_PAGE_CONFIG", "true");
+        let store = TestStore::default();
+
+        let post_req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"js_required_enforced":false}"#.to_vec(),
+        );
+        let post_resp = handle_admin_config(&post_req, &store, "default");
+        assert_eq!(*post_resp.status(), 200u16);
+        let post_json: serde_json::Value = serde_json::from_slice(post_resp.body()).unwrap();
+        let cfg = post_json.get("config").unwrap();
+        assert_eq!(
+            cfg.get("js_required_enforced"),
+            Some(&serde_json::Value::Bool(false))
+        );
+
+        let get_req = make_request(Method::Get, "/admin/config", Vec::new());
+        let get_resp = handle_admin_config(&get_req, &store, "default");
+        assert_eq!(*get_resp.status(), 200u16);
+        let get_json: serde_json::Value = serde_json::from_slice(get_resp.body()).unwrap();
+        assert_eq!(
+            get_json.get("js_required_enforced"),
+            Some(&serde_json::Value::Bool(false))
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_PAGE_CONFIG");
+    }
+
+    #[test]
+    fn admin_config_rejects_out_of_range_rate_limit() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        std::env::set_var("SHUMA_ADMIN_PAGE_CONFIG", "true");
+        let store = TestStore::default();
+
+        let post_req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"rate_limit":0}"#.to_vec(),
+        );
+        let post_resp = handle_admin_config(&post_req, &store, "default");
+        assert_eq!(*post_resp.status(), 400u16);
+        let msg = String::from_utf8_lossy(post_resp.body());
+        assert!(msg.contains("rate_limit out of range"));
+
         std::env::remove_var("SHUMA_ADMIN_PAGE_CONFIG");
     }
 }
@@ -577,7 +629,14 @@ fn handle_admin_config(
             changed = true;
         }
         if let Some(rate_limit) = json.get("rate_limit").and_then(|v| v.as_u64()) {
+            if !(1..=1_000_000).contains(&rate_limit) {
+                return Response::new(400, "rate_limit out of range (1-1000000)");
+            }
             cfg.rate_limit = rate_limit as u32;
+            changed = true;
+        }
+        if let Some(js_required_enforced) = json.get("js_required_enforced").and_then(|v| v.as_bool()) {
+            cfg.js_required_enforced = js_required_enforced;
             changed = true;
         }
 
@@ -894,6 +953,7 @@ fn handle_admin_config(
                 "cdp_detection_enabled": cfg.cdp_detection_enabled,
                 "cdp_auto_ban": cfg.cdp_auto_ban,
                 "cdp_detection_threshold": cfg.cdp_detection_threshold,
+                "js_required_enforced": cfg.js_required_enforced,
                 "pow_enabled": crate::pow::pow_enabled(),
                 "pow_config_mutable": crate::config::pow_config_mutable(),
                 "pow_difficulty": cfg.pow_difficulty,
@@ -963,6 +1023,7 @@ fn handle_admin_config(
         "cdp_detection_enabled": cfg.cdp_detection_enabled,
         "cdp_auto_ban": cfg.cdp_auto_ban,
         "cdp_detection_threshold": cfg.cdp_detection_threshold,
+        "js_required_enforced": cfg.js_required_enforced,
         "pow_enabled": crate::pow::pow_enabled(),
         "pow_config_mutable": crate::config::pow_config_mutable(),
         "pow_difficulty": cfg.pow_difficulty,
