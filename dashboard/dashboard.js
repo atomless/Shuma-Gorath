@@ -54,8 +54,8 @@ const STATUS_DEFINITIONS = [
   {
     title: 'Test Mode',
     description: () => (
-      `When enabled, actions are logged without blocking traffic. Startup default can be set with ${envVar('SHUMA_TEST_MODE')} ` +
-      'and can be toggled in admin.'
+      `When enabled, actions are logged without blocking traffic. It can be set at build time with the ENV var: ${envVar('SHUMA_TEST_MODE')} ` +
+      'and it can be toggled on and off in admin.'
     ),
     status: state => boolStatus(state.testMode)
   },
@@ -63,6 +63,7 @@ const STATUS_DEFINITIONS = [
     title: 'Proof-of-Work (PoW)',
     description: state => (
       'PoW adds a lightweight computational puzzle before JS verification to increase bot cost. ' +
+      'For a human visitor the work happens invisibly, once, in a couple of milliseconds. For a scraper or botnet, having to repeatedly perform the work accumulates a prohibitive cost.'
       `Primary controls are ${envVar('SHUMA_POW_ENABLED')}, ${envVar('SHUMA_POW_DIFFICULTY')}, and ${envVar('SHUMA_POW_TTL_SECONDS')}. ` +
       `Runtime editability is controlled by ${envVar('SHUMA_POW_CONFIG_MUTABLE')} and is currently ${formatMutability(state.powMutable)}.`
     ),
@@ -71,8 +72,8 @@ const STATUS_DEFINITIONS = [
   {
     title: 'Challenge',
     description: state => (
-      `Step-up challenge is gated by ${envVar('SHUMA_CHALLENGE_RISK_THRESHOLD')} (current: <strong>${state.challengeThreshold}</strong>) ` +
-      `and uses ${envVar('SHUMA_CHALLENGE_TRANSFORM_COUNT')} for puzzle complexity. ` +
+      `Step-up to the puzzle challenge is gated by ${envVar('SHUMA_CHALLENGE_RISK_THRESHOLD')} (current: <strong>${state.challengeThreshold}</strong>) ` +
+      `and uses ${envVar('SHUMA_CHALLENGE_TRANSFORM_COUNT')} to enable adjustment of the complexity of puzzle served. ` +
       `Runtime threshold mutability is controlled by ${envVar('SHUMA_CHALLENGE_CONFIG_MUTABLE')} / ${envVar('SHUMA_BOTNESS_CONFIG_MUTABLE')} and is currently ${formatMutability(state.challengeMutable || state.botnessMutable)}.`
     ),
     status: state => boolStatus(state.challengeThreshold >= 1)
@@ -83,7 +84,7 @@ const STATUS_DEFINITIONS = [
       `Detects browser automation fingerprints. Primary controls: ${envVar('SHUMA_CDP_DETECTION_ENABLED')}, ` +
       `${envVar('SHUMA_CDP_AUTO_BAN')}, and ${envVar('SHUMA_CDP_DETECTION_THRESHOLD')}. ` +
       `Automatic bans are triggered only for <strong>strong</strong> CDP detections (for example, hard checks like <code>webdriver</code> or <code>automation_props</code>). ` +
-      `${envVar('SHUMA_CDP_DETECTION_THRESHOLD')} is used only for score-only detections when hard checks are absent.`
+      `${envVar('SHUMA_CDP_DETECTION_THRESHOLD')} is only checked when those hard checks are not present; in that case, a high score can still be treated as strong automation.`
     ),
     status: state => boolStatus(state.cdpEnabled)
   },
