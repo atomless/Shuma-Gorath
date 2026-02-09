@@ -304,19 +304,11 @@ function refreshCoreActionButtonsState() {
     unbanBtn.disabled = !(apiValid && validateIpFieldById('unban-ip', true, 'Unban IP'));
   }
 
-  const saveDurationsBtn = document.getElementById('save-durations-btn');
-  if (saveDurationsBtn) {
-    const durationValid =
-      validateIntegerFieldById('dur-honeypot') &&
-      validateIntegerFieldById('dur-rate-limit') &&
-      validateIntegerFieldById('dur-browser') &&
-      validateIntegerFieldById('dur-admin');
-    saveDurationsBtn.disabled = !(apiValid && durationValid);
+  if (typeof checkBanDurationsChanged === 'function') {
+    checkBanDurationsChanged();
   }
-
-  const saveMazeBtn = document.getElementById('save-maze-config');
-  if (saveMazeBtn && !saveMazeBtn.textContent.includes('Saving')) {
-    saveMazeBtn.disabled = !(apiValid && validateIntegerFieldById('maze-threshold'));
+  if (typeof checkMazeConfigChanged === 'function') {
+    checkMazeConfigChanged();
   }
 
   if (typeof checkRobotsConfigChanged === 'function') {
@@ -771,6 +763,18 @@ function updateBanDurations(config) {
     document.getElementById('dur-rate-limit').value = config.ban_durations.rate_limit || 3600;
     document.getElementById('dur-browser').value = config.ban_durations.browser || 21600;
     document.getElementById('dur-admin').value = config.ban_durations.admin || 21600;
+    banDurationsSavedState = {
+      honeypot: parseInt(config.ban_durations.honeypot, 10) || 86400,
+      rateLimit: parseInt(config.ban_durations.rate_limit, 10) || 3600,
+      browser: parseInt(config.ban_durations.browser, 10) || 21600,
+      admin: parseInt(config.ban_durations.admin, 10) || 21600
+    };
+    const btn = document.getElementById('save-durations-btn');
+    if (btn) {
+      btn.dataset.saving = 'false';
+      btn.disabled = true;
+      btn.textContent = 'Save Durations';
+    }
   }
 }
 
@@ -1108,6 +1112,17 @@ function updateMazeConfig(config) {
   if (config.maze_auto_ban_threshold !== undefined) {
     document.getElementById('maze-threshold').value = config.maze_auto_ban_threshold;
   }
+  mazeSavedState = {
+    enabled: document.getElementById('maze-enabled-toggle').checked,
+    autoBan: document.getElementById('maze-auto-ban-toggle').checked,
+    threshold: parseInt(document.getElementById('maze-threshold').value, 10) || 50
+  };
+  const btn = document.getElementById('save-maze-config');
+  if (btn) {
+    btn.dataset.saving = 'false';
+    btn.disabled = true;
+    btn.textContent = 'Save Maze Settings';
+  }
   renderStatusItems();
 }
 
@@ -1171,6 +1186,19 @@ let rateLimitSavedState = {
 
 let jsRequiredSavedState = {
   enforced: true
+};
+
+let mazeSavedState = {
+  enabled: false,
+  autoBan: false,
+  threshold: 50
+};
+
+let banDurationsSavedState = {
+  honeypot: 86400,
+  rateLimit: 3600,
+  browser: 21600,
+  admin: 21600
 };
 
 // Track PoW saved state for change detection
@@ -1321,11 +1349,55 @@ function checkRobotsConfigChanged() {
   }
 }
 
+function setDirtySaveButtonState(buttonId, changed, apiValid, fieldsValid = true) {
+  const btn = document.getElementById(buttonId);
+  if (!btn) return;
+  if (btn.dataset.saving === 'true') return;
+  btn.disabled = !changed || !apiValid || !fieldsValid;
+}
+
+function checkMazeConfigChanged() {
+  const currentThreshold = parseIntegerLoose('maze-threshold');
+  const fieldsValid = validateIntegerFieldById('maze-threshold');
+  const apiValid = hasValidApiContext();
+  const changed = fieldsValid && (
+    document.getElementById('maze-enabled-toggle').checked !== mazeSavedState.enabled ||
+    document.getElementById('maze-auto-ban-toggle').checked !== mazeSavedState.autoBan ||
+    currentThreshold !== mazeSavedState.threshold
+  );
+  setDirtySaveButtonState('save-maze-config', changed, apiValid, fieldsValid);
+}
+
+function checkBanDurationsChanged() {
+  const fieldsValid =
+    validateIntegerFieldById('dur-honeypot') &&
+    validateIntegerFieldById('dur-rate-limit') &&
+    validateIntegerFieldById('dur-browser') &&
+    validateIntegerFieldById('dur-admin');
+  const apiValid = hasValidApiContext();
+  const current = {
+    honeypot: parseIntegerLoose('dur-honeypot'),
+    rateLimit: parseIntegerLoose('dur-rate-limit'),
+    browser: parseIntegerLoose('dur-browser'),
+    admin: parseIntegerLoose('dur-admin')
+  };
+  const changed = fieldsValid && (
+    current.honeypot !== banDurationsSavedState.honeypot ||
+    current.rateLimit !== banDurationsSavedState.rateLimit ||
+    current.browser !== banDurationsSavedState.browser ||
+    current.admin !== banDurationsSavedState.admin
+  );
+  setDirtySaveButtonState('save-durations-btn', changed, apiValid, fieldsValid);
+}
+
 // Add change listeners for robots config controls
 ['robots-enabled-toggle', 'robots-block-training-toggle', 'robots-block-search-toggle', 'robots-allow-search-toggle'].forEach(id => {
   document.getElementById(id).addEventListener('change', checkRobotsConfigChanged);
 });
 document.getElementById('robots-crawl-delay').addEventListener('input', checkRobotsConfigChanged);
+['maze-enabled-toggle', 'maze-auto-ban-toggle'].forEach(id => {
+  document.getElementById(id).addEventListener('change', checkMazeConfigChanged);
+});
 
 // Save maze configuration
 document.getElementById('save-maze-config').onclick = async function() {
@@ -1341,6 +1413,7 @@ document.getElementById('save-maze-config').onclick = async function() {
   if (mazeThreshold === null) return;
   
   btn.textContent = 'Saving...';
+  btn.dataset.saving = 'true';
   btn.disabled = true;
   
   try {
@@ -1359,18 +1432,26 @@ document.getElementById('save-maze-config').onclick = async function() {
     
     if (!resp.ok) throw new Error('Failed to save config');
 
+    mazeSavedState = {
+      enabled: mazeEnabled,
+      autoBan: mazeAutoBan,
+      threshold: mazeThreshold
+    };
     btn.textContent = 'Saved!';
     setTimeout(() => {
+      btn.dataset.saving = 'false';
       btn.textContent = 'Save Maze Settings';
-      btn.disabled = false;
+      checkMazeConfigChanged();
     }, 1500);
+    msg.textContent = 'Maze settings saved';
+    msg.className = 'message success';
   } catch (e) {
-    btn.textContent = 'Error';
+    msg.textContent = 'Error: ' + e.message;
+    msg.className = 'message error';
     console.error('Failed to save maze config:', e);
-    setTimeout(() => {
-      btn.textContent = 'Save Maze Settings';
-      btn.disabled = false;
-    }, 2000);
+    btn.dataset.saving = 'false';
+    btn.textContent = 'Save Maze Settings';
+    checkMazeConfigChanged();
   }
 };
 
@@ -2318,6 +2399,7 @@ document.getElementById('save-durations-btn').onclick = async function() {
   const ctx = getAdminContext(msg);
   if (!ctx) return;
   const { endpoint, apikey } = ctx;
+  const btn = this;
   
   const ban_durations = {
     honeypot: readIntegerFieldValue('dur-honeypot', msg),
@@ -2337,6 +2419,9 @@ document.getElementById('save-durations-btn').onclick = async function() {
   
   msg.textContent = 'Saving ban durations...';
   msg.className = 'message info';
+  btn.textContent = 'Saving...';
+  btn.dataset.saving = 'true';
+  btn.disabled = true;
   
   try {
     const resp = await fetch(`${endpoint}/admin/config`, {
@@ -2353,11 +2438,16 @@ document.getElementById('save-durations-btn').onclick = async function() {
     }
     
     const data = await resp.json();
+    const saved = data && data.config && data.config.ban_durations ? data.config.ban_durations : ban_durations;
+    updateBanDurations({ ban_durations: saved });
     msg.textContent = 'Ban durations saved';
     msg.className = 'message success';
   } catch (e) {
     msg.textContent = 'Error: ' + e.message;
     msg.className = 'message error';
+    btn.dataset.saving = 'false';
+    btn.textContent = 'Save Durations';
+    checkBanDurationsChanged();
   }
 };
 
