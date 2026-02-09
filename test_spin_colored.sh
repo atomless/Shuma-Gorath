@@ -22,12 +22,15 @@
 #   10. Test mode behavior verification
 #   11. Test mode disable and blocking resumes
 #   12. Verify blocking after test mode disabled
-#   13. Prometheus metrics endpoint
-#   14. CDP report endpoint (POST /cdp-report)
-#   15. CDP auto-ban with high score
-#   16. CDP config via admin API
-#   17. CDP stats counters reflect reports
-#   18. Unban functionality test
+#   13. GEO policy challenge route
+#   14. GEO policy maze route
+#   15. GEO policy block route
+#   16. Prometheus metrics endpoint
+#   17. CDP report endpoint (POST /cdp-report)
+#   18. CDP auto-ban with high score
+#   19. CDP config via admin API
+#   20. CDP stats counters reflect reports
+#   21. Unban functionality test
 
 set -e
 
@@ -67,6 +70,13 @@ curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -X POST 
   -H "Authorization: Bearer $SHUMA_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"test_mode": false}' \
+  "$BASE_URL/admin/config" > /dev/null || true
+
+info "Resetting GEO policy lists to empty defaults..."
+curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -X POST \
+  -H "Authorization: Bearer $SHUMA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":[]}' \
   "$BASE_URL/admin/config" > /dev/null || true
 
 info "Clearing bans for test IP..."
@@ -303,7 +313,67 @@ curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/admin/unban?ip=10.0.0.100" > /dev/null
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/admin/unban?ip=10.0.0.150" > /dev/null
 
-# Test 13: Prometheus metrics endpoint
+# Test 13-15: GEO policy routing (requires trusted forwarded headers)
+if [[ -z "${SHUMA_FORWARDED_IP_SECRET:-}" ]]; then
+  info "Skipping GEO policy routing tests (SHUMA_FORWARDED_IP_SECRET is not set)"
+else
+  info "Testing GEO policy route: challenge tier..."
+  geo_challenge_cfg=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Authorization: Bearer $SHUMA_API_KEY" -H "Content-Type: application/json" \
+    -d '{"geo_risk":[],"geo_allow":[],"geo_challenge":["BR"],"geo_maze":[],"geo_block":[]}' "$BASE_URL/admin/config")
+  if ! echo "$geo_challenge_cfg" | grep -q '"geo_challenge":\["BR"\]'; then
+    fail "Failed to apply GEO challenge policy config"
+    echo -e "${YELLOW}DEBUG geo challenge config:${NC} $geo_challenge_cfg"
+  else
+    geo_challenge_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.210" -H "X-Geo-Country: BR" "$BASE_URL/")
+    if echo "$geo_challenge_resp" | grep -q 'Puzzle'; then
+      pass "GEO challenge tier routes request to challenge page"
+    else
+      fail "GEO challenge tier did not route to challenge page"
+      echo -e "${YELLOW}DEBUG geo challenge response:${NC} $geo_challenge_resp"
+    fi
+  fi
+
+  info "Testing GEO policy route: maze tier..."
+  geo_maze_cfg=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Authorization: Bearer $SHUMA_API_KEY" -H "Content-Type: application/json" \
+    -d '{"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":["RU"],"geo_block":[],"maze_enabled":true}' "$BASE_URL/admin/config")
+  if ! echo "$geo_maze_cfg" | grep -q '"geo_maze":\["RU"\]'; then
+    fail "Failed to apply GEO maze policy config"
+    echo -e "${YELLOW}DEBUG geo maze config:${NC} $geo_maze_cfg"
+  else
+    geo_maze_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.211" -H "X-Geo-Country: RU" "$BASE_URL/")
+    if echo "$geo_maze_resp" | grep -q '/maze/'; then
+      pass "GEO maze tier routes request to maze page"
+    else
+      fail "GEO maze tier did not route to maze page"
+      echo -e "${YELLOW}DEBUG geo maze response:${NC} $geo_maze_resp"
+    fi
+  fi
+
+  info "Testing GEO policy route: block tier..."
+  geo_block_cfg=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Authorization: Bearer $SHUMA_API_KEY" -H "Content-Type: application/json" \
+    -d '{"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":["KP"]}' "$BASE_URL/admin/config")
+  if ! echo "$geo_block_cfg" | grep -q '"geo_block":\["KP"\]'; then
+    fail "Failed to apply GEO block policy config"
+    echo -e "${YELLOW}DEBUG geo block config:${NC} $geo_block_cfg"
+  else
+    geo_block_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.212" -H "X-Geo-Country: KP" "$BASE_URL/")
+    geo_block_body=$(echo "$geo_block_resp" | sed -e 's/HTTPSTATUS:.*//')
+    geo_block_status=$(echo "$geo_block_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+    if [[ "$geo_block_status" == "403" ]] && echo "$geo_block_body" | grep -qE 'Access Blocked|Access Restricted'; then
+      pass "GEO block tier returns 403 block page"
+    else
+      fail "GEO block tier did not block as expected"
+      echo -e "${YELLOW}DEBUG geo block status:${NC} $geo_block_status"
+      echo -e "${YELLOW}DEBUG geo block body:${NC} $geo_block_body"
+    fi
+  fi
+
+  info "Resetting GEO policy lists after routing tests..."
+  curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Authorization: Bearer $SHUMA_API_KEY" -H "Content-Type: application/json" \
+    -d '{"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":[]}' "$BASE_URL/admin/config" > /dev/null || true
+fi
+
+# Test 16: Prometheus metrics endpoint
 info "Testing GET /metrics (Prometheus format)..."
 metrics_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" "$BASE_URL/metrics")
 if echo "$metrics_resp" | grep -q 'bot_trap_requests_total'; then
@@ -320,7 +390,7 @@ else
   fail "/metrics missing ban counters"
 fi
 
-# Test 14: CDP report endpoint exists
+# Test 17: CDP report endpoint exists
 info "Testing POST /cdp-report endpoint..."
 cdp_report='{"cdp_detected":true,"score":0.5,"checks":["webdriver"]}'
 cdp_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Content-Type: application/json" -H "X-Forwarded-For: 10.0.0.200" -d "$cdp_report" "$BASE_URL/cdp-report")
@@ -331,7 +401,7 @@ else
   echo -e "${YELLOW}DEBUG cdp response:${NC} $cdp_resp"
 fi
 
-# Test 15: CDP report with high score triggers action (when enabled)
+# Test 18: CDP report with high score triggers action (when enabled)
 info "Testing CDP auto-ban with high score..."
 cdp_high='{"cdp_detected":true,"score":0.95,"checks":["webdriver","automation_props","cdp_timing"]}'
 cdp_high_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Content-Type: application/json" -H "X-Forwarded-For: 10.0.0.201" -d "$cdp_high" "$BASE_URL/cdp-report")
@@ -342,7 +412,7 @@ else
   echo -e "${YELLOW}DEBUG cdp high response:${NC} $cdp_high_resp"
 fi
 
-# Test 16: CDP config available via admin API
+# Test 19: CDP config available via admin API
 info "Testing CDP config in /admin/cdp..."
 cdp_config=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/admin/cdp")
 if echo "$cdp_config" | grep -qE '"enabled"|cdp_detection'; then
@@ -352,7 +422,7 @@ else
   echo -e "${YELLOW}DEBUG cdp config:${NC} $cdp_config"
 fi
 
-# Test 17: CDP stats counters reflect reports
+# Test 20: CDP stats counters reflect reports
 info "Testing CDP stats counters..."
 cdp_stats_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/admin/cdp")
 cdp_total_detections=$(python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); print(int(d.get("stats",{}).get("total_detections",0)))' <<< "$cdp_stats_resp")
@@ -364,7 +434,7 @@ else
   echo -e "${YELLOW}DEBUG /admin/cdp:${NC} $cdp_stats_resp"
 fi
 
-# Test 18: unban_ip function works via admin endpoint  
+# Test 21: unban_ip function works via admin endpoint  
 info "Testing unban functionality..."
 # First ban an IP
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/admin/ban?ip=10.0.0.202&reason=test" > /dev/null
