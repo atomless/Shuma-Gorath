@@ -289,20 +289,17 @@ function validateGeoFieldById(id, showInline = false) {
 
 function refreshCoreActionButtonsState() {
   const apiValid = hasValidApiContext();
-  const refreshBtn = document.getElementById('refresh');
-  if (refreshBtn) {
-    refreshBtn.disabled = !apiValid;
-  }
-
-  const banBtn = document.getElementById('ban-btn');
-  if (banBtn) {
-    banBtn.disabled = !(apiValid && validateIpFieldById('ban-ip', true, 'Ban IP') && validateIntegerFieldById('ban-duration'));
-  }
-
-  const unbanBtn = document.getElementById('unban-btn');
-  if (unbanBtn) {
-    unbanBtn.disabled = !(apiValid && validateIpFieldById('unban-ip', true, 'Unban IP'));
-  }
+  setValidActionButtonState('refresh', apiValid, true);
+  setValidActionButtonState(
+    'ban-btn',
+    apiValid,
+    validateIpFieldById('ban-ip', true, 'Ban IP') && validateIntegerFieldById('ban-duration')
+  );
+  setValidActionButtonState(
+    'unban-btn',
+    apiValid,
+    validateIpFieldById('unban-ip', true, 'Unban IP')
+  );
 
   if (typeof checkBanDurationsChanged === 'function') {
     checkBanDurationsChanged();
@@ -1342,18 +1339,27 @@ function checkRobotsConfigChanged() {
     current.allowSearch !== robotsSavedState.allowSearch ||
     current.crawlDelay !== robotsSavedState.crawlDelay
   );
+  setDirtySaveButtonState('save-robots-config', changed, apiValid, delayValid);
   const btn = document.getElementById('save-robots-config');
-  btn.disabled = !changed || !apiValid || !delayValid;
   if (changed) {
     btn.textContent = 'Update Policy';
   }
 }
 
-function setDirtySaveButtonState(buttonId, changed, apiValid, fieldsValid = true) {
+function setButtonState(buttonId, apiValid, fieldsValid, changed, requireChange) {
   const btn = document.getElementById(buttonId);
   if (!btn) return;
   if (btn.dataset.saving === 'true') return;
-  btn.disabled = !changed || !apiValid || !fieldsValid;
+  const canSubmit = apiValid && fieldsValid && (!requireChange || changed);
+  btn.disabled = !canSubmit;
+}
+
+function setDirtySaveButtonState(buttonId, changed, apiValid, fieldsValid = true) {
+  setButtonState(buttonId, apiValid, fieldsValid, changed, true);
+}
+
+function setValidActionButtonState(buttonId, apiValid, fieldsValid = true) {
+  setButtonState(buttonId, apiValid, fieldsValid, true, false);
 }
 
 function checkMazeConfigChanged() {
@@ -1472,6 +1478,7 @@ document.getElementById('save-robots-config').onclick = async function() {
   if (crawlDelay === null) return;
   
   btn.textContent = 'Saving...';
+  btn.dataset.saving = 'true';
   btn.disabled = true;
   
   try {
@@ -1507,15 +1514,17 @@ document.getElementById('save-robots-config').onclick = async function() {
       refreshRobotsPreview();
     }
     setTimeout(() => {
+      btn.dataset.saving = 'false';
       btn.textContent = 'Update Policy';
-      btn.disabled = true; // Disable since we just saved
+      checkRobotsConfigChanged();
     }, 1500);
   } catch (e) {
+    btn.dataset.saving = 'false';
     btn.textContent = 'Error';
     console.error('Failed to save robots config:', e);
     setTimeout(() => {
       btn.textContent = 'Update Policy';
-      btn.disabled = false; // Keep enabled so they can retry
+      checkRobotsConfigChanged();
     }, 2000);
   }
 };
@@ -1748,10 +1757,10 @@ function updateChallengeConfig(config) {
 }
 
 function checkPowConfigChanged() {
-  const btn = document.getElementById('save-pow-config');
   const apiValid = hasValidApiContext();
   const powFieldsValid = validateIntegerFieldById('pow-difficulty') && validateIntegerFieldById('pow-ttl');
   if (!powSavedState.mutable) {
+    const btn = document.getElementById('save-pow-config');
     btn.disabled = true;
     return;
   }
@@ -1760,14 +1769,13 @@ function checkPowConfigChanged() {
     ttl: parseInt(document.getElementById('pow-ttl').value, 10) || 90
   };
   const changed = current.difficulty !== powSavedState.difficulty || current.ttl !== powSavedState.ttl;
-  btn.disabled = !changed || !apiValid || !powFieldsValid;
+  setDirtySaveButtonState('save-pow-config', changed, apiValid, powFieldsValid);
 }
 
 document.getElementById('pow-difficulty').addEventListener('input', checkPowConfigChanged);
 document.getElementById('pow-ttl').addEventListener('input', checkPowConfigChanged);
 
 function checkBotnessConfigChanged() {
-  const btn = document.getElementById('save-botness-config');
   const apiValid = hasValidApiContext();
   const fieldsValid =
     validateIntegerFieldById('challenge-threshold') &&
@@ -1777,6 +1785,7 @@ function checkBotnessConfigChanged() {
     validateIntegerFieldById('weight-rate-medium') &&
     validateIntegerFieldById('weight-rate-high');
   if (!botnessSavedState.mutable) {
+    const btn = document.getElementById('save-botness-config');
     btn.disabled = true;
     return;
   }
@@ -1795,7 +1804,7 @@ function checkBotnessConfigChanged() {
     current.weightGeoRisk !== botnessSavedState.weightGeoRisk ||
     current.weightRateMedium !== botnessSavedState.weightRateMedium ||
     current.weightRateHigh !== botnessSavedState.weightRateHigh;
-  btn.disabled = !changed || !apiValid || !fieldsValid;
+  setDirtySaveButtonState('save-botness-config', changed, apiValid, fieldsValid);
 }
 
 [
@@ -1810,10 +1819,10 @@ function checkBotnessConfigChanged() {
 });
 
 function checkGeoConfigChanged() {
-  const btn = document.getElementById('save-geo-config');
   const apiValid = hasValidApiContext();
   const geoValid = GEO_FIELD_IDS.every(validateGeoFieldById);
   if (!geoSavedState.mutable) {
+    const btn = document.getElementById('save-geo-config');
     btn.disabled = true;
     return;
   }
@@ -1831,7 +1840,7 @@ function checkGeoConfigChanged() {
     current.challenge !== geoSavedState.challenge ||
     current.maze !== geoSavedState.maze ||
     current.block !== geoSavedState.block;
-  btn.disabled = !changed || !apiValid || !geoValid;
+  setDirtySaveButtonState('save-geo-config', changed, apiValid, geoValid);
 }
 
 GEO_FIELD_IDS.forEach(id => {
@@ -1890,6 +1899,7 @@ document.getElementById('save-geo-config').onclick = async function() {
   }
 
   btn.textContent = 'Saving...';
+  btn.dataset.saving = 'true';
   btn.disabled = true;
   try {
     const resp = await fetch(`${endpoint}/admin/config`, {
@@ -1927,11 +1937,14 @@ document.getElementById('save-geo-config').onclick = async function() {
     msg.textContent = 'GEO settings saved';
     msg.className = 'message success';
     btn.textContent = 'Save GEO Settings';
+    btn.dataset.saving = 'false';
+    checkGeoConfigChanged();
   } catch (e) {
     msg.textContent = 'Error: ' + e.message;
     msg.className = 'message error';
     btn.textContent = 'Save GEO Settings';
-    btn.disabled = false;
+    btn.dataset.saving = 'false';
+    checkGeoConfigChanged();
   }
 };
 
@@ -1948,6 +1961,7 @@ document.getElementById('save-pow-config').onclick = async function() {
   if (powDifficulty === null || powTtl === null) return;
 
   btn.textContent = 'Saving...';
+  btn.dataset.saving = 'true';
   btn.disabled = true;
 
   try {
@@ -1976,12 +1990,14 @@ document.getElementById('save-pow-config').onclick = async function() {
     msg.textContent = 'PoW settings saved';
     msg.className = 'message success';
     btn.textContent = 'Save PoW Settings';
-    btn.disabled = true;
+    btn.dataset.saving = 'false';
+    checkPowConfigChanged();
   } catch (e) {
     msg.textContent = 'Error: ' + e.message;
     msg.className = 'message error';
     btn.textContent = 'Save PoW Settings';
-    btn.disabled = false;
+    btn.dataset.saving = 'false';
+    checkPowConfigChanged();
   }
 };
 
@@ -2012,6 +2028,7 @@ document.getElementById('save-botness-config').onclick = async function() {
   }
 
   btn.textContent = 'Saving...';
+  btn.dataset.saving = 'true';
   btn.disabled = true;
 
   try {
@@ -2050,12 +2067,14 @@ document.getElementById('save-botness-config').onclick = async function() {
     msg.textContent = 'Botness scoring saved';
     msg.className = 'message success';
     btn.textContent = 'Save Botness Settings';
-    btn.disabled = true;
+    btn.dataset.saving = 'false';
+    checkBotnessConfigChanged();
   } catch (e) {
     msg.textContent = 'Error: ' + e.message;
     msg.className = 'message error';
     btn.textContent = 'Save Botness Settings';
-    btn.disabled = false;
+    btn.dataset.saving = 'false';
+    checkBotnessConfigChanged();
   }
 };
 
@@ -2072,29 +2091,24 @@ function checkCdpConfigChanged() {
     current.autoBan !== cdpSavedState.autoBan ||
     current.threshold !== cdpSavedState.threshold
   );
-  const btn = document.getElementById('save-cdp-config');
-  btn.disabled = !changed || !apiValid;
+  setDirtySaveButtonState('save-cdp-config', changed, apiValid);
 }
 
 function checkRateLimitConfigChanged() {
-  const btn = document.getElementById('save-rate-limit-config');
-  if (!btn) return;
   const apiValid = hasValidApiContext();
   const valueValid = validateIntegerFieldById('rate-limit-threshold');
   const current = parseIntegerLoose('rate-limit-threshold');
   const changed = current !== null && current !== rateLimitSavedState.value;
-  btn.disabled = !changed || !apiValid || !valueValid;
+  setDirtySaveButtonState('save-rate-limit-config', changed, apiValid, valueValid);
 }
 
 document.getElementById('rate-limit-threshold').addEventListener('input', checkRateLimitConfigChanged);
 
 function checkJsRequiredConfigChanged() {
-  const btn = document.getElementById('save-js-required-config');
-  if (!btn) return;
   const apiValid = hasValidApiContext();
   const current = document.getElementById('js-required-enforced-toggle').checked;
   const changed = current !== jsRequiredSavedState.enforced;
-  btn.disabled = !changed || !apiValid;
+  setDirtySaveButtonState('save-js-required-config', changed, apiValid);
 }
 
 document.getElementById('js-required-enforced-toggle').addEventListener('change', checkJsRequiredConfigChanged);
@@ -2123,6 +2137,7 @@ document.getElementById('save-cdp-config').onclick = async function() {
   const cdpThreshold = parseFloat(document.getElementById('cdp-threshold-slider').value);
   
   btn.textContent = 'Saving...';
+  btn.dataset.saving = 'true';
   btn.disabled = true;
   
   try {
@@ -2149,15 +2164,17 @@ document.getElementById('save-cdp-config').onclick = async function() {
       threshold: cdpThreshold
     };
     setTimeout(() => {
+      btn.dataset.saving = 'false';
       btn.textContent = 'Save CDP Settings';
-      btn.disabled = true;
+      checkCdpConfigChanged();
     }, 1500);
   } catch (e) {
+    btn.dataset.saving = 'false';
     btn.textContent = 'Error';
     console.error('Failed to save CDP config:', e);
     setTimeout(() => {
       btn.textContent = 'Save CDP Settings';
-      btn.disabled = false;
+      checkCdpConfigChanged();
     }, 2000);
   }
 };
@@ -2172,6 +2189,7 @@ document.getElementById('save-rate-limit-config').onclick = async function() {
   if (rateLimit === null) return;
 
   btn.textContent = 'Saving...';
+  btn.dataset.saving = 'true';
   btn.disabled = true;
   try {
     const resp = await fetch(endpoint + '/admin/config', {
@@ -2192,12 +2210,14 @@ document.getElementById('save-rate-limit-config').onclick = async function() {
     msg.textContent = 'Rate limit saved';
     msg.className = 'message success';
     btn.textContent = 'Save Rate Limit';
-    btn.disabled = true;
+    btn.dataset.saving = 'false';
+    checkRateLimitConfigChanged();
   } catch (e) {
     msg.textContent = 'Error: ' + e.message;
     msg.className = 'message error';
     btn.textContent = 'Save Rate Limit';
-    btn.disabled = false;
+    btn.dataset.saving = 'false';
+    checkRateLimitConfigChanged();
   }
 };
 
@@ -2210,6 +2230,7 @@ document.getElementById('save-js-required-config').onclick = async function() {
   const enforced = document.getElementById('js-required-enforced-toggle').checked;
 
   btn.textContent = 'Saving...';
+  btn.dataset.saving = 'true';
   btn.disabled = true;
   try {
     const resp = await fetch(endpoint + '/admin/config', {
@@ -2230,12 +2251,14 @@ document.getElementById('save-js-required-config').onclick = async function() {
     msg.textContent = 'JS Required setting saved';
     msg.className = 'message success';
     btn.textContent = 'Save JS Required';
-    btn.disabled = true;
+    btn.dataset.saving = 'false';
+    checkJsRequiredConfigChanged();
   } catch (e) {
     msg.textContent = 'Error: ' + e.message;
     msg.className = 'message error';
     btn.textContent = 'Save JS Required';
-    btn.disabled = false;
+    btn.dataset.saving = 'false';
+    checkJsRequiredConfigChanged();
   }
 };
 
