@@ -100,6 +100,7 @@ Expected: an "Access Blocked" page or a JS verification interstitial.
 If `SHUMA_JS_REQUIRED_ENFORCED=true`, the interstitial is used when no valid `js_verified` cookie is present.
 If `SHUMA_POW_ENABLED=true`, the interstitial performs a short proof‑of‑work step before `js_verified` is issued by `/pow/verify`.
 If `SHUMA_POW_ENABLED=false`, the interstitial sets `js_verified` directly in browser JS.
+After a valid `js_verified` cookie is set, the originally requested page reloads and access is re-evaluated.
 For browser checks, use a private window and confirm the cookie is set after the first visit.
 
 3. Honeypot ban:

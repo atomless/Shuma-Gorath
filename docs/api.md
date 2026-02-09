@@ -57,7 +57,7 @@ Normal routing can enforce a JS verification gate before full access:
 2. That interstitial performs CDP reporting (`POST /cdp-report`) as telemetry.
 3. If `SHUMA_POW_ENABLED=true`, the interstitial solves PoW and submits `POST /pow/verify`.
 4. `/pow/verify` validates the proof and returns `Set-Cookie: js_verified=...`.
-5. The page reloads and the original route is retried with verification now present.
+5. After a valid `js_verified` cookie is set, the page reloads and the original route is retried.
 
 If `SHUMA_POW_ENABLED=false`:
 

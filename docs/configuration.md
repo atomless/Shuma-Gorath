@@ -103,8 +103,10 @@ Effective behavior:
 
 - `JS_REQUIRED=true` + `POW=true`:
   - strongest mode; interstitial requires PoW and server sets `js_verified` on `/pow/verify`.
+  - after a valid `js_verified` cookie is set, the originally requested page reloads and access is re-evaluated.
 - `JS_REQUIRED=true` + `POW=false`:
   - interstitial still runs, but sets `js_verified` directly in browser JS (weaker, lower friction).
+  - after a valid `js_verified` cookie is set, the originally requested page reloads and access is re-evaluated.
 - `JS_REQUIRED=false` + `POW=true/false`:
   - normal routing does not use the JS gate; PoW endpoints can exist but are not on the default access path.
 
