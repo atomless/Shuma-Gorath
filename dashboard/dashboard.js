@@ -63,7 +63,7 @@ const STATUS_DEFINITIONS = [
     title: 'Proof-of-Work (PoW)',
     description: state => (
       'PoW adds a lightweight computational puzzle before JS verification to increase bot cost. ' +
-      'For a human visitor the work happens invisibly, once, in a couple of milliseconds. For a scraper or botnet, having to repeatedly perform the work accumulates a prohibitive cost.'
+      'For a human visitor the work happens invisibly, once, in a couple of milliseconds. For a scraper or botnet, having to repeatedly perform the work accumulates a prohibitive cost.' +
       `Primary controls are ${envVar('SHUMA_POW_ENABLED')}, ${envVar('SHUMA_POW_DIFFICULTY')}, and ${envVar('SHUMA_POW_TTL_SECONDS')}. ` +
       `Runtime editability is controlled by ${envVar('SHUMA_POW_CONFIG_MUTABLE')} and is currently ${formatMutability(state.powMutable)}.`
     ),
@@ -83,8 +83,8 @@ const STATUS_DEFINITIONS = [
     description: () => (
       `Detects browser automation fingerprints. Primary controls: ${envVar('SHUMA_CDP_DETECTION_ENABLED')}, ` +
       `${envVar('SHUMA_CDP_AUTO_BAN')}, and ${envVar('SHUMA_CDP_DETECTION_THRESHOLD')}. ` +
-      `Automatic bans are triggered only for <strong>strong</strong> CDP detections (for example, hard checks like <code>webdriver</code> or <code>automation_props</code>). ` +
-      `${envVar('SHUMA_CDP_DETECTION_THRESHOLD')} is only checked when those hard checks are not present; in that case, a high score can still be treated as strong automation.`
+      `Hard checks like <code>webdriver</code> or <code>automation_props</code> are classified as <strong>strong</strong> CDP detections. ` +
+      `If hard checks are absent, ${envVar('SHUMA_CDP_DETECTION_THRESHOLD')} is used to tier the score; strong-tier detections can trigger automatic bans when ${envVar('SHUMA_CDP_AUTO_BAN')} is enabled.`
     ),
     status: state => boolStatus(state.cdpEnabled)
   },
