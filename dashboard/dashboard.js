@@ -553,6 +553,51 @@ function updateEventsTable(events) {
   }
 }
 
+function extractCdpField(text, key) {
+  const match = new RegExp(`${key}=([^\\s]+)`, 'i').exec(text || '');
+  return match ? match[1] : '-';
+}
+
+function updateCdpEventsTable(events) {
+  const tbody = document.querySelector('#cdp-events tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const cdpEvents = (events || []).filter(ev => {
+    const reason = (ev.reason || '').toLowerCase();
+    return reason.startsWith('cdp_detected:') || reason === 'cdp_automation';
+  });
+
+  if (cdpEvents.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #6b7280;">No CDP detections or auto-bans in the selected window</td></tr>';
+    return;
+  }
+
+  for (const ev of cdpEvents) {
+    const reason = ev.reason || '';
+    const reasonLower = reason.toLowerCase();
+    const outcome = ev.outcome || '-';
+    const isBan = reasonLower === 'cdp_automation';
+    const tierSource = isBan ? outcome : reason;
+    const tier = extractCdpField(tierSource, 'tier').toUpperCase();
+    const score = extractCdpField(tierSource, 'score');
+    const details = isBan
+      ? `Auto-ban: ${outcome}`
+      : (outcome.toLowerCase().startsWith('checks:') ? outcome.replace(/^checks:/i, 'Checks: ') : outcome);
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(ev.ts * 1000).toLocaleString()}</td>
+      <td><code>${ev.ip || '-'}</code></td>
+      <td><span class="badge ${isBan ? 'ban' : 'challenge'}">${isBan ? 'BAN' : 'DETECTION'}</span></td>
+      <td>${tier}</td>
+      <td>${score}</td>
+      <td>${details}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
 // Update maze stats section
 function updateMazeStats(data) {
   document.getElementById('maze-total-hits').textContent = 
@@ -1452,28 +1497,6 @@ document.getElementById('save-cdp-config').onclick = async function() {
   }
 };
 
-// Fetch CDP stats from admin endpoint
-async function refreshCdpStats() {
-  const endpoint = document.getElementById('endpoint').value.replace(/\/$/, '');
-  const apikey = document.getElementById('apikey').value;
-  
-  try {
-    const resp = await fetch(endpoint + '/admin/cdp', {
-      headers: { 'Authorization': 'Bearer ' + apikey }
-    });
-    
-    if (!resp.ok) return;
-    
-    const data = await resp.json();
-    if (data.stats) {
-      document.getElementById('cdp-total-detections').textContent = data.stats.total_detections || 0;
-      document.getElementById('cdp-auto-bans').textContent = data.stats.auto_bans || 0;
-    }
-  } catch (e) {
-    console.error('Failed to load CDP stats:', e);
-  }
-}
-
 // Main refresh function
 document.getElementById('refresh').onclick = async function() {
   const endpoint = document.getElementById('endpoint').value.replace(/\/$/, '');
@@ -1518,6 +1541,7 @@ document.getElementById('refresh').onclick = async function() {
     updateTimeSeriesChart();
     updateBansTable(bansData.bans || []);
     updateEventsTable(events.recent_events || []);
+    updateCdpEventsTable(events.recent_events || []);
     
     // Update maze stats
     if (mazeData) {
@@ -1542,9 +1566,6 @@ document.getElementById('refresh').onclick = async function() {
     } catch (e) {
       console.error('Failed to load config:', e);
     }
-    
-    // Fetch CDP stats
-    refreshCdpStats();
     
     // Update last updated time
     document.getElementById('last-updated').textContent = 

@@ -90,6 +90,26 @@
       </div>
     </div>
 
+    <!-- CDP Detections & Bans -->
+    <div class="section events">
+      <h2>CDP Detections & Bans (24h)</h2>
+      <div class="table-wrapper">
+        <table id="cdp-events" class="panel panel-border">
+          <thead>
+            <tr>
+              <th class="caps-label">Time</th>
+              <th class="caps-label">IP</th>
+              <th class="caps-label">Type</th>
+              <th class="caps-label">Tier</th>
+              <th class="caps-label">Score</th>
+              <th class="caps-label">Details</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Maze Activity Section -->
     <div class="section maze-section panel panel-border pad-md">
       <h2>Link Maze Honeypot</h2>
@@ -261,28 +281,31 @@
             </div>
             <div class="control-group panel-soft pad-md">
               <h3>GEO Policy</h3>
-              <p class="control-desc text-muted">Use <a href="https://www.iban.com/country-codes">2-letter country codes</a> (comma separated). Precedence: Block > Maze > Challenge > Allow.</p>
+              <p class="control-desc text-muted">Use <a href="https://www.iban.com/country-codes">2-letter country codes</a> (comma separated: CA, BR, IN,...).</p>
+              <h4>GEO Risk Based Scoring</h4>
               <div class="admin-controls geo-controls">
                 <div class="geo-field">
-                  <label class="control-label" for="geo-risk-list">Scoring Countries</label>
+                  <label class="control-label" for="geo-risk-list">Countries to be treated as contributing to combined "botness" score.</label>
                   <textarea class="input-field geo-textarea" id="geo-risk-list" rows="1" aria-label="GEO scoring countries" spellcheck="false"></textarea>
                 </div>
                 <div class="geo-divider" role="separator" aria-hidden="true"></div>
+                <h4>GEO Risk Based Routing</h4>
+                <p class="control-desc geo-controls">Precedence: Block > Maze > Challenge > Allow.</p>
                 <div class="geo-field">
-                  <label class="control-label" for="geo-allow-list">Allow Countries</label>
-                  <textarea class="input-field geo-textarea" id="geo-allow-list" rows="1" aria-label="GEO allow countries" spellcheck="false"></textarea>
-                </div>
-                <div class="geo-field">
-                  <label class="control-label" for="geo-challenge-list">Challenge Countries</label>
-                  <textarea class="input-field geo-textarea" id="geo-challenge-list" rows="1" aria-label="GEO challenge countries" spellcheck="false"></textarea>
+                  <label class="control-label" for="geo-block-list">Block Countries</label>
+                  <textarea class="input-field geo-textarea" id="geo-block-list" rows="1" aria-label="GEO block countries" spellcheck="false"></textarea>
                 </div>
                 <div class="geo-field">
                   <label class="control-label" for="geo-maze-list">Maze Countries</label>
                   <textarea class="input-field geo-textarea" id="geo-maze-list" rows="1" aria-label="GEO maze countries" spellcheck="false"></textarea>
                 </div>
                 <div class="geo-field">
-                  <label class="control-label" for="geo-block-list">Block Countries</label>
-                  <textarea class="input-field geo-textarea" id="geo-block-list" rows="1" aria-label="GEO block countries" spellcheck="false"></textarea>
+                  <label class="control-label" for="geo-challenge-list">Challenge Countries</label>
+                  <textarea class="input-field geo-textarea" id="geo-challenge-list" rows="1" aria-label="GEO challenge countries" spellcheck="false"></textarea>
+                </div>
+                <div class="geo-field">
+                  <label class="control-label" for="geo-allow-list">Allow Countries</label>
+                  <textarea class="input-field geo-textarea" id="geo-allow-list" rows="1" aria-label="GEO allow countries" spellcheck="false"></textarea>
                 </div>
               </div>
               <button id="save-geo-config" class="btn btn-submit" disabled>Save GEO Settings</button>
@@ -319,17 +342,6 @@
                 </div>
               </div>
               <button id="save-cdp-config" class="btn btn-submit" disabled>Save CDP Settings</button>
-              <div id="cdp-stats" class="info-panel panel-muted pad-sm">
-                <h4>Detection Stats</h4>
-                <div class="info-row">
-                  <span class="info-label text-muted">Total Detections:</span>
-                  <span id="cdp-total-detections">0</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label text-muted">Auto-bans:</span>
-                  <span id="cdp-auto-bans">0</span>
-                </div>
-              </div>
             </div>
             <div class="control-group panel-soft pad-md">
               <h3>Proof-of-Work (PoW)</h3>
