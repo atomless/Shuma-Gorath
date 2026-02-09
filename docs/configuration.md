@@ -92,6 +92,22 @@ curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
 - `SHUMA_TEST_MODE` - Log-only mode (`true/false`, `1/0`)
 - `SHUMA_JS_REQUIRED_ENFORCED` - Enable/disable JS-required enforcement (`true/false`, `1/0`)
 
+## 🐙 JS Verification + PoW Interaction
+
+These controls are related but not identical:
+
+- `SHUMA_JS_REQUIRED_ENFORCED` controls whether normal request routing enforces the JS verification gate.
+- `SHUMA_POW_ENABLED` controls whether that JS gate requires server-verified PoW before issuing `js_verified`.
+
+Effective behavior:
+
+- `JS_REQUIRED=true` + `POW=true`:
+  - strongest mode; interstitial requires PoW and server sets `js_verified` on `/pow/verify`.
+- `JS_REQUIRED=true` + `POW=false`:
+  - interstitial still runs, but sets `js_verified` directly in browser JS (weaker, lower friction).
+- `JS_REQUIRED=false` + `POW=true/false`:
+  - normal routing does not use the JS gate; PoW endpoints can exist but are not on the default access path.
+
 ## 🐙 Full Runtime Config Via Env Vars
 
 All runtime config fields can be set with env vars:

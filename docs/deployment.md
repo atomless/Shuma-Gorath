@@ -15,6 +15,12 @@ Shuma-Gorath is designed to **complement enterprise bot defenses** (such as Akam
 - `SHUMA_KV_STORE_FAIL_OPEN` - `true` (default) or `false`
 - `SHUMA_DEBUG_HEADERS` - Optional; expose internal health/fail-mode headers (dev only)
 
+JS/PoW deployment recommendation:
+
+- Keep `SHUMA_JS_REQUIRED_ENFORCED=true` in production.
+- Keep `SHUMA_POW_ENABLED=true` for stronger, server-verified JS gate completion.
+- Setting `SHUMA_JS_REQUIRED_ENFORCED=false` bypasses JS gate routing even if PoW endpoints are enabled.
+
 `SHUMA_ADMIN_PAGE_CONFIG=false` makes runtime config fully env-driven and disables `POST /admin/config`.
 Use this for immutable infrastructure-style deployments.
 

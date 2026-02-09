@@ -96,8 +96,10 @@ curl -i -H "X-Forwarded-For: 1.2.3.4" \
   -H "X-Shuma-Forwarded-Secret: $SHUMA_FORWARDED_IP_SECRET" \
   http://127.0.0.1:3000/
 ```
-Expected: an "Access Blocked" page or a JS challenge that sets a `js_verified` cookie.
-If `SHUMA_POW_ENABLED` is true, the JS challenge performs a short proof‑of‑work step first.
+Expected: an "Access Blocked" page or a JS verification interstitial.
+If `SHUMA_JS_REQUIRED_ENFORCED=true`, the interstitial is used when no valid `js_verified` cookie is present.
+If `SHUMA_POW_ENABLED=true`, the interstitial performs a short proof‑of‑work step before `js_verified` is issued by `/pow/verify`.
+If `SHUMA_POW_ENABLED=false`, the interstitial sets `js_verified` directly in browser JS.
 For browser checks, use a private window and confirm the cookie is set after the first visit.
 
 3. Honeypot ban:

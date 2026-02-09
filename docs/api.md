@@ -49,6 +49,26 @@ Challenge submit responses:
 - `403` - Expired/replay (`Expired` + `Request new challenge.` link)
 - `403` - Invalid token/signature/IP binding (`Forbidden. Please request a new challenge.` + link)
 
+### 🐙 JS Verification and PoW Flow
+
+Normal routing can enforce a JS verification gate before full access:
+
+1. If `js_required_enforced=true` and the request has no valid `js_verified` cookie, the server returns an inline JS verification interstitial for the requested path.
+2. That interstitial performs CDP reporting (`POST /cdp-report`) as telemetry.
+3. If `SHUMA_POW_ENABLED=true`, the interstitial solves PoW and submits `POST /pow/verify`.
+4. `/pow/verify` validates the proof and returns `Set-Cookie: js_verified=...`.
+5. The page reloads and the original route is retried with verification now present.
+
+If `SHUMA_POW_ENABLED=false`:
+
+- the same interstitial still runs, but it sets `js_verified` directly in browser JS and reloads.
+- this is lower-friction but weaker than server-verified PoW issuance.
+
+If `js_required_enforced=false`:
+
+- normal routing does not send visitors through the JS verification interstitial.
+- `/pow` and `/pow/verify` still exist, but they are not part of the default access gate.
+
 ### 🐙 Health Check Example
 
 ```bash
