@@ -633,6 +633,10 @@ code.env-var {
   margin-bottom: 10px;
 }
 
+.input-field[aria-invalid="true"] {
+  border-color: var(--color-error);
+}
+
 /* Buttons inside control groups inherit .btn base via HTML;
    full-width override for the control-group context */
 .control-group .btn {
@@ -657,6 +661,30 @@ code.env-var {
 
 .control-desc-spaced {
   margin-top: 12px;
+}
+
+.field-error {
+  display: none;
+  width: 100%;
+  margin-top: 6px;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--color-error);
+}
+
+.field-error.visible {
+  display: block;
+}
+
+.input-row .field-error,
+.toggle-row .field-error {
+  grid-column: 1 / -1;
+}
+
+.config .field-error {
+  flex: 1 1 100%;
+  margin-top: -2px;
+  margin-bottom: 2px;
 }
 
 /* ===========================================

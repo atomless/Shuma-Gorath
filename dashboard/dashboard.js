@@ -75,6 +75,48 @@ function sanitizeEndpointText(value) {
   return (value || '').replace(/\s+/g, '').trim();
 }
 
+function fieldErrorIdFor(input) {
+  const raw = input.id || input.name || 'field';
+  return `field-error-${raw.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+}
+
+function getOrCreateFieldErrorElement(input) {
+  if (!input || !input.parentElement) return null;
+  const id = fieldErrorIdFor(input);
+  let errorEl = document.getElementById(id);
+  if (!errorEl || errorEl.dataset.fieldFor !== input.id) {
+    errorEl = document.createElement('div');
+    errorEl.id = id;
+    errorEl.className = 'field-error';
+    errorEl.dataset.fieldFor = input.id || '';
+    errorEl.setAttribute('aria-live', 'polite');
+    input.insertAdjacentElement('afterend', errorEl);
+  }
+  if (input.getAttribute('aria-describedby') !== id) {
+    input.setAttribute('aria-describedby', id);
+  }
+  return errorEl;
+}
+
+function setFieldError(input, message, showInline = true) {
+  if (!input) return;
+  input.setCustomValidity(message || '');
+  if (!showInline) return;
+
+  const errorEl = getOrCreateFieldErrorElement(input);
+  if (!errorEl) return;
+  if (message) {
+    input.setAttribute('aria-invalid', 'true');
+    errorEl.textContent = message;
+    errorEl.classList.add('visible');
+    return;
+  }
+
+  input.removeAttribute('aria-invalid');
+  errorEl.textContent = '';
+  errorEl.classList.remove('visible');
+}
+
 function parseIntegerLoose(id) {
   const input = document.getElementById(id);
   const rules = INTEGER_FIELD_RULES[id];
@@ -85,25 +127,6 @@ function parseIntegerLoose(id) {
   const parsed = Number.parseInt(sanitized, 10);
   if (!Number.isInteger(parsed)) return null;
   return parsed;
-}
-
-function showValidationMessage(target, message) {
-  if (!target) return;
-  if (target.id === 'last-updated') {
-    target.textContent = message;
-    target.style.color = '#ef4444';
-    return;
-  }
-  target.textContent = message;
-  target.className = 'message error';
-}
-
-function clearValidationMessage(target) {
-  if (!target || target.id === 'last-updated') return;
-  if (target.className && target.className.includes('error')) {
-    target.textContent = '';
-    target.className = 'message';
-  }
 }
 
 function isValidIpv4(value) {
@@ -148,20 +171,20 @@ function parseEndpointUrl(value) {
   }
 }
 
-function validateIntegerFieldById(id) {
+function validateIntegerFieldById(id, showInline = false) {
   const input = document.getElementById(id);
   const rules = INTEGER_FIELD_RULES[id];
   if (!input || !rules) return false;
   const parsed = parseIntegerLoose(id);
   if (parsed === null) {
-    input.setCustomValidity(`${rules.label} is required.`);
+    setFieldError(input, `${rules.label} is required.`, showInline);
     return false;
   }
   if (parsed < rules.min || parsed > rules.max) {
-    input.setCustomValidity(`${rules.label} must be between ${rules.min} and ${rules.max}.`);
+    setFieldError(input, `${rules.label} must be between ${rules.min} and ${rules.max}.`, showInline);
     return false;
   }
-  input.setCustomValidity('');
+  setFieldError(input, '', showInline);
   return true;
 }
 
@@ -169,23 +192,22 @@ function readIntegerFieldValue(id, messageTarget) {
   const input = document.getElementById(id);
   const rules = INTEGER_FIELD_RULES[id];
   if (!input || !rules) return null;
-  if (!validateIntegerFieldById(id)) {
+  if (!validateIntegerFieldById(id, true)) {
     const parsed = parseIntegerLoose(id);
     const message = parsed === null
       ? `${rules.label} is required.`
       : `${rules.label} must be between ${rules.min} and ${rules.max}.`;
-    if (messageTarget) showValidationMessage(messageTarget, message);
     input.reportValidity();
     input.focus();
     return null;
   }
   const value = parseIntegerLoose(id);
   input.value = String(value);
-  input.setCustomValidity('');
+  setFieldError(input, '', true);
   return value;
 }
 
-function validateIpFieldById(id, required, label) {
+function validateIpFieldById(id, required, label, showInline = false) {
   const input = document.getElementById(id);
   if (!input) return false;
   const sanitized = sanitizeIpText(input.value.trim());
@@ -193,55 +215,54 @@ function validateIpFieldById(id, required, label) {
 
   if (!sanitized) {
     if (!required) {
-      input.setCustomValidity('');
+      setFieldError(input, '', showInline);
       return true;
     }
-    input.setCustomValidity(`${label} is required.`);
+    setFieldError(input, `${label} is required.`, showInline);
     return false;
   }
 
   if (!isValidIpAddress(sanitized)) {
-    input.setCustomValidity(`${label} must be a valid IPv4 or IPv6 address.`);
+    setFieldError(input, `${label} must be a valid IPv4 or IPv6 address.`, showInline);
     return false;
   }
-  input.setCustomValidity('');
+  setFieldError(input, '', showInline);
   return true;
 }
 
 function readIpFieldValue(id, required, messageTarget, label) {
   const input = document.getElementById(id);
   if (!input) return null;
-  if (!validateIpFieldById(id, required, label)) {
+  if (!validateIpFieldById(id, required, label, true)) {
     const sanitized = sanitizeIpText(input.value.trim());
     const message = sanitized.length === 0
       ? `${label} is required.`
       : `${label} must be a valid IPv4 or IPv6 address.`;
-    if (messageTarget) showValidationMessage(messageTarget, message);
     input.reportValidity();
     input.focus();
     return null;
   }
   const sanitized = sanitizeIpText(input.value.trim());
   input.value = sanitized;
-  input.setCustomValidity('');
+  setFieldError(input, '', true);
   return sanitized;
 }
 
-function validateEndpointInput() {
+function validateEndpointInput(showInline = false) {
   const endpointInput = document.getElementById('endpoint');
   if (!endpointInput) return null;
   const sanitized = sanitizeEndpointText(endpointInput.value);
   if (endpointInput.value !== sanitized) endpointInput.value = sanitized;
   const endpoint = parseEndpointUrl(sanitized);
-  endpointInput.setCustomValidity(endpoint ? '' : 'Enter a valid http(s) API endpoint URL.');
+  setFieldError(endpointInput, endpoint ? '' : 'Enter a valid http(s) API endpoint URL.', showInline);
   return endpoint;
 }
 
-function validateApiKeyInput() {
+function validateApiKeyInput(showInline = false) {
   const apikeyInput = document.getElementById('apikey');
   if (!apikeyInput) return false;
   const apikey = (apikeyInput.value || '').trim();
-  apikeyInput.setCustomValidity(apikey ? '' : 'API key is required.');
+  setFieldError(apikeyInput, apikey ? '' : 'API key is required.', showInline);
   return Boolean(apikey);
 }
 
@@ -251,15 +272,15 @@ function hasValidApiContext() {
   return Boolean(endpoint && hasKey);
 }
 
-function validateGeoFieldById(id) {
+function validateGeoFieldById(id, showInline = false) {
   const field = document.getElementById(id);
   if (!field) return false;
   try {
     parseCountryCodesStrict(field.value);
-    field.setCustomValidity('');
+    setFieldError(field, '', showInline);
     return true;
   } catch (e) {
-    field.setCustomValidity(e.message || 'Invalid country list.');
+    setFieldError(field, e.message || 'Invalid country list.', showInline);
     return false;
   }
 }
@@ -316,9 +337,8 @@ function refreshCoreActionButtonsState() {
 function getAdminContext(messageTarget) {
   const endpointInput = document.getElementById('endpoint');
   const apikeyInput = document.getElementById('apikey');
-  const endpoint = validateEndpointInput();
+  const endpoint = validateEndpointInput(true);
   if (!endpoint) {
-    if (messageTarget) showValidationMessage(messageTarget, 'Enter a valid http(s) API endpoint URL.');
     endpointInput.reportValidity();
     endpointInput.focus();
     refreshCoreActionButtonsState();
@@ -326,8 +346,7 @@ function getAdminContext(messageTarget) {
   }
 
   const apikey = (apikeyInput.value || '').trim();
-  if (!validateApiKeyInput()) {
-    if (messageTarget) showValidationMessage(messageTarget, 'API key is required.');
+  if (!validateApiKeyInput(true)) {
     apikeyInput.reportValidity();
     apikeyInput.focus();
     refreshCoreActionButtonsState();
@@ -335,9 +354,8 @@ function getAdminContext(messageTarget) {
   }
 
   endpointInput.value = endpoint;
-  endpointInput.setCustomValidity('');
-  apikeyInput.setCustomValidity('');
-  if (messageTarget) clearValidationMessage(messageTarget);
+  setFieldError(endpointInput, '', true);
+  setFieldError(apikeyInput, '', true);
   refreshCoreActionButtonsState();
   return { endpoint, apikey };
 }
@@ -347,27 +365,27 @@ function bindIntegerFieldValidation(id) {
   const rules = INTEGER_FIELD_RULES[id];
   if (!input || !rules) return;
 
-  const apply = () => {
+  const apply = (showInline = false) => {
     const sanitized = sanitizeIntegerText(input.value);
     if (input.value !== sanitized) input.value = sanitized;
     if (!sanitized) {
-      input.setCustomValidity(`${rules.label} is required.`);
+      setFieldError(input, `${rules.label} is required.`, showInline);
       return;
     }
     const parsed = Number.parseInt(sanitized, 10);
     if (!Number.isInteger(parsed)) {
-      input.setCustomValidity(`${rules.label} must be a whole number.`);
+      setFieldError(input, `${rules.label} must be a whole number.`, showInline);
       return;
     }
     if (parsed < rules.min || parsed > rules.max) {
-      input.setCustomValidity(`${rules.label} must be between ${rules.min} and ${rules.max}.`);
+      setFieldError(input, `${rules.label} must be between ${rules.min} and ${rules.max}.`, showInline);
       return;
     }
-    input.setCustomValidity('');
+    setFieldError(input, '', showInline);
   };
 
   input.addEventListener('input', () => {
-    apply();
+    apply(true);
     refreshCoreActionButtonsState();
   });
   input.addEventListener('blur', () => {
@@ -377,58 +395,58 @@ function bindIntegerFieldValidation(id) {
     const parsed = parseIntegerLoose(id);
     if (parsed !== null && parsed < rules.min) input.value = String(rules.min);
     if (parsed !== null && parsed > rules.max) input.value = String(rules.max);
-    apply();
+    apply(true);
     refreshCoreActionButtonsState();
   });
-  apply();
+  apply(false);
 }
 
 function bindIpFieldValidation(id, required, label) {
   const input = document.getElementById(id);
   if (!input) return;
-  const apply = () => {
-    validateIpFieldById(id, required, label);
+  const apply = (showInline = false) => {
+    validateIpFieldById(id, required, label, showInline);
   };
   input.addEventListener('input', () => {
-    apply();
+    apply(true);
     refreshCoreActionButtonsState();
   });
   input.addEventListener('blur', () => {
-    apply();
+    apply(true);
     refreshCoreActionButtonsState();
   });
-  apply();
+  apply(false);
 }
 
 function bindEndpointFieldValidation() {
   const input = document.getElementById('endpoint');
   if (!input) return;
-  const apply = () => validateEndpointInput();
+  const apply = (showInline = false) => validateEndpointInput(showInline);
   input.addEventListener('input', () => {
-    apply();
+    apply(true);
     refreshCoreActionButtonsState();
   });
   input.addEventListener('blur', () => {
-    const endpoint = validateEndpointInput();
+    const endpoint = validateEndpointInput(true);
     if (endpoint) input.value = endpoint;
     refreshCoreActionButtonsState();
   });
-  apply();
+  apply(false);
 }
 
 function bindApiKeyFieldValidation() {
   const input = document.getElementById('apikey');
   if (!input) return;
-  const apply = () => validateApiKeyInput();
+  const apply = (showInline = false) => validateApiKeyInput(showInline);
   input.addEventListener('input', () => {
-    apply();
+    apply(true);
     refreshCoreActionButtonsState();
   });
   input.addEventListener('blur', () => {
-    apply();
+    apply(true);
     refreshCoreActionButtonsState();
   });
-  apply();
+  apply(false);
 }
 
 function initInputValidation() {
@@ -1700,12 +1718,12 @@ GEO_FIELD_IDS.forEach(id => {
         field.setSelectionRange(next, next);
       }
     }
-    validateGeoFieldById(id);
+    validateGeoFieldById(id, true);
     checkGeoConfigChanged();
     refreshCoreActionButtonsState();
   });
   field.addEventListener('blur', () => {
-    validateGeoFieldById(id);
+    validateGeoFieldById(id, true);
     checkGeoConfigChanged();
     refreshCoreActionButtonsState();
   });
