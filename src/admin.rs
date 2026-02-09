@@ -285,6 +285,7 @@ mod admin_config_tests {
     #[test]
     fn admin_config_updates_geo_policy_lists() {
         let _lock = ENV_MUTEX.lock().unwrap();
+        std::env::set_var("SHUMA_CONFIG_MODE", "hybrid");
         let store = TestStore::default();
 
         let body = br#"{
@@ -316,6 +317,7 @@ mod admin_config_tests {
         assert_eq!(get_json.get("geo_challenge").unwrap(), &serde_json::json!(["BR"]));
         assert_eq!(get_json.get("geo_maze").unwrap(), &serde_json::json!(["RU"]));
         assert_eq!(get_json.get("geo_block").unwrap(), &serde_json::json!(["KP"]));
+        std::env::remove_var("SHUMA_CONFIG_MODE");
     }
 }
 

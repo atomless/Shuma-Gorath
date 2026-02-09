@@ -164,8 +164,8 @@ pub enum ConfigMode {
 
 pub(crate) fn parse_config_mode(value: Option<&str>) -> ConfigMode {
     match value.map(|v| v.trim().to_ascii_lowercase()).as_deref() {
-        Some("env_only") => ConfigMode::EnvOnly,
-        _ => ConfigMode::Hybrid,
+        Some("hybrid") => ConfigMode::Hybrid,
+        _ => ConfigMode::EnvOnly,
     }
 }
 

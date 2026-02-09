@@ -2,8 +2,8 @@
 
 Shuma-Gorath supports two config source modes controlled by `SHUMA_CONFIG_MODE`:
 
-- `hybrid` (default): load from KV (`config:<site_id>`) and then apply env var overrides.
-- `env_only`: ignore KV, build config from defaults + env vars only.
+- `env_only` (default): ignore KV, build config from defaults + env vars only.
+- `hybrid`: load from KV (`config:<site_id>`) and then apply env var overrides.
 
 In `env_only`, `POST /admin/config` is disabled and returns `403`.
 
@@ -27,7 +27,7 @@ environment = {
   SHUMA_FORWARDED_IP_SECRET = "changeme-prod-forwarded-ip-secret",
   SHUMA_ADMIN_IP_ALLOWLIST = "",
   SHUMA_EVENT_LOG_RETENTION_HOURS = "168",
-  SHUMA_CONFIG_MODE = "hybrid",
+  SHUMA_CONFIG_MODE = "env_only",
   SHUMA_KV_STORE_FAIL_MODE = "open",
   SHUMA_DEBUG_HEADERS = "false",
   SHUMA_TEST_MODE = "false",
@@ -88,7 +88,7 @@ curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
 
 ## 🐙 Core Mode & Policy Env Vars
 
-- `SHUMA_CONFIG_MODE` - `hybrid` (default) or `env_only`
+- `SHUMA_CONFIG_MODE` - `env_only` (default) or `hybrid`
 - `SHUMA_KV_STORE_FAIL_MODE` - `open` or `closed` when KV is unavailable
 - `SHUMA_TEST_MODE` - Log-only mode (`true/false`, `1/0`)
 
@@ -172,6 +172,7 @@ Supporting control vars:
 - `SHUMA_POW_DIFFICULTY` and `SHUMA_POW_TTL_SECONDS` are always env-controlled unless `SHUMA_POW_CONFIG_MUTABLE=1`.
 - `SHUMA_CHALLENGE_RISK_THRESHOLD`, `SHUMA_BOTNESS_MAZE_THRESHOLD`, and `SHUMA_BOTNESS_WEIGHT_*` are env-controlled unless `SHUMA_BOTNESS_CONFIG_MUTABLE=true` (or legacy fallback `SHUMA_CHALLENGE_CONFIG_MUTABLE=true`).
 - In `env_only`, admin writes are blocked regardless of mutability flags.
+- Local `make dev` sets `SHUMA_CONFIG_MODE=hybrid` by default for easier dashboard testing.
 
 ## 🐙 Example Config (Partial)
 

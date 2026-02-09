@@ -590,6 +590,11 @@ code.env-var {
   color: var(--heading-fg);
 }
 
+.admin-group-subtitle {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
 .controls-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));

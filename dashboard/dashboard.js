@@ -46,6 +46,31 @@ function envVar(name) {
   return `<code class="env-var">${name}</code>`;
 }
 
+function normalizeConfigMode(value) {
+  const mode = String(value || '').toLowerCase();
+  if (mode === 'hybrid') return 'hybrid';
+  return 'env_only';
+}
+
+function adminConfigEnabledForMode(mode) {
+  return normalizeConfigMode(mode) === 'hybrid';
+}
+
+function updateConfigModeUi(config) {
+  const mode = normalizeConfigMode(config && config.config_mode);
+  const enabled = adminConfigEnabledForMode(mode);
+  const subtitle = document.getElementById('config-mode-subtitle');
+  if (subtitle) {
+    subtitle.innerHTML =
+      `Controlled by ${envVar('SHUMA_CONFIG_MODE')}. Admin config is <strong>${enabled ? 'ENABLED' : 'DISABLED'}</strong> ` +
+      `(${mode === 'hybrid' ? 'HYBRID' : 'ENV_ONLY'}).`;
+  }
+
+  document.querySelectorAll('.config-edit-pane').forEach(el => {
+    el.classList.toggle('hidden', !enabled);
+  });
+}
+
 const STATUS_DEFINITIONS = [
   {
     title: 'Fail Mode Policy',
@@ -656,7 +681,7 @@ function updateMazeConfig(config) {
 }
 
 function updateGeoConfig(config) {
-  const configMode = String(config.config_mode || 'hybrid').toLowerCase();
+  const configMode = normalizeConfigMode(config.config_mode);
   const mutable = configMode !== 'env_only';
   const risk = formatCountryCodes(config.geo_risk);
   const allow = formatCountryCodes(config.geo_allow);
@@ -1582,6 +1607,7 @@ document.getElementById('refresh').onclick = async function() {
       });
       if (configResp.ok) {
         const config = await configResp.json();
+        updateConfigModeUi(config);
         updateBanDurations(config);
         updateMazeConfig(config);
         updateGeoConfig(config);

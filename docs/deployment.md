@@ -11,7 +11,7 @@ Shuma-Gorath is designed to **complement enterprise bot defenses** (such as Akam
 - `SHUMA_FORWARDED_IP_SECRET` - Required when trusting `X-Forwarded-For`
 - `SHUMA_ADMIN_IP_ALLOWLIST` - Optional; CIDR/IP allowlist for admin access
 - `SHUMA_EVENT_LOG_RETENTION_HOURS` - Event retention window
-- `SHUMA_CONFIG_MODE` - `hybrid` (default) or `env_only`
+- `SHUMA_CONFIG_MODE` - `env_only` (default) or `hybrid`
 - `SHUMA_KV_STORE_FAIL_MODE` - `open` (default) or `closed`
 - `SHUMA_DEBUG_HEADERS` - Optional; expose internal health/fail-mode headers (dev only)
 
@@ -119,4 +119,10 @@ If you set `SHUMA_FORWARDED_IP_SECRET`, you must inject the matching `X-Shuma-Fo
 
 ```bash
 make dev SHUMA_FORWARDED_IP_SECRET="your-dev-secret" SHUMA_API_KEY="your-dev-api-key"
+```
+
+`make dev` also sets `SHUMA_CONFIG_MODE=hybrid` by default. To preview ENV-only behavior locally:
+
+```bash
+make dev DEV_CONFIG_MODE=env_only
 ```

@@ -194,6 +194,9 @@
 
         <section class="admin-group">
           <h3 class="admin-group-title">Config</h3>
+          <p id="config-mode-subtitle" class="admin-group-subtitle text-muted">
+            Controlled by <code class="env-var">SHUMA_CONFIG_MODE</code>. Admin config is <strong>LOADING</strong>.
+          </p>
           <div class="controls-grid controls-grid--config">
             <div class="control-group panel-soft pad-md">
               <h3>API Access</h3>
@@ -205,7 +208,7 @@
                 <button id="refresh" class="btn" aria-label="Refresh dashboard">Refresh</button>
               </div>
             </div>
-            <div class="control-group panel-soft pad-md">
+            <div class="control-group panel-soft pad-md config-edit-pane hidden">
               <h3>Test Mode</h3>
               <p class="control-desc text-muted">When enabled, logs actions without blocking users</p>
               <div class="admin-controls">
@@ -219,7 +222,7 @@
               </div>
               <span id="test-mode-status" class="text-muted status-value">LOADING...</span>
             </div>
-            <div class="control-group panel-soft pad-md">
+            <div class="control-group panel-soft pad-md config-edit-pane hidden">
               <h3>AI Training Opt-Out Policy</h3>
               <p class="control-desc text-muted">Declare crawling policies via robots.txt (advisory, not enforcement)</p>
               <div class="admin-controls">
@@ -266,7 +269,7 @@
                 <pre id="robots-preview-content"></pre>
               </div>
             </div>
-            <div class="control-group panel-soft pad-md">
+            <div class="control-group panel-soft pad-md config-edit-pane hidden">
               <h3>Link Maze</h3>
               <p class="control-desc text-muted">Honeypot trap for crawlers</p>
               <div class="admin-controls">
@@ -291,7 +294,7 @@
               </div>
               <button id="save-maze-config" class="btn btn-submit">Save Maze Settings</button>
             </div>
-            <div class="control-group panel-soft pad-md">
+            <div class="control-group panel-soft pad-md config-edit-pane hidden">
               <h3>GEO Policy</h3>
               <p class="control-desc text-muted">Use <a href="https://www.iban.com/country-codes">2-letter country codes</a> (comma separated: CA, BR, IN,...).</p>
               <h4>GEO Risk Based Scoring</h4>
@@ -322,7 +325,7 @@
               </div>
               <button id="save-geo-config" class="btn btn-submit" disabled>Save GEO Settings</button>
             </div>
-            <div class="control-group panel-soft pad-md">
+            <div class="control-group panel-soft pad-md config-edit-pane hidden">
               <h3>CDP (Detect Browser Automation)</h3>
               <p class="control-desc text-muted">Detects bots controlling browsers on behalf of human users (Puppeteer, Playwright,
                 Selenium, etc.)</p>
@@ -355,7 +358,7 @@
               </div>
               <button id="save-cdp-config" class="btn btn-submit" disabled>Save CDP Settings</button>
             </div>
-            <div class="control-group panel-soft pad-md">
+            <div class="control-group panel-soft pad-md config-edit-pane hidden">
               <h3>Proof-of-Work (PoW)</h3>
               <p class="control-desc text-muted">Lightweight PoW before JS verification (tunable when allowed)</p>
               <div class="admin-controls">
@@ -370,7 +373,7 @@
               </div>
               <button id="save-pow-config" class="btn btn-submit" disabled>Save PoW Settings</button>
             </div>
-            <div class="control-group panel-soft pad-md">
+            <div class="control-group panel-soft pad-md config-edit-pane hidden">
               <h3>Ban Durations</h3>
               <p class="control-desc text-muted">Configure ban duration per offense type (seconds)</p>
               <div class="duration-grid">
@@ -384,7 +387,7 @@
           </div>
         </section>
 
-        <section class="admin-group">
+        <section class="admin-group config-edit-pane hidden" id="admin-tuning-group">
           <h3 class="admin-group-title">Tuning Bot Detection</h3>
           <div class="controls-grid controls-grid--tuning">
             <div class="control-group panel-soft pad-md">

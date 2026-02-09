@@ -81,10 +81,14 @@ mod tests {
     }
 
     #[test]
-    fn parse_config_mode_defaults_to_hybrid() {
-        assert_eq!(crate::config::parse_config_mode(None), crate::config::ConfigMode::Hybrid);
+    fn parse_config_mode_defaults_to_env_only() {
+        assert_eq!(crate::config::parse_config_mode(None), crate::config::ConfigMode::EnvOnly);
         assert_eq!(
             crate::config::parse_config_mode(Some("junk")),
+            crate::config::ConfigMode::EnvOnly
+        );
+        assert_eq!(
+            crate::config::parse_config_mode(Some("hybrid")),
             crate::config::ConfigMode::Hybrid
         );
         assert_eq!(
