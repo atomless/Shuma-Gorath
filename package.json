@@ -1,0 +1,14 @@
+{
+  "name": "shuma-gorath-dashboard-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Dashboard e2e smoke tests for Shuma-Gorath",
+  "packageManager": "pnpm@10.5.2",
+  "scripts": {
+    "seed:dashboard:e2e": "node e2e/seed-dashboard-data.js",
+    "test:dashboard:e2e": "node e2e/seed-dashboard-data.js && playwright test --config=playwright.config.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.51.1"
+  }
+}

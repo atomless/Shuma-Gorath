@@ -6,6 +6,9 @@ build/
 .env
 unit_test_output.log
 .worktrees/
+node_modules/
+playwright-report/
+test-results/
 
 # Spin runtime data
 .spin/

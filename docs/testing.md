@@ -6,6 +6,7 @@
 make test             # Unit tests + integration if server running
 make test-unit        # Unit tests only (native Rust)
 make test-integration # Integration tests only (Spin required)
+make test-dashboard-e2e # Playwright dashboard smoke tests (Spin required)
 make test-dashboard   # Manual dashboard checklist
 ```
 
@@ -15,11 +16,12 @@ Notes:
 
 ## 🐙 Test Layers
 
-This project uses three distinct test environments, each optimized for its scope:
+This project uses four distinct test environments, each optimized for its scope:
 
 1. Unit tests (native Rust)
 2. Integration tests (Spin environment)
-3. Dashboard checks (manual)
+3. Dashboard e2e smoke tests (Playwright)
+4. Dashboard checks (manual)
 
 ## 🐙 Why Two Environments
 
@@ -69,6 +71,31 @@ Integration coverage includes:
 7. CDP report ingestion and auto-ban flow
 8. CDP stats counters in `/admin/cdp`
 9. Unban behavior
+
+## 🐙 Dashboard E2E Smoke Tests (Playwright)
+
+Run with:
+
+```bash
+# Terminal 1
+make dev
+
+# Terminal 2
+make test-dashboard-e2e
+```
+
+Behavior:
+1. Installs pinned Playwright dependencies via `pnpm` (through `corepack`).
+2. Seeds deterministic dashboard data before tests (admin ban + CDP report + admin view events).
+3. Runs browser smoke checks for core dashboard behavior:
+   - page loads and refresh succeeds
+   - seeded events/tables are visible
+   - form validation/submit-state behavior works
+   - sticky table headers remain applied
+
+Notes:
+- Seeding is test-only and does not run during `make setup`.
+- Seeded rows are operational test data and may appear in local dashboard history.
 
 ## 🐙 Build Mode Notes
 

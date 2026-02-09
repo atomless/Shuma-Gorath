@@ -1,4 +1,4 @@
-.PHONY: dev local run build prod clean test test-unit test-integration test-dashboard deploy logs status stop help setup verify
+.PHONY: dev local run build prod clean test test-unit test-integration test-dashboard test-dashboard-e2e deploy logs status stop help setup verify
 
 # Default target
 .DEFAULT_GOAL := help
@@ -164,6 +164,23 @@ test-dashboard: ## Dashboard testing instructions (manual)
 	@echo "1. Ensure Spin is running: make dev"
 	@echo "2. Open: http://127.0.0.1:3000/dashboard/index.html"
 	@echo "3. Follow checklist in docs/testing.md"
+
+test-dashboard-e2e: ## Run Playwright dashboard smoke tests (requires running server)
+	@echo "$(CYAN)🧪 Running dashboard e2e smoke tests...$(NC)"
+	@if curl -sf -H "X-Forwarded-For: 127.0.0.1" $(FORWARDED_SECRET_HEADER) http://127.0.0.1:3000/health > /dev/null 2>&1; then \
+		if ! command -v corepack >/dev/null 2>&1; then \
+			echo "$(RED)❌ Error: corepack not found (install Node.js 18+).$(NC)"; \
+			exit 1; \
+		fi; \
+		corepack enable > /dev/null 2>&1 || true; \
+		corepack pnpm install --frozen-lockfile; \
+		corepack pnpm exec playwright install chromium; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) corepack pnpm run test:dashboard:e2e; \
+	else \
+		echo "$(RED)❌ Error: Spin server not running$(NC)"; \
+		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
+		exit 1; \
+	fi
 
 #--------------------------
 # Utilities

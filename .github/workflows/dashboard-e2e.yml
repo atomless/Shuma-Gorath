@@ -1,0 +1,66 @@
+name: Dashboard E2E (Non-Blocking)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  dashboard-e2e:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    env:
+      SHUMA_API_KEY: changeme-dev-only-api-key
+      SHUMA_FORWARDED_IP_SECRET: changeme-dev-only-ip-secret
+      DEV_ADMIN_PAGE_CONFIG: "true"
+      SHUMA_DEBUG_HEADERS: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install Rust toolchain and wasm target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+
+      - name: Install Spin CLI
+        run: |
+          curl -fsSL https://github.com/fermyon/spin/releases/latest/download/spin-linux-amd64.tar.gz -o /tmp/spin.tar.gz
+          tar -xzf /tmp/spin.tar.gz -C /tmp
+          sudo mv /tmp/spin /usr/local/bin/spin
+          spin --version
+
+      - name: Start server (background)
+        run: |
+          nohup make run > /tmp/spin.log 2>&1 &
+          for i in {1..60}; do
+            if curl -sf -H "X-Forwarded-For: 127.0.0.1" -H "X-Shuma-Forwarded-Secret: ${SHUMA_FORWARDED_IP_SECRET}" http://127.0.0.1:3000/health > /dev/null 2>&1; then
+              echo "spin ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "spin did not become ready"
+          exit 1
+
+      - name: Run dashboard e2e smoke tests
+        run: make test-dashboard-e2e
+
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-e2e-artifacts
+          path: |
+            /tmp/spin.log
+            playwright-report
+            test-results
