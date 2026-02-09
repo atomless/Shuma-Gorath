@@ -13,3 +13,4 @@ Single source of truth for active project work.
 
 ## Config and Naming Clarity
 - [ ] Evaluate renaming `SHUMA_CHALLENGE_RISK_THRESHOLD` to `SHUMA_BOTNESS_CHALLENGE_THRESHOLD` to reflect that it is a botness cutoff, not a parallel risk model. (src/config.rs, docs, dashboard)
+- [ ] Standardize terminology across code/UI/docs so `honeypot` and `link maze` are used consistently instead of interchangeably. (src, dashboard, docs)
