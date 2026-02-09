@@ -5,8 +5,9 @@
 - Honeypot endpoints (default: `/bot-trap`)
 - Per-IP rate limiting
 - Browser version blocking
-- Geo-risk scoring via `X-Geo-Country`
+- GEO scoring + policy routing (`allow/challenge/maze/block`) via trusted `X-Geo-Country`
 - JavaScript challenge with signed cookie
+- Puzzle challenge step-up with single-use seeds
 - Proof-of-work (PoW) step before JS verification (edge-served)
 - Optional browser whitelist to bypass JS challenge
 - Link maze honeypot with auto-ban threshold
@@ -19,13 +20,8 @@
 - Web dashboard for analytics and admin control
 - Makefile-based setup, build, and test workflows
 
-## 🐙 Disabled or Experimental
-
-- Challenge-based human verification (disabled in current flow; only POST handler exists)
-
 ## 🐙 Near-Term Roadmap
-
-- Human verification research (challenge vs modern alternatives) and decision on re-enabling challenge flow
+- Human verification tuning (usability vs abuse resistance) and accessibility path
 - Tarpit mode (slow responses to waste bot resources)
 - Webhook notifications (Slack/Discord/PagerDuty)
 - CSV/JSON export for events and analytics

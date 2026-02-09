@@ -56,7 +56,11 @@ environment = {
   SHUMA_HONEYPOTS = "[\"/bot-trap\"]",
   SHUMA_BROWSER_BLOCK = "[[\"Chrome\",120],[\"Firefox\",115],[\"Safari\",15]]",
   SHUMA_BROWSER_WHITELIST = "[]",
-  SHUMA_GEO_RISK = "[]",
+  SHUMA_GEO_RISK_COUNTRIES = "[]",
+  SHUMA_GEO_ALLOW_COUNTRIES = "[]",
+  SHUMA_GEO_CHALLENGE_COUNTRIES = "[]",
+  SHUMA_GEO_MAZE_COUNTRIES = "[]",
+  SHUMA_GEO_BLOCK_COUNTRIES = "[]",
   SHUMA_WHITELIST = "[]",
   SHUMA_PATH_WHITELIST = "[]",
   SHUMA_MAZE_ENABLED = "true",
@@ -102,7 +106,11 @@ All runtime config fields can be set with env vars:
 - `SHUMA_HONEYPOTS`
 - `SHUMA_BROWSER_BLOCK`
 - `SHUMA_BROWSER_WHITELIST`
-- `SHUMA_GEO_RISK`
+- `SHUMA_GEO_RISK_COUNTRIES`
+- `SHUMA_GEO_ALLOW_COUNTRIES`
+- `SHUMA_GEO_CHALLENGE_COUNTRIES`
+- `SHUMA_GEO_MAZE_COUNTRIES`
+- `SHUMA_GEO_BLOCK_COUNTRIES`
 - `SHUMA_WHITELIST`
 - `SHUMA_PATH_WHITELIST`
 - `SHUMA_MAZE_ENABLED`
@@ -125,6 +133,13 @@ All runtime config fields can be set with env vars:
 - `SHUMA_BOTNESS_WEIGHT_RATE_MEDIUM`
 - `SHUMA_BOTNESS_WEIGHT_RATE_HIGH`
 
+GEO trust boundary and policy routing:
+
+- GEO headers are only trusted when forwarded headers are trusted (`SHUMA_FORWARDED_IP_SECRET` must be set and `X-Shuma-Forwarded-Secret` must match).
+- If forwarded trust is not established for the request, GEO routing/scoring is skipped.
+- GEO policy precedence is `block > maze > challenge > allow`.
+- `allow` suppresses GEO botness scoring for matching countries.
+
 CDP auto-ban policy:
 
 - Auto-ban applies only to strong CDP detections.
@@ -145,7 +160,7 @@ Supporting control vars:
 ## 🐙 Env Value Formats
 
 - Booleans: `true/false`, `1/0`, `yes/no`, `on/off`
-- String lists (`SHUMA_HONEYPOTS`, `SHUMA_GEO_RISK`, `SHUMA_WHITELIST`, `SHUMA_PATH_WHITELIST`):
+- String lists (`SHUMA_HONEYPOTS`, `SHUMA_GEO_RISK_COUNTRIES`, `SHUMA_GEO_ALLOW_COUNTRIES`, `SHUMA_GEO_CHALLENGE_COUNTRIES`, `SHUMA_GEO_MAZE_COUNTRIES`, `SHUMA_GEO_BLOCK_COUNTRIES`, `SHUMA_WHITELIST`, `SHUMA_PATH_WHITELIST`):
   - JSON array: `["/bot-trap","/canary"]`
   - CSV: `/bot-trap,/canary`
 - Browser lists (`SHUMA_BROWSER_BLOCK`, `SHUMA_BROWSER_WHITELIST`):
@@ -175,6 +190,10 @@ Supporting control vars:
   "browser_block": [["Chrome", 120], ["Firefox", 115], ["Safari", 15]],
   "browser_whitelist": [],
   "geo_risk": ["CN", "RU"],
+  "geo_allow": ["GB"],
+  "geo_challenge": ["BR"],
+  "geo_maze": ["RU"],
+  "geo_block": ["KP"],
   "whitelist": ["203.0.113.0/24 # corp"],
   "path_whitelist": ["/webhook/stripe", "/api/integration/*"],
   "maze_enabled": true,

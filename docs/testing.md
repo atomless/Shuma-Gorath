@@ -250,7 +250,7 @@ curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
 - Whitelist: add your IP via `/admin/config` and confirm access is always allowed
 - Rate limit: send a burst of requests and confirm auto-ban
 - Outdated browser: send a low-version User-Agent (example: `Chrome/50`)
-- Geo risk: set `X-Geo-Country` to a high-risk country code and confirm behavior
+- GEO policy: set `geo_*` lists via `/admin/config`, then send `X-Geo-Country` with a trusted forwarded-secret request and verify `allow/challenge/maze/block` routing precedence
 - Ban list: `GET /admin/ban` and confirm entries match recent actions
 
 ## 🐙 Troubleshooting

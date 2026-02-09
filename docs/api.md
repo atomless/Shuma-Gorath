@@ -145,3 +145,20 @@ Mutability:
 Signal catalog:
 - `botness_signal_definitions.scored_signals` lists weighted contributors.
 - `botness_signal_definitions.terminal_signals` lists immediate actions that bypass scoring.
+
+## 🐙 GEO Policy Fields (`/admin/config`)
+
+- `geo_risk` - country list that contributes to cumulative botness scoring
+- `geo_allow` - country list with explicit allow precedence (suppresses GEO scoring)
+- `geo_challenge` - country list that routes directly to challenge
+- `geo_maze` - country list that routes directly to maze
+- `geo_block` - country list that routes directly to block
+
+Routing precedence for overlapping lists is:
+
+- `geo_block` > `geo_maze` > `geo_challenge` > `geo_allow`
+
+GEO headers are only used when forwarded headers are trusted for the request:
+
+- `SHUMA_FORWARDED_IP_SECRET` must be configured
+- caller must provide matching `X-Shuma-Forwarded-Secret`

@@ -35,6 +35,9 @@ Controls:
 - per-signal weights (`js_required`, `geo_risk`, `rate_medium`, `rate_high`)
 - read-only terminal signal catalog
 - editable only when `SHUMA_BOTNESS_CONFIG_MUTABLE=1` (or `SHUMA_CHALLENGE_CONFIG_MUTABLE=1` fallback)
+- GEO policy controls:
+- risk scoring countries (`geo_risk`)
+- tiered routing countries (`geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`)
 - Link maze stats
 - Enter key submits inputs (endpoint, API key, ban, unban)
 - Auto-refresh every 30 seconds
