@@ -390,6 +390,8 @@ mod admin_config_tests {
     #[test]
     fn admin_config_updates_js_required_enforced_flag() {
         let _lock = ENV_MUTEX.lock().unwrap();
+        let prior_js_required_env = std::env::var("SHUMA_JS_REQUIRED_ENFORCED").ok();
+        std::env::remove_var("SHUMA_JS_REQUIRED_ENFORCED");
         std::env::set_var("SHUMA_ADMIN_PAGE_CONFIG", "true");
         let store = TestStore::default();
 
@@ -416,6 +418,11 @@ mod admin_config_tests {
             Some(&serde_json::Value::Bool(false))
         );
 
+        if let Some(previous) = prior_js_required_env {
+            std::env::set_var("SHUMA_JS_REQUIRED_ENFORCED", previous);
+        } else {
+            std::env::remove_var("SHUMA_JS_REQUIRED_ENFORCED");
+        }
         std::env::remove_var("SHUMA_ADMIN_PAGE_CONFIG");
     }
 

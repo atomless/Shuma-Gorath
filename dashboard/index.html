@@ -364,54 +364,70 @@
               <p class="control-desc text-muted">Set ban length per trigger type. Longer bans increase deterrence but slow recovery from false positives.</p>
               <div class="duration-grid">
                 <div class="duration-row">
-                  <label class="control-label" for="dur-honeypot-hours">Link Maze Threshold Exceeded</label>
+                  <label class="control-label" for="dur-honeypot-days">Link Maze Threshold Exceeded</label>
                   <div class="duration-inputs">
+                    <label class="duration-input" for="dur-honeypot-days">
+                      <input id="dur-honeypot-days" class="input-field" type="number" min="0" max="365" step="1" inputmode="numeric" value="1" />
+                      <span class="input-unit">d</span>
+                    </label>
                     <label class="duration-input" for="dur-honeypot-hours">
-                      <input id="dur-honeypot-hours" class="input-field" type="number" min="0" max="8760" step="1" inputmode="numeric" value="24" />
-                      <span class="input-unit">hours</span>
+                      <input id="dur-honeypot-hours" class="input-field" type="number" min="0" max="23" step="1" inputmode="numeric" value="0" />
+                      <span class="input-unit">hr</span>
                     </label>
                     <label class="duration-input" for="dur-honeypot-minutes">
                       <input id="dur-honeypot-minutes" class="input-field" type="number" min="0" max="59" step="1" inputmode="numeric" value="0" />
-                      <span class="input-unit">minutes</span>
+                      <span class="input-unit">min</span>
                     </label>
                   </div>
                 </div>
                 <div class="duration-row">
-                  <label class="control-label" for="dur-rate-limit-hours">Rate Limit Exceeded</label>
+                  <label class="control-label" for="dur-rate-limit-days">Rate Limit Exceeded</label>
                   <div class="duration-inputs">
+                    <label class="duration-input" for="dur-rate-limit-days">
+                      <input id="dur-rate-limit-days" class="input-field" type="number" min="0" max="365" step="1" inputmode="numeric" value="0" />
+                      <span class="input-unit">d</span>
+                    </label>
                     <label class="duration-input" for="dur-rate-limit-hours">
-                      <input id="dur-rate-limit-hours" class="input-field" type="number" min="0" max="8760" step="1" inputmode="numeric" value="1" />
-                      <span class="input-unit">hours</span>
+                      <input id="dur-rate-limit-hours" class="input-field" type="number" min="0" max="23" step="1" inputmode="numeric" value="1" />
+                      <span class="input-unit">hr</span>
                     </label>
                     <label class="duration-input" for="dur-rate-limit-minutes">
                       <input id="dur-rate-limit-minutes" class="input-field" type="number" min="0" max="59" step="1" inputmode="numeric" value="0" />
-                      <span class="input-unit">minutes</span>
+                      <span class="input-unit">min</span>
                     </label>
                   </div>
                 </div>
                 <div class="duration-row">
-                  <label class="control-label" for="dur-browser-hours">Outdated Browser Detected</label>
+                  <label class="control-label" for="dur-browser-days">Browser Automation Detected</label>
                   <div class="duration-inputs">
+                    <label class="duration-input" for="dur-browser-days">
+                      <input id="dur-browser-days" class="input-field" type="number" min="0" max="365" step="1" inputmode="numeric" value="0" />
+                      <span class="input-unit">d</span>
+                    </label>
                     <label class="duration-input" for="dur-browser-hours">
-                      <input id="dur-browser-hours" class="input-field" type="number" min="0" max="8760" step="1" inputmode="numeric" value="6" />
-                      <span class="input-unit">hours</span>
+                      <input id="dur-browser-hours" class="input-field" type="number" min="0" max="23" step="1" inputmode="numeric" value="6" />
+                      <span class="input-unit">hr</span>
                     </label>
                     <label class="duration-input" for="dur-browser-minutes">
                       <input id="dur-browser-minutes" class="input-field" type="number" min="0" max="59" step="1" inputmode="numeric" value="0" />
-                      <span class="input-unit">minutes</span>
+                      <span class="input-unit">min</span>
                     </label>
                   </div>
                 </div>
                 <div class="duration-row">
-                  <label class="control-label" for="dur-admin-hours">Admin Manual Ban</label>
+                  <label class="control-label" for="dur-admin-days">Admin Manual Ban</label>
                   <div class="duration-inputs">
+                    <label class="duration-input" for="dur-admin-days">
+                      <input id="dur-admin-days" class="input-field" type="number" min="0" max="365" step="1" inputmode="numeric" value="0" />
+                      <span class="input-unit">d</span>
+                    </label>
                     <label class="duration-input" for="dur-admin-hours">
-                      <input id="dur-admin-hours" class="input-field" type="number" min="0" max="8760" step="1" inputmode="numeric" value="6" />
-                      <span class="input-unit">hours</span>
+                      <input id="dur-admin-hours" class="input-field" type="number" min="0" max="23" step="1" inputmode="numeric" value="6" />
+                      <span class="input-unit">hr</span>
                     </label>
                     <label class="duration-input" for="dur-admin-minutes">
                       <input id="dur-admin-minutes" class="input-field" type="number" min="0" max="59" step="1" inputmode="numeric" value="0" />
-                      <span class="input-unit">minutes</span>
+                      <span class="input-unit">min</span>
                     </label>
                   </div>
                 </div>

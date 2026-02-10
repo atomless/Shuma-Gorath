@@ -50,13 +50,17 @@ const INTEGER_FIELD_RULES = {
   'rate-limit-threshold': { min: 1, max: 1000000, fallback: 80, label: 'Rate limit' },
   'pow-difficulty': { min: 12, max: 20, fallback: 15, label: 'PoW difficulty' },
   'pow-ttl': { min: 30, max: 300, fallback: 90, label: 'PoW seed TTL' },
-  'dur-honeypot-hours': { min: 0, max: 8760, fallback: 24, label: 'Link Maze Threshold Exceeded hours' },
+  'dur-honeypot-days': { min: 0, max: 365, fallback: 1, label: 'Link Maze Threshold Exceeded days' },
+  'dur-honeypot-hours': { min: 0, max: 23, fallback: 0, label: 'Link Maze Threshold Exceeded hours' },
   'dur-honeypot-minutes': { min: 0, max: 59, fallback: 0, label: 'Link Maze Threshold Exceeded minutes' },
-  'dur-rate-limit-hours': { min: 0, max: 8760, fallback: 1, label: 'Rate Limit Exceeded hours' },
+  'dur-rate-limit-days': { min: 0, max: 365, fallback: 0, label: 'Rate Limit Exceeded days' },
+  'dur-rate-limit-hours': { min: 0, max: 23, fallback: 1, label: 'Rate Limit Exceeded hours' },
   'dur-rate-limit-minutes': { min: 0, max: 59, fallback: 0, label: 'Rate Limit Exceeded minutes' },
-  'dur-browser-hours': { min: 0, max: 8760, fallback: 6, label: 'Outdated Browser Detected hours' },
-  'dur-browser-minutes': { min: 0, max: 59, fallback: 0, label: 'Outdated Browser Detected minutes' },
-  'dur-admin-hours': { min: 0, max: 8760, fallback: 6, label: 'Admin Manual Ban hours' },
+  'dur-browser-days': { min: 0, max: 365, fallback: 0, label: 'Browser Automation Detected days' },
+  'dur-browser-hours': { min: 0, max: 23, fallback: 6, label: 'Browser Automation Detected hours' },
+  'dur-browser-minutes': { min: 0, max: 59, fallback: 0, label: 'Browser Automation Detected minutes' },
+  'dur-admin-days': { min: 0, max: 365, fallback: 0, label: 'Admin Manual Ban days' },
+  'dur-admin-hours': { min: 0, max: 23, fallback: 6, label: 'Admin Manual Ban hours' },
   'dur-admin-minutes': { min: 0, max: 59, fallback: 0, label: 'Admin Manual Ban minutes' },
   'challenge-threshold': { min: 1, max: 10, fallback: 3, label: 'Challenge threshold' },
   'maze-threshold-score': { min: 1, max: 10, fallback: 6, label: 'Maze threshold' },
@@ -72,24 +76,28 @@ const BAN_DURATION_FIELDS = {
   honeypot: {
     label: 'Link Maze Threshold Exceeded duration',
     fallback: 86400,
+    daysId: 'dur-honeypot-days',
     hoursId: 'dur-honeypot-hours',
     minutesId: 'dur-honeypot-minutes'
   },
   rateLimit: {
     label: 'Rate Limit Exceeded duration',
     fallback: 3600,
+    daysId: 'dur-rate-limit-days',
     hoursId: 'dur-rate-limit-hours',
     minutesId: 'dur-rate-limit-minutes'
   },
   browser: {
-    label: 'Outdated Browser Detected duration',
+    label: 'Browser Automation Detected duration',
     fallback: 21600,
+    daysId: 'dur-browser-days',
     hoursId: 'dur-browser-hours',
     minutesId: 'dur-browser-minutes'
   },
   admin: {
     label: 'Admin Manual Ban duration',
     fallback: 21600,
+    daysId: 'dur-admin-days',
     hoursId: 'dur-admin-hours',
     minutesId: 'dur-admin-minutes'
   }
@@ -164,8 +172,8 @@ function parseIntegerLoose(id) {
   return parsed;
 }
 
-function durationPartsToSeconds(hours, minutes) {
-  return (hours * 3600) + (minutes * 60);
+function durationPartsToSeconds(days, hours, minutes) {
+  return (days * 86400) + (hours * 3600) + (minutes * 60);
 }
 
 function secondsToDurationParts(totalSeconds, fallbackSeconds) {
@@ -175,7 +183,8 @@ function secondsToDurationParts(totalSeconds, fallbackSeconds) {
   if (seconds < BAN_DURATION_BOUNDS_SECONDS.min) seconds = BAN_DURATION_BOUNDS_SECONDS.min;
   if (seconds > BAN_DURATION_BOUNDS_SECONDS.max) seconds = BAN_DURATION_BOUNDS_SECONDS.max;
   return {
-    hours: Math.floor(seconds / 3600),
+    days: Math.floor(seconds / 86400),
+    hours: Math.floor((seconds % 86400) / 3600),
     minutes: Math.floor((seconds % 3600) / 60)
   };
 }
@@ -183,11 +192,13 @@ function secondsToDurationParts(totalSeconds, fallbackSeconds) {
 function setBanDurationInputFromSeconds(durationKey, totalSeconds) {
   const group = BAN_DURATION_FIELDS[durationKey];
   if (!group) return;
+  const daysInput = document.getElementById(group.daysId);
   const hoursInput = document.getElementById(group.hoursId);
   const minutesInput = document.getElementById(group.minutesId);
-  if (!hoursInput || !minutesInput) return;
+  if (!daysInput || !hoursInput || !minutesInput) return;
 
   const parts = secondsToDurationParts(totalSeconds, group.fallback);
+  daysInput.value = String(parts.days);
   hoursInput.value = String(parts.hours);
   minutesInput.value = String(parts.minutes);
 }
@@ -196,28 +207,33 @@ function readBanDurationFromInputs(durationKey, showInline = false) {
   const group = BAN_DURATION_FIELDS[durationKey];
   if (!group) return null;
 
+  const daysInput = document.getElementById(group.daysId);
   const hoursInput = document.getElementById(group.hoursId);
   const minutesInput = document.getElementById(group.minutesId);
-  if (!hoursInput || !minutesInput) return null;
+  if (!daysInput || !hoursInput || !minutesInput) return null;
 
+  const daysValid = validateIntegerFieldById(group.daysId, showInline);
   const hoursValid = validateIntegerFieldById(group.hoursId, showInline);
   const minutesValid = validateIntegerFieldById(group.minutesId, showInline);
+  const days = parseIntegerLoose(group.daysId);
   const hours = parseIntegerLoose(group.hoursId);
   const minutes = parseIntegerLoose(group.minutesId);
 
-  if (!hoursValid || !minutesValid || hours === null || minutes === null) return null;
+  if (!daysValid || !hoursValid || !minutesValid || days === null || hours === null || minutes === null) return null;
 
-  const totalSeconds = durationPartsToSeconds(hours, minutes);
+  const totalSeconds = durationPartsToSeconds(days, hours, minutes);
   if (totalSeconds < BAN_DURATION_BOUNDS_SECONDS.min || totalSeconds > BAN_DURATION_BOUNDS_SECONDS.max) {
-    const message = `${group.label} must be between 1 minute and 8760 hours.`;
+    const message = `${group.label} must be between 1 minute and 365 days.`;
+    setFieldError(daysInput, message, showInline);
     setFieldError(hoursInput, message, showInline);
     setFieldError(minutesInput, message, showInline);
     return null;
   }
 
+  setFieldError(daysInput, '', showInline);
   setFieldError(hoursInput, '', showInline);
   setFieldError(minutesInput, '', showInline);
-  return { hours, minutes, totalSeconds };
+  return { days, hours, minutes, totalSeconds };
 }
 
 function readBanDurationSeconds(durationKey) {
@@ -226,8 +242,14 @@ function readBanDurationSeconds(durationKey) {
   const result = readBanDurationFromInputs(durationKey, true);
   if (result) return result.totalSeconds;
 
+  const daysInput = document.getElementById(group.daysId);
   const hoursInput = document.getElementById(group.hoursId);
   const minutesInput = document.getElementById(group.minutesId);
+  if (daysInput && !daysInput.checkValidity()) {
+    daysInput.reportValidity();
+    daysInput.focus();
+    return null;
+  }
   if (hoursInput && !hoursInput.checkValidity()) {
     hoursInput.reportValidity();
     hoursInput.focus();
@@ -238,9 +260,9 @@ function readBanDurationSeconds(durationKey) {
     minutesInput.focus();
     return null;
   }
-  if (hoursInput) {
-    hoursInput.reportValidity();
-    hoursInput.focus();
+  if (daysInput) {
+    daysInput.reportValidity();
+    daysInput.focus();
   }
   return null;
 }

@@ -295,12 +295,14 @@ h1 {
 #last-updated {
   position: absolute;
   top: 2px;
-  left: 2px;
+  right: 2px;
   z-index: 1000;
   color: var(--color-500);
   font-size: var(--text-sm);
-  font-family: 'Courier New', monospace;
+  font-style: italic;
+  text-align: right;
   pointer-events: none;
+  opacity: 0.2;
 }
 
 /* ===========================================
@@ -815,16 +817,14 @@ input:checked + .toggle-slider:before {
 .duration-grid {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 15px;
 }
 
 .duration-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: 12px;
-  row-gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .duration-row .control-label {
@@ -833,8 +833,8 @@ input:checked + .toggle-slider:before {
 
 .duration-inputs {
   display: flex;
-  gap: 10px;
-  justify-self: end;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .duration-input {
@@ -845,10 +845,11 @@ input:checked + .toggle-slider:before {
 }
 
 .duration-input .input-field {
-  width: 88px;
-  padding: 8px 10px;
+  width: 3.4ch;
+  min-width: 3.4ch;
+  padding: 6px 3px;
   margin: 0;
-  text-align: right;
+  text-align: center;
 }
 
 #save-durations-btn {
@@ -856,21 +857,12 @@ input:checked + .toggle-slider:before {
 }
 
 @media (max-width: 720px) {
-  .duration-row {
-    grid-template-columns: 1fr;
-  }
-
   .duration-inputs {
-    justify-self: start;
-    width: 100%;
+    gap: 10px;
   }
 
   .duration-input {
-    flex: 1 1 0;
-  }
-
-  .duration-input .input-field {
-    width: 100%;
+    flex: 0 0 auto;
   }
 }
 
