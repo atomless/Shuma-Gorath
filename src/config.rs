@@ -405,6 +405,7 @@ fn clamp_config_values(cfg: &mut Config) {
     cfg.cdp_detection_threshold = cfg.cdp_detection_threshold.clamp(0.0, 1.0);
 }
 
+#[cfg(test)]
 pub(crate) fn parse_challenge_threshold(value: Option<&str>) -> u8 {
     let parsed = value
         .and_then(|v| v.parse::<u8>().ok())
@@ -412,6 +413,7 @@ pub(crate) fn parse_challenge_threshold(value: Option<&str>) -> u8 {
     clamp_challenge_threshold(parsed)
 }
 
+#[cfg(test)]
 pub(crate) fn parse_maze_threshold(value: Option<&str>) -> u8 {
     let parsed = value
         .and_then(|v| v.parse::<u8>().ok())
