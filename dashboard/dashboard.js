@@ -2538,15 +2538,17 @@ document.getElementById('refresh').onclick = async function() {
 
     refreshCoreActionButtonsState();
     
-    // Update last updated time
-    document.getElementById('last-updated').textContent = 
-      'Last updated: ' + new Date().toLocaleTimeString();
-    document.getElementById('last-updated').style.color = '#10b981';
+    // Update last updated time (full ISO timestamp)
+    document.getElementById('last-updated').textContent =
+      'Last updated: ' + new Date().toISOString();
     
   } catch (e) {
     console.error('Dashboard refresh error:', e);
-    document.getElementById('last-updated').textContent = 'Error: ' + e.message;
-    document.getElementById('last-updated').style.color = '#ef4444';
+    const msg = document.getElementById('admin-msg');
+    if (msg) {
+      msg.textContent = 'Refresh failed: ' + e.message;
+      msg.className = 'message error';
+    }
   }
 };
 
