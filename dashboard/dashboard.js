@@ -2540,7 +2540,7 @@ document.getElementById('refresh').onclick = async function() {
     
     // Update last updated time (full ISO timestamp)
     document.getElementById('last-updated').textContent =
-      'Last updated: ' + new Date().toISOString();
+      'updated: ' + new Date().toISOString();
     
   } catch (e) {
     console.error('Dashboard refresh error:', e);

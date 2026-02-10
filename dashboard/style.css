@@ -293,9 +293,9 @@ h1 {
 }
 
 #last-updated {
-  position: fixed;
-  top: 10px;
-  left: 12px;
+  position: absolute;
+  top: 2px;
+  left: 2px;
   z-index: 1000;
   color: var(--color-500);
   font-size: var(--text-sm);
