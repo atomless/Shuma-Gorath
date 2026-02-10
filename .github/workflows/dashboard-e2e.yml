@@ -32,17 +32,30 @@ jobs:
         with:
           targets: wasm32-wasip1
 
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y curl ca-certificates jq
+
       - name: Install Spin CLI
         run: |
-          curl -fsSL https://github.com/fermyon/spin/releases/latest/download/spin-linux-amd64.tar.gz -o /tmp/spin.tar.gz
+          SPIN_TAG="$(curl -fsSL https://api.github.com/repos/fermyon/spin/releases/latest | jq -r .tag_name)"
+          SPIN_ASSET="spin-${SPIN_TAG}-linux-amd64.tar.gz"
+          curl -fsSL "https://github.com/fermyon/spin/releases/download/${SPIN_TAG}/${SPIN_ASSET}" -o /tmp/spin.tar.gz
           tar -xzf /tmp/spin.tar.gz -C /tmp
           sudo mv /tmp/spin /usr/local/bin/spin
           spin --version
 
+      - name: Build wasm release
+        run: |
+          ./scripts/set_crate_type.sh cdylib
+          cargo build --target wasm32-wasip1 --release
+          cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
+          ./scripts/set_crate_type.sh rlib
+
       - name: Start server (background)
         run: |
-          nohup make run > /tmp/spin.log 2>&1 &
-          for i in {1..60}; do
+          nohup make run-prebuilt > /tmp/spin.log 2>&1 &
+          for i in {1..180}; do
             if curl -sf -H "X-Forwarded-For: 127.0.0.1" -H "X-Shuma-Forwarded-Secret: ${SHUMA_FORWARDED_IP_SECRET}" http://127.0.0.1:3000/health > /dev/null 2>&1; then
               echo "spin ready"
               exit 0
@@ -50,6 +63,7 @@ jobs:
             sleep 1
           done
           echo "spin did not become ready"
+          tail -n 200 /tmp/spin.log || true
           exit 1
 
       - name: Run dashboard e2e smoke tests
