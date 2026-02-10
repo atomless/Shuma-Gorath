@@ -1,9 +1,10 @@
+[![CI](https://github.com/atomless/Shuma-Gorath/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/atomless/Shuma-Gorath/actions/workflows/ci.yml)
+[![Dashboard E2E](https://github.com/atomless/Shuma-Gorath/actions/workflows/dashboard-e2e.yml/badge.svg?branch=main)](https://github.com/atomless/Shuma-Gorath/actions/workflows/dashboard-e2e.yml)
+[![Coverage](https://codecov.io/gh/atomless/Shuma-Gorath/graph/badge.svg?branch=main)](https://codecov.io/gh/atomless/Shuma-Gorath)
+
 ![Shuma-Gorath](dashboard/assets/shuma-gorath.png)
 
 # 🐙 Shuma-Gorath
-
-[![CI](https://github.com/atomless/Shuma-Gorath/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/atomless/Shuma-Gorath/actions/workflows/ci.yml)
-[![Dashboard E2E](https://github.com/atomless/Shuma-Gorath/actions/workflows/dashboard-e2e.yml/badge.svg?branch=main)](https://github.com/atomless/Shuma-Gorath/actions/workflows/dashboard-e2e.yml)
 
 Many-Angled Bot Defence for Spin. Shuma-Gorath is a WebAssembly bot trap that detects, blocks, and monitors automated abuse with honeypots, rate limiting, JS challenges, CDP signals, a link maze, and a real-time admin dashboard.
 

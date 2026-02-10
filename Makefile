@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build prod clean test test-unit test-integration test-dashboard test-dashboard-e2e deploy logs status stop help setup verify
+.PHONY: dev local run run-prebuilt build prod clean test test-unit test-integration test-coverage test-dashboard test-dashboard-e2e deploy logs status stop help setup verify
 
 # Default target
 .DEFAULT_GOAL := help
@@ -166,6 +166,17 @@ test-integration: ## Run integration tests only (21 scenarios, requires running 
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
 		exit 1; \
 	fi
+
+test-coverage: ## Run unit test coverage (requires cargo-llvm-cov)
+	@echo "$(CYAN)🧪 Running Rust unit test coverage...$(NC)"
+	@if ! command -v cargo-llvm-cov >/dev/null 2>&1; then \
+		echo "$(RED)❌ Error: cargo-llvm-cov not found$(NC)"; \
+		echo "$(YELLOW)   Install with: cargo install cargo-llvm-cov --locked$(NC)"; \
+		exit 1; \
+	fi
+	@./scripts/set_crate_type.sh rlib
+	@cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
+	@echo "$(GREEN)✅ Coverage report written to lcov.info$(NC)"
 
 test-dashboard: ## Dashboard testing instructions (manual)
 	@echo "$(CYAN)🧪 Dashboard testing (manual):$(NC)"

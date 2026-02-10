@@ -6,6 +6,7 @@
 make test             # Unit tests + integration if server running
 make test-unit        # Unit tests only (native Rust)
 make test-integration # Integration tests only (Spin required)
+make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-e2e # Playwright dashboard smoke tests (Spin required)
 make test-dashboard   # Manual dashboard checklist
 ```
