@@ -51,7 +51,7 @@ Controls:
 Development:
 - `http://127.0.0.1:3000/dashboard/index.html`
 - API key source: `SHUMA_API_KEY` from environment or `spin.toml`
-- Login flow: enter API key once in the API Access panel; dashboard then uses a short-lived same-origin admin session cookie
+- Login flow: unauthenticated visits to `/dashboard/index.html` are redirected to `/dashboard/login.html`; enter API key once to create a short-lived same-origin admin session cookie
 - Admin API endpoint is inferred from the page origin (same-origin only)
 
 Production (recommended):
@@ -81,6 +81,8 @@ Event log retention is controlled by `SHUMA_EVENT_LOG_RETENTION_HOURS` (default:
 
 ```
 dashboard/
+  login.html
+  login.js
   index.html
   dashboard.js
   admin.js

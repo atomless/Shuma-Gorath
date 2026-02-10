@@ -159,6 +159,12 @@ window.fetch = function patchedFetch(input, init = {}) {
 
   const method = requestMethodOf(input, init);
   const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
+  const authHeader = headers.get('Authorization') || headers.get('authorization') || '';
+
+  if (/^Bearer\s*$/i.test(authHeader.trim())) {
+    headers.delete('Authorization');
+    headers.delete('authorization');
+  }
 
   if (adminSessionState.authenticated && isWriteMethod(method) && adminSessionState.csrfToken) {
     if (!headers.has('X-Shuma-CSRF')) {
@@ -544,6 +550,11 @@ function hasValidApiContext() {
   return adminSessionState.authenticated;
 }
 
+function redirectToLogin() {
+  const next = encodeURIComponent(window.location.pathname + window.location.search);
+  window.location.replace(`/dashboard/login.html?next=${next}`);
+}
+
 function setAdminSession(authenticated, csrfToken = '') {
   adminSessionState.authenticated = Boolean(authenticated);
   adminSessionState.csrfToken = adminSessionState.authenticated ? String(csrfToken || '') : '';
@@ -640,11 +651,9 @@ function getAdminContext(messageTarget) {
 
   if (!adminSessionState.authenticated) {
     if (messageTarget) {
-      messageTarget.textContent = 'Login required. Enter SHUMA_API_KEY and click Login.';
+      messageTarget.textContent = 'Login required. Go to /dashboard/login.html.';
       messageTarget.className = 'message warning';
     }
-    const apikeyInput = document.getElementById('apikey');
-    if (apikeyInput) apikeyInput.focus();
     refreshCoreActionButtonsState();
     return null;
   }
@@ -2750,6 +2759,18 @@ document.getElementById('refresh').onclick = async function() {
       })
     ]);
 
+    if (
+      analyticsResp.status === 401 ||
+      eventsResp.status === 401 ||
+      bansResp.status === 401 ||
+      mazeResp.status === 401 ||
+      cdpResp.status === 401 ||
+      cdpEventsResp.status === 401
+    ) {
+      redirectToLogin();
+      return;
+    }
+
     if (!analyticsResp.ok || !eventsResp.ok || !bansResp.ok || !cdpResp.ok || !cdpEventsResp.ok) {
       throw new Error('Failed to fetch data. Check API key and endpoint.');
     }
@@ -2926,10 +2947,12 @@ document.getElementById('save-durations-btn').onclick = async function() {
 initInputValidation();
 initCharts();
 renderStatusItems();
-restoreAdminSession().then(() => {
-  if (hasValidApiContext()) {
-    document.getElementById('refresh').click();
+restoreAdminSession().then((authenticated) => {
+  if (!authenticated) {
+    redirectToLogin();
+    return;
   }
+  document.getElementById('refresh').click();
 });
 
 // Test Mode Toggle Handler

@@ -252,6 +252,42 @@ body {
   padding: 30px;
 }
 
+.login-shell {
+  min-height: calc(100vh - 40px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-card {
+  width: min(32rem, 100%);
+}
+
+.login-card h1 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: var(--text-3xl);
+  text-align: left;
+}
+
+.login-subtitle {
+  margin-bottom: 1rem;
+}
+
+.login-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.login-form .input-field {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+}
+
+.login-form .btn {
+  width: 100%;
+}
+
 header {
   text-align: center;
   margin-bottom: 30px;
