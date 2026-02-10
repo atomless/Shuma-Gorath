@@ -27,11 +27,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y curl ca-certificates
+          sudo apt-get update && sudo apt-get install -y curl ca-certificates jq
 
       - name: Install Spin CLI
         run: |
-          curl -fsSL https://github.com/fermyon/spin/releases/latest/download/spin-linux-amd64.tar.gz -o /tmp/spin.tar.gz
+          SPIN_TAG="$(curl -fsSL https://api.github.com/repos/fermyon/spin/releases/latest | jq -r .tag_name)"
+          SPIN_ASSET="spin-${SPIN_TAG}-linux-amd64.tar.gz"
+          curl -fsSL "https://github.com/fermyon/spin/releases/download/${SPIN_TAG}/${SPIN_ASSET}" -o /tmp/spin.tar.gz
           tar -xzf /tmp/spin.tar.gz -C /tmp
           sudo mv /tmp/spin /usr/local/bin/spin
           spin --version
