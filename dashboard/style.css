@@ -851,7 +851,6 @@ input:checked + .toggle-slider:before {
   min-width: 0;
   padding: 6px 10px;
   margin: 0;
-  text-align: right;
   flex: 1 1 auto;
 }
 
