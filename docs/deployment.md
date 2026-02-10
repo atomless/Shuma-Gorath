@@ -16,6 +16,12 @@ Shuma-Gorath is designed to **complement enterprise bot defenses** (such as Akam
 - `SHUMA_ENFORCE_HTTPS` - `false` (default) or `true`
 - `SHUMA_DEBUG_HEADERS` - Optional; expose internal health/fail-mode headers (dev only)
 
+API key requirements:
+
+- Use a high-entropy 64-hex-character value for `SHUMA_API_KEY`.
+- Placeholder keys are rejected by `make deploy`.
+- Use `make api-key-generate` to create a valid key.
+
 JS/PoW deployment recommendation:
 
 - Keep `SHUMA_JS_REQUIRED_ENFORCED=true` in production.
@@ -149,3 +155,4 @@ Generate/rotate helper:
 
 - `make api-key-generate` prints a new high-entropy API key
 - `make api-key-rotate` prints a new key plus rotation steps
+- `make api-key-validate` checks key format before deployment

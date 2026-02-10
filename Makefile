@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build prod clean test test-unit test-integration test-coverage test-dashboard test-dashboard-e2e deploy logs status stop help setup verify api-key-generate api-key-rotate
+.PHONY: dev local run run-prebuilt build prod clean test test-unit test-integration test-coverage test-dashboard test-dashboard-e2e deploy logs status stop help setup verify api-key-generate api-key-rotate api-key-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -119,6 +119,7 @@ prod: build ## Build for production and start server
 	@spin up --listen 0.0.0.0:3000
 
 deploy: build ## Deploy to Fermyon Cloud
+	@$(MAKE) --no-print-directory api-key-validate
 	@echo "$(CYAN)☁️  Deploying to Fermyon Cloud...$(NC)"
 	@spin cloud deploy
 	@echo "$(GREEN)✅ Deployment complete!$(NC)"
@@ -239,6 +240,25 @@ api-key-rotate: ## Generate a replacement SHUMA_API_KEY and print rotation guida
 	@$(MAKE) --no-print-directory api-key-generate
 	@echo "$(YELLOW)Next steps: update deployment secret, redeploy/restart, then update dashboard login key.$(NC)"
 
+api-key-validate: ## Validate SHUMA_API_KEY for deployment (must be 64-char hex and non-placeholder)
+	@KEY="$(SHUMA_API_KEY)"; \
+	if [ -z "$$KEY" ]; then \
+		echo "$(RED)❌ SHUMA_API_KEY is empty.$(NC)"; \
+		echo "$(YELLOW)Set SHUMA_API_KEY before deployment (or export it from your secret manager).$(NC)"; \
+		exit 1; \
+	fi; \
+	case "$$KEY" in \
+		changeme-dev-only-api-key|changeme-supersecret|changeme-prod-api-key) \
+			echo "$(RED)❌ SHUMA_API_KEY is a placeholder value. Generate a real key first.$(NC)"; \
+			exit 1 ;; \
+	esac; \
+	if ! printf '%s' "$$KEY" | grep -Eq '^[0-9A-Fa-f]{64}$$'; then \
+		echo "$(RED)❌ SHUMA_API_KEY must be exactly 64 hexadecimal characters.$(NC)"; \
+		echo "$(YELLOW)Generate one with: make api-key-generate$(NC)"; \
+		exit 1; \
+	fi; \
+	echo "$(GREEN)✅ SHUMA_API_KEY format is valid for deployment.$(NC)"
+
 #--------------------------
 # Help
 #--------------------------
@@ -259,4 +279,4 @@ help: ## Show this help message
 	@grep -E '^test.*:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-15s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Utilities:$(NC)"
-	@grep -E '^(stop|status|clean|logs|api-key-generate|api-key-rotate|help):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-15s %s\n", $$1, $$2}'
+	@grep -E '^(stop|status|clean|logs|api-key-generate|api-key-rotate|api-key-validate|help):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-15s %s\n", $$1, $$2}'
