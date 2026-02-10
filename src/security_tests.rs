@@ -59,6 +59,45 @@ fn health_internal_headers_visible_when_enabled() {
 }
 
 #[test]
+fn https_enforcement_blocks_insecure_admin_requests() {
+    let _lock = ENV_MUTEX.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    std::env::set_var("SHUMA_ENFORCE_HTTPS", "true");
+    std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+
+    let req = request_with_method_and_headers(Method::Get, "/admin/config", &[]);
+    let resp = crate::handle_bot_trap_impl(&req);
+
+    assert_eq!(*resp.status(), 403u16);
+    assert_eq!(String::from_utf8(resp.into_body()).unwrap(), "HTTPS required");
+
+    std::env::remove_var("SHUMA_ENFORCE_HTTPS");
+}
+
+#[test]
+fn https_enforcement_allows_trusted_forwarded_https_to_reach_admin_auth() {
+    let _lock = ENV_MUTEX.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    std::env::set_var("SHUMA_ENFORCE_HTTPS", "true");
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+    std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+
+    let req = request_with_method_and_headers(
+        Method::Get,
+        "/admin/config",
+        &[
+            ("x-shuma-forwarded-secret", "test-forwarded-secret"),
+            ("x-forwarded-proto", "https"),
+        ],
+    );
+    let resp = crate::handle_bot_trap_impl(&req);
+
+    assert_eq!(*resp.status(), 401u16);
+
+    std::env::remove_var("SHUMA_ENFORCE_HTTPS");
+    std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    std::env::remove_var("SHUMA_API_KEY");
+}
+
+#[test]
 fn admin_options_preflight_is_rejected_without_cors_headers() {
     let _lock = ENV_MUTEX.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     let req = request_with_method_and_headers(

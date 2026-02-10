@@ -13,6 +13,7 @@ Shuma-Gorath is designed to **complement enterprise bot defenses** (such as Akam
 - `SHUMA_EVENT_LOG_RETENTION_HOURS` - Event retention window
 - `SHUMA_ADMIN_PAGE_CONFIG` - `false` (default) or `true`
 - `SHUMA_KV_STORE_FAIL_OPEN` - `true` (default) or `false`
+- `SHUMA_ENFORCE_HTTPS` - `false` (default) or `true`
 - `SHUMA_DEBUG_HEADERS` - Optional; expose internal health/fail-mode headers (dev only)
 
 JS/PoW deployment recommendation:
@@ -28,6 +29,12 @@ Admin API surface defaults:
 
 - Dashboard admin calls are same-origin by default (endpoint inferred from current page origin).
 - Cross-origin admin API use is intentionally closed; `/admin/*` CORS preflight is rejected.
+
+HTTPS enforcement:
+
+- Set `SHUMA_ENFORCE_HTTPS=true` in production to reject non-HTTPS requests.
+- Enforced failure mode is `403 HTTPS required`.
+- The app trusts forwarded HTTPS proto headers only when forwarded-header trust is established (`SHUMA_FORWARDED_IP_SECRET` is configured and `X-Shuma-Forwarded-Secret` matches).
 
 ## 🐙 Forwarded IP Trust
 
@@ -54,10 +61,11 @@ Shuma-Gorath is designed to run behind a CDN or reverse proxy that sets `X-Forwa
 In production, do not expose the Spin origin directly. Instead:
 
 - Terminate TLS at your CDN/proxy
-- Ensure the proxy injects `X-Forwarded-For` (and `X-Shuma-Forwarded-Secret` if enabled)
+- Ensure the proxy injects `X-Forwarded-For`, `X-Forwarded-Proto` (or `Forwarded: proto=https`), and `X-Shuma-Forwarded-Secret` when enabled
 - Firewall the origin to accept traffic only from the CDN/proxy IP ranges
 
 If the origin is reachable directly, client IPs may appear as `unknown`. This is safe for the `/health` endpoint but not a substitute for proper origin protection.
+If `SHUMA_ENFORCE_HTTPS=true` and forwarded proto trust is missing/misconfigured, requests are rejected with `403 HTTPS required`.
 
 ## 🐙 Outbound Network Policy
 

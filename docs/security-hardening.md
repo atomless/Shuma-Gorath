@@ -18,6 +18,16 @@ X-Shuma-Forwarded-Secret: <same value>
 
 This prevents spoofing of client IP headers.
 
+## 🐙 HTTPS Enforcement
+
+Use `SHUMA_ENFORCE_HTTPS=true` in production to hard-reject non-HTTPS traffic.
+
+When enabled:
+
+- Requests without HTTPS context are rejected with `403 HTTPS required`.
+- Forwarded proto headers (`X-Forwarded-Proto` / `Forwarded: proto=...`) are trusted only when forwarded-header trust is established with `SHUMA_FORWARDED_IP_SECRET` + `X-Shuma-Forwarded-Secret`.
+- If proxy proto forwarding or forwarded-header trust is misconfigured, legitimate requests will fail closed (`403 HTTPS required`).
+
 ## 🐙 Fail-Open vs Fail-Closed
 
 `SHUMA_KV_STORE_FAIL_OPEN` controls behavior when the KV store is unavailable during request handling:

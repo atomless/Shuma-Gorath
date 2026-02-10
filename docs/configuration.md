@@ -27,6 +27,7 @@ environment = {
   SHUMA_EVENT_LOG_RETENTION_HOURS = "168",
   SHUMA_ADMIN_PAGE_CONFIG = "false",
   SHUMA_KV_STORE_FAIL_OPEN = "true",
+  SHUMA_ENFORCE_HTTPS = "false",
   SHUMA_DEBUG_HEADERS = "false",
   SHUMA_TEST_MODE = "false",
   SHUMA_JS_REQUIRED_ENFORCED = "true",
@@ -89,6 +90,7 @@ curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
 
 - `SHUMA_ADMIN_PAGE_CONFIG` - `false` (default) or `true`
 - `SHUMA_KV_STORE_FAIL_OPEN` - `true` (default) or `false` when KV is unavailable
+- `SHUMA_ENFORCE_HTTPS` - `false` (default) or `true` to reject non-HTTPS requests
 - `SHUMA_TEST_MODE` - Log-only mode (`true/false`, `1/0`)
 - `SHUMA_JS_REQUIRED_ENFORCED` - Enable/disable JS-required enforcement (`true/false`, `1/0`)
 
@@ -131,6 +133,7 @@ All runtime config fields can be set with env vars:
 - `SHUMA_GEO_BLOCK_COUNTRIES`
 - `SHUMA_WHITELIST`
 - `SHUMA_PATH_WHITELIST`
+- `SHUMA_ENFORCE_HTTPS`
 - `SHUMA_MAZE_ENABLED`
 - `SHUMA_MAZE_AUTO_BAN`
 - `SHUMA_MAZE_AUTO_BAN_THRESHOLD`

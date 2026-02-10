@@ -219,6 +219,7 @@ mod tests {
 #[cfg(test)]
 mod admin_config_tests {
     use super::*;
+    use crate::challenge::KeyValueStore;
     use once_cell::sync::Lazy;
     use spin_sdk::http::{Method, Request};
     use std::collections::HashMap;
@@ -409,14 +410,9 @@ mod admin_config_tests {
             Some(&serde_json::Value::Bool(false))
         );
 
-        let get_req = make_request(Method::Get, "/admin/config", Vec::new());
-        let get_resp = handle_admin_config(&get_req, &store, "default");
-        assert_eq!(*get_resp.status(), 200u16);
-        let get_json: serde_json::Value = serde_json::from_slice(get_resp.body()).unwrap();
-        assert_eq!(
-            get_json.get("js_required_enforced"),
-            Some(&serde_json::Value::Bool(false))
-        );
+        let saved_bytes = store.get("config:default").unwrap().unwrap();
+        let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
+        assert!(!saved_cfg.js_required_enforced);
 
         if let Some(previous) = prior_js_required_env {
             std::env::set_var("SHUMA_JS_REQUIRED_ENFORCED", previous);
@@ -976,6 +972,8 @@ fn handle_admin_config(
                 "pow_difficulty": cfg.pow_difficulty,
                 "pow_ttl_seconds": cfg.pow_ttl_seconds,
                 "admin_page_config_enabled": crate::config::admin_page_config_enabled(),
+                "https_enforced": crate::config::https_enforced(),
+                "forwarded_header_trust_configured": crate::config::forwarded_header_trust_configured(),
                 "challenge_risk_threshold": cfg.challenge_risk_threshold,
                 "challenge_config_mutable": crate::config::challenge_config_mutable(),
                 "challenge_risk_threshold_default": challenge_default,
@@ -1046,6 +1044,8 @@ fn handle_admin_config(
         "pow_difficulty": cfg.pow_difficulty,
         "pow_ttl_seconds": cfg.pow_ttl_seconds,
         "admin_page_config_enabled": crate::config::admin_page_config_enabled(),
+        "https_enforced": crate::config::https_enforced(),
+        "forwarded_header_trust_configured": crate::config::forwarded_header_trust_configured(),
         "challenge_risk_threshold": cfg.challenge_risk_threshold,
         "challenge_config_mutable": crate::config::challenge_config_mutable(),
         "challenge_risk_threshold_default": challenge_default,

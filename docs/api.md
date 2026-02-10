@@ -9,6 +9,10 @@ All admin endpoints require:
 If `SHUMA_FORWARDED_IP_SECRET` is configured, any request that relies on `X-Forwarded-For` must also include:
 - `X-Shuma-Forwarded-Secret: <SHUMA_FORWARDED_IP_SECRET>`
 
+If `SHUMA_ENFORCE_HTTPS=true`:
+- requests without HTTPS context are rejected with `403 HTTPS required`
+- forwarded proto headers are trusted only when `SHUMA_FORWARDED_IP_SECRET` validation succeeds
+
 If `SHUMA_API_KEY` is missing or set to the insecure default (`changeme-supersecret`), `/admin/*` endpoints are disabled.
 
 ## 🐙 Public Endpoints

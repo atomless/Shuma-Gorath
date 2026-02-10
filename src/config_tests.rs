@@ -90,6 +90,33 @@ mod tests {
     }
 
     #[test]
+    fn https_enforced_defaults_to_false_and_parses_true() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        std::env::remove_var("SHUMA_ENFORCE_HTTPS");
+        assert!(!crate::config::https_enforced());
+
+        std::env::set_var("SHUMA_ENFORCE_HTTPS", "true");
+        assert!(crate::config::https_enforced());
+
+        std::env::remove_var("SHUMA_ENFORCE_HTTPS");
+    }
+
+    #[test]
+    fn forwarded_header_trust_configured_requires_non_empty_secret() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+        assert!(!crate::config::forwarded_header_trust_configured());
+
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "");
+        assert!(!crate::config::forwarded_header_trust_configured());
+
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-secret");
+        assert!(crate::config::forwarded_header_trust_configured());
+
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    }
+
+    #[test]
     fn load_admin_page_config_disabled_ignores_kv_values() {
         let _lock = ENV_MUTEX.lock().unwrap();
         let keys = [

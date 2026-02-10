@@ -17,6 +17,8 @@ const CHART_PALETTE = [
 
 const statusPanelState = {
   failMode: 'unknown',
+  httpsEnforced: false,
+  forwardedHeaderTrustConfigured: false,
   testMode: false,
   powEnabled: false,
   powMutable: false,
@@ -683,6 +685,11 @@ function adminPageConfigEnabled(config) {
 
 function updateConfigModeUi(config) {
   const enabled = adminPageConfigEnabled(config);
+  statusPanelState.httpsEnforced = parseBoolLike(config && config.https_enforced, false);
+  statusPanelState.forwardedHeaderTrustConfigured = parseBoolLike(
+    config && config.forwarded_header_trust_configured,
+    false
+  );
   const subtitle = document.getElementById('config-mode-subtitle');
   if (subtitle) {
     subtitle.innerHTML = enabled
@@ -693,6 +700,7 @@ function updateConfigModeUi(config) {
   document.querySelectorAll('.config-edit-pane').forEach(el => {
     el.classList.toggle('hidden', !enabled);
   });
+  renderStatusItems();
 }
 
 const STATUS_DEFINITIONS = [
@@ -703,6 +711,15 @@ const STATUS_DEFINITIONS = [
       `${envVar('SHUMA_KV_STORE_FAIL_OPEN')}=<strong>false</strong> blocks requests that require KV-backed decisions (fail-closed).`
     ),
     status: state => normalizeFailMode(state.failMode).toUpperCase()
+  },
+  {
+    title: 'HTTPS Enforcement',
+    description: state => (
+      `When ${envVar('SHUMA_ENFORCE_HTTPS')} is true, the app rejects non-HTTPS requests with <strong>403 HTTPS required</strong>. ` +
+      `Forwarded proto headers are trusted only when ${envVar('SHUMA_FORWARDED_IP_SECRET')} validation succeeds. ` +
+      `Current forwarded-header trust configuration is <strong>${boolStatus(state.forwardedHeaderTrustConfigured)}</strong>.`
+    ),
+    status: state => boolStatus(state.httpsEnforced)
   },
   {
     title: 'Test Mode',

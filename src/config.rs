@@ -167,6 +167,20 @@ pub fn admin_page_config_enabled() -> bool {
     parse_admin_page_config_enabled(env::var("SHUMA_ADMIN_PAGE_CONFIG").ok().as_deref())
 }
 
+pub fn https_enforced() -> bool {
+    env::var("SHUMA_ENFORCE_HTTPS")
+        .ok()
+        .and_then(|v| parse_bool_like(v.as_str()))
+        .unwrap_or(false)
+}
+
+pub fn forwarded_header_trust_configured() -> bool {
+    env::var("SHUMA_FORWARDED_IP_SECRET")
+        .ok()
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false)
+}
+
 pub fn kv_store_fail_open() -> bool {
     env::var("SHUMA_KV_STORE_FAIL_OPEN")
         .ok()

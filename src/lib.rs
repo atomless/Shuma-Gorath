@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 mod auth;
 #[cfg(test)]
 mod ban_tests;
@@ -62,6 +64,44 @@ fn forwarded_ip_trusted(req: &Request) -> bool {
             .unwrap_or(false),
         _ => false,
     }
+}
+
+fn forwarded_proto_is_https(req: &Request) -> bool {
+    if !forwarded_ip_trusted(req) {
+        return false;
+    }
+
+    if let Some(proto) = req.header("x-forwarded-proto").and_then(|v| v.as_str()) {
+        let first = proto.split(',').next().unwrap_or("").trim();
+        if first.eq_ignore_ascii_case("https") {
+            return true;
+        }
+    }
+
+    if let Some(forwarded) = req.header("forwarded").and_then(|v| v.as_str()) {
+        for part in forwarded.split(',') {
+            for segment in part.split(';') {
+                let segment = segment.trim();
+                let lower = segment.to_ascii_lowercase();
+                let Some(value) = lower.strip_prefix("proto=") else {
+                    continue;
+                };
+                let value = value.trim().trim_matches('"');
+                if value.eq_ignore_ascii_case("https") {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
+}
+
+fn request_is_https(req: &Request) -> bool {
+    if req.uri().trim_start().starts_with("https://") {
+        return true;
+    }
+    forwarded_proto_is_https(req)
 }
 
 /// Extract the best available client IP from the request.
@@ -374,6 +414,10 @@ fn serve_maze_with_tracking(
 /// Main handler logic, testable as a plain Rust function.
 pub fn handle_bot_trap_impl(req: &Request) -> Response {
     let path = req.path();
+
+    if crate::config::https_enforced() && !request_is_https(req) {
+        return Response::new(403, "HTTPS required");
+    }
 
     // Health check endpoint
     if path == "/health" {
