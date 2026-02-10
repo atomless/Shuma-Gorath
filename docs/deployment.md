@@ -35,6 +35,7 @@ Admin API surface defaults:
 
 - Dashboard admin calls are same-origin by default (endpoint inferred from current page origin).
 - Cross-origin admin API use is intentionally closed; `/admin/*` CORS preflight is rejected.
+- Dashboard operators authenticate by entering `SHUMA_API_KEY` once, which creates a short-lived same-origin admin session cookie.
 
 HTTPS enforcement:
 

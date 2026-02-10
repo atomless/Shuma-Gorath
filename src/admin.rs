@@ -465,6 +465,9 @@ fn sanitize_path(path: &str) -> bool {
     matches!(
         path,
         "/admin"
+            | "/admin/login"
+            | "/admin/session"
+            | "/admin/logout"
             | "/admin/ban"
             | "/admin/unban"
             | "/admin/analytics"
@@ -475,6 +478,126 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/cdp"
             | "/admin/cdp/events"
     )
+}
+
+fn session_cookie_value(session_id: &str) -> String {
+    let max_age = crate::auth::admin_session_ttl_seconds();
+    let secure = if crate::config::https_enforced() {
+        "; Secure"
+    } else {
+        ""
+    };
+    format!(
+        "{}={}; Path=/; HttpOnly; SameSite=Strict; Max-Age={}{}",
+        crate::auth::admin_session_cookie_name(),
+        session_id,
+        max_age,
+        secure
+    )
+}
+
+fn clear_session_cookie_value() -> String {
+    let secure = if crate::config::https_enforced() {
+        "; Secure"
+    } else {
+        ""
+    };
+    format!(
+        "{}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0{}",
+        crate::auth::admin_session_cookie_name(),
+        secure
+    )
+}
+
+fn handle_admin_login<S: crate::challenge::KeyValueStore>(req: &Request, store: &S) -> Response {
+    if req.method() != &spin_sdk::http::Method::Post {
+        return Response::new(405, "Method Not Allowed");
+    }
+
+    let json = match crate::input_validation::parse_json_body(req.body(), 2048) {
+        Ok(v) => v,
+        Err(msg) => return Response::new(400, msg),
+    };
+    let Some(api_key) = json.get("api_key").and_then(|v| v.as_str()) else {
+        return Response::new(400, "Bad Request: api_key is required");
+    };
+
+    if !crate::auth::verify_admin_api_key_candidate(api_key) {
+        return Response::new(401, "Unauthorized");
+    }
+
+    let (session_id, csrf_token, expires_at) = match crate::auth::create_admin_session(store) {
+        Ok(v) => v,
+        Err(_) => return Response::new(500, "Key-value store error"),
+    };
+
+    let body = serde_json::to_string(&json!({
+        "authenticated": true,
+        "csrf_token": csrf_token,
+        "expires_at": expires_at
+    }))
+    .unwrap();
+    Response::builder()
+        .status(200)
+        .header("Content-Type", "application/json")
+        .header("Cache-Control", "no-store")
+        .header("Set-Cookie", session_cookie_value(&session_id))
+        .body(body)
+        .build()
+}
+
+fn handle_admin_session<S: crate::challenge::KeyValueStore>(req: &Request, store: &S) -> Response {
+    if req.method() != &spin_sdk::http::Method::Get {
+        return Response::new(405, "Method Not Allowed");
+    }
+
+    let auth = crate::auth::authenticate_admin(req, store);
+    let (authenticated, method, csrf_token) = match auth.method {
+        Some(crate::auth::AdminAuthMethod::SessionCookie) => {
+            (true, "session", auth.csrf_token.clone())
+        }
+        Some(crate::auth::AdminAuthMethod::BearerToken) => (true, "bearer", None),
+        None => (false, "none", None),
+    };
+    let body = serde_json::to_string(&json!({
+        "authenticated": authenticated,
+        "method": method,
+        "csrf_token": csrf_token
+    }))
+    .unwrap();
+    Response::builder()
+        .status(200)
+        .header("Content-Type", "application/json")
+        .header("Cache-Control", "no-store")
+        .body(body)
+        .build()
+}
+
+fn handle_admin_logout<S: crate::challenge::KeyValueStore>(req: &Request, store: &S) -> Response {
+    if req.method() != &spin_sdk::http::Method::Post {
+        return Response::new(405, "Method Not Allowed");
+    }
+
+    let auth = crate::auth::authenticate_admin(req, store);
+    if !auth.is_authorized() {
+        return Response::new(401, "Unauthorized: Invalid or missing API key");
+    }
+    if auth.requires_csrf(req) {
+        let expected = auth.csrf_token.as_deref().unwrap_or("");
+        if !crate::auth::validate_session_csrf(req, expected) {
+            return Response::new(403, "Forbidden");
+        }
+    }
+
+    let _ = crate::auth::clear_admin_session(store, req);
+    let body = serde_json::to_string(&json!({ "ok": true })).unwrap();
+    Response::builder()
+        .status(200)
+        .header("Content-Type", "application/json")
+        .header("Cache-Control", "no-store")
+        .header("Set-Cookie", clear_session_cookie_value())
+        .body(body)
+        .build()
 }
 
 fn query_u64_param(query: &str, key: &str, default: u64) -> u64 {
@@ -1064,8 +1187,11 @@ fn handle_admin_config(
     Response::new(200, body)
 }
 
-/// Handles all /admin API endpoints. Requires valid API key in Authorization header.
+/// Handles all /admin API endpoints.
 /// Supports:
+///   - POST /admin/login: Exchange API key for short-lived admin session cookie
+///   - GET /admin/session: Return current admin auth session state
+///   - POST /admin/logout: Clear admin session cookie
 ///   - GET /admin/ban: List all bans for the site
 ///   - POST /admin/ban: Manually ban an IP (expects JSON body: {"ip": "1.2.3.4", "duration": 3600}; reason is fixed to "manual_ban")
 ///   - POST /admin/unban?ip=...: Remove a ban for an IP
@@ -1086,18 +1212,48 @@ pub fn handle_admin(req: &Request) -> Response {
             "Admin API disabled: SHUMA_API_KEY must be set to a non-default value",
         );
     }
-    // Require valid API key
-    if !crate::auth::is_authorized(req) {
-        return Response::new(401, "Unauthorized: Invalid or missing API key");
-    }
+
     let path = req.path();
     if !sanitize_path(path) {
         return Response::new(400, "Bad Request: Invalid admin endpoint");
     }
+
+    if path == "/admin/login" || path == "/admin/session" || path == "/admin/logout" {
+        let store = match Store::open_default() {
+            Ok(s) => s,
+            Err(_) => return Response::new(500, "Key-value store error"),
+        };
+        return match path {
+            "/admin/login" => handle_admin_login(req, &store),
+            "/admin/session" => handle_admin_session(req, &store),
+            "/admin/logout" => handle_admin_logout(req, &store),
+            _ => Response::new(400, "Bad Request: Invalid admin endpoint"),
+        };
+    }
+
+    let has_bearer = crate::auth::is_bearer_authorized(req);
+    let has_session_cookie = crate::auth::has_admin_session_cookie(req);
+    if !has_bearer && !has_session_cookie {
+        return Response::new(401, "Unauthorized: Invalid or missing API key");
+    }
+
     let store = match Store::open_default() {
         Ok(s) => s,
         Err(_) => return Response::new(500, "Key-value store error"),
     };
+
+    // Require either a valid bearer token or a valid admin session cookie.
+    let auth = crate::auth::authenticate_admin(req, &store);
+    if !auth.is_authorized() {
+        return Response::new(401, "Unauthorized: Invalid or missing API key");
+    }
+    if auth.requires_csrf(req) {
+        let expected = auth.csrf_token.as_deref().unwrap_or("");
+        if !crate::auth::validate_session_csrf(req, expected) {
+            return Response::new(403, "Forbidden");
+        }
+    }
+
     let site_id = "default";
 
     match path {

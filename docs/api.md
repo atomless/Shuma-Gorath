@@ -2,9 +2,14 @@
 
 ## 🐙 Authentication
 
-All admin endpoints require:
-- `Authorization: Bearer <SHUMA_API_KEY>`
-- If `SHUMA_ADMIN_IP_ALLOWLIST` is set, the client IP must be in the allowlist
+Admin endpoints support two auth modes:
+- Bearer token: `Authorization: Bearer <SHUMA_API_KEY>`
+- Session cookie: `POST /admin/login` with `{"api_key":"<SHUMA_API_KEY>"}` sets a short-lived `HttpOnly` cookie
+
+If `SHUMA_ADMIN_IP_ALLOWLIST` is set, the client IP must be in the allowlist.
+
+For session-authenticated write requests (`POST`, `PUT`, `PATCH`, `DELETE`), include:
+- `X-Shuma-CSRF: <csrf_token>` (returned by `/admin/login` and `/admin/session`)
 
 If `SHUMA_FORWARDED_IP_SECRET` is configured, any request that relies on `X-Forwarded-For` must also include:
 - `X-Shuma-Forwarded-Secret: <SHUMA_FORWARDED_IP_SECRET>`
@@ -88,6 +93,9 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 ## 🐙 Admin Endpoints
 
 - `GET /admin` - API help
+- `POST /admin/login` - Exchange API key for short-lived admin session cookie
+- `GET /admin/session` - Current auth/session state
+- `POST /admin/logout` - Clear admin session cookie
 - `GET /admin/ban` - List active bans
 - `POST /admin/ban` - Ban an IP (JSON body: `{"ip":"x.x.x.x","duration":3600}`; reason is always `manual_ban`)
 - `POST /admin/unban?ip=x.x.x.x` - Unban an IP

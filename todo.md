@@ -10,7 +10,8 @@ Single source of truth for active project work.
 - [x] Keep CORS closed by default (no cross-origin admin API surface); document this deployment/security posture explicitly. (src, docs/security-hardening.md, docs/deployment.md)
 - [x] Enforce HTTPS in production deployments (typically at CDN/proxy), with trusted-forwarded-header guidance. (src/lib.rs, dashboard/dashboard.js, docs/deployment.md, docs/security-hardening.md)
 - [ ] Add stronger admin controls for production tuning: split read/write privileges and keep audit visibility for write actions. (src/auth.rs, src/admin.rs, dashboard, docs)
-- [ ] Add Makefile key generation/rotation helpers using OS CSPRNG tools (no new dependency). (Makefile, docs/deployment.md)
+- [ ] Long-term possible: integrate upstream identity/proxy auth (OIDC/SAML) for dashboard/admin instead of app-level key login. (platform, docs/deployment.md)
+- [x] Add Makefile key generation/rotation helpers using OS CSPRNG tools (no new dependency). (Makefile, docs/deployment.md)
 - [ ] Add non-secret runtime config export for deploy handoff (exclude secrets), so dashboard-tuned settings can be applied in immutable redeploys. (src/admin.rs, docs/configuration.md)
 
 ## GEO Defense Maturity

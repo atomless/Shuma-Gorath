@@ -1,8 +1,20 @@
 // Admin controls for dashboard
+function authHeaders(apikey, includeJson = false) {
+  const headers = {};
+  const trimmed = (apikey || '').trim();
+  if (trimmed) {
+    headers.Authorization = 'Bearer ' + trimmed;
+  }
+  if (includeJson) {
+    headers['Content-Type'] = 'application/json';
+  }
+  return headers;
+}
+
 async function banIp(endpoint, apikey, ip, duration = 21600) {
   const resp = await fetch(endpoint + '/admin/ban', {
     method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + apikey, 'Content-Type': 'application/json' },
+    headers: authHeaders(apikey, true),
     body: JSON.stringify({ ip, reason: 'manual_ban', duration })
   });
   if (!resp.ok) {
@@ -15,7 +27,7 @@ async function banIp(endpoint, apikey, ip, duration = 21600) {
 async function unbanIp(endpoint, apikey, ip) {
   const resp = await fetch(endpoint + `/admin/unban?ip=${encodeURIComponent(ip)}`, {
     method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + apikey }
+    headers: authHeaders(apikey)
   });
   if (!resp.ok) {
     const text = await resp.text();
@@ -27,7 +39,7 @@ async function unbanIp(endpoint, apikey, ip) {
 async function getConfig(endpoint, apikey) {
   const resp = await fetch(endpoint + '/admin/config', {
     method: 'GET',
-    headers: { 'Authorization': 'Bearer ' + apikey }
+    headers: authHeaders(apikey)
   });
   if (!resp.ok) {
     const text = await resp.text();
@@ -39,7 +51,7 @@ async function getConfig(endpoint, apikey) {
 async function updateConfig(endpoint, apikey, config) {
   const resp = await fetch(endpoint + '/admin/config', {
     method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + apikey, 'Content-Type': 'application/json' },
+    headers: authHeaders(apikey, true),
     body: JSON.stringify(config)
   });
   if (!resp.ok) {

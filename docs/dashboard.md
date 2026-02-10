@@ -50,9 +50,9 @@ Controls:
 
 Development:
 - `http://127.0.0.1:3000/dashboard/index.html`
-- API key: `SHUMA_API_KEY` from environment or `spin.toml`
-- Admin API endpoint is inferred from the page origin by default (same-origin only)
-- Local diagnostics override: `?api_endpoint=http://127.0.0.1:3000` (loopback dashboards only)
+- API key source: `SHUMA_API_KEY` from environment or `spin.toml`
+- Login flow: enter API key once in the API Access panel; dashboard then uses a short-lived same-origin admin session cookie
+- Admin API endpoint is inferred from the page origin (same-origin only)
 
 Production (recommended):
 - Protect the dashboard with auth

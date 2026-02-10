@@ -118,6 +118,61 @@ const MANUAL_BAN_DURATION_FIELD = {
 const IPV4_SEGMENT_PATTERN = /^\d{1,3}$/;
 const IPV6_INPUT_PATTERN = /^[0-9a-fA-F:.]+$/;
 let adminEndpointContext = null;
+const adminSessionState = {
+  authenticated: false,
+  csrfToken: ''
+};
+
+const nativeFetch = window.fetch.bind(window);
+
+function isWriteMethod(method) {
+  const upper = String(method || 'GET').toUpperCase();
+  return upper === 'POST' || upper === 'PUT' || upper === 'PATCH' || upper === 'DELETE';
+}
+
+function requestUrlOf(input) {
+  if (typeof input === 'string') return input;
+  if (input && typeof input.url === 'string') return input.url;
+  return '';
+}
+
+function requestMethodOf(input, init) {
+  if (init && init.method) return init.method;
+  if (input && input.method) return input.method;
+  return 'GET';
+}
+
+function isAdminRequestUrl(url) {
+  try {
+    const resolved = new URL(url, window.location.origin);
+    return resolved.pathname.startsWith('/admin/');
+  } catch (_e) {
+    return false;
+  }
+}
+
+window.fetch = function patchedFetch(input, init = {}) {
+  const url = requestUrlOf(input);
+  if (!isAdminRequestUrl(url)) {
+    return nativeFetch(input, init);
+  }
+
+  const method = requestMethodOf(input, init);
+  const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
+
+  if (adminSessionState.authenticated && isWriteMethod(method) && adminSessionState.csrfToken) {
+    if (!headers.has('X-Shuma-CSRF')) {
+      headers.set('X-Shuma-CSRF', adminSessionState.csrfToken);
+    }
+  }
+
+  const nextInit = {
+    ...init,
+    headers,
+    credentials: 'same-origin'
+  };
+  return nativeFetch(input, nextInit);
+};
 
 function sanitizeIntegerText(value) {
   return (value || '').replace(/[^\d]/g, '');
@@ -476,14 +531,34 @@ function readIpFieldValue(id, required, messageTarget, label) {
 function validateApiKeyInput(showInline = false) {
   const apikeyInput = document.getElementById('apikey');
   if (!apikeyInput) return false;
+  if (adminSessionState.authenticated) {
+    setFieldError(apikeyInput, '', showInline);
+    return true;
+  }
   const apikey = (apikeyInput.value || '').trim();
   setFieldError(apikeyInput, apikey ? '' : 'API key is required.', showInline);
   return Boolean(apikey);
 }
 
 function hasValidApiContext() {
-  const hasKey = validateApiKeyInput();
-  return Boolean(hasKey);
+  return adminSessionState.authenticated;
+}
+
+function setAdminSession(authenticated, csrfToken = '') {
+  adminSessionState.authenticated = Boolean(authenticated);
+  adminSessionState.csrfToken = adminSessionState.authenticated ? String(csrfToken || '') : '';
+  const statusEl = document.getElementById('api-auth-status');
+  if (statusEl) {
+    statusEl.textContent = adminSessionState.authenticated
+      ? 'Session: authenticated'
+      : 'Session: not authenticated';
+  }
+
+  const apikeyInput = document.getElementById('apikey');
+  if (apikeyInput && adminSessionState.authenticated) {
+    apikeyInput.value = '';
+  }
+  refreshCoreActionButtonsState();
 }
 
 function validateGeoFieldById(id, showInline = false) {
@@ -502,6 +577,15 @@ function validateGeoFieldById(id, showInline = false) {
 function refreshCoreActionButtonsState() {
   const apiValid = hasValidApiContext();
   setValidActionButtonState('refresh', apiValid, true);
+  const loginBtn = document.getElementById('login-btn');
+  if (loginBtn) {
+    const canLogin = !adminSessionState.authenticated && Boolean((document.getElementById('apikey')?.value || '').trim());
+    loginBtn.disabled = !canLogin;
+  }
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    logoutBtn.disabled = !adminSessionState.authenticated;
+  }
   setValidActionButtonState(
     'ban-btn',
     apiValid,
@@ -544,7 +628,6 @@ function refreshCoreActionButtonsState() {
 }
 
 function getAdminContext(messageTarget) {
-  const apikeyInput = document.getElementById('apikey');
   const endpoint = resolveAdminApiEndpoint().endpoint;
   if (!endpoint) {
     if (messageTarget) {
@@ -555,17 +638,19 @@ function getAdminContext(messageTarget) {
     return null;
   }
 
-  const apikey = (apikeyInput.value || '').trim();
-  if (!validateApiKeyInput(true)) {
-    apikeyInput.reportValidity();
-    apikeyInput.focus();
+  if (!adminSessionState.authenticated) {
+    if (messageTarget) {
+      messageTarget.textContent = 'Login required. Enter SHUMA_API_KEY and click Login.';
+      messageTarget.className = 'message warning';
+    }
+    const apikeyInput = document.getElementById('apikey');
+    if (apikeyInput) apikeyInput.focus();
     refreshCoreActionButtonsState();
     return null;
   }
 
-  setFieldError(apikeyInput, '', true);
   refreshCoreActionButtonsState();
-  return { endpoint, apikey };
+  return { endpoint, apikey: '', sessionAuth: true, csrfToken: adminSessionState.csrfToken };
 }
 
 function bindIntegerFieldValidation(id) {
@@ -2542,6 +2627,88 @@ document.getElementById('save-js-required-config').onclick = async function() {
   }
 };
 
+async function restoreAdminSession() {
+  const endpoint = resolveAdminApiEndpoint().endpoint;
+  if (!endpoint) {
+    setAdminSession(false);
+    return false;
+  }
+  try {
+    const resp = await fetch(`${endpoint}/admin/session`);
+    if (!resp.ok) {
+      setAdminSession(false);
+      return false;
+    }
+    const data = await resp.json();
+    if (data && data.authenticated === true && data.method === 'session') {
+      setAdminSession(true, data.csrf_token || '');
+      return true;
+    }
+    setAdminSession(false);
+    return false;
+  } catch (_e) {
+    setAdminSession(false);
+    return false;
+  }
+}
+
+document.getElementById('login-btn').onclick = async function() {
+  const msg = document.getElementById('admin-msg');
+  const endpoint = resolveAdminApiEndpoint().endpoint;
+  const apikeyInput = document.getElementById('apikey');
+  if (!endpoint || !apikeyInput) return;
+
+  const apiKey = (apikeyInput.value || '').trim();
+  if (!apiKey) {
+    setFieldError(apikeyInput, 'API key is required.', true);
+    apikeyInput.reportValidity();
+    apikeyInput.focus();
+    return;
+  }
+
+  this.disabled = true;
+  this.textContent = 'Logging in...';
+  try {
+    const resp = await fetch(`${endpoint}/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: apiKey })
+    });
+    if (!resp.ok) {
+      throw new Error('Login failed. Check SHUMA_API_KEY.');
+    }
+    const data = await resp.json();
+    setAdminSession(true, data.csrf_token || '');
+    msg.textContent = 'Logged in';
+    msg.className = 'message success';
+    document.getElementById('refresh').click();
+  } catch (e) {
+    setAdminSession(false);
+    msg.textContent = `Error: ${e.message}`;
+    msg.className = 'message error';
+  } finally {
+    this.textContent = 'Login';
+    refreshCoreActionButtonsState();
+  }
+};
+
+document.getElementById('logout-btn').onclick = async function() {
+  const msg = document.getElementById('admin-msg');
+  const endpoint = resolveAdminApiEndpoint().endpoint;
+  if (!endpoint) return;
+
+  this.disabled = true;
+  this.textContent = 'Logging out...';
+  try {
+    await fetch(`${endpoint}/admin/logout`, { method: 'POST' });
+  } catch (_e) {}
+  setAdminSession(false);
+  msg.textContent = 'Logged out';
+  msg.className = 'message success';
+  this.textContent = 'Logout';
+  refreshCoreActionButtonsState();
+};
+
 // Main refresh function
 document.getElementById('refresh').onclick = async function() {
   const ctx = getAdminContext(document.getElementById('last-updated'));
@@ -2759,7 +2926,11 @@ document.getElementById('save-durations-btn').onclick = async function() {
 initInputValidation();
 initCharts();
 renderStatusItems();
-document.getElementById('refresh').click();
+restoreAdminSession().then(() => {
+  if (hasValidApiContext()) {
+    document.getElementById('refresh').click();
+  }
+});
 
 // Test Mode Toggle Handler
 document.getElementById('test-mode-toggle').addEventListener('change', async function() {
@@ -2805,5 +2976,7 @@ document.getElementById('test-mode-toggle').addEventListener('change', async fun
 
 // Auto-refresh every 30 seconds
 setInterval(() => {
-  document.getElementById('refresh').click();
+  if (hasValidApiContext()) {
+    document.getElementById('refresh').click();
+  }
 }, 30000);
