@@ -1,105 +1,96 @@
 # 🐙 Deployment & Configuration
 
-This project is designed to run on Spin (local or cloud). Use the Makefile for official flows where possible.
+Shuma-Gorath is designed to run on Spin (local or cloud). Use the Makefile paths as the official workflow.
 
-Shuma-Gorath is designed to **complement enterprise bot defenses** (such as Akamai Bot Manager) as a second-layer of application-specific protection, but it can also run standalone.
+Shuma-Gorath is intended to complement enterprise bot defenses (for example Akamai Bot Manager), but can run standalone.
 
-## 🐙 Required Secrets / Env Vars
+## 🐙 Runtime Configuration Model
 
-- `SHUMA_API_KEY` - Admin API bearer token
-- `SHUMA_JS_SECRET` - Signs the `js_verified` cookie
-- `SHUMA_FORWARDED_IP_SECRET` - Required when trusting `X-Forwarded-For`
-- `SHUMA_ADMIN_IP_ALLOWLIST` - Optional; CIDR/IP allowlist for admin access
-- `SHUMA_EVENT_LOG_RETENTION_HOURS` - Event retention window
-- `SHUMA_CONFIG_USE_KV` - `false` (default) or `true`
-- `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` - `false` (default) or `true`
-- `SHUMA_KV_STORE_FAIL_OPEN` - `true` (default) or `false`
-- `SHUMA_ENFORCE_HTTPS` - `false` (default) or `true`
-- `SHUMA_DEBUG_HEADERS` - Optional; expose internal health/fail-mode headers (dev only)
-- `SHUMA_DEV_MODE` - `false` (default) in production; enables dev-only behavior when `true`
+- Tunables are loaded from KV (`config:default`) only.
+- Env vars are secrets/guardrails only.
+- `make setup` seeds KV tunables from `config/defaults.env` using `make config-seed`.
 
-API key requirements:
+If KV config is missing/invalid at runtime, config-dependent request handling fails with `500 Configuration unavailable`.
 
-- Use a high-entropy 64-hex-character value for `SHUMA_API_KEY`.
-- Placeholder keys are rejected by `make deploy`.
-- Placeholder key login is only allowed when `SHUMA_DEV_MODE=true`.
-- Use `make api-key-generate` to create a valid key.
+## 🐙 Required Env-Only Keys
 
-JS/PoW deployment recommendation:
+Set these in your deployment secret/config system:
 
-- Keep `SHUMA_JS_REQUIRED_ENFORCED=true` in production.
-- Keep `SHUMA_POW_ENABLED=true` for stronger, server-verified JS gate completion.
-- Setting `SHUMA_JS_REQUIRED_ENFORCED=false` bypasses JS gate routing even if PoW endpoints are enabled.
+- `SHUMA_API_KEY`
+- `SHUMA_JS_SECRET`
+- `SHUMA_FORWARDED_IP_SECRET` (required when trusting forwarded headers)
+- `SHUMA_ADMIN_CONFIG_WRITE_ENABLED`
+- `SHUMA_KV_STORE_FAIL_OPEN`
+- `SHUMA_ENFORCE_HTTPS`
+- `SHUMA_DEBUG_HEADERS`
+- `SHUMA_DEV_MODE`
 
-`SHUMA_CONFIG_USE_KV=false` makes runtime config fully env-driven (KV config ignored).
-`SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false` disables `POST /admin/config`.
-For immutable infrastructure-style deployments, set both to `false`.
+Also supported:
 
-Admin API surface defaults:
+- `SHUMA_POW_SECRET`
+- `SHUMA_CHALLENGE_SECRET`
+- `SHUMA_ADMIN_IP_ALLOWLIST`
+- `SHUMA_EVENT_LOG_RETENTION_HOURS`
+- `SHUMA_POW_CONFIG_MUTABLE`
+- `SHUMA_CHALLENGE_CONFIG_MUTABLE`
+- `SHUMA_BOTNESS_CONFIG_MUTABLE`
 
-- Dashboard admin calls are same-origin by default (endpoint inferred from current page origin).
-- Cross-origin admin API use is intentionally closed; `/admin/*` CORS preflight is rejected.
-- Dashboard operators authenticate by entering `SHUMA_API_KEY` once, which creates a short-lived same-origin admin session cookie.
+Full env-only template:
 
-HTTPS enforcement:
+- `/.env.full.example`
 
-- Set `SHUMA_ENFORCE_HTTPS=true` in production to reject non-HTTPS requests.
-- Enforced failure mode is `403 HTTPS required`.
-- The app trusts forwarded HTTPS proto headers only when forwarded-header trust is established (`SHUMA_FORWARDED_IP_SECRET` is configured and `X-Shuma-Forwarded-Secret` matches).
+## 🐙 Security Baseline
 
-## 🐙 Forwarded IP Trust
+- Keep `SHUMA_DEV_MODE=false` in production.
+- Keep `SHUMA_DEBUG_HEADERS=false` in production.
+- Keep `SHUMA_ENFORCE_HTTPS=true` in production.
+- Keep `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false` unless you explicitly need live tuning.
+- Restrict `/admin/*` with `SHUMA_ADMIN_IP_ALLOWLIST` and upstream network controls.
 
-When `SHUMA_FORWARDED_IP_SECRET` is set, the app only trusts `X-Forwarded-For` when the request also includes:
+Validation helper before deploy:
 
-```
-X-Shuma-Forwarded-Secret: <same value>
+```bash
+make deploy-env-validate
 ```
 
-Configure your CDN/reverse proxy to add that header on inbound requests.
+## 🐙 Forwarded Header Trust
 
-## 🐙 Fail-Open vs Fail-Closed (Critical Policy)
+When `SHUMA_FORWARDED_IP_SECRET` is set, forwarded client/proto headers are trusted only if request includes:
 
-`SHUMA_KV_STORE_FAIL_OPEN` controls what happens when the KV store is unavailable during request handling:
+```http
+X-Shuma-Forwarded-Secret: <same secret>
+```
 
-- `true` (default): allow requests through and bypass checks
-- `false`: return a 500 error and block
+Configure your CDN/reverse proxy to inject this header.
 
-Choose this deliberately for your security posture. See `docs/security-hardening.md` for guidance.
+## 🐙 Fail-Open vs Fail-Closed
 
-## 🐙 Production Proxy Requirements
+`SHUMA_KV_STORE_FAIL_OPEN` controls behavior when KV is unavailable:
 
-Shuma-Gorath is designed to run behind a CDN or reverse proxy that sets `X-Forwarded-For`.
-In production, do not expose the Spin origin directly. Instead:
+- `true`: allow requests through (reduced protection)
+- `false`: block with server error (stricter posture)
 
-- Terminate TLS at your CDN/proxy
-- Ensure the proxy injects `X-Forwarded-For`, `X-Forwarded-Proto` (or `Forwarded: proto=https`), and `X-Shuma-Forwarded-Secret` when enabled
-- Firewall the origin to accept traffic only from the CDN/proxy IP ranges
+Choose deliberately for your production risk posture.
 
-If the origin is reachable directly, client IPs may appear as `unknown`. This is safe for the `/health` endpoint but not a substitute for proper origin protection.
-If `SHUMA_ENFORCE_HTTPS=true` and forwarded proto trust is missing/misconfigured, requests are rejected with `403 HTTPS required`.
+## 🐙 Outbound Policy
 
-## 🐙 Outbound Network Policy
-
-Runtime outbound HTTP(S) from the bot component is intentionally disabled via:
+Outbound HTTP(S) is disabled by default:
 
 ```toml
 allowed_outbound_hosts = []
 ```
 
-If you add a feature that needs external calls, explicitly allow only required hosts. Avoid wildcard allowlists.
+Only add explicit hosts if a new feature requires outbound calls.
 
-## 🐙 Fermyon / Spin Cloud (Recommended)
+## 🐙 Fermyon / Spin Cloud
 
-Use Spin application variables to avoid committing secrets.
-For a complete env var template, see `/.env.full.example` and `docs/configuration.md`.
-
-Example `spin.toml` wiring:
+Example variable wiring:
 
 ```toml
 [variables]
-forwarded_ip_secret = { default = "" }
 api_key = { default = "" }
 js_secret = { default = "" }
+forwarded_ip_secret = { default = "" }
 
 [component.bot-trap]
 environment = {
@@ -109,60 +100,21 @@ environment = {
 }
 ```
 
-Set variables in your cloud environment (CLI or console) before deploying. Use `make deploy` for the official deploy path.
-
-### 🐙 Step-by-Step (Fermyon Cloud)
+Deploy:
 
 ```bash
 spin cloud login
 make deploy
 ```
 
-Optional custom domain:
+## 🐙 Local Dev
+
+`make setup` creates `.env.local`, generates dev secrets, and seeds KV defaults.
 
 ```bash
-spin cloud link --domain your-domain.example.com
+make setup
+make dev
+make api-key-show
 ```
 
-### 🐙 Monitoring (Fermyon Cloud)
-
-```bash
-spin cloud logs
-spin cloud apps info
-spin cloud apps metrics
-```
-
-### 🐙 Forwarded IP Secret on Fermyon Cloud
-
-If you set `SHUMA_FORWARDED_IP_SECRET`, you must inject the matching `X-Shuma-Forwarded-Secret` header upstream. If you do not inject that header, requests that rely on `X-Forwarded-For` are treated as untrusted.
-
-## 🐙 Other Deploy Targets
-
-- Set environment variables in your platform’s secret/config system (Kubernetes, Docker, systemd, etc.)
-- Ensure your proxy/CDN adds `X-Shuma-Forwarded-Secret` when `SHUMA_FORWARDED_IP_SECRET` is set
-- Use TLS for all admin traffic
-- Restrict `/admin/*` access using `SHUMA_ADMIN_IP_ALLOWLIST` or platform firewall rules
-
-## 🐙 Local Dev Defaults
-
-`make setup` creates `.env.local` (gitignored) and auto-generates local dev values for `SHUMA_API_KEY` and `SHUMA_FORWARDED_IP_SECRET`.
-`make dev` loads `.env.local`, enables internal debug headers, and passes values to Spin. Override as needed:
-
-```bash
-make dev SHUMA_FORWARDED_IP_SECRET="your-dev-secret" SHUMA_API_KEY="your-dev-api-key"
-```
-
-`make dev` sets `SHUMA_CONFIG_USE_KV=true` and `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true` by default.
-`make dev` also sets `SHUMA_DEV_MODE=true` by default.
-To preview ENV-only behavior locally:
-
-```bash
-make dev DEV_CONFIG_USE_KV=false DEV_ADMIN_CONFIG_WRITE_ENABLED=false
-```
-Generate/rotate helper:
-
-- `make api-key-generate` prints a new high-entropy API key
-- `make api-key-show` prints the local dashboard login key from `.env.local`
-- `make api-key-rotate` prints a new key plus rotation steps
-- `make api-key-validate` checks key format before deployment
-- `make deploy-env-validate` fails when unsafe deploy flags are enabled (`SHUMA_DEBUG_HEADERS=true` or `SHUMA_DEV_MODE=true`)
+`make dev` enables dev-mode defaults for local operation and dashboard testing.

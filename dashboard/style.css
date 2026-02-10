@@ -123,6 +123,7 @@
   background: var(--field-bg);
   color: var(--field-fg);
   font-size: var(--text-base);
+  box-shadow: inset 0 0 5px var(--color-300);
 }
 
 .input-field--mono {

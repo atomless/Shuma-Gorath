@@ -89,8 +89,9 @@ mod tests {
     #[test]
     fn transform_pair_returns_two_distinct_transforms() {
         let mut rng = StdRng::seed_from_u64(123);
+        let available = transforms_for_count(8);
         for _ in 0..50 {
-            let pair = select_transform_pair(&mut rng);
+            let pair = select_transform_pair(&mut rng, &available);
             assert_ne!(pair[0], pair[1]);
         }
     }
@@ -98,8 +99,9 @@ mod tests {
     #[test]
     fn transform_pair_avoids_cancel_pairs() {
         let mut rng = StdRng::seed_from_u64(456);
+        let available = transforms_for_count(8);
         for _ in 0..200 {
-            let pair = select_transform_pair(&mut rng);
+            let pair = select_transform_pair(&mut rng, &available);
             let is_cancel = matches!(
                 (pair[0], pair[1]),
                 (Transform::ShiftLeft, Transform::ShiftRight)
@@ -116,8 +118,9 @@ mod tests {
     #[test]
     fn transform_pair_uses_only_eight_transforms() {
         let mut rng = StdRng::seed_from_u64(321);
+        let available = transforms_for_count(8);
         for _ in 0..100 {
-            let pair = select_transform_pair(&mut rng);
+            let pair = select_transform_pair(&mut rng, &available);
             for t in pair {
                 assert!(matches!(
                     t,
@@ -256,7 +259,7 @@ mod tests {
             .uri("/challenge")
             .body(Vec::new())
             .build();
-        let resp = render_challenge(&req);
+        let resp = render_challenge(&req, 6);
         let body = String::from_utf8(resp.into_body()).unwrap();
         assert!(body.contains("id=\"challenge-output-grid\""));
     }
@@ -268,7 +271,7 @@ mod tests {
             .uri("/challenge")
             .body(Vec::new())
             .build();
-        let resp = render_challenge(&req);
+        let resp = render_challenge(&req, 6);
         let body = String::from_utf8(resp.into_body()).unwrap();
         assert!(body.contains("id=\"challenge-output\""));
         assert!(body.contains("type=\"hidden\""));
@@ -281,7 +284,7 @@ mod tests {
             .uri("/challenge")
             .body(Vec::new())
             .build();
-        let resp = render_challenge(&req);
+        let resp = render_challenge(&req, 6);
         let body = String::from_utf8(resp.into_body()).unwrap();
         assert!(body.contains("Puzzle"));
         assert!(!body.contains("id=\"transform-1\""));
@@ -316,7 +319,7 @@ mod tests {
             .uri("/challenge")
             .body(Vec::new())
             .build();
-        let resp = render_challenge(&req);
+        let resp = render_challenge(&req, 6);
         let body = String::from_utf8(resp.into_body()).unwrap();
         assert!(!body.contains("Debug transforms:"));
     }
@@ -328,9 +331,9 @@ mod tests {
             .uri("/challenge")
             .body(Vec::new())
             .build();
-        let resp = serve_challenge_page(&req, false);
+        let resp = serve_challenge_page(&req, false, 6);
         assert_eq!(*resp.status(), 404u16);
-        let resp_ok = serve_challenge_page(&req, true);
+        let resp_ok = serve_challenge_page(&req, true, 6);
         assert_eq!(*resp_ok.status(), 200u16);
     }
 
@@ -341,7 +344,7 @@ mod tests {
             .uri("/challenge")
             .body(Vec::new())
             .build();
-        let resp = serve_challenge_page(&req, true);
+        let resp = serve_challenge_page(&req, true, 6);
         assert_eq!(
             header_value(&resp, "Cache-Control").as_deref(),
             Some("no-store")

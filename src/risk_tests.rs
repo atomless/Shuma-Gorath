@@ -57,8 +57,7 @@ mod tests {
 
     #[test]
     fn botness_assessment_uses_configured_weights() {
-        let store = TestStore::new();
-        let mut cfg = crate::config::Config::load(&store, "default");
+        let mut cfg = crate::config::defaults().clone();
         cfg.botness_weights.js_required = 3;
         cfg.botness_weights.geo_risk = 4;
         cfg.botness_weights.rate_medium = 2;
@@ -85,8 +84,7 @@ mod tests {
 
     #[test]
     fn botness_assessment_applies_rate_bands_correctly() {
-        let store = TestStore::new();
-        let cfg = crate::config::Config::load(&store, "default");
+        let cfg = crate::config::defaults().clone();
 
         let medium = crate::compute_botness_assessment(false, false, 40, 80, &cfg);
         let high = crate::compute_botness_assessment(false, false, 70, 80, &cfg);

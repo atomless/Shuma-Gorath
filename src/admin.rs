@@ -237,9 +237,22 @@ mod admin_config_tests {
         builder.build()
     }
 
-    #[derive(Default)]
     struct TestStore {
         map: Mutex<HashMap<String, Vec<u8>>>,
+    }
+
+    impl Default for TestStore {
+        fn default() -> Self {
+            let mut map = HashMap::new();
+            let cfg = crate::config::defaults().clone();
+            map.insert(
+                "config:default".to_string(),
+                serde_json::to_vec(&cfg).unwrap(),
+            );
+            Self {
+                map: Mutex::new(map),
+            }
+        }
     }
 
     impl crate::challenge::KeyValueStore for TestStore {
@@ -309,7 +322,6 @@ mod admin_config_tests {
     fn admin_config_updates_geo_policy_lists() {
         let _lock = ENV_MUTEX.lock().unwrap();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_CONFIG_USE_KV", "true");
         std::env::remove_var("SHUMA_GEO_RISK_COUNTRIES");
         std::env::remove_var("SHUMA_GEO_ALLOW_COUNTRIES");
         std::env::remove_var("SHUMA_GEO_CHALLENGE_COUNTRIES");
@@ -373,7 +385,6 @@ mod admin_config_tests {
         std::env::remove_var("SHUMA_GEO_MAZE_COUNTRIES");
         std::env::remove_var("SHUMA_GEO_BLOCK_COUNTRIES");
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
-        std::env::remove_var("SHUMA_CONFIG_USE_KV");
     }
 
     #[test]
@@ -737,7 +748,10 @@ fn handle_admin_config(
             Err(e) => return Response::new(400, e),
         };
         // Load current config
-        let mut cfg = crate::config::Config::load(store, site_id);
+        let mut cfg = match crate::config::Config::load(store, site_id) {
+            Ok(cfg) => cfg,
+            Err(err) => return Response::new(500, err.user_message()),
+        };
         let mut changed = false;
 
         // Update test_mode if provided
@@ -1092,11 +1106,10 @@ fn handle_admin_config(
                 "cdp_auto_ban": cfg.cdp_auto_ban,
                 "cdp_detection_threshold": cfg.cdp_detection_threshold,
                 "js_required_enforced": cfg.js_required_enforced,
-                "pow_enabled": crate::pow::pow_enabled(),
+                "pow_enabled": cfg.pow_enabled,
                 "pow_config_mutable": crate::config::pow_config_mutable(),
                 "pow_difficulty": cfg.pow_difficulty,
                 "pow_ttl_seconds": cfg.pow_ttl_seconds,
-                "config_use_kv_enabled": crate::config::config_use_kv_enabled(),
                 "admin_config_write_enabled": crate::config::admin_config_write_enabled(),
                 "https_enforced": crate::config::https_enforced(),
                 "forwarded_header_trust_configured": crate::config::forwarded_header_trust_configured(),
@@ -1119,7 +1132,10 @@ fn handle_admin_config(
         return Response::new(200, body);
     }
     // GET: Return current config
-    let cfg = crate::config::Config::load(store, site_id);
+    let cfg = match crate::config::Config::load(store, site_id) {
+        Ok(cfg) => cfg,
+        Err(err) => return Response::new(500, err.user_message()),
+    };
     log_event(
         store,
         &EventLogEntry {
@@ -1165,11 +1181,10 @@ fn handle_admin_config(
         "cdp_auto_ban": cfg.cdp_auto_ban,
         "cdp_detection_threshold": cfg.cdp_detection_threshold,
         "js_required_enforced": cfg.js_required_enforced,
-        "pow_enabled": crate::pow::pow_enabled(),
+        "pow_enabled": cfg.pow_enabled,
         "pow_config_mutable": crate::config::pow_config_mutable(),
         "pow_difficulty": cfg.pow_difficulty,
         "pow_ttl_seconds": cfg.pow_ttl_seconds,
-        "config_use_kv_enabled": crate::config::config_use_kv_enabled(),
         "admin_config_write_enabled": crate::config::admin_config_write_enabled(),
         "https_enforced": crate::config::https_enforced(),
         "forwarded_header_trust_configured": crate::config::forwarded_header_trust_configured(),
@@ -1487,7 +1502,10 @@ pub fn handle_admin(req: &Request) -> Response {
         }
         "/admin/analytics" => {
             // Return analytics: ban count and test_mode status
-            let cfg = crate::config::Config::load(&store, site_id);
+            let cfg = match crate::config::Config::load(&store, site_id) {
+                Ok(cfg) => cfg,
+                Err(err) => return Response::new(500, err.user_message()),
+            };
             let ban_count = crate::ban::list_active_bans_with_scan(&store, site_id).len();
             let fail_mode = if crate::config::kv_store_fail_open() {
                 "open"
@@ -1603,7 +1621,10 @@ pub fn handle_admin(req: &Request) -> Response {
         }
         "/admin/robots" => {
             // Return robots.txt configuration and preview
-            let cfg = crate::config::Config::load(&store, site_id);
+            let cfg = match crate::config::Config::load(&store, site_id) {
+                Ok(cfg) => cfg,
+                Err(err) => return Response::new(500, err.user_message()),
+            };
 
             // Generate preview of robots.txt content
             let preview = crate::robots::generate_robots_txt(&cfg);
@@ -1641,7 +1662,10 @@ pub fn handle_admin(req: &Request) -> Response {
         }
         "/admin/cdp" => {
             // Return CDP detection configuration and stats
-            let cfg = crate::config::Config::load(&store, site_id);
+            let cfg = match crate::config::Config::load(&store, site_id) {
+                Ok(cfg) => cfg,
+                Err(err) => return Response::new(500, err.user_message()),
+            };
 
             // Get CDP detection stats from KV store
             let cdp_detections: u64 = store

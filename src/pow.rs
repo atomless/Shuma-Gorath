@@ -35,12 +35,6 @@ fn get_pow_secret() -> String {
         .unwrap_or_else(|_| "changeme-pow-secret".to_string())
 }
 
-pub fn pow_enabled() -> bool {
-    std::env::var("SHUMA_POW_ENABLED")
-        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .unwrap_or(true)
-}
-
 fn sign_payload(payload: &str) -> Vec<u8> {
     let secret = get_pow_secret();
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
@@ -129,8 +123,13 @@ pub fn issue_pow_challenge(ip: &str, difficulty: u8, ttl_seconds: u64) -> PowCha
     }
 }
 
-pub fn handle_pow_challenge(ip: &str, difficulty: u8, ttl_seconds: u64) -> Response {
-    if !pow_enabled() {
+pub fn handle_pow_challenge(
+    ip: &str,
+    pow_enabled: bool,
+    difficulty: u8,
+    ttl_seconds: u64,
+) -> Response {
+    if !pow_enabled {
         return Response::new(404, "PoW disabled");
     }
     let challenge = issue_pow_challenge(ip, difficulty, ttl_seconds);
@@ -143,8 +142,8 @@ pub fn handle_pow_challenge(ip: &str, difficulty: u8, ttl_seconds: u64) -> Respo
         .build()
 }
 
-pub fn handle_pow_verify(req: &Request, ip: &str) -> Response {
-    if !pow_enabled() {
+pub fn handle_pow_verify(req: &Request, ip: &str, pow_enabled: bool) -> Response {
+    if !pow_enabled {
         return Response::new(404, "PoW disabled");
     }
     if *req.method() != spin_sdk::http::Method::Post {

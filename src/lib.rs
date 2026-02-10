@@ -171,6 +171,19 @@ fn response_with_optional_debug_headers(
     }
 }
 
+fn config_error_response(err: config::ConfigLoadError, path: &str) -> Response {
+    log_line(&format!(
+        "[CONFIG ERROR] path={} error={}",
+        path,
+        err.user_message()
+    ));
+    Response::new(500, "Configuration unavailable")
+}
+
+fn load_runtime_config(store: &Store, site_id: &str, path: &str) -> Result<config::Config, Response> {
+    config::Config::load(store, site_id).map_err(|err| config_error_response(err, path))
+}
+
 fn rate_proximity_score(rate_count: u32, rate_limit: u32) -> u8 {
     if rate_limit == 0 {
         return 0;
@@ -413,6 +426,10 @@ fn serve_maze_with_tracking(
 
 /// Main handler logic, testable as a plain Rust function.
 pub fn handle_bot_trap_impl(req: &Request) -> Response {
+    if let Err(err) = config::validate_env_only_once() {
+        log_line(&format!("[ENV ERROR] {}", err));
+        return Response::new(500, "Server configuration error");
+    }
     let path = req.path();
 
     if crate::config::https_enforced() && !request_is_https(req) {
@@ -476,8 +493,12 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
     }
     if path == "/challenge" && *req.method() == spin_sdk::http::Method::Get {
         if let Ok(store) = Store::open_default() {
-            let cfg = config::Config::load(&store, "default");
-            let response = challenge::serve_challenge_page(req, cfg.test_mode);
+            let cfg = match load_runtime_config(&store, "default", path) {
+                Ok(cfg) => cfg,
+                Err(resp) => return resp,
+            };
+            let response =
+                challenge::serve_challenge_page(req, cfg.test_mode, cfg.challenge_transform_count as usize);
             if *response.status() == 200 {
                 metrics::increment(&store, metrics::MetricName::ChallengeServedTotal, None);
             }
@@ -505,7 +526,10 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
     // robots.txt - configurable AI crawler blocking
     if path == "/robots.txt" {
         if let Ok(store) = Store::open_default() {
-            let cfg = config::Config::load(&store, "default");
+            let cfg = match load_runtime_config(&store, "default", path) {
+                Ok(cfg) => cfg,
+                Err(resp) => return resp,
+            };
             if cfg.robots_enabled {
                 metrics::increment(
                     &store,
@@ -570,7 +594,10 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
     }
     let store = store.as_ref().unwrap();
 
-    let cfg = config::Config::load(store, site_id);
+    let cfg = match load_runtime_config(store, site_id, path) {
+        Ok(cfg) => cfg,
+        Err(resp) => return resp,
+    };
     let geo_assessment = assess_geo_request(req, &cfg);
 
     // Link Maze Honeypot - trap bots in infinite loops (only if enabled)
@@ -836,10 +863,10 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
         if *req.method() != spin_sdk::http::Method::Get {
             return Response::new(405, "Method Not Allowed");
         }
-        return pow::handle_pow_challenge(&ip, cfg.pow_difficulty, cfg.pow_ttl_seconds);
+        return pow::handle_pow_challenge(&ip, cfg.pow_enabled, cfg.pow_difficulty, cfg.pow_ttl_seconds);
     }
     if path == "/pow/verify" {
-        return pow::handle_pow_verify(req, &ip);
+        return pow::handle_pow_verify(req, &ip, cfg.pow_enabled);
     }
     // Outdated browser
     if browser::is_outdated_browser(ua, &cfg.browser_block) {
@@ -923,7 +950,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
                     admin: None,
                 },
             );
-            return challenge::render_challenge(req);
+            return challenge::render_challenge(req, cfg.challenge_transform_count as usize);
         }
         geo::GeoPolicyRoute::Challenge => {
             metrics::increment(store, metrics::MetricName::ChallengesTotal, None);
@@ -942,7 +969,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
                     admin: None,
                 },
             );
-            return challenge::render_challenge(req);
+            return challenge::render_challenge(req, cfg.challenge_transform_count as usize);
         }
         geo::GeoPolicyRoute::Allow | geo::GeoPolicyRoute::None => {}
     }
@@ -989,7 +1016,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
                 admin: None,
             },
         );
-        return challenge::render_challenge(req);
+        return challenge::render_challenge(req, cfg.challenge_transform_count as usize);
     }
 
     // JS verification (bypass for browser whitelist)
@@ -1007,7 +1034,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
                 admin: None,
             },
         );
-        return js::inject_js_challenge(&ip, cfg.pow_difficulty, cfg.pow_ttl_seconds);
+        return js::inject_js_challenge(&ip, cfg.pow_enabled, cfg.pow_difficulty, cfg.pow_ttl_seconds);
     }
     Response::new(200, "OK (passed bot trap)")
 }

@@ -60,8 +60,7 @@ mod tests {
 
     #[test]
     fn geo_policy_uses_most_restrictive_match_precedence() {
-        let store = TestStore::default();
-        let mut cfg = crate::config::Config::load(&store, "default");
+        let mut cfg = crate::config::defaults().clone();
         cfg.geo_allow = vec!["US".to_string()];
         cfg.geo_challenge = vec!["US".to_string()];
         cfg.geo_maze = vec!["US".to_string()];
@@ -73,8 +72,7 @@ mod tests {
 
     #[test]
     fn geo_policy_returns_none_when_no_match() {
-        let store = TestStore::default();
-        let cfg = crate::config::Config::load(&store, "default");
+        let cfg = crate::config::defaults().clone();
         let route = crate::geo::evaluate_geo_policy(Some("US"), &cfg);
         assert_eq!(route, crate::geo::GeoPolicyRoute::None);
     }

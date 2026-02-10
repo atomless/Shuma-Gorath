@@ -197,25 +197,13 @@ pub(crate) fn parse_transform_count(value: Option<&str>) -> usize {
     parsed.clamp(MIN_TRANSFORM_COUNT, MAX_TRANSFORM_COUNT)
 }
 
-fn configured_transform_count() -> usize {
-    parse_transform_count(
-        std::env::var("SHUMA_CHALLENGE_TRANSFORM_COUNT")
-            .ok()
-            .as_deref(),
-    )
-}
-
 pub(crate) fn transforms_for_count(count: usize) -> Vec<Transform> {
     let capped = count.clamp(MIN_TRANSFORM_COUNT, MAX_TRANSFORM_COUNT);
     all_transforms().into_iter().take(capped).collect()
 }
 
-fn enabled_transforms() -> Vec<Transform> {
-    transforms_for_count(configured_transform_count())
-}
-
-pub(crate) fn select_transform_pair(rng: &mut impl Rng) -> Vec<Transform> {
-    let mut options = enabled_transforms();
+pub(crate) fn select_transform_pair(rng: &mut impl Rng, available: &[Transform]) -> Vec<Transform> {
+    let mut options = available.to_vec();
     options.shuffle(rng);
     let first = options[0];
     let inverse = inverse_transform(first);
@@ -393,14 +381,15 @@ fn idx(row: usize, col: usize, size: usize) -> usize {
     row * size + col
 }
 
-pub(crate) fn render_challenge(req: &Request) -> Response {
+pub(crate) fn render_challenge(req: &Request, transform_count: usize) -> Response {
     let ip = crate::extract_client_ip(req);
     let ip_bucket = crate::ip::bucket_ip(&ip);
     let now = crate::admin::now_ts();
     let mut rng = rand::rng();
     let grid_size = 4u8;
     let active_cells = rng.random_range(7..=9);
-    let transforms = select_transform_pair(&mut rng);
+    let legend_transforms = transforms_for_count(transform_count);
+    let transforms = select_transform_pair(&mut rng, &legend_transforms);
     let seed = ChallengeSeed {
         seed_id: format!("{:016x}", rng.random::<u64>()),
         issued_at: now,
@@ -435,7 +424,6 @@ pub(crate) fn render_challenge(req: &Request) -> Response {
         })
         .collect();
 
-    let legend_transforms = enabled_transforms();
     let legend_html = render_transform_legend(&legend_transforms);
     let html = format!(
         r#"
@@ -827,11 +815,11 @@ fn challenge_incorrect_response() -> Response {
     challenge_response(403, CHALLENGE_INCORRECT_BODY)
 }
 
-pub(crate) fn serve_challenge_page(req: &Request, test_mode: bool) -> Response {
+pub(crate) fn serve_challenge_page(req: &Request, test_mode: bool, transform_count: usize) -> Response {
     if !test_mode {
         return challenge_response(404, "Not Found");
     }
-    render_challenge(req)
+    render_challenge(req, transform_count)
 }
 
 pub(crate) fn handle_challenge_submit_with_outcome<S: KeyValueStore>(

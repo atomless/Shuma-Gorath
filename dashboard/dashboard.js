@@ -755,16 +755,11 @@ function parseBoolLike(value, fallback = false) {
   return fallback;
 }
 
-function configUseKvEnabled(config) {
-  return parseBoolLike(config && config.config_use_kv_enabled, false);
-}
-
 function adminConfigWriteEnabled(config) {
   return parseBoolLike(config && config.admin_config_write_enabled, false);
 }
 
 function updateConfigModeUi(config) {
-  const useKvEnabled = configUseKvEnabled(config);
   const writeEnabled = adminConfigWriteEnabled(config);
   statusPanelState.httpsEnforced = parseBoolLike(config && config.https_enforced, false);
   statusPanelState.forwardedHeaderTrustConfigured = parseBoolLike(
@@ -775,12 +770,10 @@ function updateConfigModeUi(config) {
   if (subtitle) {
     if (writeEnabled) {
       subtitle.innerHTML =
-        `Admin config editing is enabled (${envVar('SHUMA_ADMIN_CONFIG_WRITE_ENABLED')}=<strong>true</strong>). ` +
-        `Runtime KV loading is currently <strong>${useKvEnabled ? 'ENABLED' : 'DISABLED'}</strong> via ${envVar('SHUMA_CONFIG_USE_KV')}.`;
+        `Admin page configuration enabled. Set ${envVar('SHUMA_ADMIN_CONFIG_WRITE_ENABLED')} to <strong>false</strong> to disable.`;
     } else {
       subtitle.innerHTML =
-        `Admin config editing is disabled (${envVar('SHUMA_ADMIN_CONFIG_WRITE_ENABLED')}=<strong>false</strong>). ` +
-        `Set ${envVar('SHUMA_ADMIN_CONFIG_WRITE_ENABLED')} to <strong>true</strong> to allow saves.`;
+        `Admin page configuration disabled. Set ${envVar('SHUMA_ADMIN_CONFIG_WRITE_ENABLED')} to <strong>true</strong> to enable.`;
     }
   }
 

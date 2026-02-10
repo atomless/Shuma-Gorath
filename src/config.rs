@@ -1,11 +1,45 @@
 // src/config.rs
-// Configuration and site settings for WASM Bot Trap
-// Loads and manages per-site configuration (ban duration, rate limits, honeypots, etc.)
+// Configuration and site settings for WASM Bot Trap.
+// Tunables are loaded from KV; defaults are defined in config/defaults.env.
 
-use std::env;
+use std::{collections::HashMap, env};
 
-use serde::{Serialize, Deserialize};
+use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
+
 use crate::challenge::KeyValueStore;
+
+const DEFAULTS_ENV_TEXT: &str = include_str!("../config/defaults.env");
+
+pub const POW_DIFFICULTY_MIN: u8 = 12;
+pub const POW_DIFFICULTY_MAX: u8 = 20;
+pub const POW_TTL_MIN: u64 = 30;
+pub const POW_TTL_MAX: u64 = 300;
+const CHALLENGE_THRESHOLD_MIN: u8 = 1;
+const CHALLENGE_THRESHOLD_MAX: u8 = 10;
+const MAZE_THRESHOLD_MIN: u8 = 1;
+const MAZE_THRESHOLD_MAX: u8 = 10;
+const BOTNESS_WEIGHT_MIN: u8 = 0;
+const BOTNESS_WEIGHT_MAX: u8 = 10;
+const CHALLENGE_TRANSFORM_COUNT_MIN: u8 = 4;
+const CHALLENGE_TRANSFORM_COUNT_MAX: u8 = 8;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConfigLoadError {
+    StoreUnavailable,
+    MissingConfig,
+    InvalidConfig,
+}
+
+impl ConfigLoadError {
+    pub fn user_message(&self) -> &'static str {
+        match self {
+            ConfigLoadError::StoreUnavailable => "Configuration unavailable (KV store error)",
+            ConfigLoadError::MissingConfig => "Configuration unavailable (missing KV config; run setup/config-seed)",
+            ConfigLoadError::InvalidConfig => "Configuration unavailable (invalid KV config)",
+        }
+    }
+}
 
 /// Weighted signal contributions for the unified botness score.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -34,32 +68,32 @@ impl Default for BotnessWeights {
 /// Ban duration settings per ban type (in seconds)
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BanDurations {
-    pub honeypot: u64,      // Accessing honeypot URLs
-    pub rate_limit: u64,    // Exceeding rate limits
-    pub browser: u64,       // Outdated/suspicious browser
-    pub admin: u64,         // Manual admin ban (default)
-    #[serde(default = "default_cdp_ban_duration")]
-    pub cdp: u64,           // CDP automation detection
-}
-
-fn default_cdp_ban_duration() -> u64 {
-    43200  // 12 hours for CDP automation
+    #[serde(default = "default_ban_duration_honeypot")]
+    pub honeypot: u64,
+    #[serde(default = "default_ban_duration_rate_limit")]
+    pub rate_limit: u64,
+    #[serde(default = "default_ban_duration_browser")]
+    pub browser: u64,
+    #[serde(default = "default_ban_duration_admin")]
+    pub admin: u64,
+    #[serde(default = "default_ban_duration_cdp")]
+    pub cdp: u64,
 }
 
 impl Default for BanDurations {
     fn default() -> Self {
         BanDurations {
-            honeypot: 86400,    // 24 hours - severe offense
-            rate_limit: 3600,   // 1 hour - temporary
-            browser: 21600,     // 6 hours - moderate
-            admin: 21600,       // 6 hours - default for manual bans
-            cdp: 43200,         // 12 hours - automation detected
+            honeypot: default_ban_duration_honeypot(),
+            rate_limit: default_ban_duration_rate_limit(),
+            browser: default_ban_duration_browser(),
+            admin: default_ban_duration_admin(),
+            cdp: default_ban_duration_cdp(),
         }
     }
 }
 
 impl BanDurations {
-    /// Get duration for a specific ban type, with fallback to admin duration
+    /// Get duration for a specific ban type, with fallback to admin duration.
     pub fn get(&self, ban_type: &str) -> u64 {
         match ban_type {
             "honeypot" => self.honeypot,
@@ -71,100 +105,202 @@ impl BanDurations {
     }
 }
 
-/// Configuration struct for a site, loaded from KV or defaults.
+/// Configuration struct for a site, loaded from KV.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
-    pub ban_duration: u64,           // Legacy: single duration (kept for backward compatibility)
-    pub ban_durations: BanDurations, // New: per-type durations
+    #[serde(default = "default_ban_duration")]
+    pub ban_duration: u64,
+    #[serde(default)]
+    pub ban_durations: BanDurations,
+    #[serde(default = "default_rate_limit")]
     pub rate_limit: u32,
+    #[serde(default = "default_honeypots")]
     pub honeypots: Vec<String>,
+    #[serde(default = "default_browser_block")]
     pub browser_block: Vec<(String, u32)>,
+    #[serde(default = "default_browser_whitelist")]
     pub browser_whitelist: Vec<(String, u32)>,
+    #[serde(default = "default_geo_risk")]
     pub geo_risk: Vec<String>,
-    #[serde(default)]
+    #[serde(default = "default_geo_allow")]
     pub geo_allow: Vec<String>,
-    #[serde(default)]
+    #[serde(default = "default_geo_challenge")]
     pub geo_challenge: Vec<String>,
-    #[serde(default)]
+    #[serde(default = "default_geo_maze")]
     pub geo_maze: Vec<String>,
-    #[serde(default)]
+    #[serde(default = "default_geo_block")]
     pub geo_block: Vec<String>,
+    #[serde(default = "default_whitelist")]
     pub whitelist: Vec<String>,
+    #[serde(default = "default_path_whitelist")]
     pub path_whitelist: Vec<String>,
+    #[serde(default = "default_test_mode")]
     pub test_mode: bool,
-    #[serde(default)]
-    pub maze_enabled: bool,          // Enable link maze honeypot
+    #[serde(default = "default_maze_enabled")]
+    pub maze_enabled: bool,
     #[serde(default = "default_maze_auto_ban")]
-    pub maze_auto_ban: bool,         // Auto-ban after threshold maze page hits
+    pub maze_auto_ban: bool,
     #[serde(default = "default_maze_auto_ban_threshold")]
-    pub maze_auto_ban_threshold: u32, // Number of maze pages before auto-ban
-    
-    // robots.txt configuration
-    #[serde(default = "default_true")]
-    pub robots_enabled: bool,           // Serve /robots.txt endpoint
-    #[serde(default = "default_true")]
-    pub robots_block_ai_training: bool, // Block AI training crawlers (GPTBot, CCBot, etc.)
-    #[serde(default)]
-    pub robots_block_ai_search: bool,   // Block AI search assistants (PerplexityBot, etc.)
-    #[serde(default = "default_true")]
-    pub robots_allow_search_engines: bool, // Allow legitimate search engines (Google, Bing, etc.)
-    #[serde(default = "default_crawl_delay")]
-    pub robots_crawl_delay: u32,        // Crawl-delay directive (seconds)
-    
-    // CDP (Chrome DevTools Protocol) detection configuration
-    #[serde(default = "default_true")]
-    pub cdp_detection_enabled: bool,     // Enable CDP automation detection
-    #[serde(default = "default_true")]
-    pub cdp_auto_ban: bool,              // Auto-ban when CDP automation detected
+    pub maze_auto_ban_threshold: u32,
+    #[serde(default = "default_robots_enabled")]
+    pub robots_enabled: bool,
+    #[serde(default = "default_robots_block_ai_training")]
+    pub robots_block_ai_training: bool,
+    #[serde(default = "default_robots_block_ai_search")]
+    pub robots_block_ai_search: bool,
+    #[serde(default = "default_robots_allow_search_engines")]
+    pub robots_allow_search_engines: bool,
+    #[serde(default = "default_robots_crawl_delay")]
+    pub robots_crawl_delay: u32,
+    #[serde(default = "default_cdp_detection_enabled")]
+    pub cdp_detection_enabled: bool,
+    #[serde(default = "default_cdp_auto_ban")]
+    pub cdp_auto_ban: bool,
     #[serde(default = "default_cdp_threshold")]
-    pub cdp_detection_threshold: f32,    // Score threshold for detection (0.0-1.0)
-
-    #[serde(default = "default_true")]
-    pub js_required_enforced: bool,      // Enforce JS verification challenge flow
-
+    pub cdp_detection_threshold: f32,
+    #[serde(default = "default_js_required_enforced")]
+    pub js_required_enforced: bool,
+    #[serde(default = "default_pow_enabled")]
+    pub pow_enabled: bool,
     #[serde(default = "default_pow_difficulty")]
-    pub pow_difficulty: u8,             // PoW leading-zero bits
+    pub pow_difficulty: u8,
     #[serde(default = "default_pow_ttl_seconds")]
-    pub pow_ttl_seconds: u64,           // PoW seed expiry in seconds
+    pub pow_ttl_seconds: u64,
+    #[serde(default = "default_challenge_transform_count")]
+    pub challenge_transform_count: u8,
     #[serde(default = "default_challenge_threshold")]
-    pub challenge_risk_threshold: u8,   // Risk score threshold for serving challenges
+    pub challenge_risk_threshold: u8,
     #[serde(default = "default_maze_threshold")]
-    pub botness_maze_threshold: u8,     // Risk score threshold for sending likely bots to maze
+    pub botness_maze_threshold: u8,
     #[serde(default)]
-    pub botness_weights: BotnessWeights, // Signal weights for unified botness scoring
+    pub botness_weights: BotnessWeights,
 }
 
-fn default_true() -> bool {
-    true
+impl Config {
+    /// Loads config for a site from KV only.
+    pub fn load(store: &impl KeyValueStore, site_id: &str) -> Result<Self, ConfigLoadError> {
+        let key = format!("config:{}", site_id);
+        let val = store
+            .get(&key)
+            .map_err(|_| ConfigLoadError::StoreUnavailable)?
+            .ok_or(ConfigLoadError::MissingConfig)?;
+
+        let mut cfg = serde_json::from_slice::<Config>(&val).map_err(|_| ConfigLoadError::InvalidConfig)?;
+        clamp_config_values(&mut cfg);
+        Ok(cfg)
+    }
+
+    /// Returns ban duration for a specific ban type.
+    pub fn get_ban_duration(&self, ban_type: &str) -> u64 {
+        self.ban_durations.get(ban_type)
+    }
 }
 
-fn default_cdp_threshold() -> f32 {
-    0.8  // Default: 80% confidence required for detection
+static DEFAULTS_MAP: Lazy<Result<HashMap<String, String>, String>> =
+    Lazy::new(|| parse_defaults_env_map(DEFAULTS_ENV_TEXT));
+
+static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
+    let mut cfg = Config {
+        ban_duration: defaults_u64("SHUMA_BAN_DURATION"),
+        ban_durations: BanDurations {
+            honeypot: defaults_u64("SHUMA_BAN_DURATION_HONEYPOT"),
+            rate_limit: defaults_u64("SHUMA_BAN_DURATION_RATE_LIMIT"),
+            browser: defaults_u64("SHUMA_BAN_DURATION_BROWSER"),
+            admin: defaults_u64("SHUMA_BAN_DURATION_ADMIN"),
+            cdp: defaults_u64("SHUMA_BAN_DURATION_CDP"),
+        },
+        rate_limit: defaults_u32("SHUMA_RATE_LIMIT"),
+        honeypots: defaults_string_list("SHUMA_HONEYPOTS"),
+        browser_block: defaults_browser_rules("SHUMA_BROWSER_BLOCK"),
+        browser_whitelist: defaults_browser_rules("SHUMA_BROWSER_WHITELIST"),
+        geo_risk: defaults_country_list("SHUMA_GEO_RISK_COUNTRIES"),
+        geo_allow: defaults_country_list("SHUMA_GEO_ALLOW_COUNTRIES"),
+        geo_challenge: defaults_country_list("SHUMA_GEO_CHALLENGE_COUNTRIES"),
+        geo_maze: defaults_country_list("SHUMA_GEO_MAZE_COUNTRIES"),
+        geo_block: defaults_country_list("SHUMA_GEO_BLOCK_COUNTRIES"),
+        whitelist: defaults_string_list("SHUMA_WHITELIST"),
+        path_whitelist: defaults_string_list("SHUMA_PATH_WHITELIST"),
+        test_mode: defaults_bool("SHUMA_TEST_MODE"),
+        maze_enabled: defaults_bool("SHUMA_MAZE_ENABLED"),
+        maze_auto_ban: defaults_bool("SHUMA_MAZE_AUTO_BAN"),
+        maze_auto_ban_threshold: defaults_u32("SHUMA_MAZE_AUTO_BAN_THRESHOLD"),
+        robots_enabled: defaults_bool("SHUMA_ROBOTS_ENABLED"),
+        robots_block_ai_training: defaults_bool("SHUMA_ROBOTS_BLOCK_AI_TRAINING"),
+        robots_block_ai_search: defaults_bool("SHUMA_ROBOTS_BLOCK_AI_SEARCH"),
+        robots_allow_search_engines: defaults_bool("SHUMA_ROBOTS_ALLOW_SEARCH_ENGINES"),
+        robots_crawl_delay: defaults_u32("SHUMA_ROBOTS_CRAWL_DELAY"),
+        cdp_detection_enabled: defaults_bool("SHUMA_CDP_DETECTION_ENABLED"),
+        cdp_auto_ban: defaults_bool("SHUMA_CDP_AUTO_BAN"),
+        cdp_detection_threshold: defaults_f32("SHUMA_CDP_DETECTION_THRESHOLD"),
+        js_required_enforced: defaults_bool("SHUMA_JS_REQUIRED_ENFORCED"),
+        pow_enabled: defaults_bool("SHUMA_POW_ENABLED"),
+        pow_difficulty: defaults_u8("SHUMA_POW_DIFFICULTY"),
+        pow_ttl_seconds: defaults_u64("SHUMA_POW_TTL_SECONDS"),
+        challenge_transform_count: defaults_u8("SHUMA_CHALLENGE_TRANSFORM_COUNT"),
+        challenge_risk_threshold: defaults_u8("SHUMA_CHALLENGE_RISK_THRESHOLD"),
+        botness_maze_threshold: defaults_u8("SHUMA_BOTNESS_MAZE_THRESHOLD"),
+        botness_weights: BotnessWeights {
+            js_required: defaults_u8("SHUMA_BOTNESS_WEIGHT_JS_REQUIRED"),
+            geo_risk: defaults_u8("SHUMA_BOTNESS_WEIGHT_GEO_RISK"),
+            rate_medium: defaults_u8("SHUMA_BOTNESS_WEIGHT_RATE_MEDIUM"),
+            rate_high: defaults_u8("SHUMA_BOTNESS_WEIGHT_RATE_HIGH"),
+        },
+    };
+    clamp_config_values(&mut cfg);
+    cfg
+});
+
+static ENV_VALIDATION_RESULT: Lazy<Result<(), String>> = Lazy::new(validate_env_only_impl);
+
+pub fn defaults() -> &'static Config {
+    &DEFAULT_CONFIG
 }
 
-pub const POW_DIFFICULTY_MIN: u8 = 12;
-pub const POW_DIFFICULTY_MAX: u8 = 20;
-pub const POW_TTL_MIN: u64 = 30;
-pub const POW_TTL_MAX: u64 = 300;
-const CHALLENGE_THRESHOLD_MIN: u8 = 1;
-const CHALLENGE_THRESHOLD_MAX: u8 = 10;
-const CHALLENGE_THRESHOLD_DEFAULT: u8 = 3;
-const MAZE_THRESHOLD_MIN: u8 = 1;
-const MAZE_THRESHOLD_MAX: u8 = 10;
-const MAZE_THRESHOLD_DEFAULT: u8 = 6;
-const BOTNESS_WEIGHT_MIN: u8 = 0;
-const BOTNESS_WEIGHT_MAX: u8 = 10;
-const BOTNESS_WEIGHT_JS_REQUIRED_DEFAULT: u8 = 1;
-const BOTNESS_WEIGHT_GEO_RISK_DEFAULT: u8 = 2;
-const BOTNESS_WEIGHT_RATE_MEDIUM_DEFAULT: u8 = 1;
-const BOTNESS_WEIGHT_RATE_HIGH_DEFAULT: u8 = 2;
-
-pub(crate) fn parse_config_use_kv_enabled(value: Option<&str>) -> bool {
-    value.and_then(parse_bool_like).unwrap_or(false)
+pub fn defaults_json() -> String {
+    serde_json::to_string(&*DEFAULT_CONFIG).unwrap_or_else(|_| "{}".to_string())
 }
 
-pub fn config_use_kv_enabled() -> bool {
-    parse_config_use_kv_enabled(env::var("SHUMA_CONFIG_USE_KV").ok().as_deref())
+pub fn validate_env_only_once() -> Result<(), String> {
+    if cfg!(test) {
+        return Ok(());
+    }
+    match &*ENV_VALIDATION_RESULT {
+        Ok(()) => Ok(()),
+        Err(msg) => Err(msg.clone()),
+    }
+}
+
+fn validate_env_only_impl() -> Result<(), String> {
+    validate_non_empty("SHUMA_API_KEY")?;
+    validate_non_empty("SHUMA_JS_SECRET")?;
+    validate_non_empty("SHUMA_FORWARDED_IP_SECRET")?;
+
+    validate_bool_like_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED")?;
+    validate_bool_like_var("SHUMA_KV_STORE_FAIL_OPEN")?;
+    validate_bool_like_var("SHUMA_ENFORCE_HTTPS")?;
+    validate_bool_like_var("SHUMA_DEBUG_HEADERS")?;
+    validate_bool_like_var("SHUMA_DEV_MODE")?;
+    validate_bool_like_var("SHUMA_POW_CONFIG_MUTABLE")?;
+    validate_bool_like_var("SHUMA_CHALLENGE_CONFIG_MUTABLE")?;
+    validate_bool_like_var("SHUMA_BOTNESS_CONFIG_MUTABLE")?;
+
+    Ok(())
+}
+
+fn validate_non_empty(name: &str) -> Result<(), String> {
+    let value = env::var(name).map_err(|_| format!("Missing required env var {}", name))?;
+    if value.trim().is_empty() {
+        return Err(format!("Invalid empty env var {}", name));
+    }
+    Ok(())
+}
+
+fn validate_bool_like_var(name: &str) -> Result<(), String> {
+    let value = env::var(name).map_err(|_| format!("Missing required env var {}", name))?;
+    if parse_bool_like(&value).is_none() {
+        return Err(format!("Invalid boolean env var {}={}", name, value));
+    }
+    Ok(())
 }
 
 pub(crate) fn parse_admin_config_write_enabled(value: Option<&str>) -> bool {
@@ -172,14 +308,17 @@ pub(crate) fn parse_admin_config_write_enabled(value: Option<&str>) -> bool {
 }
 
 pub fn admin_config_write_enabled() -> bool {
-    parse_admin_config_write_enabled(env::var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED").ok().as_deref())
+    match env::var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED") {
+        Ok(v) => parse_admin_config_write_enabled(Some(v.as_str())),
+        Err(_) => defaults_bool("SHUMA_ADMIN_CONFIG_WRITE_ENABLED"),
+    }
 }
 
 pub fn https_enforced() -> bool {
     env::var("SHUMA_ENFORCE_HTTPS")
         .ok()
         .and_then(|v| parse_bool_like(v.as_str()))
-        .unwrap_or(false)
+        .unwrap_or_else(|| defaults_bool("SHUMA_ENFORCE_HTTPS"))
 }
 
 pub fn forwarded_header_trust_configured() -> bool {
@@ -193,7 +332,7 @@ pub fn kv_store_fail_open() -> bool {
     env::var("SHUMA_KV_STORE_FAIL_OPEN")
         .ok()
         .and_then(|v| parse_bool_like(v.as_str()))
-        .unwrap_or(true)
+        .unwrap_or_else(|| defaults_bool("SHUMA_KV_STORE_FAIL_OPEN"))
 }
 
 fn parse_bool_like(value: &str) -> Option<bool> {
@@ -208,87 +347,11 @@ fn parse_bool_env(value: Option<&str>) -> bool {
     value.and_then(parse_bool_like).unwrap_or(false)
 }
 
-fn parse_bool_env_var(name: &str) -> Option<bool> {
-    env::var(name).ok().and_then(|v| parse_bool_like(v.as_str()))
-}
-
-fn parse_u64_env_var(name: &str) -> Option<u64> {
-    env::var(name).ok().and_then(|v| v.trim().parse::<u64>().ok())
-}
-
-fn parse_u32_env_var(name: &str) -> Option<u32> {
-    env::var(name).ok().and_then(|v| v.trim().parse::<u32>().ok())
-}
-
-fn parse_u8_env_var(name: &str) -> Option<u8> {
-    env::var(name).ok().and_then(|v| v.trim().parse::<u8>().ok())
-}
-
-fn parse_f32_env_var(name: &str) -> Option<f32> {
-    env::var(name).ok().and_then(|v| v.trim().parse::<f32>().ok())
-}
-
-fn parse_string_list_value(raw: &str) -> Option<Vec<String>> {
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return Some(Vec::new());
-    }
-    if let Ok(v) = serde_json::from_str::<Vec<String>>(trimmed) {
-        return Some(v.into_iter().map(|item| item.trim().to_string()).filter(|item| !item.is_empty()).collect());
-    }
-    Some(
-        trimmed
-            .split(',')
-            .map(|item| item.trim().to_string())
-            .filter(|item| !item.is_empty())
-            .collect(),
-    )
-}
-
-fn parse_string_list_env_var(name: &str) -> Option<Vec<String>> {
-    env::var(name).ok().and_then(|v| parse_string_list_value(v.as_str()))
-}
-
-fn parse_country_list_env(name: &str) -> Option<Vec<String>> {
-    if let Some(values) = parse_string_list_env_var(name) {
-        return Some(crate::geo::normalize_country_list(&values));
-    }
-    None
-}
-
-fn parse_browser_rules_value(raw: &str) -> Option<Vec<(String, u32)>> {
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return Some(Vec::new());
-    }
-    if let Ok(v) = serde_json::from_str::<Vec<(String, u32)>>(trimmed) {
-        return Some(v.into_iter().filter(|(name, _)| !name.trim().is_empty()).collect());
-    }
-    let mut parsed = Vec::new();
-    for entry in trimmed.split(',') {
-        let item = entry.trim();
-        if item.is_empty() {
-            continue;
-        }
-        let (name, version) = item.split_once(':')?;
-        let name = name.trim();
-        if name.is_empty() {
-            return None;
-        }
-        let version = version.trim().parse::<u32>().ok()?;
-        parsed.push((name.to_string(), version));
-    }
-    Some(parsed)
-}
-
-fn parse_browser_rules_env_var(name: &str) -> Option<Vec<(String, u32)>> {
-    env::var(name).ok().and_then(|v| parse_browser_rules_value(v.as_str()))
-}
-
 pub fn pow_config_mutable() -> bool {
     env::var("SHUMA_POW_CONFIG_MUTABLE")
-        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .unwrap_or(false)
+        .ok()
+        .and_then(|v| parse_bool_like(v.as_str()))
+        .unwrap_or_else(|| defaults_bool("SHUMA_POW_CONFIG_MUTABLE"))
 }
 
 pub(crate) fn challenge_config_mutable_from_env(value: Option<&str>) -> bool {
@@ -296,7 +359,10 @@ pub(crate) fn challenge_config_mutable_from_env(value: Option<&str>) -> bool {
 }
 
 pub fn challenge_config_mutable() -> bool {
-    challenge_config_mutable_from_env(env::var("SHUMA_CHALLENGE_CONFIG_MUTABLE").ok().as_deref())
+    match env::var("SHUMA_CHALLENGE_CONFIG_MUTABLE") {
+        Ok(v) => challenge_config_mutable_from_env(Some(v.as_str())),
+        Err(_) => defaults_bool("SHUMA_CHALLENGE_CONFIG_MUTABLE"),
+    }
 }
 
 pub fn botness_config_mutable() -> bool {
@@ -326,289 +392,352 @@ fn clamp_botness_weight(value: u8) -> u8 {
     value.clamp(BOTNESS_WEIGHT_MIN, BOTNESS_WEIGHT_MAX)
 }
 
+fn clamp_challenge_transform_count(value: u8) -> u8 {
+    value.clamp(CHALLENGE_TRANSFORM_COUNT_MIN, CHALLENGE_TRANSFORM_COUNT_MAX)
+}
+
+fn clamp_config_values(cfg: &mut Config) {
+    cfg.pow_difficulty = clamp_pow_difficulty(cfg.pow_difficulty);
+    cfg.pow_ttl_seconds = clamp_pow_ttl(cfg.pow_ttl_seconds);
+    cfg.challenge_transform_count = clamp_challenge_transform_count(cfg.challenge_transform_count);
+    cfg.challenge_risk_threshold = clamp_challenge_threshold(cfg.challenge_risk_threshold);
+    cfg.botness_maze_threshold = clamp_maze_threshold(cfg.botness_maze_threshold);
+    cfg.botness_weights.js_required = clamp_botness_weight(cfg.botness_weights.js_required);
+    cfg.botness_weights.geo_risk = clamp_botness_weight(cfg.botness_weights.geo_risk);
+    cfg.botness_weights.rate_medium = clamp_botness_weight(cfg.botness_weights.rate_medium);
+    cfg.botness_weights.rate_high = clamp_botness_weight(cfg.botness_weights.rate_high);
+    cfg.cdp_detection_threshold = cfg.cdp_detection_threshold.clamp(0.0, 1.0);
+}
+
 pub(crate) fn parse_challenge_threshold(value: Option<&str>) -> u8 {
-    let parsed = value.and_then(|v| v.parse::<u8>().ok()).unwrap_or(CHALLENGE_THRESHOLD_DEFAULT);
+    let parsed = value
+        .and_then(|v| v.parse::<u8>().ok())
+        .unwrap_or_else(default_challenge_threshold);
     clamp_challenge_threshold(parsed)
 }
 
 pub(crate) fn parse_maze_threshold(value: Option<&str>) -> u8 {
-    let parsed = value.and_then(|v| v.parse::<u8>().ok()).unwrap_or(MAZE_THRESHOLD_DEFAULT);
+    let parsed = value
+        .and_then(|v| v.parse::<u8>().ok())
+        .unwrap_or_else(default_maze_threshold);
     clamp_maze_threshold(parsed)
 }
 
 pub(crate) fn parse_botness_weight(value: Option<&str>, default_value: u8) -> u8 {
-    let parsed = value.and_then(|v| v.parse::<u8>().ok()).unwrap_or(default_value);
+    let parsed = value
+        .and_then(|v| v.parse::<u8>().ok())
+        .unwrap_or(default_value);
     clamp_botness_weight(parsed)
 }
 
-fn default_pow_difficulty() -> u8 {
-    let v = env::var("SHUMA_POW_DIFFICULTY")
-        .ok()
-        .and_then(|val| val.parse::<u8>().ok())
-        .unwrap_or(15);
-    clamp_pow_difficulty(v)
+fn parse_defaults_env_map(input: &str) -> Result<HashMap<String, String>, String> {
+    let mut map = HashMap::new();
+    for (index, raw_line) in input.lines().enumerate() {
+        let line_no = index + 1;
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let (key, raw_value) = line
+            .split_once('=')
+            .ok_or_else(|| format!("Invalid defaults line {}: missing '='", line_no))?;
+
+        let key = key.trim();
+        if key.is_empty() {
+            return Err(format!("Invalid defaults line {}: empty key", line_no));
+        }
+        if !key
+            .chars()
+            .all(|ch| ch.is_ascii_uppercase() || ch.is_ascii_digit() || ch == '_')
+        {
+            return Err(format!("Invalid defaults key '{}' on line {}", key, line_no));
+        }
+
+        let mut value = raw_value.trim().to_string();
+        if let Some((head, _)) = value.split_once(" #") {
+            value = head.trim().to_string();
+        }
+        if value.len() >= 2 {
+            let first = value.as_bytes()[0] as char;
+            let last = value.as_bytes()[value.len() - 1] as char;
+            if (first == '"' && last == '"') || (first == '\'' && last == '\'') {
+                value = value[1..value.len() - 1].to_string();
+            }
+        }
+
+        map.insert(key.to_string(), value);
+    }
+    Ok(map)
 }
 
-fn default_pow_ttl_seconds() -> u64 {
-    let v = env::var("SHUMA_POW_TTL_SECONDS")
-        .ok()
-        .and_then(|val| val.parse::<u64>().ok())
-        .unwrap_or(90);
-    clamp_pow_ttl(v)
+fn defaults_map() -> &'static HashMap<String, String> {
+    match &*DEFAULTS_MAP {
+        Ok(map) => map,
+        Err(err) => panic!("Invalid config/defaults.env: {}", err),
+    }
 }
 
-fn default_challenge_threshold() -> u8 {
-    parse_challenge_threshold(env::var("SHUMA_CHALLENGE_RISK_THRESHOLD").ok().as_deref())
+fn defaults_raw(key: &str) -> String {
+    defaults_map()
+        .get(key)
+        .cloned()
+        .unwrap_or_else(|| panic!("Missing required defaults key {}", key))
 }
 
-fn default_maze_threshold() -> u8 {
-    parse_maze_threshold(env::var("SHUMA_BOTNESS_MAZE_THRESHOLD").ok().as_deref())
+fn defaults_bool(key: &str) -> bool {
+    parse_bool_like(defaults_raw(key).as_str())
+        .unwrap_or_else(|| panic!("Invalid boolean default for {}", key))
 }
 
-fn default_botness_weight_js_required() -> u8 {
-    parse_botness_weight(
-        env::var("SHUMA_BOTNESS_WEIGHT_JS_REQUIRED").ok().as_deref(),
-        BOTNESS_WEIGHT_JS_REQUIRED_DEFAULT,
+fn defaults_u64(key: &str) -> u64 {
+    defaults_raw(key)
+        .trim()
+        .parse::<u64>()
+        .unwrap_or_else(|_| panic!("Invalid integer default for {}", key))
+}
+
+fn defaults_u32(key: &str) -> u32 {
+    defaults_raw(key)
+        .trim()
+        .parse::<u32>()
+        .unwrap_or_else(|_| panic!("Invalid integer default for {}", key))
+}
+
+fn defaults_u8(key: &str) -> u8 {
+    defaults_raw(key)
+        .trim()
+        .parse::<u8>()
+        .unwrap_or_else(|_| panic!("Invalid integer default for {}", key))
+}
+
+fn defaults_f32(key: &str) -> f32 {
+    defaults_raw(key)
+        .trim()
+        .parse::<f32>()
+        .unwrap_or_else(|_| panic!("Invalid float default for {}", key))
+}
+
+fn parse_string_list_value(raw: &str) -> Option<Vec<String>> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Some(Vec::new());
+    }
+    if let Ok(v) = serde_json::from_str::<Vec<String>>(trimmed) {
+        return Some(
+            v.into_iter()
+                .map(|item| item.trim().to_string())
+                .filter(|item| !item.is_empty())
+                .collect(),
+        );
+    }
+    Some(
+        trimmed
+            .split(',')
+            .map(|item| item.trim().to_string())
+            .filter(|item| !item.is_empty())
+            .collect(),
     )
 }
 
-fn default_botness_weight_geo_risk() -> u8 {
-    parse_botness_weight(
-        env::var("SHUMA_BOTNESS_WEIGHT_GEO_RISK").ok().as_deref(),
-        BOTNESS_WEIGHT_GEO_RISK_DEFAULT,
-    )
+fn parse_browser_rules_value(raw: &str) -> Option<Vec<(String, u32)>> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Some(Vec::new());
+    }
+    if let Ok(v) = serde_json::from_str::<Vec<(String, u32)>>(trimmed) {
+        return Some(
+            v.into_iter()
+                .filter(|(name, _)| !name.trim().is_empty())
+                .collect(),
+        );
+    }
+    let mut parsed = Vec::new();
+    for entry in trimmed.split(',') {
+        let item = entry.trim();
+        if item.is_empty() {
+            continue;
+        }
+        let (name, version) = item.split_once(':')?;
+        let name = name.trim();
+        if name.is_empty() {
+            return None;
+        }
+        let version = version.trim().parse::<u32>().ok()?;
+        parsed.push((name.to_string(), version));
+    }
+    Some(parsed)
 }
 
-fn default_botness_weight_rate_medium() -> u8 {
-    parse_botness_weight(
-        env::var("SHUMA_BOTNESS_WEIGHT_RATE_MEDIUM").ok().as_deref(),
-        BOTNESS_WEIGHT_RATE_MEDIUM_DEFAULT,
-    )
+fn defaults_string_list(key: &str) -> Vec<String> {
+    parse_string_list_value(defaults_raw(key).as_str())
+        .unwrap_or_else(|| panic!("Invalid list default for {}", key))
 }
 
-fn default_botness_weight_rate_high() -> u8 {
-    parse_botness_weight(
-        env::var("SHUMA_BOTNESS_WEIGHT_RATE_HIGH").ok().as_deref(),
-        BOTNESS_WEIGHT_RATE_HIGH_DEFAULT,
-    )
+fn defaults_country_list(key: &str) -> Vec<String> {
+    crate::geo::normalize_country_list(&defaults_string_list(key))
+}
+
+fn defaults_browser_rules(key: &str) -> Vec<(String, u32)> {
+    parse_browser_rules_value(defaults_raw(key).as_str())
+        .unwrap_or_else(|| panic!("Invalid browser rules default for {}", key))
+}
+
+fn default_ban_duration() -> u64 {
+    defaults_u64("SHUMA_BAN_DURATION")
+}
+
+fn default_ban_duration_honeypot() -> u64 {
+    defaults_u64("SHUMA_BAN_DURATION_HONEYPOT")
+}
+
+fn default_ban_duration_rate_limit() -> u64 {
+    defaults_u64("SHUMA_BAN_DURATION_RATE_LIMIT")
+}
+
+fn default_ban_duration_browser() -> u64 {
+    defaults_u64("SHUMA_BAN_DURATION_BROWSER")
+}
+
+fn default_ban_duration_admin() -> u64 {
+    defaults_u64("SHUMA_BAN_DURATION_ADMIN")
+}
+
+fn default_ban_duration_cdp() -> u64 {
+    defaults_u64("SHUMA_BAN_DURATION_CDP")
+}
+
+fn default_rate_limit() -> u32 {
+    defaults_u32("SHUMA_RATE_LIMIT")
+}
+
+fn default_honeypots() -> Vec<String> {
+    defaults_string_list("SHUMA_HONEYPOTS")
+}
+
+fn default_browser_block() -> Vec<(String, u32)> {
+    defaults_browser_rules("SHUMA_BROWSER_BLOCK")
+}
+
+fn default_browser_whitelist() -> Vec<(String, u32)> {
+    defaults_browser_rules("SHUMA_BROWSER_WHITELIST")
+}
+
+fn default_geo_risk() -> Vec<String> {
+    defaults_country_list("SHUMA_GEO_RISK_COUNTRIES")
+}
+
+fn default_geo_allow() -> Vec<String> {
+    defaults_country_list("SHUMA_GEO_ALLOW_COUNTRIES")
+}
+
+fn default_geo_challenge() -> Vec<String> {
+    defaults_country_list("SHUMA_GEO_CHALLENGE_COUNTRIES")
+}
+
+fn default_geo_maze() -> Vec<String> {
+    defaults_country_list("SHUMA_GEO_MAZE_COUNTRIES")
+}
+
+fn default_geo_block() -> Vec<String> {
+    defaults_country_list("SHUMA_GEO_BLOCK_COUNTRIES")
+}
+
+fn default_whitelist() -> Vec<String> {
+    defaults_string_list("SHUMA_WHITELIST")
+}
+
+fn default_path_whitelist() -> Vec<String> {
+    defaults_string_list("SHUMA_PATH_WHITELIST")
+}
+
+fn default_test_mode() -> bool {
+    defaults_bool("SHUMA_TEST_MODE")
+}
+
+fn default_maze_enabled() -> bool {
+    defaults_bool("SHUMA_MAZE_ENABLED")
 }
 
 fn default_maze_auto_ban() -> bool {
-    true
+    defaults_bool("SHUMA_MAZE_AUTO_BAN")
 }
 
 fn default_maze_auto_ban_threshold() -> u32 {
-    50
+    defaults_u32("SHUMA_MAZE_AUTO_BAN_THRESHOLD")
 }
 
-fn default_crawl_delay() -> u32 {
-    2
+fn default_robots_enabled() -> bool {
+    defaults_bool("SHUMA_ROBOTS_ENABLED")
 }
 
-fn default_config() -> Config {
-    Config {
-        ban_duration: 21600, // 6 hours (legacy default)
-        ban_durations: BanDurations::default(),
-        rate_limit: 80,
-        honeypots: vec!["/bot-trap".to_string()],
-        browser_block: vec![
-            ("Chrome".to_string(), 120),
-            ("Firefox".to_string(), 115),
-            ("Safari".to_string(), 15),
-        ],
-        browser_whitelist: vec![],
-        geo_risk: vec![],
-        geo_allow: vec![],
-        geo_challenge: vec![],
-        geo_maze: vec![],
-        geo_block: vec![],
-        whitelist: vec![],
-        path_whitelist: vec![],
-        test_mode: false,
-        maze_enabled: true,
-        maze_auto_ban: true,
-        maze_auto_ban_threshold: 50,
-        robots_enabled: true,
-        robots_block_ai_training: true,
-        robots_block_ai_search: false,
-        robots_allow_search_engines: true,
-        robots_crawl_delay: 2,
-        cdp_detection_enabled: true,
-        cdp_auto_ban: true,
-        cdp_detection_threshold: 0.8,
-        js_required_enforced: true,
-        pow_difficulty: default_pow_difficulty(),
-        pow_ttl_seconds: default_pow_ttl_seconds(),
-        challenge_risk_threshold: default_challenge_threshold(),
-        botness_maze_threshold: default_maze_threshold(),
-        botness_weights: BotnessWeights::default(),
-    }
+fn default_robots_block_ai_training() -> bool {
+    defaults_bool("SHUMA_ROBOTS_BLOCK_AI_TRAINING")
 }
 
-fn apply_env_overrides(cfg: &mut Config) {
-    if let Some(v) = parse_bool_env_var("SHUMA_TEST_MODE") {
-        cfg.test_mode = v;
-    }
-    if let Some(v) = parse_u64_env_var("SHUMA_BAN_DURATION") {
-        cfg.ban_duration = v;
-    }
-    if let Some(v) = parse_u64_env_var("SHUMA_BAN_DURATION_HONEYPOT") {
-        cfg.ban_durations.honeypot = v;
-    }
-    if let Some(v) = parse_u64_env_var("SHUMA_BAN_DURATION_RATE_LIMIT") {
-        cfg.ban_durations.rate_limit = v;
-    }
-    if let Some(v) = parse_u64_env_var("SHUMA_BAN_DURATION_BROWSER") {
-        cfg.ban_durations.browser = v;
-    }
-    if let Some(v) = parse_u64_env_var("SHUMA_BAN_DURATION_ADMIN") {
-        cfg.ban_durations.admin = v;
-    }
-    if let Some(v) = parse_u64_env_var("SHUMA_BAN_DURATION_CDP") {
-        cfg.ban_durations.cdp = v;
-    }
-    if let Some(v) = parse_u32_env_var("SHUMA_RATE_LIMIT") {
-        cfg.rate_limit = v;
-    }
-    if let Some(v) = parse_string_list_env_var("SHUMA_HONEYPOTS") {
-        cfg.honeypots = v;
-    }
-    if let Some(v) = parse_browser_rules_env_var("SHUMA_BROWSER_BLOCK") {
-        cfg.browser_block = v;
-    }
-    if let Some(v) = parse_browser_rules_env_var("SHUMA_BROWSER_WHITELIST") {
-        cfg.browser_whitelist = v;
-    }
-    if let Some(v) = parse_country_list_env("SHUMA_GEO_RISK_COUNTRIES") {
-        cfg.geo_risk = v;
-    }
-    if let Some(v) = parse_country_list_env("SHUMA_GEO_ALLOW_COUNTRIES") {
-        cfg.geo_allow = v;
-    }
-    if let Some(v) = parse_country_list_env("SHUMA_GEO_CHALLENGE_COUNTRIES") {
-        cfg.geo_challenge = v;
-    }
-    if let Some(v) = parse_country_list_env("SHUMA_GEO_MAZE_COUNTRIES") {
-        cfg.geo_maze = v;
-    }
-    if let Some(v) = parse_country_list_env("SHUMA_GEO_BLOCK_COUNTRIES") {
-        cfg.geo_block = v;
-    }
-    if let Some(v) = parse_string_list_env_var("SHUMA_WHITELIST") {
-        cfg.whitelist = v;
-    }
-    if let Some(v) = parse_string_list_env_var("SHUMA_PATH_WHITELIST") {
-        cfg.path_whitelist = v;
-    }
-    if let Some(v) = parse_bool_env_var("SHUMA_MAZE_ENABLED") {
-        cfg.maze_enabled = v;
-    }
-    if let Some(v) = parse_bool_env_var("SHUMA_MAZE_AUTO_BAN") {
-        cfg.maze_auto_ban = v;
-    }
-    if let Some(v) = parse_u32_env_var("SHUMA_MAZE_AUTO_BAN_THRESHOLD") {
-        cfg.maze_auto_ban_threshold = v;
-    }
-    if let Some(v) = parse_bool_env_var("SHUMA_ROBOTS_ENABLED") {
-        cfg.robots_enabled = v;
-    }
-    if let Some(v) = parse_bool_env_var("SHUMA_ROBOTS_BLOCK_AI_TRAINING") {
-        cfg.robots_block_ai_training = v;
-    }
-    if let Some(v) = parse_bool_env_var("SHUMA_ROBOTS_BLOCK_AI_SEARCH") {
-        cfg.robots_block_ai_search = v;
-    }
-    if let Some(v) = parse_bool_env_var("SHUMA_ROBOTS_ALLOW_SEARCH_ENGINES") {
-        cfg.robots_allow_search_engines = v;
-    }
-    if let Some(v) = parse_u32_env_var("SHUMA_ROBOTS_CRAWL_DELAY") {
-        cfg.robots_crawl_delay = v;
-    }
-    if let Some(v) = parse_bool_env_var("SHUMA_CDP_DETECTION_ENABLED") {
-        cfg.cdp_detection_enabled = v;
-    }
-    if let Some(v) = parse_bool_env_var("SHUMA_CDP_AUTO_BAN") {
-        cfg.cdp_auto_ban = v;
-    }
-    if let Some(v) = parse_f32_env_var("SHUMA_CDP_DETECTION_THRESHOLD") {
-        cfg.cdp_detection_threshold = v.clamp(0.0, 1.0);
-    }
-    if let Some(v) = parse_bool_env_var("SHUMA_JS_REQUIRED_ENFORCED") {
-        cfg.js_required_enforced = v;
-    }
-    if let Some(v) = parse_u8_env_var("SHUMA_POW_DIFFICULTY") {
-        cfg.pow_difficulty = clamp_pow_difficulty(v);
-    }
-    if let Some(v) = parse_u64_env_var("SHUMA_POW_TTL_SECONDS") {
-        cfg.pow_ttl_seconds = clamp_pow_ttl(v);
-    }
-    if let Some(v) = parse_u8_env_var("SHUMA_CHALLENGE_RISK_THRESHOLD") {
-        cfg.challenge_risk_threshold = clamp_challenge_threshold(v);
-    }
-    if let Some(v) = parse_u8_env_var("SHUMA_BOTNESS_MAZE_THRESHOLD") {
-        cfg.botness_maze_threshold = clamp_maze_threshold(v);
-    }
-    if let Some(v) = parse_u8_env_var("SHUMA_BOTNESS_WEIGHT_JS_REQUIRED") {
-        cfg.botness_weights.js_required = clamp_botness_weight(v);
-    }
-    if let Some(v) = parse_u8_env_var("SHUMA_BOTNESS_WEIGHT_GEO_RISK") {
-        cfg.botness_weights.geo_risk = clamp_botness_weight(v);
-    }
-    if let Some(v) = parse_u8_env_var("SHUMA_BOTNESS_WEIGHT_RATE_MEDIUM") {
-        cfg.botness_weights.rate_medium = clamp_botness_weight(v);
-    }
-    if let Some(v) = parse_u8_env_var("SHUMA_BOTNESS_WEIGHT_RATE_HIGH") {
-        cfg.botness_weights.rate_high = clamp_botness_weight(v);
-    }
+fn default_robots_block_ai_search() -> bool {
+    defaults_bool("SHUMA_ROBOTS_BLOCK_AI_SEARCH")
 }
 
-fn apply_mutability_policy(cfg: &mut Config) {
-    if !pow_config_mutable() {
-        cfg.pow_difficulty = default_pow_difficulty();
-        cfg.pow_ttl_seconds = default_pow_ttl_seconds();
-    }
-    cfg.pow_difficulty = clamp_pow_difficulty(cfg.pow_difficulty);
-    cfg.pow_ttl_seconds = clamp_pow_ttl(cfg.pow_ttl_seconds);
-
-    if !botness_config_mutable() {
-        cfg.challenge_risk_threshold = default_challenge_threshold();
-        cfg.botness_maze_threshold = default_maze_threshold();
-        cfg.botness_weights = BotnessWeights::default();
-    } else {
-        cfg.challenge_risk_threshold = clamp_challenge_threshold(cfg.challenge_risk_threshold);
-        cfg.botness_maze_threshold = clamp_maze_threshold(cfg.botness_maze_threshold);
-        cfg.botness_weights.js_required = clamp_botness_weight(cfg.botness_weights.js_required);
-        cfg.botness_weights.geo_risk = clamp_botness_weight(cfg.botness_weights.geo_risk);
-        cfg.botness_weights.rate_medium = clamp_botness_weight(cfg.botness_weights.rate_medium);
-        cfg.botness_weights.rate_high = clamp_botness_weight(cfg.botness_weights.rate_high);
-    }
+fn default_robots_allow_search_engines() -> bool {
+    defaults_bool("SHUMA_ROBOTS_ALLOW_SEARCH_ENGINES")
 }
 
-impl Config {
-    /// Loads config for a site from the key-value store, or returns defaults if not set.
-    pub fn load(store: &impl KeyValueStore, site_id: &str) -> Self {
-        let mut cfg = if config_use_kv_enabled() {
-            let key = format!("config:{}", site_id);
-            if let Ok(Some(val)) = store.get(&key) {
-                if let Ok(cfg) = serde_json::from_slice::<Config>(&val) {
-                    cfg
-                } else {
-                    default_config()
-                }
-            } else {
-                default_config()
-            }
-        } else {
-            default_config()
-        };
+fn default_robots_crawl_delay() -> u32 {
+    defaults_u32("SHUMA_ROBOTS_CRAWL_DELAY")
+}
 
-        apply_env_overrides(&mut cfg);
-        apply_mutability_policy(&mut cfg);
-        cfg
-    }
-    
-    /// Get ban duration for a specific ban type
-    pub fn get_ban_duration(&self, ban_type: &str) -> u64 {
-        self.ban_durations.get(ban_type)
-    }
+fn default_cdp_detection_enabled() -> bool {
+    defaults_bool("SHUMA_CDP_DETECTION_ENABLED")
+}
+
+fn default_cdp_auto_ban() -> bool {
+    defaults_bool("SHUMA_CDP_AUTO_BAN")
+}
+
+fn default_cdp_threshold() -> f32 {
+    defaults_f32("SHUMA_CDP_DETECTION_THRESHOLD")
+}
+
+fn default_js_required_enforced() -> bool {
+    defaults_bool("SHUMA_JS_REQUIRED_ENFORCED")
+}
+
+fn default_pow_enabled() -> bool {
+    defaults_bool("SHUMA_POW_ENABLED")
+}
+
+fn default_pow_difficulty() -> u8 {
+    clamp_pow_difficulty(defaults_u8("SHUMA_POW_DIFFICULTY"))
+}
+
+fn default_pow_ttl_seconds() -> u64 {
+    clamp_pow_ttl(defaults_u64("SHUMA_POW_TTL_SECONDS"))
+}
+
+fn default_challenge_transform_count() -> u8 {
+    clamp_challenge_transform_count(defaults_u8("SHUMA_CHALLENGE_TRANSFORM_COUNT"))
+}
+
+fn default_challenge_threshold() -> u8 {
+    clamp_challenge_threshold(defaults_u8("SHUMA_CHALLENGE_RISK_THRESHOLD"))
+}
+
+fn default_maze_threshold() -> u8 {
+    clamp_maze_threshold(defaults_u8("SHUMA_BOTNESS_MAZE_THRESHOLD"))
+}
+
+fn default_botness_weight_js_required() -> u8 {
+    clamp_botness_weight(defaults_u8("SHUMA_BOTNESS_WEIGHT_JS_REQUIRED"))
+}
+
+fn default_botness_weight_geo_risk() -> u8 {
+    clamp_botness_weight(defaults_u8("SHUMA_BOTNESS_WEIGHT_GEO_RISK"))
+}
+
+fn default_botness_weight_rate_medium() -> u8 {
+    clamp_botness_weight(defaults_u8("SHUMA_BOTNESS_WEIGHT_RATE_MEDIUM"))
+}
+
+fn default_botness_weight_rate_high() -> u8 {
+    clamp_botness_weight(defaults_u8("SHUMA_BOTNESS_WEIGHT_RATE_HIGH"))
 }

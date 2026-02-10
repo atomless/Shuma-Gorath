@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build prod clean test test-unit test-integration test-coverage test-dashboard test-dashboard-e2e deploy logs status stop help setup verify api-key-generate api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build prod clean test test-unit test-integration test-coverage test-dashboard test-dashboard-e2e deploy logs status stop help setup verify config-seed env-help api-key-generate api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -20,6 +20,24 @@ ifneq ("$(wildcard $(ENV_LOCAL))","")
 include $(ENV_LOCAL)
 endif
 
+# Normalize optional quoted values from .env.local (handles KEY=value and KEY="value")
+strip_wrapping_quotes = $(patsubst "%",%,$(patsubst '%',%,$(strip $(1))))
+SHUMA_API_KEY := $(call strip_wrapping_quotes,$(SHUMA_API_KEY))
+SHUMA_JS_SECRET := $(call strip_wrapping_quotes,$(SHUMA_JS_SECRET))
+SHUMA_POW_SECRET := $(call strip_wrapping_quotes,$(SHUMA_POW_SECRET))
+SHUMA_CHALLENGE_SECRET := $(call strip_wrapping_quotes,$(SHUMA_CHALLENGE_SECRET))
+SHUMA_FORWARDED_IP_SECRET := $(call strip_wrapping_quotes,$(SHUMA_FORWARDED_IP_SECRET))
+SHUMA_ADMIN_IP_ALLOWLIST := $(call strip_wrapping_quotes,$(SHUMA_ADMIN_IP_ALLOWLIST))
+SHUMA_EVENT_LOG_RETENTION_HOURS := $(call strip_wrapping_quotes,$(SHUMA_EVENT_LOG_RETENTION_HOURS))
+SHUMA_ADMIN_CONFIG_WRITE_ENABLED := $(call strip_wrapping_quotes,$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED))
+SHUMA_KV_STORE_FAIL_OPEN := $(call strip_wrapping_quotes,$(SHUMA_KV_STORE_FAIL_OPEN))
+SHUMA_ENFORCE_HTTPS := $(call strip_wrapping_quotes,$(SHUMA_ENFORCE_HTTPS))
+SHUMA_DEBUG_HEADERS := $(call strip_wrapping_quotes,$(SHUMA_DEBUG_HEADERS))
+SHUMA_DEV_MODE := $(call strip_wrapping_quotes,$(SHUMA_DEV_MODE))
+SHUMA_POW_CONFIG_MUTABLE := $(call strip_wrapping_quotes,$(SHUMA_POW_CONFIG_MUTABLE))
+SHUMA_CHALLENGE_CONFIG_MUTABLE := $(call strip_wrapping_quotes,$(SHUMA_CHALLENGE_CONFIG_MUTABLE))
+SHUMA_BOTNESS_CONFIG_MUTABLE := $(call strip_wrapping_quotes,$(SHUMA_BOTNESS_CONFIG_MUTABLE))
+
 # Dev-only default for forwarded IP secret (override with SHUMA_FORWARDED_IP_SECRET=...)
 DEV_FORWARDED_IP_SECRET ?= changeme-dev-only-ip-secret
 SHUMA_FORWARDED_IP_SECRET ?= $(DEV_FORWARDED_IP_SECRET)
@@ -30,17 +48,21 @@ DEV_API_KEY ?= changeme-dev-only-api-key
 SHUMA_API_KEY ?= $(DEV_API_KEY)
 export SHUMA_API_KEY
 
+# Dev-only default for JS secret (override with SHUMA_JS_SECRET=...)
+DEV_JS_SECRET ?= changeme-dev-only-js-secret
+SHUMA_JS_SECRET ?= $(DEV_JS_SECRET)
+export SHUMA_JS_SECRET
+
 # Optional header/env for forwarded IP trust (only if SHUMA_FORWARDED_IP_SECRET is set)
 FORWARDED_SECRET_HEADER := $(if $(SHUMA_FORWARDED_IP_SECRET),-H "X-Shuma-Forwarded-Secret: $(SHUMA_FORWARDED_IP_SECRET)",)
 SPIN_FORWARD_SECRET := $(if $(SHUMA_FORWARDED_IP_SECRET),--env SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET),)
 SPIN_API_KEY := $(if $(SHUMA_API_KEY),--env SHUMA_API_KEY=$(SHUMA_API_KEY),)
+SPIN_JS_SECRET := $(if $(SHUMA_JS_SECRET),--env SHUMA_JS_SECRET=$(SHUMA_JS_SECRET),)
 SPIN_CHALLENGE_MUTABLE := --env SHUMA_CHALLENGE_CONFIG_MUTABLE=true
 SPIN_DEBUG_HEADERS := --env SHUMA_DEBUG_HEADERS=true
 SPIN_DEV_MODE := --env SHUMA_DEV_MODE=true
 SPIN_PROD_HARDEN := --env SHUMA_DEV_MODE=false --env SHUMA_DEBUG_HEADERS=false
-DEV_CONFIG_USE_KV ?= true
 DEV_ADMIN_CONFIG_WRITE_ENABLED ?= true
-SPIN_CONFIG_USE_KV_DEV := --env SHUMA_CONFIG_USE_KV=$(DEV_CONFIG_USE_KV)
 SPIN_ADMIN_CONFIG_WRITE_ENABLED_DEV := --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(DEV_ADMIN_CONFIG_WRITE_ENABLED)
 
 #--------------------------
@@ -52,6 +74,9 @@ setup: ## Install all dependencies (Rust, Spin, cargo-watch)
 
 verify: ## Verify all dependencies are installed correctly
 	@./verify-setup.sh
+
+config-seed: ## Seed KV tunable config from config/defaults.env (only when missing)
+	@./scripts/config_seed.sh
 
 #--------------------------
 # Development
@@ -70,7 +95,7 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	@./scripts/set_crate_type.sh rlib
 	@cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'src/bot_trap.wasm' -i '.spin/**' \
 		-s 'if [ ! -f target/wasm32-wasip1/release/shuma_gorath.wasm ] || find src -name "*.rs" -newer target/wasm32-wasip1/release/shuma_gorath.wasm -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
-		-s 'pkill -x spin 2>/dev/null || true; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_API_KEY) $(SPIN_FORWARD_SECRET) $(SPIN_CHALLENGE_MUTABLE) $(SPIN_DEBUG_HEADERS) $(SPIN_DEV_MODE) $(SPIN_CONFIG_USE_KV_DEV) $(SPIN_ADMIN_CONFIG_WRITE_ENABLED_DEV) --listen 127.0.0.1:3000'
+		-s 'pkill -x spin 2>/dev/null || true; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_API_KEY) $(SPIN_JS_SECRET) $(SPIN_FORWARD_SECRET) $(SPIN_CHALLENGE_MUTABLE) $(SPIN_DEBUG_HEADERS) $(SPIN_DEV_MODE) $(SPIN_ADMIN_CONFIG_WRITE_ENABLED_DEV) --listen 127.0.0.1:3000'
 
 dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=false (fail-closed)
 	@echo "$(CYAN)🚨 Starting development server with SHUMA_KV_STORE_FAIL_OPEN=false (fail-closed)...$(NC)"
@@ -85,7 +110,7 @@ dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=fal
 	@./scripts/set_crate_type.sh rlib
 	@cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'src/bot_trap.wasm' -i '.spin/**' \
 		-s 'if [ ! -f target/wasm32-wasip1/release/shuma_gorath.wasm ] || find src -name "*.rs" -newer target/wasm32-wasip1/release/shuma_gorath.wasm -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
-		-s 'pkill -x spin 2>/dev/null || true; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts --env SHUMA_KV_STORE_FAIL_OPEN=false $(SPIN_API_KEY) $(SPIN_FORWARD_SECRET) $(SPIN_CHALLENGE_MUTABLE) $(SPIN_DEBUG_HEADERS) $(SPIN_DEV_MODE) $(SPIN_CONFIG_USE_KV_DEV) $(SPIN_ADMIN_CONFIG_WRITE_ENABLED_DEV) --listen 127.0.0.1:3000'
+		-s 'pkill -x spin 2>/dev/null || true; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts --env SHUMA_KV_STORE_FAIL_OPEN=false $(SPIN_API_KEY) $(SPIN_JS_SECRET) $(SPIN_FORWARD_SECRET) $(SPIN_CHALLENGE_MUTABLE) $(SPIN_DEBUG_HEADERS) $(SPIN_DEV_MODE) $(SPIN_ADMIN_CONFIG_WRITE_ENABLED_DEV) --listen 127.0.0.1:3000'
 
 local: dev ## Alias for dev
 
@@ -101,7 +126,7 @@ run: ## Build once and run (no file watching)
 	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/dashboard/index.html$(NC)"
 	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
 	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
-	@spin up $(SPIN_API_KEY) $(SPIN_FORWARD_SECRET) $(SPIN_CHALLENGE_MUTABLE) $(SPIN_DEBUG_HEADERS) $(SPIN_DEV_MODE) $(SPIN_CONFIG_USE_KV_DEV) $(SPIN_ADMIN_CONFIG_WRITE_ENABLED_DEV) --listen 127.0.0.1:3000
+	@spin up $(SPIN_API_KEY) $(SPIN_JS_SECRET) $(SPIN_FORWARD_SECRET) $(SPIN_CHALLENGE_MUTABLE) $(SPIN_DEBUG_HEADERS) $(SPIN_DEV_MODE) $(SPIN_ADMIN_CONFIG_WRITE_ENABLED_DEV) --listen 127.0.0.1:3000
 
 run-prebuilt: ## Run Spin using prebuilt wasm (CI helper)
 	@echo "$(CYAN)🚀 Starting prebuilt server...$(NC)"
@@ -109,7 +134,7 @@ run-prebuilt: ## Run Spin using prebuilt wasm (CI helper)
 	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/dashboard/index.html$(NC)"
 	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
 	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
-	@spin up $(SPIN_API_KEY) $(SPIN_FORWARD_SECRET) $(SPIN_CHALLENGE_MUTABLE) $(SPIN_DEBUG_HEADERS) $(SPIN_DEV_MODE) $(SPIN_CONFIG_USE_KV_DEV) $(SPIN_ADMIN_CONFIG_WRITE_ENABLED_DEV) --listen 127.0.0.1:3000
+	@spin up $(SPIN_API_KEY) $(SPIN_JS_SECRET) $(SPIN_FORWARD_SECRET) $(SPIN_CHALLENGE_MUTABLE) $(SPIN_DEBUG_HEADERS) $(SPIN_DEV_MODE) $(SPIN_ADMIN_CONFIG_WRITE_ENABLED_DEV) --listen 127.0.0.1:3000
 
 #--------------------------
 # Production
@@ -257,6 +282,24 @@ api-key-show: ## Show SHUMA_API_KEY from .env.local (dashboard login key for loc
 	echo "$(CYAN)Local dashboard login key (SHUMA_API_KEY):$(NC)"; \
 	echo "$$KEY"
 
+env-help: ## Show supported env-only runtime overrides
+	@echo "$(CYAN)Supported env-only overrides (tunables are KV-backed):$(NC)"
+	@echo "  SHUMA_API_KEY"
+	@echo "  SHUMA_JS_SECRET"
+	@echo "  SHUMA_POW_SECRET"
+	@echo "  SHUMA_CHALLENGE_SECRET"
+	@echo "  SHUMA_FORWARDED_IP_SECRET"
+	@echo "  SHUMA_ADMIN_IP_ALLOWLIST"
+	@echo "  SHUMA_EVENT_LOG_RETENTION_HOURS"
+	@echo "  SHUMA_ADMIN_CONFIG_WRITE_ENABLED"
+	@echo "  SHUMA_KV_STORE_FAIL_OPEN"
+	@echo "  SHUMA_ENFORCE_HTTPS"
+	@echo "  SHUMA_DEBUG_HEADERS"
+	@echo "  SHUMA_DEV_MODE"
+	@echo "  SHUMA_POW_CONFIG_MUTABLE"
+	@echo "  SHUMA_CHALLENGE_CONFIG_MUTABLE"
+	@echo "  SHUMA_BOTNESS_CONFIG_MUTABLE"
+
 api-key-rotate: ## Generate a replacement SHUMA_API_KEY and print rotation guidance
 	@$(MAKE) --no-print-directory api-key-generate
 	@echo "$(YELLOW)Next steps: update deployment secret, redeploy/restart, then update dashboard login key.$(NC)"
@@ -307,7 +350,7 @@ help: ## Show this help message
 	@echo "$(CYAN)WASM Bot Trap - Available Commands$(NC)"
 	@echo ""
 	@echo "$(GREEN)First-time Setup:$(NC)"
-	@grep -E '^(setup|verify):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-15s %s\n", $$1, $$2}'
+	@grep -E '^(setup|verify|config-seed):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-15s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Development:$(NC)"
 	@grep -E '^(dev|local|run|build):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-15s %s\n", $$1, $$2}'
@@ -319,4 +362,4 @@ help: ## Show this help message
 	@grep -E '^test.*:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-15s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Utilities:$(NC)"
-	@grep -E '^(stop|status|clean|logs|api-key-generate|api-key-show|api-key-rotate|api-key-validate|deploy-env-validate|help):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-15s %s\n", $$1, $$2}'
+	@grep -E '^(stop|status|clean|logs|env-help|api-key-generate|api-key-show|api-key-rotate|api-key-validate|deploy-env-validate|help):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-15s %s\n", $$1, $$2}'

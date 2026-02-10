@@ -81,15 +81,6 @@ mod tests {
     }
 
     #[test]
-    fn parse_config_use_kv_defaults_to_disabled() {
-        assert!(!crate::config::parse_config_use_kv_enabled(None));
-        assert!(!crate::config::parse_config_use_kv_enabled(Some("junk")));
-        assert!(crate::config::parse_config_use_kv_enabled(Some("true")));
-        assert!(crate::config::parse_config_use_kv_enabled(Some("1")));
-        assert!(!crate::config::parse_config_use_kv_enabled(Some("false")));
-    }
-
-    #[test]
     fn parse_admin_config_write_defaults_to_disabled() {
         assert!(!crate::config::parse_admin_config_write_enabled(None));
         assert!(!crate::config::parse_admin_config_write_enabled(Some("junk")));
@@ -126,55 +117,34 @@ mod tests {
     }
 
     #[test]
-    fn load_config_use_kv_disabled_ignores_kv_values() {
+    fn load_config_missing_returns_error() {
         let _lock = ENV_MUTEX.lock().unwrap();
-        let keys = [
-            "SHUMA_CONFIG_USE_KV",
-            "SHUMA_RATE_LIMIT",
-            "SHUMA_MAZE_ENABLED",
-            "SHUMA_TEST_MODE",
-        ];
-        clear_env(&keys);
-        std::env::set_var("SHUMA_CONFIG_USE_KV", "false");
-        std::env::set_var("SHUMA_RATE_LIMIT", "321");
-        std::env::set_var("SHUMA_MAZE_ENABLED", "0");
-        std::env::set_var("SHUMA_TEST_MODE", "1");
-
         let store = TestStore::default();
-        let mut kv_cfg = crate::config::Config::load(&store, "default");
-        kv_cfg.rate_limit = 11;
-        kv_cfg.maze_enabled = true;
-        kv_cfg.test_mode = false;
-        let key = "config:default".to_string();
-        store.set(&key, &serde_json::to_vec(&kv_cfg).unwrap()).unwrap();
-
-        let cfg = crate::config::Config::load(&store, "default");
-        assert_eq!(cfg.rate_limit, 321);
-        assert!(!cfg.maze_enabled);
-        assert!(cfg.test_mode);
-
-        clear_env(&keys);
+        let result = crate::config::Config::load(&store, "default");
+        assert!(matches!(
+            result,
+            Err(crate::config::ConfigLoadError::MissingConfig)
+        ));
     }
 
     #[test]
-    fn load_config_use_kv_enabled_applies_env_overrides_over_kv() {
+    fn load_config_reads_kv_only_without_tunable_env_overrides() {
         let _lock = ENV_MUTEX.lock().unwrap();
-        let keys = ["SHUMA_CONFIG_USE_KV", "SHUMA_RATE_LIMIT", "SHUMA_HONEYPOTS"];
+        let keys = ["SHUMA_RATE_LIMIT", "SHUMA_HONEYPOTS"];
         clear_env(&keys);
-        std::env::set_var("SHUMA_CONFIG_USE_KV", "true");
         std::env::set_var("SHUMA_RATE_LIMIT", "222");
         std::env::set_var("SHUMA_HONEYPOTS", "[\"/trap-a\",\"/trap-b\"]");
 
         let store = TestStore::default();
-        let mut kv_cfg = crate::config::Config::load(&store, "default");
+        let mut kv_cfg = crate::config::defaults().clone();
         kv_cfg.rate_limit = 111;
         kv_cfg.honeypots = vec!["/kv-trap".to_string()];
         let key = "config:default".to_string();
         store.set(&key, &serde_json::to_vec(&kv_cfg).unwrap()).unwrap();
 
-        let cfg = crate::config::Config::load(&store, "default");
-        assert_eq!(cfg.rate_limit, 222);
-        assert_eq!(cfg.honeypots, vec!["/trap-a".to_string(), "/trap-b".to_string()]);
+        let cfg = crate::config::Config::load(&store, "default").unwrap();
+        assert_eq!(cfg.rate_limit, 111);
+        assert_eq!(cfg.honeypots, vec!["/kv-trap".to_string()]);
 
         clear_env(&keys);
     }

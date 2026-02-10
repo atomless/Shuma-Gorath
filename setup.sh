@@ -27,6 +27,7 @@ warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 error() { echo -e "${RED}❌ $1${NC}"; exit 1; }
 
 ENV_LOCAL_FILE=".env.local"
+DEFAULTS_FILE="config/defaults.env"
 
 generate_hex_secret() {
     local bytes="${1:-32}"
@@ -56,14 +57,14 @@ upsert_env_local_value() {
     tmp_file="$(mktemp)"
     if [[ -f "$ENV_LOCAL_FILE" ]] && grep -q -E "^${key}=" "$ENV_LOCAL_FILE"; then
         awk -v target_key="$key" -v target_value="$value" '
-            $0 ~ ("^" target_key "=") { print target_key "=\"" target_value "\""; next }
+            $0 ~ ("^" target_key "=") { print target_key "=" target_value; next }
             { print }
         ' "$ENV_LOCAL_FILE" > "$tmp_file"
     else
         if [[ -f "$ENV_LOCAL_FILE" ]]; then
             cat "$ENV_LOCAL_FILE" > "$tmp_file"
         fi
-        printf '%s="%s"\n' "$key" "$value" >> "$tmp_file"
+        printf '%s=%s\n' "$key" "$value" >> "$tmp_file"
     fi
     mv "$tmp_file" "$ENV_LOCAL_FILE"
 }
@@ -71,11 +72,24 @@ upsert_env_local_value() {
 ensure_env_local_file() {
     if [[ ! -f "$ENV_LOCAL_FILE" ]]; then
         info "Creating $ENV_LOCAL_FILE for local development overrides..."
-        cat > "$ENV_LOCAL_FILE" <<'EOF'
+        cat > "$ENV_LOCAL_FILE" <<EOF
 # Local development overrides (gitignored)
 # Created by `make setup`. Edit values for local development only.
-SHUMA_API_KEY=""
-SHUMA_FORWARDED_IP_SECRET=""
+SHUMA_API_KEY=${SHUMA_API_KEY:-}
+SHUMA_JS_SECRET=${SHUMA_JS_SECRET:-}
+SHUMA_POW_SECRET=${SHUMA_POW_SECRET:-}
+SHUMA_CHALLENGE_SECRET=${SHUMA_CHALLENGE_SECRET:-}
+SHUMA_FORWARDED_IP_SECRET=${SHUMA_FORWARDED_IP_SECRET:-}
+SHUMA_ADMIN_IP_ALLOWLIST=${SHUMA_ADMIN_IP_ALLOWLIST:-}
+SHUMA_EVENT_LOG_RETENTION_HOURS=${SHUMA_EVENT_LOG_RETENTION_HOURS:-}
+SHUMA_ADMIN_CONFIG_WRITE_ENABLED=${SHUMA_ADMIN_CONFIG_WRITE_ENABLED:-}
+SHUMA_KV_STORE_FAIL_OPEN=${SHUMA_KV_STORE_FAIL_OPEN:-}
+SHUMA_ENFORCE_HTTPS=${SHUMA_ENFORCE_HTTPS:-}
+SHUMA_DEBUG_HEADERS=${SHUMA_DEBUG_HEADERS:-}
+SHUMA_DEV_MODE=${SHUMA_DEV_MODE:-}
+SHUMA_POW_CONFIG_MUTABLE=${SHUMA_POW_CONFIG_MUTABLE:-}
+SHUMA_CHALLENGE_CONFIG_MUTABLE=${SHUMA_CHALLENGE_CONFIG_MUTABLE:-}
+SHUMA_BOTNESS_CONFIG_MUTABLE=${SHUMA_BOTNESS_CONFIG_MUTABLE:-}
 EOF
     fi
     chmod 600 "$ENV_LOCAL_FILE" 2>/dev/null || true
@@ -92,6 +106,13 @@ ensure_local_dev_secret() {
         SHUMA_API_KEY)
             case "$current_value" in
                 ""|changeme-dev-only-api-key|changeme-supersecret|changeme-prod-api-key)
+                    should_generate=1
+                    ;;
+            esac
+            ;;
+        SHUMA_JS_SECRET)
+            case "$current_value" in
+                ""|changeme-dev-only-js-secret|changeme-js-secret|changeme-prod-js-secret)
                     should_generate=1
                     ;;
             esac
@@ -116,6 +137,14 @@ echo "║     WASM Bot Trap - Development Setup             ║"
 echo "╚═══════════════════════════════════════════════════╝"
 echo -e "${NC}"
 info "If setup needs sudo (for example, to install Spin), run this in an interactive terminal so you can authorize prompts."
+
+if [[ ! -f "$DEFAULTS_FILE" ]]; then
+    error "Missing ${DEFAULTS_FILE}. Cannot initialize local defaults."
+fi
+# shellcheck disable=SC1090
+set -a
+source "$DEFAULTS_FILE"
+set +a
 
 #--------------------------
 # Check macOS
@@ -251,8 +280,13 @@ fi
 #--------------------------
 ensure_env_local_file
 ensure_local_dev_secret "SHUMA_API_KEY" 32
+ensure_local_dev_secret "SHUMA_JS_SECRET" 32
 ensure_local_dev_secret "SHUMA_FORWARDED_IP_SECRET" 32
 success "Local dev secrets are ready in $ENV_LOCAL_FILE"
+
+info "Seeding KV tunables from config/defaults.env (missing values only)..."
+make --no-print-directory config-seed
+success "KV tunables are seeded"
 
 #--------------------------
 # Makefile sanity (dev target)

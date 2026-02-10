@@ -54,24 +54,20 @@ Key environment variables:
 - `SHUMA_FORWARDED_IP_SECRET` - Trusts `X-Forwarded-For` only when `X-Shuma-Forwarded-Secret` matches
 - `SHUMA_ADMIN_IP_ALLOWLIST` - CIDR/IP allowlist for admin access
 - `SHUMA_EVENT_LOG_RETENTION_HOURS` - Event log retention window
-- `SHUMA_CONFIG_USE_KV` - `true/false` to load runtime config base from KV (default: `false`)
 - `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` - `true/false` to allow `POST /admin/config` writes (default: `false`)
 - `SHUMA_DEV_MODE` - `true/false` dev-mode guard (default: `false`; set by `make dev`)
 - `SHUMA_KV_STORE_FAIL_OPEN` - `true/false` KV outage policy (`true` fail-open, `false` fail-closed)
-- `SHUMA_POW_ENABLED` - Enable proof-of-work before JS verification
-- `SHUMA_POW_DIFFICULTY` - Leading zero bits required (default: 15)
-- `SHUMA_POW_TTL_SECONDS` - PoW seed expiry in seconds (default: 90)
 - `SHUMA_POW_SECRET` - Optional PoW signing secret (defaults to `SHUMA_JS_SECRET`)
 - `SHUMA_POW_CONFIG_MUTABLE` - Allow admin API to tune PoW difficulty/TTL
-- `SHUMA_CHALLENGE_RISK_THRESHOLD` - Risk score to trigger step-up challenge (default: 3)
 - `SHUMA_CHALLENGE_CONFIG_MUTABLE` - Allow admin API to tune challenge threshold
 - `SHUMA_BOTNESS_CONFIG_MUTABLE` - Allow admin API to tune botness thresholds/weights
-- `SHUMA_CHALLENGE_TRANSFORM_COUNT` - Number of transforms offered in challenge UI (4-8, default: 6)
+
+Runtime tunables (PoW on/off, thresholds, weights, GEO lists, rate limits, ban durations, etc.) are KV-backed and seeded from `config/defaults.env` via `make setup` / `make config-seed`.
 
 Deployment policy note: `SHUMA_KV_STORE_FAIL_OPEN` is a critical choice (fail-open vs fail-closed) when the KV store is unavailable. See `docs/security-hardening.md` and `docs/deployment.md`.
 
-See `docs/deployment.md` for deployment wiring and secret handling, and `docs/configuration.md` for the full env var map for all runtime config fields.
-Use `/.env.full.example` as the canonical full env template for deployment configuration.
+See `docs/deployment.md` for deployment wiring and secret handling, and `docs/configuration.md` for the full config model.
+Use `/.env.full.example` for env-only runtime keys, and `config/defaults.env` as the canonical tunable defaults source seeded into KV.
 
 ## 🐙 Documentation
 

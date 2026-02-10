@@ -138,7 +138,7 @@ fn geo_headers_are_ignored_when_forwarding_not_trusted() {
     std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
     let req = request_with_headers("/health", &[("x-geo-country", "US")]);
 
-    let cfg = crate::config::Config::load(&MockStore::default(), "default");
+    let cfg = crate::config::defaults().clone();
     let assessment = crate::assess_geo_request(&req, &cfg);
     assert!(!assessment.headers_trusted);
     assert_eq!(assessment.country, None);
@@ -181,7 +181,7 @@ fn geo_headers_are_used_when_forwarding_is_trusted() {
         ],
     );
 
-    let mut cfg = crate::config::Config::load(&MockStore::default(), "default");
+    let mut cfg = crate::config::defaults().clone();
     cfg.geo_risk = vec!["US".to_string()];
     let assessment = crate::assess_geo_request(&req, &cfg);
     assert!(assessment.headers_trusted);

@@ -187,8 +187,9 @@ pub fn render_metrics(store: &Store) -> String {
     
     // Test mode enabled (gauge, 0 or 1)
     output.push_str("\n# TYPE bot_trap_test_mode_enabled gauge\n");
-    let cfg = crate::config::Config::load(store, "default");
-    let test_mode_enabled = if cfg.test_mode { 1 } else { 0 };
+    let test_mode_enabled = crate::config::Config::load(store, "default")
+        .map(|cfg| if cfg.test_mode { 1 } else { 0 })
+        .unwrap_or(0);
     output.push_str(&format!("bot_trap_test_mode_enabled {}\n", test_mode_enabled));
     
     output
@@ -196,6 +197,9 @@ pub fn render_metrics(store: &Store) -> String {
 
 /// Handle GET /metrics endpoint
 pub fn handle_metrics(store: &Store) -> spin_sdk::http::Response {
+    if crate::config::Config::load(store, "default").is_err() {
+        return spin_sdk::http::Response::new(500, "Configuration unavailable");
+    }
     let body = render_metrics(store);
     spin_sdk::http::Response::builder()
         .status(200)
