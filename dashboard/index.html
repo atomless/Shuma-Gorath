@@ -237,6 +237,21 @@
               <button id="save-js-required-config" class="btn btn-submit" disabled>Save JS Required</button>
             </div>
             <div class="control-group panel-soft pad-md config-edit-pane hidden">
+              <h3>Proof-of-Work (PoW)</h3>
+              <p class="control-desc text-muted">Lightweight PoW before JS verification (tunable when allowed)</p>
+              <div class="admin-controls">
+                <div class="input-row">
+                  <label class="control-label" for="pow-difficulty">Difficulty (bits)</label>
+                  <input class="input-field" type="number" id="pow-difficulty" min="12" max="20" step="1" inputmode="numeric" value="15" aria-label="PoW difficulty in leading zero bits">
+                </div>
+                <div class="input-row">
+                  <label class="control-label" for="pow-ttl">Seed TTL (seconds)</label>
+                  <input class="input-field" type="number" id="pow-ttl" min="30" max="300" step="1" inputmode="numeric" value="90" aria-label="PoW seed TTL in seconds">
+                </div>
+              </div>
+              <button id="save-pow-config" class="btn btn-submit" disabled>Save PoW Settings</button>
+            </div>
+            <div class="control-group panel-soft pad-md config-edit-pane hidden">
               <h3>Rate Limiting</h3>
               <p class="control-desc text-muted">Set the per-minute request limit used by rate limiting and botness rate-pressure scoring.</p>
               <div class="admin-controls">
@@ -246,6 +261,106 @@
                 </div>
               </div>
               <button id="save-rate-limit-config" class="btn btn-submit" disabled>Save Rate Limit</button>
+            </div>
+            <div class="control-group panel-soft pad-md config-edit-pane hidden">
+              <h3>Link Maze</h3>
+              <p class="control-desc text-muted">Honeypot trap for crawlers</p>
+              <div class="admin-controls">
+                <div class="toggle-row">
+                  <label class="control-label" for="maze-enabled-toggle">Maze Enabled</label>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="maze-enabled-toggle" checked aria-label="Enable maze honeypot">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="toggle-row">
+                  <label class="control-label" for="maze-auto-ban-toggle">Auto-Ban</label>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="maze-auto-ban-toggle" checked aria-label="Enable maze auto-ban">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="input-row">
+                  <label class="control-label" for="maze-threshold">Ban Threshold (pages)</label>
+                  <input class="input-field" type="number" id="maze-threshold" value="50" min="5" max="500" step="1" inputmode="numeric" aria-label="Maze ban threshold in pages">
+                </div>
+              </div>
+              <button id="save-maze-config" class="btn btn-submit">Save Maze Settings</button>
+            </div>
+            <div class="control-group panel-soft pad-md config-edit-pane hidden">
+              <h3>CDP (Detect Browser Automation)</h3>
+              <p class="control-desc text-muted">Detects bots controlling browsers on behalf of human users (Puppeteer, Playwright,
+                Selenium, etc.)</p>
+              <div class="admin-controls">
+                <div class="toggle-row">
+                  <label class="control-label control-label--wide" for="cdp-enabled-toggle">Enable Detection</label>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="cdp-enabled-toggle" checked aria-label="Enable CDP detection">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="toggle-row">
+                  <label class="control-label control-label--wide" for="cdp-auto-ban-toggle">Auto-ban on Detection</label>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="cdp-auto-ban-toggle" checked aria-label="Enable CDP auto-ban">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="slider-control">
+                  <div class="slider-header">
+                    <label class="control-label control-label--wide" for="cdp-threshold-slider">Detection Threshold</label>
+                    <span id="cdp-threshold-value" class="slider-badge">0.6</span>
+                  </div>
+                  <input type="range" id="cdp-threshold-slider" min="0.3" max="1.0" step="0.1" value="0.6" aria-label="CDP detection threshold">
+                  <div class="slider-labels">
+                    <span>Strict</span>
+                    <span>Permissive</span>
+                  </div>
+                </div>
+              </div>
+              <button id="save-cdp-config" class="btn btn-submit" disabled>Save CDP Settings</button>
+            </div>
+            <div class="control-group panel-soft pad-md config-edit-pane hidden">
+              <h3>GEO Policy</h3>
+              <p class="control-desc text-muted">Use <a href="https://www.iban.com/country-codes">2-letter country codes</a> (comma separated: CA, BR, IN,...).</p>
+              <h4>GEO Risk Based Scoring</h4>
+              <div class="admin-controls geo-controls">
+                <div class="geo-field">
+                  <label class="control-label" for="geo-risk-list">Countries to be treated as contributing to combined "botness" score.</label>
+                  <textarea class="input-field geo-textarea" id="geo-risk-list" rows="1" aria-label="GEO scoring countries" spellcheck="false"></textarea>
+                </div>
+                <div class="geo-divider" role="separator" aria-hidden="true"></div>
+                <h4>GEO Risk Based Routing</h4>
+                <p class="control-desc geo-controls">Precedence: Block > Maze > Challenge > Allow.</p>
+                <div class="geo-field">
+                  <label class="control-label" for="geo-block-list">Block Countries</label>
+                  <textarea class="input-field geo-textarea" id="geo-block-list" rows="1" aria-label="GEO block countries" spellcheck="false"></textarea>
+                </div>
+                <div class="geo-field">
+                  <label class="control-label" for="geo-maze-list">Maze Countries</label>
+                  <textarea class="input-field geo-textarea" id="geo-maze-list" rows="1" aria-label="GEO maze countries" spellcheck="false"></textarea>
+                </div>
+                <div class="geo-field">
+                  <label class="control-label" for="geo-challenge-list">Challenge Countries</label>
+                  <textarea class="input-field geo-textarea" id="geo-challenge-list" rows="1" aria-label="GEO challenge countries" spellcheck="false"></textarea>
+                </div>
+                <div class="geo-field">
+                  <label class="control-label" for="geo-allow-list">Allow Countries</label>
+                  <textarea class="input-field geo-textarea" id="geo-allow-list" rows="1" aria-label="GEO allow countries" spellcheck="false"></textarea>
+                </div>
+              </div>
+              <button id="save-geo-config" class="btn btn-submit" disabled>Save GEO Settings</button>
+            </div>
+            <div class="control-group panel-soft pad-md config-edit-pane hidden">
+              <h3>Ban Durations</h3>
+              <p class="control-desc text-muted">Configure ban duration per offense type (seconds)</p>
+              <div class="duration-grid">
+                <label for="dur-honeypot">Honeypot:</label> <input id="dur-honeypot" class="input-field" type="number" min="60" max="31536000" step="1" inputmode="numeric" value="86400" />
+                <label for="dur-rate-limit">Rate Limit:</label> <input id="dur-rate-limit" class="input-field" type="number" min="60" max="31536000" step="1" inputmode="numeric" value="3600" />
+                <label for="dur-browser">Browser:</label> <input id="dur-browser" class="input-field" type="number" min="60" max="31536000" step="1" inputmode="numeric" value="21600" />
+                <label for="dur-admin">Admin:</label> <input id="dur-admin" class="input-field" type="number" min="60" max="31536000" step="1" inputmode="numeric" value="21600" />
+              </div>
+              <button id="save-durations-btn" class="btn btn-submit">Save Durations</button>
             </div>
             <div class="control-group panel-soft pad-md config-edit-pane hidden">
               <h3>AI Training Opt-Out Policy</h3>
@@ -293,121 +408,6 @@
                 <h4>robots.txt Preview</h4>
                 <pre id="robots-preview-content"></pre>
               </div>
-            </div>
-            <div class="control-group panel-soft pad-md config-edit-pane hidden">
-              <h3>Link Maze</h3>
-              <p class="control-desc text-muted">Honeypot trap for crawlers</p>
-              <div class="admin-controls">
-                <div class="toggle-row">
-                  <label class="control-label" for="maze-enabled-toggle">Maze Enabled</label>
-                  <label class="toggle-switch">
-                    <input type="checkbox" id="maze-enabled-toggle" checked aria-label="Enable maze honeypot">
-                    <span class="toggle-slider"></span>
-                  </label>
-                </div>
-                <div class="toggle-row">
-                  <label class="control-label" for="maze-auto-ban-toggle">Auto-Ban</label>
-                  <label class="toggle-switch">
-                    <input type="checkbox" id="maze-auto-ban-toggle" checked aria-label="Enable maze auto-ban">
-                    <span class="toggle-slider"></span>
-                  </label>
-                </div>
-                <div class="input-row">
-                  <label class="control-label" for="maze-threshold">Ban Threshold (pages)</label>
-                  <input class="input-field" type="number" id="maze-threshold" value="50" min="5" max="500" step="1" inputmode="numeric" aria-label="Maze ban threshold in pages">
-                </div>
-              </div>
-              <button id="save-maze-config" class="btn btn-submit">Save Maze Settings</button>
-            </div>
-            <div class="control-group panel-soft pad-md config-edit-pane hidden">
-              <h3>GEO Policy</h3>
-              <p class="control-desc text-muted">Use <a href="https://www.iban.com/country-codes">2-letter country codes</a> (comma separated: CA, BR, IN,...).</p>
-              <h4>GEO Risk Based Scoring</h4>
-              <div class="admin-controls geo-controls">
-                <div class="geo-field">
-                  <label class="control-label" for="geo-risk-list">Countries to be treated as contributing to combined "botness" score.</label>
-                  <textarea class="input-field geo-textarea" id="geo-risk-list" rows="1" aria-label="GEO scoring countries" spellcheck="false"></textarea>
-                </div>
-                <div class="geo-divider" role="separator" aria-hidden="true"></div>
-                <h4>GEO Risk Based Routing</h4>
-                <p class="control-desc geo-controls">Precedence: Block > Maze > Challenge > Allow.</p>
-                <div class="geo-field">
-                  <label class="control-label" for="geo-block-list">Block Countries</label>
-                  <textarea class="input-field geo-textarea" id="geo-block-list" rows="1" aria-label="GEO block countries" spellcheck="false"></textarea>
-                </div>
-                <div class="geo-field">
-                  <label class="control-label" for="geo-maze-list">Maze Countries</label>
-                  <textarea class="input-field geo-textarea" id="geo-maze-list" rows="1" aria-label="GEO maze countries" spellcheck="false"></textarea>
-                </div>
-                <div class="geo-field">
-                  <label class="control-label" for="geo-challenge-list">Challenge Countries</label>
-                  <textarea class="input-field geo-textarea" id="geo-challenge-list" rows="1" aria-label="GEO challenge countries" spellcheck="false"></textarea>
-                </div>
-                <div class="geo-field">
-                  <label class="control-label" for="geo-allow-list">Allow Countries</label>
-                  <textarea class="input-field geo-textarea" id="geo-allow-list" rows="1" aria-label="GEO allow countries" spellcheck="false"></textarea>
-                </div>
-              </div>
-              <button id="save-geo-config" class="btn btn-submit" disabled>Save GEO Settings</button>
-            </div>
-            <div class="control-group panel-soft pad-md config-edit-pane hidden">
-              <h3>CDP (Detect Browser Automation)</h3>
-              <p class="control-desc text-muted">Detects bots controlling browsers on behalf of human users (Puppeteer, Playwright,
-                Selenium, etc.)</p>
-              <div class="admin-controls">
-                <div class="toggle-row">
-                  <label class="control-label control-label--wide" for="cdp-enabled-toggle">Enable Detection</label>
-                  <label class="toggle-switch">
-                    <input type="checkbox" id="cdp-enabled-toggle" checked aria-label="Enable CDP detection">
-                    <span class="toggle-slider"></span>
-                  </label>
-                </div>
-                <div class="toggle-row">
-                  <label class="control-label control-label--wide" for="cdp-auto-ban-toggle">Auto-ban on Detection</label>
-                  <label class="toggle-switch">
-                    <input type="checkbox" id="cdp-auto-ban-toggle" checked aria-label="Enable CDP auto-ban">
-                    <span class="toggle-slider"></span>
-                  </label>
-                </div>
-                <div class="slider-control">
-                  <div class="slider-header">
-                    <label class="control-label control-label--wide" for="cdp-threshold-slider">Detection Threshold</label>
-                    <span id="cdp-threshold-value" class="slider-badge">0.6</span>
-                  </div>
-                  <input type="range" id="cdp-threshold-slider" min="0.3" max="1.0" step="0.1" value="0.6" aria-label="CDP detection threshold">
-                  <div class="slider-labels">
-                    <span>Strict</span>
-                    <span>Permissive</span>
-                  </div>
-                </div>
-              </div>
-              <button id="save-cdp-config" class="btn btn-submit" disabled>Save CDP Settings</button>
-            </div>
-            <div class="control-group panel-soft pad-md config-edit-pane hidden">
-              <h3>Proof-of-Work (PoW)</h3>
-              <p class="control-desc text-muted">Lightweight PoW before JS verification (tunable when allowed)</p>
-              <div class="admin-controls">
-                <div class="input-row">
-                  <label class="control-label" for="pow-difficulty">Difficulty (bits)</label>
-                  <input class="input-field" type="number" id="pow-difficulty" min="12" max="20" step="1" inputmode="numeric" value="15" aria-label="PoW difficulty in leading zero bits">
-                </div>
-                <div class="input-row">
-                  <label class="control-label" for="pow-ttl">Seed TTL (seconds)</label>
-                  <input class="input-field" type="number" id="pow-ttl" min="30" max="300" step="1" inputmode="numeric" value="90" aria-label="PoW seed TTL in seconds">
-                </div>
-              </div>
-              <button id="save-pow-config" class="btn btn-submit" disabled>Save PoW Settings</button>
-            </div>
-            <div class="control-group panel-soft pad-md config-edit-pane hidden">
-              <h3>Ban Durations</h3>
-              <p class="control-desc text-muted">Configure ban duration per offense type (seconds)</p>
-              <div class="duration-grid">
-                <label for="dur-honeypot">Honeypot:</label> <input id="dur-honeypot" class="input-field" type="number" min="60" max="31536000" step="1" inputmode="numeric" value="86400" />
-                <label for="dur-rate-limit">Rate Limit:</label> <input id="dur-rate-limit" class="input-field" type="number" min="60" max="31536000" step="1" inputmode="numeric" value="3600" />
-                <label for="dur-browser">Browser:</label> <input id="dur-browser" class="input-field" type="number" min="60" max="31536000" step="1" inputmode="numeric" value="21600" />
-                <label for="dur-admin">Admin:</label> <input id="dur-admin" class="input-field" type="number" min="60" max="31536000" step="1" inputmode="numeric" value="21600" />
-              </div>
-              <button id="save-durations-btn" class="btn btn-submit">Save Durations</button>
             </div>
           </div>
         </section>
