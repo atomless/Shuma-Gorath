@@ -655,15 +655,15 @@ const STATUS_DEFINITIONS = [
       `Automatic bans will be triggered when Link Maze hits exceed the configured ${envVar('SHUMA_MAZE_AUTO_BAN_THRESHOLD')}.`
     ),
     status: state => boolStatus(state.mazeEnabled)
-  },
+  },  
   {
     title: 'JS Required',
     description: state => (
       `Controlled by ${envVar('SHUMA_JS_REQUIRED_ENFORCED')}. ` +
-      `When enabled, requests without a valid <code>js_verified</code> cookie are served a JS verification page. ` +
-      `After a valid <code>js_verified</code> cookie is set, the originally requested page is reloaded and access is re-evaluated. ` +
+      `When enabled, requests without a valid <code>js_verified</code> cookie are served a JS verification page ` +
+      `that will write the cookie. The originally requested page is then reloaded and access is re-evaluated. ` +
       `If ${envVar('SHUMA_POW_ENABLED')} is true, this verification step includes PoW before <code>js_verified</code> is issued. ` +
-      `Disable only if you must allow non-JS clients; doing so weakens bot defense and removes PoW from the normal request path. ` +
+      `Disable ${envVar('SHUMA_JS_REQUIRED_ENFORCED')} only if you must allow non-JS clients; doing so weakens bot defense and removes PoW from the normal request path. ` +
       `Its botness contribution is weighted separately by ${envVar('SHUMA_BOTNESS_WEIGHT_JS_REQUIRED')} ` +
       `(current weight: <strong>${state.botnessWeights.js_required || 0}</strong>). ` +
       cumulativeBotnessRoutingText(state)
