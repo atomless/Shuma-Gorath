@@ -29,10 +29,11 @@ fn now_ts() -> u64 {
 }
 
 fn get_pow_secret() -> String {
-    std::env::var("SHUMA_POW_SECRET")
-        .or_else(|_| std::env::var("SHUMA_JS_SECRET"))
-        .or_else(|_| std::env::var("SHUMA_API_KEY"))
-        .unwrap_or_else(|_| "changeme-pow-secret".to_string())
+    match std::env::var("SHUMA_POW_SECRET") {
+        Ok(secret) if !secret.trim().is_empty() => secret,
+        _ => std::env::var("SHUMA_JS_SECRET")
+            .expect("SHUMA_JS_SECRET must be set when SHUMA_POW_SECRET is unset"),
+    }
 }
 
 fn sign_payload(payload: &str) -> Vec<u8> {

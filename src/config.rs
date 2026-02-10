@@ -256,10 +256,6 @@ pub fn defaults() -> &'static Config {
     &DEFAULT_CONFIG
 }
 
-pub fn defaults_json() -> String {
-    serde_json::to_string(&*DEFAULT_CONFIG).unwrap_or_else(|_| "{}".to_string())
-}
-
 pub fn validate_env_only_once() -> Result<(), String> {
     if cfg!(test) {
         return Ok(());
@@ -423,6 +419,7 @@ pub(crate) fn parse_maze_threshold(value: Option<&str>) -> u8 {
     clamp_maze_threshold(parsed)
 }
 
+#[cfg(test)]
 pub(crate) fn parse_botness_weight(value: Option<&str>, default_value: u8) -> u8 {
     let parsed = value
         .and_then(|v| v.parse::<u8>().ok())

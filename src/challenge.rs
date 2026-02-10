@@ -70,9 +70,11 @@ pub(crate) struct ChallengePuzzle {
 }
 
 fn get_challenge_secret() -> String {
-    std::env::var("SHUMA_CHALLENGE_SECRET")
-        .or_else(|_| std::env::var("SHUMA_API_KEY"))
-        .unwrap_or_else(|_| "changeme-challenge-secret".to_string())
+    match std::env::var("SHUMA_CHALLENGE_SECRET") {
+        Ok(secret) if !secret.trim().is_empty() => secret,
+        _ => std::env::var("SHUMA_JS_SECRET")
+            .expect("SHUMA_JS_SECRET must be set when SHUMA_CHALLENGE_SECRET is unset"),
+    }
 }
 
 fn sign_payload(payload: &str) -> Vec<u8> {

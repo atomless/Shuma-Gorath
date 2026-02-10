@@ -666,13 +666,11 @@ fn is_cdp_event_reason(reason: &str) -> bool {
 }
 
 fn challenge_threshold_default() -> u8 {
-    crate::config::parse_challenge_threshold(
-        env::var("SHUMA_CHALLENGE_RISK_THRESHOLD").ok().as_deref(),
-    )
+    crate::config::defaults().challenge_risk_threshold
 }
 
 fn maze_threshold_default() -> u8 {
-    crate::config::parse_maze_threshold(env::var("SHUMA_BOTNESS_MAZE_THRESHOLD").ok().as_deref())
+    crate::config::defaults().botness_maze_threshold
 }
 
 fn botness_signal_definitions(cfg: &crate::config::Config) -> serde_json::Value {
