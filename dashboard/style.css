@@ -802,28 +802,65 @@ input:checked + .toggle-slider:before {
    =========================================== */
 
 .duration-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   margin-bottom: 15px;
 }
 
-.duration-grid label {
-  display: flex;
-  flex-direction: column;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--color-700);
+.duration-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 6px;
 }
 
-.duration-grid .input-field {
-  width: 100%;
-  padding: 8px;
-  margin-top: 4px;
+.duration-row .control-label {
+  font-size: var(--text-md);
+}
+
+.duration-inputs {
+  display: flex;
+  gap: 10px;
+  justify-self: end;
+}
+
+.duration-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted-fg);
+}
+
+.duration-input .input-field {
+  width: 88px;
+  padding: 8px 10px;
+  margin: 0;
+  text-align: right;
 }
 
 #save-durations-btn {
   margin-top: 5px;
+}
+
+@media (max-width: 720px) {
+  .duration-row {
+    grid-template-columns: 1fr;
+  }
+
+  .duration-inputs {
+    justify-self: start;
+    width: 100%;
+  }
+
+  .duration-input {
+    flex: 1 1 0;
+  }
+
+  .duration-input .input-field {
+    width: 100%;
+  }
 }
 
 /* ===========================================

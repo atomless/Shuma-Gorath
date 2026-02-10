@@ -308,6 +308,11 @@ mod admin_config_tests {
     fn admin_config_updates_geo_policy_lists() {
         let _lock = ENV_MUTEX.lock().unwrap();
         std::env::set_var("SHUMA_ADMIN_PAGE_CONFIG", "true");
+        std::env::remove_var("SHUMA_GEO_RISK_COUNTRIES");
+        std::env::remove_var("SHUMA_GEO_ALLOW_COUNTRIES");
+        std::env::remove_var("SHUMA_GEO_CHALLENGE_COUNTRIES");
+        std::env::remove_var("SHUMA_GEO_MAZE_COUNTRIES");
+        std::env::remove_var("SHUMA_GEO_BLOCK_COUNTRIES");
         let store = TestStore::default();
 
         let body = br#"{
@@ -360,6 +365,11 @@ mod admin_config_tests {
             get_json.get("geo_block").unwrap(),
             &serde_json::json!(["KP"])
         );
+        std::env::remove_var("SHUMA_GEO_RISK_COUNTRIES");
+        std::env::remove_var("SHUMA_GEO_ALLOW_COUNTRIES");
+        std::env::remove_var("SHUMA_GEO_CHALLENGE_COUNTRIES");
+        std::env::remove_var("SHUMA_GEO_MAZE_COUNTRIES");
+        std::env::remove_var("SHUMA_GEO_BLOCK_COUNTRIES");
         std::env::remove_var("SHUMA_ADMIN_PAGE_CONFIG");
     }
 

@@ -50,16 +50,49 @@ const INTEGER_FIELD_RULES = {
   'rate-limit-threshold': { min: 1, max: 1000000, fallback: 80, label: 'Rate limit' },
   'pow-difficulty': { min: 12, max: 20, fallback: 15, label: 'PoW difficulty' },
   'pow-ttl': { min: 30, max: 300, fallback: 90, label: 'PoW seed TTL' },
-  'dur-honeypot': { min: 60, max: 31536000, fallback: 86400, label: 'Honeypot duration' },
-  'dur-rate-limit': { min: 60, max: 31536000, fallback: 3600, label: 'Rate limit duration' },
-  'dur-browser': { min: 60, max: 31536000, fallback: 21600, label: 'Browser duration' },
-  'dur-admin': { min: 60, max: 31536000, fallback: 21600, label: 'Admin duration' },
+  'dur-honeypot-hours': { min: 0, max: 8760, fallback: 24, label: 'Link Maze Threshold Exceeded hours' },
+  'dur-honeypot-minutes': { min: 0, max: 59, fallback: 0, label: 'Link Maze Threshold Exceeded minutes' },
+  'dur-rate-limit-hours': { min: 0, max: 8760, fallback: 1, label: 'Rate Limit Exceeded hours' },
+  'dur-rate-limit-minutes': { min: 0, max: 59, fallback: 0, label: 'Rate Limit Exceeded minutes' },
+  'dur-browser-hours': { min: 0, max: 8760, fallback: 6, label: 'Outdated Browser Detected hours' },
+  'dur-browser-minutes': { min: 0, max: 59, fallback: 0, label: 'Outdated Browser Detected minutes' },
+  'dur-admin-hours': { min: 0, max: 8760, fallback: 6, label: 'Admin Manual Ban hours' },
+  'dur-admin-minutes': { min: 0, max: 59, fallback: 0, label: 'Admin Manual Ban minutes' },
   'challenge-threshold': { min: 1, max: 10, fallback: 3, label: 'Challenge threshold' },
   'maze-threshold-score': { min: 1, max: 10, fallback: 6, label: 'Maze threshold' },
   'weight-js-required': { min: 0, max: 10, fallback: 1, label: 'JS weight' },
   'weight-geo-risk': { min: 0, max: 10, fallback: 2, label: 'GEO weight' },
   'weight-rate-medium': { min: 0, max: 10, fallback: 1, label: 'Rate 50% weight' },
   'weight-rate-high': { min: 0, max: 10, fallback: 2, label: 'Rate 80% weight' }
+};
+
+const BAN_DURATION_BOUNDS_SECONDS = { min: 60, max: 31536000 };
+
+const BAN_DURATION_FIELDS = {
+  honeypot: {
+    label: 'Link Maze Threshold Exceeded duration',
+    fallback: 86400,
+    hoursId: 'dur-honeypot-hours',
+    minutesId: 'dur-honeypot-minutes'
+  },
+  rateLimit: {
+    label: 'Rate Limit Exceeded duration',
+    fallback: 3600,
+    hoursId: 'dur-rate-limit-hours',
+    minutesId: 'dur-rate-limit-minutes'
+  },
+  browser: {
+    label: 'Outdated Browser Detected duration',
+    fallback: 21600,
+    hoursId: 'dur-browser-hours',
+    minutesId: 'dur-browser-minutes'
+  },
+  admin: {
+    label: 'Admin Manual Ban duration',
+    fallback: 21600,
+    hoursId: 'dur-admin-hours',
+    minutesId: 'dur-admin-minutes'
+  }
 };
 
 const IPV4_SEGMENT_PATTERN = /^\d{1,3}$/;
@@ -129,6 +162,87 @@ function parseIntegerLoose(id) {
   const parsed = Number.parseInt(sanitized, 10);
   if (!Number.isInteger(parsed)) return null;
   return parsed;
+}
+
+function durationPartsToSeconds(hours, minutes) {
+  return (hours * 3600) + (minutes * 60);
+}
+
+function secondsToDurationParts(totalSeconds, fallbackSeconds) {
+  const fallback = Number.parseInt(fallbackSeconds, 10) || 0;
+  let seconds = Number.parseInt(totalSeconds, 10);
+  if (!Number.isFinite(seconds) || seconds <= 0) seconds = fallback;
+  if (seconds < BAN_DURATION_BOUNDS_SECONDS.min) seconds = BAN_DURATION_BOUNDS_SECONDS.min;
+  if (seconds > BAN_DURATION_BOUNDS_SECONDS.max) seconds = BAN_DURATION_BOUNDS_SECONDS.max;
+  return {
+    hours: Math.floor(seconds / 3600),
+    minutes: Math.floor((seconds % 3600) / 60)
+  };
+}
+
+function setBanDurationInputFromSeconds(durationKey, totalSeconds) {
+  const group = BAN_DURATION_FIELDS[durationKey];
+  if (!group) return;
+  const hoursInput = document.getElementById(group.hoursId);
+  const minutesInput = document.getElementById(group.minutesId);
+  if (!hoursInput || !minutesInput) return;
+
+  const parts = secondsToDurationParts(totalSeconds, group.fallback);
+  hoursInput.value = String(parts.hours);
+  minutesInput.value = String(parts.minutes);
+}
+
+function readBanDurationFromInputs(durationKey, showInline = false) {
+  const group = BAN_DURATION_FIELDS[durationKey];
+  if (!group) return null;
+
+  const hoursInput = document.getElementById(group.hoursId);
+  const minutesInput = document.getElementById(group.minutesId);
+  if (!hoursInput || !minutesInput) return null;
+
+  const hoursValid = validateIntegerFieldById(group.hoursId, showInline);
+  const minutesValid = validateIntegerFieldById(group.minutesId, showInline);
+  const hours = parseIntegerLoose(group.hoursId);
+  const minutes = parseIntegerLoose(group.minutesId);
+
+  if (!hoursValid || !minutesValid || hours === null || minutes === null) return null;
+
+  const totalSeconds = durationPartsToSeconds(hours, minutes);
+  if (totalSeconds < BAN_DURATION_BOUNDS_SECONDS.min || totalSeconds > BAN_DURATION_BOUNDS_SECONDS.max) {
+    const message = `${group.label} must be between 1 minute and 8760 hours.`;
+    setFieldError(hoursInput, message, showInline);
+    setFieldError(minutesInput, message, showInline);
+    return null;
+  }
+
+  setFieldError(hoursInput, '', showInline);
+  setFieldError(minutesInput, '', showInline);
+  return { hours, minutes, totalSeconds };
+}
+
+function readBanDurationSeconds(durationKey) {
+  const group = BAN_DURATION_FIELDS[durationKey];
+  if (!group) return null;
+  const result = readBanDurationFromInputs(durationKey, true);
+  if (result) return result.totalSeconds;
+
+  const hoursInput = document.getElementById(group.hoursId);
+  const minutesInput = document.getElementById(group.minutesId);
+  if (hoursInput && !hoursInput.checkValidity()) {
+    hoursInput.reportValidity();
+    hoursInput.focus();
+    return null;
+  }
+  if (minutesInput && !minutesInput.checkValidity()) {
+    minutesInput.reportValidity();
+    minutesInput.focus();
+    return null;
+  }
+  if (hoursInput) {
+    hoursInput.reportValidity();
+    hoursInput.focus();
+  }
+  return null;
 }
 
 function isValidIpv4(value) {
@@ -756,15 +870,15 @@ function updateStatCards(analytics, events, bans) {
 // Update ban duration fields from config
 function updateBanDurations(config) {
   if (config.ban_durations) {
-    document.getElementById('dur-honeypot').value = config.ban_durations.honeypot || 86400;
-    document.getElementById('dur-rate-limit').value = config.ban_durations.rate_limit || 3600;
-    document.getElementById('dur-browser').value = config.ban_durations.browser || 21600;
-    document.getElementById('dur-admin').value = config.ban_durations.admin || 21600;
+    setBanDurationInputFromSeconds('honeypot', config.ban_durations.honeypot);
+    setBanDurationInputFromSeconds('rateLimit', config.ban_durations.rate_limit);
+    setBanDurationInputFromSeconds('browser', config.ban_durations.browser);
+    setBanDurationInputFromSeconds('admin', config.ban_durations.admin);
     banDurationsSavedState = {
-      honeypot: parseInt(config.ban_durations.honeypot, 10) || 86400,
-      rateLimit: parseInt(config.ban_durations.rate_limit, 10) || 3600,
-      browser: parseInt(config.ban_durations.browser, 10) || 21600,
-      admin: parseInt(config.ban_durations.admin, 10) || 21600
+      honeypot: Number.parseInt(config.ban_durations.honeypot, 10) || BAN_DURATION_FIELDS.honeypot.fallback,
+      rateLimit: Number.parseInt(config.ban_durations.rate_limit, 10) || BAN_DURATION_FIELDS.rateLimit.fallback,
+      browser: Number.parseInt(config.ban_durations.browser, 10) || BAN_DURATION_FIELDS.browser.fallback,
+      admin: Number.parseInt(config.ban_durations.admin, 10) || BAN_DURATION_FIELDS.admin.fallback
     };
     const btn = document.getElementById('save-durations-btn');
     if (btn) {
@@ -1375,18 +1489,18 @@ function checkMazeConfigChanged() {
 }
 
 function checkBanDurationsChanged() {
-  const fieldsValid =
-    validateIntegerFieldById('dur-honeypot') &&
-    validateIntegerFieldById('dur-rate-limit') &&
-    validateIntegerFieldById('dur-browser') &&
-    validateIntegerFieldById('dur-admin');
+  const honeypot = readBanDurationFromInputs('honeypot');
+  const rateLimit = readBanDurationFromInputs('rateLimit');
+  const browser = readBanDurationFromInputs('browser');
+  const admin = readBanDurationFromInputs('admin');
+  const fieldsValid = Boolean(honeypot && rateLimit && browser && admin);
   const apiValid = hasValidApiContext();
-  const current = {
-    honeypot: parseIntegerLoose('dur-honeypot'),
-    rateLimit: parseIntegerLoose('dur-rate-limit'),
-    browser: parseIntegerLoose('dur-browser'),
-    admin: parseIntegerLoose('dur-admin')
-  };
+  const current = fieldsValid ? {
+    honeypot: honeypot.totalSeconds,
+    rateLimit: rateLimit.totalSeconds,
+    browser: browser.totalSeconds,
+    admin: admin.totalSeconds
+  } : banDurationsSavedState;
   const changed = fieldsValid && (
     current.honeypot !== banDurationsSavedState.honeypot ||
     current.rateLimit !== banDurationsSavedState.rateLimit ||
@@ -2425,10 +2539,10 @@ document.getElementById('save-durations-btn').onclick = async function() {
   const btn = this;
   
   const ban_durations = {
-    honeypot: readIntegerFieldValue('dur-honeypot', msg),
-    rate_limit: readIntegerFieldValue('dur-rate-limit', msg),
-    browser: readIntegerFieldValue('dur-browser', msg),
-    admin: readIntegerFieldValue('dur-admin', msg)
+    honeypot: readBanDurationSeconds('honeypot'),
+    rate_limit: readBanDurationSeconds('rateLimit'),
+    browser: readBanDurationSeconds('browser'),
+    admin: readBanDurationSeconds('admin')
   };
 
   if (
