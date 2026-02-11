@@ -8,6 +8,9 @@ pub trait KeyValueStore {
     fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()>;
     fn set(&self, key: &str, value: &[u8]) -> Result<(), ()>;
     fn delete(&self, key: &str) -> Result<(), ()>;
+    fn get_keys(&self) -> Result<Vec<String>, ()> {
+        Ok(Vec::new())
+    }
 }
 
 pub(crate) const PUZZLE_PATH: &str = "/challenge/puzzle";
@@ -21,6 +24,9 @@ impl KeyValueStore for Store {
     }
     fn delete(&self, key: &str) -> Result<(), ()> {
         Store::delete(self, key).map_err(|_| ())
+    }
+    fn get_keys(&self) -> Result<Vec<String>, ()> {
+        Store::get_keys(self).map_err(|_| ())
     }
 }
 
@@ -821,7 +827,11 @@ fn challenge_incorrect_response() -> Response {
     challenge_response(403, CHALLENGE_INCORRECT_BODY)
 }
 
-pub(crate) fn serve_challenge_page(req: &Request, test_mode: bool, transform_count: usize) -> Response {
+pub(crate) fn serve_challenge_page(
+    req: &Request,
+    test_mode: bool,
+    transform_count: usize,
+) -> Response {
     if !test_mode {
         return challenge_response(404, "Not Found");
     }

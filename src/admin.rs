@@ -1,4 +1,5 @@
 use once_cell::sync::Lazy;
+use rand::random;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -23,15 +24,9 @@ pub struct EventLogEntry {
     pub admin: Option<String>,
 }
 
-/// Append an event to the event log (simple append-only, time-bucketed by hour)
-///
-/// TODO: Implement data retention policy
-/// - Add configurable retention period (e.g., 90 days)
-/// - Create background cleanup job to periodically remove old event buckets
-/// - Consider adding admin endpoint to manually trigger cleanup
-/// - Example: Delete keys matching "eventlog:*" where hour < (now - retention_period)
-const EVENT_PAGE_SIZE: usize = 500; // max entries per page
-const EVENT_MAX_PAGES_PER_HOUR: usize = 256; // safety cap
+/// Event log storage notes:
+/// - v2 format stores immutable records per event: eventlog:v2:<hour>:<ts>-<nonce>
+const EVENTLOG_V2_PREFIX: &str = "eventlog:v2";
 const POW_DIFFICULTY_MIN: u8 = crate::config::POW_DIFFICULTY_MIN;
 const POW_DIFFICULTY_MAX: u8 = crate::config::POW_DIFFICULTY_MAX;
 const POW_TTL_MIN: u64 = crate::config::POW_TTL_MIN;
@@ -55,64 +50,51 @@ fn maybe_cleanup_event_logs<S: crate::challenge::KeyValueStore>(store: &S, curre
     *last = current_hour;
 
     let cutoff_hour = current_hour.saturating_sub(retention);
-    for page in 1..=EVENT_MAX_PAGES_PER_HOUR {
-        let key = format!("eventlog:{}:{}", cutoff_hour, page);
-        let _ = store.delete(&key);
+    // v2 cleanup.
+    let v2_prefix = format!("{}:{}:", EVENTLOG_V2_PREFIX, cutoff_hour);
+    if let Ok(keys) = store.get_keys() {
+        for key in keys {
+            if key.starts_with(&v2_prefix) {
+                let _ = store.delete(&key);
+            }
+        }
+    }
+}
+
+fn make_v2_event_key(hour: u64, ts: u64) -> String {
+    format!(
+        "{}:{}:{}-{:016x}",
+        EVENTLOG_V2_PREFIX,
+        hour,
+        ts,
+        random::<u64>()
+    )
+}
+
+fn parse_v2_event_hour(key: &str) -> Option<u64> {
+    let mut parts = key.splitn(4, ':');
+    match (parts.next(), parts.next(), parts.next()) {
+        (Some("eventlog"), Some("v2"), Some(hour)) => hour.parse::<u64>().ok(),
+        _ => None,
     }
 }
 
 pub fn log_event<S: crate::challenge::KeyValueStore>(store: &S, entry: &EventLogEntry) {
-    // Use paged hourly event logs to avoid unbounded vector growth and expensive
-    // read-modify-write cycles. Each hour is split into pages of limited size.
+    // Write each event to a distinct immutable key to avoid read-modify-write races.
     let hour = entry.ts / 3600;
-    let prefix = format!("eventlog:{}", hour);
     maybe_cleanup_event_logs(store, hour);
-
-    for page in 1..=EVENT_MAX_PAGES_PER_HOUR {
-        let page_key = format!("{}:{}", prefix, page);
-        match store.get(&page_key) {
-            Ok(Some(val)) => {
-                // Try to decode existing page
-                match serde_json::from_slice::<Vec<EventLogEntry>>(&val) {
-                    Ok(mut log) => {
-                        if log.len() < EVENT_PAGE_SIZE {
-                            log.push(entry.clone());
-                            let _ =
-                                store.set(&page_key, serde_json::to_vec(&log).unwrap().as_slice());
-                            return;
-                        } else {
-                            // page full, try next
-                            continue;
-                        }
-                    }
-                    Err(_) => {
-                        // Corrupted page: overwrite with new page containing this entry
-                        let new_page = vec![entry.clone()];
-                        let _ =
-                            store.set(&page_key, serde_json::to_vec(&new_page).unwrap().as_slice());
-                        return;
-                    }
-                }
-            }
-            Ok(None) => {
-                // Create first page entry
-                let new_page = vec![entry.clone()];
-                let _ = store.set(&page_key, serde_json::to_vec(&new_page).unwrap().as_slice());
-                return;
-            }
-            Err(_) => {
-                // KV error; best-effort: log to stderr and return without blocking
-                eprintln!("[log_event] KV error writing {}", page_key);
-                return;
+    let key = make_v2_event_key(hour, entry.ts);
+    match serde_json::to_vec(entry) {
+        Ok(payload) => {
+            if store.set(&key, &payload).is_err() {
+                eprintln!("[log_event] KV error writing {}", key);
             }
         }
+        Err(_) => eprintln!(
+            "[log_event] serialization error; dropping event for key {}",
+            key
+        ),
     }
-
-    // If we reach here, we've exhausted EVENT_MAX_PAGES_PER_HOUR — drop the event and log
-    eprintln!(
-        "[log_event] reached max pages for hour {}, dropping event",
-        hour
-    );
 }
 
 #[cfg(test)]
@@ -149,10 +131,14 @@ mod tests {
             m.remove(key);
             Ok(())
         }
+        fn get_keys(&self) -> Result<Vec<String>, ()> {
+            let m = self.map.lock().unwrap();
+            Ok(m.keys().cloned().collect())
+        }
     }
 
     #[test]
-    fn paged_event_log_creates_pages_and_appends() {
+    fn log_event_writes_distinct_v2_records() {
         let store = MockStore::new();
         let now = now_ts();
         let entry = EventLogEntry {
@@ -163,36 +149,66 @@ mod tests {
             outcome: Some("ok".to_string()),
             admin: Some("me".to_string()),
         };
-        // Log a few events
         for _ in 0..5 {
             log_event(&store, &entry);
         }
-        // Verify page 1 exists and has 5 entries
-        let key = format!("eventlog:{}:1", now / 3600);
-        let val = store.get(&key).unwrap().unwrap();
-        let v: Vec<EventLogEntry> = serde_json::from_slice(&val).unwrap();
-        assert_eq!(v.len(), 5);
+        let hour = now / 3600;
+        let prefix = format!("eventlog:v2:{}:", hour);
+        let keys: Vec<String> = store
+            .map
+            .lock()
+            .unwrap()
+            .keys()
+            .cloned()
+            .filter(|k| k.starts_with(&prefix))
+            .collect();
+        assert_eq!(keys.len(), 5);
     }
 
     #[test]
-    fn corrupted_page_is_overwritten() {
+    fn load_recent_events_includes_v2_records() {
         let store = MockStore::new();
-        let hour = now_ts() / 3600;
-        let page_key = format!("eventlog:{}:1", hour);
-        // Insert corrupted data
-        store.set(&page_key, b"not-json").unwrap();
+        let now = now_ts();
         let entry = EventLogEntry {
-            ts: now_ts(),
+            ts: now,
             event: EventType::AdminAction,
-            ip: None,
-            reason: None,
-            outcome: None,
-            admin: None,
+            ip: Some("1.2.3.4".to_string()),
+            reason: Some("test".to_string()),
+            outcome: Some("ok".to_string()),
+            admin: Some("me".to_string()),
         };
-        log_event(&store, &entry);
-        let val = store.get(&page_key).unwrap().unwrap();
-        let v: Vec<EventLogEntry> = serde_json::from_slice(&val).unwrap();
-        assert_eq!(v.len(), 1);
+        let hour = now / 3600;
+        let key = format!("eventlog:v2:{}:{}-deadbeef", hour, now);
+        store
+            .set(&key, serde_json::to_vec(&entry).unwrap().as_slice())
+            .unwrap();
+
+        let events = load_recent_events(&store, now, 1);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].reason.as_deref(), Some("test"));
+    }
+
+    #[test]
+    fn load_recent_events_ignores_legacy_v1_pages() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let entry = EventLogEntry {
+            ts: now,
+            event: EventType::AdminAction,
+            ip: Some("1.2.3.4".to_string()),
+            reason: Some("legacy".to_string()),
+            outcome: Some("ok".to_string()),
+            admin: Some("me".to_string()),
+        };
+        let hour = now / 3600;
+        let key = format!("eventlog:{}:1", hour);
+        let page = vec![entry];
+        store
+            .set(&key, serde_json::to_vec(&page).unwrap().as_slice())
+            .unwrap();
+
+        let events = load_recent_events(&store, now, 1);
+        assert!(events.is_empty());
     }
 
     #[test]
@@ -631,23 +647,24 @@ fn load_recent_events<S: crate::challenge::KeyValueStore>(
 ) -> Vec<EventLogEntry> {
     let mut events: Vec<EventLogEntry> = Vec::new();
     let window_start = now.saturating_sub(hours.saturating_mul(3600));
+    let window_start_hour = window_start / 3600;
+    let now_hour = now / 3600;
 
-    for h in 0..hours {
-        let hour = (now / 3600).saturating_sub(h);
-        // Iterate eventlog pages for this hour
-        for page in 1..=EVENT_MAX_PAGES_PER_HOUR {
-            let key = format!("eventlog:{}:{}", hour, page);
+    // v2 immutable records.
+    if let Ok(keys) = store.get_keys() {
+        for key in keys {
+            let Some(event_hour) = parse_v2_event_hour(&key) else {
+                continue;
+            };
+            if event_hour < window_start_hour || event_hour > now_hour {
+                continue;
+            }
             if let Ok(Some(val)) = store.get(&key) {
-                if let Ok(log) = serde_json::from_slice::<Vec<EventLogEntry>>(&val) {
-                    for e in log {
-                        if e.ts >= window_start {
-                            events.push(e);
-                        }
+                if let Ok(entry) = serde_json::from_slice::<EventLogEntry>(&val) {
+                    if entry.ts >= window_start {
+                        events.push(entry);
                     }
                 }
-            } else {
-                // No page present -> no further pages for this hour
-                break;
             }
         }
     }
@@ -780,7 +797,9 @@ fn handle_admin_config(
             cfg.rate_limit = rate_limit as u32;
             changed = true;
         }
-        if let Some(js_required_enforced) = json.get("js_required_enforced").and_then(|v| v.as_bool()) {
+        if let Some(js_required_enforced) =
+            json.get("js_required_enforced").and_then(|v| v.as_bool())
+        {
             cfg.js_required_enforced = js_required_enforced;
             changed = true;
         }
