@@ -6,11 +6,13 @@ const API_KEY = process.env.SHUMA_API_KEY || "changeme-dev-only-api-key";
 
 async function openDashboard(page) {
   await page.goto(`${BASE_URL}/dashboard/index.html`);
+  await page.waitForTimeout(250);
   if (page.url().includes("/dashboard/login.html")) {
     await page.fill("#login-apikey", API_KEY);
     await page.click("#login-submit");
     await expect(page).toHaveURL(/\/dashboard\/index\.html/);
   }
+  await page.waitForSelector("#refresh", { timeout: 15000 });
   await page.click("#refresh");
 }
 
