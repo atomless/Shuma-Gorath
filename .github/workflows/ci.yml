@@ -12,7 +12,7 @@ jobs:
     env:
       RUST_BACKTRACE: full
       SHUMA_KV_STORE_FAIL_OPEN: "true"
-      SHUMA_API_KEY: changeme-dev-only-api-key
+      SHUMA_API_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       SHUMA_JS_SECRET: changeme-dev-only-js-secret
       SHUMA_FORWARDED_IP_SECRET: changeme-dev-only-ip-secret
       SHUMA_EVENT_LOG_RETENTION_HOURS: "168"
