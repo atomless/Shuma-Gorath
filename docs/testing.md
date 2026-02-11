@@ -215,11 +215,14 @@ If you are using `SHUMA_FORWARDED_IP_SECRET`, export it before running this sequ
 ```bash
 set -e
 BASE_URL="http://127.0.0.1:3000"
-SHUMA_API_KEY="${SHUMA_API_KEY:-changeme-dev-only-api-key}"
+if [[ -z "${SHUMA_API_KEY:-}" ]]; then
+  SHUMA_API_KEY="$(grep -E '^SHUMA_API_KEY=' .env.local | tail -1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//')"
+fi
 FORWARDED_SECRET_HEADER=()
 if [[ -n "${SHUMA_FORWARDED_IP_SECRET:-}" ]]; then
   FORWARDED_SECRET_HEADER=(-H "X-Shuma-Forwarded-Secret: ${SHUMA_FORWARDED_IP_SECRET}")
 fi
+HONEYPOT_PATH="$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/admin/config" | python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); print((d.get("honeypots") or ["/instaban"])[0])')"
 
 echo "1) Health"
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/health"
@@ -230,7 +233,7 @@ curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 1.2.3.4" "$BASE_URL
 echo ""
 
 echo "3) Honeypot ban"
-curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 1.2.3.4" "$BASE_URL/instaban" > /dev/null
+curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 1.2.3.4" "$BASE_URL$HONEYPOT_PATH" > /dev/null
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 1.2.3.4" "$BASE_URL/" | head -5
 echo ""
 
@@ -317,7 +320,7 @@ Verify:
 - Ban/unban controls work
 - Test mode toggle updates banner
 - Fail-open/closed indicator matches deployment policy
-- API key defaults to `changeme-dev-only-api-key` for local dev (replace in production)
+- Login key should match `make api-key-show` (or your deployed `SHUMA_API_KEY`)
 - Use the dashboard Ban IP and Unban actions to validate the admin API wiring
 
 ## 🐙 Tips

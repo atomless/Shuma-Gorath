@@ -41,14 +41,58 @@ RED="\033[0;31m"
 YELLOW="\033[1;33m"
 NC="\033[0m" # No Color
 
+FAILURES=0
+TEST_HONEYPOT_IP="10.0.0.88"
+HONEYPOT_PATH="/instaban"
+
 pass() { echo -e "${GREEN}PASS${NC} $1"; }
-fail() { echo -e "${RED}FAIL${NC} $1"; }
+fail() {
+  echo -e "${RED}FAIL${NC} $1"
+  FAILURES=$((FAILURES + 1))
+}
 info() { echo -e "${YELLOW}INFO${NC} $1"; }
 
 BASE_URL="http://127.0.0.1:3000"
-SHUMA_API_KEY="${SHUMA_API_KEY:-changeme-dev-only-api-key}"
+
+read_env_local_value() {
+  local key="$1"
+  if [[ ! -f ".env.local" ]]; then
+    return 1
+  fi
+  local line
+  line=$(grep -E "^${key}=" .env.local | tail -1 || true)
+  if [[ -z "$line" ]]; then
+    return 1
+  fi
+  local value="${line#*=}"
+  value="${value%\"}"
+  value="${value#\"}"
+  value="${value%\'}"
+  value="${value#\'}"
+  printf '%s' "$value"
+}
+
+if [[ -z "${SHUMA_API_KEY:-}" ]]; then
+  SHUMA_API_KEY="$(read_env_local_value SHUMA_API_KEY || true)"
+fi
+
+if [[ -z "${SHUMA_API_KEY:-}" ]]; then
+  fail "Missing SHUMA_API_KEY. Run make setup (or export SHUMA_API_KEY) before integration tests."
+  exit 1
+fi
+
+case "$SHUMA_API_KEY" in
+  changeme-dev-only-api-key|changeme-supersecret|changeme-prod-api-key)
+    fail "SHUMA_API_KEY is a placeholder. Run make setup or make api-key-generate first."
+    exit 1
+    ;;
+esac
 
 FORWARDED_SECRET_HEADER=()
+if [[ -z "${SHUMA_FORWARDED_IP_SECRET:-}" ]]; then
+  SHUMA_FORWARDED_IP_SECRET="$(read_env_local_value SHUMA_FORWARDED_IP_SECRET || true)"
+fi
+
 if [[ -n "${SHUMA_FORWARDED_IP_SECRET:-}" ]]; then
   FORWARDED_SECRET_HEADER=(-H "X-Shuma-Forwarded-Secret: ${SHUMA_FORWARDED_IP_SECRET}")
 fi
@@ -79,10 +123,32 @@ curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -X POST 
   -d '{"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":[]}' \
   "$BASE_URL/admin/config" > /dev/null || true
 
-info "Clearing bans for test IP..."
+info "Resetting whitelist/path whitelist to empty defaults..."
+curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -X POST \
+  -H "Authorization: Bearer $SHUMA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"whitelist":[],"path_whitelist":[]}' \
+  "$BASE_URL/admin/config" > /dev/null || true
+
+info "Clearing bans for integration test IPs..."
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" \
   -H "Authorization: Bearer $SHUMA_API_KEY" \
-  "$BASE_URL/admin/unban?ip=127.0.0.1" > /dev/null || true
+  "$BASE_URL/admin/unban?ip=${TEST_HONEYPOT_IP}" > /dev/null || true
+
+info "Resolving configured honeypot path..."
+config_snapshot=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/admin/config")
+resolved_honeypot=$(python3 -c 'import json,sys
+try:
+    data=json.loads(sys.stdin.read())
+except Exception:
+    print("")
+    raise SystemExit(0)
+paths=data.get("honeypots") or []
+print(paths[0] if paths else "")' <<< "$config_snapshot")
+if [[ -n "$resolved_honeypot" ]]; then
+  HONEYPOT_PATH="$resolved_honeypot"
+fi
+info "Using honeypot path: $HONEYPOT_PATH"
 
 # Test 2: PoW challenge (if enabled)
 info "Testing PoW challenge..."
@@ -157,7 +223,7 @@ fi
 # Test 3: Root endpoint (should return JS challenge or OK)
 info "Testing root endpoint..."
 
-root_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/")
+root_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_HONEYPOT_IP}" "$BASE_URL/")
 if echo "$root_resp" | grep -qE '(js_verified|JavaScript|Verifying|pow|Proof-of-work)'; then
   pass "/ returns JS challenge (PoW or standard)"
 else
@@ -167,22 +233,25 @@ fi
 
 # Test 4: Honeypot triggers ban
 info "Testing honeypot ban..."
-curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/instaban" > /dev/null
-resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/")
-if echo "$resp" | grep -q 'Access Blocked'; then
+honeypot_status=$(curl -s -o /tmp/shuma_honeypot_body.txt -w "%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_HONEYPOT_IP}" "$BASE_URL$HONEYPOT_PATH")
+resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_HONEYPOT_IP}" "$BASE_URL/")
+if [[ "$honeypot_status" == "403" ]] && echo "$resp" | grep -q 'Access Blocked'; then
   pass "Honeypot triggers ban and / returns Access Blocked"
 else
   fail "Honeypot did not trigger ban as expected"
+  echo -e "${YELLOW}DEBUG honeypot status:${NC} $honeypot_status"
+  echo -e "${YELLOW}DEBUG honeypot body:${NC} $(cat /tmp/shuma_honeypot_body.txt)"
+  echo -e "${YELLOW}DEBUG root response:${NC} $resp"
 fi
 
-# Test 5: Unban 'unknown' via admin API
-info "Testing admin unban for 'unknown'..."
-curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/admin/unban?ip=unknown" -H "Authorization: Bearer $SHUMA_API_KEY" > /dev/null
-resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/")
-if ! echo "$resp" | grep -q 'Blocked: Banned'; then
-  pass "Unban for 'unknown' works"
+# Test 5: Unban integration test IP via admin API
+info "Testing admin unban for integration test IP..."
+curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/admin/unban?ip=${TEST_HONEYPOT_IP}" -H "Authorization: Bearer $SHUMA_API_KEY" > /dev/null
+resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_HONEYPOT_IP}" "$BASE_URL/")
+if ! echo "$resp" | grep -q 'Access Blocked'; then
+  pass "Unban for integration test IP works"
 else
-  fail "Unban for 'unknown' did not work"
+  fail "Unban for integration test IP did not work"
 fi
 
 # Test 6: Health check after ban/unban
@@ -266,7 +335,7 @@ info "Testing test_mode behavior (honeypot should not block)..."
 # First, unban the test IP to ensure clean state
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/admin/unban?ip=10.0.0.99" > /dev/null
 # Hit honeypot with test IP
-honeypot_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.99" "$BASE_URL/instaban")
+honeypot_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.99" "$BASE_URL$HONEYPOT_PATH")
 if echo "$honeypot_resp" | grep -q 'TEST MODE'; then
   pass "Test mode returns TEST MODE response for honeypot"
 else
@@ -299,7 +368,7 @@ info "Testing that blocking resumes after test_mode disabled..."
 # Unban first to get clean state
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/admin/unban?ip=10.0.0.100" > /dev/null
 # Hit honeypot - should now actually ban
-curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.100" "$BASE_URL/instaban" > /dev/null
+curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.100" "$BASE_URL$HONEYPOT_PATH" > /dev/null
 block_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.100" "$BASE_URL/")
 if echo "$block_resp" | grep -q 'Access Blocked'; then
   pass "Blocking resumes: honeypot triggers real ban after test_mode disabled"
@@ -447,8 +516,14 @@ else
   echo -e "${YELLOW}DEBUG unban response:${NC} $unban_resp"
 fi
 
-# Cleanup: unban test CDP IPs
+# Cleanup: unban test CDP/IPs
+curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/admin/unban?ip=${TEST_HONEYPOT_IP}" > /dev/null
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/admin/unban?ip=10.0.0.200" > /dev/null
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/admin/unban?ip=10.0.0.201" > /dev/null
 
 echo -e "\n${GREEN}All integration tests complete.${NC}"
+
+if [[ "$FAILURES" -ne 0 ]]; then
+  echo -e "${RED}${FAILURES} integration test(s) failed.${NC}"
+  exit 1
+fi

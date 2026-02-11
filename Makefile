@@ -158,7 +158,7 @@ test: ## Run ALL tests: unit tests first, then integration tests (requires serve
 	@echo "$(CYAN)Step 2/2: Integration Tests (21 scenarios)$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@if curl -sf -H "X-Forwarded-For: 127.0.0.1" $(FORWARDED_SECRET_HEADER) http://127.0.0.1:3000/health > /dev/null 2>&1; then \
-		./test_spin_colored.sh || exit 1; \
+		SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" ./test_spin_colored.sh || exit 1; \
 	else \
 		echo "$(YELLOW)⚠️  Spin server not running. Skipping integration tests.$(NC)"; \
 		echo "$(YELLOW)   To run integration tests:$(NC)"; \
@@ -178,7 +178,7 @@ test-unit: ## Run Rust unit tests only (34 tests)
 test-integration: ## Run integration tests only (21 scenarios, requires running server)
 	@echo "$(CYAN)🧪 Running integration tests...$(NC)"
 	@if curl -sf -H "X-Forwarded-For: 127.0.0.1" $(FORWARDED_SECRET_HEADER) http://127.0.0.1:3000/health > /dev/null 2>&1; then \
-		./test_spin_colored.sh; \
+		SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" ./test_spin_colored.sh; \
 	else \
 		echo "$(RED)❌ Error: Spin server not running$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
