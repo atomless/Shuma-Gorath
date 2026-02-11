@@ -5,7 +5,10 @@
 mod tests {
     use crate::challenge::KeyValueStore;
     use std::collections::HashMap;
-    use std::sync::Mutex;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Mutex,
+    };
 
     use once_cell::sync::Lazy;
 
@@ -35,10 +38,50 @@ mod tests {
         }
     }
 
+    #[derive(Default)]
+    struct CountingStore {
+        map: Mutex<HashMap<String, Vec<u8>>>,
+        get_count: AtomicUsize,
+    }
+
+    impl CountingStore {
+        fn get_count(&self) -> usize {
+            self.get_count.load(Ordering::SeqCst)
+        }
+    }
+
+    impl crate::challenge::KeyValueStore for CountingStore {
+        fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()> {
+            self.get_count.fetch_add(1, Ordering::SeqCst);
+            let m = self.map.lock().unwrap();
+            Ok(m.get(key).cloned())
+        }
+
+        fn set(&self, key: &str, value: &[u8]) -> Result<(), ()> {
+            let mut m = self.map.lock().unwrap();
+            m.insert(key.to_string(), value.to_vec());
+            Ok(())
+        }
+
+        fn delete(&self, key: &str) -> Result<(), ()> {
+            let mut m = self.map.lock().unwrap();
+            m.remove(key);
+            Ok(())
+        }
+    }
+
     fn clear_env(keys: &[&str]) {
         for key in keys {
             std::env::remove_var(key);
         }
+    }
+
+    fn store_config_with_rate_limit(store: &CountingStore, rate_limit: u32) {
+        let mut cfg = crate::config::defaults().clone();
+        cfg.rate_limit = rate_limit;
+        store
+            .set("config:default", &serde_json::to_vec(&cfg).unwrap())
+            .unwrap();
     }
 
     #[test]
@@ -161,5 +204,60 @@ mod tests {
         assert_eq!(cfg.honeypots, vec!["/kv-trap".to_string()]);
 
         clear_env(&keys);
+    }
+
+    #[test]
+    fn runtime_config_cache_hits_within_ttl() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        crate::config::clear_runtime_cache_for_tests();
+        let store = CountingStore::default();
+        store_config_with_rate_limit(&store, 101);
+
+        let first =
+            crate::config::load_runtime_cached_for_tests(&store, "default", 100, 2).unwrap();
+        let second =
+            crate::config::load_runtime_cached_for_tests(&store, "default", 101, 2).unwrap();
+
+        assert_eq!(first.rate_limit, 101);
+        assert_eq!(second.rate_limit, 101);
+        assert_eq!(store.get_count(), 1);
+        crate::config::clear_runtime_cache_for_tests();
+    }
+
+    #[test]
+    fn runtime_config_cache_refreshes_after_ttl() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        crate::config::clear_runtime_cache_for_tests();
+        let store = CountingStore::default();
+        store_config_with_rate_limit(&store, 111);
+
+        let _ = crate::config::load_runtime_cached_for_tests(&store, "default", 100, 2).unwrap();
+        let _ = crate::config::load_runtime_cached_for_tests(&store, "default", 103, 2).unwrap();
+
+        assert_eq!(store.get_count(), 2);
+        crate::config::clear_runtime_cache_for_tests();
+    }
+
+    #[test]
+    fn runtime_config_cache_invalidation_forces_reload() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        crate::config::clear_runtime_cache_for_tests();
+        let store = CountingStore::default();
+        store_config_with_rate_limit(&store, 120);
+
+        let first =
+            crate::config::load_runtime_cached_for_tests(&store, "default", 100, 2).unwrap();
+        assert_eq!(first.rate_limit, 120);
+        assert_eq!(store.get_count(), 1);
+
+        store_config_with_rate_limit(&store, 220);
+        crate::config::invalidate_runtime_cache("default");
+
+        let refreshed =
+            crate::config::load_runtime_cached_for_tests(&store, "default", 101, 2).unwrap();
+
+        assert_eq!(refreshed.rate_limit, 220);
+        assert_eq!(store.get_count(), 2);
+        crate::config::clear_runtime_cache_for_tests();
     }
 }

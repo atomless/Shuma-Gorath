@@ -1192,7 +1192,9 @@ fn handle_admin_config(
         if changed {
             let key = format!("config:{}", site_id);
             if let Ok(val) = serde_json::to_vec(&cfg) {
-                let _ = store.set(&key, &val);
+                if store.set(&key, &val).is_ok() {
+                    crate::config::invalidate_runtime_cache(site_id);
+                }
             }
         }
 

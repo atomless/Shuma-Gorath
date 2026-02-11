@@ -96,7 +96,7 @@ fn increment_kv_counter(store: &Store, key: &str) {
 /// Auto-bans are only applied for strong-tier automation detections.
 pub fn handle_cdp_report(store: &Store, req: &Request) -> Response {
     let ip = crate::extract_client_ip(req);
-    let cfg = match crate::config::Config::load(store, "default") {
+    let cfg = match crate::config::load_runtime_cached(store, "default") {
         Ok(cfg) => cfg,
         Err(_) => return Response::new(500, "Configuration unavailable"),
     };

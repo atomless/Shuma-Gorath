@@ -2,7 +2,9 @@
 // Configuration and site settings for WASM Bot Defence.
 // Tunables are loaded from KV; defaults are defined in config/defaults.env.
 
-use std::{collections::HashMap, env};
+#[cfg(not(test))]
+use std::time::{SystemTime, UNIX_EPOCH};
+use std::{collections::HashMap, env, sync::Mutex};
 
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -23,6 +25,8 @@ const BOTNESS_WEIGHT_MIN: u8 = 0;
 const BOTNESS_WEIGHT_MAX: u8 = 10;
 const CHALLENGE_TRANSFORM_COUNT_MIN: u8 = 4;
 const CHALLENGE_TRANSFORM_COUNT_MAX: u8 = 8;
+#[cfg(not(test))]
+const CONFIG_CACHE_TTL_SECONDS: u64 = 2;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConfigLoadError {
@@ -178,6 +182,12 @@ pub struct Config {
     pub botness_weights: BotnessWeights,
 }
 
+#[derive(Debug, Clone)]
+struct CachedConfig {
+    loaded_at: u64,
+    config: Config,
+}
+
 impl Config {
     /// Loads config for a site from KV only.
     pub fn load(store: &impl KeyValueStore, site_id: &str) -> Result<Self, ConfigLoadError> {
@@ -197,6 +207,80 @@ impl Config {
     pub fn get_ban_duration(&self, ban_type: &str) -> u64 {
         self.ban_durations.get(ban_type)
     }
+}
+
+static RUNTIME_CONFIG_CACHE: Lazy<Mutex<HashMap<String, CachedConfig>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+#[cfg(not(test))]
+fn now_ts() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
+fn load_cached_with_now(
+    store: &impl KeyValueStore,
+    site_id: &str,
+    now: u64,
+    ttl_seconds: u64,
+) -> Result<Config, ConfigLoadError> {
+    {
+        let cache = RUNTIME_CONFIG_CACHE.lock().unwrap();
+        if let Some(entry) = cache.get(site_id) {
+            let age = now.saturating_sub(entry.loaded_at);
+            if age <= ttl_seconds {
+                return Ok(entry.config.clone());
+            }
+        }
+    }
+
+    let config = Config::load(store, site_id)?;
+    let mut cache = RUNTIME_CONFIG_CACHE.lock().unwrap();
+    cache.insert(
+        site_id.to_string(),
+        CachedConfig {
+            loaded_at: now,
+            config: config.clone(),
+        },
+    );
+    Ok(config)
+}
+
+pub fn load_runtime_cached(
+    store: &impl KeyValueStore,
+    site_id: &str,
+) -> Result<Config, ConfigLoadError> {
+    #[cfg(test)]
+    {
+        return Config::load(store, site_id);
+    }
+    #[cfg(not(test))]
+    {
+        load_cached_with_now(store, site_id, now_ts(), CONFIG_CACHE_TTL_SECONDS)
+    }
+}
+
+pub fn invalidate_runtime_cache(site_id: &str) {
+    let mut cache = RUNTIME_CONFIG_CACHE.lock().unwrap();
+    cache.remove(site_id);
+}
+
+#[cfg(test)]
+pub(crate) fn clear_runtime_cache_for_tests() {
+    let mut cache = RUNTIME_CONFIG_CACHE.lock().unwrap();
+    cache.clear();
+}
+
+#[cfg(test)]
+pub(crate) fn load_runtime_cached_for_tests(
+    store: &impl KeyValueStore,
+    site_id: &str,
+    now: u64,
+    ttl_seconds: u64,
+) -> Result<Config, ConfigLoadError> {
+    load_cached_with_now(store, site_id, now, ttl_seconds)
 }
 
 static DEFAULTS_MAP: Lazy<Result<HashMap<String, String>, String>> =

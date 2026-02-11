@@ -249,7 +249,7 @@ fn load_runtime_config(
     site_id: &str,
     path: &str,
 ) -> Result<config::Config, Response> {
-    config::Config::load(store, site_id).map_err(|err| config_error_response(err, path))
+    config::load_runtime_cached(store, site_id).map_err(|err| config_error_response(err, path))
 }
 
 fn rate_proximity_score(rate_count: u32, rate_limit: u32) -> u8 {
