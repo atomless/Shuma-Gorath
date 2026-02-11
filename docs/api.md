@@ -20,6 +20,8 @@ If `SHUMA_ENFORCE_HTTPS=true`:
 
 If `SHUMA_API_KEY` is missing, `/admin/*` endpoints are disabled. Placeholder/insecure API keys are rejected.
 
+Failed admin auth attempts are rate-limited per IP bucket (`SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE`, default `10`), but you should still enforce CDN/WAF rate limits for `POST /admin/login` and `/admin/*`.
+
 ## 🐙 Public Endpoints
 
 - `GET /` - Main bot defence handler

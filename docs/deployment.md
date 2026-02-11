@@ -32,7 +32,9 @@ Template file: `/.env.full.example`.
 - Keep `SHUMA_DEBUG_HEADERS=false` in production.
 - Keep `SHUMA_ENFORCE_HTTPS=true` in production.
 - Keep `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false` unless you explicitly need live tuning.
+- Generate a strong `SHUMA_API_KEY` with `make api-key-generate` (or rotate with `make api-key-rotate`).
 - Restrict `/admin/*` with `SHUMA_ADMIN_IP_ALLOWLIST` and upstream network controls.
+- Apply CDN/WAF rate limits to `POST /admin/login` and all `/admin/*`.
 
 Validation helper before deploy:
 
