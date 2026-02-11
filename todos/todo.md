@@ -27,7 +27,12 @@ This and `todos/security-review.md` are the single sources of truth for active p
 
 ## Challenge
 - [ ] Implement tarpit mode (slow-drip responses) with clear routing policy, metrics, and admin/status visibility. (src/lib.rs, src/metrics.rs, dashboard, docs)
-- [ ] Research and design a low-friction checkbox challenge (single-tick "I am not a robot") for lower botness tiers: define best-practice signal capture around the click event, anti-abuse decision flow, and routing outcomes (allow/challenge/maze/block). (research, src/challenge.rs, src/lib.rs, dashboard, docs)
+- [ ] Implement Challenge Lite (`/challenge-lite`) per `todos/challenge-lite-spec.md` with signed short-lived single-use nonce and IP-bucket binding. (src/challenge.rs, src/lib.rs)
+- [ ] Implement Challenge Lite telemetry capture/validation and scoring model (`0..10`) with server-side threshold routing (`pass`, `escalate_puzzle`, `maze_or_block`). (src/challenge.rs, src/lib.rs)
+- [ ] Add Challenge Lite verification marker/token issuance after pass and enforce it in routing flow. (src/challenge.rs, src/lib.rs, src/auth.rs)
+- [ ] Add Challenge Lite admin visibility/config controls for thresholds, TTL, and attempt caps (read-only defaults + optional mutability controls). (src/admin.rs, dashboard)
+- [ ] Add Challenge Lite metrics and dashboard exposure (`served/pass/escalate/fail/replay`, latency). (src/metrics.rs, dashboard)
+- [ ] Add unit/integration/e2e coverage for Challenge Lite lifecycle and replay/abuse paths. (src/*_tests.rs, scripts/tests/integration.sh, e2e)
 - [ ] Add an accessibility-equivalent challenge modality with the same verification strength (same expiry, single-use, signature, and IP-bucket checks as the visual puzzle). (src/challenge.rs, docs/challenge-verification.md)
 - [ ] Add post-success human-verification token issuance and enforcement for protected flows. (src/challenge.rs, src/lib.rs, src/auth.rs, docs)
 - [ ] Add challenge operational metrics for abandonment/latency (for example median solve time and incomplete challenge rate). (src/metrics.rs, dashboard, docs/testing.md)
