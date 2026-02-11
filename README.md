@@ -5,7 +5,7 @@
 
 # 🐙 Shuma-Gorath
 
-Many-Angled Bot Defence for Spin. Shuma-Gorath is a WebAssembly bot defence that detects, blocks, and monitors automated abuse with honeypots, rate limiting, JS challenges, CDP signals, a link maze, and a real-time admin dashboard.
+Chaos Dimension Bot Defence for Spin. Shuma-Gorath is a WebAssembly bot defence that detects, blocks, and monitors automated abuse with honeypots, rate limiting, JS challenges, CDP signals, a link maze, and a real-time admin dashboard.
 
 Shuma-Gorath is designed to **complement enterprise bot defenses** (such as [Akamai Bot Manager](https://www.akamai.com/products/bot-manager_) as a second-layer of application-specific protection, but it can also run standalone.
 
@@ -55,7 +55,6 @@ Key environment variables:
 - `SHUMA_ADMIN_IP_ALLOWLIST` - CIDR/IP allowlist for admin access
 - `SHUMA_EVENT_LOG_RETENTION_HOURS` - Event log retention window
 - `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` - `true/false` to allow `POST /admin/config` writes (default: `false`)
-- `SHUMA_DEV_MODE` - `true/false` dev-mode guard (default: `false`; set by `make dev`)
 - `SHUMA_KV_STORE_FAIL_OPEN` - `true/false` KV outage policy (`true` fail-open, `false` fail-closed)
 - `SHUMA_POW_SECRET` - Optional PoW signing secret (defaults to `SHUMA_JS_SECRET`)
 - `SHUMA_POW_CONFIG_MUTABLE` - Allow admin API to tune PoW difficulty/TTL

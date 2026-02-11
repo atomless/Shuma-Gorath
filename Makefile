@@ -33,19 +33,18 @@ SHUMA_ADMIN_CONFIG_WRITE_ENABLED := $(call strip_wrapping_quotes,$(SHUMA_ADMIN_C
 SHUMA_KV_STORE_FAIL_OPEN := $(call strip_wrapping_quotes,$(SHUMA_KV_STORE_FAIL_OPEN))
 SHUMA_ENFORCE_HTTPS := $(call strip_wrapping_quotes,$(SHUMA_ENFORCE_HTTPS))
 SHUMA_DEBUG_HEADERS := $(call strip_wrapping_quotes,$(SHUMA_DEBUG_HEADERS))
-SHUMA_DEV_MODE := $(call strip_wrapping_quotes,$(SHUMA_DEV_MODE))
 SHUMA_POW_CONFIG_MUTABLE := $(call strip_wrapping_quotes,$(SHUMA_POW_CONFIG_MUTABLE))
 SHUMA_CHALLENGE_CONFIG_MUTABLE := $(call strip_wrapping_quotes,$(SHUMA_CHALLENGE_CONFIG_MUTABLE))
 SHUMA_BOTNESS_CONFIG_MUTABLE := $(call strip_wrapping_quotes,$(SHUMA_BOTNESS_CONFIG_MUTABLE))
 
 # Inject env-only runtime keys into Spin from .env.local / shell env.
-SPIN_ENV_ONLY := --env SHUMA_API_KEY=$(SHUMA_API_KEY) --env SHUMA_JS_SECRET=$(SHUMA_JS_SECRET) --env SHUMA_POW_SECRET=$(SHUMA_POW_SECRET) --env SHUMA_CHALLENGE_SECRET=$(SHUMA_CHALLENGE_SECRET) --env SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) --env SHUMA_ADMIN_IP_ALLOWLIST=$(SHUMA_ADMIN_IP_ALLOWLIST) --env SHUMA_EVENT_LOG_RETENTION_HOURS=$(SHUMA_EVENT_LOG_RETENTION_HOURS) --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_KV_STORE_FAIL_OPEN=$(SHUMA_KV_STORE_FAIL_OPEN) --env SHUMA_ENFORCE_HTTPS=$(SHUMA_ENFORCE_HTTPS) --env SHUMA_DEBUG_HEADERS=$(SHUMA_DEBUG_HEADERS) --env SHUMA_DEV_MODE=$(SHUMA_DEV_MODE) --env SHUMA_POW_CONFIG_MUTABLE=$(SHUMA_POW_CONFIG_MUTABLE) --env SHUMA_CHALLENGE_CONFIG_MUTABLE=$(SHUMA_CHALLENGE_CONFIG_MUTABLE) --env SHUMA_BOTNESS_CONFIG_MUTABLE=$(SHUMA_BOTNESS_CONFIG_MUTABLE)
+SPIN_ENV_ONLY := --env SHUMA_API_KEY=$(SHUMA_API_KEY) --env SHUMA_JS_SECRET=$(SHUMA_JS_SECRET) --env SHUMA_POW_SECRET=$(SHUMA_POW_SECRET) --env SHUMA_CHALLENGE_SECRET=$(SHUMA_CHALLENGE_SECRET) --env SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) --env SHUMA_ADMIN_IP_ALLOWLIST=$(SHUMA_ADMIN_IP_ALLOWLIST) --env SHUMA_EVENT_LOG_RETENTION_HOURS=$(SHUMA_EVENT_LOG_RETENTION_HOURS) --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_KV_STORE_FAIL_OPEN=$(SHUMA_KV_STORE_FAIL_OPEN) --env SHUMA_ENFORCE_HTTPS=$(SHUMA_ENFORCE_HTTPS) --env SHUMA_DEBUG_HEADERS=$(SHUMA_DEBUG_HEADERS) --env SHUMA_POW_CONFIG_MUTABLE=$(SHUMA_POW_CONFIG_MUTABLE) --env SHUMA_CHALLENGE_CONFIG_MUTABLE=$(SHUMA_CHALLENGE_CONFIG_MUTABLE) --env SHUMA_BOTNESS_CONFIG_MUTABLE=$(SHUMA_BOTNESS_CONFIG_MUTABLE)
 
 # Optional forwarded-IP trust header for local health/test requests.
 FORWARDED_SECRET_HEADER := $(if $(SHUMA_FORWARDED_IP_SECRET),-H "X-Shuma-Forwarded-Secret: $(SHUMA_FORWARDED_IP_SECRET)",)
 DEV_ADMIN_CONFIG_WRITE_ENABLED ?= true
-SPIN_DEV_OVERRIDES := --env SHUMA_CHALLENGE_CONFIG_MUTABLE=true --env SHUMA_DEBUG_HEADERS=true --env SHUMA_DEV_MODE=true --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(DEV_ADMIN_CONFIG_WRITE_ENABLED)
-SPIN_PROD_OVERRIDES := --env SHUMA_DEV_MODE=false --env SHUMA_DEBUG_HEADERS=false
+SPIN_DEV_OVERRIDES := --env SHUMA_CHALLENGE_CONFIG_MUTABLE=true --env SHUMA_DEBUG_HEADERS=true --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(DEV_ADMIN_CONFIG_WRITE_ENABLED)
+SPIN_PROD_OVERRIDES := --env SHUMA_DEBUG_HEADERS=false
 
 #--------------------------
 # Setup (first-time)
@@ -277,7 +276,6 @@ env-help: ## Show supported env-only runtime overrides
 	@echo "  SHUMA_KV_STORE_FAIL_OPEN"
 	@echo "  SHUMA_ENFORCE_HTTPS"
 	@echo "  SHUMA_DEBUG_HEADERS"
-	@echo "  SHUMA_DEV_MODE"
 	@echo "  SHUMA_POW_CONFIG_MUTABLE"
 	@echo "  SHUMA_CHALLENGE_CONFIG_MUTABLE"
 	@echo "  SHUMA_BOTNESS_CONFIG_MUTABLE"
@@ -305,7 +303,7 @@ api-key-validate: ## Validate SHUMA_API_KEY for deployment (must be 64-char hex 
 	fi; \
 	echo "$(GREEN)✅ SHUMA_API_KEY format is valid for deployment.$(NC)"
 
-deploy-env-validate: ## Fail deployment when unsafe debug/dev flags are enabled
+deploy-env-validate: ## Fail deployment when unsafe debug flags are enabled
 	@DEBUG_VAL="$${SHUMA_DEBUG_HEADERS:-false}"; \
 	DEBUG_NORM="$$(printf '%s' "$$DEBUG_VAL" | tr '[:upper:]' '[:lower:]')"; \
 	case "$$DEBUG_NORM" in \
@@ -314,15 +312,7 @@ deploy-env-validate: ## Fail deployment when unsafe debug/dev flags are enabled
 			echo "$(YELLOW)Set SHUMA_DEBUG_HEADERS=false for production deploys.$(NC)"; \
 			exit 1 ;; \
 	esac; \
-	DEV_VAL="$${SHUMA_DEV_MODE:-false}"; \
-	DEV_NORM="$$(printf '%s' "$$DEV_VAL" | tr '[:upper:]' '[:lower:]')"; \
-	case "$$DEV_NORM" in \
-		1|true|yes|on) \
-			echo "$(RED)❌ Refusing deployment: SHUMA_DEV_MODE=true enables dev-mode behavior.$(NC)"; \
-			echo "$(YELLOW)Set SHUMA_DEV_MODE=false (or unset it) for production deploys.$(NC)"; \
-			exit 1 ;; \
-	esac; \
-	echo "$(GREEN)✅ Deployment env guardrails passed (SHUMA_DEBUG_HEADERS/SHUMA_DEV_MODE).$(NC)"
+	echo "$(GREEN)✅ Deployment env guardrails passed (SHUMA_DEBUG_HEADERS).$(NC)"
 
 #--------------------------
 # Help

@@ -41,7 +41,6 @@ Supported env-only keys:
 - `SHUMA_KV_STORE_FAIL_OPEN` - fail-open vs fail-closed behavior when KV is unavailable
 - `SHUMA_ENFORCE_HTTPS` - reject non-HTTPS requests when true
 - `SHUMA_DEBUG_HEADERS` - expose internal debug headers (dev only)
-- `SHUMA_DEV_MODE` - enables dev-only behavior
 - `SHUMA_POW_CONFIG_MUTABLE` - runtime editability for PoW settings
 - `SHUMA_CHALLENGE_CONFIG_MUTABLE` - runtime editability for challenge settings
 - `SHUMA_BOTNESS_CONFIG_MUTABLE` - runtime editability for botness/challenge threshold settings

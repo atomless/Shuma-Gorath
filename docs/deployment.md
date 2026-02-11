@@ -23,7 +23,6 @@ Set these in your deployment secret/config system:
 - `SHUMA_KV_STORE_FAIL_OPEN`
 - `SHUMA_ENFORCE_HTTPS`
 - `SHUMA_DEBUG_HEADERS`
-- `SHUMA_DEV_MODE`
 
 Also supported:
 
@@ -41,7 +40,6 @@ Full env-only template:
 
 ## 🐙 Security Baseline
 
-- Keep `SHUMA_DEV_MODE=false` in production.
 - Keep `SHUMA_DEBUG_HEADERS=false` in production.
 - Keep `SHUMA_ENFORCE_HTTPS=true` in production.
 - Keep `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false` unless you explicitly need live tuning.

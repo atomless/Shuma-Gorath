@@ -276,7 +276,6 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_bool_like_var("SHUMA_KV_STORE_FAIL_OPEN")?;
     validate_bool_like_var("SHUMA_ENFORCE_HTTPS")?;
     validate_bool_like_var("SHUMA_DEBUG_HEADERS")?;
-    validate_bool_like_var("SHUMA_DEV_MODE")?;
     validate_bool_like_var("SHUMA_POW_CONFIG_MUTABLE")?;
     validate_bool_like_var("SHUMA_CHALLENGE_CONFIG_MUTABLE")?;
     validate_bool_like_var("SHUMA_BOTNESS_CONFIG_MUTABLE")?;
