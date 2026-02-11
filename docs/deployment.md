@@ -24,19 +24,8 @@ Set these in your deployment secret/config system:
 - `SHUMA_ENFORCE_HTTPS`
 - `SHUMA_DEBUG_HEADERS`
 
-Also supported:
-
-- `SHUMA_POW_SECRET`
-- `SHUMA_CHALLENGE_SECRET`
-- `SHUMA_ADMIN_IP_ALLOWLIST`
-- `SHUMA_EVENT_LOG_RETENTION_HOURS`
-- `SHUMA_POW_CONFIG_MUTABLE`
-- `SHUMA_CHALLENGE_CONFIG_MUTABLE`
-- `SHUMA_BOTNESS_CONFIG_MUTABLE`
-
-Full env-only template:
-
-- `/.env.full.example`
+For the full env-only list and per-variable behavior, use `docs/configuration.md`.
+Template file: `/.env.full.example`.
 
 ## 🐙 Security Baseline
 

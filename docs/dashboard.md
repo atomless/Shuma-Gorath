@@ -32,13 +32,13 @@ Controls:
 - Rate limit (requests/minute) config
 - robots.txt configuration
 - CDP detection controls
-- PoW status panel and difficulty/TTL tuning (when `SHUMA_POW_CONFIG_MUTABLE=1`)
+- PoW status panel and difficulty/TTL tuning (when `SHUMA_POW_CONFIG_MUTABLE=true`)
 - Botness scoring controls:
 - challenge threshold
 - maze threshold
 - per-signal weights (`js_required`, `geo_risk`, `rate_medium`, `rate_high`)
 - read-only terminal signal catalog
-- editable only when `SHUMA_BOTNESS_CONFIG_MUTABLE=1` (or `SHUMA_CHALLENGE_CONFIG_MUTABLE=1` fallback)
+- editable only when `SHUMA_BOTNESS_CONFIG_MUTABLE=true`
 - GEO policy controls:
 - risk scoring countries (`geo_risk`)
 - tiered routing countries (`geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`)
@@ -96,6 +96,6 @@ dashboard/
 3. Auto-refresh updates stats, charts, and tables
 
 Note: `SHUMA_KV_STORE_FAIL_OPEN` is an environment-level policy and is shown read-only in the dashboard.
-Note: PoW enable/disable is environment-level; difficulty/TTL are editable only if `SHUMA_POW_CONFIG_MUTABLE=1`.
+Note: PoW enable/disable is environment-level; difficulty/TTL are editable only if `SHUMA_POW_CONFIG_MUTABLE=true`.
 Note: PoW config changes are logged to the event log as admin actions.
 Note: Botness scoring changes are logged as `botness_config_update` admin actions.

@@ -1,84 +1,119 @@
 # 🐙 Configuration
 
-Shuma-Gorath uses a single runtime model:
+Shuma-Gorath uses one runtime configuration model:
 
-- Tunables are **KV-backed only** (`config:<site_id>`, default site is `config:default`).
-- Env vars are for **secrets and runtime guardrails only**.
-- `config/defaults.env` is the canonical defaults source used by setup/seed tooling.
-
-There is no runtime `SHUMA_CONFIG_USE_KV` mode switch.
+- Tunables are stored in KV under `config:<site_id>` (default `config:default`).
+- Env vars are reserved for secrets and runtime guardrails.
+- `config/defaults.env` is the canonical source for defaults (no hidden tunable defaults in Rust).
 
 ## 🐙 Startup Model
 
-`make setup` performs three key actions:
+`make setup`:
 
 1. Creates `.env.local` from `config/defaults.env` if missing.
-2. Generates local dev secrets in `.env.local` (for example `SHUMA_API_KEY`, `SHUMA_JS_SECRET`, `SHUMA_FORWARDED_IP_SECRET`).
-3. Runs `make config-seed`, which writes tunable defaults into KV **only when `config:default` is missing**.
+2. Generates local dev secrets in `.env.local` (`SHUMA_API_KEY`, `SHUMA_JS_SECRET`, `SHUMA_FORWARDED_IP_SECRET`).
+3. Runs `make config-seed`, which writes KV tunables only when `config:default` does not already exist.
 
 At runtime:
 
-- Tunables are loaded from KV (`config:default`).
-- Env-only keys are read from process env.
-- If KV config is missing/invalid, requests that require config fail with `500 Configuration unavailable`.
+- Tunables are loaded from KV.
+- Env-only keys are loaded from process env.
+- Missing/invalid KV config returns `500 Configuration unavailable` for config-dependent requests.
 
-## 🐙 Env-Only Keys
+## 🐙 Canonical Variable Reference
 
-Canonical template:
+Source of truth files:
 
-- `/.env.full.example`
+- `config/defaults.env` (all defaults)
+- `/.env.full.example` (env-only template for deployment)
 
-Supported env-only keys:
+### 🐙 Env-Only Runtime Keys
 
-- `SHUMA_API_KEY` - admin login key for dashboard/API
-- `SHUMA_JS_SECRET` - signs `js_verified` cookie
-- `SHUMA_POW_SECRET` - optional dedicated PoW seed-signing secret
-- `SHUMA_CHALLENGE_SECRET` - optional dedicated challenge seed-signing secret
-- `SHUMA_FORWARDED_IP_SECRET` - trust gate for forwarded client IP/proto headers
-- `SHUMA_ADMIN_IP_ALLOWLIST` - optional IP/CIDR allowlist for `/admin/*`
-- `SHUMA_EVENT_LOG_RETENTION_HOURS` - event retention window
-- `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` - allow/deny admin config writes to KV
-- `SHUMA_KV_STORE_FAIL_OPEN` - fail-open vs fail-closed behavior when KV is unavailable
-- `SHUMA_ENFORCE_HTTPS` - reject non-HTTPS requests when true
-- `SHUMA_DEBUG_HEADERS` - expose internal debug headers (dev only)
-- `SHUMA_POW_CONFIG_MUTABLE` - runtime editability for PoW settings
-- `SHUMA_CHALLENGE_CONFIG_MUTABLE` - runtime editability for challenge settings
-- `SHUMA_BOTNESS_CONFIG_MUTABLE` - runtime editability for botness/challenge threshold settings
+These are read from process env at runtime (not from KV).
 
-`make env-help` prints this list locally.
+| Variable | Required | Default in `config/defaults.env` | Purpose |
+| --- | --- | --- | --- |
+| `SHUMA_API_KEY` | Yes | `changeme-prod-api-key` | Admin authentication key for dashboard login and `Authorization: Bearer` admin API calls. |
+| `SHUMA_JS_SECRET` | Yes | `changeme-prod-js-secret` | Signs and verifies `js_verified` cookie. |
+| `SHUMA_POW_SECRET` | No | empty | Optional dedicated PoW signing secret. Falls back to `SHUMA_JS_SECRET` when unset. |
+| `SHUMA_CHALLENGE_SECRET` | No | empty | Optional dedicated challenge signing secret. Falls back to `SHUMA_JS_SECRET` when unset. |
+| `SHUMA_FORWARDED_IP_SECRET` | Yes | `changeme-prod-forwarded-ip-secret` | Trust boundary secret for forwarded IP/proto headers (`X-Shuma-Forwarded-Secret`). |
+| `SHUMA_ADMIN_IP_ALLOWLIST` | No | empty | Optional CIDR/IP allowlist for `/admin/*`. |
+| `SHUMA_EVENT_LOG_RETENTION_HOURS` | Yes | `168` | Event retention window in hours (`0` disables cleanup). |
+| `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` | Yes | `false` | Enables/disables admin config writes to KV (`POST /admin/config`). |
+| `SHUMA_KV_STORE_FAIL_OPEN` | Yes | `true` | KV failure policy (`true` fail-open, `false` fail-closed). |
+| `SHUMA_ENFORCE_HTTPS` | Yes | `false` | Rejects non-HTTPS requests when `true` (proxy/header trust rules still apply). |
+| `SHUMA_DEBUG_HEADERS` | Yes | `false` | Enables internal debug headers (keep `false` in production). |
+| `SHUMA_POW_CONFIG_MUTABLE` | Yes | `false` | Allows runtime edits of PoW difficulty/TTL from admin config. |
+| `SHUMA_CHALLENGE_CONFIG_MUTABLE` | Yes | `false` | Allows runtime edits of challenge transform count/threshold from admin config. |
+| `SHUMA_BOTNESS_CONFIG_MUTABLE` | Yes | `false` | Allows runtime edits of botness thresholds/weights from admin config. |
 
-## 🐙 Tunables (KV-Backed)
+Use `make env-help` for the supported env-only override list.
 
-These values are seeded from `config/defaults.env` into `config:default` and loaded from KV at runtime:
+### 🐙 KV Tunables (Seeded From `config/defaults.env`)
 
-- Core flow: `test_mode`, `js_required_enforced`
-- PoW: `pow_enabled`, `pow_difficulty`, `pow_ttl_seconds`
-- Challenge/botness: `challenge_transform_count`, `challenge_risk_threshold`, `botness_maze_threshold`, `botness_weights.*`
-- Ban durations: `ban_duration*`, `ban_durations.*`
-- Rate/maze: `rate_limit`, `maze_enabled`, `maze_auto_ban`, `maze_auto_ban_threshold`
-- GEO routing/scoring lists: `geo_risk`, `geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`
-- Browser/version lists: `browser_block`, `browser_whitelist`
-- Whitelists: `whitelist`, `path_whitelist`
-- robots policy: `robots_enabled`, `robots_block_ai_training`, `robots_block_ai_search`, `robots_allow_search_engines`, `robots_crawl_delay`
-- CDP: `cdp_detection_enabled`, `cdp_auto_ban`, `cdp_detection_threshold`
+These keys are seeded into KV and loaded from KV at runtime.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `SHUMA_TEST_MODE` | `false` | Enables test-mode behavior for controlled local testing. |
+| `SHUMA_JS_REQUIRED_ENFORCED` | `true` | Enforces JS verification (`js_verified` cookie gate). |
+| `SHUMA_POW_ENABLED` | `true` | Enables PoW in JS verification flow. |
+| `SHUMA_POW_DIFFICULTY` | `15` | PoW cost level (clamped to supported range). |
+| `SHUMA_POW_TTL_SECONDS` | `90` | PoW seed lifetime in seconds (clamped). |
+| `SHUMA_CHALLENGE_TRANSFORM_COUNT` | `6` | Number of transform options shown in the puzzle challenge (4-8). |
+| `SHUMA_CHALLENGE_RISK_THRESHOLD` | `3` | Botness score threshold for serving challenge step-up. |
+| `SHUMA_BOTNESS_MAZE_THRESHOLD` | `6` | Botness score threshold for routing to maze. |
+| `SHUMA_BOTNESS_WEIGHT_JS_REQUIRED` | `1` | Score weight for missing JS verification signal. |
+| `SHUMA_BOTNESS_WEIGHT_GEO_RISK` | `2` | Score weight for GEO risk-country signal. |
+| `SHUMA_BOTNESS_WEIGHT_RATE_MEDIUM` | `1` | Score weight for medium request-rate pressure. |
+| `SHUMA_BOTNESS_WEIGHT_RATE_HIGH` | `2` | Score weight for high request-rate pressure. |
+| `SHUMA_BAN_DURATION` | `21600` | Legacy/default ban duration fallback (seconds). |
+| `SHUMA_BAN_DURATION_HONEYPOT` | `86400` | Ban duration for honeypot/instaban trigger (seconds). |
+| `SHUMA_BAN_DURATION_RATE_LIMIT` | `3600` | Ban duration for rate-limit ban (seconds). |
+| `SHUMA_BAN_DURATION_BROWSER` | `21600` | Ban duration for browser-policy based bans (seconds). |
+| `SHUMA_BAN_DURATION_ADMIN` | `21600` | Ban duration for manual admin bans (seconds). |
+| `SHUMA_BAN_DURATION_CDP` | `43200` | Ban duration for CDP automation bans (seconds). |
+| `SHUMA_RATE_LIMIT` | `80` | Requests per minute threshold for rate limiting. |
+| `SHUMA_HONEYPOTS` | `['/instaban']` | Honeypot endpoints that immediately trigger ban flow. |
+| `SHUMA_BROWSER_BLOCK` | `[["Chrome",120],["Firefox",115],["Safari",15]]` | Browser/version minimums used by browser policy checks. |
+| `SHUMA_BROWSER_WHITELIST` | `[]` | Optional browser/version allowlist exceptions. |
+| `SHUMA_GEO_RISK_COUNTRIES` | `[]` | 2-letter countries that add GEO botness score. |
+| `SHUMA_GEO_ALLOW_COUNTRIES` | `[]` | 2-letter countries explicitly allowed in GEO routing precedence. |
+| `SHUMA_GEO_CHALLENGE_COUNTRIES` | `[]` | 2-letter countries forced to challenge tier. |
+| `SHUMA_GEO_MAZE_COUNTRIES` | `[]` | 2-letter countries forced to maze tier. |
+| `SHUMA_GEO_BLOCK_COUNTRIES` | `[]` | 2-letter countries forced to block tier. |
+| `SHUMA_WHITELIST` | `[]` | IP/CIDR allowlist bypassing bot defenses. |
+| `SHUMA_PATH_WHITELIST` | `[]` | URL path allowlist bypassing bot defenses. |
+| `SHUMA_MAZE_ENABLED` | `true` | Enables maze feature. |
+| `SHUMA_MAZE_AUTO_BAN` | `true` | Enables maze auto-ban when threshold is exceeded. |
+| `SHUMA_MAZE_AUTO_BAN_THRESHOLD` | `50` | Maze hit threshold for auto-ban. |
+| `SHUMA_ROBOTS_ENABLED` | `true` | Enables robots.txt endpoint and policy generation. |
+| `SHUMA_ROBOTS_BLOCK_AI_TRAINING` | `true` | Adds AI training bot disallow directives. |
+| `SHUMA_ROBOTS_BLOCK_AI_SEARCH` | `false` | Adds AI search bot disallow directives. |
+| `SHUMA_ROBOTS_ALLOW_SEARCH_ENGINES` | `true` | Allows mainstream search engines in robots policy. |
+| `SHUMA_ROBOTS_CRAWL_DELAY` | `2` | robots.txt crawl-delay value (seconds). |
+| `SHUMA_CDP_DETECTION_ENABLED` | `true` | Enables CDP automation detection script/processing. |
+| `SHUMA_CDP_AUTO_BAN` | `true` | Enables auto-ban path when strong CDP automation is detected. |
+| `SHUMA_CDP_DETECTION_THRESHOLD` | `0.8` | CDP score threshold used when hard CDP checks are absent. |
 
 ## 🐙 Admin Config Writes
 
 - `GET /admin/config` reads effective KV-backed config.
 - `POST /admin/config` writes to KV only when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`.
-- Writes persist across restarts because they are stored in KV.
+- KV writes persist across restarts.
 
 ## 🐙 JS Verification + PoW
 
-- `js_required_enforced=true` routes visitors without a valid `js_verified` cookie to JavaScript verification.
-- `pow_enabled=true` makes that verification flow include server-verified PoW before cookie issuance.
-- `js_required_enforced=false` bypasses this verification route for normal requests.
+- `js_required_enforced=true` routes visitors without a valid `js_verified` cookie to JS verification.
+- `pow_enabled=true` adds server-verified PoW to that verification flow.
+- `js_required_enforced=false` bypasses JS verification for normal requests (and therefore bypasses PoW on that path).
 
 ## 🐙 GEO Trust Boundary
 
-GEO signals are only trusted when forwarded-header trust is established:
+GEO/proto headers are trusted only when:
 
 - `SHUMA_FORWARDED_IP_SECRET` is configured, and
 - request includes matching `X-Shuma-Forwarded-Secret`.
 
-Without trust, GEO routing/scoring is skipped.
+Without trust, forwarded IP/proto/GEO-derived routing and GEO scoring are skipped.

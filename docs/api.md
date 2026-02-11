@@ -18,7 +18,7 @@ If `SHUMA_ENFORCE_HTTPS=true`:
 - requests without HTTPS context are rejected with `403 HTTPS required`
 - forwarded proto headers are trusted only when `SHUMA_FORWARDED_IP_SECRET` validation succeeds
 
-If `SHUMA_API_KEY` is missing, `/admin/*` endpoints are disabled. The insecure placeholder key (`changeme-supersecret`) is always rejected.
+If `SHUMA_API_KEY` is missing, `/admin/*` endpoints are disabled. Placeholder/insecure API keys are rejected.
 
 ## 🐙 Public Endpoints
 
@@ -187,7 +187,6 @@ Scored weights:
 Mutability:
 - `botness_config_mutable` indicates whether score/weight settings can be changed at runtime.
 - Runtime mutation is disabled by default; enable with `SHUMA_BOTNESS_CONFIG_MUTABLE=true`.
-- For dev compatibility, `SHUMA_CHALLENGE_CONFIG_MUTABLE=true` also enables botness mutation if `SHUMA_BOTNESS_CONFIG_MUTABLE` is unset.
 
 Signal catalog:
 - `botness_signal_definitions.scored_signals` lists weighted contributors.

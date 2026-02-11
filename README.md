@@ -46,27 +46,14 @@ make api-key-show     # Show local dashboard login key from .env.local
 make help             # Show all commands
 ```
 
-## 🐙 Configuration (Short List)
+## 🐙 Configuration
 
-Key environment variables:
-- `SHUMA_API_KEY` - Admin API bearer token
-- `SHUMA_JS_SECRET` - Signs the `js_verified` cookie
-- `SHUMA_FORWARDED_IP_SECRET` - Trusts `X-Forwarded-For` only when `X-Shuma-Forwarded-Secret` matches
-- `SHUMA_ADMIN_IP_ALLOWLIST` - CIDR/IP allowlist for admin access
-- `SHUMA_EVENT_LOG_RETENTION_HOURS` - Event log retention window
-- `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` - `true/false` to allow `POST /admin/config` writes (default: `false`)
-- `SHUMA_KV_STORE_FAIL_OPEN` - `true/false` KV outage policy (`true` fail-open, `false` fail-closed)
-- `SHUMA_POW_SECRET` - Optional PoW signing secret (defaults to `SHUMA_JS_SECRET`)
-- `SHUMA_POW_CONFIG_MUTABLE` - Allow admin API to tune PoW difficulty/TTL
-- `SHUMA_CHALLENGE_CONFIG_MUTABLE` - Allow admin API to tune challenge threshold
-- `SHUMA_BOTNESS_CONFIG_MUTABLE` - Allow admin API to tune botness thresholds/weights
-
-Runtime tunables (PoW on/off, thresholds, weights, GEO lists, rate limits, ban durations, etc.) are KV-backed and seeded from `config/defaults.env` via `make setup` / `make config-seed`.
+- Full, canonical variable reference (env-only keys + KV tunables): `docs/configuration.md`
+- Env-only deployment template: `/.env.full.example`
+- Canonical defaults (seeded into KV): `config/defaults.env`
+- Supported env-only overrides helper: `make env-help`
 
 Deployment policy note: `SHUMA_KV_STORE_FAIL_OPEN` is a critical choice (fail-open vs fail-closed) when the KV store is unavailable. See `docs/security-hardening.md` and `docs/deployment.md`.
-
-See `docs/deployment.md` for deployment wiring and secret handling, and `docs/configuration.md` for the full config model.
-Use `/.env.full.example` for env-only runtime keys, and `config/defaults.env` as the canonical tunable defaults source seeded into KV.
 
 ## 🐙 Documentation
 
