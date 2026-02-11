@@ -2,7 +2,7 @@
 
 ## 🐙 Current Features (Implemented)
 
-- Honeypot endpoints (default: `/bot-trap`)
+- Honeypot endpoints (default: `/instaban`)
 - Per-IP rate limiting
 - Browser version blocking
 - GEO scoring + policy routing (`allow/challenge/maze/block`) via trusted `X-Geo-Country`

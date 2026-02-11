@@ -40,7 +40,7 @@ make test-integration      # In terminal 2
 ### 🐙 Public Endpoints
 - `GET /` - Main bot defence (may show block page, JS challenge, or pass through)
 - `GET /health` - Health check (localhost only)
-- `GET /bot-trap` - Honeypot (triggers ban)
+- `GET /instaban` - Honeypot (triggers ban)
 - `GET /metrics` - Prometheus metrics
 - `GET /robots.txt` - robots.txt (configurable)
 - `GET /pow` - PoW seed (when enabled)
@@ -134,7 +134,7 @@ environment = { SHUMA_TEST_MODE = "1" }
 Located in `src/config.rs`:
 - **Ban duration**: 21600 seconds (6 hours)
 - **Rate limit**: 80 requests/minute
-- **Honeypots**: `/bot-trap`
+- **Honeypots**: `/instaban`
 - **Browser blocks**: Chrome <120, Firefox <115, Safari <15
 
 Full configuration reference: `docs/configuration.md`.
@@ -173,7 +173,7 @@ If `SHUMA_FORWARDED_IP_SECRET` is set, include the matching header:
 ```bash
 curl -H "X-Forwarded-For: 1.2.3.4" \
   -H "X-Shuma-Forwarded-Secret: $SHUMA_FORWARDED_IP_SECRET" \
-  http://127.0.0.1:3000/bot-trap
+  http://127.0.0.1:3000/instaban
 # Subsequent requests from 1.2.3.4 will be blocked
 ```
 

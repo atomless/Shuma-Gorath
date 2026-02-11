@@ -45,7 +45,7 @@ fi
 
 # Test 3: Honeypot triggers ban
 info "Test 3/5: Honeypot ban detection..."
-curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 1.2.3.4" "$BASE_URL/bot-trap" > /dev/null
+curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 1.2.3.4" "$BASE_URL/instaban" > /dev/null
 sleep 0.5
 resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 1.2.3.4" "$BASE_URL/")
 if echo "$resp" | grep -q 'Access Blocked'; then

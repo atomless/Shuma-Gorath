@@ -13,7 +13,7 @@
 #   1. Health check endpoint (GET /health)
 #   2. PoW challenge + verification (if enabled)
 #   3. Root endpoint behavior (GET /)
-#   4. Honeypot ban detection (POST /bot-trap)
+#   4. Honeypot ban detection (POST /instaban)
 #   5. Admin API unban (POST /admin/unban)
 #   6. Health check after ban/unban (GET /health)
 #   7. Config API - get config (GET /admin/config)
@@ -167,7 +167,7 @@ fi
 
 # Test 4: Honeypot triggers ban
 info "Testing honeypot ban..."
-curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/bot-trap" > /dev/null
+curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/instaban" > /dev/null
 resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/")
 if echo "$resp" | grep -q 'Access Blocked'; then
   pass "Honeypot triggers ban and / returns Access Blocked"
@@ -266,7 +266,7 @@ info "Testing test_mode behavior (honeypot should not block)..."
 # First, unban the test IP to ensure clean state
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/admin/unban?ip=10.0.0.99" > /dev/null
 # Hit honeypot with test IP
-honeypot_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.99" "$BASE_URL/bot-trap")
+honeypot_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.99" "$BASE_URL/instaban")
 if echo "$honeypot_resp" | grep -q 'TEST MODE'; then
   pass "Test mode returns TEST MODE response for honeypot"
 else
@@ -299,7 +299,7 @@ info "Testing that blocking resumes after test_mode disabled..."
 # Unban first to get clean state
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/admin/unban?ip=10.0.0.100" > /dev/null
 # Hit honeypot - should now actually ban
-curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.100" "$BASE_URL/bot-trap" > /dev/null
+curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.100" "$BASE_URL/instaban" > /dev/null
 block_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.100" "$BASE_URL/")
 if echo "$block_resp" | grep -q 'Access Blocked'; then
   pass "Blocking resumes: honeypot triggers real ban after test_mode disabled"

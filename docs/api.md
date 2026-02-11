@@ -25,7 +25,7 @@ If `SHUMA_API_KEY` is missing, `/admin/*` endpoints are disabled. The insecure p
 - `GET /` - Main bot defence handler
 - `GET /health` - Health check (loopback only)
 - `GET /metrics` - Prometheus metrics (no auth)
-- `GET /bot-trap` - Honeypot (triggers ban)
+- `GET /instaban` - Honeypot (triggers ban)
 - `GET /pow` - PoW challenge seed (when enabled)
 - `POST /pow/verify` - PoW verification (sets js_verified cookie)
 - `POST /cdp-report` - Client automation reports (JSON)

@@ -186,7 +186,7 @@ mod tests {
             ban_duration: 21600,
             ban_durations: BanDurations::default(),
             rate_limit: 80,
-            honeypots: vec!["/bot-trap".to_string()],
+            honeypots: vec!["/instaban".to_string()],
             browser_block: vec![],
             browser_whitelist: vec![],
             geo_risk: vec![],

@@ -13,7 +13,7 @@ curl -i "$BASE_URL/"
 echo
 
 echo "[2] Test: honeypot endpoint (should block)"
-curl -i "$BASE_URL/bot-trap"
+curl -i "$BASE_URL/instaban"
 echo
 
 echo "[3] Test: admin endpoint (unauthorized)"

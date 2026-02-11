@@ -135,7 +135,7 @@ For browser checks, use a private window and confirm the cookie is set after the
 ```bash
 curl -s -H "X-Forwarded-For: 1.2.3.4" \
   -H "X-Shuma-Forwarded-Secret: $SHUMA_FORWARDED_IP_SECRET" \
-  http://127.0.0.1:3000/bot-trap > /dev/null
+  http://127.0.0.1:3000/instaban > /dev/null
 curl -s -H "X-Forwarded-For: 1.2.3.4" \
   -H "X-Shuma-Forwarded-Secret: $SHUMA_FORWARDED_IP_SECRET" \
   http://127.0.0.1:3000/ | head -5
@@ -230,7 +230,7 @@ curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 1.2.3.4" "$BASE_URL
 echo ""
 
 echo "3) Honeypot ban"
-curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 1.2.3.4" "$BASE_URL/bot-trap" > /dev/null
+curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 1.2.3.4" "$BASE_URL/instaban" > /dev/null
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 1.2.3.4" "$BASE_URL/" | head -5
 echo ""
 
@@ -269,7 +269,7 @@ echo ""
 
 ## 🐙 Local Testing Notes
 
-- If you visit `/bot-trap` in a browser without `X-Forwarded-For`, your IP is detected as `unknown`.
+- If you visit `/instaban` in a browser without `X-Forwarded-For`, your IP is detected as `unknown`.
 - To unban yourself locally:
 ```bash
 curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
