@@ -1,5 +1,5 @@
 // src/maze.rs
-// Link Maze Honeypot - Traps web crawlers in infinite loops
+// Link Maze - Traps web crawlers in infinite loops
 // Generates deterministic fake pages with links that lead to more fake pages
 
 use spin_sdk::http;

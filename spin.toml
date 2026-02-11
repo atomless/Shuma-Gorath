@@ -10,10 +10,10 @@ description = "Shuma-Gorath: Many-Angled Bot Defence for Fermyon Spin."
 route = "/dashboard/..."
 component = "dashboard-files"
 
-# Main bot trap handler (catch-all)
+# Main bot defence handler (catch-all)
 [[trigger.http]]
 route = "/..."
-component = "bot-trap"
+component = "bot-defence"
 
 # Static file server for dashboard
 [component.dashboard-files]
@@ -21,8 +21,8 @@ source = { url = "https://github.com/fermyon/spin-fileserver/releases/download/v
 files = [{ source = "dashboard", destination = "/" }]
 environment = { CACHE_CONTROL = "no-store, max-age=0, must-revalidate" }
 
-[component.bot-trap]
-source = "src/bot_trap.wasm"
+[component.bot-defence]
+source = "src/bot_defence.wasm"
 key_value_stores = ["default"]
 # Tight outbound policy: this component should not initiate external HTTP(S) calls.
 allowed_outbound_hosts = []
@@ -31,5 +31,5 @@ allowed_outbound_hosts = []
 ## `SHUMA_FORWARDED_IP_SECRET` should be set in every environment where X-Forwarded-For
 ## is trusted. Requests without a matching X-Shuma-Forwarded-Secret are ignored.
 
-[component.bot-trap.build]
-command = "./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm && ./scripts/set_crate_type.sh rlib"
+[component.bot-defence.build]
+command = "./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_defence.wasm && ./scripts/set_crate_type.sh rlib"

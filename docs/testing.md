@@ -299,7 +299,7 @@ Problem: Integration tests were skipped
 - Start the server with `make dev`
 - Re-run with `make test-integration`
 
-Problem: Unsure what IP the bot trap detected
+Problem: Unsure what IP the bot defence detected
 - Query the ban list:
 ```bash
 curl -H "Authorization: Bearer $SHUMA_API_KEY" \

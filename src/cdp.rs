@@ -1,5 +1,5 @@
 // src/cdp.rs
-// CDP (Chrome DevTools Protocol) Detection for WASM Bot Trap
+// CDP (Chrome DevTools Protocol) Detection for WASM Bot Defence
 // Detects automated browsers using Puppeteer, Playwright, Selenium, etc.
 //
 // This module provides JavaScript-based detection that identifies when a browser

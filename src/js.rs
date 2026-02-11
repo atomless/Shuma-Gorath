@@ -14,7 +14,7 @@ pub fn needs_js_verification_with_whitelist(req: &Request, _store: &Store, _site
     needs_js_verification(req, _store, _site_id, ip)
 }
 // src/js.rs
-// JavaScript verification and challenge logic for WASM Bot Trap
+// JavaScript verification and challenge logic for WASM Bot Defence
 // Handles JS-based bot detection and challenge/response for suspicious clients.
 
 use spin_sdk::http::{Request, Response};

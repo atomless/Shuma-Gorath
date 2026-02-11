@@ -1,5 +1,5 @@
 #!/bin/bash
-# test_spin_http.sh - HTTP integration tests for WASM Bot Trap Spin app
+# test_spin_http.sh - HTTP integration tests for WASM Bot Defence Spin app
 # Usage: bash test_spin_http.sh [base_url]
 # Default base_url: http://127.0.0.1:3000
 
@@ -8,7 +8,7 @@ SHUMA_API_KEY="${SHUMA_API_KEY:-changeme-dev-only-api-key}"
 
 set -e
 
-echo "[1] Test: root endpoint (should pass bot trap)"
+echo "[1] Test: root endpoint (should pass bot defence)"
 curl -i "$BASE_URL/"
 echo
 

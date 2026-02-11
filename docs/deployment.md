@@ -92,7 +92,7 @@ api_key = { default = "" }
 js_secret = { default = "" }
 forwarded_ip_secret = { default = "" }
 
-[component.bot-trap]
+[component.bot-defence]
 environment = {
   SHUMA_API_KEY = "{{ api_key }}",
   SHUMA_JS_SECRET = "{{ js_secret }}",

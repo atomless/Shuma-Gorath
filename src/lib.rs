@@ -23,7 +23,7 @@ mod whitelist_path_tests;
 #[cfg(test)]
 mod whitelist_tests;
 // src/lib.rs
-// Entry point for the WASM Stealth Bot Trap Spin app
+// Entry point for the WASM Stealth Bot Defence Spin app
 
 use serde::Serialize;
 use spin_sdk::http::{Method, Request, Response};
@@ -43,14 +43,14 @@ mod honeypot; // Honeypot endpoint logic
 mod input_validation;
 mod ip; // IP bucketing helpers
 mod js; // JS challenge/verification
-mod maze; // Link maze honeypot
+mod maze; // Link maze crawler trap
 mod metrics; // Prometheus metrics
 mod pow; // Proof-of-work verification
 mod rate; // Rate limiting
 mod robots; // robots.txt generation
 mod whitelist; // Whitelist logic // Shared request/input validation helpers
 
-/// Main HTTP handler for the bot trap. This function is invoked for every HTTP request.
+/// Main HTTP handler for the bot defence. This function is invoked for every HTTP request.
 /// It applies a series of anti-bot checks in order of cost and effectiveness, returning early on block/allow.
 
 /// Returns true if forwarded IP headers should be trusted for this request.
@@ -425,7 +425,7 @@ fn serve_maze_with_tracking(
 }
 
 /// Main handler logic, testable as a plain Rust function.
-pub fn handle_bot_trap_impl(req: &Request) -> Response {
+pub fn handle_bot_defence_impl(req: &Request) -> Response {
     if let Err(err) = config::validate_env_only_once() {
         log_line(&format!("[ENV ERROR] {}", err));
         return Response::new(500, "Server configuration error");
@@ -587,7 +587,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
         }
         return response_with_optional_debug_headers(
             200,
-            "OK (bot trap: store unavailable, all checks bypassed)",
+            "OK (bot defence: store unavailable, all checks bypassed)",
             "unavailable",
             mode,
         );
@@ -600,7 +600,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
     };
     let geo_assessment = assess_geo_request(req, &cfg);
 
-    // Link Maze Honeypot - trap bots in infinite loops (only if enabled)
+    // Link Maze - trap crawlers in infinite loops (only if enabled)
     if maze::is_maze_path(path) {
         if !cfg.maze_enabled {
             return Response::new(404, "Not Found");
@@ -770,7 +770,7 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
             }
             geo::GeoPolicyRoute::Allow | geo::GeoPolicyRoute::None => {}
         }
-        return Response::new(200, "TEST MODE: Would allow (passed bot trap)");
+        return Response::new(200, "TEST MODE: Would allow (passed bot defence)");
     }
     // Honeypot: ban and hard block
     if honeypot::is_honeypot(path, &cfg.honeypots) {
@@ -1036,10 +1036,10 @@ pub fn handle_bot_trap_impl(req: &Request) -> Response {
         );
         return js::inject_js_challenge(&ip, cfg.pow_enabled, cfg.pow_difficulty, cfg.pow_ttl_seconds);
     }
-    Response::new(200, "OK (passed bot trap)")
+    Response::new(200, "OK (passed bot defence)")
 }
 
 #[http_component]
 pub fn spin_entrypoint(req: Request) -> Response {
-    handle_bot_trap_impl(&req)
+    handle_bot_defence_impl(&req)
 }

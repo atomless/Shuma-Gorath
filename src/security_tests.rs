@@ -65,7 +65,7 @@ fn https_enforcement_blocks_insecure_admin_requests() {
     std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
 
     let req = request_with_method_and_headers(Method::Get, "/admin/config", &[]);
-    let resp = crate::handle_bot_trap_impl(&req);
+    let resp = crate::handle_bot_defence_impl(&req);
 
     assert_eq!(*resp.status(), 403u16);
     assert_eq!(String::from_utf8(resp.into_body()).unwrap(), "HTTPS required");
@@ -88,7 +88,7 @@ fn https_enforcement_allows_trusted_forwarded_https_to_reach_admin_auth() {
             ("x-forwarded-proto", "https"),
         ],
     );
-    let resp = crate::handle_bot_trap_impl(&req);
+    let resp = crate::handle_bot_defence_impl(&req);
 
     assert_eq!(*resp.status(), 401u16);
 
@@ -110,7 +110,7 @@ fn admin_options_preflight_is_rejected_without_cors_headers() {
         ],
     );
 
-    let resp = crate::handle_bot_trap_impl(&req);
+    let resp = crate::handle_bot_defence_impl(&req);
 
     assert_eq!(*resp.status(), 403u16);
     assert!(!has_header(&resp, "Access-Control-Allow-Origin"));

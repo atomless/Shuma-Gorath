@@ -5,7 +5,7 @@
 
 # 🐙 Shuma-Gorath
 
-Many-Angled Bot Defence for Spin. Shuma-Gorath is a WebAssembly bot trap that detects, blocks, and monitors automated abuse with honeypots, rate limiting, JS challenges, CDP signals, a link maze, and a real-time admin dashboard.
+Many-Angled Bot Defence for Spin. Shuma-Gorath is a WebAssembly bot defence that detects, blocks, and monitors automated abuse with honeypots, rate limiting, JS challenges, CDP signals, a link maze, and a real-time admin dashboard.
 
 Shuma-Gorath is designed to **complement enterprise bot defenses** (such as [Akamai Bot Manager](https://www.akamai.com/products/bot-manager_) as a second-layer of application-specific protection, but it can also run standalone.
 
@@ -83,13 +83,13 @@ Use `/.env.full.example` for env-only runtime keys, and `config/defaults.env` as
 - [`docs/akamai-bot-manager.md`](docs/akamai-bot-manager.md) - Positioning and layered defense
 - [`docs/features.md`](docs/features.md) - Feature list and roadmap
 - [`docs/challenge-verification.md`](docs/challenge-verification.md) - Human verification strategy
-- [`docs/maze.md`](docs/maze.md) - Link maze honeypot
+- [`docs/maze.md`](docs/maze.md) - Link maze crawler trap
 - [`SECURITY_REVIEW.md`](SECURITY_REVIEW.md) - Security audit notes
 
 ## 🐙 Repository Structure (High Level)
 
 ```
-src/        # Core bot trap logic (Spin component)
+src/        # Core bot defence logic (Spin component)
 dashboard/  # Admin dashboard UI
 scripts/    # Build helpers (Makefile used by default)
 ```

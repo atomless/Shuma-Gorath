@@ -10,7 +10,7 @@
 - Puzzle challenge step-up with single-use seeds
 - Proof-of-work (PoW) step before JS verification (edge-served)
 - Optional browser whitelist to bypass JS challenge
-- Link maze honeypot with auto-ban threshold
+- Link maze crawler trap with auto-ban threshold
 - CDP automation detection and reporting (`/cdp-report`)
 - robots.txt generation and policy controls
 - Admin API (ban/unban, analytics, events, config, maze, robots, CDP)

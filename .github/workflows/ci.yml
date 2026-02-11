@@ -42,7 +42,7 @@ jobs:
         run: |
           ./scripts/set_crate_type.sh cdylib
           cargo build --target wasm32-wasip1 --release
-          cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
+          cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_defence.wasm
           ./scripts/set_crate_type.sh rlib
 
       - name: Start Spin server (background)

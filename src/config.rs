@@ -1,5 +1,5 @@
 // src/config.rs
-// Configuration and site settings for WASM Bot Trap.
+// Configuration and site settings for WASM Bot Defence.
 // Tunables are loaded from KV; defaults are defined in config/defaults.env.
 
 use std::{collections::HashMap, env};

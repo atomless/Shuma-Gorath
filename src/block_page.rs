@@ -1,5 +1,5 @@
 // src/block_page.rs
-// Customizable HTML block pages for WASM Bot Trap
+// Customizable HTML block pages for WASM Bot Defence
 
 pub enum BlockReason {
     Honeypot,

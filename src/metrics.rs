@@ -1,5 +1,5 @@
 // src/metrics.rs
-// Prometheus-compatible metrics for WASM Bot Trap
+// Prometheus-compatible metrics for WASM Bot Defence
 // Stores counters in KV store and exports in Prometheus text format
 
 use spin_sdk::key_value::Store;
@@ -120,77 +120,77 @@ pub fn render_metrics(store: &Store) -> String {
     let mut output = String::new();
     
     // Header
-    output.push_str("# WASM Bot Trap Metrics\n");
-    output.push_str("# TYPE bot_trap_requests_total counter\n");
+    output.push_str("# WASM Bot Defence Metrics\n");
+    output.push_str("# TYPE bot_defence_requests_total counter\n");
     
     // Requests total
     let requests = get_counter(store, &format!("{}requests_total", METRICS_PREFIX));
-    output.push_str(&format!("bot_trap_requests_total {}\n", requests));
+    output.push_str(&format!("bot_defence_requests_total {}\n", requests));
     
     // Bans by reason
-    output.push_str("\n# TYPE bot_trap_bans_total counter\n");
-    output.push_str("# HELP bot_trap_bans_total Total number of IP bans by reason\n");
+    output.push_str("\n# TYPE bot_defence_bans_total counter\n");
+    output.push_str("# HELP bot_defence_bans_total Total number of IP bans by reason\n");
     for reason in &["honeypot", "rate_limit", "browser", "admin", "maze_crawler", "cdp_automation"] {
         let key = format!("{}bans_total:{}", METRICS_PREFIX, reason);
         let count = get_counter(store, &key);
-        output.push_str(&format!("bot_trap_bans_total{{reason=\"{}\"}} {}\n", reason, count));
+        output.push_str(&format!("bot_defence_bans_total{{reason=\"{}\"}} {}\n", reason, count));
     }
     
     // Blocks total
-    output.push_str("\n# TYPE bot_trap_blocks_total counter\n");
+    output.push_str("\n# TYPE bot_defence_blocks_total counter\n");
     let blocks = get_counter(store, &format!("{}blocks_total", METRICS_PREFIX));
-    output.push_str(&format!("bot_trap_blocks_total {}\n", blocks));
+    output.push_str(&format!("bot_defence_blocks_total {}\n", blocks));
     
     // Challenges total
-    output.push_str("\n# TYPE bot_trap_challenges_total counter\n");
+    output.push_str("\n# TYPE bot_defence_challenges_total counter\n");
     let challenges = get_counter(store, &format!("{}challenges_total", METRICS_PREFIX));
-    output.push_str(&format!("bot_trap_challenges_total {}\n", challenges));
+    output.push_str(&format!("bot_defence_challenges_total {}\n", challenges));
 
     // Challenge outcomes
-    output.push_str("\n# TYPE bot_trap_challenge_served_total counter\n");
+    output.push_str("\n# TYPE bot_defence_challenge_served_total counter\n");
     let challenge_served = get_counter(store, &format!("{}challenge_served_total", METRICS_PREFIX));
-    output.push_str(&format!("bot_trap_challenge_served_total {}\n", challenge_served));
+    output.push_str(&format!("bot_defence_challenge_served_total {}\n", challenge_served));
 
-    output.push_str("\n# TYPE bot_trap_challenge_solved_total counter\n");
+    output.push_str("\n# TYPE bot_defence_challenge_solved_total counter\n");
     let challenge_solved = get_counter(store, &format!("{}challenge_solved_total", METRICS_PREFIX));
-    output.push_str(&format!("bot_trap_challenge_solved_total {}\n", challenge_solved));
+    output.push_str(&format!("bot_defence_challenge_solved_total {}\n", challenge_solved));
 
-    output.push_str("\n# TYPE bot_trap_challenge_incorrect_total counter\n");
+    output.push_str("\n# TYPE bot_defence_challenge_incorrect_total counter\n");
     let challenge_incorrect = get_counter(store, &format!("{}challenge_incorrect_total", METRICS_PREFIX));
-    output.push_str(&format!("bot_trap_challenge_incorrect_total {}\n", challenge_incorrect));
+    output.push_str(&format!("bot_defence_challenge_incorrect_total {}\n", challenge_incorrect));
 
-    output.push_str("\n# TYPE bot_trap_challenge_expired_replay_total counter\n");
+    output.push_str("\n# TYPE bot_defence_challenge_expired_replay_total counter\n");
     let challenge_expired_replay = get_counter(store, &format!("{}challenge_expired_replay_total", METRICS_PREFIX));
-    output.push_str(&format!("bot_trap_challenge_expired_replay_total {}\n", challenge_expired_replay));
+    output.push_str(&format!("bot_defence_challenge_expired_replay_total {}\n", challenge_expired_replay));
     
     // Whitelisted total
-    output.push_str("\n# TYPE bot_trap_whitelisted_total counter\n");
+    output.push_str("\n# TYPE bot_defence_whitelisted_total counter\n");
     let whitelisted = get_counter(store, &format!("{}whitelisted_total", METRICS_PREFIX));
-    output.push_str(&format!("bot_trap_whitelisted_total {}\n", whitelisted));
+    output.push_str(&format!("bot_defence_whitelisted_total {}\n", whitelisted));
     
     // Test mode actions
-    output.push_str("\n# TYPE bot_trap_test_mode_actions_total counter\n");
+    output.push_str("\n# TYPE bot_defence_test_mode_actions_total counter\n");
     let test_mode = get_counter(store, &format!("{}test_mode_actions_total", METRICS_PREFIX));
-    output.push_str(&format!("bot_trap_test_mode_actions_total {}\n", test_mode));
+    output.push_str(&format!("bot_defence_test_mode_actions_total {}\n", test_mode));
     
     // Maze hits
-    output.push_str("\n# TYPE bot_trap_maze_hits_total counter\n");
-    output.push_str("# HELP bot_trap_maze_hits_total Total hits on link maze honeypot pages\n");
+    output.push_str("\n# TYPE bot_defence_maze_hits_total counter\n");
+    output.push_str("# HELP bot_defence_maze_hits_total Total hits on link maze pages\n");
     let maze_hits = get_counter(store, &format!("{}maze_hits_total", METRICS_PREFIX));
-    output.push_str(&format!("bot_trap_maze_hits_total {}\n", maze_hits));
+    output.push_str(&format!("bot_defence_maze_hits_total {}\n", maze_hits));
     
     // Active bans (gauge)
-    output.push_str("\n# TYPE bot_trap_active_bans gauge\n");
-    output.push_str("# HELP bot_trap_active_bans Current number of active (non-expired) bans\n");
+    output.push_str("\n# TYPE bot_defence_active_bans gauge\n");
+    output.push_str("# HELP bot_defence_active_bans Current number of active (non-expired) bans\n");
     let active_bans = count_active_bans(store);
-    output.push_str(&format!("bot_trap_active_bans {}\n", active_bans));
+    output.push_str(&format!("bot_defence_active_bans {}\n", active_bans));
     
     // Test mode enabled (gauge, 0 or 1)
-    output.push_str("\n# TYPE bot_trap_test_mode_enabled gauge\n");
+    output.push_str("\n# TYPE bot_defence_test_mode_enabled gauge\n");
     let test_mode_enabled = crate::config::Config::load(store, "default")
         .map(|cfg| if cfg.test_mode { 1 } else { 0 })
         .unwrap_or(0);
-    output.push_str(&format!("bot_trap_test_mode_enabled {}\n", test_mode_enabled));
+    output.push_str(&format!("bot_defence_test_mode_enabled {}\n", test_mode_enabled));
     
     output
 }

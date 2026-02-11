@@ -1,5 +1,5 @@
 // src/geo.rs
-// Geo-based risk logic for WASM Bot Trap
+// Geo-based risk logic for WASM Bot Defence
 // Checks for high-risk geographies using edge-provided headers (e.g., X-Geo-Country)
 
 use spin_sdk::http::Request;

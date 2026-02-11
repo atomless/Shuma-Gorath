@@ -22,7 +22,7 @@ If `SHUMA_API_KEY` is missing, `/admin/*` endpoints are disabled. The insecure p
 
 ## 🐙 Public Endpoints
 
-- `GET /` - Main bot trap handler
+- `GET /` - Main bot defence handler
 - `GET /health` - Health check (loopback only)
 - `GET /metrics` - Prometheus metrics (no auth)
 - `GET /bot-trap` - Honeypot (triggers ban)

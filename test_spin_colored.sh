@@ -376,7 +376,7 @@ fi
 # Test 16: Prometheus metrics endpoint
 info "Testing GET /metrics (Prometheus format)..."
 metrics_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" "$BASE_URL/metrics")
-if echo "$metrics_resp" | grep -q 'bot_trap_requests_total'; then
+if echo "$metrics_resp" | grep -q 'bot_defence_requests_total'; then
   pass "/metrics returns Prometheus-formatted metrics"
 else
   fail "/metrics did not return expected Prometheus format"
@@ -384,7 +384,7 @@ else
 fi
 
 # Verify metrics contain expected counters
-if echo "$metrics_resp" | grep -q 'bot_trap_bans_total'; then
+if echo "$metrics_resp" | grep -q 'bot_defence_bans_total'; then
   pass "/metrics includes ban counters"
 else
   fail "/metrics missing ban counters"

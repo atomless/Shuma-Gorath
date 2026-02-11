@@ -73,10 +73,10 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	@pkill -x spin 2>/dev/null || true
 	@./scripts/set_crate_type.sh cdylib
 	@cargo build --target wasm32-wasip1 --release
-	@cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
+	@cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_defence.wasm
 	@./scripts/set_crate_type.sh rlib
-	@cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'src/bot_trap.wasm' -i '.spin/**' \
-		-s 'if [ ! -f target/wasm32-wasip1/release/shuma_gorath.wasm ] || find src -name "*.rs" -newer target/wasm32-wasip1/release/shuma_gorath.wasm -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
+	@cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'src/bot_defence.wasm' -i '.spin/**' \
+		-s 'if [ ! -f target/wasm32-wasip1/release/shuma_gorath.wasm ] || find src -name "*.rs" -newer target/wasm32-wasip1/release/shuma_gorath.wasm -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_defence.wasm && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
 		-s 'pkill -x spin 2>/dev/null || true; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_ENV_ONLY) $(SPIN_DEV_OVERRIDES) --listen 127.0.0.1:3000'
 
 dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=false (fail-closed)
@@ -88,10 +88,10 @@ dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=fal
 	@pkill -x spin 2>/dev/null || true
 	@./scripts/set_crate_type.sh cdylib
 	@cargo build --target wasm32-wasip1 --release
-	@cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
+	@cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_defence.wasm
 	@./scripts/set_crate_type.sh rlib
-	@cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'src/bot_trap.wasm' -i '.spin/**' \
-		-s 'if [ ! -f target/wasm32-wasip1/release/shuma_gorath.wasm ] || find src -name "*.rs" -newer target/wasm32-wasip1/release/shuma_gorath.wasm -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
+	@cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'src/bot_defence.wasm' -i '.spin/**' \
+		-s 'if [ ! -f target/wasm32-wasip1/release/shuma_gorath.wasm ] || find src -name "*.rs" -newer target/wasm32-wasip1/release/shuma_gorath.wasm -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_defence.wasm && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
 		-s 'pkill -x spin 2>/dev/null || true; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_ENV_ONLY) $(SPIN_DEV_OVERRIDES) --env SHUMA_KV_STORE_FAIL_OPEN=false --listen 127.0.0.1:3000'
 
 local: dev ## Alias for dev
@@ -102,7 +102,7 @@ run: ## Build once and run (no file watching)
 	@sleep 1
 	@./scripts/set_crate_type.sh cdylib
 	@cargo build --target wasm32-wasip1 --release
-	@cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
+	@cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_defence.wasm
 	@./scripts/set_crate_type.sh rlib
 	@echo "$(GREEN)✅ Build complete. Starting Spin...$(NC)"
 	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/dashboard/index.html$(NC)"
@@ -126,8 +126,8 @@ build: ## Build release binary only (no server start)
 	@echo "$(CYAN)🔨 Building release binary...$(NC)"
 	@./scripts/set_crate_type.sh cdylib
 	@cargo build --target wasm32-wasip1 --release
-	@cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_trap.wasm
-	@echo "$(GREEN)✅ Build complete: src/bot_trap.wasm$(NC)"
+	@cp target/wasm32-wasip1/release/shuma_gorath.wasm src/bot_defence.wasm
+	@echo "$(GREEN)✅ Build complete: src/bot_defence.wasm$(NC)"
 	@./scripts/set_crate_type.sh rlib
 
 prod: build ## Build for production and start server
@@ -329,7 +329,7 @@ deploy-env-validate: ## Fail deployment when unsafe debug/dev flags are enabled
 #--------------------------
 
 help: ## Show this help message
-	@echo "$(CYAN)WASM Bot Trap - Available Commands$(NC)"
+	@echo "$(CYAN)WASM Bot Defence - Available Commands$(NC)"
 	@echo ""
 	@echo "$(GREEN)First-time Setup:$(NC)"
 	@grep -E '^(setup|verify|config-seed):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-15s %s\n", $$1, $$2}'

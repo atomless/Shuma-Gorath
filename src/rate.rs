@@ -1,5 +1,5 @@
 // src/rate.rs
-// Rate limiting for WASM Bot Trap
+// Rate limiting for WASM Bot Defence
 
 use crate::ip;
 use crate::challenge::KeyValueStore;

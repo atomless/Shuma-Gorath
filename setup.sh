@@ -1,5 +1,5 @@
 #!/bin/bash
-# setup.sh - One-command setup for WASM Bot Trap development
+# setup.sh - One-command setup for WASM Bot Defence development
 #
 # Usage: ./setup.sh
 #
@@ -145,7 +145,7 @@ ensure_env_local_default_from_defaults() {
 
 echo -e "${CYAN}"
 echo "╔═══════════════════════════════════════════════════╗"
-echo "║     WASM Bot Trap - Development Setup             ║"
+echo "║     WASM Bot Defence - Development Setup             ║"
 echo "╚═══════════════════════════════════════════════════╝"
 echo -e "${NC}"
 info "If setup needs sudo (for example, to install Spin), run this in an interactive terminal so you can authorize prompts."

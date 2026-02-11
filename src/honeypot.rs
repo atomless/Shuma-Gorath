@@ -1,5 +1,5 @@
 // src/honeypot.rs
-// Honeypot URL logic for WASM Bot Trap
+// Honeypot URL logic for WASM Bot Defence
 
 pub fn is_honeypot(path: &str, honeypots: &[String]) -> bool {
     honeypots.iter().any(|h| h == path)

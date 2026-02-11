@@ -1,4 +1,4 @@
-# 🐙 Link Maze Honeypot
+# 🐙 Link Maze
 
 The link maze is a crawler trap that serves a recursive tree of synthetic pages. It is designed to capture bots that follow links aggressively or ignore robots policies.
 
@@ -22,7 +22,7 @@ These fields are part of the runtime config (`/admin/config`):
 
 ## 🐙 Metrics
 
-- `bot_trap_maze_hits_total` tracks total maze page hits
+- `bot_defence_maze_hits_total` tracks total maze page hits
 
 ## 🐙 Notes
 

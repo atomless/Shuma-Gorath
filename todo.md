@@ -1,6 +1,6 @@
 # TODO
 
-Single source of truth for active project work.
+This and the SECURITY_REVIEW.md are the single sources of truth for active project work.
 
 ## Security and Platform
 - [ ] Design strategy for syncing bans/unbans across global edge instances. (architecture, ops)

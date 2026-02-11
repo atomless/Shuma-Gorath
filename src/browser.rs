@@ -1,5 +1,5 @@
 // src/browser.rs
-// Outdated browser detection for WASM Bot Trap
+// Outdated browser detection for WASM Bot Defence
 
 pub fn is_outdated_browser(user_agent: &str, block_list: &[(String, u32)]) -> bool {
     for (name, min_version) in block_list {

@@ -64,7 +64,7 @@ pub fn generate_robots_txt(cfg: &Config) -> String {
     let mut lines: Vec<String> = Vec::new();
     
     // Header comment with Content-Signal
-    lines.push("# Bot Trap - Robots Exclusion Protocol".to_string());
+    lines.push("# Bot Defence - Robots Exclusion Protocol".to_string());
     lines.push(format!("# Generated dynamically - Policy: {}", get_policy_name(cfg)));
     lines.push("#".to_string());
     

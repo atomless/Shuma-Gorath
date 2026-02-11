@@ -15,7 +15,7 @@ pub fn is_path_whitelisted(path: &str, path_whitelist: &[String]) -> bool {
     false
 }
 // src/whitelist.rs
-// Whitelist logic for WASM Bot Trap
+// Whitelist logic for WASM Bot Defence
 // Supports single IPs, CIDR ranges, and inline comments (e.g., "192.168.1.0/24 # office")
 
 use ipnet::IpNet;

@@ -1,4 +1,4 @@
-# 🐙 Quick Reference - WASM Bot Trap
+# 🐙 Quick Reference - WASM Bot Defence
 
 For full documentation, see `docs/index.md`.
 
@@ -38,7 +38,7 @@ make test-integration      # In terminal 2
 ## 🐙 API Endpoints
 
 ### 🐙 Public Endpoints
-- `GET /` - Main bot trap (may show block page, JS challenge, or pass through)
+- `GET /` - Main bot defence (may show block page, JS challenge, or pass through)
 - `GET /health` - Health check (localhost only)
 - `GET /bot-trap` - Honeypot (triggers ban)
 - `GET /metrics` - Prometheus metrics
@@ -56,7 +56,7 @@ make test-integration      # In terminal 2
 - `GET /admin/events?hours=24` - Get recent events
 - `GET /admin/config` - Get current configuration
 - `POST /admin/config` - Update configuration (test_mode, ban_durations, robots, CDP, etc.)
-- `GET /admin/maze` - Link maze honeypot statistics
+- `GET /admin/maze` - Link maze statistics
 - `GET /admin/robots` - robots.txt configuration and preview
 - `GET /admin/cdp` - CDP detection configuration and stats
 - `GET /admin` - API help
@@ -66,7 +66,7 @@ make test-integration      # In terminal 2
 ### 🐙 API Key
 Set in `spin.toml` or environment:
 ```toml
-[component.bot-trap]
+[component.bot-defence]
 environment = { SHUMA_API_KEY = "your-secret-key-here", SHUMA_JS_SECRET = "your-js-secret-here", SHUMA_EVENT_LOG_RETENTION_HOURS = "168", SHUMA_ADMIN_IP_ALLOWLIST = "203.0.113.0/24,198.51.100.10" }
 ```
 
@@ -97,7 +97,7 @@ Example `spin.toml` wiring (no secret committed):
 [variables]
 forwarded_ip_secret = { default = "" }
 
-[component.bot-trap]
+[component.bot-defence]
 environment = { SHUMA_FORWARDED_IP_SECRET = "{{ forwarded_ip_secret }}" }
 ```
 

@@ -458,7 +458,7 @@ pub fn now_ts() -> u64 {
         .as_secs()
 }
 // src/admin.rs
-// Admin API endpoints for WASM Bot Trap
+// Admin API endpoints for WASM Bot Defence
 // Provides HTTP endpoints for ban management and analytics, protected by API key auth.
 
 use serde_json::json;
@@ -1538,10 +1538,10 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Trap Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/config, /admin/maze (GET for maze stats), /admin/robots (GET for robots.txt config & preview), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/config, /admin/maze (GET for maze stats), /admin/robots (GET for robots.txt config & preview), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
-            // Return maze honeypot statistics
+            // Return maze statistics
             // - Total unique IPs that have visited maze pages
             // - Per-IP hit counts (top crawlers)
             // - Total maze hits

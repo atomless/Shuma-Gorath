@@ -15,5 +15,5 @@ Use the Makefile as the official workflow. These docs are the source of truth fo
 - [`akamai-bot-manager.md`](akamai-bot-manager.md) - Positioning and layered defense
 - [`features.md`](features.md) - Feature list and roadmap
 - [`challenge-verification.md`](challenge-verification.md) - Human verification strategy
-- [`maze.md`](maze.md) - Link maze honeypot
+- [`maze.md`](maze.md) - Link maze crawler trap
 - [`../SECURITY_REVIEW.md`](../SECURITY_REVIEW.md) - Security audit notes

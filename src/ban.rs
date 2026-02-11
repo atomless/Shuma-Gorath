@@ -1,5 +1,5 @@
 // src/ban.rs
-// Ban list management for WASM Bot Trap
+// Ban list management for WASM Bot Defence
 // Handles persistent IP bans, expiry, and ban reasons using the Spin key-value store.
 
 use crate::challenge::KeyValueStore;
