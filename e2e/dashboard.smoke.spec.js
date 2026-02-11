@@ -106,3 +106,9 @@ test("dashboard tables keep sticky headers", async ({ page }) => {
   expect(cdpHeaderPosition).toBe("sticky");
   expect(bansHeaderPosition).toBe("sticky");
 });
+
+test("logout redirects back to login page", async ({ page }) => {
+  await openDashboard(page);
+  await page.click("#logout-btn");
+  await expect(page).toHaveURL(/\/dashboard\/login\.html\?next=/);
+});

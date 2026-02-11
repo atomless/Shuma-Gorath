@@ -2635,6 +2635,7 @@ document.getElementById('logout-btn').onclick = async function() {
   msg.className = 'message success';
   this.textContent = 'Logout';
   refreshCoreActionButtonsState();
+  redirectToLogin();
 };
 
 // Main refresh function
