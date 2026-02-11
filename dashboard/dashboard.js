@@ -54,9 +54,9 @@ const INTEGER_FIELD_RULES = {
   'rate-limit-threshold': { min: 1, max: 1000000, fallback: 80, label: 'Rate limit' },
   'pow-difficulty': { min: 12, max: 20, fallback: 15, label: 'PoW difficulty' },
   'pow-ttl': { min: 30, max: 300, fallback: 90, label: 'PoW seed TTL' },
-  'dur-honeypot-days': { min: 0, max: 365, fallback: 1, label: 'Link Maze Threshold Exceeded days' },
-  'dur-honeypot-hours': { min: 0, max: 23, fallback: 0, label: 'Link Maze Threshold Exceeded hours' },
-  'dur-honeypot-minutes': { min: 0, max: 59, fallback: 0, label: 'Link Maze Threshold Exceeded minutes' },
+  'dur-honeypot-days': { min: 0, max: 365, fallback: 1, label: 'Maze Threshold Exceeded days' },
+  'dur-honeypot-hours': { min: 0, max: 23, fallback: 0, label: 'Maze Threshold Exceeded hours' },
+  'dur-honeypot-minutes': { min: 0, max: 59, fallback: 0, label: 'Maze Threshold Exceeded minutes' },
   'dur-rate-limit-days': { min: 0, max: 365, fallback: 0, label: 'Rate Limit Exceeded days' },
   'dur-rate-limit-hours': { min: 0, max: 23, fallback: 1, label: 'Rate Limit Exceeded hours' },
   'dur-rate-limit-minutes': { min: 0, max: 59, fallback: 0, label: 'Rate Limit Exceeded minutes' },
@@ -78,7 +78,7 @@ const BAN_DURATION_BOUNDS_SECONDS = { min: 60, max: 31536000 };
 
 const BAN_DURATION_FIELDS = {
   honeypot: {
-    label: 'Link Maze Threshold Exceeded duration',
+    label: 'Maze Threshold Exceeded duration',
     fallback: 86400,
     daysId: 'dur-honeypot-days',
     hoursId: 'dur-honeypot-hours',
@@ -725,7 +725,7 @@ function updateConfigModeUi(config) {
   if (subtitle) {
     if (writeEnabled) {
       subtitle.innerHTML =
-        `Admin page configuration enabled. Set ${envVar('SHUMA_ADMIN_CONFIG_WRITE_ENABLED')} to <strong>false</strong> to disable.`;
+        `Admin page configuration enabled. Saved changes persist across builds. Set ${envVar('SHUMA_ADMIN_CONFIG_WRITE_ENABLED')} to <strong>false</strong> to disable.`;
     } else {
       subtitle.innerHTML =
         `Admin page configuration disabled. Set ${envVar('SHUMA_ADMIN_CONFIG_WRITE_ENABLED')} to <strong>true</strong> to enable.`;
@@ -795,9 +795,9 @@ const STATUS_DEFINITIONS = [
     status: state => boolStatus(state.cdpEnabled)
   },
   {
-    title: 'Link Maze',
+    title: 'Maze',
     description: () => (
-      `Link Maze routes suspicious traffic into trap pages when ${envVar('SHUMA_MAZE_ENABLED')} is enabled. ` +
+      `Maze routes suspicious traffic into trap pages when ${envVar('SHUMA_MAZE_ENABLED')} is enabled. ` +
       `If ${envVar('SHUMA_MAZE_AUTO_BAN')} is enabled, automatic bans trigger when maze hits exceed ${envVar('SHUMA_MAZE_AUTO_BAN_THRESHOLD')}.`
     ),
     status: state => boolStatus(state.mazeEnabled)

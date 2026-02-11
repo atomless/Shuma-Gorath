@@ -123,7 +123,7 @@
 
     <!-- Maze Activity Section -->
     <div class="section maze-section panel panel-border pad-md">
-      <h2>Link Maze</h2>
+      <h2>Maze</h2>
       <p class="section-desc text-muted">Crawlers trapped in infinite fake pages</p>
       <div class="maze-stats">
         <div class="maze-stat panel panel-border pad-md">
@@ -268,13 +268,13 @@
               <button id="save-rate-limit-config" class="btn btn-submit" disabled>Save Rate Limit</button>
             </div>
             <div class="control-group panel-soft pad-md config-edit-pane hidden">
-              <h3>Link Maze</h3>
+              <h3>Maze</h3>
               <p class="control-desc text-muted">Control trap-page routing and optional auto-ban. Lower thresholds ban faster but may increase false positives.</p>
               <div class="admin-controls">
                 <div class="toggle-row">
                   <label class="control-label" for="maze-enabled-toggle">Maze Enabled</label>
                   <label class="toggle-switch">
-                    <input type="checkbox" id="maze-enabled-toggle" checked aria-label="Enable link maze">
+                    <input type="checkbox" id="maze-enabled-toggle" checked aria-label="Enable maze">
                     <span class="toggle-slider"></span>
                   </label>
                 </div>
@@ -363,7 +363,7 @@
               <p class="control-desc text-muted">Set ban length in days, hours, and minutes per trigger type. Longer bans increase deterrence but slow recovery from false positives.</p>
               <div class="duration-grid">
                 <div class="duration-row">
-                  <label class="control-label" for="dur-honeypot-days">Link Maze Threshold Exceeded</label>
+                  <label class="control-label" for="dur-honeypot-days">Maze Threshold Exceeded</label>
                   <div class="duration-inputs">
                     <label class="duration-input" for="dur-honeypot-days">
                       <input id="dur-honeypot-days" class="input-field" type="number" min="0" max="365" step="1" inputmode="numeric" value="1" />

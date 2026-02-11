@@ -1,12 +1,12 @@
 // src/maze.rs
-// Link Maze - Traps web crawlers in infinite loops
+// Maze - Traps web crawlers in infinite loops
 // Generates deterministic fake pages with links that lead to more fake pages
 
 use spin_sdk::http;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-/// Configuration for the link maze
+/// Configuration for the maze
 pub struct MazeConfig {
     pub min_links: usize,
     pub max_links: usize,

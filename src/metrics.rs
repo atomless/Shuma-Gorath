@@ -175,7 +175,7 @@ pub fn render_metrics(store: &Store) -> String {
     
     // Maze hits
     output.push_str("\n# TYPE bot_defence_maze_hits_total counter\n");
-    output.push_str("# HELP bot_defence_maze_hits_total Total hits on link maze pages\n");
+    output.push_str("# HELP bot_defence_maze_hits_total Total hits on maze pages\n");
     let maze_hits = get_counter(store, &format!("{}maze_hits_total", METRICS_PREFIX));
     output.push_str(&format!("bot_defence_maze_hits_total {}\n", maze_hits));
     

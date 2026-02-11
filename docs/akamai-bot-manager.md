@@ -56,7 +56,7 @@ Shuma-Gorath is designed to **augment** enterprise bot defenses with application
 - App-specific honeypots and trap paths
 - Custom business-logic rules in Rust
 - Lightweight, auditable detection logic
-- Custom challenges (JS, CDP signals, link maze)
+- Custom challenges (JS, CDP signals, maze)
 - Fast iteration on new attack patterns
 
 Shuma-Gorath **can run standalone**, but for high-risk or enterprise workloads, a layered approach with a managed bot service is strongly recommended.

@@ -42,7 +42,7 @@ Controls:
 - GEO policy controls:
 - risk scoring countries (`geo_risk`)
 - tiered routing countries (`geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`)
-- Link maze stats
+- maze stats
 - Enter key submits inputs (API key, ban, unban)
 - Auto-refresh every 30 seconds
 
