@@ -153,6 +153,22 @@ This is the active work queue.
 - [x] H3.3/H3.4 slice completed: regrouped signal modules under `src/signals/` and enforcement modules under `src/enforcement/`, then added crate-level compatibility re-exports in `src/lib.rs` to keep call sites stable during the move.
 - [x] H3.5 slice completed: migrated remaining call sites to `src/signals/*` and `src/enforcement/*` paths and removed temporary compatibility re-exports from `src/lib.rs`.
 
+### H3.6 Composable Defence + Signal Foundation (internal-first)
+- [ ] Define and document the defence taxonomy with an explicit inventory of `signal`, `barrier`, and `hybrid` modules (for example `rate` as hybrid); include ownership and dependency direction.
+- [ ] Introduce a canonical per-request signal contract (for example `BotSignal` + `SignalAccumulator`) that every signal/hybrid module writes to.
+- [ ] Add explicit signal availability semantics (`active`, `disabled`, `unavailable`) so botness logic never treats missing modules as silent zero.
+- [ ] Split hybrid modules into distinct paths:
+  rate telemetry signal contribution for scoring,
+  hard rate-limit enforcement barrier for immediate protection.
+- [ ] Add composability modes for eligible modules (`off`, `signal`, `enforce`, `both`) while keeping safety-critical controls non-disableable.
+- [ ] Define clear behavior for each mode in config/admin surfaces and runtime flow (including invalid combinations and defaults).
+- [ ] Refactor botness scoring to consume normalized accumulator output rather than direct module internals.
+- [ ] Preserve existing behavior as default mode mapping (no behavior change when operators do not opt in to new modes).
+- [ ] Add unit and integration regression tests for mode matrix behavior and ordering invariants (especially hybrid modules and early-route interactions).
+- [ ] Add observability for mode and signal-state visibility (metrics/log fields indicating enabled/disabled/unavailable contributors).
+- [ ] Update docs (`configuration`, `features`, `observability`, `module-boundaries`) to explain composability semantics and tuning implications.
+- [ ] Keep implementations internal-only for now; defer external provider registry/factory work until signal contract and mode semantics stabilize.
+
 ### H4 Pluggable provider architecture (internal by default, external-capable)
 - [ ] Define provider traits for swappable capabilities:
   rate limiting,
