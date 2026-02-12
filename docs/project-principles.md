@@ -75,6 +75,7 @@ Shuma-Gorath exists to provide layered, practical bot defense that teams can dep
 ### P8. Modularity and Extensibility
 
 - MUST keep clear module boundaries and dependency direction.
+- MUST route changes that touch provider-managed capabilities through provider interfaces/registry seams instead of new direct orchestration-path module calls.
 - MUST make defense modules composable with explicit mode behavior (`off`, `signal`, `enforce`, `both`) where the capability supports partial operation.
 - MUST ensure disabled/unavailable modules are represented explicitly in botness/signal flows (no silent zeroing).
 - MUST treat cross-cutting architectural choices as ADRs.

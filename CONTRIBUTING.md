@@ -21,6 +21,7 @@
 4. Note security and operational implications.
 5. Consider human-visitor friction impact (challenge frequency, latency, UX impact).
 6. Consider resource efficiency and cost-placement impact (bandwidth/CPU/memory/energy, and whether cost is shifted toward malicious bots).
+7. If a change touches any provider capability boundary (`rate_limiter`, `ban_store`, `challenge_engine`, `maze_tarpit`, `fingerprint_signal`), implement it through the provider interface/registry flow instead of introducing direct module calls on the hot path.
 
 ## Commit and Push Discipline
 

@@ -184,6 +184,7 @@ This is the active work queue.
 - [x] H3.6.11 slice completed: kept implementation internal-only (no provider registry/factory introduced) and explicitly deferred external-provider wiring to H4.
 
 ### H4 Pluggable provider architecture (internal by default, external-capable)
+Implementation rule: when internal feature work touches provider-managed capabilities, route changes through provider interfaces and registry paths (no new direct orchestration-path module calls).
 - [x] Define provider traits for swappable capabilities:
   rate limiting,
   ban store/sync,

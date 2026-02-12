@@ -74,6 +74,7 @@ They are larger, multi-step flows with dedicated adapters/contracts and are like
 - Keep `src/lib.rs` focused on orchestration and call domains via boundary adapters.
 - Add new cross-domain behavior by extending a boundary contract first.
 - Avoid adding direct `crate::<domain>` calls in `src/lib.rs` when a boundary exists.
+- When internal feature work touches a provider-managed capability, route behavior through `src/providers/contracts.rs` and `src/providers/registry.rs` rather than adding direct module calls in orchestration paths.
 - Keep boundary contracts behavior-focused and minimal to reduce split risk.
 
 ## Provider Contracts (H4.1)
@@ -98,6 +99,10 @@ Backends currently supported at config/selection level:
 
 - `internal` (default)
 - `external` (selection placeholder; adapter wiring lands in later H4 slices)
+
+Implementation discipline for H4 coherence:
+
+- Internal feature work that changes behavior in any provider-managed capability MUST be implemented through the provider interface path (contract + registry + provider implementation), even when backend selection remains `internal`.
 
 ## File Naming Convention
 

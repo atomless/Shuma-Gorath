@@ -21,6 +21,7 @@
 - [ ] Resource impact reviewed (bandwidth/CPU/memory/energy).
 - [ ] Monitoring impact reviewed (metrics/logging/alerts visibility).
 - [ ] Platform-agnostic/module-boundary impact reviewed.
+- [ ] If provider-managed capabilities changed, implementation uses provider interface/registry seams (no new direct orchestration-path module calls).
 - [ ] ADR added or updated if architecture/cross-cutting decision changed (`docs/adr/`).
 - [ ] Rollback considerations documented for risky changes.
 - [ ] CI status checked (or explicitly noted as pending).

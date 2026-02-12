@@ -51,6 +51,7 @@ This file provides instructions for coding agents working in this repository.
 ## Architecture and boundaries
 
 - Respect module boundaries documented in `docs/module-boundaries.md`.
+- If internal feature work touches a capability covered by `src/providers/contracts.rs`, route the change through the provider interface and registry path rather than adding new direct module calls.
 - Use ADRs (`docs/adr/0000-template.md`) for cross-cutting architecture/security/ops decisions.
 - Keep compatibility shims temporary and remove when migrations complete.
 - Use descriptive Rust module/file naming: prefer clear, responsibility-revealing `snake_case` names (for example `request_validation.rs`, `browser_user_agent.rs`) over vague names.
