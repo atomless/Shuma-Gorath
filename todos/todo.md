@@ -154,7 +154,7 @@ This is the active work queue.
 - [x] H3.5 slice completed: migrated remaining call sites to `src/signals/*` and `src/enforcement/*` paths and removed temporary compatibility re-exports from `src/lib.rs`.
 
 ### H3.6 Composable Defence + Signal Foundation (internal-first)
-- [ ] Define and document the defence taxonomy with an explicit inventory of `signal`, `barrier`, and `hybrid` modules (for example `rate` as hybrid); include ownership and dependency direction.
+- [x] Define and document the defence taxonomy with an explicit inventory of `signal`, `barrier`, and `hybrid` modules (for example `rate` as hybrid); include ownership and dependency direction. (`docs/module-boundaries.md`, Defence Taxonomy section)
 - [ ] Introduce a canonical per-request signal contract (for example `BotSignal` + `SignalAccumulator`) that every signal/hybrid module writes to.
 - [ ] Add explicit signal availability semantics (`active`, `disabled`, `unavailable`) so botness logic never treats missing modules as silent zero.
 - [ ] Split hybrid modules into distinct paths:
@@ -168,6 +168,7 @@ This is the active work queue.
 - [ ] Add observability for mode and signal-state visibility (metrics/log fields indicating enabled/disabled/unavailable contributors).
 - [ ] Update docs (`configuration`, `features`, `observability`, `module-boundaries`) to explain composability semantics and tuning implications.
 - [ ] Keep implementations internal-only for now; defer external provider registry/factory work until signal contract and mode semantics stabilize.
+- [x] H3.6.1 slice completed: added explicit defence taxonomy + inventory (`signal`, `barrier`, `hybrid`) with ownership and dependency direction in `docs/module-boundaries.md`.
 
 ### H4 Pluggable provider architecture (internal by default, external-capable)
 - [ ] Define provider traits for swappable capabilities:
