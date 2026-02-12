@@ -8,7 +8,7 @@ mod test_support;
 // Entry point for the WASM Stealth Bot Defence Spin app
 
 use crate::enforcement::{ban, block_page};
-use crate::signals::{browser_user_agent as browser, cdp, geo, js_verification as js, whitelist};
+use crate::signals::{browser_user_agent as browser, geo, js_verification as js, whitelist};
 use serde::Serialize;
 use spin_sdk::http::{Request, Response};
 use spin_sdk::http_component;
@@ -524,14 +524,6 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         return response;
     }
 
-    // CDP Report endpoint - receives automation detection reports from client-side JS
-    if path == "/cdp-report" && *req.method() == spin_sdk::http::Method::Post {
-        if let Ok(store) = Store::open_default() {
-            return cdp::handle_cdp_report(&store, req);
-        }
-        return Response::new(500, "Key-value store error");
-    }
-
     let site_id = "default";
     let ip = extract_client_ip(req);
     let ua = req
@@ -549,15 +541,31 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         Ok(cfg) => cfg,
         Err(resp) => return resp,
     };
-    let _provider_registry = providers::registry::ProviderRegistry::from_config(&cfg);
+    let provider_registry = providers::registry::ProviderRegistry::from_config(&cfg);
     let geo_assessment = assess_geo_request(req, &cfg);
 
+    // CDP Report endpoint - receives automation detection reports from client-side JS
+    if path == provider_registry.fingerprint_signal_provider().report_path()
+        && *req.method() == spin_sdk::http::Method::Post
+    {
+        return provider_registry
+            .fingerprint_signal_provider()
+            .handle_report(store, req);
+    }
+
     // Maze - trap crawlers in infinite loops (only if enabled)
-    if boundaries::is_maze_path(path) {
+    if provider_registry.maze_tarpit_provider().is_maze_path(path) {
         if !cfg.maze_enabled {
             return Response::new(404, "Not Found");
         }
-        return serve_maze_with_tracking(store, &cfg, &ip, path, "maze_trap", "maze_page_served");
+        return provider_registry.maze_tarpit_provider().serve_maze_with_tracking(
+            store,
+            &cfg,
+            &ip,
+            path,
+            "maze_trap",
+            "maze_page_served",
+        );
     }
 
     // Increment request counter
@@ -600,15 +608,28 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
     ) {
         return response;
     }
+    if let Some(response) = runtime::policy_pipeline::maybe_handle_honeypot(
+        store,
+        &cfg,
+        &provider_registry,
+        site_id,
+        &ip,
+        path,
+    ) {
+        return response;
+    }
+    if let Some(response) = runtime::policy_pipeline::maybe_handle_rate_limit(
+        store,
+        &cfg,
+        &provider_registry,
+        site_id,
+        &ip,
+    ) {
+        return response;
+    }
     if let Some(response) =
-        runtime::policy_pipeline::maybe_handle_honeypot(store, &cfg, site_id, &ip, path)
+        runtime::policy_pipeline::maybe_handle_existing_ban(store, &provider_registry, site_id, &ip)
     {
-        return response;
-    }
-    if let Some(response) = runtime::policy_pipeline::maybe_handle_rate_limit(store, &cfg, site_id, &ip) {
-        return response;
-    }
-    if let Some(response) = runtime::policy_pipeline::maybe_handle_existing_ban(store, site_id, &ip) {
         return response;
     }
     // PoW endpoints (public, before JS verification)
@@ -616,7 +637,7 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         if *req.method() != spin_sdk::http::Method::Get {
             return Response::new(405, "Method Not Allowed");
         }
-        return challenge::pow::handle_pow_challenge(
+        return provider_registry.challenge_engine_provider().handle_pow_challenge(
             &ip,
             cfg.pow_enabled,
             cfg.pow_difficulty,
@@ -624,11 +645,13 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         );
     }
     if path == "/pow/verify" {
-        return challenge::pow::handle_pow_verify(req, &ip, cfg.pow_enabled);
+        return provider_registry
+            .challenge_engine_provider()
+            .handle_pow_verify(req, &ip, cfg.pow_enabled);
     }
     // Outdated browser
     if browser::is_outdated_browser(ua, &cfg.browser_block) {
-        ban::ban_ip_with_fingerprint(
+        provider_registry.ban_store_provider().ban_ip_with_fingerprint(
             store,
             site_id,
             &ip,
@@ -664,7 +687,14 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         );
     }
     if let Some(response) =
-        runtime::policy_pipeline::maybe_handle_geo_policy(req, store, &cfg, &ip, &geo_assessment)
+        runtime::policy_pipeline::maybe_handle_geo_policy(
+            req,
+            store,
+            &cfg,
+            &provider_registry,
+            &ip,
+            &geo_assessment,
+        )
     {
         return response;
     }
@@ -676,6 +706,7 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         req,
         store,
         &cfg,
+        &provider_registry,
         site_id,
         &ip,
         needs_js,

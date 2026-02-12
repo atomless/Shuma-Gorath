@@ -191,13 +191,14 @@ This is the active work queue.
   maze/tarpit serving,
   fingerprint signal source.
 - [x] Add a provider registry/factory that selects implementations from config (compile-time/runtime config, no behavior change by default).
-- [ ] Implement `Internal*` providers matching current behavior as the default path.
+- [x] Implement `Internal*` providers matching current behavior as the default path.
 - [ ] Add explicit `External*` adapter stubs/contracts (for example Redis limiter, upstream fingerprint feed) with clear unsupported-path handling.
 - [ ] Add contract tests that every provider implementation must pass to guarantee semantic parity.
 - [ ] Add observability tags/metrics identifying active provider implementation per capability.
 - [ ] Document provider selection, rollout, and rollback procedures in deployment docs.
 - [x] H4.1 slice completed: formalized provider capability contracts in `src/providers/contracts.rs` (`RateLimiterProvider`, `BanStoreProvider`, `ChallengeEngineProvider`, `MazeTarpitProvider`, `FingerprintSignalProvider`) with stable enum labels and default-behavior regression tests.
 - [x] H4.2 slice completed: added config-backed provider backend selection (`provider_backends` + `SHUMA_PROVIDER_*` defaults), plus `src/providers/registry.rs` factory/registry mapping (`internal`/`external`) with default internal selection and no behavior change to request handling paths.
+- [x] H4.3 slice completed: implemented `Internal*` provider adapters in `src/providers/internal.rs` and routed core request/policy flow through registry-selected provider interfaces in `src/lib.rs` and `src/runtime/policy_pipeline.rs` (default behavior preserved under `internal` backends).
 
 ### H5 Execution and rollout discipline
 - [ ] Execute this hardening work as small, test-backed slices (one boundary family at a time) to avoid broad regressions.

@@ -4,6 +4,7 @@ use spin_sdk::key_value::Store;
 pub(crate) fn maybe_handle_honeypot(
     store: &Store,
     cfg: &crate::config::Config,
+    provider_registry: &crate::providers::registry::ProviderRegistry,
     site_id: &str,
     ip: &str,
     path: &str,
@@ -12,7 +13,7 @@ pub(crate) fn maybe_handle_honeypot(
         return None;
     }
 
-    crate::enforcement::ban::ban_ip_with_fingerprint(
+    provider_registry.ban_store_provider().ban_ip_with_fingerprint(
         store,
         site_id,
         ip,
@@ -50,6 +51,7 @@ pub(crate) fn maybe_handle_honeypot(
 pub(crate) fn maybe_handle_rate_limit(
     store: &Store,
     cfg: &crate::config::Config,
+    provider_registry: &crate::providers::registry::ProviderRegistry,
     site_id: &str,
     ip: &str,
 ) -> Option<Response> {
@@ -57,11 +59,15 @@ pub(crate) fn maybe_handle_rate_limit(
         return None;
     }
 
-    if crate::enforcement::rate::check_rate_limit(store, site_id, ip, cfg.rate_limit) {
+    if provider_registry
+        .rate_limiter_provider()
+        .check_rate_limit(store, site_id, ip, cfg.rate_limit)
+        == crate::providers::contracts::RateLimitDecision::Allowed
+    {
         return None;
     }
 
-    crate::enforcement::ban::ban_ip_with_fingerprint(
+    provider_registry.ban_store_provider().ban_ip_with_fingerprint(
         store,
         site_id,
         ip,
@@ -98,10 +104,14 @@ pub(crate) fn maybe_handle_rate_limit(
 
 pub(crate) fn maybe_handle_existing_ban(
     store: &Store,
+    provider_registry: &crate::providers::registry::ProviderRegistry,
     site_id: &str,
     ip: &str,
 ) -> Option<Response> {
-    if !crate::enforcement::ban::is_banned(store, site_id, ip) {
+    if !provider_registry
+        .ban_store_provider()
+        .is_banned(store, site_id, ip)
+    {
         return None;
     }
 
@@ -127,6 +137,7 @@ pub(crate) fn maybe_handle_geo_policy(
     req: &Request,
     store: &Store,
     cfg: &crate::config::Config,
+    provider_registry: &crate::providers::registry::ProviderRegistry,
     ip: &str,
     geo_assessment: &crate::GeoAssessment,
 ) -> Option<Response> {
@@ -158,7 +169,7 @@ pub(crate) fn maybe_handle_geo_policy(
         }
         crate::signals::geo::GeoPolicyRoute::Maze => {
             if cfg.maze_enabled {
-                return Some(crate::serve_maze_with_tracking(
+                return Some(provider_registry.maze_tarpit_provider().serve_maze_with_tracking(
                     store,
                     cfg,
                     ip,
@@ -187,7 +198,7 @@ pub(crate) fn maybe_handle_geo_policy(
                     admin: None,
                 },
             );
-            Some(crate::boundaries::render_challenge(
+            Some(provider_registry.challenge_engine_provider().render_challenge(
                 req,
                 cfg.challenge_transform_count as usize,
             ))
@@ -213,7 +224,7 @@ pub(crate) fn maybe_handle_geo_policy(
                     admin: None,
                 },
             );
-            Some(crate::boundaries::render_challenge(
+            Some(provider_registry.challenge_engine_provider().render_challenge(
                 req,
                 cfg.challenge_transform_count as usize,
             ))
@@ -249,6 +260,7 @@ pub(crate) fn maybe_handle_botness(
     req: &Request,
     store: &Store,
     cfg: &crate::config::Config,
+    provider_registry: &crate::providers::registry::ProviderRegistry,
     site_id: &str,
     ip: &str,
     needs_js: bool,
@@ -256,7 +268,9 @@ pub(crate) fn maybe_handle_botness(
 ) -> Option<Response> {
     let geo_risk = geo_assessment.scored_risk;
     let geo_signal_available = geo_assessment.headers_trusted && geo_assessment.country.is_some();
-    let rate_usage = crate::signals::rate_pressure::current_rate_usage(store, site_id, ip);
+    let rate_usage = provider_registry
+        .rate_limiter_provider()
+        .current_rate_usage(store, site_id, ip);
     let botness = crate::compute_botness_assessment(
         crate::BotnessSignalContext {
             js_needed: needs_js,
@@ -273,7 +287,7 @@ pub(crate) fn maybe_handle_botness(
     let mode_summary = crate::defence_modes_effective_summary(cfg);
 
     if cfg.maze_enabled && botness.score >= cfg.botness_maze_threshold {
-        return Some(crate::serve_maze_with_tracking(
+        return Some(provider_registry.maze_tarpit_provider().serve_maze_with_tracking(
             store,
             cfg,
             ip,
@@ -307,7 +321,7 @@ pub(crate) fn maybe_handle_botness(
                 admin: None,
             },
         );
-        return Some(crate::boundaries::render_challenge(
+        return Some(provider_registry.challenge_engine_provider().render_challenge(
             req,
             cfg.challenge_transform_count as usize,
         ));

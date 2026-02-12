@@ -1,4 +1,9 @@
 use crate::config::{Config, ProviderBackend, ProviderBackends};
+use crate::providers::contracts::{
+    BanStoreProvider, ChallengeEngineProvider, FingerprintSignalProvider, MazeTarpitProvider,
+    RateLimiterProvider,
+};
+use crate::providers::internal;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ProviderCapability {
@@ -59,6 +64,36 @@ impl ProviderRegistry {
 
     pub fn selections(&self) -> &ProviderBackends {
         &self.selections
+    }
+
+    pub fn rate_limiter_provider(&self) -> &'static dyn RateLimiterProvider {
+        match self.backend_for(ProviderCapability::RateLimiter) {
+            ProviderBackend::Internal | ProviderBackend::External => &internal::RATE_LIMITER,
+        }
+    }
+
+    pub fn ban_store_provider(&self) -> &'static dyn BanStoreProvider {
+        match self.backend_for(ProviderCapability::BanStore) {
+            ProviderBackend::Internal | ProviderBackend::External => &internal::BAN_STORE,
+        }
+    }
+
+    pub fn challenge_engine_provider(&self) -> &'static dyn ChallengeEngineProvider {
+        match self.backend_for(ProviderCapability::ChallengeEngine) {
+            ProviderBackend::Internal | ProviderBackend::External => &internal::CHALLENGE_ENGINE,
+        }
+    }
+
+    pub fn maze_tarpit_provider(&self) -> &'static dyn MazeTarpitProvider {
+        match self.backend_for(ProviderCapability::MazeTarpit) {
+            ProviderBackend::Internal | ProviderBackend::External => &internal::MAZE_TARPIT,
+        }
+    }
+
+    pub fn fingerprint_signal_provider(&self) -> &'static dyn FingerprintSignalProvider {
+        match self.backend_for(ProviderCapability::FingerprintSignal) {
+            ProviderBackend::Internal | ProviderBackend::External => &internal::FINGERPRINT_SIGNAL,
+        }
     }
 }
 
