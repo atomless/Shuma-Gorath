@@ -332,9 +332,9 @@ Problem: Admin calls fail with 401/403
 - Confirm `SHUMA_API_KEY` is correct
 - If `SHUMA_ADMIN_IP_ALLOWLIST` is set, ensure your IP is included
 
-Problem: Integration tests were skipped
+Problem: `make test` failed preflight (server not running)
 - Start the server with `make dev`
-- Re-run with `make test-integration`
+- Re-run with `make test`
 
 Problem: Unsure what IP the bot defence detected
 - Query the ban list:

@@ -24,16 +24,20 @@ make clean          # Clean build artifacts
 ### 🐙 Testing
 ```bash
 # All tests (recommended)
-make test                  # Run unit tests + integration if server running
+make test                  # Full suite: unit + integration + dashboard e2e (requires running server)
 
 # Unit tests only (native Rust, NO Spin required)
 make test-unit             # Run all unit tests
 
-# Integration tests only (16 scenarios, Spin environment required)
+# Integration tests only (Spin environment required)
 make dev                   # In terminal 1
 make test-integration      # In terminal 2
+
+# Dashboard e2e smoke tests only (Spin environment required)
+make dev                   # In terminal 1
+make test-dashboard-e2e    # In terminal 2
 ```
-**Important:** Unit tests run in native Rust. Integration tests MUST run in Spin environment.
+**Important:** Unit tests run in native Rust. Integration and dashboard e2e tests MUST run against a running Spin server.
 
 ## 🐙 API Endpoints
 
@@ -126,13 +130,10 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
   http://127.0.0.1:3000/admin/config
 ```
 
-**Via environment (requires restart):**
-```toml
-environment = { SHUMA_TEST_MODE = "1" }
-```
+Test mode is a KV-backed runtime tunable; use dashboard or `POST /admin/config` to change it.
 
 ### 🐙 Default Config
-Located in `src/config.rs`:
+Defaults are defined in `config/defaults.env` and seeded into KV:
 - **Ban duration**: 21600 seconds (6 hours)
 - **Rate limit**: 80 requests/minute
 - **Honeypots**: `/instaban`
@@ -144,14 +145,14 @@ Full configuration reference: `docs/configuration.md`.
 
 1. Open `http://127.0.0.1:3000/dashboard/index.html` in browser
 2. Enter API endpoint: `http://127.0.0.1:3000`
-3. Enter API key (default: `changeme-dev-only-api-key`)
+3. Enter API key from `make api-key-show` (local dev) or deployed `SHUMA_API_KEY`
 4. View analytics and manage bans
 
 ## 🐙 Common Tasks
 
 ### 🐙 Ban an IP manually
 ```bash
-curl -X POST -H "Authorization: Bearer changeme-dev-only-api-key" \
+curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"ip":"1.2.3.4","reason":"spam","duration":3600}' \
   http://127.0.0.1:3000/admin/ban
@@ -159,13 +160,13 @@ curl -X POST -H "Authorization: Bearer changeme-dev-only-api-key" \
 
 ### 🐙 Unban an IP
 ```bash
-curl -X POST -H "Authorization: Bearer changeme-dev-only-api-key" \
+curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
   "http://127.0.0.1:3000/admin/unban?ip=1.2.3.4"
 ```
 
 ### 🐙 View recent events
 ```bash
-curl -H "Authorization: Bearer changeme-dev-only-api-key" \
+curl -H "Authorization: Bearer $SHUMA_API_KEY" \
   "http://127.0.0.1:3000/admin/events?hours=24" | jq
 ```
 
@@ -188,8 +189,8 @@ curl -H "X-Forwarded-For: 1.2.3.4" \
 - Use `make stop` then `make dev`
 
 ### 🐙 Tests Failing
-- Use Makefile targets (`make test`, `make test-unit`, `make test-integration`)
-- Integration tests require Spin to be running (`make dev`)
+- Use Makefile targets (`make test`, `make test-unit`, `make test-integration`, `make test-dashboard-e2e`)
+- `make test` requires Spin to be running (`make dev`) so integration and dashboard e2e can execute
 - Check logs with `make logs`
 
 ### 🐙 Dashboard Not Loading
@@ -200,23 +201,19 @@ curl -H "X-Forwarded-For: 1.2.3.4" \
 ## 🐙 Project Structure
 ```
 src/
-├── lib.rs          # Main handler
-├── admin.rs        # Admin API
-├── auth.rs         # Authentication
-├── ban.rs          # Ban management
-├── block_page.rs   # Block page HTML
-├── browser.rs      # Browser detection
-├── config.rs       # Configuration
-├── geo.rs          # Geo detection
-├── honeypot.rs     # Honeypot logic
-├── js.rs           # JS challenge
-├── challenge.rs    # Math challenge (disabled)
-├── rate.rs         # Rate limiting
-├── whitelist.rs    # Whitelisting
-└── *_tests.rs      # Unit tests
+├── lib.rs                 # Main orchestration entrypoint
+├── admin/                 # Admin API + auth/session flow
+├── challenge/             # Puzzle + challenge flows
+├── config/                # Runtime config loading/defaults
+├── enforcement/           # Ban/block/rate/honeypot actions
+├── maze/                  # Maze barrier logic
+├── observability/         # Metrics/export
+├── providers/             # Provider contracts + registry + internal adapters
+├── runtime/               # Request router/policy pipeline/test-mode helpers
+└── signals/               # Browser/CDP/GEO/IP/JS/whitelist signals
 
-dashboard/          # Web dashboard
-scripts/tests/integration.sh # Integration tests (shell)
+dashboard/                 # Web dashboard UI
+scripts/tests/integration.sh # Spin integration scenarios
 ```
 
 ## 🐙 Security Notes

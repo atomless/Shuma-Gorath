@@ -16,7 +16,7 @@ This document describes the challenge system that is currently implemented.
 ## 🐙 Challenge Routes
 
 - `GET /challenge/puzzle`
-  - Serves the challenge page when `SHUMA_TEST_MODE=true`
+  - Serves the challenge page when `test_mode=true` in runtime config
 - `POST /challenge/puzzle`
   - Submits and verifies the answer
 

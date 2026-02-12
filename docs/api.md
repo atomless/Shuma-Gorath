@@ -36,7 +36,7 @@ If `SHUMA_HEALTH_SECRET` is configured, `/health` also requires:
 - `POST /cdp-report` - Client automation reports (JSON)
 - `GET /robots.txt` - robots.txt (configurable)
 - `GET /dashboard/...` - Dashboard static assets
-- `GET /challenge/puzzle` - Dev-only puzzle challenge page (SHUMA_TEST_MODE only)
+- `GET /challenge/puzzle` - Dev-only puzzle challenge page (`test_mode=true` in runtime config)
 - `POST /challenge/puzzle` - Puzzle challenge answer submission
 
 ### 🐙 Challenge Submission Format

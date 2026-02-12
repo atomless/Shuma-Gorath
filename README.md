@@ -37,7 +37,7 @@ Notes:
 
 ```bash
 make dev              # Start dev server with file watching
-make test             # Unit tests + integration if server running
+make test             # Full suite: unit + integration + dashboard e2e (requires running server)
 make test-unit        # Unit tests only
 make test-integration # Integration tests (requires running server)
 make stop             # Stop Spin server
