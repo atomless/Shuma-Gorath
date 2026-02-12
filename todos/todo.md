@@ -132,7 +132,7 @@ This is the active work queue.
 - [x] Create a shared test support module (request builders, env guards, common fixtures) to reduce duplication across current `src/*_tests.rs`.
 - [x] Incrementally migrate top-level `src/*_tests.rs` files into colocated module tests and/or `tests/` integration suites (no behavior changes).
 - [x] Keep test discovery and CI commands stable (`cargo test`, Make targets) throughout migration.
-- [ ] Add/adjust regression tests to ensure routing and enforcement order remain stable while tests move (runtime-backed early routes should be covered in integration-level tests, not native unit tests).
+- [x] Add/adjust regression tests to ensure routing and enforcement order remain stable while tests move (runtime-backed early routes should be covered in integration-level tests, not native unit tests).
 - [x] H2 slice A completed: moved ban/CDP/GEO/request-router/test-mode/whitelist test files to module-local paths and removed corresponding top-level test module wiring in `src/lib.rs`.
 - [x] H2 slice A completed: added shared unit-test helpers in `src/test_support.rs` and adopted them in env-sensitive suites.
 - [x] H2 slice A verification: `cargo test` passes after migration with no behavior changes.
