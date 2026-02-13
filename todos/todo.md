@@ -66,14 +66,27 @@ This is the active work queue.
 - [ ] Add request-sequence signal primitives (operation IDs, ordering windows, timing thresholds).
 - [ ] Add AI-bot policy controls as first-class admin config (separate from robots-only controls).
 
-### Stage 2: Maze evolution (Cloudflare-inspired, Shuma-native)
+### Stage 2: Maze excellence execution (Cloudflare-inspired, Shuma-native)
 - [ ] Inject covert decoy links into eligible HTML responses for medium-confidence suspicious traffic.
 - [ ] Keep decoys invisible to normal users and compliant crawlers; avoid UX/SEO regressions.
-- [ ] Increase maze entropy (template diversity, fake static assets, path diversity) to reduce fingerprintability.
-- [ ] Add pluggable maze content-seed providers (default static corpus + operator-supplied dynamic seeds) to reduce hard-coded vocabulary.
-- [ ] Add a manual/scheduled seed-refresh tool for operator-provided URLs/feeds (for example homepage headlines) with robots/compliance guardrails, caching, and rate limits.
-- [ ] Prefer metadata/keyword extraction over copying article bodies to minimize legal risk, bandwidth, and fingerprintability.
-- [ ] Feed maze interaction behavior back into botness scoring and detection IDs.
+- [ ] MZ-1: Replace path-only deterministic seeding with rotating signed entropy for suspicious traffic; keep short TTL deterministic windows for cacheability/debugging.
+- [ ] MZ-2: Add signed traversal-link tokens with TTL, depth scope, branch budget, and replay protection.
+- [ ] MZ-3: Add polymorphic maze rendering (layout/content/link-graph variant families with versioned selection).
+- [ ] MZ-3.1: Implement pluggable maze content-seed providers (internal default corpus + operator-provided source adapters).
+- [ ] MZ-3.2: Add manual/scheduled seed refresh for provider-fed corpora with robots/compliance guardrails, caching, and rate limits.
+- [ ] MZ-3.3: Enforce metadata/keyword-first extraction (avoid article-body copying) to reduce legal risk, bandwidth, and fingerprintability.
+- [ ] MZ-4: Inject covert decoys into eligible non-maze HTML responses for medium-confidence suspicious traffic while preserving UX/SEO safety.
+- [ ] MZ-5: Add optional client-side expansion mode (Web Worker branch generation + signed server verification) to shift traversal cost toward bots.
+- [ ] MZ-6: Add optional adaptive micro-PoW for deeper traversal tiers.
+- [ ] MZ-7: Enforce maze cost budgets (global concurrency, per-bucket spend, response byte/time caps) with deterministic fallback behavior.
+- [ ] MZ-8: Add a crawler simulation harness covering replay, deterministic fingerprinting attempts, JS/no-JS cohorts, and bypass attempts.
+- [ ] MZ-9: Feed maze traversal behavior into botness scoring/detection IDs and add observability for entropy/token/proof/cost/budget signals.
+- [ ] MZ-10: Roll out by phase (`instrument -> advisory -> enforce`) with explicit rollback triggers and operator runbook checks.
+- [ ] ~~Increase maze entropy (template diversity, fake static assets, path diversity) to reduce fingerprintability.~~ Superseded by MZ-1 and MZ-3.
+- [ ] ~~Add pluggable maze content-seed providers (default static corpus + operator-supplied dynamic seeds) to reduce hard-coded vocabulary.~~ Superseded by MZ-3.1.
+- [ ] ~~Add a manual/scheduled seed-refresh tool for operator-provided URLs/feeds (for example homepage headlines) with robots/compliance guardrails, caching, and rate limits.~~ Superseded by MZ-3.2.
+- [ ] ~~Prefer metadata/keyword extraction over copying article bodies to minimize legal risk, bandwidth, and fingerprintability.~~ Superseded by MZ-3.3.
+- [ ] ~~Feed maze interaction behavior back into botness scoring and detection IDs.~~ Superseded by MZ-9.
 
 ### Stage 3: Bounded slow-drip tarpit
 - [ ] Implement `maze_plus_drip` mode with configurable byte rate and hard timeout.
