@@ -334,7 +334,7 @@ api-key-validate: ## Validate SHUMA_API_KEY for deployment (must be 64-char hex 
 	fi; \
 	echo "$(GREEN)✅ SHUMA_API_KEY format is valid for deployment.$(NC)"
 
-deploy-env-validate: ## Fail deployment when unsafe debug flags are enabled
+deploy-env-validate: ## Fail deployment when unsafe debug flags are enabled or admin allowlist is missing
 	@DEBUG_VAL="$${SHUMA_DEBUG_HEADERS:-false}"; \
 	DEBUG_NORM="$$(printf '%s' "$$DEBUG_VAL" | tr '[:upper:]' '[:lower:]')"; \
 	case "$$DEBUG_NORM" in \
@@ -343,7 +343,20 @@ deploy-env-validate: ## Fail deployment when unsafe debug flags are enabled
 			echo "$(YELLOW)Set SHUMA_DEBUG_HEADERS=false for production deploys.$(NC)"; \
 			exit 1 ;; \
 	esac; \
-	echo "$(GREEN)✅ Deployment env guardrails passed (SHUMA_DEBUG_HEADERS).$(NC)"
+	ALLOWLIST_RAW="$${SHUMA_ADMIN_IP_ALLOWLIST:-}"; \
+	ALLOWLIST_NORM="$$(printf '%s' "$$ALLOWLIST_RAW" | tr -d '[:space:]')"; \
+	if [ -z "$$ALLOWLIST_NORM" ]; then \
+		echo "$(RED)❌ Refusing deployment: SHUMA_ADMIN_IP_ALLOWLIST is required for production admin hardening.$(NC)"; \
+		echo "$(YELLOW)Set SHUMA_ADMIN_IP_ALLOWLIST to one or more trusted IP/CIDR entries (comma-separated).$(NC)"; \
+		exit 1; \
+	fi; \
+	case "$$ALLOWLIST_NORM" in \
+		*0.0.0.0/0*|*::/0*|*\**) \
+			echo "$(RED)❌ Refusing deployment: SHUMA_ADMIN_IP_ALLOWLIST is overbroad (contains wildcard/global range).$(NC)"; \
+			echo "$(YELLOW)Use explicit trusted operator/VPN IPs or CIDRs only.$(NC)"; \
+			exit 1 ;; \
+	esac; \
+	echo "$(GREEN)✅ Deployment env guardrails passed (SHUMA_DEBUG_HEADERS, SHUMA_ADMIN_IP_ALLOWLIST).$(NC)"
 
 #--------------------------
 # Help

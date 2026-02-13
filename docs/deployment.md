@@ -63,6 +63,26 @@ Validation helper before deploy:
 make deploy-env-validate
 ```
 
+`make deploy-env-validate` enforces:
+
+- `SHUMA_DEBUG_HEADERS=false`
+- non-empty and non-overbroad `SHUMA_ADMIN_IP_ALLOWLIST` (rejects wildcard and global-range entries)
+
+### 🐙 Admin Surface Pre-Deploy Checklist
+
+Run this checklist for every production deployment:
+
+1. Admin exposure:
+   - Confirm `/admin/*` is reachable only via trusted ingress (CDN/WAF/VPN path), not open origin exposure.
+2. Admin allowlist:
+   - Confirm `SHUMA_ADMIN_IP_ALLOWLIST` contains only trusted operator/VPN IPs or CIDRs.
+   - Confirm no wildcard/global ranges are present.
+3. Login and admin edge rate limits:
+   - Confirm edge/CDN policy exists for `POST /admin/login` (strict threshold).
+   - Confirm edge/CDN policy exists for `/admin/*` (moderate threshold).
+4. App-side auth failure limiter:
+   - Confirm `SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE` is set to a conservative value for the environment.
+
 ## 🐙 External Provider Rollout & Rollback Runbook
 
 This runbook is required before enabling any external provider in non-dev environments.
