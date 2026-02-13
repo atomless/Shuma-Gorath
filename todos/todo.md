@@ -122,8 +122,8 @@ Completion rule for every paper TODO below: capture key findings, map to `self_h
 - [ ] Add AI-bot policy controls as first-class admin config (separate from robots-only controls).
 
 ### Stage 2: Maze excellence execution (Cloudflare-inspired, Shuma-native)
-- [ ] Inject covert decoy links into eligible HTML responses for medium-confidence suspicious traffic.
-- [ ] Keep decoys invisible to normal users and compliant crawlers; avoid UX/SEO regressions.
+- [ ] MZ-S1: Keep Stage 2 completion criteria internal-first (no external-provider dependency).
+- [ ] MZ-S2: Execute Stage 2 delivery order as core (`MZ-1..MZ-4`), then defender-cost controls (`MZ-7..MZ-10`), then optional higher-friction escalation (`MZ-5..MZ-6`).
 - [ ] MZ-1: Replace path-only deterministic seeding with rotating signed entropy for suspicious traffic; keep short TTL deterministic windows for cacheability/debugging.
 - [ ] MZ-2: Add signed traversal-link tokens with TTL, depth scope, branch budget, and replay protection.
 - [ ] MZ-3: Add polymorphic maze rendering (layout/content/link-graph variant families with versioned selection).
@@ -137,6 +137,8 @@ Completion rule for every paper TODO below: capture key findings, map to `self_h
 - [ ] MZ-8: Add a crawler simulation harness covering replay, deterministic fingerprinting attempts, JS/no-JS cohorts, and bypass attempts.
 - [ ] MZ-9: Feed maze traversal behavior into botness scoring/detection IDs and add observability for entropy/token/proof/cost/budget signals.
 - [ ] MZ-10: Roll out by phase (`instrument -> advisory -> enforce`) with explicit rollback triggers and operator runbook checks.
+- [ ] ~~Inject covert decoy links into eligible HTML responses for medium-confidence suspicious traffic.~~ Superseded by MZ-4.
+- [ ] ~~Keep decoys invisible to normal users and compliant crawlers; avoid UX/SEO regressions.~~ Superseded by MZ-4 acceptance criteria.
 - [ ] ~~Increase maze entropy (template diversity, fake static assets, path diversity) to reduce fingerprintability.~~ Superseded by MZ-1 and MZ-3.
 - [ ] ~~Add pluggable maze content-seed providers (default static corpus + operator-supplied dynamic seeds) to reduce hard-coded vocabulary.~~ Superseded by MZ-3.1.
 - [ ] ~~Add a manual/scheduled seed-refresh tool for operator-provided URLs/feeds (for example homepage headlines) with robots/compliance guardrails, caching, and rate limits.~~ Superseded by MZ-3.2.
