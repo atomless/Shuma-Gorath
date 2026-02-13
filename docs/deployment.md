@@ -31,6 +31,17 @@ Current implementation note:
 - `rate_limiter`, `ban_store`, `challenge_engine`, and `maze_tarpit` currently use explicit unsupported external adapters with safe internal fallback semantics.
 - Keep production deployments on internal providers unless you are explicitly exercising a staged integration plan.
 
+### Profile Gate For Distributed State Risk
+
+- `self_hosted_minimal`:
+  - local state is acceptable for single-instance operation.
+  - distributed sync is not required for baseline correctness.
+- `enterprise_akamai`:
+  - multi-instance deployments must treat distributed state as a critical-path control.
+  - keep rollout in advisory posture until rate-limiter atomicity and ban-sync semantics are validated.
+- One codebase policy:
+  - keep one shared policy engine; profile differences should be state backend and precedence choices, not separate policy logic.
+
 ## 🐙 Required Env-Only Keys
 
 Set these in your deployment secret/config system:

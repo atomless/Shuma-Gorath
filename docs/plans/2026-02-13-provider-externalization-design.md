@@ -38,6 +38,18 @@ Backends are config-selectable (`internal`, `external`) but external selections 
    - Shuma runs as app-aware policy layer.
    - Akamai edge/Bot Manager outputs can be consumed as external signals and optional authorities.
 
+## Architecture Constraint: One Project, Two Lanes
+
+- Keep a single codebase with a shared policy plane:
+  - botness scoring,
+  - escalation routing,
+  - defence mode composition.
+- Isolate deployment differences in a profile-gated state plane:
+  - `self_hosted_minimal`: local/internal state adapters only, minimal config surface.
+  - `enterprise_akamai`: distributed/external state adapters for multi-instance correctness.
+- Do not fork policy logic by persona; swap state adapters and precedence only.
+- Treat distributed state as an enterprise/hybrid concern and keep self-hosted defaults free from sync complexity.
+
 ## Externalization Rubric
 
 Offer external provider swaps when at least one is true:
@@ -78,6 +90,7 @@ Guardrails:
 - Safety-critical local controls stay enforceable (admin protections, trusted-origin gates).
 - Effective mode and provider/backend selection must be observable in metrics/logs.
 - Fallback behavior must degrade to internal logic on external unavailability.
+- See ADR for the single-project, profile-gated state-plane rule: `docs/adr/0001-profile-gated-state-plane.md`.
 
 ## Enterprise Offering Snapshot (Akamai and Cloudflare)
 

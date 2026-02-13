@@ -69,6 +69,7 @@ Shuma-Gorath exists to provide layered, practical bot defense that teams can dep
 ### P7. Platform-Agnostic Core
 
 - MUST keep core policy logic decoupled from platform adapter details.
+- MUST support self-hosted and enterprise deployment personas through profile-gated adapters/state backends, not persona-specific policy forks.
 - SHOULD keep provider interfaces explicit and swappable.
 - SHOULD avoid tying core behavior to a single runtime unless required for performance or safety.
 

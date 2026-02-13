@@ -72,6 +72,15 @@ This policy is the default for `enterprise_akamai` planning and implementation. 
   - edge vantage provides material correctness/cost advantages that cannot be achieved internally,
   - internal capability semantics are already stable and enterprise integration adds clear incremental value.
 
+### Profile-Gated State Plane Policy (2026-02-13)
+
+- Keep one project and one shared policy engine across personas.
+- Separate deployment concerns through a profile-gated state plane:
+  - `self_hosted_minimal`: internal/local state only; no distributed-sync requirement.
+  - `enterprise_akamai`: distributed state expected for multi-instance correctness.
+- Do not fork botness/escalation logic by persona; only state backends and precedence may vary.
+- Treat distributed-state correctness (atomic rate counters, ban sync, replay single-use guarantees) as enterprise/hybrid hardening, not a baseline self-hosted burden.
+
 ## 🐙 Where Shuma-Gorath Adds Unique Value (Not Just Duplication)
 
 When Akamai Bot Manager (or equivalent) is already in place, Shuma-Gorath should focus on controls that are highly application-specific and hard to get from generic edge policy alone:

@@ -204,6 +204,13 @@ Use these as startup presets, then tune incrementally:
    - keep non-validated capabilities on `internal`
    - set `SHUMA_EDGE_INTEGRATION_MODE=authoritative` only for validated integrations
 
+### Profile-Gated Distributed State Rule
+
+- Keep policy logic shared across all profiles; do not maintain a separate policy branch for enterprise.
+- `self_hosted_minimal` is valid with internal local state only.
+- `enterprise_akamai` should move `rate_limiter` and `ban_store` to distributed/external adapters before multi-instance authoritative rollout.
+- Multi-instance deployments using only local state should be treated as advisory/staging posture until distributed state correctness is enabled.
+
 ### Observability surfaces for composability
 
 - `/metrics` includes:
