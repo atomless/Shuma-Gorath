@@ -188,23 +188,23 @@ Add metrics/log dimensions for:
    - implement rotating signed seed policy; retire path-only determinism for suspicious paths.
 2. MZ-2 Tokenized traversal:
    - add signed maze link tokens with TTL/depth/replay controls.
-3. MZ-3 Polymorphic rendering:
-   - add layout/content/link-graph variant families with versioned selection.
-4. MZ-4 Covert decoy injection:
-   - inject decoys into eligible HTML for medium-confidence suspicious traffic.
-5. MZ-5 Client-side expansion foundation:
+3. MZ-5 Client-side expansion foundation:
    - make Web Worker branch generation + signed server verification the default maze path for suspicious tiers, with explicit checkpoint cadence and bounded step-ahead allowance.
    - add explicit no-JS fallback rules (bounded server-side maze path first, then challenge escalation) without immediate no-JS-only hard block.
-6. MZ-6 Optional micro-PoW for deep traversal:
-   - adaptive difficulty by risk/depth to increase attacker cost.
-7. MZ-7 Budget enforcement:
+4. MZ-3 Polymorphic rendering:
+   - add layout/content/link-graph variant families with versioned selection.
+5. MZ-4 Covert decoy injection:
+   - inject decoys into eligible HTML for medium-confidence suspicious traffic.
+6. MZ-7 Budget enforcement:
    - global/per-bucket limits, byte caps, hard timeouts, deterministic fallback.
-8. MZ-8 Test harness:
+7. MZ-8 Test harness:
    - crawler simulation for replay, deterministic fingerprinting, JS/no-JS, and bypass attempts.
-9. MZ-9 Observability:
+8. MZ-9 Observability:
    - expose maze cost/entropy/proof/budget metrics and dashboards.
-10. MZ-10 Staged rollout:
+9. MZ-10 Staged rollout:
    - monitor -> advisory -> enforce with explicit rollback triggers.
+10. MZ-6 Optional micro-PoW for deep traversal:
+   - adaptive difficulty by risk/depth to increase attacker cost.
 
 ## Source References
 

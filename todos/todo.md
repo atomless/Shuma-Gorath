@@ -123,20 +123,20 @@ Completion rule for every paper TODO below: capture key findings, map to `self_h
 
 ### Stage 2: Maze excellence execution (Cloudflare-inspired, Shuma-native)
 - [ ] MZ-S1: Keep Stage 2 completion criteria internal-first (no external-provider dependency).
-- [ ] MZ-S2: Execute Stage 2 delivery order as core anti-fingerprinting + client-expansion foundation (`MZ-1..MZ-5`), then defender-cost controls (`MZ-7..MZ-10`), then optional higher-friction escalation (`MZ-6`).
+- [ ] MZ-S2: Execute Stage 2 delivery order as `MZ-1 -> MZ-2 -> MZ-5 -> MZ-3 -> MZ-4 -> MZ-7 -> MZ-8 -> MZ-9 -> MZ-10 -> MZ-6`.
 - [ ] MZ-1: Replace path-only deterministic seeding with rotating signed entropy for suspicious traffic; keep short TTL deterministic windows for cacheability/debugging.
 - [ ] MZ-2: Add signed traversal-link tokens with TTL, depth scope, branch budget, and replay protection.
+- [ ] MZ-5: Make client-side expansion foundational for suspicious maze tiers (Web Worker branch generation + signed server verification) with explicit checkpoint cadence (every 3 nodes or 1500 ms), bounded step-ahead allowance, and no-JS fallback rules.
 - [ ] MZ-3: Add polymorphic maze rendering (layout/content/link-graph variant families with versioned selection).
 - [ ] MZ-3.1: Implement pluggable maze content-seed providers (internal default corpus + operator-provided source adapters).
 - [ ] MZ-3.2: Add manual/scheduled seed refresh for provider-fed corpora with robots/compliance guardrails, caching, and rate limits.
 - [ ] MZ-3.3: Enforce metadata/keyword-first extraction (avoid article-body copying) to reduce legal risk, bandwidth, and fingerprintability.
 - [ ] MZ-4: Inject covert decoys into eligible non-maze HTML responses for medium-confidence suspicious traffic while preserving UX/SEO safety.
-- [ ] MZ-5: Make client-side expansion foundational for suspicious maze tiers (Web Worker branch generation + signed server verification) with explicit checkpoint cadence (every 3 nodes or 1500 ms), bounded step-ahead allowance, and no-JS fallback rules.
-- [ ] MZ-6: Add optional adaptive micro-PoW for deeper traversal tiers.
 - [ ] MZ-7: Enforce maze cost budgets (global concurrency, per-bucket spend, response byte/time caps) with deterministic fallback behavior.
 - [ ] MZ-8: Add a crawler simulation harness covering replay, deterministic fingerprinting attempts, JS/no-JS cohorts, and bypass attempts.
 - [ ] MZ-9: Feed maze traversal behavior into botness scoring/detection IDs and add observability for entropy/token/proof/cost/budget signals.
 - [ ] MZ-10: Roll out by phase (`instrument -> advisory -> enforce`) with explicit rollback triggers and operator runbook checks.
+- [ ] MZ-6: Add optional adaptive micro-PoW for deeper traversal tiers.
 - [ ] ~~Inject covert decoy links into eligible HTML responses for medium-confidence suspicious traffic.~~ Superseded by MZ-4.
 - [ ] ~~Keep decoys invisible to normal users and compliant crawlers; avoid UX/SEO regressions.~~ Superseded by MZ-4 acceptance criteria.
 - [ ] ~~Increase maze entropy (template diversity, fake static assets, path diversity) to reduce fingerprintability.~~ Superseded by MZ-1 and MZ-3.
