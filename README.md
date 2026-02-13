@@ -6,7 +6,7 @@
 
 # 🐙 Shuma-Gorath
 
-Chaos Dimension Bot Defence for Spin. Shuma-Gorath is a WebAssembly bot defence that detects, blocks, and monitors automated abuse with honeypots, rate limiting, JS challenges, CDP signals, a maze, and a real-time admin dashboard.
+A Chaos Dimension Bot Defence for Spin. [Shuma-Gorath](https://en.wikipedia.org/wiki/Shuma-Gorath) is a WebAssembly bot defence that detects, blocks, and monitors automated abuse with honeypots, rate limiting, JS challenges, CDP signals, a maze, and a real-time admin dashboard.
 
 Shuma-Gorath is designed to **complement enterprise bot defenses** (such as [Akamai Bot Manager](https://www.akamai.com/products/bot-manager_) as a second-layer of application-specific protection, but it can also run standalone.
 
