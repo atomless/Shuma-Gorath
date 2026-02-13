@@ -21,4 +21,5 @@ Use the Makefile as the official workflow. These docs are the source of truth fo
 - [`challenge-verification.md`](challenge-verification.md) - Human verification strategy
 - [`maze.md`](maze.md) - maze crawler trap
 - [`module-boundaries.md`](module-boundaries.md) - Domain boundary contracts and split prep
+- [`plans/2026-02-13-provider-externalization-design.md`](plans/2026-02-13-provider-externalization-design.md) - Provider externalization strategy (self-hosted-first, Akamai-integrated)
 - [`../todos/security-review.md`](../todos/security-review.md) - Security audit notes / backlog

@@ -418,6 +418,39 @@ pub(crate) fn defence_modes_effective_summary(cfg: &config::Config) -> String {
     )
 }
 
+pub(crate) fn defence_runtime_metadata_summary(cfg: &config::Config) -> String {
+    format!(
+        "modes={} edge={}",
+        defence_modes_effective_summary(cfg),
+        cfg.edge_integration_mode.as_str()
+    )
+}
+
+pub(crate) fn provider_implementations_summary(
+    registry: &providers::registry::ProviderRegistry,
+) -> String {
+    let capabilities = [
+        providers::registry::ProviderCapability::RateLimiter,
+        providers::registry::ProviderCapability::BanStore,
+        providers::registry::ProviderCapability::ChallengeEngine,
+        providers::registry::ProviderCapability::MazeTarpit,
+        providers::registry::ProviderCapability::FingerprintSignal,
+    ];
+
+    capabilities
+        .iter()
+        .map(|capability| {
+            format!(
+                "{}={}/{}",
+                capability.as_str(),
+                registry.backend_for(*capability).as_str(),
+                registry.implementation_for(*capability)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 pub(crate) fn write_log_line(out: &mut impl Write, msg: &str) {
     let _ = writeln!(out, "{}", msg);
 }
@@ -542,6 +575,7 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         Err(resp) => return resp,
     };
     let provider_registry = providers::registry::ProviderRegistry::from_config(&cfg);
+    observability::metrics::record_provider_backend_visibility(store, &provider_registry);
     let geo_assessment = assess_geo_request(req, &cfg);
 
     // CDP Report endpoint - receives automation detection reports from client-side JS

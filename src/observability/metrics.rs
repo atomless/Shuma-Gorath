@@ -17,6 +17,63 @@ const BOTNESS_SIGNAL_KEYS: [&str; 4] = [
 const SIGNAL_AVAILABILITY_STATES: [&str; 3] = ["active", "disabled", "unavailable"];
 const DEFENCE_MODE_MODULES: [&str; 3] = ["rate", "geo", "js"];
 const DEFENCE_MODE_VALUES: [&str; 4] = ["off", "signal", "enforce", "both"];
+const EDGE_INTEGRATION_MODES: [&str; 3] = ["off", "advisory", "authoritative"];
+const PROVIDER_OBSERVED_COMBINATIONS: [(
+    crate::providers::registry::ProviderCapability,
+    crate::config::ProviderBackend,
+    &str,
+); 10] = [
+    (
+        crate::providers::registry::ProviderCapability::RateLimiter,
+        crate::config::ProviderBackend::Internal,
+        "internal",
+    ),
+    (
+        crate::providers::registry::ProviderCapability::RateLimiter,
+        crate::config::ProviderBackend::External,
+        "external_stub_unsupported",
+    ),
+    (
+        crate::providers::registry::ProviderCapability::BanStore,
+        crate::config::ProviderBackend::Internal,
+        "internal",
+    ),
+    (
+        crate::providers::registry::ProviderCapability::BanStore,
+        crate::config::ProviderBackend::External,
+        "external_stub_unsupported",
+    ),
+    (
+        crate::providers::registry::ProviderCapability::ChallengeEngine,
+        crate::config::ProviderBackend::Internal,
+        "internal",
+    ),
+    (
+        crate::providers::registry::ProviderCapability::ChallengeEngine,
+        crate::config::ProviderBackend::External,
+        "external_stub_unsupported",
+    ),
+    (
+        crate::providers::registry::ProviderCapability::MazeTarpit,
+        crate::config::ProviderBackend::Internal,
+        "internal",
+    ),
+    (
+        crate::providers::registry::ProviderCapability::MazeTarpit,
+        crate::config::ProviderBackend::External,
+        "external_stub_unsupported",
+    ),
+    (
+        crate::providers::registry::ProviderCapability::FingerprintSignal,
+        crate::config::ProviderBackend::Internal,
+        "internal",
+    ),
+    (
+        crate::providers::registry::ProviderCapability::FingerprintSignal,
+        crate::config::ProviderBackend::External,
+        "external_stub_fingerprint",
+    ),
+];
 
 /// Metric types we track
 #[derive(Debug, Clone, Copy)]
@@ -35,6 +92,8 @@ pub enum MetricName {
     CdpDetections,
     BotnessSignalState,
     DefenceModeEffective,
+    EdgeIntegrationMode,
+    ProviderImplementationEffective,
 }
 
 impl MetricName {
@@ -54,6 +113,8 @@ impl MetricName {
             MetricName::CdpDetections => "cdp_detections_total",
             MetricName::BotnessSignalState => "botness_signal_state_total",
             MetricName::DefenceModeEffective => "defence_mode_effective_total",
+            MetricName::EdgeIntegrationMode => "edge_integration_mode_total",
+            MetricName::ProviderImplementationEffective => "provider_implementation_effective_total",
         }
     }
 }
@@ -143,6 +204,40 @@ pub fn record_botness_visibility(
     record_defence_mode_effective(store, "rate", &effective.rate);
     record_defence_mode_effective(store, "geo", &effective.geo);
     record_defence_mode_effective(store, "js", &effective.js);
+    increment(
+        store,
+        MetricName::EdgeIntegrationMode,
+        Some(cfg.edge_integration_mode.as_str()),
+    );
+}
+
+pub fn record_provider_backend_visibility(
+    store: &Store,
+    registry: &crate::providers::registry::ProviderRegistry,
+) {
+    let capabilities = [
+        crate::providers::registry::ProviderCapability::RateLimiter,
+        crate::providers::registry::ProviderCapability::BanStore,
+        crate::providers::registry::ProviderCapability::ChallengeEngine,
+        crate::providers::registry::ProviderCapability::MazeTarpit,
+        crate::providers::registry::ProviderCapability::FingerprintSignal,
+    ];
+
+    for capability in capabilities {
+        let backend = registry.backend_for(capability);
+        let implementation = registry.implementation_for(capability);
+        let label = format!(
+            "{}:{}:{}",
+            capability.as_str(),
+            backend.as_str(),
+            implementation
+        );
+        increment(
+            store,
+            MetricName::ProviderImplementationEffective,
+            Some(label.as_str()),
+        );
+    }
 }
 
 /// Get current value of a counter
@@ -304,6 +399,43 @@ pub fn render_metrics(store: &Store) -> String {
                 }
             }
         }
+    }
+
+    // Edge integration mode observations
+    output.push_str("\n# TYPE bot_defence_edge_integration_mode_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_edge_integration_mode_total Observed configured edge integration mode\n",
+    );
+    for mode in EDGE_INTEGRATION_MODES {
+        let key = format!("{}edge_integration_mode_total:{}", METRICS_PREFIX, mode);
+        let count = get_counter(store, &key);
+        output.push_str(&format!(
+            "bot_defence_edge_integration_mode_total{{mode=\"{}\"}} {}\n",
+            mode, count
+        ));
+    }
+
+    // Active provider implementation observations
+    output.push_str("\n# TYPE bot_defence_provider_implementation_effective_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_provider_implementation_effective_total Observed active provider backend and implementation by capability\n",
+    );
+    for (capability, backend, implementation) in PROVIDER_OBSERVED_COMBINATIONS {
+        let key = format!(
+            "{}provider_implementation_effective_total:{}:{}:{}",
+            METRICS_PREFIX,
+            capability.as_str(),
+            backend.as_str(),
+            implementation
+        );
+        let count = get_counter(store, &key);
+        output.push_str(&format!(
+            "bot_defence_provider_implementation_effective_total{{capability=\"{}\",backend=\"{}\",implementation=\"{}\"}} {}\n",
+            capability.as_str(),
+            backend.as_str(),
+            implementation,
+            count
+        ));
     }
 
     // Active bans (gauge)

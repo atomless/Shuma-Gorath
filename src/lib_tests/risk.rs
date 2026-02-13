@@ -289,6 +289,7 @@ mod tests {
         cfg.defence_modes.rate = crate::config::ComposabilityMode::Signal;
         cfg.defence_modes.geo = crate::config::ComposabilityMode::Enforce;
         cfg.defence_modes.js = crate::config::ComposabilityMode::Both;
+        cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Advisory;
 
         let assessment =
             crate::compute_botness_assessment(context(true, true, true, 70, 80), &cfg);
@@ -297,10 +298,32 @@ mod tests {
         assert!(state_summary.contains("geo_risk:disabled:0"));
         assert!(state_summary.contains("rate_pressure_medium:active:"));
 
-        let mode_summary = crate::defence_modes_effective_summary(&cfg);
+        let mode_summary = crate::defence_runtime_metadata_summary(&cfg);
         assert_eq!(
             mode_summary,
-            "rate=signal/true/false geo=enforce/false/true js=both/true/true"
+            "modes=rate=signal/true/false geo=enforce/false/true js=both/true/true edge=advisory"
         );
+
+        let provider_registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
+        let provider_summary = crate::provider_implementations_summary(&provider_registry);
+        assert!(provider_summary.contains("rate_limiter=internal/internal"));
+        assert!(provider_summary.contains("fingerprint_signal=internal/internal"));
+    }
+
+    #[test]
+    fn provider_summary_reports_capability_backend_and_implementation() {
+        let mut cfg = crate::config::defaults().clone();
+        cfg.provider_backends.fingerprint_signal = crate::config::ProviderBackend::External;
+
+        let registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
+        let summary = crate::provider_implementations_summary(&registry);
+
+        assert!(summary.contains("rate_limiter=internal/internal"));
+        assert!(summary.contains("ban_store=internal/internal"));
+        assert!(summary.contains("challenge_engine=internal/internal"));
+        assert!(summary.contains("maze_tarpit=internal/internal"));
+        assert!(summary.contains(
+            "fingerprint_signal=external/external_stub_fingerprint"
+        ));
     }
 }

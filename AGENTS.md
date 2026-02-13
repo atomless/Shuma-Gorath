@@ -23,24 +23,25 @@ This file provides instructions for coding agents working in this repository.
 ## Required workflow for non-trivial changes
 
 1. Read relevant docs and touched modules before editing.
-2. When acting on TODO items, scan the full TODO backlog first (`todos/todo.md` and `todos/security-review.md`) to identify intersecting items and avoid duplicate or conflicting work.
-3. Make small, reviewable changes.
-4. Add/update tests for behavior changes.
-5. Update docs for behavior/config/ops changes.
-6. Run verification through `Makefile` targets only:
+2. Check `docs/plans/` for active or recent design docs relevant to the area you are changing, and align implementation with those plans unless the user explicitly overrides them.
+3. When acting on TODO items, scan the full TODO backlog first (`todos/todo.md` and `todos/security-review.md`) to identify intersecting items and avoid duplicate or conflicting work.
+4. Make small, reviewable changes.
+5. Add/update tests for behavior changes.
+6. Update docs for behavior/config/ops changes.
+7. Run verification through `Makefile` targets only:
    - `make test` as the umbrella verification path (unit + integration + dashboard e2e),
    - `make test-unit`, `make test-integration`, and `make test-dashboard-e2e` for focused reruns,
    - `make build` for release build verification,
    - `make setup`/`make verify` when environment/bootstrap behavior is touched.
    Direct ad-hoc tool invocations (for example `cargo test`, `cargo build`, `spin up`) are not the canonical verification path for normal contributor/agent workflow.
    For `make test`, integration and dashboard e2e tests are mandatory and must not be skipped: start Spin first with `make dev` (separate terminal/session), then run `make test`.
-7. Before reporting completion, confirm relevant CI status (or state explicitly that CI is pending/unverified).
-8. Commit/push in atomic slices by default:
+8. Before reporting completion, confirm relevant CI status (or state explicitly that CI is pending/unverified).
+9. Commit/push in atomic slices by default:
    - one logical change per commit,
    - avoid mixing unrelated refactors and feature/bug work in the same commit,
    - run relevant Makefile verification before each commit,
    - push after each validated atomic commit unless the user explicitly asks for batching.
-9. Document security, operational, and resource implications.
+10. Document security, operational, and resource implications.
 
 ## Security and abuse posture
 

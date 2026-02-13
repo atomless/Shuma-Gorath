@@ -130,8 +130,36 @@ fn parse_provider_backend_accepts_expected_values() {
 }
 
 #[test]
+fn parse_edge_integration_mode_accepts_expected_values() {
+    assert_eq!(
+        parse_edge_integration_mode("off"),
+        Some(EdgeIntegrationMode::Off)
+    );
+    assert_eq!(
+        parse_edge_integration_mode("advisory"),
+        Some(EdgeIntegrationMode::Advisory)
+    );
+    assert_eq!(
+        parse_edge_integration_mode("authoritative"),
+        Some(EdgeIntegrationMode::Authoritative)
+    );
+    assert_eq!(
+        parse_edge_integration_mode("  AuThOrItAtIvE "),
+        Some(EdgeIntegrationMode::Authoritative)
+    );
+    assert_eq!(parse_edge_integration_mode("invalid"), None);
+    assert_eq!(EdgeIntegrationMode::Off.as_str(), "off");
+    assert_eq!(EdgeIntegrationMode::Advisory.as_str(), "advisory");
+    assert_eq!(
+        EdgeIntegrationMode::Authoritative.as_str(),
+        "authoritative"
+    );
+}
+
+#[test]
 fn defaults_enable_both_signal_and_action_paths() {
     let cfg = defaults().clone();
+    assert_eq!(cfg.edge_integration_mode, EdgeIntegrationMode::Off);
     assert!(cfg.js_required_enforced);
     assert_eq!(cfg.defence_modes.js, ComposabilityMode::Both);
     assert_eq!(cfg.defence_modes.geo, ComposabilityMode::Both);

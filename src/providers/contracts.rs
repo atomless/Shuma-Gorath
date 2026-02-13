@@ -117,6 +117,10 @@ pub(crate) trait MazeTarpitProvider {
 
 pub(crate) trait FingerprintSignalProvider {
     fn report_path(&self) -> &'static str;
+    fn source_availability(
+        &self,
+        cfg: &crate::config::Config,
+    ) -> crate::signals::botness::SignalAvailability;
     fn handle_report(&self, store: &Store, req: &Request) -> Response;
     fn detection_script(&self) -> &'static str;
     fn report_script(&self, report_endpoint: &str) -> String;

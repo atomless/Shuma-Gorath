@@ -281,6 +281,7 @@ mod tests {
             botness_weights: crate::config::BotnessWeights::default(),
             defence_modes: crate::config::DefenceModes::default(),
             provider_backends: crate::config::ProviderBackends::default(),
+            edge_integration_mode: crate::config::EdgeIntegrationMode::Off,
         }
     }
 

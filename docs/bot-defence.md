@@ -21,6 +21,19 @@ Used in concert, and sensibly configured, they limit human friction while increa
   - mature bot-category policy controls,
   - globally distributed enforcement.
 
+## 🐙 Product Stance (2026-02-13)
+
+- Default posture: self-hosted minimal infrastructure must be first-class and complete.
+  Every core defence remains internally available, toggleable, and tweakable.
+- Enterprise integration focus: prioritize Akamai-compatible ingestion and control surfaces.
+- Runtime posture: keep Fermyon/Spin as a primary deployment path.
+- Decision authority:
+  - advisory mode (default): managed-edge outcomes are signals for Shuma policy.
+  - authoritative mode (optional): managed-edge outcomes can short-circuit selected local paths.
+- Boundary rule:
+  externalize state and upstream signals where edge providers have superior reach,
+  keep Shuma-owned policy composition (botness scoring, escalation routing, module mode composition) internal.
+
 ## 🐙 Where Shuma-Gorath Adds Unique Value (Not Just Duplication)
 
 When Akamai Bot Manager (or equivalent) is already in place, Shuma-Gorath should focus on controls that are highly application-specific and hard to get from generic edge policy alone:
@@ -100,6 +113,7 @@ Pattern A is generally stronger for high-risk/high-volume environments.
 - Avoid duplicate friction: if the edge layer already challenged, keep Shuma defaults conservative.
 - Monitor challenge rates and false positives at both layers.
 - Treat Shuma as the place for business-context logic, not as a clone of global bot classification.
+- Use advisory integration as the default enterprise posture; enable authoritative overrides only when needed and observable.
 
 ## 🐙 Current and Future Threat Model Alignment
 

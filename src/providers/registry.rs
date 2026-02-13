@@ -1,9 +1,10 @@
 use crate::config::{Config, ProviderBackend, ProviderBackends};
+use crate::signals::botness::SignalAvailability;
 use crate::providers::contracts::{
     BanStoreProvider, ChallengeEngineProvider, FingerprintSignalProvider, MazeTarpitProvider,
     RateLimiterProvider,
 };
-use crate::providers::internal;
+use crate::providers::{external, internal};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ProviderCapability {
@@ -50,6 +51,16 @@ impl ProviderRegistry {
         }
     }
 
+    pub fn implementation_for(&self, capability: ProviderCapability) -> &'static str {
+        match (capability, self.backend_for(capability)) {
+            (_, ProviderBackend::Internal) => "internal",
+            (ProviderCapability::FingerprintSignal, ProviderBackend::External) => {
+                "external_stub_fingerprint"
+            }
+            (_, ProviderBackend::External) => "external_stub_unsupported",
+        }
+    }
+
     pub fn has_external_provider(&self) -> bool {
         [
             ProviderCapability::RateLimiter,
@@ -68,32 +79,41 @@ impl ProviderRegistry {
 
     pub fn rate_limiter_provider(&self) -> &'static dyn RateLimiterProvider {
         match self.backend_for(ProviderCapability::RateLimiter) {
-            ProviderBackend::Internal | ProviderBackend::External => &internal::RATE_LIMITER,
+            ProviderBackend::Internal => &internal::RATE_LIMITER,
+            ProviderBackend::External => &external::UNSUPPORTED_RATE_LIMITER,
         }
     }
 
     pub fn ban_store_provider(&self) -> &'static dyn BanStoreProvider {
         match self.backend_for(ProviderCapability::BanStore) {
-            ProviderBackend::Internal | ProviderBackend::External => &internal::BAN_STORE,
+            ProviderBackend::Internal => &internal::BAN_STORE,
+            ProviderBackend::External => &external::UNSUPPORTED_BAN_STORE,
         }
     }
 
     pub fn challenge_engine_provider(&self) -> &'static dyn ChallengeEngineProvider {
         match self.backend_for(ProviderCapability::ChallengeEngine) {
-            ProviderBackend::Internal | ProviderBackend::External => &internal::CHALLENGE_ENGINE,
+            ProviderBackend::Internal => &internal::CHALLENGE_ENGINE,
+            ProviderBackend::External => &external::UNSUPPORTED_CHALLENGE_ENGINE,
         }
     }
 
     pub fn maze_tarpit_provider(&self) -> &'static dyn MazeTarpitProvider {
         match self.backend_for(ProviderCapability::MazeTarpit) {
-            ProviderBackend::Internal | ProviderBackend::External => &internal::MAZE_TARPIT,
+            ProviderBackend::Internal => &internal::MAZE_TARPIT,
+            ProviderBackend::External => &external::UNSUPPORTED_MAZE_TARPIT,
         }
     }
 
     pub fn fingerprint_signal_provider(&self) -> &'static dyn FingerprintSignalProvider {
         match self.backend_for(ProviderCapability::FingerprintSignal) {
-            ProviderBackend::Internal | ProviderBackend::External => &internal::FINGERPRINT_SIGNAL,
+            ProviderBackend::Internal => &internal::FINGERPRINT_SIGNAL,
+            ProviderBackend::External => &external::FINGERPRINT_SIGNAL,
         }
+    }
+
+    pub fn fingerprint_signal_source_availability(&self, cfg: &Config) -> SignalAvailability {
+        self.fingerprint_signal_provider().source_availability(cfg)
     }
 }
 
@@ -101,6 +121,7 @@ impl ProviderRegistry {
 mod tests {
     use super::{ProviderCapability, ProviderRegistry};
     use crate::config::{defaults, ProviderBackend};
+    use crate::providers::contracts::BanSyncResult;
 
     #[test]
     fn provider_capability_has_stable_labels() {
@@ -161,5 +182,110 @@ mod tests {
             ProviderBackend::Internal
         );
         assert!(registry.has_external_provider());
+    }
+
+    #[test]
+    fn registry_routes_external_fingerprint_to_stub_contract() {
+        let mut cfg = defaults().clone();
+        cfg.provider_backends.fingerprint_signal = ProviderBackend::External;
+        let registry = ProviderRegistry::from_config(&cfg);
+        let provider = registry.fingerprint_signal_provider();
+
+        assert_eq!(provider.report_path(), "/fingerprint-report");
+        assert_eq!(
+            provider.source_availability(&cfg).as_str(),
+            "unavailable"
+        );
+        assert_eq!(provider.detection_script(), "");
+        assert_eq!(provider.report_script("/report-endpoint"), "");
+        assert_eq!(
+            provider.inject_detection("<html><body>ok</body></html>", Some("/report-endpoint")),
+            "<html><body>ok</body></html>"
+        );
+    }
+
+    #[test]
+    fn fingerprint_signal_contract_reports_active_disabled_unavailable_states() {
+        let mut internal_cfg = defaults().clone();
+        let internal_registry = ProviderRegistry::from_config(&internal_cfg);
+        assert_eq!(
+            internal_registry
+                .fingerprint_signal_source_availability(&internal_cfg)
+                .as_str(),
+            "active"
+        );
+
+        internal_cfg.cdp_detection_enabled = false;
+        assert_eq!(
+            internal_registry
+                .fingerprint_signal_source_availability(&internal_cfg)
+                .as_str(),
+            "disabled"
+        );
+
+        let mut external_cfg = defaults().clone();
+        external_cfg.provider_backends.fingerprint_signal = ProviderBackend::External;
+        let external_registry = ProviderRegistry::from_config(&external_cfg);
+        assert_eq!(
+            external_registry
+                .fingerprint_signal_source_availability(&external_cfg)
+                .as_str(),
+            "unavailable"
+        );
+
+        external_cfg.cdp_detection_enabled = false;
+        assert_eq!(
+            external_registry
+                .fingerprint_signal_source_availability(&external_cfg)
+                .as_str(),
+            "disabled"
+        );
+    }
+
+    #[test]
+    fn registry_external_unsupported_backends_expose_safe_contracts() {
+        let mut cfg = defaults().clone();
+        cfg.provider_backends.rate_limiter = ProviderBackend::External;
+        cfg.provider_backends.ban_store = ProviderBackend::External;
+        cfg.provider_backends.challenge_engine = ProviderBackend::External;
+        cfg.provider_backends.maze_tarpit = ProviderBackend::External;
+        let registry = ProviderRegistry::from_config(&cfg);
+
+        assert_eq!(
+            registry.ban_store_provider().sync_ban("default", "1.2.3.4"),
+            BanSyncResult::Failed
+        );
+        assert_eq!(
+            registry.ban_store_provider().sync_unban("default", "1.2.3.4"),
+            BanSyncResult::Failed
+        );
+        assert_eq!(
+            registry.challenge_engine_provider().puzzle_path(),
+            crate::boundaries::challenge_puzzle_path()
+        );
+        assert!(registry
+            .maze_tarpit_provider()
+            .is_maze_path("/maze/external-stub"));
+    }
+
+    #[test]
+    fn registry_reports_active_provider_implementation_labels() {
+        let mut cfg = defaults().clone();
+        cfg.provider_backends.rate_limiter = ProviderBackend::External;
+        cfg.provider_backends.fingerprint_signal = ProviderBackend::External;
+        let registry = ProviderRegistry::from_config(&cfg);
+
+        assert_eq!(
+            registry.implementation_for(ProviderCapability::RateLimiter),
+            "external_stub_unsupported"
+        );
+        assert_eq!(
+            registry.implementation_for(ProviderCapability::FingerprintSignal),
+            "external_stub_fingerprint"
+        );
+        assert_eq!(
+            registry.implementation_for(ProviderCapability::BanStore),
+            "internal"
+        );
     }
 }

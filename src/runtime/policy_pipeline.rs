@@ -284,7 +284,8 @@ pub(crate) fn maybe_handle_botness(
     crate::observability::metrics::record_botness_visibility(store, cfg, &botness);
     let botness_summary = crate::botness_signals_summary(&botness);
     let botness_state_summary = crate::botness_signal_states_summary(&botness);
-    let mode_summary = crate::defence_modes_effective_summary(cfg);
+    let runtime_metadata_summary = crate::defence_runtime_metadata_summary(cfg);
+    let provider_summary = crate::provider_implementations_summary(provider_registry);
 
     if cfg.maze_enabled && botness.score >= cfg.botness_maze_threshold {
         return Some(provider_registry.maze_tarpit_provider().serve_maze_with_tracking(
@@ -294,8 +295,12 @@ pub(crate) fn maybe_handle_botness(
             "/maze/botness-gate",
             "botness_gate_maze",
             &format!(
-                "score={} signals={} signal_states={} modes={}",
-                botness.score, botness_summary, botness_state_summary, mode_summary
+                "score={} signals={} signal_states={} {} providers={}",
+                botness.score,
+                botness_summary,
+                botness_state_summary,
+                runtime_metadata_summary,
+                provider_summary
             ),
         ));
     }
@@ -315,8 +320,12 @@ pub(crate) fn maybe_handle_botness(
                 ip: Some(ip.to_string()),
                 reason: Some("botness_gate_challenge".to_string()),
                 outcome: Some(format!(
-                    "score={} signals={} signal_states={} modes={}",
-                    botness.score, botness_summary, botness_state_summary, mode_summary
+                    "score={} signals={} signal_states={} {} providers={}",
+                    botness.score,
+                    botness_summary,
+                    botness_state_summary,
+                    runtime_metadata_summary,
+                    provider_summary
                 )),
                 admin: None,
             },

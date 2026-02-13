@@ -136,6 +136,17 @@ impl FingerprintSignalProvider for InternalFingerprintSignalProvider {
         "/cdp-report"
     }
 
+    fn source_availability(
+        &self,
+        cfg: &crate::config::Config,
+    ) -> crate::signals::botness::SignalAvailability {
+        if cfg.cdp_detection_enabled {
+            crate::signals::botness::SignalAvailability::Active
+        } else {
+            crate::signals::botness::SignalAvailability::Disabled
+        }
+    }
+
     fn handle_report(&self, store: &Store, req: &Request) -> Response {
         crate::signals::cdp::handle_cdp_report(store, req)
     }

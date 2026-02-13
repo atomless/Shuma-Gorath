@@ -139,6 +139,25 @@ impl ProviderBackend {
     }
 }
 
+/// Integration precedence for managed-edge outcomes versus internal policy.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum EdgeIntegrationMode {
+    Off,
+    Advisory,
+    Authoritative,
+}
+
+impl EdgeIntegrationMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            EdgeIntegrationMode::Off => "off",
+            EdgeIntegrationMode::Advisory => "advisory",
+            EdgeIntegrationMode::Authoritative => "authoritative",
+        }
+    }
+}
+
 /// Per-capability provider backend selections.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ProviderBackends {
@@ -295,6 +314,8 @@ pub struct Config {
     pub defence_modes: DefenceModes,
     #[serde(default)]
     pub provider_backends: ProviderBackends,
+    #[serde(default = "default_edge_integration_mode")]
+    pub edge_integration_mode: EdgeIntegrationMode,
 }
 
 #[derive(Debug, Clone)]
@@ -514,6 +535,7 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         },
         defence_modes: DefenceModes::default(),
         provider_backends: ProviderBackends::default(),
+        edge_integration_mode: default_edge_integration_mode(),
     };
     clamp_config_values(&mut cfg);
     cfg
@@ -635,6 +657,15 @@ pub(crate) fn parse_provider_backend(value: &str) -> Option<ProviderBackend> {
     match value.trim().to_ascii_lowercase().as_str() {
         "internal" => Some(ProviderBackend::Internal),
         "external" => Some(ProviderBackend::External),
+        _ => None,
+    }
+}
+
+pub(crate) fn parse_edge_integration_mode(value: &str) -> Option<EdgeIntegrationMode> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "off" => Some(EdgeIntegrationMode::Off),
+        "advisory" => Some(EdgeIntegrationMode::Advisory),
+        "authoritative" => Some(EdgeIntegrationMode::Authoritative),
         _ => None,
     }
 }
@@ -1115,6 +1146,16 @@ fn default_provider_maze_tarpit() -> ProviderBackend {
 
 fn default_provider_fingerprint_signal() -> ProviderBackend {
     defaults_provider_backend("SHUMA_PROVIDER_FINGERPRINT_SIGNAL")
+}
+
+fn defaults_edge_integration_mode(key: &str) -> EdgeIntegrationMode {
+    let raw = defaults_raw(key);
+    parse_edge_integration_mode(raw.as_str())
+        .unwrap_or_else(|| panic!("Invalid edge integration mode default for {}={}", key, raw))
+}
+
+fn default_edge_integration_mode() -> EdgeIntegrationMode {
+    defaults_edge_integration_mode("SHUMA_EDGE_INTEGRATION_MODE")
 }
 
 #[cfg(test)]

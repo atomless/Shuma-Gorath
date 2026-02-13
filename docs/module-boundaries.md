@@ -98,7 +98,12 @@ They are larger, multi-step flows with dedicated adapters/contracts and are like
 Backends currently supported at config/selection level:
 
 - `internal` (default)
-- `external` (selection placeholder; adapter wiring lands in later H4 slices)
+- `external` (adapter path now explicit in `src/providers/external.rs`)
+
+Current `external` behavior:
+
+- `fingerprint_signal` uses an explicit external stub contract (`/fingerprint-report`) until a concrete adapter is configured.
+- `rate_limiter`, `ban_store`, `challenge_engine`, and `maze_tarpit` use explicit unsupported external adapters that currently delegate to internal runtime behavior.
 
 Implementation discipline for H4 coherence:
 
