@@ -24,7 +24,10 @@ This file provides instructions for coding agents working in this repository.
 
 1. Read relevant docs and touched modules before editing.
 2. Check `docs/plans/` for active or recent design docs relevant to the area you are changing, and align implementation with those plans unless the user explicitly overrides them.
-3. When acting on TODO items, scan the full TODO backlog first (`todos/todo.md` and `todos/security-review.md`) to identify intersecting items and avoid duplicate or conflicting work.
+3. When acting on TODO items, achieve full situational awareness before implementation:
+   - scan the full TODO backlog first (`todos/todo.md` and `todos/security-review.md`) to identify intersecting items,
+   - identify and read relevant plan documents in `docs/plans/`,
+   - synchronize TODO execution with those plans so work does not duplicate, contradict, or drift from planned architecture.
 4. Make small, reviewable changes.
 5. Add/update tests for behavior changes.
 6. Update docs for behavior/config/ops changes.
