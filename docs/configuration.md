@@ -210,6 +210,9 @@ Use these as startup presets, then tune incrementally:
 - `self_hosted_minimal` is valid with internal local state only.
 - `enterprise_akamai` should move `rate_limiter` and `ban_store` to distributed/external adapters before multi-instance authoritative rollout.
 - Multi-instance deployments using only local state should be treated as advisory/staging posture until distributed state correctness is enabled.
+- Deploy-time guardrail keys for this posture are documented in `docs/deployment.md`:
+  - `SHUMA_ENTERPRISE_MULTI_INSTANCE`
+  - `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED`
 
 ### Observability surfaces for composability
 

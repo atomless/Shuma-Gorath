@@ -83,6 +83,10 @@ make deploy-env-validate
   `SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true`
 - explicit operator attestation that admin API key rotation is complete for the deployment cadence:
   `SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true`
+- enterprise multi-instance state guardrail:
+  - when `SHUMA_ENTERPRISE_MULTI_INSTANCE=true`, validate `SHUMA_EDGE_INTEGRATION_MODE` and provider backend values,
+  - block local-only rate/ban state in authoritative mode,
+  - require `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=true` for temporary advisory/off exceptions when distributed state is not yet enabled.
 
 ### 🐙 Admin Surface Pre-Deploy Checklist
 
@@ -102,6 +106,13 @@ Run this checklist for every production deployment:
 5. API key rotation cadence:
    - Rotate `SHUMA_API_KEY` on a regular cadence (recommended 90 days) using `make gen-admin-api-key` / `make api-key-rotate`.
    - Set `SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true` in deploy-time environment after rotation verification.
+6. Enterprise multi-instance state posture:
+   - For multi-instance enterprise deployments, set `SHUMA_ENTERPRISE_MULTI_INSTANCE=true`.
+   - Prefer distributed state backends for both:
+     - `SHUMA_PROVIDER_RATE_LIMITER=external`
+     - `SHUMA_PROVIDER_BAN_STORE=external`
+   - Do not run local-only rate/ban state with `SHUMA_EDGE_INTEGRATION_MODE=authoritative`.
+   - If you must run temporary advisory/off posture without distributed state, set `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=true` and track a time-bounded remediation plan.
 
 ## 🐙 External Provider Rollout & Rollback Runbook
 

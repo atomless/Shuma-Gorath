@@ -338,7 +338,7 @@ api-key-validate: ## Validate SHUMA_API_KEY for deployment (must be 64-char hex 
 	fi; \
 	echo "$(GREEN)✅ SHUMA_API_KEY format is valid for deployment.$(NC)"
 
-deploy-env-validate: ## Fail deployment when unsafe debug flags are enabled, admin allowlist is missing, admin edge limits are unconfirmed, or API-key rotation is unconfirmed
+deploy-env-validate: ## Fail deployment when unsafe debug flags are enabled, admin allowlist is missing, admin edge limits are unconfirmed, API-key rotation is unconfirmed, or enterprise multi-instance state guardrails are unmet
 	@DEBUG_VAL="$${SHUMA_DEBUG_HEADERS:-false}"; \
 	DEBUG_NORM="$$(printf '%s' "$$DEBUG_VAL" | tr '[:upper:]' '[:lower:]')"; \
 	case "$$DEBUG_NORM" in \
@@ -378,7 +378,60 @@ deploy-env-validate: ## Fail deployment when unsafe debug flags are enabled, adm
 			echo "$(YELLOW)Rotate SHUMA_API_KEY on your cadence (recommended 90 days) with make gen-admin-api-key / make api-key-rotate, then set SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true.$(NC)"; \
 			exit 1 ;; \
 	esac; \
-	echo "$(GREEN)✅ Deployment env guardrails passed (SHUMA_DEBUG_HEADERS, SHUMA_ADMIN_IP_ALLOWLIST, SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED, SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED).$(NC)"
+	ENTERPRISE_MULTI_INSTANCE_RAW="$${SHUMA_ENTERPRISE_MULTI_INSTANCE:-false}"; \
+	ENTERPRISE_MULTI_INSTANCE_NORM="$$(printf '%s' "$$ENTERPRISE_MULTI_INSTANCE_RAW" | tr '[:upper:]' '[:lower:]')"; \
+	case "$$ENTERPRISE_MULTI_INSTANCE_NORM" in \
+		1|true|yes|on) \
+			EDGE_MODE_RAW="$${SHUMA_EDGE_INTEGRATION_MODE:-off}"; \
+			EDGE_MODE_NORM="$$(printf '%s' "$$EDGE_MODE_RAW" | tr '[:upper:]' '[:lower:]')"; \
+			case "$$EDGE_MODE_NORM" in \
+				off|advisory|authoritative) ;; \
+				*) \
+					echo "$(RED)❌ Refusing deployment: SHUMA_EDGE_INTEGRATION_MODE must be one of off|advisory|authoritative when SHUMA_ENTERPRISE_MULTI_INSTANCE=true.$(NC)"; \
+					exit 1 ;; \
+			esac; \
+			RATE_BACKEND_RAW="$${SHUMA_PROVIDER_RATE_LIMITER:-internal}"; \
+			RATE_BACKEND_NORM="$$(printf '%s' "$$RATE_BACKEND_RAW" | tr '[:upper:]' '[:lower:]')"; \
+			case "$$RATE_BACKEND_NORM" in \
+				internal|external) ;; \
+				*) \
+					echo "$(RED)❌ Refusing deployment: SHUMA_PROVIDER_RATE_LIMITER must be internal|external when SHUMA_ENTERPRISE_MULTI_INSTANCE=true.$(NC)"; \
+					exit 1 ;; \
+			esac; \
+			BAN_BACKEND_RAW="$${SHUMA_PROVIDER_BAN_STORE:-internal}"; \
+			BAN_BACKEND_NORM="$$(printf '%s' "$$BAN_BACKEND_RAW" | tr '[:upper:]' '[:lower:]')"; \
+			case "$$BAN_BACKEND_NORM" in \
+				internal|external) ;; \
+				*) \
+					echo "$(RED)❌ Refusing deployment: SHUMA_PROVIDER_BAN_STORE must be internal|external when SHUMA_ENTERPRISE_MULTI_INSTANCE=true.$(NC)"; \
+					exit 1 ;; \
+			esac; \
+			UNSYNCED_LOCAL_STATE=0; \
+			if [ "$$RATE_BACKEND_NORM" != "external" ] || [ "$$BAN_BACKEND_NORM" != "external" ]; then \
+				UNSYNCED_LOCAL_STATE=1; \
+			fi; \
+			if [ "$$UNSYNCED_LOCAL_STATE" -eq 1 ]; then \
+				if [ "$$EDGE_MODE_NORM" = "authoritative" ]; then \
+					echo "$(RED)❌ Refusing deployment: enterprise multi-instance rollout cannot run with local-only rate/ban state in authoritative edge mode.$(NC)"; \
+					echo "$(YELLOW)Use distributed state backends first, or move to advisory mode for a temporary exception window.$(NC)"; \
+					exit 1; \
+				fi; \
+				UNSYNCED_EXCEPTION_RAW="$${SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED:-false}"; \
+				UNSYNCED_EXCEPTION_NORM="$$(printf '%s' "$$UNSYNCED_EXCEPTION_RAW" | tr '[:upper:]' '[:lower:]')"; \
+				case "$$UNSYNCED_EXCEPTION_NORM" in \
+					1|true|yes|on) ;; \
+					*) \
+						echo "$(RED)❌ Refusing deployment: enterprise multi-instance rollout is using local-only rate/ban state without explicit exception attestation.$(NC)"; \
+						echo "$(YELLOW)Set distributed state backends (SHUMA_PROVIDER_RATE_LIMITER=external and SHUMA_PROVIDER_BAN_STORE=external), or set SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=true for temporary advisory-only operation.$(NC)"; \
+						exit 1 ;; \
+				esac; \
+			fi ;; \
+		0|false|no|off|"") ;; \
+		*) \
+			echo "$(RED)❌ Refusing deployment: SHUMA_ENTERPRISE_MULTI_INSTANCE must be a boolean value (true/false).$(NC)"; \
+			exit 1 ;; \
+	esac; \
+	echo "$(GREEN)✅ Deployment env guardrails passed (SHUMA_DEBUG_HEADERS, SHUMA_ADMIN_IP_ALLOWLIST, SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED, SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED, enterprise multi-instance state guardrails).$(NC)"
 
 #--------------------------
 # Help
