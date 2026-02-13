@@ -119,6 +119,10 @@ These keys are seeded into KV and loaded from KV at runtime.
 
 - `GET /admin/config` reads effective KV-backed config.
 - `POST /admin/config` writes to KV only when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`.
+- `GET /admin/config/export` returns a non-secret deploy handoff snapshot as env-style key/value output:
+  - `env`: object of deploy-ready `SHUMA_*` non-secret values (env guardrails + KV tunables),
+  - `env_text`: newline-delimited `KEY=value` output for copy/paste into immutable deploy config,
+  - `excluded_secrets`: explicit list of secret keys intentionally omitted.
 - Successful writes invalidate runtime config cache on the instance that processed the request.
 - KV writes persist across restarts.
 

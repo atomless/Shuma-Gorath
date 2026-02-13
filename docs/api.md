@@ -109,6 +109,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `GET /admin/cdp/events?hours=N&limit=M` - CDP-only detections/auto-bans (time-windowed, limit configurable)
 - `GET /admin/config` - Read configuration
 - `POST /admin/config` - Update configuration (partial JSON, disabled when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`)
+- `GET /admin/config/export` - Export non-secret runtime config as deploy-ready env key/value output
 - `GET /admin/maze` - maze stats
 - `GET /admin/robots` - robots.txt config and preview
 - `GET /admin/cdp` - CDP detection config and stats
@@ -137,6 +138,16 @@ For CDP-only operational views without the 100-row mixed-event cap, use:
 - `total_matches` (number of matched CDP events before truncation)
 - `counts.detections` (CDP detection event count in the window)
 - `counts.auto_bans` (CDP auto-ban event count in the window)
+
+### 🐙 Config Export Response
+
+`GET /admin/config/export` returns:
+- `format` (`env`)
+- `site_id`
+- `generated_at` (unix seconds)
+- `env` (non-secret `SHUMA_*` values as strings)
+- `env_text` (newline-delimited `KEY=value` export)
+- `excluded_secrets` (secret keys intentionally omitted)
 
 ### 🐙 Example: List Bans
 

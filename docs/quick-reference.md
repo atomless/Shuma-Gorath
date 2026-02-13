@@ -60,6 +60,7 @@ make test-dashboard-e2e    # In terminal 2
 - `GET /admin/events?hours=24` - Get recent events
 - `GET /admin/config` - Get current configuration
 - `POST /admin/config` - Update configuration (test_mode, ban_durations, robots, CDP, etc.)
+- `GET /admin/config/export` - Export non-secret runtime config for immutable redeploy handoff
 - `GET /admin/maze` - maze statistics
 - `GET /admin/robots` - robots.txt configuration and preview
 - `GET /admin/cdp` - CDP detection configuration and stats
@@ -168,6 +169,12 @@ curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
 ```bash
 curl -H "Authorization: Bearer $SHUMA_API_KEY" \
   "http://127.0.0.1:3000/admin/events?hours=24" | jq
+```
+
+### 🐙 Export runtime config for immutable redeploy handoff
+```bash
+curl -H "Authorization: Bearer $SHUMA_API_KEY" \
+  "http://127.0.0.1:3000/admin/config/export" | jq -r '.env_text'
 ```
 
 ### 🐙 Test honeypot

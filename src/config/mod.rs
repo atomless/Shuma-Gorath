@@ -624,6 +624,10 @@ pub fn https_enforced() -> bool {
     env_bool_required("SHUMA_ENFORCE_HTTPS")
 }
 
+pub fn debug_headers_enabled() -> bool {
+    env_bool_required("SHUMA_DEBUG_HEADERS")
+}
+
 pub fn forwarded_header_trust_configured() -> bool {
     env::var("SHUMA_FORWARDED_IP_SECRET")
         .ok()

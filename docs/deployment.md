@@ -11,6 +11,7 @@ Shuma-Gorath is intended to complement enterprise bot defenses (for example Akam
 - `make setup` seeds KV tunables from `config/defaults.env` using `make config-seed`.
 - Runtime config is process-cached for a short TTL (2 seconds) to reduce hot-path KV reads.
 - `POST /admin/config` invalidates cache on the handling instance; other instances converge on their TTL window.
+- `GET /admin/config/export` provides a non-secret `KEY=value` handoff snapshot for immutable redeploy workflows.
 
 If KV config is missing/invalid at runtime, config-dependent request handling fails with `500 Configuration unavailable`.
 

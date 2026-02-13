@@ -1,6 +1,7 @@
 use once_cell::sync::Lazy;
 use rand::random;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 /// Event types for activity logging
@@ -31,6 +32,14 @@ const POW_DIFFICULTY_MIN: u8 = crate::config::POW_DIFFICULTY_MIN;
 const POW_DIFFICULTY_MAX: u8 = crate::config::POW_DIFFICULTY_MAX;
 const POW_TTL_MIN: u64 = crate::config::POW_TTL_MIN;
 const POW_TTL_MAX: u64 = crate::config::POW_TTL_MAX;
+const CONFIG_EXPORT_SECRET_KEYS: [&str; 6] = [
+    "SHUMA_API_KEY",
+    "SHUMA_JS_SECRET",
+    "SHUMA_POW_SECRET",
+    "SHUMA_CHALLENGE_SECRET",
+    "SHUMA_FORWARDED_IP_SECRET",
+    "SHUMA_HEALTH_SECRET",
+];
 
 static LAST_EVENTLOG_CLEANUP_HOUR: Lazy<Mutex<u64>> = Lazy::new(|| Mutex::new(0));
 
@@ -280,6 +289,155 @@ mod admin_config_tests {
             m.remove(key);
             Ok(())
         }
+    }
+
+    fn clear_env(keys: &[&str]) {
+        for key in keys {
+            std::env::remove_var(key);
+        }
+    }
+
+    #[test]
+    fn admin_config_export_returns_non_secret_runtime_values() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_IP_ALLOWLIST", "203.0.113.0/24,198.51.100.8");
+        std::env::set_var("SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE", "17");
+        std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "240");
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "false");
+        std::env::set_var("SHUMA_ENFORCE_HTTPS", "true");
+        std::env::set_var("SHUMA_DEBUG_HEADERS", "true");
+        std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "true");
+        std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", "true");
+        std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "true");
+
+        let store = TestStore::default();
+        let mut cfg = crate::config::defaults().clone();
+        cfg.rate_limit = 321;
+        cfg.honeypots = vec!["/trap-a".to_string(), "/trap-b".to_string()];
+        cfg.defence_modes.rate = crate::config::ComposabilityMode::Signal;
+        cfg.provider_backends.fingerprint_signal = crate::config::ProviderBackend::External;
+        cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Advisory;
+        store
+            .set("config:default", &serde_json::to_vec(&cfg).unwrap())
+            .unwrap();
+
+        let req = make_request(Method::Get, "/admin/config/export", Vec::new());
+        let resp = handle_admin_config_export(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        let env = body.get("env").and_then(|v| v.as_object()).unwrap();
+        assert_eq!(env.get("SHUMA_RATE_LIMIT"), Some(&serde_json::json!("321")));
+        assert_eq!(
+            env.get("SHUMA_HONEYPOTS"),
+            Some(&serde_json::json!("[\"/trap-a\",\"/trap-b\"]"))
+        );
+        assert_eq!(
+            env.get("SHUMA_MODE_RATE"),
+            Some(&serde_json::json!("signal"))
+        );
+        assert_eq!(
+            env.get("SHUMA_PROVIDER_FINGERPRINT_SIGNAL"),
+            Some(&serde_json::json!("external"))
+        );
+        assert_eq!(
+            env.get("SHUMA_EDGE_INTEGRATION_MODE"),
+            Some(&serde_json::json!("advisory"))
+        );
+        assert_eq!(
+            env.get("SHUMA_ADMIN_IP_ALLOWLIST"),
+            Some(&serde_json::json!("203.0.113.0/24,198.51.100.8"))
+        );
+        assert_eq!(
+            env.get("SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE"),
+            Some(&serde_json::json!("17"))
+        );
+        assert_eq!(
+            env.get("SHUMA_EVENT_LOG_RETENTION_HOURS"),
+            Some(&serde_json::json!("240"))
+        );
+        assert_eq!(
+            env.get("SHUMA_ADMIN_CONFIG_WRITE_ENABLED"),
+            Some(&serde_json::json!("true"))
+        );
+        assert_eq!(
+            env.get("SHUMA_KV_STORE_FAIL_OPEN"),
+            Some(&serde_json::json!("false"))
+        );
+        assert_eq!(
+            env.get("SHUMA_ENFORCE_HTTPS"),
+            Some(&serde_json::json!("true"))
+        );
+        assert_eq!(
+            env.get("SHUMA_DEBUG_HEADERS"),
+            Some(&serde_json::json!("true"))
+        );
+
+        let env_text = body.get("env_text").and_then(|v| v.as_str()).unwrap();
+        assert!(env_text.contains("SHUMA_RATE_LIMIT=321"));
+        assert!(env_text.contains("SHUMA_MODE_RATE=signal"));
+        assert!(env_text.contains("SHUMA_PROVIDER_FINGERPRINT_SIGNAL=external"));
+        assert!(env_text.contains("SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE=17"));
+
+        clear_env(&[
+            "SHUMA_ADMIN_IP_ALLOWLIST",
+            "SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE",
+            "SHUMA_EVENT_LOG_RETENTION_HOURS",
+            "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+            "SHUMA_KV_STORE_FAIL_OPEN",
+            "SHUMA_ENFORCE_HTTPS",
+            "SHUMA_DEBUG_HEADERS",
+            "SHUMA_POW_CONFIG_MUTABLE",
+            "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+            "SHUMA_BOTNESS_CONFIG_MUTABLE",
+        ]);
+    }
+
+    #[test]
+    fn admin_config_export_omits_secret_values() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_API_KEY", "admin-key-secret");
+        std::env::set_var("SHUMA_JS_SECRET", "js-secret");
+        std::env::set_var("SHUMA_POW_SECRET", "pow-secret");
+        std::env::set_var("SHUMA_CHALLENGE_SECRET", "challenge-secret");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "forwarded-secret");
+        std::env::set_var("SHUMA_HEALTH_SECRET", "health-secret");
+
+        let store = TestStore::default();
+        let req = make_request(Method::Get, "/admin/config/export", Vec::new());
+        let resp = handle_admin_config_export(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        let env = body.get("env").and_then(|v| v.as_object()).unwrap();
+        for secret_key in CONFIG_EXPORT_SECRET_KEYS {
+            assert!(env.get(secret_key).is_none());
+        }
+
+        let env_text = body.get("env_text").and_then(|v| v.as_str()).unwrap();
+        for secret_key in CONFIG_EXPORT_SECRET_KEYS {
+            assert!(!env_text.contains(&format!("{}=", secret_key)));
+        }
+
+        let excluded = body
+            .get("excluded_secrets")
+            .and_then(|v| v.as_array())
+            .unwrap();
+        for secret_key in CONFIG_EXPORT_SECRET_KEYS {
+            assert!(excluded
+                .iter()
+                .any(|item| item.as_str() == Some(secret_key)));
+        }
+
+        clear_env(&[
+            "SHUMA_API_KEY",
+            "SHUMA_JS_SECRET",
+            "SHUMA_POW_SECRET",
+            "SHUMA_CHALLENGE_SECRET",
+            "SHUMA_FORWARDED_IP_SECRET",
+            "SHUMA_HEALTH_SECRET",
+        ]);
     }
 
     #[test]
@@ -675,6 +833,7 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/analytics"
             | "/admin/events"
             | "/admin/config"
+            | "/admin/config/export"
             | "/admin/maze"
             | "/admin/robots"
             | "/admin/cdp"
@@ -921,6 +1080,294 @@ fn botness_signal_definitions(cfg: &crate::config::Config) -> serde_json::Value 
             { "key": "already_banned", "label": "Existing active ban", "action": "Block page" }
         ]
     })
+}
+
+fn bool_env(value: bool) -> &'static str {
+    if value {
+        "true"
+    } else {
+        "false"
+    }
+}
+
+fn json_env<T: Serialize>(value: &T) -> String {
+    serde_json::to_string(value).unwrap()
+}
+
+fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String)> {
+    vec![
+        (
+            "SHUMA_ADMIN_IP_ALLOWLIST".to_string(),
+            std::env::var("SHUMA_ADMIN_IP_ALLOWLIST").unwrap_or_default(),
+        ),
+        (
+            "SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE".to_string(),
+            crate::admin::auth::admin_auth_failure_limit_per_minute().to_string(),
+        ),
+        (
+            "SHUMA_EVENT_LOG_RETENTION_HOURS".to_string(),
+            crate::config::event_log_retention_hours().to_string(),
+        ),
+        (
+            "SHUMA_ADMIN_CONFIG_WRITE_ENABLED".to_string(),
+            bool_env(crate::config::admin_config_write_enabled()).to_string(),
+        ),
+        (
+            "SHUMA_KV_STORE_FAIL_OPEN".to_string(),
+            bool_env(crate::config::kv_store_fail_open()).to_string(),
+        ),
+        (
+            "SHUMA_ENFORCE_HTTPS".to_string(),
+            bool_env(crate::config::https_enforced()).to_string(),
+        ),
+        (
+            "SHUMA_DEBUG_HEADERS".to_string(),
+            bool_env(crate::config::debug_headers_enabled()).to_string(),
+        ),
+        (
+            "SHUMA_POW_CONFIG_MUTABLE".to_string(),
+            bool_env(crate::config::pow_config_mutable()).to_string(),
+        ),
+        (
+            "SHUMA_CHALLENGE_CONFIG_MUTABLE".to_string(),
+            bool_env(crate::config::challenge_config_mutable()).to_string(),
+        ),
+        (
+            "SHUMA_BOTNESS_CONFIG_MUTABLE".to_string(),
+            bool_env(crate::config::botness_config_mutable()).to_string(),
+        ),
+        (
+            "SHUMA_TEST_MODE".to_string(),
+            bool_env(cfg.test_mode).to_string(),
+        ),
+        (
+            "SHUMA_JS_REQUIRED_ENFORCED".to_string(),
+            bool_env(cfg.js_required_enforced).to_string(),
+        ),
+        (
+            "SHUMA_MODE_RATE".to_string(),
+            cfg.defence_modes.rate.as_str().to_string(),
+        ),
+        (
+            "SHUMA_MODE_GEO".to_string(),
+            cfg.defence_modes.geo.as_str().to_string(),
+        ),
+        (
+            "SHUMA_MODE_JS".to_string(),
+            cfg.defence_modes.js.as_str().to_string(),
+        ),
+        (
+            "SHUMA_PROVIDER_RATE_LIMITER".to_string(),
+            cfg.provider_backends.rate_limiter.as_str().to_string(),
+        ),
+        (
+            "SHUMA_PROVIDER_BAN_STORE".to_string(),
+            cfg.provider_backends.ban_store.as_str().to_string(),
+        ),
+        (
+            "SHUMA_PROVIDER_CHALLENGE_ENGINE".to_string(),
+            cfg.provider_backends.challenge_engine.as_str().to_string(),
+        ),
+        (
+            "SHUMA_PROVIDER_MAZE_TARPIT".to_string(),
+            cfg.provider_backends.maze_tarpit.as_str().to_string(),
+        ),
+        (
+            "SHUMA_PROVIDER_FINGERPRINT_SIGNAL".to_string(),
+            cfg.provider_backends.fingerprint_signal.as_str().to_string(),
+        ),
+        (
+            "SHUMA_EDGE_INTEGRATION_MODE".to_string(),
+            cfg.edge_integration_mode.as_str().to_string(),
+        ),
+        (
+            "SHUMA_POW_ENABLED".to_string(),
+            bool_env(cfg.pow_enabled).to_string(),
+        ),
+        (
+            "SHUMA_POW_DIFFICULTY".to_string(),
+            cfg.pow_difficulty.to_string(),
+        ),
+        (
+            "SHUMA_POW_TTL_SECONDS".to_string(),
+            cfg.pow_ttl_seconds.to_string(),
+        ),
+        (
+            "SHUMA_CHALLENGE_TRANSFORM_COUNT".to_string(),
+            cfg.challenge_transform_count.to_string(),
+        ),
+        (
+            "SHUMA_CHALLENGE_RISK_THRESHOLD".to_string(),
+            cfg.challenge_risk_threshold.to_string(),
+        ),
+        (
+            "SHUMA_BOTNESS_MAZE_THRESHOLD".to_string(),
+            cfg.botness_maze_threshold.to_string(),
+        ),
+        (
+            "SHUMA_BOTNESS_WEIGHT_JS_REQUIRED".to_string(),
+            cfg.botness_weights.js_required.to_string(),
+        ),
+        (
+            "SHUMA_BOTNESS_WEIGHT_GEO_RISK".to_string(),
+            cfg.botness_weights.geo_risk.to_string(),
+        ),
+        (
+            "SHUMA_BOTNESS_WEIGHT_RATE_MEDIUM".to_string(),
+            cfg.botness_weights.rate_medium.to_string(),
+        ),
+        (
+            "SHUMA_BOTNESS_WEIGHT_RATE_HIGH".to_string(),
+            cfg.botness_weights.rate_high.to_string(),
+        ),
+        (
+            "SHUMA_BAN_DURATION".to_string(),
+            cfg.ban_duration.to_string(),
+        ),
+        (
+            "SHUMA_BAN_DURATION_HONEYPOT".to_string(),
+            cfg.ban_durations.honeypot.to_string(),
+        ),
+        (
+            "SHUMA_BAN_DURATION_RATE_LIMIT".to_string(),
+            cfg.ban_durations.rate_limit.to_string(),
+        ),
+        (
+            "SHUMA_BAN_DURATION_BROWSER".to_string(),
+            cfg.ban_durations.browser.to_string(),
+        ),
+        (
+            "SHUMA_BAN_DURATION_ADMIN".to_string(),
+            cfg.ban_durations.admin.to_string(),
+        ),
+        (
+            "SHUMA_BAN_DURATION_CDP".to_string(),
+            cfg.ban_durations.cdp.to_string(),
+        ),
+        ("SHUMA_RATE_LIMIT".to_string(), cfg.rate_limit.to_string()),
+        ("SHUMA_HONEYPOTS".to_string(), json_env(&cfg.honeypots)),
+        (
+            "SHUMA_BROWSER_BLOCK".to_string(),
+            json_env(&cfg.browser_block),
+        ),
+        (
+            "SHUMA_BROWSER_WHITELIST".to_string(),
+            json_env(&cfg.browser_whitelist),
+        ),
+        (
+            "SHUMA_GEO_RISK_COUNTRIES".to_string(),
+            json_env(&cfg.geo_risk),
+        ),
+        (
+            "SHUMA_GEO_ALLOW_COUNTRIES".to_string(),
+            json_env(&cfg.geo_allow),
+        ),
+        (
+            "SHUMA_GEO_CHALLENGE_COUNTRIES".to_string(),
+            json_env(&cfg.geo_challenge),
+        ),
+        (
+            "SHUMA_GEO_MAZE_COUNTRIES".to_string(),
+            json_env(&cfg.geo_maze),
+        ),
+        (
+            "SHUMA_GEO_BLOCK_COUNTRIES".to_string(),
+            json_env(&cfg.geo_block),
+        ),
+        ("SHUMA_WHITELIST".to_string(), json_env(&cfg.whitelist)),
+        (
+            "SHUMA_PATH_WHITELIST".to_string(),
+            json_env(&cfg.path_whitelist),
+        ),
+        (
+            "SHUMA_MAZE_ENABLED".to_string(),
+            bool_env(cfg.maze_enabled).to_string(),
+        ),
+        (
+            "SHUMA_MAZE_AUTO_BAN".to_string(),
+            bool_env(cfg.maze_auto_ban).to_string(),
+        ),
+        (
+            "SHUMA_MAZE_AUTO_BAN_THRESHOLD".to_string(),
+            cfg.maze_auto_ban_threshold.to_string(),
+        ),
+        (
+            "SHUMA_ROBOTS_ENABLED".to_string(),
+            bool_env(cfg.robots_enabled).to_string(),
+        ),
+        (
+            "SHUMA_ROBOTS_BLOCK_AI_TRAINING".to_string(),
+            bool_env(cfg.robots_block_ai_training).to_string(),
+        ),
+        (
+            "SHUMA_ROBOTS_BLOCK_AI_SEARCH".to_string(),
+            bool_env(cfg.robots_block_ai_search).to_string(),
+        ),
+        (
+            "SHUMA_ROBOTS_ALLOW_SEARCH_ENGINES".to_string(),
+            bool_env(cfg.robots_allow_search_engines).to_string(),
+        ),
+        (
+            "SHUMA_ROBOTS_CRAWL_DELAY".to_string(),
+            cfg.robots_crawl_delay.to_string(),
+        ),
+        (
+            "SHUMA_CDP_DETECTION_ENABLED".to_string(),
+            bool_env(cfg.cdp_detection_enabled).to_string(),
+        ),
+        (
+            "SHUMA_CDP_AUTO_BAN".to_string(),
+            bool_env(cfg.cdp_auto_ban).to_string(),
+        ),
+        (
+            "SHUMA_CDP_DETECTION_THRESHOLD".to_string(),
+            cfg.cdp_detection_threshold.to_string(),
+        ),
+    ]
+}
+
+fn handle_admin_config_export(
+    req: &Request,
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+) -> Response {
+    if *req.method() != spin_sdk::http::Method::Get {
+        return Response::new(405, "Method Not Allowed");
+    }
+    let cfg = match crate::config::Config::load(store, site_id) {
+        Ok(cfg) => cfg,
+        Err(err) => return Response::new(500, err.user_message()),
+    };
+    let entries = config_export_env_entries(&cfg);
+    let env_map: BTreeMap<String, String> = entries.iter().cloned().collect();
+    let env_text = entries
+        .iter()
+        .map(|(key, value)| format!("{}={}", key, value))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    log_event(
+        store,
+        &EventLogEntry {
+            ts: now_ts(),
+            event: EventType::AdminAction,
+            ip: None,
+            reason: Some("config_export".to_string()),
+            outcome: Some(format!("{} keys", entries.len())),
+            admin: Some(crate::admin::auth::get_admin_id(req)),
+        },
+    );
+
+    let body = serde_json::to_string(&json!({
+        "format": "env",
+        "site_id": site_id,
+        "generated_at": now_ts(),
+        "excluded_secrets": CONFIG_EXPORT_SECRET_KEYS,
+        "env": env_map,
+        "env_text": env_text
+    }))
+    .unwrap();
+    Response::new(200, body)
 }
 
 fn parse_country_list_json(field: &str, value: &serde_json::Value) -> Result<Vec<String>, String> {
@@ -1510,6 +1957,7 @@ fn handle_admin_config(
 ///   - GET /admin/cdp/events: Query CDP-only events
 ///   - GET /admin/config: Get current config including test_mode status
 ///   - POST /admin/config: Update config (e.g., toggle test_mode)
+///   - GET /admin/config/export: Export non-secret runtime config for immutable deploy handoff
 ///   - GET /admin: API help
 pub fn handle_admin(req: &Request) -> Response {
     // Optional admin IP allowlist
@@ -1830,6 +2278,9 @@ pub fn handle_admin(req: &Request) -> Response {
         "/admin/config" => {
             return handle_admin_config(req, &store, site_id);
         }
+        "/admin/config/export" => {
+            return handle_admin_config_export(req, &store, site_id);
+        }
         "/admin" => {
             // API help endpoint
             log_event(
@@ -1843,7 +2294,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/config, /admin/maze (GET for maze stats), /admin/robots (GET for robots.txt config & preview), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/config, /admin/config/export, /admin/maze (GET for maze stats), /admin/robots (GET for robots.txt config & preview), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics
