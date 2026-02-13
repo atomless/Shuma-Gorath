@@ -3,8 +3,12 @@
 ## 🐙 Authentication
 
 Admin endpoints support two auth modes:
-- Bearer token: `Authorization: Bearer <SHUMA_API_KEY>`
+- Bearer token (read/write): `Authorization: Bearer <SHUMA_API_KEY>`
+- Bearer token (read-only, optional): `Authorization: Bearer <SHUMA_ADMIN_READONLY_API_KEY>`
 - Session cookie: `POST /admin/login` with `{"api_key":"<SHUMA_API_KEY>"}` sets a short-lived `HttpOnly` cookie
+
+Write endpoints (`POST`, `PUT`, `PATCH`, `DELETE` on mutating admin routes) require read/write access.
+Read-only bearer tokens can access non-mutating admin endpoints only.
 
 If `SHUMA_ADMIN_IP_ALLOWLIST` is set, the client IP must be in the allowlist.
 
@@ -113,6 +117,8 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `GET /admin/maze` - maze stats
 - `GET /admin/robots` - robots.txt config and preview
 - `GET /admin/cdp` - CDP detection config and stats
+
+`GET /admin/session` includes `access` as `read_only`, `read_write`, or `none`.
 
 ### 🐙 Analytics Response
 

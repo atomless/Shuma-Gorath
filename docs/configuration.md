@@ -41,6 +41,7 @@ These are read from process env at runtime (not from KV).
 | Variable | Required | Default in `config/defaults.env` | Purpose |
 | --- | --- | --- | --- |
 | `SHUMA_API_KEY` | Yes | `changeme-prod-api-key` | Admin authentication key for dashboard login and `Authorization: Bearer` admin API calls. |
+| `SHUMA_ADMIN_READONLY_API_KEY` | No | empty | Optional read-only admin bearer key for non-mutating `/admin/*` endpoints; write actions still require `SHUMA_API_KEY` or an admin session created from it. |
 | `SHUMA_JS_SECRET` | Yes | `changeme-prod-js-secret` | Signs and verifies `js_verified` cookie. |
 | `SHUMA_POW_SECRET` | No | empty | Optional dedicated PoW signing secret. Falls back to `SHUMA_JS_SECRET` when unset. |
 | `SHUMA_CHALLENGE_SECRET` | No | empty | Optional dedicated challenge signing secret. Falls back to `SHUMA_JS_SECRET` when unset. |

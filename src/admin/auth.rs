@@ -27,9 +27,25 @@ pub enum AdminAuthMethod {
     SessionCookie,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AdminAccessLevel {
+    ReadOnly,
+    ReadWrite,
+}
+
+impl AdminAccessLevel {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AdminAccessLevel::ReadOnly => "read_only",
+            AdminAccessLevel::ReadWrite => "read_write",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AdminAuthResult {
     pub method: Option<AdminAuthMethod>,
+    pub access: Option<AdminAccessLevel>,
     pub csrf_token: Option<String>,
     pub session_id: Option<String>,
 }
@@ -38,6 +54,7 @@ impl AdminAuthResult {
     pub fn unauthorized() -> Self {
         Self {
             method: None,
+            access: None,
             csrf_token: None,
             session_id: None,
         }
@@ -49,6 +66,32 @@ impl AdminAuthResult {
 
     pub fn requires_csrf(&self, req: &Request) -> bool {
         self.method == Some(AdminAuthMethod::SessionCookie) && method_is_write(req.method())
+    }
+
+    pub fn is_write_authorized(&self) -> bool {
+        self.access == Some(AdminAccessLevel::ReadWrite)
+    }
+
+    pub fn access_label(&self) -> &'static str {
+        match self.access {
+            Some(level) => level.as_str(),
+            None => "none",
+        }
+    }
+
+    pub fn audit_actor_label(&self) -> &'static str {
+        match (self.method, self.access) {
+            (Some(AdminAuthMethod::BearerToken), Some(AdminAccessLevel::ReadOnly)) => {
+                "admin_bearer_ro"
+            }
+            (Some(AdminAuthMethod::BearerToken), Some(AdminAccessLevel::ReadWrite)) => {
+                "admin_bearer_rw"
+            }
+            (Some(AdminAuthMethod::SessionCookie), Some(AdminAccessLevel::ReadWrite)) => {
+                "admin_session_rw"
+            }
+            _ => "-",
+        }
     }
 }
 
@@ -124,16 +167,42 @@ fn get_admin_api_key() -> Option<String> {
     Some(key.to_string())
 }
 
+fn get_admin_readonly_api_key() -> Option<String> {
+    let key = std::env::var("SHUMA_ADMIN_READONLY_API_KEY").ok()?;
+    let key = key.trim();
+    if key.is_empty() {
+        return None;
+    }
+    if key == INSECURE_DEFAULT_API_KEY {
+        return None;
+    }
+    Some(key.to_string())
+}
+
 pub fn is_admin_api_key_configured() -> bool {
     get_admin_api_key().is_some()
 }
 
-pub fn verify_admin_api_key_candidate(candidate: &str) -> bool {
-    let Some(expected) = get_admin_api_key() else {
-        return false;
-    };
+fn classify_admin_api_key_candidate(candidate: &str) -> Option<AdminAccessLevel> {
     let candidate = candidate.trim();
-    constant_time_eq(candidate, &expected)
+    if candidate.is_empty() {
+        return None;
+    }
+    if let Some(expected) = get_admin_api_key() {
+        if constant_time_eq(candidate, &expected) {
+            return Some(AdminAccessLevel::ReadWrite);
+        }
+    }
+    if let Some(expected) = get_admin_readonly_api_key() {
+        if constant_time_eq(candidate, &expected) {
+            return Some(AdminAccessLevel::ReadOnly);
+        }
+    }
+    None
+}
+
+pub fn verify_admin_api_key_candidate(candidate: &str) -> bool {
+    classify_admin_api_key_candidate(candidate) == Some(AdminAccessLevel::ReadWrite)
 }
 
 fn bearer_token(req: &Request) -> Option<String> {
@@ -145,11 +214,13 @@ fn bearer_token(req: &Request) -> Option<String> {
     Some(header[prefix.len()..].trim().to_string())
 }
 
+pub fn bearer_access_level(req: &Request) -> Option<AdminAccessLevel> {
+    let candidate = bearer_token(req)?;
+    classify_admin_api_key_candidate(&candidate)
+}
+
 pub fn is_bearer_authorized(req: &Request) -> bool {
-    let Some(candidate) = bearer_token(req) else {
-        return false;
-    };
-    verify_admin_api_key_candidate(&candidate)
+    bearer_access_level(req).is_some()
 }
 
 pub fn has_admin_session_cookie(req: &Request) -> bool {
@@ -157,10 +228,11 @@ pub fn has_admin_session_cookie(req: &Request) -> bool {
 }
 
 pub fn get_admin_id(req: &Request) -> String {
-    if is_bearer_authorized(req) || has_admin_session_cookie(req) {
-        "admin".to_string()
-    } else {
-        "-".to_string()
+    match bearer_access_level(req) {
+        Some(AdminAccessLevel::ReadOnly) => "admin_ro".to_string(),
+        Some(AdminAccessLevel::ReadWrite) => "admin_rw".to_string(),
+        None if has_admin_session_cookie(req) => "admin_session".to_string(),
+        None => "-".to_string(),
     }
 }
 
@@ -184,9 +256,10 @@ fn load_session_record<S: KeyValueStore>(
 }
 
 pub fn authenticate_admin<S: KeyValueStore>(req: &Request, store: &S) -> AdminAuthResult {
-    if is_bearer_authorized(req) {
+    if let Some(access) = bearer_access_level(req) {
         return AdminAuthResult {
             method: Some(AdminAuthMethod::BearerToken),
+            access: Some(access),
             csrf_token: None,
             session_id: None,
         };
@@ -200,6 +273,7 @@ pub fn authenticate_admin<S: KeyValueStore>(req: &Request, store: &S) -> AdminAu
     };
     AdminAuthResult {
         method: Some(AdminAuthMethod::SessionCookie),
+        access: Some(AdminAccessLevel::ReadWrite),
         csrf_token: Some(record.csrf_token),
         session_id: Some(session_id),
     }
@@ -383,6 +457,44 @@ mod tests {
     }
 
     #[test]
+    fn readonly_bearer_is_authorized_but_not_write_capable() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+        std::env::set_var("SHUMA_ADMIN_READONLY_API_KEY", "test-readonly-key");
+        let req = request_with_auth(Some("Bearer test-readonly-key"));
+        let store = MockStore::default();
+
+        assert!(is_bearer_authorized(&req));
+        assert!(!verify_admin_api_key_candidate("test-readonly-key"));
+        assert_eq!(bearer_access_level(&req), Some(AdminAccessLevel::ReadOnly));
+
+        let auth = authenticate_admin(&req, &store);
+        assert_eq!(auth.method, Some(AdminAuthMethod::BearerToken));
+        assert_eq!(auth.access, Some(AdminAccessLevel::ReadOnly));
+        assert!(!auth.is_write_authorized());
+        assert_eq!(auth.access_label(), "read_only");
+        assert_eq!(auth.audit_actor_label(), "admin_bearer_ro");
+        assert_eq!(get_admin_id(&req), "admin_ro");
+    }
+
+    #[test]
+    fn write_bearer_access_has_write_capability() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+        std::env::set_var("SHUMA_ADMIN_READONLY_API_KEY", "test-readonly-key");
+        let req = request_with_auth(Some("Bearer test-admin-key"));
+        let store = MockStore::default();
+
+        assert_eq!(bearer_access_level(&req), Some(AdminAccessLevel::ReadWrite));
+        let auth = authenticate_admin(&req, &store);
+        assert_eq!(auth.access, Some(AdminAccessLevel::ReadWrite));
+        assert!(auth.is_write_authorized());
+        assert_eq!(auth.access_label(), "read_write");
+        assert_eq!(auth.audit_actor_label(), "admin_bearer_rw");
+        assert_eq!(get_admin_id(&req), "admin_rw");
+    }
+
+    #[test]
     fn create_and_authenticate_cookie_session() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_API_KEY", "test-admin-key");
@@ -405,7 +517,10 @@ mod tests {
 
         let auth = authenticate_admin(&req, &store);
         assert_eq!(auth.method, Some(AdminAuthMethod::SessionCookie));
+        assert_eq!(auth.access, Some(AdminAccessLevel::ReadWrite));
         assert!(auth.requires_csrf(&req));
+        assert!(auth.is_write_authorized());
+        assert_eq!(auth.audit_actor_label(), "admin_session_rw");
         assert!(validate_session_csrf(
             &req,
             auth.csrf_token.as_deref().unwrap_or("")

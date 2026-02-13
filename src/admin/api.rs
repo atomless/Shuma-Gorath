@@ -32,8 +32,9 @@ const POW_DIFFICULTY_MIN: u8 = crate::config::POW_DIFFICULTY_MIN;
 const POW_DIFFICULTY_MAX: u8 = crate::config::POW_DIFFICULTY_MAX;
 const POW_TTL_MIN: u64 = crate::config::POW_TTL_MIN;
 const POW_TTL_MAX: u64 = crate::config::POW_TTL_MAX;
-const CONFIG_EXPORT_SECRET_KEYS: [&str; 6] = [
+const CONFIG_EXPORT_SECRET_KEYS: [&str; 7] = [
     "SHUMA_API_KEY",
+    "SHUMA_ADMIN_READONLY_API_KEY",
     "SHUMA_JS_SECRET",
     "SHUMA_POW_SECRET",
     "SHUMA_CHALLENGE_SECRET",
@@ -800,6 +801,16 @@ mod admin_auth_tests {
 
         std::env::remove_var("SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE");
     }
+
+    #[test]
+    fn write_access_matrix_covers_only_mutating_admin_routes() {
+        assert!(request_requires_admin_write("/admin/config", &Method::Post));
+        assert!(request_requires_admin_write("/admin/ban", &Method::Post));
+        assert!(request_requires_admin_write("/admin/unban", &Method::Post));
+        assert!(!request_requires_admin_write("/admin/events", &Method::Post));
+        assert!(!request_requires_admin_write("/admin/config", &Method::Get));
+        assert!(!request_requires_admin_write("/admin/analytics", &Method::Get));
+    }
 }
 
 /// Utility to get current unix timestamp
@@ -814,7 +825,7 @@ pub fn now_ts() -> u64 {
 // Provides HTTP endpoints for ban management and analytics, protected by API key auth.
 
 use serde_json::json;
-use spin_sdk::http::{Request, Response};
+use spin_sdk::http::{Method, Request, Response};
 use spin_sdk::key_value::Store;
 
 const ADMIN_BAN_DURATION_MIN: u64 = 60;
@@ -879,6 +890,40 @@ fn too_many_admin_auth_attempts_response() -> Response {
         .build()
 }
 
+fn request_requires_admin_write(path: &str, method: &Method) -> bool {
+    if !matches!(
+        method,
+        Method::Post | Method::Put | Method::Patch | Method::Delete
+    ) {
+        return false;
+    }
+    matches!(path, "/admin/ban" | "/admin/unban" | "/admin/config")
+}
+
+fn log_admin_write_denied<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    req: &Request,
+    path: &str,
+    auth: &crate::admin::auth::AdminAuthResult,
+) {
+    log_event(
+        store,
+        &EventLogEntry {
+            ts: now_ts(),
+            event: EventType::AdminAction,
+            ip: None,
+            reason: Some("admin_write_denied".to_string()),
+            outcome: Some(format!(
+                "path={} method={} access={}",
+                path,
+                req.method(),
+                auth.access_label()
+            )),
+            admin: Some(auth.audit_actor_label().to_string()),
+        },
+    );
+}
+
 fn handle_admin_login<S: crate::challenge::KeyValueStore>(req: &Request, store: &S) -> Response {
     if req.method() != &spin_sdk::http::Method::Post {
         return Response::new(405, "Method Not Allowed");
@@ -929,17 +974,25 @@ fn handle_admin_session<S: crate::challenge::KeyValueStore>(req: &Request, store
     }
 
     let auth = crate::admin::auth::authenticate_admin(req, store);
-    let (authenticated, method, csrf_token) = match auth.method {
+    let (authenticated, method, csrf_token, access) = match auth.method {
         Some(crate::admin::auth::AdminAuthMethod::SessionCookie) => {
-            (true, "session", auth.csrf_token.clone())
+            (
+                true,
+                "session",
+                auth.csrf_token.clone(),
+                crate::admin::auth::AdminAccessLevel::ReadWrite.as_str(),
+            )
         }
-        Some(crate::admin::auth::AdminAuthMethod::BearerToken) => (true, "bearer", None),
-        None => (false, "none", None),
+        Some(crate::admin::auth::AdminAuthMethod::BearerToken) => {
+            (true, "bearer", None, auth.access_label())
+        }
+        None => (false, "none", None, "none"),
     };
     let body = serde_json::to_string(&json!({
         "authenticated": authenticated,
         "method": method,
-        "csrf_token": csrf_token
+        "csrf_token": csrf_token,
+        "access": access
     }))
     .unwrap();
     Response::builder()
@@ -2015,6 +2068,10 @@ pub fn handle_admin(req: &Request) -> Response {
             return Response::new(403, "Forbidden");
         }
     }
+    if request_requires_admin_write(path, req.method()) && !auth.is_write_authorized() {
+        log_admin_write_denied(&store, req, path, &auth);
+        return Response::new(403, "Forbidden: admin write access required");
+    }
 
     let site_id = "default";
 
@@ -2215,6 +2272,9 @@ pub fn handle_admin(req: &Request) -> Response {
             Response::new(200, body)
         }
         "/admin/unban" => {
+            if *req.method() != spin_sdk::http::Method::Post {
+                return Response::new(405, "Method Not Allowed");
+            }
             // Unban IP (expects ?ip=...)
             let ip_raw = match crate::request_validation::query_param(req.query(), "ip") {
                 Some(v) => v,

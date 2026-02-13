@@ -104,6 +104,7 @@ ensure_env_local_file() {
 # Local development overrides (gitignored)
 # Created by `make setup`. Edit values for local development only.
 SHUMA_API_KEY=${SHUMA_API_KEY:-}
+SHUMA_ADMIN_READONLY_API_KEY=${SHUMA_ADMIN_READONLY_API_KEY:-}
 SHUMA_JS_SECRET=${SHUMA_JS_SECRET:-}
 SHUMA_POW_SECRET=${SHUMA_POW_SECRET:-}
 SHUMA_CHALLENGE_SECRET=${SHUMA_CHALLENGE_SECRET:-}
@@ -352,6 +353,7 @@ fi
 #--------------------------
 ensure_env_local_file
 ensure_local_dev_secret "SHUMA_API_KEY" 32
+ensure_env_local_default_from_defaults "SHUMA_ADMIN_READONLY_API_KEY"
 ensure_local_dev_secret "SHUMA_JS_SECRET" 32
 ensure_local_dev_secret "SHUMA_FORWARDED_IP_SECRET" 32
 ensure_env_local_default_from_defaults "SHUMA_POW_SECRET"

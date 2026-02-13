@@ -36,6 +36,7 @@ Current implementation note:
 Set these in your deployment secret/config system:
 
 - `SHUMA_API_KEY`
+- `SHUMA_ADMIN_READONLY_API_KEY` (optional; recommended when operators/automation need read-only admin API access)
 - `SHUMA_JS_SECRET`
 - `SHUMA_FORWARDED_IP_SECRET` (required when trusting forwarded headers)
 - `SHUMA_HEALTH_SECRET` (recommended; required if you want header-authenticated `/health`)

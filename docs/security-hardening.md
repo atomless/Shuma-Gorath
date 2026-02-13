@@ -39,10 +39,12 @@ This is a **policy decision** and should be explicitly chosen for each deploymen
 ## 🐙 Admin API Protection
 
 - Generate `SHUMA_API_KEY` with `make api-key-generate` (64-char hex), and rotate with `make api-key-rotate`
+- Optionally set `SHUMA_ADMIN_READONLY_API_KEY` for operators/automation that only need read access to `/admin/*`
 - Restrict access with `SHUMA_ADMIN_IP_ALLOWLIST`
 - Add CDN/WAF rate limits for `POST /admin/login` and all `/admin/*`
 - Keep `SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE` at a conservative value (default `10`)
 - Use TLS for all admin traffic
+- Keep mutating admin actions (`/admin/config`, `/admin/ban`, `/admin/unban`) on read/write credentials only; denied write attempts are logged for audit visibility
 - Keep admin API same-origin from the dashboard; no cross-origin admin API is enabled
 - CORS preflight (`OPTIONS`) for `/admin/*` is rejected by design
 
