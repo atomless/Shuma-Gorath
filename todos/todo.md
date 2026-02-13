@@ -123,7 +123,7 @@ Completion rule for every paper TODO below: capture key findings, map to `self_h
 
 ### Stage 2: Maze excellence execution (Cloudflare-inspired, Shuma-native)
 - [ ] MZ-S1: Keep Stage 2 completion criteria internal-first (no external-provider dependency).
-- [ ] MZ-S2: Execute Stage 2 delivery order as core (`MZ-1..MZ-4`), then defender-cost controls (`MZ-7..MZ-10`), then optional higher-friction escalation (`MZ-5..MZ-6`).
+- [ ] MZ-S2: Execute Stage 2 delivery order as core anti-fingerprinting + client-expansion foundation (`MZ-1..MZ-5`), then defender-cost controls (`MZ-7..MZ-10`), then optional higher-friction escalation (`MZ-6`).
 - [ ] MZ-1: Replace path-only deterministic seeding with rotating signed entropy for suspicious traffic; keep short TTL deterministic windows for cacheability/debugging.
 - [ ] MZ-2: Add signed traversal-link tokens with TTL, depth scope, branch budget, and replay protection.
 - [ ] MZ-3: Add polymorphic maze rendering (layout/content/link-graph variant families with versioned selection).
@@ -131,7 +131,7 @@ Completion rule for every paper TODO below: capture key findings, map to `self_h
 - [ ] MZ-3.2: Add manual/scheduled seed refresh for provider-fed corpora with robots/compliance guardrails, caching, and rate limits.
 - [ ] MZ-3.3: Enforce metadata/keyword-first extraction (avoid article-body copying) to reduce legal risk, bandwidth, and fingerprintability.
 - [ ] MZ-4: Inject covert decoys into eligible non-maze HTML responses for medium-confidence suspicious traffic while preserving UX/SEO safety.
-- [ ] MZ-5: Add optional client-side expansion mode (Web Worker branch generation + signed server verification) to shift traversal cost toward bots.
+- [ ] MZ-5: Make client-side expansion foundational for suspicious maze tiers (Web Worker branch generation + signed server verification) with explicit checkpoint cadence (every 3 nodes or 1500 ms), bounded step-ahead allowance, and no-JS fallback rules.
 - [ ] MZ-6: Add optional adaptive micro-PoW for deeper traversal tiers.
 - [ ] MZ-7: Enforce maze cost budgets (global concurrency, per-bucket spend, response byte/time caps) with deterministic fallback behavior.
 - [ ] MZ-8: Add a crawler simulation harness covering replay, deterministic fingerprinting attempts, JS/no-JS cohorts, and bypass attempts.
