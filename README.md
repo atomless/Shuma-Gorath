@@ -1,5 +1,6 @@
 [![CI](https://github.com/atomless/Shuma-Gorath/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/atomless/Shuma-Gorath/actions/workflows/ci.yml)
 [![Dashboard E2E](https://github.com/atomless/Shuma-Gorath/actions/workflows/dashboard-e2e.yml/badge.svg?branch=main)](https://github.com/atomless/Shuma-Gorath/actions/workflows/dashboard-e2e.yml)
+[![CodeQL](https://github.com/atomless/Shuma-Gorath/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/atomless/Shuma-Gorath/actions/workflows/codeql.yml)
 
 ![Shuma-Gorath](dashboard/assets/shuma-gorath.png)
 
