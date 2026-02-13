@@ -55,6 +55,17 @@ HTTP tarpit behavior is planned (`maze_plus_drip`) but not yet implemented as a 
 - Persistent tarpit traversals can escalate to temporary ban with guardrails.
 - Add revalidation windows before long-duration enforcement.
 
+### E. Maze/Tarpit shared primitives (must be reused)
+
+- Reuse the same signed deception token envelope defined for maze traversal (`MZ-2` scope).
+- Reuse a single budget governor for concurrency, byte/time caps, and per-bucket spend (`MZ-7` scope).
+- Reuse one deterministic fallback policy matrix across both modes.
+- Reuse one observability taxonomy so maze and tarpit metrics are directly comparable.
+
+Non-duplication rule:
+
+- `TP-1` through `TP-4` must consume shared primitives used by maze work; do not implement tarpit-only token, budget, or fallback subsystems.
+
 ## Cost-allocation Targets
 
 | Cost component | Target bearer | Approach |
@@ -73,16 +84,18 @@ HTTP tarpit behavior is planned (`maze_plus_drip`) but not yet implemented as a 
 
 ## Structured Implementation TODOs
 
-1. TP-1: Implement `maze_plus_drip` tarpit mode and response pacing.
-2. TP-2: Add global and per-bucket concurrency budgets.
-3. TP-3: Add max byte and max duration caps.
-4. TP-4: Add deterministic fallback action policy.
-5. TP-5: Add tarpit activation and saturation metrics.
-6. TP-6: Add escalation policy for repeated tarpit clients.
-7. TP-7: Add guardrails for false-positive minimization.
-8. TP-8: Add integration tests for budget exhaustion and fallback paths.
-9. TP-9: Add observability dashboards for tarpit cost attribution.
-10. TP-10: Document operational runbook and emergency disable path.
+1. TP-C1: Reuse shared deception token and budget primitives from maze scope (`MZ-2`, `MZ-7`) before tarpit mode implementation.
+2. TP-C2: Confirm shared fallback policy matrix and shared observability schema are used by both modes.
+3. TP-1: Implement `maze_plus_drip` tarpit mode and response pacing using shared primitives.
+4. TP-2: Add global and per-bucket concurrency budgets via shared budget governor.
+5. TP-3: Add max byte and max duration caps via shared budget governor.
+6. TP-4: Add deterministic fallback action policy via shared fallback matrix.
+7. TP-5: Add tarpit activation and saturation metrics.
+8. TP-6: Add escalation policy for repeated tarpit clients.
+9. TP-7: Add guardrails for false-positive minimization.
+10. TP-8: Add integration tests for budget exhaustion and fallback paths.
+11. TP-9: Add observability dashboards for tarpit cost attribution.
+12. TP-10: Document operational runbook and emergency disable path.
 
 ## Source References
 

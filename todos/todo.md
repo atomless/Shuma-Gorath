@@ -146,9 +146,11 @@ Completion rule for every paper TODO below: capture key findings, map to `self_h
 - [ ] ~~Feed maze interaction behavior back into botness scoring and detection IDs.~~ Superseded by MZ-9.
 
 ### Stage 3: Bounded slow-drip tarpit
-- [ ] Implement `maze_plus_drip` mode with configurable byte rate and hard timeout.
-- [ ] Enforce strict tarpit budgets (global concurrent streams and per-IP-bucket caps).
-- [ ] Add deterministic fallback action when tarpit budget is exhausted (`maze` or `block`).
+- [ ] TP-C1: Reuse shared deception token primitives from maze scope (`MZ-2`) for tarpit progression; do not introduce a tarpit-only token format.
+- [ ] TP-C2: Reuse shared budget/fallback primitives from maze scope (`MZ-7`) for tarpit limits and deterministic fallback; do not fork budget logic by mode.
+- [ ] Implement `maze_plus_drip` mode with configurable byte rate and hard timeout using shared primitives.
+- [ ] Enforce strict tarpit budgets (global concurrent streams and per-IP-bucket caps) via shared budget governor.
+- [ ] Add deterministic fallback action when tarpit budget is exhausted (`maze` or `block`) via shared fallback matrix.
 - [ ] Add tarpit metrics/admin visibility for activation, saturation, duration, bytes sent, and escalation outcomes.
 
 ### Stage 4: Escalation and distributed hardening

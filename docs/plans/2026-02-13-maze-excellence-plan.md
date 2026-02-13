@@ -109,7 +109,29 @@ Risks and mitigations:
   - hard response byte caps/timeouts.
 - Deterministic fallback when budgets are exhausted (`maze` -> `challenge` or `block` based on policy).
 
-### F. Cost-allocation targets (bot over host)
+### F. Maze/Tarpit convergence contract (shared implementation required)
+
+Maze and tarpit are separate defence modes, but they must share foundational mechanics to prevent drift and contradictory behavior.
+
+Shared primitives (single implementation path):
+
+- Signed deception token envelope:
+  - shared fields and validation logic for traversal/drip progression.
+- Shared budget governor:
+  - global concurrency caps,
+  - per-bucket spend limits,
+  - byte/time caps.
+- Shared fallback policy matrix:
+  - deterministic fallback precedence when budgets saturate.
+- Shared observability schema:
+  - common labels/fields for mode, budget reason, token outcome, and fallback action.
+
+Non-duplication rule:
+
+- `MZ-2` and `MZ-7` must be implemented using shared primitives also consumed by HTTP tarpit tasks (`TP-*`).
+- Do not create a separate tarpit-only token format or budget/fallback logic path.
+
+### G. Cost-allocation targets (bot over host)
 
 Target split for suspicious traffic after rollout:
 
@@ -129,7 +151,7 @@ Operational guardrails to enforce this:
 - disable deep traversal/micro-PoW when host load exceeds thresholds,
 - fail to lower-cost actions (`challenge`, then `block`) when maze budgets saturate.
 
-### G. Observability and feedback loop
+### H. Observability and feedback loop
 
 Add metrics/log dimensions for:
 - `maze_variant_id` and entropy source version,
