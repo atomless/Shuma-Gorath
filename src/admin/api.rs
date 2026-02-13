@@ -310,6 +310,8 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_DEBUG_HEADERS", "true");
         std::env::set_var("SHUMA_RATE_LIMITER_REDIS_URL", "redis://redis:6379");
         std::env::set_var("SHUMA_BAN_STORE_REDIS_URL", "redis://redis:6379");
+        std::env::set_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN", "fail_open");
+        std::env::set_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH", "fail_closed");
         std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "true");
         std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", "true");
         std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "true");
@@ -384,6 +386,14 @@ mod admin_config_tests {
             env.get("SHUMA_BAN_STORE_REDIS_URL"),
             Some(&serde_json::json!("redis://redis:6379"))
         );
+        assert_eq!(
+            env.get("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN"),
+            Some(&serde_json::json!("fail_open"))
+        );
+        assert_eq!(
+            env.get("SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH"),
+            Some(&serde_json::json!("fail_closed"))
+        );
 
         let env_text = body.get("env_text").and_then(|v| v.as_str()).unwrap();
         assert!(env_text.contains("SHUMA_RATE_LIMIT=321"));
@@ -392,6 +402,10 @@ mod admin_config_tests {
         assert!(env_text.contains("SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE=17"));
         assert!(env_text.contains("SHUMA_RATE_LIMITER_REDIS_URL=redis://redis:6379"));
         assert!(env_text.contains("SHUMA_BAN_STORE_REDIS_URL=redis://redis:6379"));
+        assert!(env_text.contains("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN=fail_open"));
+        assert!(
+            env_text.contains("SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH=fail_closed")
+        );
 
         clear_env(&[
             "SHUMA_ADMIN_IP_ALLOWLIST",
@@ -403,6 +417,8 @@ mod admin_config_tests {
             "SHUMA_DEBUG_HEADERS",
             "SHUMA_RATE_LIMITER_REDIS_URL",
             "SHUMA_BAN_STORE_REDIS_URL",
+            "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+            "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
             "SHUMA_POW_CONFIG_MUTABLE",
             "SHUMA_CHALLENGE_CONFIG_MUTABLE",
             "SHUMA_BOTNESS_CONFIG_MUTABLE",
@@ -1256,6 +1272,18 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
         (
             "SHUMA_BAN_STORE_REDIS_URL".to_string(),
             crate::config::ban_store_redis_url().unwrap_or_default(),
+        ),
+        (
+            "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN".to_string(),
+            crate::config::rate_limiter_outage_mode_main()
+                .as_str()
+                .to_string(),
+        ),
+        (
+            "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH".to_string(),
+            crate::config::rate_limiter_outage_mode_admin_auth()
+                .as_str()
+                .to_string(),
         ),
         (
             "SHUMA_POW_CONFIG_MUTABLE".to_string(),

@@ -18,6 +18,12 @@ const SIGNAL_AVAILABILITY_STATES: [&str; 3] = ["active", "disabled", "unavailabl
 const DEFENCE_MODE_MODULES: [&str; 3] = ["rate", "geo", "js"];
 const DEFENCE_MODE_VALUES: [&str; 4] = ["off", "signal", "enforce", "both"];
 const EDGE_INTEGRATION_MODES: [&str; 3] = ["off", "advisory", "authoritative"];
+const RATE_LIMITER_ROUTE_CLASSES: [&str; 2] = ["main_traffic", "admin_auth"];
+const RATE_LIMITER_OUTAGE_MODES: [&str; 3] = ["fallback_internal", "fail_open", "fail_closed"];
+const RATE_LIMITER_OUTAGE_ACTIONS: [&str; 3] = ["fallback_internal", "allow", "deny"];
+const RATE_LIMITER_USAGE_FALLBACK_REASONS: [&str; 2] = ["backend_error", "backend_missing"];
+const RATE_LIMITER_DRIFT_BANDS: [&str; 4] = ["delta_0", "delta_1_5", "delta_6_20", "delta_21_plus"];
+const RATE_LIMITER_DECISIONS: [&str; 2] = ["allowed", "limited"];
 const PROVIDER_OBSERVED_COMBINATIONS: [(
     crate::providers::registry::ProviderCapability,
     crate::config::ProviderBackend,
@@ -94,6 +100,10 @@ pub enum MetricName {
     DefenceModeEffective,
     EdgeIntegrationMode,
     ProviderImplementationEffective,
+    RateLimiterBackendErrors,
+    RateLimiterOutageDecisions,
+    RateLimiterUsageFallback,
+    RateLimiterStateDriftObservations,
 }
 
 impl MetricName {
@@ -116,6 +126,12 @@ impl MetricName {
             MetricName::EdgeIntegrationMode => "edge_integration_mode_total",
             MetricName::ProviderImplementationEffective => {
                 "provider_implementation_effective_total"
+            }
+            MetricName::RateLimiterBackendErrors => "rate_limiter_backend_errors_total",
+            MetricName::RateLimiterOutageDecisions => "rate_limiter_outage_decisions_total",
+            MetricName::RateLimiterUsageFallback => "rate_limiter_usage_fallback_total",
+            MetricName::RateLimiterStateDriftObservations => {
+                "rate_limiter_state_drift_observations_total"
             }
         }
     }
@@ -442,6 +458,84 @@ pub fn render_metrics(store: &Store) -> String {
             implementation,
             count
         ));
+    }
+
+    // External rate-limiter backend errors
+    output.push_str("\n# TYPE bot_defence_rate_limiter_backend_errors_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_rate_limiter_backend_errors_total External rate-limiter backend errors by route class\n",
+    );
+    for route_class in RATE_LIMITER_ROUTE_CLASSES {
+        let key = format!(
+            "{}rate_limiter_backend_errors_total:{}",
+            METRICS_PREFIX, route_class
+        );
+        let count = get_counter(store, &key);
+        output.push_str(&format!(
+            "bot_defence_rate_limiter_backend_errors_total{{route_class=\"{}\"}} {}\n",
+            route_class, count
+        ));
+    }
+
+    // External rate-limiter outage decisions
+    output.push_str("\n# TYPE bot_defence_rate_limiter_outage_decisions_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_rate_limiter_outage_decisions_total Degraded external rate-limiter decisions by route class, outage mode, action, and decision\n",
+    );
+    for route_class in RATE_LIMITER_ROUTE_CLASSES {
+        for mode in RATE_LIMITER_OUTAGE_MODES {
+            for action in RATE_LIMITER_OUTAGE_ACTIONS {
+                for decision in RATE_LIMITER_DECISIONS {
+                    let key = format!(
+                        "{}rate_limiter_outage_decisions_total:{}:{}:{}:{}",
+                        METRICS_PREFIX, route_class, mode, action, decision
+                    );
+                    let count = get_counter(store, &key);
+                    output.push_str(&format!(
+                        "bot_defence_rate_limiter_outage_decisions_total{{route_class=\"{}\",mode=\"{}\",action=\"{}\",decision=\"{}\"}} {}\n",
+                        route_class, mode, action, decision, count
+                    ));
+                }
+            }
+        }
+    }
+
+    // External rate-limiter usage fallback observations
+    output.push_str("\n# TYPE bot_defence_rate_limiter_usage_fallback_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_rate_limiter_usage_fallback_total External rate-limiter usage read fallback observations by route class and reason\n",
+    );
+    for route_class in RATE_LIMITER_ROUTE_CLASSES {
+        for reason in RATE_LIMITER_USAGE_FALLBACK_REASONS {
+            let key = format!(
+                "{}rate_limiter_usage_fallback_total:{}:{}",
+                METRICS_PREFIX, route_class, reason
+            );
+            let count = get_counter(store, &key);
+            output.push_str(&format!(
+                "bot_defence_rate_limiter_usage_fallback_total{{route_class=\"{}\",reason=\"{}\"}} {}\n",
+                route_class, reason, count
+            ));
+        }
+    }
+
+    // External/local distributed state drift observations
+    output.push_str("\n# TYPE bot_defence_rate_limiter_state_drift_observations_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_rate_limiter_state_drift_observations_total Observed absolute drift bands between external distributed and local shadow rate counters\n",
+    );
+    for route_class in RATE_LIMITER_ROUTE_CLASSES {
+        for band in RATE_LIMITER_DRIFT_BANDS {
+            let key = format!(
+                "{}rate_limiter_state_drift_observations_total:{}:{}",
+                METRICS_PREFIX, route_class, band
+            );
+            let count = get_counter(store, &key);
+            output.push_str(&format!(
+                "bot_defence_rate_limiter_state_drift_observations_total{{route_class=\"{}\",delta_band=\"{}\"}} {}\n",
+                route_class, band, count
+            ));
+        }
     }
 
     // Active bans (gauge)

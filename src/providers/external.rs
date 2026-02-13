@@ -9,6 +9,12 @@ use super::contracts::{
 use super::internal;
 
 const EXTERNAL_RATE_WINDOW_TTL_SECONDS: u64 = 120;
+const RATE_ROUTE_CLASS_MAIN_TRAFFIC: &str = "main_traffic";
+const RATE_ROUTE_CLASS_ADMIN_AUTH: &str = "admin_auth";
+const RATE_DRIFT_BAND_DELTA_0: &str = "delta_0";
+const RATE_DRIFT_BAND_DELTA_1_5: &str = "delta_1_5";
+const RATE_DRIFT_BAND_DELTA_6_20: &str = "delta_6_20";
+const RATE_DRIFT_BAND_DELTA_21_PLUS: &str = "delta_21_plus";
 
 pub(crate) struct ExternalRateLimiterProvider;
 pub(crate) struct ExternalBanStoreProvider;
@@ -28,6 +34,23 @@ pub(crate) const FINGERPRINT_SIGNAL: ExternalFingerprintSignalProvider =
 trait DistributedRateCounter {
     fn current_usage(&self, key: &str) -> Result<u32, String>;
     fn increment_and_get(&self, key: &str, ttl_seconds: u64) -> Result<u32, String>;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RateLimiterOutageAction {
+    FallbackInternal,
+    Allow,
+    Deny,
+}
+
+impl RateLimiterOutageAction {
+    fn as_str(self) -> &'static str {
+        match self {
+            RateLimiterOutageAction::FallbackInternal => "fallback_internal",
+            RateLimiterOutageAction::Allow => "allow",
+            RateLimiterOutageAction::Deny => "deny",
+        }
+    }
 }
 
 struct RedisDistributedRateCounter {
@@ -104,6 +127,97 @@ fn current_window_rate_key(site_id: &str, ip: &str) -> String {
     current_window_key(site_id, ip, now_ts() / 60)
 }
 
+fn rate_route_class(site_id: &str) -> &'static str {
+    if site_id.starts_with("admin-auth-") {
+        RATE_ROUTE_CLASS_ADMIN_AUTH
+    } else {
+        RATE_ROUTE_CLASS_MAIN_TRAFFIC
+    }
+}
+
+fn rate_outage_mode_for_route_class(route_class: &str) -> crate::config::RateLimiterOutageMode {
+    if route_class == RATE_ROUTE_CLASS_ADMIN_AUTH {
+        crate::config::rate_limiter_outage_mode_admin_auth()
+    } else {
+        crate::config::rate_limiter_outage_mode_main()
+    }
+}
+
+fn decide_rate_limit_on_outage(
+    outage_mode: crate::config::RateLimiterOutageMode,
+    fallback: impl FnOnce() -> RateLimitDecision,
+) -> (RateLimitDecision, RateLimiterOutageAction) {
+    match outage_mode {
+        crate::config::RateLimiterOutageMode::FallbackInternal => {
+            (fallback(), RateLimiterOutageAction::FallbackInternal)
+        }
+        crate::config::RateLimiterOutageMode::FailOpen => {
+            (RateLimitDecision::Allowed, RateLimiterOutageAction::Allow)
+        }
+        crate::config::RateLimiterOutageMode::FailClosed => {
+            (RateLimitDecision::Limited, RateLimiterOutageAction::Deny)
+        }
+    }
+}
+
+fn rate_drift_band(delta: u32) -> &'static str {
+    match delta {
+        0 => RATE_DRIFT_BAND_DELTA_0,
+        1..=5 => RATE_DRIFT_BAND_DELTA_1_5,
+        6..=20 => RATE_DRIFT_BAND_DELTA_6_20,
+        _ => RATE_DRIFT_BAND_DELTA_21_PLUS,
+    }
+}
+
+fn record_rate_backend_error_metric(store: &Store, route_class: &str) {
+    crate::observability::metrics::increment(
+        store,
+        crate::observability::metrics::MetricName::RateLimiterBackendErrors,
+        Some(route_class),
+    );
+}
+
+fn record_rate_outage_decision_metric(
+    store: &Store,
+    route_class: &str,
+    outage_mode: crate::config::RateLimiterOutageMode,
+    action: RateLimiterOutageAction,
+    decision: RateLimitDecision,
+) {
+    let label = format!(
+        "{}:{}:{}:{}",
+        route_class,
+        outage_mode.as_str(),
+        action.as_str(),
+        decision.as_str()
+    );
+    crate::observability::metrics::increment(
+        store,
+        crate::observability::metrics::MetricName::RateLimiterOutageDecisions,
+        Some(label.as_str()),
+    );
+}
+
+fn record_rate_usage_fallback_metric(store: &Store, route_class: &str, reason: &str) {
+    let label = format!("{}:{}", route_class, reason);
+    crate::observability::metrics::increment(
+        store,
+        crate::observability::metrics::MetricName::RateLimiterUsageFallback,
+        Some(label.as_str()),
+    );
+}
+
+fn record_rate_drift_metric(store: &Store, route_class: &str, delta: u32) {
+    let band = rate_drift_band(delta);
+    let label = format!("{}:{}", route_class, band);
+    crate::observability::metrics::increment(
+        store,
+        crate::observability::metrics::MetricName::RateLimiterStateDriftObservations,
+        Some(label.as_str()),
+    );
+}
+
+#[cfg(test)]
 fn current_rate_usage_with_backend<B: DistributedRateCounter>(
     backend: Option<&B>,
     site_id: &str,
@@ -124,6 +238,7 @@ fn current_rate_usage_with_backend<B: DistributedRateCounter>(
     fallback()
 }
 
+#[cfg(test)]
 fn check_rate_limit_with_backend<B: DistributedRateCounter>(
     backend: Option<&B>,
     site_id: &str,
@@ -160,10 +275,26 @@ fn check_rate_limit_with_backend<B: DistributedRateCounter>(
 
 impl RateLimiterProvider for ExternalRateLimiterProvider {
     fn current_rate_usage(&self, store: &Store, site_id: &str, ip: &str) -> u32 {
+        let route_class = rate_route_class(site_id);
         let distributed_backend = RedisDistributedRateCounter::from_env();
-        current_rate_usage_with_backend(distributed_backend.as_ref(), site_id, ip, || {
-            internal::RATE_LIMITER.current_rate_usage(store, site_id, ip)
-        })
+        let Some(backend) = distributed_backend.as_ref() else {
+            record_rate_usage_fallback_metric(store, route_class, "backend_missing");
+            return internal::RATE_LIMITER.current_rate_usage(store, site_id, ip);
+        };
+
+        let key = current_window_rate_key(site_id, ip);
+        match backend.current_usage(&key) {
+            Ok(count) => count,
+            Err(err) => {
+                eprintln!(
+                    "[providers][rate] external distributed usage read failed for key {} ({}); falling back to internal",
+                    key, err
+                );
+                record_rate_backend_error_metric(store, route_class);
+                record_rate_usage_fallback_metric(store, route_class, "backend_error");
+                internal::RATE_LIMITER.current_rate_usage(store, site_id, ip)
+            }
+        }
     }
 
     fn check_rate_limit(
@@ -173,10 +304,57 @@ impl RateLimiterProvider for ExternalRateLimiterProvider {
         ip: &str,
         limit: u32,
     ) -> RateLimitDecision {
+        if limit == 0 {
+            return RateLimitDecision::Limited;
+        }
+
+        let route_class = rate_route_class(site_id);
+        let outage_mode = rate_outage_mode_for_route_class(route_class);
         let distributed_backend = RedisDistributedRateCounter::from_env();
-        check_rate_limit_with_backend(distributed_backend.as_ref(), site_id, ip, limit, || {
-            internal::RATE_LIMITER.check_rate_limit(store, site_id, ip, limit)
-        })
+
+        let Some(backend) = distributed_backend.as_ref() else {
+            let (decision, action) = decide_rate_limit_on_outage(outage_mode, || {
+                internal::RATE_LIMITER.check_rate_limit(store, site_id, ip, limit)
+            });
+            record_rate_outage_decision_metric(store, route_class, outage_mode, action, decision);
+            return decision;
+        };
+
+        let key = current_window_rate_key(site_id, ip);
+        match backend.increment_and_get(&key, EXTERNAL_RATE_WINDOW_TTL_SECONDS) {
+            Ok(next) => {
+                let decision = if next > limit {
+                    RateLimitDecision::Limited
+                } else {
+                    RateLimitDecision::Allowed
+                };
+                // Shadow local counter for drift observability without changing enforcement path.
+                let local_shadow_next = internal::RATE_LIMITER
+                    .current_rate_usage(store, site_id, ip)
+                    .saturating_add(1);
+                let drift_delta = next.abs_diff(local_shadow_next);
+                record_rate_drift_metric(store, route_class, drift_delta);
+                decision
+            }
+            Err(err) => {
+                eprintln!(
+                    "[providers][rate] external distributed limiter failed for key {} ({}); applying outage posture",
+                    key, err
+                );
+                record_rate_backend_error_metric(store, route_class);
+                let (decision, action) = decide_rate_limit_on_outage(outage_mode, || {
+                    internal::RATE_LIMITER.check_rate_limit(store, site_id, ip, limit)
+                });
+                record_rate_outage_decision_metric(
+                    store,
+                    route_class,
+                    outage_mode,
+                    action,
+                    decision,
+                );
+                decision
+            }
+        }
     }
 }
 
@@ -632,8 +810,11 @@ impl FingerprintSignalProvider for ExternalFingerprintSignalProvider {
 mod tests {
     use super::{
         ban_with_backend, check_rate_limit_with_backend, current_rate_usage_with_backend,
-        is_banned_with_backend, list_active_bans_with_backend, unban_with_backend,
-        DistributedBanStore, DistributedRateCounter,
+        decide_rate_limit_on_outage, is_banned_with_backend, list_active_bans_with_backend,
+        rate_drift_band, rate_route_class, unban_with_backend, DistributedBanStore,
+        DistributedRateCounter, RateLimiterOutageAction, RATE_DRIFT_BAND_DELTA_0,
+        RATE_DRIFT_BAND_DELTA_1_5, RATE_DRIFT_BAND_DELTA_21_PLUS, RATE_DRIFT_BAND_DELTA_6_20,
+        RATE_ROUTE_CLASS_ADMIN_AUTH, RATE_ROUTE_CLASS_MAIN_TRAFFIC,
     };
     use crate::providers::contracts::RateLimitDecision;
     use std::cell::Cell;
@@ -815,6 +996,68 @@ mod tests {
         assert_eq!(decision, RateLimitDecision::Limited);
         assert!(!fallback_called.get());
         assert_eq!(backend.increment_calls.get(), 0);
+    }
+
+    #[test]
+    fn outage_decision_uses_fallback_internal_mode() {
+        let fallback_called = Cell::new(false);
+        let (decision, action) =
+            decide_rate_limit_on_outage(crate::config::RateLimiterOutageMode::FallbackInternal, || {
+                fallback_called.set(true);
+                RateLimitDecision::Limited
+            });
+        assert_eq!(decision, RateLimitDecision::Limited);
+        assert_eq!(action, RateLimiterOutageAction::FallbackInternal);
+        assert!(fallback_called.get());
+    }
+
+    #[test]
+    fn outage_decision_uses_fail_open_mode() {
+        let fallback_called = Cell::new(false);
+        let (decision, action) =
+            decide_rate_limit_on_outage(crate::config::RateLimiterOutageMode::FailOpen, || {
+                fallback_called.set(true);
+                RateLimitDecision::Limited
+            });
+        assert_eq!(decision, RateLimitDecision::Allowed);
+        assert_eq!(action, RateLimiterOutageAction::Allow);
+        assert!(!fallback_called.get());
+    }
+
+    #[test]
+    fn outage_decision_uses_fail_closed_mode() {
+        let fallback_called = Cell::new(false);
+        let (decision, action) =
+            decide_rate_limit_on_outage(crate::config::RateLimiterOutageMode::FailClosed, || {
+                fallback_called.set(true);
+                RateLimitDecision::Allowed
+            });
+        assert_eq!(decision, RateLimitDecision::Limited);
+        assert_eq!(action, RateLimiterOutageAction::Deny);
+        assert!(!fallback_called.get());
+    }
+
+    #[test]
+    fn rate_route_class_maps_admin_and_main_sites() {
+        assert_eq!(rate_route_class("default"), RATE_ROUTE_CLASS_MAIN_TRAFFIC);
+        assert_eq!(
+            rate_route_class("admin-auth-login"),
+            RATE_ROUTE_CLASS_ADMIN_AUTH
+        );
+        assert_eq!(
+            rate_route_class("admin-auth-endpoint"),
+            RATE_ROUTE_CLASS_ADMIN_AUTH
+        );
+    }
+
+    #[test]
+    fn rate_drift_band_groups_expected_ranges() {
+        assert_eq!(rate_drift_band(0), RATE_DRIFT_BAND_DELTA_0);
+        assert_eq!(rate_drift_band(1), RATE_DRIFT_BAND_DELTA_1_5);
+        assert_eq!(rate_drift_band(5), RATE_DRIFT_BAND_DELTA_1_5);
+        assert_eq!(rate_drift_band(6), RATE_DRIFT_BAND_DELTA_6_20);
+        assert_eq!(rate_drift_band(20), RATE_DRIFT_BAND_DELTA_6_20);
+        assert_eq!(rate_drift_band(21), RATE_DRIFT_BAND_DELTA_21_PLUS);
     }
 
     #[test]

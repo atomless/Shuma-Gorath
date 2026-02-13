@@ -58,6 +58,8 @@ These are read from process env at runtime (not from KV).
 | `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED` | No | `false` | Explicit temporary attestation for advisory/off operation when enterprise multi-instance still uses local-only rate/ban state. |
 | `SHUMA_RATE_LIMITER_REDIS_URL` | No | empty | Redis endpoint for external distributed rate limiter mode (`redis://...` or `rediss://...`). |
 | `SHUMA_BAN_STORE_REDIS_URL` | No | empty | Redis endpoint for external distributed ban store mode (`redis://...` or `rediss://...`). |
+| `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` | No | `fallback_internal` | Outage posture for external rate-limiter degradation on main traffic (`fallback_internal`, `fail_open`, `fail_closed`). |
+| `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH` | No | `fail_closed` | Outage posture for external rate-limiter degradation on admin-auth routes (`fallback_internal`, `fail_open`, `fail_closed`). |
 | `SHUMA_POW_CONFIG_MUTABLE` | Yes | `false` | Allows runtime edits of PoW difficulty/TTL from admin config. |
 | `SHUMA_CHALLENGE_CONFIG_MUTABLE` | Yes | `false` | Allows runtime edits of challenge transform count/threshold from admin config. |
 | `SHUMA_BOTNESS_CONFIG_MUTABLE` | Yes | `false` | Allows runtime edits of botness thresholds/weights from admin config. |
@@ -174,7 +176,10 @@ Default seeded modes are `both` for all three modules as the current pre-launch 
   - Fingerprint source availability is explicit:
     - internal provider reports `active` when `cdp_detection_enabled=true`, `disabled` when `cdp_detection_enabled=false`.
     - external stub reports `unavailable` when `cdp_detection_enabled=true`, `disabled` when `cdp_detection_enabled=false`.
-  - `rate_limiter=external` uses a Redis-backed distributed adapter (`INCR` + window TTL) when `SHUMA_RATE_LIMITER_REDIS_URL` is configured, with explicit fallback to internal behavior when unavailable/unconfigured.
+  - `rate_limiter=external` uses a Redis-backed distributed adapter (`INCR` + window TTL) when `SHUMA_RATE_LIMITER_REDIS_URL` is configured.
+    - On backend degradation it applies route-class outage posture:
+      - main traffic: `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` (default `fallback_internal`)
+      - admin auth: `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH` (default `fail_closed`)
   - `ban_store=external` uses a Redis-backed distributed adapter (keyed JSON ban entries with Redis TTL) when `SHUMA_BAN_STORE_REDIS_URL` is configured, with explicit fallback to internal behavior when unavailable/unconfigured.
   - `challenge_engine=external` and `maze_tarpit=external` still route through explicit unsupported external adapters that currently fall back to internal runtime behavior.
 - `edge_integration_mode` defaults to `off` for self-hosted baseline.
@@ -187,7 +192,7 @@ This matrix is meant to answer: "What actually happens if I change this setting?
 | Capability | `internal` backend | `external` backend (current) | Advisory mode intent | Authoritative mode intent | Safe fallback behavior |
 | --- | --- | --- | --- | --- | --- |
 | `fingerprint_signal` | Uses internal CDP scripts and `/cdp-report` | Uses external stub (`/fingerprint-report`), no detection injection, returns `501` on report handler | Treat external edge fingerprinting as an input to Shuma policy | Allow selected edge fingerprint outcomes to short-circuit local flow only after adapter hardening | If external is unavailable, treat signal as unavailable/disabled and keep local controls active |
-| `rate_limiter` | Internal local rate logic | Redis-backed distributed limiter (`INCR` + TTL) with fallback to internal when external backend is unavailable/unconfigured | Consume distributed rate state as advisory pressure | External authoritative limit decisions only after semantic parity and outage posture are validated | Falls back to internal limiter on Redis unavailability/misconfiguration |
+| `rate_limiter` | Internal local rate logic | Redis-backed distributed limiter (`INCR` + TTL) with configurable outage posture (`fallback_internal`/`fail_open`/`fail_closed`) by route class | Consume distributed rate state as advisory pressure | External authoritative limit decisions only after semantic parity and outage posture are validated | Applies route-class outage mode on Redis unavailability/degradation |
 | `ban_store` | Internal ban persistence and checks | Redis-backed distributed ban adapter with fallback to internal when external backend is unavailable/unconfigured | Use distributed ban state as advisory input | External authoritative ban sync only with explicit outage controls | Falls back to internal ban store on Redis unavailability/misconfiguration |
 | `challenge_engine` | Internal challenge rendering/verification | Explicit unsupported external adapter currently delegates to internal behavior | External challenge attestations may inform policy once implemented | Authoritative external challenge only when replay/expiry semantics are parity-tested | Unsupported external path keeps internal challenge path |
 | `maze_tarpit` | Internal Shuma-native maze/tarpit | Explicit unsupported external adapter delegates to internal behavior | Keep internal (no practical external target currently) | Keep internal | Internal-only path remains the source of truth |
@@ -220,6 +225,7 @@ Use these as startup presets, then tune incrementally:
   - `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED`
   - `SHUMA_RATE_LIMITER_REDIS_URL` (required when `SHUMA_PROVIDER_RATE_LIMITER=external` under enterprise multi-instance posture)
   - `SHUMA_BAN_STORE_REDIS_URL` (required when `SHUMA_PROVIDER_BAN_STORE=external` under enterprise multi-instance posture)
+  - `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` / `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH` (recommended explicit posture selection for degraded external limiter behavior)
 
 ### Observability surfaces for composability
 
@@ -228,6 +234,10 @@ Use these as startup presets, then tune incrementally:
   - `bot_defence_defence_mode_effective_total{module="rate|geo|js",configured="off|signal|enforce|both",signal_enabled="true|false",action_enabled="true|false"}`
   - `bot_defence_edge_integration_mode_total{mode="off|advisory|authoritative"}`
   - `bot_defence_provider_implementation_effective_total{capability="...",backend="internal|external",implementation="..."}`
+  - `bot_defence_rate_limiter_backend_errors_total{route_class="main_traffic|admin_auth"}`
+  - `bot_defence_rate_limiter_outage_decisions_total{route_class="...",mode="fallback_internal|fail_open|fail_closed",action="fallback_internal|allow|deny",decision="allowed|limited"}`
+  - `bot_defence_rate_limiter_usage_fallback_total{route_class="...",reason="backend_error|backend_missing"}`
+  - `bot_defence_rate_limiter_state_drift_observations_total{route_class="...",delta_band="delta_0|delta_1_5|delta_6_20|delta_21_plus"}`
 - Botness-driven maze/challenge event outcomes include both:
   - `signal_states` summary (`key:state:contribution`),
   - effective runtime metadata summary (`modes=... edge=...`),

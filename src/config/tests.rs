@@ -163,6 +163,33 @@ fn parse_edge_integration_mode_accepts_expected_values() {
 }
 
 #[test]
+fn parse_rate_limiter_outage_mode_accepts_expected_values() {
+    assert_eq!(
+        parse_rate_limiter_outage_mode("fallback_internal"),
+        Some(RateLimiterOutageMode::FallbackInternal)
+    );
+    assert_eq!(
+        parse_rate_limiter_outage_mode("fail_open"),
+        Some(RateLimiterOutageMode::FailOpen)
+    );
+    assert_eq!(
+        parse_rate_limiter_outage_mode("fail_closed"),
+        Some(RateLimiterOutageMode::FailClosed)
+    );
+    assert_eq!(
+        parse_rate_limiter_outage_mode("  FAIL_OPEN "),
+        Some(RateLimiterOutageMode::FailOpen)
+    );
+    assert_eq!(parse_rate_limiter_outage_mode("invalid"), None);
+    assert_eq!(
+        RateLimiterOutageMode::FallbackInternal.as_str(),
+        "fallback_internal"
+    );
+    assert_eq!(RateLimiterOutageMode::FailOpen.as_str(), "fail_open");
+    assert_eq!(RateLimiterOutageMode::FailClosed.as_str(), "fail_closed");
+}
+
+#[test]
 fn parse_redis_url_accepts_expected_values() {
     assert_eq!(
         parse_redis_url("redis://localhost:6379"),
@@ -223,6 +250,8 @@ fn enterprise_state_guardrail_errors_without_exception_for_unsynced_multi_instan
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
     std::env::set_var("SHUMA_ENTERPRISE_MULTI_INSTANCE", "true");
 
@@ -239,6 +268,8 @@ fn enterprise_state_guardrail_errors_without_exception_for_unsynced_multi_instan
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
 }
 
@@ -250,6 +281,8 @@ fn enterprise_state_guardrail_warns_for_exceptioned_advisory_unsynced_posture() 
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
     std::env::set_var("SHUMA_ENTERPRISE_MULTI_INSTANCE", "true");
     std::env::set_var(
@@ -269,6 +302,8 @@ fn enterprise_state_guardrail_warns_for_exceptioned_advisory_unsynced_posture() 
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
 }
 
@@ -280,6 +315,8 @@ fn enterprise_state_guardrail_errors_for_authoritative_unsynced_posture_even_wit
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
     std::env::set_var("SHUMA_ENTERPRISE_MULTI_INSTANCE", "true");
     std::env::set_var(
@@ -299,6 +336,8 @@ fn enterprise_state_guardrail_errors_for_authoritative_unsynced_posture_even_wit
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
 }
 
@@ -310,6 +349,8 @@ fn enterprise_state_guardrail_is_clear_for_synced_multi_instance_posture() {
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
     std::env::set_var("SHUMA_ENTERPRISE_MULTI_INSTANCE", "true");
     std::env::set_var("SHUMA_RATE_LIMITER_REDIS_URL", "redis://redis:6379");
@@ -327,6 +368,8 @@ fn enterprise_state_guardrail_is_clear_for_synced_multi_instance_posture() {
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
 }
 
@@ -338,6 +381,8 @@ fn enterprise_state_guardrail_requires_redis_url_for_external_rate_limiter() {
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
     std::env::set_var("SHUMA_ENTERPRISE_MULTI_INSTANCE", "true");
     std::env::set_var(
@@ -358,6 +403,8 @@ fn enterprise_state_guardrail_requires_redis_url_for_external_rate_limiter() {
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
 }
 
@@ -369,6 +416,8 @@ fn enterprise_state_guardrail_requires_redis_url_for_external_ban_store() {
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
     std::env::set_var("SHUMA_ENTERPRISE_MULTI_INSTANCE", "true");
     std::env::set_var(
@@ -389,6 +438,8 @@ fn enterprise_state_guardrail_requires_redis_url_for_external_ban_store() {
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
 }
 
@@ -451,6 +502,8 @@ fn validate_env_rejects_invalid_optional_enterprise_bool() {
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
 
     std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
@@ -491,6 +544,8 @@ fn validate_env_rejects_invalid_optional_enterprise_bool() {
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
 }
 
@@ -514,6 +569,8 @@ fn validate_env_rejects_invalid_optional_redis_url() {
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
 
     std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
@@ -554,6 +611,8 @@ fn validate_env_rejects_invalid_optional_redis_url() {
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
 }
 
@@ -577,6 +636,8 @@ fn validate_env_rejects_invalid_optional_ban_store_redis_url() {
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
 
     std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
@@ -614,6 +675,75 @@ fn validate_env_rejects_invalid_optional_ban_store_redis_url() {
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+    ]);
+}
+
+#[test]
+fn validate_env_rejects_invalid_optional_rate_limiter_outage_mode() {
+    let _lock = crate::test_support::lock_env();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_POW_CONFIG_MUTABLE",
+        "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+        "SHUMA_BOTNESS_CONFIG_MUTABLE",
+        "SHUMA_ENTERPRISE_MULTI_INSTANCE",
+        "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
+        "SHUMA_RATE_LIMITER_REDIS_URL",
+        "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+    ]);
+
+    std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
+    std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+    std::env::set_var("SHUMA_JS_SECRET", "test-js-secret");
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+    std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "168");
+    std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "false");
+    std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
+    std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
+    std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
+    std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "false");
+    std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", "false");
+    std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "false");
+    std::env::set_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN", "invalid-mode");
+
+    let result = validate_env_only_once();
+    assert!(result.is_err());
+    assert!(result
+        .err()
+        .unwrap()
+        .contains("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN"));
+
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_POW_CONFIG_MUTABLE",
+        "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+        "SHUMA_BOTNESS_CONFIG_MUTABLE",
+        "SHUMA_ENTERPRISE_MULTI_INSTANCE",
+        "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
+        "SHUMA_RATE_LIMITER_REDIS_URL",
+        "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
 }
 
@@ -637,6 +767,8 @@ fn validate_env_accepts_empty_optional_redis_url() {
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
 
     std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
@@ -673,6 +805,8 @@ fn validate_env_accepts_empty_optional_redis_url() {
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
         "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
     ]);
 }
 

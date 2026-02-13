@@ -29,6 +29,10 @@ This endpoint is unauthenticated for Prometheus compatibility. Restrict access a
 - `bot_defence_defence_mode_effective_total{module="rate|geo|js",configured="off|signal|enforce|both",signal_enabled="true|false",action_enabled="true|false"}`
 - `bot_defence_edge_integration_mode_total{mode="off|advisory|authoritative"}`
 - `bot_defence_provider_implementation_effective_total{capability="...",backend="internal|external",implementation="..."}`
+- `bot_defence_rate_limiter_backend_errors_total{route_class="main_traffic|admin_auth"}`
+- `bot_defence_rate_limiter_outage_decisions_total{route_class="...",mode="fallback_internal|fail_open|fail_closed",action="fallback_internal|allow|deny",decision="allowed|limited"}`
+- `bot_defence_rate_limiter_usage_fallback_total{route_class="...",reason="backend_error|backend_missing"}`
+- `bot_defence_rate_limiter_state_drift_observations_total{route_class="...",delta_band="delta_0|delta_1_5|delta_6_20|delta_21_plus"}`
 
 ## 🐙 Prometheus Scrape Example
 
@@ -108,7 +112,38 @@ Correlate provider/mode transitions with:
 
 If challenge/block behavior changes sharply without matching traffic or threat context, roll back to internal/`off` and investigate.
 
-### 4. Minimum Alerting Guidance
+### 4. External Rate-Limiter Degradation Monitoring
+
+During external rate-limiter operation, watch:
+
+- backend errors:
+  - `bot_defence_rate_limiter_backend_errors_total`
+- degraded decisions and selected outage modes:
+  - `bot_defence_rate_limiter_outage_decisions_total`
+- usage-read fallback behavior:
+  - `bot_defence_rate_limiter_usage_fallback_total`
+- external vs local shadow drift bands:
+  - `bot_defence_rate_limiter_state_drift_observations_total`
+
+Example PromQL (last 10 minutes):
+
+```promql
+sum by (route_class) (increase(bot_defence_rate_limiter_backend_errors_total[10m]))
+```
+
+```promql
+sum by (route_class, mode, action, decision) (
+  increase(bot_defence_rate_limiter_outage_decisions_total[10m])
+)
+```
+
+```promql
+sum by (route_class, delta_band) (
+  increase(bot_defence_rate_limiter_state_drift_observations_total[10m])
+)
+```
+
+### 5. Minimum Alerting Guidance
 
 During any external provider rollout, alert on:
 

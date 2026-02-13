@@ -158,6 +158,25 @@ impl EdgeIntegrationMode {
     }
 }
 
+/// Outage posture for external distributed rate limiter degradation.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RateLimiterOutageMode {
+    FallbackInternal,
+    FailOpen,
+    FailClosed,
+}
+
+impl RateLimiterOutageMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            RateLimiterOutageMode::FallbackInternal => "fallback_internal",
+            RateLimiterOutageMode::FailOpen => "fail_open",
+            RateLimiterOutageMode::FailClosed => "fail_closed",
+        }
+    }
+}
+
 /// Per-capability provider backend selections.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ProviderBackends {
@@ -641,6 +660,10 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_optional_bool_like_var("SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED")?;
     validate_optional_redis_url_var("SHUMA_RATE_LIMITER_REDIS_URL")?;
     validate_optional_redis_url_var("SHUMA_BAN_STORE_REDIS_URL")?;
+    validate_optional_rate_limiter_outage_mode_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN")?;
+    validate_optional_rate_limiter_outage_mode_var(
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+    )?;
 
     Ok(())
 }
@@ -691,6 +714,22 @@ fn validate_optional_redis_url_var(name: &str) -> Result<(), String> {
     if parse_redis_url(&value).is_none() {
         return Err(format!(
             "Invalid Redis URL env var {}={} (expected redis://... or rediss://...)",
+            name, value
+        ));
+    }
+    Ok(())
+}
+
+fn validate_optional_rate_limiter_outage_mode_var(name: &str) -> Result<(), String> {
+    let Some(value) = env::var(name).ok() else {
+        return Ok(());
+    };
+    if value.trim().is_empty() {
+        return Ok(());
+    }
+    if parse_rate_limiter_outage_mode(&value).is_none() {
+        return Err(format!(
+            "Invalid outage mode env var {}={} (expected fallback_internal, fail_open, or fail_closed)",
             name, value
         ));
     }
@@ -760,6 +799,27 @@ pub fn ban_store_redis_url() -> Option<String> {
         .and_then(|value| parse_redis_url(&value))
 }
 
+fn env_rate_limiter_outage_mode(name: &str, default: RateLimiterOutageMode) -> RateLimiterOutageMode {
+    env::var(name)
+        .ok()
+        .and_then(|value| parse_rate_limiter_outage_mode(value.as_str()))
+        .unwrap_or(default)
+}
+
+pub fn rate_limiter_outage_mode_main() -> RateLimiterOutageMode {
+    env_rate_limiter_outage_mode(
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        default_rate_limiter_outage_mode_main(),
+    )
+}
+
+pub fn rate_limiter_outage_mode_admin_auth() -> RateLimiterOutageMode {
+    env_rate_limiter_outage_mode(
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        default_rate_limiter_outage_mode_admin_auth(),
+    )
+}
+
 fn parse_bool_like(value: &str) -> Option<bool> {
     match value.trim().to_ascii_lowercase().as_str() {
         "1" | "true" | "yes" | "on" => Some(true),
@@ -804,6 +864,15 @@ pub(crate) fn parse_edge_integration_mode(value: &str) -> Option<EdgeIntegration
         "off" => Some(EdgeIntegrationMode::Off),
         "advisory" => Some(EdgeIntegrationMode::Advisory),
         "authoritative" => Some(EdgeIntegrationMode::Authoritative),
+        _ => None,
+    }
+}
+
+pub(crate) fn parse_rate_limiter_outage_mode(value: &str) -> Option<RateLimiterOutageMode> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "fallback_internal" => Some(RateLimiterOutageMode::FallbackInternal),
+        "fail_open" => Some(RateLimiterOutageMode::FailOpen),
+        "fail_closed" => Some(RateLimiterOutageMode::FailClosed),
         _ => None,
     }
 }
@@ -1284,6 +1353,20 @@ fn default_provider_maze_tarpit() -> ProviderBackend {
 
 fn default_provider_fingerprint_signal() -> ProviderBackend {
     defaults_provider_backend("SHUMA_PROVIDER_FINGERPRINT_SIGNAL")
+}
+
+fn defaults_rate_limiter_outage_mode(key: &str) -> RateLimiterOutageMode {
+    let raw = defaults_raw(key);
+    parse_rate_limiter_outage_mode(raw.as_str())
+        .unwrap_or_else(|| panic!("Invalid rate limiter outage mode default for {}={}", key, raw))
+}
+
+fn default_rate_limiter_outage_mode_main() -> RateLimiterOutageMode {
+    defaults_rate_limiter_outage_mode("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN")
+}
+
+fn default_rate_limiter_outage_mode_admin_auth() -> RateLimiterOutageMode {
+    defaults_rate_limiter_outage_mode("SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH")
 }
 
 fn defaults_edge_integration_mode(key: &str) -> EdgeIntegrationMode {

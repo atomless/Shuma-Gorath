@@ -28,7 +28,10 @@ Use one of these operating profiles as your baseline:
 Current implementation note:
 
 - `fingerprint_signal=external` is currently a stub contract and reports external signal state as unavailable (or disabled when CDP detection is disabled).
-- `rate_limiter=external` uses a Redis-backed distributed adapter when `SHUMA_RATE_LIMITER_REDIS_URL` is configured; it falls back to internal rate logic when external backend access fails.
+- `rate_limiter=external` uses a Redis-backed distributed adapter when `SHUMA_RATE_LIMITER_REDIS_URL` is configured.
+  On backend degradation it applies route-class outage posture:
+  - main traffic: `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` (default `fallback_internal`)
+  - admin auth: `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH` (default `fail_closed`)
 - `ban_store=external` uses a Redis-backed distributed adapter when `SHUMA_BAN_STORE_REDIS_URL` is configured; it falls back to internal ban logic when external backend access fails.
 - `challenge_engine` and `maze_tarpit` still use explicit unsupported external adapters with safe internal fallback semantics.
 - Keep production deployments on internal providers unless you are explicitly exercising a staged integration plan.
@@ -62,6 +65,8 @@ Set these in your deployment secret/config system:
 - `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED` (optional; temporary advisory/off exception attestation only)
 - `SHUMA_RATE_LIMITER_REDIS_URL` (optional generally; required when enterprise multi-instance uses `SHUMA_PROVIDER_RATE_LIMITER=external`)
 - `SHUMA_BAN_STORE_REDIS_URL` (optional generally; required when enterprise multi-instance uses `SHUMA_PROVIDER_BAN_STORE=external`)
+- `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` (optional; `fallback_internal|fail_open|fail_closed`)
+- `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH` (optional; `fallback_internal|fail_open|fail_closed`)
 
 For the full env-only list and per-variable behavior, use `docs/configuration.md`.
 Template source: run `make setup` and use `.env.local` (gitignored) as your env-only override baseline.
@@ -122,6 +127,9 @@ Run this checklist for every production deployment:
      - `SHUMA_PROVIDER_BAN_STORE=external`
    - When using `SHUMA_PROVIDER_RATE_LIMITER=external`, set `SHUMA_RATE_LIMITER_REDIS_URL` to a reachable Redis endpoint.
    - When using `SHUMA_PROVIDER_BAN_STORE=external`, set `SHUMA_BAN_STORE_REDIS_URL` to a reachable Redis endpoint.
+   - Set explicit outage posture for degraded external rate-limiter behavior:
+     - `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN`
+     - `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH`
    - Do not run local-only rate/ban state with `SHUMA_EDGE_INTEGRATION_MODE=authoritative`.
    - If you must run temporary advisory/off posture without distributed state, set `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=true` and track a time-bounded remediation plan.
 
