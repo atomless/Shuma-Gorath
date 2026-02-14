@@ -12,6 +12,6 @@ playwright-report/
 test-results/
 dist/wasm/
 .vscode/
-
+.claude/
 # Spin runtime data
 .spin/

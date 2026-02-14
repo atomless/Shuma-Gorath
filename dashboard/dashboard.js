@@ -85,6 +85,8 @@ const MANUAL_BAN_DURATION_FIELD = {
   minutesId: 'ban-duration-minutes'
 };
 
+const EDGE_INTEGRATION_MODES = new Set(['off', 'advisory', 'authoritative']);
+
 const IPV4_SEGMENT_PATTERN = /^\d{1,3}$/;
 const IPV6_INPUT_PATTERN = /^[0-9a-fA-F:.]+$/;
 let adminEndpointContext = null;
@@ -604,6 +606,14 @@ function parseBoolLike(value, fallback = false) {
   return fallback;
 }
 
+function normalizeEdgeIntegrationMode(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (EDGE_INTEGRATION_MODES.has(normalized)) {
+    return normalized;
+  }
+  return 'off';
+}
+
 function adminConfigWriteEnabled(config) {
   return parseBoolLike(config && config.admin_config_write_enabled, false);
 }
@@ -976,10 +986,13 @@ function updateGeoConfig(config) {
 // Track saved state for change detection
 let robotsSavedState = {
   enabled: true,
+  crawlDelay: 2
+};
+
+let aiPolicySavedState = {
   blockTraining: true,
   blockSearch: false,
-  allowSearch: false,  // This is the toggle state (inverted from allow_search_engines)
-  crawlDelay: 2
+  allowSearch: false // toggle state (inverted from allow_search_engines)
 };
 
 // Track CDP detection saved state for change detection
@@ -987,6 +1000,10 @@ let cdpSavedState = {
   enabled: true,
   autoBan: true,
   threshold: 0.6
+};
+
+let edgeIntegrationModeSavedState = {
+  mode: 'off'
 };
 
 let rateLimitSavedState = {
@@ -1107,31 +1124,42 @@ function updateRobotsConfig(config) {
   if (config.robots_enabled !== undefined) {
     document.getElementById('robots-enabled-toggle').checked = config.robots_enabled;
   }
-  if (config.robots_block_ai_training !== undefined) {
-    document.getElementById('robots-block-training-toggle').checked = config.robots_block_ai_training;
+  const aiBlockTraining = config.ai_policy_block_training ?? config.robots_block_ai_training;
+  if (aiBlockTraining !== undefined) {
+    document.getElementById('robots-block-training-toggle').checked = aiBlockTraining;
   }
-  if (config.robots_block_ai_search !== undefined) {
-    document.getElementById('robots-block-search-toggle').checked = config.robots_block_ai_search;
+  const aiBlockSearch = config.ai_policy_block_search ?? config.robots_block_ai_search;
+  if (aiBlockSearch !== undefined) {
+    document.getElementById('robots-block-search-toggle').checked = aiBlockSearch;
   }
-  if (config.robots_allow_search_engines !== undefined) {
+  const aiAllowSearch = config.ai_policy_allow_search_engines ?? config.robots_allow_search_engines;
+  if (aiAllowSearch !== undefined) {
     // Invert: toggle ON = restrict (allow=false), toggle OFF = allow (allow=true)
-    document.getElementById('robots-allow-search-toggle').checked = !config.robots_allow_search_engines;
+    document.getElementById('robots-allow-search-toggle').checked = !aiAllowSearch;
   }
   if (config.robots_crawl_delay !== undefined) {
     document.getElementById('robots-crawl-delay').value = config.robots_crawl_delay;
   }
-  // Store saved state for change detection (read from DOM after updates)
+  // Store saved state for change detection (read from DOM after updates).
   robotsSavedState = {
     enabled: document.getElementById('robots-enabled-toggle').checked,
-    blockTraining: document.getElementById('robots-block-training-toggle').checked,
-    blockSearch: document.getElementById('robots-block-search-toggle').checked,
-    allowSearch: document.getElementById('robots-allow-search-toggle').checked,
     crawlDelay: parseInt(document.getElementById('robots-crawl-delay').value) || 2
   };
-  // Reset button state
-  const btn = document.getElementById('save-robots-config');
-  btn.disabled = true;
-  btn.textContent = 'Update Policy';
+  aiPolicySavedState = {
+    blockTraining: document.getElementById('robots-block-training-toggle').checked,
+    blockSearch: document.getElementById('robots-block-search-toggle').checked,
+    allowSearch: document.getElementById('robots-allow-search-toggle').checked
+  };
+
+  const robotsBtn = document.getElementById('save-robots-config');
+  robotsBtn.disabled = true;
+  robotsBtn.textContent = 'Save robots serving';
+
+  const aiBtn = document.getElementById('save-ai-policy-config');
+  if (aiBtn) {
+    aiBtn.disabled = true;
+    aiBtn.textContent = 'Save AI bot policy';
+  }
 }
 
 // Check if robots config has changed from saved state
@@ -1140,22 +1168,35 @@ function checkRobotsConfigChanged() {
   const delayValid = validateIntegerFieldById('robots-crawl-delay');
   const current = {
     enabled: document.getElementById('robots-enabled-toggle').checked,
-    blockTraining: document.getElementById('robots-block-training-toggle').checked,
-    blockSearch: document.getElementById('robots-block-search-toggle').checked,
-    allowSearch: document.getElementById('robots-allow-search-toggle').checked,
     crawlDelay: parseInt(document.getElementById('robots-crawl-delay').value) || 2
   };
   const changed = (
     current.enabled !== robotsSavedState.enabled ||
-    current.blockTraining !== robotsSavedState.blockTraining ||
-    current.blockSearch !== robotsSavedState.blockSearch ||
-    current.allowSearch !== robotsSavedState.allowSearch ||
     current.crawlDelay !== robotsSavedState.crawlDelay
   );
   setDirtySaveButtonState('save-robots-config', changed, apiValid, delayValid);
   const btn = document.getElementById('save-robots-config');
   if (changed) {
-    btn.textContent = 'Update Policy';
+    btn.textContent = 'Save robots serving';
+  }
+}
+
+function checkAiPolicyConfigChanged() {
+  const apiValid = hasValidApiContext();
+  const current = {
+    blockTraining: document.getElementById('robots-block-training-toggle').checked,
+    blockSearch: document.getElementById('robots-block-search-toggle').checked,
+    allowSearch: document.getElementById('robots-allow-search-toggle').checked
+  };
+  const changed = (
+    current.blockTraining !== aiPolicySavedState.blockTraining ||
+    current.blockSearch !== aiPolicySavedState.blockSearch ||
+    current.allowSearch !== aiPolicySavedState.allowSearch
+  );
+  setDirtySaveButtonState('save-ai-policy-config', changed, apiValid, true);
+  const btn = document.getElementById('save-ai-policy-config');
+  if (changed) {
+    btn.textContent = 'Save AI bot policy';
   }
 }
 
@@ -1209,11 +1250,14 @@ function checkBanDurationsChanged() {
   setDirtySaveButtonState('save-durations-btn', changed, apiValid, fieldsValid);
 }
 
-// Add change listeners for robots config controls
-['robots-enabled-toggle', 'robots-block-training-toggle', 'robots-block-search-toggle', 'robots-allow-search-toggle'].forEach(id => {
+// Add change listeners for robots serving and AI-policy controls.
+['robots-enabled-toggle'].forEach(id => {
   document.getElementById(id).addEventListener('change', checkRobotsConfigChanged);
 });
 document.getElementById('robots-crawl-delay').addEventListener('input', checkRobotsConfigChanged);
+['robots-block-training-toggle', 'robots-block-search-toggle', 'robots-allow-search-toggle'].forEach(id => {
+  document.getElementById(id).addEventListener('change', checkAiPolicyConfigChanged);
+});
 ['maze-enabled-toggle', 'maze-auto-ban-toggle'].forEach(id => {
   document.getElementById(id).addEventListener('change', checkMazeConfigChanged);
 });
@@ -1287,6 +1331,20 @@ function updateCdpConfig(config) {
   btn.textContent = 'Save CDP Settings';
   statusPanel.update(statusPatch);
   statusPanel.render();
+}
+
+function updateEdgeIntegrationModeConfig(config) {
+  const mode = normalizeEdgeIntegrationMode(config.edge_integration_mode);
+  const select = document.getElementById('edge-integration-mode-select');
+  if (!select) return;
+  select.value = mode;
+  edgeIntegrationModeSavedState = { mode };
+
+  const btn = document.getElementById('save-edge-integration-mode-config');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Save Edge Integration Mode';
+  }
 }
 
 function updateRateLimitConfig(config) {
@@ -1583,6 +1641,15 @@ function checkCdpConfigChanged() {
   setDirtySaveButtonState('save-cdp-config', changed, apiValid);
 }
 
+function checkEdgeIntegrationModeChanged() {
+  const apiValid = hasValidApiContext();
+  const select = document.getElementById('edge-integration-mode-select');
+  if (!select) return;
+  const current = normalizeEdgeIntegrationMode(select.value);
+  const changed = current !== edgeIntegrationModeSavedState.mode;
+  setDirtySaveButtonState('save-edge-integration-mode-config', changed, apiValid);
+}
+
 function checkRateLimitConfigChanged() {
   const apiValid = hasValidApiContext();
   const valueValid = validateIntegerFieldById('rate-limit-threshold');
@@ -1613,6 +1680,8 @@ document.getElementById('cdp-threshold-slider').addEventListener('input', functi
 ['cdp-enabled-toggle', 'cdp-auto-ban-toggle'].forEach(id => {
   document.getElementById(id).addEventListener('change', checkCdpConfigChanged);
 });
+
+document.getElementById('edge-integration-mode-select').addEventListener('change', checkEdgeIntegrationModeChanged);
 
 // Main refresh function
 async function refreshDashboard() {
@@ -1708,6 +1777,7 @@ async function refreshDashboard() {
         updateGeoConfig(config);
         updateRobotsConfig(config);
         updateCdpConfig(config);
+        updateEdgeIntegrationModeConfig(config);
         updatePowConfig(config);
         updateChallengeConfig(config);
       }
@@ -1800,14 +1870,17 @@ configControls.bind({
   parseCountryCodesStrict,
   updateBanDurations,
   updateGeoConfig,
+  updateEdgeIntegrationModeConfig,
   refreshRobotsPreview,
   refreshDashboard,
   checkMazeConfigChanged,
   checkRobotsConfigChanged,
+  checkAiPolicyConfigChanged,
   checkGeoConfigChanged,
   checkPowConfigChanged,
   checkBotnessConfigChanged,
   checkCdpConfigChanged,
+  checkEdgeIntegrationModeChanged,
   checkRateLimitConfigChanged,
   checkJsRequiredConfigChanged,
   checkBanDurationsChanged,
@@ -1821,6 +1894,9 @@ configControls.bind({
   setRobotsSavedState: (next) => {
     robotsSavedState = next;
   },
+  setAiPolicySavedState: (next) => {
+    aiPolicySavedState = next;
+  },
   setPowSavedState: (next) => {
     powSavedState = next;
   },
@@ -1829,6 +1905,9 @@ configControls.bind({
   },
   setCdpSavedState: (next) => {
     cdpSavedState = next;
+  },
+  setEdgeIntegrationModeSavedState: (next) => {
+    edgeIntegrationModeSavedState = next;
   },
   setRateLimitSavedState: (next) => {
     rateLimitSavedState = next;

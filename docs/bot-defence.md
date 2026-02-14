@@ -107,6 +107,49 @@ Typical layered order:
 
 This model keeps high-volume commodity bot traffic away from app paths while preserving local control for nuanced abuse.
 
+## 🐙 Escalation Ladder (L0-L11)
+
+Shuma uses a canonical escalation taxonomy so policy, metrics, and event logs share one stable vocabulary.
+
+| Level ID | Action Class | Purpose | Runtime Status |
+|---|---|---|---|
+| `L0_ALLOW_CLEAN` | Allow | Normal pass-through for clean traffic. | Active |
+| `L1_ALLOW_TAGGED` | Allow tagged | Allow with suspicious tagging for telemetry. | Reserved (Stage 1 taxonomy) |
+| `L2_MONITOR` | Monitor | Elevated observation only; no visitor friction. | Active |
+| `L3_SHAPE` | Shape | Low-cost shaping before interactive friction. | Reserved |
+| `L4_VERIFY_JS` | Verify | JS verification gate. | Active |
+| `L5_CHALLENGE_LITE` | Challenge (lite) | Low-friction human verification. | Planned |
+| `L6_CHALLENGE_STRONG` | Challenge (strong) | Strong challenge path (puzzle/PoW-backed flows). | Active |
+| `L7_DECEPTION_EXPLICIT` | Deception | Explicit maze/trap routing. | Active |
+| `L8_DECEPTION_COVERT` | Deception | Covert decoy behavior in normal responses. | Planned |
+| `L9_COST_IMPOSITION` | Cost | Bounded drip/tarpit style cost imposition. | Planned |
+| `L10_DENY_TEMP` | Deny (temporary) | Temporary block/ban with TTL. | Active |
+| `L11_DENY_HARD` | Deny (hard) | Long/indefinite deny posture for high confidence abuse. | Reserved |
+
+### 🐙 Transition and Precedence Summary
+
+- The most restrictive eligible level wins for a request.
+- Current hard transitions route to `L10_DENY_TEMP` (for example honeypot hit, rate-limit hit, existing active ban, outdated browser policy hit, GEO block route, strong automation auto-ban paths).
+- Threshold-driven flows route to `L4` / `L6` / `L7` based on configured JS, challenge, and maze thresholds.
+- `L11_DENY_HARD` is not automatic by default and should be gated by explicit policy.
+
+### 🐙 Canonical IDs in Telemetry
+
+- `/metrics` includes canonical policy and signal counters:
+  - `bot_defence_policy_matches_total{level="L*...",action="A*...",detection="D*..."}`
+  - `bot_defence_policy_signals_total{signal="S_*"}`
+- Admin event outcomes can include a taxonomy suffix:
+  - `taxonomy[level=L* action=A* detection=D* signals=S_*...]`
+
+### 🐙 JS Signal Semantics (`S_JS_REQUIRED_MISSING`)
+
+- `S_JS_REQUIRED_MISSING` is the signal that a request does not present a valid `js_verified` marker while JS enforcement is enabled.
+- In practice this usually means the cookie is missing, expired, invalid, or was never set.
+- This is a signal-collection detail, not a separate ladder rung:
+  - it can contribute to botness scoring before challenge/maze routing, and
+  - it can trigger direct `L4_VERIFY_JS` gate behavior when JS enforcement is active.
+- Ladder levels describe action outcomes; `S_*` IDs describe evidence collected before those actions.
+
 ## 🐙 Capability Split (Practical Focus)
 
 | Focus Area | Managed Edge Bot Defence (e.g., Akamai Bot Manager) | Shuma-Gorath Focus |

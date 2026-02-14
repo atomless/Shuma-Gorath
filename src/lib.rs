@@ -10,7 +10,7 @@ mod test_support;
 use crate::enforcement::{ban, block_page};
 use crate::signals::{browser_user_agent as browser, geo, js_verification as js, whitelist};
 use serde::Serialize;
-use spin_sdk::http::{Request, Response};
+use spin_sdk::http::{Method, Request, Response};
 use spin_sdk::http_component;
 use spin_sdk::key_value::Store;
 use std::env;
@@ -81,6 +81,90 @@ fn request_is_https(req: &Request) -> bool {
         return true;
     }
     forwarded_proto_is_https(req)
+}
+
+const STATIC_BYPASS_PREFIXES: [&str; 8] = [
+    "/assets/",
+    "/static/",
+    "/images/",
+    "/img/",
+    "/js/",
+    "/css/",
+    "/fonts/",
+    "/_next/static/",
+];
+const STATIC_BYPASS_EXACT_PATHS: [&str; 7] = [
+    "/favicon.ico",
+    "/favicon.svg",
+    "/apple-touch-icon.png",
+    "/manifest.json",
+    "/site.webmanifest",
+    "/sitemap.xml",
+    "/browserconfig.xml",
+];
+const STATIC_BYPASS_EXTENSIONS: [&str; 18] = [
+    "css",
+    "js",
+    "mjs",
+    "map",
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "webp",
+    "svg",
+    "ico",
+    "woff",
+    "woff2",
+    "ttf",
+    "otf",
+    "eot",
+    "webmanifest",
+    "xml",
+];
+
+fn has_static_bypass_extension(path: &str) -> bool {
+    let leaf = path.rsplit('/').next().unwrap_or("");
+    let Some((_, ext)) = leaf.rsplit_once('.') else {
+        return false;
+    };
+    STATIC_BYPASS_EXTENSIONS
+        .iter()
+        .any(|candidate| ext.eq_ignore_ascii_case(candidate))
+}
+
+fn is_obvious_static_asset_path(path: &str) -> bool {
+    if STATIC_BYPASS_EXACT_PATHS.contains(&path) {
+        return true;
+    }
+    if STATIC_BYPASS_PREFIXES
+        .iter()
+        .any(|prefix| path.starts_with(prefix))
+    {
+        return true;
+    }
+    has_static_bypass_extension(path)
+}
+
+pub(crate) fn should_bypass_expensive_bot_checks_for_static(req: &Request, path: &str) -> bool {
+    if !matches!(req.method(), Method::Get | Method::Head) {
+        return false;
+    }
+    if matches!(
+        path,
+        "/health"
+            | "/metrics"
+            | "/robots.txt"
+            | "/pow"
+            | "/pow/verify"
+            | "/challenge/puzzle"
+    ) {
+        return false;
+    }
+    if path.starts_with("/admin") {
+        return false;
+    }
+    is_obvious_static_asset_path(path)
 }
 
 fn constant_time_eq(a: &str, b: &str) -> bool {
@@ -228,7 +312,8 @@ fn load_runtime_config(
     site_id: &str,
     path: &str,
 ) -> Result<config::Config, Response> {
-    let cfg = config::load_runtime_cached(store, site_id).map_err(|err| config_error_response(err, path))?;
+    let cfg = config::load_runtime_cached(store, site_id)
+        .map_err(|err| config_error_response(err, path))?;
     if let Some(guardrail_error) = cfg.enterprise_state_guardrail_error() {
         log_line(&format!(
             "[ENTERPRISE STATE ERROR] path={} {}",
@@ -361,7 +446,8 @@ pub(crate) fn collect_botness_contributions(
 pub(crate) fn compute_botness_assessment_from_contributions(
     contributions: Vec<BotnessContribution>,
 ) -> BotnessAssessment {
-    let mut accumulator = crate::signals::botness::SignalAccumulator::with_capacity(contributions.len());
+    let mut accumulator =
+        crate::signals::botness::SignalAccumulator::with_capacity(contributions.len());
     for contribution in contributions {
         accumulator.push(contribution);
     }
@@ -509,6 +595,10 @@ pub(crate) fn serve_maze_with_tracking(
     }
 
     if hits >= cfg.maze_auto_ban_threshold && cfg.maze_auto_ban {
+        let policy_match = runtime::policy_taxonomy::resolve_policy_match(
+            runtime::policy_taxonomy::PolicyTransition::MazeThresholdBan,
+        );
+        observability::metrics::record_policy_match(store, &policy_match);
         ban::ban_ip_with_fingerprint(
             store,
             "default",
@@ -537,9 +627,8 @@ pub(crate) fn serve_maze_with_tracking(
                 event: crate::admin::EventType::Ban,
                 ip: Some(ip.to_string()),
                 reason: Some("maze_crawler".to_string()),
-                outcome: Some(format!(
-                    "banned_after_{}_maze_pages",
-                    cfg.maze_auto_ban_threshold
+                outcome: Some(policy_match.annotate_outcome(
+                    format!("banned_after_{}_maze_pages", cfg.maze_auto_ban_threshold).as_str(),
                 )),
                 admin: None,
             },
@@ -565,6 +654,10 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         return response;
     }
 
+    if should_bypass_expensive_bot_checks_for_static(req, path) {
+        return Response::new(200, "OK (passed bot defence)");
+    }
+
     let site_id = "default";
     let ip = extract_client_ip(req);
     let ua = req
@@ -584,10 +677,26 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
     };
     let provider_registry = providers::registry::ProviderRegistry::from_config(&cfg);
     observability::metrics::record_provider_backend_visibility(store, &provider_registry);
+    observability::metrics::record_policy_signal(
+        store,
+        runtime::policy_taxonomy::SignalId::CtxPathClass,
+    );
+    if forwarded_ip_trusted(req) {
+        observability::metrics::record_policy_signal(
+            store,
+            runtime::policy_taxonomy::SignalId::CtxIpTrusted,
+        );
+    }
+    if !ua.is_empty() {
+        observability::metrics::record_policy_signal(store, runtime::policy_taxonomy::SignalId::CtxUa);
+    }
     let geo_assessment = assess_geo_request(req, &cfg);
 
     // CDP Report endpoint - receives automation detection reports from client-side JS
-    if path == provider_registry.fingerprint_signal_provider().report_path()
+    if path
+        == provider_registry
+            .fingerprint_signal_provider()
+            .report_path()
         && *req.method() == spin_sdk::http::Method::Post
     {
         return provider_registry
@@ -600,18 +709,22 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         if !cfg.maze_enabled {
             return Response::new(404, "Not Found");
         }
-        return provider_registry.maze_tarpit_provider().serve_maze_with_tracking(
-            store,
-            &cfg,
-            &ip,
-            path,
-            "maze_trap",
-            "maze_page_served",
+        let policy_match = runtime::policy_taxonomy::resolve_policy_match(
+            runtime::policy_taxonomy::PolicyTransition::MazeTraversal,
         );
+        observability::metrics::record_policy_match(store, &policy_match);
+        let event_outcome = policy_match.annotate_outcome("maze_page_served");
+        return provider_registry
+            .maze_tarpit_provider()
+            .serve_maze_with_tracking(store, &cfg, &ip, path, "maze_trap", event_outcome.as_str());
     }
 
     // Increment request counter
-    observability::metrics::increment(store, observability::metrics::MetricName::RequestsTotal, None);
+    observability::metrics::increment(
+        store,
+        observability::metrics::MetricName::RequestsTotal,
+        None,
+    );
 
     // Path-based whitelist (for webhooks/integrations)
     if whitelist::is_path_whitelisted(path, &cfg.path_whitelist) {
@@ -679,12 +792,15 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         if *req.method() != spin_sdk::http::Method::Get {
             return Response::new(405, "Method Not Allowed");
         }
-        return provider_registry.challenge_engine_provider().handle_pow_challenge(
-            &ip,
-            cfg.pow_enabled,
-            cfg.pow_difficulty,
-            cfg.pow_ttl_seconds,
-        );
+        return provider_registry
+            .challenge_engine_provider()
+            .handle_pow_challenge(
+                &ip,
+                ua,
+                cfg.pow_enabled,
+                cfg.pow_difficulty,
+                cfg.pow_ttl_seconds,
+            );
     }
     if path == "/pow/verify" {
         return provider_registry
@@ -693,24 +809,34 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
     }
     // Outdated browser
     if browser::is_outdated_browser(ua, &cfg.browser_block) {
-        provider_registry.ban_store_provider().ban_ip_with_fingerprint(
-            store,
-            site_id,
-            &ip,
-            "browser",
-            cfg.get_ban_duration("browser"),
-            Some(crate::enforcement::ban::BanFingerprint {
-                score: None,
-                signals: vec!["outdated_browser".to_string()],
-                summary: Some(format!("ua={}", ua)),
-            }),
+        let policy_match = runtime::policy_taxonomy::resolve_policy_match(
+            runtime::policy_taxonomy::PolicyTransition::BrowserOutdated,
         );
+        observability::metrics::record_policy_match(store, &policy_match);
+        provider_registry
+            .ban_store_provider()
+            .ban_ip_with_fingerprint(
+                store,
+                site_id,
+                &ip,
+                "browser",
+                cfg.get_ban_duration("browser"),
+                Some(crate::enforcement::ban::BanFingerprint {
+                    score: None,
+                    signals: vec!["outdated_browser".to_string()],
+                    summary: Some(format!("ua={}", ua)),
+                }),
+            );
         observability::metrics::increment(
             store,
             observability::metrics::MetricName::BansTotal,
             Some("browser"),
         );
-        observability::metrics::increment(store, observability::metrics::MetricName::BlocksTotal, None);
+        observability::metrics::increment(
+            store,
+            observability::metrics::MetricName::BlocksTotal,
+            None,
+        );
         // Log ban event
         crate::admin::log_event(
             store,
@@ -719,7 +845,7 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
                 event: crate::admin::EventType::Ban,
                 ip: Some(ip.clone()),
                 reason: Some("browser".to_string()),
-                outcome: Some("banned".to_string()),
+                outcome: Some(policy_match.annotate_outcome("banned")),
                 admin: None,
             },
         );
@@ -728,21 +854,18 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
             block_page::render_block_page(block_page::BlockReason::OutdatedBrowser),
         );
     }
-    if let Some(response) =
-        runtime::policy_pipeline::maybe_handle_geo_policy(
-            req,
-            store,
-            &cfg,
-            &provider_registry,
-            &ip,
-            &geo_assessment,
-        )
-    {
+    if let Some(response) = runtime::policy_pipeline::maybe_handle_geo_policy(
+        req,
+        store,
+        &cfg,
+        &provider_registry,
+        &ip,
+        &geo_assessment,
+    ) {
         return response;
     }
 
-    let needs_js =
-        runtime::policy_pipeline::compute_needs_js(req, store, &cfg, site_id, path, &ip);
+    let needs_js = runtime::policy_pipeline::compute_needs_js(req, store, &cfg, site_id, path, &ip);
 
     if let Some(response) = runtime::policy_pipeline::maybe_handle_botness(
         req,
@@ -757,9 +880,14 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         return response;
     }
 
-    if let Some(response) = runtime::policy_pipeline::maybe_handle_js(store, &cfg, &ip, needs_js) {
+    if let Some(response) = runtime::policy_pipeline::maybe_handle_js(store, &cfg, &ip, ua, needs_js)
+    {
         return response;
     }
+
+    let policy_match =
+        runtime::policy_taxonomy::resolve_policy_match(runtime::policy_taxonomy::PolicyTransition::AllowClean);
+    observability::metrics::record_policy_match(store, &policy_match);
 
     Response::new(200, "OK (passed bot defence)")
 }

@@ -88,3 +88,14 @@ fn health_route_precedes_kv_fail_open_bypass() {
         assert_eq!(String::from_utf8_lossy(resp.body()), "Forbidden");
     });
 }
+
+#[test]
+fn static_asset_path_bypasses_expensive_bot_checks() {
+    with_runtime_env(|| {
+        let req = request(Method::Get, "/assets/app.bundle.js", &[]);
+        let resp = shuma_gorath::handle_bot_defence_impl(&req);
+
+        assert_eq!(*resp.status(), 200u16);
+        assert_eq!(String::from_utf8_lossy(resp.body()), "OK (passed bot defence)");
+    });
+}

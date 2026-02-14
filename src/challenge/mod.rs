@@ -2,22 +2,23 @@ use spin_sdk::http::Response;
 use spin_sdk::key_value::Store;
 
 pub(crate) mod not_a_bot;
+pub(crate) mod operation_envelope;
 pub(crate) mod pow;
 mod puzzle;
 
+#[cfg(test)]
+pub use puzzle::handle_challenge_submit;
+#[cfg(test)]
+pub(crate) use puzzle::make_seed_token;
+pub(crate) use puzzle::render_challenge;
 #[cfg(test)]
 pub(crate) use puzzle::{
     apply_transform, build_puzzle, generate_pair, parse_submission, parse_transform_count,
     select_transform_pair, transforms_for_count, ChallengeSeed, Transform,
 };
-pub(crate) use puzzle::render_challenge;
-#[cfg(test)]
-pub use puzzle::handle_challenge_submit;
 pub(crate) use puzzle::{
     handle_challenge_submit_with_outcome, serve_challenge_page, ChallengeSubmitOutcome,
 };
-#[cfg(test)]
-pub(crate) use puzzle::make_seed_token;
 
 pub trait KeyValueStore {
     fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()>;

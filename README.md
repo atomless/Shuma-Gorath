@@ -2,7 +2,7 @@
 [![Dashboard E2E](https://github.com/atomless/Shuma-Gorath/actions/workflows/dashboard-e2e.yml/badge.svg?branch=main)](https://github.com/atomless/Shuma-Gorath/actions/workflows/dashboard-e2e.yml)
 [![CodeQL](https://github.com/atomless/Shuma-Gorath/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/atomless/Shuma-Gorath/actions/workflows/codeql.yml)
 
-![Shuma-Gorath](dashboard/assets/shuma-gorath.png)
+<img src="dashboard/assets/shuma-gorath.png" alt-text="Shuma-Gorath" width="300" />
 
 # 🐙 Shuma-Gorath
 

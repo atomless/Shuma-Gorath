@@ -61,7 +61,7 @@ impl ProviderRegistry {
                 "external_redis_with_internal_fallback"
             }
             (ProviderCapability::FingerprintSignal, ProviderBackend::External) => {
-                "external_stub_fingerprint"
+                "external_akamai_with_internal_fallback"
             }
             (_, ProviderBackend::External) => "external_stub_unsupported",
         }
@@ -194,14 +194,14 @@ mod tests {
     }
 
     #[test]
-    fn registry_routes_external_fingerprint_to_stub_contract() {
+    fn registry_routes_external_fingerprint_to_akamai_contract() {
         let mut cfg = defaults().clone();
         cfg.provider_backends.fingerprint_signal = ProviderBackend::External;
         let registry = ProviderRegistry::from_config(&cfg);
         let provider = registry.fingerprint_signal_provider();
 
         assert_eq!(provider.report_path(), "/fingerprint-report");
-        assert_eq!(provider.source_availability(&cfg).as_str(), "unavailable");
+        assert_eq!(provider.source_availability(&cfg).as_str(), "active");
         assert_eq!(provider.detection_script(), "");
         assert_eq!(provider.report_script("/report-endpoint"), "");
         assert_eq!(
@@ -236,7 +236,7 @@ mod tests {
             external_registry
                 .fingerprint_signal_source_availability(&external_cfg)
                 .as_str(),
-            "unavailable"
+            "active"
         );
 
         external_cfg.cdp_detection_enabled = false;
@@ -305,7 +305,7 @@ mod tests {
         );
         assert_eq!(
             registry.implementation_for(ProviderCapability::FingerprintSignal),
-            "external_stub_fingerprint"
+            "external_akamai_with_internal_fallback"
         );
         assert_eq!(
             registry.implementation_for(ProviderCapability::BanStore),

@@ -2,7 +2,7 @@ use spin_sdk::http::Method;
 
 use crate::{
     extract_health_client_ip, forwarded_ip_trusted, health_secret_authorized,
-    response_with_optional_debug_headers,
+    response_with_optional_debug_headers, should_bypass_expensive_bot_checks_for_static,
 };
 
 #[test]
@@ -10,7 +10,8 @@ fn forwarded_headers_are_not_trusted_without_secret() {
     let _lock = crate::test_support::lock_env();
     std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
 
-    let req = crate::test_support::request_with_headers("/health", &[("x-forwarded-for", "127.0.0.1")]);
+    let req =
+        crate::test_support::request_with_headers("/health", &[("x-forwarded-for", "127.0.0.1")]);
     assert!(!forwarded_ip_trusted(&req));
 }
 
@@ -40,7 +41,8 @@ fn health_internal_headers_visible_when_enabled() {
 fn health_secret_not_required_when_unset() {
     let _lock = crate::test_support::lock_env();
     std::env::remove_var("SHUMA_HEALTH_SECRET");
-    let req = crate::test_support::request_with_headers("/health", &[("x-forwarded-for", "127.0.0.1")]);
+    let req =
+        crate::test_support::request_with_headers("/health", &[("x-forwarded-for", "127.0.0.1")]);
     assert!(health_secret_authorized(&req));
 }
 
@@ -49,7 +51,8 @@ fn health_secret_required_when_configured() {
     let _lock = crate::test_support::lock_env();
     std::env::set_var("SHUMA_HEALTH_SECRET", "health-secret-value");
 
-    let missing = crate::test_support::request_with_headers("/health", &[("x-forwarded-for", "127.0.0.1")]);
+    let missing =
+        crate::test_support::request_with_headers("/health", &[("x-forwarded-for", "127.0.0.1")]);
     assert!(!health_secret_authorized(&missing));
 
     let wrong = crate::test_support::request_with_headers(
@@ -99,7 +102,8 @@ fn https_enforcement_blocks_insecure_admin_requests() {
     std::env::set_var("SHUMA_ENFORCE_HTTPS", "true");
     std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
 
-    let req = crate::test_support::request_with_method_and_headers(Method::Get, "/admin/config", &[]);
+    let req =
+        crate::test_support::request_with_method_and_headers(Method::Get, "/admin/config", &[]);
     let resp = crate::handle_bot_defence_impl(&req);
 
     assert_eq!(*resp.status(), 403u16);
@@ -154,9 +158,18 @@ fn admin_options_preflight_is_rejected_without_cors_headers() {
     let resp = crate::handle_bot_defence_impl(&req);
 
     assert_eq!(*resp.status(), 403u16);
-    assert!(!crate::test_support::has_header(&resp, "Access-Control-Allow-Origin"));
-    assert!(!crate::test_support::has_header(&resp, "Access-Control-Allow-Methods"));
-    assert!(!crate::test_support::has_header(&resp, "Access-Control-Allow-Headers"));
+    assert!(!crate::test_support::has_header(
+        &resp,
+        "Access-Control-Allow-Origin"
+    ));
+    assert!(!crate::test_support::has_header(
+        &resp,
+        "Access-Control-Allow-Methods"
+    ));
+    assert!(!crate::test_support::has_header(
+        &resp,
+        "Access-Control-Allow-Headers"
+    ));
 }
 
 #[test]
@@ -263,4 +276,47 @@ fn invalid_bool_env_returns_500_without_panicking() {
     std::env::remove_var("SHUMA_POW_CONFIG_MUTABLE");
     std::env::remove_var("SHUMA_CHALLENGE_CONFIG_MUTABLE");
     std::env::remove_var("SHUMA_BOTNESS_CONFIG_MUTABLE");
+}
+
+#[test]
+fn static_bypass_detects_obvious_asset_paths_for_get_and_head() {
+    let get_js = crate::test_support::request_with_method_and_headers(
+        Method::Get,
+        "/assets/app.bundle.js",
+        &[],
+    );
+    assert!(should_bypass_expensive_bot_checks_for_static(
+        &get_js,
+        "/assets/app.bundle.js"
+    ));
+
+    let head_png =
+        crate::test_support::request_with_method_and_headers(Method::Head, "/img/logo.png", &[]);
+    assert!(should_bypass_expensive_bot_checks_for_static(
+        &head_png,
+        "/img/logo.png"
+    ));
+}
+
+#[test]
+fn static_bypass_excludes_admin_and_non_get_requests() {
+    let admin_like = crate::test_support::request_with_method_and_headers(
+        Method::Get,
+        "/admin/app.js",
+        &[],
+    );
+    assert!(!should_bypass_expensive_bot_checks_for_static(
+        &admin_like,
+        "/admin/app.js"
+    ));
+
+    let post_static = crate::test_support::request_with_method_and_headers(
+        Method::Post,
+        "/assets/app.bundle.js",
+        &[],
+    );
+    assert!(!should_bypass_expensive_bot_checks_for_static(
+        &post_static,
+        "/assets/app.bundle.js"
+    ));
 }

@@ -6,7 +6,8 @@ mod tests {
     use super::super::{
         apply_transform, build_puzzle, generate_pair, handle_challenge_submit, make_seed_token,
         parse_submission, parse_transform_count, render_challenge, select_transform_pair,
-        serve_challenge_page, transforms_for_count, ChallengeSeed, Transform,
+        serve_challenge_page, transforms_for_count, ChallengeSeed, ChallengeSubmitOutcome, Transform,
+        handle_challenge_submit_with_outcome,
     };
     use rand::rngs::StdRng;
     use rand::SeedableRng;
@@ -53,9 +54,18 @@ mod tests {
     fn deterministic_seed_produces_same_output() {
         let seed = ChallengeSeed {
             seed_id: "seed-1".to_string(),
+            operation_id: "a1b2c3d4".to_string(),
+            flow_id: crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE.to_string(),
+            step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
+            step_index: crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
             issued_at: 1,
             expires_at: 999,
+            token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
             ip_bucket: "bucket".to_string(),
+            ua_bucket: crate::challenge::operation_envelope::user_agent_bucket(""),
+            path_class:
+                crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT
+                    .to_string(),
             grid_size: 4,
             active_cells: 4,
             transforms: vec![Transform::RotateCw90, Transform::ShiftDown],
@@ -71,9 +81,18 @@ mod tests {
     fn generated_inputs_include_both_colors() {
         let seed = ChallengeSeed {
             seed_id: "seed-colors".to_string(),
+            operation_id: "a2b3c4d5".to_string(),
+            flow_id: crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE.to_string(),
+            step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
+            step_index: crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
             issued_at: 1,
             expires_at: 999,
+            token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
             ip_bucket: "bucket".to_string(),
+            ua_bucket: crate::challenge::operation_envelope::user_agent_bucket(""),
+            path_class:
+                crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT
+                    .to_string(),
             grid_size: 4,
             active_cells: 5,
             transforms: vec![Transform::ShiftLeft, Transform::ShiftDown],
@@ -357,9 +376,18 @@ mod tests {
         let now = crate::admin::now_ts();
         let seed = ChallengeSeed {
             seed_id: "seed-2".to_string(),
-            issued_at: now,
+            operation_id: "b1c2d3e4".to_string(),
+            flow_id: crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE.to_string(),
+            step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
+            step_index: crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
+            issued_at: now.saturating_sub(2),
             expires_at: now + 300,
+            token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
             ip_bucket: crate::signals::ip_identity::bucket_ip("unknown"),
+            ua_bucket: crate::challenge::operation_envelope::user_agent_bucket(""),
+            path_class:
+                crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT
+                    .to_string(),
             grid_size: 4,
             active_cells: 4,
             transforms: vec![Transform::RotateCw90, Transform::ShiftDown],
@@ -390,9 +418,18 @@ mod tests {
         let now = crate::admin::now_ts();
         let seed = ChallengeSeed {
             seed_id: "seed-3".to_string(),
-            issued_at: now,
+            operation_id: "c1d2e3f4".to_string(),
+            flow_id: crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE.to_string(),
+            step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
+            step_index: crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
+            issued_at: now.saturating_sub(2),
             expires_at: now + 300,
+            token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
             ip_bucket: crate::signals::ip_identity::bucket_ip("unknown"),
+            ua_bucket: crate::challenge::operation_envelope::user_agent_bucket(""),
+            path_class:
+                crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT
+                    .to_string(),
             grid_size: 4,
             active_cells: 4,
             transforms: vec![Transform::RotateCw90, Transform::ShiftDown],
@@ -420,9 +457,18 @@ mod tests {
         let now = crate::admin::now_ts();
         let seed = ChallengeSeed {
             seed_id: "seed-once".to_string(),
-            issued_at: now,
+            operation_id: "d1e2f3a4".to_string(),
+            flow_id: crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE.to_string(),
+            step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
+            step_index: crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
+            issued_at: now.saturating_sub(2),
             expires_at: now + 300,
+            token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
             ip_bucket: crate::signals::ip_identity::bucket_ip("unknown"),
+            ua_bucket: crate::challenge::operation_envelope::user_agent_bucket(""),
+            path_class:
+                crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT
+                    .to_string(),
             grid_size: 4,
             active_cells: 7,
             transforms: vec![Transform::RotateCw90, Transform::ShiftDown],
@@ -472,9 +518,18 @@ mod tests {
         let now = crate::admin::now_ts();
         let seed = ChallengeSeed {
             seed_id: "seed-expired".to_string(),
+            operation_id: "e1f2a3b4".to_string(),
+            flow_id: crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE.to_string(),
+            step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
+            step_index: crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
             issued_at: now - 1000,
             expires_at: now - 1,
+            token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
             ip_bucket: crate::signals::ip_identity::bucket_ip("unknown"),
+            ua_bucket: crate::challenge::operation_envelope::user_agent_bucket(""),
+            path_class:
+                crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT
+                    .to_string(),
             grid_size: 4,
             active_cells: 7,
             transforms: vec![Transform::RotateCw90, Transform::ShiftDown],
@@ -492,8 +547,9 @@ mod tests {
                     .to_vec(),
             )
             .build();
-        let resp = handle_challenge_submit(&store, &req);
+        let (resp, outcome) = handle_challenge_submit_with_outcome(&store, &req);
         assert_eq!(*resp.status(), 403u16);
+        assert_eq!(outcome, ChallengeSubmitOutcome::SequenceOpExpired);
         let body = String::from_utf8(resp.into_body()).unwrap();
         assert!(body.contains("Expired"));
         assert!(body.contains("Request new challenge."));
@@ -517,6 +573,338 @@ mod tests {
         let body = String::from_utf8(resp.into_body()).unwrap();
         assert!(body.contains("Forbidden. Please request a new challenge."));
         assert!(body.contains("Request new challenge."));
+    }
+
+    #[test]
+    fn handle_challenge_submit_rejects_seed_with_invalid_operation_envelope() {
+        let store = TestStore::default();
+        let now = crate::admin::now_ts();
+        let seed = ChallengeSeed {
+            seed_id: "seed-invalid-envelope".to_string(),
+            operation_id: "f1a2b3c4".to_string(),
+            flow_id: "wrong_flow".to_string(),
+            step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
+            step_index: crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
+            issued_at: now.saturating_sub(2),
+            expires_at: now + 300,
+            token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
+            ip_bucket: crate::signals::ip_identity::bucket_ip("unknown"),
+            ua_bucket: crate::challenge::operation_envelope::user_agent_bucket(""),
+            path_class:
+                crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT
+                    .to_string(),
+            grid_size: 4,
+            active_cells: 4,
+            transforms: vec![Transform::RotateCw90, Transform::ShiftDown],
+            training_count: 2,
+            seed: 1111,
+        };
+        let puzzle = build_puzzle(&seed);
+        let output = grid_to_tritstring(&puzzle.test_output);
+        let seed_token = make_seed_token(&seed);
+        let body = format!("seed={}&output={}", seed_token, output);
+        let req = Request::builder()
+            .method(Method::Post)
+            .uri("/challenge/puzzle")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(body.as_bytes().to_vec())
+            .build();
+        let resp = handle_challenge_submit(&store, &req);
+        assert_eq!(*resp.status(), 403u16);
+        let body = String::from_utf8(resp.into_body()).unwrap();
+        assert!(body.contains("Forbidden. Please request a new challenge."));
+    }
+
+    #[test]
+    fn handle_challenge_submit_returns_binding_mismatch_outcome_on_ua_mismatch() {
+        let store = TestStore::default();
+        let now = crate::admin::now_ts();
+        let seed = ChallengeSeed {
+            seed_id: "seed-ua-mismatch".to_string(),
+            operation_id: "aabbccdd".to_string(),
+            flow_id: crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE.to_string(),
+            step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
+            step_index: crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
+            issued_at: now.saturating_sub(2),
+            expires_at: now + 300,
+            token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
+            ip_bucket: crate::signals::ip_identity::bucket_ip("unknown"),
+            ua_bucket: crate::challenge::operation_envelope::user_agent_bucket("Mozilla/5.0"),
+            path_class:
+                crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT
+                    .to_string(),
+            grid_size: 4,
+            active_cells: 4,
+            transforms: vec![Transform::RotateCw90, Transform::ShiftDown],
+            training_count: 2,
+            seed: 2222,
+        };
+        let puzzle = build_puzzle(&seed);
+        let output = grid_to_tritstring(&puzzle.test_output);
+        let seed_token = make_seed_token(&seed);
+        let body = format!("seed={}&output={}", seed_token, output);
+        let req = Request::builder()
+            .method(Method::Post)
+            .uri("/challenge/puzzle")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(body.as_bytes().to_vec())
+            .build();
+        let (resp, outcome) = handle_challenge_submit_with_outcome(&store, &req);
+        assert_eq!(*resp.status(), 403u16);
+        assert_eq!(outcome, ChallengeSubmitOutcome::SequenceBindingMismatch);
+    }
+
+    #[test]
+    fn handle_challenge_submit_returns_replay_outcome_when_reused() {
+        let store = TestStore::default();
+        let now = crate::admin::now_ts();
+        let seed = ChallengeSeed {
+            seed_id: "seed-replay".to_string(),
+            operation_id: "1122334455667788".to_string(),
+            flow_id: crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE.to_string(),
+            step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
+            step_index: crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
+            issued_at: now.saturating_sub(2),
+            expires_at: now + 300,
+            token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
+            ip_bucket: crate::signals::ip_identity::bucket_ip("unknown"),
+            ua_bucket: crate::challenge::operation_envelope::user_agent_bucket(""),
+            path_class:
+                crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT
+                    .to_string(),
+            grid_size: 4,
+            active_cells: 4,
+            transforms: vec![Transform::RotateCw90, Transform::ShiftDown],
+            training_count: 2,
+            seed: 4444,
+        };
+        let puzzle = build_puzzle(&seed);
+        let output = grid_to_tritstring(&puzzle.test_output);
+        let body = format!("seed={}&output={}", make_seed_token(&seed), output);
+        let req = Request::builder()
+            .method(Method::Post)
+            .uri("/challenge/puzzle")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(body.as_bytes().to_vec())
+            .build();
+
+        let (_first_resp, first_outcome) = handle_challenge_submit_with_outcome(&store, &req);
+        assert_eq!(first_outcome, ChallengeSubmitOutcome::Solved);
+
+        let (second_resp, second_outcome) = handle_challenge_submit_with_outcome(&store, &req);
+        assert_eq!(*second_resp.status(), 403u16);
+        assert_eq!(second_outcome, ChallengeSubmitOutcome::SequenceOpReplay);
+    }
+
+    #[test]
+    fn handle_challenge_submit_returns_missing_op_outcome_for_empty_operation_id() {
+        let store = TestStore::default();
+        let now = crate::admin::now_ts();
+        let seed = ChallengeSeed {
+            seed_id: "seed-op-missing".to_string(),
+            operation_id: "".to_string(),
+            flow_id: crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE.to_string(),
+            step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
+            step_index: crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
+            issued_at: now.saturating_sub(2),
+            expires_at: now + 300,
+            token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
+            ip_bucket: crate::signals::ip_identity::bucket_ip("unknown"),
+            ua_bucket: crate::challenge::operation_envelope::user_agent_bucket(""),
+            path_class:
+                crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT
+                    .to_string(),
+            grid_size: 4,
+            active_cells: 4,
+            transforms: vec![Transform::RotateCw90, Transform::ShiftDown],
+            training_count: 2,
+            seed: 4545,
+        };
+        let req = Request::builder()
+            .method(Method::Post)
+            .uri("/challenge/puzzle")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(
+                format!("seed={}&output=0000000000000000", make_seed_token(&seed))
+                    .as_bytes()
+                    .to_vec(),
+            )
+            .build();
+
+        let (_resp, outcome) = handle_challenge_submit_with_outcome(&store, &req);
+        assert_eq!(outcome, ChallengeSubmitOutcome::SequenceOpMissing);
+    }
+
+    #[test]
+    fn handle_challenge_submit_returns_invalid_op_outcome_for_bad_operation_id() {
+        let store = TestStore::default();
+        let now = crate::admin::now_ts();
+        let seed = ChallengeSeed {
+            seed_id: "seed-op-invalid".to_string(),
+            operation_id: "bad operation id".to_string(),
+            flow_id: crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE.to_string(),
+            step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
+            step_index: crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
+            issued_at: now.saturating_sub(2),
+            expires_at: now + 300,
+            token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
+            ip_bucket: crate::signals::ip_identity::bucket_ip("unknown"),
+            ua_bucket: crate::challenge::operation_envelope::user_agent_bucket(""),
+            path_class:
+                crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT
+                    .to_string(),
+            grid_size: 4,
+            active_cells: 4,
+            transforms: vec![Transform::RotateCw90, Transform::ShiftDown],
+            training_count: 2,
+            seed: 4646,
+        };
+        let req = Request::builder()
+            .method(Method::Post)
+            .uri("/challenge/puzzle")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(
+                format!("seed={}&output=0000000000000000", make_seed_token(&seed))
+                    .as_bytes()
+                    .to_vec(),
+            )
+            .build();
+
+        let (_resp, outcome) = handle_challenge_submit_with_outcome(&store, &req);
+        assert_eq!(outcome, ChallengeSubmitOutcome::SequenceOpInvalid);
+    }
+
+    #[test]
+    fn handle_challenge_submit_returns_timing_too_fast_for_immediate_submit() {
+        let store = TestStore::default();
+        let now = crate::admin::now_ts();
+        let seed = ChallengeSeed {
+            seed_id: "seed-too-fast".to_string(),
+            operation_id: "aa11bb22cc33dd44".to_string(),
+            flow_id: crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE.to_string(),
+            step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
+            step_index: crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
+            issued_at: now,
+            expires_at: now + 300,
+            token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
+            ip_bucket: crate::signals::ip_identity::bucket_ip("unknown"),
+            ua_bucket: crate::challenge::operation_envelope::user_agent_bucket(""),
+            path_class:
+                crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT
+                    .to_string(),
+            grid_size: 4,
+            active_cells: 4,
+            transforms: vec![Transform::RotateCw90, Transform::ShiftDown],
+            training_count: 2,
+            seed: 4747,
+        };
+        let req = Request::builder()
+            .method(Method::Post)
+            .uri("/challenge/puzzle")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(
+                format!("seed={}&output=0000000000000000", make_seed_token(&seed))
+                    .as_bytes()
+                    .to_vec(),
+            )
+            .build();
+
+        let (_resp, outcome) = handle_challenge_submit_with_outcome(&store, &req);
+        assert_eq!(outcome, ChallengeSubmitOutcome::SequenceTimingTooFast);
+    }
+
+    #[test]
+    fn handle_challenge_submit_returns_timing_too_regular_for_repeated_cadence() {
+        let store = TestStore::default();
+        let now = crate::admin::now_ts();
+        let seed = ChallengeSeed {
+            seed_id: "seed-too-regular".to_string(),
+            operation_id: "ff00ee11dd22cc33".to_string(),
+            flow_id: crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE.to_string(),
+            step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
+            step_index: crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
+            issued_at: now.saturating_sub(2),
+            expires_at: now + 300,
+            token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
+            ip_bucket: crate::signals::ip_identity::bucket_ip("unknown"),
+            ua_bucket: crate::challenge::operation_envelope::user_agent_bucket(""),
+            path_class:
+                crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT
+                    .to_string(),
+            grid_size: 4,
+            active_cells: 4,
+            transforms: vec![Transform::RotateCw90, Transform::ShiftDown],
+            training_count: 2,
+            seed: 4848,
+        };
+        let timing_bucket = format!("{}:{}", seed.ip_bucket, seed.ua_bucket);
+        let cadence_key = format!(
+            "seq:cadence:{}:{}",
+            crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE,
+            timing_bucket
+        );
+        let cadence_state = serde_json::json!({
+            "expires_at": now + 120,
+            "latencies": [2, 2, 2]
+        });
+        store.map.borrow_mut().insert(
+            cadence_key,
+            serde_json::to_vec(&cadence_state).expect("cadence state must serialize"),
+        );
+        let req = Request::builder()
+            .method(Method::Post)
+            .uri("/challenge/puzzle")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(
+                format!("seed={}&output=0000000000000000", make_seed_token(&seed))
+                    .as_bytes()
+                    .to_vec(),
+            )
+            .build();
+
+        let (_resp, outcome) = handle_challenge_submit_with_outcome(&store, &req);
+        assert_eq!(outcome, ChallengeSubmitOutcome::SequenceTimingTooRegular);
+    }
+
+    #[test]
+    fn handle_challenge_submit_returns_order_violation_outcome_on_step_index_mismatch() {
+        let store = TestStore::default();
+        let now = crate::admin::now_ts();
+        let seed = ChallengeSeed {
+            seed_id: "seed-order-violation".to_string(),
+            operation_id: "eeff0011".to_string(),
+            flow_id: crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE.to_string(),
+            step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
+            step_index: 1,
+            issued_at: now.saturating_sub(2),
+            expires_at: now + 300,
+            token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
+            ip_bucket: crate::signals::ip_identity::bucket_ip("unknown"),
+            ua_bucket: crate::challenge::operation_envelope::user_agent_bucket(""),
+            path_class:
+                crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT
+                    .to_string(),
+            grid_size: 4,
+            active_cells: 4,
+            transforms: vec![Transform::RotateCw90, Transform::ShiftDown],
+            training_count: 2,
+            seed: 3333,
+        };
+        let puzzle = build_puzzle(&seed);
+        let output = grid_to_tritstring(&puzzle.test_output);
+        let seed_token = make_seed_token(&seed);
+        let body = format!("seed={}&output={}", seed_token, output);
+        let req = Request::builder()
+            .method(Method::Post)
+            .uri("/challenge/puzzle")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(body.as_bytes().to_vec())
+            .build();
+        let (resp, outcome) = handle_challenge_submit_with_outcome(&store, &req);
+        assert_eq!(*resp.status(), 403u16);
+        assert_eq!(outcome, ChallengeSubmitOutcome::SequenceOrderViolation);
+        let body = String::from_utf8(resp.into_body()).unwrap();
+        assert!(body.contains("Forbidden. Please request a new challenge."));
     }
 
     #[test]

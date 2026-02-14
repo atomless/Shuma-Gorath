@@ -1,6 +1,27 @@
 use spin_sdk::http::{Method, Request, Response};
 use spin_sdk::key_value::Store;
 
+fn record_sequence_violation_for_challenge_submit(
+    store: &Store,
+    req: &Request,
+    transition: crate::runtime::policy_taxonomy::PolicyTransition,
+    reason: &str,
+) {
+    let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(transition);
+    crate::observability::metrics::record_policy_match(store, &policy_match);
+    crate::admin::log_event(
+        store,
+        &crate::admin::EventLogEntry {
+            ts: crate::admin::now_ts(),
+            event: crate::admin::EventType::Challenge,
+            ip: Some(crate::extract_client_ip(req)),
+            reason: Some(reason.to_string()),
+            outcome: Some(policy_match.annotate_outcome("challenge_submit_rejected")),
+            admin: None,
+        },
+    );
+}
+
 pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Response> {
     // Health check endpoint
     if path == "/health" {
@@ -70,11 +91,99 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                         None,
                     );
                 }
-                crate::boundaries::ChallengeSubmitOutcome::ExpiredReplay => {
+                crate::boundaries::ChallengeSubmitOutcome::SequenceOpMissing => {
+                    record_sequence_violation_for_challenge_submit(
+                        &store,
+                        req,
+                        crate::runtime::policy_taxonomy::PolicyTransition::SeqOpMissing,
+                        "challenge_submit_missing_operation_id",
+                    );
+                }
+                crate::boundaries::ChallengeSubmitOutcome::SequenceOpInvalid => {
+                    record_sequence_violation_for_challenge_submit(
+                        &store,
+                        req,
+                        crate::runtime::policy_taxonomy::PolicyTransition::SeqOpInvalid,
+                        "challenge_submit_invalid_operation_envelope",
+                    );
+                }
+                crate::boundaries::ChallengeSubmitOutcome::SequenceOpExpired => {
                     crate::observability::metrics::increment(
                         &store,
                         crate::observability::metrics::MetricName::ChallengeExpiredReplayTotal,
                         None,
+                    );
+                    record_sequence_violation_for_challenge_submit(
+                        &store,
+                        req,
+                        crate::runtime::policy_taxonomy::PolicyTransition::SeqOpExpired,
+                        "challenge_submit_expired_operation",
+                    );
+                }
+                crate::boundaries::ChallengeSubmitOutcome::SequenceOpReplay => {
+                    crate::observability::metrics::increment(
+                        &store,
+                        crate::observability::metrics::MetricName::ChallengeExpiredReplayTotal,
+                        None,
+                    );
+                    record_sequence_violation_for_challenge_submit(
+                        &store,
+                        req,
+                        crate::runtime::policy_taxonomy::PolicyTransition::SeqOpReplay,
+                        "challenge_submit_operation_replay",
+                    );
+                }
+                crate::boundaries::ChallengeSubmitOutcome::SequenceWindowExceeded => {
+                    crate::observability::metrics::increment(
+                        &store,
+                        crate::observability::metrics::MetricName::ChallengeExpiredReplayTotal,
+                        None,
+                    );
+                    record_sequence_violation_for_challenge_submit(
+                        &store,
+                        req,
+                        crate::runtime::policy_taxonomy::PolicyTransition::SeqWindowExceeded,
+                        "challenge_submit_sequence_window_exceeded",
+                    );
+                }
+                crate::boundaries::ChallengeSubmitOutcome::SequenceOrderViolation => {
+                    record_sequence_violation_for_challenge_submit(
+                        &store,
+                        req,
+                        crate::runtime::policy_taxonomy::PolicyTransition::SeqOrderViolation,
+                        "challenge_submit_order_violation",
+                    );
+                }
+                crate::boundaries::ChallengeSubmitOutcome::SequenceBindingMismatch => {
+                    record_sequence_violation_for_challenge_submit(
+                        &store,
+                        req,
+                        crate::runtime::policy_taxonomy::PolicyTransition::SeqBindingMismatch,
+                        "challenge_submit_binding_mismatch",
+                    );
+                }
+                crate::boundaries::ChallengeSubmitOutcome::SequenceTimingTooFast => {
+                    record_sequence_violation_for_challenge_submit(
+                        &store,
+                        req,
+                        crate::runtime::policy_taxonomy::PolicyTransition::SeqTimingTooFast,
+                        "challenge_submit_timing_too_fast",
+                    );
+                }
+                crate::boundaries::ChallengeSubmitOutcome::SequenceTimingTooRegular => {
+                    record_sequence_violation_for_challenge_submit(
+                        &store,
+                        req,
+                        crate::runtime::policy_taxonomy::PolicyTransition::SeqTimingTooRegular,
+                        "challenge_submit_timing_too_regular",
+                    );
+                }
+                crate::boundaries::ChallengeSubmitOutcome::SequenceTimingTooSlow => {
+                    record_sequence_violation_for_challenge_submit(
+                        &store,
+                        req,
+                        crate::runtime::policy_taxonomy::PolicyTransition::SeqTimingTooSlow,
+                        "challenge_submit_timing_too_slow",
                     );
                 }
                 crate::boundaries::ChallengeSubmitOutcome::Forbidden

@@ -31,6 +31,9 @@
 #   19. CDP config via admin API
 #   20. CDP stats counters reflect reports
 #   21. Unban functionality test
+#   22. External fingerprint advisory vs authoritative precedence
+#   23. External fingerprint authoritative mode enforces edge ban
+#   24. External rate-limiter unavailable downgrade-to-internal behavior
 
 set -e
 
@@ -140,7 +143,7 @@ curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -X POST 
   "$BASE_URL/admin/config" > /dev/null || true
 
 info "Clearing bans for integration test IPs..."
-for ip in "${TEST_HONEYPOT_IP}" 10.0.0.99 10.0.0.100 10.0.0.150 10.0.0.210 10.0.0.211 10.0.0.212; do
+for ip in "${TEST_HONEYPOT_IP}" 10.0.0.99 10.0.0.100 10.0.0.150 10.0.0.202 10.0.0.210 10.0.0.211 10.0.0.212 10.0.0.230 10.0.0.231 10.0.0.232; do
   curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" \
     -H "Authorization: Bearer $SHUMA_API_KEY" \
     -X POST \
@@ -149,6 +152,24 @@ done
 
 info "Resolving configured honeypot path..."
 config_snapshot=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/admin/config")
+read -r ORIGINAL_RATE_LIMIT ORIGINAL_CDP_DETECTION_ENABLED ORIGINAL_CDP_AUTO_BAN ORIGINAL_RATE_BACKEND ORIGINAL_BAN_BACKEND ORIGINAL_CHALLENGE_BACKEND ORIGINAL_MAZE_BACKEND ORIGINAL_FINGERPRINT_BACKEND ORIGINAL_EDGE_MODE <<< "$(python3 -c 'import json,sys
+try:
+    data=json.loads(sys.stdin.read())
+except Exception:
+    data={}
+provider=data.get("provider_backends") or {}
+vals=[
+    str(int(data.get("rate_limit", 80))),
+    "true" if bool(data.get("cdp_detection_enabled", True)) else "false",
+    "true" if bool(data.get("cdp_auto_ban", True)) else "false",
+    str(provider.get("rate_limiter", "internal")),
+    str(provider.get("ban_store", "internal")),
+    str(provider.get("challenge_engine", "internal")),
+    str(provider.get("maze_tarpit", "internal")),
+    str(provider.get("fingerprint_signal", "internal")),
+    str(data.get("edge_integration_mode", "off")),
+]
+print(" ".join(vals))' <<< "$config_snapshot")"
 resolved_honeypot=$(python3 -c 'import json,sys
 try:
     data=json.loads(sys.stdin.read())
@@ -214,6 +235,8 @@ PY
   if [[ "$nonce" == "-1" ]]; then
     fail "PoW solve exceeded iteration cap"
   else
+  # Sequence timing guardrail: allow minimum step latency before verify submit.
+  sleep 1.2
   payload=$(python3 - "$seed" "$nonce" <<'PY'
 import json,sys
 seed=sys.argv[1]
@@ -313,6 +336,8 @@ if [[ -z "$challenge_seed" || -z "$challenge_output" ]]; then
   echo -e "${YELLOW}DEBUG parsed seed:${NC} $challenge_seed"
   echo -e "${YELLOW}DEBUG parsed output:${NC} $challenge_output"
 else
+  # Sequence timing guardrail: allow minimum step latency before challenge submit.
+  sleep 1.2
   incorrect_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.150" \
     --data-urlencode "seed=$challenge_seed" \
     --data-urlencode "output=$challenge_output" \
@@ -528,10 +553,119 @@ else
   echo -e "${YELLOW}DEBUG unban response:${NC} $unban_resp"
 fi
 
+# Test 22: External fingerprint advisory mode should not immediately ban on strong edge report
+info "Testing external fingerprint advisory precedence..."
+fingerprint_advisory_cfg=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -X POST \
+  -H "Authorization: Bearer $SHUMA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"provider_backends":{"fingerprint_signal":"external"},"edge_integration_mode":"advisory","cdp_detection_enabled":true,"cdp_auto_ban":true}' \
+  "$BASE_URL/admin/config")
+if ! echo "$fingerprint_advisory_cfg" | grep -q '"status":"updated"'; then
+  fail "Failed to apply external fingerprint advisory config"
+  echo -e "${YELLOW}DEBUG advisory config:${NC} $fingerprint_advisory_cfg"
+else
+  curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" -X POST "$BASE_URL/admin/unban?ip=10.0.0.230" > /dev/null
+  edge_report='{"bot_score":99.0,"action":"deny","detection_ids":["bm_automation"],"tags":["ja3_mismatch"]}'
+  advisory_edge_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.230" -X POST \
+    -H "Content-Type: application/json" \
+    -d "$edge_report" \
+    "$BASE_URL/fingerprint-report")
+  if echo "$advisory_edge_resp" | grep -qi 'banned'; then
+    fail "Advisory mode unexpectedly enforced immediate edge ban"
+    echo -e "${YELLOW}DEBUG advisory /fingerprint-report:${NC} $advisory_edge_resp"
+  elif echo "$advisory_edge_resp" | grep -qiE 'received|advisory'; then
+    advisory_followup=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.230" "$BASE_URL/")
+    if echo "$advisory_followup" | grep -q 'Access Blocked'; then
+      fail "Advisory mode follow-up request was blocked"
+      echo -e "${YELLOW}DEBUG advisory follow-up:${NC} $advisory_followup"
+    else
+      pass "Advisory mode records edge report without immediate authoritative ban"
+    fi
+  else
+    fail "Advisory mode did not return expected fingerprint response"
+    echo -e "${YELLOW}DEBUG advisory /fingerprint-report:${NC} $advisory_edge_resp"
+  fi
+fi
+
+# Test 23: External fingerprint authoritative mode should enforce strong edge bans
+info "Testing external fingerprint authoritative precedence..."
+fingerprint_authoritative_cfg=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -X POST \
+  -H "Authorization: Bearer $SHUMA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"provider_backends":{"fingerprint_signal":"external"},"edge_integration_mode":"authoritative","cdp_detection_enabled":true,"cdp_auto_ban":true}' \
+  "$BASE_URL/admin/config")
+if ! echo "$fingerprint_authoritative_cfg" | grep -q '"status":"updated"'; then
+  fail "Failed to apply external fingerprint authoritative config"
+  echo -e "${YELLOW}DEBUG authoritative config:${NC} $fingerprint_authoritative_cfg"
+else
+  curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" -X POST "$BASE_URL/admin/unban?ip=10.0.0.231" > /dev/null
+  edge_report='{"bot_score":99.0,"action":"deny","detection_ids":["bm_automation"],"tags":["ja3_mismatch"]}'
+  authoritative_edge_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.231" -X POST \
+    -H "Content-Type: application/json" \
+    -d "$edge_report" \
+    "$BASE_URL/fingerprint-report")
+  if echo "$authoritative_edge_resp" | grep -qi 'banned'; then
+    authoritative_followup=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.231" "$BASE_URL/")
+    if echo "$authoritative_followup" | grep -q 'Access Blocked'; then
+      pass "Authoritative mode enforces strong edge signal ban"
+    else
+      fail "Authoritative mode did not block follow-up request after edge ban"
+      echo -e "${YELLOW}DEBUG authoritative follow-up:${NC} $authoritative_followup"
+    fi
+  else
+    fail "Authoritative mode did not enforce strong edge report"
+    echo -e "${YELLOW}DEBUG authoritative /fingerprint-report:${NC} $authoritative_edge_resp"
+  fi
+fi
+
+# Test 24: External rate limiter missing backend explicitly downgrades to internal behavior
+info "Testing external rate limiter downgrade-to-internal behavior..."
+rate_fallback_cfg=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -X POST \
+  -H "Authorization: Bearer $SHUMA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"provider_backends":{"rate_limiter":"external"},"edge_integration_mode":"advisory","rate_limit":1}' \
+  "$BASE_URL/admin/config")
+if ! echo "$rate_fallback_cfg" | grep -q '"status":"updated"'; then
+  fail "Failed to apply external rate-limiter fallback config"
+  echo -e "${YELLOW}DEBUG rate fallback config:${NC} $rate_fallback_cfg"
+else
+  rate_backend_effective=$(python3 -c 'import json,sys
+data=json.loads(sys.stdin.read())
+cfg=data.get("config") or {}
+provider=cfg.get("provider_backends") or {}
+print(provider.get("rate_limiter",""))' <<< "$rate_fallback_cfg")
+  if [[ "$rate_backend_effective" != "external" ]]; then
+    fail "Rate fallback test did not apply external rate_limiter backend"
+    echo -e "${YELLOW}DEBUG rate fallback config:${NC} $rate_fallback_cfg"
+  fi
+
+  curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" -X POST "$BASE_URL/admin/unban?ip=10.0.0.232" > /dev/null
+  rate_first=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/")
+  rate_second=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/")
+  if echo "$rate_second" | grep -qE 'Rate Limit Exceeded|Access Blocked'; then
+    pass "External rate limiter downgrades to internal limiter when backend unavailable"
+  else
+    fail "Rate limiter downgrade-to-internal behavior not observed"
+    echo -e "${YELLOW}DEBUG rate first response:${NC} $rate_first"
+    echo -e "${YELLOW}DEBUG rate second response:${NC} $rate_second"
+  fi
+fi
+
+# Restore mutable settings touched by this suite.
+restore_payload=$(cat <<EOF
+{"rate_limit":${ORIGINAL_RATE_LIMIT},"cdp_detection_enabled":${ORIGINAL_CDP_DETECTION_ENABLED},"cdp_auto_ban":${ORIGINAL_CDP_AUTO_BAN},"provider_backends":{"rate_limiter":"${ORIGINAL_RATE_BACKEND}","ban_store":"${ORIGINAL_BAN_BACKEND}","challenge_engine":"${ORIGINAL_CHALLENGE_BACKEND}","maze_tarpit":"${ORIGINAL_MAZE_BACKEND}","fingerprint_signal":"${ORIGINAL_FINGERPRINT_BACKEND}"},"edge_integration_mode":"${ORIGINAL_EDGE_MODE}"}
+EOF
+)
+curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -X POST \
+  -H "Authorization: Bearer $SHUMA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "$restore_payload" \
+  "$BASE_URL/admin/config" > /dev/null || true
+
 # Cleanup: unban test CDP/IPs
-curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" -X POST "$BASE_URL/admin/unban?ip=${TEST_HONEYPOT_IP}" > /dev/null
-curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" -X POST "$BASE_URL/admin/unban?ip=10.0.0.200" > /dev/null
-curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" -X POST "$BASE_URL/admin/unban?ip=10.0.0.201" > /dev/null
+for ip in "${TEST_HONEYPOT_IP}" 10.0.0.200 10.0.0.201 10.0.0.202 10.0.0.230 10.0.0.231 10.0.0.232; do
+  curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" -X POST "$BASE_URL/admin/unban?ip=${ip}" > /dev/null || true
+done
 
 echo -e "\n${GREEN}All integration tests complete.${NC}"
 

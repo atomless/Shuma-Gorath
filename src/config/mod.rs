@@ -661,9 +661,7 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_optional_redis_url_var("SHUMA_RATE_LIMITER_REDIS_URL")?;
     validate_optional_redis_url_var("SHUMA_BAN_STORE_REDIS_URL")?;
     validate_optional_rate_limiter_outage_mode_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN")?;
-    validate_optional_rate_limiter_outage_mode_var(
-        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
-    )?;
+    validate_optional_rate_limiter_outage_mode_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH")?;
 
     Ok(())
 }
@@ -799,7 +797,10 @@ pub fn ban_store_redis_url() -> Option<String> {
         .and_then(|value| parse_redis_url(&value))
 }
 
-fn env_rate_limiter_outage_mode(name: &str, default: RateLimiterOutageMode) -> RateLimiterOutageMode {
+fn env_rate_limiter_outage_mode(
+    name: &str,
+    default: RateLimiterOutageMode,
+) -> RateLimiterOutageMode {
     env::var(name)
         .ok()
         .and_then(|value| parse_rate_limiter_outage_mode(value.as_str()))
@@ -1357,8 +1358,12 @@ fn default_provider_fingerprint_signal() -> ProviderBackend {
 
 fn defaults_rate_limiter_outage_mode(key: &str) -> RateLimiterOutageMode {
     let raw = defaults_raw(key);
-    parse_rate_limiter_outage_mode(raw.as_str())
-        .unwrap_or_else(|| panic!("Invalid rate limiter outage mode default for {}={}", key, raw))
+    parse_rate_limiter_outage_mode(raw.as_str()).unwrap_or_else(|| {
+        panic!(
+            "Invalid rate limiter outage mode default for {}={}",
+            key, raw
+        )
+    })
 }
 
 fn default_rate_limiter_outage_mode_main() -> RateLimiterOutageMode {

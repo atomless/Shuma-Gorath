@@ -63,11 +63,14 @@ test("maze and duration save buttons use shared dirty-state behavior", async ({ 
   const durationsSave = page.locator("#save-durations-btn");
   const rateLimitSave = page.locator("#save-rate-limit-config");
   const jsRequiredSave = page.locator("#save-js-required-config");
+  const edgeModeSave = page.locator("#save-edge-integration-mode-config");
+  const edgeModeSelect = page.locator("#edge-integration-mode-select");
 
   await expect(mazeSave).toBeDisabled();
   await expect(durationsSave).toBeDisabled();
   await expect(rateLimitSave).toBeDisabled();
   await expect(jsRequiredSave).toBeDisabled();
+  await expect(edgeModeSave).toBeDisabled();
 
   const mazeThreshold = page.locator("#maze-threshold");
   const initialMazeThreshold = await mazeThreshold.inputValue();
@@ -109,6 +112,13 @@ test("maze and duration save buttons use shared dirty-state behavior", async ({ 
     }
     await expect(jsRequiredSave).toBeDisabled();
   }
+
+  const initialEdgeMode = await edgeModeSelect.inputValue();
+  const nextEdgeMode = initialEdgeMode === "off" ? "advisory" : "off";
+  await edgeModeSelect.selectOption(nextEdgeMode);
+  await expect(edgeModeSave).toBeEnabled();
+  await edgeModeSelect.selectOption(initialEdgeMode);
+  await expect(edgeModeSave).toBeDisabled();
 });
 
 test("session survives reload and time-range controls refresh chart data", async ({ page }) => {

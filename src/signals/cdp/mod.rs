@@ -139,6 +139,18 @@ pub fn handle_cdp_report(store: &Store, req: &Request) -> Response {
 
     let cdp_tier = classify_cdp_tier(&report, cfg.cdp_detection_threshold);
     let tier_label = cdp_tier_label(cdp_tier);
+    let detection_policy_match = match cdp_tier {
+        CdpTier::Low => crate::runtime::policy_taxonomy::resolve_policy_match(
+            crate::runtime::policy_taxonomy::PolicyTransition::CdpReportLow,
+        ),
+        CdpTier::Medium => crate::runtime::policy_taxonomy::resolve_policy_match(
+            crate::runtime::policy_taxonomy::PolicyTransition::CdpReportMedium,
+        ),
+        CdpTier::Strong => crate::runtime::policy_taxonomy::resolve_policy_match(
+            crate::runtime::policy_taxonomy::PolicyTransition::CdpReportStrong,
+        ),
+    };
+    crate::observability::metrics::record_policy_match(store, &detection_policy_match);
 
     // Log the CDP detection event
     crate::admin::log_event(
@@ -151,17 +163,27 @@ pub fn handle_cdp_report(store: &Store, req: &Request) -> Response {
                 "cdp_detected:tier={} score={:.2}",
                 tier_label, report.score
             )),
-            outcome: Some(format!("checks:{}", report.checks.join(","))),
+            outcome: Some(detection_policy_match.annotate_outcome(
+                format!("checks:{}", report.checks.join(",")).as_str(),
+            )),
             admin: None,
         },
     );
 
     // Increment metrics
-    crate::observability::metrics::increment(store, crate::observability::metrics::MetricName::CdpDetections, None);
+    crate::observability::metrics::increment(
+        store,
+        crate::observability::metrics::MetricName::CdpDetections,
+        None,
+    );
     increment_kv_counter(store, "cdp:detections");
 
     // Auto-ban only for strong-tier detections when enabled.
     if cfg.cdp_auto_ban && cdp_tier == CdpTier::Strong {
+        let auto_ban_policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
+            crate::runtime::policy_taxonomy::PolicyTransition::CdpAutoBan,
+        );
+        crate::observability::metrics::record_policy_match(store, &auto_ban_policy_match);
         crate::enforcement::ban::ban_ip_with_fingerprint(
             store,
             "default",
@@ -194,9 +216,8 @@ pub fn handle_cdp_report(store: &Store, req: &Request) -> Response {
                 event: crate::admin::EventType::Ban,
                 ip: Some(ip.clone()),
                 reason: Some("cdp_automation".to_string()),
-                outcome: Some(format!(
-                    "banned:tier={} score={:.2}",
-                    tier_label, report.score
+                outcome: Some(auto_ban_policy_match.annotate_outcome(
+                    format!("banned:tier={} score={:.2}", tier_label, report.score).as_str(),
                 )),
                 admin: None,
             },

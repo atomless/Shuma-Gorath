@@ -1,14 +1,19 @@
 use rand::Rng;
 use spin_sdk::http::{Request, Response};
 
-use super::{build_puzzle, select_transform_pair, transforms_for_count};
+use super::super::{challenge_response, PUZZLE_PATH};
 use super::token::make_seed_token;
 use super::types::{ChallengeSeed, Transform};
-use super::super::{challenge_response, PUZZLE_PATH};
+use super::{build_puzzle, select_transform_pair, transforms_for_count};
 
 pub(crate) fn render_challenge(req: &Request, transform_count: usize) -> Response {
     let ip = crate::extract_client_ip(req);
+    let ua = req
+        .header("user-agent")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     let ip_bucket = crate::signals::ip_identity::bucket_ip(&ip);
+    let ua_bucket = crate::challenge::operation_envelope::user_agent_bucket(ua);
     let now = crate::admin::now_ts();
     let mut rng = rand::rng();
     let grid_size = 4u8;
@@ -17,9 +22,17 @@ pub(crate) fn render_challenge(req: &Request, transform_count: usize) -> Respons
     let transforms = select_transform_pair(&mut rng, &legend_transforms);
     let seed = ChallengeSeed {
         seed_id: format!("{:016x}", rng.random::<u64>()),
+        operation_id: format!("{:016x}{:016x}", rng.random::<u64>(), rng.random::<u64>()),
+        flow_id: crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE.to_string(),
+        step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
+        step_index: crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
         issued_at: now,
         expires_at: now + 300,
+        token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
         ip_bucket,
+        ua_bucket,
+        path_class: crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT
+            .to_string(),
         grid_size,
         active_cells,
         transforms,

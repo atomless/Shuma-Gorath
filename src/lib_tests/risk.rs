@@ -93,7 +93,8 @@ mod tests {
     fn botness_assessment_marks_disabled_and_unavailable_signals_explicitly() {
         let mut cfg = crate::config::defaults().clone();
         cfg.js_required_enforced = false;
-        let assessment = crate::compute_botness_assessment(context(false, false, false, 0, 0), &cfg);
+        let assessment =
+            crate::compute_botness_assessment(context(false, false, false, 0, 0), &cfg);
 
         let js = assessment
             .contributions
@@ -143,7 +144,10 @@ mod tests {
             .iter()
             .find(|c| c.key == "geo_risk")
             .expect("geo signal must exist");
-        assert_eq!(geo.availability, crate::signals::botness::SignalAvailability::Active);
+        assert_eq!(
+            geo.availability,
+            crate::signals::botness::SignalAvailability::Active
+        );
         assert_eq!(geo.contribution, cfg.botness_weights.geo_risk);
 
         let rate_medium = assessment
@@ -199,10 +203,16 @@ mod tests {
             let js = contribution(&assessment, "js_verification_required");
 
             if expected_active {
-                assert_eq!(js.availability, crate::signals::botness::SignalAvailability::Active);
+                assert_eq!(
+                    js.availability,
+                    crate::signals::botness::SignalAvailability::Active
+                );
                 assert_eq!(js.contribution, cfg.botness_weights.js_required);
             } else {
-                assert_eq!(js.availability, crate::signals::botness::SignalAvailability::Disabled);
+                assert_eq!(
+                    js.availability,
+                    crate::signals::botness::SignalAvailability::Disabled
+                );
                 assert_eq!(js.contribution, 0);
             }
         }
@@ -228,10 +238,16 @@ mod tests {
             let geo = contribution(&assessment, "geo_risk");
 
             if expected_active {
-                assert_eq!(geo.availability, crate::signals::botness::SignalAvailability::Active);
+                assert_eq!(
+                    geo.availability,
+                    crate::signals::botness::SignalAvailability::Active
+                );
                 assert_eq!(geo.contribution, cfg.botness_weights.geo_risk);
             } else {
-                assert_eq!(geo.availability, crate::signals::botness::SignalAvailability::Disabled);
+                assert_eq!(
+                    geo.availability,
+                    crate::signals::botness::SignalAvailability::Disabled
+                );
                 assert_eq!(geo.contribution, 0);
             }
         }
@@ -291,8 +307,7 @@ mod tests {
         cfg.defence_modes.js = crate::config::ComposabilityMode::Both;
         cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Advisory;
 
-        let assessment =
-            crate::compute_botness_assessment(context(true, true, true, 70, 80), &cfg);
+        let assessment = crate::compute_botness_assessment(context(true, true, true, 70, 80), &cfg);
         let state_summary = crate::botness_signal_states_summary(&assessment);
         assert!(state_summary.contains("js_verification_required:active:"));
         assert!(state_summary.contains("geo_risk:disabled:0"));
@@ -322,8 +337,8 @@ mod tests {
         assert!(summary.contains("ban_store=internal/internal"));
         assert!(summary.contains("challenge_engine=internal/internal"));
         assert!(summary.contains("maze_tarpit=internal/internal"));
-        assert!(summary.contains(
-            "fingerprint_signal=external/external_stub_fingerprint"
-        ));
+        assert!(
+            summary.contains("fingerprint_signal=external/external_akamai_with_internal_fallback")
+        );
     }
 }

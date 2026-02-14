@@ -33,6 +33,8 @@ This endpoint is unauthenticated for Prometheus compatibility. Restrict access a
 - `bot_defence_rate_limiter_outage_decisions_total{route_class="...",mode="fallback_internal|fail_open|fail_closed",action="fallback_internal|allow|deny",decision="allowed|limited"}`
 - `bot_defence_rate_limiter_usage_fallback_total{route_class="...",reason="backend_error|backend_missing"}`
 - `bot_defence_rate_limiter_state_drift_observations_total{route_class="...",delta_band="delta_0|delta_1_5|delta_6_20|delta_21_plus"}`
+- `bot_defence_policy_matches_total{level="L*...",action="A*...",detection="D*..."}`
+- `bot_defence_policy_signals_total{signal="S_*"}`
 
 ## 🐙 Prometheus Scrape Example
 
@@ -56,6 +58,8 @@ scrape_configs:
   - full state summary (`signal_states=key:state:contribution,...`)
   - runtime metadata summary (`modes=rate=... geo=... js=... edge=...`)
   - provider summary (`providers=rate_limiter=... ban_store=... challenge_engine=... maze_tarpit=... fingerprint_signal=...`)
+- Policy-driven event outcomes append canonical taxonomy metadata:
+  - `taxonomy[level=L* action=A* detection=D* signals=S_*...]`
 - Use this event context with the two composability metrics to distinguish:
   - intentional disabled signals (`state=disabled`),
   - unavailable inputs (`state=unavailable`), and
@@ -73,6 +77,7 @@ Use this when moving from internal-only to advisory/authoritative edge integrati
   - `bot_defence_provider_implementation_effective_total{capability="...",backend="...",implementation="..."}`
   - For `rate_limiter` external mode, expect `implementation="external_redis_with_internal_fallback"`.
   - For `ban_store` external mode, expect `implementation="external_redis_with_internal_fallback"`.
+  - For `fingerprint_signal` external mode, expect `implementation="external_akamai_with_internal_fallback"`.
 - Use `increase(...)` windows in PromQL to verify recent behavior rather than cumulative lifetime totals.
 
 Example PromQL (last 10 minutes):
@@ -91,7 +96,7 @@ sum by (capability, backend, implementation) (
 
 - Watch unavailable signal-state growth during external cutover:
   - `bot_defence_botness_signal_state_total{state="unavailable"}`
-- For fingerprint migrations specifically, an unexpected rise in unavailable state after enablement is a rollback trigger.
+- For fingerprint migrations specifically, confirm provider implementation remains `external_akamai_with_internal_fallback` and investigate sudden drops in detection throughput (`bot_defence_cdp_detections_total`) after enablement.
 
 Example PromQL (last 10 minutes):
 

@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use spin_sdk::http::{Request, Response};
 use spin_sdk::key_value::Store;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -15,6 +16,8 @@ const RATE_DRIFT_BAND_DELTA_0: &str = "delta_0";
 const RATE_DRIFT_BAND_DELTA_1_5: &str = "delta_1_5";
 const RATE_DRIFT_BAND_DELTA_6_20: &str = "delta_6_20";
 const RATE_DRIFT_BAND_DELTA_21_PLUS: &str = "delta_21_plus";
+const MAX_AKAMAI_DETECTION_IDS: usize = 16;
+const MAX_AKAMAI_TAGS: usize = 16;
 
 pub(crate) struct ExternalRateLimiterProvider;
 pub(crate) struct ExternalBanStoreProvider;
@@ -30,6 +33,176 @@ pub(crate) const UNSUPPORTED_MAZE_TARPIT: UnsupportedExternalMazeTarpitProvider 
     UnsupportedExternalMazeTarpitProvider;
 pub(crate) const FINGERPRINT_SIGNAL: ExternalFingerprintSignalProvider =
     ExternalFingerprintSignalProvider;
+
+#[derive(Debug, Clone, Deserialize)]
+struct AkamaiEdgeOutcome {
+    #[serde(default)]
+    bot_score: Option<f32>,
+    #[serde(default)]
+    action: Option<String>,
+    #[serde(default)]
+    detection_ids: Vec<String>,
+    #[serde(default)]
+    tags: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct NormalizedFingerprintSignal {
+    confidence: f32,
+    hard_signal: bool,
+    checks: Vec<String>,
+    summary: String,
+}
+
+fn normalize_akamai_edge_outcome(
+    outcome: AkamaiEdgeOutcome,
+) -> Result<NormalizedFingerprintSignal, &'static str> {
+    if let Some(score) = outcome.bot_score {
+        if !score.is_finite() || !(0.0..=100.0).contains(&score) {
+            return Err("Invalid edge bot score");
+        }
+    }
+
+    let normalized_action = outcome
+        .action
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_ascii_lowercase())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    let mut confidence = outcome.bot_score.unwrap_or(0.0) / 10.0;
+    let mut hard_signal = false;
+    let mut checks = vec!["akamai_signal".to_string()];
+
+    match normalized_action.as_str() {
+        "deny" | "block" => {
+            hard_signal = true;
+            confidence = confidence.max(9.5);
+            checks.push("automation_props".to_string());
+        }
+        "challenge" => {
+            confidence = confidence.max(6.5);
+            checks.push("cdp_timing".to_string());
+        }
+        "monitor" => {
+            confidence = confidence.max(3.5);
+        }
+        "allow" => {
+            confidence = confidence.max(1.0);
+        }
+        _ => {
+            confidence = confidence.max(2.0);
+        }
+    }
+
+    if let Some(action_check) = crate::request_validation::sanitize_check_name(
+        format!("akamai_action:{normalized_action}").as_str(),
+    ) {
+        checks.push(action_check);
+    }
+
+    let detection_ids = outcome
+        .detection_ids
+        .into_iter()
+        .take(MAX_AKAMAI_DETECTION_IDS)
+        .filter_map(|id| crate::request_validation::sanitize_check_name(id.as_str()))
+        .collect::<Vec<_>>();
+    if !detection_ids.is_empty() {
+        checks.push("akamai_detection_ids".to_string());
+        confidence = (confidence + 1.0).min(10.0);
+    }
+
+    let tags = outcome
+        .tags
+        .into_iter()
+        .take(MAX_AKAMAI_TAGS)
+        .filter_map(|tag| crate::request_validation::sanitize_check_name(tag.as_str()))
+        .collect::<Vec<_>>();
+    if !tags.is_empty() {
+        checks.push("akamai_tags".to_string());
+        confidence = (confidence + 0.5).min(10.0);
+    }
+
+    for id in &detection_ids {
+        if let Some(check) =
+            crate::request_validation::sanitize_check_name(format!("akamai_id:{id}").as_str())
+        {
+            checks.push(check);
+        }
+    }
+    for tag in &tags {
+        if let Some(check) =
+            crate::request_validation::sanitize_check_name(format!("akamai_tag:{tag}").as_str())
+        {
+            checks.push(check);
+        }
+    }
+
+    checks.sort();
+    checks.dedup();
+
+    let summary = crate::request_validation::sanitize_ban_summary(
+        format!(
+            "provider=akamai action={} score={:.1} ids={} tags={}",
+            normalized_action,
+            confidence,
+            if detection_ids.is_empty() {
+                "none".to_string()
+            } else {
+                detection_ids.join(",")
+            },
+            if tags.is_empty() {
+                "none".to_string()
+            } else {
+                tags.join(",")
+            }
+        )
+        .as_str(),
+    )
+    .unwrap_or_else(|| "provider=akamai".to_string());
+
+    Ok(NormalizedFingerprintSignal {
+        confidence,
+        hard_signal,
+        checks,
+        summary,
+    })
+}
+
+fn map_normalized_fingerprint_to_cdp_report(
+    normalized: &NormalizedFingerprintSignal,
+) -> crate::signals::cdp::CdpReport {
+    crate::signals::cdp::CdpReport {
+        cdp_detected: normalized.hard_signal || normalized.confidence >= 4.0,
+        score: (normalized.confidence / 2.0).clamp(0.0, 5.0),
+        checks: normalized.checks.clone(),
+    }
+}
+
+fn cdp_tier_label(tier: crate::signals::cdp::CdpTier) -> &'static str {
+    match tier {
+        crate::signals::cdp::CdpTier::Low => "low",
+        crate::signals::cdp::CdpTier::Medium => "medium",
+        crate::signals::cdp::CdpTier::Strong => "strong",
+    }
+}
+
+fn looks_like_akamai_payload(outcome: &AkamaiEdgeOutcome) -> bool {
+    outcome.bot_score.is_some()
+        || outcome
+            .action
+            .as_deref()
+            .map(str::trim)
+            .map(|value| !value.is_empty())
+            .unwrap_or(false)
+        || !outcome.detection_ids.is_empty()
+        || !outcome.tags.is_empty()
+}
+
+fn fingerprint_authoritative_mode_enabled(mode: crate::config::EdgeIntegrationMode) -> bool {
+    mode == crate::config::EdgeIntegrationMode::Authoritative
+}
 
 trait DistributedRateCounter {
     fn current_usage(&self, key: &str) -> Result<u32, String>;
@@ -729,11 +902,18 @@ impl ChallengeEngineProvider for UnsupportedExternalChallengeEngineProvider {
     fn handle_pow_challenge(
         &self,
         ip: &str,
+        user_agent: &str,
         enabled: bool,
         difficulty: u8,
         ttl_seconds: u64,
     ) -> Response {
-        internal::CHALLENGE_ENGINE.handle_pow_challenge(ip, enabled, difficulty, ttl_seconds)
+        internal::CHALLENGE_ENGINE.handle_pow_challenge(
+            ip,
+            user_agent,
+            enabled,
+            difficulty,
+            ttl_seconds,
+        )
     }
 
     fn handle_pow_verify(&self, req: &Request, ip: &str, enabled: bool) -> Response {
@@ -780,17 +960,131 @@ impl FingerprintSignalProvider for ExternalFingerprintSignalProvider {
         cfg: &crate::config::Config,
     ) -> crate::signals::botness::SignalAvailability {
         if cfg.cdp_detection_enabled {
-            crate::signals::botness::SignalAvailability::Unavailable
+            crate::signals::botness::SignalAvailability::Active
         } else {
             crate::signals::botness::SignalAvailability::Disabled
         }
     }
 
-    fn handle_report(&self, _store: &Store, _req: &Request) -> Response {
-        Response::new(
-            501,
-            "External fingerprint provider selected but not configured",
-        )
+    fn handle_report(&self, store: &Store, req: &Request) -> Response {
+        let cfg = match crate::config::load_runtime_cached(store, "default") {
+            Ok(cfg) => cfg,
+            Err(_) => return Response::new(500, "Configuration unavailable"),
+        };
+        if !cfg.cdp_detection_enabled {
+            return Response::new(200, "External fingerprint detection disabled");
+        }
+
+        if let Err(err) = crate::request_validation::enforce_body_size(
+            req.body(),
+            crate::request_validation::MAX_CDP_REPORT_BYTES,
+        ) {
+            return Response::new(400, err);
+        }
+
+        let parsed = match serde_json::from_slice::<AkamaiEdgeOutcome>(req.body()) {
+            Ok(outcome) => outcome,
+            Err(_) => {
+                return internal::FINGERPRINT_SIGNAL.handle_report(store, req);
+            }
+        };
+        if !looks_like_akamai_payload(&parsed) {
+            return internal::FINGERPRINT_SIGNAL.handle_report(store, req);
+        }
+        if cfg.edge_integration_mode == crate::config::EdgeIntegrationMode::Off {
+            return Response::new(200, "External fingerprint report ignored (edge mode off)");
+        }
+
+        let normalized = match normalize_akamai_edge_outcome(parsed) {
+            Ok(outcome) => outcome,
+            Err(err) => return Response::new(400, err),
+        };
+        let cdp_report = map_normalized_fingerprint_to_cdp_report(&normalized);
+        let cdp_tier =
+            crate::signals::cdp::classify_cdp_tier(&cdp_report, cfg.cdp_detection_threshold);
+        let tier_label = cdp_tier_label(cdp_tier);
+        let ip = crate::extract_client_ip(req);
+        let detection_policy_match = if cdp_tier == crate::signals::cdp::CdpTier::Strong {
+            crate::runtime::policy_taxonomy::resolve_policy_match(
+                crate::runtime::policy_taxonomy::PolicyTransition::EdgeFingerprintStrong,
+            )
+        } else {
+            crate::runtime::policy_taxonomy::resolve_policy_match(
+                crate::runtime::policy_taxonomy::PolicyTransition::EdgeFingerprintAdvisory,
+            )
+        };
+        crate::observability::metrics::record_policy_match(store, &detection_policy_match);
+
+        crate::admin::log_event(
+            store,
+            &crate::admin::EventLogEntry {
+                ts: crate::admin::now_ts(),
+                event: crate::admin::EventType::Challenge,
+                ip: Some(ip.clone()),
+                reason: Some(format!(
+                    "external_fingerprint_detected:tier={} score={:.2}",
+                    tier_label, cdp_report.score
+                )),
+                outcome: Some(detection_policy_match.annotate_outcome(normalized.summary.as_str())),
+                admin: None,
+            },
+        );
+        crate::observability::metrics::increment(
+            store,
+            crate::observability::metrics::MetricName::CdpDetections,
+            None,
+        );
+
+        if fingerprint_authoritative_mode_enabled(cfg.edge_integration_mode)
+            && cfg.cdp_auto_ban
+            && cdp_tier == crate::signals::cdp::CdpTier::Strong
+        {
+            let ban_policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
+                crate::runtime::policy_taxonomy::PolicyTransition::EdgeFingerprintAuthoritativeBan,
+            );
+            crate::observability::metrics::record_policy_match(store, &ban_policy_match);
+            let provider_registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
+            provider_registry
+                .ban_store_provider()
+                .ban_ip_with_fingerprint(
+                    store,
+                    "default",
+                    &ip,
+                    "edge_fingerprint_automation",
+                    cfg.get_ban_duration("cdp"),
+                    Some(crate::enforcement::ban::BanFingerprint {
+                        score: Some((cdp_report.score * 2.0).round().clamp(0.0, 10.0) as u8),
+                        signals: vec!["edge_fingerprint".to_string()],
+                        summary: Some(normalized.summary.clone()),
+                    }),
+                );
+            crate::observability::metrics::increment(
+                store,
+                crate::observability::metrics::MetricName::BansTotal,
+                Some("cdp_automation"),
+            );
+            crate::admin::log_event(
+                store,
+                &crate::admin::EventLogEntry {
+                    ts: crate::admin::now_ts(),
+                    event: crate::admin::EventType::Ban,
+                    ip: Some(ip),
+                    reason: Some("edge_fingerprint_automation".to_string()),
+                    outcome: Some(ban_policy_match.annotate_outcome(
+                        format!("banned:tier={} score={:.2}", tier_label, cdp_report.score)
+                            .as_str(),
+                    )),
+                    admin: None,
+                },
+            );
+            return Response::new(200, "External fingerprint automation detected - banned");
+        }
+
+        if cfg.edge_integration_mode == crate::config::EdgeIntegrationMode::Advisory {
+            return Response::new(200, "External fingerprint report received (advisory)");
+        }
+
+        Response::new(200, "External fingerprint report received")
     }
 
     fn detection_script(&self) -> &'static str {
@@ -810,14 +1104,76 @@ impl FingerprintSignalProvider for ExternalFingerprintSignalProvider {
 mod tests {
     use super::{
         ban_with_backend, check_rate_limit_with_backend, current_rate_usage_with_backend,
-        decide_rate_limit_on_outage, is_banned_with_backend, list_active_bans_with_backend,
-        rate_drift_band, rate_route_class, unban_with_backend, DistributedBanStore,
+        decide_rate_limit_on_outage, fingerprint_authoritative_mode_enabled,
+        is_banned_with_backend, list_active_bans_with_backend,
+        map_normalized_fingerprint_to_cdp_report, normalize_akamai_edge_outcome, rate_drift_band,
+        rate_route_class, unban_with_backend, AkamaiEdgeOutcome, DistributedBanStore,
         DistributedRateCounter, RateLimiterOutageAction, RATE_DRIFT_BAND_DELTA_0,
         RATE_DRIFT_BAND_DELTA_1_5, RATE_DRIFT_BAND_DELTA_21_PLUS, RATE_DRIFT_BAND_DELTA_6_20,
         RATE_ROUTE_CLASS_ADMIN_AUTH, RATE_ROUTE_CLASS_MAIN_TRAFFIC,
     };
     use crate::providers::contracts::RateLimitDecision;
     use std::cell::Cell;
+
+    #[test]
+    fn fingerprint_authoritative_mode_only_enabled_for_authoritative_setting() {
+        assert!(!fingerprint_authoritative_mode_enabled(
+            crate::config::EdgeIntegrationMode::Off
+        ));
+        assert!(!fingerprint_authoritative_mode_enabled(
+            crate::config::EdgeIntegrationMode::Advisory
+        ));
+        assert!(fingerprint_authoritative_mode_enabled(
+            crate::config::EdgeIntegrationMode::Authoritative
+        ));
+    }
+
+    #[test]
+    fn normalize_akamai_edge_outcome_marks_deny_as_hard_signal() {
+        let outcome = AkamaiEdgeOutcome {
+            bot_score: Some(92.0),
+            action: Some("deny".to_string()),
+            detection_ids: vec!["bm_automation".to_string()],
+            tags: vec!["ja3_mismatch".to_string()],
+        };
+
+        let normalized = normalize_akamai_edge_outcome(outcome).expect("valid outcome");
+        assert!(normalized.hard_signal);
+        assert!(normalized.confidence >= 9.0);
+        assert!(normalized.checks.contains(&"automation_props".to_string()));
+        assert!(normalized
+            .checks
+            .contains(&"akamai_action:deny".to_string()));
+    }
+
+    #[test]
+    fn normalize_akamai_edge_outcome_rejects_out_of_range_scores() {
+        let outcome = AkamaiEdgeOutcome {
+            bot_score: Some(101.0),
+            action: Some("allow".to_string()),
+            detection_ids: vec![],
+            tags: vec![],
+        };
+
+        assert!(normalize_akamai_edge_outcome(outcome).is_err());
+    }
+
+    #[test]
+    fn normalized_akamai_signal_maps_into_cdp_report_contract() {
+        let outcome = AkamaiEdgeOutcome {
+            bot_score: Some(78.0),
+            action: Some("challenge".to_string()),
+            detection_ids: vec!["bm_signal".to_string()],
+            tags: vec!["ua_mismatch".to_string()],
+        };
+
+        let normalized = normalize_akamai_edge_outcome(outcome).expect("valid outcome");
+        let report = map_normalized_fingerprint_to_cdp_report(&normalized);
+
+        assert!(report.cdp_detected);
+        assert!(report.score >= 1.0);
+        assert!(!report.checks.is_empty());
+    }
 
     #[derive(Clone)]
     struct MockDistributedRateCounter {
@@ -1001,11 +1357,13 @@ mod tests {
     #[test]
     fn outage_decision_uses_fallback_internal_mode() {
         let fallback_called = Cell::new(false);
-        let (decision, action) =
-            decide_rate_limit_on_outage(crate::config::RateLimiterOutageMode::FallbackInternal, || {
+        let (decision, action) = decide_rate_limit_on_outage(
+            crate::config::RateLimiterOutageMode::FallbackInternal,
+            || {
                 fallback_called.set(true);
                 RateLimitDecision::Limited
-            });
+            },
+        );
         assert_eq!(decision, RateLimitDecision::Limited);
         assert_eq!(action, RateLimiterOutageAction::FallbackInternal);
         assert!(fallback_called.get());

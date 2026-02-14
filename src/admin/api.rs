@@ -403,9 +403,7 @@ mod admin_config_tests {
         assert!(env_text.contains("SHUMA_RATE_LIMITER_REDIS_URL=redis://redis:6379"));
         assert!(env_text.contains("SHUMA_BAN_STORE_REDIS_URL=redis://redis:6379"));
         assert!(env_text.contains("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN=fail_open"));
-        assert!(
-            env_text.contains("SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH=fail_closed")
-        );
+        assert!(env_text.contains("SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH=fail_closed"));
 
         clear_env(&[
             "SHUMA_ADMIN_IP_ALLOWLIST",
@@ -484,10 +482,15 @@ mod admin_config_tests {
         assert!(body.get("challenge_risk_threshold").is_some());
         assert!(body.get("challenge_config_mutable").is_some());
         assert!(body.get("challenge_risk_threshold_default").is_some());
+        assert!(body.get("ai_policy_block_training").is_some());
+        assert!(body.get("ai_policy_block_search").is_some());
+        assert!(body.get("ai_policy_allow_search_engines").is_some());
         assert!(body.get("botness_maze_threshold").is_some());
         assert!(body.get("js_required_enforced").is_some());
         assert!(body.get("botness_weights").is_some());
         assert!(body.get("defence_modes").is_some());
+        assert!(body.get("provider_backends").is_some());
+        assert!(body.get("edge_integration_mode").is_some());
         assert!(body.get("defence_modes_effective").is_some());
         assert!(body.get("defence_mode_warnings").is_some());
         assert!(body.get("enterprise_multi_instance").is_some());
@@ -656,6 +659,60 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn admin_config_updates_ai_policy_fields_via_first_class_keys() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+
+        let post_req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{
+                "ai_policy_block_training": false,
+                "ai_policy_block_search": true,
+                "ai_policy_allow_search_engines": false
+            }"#
+            .to_vec(),
+        );
+        let post_resp = handle_admin_config(&post_req, &store, "default");
+        assert_eq!(*post_resp.status(), 200u16);
+        let post_json: serde_json::Value = serde_json::from_slice(post_resp.body()).unwrap();
+        let cfg = post_json.get("config").expect("config payload should exist");
+        assert_eq!(
+            cfg.get("ai_policy_block_training"),
+            Some(&serde_json::Value::Bool(false))
+        );
+        assert_eq!(
+            cfg.get("ai_policy_block_search"),
+            Some(&serde_json::Value::Bool(true))
+        );
+        assert_eq!(
+            cfg.get("ai_policy_allow_search_engines"),
+            Some(&serde_json::Value::Bool(false))
+        );
+        assert_eq!(
+            cfg.get("robots_block_ai_training"),
+            Some(&serde_json::Value::Bool(false))
+        );
+        assert_eq!(
+            cfg.get("robots_block_ai_search"),
+            Some(&serde_json::Value::Bool(true))
+        );
+        assert_eq!(
+            cfg.get("robots_allow_search_engines"),
+            Some(&serde_json::Value::Bool(false))
+        );
+
+        let saved_bytes = store.get("config:default").unwrap().unwrap();
+        let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
+        assert!(!saved_cfg.robots_block_ai_training);
+        assert!(saved_cfg.robots_block_ai_search);
+        assert!(!saved_cfg.robots_allow_search_engines);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
     fn admin_config_rejects_out_of_range_rate_limit() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
@@ -754,6 +811,124 @@ mod admin_config_tests {
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_BOTNESS_CONFIG_MUTABLE");
+    }
+
+    #[test]
+    fn admin_config_updates_provider_backends_and_edge_mode() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+
+        let post_req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{
+                "provider_backends": {
+                    "rate_limiter": "external",
+                    "ban_store": "external",
+                    "fingerprint_signal": "external"
+                },
+                "edge_integration_mode": "advisory"
+            }"#
+            .to_vec(),
+        );
+        let post_resp = handle_admin_config(&post_req, &store, "default");
+        assert_eq!(*post_resp.status(), 200u16);
+        let post_json: serde_json::Value = serde_json::from_slice(post_resp.body()).unwrap();
+        let cfg = post_json.get("config").unwrap();
+        assert_eq!(
+            cfg.get("provider_backends"),
+            Some(&serde_json::json!({
+                "rate_limiter": "external",
+                "ban_store": "external",
+                "challenge_engine": "internal",
+                "maze_tarpit": "internal",
+                "fingerprint_signal": "external"
+            }))
+        );
+        assert_eq!(
+            cfg.get("edge_integration_mode"),
+            Some(&serde_json::json!("advisory"))
+        );
+
+        let saved_bytes = store.get("config:default").unwrap().unwrap();
+        let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
+        assert_eq!(
+            saved_cfg.provider_backends.rate_limiter,
+            crate::config::ProviderBackend::External
+        );
+        assert_eq!(
+            saved_cfg.provider_backends.ban_store,
+            crate::config::ProviderBackend::External
+        );
+        assert_eq!(
+            saved_cfg.provider_backends.fingerprint_signal,
+            crate::config::ProviderBackend::External
+        );
+        assert_eq!(
+            saved_cfg.edge_integration_mode,
+            crate::config::EdgeIntegrationMode::Advisory
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
+    fn admin_config_rejects_invalid_provider_backend_value() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+
+        let post_req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"provider_backends":{"rate_limiter":"invalid"}}"#.to_vec(),
+        );
+        let post_resp = handle_admin_config(&post_req, &store, "default");
+        assert_eq!(*post_resp.status(), 400u16);
+        let msg = String::from_utf8_lossy(post_resp.body());
+        assert!(msg.contains("provider_backends.rate_limiter must be one of"));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
+    fn admin_config_rejects_invalid_edge_integration_mode() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+
+        let post_req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"edge_integration_mode":"invalid"}"#.to_vec(),
+        );
+        let post_resp = handle_admin_config(&post_req, &store, "default");
+        assert_eq!(*post_resp.status(), 400u16);
+        let msg = String::from_utf8_lossy(post_resp.body());
+        assert!(msg.contains("edge_integration_mode must be one of"));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
+    fn admin_config_rejects_unknown_provider_backend_key() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+
+        let post_req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"provider_backends":{"fingerprint_signal":"external","unknown":"external"}}"#
+                .to_vec(),
+        );
+        let post_resp = handle_admin_config(&post_req, &store, "default");
+        assert_eq!(*post_resp.status(), 400u16);
+        let msg = String::from_utf8_lossy(post_resp.body());
+        assert!(msg.contains("provider_backends.unknown is not supported"));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
     }
 }
 
@@ -1472,6 +1647,18 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
             bool_env(cfg.robots_allow_search_engines).to_string(),
         ),
         (
+            "SHUMA_AI_POLICY_BLOCK_TRAINING".to_string(),
+            bool_env(cfg.robots_block_ai_training).to_string(),
+        ),
+        (
+            "SHUMA_AI_POLICY_BLOCK_SEARCH".to_string(),
+            bool_env(cfg.robots_block_ai_search).to_string(),
+        ),
+        (
+            "SHUMA_AI_POLICY_ALLOW_SEARCH_ENGINES".to_string(),
+            bool_env(cfg.robots_allow_search_engines).to_string(),
+        ),
+        (
             "SHUMA_ROBOTS_CRAWL_DELAY".to_string(),
             cfg.robots_crawl_delay.to_string(),
         ),
@@ -1559,6 +1746,28 @@ fn parse_composability_mode_json(
         .ok_or_else(|| format!("{} must be one of: off, signal, enforce, both", field))?;
     crate::config::parse_composability_mode(raw)
         .ok_or_else(|| format!("{} must be one of: off, signal, enforce, both", field))
+}
+
+fn parse_provider_backend_json(
+    field: &str,
+    value: &serde_json::Value,
+) -> Result<crate::config::ProviderBackend, String> {
+    let raw = value
+        .as_str()
+        .ok_or_else(|| format!("{} must be one of: internal, external", field))?;
+    crate::config::parse_provider_backend(raw)
+        .ok_or_else(|| format!("{} must be one of: internal, external", field))
+}
+
+fn parse_edge_integration_mode_json(
+    field: &str,
+    value: &serde_json::Value,
+) -> Result<crate::config::EdgeIntegrationMode, String> {
+    let raw = value
+        .as_str()
+        .ok_or_else(|| format!("{} must be one of: off, advisory, authoritative", field))?;
+    crate::config::parse_edge_integration_mode(raw)
+        .ok_or_else(|| format!("{} must be one of: off, advisory, authoritative", field))
 }
 
 fn handle_admin_config(
@@ -1717,23 +1926,33 @@ fn handle_admin_config(
             cfg.robots_enabled = robots_enabled;
             changed = true;
         }
-        if let Some(robots_block_ai_training) = json
-            .get("robots_block_ai_training")
+        let ai_policy_block_training = json
+            .get("ai_policy_block_training")
             .and_then(|v| v.as_bool())
-        {
+            .or_else(|| {
+                json.get("robots_block_ai_training")
+                    .and_then(|v| v.as_bool())
+            });
+        if let Some(robots_block_ai_training) = ai_policy_block_training {
             cfg.robots_block_ai_training = robots_block_ai_training;
             changed = true;
         }
-        if let Some(robots_block_ai_search) =
-            json.get("robots_block_ai_search").and_then(|v| v.as_bool())
-        {
+        let ai_policy_block_search = json
+            .get("ai_policy_block_search")
+            .and_then(|v| v.as_bool())
+            .or_else(|| json.get("robots_block_ai_search").and_then(|v| v.as_bool()));
+        if let Some(robots_block_ai_search) = ai_policy_block_search {
             cfg.robots_block_ai_search = robots_block_ai_search;
             changed = true;
         }
-        if let Some(robots_allow_search_engines) = json
-            .get("robots_allow_search_engines")
+        let ai_policy_allow_search_engines = json
+            .get("ai_policy_allow_search_engines")
             .and_then(|v| v.as_bool())
-        {
+            .or_else(|| {
+                json.get("robots_allow_search_engines")
+                    .and_then(|v| v.as_bool())
+            });
+        if let Some(robots_allow_search_engines) = ai_policy_allow_search_engines {
             cfg.robots_allow_search_engines = robots_allow_search_engines;
             changed = true;
         }
@@ -1803,6 +2022,122 @@ fn handle_admin_config(
                     outcome: Some(format!(
                         "difficulty:{}->{} ttl:{}->{}",
                         old_pow_difficulty, cfg.pow_difficulty, old_pow_ttl, cfg.pow_ttl_seconds
+                    )),
+                    admin: Some(crate::admin::auth::get_admin_id(req)),
+                },
+            );
+        }
+
+        let mut provider_selection_changed = false;
+        let old_provider_backends = cfg.provider_backends.clone();
+        let old_edge_integration_mode = cfg.edge_integration_mode;
+
+        if let Some(provider_backends) = json.get("provider_backends") {
+            let Some(backends_obj) = provider_backends.as_object() else {
+                return Response::new(
+                    400,
+                    "provider_backends must be an object with optional keys: rate_limiter, ban_store, challenge_engine, maze_tarpit, fingerprint_signal",
+                );
+            };
+            for key in backends_obj.keys() {
+                if !matches!(
+                    key.as_str(),
+                    "rate_limiter"
+                        | "ban_store"
+                        | "challenge_engine"
+                        | "maze_tarpit"
+                        | "fingerprint_signal"
+                ) {
+                    return Response::new(
+                        400,
+                        format!("provider_backends.{} is not supported", key),
+                    );
+                }
+            }
+
+            if let Some(value) = backends_obj.get("rate_limiter") {
+                cfg.provider_backends.rate_limiter =
+                    match parse_provider_backend_json("provider_backends.rate_limiter", value) {
+                        Ok(backend) => backend,
+                        Err(msg) => return Response::new(400, msg),
+                    };
+                changed = true;
+                provider_selection_changed = true;
+            }
+            if let Some(value) = backends_obj.get("ban_store") {
+                cfg.provider_backends.ban_store =
+                    match parse_provider_backend_json("provider_backends.ban_store", value) {
+                        Ok(backend) => backend,
+                        Err(msg) => return Response::new(400, msg),
+                    };
+                changed = true;
+                provider_selection_changed = true;
+            }
+            if let Some(value) = backends_obj.get("challenge_engine") {
+                cfg.provider_backends.challenge_engine = match parse_provider_backend_json(
+                    "provider_backends.challenge_engine",
+                    value,
+                ) {
+                    Ok(backend) => backend,
+                    Err(msg) => return Response::new(400, msg),
+                };
+                changed = true;
+                provider_selection_changed = true;
+            }
+            if let Some(value) = backends_obj.get("maze_tarpit") {
+                cfg.provider_backends.maze_tarpit =
+                    match parse_provider_backend_json("provider_backends.maze_tarpit", value) {
+                        Ok(backend) => backend,
+                        Err(msg) => return Response::new(400, msg),
+                    };
+                changed = true;
+                provider_selection_changed = true;
+            }
+            if let Some(value) = backends_obj.get("fingerprint_signal") {
+                cfg.provider_backends.fingerprint_signal = match parse_provider_backend_json(
+                    "provider_backends.fingerprint_signal",
+                    value,
+                ) {
+                    Ok(backend) => backend,
+                    Err(msg) => return Response::new(400, msg),
+                };
+                changed = true;
+                provider_selection_changed = true;
+            }
+        }
+
+        if let Some(value) = json.get("edge_integration_mode") {
+            cfg.edge_integration_mode =
+                match parse_edge_integration_mode_json("edge_integration_mode", value) {
+                    Ok(mode) => mode,
+                    Err(msg) => return Response::new(400, msg),
+                };
+            changed = true;
+            provider_selection_changed = true;
+        }
+
+        if provider_selection_changed {
+            log_event(
+                store,
+                &EventLogEntry {
+                    ts: now_ts(),
+                    event: EventType::AdminAction,
+                    ip: None,
+                    reason: Some("provider_selection_update".to_string()),
+                    outcome: Some(format!(
+                        "providers(rate_limiter:{}->{} ban_store:{}->{} challenge_engine:{}->{} maze_tarpit:{}->{} fingerprint_signal:{}->{}) edge:{}->{}",
+                        old_provider_backends.rate_limiter.as_str(),
+                        cfg.provider_backends.rate_limiter.as_str(),
+                        old_provider_backends.ban_store.as_str(),
+                        cfg.provider_backends.ban_store.as_str(),
+                        old_provider_backends.challenge_engine.as_str(),
+                        cfg.provider_backends.challenge_engine.as_str(),
+                        old_provider_backends.maze_tarpit.as_str(),
+                        cfg.provider_backends.maze_tarpit.as_str(),
+                        old_provider_backends.fingerprint_signal.as_str(),
+                        cfg.provider_backends.fingerprint_signal.as_str(),
+                        old_edge_integration_mode.as_str(),
+                        cfg.edge_integration_mode.as_str(),
                     )),
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
@@ -1986,6 +2321,9 @@ fn handle_admin_config(
                 "maze_auto_ban": cfg.maze_auto_ban,
                 "maze_auto_ban_threshold": cfg.maze_auto_ban_threshold,
                 "robots_enabled": cfg.robots_enabled,
+                "ai_policy_block_training": cfg.robots_block_ai_training,
+                "ai_policy_block_search": cfg.robots_block_ai_search,
+                "ai_policy_allow_search_engines": cfg.robots_allow_search_engines,
                 "robots_block_ai_training": cfg.robots_block_ai_training,
                 "robots_block_ai_search": cfg.robots_block_ai_search,
                 "robots_allow_search_engines": cfg.robots_allow_search_engines,
@@ -2017,6 +2355,14 @@ fn handle_admin_config(
                     "geo": cfg.defence_modes.geo,
                     "js": cfg.defence_modes.js
                 },
+                "provider_backends": {
+                    "rate_limiter": cfg.provider_backends.rate_limiter,
+                    "ban_store": cfg.provider_backends.ban_store,
+                    "challenge_engine": cfg.provider_backends.challenge_engine,
+                    "maze_tarpit": cfg.provider_backends.maze_tarpit,
+                    "fingerprint_signal": cfg.provider_backends.fingerprint_signal
+                },
+                "edge_integration_mode": cfg.edge_integration_mode,
                 "defence_modes_effective": cfg.defence_modes_effective(),
                 "defence_mode_warnings": cfg.defence_mode_warnings(),
                 "enterprise_multi_instance": crate::config::enterprise_multi_instance_enabled(),
@@ -2072,6 +2418,9 @@ fn handle_admin_config(
         "maze_auto_ban": cfg.maze_auto_ban,
         "maze_auto_ban_threshold": cfg.maze_auto_ban_threshold,
         "robots_enabled": cfg.robots_enabled,
+        "ai_policy_block_training": cfg.robots_block_ai_training,
+        "ai_policy_block_search": cfg.robots_block_ai_search,
+        "ai_policy_allow_search_engines": cfg.robots_allow_search_engines,
         "robots_block_ai_training": cfg.robots_block_ai_training,
         "robots_block_ai_search": cfg.robots_block_ai_search,
         "robots_allow_search_engines": cfg.robots_allow_search_engines,
@@ -2103,6 +2452,14 @@ fn handle_admin_config(
             "geo": cfg.defence_modes.geo,
             "js": cfg.defence_modes.js
         },
+        "provider_backends": {
+            "rate_limiter": cfg.provider_backends.rate_limiter,
+            "ban_store": cfg.provider_backends.ban_store,
+            "challenge_engine": cfg.provider_backends.challenge_engine,
+            "maze_tarpit": cfg.provider_backends.maze_tarpit,
+            "fingerprint_signal": cfg.provider_backends.fingerprint_signal
+        },
+        "edge_integration_mode": cfg.edge_integration_mode,
         "defence_modes_effective": cfg.defence_modes_effective(),
         "defence_mode_warnings": cfg.defence_mode_warnings(),
         "enterprise_multi_instance": crate::config::enterprise_multi_instance_enabled(),
@@ -2610,6 +2967,9 @@ pub fn handle_admin(req: &Request) -> Response {
             let body = serde_json::to_string(&json!({
                 "config": {
                     "enabled": cfg.robots_enabled,
+                    "ai_policy_block_training": cfg.robots_block_ai_training,
+                    "ai_policy_block_search": cfg.robots_block_ai_search,
+                    "ai_policy_allow_search_engines": cfg.robots_allow_search_engines,
                     "block_ai_training": cfg.robots_block_ai_training,
                     "block_ai_search": cfg.robots_block_ai_search,
                     "allow_search_engines": cfg.robots_allow_search_engines,

@@ -27,7 +27,7 @@ Use one of these operating profiles as your baseline:
 
 Current implementation note:
 
-- `fingerprint_signal=external` is currently a stub contract and reports external signal state as unavailable (or disabled when CDP detection is disabled).
+- `fingerprint_signal=external` now uses an Akamai-first adapter (`/fingerprint-report`) that maps edge/Bot Manager-style outcomes into normalized fingerprint/CDP-tier signals; non-Akamai/legacy payloads are explicitly downgraded to the internal CDP handler path.
 - `rate_limiter=external` uses a Redis-backed distributed adapter when `SHUMA_RATE_LIMITER_REDIS_URL` is configured.
   On backend degradation it applies route-class outage posture:
   - main traffic: `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` (default `fallback_internal`)
@@ -309,6 +309,16 @@ Deploy:
 spin cloud login
 make deploy
 ```
+
+### 🐙 Edge-Chain Placement Note (Fermyon)
+
+- Preferred: place Shuma as close to first-hop edge traffic as possible so it can evaluate full request flow and apply low-latency policy.
+- If an upstream enterprise edge provider (for example Akamai Bot Manager) sits in front of Shuma, strong bots may be blocked before Shuma sees those requests.
+  This is expected and reduces Shuma-visible request-sequence coverage.
+- Treat external fingerprinting and Shuma sequence/behavior signals as complementary:
+  - external fingerprinting answers identity confidence ("what this client is likely to be"),
+  - Shuma request-sequence/timing answers behavioral consistency ("how this client behaves over flow steps").
+- In `authoritative` edge mode, strong external fingerprint outcomes may short-circuit into immediate auto-ban when `cdp_auto_ban=true`; keep Shuma policy telemetry enabled so residual/gray traffic remains observable.
 
 ## 🐙 Local Dev
 

@@ -82,7 +82,7 @@ These keys are seeded into KV and loaded from KV at runtime.
 | `SHUMA_PROVIDER_CHALLENGE_ENGINE` | `internal` | Backend selection for challenge engine capability (`internal`, `external`). |
 | `SHUMA_PROVIDER_MAZE_TARPIT` | `internal` | Backend selection for maze/tarpit capability (`internal`, `external`). |
 | `SHUMA_PROVIDER_FINGERPRINT_SIGNAL` | `internal` | Backend selection for fingerprint signal capability (`internal`, `external`). |
-| `SHUMA_EDGE_INTEGRATION_MODE` | `off` | Managed-edge integration precedence: `off`, `advisory`, `authoritative` (metadata-only in current slice). |
+| `SHUMA_EDGE_INTEGRATION_MODE` | `off` | Managed-edge integration precedence: `off` ignores Akamai-style edge outcomes, `advisory` ingests edge outcomes as non-authoritative signals, `authoritative` enables supported edge short-circuit actions (currently strong external fingerprint auto-ban). |
 | `SHUMA_POW_ENABLED` | `true` | Enables PoW in JS verification flow. |
 | `SHUMA_POW_DIFFICULTY` | `15` | PoW cost level (clamped to supported range). |
 | `SHUMA_POW_TTL_SECONDS` | `90` | PoW seed lifetime in seconds (clamped). |
@@ -117,6 +117,9 @@ These keys are seeded into KV and loaded from KV at runtime.
 | `SHUMA_ROBOTS_BLOCK_AI_TRAINING` | `true` | Adds AI training bot disallow directives. |
 | `SHUMA_ROBOTS_BLOCK_AI_SEARCH` | `false` | Adds AI search bot disallow directives. |
 | `SHUMA_ROBOTS_ALLOW_SEARCH_ENGINES` | `true` | Allows mainstream search engines in robots policy. |
+| `SHUMA_AI_POLICY_BLOCK_TRAINING` | `true` | First-class admin/export alias for AI training policy (mirrors `SHUMA_ROBOTS_BLOCK_AI_TRAINING`). |
+| `SHUMA_AI_POLICY_BLOCK_SEARCH` | `false` | First-class admin/export alias for AI search policy (mirrors `SHUMA_ROBOTS_BLOCK_AI_SEARCH`). |
+| `SHUMA_AI_POLICY_ALLOW_SEARCH_ENGINES` | `true` | First-class admin/export alias for search-engine allow policy (mirrors `SHUMA_ROBOTS_ALLOW_SEARCH_ENGINES`). |
 | `SHUMA_ROBOTS_CRAWL_DELAY` | `2` | robots.txt crawl-delay value (seconds). |
 | `SHUMA_CDP_DETECTION_ENABLED` | `true` | Enables CDP automation detection script/processing. |
 | `SHUMA_CDP_AUTO_BAN` | `true` | Enables auto-ban path when strong CDP automation is detected. |
@@ -138,6 +141,18 @@ These keys are seeded into KV and loaded from KV at runtime.
 - `js_required_enforced=true` routes visitors without a valid `js_verified` cookie to JS verification.
 - `pow_enabled=true` adds server-verified PoW to that verification flow.
 - `js_required_enforced=false` bypasses JS verification for normal requests (and therefore bypasses PoW on that path).
+
+## 🐙 Static Resource Bypass Defaults
+
+To avoid expensive bot checks on obvious static resources, Shuma bypasses JS/botness/geo challenge paths by default for:
+
+- `GET`/`HEAD` requests only, and
+- obvious asset paths/extensions (for example `/assets/...`, `/static/...`, `/img/...`, `*.css`, `*.js`, `*.png`, `*.svg`, `*.woff2`, `favicon`, `manifest`, `sitemap`).
+
+Guardrails:
+
+- admin and challenge control paths are excluded from this bypass,
+- non-`GET`/`HEAD` requests do not use this bypass.
 
 ## 🐙 Composability Modes (`off`/`signal`/`enforce`/`both`)
 
@@ -172,10 +187,10 @@ Default seeded modes are `both` for all three modules as the current pre-launch 
 - Provider selection is now explicit in config under `provider_backends`.
 - All capabilities default to `internal`.
 - `external` backend behavior in the current slice:
-  - `fingerprint_signal=external` routes to an explicit external stub contract (`/fingerprint-report`) with no injected detection script and `501` report handler response until a concrete adapter is configured.
+  - `fingerprint_signal=external` routes to an Akamai-first adapter (`/fingerprint-report`) that accepts edge/Bot Manager-style outcome payloads, maps them into normalized fingerprint/CDP-tier signals, and preserves explicit fallback to the internal CDP report handler for non-Akamai/legacy payloads.
   - Fingerprint source availability is explicit:
     - internal provider reports `active` when `cdp_detection_enabled=true`, `disabled` when `cdp_detection_enabled=false`.
-    - external stub reports `unavailable` when `cdp_detection_enabled=true`, `disabled` when `cdp_detection_enabled=false`.
+    - external Akamai adapter reports `active` when `cdp_detection_enabled=true`, `disabled` when `cdp_detection_enabled=false`.
   - `rate_limiter=external` uses a Redis-backed distributed adapter (`INCR` + window TTL) when `SHUMA_RATE_LIMITER_REDIS_URL` is configured.
     - On backend degradation it applies route-class outage posture:
       - main traffic: `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` (default `fallback_internal`)
@@ -183,7 +198,10 @@ Default seeded modes are `both` for all three modules as the current pre-launch 
   - `ban_store=external` uses a Redis-backed distributed adapter (keyed JSON ban entries with Redis TTL) when `SHUMA_BAN_STORE_REDIS_URL` is configured, with explicit fallback to internal behavior when unavailable/unconfigured.
   - `challenge_engine=external` and `maze_tarpit=external` still route through explicit unsupported external adapters that currently fall back to internal runtime behavior.
 - `edge_integration_mode` defaults to `off` for self-hosted baseline.
-- `advisory` and `authoritative` are currently telemetry/runtime metadata posture values in this slice; request decision precedence remains unchanged.
+- External fingerprint adapter precedence is mode-aware:
+  - `off`: ignore Akamai-style edge outcomes (legacy/non-Akamai payloads still fall back to internal CDP handler).
+  - `advisory`: record normalized edge detections without authoritative ban short-circuit.
+  - `authoritative`: allow strong edge outcomes to trigger immediate auto-ban when `cdp_auto_ban=true`.
 
 ### Provider + Edge Matrix (Operator Quick Reference)
 
@@ -191,7 +209,7 @@ This matrix is meant to answer: "What actually happens if I change this setting?
 
 | Capability | `internal` backend | `external` backend (current) | Advisory mode intent | Authoritative mode intent | Safe fallback behavior |
 | --- | --- | --- | --- | --- | --- |
-| `fingerprint_signal` | Uses internal CDP scripts and `/cdp-report` | Uses external stub (`/fingerprint-report`), no detection injection, returns `501` on report handler | Treat external edge fingerprinting as an input to Shuma policy | Allow selected edge fingerprint outcomes to short-circuit local flow only after adapter hardening | If external is unavailable, treat signal as unavailable/disabled and keep local controls active |
+| `fingerprint_signal` | Uses internal CDP scripts and `/cdp-report` | Uses Akamai-first adapter (`/fingerprint-report`) that maps edge outcomes and falls back to internal CDP handler for non-Akamai/legacy payloads | Edge outcomes are ingested/logged without authoritative edge-ban short-circuit | Strong edge outcomes can trigger immediate auto-ban when `cdp_auto_ban=true` | Non-Akamai/legacy payloads downgrade to internal CDP handling; `off` mode ignores Akamai-style edge outcomes |
 | `rate_limiter` | Internal local rate logic | Redis-backed distributed limiter (`INCR` + TTL) with configurable outage posture (`fallback_internal`/`fail_open`/`fail_closed`) by route class | Consume distributed rate state as advisory pressure | External authoritative limit decisions only after semantic parity and outage posture are validated | Applies route-class outage mode on Redis unavailability/degradation |
 | `ban_store` | Internal ban persistence and checks | Redis-backed distributed ban adapter with fallback to internal when external backend is unavailable/unconfigured | Use distributed ban state as advisory input | External authoritative ban sync only with explicit outage controls | Falls back to internal ban store on Redis unavailability/misconfiguration |
 | `challenge_engine` | Internal challenge rendering/verification | Explicit unsupported external adapter currently delegates to internal behavior | External challenge attestations may inform policy once implemented | Authoritative external challenge only when replay/expiry semantics are parity-tested | Unsupported external path keeps internal challenge path |
@@ -238,10 +256,19 @@ Use these as startup presets, then tune incrementally:
   - `bot_defence_rate_limiter_outage_decisions_total{route_class="...",mode="fallback_internal|fail_open|fail_closed",action="fallback_internal|allow|deny",decision="allowed|limited"}`
   - `bot_defence_rate_limiter_usage_fallback_total{route_class="...",reason="backend_error|backend_missing"}`
   - `bot_defence_rate_limiter_state_drift_observations_total{route_class="...",delta_band="delta_0|delta_1_5|delta_6_20|delta_21_plus"}`
+  - `bot_defence_policy_matches_total{level="L*...",action="A*...",detection="D*..."}`
+  - `bot_defence_policy_signals_total{signal="S_*"}`
 - Botness-driven maze/challenge event outcomes include both:
   - `signal_states` summary (`key:state:contribution`),
   - effective runtime metadata summary (`modes=... edge=...`),
   - provider summary (`providers=capability=backend/implementation ...`).
+  - canonical taxonomy suffix (`taxonomy[level=L* action=A* detection=D* signals=S_*...]`).
+
+### Public Escalation Ladder Reference
+
+- The canonical public escalation ladder (`L0_ALLOW_CLEAN` through `L11_DENY_HARD`) is documented in `/docs/bot-defence.md` under `Escalation Ladder (L0-L11)`.
+- Use that ladder as the operator-facing policy vocabulary; metrics and admin events reuse the same IDs.
+- Signal semantics (for example `S_JS_REQUIRED_MISSING` meaning missing/expired/invalid `js_verified` marker under JS enforcement) are documented alongside that ladder and should be treated as evidence inputs, not separate action levels.
 
 ## 🐙 GEO Trust Boundary
 

@@ -325,6 +325,21 @@
               <button id="save-cdp-config" class="btn btn-submit" disabled>Save CDP Settings</button>
             </div>
             <div class="control-group panel-soft pad-md config-edit-pane hidden">
+              <h3>Edge Integration Mode</h3>
+              <p class="control-desc text-muted">Control how external edge bot outcomes influence local policy: off ignores edge outcomes, advisory records them without direct enforcement, authoritative allows strong edge outcomes to short-circuit.</p>
+              <div class="admin-controls">
+                <div class="input-row">
+                  <label class="control-label control-label--wide" for="edge-integration-mode-select">Mode</label>
+                  <select class="input-field" id="edge-integration-mode-select" aria-label="Edge integration mode">
+                    <option value="off">off</option>
+                    <option value="advisory">advisory</option>
+                    <option value="authoritative">authoritative</option>
+                  </select>
+                </div>
+              </div>
+              <button id="save-edge-integration-mode-config" class="btn btn-submit" disabled>Save Edge Integration Mode</button>
+            </div>
+            <div class="control-group panel-soft pad-md config-edit-pane hidden">
               <h3>GEO Risk Based Scoring</h3>
               <p class="control-desc text-muted">Use <a href="https://www.iban.com/country-codes">2-letter country codes</a> to specify countries from where requests will be receive added botness risk to contribute to the combined score.</p>
               <div class="admin-controls geo-controls">
@@ -434,9 +449,10 @@
               <button id="save-durations-btn" class="btn btn-submit" disabled>Save Durations</button>
             </div>
             <div class="control-group panel-soft pad-md config-edit-pane hidden">
-              <h3>AI Training Opt-Out Policy</h3>
-              <p class="control-desc text-muted">Publish crawler policy via robots.txt. Helpful for compliant bots; malicious scrapers may ignore it.</p>
+              <h3>Robots and AI Bot Policy</h3>
+              <p class="control-desc text-muted">Keep robots.txt serving controls separate from AI bot policy controls.</p>
               <div class="admin-controls">
+                <h4 class="control-subtitle">robots.txt Serving</h4>
                 <div class="toggle-row">
                   <label class="control-label control-label--wide" for="robots-enabled-toggle">Serve robots.txt</label>
                   <label class="toggle-switch">
@@ -444,6 +460,12 @@
                     <span class="toggle-slider"></span>
                   </label>
                 </div>
+                <div class="input-row">
+                  <label class="control-label control-label--wide" for="robots-crawl-delay">Crawl Delay (seconds)</label>
+                  <input class="input-field" type="number" id="robots-crawl-delay" value="2" min="0" max="60" step="1" inputmode="numeric" aria-label="Robots crawl delay in seconds">
+                </div>
+                <button id="save-robots-config" class="btn btn-submit" disabled>Save robots serving</button>
+                <h4 class="control-subtitle">AI Bot Policy</h4>
                 <div class="toggle-row">
                   <label class="control-label control-label--wide" for="robots-block-training-toggle">Opt-out AI Training</label>
                   <label class="toggle-switch">
@@ -468,12 +490,8 @@
                   </label>
                   <span class="toggle-hint">Google, Bing, etc.</span>
                 </div>
-                <div class="input-row">
-                  <label class="control-label control-label--wide" for="robots-crawl-delay">Crawl Delay (seconds)</label>
-                  <input class="input-field" type="number" id="robots-crawl-delay" value="2" min="0" max="60" step="1" inputmode="numeric" aria-label="Robots crawl delay in seconds">
-                </div>
               </div>
-              <button id="save-robots-config" class="btn btn-submit" disabled>Update Policy</button>
+              <button id="save-ai-policy-config" class="btn btn-submit" disabled>Save AI bot policy</button>
               <button id="preview-robots" class="btn btn-subtle">Show robots.txt</button>
               <div id="robots-preview" class="robots-preview panel hidden pad-sm">
                 <h4>robots.txt Preview</h4>

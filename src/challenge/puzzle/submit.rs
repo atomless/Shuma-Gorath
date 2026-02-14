@@ -1,9 +1,9 @@
 use spin_sdk::http::{Request, Response};
 
-use super::{build_puzzle, parse_submission};
-use super::renders::render_challenge;
-use super::token::parse_seed_token;
 use super::super::{challenge_response, KeyValueStore};
+use super::renders::render_challenge;
+use super::token::{parse_seed_token, SeedTokenError};
+use super::{build_puzzle, parse_submission};
 
 const CHALLENGE_FORBIDDEN_BODY: &str = "<html><body><h2 style='color:red;'>Forbidden. Please request a new challenge.</h2><a href='/challenge/puzzle'>Request new challenge.</a></body></html>";
 const CHALLENGE_EXPIRED_BODY: &str = "<html><body><h2 style='color:red;'>Expired</h2><a href='/challenge/puzzle'>Request new challenge.</a></body></html>";
@@ -13,7 +13,16 @@ const CHALLENGE_INCORRECT_BODY: &str = "<html><body><h2 style='color:red;'>Incor
 pub(crate) enum ChallengeSubmitOutcome {
     Solved,
     Incorrect,
-    ExpiredReplay,
+    SequenceOpMissing,
+    SequenceOpInvalid,
+    SequenceOpExpired,
+    SequenceOpReplay,
+    SequenceWindowExceeded,
+    SequenceOrderViolation,
+    SequenceBindingMismatch,
+    SequenceTimingTooFast,
+    SequenceTimingTooRegular,
+    SequenceTimingTooSlow,
     Forbidden,
     InvalidOutput,
 }
@@ -97,6 +106,20 @@ pub(crate) fn handle_challenge_submit_with_outcome<S: KeyValueStore>(
     }
     let seed = match parse_seed_token(&seed_token) {
         Ok(s) => s,
+        Err(SeedTokenError::InvalidOperationEnvelope(
+            crate::challenge::operation_envelope::EnvelopeValidationError::MissingOperationId,
+        )) => {
+            return (
+                challenge_forbidden_response(),
+                ChallengeSubmitOutcome::SequenceOpMissing,
+            )
+        }
+        Err(SeedTokenError::InvalidOperationEnvelope(_)) => {
+            return (
+                challenge_forbidden_response(),
+                ChallengeSubmitOutcome::SequenceOpInvalid,
+            )
+        }
         Err(_) => {
             return (
                 challenge_forbidden_response(),
@@ -108,41 +131,110 @@ pub(crate) fn handle_challenge_submit_with_outcome<S: KeyValueStore>(
     if now > seed.expires_at {
         return (
             challenge_expired_response(),
-            ChallengeSubmitOutcome::ExpiredReplay,
+            ChallengeSubmitOutcome::SequenceOpExpired,
         );
+    }
+    match crate::challenge::operation_envelope::validate_ordering_window(
+        seed.flow_id.as_str(),
+        seed.step_id.as_str(),
+        seed.step_index,
+        seed.issued_at,
+        seed.expires_at,
+        now,
+        crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE,
+        crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT,
+        crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
+        crate::challenge::operation_envelope::MAX_STEP_WINDOW_SECONDS_CHALLENGE_PUZZLE,
+    ) {
+        Ok(_) => {}
+        Err(crate::challenge::operation_envelope::OrderingValidationError::OrderViolation) => {
+            return (
+                challenge_forbidden_response(),
+                ChallengeSubmitOutcome::SequenceOrderViolation,
+            )
+        }
+        Err(crate::challenge::operation_envelope::OrderingValidationError::WindowExceeded) => {
+            return (
+                challenge_expired_response(),
+                ChallengeSubmitOutcome::SequenceWindowExceeded,
+            )
+        }
     }
     let ip = crate::extract_client_ip(req);
-    let ip_bucket = crate::signals::ip_identity::bucket_ip(&ip);
-    if seed.ip_bucket != ip_bucket {
+    let ua = req
+        .header("user-agent")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
+    if crate::challenge::operation_envelope::validate_request_binding(
+        seed.ip_bucket.as_str(),
+        seed.ua_bucket.as_str(),
+        seed.path_class.as_str(),
+        ip.as_str(),
+        ua,
+        crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT,
+    )
+    .is_err()
+    {
         return (
             challenge_forbidden_response(),
-            ChallengeSubmitOutcome::Forbidden,
+            ChallengeSubmitOutcome::SequenceBindingMismatch,
         );
     }
-    let used_key = format!("challenge_used:{}", seed.seed_id);
-    if let Ok(Some(val)) = store.get(&used_key) {
-        if let Ok(stored) = String::from_utf8(val) {
-            if let Ok(exp) = stored.parse::<u64>() {
-                if now <= exp {
-                    return (
-                        challenge_expired_response(),
-                        ChallengeSubmitOutcome::ExpiredReplay,
-                    );
-                }
-            }
+    let timing_bucket = format!("{}:{}", seed.ip_bucket, seed.ua_bucket);
+    match crate::challenge::operation_envelope::validate_timing_primitives(
+        store,
+        seed.flow_id.as_str(),
+        timing_bucket.as_str(),
+        seed.issued_at,
+        now,
+        crate::challenge::operation_envelope::MIN_STEP_LATENCY_SECONDS_CHALLENGE_PUZZLE,
+        crate::challenge::operation_envelope::MAX_STEP_LATENCY_SECONDS_CHALLENGE_PUZZLE,
+        crate::challenge::operation_envelope::MAX_FLOW_AGE_SECONDS_CHALLENGE_PUZZLE,
+        crate::challenge::operation_envelope::TIMING_REGULARITY_WINDOW_CHALLENGE_PUZZLE,
+        crate::challenge::operation_envelope::TIMING_REGULARITY_SPREAD_SECONDS_CHALLENGE_PUZZLE,
+        crate::challenge::operation_envelope::TIMING_HISTORY_TTL_SECONDS_CHALLENGE_PUZZLE,
+    ) {
+        Ok(_) => {}
+        Err(crate::challenge::operation_envelope::TimingValidationError::TooFast) => {
+            return (
+                challenge_forbidden_response(),
+                ChallengeSubmitOutcome::SequenceTimingTooFast,
+            )
         }
-        if let Err(e) = store.delete(&used_key) {
-            eprintln!(
-                "[challenge] failed to delete stale used marker {}: {:?}",
-                used_key, e
-            );
+        Err(crate::challenge::operation_envelope::TimingValidationError::TooRegular) => {
+            return (
+                challenge_forbidden_response(),
+                ChallengeSubmitOutcome::SequenceTimingTooRegular,
+            )
+        }
+        Err(crate::challenge::operation_envelope::TimingValidationError::TooSlow) => {
+            return (
+                challenge_expired_response(),
+                ChallengeSubmitOutcome::SequenceTimingTooSlow,
+            )
         }
     }
-    if let Err(e) = store.set(&used_key, seed.expires_at.to_string().as_bytes()) {
-        eprintln!(
-            "[challenge] failed to persist used marker {}: {:?}",
-            used_key, e
-        );
+    match crate::challenge::operation_envelope::validate_operation_replay(
+        store,
+        seed.flow_id.as_str(),
+        seed.operation_id.as_str(),
+        now,
+        seed.expires_at,
+        crate::challenge::operation_envelope::MAX_OPERATION_REPLAY_TTL_SECONDS_CHALLENGE_PUZZLE,
+    ) {
+        Ok(_) => {}
+        Err(crate::challenge::operation_envelope::ReplayValidationError::ReplayDetected) => {
+            return (
+                challenge_expired_response(),
+                ChallengeSubmitOutcome::SequenceOpReplay,
+            )
+        }
+        Err(crate::challenge::operation_envelope::ReplayValidationError::ExpiredOperation) => {
+            return (
+                challenge_expired_response(),
+                ChallengeSubmitOutcome::SequenceOpExpired,
+            )
+        }
     }
     let output = match parse_submission(&output_raw, seed.grid_size as usize) {
         Ok(v) => v,

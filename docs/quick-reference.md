@@ -24,7 +24,7 @@ make clean          # Clean build artifacts
 ### 🐙 Testing
 ```bash
 # All tests (recommended)
-make test                  # Full suite: unit + integration + dashboard e2e (requires running server)
+make test                  # Full suite: unit + integration + dashboard e2e (waits for existing server readiness)
 
 # Unit tests only (native Rust, NO Spin required)
 make test-unit             # Run all unit tests
@@ -37,7 +37,7 @@ make test-integration      # In terminal 2
 make dev                   # In terminal 1
 make test-dashboard-e2e    # In terminal 2
 ```
-**Important:** Unit tests run in native Rust. Integration and dashboard e2e tests MUST run against a running Spin server.
+**Important:** Unit tests run in native Rust. Integration and dashboard e2e tests MUST run against a running Spin server; test targets do not start Spin.
 
 ## 🐙 API Endpoints
 
@@ -59,7 +59,7 @@ make test-dashboard-e2e    # In terminal 2
 - `GET /admin/analytics` - Get ban statistics
 - `GET /admin/events?hours=24` - Get recent events
 - `GET /admin/config` - Get current configuration
-- `POST /admin/config` - Update configuration (test_mode, ban_durations, robots, CDP, etc.)
+- `POST /admin/config` - Update configuration (test_mode, ban_durations, robots serving, AI bot policy, CDP, etc.)
 - `GET /admin/config/export` - Export non-secret runtime config for immutable redeploy handoff
 - `GET /admin/maze` - maze statistics
 - `GET /admin/robots` - robots.txt configuration and preview
@@ -197,7 +197,8 @@ curl -H "X-Forwarded-For: 1.2.3.4" \
 
 ### 🐙 Tests Failing
 - Use Makefile targets (`make test`, `make test-unit`, `make test-integration`, `make test-dashboard-e2e`)
-- `make test` requires Spin to be running (`make dev`) so integration and dashboard e2e can execute
+- `make test` waits for existing Spin readiness (`/health`) before running integration/dashboard suites
+- If startup is slow, increase wait timeout: `make test SPIN_READY_TIMEOUT_SECONDS=180`
 - Check logs with `make logs`
 
 ### 🐙 Dashboard Not Loading

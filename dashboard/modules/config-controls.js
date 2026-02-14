@@ -70,9 +70,6 @@
         const btn = this;
 
         const robotsEnabled = document.getElementById('robots-enabled-toggle').checked;
-        const blockTraining = document.getElementById('robots-block-training-toggle').checked;
-        const blockSearch = document.getElementById('robots-block-search-toggle').checked;
-        const allowSearchEngines = !document.getElementById('robots-allow-search-toggle').checked;
         const crawlDelay = options.readIntegerFieldValue('robots-crawl-delay', msg);
         if (crawlDelay === null) return;
 
@@ -89,9 +86,6 @@
             },
             body: JSON.stringify({
               robots_enabled: robotsEnabled,
-              robots_block_ai_training: blockTraining,
-              robots_block_ai_search: blockSearch,
-              robots_allow_search_engines: allowSearchEngines,
               robots_crawl_delay: crawlDelay
             })
           });
@@ -101,9 +95,6 @@
           btn.textContent = 'Updated!';
           options.setRobotsSavedState({
             enabled: robotsEnabled,
-            blockTraining: blockTraining,
-            blockSearch: blockSearch,
-            allowSearch: document.getElementById('robots-allow-search-toggle').checked,
             crawlDelay: crawlDelay
           });
           const preview = document.getElementById('robots-preview');
@@ -112,7 +103,7 @@
           }
           setTimeout(() => {
             btn.dataset.saving = 'false';
-            btn.textContent = 'Update Policy';
+            btn.textContent = 'Save robots serving';
             options.checkRobotsConfigChanged();
           }, 1500);
         } catch (e) {
@@ -120,8 +111,68 @@
           btn.textContent = 'Error';
           console.error('Failed to save robots config:', e);
           setTimeout(() => {
-            btn.textContent = 'Update Policy';
+            btn.textContent = 'Save robots serving';
             options.checkRobotsConfigChanged();
+          }, 2000);
+        }
+      };
+    }
+
+    const saveAiPolicyButton = document.getElementById('save-ai-policy-config');
+    if (saveAiPolicyButton) {
+      saveAiPolicyButton.onclick = async function saveAiPolicyConfig() {
+        const msg = document.getElementById('admin-msg');
+        const ctx = options.getAdminContext(msg);
+        if (!ctx) return;
+        const { endpoint, apikey } = ctx;
+        const btn = this;
+
+        const blockTraining = document.getElementById('robots-block-training-toggle').checked;
+        const blockSearch = document.getElementById('robots-block-search-toggle').checked;
+        const allowSearchEngines = !document.getElementById('robots-allow-search-toggle').checked;
+
+        btn.textContent = 'Saving...';
+        btn.dataset.saving = 'true';
+        btn.disabled = true;
+
+        try {
+          const resp = await fetch(`${endpoint}/admin/config`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apikey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              ai_policy_block_training: blockTraining,
+              ai_policy_block_search: blockSearch,
+              ai_policy_allow_search_engines: allowSearchEngines
+            })
+          });
+
+          if (!resp.ok) throw new Error('Failed to save AI policy');
+
+          btn.textContent = 'Saved!';
+          options.setAiPolicySavedState({
+            blockTraining: blockTraining,
+            blockSearch: blockSearch,
+            allowSearch: document.getElementById('robots-allow-search-toggle').checked
+          });
+          const preview = document.getElementById('robots-preview');
+          if (preview && !preview.classList.contains('hidden')) {
+            await options.refreshRobotsPreview();
+          }
+          setTimeout(() => {
+            btn.dataset.saving = 'false';
+            btn.textContent = 'Save AI bot policy';
+            options.checkAiPolicyConfigChanged();
+          }, 1500);
+        } catch (e) {
+          btn.dataset.saving = 'false';
+          btn.textContent = 'Error';
+          console.error('Failed to save AI bot policy:', e);
+          setTimeout(() => {
+            btn.textContent = 'Save AI bot policy';
+            options.checkAiPolicyConfigChanged();
           }, 2000);
         }
       };
@@ -460,6 +511,57 @@
             btn.textContent = 'Save CDP Settings';
             options.checkCdpConfigChanged();
           }, 2000);
+        }
+      };
+    }
+
+    const saveEdgeModeButton = document.getElementById('save-edge-integration-mode-config');
+    if (saveEdgeModeButton) {
+      saveEdgeModeButton.onclick = async function saveEdgeIntegrationModeConfig() {
+        const btn = this;
+        const msg = document.getElementById('admin-msg');
+        const ctx = options.getAdminContext(msg);
+        if (!ctx) return;
+        const { endpoint, apikey } = ctx;
+        const modeSelect = document.getElementById('edge-integration-mode-select');
+        const mode = String(modeSelect ? modeSelect.value : '').trim().toLowerCase();
+
+        btn.textContent = 'Saving...';
+        btn.dataset.saving = 'true';
+        btn.disabled = true;
+        try {
+          const resp = await fetch(`${endpoint}/admin/config`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apikey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ edge_integration_mode: mode })
+          });
+          if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error(text || 'Failed to save edge integration mode');
+          }
+
+          const data = await resp.json();
+          if (data && data.config && typeof options.updateEdgeIntegrationModeConfig === 'function') {
+            options.updateEdgeIntegrationModeConfig(data.config);
+          } else {
+            options.setEdgeIntegrationModeSavedState({ mode });
+            options.checkEdgeIntegrationModeChanged();
+          }
+
+          msg.textContent = 'Edge integration mode saved';
+          msg.className = 'message success';
+          btn.textContent = 'Save Edge Integration Mode';
+          btn.dataset.saving = 'false';
+          options.checkEdgeIntegrationModeChanged();
+        } catch (e) {
+          msg.textContent = `Error: ${e.message}`;
+          msg.className = 'message error';
+          btn.textContent = 'Save Edge Integration Mode';
+          btn.dataset.saving = 'false';
+          options.checkEdgeIntegrationModeChanged();
         }
       };
     }

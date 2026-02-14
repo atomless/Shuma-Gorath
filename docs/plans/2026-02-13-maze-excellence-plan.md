@@ -184,26 +184,34 @@ Add metrics/log dimensions for:
 
 ## Structured Implementation TODOs (Execution Order)
 
-1. MZ-1 Entropy model:
+1. MZ-R0 Research-first hold:
+   - hold Stage 2 implementation until a focused Maze/Tarpit research synthesis is complete and accepted.
+2. MZ-R1 Research synthesis:
+   - consolidate findings from PathMarker and low-rate/tarpit anti-fingerprinting references into concrete requirements.
+3. MZ-R2 Persona mapping:
+   - map those requirements to `self_hosted_minimal` vs `enterprise_akamai` ownership, preserving internal-first Stage 2 delivery.
+4. MZ-R3 Guardrail codification:
+   - convert research outcomes into explicit implementation guardrails (budget caps, replay windows, fallback order, rollout abort thresholds).
+5. MZ-1 Entropy model:
    - implement rotating signed seed policy; retire path-only determinism for suspicious paths.
-2. MZ-2 Tokenized traversal:
+6. MZ-2 Tokenized traversal:
    - add signed maze link tokens with TTL/depth/replay controls.
-3. MZ-5 Client-side expansion foundation:
+7. MZ-7 Budget enforcement:
+   - global/per-bucket limits, byte caps, hard timeouts, deterministic fallback.
+8. MZ-5 Client-side expansion foundation:
    - make Web Worker branch generation + signed server verification the default maze path for suspicious tiers, with explicit checkpoint cadence and bounded step-ahead allowance.
    - add explicit no-JS fallback rules (bounded server-side maze path first, then challenge escalation) without immediate no-JS-only hard block.
-4. MZ-3 Polymorphic rendering:
+9. MZ-3 Polymorphic rendering:
    - add layout/content/link-graph variant families with versioned selection.
-5. MZ-4 Covert decoy injection:
+10. MZ-4 Covert decoy injection:
    - inject decoys into eligible HTML for medium-confidence suspicious traffic.
-6. MZ-7 Budget enforcement:
-   - global/per-bucket limits, byte caps, hard timeouts, deterministic fallback.
-7. MZ-8 Test harness:
+11. MZ-8 Test harness:
    - crawler simulation for replay, deterministic fingerprinting, JS/no-JS, and bypass attempts.
-8. MZ-9 Observability:
+12. MZ-9 Observability:
    - expose maze cost/entropy/proof/budget metrics and dashboards.
-9. MZ-10 Staged rollout:
+13. MZ-10 Staged rollout:
    - monitor -> advisory -> enforce with explicit rollback triggers.
-10. MZ-6 Optional micro-PoW for deep traversal:
+14. MZ-6 Optional micro-PoW for deep traversal:
    - adaptive difficulty by risk/depth to increase attacker cost.
 
 ## Source References

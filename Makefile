@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build prod clean test test-unit unit-test test-integration integration-test test-coverage test-dashboard test-dashboard-e2e deploy logs status stop help setup verify config-seed env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build prod clean test test-unit unit-test test-integration integration-test test-coverage test-dashboard test-dashboard-e2e spin-wait-ready deploy logs status stop help setup verify config-seed env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -57,6 +57,7 @@ HEALTH_SECRET_HEADER := $(if $(SHUMA_HEALTH_SECRET),-H "X-Shuma-Health-Secret: $
 DEV_ADMIN_CONFIG_WRITE_ENABLED ?= true
 SPIN_DEV_OVERRIDES := --env SHUMA_CHALLENGE_CONFIG_MUTABLE=true --env SHUMA_DEBUG_HEADERS=true --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(DEV_ADMIN_CONFIG_WRITE_ENABLED)
 SPIN_PROD_OVERRIDES := --env SHUMA_DEBUG_HEADERS=false
+SPIN_READY_TIMEOUT_SECONDS ?= 90
 
 #--------------------------
 # Setup (first-time)
@@ -87,7 +88,7 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	@mkdir -p $(dir $(WASM_ARTIFACT))
 	@cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT)
 	@./scripts/set_crate_type.sh rlib
-	@cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'dist/wasm/shuma_gorath.wasm' -i '.spin/**' \
+	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'dist/wasm/shuma_gorath.wasm' -i '.spin/**' \
 		-s 'if [ ! -f $(WASM_BUILD_OUTPUT) ] || find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && mkdir -p $(dir $(WASM_ARTIFACT)) && cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT) && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
 		-s 'pkill -x spin 2>/dev/null || true; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_ENV_ONLY) $(SPIN_DEV_OVERRIDES) --listen 127.0.0.1:3000'
 
@@ -103,7 +104,7 @@ dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=fal
 	@mkdir -p $(dir $(WASM_ARTIFACT))
 	@cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT)
 	@./scripts/set_crate_type.sh rlib
-	@cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'dist/wasm/shuma_gorath.wasm' -i '.spin/**' \
+	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'dist/wasm/shuma_gorath.wasm' -i '.spin/**' \
 		-s 'if [ ! -f $(WASM_BUILD_OUTPUT) ] || find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && mkdir -p $(dir $(WASM_ARTIFACT)) && cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT) && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
 		-s 'pkill -x spin 2>/dev/null || true; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_ENV_ONLY) $(SPIN_DEV_OVERRIDES) --env SHUMA_KV_STORE_FAIL_OPEN=false --listen 127.0.0.1:3000'
 
@@ -161,17 +162,21 @@ deploy: build ## Deploy to Fermyon Cloud
 # Testing
 #--------------------------
 
-test: ## Run ALL tests in series: unit, integration, and dashboard e2e (fails if server is not running)
+spin-wait-ready: ## Wait for the existing local Spin server to pass /health
+	@SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" ./scripts/tests/wait_for_spin_ready.sh --timeout-seconds "$(SPIN_READY_TIMEOUT_SECONDS)"
+
+test: ## Run ALL tests in series: unit, integration, and dashboard e2e (waits for existing server readiness)
 	@echo "$(CYAN)============================================$(NC)"
 	@echo "$(CYAN)  RUNNING ALL TESTS$(NC)"
 	@echo "$(CYAN)============================================$(NC)"
 	@echo ""
-	@if ! curl -sf -H "X-Forwarded-For: 127.0.0.1" $(FORWARDED_SECRET_HEADER) $(HEALTH_SECRET_HEADER) http://127.0.0.1:3000/health > /dev/null 2>&1; then \
-		echo "$(RED)❌ Error: Spin server not running. Integration tests must run and may not be skipped.$(NC)"; \
+	@echo "$(CYAN)Preflight: waiting up to $(SPIN_READY_TIMEOUT_SECONDS)s for existing Spin server readiness...$(NC)"
+	@if ! $(MAKE) --no-print-directory spin-wait-ready; then \
+		echo "$(RED)❌ Error: Spin server not ready. Integration tests must run and may not be skipped.$(NC)"; \
 		echo "$(YELLOW)   Required flow: 1) make dev  2) make test$(NC)"; \
 		exit 1; \
 	fi
-	@echo "$(GREEN)✅ Preflight: Spin server is running; integration and dashboard e2e tests will be executed.$(NC)"
+	@echo "$(GREEN)✅ Preflight: Spin server is ready; integration and dashboard e2e tests will be executed.$(NC)"
 	@echo ""
 	@echo "$(CYAN)Step 1/3: Rust Unit Tests$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
@@ -180,10 +185,10 @@ test: ## Run ALL tests in series: unit, integration, and dashboard e2e (fails if
 	@echo ""
 	@echo "$(CYAN)Step 2/3: Integration Tests (Spin HTTP scenarios)$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
-	@if curl -sf -H "X-Forwarded-For: 127.0.0.1" $(FORWARDED_SECRET_HEADER) $(HEALTH_SECRET_HEADER) http://127.0.0.1:3000/health > /dev/null 2>&1; then \
+	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" ./scripts/tests/integration.sh || exit 1; \
 	else \
-		echo "$(RED)❌ Error: Spin server not running. Integration tests must run and may not be skipped.$(NC)"; \
+		echo "$(RED)❌ Error: Spin server not ready. Integration tests must run and may not be skipped.$(NC)"; \
 		echo "$(YELLOW)   Start server first: make dev$(NC)"; \
 		echo "$(YELLOW)   Then run tests:     make test$(NC)"; \
 		exit 1; \
@@ -206,10 +211,10 @@ unit-test: test-unit ## Alias for Rust unit tests
 
 test-integration: ## Run integration tests only (21 scenarios, requires running server)
 	@echo "$(CYAN)🧪 Running integration tests...$(NC)"
-	@if curl -sf -H "X-Forwarded-For: 127.0.0.1" $(FORWARDED_SECRET_HEADER) $(HEALTH_SECRET_HEADER) http://127.0.0.1:3000/health > /dev/null 2>&1; then \
+	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" ./scripts/tests/integration.sh; \
 	else \
-		echo "$(RED)❌ Error: Spin server not running$(NC)"; \
+		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
 		exit 1; \
 	fi
@@ -233,9 +238,9 @@ test-dashboard: ## Dashboard testing instructions (manual)
 	@echo "2. Open: http://127.0.0.1:3000/dashboard/index.html"
 	@echo "3. Follow checklist in docs/testing.md"
 
-test-dashboard-e2e: ## Run Playwright dashboard smoke tests (requires running server)
+test-dashboard-e2e: ## Run Playwright dashboard smoke tests (waits for existing server readiness)
 	@echo "$(CYAN)🧪 Running dashboard e2e smoke tests...$(NC)"
-	@if curl -sf -H "X-Forwarded-For: 127.0.0.1" $(FORWARDED_SECRET_HEADER) $(HEALTH_SECRET_HEADER) http://127.0.0.1:3000/health > /dev/null 2>&1; then \
+	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		if ! command -v corepack >/dev/null 2>&1; then \
 			echo "$(RED)❌ Error: corepack not found (install Node.js 18+).$(NC)"; \
 			exit 1; \
@@ -245,7 +250,7 @@ test-dashboard-e2e: ## Run Playwright dashboard smoke tests (requires running se
 		corepack pnpm exec playwright install chromium; \
 		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) corepack pnpm run test:dashboard:e2e; \
 	else \
-		echo "$(RED)❌ Error: Spin server not running$(NC)"; \
+		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
 		exit 1; \
 	fi
@@ -256,6 +261,8 @@ test-dashboard-e2e: ## Run Playwright dashboard smoke tests (requires running se
 
 stop: ## Stop running Spin server
 	@echo "$(CYAN)🛑 Stopping Spin server...$(NC)"
+	@pkill -f "cargo-watch watch --poll -w src -w dashboard -w spin.toml" 2>/dev/null || true
+	@rm -rf .spin/dev-watch.lock
 	@pkill -x spin 2>/dev/null && echo "$(GREEN)✅ Stopped$(NC)" || echo "$(YELLOW)No server running$(NC)"
 
 status: ## Check if Spin server is running

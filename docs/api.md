@@ -145,6 +145,26 @@ For CDP-only operational views without the 100-row mixed-event cap, use:
 - `counts.detections` (CDP detection event count in the window)
 - `counts.auto_bans` (CDP auto-ban event count in the window)
 
+Event `outcome` values may include canonical taxonomy metadata:
+
+- `taxonomy[level=L* action=A* detection=D* signals=S_*...]`
+
+This uses the same public ladder documented in `/docs/bot-defence.md` (`Escalation Ladder (L0-L11)`).
+
+### 🐙 Canonical Escalation IDs
+
+Policy telemetry and event outcomes use four stable ID classes:
+
+- `L*` escalation level IDs (`L0_ALLOW_CLEAN` .. `L11_DENY_HARD`)
+- `A*` action IDs (`A_ALLOW`, `A_VERIFY_JS`, `A_CHALLENGE_STRONG`, `A_DENY_TEMP`, ...)
+- `D*` detection IDs (stable detection taxonomy for matched paths/signals)
+- `S_*` signal IDs (canonical signal taxonomy)
+
+JS/browser signal note:
+
+- `S_JS_REQUIRED_MISSING` means the request did not include a valid `js_verified` marker while JS enforcement is enabled (missing/expired/invalid marker).
+- This signal can be used as botness evidence and can also be the direct trigger for `L4_VERIFY_JS`.
+
 ### 🐙 Config Export Response
 
 `GET /admin/config/export` returns:
@@ -224,6 +244,22 @@ Effective-mode visibility:
 Signal catalog:
 - `botness_signal_definitions.scored_signals` lists weighted contributors.
 - `botness_signal_definitions.terminal_signals` lists immediate actions that bypass scoring.
+
+## 🐙 Robots + AI Policy Fields (`/admin/config`)
+
+Robots serving controls:
+- `robots_enabled`
+- `robots_crawl_delay`
+
+AI-bot policy controls (first-class keys):
+- `ai_policy_block_training`
+- `ai_policy_block_search`
+- `ai_policy_allow_search_engines`
+
+Legacy compatibility mirrors (still returned and accepted):
+- `robots_block_ai_training`
+- `robots_block_ai_search`
+- `robots_allow_search_engines`
 
 ## 🐙 GEO Policy Fields (`/admin/config`)
 

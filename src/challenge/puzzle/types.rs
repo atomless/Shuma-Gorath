@@ -3,9 +3,16 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ChallengeSeed {
     pub seed_id: String,
+    pub operation_id: String,
+    pub flow_id: String,
+    pub step_id: String,
+    pub step_index: u8,
     pub issued_at: u64,
     pub expires_at: u64,
+    pub token_version: u8,
     pub ip_bucket: String,
+    pub ua_bucket: String,
+    pub path_class: String,
     pub grid_size: u8,
     pub active_cells: u8,
     pub transforms: Vec<Transform>,

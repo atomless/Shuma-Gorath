@@ -88,6 +88,7 @@ pub(crate) trait ChallengeEngineProvider {
     fn handle_pow_challenge(
         &self,
         ip: &str,
+        user_agent: &str,
         enabled: bool,
         difficulty: u8,
         ttl_seconds: u64,

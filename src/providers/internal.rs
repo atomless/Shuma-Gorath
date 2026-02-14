@@ -106,11 +106,18 @@ impl ChallengeEngineProvider for InternalChallengeEngineProvider {
     fn handle_pow_challenge(
         &self,
         ip: &str,
+        user_agent: &str,
         enabled: bool,
         difficulty: u8,
         ttl_seconds: u64,
     ) -> Response {
-        crate::challenge::pow::handle_pow_challenge(ip, enabled, difficulty, ttl_seconds)
+        crate::challenge::pow::handle_pow_challenge(
+            ip,
+            user_agent,
+            enabled,
+            difficulty,
+            ttl_seconds,
+        )
     }
 
     fn handle_pow_verify(&self, req: &Request, ip: &str, enabled: bool) -> Response {

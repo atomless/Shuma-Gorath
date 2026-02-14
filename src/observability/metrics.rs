@@ -77,7 +77,7 @@ const PROVIDER_OBSERVED_COMBINATIONS: [(
     (
         crate::providers::registry::ProviderCapability::FingerprintSignal,
         crate::config::ProviderBackend::External,
-        "external_stub_fingerprint",
+        "external_akamai_with_internal_fallback",
     ),
 ];
 
@@ -104,6 +104,8 @@ pub enum MetricName {
     RateLimiterOutageDecisions,
     RateLimiterUsageFallback,
     RateLimiterStateDriftObservations,
+    PolicyMatches,
+    PolicySignals,
 }
 
 impl MetricName {
@@ -133,6 +135,8 @@ impl MetricName {
             MetricName::RateLimiterStateDriftObservations => {
                 "rate_limiter_state_drift_observations_total"
             }
+            MetricName::PolicyMatches => "policy_matches_total",
+            MetricName::PolicySignals => "policy_signals_total",
         }
     }
 }
@@ -262,6 +266,29 @@ pub fn record_provider_backend_visibility(
     }
 }
 
+pub fn record_policy_signal(
+    store: &Store,
+    signal_id: crate::runtime::policy_taxonomy::SignalId,
+) {
+    increment(store, MetricName::PolicySignals, Some(signal_id.as_str()));
+}
+
+pub fn record_policy_match(
+    store: &Store,
+    policy_match: &crate::runtime::policy_taxonomy::PolicyMatch,
+) {
+    let label = format!(
+        "{}:{}:{}",
+        policy_match.level_id(),
+        policy_match.action_id(),
+        policy_match.detection_id()
+    );
+    increment(store, MetricName::PolicyMatches, Some(label.as_str()));
+    for signal in policy_match.signal_ids() {
+        increment(store, MetricName::PolicySignals, Some(signal));
+    }
+}
+
 /// Get current value of a counter
 fn get_counter(store: &Store, key: &str) -> u64 {
     store
@@ -271,6 +298,23 @@ fn get_counter(store: &Store, key: &str) -> u64 {
         .and_then(|v| String::from_utf8(v).ok())
         .and_then(|s| s.parse().ok())
         .unwrap_or(0)
+}
+
+fn collect_labeled_counters(store: &Store, metric: MetricName) -> Vec<(String, u64)> {
+    let mut rows = Vec::new();
+    let prefix = format!("{}{}:", METRICS_PREFIX, metric.as_str());
+
+    if let Ok(keys) = store.get_keys() {
+        for key in keys {
+            let Some(label) = key.strip_prefix(prefix.as_str()) else {
+                continue;
+            };
+            rows.push((label.to_string(), get_counter(store, &key)));
+        }
+    }
+
+    rows.sort_by(|a, b| a.0.cmp(&b.0));
+    rows
 }
 
 /// Count active bans (gauge)
@@ -536,6 +580,34 @@ pub fn render_metrics(store: &Store) -> String {
                 route_class, band, count
             ));
         }
+    }
+
+    // Canonical policy matches
+    output.push_str("\n# TYPE bot_defence_policy_matches_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_policy_matches_total Canonical policy match observations by escalation level, action, and detection ID\n",
+    );
+    for (label, count) in collect_labeled_counters(store, MetricName::PolicyMatches) {
+        let mut parts = label.splitn(3, ':');
+        let level = parts.next().unwrap_or("unknown");
+        let action = parts.next().unwrap_or("unknown");
+        let detection = parts.next().unwrap_or("unknown");
+        output.push_str(&format!(
+            "bot_defence_policy_matches_total{{level=\"{}\",action=\"{}\",detection=\"{}\"}} {}\n",
+            level, action, detection, count
+        ));
+    }
+
+    // Canonical signal observations
+    output.push_str("\n# TYPE bot_defence_policy_signals_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_policy_signals_total Canonical signal ID observations across policy decisions\n",
+    );
+    for (signal, count) in collect_labeled_counters(store, MetricName::PolicySignals) {
+        output.push_str(&format!(
+            "bot_defence_policy_signals_total{{signal=\"{}\"}} {}\n",
+            signal, count
+        ));
     }
 
     // Active bans (gauge)

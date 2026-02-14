@@ -86,7 +86,12 @@ pub fn bot_signal(
     if !signal_available {
         return crate::signals::botness::BotSignal::unavailable(GEO_SIGNAL_KEY, GEO_SIGNAL_LABEL);
     }
-    crate::signals::botness::BotSignal::scored(GEO_SIGNAL_KEY, GEO_SIGNAL_LABEL, scored_risk, weight)
+    crate::signals::botness::BotSignal::scored(
+        GEO_SIGNAL_KEY,
+        GEO_SIGNAL_LABEL,
+        scored_risk,
+        weight,
+    )
 }
 
 pub fn disabled_bot_signal() -> crate::signals::botness::BotSignal {

@@ -1,6 +1,19 @@
 use spin_sdk::http::{Request, Response};
 use spin_sdk::key_value::Store;
 
+fn active_botness_signal_ids(
+    assessment: &crate::BotnessAssessment,
+) -> Vec<crate::runtime::policy_taxonomy::SignalId> {
+    assessment
+        .contributions
+        .iter()
+        .filter(|contribution| contribution.active)
+        .filter_map(|contribution| {
+            crate::runtime::policy_taxonomy::signal_id_for_botness_key(contribution.key)
+        })
+        .collect()
+}
+
 pub(crate) fn maybe_handle_honeypot(
     store: &Store,
     cfg: &crate::config::Config,
@@ -12,25 +25,35 @@ pub(crate) fn maybe_handle_honeypot(
     if !crate::enforcement::honeypot::is_honeypot(path, &cfg.honeypots) {
         return None;
     }
-
-    provider_registry.ban_store_provider().ban_ip_with_fingerprint(
-        store,
-        site_id,
-        ip,
-        "honeypot",
-        cfg.get_ban_duration("honeypot"),
-        Some(crate::enforcement::ban::BanFingerprint {
-            score: None,
-            signals: vec!["honeypot".to_string()],
-            summary: Some(format!("path={}", path)),
-        }),
+    let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
+        crate::runtime::policy_taxonomy::PolicyTransition::HoneypotHit,
     );
+    crate::observability::metrics::record_policy_match(store, &policy_match);
+
+    provider_registry
+        .ban_store_provider()
+        .ban_ip_with_fingerprint(
+            store,
+            site_id,
+            ip,
+            "honeypot",
+            cfg.get_ban_duration("honeypot"),
+            Some(crate::enforcement::ban::BanFingerprint {
+                score: None,
+                signals: vec!["honeypot".to_string()],
+                summary: Some(format!("path={}", path)),
+            }),
+        );
     crate::observability::metrics::increment(
         store,
         crate::observability::metrics::MetricName::BansTotal,
         Some("honeypot"),
     );
-    crate::observability::metrics::increment(store, crate::observability::metrics::MetricName::BlocksTotal, None);
+    crate::observability::metrics::increment(
+        store,
+        crate::observability::metrics::MetricName::BlocksTotal,
+        None,
+    );
     crate::admin::log_event(
         store,
         &crate::admin::EventLogEntry {
@@ -38,13 +61,15 @@ pub(crate) fn maybe_handle_honeypot(
             event: crate::admin::EventType::Ban,
             ip: Some(ip.to_string()),
             reason: Some("honeypot".to_string()),
-            outcome: Some("banned".to_string()),
+            outcome: Some(policy_match.annotate_outcome("banned")),
             admin: None,
         },
     );
     Some(Response::new(
         403,
-        crate::enforcement::block_page::render_block_page(crate::enforcement::block_page::BlockReason::Honeypot),
+        crate::enforcement::block_page::render_block_page(
+            crate::enforcement::block_page::BlockReason::Honeypot,
+        ),
     ))
 }
 
@@ -59,32 +84,44 @@ pub(crate) fn maybe_handle_rate_limit(
         return None;
     }
 
-    if provider_registry
-        .rate_limiter_provider()
-        .check_rate_limit(store, site_id, ip, cfg.rate_limit)
-        == crate::providers::contracts::RateLimitDecision::Allowed
-    {
-        return None;
-    }
-
-    provider_registry.ban_store_provider().ban_ip_with_fingerprint(
+    if provider_registry.rate_limiter_provider().check_rate_limit(
         store,
         site_id,
         ip,
-        "rate",
-        cfg.get_ban_duration("rate"),
-        Some(crate::enforcement::ban::BanFingerprint {
-            score: None,
-            signals: vec!["rate_limit_exceeded".to_string()],
-            summary: Some(format!("rate_limit={}", cfg.rate_limit)),
-        }),
+        cfg.rate_limit,
+    ) == crate::providers::contracts::RateLimitDecision::Allowed
+    {
+        return None;
+    }
+    let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
+        crate::runtime::policy_taxonomy::PolicyTransition::RateLimitHit,
     );
+    crate::observability::metrics::record_policy_match(store, &policy_match);
+
+    provider_registry
+        .ban_store_provider()
+        .ban_ip_with_fingerprint(
+            store,
+            site_id,
+            ip,
+            "rate",
+            cfg.get_ban_duration("rate"),
+            Some(crate::enforcement::ban::BanFingerprint {
+                score: None,
+                signals: vec!["rate_limit_exceeded".to_string()],
+                summary: Some(format!("rate_limit={}", cfg.rate_limit)),
+            }),
+        );
     crate::observability::metrics::increment(
         store,
         crate::observability::metrics::MetricName::BansTotal,
         Some("rate_limit"),
     );
-    crate::observability::metrics::increment(store, crate::observability::metrics::MetricName::BlocksTotal, None);
+    crate::observability::metrics::increment(
+        store,
+        crate::observability::metrics::MetricName::BlocksTotal,
+        None,
+    );
     crate::admin::log_event(
         store,
         &crate::admin::EventLogEntry {
@@ -92,13 +129,15 @@ pub(crate) fn maybe_handle_rate_limit(
             event: crate::admin::EventType::Ban,
             ip: Some(ip.to_string()),
             reason: Some("rate".to_string()),
-            outcome: Some("banned".to_string()),
+            outcome: Some(policy_match.annotate_outcome("banned")),
             admin: None,
         },
     );
     Some(Response::new(
         429,
-        crate::enforcement::block_page::render_block_page(crate::enforcement::block_page::BlockReason::RateLimit),
+        crate::enforcement::block_page::render_block_page(
+            crate::enforcement::block_page::BlockReason::RateLimit,
+        ),
     ))
 }
 
@@ -114,8 +153,16 @@ pub(crate) fn maybe_handle_existing_ban(
     {
         return None;
     }
+    let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
+        crate::runtime::policy_taxonomy::PolicyTransition::ExistingBan,
+    );
+    crate::observability::metrics::record_policy_match(store, &policy_match);
 
-    crate::observability::metrics::increment(store, crate::observability::metrics::MetricName::BlocksTotal, None);
+    crate::observability::metrics::increment(
+        store,
+        crate::observability::metrics::MetricName::BlocksTotal,
+        None,
+    );
     crate::admin::log_event(
         store,
         &crate::admin::EventLogEntry {
@@ -123,13 +170,15 @@ pub(crate) fn maybe_handle_existing_ban(
             event: crate::admin::EventType::Ban,
             ip: Some(ip.to_string()),
             reason: Some("banned".to_string()),
-            outcome: Some("block page".to_string()),
+            outcome: Some(policy_match.annotate_outcome("block page")),
             admin: None,
         },
     );
     Some(Response::new(
         403,
-        crate::enforcement::block_page::render_block_page(crate::enforcement::block_page::BlockReason::Honeypot),
+        crate::enforcement::block_page::render_block_page(
+            crate::enforcement::block_page::BlockReason::Honeypot,
+        ),
     ))
 }
 
@@ -147,7 +196,15 @@ pub(crate) fn maybe_handle_geo_policy(
 
     match geo_assessment.route {
         crate::signals::geo::GeoPolicyRoute::Block => {
-            crate::observability::metrics::increment(store, crate::observability::metrics::MetricName::BlocksTotal, None);
+            let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
+                crate::runtime::policy_taxonomy::PolicyTransition::GeoRouteBlock,
+            );
+            crate::observability::metrics::record_policy_match(store, &policy_match);
+            crate::observability::metrics::increment(
+                store,
+                crate::observability::metrics::MetricName::BlocksTotal,
+                None,
+            );
             crate::admin::log_event(
                 store,
                 &crate::admin::EventLogEntry {
@@ -155,33 +212,50 @@ pub(crate) fn maybe_handle_geo_policy(
                     event: crate::admin::EventType::Block,
                     ip: Some(ip.to_string()),
                     reason: Some("geo_policy_block".to_string()),
-                    outcome: Some(format!(
-                        "country={}",
-                        geo_assessment.country.as_deref().unwrap_or("unknown")
+                    outcome: Some(policy_match.annotate_outcome(
+                        format!("country={}", geo_assessment.country.as_deref().unwrap_or("unknown"))
+                            .as_str(),
                     )),
                     admin: None,
                 },
             );
             Some(Response::new(
                 403,
-                crate::enforcement::block_page::render_block_page(crate::enforcement::block_page::BlockReason::GeoPolicy),
+                crate::enforcement::block_page::render_block_page(
+                    crate::enforcement::block_page::BlockReason::GeoPolicy,
+                ),
             ))
         }
         crate::signals::geo::GeoPolicyRoute::Maze => {
+            let country_summary = format!("country={}", geo_assessment.country.as_deref().unwrap_or("unknown"));
             if cfg.maze_enabled {
-                return Some(provider_registry.maze_tarpit_provider().serve_maze_with_tracking(
-                    store,
-                    cfg,
-                    ip,
-                    "/maze/geo-policy",
-                    "geo_policy_maze",
-                    &format!(
-                        "country={}",
-                        geo_assessment.country.as_deref().unwrap_or("unknown")
-                    ),
-                ));
+                let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
+                    crate::runtime::policy_taxonomy::PolicyTransition::GeoRouteMaze,
+                );
+                crate::observability::metrics::record_policy_match(store, &policy_match);
+                let event_outcome = policy_match.annotate_outcome(country_summary.as_str());
+                return Some(
+                    provider_registry
+                        .maze_tarpit_provider()
+                        .serve_maze_with_tracking(
+                            store,
+                            cfg,
+                            ip,
+                            "/maze/geo-policy",
+                            "geo_policy_maze",
+                            event_outcome.as_str(),
+                        ),
+                );
             }
-            crate::observability::metrics::increment(store, crate::observability::metrics::MetricName::ChallengesTotal, None);
+            let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
+                crate::runtime::policy_taxonomy::PolicyTransition::GeoRouteMazeFallbackChallenge,
+            );
+            crate::observability::metrics::record_policy_match(store, &policy_match);
+            crate::observability::metrics::increment(
+                store,
+                crate::observability::metrics::MetricName::ChallengesTotal,
+                None,
+            );
             crate::observability::metrics::increment(
                 store,
                 crate::observability::metrics::MetricName::ChallengeServedTotal,
@@ -194,17 +268,26 @@ pub(crate) fn maybe_handle_geo_policy(
                     event: crate::admin::EventType::Challenge,
                     ip: Some(ip.to_string()),
                     reason: Some("geo_policy_challenge_fallback".to_string()),
-                    outcome: Some("maze_disabled".to_string()),
+                    outcome: Some(policy_match.annotate_outcome("maze_disabled")),
                     admin: None,
                 },
             );
-            Some(provider_registry.challenge_engine_provider().render_challenge(
-                req,
-                cfg.challenge_transform_count as usize,
-            ))
+            Some(
+                provider_registry
+                    .challenge_engine_provider()
+                    .render_challenge(req, cfg.challenge_transform_count as usize),
+            )
         }
         crate::signals::geo::GeoPolicyRoute::Challenge => {
-            crate::observability::metrics::increment(store, crate::observability::metrics::MetricName::ChallengesTotal, None);
+            let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
+                crate::runtime::policy_taxonomy::PolicyTransition::GeoRouteChallenge,
+            );
+            crate::observability::metrics::record_policy_match(store, &policy_match);
+            crate::observability::metrics::increment(
+                store,
+                crate::observability::metrics::MetricName::ChallengesTotal,
+                None,
+            );
             crate::observability::metrics::increment(
                 store,
                 crate::observability::metrics::MetricName::ChallengeServedTotal,
@@ -217,19 +300,22 @@ pub(crate) fn maybe_handle_geo_policy(
                     event: crate::admin::EventType::Challenge,
                     ip: Some(ip.to_string()),
                     reason: Some("geo_policy_challenge".to_string()),
-                    outcome: Some(format!(
-                        "country={}",
-                        geo_assessment.country.as_deref().unwrap_or("unknown")
+                    outcome: Some(policy_match.annotate_outcome(
+                        format!("country={}", geo_assessment.country.as_deref().unwrap_or("unknown"))
+                            .as_str(),
                     )),
                     admin: None,
                 },
             );
-            Some(provider_registry.challenge_engine_provider().render_challenge(
-                req,
-                cfg.challenge_transform_count as usize,
-            ))
+            Some(
+                provider_registry
+                    .challenge_engine_provider()
+                    .render_challenge(req, cfg.challenge_transform_count as usize),
+            )
         }
-        crate::signals::geo::GeoPolicyRoute::Allow | crate::signals::geo::GeoPolicyRoute::None => None,
+        crate::signals::geo::GeoPolicyRoute::Allow | crate::signals::geo::GeoPolicyRoute::None => {
+            None
+        }
     }
 }
 
@@ -286,27 +372,52 @@ pub(crate) fn maybe_handle_botness(
     let botness_state_summary = crate::botness_signal_states_summary(&botness);
     let runtime_metadata_summary = crate::defence_runtime_metadata_summary(cfg);
     let provider_summary = crate::provider_implementations_summary(provider_registry);
+    let botness_signal_ids = active_botness_signal_ids(&botness);
 
     if cfg.maze_enabled && botness.score >= cfg.botness_maze_threshold {
-        return Some(provider_registry.maze_tarpit_provider().serve_maze_with_tracking(
-            store,
-            cfg,
-            ip,
-            "/maze/botness-gate",
-            "botness_gate_maze",
-            &format!(
+        let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
+            crate::runtime::policy_taxonomy::PolicyTransition::BotnessGateMaze(
+                botness_signal_ids.clone(),
+            ),
+        );
+        crate::observability::metrics::record_policy_match(store, &policy_match);
+        let event_outcome = policy_match.annotate_outcome(
+            format!(
                 "score={} signals={} signal_states={} {} providers={}",
                 botness.score,
                 botness_summary,
                 botness_state_summary,
                 runtime_metadata_summary,
                 provider_summary
-            ),
-        ));
+            )
+            .as_str(),
+        );
+        return Some(
+            provider_registry
+                .maze_tarpit_provider()
+                .serve_maze_with_tracking(
+                    store,
+                    cfg,
+                    ip,
+                    "/maze/botness-gate",
+                    "botness_gate_maze",
+                    event_outcome.as_str(),
+                ),
+        );
     }
 
     if botness.score >= cfg.challenge_risk_threshold {
-        crate::observability::metrics::increment(store, crate::observability::metrics::MetricName::ChallengesTotal, None);
+        let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
+            crate::runtime::policy_taxonomy::PolicyTransition::BotnessGateChallenge(
+                botness_signal_ids,
+            ),
+        );
+        crate::observability::metrics::record_policy_match(store, &policy_match);
+        crate::observability::metrics::increment(
+            store,
+            crate::observability::metrics::MetricName::ChallengesTotal,
+            None,
+        );
         crate::observability::metrics::increment(
             store,
             crate::observability::metrics::MetricName::ChallengeServedTotal,
@@ -319,21 +430,25 @@ pub(crate) fn maybe_handle_botness(
                 event: crate::admin::EventType::Challenge,
                 ip: Some(ip.to_string()),
                 reason: Some("botness_gate_challenge".to_string()),
-                outcome: Some(format!(
-                    "score={} signals={} signal_states={} {} providers={}",
-                    botness.score,
-                    botness_summary,
-                    botness_state_summary,
-                    runtime_metadata_summary,
-                    provider_summary
+                outcome: Some(policy_match.annotate_outcome(
+                    format!(
+                        "score={} signals={} signal_states={} {} providers={}",
+                        botness.score,
+                        botness_summary,
+                        botness_state_summary,
+                        runtime_metadata_summary,
+                        provider_summary
+                    )
+                    .as_str(),
                 )),
                 admin: None,
             },
         );
-        return Some(provider_registry.challenge_engine_provider().render_challenge(
-            req,
-            cfg.challenge_transform_count as usize,
-        ));
+        return Some(
+            provider_registry
+                .challenge_engine_provider()
+                .render_challenge(req, cfg.challenge_transform_count as usize),
+        );
     }
 
     None
@@ -343,6 +458,7 @@ pub(crate) fn maybe_handle_js(
     store: &Store,
     cfg: &crate::config::Config,
     ip: &str,
+    user_agent: &str,
     needs_js: bool,
 ) -> Option<Response> {
     if !cfg.js_action_enabled() {
@@ -351,7 +467,15 @@ pub(crate) fn maybe_handle_js(
     if !needs_js {
         return None;
     }
-    crate::observability::metrics::increment(store, crate::observability::metrics::MetricName::ChallengesTotal, None);
+    let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
+        crate::runtime::policy_taxonomy::PolicyTransition::JsVerificationRequired,
+    );
+    crate::observability::metrics::record_policy_match(store, &policy_match);
+    crate::observability::metrics::increment(
+        store,
+        crate::observability::metrics::MetricName::ChallengesTotal,
+        None,
+    );
     crate::admin::log_event(
         store,
         &crate::admin::EventLogEntry {
@@ -359,12 +483,13 @@ pub(crate) fn maybe_handle_js(
             event: crate::admin::EventType::Challenge,
             ip: Some(ip.to_string()),
             reason: Some("js_verification".to_string()),
-            outcome: Some("js challenge".to_string()),
+            outcome: Some(policy_match.annotate_outcome("js challenge")),
             admin: None,
         },
     );
     Some(crate::signals::js_verification::inject_js_challenge(
         ip,
+        user_agent,
         cfg.pow_enabled,
         cfg.pow_difficulty,
         cfg.pow_ttl_seconds,
