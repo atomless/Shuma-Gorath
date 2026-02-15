@@ -33,7 +33,7 @@ This is the core stance for `L7_DECEPTION_EXPLICIT` behavior and related decepti
 Current Stage 2 behavior combines polymorphic rendering, signed traversal state, and bounded-cost controls:
 
 1. **Polymorphic variant families**
-   Maze pages render with rotating layout/palette/content variants and emit a stable variant marker (`X-Shuma-Maze-Variant`) for observability.
+   Maze pages render with rotating layout/palette/content variants.
 2. **Signed rotating entropy**
    Variant selection uses HMAC-backed entropy inputs (path, IP bucket, UA bucket, short entropy window, and flow nonce), not path-only deterministic hashes.
 3. **Signed traversal links**
@@ -109,12 +109,23 @@ These fields are part of the runtime config (`/admin/config`):
 - `maze_seed_provider`, `maze_seed_refresh_*`, `maze_seed_metadata_only` - seed corpus controls.
 - `maze_covert_decoys_enabled` - non-maze covert decoy injection toggle.
 
+Env-only key:
+- `SHUMA_MAZE_PREVIEW_SECRET` (optional) - dedicated entropy secret for `/admin/maze/preview`; if unset, preview uses a namespaced fallback derived from the live maze secret.
+
 ## 🐙 Admin Endpoint
 
 - `GET /admin/maze` - Returns maze stats for the dashboard.
+- `GET /admin/maze/preview` - Returns a non-operational maze preview surface for operators (admin-auth only).
 - `GET /admin/maze/seeds` - Lists operator seed sources and cached corpus snapshot.
 - `POST /admin/maze/seeds` - Upserts operator seed sources.
 - `POST /admin/maze/seeds/refresh` - Triggers manual operator-corpus refresh.
+
+Preview safety guarantees:
+- links stay inside `/admin/maze/preview?path=...`,
+- live traversal markers (`mt`) are never issued,
+- no hidden covert-decoy markers are emitted,
+- preview copy/layout remains production-like decoy content (no explicit preview banner text in body cards),
+- preview rendering does not mutate live maze replay/checkpoint/budget/risk state.
 
 ## 🐙 Metrics
 

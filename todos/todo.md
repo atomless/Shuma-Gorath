@@ -110,6 +110,13 @@ Completion rule for every paper TODO below: capture key findings, map to `self_h
 - [ ] ~~Prefer metadata/keyword extraction over copying article bodies to minimize legal risk, bandwidth, and fingerprintability.~~ Superseded by MZ-3.3.
 - [ ] ~~Feed maze interaction behavior back into botness scoring and detection IDs.~~ Superseded by MZ-9.
 
+### Stage 2 follow-up: Operator-safe Maze Preview
+- [x] MZ-PV1: Add an admin-auth-only maze preview endpoint (`GET /admin/maze/preview`) so operators can inspect maze rendering before serving it.
+- [x] MZ-PV2: Ensure preview output is non-operational by design (no live traversal tokens, no hidden decoy tracking links, no replay/checkpoint/budget side effects, and no maze hit/risk counter mutation).
+- [x] MZ-PV3: Isolate preview entropy/signing from live trap flow (`SHUMA_MAZE_PREVIEW_SECRET` with safe fallback) so leaked preview artifacts cannot forge production traversal.
+- [x] MZ-PV4: Add dashboard UX affordance in the Maze config pane ("Preview Maze") that opens the admin preview safely and clearly indicates auth/session requirements.
+- [x] MZ-PV5: Add deterministic tests for preview safety guarantees (route auth/read-only behavior, no-live-token markers, and no state mutation) and update docs/API references.
+
 ### Stage 3: Bounded slow-drip tarpit
 - [ ] TP-C1: Reuse shared deception token primitives from maze scope (`MZ-2`) for tarpit progression; do not introduce a tarpit-only token format.
 - [ ] TP-C2: Reuse shared budget/fallback primitives from maze scope (`MZ-7`) for tarpit limits and deterministic fallback; do not fork budget logic by mode.

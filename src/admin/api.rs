@@ -32,12 +32,13 @@ const POW_DIFFICULTY_MIN: u8 = crate::config::POW_DIFFICULTY_MIN;
 const POW_DIFFICULTY_MAX: u8 = crate::config::POW_DIFFICULTY_MAX;
 const POW_TTL_MIN: u64 = crate::config::POW_TTL_MIN;
 const POW_TTL_MAX: u64 = crate::config::POW_TTL_MAX;
-const CONFIG_EXPORT_SECRET_KEYS: [&str; 7] = [
+const CONFIG_EXPORT_SECRET_KEYS: [&str; 8] = [
     "SHUMA_API_KEY",
     "SHUMA_ADMIN_READONLY_API_KEY",
     "SHUMA_JS_SECRET",
     "SHUMA_POW_SECRET",
     "SHUMA_CHALLENGE_SECRET",
+    "SHUMA_MAZE_PREVIEW_SECRET",
     "SHUMA_FORWARDED_IP_SECRET",
     "SHUMA_HEALTH_SECRET",
 ];
@@ -299,10 +300,6 @@ mod admin_config_tests {
 
         fn set(&self, key: &str, value: &[u8]) -> Result<(), ()> {
             crate::challenge::KeyValueStore::set(self, key, value)
-        }
-
-        fn delete(&self, key: &str) -> Result<(), ()> {
-            crate::challenge::KeyValueStore::delete(self, key)
         }
     }
 
@@ -610,6 +607,72 @@ mod admin_config_tests {
         let refresh_req = make_request(Method::Post, "/admin/maze/seeds/refresh", Vec::new());
         let refresh_resp = handle_admin_maze_seed_refresh(&refresh_req, &store, "default");
         assert_eq!(*refresh_resp.status(), 409u16);
+    }
+
+    #[test]
+    fn admin_maze_preview_returns_safe_non_operational_html() {
+        let _lock = crate::test_support::lock_env();
+        let store = TestStore::default();
+        let req = make_request(
+            Method::Get,
+            "/admin/maze/preview?path=%2Fmaze%2Fpreview-segment",
+            Vec::new(),
+        );
+        let resp = handle_admin_maze_preview(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+        let body = String::from_utf8_lossy(resp.body());
+        assert!(!body.contains("Maze Preview"));
+        assert!(!body.contains("Preview-only path."));
+        assert!(!body.contains("mt="));
+        assert!(!body.contains("data-shuma-covert-decoy"));
+        assert!(body.contains("/admin/maze/preview?path="));
+    }
+
+    #[test]
+    fn admin_maze_preview_does_not_mutate_live_maze_state() {
+        let _lock = crate::test_support::lock_env();
+        let store = TestStore::default();
+
+        {
+            let mut map = store.map.lock().unwrap();
+            map.insert("maze:budget:active:global".to_string(), b"9".to_vec());
+            map.insert("maze:risk:ip".to_string(), b"4".to_vec());
+            map.insert("maze:token:seen:flow:op".to_string(), b"123456789".to_vec());
+        }
+        let before = {
+            let map = store.map.lock().unwrap();
+            map.iter()
+                .filter(|(k, _)| k.starts_with("maze:"))
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect::<std::collections::HashMap<_, _>>()
+        };
+
+        let req = make_request(Method::Get, "/admin/maze/preview", Vec::new());
+        let resp = handle_admin_maze_preview(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+
+        let after = {
+            let map = store.map.lock().unwrap();
+            map.iter()
+                .filter(|(k, _)| k.starts_with("maze:"))
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect::<std::collections::HashMap<_, _>>()
+        };
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn admin_maze_preview_is_get_only_read_path() {
+        let _lock = crate::test_support::lock_env();
+        let store = TestStore::default();
+        let req = make_request(Method::Post, "/admin/maze/preview", Vec::new());
+        let resp = handle_admin_maze_preview(&req, &store, "default");
+        assert_eq!(*resp.status(), 405u16);
+        assert!(!request_requires_admin_write(
+            "/admin/maze/preview",
+            &Method::Get
+        ));
+        assert!(sanitize_path("/admin/maze/preview"));
     }
 
     #[test]
@@ -1107,6 +1170,10 @@ mod admin_auth_tests {
         assert!(request_requires_admin_write("/admin/ban", &Method::Post));
         assert!(request_requires_admin_write("/admin/unban", &Method::Post));
         assert!(!request_requires_admin_write(
+            "/admin/maze/preview",
+            &Method::Post
+        ));
+        assert!(!request_requires_admin_write(
             "/admin/events",
             &Method::Post
         ));
@@ -1151,6 +1218,7 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/config"
             | "/admin/config/export"
             | "/admin/maze"
+            | "/admin/maze/preview"
             | "/admin/maze/seeds"
             | "/admin/maze/seeds/refresh"
             | "/admin/robots"
@@ -3064,6 +3132,27 @@ where
     }
 }
 
+fn handle_admin_maze_preview<S>(req: &Request, store: &S, site_id: &str) -> Response
+where
+    S: crate::challenge::KeyValueStore,
+{
+    if *req.method() != Method::Get {
+        return Response::new(405, "Method Not Allowed");
+    }
+    let cfg = match crate::config::Config::load(store, site_id) {
+        Ok(cfg) => cfg,
+        Err(err) => return Response::new(500, err.user_message()),
+    };
+    let requested_path = crate::request_validation::query_param(req.query(), "path");
+    let html = crate::maze::preview::render_admin_preview(&cfg, requested_path.as_deref());
+    Response::builder()
+        .status(200)
+        .header("Content-Type", "text/html; charset=utf-8")
+        .header("Cache-Control", "no-store")
+        .body(html)
+        .build()
+}
+
 fn handle_admin_maze_seed_refresh<S>(req: &Request, store: &S, site_id: &str) -> Response
 where
     S: crate::challenge::KeyValueStore + crate::maze::state::MazeStateStore,
@@ -3135,6 +3224,7 @@ where
 ///   - GET /admin/config: Get current config including test_mode status
 ///   - POST /admin/config: Update config (e.g., toggle test_mode)
 ///   - GET /admin/config/export: Export non-secret runtime config for immutable deploy handoff
+///   - GET /admin/maze/preview: Render a non-operational maze preview for operators
 ///   - GET /admin: API help
 pub fn handle_admin(req: &Request) -> Response {
     // Optional admin IP allowlist
@@ -3504,6 +3594,9 @@ pub fn handle_admin(req: &Request) -> Response {
         "/admin/config/export" => {
             return handle_admin_config_export(req, &store, site_id);
         }
+        "/admin/maze/preview" => {
+            return handle_admin_maze_preview(req, &store, site_id);
+        }
         "/admin/maze/seeds" => {
             return handle_admin_maze_seed_sources(req, &store, site_id);
         }
@@ -3523,7 +3616,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/config, /admin/config/export, /admin/maze (GET for maze stats), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/config, /admin/config/export, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics

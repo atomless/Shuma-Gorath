@@ -116,6 +116,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `POST /admin/config` - Update configuration (partial JSON, disabled when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`)
 - `GET /admin/config/export` - Export non-secret runtime config as deploy-ready env key/value output
 - `GET /admin/maze` - maze stats
+- `GET /admin/maze/preview?path=/maze/...` - Non-operational maze preview (admin-auth only; no live traversal token issuance)
 - `GET /admin/maze/seeds` - Maze operator-seed source list and cached corpus snapshot
 - `POST /admin/maze/seeds` - Upsert maze operator-seed sources
 - `POST /admin/maze/seeds/refresh` - Trigger manual maze operator-corpus refresh
@@ -123,6 +124,12 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `GET /admin/cdp` - CDP detection config and stats
 
 `GET /admin/session` includes `access` as `read_only`, `read_write`, or `none`.
+
+`GET /admin/maze/preview` is intentionally non-operational:
+- links recurse only into `/admin/maze/preview`,
+- live `mt` traversal tokens are not emitted,
+- hidden covert-decoy tracking markers/links are not emitted,
+- maze replay/checkpoint/budget/risk counters are not mutated.
 
 ### 🐙 Analytics Response
 

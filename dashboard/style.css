@@ -55,6 +55,10 @@
   --btn-submit-fg: var(--color-back);
   --btn-submit-disabled-bg: var(--color-400);
   --btn-submit-disabled-fg: var(--color-700);
+  --inline-link-fg: #9a0f63;
+  --inline-link-hover-fg: #740b4b;
+  --inline-link-visited-fg: #7f2568;
+  --inline-link-focus-ring: rgba(154, 15, 99, 0.35);
 
   /* Typography scale */
   --text-xs: 0.8571rem;
@@ -690,6 +694,37 @@ code.env-var {
   margin-bottom: 10px;
 }
 
+.control-desc a,
+.section-desc a,
+.admin-group-subtitle a {
+  color: var(--inline-link-fg);
+  text-decoration-color: var(--inline-link-fg);
+  text-underline-offset: 2px;
+  transition: color 0.2s ease, text-decoration-color 0.2s ease;
+}
+
+.control-desc a:visited,
+.section-desc a:visited,
+.admin-group-subtitle a:visited {
+  color: var(--inline-link-visited-fg);
+  text-decoration-color: var(--inline-link-visited-fg);
+}
+
+.control-desc a:hover,
+.section-desc a:hover,
+.admin-group-subtitle a:hover {
+  color: var(--inline-link-hover-fg);
+  text-decoration-color: var(--inline-link-hover-fg);
+}
+
+.control-desc a:focus-visible,
+.section-desc a:focus-visible,
+.admin-group-subtitle a:focus-visible {
+  outline: 2px solid var(--inline-link-focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .control-desc-spaced {
   margin-top: 12px;
 }
@@ -1284,6 +1319,10 @@ input:checked + .toggle-slider:before {
     --btn-submit-fg: var(--color-back);
     --btn-submit-disabled-bg: var(--color-400);
     --btn-submit-disabled-fg: var(--color-700);
+    --inline-link-fg: #ffa5d8;
+    --inline-link-hover-fg: #ffd0eb;
+    --inline-link-visited-fg: #f0b4ff;
+    --inline-link-focus-ring: rgba(255, 165, 216, 0.42);
     --color-env-var-bg: rgb(125, 75, 105);
   }
 

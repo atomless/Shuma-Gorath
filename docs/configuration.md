@@ -45,6 +45,7 @@ These are read from process env at runtime (not from KV).
 | `SHUMA_JS_SECRET` | Yes | `changeme-prod-js-secret` | Signs and verifies `js_verified` cookie. |
 | `SHUMA_POW_SECRET` | No | empty | Optional dedicated PoW signing secret. Falls back to `SHUMA_JS_SECRET` when unset. |
 | `SHUMA_CHALLENGE_SECRET` | No | empty | Optional dedicated challenge signing secret. Falls back to `SHUMA_JS_SECRET` when unset. |
+| `SHUMA_MAZE_PREVIEW_SECRET` | No | empty | Optional dedicated secret for admin maze preview entropy. When unset, preview entropy uses a namespaced fallback derived from the live maze secret so preview artifacts cannot forge production traversal tokens. |
 | `SHUMA_FORWARDED_IP_SECRET` | Yes | `changeme-prod-forwarded-ip-secret` | Trust boundary secret for forwarded IP/proto headers (`X-Shuma-Forwarded-Secret`). |
 | `SHUMA_HEALTH_SECRET` | No | empty | Optional shared secret for `/health` via `X-Shuma-Health-Secret`. |
 | `SHUMA_ADMIN_IP_ALLOWLIST` | No (Yes for production deploys) | empty | CIDR/IP allowlist for `/admin/*`; required by deployment guardrails in production workflows. |
@@ -53,7 +54,7 @@ These are read from process env at runtime (not from KV).
 | `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` | Yes | `false` | Enables/disables admin config writes to KV (`POST /admin/config`). |
 | `SHUMA_KV_STORE_FAIL_OPEN` | Yes | `true` | KV failure policy (`true` fail-open, `false` fail-closed). |
 | `SHUMA_ENFORCE_HTTPS` | Yes | `false` | Rejects non-HTTPS requests when `true` (proxy/header trust rules still apply). |
-| `SHUMA_DEBUG_HEADERS` | Yes | `false` | Enables internal debug headers (keep `false` in production). |
+| `SHUMA_DEBUG_HEADERS` | Yes | `false` | Enables internal debug headers (for example health diagnostics). Keep `false` in production. |
 | `SHUMA_ENTERPRISE_MULTI_INSTANCE` | No | `false` | Marks deployment as enterprise multi-instance for runtime/deploy state guardrails. |
 | `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED` | No | `false` | Explicit temporary attestation for advisory/off operation when enterprise multi-instance still uses local-only rate/ban state. |
 | `SHUMA_RATE_LIMITER_REDIS_URL` | No | empty | Redis endpoint for external distributed rate limiter mode (`redis://...` or `rediss://...`). |

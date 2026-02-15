@@ -25,11 +25,6 @@ mod tests {
                 .insert(key.to_string(), value.to_vec());
             Ok(())
         }
-
-        fn delete(&self, key: &str) -> Result<(), ()> {
-            self.data.lock().unwrap().remove(key);
-            Ok(())
-        }
     }
 
     struct CrawlerHarness {

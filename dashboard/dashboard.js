@@ -459,6 +459,14 @@ function hasValidApiContext() {
   return adminSessionController ? adminSessionController.hasValidApiContext() : false;
 }
 
+function refreshMazePreviewLink() {
+  const link = document.getElementById('preview-maze-link');
+  if (!link) return;
+  const resolved = resolveAdminApiEndpoint();
+  const endpoint = resolved && resolved.endpoint ? resolved.endpoint : '';
+  link.href = `${endpoint}/admin/maze/preview?path=${encodeURIComponent('/maze/preview')}`;
+}
+
 function redirectToLogin() {
   const next = encodeURIComponent(window.location.pathname + window.location.search);
   window.location.replace(`/dashboard/login.html?next=${next}`);
@@ -479,6 +487,7 @@ function validateGeoFieldById(id, showInline = false) {
 
 function refreshCoreActionButtonsState() {
   const apiValid = hasValidApiContext();
+  refreshMazePreviewLink();
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
     logoutBtn.disabled = !apiValid;

@@ -298,6 +298,17 @@ fn response_with_optional_debug_headers(
     }
 }
 
+pub(crate) fn maze_response(served: crate::maze::runtime::MazeRenderResult) -> Response {
+    let mut response_builder = Response::builder();
+    response_builder
+        .status(200)
+        .header("Content-Type", "text/html; charset=utf-8")
+        .header("Cache-Control", "no-store, no-cache, must-revalidate")
+        .header("X-Robots-Tag", "noindex, nofollow")
+        .body(served.html)
+        .build()
+}
+
 fn config_error_response(err: config::ConfigLoadError, path: &str) -> Response {
     log_line(&format!(
         "[CONFIG ERROR] path={} error={}",
@@ -777,35 +788,7 @@ pub(crate) fn serve_maze_with_tracking(
         );
     }
 
-    Response::builder()
-        .status(200)
-        .header("Content-Type", "text/html; charset=utf-8")
-        .header("Cache-Control", "no-store, no-cache, must-revalidate")
-        .header("X-Robots-Tag", "noindex, nofollow")
-        .header("X-Shuma-Maze-Variant", served.variant_id.as_str())
-        .header(
-            "X-Shuma-Maze-Token",
-            if served.token_validated {
-                "validated"
-            } else {
-                "entry"
-            },
-        )
-        .header("X-Shuma-Maze-Seed-Provider", served.seed_provider.as_str())
-        .header(
-            "X-Shuma-Maze-Seed-Version",
-            served.seed_version.to_string().as_str(),
-        )
-        .header(
-            "X-Shuma-Maze-Seed-Metadata-Only",
-            if served.seed_metadata_only { "true" } else { "false" },
-        )
-        .header(
-            "X-Shuma-Maze-Seed-Sources",
-            served.seed_source_count.to_string().as_str(),
-        )
-        .body(served.html)
-        .build()
+    maze_response(served)
 }
 
 /// Main handler logic, testable as a plain Rust function.

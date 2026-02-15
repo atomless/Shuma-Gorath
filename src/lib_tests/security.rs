@@ -2,7 +2,7 @@ use spin_sdk::http::Method;
 
 use crate::{
     extract_health_client_ip, forwarded_ip_trusted, health_secret_authorized,
-    response_with_optional_debug_headers, should_bypass_expensive_bot_checks_for_static,
+    maze_response, response_with_optional_debug_headers, should_bypass_expensive_bot_checks_for_static,
 };
 
 #[test]
@@ -35,6 +35,50 @@ fn health_internal_headers_visible_when_enabled() {
 
     assert!(crate::test_support::has_header(&resp, "X-KV-Status"));
     assert!(crate::test_support::has_header(&resp, "X-Shuma-Fail-Mode"));
+}
+
+#[test]
+fn maze_response_never_exposes_identifying_headers() {
+    let _lock = crate::test_support::lock_env();
+    std::env::set_var("SHUMA_DEBUG_HEADERS", "true");
+    let resp = maze_response(crate::maze::runtime::MazeRenderResult {
+        html: "<html></html>".to_string(),
+        depth: 0,
+        flow_id: "flow".to_string(),
+        variant_id: "maze-v00-test".to_string(),
+        seed_provider: "internal".to_string(),
+        seed_version: 1,
+        seed_metadata_only: true,
+        seed_source_count: 0,
+        response_cap_exceeded: false,
+        bytes: 13,
+        render_ms: 1,
+        token_validated: false,
+    });
+
+    assert_eq!(*resp.status(), 200u16);
+    assert!(!crate::test_support::has_header(&resp, "X-Shuma-Maze-Variant"));
+    assert!(!crate::test_support::has_header(&resp, "X-Shuma-Maze-Token"));
+    assert!(!crate::test_support::has_header(
+        &resp,
+        "X-Shuma-Maze-Seed-Provider"
+    ));
+    assert!(!crate::test_support::has_header(
+        &resp,
+        "X-Shuma-Maze-Seed-Version"
+    ));
+    assert!(!crate::test_support::has_header(
+        &resp,
+        "X-Shuma-Maze-Seed-Metadata-Only"
+    ));
+    assert!(!crate::test_support::has_header(
+        &resp,
+        "X-Shuma-Maze-Seed-Sources"
+    ));
+
+    let body = String::from_utf8(resp.into_body()).unwrap();
+    assert_eq!(body, "<html></html>");
+    std::env::remove_var("SHUMA_DEBUG_HEADERS");
 }
 
 #[test]

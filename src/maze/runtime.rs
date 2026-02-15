@@ -624,8 +624,6 @@ pub(crate) fn serve(
         bootstrap_json,
         variant_layout,
         variant_palette,
-        variant_id: variant_id.clone(),
-        rollout_phase: cfg.maze_rollout_phase.as_str().to_string(),
     };
     let started_at = now_ms();
     let html = generate_polymorphic_maze_page(&render_options);
@@ -684,11 +682,6 @@ mod tests {
                 .insert(key.to_string(), value.to_vec());
             Ok(())
         }
-
-        fn delete(&self, key: &str) -> Result<(), ()> {
-            self.data.lock().unwrap().remove(key);
-            Ok(())
-        }
     }
 
     #[test]
@@ -728,5 +721,58 @@ mod tests {
             }
             MazeServeDecision::Serve(_) => panic!("expected fallback decision"),
         }
+    }
+
+    #[test]
+    fn live_maze_html_does_not_include_giveaway_markers_by_default() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("SHUMA_DEBUG_HEADERS");
+
+        let store = MemStore::default();
+        let cfg = crate::config::defaults().clone();
+        let req = Request::builder()
+            .method(Method::Get)
+            .uri("/maze/entry")
+            .body(Vec::<u8>::new())
+            .build();
+        let decision = super::serve(&store, &cfg, &req, "198.51.100.9", "TestUA/1.0", "/maze/entry");
+        match decision {
+            MazeServeDecision::Serve(rendered) => {
+                assert!(!rendered.html.contains("Variant maze-v"));
+                assert!(!rendered
+                    .html
+                    .contains("Synthetic navigation surface. Not authoritative content."));
+            }
+            MazeServeDecision::Fallback(reason) => {
+                panic!("expected served maze page, got fallback: {:?}", reason)
+            }
+        }
+    }
+
+    #[test]
+    fn live_maze_html_does_not_include_giveaway_markers_when_debug_enabled() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_DEBUG_HEADERS", "true");
+
+        let store = MemStore::default();
+        let cfg = crate::config::defaults().clone();
+        let req = Request::builder()
+            .method(Method::Get)
+            .uri("/maze/entry")
+            .body(Vec::<u8>::new())
+            .build();
+        let decision = super::serve(&store, &cfg, &req, "198.51.100.9", "TestUA/1.0", "/maze/entry");
+        match decision {
+            MazeServeDecision::Serve(rendered) => {
+                assert!(!rendered.html.contains("Variant maze-v"));
+                assert!(!rendered
+                    .html
+                    .contains("Synthetic navigation surface. Not authoritative content."));
+            }
+            MazeServeDecision::Fallback(reason) => {
+                panic!("expected served maze page, got fallback: {:?}", reason)
+            }
+        }
+        std::env::remove_var("SHUMA_DEBUG_HEADERS");
     }
 }

@@ -269,7 +269,11 @@
             </div>
             <div class="control-group panel-soft pad-md config-edit-pane hidden">
               <h3>Maze</h3>
-              <p class="control-desc text-muted">Control trap-page routing and optional auto-ban. Lower thresholds ban faster but may increase false positives.</p>
+              <p class="control-desc text-muted">
+                Control trap-page routing and optional auto-ban. Lower thresholds ban faster but may increase false positives.
+                <a id="preview-maze-link" href="/admin/maze/preview?path=%2Fmaze%2Fpreview" target="_blank" rel="noopener noreferrer">Preview Maze</a>
+                in a non-operational view (admin session required).
+              </p>
               <div class="admin-controls">
                 <div class="toggle-row">
                   <label class="control-label" for="maze-enabled-toggle">Maze Enabled</label>
@@ -279,9 +283,9 @@
                   </label>
                 </div>
                 <div class="toggle-row">
-                  <label class="control-label" for="maze-auto-ban-toggle">Auto-Ban</label>
+                  <label class="control-label" for="maze-auto-ban-toggle">Ban on entry</label>
                   <label class="toggle-switch">
-                    <input type="checkbox" id="maze-auto-ban-toggle" checked aria-label="Enable maze auto-ban">
+                    <input type="checkbox" id="maze-auto-ban-toggle" checked aria-label="Enable maze ban on entry">
                     <span class="toggle-slider"></span>
                   </label>
                 </div>

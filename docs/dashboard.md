@@ -43,6 +43,7 @@ Controls:
 - risk scoring countries (`geo_risk`)
 - tiered routing countries (`geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`)
 - maze stats
+- non-operational Maze Preview link in Maze config
 - Enter key submits inputs (API key, ban, unban)
 - Auto-refresh every 30 seconds
 
@@ -74,6 +75,7 @@ Event log retention is controlled by `SHUMA_EVENT_LOG_RETENTION_HOURS` (default:
 - `POST /admin/ban`
 - `POST /admin/unban`
 - `GET  /admin/maze`
+- `GET  /admin/maze/preview`
 - `GET  /admin/robots`
 - `GET  /admin/cdp`
 

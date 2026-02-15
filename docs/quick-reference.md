@@ -62,6 +62,7 @@ make test-dashboard-e2e    # In terminal 2
 - `POST /admin/config` - Update configuration (test_mode, ban_durations, robots serving, AI bot policy, CDP, etc.)
 - `GET /admin/config/export` - Export non-secret runtime config for immutable redeploy handoff
 - `GET /admin/maze` - maze statistics
+- `GET /admin/maze/preview?path=/maze/...` - non-operational maze preview surface
 - `GET /admin/robots` - robots.txt configuration and preview
 - `GET /admin/cdp` - CDP detection configuration and stats
 - `GET /admin` - API help
@@ -85,6 +86,7 @@ environment = { SHUMA_API_KEY = "your-secret-key-here", SHUMA_JS_SECRET = "your-
 `SHUMA_POW_DIFFICULTY` sets the leading-zero bit target (default: 15).
 `SHUMA_POW_TTL_SECONDS` controls PoW seed expiry (default: 90).
 `SHUMA_POW_SECRET` optionally overrides the PoW signing secret (falls back to `SHUMA_JS_SECRET`).
+`SHUMA_MAZE_PREVIEW_SECRET` optionally sets a dedicated secret for `/admin/maze/preview` entropy/signing isolation.
 `SHUMA_POW_CONFIG_MUTABLE` allows admin config updates for PoW difficulty/TTL (default: false).
 
 ### 🐙 Forwarded IP Secret (Deployment)

@@ -86,11 +86,6 @@ pub(crate) fn secret_from_env() -> String {
         .unwrap_or_else(|| "maze-default-secret".to_string())
 }
 
-pub(crate) fn parse_token_for_replay_key(raw_token: &str) -> Option<(String, String)> {
-    let token = verify(raw_token, secret_from_env().as_str(), None).ok()?;
-    Some((token.flow_id, token.operation_id))
-}
-
 pub(crate) fn verify(
     raw_token: &str,
     secret: &str,

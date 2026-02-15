@@ -21,8 +21,6 @@ pub(crate) struct AdvancedMazeRenderOptions {
     pub bootstrap_json: String,
     pub variant_layout: u8,
     pub variant_palette: u8,
-    pub variant_id: String,
-    pub rollout_phase: String,
 }
 
 /// Generate a maze page HTML response.
@@ -253,13 +251,6 @@ pub(crate) fn generate_polymorphic_maze_page(options: &AdvancedMazeRenderOptions
         }}
         header h1 {{ font-size: 1.7rem; letter-spacing: 0.01em; }}
         .crumb {{ margin-top: 8px; opacity: 0.82; font-size: 0.9rem; }}
-        .meta {{
-            margin-top: 8px;
-            font-size: 0.78rem;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            opacity: 0.8;
-        }}
         .content {{ padding: 28px; background: {}; }}
         .description {{
             background: #fff;
@@ -320,13 +311,6 @@ pub(crate) fn generate_polymorphic_maze_page(options: &AdvancedMazeRenderOptions
             overflow: hidden;
             white-space: nowrap;
         }}
-        footer {{
-            background: #f8fafc;
-            border-top: 1px solid #e2e8f0;
-            font-size: 0.8rem;
-            color: #64748b;
-            padding: 12px 28px;
-        }}
     </style>
 </head>
 <body>
@@ -334,7 +318,6 @@ pub(crate) fn generate_polymorphic_maze_page(options: &AdvancedMazeRenderOptions
         <header>
             <h1>{}</h1>
             <div class="crumb">{}</div>
-            <div class="meta">Variant {} • Rollout {}</div>
         </header>
         <div class="content">
 "#,
@@ -347,9 +330,7 @@ pub(crate) fn generate_polymorphic_maze_page(options: &AdvancedMazeRenderOptions
         accent,
         layout_class,
         options.title,
-        options.breadcrumb,
-        options.variant_id,
-        options.rollout_phase
+        options.breadcrumb
     );
 
     for paragraph in &options.paragraphs {
@@ -389,15 +370,18 @@ pub(crate) fn generate_polymorphic_maze_page(options: &AdvancedMazeRenderOptions
         ));
     }
 
-    html.push_str(r#"            </div>
+    html.push_str(
+        r#"            </div>
         </div>
-        <footer>
-            <p>Synthetic navigation surface. Not authoritative content.</p>
-        </footer>
+"#,
+    );
+    html.push_str(
+        r#"
     </div>
     <script>
         (function () {
-"#);
+"#,
+    );
     html.push_str("            const bootstrap = JSON.parse(\"");
     html.push_str(escape_json(options.bootstrap_json.as_str()).as_str());
     html.push_str(
