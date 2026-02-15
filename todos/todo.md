@@ -159,9 +159,39 @@ Implementation rule: when internal feature work touches provider-managed capabil
 - [ ] Evaluate renaming `SHUMA_CHALLENGE_RISK_THRESHOLD` to `SHUMA_BOTNESS_CHALLENGE_THRESHOLD` to reflect botness semantics.
 - [ ] Standardize terminology across code/UI/docs so `honeypot` and `maze` are used consistently instead of interchangeably.
 - [ ] Initialize Ban IP pane duration controls from the current Admin Manual Ban default duration so Ban IP and Ban Durations panes stay consistent.
-- [ ] Review dashboard implementation and evaluate migration to an ultra-light frontend framework (for example Lit) with explicit tradeoffs for bundle size, maintainability, DX, and migration cost.
+- [ ] Decomposed into `DSH-*` dashboard modernization items below (frameworkless-first with explicit Lit decision gate).
 - [ ] Document setup-time config bootstrapping clearly: how `make setup` creates/populates local env, how env-only vars are sourced, and how KV defaults are seeded and later overridden.
 - [ ] Long-term option: integrate upstream identity/proxy auth (OIDC/SAML) for dashboard/admin instead of app-level key login.
+
+### P3 Dashboard Architecture Modernization (Tabbed SPA, Frameworkless-First)
+
+#### Baseline and decision gate
+- [x] DSH-R1 Baseline current dashboard architecture and runtime costs (JS/CSS bytes, startup time, memory, polling cadence, bundle provenance, current e2e coverage) and publish a short decision memo in `docs/plans/`. (`docs/plans/2026-02-15-dashboard-architecture-modernization.md`)
+- [x] DSH-R2 Evaluate two implementation tracks against Shuma constraints: (A) frameworkless modular SPA + JSDoc typing, (B) ultra-light framework (Lit) with equivalent tab shell; include explicit tradeoffs for maintenance, DX, runtime weight, and migration risk. (`docs/plans/2026-02-15-dashboard-architecture-modernization.md`)
+- [x] DSH-R3 Define framework-adoption gate criteria (for example: unresolved lifecycle complexity, repeated DOM/state bugs, unacceptable change lead time after frameworkless refactor); default to no framework unless gate is tripped. (`docs/plans/2026-02-15-dashboard-architecture-modernization.md`)
+
+#### Tabbed SPA shell and structure (frameworkless path)
+- [x] DSH-1 Implement tabbed SPA shell in `dashboard/index.html` + `dashboard/dashboard.js` with canonical tabs: `Monitoring`, `IP Bans`, `Status`, `Config`, `Tuning`.
+- [x] DSH-2 Add URL-backed tab routing (`#monitoring`, `#ip-bans`, `#status`, `#config`, `#tuning`) with refresh-safe deep links and history navigation.
+- [ ] DSH-3 Refactor monolithic dashboard orchestration into tab-scoped controllers/modules with clear lifecycle (`init`, `mount`, `unmount`, `refresh`) and no cross-tab hidden coupling.
+- [ ] DSH-4 Introduce a shared dashboard API client layer (typed request/response adapters, centralized error handling, auth/session helpers) to eliminate ad-hoc per-tab fetch patterns.
+- [ ] DSH-5 Introduce shared state primitives (single source of truth for session/config/status snapshots, explicit invalidation rules, and tab-local derived state) without adding runtime framework dependencies.
+
+#### Safety, reliability, and UX hardening
+- [ ] DSH-6 Replace CDN-loaded Chart.js with a pinned local asset strategy under `dashboard/assets/` (versioned artifact + integrity/provenance note in docs) to reduce supply-chain/runtime variability.
+- [ ] DSH-7 Scope polling/refresh loops by active tab visibility (for example Monitoring-only chart/event polling), with deterministic suspend/resume behavior and bounded timer count.
+- [ ] DSH-8 Add accessibility and keyboard-navigation guarantees for tabs (ARIA roles, focus management, visible selected state, screen-reader labels) and document expected behavior.
+- [ ] DSH-9 Add progressive type safety without runtime cost (`// @ts-check` + JSDoc typedefs across dashboard modules; optional follow-up TypeScript compile step only if needed).
+- [ ] DSH-10 Add robust empty/error/loading states per tab to remove implicit DOM assumptions and reduce silent UI failure modes.
+
+#### Verification, docs, and rollout
+- [ ] DSH-11 Expand dashboard e2e coverage for tabbed SPA flows (route persistence, tab switching, Monitoring charts/events, IP ban actions, Config/Tuning saves, error-state handling, and session continuity).
+- [ ] DSH-12 Add focused unit-style tests for shared dashboard utilities/modules where practical (state reducers/selectors, response adapters, tab router helpers).
+- [ ] DSH-13 Update public docs (`docs/dashboard.md`, `README.md`, `docs/testing.md`) with the new tab model, routing behavior, and contributor workflow for dashboard changes.
+- [ ] DSH-14 Add migration/rollback notes for operators and contributors (how to disable/roll back tab shell safely if regressions appear).
+
+#### Conditional Lit follow-up (only if DSH-R3 gate trips)
+- [ ] DSH-G1 If frameworkless acceptance criteria are not met, run a constrained Lit pilot on one tab (recommended: `Monitoring`) and compare measured bundle/runtime/maintainability deltas before any full migration decision.
 ## Recurring Quality Gates
 - [ ] Keep unit, integration, e2e, and CI flows passing; clean up defunct tests quickly.
 - [ ] Identify and prioritize missing tests for new defence stages before implementation.

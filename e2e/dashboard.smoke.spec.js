@@ -20,6 +20,11 @@ async function openDashboard(page) {
   }, { timeout: 15000 });
 }
 
+async function openTab(page, tab) {
+  await page.click(`#dashboard-tab-${tab}`);
+  await expect(page).toHaveURL(new RegExp(`#${tab}$`));
+}
+
 test.beforeAll(async () => {
   await seedDashboardData();
 });
@@ -43,6 +48,7 @@ test("dashboard loads and shows seeded operational data", async ({ page }) => {
 
 test("ban form enforces IP validity and submit state", async ({ page }) => {
   await openDashboard(page);
+  await openTab(page, "ip-bans");
 
   const banButton = page.locator("#ban-btn");
   await expect(banButton).toBeDisabled();
@@ -58,6 +64,7 @@ test("ban form enforces IP validity and submit state", async ({ page }) => {
 
 test("maze and duration save buttons use shared dirty-state behavior", async ({ page }) => {
   await openDashboard(page);
+  await openTab(page, "config");
 
   const mazeSave = page.locator("#save-maze-config");
   const durationsSave = page.locator("#save-durations-btn");
@@ -124,8 +131,9 @@ test("maze and duration save buttons use shared dirty-state behavior", async ({ 
 test("session survives reload and time-range controls refresh chart data", async ({ page }) => {
   await openDashboard(page);
 
+  await openTab(page, "monitoring");
   await page.reload();
-  await expect(page).toHaveURL(/\/dashboard\/index\.html/);
+  await expect(page).toHaveURL(/\/dashboard\/index\.html#monitoring/);
   await expect(page.locator("#logout-btn")).toBeEnabled();
 
   await Promise.all([
@@ -143,6 +151,7 @@ test("session survives reload and time-range controls refresh chart data", async
 
 test("dashboard tables keep sticky headers", async ({ page }) => {
   await openDashboard(page);
+  await openTab(page, "monitoring");
 
   const eventsHeaderPosition = await page
     .locator("#events thead th")
@@ -152,6 +161,8 @@ test("dashboard tables keep sticky headers", async ({ page }) => {
     .locator("#cdp-events thead th")
     .first()
     .evaluate((el) => getComputedStyle(el).position);
+
+  await openTab(page, "ip-bans");
   const bansHeaderPosition = await page
     .locator("#bans-table thead th")
     .first()
@@ -160,6 +171,17 @@ test("dashboard tables keep sticky headers", async ({ page }) => {
   expect(eventsHeaderPosition).toBe("sticky");
   expect(cdpHeaderPosition).toBe("sticky");
   expect(bansHeaderPosition).toBe("sticky");
+});
+
+test("tab hash route persists selected panel across reload", async ({ page }) => {
+  await openDashboard(page);
+  await openTab(page, "config");
+  await expect(page.locator("#dashboard-panel-config")).toBeVisible();
+  await expect(page.locator("#dashboard-panel-monitoring")).toBeHidden();
+
+  await page.reload();
+  await expect(page).toHaveURL(/\/dashboard\/index\.html#config/);
+  await expect(page.locator("#dashboard-panel-config")).toBeVisible();
 });
 
 test("logout redirects back to login page", async ({ page }) => {

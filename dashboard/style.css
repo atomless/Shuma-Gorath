@@ -324,6 +324,48 @@ h1 {
   margin-top: -20px;
 }
 
+.dashboard-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.dashboard-tab-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border: 1px solid var(--color-300);
+  border-radius: 999px;
+  background: var(--color-100);
+  color: var(--color-700);
+  font-size: var(--text-base);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.dashboard-tab-link:hover {
+  background: var(--color-200);
+  color: var(--color-800);
+}
+
+.dashboard-tab-link[aria-selected="true"] {
+  background: var(--color-accent);
+  color: var(--btn-contrast-fg);
+  border-color: var(--color-accent);
+}
+
+.dashboard-tab-link:focus-visible {
+  outline: 2px solid var(--inline-link-focus-ring);
+  outline-offset: 2px;
+}
+
+.dashboard-tab-panel[hidden] {
+  display: none !important;
+}
+
 #last-updated {
   position: absolute;
   top: 2px;

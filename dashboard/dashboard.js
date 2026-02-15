@@ -91,6 +91,120 @@ const IPV4_SEGMENT_PATTERN = /^\d{1,3}$/;
 const IPV6_INPUT_PATTERN = /^[0-9a-fA-F:.]+$/;
 let adminEndpointContext = null;
 let adminSessionController = null;
+const DASHBOARD_TABS = Object.freeze(['monitoring', 'ip-bans', 'status', 'config', 'tuning']);
+const DEFAULT_DASHBOARD_TAB = 'monitoring';
+let activeDashboardTab = DEFAULT_DASHBOARD_TAB;
+
+function normalizeDashboardTab(raw) {
+  const normalized = String(raw || '').trim().toLowerCase();
+  return DASHBOARD_TABS.includes(normalized) ? normalized : DEFAULT_DASHBOARD_TAB;
+}
+
+function applyDashboardTab(tabName) {
+  const tab = normalizeDashboardTab(tabName);
+  activeDashboardTab = tab;
+
+  const links = Array.from(document.querySelectorAll('[data-dashboard-tab-link]'));
+  links.forEach(link => {
+    const linkTab = normalizeDashboardTab(link.dataset.dashboardTabLink);
+    const selected = linkTab === tab;
+    link.setAttribute('aria-selected', selected ? 'true' : 'false');
+    link.tabIndex = selected ? 0 : -1;
+    link.classList.toggle('active', selected);
+  });
+
+  const monitoringPanel = document.getElementById('dashboard-panel-monitoring');
+  const adminSection = document.getElementById('dashboard-admin-section');
+  const adminPanels = Array.from(
+    document.querySelectorAll('#dashboard-admin-section [data-dashboard-tab-panel]')
+  );
+
+  const showingMonitoring = tab === 'monitoring';
+  if (monitoringPanel) {
+    monitoringPanel.hidden = !showingMonitoring;
+  }
+
+  if (adminSection) {
+    adminSection.hidden = showingMonitoring;
+  }
+
+  if (!showingMonitoring) {
+    let matched = false;
+    adminPanels.forEach(panel => {
+      const panelTab = normalizeDashboardTab(panel.dataset.dashboardTabPanel);
+      const show = panelTab === tab;
+      panel.hidden = !show;
+      if (show) matched = true;
+    });
+
+    // Defensive fallback: if an unknown hash resolves to admin mode, default to config pane.
+    if (!matched) {
+      adminPanels.forEach(panel => {
+        const panelTab = normalizeDashboardTab(panel.dataset.dashboardTabPanel);
+        panel.hidden = panelTab !== 'config';
+      });
+    }
+  }
+}
+
+function syncDashboardTabFromHash() {
+  const requested = normalizeDashboardTab((window.location.hash || '').replace(/^#/, ''));
+  if (window.location.hash !== `#${requested}`) {
+    history.replaceState(null, '', `${window.location.pathname}${window.location.search}#${requested}`);
+  }
+  applyDashboardTab(requested);
+}
+
+function focusDashboardTabByOffset(offset) {
+  const links = Array.from(document.querySelectorAll('[data-dashboard-tab-link]'));
+  if (links.length === 0) return;
+  const currentIndex = links.findIndex(link => link.getAttribute('aria-selected') === 'true');
+  const startIndex = currentIndex >= 0 ? currentIndex : 0;
+  const nextIndex = (startIndex + offset + links.length) % links.length;
+  links[nextIndex].focus();
+  const targetTab = normalizeDashboardTab(links[nextIndex].dataset.dashboardTabLink);
+  if (window.location.hash !== `#${targetTab}`) {
+    window.location.hash = targetTab;
+  } else {
+    applyDashboardTab(targetTab);
+  }
+}
+
+function initDashboardTabRouter() {
+  document.querySelectorAll('[data-dashboard-tab-link]').forEach(link => {
+    link.addEventListener('click', event => {
+      event.preventDefault();
+      const target = normalizeDashboardTab(link.dataset.dashboardTabLink);
+      if (window.location.hash !== `#${target}`) {
+        window.location.hash = target;
+      } else {
+        applyDashboardTab(target);
+      }
+    });
+
+    link.addEventListener('keydown', event => {
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        focusDashboardTabByOffset(1);
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        focusDashboardTabByOffset(-1);
+      } else if (event.key === 'Home') {
+        event.preventDefault();
+        const first = document.querySelector('[data-dashboard-tab-link]');
+        if (first) first.click();
+      } else if (event.key === 'End') {
+        event.preventDefault();
+        const links = Array.from(document.querySelectorAll('[data-dashboard-tab-link]'));
+        const last = links[links.length - 1];
+        if (last) last.click();
+      }
+    });
+  });
+
+  window.addEventListener('hashchange', syncDashboardTabFromHash);
+  syncDashboardTabFromHash();
+}
 
 function sanitizeIntegerText(value) {
   return (value || '').replace(/[^\d]/g, '');
@@ -1868,6 +1982,7 @@ adminSessionController = adminSessionModule.create({
 });
 adminSessionController.bindLogoutButton('logout-btn', 'admin-msg');
 
+initDashboardTabRouter();
 initInputValidation();
 dashboardCharts.init({ getAdminContext });
 statusPanel.render();

@@ -23,6 +23,15 @@
       <div id="test-mode-banner" class="test-mode-banner hidden">TEST MODE ACTIVE - Logging only, no blocking</div>
     </header>
 
+    <nav class="dashboard-tabs panel panel-border pad-sm" aria-label="Dashboard sections" role="tablist">
+      <a id="dashboard-tab-monitoring" class="dashboard-tab-link" data-dashboard-tab-link="monitoring" href="#monitoring" role="tab" aria-selected="false" aria-controls="dashboard-panel-monitoring">Monitoring</a>
+      <a id="dashboard-tab-ip-bans" class="dashboard-tab-link" data-dashboard-tab-link="ip-bans" href="#ip-bans" role="tab" aria-selected="false" aria-controls="dashboard-panel-ip-bans">IP Bans</a>
+      <a id="dashboard-tab-status" class="dashboard-tab-link" data-dashboard-tab-link="status" href="#status" role="tab" aria-selected="false" aria-controls="dashboard-panel-status">Status</a>
+      <a id="dashboard-tab-config" class="dashboard-tab-link" data-dashboard-tab-link="config" href="#config" role="tab" aria-selected="false" aria-controls="dashboard-panel-config">Config</a>
+      <a id="dashboard-tab-tuning" class="dashboard-tab-link" data-dashboard-tab-link="tuning" href="#tuning" role="tab" aria-selected="false" aria-controls="dashboard-panel-tuning">Tuning</a>
+    </nav>
+
+    <section id="dashboard-panel-monitoring" class="dashboard-tab-panel" data-dashboard-tab-panel="monitoring" role="tabpanel" aria-labelledby="dashboard-tab-monitoring">
     <!-- Stats Summary Cards -->
     <div class="stats-cards">
       <div class="card panel panel-border pad-lg">
@@ -146,12 +155,13 @@
         </div>
       </div>
     </div>
+    </section>
 
     <!-- Admin Controls -->
-    <div class="section admin-section">
+    <div id="dashboard-admin-section" class="section admin-section">
     <h2>Admin Controls</h2>
       <div class="admin-groups">
-        <section class="admin-group admin-group--status">
+        <section id="dashboard-panel-ip-bans" class="admin-group admin-group--status" data-dashboard-tab-panel="ip-bans" role="tabpanel" aria-labelledby="dashboard-tab-ip-bans">
           <h3 class="admin-group-title">IP Bans</h3>
           <div class="table-wrapper">
             <table id="bans-table" class="panel panel-border bans-table-admin">
@@ -198,7 +208,7 @@
           </div>
         </section>
 
-        <section class="admin-group admin-group--status">
+        <section id="dashboard-panel-status" class="admin-group admin-group--status" data-dashboard-tab-panel="status" role="tabpanel" aria-labelledby="dashboard-tab-status">
           <h3 class="admin-group-title">Status</h3>
           <div class="controls-grid controls-grid--status">
             <div class="control-group panel-soft pad-md">
@@ -207,7 +217,7 @@
           </div>
         </section>
 
-        <section class="admin-group">
+        <section id="dashboard-panel-config" class="admin-group" data-dashboard-tab-panel="config" role="tabpanel" aria-labelledby="dashboard-tab-config">
           <h3 class="admin-group-title">Config</h3>
           <p id="config-mode-subtitle" class="admin-group-subtitle text-muted">
             Admin page configuration state is <strong>LOADING</strong>.
@@ -505,7 +515,7 @@
           </div>
         </section>
 
-        <section class="admin-group config-edit-pane hidden" id="admin-tuning-group">
+        <section id="dashboard-panel-tuning" class="admin-group config-edit-pane hidden" data-dashboard-tab-panel="tuning" role="tabpanel" aria-labelledby="dashboard-tab-tuning">
           <h3 class="admin-group-title">Tuning Bot Detection</h3>
           <div class="controls-grid controls-grid--tuning">
             <div class="control-group panel-soft pad-md">

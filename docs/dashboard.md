@@ -4,6 +4,21 @@
 
 The dashboard provides real-time monitoring, analytics, and admin controls for Shuma-Gorath.
 
+## 🐙 Tabbed SPA Layout
+
+The dashboard is now organized as a tabbed SPA with URL-backed hash routes:
+
+- `#monitoring`
+- `#ip-bans`
+- `#status`
+- `#config`
+- `#tuning`
+
+Behavior:
+- Selected tab is reflected in the URL hash.
+- Reload preserves the selected tab.
+- Keyboard navigation is supported on tabs (`Left`, `Right`, `Home`, `End`).
+
 ## 🐙 Features
 
 Stats:
@@ -45,7 +60,7 @@ Controls:
 - maze stats
 - non-operational Maze Preview link in Maze config
 - Enter key submits inputs (API key, ban, unban)
-- Auto-refresh every 30 seconds
+- Auto-refresh every 30 seconds (Monitoring tab data still refreshes in the background for consistency)
 
 ## 🐙 Access
 
@@ -94,8 +109,9 @@ dashboard/
 ## 🐙 Data Flow (High Level)
 
 1. Page loads and initializes charts
-2. Config and analytics are fetched
-3. Auto-refresh updates stats, charts, and tables
+2. Tab router resolves current hash and mounts the corresponding panel
+3. Config and analytics are fetched
+4. Auto-refresh updates stats, charts, and tables
 
 Note: `SHUMA_KV_STORE_FAIL_OPEN` is an environment-level policy and is shown read-only in the dashboard.
 Note: PoW enable/disable is environment-level; difficulty/TTL are editable only if `SHUMA_POW_CONFIG_MUTABLE=true`.
