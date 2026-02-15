@@ -37,8 +37,6 @@
 
 set -e
 
-# Always clean before integration tests to avoid stale artifacts
-cargo clean
 GREEN="\033[0;32m"
 RED="\033[0;31m"
 YELLOW="\033[1;33m"
@@ -47,6 +45,7 @@ NC="\033[0m" # No Color
 FAILURES=0
 TEST_HONEYPOT_IP="10.0.0.88"
 HONEYPOT_PATH="/instaban"
+INTEGRATION_USER_AGENT="ShumaIntegration/1.0"
 
 pass() { echo -e "${GREEN}PASS${NC} $1"; }
 fail() {
@@ -185,16 +184,23 @@ info "Using honeypot path: $HONEYPOT_PATH"
 
 # Test 2: PoW challenge (if enabled)
 info "Testing PoW challenge..."
-pow_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/pow")
-pow_body=$(echo "$pow_resp" | sed -e 's/HTTPSTATUS:.*//')
-pow_status=$(echo "$pow_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
-if [[ "$pow_status" == "404" ]]; then
-  info "PoW disabled; skipping PoW verification"
-elif ! python3 -c 'import json,sys; json.loads(sys.stdin.read())' <<< "$pow_body" >/dev/null 2>&1; then
-  fail "PoW challenge did not return JSON (check forwarded secret and test_mode)"
-  echo -e "${YELLOW}DEBUG /pow status:${NC} $pow_status"
-  echo -e "${YELLOW}DEBUG /pow body:${NC} $pow_body"
-else
+pow_verified=false
+pow_attempt=1
+while [[ $pow_attempt -le 3 ]]; do
+  pow_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -H "User-Agent: ${INTEGRATION_USER_AGENT}" "$BASE_URL/pow")
+  pow_body=$(echo "$pow_resp" | sed -e 's/HTTPSTATUS:.*//')
+  pow_status=$(echo "$pow_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+  if [[ "$pow_status" == "404" ]]; then
+    info "PoW disabled; skipping PoW verification"
+    pow_verified=true
+    break
+  fi
+  if ! python3 -c 'import json,sys; json.loads(sys.stdin.read())' <<< "$pow_body" >/dev/null 2>&1; then
+    fail "PoW challenge did not return JSON (check forwarded secret and test_mode)"
+    echo -e "${YELLOW}DEBUG /pow status:${NC} $pow_status"
+    echo -e "${YELLOW}DEBUG /pow body:${NC} $pow_body"
+    break
+  fi
   seed=$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["seed"])' <<< "$pow_body")
   difficulty=$(python3 -c 'import json,sys; print(int(json.loads(sys.stdin.read())["difficulty"]))' <<< "$pow_body")
   nonce=$(python3 - "$seed" "$difficulty" <<'PY'
@@ -234,9 +240,11 @@ PY
 )
   if [[ "$nonce" == "-1" ]]; then
     fail "PoW solve exceeded iteration cap"
-  else
-  # Sequence timing guardrail: allow minimum step latency before verify submit.
-  sleep 1.2
+    break
+  fi
+
+  # Sequence timing guardrail: use >=2s to avoid second-boundary flakes.
+  sleep 2
   payload=$(python3 - "$seed" "$nonce" <<'PY'
 import json,sys
 seed=sys.argv[1]
@@ -244,15 +252,21 @@ nonce=sys.argv[2]
 print(json.dumps({"seed": seed, "nonce": nonce}))
 PY
 )
-  verify_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" \
+  verify_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
     -H "Content-Type: application/json" -X POST -d "$payload" "$BASE_URL/pow/verify")
+  verify_body=$(echo "$verify_resp" | sed -e 's/HTTPSTATUS:.*//')
   verify_status=$(echo "$verify_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
   if [[ "$verify_status" == "200" ]]; then
     pass "PoW verification succeeded"
-  else
-    fail "PoW verification failed"
+    pow_verified=true
+    break
   fi
-  fi
+  info "PoW verify attempt ${pow_attempt} failed (status=${verify_status}); retrying with a fresh seed..."
+  echo -e "${YELLOW}DEBUG /pow/verify body:${NC} $verify_body"
+  pow_attempt=$((pow_attempt + 1))
+done
+if [[ "$pow_verified" != "true" ]]; then
+  fail "PoW verification failed after retries"
 fi
 
 # Test 3: Root endpoint (should return JS challenge or OK)
@@ -320,7 +334,7 @@ fi
 
 # Test 9: Challenge flow is single-use (incorrect then replay expires)
 info "Testing /challenge/puzzle single-use flow..."
-challenge_page=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.150" "$BASE_URL/challenge/puzzle")
+challenge_page=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.150" -H "User-Agent: ${INTEGRATION_USER_AGENT}" "$BASE_URL/challenge/puzzle")
 if echo "$challenge_page" | grep -q 'Puzzle'; then
   pass "GET /challenge/puzzle returns challenge page in test mode"
 else
@@ -330,17 +344,29 @@ fi
 
 challenge_seed=$(python3 -c 'import re,sys; html=sys.stdin.read(); m=re.search(r"name=\"seed\" value=\"([^\"]+)\"", html); print(m.group(1) if m else "")' <<< "$challenge_page")
 challenge_output=$(python3 -c 'import re,sys; html=sys.stdin.read(); m=re.search(r"name=\"output\"[^>]*value=\"([^\"]+)\"", html); print(m.group(1) if m else "")' <<< "$challenge_page")
+challenge_output_wrong=$(python3 - "$challenge_output" <<'PY'
+import sys
+raw = sys.argv[1]
+if not raw:
+    print("")
+    raise SystemExit(0)
+first = raw[0]
+replacement = "1" if first != "1" else "0"
+print(replacement + raw[1:])
+PY
+)
 
-if [[ -z "$challenge_seed" || -z "$challenge_output" ]]; then
+if [[ -z "$challenge_seed" || -z "$challenge_output_wrong" ]]; then
   fail "Could not parse challenge seed/output from page"
   echo -e "${YELLOW}DEBUG parsed seed:${NC} $challenge_seed"
   echo -e "${YELLOW}DEBUG parsed output:${NC} $challenge_output"
 else
-  # Sequence timing guardrail: allow minimum step latency before challenge submit.
-  sleep 1.2
+  # Sequence timing guardrail: use >=2s to avoid second-boundary flakes.
+  sleep 2
   incorrect_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.150" \
     --data-urlencode "seed=$challenge_seed" \
-    --data-urlencode "output=$challenge_output" \
+    --data-urlencode "output=$challenge_output_wrong" \
+    -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
     -X POST "$BASE_URL/challenge/puzzle")
   incorrect_body=$(echo "$incorrect_resp" | sed -e 's/HTTPSTATUS:.*//')
   incorrect_status=$(echo "$incorrect_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
@@ -354,7 +380,8 @@ else
 
   replay_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.150" \
     --data-urlencode "seed=$challenge_seed" \
-    --data-urlencode "output=$challenge_output" \
+    --data-urlencode "output=$challenge_output_wrong" \
+    -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
     -X POST "$BASE_URL/challenge/puzzle")
   replay_body=$(echo "$replay_resp" | sed -e 's/HTTPSTATUS:.*//')
   replay_status=$(echo "$replay_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')

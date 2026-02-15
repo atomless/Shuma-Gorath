@@ -122,7 +122,8 @@ Notes:
 ## 🐙 Build Mode Notes
 
 The Makefile switches crate types between `rlib` (native tests) and `cdylib` (Spin WASM) via `scripts/set_crate_type.sh`.
-Integration tests run `cargo clean` to avoid stale artifacts.
+Integration tests do not run `cargo clean`; this avoids interrupting an already-running `make dev` watcher session.
+Integration PoW/challenge sequence checks use a fixed test user-agent plus timing guardrails/retries for deterministic behavior.
 Use the Makefile targets rather than calling scripts directly.
 
 ## 🐙 Generated Directories
