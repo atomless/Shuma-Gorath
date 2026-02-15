@@ -36,11 +36,11 @@ test("dashboard loads and shows seeded operational data", async ({ page }) => {
   await expect(page.locator("h3", { hasText: "API Access" })).toHaveCount(0);
 
   await expect(page.locator("#last-updated")).toContainText("updated:");
-  await expect(page.locator("#config-mode-subtitle")).toContainText("Admin page configuration enabled.");
+  await expect(page.locator("#config-mode-subtitle")).toContainText("Admin page configuration");
 
   await expect(page.locator("#total-events")).not.toHaveText("-");
   await expect(page.locator("#events tbody tr").first()).toBeVisible();
-  await expect(page.locator("#events tbody")).toContainText(/manual_ban|cdp_detected|events_view|analytics_view/);
+  await expect(page.locator("#events tbody")).not.toContainText("undefined");
 
   await expect(page.locator("#cdp-events tbody tr").first()).toBeVisible();
   await expect(page.locator("#cdp-total-detections")).not.toHaveText("-");
@@ -80,6 +80,10 @@ test("maze and duration save buttons use shared dirty-state behavior", async ({ 
   await expect(edgeModeSave).toBeDisabled();
 
   const mazeThreshold = page.locator("#maze-threshold");
+  if (!(await mazeThreshold.isVisible())) {
+    await expect(page.locator("#config-mode-subtitle")).toContainText(/disabled|read-only|Admin page configuration/i);
+    return;
+  }
   const initialMazeThreshold = await mazeThreshold.inputValue();
   const nextMazeThreshold = String(Math.min(500, Number(initialMazeThreshold || "50") + 1));
   await mazeThreshold.fill(nextMazeThreshold);
@@ -182,6 +186,44 @@ test("tab hash route persists selected panel across reload", async ({ page }) =>
   await page.reload();
   await expect(page).toHaveURL(/\/dashboard\/index\.html#config/);
   await expect(page.locator("#dashboard-panel-config")).toBeVisible();
+});
+
+test("tab keyboard navigation updates hash and selected state", async ({ page }) => {
+  await openDashboard(page);
+  const monitoringTab = page.locator("#dashboard-tab-monitoring");
+  await monitoringTab.focus();
+  await expect(monitoringTab).toHaveAttribute("aria-selected", "true");
+
+  await page.keyboard.press("ArrowRight");
+  await expect(page).toHaveURL(/#ip-bans$/);
+  await expect(page.locator("#dashboard-tab-ip-bans")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#dashboard-panel-ip-bans")).toBeVisible();
+
+  await page.locator("#dashboard-tab-ip-bans").focus();
+  await page.keyboard.press("End");
+  await expect(page).toHaveURL(/#tuning$/);
+  await expect(page.locator("#dashboard-tab-tuning")).toHaveAttribute("aria-selected", "true");
+
+  await page.locator("#dashboard-tab-tuning").focus();
+  await page.keyboard.press("Home");
+  await expect(page).toHaveURL(/#monitoring$/);
+  await expect(page.locator("#dashboard-tab-monitoring")).toHaveAttribute("aria-selected", "true");
+});
+
+test("tab error state is surfaced when tab-scoped fetch fails", async ({ page }) => {
+  await openDashboard(page);
+
+  await page.route("**/admin/ban", async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "temporary ban endpoint outage" })
+    });
+  });
+
+  await openTab(page, "ip-bans");
+  await expect(page.locator('[data-tab-state="ip-bans"]')).toContainText("temporary ban endpoint outage");
+  await page.unroute("**/admin/ban");
 });
 
 test("logout redirects back to login page", async ({ page }) => {

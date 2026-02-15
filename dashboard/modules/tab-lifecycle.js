@@ -1,3 +1,5 @@
+// @ts-check
+
 (function (global) {
   const DASHBOARD_TABS = Object.freeze(['monitoring', 'ip-bans', 'status', 'config', 'tuning']);
   const DEFAULT_DASHBOARD_TAB = 'monitoring';
@@ -47,12 +49,17 @@
 
       const monitoringPanel = document.getElementById(monitoringPanelId);
       if (monitoringPanel) {
-        monitoringPanel.hidden = tab !== 'monitoring';
+        const isMonitoringVisible = tab === 'monitoring';
+        monitoringPanel.hidden = !isMonitoringVisible;
+        monitoringPanel.setAttribute('aria-hidden', isMonitoringVisible ? 'false' : 'true');
+        monitoringPanel.tabIndex = isMonitoringVisible ? 0 : -1;
       }
 
       const adminSection = document.getElementById(adminSectionId);
       if (adminSection) {
-        adminSection.hidden = tab === 'monitoring';
+        const isAdminVisible = tab !== 'monitoring';
+        adminSection.hidden = !isAdminVisible;
+        adminSection.setAttribute('aria-hidden', isAdminVisible ? 'false' : 'true');
       }
 
       const adminPanels = Array.from(document.querySelectorAll(adminPanelSelector));
@@ -68,13 +75,18 @@
         const panelTab = normalizeTab(panel.dataset.dashboardTabPanel);
         const show = panelTab === tab;
         panel.hidden = !show;
+        panel.setAttribute('aria-hidden', show ? 'false' : 'true');
+        panel.tabIndex = show ? 0 : -1;
         if (show) matched = true;
       });
 
       if (!matched) {
         adminPanels.forEach(panel => {
           const panelTab = normalizeTab(panel.dataset.dashboardTabPanel);
-          panel.hidden = panelTab !== 'config';
+          const show = panelTab === 'config';
+          panel.hidden = !show;
+          panel.setAttribute('aria-hidden', show ? 'false' : 'true');
+          panel.tabIndex = show ? 0 : -1;
         });
       }
     }
@@ -110,12 +122,26 @@
       setActiveTab(requested, 'hash');
     }
 
+    function focusActivePanel(tabName) {
+      const tab = normalizeTab(tabName);
+      const selector = tab === 'monitoring'
+        ? `#${monitoringPanelId}`
+        : `${adminPanelSelector}[data-dashboard-tab-panel="${tab}"]`;
+      const panel = document.querySelector(selector);
+      if (panel && typeof panel.focus === 'function') {
+        panel.focus();
+      }
+    }
+
     function activate(tabName, reason = 'programmatic') {
       const tab = normalizeTab(tabName);
       if (window.location.hash !== `#${tab}`) {
         window.location.hash = tab;
       } else {
         setActiveTab(tab, reason);
+      }
+      if (reason === 'keyboard') {
+        global.requestAnimationFrame(() => focusActivePanel(tab));
       }
     }
 

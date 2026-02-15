@@ -6,8 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Shuma-Gorath Dashboard</title>
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-colorschemes@0.5.0/dist/chartjs-plugin-colorschemes.min.js"></script>
+  <script src="assets/vendor/chart-lite-1.0.0.min.js"></script>
 </head>
 
 <body>
@@ -23,7 +22,7 @@
       <div id="test-mode-banner" class="test-mode-banner hidden">TEST MODE ACTIVE - Logging only, no blocking</div>
     </header>
 
-    <nav class="dashboard-tabs panel panel-border pad-sm" aria-label="Dashboard sections" role="tablist">
+    <nav class="dashboard-tabs panel panel-border pad-sm" aria-label="Dashboard sections" role="tablist" aria-orientation="horizontal">
       <a id="dashboard-tab-monitoring" class="dashboard-tab-link" data-dashboard-tab-link="monitoring" href="#monitoring" role="tab" aria-selected="false" aria-controls="dashboard-panel-monitoring">Monitoring</a>
       <a id="dashboard-tab-ip-bans" class="dashboard-tab-link" data-dashboard-tab-link="ip-bans" href="#ip-bans" role="tab" aria-selected="false" aria-controls="dashboard-panel-ip-bans">IP Bans</a>
       <a id="dashboard-tab-status" class="dashboard-tab-link" data-dashboard-tab-link="status" href="#status" role="tab" aria-selected="false" aria-controls="dashboard-panel-status">Status</a>
@@ -32,6 +31,7 @@
     </nav>
 
     <section id="dashboard-panel-monitoring" class="dashboard-tab-panel" data-dashboard-tab-panel="monitoring" role="tabpanel" aria-labelledby="dashboard-tab-monitoring">
+    <div class="tab-state" data-tab-state="monitoring" role="status" aria-live="polite" hidden></div>
     <!-- Stats Summary Cards -->
     <div class="stats-cards">
       <div class="card panel panel-border pad-lg">
@@ -163,6 +163,7 @@
       <div class="admin-groups">
         <section id="dashboard-panel-ip-bans" class="admin-group admin-group--status" data-dashboard-tab-panel="ip-bans" role="tabpanel" aria-labelledby="dashboard-tab-ip-bans">
           <h3 class="admin-group-title">IP Bans</h3>
+          <div class="tab-state" data-tab-state="ip-bans" role="status" aria-live="polite" hidden></div>
           <div class="table-wrapper">
             <table id="bans-table" class="panel panel-border bans-table-admin">
               <thead>
@@ -210,6 +211,7 @@
 
         <section id="dashboard-panel-status" class="admin-group admin-group--status" data-dashboard-tab-panel="status" role="tabpanel" aria-labelledby="dashboard-tab-status">
           <h3 class="admin-group-title">Status</h3>
+          <div class="tab-state" data-tab-state="status" role="status" aria-live="polite" hidden></div>
           <div class="controls-grid controls-grid--status">
             <div class="control-group panel-soft pad-md">
               <div id="status-items"></div>
@@ -219,6 +221,7 @@
 
         <section id="dashboard-panel-config" class="admin-group" data-dashboard-tab-panel="config" role="tabpanel" aria-labelledby="dashboard-tab-config">
           <h3 class="admin-group-title">Config</h3>
+          <div class="tab-state" data-tab-state="config" role="status" aria-live="polite" hidden></div>
           <p id="config-mode-subtitle" class="admin-group-subtitle text-muted">
             Admin page configuration state is <strong>LOADING</strong>.
           </p>
@@ -517,6 +520,7 @@
 
         <section id="dashboard-panel-tuning" class="admin-group config-edit-pane hidden" data-dashboard-tab-panel="tuning" role="tabpanel" aria-labelledby="dashboard-tab-tuning">
           <h3 class="admin-group-title">Tuning Bot Detection</h3>
+          <div class="tab-state" data-tab-state="tuning" role="status" aria-live="polite" hidden></div>
           <div class="controls-grid controls-grid--tuning">
             <div class="control-group panel-soft pad-md">
               <h3>Botness Scoring</h3>
@@ -584,8 +588,9 @@
   <script src="modules/config-controls.js"></script>
   <script src="modules/admin-session.js"></script>
   <script src="modules/tab-lifecycle.js"></script>
+  <script src="modules/dashboard-state.js"></script>
+  <script src="modules/api-client.js"></script>
   <script src="dashboard.js"></script>
-  <script src="admin.js"></script>
 </body>
 
 </html>

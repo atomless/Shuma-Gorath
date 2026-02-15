@@ -1,3 +1,5 @@
+// @ts-check
+
 const dashboardCharts = window.ShumaDashboardCharts;
 if (!dashboardCharts) {
   throw new Error('Missing dashboard charts module (window.ShumaDashboardCharts)');
@@ -17,6 +19,14 @@ if (!adminSessionModule) {
 const tabLifecycleModule = window.ShumaDashboardTabLifecycle;
 if (!tabLifecycleModule) {
   throw new Error('Missing dashboard tab lifecycle module (window.ShumaDashboardTabLifecycle)');
+}
+const dashboardApiClientModule = window.ShumaDashboardApiClient;
+if (!dashboardApiClientModule) {
+  throw new Error('Missing dashboard API client module (window.ShumaDashboardApiClient)');
+}
+const dashboardStateModule = window.ShumaDashboardState;
+if (!dashboardStateModule) {
+  throw new Error('Missing dashboard state module (window.ShumaDashboardState)');
 }
 
 const INTEGER_FIELD_RULES = {
@@ -96,6 +106,18 @@ const IPV6_INPUT_PATTERN = /^[0-9a-fA-F:.]+$/;
 let adminEndpointContext = null;
 let adminSessionController = null;
 let dashboardTabCoordinator = null;
+let dashboardApiClient = null;
+let dashboardState = null;
+let autoRefreshTimer = null;
+let pageVisible = document.visibilityState !== 'hidden';
+
+const TAB_REFRESH_INTERVAL_MS = Object.freeze({
+  monitoring: 30000,
+  'ip-bans': 45000,
+  status: 60000,
+  config: 60000,
+  tuning: 60000
+});
 
 function sanitizeIntegerText(value) {
   return (value || '').replace(/[^\d]/g, '');
@@ -477,6 +499,60 @@ function redirectToLogin() {
   window.location.replace(`/dashboard/login.html?next=${next}`);
 }
 
+function tabStateElement(tab) {
+  return document.querySelector(`[data-tab-state="${tab}"]`);
+}
+
+function setTabStateMessage(tab, kind, message) {
+  const stateEl = tabStateElement(tab);
+  if (!stateEl) return;
+  const normalizedKind = kind === 'error' || kind === 'loading' || kind === 'empty' ? kind : '';
+  if (!normalizedKind) {
+    stateEl.hidden = true;
+    stateEl.textContent = '';
+    stateEl.className = 'tab-state';
+    return;
+  }
+  stateEl.hidden = false;
+  stateEl.textContent = String(message || '');
+  stateEl.className = `tab-state tab-state--${normalizedKind}`;
+}
+
+function showTabLoading(tab, message = 'Loading...') {
+  if (dashboardState) {
+    dashboardState.setTabLoading(tab, true);
+    dashboardState.clearTabError(tab);
+  }
+  setTabStateMessage(tab, 'loading', message);
+}
+
+function showTabError(tab, message) {
+  if (dashboardState) {
+    dashboardState.setTabError(tab, message);
+    dashboardState.setTabEmpty(tab, false);
+  }
+  setTabStateMessage(tab, 'error', message);
+}
+
+function showTabEmpty(tab, message) {
+  if (dashboardState) {
+    dashboardState.setTabEmpty(tab, true);
+    dashboardState.clearTabError(tab);
+    dashboardState.markTabUpdated(tab);
+  }
+  setTabStateMessage(tab, 'empty', message);
+}
+
+function clearTabStateMessage(tab) {
+  if (dashboardState) {
+    dashboardState.setTabLoading(tab, false);
+    dashboardState.setTabEmpty(tab, false);
+    dashboardState.clearTabError(tab);
+    dashboardState.markTabUpdated(tab);
+  }
+  setTabStateMessage(tab, '', '');
+}
+
 function validateGeoFieldById(id, showInline = false) {
   const field = document.getElementById(id);
   if (!field) return false;
@@ -544,11 +620,17 @@ function createDashboardTabControllers() {
       init: function initTabController() {},
       mount: function mountTabController() {
         document.body.dataset.activeDashboardTab = tab;
+        if (dashboardState) {
+          dashboardState.setActiveTab(tab);
+        }
         refreshCoreActionButtonsState();
+        if (hasValidApiContext()) {
+          refreshDashboardForTab(tab, 'tab-mount');
+        }
       },
       unmount: function unmountTabController() {},
-      refresh: function refreshTabController() {
-        return refreshDashboard();
+      refresh: function refreshTabController(context = {}) {
+        return refreshDashboardForTab(tab, context.reason || 'manual');
       }
     };
   }
@@ -804,18 +886,17 @@ function updateBansTable(bans) {
     btn.onclick = async function() {
       const ip = this.dataset.ip;
       const msg = document.getElementById('admin-msg');
-      const ctx = getAdminContext(msg);
-      if (!ctx) return;
-      const { endpoint, apikey } = ctx;
+      if (!getAdminContext(msg)) return;
       
       msg.textContent = `Unbanning ${ip}...`;
       msg.className = 'message info';
       
       try {
-        await window.unbanIp(endpoint, apikey, ip);
+        await dashboardApiClient.unbanIp(ip);
         msg.textContent = `Unbanned ${ip}`;
         msg.className = 'message success';
-        setTimeout(() => refreshDashboard(), 500);
+        if (dashboardState) dashboardState.invalidate('ip-bans');
+        setTimeout(() => refreshActiveTab('quick-unban'), 500);
       } catch (e) {
         msg.textContent = 'Error: ' + e.message;
         msg.className = 'message error';
@@ -1302,20 +1383,12 @@ document.getElementById('robots-crawl-delay').addEventListener('input', checkRob
 
 // Fetch and update robots.txt preview content
 async function refreshRobotsPreview() {
-  const ctx = getAdminContext(document.getElementById('admin-msg'));
-  if (!ctx) return;
-  const { endpoint, apikey } = ctx;
+  if (!getAdminContext(document.getElementById('admin-msg'))) return;
   const previewContent = document.getElementById('robots-preview-content');
   
   try {
-    const resp = await fetch(endpoint + '/admin/robots', {
-      headers: { 'Authorization': 'Bearer ' + apikey }
-    });
-    
-    if (!resp.ok) throw new Error('Failed to fetch robots preview');
-    
-    const data = await resp.json();
-    previewContent.textContent = data.preview || '# No preview available';
+    const data = await dashboardApiClient.getRobotsPreview();
+    previewContent.textContent = data.content || '# No preview available';
   } catch (e) {
     previewContent.textContent = '# Error loading preview: ' + e.message;
     console.error('Failed to load robots preview:', e);
@@ -1721,15 +1794,36 @@ document.getElementById('cdp-threshold-slider').addEventListener('input', functi
 
 document.getElementById('edge-integration-mode-select').addEventListener('change', checkEdgeIntegrationModeChanged);
 
-// Main refresh function
-async function refreshDashboard() {
-  const ctx = getAdminContext(document.getElementById('last-updated'));
-  if (!ctx) return;
-  const { endpoint, apikey } = ctx;
-  const cdpWindowHours = 24;
-  const cdpWindowLimit = 500;
-  
-  // Show loading state
+function updateLastUpdatedTimestamp() {
+  const ts = new Date().toISOString();
+  const label = document.getElementById('last-updated');
+  if (label) label.textContent = `updated: ${ts}`;
+}
+
+async function refreshSharedConfig(reason = 'manual') {
+  if (!dashboardApiClient) return;
+  if (dashboardState && reason === 'auto-refresh' && !dashboardState.isTabStale('config')) return;
+  const config = await dashboardApiClient.getConfig();
+  if (dashboardState) dashboardState.setSnapshot('config', config);
+  updateConfigModeUi(config);
+  updateBanDurations(config);
+  updateRateLimitConfig(config);
+  updateJsRequiredConfig(config);
+  updateMazeConfig(config);
+  updateGeoConfig(config);
+  updateRobotsConfig(config);
+  updateCdpConfig(config);
+  updateEdgeIntegrationModeConfig(config);
+  updatePowConfig(config);
+  updateChallengeConfig(config);
+}
+
+async function refreshMonitoringTab(reason = 'manual') {
+  if (!dashboardApiClient) return;
+  if (reason !== 'auto-refresh') {
+    showTabLoading('monitoring', 'Loading monitoring data...');
+  }
+
   document.getElementById('total-bans').textContent = '...';
   document.getElementById('active-bans').textContent = '...';
   document.getElementById('total-events').textContent = '...';
@@ -1739,101 +1833,106 @@ async function refreshDashboard() {
   if (cdpTotalDetections) cdpTotalDetections.textContent = '...';
   if (cdpTotalAutoBans) cdpTotalAutoBans.textContent = '...';
 
+  const [analytics, events, bansData, mazeData, cdpData, cdpEventsData] = await Promise.all([
+    dashboardApiClient.getAnalytics(),
+    dashboardApiClient.getEvents(24),
+    dashboardApiClient.getBans(),
+    dashboardApiClient.getMaze(),
+    dashboardApiClient.getCdp(),
+    dashboardApiClient.getCdpEvents({ hours: 24, limit: 500 })
+  ]);
+
+  if (dashboardState) {
+    dashboardState.setSnapshot('analytics', analytics);
+    dashboardState.setSnapshot('events', events);
+    dashboardState.setSnapshot('bans', bansData);
+    dashboardState.setSnapshot('maze', mazeData);
+    dashboardState.setSnapshot('cdp', cdpData);
+    dashboardState.setSnapshot('cdpEvents', cdpEventsData);
+  }
+
+  updateStatCards(analytics, events, bansData.bans || []);
+  dashboardCharts.updateEventTypesChart(events.event_counts || {});
+  dashboardCharts.updateTopIpsChart(events.top_ips || []);
+  dashboardCharts.updateTimeSeriesChart();
+  updateEventsTable(events.recent_events || []);
+  updateCdpTotals(cdpData);
+  updateCdpEventsTable(cdpEventsData.events || []);
+  updateMazeStats(mazeData);
+
+  if (dashboardState && dashboardState.getDerivedState().monitoringEmpty) {
+    showTabEmpty('monitoring', 'No operational events yet. Monitoring will populate as traffic arrives.');
+  } else {
+    clearTabStateMessage('monitoring');
+  }
+}
+
+async function refreshIpBansTab(reason = 'manual') {
+  if (!dashboardApiClient) return;
+  if (reason !== 'auto-refresh') {
+    showTabLoading('ip-bans', 'Loading ban list...');
+  }
+  const bansData = await dashboardApiClient.getBans();
+  if (dashboardState) dashboardState.setSnapshot('bans', bansData);
+  updateBansTable(bansData.bans || []);
+  if (!Array.isArray(bansData.bans) || bansData.bans.length === 0) {
+    showTabEmpty('ip-bans', 'No active bans.');
+  } else {
+    clearTabStateMessage('ip-bans');
+  }
+}
+
+async function refreshStatusTab(reason = 'manual') {
+  if (reason !== 'auto-refresh') {
+    showTabLoading('status', 'Loading status signals...');
+  }
+  await refreshSharedConfig(reason);
+  clearTabStateMessage('status');
+}
+
+async function refreshConfigTab(reason = 'manual') {
+  if (reason !== 'auto-refresh') {
+    showTabLoading('config', 'Loading config...');
+  }
+  await refreshSharedConfig(reason);
+  clearTabStateMessage('config');
+}
+
+async function refreshTuningTab(reason = 'manual') {
+  if (reason !== 'auto-refresh') {
+    showTabLoading('tuning', 'Loading tuning values...');
+  }
+  await refreshSharedConfig(reason);
+  clearTabStateMessage('tuning');
+}
+
+async function refreshDashboardForTab(tab, reason = 'manual') {
+  const activeTab = tabLifecycleModule.normalizeTab(tab);
   try {
-    // Fetch all data in parallel
-    const [analyticsResp, eventsResp, bansResp, mazeResp, cdpResp, cdpEventsResp] = await Promise.all([
-      fetch(endpoint + '/admin/analytics', {
-        headers: { 'Authorization': 'Bearer ' + apikey }
-      }),
-      fetch(endpoint + '/admin/events?hours=24', {
-        headers: { 'Authorization': 'Bearer ' + apikey }
-      }),
-      fetch(endpoint + '/admin/ban', {
-        headers: { 'Authorization': 'Bearer ' + apikey }
-      }),
-      fetch(endpoint + '/admin/maze', {
-        headers: { 'Authorization': 'Bearer ' + apikey }
-      }),
-      fetch(endpoint + '/admin/cdp', {
-        headers: { 'Authorization': 'Bearer ' + apikey }
-      }),
-      fetch(endpoint + `/admin/cdp/events?hours=${cdpWindowHours}&limit=${cdpWindowLimit}`, {
-        headers: { 'Authorization': 'Bearer ' + apikey }
-      })
-    ]);
-
-    if (
-      analyticsResp.status === 401 ||
-      eventsResp.status === 401 ||
-      bansResp.status === 401 ||
-      mazeResp.status === 401 ||
-      cdpResp.status === 401 ||
-      cdpEventsResp.status === 401
-    ) {
-      redirectToLogin();
-      return;
-    }
-
-    if (!analyticsResp.ok || !eventsResp.ok || !bansResp.ok || !cdpResp.ok || !cdpEventsResp.ok) {
-      throw new Error('Failed to fetch dashboard data.');
-    }
-
-    const analytics = await analyticsResp.json();
-    const events = await eventsResp.json();
-    const bansData = await bansResp.json();
-    const mazeData = mazeResp.ok ? await mazeResp.json() : null;
-    const cdpData = await cdpResp.json();
-    const cdpEventsData = await cdpEventsResp.json();
-
-    // Update all sections
-    updateStatCards(analytics, events, bansData.bans || []);
-    dashboardCharts.updateEventTypesChart(events.event_counts || {});
-    dashboardCharts.updateTopIpsChart(events.top_ips || []);
-    dashboardCharts.updateTimeSeriesChart();
-    updateBansTable(bansData.bans || []);
-    updateEventsTable(events.recent_events || []);
-    updateCdpTotals(cdpData);
-    updateCdpEventsTable(cdpEventsData.events || []);
-    
-    // Update maze stats
-    if (mazeData) {
-      updateMazeStats(mazeData);
-    }
-    
-    // Fetch and update ban durations from config
-    try {
-      const configResp = await fetch(endpoint + '/admin/config', {
-        headers: { 'Authorization': 'Bearer ' + apikey }
-      });
-      if (configResp.ok) {
-        const config = await configResp.json();
-        updateConfigModeUi(config);
-        updateBanDurations(config);
-        updateRateLimitConfig(config);
-        updateJsRequiredConfig(config);
-        updateMazeConfig(config);
-        updateGeoConfig(config);
-        updateRobotsConfig(config);
-        updateCdpConfig(config);
-        updateEdgeIntegrationModeConfig(config);
-        updatePowConfig(config);
-        updateChallengeConfig(config);
+    if (activeTab === 'monitoring') {
+      await refreshMonitoringTab(reason);
+      if (reason !== 'auto-refresh') {
+        await refreshSharedConfig(reason);
       }
-    } catch (e) {
-      console.error('Failed to load config:', e);
+    } else if (activeTab === 'ip-bans') {
+      await refreshIpBansTab(reason);
+    } else if (activeTab === 'status') {
+      await refreshStatusTab(reason);
+    } else if (activeTab === 'config') {
+      await refreshConfigTab(reason);
+    } else if (activeTab === 'tuning') {
+      await refreshTuningTab(reason);
     }
-
+    if (dashboardState) dashboardState.markTabUpdated(activeTab);
     refreshCoreActionButtonsState();
-    
-    // Update last updated time (full ISO timestamp)
-    document.getElementById('last-updated').textContent =
-      'updated: ' + new Date().toISOString();
-    
-  } catch (e) {
-    console.error('Dashboard refresh error:', e);
+    updateLastUpdatedTimestamp();
+  } catch (error) {
+    const message = error && error.message ? error.message : 'Refresh failed';
+    console.error(`Dashboard refresh error (${activeTab}):`, error);
+    showTabError(activeTab, message);
     const msg = document.getElementById('admin-msg');
     if (msg) {
-      msg.textContent = 'Refresh failed: ' + e.message;
+      msg.textContent = `Refresh failed: ${message}`;
       msg.className = 'message error';
     }
   }
@@ -1843,28 +1942,27 @@ function refreshActiveTab(reason = 'manual') {
   if (dashboardTabCoordinator) {
     return dashboardTabCoordinator.refreshActive({ reason });
   }
-  return refreshDashboard();
+  return refreshDashboardForTab('monitoring', reason);
 }
 
 // Admin controls - Ban IP
-document.getElementById('ban-btn').onclick = async function() {
+document.getElementById('ban-btn').onclick = async function () {
   const msg = document.getElementById('admin-msg');
-  const ctx = getAdminContext(msg);
-  if (!ctx) return;
-  const { endpoint, apikey } = ctx;
+  if (!getAdminContext(msg)) return;
   const ip = readIpFieldValue('ban-ip', true, msg, 'Ban IP');
   if (ip === null) return;
   const duration = readManualBanDurationSeconds(true);
   if (duration === null) return;
-  
+
   msg.textContent = `Banning ${ip}...`;
   msg.className = 'message info';
-  
+
   try {
-    await window.banIp(endpoint, apikey, ip, duration);
+    await dashboardApiClient.banIp(ip, duration);
     msg.textContent = `Banned ${ip} for ${duration}s`;
     msg.className = 'message success';
     document.getElementById('ban-ip').value = '';
+    if (dashboardState) dashboardState.invalidate('ip-bans');
     setTimeout(() => refreshActiveTab('ban-save'), 500);
   } catch (e) {
     msg.textContent = 'Error: ' + e.message;
@@ -1873,22 +1971,21 @@ document.getElementById('ban-btn').onclick = async function() {
 };
 
 // Admin controls - Unban IP
-document.getElementById('unban-btn').onclick = async function() {
+document.getElementById('unban-btn').onclick = async function () {
   const msg = document.getElementById('admin-msg');
-  const ctx = getAdminContext(msg);
-  if (!ctx) return;
-  const { endpoint, apikey } = ctx;
+  if (!getAdminContext(msg)) return;
   const ip = readIpFieldValue('unban-ip', true, msg, 'Unban IP');
   if (ip === null) return;
-  
+
   msg.textContent = `Unbanning ${ip}...`;
   msg.className = 'message info';
-  
+
   try {
-    await window.unbanIp(endpoint, apikey, ip);
+    await dashboardApiClient.unbanIp(ip);
     msg.textContent = `Unbanned ${ip}`;
     msg.className = 'message success';
     document.getElementById('unban-ip').value = '';
+    if (dashboardState) dashboardState.invalidate('ip-bans');
     setTimeout(() => refreshActiveTab('unban-save'), 500);
   } catch (e) {
     msg.textContent = 'Error: ' + e.message;
@@ -1896,7 +1993,34 @@ document.getElementById('unban-btn').onclick = async function() {
   }
 };
 
+function clearAutoRefreshTimer() {
+  if (autoRefreshTimer) {
+    window.clearTimeout(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+}
+
+function scheduleAutoRefresh() {
+  clearAutoRefreshTimer();
+  if (!hasValidApiContext() || !pageVisible) return;
+  const activeTab = dashboardTabCoordinator
+    ? dashboardTabCoordinator.getActiveTab()
+    : (dashboardState ? dashboardState.getActiveTab() : 'monitoring');
+  const interval = TAB_REFRESH_INTERVAL_MS[activeTab] || TAB_REFRESH_INTERVAL_MS.monitoring;
+  autoRefreshTimer = window.setTimeout(async () => {
+    autoRefreshTimer = null;
+    if (hasValidApiContext() && pageVisible) {
+      await refreshDashboardForTab(activeTab, 'auto-refresh');
+    }
+    scheduleAutoRefresh();
+  }, interval);
+}
+
 // Initialize charts and load data on page load
+dashboardState = dashboardStateModule.create({
+  initialTab: tabLifecycleModule.DEFAULT_DASHBOARD_TAB
+});
+
 adminSessionController = adminSessionModule.create({
   resolveAdminApiEndpoint,
   refreshCoreActionButtonsState,
@@ -1904,15 +2028,28 @@ adminSessionController = adminSessionModule.create({
 });
 adminSessionController.bindLogoutButton('logout-btn', 'admin-msg');
 
+dashboardApiClient = dashboardApiClientModule.create({
+  getAdminContext,
+  onUnauthorized: redirectToLogin
+});
+
 dashboardTabCoordinator = tabLifecycleModule.createTabLifecycleCoordinator({
-  controllers: createDashboardTabControllers()
+  controllers: createDashboardTabControllers(),
+  onActiveTabChange: (nextTab) => {
+    if (dashboardState) dashboardState.setActiveTab(nextTab);
+    scheduleAutoRefresh();
+  }
 });
 dashboardTabCoordinator.init();
 initInputValidation();
-dashboardCharts.init({ getAdminContext });
+dashboardCharts.init({
+  getAdminContext,
+  apiClient: dashboardApiClient
+});
 statusPanel.render();
 configControls.bind({
   statusPanel,
+  apiClient: dashboardApiClient,
   getAdminContext,
   readIntegerFieldValue,
   readBanDurationSeconds,
@@ -1922,6 +2059,13 @@ configControls.bind({
   updateEdgeIntegrationModeConfig,
   refreshRobotsPreview,
   refreshDashboard: () => refreshActiveTab('config-controls'),
+  onConfigSaved: () => {
+    if (dashboardState) {
+      dashboardState.invalidate('securityConfig');
+      dashboardState.invalidate('monitoring');
+      dashboardState.invalidate('ip-bans');
+    }
+  },
   checkMazeConfigChanged,
   checkRobotsConfigChanged,
   checkAiPolicyConfigChanged,
@@ -1966,16 +2110,26 @@ configControls.bind({
   }
 });
 adminSessionController.restoreAdminSession().then((authenticated) => {
+  const sessionState = adminSessionController.getState();
+  if (dashboardState) {
+    dashboardState.setSession({
+      authenticated: sessionState.authenticated === true,
+      csrfToken: sessionState.csrfToken || ''
+    });
+  }
   if (!authenticated) {
     redirectToLogin();
     return;
   }
   refreshActiveTab('session-restored');
+  scheduleAutoRefresh();
 });
 
-// Auto-refresh every 30 seconds
-setInterval(() => {
-  if (hasValidApiContext()) {
-    refreshActiveTab('auto-refresh');
+document.addEventListener('visibilitychange', () => {
+  pageVisible = document.visibilityState !== 'hidden';
+  if (pageVisible) {
+    scheduleAutoRefresh();
+  } else {
+    clearAutoRefreshTimer();
   }
-}, 30000);
+});

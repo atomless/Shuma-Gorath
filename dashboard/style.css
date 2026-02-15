@@ -366,6 +366,29 @@ h1 {
   display: none !important;
 }
 
+.tab-state {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-300);
+  background: var(--color-50);
+  color: var(--color-700);
+  font-size: var(--text-sm);
+}
+
+.tab-state--loading {
+  background: var(--color-100);
+}
+
+.tab-state--error {
+  border-color: rgba(220, 38, 38, 0.45);
+  background: rgba(220, 38, 38, 0.08);
+  color: #8f1111;
+}
+
+.tab-state--empty {
+  border-style: dashed;
+}
+
 #last-updated {
   position: absolute;
   top: 2px;

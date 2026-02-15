@@ -1,3 +1,5 @@
+// @ts-check
+
 (function (global) {
   const state = {
     failMode: 'unknown',

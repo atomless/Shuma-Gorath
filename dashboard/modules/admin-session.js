@@ -1,3 +1,5 @@
+// @ts-check
+
 (function (global) {
   function create(options = {}) {
     const state = {

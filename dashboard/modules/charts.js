@@ -1,9 +1,12 @@
+// @ts-check
+
 (function (global) {
   let eventTypesChart = null;
   let topIpsChart = null;
   let timeSeriesChart = null;
   let currentTimeRange = 'hour';
   let getAdminContext = null;
+  let apiClient = null;
 
   const CHART_PALETTE = [
     'rgb(255,205,235)',
@@ -18,6 +21,7 @@
 
   function init(options = {}) {
     getAdminContext = typeof options.getAdminContext === 'function' ? options.getAdminContext : null;
+    apiClient = options.apiClient || null;
 
     const ctx1 = document.getElementById('eventTypesChart').getContext('2d');
     eventTypesChart = new Chart(ctx1, {
@@ -118,22 +122,31 @@
   }
 
   function updateTimeSeriesChart() {
-    if (!timeSeriesChart || typeof getAdminContext !== 'function') return;
-    const ctx = getAdminContext(document.getElementById('last-updated'));
-    if (!ctx) return;
-    const { endpoint, apikey } = ctx;
-
+    if (!timeSeriesChart) return;
     const hours = currentTimeRange === 'hour' ? 1 :
       currentTimeRange === 'day' ? 24 :
         currentTimeRange === 'week' ? 168 : 720;
 
-    fetch(`${endpoint}/admin/events?hours=${hours}`, {
-      headers: { 'Authorization': 'Bearer ' + apikey }
-    })
-      .then(r => {
-        if (!r.ok) throw new Error('Failed to fetch events');
-        return r.json();
-      })
+    const loadEvents = apiClient && typeof apiClient.getEvents === 'function'
+      ? apiClient.getEvents(hours)
+      : (function fallback() {
+          if (typeof getAdminContext !== 'function') {
+            return Promise.resolve({ recent_events: [] });
+          }
+          const ctx = getAdminContext(document.getElementById('last-updated'));
+          if (!ctx) {
+            return Promise.resolve({ recent_events: [] });
+          }
+          const { endpoint, apikey } = ctx;
+          return fetch(`${endpoint}/admin/events?hours=${hours}`, {
+            headers: { 'Authorization': 'Bearer ' + apikey }
+          }).then(r => {
+            if (!r.ok) throw new Error('Failed to fetch events');
+            return r.json();
+          });
+        })();
+
+    loadEvents
       .then(data => {
         const now = Date.now();
         let cutoffTime;

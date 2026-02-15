@@ -227,6 +227,24 @@ Moved from active TODO files on 2026-02-14.
 
 ### todos/todo.md
 
+#### P3 Dashboard Architecture Modernization (Tabbed SPA, Frameworkless-First)
+- [x] DSH-4 completed: shared dashboard API client layer added with typed request/response adapters and centralized API error handling (`dashboard/modules/api-client.js`).
+- [x] DSH-5 completed: shared dashboard state primitives added with explicit invalidation scopes and tab-local derived state (`dashboard/modules/dashboard-state.js`).
+- [x] DSH-6 completed: CDN chart dependency removed; local pinned chart runtime vendored under `dashboard/assets/vendor/chart-lite-1.0.0.min.js` with provenance note in docs.
+- [x] DSH-7 completed: active-tab scoped polling added with deterministic suspend/resume and bounded timer count.
+- [x] DSH-8 completed: tab accessibility/keyboard behavior strengthened (ARIA visibility semantics, focus management, selected-state behavior).
+- [x] DSH-9 completed: progressive `// @ts-check` typing enabled across dashboard modules and orchestration.
+- [x] DSH-10 completed: per-tab loading/empty/error states implemented for silent-failure resistance.
+- [x] DSH-11 completed: Playwright e2e coverage expanded for tabbed routing, keyboard navigation, and tab error-state surfacing.
+- [x] DSH-12 completed: dashboard module unit-style tests added for API adapters, state invalidation, and tab normalization (`e2e/dashboard.modules.unit.test.js`).
+- [x] DSH-13 completed: public docs updated (`README.md`, `docs/dashboard.md`, `docs/testing.md`) for tab model and dashboard test workflow.
+- [x] DSH-14 completed: migration/rollback notes added to public dashboard docs.
+- [x] DSH-G1 closure: framework-adoption gate did not trip after DSH-1..DSH-14; Lit pilot deferred.
+
+## Additional completions (2026-02-15, section-preserving archive)
+
+### todos/todo.md
+
 #### Fingerprinting, JS Verification, and CDP-Adjacent Detection
 - [x] R-FP-10 Review Li et al., "PathMarker: protecting web contents against inside crawlers" (Cybersecurity 2019) and map path/timing marker concepts to Shuma detection IDs. https://cybersecurity.springeropen.com/articles/10.1186/s42400-019-0023-1 (summarized in `docs/research/2026-02-14-maze-tarpit-research-synthesis.md`)
 

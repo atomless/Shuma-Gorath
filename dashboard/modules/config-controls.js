@@ -1,14 +1,44 @@
+// @ts-check
+
 (function (global) {
   function bind(options = {}) {
     const statusPanel = options.statusPanel || null;
+    const apiClient = options.apiClient || null;
+
+    async function saveConfigPatch(messageTarget, patch) {
+      let result;
+      if (apiClient && typeof apiClient.updateConfig === 'function') {
+        result = await apiClient.updateConfig(patch);
+      } else {
+        const ctx = options.getAdminContext(messageTarget || null);
+        if (!ctx) {
+          throw new Error('Missing admin API context');
+        }
+        const { endpoint, apikey } = ctx;
+        const resp = await fetch(`${endpoint}/admin/config`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apikey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(patch)
+        });
+        if (!resp.ok) {
+          const text = await resp.text();
+          throw new Error(text || 'Failed to save config');
+        }
+        result = await resp.json();
+      }
+      if (typeof options.onConfigSaved === 'function') {
+        options.onConfigSaved(patch, result);
+      }
+      return result;
+    }
 
     const saveMazeButton = document.getElementById('save-maze-config');
     if (saveMazeButton) {
       saveMazeButton.onclick = async function saveMazeConfig() {
         const msg = document.getElementById('admin-msg');
-        const ctx = options.getAdminContext(msg);
-        if (!ctx) return;
-        const { endpoint, apikey } = ctx;
         const btn = this;
 
         const mazeEnabled = document.getElementById('maze-enabled-toggle').checked;
@@ -21,20 +51,11 @@
         btn.disabled = true;
 
         try {
-          const resp = await fetch(`${endpoint}/admin/config`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apikey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              maze_enabled: mazeEnabled,
-              maze_auto_ban: mazeAutoBan,
-              maze_auto_ban_threshold: mazeThreshold
-            })
+          await saveConfigPatch(msg, {
+            maze_enabled: mazeEnabled,
+            maze_auto_ban: mazeAutoBan,
+            maze_auto_ban_threshold: mazeThreshold
           });
-
-          if (!resp.ok) throw new Error('Failed to save config');
 
           options.setMazeSavedState({
             enabled: mazeEnabled,
@@ -64,9 +85,6 @@
     if (saveRobotsButton) {
       saveRobotsButton.onclick = async function saveRobotsConfig() {
         const msg = document.getElementById('admin-msg');
-        const ctx = options.getAdminContext(msg);
-        if (!ctx) return;
-        const { endpoint, apikey } = ctx;
         const btn = this;
 
         const robotsEnabled = document.getElementById('robots-enabled-toggle').checked;
@@ -78,19 +96,10 @@
         btn.disabled = true;
 
         try {
-          const resp = await fetch(`${endpoint}/admin/config`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apikey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              robots_enabled: robotsEnabled,
-              robots_crawl_delay: crawlDelay
-            })
+          await saveConfigPatch(msg, {
+            robots_enabled: robotsEnabled,
+            robots_crawl_delay: crawlDelay
           });
-
-          if (!resp.ok) throw new Error('Failed to save config');
 
           btn.textContent = 'Updated!';
           options.setRobotsSavedState({
@@ -122,9 +131,6 @@
     if (saveAiPolicyButton) {
       saveAiPolicyButton.onclick = async function saveAiPolicyConfig() {
         const msg = document.getElementById('admin-msg');
-        const ctx = options.getAdminContext(msg);
-        if (!ctx) return;
-        const { endpoint, apikey } = ctx;
         const btn = this;
 
         const blockTraining = document.getElementById('robots-block-training-toggle').checked;
@@ -136,20 +142,11 @@
         btn.disabled = true;
 
         try {
-          const resp = await fetch(`${endpoint}/admin/config`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apikey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              ai_policy_block_training: blockTraining,
-              ai_policy_block_search: blockSearch,
-              ai_policy_allow_search_engines: allowSearchEngines
-            })
+          await saveConfigPatch(msg, {
+            ai_policy_block_training: blockTraining,
+            ai_policy_block_search: blockSearch,
+            ai_policy_allow_search_engines: allowSearchEngines
           });
-
-          if (!resp.ok) throw new Error('Failed to save AI policy');
 
           btn.textContent = 'Saved!';
           options.setAiPolicySavedState({
@@ -182,9 +179,6 @@
     if (saveGeoScoringButton) {
       saveGeoScoringButton.onclick = async function saveGeoScoringConfig() {
         const msg = document.getElementById('admin-msg');
-        const ctx = options.getAdminContext(msg);
-        if (!ctx) return;
-        const { endpoint, apikey } = ctx;
         const btn = this;
         const geoState = options.getGeoSavedState();
 
@@ -208,19 +202,7 @@
         btn.dataset.saving = 'true';
         btn.disabled = true;
         try {
-          const resp = await fetch(`${endpoint}/admin/config`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apikey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ geo_risk: geoRisk })
-          });
-          if (!resp.ok) {
-            const text = await resp.text();
-            throw new Error(text || 'Failed to save GEO scoring config');
-          }
-          const data = await resp.json();
+          const data = await saveConfigPatch(msg, { geo_risk: geoRisk });
           if (data && data.config) {
             options.updateGeoConfig(data.config);
           } else {
@@ -249,9 +231,6 @@
     if (saveGeoRoutingButton) {
       saveGeoRoutingButton.onclick = async function saveGeoRoutingConfig() {
         const msg = document.getElementById('admin-msg');
-        const ctx = options.getAdminContext(msg);
-        if (!ctx) return;
-        const { endpoint, apikey } = ctx;
         const btn = this;
         const geoState = options.getGeoSavedState();
 
@@ -281,24 +260,12 @@
         btn.dataset.saving = 'true';
         btn.disabled = true;
         try {
-          const resp = await fetch(`${endpoint}/admin/config`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apikey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              geo_allow: geoAllow,
-              geo_challenge: geoChallenge,
-              geo_maze: geoMaze,
-              geo_block: geoBlock
-            })
+          const data = await saveConfigPatch(msg, {
+            geo_allow: geoAllow,
+            geo_challenge: geoChallenge,
+            geo_maze: geoMaze,
+            geo_block: geoBlock
           });
-          if (!resp.ok) {
-            const text = await resp.text();
-            throw new Error(text || 'Failed to save GEO routing config');
-          }
-          const data = await resp.json();
           if (data && data.config) {
             options.updateGeoConfig(data.config);
           } else {
@@ -331,9 +298,6 @@
       savePowButton.onclick = async function savePowConfig() {
         const btn = this;
         const msg = document.getElementById('admin-msg');
-        const ctx = options.getAdminContext(msg);
-        if (!ctx) return;
-        const { endpoint, apikey } = ctx;
 
         const powDifficulty = options.readIntegerFieldValue('pow-difficulty', msg);
         const powTtl = options.readIntegerFieldValue('pow-ttl', msg);
@@ -344,22 +308,10 @@
         btn.disabled = true;
 
         try {
-          const resp = await fetch(`${endpoint}/admin/config`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apikey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              pow_difficulty: powDifficulty,
-              pow_ttl_seconds: powTtl
-            })
+          await saveConfigPatch(msg, {
+            pow_difficulty: powDifficulty,
+            pow_ttl_seconds: powTtl
           });
-
-          if (!resp.ok) {
-            const text = await resp.text();
-            throw new Error(text || 'Failed to save PoW config');
-          }
 
           options.setPowSavedState({
             difficulty: powDifficulty,
@@ -386,9 +338,6 @@
       saveBotnessButton.onclick = async function saveBotnessConfig() {
         const btn = this;
         const msg = document.getElementById('admin-msg');
-        const ctx = options.getAdminContext(msg);
-        if (!ctx) return;
-        const { endpoint, apikey } = ctx;
 
         const challengeThreshold = options.readIntegerFieldValue('challenge-threshold', msg);
         const mazeThreshold = options.readIntegerFieldValue('maze-threshold-score', msg);
@@ -413,28 +362,16 @@
         btn.disabled = true;
 
         try {
-          const resp = await fetch(`${endpoint}/admin/config`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apikey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              challenge_risk_threshold: challengeThreshold,
-              botness_maze_threshold: mazeThreshold,
-              botness_weights: {
-                js_required: weightJsRequired,
-                geo_risk: weightGeoRisk,
-                rate_medium: weightRateMedium,
-                rate_high: weightRateHigh
-              }
-            })
+          await saveConfigPatch(msg, {
+            challenge_risk_threshold: challengeThreshold,
+            botness_maze_threshold: mazeThreshold,
+            botness_weights: {
+              js_required: weightJsRequired,
+              geo_risk: weightGeoRisk,
+              rate_medium: weightRateMedium,
+              rate_high: weightRateHigh
+            }
           });
-
-          if (!resp.ok) {
-            const text = await resp.text();
-            throw new Error(text || 'Failed to save botness config');
-          }
 
           options.setBotnessSavedState({
             challengeThreshold: challengeThreshold,
@@ -463,9 +400,7 @@
     const saveCdpButton = document.getElementById('save-cdp-config');
     if (saveCdpButton) {
       saveCdpButton.onclick = async function saveCdpConfig() {
-        const ctx = options.getAdminContext(document.getElementById('admin-msg'));
-        if (!ctx) return;
-        const { endpoint, apikey } = ctx;
+        const msg = document.getElementById('admin-msg');
         const btn = this;
 
         const cdpEnabled = document.getElementById('cdp-enabled-toggle').checked;
@@ -477,20 +412,11 @@
         btn.disabled = true;
 
         try {
-          const resp = await fetch(`${endpoint}/admin/config`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apikey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              cdp_detection_enabled: cdpEnabled,
-              cdp_auto_ban: cdpAutoBan,
-              cdp_detection_threshold: cdpThreshold
-            })
+          await saveConfigPatch(msg, {
+            cdp_detection_enabled: cdpEnabled,
+            cdp_auto_ban: cdpAutoBan,
+            cdp_detection_threshold: cdpThreshold
           });
-
-          if (!resp.ok) throw new Error('Failed to save config');
 
           btn.textContent = 'Saved!';
           options.setCdpSavedState({
@@ -520,9 +446,6 @@
       saveEdgeModeButton.onclick = async function saveEdgeIntegrationModeConfig() {
         const btn = this;
         const msg = document.getElementById('admin-msg');
-        const ctx = options.getAdminContext(msg);
-        if (!ctx) return;
-        const { endpoint, apikey } = ctx;
         const modeSelect = document.getElementById('edge-integration-mode-select');
         const mode = String(modeSelect ? modeSelect.value : '').trim().toLowerCase();
 
@@ -530,20 +453,7 @@
         btn.dataset.saving = 'true';
         btn.disabled = true;
         try {
-          const resp = await fetch(`${endpoint}/admin/config`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apikey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ edge_integration_mode: mode })
-          });
-          if (!resp.ok) {
-            const text = await resp.text();
-            throw new Error(text || 'Failed to save edge integration mode');
-          }
-
-          const data = await resp.json();
+          const data = await saveConfigPatch(msg, { edge_integration_mode: mode });
           if (data && data.config && typeof options.updateEdgeIntegrationModeConfig === 'function') {
             options.updateEdgeIntegrationModeConfig(data.config);
           } else {
@@ -571,9 +481,6 @@
       saveRateLimitButton.onclick = async function saveRateLimitConfig() {
         const btn = this;
         const msg = document.getElementById('admin-msg');
-        const ctx = options.getAdminContext(msg);
-        if (!ctx) return;
-        const { endpoint, apikey } = ctx;
         const rateLimit = options.readIntegerFieldValue('rate-limit-threshold', msg);
         if (rateLimit === null) return;
 
@@ -581,18 +488,7 @@
         btn.dataset.saving = 'true';
         btn.disabled = true;
         try {
-          const resp = await fetch(`${endpoint}/admin/config`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apikey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ rate_limit: rateLimit })
-          });
-          if (!resp.ok) {
-            const text = await resp.text();
-            throw new Error(text || 'Failed to save rate limit');
-          }
+          await saveConfigPatch(msg, { rate_limit: rateLimit });
           options.setRateLimitSavedState({ value: rateLimit });
           if (statusPanel) {
             statusPanel.update({ rateLimit });
@@ -618,27 +514,13 @@
       saveJsRequiredButton.onclick = async function saveJsRequiredConfig() {
         const btn = this;
         const msg = document.getElementById('admin-msg');
-        const ctx = options.getAdminContext(msg);
-        if (!ctx) return;
-        const { endpoint, apikey } = ctx;
         const enforced = document.getElementById('js-required-enforced-toggle').checked;
 
         btn.textContent = 'Saving...';
         btn.dataset.saving = 'true';
         btn.disabled = true;
         try {
-          const resp = await fetch(`${endpoint}/admin/config`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apikey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ js_required_enforced: enforced })
-          });
-          if (!resp.ok) {
-            const text = await resp.text();
-            throw new Error(text || 'Failed to save JS Required setting');
-          }
+          await saveConfigPatch(msg, { js_required_enforced: enforced });
           options.setJsRequiredSavedState({ enforced });
           if (statusPanel) {
             statusPanel.update({ jsRequiredEnforced: enforced });
@@ -663,9 +545,6 @@
     if (saveDurationsButton) {
       saveDurationsButton.onclick = async function saveDurations() {
         const msg = document.getElementById('admin-msg');
-        const ctx = options.getAdminContext(msg);
-        if (!ctx) return;
-        const { endpoint, apikey } = ctx;
         const btn = this;
 
         const banDurations = {
@@ -691,20 +570,7 @@
         btn.disabled = true;
 
         try {
-          const resp = await fetch(`${endpoint}/admin/config`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apikey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ ban_durations: banDurations })
-          });
-
-          if (!resp.ok) {
-            throw new Error('Failed to save config');
-          }
-
-          const data = await resp.json();
+          const data = await saveConfigPatch(msg, { ban_durations: banDurations });
           const saved = data && data.config && data.config.ban_durations
             ? data.config.ban_durations
             : banDurations;
@@ -725,32 +591,17 @@
     if (testModeToggle) {
       testModeToggle.addEventListener('change', async function onTestModeChange() {
         const msg = document.getElementById('admin-msg');
-        const ctx = options.getAdminContext(msg);
-        if (!ctx) {
+        if (!options.getAdminContext(msg)) {
           this.checked = !this.checked;
           return;
         }
-        const { endpoint, apikey } = ctx;
         const testMode = this.checked;
 
         msg.textContent = `${testMode ? 'Enabling' : 'Disabling'} test mode...`;
         msg.className = 'message info';
 
         try {
-          const resp = await fetch(`${endpoint}/admin/config`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apikey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ test_mode: testMode })
-          });
-
-          if (!resp.ok) {
-            throw new Error('Failed to update config');
-          }
-
-          const data = await resp.json();
+          const data = await saveConfigPatch(msg, { test_mode: testMode });
           msg.textContent = `Test mode ${data.config.test_mode ? 'enabled' : 'disabled'}`;
           msg.className = 'message success';
           setTimeout(() => options.refreshDashboard(), 500);
