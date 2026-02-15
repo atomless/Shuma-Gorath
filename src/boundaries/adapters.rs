@@ -37,10 +37,6 @@ impl MazeBoundary for DefaultMazeBoundary {
     fn is_maze_path(&self, path: &str) -> bool {
         crate::maze::is_maze_path(path)
     }
-
-    fn handle_maze_request(&self, path: &str) -> Response {
-        crate::maze::handle_maze_request(path)
-    }
 }
 
 impl AdminBoundary for DefaultAdminBoundary {
@@ -78,10 +74,6 @@ pub(crate) fn handle_challenge_submit_with_outcome<S: crate::challenge::KeyValue
 
 pub(crate) fn is_maze_path(path: &str) -> bool {
     MAZE.is_maze_path(path)
-}
-
-pub(crate) fn handle_maze_request(path: &str) -> Response {
-    MAZE.handle_maze_request(path)
 }
 
 pub(crate) fn handle_admin(req: &Request) -> Response {

@@ -588,7 +588,8 @@ pub(crate) fn serve_maze_with_tracking(
         crate::maze::runtime::serve(store, cfg, req, ip, user_agent, path, botness_hint);
     let served = match maze_decision {
         crate::maze::runtime::MazeServeDecision::Serve(served) => served,
-        crate::maze::runtime::MazeServeDecision::Fallback(reason) => {
+        crate::maze::runtime::MazeServeDecision::Fallback(fallback) => {
+            let reason = fallback.reason;
             let transition = match reason {
                 crate::maze::runtime::MazeFallbackReason::TokenInvalid => {
                     runtime::policy_taxonomy::PolicyTransition::MazeTokenInvalid
@@ -643,26 +644,65 @@ pub(crate) fn serve_maze_with_tracking(
             }
             let policy_match = runtime::policy_taxonomy::resolve_policy_match(transition);
             observability::metrics::record_policy_match(store, &policy_match);
-            crate::admin::log_event(
-                store,
-                &crate::admin::EventLogEntry {
-                    ts: crate::admin::now_ts(),
-                    event: crate::admin::EventType::Block,
-                    ip: Some(ip.to_string()),
-                    reason: Some("maze_runtime_fallback".to_string()),
-                    outcome: Some(policy_match.annotate_outcome(reason.detection_label())),
-                    admin: None,
-                },
+            let outcome = format!(
+                "{} action={}",
+                policy_match.annotate_outcome(reason.detection_label()),
+                fallback.action.label()
             );
-            observability::metrics::increment(
-                store,
-                observability::metrics::MetricName::BlocksTotal,
-                None,
-            );
-            return Response::new(
-                403,
-                block_page::render_block_page(block_page::BlockReason::Honeypot),
-            );
+            match fallback.action {
+                crate::maze::runtime::MazeFallbackAction::Block => {
+                    crate::admin::log_event(
+                        store,
+                        &crate::admin::EventLogEntry {
+                            ts: crate::admin::now_ts(),
+                            event: crate::admin::EventType::Block,
+                            ip: Some(ip.to_string()),
+                            reason: Some("maze_runtime_fallback".to_string()),
+                            outcome: Some(outcome),
+                            admin: None,
+                        },
+                    );
+                    observability::metrics::increment(
+                        store,
+                        observability::metrics::MetricName::BlocksTotal,
+                        None,
+                    );
+                    return Response::new(
+                        403,
+                        block_page::render_block_page(block_page::BlockReason::Honeypot),
+                    );
+                }
+                crate::maze::runtime::MazeFallbackAction::Challenge => {
+                    crate::admin::log_event(
+                        store,
+                        &crate::admin::EventLogEntry {
+                            ts: crate::admin::now_ts(),
+                            event: crate::admin::EventType::Challenge,
+                            ip: Some(ip.to_string()),
+                            reason: Some("maze_runtime_fallback".to_string()),
+                            outcome: Some(outcome),
+                            admin: None,
+                        },
+                    );
+                    observability::metrics::increment(
+                        store,
+                        observability::metrics::MetricName::ChallengeServedTotal,
+                        None,
+                    );
+                    observability::metrics::increment(
+                        store,
+                        observability::metrics::MetricName::ChallengesTotal,
+                        None,
+                    );
+                    return crate::signals::js_verification::inject_js_challenge(
+                        ip,
+                        user_agent,
+                        cfg.pow_enabled,
+                        cfg.pow_difficulty,
+                        cfg.pow_ttl_seconds,
+                    );
+                }
+            }
         }
     };
 

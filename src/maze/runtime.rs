@@ -16,12 +16,14 @@ use super::types::MazeConfig;
 const BUDGET_GLOBAL_ACTIVE_KEY: &str = "maze:budget:active:global";
 const BUDGET_BUCKET_ACTIVE_PREFIX: &str = "maze:budget:active:bucket";
 const TOKEN_REPLAY_PREFIX: &str = "maze:token:seen";
+const TOKEN_ISSUE_PREFIX: &str = "maze:token:issue";
 const TOKEN_CHAIN_PREFIX: &str = "maze:token:chain";
 const CHECKPOINT_PREFIX: &str = "maze:checkpoint";
 const RISK_PREFIX: &str = "maze:risk";
 const VIOLATION_PREFIX: &str = "maze:violation";
 const MAX_RISK_SCORE: u8 = 10;
-const HIGH_CONFIDENCE_ESCALATION_COUNT: u32 = 3;
+const HIGH_CONFIDENCE_ESCALATION_CHALLENGE_COUNT: u32 = 2;
+const HIGH_CONFIDENCE_ESCALATION_BLOCK_COUNT: u32 = 3;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ViolationState {
@@ -54,6 +56,27 @@ impl MazeFallbackReason {
             MazeFallbackReason::MicroPowFailed => "maze_micro_pow_failed",
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum MazeFallbackAction {
+    Challenge,
+    Block,
+}
+
+impl MazeFallbackAction {
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            MazeFallbackAction::Challenge => "challenge",
+            MazeFallbackAction::Block => "block",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct MazeFallbackDecision {
+    pub reason: MazeFallbackReason,
+    pub action: MazeFallbackAction,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -106,7 +129,7 @@ pub(crate) struct MazeRenderResult {
 #[derive(Debug, Clone)]
 pub(crate) enum MazeServeDecision {
     Serve(MazeRenderResult),
-    Fallback(MazeFallbackReason),
+    Fallback(MazeFallbackDecision),
 }
 
 struct BudgetLease<'a, S: MazeStateStore> {
@@ -224,6 +247,10 @@ fn token_replay_key(flow_id: &str, operation_id: &str) -> String {
     format!("{}:{}:{}", TOKEN_REPLAY_PREFIX, flow_id, operation_id)
 }
 
+fn token_issue_key(flow_id: &str, operation_id: &str) -> String {
+    format!("{}:{}:{}", TOKEN_ISSUE_PREFIX, flow_id, operation_id)
+}
+
 fn token_chain_key(flow_id: &str, op_digest: &str) -> String {
     format!("{}:{}:{}", TOKEN_CHAIN_PREFIX, flow_id, op_digest)
 }
@@ -243,6 +270,22 @@ fn replay_seen(
     now: u64,
 ) -> bool {
     let key = token_replay_key(flow_id, operation_id);
+    let seen_until = store
+        .get(key.as_str())
+        .ok()
+        .flatten()
+        .and_then(|raw| String::from_utf8(raw).ok())
+        .and_then(|raw| raw.parse::<u64>().ok());
+    matches!(seen_until, Some(until) if now <= until)
+}
+
+fn issue_seen(
+    store: &(impl MazeStateStore + ?Sized),
+    flow_id: &str,
+    operation_id: &str,
+    now: u64,
+) -> bool {
+    let key = token_issue_key(flow_id, operation_id);
     let seen_until = store
         .get(key.as_str())
         .ok()
@@ -276,6 +319,22 @@ fn mark_replay_seen(
     }
 }
 
+fn mark_issue_seen(
+    store: &impl MazeStateStore,
+    token: &MazeTraversalToken,
+    replay_ttl: u64,
+    now: u64,
+) {
+    let key = token_issue_key(token.flow_id.as_str(), token.operation_id.as_str());
+    let seen_until = std::cmp::min(token.expires_at, now.saturating_add(replay_ttl));
+    if let Err(err) = store.set(key.as_str(), seen_until.to_string().as_bytes()) {
+        eprintln!(
+            "[maze] failed to persist issue marker key={} err={:?}",
+            key, err
+        );
+    }
+}
+
 fn chain_marker_seen(
     store: &(impl MazeStateStore + ?Sized),
     flow_id: &str,
@@ -300,6 +359,29 @@ fn is_high_confidence_violation(reason: MazeFallbackReason) -> bool {
             | MazeFallbackReason::CheckpointMissing
             | MazeFallbackReason::MicroPowFailed
     )
+}
+
+fn high_confidence_escalation_action(count: u32) -> Option<MazeFallbackAction> {
+    if count >= HIGH_CONFIDENCE_ESCALATION_BLOCK_COUNT {
+        Some(MazeFallbackAction::Block)
+    } else if count >= HIGH_CONFIDENCE_ESCALATION_CHALLENGE_COUNT {
+        Some(MazeFallbackAction::Challenge)
+    } else {
+        None
+    }
+}
+
+fn fallback_action_for_reason(reason: MazeFallbackReason) -> MazeFallbackAction {
+    match reason {
+        MazeFallbackReason::BudgetExceeded
+        | MazeFallbackReason::CheckpointMissing
+        | MazeFallbackReason::MicroPowFailed
+        | MazeFallbackReason::TokenExpired => MazeFallbackAction::Challenge,
+        MazeFallbackReason::TokenInvalid
+        | MazeFallbackReason::TokenReplay
+        | MazeFallbackReason::TokenBindingMismatch
+        | MazeFallbackReason::TokenDepthExceeded => MazeFallbackAction::Block,
+    }
 }
 
 fn high_confidence_violation_count(
@@ -605,6 +687,18 @@ fn worker_candidate_paths(
     paths
 }
 
+fn render_budget_open_maze_page(path_prefix: &str, flow_id: &str) -> String {
+    let next_path = format!("{}{}", path_prefix, token::digest(flow_id));
+    format!(
+        "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><meta name=\"robots\" content=\"noindex,nofollow,noarchive\"><title>Operational Index</title></head><body class=\"style-machine\"><div class=\"wrap style-machine\"><header><h1>Operational Index</h1><div class=\"crumb\">Portal &gt; Routing &gt; Index</div></header><div class=\"content\"><p class=\"description\">Routing channel active. Continue operational traversal.</p><div class=\"nav-grid\" id=\"maze-nav-grid\"><a href=\"{}\" class=\"nav-card\" data-link-kind=\"maze\"><h3>Continue stream</h3><p>Operational path transition.</p></a></div><script id=\"maze-bootstrap\" type=\"application/json\">{{\"flow_id\":\"{}\",\"depth\":0,\"checkpoint_token\":\"\",\"path_prefix\":\"{}\",\"entropy_nonce\":\"\",\"assets\":{{\"worker_url\":\"{}\"}},\"client_expansion\":{{\"enabled\":false,\"seed\":0,\"seed_sig\":\"\",\"hidden_count\":0,\"segment_len\":16,\"issue_path\":\"/maze/issue-links\"}}}}</script><script defer src=\"{}\"></script></div></div></body></html>",
+        next_path,
+        flow_id,
+        path_prefix,
+        super::assets::maze_worker_path(),
+        super::assets::maze_script_path(),
+    )
+}
+
 pub(crate) fn handle_issue_links(
     store: &impl MazeStateStore,
     cfg: &crate::config::Config,
@@ -669,6 +763,15 @@ pub(crate) fn handle_issue_links(
             }
             Err(_) => return Response::new(400, "Invalid parent token"),
         };
+
+    if issue_seen(
+        store,
+        parsed_parent.flow_id.as_str(),
+        parsed_parent.operation_id.as_str(),
+        now_secs,
+    ) {
+        return Response::new(409, "Link issuance replay");
+    }
 
     let payload_flow_id = payload
         .get("flow_id")
@@ -748,7 +851,7 @@ pub(crate) fn handle_issue_links(
                 ua_bucket.as_str(),
                 cfg.maze_token_ttl_seconds,
                 cfg.maze_token_max_depth,
-                parsed_parent.branch_budget,
+                parsed_parent.branch_budget.saturating_sub(1).max(1),
                 parsed_parent.entropy_nonce.as_str(),
                 parsed_parent.variant_id,
                 now_secs,
@@ -762,6 +865,8 @@ pub(crate) fn handle_issue_links(
             })
         })
         .collect::<Vec<_>>();
+
+    mark_issue_seen(store, &parsed_parent, cfg.maze_replay_ttl_seconds, now_secs);
 
     Response::builder()
         .status(200)
@@ -818,11 +923,14 @@ pub(crate) fn serve(
             increment_behavior_score(store, ip, 2);
             let high_conf_count =
                 high_confidence_violation_count(store, cfg, ip_bucket.as_str(), reason, now_secs);
-            if high_conf_count >= HIGH_CONFIDENCE_ESCALATION_COUNT {
-                return MazeServeDecision::Fallback(reason);
+            if let Some(action) = high_confidence_escalation_action(high_conf_count) {
+                return MazeServeDecision::Fallback(MazeFallbackDecision { reason, action });
             }
             if should_enforce_violation(phase, reason) {
-                return MazeServeDecision::Fallback(reason);
+                return MazeServeDecision::Fallback(MazeFallbackDecision {
+                    reason,
+                    action: fallback_action_for_reason(reason),
+                });
             }
             None
         }
@@ -833,18 +941,17 @@ pub(crate) fn serve(
         None => {
             increment_behavior_score(store, ip, 1);
             if should_enforce_violation(phase, MazeFallbackReason::BudgetExceeded) {
-                return MazeServeDecision::Fallback(MazeFallbackReason::BudgetExceeded);
+                return MazeServeDecision::Fallback(MazeFallbackDecision {
+                    reason: MazeFallbackReason::BudgetExceeded,
+                    action: fallback_action_for_reason(MazeFallbackReason::BudgetExceeded),
+                });
             }
+            let flow_id = token::flow_id_from(ip_bucket.as_str(), ua_bucket.as_str(), path, now_secs);
             return MazeServeDecision::Serve(MazeRenderResult {
-                html: super::generate_maze_page(path, &MazeConfig::default()),
+                html: render_budget_open_maze_page(path_prefix, flow_id.as_str()),
                 depth: 0,
-                flow_id: token::flow_id_from(
-                    ip_bucket.as_str(),
-                    ua_bucket.as_str(),
-                    path,
-                    now_secs,
-                ),
-                variant_id: "legacy-budget-open".to_string(),
+                flow_id,
+                variant_id: "budget-open-compact".to_string(),
                 seed_provider: "internal".to_string(),
                 seed_version: now_secs,
                 seed_metadata_only: true,
@@ -905,6 +1012,7 @@ pub(crate) fn serve(
         .min(cfg.maze_max_links as usize)
         .max(1);
     let mut visible_links = cfg.maze_server_visible_links.min(link_count as u32).max(1) as usize;
+    let child_branch_budget = branch_budget.saturating_sub(1).max(1);
 
     let current_depth = token_ctx
         .as_ref()
@@ -929,7 +1037,10 @@ pub(crate) fn serve(
         .saturating_add(visible_links.saturating_mul(280));
     if estimate > cfg.maze_max_response_bytes as usize {
         if should_enforce_violation(phase, MazeFallbackReason::BudgetExceeded) {
-            return MazeServeDecision::Fallback(MazeFallbackReason::BudgetExceeded);
+            return MazeServeDecision::Fallback(MazeFallbackDecision {
+                reason: MazeFallbackReason::BudgetExceeded,
+                action: fallback_action_for_reason(MazeFallbackReason::BudgetExceeded),
+            });
         }
         paragraph_count = 1;
         visible_links = 1;
@@ -947,7 +1058,9 @@ pub(crate) fn serve(
         paragraphs.push(paragraph);
     }
 
-    let hidden_count = link_count.saturating_sub(visible_links);
+    let hidden_count = link_count
+        .saturating_sub(visible_links)
+        .min(branch_budget as usize);
     let mut visible_link_set = Vec::with_capacity(visible_links);
     for _ in 0..visible_links {
         let segment_len = if cfg.maze_path_entropy_segment_len < 8 {
@@ -968,7 +1081,7 @@ pub(crate) fn serve(
             ua_bucket.as_str(),
             cfg.maze_token_ttl_seconds,
             cfg.maze_token_max_depth,
-            branch_budget,
+            child_branch_budget,
             entropy_nonce.as_str(),
             variant_layout as u16 * 10 + variant_palette as u16,
             now_secs,
@@ -1034,7 +1147,7 @@ pub(crate) fn serve(
         "path_prefix": path_prefix,
         "entropy_nonce": entropy_nonce,
         "assets": {
-            "worker_url": super::assets::MAZE_WORKER_PATH
+            "worker_url": super::assets::maze_worker_path()
         },
         "client_expansion": {
             "enabled": cfg.maze_client_expansion_enabled,
@@ -1059,9 +1172,9 @@ pub(crate) fn serve(
         style_tier,
         style_sheet_url: match style_tier {
             MazeStyleTier::Machine => None,
-            _ => Some(super::assets::MAZE_STYLE_PATH.to_string()),
+            _ => Some(super::assets::maze_style_path().to_string()),
         },
-        script_url: super::assets::MAZE_SCRIPT_PATH.to_string(),
+        script_url: super::assets::maze_script_path().to_string(),
     };
     let started_at = now_ms();
     let html = generate_polymorphic_maze_page(&render_options);
@@ -1074,7 +1187,10 @@ pub(crate) fn serve(
     if response_cap_exceeded {
         increment_behavior_score(store, ip, 1);
         if should_enforce_violation(phase, MazeFallbackReason::BudgetExceeded) {
-            return MazeServeDecision::Fallback(MazeFallbackReason::BudgetExceeded);
+            return MazeServeDecision::Fallback(MazeFallbackDecision {
+                reason: MazeFallbackReason::BudgetExceeded,
+                action: fallback_action_for_reason(MazeFallbackReason::BudgetExceeded),
+            });
         }
     }
 
@@ -1142,6 +1258,50 @@ mod tests {
         assert!(replay_seen(&store, "flow", "op", 1));
     }
 
+    #[test]
+    fn high_confidence_escalation_transitions_from_challenge_to_block() {
+        assert_eq!(super::high_confidence_escalation_action(1), None);
+        assert_eq!(
+            super::high_confidence_escalation_action(2),
+            Some(super::MazeFallbackAction::Challenge)
+        );
+        assert_eq!(
+            super::high_confidence_escalation_action(3),
+            Some(super::MazeFallbackAction::Block)
+        );
+    }
+
+    #[test]
+    fn budget_open_fallback_uses_compact_shell_not_legacy_inline_page() {
+        let store = MemStore::default();
+        let mut cfg = crate::config::defaults().clone();
+        cfg.maze_rollout_phase = crate::config::MazeRolloutPhase::Instrument;
+        cfg.maze_max_concurrent_global = 0;
+
+        let req = Request::builder()
+            .method(Method::Get)
+            .uri("/maze/budget-open")
+            .body(Vec::<u8>::new())
+            .build();
+        let decision = super::serve(
+            &store,
+            &cfg,
+            &req,
+            "198.51.100.91",
+            "BudgetOpenBot/1.0",
+            "/maze/budget-open",
+            None,
+        );
+        let MazeServeDecision::Serve(rendered) = decision else {
+            panic!("expected maze serve decision");
+        };
+        assert!(
+            !rendered.html.contains("<style>"),
+            "budget-open path should not use legacy inline style renderer"
+        );
+        assert!(rendered.html.contains(super::super::assets::maze_script_path()));
+    }
+
     fn first_maze_link(html: &str) -> Option<String> {
         for fragment in html.split("<a ") {
             if !fragment.contains("data-link-kind=\"maze\"") {
@@ -1166,6 +1326,24 @@ mod tests {
         serde_json::from_str(&html[start..end]).expect("bootstrap json should parse")
     }
 
+    fn mt_from_uri(uri: &str) -> Option<String> {
+        let (_, query) = uri.split_once('?')?;
+        for segment in query.split('&') {
+            let (key, value) = segment.split_once('=').unwrap_or((segment, ""));
+            if key == "mt" && !value.is_empty() {
+                return Some(value.to_string());
+            }
+        }
+        None
+    }
+
+    fn fallback_reason(decision: MazeServeDecision) -> MazeFallbackReason {
+        match decision {
+            MazeServeDecision::Fallback(fallback) => fallback.reason,
+            MazeServeDecision::Serve(_) => panic!("expected fallback decision"),
+        }
+    }
+
     #[test]
     fn invalid_token_maps_to_fallback() {
         let store = MemStore::default();
@@ -1184,19 +1362,15 @@ mod tests {
             "/maze/abc",
             None,
         );
-        match decision {
-            MazeServeDecision::Fallback(reason) => {
-                assert!(
-                    matches!(
-                        reason,
-                        MazeFallbackReason::TokenInvalid | MazeFallbackReason::TokenBindingMismatch
-                    ),
-                    "unexpected fallback reason: {:?}",
-                    reason
-                );
-            }
-            MazeServeDecision::Serve(_) => panic!("expected fallback decision"),
-        }
+        let reason = fallback_reason(decision);
+        assert!(
+            matches!(
+                reason,
+                MazeFallbackReason::TokenInvalid | MazeFallbackReason::TokenBindingMismatch
+            ),
+            "unexpected fallback reason: {:?}",
+            reason
+        );
     }
 
     #[test]
@@ -1227,8 +1401,8 @@ mod tests {
                     .html
                     .contains("Synthetic navigation surface. Not authoritative content."));
             }
-            MazeServeDecision::Fallback(reason) => {
-                panic!("expected served maze page, got fallback: {:?}", reason)
+            MazeServeDecision::Fallback(fallback) => {
+                panic!("expected served maze page, got fallback: {:?}", fallback)
             }
         }
     }
@@ -1261,8 +1435,8 @@ mod tests {
                     .html
                     .contains("Synthetic navigation surface. Not authoritative content."));
             }
-            MazeServeDecision::Fallback(reason) => {
-                panic!("expected served maze page, got fallback: {:?}", reason)
+            MazeServeDecision::Fallback(fallback) => {
+                panic!("expected served maze page, got fallback: {:?}", fallback)
             }
         }
         std::env::remove_var("SHUMA_DEBUG_HEADERS");
@@ -1353,6 +1527,41 @@ mod tests {
     }
 
     #[test]
+    fn child_token_branch_budget_decrements_from_parent_budget() {
+        let store = MemStore::default();
+        let mut cfg = crate::config::defaults().clone();
+        cfg.maze_token_branch_budget = 4;
+        cfg.maze_server_visible_links = 1;
+
+        let req = Request::builder()
+            .method(Method::Get)
+            .uri("/maze/budget-decrement")
+            .body(Vec::<u8>::new())
+            .build();
+        let decision = super::serve(
+            &store,
+            &cfg,
+            &req,
+            "198.51.100.77",
+            "BudgetStepBot/1.0",
+            "/maze/budget-decrement",
+            None,
+        );
+        let MazeServeDecision::Serve(rendered) = decision else {
+            panic!("expected maze page");
+        };
+        let first_link = first_maze_link(rendered.html.as_str()).expect("expected maze link");
+        let raw_token = mt_from_uri(first_link.as_str()).expect("expected mt token");
+        let parsed = super::token::verify(
+            raw_token.as_str(),
+            super::token::secret_from_env().as_str(),
+            None,
+        )
+        .expect("token should verify");
+        assert_eq!(parsed.branch_budget, 3);
+    }
+
+    #[test]
     fn issue_links_rejects_tampered_seed_signature() {
         let store = MemStore::default();
         let mut cfg = crate::config::defaults().clone();
@@ -1434,35 +1643,6 @@ mod tests {
             .and_then(|value| value.as_str())
             .expect("seed signature should exist");
 
-        let valid_payload = serde_json::json!({
-            "parent_token": checkpoint_token,
-            "flow_id": flow_id,
-            "entropy_nonce": entropy_nonce,
-            "path_prefix": path_prefix,
-            "seed": seed,
-            "seed_sig": seed_sig,
-            "hidden_count": hidden_count,
-            "requested_hidden_count": hidden_count.min(2),
-            "segment_len": segment_len,
-            "candidates": []
-        });
-        let valid_req = Request::builder()
-            .method(Method::Post)
-            .uri("/maze/issue-links")
-            .header("Content-Type", "application/json")
-            .body(valid_payload.to_string().into_bytes())
-            .build();
-        let valid_response =
-            super::handle_issue_links(&store, &cfg, &valid_req, "198.51.100.54", "SeedSigBot/1.0");
-        assert_eq!(*valid_response.status(), 200);
-        let valid_json: Value = serde_json::from_slice(valid_response.body())
-            .expect("issue-links response should be valid json");
-        assert!(valid_json
-            .get("links")
-            .and_then(|value| value.as_array())
-            .map(|links| !links.is_empty())
-            .unwrap_or(false));
-
         let invalid_payload = serde_json::json!({
             "parent_token": checkpoint_token,
             "flow_id": flow_id,
@@ -1489,5 +1669,124 @@ mod tests {
             "SeedSigBot/1.0",
         );
         assert_eq!(*invalid_response.status(), 403);
+
+        let valid_payload = serde_json::json!({
+            "parent_token": checkpoint_token,
+            "flow_id": flow_id,
+            "entropy_nonce": entropy_nonce,
+            "path_prefix": path_prefix,
+            "seed": seed,
+            "seed_sig": seed_sig,
+            "hidden_count": hidden_count,
+            "requested_hidden_count": hidden_count.min(2),
+            "segment_len": segment_len,
+            "candidates": []
+        });
+        let valid_req = Request::builder()
+            .method(Method::Post)
+            .uri("/maze/issue-links")
+            .header("Content-Type", "application/json")
+            .body(valid_payload.to_string().into_bytes())
+            .build();
+        let valid_response =
+            super::handle_issue_links(&store, &cfg, &valid_req, "198.51.100.54", "SeedSigBot/1.0");
+        assert_eq!(*valid_response.status(), 200);
+    }
+
+    #[test]
+    fn issue_links_rejects_parent_token_replay() {
+        let store = MemStore::default();
+        let mut cfg = crate::config::defaults().clone();
+        cfg.maze_client_expansion_enabled = true;
+        cfg.maze_server_visible_links = 1;
+        cfg.maze_token_branch_budget = 3;
+
+        let entry_req = Request::builder()
+            .method(Method::Get)
+            .uri("/maze/issue-links-replay-entry")
+            .body(Vec::<u8>::new())
+            .build();
+        let entry = super::serve(
+            &store,
+            &cfg,
+            &entry_req,
+            "198.51.100.99",
+            "IssueReplayBot/1.0",
+            "/maze/issue-links-replay-entry",
+            None,
+        );
+        let MazeServeDecision::Serve(entry_page) = entry else {
+            panic!("entry should serve maze");
+        };
+        let first_link =
+            first_maze_link(entry_page.html.as_str()).expect("first link should exist");
+
+        let child_req = Request::builder()
+            .method(Method::Get)
+            .uri(first_link.as_str())
+            .body(Vec::<u8>::new())
+            .build();
+        let child_path = first_link.split('?').next().expect("path should exist");
+        let child = super::serve(
+            &store,
+            &cfg,
+            &child_req,
+            "198.51.100.99",
+            "IssueReplayBot/1.0",
+            child_path,
+            None,
+        );
+        let MazeServeDecision::Serve(child_page) = child else {
+            panic!("child should serve maze");
+        };
+
+        let bootstrap = extract_bootstrap_json(child_page.html.as_str());
+        let expansion = bootstrap
+            .get("client_expansion")
+            .cloned()
+            .expect("client expansion should exist");
+        let payload = serde_json::json!({
+            "parent_token": bootstrap.get("checkpoint_token").and_then(|value| value.as_str()).unwrap_or_default(),
+            "flow_id": bootstrap.get("flow_id").and_then(|value| value.as_str()).unwrap_or_default(),
+            "entropy_nonce": bootstrap.get("entropy_nonce").and_then(|value| value.as_str()).unwrap_or_default(),
+            "path_prefix": bootstrap.get("path_prefix").and_then(|value| value.as_str()).unwrap_or("/maze/"),
+            "seed": expansion.get("seed").and_then(|value| value.as_u64()).unwrap_or(0),
+            "seed_sig": expansion.get("seed_sig").and_then(|value| value.as_str()).unwrap_or_default(),
+            "hidden_count": expansion.get("hidden_count").and_then(|value| value.as_u64()).unwrap_or(0),
+            "requested_hidden_count": 1,
+            "segment_len": expansion.get("segment_len").and_then(|value| value.as_u64()).unwrap_or(16),
+            "candidates": []
+        })
+        .to_string()
+        .into_bytes();
+        let issue_req = Request::builder()
+            .method(Method::Post)
+            .uri("/maze/issue-links")
+            .header("Content-Type", "application/json")
+            .body(payload.clone())
+            .build();
+        let first_issue = super::handle_issue_links(
+            &store,
+            &cfg,
+            &issue_req,
+            "198.51.100.99",
+            "IssueReplayBot/1.0",
+        );
+        assert_eq!(*first_issue.status(), 200);
+
+        let replay_req = Request::builder()
+            .method(Method::Post)
+            .uri("/maze/issue-links")
+            .header("Content-Type", "application/json")
+            .body(payload)
+            .build();
+        let replay_issue = super::handle_issue_links(
+            &store,
+            &cfg,
+            &replay_req,
+            "198.51.100.99",
+            "IssueReplayBot/1.0",
+        );
+        assert_eq!(*replay_issue.status(), 409);
     }
 }

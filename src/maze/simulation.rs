@@ -126,8 +126,8 @@ mod tests {
 
         let replay = harness.serve(first.as_str());
         match replay {
-            MazeServeDecision::Fallback(reason) => {
-                assert_eq!(reason, MazeFallbackReason::TokenReplay)
+            MazeServeDecision::Fallback(fallback) => {
+                assert_eq!(fallback.reason, MazeFallbackReason::TokenReplay)
             }
             MazeServeDecision::Serve(_) => panic!("replayed token should not be accepted"),
         }
@@ -168,8 +168,8 @@ mod tests {
                     uri =
                         first_maze_link(page.html.as_str()).expect("expected navigable maze link");
                 }
-                MazeServeDecision::Fallback(reason) => {
-                    assert_eq!(reason, MazeFallbackReason::CheckpointMissing);
+                MazeServeDecision::Fallback(fallback) => {
+                    assert_eq!(fallback.reason, MazeFallbackReason::CheckpointMissing);
                     saw_checkpoint_fallback = true;
                     break;
                 }
@@ -219,8 +219,8 @@ mod tests {
 
         let bypass_attempt = second_harness.serve(tokenized_link.as_str());
         match bypass_attempt {
-            MazeServeDecision::Fallback(reason) => {
-                assert_eq!(reason, MazeFallbackReason::TokenBindingMismatch)
+            MazeServeDecision::Fallback(fallback) => {
+                assert_eq!(fallback.reason, MazeFallbackReason::TokenBindingMismatch)
             }
             MazeServeDecision::Serve(_) => panic!("token reuse from different IP should fail"),
         }

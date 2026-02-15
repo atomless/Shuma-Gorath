@@ -98,7 +98,6 @@ pub(crate) trait ChallengeEngineProvider {
 
 pub(crate) trait MazeTarpitProvider {
     fn is_maze_path(&self, path: &str) -> bool;
-    fn handle_maze_request(&self, path: &str) -> Response;
     fn serve_maze_with_tracking(
         &self,
         req: &Request,

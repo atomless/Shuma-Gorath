@@ -1,6 +1,3 @@
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-
 /// Simple seeded pseudo-random number generator (xorshift64).
 /// We use this instead of rand crate to keep WASM size small.
 pub(super) struct SeededRng {
@@ -35,13 +32,6 @@ impl SeededRng {
         let idx = self.next() as usize % items.len();
         items[idx]
     }
-}
-
-/// Hash a path into a deterministic seed.
-pub(super) fn path_to_seed(path: &str) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    path.hash(&mut hasher);
-    hasher.finish()
 }
 
 /// Generate a random hex string for link paths.

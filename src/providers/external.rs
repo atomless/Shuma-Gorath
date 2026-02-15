@@ -926,10 +926,6 @@ impl MazeTarpitProvider for UnsupportedExternalMazeTarpitProvider {
         internal::MAZE_TARPIT.is_maze_path(path)
     }
 
-    fn handle_maze_request(&self, path: &str) -> Response {
-        internal::MAZE_TARPIT.handle_maze_request(path)
-    }
-
     fn serve_maze_with_tracking(
         &self,
         req: &Request,

@@ -39,7 +39,7 @@ Current Stage 2 behavior combines polymorphic rendering, signed traversal state,
 3. **Signed traversal links**
    Maze links carry signed `mt` traversal tokens with TTL/depth/branch budget/previous-node binding and replay tracking.
 4. **Compact shell + shared assets**
-   Maze pages now ship a compact HTML shell and reuse versioned static maze assets (`/maze/assets/...`) instead of full inline CSS/JS on every hop.
+   Maze pages now ship a compact HTML shell and reuse versioned static maze assets (`/maze/assets/...`) instead of full inline CSS/JS on every hop. Asset version tags are content-hash derived so path changes track payload changes.
 5. **Client-side expansion + checkpoints**
    Suspicious-tier traversal serves server-visible links only; hidden links are issued progressively via `/maze/issue-links` from a compact signed seed after checkpoint-aware validation.
 6. **Signed client expansion seed**
@@ -56,6 +56,8 @@ Current Stage 2 behavior combines polymorphic rendering, signed traversal state,
     Maze runtime enforces global and per-IP-bucket concurrency caps plus proactive response byte/time pre-admission limits.
 12. **Covert decoys in non-maze HTML**
     Medium-suspicion challenge responses can include hidden decoy links (`dc=1`) to detect covert decoy-follow behavior while preserving visible UX.
+13. **High-confidence fallback matrix**
+    Repeated high-confidence violations deterministically escalate from challenge fallback to block fallback so expensive maze serving is cut earlier.
 
 ### Content Sources and Safety Rules
 
@@ -74,7 +76,7 @@ Maze rollout is phase-gated via `maze_rollout_phase`:
 - `advisory`
   - budget violations are enforced; token/checkpoint/proof violations remain advisory.
 - `enforce`
-  - token, replay, binding, checkpoint, proof, and budget violations all enforce fallback behavior.
+  - token, replay, binding, checkpoint, proof, and budget violations all enforce fallback behavior (challenge or block, based on violation/action matrix).
 
 Recommended rollout order:
 

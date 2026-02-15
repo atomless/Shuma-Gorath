@@ -46,6 +46,7 @@ This file provides instructions for coding agents working in this repository.
    - run relevant Makefile verification before each commit,
    - push after each validated atomic commit unless the user explicitly asks for batching.
 10. Document security, operational, and resource implications.
+11. When a full TODO section is completed, move its completed checklist items from `todos/todo.md` to `todos/completed-todo-history.md` and preserve the original section title as a heading in the archive entry.
 
 ## Security and abuse posture
 

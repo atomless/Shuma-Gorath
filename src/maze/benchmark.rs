@@ -119,11 +119,6 @@ mod tests {
 
         let ip = "198.51.100.88";
         let ua = "BenchmarkCrawler/1.0";
-        let legacy_bytes = crate::maze::generate_maze_page(
-            "/maze/benchmark-baseline",
-            &crate::maze::MazeConfig::default(),
-        )
-        .len();
 
         let mut uri = "/maze/benchmark-entry".to_string();
         let mut pages_served = 0u64;
@@ -221,10 +216,9 @@ mod tests {
         let host_write_bytes = store.bytes_written();
 
         eprintln!(
-            "maze_benchmark pages={} avg_page_bytes={} legacy_bytes={} host_set_ops={} host_write_bytes={} attacker_requests={} issue_links_calls={} attacker_pow_iterations={}",
+            "maze_benchmark pages={} avg_page_bytes={} host_set_ops={} host_write_bytes={} attacker_requests={} issue_links_calls={} attacker_pow_iterations={}",
             pages_served,
             average_page_bytes,
-            legacy_bytes,
             host_set_ops,
             host_write_bytes,
             attacker_requests,
@@ -232,10 +226,6 @@ mod tests {
             attacker_pow_iterations
         );
 
-        assert!(
-            average_page_bytes < legacy_bytes,
-            "modern maze pages should remain smaller than legacy inline pages"
-        );
         assert!(
             average_page_bytes <= 10_000,
             "average maze page payload should stay within budget guardrail"

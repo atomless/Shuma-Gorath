@@ -73,6 +73,7 @@ Behavior:
 
 - request is binding-validated against parent token (`ip_bucket`, `ua_bucket`, path prefix),
 - expansion seed signature is verified before issuing links,
+- parent-token link issuance is single-use; replayed `/maze/issue-links` requests return `409`,
 - checkpoint posture is enforced before deep hidden issuance,
 - response returns `{"links":[...]}` with signed child `mt` tokens (and optional `pow_difficulty`).
 

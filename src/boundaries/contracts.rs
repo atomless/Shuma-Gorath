@@ -18,7 +18,6 @@ pub(crate) trait ChallengeBoundary {
 
 pub(crate) trait MazeBoundary {
     fn is_maze_path(&self, path: &str) -> bool;
-    fn handle_maze_request(&self, path: &str) -> Response;
 }
 
 pub(crate) trait AdminBoundary {

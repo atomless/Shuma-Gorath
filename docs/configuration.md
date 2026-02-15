@@ -186,8 +186,10 @@ Recommended promotion order is `instrument -> advisory -> enforce` with explicit
 
 - Maze pages now use a compact HTML shell with versioned shared assets under `/maze/assets/...` (immutable cache policy).
 - Hidden-link expansion is progressive via `POST /maze/issue-links` using signed expansion-seed envelopes (`seed` + `seed_sig`) instead of shipping full hidden-link sets in bootstrap payloads.
+- `/maze/issue-links` parent-token issuance is single-use (replay calls are rejected) to reduce repeat host work.
 - Branch-budget controls now bound progressive hidden-link issuance volume per traversal token.
 - Deep-tier proof/expansion compute executes in a Web Worker, with constrained-device safeguards that reduce requested expansion/proof work before hard fallback.
+- High-confidence violation accumulation now degrades from challenge fallback to block fallback before continuing expensive maze serving.
 
 ## 🐙 Static Resource Bypass Defaults
 

@@ -148,7 +148,7 @@ pub(crate) fn render_admin_preview(
         "path_prefix": path_prefix,
         "entropy_nonce": "preview",
         "assets": {
-            "worker_url": super::assets::MAZE_WORKER_PATH
+            "worker_url": super::assets::maze_worker_path()
         },
         "client_expansion": {
             "enabled": false,
@@ -172,8 +172,8 @@ pub(crate) fn render_admin_preview(
         variant_layout,
         variant_palette,
         style_tier: MazeStyleTier::Full,
-        style_sheet_url: Some(super::assets::MAZE_STYLE_PATH.to_string()),
-        script_url: super::assets::MAZE_SCRIPT_PATH.to_string(),
+        style_sheet_url: Some(super::assets::maze_style_path().to_string()),
+        script_url: super::assets::maze_script_path().to_string(),
     };
 
     generate_polymorphic_maze_page(&options)
