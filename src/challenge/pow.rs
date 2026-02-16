@@ -51,10 +51,16 @@ fn now_ts() -> u64 {
     crate::admin::now_ts()
 }
 
+#[cfg(not(test))]
 fn try_open_default_store() -> Option<Store> {
     std::panic::catch_unwind(|| Store::open_default().ok())
         .ok()
         .flatten()
+}
+
+#[cfg(test)]
+fn try_open_default_store() -> Option<Store> {
+    None
 }
 
 fn get_pow_secret() -> String {
@@ -452,13 +458,19 @@ fn record_sequence_policy_violation(
 mod tests {
     use super::{
         handle_pow_verify, issue_pow_challenge, make_seed_token, parse_seed_token, verify_pow,
-        PowPayload,
+        PowPayload, FALLBACK_POW_STATE_STORE,
     };
     use spin_sdk::http::{Method, Request};
+    use std::sync::MutexGuard;
 
-    fn set_pow_test_secrets() {
+    fn setup_pow_test_env() -> MutexGuard<'static, ()> {
+        let lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_POW_SECRET", "pow-test-secret");
         std::env::set_var("SHUMA_JS_SECRET", "js-test-secret");
+        if let Ok(mut map) = FALLBACK_POW_STATE_STORE.lock() {
+            map.clear();
+        }
+        lock
     }
 
     fn make_pow_verify_request(seed: &str, nonce: &str, user_agent: &str) -> Request {
@@ -488,7 +500,7 @@ mod tests {
 
     #[test]
     fn issued_pow_seed_contains_valid_operation_envelope() {
-        set_pow_test_secrets();
+        let _lock = setup_pow_test_env();
         let challenge = issue_pow_challenge("1.2.3.4", "Mozilla/5.0", 12, 60);
         let payload = parse_seed_token(&challenge.seed).expect("issued seed should parse");
         assert_eq!(
@@ -512,7 +524,7 @@ mod tests {
 
     #[test]
     fn pow_seed_rejects_invalid_operation_envelope() {
-        set_pow_test_secrets();
+        let _lock = setup_pow_test_env();
         let now = crate::admin::now_ts();
         let payload = PowPayload {
             seed_id: "seed-1".to_string(),
@@ -534,7 +546,7 @@ mod tests {
 
     #[test]
     fn pow_verify_rejects_operation_replay() {
-        set_pow_test_secrets();
+        let _lock = setup_pow_test_env();
         let challenge = issue_pow_challenge("198.51.100.10", "ReplayUA/1.0", 12, 120);
         let mut payload = parse_seed_token(&challenge.seed).expect("seed should parse");
         let now = crate::admin::now_ts();
@@ -554,7 +566,7 @@ mod tests {
 
     #[test]
     fn pow_verify_rejects_too_fast_submission() {
-        set_pow_test_secrets();
+        let _lock = setup_pow_test_env();
         let challenge = issue_pow_challenge("198.51.100.11", "FastUA/1.0", 12, 120);
         let mut payload = parse_seed_token(&challenge.seed).expect("seed should parse");
         let now = crate::admin::now_ts();
@@ -576,7 +588,7 @@ mod tests {
 
     #[test]
     fn pow_verify_rejects_too_regular_cadence() {
-        set_pow_test_secrets();
+        let _lock = setup_pow_test_env();
         let ip = "198.51.100.12";
         let ua = "RegularUA/1.0";
 
