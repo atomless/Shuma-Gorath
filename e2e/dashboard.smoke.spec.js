@@ -123,6 +123,36 @@ async function openTab(page, tab) {
   assertNoRuntimeFailures(page);
 }
 
+async function assertChartsFillPanels(page) {
+  const metrics = await page.evaluate(() => {
+    const ids = ["eventTypesChart", "topIpsChart", "timeSeriesChart"];
+    return ids.map((id) => {
+      const canvas = document.getElementById(id);
+      const panel = canvas ? canvas.closest(".chart-container") : null;
+      if (!canvas || !panel) {
+        return { id, missing: true };
+      }
+      const canvasRect = canvas.getBoundingClientRect();
+      const panelRect = panel.getBoundingClientRect();
+      return {
+        id,
+        missing: false,
+        canvasWidth: canvasRect.width,
+        canvasHeight: canvasRect.height,
+        panelWidth: panelRect.width
+      };
+    });
+  });
+
+  for (const metric of metrics) {
+    expect(metric.missing, `${metric.id} should exist in a chart panel`).toBe(false);
+    expect(metric.canvasWidth, `${metric.id} should fill most of panel width`).toBeGreaterThan(
+      metric.panelWidth * 0.8
+    );
+    expect(metric.canvasHeight, `${metric.id} should have non-squashed height`).toBeGreaterThan(170);
+  }
+}
+
 test.beforeAll(async () => {
   await seedDashboardData();
 });
@@ -252,6 +282,7 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
 
 test("dashboard loads and shows seeded operational data", async ({ page }) => {
   await openDashboard(page);
+  await assertChartsFillPanels(page);
 
   await expect(page.locator("h1")).toHaveText("Shuma-Gorath");
   await expect(page.locator("h3", { hasText: "API Access" })).toHaveCount(0);

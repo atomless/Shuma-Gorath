@@ -491,7 +491,10 @@ h1 {
 }
 
 .chart-container canvas {
-  max-height: 300px;
+  display: block;
+  width: 100%;
+  height: clamp(180px, 24vh, 300px);
+  max-height: none;
 }
 
 /* ===========================================
