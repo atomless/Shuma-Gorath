@@ -40,6 +40,7 @@ Charts:
 - Event types distribution (doughnut)
 - Top IPs by activity (bar)
 - Events over time (line, 60m/24h/7d/30d)
+- Local chart runtime renders legends and readable axes/ticks (no CDN dependency)
 
 Tables:
 - Current bans (IP, reason, timestamps, signal badges, expandable fingerprint details, quick unban)

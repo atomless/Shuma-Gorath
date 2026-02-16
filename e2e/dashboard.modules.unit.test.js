@@ -28,6 +28,34 @@ function toPlain(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function createMockCanvasContext() {
+  const calls = {
+    fillText: [],
+    moveTo: [],
+    lineTo: []
+  };
+  const gradient = { addColorStop: () => {} };
+  const canvas = { clientWidth: 320, clientHeight: 180, width: 320, height: 180 };
+  const ctx = {
+    canvas,
+    save: () => {},
+    restore: () => {},
+    clearRect: () => {},
+    setTransform: () => {},
+    beginPath: () => {},
+    moveTo: (x, y) => calls.moveTo.push([x, y]),
+    lineTo: (x, y) => calls.lineTo.push([x, y]),
+    arc: () => {},
+    closePath: () => {},
+    fill: () => {},
+    stroke: () => {},
+    fillRect: () => {},
+    createLinearGradient: () => gradient,
+    fillText: (text) => calls.fillText.push(String(text))
+  };
+  return { ctx, calls };
+}
+
 test('dashboard API adapters normalize sparse payloads safely', () => {
   const browser = loadBrowserModule('dashboard/modules/api-client.js');
   const api = browser.ShumaDashboardApiClient;
@@ -72,6 +100,51 @@ test('dashboard API client parses JSON payloads when content-type is missing', a
   assert.equal(events.recent_events.length, 1);
   assert.equal(events.unique_ips, 1);
   assert.deepEqual(toPlain(events.top_ips), [['198.51.100.8', 1]]);
+});
+
+test('chart-lite renders doughnut legend labels', () => {
+  const browser = loadBrowserModule('dashboard/assets/vendor/chart-lite-1.0.0.min.js', {
+    matchMedia: () => ({ matches: false })
+  });
+  const { ctx, calls } = createMockCanvasContext();
+  new browser.Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Ban', 'Challenge'],
+      datasets: [{ data: [3, 2], backgroundColor: ['#111', '#222'] }]
+    }
+  });
+
+  assert.ok(calls.fillText.some((text) => text.includes('Ban')));
+  assert.ok(calls.fillText.some((text) => text.includes('Challenge')));
+});
+
+test('chart-lite renders axis ticks and labels for bar and line charts', () => {
+  const browser = loadBrowserModule('dashboard/assets/vendor/chart-lite-1.0.0.min.js', {
+    matchMedia: () => ({ matches: false })
+  });
+
+  const bar = createMockCanvasContext();
+  new browser.Chart(bar.ctx, {
+    type: 'bar',
+    data: {
+      labels: ['IP-A', 'IP-B', 'IP-C'],
+      datasets: [{ data: [1, 3, 2] }]
+    }
+  });
+  assert.ok(bar.calls.fillText.some((text) => text === '0'));
+  assert.ok(bar.calls.fillText.some((text) => text.includes('IP-A')));
+
+  const line = createMockCanvasContext();
+  new browser.Chart(line.ctx, {
+    type: 'line',
+    data: {
+      labels: ['09:00', '10:00', '11:00'],
+      datasets: [{ data: [1, 2, 3], backgroundColor: ['#abc'] }]
+    }
+  });
+  assert.ok(line.calls.fillText.some((text) => text === '0'));
+  assert.ok(line.calls.fillText.some((text) => text.includes('09:00')));
 });
 
 test('dashboard state invalidation scopes are explicit and bounded', () => {
