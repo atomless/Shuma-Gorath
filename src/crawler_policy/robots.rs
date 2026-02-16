@@ -198,13 +198,15 @@ fn collect_trap_paths(cfg: &Config) -> Vec<String> {
         paths.push("/maze/".to_string());
         paths.push("/trap/".to_string());
     }
-    paths.extend(
-        cfg.honeypots
-            .iter()
-            .map(|path| path.trim())
-            .filter(|path| !path.is_empty())
-            .map(|path| path.to_string()),
-    );
+    if cfg.honeypot_enabled {
+        paths.extend(
+            cfg.honeypots
+                .iter()
+                .map(|path| path.trim())
+                .filter(|path| !path.is_empty())
+                .map(|path| path.to_string()),
+        );
+    }
 
     let mut seen = HashSet::new();
     let mut deduped = Vec::new();
@@ -337,5 +339,14 @@ mod tests {
         assert!(robots.contains("Disallow: /instaban"));
         assert!(!robots.contains("Disallow: /maze/"));
         assert!(!robots.contains("Disallow: /trap/"));
+    }
+
+    #[test]
+    fn test_honeypot_path_is_hidden_when_honeypot_disabled() {
+        let mut cfg = test_config();
+        cfg.honeypot_enabled = false;
+        let robots = generate_robots_txt(&cfg);
+
+        assert!(!robots.contains("Disallow: /instaban"));
     }
 }

@@ -163,7 +163,7 @@ info "Resetting test_mode=false before integration scenarios..."
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -X POST \
   -H "Authorization: Bearer $SHUMA_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"test_mode": false}' \
+  -d '{"test_mode": false, "honeypot_enabled": true}' \
   "$BASE_URL/admin/config" > /dev/null || true
 
 info "Resetting GEO policy lists to empty defaults..."

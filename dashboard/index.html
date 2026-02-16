@@ -317,6 +317,13 @@
               <h3>Honeypot Paths</h3>
               <p class="control-desc text-muted">One path per line. Requests that hit these paths are treated as high-confidence bot behavior. Paths must start with <code>/</code>.</p>
               <div class="admin-controls">
+                <div class="toggle-row">
+                  <label class="control-label control-label--wide" for="honeypot-enabled-toggle">Enable Honeypot</label>
+                  <label class="toggle-switch" for="honeypot-enabled-toggle">
+                    <input type="checkbox" id="honeypot-enabled-toggle" aria-label="Enable honeypot">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
                 <div class="geo-field">
                   <label class="control-label" for="honeypot-paths">Paths</label>
                   <textarea class="input-field geo-textarea" id="honeypot-paths" rows="3" aria-label="Honeypot paths" spellcheck="false"></textarea>

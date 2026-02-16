@@ -332,6 +332,7 @@ mod admin_config_tests {
         let store = TestStore::default();
         let mut cfg = crate::config::defaults().clone();
         cfg.rate_limit = 321;
+        cfg.honeypot_enabled = false;
         cfg.challenge_enabled = false;
         cfg.honeypots = vec!["/trap-a".to_string(), "/trap-b".to_string()];
         cfg.defence_modes.rate = crate::config::ComposabilityMode::Signal;
@@ -363,6 +364,10 @@ mod admin_config_tests {
         assert_eq!(
             env.get("SHUMA_EDGE_INTEGRATION_MODE"),
             Some(&serde_json::json!("advisory"))
+        );
+        assert_eq!(
+            env.get("SHUMA_HONEYPOT_ENABLED"),
+            Some(&serde_json::json!("false"))
         );
         assert_eq!(
             env.get("SHUMA_CHALLENGE_ENABLED"),
@@ -417,6 +422,7 @@ mod admin_config_tests {
         assert!(env_text.contains("SHUMA_RATE_LIMIT=321"));
         assert!(env_text.contains("SHUMA_MODE_RATE=signal"));
         assert!(env_text.contains("SHUMA_PROVIDER_FINGERPRINT_SIGNAL=external"));
+        assert!(env_text.contains("SHUMA_HONEYPOT_ENABLED=false"));
         assert!(env_text.contains("SHUMA_CHALLENGE_ENABLED=false"));
         assert!(env_text.contains("SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE=17"));
         assert!(env_text.contains("SHUMA_RATE_LIMITER_REDIS_URL=redis://redis:6379"));
@@ -523,6 +529,7 @@ mod admin_config_tests {
         assert!(body.get("enterprise_state_guardrail_error").is_some());
         assert!(body.get("botness_config_mutable").is_some());
         assert!(body.get("botness_signal_definitions").is_some());
+        assert!(body.get("honeypot_enabled").is_some());
     }
 
     #[test]
@@ -902,6 +909,7 @@ mod admin_config_tests {
             Method::Post,
             "/admin/config",
             br#"{
+                "honeypot_enabled": false,
                 "honeypots": ["/instaban", "/trap-b"],
                 "browser_block": [["Chrome",126],["Firefox",120]],
                 "browser_whitelist": [["Safari",16]],
@@ -915,6 +923,7 @@ mod admin_config_tests {
         assert_eq!(*post_resp.status(), 200u16);
         let post_json: serde_json::Value = serde_json::from_slice(post_resp.body()).unwrap();
         let cfg = post_json.get("config").unwrap();
+        assert_eq!(cfg.get("honeypot_enabled"), Some(&serde_json::Value::Bool(false)));
         assert_eq!(cfg.get("honeypots"), Some(&serde_json::json!(["/instaban", "/trap-b"])));
         assert_eq!(
             cfg.get("browser_block"),
@@ -941,6 +950,7 @@ mod admin_config_tests {
 
         let saved_bytes = store.get("config:default").unwrap().unwrap();
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
+        assert!(!saved_cfg.honeypot_enabled);
         assert_eq!(
             saved_cfg.honeypots,
             vec!["/instaban".to_string(), "/trap-b".to_string()]
@@ -2026,6 +2036,10 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
             cfg.ban_durations.cdp.to_string(),
         ),
         ("SHUMA_RATE_LIMIT".to_string(), cfg.rate_limit.to_string()),
+        (
+            "SHUMA_HONEYPOT_ENABLED".to_string(),
+            bool_env(cfg.honeypot_enabled).to_string(),
+        ),
         ("SHUMA_HONEYPOTS".to_string(), json_env(&cfg.honeypots)),
         (
             "SHUMA_BROWSER_BLOCK".to_string(),
@@ -2601,6 +2615,10 @@ fn handle_admin_config(
             }
         }
 
+        if let Some(honeypot_enabled) = json.get("honeypot_enabled").and_then(|v| v.as_bool()) {
+            cfg.honeypot_enabled = honeypot_enabled;
+            changed = true;
+        }
         if let Some(value) = json.get("honeypots") {
             match parse_honeypot_paths_json("honeypots", value) {
                 Ok(list) => {

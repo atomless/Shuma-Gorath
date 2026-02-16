@@ -46,7 +46,7 @@ where
         return Some(Response::new(200, "TEST MODE: PoW bypassed"));
     }
 
-    if crate::enforcement::honeypot::is_honeypot(path, &cfg.honeypots) {
+    if cfg.honeypot_enabled && crate::enforcement::honeypot::is_honeypot(path, &cfg.honeypots) {
         crate::log_line(&format!("[TEST MODE] Would ban IP {ip} for honeypot"));
         log_test_mode_event(
             store,

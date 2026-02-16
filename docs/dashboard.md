@@ -58,7 +58,7 @@ Controls:
 - Manual ban/unban
 - JS Required enforcement toggle
 - Rate limit (requests/minute) config
-- Honeypot path list editor (`honeypots`)
+- Honeypot controls (`honeypot_enabled`, `honeypots`)
 - Browser policy rule editors (`browser_block`, `browser_whitelist`)
 - Bypass allowlist editors (`whitelist`, `path_whitelist`)
 - Per-trigger ban durations, including CDP automation duration (`ban_durations.cdp`)

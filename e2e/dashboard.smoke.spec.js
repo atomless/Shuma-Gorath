@@ -210,6 +210,7 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
       cdp: 43200,
       admin: 21600
     },
+    honeypot_enabled: true,
     honeypots: ["/instaban"],
     browser_block: [["Chrome", 120], ["Firefox", 115], ["Safari", 15]],
     browser_whitelist: [],
@@ -374,6 +375,8 @@ test("maze and duration save buttons use shared dirty-state behavior", async ({ 
   const rateLimitSave = page.locator("#save-rate-limit-config");
   const jsRequiredSave = page.locator("#save-js-required-config");
   const honeypotSave = page.locator("#save-honeypot-config");
+  const honeypotEnabledToggle = page.locator("#honeypot-enabled-toggle");
+  const honeypotEnabledSwitch = page.locator("label.toggle-switch[for='honeypot-enabled-toggle']");
   const browserPolicySave = page.locator("#save-browser-policy-config");
   const whitelistSave = page.locator("#save-whitelist-config");
   const edgeModeSave = page.locator("#save-edge-integration-mode-config");
@@ -457,6 +460,15 @@ test("maze and duration save buttons use shared dirty-state behavior", async ({ 
   await honeypotField.fill(initialHoneypots);
   await honeypotField.dispatchEvent("input");
   await expect(honeypotSave).toBeDisabled();
+  if (await honeypotEnabledSwitch.isVisible() && await honeypotEnabledToggle.isEnabled()) {
+    const initialHoneypotEnabled = await honeypotEnabledToggle.isChecked();
+    await honeypotEnabledSwitch.click();
+    await expect(honeypotSave).toBeEnabled();
+    if (initialHoneypotEnabled !== await honeypotEnabledToggle.isChecked()) {
+      await honeypotEnabledSwitch.click();
+    }
+    await expect(honeypotSave).toBeDisabled();
+  }
 
   const browserBlockField = page.locator("#browser-block-rules");
   const initialBrowserBlock = await browserBlockField.inputValue();

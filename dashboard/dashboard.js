@@ -121,6 +121,7 @@ const ADVANCED_CONFIG_TEMPLATE_PATHS = Object.freeze([
   'ban_durations.admin',
   'ban_durations.cdp',
   'rate_limit',
+  'honeypot_enabled',
   'honeypots',
   'browser_block',
   'browser_whitelist',
@@ -1278,11 +1279,16 @@ function updateGeoConfig(config) {
 }
 
 function updateHoneypotConfig(config) {
+  const enabledToggle = document.getElementById('honeypot-enabled-toggle');
   const field = document.getElementById('honeypot-paths');
   if (!field) return;
+  if (enabledToggle) {
+    enabledToggle.checked = config.honeypot_enabled !== false;
+  }
   const formatted = formatListTextarea(config.honeypots);
   field.value = formatted;
   honeypotSavedState = {
+    enabled: enabledToggle ? enabledToggle.checked : true,
     values: normalizeListTextareaForCompare(formatted)
   };
   const btn = document.getElementById('save-honeypot-config');
@@ -1407,6 +1413,7 @@ let geoSavedState = {
 };
 
 let honeypotSavedState = {
+  enabled: true,
   values: '/instaban'
 };
 
@@ -1725,10 +1732,14 @@ function validateHoneypotPathsField(showInline = false) {
 function checkHoneypotConfigChanged() {
   const apiValid = hasValidApiContext();
   const fieldsValid = validateHoneypotPathsField();
+  const currentEnabled = document.getElementById('honeypot-enabled-toggle').checked;
   const current = fieldsValid
     ? normalizeListTextareaForCompare(document.getElementById('honeypot-paths').value)
     : honeypotSavedState.values;
-  const changed = fieldsValid && current !== honeypotSavedState.values;
+  const changed = fieldsValid && (
+    currentEnabled !== honeypotSavedState.enabled ||
+    current !== honeypotSavedState.values
+  );
   setDirtySaveButtonState('save-honeypot-config', changed, apiValid, fieldsValid);
 }
 
@@ -1810,6 +1821,7 @@ document.getElementById('robots-crawl-delay').addEventListener('input', checkRob
     refreshCoreActionButtonsState();
   });
 });
+document.getElementById('honeypot-enabled-toggle').addEventListener('change', checkHoneypotConfigChanged);
 ['browser-block-rules', 'browser-whitelist-rules'].forEach((id) => {
   const field = document.getElementById(id);
   if (!field) return;

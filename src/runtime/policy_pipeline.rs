@@ -22,6 +22,9 @@ pub(crate) fn maybe_handle_honeypot(
     ip: &str,
     path: &str,
 ) -> Option<Response> {
+    if !cfg.honeypot_enabled {
+        return None;
+    }
     if !crate::enforcement::honeypot::is_honeypot(path, &cfg.honeypots) {
         return None;
     }

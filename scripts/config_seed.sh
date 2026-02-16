@@ -69,6 +69,7 @@ cat > "${tmp_json}" <<EOF
     "cdp": ${SHUMA_BAN_DURATION_CDP}
   },
   "rate_limit": ${SHUMA_RATE_LIMIT},
+  "honeypot_enabled": $(bool_norm "${SHUMA_HONEYPOT_ENABLED}"),
   "honeypots": ${SHUMA_HONEYPOTS},
   "browser_block": ${SHUMA_BROWSER_BLOCK},
   "browser_whitelist": ${SHUMA_BROWSER_WHITELIST},

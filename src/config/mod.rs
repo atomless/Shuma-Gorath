@@ -308,6 +308,8 @@ pub struct Config {
     pub ban_durations: BanDurations,
     #[serde(default = "default_rate_limit")]
     pub rate_limit: u32,
+    #[serde(default = "default_honeypot_enabled")]
+    pub honeypot_enabled: bool,
     #[serde(default = "default_honeypots")]
     pub honeypots: Vec<String>,
     #[serde(default = "default_browser_block")]
@@ -678,6 +680,7 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
             cdp: defaults_u64("SHUMA_BAN_DURATION_CDP"),
         },
         rate_limit: defaults_u32("SHUMA_RATE_LIMIT"),
+        honeypot_enabled: defaults_bool("SHUMA_HONEYPOT_ENABLED"),
         honeypots: defaults_string_list("SHUMA_HONEYPOTS"),
         browser_block: defaults_browser_rules("SHUMA_BROWSER_BLOCK"),
         browser_whitelist: defaults_browser_rules("SHUMA_BROWSER_WHITELIST"),
@@ -1368,6 +1371,10 @@ fn default_ban_duration_cdp() -> u64 {
 
 fn default_rate_limit() -> u32 {
     defaults_u32("SHUMA_RATE_LIMIT")
+}
+
+fn default_honeypot_enabled() -> bool {
+    defaults_bool("SHUMA_HONEYPOT_ENABLED")
 }
 
 fn default_honeypots() -> Vec<String> {

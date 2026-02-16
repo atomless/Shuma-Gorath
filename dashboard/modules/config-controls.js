@@ -346,6 +346,8 @@
       saveHoneypotButton.onclick = async function saveHoneypotConfig() {
         const msg = document.getElementById('admin-msg');
         const btn = this;
+        const enabledToggle = document.getElementById('honeypot-enabled-toggle');
+        const honeypotEnabled = enabledToggle ? enabledToggle.checked : true;
         const field = document.getElementById('honeypot-paths');
         let honeypots;
 
@@ -361,11 +363,15 @@
         btn.dataset.saving = 'true';
         btn.disabled = true;
         try {
-          const data = await saveConfigPatch(msg, { honeypots });
+          const data = await saveConfigPatch(msg, {
+            honeypot_enabled: honeypotEnabled,
+            honeypots
+          });
           if (data && data.config && typeof options.updateHoneypotConfig === 'function') {
             options.updateHoneypotConfig(data.config);
           } else if (typeof options.setHoneypotSavedState === 'function') {
             options.setHoneypotSavedState({
+              enabled: honeypotEnabled,
               values: normalizeList(field ? field.value : '')
             });
             if (typeof options.checkHoneypotConfigChanged === 'function') {
