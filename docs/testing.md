@@ -11,6 +11,7 @@ make test-integration # Integration tests only (waits for existing Spin readines
 make integration-test # alias for make test-integration
 make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-e2e # Playwright dashboard smoke tests (waits for existing Spin readiness)
+make seed-dashboard-data # Seed local dashboard sample records against running Spin
 make test-dashboard   # Manual dashboard checklist
 ```
 
@@ -19,6 +20,7 @@ Notes:
 - Integration tests require a running Spin server (`make dev`); test targets do not start Spin.
 - `make test`, `make test-integration`, and `make test-dashboard-e2e` wait for `/health` readiness before failing.
 - `make test` includes maze asymmetry benchmark gating plus Playwright dashboard e2e and fails if any stage cannot run.
+- `make test` now reseeds dashboard sample data at the end, so charts/tables stay populated for local inspection after the run.
 
 ## 🐙 Test Layers
 
@@ -122,6 +124,7 @@ Behavior:
    - `/dashboard` canonical path redirects to `/dashboard/index.html`
    - tab-level error states surface backend failures
    - sticky table headers remain applied
+5. `make test` executes a final dashboard seed step (`make seed-dashboard-data`) after e2e so local dashboards retain recent sample data.
 
 Notes:
 - Seeding is test-only and does not run during `make setup`.

@@ -330,4 +330,4 @@ make dev
 make api-key-show
 ```
 
-`make dev` enables local dashboard operation, but mutability flags still follow `.env.local` (for example `SHUMA_POW_CONFIG_MUTABLE` / `SHUMA_BOTNESS_CONFIG_MUTABLE`).
+`make dev` enables local dashboard operation with local-write defaults (`WRITE/POW/CHALLENGE/BOTNESS=true`). Use `DEV_*` Make variables to simulate stricter production mutability.

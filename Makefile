@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build prod clean test test-unit unit-test test-integration integration-test test-coverage test-dashboard test-dashboard-e2e test-maze-benchmark spin-wait-ready deploy logs status stop help setup verify config-seed env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build prod clean test test-unit unit-test test-integration integration-test test-coverage test-dashboard test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready deploy logs status stop help setup verify config-seed env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -56,7 +56,11 @@ FORWARDED_SECRET_HEADER := $(if $(SHUMA_FORWARDED_IP_SECRET),-H "X-Shuma-Forward
 # Optional health secret header for local health/test requests.
 HEALTH_SECRET_HEADER := $(if $(SHUMA_HEALTH_SECRET),-H "X-Shuma-Health-Secret: $(SHUMA_HEALTH_SECRET)",)
 DEV_ADMIN_CONFIG_WRITE_ENABLED ?= true
-SPIN_DEV_OVERRIDES := --env SHUMA_CHALLENGE_CONFIG_MUTABLE=true --env SHUMA_DEBUG_HEADERS=true --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(DEV_ADMIN_CONFIG_WRITE_ENABLED)
+DEV_POW_CONFIG_MUTABLE ?= true
+DEV_CHALLENGE_CONFIG_MUTABLE ?= true
+DEV_BOTNESS_CONFIG_MUTABLE ?= true
+DEV_DEBUG_HEADERS ?= true
+SPIN_DEV_OVERRIDES := --env SHUMA_POW_CONFIG_MUTABLE=$(DEV_POW_CONFIG_MUTABLE) --env SHUMA_CHALLENGE_CONFIG_MUTABLE=$(DEV_CHALLENGE_CONFIG_MUTABLE) --env SHUMA_BOTNESS_CONFIG_MUTABLE=$(DEV_BOTNESS_CONFIG_MUTABLE) --env SHUMA_DEBUG_HEADERS=$(DEV_DEBUG_HEADERS) --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(DEV_ADMIN_CONFIG_WRITE_ENABLED)
 SPIN_PROD_OVERRIDES := --env SHUMA_DEBUG_HEADERS=false
 SPIN_READY_TIMEOUT_SECONDS ?= 90
 
@@ -83,9 +87,9 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
 	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
 	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/admin/maze/preview?path=%2Fmaze%2Fpreview (admin auth)$(NC)"
-	@echo "$(YELLOW)⚙️  Runtime mutability flags: POW=$(SHUMA_POW_CONFIG_MUTABLE) CHALLENGE=$(SHUMA_CHALLENGE_CONFIG_MUTABLE) BOTNESS=$(SHUMA_BOTNESS_CONFIG_MUTABLE)$(NC)"
-	@if [ "$(SHUMA_POW_CONFIG_MUTABLE)" != "true" ] || [ "$(SHUMA_BOTNESS_CONFIG_MUTABLE)" != "true" ]; then \
-		echo "$(YELLOW)⚠️  Some tuning controls will be read-only. Override for local tuning with: make dev SHUMA_POW_CONFIG_MUTABLE=true SHUMA_BOTNESS_CONFIG_MUTABLE=true$(NC)"; \
+	@echo "$(YELLOW)⚙️  Effective dev flags: WRITE=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) POW=$(DEV_POW_CONFIG_MUTABLE) CHALLENGE=$(DEV_CHALLENGE_CONFIG_MUTABLE) BOTNESS=$(DEV_BOTNESS_CONFIG_MUTABLE) DEBUG_HEADERS=$(DEV_DEBUG_HEADERS)$(NC)"
+	@if [ "$(DEV_POW_CONFIG_MUTABLE)" != "true" ] || [ "$(DEV_BOTNESS_CONFIG_MUTABLE)" != "true" ]; then \
+		echo "$(YELLOW)⚠️  Some tuning controls will be read-only. Override with: make dev DEV_POW_CONFIG_MUTABLE=true DEV_BOTNESS_CONFIG_MUTABLE=true$(NC)"; \
 	fi
 	@echo "$(CYAN)👀 Watching src/*.rs, dashboard/*, and spin.toml for changes... (Ctrl+C to stop)$(NC)"
 	@pkill -x spin 2>/dev/null || true
@@ -104,9 +108,9 @@ dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=fal
 	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
 	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
 	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/admin/maze/preview?path=%2Fmaze%2Fpreview (admin auth)$(NC)"
-	@echo "$(YELLOW)⚙️  Runtime mutability flags: POW=$(SHUMA_POW_CONFIG_MUTABLE) CHALLENGE=$(SHUMA_CHALLENGE_CONFIG_MUTABLE) BOTNESS=$(SHUMA_BOTNESS_CONFIG_MUTABLE)$(NC)"
-	@if [ "$(SHUMA_POW_CONFIG_MUTABLE)" != "true" ] || [ "$(SHUMA_BOTNESS_CONFIG_MUTABLE)" != "true" ]; then \
-		echo "$(YELLOW)⚠️  Some tuning controls will be read-only. Override for local tuning with: make dev-closed SHUMA_POW_CONFIG_MUTABLE=true SHUMA_BOTNESS_CONFIG_MUTABLE=true$(NC)"; \
+	@echo "$(YELLOW)⚙️  Effective dev flags: WRITE=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) POW=$(DEV_POW_CONFIG_MUTABLE) CHALLENGE=$(DEV_CHALLENGE_CONFIG_MUTABLE) BOTNESS=$(DEV_BOTNESS_CONFIG_MUTABLE) DEBUG_HEADERS=$(DEV_DEBUG_HEADERS)$(NC)"
+	@if [ "$(DEV_POW_CONFIG_MUTABLE)" != "true" ] || [ "$(DEV_BOTNESS_CONFIG_MUTABLE)" != "true" ]; then \
+		echo "$(YELLOW)⚠️  Some tuning controls will be read-only. Override with: make dev-closed DEV_POW_CONFIG_MUTABLE=true DEV_BOTNESS_CONFIG_MUTABLE=true$(NC)"; \
 	fi
 	@echo "$(CYAN)👀 Watching src/*.rs, dashboard/*, and spin.toml for changes... (Ctrl+C to stop)$(NC)"
 	@pkill -x spin 2>/dev/null || true
@@ -123,7 +127,7 @@ local: dev ## Alias for dev
 
 run: ## Build once and run (no file watching)
 	@echo "$(CYAN)🚀 Starting development server...$(NC)"
-	@echo "$(YELLOW)⚙️  Runtime mutability flags: POW=$(SHUMA_POW_CONFIG_MUTABLE) CHALLENGE=$(SHUMA_CHALLENGE_CONFIG_MUTABLE) BOTNESS=$(SHUMA_BOTNESS_CONFIG_MUTABLE)$(NC)"
+	@echo "$(YELLOW)⚙️  Effective dev flags: WRITE=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) POW=$(DEV_POW_CONFIG_MUTABLE) CHALLENGE=$(DEV_CHALLENGE_CONFIG_MUTABLE) BOTNESS=$(DEV_BOTNESS_CONFIG_MUTABLE) DEBUG_HEADERS=$(DEV_DEBUG_HEADERS)$(NC)"
 	@pkill -x spin 2>/dev/null || true
 	@sleep 1
 	@./scripts/set_crate_type.sh cdylib
@@ -192,16 +196,16 @@ test: ## Run ALL tests in series: unit, maze benchmark, integration, and dashboa
 	fi
 	@echo "$(GREEN)✅ Preflight: Spin server is ready; integration and dashboard e2e tests will be executed.$(NC)"
 	@echo ""
-	@echo "$(CYAN)Step 1/4: Rust Unit Tests$(NC)"
+	@echo "$(CYAN)Step 1/5: Rust Unit Tests$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 2/4: Maze Asymmetry Benchmark Gate$(NC)"
+	@echo "$(CYAN)Step 2/5: Maze Asymmetry Benchmark Gate$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@$(MAKE) --no-print-directory test-maze-benchmark || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 3/4: Integration Tests (Spin HTTP scenarios)$(NC)"
+	@echo "$(CYAN)Step 3/5: Integration Tests (Spin HTTP scenarios)$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" ./scripts/tests/integration.sh || exit 1; \
@@ -212,9 +216,13 @@ test: ## Run ALL tests in series: unit, maze benchmark, integration, and dashboa
 		exit 1; \
 	fi
 	@echo ""
-	@echo "$(CYAN)Step 4/4: Dashboard E2E Smoke Tests$(NC)"
+	@echo "$(CYAN)Step 4/5: Dashboard E2E Smoke Tests$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@$(MAKE) --no-print-directory test-dashboard-e2e || exit 1
+	@echo ""
+	@echo "$(CYAN)Step 5/5: Dashboard Seed Snapshot$(NC)"
+	@echo "$(CYAN)--------------------------------------------$(NC)"
+	@$(MAKE) --no-print-directory seed-dashboard-data || exit 1
 	@echo ""
 	@echo "$(GREEN)============================================$(NC)"
 	@echo "$(GREEN)  ALL TESTS COMPLETE$(NC)"
@@ -272,6 +280,21 @@ test-dashboard-e2e: ## Run Playwright dashboard smoke tests (waits for existing 
 		corepack pnpm install --frozen-lockfile; \
 		corepack pnpm exec playwright install chromium; \
 		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) corepack pnpm run test:dashboard:e2e; \
+	else \
+		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
+		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
+		exit 1; \
+	fi
+
+seed-dashboard-data: ## Seed dashboard sample records for local monitoring UI validation (requires running server)
+	@echo "$(CYAN)🧪 Seeding dashboard sample data...$(NC)"
+	@if $(MAKE) --no-print-directory spin-wait-ready; then \
+		if ! command -v corepack >/dev/null 2>&1; then \
+			echo "$(RED)❌ Error: corepack not found (install Node.js 18+).$(NC)"; \
+			exit 1; \
+		fi; \
+		corepack enable > /dev/null 2>&1 || true; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) node e2e/seed-dashboard-data.js; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \

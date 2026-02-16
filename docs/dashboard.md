@@ -77,7 +77,8 @@ Development:
 - API key source: `SHUMA_API_KEY` from environment (local dev commonly loads this from `.env.local`)
 - Login flow: unauthenticated visits to `/dashboard/index.html` are redirected to `/dashboard/login.html`; enter API key once to create a short-lived same-origin admin session cookie
 - Admin API endpoint is inferred from the page origin (same-origin only)
-- Runtime mutability flags are read from `.env.local` (for example `SHUMA_POW_CONFIG_MUTABLE`, `SHUMA_BOTNESS_CONFIG_MUTABLE`); if false, corresponding controls render read-only even in local dev.
+- `make dev` applies local-write defaults (`DEV_ADMIN_CONFIG_WRITE_ENABLED=true`, `DEV_POW_CONFIG_MUTABLE=true`, `DEV_CHALLENGE_CONFIG_MUTABLE=true`, `DEV_BOTNESS_CONFIG_MUTABLE=true`) even when `.env.local` is stricter.
+- Override dev defaults per run if you want production-like read-only behavior (example: `make dev DEV_POW_CONFIG_MUTABLE=false DEV_BOTNESS_CONFIG_MUTABLE=false`).
 
 Production (recommended):
 - Protect the dashboard with auth
