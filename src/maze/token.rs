@@ -347,10 +347,11 @@ mod tests {
     #[test]
     fn token_round_trip_succeeds() {
         let secret = "maze-test-secret";
+        let path = crate::maze::entry_path("a");
         let token = issue_child_token(
             None,
-            "/maze/a",
-            "/maze/",
+            path.as_str(),
+            crate::maze::path_prefix(),
             "ipb",
             "uab",
             120,
@@ -364,16 +365,17 @@ mod tests {
         let parsed = verify(&raw, secret, Some(1_735_000_010)).expect("token should verify");
         assert_eq!(parsed.flow_id, token.flow_id);
         assert_eq!(parsed.depth, token.depth);
-        assert_eq!(parsed.path_digest, digest("/maze/a"));
+        assert_eq!(parsed.path_digest, digest(path.as_str()));
     }
 
     #[test]
     fn token_rejects_signature_mismatch() {
         let secret = "maze-test-secret";
+        let path = crate::maze::entry_path("a");
         let token = issue_child_token(
             None,
-            "/maze/a",
-            "/maze/",
+            path.as_str(),
+            crate::maze::path_prefix(),
             "ipb",
             "uab",
             120,
@@ -392,10 +394,11 @@ mod tests {
     #[test]
     fn token_rejects_expired() {
         let secret = "maze-test-secret";
+        let path = crate::maze::entry_path("a");
         let token = issue_child_token(
             None,
-            "/maze/a",
-            "/maze/",
+            path.as_str(),
+            crate::maze::path_prefix(),
             "ipb",
             "uab",
             1,
@@ -413,8 +416,9 @@ mod tests {
     #[test]
     fn entropy_seed_changes_with_window() {
         let secret = "maze-test-secret";
-        let first = entropy_seed(secret, "default", "ipb", "uab", "/maze/a", 100, "n1");
-        let second = entropy_seed(secret, "default", "ipb", "uab", "/maze/a", 101, "n1");
+        let path = crate::maze::entry_path("a");
+        let first = entropy_seed(secret, "default", "ipb", "uab", path.as_str(), 100, "n1");
+        let second = entropy_seed(secret, "default", "ipb", "uab", path.as_str(), 101, "n1");
         assert_ne!(first, second);
     }
 
@@ -468,12 +472,21 @@ mod tests {
     #[test]
     fn expansion_seed_signatures_verify_and_reject_tampering() {
         let secret = "maze-test-secret";
-        let signature = sign_expansion_seed(secret, "flow-a", "/maze/", "nonce-1", 2, 1234, 6, 16);
+        let signature = sign_expansion_seed(
+            secret,
+            "flow-a",
+            crate::maze::path_prefix(),
+            "nonce-1",
+            2,
+            1234,
+            6,
+            16,
+        );
         assert!(verify_expansion_seed_signature(
             signature.as_str(),
             secret,
             "flow-a",
-            "/maze/",
+            crate::maze::path_prefix(),
             "nonce-1",
             2,
             1234,
@@ -484,7 +497,7 @@ mod tests {
             signature.as_str(),
             secret,
             "flow-a",
-            "/maze/",
+            crate::maze::path_prefix(),
             "nonce-1",
             2,
             9999,
@@ -496,10 +509,11 @@ mod tests {
     #[test]
     fn sibling_tokens_are_operation_unique_per_link_edge() {
         let now = 1_735_000_000;
+        let path_prefix = crate::maze::path_prefix();
         let parent = issue_child_token(
             None,
-            "/maze/root",
-            "/maze/",
+            crate::maze::entry_path("root").as_str(),
+            path_prefix,
             "ipb",
             "uab",
             120,
@@ -511,8 +525,8 @@ mod tests {
         );
         let first = issue_child_token(
             Some(&parent),
-            "/maze/first-edge",
-            "/maze/",
+            crate::maze::entry_path("first-edge").as_str(),
+            path_prefix,
             "ipb",
             "uab",
             120,
@@ -524,8 +538,8 @@ mod tests {
         );
         let second = issue_child_token(
             Some(&parent),
-            "/maze/second-edge",
-            "/maze/",
+            crate::maze::entry_path("second-edge").as_str(),
+            path_prefix,
             "ipb",
             "uab",
             120,

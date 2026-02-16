@@ -50,6 +50,7 @@ make test-dashboard-e2e    # In terminal 2
 - `GET /pow` - PoW seed (when enabled)
 - `POST /pow/verify` - PoW verification
 - `POST /cdp-report` - CDP automation report intake
+- `POST /fingerprint-report` - External/edge fingerprint intake (Akamai-first mapping)
 - `POST /challenge/puzzle` - Submit puzzle challenge answer (if challenge is served)
 
 ### 🐙 Admin API (requires `Authorization: Bearer <SHUMA_API_KEY>`)
@@ -62,9 +63,9 @@ make test-dashboard-e2e    # In terminal 2
 - `POST /admin/config` - Update configuration (test_mode, ban_durations, robots serving, AI bot policy, CDP, etc.)
 - `GET /admin/config/export` - Export non-secret runtime config for immutable redeploy handoff
 - `GET /admin/maze` - maze statistics
-- `GET /admin/maze/preview?path=/maze/...` - non-operational maze preview surface
+- `GET /admin/maze/preview?path=<maze_entry_path>...` - non-operational maze preview surface
 - `GET /admin/robots` - robots.txt configuration and preview
-- `GET /admin/cdp` - CDP detection configuration and stats
+- `GET /admin/cdp` - CDP + fingerprint detection configuration and stats
 - `GET /admin` - API help
 
 ## 🐙 Configuration

@@ -597,9 +597,10 @@ mod admin_config_tests {
     fn admin_maze_preview_returns_safe_non_operational_html() {
         let _lock = crate::test_support::lock_env();
         let store = TestStore::default();
+        let preview_path = crate::maze::entry_path("preview-segment");
         let req = make_request(
             Method::Get,
-            "/admin/maze/preview?path=%2Fmaze%2Fpreview-segment",
+            format!("/admin/maze/preview?path={}", preview_path).as_str(),
             Vec::new(),
         );
         let resp = handle_admin_maze_preview(&req, &store, "default");
@@ -1716,6 +1717,36 @@ fn botness_signal_definitions(cfg: &crate::config::Config) -> serde_json::Value 
                 "key": "rate_pressure_high",
                 "label": "Rate pressure (>=80%)",
                 "weight": cfg.botness_weights.rate_high
+            },
+            {
+                "key": "fp_ua_ch_mismatch",
+                "label": "Fingerprint UA/client-hint mismatch",
+                "weight": 2
+            },
+            {
+                "key": "fp_ua_transport_mismatch",
+                "label": "Fingerprint UA/transport mismatch",
+                "weight": 3
+            },
+            {
+                "key": "fp_temporal_transition",
+                "label": "Fingerprint impossible temporal transition",
+                "weight": 2
+            },
+            {
+                "key": "fp_flow_violation",
+                "label": "Fingerprint flow-window violation",
+                "weight": 2
+            },
+            {
+                "key": "fp_persistence_marker_missing",
+                "label": "Fingerprint persistence-marker missing",
+                "weight": 1
+            },
+            {
+                "key": "fp_untrusted_transport_header",
+                "label": "Fingerprint untrusted transport header",
+                "weight": 3
             }
         ],
         "terminal_signals": [
@@ -2264,6 +2295,17 @@ fn parse_edge_integration_mode_json(
         .ok_or_else(|| format!("{} must be one of: off, advisory, authoritative", field))
 }
 
+fn parse_cdp_probe_family_json(
+    field: &str,
+    value: &serde_json::Value,
+) -> Result<crate::config::CdpProbeFamily, String> {
+    let raw = value
+        .as_str()
+        .ok_or_else(|| format!("{} must be one of: v1, v2, split", field))?;
+    crate::config::parse_cdp_probe_family(raw)
+        .ok_or_else(|| format!("{} must be one of: v1, v2, split", field))
+}
+
 fn parse_maze_rollout_phase_json(
     field: &str,
     value: &serde_json::Value,
@@ -2797,6 +2839,112 @@ fn handle_admin_config(
             json.get("cdp_detection_threshold").and_then(|v| v.as_f64())
         {
             cfg.cdp_detection_threshold = cdp_detection_threshold as f32;
+            changed = true;
+        }
+        if let Some(value) = json.get("cdp_probe_family") {
+            cfg.cdp_probe_family = match parse_cdp_probe_family_json("cdp_probe_family", value) {
+                Ok(family) => family,
+                Err(msg) => return Response::new(400, msg),
+            };
+            changed = true;
+        }
+        if let Some(value) = json.get("cdp_probe_rollout_percent").and_then(|v| v.as_u64()) {
+            if value > 100 {
+                return Response::new(400, "cdp_probe_rollout_percent out of range (0-100)");
+            }
+            cfg.cdp_probe_rollout_percent = value as u8;
+            changed = true;
+        }
+        if let Some(value) = json.get("fingerprint_signal_enabled").and_then(|v| v.as_bool()) {
+            cfg.fingerprint_signal_enabled = value;
+            changed = true;
+        }
+        if let Some(value) = json
+            .get("fingerprint_state_ttl_seconds")
+            .and_then(|v| v.as_u64())
+        {
+            cfg.fingerprint_state_ttl_seconds = value;
+            changed = true;
+        }
+        if let Some(value) = json
+            .get("fingerprint_flow_window_seconds")
+            .and_then(|v| v.as_u64())
+        {
+            cfg.fingerprint_flow_window_seconds = value;
+            changed = true;
+        }
+        if let Some(value) = json
+            .get("fingerprint_flow_violation_threshold")
+            .and_then(|v| v.as_u64())
+        {
+            cfg.fingerprint_flow_violation_threshold = value as u8;
+            changed = true;
+        }
+        if let Some(value) = json.get("fingerprint_pseudonymize").and_then(|v| v.as_bool()) {
+            cfg.fingerprint_pseudonymize = value;
+            changed = true;
+        }
+        if let Some(value) = json.get("fingerprint_entropy_budget").and_then(|v| v.as_u64()) {
+            if value > 10 {
+                return Response::new(400, "fingerprint_entropy_budget out of range (0-10)");
+            }
+            cfg.fingerprint_entropy_budget = value as u8;
+            changed = true;
+        }
+        if let Some(value) = json
+            .get("fingerprint_family_cap_header_runtime")
+            .and_then(|v| v.as_u64())
+        {
+            if value > 10 {
+                return Response::new(
+                    400,
+                    "fingerprint_family_cap_header_runtime out of range (0-10)",
+                );
+            }
+            cfg.fingerprint_family_cap_header_runtime = value as u8;
+            changed = true;
+        }
+        if let Some(value) = json
+            .get("fingerprint_family_cap_transport")
+            .and_then(|v| v.as_u64())
+        {
+            if value > 10 {
+                return Response::new(400, "fingerprint_family_cap_transport out of range (0-10)");
+            }
+            cfg.fingerprint_family_cap_transport = value as u8;
+            changed = true;
+        }
+        if let Some(value) = json
+            .get("fingerprint_family_cap_temporal")
+            .and_then(|v| v.as_u64())
+        {
+            if value > 10 {
+                return Response::new(400, "fingerprint_family_cap_temporal out of range (0-10)");
+            }
+            cfg.fingerprint_family_cap_temporal = value as u8;
+            changed = true;
+        }
+        if let Some(value) = json
+            .get("fingerprint_family_cap_persistence")
+            .and_then(|v| v.as_u64())
+        {
+            if value > 10 {
+                return Response::new(
+                    400,
+                    "fingerprint_family_cap_persistence out of range (0-10)",
+                );
+            }
+            cfg.fingerprint_family_cap_persistence = value as u8;
+            changed = true;
+        }
+        if let Some(value) = json
+            .get("fingerprint_family_cap_behavior")
+            .and_then(|v| v.as_u64())
+        {
+            if value > 10 {
+                return Response::new(400, "fingerprint_family_cap_behavior out of range (0-10)");
+            }
+            cfg.fingerprint_family_cap_behavior = value as u8;
             changed = true;
         }
 
@@ -3955,6 +4103,56 @@ pub fn handle_admin(req: &Request) -> Response {
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(0);
 
+            let fingerprint_events: u64 = store
+                .get("fingerprint:events")
+                .ok()
+                .flatten()
+                .and_then(|v| String::from_utf8(v).ok())
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            let fingerprint_ua_ch_mismatch: u64 = store
+                .get("fingerprint:ua_ch_mismatch")
+                .ok()
+                .flatten()
+                .and_then(|v| String::from_utf8(v).ok())
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            let fingerprint_ua_transport_mismatch: u64 = store
+                .get("fingerprint:ua_transport_mismatch")
+                .ok()
+                .flatten()
+                .and_then(|v| String::from_utf8(v).ok())
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            let fingerprint_temporal_transition: u64 = store
+                .get("fingerprint:temporal_transition")
+                .ok()
+                .flatten()
+                .and_then(|v| String::from_utf8(v).ok())
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            let fingerprint_flow_violation: u64 = store
+                .get("fingerprint:flow_violation")
+                .ok()
+                .flatten()
+                .and_then(|v| String::from_utf8(v).ok())
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            let fingerprint_persistence_marker_missing: u64 = store
+                .get("fingerprint:persistence_marker_missing")
+                .ok()
+                .flatten()
+                .and_then(|v| String::from_utf8(v).ok())
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            let fingerprint_untrusted_transport_header: u64 = store
+                .get("fingerprint:untrusted_transport_header")
+                .ok()
+                .flatten()
+                .and_then(|v| String::from_utf8(v).ok())
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+
             // Log admin action
             log_event(
                 &store,
@@ -3972,11 +4170,33 @@ pub fn handle_admin(req: &Request) -> Response {
                 "config": {
                     "enabled": cfg.cdp_detection_enabled,
                     "auto_ban": cfg.cdp_auto_ban,
-                    "detection_threshold": cfg.cdp_detection_threshold
+                    "detection_threshold": cfg.cdp_detection_threshold,
+                    "probe_family": cfg.cdp_probe_family,
+                    "probe_rollout_percent": cfg.cdp_probe_rollout_percent,
+                    "fingerprint_signal_enabled": cfg.fingerprint_signal_enabled,
+                    "fingerprint_state_ttl_seconds": cfg.fingerprint_state_ttl_seconds,
+                    "fingerprint_flow_window_seconds": cfg.fingerprint_flow_window_seconds,
+                    "fingerprint_flow_violation_threshold": cfg.fingerprint_flow_violation_threshold,
+                    "fingerprint_pseudonymize": cfg.fingerprint_pseudonymize,
+                    "fingerprint_entropy_budget": cfg.fingerprint_entropy_budget,
+                    "fingerprint_family_cap_header_runtime": cfg.fingerprint_family_cap_header_runtime,
+                    "fingerprint_family_cap_transport": cfg.fingerprint_family_cap_transport,
+                    "fingerprint_family_cap_temporal": cfg.fingerprint_family_cap_temporal,
+                    "fingerprint_family_cap_persistence": cfg.fingerprint_family_cap_persistence,
+                    "fingerprint_family_cap_behavior": cfg.fingerprint_family_cap_behavior
                 },
                 "stats": {
                     "total_detections": cdp_detections,
                     "auto_bans": cdp_auto_bans
+                },
+                "fingerprint_stats": {
+                    "events": fingerprint_events,
+                    "ua_client_hint_mismatch": fingerprint_ua_ch_mismatch,
+                    "ua_transport_mismatch": fingerprint_ua_transport_mismatch,
+                    "temporal_transition": fingerprint_temporal_transition,
+                    "flow_violation": fingerprint_flow_violation,
+                    "persistence_marker_missing": fingerprint_persistence_marker_missing,
+                    "untrusted_transport_header": fingerprint_untrusted_transport_header
                 },
                 "detection_methods": [
                     "Error stack timing analysis (Runtime.Enable leak)",

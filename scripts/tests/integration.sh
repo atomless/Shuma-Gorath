@@ -25,15 +25,16 @@
 #   13. GEO policy challenge route
 #   14. GEO policy maze route
 #   15. GEO policy block route
-#   16. Prometheus metrics endpoint
-#   17. CDP report endpoint (POST /cdp-report)
-#   18. CDP auto-ban with high score
-#   19. CDP config via admin API
-#   20. CDP stats counters reflect reports
-#   21. Unban functionality test
-#   22. External fingerprint advisory vs authoritative precedence
-#   23. External fingerprint authoritative mode enforces edge ban
-#   24. External rate-limiter unavailable downgrade-to-internal behavior
+#   16. Legacy /maze/* and /trap/* route rejection (no direct maze surface)
+#   17. Prometheus metrics endpoint
+#   18. CDP report endpoint (POST /cdp-report)
+#   19. CDP auto-ban with high score
+#   20. CDP config via admin API
+#   21. CDP stats counters reflect reports
+#   22. Unban functionality test
+#   23. External fingerprint advisory vs authoritative precedence
+#   24. External fingerprint authoritative mode enforces edge ban
+#   25. External rate-limiter unavailable downgrade-to-internal behavior
 
 set -e
 
@@ -500,7 +501,7 @@ else
     echo -e "${YELLOW}DEBUG geo maze config:${NC} $geo_maze_cfg"
   else
     geo_maze_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.211" -H "X-Geo-Country: RU" "$BASE_URL/")
-    if echo "$geo_maze_resp" | grep -q '/maze/'; then
+    if echo "$geo_maze_resp" | grep -q 'data-link-kind="maze"'; then
       pass "GEO maze tier routes request to maze page"
     else
       fail "GEO maze tier did not route to maze page"
@@ -530,6 +531,20 @@ else
   info "Resetting GEO policy lists after routing tests..."
   curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Authorization: Bearer $SHUMA_API_KEY" -H "Content-Type: application/json" \
     -d '{"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":[]}' "$BASE_URL/admin/config" > /dev/null || true
+
+  info "Testing legacy explicit maze/trap path rejection..."
+  legacy_maze_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.233" "$BASE_URL/maze/legacy-path")
+  legacy_trap_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.234" "$BASE_URL/trap/legacy-path")
+  if echo "$legacy_maze_resp" | grep -q 'data-link-kind="maze"'; then
+    fail "Legacy /maze/* path still resolves to maze traversal surface"
+  else
+    pass "Legacy /maze/* path does not resolve to maze traversal surface"
+  fi
+  if echo "$legacy_trap_resp" | grep -q 'data-link-kind="maze"'; then
+    fail "Legacy /trap/* path still resolves to maze traversal surface"
+  else
+    pass "Legacy /trap/* path does not resolve to maze traversal surface"
+  fi
 fi
 
 # Test 16: Prometheus metrics endpoint

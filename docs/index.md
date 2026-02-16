@@ -19,7 +19,7 @@ Use the Makefile as the official workflow. These docs are the source of truth fo
 - [`bot-defence.md`](bot-defence.md) - Shuma-Gorath layered defence strategy with managed edge bot protection
 - [`features.md`](features.md) - Feature list and roadmap
 - [`challenge-verification.md`](challenge-verification.md) - Human verification strategy
-- [`maze.md`](maze.md) - maze crawler trap
+- [`maze.md`](maze.md) - maze crawler deception
 - [`module-boundaries.md`](module-boundaries.md) - Domain boundary contracts and split prep
 - [`plans/2026-02-13-provider-externalization-design.md`](plans/2026-02-13-provider-externalization-design.md) - Provider externalization strategy (self-hosted-first, Akamai-integrated)
 - [`../todos/security-review.md`](../todos/security-review.md) - Security audit notes / backlog

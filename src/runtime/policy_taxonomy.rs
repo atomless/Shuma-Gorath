@@ -115,6 +115,12 @@ pub enum SignalId {
     CdpReportLow,
     CdpReportMedium,
     CdpReportStrong,
+    FingerprintUaHintMismatch,
+    FingerprintUaTransportMismatch,
+    FingerprintTemporalTransition,
+    FingerprintFlowViolation,
+    FingerprintPersistenceMissing,
+    FingerprintUntrustedHeader,
     EdgeFingerprintAdvisory,
     EdgeFingerprintStrong,
     EdgeFingerprintAuthoritativeBan,
@@ -161,6 +167,12 @@ impl SignalId {
             SignalId::CdpReportLow => "S_CDP_REPORT_LOW",
             SignalId::CdpReportMedium => "S_CDP_REPORT_MEDIUM",
             SignalId::CdpReportStrong => "S_CDP_REPORT_STRONG",
+            SignalId::FingerprintUaHintMismatch => "S_FP_UA_HINT_MISMATCH",
+            SignalId::FingerprintUaTransportMismatch => "S_FP_UA_TRANSPORT_MISMATCH",
+            SignalId::FingerprintTemporalTransition => "S_FP_TEMPORAL_TRANSITION",
+            SignalId::FingerprintFlowViolation => "S_FP_FLOW_VIOLATION",
+            SignalId::FingerprintPersistenceMissing => "S_FP_PERSISTENCE_MISSING",
+            SignalId::FingerprintUntrustedHeader => "S_FP_UNTRUSTED_HEADER",
             SignalId::EdgeFingerprintAdvisory => "S_FP_EDGE_ADVISORY",
             SignalId::EdgeFingerprintStrong => "S_FP_EDGE_STRONG",
             SignalId::EdgeFingerprintAuthoritativeBan => "S_FP_EDGE_AUTHORITATIVE_BAN",
@@ -211,6 +223,12 @@ pub enum DetectionId {
     CdpReportMedium,
     CdpReportStrong,
     CdpAutoBan,
+    FingerprintUaHintMismatch,
+    FingerprintUaTransportMismatch,
+    FingerprintTemporalTransition,
+    FingerprintFlowViolation,
+    FingerprintPersistenceMissing,
+    FingerprintUntrustedHeader,
     EdgeFingerprintAdvisory,
     EdgeFingerprintStrong,
     EdgeFingerprintAuthoritativeBan,
@@ -259,6 +277,12 @@ impl DetectionId {
             DetectionId::CdpReportMedium => "D_CDP_REPORT_MEDIUM",
             DetectionId::CdpReportStrong => "D_CDP_REPORT_STRONG",
             DetectionId::CdpAutoBan => "D_CDP_AUTO_BAN",
+            DetectionId::FingerprintUaHintMismatch => "D_FP_UA_HINT_MISMATCH",
+            DetectionId::FingerprintUaTransportMismatch => "D_FP_UA_TRANSPORT_MISMATCH",
+            DetectionId::FingerprintTemporalTransition => "D_FP_TEMPORAL_TRANSITION",
+            DetectionId::FingerprintFlowViolation => "D_FP_FLOW_VIOLATION",
+            DetectionId::FingerprintPersistenceMissing => "D_FP_PERSISTENCE_MISSING",
+            DetectionId::FingerprintUntrustedHeader => "D_FP_UNTRUSTED_HEADER",
             DetectionId::EdgeFingerprintAdvisory => "D_EDGE_FP_ADVISORY",
             DetectionId::EdgeFingerprintStrong => "D_EDGE_FP_STRONG",
             DetectionId::EdgeFingerprintAuthoritativeBan => "D_EDGE_FP_AUTHORITATIVE_BAN",
@@ -605,6 +629,12 @@ pub fn signal_id_for_botness_key(key: &str) -> Option<SignalId> {
         "rate_pressure_medium" => Some(SignalId::RateUsageMedium),
         "rate_pressure_high" => Some(SignalId::RateUsageHigh),
         "maze_behavior" => Some(SignalId::MazeTraversal),
+        "fp_ua_ch_mismatch" => Some(SignalId::FingerprintUaHintMismatch),
+        "fp_ua_transport_mismatch" => Some(SignalId::FingerprintUaTransportMismatch),
+        "fp_temporal_transition" => Some(SignalId::FingerprintTemporalTransition),
+        "fp_flow_violation" => Some(SignalId::FingerprintFlowViolation),
+        "fp_persistence_marker_missing" => Some(SignalId::FingerprintPersistenceMissing),
+        "fp_untrusted_transport_header" => Some(SignalId::FingerprintUntrustedHeader),
         _ => None,
     }
 }
@@ -657,6 +687,12 @@ mod tests {
                 .expect("known signal")
                 .as_str(),
             "S_MAZE_TRAVERSAL"
+        );
+        assert_eq!(
+            signal_id_for_botness_key("fp_temporal_transition")
+                .expect("known signal")
+                .as_str(),
+            "S_FP_TEMPORAL_TRANSITION"
         );
         assert!(signal_id_for_botness_key("unknown").is_none());
     }

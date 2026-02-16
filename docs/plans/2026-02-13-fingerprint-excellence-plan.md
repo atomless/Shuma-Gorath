@@ -1,7 +1,7 @@
 # Fingerprint Excellence Plan
 
 Date: 2026-02-13
-Status: Proposed
+Status: Implemented (Phases 1-4 completed; Finch comparison spike pending)
 
 ## Context
 
@@ -75,6 +75,19 @@ Fingerprinting currently relies on a limited set of in-app signals and an extern
 3. Add policy thresholds for challenge/maze routing.
 4. Enable authoritative edge precedence only after drift and false-positive baselines are stable.
 
+## Implementation Status (2026-02-16)
+
+- Completed:
+  - normalized fingerprint schema with provenance/confidence + family caps/budgeting,
+  - internal inconsistency + temporal/flow coherence detection IDs and telemetry,
+  - trusted transport-header ingestion with untrusted-header detection paths,
+  - CDP probe-family rotation (`v1`/`v2`/`split`) and staged rollout control,
+  - persistence-abuse marker and low-friction micro-signal collection in JS challenge context,
+  - operatorization via `/admin/cdp` config/stat surfaces and dashboard fingerprint cards,
+  - regression coverage for mismatch/temporal/flow/probe-family paths.
+- Pending:
+  - Finch comparison spike (`FP-R Finch`) remains open as an evaluation-only follow-up.
+
 ## Structured Implementation TODOs
 
 1. FP-1: Finalize normalized fingerprint schema and versioning.
@@ -87,6 +100,28 @@ Fingerprinting currently relies on a limited set of in-app signals and an extern
 8. FP-8: Add replay and evasive-bot simulation tests.
 9. FP-9: Add advisory vs authoritative integration tests.
 10. FP-10: Publish rollback criteria and runbook for edge-authoritative mode.
+
+## Research Addendum (2026-02-16)
+
+The `R-FP-01`..`R-FP-09` paper tranche is now completed in:
+`docs/research/2026-02-16-fingerprinting-research-synthesis.md`.
+
+Execution-priority deltas from that synthesis:
+
+1. Move inconsistency and temporal coherence ahead of static fingerprint enrichment.
+   - Prioritize `FP-3`, `FP-4`, `FP-5`, and `FP-6` before broadening feature intake.
+2. Treat detector-surface minimization as a first-class requirement.
+   - Add versioned probe rotation and detector-fingerprinting regression checks under `FP-8`.
+3. Add explicit feature-family entropy budgeting.
+   - Extend `FP-1` schema with family-level caps and confidence dampening to reduce brittle over-weighting.
+4. Keep challenge-bound markers ephemeral.
+   - Any Picasso-style device-class marker must be short-lived, signed, replay-bound, and non-identity-forming.
+5. Add privacy and retention controls as implementation gates.
+   - No new fingerprint family should ship without TTL bounds, pseudonymization path, and operator documentation.
+
+Implementation note:
+- When external edge fingerprints are present (`enterprise_akamai`), they remain high-value corroboration inputs.
+- Final policy composition and enforcement remain Shuma-internal.
 
 ## Enterprise Offering Snapshot (Akamai and Cloudflare)
 

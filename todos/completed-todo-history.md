@@ -315,3 +315,49 @@ Moved from active TODO files on 2026-02-14.
 - [x] MZ-X9.I Implement adaptive maze styling tiers: minified external shared stylesheet at low/medium suspicion, ultra-minimal style at high suspicion, and optional no-CSS templates at high-confidence deep traversal before ban threshold; tier selection must key on botness score + traversal depth + violation history, and no-CSS variants must remain plausible machine-oriented surfaces (not obviously broken or synthetic giveaway pages).
 - [x] MZ-X10.R Research confidence-accumulation escalation models for deception systems (stacked violation semantics, false-positive controls, rollback criteria) to stop expensive maze serving earlier without premature giveaway.
 - [x] MZ-X10.I Add pre-ban high-confidence early-escalation matrix (for example replay + binding mismatch + checkpoint/proof failures) that deterministically degrades from maze serving to lower-cost challenge/block actions.
+
+## Additional completions (2026-02-16, section-preserving archive)
+
+### todos/todo.md
+
+#### Stage 2.7 follow-up: Honeypot + Maze stealth excellence (research-first, pre-launch no-compat mode)
+- [x] MZ-SR1 Publish a current research synthesis for stealth deception routing and honeypot fingerprinting resistance with explicit source mapping and implementation requirements. (`docs/research/2026-02-16-honeypot-maze-stealth-excellence.md`)
+- [x] MZ-S1 Remove explicit `/trap/*` route handling and trap-specific robots bait comments; keep deception routes non-semantic and reduce immediate classifier signal.
+- [x] MZ-S2 Introduce an opaque, deployment-specific maze route namespace (secret-derived prefix) and route helper API; remove remaining public `/maze/*` labels from live routing paths.
+- [x] MZ-S3 Move maze support endpoints (`checkpoint`, `issue-links`) and versioned maze assets under the same opaque namespace and update worker/bootstrap generation to consume helper paths only.
+- [x] MZ-S4 Remove deception-path disclosure from `robots.txt` defaults (no explicit maze/trap path disallow lines or bait comments); keep robots focused on crawler policy communication, not trap advertisement.
+- [x] MZ-S5 Update admin preview + dashboard links to use runtime path helpers so preview reflects live namespace while staying non-operational.
+- [x] MZ-S6 Add regression tests for route stealth and canonicalization (slash variants, malformed prefixes, old explicit-path rejection) across unit/integration paths.
+- [x] MZ-S7 Refresh public docs (`docs/maze.md`, `docs/api.md`, `docs/configuration.md`, `README.md`/`docs/quick-reference.md`) to describe the new opaque routing model and operator expectations.
+- [x] MZ-S8 Re-run benchmark and verification gates (`make test`, `make build`) and record resource/behavior deltas for stealth migration.
+  Verification notes (2026-02-16): `make test` passed end-to-end (unit + benchmark + integration + dashboard e2e), `make build` passed, and maze benchmark gate reported `pages=6 avg_page_bytes=6638 host_set_ops=46 host_write_bytes=511 attacker_requests=16 issue_links_calls=5 attacker_pow_iterations=3553`.
+
+#### Direction Snapshot (for next implementation stages)
+- [x] Evolve maze behavior toward Cloudflare-style selective covert decoys for suspicious traffic with opaque, non-semantic route namespaces (no explicit `/maze` or `/trap` public labels).
+
+#### P3 Dashboard Architecture Modernization (Tabbed SPA, Frameworkless-First)
+##### Baseline and decision gate
+- [x] DSH-R1 Baseline current dashboard architecture and runtime costs (JS/CSS bytes, startup time, memory, polling cadence, bundle provenance, current e2e coverage) and publish a short decision memo in `docs/plans/`. (`docs/plans/2026-02-15-dashboard-architecture-modernization.md`)
+- [x] DSH-R2 Evaluate two implementation tracks against Shuma constraints: (A) frameworkless modular SPA + JSDoc typing, (B) ultra-light framework (Lit) with equivalent tab shell; include explicit tradeoffs for maintenance, DX, runtime weight, and migration risk. (`docs/plans/2026-02-15-dashboard-architecture-modernization.md`)
+- [x] DSH-R3 Define framework-adoption gate criteria (for example: unresolved lifecycle complexity, repeated DOM/state bugs, unacceptable change lead time after frameworkless refactor); default to no framework unless gate is tripped. (`docs/plans/2026-02-15-dashboard-architecture-modernization.md`)
+
+##### Tabbed SPA shell and structure (frameworkless path)
+- [x] DSH-1 Implement tabbed SPA shell in `dashboard/index.html` + `dashboard/dashboard.js` with canonical tabs: `Monitoring`, `IP Bans`, `Status`, `Config`, `Tuning`.
+- [x] DSH-2 Add URL-backed tab routing (`#monitoring`, `#ip-bans`, `#status`, `#config`, `#tuning`) with refresh-safe deep links and history navigation.
+- [x] DSH-3 Refactor monolithic dashboard orchestration into tab-scoped controllers/modules with clear lifecycle (`init`, `mount`, `unmount`, `refresh`) and no cross-tab hidden coupling.
+
+#### Fingerprinting, JS Verification, and CDP-Adjacent Detection
+- [x] R-FP-01 Review Peter Eckersley, "How Unique Is Your Web Browser?" (PETS 2010) and extract entropy-design implications for Shuma fingerprint signals and replay windows. https://link.springer.com/chapter/10.1007/978-3-642-14527-8_1 (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-02 Review Acar et al., "The Web Never Forgets" (CCS 2014) and derive tracking/fingerprint abuse patterns relevant to bot-detection evasion hardening. https://doi.org/10.1145/2660267.2660347 (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-03 Review Vastel et al., "FP-STALKER" (IEEE S&P 2018) and define time-evolution checks for Shuma fingerprint consistency logic. https://doi.org/10.1109/SP.2018.00008 (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-04 Review Jonker/Krumnow/Vlot, "Fingerprint Surface-Based Detection of Web Bot Detectors" (ESORICS 2019) and identify detector-surface minimization requirements. https://doi.org/10.1007/978-3-030-29962-0_28 (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-05 Review Azad et al., "Web Runner 2049: Evaluating Third-Party Anti-bot Services" and extract anti-evasion architecture lessons for internal-vs-edge integration boundaries. https://pmc.ncbi.nlm.nih.gov/articles/PMC7338186/ (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-06 Review Iliou et al., "Detection of advanced web bots by combining web logs with mouse behavioural biometrics" (DTRAP 2021) and assess feasibility of low-friction behavior features in Shuma. https://doi.org/10.1145/3447815 (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-07 Review Zhao et al., "Toward the flow-centric detection of browser fingerprinting" (Computers & Security 2024) and evaluate flow-level JS signal extraction options. https://doi.org/10.1016/j.cose.2023.103642 (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-08 Review Venugopalan et al., "FP-Inconsistent: Detecting Evasive Bots using Browser Fingerprint Inconsistencies" (2024) and define cross-attribute consistency checks for Shuma scoring. https://arxiv.org/abs/2406.07647 (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-09 Review Bursztein et al., "Picasso: Lightweight Device Class Fingerprinting for Web Clients" (SPSM 2016) and assess replay-resistant challenge-bound fingerprint options. https://doi.org/10.1145/2994459.2994467 (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] Strengthen fingerprinting by hardening internal baseline signals first, then ingesting trusted upstream edge signals (JA3/JA4 and similar) with provenance checks and explicit internal fallback when edge headers are absent or untrusted.
+- [x] Phase 1 completed: normalized fingerprint signals now carry provenance/confidence metadata, family entropy budgeting/caps are enforced, and data-minimization controls (TTL/pseudonymization/export visibility) are wired and documented.
+- [x] Phase 2 completed: cross-layer mismatch heuristics (UA/client-hint/transport), temporal coherence detection IDs, and bounded flow-window fingerprint telemetry are active.
+- [x] Phase 3 completed: versioned CDP probe-family rotation (`v1`/`v2`/`split`) is active, trusted transport-header ingestion is implemented, persistence-abuse signals are emitted, challenge-bound short-lived marker checks are wired, and low-friction micro-signal checks are added with conservative weighting.
+- [x] Phase 4 completed (except Finch spike): fingerprint-focused admin visibility/tuning surfaces are shipped (`/admin/cdp` config + `fingerprint_stats`, dashboard cards), and evasive-regression coverage was added for detector variation, temporal drift, and inconsistency bypass classes.

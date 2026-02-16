@@ -163,6 +163,26 @@ impl EdgeIntegrationMode {
     }
 }
 
+/// Detector-surface rotation family for JS/CDP probe script.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CdpProbeFamily {
+    V1,
+    V2,
+    Split,
+}
+
+impl CdpProbeFamily {
+    #[allow(dead_code)]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            CdpProbeFamily::V1 => "v1",
+            CdpProbeFamily::V2 => "v2",
+            CdpProbeFamily::Split => "split",
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum MazeRolloutPhase {
@@ -410,6 +430,32 @@ pub struct Config {
     pub cdp_auto_ban: bool,
     #[serde(default = "default_cdp_threshold")]
     pub cdp_detection_threshold: f32,
+    #[serde(default = "default_cdp_probe_family")]
+    pub cdp_probe_family: CdpProbeFamily,
+    #[serde(default = "default_cdp_probe_rollout_percent")]
+    pub cdp_probe_rollout_percent: u8,
+    #[serde(default = "default_fingerprint_signal_enabled")]
+    pub fingerprint_signal_enabled: bool,
+    #[serde(default = "default_fingerprint_state_ttl_seconds")]
+    pub fingerprint_state_ttl_seconds: u64,
+    #[serde(default = "default_fingerprint_flow_window_seconds")]
+    pub fingerprint_flow_window_seconds: u64,
+    #[serde(default = "default_fingerprint_flow_violation_threshold")]
+    pub fingerprint_flow_violation_threshold: u8,
+    #[serde(default = "default_fingerprint_pseudonymize")]
+    pub fingerprint_pseudonymize: bool,
+    #[serde(default = "default_fingerprint_entropy_budget")]
+    pub fingerprint_entropy_budget: u8,
+    #[serde(default = "default_fingerprint_family_cap_header_runtime")]
+    pub fingerprint_family_cap_header_runtime: u8,
+    #[serde(default = "default_fingerprint_family_cap_transport")]
+    pub fingerprint_family_cap_transport: u8,
+    #[serde(default = "default_fingerprint_family_cap_temporal")]
+    pub fingerprint_family_cap_temporal: u8,
+    #[serde(default = "default_fingerprint_family_cap_persistence")]
+    pub fingerprint_family_cap_persistence: u8,
+    #[serde(default = "default_fingerprint_family_cap_behavior")]
+    pub fingerprint_family_cap_behavior: u8,
     #[serde(default = "default_js_required_enforced")]
     pub js_required_enforced: bool,
     #[serde(default = "default_pow_enabled")]
@@ -735,6 +781,25 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         cdp_detection_enabled: defaults_bool("SHUMA_CDP_DETECTION_ENABLED"),
         cdp_auto_ban: defaults_bool("SHUMA_CDP_AUTO_BAN"),
         cdp_detection_threshold: defaults_f32("SHUMA_CDP_DETECTION_THRESHOLD"),
+        cdp_probe_family: default_cdp_probe_family(),
+        cdp_probe_rollout_percent: defaults_u8("SHUMA_CDP_PROBE_ROLLOUT_PERCENT"),
+        fingerprint_signal_enabled: defaults_bool("SHUMA_FINGERPRINT_SIGNAL_ENABLED"),
+        fingerprint_state_ttl_seconds: defaults_u64("SHUMA_FINGERPRINT_STATE_TTL_SECONDS"),
+        fingerprint_flow_window_seconds: defaults_u64("SHUMA_FINGERPRINT_FLOW_WINDOW_SECONDS"),
+        fingerprint_flow_violation_threshold: defaults_u8(
+            "SHUMA_FINGERPRINT_FLOW_VIOLATION_THRESHOLD",
+        ),
+        fingerprint_pseudonymize: defaults_bool("SHUMA_FINGERPRINT_PSEUDONYMIZE"),
+        fingerprint_entropy_budget: defaults_u8("SHUMA_FINGERPRINT_ENTROPY_BUDGET"),
+        fingerprint_family_cap_header_runtime: defaults_u8(
+            "SHUMA_FINGERPRINT_FAMILY_CAP_HEADER_RUNTIME",
+        ),
+        fingerprint_family_cap_transport: defaults_u8("SHUMA_FINGERPRINT_FAMILY_CAP_TRANSPORT"),
+        fingerprint_family_cap_temporal: defaults_u8("SHUMA_FINGERPRINT_FAMILY_CAP_TEMPORAL"),
+        fingerprint_family_cap_persistence: defaults_u8(
+            "SHUMA_FINGERPRINT_FAMILY_CAP_PERSISTENCE",
+        ),
+        fingerprint_family_cap_behavior: defaults_u8("SHUMA_FINGERPRINT_FAMILY_CAP_BEHAVIOR"),
         js_required_enforced: defaults_bool("SHUMA_JS_REQUIRED_ENFORCED"),
         pow_enabled: defaults_bool("SHUMA_POW_ENABLED"),
         pow_difficulty: defaults_u8("SHUMA_POW_DIFFICULTY"),
@@ -1004,6 +1069,15 @@ pub(crate) fn parse_edge_integration_mode(value: &str) -> Option<EdgeIntegration
     }
 }
 
+pub(crate) fn parse_cdp_probe_family(value: &str) -> Option<CdpProbeFamily> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "v1" => Some(CdpProbeFamily::V1),
+        "v2" => Some(CdpProbeFamily::V2),
+        "split" => Some(CdpProbeFamily::Split),
+        _ => None,
+    }
+}
+
 pub(crate) fn parse_maze_rollout_phase(value: &str) -> Option<MazeRolloutPhase> {
     match value.trim().to_ascii_lowercase().as_str() {
         "instrument" => Some(MazeRolloutPhase::Instrument),
@@ -1132,6 +1206,20 @@ fn clamp_config_values(cfg: &mut Config) {
         cfg.maze_seed_refresh_rate_limit_per_hour.clamp(1, 1000);
     cfg.maze_seed_refresh_max_sources = cfg.maze_seed_refresh_max_sources.clamp(1, 500);
     cfg.cdp_detection_threshold = cfg.cdp_detection_threshold.clamp(0.0, 1.0);
+    cfg.cdp_probe_rollout_percent = cfg.cdp_probe_rollout_percent.clamp(0, 100);
+    cfg.fingerprint_state_ttl_seconds = cfg.fingerprint_state_ttl_seconds.clamp(30, 24 * 3600);
+    cfg.fingerprint_flow_window_seconds = cfg.fingerprint_flow_window_seconds.clamp(10, 3600);
+    cfg.fingerprint_flow_violation_threshold = cfg.fingerprint_flow_violation_threshold.clamp(1, 20);
+    cfg.fingerprint_entropy_budget = clamp_botness_weight(cfg.fingerprint_entropy_budget);
+    cfg.fingerprint_family_cap_header_runtime =
+        clamp_botness_weight(cfg.fingerprint_family_cap_header_runtime);
+    cfg.fingerprint_family_cap_transport =
+        clamp_botness_weight(cfg.fingerprint_family_cap_transport);
+    cfg.fingerprint_family_cap_temporal =
+        clamp_botness_weight(cfg.fingerprint_family_cap_temporal);
+    cfg.fingerprint_family_cap_persistence =
+        clamp_botness_weight(cfg.fingerprint_family_cap_persistence);
+    cfg.fingerprint_family_cap_behavior = clamp_botness_weight(cfg.fingerprint_family_cap_behavior);
 }
 
 #[cfg(test)]
@@ -1562,6 +1650,64 @@ fn default_cdp_auto_ban() -> bool {
 
 fn default_cdp_threshold() -> f32 {
     defaults_f32("SHUMA_CDP_DETECTION_THRESHOLD")
+}
+
+fn default_cdp_probe_family() -> CdpProbeFamily {
+    let raw = defaults_raw("SHUMA_CDP_PROBE_FAMILY");
+    parse_cdp_probe_family(raw.as_str()).unwrap_or_else(|| {
+        panic!(
+            "Invalid CDP probe family default for SHUMA_CDP_PROBE_FAMILY={}",
+            raw
+        )
+    })
+}
+
+fn default_cdp_probe_rollout_percent() -> u8 {
+    defaults_u8("SHUMA_CDP_PROBE_ROLLOUT_PERCENT").clamp(0, 100)
+}
+
+fn default_fingerprint_signal_enabled() -> bool {
+    defaults_bool("SHUMA_FINGERPRINT_SIGNAL_ENABLED")
+}
+
+fn default_fingerprint_state_ttl_seconds() -> u64 {
+    defaults_u64("SHUMA_FINGERPRINT_STATE_TTL_SECONDS")
+}
+
+fn default_fingerprint_flow_window_seconds() -> u64 {
+    defaults_u64("SHUMA_FINGERPRINT_FLOW_WINDOW_SECONDS")
+}
+
+fn default_fingerprint_flow_violation_threshold() -> u8 {
+    defaults_u8("SHUMA_FINGERPRINT_FLOW_VIOLATION_THRESHOLD")
+}
+
+fn default_fingerprint_pseudonymize() -> bool {
+    defaults_bool("SHUMA_FINGERPRINT_PSEUDONYMIZE")
+}
+
+fn default_fingerprint_entropy_budget() -> u8 {
+    defaults_u8("SHUMA_FINGERPRINT_ENTROPY_BUDGET")
+}
+
+fn default_fingerprint_family_cap_header_runtime() -> u8 {
+    defaults_u8("SHUMA_FINGERPRINT_FAMILY_CAP_HEADER_RUNTIME")
+}
+
+fn default_fingerprint_family_cap_transport() -> u8 {
+    defaults_u8("SHUMA_FINGERPRINT_FAMILY_CAP_TRANSPORT")
+}
+
+fn default_fingerprint_family_cap_temporal() -> u8 {
+    defaults_u8("SHUMA_FINGERPRINT_FAMILY_CAP_TEMPORAL")
+}
+
+fn default_fingerprint_family_cap_persistence() -> u8 {
+    defaults_u8("SHUMA_FINGERPRINT_FAMILY_CAP_PERSISTENCE")
+}
+
+fn default_fingerprint_family_cap_behavior() -> u8 {
+    defaults_u8("SHUMA_FINGERPRINT_FAMILY_CAP_BEHAVIOR")
 }
 
 fn default_js_required_enforced() -> bool {

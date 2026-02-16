@@ -689,12 +689,14 @@ fn worker_candidate_paths(
 
 fn render_budget_open_maze_page(path_prefix: &str, flow_id: &str) -> String {
     let next_path = format!("{}{}", path_prefix, token::digest(flow_id));
+    let issue_path = super::issue_links_path();
     format!(
-        "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><meta name=\"robots\" content=\"noindex,nofollow,noarchive\"><title>Operational Index</title></head><body class=\"style-machine\"><div class=\"wrap style-machine\"><header><h1>Operational Index</h1><div class=\"crumb\">Portal &gt; Routing &gt; Index</div></header><div class=\"content\"><p class=\"description\">Routing channel active. Continue operational traversal.</p><div class=\"nav-grid\" id=\"maze-nav-grid\"><a href=\"{}\" class=\"nav-card\" data-link-kind=\"maze\"><h3>Continue stream</h3><p>Operational path transition.</p></a></div><script id=\"maze-bootstrap\" type=\"application/json\">{{\"flow_id\":\"{}\",\"depth\":0,\"checkpoint_token\":\"\",\"path_prefix\":\"{}\",\"entropy_nonce\":\"\",\"assets\":{{\"worker_url\":\"{}\"}},\"client_expansion\":{{\"enabled\":false,\"seed\":0,\"seed_sig\":\"\",\"hidden_count\":0,\"segment_len\":16,\"issue_path\":\"/maze/issue-links\"}}}}</script><script defer src=\"{}\"></script></div></div></body></html>",
+        "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><meta name=\"robots\" content=\"noindex,nofollow,noarchive\"><title>Operational Index</title></head><body class=\"style-machine\"><div class=\"wrap style-machine\"><header><h1>Operational Index</h1><div class=\"crumb\">Portal &gt; Routing &gt; Index</div></header><div class=\"content\"><p class=\"description\">Routing channel active. Continue operational traversal.</p><div class=\"nav-grid\" id=\"maze-nav-grid\"><a href=\"{}\" class=\"nav-card\" data-link-kind=\"maze\"><h3>Continue stream</h3><p>Operational path transition.</p></a></div><script id=\"maze-bootstrap\" type=\"application/json\">{{\"flow_id\":\"{}\",\"depth\":0,\"checkpoint_token\":\"\",\"path_prefix\":\"{}\",\"entropy_nonce\":\"\",\"assets\":{{\"worker_url\":\"{}\"}},\"client_expansion\":{{\"enabled\":false,\"seed\":0,\"seed_sig\":\"\",\"hidden_count\":0,\"segment_len\":16,\"issue_path\":\"{}\"}}}}</script><script defer src=\"{}\"></script></div></div></body></html>",
         next_path,
         flow_id,
         path_prefix,
         super::assets::maze_worker_path(),
+        issue_path,
         super::assets::maze_script_path(),
     )
 }
@@ -720,8 +722,8 @@ pub(crate) fn handle_issue_links(
     let path_prefix = payload
         .get("path_prefix")
         .and_then(|v| v.as_str())
-        .unwrap_or("/maze/");
-    if !matches!(path_prefix, "/maze/" | "/trap/") {
+        .unwrap_or(super::path_prefix());
+    if path_prefix != super::path_prefix() {
         return Response::new(400, "Invalid path prefix");
     }
 
@@ -901,11 +903,7 @@ pub(crate) fn serve(
     let query = req.query();
     let ip_bucket = crate::signals::ip_identity::bucket_ip(ip);
     let ua_bucket = token::ua_bucket(user_agent);
-    let path_prefix = if path.starts_with("/trap/") {
-        "/trap/"
-    } else {
-        "/maze/"
-    };
+    let path_prefix = super::path_prefix();
 
     let token_ctx = match parse_existing_token(
         store,
@@ -1155,7 +1153,7 @@ pub(crate) fn serve(
             "seed_sig": expansion_seed_signature,
             "hidden_count": hidden_count,
             "segment_len": expansion_segment_len,
-            "issue_path": "/maze/issue-links"
+            "issue_path": super::issue_links_path()
         }
     })
     .to_string();
@@ -1244,6 +1242,10 @@ mod tests {
         }
     }
 
+    fn maze_path(suffix: &str) -> String {
+        super::super::entry_path(suffix)
+    }
+
     #[test]
     fn helper_keys_are_stable() {
         assert_eq!(token_replay_key("f", "o"), "maze:token:seen:f:o");
@@ -1280,16 +1282,17 @@ mod tests {
 
         let req = Request::builder()
             .method(Method::Get)
-            .uri("/maze/budget-open")
+            .uri(maze_path("budget-open"))
             .body(Vec::<u8>::new())
             .build();
+        let request_path = maze_path("budget-open");
         let decision = super::serve(
             &store,
             &cfg,
             &req,
             "198.51.100.91",
             "BudgetOpenBot/1.0",
-            "/maze/budget-open",
+            request_path.as_str(),
             None,
         );
         let MazeServeDecision::Serve(rendered) = decision else {
@@ -1350,16 +1353,17 @@ mod tests {
         let cfg = crate::config::defaults().clone();
         let req = Request::builder()
             .method(Method::Get)
-            .uri("/maze/abc?mt=bad-token")
+            .uri(format!("{}?mt=bad-token", maze_path("abc")))
             .body(Vec::<u8>::new())
             .build();
+        let request_path = maze_path("abc");
         let decision = super::serve(
             &store,
             &cfg,
             &req,
             "198.51.100.9",
             "TestUA/1.0",
-            "/maze/abc",
+            request_path.as_str(),
             None,
         );
         let reason = fallback_reason(decision);
@@ -1380,9 +1384,10 @@ mod tests {
 
         let store = MemStore::default();
         let cfg = crate::config::defaults().clone();
+        let request_path = maze_path("entry");
         let req = Request::builder()
             .method(Method::Get)
-            .uri("/maze/entry")
+            .uri(request_path.as_str())
             .body(Vec::<u8>::new())
             .build();
         let decision = super::serve(
@@ -1391,7 +1396,7 @@ mod tests {
             &req,
             "198.51.100.9",
             "TestUA/1.0",
-            "/maze/entry",
+            request_path.as_str(),
             None,
         );
         match decision {
@@ -1414,9 +1419,10 @@ mod tests {
 
         let store = MemStore::default();
         let cfg = crate::config::defaults().clone();
+        let request_path = maze_path("entry");
         let req = Request::builder()
             .method(Method::Get)
-            .uri("/maze/entry")
+            .uri(request_path.as_str())
             .body(Vec::<u8>::new())
             .build();
         let decision = super::serve(
@@ -1425,7 +1431,7 @@ mod tests {
             &req,
             "198.51.100.9",
             "TestUA/1.0",
-            "/maze/entry",
+            request_path.as_str(),
             None,
         );
         match decision {
@@ -1451,16 +1457,17 @@ mod tests {
 
         let entry_req = Request::builder()
             .method(Method::Get)
-            .uri("/maze/branch-budget-entry")
+            .uri(maze_path("branch-budget-entry"))
             .body(Vec::<u8>::new())
             .build();
+        let entry_path = maze_path("branch-budget-entry");
         let entry = super::serve(
             &store,
             &cfg,
             &entry_req,
             "198.51.100.45",
             "BudgetBot/1.0",
-            "/maze/branch-budget-entry",
+            entry_path.as_str(),
             None,
         );
         let MazeServeDecision::Serve(entry_page) = entry else {
@@ -1495,14 +1502,14 @@ mod tests {
             .expect("client expansion should exist");
         let issue_req = Request::builder()
             .method(Method::Post)
-            .uri("/maze/issue-links")
+            .uri(super::super::issue_links_path())
             .header("Content-Type", "application/json")
             .body(
                 serde_json::json!({
                     "parent_token": bootstrap.get("checkpoint_token").and_then(|value| value.as_str()).unwrap_or_default(),
                     "flow_id": bootstrap.get("flow_id").and_then(|value| value.as_str()).unwrap_or_default(),
                     "entropy_nonce": bootstrap.get("entropy_nonce").and_then(|value| value.as_str()).unwrap_or_default(),
-                    "path_prefix": bootstrap.get("path_prefix").and_then(|value| value.as_str()).unwrap_or("/maze/"),
+                    "path_prefix": bootstrap.get("path_prefix").and_then(|value| value.as_str()).unwrap_or(super::super::path_prefix()),
                     "seed": expansion.get("seed").and_then(|value| value.as_u64()).unwrap_or(0),
                     "seed_sig": expansion.get("seed_sig").and_then(|value| value.as_str()).unwrap_or_default(),
                     "hidden_count": expansion.get("hidden_count").and_then(|value| value.as_u64()).unwrap_or(0),
@@ -1535,16 +1542,17 @@ mod tests {
 
         let req = Request::builder()
             .method(Method::Get)
-            .uri("/maze/budget-decrement")
+            .uri(maze_path("budget-decrement"))
             .body(Vec::<u8>::new())
             .build();
+        let request_path = maze_path("budget-decrement");
         let decision = super::serve(
             &store,
             &cfg,
             &req,
             "198.51.100.77",
             "BudgetStepBot/1.0",
-            "/maze/budget-decrement",
+            request_path.as_str(),
             None,
         );
         let MazeServeDecision::Serve(rendered) = decision else {
@@ -1569,16 +1577,17 @@ mod tests {
 
         let entry_req = Request::builder()
             .method(Method::Get)
-            .uri("/maze/issue-links-entry")
+            .uri(maze_path("issue-links-entry"))
             .body(Vec::<u8>::new())
             .build();
+        let entry_path = maze_path("issue-links-entry");
         let entry = super::serve(
             &store,
             &cfg,
             &entry_req,
             "198.51.100.54",
             "SeedSigBot/1.0",
-            "/maze/issue-links-entry",
+            entry_path.as_str(),
             None,
         );
         let MazeServeDecision::Serve(entry_page) = entry else {
@@ -1657,7 +1666,7 @@ mod tests {
         });
         let invalid_req = Request::builder()
             .method(Method::Post)
-            .uri("/maze/issue-links")
+            .uri(super::super::issue_links_path())
             .header("Content-Type", "application/json")
             .body(invalid_payload.to_string().into_bytes())
             .build();
@@ -1684,7 +1693,7 @@ mod tests {
         });
         let valid_req = Request::builder()
             .method(Method::Post)
-            .uri("/maze/issue-links")
+            .uri(super::super::issue_links_path())
             .header("Content-Type", "application/json")
             .body(valid_payload.to_string().into_bytes())
             .build();
@@ -1703,16 +1712,17 @@ mod tests {
 
         let entry_req = Request::builder()
             .method(Method::Get)
-            .uri("/maze/issue-links-replay-entry")
+            .uri(maze_path("issue-links-replay-entry"))
             .body(Vec::<u8>::new())
             .build();
+        let entry_path = maze_path("issue-links-replay-entry");
         let entry = super::serve(
             &store,
             &cfg,
             &entry_req,
             "198.51.100.99",
             "IssueReplayBot/1.0",
-            "/maze/issue-links-replay-entry",
+            entry_path.as_str(),
             None,
         );
         let MazeServeDecision::Serve(entry_page) = entry else {
@@ -1749,7 +1759,7 @@ mod tests {
             "parent_token": bootstrap.get("checkpoint_token").and_then(|value| value.as_str()).unwrap_or_default(),
             "flow_id": bootstrap.get("flow_id").and_then(|value| value.as_str()).unwrap_or_default(),
             "entropy_nonce": bootstrap.get("entropy_nonce").and_then(|value| value.as_str()).unwrap_or_default(),
-            "path_prefix": bootstrap.get("path_prefix").and_then(|value| value.as_str()).unwrap_or("/maze/"),
+            "path_prefix": bootstrap.get("path_prefix").and_then(|value| value.as_str()).unwrap_or(super::super::path_prefix()),
             "seed": expansion.get("seed").and_then(|value| value.as_u64()).unwrap_or(0),
             "seed_sig": expansion.get("seed_sig").and_then(|value| value.as_str()).unwrap_or_default(),
             "hidden_count": expansion.get("hidden_count").and_then(|value| value.as_u64()).unwrap_or(0),
@@ -1761,7 +1771,7 @@ mod tests {
         .into_bytes();
         let issue_req = Request::builder()
             .method(Method::Post)
-            .uri("/maze/issue-links")
+            .uri(super::super::issue_links_path())
             .header("Content-Type", "application/json")
             .body(payload.clone())
             .build();
@@ -1776,7 +1786,7 @@ mod tests {
 
         let replay_req = Request::builder()
             .method(Method::Post)
-            .uri("/maze/issue-links")
+            .uri(super::super::issue_links_path())
             .header("Content-Type", "application/json")
             .body(payload)
             .build();

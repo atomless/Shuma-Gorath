@@ -72,7 +72,7 @@ mod tests {
             .to_string();
             let req = Request::builder()
                 .method(Method::Post)
-                .uri("/maze/checkpoint")
+                .uri(crate::maze::checkpoint_path())
                 .header("Content-Type", "application/json")
                 .body(body.into_bytes())
                 .build();
@@ -112,10 +112,14 @@ mod tests {
         None
     }
 
+    fn maze_entry(suffix: &str) -> String {
+        crate::maze::entry_path(suffix)
+    }
+
     #[test]
     fn crawler_harness_detects_replay_attempts() {
         let harness = CrawlerHarness::new("198.51.100.21", "ReplayBot/1.0");
-        let entry = harness.serve("/maze/sim-entry");
+        let entry = harness.serve(maze_entry("sim-entry").as_str());
         let MazeServeDecision::Serve(entry_page) = entry else {
             panic!("entry request should serve maze page");
         };
@@ -138,14 +142,14 @@ mod tests {
         let mut harness = CrawlerHarness::new("198.51.100.30", "FingerprintBot/2.0");
         harness.cfg.maze_entropy_window_seconds = 1;
 
-        let first = harness.serve("/maze/fingerprint-target");
+        let first = harness.serve(maze_entry("fingerprint-target").as_str());
         let MazeServeDecision::Serve(first_page) = first else {
             panic!("first maze render should succeed");
         };
 
         thread::sleep(Duration::from_millis(1200));
 
-        let second = harness.serve("/maze/fingerprint-target");
+        let second = harness.serve(maze_entry("fingerprint-target").as_str());
         let MazeServeDecision::Serve(second_page) = second else {
             panic!("second maze render should succeed");
         };
@@ -159,7 +163,7 @@ mod tests {
     #[test]
     fn crawler_harness_no_js_cohort_hits_checkpoint_fallback() {
         let harness = CrawlerHarness::new("198.51.100.41", "NoJsBot/1.0");
-        let mut uri = "/maze/no-js-cohort".to_string();
+        let mut uri = maze_entry("no-js-cohort");
         let mut saw_checkpoint_fallback = false;
 
         for _ in 0..8 {
@@ -185,7 +189,7 @@ mod tests {
     #[test]
     fn crawler_harness_js_cohort_progresses_with_checkpoints() {
         let harness = CrawlerHarness::new("198.51.100.42", "JsCapableCrawler/1.0");
-        let mut uri = "/maze/js-cohort".to_string();
+        let mut uri = maze_entry("js-cohort");
 
         for _ in 0..6 {
             let served = harness.serve(uri.as_str());
@@ -210,7 +214,7 @@ mod tests {
         let first_harness = CrawlerHarness::new("198.51.100.55", "BypassBot/1.0");
         let second_harness = CrawlerHarness::new("203.0.113.19", "BypassBot/1.0");
 
-        let entry = first_harness.serve("/maze/binding-source");
+        let entry = first_harness.serve(maze_entry("binding-source").as_str());
         let MazeServeDecision::Serve(entry_page) = entry else {
             panic!("source crawler should get maze entry page");
         };

@@ -3,11 +3,9 @@
 //! Generates configurable robots.txt that:
 //! - Blocks known AI training crawlers
 //! - Supports Cloudflare Content-Signal directive
-//! - Seeds honeypot/maze paths for bad bots
 //! - Allows legitimate search engine crawlers
 
 use crate::config::Config;
-use std::collections::HashSet;
 
 /// Known AI training crawler user-agents
 pub const AI_TRAINING_BOTS: &[&str] = &[
@@ -63,7 +61,6 @@ pub const SEARCH_ENGINE_BOTS: &[&str] = &[
 /// Generate robots.txt content based on configuration
 pub fn generate_robots_txt(cfg: &Config) -> String {
     let mut lines: Vec<String> = Vec::new();
-    let trap_paths = collect_trap_paths(cfg);
 
     // Header comment with Content-Signal
     lines.push("# Bot Defence - Robots Exclusion Protocol".to_string());
@@ -125,10 +122,6 @@ pub fn generate_robots_txt(cfg: &Config) -> String {
             if cfg.robots_crawl_delay > 0 {
                 lines.push(format!("Crawl-delay: {}", cfg.robots_crawl_delay));
             }
-            // Tell good bots to stay out of trap paths.
-            for trap_path in &trap_paths {
-                lines.push(format!("Disallow: {}", trap_path));
-            }
             lines.push("".to_string());
         }
     }
@@ -143,27 +136,6 @@ pub fn generate_robots_txt(cfg: &Config) -> String {
         }
     } else {
         lines.push("Disallow: /".to_string());
-    }
-
-    // Add trap paths that bad bots might follow.
-    if !trap_paths.is_empty() {
-        lines.push("".to_string());
-        lines.push("# Trap paths - Good bots stay out, bad bots get trapped".to_string());
-        for trap_path in &trap_paths {
-            lines.push(format!("Disallow: {}", trap_path));
-        }
-
-        // Add enticing honeypot links as comments
-        // Bad bots often parse these looking for "hidden" paths
-        lines.push("".to_string());
-        lines.push("# Internal paths (do not crawl)".to_string());
-        if cfg.maze_enabled {
-            lines.push("# /maze/secret-admin/".to_string());
-            lines.push("# /trap/internal-archive/".to_string());
-        }
-        if let Some(first_honeypot) = cfg.honeypots.first() {
-            lines.push(format!("# {}", first_honeypot));
-        }
     }
 
     // Sitemap reference (if applicable)
@@ -190,32 +162,6 @@ fn get_policy_name(cfg: &Config) -> &'static str {
         (false, false, true) => "Allow Everything",
         (false, false, false) => "Block Search Engines Only",
     }
-}
-
-fn collect_trap_paths(cfg: &Config) -> Vec<String> {
-    let mut paths: Vec<String> = Vec::new();
-    if cfg.maze_enabled {
-        paths.push("/maze/".to_string());
-        paths.push("/trap/".to_string());
-    }
-    if cfg.honeypot_enabled {
-        paths.extend(
-            cfg.honeypots
-                .iter()
-                .map(|path| path.trim())
-                .filter(|path| !path.is_empty())
-                .map(|path| path.to_string()),
-        );
-    }
-
-    let mut seen = HashSet::new();
-    let mut deduped = Vec::new();
-    for path in paths {
-        if seen.insert(path.clone()) {
-            deduped.push(path);
-        }
-    }
-    deduped
 }
 
 /// Generate Content-Signal HTTP header value
@@ -302,15 +248,14 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_robots_txt_includes_honeypot() {
+    fn test_generate_robots_txt_does_not_advertise_deception_paths() {
         let cfg = test_config();
         let robots = generate_robots_txt(&cfg);
 
-        // Should align with active trap routes and configured honeypots.
-        assert!(robots.contains("Disallow: /maze/"));
-        assert!(robots.contains("Disallow: /trap/"));
-        assert!(robots.contains("Disallow: /instaban"));
-        assert!(!robots.contains("/.well-known/maze/"));
+        assert!(!robots.contains("Disallow: /maze/"));
+        assert!(!robots.contains("Disallow: /trap/"));
+        assert!(!robots.contains("Disallow: /instaban"));
+        assert!(!robots.contains("# Internal paths (do not crawl)"));
     }
 
     #[test]
@@ -331,12 +276,12 @@ mod tests {
     }
 
     #[test]
-    fn test_honeypot_path_still_advertised_when_maze_disabled() {
+    fn test_honeypot_paths_remain_hidden_when_maze_disabled() {
         let mut cfg = test_config();
         cfg.maze_enabled = false;
         let robots = generate_robots_txt(&cfg);
 
-        assert!(robots.contains("Disallow: /instaban"));
+        assert!(!robots.contains("Disallow: /instaban"));
         assert!(!robots.contains("Disallow: /maze/"));
         assert!(!robots.contains("Disallow: /trap/"));
     }

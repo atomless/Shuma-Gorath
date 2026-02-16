@@ -256,7 +256,7 @@ pub(crate) fn maybe_handle_geo_policy(
                             req.header("user-agent")
                                 .map(|v| v.as_str().unwrap_or(""))
                                 .unwrap_or(""),
-                            "/maze/geo-policy",
+                            crate::maze::entry_path("geo-policy").as_str(),
                             "geo_policy_maze",
                             event_outcome.as_str(),
                             None,
@@ -382,7 +382,7 @@ pub(crate) fn maybe_handle_geo_policy(
                             req.header("user-agent")
                                 .map(|v| v.as_str().unwrap_or(""))
                                 .unwrap_or(""),
-                            "/maze/geo-policy-challenge-fallback",
+                            crate::maze::entry_path("geo-policy-challenge-fallback").as_str(),
                             "geo_policy_challenge_fallback_maze",
                             event_outcome.as_str(),
                             None,
@@ -463,6 +463,13 @@ pub(crate) fn maybe_handle_botness(
         .rate_limiter_provider()
         .current_rate_usage(store, site_id, ip);
     let maze_behavior_score = crate::maze::runtime::current_behavior_score(store, ip);
+    let fingerprint_signals = crate::signals::fingerprint::collect_bot_signals(
+        store,
+        req,
+        cfg,
+        ip,
+        geo_assessment.headers_trusted,
+    );
     let botness = crate::compute_botness_assessment(
         crate::BotnessSignalContext {
             js_needed: needs_js,
@@ -471,6 +478,7 @@ pub(crate) fn maybe_handle_botness(
             rate_count: rate_usage,
             rate_limit: cfg.rate_limit,
             maze_behavior_score,
+            fingerprint_signals,
         },
         cfg,
     );
@@ -510,7 +518,7 @@ pub(crate) fn maybe_handle_botness(
                     req.header("user-agent")
                         .map(|v| v.as_str().unwrap_or(""))
                         .unwrap_or(""),
-                    "/maze/botness-gate",
+                    crate::maze::entry_path("botness-gate").as_str(),
                     "botness_gate_maze",
                     event_outcome.as_str(),
                     Some(botness.score),
@@ -590,7 +598,7 @@ pub(crate) fn maybe_handle_botness(
                         cfg,
                         ip,
                         ua,
-                        "/maze/botness-challenge-fallback",
+                        crate::maze::entry_path("botness-challenge-fallback").as_str(),
                         "botness_gate_challenge_disabled_fallback_maze",
                         event_outcome.as_str(),
                         Some(botness.score),
@@ -672,5 +680,7 @@ pub(crate) fn maybe_handle_js(
         cfg.pow_enabled,
         cfg.pow_difficulty,
         cfg.pow_ttl_seconds,
+        cfg.cdp_probe_family,
+        cfg.cdp_probe_rollout_percent,
     ))
 }

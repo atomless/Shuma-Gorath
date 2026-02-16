@@ -84,18 +84,33 @@ pub fn bot_signal(
     weight: u8,
 ) -> crate::signals::botness::BotSignal {
     if !signal_available {
-        return crate::signals::botness::BotSignal::unavailable(GEO_SIGNAL_KEY, GEO_SIGNAL_LABEL);
+        return crate::signals::botness::BotSignal::unavailable_with_metadata(
+            GEO_SIGNAL_KEY,
+            GEO_SIGNAL_LABEL,
+            crate::signals::botness::SignalProvenance::Internal,
+            8,
+            crate::signals::botness::SignalFamily::Geo,
+        );
     }
-    crate::signals::botness::BotSignal::scored(
+    crate::signals::botness::BotSignal::scored_with_metadata(
         GEO_SIGNAL_KEY,
         GEO_SIGNAL_LABEL,
         scored_risk,
         weight,
+        crate::signals::botness::SignalProvenance::Internal,
+        8,
+        crate::signals::botness::SignalFamily::Geo,
     )
 }
 
 pub fn disabled_bot_signal() -> crate::signals::botness::BotSignal {
-    crate::signals::botness::BotSignal::disabled(GEO_SIGNAL_KEY, GEO_SIGNAL_LABEL)
+    crate::signals::botness::BotSignal::disabled_with_metadata(
+        GEO_SIGNAL_KEY,
+        GEO_SIGNAL_LABEL,
+        crate::signals::botness::SignalProvenance::Internal,
+        8,
+        crate::signals::botness::SignalFamily::Geo,
+    )
 }
 
 #[cfg(test)]

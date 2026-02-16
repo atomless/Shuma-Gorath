@@ -15,7 +15,10 @@ pub(crate) mod state;
 mod token;
 mod types;
 
-pub use http::is_maze_path;
+pub use http::{
+    assets_prefix, checkpoint_path, default_preview_path, entry_path, is_maze_path,
+    issue_links_path, path_prefix,
+};
 
 #[cfg(test)]
 mod tests {
@@ -24,8 +27,9 @@ mod tests {
 
     #[test]
     fn test_is_maze_path() {
-        assert!(is_maze_path("/trap/abc123"));
-        assert!(is_maze_path("/maze/def456"));
+        assert!(is_maze_path(path_prefix()));
+        assert!(is_maze_path(entry_path("def456").as_str()));
+        assert!(!is_maze_path("/trap/abc123"));
         assert!(!is_maze_path("/admin/config"));
         assert!(!is_maze_path("/api/data"));
     }

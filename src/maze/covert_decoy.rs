@@ -67,11 +67,11 @@ fn covert_decoy_href(
     let nonce = token::flow_id_from(ip_bucket.as_str(), ua_bucket.as_str(), request_path, now);
     let path_digest = token::digest(format!("{request_path}:{ip_bucket}:{now}").as_str());
     let segment = &path_digest[..12];
-    let decoy_path = format!("/maze/decoy/{segment}");
+    let decoy_path = super::entry_path(format!("decoy/{segment}").as_str());
     let child = token::issue_child_token(
         None,
         decoy_path.as_str(),
-        "/maze/",
+        super::path_prefix(),
         ip_bucket.as_str(),
         ua_bucket.as_str(),
         cfg.maze_token_ttl_seconds,
@@ -196,7 +196,7 @@ mod tests {
         let body = String::from_utf8_lossy(injected.body());
         assert!(body.contains("data-shuma-covert-decoy=\"1\""));
         assert!(body.contains("dc=1"));
-        assert!(body.contains("/maze/decoy/"));
+        assert!(body.contains("/decoy/"));
     }
 
     #[test]

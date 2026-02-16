@@ -38,15 +38,19 @@ If `SHUMA_HEALTH_SECRET` is configured, `/health` also requires:
 - `GET /pow` - PoW challenge seed (when enabled)
 - `POST /pow/verify` - PoW verification (sets js_verified cookie)
 - `POST /cdp-report` - Client automation reports (JSON)
-- `POST /maze/checkpoint` - Maze traversal checkpoint submission
-- `POST /maze/issue-links` - Maze progressive hidden-link issuance (signed seed + checkpoint gated)
-- `GET /maze/assets/maze.<hash>.min.css` - Shared maze stylesheet asset (immutable cache)
-- `GET /maze/assets/maze.<hash>.min.js` - Shared maze runtime script asset (immutable cache)
-- `GET /maze/assets/maze-worker.<hash>.min.js` - Maze worker asset (expansion + micro-PoW off-main-thread)
+- `POST /fingerprint-report` - External/edge fingerprint intake (Akamai-first shape with internal CDP fallback)
+- `POST <maze_path_prefix>checkpoint` - Maze traversal checkpoint submission
+- `POST <maze_path_prefix>issue-links` - Maze progressive hidden-link issuance (signed seed + checkpoint gated)
+- `GET <maze_assets_prefix>/maze.<hash>.min.css` - Shared maze stylesheet asset (immutable cache)
+- `GET <maze_assets_prefix>/maze.<hash>.min.js` - Shared maze runtime script asset (immutable cache)
+- `GET <maze_assets_prefix>/maze-worker.<hash>.min.js` - Maze worker asset (expansion + micro-PoW off-main-thread)
 - `GET /robots.txt` - robots.txt (configurable)
 - `GET /dashboard/...` - Dashboard static assets
 - `GET /challenge/puzzle` - Dev-only puzzle challenge page (`test_mode=true` in runtime config)
 - `POST /challenge/puzzle` - Puzzle challenge answer submission
+
+Maze route note:
+- `<maze_path_prefix>` is an opaque, deployment-specific prefix derived from maze secret material (for example `/_/<segment>/`).
 
 ### 🐙 Challenge Submission Format
 
@@ -61,7 +65,7 @@ Output encoding:
 
 ### 🐙 Maze Progressive Link Issuance
 
-`POST /maze/issue-links` expects JSON fields:
+`POST <maze_path_prefix>issue-links` expects JSON fields:
 
 - `parent_token` (current page `mt` token)
 - `flow_id`, `entropy_nonce`, `path_prefix`
@@ -73,7 +77,7 @@ Behavior:
 
 - request is binding-validated against parent token (`ip_bucket`, `ua_bucket`, path prefix),
 - expansion seed signature is verified before issuing links,
-- parent-token link issuance is single-use; replayed `/maze/issue-links` requests return `409`,
+- parent-token link issuance is single-use; replayed issue-link requests return `409`,
 - checkpoint posture is enforced before deep hidden issuance,
 - response returns `{"links":[...]}` with signed child `mt` tokens (and optional `pow_difficulty`).
 
@@ -138,12 +142,12 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `POST /admin/config` - Update configuration (partial JSON, disabled when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`)
 - `GET /admin/config/export` - Export non-secret runtime config as deploy-ready env key/value output
 - `GET /admin/maze` - maze stats
-- `GET /admin/maze/preview?path=/maze/...` - Non-operational maze preview (admin-auth only; no live traversal token issuance)
+- `GET /admin/maze/preview?path=<maze_entry_path>...` - Non-operational maze preview (admin-auth only; no live traversal token issuance)
 - `GET /admin/maze/seeds` - Maze operator-seed source list and cached corpus snapshot
 - `POST /admin/maze/seeds` - Upsert maze operator-seed sources
 - `POST /admin/maze/seeds/refresh` - Trigger manual maze operator-corpus refresh
 - `GET /admin/robots` - robots.txt config and preview
-- `GET /admin/cdp` - CDP detection config and stats
+- `GET /admin/cdp` - CDP + fingerprint detection config and stats
 
 `GET /admin/session` includes `access` as `read_only`, `read_write`, or `none`.
 
@@ -183,6 +187,28 @@ Event `outcome` values may include canonical taxonomy metadata:
 - `taxonomy[level=L* action=A* detection=D* signals=S_*...]`
 
 This uses the same public ladder documented in `/docs/bot-defence.md` (`Escalation Ladder (L0-L11)`).
+
+### 🐙 CDP + Fingerprint Admin View
+
+`GET /admin/cdp` returns:
+- `config`:
+  - `enabled`, `auto_ban`, `detection_threshold`
+  - `probe_family`, `probe_rollout_percent`
+  - `fingerprint_signal_enabled`
+  - `fingerprint_state_ttl_seconds`, `fingerprint_flow_window_seconds`, `fingerprint_flow_violation_threshold`
+  - `fingerprint_pseudonymize`
+  - `fingerprint_entropy_budget`
+  - `fingerprint_family_cap_header_runtime`, `fingerprint_family_cap_transport`, `fingerprint_family_cap_temporal`, `fingerprint_family_cap_persistence`, `fingerprint_family_cap_behavior`
+- `stats`:
+  - `total_detections`, `auto_bans`
+- `fingerprint_stats`:
+  - `events`
+  - `ua_client_hint_mismatch`
+  - `ua_transport_mismatch`
+  - `temporal_transition`
+  - `flow_violation`
+  - `persistence_marker_missing`
+  - `untrusted_transport_header`
 
 ### 🐙 Canonical Escalation IDs
 

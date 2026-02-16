@@ -13,7 +13,7 @@ This is the practical flow an operator should expect:
 3. **Traversal links carry signed `mt` tokens**
    Each hop token is validated for signature, TTL, path binding, chain integrity (`prev_digest`), replay, and branch budget.
 4. **Checkpoint + progressive issuance for deeper traversal**
-   Client flow can submit `POST /maze/checkpoint` and request additional links via `POST /maze/issue-links`; issuance is signed, bounded, and replay-protected.
+   Client flow can submit `POST <maze_path_prefix>checkpoint` and request additional links via `POST <maze_path_prefix>issue-links`; issuance is signed, bounded, and replay-protected.
 5. **No-JS is bounded, not unlimited**
    No-JS traversal is allowed only to configured depth, then deterministic fallback applies.
 6. **Fallback and escalation are deterministic**
@@ -58,9 +58,9 @@ Current Stage 2 behavior combines polymorphic rendering, signed traversal state,
 3. **Signed traversal links**
    Maze links carry signed `mt` traversal tokens with TTL/depth/branch budget/previous-node binding and replay tracking.
 4. **Compact shell + shared assets**
-   Maze pages now ship a compact HTML shell and reuse versioned static maze assets (`/maze/assets/...`) instead of full inline CSS/JS on every hop. Asset version tags are content-hash derived so path changes track payload changes.
+   Maze pages now ship a compact HTML shell and reuse versioned static maze assets under an opaque deployment-specific prefix instead of full inline CSS/JS on every hop. Asset version tags are content-hash derived so path changes track payload changes.
 5. **Client-side expansion + checkpoints**
-   Suspicious-tier traversal serves server-visible links only; hidden links are issued progressively via `/maze/issue-links` from a compact signed seed after checkpoint-aware validation.
+   Suspicious-tier traversal serves server-visible links only; hidden links are issued progressively via `<maze_path_prefix>issue-links` from a compact signed seed after checkpoint-aware validation.
 6. **Signed client expansion seed**
    Worker expansion uses a signed bootstrap seed envelope (`seed` + `seed_sig`) bound to flow/path/depth/entropy, and server issuance rejects tampering.
 7. **No-JS bounded fallback**
@@ -85,7 +85,7 @@ The maze is intentionally designed so attacker effort rises faster than host eff
 - **Attacker pays repeated navigation + proof cost**
   Deep traversal requires additional valid hops, checkpoint posture, and optional micro-PoW.
 - **Host reuses shared static assets**
-  CSS/JS/worker are versioned shared assets under `/maze/assets/...` with immutable cache behavior.
+  CSS/JS/worker are versioned shared assets under an opaque maze asset prefix with immutable cache behavior.
 - **Host avoids full hidden-link payloads per hop**
   Hidden links are issued progressively through signed endpoint calls, not pre-shipped in every page.
 - **Host bounds expensive work up front**
@@ -98,6 +98,7 @@ The maze is intentionally designed so attacker effort rises faster than host eff
 - Most legitimate humans should not traverse deep maze paths.
 - Maze is not a standalone control; it composes with challenge, block, and ban decisions.
 - `/admin/maze/preview` is safe and non-operational by design; preview artifacts do not issue live traversal state.
+- Live maze traversal endpoints use an opaque deployment-specific prefix (not a fixed `/maze/*` path family).
 - Rollout phase (`instrument` -> `advisory` -> `enforce`) controls how aggressively violations turn into fallback actions.
 
 ### Content Sources and Safety Rules
@@ -105,7 +106,7 @@ The maze is intentionally designed so attacker effort rises faster than host eff
 - Use synthetic or operator-approved metadata corpora only.
 - Do not mirror user/private application data into maze pages.
 - Keep generated content disposable and non-authoritative.
-- Preserve explicit robots signaling for trap routes and honeypot paths.
+- Do not advertise deception routes in `robots.txt` by default.
 - Prefer metadata/keyword extraction over article-body copying for operator sources.
 
 ## 🐙 Rollout and Rollback (MZ-10)
@@ -168,12 +169,12 @@ Env-only key:
 - `GET /admin/maze/seeds` - Lists operator seed sources and cached corpus snapshot.
 - `POST /admin/maze/seeds` - Upserts operator seed sources.
 - `POST /admin/maze/seeds/refresh` - Triggers manual operator-corpus refresh.
-- `POST /maze/issue-links` - Proof/checkpoint-gated progressive hidden-link issuance endpoint (used by maze worker path).
+- `POST <maze_path_prefix>issue-links` - Proof/checkpoint-gated progressive hidden-link issuance endpoint (used by maze worker path).
 
 Public static maze assets:
-- `GET /maze/assets/maze.<hash>.min.css`
-- `GET /maze/assets/maze.<hash>.min.js`
-- `GET /maze/assets/maze-worker.<hash>.min.js`
+- `GET <maze_assets_prefix>/maze.<hash>.min.css`
+- `GET <maze_assets_prefix>/maze.<hash>.min.js`
+- `GET <maze_assets_prefix>/maze-worker.<hash>.min.js`
 
 Preview safety guarantees:
 - links stay inside `/admin/maze/preview?path=...`,

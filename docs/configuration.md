@@ -154,6 +154,19 @@ These keys are seeded into KV and loaded from KV at runtime.
 | `SHUMA_CDP_DETECTION_ENABLED` | `true` | Enables CDP automation detection script/processing. |
 | `SHUMA_CDP_AUTO_BAN` | `true` | Enables auto-ban path when strong CDP automation is detected. |
 | `SHUMA_CDP_DETECTION_THRESHOLD` | `0.8` | CDP score threshold used when hard CDP checks are absent. |
+| `SHUMA_CDP_PROBE_FAMILY` | `split` | CDP detector probe family selector (`v1`, `v2`, `split`) for rollout/rotation. |
+| `SHUMA_CDP_PROBE_ROLLOUT_PERCENT` | `30` | Percent of requests that should receive `v2` probes when `cdp_probe_family=split` (0-100). |
+| `SHUMA_FINGERPRINT_SIGNAL_ENABLED` | `true` | Enables internal fingerprint signal collection and scoring contributions. |
+| `SHUMA_FINGERPRINT_STATE_TTL_SECONDS` | `900` | TTL for bounded fingerprint state/coherence windows. |
+| `SHUMA_FINGERPRINT_FLOW_WINDOW_SECONDS` | `120` | Rolling flow window used for mismatch aggregation and flow-centric telemetry checks. |
+| `SHUMA_FINGERPRINT_FLOW_VIOLATION_THRESHOLD` | `3` | Per-flow mismatch threshold before emitting flow-violation fingerprint signals. |
+| `SHUMA_FINGERPRINT_PSEUDONYMIZE` | `true` | Uses pseudonymized flow identity for fingerprint state keys (data-minimization control). |
+| `SHUMA_FINGERPRINT_ENTROPY_BUDGET` | `4` | Max cumulative fingerprint contribution budget applied by botness signal accumulator. |
+| `SHUMA_FINGERPRINT_FAMILY_CAP_HEADER_RUNTIME` | `2` | Per-family cap for header/runtime fingerprint contributions. |
+| `SHUMA_FINGERPRINT_FAMILY_CAP_TRANSPORT` | `3` | Per-family cap for transport/edge fingerprint contributions. |
+| `SHUMA_FINGERPRINT_FAMILY_CAP_TEMPORAL` | `2` | Per-family cap for temporal coherence fingerprint contributions. |
+| `SHUMA_FINGERPRINT_FAMILY_CAP_PERSISTENCE` | `1` | Per-family cap for persistence-abuse fingerprint contributions. |
+| `SHUMA_FINGERPRINT_FAMILY_CAP_BEHAVIOR` | `2` | Per-family cap for low-friction behavioral fingerprint contributions. |
 
 ## 🐙 Admin Config Writes
 
@@ -174,7 +187,7 @@ The following KV-backed fields are currently writable via admin API:
 - GEO routing/policy: `geo_risk`, `geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`.
 - Maze: `maze_enabled`, `maze_auto_ban`, `maze_auto_ban_threshold`, `maze_rollout_phase`, `maze_token_ttl_seconds`, `maze_token_max_depth`, `maze_token_branch_budget`, `maze_replay_ttl_seconds`, `maze_entropy_window_seconds`, `maze_client_expansion_enabled`, `maze_checkpoint_every_nodes`, `maze_checkpoint_every_ms`, `maze_step_ahead_max`, `maze_no_js_fallback_max_depth`, `maze_micro_pow_enabled`, `maze_micro_pow_depth_start`, `maze_micro_pow_base_difficulty`, `maze_max_concurrent_global`, `maze_max_concurrent_per_ip_bucket`, `maze_max_response_bytes`, `maze_max_response_duration_ms`, `maze_server_visible_links`, `maze_max_links`, `maze_max_paragraphs`, `maze_path_entropy_segment_len`, `maze_covert_decoys_enabled`, `maze_seed_provider`, `maze_seed_refresh_interval_seconds`, `maze_seed_refresh_rate_limit_per_hour`, `maze_seed_refresh_max_sources`, `maze_seed_metadata_only`.
 - Robots/AI policy: `robots_enabled`, `robots_crawl_delay`, `ai_policy_block_training`, `ai_policy_block_search`, `ai_policy_allow_search_engines` (legacy aliases `robots_block_ai_training`, `robots_block_ai_search`, `robots_allow_search_engines` are also accepted).
-- CDP: `cdp_detection_enabled`, `cdp_auto_ban`, `cdp_detection_threshold`.
+- CDP/fingerprint: `cdp_detection_enabled`, `cdp_auto_ban`, `cdp_detection_threshold`, `cdp_probe_family`, `cdp_probe_rollout_percent`, `fingerprint_signal_enabled`, `fingerprint_state_ttl_seconds`, `fingerprint_flow_window_seconds`, `fingerprint_flow_violation_threshold`, `fingerprint_pseudonymize`, `fingerprint_entropy_budget`, `fingerprint_family_cap_header_runtime`, `fingerprint_family_cap_transport`, `fingerprint_family_cap_temporal`, `fingerprint_family_cap_persistence`, `fingerprint_family_cap_behavior`.
 - Provider/edge: `provider_backends.{rate_limiter,ban_store,challenge_engine,maze_tarpit,fingerprint_signal}`, `edge_integration_mode`.
 - Botness/challenge tuning: `pow_enabled`, `pow_difficulty`, `pow_ttl_seconds`, `challenge_puzzle_enabled`, `challenge_puzzle_transform_count`, `challenge_puzzle_risk_threshold`, `botness_maze_threshold`, `botness_weights.{js_required,geo_risk,rate_medium,rate_high,maze_behavior}`, `defence_modes.{rate,geo,js}`.
 
@@ -189,6 +202,20 @@ Shuma follows a 2-class model only:
 - `js_required_enforced=false` bypasses JS verification for normal requests (and therefore bypasses PoW on that path).
 - `challenge_puzzle_enabled=false` disables challenge-page serving; challenge-tier routes fall back to maze when `maze_enabled=true`, otherwise hard block.
 
+### CDP/Fingerprint rollout controls
+
+- `cdp_probe_family` controls detector script family selection:
+  - `v1`: legacy probe set only,
+  - `v2`: expanded probe set (includes persistence/micro-signal checks),
+  - `split`: deterministic request-based split rollout between `v1` and `v2`.
+- `cdp_probe_rollout_percent` is used only when `cdp_probe_family=split`.
+- `fingerprint_signal_enabled=false` disables fingerprint signal contributions while keeping CDP endpoint handling available.
+- Fingerprint state/privacy controls are bounded by:
+  - `fingerprint_state_ttl_seconds`,
+  - `fingerprint_flow_window_seconds`,
+  - `fingerprint_pseudonymize`,
+  - `fingerprint_entropy_budget` and the per-family cap keys.
+
 ## 🐙 Maze Rollout Phases
 
 `SHUMA_MAZE_ROLLOUT_PHASE` controls how strictly maze violations are enforced:
@@ -201,9 +228,9 @@ Recommended promotion order is `instrument -> advisory -> enforce` with explicit
 
 ## 🐙 Maze Stage 2.5 Runtime Notes
 
-- Maze pages now use a compact HTML shell with versioned shared assets under `/maze/assets/...` (immutable cache policy).
-- Hidden-link expansion is progressive via `POST /maze/issue-links` using signed expansion-seed envelopes (`seed` + `seed_sig`) instead of shipping full hidden-link sets in bootstrap payloads.
-- `/maze/issue-links` parent-token issuance is single-use (replay calls are rejected) to reduce repeat host work.
+- Maze pages now use a compact HTML shell with versioned shared assets under an opaque deployment-specific maze asset prefix (immutable cache policy).
+- Hidden-link expansion is progressive via `POST <maze_path_prefix>issue-links` using signed expansion-seed envelopes (`seed` + `seed_sig`) instead of shipping full hidden-link sets in bootstrap payloads.
+- Parent-token issuance at the maze issue-links endpoint is single-use (replay calls are rejected) to reduce repeat host work.
 - Branch-budget controls now bound progressive hidden-link issuance volume per traversal token.
 - Deep-tier proof/expansion compute executes in a Web Worker, with constrained-device safeguards that reduce requested expansion/proof work before hard fallback.
 - High-confidence violation accumulation now degrades from challenge fallback to block fallback before continuing expensive maze serving.

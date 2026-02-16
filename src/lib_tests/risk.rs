@@ -46,6 +46,7 @@ mod tests {
             rate_count,
             rate_limit,
             maze_behavior_score,
+            fingerprint_signals: Vec::new(),
         }
     }
 

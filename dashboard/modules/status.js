@@ -92,6 +92,19 @@
     'cdp_detection_enabled',
     'cdp_auto_ban',
     'cdp_detection_threshold',
+    'cdp_probe_family',
+    'cdp_probe_rollout_percent',
+    'fingerprint_signal_enabled',
+    'fingerprint_state_ttl_seconds',
+    'fingerprint_flow_window_seconds',
+    'fingerprint_flow_violation_threshold',
+    'fingerprint_pseudonymize',
+    'fingerprint_entropy_budget',
+    'fingerprint_family_cap_header_runtime',
+    'fingerprint_family_cap_transport',
+    'fingerprint_family_cap_temporal',
+    'fingerprint_family_cap_persistence',
+    'fingerprint_family_cap_behavior',
     'js_required_enforced',
     'pow_enabled',
     'pow_difficulty',
@@ -178,6 +191,28 @@
     cdp_detection_enabled: 'Enables client CDP automation-signal collection and scoring.',
     cdp_auto_ban: 'Auto-bans only on strong CDP automation outcomes.',
     cdp_detection_threshold: 'CDP score threshold when hard automation checks are absent.',
+    cdp_probe_family: 'Active CDP probe family (v1, v2, split) for detector-surface rotation.',
+    cdp_probe_rollout_percent:
+      'Percentage of traffic receiving probe family v2 when cdp_probe_family=split.',
+    fingerprint_signal_enabled: 'Enables/disables internal fingerprint signal collection.',
+    fingerprint_state_ttl_seconds: 'Retention window for per-identity fingerprint coherence state.',
+    fingerprint_flow_window_seconds: 'Window size for flow-centric mismatch aggregation.',
+    fingerprint_flow_violation_threshold:
+      'Mismatch count threshold within the flow window before flow violation is raised.',
+    fingerprint_pseudonymize:
+      'When true, stores fingerprint state under pseudonymous identity keys rather than raw IP.',
+    fingerprint_entropy_budget:
+      'Total botness contribution cap for all fingerprint-family signals combined.',
+    fingerprint_family_cap_header_runtime:
+      'Per-family cap for UA/client-hint/runtime mismatch fingerprint contributions.',
+    fingerprint_family_cap_transport:
+      'Per-family cap for transport and trusted-header fingerprint contributions.',
+    fingerprint_family_cap_temporal:
+      'Per-family cap for temporal coherence and impossible-transition fingerprint contributions.',
+    fingerprint_family_cap_persistence:
+      'Per-family cap for persistence-abuse fingerprint contributions.',
+    fingerprint_family_cap_behavior:
+      'Per-family cap for flow/behavioral fingerprint contributions.',
     js_required_enforced: 'Requires valid js_verified cookie for normal request flow.',
     pow_enabled: 'Enables PoW in JS verification flow.',
     pow_difficulty: 'PoW difficulty (leading-zero bits).',
@@ -254,7 +289,8 @@
         path === 'whitelist' ||
         path === 'path_whitelist' ||
         path.startsWith('geo_') ||
-        path.startsWith('cdp_')
+        path.startsWith('cdp_') ||
+        path.startsWith('fingerprint_')
       )
     },
     {

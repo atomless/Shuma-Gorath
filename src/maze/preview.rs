@@ -8,8 +8,6 @@ use super::rng::{generate_path_segment, SeededRng};
 use super::types::MazeConfig;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use std::time::{SystemTime, UNIX_EPOCH};
-
-const DEFAULT_PREVIEW_PATH: &str = "/maze/preview";
 const PREVIEW_SITE_ID: &str = "admin-preview";
 const PREVIEW_IP_BUCKET: &str = "admin-preview-ip";
 const PREVIEW_UA_BUCKET: &str = "admin-preview-ua";
@@ -38,14 +36,18 @@ fn is_safe_preview_path(path: &str) -> bool {
 }
 
 pub(crate) fn normalize_preview_path(requested_path: Option<&str>) -> String {
-    let candidate = requested_path.unwrap_or(DEFAULT_PREVIEW_PATH).trim();
+    let default_path = super::default_preview_path();
+    let candidate = requested_path.unwrap_or(default_path.as_str()).trim();
     if candidate.is_empty() {
-        return DEFAULT_PREVIEW_PATH.to_string();
+        return default_path;
     }
 
-    let path_only = candidate.split('?').next().unwrap_or(DEFAULT_PREVIEW_PATH);
+    let path_only = candidate
+        .split('?')
+        .next()
+        .unwrap_or(default_path.as_str());
     if !super::is_maze_path(path_only) || !is_safe_preview_path(path_only) {
-        return DEFAULT_PREVIEW_PATH.to_string();
+        return default_path;
     }
 
     path_only.to_string()
@@ -67,11 +69,7 @@ pub(crate) fn render_admin_preview(
     requested_path: Option<&str>,
 ) -> String {
     let current_path = normalize_preview_path(requested_path);
-    let path_prefix = if current_path.starts_with("/trap/") {
-        "/trap/"
-    } else {
-        "/maze/"
-    };
+    let path_prefix = super::path_prefix();
 
     let now = now_secs();
     let entropy_bucket = now / cfg.maze_entropy_window_seconds.max(1);
@@ -156,7 +154,7 @@ pub(crate) fn render_admin_preview(
             "seed_sig": "",
             "hidden_count": 0,
             "segment_len": segment_len,
-            "issue_path": "/maze/issue-links"
+            "issue_path": super::issue_links_path()
         }
     })
     .to_string();
@@ -185,15 +183,16 @@ mod tests {
 
     #[test]
     fn normalize_preview_path_rejects_invalid_input() {
+        let default_path = crate::maze::default_preview_path();
         assert_eq!(
             normalize_preview_path(Some("/admin/config")),
-            "/maze/preview".to_string()
+            default_path
         );
         assert_eq!(
-            normalize_preview_path(Some("/maze/<script>")),
-            "/maze/preview".to_string()
+            normalize_preview_path(Some("/_/invalid<script>")),
+            crate::maze::default_preview_path()
         );
-        assert_eq!(normalize_preview_path(None), "/maze/preview".to_string());
+        assert_eq!(normalize_preview_path(None), crate::maze::default_preview_path());
     }
 
     #[test]
@@ -213,7 +212,7 @@ mod tests {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_DEBUG_HEADERS", "true");
         let cfg = crate::config::defaults().clone();
-        let html = render_admin_preview(&cfg, Some("/maze/preview-segment"));
+        let html = render_admin_preview(&cfg, Some(crate::maze::entry_path("preview-segment").as_str()));
         assert!(!html.contains("Maze Preview"));
         assert!(!html.contains("Preview-only path."));
         assert!(html.contains("/admin/maze/preview?path="));

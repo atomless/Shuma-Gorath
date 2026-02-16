@@ -120,7 +120,7 @@ mod tests {
         let ip = "198.51.100.88";
         let ua = "BenchmarkCrawler/1.0";
 
-        let mut uri = "/maze/benchmark-entry".to_string();
+        let mut uri = crate::maze::entry_path("benchmark-entry");
         let mut pages_served = 0u64;
         let mut total_page_bytes = 0usize;
         let mut attacker_requests = 0u64;
@@ -151,7 +151,7 @@ mod tests {
                 attacker_requests += 1;
                 let checkpoint_req = Request::builder()
                     .method(Method::Post)
-                    .uri("/maze/checkpoint")
+                    .uri(crate::maze::checkpoint_path())
                     .header("Content-Type", "application/json")
                     .body(
                         serde_json::json!({
@@ -181,14 +181,14 @@ mod tests {
                     issue_links_calls += 1;
                     let issue_req = Request::builder()
                         .method(Method::Post)
-                        .uri("/maze/issue-links")
+                        .uri(crate::maze::issue_links_path())
                         .header("Content-Type", "application/json")
                         .body(
                             serde_json::json!({
                                 "parent_token": checkpoint_token,
                                 "flow_id": bootstrap.get("flow_id").and_then(|value| value.as_str()).unwrap_or_default(),
                                 "entropy_nonce": bootstrap.get("entropy_nonce").and_then(|value| value.as_str()).unwrap_or_default(),
-                                "path_prefix": bootstrap.get("path_prefix").and_then(|value| value.as_str()).unwrap_or("/maze/"),
+                                "path_prefix": bootstrap.get("path_prefix").and_then(|value| value.as_str()).unwrap_or(crate::maze::path_prefix()),
                                 "seed": expansion.get("seed").and_then(|value| value.as_u64()).unwrap_or(0),
                                 "seed_sig": expansion.get("seed_sig").and_then(|value| value.as_str()).unwrap_or_default(),
                                 "hidden_count": hidden_count,

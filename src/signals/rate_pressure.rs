@@ -33,32 +33,62 @@ pub fn bot_signals(
     let high_active = proximity >= 2;
 
     [
-        crate::signals::botness::BotSignal::scored(
+        crate::signals::botness::BotSignal::scored_with_metadata(
             RATE_MEDIUM_KEY,
             RATE_MEDIUM_LABEL,
             medium_active,
             medium_weight,
+            crate::signals::botness::SignalProvenance::Internal,
+            9,
+            crate::signals::botness::SignalFamily::Rate,
         ),
-        crate::signals::botness::BotSignal::scored(
+        crate::signals::botness::BotSignal::scored_with_metadata(
             RATE_HIGH_KEY,
             RATE_HIGH_LABEL,
             high_active,
             high_weight,
+            crate::signals::botness::SignalProvenance::Internal,
+            9,
+            crate::signals::botness::SignalFamily::Rate,
         ),
     ]
 }
 
 pub fn disabled_bot_signals() -> [crate::signals::botness::BotSignal; 2] {
     [
-        crate::signals::botness::BotSignal::disabled(RATE_MEDIUM_KEY, RATE_MEDIUM_LABEL),
-        crate::signals::botness::BotSignal::disabled(RATE_HIGH_KEY, RATE_HIGH_LABEL),
+        crate::signals::botness::BotSignal::disabled_with_metadata(
+            RATE_MEDIUM_KEY,
+            RATE_MEDIUM_LABEL,
+            crate::signals::botness::SignalProvenance::Internal,
+            9,
+            crate::signals::botness::SignalFamily::Rate,
+        ),
+        crate::signals::botness::BotSignal::disabled_with_metadata(
+            RATE_HIGH_KEY,
+            RATE_HIGH_LABEL,
+            crate::signals::botness::SignalProvenance::Internal,
+            9,
+            crate::signals::botness::SignalFamily::Rate,
+        ),
     ]
 }
 
 fn unavailable_bot_signals() -> [crate::signals::botness::BotSignal; 2] {
     [
-        crate::signals::botness::BotSignal::unavailable(RATE_MEDIUM_KEY, RATE_MEDIUM_LABEL),
-        crate::signals::botness::BotSignal::unavailable(RATE_HIGH_KEY, RATE_HIGH_LABEL),
+        crate::signals::botness::BotSignal::unavailable_with_metadata(
+            RATE_MEDIUM_KEY,
+            RATE_MEDIUM_LABEL,
+            crate::signals::botness::SignalProvenance::Internal,
+            9,
+            crate::signals::botness::SignalFamily::Rate,
+        ),
+        crate::signals::botness::BotSignal::unavailable_with_metadata(
+            RATE_HIGH_KEY,
+            RATE_HIGH_LABEL,
+            crate::signals::botness::SignalProvenance::Internal,
+            9,
+            crate::signals::botness::SignalFamily::Rate,
+        ),
     ]
 }
 

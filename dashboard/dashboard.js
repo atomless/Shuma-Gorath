@@ -171,6 +171,19 @@ const ADVANCED_CONFIG_TEMPLATE_PATHS = Object.freeze([
   'cdp_detection_enabled',
   'cdp_auto_ban',
   'cdp_detection_threshold',
+  'cdp_probe_family',
+  'cdp_probe_rollout_percent',
+  'fingerprint_signal_enabled',
+  'fingerprint_state_ttl_seconds',
+  'fingerprint_flow_window_seconds',
+  'fingerprint_flow_violation_threshold',
+  'fingerprint_pseudonymize',
+  'fingerprint_entropy_budget',
+  'fingerprint_family_cap_header_runtime',
+  'fingerprint_family_cap_transport',
+  'fingerprint_family_cap_temporal',
+  'fingerprint_family_cap_persistence',
+  'fingerprint_family_cap_behavior',
   'js_required_enforced',
   'pow_enabled',
   'pow_difficulty',
@@ -646,7 +659,7 @@ function refreshMazePreviewLink() {
   if (!link) return;
   const resolved = resolveAdminApiEndpoint();
   const endpoint = resolved && resolved.endpoint ? resolved.endpoint : '';
-  link.href = `${endpoint}/admin/maze/preview?path=${encodeURIComponent('/maze/preview')}`;
+  link.href = `${endpoint}/admin/maze/preview`;
 }
 
 function redirectToLogin() {
@@ -1161,15 +1174,28 @@ function updateCdpEventsTable(events) {
 function updateCdpTotals(cdpData) {
   const detections = cdpData?.stats?.total_detections ?? 0;
   const autoBans = cdpData?.stats?.auto_bans ?? 0;
+  const fingerprintEvents =
+    (cdpData?.fingerprint_stats?.ua_client_hint_mismatch ?? 0) +
+    (cdpData?.fingerprint_stats?.ua_transport_mismatch ?? 0) +
+    (cdpData?.fingerprint_stats?.temporal_transition ?? 0);
+  const fingerprintFlowViolations = cdpData?.fingerprint_stats?.flow_violation ?? 0;
 
   const detectionsEl = document.getElementById('cdp-total-detections');
   const autoBansEl = document.getElementById('cdp-total-auto-bans');
+  const fpEventsEl = document.getElementById('cdp-fp-events');
+  const fpFlowViolationsEl = document.getElementById('cdp-fp-flow-violations');
 
   if (detectionsEl) {
     detectionsEl.textContent = Number(detections).toLocaleString();
   }
   if (autoBansEl) {
     autoBansEl.textContent = Number(autoBans).toLocaleString();
+  }
+  if (fpEventsEl) {
+    fpEventsEl.textContent = Number(fingerprintEvents).toLocaleString();
+  }
+  if (fpFlowViolationsEl) {
+    fpFlowViolationsEl.textContent = Number(fingerprintFlowViolations).toLocaleString();
   }
 }
 

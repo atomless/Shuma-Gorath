@@ -27,6 +27,18 @@ fn test_get_cdp_detection_script_returns_javascript() {
 }
 
 #[test]
+fn test_probe_rotation_selects_v1_and_v2_families() {
+    let v1 = get_cdp_detection_script_for_request(crate::config::CdpProbeFamily::V1, 100, "ip-a");
+    assert!(v1.contains("_shumaProbeFamily = 'v1'"));
+    assert!(!v1.contains("storage_marker"));
+
+    let v2 = get_cdp_detection_script_for_request(crate::config::CdpProbeFamily::V2, 0, "ip-b");
+    assert!(v2.contains("_shumaProbeFamily = 'v2'"));
+    assert!(v2.contains("storage_marker"));
+    assert!(v2.contains("micro_timing"));
+}
+
+#[test]
 fn test_get_cdp_report_script_with_endpoint() {
     let endpoint = "/cdp-report";
     let script = get_cdp_report_script(endpoint);

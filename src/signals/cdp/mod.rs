@@ -13,6 +13,7 @@
 // - https://kaliiiiiiiiii.github.io/brotector/
 
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use spin_sdk::http::{Request, Response};
 use spin_sdk::key_value::Store;
 
@@ -40,7 +41,13 @@ fn has_check(checks: &[String], needle: &str) -> bool {
 }
 
 fn soft_signal_count(checks: &[String]) -> usize {
-    ["cdp_timing", "chrome_obj", "plugins"]
+    [
+        "cdp_timing",
+        "chrome_obj",
+        "plugins",
+        "storage_marker",
+        "micro_timing",
+    ]
         .iter()
         .filter(|name| has_check(checks, name))
         .count()
@@ -455,6 +462,116 @@ pub const CDP_DETECTION_JS: &str = r#"
     }
 })();
 "#;
+
+const CDP_PROBE_V1_POSTLUDE_JS: &str = r#"
+(function() {
+    window._shumaProbeFamily = 'v1';
+})();
+"#;
+
+const CDP_PROBE_V2_APPEND_JS: &str = r#"
+(function() {
+    try {
+        var baseCheck = window._checkCDPAutomation;
+        if (typeof baseCheck !== 'function') {
+            return;
+        }
+        window._checkCDPAutomation = function() {
+            return Promise.resolve(baseCheck()).then(function(result) {
+                result = result || { detected: false, score: 0, checks: [] };
+                if (!Array.isArray(result.checks)) {
+                    result.checks = [];
+                }
+
+                var storageSignal = false;
+                try {
+                    var storageKey = '__shuma_fp_' + Math.floor(Date.now() / 30000);
+                    localStorage.setItem(storageKey, '1');
+                    if (localStorage.getItem(storageKey) !== '1') {
+                        storageSignal = true;
+                    }
+                    localStorage.removeItem(storageKey);
+                    sessionStorage.setItem(storageKey, '1');
+                    if (sessionStorage.getItem(storageKey) !== '1') {
+                        storageSignal = true;
+                    }
+                    sessionStorage.removeItem(storageKey);
+                } catch (e) {
+                    storageSignal = true;
+                }
+                if (storageSignal && result.checks.indexOf('storage_marker') === -1) {
+                    result.score += 0.25;
+                    result.checks.push('storage_marker');
+                }
+
+                var microSignal = false;
+                try {
+                    var start = performance.now();
+                    for (var i = 0; i < 2000; i++) {
+                        Math.imul(i, i);
+                    }
+                    var elapsed = Math.abs(performance.now() - start);
+                    if (elapsed > 12 || elapsed < 0.02) {
+                        microSignal = true;
+                    }
+                } catch (e) {}
+                if (microSignal && result.checks.indexOf('micro_timing') === -1) {
+                    result.score += 0.15;
+                    result.checks.push('micro_timing');
+                }
+
+                result.detected = result.score >= 0.8;
+                window._cdpScore = result.score;
+                window._cdpChecks = result.checks;
+                window._shumaProbeFamily = 'v2';
+                return result;
+            });
+        };
+        window._shumaProbeFamily = 'v2';
+    } catch (_err) {}
+})();
+"#;
+
+fn rollout_bucket_percent(request_key: &str) -> u8 {
+    let mut hasher = Sha256::new();
+    hasher.update(request_key.as_bytes());
+    let digest = hasher.finalize();
+    digest[0] % 100
+}
+
+fn selected_probe_family(
+    configured: crate::config::CdpProbeFamily,
+    rollout_percent: u8,
+    request_key: &str,
+) -> crate::config::CdpProbeFamily {
+    match configured {
+        crate::config::CdpProbeFamily::V1 => crate::config::CdpProbeFamily::V1,
+        crate::config::CdpProbeFamily::V2 => crate::config::CdpProbeFamily::V2,
+        crate::config::CdpProbeFamily::Split => {
+            if rollout_bucket_percent(request_key) < rollout_percent.clamp(0, 100) {
+                crate::config::CdpProbeFamily::V2
+            } else {
+                crate::config::CdpProbeFamily::V1
+            }
+        }
+    }
+}
+
+pub fn get_cdp_detection_script_for_request(
+    configured: crate::config::CdpProbeFamily,
+    rollout_percent: u8,
+    request_key: &str,
+) -> String {
+    let selected = selected_probe_family(configured, rollout_percent, request_key);
+    match selected {
+        crate::config::CdpProbeFamily::V1 => {
+            format!("{}\n{}", CDP_DETECTION_JS, CDP_PROBE_V1_POSTLUDE_JS)
+        }
+        crate::config::CdpProbeFamily::V2 | crate::config::CdpProbeFamily::Split => {
+            format!("{}\n{}", CDP_DETECTION_JS, CDP_PROBE_V2_APPEND_JS)
+        }
+    }
+}
 
 /// Returns the CDP detection JavaScript as a string
 pub fn get_cdp_detection_script() -> &'static str {

@@ -245,8 +245,7 @@ body {
   height: auto;
   display: block;
   margin: 0 auto;
-  /* no drop shadows for a flatter, monochrome look */
-  filter: none;
+  margin-top: -116px;
 }
 
 /* ===========================================
@@ -300,29 +299,32 @@ header {
   text-align: center;
   margin-bottom: 30px;
   border-bottom: 2px solid var(--color-200);
+  position: relative;
 }
 
 h1 {
   font-size: var(--text-5xl);
   color: var(--heading-fg);
-  margin-bottom: 8px;
+  margin-bottom: 18px;
   margin-top: -85px;
   letter-spacing: -0.15rem;
   font-weight: 900;
+  text-shadow: 0 -100px 150px white;
+  line-height: 1;
 }
 
 .dashboard-logout {
   position: absolute;
-  top: 10px;
+  bottom: 0;
   right: 10px;
   width: auto;
-  min-width: 96px;
-  z-index: 1100;
+  border-radius: 0.5rem 0.5rem 0 0;
+  padding: 14px;
 }
 
 .subtitle {
-  font-size: var(--text-xl);
-  margin-top: -20px;
+  font-size: var(--text-lg);
+  margin-top: -25px;
 }
 
 .dashboard-tabs {
@@ -354,7 +356,7 @@ h1 {
 
 .dashboard-tab-link[aria-selected="true"] {
   background: var(--color-accent);
-  color: var(--btn-contrast-fg);
+  color: var(--color-back);
   border-color: var(--color-accent);
 }
 
@@ -1373,10 +1375,6 @@ input:checked + .toggle-slider:before {
 @media (max-width: 768px) {
   .container {
     padding: 15px;
-  }
-
-  h1 {
-    font-size: 2rem;
   }
 
   .stats-cards {

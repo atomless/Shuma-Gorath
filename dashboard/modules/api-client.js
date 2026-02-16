@@ -136,7 +136,8 @@
     const source = asRecord(payload);
     return {
       stats: asRecord(source.stats),
-      config: asRecord(source.config)
+      config: asRecord(source.config),
+      fingerprint_stats: asRecord(source.fingerprint_stats)
     };
   }
 

@@ -120,7 +120,7 @@ Shuma uses a canonical escalation taxonomy so policy, metrics, and event logs sh
 | `L4_VERIFY_JS` | Verify | JS verification gate. | Active |
 | `L5_CHALLENGE_LITE` | Challenge (lite) | Low-friction human verification. | Planned |
 | `L6_CHALLENGE_STRONG` | Challenge (strong) | Strong challenge path (puzzle/PoW-backed flows). | Active |
-| `L7_DECEPTION_EXPLICIT` | Deception | Explicit maze/trap routing. | Active |
+| `L7_DECEPTION_EXPLICIT` | Deception | Explicit maze routing. | Active |
 | `L8_DECEPTION_COVERT` | Deception | Covert decoy behavior in eligible non-maze responses for medium-suspicion traffic. | Active |
 | `L9_COST_IMPOSITION` | Cost | Bounded drip/tarpit style cost imposition. | Planned |
 | `L10_DENY_TEMP` | Deny (temporary) | Temporary block/ban with TTL. | Active |
@@ -192,7 +192,7 @@ Prefer implementation at the edge when at least one is true:
 
 Shuma-Gorath remains valuable even behind a strong edge bot product:
 
-- Honeypot and trap paths tuned to your routes.
+- Honeypot and deception paths tuned to your routes.
 - Risk scoring from in-app context (headers, routes, challenge outcomes).
 - Configurable routing to challenge, maze, tarpit, or block actions.
 - Self-hosted observability and event logs aligned to your ops model.

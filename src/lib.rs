@@ -370,7 +370,7 @@ pub struct BotnessAssessment {
     pub contributions: Vec<BotnessContribution>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BotnessSignalContext {
     pub js_needed: bool,
     pub geo_signal_available: bool,
@@ -378,6 +378,7 @@ pub struct BotnessSignalContext {
     pub rate_count: u32,
     pub rate_limit: u32,
     pub maze_behavior_score: u8,
+    pub fingerprint_signals: Vec<BotnessContribution>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -412,7 +413,18 @@ pub(crate) fn collect_botness_contributions(
     context: BotnessSignalContext,
     cfg: &config::Config,
 ) -> Vec<BotnessContribution> {
-    let mut accumulator = crate::signals::botness::SignalAccumulator::with_capacity(5);
+    let signal_capacity = 5 + context.fingerprint_signals.len();
+    let mut accumulator = crate::signals::botness::SignalAccumulator::with_capacity_and_policy(
+        signal_capacity,
+        crate::signals::botness::SignalBudgetPolicy {
+            fingerprint_total_cap: cfg.fingerprint_entropy_budget,
+            fingerprint_header_runtime_cap: cfg.fingerprint_family_cap_header_runtime,
+            fingerprint_transport_cap: cfg.fingerprint_family_cap_transport,
+            fingerprint_temporal_cap: cfg.fingerprint_family_cap_temporal,
+            fingerprint_persistence_cap: cfg.fingerprint_family_cap_persistence,
+            fingerprint_behavior_cap: cfg.fingerprint_family_cap_behavior,
+        },
+    );
 
     accumulator.push(js::bot_signal(
         cfg.js_signal_enabled(),
@@ -447,16 +459,29 @@ pub(crate) fn collect_botness_contributions(
     }
 
     let maze_behavior_signal = if cfg.maze_enabled {
-        crate::signals::botness::BotSignal::scored(
+        crate::signals::botness::BotSignal::scored_with_metadata(
             "maze_behavior",
             "Maze traversal behavior",
             context.maze_behavior_score >= 2,
             cfg.botness_weights.maze_behavior,
+            crate::signals::botness::SignalProvenance::Derived,
+            8,
+            crate::signals::botness::SignalFamily::Deception,
         )
     } else {
-        crate::signals::botness::BotSignal::disabled("maze_behavior", "Maze traversal behavior")
+        crate::signals::botness::BotSignal::disabled_with_metadata(
+            "maze_behavior",
+            "Maze traversal behavior",
+            crate::signals::botness::SignalProvenance::Derived,
+            8,
+            crate::signals::botness::SignalFamily::Deception,
+        )
     };
     accumulator.push(maze_behavior_signal);
+
+    for fingerprint_signal in context.fingerprint_signals {
+        accumulator.push(fingerprint_signal);
+    }
 
     let (_score, contributions) = accumulator.finish();
     contributions
@@ -700,6 +725,8 @@ pub(crate) fn serve_maze_with_tracking(
                         cfg.pow_enabled,
                         cfg.pow_difficulty,
                         cfg.pow_ttl_seconds,
+                        cfg.cdp_probe_family,
+                        cfg.cdp_probe_rollout_percent,
                     );
                 }
             }
@@ -899,7 +926,7 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
             .handle_report(store, req);
     }
 
-    if path == "/maze/checkpoint" {
+    if path == crate::maze::checkpoint_path() {
         let response = crate::maze::runtime::handle_checkpoint(store, &cfg, req, &ip, ua);
         let checkpoint_outcome = match *response.status() {
             204 => "accepted",
@@ -911,11 +938,11 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         return response;
     }
 
-    if path == "/maze/issue-links" {
+    if path == crate::maze::issue_links_path() {
         return crate::maze::runtime::handle_issue_links(store, &cfg, req, &ip, ua);
     }
 
-    // Maze - trap crawlers in infinite loops (only if enabled)
+    // Maze - route suspicious crawlers into deception space (only if enabled)
     if provider_registry.maze_tarpit_provider().is_maze_path(path) {
         if !cfg.maze_enabled {
             return Response::new(404, "Not Found");

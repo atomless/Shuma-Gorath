@@ -275,7 +275,7 @@ mod tests {
         );
         assert!(registry
             .maze_tarpit_provider()
-            .is_maze_path("/maze/external-stub"));
+            .is_maze_path(crate::maze::entry_path("external-stub").as_str()));
 
         std::env::set_var("SHUMA_BAN_STORE_REDIS_URL", "redis://redis:6379");
         assert_eq!(

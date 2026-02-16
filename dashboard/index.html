@@ -12,15 +12,14 @@
 <body>
   <span id="last-updated" class="text-muted"></span>
   <div class="container panel panel-border">
-    <button id="logout-btn" class="btn btn-subtle dashboard-logout" aria-label="Log out of admin session" disabled>Logout</button>
     <header>
       <div class="shuma-image-wrapper">
-        <img src="assets/shuma-gorath.png" alt="Shuma-Gorath" class="shuma-gorath-img">
+        <img src="assets/shuma-gorath-white.png" alt="Shuma-Gorath" class="shuma-gorath-img">
       </div>
       <h1>Shuma-Gorath</h1>
       <p class="subtitle text-muted">Multi-Dimensional Bot Defence</p>
-      <div id="test-mode-banner" class="test-mode-banner hidden">TEST MODE ACTIVE - Logging only, no blocking</div>
-      <nav class="dashboard-tabs panel" aria-label="Dashboard sections" role="tablist" aria-orientation="horizontal">
+      <button id="logout-btn" class="btn btn-subtle dashboard-logout" aria-label="Log out of admin session" disabled>Logout</button>
+      <nav class="dashboard-tabs" aria-label="Dashboard sections" role="tablist" aria-orientation="horizontal">
         <a id="dashboard-tab-monitoring" class="dashboard-tab-link" data-dashboard-tab-link="monitoring" href="#monitoring" role="tab" aria-selected="false" aria-controls="dashboard-panel-monitoring">Monitoring</a>
         <a id="dashboard-tab-ip-bans" class="dashboard-tab-link" data-dashboard-tab-link="ip-bans" href="#ip-bans" role="tab" aria-selected="false" aria-controls="dashboard-panel-ip-bans">IP Bans</a>
         <a id="dashboard-tab-status" class="dashboard-tab-link" data-dashboard-tab-link="status" href="#status" role="tab" aria-selected="false" aria-controls="dashboard-panel-status">Status</a>
@@ -28,7 +27,7 @@
         <a id="dashboard-tab-tuning" class="dashboard-tab-link" data-dashboard-tab-link="tuning" href="#tuning" role="tab" aria-selected="false" aria-controls="dashboard-panel-tuning">Tuning</a>
       </nav>
     </header>
-
+    <div id="test-mode-banner" class="test-mode-banner hidden">TEST MODE ACTIVE - Logging only, no blocking</div>
     
 
     <section id="dashboard-panel-monitoring" class="dashboard-tab-panel" data-dashboard-tab-panel="monitoring" role="tabpanel" aria-labelledby="dashboard-tab-monitoring">
@@ -115,6 +114,14 @@
         <div class="card panel panel-border pad-md">
           <h3 class="caps-label">Auto-Bans</h3>
           <div class="stat-value stat-value" id="cdp-total-auto-bans">-</div>
+        </div>
+        <div class="card panel panel-border pad-md">
+          <h3 class="caps-label">FP Mismatch Events</h3>
+          <div class="stat-value stat-value" id="cdp-fp-events">-</div>
+        </div>
+        <div class="card panel panel-border pad-md">
+          <h3 class="caps-label">FP Flow Violations</h3>
+          <div class="stat-value stat-value" id="cdp-fp-flow-violations">-</div>
         </div>
       </div>
       <div class="table-wrapper">
@@ -365,7 +372,7 @@
               <h3>Maze</h3>
               <p class="control-desc text-muted">
                 Control trap-page routing and optional auto-ban. Lower thresholds ban faster but may increase false positives.
-                <a id="preview-maze-link" href="/admin/maze/preview?path=%2Fmaze%2Fpreview" target="_blank" rel="noopener noreferrer">Preview Maze</a>
+                <a id="preview-maze-link" href="/admin/maze/preview" target="_blank" rel="noopener noreferrer">Preview Maze</a>
                 in a non-operational view (admin session required).
               </p>
               <div class="admin-controls">

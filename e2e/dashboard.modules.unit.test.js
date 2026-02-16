@@ -32,7 +32,8 @@ function createMockCanvasContext() {
   const calls = {
     fillText: [],
     moveTo: [],
-    lineTo: []
+    lineTo: [],
+    fillStyle: []
   };
   const gradient = { addColorStop: () => {} };
   const canvas = { clientWidth: 320, clientHeight: 180, width: 320, height: 180 };
@@ -53,6 +54,16 @@ function createMockCanvasContext() {
     createLinearGradient: () => gradient,
     fillText: (text) => calls.fillText.push(String(text))
   };
+  let fillStyleValue = '';
+  Object.defineProperty(ctx, 'fillStyle', {
+    get() {
+      return fillStyleValue;
+    },
+    set(value) {
+      fillStyleValue = String(value);
+      calls.fillStyle.push(fillStyleValue);
+    }
+  });
   return { ctx, calls };
 }
 
@@ -117,6 +128,23 @@ test('chart-lite renders doughnut legend labels', () => {
 
   assert.ok(calls.fillText.some((text) => text.includes('Ban')));
   assert.ok(calls.fillText.some((text) => text.includes('Challenge')));
+});
+
+test('chart-lite uses non-white center fill in dark mode doughnut charts', () => {
+  const browser = loadBrowserModule('dashboard/assets/vendor/chart-lite-1.0.0.min.js', {
+    matchMedia: () => ({ matches: true })
+  });
+  const { ctx, calls } = createMockCanvasContext();
+  new browser.Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Ban', 'Challenge'],
+      datasets: [{ data: [3, 2], backgroundColor: ['#111', '#222'] }]
+    }
+  });
+
+  assert.ok(calls.fillStyle.includes('rgba(44, 36, 48, 1)'));
+  assert.equal(calls.fillStyle.includes('#ffffff'), false);
 });
 
 test('chart-lite renders axis ticks and labels for bar and line charts', () => {

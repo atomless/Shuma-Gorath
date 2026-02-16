@@ -55,6 +55,10 @@ pub fn js_verified_cookie(ip: &str) -> String {
     )
 }
 
+pub fn fingerprint_marker_cookie() -> &'static str {
+    "shuma_fp=1; path=/; SameSite=Strict; Max-Age=1800"
+}
+
 /// Returns true if the request needs JS verification (no valid js_verified cookie).
 /// Checks for a valid js_verified cookie matching the HMAC token for the IP.
 pub fn needs_js_verification(req: &Request, _store: &Store, _site_id: &str, ip: &str) -> bool {
@@ -79,16 +83,22 @@ pub fn bot_signal(
     weight: u8,
 ) -> crate::signals::botness::BotSignal {
     if !js_enforced {
-        return crate::signals::botness::BotSignal::disabled(
+        return crate::signals::botness::BotSignal::disabled_with_metadata(
             "js_verification_required",
             "JS verification required",
+            crate::signals::botness::SignalProvenance::Internal,
+            9,
+            crate::signals::botness::SignalFamily::RequestIntegrity,
         );
     }
-    crate::signals::botness::BotSignal::scored(
+    crate::signals::botness::BotSignal::scored_with_metadata(
         "js_verification_required",
         "JS verification required",
         needs_verification,
         weight,
+        crate::signals::botness::SignalProvenance::Internal,
+        9,
+        crate::signals::botness::SignalFamily::RequestIntegrity,
     )
 }
 
@@ -100,8 +110,14 @@ pub fn inject_js_challenge(
     pow_enabled: bool,
     pow_difficulty: u8,
     pow_ttl_seconds: u64,
+    cdp_probe_family: crate::config::CdpProbeFamily,
+    cdp_probe_rollout_percent: u8,
 ) -> Response {
-    let cdp_script = crate::signals::cdp::get_cdp_detection_script();
+    let cdp_script = crate::signals::cdp::get_cdp_detection_script_for_request(
+        cdp_probe_family,
+        cdp_probe_rollout_percent,
+        ip,
+    );
 
     if pow_enabled {
         let challenge = crate::challenge::pow::issue_pow_challenge(
@@ -183,6 +199,7 @@ pub fn inject_js_challenge(
                     body: JSON.stringify({{ seed: POW_SEED, nonce: nonce }})
                 }});
                 if (resp.ok) {{
+                    document.cookie = '{fp_marker_cookie}';
                     window.location.reload();
                 }} else {{
                     document.body.innerText = 'Verification failed. Please refresh.';
@@ -195,7 +212,8 @@ pub fn inject_js_challenge(
     </body></html>
     "#,
             seed = challenge.seed,
-            difficulty = challenge.difficulty
+            difficulty = challenge.difficulty,
+            fp_marker_cookie = fingerprint_marker_cookie(),
         );
         return Response::new(200, html);
     }
@@ -222,11 +240,13 @@ pub fn inject_js_challenge(
                 }});
             }}
             document.cookie = 'js_verified={token}; path=/; SameSite=Strict; Max-Age=86400';
+            document.cookie = '{fp_marker_cookie}';
             window.location.reload();
     </script>
     <noscript>Please enable JS to continue.</noscript>
     </body></html>
-    "#
+    "#,
+        fp_marker_cookie = fingerprint_marker_cookie()
     );
     Response::new(200, html)
 }
