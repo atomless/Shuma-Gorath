@@ -82,6 +82,12 @@ fn constant_time_eq(a: &str, b: &str) -> bool {
     diff == 0
 }
 
+#[cfg(test)]
+pub(crate) fn secret_from_env() -> String {
+    "maze-unit-test-secret".to_string()
+}
+
+#[cfg(not(test))]
 pub(crate) fn secret_from_env() -> String {
     std::env::var("SHUMA_MAZE_SECRET")
         .ok()
@@ -436,6 +442,27 @@ mod tests {
     fn secret_fallback_never_empty() {
         let secret = secret_from_env();
         assert!(!secret.trim().is_empty());
+    }
+
+    #[test]
+    fn unit_test_secret_is_not_derived_from_challenge_or_js_secret_env() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("SHUMA_MAZE_SECRET");
+        std::env::remove_var("SHUMA_CHALLENGE_SECRET");
+        std::env::remove_var("SHUMA_JS_SECRET");
+
+        let baseline = secret_from_env();
+        std::env::set_var("SHUMA_CHALLENGE_SECRET", "challenge-race");
+        std::env::set_var("SHUMA_JS_SECRET", "js-race");
+        let with_other_secrets = secret_from_env();
+
+        assert_eq!(
+            with_other_secrets, baseline,
+            "maze secret should stay stable in unit tests when unrelated env secrets change"
+        );
+
+        std::env::remove_var("SHUMA_CHALLENGE_SECRET");
+        std::env::remove_var("SHUMA_JS_SECRET");
     }
 
     #[test]

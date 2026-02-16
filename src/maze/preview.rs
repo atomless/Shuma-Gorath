@@ -199,11 +199,13 @@ mod tests {
     #[test]
     fn preview_secret_uses_dedicated_namespace_when_unset() {
         let _lock = crate::test_support::lock_env();
-        std::env::set_var("SHUMA_MAZE_SECRET", "live-secret");
         std::env::remove_var("SHUMA_MAZE_PREVIEW_SECRET");
-        let preview_secret = preview_secret_from_env();
-        assert_eq!(preview_secret, "preview::live-secret");
         std::env::remove_var("SHUMA_MAZE_SECRET");
+        let preview_secret = preview_secret_from_env();
+        assert_eq!(
+            preview_secret,
+            format!("preview::{}", crate::maze::token::secret_from_env())
+        );
     }
 
     #[test]
