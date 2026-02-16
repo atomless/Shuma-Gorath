@@ -64,14 +64,14 @@ Controls:
 - Per-trigger ban durations, including CDP automation duration (`ban_durations.cdp`)
 - robots.txt configuration
 - CDP detection controls
-- PoW enable toggle plus difficulty/TTL tuning (when `SHUMA_POW_CONFIG_MUTABLE=true`)
-- Challenge puzzle controls (`challenge_puzzle_enabled`, `challenge_puzzle_transform_count`, when `SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE=true`)
+- PoW enable toggle plus difficulty/TTL tuning
+- Challenge puzzle controls (`challenge_puzzle_enabled`, `challenge_puzzle_transform_count`)
 - Botness scoring controls:
 - challenge threshold
 - maze threshold
 - per-signal weights (`js_required`, `geo_risk`, `rate_medium`, `rate_high`)
 - read-only terminal signal catalog
-- editable only when `SHUMA_BOTNESS_CONFIG_MUTABLE=true`
+- editable when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`
 - GEO policy controls:
 - risk scoring countries (`geo_risk`)
 - tiered routing countries (`geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`)
@@ -93,8 +93,8 @@ Development:
 - API key source: `SHUMA_API_KEY` from environment (local dev commonly loads this from `.env.local`)
 - Login flow: unauthenticated visits to `/dashboard/index.html` are redirected to `/dashboard/login.html`; enter API key once to create a short-lived same-origin admin session cookie
 - Admin API endpoint is inferred from the page origin (same-origin only)
-- `make dev` applies local-write defaults (`DEV_ADMIN_CONFIG_WRITE_ENABLED=true`, `DEV_POW_CONFIG_MUTABLE=true`, `DEV_CHALLENGE_PUZZLE_CONFIG_MUTABLE=true`, `DEV_BOTNESS_CONFIG_MUTABLE=true`) even when `.env.local` is stricter.
-- Override dev defaults per run if you want production-like read-only behavior (example: `make dev DEV_POW_CONFIG_MUTABLE=false DEV_BOTNESS_CONFIG_MUTABLE=false`).
+- `make dev` applies local-write defaults (`DEV_ADMIN_CONFIG_WRITE_ENABLED=true`) even when `.env.local` is stricter.
+- Override dev defaults per run if you want production-like read-only behavior (example: `make dev DEV_ADMIN_CONFIG_WRITE_ENABLED=false`).
 
 Production (recommended):
 - Protect the dashboard with auth
@@ -163,7 +163,6 @@ If a regression appears in the tabbed SPA shell, use this rollback sequence:
 5. Keep session/csrf hardening (`modules/admin-session.js`) unchanged unless rollback requires it.
 
 Note: `SHUMA_KV_STORE_FAIL_OPEN` is an environment-level policy and is shown read-only in the dashboard.
-Note: PoW enable/disable and difficulty/TTL are editable only if `SHUMA_POW_CONFIG_MUTABLE=true`.
-Note: Challenge enable/disable + transform-count are editable only if `SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE=true`.
+Note: Admin config panes are editable only when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`.
 Note: PoW config changes are logged to the event log as admin actions.
 Note: Botness scoring changes are logged as `botness_config_update` admin actions.

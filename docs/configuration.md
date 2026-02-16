@@ -62,9 +62,6 @@ These are read from process env at runtime (not from KV).
 | `SHUMA_BAN_STORE_REDIS_URL` | No | empty | Redis endpoint for external distributed ban store mode (`redis://...` or `rediss://...`). |
 | `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` | No | `fallback_internal` | Outage posture for external rate-limiter degradation on main traffic (`fallback_internal`, `fail_open`, `fail_closed`). |
 | `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH` | No | `fail_closed` | Outage posture for external rate-limiter degradation on admin-auth routes (`fallback_internal`, `fail_open`, `fail_closed`). |
-| `SHUMA_POW_CONFIG_MUTABLE` | Yes | `false` | Allows runtime edits of PoW difficulty/TTL from admin config. |
-| `SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE` | Yes | `false` | Allows runtime edits of challenge enable + transform controls from admin config. |
-| `SHUMA_BOTNESS_CONFIG_MUTABLE` | Yes | `false` | Allows runtime edits of botness thresholds/weights from admin config. |
 
 Use `make env-help` for the supported env-only override list.
 
@@ -179,7 +176,7 @@ The following KV-backed fields are currently writable via admin API:
 - Robots/AI policy: `robots_enabled`, `robots_crawl_delay`, `ai_policy_block_training`, `ai_policy_block_search`, `ai_policy_allow_search_engines` (legacy aliases `robots_block_ai_training`, `robots_block_ai_search`, `robots_allow_search_engines` are also accepted).
 - CDP: `cdp_detection_enabled`, `cdp_auto_ban`, `cdp_detection_threshold`.
 - Provider/edge: `provider_backends.{rate_limiter,ban_store,challenge_engine,maze_tarpit,fingerprint_signal}`, `edge_integration_mode`.
-- Botness/challenge tuning (requires mutable env guardrails): `pow_enabled`, `pow_difficulty`, `pow_ttl_seconds`, `challenge_puzzle_enabled`, `challenge_puzzle_transform_count`, `challenge_puzzle_risk_threshold`, `botness_maze_threshold`, `botness_weights.{js_required,geo_risk,rate_medium,rate_high,maze_behavior}`, `defence_modes.{rate,geo,js}`.
+- Botness/challenge tuning: `pow_enabled`, `pow_difficulty`, `pow_ttl_seconds`, `challenge_puzzle_enabled`, `challenge_puzzle_transform_count`, `challenge_puzzle_risk_threshold`, `botness_maze_threshold`, `botness_weights.{js_required,geo_risk,rate_medium,rate_high,maze_behavior}`, `defence_modes.{rate,geo,js}`.
 
 Shuma follows a 2-class model only:
 - Env-only runtime keys in the Env-Only table above.

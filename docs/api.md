@@ -264,8 +264,8 @@ Scored weights:
 - `botness_weights.maze_behavior`
 
 Mutability:
-- `botness_config_mutable` indicates whether score/weight settings can be changed at runtime.
-- Runtime mutation is disabled by default; enable with `SHUMA_BOTNESS_CONFIG_MUTABLE=true`.
+- Runtime config mutation is controlled globally by `SHUMA_ADMIN_CONFIG_WRITE_ENABLED`.
+- When `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`, `POST /admin/config` returns `403`.
 
 Effective-mode visibility:
 - `defence_modes_effective` reports runtime-effective signal/action booleans per module.

@@ -330,4 +330,4 @@ make dev
 make api-key-show
 ```
 
-`make dev` enables local dashboard operation with local-write defaults (`WRITE/POW/CHALLENGE/BOTNESS=true`). Use `DEV_*` Make variables to simulate stricter production mutability.
+`make dev` enables local dashboard operation with local-write defaults (`WRITE=true`). Use `DEV_ADMIN_CONFIG_WRITE_ENABLED=false` to simulate production-style read-only admin config.

@@ -791,9 +791,6 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_bool_like_var("SHUMA_KV_STORE_FAIL_OPEN")?;
     validate_bool_like_var("SHUMA_ENFORCE_HTTPS")?;
     validate_bool_like_var("SHUMA_DEBUG_HEADERS")?;
-    validate_bool_like_var("SHUMA_POW_CONFIG_MUTABLE")?;
-    validate_bool_like_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE")?;
-    validate_bool_like_var("SHUMA_BOTNESS_CONFIG_MUTABLE")?;
     validate_optional_bool_like_var("SHUMA_ENTERPRISE_MULTI_INSTANCE")?;
     validate_optional_bool_like_var("SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED")?;
     validate_optional_redis_url_var("SHUMA_RATE_LIMITER_REDIS_URL")?;
@@ -1031,28 +1028,6 @@ pub(crate) fn parse_rate_limiter_outage_mode(value: &str) -> Option<RateLimiterO
         "fail_closed" => Some(RateLimiterOutageMode::FailClosed),
         _ => None,
     }
-}
-
-#[cfg(test)]
-fn parse_bool_env(value: Option<&str>) -> bool {
-    value.and_then(parse_bool_like).unwrap_or(false)
-}
-
-pub fn pow_config_mutable() -> bool {
-    env_bool_required("SHUMA_POW_CONFIG_MUTABLE")
-}
-
-#[cfg(test)]
-pub(crate) fn challenge_puzzle_config_mutable_from_env(value: Option<&str>) -> bool {
-    parse_bool_env(value)
-}
-
-pub fn challenge_puzzle_config_mutable() -> bool {
-    env_bool_required("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE")
-}
-
-pub fn botness_config_mutable() -> bool {
-    env_bool_required("SHUMA_BOTNESS_CONFIG_MUTABLE")
 }
 
 pub fn event_log_retention_hours() -> u64 {

@@ -466,16 +466,6 @@ fn js_effective_mode_is_disabled_when_js_required_enforced_is_false() {
 }
 
 #[test]
-fn challenge_puzzle_config_mutable_from_env_parses_values() {
-    assert!(challenge_puzzle_config_mutable_from_env(Some("1")));
-    assert!(challenge_puzzle_config_mutable_from_env(Some("true")));
-    assert!(challenge_puzzle_config_mutable_from_env(Some("TRUE")));
-    assert!(!challenge_puzzle_config_mutable_from_env(Some("0")));
-    assert!(!challenge_puzzle_config_mutable_from_env(Some("false")));
-    assert!(!challenge_puzzle_config_mutable_from_env(None));
-}
-
-#[test]
 fn parse_admin_config_write_defaults_to_disabled() {
     assert!(!parse_admin_config_write_enabled(None));
     assert!(!parse_admin_config_write_enabled(Some("junk")));
@@ -497,9 +487,6 @@ fn validate_env_rejects_invalid_optional_enterprise_bool() {
         "SHUMA_KV_STORE_FAIL_OPEN",
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
-        "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
-        "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
@@ -517,9 +504,6 @@ fn validate_env_rejects_invalid_optional_enterprise_bool() {
     std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
     std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
     std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
-    std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "false");
-    std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false");
-    std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "false");
     std::env::set_var("SHUMA_ENTERPRISE_MULTI_INSTANCE", "definitely-not-bool");
 
     let result = validate_env_only_once();
@@ -539,9 +523,6 @@ fn validate_env_rejects_invalid_optional_enterprise_bool() {
         "SHUMA_KV_STORE_FAIL_OPEN",
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
-        "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
-        "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
@@ -564,9 +545,6 @@ fn validate_env_rejects_invalid_optional_redis_url() {
         "SHUMA_KV_STORE_FAIL_OPEN",
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
-        "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
-        "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
@@ -584,9 +562,6 @@ fn validate_env_rejects_invalid_optional_redis_url() {
     std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
     std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
     std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
-    std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "false");
-    std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false");
-    std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "false");
     std::env::set_var("SHUMA_RATE_LIMITER_REDIS_URL", "https://not-redis.example");
 
     let result = validate_env_only_once();
@@ -606,9 +581,6 @@ fn validate_env_rejects_invalid_optional_redis_url() {
         "SHUMA_KV_STORE_FAIL_OPEN",
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
-        "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
-        "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
@@ -631,9 +603,6 @@ fn validate_env_rejects_invalid_optional_ban_store_redis_url() {
         "SHUMA_KV_STORE_FAIL_OPEN",
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
-        "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
-        "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
@@ -651,9 +620,6 @@ fn validate_env_rejects_invalid_optional_ban_store_redis_url() {
     std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
     std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
     std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
-    std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "false");
-    std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false");
-    std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "false");
     std::env::set_var("SHUMA_BAN_STORE_REDIS_URL", "https://not-redis.example");
 
     let result = validate_env_only_once();
@@ -670,9 +636,6 @@ fn validate_env_rejects_invalid_optional_ban_store_redis_url() {
         "SHUMA_KV_STORE_FAIL_OPEN",
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
-        "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
-        "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
@@ -695,9 +658,6 @@ fn validate_env_rejects_invalid_optional_rate_limiter_outage_mode() {
         "SHUMA_KV_STORE_FAIL_OPEN",
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
-        "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
-        "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
@@ -715,9 +675,6 @@ fn validate_env_rejects_invalid_optional_rate_limiter_outage_mode() {
     std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
     std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
     std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
-    std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "false");
-    std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false");
-    std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "false");
     std::env::set_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN", "invalid-mode");
 
     let result = validate_env_only_once();
@@ -737,9 +694,6 @@ fn validate_env_rejects_invalid_optional_rate_limiter_outage_mode() {
         "SHUMA_KV_STORE_FAIL_OPEN",
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
-        "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
-        "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
@@ -762,9 +716,6 @@ fn validate_env_accepts_empty_optional_redis_url() {
         "SHUMA_KV_STORE_FAIL_OPEN",
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
-        "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
-        "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",
@@ -782,9 +733,6 @@ fn validate_env_accepts_empty_optional_redis_url() {
     std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
     std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
     std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
-    std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "false");
-    std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false");
-    std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "false");
     std::env::set_var("SHUMA_RATE_LIMITER_REDIS_URL", "");
 
     let result = validate_env_only_once();
@@ -800,9 +748,6 @@ fn validate_env_accepts_empty_optional_redis_url() {
         "SHUMA_KV_STORE_FAIL_OPEN",
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
-        "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
-        "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
         "SHUMA_RATE_LIMITER_REDIS_URL",

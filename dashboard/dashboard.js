@@ -1388,8 +1388,7 @@ let banDurationsSavedState = {
 let powSavedState = {
   enabled: true,
   difficulty: 15,
-  ttl: 90,
-  mutable: false
+  ttl: 90
 };
 
 // Track botness scoring saved state for change detection
@@ -1399,8 +1398,7 @@ let botnessSavedState = {
   weightJsRequired: 1,
   weightGeoRisk: 2,
   weightRateMedium: 1,
-  weightRateHigh: 2,
-  mutable: false
+  weightRateHigh: 2
 };
 
 let geoSavedState = {
@@ -1429,8 +1427,7 @@ let bypassAllowlistSavedState = {
 
 let challengePuzzleSavedState = {
   enabled: true,
-  count: 6,
-  mutable: false
+  count: 6
 };
 
 let advancedConfigSavedNormalized = '{}';
@@ -1783,12 +1780,7 @@ function checkBypassAllowlistsConfigChanged() {
 function checkChallengePuzzleConfigChanged() {
   const apiValid = hasValidApiContext();
   const fieldsValid = validateIntegerFieldById('challenge-puzzle-transform-count');
-  const btn = document.getElementById('save-challenge-puzzle-config');
   const toggle = document.getElementById('challenge-puzzle-enabled-toggle');
-  if (!challengePuzzleSavedState.mutable) {
-    if (btn) btn.disabled = true;
-    return;
-  }
   const current = parseIntegerLoose('challenge-puzzle-transform-count');
   const enabledChanged = Boolean(toggle && (toggle.checked !== challengePuzzleSavedState.enabled));
   const countChanged = current !== null && current !== challengePuzzleSavedState.count;
@@ -1961,13 +1953,11 @@ function updateJsRequiredConfig(config) {
 // Update PoW config controls from loaded config
 function updatePowConfig(config) {
   const powEnabled = parseBoolLike(config.pow_enabled, true);
-  const powMutable = config.pow_config_mutable === true;
   const difficulty = parseInt(config.pow_difficulty, 10);
   const ttl = parseInt(config.pow_ttl_seconds, 10);
 
   statusPanel.update({
-    powEnabled,
-    powMutable
+    powEnabled
   });
   statusPanel.render();
 
@@ -1979,20 +1969,14 @@ function updatePowConfig(config) {
   }
   document.getElementById('pow-enabled-toggle').checked = powEnabled;
 
-  // Disable inputs when config is immutable
-  document.getElementById('pow-enabled-toggle').disabled = !powMutable;
-  document.getElementById('pow-difficulty').disabled = !powMutable;
-  document.getElementById('pow-ttl').disabled = !powMutable;
-
   powSavedState = {
     enabled: document.getElementById('pow-enabled-toggle').checked,
     difficulty: parseInt(document.getElementById('pow-difficulty').value, 10) || 15,
-    ttl: parseInt(document.getElementById('pow-ttl').value, 10) || 90,
-    mutable: powMutable
+    ttl: parseInt(document.getElementById('pow-ttl').value, 10) || 90
   };
 
   const btn = document.getElementById('save-pow-config');
-  btn.disabled = !powMutable;
+  btn.disabled = true;
   btn.textContent = 'Save PoW Settings';
 }
 
@@ -2027,8 +2011,7 @@ function updateBotnessSignalDefinitions(signalDefinitions) {
 }
 
 function updateChallengeConfig(config) {
-  const mutable = config.botness_config_mutable === true;
-  const challengeMutable = config.challenge_puzzle_config_mutable === true;
+  const writable = adminConfigWriteEnabled(config);
   const challengeEnabled = config.challenge_puzzle_enabled !== false;
   const challengeTransformCount = parseInt(config.challenge_puzzle_transform_count, 10);
   const challengeThreshold = parseInt(config.challenge_puzzle_risk_threshold, 10);
@@ -2052,7 +2035,7 @@ function updateChallengeConfig(config) {
   document.getElementById('weight-rate-medium').value = parseInt(weights.rate_medium, 10) || 1;
   document.getElementById('weight-rate-high').value = parseInt(weights.rate_high, 10) || 2;
 
-  document.getElementById('botness-config-status').textContent = mutable ? 'EDITABLE' : 'READ ONLY';
+  document.getElementById('botness-config-status').textContent = writable ? 'EDITABLE' : 'READ ONLY';
   document.getElementById('challenge-puzzle-default').textContent = Number.isNaN(challengeDefault) ? '--' : challengeDefault;
   document.getElementById('maze-threshold-default').textContent = Number.isNaN(mazeDefault) ? '--' : mazeDefault;
 
@@ -2060,8 +2043,6 @@ function updateChallengeConfig(config) {
     challengeEnabled,
     challengeThreshold: Number.isNaN(challengeThreshold) ? 3 : challengeThreshold,
     mazeThreshold: Number.isNaN(mazeThreshold) ? 6 : mazeThreshold,
-    challengeMutable,
-    botnessMutable: mutable,
     botnessWeights: {
       js_required: parseInt(weights.js_required, 10) || 0,
       geo_risk: parseInt(weights.geo_risk, 10) || 0,
@@ -2079,7 +2060,7 @@ function updateChallengeConfig(config) {
     'weight-rate-high'
   ];
   editableFields.forEach(id => {
-    document.getElementById(id).disabled = !mutable;
+    document.getElementById(id).disabled = !writable;
   });
 
   botnessSavedState = {
@@ -2088,33 +2069,31 @@ function updateChallengeConfig(config) {
     weightJsRequired: parseInt(document.getElementById('weight-js-required').value, 10) || 1,
     weightGeoRisk: parseInt(document.getElementById('weight-geo-risk').value, 10) || 2,
     weightRateMedium: parseInt(document.getElementById('weight-rate-medium').value, 10) || 1,
-    weightRateHigh: parseInt(document.getElementById('weight-rate-high').value, 10) || 2,
-    mutable: mutable
+    weightRateHigh: parseInt(document.getElementById('weight-rate-high').value, 10) || 2
   };
 
   updateBotnessSignalDefinitions(config.botness_signal_definitions);
 
   const btn = document.getElementById('save-botness-config');
-  btn.disabled = !mutable;
+  btn.disabled = true;
   btn.textContent = 'Save Botness Settings';
 
   challengePuzzleSavedState = {
     enabled: document.getElementById('challenge-puzzle-enabled-toggle').checked,
-    count: parseInt(document.getElementById('challenge-puzzle-transform-count').value, 10) || 6,
-    mutable: challengeMutable
+    count: parseInt(document.getElementById('challenge-puzzle-transform-count').value, 10) || 6
   };
   const challengeBtn = document.getElementById('save-challenge-puzzle-config');
   if (challengeBtn) {
-    challengeBtn.disabled = !challengeMutable;
+    challengeBtn.disabled = true;
     challengeBtn.textContent = 'Save Challenge Puzzle';
   }
   const challengeTransformField = document.getElementById('challenge-puzzle-transform-count');
   const challengeEnabledToggle = document.getElementById('challenge-puzzle-enabled-toggle');
   if (challengeTransformField) {
-    challengeTransformField.disabled = !challengeMutable;
+    challengeTransformField.disabled = !writable;
   }
   if (challengeEnabledToggle) {
-    challengeEnabledToggle.disabled = !challengeMutable;
+    challengeEnabledToggle.disabled = !writable;
   }
   statusPanel.render();
 }
@@ -2122,11 +2101,6 @@ function updateChallengeConfig(config) {
 function checkPowConfigChanged() {
   const apiValid = hasValidApiContext();
   const powFieldsValid = validateIntegerFieldById('pow-difficulty') && validateIntegerFieldById('pow-ttl');
-  if (!powSavedState.mutable) {
-    const btn = document.getElementById('save-pow-config');
-    btn.disabled = true;
-    return;
-  }
   const current = {
     enabled: document.getElementById('pow-enabled-toggle').checked,
     difficulty: parseInt(document.getElementById('pow-difficulty').value, 10) || 15,
@@ -2152,11 +2126,6 @@ function checkBotnessConfigChanged() {
     validateIntegerFieldById('weight-geo-risk') &&
     validateIntegerFieldById('weight-rate-medium') &&
     validateIntegerFieldById('weight-rate-high');
-  if (!botnessSavedState.mutable) {
-    const btn = document.getElementById('save-botness-config');
-    btn.disabled = true;
-    return;
-  }
   const current = {
     challengeThreshold: parseInt(document.getElementById('challenge-puzzle-threshold').value, 10) || 3,
     mazeThreshold: parseInt(document.getElementById('maze-threshold-score').value, 10) || 6,

@@ -7,7 +7,6 @@
     forwardedHeaderTrustConfigured: false,
     testMode: false,
     powEnabled: false,
-    powMutable: false,
     mazeEnabled: false,
     mazeAutoBan: false,
     cdpEnabled: false,
@@ -15,7 +14,6 @@
     jsRequiredEnforced: true,
     challengeEnabled: true,
     challengeThreshold: 3,
-    challengeMutable: false,
     mazeThreshold: 6,
     rateLimit: 80,
     geoRiskCount: 0,
@@ -23,7 +21,6 @@
     geoChallengeCount: 0,
     geoMazeCount: 0,
     geoBlockCount: 0,
-    botnessMutable: false,
     botnessWeights: {
       js_required: 1,
       geo_risk: 2,
@@ -210,9 +207,6 @@
     'provider_backends.fingerprint_signal': 'Selected provider backend for fingerprint signals.',
     edge_integration_mode: 'How external edge outcomes affect local routing: off, advisory, authoritative.',
     admin_config_write_enabled: 'Enables/disables admin API config writes.',
-    pow_config_mutable: 'Controls whether PoW fields are editable in runtime admin config.',
-    challenge_puzzle_config_mutable: 'Controls whether challenge enable and transform fields are editable in runtime admin config.',
-    botness_config_mutable: 'Controls whether botness thresholds/weights are editable in runtime admin config.',
     kv_store_fail_open: 'KV outage posture. true=fail-open, false=fail-closed.',
     https_enforced: 'Reject non-HTTPS requests when enabled.',
     forwarded_header_trust_configured: 'Indicates forwarded header trust secret is configured.',
@@ -236,9 +230,6 @@
         path.startsWith('ban_durations.') ||
         path === 'rate_limit' ||
         path === 'admin_config_write_enabled' ||
-        path === 'pow_config_mutable' ||
-        path === 'challenge_puzzle_config_mutable' ||
-        path === 'botness_config_mutable' ||
         path === 'kv_store_fail_open' ||
         path === 'https_enforced' ||
         path === 'forwarded_header_trust_configured'
@@ -306,10 +297,6 @@
     const mode = (value || 'unknown').toString().toLowerCase();
     if (mode === 'open' || mode === 'closed') return mode;
     return 'unknown';
-  }
-
-  function formatMutability(isMutable) {
-    return isMutable ? 'EDITABLE' : 'READ_ONLY';
   }
 
   function boolStatus(enabled) {
@@ -434,7 +421,7 @@
       description: snapshot => (
         `PoW is applied in the JS verification flow and increases bot cost before <code>js_verified</code> is issued. ` +
         `Primary controls are ${envVar('SHUMA_POW_ENABLED')}, ${envVar('SHUMA_POW_DIFFICULTY')}, and ${envVar('SHUMA_POW_TTL_SECONDS')}. ` +
-        `Runtime editability is controlled by ${envVar('SHUMA_POW_CONFIG_MUTABLE')} and is currently ${formatMutability(snapshot.powMutable)}. ` +
+        `Runtime updates are available only when ${envVar('SHUMA_ADMIN_CONFIG_WRITE_ENABLED')} is enabled. ` +
         `If ${envVar('SHUMA_JS_REQUIRED_ENFORCED')} is disabled, normal visitor requests bypass this flow.`
       ),
       status: snapshot => boolStatus(snapshot.powEnabled)
@@ -445,7 +432,7 @@
         `Step-up routing sends suspicious traffic to the puzzle challenge when ${envVar('SHUMA_CHALLENGE_PUZZLE_ENABLED')} is true and cumulative botness reaches ${envVar('SHUMA_CHALLENGE_PUZZLE_RISK_THRESHOLD')} ` +
         `(enabled: <strong>${boolStatus(snapshot.challengeEnabled)}</strong>, current: <strong>${snapshot.challengeThreshold}</strong>). ` +
         `Puzzle complexity is controlled by ${envVar('SHUMA_CHALLENGE_PUZZLE_TRANSFORM_COUNT')}. ` +
-        `Runtime threshold mutability is controlled by ${envVar('SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE')} / ${envVar('SHUMA_BOTNESS_CONFIG_MUTABLE')} and is currently ${formatMutability(snapshot.challengeMutable || snapshot.botnessMutable)}.`
+        `Runtime updates are available only when ${envVar('SHUMA_ADMIN_CONFIG_WRITE_ENABLED')} is enabled.`
       ),
       status: snapshot => boolStatus(snapshot.challengeEnabled)
     },

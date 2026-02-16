@@ -187,9 +187,6 @@ test("dashboard bare path redirects to canonical index route", async ({ request 
 test("dashboard clean-state renders explicit empty placeholders", async ({ page }) => {
   const emptyConfig = {
     admin_config_write_enabled: true,
-    challenge_puzzle_config_mutable: true,
-    botness_config_mutable: true,
-    pow_config_mutable: true,
     pow_enabled: true,
     challenge_puzzle_enabled: true,
     challenge_puzzle_transform_count: 6,

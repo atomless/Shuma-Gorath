@@ -31,9 +31,6 @@ fn with_runtime_env<T>(f: impl FnOnce() -> T) -> T {
         ("SHUMA_KV_STORE_FAIL_OPEN", "true"),
         ("SHUMA_ENFORCE_HTTPS", "false"),
         ("SHUMA_DEBUG_HEADERS", "false"),
-        ("SHUMA_POW_CONFIG_MUTABLE", "false"),
-        ("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false"),
-        ("SHUMA_BOTNESS_CONFIG_MUTABLE", "false"),
     ];
     for (key, value) in vars {
         std::env::set_var(key, value);

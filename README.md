@@ -31,8 +31,8 @@ Dashboard:
 - `http://127.0.0.1:3000/dashboard` (redirects to `/dashboard/index.html`)
 - Tabbed SPA routes: `#monitoring`, `#ip-bans`, `#status`, `#config`, `#tuning`
 - Charts use local vendored runtime (`dashboard/assets/vendor/chart-lite-1.0.0.min.js`) rather than CDN scripts.
-- `make dev` forces local-write defaults (`WRITE/POW/CHALLENGE/BOTNESS=true`) so tuning controls are usable in local sessions.
-- Override dev defaults with Make variables when needed (example: `make dev DEV_POW_CONFIG_MUTABLE=false DEV_BOTNESS_CONFIG_MUTABLE=false`).
+- `make dev` forces local-write defaults (`WRITE=true`) so config controls are usable in local sessions.
+- Override dev defaults with Make variables when needed (example: `make dev DEV_ADMIN_CONFIG_WRITE_ENABLED=false`).
 
 Notes:
 - Run setup in an interactive terminal (it may prompt for sudo to install Spin).

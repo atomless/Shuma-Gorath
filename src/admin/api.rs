@@ -325,9 +325,6 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_BAN_STORE_REDIS_URL", "redis://redis:6379");
         std::env::set_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN", "fail_open");
         std::env::set_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH", "fail_closed");
-        std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "true");
-        std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "true");
-        std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "true");
 
         let store = TestStore::default();
         let mut cfg = crate::config::defaults().clone();
@@ -442,9 +439,6 @@ mod admin_config_tests {
             "SHUMA_BAN_STORE_REDIS_URL",
             "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
             "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
-            "SHUMA_POW_CONFIG_MUTABLE",
-            "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
-            "SHUMA_BOTNESS_CONFIG_MUTABLE",
         ]);
     }
 
@@ -497,8 +491,6 @@ mod admin_config_tests {
     #[test]
     fn admin_config_includes_challenge_fields() {
         let _lock = crate::test_support::lock_env();
-        std::env::remove_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE");
-        std::env::remove_var("SHUMA_BOTNESS_CONFIG_MUTABLE");
         let req = make_request(Method::Get, "/admin/config", Vec::new());
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
@@ -506,7 +498,6 @@ mod admin_config_tests {
         let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
         assert!(body.get("challenge_puzzle_risk_threshold").is_some());
         assert!(body.get("challenge_puzzle_enabled").is_some());
-        assert!(body.get("challenge_puzzle_config_mutable").is_some());
         assert!(body.get("challenge_puzzle_risk_threshold_default").is_some());
         assert!(body.get("challenge_puzzle_transform_count").is_some());
         assert!(body.get("ai_policy_block_training").is_some());
@@ -527,33 +518,8 @@ mod admin_config_tests {
             .is_some());
         assert!(body.get("enterprise_state_guardrail_warnings").is_some());
         assert!(body.get("enterprise_state_guardrail_error").is_some());
-        assert!(body.get("botness_config_mutable").is_some());
         assert!(body.get("botness_signal_definitions").is_some());
         assert!(body.get("honeypot_enabled").is_some());
-    }
-
-    #[test]
-    fn admin_config_rejects_challenge_update_when_immutable() {
-        let _lock = crate::test_support::lock_env();
-        let prior_challenge_mutable = std::env::var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE").ok();
-        let prior_botness_mutable = std::env::var("SHUMA_BOTNESS_CONFIG_MUTABLE").ok();
-        std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "0");
-        std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "0");
-        let body = br#"{"challenge_puzzle_risk_threshold":5}"#.to_vec();
-        let req = make_request(Method::Post, "/admin/config", body);
-        let store = TestStore::default();
-        let resp = handle_admin_config(&req, &store, "default");
-        assert_eq!(*resp.status(), 403u16);
-        if let Some(previous) = prior_challenge_mutable {
-            std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", previous);
-        } else {
-            std::env::remove_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE");
-        }
-        if let Some(previous) = prior_botness_mutable {
-            std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", previous);
-        } else {
-            std::env::remove_var("SHUMA_BOTNESS_CONFIG_MUTABLE");
-        }
     }
 
     #[test]
@@ -994,10 +960,9 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn admin_config_updates_pow_enabled_when_mutable() {
+    fn admin_config_updates_pow_enabled() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "true");
         let store = TestStore::default();
 
         let post_req = make_request(
@@ -1015,32 +980,13 @@ mod admin_config_tests {
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
         assert!(!saved_cfg.pow_enabled);
 
-        clear_env(&["SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "SHUMA_POW_CONFIG_MUTABLE"]);
+        clear_env(&["SHUMA_ADMIN_CONFIG_WRITE_ENABLED"]);
     }
 
     #[test]
-    fn admin_config_rejects_pow_enabled_update_when_immutable() {
+    fn admin_config_updates_challenge_puzzle_transform_count() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "false");
-        let store = TestStore::default();
-        let post_req = make_request(
-            Method::Post,
-            "/admin/config",
-            br#"{"pow_enabled":false}"#.to_vec(),
-        );
-        let post_resp = handle_admin_config(&post_req, &store, "default");
-        assert_eq!(*post_resp.status(), 403u16);
-        let msg = String::from_utf8_lossy(post_resp.body());
-        assert!(msg.contains("PoW config is immutable"));
-        clear_env(&["SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "SHUMA_POW_CONFIG_MUTABLE"]);
-    }
-
-    #[test]
-    fn admin_config_updates_challenge_puzzle_transform_count_when_mutable() {
-        let _lock = crate::test_support::lock_env();
-        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "true");
         let store = TestStore::default();
 
         let post_req = make_request(
@@ -1061,17 +1007,13 @@ mod admin_config_tests {
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
         assert_eq!(saved_cfg.challenge_puzzle_transform_count, 7);
 
-        clear_env(&[
-            "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
-            "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
-        ]);
+        clear_env(&["SHUMA_ADMIN_CONFIG_WRITE_ENABLED"]);
     }
 
     #[test]
-    fn admin_config_updates_challenge_puzzle_enabled_when_mutable() {
+    fn admin_config_updates_challenge_puzzle_enabled() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "true");
         let store = TestStore::default();
 
         let post_req = make_request(
@@ -1092,59 +1034,13 @@ mod admin_config_tests {
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
         assert!(!saved_cfg.challenge_puzzle_enabled);
 
-        clear_env(&[
-            "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
-            "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
-        ]);
-    }
-
-    #[test]
-    fn admin_config_rejects_challenge_puzzle_transform_count_when_immutable() {
-        let _lock = crate::test_support::lock_env();
-        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false");
-        let store = TestStore::default();
-        let post_req = make_request(
-            Method::Post,
-            "/admin/config",
-            br#"{"challenge_puzzle_transform_count":7}"#.to_vec(),
-        );
-        let post_resp = handle_admin_config(&post_req, &store, "default");
-        assert_eq!(*post_resp.status(), 403u16);
-        let msg = String::from_utf8_lossy(post_resp.body());
-        assert!(msg.contains("Challenge config is immutable"));
-        clear_env(&[
-            "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
-            "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
-        ]);
-    }
-
-    #[test]
-    fn admin_config_rejects_challenge_puzzle_enabled_when_immutable() {
-        let _lock = crate::test_support::lock_env();
-        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false");
-        let store = TestStore::default();
-        let post_req = make_request(
-            Method::Post,
-            "/admin/config",
-            br#"{"challenge_puzzle_enabled":false}"#.to_vec(),
-        );
-        let post_resp = handle_admin_config(&post_req, &store, "default");
-        assert_eq!(*post_resp.status(), 403u16);
-        let msg = String::from_utf8_lossy(post_resp.body());
-        assert!(msg.contains("Challenge config is immutable"));
-        clear_env(&[
-            "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
-            "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
-        ]);
+        clear_env(&["SHUMA_ADMIN_CONFIG_WRITE_ENABLED"]);
     }
 
     #[test]
     fn admin_config_rejects_challenge_puzzle_transform_count_out_of_range() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "true");
         let store = TestStore::default();
         let post_req = make_request(
             Method::Post,
@@ -1155,17 +1051,13 @@ mod admin_config_tests {
         assert_eq!(*post_resp.status(), 400u16);
         let msg = String::from_utf8_lossy(post_resp.body());
         assert!(msg.contains("challenge_puzzle_transform_count out of range"));
-        clear_env(&[
-            "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
-            "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
-        ]);
+        clear_env(&["SHUMA_ADMIN_CONFIG_WRITE_ENABLED"]);
     }
 
     #[test]
-    fn admin_config_updates_defence_modes_when_botness_mutable() {
+    fn admin_config_updates_defence_modes() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "true");
         let store = TestStore::default();
 
         let post_req = make_request(
@@ -1198,14 +1090,12 @@ mod admin_config_tests {
         );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
-        std::env::remove_var("SHUMA_BOTNESS_CONFIG_MUTABLE");
     }
 
     #[test]
     fn admin_config_rejects_invalid_defence_mode_value() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "true");
         let store = TestStore::default();
 
         let post_req = make_request(
@@ -1219,14 +1109,12 @@ mod admin_config_tests {
         assert!(msg.contains("defence_modes.rate must be one of"));
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
-        std::env::remove_var("SHUMA_BOTNESS_CONFIG_MUTABLE");
     }
 
     #[test]
     fn admin_config_rejects_unknown_defence_mode_key() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "true");
         let store = TestStore::default();
 
         let post_req = make_request(
@@ -1240,7 +1128,6 @@ mod admin_config_tests {
         assert!(msg.contains("defence_modes.foo is not supported"));
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
-        std::env::remove_var("SHUMA_BOTNESS_CONFIG_MUTABLE");
     }
 
     #[test]
@@ -1905,18 +1792,6 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
                 .to_string(),
         ),
         (
-            "SHUMA_POW_CONFIG_MUTABLE".to_string(),
-            bool_env(crate::config::pow_config_mutable()).to_string(),
-        ),
-        (
-            "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE".to_string(),
-            bool_env(crate::config::challenge_puzzle_config_mutable()).to_string(),
-        ),
-        (
-            "SHUMA_BOTNESS_CONFIG_MUTABLE".to_string(),
-            bool_env(crate::config::botness_config_mutable()).to_string(),
-        ),
-        (
             "SHUMA_TEST_MODE".to_string(),
             bool_env(cfg.test_mode).to_string(),
         ),
@@ -2434,10 +2309,6 @@ fn admin_config_payload(
         serde_json::Value::Bool(cfg.robots_allow_search_engines),
     );
     obj.insert(
-        "pow_config_mutable".to_string(),
-        serde_json::Value::Bool(crate::config::pow_config_mutable()),
-    );
-    obj.insert(
         "admin_config_write_enabled".to_string(),
         serde_json::Value::Bool(crate::config::admin_config_write_enabled()),
     );
@@ -2452,10 +2323,6 @@ fn admin_config_payload(
     obj.insert(
         "forwarded_header_trust_configured".to_string(),
         serde_json::Value::Bool(crate::config::forwarded_header_trust_configured()),
-    );
-    obj.insert(
-        "challenge_puzzle_config_mutable".to_string(),
-        serde_json::Value::Bool(crate::config::challenge_puzzle_config_mutable()),
     );
     obj.insert(
         "challenge_puzzle_risk_threshold_default".to_string(),
@@ -2491,10 +2358,6 @@ fn admin_config_payload(
             Some(msg) => serde_json::Value::String(msg),
             None => serde_json::Value::Null,
         },
-    );
-    obj.insert(
-        "botness_config_mutable".to_string(),
-        serde_json::Value::Bool(crate::config::botness_config_mutable()),
     );
     obj.insert("botness_signal_definitions".to_string(), botness_signal_definitions(cfg));
     payload
@@ -2942,18 +2805,7 @@ fn handle_admin_config(
         let old_pow_ttl = cfg.pow_ttl_seconds;
         let mut pow_changed = false;
 
-        // Update PoW settings if provided (guarded by env flag)
-        if json.get("pow_enabled").is_some()
-            || json.get("pow_difficulty").is_some()
-            || json.get("pow_ttl_seconds").is_some()
-        {
-            if !crate::config::pow_config_mutable() {
-                return Response::new(
-                    403,
-                    "PoW config is immutable (set SHUMA_POW_CONFIG_MUTABLE=1 to allow changes)",
-                );
-            }
-        }
+        // Update PoW settings if provided.
         if let Some(pow_enabled) = json.get("pow_enabled").and_then(|v| v.as_bool()) {
             if cfg.pow_enabled != pow_enabled {
                 cfg.pow_enabled = pow_enabled;
@@ -3005,14 +2857,6 @@ fn handle_admin_config(
         let old_challenge_puzzle_enabled = cfg.challenge_puzzle_enabled;
         let old_transform_count = cfg.challenge_puzzle_transform_count;
         let mut challenge_changed = false;
-        let challenge_update_requested =
-            json.get("challenge_puzzle_enabled").is_some() || json.get("challenge_puzzle_transform_count").is_some();
-        if challenge_update_requested && !crate::config::challenge_puzzle_config_mutable() {
-            return Response::new(
-                403,
-                "Challenge config is immutable (set SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE=true to allow changes)",
-            );
-        }
         if let Some(challenge_puzzle_enabled) = json.get("challenge_puzzle_enabled").and_then(|v| v.as_bool()) {
             if cfg.challenge_puzzle_enabled != challenge_puzzle_enabled {
                 cfg.challenge_puzzle_enabled = challenge_puzzle_enabled;
@@ -3172,22 +3016,11 @@ fn handle_admin_config(
             );
         }
 
-        let botness_mutable = crate::config::botness_config_mutable();
         let mut botness_changed = false;
         let old_challenge_threshold = cfg.challenge_puzzle_risk_threshold;
         let old_maze_threshold = cfg.botness_maze_threshold;
         let old_weights = cfg.botness_weights.clone();
         let old_modes = cfg.defence_modes.clone();
-        let botness_update_requested = json.get("challenge_puzzle_risk_threshold").is_some()
-            || json.get("botness_maze_threshold").is_some()
-            || json.get("botness_weights").is_some()
-            || json.get("defence_modes").is_some();
-        if botness_update_requested && !botness_mutable {
-            return Response::new(
-                403,
-                "Botness config is immutable (set SHUMA_BOTNESS_CONFIG_MUTABLE=true to allow changes)",
-            );
-        }
         if let Some(challenge_threshold) = json
             .get("challenge_puzzle_risk_threshold")
             .and_then(|v| v.as_u64())
