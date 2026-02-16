@@ -249,11 +249,11 @@ Core enforcement fields:
 - `js_required_enforced` - enable/disable JS-required enforcement
 - `rate_limit` - per-minute request limit used for hard rate limiting and rate-pressure scoring
 - `honeypot_enabled` - enable/disable honeypot trap handling for configured trap paths
-- `challenge_enabled` - enable/disable challenge serving at challenge-tier routes (when disabled, challenge tier falls back to maze or block)
+- `challenge_puzzle_enabled` - enable/disable challenge serving at challenge-tier routes (when disabled, challenge tier falls back to maze or block)
 - `defence_modes.rate` / `defence_modes.geo` / `defence_modes.js` - per-module composability mode (`off`, `signal`, `enforce`, `both`)
 
 Scored thresholds:
-- `challenge_risk_threshold` - score at/above which challenge is served
+- `challenge_puzzle_risk_threshold` - score at/above which challenge is served
 - `botness_maze_threshold` - score at/above which requests are routed to maze
 
 Scored weights:

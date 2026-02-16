@@ -418,12 +418,12 @@ pub struct Config {
     pub pow_difficulty: u8,
     #[serde(default = "default_pow_ttl_seconds")]
     pub pow_ttl_seconds: u64,
-    #[serde(default = "default_challenge_enabled")]
-    pub challenge_enabled: bool,
-    #[serde(default = "default_challenge_transform_count")]
-    pub challenge_transform_count: u8,
+    #[serde(default = "default_challenge_puzzle_enabled")]
+    pub challenge_puzzle_enabled: bool,
+    #[serde(default = "default_challenge_puzzle_transform_count")]
+    pub challenge_puzzle_transform_count: u8,
     #[serde(default = "default_challenge_threshold")]
-    pub challenge_risk_threshold: u8,
+    pub challenge_puzzle_risk_threshold: u8,
     #[serde(default = "default_maze_threshold")]
     pub botness_maze_threshold: u8,
     #[serde(default)]
@@ -739,9 +739,9 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         pow_enabled: defaults_bool("SHUMA_POW_ENABLED"),
         pow_difficulty: defaults_u8("SHUMA_POW_DIFFICULTY"),
         pow_ttl_seconds: defaults_u64("SHUMA_POW_TTL_SECONDS"),
-        challenge_enabled: defaults_bool("SHUMA_CHALLENGE_ENABLED"),
-        challenge_transform_count: defaults_u8("SHUMA_CHALLENGE_TRANSFORM_COUNT"),
-        challenge_risk_threshold: defaults_u8("SHUMA_CHALLENGE_RISK_THRESHOLD"),
+        challenge_puzzle_enabled: defaults_bool("SHUMA_CHALLENGE_PUZZLE_ENABLED"),
+        challenge_puzzle_transform_count: defaults_u8("SHUMA_CHALLENGE_PUZZLE_TRANSFORM_COUNT"),
+        challenge_puzzle_risk_threshold: defaults_u8("SHUMA_CHALLENGE_PUZZLE_RISK_THRESHOLD"),
         botness_maze_threshold: defaults_u8("SHUMA_BOTNESS_MAZE_THRESHOLD"),
         botness_weights: BotnessWeights {
             js_required: defaults_u8("SHUMA_BOTNESS_WEIGHT_JS_REQUIRED"),
@@ -792,7 +792,7 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_bool_like_var("SHUMA_ENFORCE_HTTPS")?;
     validate_bool_like_var("SHUMA_DEBUG_HEADERS")?;
     validate_bool_like_var("SHUMA_POW_CONFIG_MUTABLE")?;
-    validate_bool_like_var("SHUMA_CHALLENGE_CONFIG_MUTABLE")?;
+    validate_bool_like_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE")?;
     validate_bool_like_var("SHUMA_BOTNESS_CONFIG_MUTABLE")?;
     validate_optional_bool_like_var("SHUMA_ENTERPRISE_MULTI_INSTANCE")?;
     validate_optional_bool_like_var("SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED")?;
@@ -1043,12 +1043,12 @@ pub fn pow_config_mutable() -> bool {
 }
 
 #[cfg(test)]
-pub(crate) fn challenge_config_mutable_from_env(value: Option<&str>) -> bool {
+pub(crate) fn challenge_puzzle_config_mutable_from_env(value: Option<&str>) -> bool {
     parse_bool_env(value)
 }
 
-pub fn challenge_config_mutable() -> bool {
-    env_bool_required("SHUMA_CHALLENGE_CONFIG_MUTABLE")
+pub fn challenge_puzzle_config_mutable() -> bool {
+    env_bool_required("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE")
 }
 
 pub fn botness_config_mutable() -> bool {
@@ -1115,15 +1115,15 @@ fn clamp_botness_weight(value: u8) -> u8 {
     value.clamp(BOTNESS_WEIGHT_MIN, BOTNESS_WEIGHT_MAX)
 }
 
-fn clamp_challenge_transform_count(value: u8) -> u8 {
+fn clamp_challenge_puzzle_transform_count(value: u8) -> u8 {
     value.clamp(CHALLENGE_TRANSFORM_COUNT_MIN, CHALLENGE_TRANSFORM_COUNT_MAX)
 }
 
 fn clamp_config_values(cfg: &mut Config) {
     cfg.pow_difficulty = clamp_pow_difficulty(cfg.pow_difficulty);
     cfg.pow_ttl_seconds = clamp_pow_ttl(cfg.pow_ttl_seconds);
-    cfg.challenge_transform_count = clamp_challenge_transform_count(cfg.challenge_transform_count);
-    cfg.challenge_risk_threshold = clamp_challenge_threshold(cfg.challenge_risk_threshold);
+    cfg.challenge_puzzle_transform_count = clamp_challenge_puzzle_transform_count(cfg.challenge_puzzle_transform_count);
+    cfg.challenge_puzzle_risk_threshold = clamp_challenge_threshold(cfg.challenge_puzzle_risk_threshold);
     cfg.botness_maze_threshold = clamp_maze_threshold(cfg.botness_maze_threshold);
     cfg.botness_weights.js_required = clamp_botness_weight(cfg.botness_weights.js_required);
     cfg.botness_weights.geo_risk = clamp_botness_weight(cfg.botness_weights.geo_risk);
@@ -1605,16 +1605,16 @@ fn default_pow_ttl_seconds() -> u64 {
     clamp_pow_ttl(defaults_u64("SHUMA_POW_TTL_SECONDS"))
 }
 
-fn default_challenge_enabled() -> bool {
-    defaults_bool("SHUMA_CHALLENGE_ENABLED")
+fn default_challenge_puzzle_enabled() -> bool {
+    defaults_bool("SHUMA_CHALLENGE_PUZZLE_ENABLED")
 }
 
-fn default_challenge_transform_count() -> u8 {
-    clamp_challenge_transform_count(defaults_u8("SHUMA_CHALLENGE_TRANSFORM_COUNT"))
+fn default_challenge_puzzle_transform_count() -> u8 {
+    clamp_challenge_puzzle_transform_count(defaults_u8("SHUMA_CHALLENGE_PUZZLE_TRANSFORM_COUNT"))
 }
 
 fn default_challenge_threshold() -> u8 {
-    clamp_challenge_threshold(defaults_u8("SHUMA_CHALLENGE_RISK_THRESHOLD"))
+    clamp_challenge_threshold(defaults_u8("SHUMA_CHALLENGE_PUZZLE_RISK_THRESHOLD"))
 }
 
 fn default_maze_threshold() -> u8 {

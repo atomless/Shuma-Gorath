@@ -99,9 +99,9 @@
     'pow_enabled',
     'pow_difficulty',
     'pow_ttl_seconds',
-    'challenge_enabled',
-    'challenge_transform_count',
-    'challenge_risk_threshold',
+    'challenge_puzzle_enabled',
+    'challenge_puzzle_transform_count',
+    'challenge_puzzle_risk_threshold',
     'botness_maze_threshold',
     'botness_weights.js_required',
     'botness_weights.geo_risk',
@@ -185,10 +185,10 @@
     pow_enabled: 'Enables PoW in JS verification flow.',
     pow_difficulty: 'PoW difficulty (leading-zero bits).',
     pow_ttl_seconds: 'PoW seed lifetime in seconds.',
-    challenge_enabled: 'Enables/disables challenge puzzle routing at the challenge escalation step.',
-    challenge_transform_count: 'Challenge puzzle transform-option count.',
-    challenge_risk_threshold: 'Botness threshold for challenge step-up routing.',
-    challenge_risk_threshold_default: 'Default challenge threshold derived from environment seed.',
+    challenge_puzzle_enabled: 'Enables/disables challenge puzzle routing at the challenge escalation step.',
+    challenge_puzzle_transform_count: 'Challenge puzzle transform-option count.',
+    challenge_puzzle_risk_threshold: 'Botness threshold for challenge step-up routing.',
+    challenge_puzzle_risk_threshold_default: 'Default challenge threshold derived from environment seed.',
     botness_maze_threshold: 'Botness threshold for maze routing.',
     botness_maze_threshold_default: 'Default maze threshold derived from environment seed.',
     'botness_weights.js_required': 'Botness points for missing JS verification.',
@@ -211,7 +211,7 @@
     edge_integration_mode: 'How external edge outcomes affect local routing: off, advisory, authoritative.',
     admin_config_write_enabled: 'Enables/disables admin API config writes.',
     pow_config_mutable: 'Controls whether PoW fields are editable in runtime admin config.',
-    challenge_config_mutable: 'Controls whether challenge enable and transform fields are editable in runtime admin config.',
+    challenge_puzzle_config_mutable: 'Controls whether challenge enable and transform fields are editable in runtime admin config.',
     botness_config_mutable: 'Controls whether botness thresholds/weights are editable in runtime admin config.',
     kv_store_fail_open: 'KV outage posture. true=fail-open, false=fail-closed.',
     https_enforced: 'Reject non-HTTPS requests when enabled.',
@@ -237,7 +237,7 @@
         path === 'rate_limit' ||
         path === 'admin_config_write_enabled' ||
         path === 'pow_config_mutable' ||
-        path === 'challenge_config_mutable' ||
+        path === 'challenge_puzzle_config_mutable' ||
         path === 'botness_config_mutable' ||
         path === 'kv_store_fail_open' ||
         path === 'https_enforced' ||
@@ -442,10 +442,10 @@
     {
       title: 'Challenge',
       description: snapshot => (
-        `Step-up routing sends suspicious traffic to the puzzle challenge when ${envVar('SHUMA_CHALLENGE_ENABLED')} is true and cumulative botness reaches ${envVar('SHUMA_CHALLENGE_RISK_THRESHOLD')} ` +
+        `Step-up routing sends suspicious traffic to the puzzle challenge when ${envVar('SHUMA_CHALLENGE_PUZZLE_ENABLED')} is true and cumulative botness reaches ${envVar('SHUMA_CHALLENGE_PUZZLE_RISK_THRESHOLD')} ` +
         `(enabled: <strong>${boolStatus(snapshot.challengeEnabled)}</strong>, current: <strong>${snapshot.challengeThreshold}</strong>). ` +
-        `Puzzle complexity is controlled by ${envVar('SHUMA_CHALLENGE_TRANSFORM_COUNT')}. ` +
-        `Runtime threshold mutability is controlled by ${envVar('SHUMA_CHALLENGE_CONFIG_MUTABLE')} / ${envVar('SHUMA_BOTNESS_CONFIG_MUTABLE')} and is currently ${formatMutability(snapshot.challengeMutable || snapshot.botnessMutable)}.`
+        `Puzzle complexity is controlled by ${envVar('SHUMA_CHALLENGE_PUZZLE_TRANSFORM_COUNT')}. ` +
+        `Runtime threshold mutability is controlled by ${envVar('SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE')} / ${envVar('SHUMA_BOTNESS_CONFIG_MUTABLE')} and is currently ${formatMutability(snapshot.challengeMutable || snapshot.botnessMutable)}.`
       ),
       status: snapshot => boolStatus(snapshot.challengeEnabled)
     },

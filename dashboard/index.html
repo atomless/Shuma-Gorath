@@ -289,18 +289,18 @@
               <p class="control-desc text-muted">Set how many transform options are shown in puzzle challenges (higher values can increase solve time).</p>
               <div class="admin-controls">
                 <div class="toggle-row">
-                  <label class="control-label control-label--wide" for="challenge-enabled-toggle">Enable Challenge Puzzle</label>
-                  <label class="toggle-switch" for="challenge-enabled-toggle">
-                    <input type="checkbox" id="challenge-enabled-toggle" aria-label="Enable challenge puzzle routing">
+                  <label class="control-label control-label--wide" for="challenge-puzzle-enabled-toggle">Enable Challenge Puzzle</label>
+                  <label class="toggle-switch" for="challenge-puzzle-enabled-toggle">
+                    <input type="checkbox" id="challenge-puzzle-enabled-toggle" aria-label="Enable challenge puzzle routing">
                     <span class="toggle-slider"></span>
                   </label>
                 </div>
                 <div class="input-row">
-                  <label class="control-label" for="challenge-transform-count">Transform Options</label>
-                  <input class="input-field" type="number" id="challenge-transform-count" min="4" max="8" step="1" inputmode="numeric" value="6" aria-label="Challenge transform option count">
+                  <label class="control-label" for="challenge-puzzle-transform-count">Transform Options</label>
+                  <input class="input-field" type="number" id="challenge-puzzle-transform-count" min="4" max="8" step="1" inputmode="numeric" value="6" aria-label="Challenge transform option count">
                 </div>
               </div>
-              <button id="save-challenge-transform-config" class="btn btn-submit" disabled>Save Challenge Puzzle</button>
+              <button id="save-challenge-puzzle-config" class="btn btn-submit" disabled>Save Challenge Puzzle</button>
             </div>
             <div class="control-group panel-soft pad-md config-edit-pane hidden">
               <h3>Rate Limiting</h3>
@@ -636,8 +636,8 @@
               <p class="control-desc text-muted">Weighted signals form a unified score. Moderate scores get the challenge; higher scores route to maze.</p>
               <div class="admin-controls">
                 <div class="input-row">
-                  <label class="control-label" for="challenge-threshold">Challenge (score)</label>
-                  <input class="input-field" type="number" id="challenge-threshold" min="1" max="10" step="1" inputmode="numeric" value="3" aria-label="Challenge risk threshold">
+                  <label class="control-label" for="challenge-puzzle-threshold">Challenge (score)</label>
+                  <input class="input-field" type="number" id="challenge-puzzle-threshold" min="1" max="10" step="1" inputmode="numeric" value="3" aria-label="Challenge risk threshold">
                 </div>
                 <div class="input-row">
                   <label class="control-label" for="maze-threshold-score">Maze (score)</label>
@@ -667,7 +667,7 @@
                   </div>
                   <div class="info-row">
                     <span class="info-label text-muted">Default Challenge:</span>
-                    <span id="challenge-default">--</span>
+                    <span id="challenge-puzzle-default">--</span>
                   </div>
                   <div class="info-row">
                     <span class="info-label text-muted">Default Maze:</span>

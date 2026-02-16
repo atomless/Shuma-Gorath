@@ -187,14 +187,14 @@ test("dashboard bare path redirects to canonical index route", async ({ request 
 test("dashboard clean-state renders explicit empty placeholders", async ({ page }) => {
   const emptyConfig = {
     admin_config_write_enabled: true,
-    challenge_config_mutable: true,
+    challenge_puzzle_config_mutable: true,
     botness_config_mutable: true,
     pow_config_mutable: true,
     pow_enabled: true,
-    challenge_enabled: true,
-    challenge_transform_count: 6,
-    challenge_risk_threshold: 3,
-    challenge_risk_threshold_default: 3,
+    challenge_puzzle_enabled: true,
+    challenge_puzzle_transform_count: 6,
+    challenge_puzzle_risk_threshold: 3,
+    challenge_puzzle_risk_threshold_default: 3,
     botness_maze_threshold: 6,
     botness_maze_threshold_default: 6,
     botness_weights: {
@@ -516,10 +516,10 @@ test("maze and duration save buttons use shared dirty-state behavior", async ({ 
   await advancedField.dispatchEvent("input");
   await expect(advancedSave).toBeDisabled();
 
-  const challengeTransformField = page.locator("#challenge-transform-count");
-  const challengeEnabledToggle = page.locator("#challenge-enabled-toggle");
-  const challengeEnabledSwitch = page.locator("label.toggle-switch[for='challenge-enabled-toggle']");
-  const challengeTransformSave = page.locator("#save-challenge-transform-config");
+  const challengeTransformField = page.locator("#challenge-puzzle-transform-count");
+  const challengeEnabledToggle = page.locator("#challenge-puzzle-enabled-toggle");
+  const challengeEnabledSwitch = page.locator("label.toggle-switch[for='challenge-puzzle-enabled-toggle']");
+  const challengeTransformSave = page.locator("#save-challenge-puzzle-config");
   if (await challengeTransformField.isEnabled()) {
     const initialTransformCount = await challengeTransformField.inputValue();
     const nextTransformCount = String(Math.min(8, Number(initialTransformCount || "6") + 1));

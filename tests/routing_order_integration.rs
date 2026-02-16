@@ -32,7 +32,7 @@ fn with_runtime_env<T>(f: impl FnOnce() -> T) -> T {
         ("SHUMA_ENFORCE_HTTPS", "false"),
         ("SHUMA_DEBUG_HEADERS", "false"),
         ("SHUMA_POW_CONFIG_MUTABLE", "false"),
-        ("SHUMA_CHALLENGE_CONFIG_MUTABLE", "false"),
+        ("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false"),
         ("SHUMA_BOTNESS_CONFIG_MUTABLE", "false"),
     ];
     for (key, value) in vars {

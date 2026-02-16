@@ -536,13 +536,13 @@
       };
     }
 
-    const saveChallengeTransformButton = document.getElementById('save-challenge-transform-config');
-    if (saveChallengeTransformButton) {
-      saveChallengeTransformButton.onclick = async function saveChallengeTransformConfig() {
+    const saveChallengePuzzleButton = document.getElementById('save-challenge-puzzle-config');
+    if (saveChallengePuzzleButton) {
+      saveChallengePuzzleButton.onclick = async function saveChallengePuzzleConfig() {
         const btn = this;
         const msg = document.getElementById('admin-msg');
-        const challengeEnabled = document.getElementById('challenge-enabled-toggle').checked;
-        const transformCount = options.readIntegerFieldValue('challenge-transform-count', msg);
+        const challengeEnabled = document.getElementById('challenge-puzzle-enabled-toggle').checked;
+        const transformCount = options.readIntegerFieldValue('challenge-puzzle-transform-count', msg);
         if (transformCount === null) return;
 
         btn.textContent = 'Saving...';
@@ -550,11 +550,11 @@
         btn.disabled = true;
         try {
           await saveConfigPatch(msg, {
-            challenge_enabled: challengeEnabled,
-            challenge_transform_count: transformCount
+            challenge_puzzle_enabled: challengeEnabled,
+            challenge_puzzle_transform_count: transformCount
           });
-          if (typeof options.setChallengeTransformSavedState === 'function') {
-            options.setChallengeTransformSavedState({
+          if (typeof options.setChallengePuzzleSavedState === 'function') {
+            options.setChallengePuzzleSavedState({
               enabled: challengeEnabled,
               count: transformCount,
               mutable: true
@@ -564,16 +564,16 @@
           msg.className = 'message success';
           btn.textContent = 'Save Challenge Puzzle';
           btn.dataset.saving = 'false';
-          if (typeof options.checkChallengeTransformConfigChanged === 'function') {
-            options.checkChallengeTransformConfigChanged();
+          if (typeof options.checkChallengePuzzleConfigChanged === 'function') {
+            options.checkChallengePuzzleConfigChanged();
           }
         } catch (e) {
           msg.textContent = `Error: ${e.message}`;
           msg.className = 'message error';
           btn.textContent = 'Save Challenge Puzzle';
           btn.dataset.saving = 'false';
-          if (typeof options.checkChallengeTransformConfigChanged === 'function') {
-            options.checkChallengeTransformConfigChanged();
+          if (typeof options.checkChallengePuzzleConfigChanged === 'function') {
+            options.checkChallengePuzzleConfigChanged();
           }
         }
       };
@@ -585,7 +585,7 @@
         const btn = this;
         const msg = document.getElementById('admin-msg');
 
-        const challengeThreshold = options.readIntegerFieldValue('challenge-threshold', msg);
+        const challengeThreshold = options.readIntegerFieldValue('challenge-puzzle-threshold', msg);
         const mazeThreshold = options.readIntegerFieldValue('maze-threshold-score', msg);
         const weightJsRequired = options.readIntegerFieldValue('weight-js-required', msg);
         const weightGeoRisk = options.readIntegerFieldValue('weight-geo-risk', msg);
@@ -609,7 +609,7 @@
 
         try {
           await saveConfigPatch(msg, {
-            challenge_risk_threshold: challengeThreshold,
+            challenge_puzzle_risk_threshold: challengeThreshold,
             botness_maze_threshold: mazeThreshold,
             botness_weights: {
               js_required: weightJsRequired,

@@ -34,7 +34,7 @@ fn is_search_engine_user_agent(cfg: &crate::config::Config, user_agent: &str) ->
 }
 
 fn medium_suspicion_score(cfg: &crate::config::Config, suspicion_score: u8) -> bool {
-    suspicion_score >= cfg.challenge_risk_threshold && suspicion_score < cfg.botness_maze_threshold
+    suspicion_score >= cfg.challenge_puzzle_risk_threshold && suspicion_score < cfg.botness_maze_threshold
 }
 
 fn is_html_like_response(response: &Response) -> bool {
@@ -191,7 +191,7 @@ mod tests {
             "198.51.100.9",
             "Mozilla/5.0",
             response,
-            cfg.challenge_risk_threshold,
+            cfg.challenge_puzzle_risk_threshold,
         );
         let body = String::from_utf8_lossy(injected.body());
         assert!(body.contains("data-shuma-covert-decoy=\"1\""));
@@ -210,7 +210,7 @@ mod tests {
             "198.51.100.9",
             "Mozilla/5.0 (compatible; Googlebot/2.1)",
             response,
-            cfg.challenge_risk_threshold,
+            cfg.challenge_puzzle_risk_threshold,
         );
         let body = String::from_utf8_lossy(injected.body());
         assert!(!body.contains("data-shuma-covert-decoy=\"1\""));
@@ -244,7 +244,7 @@ mod tests {
             "198.51.100.9",
             "Mozilla/5.0",
             response,
-            cfg.challenge_risk_threshold,
+            cfg.challenge_puzzle_risk_threshold,
         );
         assert_eq!(String::from_utf8_lossy(injected.body()), "plain");
     }

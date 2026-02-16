@@ -263,7 +263,7 @@ pub(crate) fn maybe_handle_geo_policy(
                         ),
                 );
             }
-            if cfg.challenge_enabled {
+            if cfg.challenge_puzzle_enabled {
                 let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
                     crate::runtime::policy_taxonomy::PolicyTransition::GeoRouteMazeFallbackChallenge,
                 );
@@ -292,7 +292,7 @@ pub(crate) fn maybe_handle_geo_policy(
                 return Some(
                     provider_registry
                         .challenge_engine_provider()
-                        .render_challenge(req, cfg.challenge_transform_count as usize),
+                        .render_challenge(req, cfg.challenge_puzzle_transform_count as usize),
                 );
             }
             let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
@@ -329,7 +329,7 @@ pub(crate) fn maybe_handle_geo_policy(
                 "country={}",
                 geo_assessment.country.as_deref().unwrap_or("unknown")
             );
-            if cfg.challenge_enabled {
+            if cfg.challenge_puzzle_enabled {
                 let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
                     crate::runtime::policy_taxonomy::PolicyTransition::GeoRouteChallenge,
                 );
@@ -358,7 +358,7 @@ pub(crate) fn maybe_handle_geo_policy(
                 return Some(
                     provider_registry
                         .challenge_engine_provider()
-                        .render_challenge(req, cfg.challenge_transform_count as usize),
+                        .render_challenge(req, cfg.challenge_puzzle_transform_count as usize),
                 );
             }
             if cfg.maze_enabled {
@@ -518,7 +518,7 @@ pub(crate) fn maybe_handle_botness(
         );
     }
 
-    if botness.score >= cfg.challenge_risk_threshold {
+    if botness.score >= cfg.challenge_puzzle_risk_threshold {
         let ua = req
             .header("user-agent")
             .map(|v| v.as_str().unwrap_or(""))
@@ -531,7 +531,7 @@ pub(crate) fn maybe_handle_botness(
             runtime_metadata_summary,
             provider_summary
         );
-        if cfg.challenge_enabled {
+        if cfg.challenge_puzzle_enabled {
             let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
                 crate::runtime::policy_taxonomy::PolicyTransition::BotnessGateChallenge(
                     botness_signal_ids,
@@ -561,7 +561,7 @@ pub(crate) fn maybe_handle_botness(
             );
             let challenge_response = provider_registry
                 .challenge_engine_provider()
-                .render_challenge(req, cfg.challenge_transform_count as usize);
+                .render_challenge(req, cfg.challenge_puzzle_transform_count as usize);
             let response = crate::maze::covert_decoy::maybe_inject_non_maze_decoy(
                 req,
                 cfg,

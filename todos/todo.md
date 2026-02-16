@@ -156,7 +156,7 @@ Implementation rule: when internal feature work touches provider-managed capabil
 - [ ] Track and enforce "no net behavior change" for refactor-only slices unless explicitly scoped otherwise.
 ## P3 Platform and Configuration Clarity
 - [ ] Design runtime-agnostic architecture that keeps core detection logic portable while preserving Fermyon-first performance paths.
-- [ ] Evaluate renaming `SHUMA_CHALLENGE_RISK_THRESHOLD` to `SHUMA_BOTNESS_CHALLENGE_THRESHOLD` to reflect botness semantics.
+- [ ] Evaluate renaming `SHUMA_CHALLENGE_PUZZLE_RISK_THRESHOLD` to `SHUMA_BOTNESS_CHALLENGE_PUZZLE_THRESHOLD` to reflect botness semantics.
 - [ ] Standardize terminology across code/UI/docs so `honeypot` and `maze` are used consistently instead of interchangeably.
 - [ ] Initialize Ban IP pane duration controls from the current Admin Manual Ban default duration so Ban IP and Ban Durations panes stay consistent.
 - [ ] Decomposed into `DSH-*` dashboard modernization items below (frameworkless-first with explicit Lit decision gate).

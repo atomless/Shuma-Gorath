@@ -217,7 +217,7 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
             let response = crate::boundaries::serve_challenge_page(
                 req,
                 cfg.test_mode,
-                cfg.challenge_transform_count as usize,
+                cfg.challenge_puzzle_transform_count as usize,
             );
             if *response.status() == 200 {
                 crate::observability::metrics::increment(

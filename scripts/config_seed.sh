@@ -138,9 +138,9 @@ cat > "${tmp_json}" <<EOF
   "pow_enabled": $(bool_norm "${SHUMA_POW_ENABLED}"),
   "pow_difficulty": ${SHUMA_POW_DIFFICULTY},
   "pow_ttl_seconds": ${SHUMA_POW_TTL_SECONDS},
-  "challenge_enabled": $(bool_norm "${SHUMA_CHALLENGE_ENABLED}"),
-  "challenge_transform_count": ${SHUMA_CHALLENGE_TRANSFORM_COUNT},
-  "challenge_risk_threshold": ${SHUMA_CHALLENGE_RISK_THRESHOLD},
+  "challenge_puzzle_enabled": $(bool_norm "${SHUMA_CHALLENGE_PUZZLE_ENABLED}"),
+  "challenge_puzzle_transform_count": ${SHUMA_CHALLENGE_PUZZLE_TRANSFORM_COUNT},
+  "challenge_puzzle_risk_threshold": ${SHUMA_CHALLENGE_PUZZLE_RISK_THRESHOLD},
   "botness_maze_threshold": ${SHUMA_BOTNESS_MAZE_THRESHOLD},
   "botness_weights": {
     "js_required": ${SHUMA_BOTNESS_WEIGHT_JS_REQUIRED},

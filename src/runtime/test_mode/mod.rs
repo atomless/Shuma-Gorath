@@ -151,7 +151,7 @@ where
                     "TEST MODE: Would route to maze (geo policy)",
                 ));
             }
-            if cfg.challenge_enabled {
+            if cfg.challenge_puzzle_enabled {
                 crate::log_line(&format!(
                     "[TEST MODE] Would challenge IP {ip} for GEO maze fallback"
                 ));
@@ -185,7 +185,7 @@ where
             ));
         }
         crate::signals::geo::GeoPolicyRoute::Challenge => {
-            if cfg.challenge_enabled {
+            if cfg.challenge_puzzle_enabled {
                 crate::log_line(&format!(
                     "[TEST MODE] Would challenge IP {ip} for GEO policy"
                 ));

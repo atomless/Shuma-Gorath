@@ -136,7 +136,7 @@ fn maybe_handle_test_mode_geo_challenge_falls_back_to_maze_when_challenge_disabl
     let store = crate::test_support::InMemoryStore::default();
     let mut cfg = crate::config::defaults().clone();
     cfg.test_mode = true;
-    cfg.challenge_enabled = false;
+    cfg.challenge_puzzle_enabled = false;
     cfg.maze_enabled = true;
 
     let resp = maybe_handle_test_mode(
@@ -164,7 +164,7 @@ fn maybe_handle_test_mode_geo_challenge_falls_back_to_block_when_disabled() {
     let store = crate::test_support::InMemoryStore::default();
     let mut cfg = crate::config::defaults().clone();
     cfg.test_mode = true;
-    cfg.challenge_enabled = false;
+    cfg.challenge_puzzle_enabled = false;
     cfg.maze_enabled = false;
 
     let resp = maybe_handle_test_mode(

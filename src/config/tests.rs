@@ -209,7 +209,7 @@ fn defaults_enable_both_signal_and_action_paths() {
     assert_eq!(cfg.edge_integration_mode, EdgeIntegrationMode::Off);
     assert!(cfg.js_required_enforced);
     assert!(cfg.honeypot_enabled);
-    assert!(cfg.challenge_enabled);
+    assert!(cfg.challenge_puzzle_enabled);
     assert_eq!(cfg.defence_modes.js, ComposabilityMode::Both);
     assert_eq!(cfg.defence_modes.geo, ComposabilityMode::Both);
     assert_eq!(cfg.defence_modes.rate, ComposabilityMode::Both);
@@ -466,13 +466,13 @@ fn js_effective_mode_is_disabled_when_js_required_enforced_is_false() {
 }
 
 #[test]
-fn challenge_config_mutable_from_env_parses_values() {
-    assert!(challenge_config_mutable_from_env(Some("1")));
-    assert!(challenge_config_mutable_from_env(Some("true")));
-    assert!(challenge_config_mutable_from_env(Some("TRUE")));
-    assert!(!challenge_config_mutable_from_env(Some("0")));
-    assert!(!challenge_config_mutable_from_env(Some("false")));
-    assert!(!challenge_config_mutable_from_env(None));
+fn challenge_puzzle_config_mutable_from_env_parses_values() {
+    assert!(challenge_puzzle_config_mutable_from_env(Some("1")));
+    assert!(challenge_puzzle_config_mutable_from_env(Some("true")));
+    assert!(challenge_puzzle_config_mutable_from_env(Some("TRUE")));
+    assert!(!challenge_puzzle_config_mutable_from_env(Some("0")));
+    assert!(!challenge_puzzle_config_mutable_from_env(Some("false")));
+    assert!(!challenge_puzzle_config_mutable_from_env(None));
 }
 
 #[test]
@@ -498,7 +498,7 @@ fn validate_env_rejects_invalid_optional_enterprise_bool() {
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
         "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
         "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
@@ -518,7 +518,7 @@ fn validate_env_rejects_invalid_optional_enterprise_bool() {
     std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
     std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
     std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "false");
-    std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", "false");
+    std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false");
     std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "false");
     std::env::set_var("SHUMA_ENTERPRISE_MULTI_INSTANCE", "definitely-not-bool");
 
@@ -540,7 +540,7 @@ fn validate_env_rejects_invalid_optional_enterprise_bool() {
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
         "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
         "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
@@ -565,7 +565,7 @@ fn validate_env_rejects_invalid_optional_redis_url() {
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
         "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
         "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
@@ -585,7 +585,7 @@ fn validate_env_rejects_invalid_optional_redis_url() {
     std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
     std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
     std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "false");
-    std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", "false");
+    std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false");
     std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "false");
     std::env::set_var("SHUMA_RATE_LIMITER_REDIS_URL", "https://not-redis.example");
 
@@ -607,7 +607,7 @@ fn validate_env_rejects_invalid_optional_redis_url() {
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
         "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
         "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
@@ -632,7 +632,7 @@ fn validate_env_rejects_invalid_optional_ban_store_redis_url() {
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
         "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
         "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
@@ -652,7 +652,7 @@ fn validate_env_rejects_invalid_optional_ban_store_redis_url() {
     std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
     std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
     std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "false");
-    std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", "false");
+    std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false");
     std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "false");
     std::env::set_var("SHUMA_BAN_STORE_REDIS_URL", "https://not-redis.example");
 
@@ -671,7 +671,7 @@ fn validate_env_rejects_invalid_optional_ban_store_redis_url() {
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
         "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
         "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
@@ -696,7 +696,7 @@ fn validate_env_rejects_invalid_optional_rate_limiter_outage_mode() {
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
         "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
         "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
@@ -716,7 +716,7 @@ fn validate_env_rejects_invalid_optional_rate_limiter_outage_mode() {
     std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
     std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
     std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "false");
-    std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", "false");
+    std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false");
     std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "false");
     std::env::set_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN", "invalid-mode");
 
@@ -738,7 +738,7 @@ fn validate_env_rejects_invalid_optional_rate_limiter_outage_mode() {
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
         "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
         "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
@@ -763,7 +763,7 @@ fn validate_env_accepts_empty_optional_redis_url() {
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
         "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
         "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
@@ -783,7 +783,7 @@ fn validate_env_accepts_empty_optional_redis_url() {
     std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
     std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
     std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "false");
-    std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", "false");
+    std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false");
     std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "false");
     std::env::set_var("SHUMA_RATE_LIMITER_REDIS_URL", "");
 
@@ -801,7 +801,7 @@ fn validate_env_accepts_empty_optional_redis_url() {
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
         "SHUMA_POW_CONFIG_MUTABLE",
-        "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+        "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
         "SHUMA_BOTNESS_CONFIG_MUTABLE",
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
         "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",

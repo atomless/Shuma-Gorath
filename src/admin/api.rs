@@ -326,14 +326,14 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN", "fail_open");
         std::env::set_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH", "fail_closed");
         std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "true");
-        std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", "true");
+        std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "true");
         std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "true");
 
         let store = TestStore::default();
         let mut cfg = crate::config::defaults().clone();
         cfg.rate_limit = 321;
         cfg.honeypot_enabled = false;
-        cfg.challenge_enabled = false;
+        cfg.challenge_puzzle_enabled = false;
         cfg.honeypots = vec!["/trap-a".to_string(), "/trap-b".to_string()];
         cfg.defence_modes.rate = crate::config::ComposabilityMode::Signal;
         cfg.provider_backends.fingerprint_signal = crate::config::ProviderBackend::External;
@@ -370,7 +370,7 @@ mod admin_config_tests {
             Some(&serde_json::json!("false"))
         );
         assert_eq!(
-            env.get("SHUMA_CHALLENGE_ENABLED"),
+            env.get("SHUMA_CHALLENGE_PUZZLE_ENABLED"),
             Some(&serde_json::json!("false"))
         );
         assert_eq!(
@@ -423,7 +423,7 @@ mod admin_config_tests {
         assert!(env_text.contains("SHUMA_MODE_RATE=signal"));
         assert!(env_text.contains("SHUMA_PROVIDER_FINGERPRINT_SIGNAL=external"));
         assert!(env_text.contains("SHUMA_HONEYPOT_ENABLED=false"));
-        assert!(env_text.contains("SHUMA_CHALLENGE_ENABLED=false"));
+        assert!(env_text.contains("SHUMA_CHALLENGE_PUZZLE_ENABLED=false"));
         assert!(env_text.contains("SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE=17"));
         assert!(env_text.contains("SHUMA_RATE_LIMITER_REDIS_URL=redis://redis:6379"));
         assert!(env_text.contains("SHUMA_BAN_STORE_REDIS_URL=redis://redis:6379"));
@@ -443,7 +443,7 @@ mod admin_config_tests {
             "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
             "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
             "SHUMA_POW_CONFIG_MUTABLE",
-            "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+            "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
             "SHUMA_BOTNESS_CONFIG_MUTABLE",
         ]);
     }
@@ -497,18 +497,18 @@ mod admin_config_tests {
     #[test]
     fn admin_config_includes_challenge_fields() {
         let _lock = crate::test_support::lock_env();
-        std::env::remove_var("SHUMA_CHALLENGE_CONFIG_MUTABLE");
+        std::env::remove_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE");
         std::env::remove_var("SHUMA_BOTNESS_CONFIG_MUTABLE");
         let req = make_request(Method::Get, "/admin/config", Vec::new());
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
         let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
-        assert!(body.get("challenge_risk_threshold").is_some());
-        assert!(body.get("challenge_enabled").is_some());
-        assert!(body.get("challenge_config_mutable").is_some());
-        assert!(body.get("challenge_risk_threshold_default").is_some());
-        assert!(body.get("challenge_transform_count").is_some());
+        assert!(body.get("challenge_puzzle_risk_threshold").is_some());
+        assert!(body.get("challenge_puzzle_enabled").is_some());
+        assert!(body.get("challenge_puzzle_config_mutable").is_some());
+        assert!(body.get("challenge_puzzle_risk_threshold_default").is_some());
+        assert!(body.get("challenge_puzzle_transform_count").is_some());
         assert!(body.get("ai_policy_block_training").is_some());
         assert!(body.get("ai_policy_block_search").is_some());
         assert!(body.get("ai_policy_allow_search_engines").is_some());
@@ -535,19 +535,19 @@ mod admin_config_tests {
     #[test]
     fn admin_config_rejects_challenge_update_when_immutable() {
         let _lock = crate::test_support::lock_env();
-        let prior_challenge_mutable = std::env::var("SHUMA_CHALLENGE_CONFIG_MUTABLE").ok();
+        let prior_challenge_mutable = std::env::var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE").ok();
         let prior_botness_mutable = std::env::var("SHUMA_BOTNESS_CONFIG_MUTABLE").ok();
-        std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", "0");
+        std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "0");
         std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "0");
-        let body = br#"{"challenge_risk_threshold":5}"#.to_vec();
+        let body = br#"{"challenge_puzzle_risk_threshold":5}"#.to_vec();
         let req = make_request(Method::Post, "/admin/config", body);
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 403u16);
         if let Some(previous) = prior_challenge_mutable {
-            std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", previous);
+            std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", previous);
         } else {
-            std::env::remove_var("SHUMA_CHALLENGE_CONFIG_MUTABLE");
+            std::env::remove_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE");
         }
         if let Some(previous) = prior_botness_mutable {
             std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", previous);
@@ -1037,77 +1037,77 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn admin_config_updates_challenge_transform_count_when_mutable() {
+    fn admin_config_updates_challenge_puzzle_transform_count_when_mutable() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", "true");
+        std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "true");
         let store = TestStore::default();
 
         let post_req = make_request(
             Method::Post,
             "/admin/config",
-            br#"{"challenge_transform_count":7}"#.to_vec(),
+            br#"{"challenge_puzzle_transform_count":7}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
         assert_eq!(*post_resp.status(), 200u16);
         let post_json: serde_json::Value = serde_json::from_slice(post_resp.body()).unwrap();
         let cfg = post_json.get("config").unwrap();
         assert_eq!(
-            cfg.get("challenge_transform_count"),
+            cfg.get("challenge_puzzle_transform_count"),
             Some(&serde_json::Value::Number(7.into()))
         );
 
         let saved_bytes = store.get("config:default").unwrap().unwrap();
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
-        assert_eq!(saved_cfg.challenge_transform_count, 7);
+        assert_eq!(saved_cfg.challenge_puzzle_transform_count, 7);
 
         clear_env(&[
             "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
-            "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+            "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
         ]);
     }
 
     #[test]
-    fn admin_config_updates_challenge_enabled_when_mutable() {
+    fn admin_config_updates_challenge_puzzle_enabled_when_mutable() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", "true");
+        std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "true");
         let store = TestStore::default();
 
         let post_req = make_request(
             Method::Post,
             "/admin/config",
-            br#"{"challenge_enabled":false}"#.to_vec(),
+            br#"{"challenge_puzzle_enabled":false}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
         assert_eq!(*post_resp.status(), 200u16);
         let post_json: serde_json::Value = serde_json::from_slice(post_resp.body()).unwrap();
         let cfg = post_json.get("config").unwrap();
         assert_eq!(
-            cfg.get("challenge_enabled"),
+            cfg.get("challenge_puzzle_enabled"),
             Some(&serde_json::Value::Bool(false))
         );
 
         let saved_bytes = store.get("config:default").unwrap().unwrap();
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
-        assert!(!saved_cfg.challenge_enabled);
+        assert!(!saved_cfg.challenge_puzzle_enabled);
 
         clear_env(&[
             "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
-            "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+            "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
         ]);
     }
 
     #[test]
-    fn admin_config_rejects_challenge_transform_count_when_immutable() {
+    fn admin_config_rejects_challenge_puzzle_transform_count_when_immutable() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", "false");
+        std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false");
         let store = TestStore::default();
         let post_req = make_request(
             Method::Post,
             "/admin/config",
-            br#"{"challenge_transform_count":7}"#.to_vec(),
+            br#"{"challenge_puzzle_transform_count":7}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
         assert_eq!(*post_resp.status(), 403u16);
@@ -1115,20 +1115,20 @@ mod admin_config_tests {
         assert!(msg.contains("Challenge config is immutable"));
         clear_env(&[
             "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
-            "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+            "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
         ]);
     }
 
     #[test]
-    fn admin_config_rejects_challenge_enabled_when_immutable() {
+    fn admin_config_rejects_challenge_puzzle_enabled_when_immutable() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", "false");
+        std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false");
         let store = TestStore::default();
         let post_req = make_request(
             Method::Post,
             "/admin/config",
-            br#"{"challenge_enabled":false}"#.to_vec(),
+            br#"{"challenge_puzzle_enabled":false}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
         assert_eq!(*post_resp.status(), 403u16);
@@ -1136,28 +1136,28 @@ mod admin_config_tests {
         assert!(msg.contains("Challenge config is immutable"));
         clear_env(&[
             "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
-            "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+            "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
         ]);
     }
 
     #[test]
-    fn admin_config_rejects_challenge_transform_count_out_of_range() {
+    fn admin_config_rejects_challenge_puzzle_transform_count_out_of_range() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", "true");
+        std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "true");
         let store = TestStore::default();
         let post_req = make_request(
             Method::Post,
             "/admin/config",
-            br#"{"challenge_transform_count":9}"#.to_vec(),
+            br#"{"challenge_puzzle_transform_count":9}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
         assert_eq!(*post_resp.status(), 400u16);
         let msg = String::from_utf8_lossy(post_resp.body());
-        assert!(msg.contains("challenge_transform_count out of range"));
+        assert!(msg.contains("challenge_puzzle_transform_count out of range"));
         clear_env(&[
             "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
-            "SHUMA_CHALLENGE_CONFIG_MUTABLE",
+            "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE",
         ]);
     }
 
@@ -1800,7 +1800,7 @@ fn is_cdp_event_reason(reason: &str) -> bool {
 }
 
 fn challenge_threshold_default() -> u8 {
-    crate::config::defaults().challenge_risk_threshold
+    crate::config::defaults().challenge_puzzle_risk_threshold
 }
 
 fn maze_threshold_default() -> u8 {
@@ -1909,8 +1909,8 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
             bool_env(crate::config::pow_config_mutable()).to_string(),
         ),
         (
-            "SHUMA_CHALLENGE_CONFIG_MUTABLE".to_string(),
-            bool_env(crate::config::challenge_config_mutable()).to_string(),
+            "SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE".to_string(),
+            bool_env(crate::config::challenge_puzzle_config_mutable()).to_string(),
         ),
         (
             "SHUMA_BOTNESS_CONFIG_MUTABLE".to_string(),
@@ -1976,16 +1976,16 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
             cfg.pow_ttl_seconds.to_string(),
         ),
         (
-            "SHUMA_CHALLENGE_ENABLED".to_string(),
-            bool_env(cfg.challenge_enabled).to_string(),
+            "SHUMA_CHALLENGE_PUZZLE_ENABLED".to_string(),
+            bool_env(cfg.challenge_puzzle_enabled).to_string(),
         ),
         (
-            "SHUMA_CHALLENGE_TRANSFORM_COUNT".to_string(),
-            cfg.challenge_transform_count.to_string(),
+            "SHUMA_CHALLENGE_PUZZLE_TRANSFORM_COUNT".to_string(),
+            cfg.challenge_puzzle_transform_count.to_string(),
         ),
         (
-            "SHUMA_CHALLENGE_RISK_THRESHOLD".to_string(),
-            cfg.challenge_risk_threshold.to_string(),
+            "SHUMA_CHALLENGE_PUZZLE_RISK_THRESHOLD".to_string(),
+            cfg.challenge_puzzle_risk_threshold.to_string(),
         ),
         (
             "SHUMA_BOTNESS_MAZE_THRESHOLD".to_string(),
@@ -2454,11 +2454,11 @@ fn admin_config_payload(
         serde_json::Value::Bool(crate::config::forwarded_header_trust_configured()),
     );
     obj.insert(
-        "challenge_config_mutable".to_string(),
-        serde_json::Value::Bool(crate::config::challenge_config_mutable()),
+        "challenge_puzzle_config_mutable".to_string(),
+        serde_json::Value::Bool(crate::config::challenge_puzzle_config_mutable()),
     );
     obj.insert(
-        "challenge_risk_threshold_default".to_string(),
+        "challenge_puzzle_risk_threshold_default".to_string(),
         serde_json::Value::Number(challenge_default.into()),
     );
     obj.insert(
@@ -3002,36 +3002,36 @@ fn handle_admin_config(
             );
         }
 
-        let old_challenge_enabled = cfg.challenge_enabled;
-        let old_transform_count = cfg.challenge_transform_count;
+        let old_challenge_puzzle_enabled = cfg.challenge_puzzle_enabled;
+        let old_transform_count = cfg.challenge_puzzle_transform_count;
         let mut challenge_changed = false;
         let challenge_update_requested =
-            json.get("challenge_enabled").is_some() || json.get("challenge_transform_count").is_some();
-        if challenge_update_requested && !crate::config::challenge_config_mutable() {
+            json.get("challenge_puzzle_enabled").is_some() || json.get("challenge_puzzle_transform_count").is_some();
+        if challenge_update_requested && !crate::config::challenge_puzzle_config_mutable() {
             return Response::new(
                 403,
-                "Challenge config is immutable (set SHUMA_CHALLENGE_CONFIG_MUTABLE=true to allow changes)",
+                "Challenge config is immutable (set SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE=true to allow changes)",
             );
         }
-        if let Some(challenge_enabled) = json.get("challenge_enabled").and_then(|v| v.as_bool()) {
-            if cfg.challenge_enabled != challenge_enabled {
-                cfg.challenge_enabled = challenge_enabled;
+        if let Some(challenge_puzzle_enabled) = json.get("challenge_puzzle_enabled").and_then(|v| v.as_bool()) {
+            if cfg.challenge_puzzle_enabled != challenge_puzzle_enabled {
+                cfg.challenge_puzzle_enabled = challenge_puzzle_enabled;
                 changed = true;
                 challenge_changed = true;
             }
         }
         if let Some(transform_count) = json
-            .get("challenge_transform_count")
+            .get("challenge_puzzle_transform_count")
             .and_then(|v| v.as_u64())
         {
             if !(CHALLENGE_TRANSFORM_COUNT_MIN..=CHALLENGE_TRANSFORM_COUNT_MAX)
                 .contains(&transform_count)
             {
-                return Response::new(400, "challenge_transform_count out of range (4-8)");
+                return Response::new(400, "challenge_puzzle_transform_count out of range (4-8)");
             }
             let next = transform_count as u8;
-            if cfg.challenge_transform_count != next {
-                cfg.challenge_transform_count = next;
+            if cfg.challenge_puzzle_transform_count != next {
+                cfg.challenge_puzzle_transform_count = next;
                 changed = true;
                 challenge_changed = true;
             }
@@ -3046,10 +3046,10 @@ fn handle_admin_config(
                     reason: Some("challenge_config_update".to_string()),
                     outcome: Some(format!(
                         "enabled:{}->{} transform_count:{}->{}",
-                        old_challenge_enabled,
-                        cfg.challenge_enabled,
+                        old_challenge_puzzle_enabled,
+                        cfg.challenge_puzzle_enabled,
                         old_transform_count,
-                        cfg.challenge_transform_count
+                        cfg.challenge_puzzle_transform_count
                     )),
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
@@ -3174,11 +3174,11 @@ fn handle_admin_config(
 
         let botness_mutable = crate::config::botness_config_mutable();
         let mut botness_changed = false;
-        let old_challenge_threshold = cfg.challenge_risk_threshold;
+        let old_challenge_threshold = cfg.challenge_puzzle_risk_threshold;
         let old_maze_threshold = cfg.botness_maze_threshold;
         let old_weights = cfg.botness_weights.clone();
         let old_modes = cfg.defence_modes.clone();
-        let botness_update_requested = json.get("challenge_risk_threshold").is_some()
+        let botness_update_requested = json.get("challenge_puzzle_risk_threshold").is_some()
             || json.get("botness_maze_threshold").is_some()
             || json.get("botness_weights").is_some()
             || json.get("defence_modes").is_some();
@@ -3189,13 +3189,13 @@ fn handle_admin_config(
             );
         }
         if let Some(challenge_threshold) = json
-            .get("challenge_risk_threshold")
+            .get("challenge_puzzle_risk_threshold")
             .and_then(|v| v.as_u64())
         {
             if challenge_threshold < 1 || challenge_threshold > 10 {
-                return Response::new(400, "challenge_risk_threshold out of range (1-10)");
+                return Response::new(400, "challenge_puzzle_risk_threshold out of range (1-10)");
             }
-            cfg.challenge_risk_threshold = challenge_threshold as u8;
+            cfg.challenge_puzzle_risk_threshold = challenge_threshold as u8;
             changed = true;
             botness_changed = true;
         }
@@ -3300,7 +3300,7 @@ fn handle_admin_config(
                     outcome: Some(format!(
                         "challenge:{}->{} maze:{}->{} weights(js:{}->{} geo:{}->{} rate_med:{}->{} rate_high:{}->{} maze_behavior:{}->{}) modes(rate:{:?}->{:?} geo:{:?}->{:?} js:{:?}->{:?})",
                         old_challenge_threshold,
-                        cfg.challenge_risk_threshold,
+                        cfg.challenge_puzzle_risk_threshold,
                         old_maze_threshold,
                         cfg.botness_maze_threshold,
                         old_weights.js_required,

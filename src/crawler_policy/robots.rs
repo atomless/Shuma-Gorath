@@ -277,8 +277,8 @@ mod tests {
         cfg.pow_enabled = true;
         cfg.pow_difficulty = crate::config::POW_DIFFICULTY_MIN;
         cfg.pow_ttl_seconds = crate::config::POW_TTL_MIN;
-        cfg.challenge_transform_count = 6;
-        cfg.challenge_risk_threshold = 3;
+        cfg.challenge_puzzle_transform_count = 6;
+        cfg.challenge_puzzle_risk_threshold = 3;
         cfg.botness_maze_threshold = 6;
         cfg.botness_weights = crate::config::BotnessWeights::default();
         cfg.defence_modes = crate::config::DefenceModes::default();

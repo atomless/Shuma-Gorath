@@ -300,7 +300,7 @@ fn invalid_bool_env_returns_500_without_panicking() {
     std::env::set_var("SHUMA_ENFORCE_HTTPS", "not-a-bool");
     std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
     std::env::set_var("SHUMA_POW_CONFIG_MUTABLE", "false");
-    std::env::set_var("SHUMA_CHALLENGE_CONFIG_MUTABLE", "false");
+    std::env::set_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE", "false");
     std::env::set_var("SHUMA_BOTNESS_CONFIG_MUTABLE", "false");
 
     let req = crate::test_support::request_with_method_and_headers(Method::Get, "/health", &[]);
@@ -324,7 +324,7 @@ fn invalid_bool_env_returns_500_without_panicking() {
     std::env::remove_var("SHUMA_ENFORCE_HTTPS");
     std::env::remove_var("SHUMA_DEBUG_HEADERS");
     std::env::remove_var("SHUMA_POW_CONFIG_MUTABLE");
-    std::env::remove_var("SHUMA_CHALLENGE_CONFIG_MUTABLE");
+    std::env::remove_var("SHUMA_CHALLENGE_PUZZLE_CONFIG_MUTABLE");
     std::env::remove_var("SHUMA_BOTNESS_CONFIG_MUTABLE");
 }
 
