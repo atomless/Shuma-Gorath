@@ -1,6 +1,8 @@
 // @ts-check
 
-(function (global) {
+import { escapeHtml } from './core/format.js';
+import { writableStatusVarPaths } from './config-schema.js';
+
   const state = {
     failMode: 'unknown',
     httpsEnforced: false,
@@ -30,104 +32,7 @@
     configSnapshot: {}
   };
 
-  const WRITABLE_VAR_PATHS = new Set([
-    'test_mode',
-    'ban_duration',
-    'ban_durations.honeypot',
-    'ban_durations.rate_limit',
-    'ban_durations.browser',
-    'ban_durations.admin',
-    'ban_durations.cdp',
-    'rate_limit',
-    'honeypot_enabled',
-    'honeypots',
-    'browser_block',
-    'browser_whitelist',
-    'geo_risk',
-    'geo_allow',
-    'geo_challenge',
-    'geo_maze',
-    'geo_block',
-    'whitelist',
-    'path_whitelist',
-    'maze_enabled',
-    'maze_auto_ban',
-    'maze_auto_ban_threshold',
-    'maze_rollout_phase',
-    'maze_token_ttl_seconds',
-    'maze_token_max_depth',
-    'maze_token_branch_budget',
-    'maze_replay_ttl_seconds',
-    'maze_entropy_window_seconds',
-    'maze_client_expansion_enabled',
-    'maze_checkpoint_every_nodes',
-    'maze_checkpoint_every_ms',
-    'maze_step_ahead_max',
-    'maze_no_js_fallback_max_depth',
-    'maze_micro_pow_enabled',
-    'maze_micro_pow_depth_start',
-    'maze_micro_pow_base_difficulty',
-    'maze_max_concurrent_global',
-    'maze_max_concurrent_per_ip_bucket',
-    'maze_max_response_bytes',
-    'maze_max_response_duration_ms',
-    'maze_server_visible_links',
-    'maze_max_links',
-    'maze_max_paragraphs',
-    'maze_path_entropy_segment_len',
-    'maze_covert_decoys_enabled',
-    'maze_seed_provider',
-    'maze_seed_refresh_interval_seconds',
-    'maze_seed_refresh_rate_limit_per_hour',
-    'maze_seed_refresh_max_sources',
-    'maze_seed_metadata_only',
-    'robots_enabled',
-    'robots_block_ai_training',
-    'robots_block_ai_search',
-    'robots_allow_search_engines',
-    'ai_policy_block_training',
-    'ai_policy_block_search',
-    'ai_policy_allow_search_engines',
-    'robots_crawl_delay',
-    'cdp_detection_enabled',
-    'cdp_auto_ban',
-    'cdp_detection_threshold',
-    'cdp_probe_family',
-    'cdp_probe_rollout_percent',
-    'fingerprint_signal_enabled',
-    'fingerprint_state_ttl_seconds',
-    'fingerprint_flow_window_seconds',
-    'fingerprint_flow_violation_threshold',
-    'fingerprint_pseudonymize',
-    'fingerprint_entropy_budget',
-    'fingerprint_family_cap_header_runtime',
-    'fingerprint_family_cap_transport',
-    'fingerprint_family_cap_temporal',
-    'fingerprint_family_cap_persistence',
-    'fingerprint_family_cap_behavior',
-    'js_required_enforced',
-    'pow_enabled',
-    'pow_difficulty',
-    'pow_ttl_seconds',
-    'challenge_puzzle_enabled',
-    'challenge_puzzle_transform_count',
-    'challenge_puzzle_risk_threshold',
-    'botness_maze_threshold',
-    'botness_weights.js_required',
-    'botness_weights.geo_risk',
-    'botness_weights.rate_medium',
-    'botness_weights.rate_high',
-    'botness_weights.maze_behavior',
-    'defence_modes.rate',
-    'defence_modes.geo',
-    'defence_modes.js',
-    'provider_backends.rate_limiter',
-    'provider_backends.ban_store',
-    'provider_backends.challenge_engine',
-    'provider_backends.maze_tarpit',
-    'provider_backends.fingerprint_signal',
-    'edge_integration_mode'
-  ]);
+  const WRITABLE_VAR_PATHS = new Set(writableStatusVarPaths || []);
 
   const VAR_MEANINGS = Object.freeze({
     test_mode: 'Logs detections/actions without enforcing blocks.',
@@ -329,7 +234,7 @@
     return `<code class="env-var">${name}</code>`;
   }
 
-  function normalizeFailMode(value) {
+  export function normalizeFailMode(value) {
     const mode = (value || 'unknown').toString().toLowerCase();
     if (mode === 'open' || mode === 'closed') return mode;
     return 'unknown';
@@ -337,15 +242,6 @@
 
   function boolStatus(enabled) {
     return enabled ? 'ENABLED' : 'DISABLED';
-  }
-
-  function escapeHtml(value) {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
   }
 
   function cloneConfigSnapshot(configSnapshot) {
@@ -535,7 +431,7 @@
     }
   ];
 
-  function update(patch = {}) {
+  export function update(patch = {}) {
     if (!patch || typeof patch !== 'object') return getState();
     if (Object.prototype.hasOwnProperty.call(patch, 'configSnapshot')) {
       state.configSnapshot = cloneConfigSnapshot(patch.configSnapshot);
@@ -555,7 +451,7 @@
     return getState();
   }
 
-  function getState() {
+  export function getState() {
     return {
       ...state,
       botnessWeights: { ...state.botnessWeights },
@@ -663,16 +559,8 @@
     }).join('');
   }
 
-  function render() {
+  export function render() {
     const snapshot = getState();
     renderFeatureStatus(snapshot);
     renderVariableInventory(snapshot);
   }
-
-  global.ShumaDashboardStatus = {
-    update,
-    getState,
-    render,
-    normalizeFailMode
-  };
-})(window);

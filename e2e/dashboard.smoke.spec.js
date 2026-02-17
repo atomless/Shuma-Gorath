@@ -305,6 +305,29 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
   await expect(page.locator('[data-tab-state="ip-bans"]')).toContainText("No active bans.");
 });
 
+test("status/config/tuning show empty state when config snapshot is empty", async ({ page }) => {
+  await page.route("**/admin/config", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({})
+    });
+  });
+
+  await openDashboard(page, { initialTab: "status" });
+  await expect(page.locator('[data-tab-state="status"]')).toContainText("No status config snapshot available yet.");
+
+  await openTab(page, "config");
+  await expect(page.locator('[data-tab-state="config"]')).toContainText("No config snapshot available yet.");
+
+  await openTab(page, "tuning");
+  await expect(page.locator('[data-tab-state="tuning"]')).toContainText("No tuning config snapshot available yet.");
+});
+
 test("dashboard loads and shows seeded operational data", async ({ page }) => {
   await openDashboard(page);
   await assertChartsFillPanels(page);
@@ -623,6 +646,115 @@ test("tab keyboard navigation updates hash and selected state", async ({ page })
   await assertActiveTabPanelVisibility(page, "monitoring");
 });
 
+test("tab states surface loading and data-ready transitions across all tabs", async ({ page }) => {
+  await openDashboard(page);
+
+  const delayPassThrough = async (route, ms = 450) => {
+    const upstream = await route.fetch();
+    await page.waitForTimeout(ms);
+    await route.fulfill({ response: upstream });
+  };
+
+  await page.route("**/admin/config", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    await delayPassThrough(route);
+  }, { times: 3 });
+
+  await openTab(page, "status");
+  await expect(page.locator('[data-tab-state="status"]')).toContainText("Loading status signals...");
+  await expect(page.locator('[data-tab-state="status"]')).toBeHidden();
+
+  await openTab(page, "config");
+  await expect(page.locator('[data-tab-state="config"]')).toContainText("Loading config...");
+  await expect(page.locator('[data-tab-state="config"]')).toBeHidden();
+
+  await openTab(page, "tuning");
+  await expect(page.locator('[data-tab-state="tuning"]')).toContainText("Loading tuning values...");
+  await expect(page.locator('[data-tab-state="tuning"]')).toBeHidden();
+
+  await page.route("**/admin/ban", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    await page.waitForTimeout(450);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        bans: [
+          {
+            ip: "198.51.100.250",
+            reason: "manual_ban",
+            banned_at: Math.floor(Date.now() / 1000) - 60,
+            expires: Math.floor(Date.now() / 1000) + 3600,
+            fingerprint: { signals: ["ua_transport_mismatch"], score: 4, summary: "seeded row" }
+          }
+        ]
+      })
+    });
+  }, { times: 1 });
+
+  await openTab(page, "ip-bans");
+  await expect(page.locator('[data-tab-state="ip-bans"]')).toContainText("Loading ban list...");
+  await expect(page.locator("#bans-table tbody")).toContainText("198.51.100.250");
+  await expect(page.locator('[data-tab-state="ip-bans"]')).toBeHidden();
+
+  await page.route("**/admin/analytics", async (route) => {
+    await delayPassThrough(route);
+  }, { times: 1 });
+
+  await openTab(page, "monitoring");
+  await expect(page.locator('[data-tab-state="monitoring"]')).toContainText("Loading monitoring data...");
+  await expect(page.locator('[data-tab-state="monitoring"]')).toBeHidden();
+});
+
+test("config save roundtrip clears dirty state after successful write", async ({ page }) => {
+  await openDashboard(page);
+  await openTab(page, "config");
+
+  const jsRequiredToggle = page.locator("#js-required-enforced-toggle");
+  const jsRequiredSave = page.locator("#save-js-required-config");
+  if (!(await jsRequiredToggle.isVisible()) || !(await jsRequiredToggle.isEnabled())) {
+    await expect(jsRequiredSave).toBeDisabled();
+    return;
+  }
+
+  const initial = await jsRequiredToggle.isChecked();
+  await jsRequiredToggle.click();
+  await expect(jsRequiredSave).toBeEnabled();
+
+  await Promise.all([
+    page.waitForResponse((resp) => (
+      resp.url().includes("/admin/config") &&
+      resp.request().method() === "POST" &&
+      resp.status() >= 200 &&
+      resp.status() < 300
+    )),
+    jsRequiredSave.click()
+  ]);
+  await expect(page.locator("#admin-msg")).toContainText("JS Required setting saved");
+  await expect(jsRequiredSave).toBeDisabled();
+
+  if (initial !== await jsRequiredToggle.isChecked()) {
+    await jsRequiredToggle.click();
+    await expect(jsRequiredSave).toBeEnabled();
+    await Promise.all([
+      page.waitForResponse((resp) => (
+        resp.url().includes("/admin/config") &&
+        resp.request().method() === "POST" &&
+        resp.status() >= 200 &&
+        resp.status() < 300
+      )),
+      jsRequiredSave.click()
+    ]);
+    await expect(jsRequiredSave).toBeDisabled();
+  }
+});
+
 test("tab error state is surfaced when tab-scoped fetch fails", async ({ page }) => {
   await openDashboard(page);
 
@@ -637,6 +769,36 @@ test("tab error state is surfaced when tab-scoped fetch fails", async ({ page })
   await openTab(page, "ip-bans");
   await expect(page.locator('[data-tab-state="ip-bans"]')).toContainText("temporary ban endpoint outage");
   await page.unroute("**/admin/ban");
+});
+
+test("shared config endpoint failures surface per-tab errors for status/config/tuning", async ({ page }) => {
+  await openDashboard(page);
+
+  const failConfigOnce = async (message) => {
+    await page.route("**/admin/config", async (route) => {
+      if (route.request().method() !== "GET") {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: message })
+      });
+    }, { times: 1 });
+  };
+
+  await failConfigOnce("status endpoint outage");
+  await openTab(page, "status");
+  await expect(page.locator('[data-tab-state="status"]')).toContainText("status endpoint outage");
+
+  await failConfigOnce("config endpoint outage");
+  await openTab(page, "config");
+  await expect(page.locator('[data-tab-state="config"]')).toContainText("config endpoint outage");
+
+  await failConfigOnce("tuning endpoint outage");
+  await openTab(page, "tuning");
+  await expect(page.locator('[data-tab-state="tuning"]')).toContainText("tuning endpoint outage");
 });
 
 test("logout redirects back to login page", async ({ page }) => {

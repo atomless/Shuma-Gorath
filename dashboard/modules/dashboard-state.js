@@ -1,210 +1,315 @@
 // @ts-check
 
-(function (global) {
-  const DASHBOARD_TABS = Object.freeze(['monitoring', 'ip-bans', 'status', 'config', 'tuning']);
-  const DEFAULT_TAB = 'monitoring';
+export const DASHBOARD_TABS = Object.freeze(['monitoring', 'ip-bans', 'status', 'config', 'tuning']);
+export const DEFAULT_TAB = 'monitoring';
 
-  /**
-   * @param {string} raw
-   * @returns {string}
-   */
-  function normalizeTab(raw) {
-    const tab = String(raw || '').trim().toLowerCase();
-    return DASHBOARD_TABS.includes(tab) ? tab : DEFAULT_TAB;
-  }
+const SNAPSHOT_KEYS = Object.freeze([
+  'analytics',
+  'events',
+  'bans',
+  'maze',
+  'cdp',
+  'cdpEvents',
+  'monitoring',
+  'config'
+]);
 
-  function createTabFlags(initialValue) {
-    const next = {};
-    DASHBOARD_TABS.forEach((tab) => {
-      next[tab] = Boolean(initialValue);
-    });
-    return next;
-  }
+const TAB_STATUS_DEFAULT = Object.freeze({
+  loading: false,
+  error: '',
+  empty: false,
+  updatedAt: ''
+});
 
-  function createTabStatusState() {
-    const state = {};
-    DASHBOARD_TABS.forEach((tab) => {
-      state[tab] = {
-        loading: false,
-        error: '',
-        empty: false,
-        updatedAt: ''
-      };
-    });
-    return state;
-  }
+const INVALIDATION_SCOPES = Object.freeze({
+  all: DASHBOARD_TABS,
+  monitoring: ['monitoring'],
+  'ip-bans': ['ip-bans'],
+  status: ['status'],
+  config: ['config'],
+  tuning: ['tuning'],
+  securityConfig: ['status', 'config', 'tuning']
+});
 
-  function create(options = {}) {
-    const initialTab = normalizeTab(options.initialTab || DEFAULT_TAB);
+const cloneTabFlags = (value) => {
+  const next = {};
+  DASHBOARD_TABS.forEach((tab) => {
+    next[tab] = Boolean(value);
+  });
+  return next;
+};
 
-    const state = {
-      activeTab: initialTab,
-      stale: createTabFlags(true),
-      session: {
-        authenticated: false,
-        csrfToken: ''
-      },
-      snapshots: {
-        analytics: null,
-        events: null,
-        bans: null,
-        maze: null,
-        cdp: null,
-        cdpEvents: null,
-        monitoring: null,
-        config: null
-      },
-      tabStatus: createTabStatusState()
-    };
+const createTabStatusState = () => {
+  const next = {};
+  DASHBOARD_TABS.forEach((tab) => {
+    next[tab] = { ...TAB_STATUS_DEFAULT };
+  });
+  return next;
+};
 
-    const invalidationScopes = Object.freeze({
-      all: DASHBOARD_TABS,
-      monitoring: ['monitoring'],
-      'ip-bans': ['ip-bans'],
-      status: ['status'],
-      config: ['config'],
-      tuning: ['tuning'],
-      securityConfig: ['status', 'config', 'tuning']
-    });
+export const normalizeTab = (raw) => {
+  const tab = String(raw || '').trim().toLowerCase();
+  return DASHBOARD_TABS.includes(tab) ? tab : DEFAULT_TAB;
+};
 
-    function setActiveTab(tabName) {
-      state.activeTab = normalizeTab(tabName);
-    }
+export const createInitialState = (initialTab = DEFAULT_TAB) => ({
+  activeTab: normalizeTab(initialTab),
+  stale: cloneTabFlags(true),
+  session: {
+    authenticated: false,
+    csrfToken: ''
+  },
+  snapshots: {
+    analytics: null,
+    events: null,
+    bans: null,
+    maze: null,
+    cdp: null,
+    cdpEvents: null,
+    monitoring: null,
+    config: null
+  },
+  tabStatus: createTabStatusState()
+});
 
-    function getActiveTab() {
-      return state.activeTab;
-    }
+const timestampNow = () => new Date().toISOString();
 
-    function setSession(nextSession = {}) {
-      state.session = {
-        authenticated: nextSession.authenticated === true,
-        csrfToken: nextSession.authenticated === true ? String(nextSession.csrfToken || '') : ''
-      };
-    }
-
-    function getSession() {
+export const reduceState = (prevState, event = {}) => {
+  const prev = prevState || createInitialState();
+  const type = String(event.type || 'noop');
+  switch (type) {
+    case 'set-active-tab': {
       return {
-        authenticated: state.session.authenticated,
-        csrfToken: state.session.csrfToken
+        ...prev,
+        activeTab: normalizeTab(event.tab)
       };
     }
-
-    function setSnapshot(key, value) {
-      if (!Object.prototype.hasOwnProperty.call(state.snapshots, key)) return;
-      state.snapshots[key] = value;
+    case 'set-session': {
+      const authenticated = event.session && event.session.authenticated === true;
+      const csrfToken = authenticated ? String(event.session.csrfToken || '') : '';
+      return {
+        ...prev,
+        session: {
+          authenticated,
+          csrfToken
+        }
+      };
     }
-
-    function getSnapshot(key) {
-      return Object.prototype.hasOwnProperty.call(state.snapshots, key) ? state.snapshots[key] : null;
+    case 'set-snapshot': {
+      const key = String(event.key || '');
+      if (!SNAPSHOT_KEYS.includes(key)) return prev;
+      return {
+        ...prev,
+        snapshots: {
+          ...prev.snapshots,
+          [key]: event.value
+        }
+      };
     }
-
-    function setTabLoading(tabName, loading) {
-      const tab = normalizeTab(tabName);
-      state.tabStatus[tab].loading = Boolean(loading);
-      if (loading) state.tabStatus[tab].error = '';
+    case 'set-tab-loading': {
+      const tab = normalizeTab(event.tab);
+      const loading = event.loading === true;
+      return {
+        ...prev,
+        tabStatus: {
+          ...prev.tabStatus,
+          [tab]: {
+            ...prev.tabStatus[tab],
+            loading,
+            error: loading ? '' : prev.tabStatus[tab].error
+          }
+        }
+      };
     }
-
-    function setTabError(tabName, message) {
-      const tab = normalizeTab(tabName);
-      state.tabStatus[tab].error = String(message || '');
-      state.tabStatus[tab].loading = false;
-      state.tabStatus[tab].updatedAt = new Date().toISOString();
+    case 'set-tab-error': {
+      const tab = normalizeTab(event.tab);
+      return {
+        ...prev,
+        tabStatus: {
+          ...prev.tabStatus,
+          [tab]: {
+            ...prev.tabStatus[tab],
+            error: String(event.message || ''),
+            loading: false,
+            updatedAt: String(event.updatedAt || timestampNow())
+          }
+        }
+      };
     }
-
-    function clearTabError(tabName) {
-      const tab = normalizeTab(tabName);
-      state.tabStatus[tab].error = '';
+    case 'clear-tab-error': {
+      const tab = normalizeTab(event.tab);
+      return {
+        ...prev,
+        tabStatus: {
+          ...prev.tabStatus,
+          [tab]: {
+            ...prev.tabStatus[tab],
+            error: ''
+          }
+        }
+      };
     }
-
-    function setTabEmpty(tabName, empty) {
-      const tab = normalizeTab(tabName);
-      state.tabStatus[tab].empty = Boolean(empty);
+    case 'set-tab-empty': {
+      const tab = normalizeTab(event.tab);
+      return {
+        ...prev,
+        tabStatus: {
+          ...prev.tabStatus,
+          [tab]: {
+            ...prev.tabStatus[tab],
+            empty: event.empty === true
+          }
+        }
+      };
     }
-
-    function markTabUpdated(tabName) {
-      const tab = normalizeTab(tabName);
-      state.tabStatus[tab].updatedAt = new Date().toISOString();
-      state.tabStatus[tab].loading = false;
-      state.tabStatus[tab].error = '';
-      state.stale[tab] = false;
+    case 'mark-tab-updated': {
+      const tab = normalizeTab(event.tab);
+      return {
+        ...prev,
+        stale: {
+          ...prev.stale,
+          [tab]: false
+        },
+        tabStatus: {
+          ...prev.tabStatus,
+          [tab]: {
+            ...prev.tabStatus[tab],
+            loading: false,
+            error: '',
+            updatedAt: String(event.updatedAt || timestampNow())
+          }
+        }
+      };
     }
-
-    /**
-     * Explicit invalidation rules:
-     * - `monitoring`: stats/charts/events/maze summaries
-     * - `ip-bans`: bans table and quick actions
-     * - `status|config|tuning`: shared config snapshot consumers
-     * - `securityConfig`: alias for status+config+tuning invalidation after config writes
-     * - `all`: complete dashboard invalidation
-     *
-     * @param {string} scope
-     */
-    function invalidate(scope = 'all') {
-      const tabs = invalidationScopes[scope] || invalidationScopes.all;
+    case 'invalidate': {
+      const scope = String(event.scope || 'all');
+      const tabs = INVALIDATION_SCOPES[scope] || INVALIDATION_SCOPES.all;
+      const stale = { ...prev.stale };
       tabs.forEach((tab) => {
-        state.stale[tab] = true;
+        stale[tab] = true;
       });
-    }
-
-    function isTabStale(tabName) {
-      const tab = normalizeTab(tabName);
-      return state.stale[tab] === true;
-    }
-
-    function getTabStatus(tabName) {
-      const tab = normalizeTab(tabName);
       return {
-        loading: state.tabStatus[tab].loading,
-        error: state.tabStatus[tab].error,
-        empty: state.tabStatus[tab].empty,
-        updatedAt: state.tabStatus[tab].updatedAt,
-        stale: state.stale[tab] === true
+        ...prev,
+        stale
       };
     }
-
-    function getDerivedState() {
-      const analytics = state.snapshots.analytics || {};
-      const events = state.snapshots.events || {};
-      const bans = state.snapshots.bans || {};
-      const maze = state.snapshots.maze || {};
-      const monitoringEmpty =
-        (Array.isArray(events.recent_events) ? events.recent_events.length : 0) === 0 &&
-        (Array.isArray(bans.bans) ? bans.bans.length : 0) === 0 &&
-        Number(maze.total_hits || 0) === 0;
-
-      return {
-        monitoringEmpty,
-        hasConfigSnapshot: Boolean(state.snapshots.config),
-        activeTab: state.activeTab
-      };
-    }
-
-    return {
-      DASHBOARD_TABS,
-      DEFAULT_TAB,
-      normalizeTab,
-      setActiveTab,
-      getActiveTab,
-      setSession,
-      getSession,
-      setSnapshot,
-      getSnapshot,
-      setTabLoading,
-      setTabError,
-      clearTabError,
-      setTabEmpty,
-      markTabUpdated,
-      invalidate,
-      isTabStale,
-      getTabStatus,
-      getDerivedState
-    };
+    default:
+      return prev;
   }
+};
 
-  global.ShumaDashboardState = {
-    create,
-    normalizeTab,
-    DASHBOARD_TABS,
-    DEFAULT_TAB
+const deriveMonitoringEmpty = (state) => {
+  const events = state.snapshots.events || {};
+  const bans = state.snapshots.bans || {};
+  const maze = state.snapshots.maze || {};
+  return (
+    (Array.isArray(events.recent_events) ? events.recent_events.length : 0) === 0 &&
+    (Array.isArray(bans.bans) ? bans.bans.length : 0) === 0 &&
+    Number(maze.total_hits || 0) === 0
+  );
+};
+
+export const create = (options = {}) => {
+  let state = createInitialState(options.initialTab || DEFAULT_TAB);
+
+  const apply = (event) => {
+    state = reduceState(state, event);
+    return state;
   };
-})(window);
+
+  const getState = () => state;
+
+  const setActiveTab = (tabName) => {
+    apply({ type: 'set-active-tab', tab: tabName });
+  };
+
+  const getActiveTab = () => state.activeTab;
+
+  const setSession = (nextSession = {}) => {
+    apply({ type: 'set-session', session: nextSession });
+  };
+
+  const getSession = () => ({
+    authenticated: state.session.authenticated,
+    csrfToken: state.session.csrfToken
+  });
+
+  const setSnapshot = (key, value) => {
+    apply({ type: 'set-snapshot', key, value });
+  };
+
+  const getSnapshot = (key) => {
+    if (!Object.prototype.hasOwnProperty.call(state.snapshots, key)) return null;
+    return state.snapshots[key];
+  };
+
+  const setTabLoading = (tabName, loading) => {
+    apply({ type: 'set-tab-loading', tab: tabName, loading });
+  };
+
+  const setTabError = (tabName, message) => {
+    apply({ type: 'set-tab-error', tab: tabName, message });
+  };
+
+  const clearTabError = (tabName) => {
+    apply({ type: 'clear-tab-error', tab: tabName });
+  };
+
+  const setTabEmpty = (tabName, empty) => {
+    apply({ type: 'set-tab-empty', tab: tabName, empty });
+  };
+
+  const markTabUpdated = (tabName) => {
+    apply({ type: 'mark-tab-updated', tab: tabName });
+  };
+
+  const invalidate = (scope = 'all') => {
+    apply({ type: 'invalidate', scope });
+  };
+
+  const isTabStale = (tabName) => {
+    const tab = normalizeTab(tabName);
+    return state.stale[tab] === true;
+  };
+
+  const getTabStatus = (tabName) => {
+    const tab = normalizeTab(tabName);
+    return {
+      loading: state.tabStatus[tab].loading,
+      error: state.tabStatus[tab].error,
+      empty: state.tabStatus[tab].empty,
+      updatedAt: state.tabStatus[tab].updatedAt,
+      stale: state.stale[tab] === true
+    };
+  };
+
+  const getDerivedState = () => ({
+    monitoringEmpty: deriveMonitoringEmpty(state),
+    hasConfigSnapshot: Boolean(state.snapshots.config),
+    activeTab: state.activeTab
+  });
+
+  return {
+    DASHBOARD_TABS,
+    DEFAULT_TAB,
+    normalizeTab,
+    createInitialState,
+    reduceState,
+    getState,
+    setActiveTab,
+    getActiveTab,
+    setSession,
+    getSession,
+    setSnapshot,
+    getSnapshot,
+    setTabLoading,
+    setTabError,
+    clearTabError,
+    setTabEmpty,
+    markTabUpdated,
+    invalidate,
+    isTabStale,
+    getTabStatus,
+    getDerivedState
+  };
+};

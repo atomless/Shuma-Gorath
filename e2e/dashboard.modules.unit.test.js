@@ -3,14 +3,20 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { pathToFileURL } = require('node:url');
 
-function loadBrowserModule(relativePath, overrides = {}) {
+const CHART_LITE_PATH = 'dashboard/assets/vendor/chart-lite-1.0.0.min.js';
+
+function loadClassicBrowserScript(relativePath, overrides = {}) {
   const absolutePath = path.resolve(__dirname, '..', relativePath);
   const source = fs.readFileSync(absolutePath, 'utf8');
   const sandbox = {
     window: {
       ...overrides
     },
+    document: overrides.document,
+    location: overrides.location,
+    navigator: overrides.navigator,
     fetch: overrides.fetch || (typeof fetch === 'undefined' ? undefined : fetch),
     console,
     URL,
@@ -18,10 +24,95 @@ function loadBrowserModule(relativePath, overrides = {}) {
     Request: typeof Request === 'undefined' ? function RequestShim() {} : Request,
     Response: typeof Response === 'undefined' ? function ResponseShim() {} : Response
   };
+  if (sandbox.document && !sandbox.window.document) {
+    sandbox.window.document = sandbox.document;
+  }
+  if (sandbox.location && !sandbox.window.location) {
+    sandbox.window.location = sandbox.location;
+  }
+  if (sandbox.navigator && !sandbox.window.navigator) {
+    sandbox.window.navigator = sandbox.navigator;
+  }
   sandbox.globalThis = sandbox.window;
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox, { filename: absolutePath });
   return sandbox.window;
+}
+
+function setGlobalValue(key, value) {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, key);
+  Object.defineProperty(globalThis, key, {
+    configurable: true,
+    writable: true,
+    value
+  });
+  return () => {
+    if (descriptor) {
+      Object.defineProperty(globalThis, key, descriptor);
+    } else {
+      delete globalThis[key];
+    }
+  };
+}
+
+async function withBrowserGlobals(overrides = {}, fn) {
+  const defaultLocation = {
+    origin: 'http://127.0.0.1:3000',
+    pathname: '/dashboard/index.html',
+    search: '',
+    hash: ''
+  };
+  const defaultHistory = {
+    replaceState: () => {}
+  };
+  const defaultDocument = {
+    getElementById: () => null,
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    createElement: () => ({ innerHTML: '', classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } } })
+  };
+
+  const windowValue = {
+    ...(overrides.window || {}),
+    location: overrides.location || (overrides.window && overrides.window.location) || defaultLocation,
+    history: overrides.history || (overrides.window && overrides.window.history) || defaultHistory,
+    document: overrides.document || (overrides.window && overrides.window.document) || defaultDocument,
+    navigator: overrides.navigator || (overrides.window && overrides.window.navigator) || {},
+    fetch: overrides.fetch || (overrides.window && overrides.window.fetch) || globalThis.fetch,
+    setTimeout,
+    clearTimeout,
+    requestAnimationFrame:
+      overrides.requestAnimationFrame ||
+      (overrides.window && overrides.window.requestAnimationFrame) ||
+      ((cb) => setTimeout(cb, 0))
+  };
+
+  const restoreFns = [];
+  restoreFns.push(setGlobalValue('window', windowValue));
+  restoreFns.push(setGlobalValue('document', windowValue.document));
+  restoreFns.push(setGlobalValue('location', windowValue.location));
+  restoreFns.push(setGlobalValue('history', windowValue.history));
+  restoreFns.push(setGlobalValue('navigator', windowValue.navigator));
+  if (windowValue.fetch) {
+    restoreFns.push(setGlobalValue('fetch', windowValue.fetch));
+  }
+  restoreFns.push(setGlobalValue('URL', URL));
+  if (typeof Headers !== 'undefined') restoreFns.push(setGlobalValue('Headers', Headers));
+  if (typeof Request !== 'undefined') restoreFns.push(setGlobalValue('Request', Request));
+  if (typeof Response !== 'undefined') restoreFns.push(setGlobalValue('Response', Response));
+
+  try {
+    return await fn();
+  } finally {
+    restoreFns.reverse().forEach((restore) => restore());
+  }
+}
+
+async function importBrowserModule(relativePath) {
+  const absolutePath = path.resolve(__dirname, '..', relativePath);
+  const url = pathToFileURL(absolutePath).href;
+  const cacheBust = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return import(`${url}?test=${cacheBust}`);
 }
 
 function toPlain(value) {
@@ -67,29 +158,107 @@ function createMockCanvasContext() {
   return { ctx, calls };
 }
 
-test('dashboard API adapters normalize sparse payloads safely', () => {
-  const browser = loadBrowserModule('dashboard/modules/api-client.js');
-  const api = browser.ShumaDashboardApiClient;
-  assert.ok(api);
+function createMockElement(initial = {}) {
+  return {
+    textContent: '',
+    innerHTML: '',
+    href: '',
+    dataset: {},
+    ...initial
+  };
+}
 
-  const events = api.adaptEvents({ recent_events: null, top_ips: [['198.51.100.8', '3']] });
-  assert.deepEqual(toPlain(events.recent_events), []);
-  assert.deepEqual(toPlain(events.top_ips), [['198.51.100.8', 3]]);
-
-  const maze = api.adaptMaze({ total_hits: '9', unique_crawlers: '2', top_crawlers: [] });
-  assert.equal(maze.total_hits, 9);
-  assert.equal(maze.unique_crawlers, 2);
-  assert.deepEqual(toPlain(maze.top_crawlers), []);
-
-  const monitoring = api.adaptMonitoring({
-    summary: { honeypot: { total_hits: 1 } },
-    prometheus: { endpoint: '/metrics' }
+function listJsFilesRecursively(rootDir) {
+  const entries = fs.readdirSync(rootDir, { withFileTypes: true });
+  const files = [];
+  entries.forEach((entry) => {
+    const absolute = path.join(rootDir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listJsFilesRecursively(absolute));
+      return;
+    }
+    if (entry.isFile() && entry.name.endsWith('.js')) {
+      files.push(absolute);
+    }
   });
-  assert.equal(monitoring.summary.honeypot.total_hits, 1);
-  assert.equal(monitoring.prometheus.endpoint, '/metrics');
+  return files;
+}
+
+function stripCommentsAndStrings(source) {
+  return source
+    .replace(/\/\/.*$/gm, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/`(?:\\.|[^`\\])*`/g, '')
+    .replace(/"(?:\\.|[^"\\])*"/g, '')
+    .replace(/'(?:\\.|[^'\\])*'/g, '');
+}
+
+function parseRelativeImports(source) {
+  const imports = [];
+  const pattern = /^\s*import\s+[^'"]*['"](.+?)['"]\s*;?\s*$/gm;
+  let match = pattern.exec(source);
+  while (match) {
+    const specifier = String(match[1] || '').trim();
+    if (specifier.startsWith('.')) {
+      imports.push(specifier);
+    }
+    match = pattern.exec(source);
+  }
+  return imports;
+}
+
+function detectCycles(adjacency) {
+  const visiting = new Set();
+  const visited = new Set();
+  const stack = [];
+  const cycles = [];
+
+  const visit = (node) => {
+    if (visited.has(node)) return;
+    if (visiting.has(node)) {
+      const cycleStart = stack.indexOf(node);
+      if (cycleStart >= 0) {
+        cycles.push([...stack.slice(cycleStart), node]);
+      }
+      return;
+    }
+    visiting.add(node);
+    stack.push(node);
+    const edges = adjacency.get(node) || [];
+    edges.forEach((edge) => visit(edge));
+    stack.pop();
+    visiting.delete(node);
+    visited.add(node);
+  };
+
+  Array.from(adjacency.keys()).forEach((node) => visit(node));
+  return cycles;
+}
+
+test('dashboard API adapters normalize sparse payloads safely', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const api = await importBrowserModule('dashboard/modules/api-client.js');
+    assert.ok(api);
+
+    const events = api.adaptEvents({ recent_events: null, top_ips: [['198.51.100.8', '3']] });
+    assert.deepEqual(toPlain(events.recent_events), []);
+    assert.deepEqual(toPlain(events.top_ips), [['198.51.100.8', 3]]);
+
+    const maze = api.adaptMaze({ total_hits: '9', unique_crawlers: '2', top_crawlers: [] });
+    assert.equal(maze.total_hits, 9);
+    assert.equal(maze.unique_crawlers, 2);
+    assert.deepEqual(toPlain(maze.top_crawlers), []);
+
+    const monitoring = api.adaptMonitoring({
+      summary: { honeypot: { total_hits: 1 } },
+      prometheus: { endpoint: '/metrics' }
+    });
+    assert.equal(monitoring.summary.honeypot.total_hits, 1);
+    assert.equal(monitoring.prometheus.endpoint, '/metrics');
+  });
 });
 
-test('dashboard API client parses JSON payloads when content-type is missing', async () => {
+test('dashboard API client parses JSON payloads when content-type is missing', { concurrency: false }, async () => {
   const payload = {
     recent_events: [{ event: 'AdminAction', ts: 1700000000 }],
     event_counts: { AdminAction: 1 },
@@ -97,7 +266,8 @@ test('dashboard API client parses JSON payloads when content-type is missing', a
     unique_ips: 1
   };
   let requestUrl = '';
-  const browser = loadBrowserModule('dashboard/modules/api-client.js', {
+
+  await withBrowserGlobals({
     fetch: async (url) => {
       requestUrl = String(url);
       return {
@@ -108,20 +278,22 @@ test('dashboard API client parses JSON payloads when content-type is missing', a
         json: async () => payload
       };
     }
-  });
-  const api = browser.ShumaDashboardApiClient.create({
-    getAdminContext: () => ({ endpoint: 'http://example.test', apikey: '' })
-  });
+  }, async () => {
+    const apiModule = await importBrowserModule('dashboard/modules/api-client.js');
+    const api = apiModule.create({
+      getAdminContext: () => ({ endpoint: 'http://example.test', apikey: '' })
+    });
 
-  const events = await api.getEvents(24);
-  assert.equal(requestUrl, 'http://example.test/admin/events?hours=24');
-  assert.equal(events.recent_events.length, 1);
-  assert.equal(events.unique_ips, 1);
-  assert.deepEqual(toPlain(events.top_ips), [['198.51.100.8', 1]]);
+    const events = await api.getEvents(24);
+    assert.equal(requestUrl, 'http://example.test/admin/events?hours=24');
+    assert.equal(events.recent_events.length, 1);
+    assert.equal(events.unique_ips, 1);
+    assert.deepEqual(toPlain(events.top_ips), [['198.51.100.8', 1]]);
+  });
 });
 
 test('chart-lite renders doughnut legend labels', () => {
-  const browser = loadBrowserModule('dashboard/assets/vendor/chart-lite-1.0.0.min.js', {
+  const browser = loadClassicBrowserScript(CHART_LITE_PATH, {
     matchMedia: () => ({ matches: false })
   });
   const { ctx, calls } = createMockCanvasContext();
@@ -138,7 +310,7 @@ test('chart-lite renders doughnut legend labels', () => {
 });
 
 test('chart-lite uses non-white center fill in dark mode doughnut charts', () => {
-  const browser = loadBrowserModule('dashboard/assets/vendor/chart-lite-1.0.0.min.js', {
+  const browser = loadClassicBrowserScript(CHART_LITE_PATH, {
     matchMedia: () => ({ matches: true })
   });
   const { ctx, calls } = createMockCanvasContext();
@@ -155,7 +327,7 @@ test('chart-lite uses non-white center fill in dark mode doughnut charts', () =>
 });
 
 test('chart-lite renders axis ticks and labels for bar and line charts', () => {
-  const browser = loadBrowserModule('dashboard/assets/vendor/chart-lite-1.0.0.min.js', {
+  const browser = loadClassicBrowserScript(CHART_LITE_PATH, {
     matchMedia: () => ({ matches: false })
   });
 
@@ -182,34 +354,513 @@ test('chart-lite renders axis ticks and labels for bar and line charts', () => {
   assert.ok(line.calls.fillText.some((text) => text.includes('09:00')));
 });
 
-test('dashboard state invalidation scopes are explicit and bounded', () => {
-  const browser = loadBrowserModule('dashboard/modules/dashboard-state.js');
-  const stateApi = browser.ShumaDashboardState;
-  assert.ok(stateApi);
+test('dashboard state invalidation scopes are explicit and bounded', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const stateApi = await importBrowserModule('dashboard/modules/dashboard-state.js');
+    assert.ok(stateApi);
 
-  const state = stateApi.create();
-  ['monitoring', 'ip-bans', 'status', 'config', 'tuning'].forEach((tab) => {
-    state.markTabUpdated(tab);
+    const state = stateApi.create();
+    ['monitoring', 'ip-bans', 'status', 'config', 'tuning'].forEach((tab) => {
+      state.markTabUpdated(tab);
+    });
+    state.invalidate('securityConfig');
+    assert.equal(state.isTabStale('status'), true);
+    assert.equal(state.isTabStale('config'), true);
+    assert.equal(state.isTabStale('tuning'), true);
+    assert.equal(state.isTabStale('monitoring'), false);
+    assert.equal(state.isTabStale('ip-bans'), false);
+
+    state.markTabUpdated('status');
+    assert.equal(state.isTabStale('status'), false);
+    assert.equal(state.isTabStale('config'), true);
   });
-  state.invalidate('securityConfig');
-  assert.equal(state.isTabStale('status'), true);
-  assert.equal(state.isTabStale('config'), true);
-  assert.equal(state.isTabStale('tuning'), true);
-  assert.equal(state.isTabStale('monitoring'), false);
-  assert.equal(state.isTabStale('ip-bans'), false);
-
-  state.markTabUpdated('status');
-  assert.equal(state.isTabStale('status'), false);
-  assert.equal(state.isTabStale('config'), true);
 });
 
-test('tab lifecycle normalizes unknown tabs to monitoring default', () => {
-  const browser = loadBrowserModule('dashboard/modules/tab-lifecycle.js');
-  const lifecycle = browser.ShumaDashboardTabLifecycle;
-  assert.ok(lifecycle);
+test('tab lifecycle normalizes unknown tabs to monitoring default', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const lifecycle = await importBrowserModule('dashboard/modules/tab-lifecycle.js');
+    assert.ok(lifecycle);
 
-  assert.equal(lifecycle.normalizeTab('ip-bans'), 'ip-bans');
-  assert.equal(lifecycle.normalizeTab('IP-BANS'), 'ip-bans');
-  assert.equal(lifecycle.normalizeTab('unknown-tab'), 'monitoring');
-  assert.equal(lifecycle.normalizeTab(''), 'monitoring');
+    assert.equal(lifecycle.normalizeTab('ip-bans'), 'ip-bans');
+    assert.equal(lifecycle.normalizeTab('IP-BANS'), 'ip-bans');
+    assert.equal(lifecycle.normalizeTab('unknown-tab'), 'monitoring');
+    assert.equal(lifecycle.normalizeTab(''), 'monitoring');
+  });
+});
+
+test('monitoring view consumes prometheus helper payload as single-source contract', { concurrency: false }, async () => {
+  const elements = {
+    'monitoring-prometheus-example': createMockElement(),
+    'monitoring-prometheus-copy-curl': createMockElement(),
+    'monitoring-prometheus-facts': createMockElement(),
+    'monitoring-prometheus-output': createMockElement(),
+    'monitoring-prometheus-stats': createMockElement(),
+    'monitoring-prometheus-windowed': createMockElement(),
+    'monitoring-prometheus-summary-stats': createMockElement(),
+    'monitoring-prometheus-observability-link': createMockElement(),
+    'monitoring-prometheus-api-link': createMockElement()
+  };
+
+  await withBrowserGlobals({
+    location: { origin: 'https://example.test' },
+    document: {
+      getElementById: (id) => elements[id] || null,
+      querySelector: () => null,
+      querySelectorAll: () => []
+    }
+  }, async () => {
+    const monitoringViewModule = await importBrowserModule('dashboard/modules/monitoring-view.js');
+    const monitoringView = monitoringViewModule.create();
+    monitoringView.updatePrometheusHelper({
+      endpoint: '/metrics',
+      notes: [
+        '/metrics returns one full payload.',
+        'Use /admin/monitoring for bounded summary.'
+      ],
+      example_js: "const metricsText = await fetch('/metrics').then(r => r.text());",
+      example_output: '# TYPE bot_defence_requests_total counter',
+      example_stats: 'const stats = { requestsMain: 1 };',
+      example_windowed: 'const monitoring = await fetch(`/admin/monitoring?hours=24&limit=10`).then(r => r.json());',
+      example_summary_stats: 'const stats = { honeypotHits: monitoring.summary.honeypot.total_hits };',
+      docs: {
+        observability: 'https://example.test/observability',
+        api: 'https://example.test/api'
+      }
+    });
+  });
+
+  assert.equal(elements['monitoring-prometheus-example'].textContent.includes("fetch('/metrics')"), true);
+  assert.equal(
+    elements['monitoring-prometheus-copy-curl'].dataset.copyText,
+    "curl -sS 'https://example.test/metrics'"
+  );
+  assert.equal(
+    elements['monitoring-prometheus-facts'].innerHTML.includes('/admin/monitoring for bounded summary.'),
+    true
+  );
+  assert.equal(elements['monitoring-prometheus-observability-link'].href, 'https://example.test/observability');
+  assert.equal(elements['monitoring-prometheus-api-link'].href, 'https://example.test/api');
+});
+
+test('monitoring view normalizes hashed offender labels in top offender cards', { concurrency: false }, async () => {
+  const elements = {
+    'honeypot-total-hits': createMockElement(),
+    'honeypot-unique-crawlers': createMockElement(),
+    'honeypot-top-offender': createMockElement(),
+    'honeypot-top-offender-label': createMockElement(),
+    'honeypot-top-paths': createMockElement(),
+    'challenge-failures-total': createMockElement(),
+    'challenge-failures-unique': createMockElement(),
+    'challenge-top-offender': createMockElement(),
+    'challenge-top-offender-label': createMockElement(),
+    'challenge-failure-reasons': createMockElement(),
+    'pow-failures-total': createMockElement(),
+    'pow-failures-unique': createMockElement(),
+    'pow-top-offender': createMockElement(),
+    'pow-top-offender-label': createMockElement(),
+    'pow-failure-reasons': createMockElement(),
+    'rate-violations-total': createMockElement(),
+    'rate-violations-unique': createMockElement(),
+    'rate-top-offender': createMockElement(),
+    'rate-top-offender-label': createMockElement(),
+    'rate-outcomes-list': createMockElement(),
+    'geo-violations-total': createMockElement(),
+    'geo-action-mix': createMockElement(),
+    'geo-top-countries': createMockElement()
+  };
+
+  await withBrowserGlobals({
+    document: {
+      getElementById: (id) => elements[id] || null,
+      querySelector: () => null,
+      querySelectorAll: () => []
+    }
+  }, async () => {
+    const monitoringViewModule = await importBrowserModule('dashboard/modules/monitoring-view.js');
+    const monitoringView = monitoringViewModule.create();
+    monitoringView.updateMonitoringSummary({
+      honeypot: {
+        total_hits: 43,
+        unique_crawlers: 1,
+        top_crawlers: [{ label: 'h382', count: 43 }],
+        top_paths: []
+      },
+      challenge: { total_failures: 0, unique_offenders: 0, top_offenders: [], reasons: {}, trend: [] },
+      pow: { total_failures: 0, unique_offenders: 0, top_offenders: [], reasons: {}, trend: [] },
+      rate: { total_violations: 0, unique_offenders: 0, top_offenders: [], outcomes: {} },
+      geo: { total_violations: 0, actions: {}, top_countries: [] }
+    });
+  });
+
+  assert.equal(elements['honeypot-top-offender'].textContent, 'untrusted/unknown');
+  assert.equal(elements['honeypot-top-offender-label'].textContent, 'Top Offender (43 hits)');
+});
+
+test('config schema centralizes advanced and status-writable path inventories', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const schema = await importBrowserModule('dashboard/modules/config-schema.js');
+    assert.ok(schema);
+
+    assert.equal(Array.isArray(schema.advancedConfigTemplatePaths), true);
+    assert.equal(Array.isArray(schema.writableStatusVarPaths), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('edge_integration_mode'), true);
+    assert.equal(schema.writableStatusVarPaths.includes('robots_block_ai_training'), true);
+    assert.equal(schema.writableStatusVarPaths.includes('ai_policy_block_training'), true);
+    assert.equal(schema.writableStatusVarPaths.includes('edge_integration_mode'), true);
+
+    const uniqueWritable = new Set(schema.writableStatusVarPaths);
+    assert.equal(uniqueWritable.size, schema.writableStatusVarPaths.length);
+  });
+});
+
+test('config draft store tracks section snapshots and dirty checks', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const storeModule = await importBrowserModule('dashboard/modules/config-draft-store.js');
+    assert.ok(storeModule);
+
+    const store = storeModule.create({
+      maze: { enabled: false, threshold: 50 }
+    });
+    assert.equal(store.isDirty('maze', { enabled: false, threshold: 50 }), false);
+    assert.equal(store.isDirty('maze', { enabled: true, threshold: 50 }), true);
+    store.set('maze', { enabled: true, threshold: 60 });
+    assert.deepEqual(toPlain(store.get('maze', {})), { enabled: true, threshold: 60 });
+    assert.equal(store.isDirty('maze', { enabled: true, threshold: 60 }), false);
+  });
+});
+
+test('config form utils preserve legacy textarea parsing semantics', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const utils = await importBrowserModule('dashboard/modules/config-form-utils.js');
+    assert.ok(utils);
+
+    assert.deepEqual(
+      toPlain(utils.parseCountryCodesStrict('gb,US,gb')),
+      ['GB', 'US']
+    );
+    assert.equal(utils.normalizeCountryCodesForCompare(' gb,us '), 'GB,US');
+    assert.deepEqual(
+      toPlain(utils.parseListTextarea(' 10.0.0.1\n10.0.0.1,10.0.0.2')),
+      ['10.0.0.1', '10.0.0.2']
+    );
+    assert.equal(
+      utils.formatListTextarea([' 10.0.0.1 ', '', '10.0.0.2']),
+      '10.0.0.1\n10.0.0.2'
+    );
+    assert.deepEqual(
+      toPlain(utils.parseBrowserRulesTextarea('chrome,120\nsafari,17')),
+      [['chrome', 120], ['safari', 17]]
+    );
+    assert.equal(
+      utils.formatBrowserRulesTextarea([['chrome', 120], ['safari', 17]]),
+      'chrome,120\nsafari,17'
+    );
+    assert.equal(utils.normalizeBrowserRulesForCompare('invalid rule'), '__invalid__');
+  });
+});
+
+test('config controls flattens grouped bind options and preserves explicit overrides', { concurrency: false }, async () => {
+  const mockDocument = {
+    getElementById: () => null,
+    querySelector: () => null,
+    querySelectorAll: () => []
+  };
+
+  await withBrowserGlobals({ document: mockDocument }, async () => {
+    const controls = await importBrowserModule('dashboard/modules/config-controls.js');
+    assert.ok(controls);
+
+    const grouped = {
+      callbacks: { getAdminContext: () => ({ endpoint: 'http://example.test', apikey: 'x' }) },
+      readers: { readIntegerFieldValue: () => 42 },
+      checks: { checkMazeConfigChanged: () => {} },
+      state: { setMazeSavedState: () => {} }
+    };
+    const flattened = controls._flattenBindOptions(grouped);
+    assert.equal(typeof flattened.getAdminContext, 'function');
+    assert.equal(typeof flattened.readIntegerFieldValue, 'function');
+    assert.equal(typeof flattened.checkMazeConfigChanged, 'function');
+    assert.equal(typeof flattened.setMazeSavedState, 'function');
+
+    const explicit = () => 7;
+    const explicitWins = controls._flattenBindOptions({
+      readIntegerFieldValue: explicit,
+      readers: { readIntegerFieldValue: () => 9 }
+    });
+    assert.equal(explicitWins.readIntegerFieldValue, explicit);
+  });
+});
+
+test('config controls normalizes typed context into compatibility surface', { concurrency: false }, async () => {
+  const mockDocument = {
+    getElementById: () => null,
+    querySelector: () => null,
+    querySelectorAll: () => []
+  };
+
+  await withBrowserGlobals({ document: mockDocument }, async () => {
+    const controls = await importBrowserModule('dashboard/modules/config-controls.js');
+    const normalized = controls._normalizeContextOptions({
+      context: {
+        statusPanel: { update: () => {}, render: () => {} },
+        apiClient: { updateConfig: async () => ({ config: {} }) },
+        auth: { getAdminContext: () => ({ endpoint: 'http://x', apikey: 'y' }) },
+        readers: { readIntegerFieldValue: () => 1 },
+        checks: { checkMazeConfigChanged: () => {} },
+        draft: {
+          get: (key, fallback) => (key === 'geo' ? { mutable: true } : fallback),
+          set: () => {}
+        }
+      }
+    });
+
+    assert.equal(typeof normalized.getAdminContext, 'function');
+    assert.equal(typeof normalized.readIntegerFieldValue, 'function');
+    assert.equal(typeof normalized.checkMazeConfigChanged, 'function');
+    assert.equal(typeof normalized.getGeoSavedState, 'function');
+    assert.equal(typeof normalized.setMazeSavedState, 'function');
+    assert.deepEqual(normalized.getGeoSavedState(), { mutable: true });
+  });
+});
+
+test('tables view wires quick-unban callback and detail toggle handlers', { concurrency: false }, async () => {
+  const bansTbody = {
+    innerHTML: '',
+    rows: [],
+    appendChild(node) {
+      this.rows.push(node);
+    }
+  };
+  const detailRow = {
+    classList: {
+      _hidden: true,
+      toggle(name) {
+        if (name === 'hidden') this._hidden = !this._hidden;
+      },
+      contains(name) {
+        return name === 'hidden' ? this._hidden : false;
+      }
+    }
+  };
+  const detailsBtn = { dataset: { target: 'ban-detail-2030011310' }, textContent: 'Details' };
+  const quickUnbanBtn = { dataset: { ip: '203.0.113.10' } };
+  const unbanned = [];
+
+  await withBrowserGlobals({
+    document: {
+      querySelector: (selector) => (selector === '#bans-table tbody' ? bansTbody : null),
+      querySelectorAll: (selector) => {
+        if (selector === '.ban-details-toggle') return [detailsBtn];
+        if (selector === '.unban-quick') return [quickUnbanBtn];
+        return [];
+      },
+      createElement: () => ({ innerHTML: '', id: '', className: '' }),
+      getElementById: (id) => (id === 'ban-detail-2030011310' ? detailRow : null)
+    }
+  }, async () => {
+    const tablesModule = await importBrowserModule('dashboard/modules/tables-view.js');
+    const tables = tablesModule.create({
+      onQuickUnban: async (ip) => {
+        unbanned.push(ip);
+      }
+    });
+    tables.updateBansTable([
+      {
+        ip: '203.0.113.10',
+        reason: 'test_reason',
+        banned_at: 1700000000,
+        expires: 1900000000,
+        fingerprint: { signals: ['ua_transport_mismatch'], score: 5, summary: 'sample' }
+      }
+    ]);
+  });
+
+  assert.equal(typeof detailsBtn.onclick, 'function');
+  assert.equal(typeof quickUnbanBtn.onclick, 'function');
+
+  detailsBtn.onclick();
+  assert.equal(detailRow.classList.contains('hidden'), false);
+  assert.equal(detailsBtn.textContent, 'Hide');
+
+  await quickUnbanBtn.onclick();
+  assert.deepEqual(unbanned, ['203.0.113.10']);
+});
+
+test('tables view renders empty-state rows for bans and events', { concurrency: false }, async () => {
+  const bansTbody = { innerHTML: '', appendChild: () => {} };
+  const eventsTbody = { innerHTML: '', appendChild: () => {} };
+
+  await withBrowserGlobals({
+    document: {
+      querySelector: (selector) => {
+        if (selector === '#bans-table tbody') return bansTbody;
+        if (selector === '#events tbody') return eventsTbody;
+        return null;
+      },
+      querySelectorAll: () => [],
+      createElement: () => ({ innerHTML: '' }),
+      getElementById: () => null
+    }
+  }, async () => {
+    const tablesModule = await importBrowserModule('dashboard/modules/tables-view.js');
+    const tables = tablesModule.create();
+    tables.updateBansTable([]);
+    tables.updateEventsTable([]);
+  });
+
+  assert.equal(bansTbody.innerHTML.includes('No active bans'), true);
+  assert.equal(eventsTbody.innerHTML.includes('No recent events'), true);
+});
+
+test('tables view updates CDP totals and parses tier/score fields', { concurrency: false }, async () => {
+  const els = {
+    'cdp-total-detections': createMockElement(),
+    'cdp-total-auto-bans': createMockElement(),
+    'cdp-fp-events': createMockElement(),
+    'cdp-fp-flow-violations': createMockElement()
+  };
+
+  await withBrowserGlobals({
+    document: {
+      querySelector: () => null,
+      querySelectorAll: () => [],
+      createElement: () => ({ innerHTML: '' }),
+      getElementById: (id) => els[id] || null
+    }
+  }, async () => {
+    const tablesModule = await importBrowserModule('dashboard/modules/tables-view.js');
+    const tables = tablesModule.create();
+    tables.updateCdpTotals({
+      stats: { total_detections: 12, auto_bans: 3 },
+      fingerprint_stats: {
+        ua_client_hint_mismatch: 5,
+        ua_transport_mismatch: 4,
+        temporal_transition: 2,
+        flow_violation: 6
+      }
+    });
+
+    assert.equal(tables._extractCdpField('tier=strong score=98', 'tier'), 'strong');
+    assert.equal(tables._extractCdpField('tier=strong score=98', 'score'), '98');
+  });
+
+  assert.equal(els['cdp-total-detections'].textContent, '12');
+  assert.equal(els['cdp-total-auto-bans'].textContent, '3');
+  assert.equal(els['cdp-fp-events'].textContent, '11');
+  assert.equal(els['cdp-fp-flow-violations'].textContent, '6');
+});
+
+test('dashboard ESM guardrails forbid legacy global registry and class syntax', () => {
+  const dashboardRoot = path.resolve(__dirname, '..', 'dashboard');
+  const moduleFiles = listJsFilesRecursively(path.join(dashboardRoot, 'modules'));
+  const filesToCheck = [path.join(dashboardRoot, 'dashboard.js'), ...moduleFiles];
+  const legacyGlobalPattern = /\b(?:window|globalThis|global)\.ShumaDashboard[A-Za-z0-9_]*\b/;
+  const classDeclarationPattern = /\bclass\s+[A-Za-z_$][\w$]*\b/;
+
+  filesToCheck.forEach((filePath) => {
+    const source = fs.readFileSync(filePath, 'utf8');
+    const analyzable = stripCommentsAndStrings(source);
+    assert.equal(
+      legacyGlobalPattern.test(analyzable),
+      false,
+      `legacy dashboard global registry reference found in ${filePath}`
+    );
+    assert.equal(
+      classDeclarationPattern.test(analyzable),
+      false,
+      `class declaration found in ${filePath}`
+    );
+  });
+});
+
+test('dashboard module graph is layered (core -> services -> features -> main) with no cycles', () => {
+  const dashboardRoot = path.resolve(__dirname, '..', 'dashboard');
+  const moduleRoot = path.join(dashboardRoot, 'modules');
+  const moduleFiles = listJsFilesRecursively(moduleRoot);
+  const allFiles = [path.join(dashboardRoot, 'dashboard.js'), ...moduleFiles];
+
+  const relativeOf = (absolutePath) =>
+    path.relative(dashboardRoot, absolutePath).split(path.sep).join('/');
+  const rankOf = (relativePath) => {
+    if (relativePath === 'dashboard.js') return 3; // main
+    if (relativePath.startsWith('modules/core/')) return 0;
+    if (relativePath.startsWith('modules/services/')) return 1;
+    if (
+      relativePath === 'modules/api-client.js' ||
+      relativePath === 'modules/admin-session.js' ||
+      relativePath === 'modules/dashboard-state.js' ||
+      relativePath === 'modules/tab-lifecycle.js' ||
+      relativePath === 'modules/config-schema.js' ||
+      relativePath === 'modules/config-form-utils.js' ||
+      relativePath === 'modules/config-draft-store.js'
+    ) {
+      return 1;
+    }
+    if (relativePath.startsWith('modules/')) return 2;
+    return 99;
+  };
+
+  const knownFiles = new Set(allFiles.map((filePath) => relativeOf(filePath)));
+  const adjacency = new Map();
+  const rankErrors = [];
+
+  allFiles.forEach((filePath) => {
+    const fromRel = relativeOf(filePath);
+    const fromDir = path.dirname(filePath);
+    const fromRank = rankOf(fromRel);
+    const source = fs.readFileSync(filePath, 'utf8');
+    const imports = parseRelativeImports(source);
+    const edges = [];
+
+    imports.forEach((specifier) => {
+      const resolvedAbsolute = path.resolve(fromDir, specifier);
+      const withJs = `${resolvedAbsolute}.js`;
+      const candidateAbsolute =
+        fs.existsSync(resolvedAbsolute) && fs.statSync(resolvedAbsolute).isFile()
+          ? resolvedAbsolute
+          : (fs.existsSync(withJs) ? withJs : null);
+      if (!candidateAbsolute) return;
+
+      const toRel = relativeOf(candidateAbsolute);
+      if (!knownFiles.has(toRel)) return;
+      edges.push(toRel);
+
+      const toRank = rankOf(toRel);
+      if (toRank > fromRank) {
+        rankErrors.push(`${fromRel} imports higher layer ${toRel}`);
+      }
+    });
+
+    adjacency.set(fromRel, edges);
+  });
+
+  assert.deepEqual(rankErrors, [], `layering violations:\n${rankErrors.join('\n')}`);
+  const cycles = detectCycles(adjacency);
+  assert.equal(cycles.length, 0, `module import cycles found:\n${JSON.stringify(cycles, null, 2)}`);
+});
+
+test('dashboard state reducer transitions are immutable', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const stateApi = await importBrowserModule('dashboard/modules/dashboard-state.js');
+
+    const initial = stateApi.createInitialState('monitoring');
+    const nextActive = stateApi.reduceState(initial, { type: 'set-active-tab', tab: 'status' });
+    assert.notEqual(nextActive, initial);
+    assert.equal(initial.activeTab, 'monitoring');
+    assert.equal(nextActive.activeTab, 'status');
+
+    const nextInvalidated = stateApi.reduceState(nextActive, { type: 'invalidate', scope: 'ip-bans' });
+    assert.notEqual(nextInvalidated, nextActive);
+    assert.notEqual(nextInvalidated.stale, nextActive.stale);
+    assert.equal(nextInvalidated.stale['ip-bans'], true);
+
+    const nextSession = stateApi.reduceState(nextInvalidated, {
+      type: 'set-session',
+      session: { authenticated: true, csrfToken: 'abc' }
+    });
+    assert.notEqual(nextSession, nextInvalidated);
+    assert.notEqual(nextSession.session, nextInvalidated.session);
+    assert.equal(nextSession.session.authenticated, true);
+    assert.equal(nextSession.session.csrfToken, 'abc');
+  });
 });

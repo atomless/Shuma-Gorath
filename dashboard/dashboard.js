@@ -1,33 +1,33 @@
 // @ts-check
 
-const dashboardCharts = window.ShumaDashboardCharts;
-if (!dashboardCharts) {
-  throw new Error('Missing dashboard charts module (window.ShumaDashboardCharts)');
-}
-const statusPanel = window.ShumaDashboardStatus;
-if (!statusPanel) {
-  throw new Error('Missing dashboard status module (window.ShumaDashboardStatus)');
-}
-const configControls = window.ShumaDashboardConfigControls;
-if (!configControls) {
-  throw new Error('Missing dashboard config-controls module (window.ShumaDashboardConfigControls)');
-}
-const adminSessionModule = window.ShumaDashboardAdminSession;
-if (!adminSessionModule) {
-  throw new Error('Missing dashboard admin-session module (window.ShumaDashboardAdminSession)');
-}
-const tabLifecycleModule = window.ShumaDashboardTabLifecycle;
-if (!tabLifecycleModule) {
-  throw new Error('Missing dashboard tab lifecycle module (window.ShumaDashboardTabLifecycle)');
-}
-const dashboardApiClientModule = window.ShumaDashboardApiClient;
-if (!dashboardApiClientModule) {
-  throw new Error('Missing dashboard API client module (window.ShumaDashboardApiClient)');
-}
-const dashboardStateModule = window.ShumaDashboardState;
-if (!dashboardStateModule) {
-  throw new Error('Missing dashboard state module (window.ShumaDashboardState)');
-}
+import * as dashboardCharts from './modules/charts.js';
+import * as statusPanel from './modules/status.js';
+import * as configControls from './modules/config-controls.js';
+import * as adminSessionModule from './modules/admin-session.js';
+import * as tabLifecycleModule from './modules/tab-lifecycle.js';
+import * as dashboardApiClientModule from './modules/api-client.js';
+import * as dashboardStateModule from './modules/dashboard-state.js';
+import * as monitoringViewModule from './modules/monitoring-view.js';
+import * as tablesViewModule from './modules/tables-view.js';
+import * as formatModule from './modules/core/format.js';
+import * as domModule from './modules/core/dom.js';
+import * as configSchemaModule from './modules/config-schema.js';
+import * as configDraftStoreModule from './modules/config-draft-store.js';
+import * as configFormUtilsModule from './modules/config-form-utils.js';
+import { createRuntimeEffects } from './modules/services/runtime-effects.js';
+
+const {
+  parseCountryCodesStrict,
+  normalizeCountryCodesForCompare,
+  parseListTextarea,
+  formatListTextarea,
+  normalizeListTextareaForCompare,
+  parseHoneypotPathsTextarea,
+  formatBrowserRulesTextarea,
+  parseBrowserRulesTextarea,
+  normalizeBrowserRulesForCompare
+} = configFormUtilsModule;
+const escapeHtml = formatModule.escapeHtml;
 
 const INTEGER_FIELD_RULES = {
   'ban-duration-days': { min: 0, max: 365, fallback: 0, label: 'Manual ban duration days' },
@@ -111,102 +111,9 @@ const MANUAL_BAN_DURATION_FIELD = {
 };
 
 const EDGE_INTEGRATION_MODES = new Set(['off', 'advisory', 'authoritative']);
-
-const ADVANCED_CONFIG_TEMPLATE_PATHS = Object.freeze([
-  'test_mode',
-  'ban_duration',
-  'ban_durations.honeypot',
-  'ban_durations.rate_limit',
-  'ban_durations.browser',
-  'ban_durations.admin',
-  'ban_durations.cdp',
-  'rate_limit',
-  'honeypot_enabled',
-  'honeypots',
-  'browser_block',
-  'browser_whitelist',
-  'geo_risk',
-  'geo_allow',
-  'geo_challenge',
-  'geo_maze',
-  'geo_block',
-  'whitelist',
-  'path_whitelist',
-  'maze_enabled',
-  'maze_auto_ban',
-  'maze_auto_ban_threshold',
-  'maze_rollout_phase',
-  'maze_token_ttl_seconds',
-  'maze_token_max_depth',
-  'maze_token_branch_budget',
-  'maze_replay_ttl_seconds',
-  'maze_entropy_window_seconds',
-  'maze_client_expansion_enabled',
-  'maze_checkpoint_every_nodes',
-  'maze_checkpoint_every_ms',
-  'maze_step_ahead_max',
-  'maze_no_js_fallback_max_depth',
-  'maze_micro_pow_enabled',
-  'maze_micro_pow_depth_start',
-  'maze_micro_pow_base_difficulty',
-  'maze_max_concurrent_global',
-  'maze_max_concurrent_per_ip_bucket',
-  'maze_max_response_bytes',
-  'maze_max_response_duration_ms',
-  'maze_server_visible_links',
-  'maze_max_links',
-  'maze_max_paragraphs',
-  'maze_path_entropy_segment_len',
-  'maze_covert_decoys_enabled',
-  'maze_seed_provider',
-  'maze_seed_refresh_interval_seconds',
-  'maze_seed_refresh_rate_limit_per_hour',
-  'maze_seed_refresh_max_sources',
-  'maze_seed_metadata_only',
-  'robots_enabled',
-  'ai_policy_block_training',
-  'ai_policy_block_search',
-  'ai_policy_allow_search_engines',
-  'robots_crawl_delay',
-  'cdp_detection_enabled',
-  'cdp_auto_ban',
-  'cdp_detection_threshold',
-  'cdp_probe_family',
-  'cdp_probe_rollout_percent',
-  'fingerprint_signal_enabled',
-  'fingerprint_state_ttl_seconds',
-  'fingerprint_flow_window_seconds',
-  'fingerprint_flow_violation_threshold',
-  'fingerprint_pseudonymize',
-  'fingerprint_entropy_budget',
-  'fingerprint_family_cap_header_runtime',
-  'fingerprint_family_cap_transport',
-  'fingerprint_family_cap_temporal',
-  'fingerprint_family_cap_persistence',
-  'fingerprint_family_cap_behavior',
-  'js_required_enforced',
-  'pow_enabled',
-  'pow_difficulty',
-  'pow_ttl_seconds',
-  'challenge_puzzle_enabled',
-  'challenge_puzzle_transform_count',
-  'challenge_puzzle_risk_threshold',
-  'botness_maze_threshold',
-  'botness_weights.js_required',
-  'botness_weights.geo_risk',
-  'botness_weights.rate_medium',
-  'botness_weights.rate_high',
-  'botness_weights.maze_behavior',
-  'defence_modes.rate',
-  'defence_modes.geo',
-  'defence_modes.js',
-  'provider_backends.rate_limiter',
-  'provider_backends.ban_store',
-  'provider_backends.challenge_engine',
-  'provider_backends.maze_tarpit',
-  'provider_backends.fingerprint_signal',
-  'edge_integration_mode'
-]);
+const ADVANCED_CONFIG_TEMPLATE_PATHS = Object.freeze(
+  configSchemaModule.advancedConfigTemplatePaths || []
+);
 
 const IPV4_SEGMENT_PATTERN = /^\d{1,3}$/;
 const IPV6_INPUT_PATTERN = /^[0-9a-fA-F:.]+$/;
@@ -215,10 +122,17 @@ let adminSessionController = null;
 let dashboardTabCoordinator = null;
 let dashboardApiClient = null;
 let dashboardState = null;
+let monitoringView = null;
+let tablesView = null;
+let configDraftStore = null;
+let runtimeEffects = null;
 let autoRefreshTimer = null;
 let pageVisible = document.visibilityState !== 'hidden';
-let challengeFailuresTrendChart = null;
-let powFailuresTrendChart = null;
+const domCache = domModule.createCache({ document });
+const getById = domCache.byId;
+const query = domCache.query;
+const queryAll = domCache.queryAll;
+const domWriteScheduler = domModule.createWriteScheduler();
 
 const TAB_REFRESH_INTERVAL_MS = Object.freeze({
   monitoring: 30000,
@@ -228,28 +142,14 @@ const TAB_REFRESH_INTERVAL_MS = Object.freeze({
   tuning: 60000
 });
 
-const CHALLENGE_REASON_LABELS = Object.freeze({
-  incorrect: 'Incorrect',
-  expired_replay: 'Expired/Replay',
-  sequence_violation: 'Sequence Violation',
-  invalid_output: 'Invalid Output',
-  forbidden: 'Forbidden'
-});
-
-const POW_REASON_LABELS = Object.freeze({
-  invalid_proof: 'Invalid Proof',
-  missing_seed_nonce: 'Missing Seed/Nonce',
-  sequence_violation: 'Sequence Violation',
-  expired_replay: 'Expired/Replay',
-  binding_timing_mismatch: 'Binding/Timing Mismatch'
-});
-
-const RATE_OUTCOME_LABELS = Object.freeze({
-  limited: 'Limited',
-  banned: 'Banned',
-  fallback_allow: 'Fallback Allow',
-  fallback_deny: 'Fallback Deny'
-});
+function runDomWriteBatch(task) {
+  return new Promise((resolve) => {
+    domWriteScheduler.schedule(() => {
+      task();
+      resolve();
+    });
+  });
+}
 
 function sanitizeIntegerText(value) {
   return (value || '').replace(/[^\d]/g, '');
@@ -261,15 +161,6 @@ function sanitizeIpText(value) {
 
 function sanitizeEndpointText(value) {
   return (value || '').replace(/\s+/g, '').trim();
-}
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 function cloneJsonValue(value) {
@@ -351,7 +242,7 @@ function fieldErrorIdFor(input) {
 function getOrCreateFieldErrorElement(input) {
   if (!input || !input.parentElement) return null;
   const id = fieldErrorIdFor(input);
-  let errorEl = document.getElementById(id);
+  let errorEl = getById(id);
   if (!errorEl || errorEl.dataset.fieldFor !== input.id) {
     errorEl = document.createElement('div');
     errorEl.id = id;
@@ -386,7 +277,7 @@ function setFieldError(input, message, showInline = true) {
 }
 
 function parseIntegerLoose(id) {
-  const input = document.getElementById(id);
+  const input = getById(id);
   const rules = INTEGER_FIELD_RULES[id];
   if (!input || !rules) return null;
   const sanitized = sanitizeIntegerText(input.value);
@@ -416,9 +307,9 @@ function secondsToDurationParts(totalSeconds, fallbackSeconds) {
 
 function setDurationInputsFromSeconds(group, totalSeconds) {
   if (!group) return;
-  const daysInput = document.getElementById(group.daysId);
-  const hoursInput = document.getElementById(group.hoursId);
-  const minutesInput = document.getElementById(group.minutesId);
+  const daysInput = getById(group.daysId);
+  const hoursInput = getById(group.hoursId);
+  const minutesInput = getById(group.minutesId);
   if (!daysInput || !hoursInput || !minutesInput) return;
 
   const parts = secondsToDurationParts(totalSeconds, group.fallback);
@@ -435,9 +326,9 @@ function setBanDurationInputFromSeconds(durationKey, totalSeconds) {
 function readDurationFromInputs(group, showInline = false) {
   if (!group) return null;
 
-  const daysInput = document.getElementById(group.daysId);
-  const hoursInput = document.getElementById(group.hoursId);
-  const minutesInput = document.getElementById(group.minutesId);
+  const daysInput = getById(group.daysId);
+  const hoursInput = getById(group.hoursId);
+  const minutesInput = getById(group.minutesId);
   if (!daysInput || !hoursInput || !minutesInput) return null;
 
   const daysValid = validateIntegerFieldById(group.daysId, showInline);
@@ -475,9 +366,9 @@ function readBanDurationSeconds(durationKey) {
   const result = readDurationFromInputs(group, true);
   if (result) return result.totalSeconds;
 
-  const daysInput = document.getElementById(group.daysId);
-  const hoursInput = document.getElementById(group.hoursId);
-  const minutesInput = document.getElementById(group.minutesId);
+  const daysInput = getById(group.daysId);
+  const hoursInput = getById(group.hoursId);
+  const minutesInput = getById(group.minutesId);
   if (daysInput && !daysInput.checkValidity()) {
     daysInput.reportValidity();
     daysInput.focus();
@@ -504,9 +395,9 @@ function readManualBanDurationSeconds(showInline = false) {
   const result = readDurationFromInputs(MANUAL_BAN_DURATION_FIELD, showInline);
   if (result) return result.totalSeconds;
 
-  const daysInput = document.getElementById(MANUAL_BAN_DURATION_FIELD.daysId);
-  const hoursInput = document.getElementById(MANUAL_BAN_DURATION_FIELD.hoursId);
-  const minutesInput = document.getElementById(MANUAL_BAN_DURATION_FIELD.minutesId);
+  const daysInput = getById(MANUAL_BAN_DURATION_FIELD.daysId);
+  const hoursInput = getById(MANUAL_BAN_DURATION_FIELD.hoursId);
+  const minutesInput = getById(MANUAL_BAN_DURATION_FIELD.minutesId);
   if (daysInput && !daysInput.checkValidity()) {
     daysInput.reportValidity();
     daysInput.focus();
@@ -599,7 +490,7 @@ function resolveAdminApiEndpoint() {
 }
 
 function validateIntegerFieldById(id, showInline = false) {
-  const input = document.getElementById(id);
+  const input = getById(id);
   const rules = INTEGER_FIELD_RULES[id];
   if (!input || !rules) return false;
   const parsed = parseIntegerLoose(id);
@@ -616,7 +507,7 @@ function validateIntegerFieldById(id, showInline = false) {
 }
 
 function readIntegerFieldValue(id, messageTarget) {
-  const input = document.getElementById(id);
+  const input = getById(id);
   const rules = INTEGER_FIELD_RULES[id];
   if (!input || !rules) return null;
   if (!validateIntegerFieldById(id, true)) {
@@ -635,7 +526,7 @@ function readIntegerFieldValue(id, messageTarget) {
 }
 
 function validateIpFieldById(id, required, label, showInline = false) {
-  const input = document.getElementById(id);
+  const input = getById(id);
   if (!input) return false;
   const sanitized = sanitizeIpText(input.value.trim());
   if (input.value !== sanitized) input.value = sanitized;
@@ -658,7 +549,7 @@ function validateIpFieldById(id, required, label, showInline = false) {
 }
 
 function readIpFieldValue(id, required, messageTarget, label) {
-  const input = document.getElementById(id);
+  const input = getById(id);
   if (!input) return null;
   if (!validateIpFieldById(id, required, label, true)) {
     const sanitized = sanitizeIpText(input.value.trim());
@@ -680,7 +571,7 @@ function hasValidApiContext() {
 }
 
 function refreshMazePreviewLink() {
-  const link = document.getElementById('preview-maze-link');
+  const link = getById('preview-maze-link');
   if (!link) return;
   const resolved = resolveAdminApiEndpoint();
   const endpoint = resolved && resolved.endpoint ? resolved.endpoint : '';
@@ -693,7 +584,7 @@ function redirectToLogin() {
 }
 
 function tabStateElement(tab) {
-  return document.querySelector(`[data-tab-state="${tab}"]`);
+  return query(`[data-tab-state="${tab}"]`);
 }
 
 function setTabStateMessage(tab, kind, message) {
@@ -747,7 +638,7 @@ function clearTabStateMessage(tab) {
 }
 
 function validateGeoFieldById(id, showInline = false) {
-  const field = document.getElementById(id);
+  const field = getById(id);
   if (!field) return false;
   try {
     parseCountryCodesStrict(field.value);
@@ -762,7 +653,7 @@ function validateGeoFieldById(id, showInline = false) {
 function refreshCoreActionButtonsState() {
   const apiValid = hasValidApiContext();
   refreshMazePreviewLink();
-  const logoutBtn = document.getElementById('logout-btn');
+  const logoutBtn = getById('logout-btn');
   if (logoutBtn) {
     logoutBtn.disabled = !apiValid;
   }
@@ -858,7 +749,7 @@ function getAdminContext(messageTarget) {
 }
 
 function bindIntegerFieldValidation(id) {
-  const input = document.getElementById(id);
+  const input = getById(id);
   const rules = INTEGER_FIELD_RULES[id];
   if (!input || !rules) return;
 
@@ -899,7 +790,7 @@ function bindIntegerFieldValidation(id) {
 }
 
 function bindIpFieldValidation(id, required, label) {
-  const input = document.getElementById(id);
+  const input = getById(id);
   if (!input) return;
   const apply = (showInline = false) => {
     validateIpFieldById(id, required, label, showInline);
@@ -960,7 +851,7 @@ function updateConfigModeUi(config) {
       false
     )
   });
-  const subtitle = document.getElementById('config-mode-subtitle');
+  const subtitle = getById('config-mode-subtitle');
   if (subtitle) {
     if (writeEnabled) {
       subtitle.innerHTML =
@@ -971,7 +862,7 @@ function updateConfigModeUi(config) {
     }
   }
 
-  document.querySelectorAll('.config-edit-pane').forEach(el => {
+  queryAll('.config-edit-pane').forEach(el => {
     el.classList.toggle('hidden', !writeEnabled);
   });
   statusPanel.render();
@@ -979,17 +870,17 @@ function updateConfigModeUi(config) {
 
 // Update stat cards
 function updateStatCards(analytics, events, bans) {
-  document.getElementById('total-bans').textContent = analytics.ban_count || 0;
-  document.getElementById('active-bans').textContent = bans.length || 0;
-  document.getElementById('total-events').textContent = (events.recent_events || []).length;
+  getById('total-bans').textContent = analytics.ban_count || 0;
+  getById('active-bans').textContent = bans.length || 0;
+  getById('total-events').textContent = (events.recent_events || []).length;
   const uniqueIps = typeof events.unique_ips === 'number' ? events.unique_ips : (events.top_ips || []).length;
-  document.getElementById('unique-ips').textContent = uniqueIps;
+  getById('unique-ips').textContent = uniqueIps;
   
   // Update test mode banner and toggle
   const testMode = analytics.test_mode === true;
-  const banner = document.getElementById('test-mode-banner');
-  const toggle = document.getElementById('test-mode-toggle');
-  const status = document.getElementById('test-mode-status');
+  const banner = getById('test-mode-banner');
+  const toggle = getById('test-mode-toggle');
+  const status = getById('test-mode-status');
   
   if (testMode) {
     banner.classList.remove('hidden');
@@ -1017,14 +908,14 @@ function updateBanDurations(config) {
     setBanDurationInputFromSeconds('browser', config.ban_durations.browser);
     setBanDurationInputFromSeconds('cdp', config.ban_durations.cdp);
     setBanDurationInputFromSeconds('admin', config.ban_durations.admin);
-    banDurationsSavedState = {
+    setDraft('banDurations', {
       honeypot: Number.parseInt(config.ban_durations.honeypot, 10) || BAN_DURATION_FIELDS.honeypot.fallback,
       rateLimit: Number.parseInt(config.ban_durations.rate_limit, 10) || BAN_DURATION_FIELDS.rateLimit.fallback,
       browser: Number.parseInt(config.ban_durations.browser, 10) || BAN_DURATION_FIELDS.browser.fallback,
       cdp: Number.parseInt(config.ban_durations.cdp, 10) || BAN_DURATION_FIELDS.cdp.fallback,
       admin: Number.parseInt(config.ban_durations.admin, 10) || BAN_DURATION_FIELDS.admin.fallback
-    };
-    const btn = document.getElementById('save-durations-btn');
+    });
+    const btn = getById('save-durations-btn');
     if (btn) {
       btn.dataset.saving = 'false';
       btn.disabled = true;
@@ -1033,586 +924,26 @@ function updateBanDurations(config) {
   }
 }
 
-// Update bans table
-function updateBansTable(bans) {
-  const tbody = document.querySelector('#bans-table tbody');
-  tbody.innerHTML = '';
-  
-  if (bans.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #6b7280;">No active bans</td></tr>';
-    return;
-  }
-  
-  for (const ban of bans) {
-    const tr = document.createElement('tr');
-    const now = Math.floor(Date.now() / 1000);
-    const isExpired = ban.expires < now;
-    const bannedAt = ban.banned_at ? new Date(ban.banned_at * 1000).toLocaleString() : '-';
-    const expiresAt = new Date(ban.expires * 1000).toLocaleString();
-    const safeIp = escapeHtml(ban.ip || '-');
-    const safeReason = escapeHtml(ban.reason || 'unknown');
-    const signals = (ban.fingerprint && Array.isArray(ban.fingerprint.signals)) ? ban.fingerprint.signals : [];
-    const signalBadges = signals.length
-      ? signals.map(signal => `<span class="ban-signal-badge">${escapeHtml(signal)}</span>`).join('')
-      : '<span class="text-muted">none</span>';
-    const detailsId = `ban-detail-${String(ban.ip || 'unknown').replace(/[^a-zA-Z0-9]/g, '-')}`;
-    
-    tr.innerHTML = `
-      <td><code>${safeIp}</code></td>
-      <td>${safeReason}</td>
-      <td>${bannedAt}</td>
-      <td class="${isExpired ? 'expired' : ''}">${isExpired ? 'Expired' : expiresAt}</td>
-      <td>${signalBadges}</td>
-      <td class="ban-action-cell">
-        <button class="ban-details-toggle" data-target="${detailsId}">Details</button>
-        <button class="unban-quick" data-ip="${ban.ip}">Unban</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-
-    const detailRow = document.createElement('tr');
-    detailRow.id = detailsId;
-    detailRow.className = 'ban-detail-row hidden';
-    const score = ban.fingerprint && typeof ban.fingerprint.score === 'number' ? ban.fingerprint.score : null;
-    const summary = ban.fingerprint && ban.fingerprint.summary ? ban.fingerprint.summary : 'No additional fingerprint details.';
-    const safeSummary = escapeHtml(summary);
-    detailRow.innerHTML = `
-      <td colspan="6">
-        <div class="ban-detail-content">
-          <div><strong>Score:</strong> ${score === null ? 'n/a' : score}</div>
-          <div><strong>Summary:</strong> ${safeSummary}</div>
-        </div>
-      </td>
-    `;
-    tbody.appendChild(detailRow);
-  }
-
-  document.querySelectorAll('.ban-details-toggle').forEach(btn => {
-    btn.onclick = function() {
-      const target = document.getElementById(this.dataset.target);
-      if (!target) return;
-      target.classList.toggle('hidden');
-      this.textContent = target.classList.contains('hidden') ? 'Details' : 'Hide';
-    };
-  });
-  
-  // Add click handlers for quick unban buttons
-  document.querySelectorAll('.unban-quick').forEach(btn => {
-    btn.onclick = async function() {
-      const ip = this.dataset.ip;
-      const msg = document.getElementById('admin-msg');
-      if (!getAdminContext(msg)) return;
-      
-      msg.textContent = `Unbanning ${ip}...`;
-      msg.className = 'message info';
-      
-      try {
-        await dashboardApiClient.unbanIp(ip);
-        msg.textContent = `Unbanned ${ip}`;
-        msg.className = 'message success';
-        if (dashboardState) dashboardState.invalidate('ip-bans');
-        setTimeout(() => refreshActiveTab('quick-unban'), 500);
-      } catch (e) {
-        msg.textContent = 'Error: ' + e.message;
-        msg.className = 'message error';
-      }
-    };
-  });
-}
-
-// Update events table
-function updateEventsTable(events) {
-  const tbody = document.querySelector('#events tbody');
-  tbody.innerHTML = '';
-  
-  if (!events || events.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #6b7280;">No recent events</td></tr>';
-    return;
-  }
-  
-  for (const ev of events) {
-    const tr = document.createElement('tr');
-    const eventClass = String(ev.event || '').toLowerCase().replace(/[^a-z_]/g, '');
-    const safeEvent = escapeHtml(ev.event || '-');
-    const safeIp = escapeHtml(ev.ip || '-');
-    const safeReason = escapeHtml(ev.reason || '-');
-    const safeOutcome = escapeHtml(ev.outcome || '-');
-    const safeAdmin = escapeHtml(ev.admin || '-');
-    tr.innerHTML = `
-      <td>${new Date(ev.ts * 1000).toLocaleString()}</td>
-      <td><span class="badge ${eventClass}">${safeEvent}</span></td>
-      <td><code>${safeIp}</code></td>
-      <td>${safeReason}</td>
-      <td>${safeOutcome}</td>
-      <td>${safeAdmin}</td>
-    `;
-    tbody.appendChild(tr);
-  }
-}
-
-function extractCdpField(text, key) {
-  const match = new RegExp(`${key}=([^\\s]+)`, 'i').exec(text || '');
-  return match ? match[1] : '-';
-}
-
-function updateCdpEventsTable(events) {
-  const tbody = document.querySelector('#cdp-events tbody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-
-  const cdpEvents = events || [];
-
-  if (cdpEvents.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #6b7280;">No CDP detections or auto-bans in the selected window</td></tr>';
-    return;
-  }
-
-  for (const ev of cdpEvents) {
-    const reason = ev.reason || '';
-    const reasonLower = reason.toLowerCase();
-    const outcome = ev.outcome || '-';
-    const isBan = reasonLower === 'cdp_automation';
-    const tierSource = isBan ? outcome : reason;
-    const tier = extractCdpField(tierSource, 'tier').toUpperCase();
-    const score = extractCdpField(tierSource, 'score');
-    const details = isBan
-      ? `Auto-ban: ${outcome}`
-      : (outcome.toLowerCase().startsWith('checks:') ? outcome.replace(/^checks:/i, 'Checks: ') : outcome);
-
-    const tr = document.createElement('tr');
-    const safeIp = escapeHtml(ev.ip || '-');
-    const safeTier = escapeHtml(tier);
-    const safeScore = escapeHtml(score);
-    const safeDetails = escapeHtml(details);
-    tr.innerHTML = `
-      <td>${new Date(ev.ts * 1000).toLocaleString()}</td>
-      <td><code>${safeIp}</code></td>
-      <td><span class="badge ${isBan ? 'ban' : 'challenge'}">${isBan ? 'BAN' : 'DETECTION'}</span></td>
-      <td>${safeTier}</td>
-      <td>${safeScore}</td>
-      <td>${safeDetails}</td>
-    `;
-    tbody.appendChild(tr);
-  }
-}
-
-function updateCdpTotals(cdpData) {
-  const detections = cdpData?.stats?.total_detections ?? 0;
-  const autoBans = cdpData?.stats?.auto_bans ?? 0;
-  const fingerprintEvents =
-    (cdpData?.fingerprint_stats?.ua_client_hint_mismatch ?? 0) +
-    (cdpData?.fingerprint_stats?.ua_transport_mismatch ?? 0) +
-    (cdpData?.fingerprint_stats?.temporal_transition ?? 0);
-  const fingerprintFlowViolations = cdpData?.fingerprint_stats?.flow_violation ?? 0;
-
-  const detectionsEl = document.getElementById('cdp-total-detections');
-  const autoBansEl = document.getElementById('cdp-total-auto-bans');
-  const fpEventsEl = document.getElementById('cdp-fp-events');
-  const fpFlowViolationsEl = document.getElementById('cdp-fp-flow-violations');
-
-  if (detectionsEl) {
-    detectionsEl.textContent = Number(detections).toLocaleString();
-  }
-  if (autoBansEl) {
-    autoBansEl.textContent = Number(autoBans).toLocaleString();
-  }
-  if (fpEventsEl) {
-    fpEventsEl.textContent = Number(fingerprintEvents).toLocaleString();
-  }
-  if (fpFlowViolationsEl) {
-    fpFlowViolationsEl.textContent = Number(fingerprintFlowViolations).toLocaleString();
-  }
-}
-
-function normalizeOffenderBucketLabel(rawLabel) {
-  const label = String(rawLabel || '').trim();
-  if (!label) return 'untrusted/unknown';
-  if (label.toLowerCase() === 'unknown') return 'untrusted/unknown';
-  if (/^h\d+$/i.test(label)) return 'untrusted/unknown';
-  return label;
-}
-
-function formatUnitLabel(count, singular, plural) {
-  return count === 1 ? singular : plural;
-}
-
-function setTopOffenderCard(valueElement, labelElement, rawLabel, rawCount, singularUnit, pluralUnit) {
-  if (!valueElement || !labelElement) return;
-  const label = String(rawLabel || '').trim();
-  const count = Number(rawCount || 0);
-  if (!label || !Number.isFinite(count) || count <= 0) {
-    valueElement.textContent = 'None';
-    labelElement.textContent = 'Top Offender';
-    return;
-  }
-  const normalizedLabel = normalizeOffenderBucketLabel(label);
-  const unit = formatUnitLabel(count, singularUnit, pluralUnit);
-  valueElement.textContent = normalizedLabel;
-  labelElement.textContent = `Top Offender (${count.toLocaleString()} ${unit})`;
-}
-
-// Update maze stats section
-function updateMazeStats(data) {
-  document.getElementById('maze-total-hits').textContent = 
-    data.total_hits?.toLocaleString() || '0';
-  document.getElementById('maze-unique-crawlers').textContent = 
-    data.unique_crawlers?.toLocaleString() || '0';
-  document.getElementById('maze-auto-bans').textContent = 
-    data.maze_auto_bans?.toLocaleString() || '0';
-
-  const topOffender = document.getElementById('maze-top-offender');
-  const topOffenderLabel = document.getElementById('maze-top-offender-label');
-  if (topOffender) {
-    const topCrawler = Array.isArray(data.top_crawlers) && data.top_crawlers.length
-      ? data.top_crawlers[0]
-      : null;
-    setTopOffenderCard(
-      topOffender,
-      topOffenderLabel,
-      topCrawler?.ip,
-      topCrawler?.hits,
-      'page',
-      'pages'
-    );
-  }
-}
-
-function formatMetricLabel(key, fallbackMap) {
-  if (fallbackMap && fallbackMap[key]) return fallbackMap[key];
-  return String(key || '-')
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, char => char.toUpperCase());
-}
-
-function formatTrendTimestamp(ts) {
-  if (!Number.isFinite(ts)) return '-';
-  return new Date(ts * 1000).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric'
-  });
-}
-
-function renderCountList(containerId, entries, emptyText, valueSuffix = '') {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  const rows = Array.isArray(entries) ? entries : [];
-  if (!rows.length) {
-    container.innerHTML = `<p class="no-data">${escapeHtml(emptyText)}</p>`;
-    return;
-  }
-  container.innerHTML = rows.map((row) => {
-    const label = escapeHtml(row.label || '-');
-    const count = Number(row.count || 0).toLocaleString();
-    const suffix = valueSuffix ? ` ${escapeHtml(valueSuffix)}` : '';
-    return `
-      <div class="crawler-item panel panel-border">
-        <span class="crawler-ip">${label}</span>
-        <span class="crawler-hits">${count}${suffix}</span>
-      </div>
-    `;
-  }).join('');
-}
-
-function renderReasonTable(tbodyId, reasons, labels) {
-  const tbody = document.getElementById(tbodyId);
-  if (!tbody) return;
-  const source = reasons && typeof reasons === 'object' ? reasons : {};
-  const rows = Object.entries(source).sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0));
-  if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #6b7280;">No failures in window</td></tr>';
-    return;
-  }
-  tbody.innerHTML = rows.map(([key, value]) => `
-    <tr>
-      <td>${escapeHtml(formatMetricLabel(key, labels))}</td>
-      <td>${Number(value || 0).toLocaleString()}</td>
-    </tr>
-  `).join('');
-}
-
-function renderOutcomeList(listId, outcomes) {
-  const list = document.getElementById(listId);
-  if (!list) return;
-  const source = outcomes && typeof outcomes === 'object' ? outcomes : {};
-  const rows = Object.entries(source).sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0));
-  if (!rows.length) {
-    list.innerHTML = '<li class="text-muted">No outcomes yet</li>';
-    return;
-  }
-  list.innerHTML = rows.map(([key, value]) => `
-    <li><strong>${escapeHtml(formatMetricLabel(key, RATE_OUTCOME_LABELS))}:</strong> ${Number(value || 0).toLocaleString()}</li>
-  `).join('');
-}
-
-function updateMonitoringTrendChart(existingChart, canvasId, trend, title, color) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas || typeof Chart === 'undefined') return existingChart;
-  const ctx = canvas.getContext('2d');
-  const points = Array.isArray(trend) ? trend : [];
-  const labels = points.map((point) => formatTrendTimestamp(Number(point.ts || 0)));
-  const data = points.map((point) => Number(point.total || 0));
-
-  if (!existingChart) {
-    return new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: title,
-          data,
-          backgroundColor: color,
-          fill: true,
-          tension: 0.35,
-          pointRadius: 0,
-          pointHoverRadius: 0,
-          borderWidth: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { stepSize: 1 }
-          }
-        }
-      }
-    });
-  }
-
-  existingChart.data.labels = labels;
-  existingChart.data.datasets[0].data = data;
-  existingChart.update();
-  return existingChart;
-}
-
-function updateMonitoringSummary(data) {
-  const summary = data && typeof data === 'object' ? data : {};
-  const honeypot = summary.honeypot || {};
-  const challenge = summary.challenge || {};
-  const pow = summary.pow || {};
-  const rate = summary.rate || {};
-  const geo = summary.geo || {};
-
-  const honeypotTotal = document.getElementById('honeypot-total-hits');
-  const honeypotUnique = document.getElementById('honeypot-unique-crawlers');
-  const honeypotTopOffender = document.getElementById('honeypot-top-offender');
-  const honeypotTopOffenderLabel = document.getElementById('honeypot-top-offender-label');
-  if (honeypotTotal) honeypotTotal.textContent = Number(honeypot.total_hits || 0).toLocaleString();
-  if (honeypotUnique) honeypotUnique.textContent = Number(honeypot.unique_crawlers || 0).toLocaleString();
-  const topHoneypotCrawler = Array.isArray(honeypot.top_crawlers) && honeypot.top_crawlers.length
-    ? honeypot.top_crawlers[0]
-    : null;
-  setTopOffenderCard(
-    honeypotTopOffender,
-    honeypotTopOffenderLabel,
-    topHoneypotCrawler?.label,
-    topHoneypotCrawler?.count,
-    'hit',
-    'hits'
-  );
-  renderCountList('honeypot-top-paths', honeypot.top_paths, 'No honeypot path data yet', 'hits');
-
-  const challengeTotal = document.getElementById('challenge-failures-total');
-  const challengeUnique = document.getElementById('challenge-failures-unique');
-  const challengeTopOffender = document.getElementById('challenge-top-offender');
-  const challengeTopOffenderLabel = document.getElementById('challenge-top-offender-label');
-  if (challengeTotal) challengeTotal.textContent = Number(challenge.total_failures || 0).toLocaleString();
-  if (challengeUnique) challengeUnique.textContent = Number(challenge.unique_offenders || 0).toLocaleString();
-  const topChallengeOffender = Array.isArray(challenge.top_offenders) && challenge.top_offenders.length
-    ? challenge.top_offenders[0]
-    : null;
-  setTopOffenderCard(
-    challengeTopOffender,
-    challengeTopOffenderLabel,
-    topChallengeOffender?.label,
-    topChallengeOffender?.count,
-    'hit',
-    'hits'
-  );
-  renderReasonTable('challenge-failure-reasons', challenge.reasons, CHALLENGE_REASON_LABELS);
-  challengeFailuresTrendChart = updateMonitoringTrendChart(
-    challengeFailuresTrendChart,
-    'challengeFailuresTrendChart',
-    challenge.trend,
-    'Challenge Failures',
-    'rgba(255,205,235,0.95)'
-  );
-
-  const powTotal = document.getElementById('pow-failures-total');
-  const powUnique = document.getElementById('pow-failures-unique');
-  const powTopOffender = document.getElementById('pow-top-offender');
-  const powTopOffenderLabel = document.getElementById('pow-top-offender-label');
-  if (powTotal) powTotal.textContent = Number(pow.total_failures || 0).toLocaleString();
-  if (powUnique) powUnique.textContent = Number(pow.unique_offenders || 0).toLocaleString();
-  const topPowOffender = Array.isArray(pow.top_offenders) && pow.top_offenders.length
-    ? pow.top_offenders[0]
-    : null;
-  setTopOffenderCard(
-    powTopOffender,
-    powTopOffenderLabel,
-    topPowOffender?.label,
-    topPowOffender?.count,
-    'hit',
-    'hits'
-  );
-  renderReasonTable('pow-failure-reasons', pow.reasons, POW_REASON_LABELS);
-  powFailuresTrendChart = updateMonitoringTrendChart(
-    powFailuresTrendChart,
-    'powFailuresTrendChart',
-    pow.trend,
-    'PoW Failures',
-    'rgba(205,155,185,0.95)'
-  );
-
-  const rateTotal = document.getElementById('rate-violations-total');
-  const rateUnique = document.getElementById('rate-violations-unique');
-  const rateTopOffender = document.getElementById('rate-top-offender');
-  const rateTopOffenderLabel = document.getElementById('rate-top-offender-label');
-  if (rateTotal) rateTotal.textContent = Number(rate.total_violations || 0).toLocaleString();
-  if (rateUnique) rateUnique.textContent = Number(rate.unique_offenders || 0).toLocaleString();
-  const topRateOffender = Array.isArray(rate.top_offenders) && rate.top_offenders.length
-    ? rate.top_offenders[0]
-    : null;
-  setTopOffenderCard(
-    rateTopOffender,
-    rateTopOffenderLabel,
-    topRateOffender?.label,
-    topRateOffender?.count,
-    'hit',
-    'hits'
-  );
-  renderOutcomeList('rate-outcomes-list', rate.outcomes);
-
-  const geoTotal = document.getElementById('geo-violations-total');
-  const geoActionMix = document.getElementById('geo-action-mix');
-  if (geoTotal) geoTotal.textContent = Number(geo.total_violations || 0).toLocaleString();
-  if (geoActionMix) {
-    const block = Number(geo.actions?.block || 0).toLocaleString();
-    const challengeCount = Number(geo.actions?.challenge || 0).toLocaleString();
-    const maze = Number(geo.actions?.maze || 0).toLocaleString();
-    geoActionMix.textContent = `B:${block} C:${challengeCount} M:${maze}`;
-  }
-  renderCountList('geo-top-countries', geo.top_countries, 'No GEO violations yet', 'hits');
-}
-
-function updatePrometheusHelper(prometheusData) {
-  const example = document.getElementById('monitoring-prometheus-example');
-  const curlButton = document.getElementById('monitoring-prometheus-copy-curl');
-  const facts = document.getElementById('monitoring-prometheus-facts');
-  const outputSnippet = document.getElementById('monitoring-prometheus-output');
-  const statsSnippet = document.getElementById('monitoring-prometheus-stats');
-  const windowedSnippet = document.getElementById('monitoring-prometheus-windowed');
-  const summaryStatsSnippet = document.getElementById('monitoring-prometheus-summary-stats');
-  const observabilityLink = document.getElementById('monitoring-prometheus-observability-link');
-  const apiLink = document.getElementById('monitoring-prometheus-api-link');
-  const readString = (value) => (typeof value === 'string' ? value.trim() : '');
-  const endpoint = prometheusData && typeof prometheusData.endpoint === 'string'
-    ? prometheusData.endpoint
-    : '/metrics';
-  const exampleJs = readString(prometheusData?.example_js);
-  const exampleOutput = readString(prometheusData?.example_output);
-  const exampleStats = readString(prometheusData?.example_stats);
-  const exampleWindowed = readString(prometheusData?.example_windowed);
-  const exampleSummaryStats = readString(prometheusData?.example_summary_stats);
-  const docs = prometheusData && typeof prometheusData.docs === 'object'
-    ? prometheusData.docs
-    : {};
-  const notes = Array.isArray(prometheusData?.notes)
-    ? prometheusData.notes.map(readString).filter((entry) => entry.length > 0)
-    : [];
-  const fallbackFacts = [
-    '/metrics returns one full Prometheus text payload (no query arguments).',
-    'Use /admin/monitoring?hours=1-720&limit=1-50 for bounded JSON summaries.'
-  ];
-  if (example) {
-    example.textContent = exampleJs || '// Example unavailable.';
-  }
-  if (curlButton) {
-    const origin = window.location.origin || 'http://127.0.0.1:3000';
-    curlButton.dataset.copyText = `curl -sS '${origin}${endpoint}'`;
-  }
-  if (facts) {
-    const list = notes.length ? notes : fallbackFacts;
-    facts.innerHTML = list.map((entry) => `<li>${escapeHtml(entry)}</li>`).join('');
-  }
-  if (outputSnippet) {
-    outputSnippet.textContent = exampleOutput || '# Example unavailable.';
-  }
-  if (statsSnippet) {
-    statsSnippet.textContent = exampleStats || '// Example unavailable.';
-  }
-  if (windowedSnippet) {
-    windowedSnippet.textContent = exampleWindowed || '// Example unavailable.';
-  }
-  if (summaryStatsSnippet) {
-    summaryStatsSnippet.textContent = exampleSummaryStats || '// Example unavailable.';
-  }
-  if (observabilityLink && typeof docs.observability === 'string' && docs.observability) {
-    observabilityLink.href = docs.observability;
-  }
-  if (apiLink && typeof docs.api === 'string' && docs.api) {
-    apiLink.href = docs.api;
-  }
-}
-
-function bindPrometheusCopyButton() {
-  const button = document.getElementById('monitoring-prometheus-copy');
-  const curlButton = document.getElementById('monitoring-prometheus-copy-curl');
-  const example = document.getElementById('monitoring-prometheus-example');
-  const copyWithFeedback = async (targetButton, text, resetText) => {
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      targetButton.textContent = 'Copied';
-      window.setTimeout(() => {
-        targetButton.textContent = resetText;
-      }, 1200);
-    } catch (_err) {
-      targetButton.textContent = 'Copy Failed';
-      window.setTimeout(() => {
-        targetButton.textContent = resetText;
-      }, 1500);
-    }
-  };
-  if (button && example) {
-    button.addEventListener('click', async () => {
-      const text = String(example.textContent || '').trim();
-      await copyWithFeedback(button, text, 'Copy JS Example');
-    });
-  }
-  if (curlButton) {
-    curlButton.addEventListener('click', async () => {
-      const fallback = `curl -sS '${window.location.origin || 'http://127.0.0.1:3000'}/metrics'`;
-      const text = String(curlButton.dataset.copyText || fallback).trim();
-      await copyWithFeedback(curlButton, text, 'Copy Curl Example');
-    });
-  }
-}
-
 // Update maze config controls from loaded config
 function updateMazeConfig(config) {
   const statusPatch = {};
   if (config.maze_enabled !== undefined) {
-    document.getElementById('maze-enabled-toggle').checked = config.maze_enabled;
+    getById('maze-enabled-toggle').checked = config.maze_enabled;
     statusPatch.mazeEnabled = config.maze_enabled === true;
   }
   if (config.maze_auto_ban !== undefined) {
-    document.getElementById('maze-auto-ban-toggle').checked = config.maze_auto_ban;
+    getById('maze-auto-ban-toggle').checked = config.maze_auto_ban;
     statusPatch.mazeAutoBan = config.maze_auto_ban === true;
   }
   if (config.maze_auto_ban_threshold !== undefined) {
-    document.getElementById('maze-threshold').value = config.maze_auto_ban_threshold;
+    getById('maze-threshold').value = config.maze_auto_ban_threshold;
   }
-  mazeSavedState = {
-    enabled: document.getElementById('maze-enabled-toggle').checked,
-    autoBan: document.getElementById('maze-auto-ban-toggle').checked,
-    threshold: parseInt(document.getElementById('maze-threshold').value, 10) || 50
-  };
-  const btn = document.getElementById('save-maze-config');
+  setDraft('maze', {
+    enabled: getById('maze-enabled-toggle').checked,
+    autoBan: getById('maze-auto-ban-toggle').checked,
+    threshold: parseInt(getById('maze-threshold').value, 10) || 50
+  });
+  const btn = getById('save-maze-config');
   if (btn) {
     btn.dataset.saving = 'false';
     btn.disabled = true;
@@ -1630,20 +961,20 @@ function updateGeoConfig(config) {
   const maze = formatCountryCodes(config.geo_maze);
   const block = formatCountryCodes(config.geo_block);
 
-  document.getElementById('geo-risk-list').value = risk;
-  document.getElementById('geo-allow-list').value = allow;
-  document.getElementById('geo-challenge-list').value = challenge;
-  document.getElementById('geo-maze-list').value = maze;
-  document.getElementById('geo-block-list').value = block;
+  getById('geo-risk-list').value = risk;
+  getById('geo-allow-list').value = allow;
+  getById('geo-challenge-list').value = challenge;
+  getById('geo-maze-list').value = maze;
+  getById('geo-block-list').value = block;
 
-  geoSavedState = {
+  setDraft('geo', {
     risk: normalizeCountryCodesForCompare(risk),
     allow: normalizeCountryCodesForCompare(allow),
     challenge: normalizeCountryCodesForCompare(challenge),
     maze: normalizeCountryCodesForCompare(maze),
     block: normalizeCountryCodesForCompare(block),
     mutable
-  };
+  });
 
   statusPanel.update({
     geoRiskCount: Array.isArray(config.geo_risk) ? config.geo_risk.length : 0,
@@ -1656,13 +987,13 @@ function updateGeoConfig(config) {
 
   setGeoConfigEditable(mutable);
 
-  const scoringBtn = document.getElementById('save-geo-scoring-config');
+  const scoringBtn = getById('save-geo-scoring-config');
   if (scoringBtn) {
     scoringBtn.disabled = true;
     scoringBtn.textContent = 'Save GEO Scoring';
   }
 
-  const routingBtn = document.getElementById('save-geo-routing-config');
+  const routingBtn = getById('save-geo-routing-config');
   if (routingBtn) {
     routingBtn.disabled = true;
     routingBtn.textContent = 'Save GEO Routing';
@@ -1670,19 +1001,19 @@ function updateGeoConfig(config) {
 }
 
 function updateHoneypotConfig(config) {
-  const enabledToggle = document.getElementById('honeypot-enabled-toggle');
-  const field = document.getElementById('honeypot-paths');
+  const enabledToggle = getById('honeypot-enabled-toggle');
+  const field = getById('honeypot-paths');
   if (!field) return;
   if (enabledToggle) {
     enabledToggle.checked = config.honeypot_enabled !== false;
   }
   const formatted = formatListTextarea(config.honeypots);
   field.value = formatted;
-  honeypotSavedState = {
+  setDraft('honeypot', {
     enabled: enabledToggle ? enabledToggle.checked : true,
     values: normalizeListTextareaForCompare(formatted)
-  };
-  const btn = document.getElementById('save-honeypot-config');
+  });
+  const btn = getById('save-honeypot-config');
   if (btn) {
     btn.disabled = true;
     btn.textContent = 'Save Honeypots';
@@ -1690,19 +1021,19 @@ function updateHoneypotConfig(config) {
 }
 
 function updateBrowserPolicyConfig(config) {
-  const blockField = document.getElementById('browser-block-rules');
-  const whitelistField = document.getElementById('browser-whitelist-rules');
+  const blockField = getById('browser-block-rules');
+  const whitelistField = getById('browser-whitelist-rules');
   if (!blockField || !whitelistField) return;
 
   const blockText = formatBrowserRulesTextarea(config.browser_block);
   const whitelistText = formatBrowserRulesTextarea(config.browser_whitelist);
   blockField.value = blockText;
   whitelistField.value = whitelistText;
-  browserPolicySavedState = {
+  setDraft('browserPolicy', {
     block: normalizeBrowserRulesForCompare(blockText),
     whitelist: normalizeBrowserRulesForCompare(whitelistText)
-  };
-  const btn = document.getElementById('save-browser-policy-config');
+  });
+  const btn = getById('save-browser-policy-config');
   if (btn) {
     btn.disabled = true;
     btn.textContent = 'Save Browser Policy';
@@ -1710,118 +1041,67 @@ function updateBrowserPolicyConfig(config) {
 }
 
 function updateBypassAllowlistConfig(config) {
-  const networkField = document.getElementById('network-whitelist');
-  const pathField = document.getElementById('path-whitelist');
+  const networkField = getById('network-whitelist');
+  const pathField = getById('path-whitelist');
   if (!networkField || !pathField) return;
 
   const networkText = formatListTextarea(config.whitelist);
   const pathText = formatListTextarea(config.path_whitelist);
   networkField.value = networkText;
   pathField.value = pathText;
-  bypassAllowlistSavedState = {
+  setDraft('bypassAllowlists', {
     network: normalizeListTextareaForCompare(networkText),
     path: normalizeListTextareaForCompare(pathText)
-  };
-  const btn = document.getElementById('save-whitelist-config');
+  });
+  const btn = getById('save-whitelist-config');
   if (btn) {
     btn.disabled = true;
     btn.textContent = 'Save Allowlists';
   }
 }
 
-// Update robots.txt config controls from loaded config
-// Track saved state for change detection
-let robotsSavedState = {
-  enabled: true,
-  crawlDelay: 2
-};
+const CONFIG_DRAFT_DEFAULTS = Object.freeze({
+  robots: { enabled: true, crawlDelay: 2 },
+  aiPolicy: { blockTraining: true, blockSearch: false, allowSearch: false },
+  cdp: { enabled: true, autoBan: true, threshold: 0.6 },
+  edgeMode: { mode: 'off' },
+  rateLimit: { value: 80 },
+  jsRequired: { enforced: true },
+  maze: { enabled: false, autoBan: false, threshold: 50 },
+  banDurations: { honeypot: 86400, rateLimit: 3600, browser: 21600, cdp: 43200, admin: 21600 },
+  pow: { enabled: true, difficulty: 15, ttl: 90, mutable: true },
+  botness: {
+    challengeThreshold: 3,
+    mazeThreshold: 6,
+    weightJsRequired: 1,
+    weightGeoRisk: 2,
+    weightRateMedium: 1,
+    weightRateHigh: 2,
+    mutable: true
+  },
+  geo: { risk: '', allow: '', challenge: '', maze: '', block: '', mutable: false },
+  honeypot: { enabled: true, values: '/instaban' },
+  browserPolicy: { block: '', whitelist: '' },
+  bypassAllowlists: { network: '', path: '' },
+  challengePuzzle: { enabled: true, count: 6, mutable: true },
+  advancedConfig: { normalized: '{}' }
+});
 
-let aiPolicySavedState = {
-  blockTraining: true,
-  blockSearch: false,
-  allowSearch: false // toggle state (inverted from allow_search_engines)
-};
+function getDraft(sectionKey) {
+  const fallback = CONFIG_DRAFT_DEFAULTS[sectionKey] || null;
+  return configDraftStore ? configDraftStore.get(sectionKey, fallback) : cloneJsonValue(fallback);
+}
 
-// Track CDP detection saved state for change detection
-let cdpSavedState = {
-  enabled: true,
-  autoBan: true,
-  threshold: 0.6
-};
+function setDraft(sectionKey, value) {
+  if (configDraftStore) {
+    configDraftStore.set(sectionKey, value);
+  }
+}
 
-let edgeIntegrationModeSavedState = {
-  mode: 'off'
-};
-
-let rateLimitSavedState = {
-  value: 80
-};
-
-let jsRequiredSavedState = {
-  enforced: true
-};
-
-let mazeSavedState = {
-  enabled: false,
-  autoBan: false,
-  threshold: 50
-};
-
-let banDurationsSavedState = {
-  honeypot: 86400,
-  rateLimit: 3600,
-  browser: 21600,
-  cdp: 43200,
-  admin: 21600
-};
-
-// Track PoW saved state for change detection
-let powSavedState = {
-  enabled: true,
-  difficulty: 15,
-  ttl: 90
-};
-
-// Track botness scoring saved state for change detection
-let botnessSavedState = {
-  challengeThreshold: 3,
-  mazeThreshold: 6,
-  weightJsRequired: 1,
-  weightGeoRisk: 2,
-  weightRateMedium: 1,
-  weightRateHigh: 2
-};
-
-let geoSavedState = {
-  risk: '',
-  allow: '',
-  challenge: '',
-  maze: '',
-  block: '',
-  mutable: false
-};
-
-let honeypotSavedState = {
-  enabled: true,
-  values: '/instaban'
-};
-
-let browserPolicySavedState = {
-  block: '',
-  whitelist: ''
-};
-
-let bypassAllowlistSavedState = {
-  network: '',
-  path: ''
-};
-
-let challengePuzzleSavedState = {
-  enabled: true,
-  count: 6
-};
-
-let advancedConfigSavedNormalized = '{}';
+function isDraftDirty(sectionKey, currentValue) {
+  if (!configDraftStore) return true;
+  return configDraftStore.isDirty(sectionKey, currentValue);
+}
 
 const GEO_SCORING_FIELD_IDS = ['geo-risk-list'];
 const GEO_ROUTING_FIELD_IDS = [
@@ -1832,13 +1112,9 @@ const GEO_ROUTING_FIELD_IDS = [
 ];
 const GEO_FIELD_IDS = [...GEO_SCORING_FIELD_IDS, ...GEO_ROUTING_FIELD_IDS];
 
-const ISO_ALPHA2_CODES = new Set([
-  'AD', 'AE', 'AF', 'AG', 'AI', 'AL', 'AM', 'AO', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AW', 'AX', 'AZ', 'BA', 'BB', 'BD', 'BE', 'BF', 'BG', 'BH', 'BI', 'BJ', 'BL', 'BM', 'BN', 'BO', 'BQ', 'BR', 'BS', 'BT', 'BV', 'BW', 'BY', 'BZ', 'CA', 'CC', 'CD', 'CF', 'CG', 'CH', 'CI', 'CK', 'CL', 'CM', 'CN', 'CO', 'CR', 'CU', 'CV', 'CW', 'CX', 'CY', 'CZ', 'DE', 'DJ', 'DK', 'DM', 'DO', 'DZ', 'EC', 'EE', 'EG', 'EH', 'ER', 'ES', 'ET', 'FI', 'FJ', 'FK', 'FM', 'FO', 'FR', 'GA', 'GB', 'GD', 'GE', 'GF', 'GG', 'GH', 'GI', 'GL', 'GM', 'GN', 'GP', 'GQ', 'GR', 'GS', 'GT', 'GU', 'GW', 'GY', 'HK', 'HM', 'HN', 'HR', 'HT', 'HU', 'ID', 'IE', 'IL', 'IM', 'IN', 'IO', 'IQ', 'IR', 'IS', 'IT', 'JE', 'JM', 'JO', 'JP', 'KE', 'KG', 'KH', 'KI', 'KM', 'KN', 'KP', 'KR', 'KW', 'KY', 'KZ', 'LA', 'LB', 'LC', 'LI', 'LK', 'LR', 'LS', 'LT', 'LU', 'LV', 'LY', 'MA', 'MC', 'MD', 'ME', 'MF', 'MG', 'MH', 'MK', 'ML', 'MM', 'MN', 'MO', 'MP', 'MQ', 'MR', 'MS', 'MT', 'MU', 'MV', 'MW', 'MX', 'MY', 'MZ', 'NA', 'NC', 'NE', 'NF', 'NG', 'NI', 'NL', 'NO', 'NP', 'NR', 'NU', 'NZ', 'OM', 'PA', 'PE', 'PF', 'PG', 'PH', 'PK', 'PL', 'PM', 'PN', 'PR', 'PS', 'PT', 'PW', 'PY', 'QA', 'RE', 'RO', 'RS', 'RU', 'RW', 'SA', 'SB', 'SC', 'SD', 'SE', 'SG', 'SH', 'SI', 'SJ', 'SK', 'SL', 'SM', 'SN', 'SO', 'SR', 'SS', 'ST', 'SV', 'SX', 'SY', 'SZ', 'TC', 'TD', 'TF', 'TG', 'TH', 'TJ', 'TK', 'TL', 'TM', 'TN', 'TO', 'TR', 'TT', 'TV', 'TW', 'TZ', 'UA', 'UG', 'UM', 'US', 'UY', 'UZ', 'VA', 'VC', 'VE', 'VG', 'VI', 'VN', 'VU', 'WF', 'WS', 'YE', 'YT', 'ZA', 'ZM', 'ZW'
-]);
-
 function setGeoConfigEditable(editable) {
   GEO_FIELD_IDS.forEach(id => {
-    const field = document.getElementById(id);
+    const field = getById(id);
     field.disabled = !editable;
     if (!editable) {
       field.blur();
@@ -1852,161 +1128,47 @@ function sanitizeGeoTextareaValue(value) {
     .toUpperCase();
 }
 
-function parseCountryCodesStrict(raw) {
-  const sanitized = sanitizeGeoTextareaValue(raw);
-  if (!sanitized) return [];
-  if (!/^[A-Z]{2}(,[A-Z]{2})*$/.test(sanitized)) {
-    throw new Error('Use comma-separated 2-letter country codes only (example: GB,US,RU).');
-  }
-
-  const values = sanitized.split(',');
-  const seen = new Set();
-  const parsed = [];
-  for (const value of values) {
-    if (!ISO_ALPHA2_CODES.has(value)) {
-      throw new Error(`Invalid country code: ${value}. Use valid ISO 3166-1 alpha-2 codes.`);
-    }
-    if (!seen.has(value)) {
-      seen.add(value);
-      parsed.push(value);
-    }
-  }
-  return parsed;
-}
-
-function normalizeCountryCodesForCompare(raw) {
-  return (raw || '')
-    .split(',')
-    .map(value => value.trim())
-    .filter(value => value.length > 0)
-    .map(value => value.toUpperCase())
-    .join(',');
-}
-
 function formatCountryCodes(list) {
   if (!Array.isArray(list) || list.length === 0) return '';
   return list.join(',');
 }
 
-function parseListTextarea(raw) {
-  const source = String(raw || '');
-  const parts = source.split(/[\n,]/);
-  const seen = new Set();
-  const parsed = [];
-  for (const part of parts) {
-    const trimmed = part.trim();
-    if (!trimmed) continue;
-    if (seen.has(trimmed)) continue;
-    seen.add(trimmed);
-    parsed.push(trimmed);
-  }
-  return parsed;
-}
-
-function formatListTextarea(values) {
-  if (!Array.isArray(values) || values.length === 0) return '';
-  return values.map((value) => String(value || '').trim()).filter(Boolean).join('\n');
-}
-
-function normalizeListTextareaForCompare(raw) {
-  return parseListTextarea(raw).join('\n');
-}
-
-function parseHoneypotPathsTextarea(raw) {
-  const paths = parseListTextarea(raw);
-  for (const path of paths) {
-    if (!path.startsWith('/')) {
-      throw new Error(`Invalid honeypot path '${path}'. Paths must start with '/'.`);
-    }
-  }
-  return paths;
-}
-
-function formatBrowserRulesTextarea(rules) {
-  if (!Array.isArray(rules) || rules.length === 0) return '';
-  return rules
-    .filter((rule) => Array.isArray(rule) && rule.length >= 2)
-    .map((rule) => `${String(rule[0] || '').trim()},${Number.parseInt(rule[1], 10)}`)
-    .filter((line) => !line.startsWith(',') && !line.endsWith(',NaN'))
-    .join('\n');
-}
-
-function parseBrowserRulesTextarea(raw) {
-  const lines = String(raw || '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-  const parsed = [];
-  const seen = new Set();
-  for (const line of lines) {
-    const firstComma = line.indexOf(',');
-    if (firstComma <= 0 || firstComma === line.length - 1) {
-      throw new Error(`Invalid browser rule '${line}'. Use BrowserName,min_major.`);
-    }
-    const browser = line.slice(0, firstComma).trim();
-    const versionText = line.slice(firstComma + 1).trim();
-    const version = Number.parseInt(versionText, 10);
-    if (!browser) {
-      throw new Error(`Invalid browser rule '${line}'. Browser name is required.`);
-    }
-    if (!Number.isInteger(version) || version < 0) {
-      throw new Error(`Invalid browser rule '${line}'. Version must be a whole number >= 0.`);
-    }
-    const dedupeKey = `${browser}|${version}`;
-    if (seen.has(dedupeKey)) continue;
-    seen.add(dedupeKey);
-    parsed.push([browser, version]);
-  }
-  return parsed;
-}
-
-function normalizeBrowserRulesForCompare(raw) {
-  try {
-    return parseBrowserRulesTextarea(raw)
-      .map((rule) => `${rule[0]},${rule[1]}`)
-      .join('\n');
-  } catch (_e) {
-    return '__invalid__';
-  }
-}
-
 function updateRobotsConfig(config) {
   // Update toggles from server config
   if (config.robots_enabled !== undefined) {
-    document.getElementById('robots-enabled-toggle').checked = config.robots_enabled;
+    getById('robots-enabled-toggle').checked = config.robots_enabled;
   }
   const aiBlockTraining = config.ai_policy_block_training ?? config.robots_block_ai_training;
   if (aiBlockTraining !== undefined) {
-    document.getElementById('robots-block-training-toggle').checked = aiBlockTraining;
+    getById('robots-block-training-toggle').checked = aiBlockTraining;
   }
   const aiBlockSearch = config.ai_policy_block_search ?? config.robots_block_ai_search;
   if (aiBlockSearch !== undefined) {
-    document.getElementById('robots-block-search-toggle').checked = aiBlockSearch;
+    getById('robots-block-search-toggle').checked = aiBlockSearch;
   }
   const aiAllowSearch = config.ai_policy_allow_search_engines ?? config.robots_allow_search_engines;
   if (aiAllowSearch !== undefined) {
     // Invert: toggle ON = restrict (allow=false), toggle OFF = allow (allow=true)
-    document.getElementById('robots-allow-search-toggle').checked = !aiAllowSearch;
+    getById('robots-allow-search-toggle').checked = !aiAllowSearch;
   }
   if (config.robots_crawl_delay !== undefined) {
-    document.getElementById('robots-crawl-delay').value = config.robots_crawl_delay;
+    getById('robots-crawl-delay').value = config.robots_crawl_delay;
   }
-  // Store saved state for change detection (read from DOM after updates).
-  robotsSavedState = {
-    enabled: document.getElementById('robots-enabled-toggle').checked,
-    crawlDelay: parseInt(document.getElementById('robots-crawl-delay').value) || 2
-  };
-  aiPolicySavedState = {
-    blockTraining: document.getElementById('robots-block-training-toggle').checked,
-    blockSearch: document.getElementById('robots-block-search-toggle').checked,
-    allowSearch: document.getElementById('robots-allow-search-toggle').checked
-  };
+  setDraft('robots', {
+    enabled: getById('robots-enabled-toggle').checked,
+    crawlDelay: parseInt(getById('robots-crawl-delay').value) || 2
+  });
+  setDraft('aiPolicy', {
+    blockTraining: getById('robots-block-training-toggle').checked,
+    blockSearch: getById('robots-block-search-toggle').checked,
+    allowSearch: getById('robots-allow-search-toggle').checked
+  });
 
-  const robotsBtn = document.getElementById('save-robots-config');
+  const robotsBtn = getById('save-robots-config');
   robotsBtn.disabled = true;
   robotsBtn.textContent = 'Save robots serving';
 
-  const aiBtn = document.getElementById('save-ai-policy-config');
+  const aiBtn = getById('save-ai-policy-config');
   if (aiBtn) {
     aiBtn.disabled = true;
     aiBtn.textContent = 'Save AI bot policy';
@@ -2018,15 +1180,12 @@ function checkRobotsConfigChanged() {
   const apiValid = hasValidApiContext();
   const delayValid = validateIntegerFieldById('robots-crawl-delay');
   const current = {
-    enabled: document.getElementById('robots-enabled-toggle').checked,
-    crawlDelay: parseInt(document.getElementById('robots-crawl-delay').value) || 2
+    enabled: getById('robots-enabled-toggle').checked,
+    crawlDelay: parseInt(getById('robots-crawl-delay').value) || 2
   };
-  const changed = (
-    current.enabled !== robotsSavedState.enabled ||
-    current.crawlDelay !== robotsSavedState.crawlDelay
-  );
+  const changed = delayValid && isDraftDirty('robots', current);
   setDirtySaveButtonState('save-robots-config', changed, apiValid, delayValid);
-  const btn = document.getElementById('save-robots-config');
+  const btn = getById('save-robots-config');
   if (changed) {
     btn.textContent = 'Save robots serving';
   }
@@ -2035,24 +1194,20 @@ function checkRobotsConfigChanged() {
 function checkAiPolicyConfigChanged() {
   const apiValid = hasValidApiContext();
   const current = {
-    blockTraining: document.getElementById('robots-block-training-toggle').checked,
-    blockSearch: document.getElementById('robots-block-search-toggle').checked,
-    allowSearch: document.getElementById('robots-allow-search-toggle').checked
+    blockTraining: getById('robots-block-training-toggle').checked,
+    blockSearch: getById('robots-block-search-toggle').checked,
+    allowSearch: getById('robots-allow-search-toggle').checked
   };
-  const changed = (
-    current.blockTraining !== aiPolicySavedState.blockTraining ||
-    current.blockSearch !== aiPolicySavedState.blockSearch ||
-    current.allowSearch !== aiPolicySavedState.allowSearch
-  );
+  const changed = isDraftDirty('aiPolicy', current);
   setDirtySaveButtonState('save-ai-policy-config', changed, apiValid, true);
-  const btn = document.getElementById('save-ai-policy-config');
+  const btn = getById('save-ai-policy-config');
   if (changed) {
     btn.textContent = 'Save AI bot policy';
   }
 }
 
 function setButtonState(buttonId, apiValid, fieldsValid, changed, requireChange) {
-  const btn = document.getElementById(buttonId);
+  const btn = getById(buttonId);
   if (!btn) return;
   if (btn.dataset.saving === 'true') return;
   const canSubmit = apiValid && fieldsValid && (!requireChange || changed);
@@ -2071,11 +1226,11 @@ function checkMazeConfigChanged() {
   const currentThreshold = parseIntegerLoose('maze-threshold');
   const fieldsValid = validateIntegerFieldById('maze-threshold');
   const apiValid = hasValidApiContext();
-  const changed = fieldsValid && (
-    document.getElementById('maze-enabled-toggle').checked !== mazeSavedState.enabled ||
-    document.getElementById('maze-auto-ban-toggle').checked !== mazeSavedState.autoBan ||
-    currentThreshold !== mazeSavedState.threshold
-  );
+  const changed = fieldsValid && isDraftDirty('maze', {
+    enabled: getById('maze-enabled-toggle').checked,
+    autoBan: getById('maze-auto-ban-toggle').checked,
+    threshold: currentThreshold
+  });
   setDirtySaveButtonState('save-maze-config', changed, apiValid, fieldsValid);
 }
 
@@ -2093,19 +1248,13 @@ function checkBanDurationsChanged() {
     browser: browser.totalSeconds,
     cdp: cdp.totalSeconds,
     admin: admin.totalSeconds
-  } : banDurationsSavedState;
-  const changed = fieldsValid && (
-    current.honeypot !== banDurationsSavedState.honeypot ||
-    current.rateLimit !== banDurationsSavedState.rateLimit ||
-    current.browser !== banDurationsSavedState.browser ||
-    current.cdp !== banDurationsSavedState.cdp ||
-    current.admin !== banDurationsSavedState.admin
-  );
+  } : getDraft('banDurations');
+  const changed = fieldsValid && isDraftDirty('banDurations', current);
   setDirtySaveButtonState('save-durations-btn', changed, apiValid, fieldsValid);
 }
 
 function validateHoneypotPathsField(showInline = false) {
-  const field = document.getElementById('honeypot-paths');
+  const field = getById('honeypot-paths');
   if (!field) return false;
   try {
     parseHoneypotPathsTextarea(field.value);
@@ -2120,19 +1269,20 @@ function validateHoneypotPathsField(showInline = false) {
 function checkHoneypotConfigChanged() {
   const apiValid = hasValidApiContext();
   const fieldsValid = validateHoneypotPathsField();
-  const currentEnabled = document.getElementById('honeypot-enabled-toggle').checked;
+  const currentEnabled = getById('honeypot-enabled-toggle').checked;
+  const saved = getDraft('honeypot');
   const current = fieldsValid
-    ? normalizeListTextareaForCompare(document.getElementById('honeypot-paths').value)
-    : honeypotSavedState.values;
+    ? normalizeListTextareaForCompare(getById('honeypot-paths').value)
+    : saved.values;
   const changed = fieldsValid && (
-    currentEnabled !== honeypotSavedState.enabled ||
-    current !== honeypotSavedState.values
+    currentEnabled !== saved.enabled ||
+    current !== saved.values
   );
   setDirtySaveButtonState('save-honeypot-config', changed, apiValid, fieldsValid);
 }
 
 function validateBrowserRulesField(id, showInline = false) {
-  const field = document.getElementById(id);
+  const field = getById(id);
   if (!field) return false;
   try {
     parseBrowserRulesTextarea(field.value);
@@ -2149,49 +1299,50 @@ function checkBrowserPolicyConfigChanged() {
   const blockValid = validateBrowserRulesField('browser-block-rules');
   const whitelistValid = validateBrowserRulesField('browser-whitelist-rules');
   const fieldsValid = blockValid && whitelistValid;
-  const currentBlock = normalizeBrowserRulesForCompare(document.getElementById('browser-block-rules').value);
-  const currentWhitelist = normalizeBrowserRulesForCompare(document.getElementById('browser-whitelist-rules').value);
-  const changed = fieldsValid && (
-    currentBlock !== browserPolicySavedState.block ||
-    currentWhitelist !== browserPolicySavedState.whitelist
-  );
+  const currentBlock = normalizeBrowserRulesForCompare(getById('browser-block-rules').value);
+  const currentWhitelist = normalizeBrowserRulesForCompare(getById('browser-whitelist-rules').value);
+  const changed = fieldsValid && isDraftDirty('browserPolicy', {
+    block: currentBlock,
+    whitelist: currentWhitelist
+  });
   setDirtySaveButtonState('save-browser-policy-config', changed, apiValid, fieldsValid);
 }
 
 function checkBypassAllowlistsConfigChanged() {
   const apiValid = hasValidApiContext();
   const current = {
-    network: normalizeListTextareaForCompare(document.getElementById('network-whitelist').value),
-    path: normalizeListTextareaForCompare(document.getElementById('path-whitelist').value)
+    network: normalizeListTextareaForCompare(getById('network-whitelist').value),
+    path: normalizeListTextareaForCompare(getById('path-whitelist').value)
   };
-  const changed = current.network !== bypassAllowlistSavedState.network || current.path !== bypassAllowlistSavedState.path;
+  const changed = isDraftDirty('bypassAllowlists', current);
   setDirtySaveButtonState('save-whitelist-config', changed, apiValid, true);
 }
 
 function checkChallengePuzzleConfigChanged() {
   const apiValid = hasValidApiContext();
   const fieldsValid = validateIntegerFieldById('challenge-puzzle-transform-count');
-  const toggle = document.getElementById('challenge-puzzle-enabled-toggle');
+  const toggle = getById('challenge-puzzle-enabled-toggle');
   const current = parseIntegerLoose('challenge-puzzle-transform-count');
-  const enabledChanged = Boolean(toggle && (toggle.checked !== challengePuzzleSavedState.enabled));
-  const countChanged = current !== null && current !== challengePuzzleSavedState.count;
+  const saved = getDraft('challengePuzzle');
+  const enabledChanged = Boolean(toggle && (toggle.checked !== saved.enabled));
+  const countChanged = current !== null && current !== saved.count;
   const changed = fieldsValid && (enabledChanged || countChanged);
   setDirtySaveButtonState('save-challenge-puzzle-config', changed, apiValid, fieldsValid);
 }
 
 // Add change listeners for robots serving and AI-policy controls.
 ['robots-enabled-toggle'].forEach(id => {
-  document.getElementById(id).addEventListener('change', checkRobotsConfigChanged);
+  getById(id).addEventListener('change', checkRobotsConfigChanged);
 });
-document.getElementById('robots-crawl-delay').addEventListener('input', checkRobotsConfigChanged);
+getById('robots-crawl-delay').addEventListener('input', checkRobotsConfigChanged);
 ['robots-block-training-toggle', 'robots-block-search-toggle', 'robots-allow-search-toggle'].forEach(id => {
-  document.getElementById(id).addEventListener('change', checkAiPolicyConfigChanged);
+  getById(id).addEventListener('change', checkAiPolicyConfigChanged);
 });
 ['maze-enabled-toggle', 'maze-auto-ban-toggle'].forEach(id => {
-  document.getElementById(id).addEventListener('change', checkMazeConfigChanged);
+  getById(id).addEventListener('change', checkMazeConfigChanged);
 });
 ['honeypot-paths'].forEach(id => {
-  const field = document.getElementById(id);
+  const field = getById(id);
   if (!field) return;
   field.addEventListener('input', () => {
     validateHoneypotPathsField(true);
@@ -2204,9 +1355,9 @@ document.getElementById('robots-crawl-delay').addEventListener('input', checkRob
     refreshCoreActionButtonsState();
   });
 });
-document.getElementById('honeypot-enabled-toggle').addEventListener('change', checkHoneypotConfigChanged);
+getById('honeypot-enabled-toggle').addEventListener('change', checkHoneypotConfigChanged);
 ['browser-block-rules', 'browser-whitelist-rules'].forEach((id) => {
-  const field = document.getElementById(id);
+  const field = getById(id);
   if (!field) return;
   field.addEventListener('input', () => {
     validateBrowserRulesField(id, true);
@@ -2220,7 +1371,7 @@ document.getElementById('honeypot-enabled-toggle').addEventListener('change', ch
   });
 });
 ['network-whitelist', 'path-whitelist'].forEach((id) => {
-  const field = document.getElementById(id);
+  const field = getById(id);
   if (!field) return;
   field.addEventListener('input', () => {
     checkBypassAllowlistsConfigChanged();
@@ -2231,13 +1382,13 @@ document.getElementById('honeypot-enabled-toggle').addEventListener('change', ch
     refreshCoreActionButtonsState();
   });
 });
-document.getElementById('challenge-puzzle-transform-count').addEventListener('input', checkChallengePuzzleConfigChanged);
-document.getElementById('challenge-puzzle-enabled-toggle').addEventListener('change', checkChallengePuzzleConfigChanged);
+getById('challenge-puzzle-transform-count').addEventListener('input', checkChallengePuzzleConfigChanged);
+getById('challenge-puzzle-enabled-toggle').addEventListener('change', checkChallengePuzzleConfigChanged);
 
 // Fetch and update robots.txt preview content
 async function refreshRobotsPreview() {
-  if (!getAdminContext(document.getElementById('admin-msg'))) return;
-  const previewContent = document.getElementById('robots-preview-content');
+  if (!getAdminContext(getById('admin-msg'))) return;
+  const previewContent = getById('robots-preview-content');
   
   try {
     const data = await dashboardApiClient.getRobotsPreview();
@@ -2249,8 +1400,8 @@ async function refreshRobotsPreview() {
 }
 
 // Toggle robots.txt preview visibility
-document.getElementById('preview-robots').onclick = async function() {
-  const preview = document.getElementById('robots-preview');
+getById('preview-robots').onclick = async function() {
+  const preview = getById('robots-preview');
   const btn = this;
   
   if (preview.classList.contains('hidden')) {
@@ -2272,25 +1423,25 @@ document.getElementById('preview-robots').onclick = async function() {
 function updateCdpConfig(config) {
   const statusPatch = {};
   if (config.cdp_detection_enabled !== undefined) {
-    document.getElementById('cdp-enabled-toggle').checked = config.cdp_detection_enabled;
+    getById('cdp-enabled-toggle').checked = config.cdp_detection_enabled;
     statusPatch.cdpEnabled = config.cdp_detection_enabled === true;
   }
   if (config.cdp_auto_ban !== undefined) {
-    document.getElementById('cdp-auto-ban-toggle').checked = config.cdp_auto_ban;
+    getById('cdp-auto-ban-toggle').checked = config.cdp_auto_ban;
     statusPatch.cdpAutoBan = config.cdp_auto_ban === true;
   }
   if (config.cdp_detection_threshold !== undefined) {
-    document.getElementById('cdp-threshold-slider').value = config.cdp_detection_threshold;
-     document.getElementById('cdp-threshold-value').textContent = parseFloat(config.cdp_detection_threshold).toFixed(1);
+    getById('cdp-threshold-slider').value = config.cdp_detection_threshold;
+     getById('cdp-threshold-value').textContent = parseFloat(config.cdp_detection_threshold).toFixed(1);
   }
   // Store saved state for change detection
-  cdpSavedState = {
-    enabled: document.getElementById('cdp-enabled-toggle').checked,
-    autoBan: document.getElementById('cdp-auto-ban-toggle').checked,
-    threshold: parseFloat(document.getElementById('cdp-threshold-slider').value)
-  };
+  setDraft('cdp', {
+    enabled: getById('cdp-enabled-toggle').checked,
+    autoBan: getById('cdp-auto-ban-toggle').checked,
+    threshold: parseFloat(getById('cdp-threshold-slider').value)
+  });
   // Reset button state
-  const btn = document.getElementById('save-cdp-config');
+  const btn = getById('save-cdp-config');
   btn.disabled = true;
   btn.textContent = 'Save CDP Settings';
   statusPanel.update(statusPatch);
@@ -2299,12 +1450,12 @@ function updateCdpConfig(config) {
 
 function updateEdgeIntegrationModeConfig(config) {
   const mode = normalizeEdgeIntegrationMode(config.edge_integration_mode);
-  const select = document.getElementById('edge-integration-mode-select');
+  const select = getById('edge-integration-mode-select');
   if (!select) return;
   select.value = mode;
-  edgeIntegrationModeSavedState = { mode };
+  setDraft('edgeMode', { mode });
 
-  const btn = document.getElementById('save-edge-integration-mode-config');
+  const btn = getById('save-edge-integration-mode-config');
   if (btn) {
     btn.disabled = true;
     btn.textContent = 'Save Edge Integration Mode';
@@ -2313,13 +1464,13 @@ function updateEdgeIntegrationModeConfig(config) {
 
 function updateRateLimitConfig(config) {
   const rateLimit = parseInt(config.rate_limit, 10) || 80;
-  const field = document.getElementById('rate-limit-threshold');
+  const field = getById('rate-limit-threshold');
   field.value = rateLimit;
-  rateLimitSavedState = { value: rateLimit };
+  setDraft('rateLimit', { value: rateLimit });
   statusPanel.update({ rateLimit });
   statusPanel.render();
 
-  const btn = document.getElementById('save-rate-limit-config');
+  const btn = getById('save-rate-limit-config');
   if (btn) {
     btn.disabled = true;
     btn.textContent = 'Save Rate Limit';
@@ -2328,13 +1479,13 @@ function updateRateLimitConfig(config) {
 
 function updateJsRequiredConfig(config) {
   const enforced = parseBoolLike(config.js_required_enforced, true);
-  const toggle = document.getElementById('js-required-enforced-toggle');
+  const toggle = getById('js-required-enforced-toggle');
   toggle.checked = enforced;
-  jsRequiredSavedState = { enforced };
+  setDraft('jsRequired', { enforced });
   statusPanel.update({ jsRequiredEnforced: enforced });
   statusPanel.render();
 
-  const btn = document.getElementById('save-js-required-config');
+  const btn = getById('save-js-required-config');
   if (btn) {
     btn.disabled = true;
     btn.textContent = 'Save JS Required';
@@ -2353,20 +1504,20 @@ function updatePowConfig(config) {
   statusPanel.render();
 
   if (!Number.isNaN(difficulty)) {
-    document.getElementById('pow-difficulty').value = difficulty;
+    getById('pow-difficulty').value = difficulty;
   }
   if (!Number.isNaN(ttl)) {
-    document.getElementById('pow-ttl').value = ttl;
+    getById('pow-ttl').value = ttl;
   }
-  document.getElementById('pow-enabled-toggle').checked = powEnabled;
+  getById('pow-enabled-toggle').checked = powEnabled;
 
-  powSavedState = {
-    enabled: document.getElementById('pow-enabled-toggle').checked,
-    difficulty: parseInt(document.getElementById('pow-difficulty').value, 10) || 15,
-    ttl: parseInt(document.getElementById('pow-ttl').value, 10) || 90
-  };
+  setDraft('pow', {
+    enabled: getById('pow-enabled-toggle').checked,
+    difficulty: parseInt(getById('pow-difficulty').value, 10) || 15,
+    ttl: parseInt(getById('pow-ttl').value, 10) || 90
+  });
 
-  const btn = document.getElementById('save-pow-config');
+  const btn = getById('save-pow-config');
   btn.disabled = true;
   btn.textContent = 'Save PoW Settings';
 }
@@ -2379,8 +1530,8 @@ function updateBotnessSignalDefinitions(signalDefinitions) {
     ? signalDefinitions.terminal_signals
     : [];
 
-  const scoredTarget = document.getElementById('botness-signal-list');
-  const terminalTarget = document.getElementById('botness-terminal-list');
+  const scoredTarget = getById('botness-signal-list');
+  const terminalTarget = getById('botness-terminal-list');
 
   scoredTarget.innerHTML = scoredSignals.length
     ? scoredSignals.map(signal => `
@@ -2412,23 +1563,23 @@ function updateChallengeConfig(config) {
   const weights = config.botness_weights || {};
 
   if (!Number.isNaN(challengeThreshold)) {
-    document.getElementById('challenge-puzzle-threshold').value = challengeThreshold;
+    getById('challenge-puzzle-threshold').value = challengeThreshold;
   }
   if (!Number.isNaN(mazeThreshold)) {
-    document.getElementById('maze-threshold-score').value = mazeThreshold;
+    getById('maze-threshold-score').value = mazeThreshold;
   }
   if (!Number.isNaN(challengeTransformCount)) {
-    document.getElementById('challenge-puzzle-transform-count').value = challengeTransformCount;
+    getById('challenge-puzzle-transform-count').value = challengeTransformCount;
   }
-  document.getElementById('challenge-puzzle-enabled-toggle').checked = challengeEnabled;
-  document.getElementById('weight-js-required').value = parseInt(weights.js_required, 10) || 1;
-  document.getElementById('weight-geo-risk').value = parseInt(weights.geo_risk, 10) || 2;
-  document.getElementById('weight-rate-medium').value = parseInt(weights.rate_medium, 10) || 1;
-  document.getElementById('weight-rate-high').value = parseInt(weights.rate_high, 10) || 2;
+  getById('challenge-puzzle-enabled-toggle').checked = challengeEnabled;
+  getById('weight-js-required').value = parseInt(weights.js_required, 10) || 1;
+  getById('weight-geo-risk').value = parseInt(weights.geo_risk, 10) || 2;
+  getById('weight-rate-medium').value = parseInt(weights.rate_medium, 10) || 1;
+  getById('weight-rate-high').value = parseInt(weights.rate_high, 10) || 2;
 
-  document.getElementById('botness-config-status').textContent = writable ? 'EDITABLE' : 'READ ONLY';
-  document.getElementById('challenge-puzzle-default').textContent = Number.isNaN(challengeDefault) ? '--' : challengeDefault;
-  document.getElementById('maze-threshold-default').textContent = Number.isNaN(mazeDefault) ? '--' : mazeDefault;
+  getById('botness-config-status').textContent = writable ? 'EDITABLE' : 'READ ONLY';
+  getById('challenge-puzzle-default').textContent = Number.isNaN(challengeDefault) ? '--' : challengeDefault;
+  getById('maze-threshold-default').textContent = Number.isNaN(mazeDefault) ? '--' : mazeDefault;
 
   statusPanel.update({
     challengeEnabled,
@@ -2451,35 +1602,35 @@ function updateChallengeConfig(config) {
     'weight-rate-high'
   ];
   editableFields.forEach(id => {
-    document.getElementById(id).disabled = !writable;
+    getById(id).disabled = !writable;
   });
 
-  botnessSavedState = {
-    challengeThreshold: parseInt(document.getElementById('challenge-puzzle-threshold').value, 10) || 3,
-    mazeThreshold: parseInt(document.getElementById('maze-threshold-score').value, 10) || 6,
-    weightJsRequired: parseInt(document.getElementById('weight-js-required').value, 10) || 1,
-    weightGeoRisk: parseInt(document.getElementById('weight-geo-risk').value, 10) || 2,
-    weightRateMedium: parseInt(document.getElementById('weight-rate-medium').value, 10) || 1,
-    weightRateHigh: parseInt(document.getElementById('weight-rate-high').value, 10) || 2
-  };
+  setDraft('botness', {
+    challengeThreshold: parseInt(getById('challenge-puzzle-threshold').value, 10) || 3,
+    mazeThreshold: parseInt(getById('maze-threshold-score').value, 10) || 6,
+    weightJsRequired: parseInt(getById('weight-js-required').value, 10) || 1,
+    weightGeoRisk: parseInt(getById('weight-geo-risk').value, 10) || 2,
+    weightRateMedium: parseInt(getById('weight-rate-medium').value, 10) || 1,
+    weightRateHigh: parseInt(getById('weight-rate-high').value, 10) || 2
+  });
 
   updateBotnessSignalDefinitions(config.botness_signal_definitions);
 
-  const btn = document.getElementById('save-botness-config');
+  const btn = getById('save-botness-config');
   btn.disabled = true;
   btn.textContent = 'Save Botness Settings';
 
-  challengePuzzleSavedState = {
-    enabled: document.getElementById('challenge-puzzle-enabled-toggle').checked,
-    count: parseInt(document.getElementById('challenge-puzzle-transform-count').value, 10) || 6
-  };
-  const challengeBtn = document.getElementById('save-challenge-puzzle-config');
+  setDraft('challengePuzzle', {
+    enabled: getById('challenge-puzzle-enabled-toggle').checked,
+    count: parseInt(getById('challenge-puzzle-transform-count').value, 10) || 6
+  });
+  const challengeBtn = getById('save-challenge-puzzle-config');
   if (challengeBtn) {
     challengeBtn.disabled = true;
     challengeBtn.textContent = 'Save Challenge Puzzle';
   }
-  const challengeTransformField = document.getElementById('challenge-puzzle-transform-count');
-  const challengeEnabledToggle = document.getElementById('challenge-puzzle-enabled-toggle');
+  const challengeTransformField = getById('challenge-puzzle-transform-count');
+  const challengeEnabledToggle = getById('challenge-puzzle-enabled-toggle');
   if (challengeTransformField) {
     challengeTransformField.disabled = !writable;
   }
@@ -2493,20 +1644,17 @@ function checkPowConfigChanged() {
   const apiValid = hasValidApiContext();
   const powFieldsValid = validateIntegerFieldById('pow-difficulty') && validateIntegerFieldById('pow-ttl');
   const current = {
-    enabled: document.getElementById('pow-enabled-toggle').checked,
-    difficulty: parseInt(document.getElementById('pow-difficulty').value, 10) || 15,
-    ttl: parseInt(document.getElementById('pow-ttl').value, 10) || 90
+    enabled: getById('pow-enabled-toggle').checked,
+    difficulty: parseInt(getById('pow-difficulty').value, 10) || 15,
+    ttl: parseInt(getById('pow-ttl').value, 10) || 90
   };
-  const changed =
-    current.enabled !== powSavedState.enabled ||
-    current.difficulty !== powSavedState.difficulty ||
-    current.ttl !== powSavedState.ttl;
+  const changed = isDraftDirty('pow', current);
   setDirtySaveButtonState('save-pow-config', changed, apiValid, powFieldsValid);
 }
 
-document.getElementById('pow-enabled-toggle').addEventListener('change', checkPowConfigChanged);
-document.getElementById('pow-difficulty').addEventListener('input', checkPowConfigChanged);
-document.getElementById('pow-ttl').addEventListener('input', checkPowConfigChanged);
+getById('pow-enabled-toggle').addEventListener('change', checkPowConfigChanged);
+getById('pow-difficulty').addEventListener('input', checkPowConfigChanged);
+getById('pow-ttl').addEventListener('input', checkPowConfigChanged);
 
 function checkBotnessConfigChanged() {
   const apiValid = hasValidApiContext();
@@ -2518,20 +1666,14 @@ function checkBotnessConfigChanged() {
     validateIntegerFieldById('weight-rate-medium') &&
     validateIntegerFieldById('weight-rate-high');
   const current = {
-    challengeThreshold: parseInt(document.getElementById('challenge-puzzle-threshold').value, 10) || 3,
-    mazeThreshold: parseInt(document.getElementById('maze-threshold-score').value, 10) || 6,
-    weightJsRequired: parseInt(document.getElementById('weight-js-required').value, 10) || 1,
-    weightGeoRisk: parseInt(document.getElementById('weight-geo-risk').value, 10) || 2,
-    weightRateMedium: parseInt(document.getElementById('weight-rate-medium').value, 10) || 1,
-    weightRateHigh: parseInt(document.getElementById('weight-rate-high').value, 10) || 2
+    challengeThreshold: parseInt(getById('challenge-puzzle-threshold').value, 10) || 3,
+    mazeThreshold: parseInt(getById('maze-threshold-score').value, 10) || 6,
+    weightJsRequired: parseInt(getById('weight-js-required').value, 10) || 1,
+    weightGeoRisk: parseInt(getById('weight-geo-risk').value, 10) || 2,
+    weightRateMedium: parseInt(getById('weight-rate-medium').value, 10) || 1,
+    weightRateHigh: parseInt(getById('weight-rate-high').value, 10) || 2
   };
-  const changed =
-    current.challengeThreshold !== botnessSavedState.challengeThreshold ||
-    current.mazeThreshold !== botnessSavedState.mazeThreshold ||
-    current.weightJsRequired !== botnessSavedState.weightJsRequired ||
-    current.weightGeoRisk !== botnessSavedState.weightGeoRisk ||
-    current.weightRateMedium !== botnessSavedState.weightRateMedium ||
-    current.weightRateHigh !== botnessSavedState.weightRateHigh;
+  const changed = isDraftDirty('botness', current);
   setDirtySaveButtonState('save-botness-config', changed, apiValid, fieldsValid);
 }
 
@@ -2543,41 +1685,42 @@ function checkBotnessConfigChanged() {
   'weight-rate-medium',
   'weight-rate-high'
 ].forEach(id => {
-  document.getElementById(id).addEventListener('input', checkBotnessConfigChanged);
+  getById(id).addEventListener('input', checkBotnessConfigChanged);
 });
 
 function checkGeoConfigChanged() {
   const apiValid = hasValidApiContext();
   const scoringValid = GEO_SCORING_FIELD_IDS.every(validateGeoFieldById);
   const routingValid = GEO_ROUTING_FIELD_IDS.every(validateGeoFieldById);
-  if (!geoSavedState.mutable) {
-    const scoringBtn = document.getElementById('save-geo-scoring-config');
+  const savedGeo = getDraft('geo');
+  if (!savedGeo.mutable) {
+    const scoringBtn = getById('save-geo-scoring-config');
     if (scoringBtn) scoringBtn.disabled = true;
-    const routingBtn = document.getElementById('save-geo-routing-config');
+    const routingBtn = getById('save-geo-routing-config');
     if (routingBtn) routingBtn.disabled = true;
     return;
   }
 
   const current = {
-    risk: normalizeCountryCodesForCompare(document.getElementById('geo-risk-list').value),
-    allow: normalizeCountryCodesForCompare(document.getElementById('geo-allow-list').value),
-    challenge: normalizeCountryCodesForCompare(document.getElementById('geo-challenge-list').value),
-    maze: normalizeCountryCodesForCompare(document.getElementById('geo-maze-list').value),
-    block: normalizeCountryCodesForCompare(document.getElementById('geo-block-list').value)
+    risk: normalizeCountryCodesForCompare(getById('geo-risk-list').value),
+    allow: normalizeCountryCodesForCompare(getById('geo-allow-list').value),
+    challenge: normalizeCountryCodesForCompare(getById('geo-challenge-list').value),
+    maze: normalizeCountryCodesForCompare(getById('geo-maze-list').value),
+    block: normalizeCountryCodesForCompare(getById('geo-block-list').value)
   };
-  const scoringChanged = current.risk !== geoSavedState.risk;
+  const scoringChanged = current.risk !== savedGeo.risk;
   const routingChanged =
-    current.allow !== geoSavedState.allow ||
-    current.challenge !== geoSavedState.challenge ||
-    current.maze !== geoSavedState.maze ||
-    current.block !== geoSavedState.block;
+    current.allow !== savedGeo.allow ||
+    current.challenge !== savedGeo.challenge ||
+    current.maze !== savedGeo.maze ||
+    current.block !== savedGeo.block;
 
   setDirtySaveButtonState('save-geo-scoring-config', scoringChanged, apiValid, scoringValid);
   setDirtySaveButtonState('save-geo-routing-config', routingChanged, apiValid, routingValid);
 }
 
 GEO_FIELD_IDS.forEach(id => {
-  const field = document.getElementById(id);
+  const field = getById(id);
   field.addEventListener('input', () => {
     const sanitized = sanitizeGeoTextareaValue(field.value);
     if (field.value !== sanitized) {
@@ -2604,24 +1747,20 @@ GEO_FIELD_IDS.forEach(id => {
 function checkCdpConfigChanged() {
   const apiValid = hasValidApiContext();
   const current = {
-    enabled: document.getElementById('cdp-enabled-toggle').checked,
-    autoBan: document.getElementById('cdp-auto-ban-toggle').checked,
-    threshold: parseFloat(document.getElementById('cdp-threshold-slider').value)
+    enabled: getById('cdp-enabled-toggle').checked,
+    autoBan: getById('cdp-auto-ban-toggle').checked,
+    threshold: parseFloat(getById('cdp-threshold-slider').value)
   };
-  const changed = (
-    current.enabled !== cdpSavedState.enabled ||
-    current.autoBan !== cdpSavedState.autoBan ||
-    current.threshold !== cdpSavedState.threshold
-  );
+  const changed = isDraftDirty('cdp', current);
   setDirtySaveButtonState('save-cdp-config', changed, apiValid);
 }
 
 function checkEdgeIntegrationModeChanged() {
   const apiValid = hasValidApiContext();
-  const select = document.getElementById('edge-integration-mode-select');
+  const select = getById('edge-integration-mode-select');
   if (!select) return;
   const current = normalizeEdgeIntegrationMode(select.value);
-  const changed = current !== edgeIntegrationModeSavedState.mode;
+  const changed = isDraftDirty('edgeMode', { mode: current });
   setDirtySaveButtonState('save-edge-integration-mode-config', changed, apiValid);
 }
 
@@ -2629,31 +1768,31 @@ function checkRateLimitConfigChanged() {
   const apiValid = hasValidApiContext();
   const valueValid = validateIntegerFieldById('rate-limit-threshold');
   const current = parseIntegerLoose('rate-limit-threshold');
-  const changed = current !== null && current !== rateLimitSavedState.value;
+  const changed = current !== null && isDraftDirty('rateLimit', { value: current });
   setDirtySaveButtonState('save-rate-limit-config', changed, apiValid, valueValid);
 }
 
-document.getElementById('rate-limit-threshold').addEventListener('input', checkRateLimitConfigChanged);
+getById('rate-limit-threshold').addEventListener('input', checkRateLimitConfigChanged);
 
 function checkJsRequiredConfigChanged() {
   const apiValid = hasValidApiContext();
-  const current = document.getElementById('js-required-enforced-toggle').checked;
-  const changed = current !== jsRequiredSavedState.enforced;
+  const current = getById('js-required-enforced-toggle').checked;
+  const changed = isDraftDirty('jsRequired', { enforced: current });
   setDirtySaveButtonState('save-js-required-config', changed, apiValid);
 }
 
-document.getElementById('js-required-enforced-toggle').addEventListener('change', checkJsRequiredConfigChanged);
+getById('js-required-enforced-toggle').addEventListener('change', checkJsRequiredConfigChanged);
 
 function setAdvancedConfigEditorFromConfig(config, preserveDirty = true) {
-  const field = document.getElementById('advanced-config-json');
+  const field = getById('advanced-config-json');
   if (!field) return;
-  const previousBaseline = advancedConfigSavedNormalized;
+  const previousBaseline = getDraft('advancedConfig').normalized || '{}';
   const template = buildAdvancedConfigTemplate(config || {});
   const formatted = JSON.stringify(template, null, 2);
   const currentNormalized = normalizeJsonObjectForCompare(field.value);
   const hasUnsavedEdits = field.dataset.dirty === 'true';
 
-  advancedConfigSavedNormalized = normalizeJsonObjectForCompare(formatted) || '{}';
+  setDraft('advancedConfig', { normalized: normalizeJsonObjectForCompare(formatted) || '{}' });
 
   const shouldReplace =
     !preserveDirty ||
@@ -2668,7 +1807,7 @@ function setAdvancedConfigEditorFromConfig(config, preserveDirty = true) {
 }
 
 function readAdvancedConfigPatch(messageTarget) {
-  const field = document.getElementById('advanced-config-json');
+  const field = getById('advanced-config-json');
   if (!field) return null;
   const raw = String(field.value || '').trim();
   const parsedText = raw.length > 0 ? raw : '{}';
@@ -2698,19 +1837,20 @@ function readAdvancedConfigPatch(messageTarget) {
 }
 
 function checkAdvancedConfigChanged() {
-  const field = document.getElementById('advanced-config-json');
-  const btn = document.getElementById('save-advanced-config');
+  const field = getById('advanced-config-json');
+  const btn = getById('save-advanced-config');
   if (!field || !btn) return;
   const apiValid = hasValidApiContext();
   const normalized = normalizeJsonObjectForCompare(field.value);
   const valid = normalized !== null;
-  const changed = valid && normalized !== advancedConfigSavedNormalized;
+  const baseline = getDraft('advancedConfig').normalized || '{}';
+  const changed = valid && normalized !== baseline;
   field.dataset.dirty = changed ? 'true' : 'false';
   setFieldError(field, valid ? '' : 'Advanced config patch must be valid JSON object syntax.', true);
   setDirtySaveButtonState('save-advanced-config', changed, apiValid, valid);
 }
 
-const advancedConfigField = document.getElementById('advanced-config-json');
+const advancedConfigField = getById('advanced-config-json');
 if (advancedConfigField) {
   advancedConfigField.addEventListener('input', () => {
     checkAdvancedConfigChanged();
@@ -2723,46 +1863,56 @@ if (advancedConfigField) {
 }
 
 // Update threshold display when slider moves
-document.getElementById('cdp-threshold-slider').addEventListener('input', function() {
-  document.getElementById('cdp-threshold-value').textContent = this.value;
-    document.getElementById('cdp-threshold-value').textContent = parseFloat(this.value).toFixed(1);
-    checkCdpConfigChanged();
+getById('cdp-threshold-slider').addEventListener('input', function() {
+  getById('cdp-threshold-value').textContent = parseFloat(this.value).toFixed(1);
+  checkCdpConfigChanged();
 });
 
 // Add change listeners for CDP config controls
 ['cdp-enabled-toggle', 'cdp-auto-ban-toggle'].forEach(id => {
-  document.getElementById(id).addEventListener('change', checkCdpConfigChanged);
+  getById(id).addEventListener('change', checkCdpConfigChanged);
 });
 
-document.getElementById('edge-integration-mode-select').addEventListener('change', checkEdgeIntegrationModeChanged);
+getById('edge-integration-mode-select').addEventListener('change', checkEdgeIntegrationModeChanged);
 
 function updateLastUpdatedTimestamp() {
   const ts = new Date().toISOString();
-  const label = document.getElementById('last-updated');
+  const label = getById('last-updated');
   if (label) label.textContent = `updated: ${ts}`;
 }
 
+function isConfigSnapshotEmpty(config) {
+  return !config || typeof config !== 'object' || Object.keys(config).length === 0;
+}
+
 async function refreshSharedConfig(reason = 'manual') {
-  if (!dashboardApiClient) return;
-  if (dashboardState && reason === 'auto-refresh' && !dashboardState.isTabStale('config')) return;
+  if (!dashboardApiClient) {
+    return dashboardState ? dashboardState.getSnapshot('config') : null;
+  }
+  if (dashboardState && reason === 'auto-refresh' && !dashboardState.isTabStale('config')) {
+    return dashboardState.getSnapshot('config');
+  }
   const config = await dashboardApiClient.getConfig();
   if (dashboardState) dashboardState.setSnapshot('config', config);
-  statusPanel.update({ configSnapshot: config });
-  updateConfigModeUi(config);
-  updateBanDurations(config);
-  updateRateLimitConfig(config);
-  updateJsRequiredConfig(config);
-  updateMazeConfig(config);
-  updateGeoConfig(config);
-  updateHoneypotConfig(config);
-  updateBrowserPolicyConfig(config);
-  updateBypassAllowlistConfig(config);
-  updateRobotsConfig(config);
-  updateCdpConfig(config);
-  updateEdgeIntegrationModeConfig(config);
-  updatePowConfig(config);
-  updateChallengeConfig(config);
-  setAdvancedConfigEditorFromConfig(config, true);
+  await runDomWriteBatch(() => {
+    statusPanel.update({ configSnapshot: config });
+    updateConfigModeUi(config);
+    updateBanDurations(config);
+    updateRateLimitConfig(config);
+    updateJsRequiredConfig(config);
+    updateMazeConfig(config);
+    updateGeoConfig(config);
+    updateHoneypotConfig(config);
+    updateBrowserPolicyConfig(config);
+    updateBypassAllowlistConfig(config);
+    updateRobotsConfig(config);
+    updateCdpConfig(config);
+    updateEdgeIntegrationModeConfig(config);
+    updatePowConfig(config);
+    updateChallengeConfig(config);
+    setAdvancedConfigEditorFromConfig(config, true);
+  });
+  return config;
 }
 
 async function refreshMonitoringTab(reason = 'manual') {
@@ -2771,29 +1921,29 @@ async function refreshMonitoringTab(reason = 'manual') {
     showTabLoading('monitoring', 'Loading monitoring data...');
   }
 
-  document.getElementById('total-bans').textContent = '...';
-  document.getElementById('active-bans').textContent = '...';
-  document.getElementById('total-events').textContent = '...';
-  document.getElementById('unique-ips').textContent = '...';
-  const cdpTotalDetections = document.getElementById('cdp-total-detections');
-  const cdpTotalAutoBans = document.getElementById('cdp-total-auto-bans');
+  getById('total-bans').textContent = '...';
+  getById('active-bans').textContent = '...';
+  getById('total-events').textContent = '...';
+  getById('unique-ips').textContent = '...';
+  const cdpTotalDetections = getById('cdp-total-detections');
+  const cdpTotalAutoBans = getById('cdp-total-auto-bans');
   if (cdpTotalDetections) cdpTotalDetections.textContent = '...';
   if (cdpTotalAutoBans) cdpTotalAutoBans.textContent = '...';
-  const honeypotTotal = document.getElementById('honeypot-total-hits');
-  const challengeTotal = document.getElementById('challenge-failures-total');
-  const powTotal = document.getElementById('pow-failures-total');
-  const rateTotal = document.getElementById('rate-violations-total');
-  const geoTotal = document.getElementById('geo-violations-total');
-  const mazeTopOffender = document.getElementById('maze-top-offender');
-  const mazeTopOffenderLabel = document.getElementById('maze-top-offender-label');
-  const honeypotTopOffender = document.getElementById('honeypot-top-offender');
-  const honeypotTopOffenderLabel = document.getElementById('honeypot-top-offender-label');
-  const challengeTopOffender = document.getElementById('challenge-top-offender');
-  const challengeTopOffenderLabel = document.getElementById('challenge-top-offender-label');
-  const powTopOffender = document.getElementById('pow-top-offender');
-  const powTopOffenderLabel = document.getElementById('pow-top-offender-label');
-  const rateTopOffender = document.getElementById('rate-top-offender');
-  const rateTopOffenderLabel = document.getElementById('rate-top-offender-label');
+  const honeypotTotal = getById('honeypot-total-hits');
+  const challengeTotal = getById('challenge-failures-total');
+  const powTotal = getById('pow-failures-total');
+  const rateTotal = getById('rate-violations-total');
+  const geoTotal = getById('geo-violations-total');
+  const mazeTopOffender = getById('maze-top-offender');
+  const mazeTopOffenderLabel = getById('maze-top-offender-label');
+  const honeypotTopOffender = getById('honeypot-top-offender');
+  const honeypotTopOffenderLabel = getById('honeypot-top-offender-label');
+  const challengeTopOffender = getById('challenge-top-offender');
+  const challengeTopOffenderLabel = getById('challenge-top-offender-label');
+  const powTopOffender = getById('pow-top-offender');
+  const powTopOffenderLabel = getById('pow-top-offender-label');
+  const rateTopOffender = getById('rate-top-offender');
+  const rateTopOffenderLabel = getById('rate-top-offender-label');
   if (honeypotTotal) honeypotTotal.textContent = '...';
   if (challengeTotal) challengeTotal.textContent = '...';
   if (powTotal) powTotal.textContent = '...';
@@ -2830,16 +1980,22 @@ async function refreshMonitoringTab(reason = 'manual') {
     dashboardState.setSnapshot('monitoring', monitoringData);
   }
 
-  updateStatCards(analytics, events, bansData.bans || []);
-  dashboardCharts.updateEventTypesChart(events.event_counts || {});
-  dashboardCharts.updateTopIpsChart(events.top_ips || []);
-  dashboardCharts.updateTimeSeriesChart();
-  updateEventsTable(events.recent_events || []);
-  updateCdpTotals(cdpData);
-  updateCdpEventsTable(cdpEventsData.events || []);
-  updateMazeStats(mazeData);
-  updateMonitoringSummary(monitoringData.summary || {});
-  updatePrometheusHelper(monitoringData.prometheus || {});
+  await runDomWriteBatch(() => {
+    updateStatCards(analytics, events, bansData.bans || []);
+    dashboardCharts.updateEventTypesChart(events.event_counts || {});
+    dashboardCharts.updateTopIpsChart(events.top_ips || []);
+    dashboardCharts.updateTimeSeriesChart();
+    if (tablesView) {
+      tablesView.updateEventsTable(events.recent_events || []);
+      tablesView.updateCdpTotals(cdpData);
+      tablesView.updateCdpEventsTable(cdpEventsData.events || []);
+    }
+    if (monitoringView) {
+      monitoringView.updateMazeStats(mazeData);
+      monitoringView.updateMonitoringSummary(monitoringData.summary || {});
+      monitoringView.updatePrometheusHelper(monitoringData.prometheus || {});
+    }
+  });
 
   if (dashboardState && dashboardState.getDerivedState().monitoringEmpty) {
     showTabEmpty('monitoring', 'No operational events yet. Monitoring will populate as traffic arrives.');
@@ -2855,7 +2011,11 @@ async function refreshIpBansTab(reason = 'manual') {
   }
   const bansData = await dashboardApiClient.getBans();
   if (dashboardState) dashboardState.setSnapshot('bans', bansData);
-  updateBansTable(bansData.bans || []);
+  await runDomWriteBatch(() => {
+    if (tablesView) {
+      tablesView.updateBansTable(bansData.bans || []);
+    }
+  });
   if (!Array.isArray(bansData.bans) || bansData.bans.length === 0) {
     showTabEmpty('ip-bans', 'No active bans.');
   } else {
@@ -2867,24 +2027,36 @@ async function refreshStatusTab(reason = 'manual') {
   if (reason !== 'auto-refresh') {
     showTabLoading('status', 'Loading status signals...');
   }
-  await refreshSharedConfig(reason);
-  clearTabStateMessage('status');
+  const config = await refreshSharedConfig(reason);
+  if (isConfigSnapshotEmpty(config)) {
+    showTabEmpty('status', 'No status config snapshot available yet.');
+  } else {
+    clearTabStateMessage('status');
+  }
 }
 
 async function refreshConfigTab(reason = 'manual') {
   if (reason !== 'auto-refresh') {
     showTabLoading('config', 'Loading config...');
   }
-  await refreshSharedConfig(reason);
-  clearTabStateMessage('config');
+  const config = await refreshSharedConfig(reason);
+  if (isConfigSnapshotEmpty(config)) {
+    showTabEmpty('config', 'No config snapshot available yet.');
+  } else {
+    clearTabStateMessage('config');
+  }
 }
 
 async function refreshTuningTab(reason = 'manual') {
   if (reason !== 'auto-refresh') {
     showTabLoading('tuning', 'Loading tuning values...');
   }
-  await refreshSharedConfig(reason);
-  clearTabStateMessage('tuning');
+  const config = await refreshSharedConfig(reason);
+  if (isConfigSnapshotEmpty(config)) {
+    showTabEmpty('tuning', 'No tuning config snapshot available yet.');
+  } else {
+    clearTabStateMessage('tuning');
+  }
 }
 
 async function refreshDashboardForTab(tab, reason = 'manual') {
@@ -2911,7 +2083,7 @@ async function refreshDashboardForTab(tab, reason = 'manual') {
     const message = error && error.message ? error.message : 'Refresh failed';
     console.error(`Dashboard refresh error (${activeTab}):`, error);
     showTabError(activeTab, message);
-    const msg = document.getElementById('admin-msg');
+    const msg = getById('admin-msg');
     if (msg) {
       msg.textContent = `Refresh failed: ${message}`;
       msg.className = 'message error';
@@ -2927,8 +2099,8 @@ function refreshActiveTab(reason = 'manual') {
 }
 
 // Admin controls - Ban IP
-document.getElementById('ban-btn').onclick = async function () {
-  const msg = document.getElementById('admin-msg');
+getById('ban-btn').onclick = async function () {
+  const msg = getById('admin-msg');
   if (!getAdminContext(msg)) return;
   const ip = readIpFieldValue('ban-ip', true, msg, 'Ban IP');
   if (ip === null) return;
@@ -2942,9 +2114,9 @@ document.getElementById('ban-btn').onclick = async function () {
     await dashboardApiClient.banIp(ip, duration);
     msg.textContent = `Banned ${ip} for ${duration}s`;
     msg.className = 'message success';
-    document.getElementById('ban-ip').value = '';
+    getById('ban-ip').value = '';
     if (dashboardState) dashboardState.invalidate('ip-bans');
-    setTimeout(() => refreshActiveTab('ban-save'), 500);
+    runtimeEffects.setTimer(() => refreshActiveTab('ban-save'), 500);
   } catch (e) {
     msg.textContent = 'Error: ' + e.message;
     msg.className = 'message error';
@@ -2952,8 +2124,8 @@ document.getElementById('ban-btn').onclick = async function () {
 };
 
 // Admin controls - Unban IP
-document.getElementById('unban-btn').onclick = async function () {
-  const msg = document.getElementById('admin-msg');
+getById('unban-btn').onclick = async function () {
+  const msg = getById('admin-msg');
   if (!getAdminContext(msg)) return;
   const ip = readIpFieldValue('unban-ip', true, msg, 'Unban IP');
   if (ip === null) return;
@@ -2965,9 +2137,9 @@ document.getElementById('unban-btn').onclick = async function () {
     await dashboardApiClient.unbanIp(ip);
     msg.textContent = `Unbanned ${ip}`;
     msg.className = 'message success';
-    document.getElementById('unban-ip').value = '';
+    getById('unban-ip').value = '';
     if (dashboardState) dashboardState.invalidate('ip-bans');
-    setTimeout(() => refreshActiveTab('unban-save'), 500);
+    runtimeEffects.setTimer(() => refreshActiveTab('unban-save'), 500);
   } catch (e) {
     msg.textContent = 'Error: ' + e.message;
     msg.className = 'message error';
@@ -2976,7 +2148,7 @@ document.getElementById('unban-btn').onclick = async function () {
 
 function clearAutoRefreshTimer() {
   if (autoRefreshTimer) {
-    window.clearTimeout(autoRefreshTimer);
+    runtimeEffects.clearTimer(autoRefreshTimer);
     autoRefreshTimer = null;
   }
 }
@@ -2988,7 +2160,7 @@ function scheduleAutoRefresh() {
     ? dashboardTabCoordinator.getActiveTab()
     : (dashboardState ? dashboardState.getActiveTab() : 'monitoring');
   const interval = TAB_REFRESH_INTERVAL_MS[activeTab] || TAB_REFRESH_INTERVAL_MS.monitoring;
-  autoRefreshTimer = window.setTimeout(async () => {
+  autoRefreshTimer = runtimeEffects.setTimer(async () => {
     autoRefreshTimer = null;
     if (hasValidApiContext() && pageVisible) {
       await refreshDashboardForTab(activeTab, 'auto-refresh');
@@ -2998,6 +2170,9 @@ function scheduleAutoRefresh() {
 }
 
 // Initialize charts and load data on page load
+configDraftStore = configDraftStoreModule.create(CONFIG_DRAFT_DEFAULTS);
+runtimeEffects = createRuntimeEffects();
+
 dashboardState = dashboardStateModule.create({
   initialTab: tabLifecycleModule.DEFAULT_DASHBOARD_TAB
 });
@@ -3011,7 +2186,35 @@ adminSessionController.bindLogoutButton('logout-btn', 'admin-msg');
 
 dashboardApiClient = dashboardApiClientModule.create({
   getAdminContext,
-  onUnauthorized: redirectToLogin
+  onUnauthorized: redirectToLogin,
+  request: (input, init) => runtimeEffects.request(input, init)
+});
+
+monitoringView = monitoringViewModule.create({
+  escapeHtml,
+  effects: runtimeEffects
+});
+
+tablesView = tablesViewModule.create({
+  escapeHtml,
+  onQuickUnban: async (ip) => {
+    const msg = getById('admin-msg');
+    if (!getAdminContext(msg)) return;
+
+    msg.textContent = `Unbanning ${ip}...`;
+    msg.className = 'message info';
+
+    try {
+      await dashboardApiClient.unbanIp(ip);
+      msg.textContent = `Unbanned ${ip}`;
+      msg.className = 'message success';
+      if (dashboardState) dashboardState.invalidate('ip-bans');
+      runtimeEffects.setTimer(() => refreshActiveTab('quick-unban'), 500);
+    } catch (e) {
+      msg.textContent = 'Error: ' + e.message;
+      msg.className = 'message error';
+    }
+  }
 });
 
 dashboardTabCoordinator = tabLifecycleModule.createTabLifecycleCoordinator({
@@ -3023,103 +2226,80 @@ dashboardTabCoordinator = tabLifecycleModule.createTabLifecycleCoordinator({
 });
 dashboardTabCoordinator.init();
 initInputValidation();
-bindPrometheusCopyButton();
+if (monitoringView) {
+  monitoringView.bindPrometheusCopyButtons();
+}
 dashboardCharts.init({
   getAdminContext,
   apiClient: dashboardApiClient
 });
 statusPanel.render();
 configControls.bind({
-  statusPanel,
-  apiClient: dashboardApiClient,
-  getAdminContext,
-  readIntegerFieldValue,
-  readBanDurationSeconds,
-  parseCountryCodesStrict,
-  parseHoneypotPathsTextarea,
-  parseBrowserRulesTextarea,
-  parseListTextarea,
-  normalizeListTextareaForCompare,
-  normalizeBrowserRulesForCompare,
-  updateBanDurations,
-  updateGeoConfig,
-  updateHoneypotConfig,
-  updateBrowserPolicyConfig,
-  updateBypassAllowlistConfig,
-  updateEdgeIntegrationModeConfig,
-  refreshRobotsPreview,
-  readAdvancedConfigPatch,
-  setAdvancedConfigFromConfig: setAdvancedConfigEditorFromConfig,
-  refreshDashboard: () => refreshActiveTab('config-controls'),
-  onConfigSaved: (_patch, result) => {
-    if (result && result.config) {
-      statusPanel.update({ configSnapshot: result.config });
-      setAdvancedConfigEditorFromConfig(result.config, true);
+  effects: runtimeEffects,
+  context: {
+    statusPanel,
+    apiClient: dashboardApiClient,
+    auth: {
+      getAdminContext
+    },
+    callbacks: {
+      onConfigSaved: (_patch, result) => {
+        if (result && result.config) {
+          statusPanel.update({ configSnapshot: result.config });
+          setAdvancedConfigEditorFromConfig(result.config, true);
+        }
+        if (dashboardState) {
+          dashboardState.invalidate('securityConfig');
+          dashboardState.invalidate('monitoring');
+          dashboardState.invalidate('ip-bans');
+        }
+      }
+    },
+    readers: {
+      readIntegerFieldValue,
+      readBanDurationSeconds,
+      readAdvancedConfigPatch
+    },
+    updaters: {
+      updateBanDurations,
+      updateGeoConfig,
+      updateHoneypotConfig,
+      updateBrowserPolicyConfig,
+      updateBypassAllowlistConfig,
+      updateEdgeIntegrationModeConfig,
+      refreshRobotsPreview,
+      setAdvancedConfigFromConfig: setAdvancedConfigEditorFromConfig
+    },
+    actions: {
+      refreshDashboard: () => refreshActiveTab('config-controls')
+    },
+    checks: {
+      checkMazeConfigChanged,
+      checkRobotsConfigChanged,
+      checkAiPolicyConfigChanged,
+      checkGeoConfigChanged,
+      checkHoneypotConfigChanged,
+      checkBrowserPolicyConfigChanged,
+      checkBypassAllowlistsConfigChanged,
+      checkPowConfigChanged,
+      checkChallengePuzzleConfigChanged,
+      checkBotnessConfigChanged,
+      checkCdpConfigChanged,
+      checkEdgeIntegrationModeChanged,
+      checkRateLimitConfigChanged,
+      checkJsRequiredConfigChanged,
+      checkAdvancedConfigChanged,
+      checkBanDurationsChanged
+    },
+    draft: {
+      get: (sectionKey, fallback) => {
+        if (configDraftStore) return configDraftStore.get(sectionKey, fallback);
+        return fallback;
+      },
+      set: (sectionKey, value) => {
+        if (configDraftStore) configDraftStore.set(sectionKey, value);
+      }
     }
-    if (dashboardState) {
-      dashboardState.invalidate('securityConfig');
-      dashboardState.invalidate('monitoring');
-      dashboardState.invalidate('ip-bans');
-    }
-  },
-  checkMazeConfigChanged,
-  checkRobotsConfigChanged,
-  checkAiPolicyConfigChanged,
-  checkGeoConfigChanged,
-  checkHoneypotConfigChanged,
-  checkBrowserPolicyConfigChanged,
-  checkBypassAllowlistsConfigChanged,
-  checkPowConfigChanged,
-  checkChallengePuzzleConfigChanged,
-  checkBotnessConfigChanged,
-  checkCdpConfigChanged,
-  checkEdgeIntegrationModeChanged,
-  checkRateLimitConfigChanged,
-  checkJsRequiredConfigChanged,
-  checkAdvancedConfigChanged,
-  checkBanDurationsChanged,
-  getGeoSavedState: () => geoSavedState,
-  setGeoSavedState: (next) => {
-    geoSavedState = next;
-  },
-  setMazeSavedState: (next) => {
-    mazeSavedState = next;
-  },
-  setHoneypotSavedState: (next) => {
-    honeypotSavedState = next;
-  },
-  setBrowserPolicySavedState: (next) => {
-    browserPolicySavedState = next;
-  },
-  setBypassAllowlistSavedState: (next) => {
-    bypassAllowlistSavedState = next;
-  },
-  setRobotsSavedState: (next) => {
-    robotsSavedState = next;
-  },
-  setAiPolicySavedState: (next) => {
-    aiPolicySavedState = next;
-  },
-  setPowSavedState: (next) => {
-    powSavedState = next;
-  },
-  setChallengePuzzleSavedState: (next) => {
-    challengePuzzleSavedState = next;
-  },
-  setBotnessSavedState: (next) => {
-    botnessSavedState = next;
-  },
-  setCdpSavedState: (next) => {
-    cdpSavedState = next;
-  },
-  setEdgeIntegrationModeSavedState: (next) => {
-    edgeIntegrationModeSavedState = next;
-  },
-  setRateLimitSavedState: (next) => {
-    rateLimitSavedState = next;
-  },
-  setJsRequiredSavedState: (next) => {
-    jsRequiredSavedState = next;
   }
 });
 adminSessionController.restoreAdminSession().then((authenticated) => {

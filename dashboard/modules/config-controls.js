@@ -1,9 +1,117 @@
 // @ts-check
 
-(function (global) {
-  function bind(options = {}) {
+import * as formUtils from './config-form-utils.js';
+import * as domModule from './core/dom.js';
+
+const domCache = domModule.createCache({ document });
+const getById = domCache.byId;
+
+  const OPTION_GROUP_KEYS = Object.freeze([
+    'readers',
+    'parsers',
+    'updaters',
+    'checks',
+    'state',
+    'actions',
+    'callbacks'
+  ]);
+  const DRAFT_SETTER_ALIAS = Object.freeze({
+    setMazeSavedState: 'maze',
+    setHoneypotSavedState: 'honeypot',
+    setBrowserPolicySavedState: 'browserPolicy',
+    setBypassAllowlistSavedState: 'bypassAllowlists',
+    setRobotsSavedState: 'robots',
+    setAiPolicySavedState: 'aiPolicy',
+    setPowSavedState: 'pow',
+    setChallengePuzzleSavedState: 'challengePuzzle',
+    setBotnessSavedState: 'botness',
+    setCdpSavedState: 'cdp',
+    setEdgeIntegrationModeSavedState: 'edgeMode',
+    setRateLimitSavedState: 'rateLimit',
+    setJsRequiredSavedState: 'jsRequired'
+  });
+  const GEO_DRAFT_FALLBACK = Object.freeze({
+    risk: '',
+    allow: '',
+    challenge: '',
+    maze: '',
+    block: '',
+    mutable: false
+  });
+
+  function flattenBindOptions(rawOptions = {}) {
+    // Accept grouped option buckets to keep the bind callsite small while retaining
+    // stable flat option names used throughout this module.
+    const flattened = { ...rawOptions };
+    OPTION_GROUP_KEYS.forEach((groupKey) => {
+      const group = rawOptions[groupKey];
+      if (!group || typeof group !== 'object') return;
+      Object.entries(group).forEach(([key, value]) => {
+        if (flattened[key] === undefined) {
+          flattened[key] = value;
+        }
+      });
+    });
+    return flattened;
+  }
+
+  function normalizeContextOptions(rawOptions = {}) {
+    if (!rawOptions.context || typeof rawOptions.context !== 'object') return rawOptions;
+    const context = rawOptions.context;
+    const normalized = {
+      statusPanel: context.statusPanel || null,
+      apiClient: context.apiClient || null,
+      effects:
+        context.effects && typeof context.effects === 'object'
+          ? context.effects
+          : (rawOptions.effects && typeof rawOptions.effects === 'object' ? rawOptions.effects : null)
+    };
+
+    const auth = context.auth || {};
+    const callbacks = context.callbacks || {};
+    const readers = context.readers || {};
+    const parsers = context.parsers || {};
+    const updaters = context.updaters || {};
+    const checks = context.checks || {};
+    const actions = context.actions || {};
+
+    if (typeof auth.getAdminContext === 'function') {
+      normalized.getAdminContext = auth.getAdminContext;
+    }
+    if (typeof callbacks.onConfigSaved === 'function') {
+      normalized.onConfigSaved = callbacks.onConfigSaved;
+    }
+    Object.assign(normalized, readers, parsers, updaters, checks, actions);
+
+    const draft = context.draft || {};
+    if (typeof draft.get === 'function') {
+      normalized.getGeoSavedState = () => draft.get('geo', GEO_DRAFT_FALLBACK);
+    }
+    if (typeof draft.set === 'function') {
+      Object.entries(DRAFT_SETTER_ALIAS).forEach(([setterName, sectionKey]) => {
+        normalized[setterName] = (next) => draft.set(sectionKey, next);
+      });
+      normalized.setGeoSavedState = (next) => draft.set('geo', next);
+    }
+
+    return normalized;
+  }
+
+  function bind(rawOptions = {}) {
+    const options = flattenBindOptions(normalizeContextOptions(rawOptions));
     const statusPanel = options.statusPanel || null;
     const apiClient = options.apiClient || null;
+    const timerSetTimeout =
+      options.effects && typeof options.effects.setTimer === 'function'
+        ? options.effects.setTimer
+        : window.setTimeout.bind(window);
+    const requestImpl =
+      options.effects && typeof options.effects.request === 'function'
+        ? options.effects.request
+        : fetch.bind(globalThis);
+    const parseCountryCodesStrict = typeof options.parseCountryCodesStrict === 'function'
+      ? options.parseCountryCodesStrict
+      : formUtils.parseCountryCodesStrict;
 
     async function saveConfigPatch(messageTarget, patch) {
       let result;
@@ -15,7 +123,7 @@
           throw new Error('Missing admin API context');
         }
         const { endpoint, apikey } = ctx;
-        const resp = await fetch(`${endpoint}/admin/config`, {
+        const resp = await requestImpl(`${endpoint}/admin/config`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${apikey}`,
@@ -43,54 +151,45 @@
       if (typeof options.parseListTextarea === 'function') {
         return options.parseListTextarea(raw);
       }
-      return String(raw || '')
-        .split(/[\n,]/)
-        .map((part) => part.trim())
-        .filter(Boolean);
+      return formUtils.parseListTextarea(raw);
     }
 
     function normalizeList(raw) {
       if (typeof options.normalizeListTextareaForCompare === 'function') {
         return options.normalizeListTextareaForCompare(raw);
       }
-      return parseList(raw).join('\n');
+      return formUtils.normalizeListTextareaForCompare(raw);
     }
 
     function parseHoneypotPaths(raw) {
       if (typeof options.parseHoneypotPathsTextarea === 'function') {
         return options.parseHoneypotPathsTextarea(raw);
       }
-      const values = parseList(raw);
-      values.forEach((path) => {
-        if (!String(path).startsWith('/')) {
-          throw new Error(`Invalid honeypot path '${path}'. Paths must start with '/'.`);
-        }
-      });
-      return values;
+      return formUtils.parseHoneypotPathsTextarea(raw);
     }
 
     function parseBrowserRules(raw) {
       if (typeof options.parseBrowserRulesTextarea === 'function') {
         return options.parseBrowserRulesTextarea(raw);
       }
-      return [];
+      return formUtils.parseBrowserRulesTextarea(raw);
     }
 
     function normalizeBrowserRules(raw) {
       if (typeof options.normalizeBrowserRulesForCompare === 'function') {
         return options.normalizeBrowserRulesForCompare(raw);
       }
-      return String(raw || '').trim();
+      return formUtils.normalizeBrowserRulesForCompare(raw);
     }
 
-    const saveMazeButton = document.getElementById('save-maze-config');
+    const saveMazeButton = getById('save-maze-config');
     if (saveMazeButton) {
       saveMazeButton.onclick = async function saveMazeConfig() {
-        const msg = document.getElementById('admin-msg');
+        const msg = getById('admin-msg');
         const btn = this;
 
-        const mazeEnabled = document.getElementById('maze-enabled-toggle').checked;
-        const mazeAutoBan = document.getElementById('maze-auto-ban-toggle').checked;
+        const mazeEnabled = getById('maze-enabled-toggle').checked;
+        const mazeAutoBan = getById('maze-auto-ban-toggle').checked;
         const mazeThreshold = options.readIntegerFieldValue('maze-threshold', msg);
         if (mazeThreshold === null) return;
 
@@ -111,7 +210,7 @@
             threshold: mazeThreshold
           });
           btn.textContent = 'Saved!';
-          setTimeout(() => {
+          timerSetTimeout(() => {
             btn.dataset.saving = 'false';
             btn.textContent = 'Save Maze Settings';
             options.checkMazeConfigChanged();
@@ -129,13 +228,13 @@
       };
     }
 
-    const saveRobotsButton = document.getElementById('save-robots-config');
+    const saveRobotsButton = getById('save-robots-config');
     if (saveRobotsButton) {
       saveRobotsButton.onclick = async function saveRobotsConfig() {
-        const msg = document.getElementById('admin-msg');
+        const msg = getById('admin-msg');
         const btn = this;
 
-        const robotsEnabled = document.getElementById('robots-enabled-toggle').checked;
+        const robotsEnabled = getById('robots-enabled-toggle').checked;
         const crawlDelay = options.readIntegerFieldValue('robots-crawl-delay', msg);
         if (crawlDelay === null) return;
 
@@ -154,11 +253,11 @@
             enabled: robotsEnabled,
             crawlDelay: crawlDelay
           });
-          const preview = document.getElementById('robots-preview');
+          const preview = getById('robots-preview');
           if (preview && !preview.classList.contains('hidden')) {
             await options.refreshRobotsPreview();
           }
-          setTimeout(() => {
+          timerSetTimeout(() => {
             btn.dataset.saving = 'false';
             btn.textContent = 'Save robots serving';
             options.checkRobotsConfigChanged();
@@ -167,7 +266,7 @@
           btn.dataset.saving = 'false';
           btn.textContent = 'Error';
           console.error('Failed to save robots config:', e);
-          setTimeout(() => {
+          timerSetTimeout(() => {
             btn.textContent = 'Save robots serving';
             options.checkRobotsConfigChanged();
           }, 2000);
@@ -175,15 +274,15 @@
       };
     }
 
-    const saveAiPolicyButton = document.getElementById('save-ai-policy-config');
+    const saveAiPolicyButton = getById('save-ai-policy-config');
     if (saveAiPolicyButton) {
       saveAiPolicyButton.onclick = async function saveAiPolicyConfig() {
-        const msg = document.getElementById('admin-msg');
+        const msg = getById('admin-msg');
         const btn = this;
 
-        const blockTraining = document.getElementById('robots-block-training-toggle').checked;
-        const blockSearch = document.getElementById('robots-block-search-toggle').checked;
-        const allowSearchEngines = !document.getElementById('robots-allow-search-toggle').checked;
+        const blockTraining = getById('robots-block-training-toggle').checked;
+        const blockSearch = getById('robots-block-search-toggle').checked;
+        const allowSearchEngines = !getById('robots-allow-search-toggle').checked;
 
         btn.textContent = 'Saving...';
         btn.dataset.saving = 'true';
@@ -200,13 +299,13 @@
           options.setAiPolicySavedState({
             blockTraining: blockTraining,
             blockSearch: blockSearch,
-            allowSearch: document.getElementById('robots-allow-search-toggle').checked
+            allowSearch: getById('robots-allow-search-toggle').checked
           });
-          const preview = document.getElementById('robots-preview');
+          const preview = getById('robots-preview');
           if (preview && !preview.classList.contains('hidden')) {
             await options.refreshRobotsPreview();
           }
-          setTimeout(() => {
+          timerSetTimeout(() => {
             btn.dataset.saving = 'false';
             btn.textContent = 'Save AI bot policy';
             options.checkAiPolicyConfigChanged();
@@ -215,7 +314,7 @@
           btn.dataset.saving = 'false';
           btn.textContent = 'Error';
           console.error('Failed to save AI bot policy:', e);
-          setTimeout(() => {
+          timerSetTimeout(() => {
             btn.textContent = 'Save AI bot policy';
             options.checkAiPolicyConfigChanged();
           }, 2000);
@@ -223,10 +322,10 @@
       };
     }
 
-    const saveGeoScoringButton = document.getElementById('save-geo-scoring-config');
+    const saveGeoScoringButton = getById('save-geo-scoring-config');
     if (saveGeoScoringButton) {
       saveGeoScoringButton.onclick = async function saveGeoScoringConfig() {
-        const msg = document.getElementById('admin-msg');
+        const msg = getById('admin-msg');
         const btn = this;
         const geoState = options.getGeoSavedState();
 
@@ -239,7 +338,7 @@
 
         let geoRisk;
         try {
-          geoRisk = options.parseCountryCodesStrict(document.getElementById('geo-risk-list').value);
+          geoRisk = parseCountryCodesStrict(getById('geo-risk-list').value);
         } catch (e) {
           msg.textContent = `Error: ${e.message}`;
           msg.className = 'message error';
@@ -275,10 +374,10 @@
       };
     }
 
-    const saveGeoRoutingButton = document.getElementById('save-geo-routing-config');
+    const saveGeoRoutingButton = getById('save-geo-routing-config');
     if (saveGeoRoutingButton) {
       saveGeoRoutingButton.onclick = async function saveGeoRoutingConfig() {
-        const msg = document.getElementById('admin-msg');
+        const msg = getById('admin-msg');
         const btn = this;
         const geoState = options.getGeoSavedState();
 
@@ -294,10 +393,10 @@
         let geoMaze;
         let geoBlock;
         try {
-          geoAllow = options.parseCountryCodesStrict(document.getElementById('geo-allow-list').value);
-          geoChallenge = options.parseCountryCodesStrict(document.getElementById('geo-challenge-list').value);
-          geoMaze = options.parseCountryCodesStrict(document.getElementById('geo-maze-list').value);
-          geoBlock = options.parseCountryCodesStrict(document.getElementById('geo-block-list').value);
+          geoAllow = parseCountryCodesStrict(getById('geo-allow-list').value);
+          geoChallenge = parseCountryCodesStrict(getById('geo-challenge-list').value);
+          geoMaze = parseCountryCodesStrict(getById('geo-maze-list').value);
+          geoBlock = parseCountryCodesStrict(getById('geo-block-list').value);
         } catch (e) {
           msg.textContent = `Error: ${e.message}`;
           msg.className = 'message error';
@@ -341,14 +440,14 @@
       };
     }
 
-    const saveHoneypotButton = document.getElementById('save-honeypot-config');
+    const saveHoneypotButton = getById('save-honeypot-config');
     if (saveHoneypotButton) {
       saveHoneypotButton.onclick = async function saveHoneypotConfig() {
-        const msg = document.getElementById('admin-msg');
+        const msg = getById('admin-msg');
         const btn = this;
-        const enabledToggle = document.getElementById('honeypot-enabled-toggle');
+        const enabledToggle = getById('honeypot-enabled-toggle');
         const honeypotEnabled = enabledToggle ? enabledToggle.checked : true;
-        const field = document.getElementById('honeypot-paths');
+        const field = getById('honeypot-paths');
         let honeypots;
 
         try {
@@ -394,13 +493,13 @@
       };
     }
 
-    const saveBrowserPolicyButton = document.getElementById('save-browser-policy-config');
+    const saveBrowserPolicyButton = getById('save-browser-policy-config');
     if (saveBrowserPolicyButton) {
       saveBrowserPolicyButton.onclick = async function saveBrowserPolicyConfig() {
-        const msg = document.getElementById('admin-msg');
+        const msg = getById('admin-msg');
         const btn = this;
-        const blockField = document.getElementById('browser-block-rules');
-        const whitelistField = document.getElementById('browser-whitelist-rules');
+        const blockField = getById('browser-block-rules');
+        const whitelistField = getById('browser-whitelist-rules');
         let browserBlock;
         let browserWhitelist;
 
@@ -448,13 +547,13 @@
       };
     }
 
-    const saveWhitelistButton = document.getElementById('save-whitelist-config');
+    const saveWhitelistButton = getById('save-whitelist-config');
     if (saveWhitelistButton) {
       saveWhitelistButton.onclick = async function saveWhitelistConfig() {
-        const msg = document.getElementById('admin-msg');
+        const msg = getById('admin-msg');
         const btn = this;
-        const networkField = document.getElementById('network-whitelist');
-        const pathField = document.getElementById('path-whitelist');
+        const networkField = getById('network-whitelist');
+        const pathField = getById('path-whitelist');
         const whitelist = parseList(networkField ? networkField.value : '');
         const pathWhitelist = parseList(pathField ? pathField.value : '');
 
@@ -493,13 +592,13 @@
       };
     }
 
-    const savePowButton = document.getElementById('save-pow-config');
+    const savePowButton = getById('save-pow-config');
     if (savePowButton) {
       savePowButton.onclick = async function savePowConfig() {
         const btn = this;
-        const msg = document.getElementById('admin-msg');
+        const msg = getById('admin-msg');
 
-        const powEnabled = document.getElementById('pow-enabled-toggle').checked;
+        const powEnabled = getById('pow-enabled-toggle').checked;
         const powDifficulty = options.readIntegerFieldValue('pow-difficulty', msg);
         const powTtl = options.readIntegerFieldValue('pow-ttl', msg);
         if (powDifficulty === null || powTtl === null) return;
@@ -536,12 +635,12 @@
       };
     }
 
-    const saveChallengePuzzleButton = document.getElementById('save-challenge-puzzle-config');
+    const saveChallengePuzzleButton = getById('save-challenge-puzzle-config');
     if (saveChallengePuzzleButton) {
       saveChallengePuzzleButton.onclick = async function saveChallengePuzzleConfig() {
         const btn = this;
-        const msg = document.getElementById('admin-msg');
-        const challengeEnabled = document.getElementById('challenge-puzzle-enabled-toggle').checked;
+        const msg = getById('admin-msg');
+        const challengeEnabled = getById('challenge-puzzle-enabled-toggle').checked;
         const transformCount = options.readIntegerFieldValue('challenge-puzzle-transform-count', msg);
         if (transformCount === null) return;
 
@@ -579,11 +678,11 @@
       };
     }
 
-    const saveBotnessButton = document.getElementById('save-botness-config');
+    const saveBotnessButton = getById('save-botness-config');
     if (saveBotnessButton) {
       saveBotnessButton.onclick = async function saveBotnessConfig() {
         const btn = this;
-        const msg = document.getElementById('admin-msg');
+        const msg = getById('admin-msg');
 
         const challengeThreshold = options.readIntegerFieldValue('challenge-puzzle-threshold', msg);
         const mazeThreshold = options.readIntegerFieldValue('maze-threshold-score', msg);
@@ -643,15 +742,15 @@
       };
     }
 
-    const saveCdpButton = document.getElementById('save-cdp-config');
+    const saveCdpButton = getById('save-cdp-config');
     if (saveCdpButton) {
       saveCdpButton.onclick = async function saveCdpConfig() {
-        const msg = document.getElementById('admin-msg');
+        const msg = getById('admin-msg');
         const btn = this;
 
-        const cdpEnabled = document.getElementById('cdp-enabled-toggle').checked;
-        const cdpAutoBan = document.getElementById('cdp-auto-ban-toggle').checked;
-        const cdpThreshold = parseFloat(document.getElementById('cdp-threshold-slider').value);
+        const cdpEnabled = getById('cdp-enabled-toggle').checked;
+        const cdpAutoBan = getById('cdp-auto-ban-toggle').checked;
+        const cdpThreshold = parseFloat(getById('cdp-threshold-slider').value);
 
         btn.textContent = 'Saving...';
         btn.dataset.saving = 'true';
@@ -670,7 +769,7 @@
             autoBan: cdpAutoBan,
             threshold: cdpThreshold
           });
-          setTimeout(() => {
+          timerSetTimeout(() => {
             btn.dataset.saving = 'false';
             btn.textContent = 'Save CDP Settings';
             options.checkCdpConfigChanged();
@@ -679,7 +778,7 @@
           btn.dataset.saving = 'false';
           btn.textContent = 'Error';
           console.error('Failed to save CDP config:', e);
-          setTimeout(() => {
+          timerSetTimeout(() => {
             btn.textContent = 'Save CDP Settings';
             options.checkCdpConfigChanged();
           }, 2000);
@@ -687,12 +786,12 @@
       };
     }
 
-    const saveEdgeModeButton = document.getElementById('save-edge-integration-mode-config');
+    const saveEdgeModeButton = getById('save-edge-integration-mode-config');
     if (saveEdgeModeButton) {
       saveEdgeModeButton.onclick = async function saveEdgeIntegrationModeConfig() {
         const btn = this;
-        const msg = document.getElementById('admin-msg');
-        const modeSelect = document.getElementById('edge-integration-mode-select');
+        const msg = getById('admin-msg');
+        const modeSelect = getById('edge-integration-mode-select');
         const mode = String(modeSelect ? modeSelect.value : '').trim().toLowerCase();
 
         btn.textContent = 'Saving...';
@@ -722,11 +821,11 @@
       };
     }
 
-    const saveRateLimitButton = document.getElementById('save-rate-limit-config');
+    const saveRateLimitButton = getById('save-rate-limit-config');
     if (saveRateLimitButton) {
       saveRateLimitButton.onclick = async function saveRateLimitConfig() {
         const btn = this;
-        const msg = document.getElementById('admin-msg');
+        const msg = getById('admin-msg');
         const rateLimit = options.readIntegerFieldValue('rate-limit-threshold', msg);
         if (rateLimit === null) return;
 
@@ -755,12 +854,12 @@
       };
     }
 
-    const saveJsRequiredButton = document.getElementById('save-js-required-config');
+    const saveJsRequiredButton = getById('save-js-required-config');
     if (saveJsRequiredButton) {
       saveJsRequiredButton.onclick = async function saveJsRequiredConfig() {
         const btn = this;
-        const msg = document.getElementById('admin-msg');
-        const enforced = document.getElementById('js-required-enforced-toggle').checked;
+        const msg = getById('admin-msg');
+        const enforced = getById('js-required-enforced-toggle').checked;
 
         btn.textContent = 'Saving...';
         btn.dataset.saving = 'true';
@@ -787,10 +886,10 @@
       };
     }
 
-    const saveDurationsButton = document.getElementById('save-durations-btn');
+    const saveDurationsButton = getById('save-durations-btn');
     if (saveDurationsButton) {
       saveDurationsButton.onclick = async function saveDurations() {
-        const msg = document.getElementById('admin-msg');
+        const msg = getById('admin-msg');
         const btn = this;
 
         const banDurations = {
@@ -835,10 +934,10 @@
       };
     }
 
-    const saveAdvancedConfigButton = document.getElementById('save-advanced-config');
+    const saveAdvancedConfigButton = getById('save-advanced-config');
     if (saveAdvancedConfigButton) {
       saveAdvancedConfigButton.onclick = async function saveAdvancedConfig() {
-        const msg = document.getElementById('admin-msg');
+        const msg = getById('admin-msg');
         const btn = this;
         const patch = typeof options.readAdvancedConfigPatch === 'function'
           ? options.readAdvancedConfigPatch(msg)
@@ -875,10 +974,10 @@
       };
     }
 
-    const testModeToggle = document.getElementById('test-mode-toggle');
+    const testModeToggle = getById('test-mode-toggle');
     if (testModeToggle) {
       testModeToggle.addEventListener('change', async function onTestModeChange() {
-        const msg = document.getElementById('admin-msg');
+        const msg = getById('admin-msg');
         if (!options.getAdminContext(msg)) {
           this.checked = !this.checked;
           return;
@@ -892,7 +991,7 @@
           const data = await saveConfigPatch(msg, { test_mode: testMode });
           msg.textContent = `Test mode ${data.config.test_mode ? 'enabled' : 'disabled'}`;
           msg.className = 'message success';
-          setTimeout(() => options.refreshDashboard(), 500);
+          timerSetTimeout(() => options.refreshDashboard(), 500);
         } catch (e) {
           msg.textContent = `Error: ${e.message}`;
           msg.className = 'message error';
@@ -900,9 +999,10 @@
         }
       });
     }
-  }
+}
 
-  global.ShumaDashboardConfigControls = {
-    bind
-  };
-})(window);
+export {
+  bind,
+  flattenBindOptions as _flattenBindOptions,
+  normalizeContextOptions as _normalizeContextOptions
+};

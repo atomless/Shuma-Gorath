@@ -26,6 +26,14 @@ Refresh model:
 - Polling pauses while the page is hidden and resumes on visibility restore.
 - Default cadence: `Monitoring=30s`, `IP Bans=45s`, `Status/Config/Tuning=60s`.
 
+## 🐙 Native ESM Runtime
+
+- Dashboard JS runs as native browser ESM with one entrypoint: `<script type="module" src="dashboard.js">`.
+- Modules use explicit `import`/`export`; legacy `window.ShumaDashboard*` global registry wiring is removed.
+- No bundler/transpiler step is required in dev or production.
+- Dashboard module unit tests run in Node via native ESM loading (`dashboard/package.json` sets `"type": "module"` for this subtree).
+- Refactored module slices standardize on functional style (`const` + arrow helpers, default params), with named function declarations reserved only where hoisting/readability is intentionally preferred.
+
 ## 🐙 Features
 
 Stats:
@@ -132,24 +140,42 @@ Event log retention is controlled by `SHUMA_EVENT_LOG_RETENTION_HOURS` (default:
 
 ```
 dashboard/
+  package.json
   login.html
   login.js
   index.html
   dashboard.js
   assets/vendor/chart-lite-1.0.0.min.js
+  modules/core/format.js
+  modules/core/dom.js
   modules/api-client.js
+  modules/config-draft-store.js
+  modules/config-form-utils.js
+  modules/config-schema.js
+  modules/config-controls.js
+  modules/services/runtime-effects.js
+  modules/status.js
   modules/dashboard-state.js
+  modules/monitoring-view.js
+  modules/tables-view.js
   modules/tab-lifecycle.js
   style.css
 ```
 
 ## 🐙 Data Flow (High Level)
 
-1. Page loads and initializes local chart runtime + dashboard modules.
+1. `index.html` loads `dashboard.js` as the native ESM entrypoint.
 2. `modules/tab-lifecycle.js` resolves hash routing and tab lifecycle (`init`, `mount`, `unmount`, `refresh`).
 3. `modules/api-client.js` handles typed request/response adaptation and centralized API errors.
 4. `modules/dashboard-state.js` tracks shared snapshots, invalidation, and tab-local state.
-5. Active tab refresh pipeline fetches only required data for that tab.
+5. `modules/monitoring-view.js` owns monitoring summary and Prometheus helper rendering with local chart instance state.
+6. `modules/config-form-utils.js` centralizes config textarea parsing/normalization helpers.
+7. `modules/config-schema.js` centralizes writable config path inventories for status/config views.
+8. `modules/config-draft-store.js` provides one immutable dirty-state baseline (`get`/`set`/`isDirty`) for config panes.
+9. `modules/tables-view.js` owns bans/events/CDP table rendering and quick-unban row action wiring.
+10. Shared DOM writes are batched through a write scheduler and chart redraws are skipped when label/series data are unchanged.
+11. Runtime side effects (request adapter, clipboard copy, timers) flow through `modules/services/runtime-effects.js` so feature logic is easier to test.
+12. Active tab refresh pipeline fetches only required data for that tab.
 
 ## 🐙 Local Asset Provenance
 

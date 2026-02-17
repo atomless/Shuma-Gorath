@@ -361,3 +361,32 @@ Moved from active TODO files on 2026-02-14.
 - [x] Phase 2 completed: cross-layer mismatch heuristics (UA/client-hint/transport), temporal coherence detection IDs, and bounded flow-window fingerprint telemetry are active.
 - [x] Phase 3 completed: versioned CDP probe-family rotation (`v1`/`v2`/`split`) is active, trusted transport-header ingestion is implemented, persistence-abuse signals are emitted, challenge-bound short-lived marker checks are wired, and low-friction micro-signal checks are added with conservative weighting.
 - [x] Phase 4 completed (except Finch spike): fingerprint-focused admin visibility/tuning surfaces are shipped (`/admin/cdp` config + `fingerprint_stats`, dashboard cards), and evasive-regression coverage was added for detector variation, temporal drift, and inconsistency bypass classes.
+
+## Additional completions (2026-02-17, section-preserving archive)
+
+### todos/todo.md
+
+#### P3 Dashboard Architecture Modernization (Frameworkless-First)
+- [x] DSH-ARCH-1 Add shared dashboard core utilities: `core/format.js` (escaping + numeric/date helpers + shallow equality) and `core/dom.js` (DOM cache + safe setters + write scheduler), then consume them from feature modules.
+- [x] DSH-ARCH-2 Consolidate writable config path inventories into a single `config-schema.js` source and consume it from both Status inventory rendering and Advanced Config template generation.
+- [x] DSH-ARCH-3 Replace fragmented per-pane saved-state bags with a single `config-draft-store` baseline (`get/set/isDirty`) used by config dirty-check paths.
+- [x] DSH-ARCH-4 Reduce config bind coupling by switching `config-controls.bind(...)` callsites to a typed `context` object and adding normalization coverage in dashboard module unit tests.
+- [x] DSH-ARCH-5 Add render-performance guards: skip chart redraws when data/labels are unchanged and batch refresh-driven DOM writes through one scheduler cycle.
+- [x] DSH-ARCH-6 Remove uncached hot-path `getElementById` usage from `dashboard.js` and `config-controls.js` by routing lookups through shared DOM cache helpers.
+
+#### P3 Dashboard Native ESM + Functional JS Modernization (No Build Step)
+- [x] DSH-ESM-1 Hard cutover selected for pre-launch: migrate dashboard JS to native ESM without dual global-script wiring; decision recorded in `docs/plans/2026-02-17-dashboard-native-esm-hard-cutover.md`.
+- [x] DSH-ESM-2 Freeze behavior contracts to preserve during refactor: tab routing/hash behavior, API payload expectations, status/config control semantics, and monitoring render states. (`docs/plans/2026-02-17-dashboard-esm-behavior-contracts.md`)
+- [x] DSH-ESM-3 Add/expand regression coverage before migration for all dashboard tabs (`loading`/`empty`/`error`/`data`) and critical config dirty-state/save flows. (`e2e/dashboard.smoke.spec.js`, `e2e/dashboard.modules.unit.test.js`)
+- [x] DSH-ESM-4 Introduce a single native module entrypoint (`<script type="module">`) and convert dashboard boot from global-init order to explicit imports.
+- [x] DSH-ESM-5 Replace `window.ShumaDashboard*` global module registry wiring with ESM `export`/`import` contracts across dashboard modules.
+- [x] DSH-ESM-6 Define and enforce a stable module graph (`core` -> `services` -> `features` -> `main`) with no circular imports. (`docs/plans/2026-02-17-dashboard-esm-module-graph.md` + module-graph guard test)
+- [x] DSH-ESM-7 Refactor feature modules to functional boundaries: pure `deriveViewModel(snapshot, options)` and side-effectful `render(viewModel, effects)`; no class-based state.
+- [x] DSH-ESM-8 Centralize side effects in dedicated effect adapters (DOM writes, network calls, clipboard, timers) so feature logic remains pure/testable. (`dashboard/modules/services/runtime-effects.js`)
+- [x] DSH-ESM-9 Consolidate dashboard state updates around immutable transition functions (`nextState = reduce(prevState, event)`) and remove ad-hoc mutable globals where possible.
+- [x] DSH-ESM-10 Standardize function style for new/changed dashboard code: default parameter values, arrow functions for local/pure helpers and callbacks, and explicit named function declarations only where hoisting/readability is clearly beneficial.
+- [x] DSH-ESM-11 Remove legacy IIFE wrappers and duplicate helper code paths that were only needed for global-script loading.
+- [x] DSH-ESM-12 Add lightweight static guard checks for dashboard JS (for example: fail on new `window.ShumaDashboard*` exports, fail on `class` usage in dashboard modules, fail on duplicate helper definitions across modules).
+- [x] DSH-ESM-13 Execute migration in small slices with mandatory full verification per slice via Makefile (`make test` with dev Spin running).
+- [x] DSH-ESM-14 Update public and contributor docs (`docs/dashboard.md`, architecture plan, contributor notes) with native ESM conventions, functional patterns, and module-boundary rules.
+- [x] DSH-ESM-15 Run a final no-net-behavior-change audit against baseline contracts and capture known intentional deltas (if any) before merge. (`docs/plans/2026-02-17-dashboard-esm-no-net-behavior-audit.md`)
