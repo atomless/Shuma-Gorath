@@ -559,6 +559,82 @@ test('config form utils preserve legacy textarea parsing semantics', { concurren
   });
 });
 
+test('input validation module enforces integer, duration, and IP rules', { concurrency: false }, async () => {
+  const makeInput = (id, value = '') => ({
+    id,
+    value,
+    dataset: {},
+    setCustomValidity: () => {},
+    addEventListener: () => {},
+    checkValidity: () => true,
+    reportValidity: () => {},
+    focus: () => {}
+  });
+
+  const elements = {
+    'pow-difficulty': makeInput('pow-difficulty', '15abc'),
+    'dur-honeypot-days': makeInput('dur-honeypot-days', '0'),
+    'dur-honeypot-hours': makeInput('dur-honeypot-hours', '1'),
+    'dur-honeypot-minutes': makeInput('dur-honeypot-minutes', '0'),
+    'ban-duration-days': makeInput('ban-duration-days', '0'),
+    'ban-duration-hours': makeInput('ban-duration-hours', '2'),
+    'ban-duration-minutes': makeInput('ban-duration-minutes', '0'),
+    'ban-ip': makeInput('ban-ip', '203.0.113.9')
+  };
+  const errors = [];
+
+  await withBrowserGlobals({}, async () => {
+    const validation = await importBrowserModule('dashboard/modules/input-validation.js');
+    assert.ok(validation);
+
+    const api = validation.create({
+      getById: (id) => elements[id] || null,
+      setFieldError: (_input, message) => {
+        errors.push(String(message || ''));
+      },
+      integerFieldRules: {
+        'pow-difficulty': { min: 12, max: 20, fallback: 15, label: 'PoW difficulty' },
+        'dur-honeypot-days': { min: 0, max: 365, fallback: 1, label: 'Honeypot days' },
+        'dur-honeypot-hours': { min: 0, max: 23, fallback: 0, label: 'Honeypot hours' },
+        'dur-honeypot-minutes': { min: 0, max: 59, fallback: 0, label: 'Honeypot minutes' },
+        'ban-duration-days': { min: 0, max: 365, fallback: 0, label: 'Manual days' },
+        'ban-duration-hours': { min: 0, max: 23, fallback: 1, label: 'Manual hours' },
+        'ban-duration-minutes': { min: 0, max: 59, fallback: 0, label: 'Manual minutes' }
+      },
+      banDurationBoundsSeconds: { min: 60, max: 31536000 },
+      banDurationFields: {
+        honeypot: {
+          label: 'Honeypot duration',
+          fallback: 86400,
+          daysId: 'dur-honeypot-days',
+          hoursId: 'dur-honeypot-hours',
+          minutesId: 'dur-honeypot-minutes'
+        }
+      },
+      manualBanDurationField: {
+        label: 'Manual ban duration',
+        fallback: 3600,
+        daysId: 'ban-duration-days',
+        hoursId: 'ban-duration-hours',
+        minutesId: 'ban-duration-minutes'
+      }
+    });
+
+    assert.equal(api.parseIntegerLoose('pow-difficulty'), 15);
+    assert.equal(elements['pow-difficulty'].value, '15');
+
+    const honeypot = api.readBanDurationFromInputs('honeypot');
+    assert.equal(honeypot.totalSeconds, 3600);
+    assert.equal(api.readManualBanDurationSeconds(), 7200);
+
+    assert.equal(api.validateIpFieldById('ban-ip', true, 'Ban IP'), true);
+    elements['ban-ip'].value = 'bad-ip';
+    assert.equal(api.validateIpFieldById('ban-ip', true, 'Ban IP'), false);
+  });
+
+  assert.equal(errors.length > 0, true);
+});
+
 test('json object helpers build templates and normalize JSON compare values', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const objectUtils = await importBrowserModule('dashboard/modules/core/json-object.js');

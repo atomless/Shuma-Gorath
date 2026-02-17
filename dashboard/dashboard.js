@@ -17,6 +17,7 @@ import * as jsonObjectModule from './modules/core/json-object.js';
 import * as configSchemaModule from './modules/config-schema.js';
 import * as configDraftStoreModule from './modules/config-draft-store.js';
 import * as configFormUtilsModule from './modules/config-form-utils.js';
+import * as inputValidationModule from './modules/input-validation.js';
 import * as adminEndpointModule from './modules/services/admin-endpoint.js';
 import { createRuntimeEffects } from './modules/services/runtime-effects.js';
 
@@ -119,8 +120,6 @@ const ADVANCED_CONFIG_TEMPLATE_PATHS = Object.freeze(
   configSchemaModule.advancedConfigTemplatePaths || []
 );
 
-const IPV4_SEGMENT_PATTERN = /^\d{1,3}$/;
-const IPV6_INPUT_PATTERN = /^[0-9a-fA-F:.]+$/;
 let adminSessionController = null;
 let dashboardTabCoordinator = null;
 let dashboardApiClient = null;
@@ -129,6 +128,7 @@ let monitoringView = null;
 let tablesView = null;
 let tabStateView = null;
 let configUiState = null;
+let inputValidation = null;
 let configDraftStore = null;
 let runtimeEffects = null;
 let autoRefreshTimer = null;
@@ -155,14 +155,6 @@ function runDomWriteBatch(task) {
       resolve();
     });
   });
-}
-
-function sanitizeIntegerText(value) {
-  return (value || '').replace(/[^\d]/g, '');
-}
-
-function sanitizeIpText(value) {
-  return (value || '').replace(/[^0-9a-fA-F:.]/g, '');
 }
 
 const cloneJsonValue = jsonObjectModule.cloneJsonValue;
@@ -212,254 +204,25 @@ function setFieldError(input, message, showInline = true) {
   errorEl.classList.remove('visible');
 }
 
-function parseIntegerLoose(id) {
-  const input = getById(id);
-  const rules = INTEGER_FIELD_RULES[id];
-  if (!input || !rules) return null;
-  const sanitized = sanitizeIntegerText(input.value);
-  if (input.value !== sanitized) input.value = sanitized;
-  if (sanitized.length === 0) return null;
-  const parsed = Number.parseInt(sanitized, 10);
-  if (!Number.isInteger(parsed)) return null;
-  return parsed;
-}
-
-function durationPartsToSeconds(days, hours, minutes) {
-  return (days * 86400) + (hours * 3600) + (minutes * 60);
-}
-
-function secondsToDurationParts(totalSeconds, fallbackSeconds) {
-  const fallback = Number.parseInt(fallbackSeconds, 10) || 0;
-  let seconds = Number.parseInt(totalSeconds, 10);
-  if (!Number.isFinite(seconds) || seconds <= 0) seconds = fallback;
-  if (seconds < BAN_DURATION_BOUNDS_SECONDS.min) seconds = BAN_DURATION_BOUNDS_SECONDS.min;
-  if (seconds > BAN_DURATION_BOUNDS_SECONDS.max) seconds = BAN_DURATION_BOUNDS_SECONDS.max;
-  return {
-    days: Math.floor(seconds / 86400),
-    hours: Math.floor((seconds % 86400) / 3600),
-    minutes: Math.floor((seconds % 3600) / 60)
-  };
-}
-
-function setDurationInputsFromSeconds(group, totalSeconds) {
-  if (!group) return;
-  const daysInput = getById(group.daysId);
-  const hoursInput = getById(group.hoursId);
-  const minutesInput = getById(group.minutesId);
-  if (!daysInput || !hoursInput || !minutesInput) return;
-
-  const parts = secondsToDurationParts(totalSeconds, group.fallback);
-  daysInput.value = String(parts.days);
-  hoursInput.value = String(parts.hours);
-  minutesInput.value = String(parts.minutes);
-}
-
-function setBanDurationInputFromSeconds(durationKey, totalSeconds) {
-  const group = BAN_DURATION_FIELDS[durationKey];
-  setDurationInputsFromSeconds(group, totalSeconds);
-}
-
-function readDurationFromInputs(group, showInline = false) {
-  if (!group) return null;
-
-  const daysInput = getById(group.daysId);
-  const hoursInput = getById(group.hoursId);
-  const minutesInput = getById(group.minutesId);
-  if (!daysInput || !hoursInput || !minutesInput) return null;
-
-  const daysValid = validateIntegerFieldById(group.daysId, showInline);
-  const hoursValid = validateIntegerFieldById(group.hoursId, showInline);
-  const minutesValid = validateIntegerFieldById(group.minutesId, showInline);
-  const days = parseIntegerLoose(group.daysId);
-  const hours = parseIntegerLoose(group.hoursId);
-  const minutes = parseIntegerLoose(group.minutesId);
-
-  if (!daysValid || !hoursValid || !minutesValid || days === null || hours === null || minutes === null) return null;
-
-  const totalSeconds = durationPartsToSeconds(days, hours, minutes);
-  if (totalSeconds < BAN_DURATION_BOUNDS_SECONDS.min || totalSeconds > BAN_DURATION_BOUNDS_SECONDS.max) {
-    const message = `${group.label} must be between 1 minute and 365 days.`;
-    setFieldError(daysInput, message, showInline);
-    setFieldError(hoursInput, message, showInline);
-    setFieldError(minutesInput, message, showInline);
-    return null;
-  }
-
-  setFieldError(daysInput, '', showInline);
-  setFieldError(hoursInput, '', showInline);
-  setFieldError(minutesInput, '', showInline);
-  return { days, hours, minutes, totalSeconds };
-}
-
-function readBanDurationFromInputs(durationKey, showInline = false) {
-  const group = BAN_DURATION_FIELDS[durationKey];
-  return readDurationFromInputs(group, showInline);
-}
-
-function readBanDurationSeconds(durationKey) {
-  const group = BAN_DURATION_FIELDS[durationKey];
-  if (!group) return null;
-  const result = readDurationFromInputs(group, true);
-  if (result) return result.totalSeconds;
-
-  const daysInput = getById(group.daysId);
-  const hoursInput = getById(group.hoursId);
-  const minutesInput = getById(group.minutesId);
-  if (daysInput && !daysInput.checkValidity()) {
-    daysInput.reportValidity();
-    daysInput.focus();
-    return null;
-  }
-  if (hoursInput && !hoursInput.checkValidity()) {
-    hoursInput.reportValidity();
-    hoursInput.focus();
-    return null;
-  }
-  if (minutesInput && !minutesInput.checkValidity()) {
-    minutesInput.reportValidity();
-    minutesInput.focus();
-    return null;
-  }
-  if (daysInput) {
-    daysInput.reportValidity();
-    daysInput.focus();
-  }
-  return null;
-}
-
-function readManualBanDurationSeconds(showInline = false) {
-  const result = readDurationFromInputs(MANUAL_BAN_DURATION_FIELD, showInline);
-  if (result) return result.totalSeconds;
-
-  const daysInput = getById(MANUAL_BAN_DURATION_FIELD.daysId);
-  const hoursInput = getById(MANUAL_BAN_DURATION_FIELD.hoursId);
-  const minutesInput = getById(MANUAL_BAN_DURATION_FIELD.minutesId);
-  if (daysInput && !daysInput.checkValidity()) {
-    daysInput.reportValidity();
-    daysInput.focus();
-    return null;
-  }
-  if (hoursInput && !hoursInput.checkValidity()) {
-    hoursInput.reportValidity();
-    hoursInput.focus();
-    return null;
-  }
-  if (minutesInput && !minutesInput.checkValidity()) {
-    minutesInput.reportValidity();
-    minutesInput.focus();
-    return null;
-  }
-  if (daysInput) {
-    daysInput.reportValidity();
-    daysInput.focus();
-  }
-  return null;
-}
-
-function isValidIpv4(value) {
-  const parts = value.split('.');
-  if (parts.length !== 4) return false;
-  return parts.every(part => {
-    if (!IPV4_SEGMENT_PATTERN.test(part)) return false;
-    if (part.length > 1 && part.startsWith('0')) return false;
-    const num = Number.parseInt(part, 10);
-    return num >= 0 && num <= 255;
-  });
-}
-
-function isValidIpv6(value) {
-  if (!IPV6_INPUT_PATTERN.test(value)) return false;
-  try {
-    new URL(`http://[${value}]/`);
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-function isValidIpAddress(value) {
-  if (!value) return false;
-  if (value.includes(':')) return isValidIpv6(value);
-  if (value.includes('.')) return isValidIpv4(value);
-  return false;
-}
-
-function validateIntegerFieldById(id, showInline = false) {
-  const input = getById(id);
-  const rules = INTEGER_FIELD_RULES[id];
-  if (!input || !rules) return false;
-  const parsed = parseIntegerLoose(id);
-  if (parsed === null) {
-    setFieldError(input, `${rules.label} is required.`, showInline);
-    return false;
-  }
-  if (parsed < rules.min || parsed > rules.max) {
-    setFieldError(input, `${rules.label} must be between ${rules.min} and ${rules.max}.`, showInline);
-    return false;
-  }
-  setFieldError(input, '', showInline);
-  return true;
-}
-
-function readIntegerFieldValue(id, messageTarget) {
-  const input = getById(id);
-  const rules = INTEGER_FIELD_RULES[id];
-  if (!input || !rules) return null;
-  if (!validateIntegerFieldById(id, true)) {
-    const parsed = parseIntegerLoose(id);
-    const message = parsed === null
-      ? `${rules.label} is required.`
-      : `${rules.label} must be between ${rules.min} and ${rules.max}.`;
-    input.reportValidity();
-    input.focus();
-    return null;
-  }
-  const value = parseIntegerLoose(id);
-  input.value = String(value);
-  setFieldError(input, '', true);
-  return value;
-}
-
-function validateIpFieldById(id, required, label, showInline = false) {
-  const input = getById(id);
-  if (!input) return false;
-  const sanitized = sanitizeIpText(input.value.trim());
-  if (input.value !== sanitized) input.value = sanitized;
-
-  if (!sanitized) {
-    if (!required) {
-      setFieldError(input, '', showInline);
-      return true;
-    }
-    setFieldError(input, `${label} is required.`, showInline);
-    return false;
-  }
-
-  if (!isValidIpAddress(sanitized)) {
-    setFieldError(input, `${label} must be a valid IPv4 or IPv6 address.`, showInline);
-    return false;
-  }
-  setFieldError(input, '', showInline);
-  return true;
-}
-
-function readIpFieldValue(id, required, messageTarget, label) {
-  const input = getById(id);
-  if (!input) return null;
-  if (!validateIpFieldById(id, required, label, true)) {
-    const sanitized = sanitizeIpText(input.value.trim());
-    const message = sanitized.length === 0
-      ? `${label} is required.`
-      : `${label} must be a valid IPv4 or IPv6 address.`;
-    input.reportValidity();
-    input.focus();
-    return null;
-  }
-  const sanitized = sanitizeIpText(input.value.trim());
-  input.value = sanitized;
-  setFieldError(input, '', true);
-  return sanitized;
-}
+const parseIntegerLoose = (id) => (inputValidation ? inputValidation.parseIntegerLoose(id) : null);
+const validateIntegerFieldById = (id, showInline = false) =>
+  (inputValidation ? inputValidation.validateIntegerFieldById(id, showInline) : false);
+const readIntegerFieldValue = (id, messageTarget) =>
+  (inputValidation ? inputValidation.readIntegerFieldValue(id, messageTarget) : null);
+const validateIpFieldById = (id, required, label, showInline = false) =>
+  (inputValidation ? inputValidation.validateIpFieldById(id, required, label, showInline) : false);
+const readIpFieldValue = (id, required, messageTarget, label) =>
+  (inputValidation ? inputValidation.readIpFieldValue(id, required, messageTarget, label) : null);
+const setBanDurationInputFromSeconds = (durationKey, totalSeconds) => {
+  if (!inputValidation) return;
+  inputValidation.setBanDurationInputFromSeconds(durationKey, totalSeconds);
+};
+const readBanDurationFromInputs = (durationKey, showInline = false) =>
+  (inputValidation ? inputValidation.readBanDurationFromInputs(durationKey, showInline) : null);
+const readBanDurationSeconds = (durationKey) =>
+  (inputValidation ? inputValidation.readBanDurationSeconds(durationKey) : null);
+const readManualBanDurationSeconds = (showInline = false) =>
+  (inputValidation ? inputValidation.readManualBanDurationSeconds(showInline) : null);
 
 function hasValidApiContext() {
   return adminSessionController ? adminSessionController.hasValidApiContext() : false;
@@ -521,7 +284,8 @@ function refreshCoreActionButtonsState() {
   setValidActionButtonState(
     'ban-btn',
     apiValid,
-    validateIpFieldById('ban-ip', true, 'Ban IP') && Boolean(readDurationFromInputs(MANUAL_BAN_DURATION_FIELD))
+    validateIpFieldById('ban-ip', true, 'Ban IP') &&
+      Boolean(inputValidation && inputValidation.readManualBanDurationFromInputs())
   );
   setValidActionButtonState(
     'unban-btn',
@@ -609,68 +373,11 @@ function getAdminContext(messageTarget) {
   return adminSessionController.getAdminContext(messageTarget);
 }
 
-function bindIntegerFieldValidation(id) {
-  const input = getById(id);
-  const rules = INTEGER_FIELD_RULES[id];
-  if (!input || !rules) return;
-
-  const apply = (showInline = false) => {
-    const sanitized = sanitizeIntegerText(input.value);
-    if (input.value !== sanitized) input.value = sanitized;
-    if (!sanitized) {
-      setFieldError(input, `${rules.label} is required.`, showInline);
-      return;
-    }
-    const parsed = Number.parseInt(sanitized, 10);
-    if (!Number.isInteger(parsed)) {
-      setFieldError(input, `${rules.label} must be a whole number.`, showInline);
-      return;
-    }
-    if (parsed < rules.min || parsed > rules.max) {
-      setFieldError(input, `${rules.label} must be between ${rules.min} and ${rules.max}.`, showInline);
-      return;
-    }
-    setFieldError(input, '', showInline);
-  };
-
-  input.addEventListener('input', () => {
-    apply(true);
-    refreshCoreActionButtonsState();
-  });
-  input.addEventListener('blur', () => {
-    if (!input.value) {
-      input.value = String(rules.fallback);
-    }
-    const parsed = parseIntegerLoose(id);
-    if (parsed !== null && parsed < rules.min) input.value = String(rules.min);
-    if (parsed !== null && parsed > rules.max) input.value = String(rules.max);
-    apply(true);
-    refreshCoreActionButtonsState();
-  });
-  apply(false);
-}
-
-function bindIpFieldValidation(id, required, label) {
-  const input = getById(id);
-  if (!input) return;
-  const apply = (showInline = false) => {
-    validateIpFieldById(id, required, label, showInline);
-  };
-  input.addEventListener('input', () => {
-    apply(true);
-    refreshCoreActionButtonsState();
-  });
-  input.addEventListener('blur', () => {
-    apply(true);
-    refreshCoreActionButtonsState();
-  });
-  apply(false);
-}
-
 function initInputValidation() {
-  Object.keys(INTEGER_FIELD_RULES).forEach(bindIntegerFieldValidation);
-  bindIpFieldValidation('ban-ip', true, 'Ban IP');
-  bindIpFieldValidation('unban-ip', true, 'Unban IP');
+  if (!inputValidation) return;
+  Object.keys(INTEGER_FIELD_RULES).forEach((id) => inputValidation.bindIntegerFieldValidation(id));
+  inputValidation.bindIpFieldValidation('ban-ip', true, 'Ban IP');
+  inputValidation.bindIpFieldValidation('unban-ip', true, 'Unban IP');
   refreshCoreActionButtonsState();
 }
 
@@ -1659,6 +1366,16 @@ tablesView = tablesViewModule.create({
       msg.className = 'message error';
     }
   }
+});
+
+inputValidation = inputValidationModule.create({
+  getById,
+  setFieldError,
+  integerFieldRules: INTEGER_FIELD_RULES,
+  banDurationBoundsSeconds: BAN_DURATION_BOUNDS_SECONDS,
+  banDurationFields: BAN_DURATION_FIELDS,
+  manualBanDurationField: MANUAL_BAN_DURATION_FIELD,
+  onFieldInteraction: refreshCoreActionButtonsState
 });
 
 configUiState = configUiStateModule.create({

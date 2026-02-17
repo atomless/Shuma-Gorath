@@ -34,6 +34,7 @@ Scope: `DSH-ESM-6`
   - `dashboard/modules/status.js`
   - `dashboard/modules/charts.js`
   - `dashboard/modules/config-controls.js`
+  - `dashboard/modules/input-validation.js`
 
 4. `main`
 - Composition/bootstrap entrypoint.

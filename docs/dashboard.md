@@ -154,6 +154,7 @@ dashboard/
   modules/config-form-utils.js
   modules/config-schema.js
   modules/config-controls.js
+  modules/input-validation.js
   modules/tab-state-view.js
   modules/services/admin-endpoint.js
   modules/services/runtime-effects.js
@@ -176,11 +177,12 @@ dashboard/
 7. `modules/config-schema.js` centralizes writable config path inventories for status/config views.
 8. `modules/config-draft-store.js` provides one immutable dirty-state baseline (`get`/`set`/`isDirty`) for config panes.
 9. `modules/tables-view.js` owns bans/events/CDP table rendering and quick-unban row action wiring.
-10. Shared DOM writes are batched through a write scheduler and chart redraws are skipped when label/series data are unchanged.
-11. Tab-state surface rendering/transitions are encapsulated in `modules/tab-state-view.js` to keep tab UI state logic out of the main orchestrator.
-12. Runtime endpoint resolution is centralized in `modules/services/admin-endpoint.js` for deterministic same-origin behavior and local loopback override handling.
-13. Runtime side effects (request adapter, clipboard copy, timers) flow through `modules/services/runtime-effects.js` so feature logic is easier to test.
-14. Active tab refresh pipeline fetches only required data for that tab.
+10. `modules/input-validation.js` owns integer/IP/duration validation state and binding behavior for dashboard form controls.
+11. Shared DOM writes are batched through a write scheduler and chart redraws are skipped when label/series data are unchanged.
+12. Tab-state surface rendering/transitions are encapsulated in `modules/tab-state-view.js` to keep tab UI state logic out of the main orchestrator.
+13. Runtime endpoint resolution is centralized in `modules/services/admin-endpoint.js` for deterministic same-origin behavior and local loopback override handling.
+14. Runtime side effects (request adapter, clipboard copy, timers) flow through `modules/services/runtime-effects.js` so feature logic is easier to test.
+15. Active tab refresh pipeline fetches only required data for that tab.
 
 ## 🐙 Local Asset Provenance
 
