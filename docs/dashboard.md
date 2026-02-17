@@ -28,7 +28,10 @@ Refresh model:
 
 ## 🐙 Native ESM Runtime
 
-- Dashboard JS runs as native browser ESM with one entrypoint: `<script type="module" src="dashboard.js">`.
+- Dashboard JS runs as native browser ESM with one entrypoint: `<script type="module" src="bootstrap-lit.js">`.
+- `bootstrap-lit.js` registers the root app shell (`<shuma-dashboard-app>`) and dashboard boot now flows through that single app-surface custom element.
+- `lit/shuma-dashboard-app.js` mounts/unmounts dashboard runtime via explicit lifecycle exports (`mountDashboard` / `unmountDashboard`) instead of module-scope side effects.
+- Lit runtime is loaded from local vendored ESM (no runtime CDN dependency) via import map entries in `dashboard/index.html`.
 - Modules use explicit `import`/`export`; legacy `window.ShumaDashboard*` global registry wiring is removed.
 - No bundler/transpiler step is required in dev or production.
 - Dashboard module unit tests run in Node via native ESM loading (`dashboard/package.json` sets `"type": "module"` for this subtree).
@@ -144,8 +147,11 @@ dashboard/
   login.html
   login.js
   index.html
+  bootstrap-lit.js
   dashboard.js
+  lit/shuma-dashboard-app.js
   assets/vendor/chart-lite-1.0.0.min.js
+  assets/vendor/lit-3.2.1/
   modules/core/format.js
   modules/core/dom.js
   modules/core/json-object.js
@@ -168,23 +174,24 @@ dashboard/
 
 ## 🐙 Data Flow (High Level)
 
-1. `index.html` loads `dashboard.js` as the native ESM entrypoint.
-2. `modules/tab-lifecycle.js` resolves hash routing and tab lifecycle (`init`, `mount`, `unmount`, `refresh`).
-3. `modules/api-client.js` handles typed request/response adaptation and centralized API errors.
-4. `modules/dashboard-state.js` tracks shared snapshots, invalidation, and tab-local state.
-5. `modules/monitoring-view.js` owns monitoring summary and Prometheus helper rendering with local chart instance state.
-6. `modules/config-form-utils.js` centralizes config textarea parsing/normalization helpers.
-7. `modules/config-schema.js` centralizes writable config path inventories for status/config views.
-8. `modules/config-draft-store.js` provides one immutable dirty-state baseline (`get`/`set`/`isDirty`) for config panes.
-9. `modules/tables-view.js` owns bans/events/CDP table rendering and quick-unban row action wiring.
-10. `modules/input-validation.js` owns integer/IP/duration validation state and binding behavior for dashboard form controls.
-11. Shared DOM writes are batched through a write scheduler and chart redraws are skipped when label/series data are unchanged.
-12. Tab-state surface rendering/transitions are encapsulated in `modules/tab-state-view.js` to keep tab UI state logic out of the main orchestrator.
-13. Runtime endpoint resolution is centralized in `modules/services/admin-endpoint.js` for deterministic same-origin behavior and local loopback override handling.
-14. Runtime side effects (request adapter, clipboard copy, timers) flow through `modules/services/runtime-effects.js` so feature logic is easier to test.
-15. Active tab refresh pipeline fetches only required data for that tab.
-16. Config save operations in `modules/config-controls.js` use shared save-state/message helpers and a focused `domainApi` contract rather than large callback bags.
-17. Dirty-check evaluation in `dashboard.js` is registry-driven to reduce per-pane drift and keep save-button semantics consistent.
+1. `index.html` loads `bootstrap-lit.js` as the native ESM entrypoint.
+2. `bootstrap-lit.js` registers `<shuma-dashboard-app>` and the app shell calls `mountDashboard()` on connect and `unmountDashboard()` on disconnect.
+3. `modules/tab-lifecycle.js` resolves hash routing and tab lifecycle (`init`, `mount`, `unmount`, `refresh`).
+4. `modules/api-client.js` handles typed request/response adaptation and centralized API errors.
+5. `modules/dashboard-state.js` tracks shared snapshots, invalidation, and tab-local state.
+6. `modules/monitoring-view.js` owns monitoring summary and Prometheus helper rendering with local chart instance state.
+7. `modules/config-form-utils.js` centralizes config textarea parsing/normalization helpers.
+8. `modules/config-schema.js` centralizes writable config path inventories for status/config views.
+9. `modules/config-draft-store.js` provides one immutable dirty-state baseline (`get`/`set`/`isDirty`) for config panes.
+10. `modules/tables-view.js` owns bans/events/CDP table rendering and quick-unban row action wiring.
+11. `modules/input-validation.js` owns integer/IP/duration validation state and binding behavior for dashboard form controls.
+12. Shared DOM writes are batched through a write scheduler and chart redraws are skipped when label/series data are unchanged.
+13. Tab-state surface rendering/transitions are encapsulated in `modules/tab-state-view.js` to keep tab UI state logic out of the main orchestrator.
+14. Runtime endpoint resolution is centralized in `modules/services/admin-endpoint.js` for deterministic same-origin behavior and local loopback override handling.
+15. Runtime side effects (request adapter, clipboard copy, timers) flow through `modules/services/runtime-effects.js` so feature logic is easier to test.
+16. Active tab refresh pipeline fetches only required data for that tab.
+17. Config save operations in `modules/config-controls.js` now bind through a structured `context` contract rather than an untyped callback bag.
+18. Dirty-check evaluation in `dashboard.js` is registry-driven to reduce per-pane drift and keep save-button semantics consistent.
 
 ## 🐙 Local Asset Provenance
 
@@ -194,6 +201,11 @@ Chart runtime is vendored locally to avoid runtime CDN dependency and supply-cha
 - Version: `chart-lite-1.0.0`
 - SHA-256: `5eec3d4b98e9ddc1fb88c44e0953b8bded137779a4d930c6ab2647a431308388`
 - Policy: update only via reviewed commit; recompute SHA-256 and update this section when changed.
+
+Lit runtime is also vendored locally and mapped through `index.html` import map:
+
+- Bundle root: `dashboard/assets/vendor/lit-3.2.1/`
+- Provenance + integrity notes: `dashboard/assets/vendor/lit-3.2.1/README.md`
 
 ## 🐙 Rollback Notes
 

@@ -11,5 +11,8 @@
   },
   "devDependencies": {
     "@playwright/test": "1.51.1"
+  },
+  "dependencies": {
+    "lit": "3.2.1"
   }
 }

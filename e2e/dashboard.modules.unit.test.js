@@ -1296,8 +1296,16 @@ test('dashboard main guards optional control bindings before assigning handlers'
   );
   assert.match(
     source,
-    /\]\.forEach\(id => \{\s*const field = getById\(id\);\s*if \(!field\) return;\s*field\.addEventListener\('input', checkBotnessConfigChanged\);/m
+    /\]\.forEach\(\(id\) => \{\s*bindFieldEvent\(id, 'input', checkBotnessConfigChanged\);/m
   );
+});
+
+test('dashboard main exports explicit lifecycle entrypoints', () => {
+  const dashboardPath = path.resolve(__dirname, '..', 'dashboard', 'dashboard.js');
+  const source = fs.readFileSync(dashboardPath, 'utf8');
+
+  assert.match(source, /export function mountDashboard\(\)/);
+  assert.match(source, /export function unmountDashboard\(\)/);
 });
 
 test('dashboard module graph is layered (core -> services -> features -> main) with no cycles', () => {

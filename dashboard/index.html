@@ -7,9 +7,24 @@
   <title>Shuma-Gorath Dashboard</title>
   <link rel="stylesheet" href="style.css">
   <script src="assets/vendor/chart-lite-1.0.0.min.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "lit": "/dashboard/assets/vendor/lit-3.2.1/npm/lit/index.js",
+        "lit/": "/dashboard/assets/vendor/lit-3.2.1/npm/lit/",
+        "lit-html": "/dashboard/assets/vendor/lit-3.2.1/npm/lit-html/lit-html.js",
+        "lit-html/": "/dashboard/assets/vendor/lit-3.2.1/npm/lit-html/",
+        "lit-element/lit-element.js": "/dashboard/assets/vendor/lit-3.2.1/npm/lit-element/lit-element.js",
+        "lit-element/": "/dashboard/assets/vendor/lit-3.2.1/npm/lit-element/",
+        "@lit/reactive-element": "/dashboard/assets/vendor/lit-3.2.1/npm/@lit/reactive-element/reactive-element.js",
+        "@lit/reactive-element/": "/dashboard/assets/vendor/lit-3.2.1/npm/@lit/reactive-element/"
+      }
+    }
+  </script>
 </head>
 
 <body>
+  <shuma-dashboard-app id="dashboard-app-shell">
   <span id="last-updated" class="text-muted"></span>
   <div class="container panel panel-border">
     <header>
@@ -857,7 +872,8 @@
     </div>
 
   </div>
-  <script type="module" src="dashboard.js"></script>
+  </shuma-dashboard-app>
+  <script type="module" src="bootstrap-lit.js"></script>
 </body>
 
 </html>

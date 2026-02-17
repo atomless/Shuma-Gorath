@@ -34,6 +34,7 @@ export const createTabLifecycleCoordinator = (options = {}) => {
 
   let activeTab = DEFAULT_DASHBOARD_TAB;
   let initialized = false;
+  let unbindFns = [];
 
   const applyDomState = (tabName) => {
     const tab = normalizeTab(tabName);
@@ -157,11 +158,11 @@ export const createTabLifecycleCoordinator = (options = {}) => {
 
   const bindLinkInteractions = () => {
     document.querySelectorAll(linkSelector).forEach((link) => {
-      link.addEventListener('click', (event) => {
+      const onClick = (event) => {
         event.preventDefault();
         activate(link.dataset.dashboardTabLink, 'click');
-      });
-      link.addEventListener('keydown', (event) => {
+      };
+      const onKeydown = (event) => {
         if (event.key === 'ArrowRight') {
           event.preventDefault();
           focusByOffset(1);
@@ -175,6 +176,12 @@ export const createTabLifecycleCoordinator = (options = {}) => {
           event.preventDefault();
           activate(DASHBOARD_TABS[DASHBOARD_TABS.length - 1], 'keyboard');
         }
+      };
+      link.addEventListener('click', onClick);
+      link.addEventListener('keydown', onKeydown);
+      unbindFns.push(() => {
+        link.removeEventListener('click', onClick);
+        link.removeEventListener('keydown', onKeydown);
       });
     });
   };
@@ -186,8 +193,17 @@ export const createTabLifecycleCoordinator = (options = {}) => {
     });
     bindLinkInteractions();
     window.addEventListener('hashchange', syncFromHash);
+    unbindFns.push(() => window.removeEventListener('hashchange', syncFromHash));
     initialized = true;
     syncFromHash();
+  };
+
+  const destroy = () => {
+    if (!initialized) return;
+    controllers[activeTab].unmount({ tab: activeTab, nextTab: null, reason: 'destroy' });
+    unbindFns.forEach((unbind) => unbind());
+    unbindFns = [];
+    initialized = false;
   };
 
   const refreshActive = async (context = {}) => controllers[activeTab].refresh({
@@ -197,6 +213,7 @@ export const createTabLifecycleCoordinator = (options = {}) => {
 
   return {
     init,
+    destroy,
     activate,
     refreshActive,
     getActiveTab: () => activeTab,
