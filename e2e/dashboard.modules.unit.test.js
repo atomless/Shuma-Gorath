@@ -496,6 +496,52 @@ test('monitoring view normalizes hashed offender labels in top offender cards', 
   assert.equal(elements['honeypot-top-offender-label'].textContent, 'Top Offender (43 hits)');
 });
 
+test('monitoring view loading state hydrates placeholders consistently', { concurrency: false }, async () => {
+  const ids = [
+    'maze-total-hits',
+    'maze-unique-crawlers',
+    'maze-auto-bans',
+    'maze-top-offender',
+    'maze-top-offender-label',
+    'honeypot-total-hits',
+    'honeypot-unique-crawlers',
+    'honeypot-top-offender',
+    'honeypot-top-offender-label',
+    'challenge-failures-total',
+    'challenge-failures-unique',
+    'challenge-top-offender',
+    'challenge-top-offender-label',
+    'pow-failures-total',
+    'pow-failures-unique',
+    'pow-top-offender',
+    'pow-top-offender-label',
+    'rate-violations-total',
+    'rate-violations-unique',
+    'rate-top-offender',
+    'rate-top-offender-label',
+    'geo-violations-total'
+  ];
+  const elements = Object.fromEntries(ids.map((id) => [id, createMockElement()]));
+
+  await withBrowserGlobals({
+    document: {
+      getElementById: (id) => elements[id] || null,
+      querySelector: () => null,
+      querySelectorAll: () => []
+    }
+  }, async () => {
+    const monitoringViewModule = await importBrowserModule('dashboard/modules/monitoring-view.js');
+    const monitoringView = monitoringViewModule.create();
+    monitoringView.showLoadingState();
+  });
+
+  assert.equal(elements['maze-total-hits'].textContent, '...');
+  assert.equal(elements['maze-top-offender'].textContent, '...');
+  assert.equal(elements['maze-top-offender-label'].textContent, 'Top Offender');
+  assert.equal(elements['rate-top-offender'].textContent, '...');
+  assert.equal(elements['rate-top-offender-label'].textContent, 'Top Offender');
+});
+
 test('config schema centralizes advanced and status-writable path inventories', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const schema = await importBrowserModule('dashboard/modules/config-schema.js');
@@ -758,6 +804,41 @@ test('tab state view updates element state and dashboard-state hooks', { concurr
   ]);
 });
 
+test('runtime effects request resolves window fetch at call time', { concurrency: false }, async () => {
+  let initialFetchCalls = 0;
+  let wrappedFetchCalls = 0;
+  const mockWindow = {
+    fetch: async () => {
+      initialFetchCalls += 1;
+      return { ok: true };
+    },
+    setTimeout,
+    clearTimeout
+  };
+
+  await withBrowserGlobals({
+    window: mockWindow,
+    navigator: {
+      clipboard: {
+        writeText: async () => {}
+      }
+    }
+  }, async () => {
+    const runtimeEffectsModule = await importBrowserModule('dashboard/modules/services/runtime-effects.js');
+    const effects = runtimeEffectsModule.createRuntimeEffects({ window: mockWindow, navigator });
+
+    // Simulate admin-session wrapper installing after runtime effects are created.
+    mockWindow.fetch = async () => {
+      wrappedFetchCalls += 1;
+      return { ok: true };
+    };
+
+    await effects.request('/admin/config', { method: 'POST' });
+    assert.equal(initialFetchCalls, 0);
+    assert.equal(wrappedFetchCalls, 1);
+  });
+});
+
 test('config controls flattens grouped bind options and preserves explicit overrides', { concurrency: false }, async () => {
   const mockDocument = {
     getElementById: () => null,
@@ -819,6 +900,31 @@ test('config controls normalizes typed context into compatibility surface', { co
     assert.equal(typeof normalized.getGeoSavedState, 'function');
     assert.equal(typeof normalized.setMazeSavedState, 'function');
     assert.deepEqual(normalized.getGeoSavedState(), { mutable: true });
+  });
+});
+
+test('config controls accepts domainApi without legacy grouped callback bags', { concurrency: false }, async () => {
+  const mockDocument = {
+    getElementById: () => null,
+    querySelector: () => null,
+    querySelectorAll: () => []
+  };
+
+  await withBrowserGlobals({ document: mockDocument }, async () => {
+    const controls = await importBrowserModule('dashboard/modules/config-controls.js');
+    const normalized = controls._normalizeContextOptions({
+      domainApi: {
+        getAdminContext: () => ({ endpoint: 'http://x', apikey: 'y' }),
+        readIntegerFieldValue: () => 42,
+        setMazeSavedState: () => {},
+        checkMazeConfigChanged: () => {}
+      }
+    });
+
+    assert.equal(typeof normalized.getAdminContext, 'function');
+    assert.equal(typeof normalized.readIntegerFieldValue, 'function');
+    assert.equal(typeof normalized.setMazeSavedState, 'function');
+    assert.equal(typeof normalized.checkMazeConfigChanged, 'function');
   });
 });
 
@@ -947,6 +1053,33 @@ test('tables view updates CDP totals and parses tier/score fields', { concurrenc
   assert.equal(els['cdp-total-auto-bans'].textContent, '3');
   assert.equal(els['cdp-fp-events'].textContent, '11');
   assert.equal(els['cdp-fp-flow-violations'].textContent, '6');
+});
+
+test('tables view monitoring loading state sets CDP placeholders', { concurrency: false }, async () => {
+  const els = {
+    'cdp-total-detections': createMockElement(),
+    'cdp-total-auto-bans': createMockElement(),
+    'cdp-fp-events': createMockElement(),
+    'cdp-fp-flow-violations': createMockElement()
+  };
+
+  await withBrowserGlobals({
+    document: {
+      querySelector: () => null,
+      querySelectorAll: () => [],
+      createElement: () => ({ innerHTML: '' }),
+      getElementById: (id) => els[id] || null
+    }
+  }, async () => {
+    const tablesModule = await importBrowserModule('dashboard/modules/tables-view.js');
+    const tables = tablesModule.create();
+    tables.showMonitoringLoadingState();
+  });
+
+  assert.equal(els['cdp-total-detections'].textContent, '...');
+  assert.equal(els['cdp-total-auto-bans'].textContent, '...');
+  assert.equal(els['cdp-fp-events'].textContent, '...');
+  assert.equal(els['cdp-fp-flow-violations'].textContent, '...');
 });
 
 test('dashboard ESM guardrails forbid legacy global registry and class syntax', () => {

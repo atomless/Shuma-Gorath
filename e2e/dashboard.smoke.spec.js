@@ -139,6 +139,21 @@ async function openTab(page, tab) {
   assertNoRuntimeFailures(page);
 }
 
+async function submitConfigSave(page, button) {
+  await expect(button).toBeEnabled();
+  const [response] = await Promise.all([
+    page.waitForResponse((resp) => (
+      resp.url().includes("/admin/config") &&
+      resp.request().method() === "POST"
+    )),
+    button.click()
+  ]);
+  if (!response.ok()) {
+    const body = await response.text();
+    throw new Error(`Config save failed with ${response.status()}: ${body}`);
+  }
+}
+
 async function assertChartsFillPanels(page) {
   const metrics = await page.evaluate(() => {
     const ids = ["eventTypesChart", "topIpsChart", "timeSeriesChart"];
@@ -344,6 +359,7 @@ test("dashboard loads and shows seeded operational data", async ({ page }) => {
 
   await expect(page.locator("#cdp-events tbody tr").first()).toBeVisible();
   await expect(page.locator("#cdp-total-detections")).not.toHaveText("-");
+  await expect(page.locator("#test-mode-status")).toHaveClass(/test-mode-status--(enabled|disabled)/);
 });
 
 test("status tab resolves fail mode without requiring monitoring bootstrap", async ({ page }) => {
@@ -752,6 +768,98 @@ test("config save roundtrip clears dirty state after successful write", async ({
       jsRequiredSave.click()
     ]);
     await expect(jsRequiredSave).toBeDisabled();
+  }
+});
+
+test("config save flows cover robots, AI policy, GEO, CDP, and botness controls", async ({ page }) => {
+  await openDashboard(page);
+  await openTab(page, "config");
+
+  const subtitle = (await page.locator("#config-mode-subtitle").textContent()) || "";
+  if (/disabled|read-only|Admin page configuration disabled/i.test(subtitle)) {
+    return;
+  }
+
+  const saveRobots = page.locator("#save-robots-config");
+  const robotsCrawlDelay = page.locator("#robots-crawl-delay");
+  const robotsDelayInitial = await robotsCrawlDelay.inputValue();
+  const robotsDelayNext = String(Math.min(60, Number(robotsDelayInitial || "2") + 1));
+  await robotsCrawlDelay.fill(robotsDelayNext);
+  await robotsCrawlDelay.dispatchEvent("input");
+  await submitConfigSave(page, saveRobots);
+  await robotsCrawlDelay.fill(robotsDelayInitial);
+  await robotsCrawlDelay.dispatchEvent("input");
+  await submitConfigSave(page, saveRobots);
+
+  const saveAiPolicy = page.locator("#save-ai-policy-config");
+  const aiToggle = page.locator("#robots-block-training-toggle");
+  const aiToggleSwitch = page.locator("label.toggle-switch[for='robots-block-training-toggle']");
+  if (await aiToggleSwitch.isVisible() && await aiToggle.isEnabled()) {
+    const aiInitial = await aiToggle.isChecked();
+    await aiToggleSwitch.click();
+    await submitConfigSave(page, saveAiPolicy);
+    if (aiInitial !== await aiToggle.isChecked()) {
+      await aiToggleSwitch.click();
+      await submitConfigSave(page, saveAiPolicy);
+    }
+  }
+
+  const saveGeoScoring = page.locator("#save-geo-scoring-config");
+  const geoRiskList = page.locator("#geo-risk-list");
+  if (await geoRiskList.isVisible() && await geoRiskList.isEnabled()) {
+    const geoRiskInitial = await geoRiskList.inputValue();
+    const geoRiskNext = geoRiskInitial.includes("CA")
+      ? geoRiskInitial.replace(/\bCA\b,?/g, "").replace(/(^,|,,|,$)/g, "")
+      : (geoRiskInitial ? `${geoRiskInitial},CA` : "CA");
+    await geoRiskList.fill(geoRiskNext);
+    await geoRiskList.dispatchEvent("input");
+    await submitConfigSave(page, saveGeoScoring);
+    await geoRiskList.fill(geoRiskInitial);
+    await geoRiskList.dispatchEvent("input");
+    await submitConfigSave(page, saveGeoScoring);
+  }
+
+  const saveGeoRouting = page.locator("#save-geo-routing-config");
+  const geoAllowList = page.locator("#geo-allow-list");
+  if (await geoAllowList.isVisible() && await geoAllowList.isEnabled()) {
+    const geoAllowInitial = await geoAllowList.inputValue();
+    const geoAllowNext = geoAllowInitial.includes("GB")
+      ? geoAllowInitial.replace(/\bGB\b,?/g, "").replace(/(^,|,,|,$)/g, "")
+      : (geoAllowInitial ? `${geoAllowInitial},GB` : "GB");
+    await geoAllowList.fill(geoAllowNext);
+    await geoAllowList.dispatchEvent("input");
+    await submitConfigSave(page, saveGeoRouting);
+    await geoAllowList.fill(geoAllowInitial);
+    await geoAllowList.dispatchEvent("input");
+    await submitConfigSave(page, saveGeoRouting);
+  }
+
+  const saveCdp = page.locator("#save-cdp-config");
+  const cdpThreshold = page.locator("#cdp-threshold-slider");
+  const cdpInitial = await cdpThreshold.inputValue();
+  const cdpNext = Number(cdpInitial || "0.6") >= 0.9
+    ? "0.8"
+    : (Number(cdpInitial || "0.6") + 0.1).toFixed(1);
+  await cdpThreshold.fill(cdpNext);
+  await cdpThreshold.dispatchEvent("input");
+  await submitConfigSave(page, saveCdp);
+  await cdpThreshold.fill(cdpInitial);
+  await cdpThreshold.dispatchEvent("input");
+  await submitConfigSave(page, saveCdp);
+
+  const saveBotness = page.locator("#save-botness-config");
+  const botnessWeight = page.locator("#weight-js-required");
+  if (await botnessWeight.isVisible() && await botnessWeight.isEnabled()) {
+    const botnessInitial = await botnessWeight.inputValue();
+    const nextWeight = Number(botnessInitial || "1") >= 10
+      ? "9"
+      : String(Number(botnessInitial || "1") + 1);
+    await botnessWeight.fill(nextWeight);
+    await botnessWeight.dispatchEvent("input");
+    await submitConfigSave(page, saveBotness);
+    await botnessWeight.fill(botnessInitial);
+    await botnessWeight.dispatchEvent("input");
+    await submitConfigSave(page, saveBotness);
   }
 });
 

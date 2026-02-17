@@ -51,6 +51,13 @@ export const create = (options = {}) => {
   const setDraft = typeof options.setDraft === 'function' ? options.setDraft : () => {};
   const getDraft = typeof options.getDraft === 'function' ? options.getDraft : () => ({});
   const statusPanel = options.statusPanel || { update: () => {}, render: () => {} };
+  const applyStatusPatch =
+    typeof statusPanel.applyPatch === 'function'
+      ? statusPanel.applyPatch.bind(statusPanel)
+      : (patch) => {
+        statusPanel.update(patch);
+        statusPanel.render();
+      };
 
   const adminConfigWriteEnabled =
     typeof options.adminConfigWriteEnabled === 'function'
@@ -158,8 +165,7 @@ export const create = (options = {}) => {
       btn.disabled = true;
       btn.textContent = 'Save Maze Settings';
     }
-    statusPanel.update(statusPatch);
-    statusPanel.render();
+    applyStatusPatch(statusPatch);
   };
 
   const updateGeoConfig = (config = {}) => {
@@ -192,14 +198,13 @@ export const create = (options = {}) => {
       mutable
     });
 
-    statusPanel.update({
+    applyStatusPatch({
       geoRiskCount: Array.isArray(config.geo_risk) ? config.geo_risk.length : 0,
       geoAllowCount: Array.isArray(config.geo_allow) ? config.geo_allow.length : 0,
       geoChallengeCount: Array.isArray(config.geo_challenge) ? config.geo_challenge.length : 0,
       geoMazeCount: Array.isArray(config.geo_maze) ? config.geo_maze.length : 0,
       geoBlockCount: Array.isArray(config.geo_block) ? config.geo_block.length : 0
     });
-    statusPanel.render();
 
     setGeoConfigEditable(mutable);
 
@@ -358,8 +363,7 @@ export const create = (options = {}) => {
       btn.disabled = true;
       btn.textContent = 'Save CDP Settings';
     }
-    statusPanel.update(statusPatch);
-    statusPanel.render();
+    applyStatusPatch(statusPatch);
   };
 
   const updateEdgeIntegrationModeConfig = (config = {}) => {
@@ -381,8 +385,7 @@ export const create = (options = {}) => {
     if (!field) return;
     field.value = rateLimit;
     setDraft('rateLimit', { value: rateLimit });
-    statusPanel.update({ rateLimit });
-    statusPanel.render();
+    applyStatusPatch({ rateLimit });
 
     const btn = getById('save-rate-limit-config');
     if (!btn) return;
@@ -396,8 +399,7 @@ export const create = (options = {}) => {
     if (!toggle) return;
     toggle.checked = enforced;
     setDraft('jsRequired', { enforced });
-    statusPanel.update({ jsRequiredEnforced: enforced });
-    statusPanel.render();
+    applyStatusPatch({ jsRequiredEnforced: enforced });
 
     const btn = getById('save-js-required-config');
     if (!btn) return;
@@ -414,8 +416,7 @@ export const create = (options = {}) => {
     const powEnabledToggle = getById('pow-enabled-toggle');
     if (!difficultyField || !ttlField || !powEnabledToggle) return;
 
-    statusPanel.update({ powEnabled });
-    statusPanel.render();
+    applyStatusPatch({ powEnabled });
 
     if (!Number.isNaN(difficulty)) {
       difficultyField.value = difficulty;
@@ -524,7 +525,7 @@ export const create = (options = {}) => {
     challengeDefaultLabel.textContent = Number.isNaN(challengeDefault) ? '--' : challengeDefault;
     mazeDefaultLabel.textContent = Number.isNaN(mazeDefault) ? '--' : mazeDefault;
 
-    statusPanel.update({
+    applyStatusPatch({
       challengeEnabled,
       challengeThreshold: Number.isNaN(challengeThreshold) ? 3 : challengeThreshold,
       mazeThreshold: Number.isNaN(mazeThreshold) ? 6 : mazeThreshold,
@@ -577,7 +578,6 @@ export const create = (options = {}) => {
     }
     transformCountField.disabled = !writable;
     challengeEnabledToggle.disabled = !writable;
-    statusPanel.render();
   };
 
   const setAdvancedConfigEditorFromConfig = (config, preserveDirty = true) => {

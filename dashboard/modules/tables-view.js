@@ -190,7 +190,15 @@ export const create = (options = {}) => {
     domModule.setText(byId('cdp-fp-flow-violations'), format.formatNumber(fingerprintFlowViolations, '0'));
   };
 
+  const showMonitoringLoadingState = () => {
+    domModule.setText(byId('cdp-total-detections'), '...');
+    domModule.setText(byId('cdp-total-auto-bans'), '...');
+    domModule.setText(byId('cdp-fp-events'), '...');
+    domModule.setText(byId('cdp-fp-flow-violations'), '...');
+  };
+
   return {
+    showMonitoringLoadingState,
     updateBansTable,
     updateEventsTable,
     updateCdpEventsTable,

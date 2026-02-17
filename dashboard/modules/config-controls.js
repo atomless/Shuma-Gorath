@@ -56,6 +56,11 @@ const getById = domCache.byId;
   }
 
   function normalizeContextOptions(rawOptions = {}) {
+    if (rawOptions.domainApi && typeof rawOptions.domainApi === 'object') {
+      const merged = { ...rawOptions, ...rawOptions.domainApi };
+      delete merged.domainApi;
+      return merged;
+    }
     if (!rawOptions.context || typeof rawOptions.context !== 'object') return rawOptions;
     const context = rawOptions.context;
     const normalized = {
@@ -100,6 +105,14 @@ const getById = domCache.byId;
   function bind(rawOptions = {}) {
     const options = flattenBindOptions(normalizeContextOptions(rawOptions));
     const statusPanel = options.statusPanel || null;
+    const applyStatusPatch =
+      statusPanel && typeof statusPanel.applyPatch === 'function'
+        ? statusPanel.applyPatch.bind(statusPanel)
+        : (patch) => {
+          if (!statusPanel) return;
+          statusPanel.update(patch);
+          statusPanel.render();
+        };
     const apiClient = options.apiClient || null;
     const timerSetTimeout =
       options.effects && typeof options.effects.setTimer === 'function'
@@ -137,15 +150,46 @@ const getById = domCache.byId;
         }
         result = await resp.json();
       }
-      if (statusPanel && result && result.config && typeof result.config === 'object') {
-        statusPanel.update({ configSnapshot: result.config });
-        statusPanel.render();
+      if (result && result.config && typeof result.config === 'object') {
+        applyStatusPatch({ configSnapshot: result.config });
       }
       if (typeof options.onConfigSaved === 'function') {
         options.onConfigSaved(patch, result);
       }
       return result;
     }
+
+    const setAdminMessage = (messageTarget, text, variant = 'info') => {
+      if (!messageTarget) return;
+      messageTarget.textContent = String(text || '');
+      messageTarget.className = `message ${variant}`;
+    };
+
+    const beginSaveButton = (button, label = 'Saving...') => {
+      if (!button) return;
+      button.textContent = label;
+      button.dataset.saving = 'true';
+      button.disabled = true;
+    };
+
+    const endSaveButton = (button, label) => {
+      if (!button) return;
+      button.dataset.saving = 'false';
+      if (label !== undefined) {
+        button.textContent = String(label);
+      }
+    };
+
+    const endSaveButtonAfter = (button, interimLabel, nextLabel, delayMs = 1500, onReset = null) => {
+      if (!button) return;
+      if (interimLabel !== undefined) {
+        button.textContent = String(interimLabel);
+      }
+      timerSetTimeout(() => {
+        endSaveButton(button, nextLabel);
+        if (typeof onReset === 'function') onReset();
+      }, delayMs);
+    };
 
     function parseList(raw) {
       if (typeof options.parseListTextarea === 'function') {
@@ -193,9 +237,7 @@ const getById = domCache.byId;
         const mazeThreshold = options.readIntegerFieldValue('maze-threshold', msg);
         if (mazeThreshold === null) return;
 
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        beginSaveButton(btn);
 
         try {
           await saveConfigPatch(msg, {
@@ -209,20 +251,14 @@ const getById = domCache.byId;
             autoBan: mazeAutoBan,
             threshold: mazeThreshold
           });
-          btn.textContent = 'Saved!';
-          timerSetTimeout(() => {
-            btn.dataset.saving = 'false';
-            btn.textContent = 'Save Maze Settings';
+          endSaveButtonAfter(btn, 'Saved!', 'Save Maze Settings', 1500, () => {
             options.checkMazeConfigChanged();
-          }, 1500);
-          msg.textContent = 'Maze settings saved';
-          msg.className = 'message success';
+          });
+          setAdminMessage(msg, 'Maze settings saved', 'success');
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
           console.error('Failed to save maze config:', e);
-          btn.dataset.saving = 'false';
-          btn.textContent = 'Save Maze Settings';
+          endSaveButton(btn, 'Save Maze Settings');
           options.checkMazeConfigChanged();
         }
       };
@@ -238,9 +274,7 @@ const getById = domCache.byId;
         const crawlDelay = options.readIntegerFieldValue('robots-crawl-delay', msg);
         if (crawlDelay === null) return;
 
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        beginSaveButton(btn);
 
         try {
           await saveConfigPatch(msg, {
@@ -257,19 +291,15 @@ const getById = domCache.byId;
           if (preview && !preview.classList.contains('hidden')) {
             await options.refreshRobotsPreview();
           }
-          timerSetTimeout(() => {
-            btn.dataset.saving = 'false';
-            btn.textContent = 'Save robots serving';
+          endSaveButtonAfter(btn, 'Updated!', 'Save robots serving', 1500, () => {
             options.checkRobotsConfigChanged();
-          }, 1500);
+          });
         } catch (e) {
-          btn.dataset.saving = 'false';
-          btn.textContent = 'Error';
+          endSaveButton(btn, 'Error');
           console.error('Failed to save robots config:', e);
-          timerSetTimeout(() => {
-            btn.textContent = 'Save robots serving';
+          endSaveButtonAfter(btn, undefined, 'Save robots serving', 2000, () => {
             options.checkRobotsConfigChanged();
-          }, 2000);
+          });
         }
       };
     }
@@ -284,9 +314,7 @@ const getById = domCache.byId;
         const blockSearch = getById('robots-block-search-toggle').checked;
         const allowSearchEngines = !getById('robots-allow-search-toggle').checked;
 
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        beginSaveButton(btn);
 
         try {
           await saveConfigPatch(msg, {
@@ -305,19 +333,15 @@ const getById = domCache.byId;
           if (preview && !preview.classList.contains('hidden')) {
             await options.refreshRobotsPreview();
           }
-          timerSetTimeout(() => {
-            btn.dataset.saving = 'false';
-            btn.textContent = 'Save AI bot policy';
+          endSaveButtonAfter(btn, 'Saved!', 'Save AI bot policy', 1500, () => {
             options.checkAiPolicyConfigChanged();
-          }, 1500);
+          });
         } catch (e) {
-          btn.dataset.saving = 'false';
-          btn.textContent = 'Error';
+          endSaveButton(btn, 'Error');
           console.error('Failed to save AI bot policy:', e);
-          timerSetTimeout(() => {
-            btn.textContent = 'Save AI bot policy';
+          endSaveButtonAfter(btn, undefined, 'Save AI bot policy', 2000, () => {
             options.checkAiPolicyConfigChanged();
-          }, 2000);
+          });
         }
       };
     }
@@ -330,8 +354,11 @@ const getById = domCache.byId;
         const geoState = options.getGeoSavedState();
 
         if (!geoState.mutable) {
-          msg.textContent = 'GEO settings are read-only while SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false.';
-          msg.className = 'message warning';
+          setAdminMessage(
+            msg,
+            'GEO settings are read-only while SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false.',
+            'warning'
+          );
           btn.disabled = true;
           return;
         }
@@ -340,14 +367,11 @@ const getById = domCache.byId;
         try {
           geoRisk = parseCountryCodesStrict(getById('geo-risk-list').value);
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
           return;
         }
 
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        beginSaveButton(btn);
         try {
           const data = await saveConfigPatch(msg, { geo_risk: geoRisk });
           if (data && data.config) {
@@ -359,16 +383,12 @@ const getById = domCache.byId;
               mutable: true
             });
           }
-          msg.textContent = 'GEO scoring saved';
-          msg.className = 'message success';
-          btn.textContent = 'Save GEO Scoring';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, 'GEO scoring saved', 'success');
+          endSaveButton(btn, 'Save GEO Scoring');
           options.checkGeoConfigChanged();
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
-          btn.textContent = 'Save GEO Scoring';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
+          endSaveButton(btn, 'Save GEO Scoring');
           options.checkGeoConfigChanged();
         }
       };
@@ -382,8 +402,11 @@ const getById = domCache.byId;
         const geoState = options.getGeoSavedState();
 
         if (!geoState.mutable) {
-          msg.textContent = 'GEO settings are read-only while SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false.';
-          msg.className = 'message warning';
+          setAdminMessage(
+            msg,
+            'GEO settings are read-only while SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false.',
+            'warning'
+          );
           btn.disabled = true;
           return;
         }
@@ -398,14 +421,11 @@ const getById = domCache.byId;
           geoMaze = parseCountryCodesStrict(getById('geo-maze-list').value);
           geoBlock = parseCountryCodesStrict(getById('geo-block-list').value);
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
           return;
         }
 
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        beginSaveButton(btn);
         try {
           const data = await saveConfigPatch(msg, {
             geo_allow: geoAllow,
@@ -425,16 +445,12 @@ const getById = domCache.byId;
               mutable: true
             });
           }
-          msg.textContent = 'GEO routing saved';
-          msg.className = 'message success';
-          btn.textContent = 'Save GEO Routing';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, 'GEO routing saved', 'success');
+          endSaveButton(btn, 'Save GEO Routing');
           options.checkGeoConfigChanged();
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
-          btn.textContent = 'Save GEO Routing';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
+          endSaveButton(btn, 'Save GEO Routing');
           options.checkGeoConfigChanged();
         }
       };
@@ -453,14 +469,11 @@ const getById = domCache.byId;
         try {
           honeypots = parseHoneypotPaths(field ? field.value : '');
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
           return;
         }
 
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        beginSaveButton(btn);
         try {
           const data = await saveConfigPatch(msg, {
             honeypot_enabled: honeypotEnabled,
@@ -477,15 +490,11 @@ const getById = domCache.byId;
               options.checkHoneypotConfigChanged();
             }
           }
-          msg.textContent = 'Honeypot paths saved';
-          msg.className = 'message success';
-          btn.textContent = 'Save Honeypots';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, 'Honeypot paths saved', 'success');
+          endSaveButton(btn, 'Save Honeypots');
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
-          btn.textContent = 'Save Honeypots';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
+          endSaveButton(btn, 'Save Honeypots');
           if (typeof options.checkHoneypotConfigChanged === 'function') {
             options.checkHoneypotConfigChanged();
           }
@@ -507,14 +516,11 @@ const getById = domCache.byId;
           browserBlock = parseBrowserRules(blockField ? blockField.value : '');
           browserWhitelist = parseBrowserRules(whitelistField ? whitelistField.value : '');
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
           return;
         }
 
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        beginSaveButton(btn);
         try {
           const data = await saveConfigPatch(msg, {
             browser_block: browserBlock,
@@ -531,15 +537,11 @@ const getById = domCache.byId;
               options.checkBrowserPolicyConfigChanged();
             }
           }
-          msg.textContent = 'Browser policy saved';
-          msg.className = 'message success';
-          btn.textContent = 'Save Browser Policy';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, 'Browser policy saved', 'success');
+          endSaveButton(btn, 'Save Browser Policy');
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
-          btn.textContent = 'Save Browser Policy';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
+          endSaveButton(btn, 'Save Browser Policy');
           if (typeof options.checkBrowserPolicyConfigChanged === 'function') {
             options.checkBrowserPolicyConfigChanged();
           }
@@ -557,9 +559,7 @@ const getById = domCache.byId;
         const whitelist = parseList(networkField ? networkField.value : '');
         const pathWhitelist = parseList(pathField ? pathField.value : '');
 
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        beginSaveButton(btn);
         try {
           const data = await saveConfigPatch(msg, {
             whitelist,
@@ -576,15 +576,11 @@ const getById = domCache.byId;
               options.checkBypassAllowlistsConfigChanged();
             }
           }
-          msg.textContent = 'Bypass allowlists saved';
-          msg.className = 'message success';
-          btn.textContent = 'Save Allowlists';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, 'Bypass allowlists saved', 'success');
+          endSaveButton(btn, 'Save Allowlists');
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
-          btn.textContent = 'Save Allowlists';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
+          endSaveButton(btn, 'Save Allowlists');
           if (typeof options.checkBypassAllowlistsConfigChanged === 'function') {
             options.checkBypassAllowlistsConfigChanged();
           }
@@ -603,9 +599,7 @@ const getById = domCache.byId;
         const powTtl = options.readIntegerFieldValue('pow-ttl', msg);
         if (powDifficulty === null || powTtl === null) return;
 
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        beginSaveButton(btn);
 
         try {
           await saveConfigPatch(msg, {
@@ -620,16 +614,12 @@ const getById = domCache.byId;
             ttl: powTtl,
             mutable: true
           });
-          msg.textContent = 'PoW settings saved';
-          msg.className = 'message success';
-          btn.textContent = 'Save PoW Settings';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, 'PoW settings saved', 'success');
+          endSaveButton(btn, 'Save PoW Settings');
           options.checkPowConfigChanged();
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
-          btn.textContent = 'Save PoW Settings';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
+          endSaveButton(btn, 'Save PoW Settings');
           options.checkPowConfigChanged();
         }
       };
@@ -644,9 +634,7 @@ const getById = domCache.byId;
         const transformCount = options.readIntegerFieldValue('challenge-puzzle-transform-count', msg);
         if (transformCount === null) return;
 
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        beginSaveButton(btn);
         try {
           await saveConfigPatch(msg, {
             challenge_puzzle_enabled: challengeEnabled,
@@ -659,18 +647,14 @@ const getById = domCache.byId;
               mutable: true
             });
           }
-          msg.textContent = 'Challenge puzzle settings saved';
-          msg.className = 'message success';
-          btn.textContent = 'Save Challenge Puzzle';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, 'Challenge puzzle settings saved', 'success');
+          endSaveButton(btn, 'Save Challenge Puzzle');
           if (typeof options.checkChallengePuzzleConfigChanged === 'function') {
             options.checkChallengePuzzleConfigChanged();
           }
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
-          btn.textContent = 'Save Challenge Puzzle';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
+          endSaveButton(btn, 'Save Challenge Puzzle');
           if (typeof options.checkChallengePuzzleConfigChanged === 'function') {
             options.checkChallengePuzzleConfigChanged();
           }
@@ -702,9 +686,7 @@ const getById = domCache.byId;
           return;
         }
 
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        beginSaveButton(btn);
 
         try {
           await saveConfigPatch(msg, {
@@ -727,16 +709,12 @@ const getById = domCache.byId;
             weightRateHigh: weightRateHigh,
             mutable: true
           });
-          msg.textContent = 'Botness scoring saved';
-          msg.className = 'message success';
-          btn.textContent = 'Save Botness Settings';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, 'Botness scoring saved', 'success');
+          endSaveButton(btn, 'Save Botness Settings');
           options.checkBotnessConfigChanged();
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
-          btn.textContent = 'Save Botness Settings';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
+          endSaveButton(btn, 'Save Botness Settings');
           options.checkBotnessConfigChanged();
         }
       };
@@ -752,9 +730,7 @@ const getById = domCache.byId;
         const cdpAutoBan = getById('cdp-auto-ban-toggle').checked;
         const cdpThreshold = parseFloat(getById('cdp-threshold-slider').value);
 
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        beginSaveButton(btn);
 
         try {
           await saveConfigPatch(msg, {
@@ -769,19 +745,15 @@ const getById = domCache.byId;
             autoBan: cdpAutoBan,
             threshold: cdpThreshold
           });
-          timerSetTimeout(() => {
-            btn.dataset.saving = 'false';
-            btn.textContent = 'Save CDP Settings';
+          endSaveButtonAfter(btn, 'Saved!', 'Save CDP Settings', 1500, () => {
             options.checkCdpConfigChanged();
-          }, 1500);
+          });
         } catch (e) {
-          btn.dataset.saving = 'false';
-          btn.textContent = 'Error';
+          endSaveButton(btn, 'Error');
           console.error('Failed to save CDP config:', e);
-          timerSetTimeout(() => {
-            btn.textContent = 'Save CDP Settings';
+          endSaveButtonAfter(btn, undefined, 'Save CDP Settings', 2000, () => {
             options.checkCdpConfigChanged();
-          }, 2000);
+          });
         }
       };
     }
@@ -794,9 +766,7 @@ const getById = domCache.byId;
         const modeSelect = getById('edge-integration-mode-select');
         const mode = String(modeSelect ? modeSelect.value : '').trim().toLowerCase();
 
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        beginSaveButton(btn);
         try {
           const data = await saveConfigPatch(msg, { edge_integration_mode: mode });
           if (data && data.config && typeof options.updateEdgeIntegrationModeConfig === 'function') {
@@ -806,16 +776,12 @@ const getById = domCache.byId;
             options.checkEdgeIntegrationModeChanged();
           }
 
-          msg.textContent = 'Edge integration mode saved';
-          msg.className = 'message success';
-          btn.textContent = 'Save Edge Integration Mode';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, 'Edge integration mode saved', 'success');
+          endSaveButton(btn, 'Save Edge Integration Mode');
           options.checkEdgeIntegrationModeChanged();
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
-          btn.textContent = 'Save Edge Integration Mode';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
+          endSaveButton(btn, 'Save Edge Integration Mode');
           options.checkEdgeIntegrationModeChanged();
         }
       };
@@ -829,26 +795,17 @@ const getById = domCache.byId;
         const rateLimit = options.readIntegerFieldValue('rate-limit-threshold', msg);
         if (rateLimit === null) return;
 
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        beginSaveButton(btn);
         try {
           await saveConfigPatch(msg, { rate_limit: rateLimit });
           options.setRateLimitSavedState({ value: rateLimit });
-          if (statusPanel) {
-            statusPanel.update({ rateLimit });
-            statusPanel.render();
-          }
-          msg.textContent = 'Rate limit saved';
-          msg.className = 'message success';
-          btn.textContent = 'Save Rate Limit';
-          btn.dataset.saving = 'false';
+          applyStatusPatch({ rateLimit });
+          setAdminMessage(msg, 'Rate limit saved', 'success');
+          endSaveButton(btn, 'Save Rate Limit');
           options.checkRateLimitConfigChanged();
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
-          btn.textContent = 'Save Rate Limit';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
+          endSaveButton(btn, 'Save Rate Limit');
           options.checkRateLimitConfigChanged();
         }
       };
@@ -861,26 +818,17 @@ const getById = domCache.byId;
         const msg = getById('admin-msg');
         const enforced = getById('js-required-enforced-toggle').checked;
 
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        beginSaveButton(btn);
         try {
           await saveConfigPatch(msg, { js_required_enforced: enforced });
           options.setJsRequiredSavedState({ enforced });
-          if (statusPanel) {
-            statusPanel.update({ jsRequiredEnforced: enforced });
-            statusPanel.render();
-          }
-          msg.textContent = 'JS Required setting saved';
-          msg.className = 'message success';
-          btn.textContent = 'Save JS Required';
-          btn.dataset.saving = 'false';
+          applyStatusPatch({ jsRequiredEnforced: enforced });
+          setAdminMessage(msg, 'JS Required setting saved', 'success');
+          endSaveButton(btn, 'Save JS Required');
           options.checkJsRequiredConfigChanged();
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
-          btn.textContent = 'Save JS Required';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
+          endSaveButton(btn, 'Save JS Required');
           options.checkJsRequiredConfigChanged();
         }
       };
@@ -910,11 +858,8 @@ const getById = domCache.byId;
           return;
         }
 
-        msg.textContent = 'Saving ban durations...';
-        msg.className = 'message info';
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        setAdminMessage(msg, 'Saving ban durations...', 'info');
+        beginSaveButton(btn);
 
         try {
           const data = await saveConfigPatch(msg, { ban_durations: banDurations });
@@ -922,13 +867,10 @@ const getById = domCache.byId;
             ? data.config.ban_durations
             : banDurations;
           options.updateBanDurations({ ban_durations: saved });
-          msg.textContent = 'Ban durations saved';
-          msg.className = 'message success';
+          setAdminMessage(msg, 'Ban durations saved', 'success');
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
-          btn.dataset.saving = 'false';
-          btn.textContent = 'Save Durations';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
+          endSaveButton(btn, 'Save Durations');
           options.checkBanDurationsChanged();
         }
       };
@@ -944,9 +886,7 @@ const getById = domCache.byId;
           : null;
         if (!patch) return;
 
-        btn.textContent = 'Saving...';
-        btn.dataset.saving = 'true';
-        btn.disabled = true;
+        beginSaveButton(btn);
 
         try {
           const data = await saveConfigPatch(msg, patch);
@@ -955,18 +895,14 @@ const getById = domCache.byId;
           } else if (typeof options.checkAdvancedConfigChanged === 'function') {
             options.checkAdvancedConfigChanged();
           }
-          msg.textContent = 'Advanced config patch saved';
-          msg.className = 'message success';
-          btn.textContent = 'Save Advanced Config';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, 'Advanced config patch saved', 'success');
+          endSaveButton(btn, 'Save Advanced Config');
           if (typeof options.checkAdvancedConfigChanged === 'function') {
             options.checkAdvancedConfigChanged();
           }
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
-          btn.textContent = 'Save Advanced Config';
-          btn.dataset.saving = 'false';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
+          endSaveButton(btn, 'Save Advanced Config');
           if (typeof options.checkAdvancedConfigChanged === 'function') {
             options.checkAdvancedConfigChanged();
           }
@@ -984,17 +920,14 @@ const getById = domCache.byId;
         }
         const testMode = this.checked;
 
-        msg.textContent = `${testMode ? 'Enabling' : 'Disabling'} test mode...`;
-        msg.className = 'message info';
+        setAdminMessage(msg, `${testMode ? 'Enabling' : 'Disabling'} test mode...`, 'info');
 
         try {
           const data = await saveConfigPatch(msg, { test_mode: testMode });
-          msg.textContent = `Test mode ${data.config.test_mode ? 'enabled' : 'disabled'}`;
-          msg.className = 'message success';
+          setAdminMessage(msg, `Test mode ${data.config.test_mode ? 'enabled' : 'disabled'}`, 'success');
           timerSetTimeout(() => options.refreshDashboard(), 500);
         } catch (e) {
-          msg.textContent = `Error: ${e.message}`;
-          msg.className = 'message error';
+          setAdminMessage(msg, `Error: ${e.message}`, 'error');
           this.checked = !testMode;
         }
       });

@@ -405,12 +405,22 @@ function adminConfigWriteEnabled(config) {
   return parseBoolLike(config && config.admin_config_write_enabled, false);
 }
 
-function updateConfigModeUi(config) {
+function applyStatusPanelPatch(patch) {
+  if (typeof statusPanel.applyPatch === 'function') {
+    statusPanel.applyPatch(patch);
+    return;
+  }
+  statusPanel.update(patch);
+  statusPanel.render();
+}
+
+function updateConfigModeUi(config, baseStatusPatch = {}) {
   const writeEnabled = adminConfigWriteEnabled(config);
   const failModeFromConfig = parseBoolLike(config && config.kv_store_fail_open, true)
     ? 'open'
     : 'closed';
-  statusPanel.update({
+  applyStatusPanelPatch({
+    ...baseStatusPatch,
     testMode: parseBoolLike(config && config.test_mode, false),
     failMode: statusPanel.normalizeFailMode(failModeFromConfig),
     httpsEnforced: parseBoolLike(config && config.https_enforced, false),
@@ -433,7 +443,6 @@ function updateConfigModeUi(config) {
   queryAll('.config-edit-pane').forEach(el => {
     el.classList.toggle('hidden', !writeEnabled);
   });
-  statusPanel.render();
 }
 
 // Update stat cards
@@ -453,52 +462,43 @@ function updateStatCards(analytics, events, bans) {
   if (testMode) {
     banner.classList.remove('hidden');
     status.textContent = 'ENABLED (LOGGING ONLY)';
-    status.style.color = '#d97706';
+    status.classList.add('test-mode-status--enabled');
+    status.classList.remove('test-mode-status--disabled');
   } else {
     banner.classList.add('hidden');
     status.textContent = 'DISABLED (BLOCKING ACTIVE)';
-    status.style.color = '#10b981';
+    status.classList.add('test-mode-status--disabled');
+    status.classList.remove('test-mode-status--enabled');
   }
   toggle.checked = testMode;
 
-  statusPanel.update({
+  applyStatusPanelPatch({
     testMode,
     failMode: statusPanel.normalizeFailMode(analytics.fail_mode)
   });
-  statusPanel.render();
 }
 
 // Update ban duration fields from config
-function updateBanDurations(config) {
+const invokeConfigUiState = (methodName, ...args) => {
   if (!configUiState) return;
-  configUiState.updateBanDurations(config);
-}
+  const method = configUiState[methodName];
+  if (typeof method === 'function') {
+    method(...args);
+  }
+};
+
+const updateBanDurations = (config) => invokeConfigUiState('updateBanDurations', config);
 
 // Update maze config controls from loaded config
-function updateMazeConfig(config) {
-  if (!configUiState) return;
-  configUiState.updateMazeConfig(config);
-}
+const updateMazeConfig = (config) => invokeConfigUiState('updateMazeConfig', config);
 
-function updateGeoConfig(config) {
-  if (!configUiState) return;
-  configUiState.updateGeoConfig(config);
-}
+const updateGeoConfig = (config) => invokeConfigUiState('updateGeoConfig', config);
 
-function updateHoneypotConfig(config) {
-  if (!configUiState) return;
-  configUiState.updateHoneypotConfig(config);
-}
+const updateHoneypotConfig = (config) => invokeConfigUiState('updateHoneypotConfig', config);
 
-function updateBrowserPolicyConfig(config) {
-  if (!configUiState) return;
-  configUiState.updateBrowserPolicyConfig(config);
-}
+const updateBrowserPolicyConfig = (config) => invokeConfigUiState('updateBrowserPolicyConfig', config);
 
-function updateBypassAllowlistConfig(config) {
-  if (!configUiState) return;
-  configUiState.updateBypassAllowlistConfig(config);
-}
+const updateBypassAllowlistConfig = (config) => invokeConfigUiState('updateBypassAllowlistConfig', config);
 
 const CONFIG_DRAFT_DEFAULTS = configUiStateModule.CONFIG_DRAFT_DEFAULTS;
 
@@ -523,40 +523,15 @@ const GEO_ROUTING_FIELD_IDS = configUiStateModule.GEO_ROUTING_FIELD_IDS;
 const GEO_FIELD_IDS = configUiStateModule.GEO_FIELD_IDS;
 const sanitizeGeoTextareaValue = configUiStateModule.sanitizeGeoTextareaValue;
 
-function updateRobotsConfig(config) {
-  if (!configUiState) return;
-  configUiState.updateRobotsConfig(config);
-}
+const updateRobotsConfig = (config) => invokeConfigUiState('updateRobotsConfig', config);
 
 // Check if robots config has changed from saved state
 function checkRobotsConfigChanged() {
-  const apiValid = hasValidApiContext();
-  const delayValid = validateIntegerFieldById('robots-crawl-delay');
-  const current = {
-    enabled: getById('robots-enabled-toggle').checked,
-    crawlDelay: parseInt(getById('robots-crawl-delay').value) || 2
-  };
-  const changed = delayValid && isDraftDirty('robots', current);
-  setDirtySaveButtonState('save-robots-config', changed, apiValid, delayValid);
-  const btn = getById('save-robots-config');
-  if (changed) {
-    btn.textContent = 'Save robots serving';
-  }
+  runDirtySaveCheck(DIRTY_CHECK_REGISTRY.robots);
 }
 
 function checkAiPolicyConfigChanged() {
-  const apiValid = hasValidApiContext();
-  const current = {
-    blockTraining: getById('robots-block-training-toggle').checked,
-    blockSearch: getById('robots-block-search-toggle').checked,
-    allowSearch: getById('robots-allow-search-toggle').checked
-  };
-  const changed = isDraftDirty('aiPolicy', current);
-  setDirtySaveButtonState('save-ai-policy-config', changed, apiValid, true);
-  const btn = getById('save-ai-policy-config');
-  if (changed) {
-    btn.textContent = 'Save AI bot policy';
-  }
+  runDirtySaveCheck(DIRTY_CHECK_REGISTRY.aiPolicy);
 }
 
 function setButtonState(buttonId, apiValid, fieldsValid, changed, requireChange) {
@@ -575,35 +550,252 @@ function setValidActionButtonState(buttonId, apiValid, fieldsValid = true) {
   setButtonState(buttonId, apiValid, fieldsValid, true, false);
 }
 
-function checkMazeConfigChanged() {
-  const currentThreshold = parseIntegerLoose('maze-threshold');
-  const fieldsValid = validateIntegerFieldById('maze-threshold');
+function runDirtySaveCheck(spec) {
+  if (!spec || typeof spec.compute !== 'function') return;
   const apiValid = hasValidApiContext();
-  const changed = fieldsValid && isDraftDirty('maze', {
-    enabled: getById('maze-enabled-toggle').checked,
-    autoBan: getById('maze-auto-ban-toggle').checked,
-    threshold: currentThreshold
-  });
-  setDirtySaveButtonState('save-maze-config', changed, apiValid, fieldsValid);
+  const result = spec.compute();
+  const fieldsValid = result && result.fieldsValid !== false;
+  const changed = Boolean(result && result.changed);
+  setDirtySaveButtonState(spec.buttonId, changed, apiValid, fieldsValid);
+  if (changed && typeof spec.onChanged === 'function') {
+    spec.onChanged();
+  }
+}
+
+const DIRTY_CHECK_REGISTRY = Object.freeze({
+  robots: {
+    buttonId: 'save-robots-config',
+    onChanged: () => {
+      const btn = getById('save-robots-config');
+      if (btn) btn.textContent = 'Save robots serving';
+    },
+    compute: () => {
+      const delayValid = validateIntegerFieldById('robots-crawl-delay');
+      const current = {
+        enabled: getById('robots-enabled-toggle').checked,
+        crawlDelay: parseInt(getById('robots-crawl-delay').value, 10) || 2
+      };
+      return {
+        fieldsValid: delayValid,
+        changed: delayValid && isDraftDirty('robots', current)
+      };
+    }
+  },
+  aiPolicy: {
+    buttonId: 'save-ai-policy-config',
+    onChanged: () => {
+      const btn = getById('save-ai-policy-config');
+      if (btn) btn.textContent = 'Save AI bot policy';
+    },
+    compute: () => {
+      const current = {
+        blockTraining: getById('robots-block-training-toggle').checked,
+        blockSearch: getById('robots-block-search-toggle').checked,
+        allowSearch: getById('robots-allow-search-toggle').checked
+      };
+      return {
+        fieldsValid: true,
+        changed: isDraftDirty('aiPolicy', current)
+      };
+    }
+  },
+  maze: {
+    buttonId: 'save-maze-config',
+    compute: () => {
+      const currentThreshold = parseIntegerLoose('maze-threshold');
+      const fieldsValid = validateIntegerFieldById('maze-threshold');
+      return {
+        fieldsValid,
+        changed: fieldsValid && isDraftDirty('maze', {
+          enabled: getById('maze-enabled-toggle').checked,
+          autoBan: getById('maze-auto-ban-toggle').checked,
+          threshold: currentThreshold
+        })
+      };
+    }
+  },
+  banDurations: {
+    buttonId: 'save-durations-btn',
+    compute: () => {
+      const honeypot = readBanDurationFromInputs('honeypot');
+      const rateLimit = readBanDurationFromInputs('rateLimit');
+      const browser = readBanDurationFromInputs('browser');
+      const cdp = readBanDurationFromInputs('cdp');
+      const admin = readBanDurationFromInputs('admin');
+      const fieldsValid = Boolean(honeypot && rateLimit && browser && cdp && admin);
+      const current = fieldsValid ? {
+        honeypot: honeypot.totalSeconds,
+        rateLimit: rateLimit.totalSeconds,
+        browser: browser.totalSeconds,
+        cdp: cdp.totalSeconds,
+        admin: admin.totalSeconds
+      } : getDraft('banDurations');
+      return {
+        fieldsValid,
+        changed: fieldsValid && isDraftDirty('banDurations', current)
+      };
+    }
+  },
+  honeypot: {
+    buttonId: 'save-honeypot-config',
+    compute: () => {
+      const fieldsValid = validateHoneypotPathsField();
+      const currentEnabled = getById('honeypot-enabled-toggle').checked;
+      const saved = getDraft('honeypot');
+      const current = fieldsValid
+        ? normalizeListTextareaForCompare(getById('honeypot-paths').value)
+        : saved.values;
+      return {
+        fieldsValid,
+        changed: fieldsValid && (
+          currentEnabled !== saved.enabled ||
+          current !== saved.values
+        )
+      };
+    }
+  },
+  browserPolicy: {
+    buttonId: 'save-browser-policy-config',
+    compute: () => {
+      const blockValid = validateBrowserRulesField('browser-block-rules');
+      const whitelistValid = validateBrowserRulesField('browser-whitelist-rules');
+      const fieldsValid = blockValid && whitelistValid;
+      const currentBlock = normalizeBrowserRulesForCompare(getById('browser-block-rules').value);
+      const currentWhitelist = normalizeBrowserRulesForCompare(getById('browser-whitelist-rules').value);
+      return {
+        fieldsValid,
+        changed: fieldsValid && isDraftDirty('browserPolicy', {
+          block: currentBlock,
+          whitelist: currentWhitelist
+        })
+      };
+    }
+  },
+  bypassAllowlists: {
+    buttonId: 'save-whitelist-config',
+    compute: () => {
+      const current = {
+        network: normalizeListTextareaForCompare(getById('network-whitelist').value),
+        path: normalizeListTextareaForCompare(getById('path-whitelist').value)
+      };
+      return {
+        fieldsValid: true,
+        changed: isDraftDirty('bypassAllowlists', current)
+      };
+    }
+  },
+  challengePuzzle: {
+    buttonId: 'save-challenge-puzzle-config',
+    compute: () => {
+      const fieldsValid = validateIntegerFieldById('challenge-puzzle-transform-count');
+      const toggle = getById('challenge-puzzle-enabled-toggle');
+      const current = parseIntegerLoose('challenge-puzzle-transform-count');
+      const saved = getDraft('challengePuzzle');
+      const enabledChanged = Boolean(toggle && (toggle.checked !== saved.enabled));
+      const countChanged = current !== null && current !== saved.count;
+      return {
+        fieldsValid,
+        changed: fieldsValid && (enabledChanged || countChanged)
+      };
+    }
+  },
+  pow: {
+    buttonId: 'save-pow-config',
+    compute: () => {
+      const fieldsValid =
+        validateIntegerFieldById('pow-difficulty') && validateIntegerFieldById('pow-ttl');
+      const current = {
+        enabled: getById('pow-enabled-toggle').checked,
+        difficulty: parseInt(getById('pow-difficulty').value, 10) || 15,
+        ttl: parseInt(getById('pow-ttl').value, 10) || 90
+      };
+      return {
+        fieldsValid,
+        changed: isDraftDirty('pow', current)
+      };
+    }
+  },
+  botness: {
+    buttonId: 'save-botness-config',
+    compute: () => {
+      const fieldsValid =
+        validateIntegerFieldById('challenge-puzzle-threshold') &&
+        validateIntegerFieldById('maze-threshold-score') &&
+        validateIntegerFieldById('weight-js-required') &&
+        validateIntegerFieldById('weight-geo-risk') &&
+        validateIntegerFieldById('weight-rate-medium') &&
+        validateIntegerFieldById('weight-rate-high');
+      const current = {
+        challengeThreshold: parseInt(getById('challenge-puzzle-threshold').value, 10) || 3,
+        mazeThreshold: parseInt(getById('maze-threshold-score').value, 10) || 6,
+        weightJsRequired: parseInt(getById('weight-js-required').value, 10) || 1,
+        weightGeoRisk: parseInt(getById('weight-geo-risk').value, 10) || 2,
+        weightRateMedium: parseInt(getById('weight-rate-medium').value, 10) || 1,
+        weightRateHigh: parseInt(getById('weight-rate-high').value, 10) || 2
+      };
+      return {
+        fieldsValid,
+        changed: isDraftDirty('botness', current)
+      };
+    }
+  },
+  cdp: {
+    buttonId: 'save-cdp-config',
+    compute: () => {
+      const current = {
+        enabled: getById('cdp-enabled-toggle').checked,
+        autoBan: getById('cdp-auto-ban-toggle').checked,
+        threshold: parseFloat(getById('cdp-threshold-slider').value)
+      };
+      return {
+        fieldsValid: true,
+        changed: isDraftDirty('cdp', current)
+      };
+    }
+  },
+  edgeMode: {
+    buttonId: 'save-edge-integration-mode-config',
+    compute: () => {
+      const select = getById('edge-integration-mode-select');
+      if (!select) {
+        return { fieldsValid: false, changed: false };
+      }
+      const current = normalizeEdgeIntegrationMode(select.value);
+      return {
+        fieldsValid: true,
+        changed: isDraftDirty('edgeMode', { mode: current })
+      };
+    }
+  },
+  rateLimit: {
+    buttonId: 'save-rate-limit-config',
+    compute: () => {
+      const valueValid = validateIntegerFieldById('rate-limit-threshold');
+      const current = parseIntegerLoose('rate-limit-threshold');
+      return {
+        fieldsValid: valueValid,
+        changed: current !== null && isDraftDirty('rateLimit', { value: current })
+      };
+    }
+  },
+  jsRequired: {
+    buttonId: 'save-js-required-config',
+    compute: () => {
+      const current = getById('js-required-enforced-toggle').checked;
+      return {
+        fieldsValid: true,
+        changed: isDraftDirty('jsRequired', { enforced: current })
+      };
+    }
+  }
+});
+
+function checkMazeConfigChanged() {
+  runDirtySaveCheck(DIRTY_CHECK_REGISTRY.maze);
 }
 
 function checkBanDurationsChanged() {
-  const honeypot = readBanDurationFromInputs('honeypot');
-  const rateLimit = readBanDurationFromInputs('rateLimit');
-  const browser = readBanDurationFromInputs('browser');
-  const cdp = readBanDurationFromInputs('cdp');
-  const admin = readBanDurationFromInputs('admin');
-  const fieldsValid = Boolean(honeypot && rateLimit && browser && cdp && admin);
-  const apiValid = hasValidApiContext();
-  const current = fieldsValid ? {
-    honeypot: honeypot.totalSeconds,
-    rateLimit: rateLimit.totalSeconds,
-    browser: browser.totalSeconds,
-    cdp: cdp.totalSeconds,
-    admin: admin.totalSeconds
-  } : getDraft('banDurations');
-  const changed = fieldsValid && isDraftDirty('banDurations', current);
-  setDirtySaveButtonState('save-durations-btn', changed, apiValid, fieldsValid);
+  runDirtySaveCheck(DIRTY_CHECK_REGISTRY.banDurations);
 }
 
 function validateHoneypotPathsField(showInline = false) {
@@ -620,18 +812,7 @@ function validateHoneypotPathsField(showInline = false) {
 }
 
 function checkHoneypotConfigChanged() {
-  const apiValid = hasValidApiContext();
-  const fieldsValid = validateHoneypotPathsField();
-  const currentEnabled = getById('honeypot-enabled-toggle').checked;
-  const saved = getDraft('honeypot');
-  const current = fieldsValid
-    ? normalizeListTextareaForCompare(getById('honeypot-paths').value)
-    : saved.values;
-  const changed = fieldsValid && (
-    currentEnabled !== saved.enabled ||
-    current !== saved.values
-  );
-  setDirtySaveButtonState('save-honeypot-config', changed, apiValid, fieldsValid);
+  runDirtySaveCheck(DIRTY_CHECK_REGISTRY.honeypot);
 }
 
 function validateBrowserRulesField(id, showInline = false) {
@@ -648,95 +829,65 @@ function validateBrowserRulesField(id, showInline = false) {
 }
 
 function checkBrowserPolicyConfigChanged() {
-  const apiValid = hasValidApiContext();
-  const blockValid = validateBrowserRulesField('browser-block-rules');
-  const whitelistValid = validateBrowserRulesField('browser-whitelist-rules');
-  const fieldsValid = blockValid && whitelistValid;
-  const currentBlock = normalizeBrowserRulesForCompare(getById('browser-block-rules').value);
-  const currentWhitelist = normalizeBrowserRulesForCompare(getById('browser-whitelist-rules').value);
-  const changed = fieldsValid && isDraftDirty('browserPolicy', {
-    block: currentBlock,
-    whitelist: currentWhitelist
-  });
-  setDirtySaveButtonState('save-browser-policy-config', changed, apiValid, fieldsValid);
+  runDirtySaveCheck(DIRTY_CHECK_REGISTRY.browserPolicy);
 }
 
 function checkBypassAllowlistsConfigChanged() {
-  const apiValid = hasValidApiContext();
-  const current = {
-    network: normalizeListTextareaForCompare(getById('network-whitelist').value),
-    path: normalizeListTextareaForCompare(getById('path-whitelist').value)
-  };
-  const changed = isDraftDirty('bypassAllowlists', current);
-  setDirtySaveButtonState('save-whitelist-config', changed, apiValid, true);
+  runDirtySaveCheck(DIRTY_CHECK_REGISTRY.bypassAllowlists);
 }
 
 function checkChallengePuzzleConfigChanged() {
-  const apiValid = hasValidApiContext();
-  const fieldsValid = validateIntegerFieldById('challenge-puzzle-transform-count');
-  const toggle = getById('challenge-puzzle-enabled-toggle');
-  const current = parseIntegerLoose('challenge-puzzle-transform-count');
-  const saved = getDraft('challengePuzzle');
-  const enabledChanged = Boolean(toggle && (toggle.checked !== saved.enabled));
-  const countChanged = current !== null && current !== saved.count;
-  const changed = fieldsValid && (enabledChanged || countChanged);
-  setDirtySaveButtonState('save-challenge-puzzle-config', changed, apiValid, fieldsValid);
+  runDirtySaveCheck(DIRTY_CHECK_REGISTRY.challengePuzzle);
 }
 
+const bindFieldEvent = (id, eventName, handler) => {
+  const field = getById(id);
+  if (!field || typeof handler !== 'function') return;
+  field.addEventListener(eventName, handler);
+};
+
+const bindInputAndBlur = (id, handler) => {
+  bindFieldEvent(id, 'input', handler);
+  bindFieldEvent(id, 'blur', handler);
+};
+
 // Add change listeners for robots serving and AI-policy controls.
-['robots-enabled-toggle'].forEach(id => {
-  getById(id).addEventListener('change', checkRobotsConfigChanged);
+[
+  { ids: ['robots-enabled-toggle'], event: 'change', handler: checkRobotsConfigChanged },
+  { ids: ['robots-crawl-delay'], event: 'input', handler: checkRobotsConfigChanged },
+  {
+    ids: ['robots-block-training-toggle', 'robots-block-search-toggle', 'robots-allow-search-toggle'],
+    event: 'change',
+    handler: checkAiPolicyConfigChanged
+  },
+  { ids: ['maze-enabled-toggle', 'maze-auto-ban-toggle'], event: 'change', handler: checkMazeConfigChanged },
+  { ids: ['honeypot-enabled-toggle'], event: 'change', handler: checkHoneypotConfigChanged },
+  { ids: ['challenge-puzzle-transform-count'], event: 'input', handler: checkChallengePuzzleConfigChanged },
+  { ids: ['challenge-puzzle-enabled-toggle'], event: 'change', handler: checkChallengePuzzleConfigChanged }
+].forEach(({ ids, event, handler }) => {
+  ids.forEach((id) => bindFieldEvent(id, event, handler));
 });
-getById('robots-crawl-delay').addEventListener('input', checkRobotsConfigChanged);
-['robots-block-training-toggle', 'robots-block-search-toggle', 'robots-allow-search-toggle'].forEach(id => {
-  getById(id).addEventListener('change', checkAiPolicyConfigChanged);
+
+bindInputAndBlur('honeypot-paths', () => {
+  validateHoneypotPathsField(true);
+  checkHoneypotConfigChanged();
+  refreshCoreActionButtonsState();
 });
-['maze-enabled-toggle', 'maze-auto-ban-toggle'].forEach(id => {
-  getById(id).addEventListener('change', checkMazeConfigChanged);
-});
-['honeypot-paths'].forEach(id => {
-  const field = getById(id);
-  if (!field) return;
-  field.addEventListener('input', () => {
-    validateHoneypotPathsField(true);
-    checkHoneypotConfigChanged();
-    refreshCoreActionButtonsState();
-  });
-  field.addEventListener('blur', () => {
-    validateHoneypotPathsField(true);
-    checkHoneypotConfigChanged();
-    refreshCoreActionButtonsState();
-  });
-});
-getById('honeypot-enabled-toggle').addEventListener('change', checkHoneypotConfigChanged);
+
 ['browser-block-rules', 'browser-whitelist-rules'].forEach((id) => {
-  const field = getById(id);
-  if (!field) return;
-  field.addEventListener('input', () => {
-    validateBrowserRulesField(id, true);
-    checkBrowserPolicyConfigChanged();
-    refreshCoreActionButtonsState();
-  });
-  field.addEventListener('blur', () => {
+  bindInputAndBlur(id, () => {
     validateBrowserRulesField(id, true);
     checkBrowserPolicyConfigChanged();
     refreshCoreActionButtonsState();
   });
 });
+
 ['network-whitelist', 'path-whitelist'].forEach((id) => {
-  const field = getById(id);
-  if (!field) return;
-  field.addEventListener('input', () => {
-    checkBypassAllowlistsConfigChanged();
-    refreshCoreActionButtonsState();
-  });
-  field.addEventListener('blur', () => {
+  bindInputAndBlur(id, () => {
     checkBypassAllowlistsConfigChanged();
     refreshCoreActionButtonsState();
   });
 });
-getById('challenge-puzzle-transform-count').addEventListener('input', checkChallengePuzzleConfigChanged);
-getById('challenge-puzzle-enabled-toggle').addEventListener('change', checkChallengePuzzleConfigChanged);
 
 // Fetch and update robots.txt preview content
 async function refreshRobotsPreview() {
@@ -773,72 +924,30 @@ getById('preview-robots').onclick = async function() {
 };
 
 // Update CDP detection config controls from loaded config
-function updateCdpConfig(config) {
-  if (!configUiState) return;
-  configUiState.updateCdpConfig(config);
-}
+const updateCdpConfig = (config) => invokeConfigUiState('updateCdpConfig', config);
 
-function updateEdgeIntegrationModeConfig(config) {
-  if (!configUiState) return;
-  configUiState.updateEdgeIntegrationModeConfig(config);
-}
+const updateEdgeIntegrationModeConfig = (config) =>
+  invokeConfigUiState('updateEdgeIntegrationModeConfig', config);
 
-function updateRateLimitConfig(config) {
-  if (!configUiState) return;
-  configUiState.updateRateLimitConfig(config);
-}
+const updateRateLimitConfig = (config) => invokeConfigUiState('updateRateLimitConfig', config);
 
-function updateJsRequiredConfig(config) {
-  if (!configUiState) return;
-  configUiState.updateJsRequiredConfig(config);
-}
+const updateJsRequiredConfig = (config) => invokeConfigUiState('updateJsRequiredConfig', config);
 
 // Update PoW config controls from loaded config
-function updatePowConfig(config) {
-  if (!configUiState) return;
-  configUiState.updatePowConfig(config);
-}
+const updatePowConfig = (config) => invokeConfigUiState('updatePowConfig', config);
 
-function updateChallengeConfig(config) {
-  if (!configUiState) return;
-  configUiState.updateChallengeConfig(config);
-}
+const updateChallengeConfig = (config) => invokeConfigUiState('updateChallengeConfig', config);
 
 function checkPowConfigChanged() {
-  const apiValid = hasValidApiContext();
-  const powFieldsValid = validateIntegerFieldById('pow-difficulty') && validateIntegerFieldById('pow-ttl');
-  const current = {
-    enabled: getById('pow-enabled-toggle').checked,
-    difficulty: parseInt(getById('pow-difficulty').value, 10) || 15,
-    ttl: parseInt(getById('pow-ttl').value, 10) || 90
-  };
-  const changed = isDraftDirty('pow', current);
-  setDirtySaveButtonState('save-pow-config', changed, apiValid, powFieldsValid);
+  runDirtySaveCheck(DIRTY_CHECK_REGISTRY.pow);
 }
 
-getById('pow-enabled-toggle').addEventListener('change', checkPowConfigChanged);
-getById('pow-difficulty').addEventListener('input', checkPowConfigChanged);
-getById('pow-ttl').addEventListener('input', checkPowConfigChanged);
+bindFieldEvent('pow-enabled-toggle', 'change', checkPowConfigChanged);
+bindFieldEvent('pow-difficulty', 'input', checkPowConfigChanged);
+bindFieldEvent('pow-ttl', 'input', checkPowConfigChanged);
 
 function checkBotnessConfigChanged() {
-  const apiValid = hasValidApiContext();
-  const fieldsValid =
-    validateIntegerFieldById('challenge-puzzle-threshold') &&
-    validateIntegerFieldById('maze-threshold-score') &&
-    validateIntegerFieldById('weight-js-required') &&
-    validateIntegerFieldById('weight-geo-risk') &&
-    validateIntegerFieldById('weight-rate-medium') &&
-    validateIntegerFieldById('weight-rate-high');
-  const current = {
-    challengeThreshold: parseInt(getById('challenge-puzzle-threshold').value, 10) || 3,
-    mazeThreshold: parseInt(getById('maze-threshold-score').value, 10) || 6,
-    weightJsRequired: parseInt(getById('weight-js-required').value, 10) || 1,
-    weightGeoRisk: parseInt(getById('weight-geo-risk').value, 10) || 2,
-    weightRateMedium: parseInt(getById('weight-rate-medium').value, 10) || 1,
-    weightRateHigh: parseInt(getById('weight-rate-high').value, 10) || 2
-  };
-  const changed = isDraftDirty('botness', current);
-  setDirtySaveButtonState('save-botness-config', changed, apiValid, fieldsValid);
+  runDirtySaveCheck(DIRTY_CHECK_REGISTRY.botness);
 }
 
 [
@@ -909,43 +1018,24 @@ GEO_FIELD_IDS.forEach(id => {
 
 // Check if CDP config has changed from saved state
 function checkCdpConfigChanged() {
-  const apiValid = hasValidApiContext();
-  const current = {
-    enabled: getById('cdp-enabled-toggle').checked,
-    autoBan: getById('cdp-auto-ban-toggle').checked,
-    threshold: parseFloat(getById('cdp-threshold-slider').value)
-  };
-  const changed = isDraftDirty('cdp', current);
-  setDirtySaveButtonState('save-cdp-config', changed, apiValid);
+  runDirtySaveCheck(DIRTY_CHECK_REGISTRY.cdp);
 }
 
 function checkEdgeIntegrationModeChanged() {
-  const apiValid = hasValidApiContext();
-  const select = getById('edge-integration-mode-select');
-  if (!select) return;
-  const current = normalizeEdgeIntegrationMode(select.value);
-  const changed = isDraftDirty('edgeMode', { mode: current });
-  setDirtySaveButtonState('save-edge-integration-mode-config', changed, apiValid);
+  runDirtySaveCheck(DIRTY_CHECK_REGISTRY.edgeMode);
 }
 
 function checkRateLimitConfigChanged() {
-  const apiValid = hasValidApiContext();
-  const valueValid = validateIntegerFieldById('rate-limit-threshold');
-  const current = parseIntegerLoose('rate-limit-threshold');
-  const changed = current !== null && isDraftDirty('rateLimit', { value: current });
-  setDirtySaveButtonState('save-rate-limit-config', changed, apiValid, valueValid);
+  runDirtySaveCheck(DIRTY_CHECK_REGISTRY.rateLimit);
 }
 
-getById('rate-limit-threshold').addEventListener('input', checkRateLimitConfigChanged);
+bindFieldEvent('rate-limit-threshold', 'input', checkRateLimitConfigChanged);
 
 function checkJsRequiredConfigChanged() {
-  const apiValid = hasValidApiContext();
-  const current = getById('js-required-enforced-toggle').checked;
-  const changed = isDraftDirty('jsRequired', { enforced: current });
-  setDirtySaveButtonState('save-js-required-config', changed, apiValid);
+  runDirtySaveCheck(DIRTY_CHECK_REGISTRY.jsRequired);
 }
 
-getById('js-required-enforced-toggle').addEventListener('change', checkJsRequiredConfigChanged);
+bindFieldEvent('js-required-enforced-toggle', 'change', checkJsRequiredConfigChanged);
 
 function setAdvancedConfigEditorFromConfig(config, preserveDirty = true) {
   if (!configUiState) return;
@@ -1010,17 +1100,17 @@ if (advancedConfigField) {
 }
 
 // Update threshold display when slider moves
-getById('cdp-threshold-slider').addEventListener('input', function() {
+bindFieldEvent('cdp-threshold-slider', 'input', function() {
   getById('cdp-threshold-value').textContent = parseFloat(this.value).toFixed(1);
   checkCdpConfigChanged();
 });
 
 // Add change listeners for CDP config controls
 ['cdp-enabled-toggle', 'cdp-auto-ban-toggle'].forEach(id => {
-  getById(id).addEventListener('change', checkCdpConfigChanged);
+  bindFieldEvent(id, 'change', checkCdpConfigChanged);
 });
 
-getById('edge-integration-mode-select').addEventListener('change', checkEdgeIntegrationModeChanged);
+bindFieldEvent('edge-integration-mode-select', 'change', checkEdgeIntegrationModeChanged);
 
 function updateLastUpdatedTimestamp() {
   const ts = new Date().toISOString();
@@ -1032,6 +1122,22 @@ function isConfigSnapshotEmpty(config) {
   return !config || typeof config !== 'object' || Object.keys(config).length === 0;
 }
 
+const CONFIG_UI_REFRESH_METHODS = Object.freeze([
+  'updateBanDurations',
+  'updateRateLimitConfig',
+  'updateJsRequiredConfig',
+  'updateMazeConfig',
+  'updateGeoConfig',
+  'updateHoneypotConfig',
+  'updateBrowserPolicyConfig',
+  'updateBypassAllowlistConfig',
+  'updateRobotsConfig',
+  'updateCdpConfig',
+  'updateEdgeIntegrationModeConfig',
+  'updatePowConfig',
+  'updateChallengeConfig'
+]);
+
 async function refreshSharedConfig(reason = 'manual') {
   if (!dashboardApiClient) {
     return dashboardState ? dashboardState.getSnapshot('config') : null;
@@ -1042,22 +1148,10 @@ async function refreshSharedConfig(reason = 'manual') {
   const config = await dashboardApiClient.getConfig();
   if (dashboardState) dashboardState.setSnapshot('config', config);
   await runDomWriteBatch(() => {
-    statusPanel.update({ configSnapshot: config });
-    updateConfigModeUi(config);
-    updateBanDurations(config);
-    updateRateLimitConfig(config);
-    updateJsRequiredConfig(config);
-    updateMazeConfig(config);
-    updateGeoConfig(config);
-    updateHoneypotConfig(config);
-    updateBrowserPolicyConfig(config);
-    updateBypassAllowlistConfig(config);
-    updateRobotsConfig(config);
-    updateCdpConfig(config);
-    updateEdgeIntegrationModeConfig(config);
-    updatePowConfig(config);
-    updateChallengeConfig(config);
-    setAdvancedConfigEditorFromConfig(config, true);
+    updateConfigModeUi(config, { configSnapshot: config });
+    CONFIG_UI_REFRESH_METHODS.forEach((methodName) => invokeConfigUiState(methodName, config));
+    invokeConfigUiState('setAdvancedConfigEditorFromConfig', config, true);
+    checkAdvancedConfigChanged();
   });
   return config;
 }
@@ -1072,40 +1166,12 @@ async function refreshMonitoringTab(reason = 'manual') {
   getById('active-bans').textContent = '...';
   getById('total-events').textContent = '...';
   getById('unique-ips').textContent = '...';
-  const cdpTotalDetections = getById('cdp-total-detections');
-  const cdpTotalAutoBans = getById('cdp-total-auto-bans');
-  if (cdpTotalDetections) cdpTotalDetections.textContent = '...';
-  if (cdpTotalAutoBans) cdpTotalAutoBans.textContent = '...';
-  const honeypotTotal = getById('honeypot-total-hits');
-  const challengeTotal = getById('challenge-failures-total');
-  const powTotal = getById('pow-failures-total');
-  const rateTotal = getById('rate-violations-total');
-  const geoTotal = getById('geo-violations-total');
-  const mazeTopOffender = getById('maze-top-offender');
-  const mazeTopOffenderLabel = getById('maze-top-offender-label');
-  const honeypotTopOffender = getById('honeypot-top-offender');
-  const honeypotTopOffenderLabel = getById('honeypot-top-offender-label');
-  const challengeTopOffender = getById('challenge-top-offender');
-  const challengeTopOffenderLabel = getById('challenge-top-offender-label');
-  const powTopOffender = getById('pow-top-offender');
-  const powTopOffenderLabel = getById('pow-top-offender-label');
-  const rateTopOffender = getById('rate-top-offender');
-  const rateTopOffenderLabel = getById('rate-top-offender-label');
-  if (honeypotTotal) honeypotTotal.textContent = '...';
-  if (challengeTotal) challengeTotal.textContent = '...';
-  if (powTotal) powTotal.textContent = '...';
-  if (rateTotal) rateTotal.textContent = '...';
-  if (geoTotal) geoTotal.textContent = '...';
-  if (mazeTopOffender) mazeTopOffender.textContent = '...';
-  if (honeypotTopOffender) honeypotTopOffender.textContent = '...';
-  if (challengeTopOffender) challengeTopOffender.textContent = '...';
-  if (powTopOffender) powTopOffender.textContent = '...';
-  if (rateTopOffender) rateTopOffender.textContent = '...';
-  if (mazeTopOffenderLabel) mazeTopOffenderLabel.textContent = 'Top Offender';
-  if (honeypotTopOffenderLabel) honeypotTopOffenderLabel.textContent = 'Top Offender';
-  if (challengeTopOffenderLabel) challengeTopOffenderLabel.textContent = 'Top Offender';
-  if (powTopOffenderLabel) powTopOffenderLabel.textContent = 'Top Offender';
-  if (rateTopOffenderLabel) rateTopOffenderLabel.textContent = 'Top Offender';
+  if (tablesView && typeof tablesView.showMonitoringLoadingState === 'function') {
+    tablesView.showMonitoringLoadingState();
+  }
+  if (monitoringView && typeof monitoringView.showLoadingState === 'function') {
+    monitoringView.showLoadingState();
+  }
 
   const [analytics, events, bansData, mazeData, cdpData, cdpEventsData, monitoringData] = await Promise.all([
     dashboardApiClient.getAnalytics(),
@@ -1170,59 +1236,55 @@ async function refreshIpBansTab(reason = 'manual') {
   }
 }
 
-async function refreshStatusTab(reason = 'manual') {
+async function refreshConfigBackedTab(tab, reason = 'manual', loadingMessage, emptyMessage) {
   if (reason !== 'auto-refresh') {
-    showTabLoading('status', 'Loading status signals...');
+    showTabLoading(tab, loadingMessage);
   }
   const config = await refreshSharedConfig(reason);
   if (isConfigSnapshotEmpty(config)) {
-    showTabEmpty('status', 'No status config snapshot available yet.');
+    showTabEmpty(tab, emptyMessage);
   } else {
-    clearTabStateMessage('status');
+    clearTabStateMessage(tab);
   }
 }
 
-async function refreshConfigTab(reason = 'manual') {
-  if (reason !== 'auto-refresh') {
-    showTabLoading('config', 'Loading config...');
-  }
-  const config = await refreshSharedConfig(reason);
-  if (isConfigSnapshotEmpty(config)) {
-    showTabEmpty('config', 'No config snapshot available yet.');
-  } else {
-    clearTabStateMessage('config');
-  }
-}
+const refreshStatusTab = (reason = 'manual') =>
+  refreshConfigBackedTab(
+    'status',
+    reason,
+    'Loading status signals...',
+    'No status config snapshot available yet.'
+  );
 
-async function refreshTuningTab(reason = 'manual') {
-  if (reason !== 'auto-refresh') {
-    showTabLoading('tuning', 'Loading tuning values...');
-  }
-  const config = await refreshSharedConfig(reason);
-  if (isConfigSnapshotEmpty(config)) {
-    showTabEmpty('tuning', 'No tuning config snapshot available yet.');
-  } else {
-    clearTabStateMessage('tuning');
-  }
-}
+const refreshConfigTab = (reason = 'manual') =>
+  refreshConfigBackedTab('config', reason, 'Loading config...', 'No config snapshot available yet.');
+
+const refreshTuningTab = (reason = 'manual') =>
+  refreshConfigBackedTab(
+    'tuning',
+    reason,
+    'Loading tuning values...',
+    'No tuning config snapshot available yet.'
+  );
+
+const TAB_REFRESH_HANDLERS = Object.freeze({
+  monitoring: async (reason = 'manual') => {
+    await refreshMonitoringTab(reason);
+    if (reason !== 'auto-refresh') {
+      await refreshSharedConfig(reason);
+    }
+  },
+  'ip-bans': refreshIpBansTab,
+  status: refreshStatusTab,
+  config: refreshConfigTab,
+  tuning: refreshTuningTab
+});
 
 async function refreshDashboardForTab(tab, reason = 'manual') {
   const activeTab = tabLifecycleModule.normalizeTab(tab);
   try {
-    if (activeTab === 'monitoring') {
-      await refreshMonitoringTab(reason);
-      if (reason !== 'auto-refresh') {
-        await refreshSharedConfig(reason);
-      }
-    } else if (activeTab === 'ip-bans') {
-      await refreshIpBansTab(reason);
-    } else if (activeTab === 'status') {
-      await refreshStatusTab(reason);
-    } else if (activeTab === 'config') {
-      await refreshConfigTab(reason);
-    } else if (activeTab === 'tuning') {
-      await refreshTuningTab(reason);
-    }
+    const handler = TAB_REFRESH_HANDLERS[activeTab] || TAB_REFRESH_HANDLERS.monitoring;
+    await handler(reason);
     if (dashboardState) dashboardState.markTabUpdated(activeTab);
     refreshCoreActionButtonsState();
     updateLastUpdatedTimestamp();
@@ -1414,73 +1476,71 @@ dashboardCharts.init({
   apiClient: dashboardApiClient
 });
 statusPanel.render();
+
+const setDraftSection = (sectionKey) => (value) => setDraft(sectionKey, value);
+const configDomainApi = {
+  statusPanel,
+  apiClient: dashboardApiClient,
+  getAdminContext,
+  onConfigSaved: (_patch, result) => {
+    if (result && result.config) {
+      applyStatusPanelPatch({ configSnapshot: result.config });
+      setAdvancedConfigEditorFromConfig(result.config, true);
+    }
+    if (dashboardState) {
+      dashboardState.invalidate('securityConfig');
+      dashboardState.invalidate('monitoring');
+      dashboardState.invalidate('ip-bans');
+    }
+  },
+  readIntegerFieldValue,
+  readBanDurationSeconds,
+  readAdvancedConfigPatch,
+  updateBanDurations,
+  updateGeoConfig,
+  updateHoneypotConfig,
+  updateBrowserPolicyConfig,
+  updateBypassAllowlistConfig,
+  updateEdgeIntegrationModeConfig,
+  refreshRobotsPreview,
+  setAdvancedConfigFromConfig: setAdvancedConfigEditorFromConfig,
+  refreshDashboard: () => refreshActiveTab('config-controls'),
+  checkMazeConfigChanged,
+  checkRobotsConfigChanged,
+  checkAiPolicyConfigChanged,
+  checkGeoConfigChanged,
+  checkHoneypotConfigChanged,
+  checkBrowserPolicyConfigChanged,
+  checkBypassAllowlistsConfigChanged,
+  checkPowConfigChanged,
+  checkChallengePuzzleConfigChanged,
+  checkBotnessConfigChanged,
+  checkCdpConfigChanged,
+  checkEdgeIntegrationModeChanged,
+  checkRateLimitConfigChanged,
+  checkJsRequiredConfigChanged,
+  checkAdvancedConfigChanged,
+  checkBanDurationsChanged,
+  getGeoSavedState: () => getDraft('geo'),
+  setGeoSavedState: setDraftSection('geo'),
+  setMazeSavedState: setDraftSection('maze'),
+  setHoneypotSavedState: setDraftSection('honeypot'),
+  setBrowserPolicySavedState: setDraftSection('browserPolicy'),
+  setBypassAllowlistSavedState: setDraftSection('bypassAllowlists'),
+  setRobotsSavedState: setDraftSection('robots'),
+  setAiPolicySavedState: setDraftSection('aiPolicy'),
+  setPowSavedState: setDraftSection('pow'),
+  setChallengePuzzleSavedState: setDraftSection('challengePuzzle'),
+  setBotnessSavedState: setDraftSection('botness'),
+  setCdpSavedState: setDraftSection('cdp'),
+  setEdgeIntegrationModeSavedState: setDraftSection('edgeMode'),
+  setRateLimitSavedState: setDraftSection('rateLimit'),
+  setJsRequiredSavedState: setDraftSection('jsRequired')
+};
+
 configControls.bind({
   effects: runtimeEffects,
-  context: {
-    statusPanel,
-    apiClient: dashboardApiClient,
-    auth: {
-      getAdminContext
-    },
-    callbacks: {
-      onConfigSaved: (_patch, result) => {
-        if (result && result.config) {
-          statusPanel.update({ configSnapshot: result.config });
-          setAdvancedConfigEditorFromConfig(result.config, true);
-        }
-        if (dashboardState) {
-          dashboardState.invalidate('securityConfig');
-          dashboardState.invalidate('monitoring');
-          dashboardState.invalidate('ip-bans');
-        }
-      }
-    },
-    readers: {
-      readIntegerFieldValue,
-      readBanDurationSeconds,
-      readAdvancedConfigPatch
-    },
-    updaters: {
-      updateBanDurations,
-      updateGeoConfig,
-      updateHoneypotConfig,
-      updateBrowserPolicyConfig,
-      updateBypassAllowlistConfig,
-      updateEdgeIntegrationModeConfig,
-      refreshRobotsPreview,
-      setAdvancedConfigFromConfig: setAdvancedConfigEditorFromConfig
-    },
-    actions: {
-      refreshDashboard: () => refreshActiveTab('config-controls')
-    },
-    checks: {
-      checkMazeConfigChanged,
-      checkRobotsConfigChanged,
-      checkAiPolicyConfigChanged,
-      checkGeoConfigChanged,
-      checkHoneypotConfigChanged,
-      checkBrowserPolicyConfigChanged,
-      checkBypassAllowlistsConfigChanged,
-      checkPowConfigChanged,
-      checkChallengePuzzleConfigChanged,
-      checkBotnessConfigChanged,
-      checkCdpConfigChanged,
-      checkEdgeIntegrationModeChanged,
-      checkRateLimitConfigChanged,
-      checkJsRequiredConfigChanged,
-      checkAdvancedConfigChanged,
-      checkBanDurationsChanged
-    },
-    draft: {
-      get: (sectionKey, fallback) => {
-        if (configDraftStore) return configDraftStore.get(sectionKey, fallback);
-        return fallback;
-      },
-      set: (sectionKey, value) => {
-        if (configDraftStore) configDraftStore.set(sectionKey, value);
-      }
-    }
-  }
+  domainApi: configDomainApi
 });
 adminSessionController.restoreAdminSession().then((authenticated) => {
   const sessionState = adminSessionController.getState();

@@ -4,7 +4,7 @@ export const createRuntimeEffects = (options = {}) => {
   const win = options.window || window;
   const nav = options.navigator || navigator;
   const requestImpl =
-    typeof options.request === 'function' ? options.request : win.fetch.bind(win);
+    typeof options.request === 'function' ? options.request : null;
 
   const setTimeoutFn =
     typeof options.setTimeout === 'function'
@@ -23,7 +23,12 @@ export const createRuntimeEffects = (options = {}) => {
     await nav.clipboard.writeText(value);
   };
 
-  const request = (input, init = {}) => requestImpl(input, init);
+  // Resolve window.fetch at call time so late-installed wrappers (for example
+  // admin session CSRF injection) are respected.
+  const request = (input, init = {}) => {
+    if (requestImpl) return requestImpl(input, init);
+    return win.fetch(input, init);
+  };
 
   const setTimer = (task, ms = 0) => setTimeoutFn(task, ms);
   const clearTimer = (id) => clearTimeoutFn(id);

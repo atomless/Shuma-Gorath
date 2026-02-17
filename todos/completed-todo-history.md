@@ -390,3 +390,18 @@ Moved from active TODO files on 2026-02-14.
 - [x] DSH-ESM-13 Execute migration in small slices with mandatory full verification per slice via Makefile (`make test` with dev Spin running).
 - [x] DSH-ESM-14 Update public and contributor docs (`docs/dashboard.md`, architecture plan, contributor notes) with native ESM conventions, functional patterns, and module-boundary rules.
 - [x] DSH-ESM-15 Run a final no-net-behavior-change audit against baseline contracts and capture known intentional deltas (if any) before merge. (`docs/plans/2026-02-17-dashboard-esm-no-net-behavior-audit.md`)
+
+## Additional completions (2026-02-17, section-preserving archive)
+
+### todos/todo.md
+
+#### P3 Dashboard Modernization Follow-up (Functional + ESM Refinement)
+- [x] DSH-FUP-1 Replace repeated config save-handler boilerplate in `dashboard/modules/config-controls.js` with shared functional helpers (save-state transitions, status message helpers, and error-path normalization) while preserving exact button labels/dirty-check timing.
+- [x] DSH-FUP-2 Consolidate repeated `check*ConfigChanged` patterns in `dashboard/dashboard.js` into a schema-driven dirty-check registry + generic evaluator to reduce copy-paste state logic and event binding drift.
+- [x] DSH-FUP-3 Replace repeated `configUiState` wrapper functions in `dashboard/dashboard.js` with a dispatch/invoke helper so config snapshot refresh is declarative and less error-prone.
+- [x] DSH-FUP-4 Refactor tab refresh orchestration into a tab-handler map (including shared config-backed tabs) instead of if/else branching for `status`/`config`/`tuning`.
+- [x] DSH-FUP-5 Add a shared status-panel patch helper to coalesce `statusPanel.update(...)` + `statusPanel.render()` across dashboard modules and remove duplicate render-trigger code paths.
+- [x] DSH-FUP-6 Move monitoring loading placeholder reset logic out of `dashboard/dashboard.js` and into `dashboard/modules/monitoring-view.js` so monitoring rendering state is feature-owned.
+- [x] DSH-FUP-7 Reduce `configControls.bind(...)` coupling by replacing the broad callback bag with a focused domain API object (typed by shape and covered by module tests).
+- [x] DSH-FUP-8 Replace inline style mutations for test-mode visual state with semantic classes/CSS tokens and add coverage to prevent style regressions.
+- [x] DSH-FUP-9 Expand dashboard save-flow test coverage for robots serving, AI policy, GEO scoring/routing, CDP config, and botness config to catch regressions that unit adapter tests miss.

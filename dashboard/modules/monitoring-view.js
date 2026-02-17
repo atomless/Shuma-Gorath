@@ -503,6 +503,44 @@ export const create = (options = {}) => {
     renderPrometheusHelper(derivePrometheusHelperViewModel(prometheusData, origin));
   };
 
+  const showLoadingState = () => {
+    [
+      'mazeTotalHits',
+      'mazeUniqueCrawlers',
+      'mazeAutoBans',
+      'honeypotTotalHits',
+      'honeypotUniqueCrawlers',
+      'challengeFailuresTotal',
+      'challengeFailuresUnique',
+      'powFailuresTotal',
+      'powFailuresUnique',
+      'rateViolationsTotal',
+      'rateViolationsUnique',
+      'geoViolationsTotal'
+    ].forEach((refKey) => {
+      domModule.setText(domRefs[refKey], '...');
+    });
+
+    const loadingTopOffender = { value: '...', label: 'Top Offender' };
+    renderTopOffenderCard(domRefs, domModule, 'mazeTopOffender', 'mazeTopOffenderLabel', loadingTopOffender);
+    renderTopOffenderCard(
+      domRefs,
+      domModule,
+      'honeypotTopOffender',
+      'honeypotTopOffenderLabel',
+      loadingTopOffender
+    );
+    renderTopOffenderCard(
+      domRefs,
+      domModule,
+      'challengeTopOffender',
+      'challengeTopOffenderLabel',
+      loadingTopOffender
+    );
+    renderTopOffenderCard(domRefs, domModule, 'powTopOffender', 'powTopOffenderLabel', loadingTopOffender);
+    renderTopOffenderCard(domRefs, domModule, 'rateTopOffender', 'rateTopOffenderLabel', loadingTopOffender);
+  };
+
   const bindPrometheusCopyButtons = () => {
     const copyWithFeedback = async (targetButton, text, resetText) => {
       if (!targetButton || !text) return;
@@ -537,6 +575,7 @@ export const create = (options = {}) => {
   };
 
   return {
+    showLoadingState,
     updateMazeStats,
     updateMonitoringSummary,
     updatePrometheusHelper,

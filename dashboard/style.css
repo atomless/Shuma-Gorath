@@ -936,6 +936,14 @@ input:checked + .toggle-slider:before {
   color: var(--color-700);
 }
 
+#test-mode-status.test-mode-status--enabled {
+  color: #d97706;
+}
+
+#test-mode-status.test-mode-status--disabled {
+  color: #10b981;
+}
+
 /* ===========================================
    Ban Durations Grid
    =========================================== */

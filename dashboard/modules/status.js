@@ -451,6 +451,12 @@ import { writableStatusVarPaths } from './config-schema.js';
     return getState();
   }
 
+  export function applyPatch(patch = {}) {
+    update(patch);
+    render();
+    return getState();
+  }
+
   export function getState() {
     return {
       ...state,

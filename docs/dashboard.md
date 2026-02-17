@@ -183,6 +183,8 @@ dashboard/
 13. Runtime endpoint resolution is centralized in `modules/services/admin-endpoint.js` for deterministic same-origin behavior and local loopback override handling.
 14. Runtime side effects (request adapter, clipboard copy, timers) flow through `modules/services/runtime-effects.js` so feature logic is easier to test.
 15. Active tab refresh pipeline fetches only required data for that tab.
+16. Config save operations in `modules/config-controls.js` use shared save-state/message helpers and a focused `domainApi` contract rather than large callback bags.
+17. Dirty-check evaluation in `dashboard.js` is registry-driven to reduce per-pane drift and keep save-button semantics consistent.
 
 ## 🐙 Local Asset Provenance
 
