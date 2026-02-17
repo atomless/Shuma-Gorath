@@ -489,6 +489,48 @@ test('tab lifecycle normalizes unknown tabs to monitoring default', { concurrenc
   });
 });
 
+test('feature controllers provide explicit tab mount/unmount/refresh behavior', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const featureControllers = await importBrowserModule('dashboard/modules/feature-controllers.js');
+    const calls = [];
+    let apiValid = false;
+    const controllers = featureControllers.createDashboardFeatureControllers({
+      notifyTabMounted: (tab) => calls.push(['mounted', tab]),
+      notifyTabUnmounted: (tab) => calls.push(['unmounted', tab]),
+      refreshTab: async (tab, reason) => {
+        calls.push(['refresh', tab, reason]);
+      },
+      hasValidApiContext: () => apiValid
+    });
+
+    assert.deepEqual(
+      Object.keys(controllers).sort(),
+      ['config', 'ip-bans', 'monitoring', 'status', 'tuning']
+    );
+
+    await controllers.monitoring.mount();
+    assert.deepEqual(calls, [['mounted', 'monitoring']]);
+
+    apiValid = true;
+    await controllers['ip-bans'].mount();
+    assert.deepEqual(calls, [
+      ['mounted', 'monitoring'],
+      ['mounted', 'ip-bans'],
+      ['refresh', 'ip-bans', 'tab-mount']
+    ]);
+
+    await controllers.status.refresh({ reason: 'manual' });
+    controllers.tuning.unmount();
+    assert.deepEqual(calls, [
+      ['mounted', 'monitoring'],
+      ['mounted', 'ip-bans'],
+      ['refresh', 'ip-bans', 'tab-mount'],
+      ['refresh', 'status', 'manual'],
+      ['unmounted', 'tuning']
+    ]);
+  });
+});
+
 test('monitoring view consumes prometheus helper payload as single-source contract', { concurrency: false }, async () => {
   const elements = {
     'monitoring-prometheus-example': createMockElement(),

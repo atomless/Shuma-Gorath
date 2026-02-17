@@ -19,6 +19,7 @@ import * as configDraftStoreModule from './modules/config-draft-store.js';
 import * as configFormUtilsModule from './modules/config-form-utils.js';
 import * as inputValidationModule from './modules/input-validation.js';
 import * as adminEndpointModule from './modules/services/admin-endpoint.js';
+import * as featureControllersModule from './modules/feature-controllers.js';
 import { createRuntimeEffects } from './modules/services/runtime-effects.js';
 
 const {
@@ -355,36 +356,6 @@ function refreshCoreActionButtonsState() {
   if (typeof checkAdvancedConfigChanged === 'function') {
     checkAdvancedConfigChanged();
   }
-}
-
-function createDashboardTabControllers() {
-  function makeController(tab) {
-    return {
-      init: function initTabController() {},
-      mount: function mountTabController() {
-        document.body.dataset.activeDashboardTab = tab;
-        if (dashboardState) {
-          dashboardState.setActiveTab(tab);
-        }
-        refreshCoreActionButtonsState();
-        if (hasValidApiContext()) {
-          refreshDashboardForTab(tab, 'tab-mount');
-        }
-      },
-      unmount: function unmountTabController() {},
-      refresh: function refreshTabController(context = {}) {
-        return refreshDashboardForTab(tab, context.reason || 'manual');
-      }
-    };
-  }
-
-  return {
-    monitoring: makeController('monitoring'),
-    'ip-bans': makeController('ip-bans'),
-    status: makeController('status'),
-    config: makeController('config'),
-    tuning: makeController('tuning')
-  };
 }
 
 function getAdminContext(messageTarget) {
@@ -1377,6 +1348,21 @@ async function refreshDashboardForTab(tab, reason = 'manual') {
   }
 }
 
+function createDashboardFeatureControllers() {
+  return featureControllersModule.createDashboardFeatureControllers({
+    notifyTabMounted: (tab) => {
+      document.body.dataset.activeDashboardTab = tab;
+      if (dashboardState) {
+        dashboardState.setActiveTab(tab);
+      }
+      refreshCoreActionButtonsState();
+    },
+    notifyTabUnmounted: () => {},
+    refreshTab: (tab, reason) => refreshDashboardForTab(tab, reason),
+    hasValidApiContext
+  });
+}
+
 function refreshActiveTab(reason = 'manual') {
   if (dashboardTabCoordinator) {
     return dashboardTabCoordinator.refreshActive({ reason });
@@ -1561,7 +1547,7 @@ function initializeDashboardRuntime() {
   });
 
   dashboardTabCoordinator = tabLifecycleModule.createTabLifecycleCoordinator({
-    controllers: createDashboardTabControllers(),
+    controllers: createDashboardFeatureControllers(),
     onActiveTabChange: (nextTab) => {
       if (dashboardState) dashboardState.setActiveTab(nextTab);
       scheduleAutoRefresh();

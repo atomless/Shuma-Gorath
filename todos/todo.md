@@ -175,7 +175,7 @@ Reference plan: `docs/plans/2026-02-17-dashboard-lit-full-cutover.md`
 - [x] DSH-LIT-DEP1 Add pinned Lit runtime loading strategy suitable for no-build-step deployment (local vendored ESM + integrity/provenance notes; no runtime CDN dependency).
 - [x] DSH-LIT-APP1 Introduce root `<shuma-dashboard-app>` Lit component as the only dashboard boot surface (routing, tab shell, auth/session gate, refresh lifecycle wiring).
 - [x] DSH-LIT-APP2 Move all module-scope event wiring into explicit component lifecycle hooks (`connectedCallback`/`disconnectedCallback`) to eliminate parse-time side effects.
-- [ ] DSH-LIT-APP3 Replace global coordinator responsibilities with explicit feature controllers mounted through the app shell (monitoring, ip-bans, status, config, tuning).
+- [x] DSH-LIT-APP3 Replace global coordinator responsibilities with explicit feature controllers mounted through the app shell (monitoring, ip-bans, status, config, tuning).
 
 #### State, effects, and data flow architecture
 - [ ] DSH-LIT-STATE1 Add centralized immutable dashboard store (`state + reducer + action creators + selectors`) and remove ad-hoc mutable orchestration globals.
