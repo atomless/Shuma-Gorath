@@ -1502,92 +1502,60 @@ function updateMonitoringSummary(data) {
 function updatePrometheusHelper(prometheusData) {
   const example = document.getElementById('monitoring-prometheus-example');
   const curlButton = document.getElementById('monitoring-prometheus-copy-curl');
+  const facts = document.getElementById('monitoring-prometheus-facts');
   const outputSnippet = document.getElementById('monitoring-prometheus-output');
   const statsSnippet = document.getElementById('monitoring-prometheus-stats');
   const windowedSnippet = document.getElementById('monitoring-prometheus-windowed');
   const summaryStatsSnippet = document.getElementById('monitoring-prometheus-summary-stats');
   const observabilityLink = document.getElementById('monitoring-prometheus-observability-link');
   const apiLink = document.getElementById('monitoring-prometheus-api-link');
-  const note = document.getElementById('monitoring-prometheus-note');
+  const readString = (value) => (typeof value === 'string' ? value.trim() : '');
   const endpoint = prometheusData && typeof prometheusData.endpoint === 'string'
     ? prometheusData.endpoint
     : '/metrics';
-  const exampleJs = typeof prometheusData?.example_js === 'string'
-    ? prometheusData.example_js
-    : '';
-  const exampleOutput = typeof prometheusData?.example_output === 'string'
-    ? prometheusData.example_output
-    : '';
-  const exampleStats = typeof prometheusData?.example_stats === 'string'
-    ? prometheusData.example_stats
-    : '';
-  const exampleWindowed = typeof prometheusData?.example_windowed === 'string'
-    ? prometheusData.example_windowed
-    : '';
-  const exampleSummaryStats = typeof prometheusData?.example_summary_stats === 'string'
-    ? prometheusData.example_summary_stats
-    : '';
+  const exampleJs = readString(prometheusData?.example_js);
+  const exampleOutput = readString(prometheusData?.example_output);
+  const exampleStats = readString(prometheusData?.example_stats);
+  const exampleWindowed = readString(prometheusData?.example_windowed);
+  const exampleSummaryStats = readString(prometheusData?.example_summary_stats);
   const docs = prometheusData && typeof prometheusData.docs === 'object'
     ? prometheusData.docs
     : {};
-  const legacyExamples = Array.isArray(prometheusData?.examples) ? prometheusData.examples : [];
-  const notes = Array.isArray(prometheusData?.notes) ? prometheusData.notes : [];
+  const notes = Array.isArray(prometheusData?.notes)
+    ? prometheusData.notes.map(readString).filter((entry) => entry.length > 0)
+    : [];
+  const fallbackFacts = [
+    '/metrics returns one full Prometheus text payload (no query arguments).',
+    'Use /admin/monitoring?hours=1-720&limit=1-50 for bounded JSON summaries.'
+  ];
   if (example) {
-    example.textContent = exampleJs || legacyExamples[0] || `const metricsText = await fetch('${endpoint}').then(r => r.text());`;
+    example.textContent = exampleJs || '// Example unavailable.';
   }
   if (curlButton) {
     const origin = window.location.origin || 'http://127.0.0.1:3000';
     curlButton.dataset.copyText = `curl -sS '${origin}${endpoint}'`;
   }
+  if (facts) {
+    const list = notes.length ? notes : fallbackFacts;
+    facts.innerHTML = list.map((entry) => `<li>${escapeHtml(entry)}</li>`).join('');
+  }
   if (outputSnippet) {
-    outputSnippet.textContent = exampleOutput || legacyExamples[1] || `# TYPE bot_defence_requests_total counter
-bot_defence_requests_total{path="main"} 128
-# TYPE bot_defence_blocks_total counter
-bot_defence_blocks_total 9
-# TYPE bot_defence_bans_total counter
-bot_defence_bans_total{reason="honeypot"} 3
-# TYPE bot_defence_active_bans gauge
-bot_defence_active_bans 2`;
+    outputSnippet.textContent = exampleOutput || '# Example unavailable.';
   }
   if (statsSnippet) {
-    statsSnippet.textContent = exampleStats || `const lines = metricsText.split('\\n');
-const metricValue = (prefix) => {
-  const line = lines.find((entry) => entry.startsWith(prefix));
-  return line ? Number(line.slice(prefix.length).trim()) : null;
-};
-const stats = {
-  requestsMain: metricValue('bot_defence_requests_total{path="main"} '),
-  honeypotBans: metricValue('bot_defence_bans_total{reason="honeypot"} '),
-  blocksTotal: metricValue('bot_defence_blocks_total '),
-  activeBans: metricValue('bot_defence_active_bans ')
-};`;
+    statsSnippet.textContent = exampleStats || '// Example unavailable.';
   }
   if (windowedSnippet) {
-    windowedSnippet.textContent = exampleWindowed || `const apiKey = 'YOUR_ADMIN_API_KEY';
-const params = new URLSearchParams({ hours: '24', limit: '10' });
-const monitoring = await fetch(\`/admin/monitoring?\${params}\`, {
-  headers: { Authorization: \`Bearer \${apiKey}\` }
-}).then(r => r.json());`;
+    windowedSnippet.textContent = exampleWindowed || '// Example unavailable.';
   }
   if (summaryStatsSnippet) {
-    summaryStatsSnippet.textContent = exampleSummaryStats || `const stats = {
-  honeypotHits: monitoring.summary.honeypot.total_hits,
-  challengeFailures: monitoring.summary.challenge.total_failures,
-  powFailures: monitoring.summary.pow.total_failures,
-  rateViolations: monitoring.summary.rate.total_violations,
-  geoViolations: monitoring.summary.geo.total_violations
-};`;
+    summaryStatsSnippet.textContent = exampleSummaryStats || '// Example unavailable.';
   }
   if (observabilityLink && typeof docs.observability === 'string' && docs.observability) {
     observabilityLink.href = docs.observability;
   }
   if (apiLink && typeof docs.api === 'string' && docs.api) {
     apiLink.href = docs.api;
-  }
-  if (note) {
-    note.textContent = notes.length
-      ? notes.join(' ')
-      : `/metrics has no query arguments (full payload only). For bounded reads, use /admin/monitoring with hours=<1-720> and limit=<1-50>, then read summary.* fields.`;
   }
 }
 

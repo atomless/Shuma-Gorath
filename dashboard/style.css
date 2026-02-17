@@ -1101,10 +1101,6 @@ input:checked + .toggle-slider:before {
   gap: 6px;
 }
 
-.prometheus-note {
-  margin-top: 10px;
-}
-
 .prometheus-copy-actions {
   margin-bottom: 1rem;
 }

@@ -701,6 +701,27 @@ mod admin_config_tests {
             Some("/metrics")
         );
         assert!(
+            body.get("prometheus")
+                .and_then(|v| v.get("notes"))
+                .and_then(|v| v.as_array())
+                .map(|notes| !notes.is_empty())
+                .unwrap_or(false)
+        );
+        assert!(
+            body.get("prometheus")
+                .and_then(|v| v.get("example_js"))
+                .and_then(|v| v.as_str())
+                .map(|value| value.contains("fetch('/metrics')"))
+                .unwrap_or(false)
+        );
+        assert!(
+            body.get("prometheus")
+                .and_then(|v| v.get("example_summary_stats"))
+                .and_then(|v| v.as_str())
+                .map(|value| value.contains("monitoring.summary"))
+                .unwrap_or(false)
+        );
+        assert!(
             summary
                 .get("challenge")
                 .and_then(|v| v.get("reasons"))
@@ -3636,25 +3657,29 @@ where
 
     let body = serde_json::to_string(&json!({
         "summary": summary,
-        "prometheus": {
-            "endpoint": "/metrics",
-            "notes": [
-                "/metrics returns one full Prometheus text payload and accepts no query arguments.",
-                "For bounded JSON summaries use /admin/monitoring?hours=<1-720>&limit=<1-50>, then read summary.* fields."
-            ],
-            "example_js": "const metricsText = await fetch('/metrics').then(r => r.text());",
-            "example_output": "# TYPE bot_defence_requests_total counter\nbot_defence_requests_total{path=\"main\"} 128\n# TYPE bot_defence_blocks_total counter\nbot_defence_blocks_total 9\n# TYPE bot_defence_bans_total counter\nbot_defence_bans_total{reason=\"honeypot\"} 3\n# TYPE bot_defence_active_bans gauge\nbot_defence_active_bans 2",
-            "example_stats": "const lines = metricsText.split('\\n');\nconst metricValue = (prefix) => {\n  const line = lines.find((entry) => entry.startsWith(prefix));\n  return line ? Number(line.slice(prefix.length).trim()) : null;\n};\nconst stats = {\n  requestsMain: metricValue('bot_defence_requests_total{path=\\\"main\\\"} '),\n  honeypotBans: metricValue('bot_defence_bans_total{reason=\\\"honeypot\\\"} '),\n  blocksTotal: metricValue('bot_defence_blocks_total '),\n  activeBans: metricValue('bot_defence_active_bans ')\n};",
-            "example_windowed": "const apiKey = 'YOUR_ADMIN_API_KEY';\nconst params = new URLSearchParams({ hours: '24', limit: '10' });\nconst monitoring = await fetch(`/admin/monitoring?${params}`, {\n  headers: { Authorization: `Bearer ${apiKey}` }\n}).then(r => r.json());",
-            "example_summary_stats": "const stats = {\n  honeypotHits: monitoring.summary.honeypot.total_hits,\n  challengeFailures: monitoring.summary.challenge.total_failures,\n  powFailures: monitoring.summary.pow.total_failures,\n  rateViolations: monitoring.summary.rate.total_violations,\n  geoViolations: monitoring.summary.geo.total_violations\n};",
-            "docs": {
-                "observability": "https://github.com/atomless/Shuma-Gorath/blob/main/docs/observability.md",
-                "api": "https://github.com/atomless/Shuma-Gorath/blob/main/docs/api.md"
-            }
-        }
+        "prometheus": monitoring_prometheus_helper_payload()
     }))
     .unwrap();
     Response::new(200, body)
+}
+
+fn monitoring_prometheus_helper_payload() -> serde_json::Value {
+    json!({
+        "endpoint": "/metrics",
+        "notes": [
+            "/metrics returns one full Prometheus text payload and accepts no query arguments.",
+            "For bounded JSON summaries use /admin/monitoring?hours=<1-720>&limit=<1-50>, then read summary.* fields."
+        ],
+        "example_js": "const metricsText = await fetch('/metrics').then(r => r.text());",
+        "example_output": "# TYPE bot_defence_requests_total counter\nbot_defence_requests_total{path=\"main\"} 128\n# TYPE bot_defence_blocks_total counter\nbot_defence_blocks_total 9\n# TYPE bot_defence_bans_total counter\nbot_defence_bans_total{reason=\"honeypot\"} 3\n# TYPE bot_defence_active_bans gauge\nbot_defence_active_bans 2",
+        "example_stats": "const lines = metricsText.split('\\n');\nconst metricValue = (prefix) => {\n  const line = lines.find((entry) => entry.startsWith(prefix));\n  return line ? Number(line.slice(prefix.length).trim()) : null;\n};\nconst stats = {\n  requestsMain: metricValue('bot_defence_requests_total{path=\\\"main\\\"} '),\n  honeypotBans: metricValue('bot_defence_bans_total{reason=\\\"honeypot\\\"} '),\n  blocksTotal: metricValue('bot_defence_blocks_total '),\n  activeBans: metricValue('bot_defence_active_bans ')\n};",
+        "example_windowed": "const apiKey = 'YOUR_ADMIN_API_KEY';\nconst params = new URLSearchParams({ hours: '24', limit: '10' });\nconst monitoring = await fetch(`/admin/monitoring?${params}`, {\n  headers: { Authorization: `Bearer ${apiKey}` }\n}).then(r => r.json());",
+        "example_summary_stats": "const stats = {\n  honeypotHits: monitoring.summary.honeypot.total_hits,\n  challengeFailures: monitoring.summary.challenge.total_failures,\n  powFailures: monitoring.summary.pow.total_failures,\n  rateViolations: monitoring.summary.rate.total_violations,\n  geoViolations: monitoring.summary.geo.total_violations\n};",
+        "docs": {
+            "observability": "https://github.com/atomless/Shuma-Gorath/blob/main/docs/observability.md",
+            "api": "https://github.com/atomless/Shuma-Gorath/blob/main/docs/api.md"
+        }
+    })
 }
 
 /// Handles all /admin API endpoints.
