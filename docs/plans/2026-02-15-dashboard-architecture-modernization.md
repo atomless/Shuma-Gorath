@@ -4,6 +4,17 @@ Date: 2026-02-15
 Scope: `DSH-R1`, `DSH-R2`, `DSH-R3`  
 Target: Tabbed SPA modernization with frameworkless-first delivery.
 
+## Supersession Notice (2026-02-17)
+
+This plan's frameworkless-first path is now superseded by a full Lit cutover plan:
+- `docs/plans/2026-02-17-dashboard-lit-full-cutover.md`
+
+Reason:
+- The framework-adoption gate in Section 4 has now been met in practice (`dashboard/dashboard.js` remains above the hotspot threshold and architectural coupling findings persisted in post-cutover review).
+
+Current direction:
+- Lit migration is full-scope across all dashboard tabs (not monitoring-only), with hard cutover constraints and legacy-module removal criteria tracked in `DSH-LIT-*` todos.
+
 ## 1. Baseline Snapshot (Current State)
 
 ### 1.1 File/size/line profile
@@ -113,4 +124,3 @@ If triggered:
 2. Controller/state boundary split (`DSH-3`, `DSH-4`, `DSH-5`).
 3. Runtime hardening and provenance cleanup (`DSH-6` to `DSH-10`).
 4. Verification/docs/rollback (`DSH-11` to `DSH-14`).
-

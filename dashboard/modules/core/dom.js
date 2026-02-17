@@ -4,16 +4,24 @@ export const createCache = (options = {}) => {
   const doc = options.document || document;
   const idCache = new Map();
   const queryCache = new Map();
+  const isDisconnected = (el) =>
+    Boolean(el && typeof el === 'object' && 'isConnected' in el && el.isConnected === false);
 
   const byId = (id) => {
-    if (idCache.has(id)) return idCache.get(id);
+    if (idCache.has(id)) {
+      const cached = idCache.get(id);
+      if (cached && !isDisconnected(cached)) return cached;
+    }
     const el = doc.getElementById(id);
     idCache.set(id, el || null);
     return el || null;
   };
 
   const query = (selector) => {
-    if (queryCache.has(selector)) return queryCache.get(selector);
+    if (queryCache.has(selector)) {
+      const cached = queryCache.get(selector);
+      if (cached && !isDisconnected(cached)) return cached;
+    }
     const el = doc.querySelector(selector);
     queryCache.set(selector, el || null);
     return el || null;

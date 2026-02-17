@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-02-16
+Last updated: 2026-02-17
 
 This is the active work queue.
 `todos/security-review.md` tracks security finding validity and closure status.
@@ -141,7 +141,7 @@ Implementation rule: when internal feature work touches provider-managed capabil
 - [ ] Evaluate renaming `SHUMA_CHALLENGE_PUZZLE_RISK_THRESHOLD` to `SHUMA_BOTNESS_CHALLENGE_PUZZLE_THRESHOLD` to reflect botness semantics.
 - [ ] Standardize terminology across code/UI/docs so `honeypot` and `maze` are used consistently instead of interchangeably.
 - [ ] Initialize Ban IP pane duration controls from the current Admin Manual Ban default duration so Ban IP and Ban Durations panes stay consistent.
-- [ ] Decomposed into `DSH-*` dashboard modernization items below (frameworkless-first with explicit Lit decision gate).
+- [ ] Dashboard modernization now follows full Lit cutover (`DSH-LIT-*`) after framework-adoption gate trigger; remove remaining frameworkless-first assumptions from active docs as migration lands.
 - [ ] Document setup-time config bootstrapping clearly: how `make setup` creates/populates local env, how env-only vars are sourced, and how KV defaults are seeded and later overridden.
 - [ ] Long-term option: integrate upstream identity/proxy auth (OIDC/SAML) for dashboard/admin instead of app-level key login.
 
@@ -162,6 +162,64 @@ Implementation rule: when internal feature work touches provider-managed capabil
 - [x] MON-TEL-6 Add admin API surface for these monitoring summaries (`/admin/honeypot`, `/admin/challenge`, `/admin/pow`, `/admin/rate`, `/admin/geo` or consolidated endpoint) with strict response schema + docs.
 - [ ] MON-TEL-7 Add tests for telemetry correctness and dashboard rendering states (empty/loading/error/data) for each new monitoring section, including cardinality guardrails and retention-window behavior.
 - [ ] MON-TEL-7.a Extend dashboard automated tests to assert new monitoring cards/tables/charts across empty/loading/error/data states, not just adapter contracts.
+
+### P3 Dashboard Lit Full Cutover (All Tabs, Excellence Architecture)
+Reference plan: `docs/plans/2026-02-17-dashboard-lit-full-cutover.md`
+
+#### Decision and migration guardrails
+- [x] DSH-LIT-R0 Convert the latest dashboard review findings into a sequenced Lit full-cutover backlog with explicit architecture targets, no-compat pre-launch assumptions, and verification gates.
+- [x] DSH-LIT-R1 Record gate-trigger evidence and supersede frameworkless-first decision text in dashboard planning docs, including rationale for full cutover across all tabs.
+- [x] DSH-LIT-R2 Define hard cutover constraints: single Lit app entrypoint, no long-lived dual-wiring, and explicit legacy module-removal completion criteria.
+
+#### Lit runtime and platform foundations
+- [ ] DSH-LIT-DEP1 Add pinned Lit runtime loading strategy suitable for no-build-step deployment (local vendored ESM + integrity/provenance notes; no runtime CDN dependency).
+- [ ] DSH-LIT-APP1 Introduce root `<shuma-dashboard-app>` Lit component as the only dashboard boot surface (routing, tab shell, auth/session gate, refresh lifecycle wiring).
+- [ ] DSH-LIT-APP2 Move all module-scope event wiring into explicit component lifecycle hooks (`connectedCallback`/`disconnectedCallback`) to eliminate parse-time side effects.
+- [ ] DSH-LIT-APP3 Replace global coordinator responsibilities with explicit feature controllers mounted through the app shell (monitoring, ip-bans, status, config, tuning).
+
+#### State, effects, and data flow architecture
+- [ ] DSH-LIT-STATE1 Add centralized immutable dashboard store (`state + reducer + action creators + selectors`) and remove ad-hoc mutable orchestration globals.
+- [ ] DSH-LIT-STATE2 Move all API and side effects into explicit service/effect adapters (network, timers, clipboard, history/hash) injected into feature controllers/components.
+- [ ] DSH-LIT-STATE3 Replace broad `refreshCoreActionButtonsState()` fan-out with selector-driven recomputation scoped to affected controls/sections only.
+- [ ] DSH-LIT-STATE4 Remove wrapper/null-guard bridge functions caused by init-order coupling by making init order explicit in app shell lifecycle.
+
+#### Config domain redesign (addresses `config-controls.js` + `config-ui-state.js` review findings)
+- [ ] DSH-LIT-CFG1 Replace procedural config save handlers with a declarative save registry (`buttonId`, validator set, patch builder, draft key, success reducer, post-save hooks).
+- [ ] DSH-LIT-CFG2 Build a generic config save pipeline from the registry (`authorize -> validate -> save -> commit draft -> emit UI status`) and remove duplicated handler flow code.
+- [ ] DSH-LIT-CFG3 Replace monolithic config response->DOM updater logic with declarative config-to-form binding specs + coercion adapters.
+- [ ] DSH-LIT-CFG4 Split Config tab into section-scoped Lit components (maze, robots+ai-policy, geo, honeypot, browser policy, bypass lists, challenge+pow, botness, cdp, edge mode, advanced patch editor).
+- [ ] DSH-LIT-CFG5 Implement section-local dirty state selectors and save-button enablement; remove whole-page dirty rechecks on every field input.
+- [ ] DSH-LIT-CFG6 Keep shared schema as single source of truth for writable paths, section grouping, defaults, coercions, validation bounds, and status meaning references.
+
+#### Status and inventory redesign
+- [ ] DSH-LIT-STS1 Split status module into domain state/classification data and Lit rendering components; remove mixed state/render responsibilities from one module.
+- [ ] DSH-LIT-STS2 Render runtime variable inventory with declarative Lit templates (no string-built nested `innerHTML` tables) and preserve grouped table semantics.
+- [ ] DSH-LIT-STS3 Keep admin-write highlighting and meaning metadata centralized in shared schema/data modules to avoid drift with Config tab.
+
+#### Rendering and component system excellence
+- [ ] DSH-LIT-UI1 Replace remaining string-template `innerHTML` rendering in dashboard modules with Lit templates/directives (`repeat`, keyed rows, conditionals).
+- [ ] DSH-LIT-UI2 Add shared presentational primitives (stat cards, offender card, table shell, empty/loading/error state blocks, form field rows) used across all tabs.
+- [ ] DSH-LIT-UI3 Enforce safe rendering rules: no unvetted `unsafeHTML`, no manual HTML concatenation paths for data-bearing UI, and centralized escaping/formatting utilities where text conversion is required.
+
+#### Full-tab Lit migration (all-in scope, not monitoring-only)
+- [ ] DSH-LIT-TAB1 Migrate Monitoring tab completely to Lit components, preserving chart/event behavior contracts and telemetry helper UX.
+- [ ] DSH-LIT-TAB2 Migrate IP Bans tab completely to Lit components, including quick-unban interactions and detail expansion behavior.
+- [ ] DSH-LIT-TAB3 Migrate Status tab completely to Lit components, including feature-status cards and runtime variable inventory.
+- [ ] DSH-LIT-TAB4 Migrate Config tab completely to Lit components using the new config registry/binding architecture.
+- [ ] DSH-LIT-TAB5 Migrate Tuning tab completely to Lit components and align its controls with the same state/save architecture as Config.
+
+#### Legacy removal and hard cutover completion
+- [ ] DSH-LIT-CUT1 Switch `dashboard/index.html` to Lit app entrypoint only and remove old imperative bootstrap path once parity gates pass.
+- [ ] DSH-LIT-CUT2 Remove or archive superseded modules (`dashboard.js` orchestration remnants and obsolete procedural helpers) with no dead code left.
+- [ ] DSH-LIT-CUT3 Add static guards that fail CI on prohibited legacy patterns in dashboard code (`innerHTML` data rendering, module-scope event binding, direct DOM query storm patterns).
+
+#### Verification, quality gates, and docs
+- [ ] DSH-LIT-TEST1 Add unit coverage for store reducer/selectors, config save registry pipeline, config binding spec coercion, and status classification logic.
+- [ ] DSH-LIT-TEST2 Add component-level tests for each tab’s Lit components (render, state transitions, loading/empty/error/data, and interaction events).
+- [ ] DSH-LIT-TEST3 Expand Playwright e2e contracts to assert full-tab parity after Lit cutover (hash routes, keyboard nav, auth/session, save flows, monitoring interactions, logout).
+- [ ] DSH-LIT-TEST4 Keep canonical verification discipline per slice (`make test` with Spin running + `make build`) and fail migration slices that reduce test coverage.
+- [ ] DSH-LIT-DOC1 Update public docs (`README.md`, `docs/dashboard.md`, `docs/testing.md`) and contributor docs with Lit architecture, component boundaries, and maintenance guidance.
+- [ ] DSH-LIT-DOC2 Publish a final post-cutover no-net-behavior audit documenting intentional deltas and rollback strategy.
 
 ## Recurring Quality Gates
 - [ ] Keep unit, integration, e2e, and CI flows passing; clean up defunct tests quickly.

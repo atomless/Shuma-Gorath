@@ -1,34 +1,15 @@
 // @ts-check
 
 export const create = (options = {}) => {
+  const requestImpl =
+    typeof options.request === 'function'
+      ? options.request
+      : fetch.bind(globalThis);
   const state = {
     authenticated: false,
     csrfToken: ''
   };
 
-  const nativeFetch = window.fetch.bind(window);
-  const isWriteMethod = (method) => {
-    const upper = String(method || 'GET').toUpperCase();
-    return upper === 'POST' || upper === 'PUT' || upper === 'PATCH' || upper === 'DELETE';
-  };
-  const requestUrlOf = (input) => {
-    if (typeof input === 'string') return input;
-    if (input && typeof input.url === 'string') return input.url;
-    return '';
-  };
-  const requestMethodOf = (input, init) => {
-    if (init && init.method) return init.method;
-    if (input && input.method) return input.method;
-    return 'GET';
-  };
-  const isAdminRequestUrl = (url) => {
-    try {
-      const resolved = new URL(url, window.location.origin);
-      return resolved.pathname.startsWith('/admin/');
-    } catch (_e) {
-      return false;
-    }
-  };
   const refreshUiState = () => {
     if (typeof options.refreshCoreActionButtonsState === 'function') {
       options.refreshCoreActionButtonsState();
@@ -47,35 +28,6 @@ export const create = (options = {}) => {
     state.authenticated = Boolean(authenticated);
     state.csrfToken = state.authenticated ? String(csrfToken || '') : '';
     refreshUiState();
-  };
-
-  window.fetch = (input, init = {}) => {
-    const url = requestUrlOf(input);
-    if (!isAdminRequestUrl(url)) {
-      return nativeFetch(input, init);
-    }
-
-    const method = requestMethodOf(input, init);
-    const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
-    const authHeader = headers.get('Authorization') || headers.get('authorization') || '';
-
-    if (/^Bearer\s*$/i.test(authHeader.trim())) {
-      headers.delete('Authorization');
-      headers.delete('authorization');
-    }
-
-    if (state.authenticated && isWriteMethod(method) && state.csrfToken) {
-      if (!headers.has('X-Shuma-CSRF')) {
-        headers.set('X-Shuma-CSRF', state.csrfToken);
-      }
-    }
-
-    const nextInit = {
-      ...init,
-      headers,
-      credentials: 'same-origin'
-    };
-    return nativeFetch(input, nextInit);
   };
 
   const hasValidApiContext = () => state.authenticated;
@@ -112,7 +64,7 @@ export const create = (options = {}) => {
     }
 
     try {
-      const response = await nativeFetch(`${endpoint}/admin/session`, {
+      const response = await requestImpl(`${endpoint}/admin/session`, {
         method: 'GET',
         credentials: 'same-origin'
       });
@@ -144,7 +96,15 @@ export const create = (options = {}) => {
       button.disabled = true;
       button.textContent = 'Logging out...';
       try {
-        await fetch(`${endpoint}/admin/logout`, { method: 'POST' });
+        const headers = new Headers();
+        if (state.csrfToken) {
+          headers.set('X-Shuma-CSRF', state.csrfToken);
+        }
+        await requestImpl(`${endpoint}/admin/logout`, {
+          method: 'POST',
+          headers,
+          credentials: 'same-origin'
+        });
       } catch (_e) {}
       setAdminSession(false);
       if (message) {

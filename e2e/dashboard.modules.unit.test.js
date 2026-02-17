@@ -292,6 +292,107 @@ test('dashboard API client parses JSON payloads when content-type is missing', {
   });
 });
 
+test('dashboard API client adds CSRF + same-origin for session-auth writes and strips empty bearer', { concurrency: false }, async () => {
+  /** @type {{url?: string, init?: RequestInit}} */
+  let captured = {};
+
+  await withBrowserGlobals({
+    fetch: async (url, init = {}) => {
+      captured = { url: String(url), init };
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => 'application/json' },
+        json: async () => ({ config: { maze_enabled: true } }),
+        text: async () => JSON.stringify({ config: { maze_enabled: true } })
+      };
+    }
+  }, async () => {
+    const apiModule = await importBrowserModule('dashboard/modules/api-client.js');
+    const api = apiModule.create({
+      getAdminContext: () => ({
+        endpoint: 'http://example.test',
+        apikey: '',
+        sessionAuth: true,
+        csrfToken: 'csrf-123'
+      })
+    });
+
+    await api.request('/admin/config', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer   ' },
+      json: { maze_enabled: true }
+    });
+  });
+
+  assert.equal(captured.url, 'http://example.test/admin/config');
+  const headers = new Headers(captured.init && captured.init.headers ? captured.init.headers : undefined);
+  assert.equal(headers.get('X-Shuma-CSRF'), 'csrf-123');
+  assert.equal(headers.has('Authorization'), false);
+  assert.equal(captured.init && captured.init.credentials, 'same-origin');
+});
+
+test('admin session leaves global fetch unpatched and sends CSRF header on logout', { concurrency: false }, async () => {
+  const calls = [];
+  const logoutButton = {
+    disabled: false,
+    textContent: 'Logout',
+    onclick: null
+  };
+  const messageNode = {
+    textContent: '',
+    className: ''
+  };
+
+  await withBrowserGlobals({
+    fetch: async (url, init = {}) => {
+      calls.push({ url: String(url), init });
+      if (String(url).endsWith('/admin/session')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ authenticated: true, csrf_token: 'csrf-logout' })
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({})
+      };
+    },
+    document: {
+      getElementById: (id) => {
+        if (id === 'logout-btn') return logoutButton;
+        if (id === 'admin-msg') return messageNode;
+        return null;
+      },
+      querySelector: () => null,
+      querySelectorAll: () => []
+    }
+  }, async () => {
+    const adminSessionModule = await importBrowserModule('dashboard/modules/admin-session.js');
+    const originalFetch = window.fetch;
+    const controller = adminSessionModule.create({
+      resolveAdminApiEndpoint: () => ({ endpoint: 'http://example.test' }),
+      redirectToLogin: () => {}
+    });
+
+    assert.equal(window.fetch, originalFetch);
+    await controller.restoreAdminSession();
+    controller.bindLogoutButton('logout-btn', 'admin-msg');
+    assert.equal(typeof logoutButton.onclick, 'function');
+    await logoutButton.onclick();
+  });
+
+  const logoutCall = calls.find((entry) => entry.url.endsWith('/admin/logout'));
+  assert.ok(logoutCall, 'expected logout call');
+  const logoutHeaders = new Headers(logoutCall.init && logoutCall.init.headers
+    ? logoutCall.init.headers
+    : undefined);
+  assert.equal(logoutHeaders.get('X-Shuma-CSRF'), 'csrf-logout');
+  assert.equal(logoutCall.init && logoutCall.init.credentials, 'same-origin');
+});
+
 test('chart-lite renders doughnut legend labels', () => {
   const browser = loadClassicBrowserScript(CHART_LITE_PATH, {
     matchMedia: () => ({ matches: false })
@@ -572,6 +673,67 @@ test('config draft store tracks section snapshots and dirty checks', { concurren
     store.set('maze', { enabled: true, threshold: 60 });
     assert.deepEqual(toPlain(store.get('maze', {})), { enabled: true, threshold: 60 });
     assert.equal(store.isDirty('maze', { enabled: true, threshold: 60 }), false);
+  });
+});
+
+test('core dom cache re-resolves disconnected and previously-missing nodes', { concurrency: false }, async () => {
+  let byIdLookupCount = 0;
+  const firstNode = { id: 'node', isConnected: true };
+  const secondNode = { id: 'node', isConnected: true, marker: 'fresh' };
+
+  await withBrowserGlobals({}, async () => {
+    const domApi = await importBrowserModule('dashboard/modules/core/dom.js');
+    const cache = domApi.createCache({
+      document: {
+        getElementById: () => {
+          byIdLookupCount += 1;
+          if (byIdLookupCount === 1) return firstNode;
+          if (byIdLookupCount === 2) return null;
+          return secondNode;
+        },
+        querySelector: () => null,
+        querySelectorAll: () => []
+      }
+    });
+
+    assert.equal(cache.byId('node'), firstNode);
+    firstNode.isConnected = false;
+    assert.equal(cache.byId('node'), null);
+    assert.equal(cache.byId('node'), secondNode);
+  });
+
+  assert.equal(byIdLookupCount, 3);
+});
+
+test('status module creates isolated state instances', { concurrency: false }, async () => {
+  await withBrowserGlobals({
+    document: {
+      getElementById: () => null,
+      querySelector: () => null,
+      querySelectorAll: () => []
+    }
+  }, async () => {
+    const statusModule = await importBrowserModule('dashboard/modules/status.js');
+    const first = statusModule.create({ document });
+    const second = statusModule.create({ document });
+
+    first.update({
+      testMode: true,
+      botnessWeights: { geo_risk: 9 },
+      configSnapshot: { maze_enabled: true }
+    });
+
+    assert.equal(first.getState().testMode, true);
+    assert.equal(second.getState().testMode, false);
+    assert.equal(second.getState().botnessWeights.geo_risk, 2);
+
+    const snapshot = first.getState();
+    snapshot.botnessWeights.geo_risk = 42;
+    snapshot.configSnapshot.maze_enabled = false;
+
+    const next = first.getState();
+    assert.equal(next.botnessWeights.geo_risk, 9);
+    assert.equal(next.configSnapshot.maze_enabled, true);
   });
 });
 
@@ -1113,6 +1275,28 @@ test('dashboard main wires config UI state through module factory', () => {
     source.includes('configUiState = configUiStateModule.create('),
     true,
     'dashboard.js must initialize configUiState from config-ui-state module'
+  );
+});
+
+test('dashboard main guards optional control bindings before assigning handlers', () => {
+  const dashboardPath = path.resolve(__dirname, '..', 'dashboard', 'dashboard.js');
+  const source = fs.readFileSync(dashboardPath, 'utf8');
+
+  assert.match(
+    source,
+    /const previewRobotsButton = getById\('preview-robots'\);\s*if \(previewRobotsButton\)/m
+  );
+  assert.match(
+    source,
+    /const banButton = getById\('ban-btn'\);\s*if \(banButton\)/m
+  );
+  assert.match(
+    source,
+    /const unbanButton = getById\('unban-btn'\);\s*if \(unbanButton\)/m
+  );
+  assert.match(
+    source,
+    /\]\.forEach\(id => \{\s*const field = getById\(id\);\s*if \(!field\) return;\s*field\.addEventListener\('input', checkBotnessConfigChanged\);/m
   );
 });
 

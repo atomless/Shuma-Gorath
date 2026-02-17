@@ -1,7 +1,7 @@
 // @ts-check
 
 import * as dashboardCharts from './modules/charts.js';
-import * as statusPanel from './modules/status.js';
+import * as statusModule from './modules/status.js';
 import * as configControls from './modules/config-controls.js';
 import * as adminSessionModule from './modules/admin-session.js';
 import * as tabLifecycleModule from './modules/tab-lifecycle.js';
@@ -131,6 +131,7 @@ let configUiState = null;
 let inputValidation = null;
 let configDraftStore = null;
 let runtimeEffects = null;
+let statusPanel = null;
 let autoRefreshTimer = null;
 let pageVisible = document.visibilityState !== 'hidden';
 const domCache = domModule.createCache({ document });
@@ -406,6 +407,7 @@ function adminConfigWriteEnabled(config) {
 }
 
 function applyStatusPanelPatch(patch) {
+  if (!statusPanel) return;
   if (typeof statusPanel.applyPatch === 'function') {
     statusPanel.applyPatch(patch);
     return;
@@ -422,7 +424,7 @@ function updateConfigModeUi(config, baseStatusPatch = {}) {
   applyStatusPanelPatch({
     ...baseStatusPatch,
     testMode: parseBoolLike(config && config.test_mode, false),
-    failMode: statusPanel.normalizeFailMode(failModeFromConfig),
+    failMode: statusModule.normalizeFailMode(failModeFromConfig),
     httpsEnforced: parseBoolLike(config && config.https_enforced, false),
     forwardedHeaderTrustConfigured: parseBoolLike(
       config && config.forwarded_header_trust_configured,
@@ -474,7 +476,7 @@ function updateStatCards(analytics, events, bans) {
 
   applyStatusPanelPatch({
     testMode,
-    failMode: statusPanel.normalizeFailMode(analytics.fail_mode)
+    failMode: statusModule.normalizeFailMode(analytics.fail_mode)
   });
 }
 
@@ -893,6 +895,7 @@ bindInputAndBlur('honeypot-paths', () => {
 async function refreshRobotsPreview() {
   if (!getAdminContext(getById('admin-msg'))) return;
   const previewContent = getById('robots-preview-content');
+  if (!previewContent) return;
   
   try {
     const data = await dashboardApiClient.getRobotsPreview();
@@ -904,24 +907,28 @@ async function refreshRobotsPreview() {
 }
 
 // Toggle robots.txt preview visibility
-getById('preview-robots').onclick = async function() {
-  const preview = getById('robots-preview');
-  const btn = this;
-  
-  if (preview.classList.contains('hidden')) {
-    // Show preview
-    btn.textContent = 'Loading...';
-    btn.disabled = true;
-    await refreshRobotsPreview();
-    preview.classList.remove('hidden');
-    btn.textContent = 'Hide robots.txt';
-    btn.disabled = false;
-  } else {
-    // Hide preview
-    preview.classList.add('hidden');
-    btn.textContent = 'Show robots.txt';
-  }
-};
+const previewRobotsButton = getById('preview-robots');
+if (previewRobotsButton) {
+  previewRobotsButton.onclick = async function toggleRobotsPreview() {
+    const preview = getById('robots-preview');
+    if (!preview) return;
+    const btn = this;
+
+    if (preview.classList.contains('hidden')) {
+      // Show preview
+      btn.textContent = 'Loading...';
+      btn.disabled = true;
+      await refreshRobotsPreview();
+      preview.classList.remove('hidden');
+      btn.textContent = 'Hide robots.txt';
+      btn.disabled = false;
+    } else {
+      // Hide preview
+      preview.classList.add('hidden');
+      btn.textContent = 'Show robots.txt';
+    }
+  };
+}
 
 // Update CDP detection config controls from loaded config
 const updateCdpConfig = (config) => invokeConfigUiState('updateCdpConfig', config);
@@ -958,7 +965,9 @@ function checkBotnessConfigChanged() {
   'weight-rate-medium',
   'weight-rate-high'
 ].forEach(id => {
-  getById(id).addEventListener('input', checkBotnessConfigChanged);
+  const field = getById(id);
+  if (!field) return;
+  field.addEventListener('input', checkBotnessConfigChanged);
 });
 
 function checkGeoConfigChanged() {
@@ -1308,52 +1317,60 @@ function refreshActiveTab(reason = 'manual') {
 }
 
 // Admin controls - Ban IP
-getById('ban-btn').onclick = async function () {
-  const msg = getById('admin-msg');
-  if (!getAdminContext(msg)) return;
-  const ip = readIpFieldValue('ban-ip', true, msg, 'Ban IP');
-  if (ip === null) return;
-  const duration = readManualBanDurationSeconds(true);
-  if (duration === null) return;
+const banButton = getById('ban-btn');
+if (banButton) {
+  banButton.onclick = async function banIpAction() {
+    const msg = getById('admin-msg');
+    if (!msg || !getAdminContext(msg)) return;
+    const ip = readIpFieldValue('ban-ip', true, msg, 'Ban IP');
+    if (ip === null) return;
+    const duration = readManualBanDurationSeconds(true);
+    if (duration === null) return;
 
-  msg.textContent = `Banning ${ip}...`;
-  msg.className = 'message info';
+    msg.textContent = `Banning ${ip}...`;
+    msg.className = 'message info';
 
-  try {
-    await dashboardApiClient.banIp(ip, duration);
-    msg.textContent = `Banned ${ip} for ${duration}s`;
-    msg.className = 'message success';
-    getById('ban-ip').value = '';
-    if (dashboardState) dashboardState.invalidate('ip-bans');
-    runtimeEffects.setTimer(() => refreshActiveTab('ban-save'), 500);
-  } catch (e) {
-    msg.textContent = 'Error: ' + e.message;
-    msg.className = 'message error';
-  }
-};
+    try {
+      await dashboardApiClient.banIp(ip, duration);
+      msg.textContent = `Banned ${ip} for ${duration}s`;
+      msg.className = 'message success';
+      const banIpField = getById('ban-ip');
+      if (banIpField) banIpField.value = '';
+      if (dashboardState) dashboardState.invalidate('ip-bans');
+      runtimeEffects.setTimer(() => refreshActiveTab('ban-save'), 500);
+    } catch (e) {
+      msg.textContent = 'Error: ' + e.message;
+      msg.className = 'message error';
+    }
+  };
+}
 
 // Admin controls - Unban IP
-getById('unban-btn').onclick = async function () {
-  const msg = getById('admin-msg');
-  if (!getAdminContext(msg)) return;
-  const ip = readIpFieldValue('unban-ip', true, msg, 'Unban IP');
-  if (ip === null) return;
+const unbanButton = getById('unban-btn');
+if (unbanButton) {
+  unbanButton.onclick = async function unbanIpAction() {
+    const msg = getById('admin-msg');
+    if (!msg || !getAdminContext(msg)) return;
+    const ip = readIpFieldValue('unban-ip', true, msg, 'Unban IP');
+    if (ip === null) return;
 
-  msg.textContent = `Unbanning ${ip}...`;
-  msg.className = 'message info';
+    msg.textContent = `Unbanning ${ip}...`;
+    msg.className = 'message info';
 
-  try {
-    await dashboardApiClient.unbanIp(ip);
-    msg.textContent = `Unbanned ${ip}`;
-    msg.className = 'message success';
-    getById('unban-ip').value = '';
-    if (dashboardState) dashboardState.invalidate('ip-bans');
-    runtimeEffects.setTimer(() => refreshActiveTab('unban-save'), 500);
-  } catch (e) {
-    msg.textContent = 'Error: ' + e.message;
-    msg.className = 'message error';
-  }
-};
+    try {
+      await dashboardApiClient.unbanIp(ip);
+      msg.textContent = `Unbanned ${ip}`;
+      msg.className = 'message success';
+      const unbanIpField = getById('unban-ip');
+      if (unbanIpField) unbanIpField.value = '';
+      if (dashboardState) dashboardState.invalidate('ip-bans');
+      runtimeEffects.setTimer(() => refreshActiveTab('unban-save'), 500);
+    } catch (e) {
+      msg.textContent = 'Error: ' + e.message;
+      msg.className = 'message error';
+    }
+  };
+}
 
 function clearAutoRefreshTimer() {
   if (autoRefreshTimer) {
@@ -1381,6 +1398,7 @@ function scheduleAutoRefresh() {
 // Initialize charts and load data on page load
 configDraftStore = configDraftStoreModule.create(CONFIG_DRAFT_DEFAULTS);
 runtimeEffects = createRuntimeEffects();
+statusPanel = statusModule.create({ document });
 
 dashboardState = dashboardStateModule.create({
   initialTab: tabLifecycleModule.DEFAULT_DASHBOARD_TAB
@@ -1393,7 +1411,8 @@ tabStateView = tabStateViewModule.create({
 adminSessionController = adminSessionModule.create({
   resolveAdminApiEndpoint,
   refreshCoreActionButtonsState,
-  redirectToLogin
+  redirectToLogin,
+  request: (input, init) => runtimeEffects.request(input, init)
 });
 adminSessionController.bindLogoutButton('logout-btn', 'admin-msg');
 
@@ -1477,70 +1496,78 @@ dashboardCharts.init({
 });
 statusPanel.render();
 
-const setDraftSection = (sectionKey) => (value) => setDraft(sectionKey, value);
-const configDomainApi = {
+const configControlsContext = {
   statusPanel,
   apiClient: dashboardApiClient,
-  getAdminContext,
-  onConfigSaved: (_patch, result) => {
-    if (result && result.config) {
-      applyStatusPanelPatch({ configSnapshot: result.config });
-      setAdvancedConfigEditorFromConfig(result.config, true);
-    }
-    if (dashboardState) {
-      dashboardState.invalidate('securityConfig');
-      dashboardState.invalidate('monitoring');
-      dashboardState.invalidate('ip-bans');
+  effects: runtimeEffects,
+  auth: {
+    getAdminContext
+  },
+  callbacks: {
+    onConfigSaved: (_patch, result) => {
+      if (result && result.config) {
+        applyStatusPanelPatch({ configSnapshot: result.config });
+        setAdvancedConfigEditorFromConfig(result.config, true);
+      }
+      if (dashboardState) {
+        dashboardState.invalidate('securityConfig');
+        dashboardState.invalidate('monitoring');
+        dashboardState.invalidate('ip-bans');
+      }
     }
   },
-  readIntegerFieldValue,
-  readBanDurationSeconds,
-  readAdvancedConfigPatch,
-  updateBanDurations,
-  updateGeoConfig,
-  updateHoneypotConfig,
-  updateBrowserPolicyConfig,
-  updateBypassAllowlistConfig,
-  updateEdgeIntegrationModeConfig,
-  refreshRobotsPreview,
-  setAdvancedConfigFromConfig: setAdvancedConfigEditorFromConfig,
-  refreshDashboard: () => refreshActiveTab('config-controls'),
-  checkMazeConfigChanged,
-  checkRobotsConfigChanged,
-  checkAiPolicyConfigChanged,
-  checkGeoConfigChanged,
-  checkHoneypotConfigChanged,
-  checkBrowserPolicyConfigChanged,
-  checkBypassAllowlistsConfigChanged,
-  checkPowConfigChanged,
-  checkChallengePuzzleConfigChanged,
-  checkBotnessConfigChanged,
-  checkCdpConfigChanged,
-  checkEdgeIntegrationModeChanged,
-  checkRateLimitConfigChanged,
-  checkJsRequiredConfigChanged,
-  checkAdvancedConfigChanged,
-  checkBanDurationsChanged,
-  getGeoSavedState: () => getDraft('geo'),
-  setGeoSavedState: setDraftSection('geo'),
-  setMazeSavedState: setDraftSection('maze'),
-  setHoneypotSavedState: setDraftSection('honeypot'),
-  setBrowserPolicySavedState: setDraftSection('browserPolicy'),
-  setBypassAllowlistSavedState: setDraftSection('bypassAllowlists'),
-  setRobotsSavedState: setDraftSection('robots'),
-  setAiPolicySavedState: setDraftSection('aiPolicy'),
-  setPowSavedState: setDraftSection('pow'),
-  setChallengePuzzleSavedState: setDraftSection('challengePuzzle'),
-  setBotnessSavedState: setDraftSection('botness'),
-  setCdpSavedState: setDraftSection('cdp'),
-  setEdgeIntegrationModeSavedState: setDraftSection('edgeMode'),
-  setRateLimitSavedState: setDraftSection('rateLimit'),
-  setJsRequiredSavedState: setDraftSection('jsRequired')
+  readers: {
+    readIntegerFieldValue,
+    readBanDurationSeconds,
+    readAdvancedConfigPatch
+  },
+  parsers: {
+    parseCountryCodesStrict,
+    parseListTextarea,
+    normalizeListTextareaForCompare,
+    parseHoneypotPathsTextarea,
+    parseBrowserRulesTextarea,
+    normalizeBrowserRulesForCompare
+  },
+  updaters: {
+    updateBanDurations,
+    updateGeoConfig,
+    updateHoneypotConfig,
+    updateBrowserPolicyConfig,
+    updateBypassAllowlistConfig,
+    updateEdgeIntegrationModeConfig,
+    refreshRobotsPreview,
+    setAdvancedConfigFromConfig: setAdvancedConfigEditorFromConfig
+  },
+  checks: {
+    checkMazeConfigChanged,
+    checkRobotsConfigChanged,
+    checkAiPolicyConfigChanged,
+    checkGeoConfigChanged,
+    checkHoneypotConfigChanged,
+    checkBrowserPolicyConfigChanged,
+    checkBypassAllowlistsConfigChanged,
+    checkPowConfigChanged,
+    checkChallengePuzzleConfigChanged,
+    checkBotnessConfigChanged,
+    checkCdpConfigChanged,
+    checkEdgeIntegrationModeChanged,
+    checkRateLimitConfigChanged,
+    checkJsRequiredConfigChanged,
+    checkAdvancedConfigChanged,
+    checkBanDurationsChanged
+  },
+  actions: {
+    refreshDashboard: () => refreshActiveTab('config-controls')
+  },
+  draft: {
+    get: getDraft,
+    set: setDraft
+  }
 };
 
 configControls.bind({
-  effects: runtimeEffects,
-  domainApi: configDomainApi
+  context: configControlsContext
 });
 adminSessionController.restoreAdminSession().then((authenticated) => {
   const sessionState = adminSessionController.getState();

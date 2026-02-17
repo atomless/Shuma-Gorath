@@ -135,13 +135,22 @@ const getById = domCache.byId;
         if (!ctx) {
           throw new Error('Missing admin API context');
         }
-        const { endpoint, apikey } = ctx;
+        const { endpoint, apikey, sessionAuth, csrfToken } = ctx;
+        const headers = new Headers({
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        });
+        const apiKeyValue = String(apikey || '').trim();
+        if (apiKeyValue) {
+          headers.set('Authorization', `Bearer ${apiKeyValue}`);
+        }
+        if (sessionAuth === true && String(csrfToken || '').trim()) {
+          headers.set('X-Shuma-CSRF', String(csrfToken).trim());
+        }
         const resp = await requestImpl(`${endpoint}/admin/config`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apikey}`,
-            'Content-Type': 'application/json'
-          },
+          headers,
+          credentials: sessionAuth === true ? 'same-origin' : undefined,
           body: JSON.stringify(patch)
         });
         if (!resp.ok) {

@@ -405,3 +405,16 @@ Moved from active TODO files on 2026-02-14.
 - [x] DSH-FUP-7 Reduce `configControls.bind(...)` coupling by replacing the broad callback bag with a focused domain API object (typed by shape and covered by module tests).
 - [x] DSH-FUP-8 Replace inline style mutations for test-mode visual state with semantic classes/CSS tokens and add coverage to prevent style regressions.
 - [x] DSH-FUP-9 Expand dashboard save-flow test coverage for robots serving, AI policy, GEO scoring/routing, CDP config, and botness config to catch regressions that unit adapter tests miss.
+
+## Additional completions (2026-02-17, section-preserving archive)
+
+### todos/todo.md
+
+#### P3 Dashboard Functional Excellence Remediation (Post-Review)
+- [x] DSH-FEX-1 Remove global `window.fetch` monkey patching from admin session flow and move CSRF/session write handling into explicit request paths (idempotent, no global side effects).
+- [x] DSH-FEX-2 Harden dashboard boot with safe DOM-binding guards for optional/missing elements so markup drift cannot crash initialization.
+- [x] DSH-FEX-3 Refactor status rendering to instance-based state (`create(...)`) rather than module-level mutable singleton state.
+- [x] DSH-FEX-4 Decompose `config-controls.bind(...)` orchestration into declarative save-handler wiring primitives to reduce mixed concerns and imperative branching.
+- [x] DSH-FEX-5 Improve DOM cache semantics to avoid stale/null permanence (re-resolve disconnected or previously missing nodes) with focused unit coverage.
+- [x] DSH-FEX-6 Reduce config-control coupling by replacing the monolithic `domainApi` callback bag with smaller capability namespaces and compatibility tests.
+- [x] DSH-FEX-7 Add regression coverage for: session-auth write CSRF behavior, missing-control boot resilience, and status instance isolation.

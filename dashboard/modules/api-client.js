@@ -4,6 +4,8 @@
  * @typedef {Object} AdminContext
  * @property {string} endpoint
  * @property {string} apikey
+ * @property {boolean} [sessionAuth]
+ * @property {string} [csrfToken]
  */
 
 /**
@@ -17,6 +19,10 @@
  */
 
 const JSON_CONTENT_TYPE = 'application/json';
+const isWriteMethod = (method) => {
+  const upper = String(method || 'GET').toUpperCase();
+  return upper === 'POST' || upper === 'PUT' || upper === 'PATCH' || upper === 'DELETE';
+};
 
 /**
  * @param {string} message
@@ -248,6 +254,19 @@ export const create = (options = {}) => {
     if (!headers.has('Authorization') && String(context.apikey || '').trim()) {
       headers.set('Authorization', `Bearer ${String(context.apikey).trim()}`);
     }
+    const authHeader = headers.get('Authorization') || headers.get('authorization') || '';
+    if (/^Bearer\s*$/i.test(authHeader.trim())) {
+      headers.delete('Authorization');
+      headers.delete('authorization');
+    }
+    if (
+      context &&
+      context.sessionAuth === true &&
+      isWriteMethod(method) &&
+      String(context.csrfToken || '').trim()
+    ) {
+      headers.set('X-Shuma-CSRF', String(context.csrfToken).trim());
+    }
 
     /** @type {BodyInit | null | undefined} */
     let body = options.body;
@@ -259,6 +278,7 @@ export const create = (options = {}) => {
     const response = await requestImpl(`${context.endpoint}${path}`, {
       method,
       headers,
+      credentials: context && context.sessionAuth === true ? 'same-origin' : undefined,
       body: method === 'GET' || method === 'HEAD' ? undefined : body,
       signal: options.signal
     });
