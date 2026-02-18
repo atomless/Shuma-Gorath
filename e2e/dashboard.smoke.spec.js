@@ -3,6 +3,7 @@ const { seedDashboardData } = require("./seed-dashboard-data");
 
 const BASE_URL = process.env.SHUMA_BASE_URL || "http://127.0.0.1:3000";
 const API_KEY = (process.env.SHUMA_API_KEY || "").trim();
+const FORWARDED_IP_SECRET = (process.env.SHUMA_FORWARDED_IP_SECRET || "").trim();
 const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "status", "config", "tuning"]);
 const ADMIN_TABS = Object.freeze(["ip-bans", "status", "config", "tuning"]);
 const runtimeGuards = new WeakMap();
@@ -14,6 +15,16 @@ function ensureRequiredEnv() {
   if (/^changeme/i.test(API_KEY)) {
     throw new Error("SHUMA_API_KEY is a placeholder value; run make setup or make api-key-generate.");
   }
+}
+
+function buildTrustedForwardingHeaders(ip = "127.0.0.1") {
+  const headers = {
+    "X-Forwarded-For": ip
+  };
+  if (FORWARDED_IP_SECRET) {
+    headers["X-Shuma-Forwarded-Secret"] = FORWARDED_IP_SECRET;
+  }
+  return headers;
 }
 
 function isStaticRuntimeRequest(request) {
@@ -204,6 +215,10 @@ async function assertChartsFillPanels(page) {
 test.beforeAll(async () => {
   ensureRequiredEnv();
   await seedDashboardData();
+});
+
+test.beforeEach(async ({ page }) => {
+  await page.context().setExtraHTTPHeaders(buildTrustedForwardingHeaders());
 });
 
 test.afterEach(async ({ page }) => {
