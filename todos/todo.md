@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-02-17
+Last updated: 2026-02-18
 
 This is the active work queue.
 `todos/security-review.md` tracks security finding validity and closure status.
@@ -8,6 +8,10 @@ Completed items are archived in `todos/completed-todo-history.md`.
 
 ## Direction Snapshot (for next implementation stages)
 - [ ] Follow internal-first delivery policy: harden Shuma-native capability paths before completing external-provider parity for the same capability; use enterprise/Akamai patterns to inform design, not as baseline dependencies.
+
+## P0 Priority Override (Highest Priority Queue)
+- [ ] Complete the remaining SvelteKit migration work (`DSH-SVLT-NEXT1.*`, `DSH-SVLT-NEXT2.*`, `DSH-SVLT-NEXT3.*`, `DSH-SVLT-TEST1.*`, `DSH-SVLT-TEST2.*`) before non-critical roadmap work.
+- [ ] Treat all non-blocking research/backlog items below as lower priority until the Svelte-native dashboard path replaces the bridge path.
 
 ## P1 Research Dossiers (Paper-by-Paper TODOs)
 Completion rule for every paper TODO below: capture key findings, map to `self_hosted_minimal` vs `enterprise_akamai` ownership, and propose concrete Shuma TODO updates.
@@ -141,7 +145,7 @@ Implementation rule: when internal feature work touches provider-managed capabil
 - [ ] Evaluate renaming `SHUMA_CHALLENGE_PUZZLE_RISK_THRESHOLD` to `SHUMA_BOTNESS_CHALLENGE_PUZZLE_THRESHOLD` to reflect botness semantics.
 - [ ] Standardize terminology across code/UI/docs so `honeypot` and `maze` are used consistently instead of interchangeably.
 - [ ] Initialize Ban IP pane duration controls from the current Admin Manual Ban default duration so Ban IP and Ban Durations panes stay consistent.
-- [ ] Dashboard modernization now follows full Lit cutover (`DSH-LIT-*`) after framework-adoption gate trigger; remove remaining frameworkless-first assumptions from active docs as migration lands.
+- [x] Dashboard modernization now follows SvelteKit full cutover (`DSH-SVLT-*`) with static adapter output served via Spin (`dist/dashboard`), superseding the prior framework migration direction.
 - [ ] Document setup-time config bootstrapping clearly: how `make setup` creates/populates local env, how env-only vars are sourced, and how KV defaults are seeded and later overridden.
 - [ ] Long-term option: integrate upstream identity/proxy auth (OIDC/SAML) for dashboard/admin instead of app-level key login.
 
@@ -163,63 +167,71 @@ Implementation rule: when internal feature work touches provider-managed capabil
 - [ ] MON-TEL-7 Add tests for telemetry correctness and dashboard rendering states (empty/loading/error/data) for each new monitoring section, including cardinality guardrails and retention-window behavior.
 - [ ] MON-TEL-7.a Extend dashboard automated tests to assert new monitoring cards/tables/charts across empty/loading/error/data states, not just adapter contracts.
 
-### P3 Dashboard Lit Full Cutover (All Tabs, Excellence Architecture)
-Reference plan: `docs/plans/2026-02-17-dashboard-lit-full-cutover.md`
+### P0 Dashboard SvelteKit Full Cutover (All Tabs, Excellence Architecture)
+Reference plan: `docs/plans/2026-02-18-dashboard-sveltekit-full-cutover.md`
 
 #### Decision and migration guardrails
-- [x] DSH-LIT-R0 Convert the latest dashboard review findings into a sequenced Lit full-cutover backlog with explicit architecture targets, no-compat pre-launch assumptions, and verification gates.
-- [x] DSH-LIT-R1 Record gate-trigger evidence and supersede frameworkless-first decision text in dashboard planning docs, including rationale for full cutover across all tabs.
-- [x] DSH-LIT-R2 Define hard cutover constraints: single Lit app entrypoint, no long-lived dual-wiring, and explicit legacy module-removal completion criteria.
+- [x] DSH-SVLT-R0 Record architecture decision for SvelteKit full cutover and supersede the prior framework migration direction (`docs/adr/0002-dashboard-sveltekit-cutover.md`).
+- [x] DSH-SVLT-R1 Preserve route and behavior contracts (`/dashboard/index.html`, `/dashboard/login.html`, hash-tab UX) during migration.
+- [x] DSH-SVLT-R2 Keep deployment static-only (adapter-static + Spin fileserver), with no Node server in production runtime.
 
-#### Lit runtime and platform foundations
-- [ ] DSH-LIT-DEP1 Add pinned Lit runtime loading strategy suitable for no-build-step deployment (local vendored ESM + integrity/provenance notes; no runtime CDN dependency).
-- [ ] DSH-LIT-APP1 Introduce root `<shuma-dashboard-app>` Lit component as the only dashboard boot surface (routing, tab shell, auth/session gate, refresh lifecycle wiring).
-- [ ] DSH-LIT-APP2 Move all module-scope event wiring into explicit component lifecycle hooks (`connectedCallback`/`disconnectedCallback`) to eliminate parse-time side effects.
-- [ ] DSH-LIT-APP3 Replace global coordinator responsibilities with explicit feature controllers mounted through the app shell (monitoring, ip-bans, status, config, tuning).
+#### SvelteKit runtime and platform foundations
+- [x] DSH-SVLT-PLAT1 Add SvelteKit app scaffolding under `dashboard/` with static adapter output to `dist/dashboard`.
+- [x] DSH-SVLT-PLAT2 Wire `spin.toml` dashboard static source to `dist/dashboard`.
+- [x] DSH-SVLT-PLAT3 Add canonical dashboard build integration to `make dev`, `make run`, and `make build`.
 
-#### State, effects, and data flow architecture
-- [ ] DSH-LIT-STATE1 Add centralized immutable dashboard store (`state + reducer + action creators + selectors`) and remove ad-hoc mutable orchestration globals.
-- [ ] DSH-LIT-STATE2 Move all API and side effects into explicit service/effect adapters (network, timers, clipboard, history/hash) injected into feature controllers/components.
-- [ ] DSH-LIT-STATE3 Replace broad `refreshCoreActionButtonsState()` fan-out with selector-driven recomputation scoped to affected controls/sections only.
-- [ ] DSH-LIT-STATE4 Remove wrapper/null-guard bridge functions caused by init-order coupling by making init order explicit in app shell lifecycle.
+#### UI and lifecycle migration
+- [x] DSH-SVLT-UI1 Move dashboard/login page shells into Svelte routes while preserving exact design and DOM IDs.
+- [x] DSH-SVLT-LIFE1 Introduce explicit Svelte route lifecycle bridges that mount legacy dashboard/login runtimes.
+- [x] DSH-SVLT-LIFE2 Keep local chart runtime vendored and loaded from static assets under the SvelteKit base path.
 
-#### Config domain redesign (addresses `config-controls.js` + `config-ui-state.js` review findings)
-- [ ] DSH-LIT-CFG1 Replace procedural config save handlers with a declarative save registry (`buttonId`, validator set, patch builder, draft key, success reducer, post-save hooks).
-- [ ] DSH-LIT-CFG2 Build a generic config save pipeline from the registry (`authorize -> validate -> save -> commit draft -> emit UI status`) and remove duplicated handler flow code.
-- [ ] DSH-LIT-CFG3 Replace monolithic config response->DOM updater logic with declarative config-to-form binding specs + coercion adapters.
-- [ ] DSH-LIT-CFG4 Split Config tab into section-scoped Lit components (maze, robots+ai-policy, geo, honeypot, browser policy, bypass lists, challenge+pow, botness, cdp, edge mode, advanced patch editor).
-- [ ] DSH-LIT-CFG5 Implement section-local dirty state selectors and save-button enablement; remove whole-page dirty rechecks on every field input.
-- [ ] DSH-LIT-CFG6 Keep shared schema as single source of truth for writable paths, section grouping, defaults, coercions, validation bounds, and status meaning references.
+#### Follow-up architecture hardening
+- [ ] DSH-SVLT-NEXT1 Replace legacy runtime bridge with Svelte-native store/actions for tab lifecycle, polling, and session/auth state.
+- [ ] DSH-SVLT-NEXT2 Split monitoring/ip-bans/status/config/tuning into dedicated Svelte component trees with declarative rendering.
+- [ ] DSH-SVLT-NEXT3 Remove legacy shell source files once Svelte-native component parity is complete.
 
-#### Status and inventory redesign
-- [ ] DSH-LIT-STS1 Split status module into domain state/classification data and Lit rendering components; remove mixed state/render responsibilities from one module.
-- [ ] DSH-LIT-STS2 Render runtime variable inventory with declarative Lit templates (no string-built nested `innerHTML` tables) and preserve grouped table semantics.
-- [ ] DSH-LIT-STS3 Keep admin-write highlighting and meaning metadata centralized in shared schema/data modules to avoid drift with Config tab.
+##### DSH-SVLT-NEXT1 Detailed execution steps
+- [ ] DSH-SVLT-NEXT1.1 Add centralized dashboard store module (`state`, `actions`, `selectors`) for active tab, auth/session, tab status (loading/error/empty), snapshots, and stale flags.
+- [ ] DSH-SVLT-NEXT1.2 Add explicit effect adapters for network, timers, history/hash writes, and page-visibility events; forbid direct effect calls from UI components.
+- [ ] DSH-SVLT-NEXT1.3 Replace hash/tab behavior from legacy coordinator with Svelte-owned tab action pipeline (`activateTab`, keyboard nav, hash sync, reload persistence).
+- [ ] DSH-SVLT-NEXT1.4 Add Svelte-owned polling scheduler with per-tab cadence (`30s/45s/60s`) and visibility pause/resume semantics matching current behavior.
+- [ ] DSH-SVLT-NEXT1.5 Add Svelte-owned auth/session bootstrap (`/admin/session` check, login redirect, logout action, csrf token propagation).
+- [ ] DSH-SVLT-NEXT1.6 Move config dirty-state tracking from legacy runtime into store-level draft baselines and section-local derived selectors.
+- [ ] DSH-SVLT-NEXT1.7 Gate legacy bridge boot behind a migration toggle and switch default path to Svelte-native store/actions once parity tests pass.
 
-#### Rendering and component system excellence
-- [ ] DSH-LIT-UI1 Replace remaining string-template `innerHTML` rendering in dashboard modules with Lit templates/directives (`repeat`, keyed rows, conditionals).
-- [ ] DSH-LIT-UI2 Add shared presentational primitives (stat cards, offender card, table shell, empty/loading/error state blocks, form field rows) used across all tabs.
-- [ ] DSH-LIT-UI3 Enforce safe rendering rules: no unvetted `unsafeHTML`, no manual HTML concatenation paths for data-bearing UI, and centralized escaping/formatting utilities where text conversion is required.
+##### DSH-SVLT-NEXT2 Detailed execution steps
+- [ ] DSH-SVLT-NEXT2.1 Create shared Svelte UI primitives for tab state messages, stat cards, table wrappers, and empty/loading/error blocks.
+- [ ] DSH-SVLT-NEXT2.2 Implement Monitoring component tree (cards, charts, events table, monitoring summaries, Prometheus helper) using declarative rendering only.
+- [ ] DSH-SVLT-NEXT2.3 Implement IP Bans component tree (ban table, quick-unban interactions, row-detail expansion) with store-driven actions.
+- [ ] DSH-SVLT-NEXT2.4 Implement Status component tree (status cards + runtime variable inventory tables) with shared schema-driven metadata.
+- [ ] DSH-SVLT-NEXT2.5 Implement Config component tree split by concern (maze, robots/ai policy, geo, honeypot, browser policy, bypass lists, challenge/pow, cdp, edge mode, advanced JSON).
+- [ ] DSH-SVLT-NEXT2.6 Implement Tuning component tree (botness thresholds/weights/status blocks) with the same save/dirty architecture as Config.
+- [ ] DSH-SVLT-NEXT2.7 Migrate chart lifecycle management into Svelte-friendly adapters (`onMount`/`onDestroy`, no global chart instance leaks).
+- [ ] DSH-SVLT-NEXT2.8 Complete no-net-behavior parity pass against current smoke contracts for all five tabs before deleting legacy path.
 
-#### Full-tab Lit migration (all-in scope, not monitoring-only)
-- [ ] DSH-LIT-TAB1 Migrate Monitoring tab completely to Lit components, preserving chart/event behavior contracts and telemetry helper UX.
-- [ ] DSH-LIT-TAB2 Migrate IP Bans tab completely to Lit components, including quick-unban interactions and detail expansion behavior.
-- [ ] DSH-LIT-TAB3 Migrate Status tab completely to Lit components, including feature-status cards and runtime variable inventory.
-- [ ] DSH-LIT-TAB4 Migrate Config tab completely to Lit components using the new config registry/binding architecture.
-- [ ] DSH-LIT-TAB5 Migrate Tuning tab completely to Lit components and align its controls with the same state/save architecture as Config.
-
-#### Legacy removal and hard cutover completion
-- [ ] DSH-LIT-CUT1 Switch `dashboard/index.html` to Lit app entrypoint only and remove old imperative bootstrap path once parity gates pass.
-- [ ] DSH-LIT-CUT2 Remove or archive superseded modules (`dashboard.js` orchestration remnants and obsolete procedural helpers) with no dead code left.
-- [ ] DSH-LIT-CUT3 Add static guards that fail CI on prohibited legacy patterns in dashboard code (`innerHTML` data rendering, module-scope event binding, direct DOM query storm patterns).
+##### DSH-SVLT-NEXT3 Detailed execution steps
+- [ ] DSH-SVLT-NEXT3.1 Remove shell fragment injection path (`src/lib/shell/*.html` + `{@html ...}`) after Svelte-native component parity is complete.
+- [ ] DSH-SVLT-NEXT3.2 Remove bridge modules (`src/lib/bridges/*.js`) and legacy runtime boot globals once no longer referenced.
+- [ ] DSH-SVLT-NEXT3.3 Remove or archive superseded legacy dashboard entry shell dependencies (`dashboard/index.html`, `dashboard/login.html`) from active runtime path.
+- [ ] DSH-SVLT-NEXT3.4 Remove unused legacy orchestration modules from active dependency graph and keep only reusable domain adapters.
+- [ ] DSH-SVLT-NEXT3.5 Add static guardrails preventing reintroduction of bridge-era anti-patterns (`{@html}` shell injection, route-level legacy runtime imports).
 
 #### Verification, quality gates, and docs
-- [ ] DSH-LIT-TEST1 Add unit coverage for store reducer/selectors, config save registry pipeline, config binding spec coercion, and status classification logic.
-- [ ] DSH-LIT-TEST2 Add component-level tests for each tab’s Lit components (render, state transitions, loading/empty/error/data, and interaction events).
-- [ ] DSH-LIT-TEST3 Expand Playwright e2e contracts to assert full-tab parity after Lit cutover (hash routes, keyboard nav, auth/session, save flows, monitoring interactions, logout).
-- [ ] DSH-LIT-TEST4 Keep canonical verification discipline per slice (`make test` with Spin running + `make build`) and fail migration slices that reduce test coverage.
-- [ ] DSH-LIT-DOC1 Update public docs (`README.md`, `docs/dashboard.md`, `docs/testing.md`) and contributor docs with Lit architecture, component boundaries, and maintenance guidance.
-- [ ] DSH-LIT-DOC2 Publish a final post-cutover no-net-behavior audit documenting intentional deltas and rollback strategy.
+- [ ] DSH-SVLT-TEST1 Add targeted tests for Svelte route bridge lifecycle (single-mount guarantees, duplicate listener prevention, teardown behavior).
+- [ ] DSH-SVLT-TEST2 Expand Playwright assertions for generated SvelteKit asset/runtime loading under `/dashboard` base path.
+- [x] DSH-SVLT-DOC1 Update dashboard docs to reflect SvelteKit runtime, file layout, and rollback procedure.
+
+##### DSH-SVLT-TEST1 Detailed execution steps
+- [ ] DSH-SVLT-TEST1.1 Add unit tests for single-mount guarantees when route is revisited (no duplicate listeners/timers/intervals).
+- [ ] DSH-SVLT-TEST1.2 Add unit tests for teardown behavior on route unmount (listener cleanup, polling stop, chart cleanup).
+- [ ] DSH-SVLT-TEST1.3 Add unit tests for auth/session bootstrap transitions (`authenticated`, `unauthenticated`, `expired`) in Svelte-native path.
+- [ ] DSH-SVLT-TEST1.4 Add unit tests for hash-route/tab keyboard behavior in Svelte-native tab actions.
+
+##### DSH-SVLT-TEST2 Detailed execution steps
+- [ ] DSH-SVLT-TEST2.1 Add Playwright assertions that dashboard static assets resolve under `/dashboard/_app/*` and `/dashboard/assets/*` without 4xx/5xx.
+- [ ] DSH-SVLT-TEST2.2 Add Playwright assertion that `/dashboard/login.html` stays functional after direct navigation and refresh.
+- [ ] DSH-SVLT-TEST2.3 Add Playwright assertion that `/dashboard` redirect contract remains `308 -> /dashboard/index.html`.
+- [ ] DSH-SVLT-TEST2.4 Add Playwright runtime-failure guardrails for missing module/stylesheet/script requests in generated SvelteKit output.
 
 ## Recurring Quality Gates
 - [ ] Keep unit, integration, e2e, and CI flows passing; clean up defunct tests quickly.
