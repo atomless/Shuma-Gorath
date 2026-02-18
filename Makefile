@@ -76,7 +76,7 @@ SHUMA_DASHBOARD_BUNDLE_MAX_CSS_ASSET_BYTES ?= 30000
 # Setup (first-time)
 #--------------------------
 
-setup: ## Install all dependencies (Rust, Spin, cargo-watch)
+setup: ## Install all dependencies (Rust, Spin, cargo-watch, Node toolchain, pnpm deps, Playwright Chromium)
 	@./scripts/bootstrap/setup.sh
 
 verify: ## Verify all dependencies are installed correctly

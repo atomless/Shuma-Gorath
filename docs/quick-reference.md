@@ -6,7 +6,7 @@ For full documentation, see `docs/index.md`.
 
 ### 🐙 Setup
 ```bash
-make setup          # Install dependencies (Rust, Spin, cargo-watch)
+make setup          # Install dependencies (Rust, Spin, cargo-watch, Node toolchain, pnpm deps, Playwright Chromium)
 make verify         # Verify dependencies are installed
 ```
 
