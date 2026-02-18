@@ -120,7 +120,7 @@
 <div class="container panel panel-border" data-dashboard-runtime-mode="native">
   <header>
     <div class="shuma-image-wrapper">
-      <img src="assets/shuma-gorath-white.png" alt="Shuma-Gorath" class="shuma-gorath-img">
+      <img src="/assets/shuma-gorath-pencil.png" alt="Shuma-Gorath" class="shuma-gorath-img">
     </div>
     <h1>Shuma-Gorath</h1>
     <p class="subtitle text-muted">Multi-Dimensional Bot Defence</p>
