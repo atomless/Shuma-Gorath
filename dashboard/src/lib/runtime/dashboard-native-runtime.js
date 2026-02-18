@@ -1,7 +1,6 @@
 // @ts-check
 
 import { createDashboardCharts } from '../../../modules/charts.js';
-import * as statusModule from '../../../modules/status.js';
 import * as configControls from '../../../modules/config-controls.js';
 import * as adminSessionModule from '../../../modules/admin-session.js';
 import * as tabLifecycleModule from '../../../modules/tab-lifecycle.js';
@@ -142,7 +141,6 @@ let configUiState = null;
 let inputValidation = null;
 let configDraftStore = null;
 let runtimeEffects = null;
-let statusPanel = null;
 let configDirtyRuntime = null;
 let tabRuntime = null;
 let sessionRuntime = null;
@@ -388,31 +386,8 @@ function adminConfigWriteEnabled(config) {
   return parseBoolLike(config && config.admin_config_write_enabled, false);
 }
 
-function applyStatusPanelPatch(patch) {
-  if (!statusPanel) return;
-  if (typeof statusPanel.applyPatch === 'function') {
-    statusPanel.applyPatch(patch);
-    return;
-  }
-  statusPanel.update(patch);
-  statusPanel.render();
-}
-
-function updateConfigModeUi(config, baseStatusPatch = {}) {
+function updateConfigModeUi(config) {
   const writeEnabled = adminConfigWriteEnabled(config);
-  const failModeFromConfig = parseBoolLike(config && config.kv_store_fail_open, true)
-    ? 'open'
-    : 'closed';
-  applyStatusPanelPatch({
-    ...baseStatusPatch,
-    testMode: parseBoolLike(config && config.test_mode, false),
-    failMode: statusModule.normalizeFailMode(failModeFromConfig),
-    httpsEnforced: parseBoolLike(config && config.https_enforced, false),
-    forwardedHeaderTrustConfigured: parseBoolLike(
-      config && config.forwarded_header_trust_configured,
-      false
-    )
-  });
   const subtitle = getById('config-mode-subtitle');
   if (subtitle) {
     if (writeEnabled) {
@@ -1024,8 +999,6 @@ export async function mountDashboardApp(options = {}) {
 
   configDraftStore = configDraftStoreModule.create(CONFIG_DRAFT_DEFAULTS);
   runtimeEffects = createRuntimeEffects();
-  statusPanel = statusModule.create({ document });
-
   dashboardState = resolveDashboardStateStore(options);
   dashboardState.setActiveTab(runtimeMountOptions.initialTab);
   tabStateRuntime = createDashboardTabStateRuntime({
@@ -1100,7 +1073,6 @@ export async function mountDashboardApp(options = {}) {
     getById,
     setDraft,
     getDraft,
-    statusPanel,
     adminConfigWriteEnabled,
     parseBoolLike,
     normalizeEdgeIntegrationMode,
@@ -1160,10 +1132,7 @@ export async function mountDashboardApp(options = {}) {
     apiClient: dashboardApiClient,
     chartConstructor
   });
-  statusPanel.render();
-
   const configControlsContext = {
-    statusPanel,
     apiClient: dashboardApiClient,
     effects: runtimeEffects,
     auth: {
@@ -1172,7 +1141,6 @@ export async function mountDashboardApp(options = {}) {
     callbacks: {
       onConfigSaved: (_patch, result) => {
         if (result && result.config) {
-          applyStatusPanelPatch({ configSnapshot: result.config });
           setAdvancedConfigEditorFromConfig(result.config, true);
         }
         if (dashboardState) {
@@ -1305,7 +1273,6 @@ export function unmountDashboardApp() {
   inputValidation = null;
   configDraftStore = null;
   runtimeEffects = null;
-  statusPanel = null;
   adminSessionController = null;
   releaseChartRuntime({ window });
 }

@@ -114,9 +114,11 @@ make test-dashboard-e2e
 
 Behavior:
 1. Installs pinned Playwright dependencies via `pnpm` (through `corepack`).
-2. Uses repo-local Playwright runtime paths for deterministic execution:
+2. Uses repo-local Playwright browser cache for deterministic execution:
    - browser cache: `.cache/ms-playwright`
-   - browser home/config: `.cache/playwright-home`
+   - by default the runner keeps system `HOME` for browser launch stability in restricted sandboxes
+   - optional: set `PLAYWRIGHT_FORCE_LOCAL_HOME=1` to use repo-local browser home/config at `.cache/playwright-home`
+   - if Chromium launch fails with a known sandbox signature while local HOME is forced, the runner retries preflight with system HOME
 3. Runs a Chromium launch preflight and fails fast with actionable diagnostics when sandbox permissions block browser startup.
 4. Runs dashboard module unit tests via `make test-dashboard-unit`.
 5. Runs dashboard bundle-size budget gate (`scripts/tests/check_dashboard_bundle_budget.js`) against `dist/dashboard/_app`.

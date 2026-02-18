@@ -1,9 +1,8 @@
 // @ts-check
 
 import { writableStatusVarPaths } from './config-schema.js';
-import * as statusView from './status-view.js';
 
-  const INITIAL_STATE = Object.freeze({
+const INITIAL_STATE = Object.freeze({
     failMode: 'unknown',
     httpsEnforced: false,
     forwardedHeaderTrustConfigured: false,
@@ -32,15 +31,15 @@ import * as statusView from './status-view.js';
     configSnapshot: {}
   });
 
-  const createInitialState = () => ({
+const createInitialState = () => ({
     ...INITIAL_STATE,
     botnessWeights: { ...INITIAL_STATE.botnessWeights },
     configSnapshot: cloneConfigSnapshot(INITIAL_STATE.configSnapshot)
   });
 
-  const WRITABLE_VAR_PATHS = new Set(writableStatusVarPaths || []);
+const WRITABLE_VAR_PATHS = new Set(writableStatusVarPaths || []);
 
-  const VAR_MEANINGS = Object.freeze({
+const VAR_MEANINGS = Object.freeze({
     test_mode: 'Logs detections/actions without enforcing blocks.',
     ban_duration: 'Legacy fallback ban duration (seconds) when no specific trigger duration applies.',
     'ban_durations.honeypot': 'Ban duration (seconds) for honeypot/instaban trigger.',
@@ -166,7 +165,7 @@ import * as statusView from './status-view.js';
     'botness_signal_definitions.terminal_signals': 'Terminal signals that immediately enforce actions.'
   });
 
-  const VAR_GROUP_DEFINITIONS = Object.freeze([
+const VAR_GROUP_DEFINITIONS = Object.freeze([
     {
       key: 'policy_runtime',
       title: 'Policy and Runtime Controls',
@@ -236,21 +235,21 @@ import * as statusView from './status-view.js';
     }
   ]);
 
-  function envVar(name) {
+function envVar(name) {
     return `<code class="env-var">${name}</code>`;
   }
 
-  export function normalizeFailMode(value) {
+export function normalizeFailMode(value) {
     const mode = (value || 'unknown').toString().toLowerCase();
     if (mode === 'open' || mode === 'closed') return mode;
     return 'unknown';
   }
 
-  function boolStatus(enabled) {
+function boolStatus(enabled) {
     return enabled ? 'ENABLED' : 'DISABLED';
   }
 
-  function cloneConfigSnapshot(configSnapshot) {
+function cloneConfigSnapshot(configSnapshot) {
     if (!configSnapshot || typeof configSnapshot !== 'object') return {};
     try {
       return JSON.parse(JSON.stringify(configSnapshot));
@@ -259,7 +258,65 @@ import * as statusView from './status-view.js';
     }
   }
 
-  function flattenConfigEntries(value, prefix = '') {
+function parseBoolLike(value, fallback) {
+    if (typeof value === 'boolean') return value;
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) return fallback;
+    if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on') return true;
+    if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'off') return false;
+    return fallback;
+  }
+
+function parseIntegerLike(value, fallback) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+function listCount(value) {
+    return Array.isArray(value) ? value.length : 0;
+  }
+
+export function deriveStatusSnapshot(configSnapshot = {}) {
+    const config = configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {};
+    const base = createInitialState();
+    const botnessWeights = config.botness_weights && typeof config.botness_weights === 'object'
+      ? config.botness_weights
+      : {};
+    return {
+      ...base,
+      failMode: parseBoolLike(config.kv_store_fail_open, true) ? 'open' : 'closed',
+      httpsEnforced: parseBoolLike(config.https_enforced, false),
+      forwardedHeaderTrustConfigured: parseBoolLike(config.forwarded_header_trust_configured, false),
+      testMode: parseBoolLike(config.test_mode, false),
+      powEnabled: parseBoolLike(config.pow_enabled, true),
+      mazeEnabled: parseBoolLike(config.maze_enabled, true),
+      mazeAutoBan: parseBoolLike(config.maze_auto_ban, true),
+      cdpEnabled: parseBoolLike(config.cdp_detection_enabled, true),
+      cdpAutoBan: parseBoolLike(config.cdp_auto_ban, true),
+      jsRequiredEnforced: parseBoolLike(config.js_required_enforced, true),
+      challengeEnabled: parseBoolLike(config.challenge_puzzle_enabled, true),
+      challengeThreshold: parseIntegerLike(
+        config.challenge_puzzle_risk_threshold,
+        base.challengeThreshold
+      ),
+      mazeThreshold: parseIntegerLike(config.botness_maze_threshold, base.mazeThreshold),
+      rateLimit: parseIntegerLike(config.rate_limit, base.rateLimit),
+      geoRiskCount: listCount(config.geo_risk),
+      geoAllowCount: listCount(config.geo_allow),
+      geoChallengeCount: listCount(config.geo_challenge),
+      geoMazeCount: listCount(config.geo_maze),
+      geoBlockCount: listCount(config.geo_block),
+      botnessWeights: {
+        js_required: parseIntegerLike(botnessWeights.js_required, base.botnessWeights.js_required),
+        geo_risk: parseIntegerLike(botnessWeights.geo_risk, base.botnessWeights.geo_risk),
+        rate_medium: parseIntegerLike(botnessWeights.rate_medium, base.botnessWeights.rate_medium),
+        rate_high: parseIntegerLike(botnessWeights.rate_high, base.botnessWeights.rate_high)
+      },
+      configSnapshot: cloneConfigSnapshot(config)
+    };
+  }
+
+function flattenConfigEntries(value, prefix = '') {
     if (value === null || value === undefined) {
       return [{ path: prefix, value: value === undefined ? null : value }];
     }
@@ -286,11 +343,11 @@ import * as statusView from './status-view.js';
     return entries;
   }
 
-  function classifyVarPath(path) {
+function classifyVarPath(path) {
     return WRITABLE_VAR_PATHS.has(path) ? 'ADMIN_WRITE' : 'READ_ONLY';
   }
 
-  function classifyVarGroup(path) {
+function classifyVarGroup(path) {
     const matched = VAR_GROUP_DEFINITIONS.find(group => group.matches(path));
     if (matched) return matched;
     return {
@@ -299,28 +356,28 @@ import * as statusView from './status-view.js';
     };
   }
 
-  function formatVarValue(value) {
+function formatVarValue(value) {
     if (value === null) return 'null';
     if (Array.isArray(value)) return JSON.stringify(value);
     if (typeof value === 'object') return JSON.stringify(value);
     return String(value);
   }
 
-  function humanizeVarPath(path) {
+function humanizeVarPath(path) {
     return path
       .replace(/\./g, ' ')
       .replace(/_/g, ' ')
       .replace(/\b[a-z]/g, char => char.toUpperCase());
   }
 
-  function meaningForVarPath(path) {
+function meaningForVarPath(path) {
     if (Object.prototype.hasOwnProperty.call(VAR_MEANINGS, path)) {
       return VAR_MEANINGS[path];
     }
     return `${humanizeVarPath(path)} runtime value. See docs/configuration.md for canonical definition.`;
   }
 
-  function cumulativeBotnessRoutingText(snapshot) {
+function cumulativeBotnessRoutingText(snapshot) {
     return (
       `This contributes to the cumulative <strong>botness</strong> score used for defense routing decisions ` +
       `(challenge at <strong>${snapshot.challengeThreshold}</strong>, maze at <strong>${snapshot.mazeThreshold}</strong>, ` +
@@ -328,7 +385,7 @@ import * as statusView from './status-view.js';
     );
   }
 
-  const STATUS_DEFINITIONS = [
+const STATUS_DEFINITIONS = [
     {
       title: 'Fail Mode Policy',
       description: () => (
@@ -437,7 +494,7 @@ import * as statusView from './status-view.js';
     }
   ];
 
-  function buildFeatureStatusItems(snapshot) {
+export function buildFeatureStatusItems(snapshot) {
     return STATUS_DEFINITIONS.map((definition) => ({
       title: definition.title,
       description: definition.description(snapshot),
@@ -445,7 +502,7 @@ import * as statusView from './status-view.js';
     }));
   }
 
-  function buildVariableInventoryGroups(snapshot) {
+export function buildVariableInventoryGroups(snapshot) {
     const flattened = flattenConfigEntries(snapshot.configSnapshot || {})
       .filter((entry) => entry.path && entry.path.length > 0)
       .map((entry) => {
@@ -492,54 +549,3 @@ import * as statusView from './status-view.js';
       .filter((key) => grouped.has(key));
     return orderedGroupKeys.map((key) => grouped.get(key));
   }
-
-export const create = (options = {}) => {
-  const doc = options.document || document;
-  const state = createInitialState();
-
-    const getState = () => ({
-      ...state,
-      botnessWeights: { ...state.botnessWeights },
-      configSnapshot: cloneConfigSnapshot(state.configSnapshot)
-    });
-
-    const update = (patch = {}) => {
-      if (!patch || typeof patch !== 'object') return getState();
-      if (Object.prototype.hasOwnProperty.call(patch, 'configSnapshot')) {
-        state.configSnapshot = cloneConfigSnapshot(patch.configSnapshot);
-      }
-      if (patch.botnessWeights && typeof patch.botnessWeights === 'object') {
-        state.botnessWeights = {
-          ...state.botnessWeights,
-          ...patch.botnessWeights
-        };
-      }
-      Object.keys(patch).forEach((key) => {
-        if (key === 'botnessWeights' || key === 'configSnapshot') return;
-        if (Object.prototype.hasOwnProperty.call(state, key)) {
-          state[key] = patch[key];
-        }
-      });
-      return getState();
-    };
-
-  const render = () => {
-    const snapshot = getState();
-    statusView.renderFeatureStatus(doc, buildFeatureStatusItems(snapshot));
-    statusView.renderVariableInventory(doc, buildVariableInventoryGroups(snapshot));
-  };
-
-  const applyPatch = (patch = {}) => {
-    update(patch);
-    render();
-    return getState();
-  };
-
-  return {
-    normalizeFailMode,
-    update,
-    applyPatch,
-    getState,
-    render
-  };
-};

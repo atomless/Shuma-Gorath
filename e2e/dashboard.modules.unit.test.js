@@ -1528,7 +1528,6 @@ test('config ui state preserves in-progress maze edits during background config 
   const drafts = {
     maze: { enabled: true, autoBan: false, threshold: 51 }
   };
-  const statusPatches = [];
 
   const mockDocument = {
     activeElement: elements['maze-threshold'],
@@ -1545,10 +1544,7 @@ test('config ui state preserves in-progress maze edits during background config 
       setDraft: (section, value) => {
         drafts[section] = JSON.parse(JSON.stringify(value));
       },
-      getDraft: (section) => drafts[section] || {},
-      statusPanel: {
-        applyPatch: (patch) => statusPatches.push(patch)
-      }
+      getDraft: (section) => drafts[section] || {}
     });
 
     api.updateMazeConfig({
@@ -1562,7 +1558,6 @@ test('config ui state preserves in-progress maze edits during background config 
     assert.equal(elements['maze-auto-ban-toggle'].checked, false);
     assert.equal(elements['save-maze-config'].disabled, false);
     assert.deepEqual(drafts.maze, { enabled: true, autoBan: false, threshold: 51 });
-    assert.equal(statusPatches.length, 0);
 
     elements['save-maze-config'].disabled = true;
     mockDocument.activeElement = null;
@@ -1578,7 +1573,6 @@ test('config ui state preserves in-progress maze edits during background config 
     assert.equal(elements['maze-auto-ban-toggle'].checked, true);
     assert.equal(elements['save-maze-config'].disabled, true);
     assert.deepEqual(drafts.maze, { enabled: false, autoBan: true, threshold: 25 });
-    assert.deepEqual(statusPatches.pop(), { mazeEnabled: false, mazeAutoBan: true });
   });
 });
 
@@ -1611,7 +1605,7 @@ test('core dom cache re-resolves disconnected and previously-missing nodes', { c
   assert.equal(byIdLookupCount, 3);
 });
 
-test('status module creates isolated state instances', { concurrency: false }, async () => {
+test('status module derives snapshot-driven status model without mutating input', { concurrency: false }, async () => {
   await withBrowserGlobals({
     document: {
       getElementById: () => null,
@@ -1620,26 +1614,40 @@ test('status module creates isolated state instances', { concurrency: false }, a
     }
   }, async () => {
     const statusModule = await importBrowserModule('dashboard/modules/status.js');
-    const first = statusModule.create({ document });
-    const second = statusModule.create({ document });
+    const configSnapshot = {
+      test_mode: true,
+      pow_enabled: false,
+      js_required_enforced: false,
+      maze_enabled: true,
+      geo_risk: ['GB', 'US'],
+      botness_weights: {
+        js_required: 4,
+        geo_risk: 7,
+        rate_medium: 2,
+        rate_high: 3
+      }
+    };
 
-    first.update({
-      testMode: true,
-      botnessWeights: { geo_risk: 9 },
-      configSnapshot: { maze_enabled: true }
-    });
+    const derived = statusModule.deriveStatusSnapshot(configSnapshot);
+    assert.equal(derived.testMode, true);
+    assert.equal(derived.powEnabled, false);
+    assert.equal(derived.jsRequiredEnforced, false);
+    assert.equal(derived.geoRiskCount, 2);
+    assert.equal(derived.botnessWeights.geo_risk, 7);
 
-    assert.equal(first.getState().testMode, true);
-    assert.equal(second.getState().testMode, false);
-    assert.equal(second.getState().botnessWeights.geo_risk, 2);
+    configSnapshot.botness_weights.geo_risk = 999;
+    configSnapshot.maze_enabled = false;
+    assert.equal(derived.botnessWeights.geo_risk, 7);
+    assert.equal(derived.mazeEnabled, true);
 
-    const snapshot = first.getState();
-    snapshot.botnessWeights.geo_risk = 42;
-    snapshot.configSnapshot.maze_enabled = false;
+    const features = statusModule.buildFeatureStatusItems(derived);
+    const jsRequired = features.find((item) => item.title === 'JS Required');
+    assert.equal(Boolean(jsRequired), true);
+    assert.equal(jsRequired.status, 'DISABLED');
 
-    const next = first.getState();
-    assert.equal(next.botnessWeights.geo_risk, 9);
-    assert.equal(next.configSnapshot.maze_enabled, true);
+    const groups = statusModule.buildVariableInventoryGroups(derived);
+    assert.equal(Array.isArray(groups), true);
+    assert.equal(groups.length > 0, true);
   });
 });
 
@@ -1989,7 +1997,6 @@ test('config controls normalizes typed context into compatibility surface', { co
     const controls = await importBrowserModule('dashboard/modules/config-controls.js');
     const normalized = controls._normalizeContextOptions({
       context: {
-        statusPanel: { update: () => {}, render: () => {} },
         apiClient: { updateConfig: async () => ({ config: {} }) },
         auth: { getAdminContext: () => ({ endpoint: 'http://x', apikey: 'y' }) },
         readers: { readIntegerFieldValue: () => 1 },
@@ -2063,9 +2070,6 @@ test('config controls registry save pipeline persists maze settings through gene
     const controls = await importBrowserModule('dashboard/modules/config-controls.js');
     controls.bind({
       context: {
-        statusPanel: {
-          applyPatch: () => {}
-        },
         apiClient: {
           updateConfig: async (patch) => {
             patches.push(patch);
@@ -2856,6 +2860,10 @@ test('dashboard modules are reachable from route/runtime entry graph (no dead wr
   const routeAndRuntimeEntries = [
     path.join(dashboardRoot, 'src/routes/+page.svelte'),
     path.join(dashboardRoot, 'src/routes/login.html/+page.svelte'),
+    ...fs
+      .readdirSync(path.join(dashboardRoot, 'src/lib/components/dashboard'))
+      .filter((name) => name.endsWith('.svelte'))
+      .map((name) => path.join(dashboardRoot, 'src/lib/components/dashboard', name)),
     ...listJsFilesRecursively(path.join(dashboardRoot, 'src/lib/runtime'))
   ];
   const queue = routeAndRuntimeEntries.filter((absolutePath) => fs.existsSync(absolutePath));

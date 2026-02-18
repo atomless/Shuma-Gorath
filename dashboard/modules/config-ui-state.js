@@ -107,15 +107,6 @@ export const create = (options = {}) => {
   const setDraft = typeof options.setDraft === 'function' ? options.setDraft : () => {};
   const getDraft = typeof options.getDraft === 'function' ? options.getDraft : () => ({});
 
-  const statusPanel = options.statusPanel || { update: () => {}, render: () => {} };
-  const applyStatusPatch =
-    typeof statusPanel.applyPatch === 'function'
-      ? statusPanel.applyPatch.bind(statusPanel)
-      : (patch) => {
-        statusPanel.update(patch);
-        statusPanel.render();
-      };
-
   const adminConfigWriteEnabled =
     typeof options.adminConfigWriteEnabled === 'function'
       ? options.adminConfigWriteEnabled
@@ -244,11 +235,6 @@ export const create = (options = {}) => {
       threshold: Number.parseInt(mazeThreshold.value, 10) || 50
     });
 
-    applyStatusPatch({
-      mazeEnabled: mazeEnabledToggle.checked,
-      mazeAutoBan: mazeAutoBanToggle.checked
-    });
-
     resetSaveButton(getById, 'save-maze-config', 'Save Maze Settings');
   };
 
@@ -286,14 +272,6 @@ export const create = (options = {}) => {
       maze: normalizeCountryCodesForCompare(maze),
       block: normalizeCountryCodesForCompare(block),
       mutable
-    });
-
-    applyStatusPatch({
-      geoRiskCount: Array.isArray(config.geo_risk) ? config.geo_risk.length : 0,
-      geoAllowCount: Array.isArray(config.geo_allow) ? config.geo_allow.length : 0,
-      geoChallengeCount: Array.isArray(config.geo_challenge) ? config.geo_challenge.length : 0,
-      geoMazeCount: Array.isArray(config.geo_maze) ? config.geo_maze.length : 0,
-      geoBlockCount: Array.isArray(config.geo_block) ? config.geo_block.length : 0
     });
 
     setGeoConfigEditable(mutable);
@@ -461,11 +439,6 @@ export const create = (options = {}) => {
       threshold: Number.parseFloat(cdpThresholdSlider.value)
     });
 
-    applyStatusPatch({
-      cdpEnabled: cdpEnabledToggle.checked,
-      cdpAutoBan: cdpAutoBanToggle.checked
-    });
-
     resetSaveButton(getById, 'save-cdp-config', 'Save CDP Settings');
   };
 
@@ -493,7 +466,6 @@ export const create = (options = {}) => {
     if (!ok) return;
 
     setDraft('rateLimit', { value: rateLimit });
-    applyStatusPatch({ rateLimit });
     resetSaveButton(getById, 'save-rate-limit-config', 'Save Rate Limit');
   };
 
@@ -508,7 +480,6 @@ export const create = (options = {}) => {
     if (!ok) return;
 
     setDraft('jsRequired', { enforced });
-    applyStatusPatch({ jsRequiredEnforced: enforced });
     resetSaveButton(getById, 'save-js-required-config', 'Save JS Required');
   };
 
@@ -541,8 +512,6 @@ export const create = (options = {}) => {
       difficulty: Number.parseInt(difficultyField.value, 10) || 15,
       ttl: Number.parseInt(ttlField.value, 10) || 90
     });
-
-    applyStatusPatch({ powEnabled });
     resetSaveButton(getById, 'save-pow-config', 'Save PoW Settings');
   };
 
@@ -642,18 +611,6 @@ export const create = (options = {}) => {
     botnessStatus.textContent = writable ? 'EDITABLE' : 'READ ONLY';
     challengeDefaultLabel.textContent = Number.isNaN(challengeDefault) ? '--' : challengeDefault;
     mazeDefaultLabel.textContent = Number.isNaN(mazeDefault) ? '--' : mazeDefault;
-
-    applyStatusPatch({
-      challengeEnabled,
-      challengeThreshold: Number.isNaN(challengeThreshold) ? 3 : challengeThreshold,
-      mazeThreshold: Number.isNaN(mazeThreshold) ? 6 : mazeThreshold,
-      botnessWeights: {
-        js_required: Number.parseInt(weights.js_required, 10) || 0,
-        geo_risk: Number.parseInt(weights.geo_risk, 10) || 0,
-        rate_medium: Number.parseInt(weights.rate_medium, 10) || 0,
-        rate_high: Number.parseInt(weights.rate_high, 10) || 0
-      }
-    });
 
     const editableFields = [
       'challenge-puzzle-threshold',

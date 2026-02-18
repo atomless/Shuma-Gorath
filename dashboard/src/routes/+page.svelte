@@ -197,6 +197,7 @@
         isActive={activeTabKey === 'status'}
         runtimeTelemetry={runtimeTelemetry}
         tabStatus={tabStatus.status || {}}
+        configSnapshot={snapshots.config}
       />
       <ConfigTab
         managed={true}

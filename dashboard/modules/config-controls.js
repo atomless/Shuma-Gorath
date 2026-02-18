@@ -68,7 +68,6 @@ function normalizeContextOptions(rawOptions = {}) {
   const context = rawOptions.context;
 
   const normalized = {
-    statusPanel: context.statusPanel || null,
     apiClient: context.apiClient || null,
     effects:
       context.effects && typeof context.effects === 'object'
@@ -109,16 +108,6 @@ function normalizeContextOptions(rawOptions = {}) {
 
 function bind(rawOptions = {}) {
   const options = flattenBindOptions(normalizeContextOptions(rawOptions));
-  const statusPanel = options.statusPanel || null;
-
-  const applyStatusPatch =
-    statusPanel && typeof statusPanel.applyPatch === 'function'
-      ? statusPanel.applyPatch.bind(statusPanel)
-      : (patch) => {
-        if (!statusPanel) return;
-        statusPanel.update(patch);
-        statusPanel.render();
-      };
 
   const apiClient = options.apiClient || null;
   const timerSetTimeout =
@@ -241,9 +230,6 @@ function bind(rawOptions = {}) {
       result = await resp.json();
     }
 
-    if (result && result.config && typeof result.config === 'object') {
-      applyStatusPatch({ configSnapshot: result.config });
-    }
     if (typeof options.onConfigSaved === 'function') {
       options.onConfigSaved(patch, result);
     }
@@ -863,7 +849,6 @@ function bind(rawOptions = {}) {
         if (typeof options.setRateLimitSavedState === 'function') {
           options.setRateLimitSavedState({ value: prepared.value });
         }
-        applyStatusPatch({ rateLimit: prepared.value });
         setAdminMessage(messageTarget, 'Rate limit saved', 'success');
         endSaveButton(button, 'Save Rate Limit');
         if (typeof options.checkRateLimitConfigChanged === 'function') {
@@ -888,7 +873,6 @@ function bind(rawOptions = {}) {
         if (typeof options.setJsRequiredSavedState === 'function') {
           options.setJsRequiredSavedState({ enforced: prepared.enforced });
         }
-        applyStatusPatch({ jsRequiredEnforced: prepared.enforced });
         setAdminMessage(messageTarget, 'JS Required setting saved', 'success');
         endSaveButton(button, 'Save JS Required');
         if (typeof options.checkJsRequiredConfigChanged === 'function') {

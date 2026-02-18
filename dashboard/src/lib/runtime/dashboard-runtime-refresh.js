@@ -50,6 +50,14 @@ export function createDashboardRefreshRuntime(options = {}) {
 
   const isConfigSnapshotEmpty = (config) =>
     !config || typeof config !== 'object' || Object.keys(config).length === 0;
+  const snapshotKey = (value) => {
+    if (!value || typeof value !== 'object') return 'null';
+    try {
+      return JSON.stringify(value);
+    } catch (_error) {
+      return '__unserializable__';
+    }
+  };
 
   function toRequestOptions(runtimeOptions = {}) {
     return runtimeOptions && runtimeOptions.signal ? { signal: runtimeOptions.signal } : {};
@@ -68,16 +76,20 @@ export function createDashboardRefreshRuntime(options = {}) {
     }
 
     const config = await dashboardApiClient.getConfig(requestOptions);
-    if (dashboardState) {
+    const previousConfig = dashboardState ? dashboardState.getSnapshot('config') : null;
+    const configChanged = snapshotKey(previousConfig) !== snapshotKey(config);
+    if (dashboardState && configChanged) {
       dashboardState.setSnapshot('config', config);
     }
     await runDomWriteBatch(() => {
-      updateConfigModeUi(config, { configSnapshot: config });
-      configUiRefreshMethods.forEach((methodName) => invokeConfigUiState(methodName, config));
-      invokeConfigUiState('setAdvancedConfigEditorFromConfig', config, true);
-      refreshAllDirtySections();
+      updateConfigModeUi(config);
+      if (configChanged || reason !== 'auto-refresh') {
+        configUiRefreshMethods.forEach((methodName) => invokeConfigUiState(methodName, config));
+        invokeConfigUiState('setAdvancedConfigEditorFromConfig', config, true);
+        refreshAllDirtySections();
+      }
     });
-    return config;
+    return configChanged ? config : (previousConfig || config);
   }
 
   async function refreshMonitoringTab(reason = 'manual', runtimeOptions = {}) {

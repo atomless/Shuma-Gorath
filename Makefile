@@ -93,6 +93,7 @@ dashboard-build: ## Build SvelteKit dashboard static assets to dist/dashboard
 	@if [ ! -d node_modules/.pnpm ] || [ ! -x node_modules/.bin/vite ] || [ ! -d node_modules/svelte ] || [ ! -d node_modules/@sveltejs/kit ]; then \
 		corepack pnpm install --offline --frozen-lockfile || corepack pnpm install --frozen-lockfile; \
 	fi
+	@rm -rf dist/dashboard
 	@corepack pnpm run build:dashboard
 
 #--------------------------

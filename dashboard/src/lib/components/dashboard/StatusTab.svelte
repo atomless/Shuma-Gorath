@@ -1,10 +1,16 @@
 <script>
+  import {
+    buildFeatureStatusItems,
+    buildVariableInventoryGroups,
+    deriveStatusSnapshot
+  } from '../../../../modules/status.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
 
   export let managed = false;
   export let isActive = false;
   export let runtimeTelemetry = null;
   export let tabStatus = null;
+  export let configSnapshot = null;
 
   const formatMetricMs = (value) => {
     const numeric = Number(value);
@@ -18,6 +24,9 @@
     return raw;
   };
 
+  $: statusSnapshot = deriveStatusSnapshot(configSnapshot || {});
+  $: featureStatusItems = buildFeatureStatusItems(statusSnapshot);
+  $: statusVariableGroups = buildVariableInventoryGroups(statusSnapshot);
   $: refresh = runtimeTelemetry && runtimeTelemetry.refresh ? runtimeTelemetry.refresh : {};
   $: polling = runtimeTelemetry && runtimeTelemetry.polling ? runtimeTelemetry.polling : {};
 </script>
@@ -34,7 +43,20 @@
   <TabStateMessage tab="status" status={tabStatus} />
   <div class="controls-grid controls-grid--status">
     <div class="control-group panel-soft pad-md">
-      <div id="status-items"></div>
+      <div id="status-items">
+        {#each featureStatusItems as item}
+          <div class="status-item">
+            <h3>{item.title}</h3>
+            <p class="control-desc text-muted">{@html item.description}</p>
+            <div class="status-rows">
+              <div class="info-row">
+                <span class="info-label text-muted">Status:</span>
+                <span class="status-value">{item.status}</span>
+              </div>
+            </div>
+          </div>
+        {/each}
+      </div>
     </div>
     <div class="control-group panel-soft pad-md status-inventory-group">
       <h3>Runtime Variable Inventory</h3>
@@ -42,7 +64,40 @@
         Complete runtime snapshot of active configuration variables, grouped by concern.
         Rows with highlighted background are runtime admin-writable variables.
       </p>
-      <div id="status-vars-groups" class="status-var-groups"></div>
+      <div id="status-vars-groups" class="status-var-groups">
+        {#if statusVariableGroups.length === 0}
+          <p class="text-muted">No configuration snapshot loaded yet.</p>
+        {:else}
+          {#each statusVariableGroups as group}
+            <section class="status-var-group">
+              <h4 class="status-var-group-title">{group.title}</h4>
+              <table class="status-vars-table">
+                <colgroup>
+                  <col class="status-vars-col status-vars-col--variable">
+                  <col class="status-vars-col status-vars-col--value">
+                  <col class="status-vars-col status-vars-col--meaning">
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th scope="col">Variable</th>
+                    <th scope="col">Current Value</th>
+                    <th scope="col">Meaning</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each group.entries as entry}
+                    <tr class={`status-var-row ${entry.isAdminWrite ? 'status-var-row--admin-write' : ''}`.trim()}>
+                      <td><code>{entry.path}</code></td>
+                      <td><code>{entry.valueText}</code></td>
+                      <td>{entry.meaning}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </section>
+          {/each}
+        {/if}
+      </div>
     </div>
     <div class="control-group panel-soft pad-md">
       <h3>Runtime Performance Telemetry</h3>
