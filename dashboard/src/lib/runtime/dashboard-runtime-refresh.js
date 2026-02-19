@@ -2,6 +2,9 @@ export function createDashboardRefreshRuntime(options = {}) {
   const MONITORING_CACHE_KEY = 'shuma_dashboard_cache_monitoring_v1';
   const IP_BANS_CACHE_KEY = 'shuma_dashboard_cache_ip_bans_v1';
   const DEFAULT_CACHE_TTL_MS = 60000;
+  const MONITORING_CACHE_MAX_RECENT_EVENTS = 25;
+  const MONITORING_CACHE_MAX_CDP_EVENTS = 50;
+  const MONITORING_CACHE_MAX_BANS = 100;
   const normalizeTab =
     typeof options.normalizeTab === 'function' ? options.normalizeTab : (value) => String(value || '');
   const getApiClient =
@@ -24,6 +27,69 @@ export function createDashboardRefreshRuntime(options = {}) {
   const isConfigSnapshotEmpty = (config) =>
     !config || typeof config !== 'object' || Object.keys(config).length === 0;
   const hasConfigSnapshot = (config) => !isConfigSnapshotEmpty(config);
+  const toArray = (value) => (Array.isArray(value) ? value : []);
+
+  function compactBansSnapshot(bansData = {}) {
+    const source = bansData && typeof bansData === 'object' ? bansData : {};
+    return {
+      ...source,
+      bans: toArray(source.bans).slice(0, MONITORING_CACHE_MAX_BANS)
+    };
+  }
+
+  function compactMonitoringSnapshot(monitoringData = {}) {
+    const source = monitoringData && typeof monitoringData === 'object' ? monitoringData : {};
+    const details = source.details && typeof source.details === 'object' ? source.details : {};
+    const events = details.events && typeof details.events === 'object' ? details.events : {};
+    const cdpEvents = details.cdp_events && typeof details.cdp_events === 'object' ? details.cdp_events : {};
+    const bans = details.bans && typeof details.bans === 'object' ? details.bans : {};
+    return {
+      ...source,
+      details: {
+        ...details,
+        events: {
+          ...events,
+          recent_events: toArray(events.recent_events).slice(0, MONITORING_CACHE_MAX_RECENT_EVENTS)
+        },
+        bans: compactBansSnapshot(bans),
+        cdp_events: {
+          ...cdpEvents,
+          events: toArray(cdpEvents.events).slice(0, MONITORING_CACHE_MAX_CDP_EVENTS),
+          limit: Math.min(
+            MONITORING_CACHE_MAX_CDP_EVENTS,
+            Number.isFinite(Number(cdpEvents.limit)) && Number(cdpEvents.limit) > 0
+              ? Math.floor(Number(cdpEvents.limit))
+              : MONITORING_CACHE_MAX_CDP_EVENTS
+          )
+        }
+      }
+    };
+  }
+
+  function buildMonitoringSnapshots(monitoringData = {}, configSnapshot = {}) {
+    const monitoring = monitoringData && typeof monitoringData === 'object' ? monitoringData : {};
+    const monitoringDetails =
+      monitoring && typeof monitoring.details === 'object' ? monitoring.details : {};
+    const analyticsResponse = monitoringDetails.analytics || {};
+    const events = monitoringDetails.events || {};
+    const bansData = monitoringDetails.bans || { bans: [] };
+    const mazeData = monitoringDetails.maze || {};
+    const cdpData = monitoringDetails.cdp || {};
+    const cdpEventsData = monitoringDetails.cdp_events || { events: [] };
+    const analytics = deriveMonitoringAnalytics(configSnapshot, analyticsResponse);
+    if (Array.isArray(bansData.bans)) {
+      analytics.ban_count = bansData.bans.length;
+    }
+    return {
+      monitoring,
+      analytics,
+      events,
+      bans: bansData,
+      maze: mazeData,
+      cdp: cdpData,
+      cdpEvents: cdpEventsData
+    };
+  }
 
   function shouldReadFromCache(reason = 'manual') {
     return !(
@@ -68,6 +134,11 @@ export function createDashboardRefreshRuntime(options = {}) {
     try {
       storage.removeItem(cacheKey);
     } catch (_error) {}
+  }
+
+  function clearAllCaches() {
+    clearCache(MONITORING_CACHE_KEY);
+    clearCache(IP_BANS_CACHE_KEY);
   }
 
   function toRequestOptions(runtimeOptions = {}) {
@@ -148,7 +219,14 @@ export function createDashboardRefreshRuntime(options = {}) {
     if (shouldReadFromCache(reason)) {
       const cachedMonitoring = readCache(MONITORING_CACHE_KEY);
       if (cachedMonitoring) {
-        applySnapshots(cachedMonitoring);
+        const configSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
+        const monitoringData =
+          cachedMonitoring && typeof cachedMonitoring.monitoring === 'object'
+            ? cachedMonitoring.monitoring
+            : (cachedMonitoring && typeof cachedMonitoring === 'object'
+              ? cachedMonitoring
+              : {});
+        applySnapshots(buildMonitoringSnapshots(monitoringData, configSnapshot));
         if (dashboardState && dashboardState.getDerivedState().monitoringEmpty) {
           showTabEmpty('monitoring', 'No operational events yet. Monitoring will populate as traffic arrives.');
         } else {
@@ -161,36 +239,16 @@ export function createDashboardRefreshRuntime(options = {}) {
     const requestOptions = toRequestOptions(runtimeOptions);
     const monitoringData = await dashboardApiClient.getMonitoring({ hours: 24, limit: 10 }, requestOptions);
     const configSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
-    const monitoringDetails = monitoringData && typeof monitoringData === 'object'
-      ? (monitoringData.details || {})
-      : {};
-    const analyticsResponse = monitoringDetails.analytics || {};
-    const events = monitoringDetails.events || {};
-    const bansData = monitoringDetails.bans || { bans: [] };
-    const mazeData = monitoringDetails.maze || {};
-    const cdpData = monitoringDetails.cdp || {};
-    const cdpEventsData = monitoringDetails.cdp_events || { events: [] };
-    const analytics = deriveMonitoringAnalytics(configSnapshot, analyticsResponse);
-    if (Array.isArray(bansData.bans)) {
-      analytics.ban_count = bansData.bans.length;
-    }
-
-    const monitoringSnapshots = {
-      monitoring: monitoringData,
-      analytics,
-      events,
-      bans: bansData,
-      maze: mazeData,
-      cdp: cdpData,
-      cdpEvents: cdpEventsData
-    };
+    const monitoringSnapshots = buildMonitoringSnapshots(monitoringData, configSnapshot);
+    const compactMonitoring = compactMonitoringSnapshot(monitoringData);
+    const compactBans = compactBansSnapshot(monitoringSnapshots.bans);
     if (dashboardState) {
       applySnapshots(monitoringSnapshots);
-      writeCache(MONITORING_CACHE_KEY, monitoringSnapshots);
-      writeCache(IP_BANS_CACHE_KEY, { bans: bansData });
+      writeCache(MONITORING_CACHE_KEY, { monitoring: compactMonitoring });
+      writeCache(IP_BANS_CACHE_KEY, { bans: compactBans });
     } else {
-      writeCache(MONITORING_CACHE_KEY, monitoringSnapshots);
-      writeCache(IP_BANS_CACHE_KEY, { bans: bansData });
+      writeCache(MONITORING_CACHE_KEY, { monitoring: compactMonitoring });
+      writeCache(IP_BANS_CACHE_KEY, { bans: compactBans });
     }
 
     if (dashboardState && dashboardState.getDerivedState().monitoringEmpty) {
@@ -229,14 +287,15 @@ export function createDashboardRefreshRuntime(options = {}) {
       dashboardApiClient.getBans(requestOptions),
       includeConfigRefresh ? refreshSharedConfig(reason, runtimeOptions) : Promise.resolve(null)
     ]);
+    const compactBans = compactBansSnapshot(bansData);
     if (dashboardState) {
       applySnapshots({ bans: bansData });
       if (hasConfigSnapshot(configSnapshot)) {
         applySnapshots({ config: configSnapshot });
       }
-      writeCache(IP_BANS_CACHE_KEY, { bans: bansData });
+      writeCache(IP_BANS_CACHE_KEY, { bans: compactBans });
     } else {
-      writeCache(IP_BANS_CACHE_KEY, { bans: bansData });
+      writeCache(IP_BANS_CACHE_KEY, { bans: compactBans });
     }
 
     if (reason === 'ban-save' || reason === 'unban-save') {
@@ -334,6 +393,7 @@ export function createDashboardRefreshRuntime(options = {}) {
   }
 
   return {
+    clearAllCaches,
     refreshSharedConfig,
     refreshMonitoringTab,
     refreshIpBansTab,

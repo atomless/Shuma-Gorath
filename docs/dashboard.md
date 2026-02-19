@@ -28,6 +28,8 @@ Refresh model:
 - Auto-refresh is only available on `Monitoring` and `IP Bans` (cadence `60s`).
 - `Status`/`Config`/`Tuning` refresh on page-load bootstrap and explicit config/tuning save flows (no background polling).
 - Monitoring and IP-ban snapshots are cached in local storage with a short TTL (`60s`) to reduce repeated API load/cost on quick remount/tab revisit paths.
+- Cached monitoring payloads are compacted before storage (bounded recent events/CDP rows/ban rows) to reduce serialization and local-storage overhead.
+- Logout/session-expiry clears monitoring/IP-ban local cache keys to avoid telemetry bleed across session boundaries.
 - Dashboard API requests now apply a client timeout guard (`12s` default) so stalled admin endpoints fail fast instead of hanging polling/refresh cycles indefinitely.
 - Monitoring refresh uses a single consolidated read (`/admin/monitoring`) and now updates all monitoring sections from equally fresh snapshot state (cards, tables, and charts).
 - Monitoring long-range (`7d`/`30d`) range reads stay explicit user-driven in manual mode and only run on bounded cadence while auto-refresh is enabled.

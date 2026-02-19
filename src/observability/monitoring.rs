@@ -7,6 +7,14 @@ use std::sync::Mutex;
 const MONITORING_PREFIX: &str = "monitoring:v1";
 const MAX_WINDOW_HOURS: u64 = 24 * 30;
 const MAX_TOP_LIMIT: usize = 50;
+#[cfg(not(test))]
+const COUNTER_FLUSH_INTERVAL_SECONDS: u64 = 2;
+#[cfg(not(test))]
+const COUNTER_FLUSH_PENDING_KEYS_MAX: usize = 64;
+const TELEMETRY_PATH_SEGMENT_LIMIT: usize = 3;
+const TELEMETRY_PATH_SEGMENT_MAX_LEN: usize = 24;
+const TELEMETRY_PATH_FALLBACK_SEGMENT: &str = ":id";
+const TELEMETRY_PATH_TRUNCATED_SUFFIX: &str = "*";
 
 const CHALLENGE_REASON_KEYS: [&str; 5] = [
     "incorrect",
@@ -27,6 +35,16 @@ const RATE_OUTCOME_KEYS: [&str; 4] = ["limited", "banned", "fallback_allow", "fa
 const GEO_ACTION_KEYS: [&str; 3] = ["block", "challenge", "maze"];
 
 static LAST_MONITORING_CLEANUP_HOUR: Lazy<Mutex<u64>> = Lazy::new(|| Mutex::new(0));
+#[cfg(not(test))]
+static PENDING_COUNTER_BUFFER: Lazy<Mutex<PendingCounterBuffer>> =
+    Lazy::new(|| Mutex::new(PendingCounterBuffer::default()));
+
+#[cfg(not(test))]
+#[derive(Default)]
+struct PendingCounterBuffer {
+    last_flush_ts: u64,
+    deltas: HashMap<String, u64>,
+}
 
 #[derive(Debug, Clone, Serialize, Default)]
 pub(crate) struct CountEntry {
@@ -126,14 +144,68 @@ fn decode_dim(value: &str) -> String {
         .unwrap_or_else(|| value.to_string())
 }
 
+fn normalize_telemetry_segment(segment: &str) -> String {
+    let trimmed = segment.trim();
+    if trimmed.is_empty() {
+        return TELEMETRY_PATH_FALLBACK_SEGMENT.to_string();
+    }
+    let alpha_count = trimmed.chars().filter(|ch| ch.is_ascii_alphabetic()).count();
+    let digit_count = trimmed.chars().filter(|ch| ch.is_ascii_digit()).count();
+    let ascii_word_like = trimmed
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_');
+    let looks_dynamic = trimmed.len() > TELEMETRY_PATH_SEGMENT_MAX_LEN
+        || trimmed.chars().all(|ch| ch.is_ascii_digit())
+        || (trimmed.len() >= 8 && trimmed.chars().all(|ch| ch.is_ascii_hexdigit()))
+        || (ascii_word_like
+            && trimmed.len() >= 12
+            && alpha_count > 0
+            && digit_count > 0
+            && digit_count.saturating_mul(2) >= trimmed.len());
+    if looks_dynamic {
+        return TELEMETRY_PATH_FALLBACK_SEGMENT.to_string();
+    }
+    let mut normalized = trimmed.to_ascii_lowercase();
+    if normalized.len() > TELEMETRY_PATH_SEGMENT_MAX_LEN {
+        normalized.truncate(TELEMETRY_PATH_SEGMENT_MAX_LEN);
+    }
+    normalized
+}
+
 fn normalize_telemetry_path(path: &str) -> String {
-    let mut normalized = path.split('?').next().unwrap_or(path).trim().to_string();
-    if normalized.is_empty() {
-        normalized = "/".to_string();
+    let raw = path
+        .split('?')
+        .next()
+        .unwrap_or(path)
+        .split('#')
+        .next()
+        .unwrap_or(path)
+        .trim();
+    if raw.is_empty() {
+        return "/".to_string();
     }
-    if !normalized.starts_with('/') {
-        normalized = format!("/{}", normalized);
+
+    let mut segments = Vec::new();
+    for segment in raw.split('/').filter(|value| !value.trim().is_empty()) {
+        if segments.len() >= TELEMETRY_PATH_SEGMENT_LIMIT {
+            break;
+        }
+        segments.push(normalize_telemetry_segment(segment));
     }
+
+    let has_extra_segments = raw
+        .split('/')
+        .filter(|value| !value.trim().is_empty())
+        .count()
+        > TELEMETRY_PATH_SEGMENT_LIMIT;
+    if has_extra_segments {
+        segments.push(TELEMETRY_PATH_TRUNCATED_SUFFIX.to_string());
+    }
+
+    if segments.is_empty() {
+        return "/".to_string();
+    }
+    let mut normalized = format!("/{}", segments.join("/"));
     if normalized.len() > 120 {
         normalized.truncate(120);
     }
@@ -189,18 +261,83 @@ fn normalize_country(country: Option<&str>) -> String {
         .unwrap_or_else(|| "UNKNOWN".to_string())
 }
 
-fn increment_counter<S: crate::challenge::KeyValueStore>(store: &S, key: &str) {
-    let current = store
+fn parse_counter_bytes(bytes: Vec<u8>) -> u64 {
+    String::from_utf8(bytes)
+        .ok()
+        .and_then(|raw| raw.parse::<u64>().ok())
+        .unwrap_or(0)
+}
+
+fn read_counter<S: crate::challenge::KeyValueStore>(store: &S, key: &str) -> u64 {
+    store
         .get(key)
         .ok()
         .flatten()
-        .and_then(|bytes| String::from_utf8(bytes).ok())
-        .and_then(|raw| raw.parse::<u64>().ok())
-        .unwrap_or(0);
+        .map(parse_counter_bytes)
+        .unwrap_or(0)
+}
+
+#[cfg(not(test))]
+fn flush_counter_deltas<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    deltas: HashMap<String, u64>,
+) {
+    for (key, delta) in deltas {
+        if delta == 0 {
+            continue;
+        }
+        let current = read_counter(store, key.as_str());
+        let next = current.saturating_add(delta);
+        if let Err(err) = store.set(key.as_str(), next.to_string().as_bytes()) {
+            eprintln!("[monitoring] failed writing {}: {:?}", key, err);
+        }
+    }
+}
+
+#[cfg(not(test))]
+fn maybe_flush_pending_counter_buffer<S: crate::challenge::KeyValueStore>(store: &S, force: bool) {
+    let now = now_ts();
+    let pending = {
+        let mut buffer = PENDING_COUNTER_BUFFER.lock().unwrap();
+        if buffer.deltas.is_empty() {
+            if buffer.last_flush_ts == 0 {
+                buffer.last_flush_ts = now;
+            }
+            return;
+        }
+        if !force
+            && buffer.deltas.len() < COUNTER_FLUSH_PENDING_KEYS_MAX
+            && now.saturating_sub(buffer.last_flush_ts) < COUNTER_FLUSH_INTERVAL_SECONDS
+        {
+            return;
+        }
+        buffer.last_flush_ts = now;
+        std::mem::take(&mut buffer.deltas)
+    };
+    flush_counter_deltas(store, pending);
+}
+
+#[cfg(test)]
+fn increment_counter<S: crate::challenge::KeyValueStore>(store: &S, key: &str) {
+    let current = read_counter(store, key);
     let next = current.saturating_add(1);
     if let Err(err) = store.set(key, next.to_string().as_bytes()) {
         eprintln!("[monitoring] failed writing {}: {:?}", key, err);
     }
+}
+
+#[cfg(not(test))]
+fn increment_counter<S: crate::challenge::KeyValueStore>(store: &S, key: &str) {
+    let now = now_ts();
+    {
+        let mut buffer = PENDING_COUNTER_BUFFER.lock().unwrap();
+        let entry = buffer.deltas.entry(key.to_string()).or_insert(0);
+        *entry = entry.saturating_add(1);
+        if buffer.last_flush_ts == 0 {
+            buffer.last_flush_ts = now;
+        }
+    }
+    maybe_flush_pending_counter_buffer(store, false);
 }
 
 fn monitoring_key(section: &str, metric: &str, dimension: Option<&str>, hour: u64) -> String {
@@ -276,7 +413,6 @@ fn record_with_dimension<S: crate::challenge::KeyValueStore>(
     dimension: Option<&str>,
 ) {
     let hour = now_ts() / 3600;
-    maybe_cleanup_monitoring(store, hour);
     let key = monitoring_key(section, metric, dimension, hour);
     increment_counter(store, key.as_str());
 }
@@ -420,6 +556,9 @@ pub(crate) fn summarize_with_store<S: crate::challenge::KeyValueStore>(
     limit: usize,
 ) -> MonitoringSummary {
     let now = now_ts();
+    #[cfg(not(test))]
+    maybe_flush_pending_counter_buffer(store, true);
+    maybe_cleanup_monitoring(store, now / 3600);
     let hours = normalize_window_hours(hours);
     let top_limit = normalize_top_limit(limit);
     let end_hour = now / 3600;
@@ -461,13 +600,7 @@ pub(crate) fn summarize_with_store<S: crate::challenge::KeyValueStore>(
             if hour < start_hour || hour > end_hour {
                 continue;
             }
-            let count = store
-                .get(key.as_str())
-                .ok()
-                .flatten()
-                .and_then(|bytes| String::from_utf8(bytes).ok())
-                .and_then(|raw| raw.parse::<u64>().ok())
-                .unwrap_or(0);
+            let count = read_counter(store, key.as_str());
             if count == 0 {
                 continue;
             }
@@ -940,6 +1073,25 @@ mod tests {
     }
 
     #[test]
+    fn normalize_telemetry_path_caps_dynamic_cardinality() {
+        assert_eq!(normalize_telemetry_path("/"), "/");
+        assert_eq!(
+            normalize_telemetry_path("/api/v1/orders/12345"),
+            "/api/v1/orders/*"
+        );
+        assert_eq!(
+            normalize_telemetry_path("/checkout/af13d9c8b71e4f5a/token"),
+            "/checkout/:id/token"
+        );
+        assert_eq!(
+            normalize_telemetry_path(
+                "/events/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/9876543210/details?cursor=abc"
+            ),
+            "/events/:id/:id/*"
+        );
+    }
+
+    #[test]
     fn record_cleanup_respects_retention_window() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "1");
@@ -951,6 +1103,7 @@ mod tests {
         *LAST_MONITORING_CLEANUP_HOUR.lock().unwrap() = 0;
 
         record_pow_failure(&store, "203.0.113.9", "invalid_proof");
+        let _ = summarize_with_store(&store, 24, 10);
 
         assert!(
             store

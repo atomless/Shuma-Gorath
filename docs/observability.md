@@ -30,6 +30,12 @@ Use this endpoint for dashboard UX and operator API queries; use `/metrics` for 
 Prometheus parity scope for Monitoring widgets is tracked in:
 - `docs/monitoring-prometheus-parity-audit.md`
 
+### 🐙 Monitoring Cost Controls
+
+- Monitoring counter writes are coalesced in a short in-memory buffer before KV flushes to reduce hot-path read/modify/write amplification.
+- Path dimensions are normalized and cardinality-capped (`<=3` segments plus wildcard tail, dynamic/high-entropy segments collapsed to `:id`) to prevent unbounded key growth.
+- Retention cleanup scans run on monitoring summary read paths (not each telemetry write) and delete keys older than `SHUMA_EVENT_LOG_RETENTION_HOURS`.
+
 ### 🐙 Metrics Included
 
 - `bot_defence_requests_total`

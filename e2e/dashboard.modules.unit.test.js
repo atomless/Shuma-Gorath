@@ -505,6 +505,14 @@ test('monitoring view model and status module remain pure snapshot transforms', 
       summary.pow.outcomes.some((row) => row[0] === 'success' && Number(row[1]) === 5),
       true
     );
+    const helper = monitoringModelModule.derivePrometheusHelperViewModel({
+      docs: {
+        observability: 'javascript:alert(1)',
+        api: 'https://example.com/api'
+      }
+    });
+    assert.equal(helper.observabilityLink, '');
+    assert.equal(helper.apiLink, 'https://example.com/api');
 
     const configSnapshot = {
       kv_store_fail_open: true,
@@ -696,6 +704,7 @@ test('dashboard runtime is slim and free of legacy DOM-id wiring layers', () => 
   assert.match(source, /export async function updateDashboardConfig/);
   assert.match(source, /export async function banDashboardIp/);
   assert.match(source, /export async function unbanDashboardIp/);
+  assert.match(source, /dashboardRefreshRuntime\.clearAllCaches/);
 });
 
 test('dashboard refresh runtime remains snapshot-only and excludes legacy config UI glue', () => {
@@ -709,6 +718,11 @@ test('dashboard refresh runtime remains snapshot-only and excludes legacy config
   assert.match(source, /const MONITORING_CACHE_KEY = 'shuma_dashboard_cache_monitoring_v1';/);
   assert.match(source, /const IP_BANS_CACHE_KEY = 'shuma_dashboard_cache_ip_bans_v1';/);
   assert.equal(source.includes('shuma_dashboard_cache_config_v1'), false);
+  assert.match(source, /const MONITORING_CACHE_MAX_RECENT_EVENTS = 25;/);
+  assert.match(source, /const MONITORING_CACHE_MAX_CDP_EVENTS = 50;/);
+  assert.match(source, /const MONITORING_CACHE_MAX_BANS = 100;/);
+  assert.match(source, /function clearAllCaches\(\) \{/);
+  assert.match(source, /writeCache\(MONITORING_CACHE_KEY, \{ monitoring: compactMonitoring \}\);/);
   assert.match(source, /if \(hasConfigSnapshot\(existingConfig\)\) \{/);
   assert.equal(source.includes("? { monitoring: monitoringData }"), false);
   assert.match(source, /const refreshConfigTab = \(reason = 'manual'/);

@@ -175,7 +175,7 @@ These keys are seeded into KV and loaded from KV at runtime.
 - `GET /admin/config/export` returns a non-secret deploy handoff snapshot as env-style key/value output:
   - `env`: object of deploy-ready `SHUMA_*` non-secret values (env guardrails + KV tunables),
   - `env_text`: newline-delimited `KEY=value` output for copy/paste into immutable deploy config,
-  - `excluded_secrets`: explicit list of secret keys intentionally omitted.
+  - `excluded_secrets`: explicit list of secret keys intentionally omitted (includes `SHUMA_RATE_LIMITER_REDIS_URL` and `SHUMA_BAN_STORE_REDIS_URL`).
 - Successful writes invalidate runtime config cache on the instance that processed the request.
 - KV writes persist across restarts.
 

@@ -152,6 +152,8 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 
 `GET /admin/session` includes `access` as `read_only`, `read_write`, or `none`.
 
+Expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/ban` `GET`) are rate-limited to reduce KV/CPU abuse amplification (`429` with `Retry-After: 60` when limited).
+
 `GET /admin/maze/preview` is intentionally non-operational:
 - links recurse only into `/admin/maze/preview`,
 - live `mt` traversal tokens are not emitted,
@@ -259,7 +261,7 @@ JS/browser signal note:
 - `generated_at` (unix seconds)
 - `env` (non-secret `SHUMA_*` values as strings)
 - `env_text` (newline-delimited `KEY=value` export)
-- `excluded_secrets` (secret keys intentionally omitted)
+- `excluded_secrets` (secret keys intentionally omitted, including Redis provider URLs)
 
 ### 🐙 Example: List Bans
 

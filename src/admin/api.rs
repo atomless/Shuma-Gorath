@@ -34,7 +34,7 @@ const POW_TTL_MIN: u64 = crate::config::POW_TTL_MIN;
 const POW_TTL_MAX: u64 = crate::config::POW_TTL_MAX;
 const CHALLENGE_TRANSFORM_COUNT_MIN: u64 = 4;
 const CHALLENGE_TRANSFORM_COUNT_MAX: u64 = 8;
-const CONFIG_EXPORT_SECRET_KEYS: [&str; 8] = [
+const CONFIG_EXPORT_SECRET_KEYS: [&str; 10] = [
     "SHUMA_API_KEY",
     "SHUMA_ADMIN_READONLY_API_KEY",
     "SHUMA_JS_SECRET",
@@ -43,6 +43,8 @@ const CONFIG_EXPORT_SECRET_KEYS: [&str; 8] = [
     "SHUMA_MAZE_PREVIEW_SECRET",
     "SHUMA_FORWARDED_IP_SECRET",
     "SHUMA_HEALTH_SECRET",
+    "SHUMA_RATE_LIMITER_REDIS_URL",
+    "SHUMA_BAN_STORE_REDIS_URL",
 ];
 
 static LAST_EVENTLOG_CLEANUP_HOUR: Lazy<Mutex<u64>> = Lazy::new(|| Mutex::new(0));
@@ -51,6 +53,7 @@ fn event_log_retention_hours() -> u64 {
     crate::config::event_log_retention_hours()
 }
 
+#[cfg(test)]
 fn maybe_cleanup_event_logs<S: crate::challenge::KeyValueStore>(store: &S, current_hour: u64) {
     let retention = event_log_retention_hours();
     if retention == 0 {
@@ -64,12 +67,14 @@ fn maybe_cleanup_event_logs<S: crate::challenge::KeyValueStore>(store: &S, curre
 
     let cutoff_hour = current_hour.saturating_sub(retention);
     // v2 cleanup.
-    let v2_prefix = format!("{}:{}:", EVENTLOG_V2_PREFIX, cutoff_hour);
     if let Ok(keys) = store.get_keys() {
         for key in keys {
-            if key.starts_with(&v2_prefix) {
-                if let Err(e) = store.delete(&key) {
-                    eprintln!("[eventlog] failed deleting expired key {}: {:?}", key, e);
+            let Some(event_hour) = parse_v2_event_hour(&key) else {
+                continue;
+            };
+            if event_hour < cutoff_hour {
+                if let Err(err) = store.delete(&key) {
+                    eprintln!("[eventlog] failed deleting expired key {}: {:?}", key, err);
                 }
             }
         }
@@ -97,7 +102,6 @@ fn parse_v2_event_hour(key: &str) -> Option<u64> {
 pub fn log_event<S: crate::challenge::KeyValueStore>(store: &S, entry: &EventLogEntry) {
     // Write each event to a distinct immutable key to avoid read-modify-write races.
     let hour = entry.ts / 3600;
-    maybe_cleanup_event_logs(store, hour);
     let key = make_v2_event_key(hour, entry.ts);
     match serde_json::to_vec(entry) {
         Ok(payload) => {
@@ -116,6 +120,7 @@ pub fn log_event<S: crate::challenge::KeyValueStore>(store: &S, entry: &EventLog
 mod tests {
     use super::*;
     use crate::challenge::KeyValueStore;
+    use spin_sdk::http::Method;
     use std::collections::HashMap;
     use std::sync::Mutex;
 
@@ -224,6 +229,74 @@ mod tests {
 
         let events = load_recent_events(&store, now, 1);
         assert!(events.is_empty());
+    }
+
+    #[test]
+    fn event_log_cleanup_deletes_all_buckets_older_than_retention() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "2");
+
+        let store = MockStore::new();
+        let current_hour = 10_000u64;
+        let stale_hours = [
+            current_hour.saturating_sub(6),
+            current_hour.saturating_sub(4),
+            current_hour.saturating_sub(3),
+        ];
+        let retained_hour = current_hour.saturating_sub(2);
+
+        for hour in stale_hours {
+            let key = format!("eventlog:v2:{}:{}-stale", hour, hour.saturating_mul(3600));
+            store.set(&key, br#"{"stale":true}"#).unwrap();
+        }
+        let retained_key = format!(
+            "eventlog:v2:{}:{}-retained",
+            retained_hour,
+            retained_hour.saturating_mul(3600)
+        );
+        store.set(&retained_key, br#"{"retained":true}"#).unwrap();
+
+        *LAST_EVENTLOG_CLEANUP_HOUR.lock().unwrap() = 0;
+        maybe_cleanup_event_logs(&store, current_hour);
+
+        for hour in stale_hours {
+            let key = format!("eventlog:v2:{}:{}-stale", hour, hour.saturating_mul(3600));
+            assert!(
+                store.get(&key).unwrap().is_none(),
+                "expected stale key {} to be deleted",
+                key
+            );
+        }
+        assert!(store.get(&retained_key).unwrap().is_some());
+        std::env::remove_var("SHUMA_EVENT_LOG_RETENTION_HOURS");
+    }
+
+    #[test]
+    fn expensive_admin_read_limiter_blocks_at_limit() {
+        let store = MockStore::new();
+        let mut builder = spin_sdk::http::Request::builder();
+        builder.method(Method::Get).uri("/admin/events");
+        let req = builder.build();
+
+        let ip = crate::extract_client_ip(&req);
+        let bucket = crate::signals::ip_identity::bucket_ip(&ip);
+        let now_window = now_ts() / 60;
+        for window in [now_window, now_window + 1] {
+            let key = format!(
+                "rate:{}:{}:{}",
+                ADMIN_EXPENSIVE_READ_SITE_ID, bucket, window
+            );
+            store
+                .set(
+                    &key,
+                    ADMIN_EXPENSIVE_READ_LIMIT_PER_MINUTE
+                        .to_string()
+                        .as_bytes(),
+                )
+                .unwrap();
+        }
+
+        assert!(expensive_admin_read_is_limited_internal(&store, &req));
     }
 
     #[test]
@@ -403,14 +476,8 @@ mod admin_config_tests {
             env.get("SHUMA_DEBUG_HEADERS"),
             Some(&serde_json::json!("true"))
         );
-        assert_eq!(
-            env.get("SHUMA_RATE_LIMITER_REDIS_URL"),
-            Some(&serde_json::json!("redis://redis:6379"))
-        );
-        assert_eq!(
-            env.get("SHUMA_BAN_STORE_REDIS_URL"),
-            Some(&serde_json::json!("redis://redis:6379"))
-        );
+        assert!(env.get("SHUMA_RATE_LIMITER_REDIS_URL").is_none());
+        assert!(env.get("SHUMA_BAN_STORE_REDIS_URL").is_none());
         assert_eq!(
             env.get("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN"),
             Some(&serde_json::json!("fail_open"))
@@ -427,8 +494,8 @@ mod admin_config_tests {
         assert!(env_text.contains("SHUMA_HONEYPOT_ENABLED=false"));
         assert!(env_text.contains("SHUMA_CHALLENGE_PUZZLE_ENABLED=false"));
         assert!(env_text.contains("SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE=17"));
-        assert!(env_text.contains("SHUMA_RATE_LIMITER_REDIS_URL=redis://redis:6379"));
-        assert!(env_text.contains("SHUMA_BAN_STORE_REDIS_URL=redis://redis:6379"));
+        assert!(!env_text.contains("SHUMA_RATE_LIMITER_REDIS_URL="));
+        assert!(!env_text.contains("SHUMA_BAN_STORE_REDIS_URL="));
         assert!(env_text.contains("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN=fail_open"));
         assert!(env_text.contains("SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH=fail_closed"));
 
@@ -456,6 +523,8 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_CHALLENGE_SECRET", "challenge-secret");
         std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "forwarded-secret");
         std::env::set_var("SHUMA_HEALTH_SECRET", "health-secret");
+        std::env::set_var("SHUMA_RATE_LIMITER_REDIS_URL", "redis://secret@redis:6379");
+        std::env::set_var("SHUMA_BAN_STORE_REDIS_URL", "redis://secret@redis:6379");
 
         let store = TestStore::default();
         let req = make_request(Method::Get, "/admin/config/export", Vec::new());
@@ -490,6 +559,8 @@ mod admin_config_tests {
             "SHUMA_CHALLENGE_SECRET",
             "SHUMA_FORWARDED_IP_SECRET",
             "SHUMA_HEALTH_SECRET",
+            "SHUMA_RATE_LIMITER_REDIS_URL",
+            "SHUMA_BAN_STORE_REDIS_URL",
         ]);
     }
 
@@ -1561,6 +1632,48 @@ fn too_many_admin_auth_attempts_response() -> Response {
         .build()
 }
 
+const ADMIN_EXPENSIVE_READ_SITE_ID: &str = "admin-read-expensive";
+const ADMIN_EXPENSIVE_READ_LIMIT_PER_MINUTE: u32 = 60;
+
+fn too_many_admin_read_requests_response() -> Response {
+    Response::builder()
+        .status(429)
+        .header("Retry-After", "60")
+        .header("Cache-Control", "no-store")
+        .body("Too Many Requests")
+        .build()
+}
+
+fn expensive_admin_read_is_limited(
+    store: &Store,
+    req: &Request,
+    provider_registry: Option<&crate::providers::registry::ProviderRegistry>,
+) -> bool {
+    let ip = crate::extract_client_ip(req);
+    if let Some(registry) = provider_registry {
+        return registry.rate_limiter_provider().check_rate_limit(
+            store,
+            ADMIN_EXPENSIVE_READ_SITE_ID,
+            &ip,
+            ADMIN_EXPENSIVE_READ_LIMIT_PER_MINUTE,
+        ) == crate::providers::contracts::RateLimitDecision::Limited;
+    }
+    expensive_admin_read_is_limited_internal(store, req)
+}
+
+fn expensive_admin_read_is_limited_internal<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    req: &Request,
+) -> bool {
+    let ip = crate::extract_client_ip(req);
+    !crate::enforcement::rate::check_rate_limit(
+        store,
+        ADMIN_EXPENSIVE_READ_SITE_ID,
+        &ip,
+        ADMIN_EXPENSIVE_READ_LIMIT_PER_MINUTE,
+    )
+}
+
 fn request_requires_admin_write(path: &str, method: &Method) -> bool {
     if !matches!(
         method,
@@ -1781,10 +1894,24 @@ fn load_recent_events<S: crate::challenge::KeyValueStore>(
     now: u64,
     hours: u64,
 ) -> Vec<EventLogEntry> {
+    let now_hour = now / 3600;
+    let retention_hours = event_log_retention_hours();
+    let should_cleanup = if retention_hours == 0 {
+        false
+    } else {
+        let mut last = LAST_EVENTLOG_CLEANUP_HOUR.lock().unwrap();
+        if *last == now_hour {
+            false
+        } else {
+            *last = now_hour;
+            true
+        }
+    };
+    let retention_cutoff_hour = now_hour.saturating_sub(retention_hours);
+
     let mut events: Vec<EventLogEntry> = Vec::new();
     let window_start = now.saturating_sub(hours.saturating_mul(3600));
     let window_start_hour = window_start / 3600;
-    let now_hour = now / 3600;
 
     // v2 immutable records.
     if let Ok(keys) = store.get_keys() {
@@ -1792,6 +1919,12 @@ fn load_recent_events<S: crate::challenge::KeyValueStore>(
             let Some(event_hour) = parse_v2_event_hour(&key) else {
                 continue;
             };
+            if should_cleanup && event_hour < retention_cutoff_hour {
+                if let Err(err) = store.delete(&key) {
+                    eprintln!("[eventlog] failed deleting expired key {}: {:?}", key, err);
+                }
+                continue;
+            }
             if event_hour < window_start_hour || event_hour > now_hour {
                 continue;
             }
@@ -1927,14 +2060,6 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
         (
             "SHUMA_DEBUG_HEADERS".to_string(),
             bool_env(crate::config::debug_headers_enabled()).to_string(),
-        ),
-        (
-            "SHUMA_RATE_LIMITER_REDIS_URL".to_string(),
-            crate::config::rate_limiter_redis_url().unwrap_or_default(),
-        ),
-        (
-            "SHUMA_BAN_STORE_REDIS_URL".to_string(),
-            crate::config::ban_store_redis_url().unwrap_or_default(),
         ),
         (
             "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN".to_string(),
@@ -3693,18 +3818,6 @@ where
     let summary = crate::observability::monitoring::summarize_with_store(store, hours, limit);
     let details = monitoring_details_payload(store, "default", hours);
 
-    log_event(
-        store,
-        &EventLogEntry {
-            ts: now_ts(),
-            event: EventType::AdminAction,
-            ip: None,
-            reason: Some("monitoring_view".to_string()),
-            outcome: Some(format!("hours={} limit={}", hours, limit)),
-            admin: Some(crate::admin::auth::get_admin_id(req)),
-        },
-    );
-
     let body = serde_json::to_string(&json!({
         "summary": summary,
         "prometheus": monitoring_prometheus_helper_payload(),
@@ -4030,6 +4143,9 @@ pub fn handle_admin(req: &Request) -> Response {
 
     match path {
         "/admin/events" => {
+            if expensive_admin_read_is_limited(&store, req, provider_registry.as_ref()) {
+                return too_many_admin_read_requests_response();
+            }
             // Query event log for recent events, top IPs, and event statistics
             // Query params: ?hours=N (default 24, max 720)
             let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
@@ -4059,21 +4175,12 @@ pub fn handle_admin(req: &Request) -> Response {
                 "unique_ips": unique_ips,
             }))
             .unwrap();
-            // Log admin analytics view
-            log_event(
-                &store,
-                &EventLogEntry {
-                    ts: now_ts(),
-                    event: EventType::AdminAction,
-                    ip: None,
-                    reason: Some("events_view".to_string()),
-                    outcome: Some(format!("{} events", events.len())),
-                    admin: Some(crate::admin::auth::get_admin_id(req)),
-                },
-            );
             Response::new(200, body)
         }
         "/admin/cdp/events" => {
+            if expensive_admin_read_is_limited(&store, req, provider_registry.as_ref()) {
+                return too_many_admin_read_requests_response();
+            }
             // Query params: ?hours=N&limit=M
             // hours default 24 (max 720), limit default 500 (max 5000)
             let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
@@ -4116,22 +4223,6 @@ pub fn handle_admin(req: &Request) -> Response {
 
             cdp_events.truncate(limit);
 
-            // Log admin view for CDP-focused telemetry
-            log_event(
-                &store,
-                &EventLogEntry {
-                    ts: now_ts(),
-                    event: EventType::AdminAction,
-                    ip: None,
-                    reason: Some("cdp_events_view".to_string()),
-                    outcome: Some(format!(
-                        "{} cdp events (hours={}, limit={})",
-                        total_matches, hours, limit
-                    )),
-                    admin: Some(crate::admin::auth::get_admin_id(req)),
-                },
-            );
-
             let body = serde_json::to_string(&json!({
                 "events": cdp_events,
                 "hours": hours,
@@ -4146,9 +4237,17 @@ pub fn handle_admin(req: &Request) -> Response {
             Response::new(200, body)
         }
         "/admin/monitoring" => {
+            if expensive_admin_read_is_limited(&store, req, provider_registry.as_ref()) {
+                return too_many_admin_read_requests_response();
+            }
             handle_admin_monitoring(req, &store)
         }
         "/admin/ban" => {
+            if *req.method() == spin_sdk::http::Method::Get
+                && expensive_admin_read_is_limited(&store, req, provider_registry.as_ref())
+            {
+                return too_many_admin_read_requests_response();
+            }
             let cfg = match crate::config::load_runtime_cached(&store, site_id) {
                 Ok(cfg) => cfg,
                 Err(err) => return Response::new(500, err.user_message()),
@@ -4223,18 +4322,6 @@ pub fn handle_admin(req: &Request) -> Response {
                     "fingerprint": ban.fingerprint
                 }));
             }
-            // Log admin action
-            log_event(
-                &store,
-                &EventLogEntry {
-                    ts: now_ts(),
-                    event: EventType::AdminAction,
-                    ip: None,
-                    reason: Some("ban_list".to_string()),
-                    outcome: Some(format!("{} bans listed", bans.len())),
-                    admin: Some(crate::admin::auth::get_admin_id(req)),
-                },
-            );
             let body = serde_json::to_string(&json!({"bans": bans})).unwrap();
             Response::new(200, body)
         }
@@ -4289,18 +4376,6 @@ pub fn handle_admin(req: &Request) -> Response {
             } else {
                 "closed"
             };
-            // Log admin analytics view
-            log_event(
-                &store,
-                &EventLogEntry {
-                    ts: now_ts(),
-                    event: EventType::AdminAction,
-                    ip: None,
-                    reason: Some("analytics_view".to_string()),
-                    outcome: Some(format!("ban_count={}", ban_count)),
-                    admin: Some(crate::admin::auth::get_admin_id(req)),
-                },
-            );
             let body = serde_json::to_string(&json!({
                 "ban_count": ban_count,
                 "test_mode": cfg.test_mode,

@@ -222,6 +222,17 @@ export const deriveMonitoringSummaryViewModel = (summary = {}) => {
 
 export const derivePrometheusHelperViewModel = (prometheusData = {}, origin = '') => {
   const readString = (value) => (typeof value === 'string' ? value.trim() : '');
+  const sanitizeExternalUrl = (value) => {
+    const raw = readString(value);
+    if (!/^https?:\/\//i.test(raw)) return '';
+    try {
+      const parsed = new URL(raw);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+      return parsed.href;
+    } catch (_error) {
+      return '';
+    }
+  };
   const endpoint =
     typeof prometheusData.endpoint === 'string' ? prometheusData.endpoint : '/metrics';
   const docs =
@@ -241,9 +252,8 @@ export const derivePrometheusHelperViewModel = (prometheusData = {}, origin = ''
     exampleWindowed: readString(prometheusData?.example_windowed) || '// Example unavailable.',
     exampleSummaryStats:
       readString(prometheusData?.example_summary_stats) || '// Example unavailable.',
-    observabilityLink:
-      typeof docs.observability === 'string' && docs.observability ? docs.observability : '',
-    apiLink: typeof docs.api === 'string' && docs.api ? docs.api : ''
+    observabilityLink: sanitizeExternalUrl(docs.observability),
+    apiLink: sanitizeExternalUrl(docs.api)
   };
 };
 

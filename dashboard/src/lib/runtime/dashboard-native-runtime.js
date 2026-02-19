@@ -208,6 +208,9 @@ export async function mountDashboardApp(options = {}) {
   dashboardApiClient = dashboardApiClientModule.create({
     getAdminContext,
     onUnauthorized: () => {
+      if (dashboardRefreshRuntime && typeof dashboardRefreshRuntime.clearAllCaches === 'function') {
+        dashboardRefreshRuntime.clearAllCaches();
+      }
       setSessionState(false, '');
     }
   });
@@ -253,6 +256,9 @@ export function getDashboardSessionState() {
 }
 
 export async function logoutDashboardSession() {
+  if (dashboardRefreshRuntime && typeof dashboardRefreshRuntime.clearAllCaches === 'function') {
+    dashboardRefreshRuntime.clearAllCaches();
+  }
   const endpoint = resolveEndpoint();
   if (endpoint) {
     const headers = new Headers();
