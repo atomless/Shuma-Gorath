@@ -15,6 +15,7 @@ Use the Makefile as the official workflow. These docs are the source of truth fo
 - [`api.md`](api.md) - API usage and endpoint details
 - [`configuration.md`](configuration.md) - Runtime configuration reference
 - [`security-hardening.md`](security-hardening.md) - Deployment security checklist
+- [`privacy-gdpr-review.md`](privacy-gdpr-review.md) - GDPR/privacy and cookie/storage compliance review for telemetry and logging
 - [`observability.md`](observability.md) - Prometheus/Grafana integration
 - [`monitoring-prometheus-parity-audit.md`](monitoring-prometheus-parity-audit.md) - Monitoring widget-to-Prometheus parity matrix and prioritized missing-export plan
 - [`bot-defence.md`](bot-defence.md) - Shuma-Gorath layered defence strategy with managed edge bot protection

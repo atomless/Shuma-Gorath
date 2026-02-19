@@ -16,5 +16,7 @@ Completed findings are archived in `todos/completed-todo-history.md`.
 ### P2
 - [ ] KV-backed operational telemetry remains acceptable at current scale but needs periodic reassessment against write volume and retention growth.
 - [ ] Logging is still largely unstructured (`eprintln!`-first); request correlation and incident triage ergonomics can be improved.
+- [ ] Fingerprint-state retention currently uses logical TTL windows but does not yet deterministically remove stale `fp:*` keys; tighten physical cleanup for strict privacy retention compliance (tracked as `SEC-GDPR-2` in `todos/todo.md`).
+- [ ] Event logs store raw IPs by default for abuse triage; add optional minimization mode for privacy-sensitive deployments (tracked as `SEC-GDPR-3` in `todos/todo.md`).
 
 ## Closed or Invalid Findings (Audit Trail)

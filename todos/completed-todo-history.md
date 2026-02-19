@@ -14,6 +14,20 @@ Moved from active TODO files on 2026-02-14.
 - [x] DSH-SX-EX6 Rebalance dashboard automated tests toward behavior/outcome contracts (refresh-mode behavior, freshness parity, range refresh cadence, toggle semantics) and trim brittle source-string-only assertions to a minimal architecture guard set.
 - [x] DSH-SX-EX7 Add Svelte static diagnostics to setup/verification paths (`svelte-check` dependency + Makefile target + CI/`make test-dashboard-*` wiring) so Svelte compile/type warnings fail fast.
 
+### P0 Monitoring Cost/Security Hardening (2026-02-19)
+
+- [x] MON-COST-1 Fix event-log retention cleanup so all buckets older than retention are deleted (not just one cutoff hour bucket).
+- [x] MON-COST-2 Move event/monitoring cleanup scans off hot request write paths and keep retention enforcement deterministic.
+- [x] MON-COST-3 Add success-path abuse controls for expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`) to reduce KV/CPU amplification risk.
+- [x] MON-COST-4 Reduce monitoring read-side self-amplification by removing routine read-view AdminAction event writes.
+- [x] MON-COST-5 Harden monitoring write-path cost profile by reducing per-request KV read/modify/write amplification.
+- [x] MON-COST-6 Add path-dimension cardinality guardrails for monitoring telemetry keys to prevent unbounded key explosion.
+- [x] MON-COST-7 Treat provider Redis URLs as secret export values; never include credential-bearing URLs in `/admin/config/export`.
+- [x] MON-COST-8 Reduce dashboard monitoring cache serialization/storage overhead and clear monitoring/IP-ban cache on logout/session end.
+- [x] MON-COST-9 Sanitize external documentation URLs in dashboard monitoring helper rendering.
+- [x] MON-COST-10 Document retention, read throttling, and monitoring telemetry cost controls in operator docs.
+- [x] SEC-GDPR-1 Run a GDPR/privacy compliance review for telemetry/logging data collected by Shuma and determine whether deployment contexts require a cookie consent notice and/or other disclosure controls. (`docs/privacy-gdpr-review.md`)
+
 ## todos/todo.md
 
 - [x] Define sprint guardrails: refactor-only, no behavior changes, no new dependencies, tests must pass before each checkoff.

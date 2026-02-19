@@ -71,6 +71,16 @@ Control log retention with `SHUMA_EVENT_LOG_RETENTION_HOURS`:
 - Default: 168 hours (7 days)
 - Set to `0` to disable cleanup
 
+## 🐙 Privacy and Cookie Disclosure
+
+Default Shuma runtime storage is security/operations-oriented (auth/session cookies, JS verification cookies, and short-lived admin dashboard cache entries), not marketing or cross-site tracking.
+
+- In most EU/UK ePrivacy contexts this is generally treated as strictly necessary storage, so an opt-in cookie banner is typically not required by default.
+- Operators must still publish a clear privacy/cookie disclosure covering what is stored, why, and for how long.
+- If non-essential analytics/marketing tracking storage is added, prior consent is required.
+
+Use `docs/privacy-gdpr-review.md` as the implementation-grounded baseline for deployment policy decisions.
+
 ## 🐙 Metrics Endpoint Exposure
 
 `/metrics` is unauthenticated for Prometheus compatibility. Restrict it at the network edge or via firewall rules if needed.

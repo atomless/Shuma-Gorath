@@ -14,18 +14,10 @@ Completed items are archived in `todos/completed-todo-history.md`.
 - [x] Treat all non-blocking research/backlog items below as lower priority until the Svelte-native dashboard path replaces the bridge path.
 - [x] Complete the dashboard excellence remediation slice (`DSH-MON-EX1`..`DSH-MON-EX7`) before picking up additional roadmap/research backlog items.
 
-### P0 Monitoring Cost/Security Hardening (2026-02-19)
-- [x] MON-COST-1 Fix event-log retention cleanup so all buckets older than retention are deleted (not just one cutoff hour bucket).
-- [x] MON-COST-2 Move event/monitoring cleanup scans off hot request write paths and keep retention enforcement deterministic.
-- [x] MON-COST-3 Add success-path abuse controls for expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`) to reduce KV/CPU amplification risk.
-- [x] MON-COST-4 Reduce monitoring read-side self-amplification by removing routine read-view AdminAction event writes.
-- [x] MON-COST-5 Harden monitoring write-path cost profile by reducing per-request KV read/modify/write amplification.
-- [x] MON-COST-6 Add path-dimension cardinality guardrails for monitoring telemetry keys to prevent unbounded key explosion.
-- [x] MON-COST-7 Treat provider Redis URLs as secret export values; never include credential-bearing URLs in `/admin/config/export`.
-- [x] MON-COST-8 Reduce dashboard monitoring cache serialization/storage overhead and clear monitoring/IP-ban cache on logout/session end.
-- [x] MON-COST-9 Sanitize external documentation URLs in dashboard monitoring helper rendering.
-- [x] MON-COST-10 Document retention, read throttling, and monitoring telemetry cost controls in operator docs.
-- [ ] SEC-GDPR-1 Run a GDPR/privacy compliance review for telemetry/logging data collected by Shuma and determine whether deployment contexts require a cookie consent notice and/or other disclosure controls.
+## P1 Privacy and Data-Protection Follow-up
+- [ ] SEC-GDPR-2 Enforce deterministic cleanup/expiry for stale fingerprint state keys (`fp:state:*`, `fp:flow:*`, `fp:flow:last_bucket:*`) aligned to configured fingerprint TTL/window controls.
+- [ ] SEC-GDPR-3 Add an optional event-log IP minimization mode (raw vs masked/pseudonymized) for privacy-sensitive deployments, with explicit tradeoff documentation.
+- [ ] SEC-GDPR-4 Add a deployer-ready privacy/cookie disclosure template in docs (lawful basis, retention table, storage inventory, and rights-handling workflow).
 
 ## P1 Research Dossiers (Paper-by-Paper TODOs)
 Completion rule for every paper TODO below: capture key findings, map to `self_hosted_minimal` vs `enterprise_akamai` ownership, and propose concrete Shuma TODO updates.
