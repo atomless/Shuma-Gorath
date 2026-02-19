@@ -397,15 +397,37 @@ h1 {
   border-style: dashed;
 }
 
+.dashboard-refresh-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 10px 0;
+  border-bottom: var(--border-hairline);
+}
+
+#refresh-mode {
+  font-size: var(--text-sm);
+}
+
+.dashboard-refresh-toggle {
+  margin: 0;
+  align-items: center;
+}
+
+.dashboard-refresh-toggle .control-label {
+  margin-right: 8px;
+}
+
+#refresh-now-btn {
+  min-width: 112px;
+}
+
 #last-updated {
-  position: absolute;
-  top: 2px;
-  right: 2px;
   color: var(--color-500);
-  font-size: 8px;
-  font-family: monospace;
-  text-align: right;
-  opacity: 0.1;
+  font-size: var(--text-sm);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  margin-left: auto;
 }
 
 /* ===========================================

@@ -2,6 +2,18 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-02-19)
+
+### P0 Dashboard Monitoring Freshness + Efficiency Remediation (Next Priority)
+
+- [x] DSH-MON-EX1 Unify monitoring freshness model so auto-refresh updates all monitoring sections/cards/tables/charts from equally fresh snapshots (remove mixed stale-vs-fresh snapshot wiring).
+- [x] DSH-MON-EX2 Add explicit Monitoring refresh mode controls: default `manual` (auto-refresh OFF), user-toggle `auto`, visible last-updated age, and explicit manual refresh action.
+- [x] DSH-MON-EX3 Rework week/month monitoring range fetch lifecycle: in manual mode fetch only on explicit user action/range change; in auto mode refresh on bounded cadence with abort/dedupe guards to keep host/API cost low.
+- [x] DSH-MON-EX4 Fix AI search policy toggle semantics and naming so UI labels, variable names, baseline comparisons, and saved payload fields are non-inverted and unambiguous.
+- [x] DSH-SX-EX5 Remove duplicated route/controller responsibilities (hash read/write, visibility, timing helpers) by consolidating browser orchestration primitives in controller/runtime utilities and keeping route layer declarative.
+- [x] DSH-SX-EX6 Rebalance dashboard automated tests toward behavior/outcome contracts (refresh-mode behavior, freshness parity, range refresh cadence, toggle semantics) and trim brittle source-string-only assertions to a minimal architecture guard set.
+- [x] DSH-SX-EX7 Add Svelte static diagnostics to setup/verification paths (`svelte-check` dependency + Makefile target + CI/`make test-dashboard-*` wiring) so Svelte compile/type warnings fail fast.
+
 ## todos/todo.md
 
 - [x] Define sprint guardrails: refactor-only, no behavior changes, no new dependencies, tests must pass before each checkoff.

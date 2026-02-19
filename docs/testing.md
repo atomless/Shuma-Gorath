@@ -22,6 +22,7 @@ Notes:
 - Integration tests require a running Spin server (`make dev`); test targets do not start Spin.
 - `make test`, `make test-integration`, and `make test-dashboard-e2e` wait for `/health` readiness before failing.
 - `make test` includes maze asymmetry benchmark gating plus Playwright dashboard e2e and fails if any stage cannot run.
+- `make test-dashboard-e2e` now verifies the running Spin instance is serving the current `dist/dashboard/index.html` before Playwright runs; restart Spin after `make dashboard-build` if this check fails.
 - `make test` now reseeds dashboard sample data at the end, so charts/tables stay populated for local inspection after the run.
 
 ## 🐙 Test Layers
@@ -121,12 +122,15 @@ Behavior:
    - if Chromium launch fails with a known sandbox signature while local HOME is forced, the runner retries preflight with system HOME
 3. Runs a Chromium launch preflight and fails fast with actionable diagnostics when sandbox permissions block browser startup.
 4. Runs dashboard module unit tests via `make test-dashboard-unit`.
-5. Runs dashboard bundle-size budget gate (`scripts/tests/check_dashboard_bundle_budget.js`) against `dist/dashboard/_app`.
-6. Seeds deterministic dashboard data via `make seed-dashboard-data`.
-7. Runs browser smoke checks for core dashboard behavior:
+5. Runs dashboard bundle-size budget gate (`scripts/tests/check_dashboard_bundle_budget.js`) against `dist/dashboard/_app` (in the e2e flow this checks the currently served build without rebuilding first).
+6. Verifies the running Spin instance is serving the current dashboard artifact (`dist/dashboard/index.html`) and fails fast if the server is stale.
+7. Seeds deterministic dashboard data via `make seed-dashboard-data`.
+8. Runs browser smoke checks for core dashboard behavior:
    - page loads and refresh succeeds
    - runtime page errors or failed JS/CSS loads fail the run
    - only one dashboard tab panel is visible at a time (panel exclusivity)
+   - auto-refresh defaults OFF and is only exposed on Monitoring/IP Bans
+   - polling cadence assertions explicitly enable auto-refresh toggle (60s production cadence)
    - native Monitoring polling request fan-out stays within bounded per-cycle budget during remount/steady-state loops
    - seeded events/tables are visible
    - clean-state API payloads render explicit empty placeholders (no crash/blank UI)
@@ -135,7 +139,7 @@ Behavior:
    - `/dashboard` canonical path redirects to `/dashboard/index.html`
    - tab-level error states surface backend failures
    - sticky table headers remain applied
-8. `make test` executes a final dashboard seed step (`make seed-dashboard-data`) after e2e so local dashboards retain recent sample data.
+9. `make test` executes a final dashboard seed step (`make seed-dashboard-data`) after e2e so local dashboards retain recent sample data.
 
 Notes:
 - Seeding is test-only and does not run during `make setup`.

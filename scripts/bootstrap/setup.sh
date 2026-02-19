@@ -390,6 +390,7 @@ fi
 dashboard_deps_ready() {
     [[ -d "node_modules/.pnpm" ]] && \
     [[ -x "node_modules/.bin/vite" ]] && \
+    [[ -x "node_modules/.bin/svelte-check" ]] && \
     [[ -d "node_modules/svelte" ]] && \
     [[ -d "node_modules/@sveltejs/kit" ]] && \
     [[ -d "node_modules/@playwright/test" ]]

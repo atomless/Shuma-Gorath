@@ -38,6 +38,9 @@
     config: 'Loading config...',
     tuning: 'Loading tuning values...'
   });
+  const AUTO_REFRESH_INTERVAL_MS = 60000;
+  const AUTO_REFRESH_TABS = new Set(['monitoring', 'ip-bans']);
+  const AUTO_REFRESH_PREF_KEY = 'shuma_dashboard_auto_refresh_v1';
 
   const fallbackBasePath = normalizeDashboardBasePath();
   const dashboardBasePath = typeof data?.dashboardBasePath === 'string'
@@ -59,6 +62,7 @@
   let runtimeReady = false;
   let runtimeError = '';
   let loggingOut = false;
+  let autoRefreshEnabled = false;
   let adminMessageText = '';
   let adminMessageKind = 'info';
   let ConfigTabComponent = null;
@@ -68,7 +72,17 @@
   $: activeTabKey = normalizeTab(dashboardState.activeTab);
   $: tabStatus = dashboardState?.tabStatus || {};
   $: activeTabStatus = tabStatus[activeTabKey] || {};
-  $: lastUpdatedText = activeTabStatus.updatedAt ? `updated: ${activeTabStatus.updatedAt}` : '';
+  $: autoRefreshSupported = AUTO_REFRESH_TABS.has(activeTabKey);
+  $: refreshNowDisabled =
+    !runtimeReady || activeTabStatus.loading === true || autoRefreshSupported !== true;
+  $: refreshModeText = autoRefreshSupported
+    ? (autoRefreshEnabled
+      ? `Auto refresh ON (${Math.floor(AUTO_REFRESH_INTERVAL_MS / 1000)}s cadence)`
+      : 'Auto refresh OFF (manual)')
+    : 'Manual updates only on this tab';
+  $: lastUpdatedText = activeTabStatus.updatedAt
+    ? `Last updated: ${new Date(activeTabStatus.updatedAt).toLocaleString()}`
+    : 'Last updated: not updated yet';
   $: snapshots = dashboardState?.snapshots || {};
   $: snapshotVersions = dashboardState?.snapshotVersions || {};
   $: analyticsSnapshot = snapshots.analytics || {};
@@ -98,44 +112,20 @@
     return false;
   }
 
-  function requestNextFrame(callback) {
-    if (typeof callback !== 'function') return;
-    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-      window.requestAnimationFrame(callback);
-      return;
+  function readAutoRefreshPreference() {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.localStorage.getItem(AUTO_REFRESH_PREF_KEY) === '1';
+    } catch (_error) {
+      return false;
     }
-    setTimeout(callback, 0);
   }
 
-  function nowMs() {
-    if (typeof window !== 'undefined' && window.performance && typeof window.performance.now === 'function') {
-      return window.performance.now();
-    }
-    return Date.now();
-  }
-
-  function readHashTab() {
-    if (typeof window === 'undefined') return '';
-    return String(window.location.hash || '').replace(/^#/, '');
-  }
-
-  function writeHashTab(tab, options = {}) {
+  function writeAutoRefreshPreference(nextEnabled) {
     if (typeof window === 'undefined') return;
-    const normalized = String(tab || '').replace(/^#/, '');
-    if (!normalized) return;
-    const nextHash = `#${normalized}`;
-    if (window.location.hash === nextHash) return;
-    if (options && options.replace === true) {
-      const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`;
-      window.history.replaceState(null, '', nextUrl);
-      return;
-    }
-    window.location.hash = nextHash;
-  }
-
-  function isPageVisible() {
-    if (typeof document === 'undefined') return true;
-    return document.visibilityState !== 'hidden';
+    try {
+      window.localStorage.setItem(AUTO_REFRESH_PREF_KEY, nextEnabled ? '1' : '0');
+    } catch (_error) {}
   }
 
   function resolveLoginRedirectPath() {
@@ -166,7 +156,8 @@
     getDashboardSessionState,
     setDashboardActiveTab,
     refreshDashboardTab,
-    selectRefreshInterval: (tab) => dashboardStore.selectRefreshInterval(tab),
+    selectRefreshInterval: (tab) =>
+      AUTO_REFRESH_TABS.has(normalizeTab(tab)) ? AUTO_REFRESH_INTERVAL_MS : 0,
     setPollingContext: (tab, intervalMs) => dashboardStore.setPollingContext(tab, intervalMs),
     recordPollingSkip: (reason, tab, intervalMs) =>
       dashboardStore.recordPollingSkip(reason, tab, intervalMs),
@@ -174,15 +165,20 @@
       dashboardStore.recordPollingResume(reason, tab, intervalMs),
     recordRefreshMetrics: (metrics) => dashboardStore.recordRefreshMetrics(metrics),
     isAuthenticated: () => dashboardStore.getState().session.authenticated === true,
-    requestNextFrame,
-    nowMs,
-    readHashTab,
-    writeHashTab,
-    isPageVisible,
+    isAutoRefreshEnabled: () => autoRefreshEnabled === true,
+    isAutoRefreshTab: (tab) => AUTO_REFRESH_TABS.has(normalizeTab(tab)),
+    shouldRefreshOnActivate: ({ tab, store }) => {
+      const normalized = normalizeTab(tab);
+      if (AUTO_REFRESH_TABS.has(normalized)) return true;
+      const state = store && typeof store.getState === 'function' ? store.getState() : null;
+      const configSnapshot = state && state.snapshots ? state.snapshots.config : null;
+      return !configSnapshot || Object.keys(configSnapshot).length === 0;
+    },
     redirectToLogin
   });
 
   onMount(async () => {
+    autoRefreshEnabled = readAutoRefreshPreference();
     routeController.setMounted(true);
     storeUnsubscribe = dashboardStore.subscribe((value) => {
       dashboardState = value;
@@ -200,7 +196,7 @@
       TuningTabComponent = loadedTuningTab;
 
       const bootstrapped = await routeController.bootstrapRuntime({
-        initialTab: normalizeTab(data?.initialHashTab || readHashTab()),
+        initialTab: normalizeTab(data?.initialHashTab || ''),
         chartRuntimeSrc,
         basePath: dashboardBasePath
       });
@@ -230,9 +226,9 @@
     if (!target) return;
     event.preventDefault();
     void routeController.applyActiveTab(target, { reason: 'keyboard', syncHash: true });
-    requestNextFrame(() => {
+    setTimeout(() => {
       focusTab(target);
-    });
+    }, 0);
   }
 
   function onWindowHashChange() {
@@ -247,6 +243,21 @@
   function setAdminMessage(text = '', kind = 'info') {
     adminMessageText = String(text || '');
     adminMessageKind = String(kind || 'info');
+  }
+
+  function onAutoRefreshToggle(event) {
+    const checked = event && event.currentTarget && event.currentTarget.checked === true;
+    autoRefreshEnabled = checked;
+    writeAutoRefreshPreference(checked);
+    routeController.schedulePolling('auto-refresh-toggle');
+  }
+
+  async function onRefreshNow(event) {
+    if (event && typeof event.preventDefault === 'function') {
+      event.preventDefault();
+    }
+    if (refreshNowDisabled || !autoRefreshSupported) return;
+    await routeController.refreshTab(activeTabKey, 'manual-refresh');
   }
 
   function formatActionError(error, fallback = 'Action failed.') {
@@ -333,8 +344,6 @@
 </svelte:head>
 <svelte:window on:hashchange={onWindowHashChange} />
 <svelte:document on:visibilitychange={onDocumentVisibilityChange} />
-
-<span id="last-updated" class="text-muted">{lastUpdatedText}</span>
 <div class="container panel panel-border" data-dashboard-runtime-mode="native">
   <header>
     <div class="shuma-image-wrapper">
@@ -371,6 +380,31 @@
         </a>
       {/each}
     </nav>
+    <div id="dashboard-refresh-controls" class="dashboard-refresh-controls">
+      <span id="refresh-mode" class="text-muted">{refreshModeText}</span>
+      {#if autoRefreshSupported}
+        <div class="toggle-row dashboard-refresh-toggle">
+          <span class="control-label control-label--wide">Enable Auto Refresh</span>
+          <label class="toggle-switch" for="auto-refresh-toggle">
+            <input
+              id="auto-refresh-toggle"
+              type="checkbox"
+              aria-label="Enable automatic refresh for current tab"
+              checked={autoRefreshEnabled}
+              on:change={onAutoRefreshToggle}
+            >
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <button
+          id="refresh-now-btn"
+          class="btn btn-subtle"
+          disabled={refreshNowDisabled}
+          on:click={onRefreshNow}
+        >{activeTabStatus.loading === true ? 'Refreshing...' : 'Refresh now'}</button>
+      {/if}
+      <span id="last-updated" class="text-muted">{lastUpdatedText}</span>
+    </div>
   </header>
   <div id="test-mode-banner" class="test-mode-banner" class:hidden={!testModeEnabled}>
     TEST MODE ACTIVE - Logging only, no blocking
@@ -379,6 +413,7 @@
   <MonitoringTab
     managed={true}
     isActive={activeTabKey === 'monitoring'}
+    autoRefreshEnabled={autoRefreshEnabled}
     tabStatus={tabStatus.monitoring || {}}
     analyticsSnapshot={snapshots.analytics}
     eventsSnapshot={snapshots.events}

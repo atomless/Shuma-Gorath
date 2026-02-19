@@ -123,6 +123,18 @@ export function createDashboardRouteController(options = {}) {
     typeof options.selectRefreshInterval === 'function'
       ? options.selectRefreshInterval
       : () => 30000;
+  const isAutoRefreshEnabled =
+    typeof options.isAutoRefreshEnabled === 'function'
+      ? options.isAutoRefreshEnabled
+      : () => true;
+  const isAutoRefreshTab =
+    typeof options.isAutoRefreshTab === 'function'
+      ? options.isAutoRefreshTab
+      : () => true;
+  const shouldRefreshOnActivate =
+    typeof options.shouldRefreshOnActivate === 'function'
+      ? options.shouldRefreshOnActivate
+      : () => true;
 
   let mounted = false;
   let runtimeMounted = false;
@@ -229,6 +241,16 @@ export function createDashboardRouteController(options = {}) {
       pollingPaused = true;
       return;
     }
+    if (!isAutoRefreshEnabled()) {
+      recordPollingSkip('auto-refresh-disabled', activeTab, intervalMs);
+      pollingPaused = true;
+      return;
+    }
+    if (!isAutoRefreshTab(activeTab)) {
+      recordPollingSkip('tab-not-auto-refreshable', activeTab, intervalMs);
+      pollingPaused = true;
+      return;
+    }
 
     if (pollingPaused) {
       recordPollingResume(resumeReason, activeTab, intervalMs);
@@ -239,13 +261,23 @@ export function createDashboardRouteController(options = {}) {
       pollTimer = null;
       const currentTab = normalizeTab(store ? store.getState().activeTab : tabs[0]);
       const currentInterval = normalizeRefreshInterval(selectRefreshInterval(currentTab));
-      if (!mounted || !isAuthenticated() || !isPageVisible()) {
+      if (
+        !mounted ||
+        !isAuthenticated() ||
+        !isPageVisible() ||
+        !isAutoRefreshEnabled() ||
+        !isAutoRefreshTab(currentTab)
+      ) {
         if (!mounted) {
           recordPollingSkip('not-mounted', currentTab, currentInterval);
         } else if (!isAuthenticated()) {
           recordPollingSkip('unauthenticated', currentTab, currentInterval);
-        } else {
+        } else if (!isPageVisible()) {
           recordPollingSkip('page-hidden', currentTab, currentInterval);
+        } else if (!isAutoRefreshEnabled()) {
+          recordPollingSkip('auto-refresh-disabled', currentTab, currentInterval);
+        } else {
+          recordPollingSkip('tab-not-auto-refreshable', currentTab, currentInterval);
         }
         pollingPaused = true;
         schedulePolling('condition-recheck');
@@ -284,7 +316,13 @@ export function createDashboardRouteController(options = {}) {
       writeHashTab(normalized, { replace: options.replaceHash === true });
     }
 
-    if (isAuthenticated()) {
+    const shouldRefresh = shouldRefreshOnActivate({
+      tab: normalized,
+      reason,
+      changed,
+      store
+    }) !== false;
+    if (isAuthenticated() && shouldRefresh) {
       await refreshTab(normalized, reason);
     }
     schedulePolling('tab-change');

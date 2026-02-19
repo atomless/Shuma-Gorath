@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build prod clean test test-unit unit-test test-integration integration-test test-coverage test-dashboard test-dashboard-unit test-dashboard-budgets test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready deploy logs status stop help setup verify config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build prod clean test test-unit unit-test test-integration integration-test test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready deploy logs status stop help setup verify config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -90,7 +90,7 @@ dashboard-build: ## Build SvelteKit dashboard static assets to dist/dashboard
 		exit 1; \
 	fi
 	@corepack enable > /dev/null 2>&1 || true
-	@if [ ! -d node_modules/.pnpm ] || [ ! -x node_modules/.bin/vite ] || [ ! -d node_modules/svelte ] || [ ! -d node_modules/@sveltejs/kit ]; then \
+	@if [ ! -d node_modules/.pnpm ] || [ ! -x node_modules/.bin/vite ] || [ ! -x node_modules/.bin/svelte-check ] || [ ! -d node_modules/svelte ] || [ ! -d node_modules/@sveltejs/kit ]; then \
 		corepack pnpm install --offline --frozen-lockfile || corepack pnpm install --frozen-lockfile; \
 	fi
 	@rm -rf dist/dashboard
@@ -292,6 +292,18 @@ test-dashboard: ## Dashboard testing instructions (manual)
 	@echo "2. Open: http://127.0.0.1:3000/dashboard/index.html"
 	@echo "3. Follow checklist in docs/testing.md"
 
+test-dashboard-svelte-check: ## Run Svelte static diagnostics for dashboard sources
+	@echo "$(CYAN)🧪 Running dashboard svelte-check diagnostics...$(NC)"
+	@if ! command -v corepack >/dev/null 2>&1; then \
+		echo "$(RED)❌ Error: corepack not found (install Node.js 18+).$(NC)"; \
+		exit 1; \
+	fi
+	@corepack enable > /dev/null 2>&1 || true
+	@if [ ! -d node_modules/.pnpm ] || [ ! -x node_modules/.bin/vite ] || [ ! -x node_modules/.bin/svelte-check ] || [ ! -d node_modules/svelte ] || [ ! -d node_modules/@sveltejs/kit ] || [ ! -d node_modules/@playwright/test ]; then \
+		corepack pnpm install --offline --frozen-lockfile || corepack pnpm install --frozen-lockfile; \
+	fi
+	@corepack pnpm run test:dashboard:svelte-check
+
 test-dashboard-unit: ## Run dashboard module unit tests (Node + dashboard JS contracts)
 	@echo "$(CYAN)🧪 Running dashboard module unit tests...$(NC)"
 	@if ! command -v corepack >/dev/null 2>&1; then \
@@ -299,14 +311,17 @@ test-dashboard-unit: ## Run dashboard module unit tests (Node + dashboard JS con
 		exit 1; \
 	fi
 	@corepack enable > /dev/null 2>&1 || true
-	@if [ ! -d node_modules/.pnpm ] || [ ! -x node_modules/.bin/vite ] || [ ! -d node_modules/svelte ] || [ ! -d node_modules/@sveltejs/kit ] || [ ! -d node_modules/@playwright/test ]; then \
+	@if [ ! -d node_modules/.pnpm ] || [ ! -x node_modules/.bin/vite ] || [ ! -x node_modules/.bin/svelte-check ] || [ ! -d node_modules/svelte ] || [ ! -d node_modules/@sveltejs/kit ] || [ ! -d node_modules/@playwright/test ]; then \
 		corepack pnpm install --offline --frozen-lockfile || corepack pnpm install --frozen-lockfile; \
 	fi
+	@$(MAKE) --no-print-directory test-dashboard-svelte-check
 	@corepack pnpm run test:dashboard:unit
 
 test-dashboard-budgets: ## Verify /dashboard/_app bundle size ceilings
 	@echo "$(CYAN)🧪 Checking dashboard bundle-size budgets...$(NC)"
-	@$(MAKE) --no-print-directory dashboard-build >/dev/null
+	@if [ "$${SHUMA_DASHBOARD_BUDGET_SKIP_BUILD:-0}" != "1" ]; then \
+		$(MAKE) --no-print-directory dashboard-build >/dev/null; \
+	fi
 	@SHUMA_DASHBOARD_BUNDLE_MAX_TOTAL_BYTES=$(SHUMA_DASHBOARD_BUNDLE_MAX_TOTAL_BYTES) \
 	SHUMA_DASHBOARD_BUNDLE_MAX_JS_BYTES=$(SHUMA_DASHBOARD_BUNDLE_MAX_JS_BYTES) \
 	SHUMA_DASHBOARD_BUNDLE_MAX_CSS_BYTES=$(SHUMA_DASHBOARD_BUNDLE_MAX_CSS_BYTES) \
@@ -322,11 +337,12 @@ test-dashboard-e2e: ## Run Playwright dashboard smoke tests (waits for existing 
 			exit 1; \
 		fi; \
 		corepack enable > /dev/null 2>&1 || true; \
-		if [ ! -d node_modules/.pnpm ] || [ ! -x node_modules/.bin/vite ] || [ ! -d node_modules/svelte ] || [ ! -d node_modules/@sveltejs/kit ] || [ ! -d node_modules/@playwright/test ]; then \
+		if [ ! -d node_modules/.pnpm ] || [ ! -x node_modules/.bin/vite ] || [ ! -x node_modules/.bin/svelte-check ] || [ ! -d node_modules/svelte ] || [ ! -d node_modules/@sveltejs/kit ] || [ ! -d node_modules/@playwright/test ]; then \
 			corepack pnpm install --offline --frozen-lockfile || corepack pnpm install --frozen-lockfile; \
 		fi; \
 		$(MAKE) --no-print-directory test-dashboard-unit || exit 1; \
-		$(MAKE) --no-print-directory test-dashboard-budgets || exit 1; \
+		SHUMA_DASHBOARD_BUDGET_SKIP_BUILD=1 $(MAKE) --no-print-directory test-dashboard-budgets || exit 1; \
+		./scripts/tests/verify_served_dashboard_assets.sh http://127.0.0.1:3000 || exit 1; \
 		$(MAKE) --no-print-directory seed-dashboard-data || exit 1; \
 		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) corepack pnpm run test:dashboard:e2e; \
 	else \

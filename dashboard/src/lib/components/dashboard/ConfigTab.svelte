@@ -114,7 +114,7 @@
   let robotsCrawlDelay = 2;
   let robotsBlockTraining = true;
   let robotsBlockSearch = false;
-  let robotsAllowSearch = false;
+  let restrictSearchEngines = false;
 
   let advancedConfigJson = '{}';
 
@@ -138,7 +138,7 @@
       admin: 21600
     },
     robots: { enabled: true, crawlDelay: 2 },
-    aiPolicy: { blockTraining: true, blockSearch: false, allowSearch: false },
+    aiPolicy: { blockTraining: true, blockSearch: false, restrictSearchEngines: false },
     advanced: { normalized: '{}' }
   };
 
@@ -299,7 +299,7 @@
     robotsBlockTraining = (config.ai_policy_block_training ?? config.robots_block_ai_training) !== false;
     robotsBlockSearch = (config.ai_policy_block_search ?? config.robots_block_ai_search) === true;
     const aiAllowSearchEngines = config.ai_policy_allow_search_engines ?? config.robots_allow_search_engines;
-    robotsAllowSearch = aiAllowSearchEngines === undefined ? false : aiAllowSearchEngines !== true;
+    restrictSearchEngines = aiAllowSearchEngines === undefined ? false : aiAllowSearchEngines !== true;
 
     const advancedTemplate = buildTemplateFromPaths(config, advancedConfigTemplatePaths || []);
     const advancedText = JSON.stringify(advancedTemplate, null, 2);
@@ -363,7 +363,7 @@
       aiPolicy: {
         blockTraining: robotsBlockTraining,
         blockSearch: robotsBlockSearch,
-        allowSearch: robotsAllowSearch
+        restrictSearchEngines
       },
       advanced: {
         normalized: normalizeJsonObjectForCompare(advancedText) || '{}'
@@ -510,7 +510,7 @@
     await submitConfigPatch('aiPolicy', {
       ai_policy_block_training: robotsBlockTraining,
       ai_policy_block_search: robotsBlockSearch,
-      ai_policy_allow_search_engines: !robotsAllowSearch
+      ai_policy_allow_search_engines: !restrictSearchEngines
     }, 'AI bot policy saved');
     if (robotsPreviewOpen) {
       await refreshRobotsPreview();
@@ -713,7 +713,7 @@
   $: aiPolicyDirty = (
     readBool(robotsBlockTraining) !== baseline.aiPolicy.blockTraining ||
     readBool(robotsBlockSearch) !== baseline.aiPolicy.blockSearch ||
-    readBool(robotsAllowSearch) !== baseline.aiPolicy.allowSearch
+    readBool(restrictSearchEngines) !== baseline.aiPolicy.restrictSearchEngines
   );
   $: saveAiPolicyDisabled = !writable || !aiPolicyDirty || saving.aiPolicy;
 
@@ -1122,7 +1122,7 @@
         <div class="toggle-row">
           <label class="control-label control-label--wide" for="robots-allow-search-toggle">Restrict Search Engines</label>
           <label class="toggle-switch">
-            <input type="checkbox" id="robots-allow-search-toggle" aria-label="Restrict search engines" bind:checked={robotsAllowSearch}>
+            <input type="checkbox" id="robots-allow-search-toggle" aria-label="Restrict search engines" bind:checked={restrictSearchEngines}>
             <span class="toggle-slider"></span>
           </label>
           <span class="toggle-hint">Google, Bing, etc.</span>

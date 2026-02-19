@@ -30,6 +30,7 @@
   const MONITORING_TREND_POINT_LIMIT = 720;
   const RANGE_EVENTS_FETCH_LIMIT = 5000;
   const RANGE_EVENTS_REQUEST_TIMEOUT_MS = 10000;
+  const RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS = 180000;
   const MAX_SAFE_COUNT = 1_000_000_000;
   const CHALLENGE_TREND_COLOR = 'rgba(122, 114, 255, 0.35)';
   const POW_TREND_COLOR = 'rgba(255, 130, 92, 0.35)';
@@ -60,6 +61,7 @@
   export let cdpEventsSnapshot = null;
   export let monitoringSnapshot = null;
   export let onFetchEventsRange = null;
+  export let autoRefreshEnabled = false;
 
   let eventTypesCanvas = null;
   let topIpsCanvas = null;
@@ -76,6 +78,8 @@
   let rangeEventsSnapshot = { range: '', recent_events: [] };
   let rangeEventsAbortController = null;
   let lastRequestedRange = '';
+  let rangeEventsLastFetchedAtMs = 0;
+  let lastRangeTabUpdateAnchor = '';
 
   let copyButtonLabel = 'Copy JS Example';
   let copyCurlButtonLabel = 'Copy Curl Example';
@@ -474,10 +478,12 @@
           ? payload.recent_events.slice(0, RANGE_EVENTS_FETCH_LIMIT)
           : []
       };
+      rangeEventsLastFetchedAtMs = Date.now();
     } catch (error) {
       if (error && error.name === 'AbortError') return;
       if (rangeEventsAbortController !== abortController) return;
       rangeEventsSnapshot = { range, recent_events: [] };
+      rangeEventsLastFetchedAtMs = Date.now();
     } finally {
       clearTimeout(timeoutId);
       if (rangeEventsAbortController === abortController) {
@@ -553,6 +559,20 @@
 
   $: if (browser && !isActive) {
     abortRangeEventsFetch();
+  }
+
+  $: if (browser && !autoRefreshEnabled) {
+    lastRangeTabUpdateAnchor = '';
+  }
+
+  $: if (browser && isActive && autoRefreshEnabled && shouldFetchRange(selectedTimeRange)) {
+    const currentUpdatedAt = String(tabStatus?.updatedAt || '');
+    if (currentUpdatedAt && currentUpdatedAt !== lastRangeTabUpdateAnchor) {
+      lastRangeTabUpdateAnchor = currentUpdatedAt;
+      if ((Date.now() - rangeEventsLastFetchedAtMs) >= RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS) {
+        lastRequestedRange = '';
+      }
+    }
   }
 
   $: if (browser && isActive && shouldFetchRange(selectedTimeRange) && lastRequestedRange !== selectedTimeRange) {

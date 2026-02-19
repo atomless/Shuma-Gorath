@@ -24,10 +24,13 @@ Refresh model:
 - Polling is scoped to the active tab only.
 - One bounded timer is used (no per-tab timer accumulation).
 - Polling pauses while the page is hidden and resumes on visibility restore.
-- Default cadence: `Monitoring=30s`, `IP Bans=45s`, `Status/Config/Tuning=60s`.
+- Auto-refresh defaults to `OFF` and is explicitly user-toggled.
+- Auto-refresh is only available on `Monitoring` and `IP Bans` (cadence `60s`).
+- `Status`/`Config`/`Tuning` refresh on page-load bootstrap and explicit config/tuning save flows (no background polling).
+- Monitoring and IP-ban snapshots are cached in local storage with a short TTL (`60s`) to reduce repeated API load/cost on quick remount/tab revisit paths.
 - Dashboard API requests now apply a client timeout guard (`12s` default) so stalled admin endpoints fail fast instead of hanging polling/refresh cycles indefinitely.
-- Monitoring auto-refresh uses a single consolidated read per cycle (`/admin/monitoring`) and updates Monitoring summary/helper panels without triggering multi-endpoint fan-out.
-- Monitoring manual/initial refresh still performs full-detail reads (`analytics`, `events`, `bans`, `maze`, `cdp`, `cdp/events`, `monitoring`) to keep charts/tables fully hydrated.
+- Monitoring refresh uses a single consolidated read (`/admin/monitoring`) and now updates all monitoring sections from equally fresh snapshot state (cards, tables, and charts).
+- Monitoring long-range (`7d`/`30d`) range reads stay explicit user-driven in manual mode and only run on bounded cadence while auto-refresh is enabled.
 - Monitoring events/CDP tables now use keyed row patching with bounded row windows (`events<=100`, `cdp<=500`) to avoid full-table DOM rebuild churn on refresh.
 - Monitoring summary/trend rendering now applies bounded sanitization before chart/table paint (top-list rows capped at `10`, trend points capped at `720`, range-event fetch rows capped at `5000`, non-finite/negative counts coerced to safe bounded integers).
 - Monitoring long-range (`7d`/`30d`) fetches now abort when the tab becomes inactive and apply a dedicated fetch timeout (`10s`) to avoid background request churn.

@@ -12,6 +12,7 @@ Completed items are archived in `todos/completed-todo-history.md`.
 ## P0 Priority Override (Highest Priority Queue)
 - [x] Complete the remaining SvelteKit migration work (`DSH-SVLT-NEXT1.*`, `DSH-SVLT-NEXT2.*`, `DSH-SVLT-NEXT3.*`, `DSH-SVLT-TEST1.*`, `DSH-SVLT-TEST2.*`) before non-critical roadmap work.
 - [x] Treat all non-blocking research/backlog items below as lower priority until the Svelte-native dashboard path replaces the bridge path.
+- [x] Complete the dashboard excellence remediation slice (`DSH-MON-EX1`..`DSH-MON-EX7`) before picking up additional roadmap/research backlog items.
 
 ## P1 Research Dossiers (Paper-by-Paper TODOs)
 Completion rule for every paper TODO below: capture key findings, map to `self_hosted_minimal` vs `enterprise_akamai` ownership, and propose concrete Shuma TODO updates.

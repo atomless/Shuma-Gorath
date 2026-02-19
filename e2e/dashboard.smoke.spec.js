@@ -197,6 +197,33 @@ async function openTab(page, tab, options = {}) {
   assertNoRuntimeFailures(page);
 }
 
+async function setAutoRefresh(page, enabled) {
+  const toggle = page.locator("#auto-refresh-toggle");
+  const toggleSwitch = page.locator('label[for="auto-refresh-toggle"]');
+  await expect(toggleSwitch).toBeVisible();
+  if ((await toggle.isChecked()) !== enabled) {
+    await toggleSwitch.click();
+  }
+  if (enabled) {
+    await expect(toggle).toBeChecked();
+  } else {
+    await expect(toggle).not.toBeChecked();
+  }
+}
+
+async function clearDashboardClientCache(page) {
+  await page.evaluate(() => {
+    const keys = [
+      "shuma_dashboard_cache_monitoring_v1",
+      "shuma_dashboard_cache_ip_bans_v1",
+      "shuma_dashboard_auto_refresh_v1"
+    ];
+    try {
+      keys.forEach((key) => window.localStorage.removeItem(key));
+    } catch (_error) {}
+  });
+}
+
 async function submitConfigSave(page, button) {
   await expect(button).toBeEnabled();
   const [response] = await Promise.all([
@@ -930,6 +957,23 @@ test("session survives reload and time-range controls refresh chart data", async
   await expect(page.locator('.time-btn[data-range="month"]')).toHaveClass(/active/);
 });
 
+test("auto refresh defaults off and is only available on monitoring/ip-bans tabs", async ({ page }) => {
+  await openDashboard(page);
+  await openTab(page, "monitoring");
+  await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeVisible();
+  await expect(page.locator("#auto-refresh-toggle")).not.toBeChecked();
+  await expect(page.locator("#refresh-now-btn")).toBeVisible();
+  await expect(page.locator("#refresh-mode")).toContainText("OFF");
+
+  await openTab(page, "status");
+  await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeHidden();
+  await expect(page.locator("#refresh-now-btn")).toBeHidden();
+
+  await openTab(page, "ip-bans");
+  await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeVisible();
+  await expect(page.locator("#auto-refresh-toggle")).not.toBeChecked();
+});
+
 test("route remount preserves keyboard navigation, ban/unban, config save, and polling", async ({ page }) => {
   await page.addInitScript(() => {
     const nativeSetTimeout = window.setTimeout.bind(window);
@@ -1023,6 +1067,7 @@ test("route remount preserves keyboard navigation, ban/unban, config save, and p
   }
 
   await openTab(page, "monitoring");
+  await setAutoRefresh(page, true);
   await page.waitForTimeout(120);
   const beforePollWait = monitoringRequests;
   await page.waitForTimeout(260);
@@ -1090,6 +1135,7 @@ test("monitoring auto-refresh avoids placeholder flicker and bounds table churn"
 
   await openDashboard(page);
   await openTab(page, "monitoring");
+  await setAutoRefresh(page, true);
   await expect(page.locator("#honeypot-total-hits")).not.toHaveText("...");
 
   await page.evaluate(() => {
@@ -1159,6 +1205,7 @@ test("repeated route remount loops keep polling request fan-out bounded", async 
   for (let cycle = 0; cycle < remountCycles; cycle += 1) {
     await openDashboard(page);
     await openTab(page, "monitoring");
+    await setAutoRefresh(page, true);
     const beforeWindow = monitoringRequests;
     await page.waitForTimeout(remountObservationWindowMs);
     const delta = monitoringRequests - beforeWindow;
@@ -1205,6 +1252,7 @@ test("native remount soak keeps refresh p95 and polling cadence within bounds", 
   for (let cycle = 0; cycle < remountCycles; cycle += 1) {
     await openDashboard(page);
     await openTab(page, "monitoring");
+    await setAutoRefresh(page, true);
 
     const before = monitoringRequests;
     await page.waitForTimeout(soakWindowMs);
@@ -1306,32 +1354,16 @@ test("tab keyboard navigation updates hash and selected state", async ({ page })
 test("tab states surface loading and data-ready transitions across all tabs", async ({ page }) => {
   await openDashboard(page);
 
-  const delayPassThrough = async (route, ms = 450) => {
-    const upstream = await route.fetch();
-    await page.waitForTimeout(ms);
-    await route.fulfill({ response: upstream });
-  };
-
-  await page.route("**/admin/config", async (route) => {
-    if (route.request().method() !== "GET") {
-      await route.continue();
-      return;
-    }
-    await delayPassThrough(route);
-  }, { times: 3 });
-
   await openTab(page, "status");
-  await expect(page.locator('[data-tab-state="status"]')).toContainText("Loading status signals...");
   await expect(page.locator('[data-tab-state="status"]')).toBeHidden();
 
   await openTab(page, "config");
-  await expect(page.locator('[data-tab-state="config"]')).toContainText("Loading config...");
   await expect(page.locator('[data-tab-state="config"]')).toBeHidden();
 
   await openTab(page, "tuning");
-  await expect(page.locator('[data-tab-state="tuning"]')).toContainText("Loading tuning values...");
   await expect(page.locator('[data-tab-state="tuning"]')).toBeHidden();
 
+  await clearDashboardClientCache(page);
   await page.route("**/admin/ban", async (route) => {
     if (route.request().method() !== "GET") {
       await route.continue();
@@ -1360,8 +1392,11 @@ test("tab states surface loading and data-ready transitions across all tabs", as
   await expect(page.locator("#bans-table tbody")).toContainText("198.51.100.250");
   await expect(page.locator('[data-tab-state="ip-bans"]')).toBeHidden();
 
+  await clearDashboardClientCache(page);
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
-    await delayPassThrough(route);
+    const upstream = await route.fetch();
+    await page.waitForTimeout(450);
+    await route.fulfill({ response: upstream });
   }, { times: 1 });
 
   await openTab(page, "monitoring");
@@ -1506,6 +1541,7 @@ test("config save flows cover robots, AI policy, GEO, CDP, and botness controls"
 
 test("tab error state is surfaced when tab-scoped fetch fails", async ({ page }) => {
   await openDashboard(page);
+  await clearDashboardClientCache(page);
 
   await page.route("**/admin/ban", async (route) => {
     await route.fulfill({
@@ -1538,9 +1574,7 @@ test("monitoring tab surfaces tab-scoped error when consolidated monitoring fetc
 });
 
 test("shared config endpoint failures surface per-tab errors for status/config/tuning", async ({ page }) => {
-  await openDashboard(page);
-
-  const failConfigOnce = async (message) => {
+  const assertSharedConfigErrorOnInitialTab = async (tab, message) => {
     await page.route("**/admin/config", async (route) => {
       if (route.request().method() !== "GET") {
         await route.continue();
@@ -1552,19 +1586,14 @@ test("shared config endpoint failures surface per-tab errors for status/config/t
         body: JSON.stringify({ error: message })
       });
     }, { times: 1 });
+    await openDashboard(page, { initialTab: tab });
+    await expect(page.locator(`[data-tab-state="${tab}"]`)).toContainText(message);
+    await page.goto("about:blank");
   };
 
-  await failConfigOnce("status endpoint outage");
-  await openTab(page, "status");
-  await expect(page.locator('[data-tab-state="status"]')).toContainText("status endpoint outage");
-
-  await failConfigOnce("config endpoint outage");
-  await openTab(page, "config");
-  await expect(page.locator('[data-tab-state="config"]')).toContainText("config endpoint outage");
-
-  await failConfigOnce("tuning endpoint outage");
-  await openTab(page, "tuning");
-  await expect(page.locator('[data-tab-state="tuning"]')).toContainText("tuning endpoint outage");
+  await assertSharedConfigErrorOnInitialTab("status", "status endpoint outage");
+  await assertSharedConfigErrorOnInitialTab("config", "config endpoint outage");
+  await assertSharedConfigErrorOnInitialTab("tuning", "tuning endpoint outage");
 });
 
 test("logout redirects back to login page", async ({ page }) => {

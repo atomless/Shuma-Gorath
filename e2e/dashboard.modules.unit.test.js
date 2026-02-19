@@ -609,6 +609,8 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
 
   assert.match(configSource, /export let onSaveConfig = null;/);
   assert.match(configSource, /export let onFetchRobotsPreview = null;/);
+  assert.match(configSource, /let restrictSearchEngines = false;/);
+  assert.equal(configSource.includes('robotsAllowSearch'), false);
   assert.match(configSource, /await submitConfigPatch\('jsRequired'/);
   assert.match(configSource, /disabled=\{saveAdvancedDisabled\}/);
   assert.equal(configSource.includes('{@html'), false);
@@ -628,6 +630,14 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /<svelte:document on:visibilitychange=\{onDocumentVisibilityChange\} \/>/);
   assert.match(source, /use:registerTabLink=\{tab\}/);
   assert.match(source, /buildDashboardLoginPath/);
+  assert.match(source, /const AUTO_REFRESH_INTERVAL_MS = 60000;/);
+  assert.match(source, /isAutoRefreshEnabled: \(\) => autoRefreshEnabled === true/);
+  assert.match(source, /shouldRefreshOnActivate: \(\{ tab, store \}\) =>/);
+  assert.equal(source.includes('requestNextFrame,'), false);
+  assert.equal(source.includes('nowMs,'), false);
+  assert.equal(source.includes('readHashTab,'), false);
+  assert.equal(source.includes('writeHashTab,'), false);
+  assert.equal(source.includes('isPageVisible,'), false);
   assert.equal(source.includes('createDashboardActions'), false);
   assert.equal(source.includes('createDashboardEffects'), false);
   assert.match(source, /onSaveConfig=\{onSaveConfig\}/);
@@ -647,6 +657,8 @@ test('monitoring tab applies bounded sanitization and redraw guards', () => {
   assert.match(source, /const MONITORING_TREND_POINT_LIMIT = 720;/);
   assert.match(source, /const RANGE_EVENTS_FETCH_LIMIT = 5000;/);
   assert.match(source, /const RANGE_EVENTS_REQUEST_TIMEOUT_MS = 10000;/);
+  assert.match(source, /const RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS = 180000;/);
+  assert.match(source, /export let autoRefreshEnabled = false;/);
   assert.match(source, /sameSeries\(chart, trendSeries\.labels, trendSeries\.data\)/);
   assert.match(source, /abortRangeEventsFetch\(\);/);
   assert.match(source, /clampCount\(/);
@@ -694,6 +706,11 @@ test('dashboard refresh runtime remains snapshot-only and excludes legacy config
   assert.equal(source.includes('refreshAllDirtySections'), false);
   assert.equal(source.includes('refreshDirtySections'), false);
   assert.equal(source.includes('getMessageNode'), false);
+  assert.match(source, /const MONITORING_CACHE_KEY = 'shuma_dashboard_cache_monitoring_v1';/);
+  assert.match(source, /const IP_BANS_CACHE_KEY = 'shuma_dashboard_cache_ip_bans_v1';/);
+  assert.equal(source.includes('shuma_dashboard_cache_config_v1'), false);
+  assert.match(source, /if \(hasConfigSnapshot\(existingConfig\)\) \{/);
+  assert.equal(source.includes("? { monitoring: monitoringData }"), false);
   assert.match(source, /const refreshConfigTab = \(reason = 'manual'/);
   assert.match(source, /const includeConfigRefresh = reason !== 'auto-refresh';/);
   assert.match(
@@ -715,6 +732,19 @@ test('dashboard route imports native runtime actions directly', () => {
   assert.match(source, /banDashboardIp/);
   assert.match(source, /unbanDashboardIp/);
   assert.match(source, /getDashboardRobotsPreview/);
+});
+
+test('dashboard route controller gates polling to auto-enabled eligible tabs', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/runtime/dashboard-route-controller.js'),
+    'utf8'
+  );
+
+  assert.match(source, /const isAutoRefreshEnabled =/);
+  assert.match(source, /const isAutoRefreshTab =/);
+  assert.match(source, /recordPollingSkip\('auto-refresh-disabled'/);
+  assert.match(source, /recordPollingSkip\('tab-not-auto-refreshable'/);
+  assert.match(source, /const shouldRefreshOnActivate =/);
 });
 
 test('dashboard module graph is layered with no cycles', () => {
