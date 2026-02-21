@@ -16,7 +16,7 @@ const CHALLENGE_REASON_LABELS = Object.freeze({
 
 const POW_REASON_LABELS = Object.freeze({
   invalid_proof: 'Invalid Proof',
-  missing_seed_nonce: 'Missing Seed/Nonce',
+  missing_seed_nonce: 'Missing Seed/Number Used Once',
   sequence_violation: 'Sequence Violation',
   expired_replay: 'Expired/Replay',
   binding_timing_mismatch: 'Binding/Timing Mismatch'

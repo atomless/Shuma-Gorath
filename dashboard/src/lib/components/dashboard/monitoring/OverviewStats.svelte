@@ -19,7 +19,7 @@
   <StatCard title="Events (24h)">
     <div class="stat-value" id="total-events">{loading ? '...' : formatCompactNumber(eventCount, '0')}</div>
   </StatCard>
-  <StatCard title="Unique IPs">
+  <StatCard title="Unique <abbr title=&quot;Internet Protocol&quot;>IP</abbr>s">
     <div class="stat-value" id="unique-ips">{loading ? '...' : formatCompactNumber(uniqueIps, '0')}</div>
   </StatCard>
 </div>

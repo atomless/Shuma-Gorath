@@ -1,12 +1,12 @@
-[![CI](https://github.com/atomless/Shuma-Gorath/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/atomless/Shuma-Gorath/actions/workflows/ci.yml)
-[![Dashboard E2E](https://github.com/atomless/Shuma-Gorath/actions/workflows/dashboard-e2e.yml/badge.svg?branch=main)](https://github.com/atomless/Shuma-Gorath/actions/workflows/dashboard-e2e.yml)
+[![<abbr title="Continuous Integration">CI</abbr>](https://github.com/atomless/Shuma-Gorath/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/atomless/Shuma-Gorath/actions/workflows/ci.yml)
+[![Dashboard <abbr title="End-to-End">E2E</abbr>](https://github.com/atomless/Shuma-Gorath/actions/workflows/dashboard-e2e.yml/badge.svg?branch=main)](https://github.com/atomless/Shuma-Gorath/actions/workflows/dashboard-e2e.yml)
 [![CodeQL](https://github.com/atomless/Shuma-Gorath/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/atomless/Shuma-Gorath/actions/workflows/codeql.yml)
 
 <p align="center"><img src="dashboard/static/assets/shuma-gorath-pencil.png" alt-text="Shuma-Gorath" style="display: block; width:300px; margin: 0 auto" /></p>
 
-# 🐙 Shuma-Gorath
+# 🐙 Shuma-Gorath [Pre-Launch]
 
-[Shuma-Gorath](https://en.wikipedia.org/wiki/Shuma-Gorath) is a multifaceted bot defence for the Chthulucene. The project offers simple deployment paths for both single-server hosting and enterprise edge servers where it invisibly handles synchronisation. Taking advantage of the speed and efficiency of WebAssembly running in Spin, Shuma-Gorath detects, blocks, and monitors the onslaught of agents, crawlers, and scrapers. Deployment of the project installs an extensive set of "botness" detection and defence capabilities: Proof-of-Work (PoW), JS verification, CDP signals, rate limiting, honeypots, an infinite link maze, a tarpit, ui challenges of escalating difficulty, geo-fenced bot weighting and blocking, real-time automatic ip and ip-range banning and manual ip ban admin. The project provides an intuitive UI through which each aspect of the bot defence can be configured and the sensitivity of detection fine tuned to your specific needs. The project also provides a dashboard for detailed monitoring and easy exporting of all monitoring in prometheus format.
+[Shuma-Gorath](https://en.wikipedia.org/wiki/Shuma-Gorath) is a multifaceted bot defence for the Chthulucene. The project offers simple deployment paths for both single-server hosting and enterprise edge servers where it invisibly handles synchronisation. Taking advantage of the speed and efficiency of WebAssembly running in Spin, Shuma-Gorath detects, blocks, and monitors the onslaught of agents, crawlers, and scrapers. Deployment of the project installs an extensive set of "botness" detection and defence capabilities: Proof-of-Work (<abbr title="Proof of Work">PoW</abbr>), <abbr title="JavaScript">JS</abbr> verification, <abbr title="Chrome DevTools Protocol">CDP</abbr> signals, rate limiting, honeypots, an infinite link maze, a tarpit, ui challenges of escalating difficulty, geo-fenced bot weighting and blocking, real-time automatic ip and ip-range banning and manual ip ban admin. The project provides an intuitive <abbr title="User Interface">UI</abbr> through which each aspect of the bot defence can be configured and the sensitivity of detection fine tuned to your specific needs. The project also provides a dashboard for detailed monitoring and easy exporting of all monitoring in prometheus format.
 
 Shuma-Gorath provides comprehensive bot defense on its own, however, it can optionally **complement and integrate with enterprise bot defenses** (such as [Akamai Bot Manager](https://www.akamai.com/products/bot-manager_), in which case it operates as a second-layer of application-specific protection.
 
@@ -29,9 +29,9 @@ make dev
 Dashboard:
 - `http://127.0.0.1:3000/dashboard/index.html`
 - `http://127.0.0.1:3000/dashboard` (redirects to `/dashboard/index.html`)
-- Tabbed SPA routes: `#monitoring`, `#ip-bans`, `#status`, `#config`, `#tuning`
-- Dashboard UI is built with SvelteKit static output (`dist/dashboard`) and served by Spin.
-- Charts use local vendored runtime (`dashboard/static/assets/vendor/chart-lite-1.0.0.min.js`) rather than CDN scripts.
+- Tabbed <abbr title="Single-Page Application">SPA</abbr> routes: `#monitoring`, `#ip-bans`, `#status`, `#config`, `#tuning`
+- Dashboard <abbr title="User Interface">UI</abbr> is built with SvelteKit static output (`dist/dashboard`) and served by Spin.
+- Charts use local vendored runtime (`dashboard/static/assets/vendor/chart-lite-1.0.0.min.js`) rather than <abbr title="Content Delivery Network">CDN</abbr> scripts.
 - `make dev` forces local-write defaults (`WRITE=true`) so config controls are usable in local sessions.
 - Override dev defaults with Make variables when needed (example: `make dev DEV_ADMIN_CONFIG_WRITE_ENABLED=false`).
 
@@ -56,25 +56,25 @@ make help             # Show all commands
 
 ## 🐙 Configuration
 
-- Full, canonical variable reference (env-only keys + KV tunables): `docs/configuration.md`
+- Full, canonical variable reference (env-only keys + <abbr title="Key-Value">KV</abbr> tunables): `docs/configuration.md`
 - Env-only override source: `.env.local` (generated by `make setup`, gitignored)
-- Canonical defaults (seeded into KV): `config/defaults.env`
+- Canonical defaults (seeded into <abbr title="Key-Value">KV</abbr>): `config/defaults.env`
 - Supported env-only overrides helper: `make env-help`
 
-Deployment policy note: `SHUMA_KV_STORE_FAIL_OPEN` is a critical choice (fail-open vs fail-closed) when the KV store is unavailable. See `docs/security-hardening.md` and `docs/deployment.md`.
+Deployment policy note: `SHUMA_KV_STORE_FAIL_OPEN` is a critical choice (fail-open vs fail-closed) when the <abbr title="Key-Value">KV</abbr> store is unavailable. See `docs/security-hardening.md` and `docs/deployment.md`.
 
 ## 🐙 Documentation
 
 - [`docs/index.md`](docs/index.md) - Docs index
 - [`docs/project-principles.md`](docs/project-principles.md) - Project goals and engineering principles
 - [`docs/adr/README.md`](docs/adr/README.md) - Architecture decision record process
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) - Contribution standards and PR expectations
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) - Contribution standards and <abbr title="Pull Request">PR</abbr> expectations
 - [`AGENTS.md`](AGENTS.md) - Instructions for coding agents assisting contributors
-- [`docs/quick-reference.md`](docs/quick-reference.md) - Command and API cheat sheet
+- [`docs/quick-reference.md`](docs/quick-reference.md) - Command and <abbr title="Application Programming Interface">API</abbr> cheat sheet
 - [`docs/testing.md`](docs/testing.md) - Testing guide (Makefile-only)
-- [`docs/dashboard.md`](docs/dashboard.md) - Dashboard and admin UI
+- [`docs/dashboard.md`](docs/dashboard.md) - Dashboard and admin <abbr title="User Interface">UI</abbr>
 - [`docs/deployment.md`](docs/deployment.md) - Production/deploy configuration
-- [`docs/api.md`](docs/api.md) - API usage and endpoint details
+- [`docs/api.md`](docs/api.md) - <abbr title="Application Programming Interface">API</abbr> usage and endpoint details
 - [`docs/configuration.md`](docs/configuration.md) - Runtime configuration reference
 - [`docs/security-hardening.md`](docs/security-hardening.md) - Deployment security checklist
 - [`docs/observability.md`](docs/observability.md) - Prometheus/Grafana integration

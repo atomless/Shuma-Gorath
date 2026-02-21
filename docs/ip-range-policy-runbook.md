@@ -1,4 +1,4 @@
-# IP-Range Policy Runbook
+# <abbr title="Internet Protocol">IP</abbr>-Range Policy Runbook
 
 Date: 2026-02-20  
 Owner: Bot defence operations
@@ -56,9 +56,9 @@ make ip-range-catalog-update
 
 Updater guardrails:
 
-- HTTPS only and strict host allowlist.
+- <abbr title="Hypertext Transfer Protocol Secure">HTTPS</abbr> only and strict host allowlist.
 - Source schema validation.
-- CIDR validation + broad-prefix rejection.
+- <abbr title="Classless Inter-Domain Routing">CIDR</abbr> validation + broad-prefix rejection.
 - Per-set entry caps + growth-delta guard.
 
 Recommended cadence:
@@ -70,7 +70,7 @@ Recommended cadence:
 
 ## Cost and efficiency controls
 
-- Keep custom CIDR lists minimal and specific; avoid broad prefixes.
+- Keep custom <abbr title="Classless Inter-Domain Routing">CIDR</abbr> lists minimal and specific; avoid broad prefixes.
 - Use deterministic precedence:
   emergency allowlist > custom rules > managed policies.
 - Prefer `advisory` for broad exploratory policies to avoid expensive remediation from false positives.

@@ -23,13 +23,13 @@ This document defines the in-repo boundaries used to prepare future repo splits.
 - Core policy/orchestration: `src/lib.rs` and `src/runtime/` helpers (`request_router`, `kv_gate`, `policy_pipeline`)
 - Admin adapter domain: `src/admin/` (`api.rs` endpoint surface + `auth.rs` auth/session concerns)
 - Config domain: `src/config/mod.rs` (+ `src/config/tests.rs`)
-- Signal domain: `src/signals/` (browser/CDP/GEO/IP/JS/whitelist)
+- Signal domain: `src/signals/` (browser/<abbr title="Chrome DevTools Protocol">CDP</abbr>/<abbr title="Geolocation">GEO</abbr>/<abbr title="Internet Protocol">IP</abbr>/<abbr title="JavaScript">JS</abbr>/whitelist)
 - Enforcement domain: `src/enforcement/` (ban/block/rate/honeypot)
 - Crawler policy domain: `src/crawler_policy/` (`robots` policy generation and crawler directives)
 - Maze/tarpit domain: `src/maze/` plus future tarpit implementation
 - Challenge domain: `src/challenge/` (`puzzle` and future `not_a_bot` challenge modes)
 - Observability domain: `src/observability/` (`metrics` and monitoring surfaces)
-- Dashboard adapter: `dashboard/src/lib/domain/` API/session/config adapters
+- Dashboard adapter: `dashboard/src/lib/domain/` <abbr title="Application Programming Interface">API</abbr>/session/config adapters
 
 ## Defence Taxonomy (H3.6.1)
 
@@ -43,11 +43,11 @@ This taxonomy defines how modules participate in bot defense composition.
 
 | Module Path | Class | Primary Role | Ownership | Dependency Direction |
 | --- | --- | --- | --- | --- |
-| `src/signals/geo/` | signal | Country extraction and GEO policy signal inputs | Signals | Can depend on config/input utils; must not depend on enforcement modules. |
-| `src/signals/cdp/` | signal | Automation fingerprinting signal (CDP checks/reporting) | Signals | Can depend on config/shared types; direct enforcement calls are temporary and should migrate to policy/barrier orchestration. |
-| `src/signals/js_verification.rs` | signal | JS verification signal/challenge trigger inputs | Signals | Can depend on challenge/pow helpers for presentation, but should not own hard block decisions. |
+| `src/signals/geo/` | signal | Country extraction and <abbr title="Geolocation">GEO</abbr> policy signal inputs | Signals | Can depend on config/input utils; must not depend on enforcement modules. |
+| `src/signals/cdp/` | signal | Automation fingerprinting signal (<abbr title="Chrome DevTools Protocol">CDP</abbr> checks/reporting) | Signals | Can depend on config/shared types; direct enforcement calls are temporary and should migrate to policy/barrier orchestration. |
+| `src/signals/js_verification.rs` | signal | <abbr title="JavaScript">JS</abbr> verification signal/challenge trigger inputs | Signals | Can depend on challenge/pow helpers for presentation, but should not own hard block decisions. |
 | `src/signals/browser_user_agent.rs` | signal | Browser capability/version signal | Signals | Independent utility signal source; no enforcement dependencies. |
-| `src/signals/ip_identity.rs` | signal | IP bucketing utility for telemetry/signal keys | Signals | Leaf utility; no enforcement dependencies. |
+| `src/signals/ip_identity.rs` | signal | <abbr title="Internet Protocol">IP</abbr> bucketing utility for telemetry/signal keys | Signals | Leaf utility; no enforcement dependencies. |
 | `src/signals/rate_pressure.rs` | signal | Rate-window telemetry and pressure-band scoring signals | Signals | Reads request-rate counters for scoring only; does not enforce bans/blocks. |
 | `src/signals/whitelist/` | signal | Allow-list signal short-circuit inputs | Signals | Can depend on parsing/input modules; no enforcement dependencies. |
 | `src/enforcement/honeypot.rs` | barrier | Honeypot path detection for immediate defensive action | Enforcement | May consume routing/config context; should not calculate botness directly. |
@@ -102,9 +102,9 @@ Backends currently supported at config/selection level:
 
 Current `external` behavior:
 
-- `fingerprint_signal` uses an Akamai-first external adapter (`/fingerprint-report`) that maps edge/Bot Manager-style outcomes into normalized fingerprint/CDP-tier signals, with explicit fallback to the internal CDP handler when payloads are non-Akamai/legacy.
-- `rate_limiter` uses a Redis-backed distributed adapter (`INCR` + TTL) when `SHUMA_RATE_LIMITER_REDIS_URL` is configured, with fallback to internal rate behavior when unavailable.
-- `ban_store` uses a Redis-backed distributed adapter (JSON ban records + Redis TTL) when `SHUMA_BAN_STORE_REDIS_URL` is configured, with fallback to internal ban behavior when unavailable.
+- `fingerprint_signal` uses an Akamai-first external adapter (`/fingerprint-report`) that maps edge/Bot Manager-style outcomes into normalized fingerprint/<abbr title="Chrome DevTools Protocol">CDP</abbr>-tier signals, with explicit fallback to the internal <abbr title="Chrome DevTools Protocol">CDP</abbr> handler when payloads are non-Akamai/legacy.
+- `rate_limiter` uses a Redis-backed distributed adapter (`INCR` + <abbr title="Time To Live">TTL</abbr>) when `SHUMA_RATE_LIMITER_REDIS_URL` is configured, with fallback to internal rate behavior when unavailable.
+- `ban_store` uses a Redis-backed distributed adapter (<abbr title="JavaScript Object Notation">JSON</abbr> ban records + Redis <abbr title="Time To Live">TTL</abbr>) when `SHUMA_BAN_STORE_REDIS_URL` is configured, with fallback to internal ban behavior when unavailable.
 - `challenge_engine` and `maze_tarpit` still use explicit unsupported external adapters that currently delegate to internal runtime behavior.
 
 Implementation discipline for H4 coherence:
@@ -116,7 +116,7 @@ Implementation discipline for H4 coherence:
 - Prefer descriptive, role-based file names with consistent semantics across domains.
 - Use clear `snake_case` names that reveal responsibility from the path itself (for example `signals/browser_user_agent.rs`, `request_validation.rs`).
 - Prefer explicit module files (`foo.rs`) over opaque `foo/mod.rs` for new modules when practical.
-- Use `renders.rs` for HTML/page rendering modules when directory context already defines the feature (`maze`, `challenge/puzzle`, etc.).
+- Use `renders.rs` for <abbr title="HyperText Markup Language">HTML</abbr>/page rendering modules when directory context already defines the feature (`maze`, `challenge/puzzle`, etc.).
 - Use `http.rs` for request handling modules.
 - Use `tests.rs` for colocated unit tests when the surrounding module path already provides context.
 - Avoid vague names when directory context alone does not clearly convey responsibility.

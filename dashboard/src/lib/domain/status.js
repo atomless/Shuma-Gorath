@@ -54,6 +54,57 @@ const createInitialState = () => ({
 
 const WRITABLE_VAR_PATHS = new Set(writableStatusVarPaths || []);
 
+const ABBR_TITLE_MAP = Object.freeze({
+    AI: 'Artificial Intelligence',
+    API: 'Application Programming Interface',
+    CDP: 'Chrome DevTools Protocol',
+    CIDR: 'Classless Inter-Domain Routing',
+    CORS: 'Cross-Origin Resource Sharing',
+    CPU: 'Central Processing Unit',
+    CSRF: 'Cross-Site Request Forgery',
+    GEO: 'Geolocation',
+    GDPR: 'General Data Protection Regulation',
+    HMAC: 'Hash-based Message Authentication Code',
+    HTTP: 'Hypertext Transfer Protocol',
+    HTTPS: 'Hypertext Transfer Protocol Secure',
+    ID: 'Identifier',
+    IP: 'Internet Protocol',
+    JS: 'JavaScript',
+    JSON: 'JavaScript Object Notation',
+    KV: 'Key-Value',
+    PoW: 'Proof of Work',
+    TTL: 'Time To Live',
+    UA: 'User Agent',
+    UI: 'User Interface',
+    URL: 'Uniform Resource Locator',
+    UX: 'User Experience',
+    VPN: 'Virtual Private Network',
+    WASM: 'WebAssembly',
+    WAF: 'Web Application Firewall'
+  });
+
+const ABBR_PATTERN = new RegExp(
+    `\\b(${Object.keys(ABBR_TITLE_MAP).sort((a, b) => b.length - a.length).join('|')})\\b`,
+    'g'
+  );
+
+function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+function withAbbrMarkup(text) {
+    return String(text || '').replace(ABBR_PATTERN, (token) => {
+      const title = ABBR_TITLE_MAP[token];
+      if (!title) return token;
+      return `<abbr title="${title}">${token}</abbr>`;
+    });
+  }
+
 const VAR_MEANINGS = Object.freeze({
     test_mode: 'Logs detections/actions without enforcing blocks.',
     ban_duration: 'Legacy fallback ban duration (seconds) when no specific trigger duration applies.',
@@ -631,8 +682,8 @@ const STATUS_DEFINITIONS = [
 
 export function buildFeatureStatusItems(snapshot) {
     return STATUS_DEFINITIONS.map((definition) => ({
-      title: definition.title,
-      description: definition.description(snapshot),
+      title: withAbbrMarkup(escapeHtml(definition.title)),
+      description: withAbbrMarkup(definition.description(snapshot)),
       status: definition.status(snapshot)
     }));
   }
@@ -647,7 +698,7 @@ export function buildVariableInventoryGroups(snapshot) {
           valueClass,
           group: classifyVarGroup(entry.path),
           valueText: formatVarValue(entry.value),
-          meaning: meaningForVarPath(entry.path),
+          meaning: withAbbrMarkup(escapeHtml(meaningForVarPath(entry.path))),
           isAdminWrite: valueClass === 'ADMIN_WRITE'
         };
       })
@@ -671,7 +722,7 @@ export function buildVariableInventoryGroups(snapshot) {
       if (!grouped.has(entry.group.key)) {
         grouped.set(entry.group.key, {
           key: entry.group.key,
-          title: entry.group.title,
+          title: withAbbrMarkup(escapeHtml(entry.group.title)),
           entries: []
         });
       }

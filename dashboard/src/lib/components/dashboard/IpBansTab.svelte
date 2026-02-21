@@ -185,19 +185,19 @@
               <label class="control-label control-label--wide" for="ip-ban-filter">Ban View</label>
               <select id="ip-ban-filter" class="input-field" aria-label="Filter ban table" bind:value={banFilter}>
                 <option value="all">All Active Bans</option>
-                <option value="ip-range">IP Range Policy Only</option>
+                <option value="ip-range"><abbr title="Internet Protocol">IP</abbr> Range Policy Only</option>
               </select>
             </div>
             <p class="control-desc text-muted">
-              {filteredBanRows.length} shown of {bans.length}. For false positives from CIDR policy,
-              add a safe CIDR to <code>ip_range_emergency_allowlist</code> or disable the offending rule in Config.
+              {filteredBanRows.length} shown of {bans.length}. For false positives from <abbr title="Classless Inter-Domain Routing">CIDR</abbr> policy,
+              add a safe <abbr title="Classless Inter-Domain Routing">CIDR</abbr> to <code>ip_range_emergency_allowlist</code> or disable the offending rule in Config.
             </p>
           </div>
           <TableWrapper>
             <table id="bans-table" class="panel panel-border bans-table-admin">
               <thead>
                 <tr>
-                  <th class="caps-label">IP Address</th>
+                  <th class="caps-label"><abbr title="Internet Protocol">IP</abbr> Address</th>
                   <th class="caps-label">Reason</th>
                   <th class="caps-label">Banned At</th>
                   <th class="caps-label">Expires</th>
@@ -209,11 +209,15 @@
                 {#if filteredBanRows.length === 0}
                   <tr>
                     <td colspan="6" style="text-align: center; color: #6b7280;">
-                      {banFilter === 'ip-range' ? 'No active IP range policy bans' : 'No active bans'}
+                      {#if banFilter === 'ip-range'}
+                        No active <abbr title="Internet Protocol">IP</abbr> range policy bans
+                      {:else}
+                        No active bans
+                      {/if}
                     </td>
                   </tr>
                 {:else}
-                  {#each filteredBanRows as row}
+                  {#each filteredBanRows as row (row.key)}
                     {@const ban = row.ban}
                     {@const meta = row.meta}
                     {@const rowKey = row.key}
@@ -230,7 +234,7 @@
                         <code>{ban?.reason || '-'}</code>
                         {#if meta.isIpRange}
                           <div class="ban-detail-content">
-                            <span class="ban-signal-badge">IP range</span>
+                            <span class="ban-signal-badge"><abbr title="Internet Protocol">IP</abbr> range</span>
                             <span class="text-muted">{meta.reasonLabel}</span>
                             {#if meta.sourceId}
                               <span><code>{meta.sourceId}</code></span>
@@ -254,30 +258,33 @@
                       <td class="ban-action-cell">
                         <button
                           class="ban-details-toggle"
-                          data-target={detailsId}
                           type="button"
+                          aria-expanded={detailVisible ? 'true' : 'false'}
+                          aria-controls={detailsId}
                           on:click={() => toggleDetails(rowKey)}
                         >{detailVisible ? 'Hide' : 'Details'}</button>
                       </td>
                     </tr>
-                    <tr id={detailsId} class={`ban-detail-row${detailVisible ? '' : ' hidden'}`}>
-                      <td colspan="6">
-                        <div class="ban-detail-content">
-                          <div><strong>Score:</strong> {Number.isFinite(Number(ban?.fingerprint?.score)) ? Number(ban.fingerprint.score) : 'n/a'}</div>
-                          <div><strong>Summary:</strong> {ban?.fingerprint?.summary || 'No additional fingerprint details.'}</div>
-                          {#if meta.isIpRange}
-                            <div><strong>IP Range Source:</strong> {meta.sourceLabel}</div>
-                            <div><strong>Source ID:</strong> {meta.sourceId ? meta.sourceId : '-'}</div>
-                            <div><strong>Policy Action:</strong> {meta.action ? meta.action : '-'}</div>
-                            <div><strong>Matched CIDR:</strong> {meta.matchedCidr ? meta.matchedCidr : '-'}</div>
-                            <div><strong>Detection:</strong> {meta.detection ? meta.detection : '-'}</div>
-                            {#if meta.fallback}
-                              <div><strong>Fallback:</strong> {meta.fallback}</div>
+                    {#if detailVisible}
+                      <tr id={detailsId} class="ban-detail-row">
+                        <td colspan="6">
+                          <div class="ban-detail-content">
+                            <div><strong>Score:</strong> {Number.isFinite(Number(ban?.fingerprint?.score)) ? Number(ban.fingerprint.score) : 'n/a'}</div>
+                            <div><strong>Summary:</strong> {ban?.fingerprint?.summary || 'No additional fingerprint details.'}</div>
+                            {#if meta.isIpRange}
+                              <div><strong><abbr title="Internet Protocol">IP</abbr> Range Source:</strong> {meta.sourceLabel}</div>
+                              <div><strong>Source <abbr title="Identifier">ID</abbr>:</strong> {meta.sourceId ? meta.sourceId : '-'}</div>
+                              <div><strong>Policy Action:</strong> {meta.action ? meta.action : '-'}</div>
+                              <div><strong>Matched <abbr title="Classless Inter-Domain Routing">CIDR</abbr>:</strong> {meta.matchedCidr ? meta.matchedCidr : '-'}</div>
+                              <div><strong>Detection:</strong> {meta.detection ? meta.detection : '-'}</div>
+                              {#if meta.fallback}
+                                <div><strong>Fallback:</strong> {meta.fallback}</div>
+                              {/if}
                             {/if}
-                          {/if}
-                        </div>
-                      </td>
-                    </tr>
+                          </div>
+                        </td>
+                      </tr>
+                    {/if}
                   {/each}
                 {/if}
               </tbody>
@@ -285,8 +292,8 @@
           </TableWrapper>
           <div class="controls-grid controls-grid--manual">
             <div class="control-group panel-soft pad-md">
-              <h3>Ban IP</h3>
-              <input id="ban-ip" class="input-field" type="text" placeholder="IP address" aria-label="IP address to ban" maxlength="45" spellcheck="false" autocomplete="off" bind:value={banIp} />
+              <h3>Ban <abbr title="Internet Protocol">IP</abbr></h3>
+              <input id="ban-ip" class="input-field" type="text" placeholder="Internet Protocol address" aria-label="Internet Protocol address to ban" maxlength="45" spellcheck="false" autocomplete="off" bind:value={banIp} />
               <input id="ban-reason" class="input-field" type="text" value="manual_ban" aria-label="Ban reason (fixed)" readonly disabled />
               <label class="control-label" for="ban-duration-days">Duration</label>
               <div class="duration-inputs">
@@ -306,8 +313,8 @@
               <button id="ban-btn" class="btn btn-submit" disabled={!canBan} on:click={submitBan}>Ban</button>
             </div>
             <div class="control-group panel-soft pad-md">
-              <h3>Unban IP</h3>
-              <input id="unban-ip" class="input-field" type="text" placeholder="IP address" aria-label="IP address to unban" maxlength="45" spellcheck="false" autocomplete="off" bind:value={unbanIp} />
+              <h3>Unban <abbr title="Internet Protocol">IP</abbr></h3>
+              <input id="unban-ip" class="input-field" type="text" placeholder="Internet Protocol address" aria-label="Internet Protocol address to unban" maxlength="45" spellcheck="false" autocomplete="off" bind:value={unbanIp} />
               <button id="unban-btn" class="btn btn-submit" disabled={!canUnban} on:click={submitUnban}>Unban</button>
             </div>
           </div>

@@ -193,8 +193,8 @@
           <input class="input-field" type="number" id="maze-threshold-score" min="1" max="10" step="1" inputmode="numeric" aria-label="Maze risk threshold" bind:value={mazeThreshold} disabled={!writable}>
         </div>
         <div class="input-row">
-          <label class="control-label" for="weight-js-required">Weight: JS (points)</label>
-          <input class="input-field" type="number" id="weight-js-required" min="0" max="10" step="1" inputmode="numeric" aria-label="Weight for JS verification required" bind:value={weightJsRequired} disabled={!writable}>
+          <label class="control-label" for="weight-js-required">Weight: <abbr title="JavaScript">JS</abbr> (points)</label>
+          <input class="input-field" type="number" id="weight-js-required" min="0" max="10" step="1" inputmode="numeric" aria-label="Weight for JavaScript verification required" bind:value={weightJsRequired} disabled={!writable}>
         </div>
         <div class="input-row">
           <label class="control-label" for="weight-geo-risk">Weight: Geo (points)</label>

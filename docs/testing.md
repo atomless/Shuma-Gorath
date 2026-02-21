@@ -41,14 +41,14 @@ Rust test layout is now standardized as follows:
 
 - Unit tests should live with the owning module, wired via `#[cfg(test)] mod tests;`.
 - Module-specific test files should be placed under that module directory (for example `src/ban/tests.rs` or `src/whitelist/path_tests.rs`).
-- Shared unit-test utilities belong in `src/test_support.rs` (request builders, env lock, in-memory KV store fixtures).
+- Shared unit-test utilities belong in `src/test_support.rs` (request builders, env lock, in-memory <abbr title="Key-Value">KV</abbr> store fixtures).
 - New black-box integration tests should be added in `tests/` when they can rely on public interfaces only.
 - Cross-module crate-internal suites should live under `src/lib_tests/`.
 
 ## 🐙 Why Two Environments
 
 Unit tests run natively in Rust and validate logic in isolation.
-Integration tests must run in Spin because they require the HTTP server, routing, Spin KV storage, and real request headers.
+Integration tests must run in Spin because they require the <abbr title="Hypertext Transfer Protocol">HTTP</abbr> server, routing, Spin <abbr title="Key-Value">KV</abbr> storage, and real request headers.
 
 ## 🐙 Unit Tests (Native Rust)
 
@@ -58,9 +58,9 @@ Run with:
 make test-unit
 ```
 
-Unit tests validate core logic in isolation (ban logic, whitelist parsing, config defaults, CDP parsing, etc.).
+Unit tests validate core logic in isolation (ban logic, whitelist parsing, config defaults, <abbr title="Chrome DevTools Protocol">CDP</abbr> parsing, etc.).
 Test counts may change as coverage evolves; rely on `make test-unit` output for the current total.
-Coverage includes ban/unban flows, whitelists, maze generation, challenge logic, CDP parsing, and helper utilities.
+Coverage includes ban/unban flows, whitelists, maze generation, challenge logic, <abbr title="Chrome DevTools Protocol">CDP</abbr> parsing, and helper utilities.
 
 ## 🐙 Integration Tests (Spin Environment)
 
@@ -74,7 +74,7 @@ make dev
 make test-integration
 ```
 
-These tests exercise the full HTTP + KV runtime and are required for end-to-end validation.
+These tests exercise the full <abbr title="Hypertext Transfer Protocol">HTTP</abbr> + <abbr title="Key-Value">KV</abbr> runtime and are required for end-to-end validation.
 If your Spin environment sets `SHUMA_FORWARDED_IP_SECRET`, export it before running integration tests so the curl requests include the matching `X-Shuma-Forwarded-Secret` header:
 
 ```bash
@@ -90,18 +90,18 @@ export SHUMA_HEALTH_SECRET="your-health-secret"
 The integration suite is implemented in `scripts/tests/integration.sh` and is invoked by `make test-integration`.
 
 Integration coverage includes:
-1. Health endpoint and KV availability
-2. Root endpoint behavior (block page / JS challenge)
+1. Health endpoint and <abbr title="Key-Value">KV</abbr> availability
+2. Root endpoint behavior (block page / <abbr title="JavaScript">JS</abbr> challenge)
 3. Honeypot ban flow
 4. Admin config + test-mode toggling
 5. Challenge single-use behavior (`Incorrect` then replay `Expired`)
 6. Metrics endpoint
-7. CDP report ingestion and auto-ban flow
-8. CDP stats counters in `/admin/cdp`
+7. <abbr title="Chrome DevTools Protocol">CDP</abbr> report ingestion and auto-ban flow
+8. <abbr title="Chrome DevTools Protocol">CDP</abbr> stats counters in `/admin/cdp`
 9. Monitoring summary endpoint in `/admin/monitoring`
 10. Unban behavior
 
-## 🐙 Dashboard E2E Smoke Tests (Playwright)
+## 🐙 Dashboard <abbr title="End-to-End">E2E</abbr> Smoke Tests (Playwright)
 
 Run with:
 
@@ -127,13 +127,13 @@ Behavior:
 7. Seeds deterministic dashboard data via `make seed-dashboard-data`.
 8. Runs browser smoke checks for core dashboard behavior:
    - page loads and refresh succeeds
-   - runtime page errors or failed JS/CSS loads fail the run
+   - runtime page errors or failed <abbr title="JavaScript">JS</abbr>/CSS loads fail the run
    - only one dashboard tab panel is visible at a time (panel exclusivity)
-   - auto-refresh defaults OFF and is only exposed on Monitoring/IP Bans
+   - auto-refresh defaults OFF and is only exposed on Monitoring/<abbr title="Internet Protocol">IP</abbr> Bans
    - polling cadence assertions explicitly enable auto-refresh toggle (60s production cadence)
    - native Monitoring polling request fan-out stays within bounded per-cycle budget during remount/steady-state loops
    - seeded events/tables are visible
-   - clean-state API payloads render explicit empty placeholders (no crash/blank UI)
+   - clean-state <abbr title="Application Programming Interface">API</abbr> payloads render explicit empty placeholders (no crash/blank <abbr title="User Interface">UI</abbr>)
    - form validation/submit-state behavior works
    - tab hash/keyboard routing works
    - `/dashboard` canonical path redirects to `/dashboard/index.html`
@@ -148,19 +148,19 @@ Notes:
 
 ## 🐙 Build Mode Notes
 
-The Makefile switches crate types between `rlib` (native tests) and `cdylib` (Spin WASM) via `scripts/set_crate_type.sh`.
+The Makefile switches crate types between `rlib` (native tests) and `cdylib` (Spin <abbr title="WebAssembly">WASM</abbr>) via `scripts/set_crate_type.sh`.
 Integration tests do not run `cargo clean`; this avoids interrupting an already-running `make dev` watcher session.
-Integration PoW/challenge sequence checks use a fixed test user-agent plus timing guardrails/retries for deterministic behavior.
+Integration <abbr title="Proof of Work">PoW</abbr>/challenge sequence checks use a fixed test user-agent plus timing guardrails/retries for deterministic behavior.
 Use the Makefile targets rather than calling scripts directly.
 
 ## 🐙 Generated Directories
 
-These directories are generated locally/CI and should never be committed:
+These directories are generated locally/<abbr title="Continuous Integration">CI</abbr> and should never be committed:
 
 - `dist/wasm/` - built Spin component artifact (`shuma_gorath.wasm`)
 - `target/` - Rust build cache/output
 - `.spin/` - local Spin runtime data/logs
-- `playwright-report/` - Playwright HTML report output
+- `playwright-report/` - Playwright <abbr title="HyperText Markup Language">HTML</abbr> report output
 - `test-results/` - Playwright test result artifacts
 - `.cache/ms-playwright/` - repo-local Playwright browser cache
 - `.cache/playwright-home/` - repo-local Playwright HOME/config sandbox
@@ -183,16 +183,16 @@ curl -H "X-Forwarded-For: 127.0.0.1" \
 ```
 Expected: `OK`. If `SHUMA_DEBUG_HEADERS=true`, headers `X-KV-Status` and `X-Shuma-Fail-Mode` are also present.
 
-2. Root endpoint (JS challenge / block page):
+2. Root endpoint (<abbr title="JavaScript">JS</abbr> challenge / block page):
 ```bash
 curl -i -H "X-Forwarded-For: 1.2.3.4" \
   -H "X-Shuma-Forwarded-Secret: $SHUMA_FORWARDED_IP_SECRET" \
   http://127.0.0.1:3000/
 ```
-Expected: an "Access Blocked" page or a JS verification interstitial.
+Expected: an "Access Blocked" page or a <abbr title="JavaScript">JS</abbr> verification interstitial.
 If `SHUMA_JS_REQUIRED_ENFORCED=true`, the interstitial is used when no valid `js_verified` cookie is present.
 If `SHUMA_POW_ENABLED=true`, the interstitial performs a short proof‑of‑work step before `js_verified` is issued by `/pow/verify`.
-If `SHUMA_POW_ENABLED=false`, the interstitial sets `js_verified` directly in browser JS.
+If `SHUMA_POW_ENABLED=false`, the interstitial sets `js_verified` directly in browser <abbr title="JavaScript">JS</abbr>.
 After a valid `js_verified` cookie is set, the originally requested page reloads and access is re-evaluated.
 For browser checks, use a private window and confirm the cookie is set after the first visit.
 
@@ -205,7 +205,7 @@ curl -s -H "X-Forwarded-For: 1.2.3.4" \
   -H "X-Shuma-Forwarded-Secret: $SHUMA_FORWARDED_IP_SECRET" \
   http://127.0.0.1:3000/ | head -5
 ```
-Expected: "Access Blocked" for the banned IP.
+Expected: "Access Blocked" for the banned <abbr title="Internet Protocol">IP</abbr>.
 
 4. Admin ban:
 ```bash
@@ -214,15 +214,15 @@ curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
   -d '{"ip":"10.20.30.40","duration":3600}' \
   http://127.0.0.1:3000/admin/ban
 ```
-Expected: a JSON response containing the new ban entry.
-Optional: verify with `GET /admin/ban` to confirm the IP is listed.
+Expected: a <abbr title="JavaScript Object Notation">JSON</abbr> response containing the new ban entry.
+Optional: verify with `GET /admin/ban` to confirm the <abbr title="Internet Protocol">IP</abbr> is listed.
 
 5. Admin unban:
 ```bash
 curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
   "http://127.0.0.1:3000/admin/unban?ip=1.2.3.4"
 ```
-Expected: the IP removed from the ban list.
+Expected: the <abbr title="Internet Protocol">IP</abbr> removed from the ban list.
 Optional: verify with `GET /admin/ban` that the entry is gone.
 
 6. Test mode toggle:
@@ -232,7 +232,7 @@ curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
   -d '{"test_mode": true}' \
   http://127.0.0.1:3000/admin/config
 ```
-Expected: a JSON response with `"test_mode":true`.
+Expected: a <abbr title="JavaScript Object Notation">JSON</abbr> response with `"test_mode":true`.
 
 7. Metrics endpoint:
 ```bash
@@ -240,7 +240,7 @@ curl http://127.0.0.1:3000/metrics
 ```
 Expected: Prometheus metrics output.
 
-8. CDP report intake:
+8. <abbr title="Chrome DevTools Protocol">CDP</abbr> report intake:
 ```bash
 curl -X POST -H "Content-Type: application/json" \
   -H "X-Forwarded-For: 10.0.0.200" \
@@ -248,7 +248,7 @@ curl -X POST -H "Content-Type: application/json" \
   -d '{"cdp_detected":true,"score":0.5,"checks":["webdriver"]}' \
   http://127.0.0.1:3000/cdp-report
 ```
-Expected: a success response and a CDP event recorded in analytics.
+Expected: a success response and a <abbr title="Chrome DevTools Protocol">CDP</abbr> event recorded in analytics.
 
 9. Challenge replay behavior:
 ```bash
@@ -337,7 +337,7 @@ echo ""
 
 ## 🐙 Local Testing Notes
 
-- If you visit `/instaban` in a browser without `X-Forwarded-For`, your IP is detected as `unknown`.
+- If you visit `/instaban` in a browser without `X-Forwarded-For`, your <abbr title="Internet Protocol">IP</abbr> is detected as `unknown`.
 - To unban yourself locally:
 ```bash
 curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
@@ -346,10 +346,10 @@ curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
 
 ## 🐙 Additional Manual Checks
 
-- Whitelist: add your IP via `/admin/config` and confirm access is always allowed
+- Whitelist: add your <abbr title="Internet Protocol">IP</abbr> via `/admin/config` and confirm access is always allowed
 - Rate limit: send a burst of requests and confirm auto-ban
 - Outdated browser: send a low-version User-Agent (example: `Chrome/50`)
-- GEO policy: set `geo_*` lists via `/admin/config`, then send `X-Geo-Country` with a trusted forwarded-secret request and verify `allow/challenge/maze/block` routing precedence
+- <abbr title="Geolocation">GEO</abbr> policy: set `geo_*` lists via `/admin/config`, then send `X-Geo-Country` with a trusted forwarded-secret request and verify `allow/challenge/maze/block` routing precedence
 - Ban list: `GET /admin/ban` and confirm entries match recent actions
 
 ## 🐙 Troubleshooting
@@ -362,14 +362,14 @@ Problem: `/health` returns 403
 
 Problem: Admin calls fail with 401/403
 - Confirm `SHUMA_API_KEY` is correct
-- If `SHUMA_ADMIN_IP_ALLOWLIST` is set, ensure your IP is included
+- If `SHUMA_ADMIN_IP_ALLOWLIST` is set, ensure your <abbr title="Internet Protocol">IP</abbr> is included
 
 Problem: `make test` failed preflight (server not ready)
 - Start the server with `make dev`
 - Re-run with `make test`
 - If startup is slow, increase wait timeout: `make test SPIN_READY_TIMEOUT_SECONDS=180`
 
-Problem: Unsure what IP the bot defence detected
+Problem: Unsure what <abbr title="Internet Protocol">IP</abbr> the bot defence detected
 - Query the ban list:
 ```bash
 curl -H "Authorization: Bearer $SHUMA_API_KEY" \
@@ -388,11 +388,11 @@ Verify:
 - Test mode toggle updates banner
 - Fail-open/closed indicator matches deployment policy
 - Login key should match `make api-key-show` (or your deployed `SHUMA_API_KEY`)
-- Use the dashboard Ban IP and Unban actions to validate the admin API wiring
+- Use the dashboard Ban <abbr title="Internet Protocol">IP</abbr> and Unban actions to validate the admin <abbr title="Application Programming Interface">API</abbr> wiring
 
 ## 🐙 Tips
 
 Use browser developer tools to inspect:
 - Network tab: headers, cookies, redirects
 - Application tab: `js_verified` cookie
-- Console: JS errors
+- Console: <abbr title="JavaScript">JS</abbr> errors

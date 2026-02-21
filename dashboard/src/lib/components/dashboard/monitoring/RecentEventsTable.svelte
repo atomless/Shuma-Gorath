@@ -15,7 +15,7 @@
         <tr>
           <th class="caps-label">Time</th>
           <th class="caps-label">Type</th>
-          <th class="caps-label">IP</th>
+          <th class="caps-label"><abbr title="Internet Protocol">IP</abbr></th>
           <th class="caps-label">Reason</th>
           <th class="caps-label">Outcome</th>
           <th class="caps-label">Admin</th>

@@ -249,6 +249,18 @@ export const adaptConfig = (payload) => asRecord(payload);
 
 /**
  * @param {unknown} payload
+ * @returns {{ valid: boolean, issues: Array<Record<string, unknown>> }}
+ */
+export const adaptConfigValidation = (payload) => {
+  const source = asRecord(payload);
+  return {
+    valid: source.valid === true,
+    issues: asObjectArray(source.issues)
+  };
+};
+
+/**
+ * @param {unknown} payload
  * @returns {{ content: string }}
  */
 const adaptRobots = (payload) => {
@@ -489,6 +501,17 @@ export const create = (options = {}) => {
     );
 
   /**
+   * @param {Record<string, unknown>} configPatch
+   */
+  const validateConfigPatch = async (configPatch) =>
+    adaptConfigValidation(
+      await request('/admin/config/validate', {
+        method: 'POST',
+        json: configPatch
+      })
+    );
+
+  /**
    * @param {string} ip
    * @param {number} duration
    * @param {string} [reason]
@@ -523,6 +546,7 @@ export const create = (options = {}) => {
     getConfig,
     getRobotsPreview,
     updateConfig,
+    validateConfigPatch,
     banIp,
     unbanIp
   };

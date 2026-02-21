@@ -51,7 +51,7 @@
 </script>
 
 <div class="section events">
-  <h2>IP Range Policy</h2>
+  <h2><abbr title="Internet Protocol">IP</abbr> Range Policy</h2>
   <p class="section-desc text-muted">Match outcomes, source coverage, and managed-catalog health.</p>
 
   <div class="stats-cards stats-cards--compact">
@@ -68,7 +68,7 @@
       <div class="stat-value" id="ip-range-fallback-total">{loading ? '...' : formatCompactNumber(summary.totalFallbacks, '0')}</div>
     </div>
     <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Unique Source IDs</h3>
+      <h3 class="caps-label">Unique Source <abbr title="Identifiers">IDs</abbr></h3>
       <div class="stat-value" id="ip-range-source-id-unique">{loading ? '...' : formatCompactNumber(summary.uniqueSourceIds, '0')}</div>
     </div>
   </div>
@@ -83,7 +83,7 @@
       </thead>
       <tbody id="ip-range-reasons">
         {#if reasonRows.length === 0}
-          <tr><td colspan="2" style="text-align: center; color: #6b7280;">No IP-range matches in window</td></tr>
+          <tr><td colspan="2" style="text-align: center; color: #6b7280;">No <abbr title="Internet Protocol">IP</abbr>-range matches in window</td></tr>
         {:else}
           {#each reasonRows as row}
             <tr>
@@ -160,7 +160,7 @@
       </thead>
       <tbody id="ip-range-source-ids">
         {#if topSourceIdRows.length === 0}
-          <tr><td colspan="2" style="text-align: center; color: #6b7280;">No source IDs in window</td></tr>
+          <tr><td colspan="2" style="text-align: center; color: #6b7280;">No source <abbr title="Identifiers">IDs</abbr> in window</td></tr>
         {:else}
           {#each topSourceIdRows as row}
             <tr>
@@ -183,7 +183,7 @@
       <li><strong>Managed Sets:</strong> {loading ? '...' : formatCompactNumber(summary.catalog.managedSetCount, '0')}</li>
       <li><strong>Managed Set Policies:</strong> {loading ? '...' : `${formatCompactNumber(summary.catalog.managedPolicyEnabledCount, '0')} enabled / ${formatCompactNumber(summary.catalog.managedPolicyCount, '0')} total`}</li>
       <li><strong>Custom Rules:</strong> {loading ? '...' : `${formatCompactNumber(summary.catalog.customRuleEnabledCount, '0')} enabled / ${formatCompactNumber(summary.catalog.customRuleCount, '0')} total`}</li>
-      <li><strong>Emergency Allowlist CIDRs:</strong> {loading ? '...' : formatCompactNumber(summary.catalog.emergencyAllowlistCount, '0')}</li>
+      <li><strong>Emergency Allowlist <abbr title="Classless Inter-Domain Routing">CIDRs</abbr>:</strong> {loading ? '...' : formatCompactNumber(summary.catalog.emergencyAllowlistCount, '0')}</li>
       <li><strong>Stale Managed Sets:</strong> {loading ? '...' : formatCompactNumber(summary.catalog.managedSetStaleCount, '0')}</li>
       <li><strong>Max Staleness:</strong> {loading ? '...' : `${formatCompactNumber(summary.catalog.managedMaxStalenessHours, '0')}h`}</li>
       <li><strong>Allow Stale Enforce:</strong> {loading ? '...' : (summary.catalog.allowStaleManagedEnforce ? 'Yes' : 'No')}</li>

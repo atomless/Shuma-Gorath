@@ -255,6 +255,15 @@ test('dashboard API adapters normalize sparse payloads safely', { concurrency: f
       ['198.51.100.2', 4]
     ]);
     assert.equal(events.unique_ips, 11);
+
+    const configValidation = api.adaptConfigValidation({
+      valid: false,
+      issues: [{ field: 'rate_limit', message: 'out of range' }]
+    });
+    assert.equal(configValidation.valid, false);
+    assert.deepEqual(toPlain(configValidation.issues), [
+      { field: 'rate_limit', message: 'out of range' }
+    ]);
   });
 });
 
@@ -301,23 +310,36 @@ test('dashboard API client adds CSRF + same-origin for session-auth writes and s
       }),
       request: async (url, init = {}) => {
         calls.push({ url, init });
+        const isValidate = String(url).includes('/admin/config/validate');
         return {
           ok: true,
           status: 200,
           headers: new Headers({ 'content-type': 'application/json' }),
-          json: async () => ({ config: { maze_enabled: true } }),
-          text: async () => JSON.stringify({ config: { maze_enabled: true } })
+          json: async () => (
+            isValidate
+              ? { valid: true, issues: [] }
+              : { config: { maze_enabled: true } }
+          ),
+          text: async () => JSON.stringify(
+            isValidate
+              ? { valid: true, issues: [] }
+              : { config: { maze_enabled: true } }
+          )
         };
       }
     });
 
     await client.updateConfig({ maze_enabled: true });
-    assert.equal(calls.length, 1);
+    await client.validateConfigPatch({ maze_enabled: true });
+    assert.equal(calls.length, 2);
 
     const headers = calls[0].init.headers;
     assert.equal(headers.get('authorization'), null);
     assert.equal(headers.get('x-shuma-csrf'), 'csrf-token');
     assert.equal(calls[0].init.credentials, 'same-origin');
+    assert.match(String(calls[1].url), /\/admin\/config\/validate$/);
+    assert.equal(calls[1].init.headers.get('x-shuma-csrf'), 'csrf-token');
+    assert.equal(calls[1].init.credentials, 'same-origin');
   });
 });
 
@@ -608,16 +630,17 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(JSON.stringify(configSnapshot), before);
 
     const statusItems = statusModule.buildFeatureStatusItems(derived);
-    const challengePuzzleItem = statusItems.find((item) => item.title === 'Challenge Puzzle');
-    const challengeNotABotItem = statusItems.find((item) => item.title === 'Challenge Not-A-Bot');
-    const ipRangeItem = statusItems.find((item) => item.title === 'IP Range Policy');
+    const stripHtml = (value) => String(value || '').replace(/<[^>]+>/g, '');
+    const challengePuzzleItem = statusItems.find((item) => stripHtml(item.title) === 'Challenge Puzzle');
+    const challengeNotABotItem = statusItems.find((item) => stripHtml(item.title) === 'Challenge Not-A-Bot');
+    const ipRangeItem = statusItems.find((item) => stripHtml(item.title) === 'IP Range Policy');
     assert.equal(Boolean(challengePuzzleItem), true);
     assert.equal(Boolean(challengeNotABotItem), true);
     assert.equal(Boolean(ipRangeItem), true);
     assert.equal(challengePuzzleItem?.status, 'ENABLED');
     assert.equal(challengeNotABotItem?.status, 'ENABLED');
     assert.equal(ipRangeItem?.status, 'ADVISORY');
-    assert.equal(statusItems.some((item) => item.title === 'Challenge'), false);
+    assert.equal(statusItems.some((item) => stripHtml(item.title) === 'Challenge'), false);
   });
 });
 
@@ -641,6 +664,7 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
     assert.deepEqual(toPlain(template), { pow_enabled: true, botness_weights: { geo_risk: 3 } });
     assert.equal(json.normalizeJsonObjectForCompare('{"ok":true}'), '{"ok":true}');
     assert.equal(Array.isArray(schema.advancedConfigTemplatePaths), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('test_mode'), false);
   });
 });
 
@@ -698,11 +722,16 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
   assert.match(ipBansSource, /isIpRangeBanLike/);
   assert.match(ipBansSource, /config\.ban_durations\.admin/);
   assert.match(ipBansSource, /applyConfiguredBanDuration\(configSnapshot\)/);
+  assert.match(ipBansSource, /#each filteredBanRows as row \(row\.key\)/);
+  assert.match(ipBansSource, /aria-expanded=\{detailVisible \? 'true' : 'false'\}/);
+  assert.match(ipBansSource, /#if detailVisible/);
+  assert.equal(ipBansSource.includes('data-target='), false);
   assert.match(ipBansSource, /disabled=\{!canBan\}/);
   assert.match(ipBansSource, /disabled=\{!canUnban\}/);
   assert.equal(ipBansSource.includes('querySelectorAll('), false);
 
   assert.match(configSource, /export let onSaveConfig = null;/);
+  assert.match(configSource, /export let onValidateConfig = null;/);
   assert.match(configSource, /export let onFetchRobotsPreview = null;/);
   assert.match(configSource, /let testMode = false;/);
   assert.match(configSource, /let ipRangePolicyMode = 'off';/);
@@ -713,6 +742,12 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
   assert.match(configSource, /\$: testModeToggleText = testMode \? 'Test Mode On' : 'Test Mode Off';/);
   assert.match(configSource, /id="preview-challenge-puzzle-link"/);
   assert.match(configSource, /id="preview-not-a-bot-link"/);
+  assert.match(configSource, /id="export-current-config-json"/);
+  assert.match(configSource, /Export the current configuration as JSON/);
+  assert.match(configSource, /id="advanced-config-json-error"/);
+  assert.match(configSource, /id="advanced-config-json-issue-list"/);
+  assert.match(configSource, /id="advanced-config-json-validating"/);
+  assert.match(configSource, /id="advanced-config-json-docs-link"/);
   assert.match(configSource, /id="save-config-all"/);
   assert.match(configSource, /saveAllConfig\(/);
   assert.match(configSource, /window\.addEventListener\('beforeunload'/);
@@ -756,6 +791,7 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.equal(source.includes('createDashboardActions'), false);
   assert.equal(source.includes('createDashboardEffects'), false);
   assert.match(source, /onSaveConfig=\{onSaveConfig\}/);
+  assert.match(source, /onValidateConfig=\{onValidateConfig\}/);
   assert.match(source, /onBan=\{onBan\}/);
   assert.match(source, /onUnban=\{onUnban\}/);
   assert.match(source, /configSnapshot=\{snapshots\.config\}/);
@@ -811,6 +847,7 @@ test('dashboard runtime is slim and free of legacy DOM-id wiring layers', () => 
   assert.match(source, /createDashboardRefreshRuntime/);
   assert.equal(source.includes('createDashboardTabStateRuntime'), false);
   assert.match(source, /export async function updateDashboardConfig/);
+  assert.match(source, /export async function validateDashboardConfigPatch/);
   assert.match(source, /export async function banDashboardIp/);
   assert.match(source, /export async function unbanDashboardIp/);
   assert.match(source, /dashboardRefreshRuntime\.clearAllCaches/);

@@ -14,8 +14,8 @@
 </script>
 
 <div class="section events">
-  <h2>GEO Violations</h2>
-  <p class="section-desc text-muted">GEO policy actions by route and top country sources.</p>
+  <h2><abbr title="Geolocation">GEO</abbr> Violations</h2>
+  <p class="section-desc text-muted"><abbr title="Geolocation">GEO</abbr> policy actions by route and top country sources.</p>
   <div class="stats-cards stats-cards--compact">
     <div class="card panel panel-border pad-md-b">
       <h3 class="caps-label">Total Violations</h3>
@@ -27,10 +27,10 @@
     </div>
   </div>
   <div class="panel panel-border pad-md-b">
-    <h3>Top Countries Triggering GEO Actions</h3>
+    <h3>Top Countries Triggering <abbr title="Geolocation">GEO</abbr> Actions</h3>
     <div id="geo-top-countries" class="crawler-list">
       {#if geoTopCountries.length === 0}
-        <p class="no-data">No GEO violations yet</p>
+        <p class="no-data">No <abbr title="Geolocation">GEO</abbr> violations yet</p>
       {:else}
         {#each geoTopCountries as row}
           <div class="crawler-item panel panel-border">

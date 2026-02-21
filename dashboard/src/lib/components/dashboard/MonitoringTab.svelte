@@ -91,7 +91,7 @@
   let rangeEventsLastFetchedAtMs = 0;
   let lastRangeTabUpdateAnchor = '';
 
-  let copyButtonLabel = 'Copy JS Example';
+  let copyButtonLabel = 'Copy JavaScript Example';
   let copyCurlButtonLabel = 'Copy Curl Example';
   let copyButtonTimer = null;
   let copyCurlButtonTimer = null;
@@ -161,7 +161,7 @@
     if (kind === 'js') {
       copyButtonTimer = clearTimer(copyButtonTimer);
       copyButtonTimer = setTimeout(() => {
-        copyButtonLabel = 'Copy JS Example';
+        copyButtonLabel = 'Copy JavaScript Example';
       }, 1200);
       return;
     }
@@ -747,7 +747,7 @@
     powTrendChart = updateTrendChart(
       powTrendChart,
       powTrendCanvas,
-      'PoW Failures',
+      'Proof of Work Failures',
       POW_TREND_COLOR,
       powTrendSeries,
       chartRefreshNonce

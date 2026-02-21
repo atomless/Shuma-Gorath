@@ -1,7 +1,6 @@
 // @ts-check
 
 export const advancedConfigTemplatePaths = Object.freeze([
-    'test_mode',
     'ban_duration',
     'ban_durations.honeypot',
     'ban_durations.rate_limit',

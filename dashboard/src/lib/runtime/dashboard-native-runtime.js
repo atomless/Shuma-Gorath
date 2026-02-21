@@ -287,6 +287,11 @@ export async function updateDashboardConfig(patch) {
   return nextConfig;
 }
 
+export async function validateDashboardConfigPatch(patch) {
+  const apiClient = requireApiClient();
+  return apiClient.validateConfigPatch(patch || {});
+}
+
 export async function banDashboardIp(ip, duration, reason = 'manual_ban') {
   const apiClient = requireApiClient();
   const response = await apiClient.banIp(ip, duration, reason);

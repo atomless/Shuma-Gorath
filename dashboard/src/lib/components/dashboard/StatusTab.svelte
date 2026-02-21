@@ -46,7 +46,7 @@
       <div id="status-items">
         {#each featureStatusItems as item}
           <div class="status-item">
-            <h3>{item.title}</h3>
+            <h3>{@html item.title}</h3>
             <p class="control-desc text-muted">{@html item.description}</p>
             <div class="status-rows">
               <div class="info-row">
@@ -70,7 +70,7 @@
         {:else}
           {#each statusVariableGroups as group}
             <section class="status-var-group">
-              <h4 class="status-var-group-title">{group.title}</h4>
+              <h4 class="status-var-group-title">{@html group.title}</h4>
               <table class="status-vars-table">
                 <colgroup>
                   <col class="status-vars-col status-vars-col--variable">
@@ -89,7 +89,7 @@
                     <tr class={`status-var-row ${entry.isAdminWrite ? 'status-var-row--admin-write' : ''}`.trim()}>
                       <td><code>{entry.path}</code></td>
                       <td><code>{entry.valueText}</code></td>
-                      <td>{entry.meaning}</td>
+                      <td>{@html entry.meaning}</td>
                     </tr>
                   {/each}
                 </tbody>

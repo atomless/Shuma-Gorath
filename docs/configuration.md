@@ -2,7 +2,7 @@
 
 Shuma-Gorath uses one runtime configuration model:
 
-- Tunables are stored in KV under `config:<site_id>` (default `config:default`).
+- Tunables are stored in <abbr title="Key-Value">KV</abbr> under `config:<site_id>` (default `config:default`).
 - Env vars are reserved for secrets and runtime guardrails.
 - `config/defaults.env` is the canonical source for defaults (no hidden tunable defaults in Rust).
 
@@ -17,16 +17,16 @@ Shuma-Gorath uses one runtime configuration model:
 
 At runtime:
 
-- Tunables are loaded from KV.
+- Tunables are loaded from <abbr title="Key-Value">KV</abbr>.
 - Env-only keys are loaded from process env.
-- Missing/invalid KV config returns `500 Configuration unavailable` for config-dependent requests.
+- Missing/invalid <abbr title="Key-Value">KV</abbr> config returns `500 Configuration unavailable` for config-dependent requests.
 - `make dev`, `make run`, `make run-prebuilt`, and `make prod` now run `make config-seed` before Spin startup (and `make dev`/`make dev-closed` also backfill on watch-triggered restarts), so newly added tunables are automatically backfilled after branch switches or `make clean`.
 
 ## 🐙 Runtime Config Cache
 
-- KV-backed runtime config is cached in-process for a short TTL (currently 2 seconds).
-- `POST /admin/config` invalidates the cache on the handling instance immediately after a successful KV write.
-- In multi-instance deployments, other instances refresh on their own TTL window, so brief config staleness (up to TTL) is expected.
+- <abbr title="Key-Value">KV</abbr>-backed runtime config is cached in-process for a short <abbr title="Time To Live">TTL</abbr> (currently 2 seconds).
+- `POST /admin/config` invalidates the cache on the handling instance immediately after a successful <abbr title="Key-Value">KV</abbr> write.
+- In multi-instance deployments, other instances refresh on their own <abbr title="Time To Live">TTL</abbr> window, so brief config staleness (up to <abbr title="Time To Live">TTL</abbr>) is expected.
 
 ## 🐙 Canonical Variable Reference
 
@@ -37,24 +37,24 @@ Reference files:
 
 ### 🐙 Env-Only Runtime Keys
 
-These are read from process env at runtime (not from KV).
+These are read from process env at runtime (not from <abbr title="Key-Value">KV</abbr>).
 
 | Variable | Required | Default in `config/defaults.env` | Purpose |
 | --- | --- | --- | --- |
-| `SHUMA_API_KEY` | Yes | `changeme-prod-api-key` | Admin authentication key for dashboard login and `Authorization: Bearer` admin API calls. |
+| `SHUMA_API_KEY` | Yes | `changeme-prod-api-key` | Admin authentication key for dashboard login and `Authorization: Bearer` admin <abbr title="Application Programming Interface">API</abbr> calls. |
 | `SHUMA_ADMIN_READONLY_API_KEY` | No | empty | Optional read-only admin bearer key for non-mutating `/admin/*` endpoints; write actions still require `SHUMA_API_KEY` or an admin session created from it. |
 | `SHUMA_JS_SECRET` | Yes | `changeme-prod-js-secret` | Signs and verifies `js_verified` cookie. |
-| `SHUMA_POW_SECRET` | No | empty | Optional dedicated PoW signing secret. Falls back to `SHUMA_JS_SECRET` when unset. |
+| `SHUMA_POW_SECRET` | No | empty | Optional dedicated <abbr title="Proof of Work">PoW</abbr> signing secret. Falls back to `SHUMA_JS_SECRET` when unset. |
 | `SHUMA_CHALLENGE_SECRET` | No | empty | Optional dedicated challenge signing secret. Falls back to `SHUMA_JS_SECRET` when unset. |
 | `SHUMA_MAZE_PREVIEW_SECRET` | No | empty | Optional dedicated secret for admin maze preview entropy. When unset, preview entropy uses a namespaced fallback derived from the live maze secret so preview artifacts cannot forge production traversal tokens. |
-| `SHUMA_FORWARDED_IP_SECRET` | Yes | `changeme-prod-forwarded-ip-secret` | Trust boundary secret for forwarded IP/proto headers (`X-Shuma-Forwarded-Secret`). |
+| `SHUMA_FORWARDED_IP_SECRET` | Yes | `changeme-prod-forwarded-ip-secret` | Trust boundary secret for forwarded <abbr title="Internet Protocol">IP</abbr>/proto headers (`X-Shuma-Forwarded-Secret`). |
 | `SHUMA_HEALTH_SECRET` | No | empty | Optional shared secret for `/health` via `X-Shuma-Health-Secret`. |
-| `SHUMA_ADMIN_IP_ALLOWLIST` | No (Yes for production deploys) | empty | CIDR/IP allowlist for `/admin/*`; required by deployment guardrails in production workflows. |
-| `SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE` | No | `10` | Per-IP per-minute limit for failed admin authentication attempts before returning `429`. |
+| `SHUMA_ADMIN_IP_ALLOWLIST` | No (Yes for production deploys) | empty | <abbr title="Classless Inter-Domain Routing">CIDR</abbr>/<abbr title="Internet Protocol">IP</abbr> allowlist for `/admin/*`; required by deployment guardrails in production workflows. |
+| `SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE` | No | `10` | Per-<abbr title="Internet Protocol">IP</abbr> per-minute limit for failed admin authentication attempts before returning `429`. |
 | `SHUMA_EVENT_LOG_RETENTION_HOURS` | Yes | `168` | Event retention window in hours (`0` disables cleanup). |
-| `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` | Yes | `false` | Enables/disables admin config writes to KV (`POST /admin/config`). |
-| `SHUMA_KV_STORE_FAIL_OPEN` | Yes | `true` | KV failure policy (`true` fail-open, `false` fail-closed). |
-| `SHUMA_ENFORCE_HTTPS` | Yes | `false` | Rejects non-HTTPS requests when `true` (proxy/header trust rules still apply). |
+| `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` | Yes | `false` | Enables/disables admin config writes to <abbr title="Key-Value">KV</abbr> (`POST /admin/config`). |
+| `SHUMA_KV_STORE_FAIL_OPEN` | Yes | `true` | <abbr title="Key-Value">KV</abbr> failure policy (`true` fail-open, `false` fail-closed). |
+| `SHUMA_ENFORCE_HTTPS` | Yes | `false` | Rejects non-<abbr title="Hypertext Transfer Protocol Secure">HTTPS</abbr> requests when `true` (proxy/header trust rules still apply). |
 | `SHUMA_DEBUG_HEADERS` | Yes | `false` | Enables internal debug headers (for example health diagnostics). Keep `false` in production. |
 | `SHUMA_ENTERPRISE_MULTI_INSTANCE` | No | `false` | Marks deployment as enterprise multi-instance for runtime/deploy state guardrails. |
 | `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED` | No | `false` | Explicit temporary attestation for advisory/off operation when enterprise multi-instance still uses local-only rate/ban state. |
@@ -65,26 +65,26 @@ These are read from process env at runtime (not from KV).
 
 Use `make env-help` for the supported env-only override list.
 
-### 🐙 KV Tunables (Seeded From `config/defaults.env`)
+### 🐙 <abbr title="Key-Value">KV</abbr> Tunables (Seeded From `config/defaults.env`)
 
-These keys are seeded into KV and loaded from KV at runtime.
+These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <abbr title="Key-Value">KV</abbr> at runtime.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `SHUMA_TEST_MODE` | `false` | Enables test-mode behavior for controlled local testing. |
-| `SHUMA_JS_REQUIRED_ENFORCED` | `true` | Enforces JS verification (`js_verified` cookie gate). |
+| `SHUMA_JS_REQUIRED_ENFORCED` | `true` | Enforces <abbr title="JavaScript">JS</abbr> verification (`js_verified` cookie gate). |
 | `SHUMA_MODE_RATE` | `both` | Rate module mode: `off`, `signal`, `enforce`, `both`. |
-| `SHUMA_MODE_GEO` | `both` | GEO module mode: `off`, `signal`, `enforce`, `both`. |
-| `SHUMA_MODE_JS` | `both` | JS module mode: `off`, `signal`, `enforce`, `both` (still gated by `js_required_enforced`). |
+| `SHUMA_MODE_GEO` | `both` | <abbr title="Geolocation">GEO</abbr> module mode: `off`, `signal`, `enforce`, `both`. |
+| `SHUMA_MODE_JS` | `both` | <abbr title="JavaScript">JS</abbr> module mode: `off`, `signal`, `enforce`, `both` (still gated by `js_required_enforced`). |
 | `SHUMA_PROVIDER_RATE_LIMITER` | `internal` | Backend selection for rate limiting capability (`internal`, `external`). |
 | `SHUMA_PROVIDER_BAN_STORE` | `internal` | Backend selection for ban store/sync capability (`internal`, `external`). |
 | `SHUMA_PROVIDER_CHALLENGE_ENGINE` | `internal` | Backend selection for challenge engine capability (`internal`, `external`). |
 | `SHUMA_PROVIDER_MAZE_TARPIT` | `internal` | Backend selection for maze/tarpit capability (`internal`, `external`). |
 | `SHUMA_PROVIDER_FINGERPRINT_SIGNAL` | `internal` | Backend selection for fingerprint signal capability (`internal`, `external`). |
 | `SHUMA_EDGE_INTEGRATION_MODE` | `off` | Managed-edge integration precedence: `off` ignores Akamai-style edge outcomes, `advisory` ingests edge outcomes as non-authoritative signals, `authoritative` enables supported edge short-circuit actions (currently strong external fingerprint auto-ban). |
-| `SHUMA_POW_ENABLED` | `true` | Enables PoW in JS verification flow. |
-| `SHUMA_POW_DIFFICULTY` | `15` | PoW cost level (clamped to supported range). |
-| `SHUMA_POW_TTL_SECONDS` | `90` | PoW seed lifetime in seconds (clamped). |
+| `SHUMA_POW_ENABLED` | `true` | Enables <abbr title="Proof of Work">PoW</abbr> in <abbr title="JavaScript">JS</abbr> verification flow. |
+| `SHUMA_POW_DIFFICULTY` | `15` | <abbr title="Proof of Work">PoW</abbr> cost level (clamped to supported range). |
+| `SHUMA_POW_TTL_SECONDS` | `90` | <abbr title="Proof of Work">PoW</abbr> seed lifetime in seconds (clamped). |
 | `SHUMA_CHALLENGE_PUZZLE_ENABLED` | `true` | Enables challenge puzzle routing at the challenge escalation step. |
 | `SHUMA_CHALLENGE_PUZZLE_TRANSFORM_COUNT` | `6` | Number of transform options shown in the puzzle challenge (4-8). |
 | `SHUMA_CHALLENGE_PUZZLE_RISK_THRESHOLD` | `3` | Botness score threshold for serving challenge step-up. |
@@ -97,8 +97,8 @@ These keys are seeded into KV and loaded from KV at runtime.
 | `SHUMA_NOT_A_BOT_ATTEMPT_LIMIT_PER_WINDOW` | `6` | Not-a-bot per-bucket submit cap in each attempt window (1-100). |
 | `SHUMA_NOT_A_BOT_ATTEMPT_WINDOW_SECONDS` | `300` | Not-a-bot attempt window duration in seconds (30-3600). |
 | `SHUMA_BOTNESS_MAZE_THRESHOLD` | `6` | Botness score threshold for routing to maze. |
-| `SHUMA_BOTNESS_WEIGHT_JS_REQUIRED` | `1` | Score weight for missing JS verification signal. |
-| `SHUMA_BOTNESS_WEIGHT_GEO_RISK` | `2` | Score weight for GEO risk-country signal. |
+| `SHUMA_BOTNESS_WEIGHT_JS_REQUIRED` | `1` | Score weight for missing <abbr title="JavaScript">JS</abbr> verification signal. |
+| `SHUMA_BOTNESS_WEIGHT_GEO_RISK` | `2` | Score weight for <abbr title="Geolocation">GEO</abbr> risk-country signal. |
 | `SHUMA_BOTNESS_WEIGHT_RATE_MEDIUM` | `1` | Score weight for medium request-rate pressure. |
 | `SHUMA_BOTNESS_WEIGHT_RATE_HIGH` | `2` | Score weight for high request-rate pressure. |
 | `SHUMA_BOTNESS_WEIGHT_MAZE_BEHAVIOR` | `2` | Score weight for suspicious maze traversal behavior signal. |
@@ -107,36 +107,36 @@ These keys are seeded into KV and loaded from KV at runtime.
 | `SHUMA_BAN_DURATION_RATE_LIMIT` | `3600` | Ban duration for rate-limit ban (seconds). |
 | `SHUMA_BAN_DURATION_BROWSER` | `21600` | Ban duration for browser-policy based bans (seconds). |
 | `SHUMA_BAN_DURATION_ADMIN` | `21600` | Ban duration for manual admin bans (seconds). |
-| `SHUMA_BAN_DURATION_CDP` | `43200` | Ban duration for CDP automation bans (seconds). |
+| `SHUMA_BAN_DURATION_CDP` | `43200` | Ban duration for <abbr title="Chrome DevTools Protocol">CDP</abbr> automation bans (seconds). |
 | `SHUMA_RATE_LIMIT` | `80` | Requests per minute threshold for rate limiting. |
 | `SHUMA_HONEYPOT_ENABLED` | `true` | Enables/disables honeypot trap handling for configured honeypot paths. |
 | `SHUMA_HONEYPOTS` | `['/instaban']` | Honeypot endpoints that immediately trigger ban flow. |
 | `SHUMA_BROWSER_BLOCK` | `[["Chrome",120],["Firefox",115],["Safari",15]]` | Browser/version minimums used by browser policy checks. |
 | `SHUMA_BROWSER_WHITELIST` | `[]` | Optional browser/version allowlist exceptions. |
-| `SHUMA_GEO_RISK_COUNTRIES` | `[]` | 2-letter countries that add GEO botness score. |
-| `SHUMA_GEO_ALLOW_COUNTRIES` | `[]` | 2-letter countries explicitly allowed in GEO routing precedence. |
+| `SHUMA_GEO_RISK_COUNTRIES` | `[]` | 2-letter countries that add <abbr title="Geolocation">GEO</abbr> botness score. |
+| `SHUMA_GEO_ALLOW_COUNTRIES` | `[]` | 2-letter countries explicitly allowed in <abbr title="Geolocation">GEO</abbr> routing precedence. |
 | `SHUMA_GEO_CHALLENGE_COUNTRIES` | `[]` | 2-letter countries forced to challenge tier. |
 | `SHUMA_GEO_MAZE_COUNTRIES` | `[]` | 2-letter countries forced to maze tier. |
 | `SHUMA_GEO_BLOCK_COUNTRIES` | `[]` | 2-letter countries forced to block tier. |
-| `SHUMA_WHITELIST` | `[]` | IP/CIDR allowlist bypassing bot defenses. |
-| `SHUMA_PATH_WHITELIST` | `[]` | URL path allowlist bypassing bot defenses. |
-| `SHUMA_IP_RANGE_POLICY_MODE` | `off` | IP-range policy mode (`off`, `advisory`, `enforce`). |
-| `SHUMA_IP_RANGE_EMERGENCY_ALLOWLIST` | `[]` | Emergency CIDR allowlist evaluated before custom/managed IP-range policy rules. |
-| `SHUMA_IP_RANGE_CUSTOM_RULES` | `[]` | Operator-defined IP-range rule objects (`id`, `enabled`, `cidrs`, `action`, optional `redirect_url`/`custom_message`). |
+| `SHUMA_WHITELIST` | `[]` | <abbr title="Internet Protocol">IP</abbr>/<abbr title="Classless Inter-Domain Routing">CIDR</abbr> allowlist bypassing bot defenses. |
+| `SHUMA_PATH_WHITELIST` | `[]` | <abbr title="Uniform Resource Locator">URL</abbr> path allowlist bypassing bot defenses. |
+| `SHUMA_IP_RANGE_POLICY_MODE` | `off` | <abbr title="Internet Protocol">IP</abbr>-range policy mode (`off`, `advisory`, `enforce`). |
+| `SHUMA_IP_RANGE_EMERGENCY_ALLOWLIST` | `[]` | Emergency <abbr title="Classless Inter-Domain Routing">CIDR</abbr> allowlist evaluated before custom/managed <abbr title="Internet Protocol">IP</abbr>-range policy rules. |
+| `SHUMA_IP_RANGE_CUSTOM_RULES` | `[]` | Operator-defined <abbr title="Internet Protocol">IP</abbr>-range rule objects (`id`, `enabled`, `cidrs`, `action`, optional `redirect_url`/`custom_message`). |
 | `SHUMA_IP_RANGE_MANAGED_POLICIES` | `[]` | Managed-set policy objects (`set_id`, `enabled`, `action`, optional `redirect_url`/`custom_message`). |
 | `SHUMA_IP_RANGE_MANAGED_MAX_STALENESS_HOURS` | `168` | Maximum allowed age (hours) for the managed catalog in enforce mode before managed-set actions are skipped. |
 | `SHUMA_IP_RANGE_ALLOW_STALE_MANAGED_ENFORCE` | `false` | Explicit override to keep enforce-mode managed-set actions active even when the managed catalog is stale. |
 
 Managed catalog operations:
 
-- Refresh built-in managed CIDR catalog from official sources with guardrails:
+- Refresh built-in managed <abbr title="Classless Inter-Domain Routing">CIDR</abbr> catalog from official sources with guardrails:
   `make ip-range-catalog-update`
 - See operational rollout/rollback guidance in `docs/ip-range-policy-runbook.md`.
 | `SHUMA_MAZE_ENABLED` | `true` | Enables maze feature. |
 | `SHUMA_MAZE_AUTO_BAN` | `true` | Enables maze auto-ban when threshold is exceeded. |
 | `SHUMA_MAZE_AUTO_BAN_THRESHOLD` | `50` | Maze hit threshold for auto-ban. |
 | `SHUMA_MAZE_ROLLOUT_PHASE` | `enforce` | Maze rollout phase (`instrument`, `advisory`, `enforce`). |
-| `SHUMA_MAZE_TOKEN_TTL_SECONDS` | `90` | Maze traversal token TTL. |
+| `SHUMA_MAZE_TOKEN_TTL_SECONDS` | `90` | Maze traversal token <abbr title="Time To Live">TTL</abbr>. |
 | `SHUMA_MAZE_TOKEN_MAX_DEPTH` | `8` | Maximum signed traversal depth. |
 | `SHUMA_MAZE_TOKEN_BRANCH_BUDGET` | `3` | Signed branch budget field for issued traversal tokens. |
 | `SHUMA_MAZE_REPLAY_TTL_SECONDS` | `600` | Replay-marker retention window for traversal tokens. |
@@ -146,38 +146,38 @@ Managed catalog operations:
 | `SHUMA_MAZE_CHECKPOINT_EVERY_MS` | `1500` | Checkpoint cadence in elapsed milliseconds. |
 | `SHUMA_MAZE_STEP_AHEAD_MAX` | `4` | Maximum unverified step-ahead depth before checkpoint fallback. |
 | `SHUMA_MAZE_NO_JS_FALLBACK_MAX_DEPTH` | `4` | Maximum depth tolerated without checkpoint evidence. |
-| `SHUMA_MAZE_MICRO_POW_ENABLED` | `true` | Enables optional deep-tier micro-PoW for traversal links. |
-| `SHUMA_MAZE_MICRO_POW_DEPTH_START` | `5` | Depth where micro-PoW starts. |
-| `SHUMA_MAZE_MICRO_POW_BASE_DIFFICULTY` | `12` | Base micro-PoW difficulty in leading-zero bits. |
+| `SHUMA_MAZE_MICRO_POW_ENABLED` | `true` | Enables optional deep-tier micro-<abbr title="Proof of Work">PoW</abbr> for traversal links. |
+| `SHUMA_MAZE_MICRO_POW_DEPTH_START` | `5` | Depth where micro-<abbr title="Proof of Work">PoW</abbr> starts. |
+| `SHUMA_MAZE_MICRO_POW_BASE_DIFFICULTY` | `12` | Base micro-<abbr title="Proof of Work">PoW</abbr> difficulty in leading-zero bits. |
 | `SHUMA_MAZE_MAX_CONCURRENT_GLOBAL` | `128` | Global concurrent maze-response budget. |
-| `SHUMA_MAZE_MAX_CONCURRENT_PER_IP_BUCKET` | `4` | Per-IP-bucket concurrent maze-response budget. |
+| `SHUMA_MAZE_MAX_CONCURRENT_PER_IP_BUCKET` | `4` | Per-<abbr title="Internet Protocol">IP</abbr>-bucket concurrent maze-response budget. |
 | `SHUMA_MAZE_MAX_RESPONSE_BYTES` | `65536` | Max response size per maze page before budget fallback. |
 | `SHUMA_MAZE_MAX_RESPONSE_DURATION_MS` | `15000` | Max render duration per maze page before budget fallback. |
 | `SHUMA_MAZE_SERVER_VISIBLE_LINKS` | `4` | Number of server-visible maze links before hidden client expansion links. |
 | `SHUMA_MAZE_MAX_LINKS` | `16` | Hard cap on generated links per maze page. |
 | `SHUMA_MAZE_MAX_PARAGRAPHS` | `8` | Hard cap on generated paragraphs per maze page. |
 | `SHUMA_MAZE_PATH_ENTROPY_SEGMENT_LEN` | `16` | Entropy segment length for generated maze paths. |
-| `SHUMA_MAZE_COVERT_DECOYS_ENABLED` | `true` | Enables covert decoy injection in eligible non-maze HTML for medium-suspicion traffic. |
+| `SHUMA_MAZE_COVERT_DECOYS_ENABLED` | `true` | Enables covert decoy injection in eligible non-maze <abbr title="HyperText Markup Language">HTML</abbr> for medium-suspicion traffic. |
 | `SHUMA_MAZE_SEED_PROVIDER` | `internal` | Maze seed corpus provider (`internal` or `operator`). |
 | `SHUMA_MAZE_SEED_REFRESH_INTERVAL_SECONDS` | `3600` | Scheduled refresh interval for provider-fed seed corpora. |
 | `SHUMA_MAZE_SEED_REFRESH_RATE_LIMIT_PER_HOUR` | `12` | Hourly refresh cap for provider-fed corpus refreshes. |
 | `SHUMA_MAZE_SEED_REFRESH_MAX_SOURCES` | `100` | Maximum operator sources accepted for seed provider refresh. |
 | `SHUMA_MAZE_SEED_METADATA_ONLY` | `true` | Enforce metadata/keyword-first extraction for operator seeds. |
 | `SHUMA_ROBOTS_ENABLED` | `true` | Enables robots.txt endpoint and policy generation. |
-| `SHUMA_ROBOTS_BLOCK_AI_TRAINING` | `true` | Adds AI training bot disallow directives. |
-| `SHUMA_ROBOTS_BLOCK_AI_SEARCH` | `false` | Adds AI search bot disallow directives. |
+| `SHUMA_ROBOTS_BLOCK_AI_TRAINING` | `true` | Adds <abbr title="Artificial Intelligence">AI</abbr> training bot disallow directives. |
+| `SHUMA_ROBOTS_BLOCK_AI_SEARCH` | `false` | Adds <abbr title="Artificial Intelligence">AI</abbr> search bot disallow directives. |
 | `SHUMA_ROBOTS_ALLOW_SEARCH_ENGINES` | `true` | Allows mainstream search engines in robots policy. |
-| `SHUMA_AI_POLICY_BLOCK_TRAINING` | `true` | First-class admin/export alias for AI training policy (mirrors `SHUMA_ROBOTS_BLOCK_AI_TRAINING`). |
-| `SHUMA_AI_POLICY_BLOCK_SEARCH` | `false` | First-class admin/export alias for AI search policy (mirrors `SHUMA_ROBOTS_BLOCK_AI_SEARCH`). |
+| `SHUMA_AI_POLICY_BLOCK_TRAINING` | `true` | First-class admin/export alias for <abbr title="Artificial Intelligence">AI</abbr> training policy (mirrors `SHUMA_ROBOTS_BLOCK_AI_TRAINING`). |
+| `SHUMA_AI_POLICY_BLOCK_SEARCH` | `false` | First-class admin/export alias for <abbr title="Artificial Intelligence">AI</abbr> search policy (mirrors `SHUMA_ROBOTS_BLOCK_AI_SEARCH`). |
 | `SHUMA_AI_POLICY_ALLOW_SEARCH_ENGINES` | `true` | First-class admin/export alias for search-engine allow policy (mirrors `SHUMA_ROBOTS_ALLOW_SEARCH_ENGINES`). |
 | `SHUMA_ROBOTS_CRAWL_DELAY` | `2` | robots.txt crawl-delay value (seconds). |
-| `SHUMA_CDP_DETECTION_ENABLED` | `true` | Enables CDP automation detection script/processing. |
-| `SHUMA_CDP_AUTO_BAN` | `true` | Enables auto-ban path when strong CDP automation is detected. |
-| `SHUMA_CDP_DETECTION_THRESHOLD` | `0.8` | CDP score threshold used when hard CDP checks are absent. |
-| `SHUMA_CDP_PROBE_FAMILY` | `split` | CDP detector probe family selector (`v1`, `v2`, `split`) for rollout/rotation. |
+| `SHUMA_CDP_DETECTION_ENABLED` | `true` | Enables <abbr title="Chrome DevTools Protocol">CDP</abbr> automation detection script/processing. |
+| `SHUMA_CDP_AUTO_BAN` | `true` | Enables auto-ban path when strong <abbr title="Chrome DevTools Protocol">CDP</abbr> automation is detected. |
+| `SHUMA_CDP_DETECTION_THRESHOLD` | `0.8` | <abbr title="Chrome DevTools Protocol">CDP</abbr> score threshold used when hard <abbr title="Chrome DevTools Protocol">CDP</abbr> checks are absent. |
+| `SHUMA_CDP_PROBE_FAMILY` | `split` | <abbr title="Chrome DevTools Protocol">CDP</abbr> detector probe family selector (`v1`, `v2`, `split`) for rollout/rotation. |
 | `SHUMA_CDP_PROBE_ROLLOUT_PERCENT` | `30` | Percent of requests that should receive `v2` probes when `cdp_probe_family=split` (0-100). |
 | `SHUMA_FINGERPRINT_SIGNAL_ENABLED` | `true` | Enables internal fingerprint signal collection and scoring contributions. |
-| `SHUMA_FINGERPRINT_STATE_TTL_SECONDS` | `900` | TTL for bounded fingerprint state/coherence windows. |
+| `SHUMA_FINGERPRINT_STATE_TTL_SECONDS` | `900` | <abbr title="Time To Live">TTL</abbr> for bounded fingerprint state/coherence windows. |
 | `SHUMA_FINGERPRINT_FLOW_WINDOW_SECONDS` | `120` | Rolling flow window used for mismatch aggregation and flow-centric telemetry checks. |
 | `SHUMA_FINGERPRINT_FLOW_VIOLATION_THRESHOLD` | `3` | Per-flow mismatch threshold before emitting flow-violation fingerprint signals. |
 | `SHUMA_FINGERPRINT_PSEUDONYMIZE` | `true` | Uses pseudonymized flow identity for fingerprint state keys (data-minimization control). |
@@ -190,46 +190,47 @@ Managed catalog operations:
 
 ## 🐙 Admin Config Writes
 
-- `GET /admin/config` reads effective KV-backed config.
-- `POST /admin/config` writes to KV only when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`.
+- `GET /admin/config` reads effective <abbr title="Key-Value">KV</abbr>-backed config.
+- `POST /admin/config` writes to <abbr title="Key-Value">KV</abbr> only when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`.
+- `POST /admin/config/validate` runs the same config validators as `POST /admin/config` without persisting writes (returns structured validation issues).
 - `GET /admin/config/export` returns a non-secret deploy handoff snapshot as env-style key/value output:
-  - `env`: object of deploy-ready `SHUMA_*` non-secret values (env guardrails + KV tunables),
+  - `env`: object of deploy-ready `SHUMA_*` non-secret values (env guardrails + <abbr title="Key-Value">KV</abbr> tunables),
   - `env_text`: newline-delimited `KEY=value` output for copy/paste into immutable deploy config,
   - `excluded_secrets`: explicit list of secret keys intentionally omitted (includes `SHUMA_RATE_LIMITER_REDIS_URL` and `SHUMA_BAN_STORE_REDIS_URL`).
 - Successful writes invalidate runtime config cache on the instance that processed the request.
-- KV writes persist across restarts.
+- <abbr title="Key-Value">KV</abbr> writes persist across restarts.
 
 ### `POST /admin/config` writable keys
 
-The following KV-backed fields are currently writable via admin API:
+The following <abbr title="Key-Value">KV</abbr>-backed fields are currently writable via admin <abbr title="Application Programming Interface">API</abbr>:
 
 - Core: `test_mode`, `rate_limit`, `ban_duration`, `ban_durations.{honeypot,rate_limit,browser,admin,cdp}`, `honeypot_enabled`, `honeypots`, `browser_block`, `browser_whitelist`, `whitelist`, `path_whitelist`, `ip_range_policy_mode`, `ip_range_emergency_allowlist`, `ip_range_custom_rules`, `ip_range_managed_policies`, `ip_range_managed_max_staleness_hours`, `ip_range_allow_stale_managed_enforce`, `js_required_enforced`.
-- GEO routing/policy: `geo_risk`, `geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`.
+- <abbr title="Geolocation">GEO</abbr> routing/policy: `geo_risk`, `geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`.
 - Maze: `maze_enabled`, `maze_auto_ban`, `maze_auto_ban_threshold`, `maze_rollout_phase`, `maze_token_ttl_seconds`, `maze_token_max_depth`, `maze_token_branch_budget`, `maze_replay_ttl_seconds`, `maze_entropy_window_seconds`, `maze_client_expansion_enabled`, `maze_checkpoint_every_nodes`, `maze_checkpoint_every_ms`, `maze_step_ahead_max`, `maze_no_js_fallback_max_depth`, `maze_micro_pow_enabled`, `maze_micro_pow_depth_start`, `maze_micro_pow_base_difficulty`, `maze_max_concurrent_global`, `maze_max_concurrent_per_ip_bucket`, `maze_max_response_bytes`, `maze_max_response_duration_ms`, `maze_server_visible_links`, `maze_max_links`, `maze_max_paragraphs`, `maze_path_entropy_segment_len`, `maze_covert_decoys_enabled`, `maze_seed_provider`, `maze_seed_refresh_interval_seconds`, `maze_seed_refresh_rate_limit_per_hour`, `maze_seed_refresh_max_sources`, `maze_seed_metadata_only`.
-- Robots/AI policy: `robots_enabled`, `robots_crawl_delay`, `ai_policy_block_training`, `ai_policy_block_search`, `ai_policy_allow_search_engines` (legacy aliases `robots_block_ai_training`, `robots_block_ai_search`, `robots_allow_search_engines` are also accepted).
-- CDP/fingerprint: `cdp_detection_enabled`, `cdp_auto_ban`, `cdp_detection_threshold`, `cdp_probe_family`, `cdp_probe_rollout_percent`, `fingerprint_signal_enabled`, `fingerprint_state_ttl_seconds`, `fingerprint_flow_window_seconds`, `fingerprint_flow_violation_threshold`, `fingerprint_pseudonymize`, `fingerprint_entropy_budget`, `fingerprint_family_cap_header_runtime`, `fingerprint_family_cap_transport`, `fingerprint_family_cap_temporal`, `fingerprint_family_cap_persistence`, `fingerprint_family_cap_behavior`.
+- Robots/<abbr title="Artificial Intelligence">AI</abbr> policy: `robots_enabled`, `robots_crawl_delay`, `ai_policy_block_training`, `ai_policy_block_search`, `ai_policy_allow_search_engines` (legacy aliases `robots_block_ai_training`, `robots_block_ai_search`, `robots_allow_search_engines` are also accepted).
+- <abbr title="Chrome DevTools Protocol">CDP</abbr>/fingerprint: `cdp_detection_enabled`, `cdp_auto_ban`, `cdp_detection_threshold`, `cdp_probe_family`, `cdp_probe_rollout_percent`, `fingerprint_signal_enabled`, `fingerprint_state_ttl_seconds`, `fingerprint_flow_window_seconds`, `fingerprint_flow_violation_threshold`, `fingerprint_pseudonymize`, `fingerprint_entropy_budget`, `fingerprint_family_cap_header_runtime`, `fingerprint_family_cap_transport`, `fingerprint_family_cap_temporal`, `fingerprint_family_cap_persistence`, `fingerprint_family_cap_behavior`.
 - Provider/edge: `provider_backends.{rate_limiter,ban_store,challenge_engine,maze_tarpit,fingerprint_signal}`, `edge_integration_mode`.
 - Botness/challenge tuning: `pow_enabled`, `pow_difficulty`, `pow_ttl_seconds`, `challenge_puzzle_enabled`, `challenge_puzzle_transform_count`, `challenge_puzzle_risk_threshold`, `not_a_bot_enabled`, `not_a_bot_risk_threshold`, `not_a_bot_score_pass_min`, `not_a_bot_score_escalate_min`, `not_a_bot_nonce_ttl_seconds`, `not_a_bot_marker_ttl_seconds`, `not_a_bot_attempt_limit_per_window`, `not_a_bot_attempt_window_seconds`, `botness_maze_threshold`, `botness_weights.{js_required,geo_risk,rate_medium,rate_high,maze_behavior}`, `defence_modes.{rate,geo,js}`.
 
 Shuma follows a 2-class model only:
 - Env-only runtime keys in the Env-Only table above.
-- KV-backed tunables writable via `POST /admin/config`.
+- <abbr title="Key-Value">KV</abbr>-backed tunables writable via `POST /admin/config`.
 
-## 🐙 JS Verification + PoW
+## 🐙 <abbr title="JavaScript">JS</abbr> Verification + <abbr title="Proof of Work">PoW</abbr>
 
-- `js_required_enforced=true` routes visitors without a valid `js_verified` cookie to JS verification.
-- `pow_enabled=true` adds server-verified PoW to that verification flow.
-- `js_required_enforced=false` bypasses JS verification for normal requests (and therefore bypasses PoW on that path).
+- `js_required_enforced=true` routes visitors without a valid `js_verified` cookie to <abbr title="JavaScript">JS</abbr> verification.
+- `pow_enabled=true` adds server-verified <abbr title="Proof of Work">PoW</abbr> to that verification flow.
+- `js_required_enforced=false` bypasses <abbr title="JavaScript">JS</abbr> verification for normal requests (and therefore bypasses <abbr title="Proof of Work">PoW</abbr> on that path).
 - `challenge_puzzle_enabled=false` disables challenge-page serving; challenge-tier routes fall back to maze when `maze_enabled=true`, otherwise hard block.
 
-### CDP/Fingerprint rollout controls
+### <abbr title="Chrome DevTools Protocol">CDP</abbr>/Fingerprint rollout controls
 
 - `cdp_probe_family` controls detector script family selection:
   - `v1`: legacy probe set only,
   - `v2`: expanded probe set (includes persistence/micro-signal checks),
   - `split`: deterministic request-based split rollout between `v1` and `v2`.
 - `cdp_probe_rollout_percent` is used only when `cdp_probe_family=split`.
-- `fingerprint_signal_enabled=false` disables fingerprint signal contributions while keeping CDP endpoint handling available.
+- `fingerprint_signal_enabled=false` disables fingerprint signal contributions while keeping <abbr title="Chrome DevTools Protocol">CDP</abbr> endpoint handling available.
 - Fingerprint state/privacy controls are bounded by:
   - `fingerprint_state_ttl_seconds`,
   - `fingerprint_flow_window_seconds`,
@@ -248,7 +249,7 @@ Recommended promotion order is `instrument -> advisory -> enforce` with explicit
 
 ## 🐙 Maze Stage 2.5 Runtime Notes
 
-- Maze pages now use a compact HTML shell with versioned shared assets under an opaque deployment-specific maze asset prefix (immutable cache policy).
+- Maze pages now use a compact <abbr title="HyperText Markup Language">HTML</abbr> shell with versioned shared assets under an opaque deployment-specific maze asset prefix (immutable cache policy).
 - Hidden-link expansion is progressive via `POST <maze_path_prefix>issue-links` using signed expansion-seed envelopes (`seed` + `seed_sig`) instead of shipping full hidden-link sets in bootstrap payloads.
 - Parent-token issuance at the maze issue-links endpoint is single-use (replay calls are rejected) to reduce repeat host work.
 - Branch-budget controls now bound progressive hidden-link issuance volume per traversal token.
@@ -257,7 +258,7 @@ Recommended promotion order is `instrument -> advisory -> enforce` with explicit
 
 ## 🐙 Static Resource Bypass Defaults
 
-To avoid expensive bot checks on obvious static resources, Shuma bypasses JS/botness/geo challenge paths by default for:
+To avoid expensive bot checks on obvious static resources, Shuma bypasses <abbr title="JavaScript">JS</abbr>/botness/geo challenge paths by default for:
 
 - `GET`/`HEAD` requests only, and
 - obvious asset paths/extensions (for example `/assets/...`, `/static/...`, `/img/...`, `*.css`, `*.js`, `*.png`, `*.svg`, `*.woff2`, `favicon`, `manifest`, `sitemap`).
@@ -280,8 +281,8 @@ Default seeded modes are `both` for all three modules as the current pre-launch 
 
 ### Effective mode notes and invalid combinations
 
-- `js_required_enforced` is still a hard gate for JS paths.
-- When `js_required_enforced=false`, JS signal and JS enforcement are both effectively disabled even if `defence_modes.js` is `signal`, `enforce`, or `both`.
+- `js_required_enforced` is still a hard gate for <abbr title="JavaScript">JS</abbr> paths.
+- When `js_required_enforced=false`, <abbr title="JavaScript">JS</abbr> signal and <abbr title="JavaScript">JS</abbr> enforcement are both effectively disabled even if `defence_modes.js` is `signal`, `enforce`, or `both`.
 - `/admin/config` surfaces this as:
   - `defence_modes` (configured modes),
   - `defence_modes_effective` (runtime-effective signal/action booleans),
@@ -291,28 +292,28 @@ Default seeded modes are `both` for all three modules as the current pre-launch 
 
 - `rate=signal` keeps botness pressure scoring without rate-limit bans; useful for dry-run tuning.
 - `rate=enforce` keeps hard caps/bans but removes rate pressure from botness scoring.
-- `geo=signal` keeps GEO risk scoring while deferring GEO routing actions (`block/challenge/maze`) to other controls.
-- `geo=enforce` keeps explicit GEO routing actions but removes GEO contribution to botness score.
-- `js=signal` or `js=enforce` still require `js_required_enforced=true`; otherwise JS signal/action are both effectively disabled.
+- `geo=signal` keeps <abbr title="Geolocation">GEO</abbr> risk scoring while deferring <abbr title="Geolocation">GEO</abbr> routing actions (`block/challenge/maze`) to other controls.
+- `geo=enforce` keeps explicit <abbr title="Geolocation">GEO</abbr> routing actions but removes <abbr title="Geolocation">GEO</abbr> contribution to botness score.
+- `js=signal` or `js=enforce` still require `js_required_enforced=true`; otherwise <abbr title="JavaScript">JS</abbr> signal/action are both effectively disabled.
 
 ## 🐙 Provider Selection (H4 foundation)
 
 - Provider selection is now explicit in config under `provider_backends`.
 - All capabilities default to `internal`.
 - `external` backend behavior in the current slice:
-  - `fingerprint_signal=external` routes to an Akamai-first adapter (`/fingerprint-report`) that accepts edge/Bot Manager-style outcome payloads, maps them into normalized fingerprint/CDP-tier signals, and preserves explicit fallback to the internal CDP report handler for non-Akamai/legacy payloads.
+  - `fingerprint_signal=external` routes to an Akamai-first adapter (`/fingerprint-report`) that accepts edge/Bot Manager-style outcome payloads, maps them into normalized fingerprint/<abbr title="Chrome DevTools Protocol">CDP</abbr>-tier signals, and preserves explicit fallback to the internal <abbr title="Chrome DevTools Protocol">CDP</abbr> report handler for non-Akamai/legacy payloads.
   - Fingerprint source availability is explicit:
     - internal provider reports `active` when `cdp_detection_enabled=true`, `disabled` when `cdp_detection_enabled=false`.
     - external Akamai adapter reports `active` when `cdp_detection_enabled=true`, `disabled` when `cdp_detection_enabled=false`.
-  - `rate_limiter=external` uses a Redis-backed distributed adapter (`INCR` + window TTL) when `SHUMA_RATE_LIMITER_REDIS_URL` is configured.
+  - `rate_limiter=external` uses a Redis-backed distributed adapter (`INCR` + window <abbr title="Time To Live">TTL</abbr>) when `SHUMA_RATE_LIMITER_REDIS_URL` is configured.
     - On backend degradation it applies route-class outage posture:
       - main traffic: `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` (default `fallback_internal`)
       - admin auth: `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH` (default `fail_closed`)
-  - `ban_store=external` uses a Redis-backed distributed adapter (keyed JSON ban entries with Redis TTL) when `SHUMA_BAN_STORE_REDIS_URL` is configured, with explicit fallback to internal behavior when unavailable/unconfigured.
+  - `ban_store=external` uses a Redis-backed distributed adapter (keyed <abbr title="JavaScript Object Notation">JSON</abbr> ban entries with Redis <abbr title="Time To Live">TTL</abbr>) when `SHUMA_BAN_STORE_REDIS_URL` is configured, with explicit fallback to internal behavior when unavailable/unconfigured.
   - `challenge_engine=external` and `maze_tarpit=external` still route through explicit unsupported external adapters that currently fall back to internal runtime behavior.
 - `edge_integration_mode` defaults to `off` for self-hosted baseline.
 - External fingerprint adapter precedence is mode-aware:
-  - `off`: ignore Akamai-style edge outcomes (legacy/non-Akamai payloads still fall back to internal CDP handler).
+  - `off`: ignore Akamai-style edge outcomes (legacy/non-Akamai payloads still fall back to internal <abbr title="Chrome DevTools Protocol">CDP</abbr> handler).
   - `advisory`: record normalized edge detections without authoritative ban short-circuit.
   - `authoritative`: allow strong edge outcomes to trigger immediate auto-ban when `cdp_auto_ban=true`.
 
@@ -322,8 +323,8 @@ This matrix is meant to answer: "What actually happens if I change this setting?
 
 | Capability | `internal` backend | `external` backend (current) | Advisory mode intent | Authoritative mode intent | Safe fallback behavior |
 | --- | --- | --- | --- | --- | --- |
-| `fingerprint_signal` | Uses internal CDP scripts and `/cdp-report` | Uses Akamai-first adapter (`/fingerprint-report`) that maps edge outcomes and falls back to internal CDP handler for non-Akamai/legacy payloads | Edge outcomes are ingested/logged without authoritative edge-ban short-circuit | Strong edge outcomes can trigger immediate auto-ban when `cdp_auto_ban=true` | Non-Akamai/legacy payloads downgrade to internal CDP handling; `off` mode ignores Akamai-style edge outcomes |
-| `rate_limiter` | Internal local rate logic | Redis-backed distributed limiter (`INCR` + TTL) with configurable outage posture (`fallback_internal`/`fail_open`/`fail_closed`) by route class | Consume distributed rate state as advisory pressure | External authoritative limit decisions only after semantic parity and outage posture are validated | Applies route-class outage mode on Redis unavailability/degradation |
+| `fingerprint_signal` | Uses internal <abbr title="Chrome DevTools Protocol">CDP</abbr> scripts and `/cdp-report` | Uses Akamai-first adapter (`/fingerprint-report`) that maps edge outcomes and falls back to internal <abbr title="Chrome DevTools Protocol">CDP</abbr> handler for non-Akamai/legacy payloads | Edge outcomes are ingested/logged without authoritative edge-ban short-circuit | Strong edge outcomes can trigger immediate auto-ban when `cdp_auto_ban=true` | Non-Akamai/legacy payloads downgrade to internal <abbr title="Chrome DevTools Protocol">CDP</abbr> handling; `off` mode ignores Akamai-style edge outcomes |
+| `rate_limiter` | Internal local rate logic | Redis-backed distributed limiter (`INCR` + <abbr title="Time To Live">TTL</abbr>) with configurable outage posture (`fallback_internal`/`fail_open`/`fail_closed`) by route class | Consume distributed rate state as advisory pressure | External authoritative limit decisions only after semantic parity and outage posture are validated | Applies route-class outage mode on Redis unavailability/degradation |
 | `ban_store` | Internal ban persistence and checks | Redis-backed distributed ban adapter with fallback to internal when external backend is unavailable/unconfigured | Use distributed ban state as advisory input | External authoritative ban sync only with explicit outage controls | Falls back to internal ban store on Redis unavailability/misconfiguration |
 | `challenge_engine` | Internal challenge rendering/verification | Explicit unsupported external adapter currently delegates to internal behavior | External challenge attestations may inform policy once implemented | Authoritative external challenge only when replay/expiry semantics are parity-tested | Unsupported external path keeps internal challenge path |
 | `maze_tarpit` | Internal Shuma-native maze/tarpit | Explicit unsupported external adapter delegates to internal behavior | Keep internal (no practical external target currently) | Keep internal | Internal-only path remains the source of truth |
@@ -381,13 +382,13 @@ Use these as startup presets, then tune incrementally:
 
 - The canonical public escalation ladder (`L0_ALLOW_CLEAN` through `L11_DENY_HARD`) is documented in `/docs/bot-defence.md` under `Escalation Ladder (L0-L11)`.
 - Use that ladder as the operator-facing policy vocabulary; metrics and admin events reuse the same IDs.
-- Signal semantics (for example `S_JS_REQUIRED_MISSING` meaning missing/expired/invalid `js_verified` marker under JS enforcement) are documented alongside that ladder and should be treated as evidence inputs, not separate action levels.
+- Signal semantics (for example `S_JS_REQUIRED_MISSING` meaning missing/expired/invalid `js_verified` marker under <abbr title="JavaScript">JS</abbr> enforcement) are documented alongside that ladder and should be treated as evidence inputs, not separate action levels.
 
-## 🐙 GEO Trust Boundary
+## 🐙 <abbr title="Geolocation">GEO</abbr> Trust Boundary
 
-GEO/proto headers are trusted only when:
+<abbr title="Geolocation">GEO</abbr>/proto headers are trusted only when:
 
 - `SHUMA_FORWARDED_IP_SECRET` is configured, and
 - request includes matching `X-Shuma-Forwarded-Secret`.
 
-Without trust, forwarded IP/proto/GEO-derived routing and GEO scoring are skipped.
+Without trust, forwarded <abbr title="Internet Protocol">IP</abbr>/proto/<abbr title="Geolocation">GEO</abbr>-derived routing and <abbr title="Geolocation">GEO</abbr> scoring are skipped.

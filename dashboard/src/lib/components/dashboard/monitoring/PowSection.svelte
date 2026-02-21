@@ -16,8 +16,8 @@
 </script>
 
 <div class="section events">
-  <h2>PoW Verification</h2>
-  <p class="section-desc text-muted">PoW verify outcomes with failure reasons, trend, and top offender.</p>
+  <h2><abbr title="Proof of Work">PoW</abbr> Verification</h2>
+  <p class="section-desc text-muted"><abbr title="Proof of Work">PoW</abbr> verify outcomes with failure reasons, trend, and top offender.</p>
   <div class="stats-cards stats-cards--compact">
     <div class="card panel panel-border pad-md-b">
       <h3 class="caps-label">Total Verifies</h3>

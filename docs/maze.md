@@ -7,15 +7,15 @@ The maze is Shuma-Gorath's deception subsystem: a synthetic crawl space designed
 This is the practical flow an operator should expect:
 
 1. **Policy routes suspicious traffic to maze**
-   Requests above maze thresholds (or GEO/policy route-to-maze rules) are served a maze page.
+   Requests above maze thresholds (or <abbr title="Geolocation">GEO</abbr>/policy route-to-maze rules) are served a maze page.
 2. **Entry page ships compact shell + signed context**
    Response includes visible links and bootstrap context for bounded client expansion, not full hidden-link graphs.
 3. **Traversal links carry signed `mt` tokens**
-   Each hop token is validated for signature, TTL, path binding, chain integrity (`prev_digest`), replay, and branch budget.
+   Each hop token is validated for signature, <abbr title="Time To Live">TTL</abbr>, path binding, chain integrity (`prev_digest`), replay, and branch budget.
 4. **Checkpoint + progressive issuance for deeper traversal**
    Client flow can submit `POST <maze_path_prefix>checkpoint` and request additional links via `POST <maze_path_prefix>issue-links`; issuance is signed, bounded, and replay-protected.
-5. **No-JS is bounded, not unlimited**
-   No-JS traversal is allowed only to configured depth, then deterministic fallback applies.
+5. **No-<abbr title="JavaScript">JS</abbr> is bounded, not unlimited**
+   No-<abbr title="JavaScript">JS</abbr> traversal is allowed only to configured depth, then deterministic fallback applies.
 6. **Fallback and escalation are deterministic**
    Budget exhaustion or high-confidence violation accumulation degrades to challenge/block behavior rather than continuing expensive maze serving.
 7. **Optional ban path is threshold-driven**
@@ -27,7 +27,7 @@ Maze excellence is about asymmetry:
 
 - increase attacker cost (time, traversal effort, compute, and bandwidth),
 - keep defender cost bounded and energy-aware,
-- preserve human UX and avoid SEO regressions,
+- preserve human <abbr title="User Experience">UX</abbr> and avoid <abbr title="Search Engine Optimization">SEO</abbr> regressions,
 - maintain operator control and explainable policy outcomes.
 
 This is the core stance for `L7_DECEPTION_EXPLICIT` behavior and related deception flows.
@@ -54,27 +54,27 @@ Current Stage 2 behavior combines polymorphic rendering, signed traversal state,
 1. **Polymorphic variant families**
    Maze pages render with rotating layout/palette/content variants.
 2. **Signed rotating entropy**
-   Variant selection uses HMAC-backed entropy inputs (path, IP bucket, UA bucket, short entropy window, and flow nonce), not path-only deterministic hashes.
+   Variant selection uses <abbr title="Hash-based Message Authentication Code">HMAC</abbr>-backed entropy inputs (path, <abbr title="Internet Protocol">IP</abbr> bucket, <abbr title="User Agent">UA</abbr> bucket, short entropy window, and flow <abbr title="Number Used Once">nonce</abbr>), not path-only deterministic hashes.
 3. **Signed traversal links**
-   Maze links carry signed `mt` traversal tokens with TTL/depth/branch budget/previous-node binding and replay tracking.
+   Maze links carry signed `mt` traversal tokens with <abbr title="Time To Live">TTL</abbr>/depth/branch budget/previous-node binding and replay tracking.
 4. **Compact shell + shared assets**
-   Maze pages now ship a compact HTML shell and reuse versioned static maze assets under an opaque deployment-specific prefix instead of full inline CSS/JS on every hop. Asset version tags are content-hash derived so path changes track payload changes.
+   Maze pages now ship a compact <abbr title="HyperText Markup Language">HTML</abbr> shell and reuse versioned static maze assets under an opaque deployment-specific prefix instead of full inline CSS/<abbr title="JavaScript">JS</abbr> on every hop. Asset version tags are content-hash derived so path changes track payload changes.
 5. **Client-side expansion + checkpoints**
    Suspicious-tier traversal serves server-visible links only; hidden links are issued progressively via `<maze_path_prefix>issue-links` from a compact signed seed after checkpoint-aware validation.
 6. **Signed client expansion seed**
    Worker expansion uses a signed bootstrap seed envelope (`seed` + `seed_sig`) bound to flow/path/depth/entropy, and server issuance rejects tampering.
-7. **No-JS bounded fallback**
-   Missing checkpoints allow bounded no-JS progress up to configured depth, then deterministically trigger fallback.
-8. **Adaptive deep-tier micro-PoW**
-   Optional per-link micro-PoW is required at deeper traversal depths, verified server-side via token-bound nonce checks.
+7. **No-<abbr title="JavaScript">JS</abbr> bounded fallback**
+   Missing checkpoints allow bounded no-<abbr title="JavaScript">JS</abbr> progress up to configured depth, then deterministically trigger fallback.
+8. **Adaptive deep-tier micro-<abbr title="Proof of Work">PoW</abbr>**
+   Optional per-link micro-<abbr title="Proof of Work">PoW</abbr> is required at deeper traversal depths, verified server-side via token-bound <abbr title="Number Used Once">nonce</abbr> checks.
 9. **Worker/off-main-thread compute safeguards**
    Deep-tier proof and expansion work runs in a Web Worker with constrained-device safeguards (reduced expansion/proof work) and deterministic navigation fallback when proof cannot be produced.
 10. **Pluggable seed corpora**
     Content seeding supports internal corpus defaults and operator-fed sources with metadata-first extraction and refresh/rate-limit guardrails.
 11. **Strict budget governor**
-    Maze runtime enforces global and per-IP-bucket concurrency caps plus proactive response byte/time pre-admission limits.
-12. **Covert decoys in non-maze HTML**
-    Medium-suspicion challenge responses can include hidden decoy links (`dc=1`) to detect covert decoy-follow behavior while preserving visible UX.
+    Maze runtime enforces global and per-<abbr title="Internet Protocol">IP</abbr>-bucket concurrency caps plus proactive response byte/time pre-admission limits.
+12. **Covert decoys in non-maze <abbr title="HyperText Markup Language">HTML</abbr>**
+    Medium-suspicion challenge responses can include hidden decoy links (`dc=1`) to detect covert decoy-follow behavior while preserving visible <abbr title="User Experience">UX</abbr>.
 13. **High-confidence fallback matrix**
     Repeated high-confidence violations deterministically escalate from challenge fallback to block fallback so expensive maze serving is cut earlier.
 
@@ -83,9 +83,9 @@ Current Stage 2 behavior combines polymorphic rendering, signed traversal state,
 The maze is intentionally designed so attacker effort rises faster than host effort:
 
 - **Attacker pays repeated navigation + proof cost**
-  Deep traversal requires additional valid hops, checkpoint posture, and optional micro-PoW.
+  Deep traversal requires additional valid hops, checkpoint posture, and optional micro-<abbr title="Proof of Work">PoW</abbr>.
 - **Host reuses shared static assets**
-  CSS/JS/worker are versioned shared assets under an opaque maze asset prefix with immutable cache behavior.
+  CSS/<abbr title="JavaScript">JS</abbr>/worker are versioned shared assets under an opaque maze asset prefix with immutable cache behavior.
 - **Host avoids full hidden-link payloads per hop**
   Hidden links are issued progressively through signed endpoint calls, not pre-shipped in every page.
 - **Host bounds expensive work up front**
@@ -131,13 +131,13 @@ Rollback triggers (sustained for 10 minutes) should force phase rollback or paus
 - budget saturation above `2%` of eligible suspicious traffic,
 - protected-route p95 latency regression above `20%` versus baseline,
 - protected-route non-2xx/3xx rate increase above `0.5%` absolute,
-- challenge abandonment / human-success degradation beyond operator SLO.
+- challenge abandonment / human-success degradation beyond operator <abbr title="Service Level Objective">SLO</abbr>.
 
 ## 🐙 Signal Inputs That Shape Maze Behavior
 
 Maze complexity/routing can consume:
 
-- local signals (rate, geo posture, challenge outcomes, JS/CDP observations),
+- local signals (rate, geo posture, challenge outcomes, <abbr title="JavaScript">JS</abbr>/<abbr title="Chrome DevTools Protocol">CDP</abbr> observations),
 - traversal signals (ordering windows, timing thresholds, replay checks),
 - trusted upstream enterprise signals (for example edge-provided bot outcomes) when configured.
 
@@ -153,8 +153,8 @@ These fields are part of the runtime config (`/admin/config`):
 - `maze_rollout_phase` (`instrument|advisory|enforce`) - stage-gated enforcement mode.
 - `maze_token_*`, `maze_replay_ttl_seconds` - token integrity + replay windows.
 - `maze_entropy_window_seconds`, `maze_path_entropy_segment_len` - entropy/fingerprint controls.
-- `maze_client_expansion_enabled`, `maze_checkpoint_*`, `maze_step_ahead_max`, `maze_no_js_fallback_max_depth` - checkpoint/no-JS policy.
-- `maze_micro_pow_*` - optional deep-tier micro-PoW settings.
+- `maze_client_expansion_enabled`, `maze_checkpoint_*`, `maze_step_ahead_max`, `maze_no_js_fallback_max_depth` - checkpoint/no-<abbr title="JavaScript">JS</abbr> policy.
+- `maze_micro_pow_*` - optional deep-tier micro-<abbr title="Proof of Work">PoW</abbr> settings.
 - `maze_max_concurrent_*`, `maze_max_response_*` - cost-budget controls.
 - `maze_seed_provider`, `maze_seed_refresh_*`, `maze_seed_metadata_only` - seed corpus controls.
 - `maze_covert_decoys_enabled` - non-maze covert decoy injection toggle.
@@ -189,7 +189,7 @@ Preview safety guarantees:
 - `bot_defence_maze_token_outcomes_total{outcome=...}` tracks token-validation outcomes.
 - `bot_defence_maze_checkpoint_outcomes_total{outcome=...}` tracks checkpoint submission outcomes.
 - `bot_defence_maze_budget_outcomes_total{outcome=...}` tracks budget acquisition/saturation/cap outcomes.
-- `bot_defence_maze_proof_outcomes_total{outcome=...}` tracks micro-PoW proof requirements/outcomes.
+- `bot_defence_maze_proof_outcomes_total{outcome=...}` tracks micro-<abbr title="Proof of Work">PoW</abbr> proof requirements/outcomes.
 - `bot_defence_maze_entropy_variants_total{variant,provider,metadata_only}` tracks entropy-family/provider use.
 
 ## 🐙 Stage 2.5 Guardrails

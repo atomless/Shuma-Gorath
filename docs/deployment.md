@@ -4,16 +4,19 @@ Shuma-Gorath is designed to run on Spin (local or cloud). Use the Makefile paths
 
 Shuma-Gorath is intended to complement enterprise bot defenses (for example Akamai Bot Manager), but can run standalone.
 
+For the current deployment-track execution backlog (single-host baseline and enterprise multi-instance sync hardening), see:
+`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`.
+
 ## 🐙 Runtime Configuration Model
 
-- Tunables are loaded from KV (`config:default`) only.
+- Tunables are loaded from <abbr title="Key-Value">KV</abbr> (`config:default`) only.
 - Env vars are secrets/guardrails only.
-- `make setup` seeds KV tunables from `config/defaults.env` using `make config-seed`.
-- Runtime config is process-cached for a short TTL (2 seconds) to reduce hot-path KV reads.
-- `POST /admin/config` invalidates cache on the handling instance; other instances converge on their TTL window.
+- `make setup` seeds <abbr title="Key-Value">KV</abbr> tunables from `config/defaults.env` using `make config-seed`.
+- Runtime config is process-cached for a short <abbr title="Time To Live">TTL</abbr> (2 seconds) to reduce hot-path <abbr title="Key-Value">KV</abbr> reads.
+- `POST /admin/config` invalidates cache on the handling instance; other instances converge on their <abbr title="Time To Live">TTL</abbr> window.
 - `GET /admin/config/export` provides a non-secret `KEY=value` handoff snapshot for immutable redeploy workflows.
 
-If KV config is missing/invalid at runtime, config-dependent request handling fails with `500 Configuration unavailable`.
+If <abbr title="Key-Value">KV</abbr> config is missing/invalid at runtime, config-dependent request handling fails with `500 Configuration unavailable`.
 
 ## 🐙 Deployment Personas (Provider Scope)
 
@@ -27,7 +30,7 @@ Use one of these operating profiles as your baseline:
 
 Current implementation note:
 
-- `fingerprint_signal=external` now uses an Akamai-first adapter (`/fingerprint-report`) that maps edge/Bot Manager-style outcomes into normalized fingerprint/CDP-tier signals; non-Akamai/legacy payloads are explicitly downgraded to the internal CDP handler path.
+- `fingerprint_signal=external` now uses an Akamai-first adapter (`/fingerprint-report`) that maps edge/Bot Manager-style outcomes into normalized fingerprint/<abbr title="Chrome DevTools Protocol">CDP</abbr>-tier signals; non-Akamai/legacy payloads are explicitly downgraded to the internal <abbr title="Chrome DevTools Protocol">CDP</abbr> handler path.
 - `rate_limiter=external` uses a Redis-backed distributed adapter when `SHUMA_RATE_LIMITER_REDIS_URL` is configured.
   On backend degradation it applies route-class outage posture:
   - main traffic: `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` (default `fallback_internal`)
@@ -53,7 +56,7 @@ Current implementation note:
 Set these in your deployment secret/config system:
 
 - `SHUMA_API_KEY`
-- `SHUMA_ADMIN_READONLY_API_KEY` (optional; recommended when operators/automation need read-only admin API access)
+- `SHUMA_ADMIN_READONLY_API_KEY` (optional; recommended when operators/automation need read-only admin <abbr title="Application Programming Interface">API</abbr> access)
 - `SHUMA_JS_SECRET`
 - `SHUMA_FORWARDED_IP_SECRET` (required when trusting forwarded headers)
 - `SHUMA_HEALTH_SECRET` (recommended; required if you want header-authenticated `/health`)
@@ -79,7 +82,7 @@ Template source: run `make setup` and use `.env.local` (gitignored) as your env-
 - Generate a strong `SHUMA_API_KEY` with `make api-key-generate` (or rotate with `make api-key-rotate`).
 - Set `SHUMA_HEALTH_SECRET` and require `X-Shuma-Health-Secret` for `/health`.
 - Restrict `/admin/*` with `SHUMA_ADMIN_IP_ALLOWLIST` and upstream network controls.
-- Apply CDN/WAF rate limits to `POST /admin/login` and all `/admin/*`.
+- Apply <abbr title="Content Delivery Network">CDN</abbr>/<abbr title="Web Application Firewall">WAF</abbr> rate limits to `POST /admin/login` and all `/admin/*`.
 
 Validation helper before deploy:
 
@@ -93,7 +96,7 @@ make deploy-env-validate
 - non-empty and non-overbroad `SHUMA_ADMIN_IP_ALLOWLIST` (rejects wildcard and global-range entries)
 - explicit operator attestation that admin edge limits are configured:
   `SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true`
-- explicit operator attestation that admin API key rotation is complete for the deployment cadence:
+- explicit operator attestation that admin <abbr title="Application Programming Interface">API</abbr> key rotation is complete for the deployment cadence:
   `SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true`
 - enterprise multi-instance state guardrail:
   - when `SHUMA_ENTERPRISE_MULTI_INSTANCE=true`, validate `SHUMA_EDGE_INTEGRATION_MODE` and provider backend values,
@@ -107,17 +110,17 @@ make deploy-env-validate
 Run this checklist for every production deployment:
 
 1. Admin exposure:
-   - Confirm `/admin/*` is reachable only via trusted ingress (CDN/WAF/VPN path), not open origin exposure.
+   - Confirm `/admin/*` is reachable only via trusted ingress (<abbr title="Content Delivery Network">CDN</abbr>/<abbr title="Web Application Firewall">WAF</abbr>/<abbr title="Virtual Private Network">VPN</abbr> path), not open origin exposure.
 2. Admin allowlist:
-   - Confirm `SHUMA_ADMIN_IP_ALLOWLIST` contains only trusted operator/VPN IPs or CIDRs.
+   - Confirm `SHUMA_ADMIN_IP_ALLOWLIST` contains only trusted operator/<abbr title="Virtual Private Network">VPN</abbr> IPs or CIDRs.
    - Confirm no wildcard/global ranges are present.
 3. Login and admin edge rate limits:
-   - Confirm edge/CDN policy exists for `POST /admin/login` (strict threshold).
-   - Confirm edge/CDN policy exists for `/admin/*` (moderate threshold).
+   - Confirm edge/<abbr title="Content Delivery Network">CDN</abbr> policy exists for `POST /admin/login` (strict threshold).
+   - Confirm edge/<abbr title="Content Delivery Network">CDN</abbr> policy exists for `/admin/*` (moderate threshold).
    - Set `SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true` in deploy-time environment after verification.
 4. App-side auth failure limiter:
    - Confirm `SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE` is set to a conservative value for the environment.
-5. API key rotation cadence:
+5. <abbr title="Application Programming Interface">API</abbr> key rotation cadence:
    - Rotate `SHUMA_API_KEY` on a regular cadence (recommended 90 days) using `make gen-admin-api-key` / `make api-key-rotate`.
    - Set `SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true` in deploy-time environment after rotation verification.
 6. Enterprise multi-instance state posture:
@@ -196,7 +199,7 @@ Trigger immediate rollback when any of the following occurs:
    - challenge/block behavior returns toward baseline.
 5. Capture incident notes and defer re-enable until root cause and safeguards are documented.
 
-## 🐙 CDN/WAF Rate Limits (Cloudflare + Akamai)
+## 🐙 <abbr title="Content Delivery Network">CDN</abbr>/<abbr title="Web Application Firewall">WAF</abbr> Rate Limits (Cloudflare + Akamai)
 
 Treat this as first-layer abuse control. Keep app-level auth and rate-limiting logic enabled as a second layer.
 
@@ -208,26 +211,26 @@ Recommended baseline policies:
 
 ### 🐙 Cloudflare
 
-Use WAF Rate Limiting rules with client IP as the key characteristic.
+Use <abbr title="Web Application Firewall">WAF</abbr> Rate Limiting rules with client <abbr title="Internet Protocol">IP</abbr> as the key characteristic.
 
 Suggested rules:
 
 1. Login endpoint:
    - Match expression: `http.request.method eq "POST" and http.request.uri.path eq "/admin/login"`
-   - Initial action: `Managed Challenge` (or `Block` for API-only admin workflows)
+   - Initial action: `Managed Challenge` (or `Block` for <abbr title="Application Programming Interface">API</abbr>-only admin workflows)
 2. Admin surface:
    - Match expression: `starts_with(http.request.uri.path, "/admin/") and http.request.uri.path ne "/admin/login"`
-   - Initial action: `Managed Challenge` or `Block` based on your operator UX requirements
+   - Initial action: `Managed Challenge` or `Block` based on your operator <abbr title="User Experience">UX</abbr> requirements
 
 Operational notes:
 
 - Start in monitor/challenge mode, review false positives, then tighten.
-- Ensure Cloudflare uses the real client IP signal from your edge chain.
+- Ensure Cloudflare uses the real client <abbr title="Internet Protocol">IP</abbr> signal from your edge chain.
 - Keep `/admin/*` route protections in place even after app-level distributed limiter work.
 
 ### 🐙 Akamai
 
-Use App & API Protector rate controls/rate policies keyed by client IP.
+Use App & <abbr title="Application Programming Interface">API</abbr> Protector rate controls/rate policies keyed by client <abbr title="Internet Protocol">IP</abbr>.
 
 Suggested policies:
 
@@ -241,7 +244,7 @@ Suggested policies:
 Operational notes:
 
 - Roll out in alert/monitor mode first, then enforce deny/challenge actions.
-- Confirm client IP restoration (`True-Client-IP`/equivalent) so limits key on users, not intermediate proxies.
+- Confirm client <abbr title="Internet Protocol">IP</abbr> restoration (`True-Client-IP`/equivalent) so limits key on users, not intermediate proxies.
 - Keep these policies as a permanent first layer; they are not throwaway once distributed app-level limiting is added.
 
 ## 🐙 Forwarded Header Trust
@@ -252,12 +255,12 @@ When `SHUMA_FORWARDED_IP_SECRET` is set, forwarded client/proto headers are trus
 X-Shuma-Forwarded-Secret: <same secret>
 ```
 
-Configure your CDN/reverse proxy to inject this header.
+Configure your <abbr title="Content Delivery Network">CDN</abbr>/reverse proxy to inject this header.
 Also sanitize incoming `X-Forwarded-For` / `X-Real-IP` from untrusted clients and overwrite with edge-observed values.
 
 ## 🐙 Health Endpoint Hardening
 
-- `/health` allows loopback IPs only (`127.0.0.1`, `::1`) after trusted forwarded-IP extraction.
+- `/health` allows loopback IPs only (`127.0.0.1`, `::1`) after trusted forwarded-<abbr title="Internet Protocol">IP</abbr> extraction.
 - For defense in depth, set `SHUMA_HEALTH_SECRET` and require monitors/proxies to send:
 
 ```http
@@ -268,7 +271,7 @@ X-Shuma-Health-Secret: <same secret>
 
 ## 🐙 Fail-Open vs Fail-Closed
 
-`SHUMA_KV_STORE_FAIL_OPEN` controls behavior when KV is unavailable:
+`SHUMA_KV_STORE_FAIL_OPEN` controls behavior when <abbr title="Key-Value">KV</abbr> is unavailable:
 
 - `true`: allow requests through (reduced protection)
 - `false`: block with server error (stricter posture)
@@ -277,7 +280,7 @@ Choose deliberately for your production risk posture.
 
 ## 🐙 Outbound Policy
 
-Outbound HTTP(S) is disabled by default:
+Outbound <abbr title="Hypertext Transfer Protocol">HTTP</abbr>(S) is disabled by default:
 
 ```toml
 allowed_outbound_hosts = []
@@ -322,7 +325,7 @@ make deploy
 
 ## 🐙 Local Dev
 
-`make setup` creates `.env.local`, generates dev secrets, and seeds KV defaults.
+`make setup` creates `.env.local`, generates dev secrets, and seeds <abbr title="Key-Value">KV</abbr> defaults.
 
 ```bash
 make setup

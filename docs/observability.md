@@ -10,7 +10,7 @@ GET /metrics
 
 This endpoint is unauthenticated for Prometheus compatibility. Restrict access at the network edge if required.
 
-## 🐙 Dashboard Monitoring Summary API
+## 🐙 Dashboard Monitoring Summary <abbr title="Application Programming Interface">API</abbr>
 
 The Monitoring tab now consumes a consolidated admin summary endpoint:
 
@@ -21,18 +21,18 @@ GET /admin/monitoring?hours=24&limit=10
 This endpoint returns bounded-cardinality summaries for:
 - honeypot hits (top crawler buckets + top paths)
 - challenge failures (reasons + trend)
-- PoW verification outcomes (success/failure + reasons + trend)
+- <abbr title="Proof of Work">PoW</abbr> verification outcomes (success/failure + reasons + trend)
 - rate-limiting violations (outcomes + offenders + top paths)
-- GEO violations (actions + top countries)
+- <abbr title="Geolocation">GEO</abbr> violations (actions + top countries)
 
-Use this endpoint for dashboard UX and operator API queries; use `/metrics` for external time-series scraping.
+Use this endpoint for dashboard <abbr title="User Experience">UX</abbr> and operator <abbr title="Application Programming Interface">API</abbr> queries; use `/metrics` for external time-series scraping.
 
 Prometheus parity scope for Monitoring widgets is tracked in:
 - `docs/monitoring-prometheus-parity-audit.md`
 
 ### 🐙 Monitoring Cost Controls
 
-- Monitoring counter writes are coalesced in a short in-memory buffer before KV flushes to reduce hot-path read/modify/write amplification.
+- Monitoring counter writes are coalesced in a short in-memory buffer before <abbr title="Key-Value">KV</abbr> flushes to reduce hot-path read/modify/write amplification.
 - Path dimensions are normalized and cardinality-capped (`<=3` segments plus wildcard tail, dynamic/high-entropy segments collapsed to `:id`) to prevent unbounded key growth.
 - Retention cleanup scans run on monitoring summary read paths (not each telemetry write) and delete keys older than `SHUMA_EVENT_LOG_RETENTION_HOURS`.
 

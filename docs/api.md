@@ -1,4 +1,4 @@
-# 🐙 API & Endpoints
+# 🐙 <abbr title="Application Programming Interface">API</abbr> & Endpoints
 
 ## 🐙 Authentication
 
@@ -10,7 +10,7 @@ Admin endpoints support two auth modes:
 Write endpoints (`POST`, `PUT`, `PATCH`, `DELETE` on mutating admin routes) require read/write access.
 Read-only bearer tokens can access non-mutating admin endpoints only.
 
-If `SHUMA_ADMIN_IP_ALLOWLIST` is set, the client IP must be in the allowlist.
+If `SHUMA_ADMIN_IP_ALLOWLIST` is set, the client <abbr title="Internet Protocol">IP</abbr> must be in the allowlist.
 
 For session-authenticated write requests (`POST`, `PUT`, `PATCH`, `DELETE`), include:
 - `X-Shuma-CSRF: <csrf_token>` (returned by `/admin/login` and `/admin/session`)
@@ -19,12 +19,12 @@ If `SHUMA_FORWARDED_IP_SECRET` is configured, any request that relies on `X-Forw
 - `X-Shuma-Forwarded-Secret: <SHUMA_FORWARDED_IP_SECRET>`
 
 If `SHUMA_ENFORCE_HTTPS=true`:
-- requests without HTTPS context are rejected with `403 HTTPS required`
+- requests without <abbr title="Hypertext Transfer Protocol Secure">HTTPS</abbr> context are rejected with `403 HTTPS required`
 - forwarded proto headers are trusted only when `SHUMA_FORWARDED_IP_SECRET` validation succeeds
 
-If `SHUMA_API_KEY` is missing, `/admin/*` endpoints are disabled. Placeholder/insecure API keys are rejected.
+If `SHUMA_API_KEY` is missing, `/admin/*` endpoints are disabled. Placeholder/insecure <abbr title="Application Programming Interface">API</abbr> keys are rejected.
 
-Failed admin auth attempts are rate-limited per IP bucket (`SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE`, default `10`), but you should still enforce CDN/WAF rate limits for `POST /admin/login` and `/admin/*`.
+Failed admin auth attempts are rate-limited per <abbr title="Internet Protocol">IP</abbr> bucket (`SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE`, default `10`), but you should still enforce <abbr title="Content Delivery Network">CDN</abbr>/<abbr title="Web Application Firewall">WAF</abbr> rate limits for `POST /admin/login` and `/admin/*`.
 
 If `SHUMA_HEALTH_SECRET` is configured, `/health` also requires:
 - `X-Shuma-Health-Secret: <SHUMA_HEALTH_SECRET>`
@@ -35,15 +35,15 @@ If `SHUMA_HEALTH_SECRET` is configured, `/health` also requires:
 - `GET /health` - Health check (loopback only)
 - `GET /metrics` - Prometheus metrics (no auth)
 - `GET /instaban` - Honeypot (triggers ban)
-- `GET /pow` - PoW challenge seed (when enabled)
-- `POST /pow/verify` - PoW verification (sets js_verified cookie)
-- `POST /cdp-report` - Client automation reports (JSON)
-- `POST /fingerprint-report` - External/edge fingerprint intake (Akamai-first shape with internal CDP fallback)
+- `GET /pow` - <abbr title="Proof of Work">PoW</abbr> challenge seed (when enabled)
+- `POST /pow/verify` - <abbr title="Proof of Work">PoW</abbr> verification (sets js_verified cookie)
+- `POST /cdp-report` - Client automation reports (<abbr title="JavaScript Object Notation">JSON</abbr>)
+- `POST /fingerprint-report` - External/edge fingerprint intake (Akamai-first shape with internal <abbr title="Chrome DevTools Protocol">CDP</abbr> fallback)
 - `POST <maze_path_prefix>checkpoint` - Maze traversal checkpoint submission
 - `POST <maze_path_prefix>issue-links` - Maze progressive hidden-link issuance (signed seed + checkpoint gated)
 - `GET <maze_assets_prefix>/maze.<hash>.min.css` - Shared maze stylesheet asset (immutable cache)
 - `GET <maze_assets_prefix>/maze.<hash>.min.js` - Shared maze runtime script asset (immutable cache)
-- `GET <maze_assets_prefix>/maze-worker.<hash>.min.js` - Maze worker asset (expansion + micro-PoW off-main-thread)
+- `GET <maze_assets_prefix>/maze-worker.<hash>.min.js` - Maze worker asset (expansion + micro-<abbr title="Proof of Work">PoW</abbr> off-main-thread)
 - `GET /robots.txt` - robots.txt (configurable)
 - `GET /dashboard/...` - Dashboard static assets
 - `GET /challenge/puzzle` - Dev-only puzzle challenge page (`test_mode=true` in runtime config)
@@ -65,7 +65,7 @@ Output encoding:
 
 ### 🐙 Maze Progressive Link Issuance
 
-`POST <maze_path_prefix>issue-links` expects JSON fields:
+`POST <maze_path_prefix>issue-links` expects <abbr title="JavaScript Object Notation">JSON</abbr> fields:
 
 - `parent_token` (current page `mt` token)
 - `flow_id`, `entropy_nonce`, `path_prefix`
@@ -92,26 +92,26 @@ Challenge submit responses:
 - `200` - Correct answer (`Thank you! Challenge complete.`)
 - `403` - Incorrect answer (`Incorrect.` + `Request new challenge.` link)
 - `403` - Expired/replay (`Expired` + `Request new challenge.` link)
-- `403` - Invalid token/signature/IP binding (`Forbidden. Please request a new challenge.` + link)
+- `403` - Invalid token/signature/<abbr title="Internet Protocol">IP</abbr> binding (`Forbidden. Please request a new challenge.` + link)
 
-### 🐙 JS Verification and PoW Flow
+### 🐙 <abbr title="JavaScript">JS</abbr> Verification and <abbr title="Proof of Work">PoW</abbr> Flow
 
-Normal routing can enforce a JS verification gate before full access:
+Normal routing can enforce a <abbr title="JavaScript">JS</abbr> verification gate before full access:
 
-1. If `js_required_enforced=true` and the request has no valid `js_verified` cookie, the server returns an inline JS verification interstitial for the requested path.
-2. That interstitial performs CDP reporting (`POST /cdp-report`) as telemetry.
-3. If `SHUMA_POW_ENABLED=true`, the interstitial solves PoW and submits `POST /pow/verify`.
+1. If `js_required_enforced=true` and the request has no valid `js_verified` cookie, the server returns an inline <abbr title="JavaScript">JS</abbr> verification interstitial for the requested path.
+2. That interstitial performs <abbr title="Chrome DevTools Protocol">CDP</abbr> reporting (`POST /cdp-report`) as telemetry.
+3. If `SHUMA_POW_ENABLED=true`, the interstitial solves <abbr title="Proof of Work">PoW</abbr> and submits `POST /pow/verify`.
 4. `/pow/verify` validates the proof and returns `Set-Cookie: js_verified=...`.
 5. After a valid `js_verified` cookie is set, the page reloads and the original route is retried.
 
 If `SHUMA_POW_ENABLED=false`:
 
-- the same interstitial still runs, but it sets `js_verified` directly in browser JS and reloads.
-- this is lower-friction but weaker than server-verified PoW issuance.
+- the same interstitial still runs, but it sets `js_verified` directly in browser <abbr title="JavaScript">JS</abbr> and reloads.
+- this is lower-friction but weaker than server-verified <abbr title="Proof of Work">PoW</abbr> issuance.
 
 If `js_required_enforced=false`:
 
-- normal routing does not send visitors through the JS verification interstitial.
+- normal routing does not send visitors through the <abbr title="JavaScript">JS</abbr> verification interstitial.
 - `/pow` and `/pow/verify` still exist, but they are not part of the default access gate.
 
 ### 🐙 Health Check Example
@@ -128,19 +128,20 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 
 ## 🐙 Admin Endpoints
 
-- `GET /admin` - API help
-- `POST /admin/login` - Exchange API key for short-lived admin session cookie
+- `GET /admin` - <abbr title="Application Programming Interface">API</abbr> help
+- `POST /admin/login` - Exchange <abbr title="Application Programming Interface">API</abbr> key for short-lived admin session cookie
 - `GET /admin/session` - Current auth/session state
 - `POST /admin/logout` - Clear admin session cookie
 - `GET /admin/ban` - List active bans
-- `POST /admin/ban` - Ban an IP (JSON body: `{"ip":"x.x.x.x","duration":3600}`; reason is always `manual_ban`)
-- `POST /admin/unban?ip=x.x.x.x` - Unban an IP
+- `POST /admin/ban` - Ban an <abbr title="Internet Protocol">IP</abbr> (<abbr title="JavaScript Object Notation">JSON</abbr> body: `{"ip":"x.x.x.x","duration":3600}`; reason is always `manual_ban`)
+- `POST /admin/unban?ip=x.x.x.x` - Unban an <abbr title="Internet Protocol">IP</abbr>
 - `GET /admin/analytics` - Ban/event statistics
 - `GET /admin/events?hours=N` - Recent events + summary stats
-- `GET /admin/cdp/events?hours=N&limit=M` - CDP-only detections/auto-bans (time-windowed, limit configurable)
+- `GET /admin/cdp/events?hours=N&limit=M` - <abbr title="Chrome DevTools Protocol">CDP</abbr>-only detections/auto-bans (time-windowed, limit configurable)
 - `GET /admin/monitoring?hours=N&limit=M` - Consolidated monitoring summaries plus dashboard-native detail payload for Monitoring tab refreshes
 - `GET /admin/config` - Read configuration
-- `POST /admin/config` - Update configuration (partial JSON, disabled when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`)
+- `POST /admin/config` - Update configuration (partial <abbr title="JavaScript Object Notation">JSON</abbr>, disabled when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`)
+- `POST /admin/config/validate` - Validate a config patch without persisting changes (returns `{ valid, issues[] }` with field/expected/received hints when invalid)
 - `GET /admin/config/export` - Export non-secret runtime config as deploy-ready env key/value output
 - `GET /admin/maze` - maze stats
 - `GET /admin/maze/preview?path=<maze_entry_path>...` - Non-operational maze preview (admin-auth only; no live traversal token issuance)
@@ -148,11 +149,11 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `POST /admin/maze/seeds` - Upsert maze operator-seed sources
 - `POST /admin/maze/seeds/refresh` - Trigger manual maze operator-corpus refresh
 - `GET /admin/robots` - robots.txt config and preview
-- `GET /admin/cdp` - CDP + fingerprint detection config and stats
+- `GET /admin/cdp` - <abbr title="Chrome DevTools Protocol">CDP</abbr> + fingerprint detection config and stats
 
 `GET /admin/session` includes `access` as `read_only`, `read_write`, or `none`.
 
-Expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/ban` `GET`) are rate-limited to reduce KV/CPU abuse amplification (`429` with `Retry-After: 60` when limited).
+Expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/ban` `GET`) are rate-limited to reduce <abbr title="Key-Value">KV</abbr>/<abbr title="Central Processing Unit">CPU</abbr> abuse amplification (`429` with `Retry-After: 60` when limited).
 
 `GET /admin/maze/preview` is intentionally non-operational:
 - links recurse only into `/admin/maze/preview`,
@@ -173,17 +174,17 @@ Expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/mo
 - `recent_events` (up to 100 events)
 - `event_counts` (counts per event type)
 - `top_ips` (top 10 IPs by event count)
-- `unique_ips` (distinct IP count)
+- `unique_ips` (distinct <abbr title="Internet Protocol">IP</abbr> count)
 
-For CDP-only operational views without the 100-row mixed-event cap, use:
+For <abbr title="Chrome DevTools Protocol">CDP</abbr>-only operational views without the 100-row mixed-event cap, use:
 
 `GET /admin/cdp/events?hours=24&limit=500` returns:
-- `events` (CDP detection and CDP auto-ban events only, up to `limit`)
+- `events` (<abbr title="Chrome DevTools Protocol">CDP</abbr> detection and <abbr title="Chrome DevTools Protocol">CDP</abbr> auto-ban events only, up to `limit`)
 - `hours` (effective query window)
 - `limit` (effective result cap)
-- `total_matches` (number of matched CDP events before truncation)
-- `counts.detections` (CDP detection event count in the window)
-- `counts.auto_bans` (CDP auto-ban event count in the window)
+- `total_matches` (number of matched <abbr title="Chrome DevTools Protocol">CDP</abbr> events before truncation)
+- `counts.detections` (<abbr title="Chrome DevTools Protocol">CDP</abbr> detection event count in the window)
+- `counts.auto_bans` (<abbr title="Chrome DevTools Protocol">CDP</abbr> auto-ban event count in the window)
 
 ### 🐙 Admin Monitoring Summary Response
 
@@ -217,7 +218,7 @@ Event `outcome` values may include canonical taxonomy metadata:
 
 This uses the same public ladder documented in `/docs/bot-defence.md` (`Escalation Ladder (L0-L11)`).
 
-### 🐙 CDP + Fingerprint Admin View
+### 🐙 <abbr title="Chrome DevTools Protocol">CDP</abbr> + Fingerprint Admin View
 
 `GET /admin/cdp` returns:
 - `config`:
@@ -241,16 +242,16 @@ This uses the same public ladder documented in `/docs/bot-defence.md` (`Escalati
 
 ### 🐙 Canonical Escalation IDs
 
-Policy telemetry and event outcomes use four stable ID classes:
+Policy telemetry and event outcomes use four stable <abbr title="Identifier">ID</abbr> classes:
 
 - `L*` escalation level IDs (`L0_ALLOW_CLEAN` .. `L11_DENY_HARD`)
 - `A*` action IDs (`A_ALLOW`, `A_VERIFY_JS`, `A_CHALLENGE_STRONG`, `A_DENY_TEMP`, ...)
 - `D*` detection IDs (stable detection taxonomy for matched paths/signals)
 - `S_*` signal IDs (canonical signal taxonomy)
 
-JS/browser signal note:
+<abbr title="JavaScript">JS</abbr>/browser signal note:
 
-- `S_JS_REQUIRED_MISSING` means the request did not include a valid `js_verified` marker while JS enforcement is enabled (missing/expired/invalid marker).
+- `S_JS_REQUIRED_MISSING` means the request did not include a valid `js_verified` marker while <abbr title="JavaScript">JS</abbr> enforcement is enabled (missing/expired/invalid marker).
 - This signal can be used as botness evidence and can also be the direct trigger for `L4_VERIFY_JS`.
 
 ### 🐙 Config Export Response
@@ -280,7 +281,7 @@ Each ban entry includes:
 - `signals` (array of triggering signal keys)
 - `summary` (human-readable context)
 
-### 🐙 Example: Ban an IP
+### 🐙 Example: Ban an <abbr title="Internet Protocol">IP</abbr>
 
 ```bash
 curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
@@ -301,7 +302,7 @@ curl -H "Authorization: Bearer $SHUMA_API_KEY" \
 The unified botness model uses weighted scored signals plus terminal hard-ban signals.
 
 Core enforcement fields:
-- `js_required_enforced` - enable/disable JS-required enforcement
+- `js_required_enforced` - enable/disable <abbr title="JavaScript">JS</abbr>-required enforcement
 - `rate_limit` - per-minute request limit used for hard rate limiting and rate-pressure scoring
 - `honeypot_enabled` - enable/disable honeypot trap handling for configured trap paths
 - `challenge_puzzle_enabled` - enable/disable challenge serving at challenge-tier routes (when disabled, challenge tier falls back to maze or block)
@@ -331,10 +332,11 @@ Scored weights:
 Mutability:
 - Runtime config mutation is controlled globally by `SHUMA_ADMIN_CONFIG_WRITE_ENABLED`.
 - When `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`, `POST /admin/config` returns `403`.
+- `POST /admin/config/validate` runs the same server-side validators as `POST /admin/config` but does not write <abbr title="Key-Value">KV</abbr> state.
 
 Effective-mode visibility:
 - `defence_modes_effective` reports runtime-effective signal/action booleans per module.
-- `defence_mode_warnings` reports mode conflicts (for example JS mode overridden by `js_required_enforced=false`).
+- `defence_mode_warnings` reports mode conflicts (for example <abbr title="JavaScript">JS</abbr> mode overridden by `js_required_enforced=false`).
 - Enterprise state posture visibility:
   - `enterprise_multi_instance`
   - `enterprise_unsynced_state_exception_confirmed`
@@ -346,13 +348,13 @@ Signal catalog:
 - `botness_signal_definitions.scored_signals` lists weighted contributors.
 - `botness_signal_definitions.terminal_signals` lists immediate actions that bypass scoring.
 
-## 🐙 Robots + AI Policy Fields (`/admin/config`)
+## 🐙 Robots + <abbr title="Artificial Intelligence">AI</abbr> Policy Fields (`/admin/config`)
 
 Robots serving controls:
 - `robots_enabled`
 - `robots_crawl_delay`
 
-AI-bot policy controls (first-class keys):
+<abbr title="Artificial Intelligence">AI</abbr>-bot policy controls (first-class keys):
 - `ai_policy_block_training`
 - `ai_policy_block_search`
 - `ai_policy_allow_search_engines`
@@ -362,10 +364,10 @@ Legacy compatibility mirrors (still returned and accepted):
 - `robots_block_ai_search`
 - `robots_allow_search_engines`
 
-## 🐙 GEO Policy Fields (`/admin/config`)
+## 🐙 <abbr title="Geolocation">GEO</abbr> Policy Fields (`/admin/config`)
 
 - `geo_risk` - country list that contributes to cumulative botness scoring
-- `geo_allow` - country list with explicit allow precedence (suppresses GEO scoring)
+- `geo_allow` - country list with explicit allow precedence (suppresses <abbr title="Geolocation">GEO</abbr> scoring)
 - `geo_challenge` - country list that routes directly to challenge
 - `geo_maze` - country list that routes directly to maze
 - `geo_block` - country list that routes directly to block
@@ -374,21 +376,21 @@ Routing precedence for overlapping lists is:
 
 - `geo_block` > `geo_maze` > `geo_challenge` > `geo_allow`
 
-GEO headers are only used when forwarded headers are trusted for the request:
+<abbr title="Geolocation">GEO</abbr> headers are only used when forwarded headers are trusted for the request:
 
 - `SHUMA_FORWARDED_IP_SECRET` must be configured
 - caller must provide matching `X-Shuma-Forwarded-Secret`
 
-## 🐙 IP-Range Policy Fields (`/admin/config`)
+## 🐙 <abbr title="Internet Protocol">IP</abbr>-Range Policy Fields (`/admin/config`)
 
 - `ip_range_policy_mode` - policy mode (`off`, `advisory`, `enforce`)
-- `ip_range_emergency_allowlist` - CIDR allowlist evaluated before all IP-range rules
+- `ip_range_emergency_allowlist` - <abbr title="Classless Inter-Domain Routing">CIDR</abbr> allowlist evaluated before all <abbr title="Internet Protocol">IP</abbr>-range rules
 - `ip_range_managed_max_staleness_hours` - managed catalog enforce-mode freshness limit in hours
 - `ip_range_allow_stale_managed_enforce` - explicit override to allow enforce-mode managed-set actions when catalog is stale
 - `ip_range_custom_rules` - ordered custom rule objects:
   - `id` (stable operator rule id),
   - `enabled` (boolean),
-  - `cidrs` (CIDR array),
+  - `cidrs` (<abbr title="Classless Inter-Domain Routing">CIDR</abbr> array),
   - `action` (one of `forbidden_403`, `custom_message`, `drop_connection`, `redirect_308`, `rate_limit`, `honeypot`, `maze`, `tarpit`),
   - optional `redirect_url` (required for `redirect_308`),
   - optional `custom_message` (required for `custom_message`)

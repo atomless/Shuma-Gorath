@@ -36,29 +36,29 @@ Used in concert, and sensibly configured, they limit human friction while increa
 
 ## 🐙 Architectural Ownership Policy (2026-02-13)
 
-This policy is the default for `enterprise_akamai` planning and implementation. Any exception should be documented in a plan/ADR before implementation.
+This policy is the default for `enterprise_akamai` planning and implementation. Any exception should be documented in a plan/<abbr title="Architecture Decision Record">ADR</abbr> before implementation.
 
 ### Leaning Akamai (especially in `enterprise_akamai`)
 
 - Fingerprint signal ingestion (edge transport/bot telemetry is strongest there).
 - Rate limiting first-pass enforcement at the edge (with Shuma app-context fallback/control).
-- IP range policy enforcement for managed network blocks/reputation sets.
-- GEO attribution/enforcement when edge geo confidence is higher.
+- <abbr title="Internet Protocol">IP</abbr> range policy enforcement for managed network blocks/reputation sets.
+- <abbr title="Geolocation">GEO</abbr> attribution/enforcement when edge geo confidence is higher.
 
 ### Leaning Internal (Shuma-native)
 
 - Puzzle challenge engine.
 - Not-a-Bot checkbox scoring/verification flow.
-- PoW issuance/verification logic.
-- CDP detection execution/scoring.
-- HTTP tarpit behavior.
-- SSH tarpit (as a separate Shuma-managed component).
+- <abbr title="Proof of Work">PoW</abbr> issuance/verification logic.
+- <abbr title="Chrome DevTools Protocol">CDP</abbr> detection execution/scoring.
+- <abbr title="Hypertext Transfer Protocol">HTTP</abbr> tarpit behavior.
+- <abbr title="Secure Shell">SSH</abbr> tarpit (as a separate Shuma-managed component).
 - Maze/deception internals (already planned as internal-first).
 
 ### Hybrid (Akamai informs, Shuma decides)
 
-- JS verification trigger policy.
-- CDP corroboration.
+- <abbr title="JavaScript">JS</abbr> verification trigger policy.
+- <abbr title="Chrome DevTools Protocol">CDP</abbr> corroboration.
 - Challenge escalation routing.
 - Overall botness/policy orchestration.
 
@@ -89,7 +89,7 @@ When Akamai Bot Manager (or equivalent) is already in place, Shuma-Gorath should
   - route- and action-specific guardrails tied to your own business semantics,
   - policy decisions based on app context and challenge outcomes.
 - Deception tailored to your app:
-  - custom honeypot paths and maze/tarpit flows that match your URL and behavior patterns.
+  - custom honeypot paths and maze/tarpit flows that match your <abbr title="Uniform Resource Locator">URL</abbr> and behavior patterns.
 - Operator-owned enforcement composition:
   - explicit, auditable routing between challenge, maze, tarpit, and block paths under your own policy model.
 - Fast app-team iteration:
@@ -111,26 +111,26 @@ This model keeps high-volume commodity bot traffic away from app paths while pre
 
 Shuma uses a canonical escalation taxonomy so policy, metrics, and event logs share one stable vocabulary.
 
-| Level ID | Action Class | Purpose | Runtime Status |
+| Level <abbr title="Identifier">ID</abbr> | Action Class | Purpose | Runtime Status |
 |---|---|---|---|
 | `L0_ALLOW_CLEAN` | Allow | Normal pass-through for clean traffic. | Active |
 | `L1_ALLOW_TAGGED` | Allow tagged | Allow with suspicious tagging for telemetry. | Reserved (Stage 1 taxonomy) |
 | `L2_MONITOR` | Monitor | Elevated observation only; no visitor friction. | Active |
 | `L3_SHAPE` | Shape | Low-cost shaping before interactive friction. | Reserved |
-| `L4_VERIFY_JS` | Verify | JS verification gate. | Active |
+| `L4_VERIFY_JS` | Verify | <abbr title="JavaScript">JS</abbr> verification gate. | Active |
 | `L5_NOT_A_BOT` | Not-a-Bot | Low-friction human verification. | Active |
-| `L6_CHALLENGE_STRONG` | Challenge (strong) | Strong challenge path (puzzle/PoW-backed flows). | Active |
+| `L6_CHALLENGE_STRONG` | Challenge (strong) | Strong challenge path (puzzle/<abbr title="Proof of Work">PoW</abbr>-backed flows). | Active |
 | `L7_DECEPTION_EXPLICIT` | Deception | Explicit maze routing. | Active |
 | `L8_DECEPTION_COVERT` | Deception | Covert decoy behavior in eligible non-maze responses for medium-suspicion traffic. | Active |
 | `L9_COST_IMPOSITION` | Cost | Bounded drip/tarpit style cost imposition. | Planned |
-| `L10_DENY_TEMP` | Deny (temporary) | Temporary block/ban with TTL. | Active |
+| `L10_DENY_TEMP` | Deny (temporary) | Temporary block/ban with <abbr title="Time To Live">TTL</abbr>. | Active |
 | `L11_DENY_HARD` | Deny (hard) | Long/indefinite deny posture for high confidence abuse. | Reserved |
 
 ### 🐙 Transition and Precedence Summary
 
 - The most restrictive eligible level wins for a request.
-- Current hard transitions route to `L10_DENY_TEMP` (for example honeypot hit, rate-limit hit, existing active ban, outdated browser policy hit, GEO block route, strong automation auto-ban paths).
-- Threshold-driven flows route to `L4` / `L5` / `L6` / `L7` based on configured JS, not-a-bot, challenge, and maze thresholds.
+- Current hard transitions route to `L10_DENY_TEMP` (for example honeypot hit, rate-limit hit, existing active ban, outdated browser policy hit, <abbr title="Geolocation">GEO</abbr> block route, strong automation auto-ban paths).
+- Threshold-driven flows route to `L4` / `L5` / `L6` / `L7` based on configured <abbr title="JavaScript">JS</abbr>, not-a-bot, challenge, and maze thresholds.
 - `L11_DENY_HARD` is not automatic by default and should be gated by explicit policy.
 
 ### 🐙 Canonical IDs in Telemetry
@@ -141,13 +141,13 @@ Shuma uses a canonical escalation taxonomy so policy, metrics, and event logs sh
 - Admin event outcomes can include a taxonomy suffix:
   - `taxonomy[level=L* action=A* detection=D* signals=S_*...]`
 
-### 🐙 JS Signal Semantics (`S_JS_REQUIRED_MISSING`)
+### 🐙 <abbr title="JavaScript">JS</abbr> Signal Semantics (`S_JS_REQUIRED_MISSING`)
 
-- `S_JS_REQUIRED_MISSING` is the signal that a request does not present a valid `js_verified` marker while JS enforcement is enabled.
+- `S_JS_REQUIRED_MISSING` is the signal that a request does not present a valid `js_verified` marker while <abbr title="JavaScript">JS</abbr> enforcement is enabled.
 - In practice this usually means the cookie is missing, expired, invalid, or was never set.
 - This is a signal-collection detail, not a separate ladder rung:
   - it can contribute to botness scoring before challenge/maze routing, and
-  - it can trigger direct `L4_VERIFY_JS` gate behavior when JS enforcement is active.
+  - it can trigger direct `L4_VERIFY_JS` gate behavior when <abbr title="JavaScript">JS</abbr> enforcement is active.
 - Ladder levels describe action outcomes; `S_*` IDs describe evidence collected before those actions.
 
 ## 🐙 Capability Split (Practical Focus)
@@ -167,10 +167,10 @@ Use this section to avoid overreach and duplicated controls.
 | Capability Family | System of Record | Why | Shuma Role | Explicit Non-Goal |
 |---|---|---|---|---|
 | Global reputation, bot category models, and internet-scale classifier training | Akamai (managed edge) | Edge has cross-tenant/global telemetry and model lifecycle tooling | Ingest outputs as advisory/authoritative signals where configured | Rebuilding global bot classifier training inside Shuma |
-| Transport/network identity signals (for example JA3/JA4-like fingerprints, ASN reputation, network provenance) | Akamai (managed edge) | Edge sees handshake/network context origin apps usually do not | Normalize and consume trusted upstream signals in policy | Duplicating edge-only transport fingerprint collection logic in app runtime |
+| Transport/network identity signals (for example JA3/JA4-like fingerprints, <abbr title="Autonomous System Number">ASN</abbr> reputation, network provenance) | Akamai (managed edge) | Edge sees handshake/network context origin apps usually do not | Normalize and consume trusted upstream signals in policy | Duplicating edge-only transport fingerprint collection logic in app runtime |
 | Volumetric pre-filtering and broad perimeter suppression | Akamai (managed edge) | Best placed before app resource spend | Assume pre-filtered traffic and apply app-aware controls | Treating Shuma as a DDoS/perimeter replacement |
 | App workflow abuse controls (route/action semantics, business logic checks) | Shuma | Requires application context and product semantics | Primary policy and enforcement ownership | Delegating all app-abuse policy design to generic edge controls |
-| Deception controls (honeypot/maze/tarpit) | Shuma | Needs app-specific URL/content shaping and local tuning | Primary design and operation | Waiting for edge vendor parity before shipping app-specific deception |
+| Deception controls (honeypot/maze/tarpit) | Shuma | Needs app-specific <abbr title="Uniform Resource Locator">URL</abbr>/content shaping and local tuning | Primary design and operation | Waiting for edge vendor parity before shipping app-specific deception |
 | Challenge escalation composition (when to challenge/maze/block) | Shuma policy engine | Requires local thresholds, observability, and rollback ownership | Keep policy composition internal even with external signals | Outsourcing core policy/routing composition authority |
 | Security/ops observability for app decisions | Shuma + platform observability | Operators need explainable app-level outcomes and rollback evidence | Emit provider/mode/signal-state telemetry and event context | Relying only on edge dashboards for app-level incident response |
 

@@ -2,13 +2,13 @@
 
 This guide focuses on deployment security controls and operational hardening.
 
-## 🐙 Run Behind a CDN / Reverse Proxy
+## 🐙 Run Behind a <abbr title="Content Delivery Network">CDN</abbr> / Reverse Proxy
 
-- Terminate TLS at the edge
+- Terminate <abbr title="Transport Layer Security">TLS</abbr> at the edge
 - Ensure the proxy injects `X-Forwarded-For`
-- Firewall the origin to accept traffic only from proxy IP ranges
+- Firewall the origin to accept traffic only from proxy <abbr title="Internet Protocol">IP</abbr> ranges
 
-## 🐙 Forwarded IP Trust
+## 🐙 Forwarded <abbr title="Internet Protocol">IP</abbr> Trust
 
 When `SHUMA_FORWARDED_IP_SECRET` is set, the app only trusts `X-Forwarded-For` when the request also includes:
 
@@ -16,37 +16,37 @@ When `SHUMA_FORWARDED_IP_SECRET` is set, the app only trusts `X-Forwarded-For` w
 X-Shuma-Forwarded-Secret: <same value>
 ```
 
-This prevents spoofing of client IP headers.
+This prevents spoofing of client <abbr title="Internet Protocol">IP</abbr> headers.
 
-## 🐙 HTTPS Enforcement
+## 🐙 <abbr title="Hypertext Transfer Protocol Secure">HTTPS</abbr> Enforcement
 
-Use `SHUMA_ENFORCE_HTTPS=true` in production to hard-reject non-HTTPS traffic.
+Use `SHUMA_ENFORCE_HTTPS=true` in production to hard-reject non-<abbr title="Hypertext Transfer Protocol Secure">HTTPS</abbr> traffic.
 
 When enabled:
 
-- Requests without HTTPS context are rejected with `403 HTTPS required`.
+- Requests without <abbr title="Hypertext Transfer Protocol Secure">HTTPS</abbr> context are rejected with `403 HTTPS required`.
 - Forwarded proto headers (`X-Forwarded-Proto` / `Forwarded: proto=...`) are trusted only when forwarded-header trust is established with `SHUMA_FORWARDED_IP_SECRET` + `X-Shuma-Forwarded-Secret`.
 - If proxy proto forwarding or forwarded-header trust is misconfigured, legitimate requests will fail closed (`403 HTTPS required`).
 
 ## 🐙 Fail-Open vs Fail-Closed
 
-`SHUMA_KV_STORE_FAIL_OPEN` controls behavior when the KV store is unavailable during request handling:
+`SHUMA_KV_STORE_FAIL_OPEN` controls behavior when the <abbr title="Key-Value">KV</abbr> store is unavailable during request handling:
 - `true` (default): allow requests through and bypass checks
 - `false`: return a 500 error and block
 
 This is a **policy decision** and should be explicitly chosen for each deployment.
 
-## 🐙 Admin API Protection
+## 🐙 Admin <abbr title="Application Programming Interface">API</abbr> Protection
 
 - Generate `SHUMA_API_KEY` with `make api-key-generate`/`make gen-admin-api-key` (64-char hex), and rotate on a regular cadence (recommended 90 days) with `make api-key-rotate`
 - Optionally set `SHUMA_ADMIN_READONLY_API_KEY` for operators/automation that only need read access to `/admin/*`
 - Restrict access with `SHUMA_ADMIN_IP_ALLOWLIST`
-- Add CDN/WAF rate limits for `POST /admin/login` and all `/admin/*`
+- Add <abbr title="Content Delivery Network">CDN</abbr>/<abbr title="Web Application Firewall">WAF</abbr> rate limits for `POST /admin/login` and all `/admin/*`
 - Keep `SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE` at a conservative value (default `10`)
-- Use TLS for all admin traffic
+- Use <abbr title="Transport Layer Security">TLS</abbr> for all admin traffic
 - Keep mutating admin actions (`/admin/config`, `/admin/ban`, `/admin/unban`) on read/write credentials only; denied write attempts are logged for audit visibility
-- Keep admin API same-origin from the dashboard; no cross-origin admin API is enabled
-- CORS preflight (`OPTIONS`) for `/admin/*` is rejected by design
+- Keep admin <abbr title="Application Programming Interface">API</abbr> same-origin from the dashboard; no cross-origin admin <abbr title="Application Programming Interface">API</abbr> is enabled
+- <abbr title="Cross-Origin Resource Sharing">CORS</abbr> preflight (`OPTIONS`) for `/admin/*` is rejected by design
 
 ## 🐙 Health Endpoint Access
 
@@ -61,7 +61,7 @@ For defense in depth, set `SHUMA_HEALTH_SECRET` and require:
 ## 🐙 Test Mode vs Fail Mode
 
 - Test mode logs actions without enforcing blocks
-- Fail mode only applies when the KV store is unavailable
+- Fail mode only applies when the <abbr title="Key-Value">KV</abbr> store is unavailable
 
 Do not treat test mode as a substitute for fail-open/closed behavior.
 
@@ -74,9 +74,9 @@ Control log retention with `SHUMA_EVENT_LOG_RETENTION_HOURS`:
 
 ## 🐙 Privacy and Cookie Disclosure
 
-Default Shuma runtime storage is security/operations-oriented (auth/session cookies, JS verification cookies, and short-lived admin dashboard cache entries), not marketing or cross-site tracking.
+Default Shuma runtime storage is security/operations-oriented (auth/session cookies, <abbr title="JavaScript">JS</abbr> verification cookies, and short-lived admin dashboard cache entries), not marketing or cross-site tracking.
 
-- In most EU/UK ePrivacy contexts this is generally treated as strictly necessary storage, so an opt-in cookie banner is typically not required by default.
+- In most <abbr title="European Union">EU</abbr>/<abbr title="United Kingdom">UK</abbr> ePrivacy contexts this is generally treated as strictly necessary storage, so an opt-in cookie banner is typically not required by default.
 - Operators must still publish a clear privacy/cookie disclosure covering what is stored, why, and for how long.
 - If non-essential analytics/marketing tracking storage is added, prior consent is required.
 

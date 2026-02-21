@@ -19,6 +19,7 @@
     setDashboardActiveTab,
     unbanDashboardIp,
     unmountDashboardApp,
+    validateDashboardConfigPatch,
     updateDashboardConfig,
     restoreDashboardSession
   } from '$lib/runtime/dashboard-native-runtime.js';
@@ -300,6 +301,10 @@
     }
   }
 
+  async function onValidateConfig(patch) {
+    return validateDashboardConfigPatch(patch || {});
+  }
+
   async function onBan(payload = {}) {
     const ip = String(payload.ip || '').trim();
     const duration = Number(payload.duration || 0);
@@ -310,7 +315,7 @@
       await routeController.refreshTab('ip-bans', 'ban-save');
       setAdminMessage(`Banned ${ip} for ${duration}s`, 'success');
     } catch (error) {
-      const message = formatActionError(error, 'Failed to ban IP.');
+      const message = formatActionError(error, 'Failed to ban Internet Protocol address.');
       setAdminMessage(`Error: ${message}`, 'error');
       throw error;
     }
@@ -325,7 +330,7 @@
       await routeController.refreshTab('ip-bans', 'unban-save');
       setAdminMessage(`Unbanned ${ip}`, 'success');
     } catch (error) {
-      const message = formatActionError(error, 'Failed to unban IP.');
+      const message = formatActionError(error, 'Failed to unban Internet Protocol address.');
       setAdminMessage(`Error: ${message}`, 'error');
       throw error;
     }
@@ -376,7 +381,7 @@
       <img src={shumaImageSrc} alt="Shuma-Gorath" class="shuma-gorath-img">
     </div>
     <h1>Shuma-Gorath</h1>
-    <p class="subtitle text-muted">Multi-Dimensional Bot Defence</p>
+    <p class="subtitle text-muted">Chthulucene Bot Defence</p>
     <nav class="dashboard-tabs" aria-label="Dashboard sections">
       {#each DASHBOARD_TABS as tab}
         {@const tabKey = normalizeTab(tab)}
@@ -395,7 +400,11 @@
           on:keydown={(event) => onTabKeydown(event, tab)}
           use:registerTabLink={tab}
         >
-          {tab === 'ip-bans' ? 'IP Bans' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+          {#if tab === 'ip-bans'}
+            <abbr title="Internet Protocol">IP</abbr>&nbsp;Bans
+          {:else}
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          {/if}
         </a>
       {/each}
     </nav>
@@ -509,6 +518,7 @@
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
+          onValidateConfig={onValidateConfig}
           onFetchRobotsPreview={onRobotsPreview}
         />
       {:else}

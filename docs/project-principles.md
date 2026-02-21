@@ -52,12 +52,12 @@ Shuma-Gorath exists to provide layered, practical bot defense that teams can dep
 - MUST keep safety-critical controls non-disableable by composability toggles (for example admin auth and trusted health restrictions).
 - MUST document operational hardening required in production.
 - MUST log security-relevant failures with enough detail for diagnosis.
-- SHOULD favor least privilege in runtime, CI, and admin controls.
+- SHOULD favor least privilege in runtime, <abbr title="Continuous Integration">CI</abbr>, and admin controls.
 
 ### P5. Testability and Verification
 
 - MUST include tests for behavior changes and regressions.
-- MUST keep CI as the minimum quality bar for merge.
+- MUST keep <abbr title="Continuous Integration">CI</abbr> as the minimum quality bar for merge.
 - SHOULD keep tests colocated with modules when possible and add integration tests for cross-module behavior.
 
 ### P6. Clarity and Documentation
@@ -71,7 +71,7 @@ Shuma-Gorath exists to provide layered, practical bot defense that teams can dep
 - MUST keep core policy logic decoupled from platform adapter details.
 - MUST support self-hosted and enterprise deployment personas through profile-gated adapters/state backends, not persona-specific policy forks.
 - MUST deliver and harden Shuma-native capability paths first; enterprise/provider-specific integrations should be additive and must not block internal baseline maturity for the same capability.
-- MUST keep production/runtime request-path logic (signal evaluation, policy, enforcement, admin/API handlers) implemented in Rust.
+- MUST keep production/runtime request-path logic (signal evaluation, policy, enforcement, admin/<abbr title="Application Programming Interface">API</abbr> handlers) implemented in Rust.
 - MUST NOT introduce Python dependencies on runtime request paths.
 - SHOULD allow Python/Bash for setup, test, and maintenance tooling when it improves developer velocity and does not affect runtime latency/throughput.
 - SHOULD require measured evidence before migrating tooling scripts to Rust purely for performance claims.
@@ -98,7 +98,7 @@ Shuma-Gorath exists to provide layered, practical bot defense that teams can dep
 - MUST evaluate cost/benefit before adding heavier defenses.
 - MUST prefer low-cost checks before expensive checks when risk allows.
 - SHOULD shift unavoidable computation and bandwidth costs toward suspicious clients where safe and practical.
-- SHOULD track and prevent avoidable increases in bandwidth/CPU/memory/energy usage.
+- SHOULD track and prevent avoidable increases in bandwidth/<abbr title="Central Processing Unit">CPU</abbr>/memory/energy usage.
 
 ### P11. Stability and Change Discipline
 
@@ -122,18 +122,18 @@ For significant feature work, document:
 4. Adversary economics and cost placement (who pays and how much).
 5. Signal/enforcement coupling impact (signal contributions, botness effects, mode behavior when disabled).
 6. Operational impact (deploy, config, monitor, rollback).
-7. Performance/resource impact (bandwidth, CPU, memory, energy).
+7. Performance/resource impact (bandwidth, <abbr title="Central Processing Unit">CPU</abbr>, memory, energy).
 8. Modularity/provider impact.
 9. Test and documentation impact.
 
-If trade-offs are non-trivial, record an ADR under `docs/adr/`.
+If trade-offs are non-trivial, record an <abbr title="Architecture Decision Record">ADR</abbr> under `docs/adr/`.
 
 ## How These Principles Are Enforced
 
-- PR checklist: `.github/pull_request_template.md`
+- <abbr title="Pull Request">PR</abbr> checklist: `.github/pull_request_template.md`
 - Contribution rules: `CONTRIBUTING.md`
 - Decision records: `docs/adr/`
-- CI presence checks for governance files: `.github/workflows/ci.yml`
+- <abbr title="Continuous Integration">CI</abbr> presence checks for governance files: `.github/workflows/ci.yml`
 
 ## External References That Informed This Document
 

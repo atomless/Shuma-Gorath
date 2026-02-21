@@ -35,10 +35,10 @@ Each challenge includes a signed seed token carrying:
 Verification checks:
 
 1. Form body size and shape validation
-2. Seed token signature validation (HMAC)
+2. Seed token signature validation (<abbr title="Hash-based Message Authentication Code">HMAC</abbr>)
 3. Seed expiry check
-4. IP bucket binding check
-5. Single-use enforcement via KV key `challenge_used:<seed_id>`
+4. <abbr title="Internet Protocol">IP</abbr> bucket binding check
+5. Single-use enforcement via <abbr title="Key-Value">KV</abbr> key `challenge_used:<seed_id>`
 6. Exact output match against deterministically generated solution
 
 Secrets:
@@ -58,7 +58,7 @@ Secrets:
 - Edge-served generation and verification
 - Short-lived seeds (5 minute expiry)
 - Single-use seed replay protection
-- Request/IP bucket binding
+- Request/<abbr title="Internet Protocol">IP</abbr> bucket binding
 - No debug transform disclosure in page output
 
 ## 🐙 Config Knobs

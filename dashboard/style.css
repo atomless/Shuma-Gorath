@@ -28,7 +28,7 @@
   --color-success: #27272a;
   --color-success-bg: #e4e4e7;
   --color-error: var(--color-bright-pink);
-  --color-error-bg: #e4e4e7;
+  --color-error-bg: #ffd8f2;
   --color-warning: #3f3f46;
   --color-warning-bg: #f4f4f5;
 
@@ -115,6 +115,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   white-space: nowrap;
+  color: var(--inline-link-fg);
 }
 
 .pad-sm {
@@ -817,6 +818,12 @@ code.env-var {
   letter-spacing: 0.02em;
 }
 
+.config-export-pane {
+  margin-block: 24px;
+  border-top: var(--border-hairline);
+  border-bottom: var(--border-hairline);
+}
+
 .config-save-bar {
   position: sticky;
   bottom: 0;
@@ -867,6 +874,27 @@ code.env-var {
 
 .input-field[aria-invalid="true"] {
   border-color: var(--color-error);
+}
+
+.geo-textarea[aria-invalid="true"] {
+  background: var(--color-error-bg);
+}
+
+.validation-issue-list {
+  margin: 8px 0 10px 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.validation-issue-expected,
+.validation-issue-received {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+}
+
+#advanced-config-json-validating {
+  margin-top: 2px;
 }
 
 /* Buttons inside control groups inherit .btn base via HTML;

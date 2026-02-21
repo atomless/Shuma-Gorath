@@ -1153,6 +1153,104 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn admin_config_rejects_unknown_top_level_key() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+        let post_req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"rate_limit":100,"unknown_key":true}"#.to_vec(),
+        );
+        let post_resp = handle_admin_config(&post_req, &store, "default");
+        assert_eq!(*post_resp.status(), 400u16);
+        let msg = String::from_utf8_lossy(post_resp.body());
+        assert!(msg.contains("unknown field `unknown_key`"));
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
+    fn admin_config_rejects_typed_field_type_mismatch() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+        let post_req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"rate_limit":"100"}"#.to_vec(),
+        );
+        let post_resp = handle_admin_config(&post_req, &store, "default");
+        assert_eq!(*post_resp.status(), 400u16);
+        let msg = String::from_utf8_lossy(post_resp.body());
+        assert!(msg.contains("Invalid config payload"));
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
+    fn admin_config_validate_endpoint_accepts_valid_patch_without_persisting() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+        let before = store.get("config:default").unwrap().unwrap();
+
+        let req = make_request(
+            Method::Post,
+            "/admin/config/validate",
+            br#"{"rate_limit":1234}"#.to_vec(),
+        );
+        let resp = handle_admin_config_validate(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(body.get("valid"), Some(&serde_json::Value::Bool(true)));
+        assert_eq!(
+            body.get("issues").and_then(|value| value.as_array()).map(|v| v.len()),
+            Some(0)
+        );
+
+        let after = store.get("config:default").unwrap().unwrap();
+        assert_eq!(before, after);
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
+    fn admin_config_validate_endpoint_reports_structured_issue_details() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+        let req = make_request(
+            Method::Post,
+            "/admin/config/validate",
+            br#"{"rate_limit":"oops"}"#.to_vec(),
+        );
+        let resp = handle_admin_config_validate(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(body.get("valid"), Some(&serde_json::Value::Bool(false)));
+        let issue = body
+            .get("issues")
+            .and_then(|value| value.as_array())
+            .and_then(|issues| issues.first())
+            .expect("expected validation issue");
+        assert_eq!(
+            issue.get("field").and_then(|value| value.as_str()),
+            Some("rate_limit")
+        );
+        assert!(
+            issue
+                .get("expected")
+                .and_then(|value| value.as_str())
+                .unwrap_or("")
+                .contains("Type mismatch")
+        );
+        assert_eq!(
+            issue.get("received").and_then(|value| value.as_str()),
+            Some("oops")
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
     fn admin_config_updates_lists_and_cdp_ban_duration() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
@@ -1665,7 +1763,7 @@ mod admin_config_tests {
         assert_eq!(*invalid_allow_flag_resp.status(), 400u16);
         assert!(
             String::from_utf8_lossy(invalid_allow_flag_resp.body())
-                .contains("ip_range_allow_stale_managed_enforce must be true or false")
+                .contains("Invalid config payload")
         );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
@@ -1704,7 +1802,7 @@ mod admin_config_tests {
         let post_resp = handle_admin_config(&post_req, &store, "default");
         assert_eq!(*post_resp.status(), 400u16);
         let msg = String::from_utf8_lossy(post_resp.body());
-        assert!(msg.contains("defence_modes.foo is not supported"));
+        assert!(msg.contains("unknown field `foo`"));
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
     }
@@ -1822,7 +1920,7 @@ mod admin_config_tests {
         let post_resp = handle_admin_config(&post_req, &store, "default");
         assert_eq!(*post_resp.status(), 400u16);
         let msg = String::from_utf8_lossy(post_resp.body());
-        assert!(msg.contains("provider_backends.unknown is not supported"));
+        assert!(msg.contains("unknown field `unknown`"));
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
     }
@@ -1915,6 +2013,10 @@ mod admin_auth_tests {
     #[test]
     fn write_access_matrix_covers_only_mutating_admin_routes() {
         assert!(request_requires_admin_write("/admin/config", &Method::Post));
+        assert!(request_requires_admin_write(
+            "/admin/config/validate",
+            &Method::Post
+        ));
         assert!(request_requires_admin_write("/admin/ban", &Method::Post));
         assert!(request_requires_admin_write("/admin/unban", &Method::Post));
         assert!(!request_requires_admin_write(
@@ -1930,6 +2032,10 @@ mod admin_auth_tests {
             &Method::Post
         ));
         assert!(!request_requires_admin_write("/admin/config", &Method::Get));
+        assert!(!request_requires_admin_write(
+            "/admin/config/validate",
+            &Method::Get
+        ));
         assert!(!request_requires_admin_write(
             "/admin/analytics",
             &Method::Get
@@ -1968,6 +2074,7 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/analytics"
             | "/admin/events"
             | "/admin/config"
+            | "/admin/config/validate"
             | "/admin/config/export"
             | "/admin/maze"
             | "/admin/maze/preview"
@@ -2163,6 +2270,7 @@ fn request_requires_admin_write(path: &str, method: &Method) -> bool {
         "/admin/ban"
             | "/admin/unban"
             | "/admin/config"
+            | "/admin/config/validate"
             | "/admin/maze/seeds"
             | "/admin/maze/seeds/refresh"
     )
@@ -3512,10 +3620,285 @@ fn admin_config_payload(
     payload
 }
 
-fn handle_admin_config(
+#[derive(Debug, Deserialize, Default)]
+#[serde(default, deny_unknown_fields)]
+struct AdminBanDurationsPatch {
+    honeypot: Option<u64>,
+    rate_limit: Option<u64>,
+    browser: Option<u64>,
+    admin: Option<u64>,
+    cdp: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(default, deny_unknown_fields)]
+struct AdminBotnessWeightsPatch {
+    js_required: Option<u64>,
+    geo_risk: Option<u64>,
+    rate_medium: Option<u64>,
+    rate_high: Option<u64>,
+    maze_behavior: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(default, deny_unknown_fields)]
+struct AdminDefenceModesPatch {
+    rate: Option<String>,
+    geo: Option<String>,
+    js: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(default, deny_unknown_fields)]
+struct AdminProviderBackendsPatch {
+    rate_limiter: Option<String>,
+    ban_store: Option<String>,
+    challenge_engine: Option<String>,
+    maze_tarpit: Option<String>,
+    fingerprint_signal: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(default, deny_unknown_fields)]
+struct AdminConfigPatch {
+    test_mode: Option<bool>,
+    ban_duration: Option<u64>,
+    rate_limit: Option<u64>,
+    js_required_enforced: Option<bool>,
+    geo_risk: Option<serde_json::Value>,
+    geo_allow: Option<serde_json::Value>,
+    geo_challenge: Option<serde_json::Value>,
+    geo_maze: Option<serde_json::Value>,
+    geo_block: Option<serde_json::Value>,
+    honeypot_enabled: Option<bool>,
+    honeypots: Option<serde_json::Value>,
+    browser_block: Option<serde_json::Value>,
+    browser_whitelist: Option<serde_json::Value>,
+    whitelist: Option<serde_json::Value>,
+    path_whitelist: Option<serde_json::Value>,
+    ip_range_policy_mode: Option<String>,
+    ip_range_emergency_allowlist: Option<serde_json::Value>,
+    ip_range_custom_rules: Option<serde_json::Value>,
+    ip_range_managed_policies: Option<serde_json::Value>,
+    ip_range_managed_max_staleness_hours: Option<u64>,
+    ip_range_allow_stale_managed_enforce: Option<bool>,
+    ban_durations: Option<AdminBanDurationsPatch>,
+    maze_enabled: Option<bool>,
+    maze_auto_ban: Option<bool>,
+    maze_auto_ban_threshold: Option<u64>,
+    maze_rollout_phase: Option<String>,
+    maze_token_ttl_seconds: Option<u64>,
+    maze_token_max_depth: Option<u64>,
+    maze_token_branch_budget: Option<u64>,
+    maze_replay_ttl_seconds: Option<u64>,
+    maze_entropy_window_seconds: Option<u64>,
+    maze_client_expansion_enabled: Option<bool>,
+    maze_checkpoint_every_nodes: Option<u64>,
+    maze_checkpoint_every_ms: Option<u64>,
+    maze_step_ahead_max: Option<u64>,
+    maze_no_js_fallback_max_depth: Option<u64>,
+    maze_micro_pow_enabled: Option<bool>,
+    maze_micro_pow_depth_start: Option<u64>,
+    maze_micro_pow_base_difficulty: Option<u64>,
+    maze_max_concurrent_global: Option<u64>,
+    maze_max_concurrent_per_ip_bucket: Option<u64>,
+    maze_max_response_bytes: Option<u64>,
+    maze_max_response_duration_ms: Option<u64>,
+    maze_server_visible_links: Option<u64>,
+    maze_max_links: Option<u64>,
+    maze_max_paragraphs: Option<u64>,
+    maze_path_entropy_segment_len: Option<u64>,
+    maze_covert_decoys_enabled: Option<bool>,
+    maze_seed_provider: Option<String>,
+    maze_seed_refresh_interval_seconds: Option<u64>,
+    maze_seed_refresh_rate_limit_per_hour: Option<u64>,
+    maze_seed_refresh_max_sources: Option<u64>,
+    maze_seed_metadata_only: Option<bool>,
+    robots_enabled: Option<bool>,
+    ai_policy_block_training: Option<bool>,
+    robots_block_ai_training: Option<bool>,
+    ai_policy_block_search: Option<bool>,
+    robots_block_ai_search: Option<bool>,
+    ai_policy_allow_search_engines: Option<bool>,
+    robots_allow_search_engines: Option<bool>,
+    robots_crawl_delay: Option<u64>,
+    cdp_detection_enabled: Option<bool>,
+    cdp_auto_ban: Option<bool>,
+    cdp_detection_threshold: Option<f64>,
+    cdp_probe_family: Option<String>,
+    cdp_probe_rollout_percent: Option<u64>,
+    fingerprint_signal_enabled: Option<bool>,
+    fingerprint_state_ttl_seconds: Option<u64>,
+    fingerprint_flow_window_seconds: Option<u64>,
+    fingerprint_flow_violation_threshold: Option<u64>,
+    fingerprint_pseudonymize: Option<bool>,
+    fingerprint_entropy_budget: Option<u64>,
+    fingerprint_family_cap_header_runtime: Option<u64>,
+    fingerprint_family_cap_transport: Option<u64>,
+    fingerprint_family_cap_temporal: Option<u64>,
+    fingerprint_family_cap_persistence: Option<u64>,
+    fingerprint_family_cap_behavior: Option<u64>,
+    pow_enabled: Option<bool>,
+    pow_difficulty: Option<u64>,
+    pow_ttl_seconds: Option<u64>,
+    challenge_puzzle_enabled: Option<bool>,
+    challenge_puzzle_transform_count: Option<u64>,
+    not_a_bot_enabled: Option<bool>,
+    not_a_bot_risk_threshold: Option<u64>,
+    not_a_bot_score_pass_min: Option<u64>,
+    not_a_bot_score_escalate_min: Option<u64>,
+    not_a_bot_nonce_ttl_seconds: Option<u64>,
+    not_a_bot_marker_ttl_seconds: Option<u64>,
+    not_a_bot_attempt_limit_per_window: Option<u64>,
+    not_a_bot_attempt_window_seconds: Option<u64>,
+    provider_backends: Option<AdminProviderBackendsPatch>,
+    edge_integration_mode: Option<String>,
+    challenge_puzzle_risk_threshold: Option<u64>,
+    botness_maze_threshold: Option<u64>,
+    botness_weights: Option<AdminBotnessWeightsPatch>,
+    defence_modes: Option<AdminDefenceModesPatch>,
+}
+
+fn validate_admin_config_patch_shape(json: &serde_json::Value) -> Result<(), String> {
+    serde_json::from_value::<AdminConfigPatch>(json.clone())
+        .map(|_| ())
+        .map_err(|err| format!("Invalid config payload: {}", err))
+}
+
+#[derive(Serialize)]
+struct AdminConfigValidationIssue {
+    field: Option<String>,
+    message: String,
+    expected: Option<String>,
+    received: Option<serde_json::Value>,
+}
+
+fn admin_config_validation_read_value(
+    json: &serde_json::Value,
+    field: &str,
+) -> Option<serde_json::Value> {
+    let mut cursor = json;
+    for segment in field.split('.') {
+        let obj = cursor.as_object()?;
+        cursor = obj.get(segment)?;
+    }
+    Some(cursor.clone())
+}
+
+fn admin_config_validation_field(message: &str) -> Option<String> {
+    if let Some(start) = message.find("unknown field `") {
+        let rest = &message[start + "unknown field `".len()..];
+        if let Some(end) = rest.find('`') {
+            let field = rest[..end].trim();
+            if !field.is_empty() {
+                return Some(field.to_string());
+            }
+        }
+    }
+
+    if let Some(start) = message.find("`") {
+        let rest = &message[start + 1..];
+        if let Some(end) = rest.find('`') {
+            let field = rest[..end].trim();
+            if !field.is_empty() && field.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+            {
+                return Some(field.to_string());
+            }
+        }
+    }
+
+    let first_token = message
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .trim_matches(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_' && ch != '.');
+    if first_token.is_empty() {
+        return None;
+    }
+    if first_token
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '.')
+    {
+        let looks_like_field = first_token.contains('_')
+            || first_token.contains('.')
+            || first_token
+                .chars()
+                .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit());
+        if looks_like_field {
+            return Some(first_token.to_string());
+        }
+    }
+    None
+}
+
+fn admin_config_validation_expected(message: &str) -> Option<String> {
+    if message.contains("unknown field `") {
+        return Some(
+            "Unknown key. Use only writable keys from docs/configuration.md.".to_string(),
+        );
+    }
+
+    if let Some(start) = message.find("out of range (") {
+        let rest = &message[start + "out of range (".len()..];
+        if let Some(end) = rest.find(')') {
+            return Some(format!("Value must be in range {}.", &rest[..end]));
+        }
+    }
+
+    if let Some(start) = message.find("must be one of [") {
+        let rest = &message[start + "must be one of [".len()..];
+        if let Some(end) = rest.find(']') {
+            return Some(format!("Value must be one of: {}.", &rest[..end]));
+        }
+    }
+
+    if message.contains("must be an integer") {
+        return Some("Value must be an integer.".to_string());
+    }
+
+    if message.contains("must be <= ") {
+        return Some("Keep values within the documented ordering constraints.".to_string());
+    }
+
+    if message.contains("must be lower than") {
+        return Some("Keep values within the documented ordering constraints.".to_string());
+    }
+
+    if message.starts_with("Invalid config payload: invalid type") {
+        return Some("Type mismatch: use the value type required for that key.".to_string());
+    }
+
+    None
+}
+
+fn admin_config_validation_issue(
+    patch: &serde_json::Value,
+    message: String,
+) -> AdminConfigValidationIssue {
+    let mut field = admin_config_validation_field(&message);
+    if field.is_none() {
+        if let Some(object) = patch.as_object() {
+            if object.len() == 1 {
+                field = object.keys().next().map(|key| key.to_string());
+            }
+        }
+    }
+    let received = field
+        .as_deref()
+        .and_then(|field_name| admin_config_validation_read_value(patch, field_name));
+    AdminConfigValidationIssue {
+        field,
+        expected: admin_config_validation_expected(&message),
+        message,
+        received,
+    }
+}
+
+fn handle_admin_config_internal(
     req: &Request,
     store: &impl crate::challenge::KeyValueStore,
     site_id: &str,
+    validate_only: bool,
 ) -> Response {
     // GET: Return current config
     // POST: Update config (supports {"test_mode": true/false})
@@ -3533,6 +3916,9 @@ fn handle_admin_config(
             Ok(v) => v,
             Err(e) => return Response::new(400, e),
         };
+        if let Err(err) = validate_admin_config_patch_shape(&json) {
+            return Response::new(400, err);
+        }
         // Load current config
         let mut cfg = match crate::config::Config::load(store, site_id) {
             Ok(cfg) => cfg,
@@ -3546,18 +3932,20 @@ fn handle_admin_config(
             cfg.test_mode = test_mode;
             if old_value != test_mode {
                 changed = true;
-                // Log test_mode toggle event
-                log_event(
-                    store,
-                    &EventLogEntry {
-                        ts: now_ts(),
-                        event: EventType::AdminAction,
-                        ip: None,
-                        reason: Some("test_mode_toggle".to_string()),
-                        outcome: Some(format!("{} -> {}", old_value, test_mode)),
-                        admin: Some(crate::admin::auth::get_admin_id(req)),
-                    },
-                );
+                if !validate_only {
+                    // Log test_mode toggle event
+                    log_event(
+                        store,
+                        &EventLogEntry {
+                            ts: now_ts(),
+                            event: EventType::AdminAction,
+                            ip: None,
+                            reason: Some("test_mode_toggle".to_string()),
+                            outcome: Some(format!("{} -> {}", old_value, test_mode)),
+                            admin: Some(crate::admin::auth::get_admin_id(req)),
+                        },
+                    );
+                }
             }
         }
 
@@ -4160,7 +4548,7 @@ fn handle_admin_config(
             pow_changed = true;
         }
 
-        if pow_changed {
+        if pow_changed && !validate_only {
             log_event(
                 store,
                 &EventLogEntry {
@@ -4208,7 +4596,7 @@ fn handle_admin_config(
                 challenge_changed = true;
             }
         }
-        if challenge_changed {
+        if challenge_changed && !validate_only {
             log_event(
                 store,
                 &EventLogEntry {
@@ -4353,7 +4741,7 @@ fn handle_admin_config(
             }
         }
 
-        if not_a_bot_changed {
+        if not_a_bot_changed && !validate_only {
             log_event(
                 store,
                 &EventLogEntry {
@@ -4473,7 +4861,7 @@ fn handle_admin_config(
             provider_selection_changed = true;
         }
 
-        if provider_selection_changed {
+        if provider_selection_changed && !validate_only {
             log_event(
                 store,
                 &EventLogEntry {
@@ -4618,7 +5006,7 @@ fn handle_admin_config(
             );
         }
 
-        if botness_changed {
+        if botness_changed && !validate_only {
             log_event(store, &EventLogEntry {
                     ts: now_ts(),
                     event: EventType::AdminAction,
@@ -4652,7 +5040,7 @@ fn handle_admin_config(
         }
 
         // Save config to KV store
-        if changed {
+        if changed && !validate_only {
             let key = format!("config:{}", site_id);
             if let Ok(val) = serde_json::to_vec(&cfg) {
                 if store.set(&key, &val).is_ok() {
@@ -4700,6 +5088,72 @@ fn handle_admin_config(
         ))
             .unwrap();
     Response::new(200, body)
+}
+
+fn handle_admin_config(
+    req: &Request,
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+) -> Response {
+    handle_admin_config_internal(req, store, site_id, false)
+}
+
+fn handle_admin_config_validate(
+    req: &Request,
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+) -> Response {
+    if *req.method() != spin_sdk::http::Method::Post {
+        return Response::new(405, "Method Not Allowed");
+    }
+
+    let patch = match crate::request_validation::parse_json_body(
+        req.body(),
+        crate::request_validation::MAX_ADMIN_JSON_BYTES,
+    ) {
+        Ok(value) => value,
+        Err(err) => {
+            let issue = admin_config_validation_issue(
+                &serde_json::Value::Null,
+                format!("Invalid config payload: {}", err),
+            );
+            let body = serde_json::to_string(&json!({
+                "valid": false,
+                "issues": [issue]
+            }))
+            .unwrap();
+            return Response::new(200, body);
+        }
+    };
+
+    if let Err(err) = validate_admin_config_patch_shape(&patch) {
+        let issue = admin_config_validation_issue(&patch, err);
+        let body = serde_json::to_string(&json!({
+            "valid": false,
+            "issues": [issue]
+        }))
+        .unwrap();
+        return Response::new(200, body);
+    }
+
+    let validation_response = handle_admin_config_internal(req, store, site_id, true);
+    let status = *validation_response.status();
+    if status == 200 {
+        return Response::new(200, r#"{"valid":true,"issues":[]}"#);
+    }
+
+    let message = String::from_utf8_lossy(validation_response.body()).to_string();
+    if status == 400 {
+        let issue = admin_config_validation_issue(&patch, message.clone());
+        let body = serde_json::to_string(&json!({
+            "valid": false,
+            "issues": [issue]
+        }))
+        .unwrap();
+        return Response::new(200, body);
+    }
+
+    Response::new(status, message)
 }
 
 fn parse_operator_seed_sources_json(
@@ -5156,6 +5610,7 @@ fn monitoring_prometheus_helper_payload() -> serde_json::Value {
 ///   - GET /admin/monitoring: Query consolidated monitoring telemetry summaries
 ///   - GET /admin/config: Get current config including test_mode status
 ///   - POST /admin/config: Update config (e.g., toggle test_mode)
+///   - POST /admin/config/validate: Validate a config patch without persisting changes
 ///   - GET /admin/config/export: Export non-secret runtime config for immutable deploy handoff
 ///   - GET /admin/maze/preview: Render a non-operational maze preview for operators
 ///   - GET /admin: API help
@@ -5497,6 +5952,9 @@ pub fn handle_admin(req: &Request) -> Response {
         "/admin/config" => {
             return handle_admin_config(req, &store, site_id);
         }
+        "/admin/config/validate" => {
+            return handle_admin_config_validate(req, &store, site_id);
+        }
         "/admin/config/export" => {
             return handle_admin_config_export(req, &store, site_id);
         }
@@ -5522,7 +5980,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/config, /admin/config/export, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/config, /admin/config/validate, /admin/config/export, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics

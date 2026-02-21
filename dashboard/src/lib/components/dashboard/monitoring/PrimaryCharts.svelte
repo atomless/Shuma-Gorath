@@ -18,7 +18,7 @@
     <canvas id="eventTypesChart" bind:this={eventTypesCanvas}></canvas>
   </div>
   <div class="chart-container panel-soft panel-border pad-md">
-    <h2>Top 10 IPs by Events</h2>
+    <h2>Top 10 <abbr title="Internet Protocol">IP</abbr>s by Events</h2>
     <canvas id="topIpsChart" bind:this={topIpsCanvas}></canvas>
   </div>
 </div>

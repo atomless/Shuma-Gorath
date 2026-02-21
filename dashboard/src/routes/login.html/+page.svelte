@@ -72,7 +72,7 @@
         return `Login failed: ${text}`;
       }
     } catch (_e) {}
-    return `Login failed (HTTP ${response.status}).`;
+    return `Login failed (Hypertext Transfer Protocol status ${response.status}).`;
   }
 
   async function submitLogin(event) {
@@ -130,7 +130,7 @@
         autocomplete="off"
         spellcheck="false"
         required
-        aria-label="API key"
+        aria-label="Application Programming Interface key"
         bind:value={apiKey}
       >
       <button id="login-submit" class="btn btn-submit" type="submit" disabled={submitting}>
