@@ -238,9 +238,10 @@ body {
    =========================================== */
 
 .shuma-image-wrapper {
-  display: flex;
+  /* display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: center; */
+  /* background-image: radial-gradient(ellipse 310px 110px at 50% 55%, rgba(255, 255, 255, 0.99) 0%, rgba(255, 255, 255, 0.50) 55%, transparent 65%); */
 }
 
 .shuma-gorath-img {
@@ -249,9 +250,18 @@ body {
   height: auto;
   display: block;
   margin: 0 auto;
-  margin-top: -56px;
-  filter: sepia(1) hue-rotate(276deg) saturate(2) brightness(0.95);
+  margin-top: -26px;
+  filter: sepia(1) hue-rotate(276deg) saturate(2) brightness(1);
   pointer-events: none;
+}
+
+
+.shuma-gorath-img--light {
+  display: block;
+}
+
+.shuma-gorath-img--dark {
+  display: none;
 }
 
 /* ===========================================
@@ -312,10 +322,10 @@ h1 {
   font-size: var(--text-5xl);
   color: var(--heading-fg);
   margin-bottom: 18px;
-  margin-top: -70px;
+  margin-top: -7px;
   letter-spacing: -0.15rem;
   font-weight: 900;
-  text-shadow: 0 -100px 150px white;
+  /* text-shadow: 0 -190px 90px white, 0 -150px 110px white, 0 -110px 80px white, 0 -170px 90px white, 0 -80px 90px white; */
   line-height: 1;
 }
 
@@ -1063,6 +1073,7 @@ a:focus-visible {
   bottom: 0;
   background-color: var(--color-300);
   transition: 0.4s;
+  border-radius: 16px;
 }
 
 .toggle-slider:before {
@@ -1074,6 +1085,7 @@ a:focus-visible {
   bottom: 2px;
   background-color: var(--color-back);
   transition: 0.4s;
+  border-radius: 8px;
 }
 
 input:checked + .toggle-slider {
@@ -1614,7 +1626,7 @@ input:checked + .toggle-slider:before {
   :root {
     --color-back: #200b24;
     --color-50: #251e24;
-    --color-100: #260e2a;
+    --color-100: #291520;
     --color-200: #2c2430;
     --color-300: #3f1f46;
     --color-400: #595062;
@@ -1655,9 +1667,20 @@ input:checked + .toggle-slider:before {
     --striped-bright-bg: repeating-linear-gradient(-45deg, #200b24,#200b24 10px,#aa16a0 10px,#aa16a0 20px);
   }
 
+  .shuma-gorath-img--light {
+    display: none;
+  }
+  .shuma-gorath-img--dark {
+    display: block;
+  }
+
   .container, .card, .info-panel, .robots-preview {
     background: var(--color-100);
     color: var(--color-800);
+  }
+
+  .dashboard-tab-link {
+    background: #36233b;
   }
 
   .chart-container, .maze-crawlers {

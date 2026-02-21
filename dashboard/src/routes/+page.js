@@ -14,9 +14,13 @@ export function load({ url }) {
       dashboardBasePath,
       'assets/vendor/chart-lite-1.0.0.min.js'
     ),
-    shumaImageSrc: resolveDashboardAssetPath(
+    shumaImageLightSrc: resolveDashboardAssetPath(
       dashboardBasePath,
-      'assets/shuma-gorath-pencil.png'
+      'assets/shuma-gorath-pencil-light.jpg'
+    ),
+    shumaImageDarkSrc: resolveDashboardAssetPath(
+      dashboardBasePath,
+      'assets/shuma-gorath-pencil-dark.jpg'
     ),
     initialHashTab
   };

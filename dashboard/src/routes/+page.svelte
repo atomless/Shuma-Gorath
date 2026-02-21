@@ -48,9 +48,12 @@
   const chartRuntimeSrc = typeof data?.chartRuntimeSrc === 'string'
     ? data.chartRuntimeSrc
     : resolveDashboardAssetPath(dashboardBasePath, 'assets/vendor/chart-lite-1.0.0.min.js');
-  const shumaImageSrc = typeof data?.shumaImageSrc === 'string'
-    ? data.shumaImageSrc
-    : resolveDashboardAssetPath(dashboardBasePath, 'assets/shuma-gorath-pencil.png');
+  const shumaImageLightSrc = typeof data?.shumaImageLightSrc === 'string'
+    ? data.shumaImageLightSrc
+    : resolveDashboardAssetPath(dashboardBasePath, 'assets/shuma-gorath-pencil-light.png');
+  const shumaImageDarkSrc = typeof data?.shumaImageDarkSrc === 'string'
+    ? data.shumaImageDarkSrc
+    : resolveDashboardAssetPath(dashboardBasePath, 'assets/shuma-gorath-pencil-dark.png');
 
   const dashboardStore = createDashboardStore({ initialTab: 'monitoring' });
 
@@ -336,8 +339,8 @@
     }
   }
 
-  async function onRobotsPreview(patch = null) {
-    return getDashboardRobotsPreview(patch);
+  async function onRobotsPreview() {
+    return getDashboardRobotsPreview();
   }
 
   async function onFetchEventsRange(hours, options = {}) {
@@ -378,7 +381,8 @@
   >Logout</button>
   <header>
     <div class="shuma-image-wrapper">
-      <img src={shumaImageSrc} alt="Shuma-Gorath" class="shuma-gorath-img">
+      <img src={shumaImageLightSrc} alt="Shuma-Gorath" class="shuma-gorath-img shuma-gorath-img--light">
+      <img src={shumaImageDarkSrc} alt="Shuma-Gorath" class="shuma-gorath-img shuma-gorath-img--dark">
     </div>
     <h1>Shuma-Gorath</h1>
     <p class="subtitle text-muted"><a href="https://read.dukeupress.edu/books/book/27/Staying-with-the-TroubleMaking-Kin-in-the" target="_blank">Chthulucene</a> Bot Defence</p>
