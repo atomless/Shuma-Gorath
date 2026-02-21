@@ -29,6 +29,12 @@ const BOTNESS_WEIGHT_MIN: u8 = 0;
 const BOTNESS_WEIGHT_MAX: u8 = 10;
 const CHALLENGE_TRANSFORM_COUNT_MIN: u8 = 4;
 const CHALLENGE_TRANSFORM_COUNT_MAX: u8 = 8;
+const CHALLENGE_PUZZLE_SEED_TTL_MIN: u64 = 30;
+const CHALLENGE_PUZZLE_SEED_TTL_MAX: u64 = 300;
+const CHALLENGE_PUZZLE_ATTEMPT_LIMIT_MIN: u32 = 1;
+const CHALLENGE_PUZZLE_ATTEMPT_LIMIT_MAX: u32 = 100;
+const CHALLENGE_PUZZLE_ATTEMPT_WINDOW_MIN: u64 = 30;
+const CHALLENGE_PUZZLE_ATTEMPT_WINDOW_MAX: u64 = 3600;
 const NOT_A_BOT_NONCE_TTL_MIN: u64 = 30;
 const NOT_A_BOT_NONCE_TTL_MAX: u64 = 300;
 const NOT_A_BOT_MARKER_TTL_MIN: u64 = 60;
@@ -419,6 +425,8 @@ pub struct Config {
     pub honeypot_enabled: bool,
     #[serde(default = "default_honeypots")]
     pub honeypots: Vec<String>,
+    #[serde(default = "default_browser_policy_enabled")]
+    pub browser_policy_enabled: bool,
     #[serde(default = "default_browser_block")]
     pub browser_block: Vec<(String, u32)>,
     #[serde(default = "default_browser_whitelist")]
@@ -433,6 +441,8 @@ pub struct Config {
     pub geo_maze: Vec<String>,
     #[serde(default = "default_geo_block")]
     pub geo_block: Vec<String>,
+    #[serde(default = "default_bypass_allowlists_enabled")]
+    pub bypass_allowlists_enabled: bool,
     #[serde(default = "default_whitelist")]
     pub whitelist: Vec<String>,
     #[serde(default = "default_path_whitelist")]
@@ -567,16 +577,22 @@ pub struct Config {
     pub challenge_puzzle_enabled: bool,
     #[serde(default = "default_challenge_puzzle_transform_count")]
     pub challenge_puzzle_transform_count: u8,
+    #[serde(default = "default_challenge_puzzle_seed_ttl_seconds")]
+    pub challenge_puzzle_seed_ttl_seconds: u64,
+    #[serde(default = "default_challenge_puzzle_attempt_limit_per_window")]
+    pub challenge_puzzle_attempt_limit_per_window: u32,
+    #[serde(default = "default_challenge_puzzle_attempt_window_seconds")]
+    pub challenge_puzzle_attempt_window_seconds: u64,
     #[serde(default = "default_challenge_threshold")]
     pub challenge_puzzle_risk_threshold: u8,
     #[serde(default = "default_not_a_bot_enabled")]
     pub not_a_bot_enabled: bool,
     #[serde(default = "default_not_a_bot_risk_threshold")]
     pub not_a_bot_risk_threshold: u8,
-    #[serde(default = "default_not_a_bot_score_pass_min")]
-    pub not_a_bot_score_pass_min: u8,
-    #[serde(default = "default_not_a_bot_score_escalate_min")]
-    pub not_a_bot_score_escalate_min: u8,
+    #[serde(default = "default_not_a_bot_pass_score")]
+    pub not_a_bot_pass_score: u8,
+    #[serde(default = "default_not_a_bot_fail_score")]
+    pub not_a_bot_fail_score: u8,
     #[serde(default = "default_not_a_bot_nonce_ttl_seconds")]
     pub not_a_bot_nonce_ttl_seconds: u64,
     #[serde(default = "default_not_a_bot_marker_ttl_seconds")]
@@ -843,6 +859,7 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         rate_limit: defaults_u32("SHUMA_RATE_LIMIT"),
         honeypot_enabled: defaults_bool("SHUMA_HONEYPOT_ENABLED"),
         honeypots: defaults_string_list("SHUMA_HONEYPOTS"),
+        browser_policy_enabled: defaults_bool("SHUMA_BROWSER_POLICY_ENABLED"),
         browser_block: defaults_browser_rules("SHUMA_BROWSER_BLOCK"),
         browser_whitelist: defaults_browser_rules("SHUMA_BROWSER_WHITELIST"),
         geo_risk: defaults_country_list("SHUMA_GEO_RISK_COUNTRIES"),
@@ -850,6 +867,7 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         geo_challenge: defaults_country_list("SHUMA_GEO_CHALLENGE_COUNTRIES"),
         geo_maze: defaults_country_list("SHUMA_GEO_MAZE_COUNTRIES"),
         geo_block: defaults_country_list("SHUMA_GEO_BLOCK_COUNTRIES"),
+        bypass_allowlists_enabled: defaults_bool("SHUMA_BYPASS_ALLOWLISTS_ENABLED"),
         whitelist: defaults_string_list("SHUMA_WHITELIST"),
         path_whitelist: defaults_string_list("SHUMA_PATH_WHITELIST"),
         ip_range_policy_mode: default_ip_range_policy_mode(),
@@ -927,11 +945,18 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         pow_ttl_seconds: defaults_u64("SHUMA_POW_TTL_SECONDS"),
         challenge_puzzle_enabled: defaults_bool("SHUMA_CHALLENGE_PUZZLE_ENABLED"),
         challenge_puzzle_transform_count: defaults_u8("SHUMA_CHALLENGE_PUZZLE_TRANSFORM_COUNT"),
+        challenge_puzzle_seed_ttl_seconds: defaults_u64("SHUMA_CHALLENGE_PUZZLE_SEED_TTL_SECONDS"),
+        challenge_puzzle_attempt_limit_per_window: defaults_u32(
+            "SHUMA_CHALLENGE_PUZZLE_ATTEMPT_LIMIT_PER_WINDOW",
+        ),
+        challenge_puzzle_attempt_window_seconds: defaults_u64(
+            "SHUMA_CHALLENGE_PUZZLE_ATTEMPT_WINDOW_SECONDS",
+        ),
         challenge_puzzle_risk_threshold: defaults_u8("SHUMA_CHALLENGE_PUZZLE_RISK_THRESHOLD"),
         not_a_bot_enabled: defaults_bool("SHUMA_NOT_A_BOT_ENABLED"),
         not_a_bot_risk_threshold: defaults_u8("SHUMA_NOT_A_BOT_RISK_THRESHOLD"),
-        not_a_bot_score_pass_min: defaults_u8("SHUMA_NOT_A_BOT_SCORE_PASS_MIN"),
-        not_a_bot_score_escalate_min: defaults_u8("SHUMA_NOT_A_BOT_SCORE_ESCALATE_MIN"),
+        not_a_bot_pass_score: defaults_u8("SHUMA_NOT_A_BOT_PASS_SCORE"),
+        not_a_bot_fail_score: defaults_u8("SHUMA_NOT_A_BOT_FAIL_SCORE"),
         not_a_bot_nonce_ttl_seconds: defaults_u64("SHUMA_NOT_A_BOT_NONCE_TTL_SECONDS"),
         not_a_bot_marker_ttl_seconds: defaults_u64("SHUMA_NOT_A_BOT_MARKER_TTL_SECONDS"),
         not_a_bot_attempt_limit_per_window: defaults_u32("SHUMA_NOT_A_BOT_ATTEMPT_LIMIT_PER_WINDOW"),
@@ -1320,6 +1345,24 @@ fn clamp_challenge_puzzle_transform_count(value: u8) -> u8 {
     value.clamp(CHALLENGE_TRANSFORM_COUNT_MIN, CHALLENGE_TRANSFORM_COUNT_MAX)
 }
 
+fn clamp_challenge_puzzle_seed_ttl(value: u64) -> u64 {
+    value.clamp(CHALLENGE_PUZZLE_SEED_TTL_MIN, CHALLENGE_PUZZLE_SEED_TTL_MAX)
+}
+
+fn clamp_challenge_puzzle_attempt_limit(value: u32) -> u32 {
+    value.clamp(
+        CHALLENGE_PUZZLE_ATTEMPT_LIMIT_MIN,
+        CHALLENGE_PUZZLE_ATTEMPT_LIMIT_MAX,
+    )
+}
+
+fn clamp_challenge_puzzle_attempt_window(value: u64) -> u64 {
+    value.clamp(
+        CHALLENGE_PUZZLE_ATTEMPT_WINDOW_MIN,
+        CHALLENGE_PUZZLE_ATTEMPT_WINDOW_MAX,
+    )
+}
+
 fn clamp_not_a_bot_score(value: u8) -> u8 {
     value.clamp(NOT_A_BOT_SCORE_MIN, NOT_A_BOT_SCORE_MAX)
 }
@@ -1343,19 +1386,26 @@ fn clamp_not_a_bot_attempt_window(value: u64) -> u64 {
 fn clamp_config_values(cfg: &mut Config) {
     cfg.pow_difficulty = clamp_pow_difficulty(cfg.pow_difficulty);
     cfg.pow_ttl_seconds = clamp_pow_ttl(cfg.pow_ttl_seconds);
-    cfg.challenge_puzzle_transform_count = clamp_challenge_puzzle_transform_count(cfg.challenge_puzzle_transform_count);
+    cfg.challenge_puzzle_transform_count =
+        clamp_challenge_puzzle_transform_count(cfg.challenge_puzzle_transform_count);
+    cfg.challenge_puzzle_seed_ttl_seconds =
+        clamp_challenge_puzzle_seed_ttl(cfg.challenge_puzzle_seed_ttl_seconds);
+    cfg.challenge_puzzle_attempt_limit_per_window =
+        clamp_challenge_puzzle_attempt_limit(cfg.challenge_puzzle_attempt_limit_per_window);
+    cfg.challenge_puzzle_attempt_window_seconds =
+        clamp_challenge_puzzle_attempt_window(cfg.challenge_puzzle_attempt_window_seconds);
     cfg.challenge_puzzle_risk_threshold = clamp_challenge_threshold(cfg.challenge_puzzle_risk_threshold);
     cfg.not_a_bot_risk_threshold = clamp_challenge_threshold(cfg.not_a_bot_risk_threshold);
-    cfg.not_a_bot_score_pass_min = clamp_not_a_bot_score(cfg.not_a_bot_score_pass_min);
-    cfg.not_a_bot_score_escalate_min = clamp_not_a_bot_score(cfg.not_a_bot_score_escalate_min);
+    cfg.not_a_bot_pass_score = clamp_not_a_bot_score(cfg.not_a_bot_pass_score);
+    cfg.not_a_bot_fail_score = clamp_not_a_bot_score(cfg.not_a_bot_fail_score);
     cfg.not_a_bot_nonce_ttl_seconds = clamp_not_a_bot_nonce_ttl(cfg.not_a_bot_nonce_ttl_seconds);
     cfg.not_a_bot_marker_ttl_seconds = clamp_not_a_bot_marker_ttl(cfg.not_a_bot_marker_ttl_seconds);
     cfg.not_a_bot_attempt_limit_per_window =
         clamp_not_a_bot_attempt_limit(cfg.not_a_bot_attempt_limit_per_window);
     cfg.not_a_bot_attempt_window_seconds =
         clamp_not_a_bot_attempt_window(cfg.not_a_bot_attempt_window_seconds);
-    if cfg.not_a_bot_score_escalate_min > cfg.not_a_bot_score_pass_min {
-        cfg.not_a_bot_score_escalate_min = cfg.not_a_bot_score_pass_min;
+    if cfg.not_a_bot_fail_score > cfg.not_a_bot_pass_score {
+        cfg.not_a_bot_fail_score = cfg.not_a_bot_pass_score;
     }
     if cfg.challenge_puzzle_risk_threshold > CHALLENGE_THRESHOLD_MIN
         && cfg.not_a_bot_risk_threshold >= cfg.challenge_puzzle_risk_threshold
@@ -1641,6 +1691,10 @@ fn default_honeypots() -> Vec<String> {
     defaults_string_list("SHUMA_HONEYPOTS")
 }
 
+fn default_browser_policy_enabled() -> bool {
+    defaults_bool("SHUMA_BROWSER_POLICY_ENABLED")
+}
+
 fn default_browser_block() -> Vec<(String, u32)> {
     defaults_browser_rules("SHUMA_BROWSER_BLOCK")
 }
@@ -1667,6 +1721,10 @@ fn default_geo_maze() -> Vec<String> {
 
 fn default_geo_block() -> Vec<String> {
     defaults_country_list("SHUMA_GEO_BLOCK_COUNTRIES")
+}
+
+fn default_bypass_allowlists_enabled() -> bool {
+    defaults_bool("SHUMA_BYPASS_ALLOWLISTS_ENABLED")
 }
 
 fn default_whitelist() -> Vec<String> {
@@ -1957,6 +2015,22 @@ fn default_challenge_puzzle_transform_count() -> u8 {
     clamp_challenge_puzzle_transform_count(defaults_u8("SHUMA_CHALLENGE_PUZZLE_TRANSFORM_COUNT"))
 }
 
+fn default_challenge_puzzle_seed_ttl_seconds() -> u64 {
+    clamp_challenge_puzzle_seed_ttl(defaults_u64("SHUMA_CHALLENGE_PUZZLE_SEED_TTL_SECONDS"))
+}
+
+fn default_challenge_puzzle_attempt_limit_per_window() -> u32 {
+    clamp_challenge_puzzle_attempt_limit(defaults_u32(
+        "SHUMA_CHALLENGE_PUZZLE_ATTEMPT_LIMIT_PER_WINDOW",
+    ))
+}
+
+fn default_challenge_puzzle_attempt_window_seconds() -> u64 {
+    clamp_challenge_puzzle_attempt_window(defaults_u64(
+        "SHUMA_CHALLENGE_PUZZLE_ATTEMPT_WINDOW_SECONDS",
+    ))
+}
+
 fn default_challenge_threshold() -> u8 {
     clamp_challenge_threshold(defaults_u8("SHUMA_CHALLENGE_PUZZLE_RISK_THRESHOLD"))
 }
@@ -1969,12 +2043,12 @@ fn default_not_a_bot_risk_threshold() -> u8 {
     clamp_challenge_threshold(defaults_u8("SHUMA_NOT_A_BOT_RISK_THRESHOLD"))
 }
 
-fn default_not_a_bot_score_pass_min() -> u8 {
-    clamp_not_a_bot_score(defaults_u8("SHUMA_NOT_A_BOT_SCORE_PASS_MIN"))
+fn default_not_a_bot_pass_score() -> u8 {
+    clamp_not_a_bot_score(defaults_u8("SHUMA_NOT_A_BOT_PASS_SCORE"))
 }
 
-fn default_not_a_bot_score_escalate_min() -> u8 {
-    clamp_not_a_bot_score(defaults_u8("SHUMA_NOT_A_BOT_SCORE_ESCALATE_MIN"))
+fn default_not_a_bot_fail_score() -> u8 {
+    clamp_not_a_bot_score(defaults_u8("SHUMA_NOT_A_BOT_FAIL_SCORE"))
 }
 
 fn default_not_a_bot_nonce_ttl_seconds() -> u64 {

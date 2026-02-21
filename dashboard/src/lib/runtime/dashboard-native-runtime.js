@@ -306,9 +306,9 @@ export async function unbanDashboardIp(ip) {
   return response;
 }
 
-export async function getDashboardRobotsPreview() {
+export async function getDashboardRobotsPreview(patch = null) {
   const apiClient = requireApiClient();
-  return apiClient.getRobotsPreview();
+  return apiClient.getRobotsPreview(patch);
 }
 
 export async function getDashboardEvents(hours = 24, options = {}) {

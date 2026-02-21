@@ -30,12 +30,13 @@
   const MAX_DURATION_SECONDS = 31536000;
   const MIN_DURATION_SECONDS = 60;
   const EDGE_MODES = new Set(['off', 'advisory', 'authoritative']);
+  const COMPOSABILITY_MODES = new Set(['off', 'signal', 'enforce', 'both']);
   const IP_RANGE_POLICY_MODES = new Set(['off', 'advisory', 'enforce']);
   const IP_RANGE_MANAGED_STALENESS_MIN = 1;
   const IP_RANGE_MANAGED_STALENESS_MAX = 2160;
   const EXPORT_STATUS_RESET_MS = 4000;
   const ADVANCED_VALIDATE_DEBOUNCE_MS = 350;
-  const ADVANCED_JSON_DISALLOWED_KEYS = new Set(['test_mode']);
+  const ROBOTS_PREVIEW_AUTO_REFRESH_DEBOUNCE_MS = 120;
 
   let writable = false;
   let hasConfigSnapshot = false;
@@ -49,6 +50,9 @@
   let robotsPreviewOpen = false;
   let robotsPreviewLoading = false;
   let robotsPreviewContent = '';
+  let robotsPreviewPatchKey = '';
+  let robotsPreviewRequestId = 0;
+  let robotsPreviewAutoRefreshTimer = null;
 
   let testMode = false;
 
@@ -59,10 +63,9 @@
   let powTtl = 90;
 
   let challengePuzzleEnabled = true;
-  let challengePuzzleTransformCount = 6;
   let notABotEnabled = true;
   let notABotScorePassMin = 7;
-  let notABotScoreEscalateMin = 4;
+  let notABotScoreFailMax = 3;
   let notABotNonceTtl = 120;
   let notABotMarkerTtl = 600;
   let notABotAttemptLimit = 6;
@@ -80,14 +83,17 @@
   let ipRangeCatalogAgeHours = null;
   let ipRangeCatalogStale = false;
 
+  let rateLimitingEnabled = true;
   let rateLimitThreshold = 80;
 
   let honeypotEnabled = true;
   let honeypotPaths = '';
 
+  let browserPolicyEnabled = true;
   let browserBlockRules = '';
   let browserWhitelistRules = '';
 
+  let bypassAllowlistsEnabled = true;
   let networkWhitelist = '';
   let pathWhitelist = '';
 
@@ -106,6 +112,8 @@
   let geoChallengeList = '';
   let geoMazeList = '';
   let geoBlockList = '';
+  let geoScoringEnabled = true;
+  let geoRoutingEnabled = true;
 
   let durHoneypotDays = 1;
   let durHoneypotHours = 0;
@@ -143,11 +151,11 @@
     testMode: { enabled: false },
     jsRequired: { enforced: true },
     pow: { enabled: true, difficulty: 15, ttl: 90 },
-    challenge: { enabled: true, count: 6 },
+    challenge: { enabled: true },
     notABot: {
       enabled: true,
       scorePassMin: 7,
-      scoreEscalateMin: 4,
+      scoreFailMax: 3,
       nonceTtl: 120,
       markerTtl: 600,
       attemptLimit: 6,
@@ -161,14 +169,22 @@
       managedMaxStalenessHours: 168,
       allowStaleManagedEnforce: false
     },
-    rateLimit: { value: 80 },
+    rateLimit: { value: 80, enabled: true },
     honeypot: { enabled: true, values: '' },
-    browserPolicy: { block: '', whitelist: '' },
-    whitelist: { network: '', path: '' },
+    browserPolicy: { enabled: true, block: '', whitelist: '' },
+    whitelist: { enabled: true, network: '', path: '' },
     maze: { enabled: true, autoBan: true, threshold: 50 },
     cdp: { enabled: true, autoBan: true, threshold: 0.6 },
     edgeMode: { mode: 'off' },
-    geo: { risk: '', allow: '', challenge: '', maze: '', block: '' },
+    geo: {
+      scoringEnabled: true,
+      routingEnabled: true,
+      risk: '',
+      allow: '',
+      challenge: '',
+      maze: '',
+      block: ''
+    },
     durations: {
       honeypot: 86400,
       rateLimit: 3600,
@@ -207,6 +223,36 @@
   const normalizeIpRangePolicyMode = (value) => {
     const normalized = String(value || '').trim().toLowerCase();
     return IP_RANGE_POLICY_MODES.has(normalized) ? normalized : 'off';
+  };
+
+  const normalizeComposabilityMode = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    return COMPOSABILITY_MODES.has(normalized) ? normalized : 'off';
+  };
+
+  const geoToggleStateFromMode = (mode) => {
+    const normalized = normalizeComposabilityMode(mode);
+    return {
+      scoringEnabled: normalized === 'signal' || normalized === 'both',
+      routingEnabled: normalized === 'enforce' || normalized === 'both'
+    };
+  };
+
+  const geoModeFromToggleState = ({ scoringEnabled, routingEnabled }) => {
+    if (scoringEnabled && routingEnabled) return 'both';
+    if (scoringEnabled) return 'signal';
+    if (routingEnabled) return 'enforce';
+    return 'off';
+  };
+
+  const rateEnforcementEnabledFromMode = (mode) => {
+    const normalized = normalizeComposabilityMode(mode);
+    return normalized === 'enforce' || normalized === 'both';
+  };
+
+  const rateModeFromToggleState = ({ enforcementEnabled }) => {
+    if (enforcementEnabled) return 'both';
+    return 'signal';
   };
 
   const normalizeJsonArrayForCompare = (value) => {
@@ -283,6 +329,13 @@
     }
   };
 
+  const clearRobotsPreviewAutoRefreshTimer = () => {
+    if (robotsPreviewAutoRefreshTimer) {
+      clearTimeout(robotsPreviewAutoRefreshTimer);
+      robotsPreviewAutoRefreshTimer = null;
+    }
+  };
+
   const resetAdvancedValidationState = () => {
     clearAdvancedValidationTimer();
     advancedValidationPending = false;
@@ -355,9 +408,12 @@
   onDestroy(() => {
     clearExportStatusTimer();
     clearAdvancedValidationTimer();
+    clearRobotsPreviewAutoRefreshTimer();
   });
 
   function resetRobotsPreview() {
+    clearRobotsPreviewAutoRefreshTimer();
+    robotsPreviewRequestId += 1;
     robotsPreviewOpen = false;
     robotsPreviewLoading = false;
     robotsPreviewContent = '';
@@ -376,10 +432,9 @@
     powTtl = parseInteger(config.pow_ttl_seconds, 90);
 
     challengePuzzleEnabled = config.challenge_puzzle_enabled !== false;
-    challengePuzzleTransformCount = parseInteger(config.challenge_puzzle_transform_count, 6);
     notABotEnabled = config.not_a_bot_enabled !== false;
-    notABotScorePassMin = parseInteger(config.not_a_bot_score_pass_min, 7);
-    notABotScoreEscalateMin = parseInteger(config.not_a_bot_score_escalate_min, 4);
+    notABotScorePassMin = parseInteger(config.not_a_bot_pass_score, 7);
+    notABotScoreFailMax = Math.max(0, Math.min(9, parseInteger(config.not_a_bot_fail_score, 4) - 1));
     notABotNonceTtl = parseInteger(config.not_a_bot_nonce_ttl_seconds, 120);
     notABotMarkerTtl = parseInteger(config.not_a_bot_marker_ttl_seconds, 600);
     notABotAttemptLimit = parseInteger(config.not_a_bot_attempt_limit_per_window, 6);
@@ -418,13 +473,16 @@
       staleByAge || ipRangeManagedSets.some((set) => set && set.stale === true);
 
     rateLimitThreshold = parseInteger(config.rate_limit, 80);
+    rateLimitingEnabled = rateEnforcementEnabledFromMode(config?.defence_modes?.rate ?? 'both');
 
     honeypotEnabled = config.honeypot_enabled !== false;
     honeypotPaths = formatListTextarea(config.honeypots);
 
+    browserPolicyEnabled = config.browser_policy_enabled !== false;
     browserBlockRules = formatBrowserRulesTextarea(config.browser_block);
     browserWhitelistRules = formatBrowserRulesTextarea(config.browser_whitelist);
 
+    bypassAllowlistsEnabled = config.bypass_allowlists_enabled !== false;
     networkWhitelist = formatListTextarea(config.whitelist);
     pathWhitelist = formatListTextarea(config.path_whitelist);
 
@@ -443,6 +501,9 @@
     geoChallengeList = formatCountryCodes(config.geo_challenge);
     geoMazeList = formatCountryCodes(config.geo_maze);
     geoBlockList = formatCountryCodes(config.geo_block);
+    const geoToggleState = geoToggleStateFromMode(config?.defence_modes?.geo);
+    geoScoringEnabled = geoToggleState.scoringEnabled;
+    geoRoutingEnabled = geoToggleState.routingEnabled;
 
     const banDurations = config && typeof config.ban_durations === 'object'
       ? config.ban_durations
@@ -494,13 +555,12 @@
         ttl: Number(powTtl)
       },
       challenge: {
-        enabled: challengePuzzleEnabled,
-        count: Number(challengePuzzleTransformCount)
+        enabled: challengePuzzleEnabled
       },
       notABot: {
         enabled: notABotEnabled,
         scorePassMin: Number(notABotScorePassMin),
-        scoreEscalateMin: Number(notABotScoreEscalateMin),
+        scoreFailMax: Number(notABotScoreFailMax),
         nonceTtl: Number(notABotNonceTtl),
         markerTtl: Number(notABotMarkerTtl),
         attemptLimit: Number(notABotAttemptLimit),
@@ -514,16 +574,21 @@
         managedMaxStalenessHours: Number(ipRangeManagedMaxStalenessHours),
         allowStaleManagedEnforce: ipRangeAllowStaleManagedEnforce === true
       },
-      rateLimit: { value: Number(rateLimitThreshold) },
+      rateLimit: {
+        value: Number(rateLimitThreshold),
+        enabled: rateLimitingEnabled
+      },
       honeypot: {
         enabled: honeypotEnabled,
         values: normalizeListTextareaForCompare(honeypotPaths)
       },
       browserPolicy: {
+        enabled: browserPolicyEnabled,
         block: normalizeBrowserRulesForCompare(browserBlockRules),
         whitelist: normalizeBrowserRulesForCompare(browserWhitelistRules)
       },
       whitelist: {
+        enabled: bypassAllowlistsEnabled,
         network: normalizeListTextareaForCompare(networkWhitelist),
         path: normalizeListTextareaForCompare(pathWhitelist)
       },
@@ -541,6 +606,8 @@
         mode: edgeIntegrationMode
       },
       geo: {
+        scoringEnabled: geoScoringEnabled,
+        routingEnabled: geoRoutingEnabled,
         risk: normalizeCountryCodesForCompare(geoRiskList),
         allow: normalizeCountryCodesForCompare(geoAllowList),
         challenge: normalizeCountryCodesForCompare(geoChallengeList),
@@ -626,17 +693,20 @@
     if (!advancedPatch || typeof advancedPatch !== 'object' || Array.isArray(advancedPatch)) {
       throw new Error('Advanced config JSON patch must be an object.');
     }
-    const sanitizedPatch = { ...advancedPatch };
-    ADVANCED_JSON_DISALLOWED_KEYS.forEach((key) => {
-      if (Object.prototype.hasOwnProperty.call(sanitizedPatch, key)) {
-        delete sanitizedPatch[key];
-      }
-    });
-    return sanitizedPatch;
+    return { ...advancedPatch };
   };
 
   const buildConfigPatch = ({ includeAll = false, includeAdvanced = true } = {}) => {
     const patch = {};
+    const mergeDefenceModes = (nextModes) => {
+      const existingDefenceModes = (
+        patch.defence_modes && typeof patch.defence_modes === 'object' && !Array.isArray(patch.defence_modes)
+      ) ? patch.defence_modes : {};
+      patch.defence_modes = {
+        ...existingDefenceModes,
+        ...nextModes
+      };
+    };
     if (includeAll) {
       if (includeAdvanced && advancedValid) {
         Object.assign(patch, parseAdvancedPatchObject());
@@ -656,16 +726,17 @@
     }
     if (includeAll || challengePuzzleDirty) {
       patch.challenge_puzzle_enabled = challengePuzzleEnabled;
-      patch.challenge_puzzle_transform_count = Number(challengePuzzleTransformCount);
     }
     if (includeAll || notABotDirty) {
       patch.not_a_bot_enabled = notABotEnabled;
-      patch.not_a_bot_score_pass_min = Number(notABotScorePassMin);
-      patch.not_a_bot_score_escalate_min = Number(notABotScoreEscalateMin);
-      patch.not_a_bot_nonce_ttl_seconds = Number(notABotNonceTtl);
-      patch.not_a_bot_marker_ttl_seconds = Number(notABotMarkerTtl);
-      patch.not_a_bot_attempt_limit_per_window = Number(notABotAttemptLimit);
-      patch.not_a_bot_attempt_window_seconds = Number(notABotAttemptWindow);
+      patch.not_a_bot_pass_score = Number(notABotScorePassMin);
+      patch.not_a_bot_fail_score = Number(notABotScoreFailMax) + 1;
+      if (includeAll) {
+        patch.not_a_bot_nonce_ttl_seconds = Number(notABotNonceTtl);
+        patch.not_a_bot_marker_ttl_seconds = Number(notABotMarkerTtl);
+        patch.not_a_bot_attempt_limit_per_window = Number(notABotAttemptLimit);
+        patch.not_a_bot_attempt_window_seconds = Number(notABotAttemptWindow);
+      }
     }
     if (includeAll || ipRangeDirty) {
       patch.ip_range_policy_mode = ipRangeModeNormalized;
@@ -677,16 +748,19 @@
     }
     if (includeAll || rateLimitDirty) {
       patch.rate_limit = Number(rateLimitThreshold);
+      mergeDefenceModes({ rate: rateModeNormalized });
     }
     if (includeAll || honeypotDirty) {
       patch.honeypot_enabled = honeypotEnabled;
       patch.honeypots = parseHoneypotPathsTextarea(honeypotPaths);
     }
     if (includeAll || browserPolicyDirty) {
+      patch.browser_policy_enabled = browserPolicyEnabled;
       patch.browser_block = parseBrowserRulesTextarea(browserBlockRules);
       patch.browser_whitelist = parseBrowserRulesTextarea(browserWhitelistRules);
     }
     if (includeAll || whitelistDirty) {
+      patch.bypass_allowlists_enabled = bypassAllowlistsEnabled;
       patch.whitelist = parseListTextarea(networkWhitelist);
       patch.path_whitelist = parseListTextarea(pathWhitelist);
     }
@@ -704,9 +778,11 @@
       patch.edge_integration_mode = edgeIntegrationMode;
     }
     if (includeAll || geoScoringDirty) {
+      mergeDefenceModes({ geo: geoModeNormalized });
       patch.geo_risk = parseCountryCodesStrict(geoRiskList);
     }
     if (includeAll || geoRoutingDirty) {
+      mergeDefenceModes({ geo: geoModeNormalized });
       patch.geo_allow = parseCountryCodesStrict(geoAllowList);
       patch.geo_challenge = parseCountryCodesStrict(geoChallengeList);
       patch.geo_maze = parseCountryCodesStrict(geoMazeList);
@@ -731,6 +807,17 @@
       patch.ai_policy_allow_search_engines = !restrictSearchEngines;
     }
     return patch;
+  };
+
+  const buildRobotsPreviewPatch = () => {
+    const crawlDelayValue = Number(robotsCrawlDelay);
+    return {
+      robots_enabled: robotsEnabled === true,
+      robots_crawl_delay: Number.isFinite(crawlDelayValue) ? Math.max(0, Math.floor(crawlDelayValue)) : 0,
+      ai_policy_block_training: robotsBlockTraining === true,
+      ai_policy_block_search: robotsBlockSearch === true,
+      ai_policy_allow_search_engines: restrictSearchEngines !== true
+    };
   };
 
   const downloadJsonFile = (filename, payload) => {
@@ -804,6 +891,8 @@
 
     if (Object.keys(patch).length === 0) return;
 
+    const shouldRefreshRobotsPreview = robotsPreviewOpen && (robotsDirty || aiPolicyDirty);
+
     savingAll = true;
     try {
       const successMessage = dirtySectionCount === 1
@@ -813,7 +902,8 @@
       if (nextConfig && typeof nextConfig === 'object') {
         applyConfig(nextConfig);
       }
-      if (robotsPreviewOpen && (robotsDirty || aiPolicyDirty)) {
+      if (shouldRefreshRobotsPreview) {
+        robotsPreviewOpen = true;
         await refreshRobotsPreview();
       }
     } finally {
@@ -821,33 +911,55 @@
     }
   }
 
-  async function refreshRobotsPreview() {
+  async function refreshRobotsPreview(previewPatch = null) {
     if (typeof onFetchRobotsPreview !== 'function') return;
+    const patch = previewPatch && typeof previewPatch === 'object'
+      ? previewPatch
+      : buildRobotsPreviewPatch();
+    const requestId = ++robotsPreviewRequestId;
     robotsPreviewLoading = true;
     try {
-      const payload = await onFetchRobotsPreview();
+      const payload = await onFetchRobotsPreview(patch);
+      if (requestId !== robotsPreviewRequestId) return;
       robotsPreviewContent = payload && typeof payload.content === 'string'
         ? payload.content
         : '# No preview available';
     } catch (error) {
+      if (requestId !== robotsPreviewRequestId) return;
       robotsPreviewContent = `# Error loading preview: ${error && error.message ? error.message : 'Unknown error'}`;
     } finally {
-      robotsPreviewLoading = false;
+      if (requestId === robotsPreviewRequestId) {
+        robotsPreviewLoading = false;
+      }
     }
   }
 
-  async function toggleRobotsPreview() {
+  function scheduleRobotsPreviewRefresh() {
+    clearRobotsPreviewAutoRefreshTimer();
+    robotsPreviewAutoRefreshTimer = setTimeout(() => {
+      void refreshRobotsPreview();
+    }, ROBOTS_PREVIEW_AUTO_REFRESH_DEBOUNCE_MS);
+  }
+
+  function onRobotsPreviewControlChanged() {
+    if (!robotsPreviewOpen) return;
+    scheduleRobotsPreviewRefresh();
+  }
+
+  function toggleRobotsPreview() {
     if (robotsPreviewOpen) {
+      clearRobotsPreviewAutoRefreshTimer();
+      robotsPreviewRequestId += 1;
       robotsPreviewOpen = false;
+      robotsPreviewLoading = false;
       return;
     }
     robotsPreviewOpen = true;
-    await refreshRobotsPreview();
+    scheduleRobotsPreviewRefresh();
   }
 
   const readBool = (value) => value === true;
 
-  $: testModeToggleText = testMode ? 'Test Mode On' : 'Test Mode Off';
   $: testModeStatusText = !hasConfigSnapshot
     ? 'LOADING...'
     : (testMode ? '(LOGGING ONLY)' : '(BLOCKING ACTIVE)');
@@ -864,29 +976,26 @@
   $: powValid = true;
   $: powDirty = readBool(powEnabled) !== baseline.pow.enabled;
 
-  $: challengePuzzleValid = inRange(challengePuzzleTransformCount, 4, 8);
+  $: challengePuzzleValid = true;
   $: challengePuzzleDirty = (
-    readBool(challengePuzzleEnabled) !== baseline.challenge.enabled ||
-    Number(challengePuzzleTransformCount) !== baseline.challenge.count
+    readBool(challengePuzzleEnabled) !== baseline.challenge.enabled
   );
+
+  $: notABotScoreFailMaxCap = Math.max(0, Number(notABotScorePassMin) - 1);
+  $: if (Number(notABotScoreFailMax) > notABotScoreFailMaxCap) {
+    notABotScoreFailMax = notABotScoreFailMaxCap;
+  }
+  $: notABotScorePassMinFloor = Math.min(10, Number(notABotScoreFailMax) + 1);
 
   $: notABotValid = (
     inRange(notABotScorePassMin, 1, 10) &&
-    inRange(notABotScoreEscalateMin, 1, 10) &&
-    Number(notABotScoreEscalateMin) <= Number(notABotScorePassMin) &&
-    inRange(notABotNonceTtl, 30, 300) &&
-    inRange(notABotMarkerTtl, 60, 3600) &&
-    inRange(notABotAttemptLimit, 1, 100) &&
-    inRange(notABotAttemptWindow, 30, 3600)
+    inRange(notABotScoreFailMax, 0, 9) &&
+    Number(notABotScoreFailMax) < Number(notABotScorePassMin)
   );
   $: notABotDirty = (
     readBool(notABotEnabled) !== baseline.notABot.enabled ||
     Number(notABotScorePassMin) !== baseline.notABot.scorePassMin ||
-    Number(notABotScoreEscalateMin) !== baseline.notABot.scoreEscalateMin ||
-    Number(notABotNonceTtl) !== baseline.notABot.nonceTtl ||
-    Number(notABotMarkerTtl) !== baseline.notABot.markerTtl ||
-    Number(notABotAttemptLimit) !== baseline.notABot.attemptLimit ||
-    Number(notABotAttemptWindow) !== baseline.notABot.attemptWindow
+    Number(notABotScoreFailMax) !== baseline.notABot.scoreFailMax
   );
 
   $: ipRangeEmergencyAllowlistNormalized = normalizeListTextareaForCompare(ipRangeEmergencyAllowlist);
@@ -920,8 +1029,14 @@
     ipRangeManagedSetStaleCount > 0
   );
 
+  $: rateModeNormalized = rateModeFromToggleState({
+    enforcementEnabled: readBool(rateLimitingEnabled)
+  });
   $: rateLimitValid = inRange(rateLimitThreshold, 1, 1000000);
-  $: rateLimitDirty = Number(rateLimitThreshold) !== baseline.rateLimit.value;
+  $: rateLimitDirty = (
+    Number(rateLimitThreshold) !== baseline.rateLimit.value ||
+    readBool(rateLimitingEnabled) !== baseline.rateLimit.enabled
+  );
 
   $: honeypotNormalized = normalizeListTextareaForCompare(honeypotPaths);
   $: honeypotValid = (() => {
@@ -941,6 +1056,7 @@
   $: browserWhitelistNormalized = normalizeBrowserRulesForCompare(browserWhitelistRules);
   $: browserPolicyValid = browserBlockNormalized !== '__invalid__' && browserWhitelistNormalized !== '__invalid__';
   $: browserPolicyDirty = (
+    readBool(browserPolicyEnabled) !== baseline.browserPolicy.enabled ||
     browserBlockNormalized !== baseline.browserPolicy.block ||
     browserWhitelistNormalized !== baseline.browserPolicy.whitelist
   );
@@ -948,6 +1064,7 @@
   $: whitelistNetworkNormalized = normalizeListTextareaForCompare(networkWhitelist);
   $: whitelistPathNormalized = normalizeListTextareaForCompare(pathWhitelist);
   $: whitelistDirty = (
+    readBool(bypassAllowlistsEnabled) !== baseline.whitelist.enabled ||
     whitelistNetworkNormalized !== baseline.whitelist.network ||
     whitelistPathNormalized !== baseline.whitelist.path
   );
@@ -973,6 +1090,10 @@
   $: geoChallengeNormalized = normalizeCountryCodesForCompare(geoChallengeList);
   $: geoMazeNormalized = normalizeCountryCodesForCompare(geoMazeList);
   $: geoBlockNormalized = normalizeCountryCodesForCompare(geoBlockList);
+  $: geoModeNormalized = geoModeFromToggleState({
+    scoringEnabled: readBool(geoScoringEnabled),
+    routingEnabled: readBool(geoRoutingEnabled)
+  });
 
   $: geoScoringValid = (() => {
     try {
@@ -995,8 +1116,12 @@
     }
   })();
 
-  $: geoScoringDirty = geoRiskNormalized !== baseline.geo.risk;
+  $: geoScoringDirty = (
+    readBool(geoScoringEnabled) !== baseline.geo.scoringEnabled ||
+    geoRiskNormalized !== baseline.geo.risk
+  );
   $: geoRoutingDirty = (
+    readBool(geoRoutingEnabled) !== baseline.geo.routingEnabled ||
     geoAllowNormalized !== baseline.geo.allow ||
     geoChallengeNormalized !== baseline.geo.challenge ||
     geoMazeNormalized !== baseline.geo.maze ||
@@ -1101,7 +1226,7 @@
     { label: 'Geolocation routing', dirty: geoRoutingDirty, valid: geoRoutingValid },
     { label: 'Ban durations', dirty: durationsDirty, valid: durationsValid },
     { label: 'Robots serving', dirty: robotsDirty, valid: robotsValid },
-    { label: 'Artificial Intelligence bot policy', dirty: aiPolicyDirty, valid: true },
+    { label: 'Large Language Models bot policy', dirty: aiPolicyDirty, valid: true },
     { label: 'Advanced config', dirty: advancedDirty, valid: advancedValid }
   ];
   $: dirtySectionEntries = dirtySections.filter((section) => section.dirty === true);
@@ -1121,6 +1246,13 @@
     : '';
   $: exportConfigDisabled = !hasConfigSnapshot;
   $: warnOnUnload = writable && hasUnsavedChanges;
+
+  $: robotsPreviewPatchKey = JSON.stringify(buildRobotsPreviewPatch());
+
+  $: if (robotsPreviewOpen) {
+    void robotsPreviewPatchKey;
+    scheduleRobotsPreviewRefresh();
+  }
 
   $: {
     const nextVersion = Number(configVersion || 0);
@@ -1164,24 +1296,21 @@
       class="control-group panel-soft pad-md config-edit-pane"
       class:hidden={!writable}
     >
-      <h3>Test Mode</h3>
-      <p class="control-desc text-muted">Use for safe tuning. Enabled logs all detections without blocking; disable to enforce defenses.</p>
-      <div class="admin-controls">
-        <div class="toggle-row">
-          <label class="control-label control-label--wide" for="test-mode-toggle">{testModeToggleText}</label>
-          <label class="toggle-switch" for="test-mode-toggle">
-            <input
-              type="checkbox"
-              id="test-mode-toggle"
-              aria-label="Test mode active"
-              bind:checked={testMode}
-              disabled={testModeToggleDisabled}
-              on:change={onTestModeToggleChange}
-            >
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
+      <div class="panel-heading-with-control">
+        <h3>Test Mode</h3>
+        <label class="toggle-switch" for="test-mode-toggle">
+          <input
+            type="checkbox"
+            id="test-mode-toggle"
+            aria-label="Test mode active"
+            bind:checked={testMode}
+            disabled={testModeToggleDisabled}
+            on:change={onTestModeToggleChange}
+          >
+          <span class="toggle-slider"></span>
+        </label>
       </div>
+      <p class="control-desc text-muted">Use for safe tuning. Enabled logs all detections without blocking; disable to enforce defenses.</p>
       <span id="test-mode-status" class={testModeStatusClass}>{testModeStatusText}</span>
     </div>
 
@@ -1190,17 +1319,19 @@
       class:hidden={!writable}
       class:config-edit-pane--dirty={jsRequiredDirty}
     >
-      <h3><abbr title="JavaScript">JS</abbr> Required</h3>
-      <p class="control-desc text-muted">Require non-allowlisted requests to present a valid <code>js_verified</code> cookie. The presence of this cookie is verification that <abbr title="JavaScript">JS</abbr> is enabled. With Shuma-Gorath&rsquo;s <abbr title="Proof of Work">PoW</abbr> requirement also enabled, the cookie is set by the server after <code>/pow/verify</code>; with <abbr title="Proof of Work">PoW</abbr> disabled, it is set directly by the interstitial script. Disable only for non-<abbr title="JavaScript">JS</abbr> clients. WARNING: disabling weakens bot defence and bypasses <abbr title="Proof of Work">PoW</abbr> on this path.</p>
-      <div class="admin-controls">
-        <div class="toggle-row">
-          <label class="control-label control-label--wide" for="js-required-enforced-toggle">Enforce <abbr title="JavaScript">JS</abbr> Required</label>
-          <label class="toggle-switch" for="js-required-enforced-toggle">
-            <input type="checkbox" id="js-required-enforced-toggle" aria-label="Enforce JavaScript required" bind:checked={jsRequiredEnforced}>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
+      <div class="panel-heading-with-control">
+        <h3><abbr title="JavaScript">JS</abbr> Required</h3>
+        <label class="toggle-switch" for="js-required-enforced-toggle">
+          <input type="checkbox" id="js-required-enforced-toggle" aria-label="Enforce JavaScript required" bind:checked={jsRequiredEnforced}>
+          <span class="toggle-slider"></span>
+        </label>
       </div>
+      <p class="control-desc text-muted">Require non-allowlisted requests to present a valid <code>js_verified</code> cookie. The presence of this cookie is verification that <abbr title="JavaScript">JS</abbr> is enabled. With Shuma-Gorath&rsquo;s <abbr title="Proof of Work">PoW</abbr> requirement also enabled, the cookie is set by the server after <code>/pow/verify</code>; with <abbr title="Proof of Work">PoW</abbr> disabled, it is set directly by the interstitial script. Disable only for non-<abbr title="JavaScript">JS</abbr> clients.</p>
+      {#if !jsRequiredEnforced}
+        <p class="message warning">
+          Disabling JS Required weakens bot defence and bypasses <abbr title="Proof of Work">PoW</abbr> on this path.
+        </p>
+      {/if}
     </div>
 
     <div
@@ -1208,15 +1339,47 @@
       class:hidden={!writable}
       class:config-edit-pane--dirty={powDirty}
     >
-      <h3>Proof-of-Work (<abbr title="Proof of Work">PoW</abbr>)</h3>
+      <div class="panel-heading-with-control">
+        <h3>Proof-of-Work (<abbr title="Proof of Work">PoW</abbr>)</h3>
+        <label class="toggle-switch" for="pow-enabled-toggle">
+          <input type="checkbox" id="pow-enabled-toggle" aria-label="Enable Proof of Work challenge verification" bind:checked={powEnabled}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
       <p class="control-desc text-muted"><abbr title="Proof of Work">PoW</abbr> is a security mechanism used to help differentiate bots from humans by requiring the requesting client's device to solve a small, moderately complex computational puzzle before being granted access. It will be invisible to human users and incurrs only extremely low energy and request performance costs. <abbr title="Proof of Work">PoW</abbr> depends on <abbr title="JavaScript">JS</abbr> Required being enabled.</p>
+    </div>
+
+    <div
+      class="control-group panel-soft pad-md config-edit-pane"
+      class:hidden={!writable}
+      class:config-edit-pane--dirty={cdpDirty}
+    >
+      <div class="panel-heading-with-control">
+        <h3><abbr title="Chrome DevTools Protocol">CDP</abbr> (Detect Browser Automation)</h3>
+        <label class="toggle-switch" for="cdp-enabled-toggle">
+          <input type="checkbox" id="cdp-enabled-toggle" aria-label="Enable Chrome DevTools Protocol detection" bind:checked={cdpEnabled}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <p class="control-desc text-muted">Toggle detection of browser automation and optionally auto-ban when the signals indicating such automation breach the set threshold. Stricter thresholds catch more bots but may increase false positives.</p>
       <div class="admin-controls">
         <div class="toggle-row">
-          <label class="control-label control-label--wide" for="pow-enabled-toggle">Enable <abbr title="Proof of Work">PoW</abbr></label>
-          <label class="toggle-switch" for="pow-enabled-toggle">
-            <input type="checkbox" id="pow-enabled-toggle" aria-label="Enable Proof of Work challenge verification" bind:checked={powEnabled}>
+          <label class="control-label control-label--wide" for="cdp-auto-ban-toggle">Auto-ban on Detection</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="cdp-auto-ban-toggle" aria-label="Enable Chrome DevTools Protocol auto-ban" bind:checked={cdpAutoBan}>
             <span class="toggle-slider"></span>
           </label>
+        </div>
+        <div class="slider-control">
+          <div class="slider-header">
+            <label class="control-label control-label--wide" for="cdp-threshold-slider">Detection Threshold</label>
+            <span id="cdp-threshold-value" class="slider-badge">{Number(cdpThreshold).toFixed(1)}</span>
+          </div>
+          <input type="range" id="cdp-threshold-slider" min="0.3" max="1.0" step="0.1" aria-label="Chrome DevTools Protocol detection threshold" bind:value={cdpThreshold}>
+          <div class="slider-labels">
+            <span>Strict</span>
+            <span>Permissive</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1226,38 +1389,52 @@
       class:hidden={!writable}
       class:config-edit-pane--dirty={rateLimitDirty}
     >
-      <h3>Rate Limiting</h3>
-      <p class="control-desc text-muted">Set allowed requests per minute. Default is <code>80</code>; lower values are stricter but can affect legitimate burst traffic.</p>
+      <div class="panel-heading-with-control">
+        <h3>Rate Limiting</h3>
+        <label class="toggle-switch" for="rate-limit-enabled-toggle">
+          <input type="checkbox" id="rate-limit-enabled-toggle" aria-label="Enable rate limiting" bind:checked={rateLimitingEnabled}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <p class="control-desc text-muted">Define the allowed requests per minute per <abbr title="Internet Protocol">IP</abbr> bucket (<abbr title="Internet Protocol Version 4">IPv4</abbr> /24, <abbr title="Internet Protocol Version 6">IPv6</abbr> /64), not a single host <abbr title="Internet Protocol">IP</abbr>. Default budget is <code>80</code> requests; lower values are more strict but can affect legitimate burst traffic and innocent visitors when the budget of their <abbr title="Internet Protocol">IP</abbr> bucket is exhausted by a malicious bot.</p>
       <div class="admin-controls">
         <div class="input-row">
-          <label class="control-label control-label--wide" for="rate-limit-threshold">Requests Per Minute</label>
+          <label class="control-label control-label--wide" for="rate-limit-threshold">Requests Per Minute (per <abbr title="Internet Protocol">IP</abbr> bucket)</label>
           <input class="input-field" type="number" id="rate-limit-threshold" min="1" max="1000000" step="1" inputmode="numeric" aria-label="Rate limit requests per minute" bind:value={rateLimitThreshold}>
         </div>
       </div>
+      {#if !rateLimitingEnabled}
+        <p class="message warning">
+          Rate limiting is strongly advised. Disable only if upstream already enforces it or for temporary
+          testing. Scoring still stays active.
+        </p>
+      {/if}
     </div>
 
     <div
       class="control-group panel-soft pad-md config-edit-pane"
       class:hidden={!writable}
-      class:config-edit-pane--dirty={challengePuzzleDirty}
+      class:config-edit-pane--dirty={mazeDirty}
     >
-      <h3>Challenge: Puzzle</h3>
-      <p class="control-desc text-muted">
-        Set how many transform options are shown in puzzle challenges (higher values can increase solve time).
-        <a id="preview-challenge-puzzle-link" href="/challenge/puzzle" target="_blank" rel="noopener noreferrer">Preview Puzzle</a>
-        (test mode must be enabled).
-      </p>
+      <div class="panel-heading-with-control">
+        <h3>Maze</h3>
+        <label class="toggle-switch" for="maze-enabled-toggle">
+          <input type="checkbox" id="maze-enabled-toggle" aria-label="Enable maze" bind:checked={mazeEnabled}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <p class="control-desc text-muted">Toggle whether identified bot traffic gets routed into the Maze. Set the threshold of Maze pages visited before the IP of the visitor is added to the ban list. Low thresholds increase potential of false positives. You may click here to preview the <a id="preview-maze-link" href="/admin/maze/preview" target="_blank" rel="noopener noreferrer">Maze</a> without risk of being banned (admin session required).</p>
       <div class="admin-controls">
         <div class="toggle-row">
-          <label class="control-label control-label--wide" for="challenge-puzzle-enabled-toggle">Enable Challenge Puzzle</label>
-          <label class="toggle-switch" for="challenge-puzzle-enabled-toggle">
-            <input type="checkbox" id="challenge-puzzle-enabled-toggle" aria-label="Enable challenge puzzle routing" bind:checked={challengePuzzleEnabled}>
+          <label class="control-label" for="maze-auto-ban-toggle">Enable Auto-ban</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="maze-auto-ban-toggle" aria-label="Enable maze auto-ban" bind:checked={mazeAutoBan}>
             <span class="toggle-slider"></span>
           </label>
         </div>
-        <div class="input-row">
-          <label class="control-label" for="challenge-puzzle-transform-count">Transform Options</label>
-          <input class="input-field" type="number" id="challenge-puzzle-transform-count" min="4" max="8" step="1" inputmode="numeric" aria-label="Challenge transform option count" bind:value={challengePuzzleTransformCount}>
+        <div class="input-row" class:input-row--disabled={!mazeAutoBan} aria-disabled={!mazeAutoBan}>
+          <label class="control-label" class:text-muted={!mazeAutoBan} for="maze-threshold">Auto-ban Threshold (maze pages visited)</label>
+          <input class="input-field" type="number" id="maze-threshold" min="5" max="500" step="1" inputmode="numeric" aria-label="Maze ban threshold in pages" bind:value={mazeThreshold} disabled={!mazeAutoBan}>
         </div>
       </div>
     </div>
@@ -1267,39 +1444,60 @@
       class:hidden={!writable}
       class:config-edit-pane--dirty={notABotDirty}
     >
-      <h3>Challenge: Not-a-Bot</h3>
-      <p class="control-desc text-muted">This simple "I am not a bot" checkbox is the lightes weight bot verification that when enabled some visitors may encounter when the signals of them being a bot are below that required for more severe measures to be auto deployed but sufficient to warrant a challenge that will be extremely low friction for a human while imposing a cost on bots. To <a id="preview-not-a-bot-link" href="/challenge/not-a-bot-checkbox" target="_blank" rel="noopener noreferrer">preview Not-a-Bot</a>, test mode must be enabled.</p>
+      <div class="panel-heading-with-control">
+        <h3>Challenge: Not-a-Bot</h3>
+        <label class="toggle-switch" for="not-a-bot-enabled-toggle">
+          <input type="checkbox" id="not-a-bot-enabled-toggle" aria-label="Enable not-a-bot challenge routing" bind:checked={notABotEnabled}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <p class="control-desc text-muted">Not-a-Bot is the low-friction checkbox style challenge served when the botness signal is above zero but below the instant ban criteria or botness threshold. When Shuma Gorath is optimally configured, human uses should rarely see either challenge. You may click here to preview <a id="preview-not-a-bot-link" href="/challenge/not-a-bot-checkbox" target="_blank" rel="noopener noreferrer">Not-a-Bot</a>, but test mode must be enabled. Advanced controls (<abbr title="Number Used Once">Nonce</abbr> <abbr title="Time To Live">TTL</abbr>, marker <abbr title="Time To Live">TTL</abbr>, and attempt limits) are available in Advanced <abbr title="JavaScript Object Notation">JSON</abbr>.</p>
       <div class="admin-controls">
-        <div class="toggle-row">
-          <label class="control-label control-label--wide" for="not-a-bot-enabled-toggle">Enable Not-a-Bot</label>
-          <label class="toggle-switch" for="not-a-bot-enabled-toggle">
-            <input type="checkbox" id="not-a-bot-enabled-toggle" aria-label="Enable not-a-bot challenge routing" bind:checked={notABotEnabled}>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
         <div class="input-row">
-          <label class="control-label" for="not-a-bot-score-pass-min">Pass Score (1-10)</label>
-          <input class="input-field" type="number" id="not-a-bot-score-pass-min" min="1" max="10" step="1" inputmode="numeric" aria-label="Not-a-Bot pass score threshold" bind:value={notABotScorePassMin}>
+          <label class="control-label" for="not-a-bot-score-pass-min">Pass Score ({notABotScorePassMinFloor}-10)</label>
+          <input class="input-field" type="number" id="not-a-bot-score-pass-min" min={notABotScorePassMinFloor} max="10" step="1" inputmode="numeric" aria-label="Not-a-Bot pass score threshold" bind:value={notABotScorePassMin}>
         </div>
+        <p class="text-muted">Any scores above Fail and below Pass will be shown a tougher challenge.</p>
         <div class="input-row">
-          <label class="control-label" for="not-a-bot-score-escalate-min">Escalate Score (1-10)</label>
-          <input class="input-field" type="number" id="not-a-bot-score-escalate-min" min="1" max="10" step="1" inputmode="numeric" aria-label="Not-a-Bot escalation score threshold" bind:value={notABotScoreEscalateMin}>
+          <label class="control-label" for="not-a-bot-score-fail-max">Fail Score (0-{notABotScoreFailMaxCap})</label>
+          <input class="input-field" type="number" id="not-a-bot-score-fail-max" min="0" max={notABotScoreFailMaxCap} step="1" inputmode="numeric" aria-label="Not-a-Bot fail score threshold" bind:value={notABotScoreFailMax}>
         </div>
-        <div class="input-row">
-          <label class="control-label" for="not-a-bot-nonce-ttl"><abbr title="Number Used Once">Nonce</abbr> <abbr title="Time To Live">TTL</abbr> (seconds)</label>
-          <input class="input-field" type="number" id="not-a-bot-nonce-ttl" min="30" max="300" step="1" inputmode="numeric" aria-label="Not-a-Bot seed number used once time to live in seconds" bind:value={notABotNonceTtl}>
-        </div>
-        <div class="input-row">
-          <label class="control-label" for="not-a-bot-marker-ttl">Marker <abbr title="Time To Live">TTL</abbr> (seconds)</label>
-          <input class="input-field" type="number" id="not-a-bot-marker-ttl" min="60" max="3600" step="1" inputmode="numeric" aria-label="Not-a-Bot marker time to live in seconds" bind:value={notABotMarkerTtl}>
-        </div>
-        <div class="input-row">
-          <label class="control-label" for="not-a-bot-attempt-limit">Attempt Limit / Window</label>
-          <input class="input-field" type="number" id="not-a-bot-attempt-limit" min="1" max="100" step="1" inputmode="numeric" aria-label="Not-a-Bot attempt limit per window" bind:value={notABotAttemptLimit}>
-        </div>
-        <div class="input-row">
-          <label class="control-label" for="not-a-bot-attempt-window">Attempt Window (seconds)</label>
-          <input class="input-field" type="number" id="not-a-bot-attempt-window" min="30" max="3600" step="1" inputmode="numeric" aria-label="Not-a-Bot attempt window in seconds" bind:value={notABotAttemptWindow}>
+        <p class="text-muted">Scores below Fail route to Maze (if enabled), otherwise Block (403). Abuse failures (replay/tamper/attempt abuse) route to tarpit when available, otherwise a short ban.</p>
+      </div>
+    </div>
+
+    <div
+      class="control-group panel-soft pad-md config-edit-pane"
+      class:hidden={!writable}
+      class:config-edit-pane--dirty={challengePuzzleDirty}
+    >
+      <div class="panel-heading-with-control">
+        <h3>Challenge: Puzzle</h3>
+        <label class="toggle-switch" for="challenge-puzzle-enabled-toggle">
+          <input type="checkbox" id="challenge-puzzle-enabled-toggle" aria-label="Enable challenge puzzle routing" bind:checked={challengePuzzleEnabled}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <p class="control-desc text-muted">The Puzzle Challenge is shown to visitors failing to attain a pass score on the not-a-bot challenge, but who also scored above the hard fail level. It is designed to be significantly more costly for bots, while remaining relatively simple for humans. Very few humans should ever have to solve it. The Puzzle has deterministic solve verification (correct/incorrect) with strict signed-seed expiry and replay/timing enforcement. Advanced controls, including transform count (which increases the challenge difficulty), seed <abbr title="Time To Live">TTL</abbr>, and attempt limits, can be configured using the Advanced <abbr title="JavaScript Object Notation">JSON</abbr> input below. Wrong-answer user failures route to Maze. Abuse failures (replay/tamper/attempt abuse) route to tarpit when available, otherwise a short ban. You may click here to preview the <a id="preview-challenge-puzzle-link" href="/challenge/puzzle" target="_blank" rel="noopener noreferrer">Puzzle</a>, but test mode must be enabled.</p>
+    </div>
+
+    <div
+      class="control-group panel-soft pad-md config-edit-pane"
+      class:hidden={!writable}
+      class:config-edit-pane--dirty={honeypotDirty}
+    >
+      <div class="panel-heading-with-control">
+        <h3>Honeypot Paths</h3>
+        <label class="toggle-switch" for="honeypot-enabled-toggle">
+          <input type="checkbox" id="honeypot-enabled-toggle" aria-label="Enable honeypot" bind:checked={honeypotEnabled}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <p class="control-desc text-muted">One path per line. Requests that hit these paths are treated as high-confidence bot behavior. Paths must start with <code>/</code>.</p>
+      <div class="admin-controls">
+        <div class="geo-field">
+          <label class="control-label" for="honeypot-paths">Paths</label>
+          <textarea class="input-field geo-textarea" id="honeypot-paths" rows="3" aria-label="Honeypot paths" spellcheck="false" bind:value={honeypotPaths}></textarea>
         </div>
       </div>
     </div>
@@ -1309,19 +1507,18 @@
       class:hidden={!writable}
       class:config-edit-pane--dirty={ipRangeDirty}
     >
-      <h3><abbr title="Internet Protocol">IP</abbr> Range Policy</h3>
+      <div class="panel-heading-with-control">
+        <h3><abbr title="Internet Protocol">IP</abbr> Range Policy</h3>
+        <select class="input-field panel-heading-select" id="ip-range-policy-mode" aria-label="Internet Protocol range policy mode" bind:value={ipRangePolicyMode}>
+          <option value="off">off</option>
+          <option value="advisory">advisory</option>
+          <option value="enforce">enforce</option>
+        </select>
+      </div>
       <p class="control-desc text-muted">
         Configure <abbr title="Classless Inter-Domain Routing">CIDR</abbr> policy mode, emergency allowlist, custom rules, managed set policies, and managed-catalog staleness safeguards.
       </p>
       <div class="admin-controls">
-        <div class="input-row">
-          <label class="control-label control-label--wide" for="ip-range-policy-mode">Policy Mode</label>
-          <select class="input-field" id="ip-range-policy-mode" aria-label="Internet Protocol range policy mode" bind:value={ipRangePolicyMode}>
-            <option value="off">off</option>
-            <option value="advisory">advisory</option>
-            <option value="enforce">enforce</option>
-          </select>
-        </div>
         <div class="geo-field">
           <label class="control-label" for="ip-range-emergency-allowlist">Emergency Allowlist <abbr title="Classless Inter-Domain Routing">CIDRs</abbr></label>
           <textarea
@@ -1386,7 +1583,7 @@
           </label>
         </div>
       </div>
-      <div class="info-panel panel-soft pad-sm">
+      <div class="info-panel panel-soft">
         <h4>Managed Catalog Snapshot</h4>
         <div class="info-row">
           <span class="info-label text-muted">Version</span>
@@ -1445,31 +1642,15 @@
     <div
       class="control-group panel-soft pad-md config-edit-pane"
       class:hidden={!writable}
-      class:config-edit-pane--dirty={honeypotDirty}
-    >
-      <h3>Honeypot Paths</h3>
-      <p class="control-desc text-muted">One path per line. Requests that hit these paths are treated as high-confidence bot behavior. Paths must start with <code>/</code>.</p>
-      <div class="admin-controls">
-        <div class="toggle-row">
-          <label class="control-label control-label--wide" for="honeypot-enabled-toggle">Enable Honeypot</label>
-          <label class="toggle-switch" for="honeypot-enabled-toggle">
-            <input type="checkbox" id="honeypot-enabled-toggle" aria-label="Enable honeypot" bind:checked={honeypotEnabled}>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="geo-field">
-          <label class="control-label" for="honeypot-paths">Paths</label>
-          <textarea class="input-field geo-textarea" id="honeypot-paths" rows="3" aria-label="Honeypot paths" spellcheck="false" bind:value={honeypotPaths}></textarea>
-        </div>
-      </div>
-    </div>
-
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
       class:config-edit-pane--dirty={browserPolicyDirty}
     >
-      <h3>Browser Policy</h3>
+      <div class="panel-heading-with-control">
+        <h3>Browser Policy</h3>
+        <label class="toggle-switch" for="browser-policy-toggle">
+          <input type="checkbox" id="browser-policy-toggle" bind:checked={browserPolicyEnabled}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
       <p class="control-desc text-muted">Use one rule per line in <code>BrowserName,min_major</code> format (for example <code>Chrome,120</code>).</p>
       <div class="admin-controls">
         <div class="geo-field">
@@ -1488,7 +1669,13 @@
       class:hidden={!writable}
       class:config-edit-pane--dirty={whitelistDirty}
     >
-      <h3>Bypass Allowlists</h3>
+      <div class="panel-heading-with-control">
+        <h3>Bypass Allowlists</h3>
+        <label class="toggle-switch" for="bypass-allowlists-toggle">
+          <input type="checkbox" id="bypass-allowlists-toggle" bind:checked={bypassAllowlistsEnabled}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
       <p class="control-desc text-muted">Define trusted bypass entries. Use one entry per line.</p>
       <div class="admin-controls">
         <div class="geo-field">
@@ -1505,89 +1692,17 @@
     <div
       class="control-group panel-soft pad-md config-edit-pane"
       class:hidden={!writable}
-      class:config-edit-pane--dirty={mazeDirty}
-    >
-      <h3>Maze</h3>
-      <p class="control-desc text-muted">
-        Control trap-page routing and optional auto-ban. Lower thresholds ban faster but may increase false positives.
-        <a id="preview-maze-link" href="/admin/maze/preview" target="_blank" rel="noopener noreferrer">Preview Maze</a>
-        in a non-operational view (admin session required).
-      </p>
-      <div class="admin-controls">
-        <div class="toggle-row">
-          <label class="control-label" for="maze-enabled-toggle">Maze Enabled</label>
-          <label class="toggle-switch">
-            <input type="checkbox" id="maze-enabled-toggle" aria-label="Enable maze" bind:checked={mazeEnabled}>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="toggle-row">
-          <label class="control-label" for="maze-auto-ban-toggle">Ban on entry</label>
-          <label class="toggle-switch">
-            <input type="checkbox" id="maze-auto-ban-toggle" aria-label="Enable maze ban on entry" bind:checked={mazeAutoBan}>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="input-row">
-          <label class="control-label" for="maze-threshold">Ban Threshold (pages)</label>
-          <input class="input-field" type="number" id="maze-threshold" min="5" max="500" step="1" inputmode="numeric" aria-label="Maze ban threshold in pages" bind:value={mazeThreshold}>
-        </div>
-      </div>
-    </div>
-
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={cdpDirty}
-    >
-      <h3><abbr title="Chrome DevTools Protocol">CDP</abbr> (Detect Browser Automation)</h3>
-      <p class="control-desc text-muted">Control automation-signal detection and optional auto-ban. Stricter thresholds catch more bots but may increase false positives.</p>
-      <div class="admin-controls">
-        <div class="toggle-row">
-          <label class="control-label control-label--wide" for="cdp-enabled-toggle">Enable Detection</label>
-          <label class="toggle-switch">
-            <input type="checkbox" id="cdp-enabled-toggle" aria-label="Enable Chrome DevTools Protocol detection" bind:checked={cdpEnabled}>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="toggle-row">
-          <label class="control-label control-label--wide" for="cdp-auto-ban-toggle">Auto-ban on Detection</label>
-          <label class="toggle-switch">
-            <input type="checkbox" id="cdp-auto-ban-toggle" aria-label="Enable Chrome DevTools Protocol auto-ban" bind:checked={cdpAutoBan}>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="slider-control">
-          <div class="slider-header">
-            <label class="control-label control-label--wide" for="cdp-threshold-slider">Detection Threshold</label>
-            <span id="cdp-threshold-value" class="slider-badge">{Number(cdpThreshold).toFixed(1)}</span>
-          </div>
-          <input type="range" id="cdp-threshold-slider" min="0.3" max="1.0" step="0.1" aria-label="Chrome DevTools Protocol detection threshold" bind:value={cdpThreshold}>
-          <div class="slider-labels">
-            <span>Strict</span>
-            <span>Permissive</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
       class:config-edit-pane--dirty={edgeModeDirty}
     >
-      <h3>Edge Integration Mode</h3>
-      <p class="control-desc text-muted">Control how external edge bot outcomes influence local policy: off ignores edge outcomes, advisory records them without direct enforcement, authoritative allows strong edge outcomes to short-circuit.</p>
-      <div class="admin-controls">
-        <div class="input-row">
-          <label class="control-label control-label--wide" for="edge-integration-mode-select">Mode</label>
-          <select class="input-field" id="edge-integration-mode-select" aria-label="Edge integration mode" bind:value={edgeIntegrationMode}>
-            <option value="off">off</option>
-            <option value="advisory">advisory</option>
-            <option value="authoritative">authoritative</option>
-          </select>
-        </div>
+      <div class="panel-heading-with-control">
+        <h3>Edge Integration Mode</h3>
+        <select class="input-field panel-heading-select" id="edge-integration-mode-select" aria-label="Edge integration mode" bind:value={edgeIntegrationMode}>
+          <option value="off">off</option>
+          <option value="advisory">advisory</option>
+          <option value="authoritative">authoritative</option>
+        </select>
       </div>
+      <p class="control-desc text-muted">Control how external edge bot outcomes influence local policy: off ignores edge outcomes, advisory records them without direct enforcement, authoritative allows strong edge outcomes to short-circuit.</p>
     </div>
 
     <div
@@ -1595,8 +1710,14 @@
       class:hidden={!writable}
       class:config-edit-pane--dirty={geoScoringDirty}
     >
-      <h3><abbr title="Geolocation">GEO</abbr> Risk Based Scoring</h3>
-      <p class="control-desc text-muted">Use <a href="https://www.iban.com/country-codes">2-letter country codes</a> to specify countries from where requests will be receive added botness risk to contribute to the combined score.</p>
+      <div class="panel-heading-with-control">
+        <h3><abbr title="Geolocation">GEO</abbr> Risk Based Scoring</h3>
+        <label class="toggle-switch" for="geo-scoring-toggle">
+          <input type="checkbox" id="geo-scoring-toggle" bind:checked={geoScoringEnabled}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <p class="control-desc text-muted">Use <a href="https://www.iban.com/country-codes">2-letter country codes</a> to specify countries from where requests will receive added botness risk to contribute to the combined score.</p>
       <div class="admin-controls geo-controls">
         <div class="geo-field">
           <label class="control-label" for="geo-risk-list">Scoring Countries</label>
@@ -1610,7 +1731,13 @@
       class:hidden={!writable}
       class:config-edit-pane--dirty={geoRoutingDirty}
     >
-      <h3><abbr title="Geolocation">GEO</abbr> Risk Based Routing</h3>
+      <div class="panel-heading-with-control">
+        <h3><abbr title="Geolocation">GEO</abbr> Risk Based Routing</h3>
+        <label class="toggle-switch" for="geo-routing-toggle">
+          <input type="checkbox" id="geo-routing-toggle" bind:checked={geoRoutingEnabled}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
       <p class="control-desc text-muted">Use <a href="https://www.iban.com/country-codes">2-letter country codes</a> to specify countries from where requests will be automatically routed. Precedence is Block &gt; Maze &gt; Challenge &gt; Allow.</p>
       <div class="admin-controls geo-controls">
         <div class="geo-field">
@@ -1733,34 +1860,32 @@
       class:hidden={!writable}
       class:config-edit-pane--dirty={robotsDirty || aiPolicyDirty}
     >
-      <h3>Robots and <abbr title="Artificial Intelligence">AI</abbr> Bot Policy</h3>
-      <p class="control-desc text-muted">Keep robots.txt serving controls separate from <abbr title="Artificial Intelligence">AI</abbr> bot policy controls.</p>
+      <div class="panel-heading-with-control">
+        <h3>Serve a Robots.txt Specifying Bot Policy</h3>
+        <label class="toggle-switch" for="robots-enabled-toggle">
+          <input type="checkbox" id="robots-enabled-toggle" aria-label="Serve robots.txt" bind:checked={robotsEnabled} on:change={onRobotsPreviewControlChanged}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <p class="control-desc text-muted">View the current policy as configured below: <a id="open-robots-txt-link" href="/robots.txt" target="_blank" rel="noopener noreferrer">robots.txt</a></p>
       <div class="admin-controls">
-        <h4 class="control-subtitle">robots.txt Serving</h4>
-        <div class="toggle-row">
-          <label class="control-label control-label--wide" for="robots-enabled-toggle">Serve robots.txt</label>
-          <label class="toggle-switch">
-            <input type="checkbox" id="robots-enabled-toggle" aria-label="Serve robots.txt" bind:checked={robotsEnabled}>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
         <div class="input-row">
           <label class="control-label control-label--wide" for="robots-crawl-delay">Crawl Delay (seconds)</label>
-          <input class="input-field" type="number" id="robots-crawl-delay" min="0" max="60" step="1" inputmode="numeric" aria-label="Robots crawl delay in seconds" bind:value={robotsCrawlDelay}>
+          <input class="input-field" type="number" id="robots-crawl-delay" min="0" max="60" step="1" inputmode="numeric" aria-label="Robots crawl delay in seconds" bind:value={robotsCrawlDelay} on:input={onRobotsPreviewControlChanged}>
         </div>
-        <h4 class="control-subtitle"><abbr title="Artificial Intelligence">AI</abbr> Bot Policy</h4>
+        <h4 class="control-subtitle"><abbr title="Large Language Models">AI</abbr> Bot Policy</h4>
         <div class="toggle-row">
-          <label class="control-label control-label--wide" for="robots-block-training-toggle">Opt-out <abbr title="Artificial Intelligence">AI</abbr> Training</label>
+          <label class="control-label control-label--wide" for="robots-block-training-toggle">Opt-out <abbr title="Large Language Models">AI</abbr> Training</label>
           <label class="toggle-switch">
-            <input type="checkbox" id="robots-block-training-toggle" aria-label="Opt-out artificial intelligence training" bind:checked={robotsBlockTraining}>
+            <input type="checkbox" id="robots-block-training-toggle" aria-label="Opt-out Large Language Models training" bind:checked={robotsBlockTraining} on:change={onRobotsPreviewControlChanged}>
             <span class="toggle-slider"></span>
           </label>
           <span class="toggle-hint">GPTBot, CCBot, ClaudeBot</span>
         </div>
         <div class="toggle-row">
-          <label class="control-label control-label--wide" for="robots-block-search-toggle">Opt-out <abbr title="Artificial Intelligence">AI</abbr> Search</label>
+          <label class="control-label control-label--wide" for="robots-block-search-toggle">Opt-out <abbr title="Large Language Models">AI</abbr> Search</label>
           <label class="toggle-switch">
-            <input type="checkbox" id="robots-block-search-toggle" aria-label="Opt-out artificial intelligence search" bind:checked={robotsBlockSearch}>
+            <input type="checkbox" id="robots-block-search-toggle" aria-label="Opt-out Large Language Models search" bind:checked={robotsBlockSearch} on:change={onRobotsPreviewControlChanged}>
             <span class="toggle-slider"></span>
           </label>
           <span class="toggle-hint">PerplexityBot, etc.</span>
@@ -1768,7 +1893,7 @@
         <div class="toggle-row">
           <label class="control-label control-label--wide" for="robots-allow-search-toggle">Restrict Search Engines</label>
           <label class="toggle-switch">
-            <input type="checkbox" id="robots-allow-search-toggle" aria-label="Restrict search engines" bind:checked={restrictSearchEngines}>
+            <input type="checkbox" id="robots-allow-search-toggle" aria-label="Restrict search engines" bind:checked={restrictSearchEngines} on:change={onRobotsPreviewControlChanged}>
             <span class="toggle-slider"></span>
           </label>
           <span class="toggle-hint">Google, Bing, etc.</span>
@@ -1790,7 +1915,7 @@
         class="btn btn-subtle"
         disabled={exportConfigDisabled}
         on:click={exportCurrentConfigJson}
-      >Export the current configuration as JSON</button>
+      >Export a JSON copy of the above configuration</button>
       {#if exportConfigStatus}
         <p id="export-current-config-status" class={`message ${exportConfigStatusKind}`}>{exportConfigStatus}</p>
       {/if}

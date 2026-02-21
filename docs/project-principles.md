@@ -64,6 +64,7 @@ Shuma-Gorath exists to provide layered, practical bot defense that teams can dep
 
 - MUST update docs when behavior, config, or operations change.
 - MUST keep docs discoverable from the docs index and README.
+- MUST place panel-specific warning messages at the bottom of the panel they apply to in dashboard configuration UI.
 - SHOULD include rationale for non-obvious decisions.
 
 ### P7. Platform-Agnostic Core
@@ -105,6 +106,7 @@ Shuma-Gorath exists to provide layered, practical bot defense that teams can dep
 - MUST define lifecycle expectations for new config keys and APIs.
 - MUST treat `config/defaults.env` as the canonical source of truth for `SHUMA_*` defaults and update it first when adding/changing variables.
 - MUST keep variable wiring in sync across setup/seed/runtime workflows so `make setup` and `make config-seed` establish a correct baseline without manual repair.
+- MUST keep dashboard Advanced <abbr title="JavaScript Object Notation">JSON</abbr> coverage in strict parity with all non-env-only writable admin config fields (`AdminConfigPatch` in `src/admin/api.rs`), including accepted compatibility aliases.
 - MUST preserve environment profile intent:
   - dev may apply explicit helper overrides for local manual config/monitoring/tuning,
   - tests must restore env/config changes they introduce and not leak mutated state,

@@ -60,9 +60,9 @@
   --btn-submit-fg: var(--color-back);
   --btn-submit-disabled-bg: var(--color-400);
   --btn-submit-disabled-fg: var(--color-700);
-  --inline-link-fg: #9a0f63;
-  --inline-link-hover-fg: #740b4b;
-  --inline-link-visited-fg: #7f2568;
+  --inline-link-fg: #a41a82;
+  --inline-link-hover-fg: #ff2dce;
+  --inline-link-visited-fg: #841568;
   --inline-link-focus-ring: rgba(154, 15, 99, 0.35);
 
   /* Typography scale */
@@ -251,6 +251,7 @@ body {
   margin: 0 auto;
   margin-top: -56px;
   filter: sepia(1) hue-rotate(276deg) saturate(2) brightness(0.95);
+  pointer-events: none;
 }
 
 /* ===========================================
@@ -324,7 +325,7 @@ h1 {
   right: 12px;
   width: auto;
   border-radius: 0.2rem;
-  padding: 14px;
+  padding: 8px 20px;
   z-index: 20;
 }
 
@@ -336,7 +337,7 @@ h1 {
 .dashboard-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px;
   border-bottom: var(--border-hairline);
 }
 
@@ -344,7 +345,7 @@ h1 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 14px;
+  padding: 8px 20px;
   border-bottom: 1px solid var(--color-300);
   border-radius: 0.2rem 0.2rem 0 0;
   background: var(--color-100);
@@ -808,9 +809,9 @@ code.env-var {
   border-left: 3px solid var(--color-bright-pink);
 }
 
-.config-edit-pane--dirty > h3::after {
+.config-edit-pane--dirty > h3::after,
+.config-edit-pane--dirty > .panel-heading-with-control > h3::after {
   content: "Unsaved Changes";
-  float: right;
   margin-left: 8px;
   font-size: var(--text-xs);
   font-weight: lighter;
@@ -866,6 +867,29 @@ code.env-var {
   color: var(--color-700);
 }
 
+.panel-heading-with-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.panel-heading-with-control h3 {
+  margin: 0 0 1rem 0;
+}
+
+.panel-heading-with-control .toggle-switch {
+  justify-self: end;
+  margin-right: 0;
+}
+
+.panel-heading-select {
+  width: auto !important;
+  min-width: 128px;
+  max-width: 220px;
+  margin-bottom: 0 !important;
+  justify-self: end;
+}
+
 .control-group .input-field {
   width: 100%;
   padding: 10px;
@@ -909,32 +933,24 @@ code.env-var {
   margin-bottom: 10px;
 }
 
-.control-desc a,
-.section-desc a,
-.admin-group-subtitle a {
+a {
   color: var(--inline-link-fg);
   text-decoration-color: var(--inline-link-fg);
   text-underline-offset: 2px;
   transition: color 0.2s ease, text-decoration-color 0.2s ease;
 }
 
-.control-desc a:visited,
-.section-desc a:visited,
-.admin-group-subtitle a:visited {
+ a:visited {
   color: var(--inline-link-visited-fg);
   text-decoration-color: var(--inline-link-visited-fg);
 }
 
-.control-desc a:hover,
-.section-desc a:hover,
-.admin-group-subtitle a:hover {
+a:hover {
   color: var(--inline-link-hover-fg);
   text-decoration-color: var(--inline-link-hover-fg);
 }
 
-.control-desc a:focus-visible,
-.section-desc a:focus-visible,
-.admin-group-subtitle a:focus-visible {
+a:focus-visible {
   outline: 2px solid var(--inline-link-focus-ring);
   outline-offset: 2px;
   border-radius: 2px;
@@ -1027,7 +1043,7 @@ code.env-var {
   position: relative;
   display: inline-block;
   width: 60px;
-  height: 34px;
+  height: 20px;
   margin-right: 10px;
   flex-shrink: 0;
 }
@@ -1052,10 +1068,10 @@ code.env-var {
 .toggle-slider:before {
   position: absolute;
   content: "";
-  height: 26px;
-  width: 26px;
-  left: 4px;
-  bottom: 4px;
+  height: 16px;
+  width: 30px;
+  left: 2px;
+  bottom: 2px;
   background-color: var(--color-back);
   transition: 0.4s;
 }
@@ -1301,6 +1317,11 @@ input:checked + .toggle-slider:before {
 .input-row input:focus {
   outline: none;
   border-color: var(--color-500);
+}
+
+.input-row.input-row--disabled {
+  opacity: 0.35;
+  pointer-events: none;
 }
 
 /* GEO policy stacked country lists */

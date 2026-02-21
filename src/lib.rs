@@ -981,7 +981,7 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
     );
 
     // Path-based whitelist (for webhooks/integrations)
-    if whitelist::is_path_whitelisted(path, &cfg.path_whitelist) {
+    if cfg.bypass_allowlists_enabled && whitelist::is_path_whitelisted(path, &cfg.path_whitelist) {
         observability::metrics::increment(
             store,
             observability::metrics::MetricName::WhitelistedTotal,
@@ -990,7 +990,7 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         return Response::new(200, "OK (path whitelisted)");
     }
     // IP/CIDR whitelist
-    if whitelist::is_whitelisted(&ip, &cfg.whitelist) {
+    if cfg.bypass_allowlists_enabled && whitelist::is_whitelisted(&ip, &cfg.whitelist) {
         observability::metrics::increment(
             store,
             observability::metrics::MetricName::WhitelistedTotal,
@@ -1077,7 +1077,7 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
             .handle_pow_verify(req, &ip, cfg.pow_enabled);
     }
     // Outdated browser
-    if browser::is_outdated_browser(ua, &cfg.browser_block) {
+    if cfg.browser_policy_enabled && browser::is_outdated_browser(ua, &cfg.browser_block) {
         let policy_match = runtime::policy_taxonomy::resolve_policy_match(
             runtime::policy_taxonomy::PolicyTransition::BrowserOutdated,
         );

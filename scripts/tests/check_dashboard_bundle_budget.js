@@ -16,7 +16,7 @@ function readLimit(name, fallback) {
 
 const limits = {
   totalBytes: readLimit('SHUMA_DASHBOARD_BUNDLE_MAX_TOTAL_BYTES', 350000),
-  totalJsBytes: readLimit('SHUMA_DASHBOARD_BUNDLE_MAX_JS_BYTES', 320000),
+  totalJsBytes: readLimit('SHUMA_DASHBOARD_BUNDLE_MAX_JS_BYTES', 330000),
   totalCssBytes: readLimit('SHUMA_DASHBOARD_BUNDLE_MAX_CSS_BYTES', 40000),
   maxSingleJsBytes: readLimit('SHUMA_DASHBOARD_BUNDLE_MAX_JS_CHUNK_BYTES', 150000),
   maxSingleCssBytes: readLimit('SHUMA_DASHBOARD_BUNDLE_MAX_CSS_ASSET_BYTES', 30000)

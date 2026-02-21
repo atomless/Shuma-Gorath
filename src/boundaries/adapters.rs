@@ -15,8 +15,13 @@ impl ChallengeBoundary for DefaultChallengeBoundary {
         crate::challenge::NOT_A_BOT_PATH
     }
 
-    fn render_challenge(&self, req: &Request, transform_count: usize) -> Response {
-        crate::challenge::render_challenge(req, transform_count)
+    fn render_challenge(
+        &self,
+        req: &Request,
+        transform_count: usize,
+        seed_ttl_seconds: u64,
+    ) -> Response {
+        crate::challenge::render_challenge_with_seed_ttl(req, transform_count, seed_ttl_seconds)
     }
 
     fn render_not_a_bot(&self, req: &Request, cfg: &crate::config::Config) -> Response {
@@ -28,8 +33,14 @@ impl ChallengeBoundary for DefaultChallengeBoundary {
         req: &Request,
         test_mode: bool,
         transform_count: usize,
+        seed_ttl_seconds: u64,
     ) -> Response {
-        crate::challenge::serve_challenge_page(req, test_mode, transform_count)
+        crate::challenge::serve_challenge_page_with_seed_ttl(
+            req,
+            test_mode,
+            transform_count,
+            seed_ttl_seconds,
+        )
     }
 
     fn serve_not_a_bot_page(
@@ -45,8 +56,15 @@ impl ChallengeBoundary for DefaultChallengeBoundary {
         &self,
         store: &S,
         req: &Request,
+        challenge_puzzle_attempt_window_seconds: u64,
+        challenge_puzzle_attempt_limit_per_window: u32,
     ) -> (Response, crate::challenge::ChallengeSubmitOutcome) {
-        crate::challenge::handle_challenge_submit_with_outcome(store, req)
+        crate::challenge::handle_challenge_submit_with_outcome_with_limits(
+            store,
+            req,
+            challenge_puzzle_attempt_window_seconds,
+            challenge_puzzle_attempt_limit_per_window,
+        )
     }
 
     fn handle_not_a_bot_submit_with_outcome<S: crate::challenge::KeyValueStore>(
@@ -83,8 +101,12 @@ pub(crate) fn challenge_not_a_bot_path() -> &'static str {
     CHALLENGE.not_a_bot_path()
 }
 
-pub(crate) fn render_challenge(req: &Request, transform_count: usize) -> Response {
-    CHALLENGE.render_challenge(req, transform_count)
+pub(crate) fn render_challenge(
+    req: &Request,
+    transform_count: usize,
+    seed_ttl_seconds: u64,
+) -> Response {
+    CHALLENGE.render_challenge(req, transform_count, seed_ttl_seconds)
 }
 
 pub(crate) fn render_not_a_bot(req: &Request, cfg: &crate::config::Config) -> Response {
@@ -95,8 +117,9 @@ pub(crate) fn serve_challenge_page(
     req: &Request,
     test_mode: bool,
     transform_count: usize,
+    seed_ttl_seconds: u64,
 ) -> Response {
-    CHALLENGE.serve_challenge_page(req, test_mode, transform_count)
+    CHALLENGE.serve_challenge_page(req, test_mode, transform_count, seed_ttl_seconds)
 }
 
 pub(crate) fn serve_not_a_bot_page(
@@ -110,8 +133,15 @@ pub(crate) fn serve_not_a_bot_page(
 pub(crate) fn handle_challenge_submit_with_outcome<S: crate::challenge::KeyValueStore>(
     store: &S,
     req: &Request,
+    challenge_puzzle_attempt_window_seconds: u64,
+    challenge_puzzle_attempt_limit_per_window: u32,
 ) -> (Response, crate::challenge::ChallengeSubmitOutcome) {
-    CHALLENGE.handle_challenge_submit_with_outcome(store, req)
+    CHALLENGE.handle_challenge_submit_with_outcome(
+        store,
+        req,
+        challenge_puzzle_attempt_window_seconds,
+        challenge_puzzle_attempt_limit_per_window,
+    )
 }
 
 pub(crate) fn handle_not_a_bot_submit_with_outcome<S: crate::challenge::KeyValueStore>(

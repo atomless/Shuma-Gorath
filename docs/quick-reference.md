@@ -71,6 +71,7 @@ make test-dashboard-e2e    # In terminal 2
 - `GET /admin/maze` - maze statistics
 - `GET /admin/maze/preview?path=<maze_entry_path>...` - non-operational maze preview surface
 - `GET /admin/robots` - robots.txt configuration and preview
+- `POST /admin/robots/preview` - robots.txt preview from unsaved toggles/patch (no persistence)
 - `GET /admin/cdp` - <abbr title="Chrome DevTools Protocol">CDP</abbr> + fingerprint detection configuration and stats
 - `GET /admin` - <abbr title="Application Programming Interface">API</abbr> help
 

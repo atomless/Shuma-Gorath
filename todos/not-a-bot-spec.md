@@ -64,7 +64,7 @@ Operational controls:
 - `not_a_bot_marker_ttl_seconds` (short continuity marker TTL)
 - `not_a_bot_attempt_limit_per_window`
 - `not_a_bot_attempt_window_seconds`
-- `not_a_bot_score_pass_min` and `not_a_bot_score_escalate_min`
+- `not_a_bot_pass_score` and `not_a_bot_fail_score`
 
 ## Client Telemetry Contract
 

@@ -113,7 +113,7 @@ const VAR_MEANINGS = Object.freeze({
     'ban_durations.browser': 'Ban duration (seconds) for browser-policy automation detections.',
     'ban_durations.admin': 'Default ban duration (seconds) for manual admin bans.',
     'ban_durations.cdp': 'Ban duration (seconds) for strong CDP automation detections.',
-    rate_limit: 'Requests-per-minute threshold used by rate limiting.',
+    rate_limit: 'Requests-per-minute threshold used by rate limiting per source IP bucket (IPv4 /24, IPv6 /64).',
     honeypot_enabled: 'Enables/disables honeypot trap handling and enforcement for configured honeypot paths.',
     honeypots: 'Trap paths that are treated as high-confidence bot traffic.',
     browser_block: 'Minimum browser-version policy used for blocking suspicious automation stacks.',
@@ -217,8 +217,8 @@ const VAR_MEANINGS = Object.freeze({
     challenge_puzzle_risk_threshold_default: 'Default challenge threshold derived from environment seed.',
     not_a_bot_enabled: 'Enables/disables Not-a-Bot checkbox routing at medium botness certainty.',
     not_a_bot_risk_threshold: 'Botness threshold for serving the Not-a-Bot checkbox step.',
-    not_a_bot_score_pass_min: 'Minimum Not-a-Bot score required to pass and return to normal flow.',
-    not_a_bot_score_escalate_min: 'Minimum Not-a-Bot score required to escalate to puzzle instead of maze/block.',
+    not_a_bot_pass_score: 'Minimum Not-a-Bot score required to pass and return to normal flow.',
+    not_a_bot_fail_score: 'Minimum Not-a-Bot score required to escalate to puzzle instead of maze/block.',
     not_a_bot_nonce_ttl_seconds: 'Not-a-Bot seed token lifetime in seconds.',
     not_a_bot_marker_ttl_seconds: 'Not-a-Bot pass marker lifetime in seconds.',
     not_a_bot_attempt_limit_per_window: 'Maximum Not-a-Bot submit attempts allowed per window per identity bucket.',
@@ -535,7 +535,7 @@ const STATUS_DEFINITIONS = [
       title: 'Fail Mode Policy',
       description: () => (
         `Controls request handling when the KV store is unavailable. ${envVar('SHUMA_KV_STORE_FAIL_OPEN')}=<strong>true</strong> allows requests to continue (fail-open); ` +
-        `${envVar('SHUMA_KV_STORE_FAIL_OPEN')}=<strong>false</strong> blocks requests that require KV-backed decisions (fail-closed).`
+        `${envVar('SHUMA_KV_STORE_FAIL_OPEN')}=<strong>false</strong> blocks requests that require KV-backed decisions (fail-closed). Can only be set in ENV. Set to false for a Security-first stance, and true for an Availability-first stance.`
       ),
       status: snapshot => normalizeFailMode(snapshot.failMode).toUpperCase()
     },
@@ -581,7 +581,7 @@ const STATUS_DEFINITIONS = [
       description: snapshot => (
         `Lower-certainty step-up routing can serve the Not-a-Bot checkbox when ${envVar('SHUMA_NOT_A_BOT_ENABLED')} is true and cumulative botness reaches ${envVar('SHUMA_NOT_A_BOT_RISK_THRESHOLD')} ` +
         `(enabled: <strong>${boolStatus(snapshot.notABotEnabled)}</strong>, current: <strong>${snapshot.notABotThreshold}</strong>). ` +
-        `Submit scoring uses ${envVar('SHUMA_NOT_A_BOT_SCORE_PASS_MIN')} and ${envVar('SHUMA_NOT_A_BOT_SCORE_ESCALATE_MIN')}. ` +
+        `Submit scoring uses ${envVar('SHUMA_NOT_A_BOT_PASS_SCORE')} and ${envVar('SHUMA_NOT_A_BOT_FAIL_SCORE')}. ` +
         `Token and attempt controls are governed by ${envVar('SHUMA_NOT_A_BOT_NONCE_TTL_SECONDS')}, ${envVar('SHUMA_NOT_A_BOT_MARKER_TTL_SECONDS')}, ${envVar('SHUMA_NOT_A_BOT_ATTEMPT_LIMIT_PER_WINDOW')}, and ${envVar('SHUMA_NOT_A_BOT_ATTEMPT_WINDOW_SECONDS')}.`
       ),
       status: snapshot => boolStatus(snapshot.notABotEnabled)

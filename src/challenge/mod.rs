@@ -15,15 +15,20 @@ pub(crate) use not_a_bot::{
 pub use puzzle::handle_challenge_submit;
 #[cfg(test)]
 pub(crate) use puzzle::make_seed_token;
+#[cfg(test)]
 pub(crate) use puzzle::render_challenge;
+pub(crate) use puzzle::render_challenge_with_seed_ttl;
 #[cfg(test)]
 pub(crate) use puzzle::{
     apply_transform, build_puzzle, generate_pair, parse_submission, parse_transform_count,
     select_transform_pair, transforms_for_count, ChallengeSeed, Transform,
 };
 pub(crate) use puzzle::{
-    handle_challenge_submit_with_outcome, serve_challenge_page, ChallengeSubmitOutcome,
+    handle_challenge_submit_with_outcome_with_limits, serve_challenge_page_with_seed_ttl,
+    ChallengeSubmitOutcome,
 };
+#[cfg(test)]
+pub(crate) use puzzle::{handle_challenge_submit_with_outcome, serve_challenge_page};
 
 pub trait KeyValueStore {
     fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()>;

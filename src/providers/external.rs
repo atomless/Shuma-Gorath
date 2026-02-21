@@ -888,8 +888,13 @@ impl ChallengeEngineProvider for UnsupportedExternalChallengeEngineProvider {
         internal::CHALLENGE_ENGINE.not_a_bot_path()
     }
 
-    fn render_challenge(&self, req: &Request, transform_count: usize) -> Response {
-        internal::CHALLENGE_ENGINE.render_challenge(req, transform_count)
+    fn render_challenge(
+        &self,
+        req: &Request,
+        transform_count: usize,
+        seed_ttl_seconds: u64,
+    ) -> Response {
+        internal::CHALLENGE_ENGINE.render_challenge(req, transform_count, seed_ttl_seconds)
     }
 
     fn render_not_a_bot(&self, req: &Request, cfg: &crate::config::Config) -> Response {
@@ -901,8 +906,14 @@ impl ChallengeEngineProvider for UnsupportedExternalChallengeEngineProvider {
         req: &Request,
         test_mode: bool,
         transform_count: usize,
+        seed_ttl_seconds: u64,
     ) -> Response {
-        internal::CHALLENGE_ENGINE.serve_challenge_page(req, test_mode, transform_count)
+        internal::CHALLENGE_ENGINE.serve_challenge_page(
+            req,
+            test_mode,
+            transform_count,
+            seed_ttl_seconds,
+        )
     }
 
     fn serve_not_a_bot_page(
@@ -918,8 +929,15 @@ impl ChallengeEngineProvider for UnsupportedExternalChallengeEngineProvider {
         &self,
         store: &Store,
         req: &Request,
+        challenge_puzzle_attempt_window_seconds: u64,
+        challenge_puzzle_attempt_limit_per_window: u32,
     ) -> (Response, crate::challenge::ChallengeSubmitOutcome) {
-        internal::CHALLENGE_ENGINE.handle_challenge_submit_with_outcome(store, req)
+        internal::CHALLENGE_ENGINE.handle_challenge_submit_with_outcome(
+            store,
+            req,
+            challenge_puzzle_attempt_window_seconds,
+            challenge_puzzle_attempt_limit_per_window,
+        )
     }
 
     fn handle_not_a_bot_submit_with_outcome(

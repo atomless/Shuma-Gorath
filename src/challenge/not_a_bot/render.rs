@@ -179,7 +179,6 @@ pub(crate) fn render_not_a_bot(
         interaction_elapsed_ms: 0,
         keyboard_used: false,
         touch_used: false,
-        events_order_valid: false,
         activation_method: 'unknown',
         activation_trusted: false,
         activation_count: 0,
@@ -206,7 +205,6 @@ pub(crate) fn render_not_a_bot(
         }}
         submissionStarted = true;
         checked.value = '1';
-        telemetry.events_order_valid = true;
         telemetry.activation_method = resolveActivationMethod();
         telemetry.activation_trusted = event && event.isTrusted === true;
         telemetry.activation_count = Math.min(255, (telemetry.activation_count || 0) + 1);
@@ -245,6 +243,7 @@ pub(crate) fn render_not_a_bot(
 
       document.addEventListener('pointerdown', function (event) {{
         lastInputModality = event.pointerType === 'touch' ? 'touch' : 'pointer';
+        telemetry.has_pointer = true;
         pointerDownAt = performance.now();
         if (event.pointerType === 'touch') {{
           telemetry.touch_used = true;

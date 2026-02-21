@@ -6,7 +6,20 @@ use super::token::make_seed_token;
 use super::types::{ChallengeSeed, Transform};
 use super::{build_puzzle, select_transform_pair, transforms_for_count};
 
+#[cfg(test)]
 pub(crate) fn render_challenge(req: &Request, transform_count: usize) -> Response {
+    render_challenge_with_seed_ttl(
+        req,
+        transform_count,
+        crate::config::defaults().challenge_puzzle_seed_ttl_seconds,
+    )
+}
+
+pub(crate) fn render_challenge_with_seed_ttl(
+    req: &Request,
+    transform_count: usize,
+    seed_ttl_seconds: u64,
+) -> Response {
     let ip = crate::extract_client_ip(req);
     let ua = req
         .header("user-agent")
@@ -27,7 +40,7 @@ pub(crate) fn render_challenge(req: &Request, transform_count: usize) -> Respons
         step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
         step_index: crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
         issued_at: now,
-        expires_at: now + 300,
+        expires_at: now.saturating_add(seed_ttl_seconds),
         token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
         ip_bucket,
         ua_bucket,

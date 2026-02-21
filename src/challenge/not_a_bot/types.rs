@@ -28,7 +28,6 @@ pub(crate) struct NotABotTelemetry {
     pub interaction_elapsed_ms: u32,
     pub keyboard_used: bool,
     pub touch_used: bool,
-    pub events_order_valid: bool,
     pub activation_method: String,
     pub activation_trusted: bool,
     pub activation_count: u8,
@@ -46,6 +45,7 @@ pub(crate) enum NotABotDecision {
 pub(crate) enum NotABotSubmitOutcome {
     Pass,
     EscalatePuzzle,
+    FailedScore,
     MazeOrBlock,
     Replay,
     InvalidSeed,

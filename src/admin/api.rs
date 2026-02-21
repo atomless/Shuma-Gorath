@@ -34,6 +34,12 @@ const POW_TTL_MIN: u64 = crate::config::POW_TTL_MIN;
 const POW_TTL_MAX: u64 = crate::config::POW_TTL_MAX;
 const CHALLENGE_TRANSFORM_COUNT_MIN: u64 = 4;
 const CHALLENGE_TRANSFORM_COUNT_MAX: u64 = 8;
+const CHALLENGE_PUZZLE_SEED_TTL_MIN: u64 = 30;
+const CHALLENGE_PUZZLE_SEED_TTL_MAX: u64 = 300;
+const CHALLENGE_PUZZLE_ATTEMPT_LIMIT_MIN: u64 = 1;
+const CHALLENGE_PUZZLE_ATTEMPT_LIMIT_MAX: u64 = 100;
+const CHALLENGE_PUZZLE_ATTEMPT_WINDOW_MIN: u64 = 30;
+const CHALLENGE_PUZZLE_ATTEMPT_WINDOW_MAX: u64 = 3600;
 const NOT_A_BOT_THRESHOLD_MIN: u64 = 1;
 const NOT_A_BOT_THRESHOLD_MAX: u64 = 10;
 const NOT_A_BOT_SCORE_MIN: u64 = 1;
@@ -479,6 +485,8 @@ mod admin_config_tests {
         let mut cfg = crate::config::defaults().clone();
         cfg.rate_limit = 321;
         cfg.honeypot_enabled = false;
+        cfg.browser_policy_enabled = false;
+        cfg.bypass_allowlists_enabled = false;
         cfg.challenge_puzzle_enabled = false;
         cfg.honeypots = vec!["/trap-a".to_string(), "/trap-b".to_string()];
         cfg.defence_modes.rate = crate::config::ComposabilityMode::Signal;
@@ -516,9 +524,24 @@ mod admin_config_tests {
             Some(&serde_json::json!("false"))
         );
         assert_eq!(
+            env.get("SHUMA_BROWSER_POLICY_ENABLED"),
+            Some(&serde_json::json!("false"))
+        );
+        assert_eq!(
+            env.get("SHUMA_BYPASS_ALLOWLISTS_ENABLED"),
+            Some(&serde_json::json!("false"))
+        );
+        assert_eq!(
             env.get("SHUMA_CHALLENGE_PUZZLE_ENABLED"),
             Some(&serde_json::json!("false"))
         );
+        assert!(env.get("SHUMA_CHALLENGE_PUZZLE_SEED_TTL_SECONDS").is_some());
+        assert!(env
+            .get("SHUMA_CHALLENGE_PUZZLE_ATTEMPT_LIMIT_PER_WINDOW")
+            .is_some());
+        assert!(env
+            .get("SHUMA_CHALLENGE_PUZZLE_ATTEMPT_WINDOW_SECONDS")
+            .is_some());
         assert_eq!(
             env.get("SHUMA_ADMIN_IP_ALLOWLIST"),
             Some(&serde_json::json!("203.0.113.0/24,198.51.100.8"))
@@ -563,7 +586,12 @@ mod admin_config_tests {
         assert!(env_text.contains("SHUMA_MODE_RATE=signal"));
         assert!(env_text.contains("SHUMA_PROVIDER_FINGERPRINT_SIGNAL=external"));
         assert!(env_text.contains("SHUMA_HONEYPOT_ENABLED=false"));
+        assert!(env_text.contains("SHUMA_BROWSER_POLICY_ENABLED=false"));
+        assert!(env_text.contains("SHUMA_BYPASS_ALLOWLISTS_ENABLED=false"));
         assert!(env_text.contains("SHUMA_CHALLENGE_PUZZLE_ENABLED=false"));
+        assert!(env_text.contains("SHUMA_CHALLENGE_PUZZLE_SEED_TTL_SECONDS="));
+        assert!(env_text.contains("SHUMA_CHALLENGE_PUZZLE_ATTEMPT_LIMIT_PER_WINDOW="));
+        assert!(env_text.contains("SHUMA_CHALLENGE_PUZZLE_ATTEMPT_WINDOW_SECONDS="));
         assert!(env_text.contains("SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE=17"));
         assert!(!env_text.contains("SHUMA_RATE_LIMITER_REDIS_URL="));
         assert!(!env_text.contains("SHUMA_BAN_STORE_REDIS_URL="));
@@ -650,6 +678,9 @@ mod admin_config_tests {
         assert!(body.get("challenge_puzzle_enabled").is_some());
         assert!(body.get("challenge_puzzle_risk_threshold_default").is_some());
         assert!(body.get("challenge_puzzle_transform_count").is_some());
+        assert!(body.get("challenge_puzzle_seed_ttl_seconds").is_some());
+        assert!(body.get("challenge_puzzle_attempt_limit_per_window").is_some());
+        assert!(body.get("challenge_puzzle_attempt_window_seconds").is_some());
         assert!(body.get("ai_policy_block_training").is_some());
         assert!(body.get("ai_policy_block_search").is_some());
         assert!(body.get("ai_policy_allow_search_engines").is_some());
@@ -1129,8 +1160,44 @@ mod admin_config_tests {
         assert!(!saved_cfg.robots_block_ai_training);
         assert!(saved_cfg.robots_block_ai_search);
         assert!(!saved_cfg.robots_allow_search_engines);
+        let robots = crate::crawler_policy::robots::generate_robots_txt(&saved_cfg);
+        assert!(robots.contains("# Content-Signal: ai-train=yes, search=no, ai-input=no"));
+        assert!(!robots.contains("User-agent: GPTBot"));
+        assert!(robots.contains("User-agent: PerplexityBot"));
+        assert!(!robots.contains("User-agent: Googlebot"));
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
+    fn robots_preview_patch_applies_dirty_values_without_persisting_config() {
+        let store = TestStore::default();
+        let original_bytes = store.get("config:default").unwrap().unwrap();
+        let mut cfg: crate::config::Config = serde_json::from_slice(&original_bytes).unwrap();
+        let patch = json!({
+            "robots_enabled": true,
+            "ai_policy_block_training": false,
+            "ai_policy_block_search": true,
+            "ai_policy_allow_search_engines": false,
+            "robots_crawl_delay": 4
+        });
+
+        apply_robots_preview_patch(&mut cfg, &patch);
+        let payload = admin_robots_payload(&cfg);
+        let preview = payload
+            .get("preview")
+            .and_then(|value| value.as_str())
+            .expect("preview text should exist");
+
+        assert!(preview.contains("# Content-Signal: ai-train=yes, search=no, ai-input=no"));
+        assert!(!preview.contains("User-agent: GPTBot"));
+        assert!(preview.contains("User-agent: PerplexityBot"));
+        assert!(!preview.contains("User-agent: Googlebot"));
+        assert!(preview.contains("User-agent: *"));
+        assert!(preview.contains("Disallow: /"));
+
+        let persisted_bytes = store.get("config:default").unwrap().unwrap();
+        assert_eq!(persisted_bytes, original_bytes);
     }
 
     #[test]
@@ -1262,8 +1329,10 @@ mod admin_config_tests {
             br#"{
                 "honeypot_enabled": false,
                 "honeypots": ["/instaban", "/trap-b"],
+                "browser_policy_enabled": false,
                 "browser_block": [["Chrome",126],["Firefox",120]],
                 "browser_whitelist": [["Safari",16]],
+                "bypass_allowlists_enabled": false,
                 "whitelist": ["203.0.113.0/24", "198.51.100.9"],
                 "path_whitelist": ["/status", "/assets/*"],
                 "ban_durations": {"cdp": 777}
@@ -1281,8 +1350,16 @@ mod admin_config_tests {
             Some(&serde_json::json!([["Chrome", 126], ["Firefox", 120]]))
         );
         assert_eq!(
+            cfg.get("browser_policy_enabled"),
+            Some(&serde_json::Value::Bool(false))
+        );
+        assert_eq!(
             cfg.get("browser_whitelist"),
             Some(&serde_json::json!([["Safari", 16]]))
+        );
+        assert_eq!(
+            cfg.get("bypass_allowlists_enabled"),
+            Some(&serde_json::Value::Bool(false))
         );
         assert_eq!(
             cfg.get("whitelist"),
@@ -1310,10 +1387,12 @@ mod admin_config_tests {
             saved_cfg.browser_block,
             vec![("Chrome".to_string(), 126), ("Firefox".to_string(), 120)]
         );
+        assert!(!saved_cfg.browser_policy_enabled);
         assert_eq!(
             saved_cfg.browser_whitelist,
             vec![("Safari".to_string(), 16)]
         );
+        assert!(!saved_cfg.bypass_allowlists_enabled);
         assert_eq!(
             saved_cfg.whitelist,
             vec!["203.0.113.0/24".to_string(), "198.51.100.9".to_string()]
@@ -1396,6 +1475,48 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn admin_config_updates_challenge_puzzle_runtime_controls() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+
+        let post_req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{
+                "challenge_puzzle_seed_ttl_seconds": 240,
+                "challenge_puzzle_attempt_limit_per_window": 8,
+                "challenge_puzzle_attempt_window_seconds": 420
+            }"#
+            .to_vec(),
+        );
+        let post_resp = handle_admin_config(&post_req, &store, "default");
+        assert_eq!(*post_resp.status(), 200u16);
+        let post_json: serde_json::Value = serde_json::from_slice(post_resp.body()).unwrap();
+        let cfg = post_json.get("config").unwrap();
+        assert_eq!(
+            cfg.get("challenge_puzzle_seed_ttl_seconds"),
+            Some(&serde_json::Value::Number(240.into()))
+        );
+        assert_eq!(
+            cfg.get("challenge_puzzle_attempt_limit_per_window"),
+            Some(&serde_json::Value::Number(8.into()))
+        );
+        assert_eq!(
+            cfg.get("challenge_puzzle_attempt_window_seconds"),
+            Some(&serde_json::Value::Number(420.into()))
+        );
+
+        let saved_bytes = store.get("config:default").unwrap().unwrap();
+        let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
+        assert_eq!(saved_cfg.challenge_puzzle_seed_ttl_seconds, 240);
+        assert_eq!(saved_cfg.challenge_puzzle_attempt_limit_per_window, 8);
+        assert_eq!(saved_cfg.challenge_puzzle_attempt_window_seconds, 420);
+
+        clear_env(&["SHUMA_ADMIN_CONFIG_WRITE_ENABLED"]);
+    }
+
+    #[test]
     fn admin_config_updates_challenge_puzzle_enabled() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
@@ -1440,6 +1561,47 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn admin_config_rejects_invalid_challenge_puzzle_runtime_controls() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+
+        let invalid_seed_ttl = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"challenge_puzzle_seed_ttl_seconds": 301}"#.to_vec(),
+        );
+        let invalid_seed_ttl_resp = handle_admin_config(&invalid_seed_ttl, &store, "default");
+        assert_eq!(*invalid_seed_ttl_resp.status(), 400u16);
+        assert!(String::from_utf8_lossy(invalid_seed_ttl_resp.body())
+            .contains("challenge_puzzle_seed_ttl_seconds out of range"));
+
+        let invalid_attempt_limit = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"challenge_puzzle_attempt_limit_per_window": 0}"#.to_vec(),
+        );
+        let invalid_attempt_limit_resp =
+            handle_admin_config(&invalid_attempt_limit, &store, "default");
+        assert_eq!(*invalid_attempt_limit_resp.status(), 400u16);
+        assert!(String::from_utf8_lossy(invalid_attempt_limit_resp.body())
+            .contains("challenge_puzzle_attempt_limit_per_window out of range"));
+
+        let invalid_attempt_window = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"challenge_puzzle_attempt_window_seconds": 3601}"#.to_vec(),
+        );
+        let invalid_attempt_window_resp =
+            handle_admin_config(&invalid_attempt_window, &store, "default");
+        assert_eq!(*invalid_attempt_window_resp.status(), 400u16);
+        assert!(String::from_utf8_lossy(invalid_attempt_window_resp.body())
+            .contains("challenge_puzzle_attempt_window_seconds out of range"));
+
+        clear_env(&["SHUMA_ADMIN_CONFIG_WRITE_ENABLED"]);
+    }
+
+    #[test]
     fn admin_config_updates_not_a_bot_controls() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
@@ -1451,8 +1613,8 @@ mod admin_config_tests {
             br#"{
                 "not_a_bot_enabled": false,
                 "not_a_bot_risk_threshold": 2,
-                "not_a_bot_score_pass_min": 8,
-                "not_a_bot_score_escalate_min": 5,
+                "not_a_bot_pass_score": 8,
+                "not_a_bot_fail_score": 5,
                 "not_a_bot_nonce_ttl_seconds": 150,
                 "not_a_bot_marker_ttl_seconds": 900,
                 "not_a_bot_attempt_limit_per_window": 9,
@@ -1470,11 +1632,11 @@ mod admin_config_tests {
             Some(&serde_json::Value::Number(2.into()))
         );
         assert_eq!(
-            cfg.get("not_a_bot_score_pass_min"),
+            cfg.get("not_a_bot_pass_score"),
             Some(&serde_json::Value::Number(8.into()))
         );
         assert_eq!(
-            cfg.get("not_a_bot_score_escalate_min"),
+            cfg.get("not_a_bot_fail_score"),
             Some(&serde_json::Value::Number(5.into()))
         );
         assert_eq!(
@@ -1498,8 +1660,8 @@ mod admin_config_tests {
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
         assert!(!saved_cfg.not_a_bot_enabled);
         assert_eq!(saved_cfg.not_a_bot_risk_threshold, 2);
-        assert_eq!(saved_cfg.not_a_bot_score_pass_min, 8);
-        assert_eq!(saved_cfg.not_a_bot_score_escalate_min, 5);
+        assert_eq!(saved_cfg.not_a_bot_pass_score, 8);
+        assert_eq!(saved_cfg.not_a_bot_fail_score, 5);
         assert_eq!(saved_cfg.not_a_bot_nonce_ttl_seconds, 150);
         assert_eq!(saved_cfg.not_a_bot_marker_ttl_seconds, 900);
         assert_eq!(saved_cfg.not_a_bot_attempt_limit_per_window, 9);
@@ -1526,11 +1688,11 @@ mod admin_config_tests {
         let invalid_score_order = make_request(
             Method::Post,
             "/admin/config",
-            br#"{"not_a_bot_score_pass_min": 6, "not_a_bot_score_escalate_min": 7}"#.to_vec(),
+            br#"{"not_a_bot_pass_score": 6, "not_a_bot_fail_score": 7}"#.to_vec(),
         );
         let invalid_score_order_resp = handle_admin_config(&invalid_score_order, &store, "default");
         assert_eq!(*invalid_score_order_resp.status(), 400u16);
-        assert!(String::from_utf8_lossy(invalid_score_order_resp.body()).contains("not_a_bot_score_escalate_min must be <= not_a_bot_score_pass_min"));
+        assert!(String::from_utf8_lossy(invalid_score_order_resp.body()).contains("not_a_bot_fail_score must be <= not_a_bot_pass_score"));
 
         clear_env(&["SHUMA_ADMIN_CONFIG_WRITE_ENABLED"]);
     }
@@ -2081,6 +2243,7 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/maze/seeds"
             | "/admin/maze/seeds/refresh"
             | "/admin/robots"
+            | "/admin/robots/preview"
             | "/admin/cdp"
             | "/admin/cdp/events"
             | "/admin/monitoring"
@@ -2474,6 +2637,72 @@ fn query_u64_param(query: &str, key: &str, default: u64) -> u64 {
         .unwrap_or(default)
 }
 
+fn apply_robots_preview_patch(cfg: &mut crate::config::Config, json: &serde_json::Value) {
+    let ai_policy_block_training = json
+        .get("ai_policy_block_training")
+        .and_then(|v| v.as_bool())
+        .or_else(|| json.get("robots_block_ai_training").and_then(|v| v.as_bool()));
+    if let Some(value) = ai_policy_block_training {
+        cfg.robots_block_ai_training = value;
+    }
+
+    let ai_policy_block_search = json
+        .get("ai_policy_block_search")
+        .and_then(|v| v.as_bool())
+        .or_else(|| json.get("robots_block_ai_search").and_then(|v| v.as_bool()));
+    if let Some(value) = ai_policy_block_search {
+        cfg.robots_block_ai_search = value;
+    }
+
+    let ai_policy_allow_search_engines = json
+        .get("ai_policy_allow_search_engines")
+        .and_then(|v| v.as_bool())
+        .or_else(|| json.get("robots_allow_search_engines").and_then(|v| v.as_bool()));
+    if let Some(value) = ai_policy_allow_search_engines {
+        cfg.robots_allow_search_engines = value;
+    }
+
+    if let Some(robots_enabled) = json.get("robots_enabled").and_then(|v| v.as_bool()) {
+        cfg.robots_enabled = robots_enabled;
+    }
+
+    if let Some(robots_crawl_delay) = json.get("robots_crawl_delay").and_then(|v| v.as_u64()) {
+        cfg.robots_crawl_delay = robots_crawl_delay.clamp(0, 60) as u32;
+    }
+}
+
+fn admin_robots_payload(cfg: &crate::config::Config) -> serde_json::Value {
+    let preview = crate::crawler_policy::robots::generate_robots_txt(cfg);
+    let content_signal = crate::crawler_policy::robots::get_content_signal_header(cfg);
+    json!({
+        "config": {
+            "enabled": cfg.robots_enabled,
+            "ai_policy_block_training": cfg.robots_block_ai_training,
+            "ai_policy_block_search": cfg.robots_block_ai_search,
+            "ai_policy_allow_search_engines": cfg.robots_allow_search_engines,
+            "block_ai_training": cfg.robots_block_ai_training,
+            "block_ai_search": cfg.robots_block_ai_search,
+            "allow_search_engines": cfg.robots_allow_search_engines,
+            "crawl_delay": cfg.robots_crawl_delay
+        },
+        "content_signal_header": content_signal,
+        "ai_training_bots": crate::crawler_policy::robots::AI_TRAINING_BOTS,
+        "ai_search_bots": crate::crawler_policy::robots::AI_SEARCH_BOTS,
+        "search_engine_bots": crate::crawler_policy::robots::SEARCH_ENGINE_BOTS,
+        "preview": preview
+    })
+}
+
+fn admin_robots_response(cfg: &crate::config::Config) -> Response {
+    let body = serde_json::to_string(&admin_robots_payload(cfg)).unwrap();
+    Response::builder()
+        .status(200)
+        .header("Content-Type", "application/json")
+        .header("Cache-Control", "no-store")
+        .body(body)
+        .build()
+}
+
 fn load_recent_events<S: crate::challenge::KeyValueStore>(
     store: &S,
     now: u64,
@@ -2730,6 +2959,18 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
             cfg.challenge_puzzle_transform_count.to_string(),
         ),
         (
+            "SHUMA_CHALLENGE_PUZZLE_SEED_TTL_SECONDS".to_string(),
+            cfg.challenge_puzzle_seed_ttl_seconds.to_string(),
+        ),
+        (
+            "SHUMA_CHALLENGE_PUZZLE_ATTEMPT_LIMIT_PER_WINDOW".to_string(),
+            cfg.challenge_puzzle_attempt_limit_per_window.to_string(),
+        ),
+        (
+            "SHUMA_CHALLENGE_PUZZLE_ATTEMPT_WINDOW_SECONDS".to_string(),
+            cfg.challenge_puzzle_attempt_window_seconds.to_string(),
+        ),
+        (
             "SHUMA_CHALLENGE_PUZZLE_RISK_THRESHOLD".to_string(),
             cfg.challenge_puzzle_risk_threshold.to_string(),
         ),
@@ -2742,12 +2983,12 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
             cfg.not_a_bot_risk_threshold.to_string(),
         ),
         (
-            "SHUMA_NOT_A_BOT_SCORE_PASS_MIN".to_string(),
-            cfg.not_a_bot_score_pass_min.to_string(),
+            "SHUMA_NOT_A_BOT_PASS_SCORE".to_string(),
+            cfg.not_a_bot_pass_score.to_string(),
         ),
         (
-            "SHUMA_NOT_A_BOT_SCORE_ESCALATE_MIN".to_string(),
-            cfg.not_a_bot_score_escalate_min.to_string(),
+            "SHUMA_NOT_A_BOT_FAIL_SCORE".to_string(),
+            cfg.not_a_bot_fail_score.to_string(),
         ),
         (
             "SHUMA_NOT_A_BOT_NONCE_TTL_SECONDS".to_string(),
@@ -2820,6 +3061,10 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
         ),
         ("SHUMA_HONEYPOTS".to_string(), json_env(&cfg.honeypots)),
         (
+            "SHUMA_BROWSER_POLICY_ENABLED".to_string(),
+            bool_env(cfg.browser_policy_enabled).to_string(),
+        ),
+        (
             "SHUMA_BROWSER_BLOCK".to_string(),
             json_env(&cfg.browser_block),
         ),
@@ -2846,6 +3091,10 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
         (
             "SHUMA_GEO_BLOCK_COUNTRIES".to_string(),
             json_env(&cfg.geo_block),
+        ),
+        (
+            "SHUMA_BYPASS_ALLOWLISTS_ENABLED".to_string(),
+            bool_env(cfg.bypass_allowlists_enabled).to_string(),
         ),
         ("SHUMA_WHITELIST".to_string(), json_env(&cfg.whitelist)),
         (
@@ -3672,8 +3921,10 @@ struct AdminConfigPatch {
     geo_block: Option<serde_json::Value>,
     honeypot_enabled: Option<bool>,
     honeypots: Option<serde_json::Value>,
+    browser_policy_enabled: Option<bool>,
     browser_block: Option<serde_json::Value>,
     browser_whitelist: Option<serde_json::Value>,
+    bypass_allowlists_enabled: Option<bool>,
     whitelist: Option<serde_json::Value>,
     path_whitelist: Option<serde_json::Value>,
     ip_range_policy_mode: Option<String>,
@@ -3743,10 +3994,13 @@ struct AdminConfigPatch {
     pow_ttl_seconds: Option<u64>,
     challenge_puzzle_enabled: Option<bool>,
     challenge_puzzle_transform_count: Option<u64>,
+    challenge_puzzle_seed_ttl_seconds: Option<u64>,
+    challenge_puzzle_attempt_limit_per_window: Option<u64>,
+    challenge_puzzle_attempt_window_seconds: Option<u64>,
     not_a_bot_enabled: Option<bool>,
     not_a_bot_risk_threshold: Option<u64>,
-    not_a_bot_score_pass_min: Option<u64>,
-    not_a_bot_score_escalate_min: Option<u64>,
+    not_a_bot_pass_score: Option<u64>,
+    not_a_bot_fail_score: Option<u64>,
     not_a_bot_nonce_ttl_seconds: Option<u64>,
     not_a_bot_marker_ttl_seconds: Option<u64>,
     not_a_bot_attempt_limit_per_window: Option<u64>,
@@ -4028,6 +4282,12 @@ fn handle_admin_config_internal(
                 Err(msg) => return Response::new(400, msg),
             }
         }
+        if let Some(browser_policy_enabled) =
+            json.get("browser_policy_enabled").and_then(|v| v.as_bool())
+        {
+            cfg.browser_policy_enabled = browser_policy_enabled;
+            changed = true;
+        }
         if let Some(value) = json.get("browser_block") {
             match parse_browser_rules_json("browser_block", value) {
                 Ok(rules) => {
@@ -4045,6 +4305,12 @@ fn handle_admin_config_internal(
                 }
                 Err(msg) => return Response::new(400, msg),
             }
+        }
+        if let Some(bypass_allowlists_enabled) =
+            json.get("bypass_allowlists_enabled").and_then(|v| v.as_bool())
+        {
+            cfg.bypass_allowlists_enabled = bypass_allowlists_enabled;
+            changed = true;
         }
         if let Some(value) = json.get("whitelist") {
             match parse_string_list_json("whitelist", value) {
@@ -4572,6 +4838,9 @@ fn handle_admin_config_internal(
 
         let old_challenge_puzzle_enabled = cfg.challenge_puzzle_enabled;
         let old_transform_count = cfg.challenge_puzzle_transform_count;
+        let old_seed_ttl_seconds = cfg.challenge_puzzle_seed_ttl_seconds;
+        let old_attempt_limit_per_window = cfg.challenge_puzzle_attempt_limit_per_window;
+        let old_attempt_window_seconds = cfg.challenge_puzzle_attempt_window_seconds;
         let mut challenge_changed = false;
         if let Some(challenge_puzzle_enabled) = json.get("challenge_puzzle_enabled").and_then(|v| v.as_bool()) {
             if cfg.challenge_puzzle_enabled != challenge_puzzle_enabled {
@@ -4596,6 +4865,58 @@ fn handle_admin_config_internal(
                 challenge_changed = true;
             }
         }
+        if let Some(seed_ttl_seconds) = json
+            .get("challenge_puzzle_seed_ttl_seconds")
+            .and_then(|v| v.as_u64())
+        {
+            if !(CHALLENGE_PUZZLE_SEED_TTL_MIN..=CHALLENGE_PUZZLE_SEED_TTL_MAX)
+                .contains(&seed_ttl_seconds)
+            {
+                return Response::new(400, "challenge_puzzle_seed_ttl_seconds out of range (30-300)");
+            }
+            if cfg.challenge_puzzle_seed_ttl_seconds != seed_ttl_seconds {
+                cfg.challenge_puzzle_seed_ttl_seconds = seed_ttl_seconds;
+                changed = true;
+                challenge_changed = true;
+            }
+        }
+        if let Some(attempt_limit_per_window) = json
+            .get("challenge_puzzle_attempt_limit_per_window")
+            .and_then(|v| v.as_u64())
+        {
+            if !(CHALLENGE_PUZZLE_ATTEMPT_LIMIT_MIN..=CHALLENGE_PUZZLE_ATTEMPT_LIMIT_MAX)
+                .contains(&attempt_limit_per_window)
+            {
+                return Response::new(
+                    400,
+                    "challenge_puzzle_attempt_limit_per_window out of range (1-100)",
+                );
+            }
+            let next = attempt_limit_per_window as u32;
+            if cfg.challenge_puzzle_attempt_limit_per_window != next {
+                cfg.challenge_puzzle_attempt_limit_per_window = next;
+                changed = true;
+                challenge_changed = true;
+            }
+        }
+        if let Some(attempt_window_seconds) = json
+            .get("challenge_puzzle_attempt_window_seconds")
+            .and_then(|v| v.as_u64())
+        {
+            if !(CHALLENGE_PUZZLE_ATTEMPT_WINDOW_MIN..=CHALLENGE_PUZZLE_ATTEMPT_WINDOW_MAX)
+                .contains(&attempt_window_seconds)
+            {
+                return Response::new(
+                    400,
+                    "challenge_puzzle_attempt_window_seconds out of range (30-3600)",
+                );
+            }
+            if cfg.challenge_puzzle_attempt_window_seconds != attempt_window_seconds {
+                cfg.challenge_puzzle_attempt_window_seconds = attempt_window_seconds;
+                changed = true;
+                challenge_changed = true;
+            }
+        }
         if challenge_changed && !validate_only {
             log_event(
                 store,
@@ -4605,11 +4926,17 @@ fn handle_admin_config_internal(
                     ip: None,
                     reason: Some("challenge_config_update".to_string()),
                     outcome: Some(format!(
-                        "enabled:{}->{} transform_count:{}->{}",
+                        "enabled:{}->{} transform_count:{}->{} seed_ttl:{}->{} attempt_limit:{}->{} attempt_window:{}->{}",
                         old_challenge_puzzle_enabled,
                         cfg.challenge_puzzle_enabled,
                         old_transform_count,
-                        cfg.challenge_puzzle_transform_count
+                        cfg.challenge_puzzle_transform_count,
+                        old_seed_ttl_seconds,
+                        cfg.challenge_puzzle_seed_ttl_seconds,
+                        old_attempt_limit_per_window,
+                        cfg.challenge_puzzle_attempt_limit_per_window,
+                        old_attempt_window_seconds,
+                        cfg.challenge_puzzle_attempt_window_seconds
                     )),
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
@@ -4618,8 +4945,8 @@ fn handle_admin_config_internal(
 
         let old_not_a_bot_enabled = cfg.not_a_bot_enabled;
         let old_not_a_bot_threshold = cfg.not_a_bot_risk_threshold;
-        let old_not_a_bot_score_pass_min = cfg.not_a_bot_score_pass_min;
-        let old_not_a_bot_score_escalate_min = cfg.not_a_bot_score_escalate_min;
+        let old_not_a_bot_pass_score = cfg.not_a_bot_pass_score;
+        let old_not_a_bot_fail_score = cfg.not_a_bot_fail_score;
         let old_not_a_bot_nonce_ttl_seconds = cfg.not_a_bot_nonce_ttl_seconds;
         let old_not_a_bot_marker_ttl_seconds = cfg.not_a_bot_marker_ttl_seconds;
         let old_not_a_bot_attempt_limit_per_window = cfg.not_a_bot_attempt_limit_per_window;
@@ -4648,37 +4975,37 @@ fn handle_admin_config_internal(
             }
         }
         if let Some(value) = json
-            .get("not_a_bot_score_pass_min")
+            .get("not_a_bot_pass_score")
             .and_then(|v| v.as_u64())
         {
             if !(NOT_A_BOT_SCORE_MIN..=NOT_A_BOT_SCORE_MAX).contains(&value) {
-                return Response::new(400, "not_a_bot_score_pass_min out of range (1-10)");
+                return Response::new(400, "not_a_bot_pass_score out of range (1-10)");
             }
             let next = value as u8;
-            if cfg.not_a_bot_score_pass_min != next {
-                cfg.not_a_bot_score_pass_min = next;
+            if cfg.not_a_bot_pass_score != next {
+                cfg.not_a_bot_pass_score = next;
                 changed = true;
                 not_a_bot_changed = true;
             }
         }
         if let Some(value) = json
-            .get("not_a_bot_score_escalate_min")
+            .get("not_a_bot_fail_score")
             .and_then(|v| v.as_u64())
         {
             if !(NOT_A_BOT_SCORE_MIN..=NOT_A_BOT_SCORE_MAX).contains(&value) {
-                return Response::new(400, "not_a_bot_score_escalate_min out of range (1-10)");
+                return Response::new(400, "not_a_bot_fail_score out of range (1-10)");
             }
             let next = value as u8;
-            if cfg.not_a_bot_score_escalate_min != next {
-                cfg.not_a_bot_score_escalate_min = next;
+            if cfg.not_a_bot_fail_score != next {
+                cfg.not_a_bot_fail_score = next;
                 changed = true;
                 not_a_bot_changed = true;
             }
         }
-        if cfg.not_a_bot_score_escalate_min > cfg.not_a_bot_score_pass_min {
+        if cfg.not_a_bot_fail_score > cfg.not_a_bot_pass_score {
             return Response::new(
                 400,
-                "not_a_bot_score_escalate_min must be <= not_a_bot_score_pass_min",
+                "not_a_bot_fail_score must be <= not_a_bot_pass_score",
             );
         }
         if let Some(value) = json
@@ -4755,10 +5082,10 @@ fn handle_admin_config_internal(
                         cfg.not_a_bot_enabled,
                         old_not_a_bot_threshold,
                         cfg.not_a_bot_risk_threshold,
-                        old_not_a_bot_score_pass_min,
-                        cfg.not_a_bot_score_pass_min,
-                        old_not_a_bot_score_escalate_min,
-                        cfg.not_a_bot_score_escalate_min,
+                        old_not_a_bot_pass_score,
+                        cfg.not_a_bot_pass_score,
+                        old_not_a_bot_fail_score,
+                        cfg.not_a_bot_fail_score,
                         old_not_a_bot_nonce_ttl_seconds,
                         cfg.not_a_bot_nonce_ttl_seconds,
                         old_not_a_bot_marker_ttl_seconds,
@@ -5980,7 +6307,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/config, /admin/config/validate, /admin/config/export, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/config, /admin/config/validate, /admin/config/export, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics
@@ -6051,16 +6378,41 @@ pub fn handle_admin(req: &Request) -> Response {
             .unwrap();
             Response::new(200, body)
         }
+        "/admin/robots/preview" => {
+            if req.method() != &Method::Post {
+                return Response::new(405, "Method Not Allowed");
+            }
+            let patch = match crate::request_validation::parse_json_body(
+                req.body(),
+                crate::request_validation::MAX_ADMIN_JSON_BYTES,
+            ) {
+                Ok(value) => value,
+                Err(msg) => return Response::new(400, msg),
+            };
+            let mut cfg = match crate::config::Config::load(&store, site_id) {
+                Ok(cfg) => cfg,
+                Err(err) => return Response::new(500, err.user_message()),
+            };
+            apply_robots_preview_patch(&mut cfg, &patch);
+            log_event(
+                &store,
+                &EventLogEntry {
+                    ts: now_ts(),
+                    event: EventType::AdminAction,
+                    ip: None,
+                    reason: Some("robots_preview_patch".to_string()),
+                    outcome: None,
+                    admin: Some(crate::admin::auth::get_admin_id(req)),
+                },
+            );
+            admin_robots_response(&cfg)
+        }
         "/admin/robots" => {
             // Return robots.txt configuration and preview
             let cfg = match crate::config::Config::load(&store, site_id) {
                 Ok(cfg) => cfg,
                 Err(err) => return Response::new(500, err.user_message()),
             };
-
-            // Generate preview of robots.txt content
-            let preview = crate::crawler_policy::robots::generate_robots_txt(&cfg);
-            let content_signal = crate::crawler_policy::robots::get_content_signal_header(&cfg);
 
             // Log admin action
             log_event(
@@ -6074,26 +6426,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-
-            let body = serde_json::to_string(&json!({
-                "config": {
-                    "enabled": cfg.robots_enabled,
-                    "ai_policy_block_training": cfg.robots_block_ai_training,
-                    "ai_policy_block_search": cfg.robots_block_ai_search,
-                    "ai_policy_allow_search_engines": cfg.robots_allow_search_engines,
-                    "block_ai_training": cfg.robots_block_ai_training,
-                    "block_ai_search": cfg.robots_block_ai_search,
-                    "allow_search_engines": cfg.robots_allow_search_engines,
-                    "crawl_delay": cfg.robots_crawl_delay
-                },
-                "content_signal_header": content_signal,
-                "ai_training_bots": crate::crawler_policy::robots::AI_TRAINING_BOTS,
-                "ai_search_bots": crate::crawler_policy::robots::AI_SEARCH_BOTS,
-                "search_engine_bots": crate::crawler_policy::robots::SEARCH_ENGINE_BOTS,
-                "preview": preview
-            }))
-            .unwrap();
-            Response::new(200, body)
+            admin_robots_response(&cfg)
         }
         "/admin/cdp" => {
             // Return CDP detection configuration and stats

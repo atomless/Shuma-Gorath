@@ -100,15 +100,16 @@ Controls:
 - Manual ban/unban
 - Ban <abbr title="Internet Protocol">IP</abbr> duration inputs initialize from `ban_durations.admin` (same default source as Ban Durations config)
 - <abbr title="JavaScript">JS</abbr> Required enforcement toggle
-- Rate limit (requests/minute) config
+- Rate limiting controls: enable/disable hard rate-limit enforcement plus requests/minute threshold per source <abbr title="Internet Protocol">IP</abbr> bucket (`defence_modes.rate`: `both` when enabled, `signal` when disabled; bucket model is IPv4 /24 and IPv6 /64)
 - Honeypot controls (`honeypot_enabled`, `honeypots`)
-- Browser policy rule editors (`browser_block`, `browser_whitelist`)
-- Bypass allowlist editors (`whitelist`, `path_whitelist`)
+- Browser policy controls (`browser_policy_enabled`, `browser_block`, `browser_whitelist`)
+- Bypass allowlist controls (`bypass_allowlists_enabled`, `whitelist`, `path_whitelist`)
 - Per-trigger ban durations, including <abbr title="Chrome DevTools Protocol">CDP</abbr> automation duration (`ban_durations.cdp`)
-- robots.txt configuration
+- robots.txt configuration with dirty-state preview (unsaved panel toggles render via `POST /admin/robots/preview` without persisting)
 - <abbr title="Chrome DevTools Protocol">CDP</abbr> detection controls
 - <abbr title="Proof of Work">PoW</abbr> enable toggle plus difficulty/<abbr title="Time To Live">TTL</abbr> tuning
-- Challenge puzzle controls (`challenge_puzzle_enabled`, `challenge_puzzle_transform_count`)
+- Challenge puzzle controls (`challenge_puzzle_enabled`); transform-count and runtime hardening knobs (`challenge_puzzle_transform_count`, `challenge_puzzle_seed_ttl_seconds`, `challenge_puzzle_attempt_limit_per_window`, `challenge_puzzle_attempt_window_seconds`) are Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only. Wrong-answer user failures route to maze; abuse-grade failures (replay/tamper/attempt abuse) route to tarpit when available, otherwise short ban.
+- Not-a-Bot controls (`not_a_bot_enabled`, `not_a_bot_pass_score`, `not_a_bot_fail_score`) with escalation-path helper copy; Verification Token Lifetime (`not_a_bot_nonce_ttl_seconds`: how long the signed Not-a-Bot token remains valid after page load, and if it expires before submit, verification fails), Pass Marker Lifetime (`not_a_bot_marker_ttl_seconds`: how long a successful Not-a-Bot pass is remembered for the same IP/UA bucket so repeat requests can skip this step), and attempt knobs are Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only. Score-below-fail user failures route to maze; abuse-grade failures (replay/tamper/attempt abuse) route to tarpit when available, otherwise short ban.
 - Botness scoring controls:
 - challenge threshold
 - maze threshold
@@ -116,8 +117,8 @@ Controls:
 - read-only terminal signal catalog
 - editable when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`
 - <abbr title="Geolocation">GEO</abbr> policy controls:
-- risk scoring countries (`geo_risk`)
-- tiered routing countries (`geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`)
+- scoring toggle + risk countries (`defence_modes.geo` signal path + `geo_risk`)
+- routing toggle + tiered routing countries (`defence_modes.geo` action path + `geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`)
 - maze stats
 - non-operational Maze Preview link in Maze config
 - Enter key submits inputs (<abbr title="Application Programming Interface">API</abbr> key, ban, unban)
@@ -166,6 +167,7 @@ Event log retention is controlled by `SHUMA_EVENT_LOG_RETENTION_HOURS` (default:
 - `GET  /admin/maze`
 - `GET  /admin/maze/preview`
 - `GET  /admin/robots`
+- `POST /admin/robots/preview`
 - `GET  /admin/cdp`
 
 ## 🐙 Files

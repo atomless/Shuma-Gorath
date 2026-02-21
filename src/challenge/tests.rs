@@ -5,7 +5,8 @@
 mod tests {
     use super::super::{
         apply_transform, build_puzzle, generate_pair, handle_challenge_submit,
-        handle_challenge_submit_with_outcome, make_seed_token, parse_submission,
+        handle_challenge_submit_with_outcome, handle_challenge_submit_with_outcome_with_limits,
+        make_seed_token, parse_submission,
         parse_transform_count, render_challenge, select_transform_pair, serve_challenge_page,
         transforms_for_count, ChallengeSeed, ChallengeSubmitOutcome, Transform,
     };
@@ -543,6 +544,52 @@ mod tests {
         assert!(correct_body.contains("Expired"));
         assert!(!correct_body.contains("Seed already used"));
         assert!(correct_body.contains("Request new challenge."));
+    }
+
+    #[test]
+    fn handle_challenge_submit_enforces_attempt_limit_window() {
+        let store = TestStore::default();
+        let now = crate::admin::now_ts();
+        let seed = ChallengeSeed {
+            seed_id: "seed-attempt-window".to_string(),
+            operation_id: "attempt001".to_string(),
+            flow_id: crate::challenge::operation_envelope::FLOW_CHALLENGE_PUZZLE.to_string(),
+            step_id: crate::challenge::operation_envelope::STEP_CHALLENGE_PUZZLE_SUBMIT.to_string(),
+            step_index: crate::challenge::operation_envelope::STEP_INDEX_CHALLENGE_PUZZLE_SUBMIT,
+            issued_at: now.saturating_sub(2),
+            expires_at: now + 300,
+            token_version: crate::challenge::operation_envelope::TOKEN_VERSION_V1,
+            ip_bucket: crate::signals::ip_identity::bucket_ip("unknown"),
+            ua_bucket: crate::challenge::operation_envelope::user_agent_bucket(""),
+            path_class: crate::challenge::operation_envelope::PATH_CLASS_CHALLENGE_PUZZLE_SUBMIT
+                .to_string(),
+            grid_size: 4,
+            active_cells: 7,
+            transforms: vec![Transform::RotateCw90, Transform::ShiftDown],
+            training_count: 1,
+            seed: 777777,
+        };
+        let puzzle = build_puzzle(&seed);
+        let output = grid_to_tritstring(&puzzle.test_output);
+        let seed_token = make_seed_token(&seed);
+        let body = format!("seed={}&output={}", seed_token, output);
+        let req = Request::builder()
+            .method(Method::Post)
+            .uri("/challenge/puzzle")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(body.as_bytes().to_vec())
+            .build();
+
+        let (_first_resp, first_outcome) =
+            handle_challenge_submit_with_outcome_with_limits(&store, &req, 300, 1);
+        assert_ne!(first_outcome, ChallengeSubmitOutcome::AttemptLimitExceeded);
+
+        let (second_resp, second_outcome) =
+            handle_challenge_submit_with_outcome_with_limits(&store, &req, 300, 1);
+        assert_eq!(second_outcome, ChallengeSubmitOutcome::AttemptLimitExceeded);
+        assert_eq!(*second_resp.status(), 403u16);
+        let body = String::from_utf8(second_resp.into_body()).unwrap();
+        assert!(body.contains("Forbidden. Please request a new challenge."));
     }
 
     #[test]

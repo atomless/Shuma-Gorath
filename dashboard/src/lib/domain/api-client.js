@@ -484,10 +484,21 @@ export const create = (options = {}) => {
   };
 
   /**
+   * @param {Record<string, unknown> | null} [previewPatch]
    * @param {RequestOptions} [requestOptions]
    */
-  const getRobotsPreview = async (requestOptions = {}) =>
-    adaptRobots(await request('/admin/robots', requestOptions));
+  const getRobotsPreview = async (previewPatch = null, requestOptions = {}) => {
+    if (previewPatch && typeof previewPatch === 'object' && !Array.isArray(previewPatch)) {
+      return adaptRobots(
+        await request('/admin/robots/preview', {
+          ...requestOptions,
+          method: 'POST',
+          json: previewPatch
+        })
+      );
+    }
+    return adaptRobots(await request('/admin/robots', requestOptions));
+  };
 
   /**
    * @param {Record<string, unknown>} configPatch

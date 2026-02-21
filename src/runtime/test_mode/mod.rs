@@ -171,7 +171,9 @@ where
         return Some(Response::new(200, "TEST MODE: Would inject JS challenge"));
     }
 
-    if crate::signals::browser_user_agent::is_outdated_browser(ua, &cfg.browser_block) {
+    if cfg.browser_policy_enabled
+        && crate::signals::browser_user_agent::is_outdated_browser(ua, &cfg.browser_block)
+    {
         crate::log_line(&format!(
             "[TEST MODE] Would ban IP {ip} for outdated browser"
         ));

@@ -65,6 +65,7 @@ async function seedDashboardData() {
   const now = Date.now();
   const banIp = `203.0.113.${(now % 200) + 20}`;
   const cdpIp = `198.51.100.${(Math.floor(now / 7) % 200) + 20}`;
+  let fingerprintReportPath = "/cdp-report";
   let originalTestMode = false;
   let restoreTestMode = false;
 
@@ -74,6 +75,9 @@ async function seedDashboardData() {
   if (config && typeof config.test_mode === "boolean") {
     originalTestMode = config.test_mode;
     restoreTestMode = true;
+  }
+  if (config?.provider_backends?.fingerprint_signal === "external") {
+    fingerprintReportPath = "/fingerprint-report";
   }
 
   try {
@@ -98,7 +102,7 @@ async function seedDashboardData() {
       })
     });
 
-    await request(baseURL, "/cdp-report", {
+    await request(baseURL, fingerprintReportPath, {
       method: "POST",
       headers: {
         ...forwardedHeaders(cdpIp),

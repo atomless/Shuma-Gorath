@@ -8,12 +8,17 @@ use rand::{Rng, SeedableRng};
 
 use types::ChallengePuzzle;
 
+#[cfg(test)]
 pub(crate) use renders::render_challenge;
+pub(crate) use renders::render_challenge_with_seed_ttl;
 #[cfg(test)]
 pub use submit::handle_challenge_submit;
 pub(crate) use submit::{
-    handle_challenge_submit_with_outcome, serve_challenge_page, ChallengeSubmitOutcome,
+    handle_challenge_submit_with_outcome_with_limits, serve_challenge_page_with_seed_ttl,
+    ChallengeSubmitOutcome,
 };
+#[cfg(test)]
+pub(crate) use submit::{handle_challenge_submit_with_outcome, serve_challenge_page};
 #[cfg(test)]
 pub(crate) use token::make_seed_token;
 pub(crate) use types::{ChallengeSeed, Transform};

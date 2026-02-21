@@ -60,3 +60,76 @@ fn early_router_redirects_dashboard_root_to_index_html() {
         .unwrap_or("");
     assert_eq!(location, "/dashboard/index.html");
 }
+
+#[test]
+fn not_a_bot_failure_policy_routes_user_failures_to_maze() {
+    assert_eq!(
+        classify_not_a_bot_failure_enforcement(crate::challenge::NotABotSubmitOutcome::FailedScore),
+        ChallengeFailureEnforcement::MazeFallback
+    );
+    assert_eq!(
+        classify_not_a_bot_failure_enforcement(crate::challenge::NotABotSubmitOutcome::Expired),
+        ChallengeFailureEnforcement::MazeFallback
+    );
+}
+
+#[test]
+fn not_a_bot_failure_policy_routes_abuse_to_tarpit_or_short_ban() {
+    let abuse_outcomes = [
+        crate::challenge::NotABotSubmitOutcome::Replay,
+        crate::challenge::NotABotSubmitOutcome::InvalidSeed,
+        crate::challenge::NotABotSubmitOutcome::MissingSeed,
+        crate::challenge::NotABotSubmitOutcome::SequenceViolation,
+        crate::challenge::NotABotSubmitOutcome::BindingMismatch,
+        crate::challenge::NotABotSubmitOutcome::InvalidTelemetry,
+        crate::challenge::NotABotSubmitOutcome::AttemptLimitExceeded,
+    ];
+    for outcome in abuse_outcomes {
+        assert_eq!(
+            classify_not_a_bot_failure_enforcement(outcome),
+            ChallengeFailureEnforcement::TarpitOrShortBan
+        );
+    }
+}
+
+#[test]
+fn challenge_puzzle_failure_policy_routes_user_failures_to_maze() {
+    let maze_outcomes = [
+        crate::boundaries::ChallengeSubmitOutcome::Incorrect,
+        crate::boundaries::ChallengeSubmitOutcome::SequenceOpExpired,
+        crate::boundaries::ChallengeSubmitOutcome::SequenceWindowExceeded,
+        crate::boundaries::ChallengeSubmitOutcome::SequenceTimingTooSlow,
+    ];
+    for outcome in maze_outcomes {
+        assert_eq!(
+            classify_challenge_failure_enforcement(outcome),
+            Some(ChallengeFailureEnforcement::MazeFallback)
+        );
+    }
+    assert_eq!(
+        classify_challenge_failure_enforcement(crate::boundaries::ChallengeSubmitOutcome::Solved),
+        None
+    );
+}
+
+#[test]
+fn challenge_puzzle_failure_policy_routes_abuse_to_tarpit_or_short_ban() {
+    let abuse_outcomes = [
+        crate::boundaries::ChallengeSubmitOutcome::AttemptLimitExceeded,
+        crate::boundaries::ChallengeSubmitOutcome::SequenceOpMissing,
+        crate::boundaries::ChallengeSubmitOutcome::SequenceOpInvalid,
+        crate::boundaries::ChallengeSubmitOutcome::SequenceOpReplay,
+        crate::boundaries::ChallengeSubmitOutcome::SequenceOrderViolation,
+        crate::boundaries::ChallengeSubmitOutcome::SequenceBindingMismatch,
+        crate::boundaries::ChallengeSubmitOutcome::SequenceTimingTooFast,
+        crate::boundaries::ChallengeSubmitOutcome::SequenceTimingTooRegular,
+        crate::boundaries::ChallengeSubmitOutcome::Forbidden,
+        crate::boundaries::ChallengeSubmitOutcome::InvalidOutput,
+    ];
+    for outcome in abuse_outcomes {
+        assert_eq!(
+            classify_challenge_failure_enforcement(outcome),
+            Some(ChallengeFailureEnforcement::TarpitOrShortBan)
+        );
+    }
+}

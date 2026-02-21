@@ -401,7 +401,11 @@ pub(crate) fn maybe_handle_ip_range_policy(
                         return Some(
                             provider_registry
                                 .challenge_engine_provider()
-                                .render_challenge(req, cfg.challenge_puzzle_transform_count as usize),
+                                .render_challenge(
+                                    req,
+                                    cfg.challenge_puzzle_transform_count as usize,
+                                    cfg.challenge_puzzle_seed_ttl_seconds,
+                                ),
                         );
                     }
                     crate::observability::metrics::increment(
@@ -816,7 +820,11 @@ pub(crate) fn maybe_handle_geo_policy(
                 return Some(
                     provider_registry
                         .challenge_engine_provider()
-                        .render_challenge(req, cfg.challenge_puzzle_transform_count as usize),
+                        .render_challenge(
+                            req,
+                            cfg.challenge_puzzle_transform_count as usize,
+                            cfg.challenge_puzzle_seed_ttl_seconds,
+                        ),
                 );
             }
             let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
@@ -892,7 +900,11 @@ pub(crate) fn maybe_handle_geo_policy(
                 return Some(
                     provider_registry
                         .challenge_engine_provider()
-                        .render_challenge(req, cfg.challenge_puzzle_transform_count as usize),
+                        .render_challenge(
+                            req,
+                            cfg.challenge_puzzle_transform_count as usize,
+                            cfg.challenge_puzzle_seed_ttl_seconds,
+                        ),
                 );
             }
             if cfg.maze_enabled {
@@ -980,13 +992,18 @@ pub(crate) fn compute_needs_js(
         return false;
     }
 
+    let browser_whitelist = if cfg.browser_policy_enabled {
+        cfg.browser_whitelist.as_slice()
+    } else {
+        &[]
+    };
     let js_missing_verification = path != "/health"
         && crate::signals::js_verification::needs_js_verification_with_whitelist(
             req,
             store,
             site_id,
             ip,
-            &cfg.browser_whitelist,
+            browser_whitelist,
         );
     js_missing_verification
 }
@@ -1161,7 +1178,11 @@ pub(crate) fn maybe_handle_botness(
             );
             let challenge_response = provider_registry
                 .challenge_engine_provider()
-                .render_challenge(req, cfg.challenge_puzzle_transform_count as usize);
+                .render_challenge(
+                    req,
+                    cfg.challenge_puzzle_transform_count as usize,
+                    cfg.challenge_puzzle_seed_ttl_seconds,
+                );
             let response = crate::maze::covert_decoy::maybe_inject_non_maze_decoy(
                 req,
                 cfg,

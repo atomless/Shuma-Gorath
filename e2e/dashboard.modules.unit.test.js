@@ -142,6 +142,19 @@ function parseRelativeImports(source) {
   return imports;
 }
 
+function parseRustStructFieldNames(source, structName) {
+  const pattern = new RegExp(`struct\\s+${structName}\\s*\\{([\\s\\S]*?)\\n\\}`, 'm');
+  const match = source.match(pattern);
+  if (!match) {
+    throw new Error(`Unable to locate Rust struct ${structName}`);
+  }
+  return match[1]
+    .split('\n')
+    .map((line) => line.match(/^\s*([a-zA-Z0-9_]+)\s*:\s*.+,\s*$/))
+    .filter(Boolean)
+    .map((entry) => entry[1]);
+}
+
 function detectCycles(adjacency) {
   const visiting = new Set();
   const visited = new Set();
@@ -340,6 +353,46 @@ test('dashboard API client adds CSRF + same-origin for session-auth writes and s
     assert.match(String(calls[1].url), /\/admin\/config\/validate$/);
     assert.equal(calls[1].init.headers.get('x-shuma-csrf'), 'csrf-token');
     assert.equal(calls[1].init.credentials, 'same-origin');
+  });
+});
+
+test('dashboard API client posts robots preview patch payloads for dirty-state previews', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
+    const calls = [];
+    const client = apiModule.create({
+      getAdminContext: () => ({
+        endpoint: 'https://edge.local',
+        apikey: '',
+        sessionAuth: true,
+        csrfToken: 'csrf-token'
+      }),
+      request: async (url, init = {}) => {
+        calls.push({ url, init });
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ preview: 'User-agent: *\nDisallow: /' }),
+          text: async () => '{"preview":"User-agent: *\\nDisallow: /"}'
+        };
+      }
+    });
+
+    const payload = await client.getRobotsPreview({
+      robots_enabled: true,
+      ai_policy_block_training: false,
+      ai_policy_block_search: true,
+      ai_policy_allow_search_engines: false,
+      robots_crawl_delay: 4
+    });
+
+    assert.equal(payload.content.includes('User-agent: *'), true);
+    assert.equal(calls.length, 1);
+    assert.match(String(calls[0].url), /\/admin\/robots\/preview$/);
+    assert.equal(String(calls[0].init.method).toUpperCase(), 'POST');
+    assert.equal(calls[0].init.headers.get('x-shuma-csrf'), 'csrf-token');
+    assert.equal(calls[0].init.credentials, 'same-origin');
   });
 });
 
@@ -664,8 +717,53 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
     assert.deepEqual(toPlain(template), { pow_enabled: true, botness_weights: { geo_risk: 3 } });
     assert.equal(json.normalizeJsonObjectForCompare('{"ok":true}'), '{"ok":true}');
     assert.equal(Array.isArray(schema.advancedConfigTemplatePaths), true);
-    assert.equal(schema.advancedConfigTemplatePaths.includes('test_mode'), false);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('test_mode'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('browser_policy_enabled'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('bypass_allowlists_enabled'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('challenge_puzzle_seed_ttl_seconds'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('challenge_puzzle_attempt_limit_per_window'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('challenge_puzzle_attempt_window_seconds'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('robots_block_ai_training'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('robots_block_ai_search'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('robots_allow_search_engines'), true);
   });
+});
+
+test('advanced config template paths match writable admin config patch keys', { concurrency: false }, async () => {
+  const apiSource = fs.readFileSync(path.join(__dirname, '..', 'src/admin/api.rs'), 'utf8');
+  const schema = await importBrowserModule('dashboard/src/lib/domain/config-schema.js');
+
+  const topLevelFields = parseRustStructFieldNames(apiSource, 'AdminConfigPatch');
+  const nestedFieldMap = new Map([
+    ['ban_durations', parseRustStructFieldNames(apiSource, 'AdminBanDurationsPatch')],
+    ['botness_weights', parseRustStructFieldNames(apiSource, 'AdminBotnessWeightsPatch')],
+    ['defence_modes', parseRustStructFieldNames(apiSource, 'AdminDefenceModesPatch')],
+    ['provider_backends', parseRustStructFieldNames(apiSource, 'AdminProviderBackendsPatch')]
+  ]);
+
+  const writablePaths = [];
+  topLevelFields.forEach((field) => {
+    if (nestedFieldMap.has(field)) {
+      nestedFieldMap.get(field).forEach((nestedField) => {
+        writablePaths.push(`${field}.${nestedField}`);
+      });
+      return;
+    }
+    writablePaths.push(field);
+  });
+
+  const writableSet = new Set(writablePaths);
+  const advancedSet = new Set(schema.advancedConfigTemplatePaths);
+
+  const missingFromAdvanced = writablePaths
+    .filter((pathValue) => !advancedSet.has(pathValue))
+    .sort();
+  const nonWritableInAdvanced = Array.from(advancedSet)
+    .filter((pathValue) => !writableSet.has(pathValue))
+    .sort();
+
+  assert.deepEqual(missingFromAdvanced, []);
+  assert.deepEqual(nonWritableInAdvanced, []);
 });
 
 test('admin endpoint resolver applies loopback override only for local hostnames', { concurrency: false }, async () => {
@@ -739,20 +837,85 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
   assert.equal(configSource.includes('robotsAllowSearch'), false);
   assert.match(configSource, /onTestModeToggleChange/);
   assert.match(configSource, /await onSaveConfig\(/);
-  assert.match(configSource, /\$: testModeToggleText = testMode \? 'Test Mode On' : 'Test Mode Off';/);
+  assert.match(
+    configSource,
+    /<div class="panel-heading-with-control">[\s\S]*?<h3>Test Mode<\/h3>[\s\S]*?for="test-mode-toggle"/
+  );
   assert.match(configSource, /id="preview-challenge-puzzle-link"/);
   assert.match(configSource, /id="preview-not-a-bot-link"/);
+  assert.equal(
+    configSource.indexOf('<h3>Challenge: Not-a-Bot</h3>')
+      < configSource.indexOf('<h3>Challenge: Puzzle</h3>'),
+    true
+  );
+  assert.equal(
+    configSource.indexOf('id="pow-enabled-toggle"')
+      < configSource.indexOf('id="cdp-enabled-toggle"')
+      && configSource.indexOf('id="cdp-enabled-toggle"')
+      < configSource.indexOf('id="rate-limit-enabled-toggle"'),
+    true
+  );
+  assert.equal(
+    configSource.indexOf('id="rate-limit-enabled-toggle"')
+      < configSource.indexOf('id="maze-enabled-toggle"'),
+    true
+  );
+  assert.equal(
+    configSource.indexOf('id="challenge-puzzle-enabled-toggle"')
+      < configSource.indexOf('id="honeypot-enabled-toggle"')
+      && configSource.indexOf('id="honeypot-enabled-toggle"')
+      < configSource.indexOf('id="ip-range-policy-mode"'),
+    true
+  );
+  assert.match(configSource, /for="maze-auto-ban-toggle">Enable Auto-ban<\/label>/);
+  assert.match(configSource, /class:input-row--disabled=\{!mazeAutoBan\}/);
+  assert.match(configSource, /id="maze-threshold"[^>]*disabled=\{!mazeAutoBan\}/);
+  assert.equal(configSource.includes('Threshold is used only when auto-ban is enabled.'), false);
+  assert.equal(configSource.includes('id="not-a-bot-nonce-ttl"'), false);
+  assert.equal(configSource.includes('id="not-a-bot-marker-ttl"'), false);
+  assert.equal(configSource.includes('id="not-a-bot-attempt-limit"'), false);
+  assert.equal(configSource.includes('id="not-a-bot-attempt-window"'), false);
+  assert.match(configSource, /\$: notABotScoreFailMaxCap = Math\.max\(0, Number\(notABotScorePassMin\) - 1\);/);
+  assert.match(configSource, /\$: notABotScorePassMinFloor = Math\.min\(10, Number\(notABotScoreFailMax\) \+ 1\);/);
+  assert.match(configSource, /max=\{notABotScoreFailMaxCap\}/);
+  assert.match(configSource, /Any scores above Fail and below Pass will be shown a tougher challenge\./);
   assert.match(configSource, /id="export-current-config-json"/);
-  assert.match(configSource, /Export the current configuration as JSON/);
+  assert.match(
+    configSource,
+    /Export (the current configuration as JSON|a JSON copy of the above configuration)/
+  );
   assert.match(configSource, /id="advanced-config-json-error"/);
   assert.match(configSource, /id="advanced-config-json-issue-list"/);
   assert.match(configSource, /id="advanced-config-json-validating"/);
   assert.match(configSource, /id="advanced-config-json-docs-link"/);
   assert.match(configSource, /id="save-config-all"/);
   assert.match(configSource, /saveAllConfig\(/);
+  assert.match(
+    configSource,
+    /const shouldRefreshRobotsPreview = robotsPreviewOpen && \(robotsDirty \|\| aiPolicyDirty\);/
+  );
+  assert.match(
+    configSource,
+    /if \(shouldRefreshRobotsPreview\) \{\s*robotsPreviewOpen = true;\s*await refreshRobotsPreview\(\);/
+  );
+  assert.match(configSource, /const buildRobotsPreviewPatch = \(\) => \{/);
+  assert.match(configSource, /const patch = previewPatch && typeof previewPatch === 'object'/);
+  assert.match(configSource, /await onFetchRobotsPreview\(patch\);/);
+  assert.match(configSource, /\$: robotsPreviewPatchKey = JSON\.stringify\(buildRobotsPreviewPatch\(\)\);/);
+  assert.match(
+    configSource,
+    /\$: if \(robotsPreviewOpen\) \{\s*void robotsPreviewPatchKey;\s*scheduleRobotsPreviewRefresh\(\);\s*\}/
+  );
+  assert.match(configSource, /id="open-robots-txt-link"/);
   assert.match(configSource, /window\.addEventListener\('beforeunload'/);
   assert.match(configSource, /id="ip-range-policy-mode"/);
   assert.match(configSource, /ip_range_policy_mode/);
+  assert.match(configSource, /id="browser-policy-toggle"/);
+  assert.match(configSource, /id="bypass-allowlists-toggle"/);
+  assert.match(configSource, /id="geo-scoring-toggle"/);
+  assert.match(configSource, /id="geo-routing-toggle"/);
+  assert.match(configSource, /browser_policy_enabled/);
+  assert.match(configSource, /bypass_allowlists_enabled/);
   assert.match(configSource, /\(LOGGING ONLY\)/);
   assert.match(configSource, /\(BLOCKING ACTIVE\)/);
   assert.equal(configSource.includes('Test Mode Active'), false);

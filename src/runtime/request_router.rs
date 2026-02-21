@@ -1,6 +1,162 @@
 use spin_sdk::http::{Method, Request, Response};
 use spin_sdk::key_value::Store;
 
+const SITE_ID_DEFAULT: &str = "default";
+const CHALLENGE_ABUSE_SHORT_BAN_SECONDS: u64 = 600;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ChallengeFailureEnforcement {
+    MazeFallback,
+    TarpitOrShortBan,
+}
+
+fn classify_not_a_bot_failure_enforcement(
+    outcome: crate::challenge::NotABotSubmitOutcome,
+) -> ChallengeFailureEnforcement {
+    match outcome {
+        crate::challenge::NotABotSubmitOutcome::FailedScore
+        | crate::challenge::NotABotSubmitOutcome::Expired
+        | crate::challenge::NotABotSubmitOutcome::MazeOrBlock => {
+            ChallengeFailureEnforcement::MazeFallback
+        }
+        crate::challenge::NotABotSubmitOutcome::Replay
+        | crate::challenge::NotABotSubmitOutcome::InvalidSeed
+        | crate::challenge::NotABotSubmitOutcome::MissingSeed
+        | crate::challenge::NotABotSubmitOutcome::SequenceViolation
+        | crate::challenge::NotABotSubmitOutcome::BindingMismatch
+        | crate::challenge::NotABotSubmitOutcome::InvalidTelemetry
+        | crate::challenge::NotABotSubmitOutcome::AttemptLimitExceeded => {
+            ChallengeFailureEnforcement::TarpitOrShortBan
+        }
+        crate::challenge::NotABotSubmitOutcome::Pass
+        | crate::challenge::NotABotSubmitOutcome::EscalatePuzzle => {
+            ChallengeFailureEnforcement::MazeFallback
+        }
+    }
+}
+
+fn classify_challenge_failure_enforcement(
+    outcome: crate::boundaries::ChallengeSubmitOutcome,
+) -> Option<ChallengeFailureEnforcement> {
+    match outcome {
+        crate::boundaries::ChallengeSubmitOutcome::Solved => None,
+        crate::boundaries::ChallengeSubmitOutcome::Incorrect
+        | crate::boundaries::ChallengeSubmitOutcome::SequenceOpExpired
+        | crate::boundaries::ChallengeSubmitOutcome::SequenceWindowExceeded
+        | crate::boundaries::ChallengeSubmitOutcome::SequenceTimingTooSlow => {
+            Some(ChallengeFailureEnforcement::MazeFallback)
+        }
+        crate::boundaries::ChallengeSubmitOutcome::AttemptLimitExceeded
+        | crate::boundaries::ChallengeSubmitOutcome::SequenceOpMissing
+        | crate::boundaries::ChallengeSubmitOutcome::SequenceOpInvalid
+        | crate::boundaries::ChallengeSubmitOutcome::SequenceOpReplay
+        | crate::boundaries::ChallengeSubmitOutcome::SequenceOrderViolation
+        | crate::boundaries::ChallengeSubmitOutcome::SequenceBindingMismatch
+        | crate::boundaries::ChallengeSubmitOutcome::SequenceTimingTooFast
+        | crate::boundaries::ChallengeSubmitOutcome::SequenceTimingTooRegular
+        | crate::boundaries::ChallengeSubmitOutcome::Forbidden
+        | crate::boundaries::ChallengeSubmitOutcome::InvalidOutput => {
+            Some(ChallengeFailureEnforcement::TarpitOrShortBan)
+        }
+    }
+}
+
+fn render_maze_or_block_failure(
+    req: &Request,
+    store: &Store,
+    cfg: &crate::config::Config,
+    provider_registry: &crate::providers::registry::ProviderRegistry,
+    ip: &str,
+    ua: &str,
+    maze_path_suffix: &str,
+    event_reason: &str,
+    event_outcome: &str,
+) -> Response {
+    if cfg.maze_enabled {
+        return provider_registry
+            .maze_tarpit_provider()
+            .serve_maze_with_tracking(
+                req,
+                store,
+                cfg,
+                ip,
+                ua,
+                crate::maze::entry_path(maze_path_suffix).as_str(),
+                event_reason,
+                event_outcome,
+                None,
+            );
+    }
+    Response::new(
+        403,
+        crate::enforcement::block_page::render_block_page(
+            crate::enforcement::block_page::BlockReason::GeoPolicy,
+        ),
+    )
+}
+
+fn enforce_tarpit_or_short_ban(
+    store: &Store,
+    req: &Request,
+    cfg: &crate::config::Config,
+    provider_registry: &crate::providers::registry::ProviderRegistry,
+    ip: &str,
+    ban_reason: &str,
+    summary: &str,
+    signals: &[&str],
+) -> Response {
+    if let Some(tarpit_response) = provider_registry.maze_tarpit_provider().maybe_handle_tarpit(
+        req,
+        store,
+        cfg,
+        SITE_ID_DEFAULT,
+        ip,
+    ) {
+        return tarpit_response;
+    }
+
+    provider_registry.ban_store_provider().ban_ip_with_fingerprint(
+        store,
+        SITE_ID_DEFAULT,
+        ip,
+        ban_reason,
+        CHALLENGE_ABUSE_SHORT_BAN_SECONDS,
+        Some(crate::enforcement::ban::BanFingerprint {
+            score: None,
+            signals: signals.iter().map(|value| (*value).to_string()).collect(),
+            summary: Some(summary.to_string()),
+        }),
+    );
+    crate::observability::metrics::increment(
+        store,
+        crate::observability::metrics::MetricName::BansTotal,
+        Some(ban_reason),
+    );
+    crate::observability::metrics::increment(
+        store,
+        crate::observability::metrics::MetricName::BlocksTotal,
+        None,
+    );
+    crate::admin::log_event(
+        store,
+        &crate::admin::EventLogEntry {
+            ts: crate::admin::now_ts(),
+            event: crate::admin::EventType::Ban,
+            ip: Some(ip.to_string()),
+            reason: Some(ban_reason.to_string()),
+            outcome: Some(format!("short_ban_{}s", CHALLENGE_ABUSE_SHORT_BAN_SECONDS)),
+            admin: None,
+        },
+    );
+
+    Response::new(
+        403,
+        crate::enforcement::block_page::render_block_page(
+            crate::enforcement::block_page::BlockReason::GeoPolicy,
+        ),
+    )
+}
+
 fn record_sequence_violation_for_challenge_submit(
     store: &Store,
     req: &Request,
@@ -107,7 +263,11 @@ fn handle_not_a_bot_submit(
                 );
                 return provider_registry
                     .challenge_engine_provider()
-                    .render_challenge(req, cfg.challenge_puzzle_transform_count as usize);
+                    .render_challenge(
+                        req,
+                        cfg.challenge_puzzle_transform_count as usize,
+                        cfg.challenge_puzzle_seed_ttl_seconds,
+                    );
             }
             if cfg.maze_enabled {
                 return provider_registry
@@ -155,27 +315,49 @@ fn handle_not_a_bot_submit(
                     admin: None,
                 },
             );
-            if cfg.maze_enabled {
-                return provider_registry
-                    .maze_tarpit_provider()
-                    .serve_maze_with_tracking(
+            match classify_not_a_bot_failure_enforcement(submit_result.outcome) {
+                ChallengeFailureEnforcement::MazeFallback => {
+                    let event_outcome = format!("{:?}", submit_result.outcome);
+                    render_maze_or_block_failure(
                         req,
                         store,
                         cfg,
+                        &provider_registry,
                         ip.as_str(),
                         ua,
-                        crate::maze::entry_path("not-a-bot-fail").as_str(),
+                        "not-a-bot-fail",
                         "not_a_bot_submit_fail_maze",
-                        format!("{:?}", submit_result.outcome).as_str(),
-                        None,
-                    );
+                        event_outcome.as_str(),
+                    )
+                }
+                ChallengeFailureEnforcement::TarpitOrShortBan => {
+                    if cfg.test_mode {
+                        let event_outcome = format!("{:?} test_mode_no_ban", submit_result.outcome);
+                        return render_maze_or_block_failure(
+                            req,
+                            store,
+                            cfg,
+                            &provider_registry,
+                            ip.as_str(),
+                            ua,
+                            "not-a-bot-abuse-test-mode",
+                            "not_a_bot_submit_abuse_test_mode_maze",
+                            event_outcome.as_str(),
+                        );
+                    }
+                    let summary = format!("outcome={:?}", submit_result.outcome);
+                    enforce_tarpit_or_short_ban(
+                        store,
+                        req,
+                        cfg,
+                        &provider_registry,
+                        ip.as_str(),
+                        "not_a_bot_abuse",
+                        summary.as_str(),
+                        &["not_a_bot_abuse"],
+                    )
+                }
             }
-            Response::new(
-                403,
-                crate::enforcement::block_page::render_block_page(
-                    crate::enforcement::block_page::BlockReason::GeoPolicy,
-                ),
-            )
         }
     }
 }
@@ -278,9 +460,23 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
     // Challenge POST handler
     if path == crate::boundaries::challenge_puzzle_path() && *req.method() == Method::Post {
         if let Ok(store) = Store::open_default() {
+            let cfg = match crate::load_runtime_config(&store, "default", path) {
+                Ok(cfg) => cfg,
+                Err(resp) => return Some(resp),
+            };
+            let provider_registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
             let (response, outcome) =
-                crate::boundaries::handle_challenge_submit_with_outcome(&store, req);
+                crate::boundaries::handle_challenge_submit_with_outcome(
+                    &store,
+                    req,
+                    cfg.challenge_puzzle_attempt_window_seconds,
+                    cfg.challenge_puzzle_attempt_limit_per_window,
+                );
             let challenge_ip = crate::extract_client_ip(req);
+            let challenge_ua = req
+                .header("user-agent")
+                .and_then(|value| value.as_str())
+                .unwrap_or("");
             match outcome {
                 crate::boundaries::ChallengeSubmitOutcome::Solved => {
                     crate::observability::metrics::increment(
@@ -299,6 +495,13 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                         &store,
                         challenge_ip.as_str(),
                         "incorrect",
+                    );
+                }
+                crate::boundaries::ChallengeSubmitOutcome::AttemptLimitExceeded => {
+                    crate::observability::monitoring::record_challenge_failure(
+                        &store,
+                        challenge_ip.as_str(),
+                        "attempt_limit",
                     );
                 }
                 crate::boundaries::ChallengeSubmitOutcome::SequenceOpMissing => {
@@ -461,6 +664,51 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                     );
                 }
             }
+            if let Some(enforcement) = classify_challenge_failure_enforcement(outcome) {
+                match enforcement {
+                    ChallengeFailureEnforcement::MazeFallback => {
+                        let event_outcome = format!("{:?}", outcome);
+                        return Some(render_maze_or_block_failure(
+                            req,
+                            &store,
+                            &cfg,
+                            &provider_registry,
+                            challenge_ip.as_str(),
+                            challenge_ua,
+                            "challenge-puzzle-fail",
+                            "challenge_puzzle_submit_fail_maze",
+                            event_outcome.as_str(),
+                        ));
+                    }
+                    ChallengeFailureEnforcement::TarpitOrShortBan => {
+                        if cfg.test_mode {
+                            let event_outcome = format!("{:?} test_mode_no_ban", outcome);
+                            return Some(render_maze_or_block_failure(
+                                req,
+                                &store,
+                                &cfg,
+                                &provider_registry,
+                                challenge_ip.as_str(),
+                                challenge_ua,
+                                "challenge-puzzle-abuse-test-mode",
+                                "challenge_puzzle_submit_abuse_test_mode_maze",
+                                event_outcome.as_str(),
+                            ));
+                        }
+                        let summary = format!("outcome={:?}", outcome);
+                        return Some(enforce_tarpit_or_short_ban(
+                            &store,
+                            req,
+                            &cfg,
+                            &provider_registry,
+                            challenge_ip.as_str(),
+                            "challenge_puzzle_abuse",
+                            summary.as_str(),
+                            &["challenge_puzzle_abuse"],
+                        ));
+                    }
+                }
+            }
             return Some(response);
         }
         return Some(Response::new(500, "Key-value store error"));
@@ -475,6 +723,7 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                 req,
                 cfg.test_mode,
                 cfg.challenge_puzzle_transform_count as usize,
+                cfg.challenge_puzzle_seed_ttl_seconds,
             );
             if *response.status() == 200 {
                 crate::observability::metrics::increment(
@@ -516,7 +765,7 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                         .status(200)
                         .header("Content-Type", "text/plain; charset=utf-8")
                         .header("Content-Signal", content_signal)
-                        .header("Cache-Control", "public, max-age=3600")
+                        .header("Cache-Control", "no-store, no-cache, must-revalidate")
                         .body(content)
                         .build(),
                 );

@@ -87,13 +87,16 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | `SHUMA_POW_TTL_SECONDS` | `90` | <abbr title="Proof of Work">PoW</abbr> seed lifetime in seconds (clamped). |
 | `SHUMA_CHALLENGE_PUZZLE_ENABLED` | `true` | Enables challenge puzzle routing at the challenge escalation step. |
 | `SHUMA_CHALLENGE_PUZZLE_TRANSFORM_COUNT` | `6` | Number of transform options shown in the puzzle challenge (4-8). |
+| `SHUMA_CHALLENGE_PUZZLE_SEED_TTL_SECONDS` | `300` | Puzzle signed seed lifetime in seconds (30-300). |
+| `SHUMA_CHALLENGE_PUZZLE_ATTEMPT_LIMIT_PER_WINDOW` | `6` | Puzzle per-bucket submit cap in each attempt window (1-100). |
+| `SHUMA_CHALLENGE_PUZZLE_ATTEMPT_WINDOW_SECONDS` | `300` | Puzzle attempt window duration in seconds (30-3600). |
 | `SHUMA_CHALLENGE_PUZZLE_RISK_THRESHOLD` | `3` | Botness score threshold for serving challenge step-up. |
 | `SHUMA_NOT_A_BOT_ENABLED` | `true` | Enables not-a-bot checkbox routing at medium botness certainty. |
 | `SHUMA_NOT_A_BOT_RISK_THRESHOLD` | `2` | Botness score threshold for serving not-a-bot (must remain below challenge threshold when challenge threshold > 1). |
-| `SHUMA_NOT_A_BOT_SCORE_PASS_MIN` | `7` | Minimum not-a-bot score for pass outcome. |
-| `SHUMA_NOT_A_BOT_SCORE_ESCALATE_MIN` | `4` | Minimum not-a-bot score for puzzle escalation (must be <= pass threshold). |
-| `SHUMA_NOT_A_BOT_NONCE_TTL_SECONDS` | `120` | Not-a-bot signed seed lifetime in seconds (30-300). |
-| `SHUMA_NOT_A_BOT_MARKER_TTL_SECONDS` | `600` | Not-a-bot post-pass marker lifetime in seconds (60-3600). |
+| `SHUMA_NOT_A_BOT_PASS_SCORE` | `7` | Minimum not-a-bot score for pass outcome. |
+| `SHUMA_NOT_A_BOT_FAIL_SCORE` | `4` | Minimum not-a-bot score for puzzle escalation (must be <= pass threshold). |
+| `SHUMA_NOT_A_BOT_NONCE_TTL_SECONDS` | `120` | Verification Token Lifetime (seconds): how long the signed Not-a-Bot token remains valid after page load. If it expires before submit, verification fails (30-300). |
+| `SHUMA_NOT_A_BOT_MARKER_TTL_SECONDS` | `600` | Pass Marker Lifetime (seconds): how long a successful Not-a-Bot pass is remembered for the same IP/UA bucket, so repeat requests can skip this step (60-3600). |
 | `SHUMA_NOT_A_BOT_ATTEMPT_LIMIT_PER_WINDOW` | `6` | Not-a-bot per-bucket submit cap in each attempt window (1-100). |
 | `SHUMA_NOT_A_BOT_ATTEMPT_WINDOW_SECONDS` | `300` | Not-a-bot attempt window duration in seconds (30-3600). |
 | `SHUMA_BOTNESS_MAZE_THRESHOLD` | `6` | Botness score threshold for routing to maze. |
@@ -108,9 +111,10 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | `SHUMA_BAN_DURATION_BROWSER` | `21600` | Ban duration for browser-policy based bans (seconds). |
 | `SHUMA_BAN_DURATION_ADMIN` | `21600` | Ban duration for manual admin bans (seconds). |
 | `SHUMA_BAN_DURATION_CDP` | `43200` | Ban duration for <abbr title="Chrome DevTools Protocol">CDP</abbr> automation bans (seconds). |
-| `SHUMA_RATE_LIMIT` | `80` | Requests per minute threshold for rate limiting. |
+| `SHUMA_RATE_LIMIT` | `80` | Requests per minute threshold for rate limiting per source IP bucket (IPv4 /24, IPv6 /64). |
 | `SHUMA_HONEYPOT_ENABLED` | `true` | Enables/disables honeypot trap handling for configured honeypot paths. |
 | `SHUMA_HONEYPOTS` | `['/instaban']` | Honeypot endpoints that immediately trigger ban flow. |
+| `SHUMA_BROWSER_POLICY_ENABLED` | `true` | Master on/off switch for browser policy enforcement and browser whitelist exceptions. |
 | `SHUMA_BROWSER_BLOCK` | `[["Chrome",120],["Firefox",115],["Safari",15]]` | Browser/version minimums used by browser policy checks. |
 | `SHUMA_BROWSER_WHITELIST` | `[]` | Optional browser/version allowlist exceptions. |
 | `SHUMA_GEO_RISK_COUNTRIES` | `[]` | 2-letter countries that add <abbr title="Geolocation">GEO</abbr> botness score. |
@@ -118,6 +122,7 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | `SHUMA_GEO_CHALLENGE_COUNTRIES` | `[]` | 2-letter countries forced to challenge tier. |
 | `SHUMA_GEO_MAZE_COUNTRIES` | `[]` | 2-letter countries forced to maze tier. |
 | `SHUMA_GEO_BLOCK_COUNTRIES` | `[]` | 2-letter countries forced to block tier. |
+| `SHUMA_BYPASS_ALLOWLISTS_ENABLED` | `true` | Master on/off switch for path/IP allowlist bypass behavior. |
 | `SHUMA_WHITELIST` | `[]` | <abbr title="Internet Protocol">IP</abbr>/<abbr title="Classless Inter-Domain Routing">CIDR</abbr> allowlist bypassing bot defenses. |
 | `SHUMA_PATH_WHITELIST` | `[]` | <abbr title="Uniform Resource Locator">URL</abbr> path allowlist bypassing bot defenses. |
 | `SHUMA_IP_RANGE_POLICY_MODE` | `off` | <abbr title="Internet Protocol">IP</abbr>-range policy mode (`off`, `advisory`, `enforce`). |
@@ -204,13 +209,13 @@ Managed catalog operations:
 
 The following <abbr title="Key-Value">KV</abbr>-backed fields are currently writable via admin <abbr title="Application Programming Interface">API</abbr>:
 
-- Core: `test_mode`, `rate_limit`, `ban_duration`, `ban_durations.{honeypot,rate_limit,browser,admin,cdp}`, `honeypot_enabled`, `honeypots`, `browser_block`, `browser_whitelist`, `whitelist`, `path_whitelist`, `ip_range_policy_mode`, `ip_range_emergency_allowlist`, `ip_range_custom_rules`, `ip_range_managed_policies`, `ip_range_managed_max_staleness_hours`, `ip_range_allow_stale_managed_enforce`, `js_required_enforced`.
+- Core: `test_mode`, `rate_limit`, `ban_duration`, `ban_durations.{honeypot,rate_limit,browser,admin,cdp}`, `honeypot_enabled`, `honeypots`, `browser_policy_enabled`, `browser_block`, `browser_whitelist`, `bypass_allowlists_enabled`, `whitelist`, `path_whitelist`, `ip_range_policy_mode`, `ip_range_emergency_allowlist`, `ip_range_custom_rules`, `ip_range_managed_policies`, `ip_range_managed_max_staleness_hours`, `ip_range_allow_stale_managed_enforce`, `js_required_enforced`.
 - <abbr title="Geolocation">GEO</abbr> routing/policy: `geo_risk`, `geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`.
 - Maze: `maze_enabled`, `maze_auto_ban`, `maze_auto_ban_threshold`, `maze_rollout_phase`, `maze_token_ttl_seconds`, `maze_token_max_depth`, `maze_token_branch_budget`, `maze_replay_ttl_seconds`, `maze_entropy_window_seconds`, `maze_client_expansion_enabled`, `maze_checkpoint_every_nodes`, `maze_checkpoint_every_ms`, `maze_step_ahead_max`, `maze_no_js_fallback_max_depth`, `maze_micro_pow_enabled`, `maze_micro_pow_depth_start`, `maze_micro_pow_base_difficulty`, `maze_max_concurrent_global`, `maze_max_concurrent_per_ip_bucket`, `maze_max_response_bytes`, `maze_max_response_duration_ms`, `maze_server_visible_links`, `maze_max_links`, `maze_max_paragraphs`, `maze_path_entropy_segment_len`, `maze_covert_decoys_enabled`, `maze_seed_provider`, `maze_seed_refresh_interval_seconds`, `maze_seed_refresh_rate_limit_per_hour`, `maze_seed_refresh_max_sources`, `maze_seed_metadata_only`.
 - Robots/<abbr title="Artificial Intelligence">AI</abbr> policy: `robots_enabled`, `robots_crawl_delay`, `ai_policy_block_training`, `ai_policy_block_search`, `ai_policy_allow_search_engines` (legacy aliases `robots_block_ai_training`, `robots_block_ai_search`, `robots_allow_search_engines` are also accepted).
 - <abbr title="Chrome DevTools Protocol">CDP</abbr>/fingerprint: `cdp_detection_enabled`, `cdp_auto_ban`, `cdp_detection_threshold`, `cdp_probe_family`, `cdp_probe_rollout_percent`, `fingerprint_signal_enabled`, `fingerprint_state_ttl_seconds`, `fingerprint_flow_window_seconds`, `fingerprint_flow_violation_threshold`, `fingerprint_pseudonymize`, `fingerprint_entropy_budget`, `fingerprint_family_cap_header_runtime`, `fingerprint_family_cap_transport`, `fingerprint_family_cap_temporal`, `fingerprint_family_cap_persistence`, `fingerprint_family_cap_behavior`.
 - Provider/edge: `provider_backends.{rate_limiter,ban_store,challenge_engine,maze_tarpit,fingerprint_signal}`, `edge_integration_mode`.
-- Botness/challenge tuning: `pow_enabled`, `pow_difficulty`, `pow_ttl_seconds`, `challenge_puzzle_enabled`, `challenge_puzzle_transform_count`, `challenge_puzzle_risk_threshold`, `not_a_bot_enabled`, `not_a_bot_risk_threshold`, `not_a_bot_score_pass_min`, `not_a_bot_score_escalate_min`, `not_a_bot_nonce_ttl_seconds`, `not_a_bot_marker_ttl_seconds`, `not_a_bot_attempt_limit_per_window`, `not_a_bot_attempt_window_seconds`, `botness_maze_threshold`, `botness_weights.{js_required,geo_risk,rate_medium,rate_high,maze_behavior}`, `defence_modes.{rate,geo,js}`.
+- Botness/challenge tuning: `pow_enabled`, `pow_difficulty`, `pow_ttl_seconds`, `challenge_puzzle_enabled`, `challenge_puzzle_transform_count`, `challenge_puzzle_seed_ttl_seconds`, `challenge_puzzle_attempt_limit_per_window`, `challenge_puzzle_attempt_window_seconds`, `challenge_puzzle_risk_threshold`, `not_a_bot_enabled`, `not_a_bot_risk_threshold`, `not_a_bot_pass_score`, `not_a_bot_fail_score`, `not_a_bot_nonce_ttl_seconds` (Verification Token Lifetime), `not_a_bot_marker_ttl_seconds` (Pass Marker Lifetime), `not_a_bot_attempt_limit_per_window`, `not_a_bot_attempt_window_seconds`, `botness_maze_threshold`, `botness_weights.{js_required,geo_risk,rate_medium,rate_high,maze_behavior}`, `defence_modes.{rate,geo,js}`.
 
 Shuma follows a 2-class model only:
 - Env-only runtime keys in the Env-Only table above.

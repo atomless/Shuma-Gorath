@@ -1,7 +1,7 @@
 use spin_sdk::http::{Request, Response};
 
 use super::super::{challenge_response, KeyValueStore};
-use super::renders::render_challenge;
+use super::renders::render_challenge_with_seed_ttl;
 use super::token::{parse_seed_token, SeedTokenError};
 use super::{build_puzzle, parse_submission};
 
@@ -13,6 +13,7 @@ const CHALLENGE_INCORRECT_BODY: &str = "<html><body><h2 style='color:red;'>Incor
 pub(crate) enum ChallengeSubmitOutcome {
     Solved,
     Incorrect,
+    AttemptLimitExceeded,
     SequenceOpMissing,
     SequenceOpInvalid,
     SequenceOpExpired,
@@ -27,6 +28,12 @@ pub(crate) enum ChallengeSubmitOutcome {
     InvalidOutput,
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct AttemptState {
+    window_start: u64,
+    count: u32,
+}
+
 fn challenge_forbidden_response() -> Response {
     challenge_response(403, CHALLENGE_FORBIDDEN_BODY)
 }
@@ -39,20 +46,51 @@ fn challenge_incorrect_response() -> Response {
     challenge_response(403, CHALLENGE_INCORRECT_BODY)
 }
 
+#[cfg(test)]
 pub(crate) fn serve_challenge_page(
     req: &Request,
     test_mode: bool,
     transform_count: usize,
 ) -> Response {
+    serve_challenge_page_with_seed_ttl(
+        req,
+        test_mode,
+        transform_count,
+        crate::config::defaults().challenge_puzzle_seed_ttl_seconds,
+    )
+}
+
+pub(crate) fn serve_challenge_page_with_seed_ttl(
+    req: &Request,
+    test_mode: bool,
+    transform_count: usize,
+    seed_ttl_seconds: u64,
+) -> Response {
     if !test_mode {
         return challenge_response(404, "Not Found");
     }
-    render_challenge(req, transform_count)
+    render_challenge_with_seed_ttl(req, transform_count, seed_ttl_seconds)
 }
 
+#[cfg(test)]
 pub(crate) fn handle_challenge_submit_with_outcome<S: KeyValueStore>(
     store: &S,
     req: &Request,
+) -> (Response, ChallengeSubmitOutcome) {
+    let defaults = crate::config::defaults();
+    handle_challenge_submit_with_outcome_with_limits(
+        store,
+        req,
+        defaults.challenge_puzzle_attempt_window_seconds,
+        defaults.challenge_puzzle_attempt_limit_per_window,
+    )
+}
+
+pub(crate) fn handle_challenge_submit_with_outcome_with_limits<S: KeyValueStore>(
+    store: &S,
+    req: &Request,
+    challenge_puzzle_attempt_window_seconds: u64,
+    challenge_puzzle_attempt_limit_per_window: u32,
 ) -> (Response, ChallengeSubmitOutcome) {
     if crate::request_validation::enforce_body_size(
         req.body(),
@@ -63,6 +101,21 @@ pub(crate) fn handle_challenge_submit_with_outcome<S: KeyValueStore>(
         return (
             challenge_forbidden_response(),
             ChallengeSubmitOutcome::Forbidden,
+        );
+    }
+    let now = crate::admin::now_ts();
+    let ip = crate::extract_client_ip(req);
+    let request_ip_bucket = crate::signals::ip_identity::bucket_ip(ip.as_str());
+    if increment_and_check_attempt_limit(
+        store,
+        request_ip_bucket.as_str(),
+        now,
+        challenge_puzzle_attempt_window_seconds,
+        challenge_puzzle_attempt_limit_per_window,
+    ) {
+        return (
+            challenge_forbidden_response(),
+            ChallengeSubmitOutcome::AttemptLimitExceeded,
         );
     }
     let form = match std::str::from_utf8(req.body()) {
@@ -127,7 +180,6 @@ pub(crate) fn handle_challenge_submit_with_outcome<S: KeyValueStore>(
             )
         }
     };
-    let now = crate::admin::now_ts();
     if now > seed.expires_at {
         return (
             challenge_expired_response(),
@@ -160,7 +212,6 @@ pub(crate) fn handle_challenge_submit_with_outcome<S: KeyValueStore>(
             )
         }
     }
-    let ip = crate::extract_client_ip(req);
     let ua = req
         .header("user-agent")
         .and_then(|value| value.as_str())
@@ -264,6 +315,42 @@ pub(crate) fn handle_challenge_submit_with_outcome<S: KeyValueStore>(
 #[cfg(test)]
 pub fn handle_challenge_submit<S: KeyValueStore>(store: &S, req: &Request) -> Response {
     handle_challenge_submit_with_outcome(store, req).0
+}
+
+fn increment_and_check_attempt_limit<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    ip_bucket: &str,
+    now: u64,
+    attempt_window_seconds: u64,
+    attempt_limit_per_window: u32,
+) -> bool {
+    let key = format!("challenge_puzzle:attempt:{}", ip_bucket);
+    let mut state = store
+        .get(key.as_str())
+        .ok()
+        .flatten()
+        .and_then(|raw| serde_json::from_slice::<AttemptState>(raw.as_slice()).ok())
+        .unwrap_or(AttemptState {
+            window_start: now,
+            count: 0,
+        });
+
+    if now.saturating_sub(state.window_start) >= attempt_window_seconds {
+        state.window_start = now;
+        state.count = 0;
+    }
+    state.count = state.count.saturating_add(1);
+
+    if let Ok(encoded) = serde_json::to_vec(&state) {
+        if let Err(err) = store.set(key.as_str(), encoded.as_slice()) {
+            eprintln!(
+                "[challenge] failed to persist puzzle attempt counter for {}: {:?}",
+                key, err
+            );
+        }
+    }
+
+    state.count > attempt_limit_per_window
 }
 
 fn get_form_field(form: &str, name: &str) -> Option<String> {

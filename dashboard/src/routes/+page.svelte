@@ -336,8 +336,8 @@
     }
   }
 
-  async function onRobotsPreview() {
-    return getDashboardRobotsPreview();
+  async function onRobotsPreview(patch = null) {
+    return getDashboardRobotsPreview(patch);
   }
 
   async function onFetchEventsRange(hours, options = {}) {
@@ -381,7 +381,7 @@
       <img src={shumaImageSrc} alt="Shuma-Gorath" class="shuma-gorath-img">
     </div>
     <h1>Shuma-Gorath</h1>
-    <p class="subtitle text-muted">Chthulucene Bot Defence</p>
+    <p class="subtitle text-muted"><a href="https://read.dukeupress.edu/books/book/27/Staying-with-the-TroubleMaking-Kin-in-the" target="_blank">Chthulucene</a> Bot Defence</p>
     <nav class="dashboard-tabs" aria-label="Dashboard sections">
       {#each DASHBOARD_TABS as tab}
         {@const tabKey = normalizeTab(tab)}

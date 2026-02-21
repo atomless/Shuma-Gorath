@@ -122,6 +122,7 @@ Completion rule for every paper TODO below: capture key findings, map to `self_h
 - [x] NAB-10 Explicitly document the very-low-certainty managed/invisible path mapping (passive + JS/PoW) and keep Not-a-Bot medium-certainty only.
 - [x] NAB-11 Preserve accessibility-neutral scoring policy: keyboard/touch flows remain pass-capable; assistive paths are never direct negative signals.
 - [ ] NAB-12 Evaluate optional PAT-style private attestation signal ingestion as additive evidence only (non-blocking).
+- [ ] NAB-13 Execute short Not-a-Bot hardening sprint per `docs/plans/2026-02-21-not-a-bot-hardening-sprint.md` (unknown-modality cap, stronger pass corroboration, cross-attempt/session consistency gating, accessibility-safe anti-fast-path tightening).
 
 ## P2 GEO Defence Maturity
 - [ ] Add ASN/network dimensions in GEO policy logic (not just country list). (`src/signals/geo/mod.rs`, `src/config/mod.rs`, `src/admin/api.rs`)

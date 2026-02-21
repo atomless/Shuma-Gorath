@@ -348,10 +348,26 @@ test("not-a-bot browser lifecycle supports pass flow and rejects replayed submit
   const currentConfig = await currentConfigResponse.json();
   const originalTestMode = currentConfig && currentConfig.test_mode === true;
   const originalNotABotEnabled = currentConfig && currentConfig.not_a_bot_enabled !== false;
+  const originalNotABotPassMin = Number.isFinite(currentConfig?.not_a_bot_pass_score)
+    ? currentConfig.not_a_bot_pass_score
+    : 7;
+  const originalNotABotFailScore = Number.isFinite(currentConfig?.not_a_bot_fail_score)
+    ? currentConfig.not_a_bot_fail_score
+    : 4;
+  const originalNotABotAttemptLimit = Number.isFinite(currentConfig?.not_a_bot_attempt_limit_per_window)
+    ? currentConfig.not_a_bot_attempt_limit_per_window
+    : 6;
+  const originalNotABotAttemptWindow = Number.isFinite(currentConfig?.not_a_bot_attempt_window_seconds)
+    ? currentConfig.not_a_bot_attempt_window_seconds
+    : 300;
 
   await updateAdminConfig(request, {
     test_mode: true,
-    not_a_bot_enabled: true
+    not_a_bot_enabled: true,
+    not_a_bot_pass_score: 6,
+    not_a_bot_fail_score: 3,
+    not_a_bot_attempt_limit_per_window: 50,
+    not_a_bot_attempt_window_seconds: 300
   });
 
   try {
@@ -362,8 +378,8 @@ test("not-a-bot browser lifecycle supports pass flow and rejects replayed submit
     await page.mouse.move(40, 40);
     await page.mouse.move(96, 64);
     await page.keyboard.press("Tab");
-    // Not-a-bot submit enforces a 1s minimum latency window; keep margin to avoid second-boundary flakes.
-    await page.waitForTimeout(2200);
+    // Keep dwell above the signed operation envelope minimum latency.
+    await page.waitForTimeout(1500);
 
     const submitRequestPromise = page.waitForRequest((req) =>
       req.method() === "POST" && req.url().includes("/challenge/not-a-bot-checkbox")
@@ -401,7 +417,11 @@ test("not-a-bot browser lifecycle supports pass flow and rejects replayed submit
   } finally {
     await updateAdminConfig(request, {
       test_mode: originalTestMode,
-      not_a_bot_enabled: originalNotABotEnabled
+      not_a_bot_enabled: originalNotABotEnabled,
+      not_a_bot_pass_score: originalNotABotPassMin,
+      not_a_bot_fail_score: originalNotABotFailScore,
+      not_a_bot_attempt_limit_per_window: originalNotABotAttemptLimit,
+      not_a_bot_attempt_window_seconds: originalNotABotAttemptWindow
     });
   }
 });
@@ -852,6 +872,16 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   const testModeToggleSwitch = page.locator("label.toggle-switch[for='test-mode-toggle']");
   const honeypotEnabledToggle = page.locator("#honeypot-enabled-toggle");
   const honeypotEnabledSwitch = page.locator("label.toggle-switch[for='honeypot-enabled-toggle']");
+  const browserPolicyEnabledToggle = page.locator("#browser-policy-toggle");
+  const browserPolicyEnabledSwitch = page.locator("label.toggle-switch[for='browser-policy-toggle']");
+  const bypassAllowlistsEnabledToggle = page.locator("#bypass-allowlists-toggle");
+  const bypassAllowlistsEnabledSwitch = page.locator("label.toggle-switch[for='bypass-allowlists-toggle']");
+  const rateLimitingEnabledToggle = page.locator("#rate-limit-enabled-toggle");
+  const rateLimitingEnabledSwitch = page.locator("label.toggle-switch[for='rate-limit-enabled-toggle']");
+  const geoScoringEnabledToggle = page.locator("#geo-scoring-toggle");
+  const geoScoringEnabledSwitch = page.locator("label.toggle-switch[for='geo-scoring-toggle']");
+  const geoRoutingEnabledToggle = page.locator("#geo-routing-toggle");
+  const geoRoutingEnabledSwitch = page.locator("label.toggle-switch[for='geo-routing-toggle']");
   const edgeModeSelect = page.locator("#edge-integration-mode-select");
   const advancedField = page.locator("#advanced-config-json");
 
@@ -929,6 +959,15 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   await rateLimitField.fill(initialRateLimit);
   await rateLimitField.dispatchEvent("input");
   await expect(configSave).toBeHidden();
+  if (await rateLimitingEnabledSwitch.isVisible() && await rateLimitingEnabledToggle.isEnabled()) {
+    const initialRateLimitEnabled = await rateLimitingEnabledToggle.isChecked();
+    await rateLimitingEnabledSwitch.click();
+    await expect(configSave).toBeEnabled();
+    if (initialRateLimitEnabled !== await rateLimitingEnabledToggle.isChecked()) {
+      await rateLimitingEnabledSwitch.click();
+    }
+    await expect(configSave).toBeHidden();
+  }
 
   const jsRequiredToggle = page.locator("#js-required-enforced-toggle");
 
@@ -981,6 +1020,16 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   await browserBlockField.dispatchEvent("input");
   await expect(configSave).toBeHidden();
 
+  if (await browserPolicyEnabledSwitch.isVisible() && await browserPolicyEnabledToggle.isEnabled()) {
+    const initialBrowserPolicyEnabled = await browserPolicyEnabledToggle.isChecked();
+    await browserPolicyEnabledSwitch.click();
+    await expect(configSave).toBeEnabled();
+    if (initialBrowserPolicyEnabled !== await browserPolicyEnabledToggle.isChecked()) {
+      await browserPolicyEnabledSwitch.click();
+    }
+    await expect(configSave).toBeHidden();
+  }
+
   const networkWhitelistField = page.locator("#network-whitelist");
   const initialNetworkWhitelist = await networkWhitelistField.inputValue();
   await networkWhitelistField.fill(`${initialNetworkWhitelist}\n198.51.100.0/24`);
@@ -989,6 +1038,36 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   await networkWhitelistField.fill(initialNetworkWhitelist);
   await networkWhitelistField.dispatchEvent("input");
   await expect(configSave).toBeHidden();
+
+  if (await bypassAllowlistsEnabledSwitch.isVisible() && await bypassAllowlistsEnabledToggle.isEnabled()) {
+    const initialBypassEnabled = await bypassAllowlistsEnabledToggle.isChecked();
+    await bypassAllowlistsEnabledSwitch.click();
+    await expect(configSave).toBeEnabled();
+    if (initialBypassEnabled !== await bypassAllowlistsEnabledToggle.isChecked()) {
+      await bypassAllowlistsEnabledSwitch.click();
+    }
+    await expect(configSave).toBeHidden();
+  }
+
+  if (await geoScoringEnabledSwitch.isVisible() && await geoScoringEnabledToggle.isEnabled()) {
+    const initialGeoScoringEnabled = await geoScoringEnabledToggle.isChecked();
+    await geoScoringEnabledSwitch.click();
+    await expect(configSave).toBeEnabled();
+    if (initialGeoScoringEnabled !== await geoScoringEnabledToggle.isChecked()) {
+      await geoScoringEnabledSwitch.click();
+    }
+    await expect(configSave).toBeHidden();
+  }
+
+  if (await geoRoutingEnabledSwitch.isVisible() && await geoRoutingEnabledToggle.isEnabled()) {
+    const initialGeoRoutingEnabled = await geoRoutingEnabledToggle.isChecked();
+    await geoRoutingEnabledSwitch.click();
+    await expect(configSave).toBeEnabled();
+    if (initialGeoRoutingEnabled !== await geoRoutingEnabledToggle.isChecked()) {
+      await geoRoutingEnabledSwitch.click();
+    }
+    await expect(configSave).toBeHidden();
+  }
 
   const initialEdgeMode = await edgeModeSelect.inputValue();
   const nextEdgeMode = initialEdgeMode === "off" ? "advisory" : "off";
@@ -1018,28 +1097,16 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   await advancedField.dispatchEvent("input");
   await expect(configSave).toBeHidden();
 
-  const challengeTransformField = page.locator("#challenge-puzzle-transform-count");
   const challengeEnabledToggle = page.locator("#challenge-puzzle-enabled-toggle");
   const challengeEnabledSwitch = page.locator("label.toggle-switch[for='challenge-puzzle-enabled-toggle']");
-  if (await challengeTransformField.isEnabled()) {
-    const initialTransformCount = await challengeTransformField.inputValue();
-    const nextTransformCount = String(Math.min(8, Number(initialTransformCount || "6") + 1));
-    await challengeTransformField.fill(nextTransformCount);
-    await challengeTransformField.dispatchEvent("input");
+  if (await challengeEnabledSwitch.isVisible() && await challengeEnabledToggle.isEnabled()) {
+    const initialEnabled = await challengeEnabledToggle.isChecked();
+    await challengeEnabledSwitch.click();
     await expect(configSave).toBeEnabled();
-    await challengeTransformField.fill(initialTransformCount);
-    await challengeTransformField.dispatchEvent("input");
-    await expect(configSave).toBeHidden();
-
-    if (await challengeEnabledSwitch.isVisible() && await challengeEnabledToggle.isEnabled()) {
-      const initialEnabled = await challengeEnabledToggle.isChecked();
+    if (initialEnabled !== await challengeEnabledToggle.isChecked()) {
       await challengeEnabledSwitch.click();
-      await expect(configSave).toBeEnabled();
-      if (initialEnabled !== await challengeEnabledToggle.isChecked()) {
-        await challengeEnabledSwitch.click();
-      }
-      await expect(configSave).toBeHidden();
     }
+    await expect(configSave).toBeHidden();
   }
 });
 

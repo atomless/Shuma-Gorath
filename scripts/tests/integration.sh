@@ -18,7 +18,7 @@
 #   6. Health check after ban/unban (GET /health)
 #   7. Config API - get config (GET /admin/config)
 #   8. Test mode toggle (POST /admin/config)
-#   9. Challenge single-use flow (incorrect -> replay expired)
+#   9. Challenge failure routing flow (wrong/replay -> maze in test mode)
 #   10. Test mode behavior verification
 #   11. Test mode disable and blocking resumes
 #   12. Verify blocking after test mode disabled
@@ -46,6 +46,8 @@ NC="\033[0m" # No Color
 
 FAILURES=0
 TEST_HONEYPOT_IP="10.0.0.88"
+TEST_POW_IP="10.0.0.230"
+TEST_NOT_A_BOT_IP="10.1.0.151"
 HONEYPOT_PATH="/instaban"
 INTEGRATION_USER_AGENT="ShumaIntegration/1.0-${RANDOM}-$$-$(date +%s)"
 
@@ -58,10 +60,12 @@ info() { echo -e "${YELLOW}INFO${NC} $1"; }
 
 BASE_URL="http://127.0.0.1:3000"
 TEST_CLEANUP_IPS=(
+  127.0.0.1
   "${TEST_HONEYPOT_IP}"
   10.0.0.99
   10.0.0.100
   10.0.0.150
+  "${TEST_NOT_A_BOT_IP}"
   10.0.0.200
   10.0.0.201
   10.0.0.202
@@ -71,6 +75,7 @@ TEST_CLEANUP_IPS=(
   10.0.0.230
   10.0.0.231
   10.0.0.232
+  10.0.0.250
 )
 ORIGINAL_CONFIG_RESTORE_PAYLOAD=""
 
@@ -111,6 +116,29 @@ read_env_local_value() {
   value="${value#\'}"
   printf '%s' "$value"
 }
+
+read_defaults_env_value() {
+  local key="$1"
+  if [[ ! -f "config/defaults.env" ]]; then
+    return 1
+  fi
+  local line
+  line=$(grep -E "^${key}=" config/defaults.env | tail -1 || true)
+  if [[ -z "$line" ]]; then
+    return 1
+  fi
+  local value="${line#*=}"
+  value="${value%\"}"
+  value="${value#\"}"
+  value="${value%\'}"
+  value="${value#\'}"
+  printf '%s' "$value"
+}
+
+DEFAULT_RATE_LIMIT="$(read_defaults_env_value SHUMA_RATE_LIMIT || true)"
+if [[ -z "${DEFAULT_RATE_LIMIT}" ]] || ! [[ "${DEFAULT_RATE_LIMIT}" =~ ^[0-9]+$ ]]; then
+  DEFAULT_RATE_LIMIT=80
+fi
 
 if [[ -z "${SHUMA_API_KEY:-}" ]]; then
   SHUMA_API_KEY="$(read_env_local_value SHUMA_API_KEY || true)"
@@ -167,7 +195,7 @@ fi
 info "Resetting test_mode=false before integration scenarios..."
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
-  -d '{"test_mode": false, "honeypot_enabled": true}' \
+  -d '{"test_mode": false, "honeypot_enabled": true, "rate_limit": 1000, "not_a_bot_pass_score": 6, "not_a_bot_fail_score": 3, "not_a_bot_attempt_limit_per_window": 100, "not_a_bot_attempt_window_seconds": 300}' \
   "$BASE_URL/admin/config" > /dev/null || true
 
 info "Resetting GEO policy lists to empty defaults..."
@@ -214,13 +242,26 @@ if [[ -n "$resolved_honeypot" ]]; then
 fi
 info "Using honeypot path: $HONEYPOT_PATH"
 
+FINGERPRINT_REPORT_PATH="/cdp-report"
+resolved_fingerprint_backend=$(python3 -c 'import json,sys
+try:
+    data=json.loads(sys.stdin.read())
+except Exception:
+    data={}
+provider_backends=data.get("provider_backends") or {}
+print(provider_backends.get("fingerprint_signal") or "")' <<< "$config_snapshot")
+if [[ "$resolved_fingerprint_backend" == "external" ]]; then
+  FINGERPRINT_REPORT_PATH="/fingerprint-report"
+fi
+info "Using fingerprint report path: $FINGERPRINT_REPORT_PATH"
+
 # Test 2: PoW challenge (if enabled)
 info "Testing PoW challenge..."
 pow_verified=false
 pow_enabled=true
 pow_attempt=1
 while [[ $pow_attempt -le 3 ]]; do
-  pow_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -H "User-Agent: ${INTEGRATION_USER_AGENT}" "$BASE_URL/pow")
+  pow_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_POW_IP}" -H "User-Agent: ${INTEGRATION_USER_AGENT}" "$BASE_URL/pow")
   pow_body=$(echo "$pow_resp" | sed -e 's/HTTPSTATUS:.*//')
   pow_status=$(echo "$pow_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
   if [[ "$pow_status" == "404" ]]; then
@@ -286,7 +327,7 @@ nonce=sys.argv[2]
 print(json.dumps({"seed": seed, "nonce": nonce}))
 PY
 )
-  verify_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
+  verify_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_POW_IP}" -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
     -H "Content-Type: application/json" -X POST -d "$payload" "$BASE_URL/pow/verify")
   verify_body=$(echo "$verify_resp" | sed -e 's/HTTPSTATUS:.*//')
   verify_status=$(echo "$verify_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
@@ -305,7 +346,7 @@ fi
 
 if [[ "$pow_enabled" == "true" ]]; then
   info "Testing PoW verify failure branches..."
-  pow_fail_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -H "User-Agent: ${INTEGRATION_USER_AGENT}" "$BASE_URL/pow")
+  pow_fail_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_POW_IP}" -H "User-Agent: ${INTEGRATION_USER_AGENT}" "$BASE_URL/pow")
   pow_fail_body=$(echo "$pow_fail_resp" | sed -e 's/HTTPSTATUS:.*//')
   pow_fail_status=$(echo "$pow_fail_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
   if [[ "$pow_fail_status" != "200" ]]; then
@@ -324,7 +365,7 @@ import json
 print(json.dumps({"nonce": "1"}))
 PY
 )
-      missing_seed_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
+      missing_seed_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_POW_IP}" -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
         -H "Content-Type: application/json" -X POST -d "$missing_seed_payload" "$BASE_URL/pow/verify")
       missing_seed_body=$(echo "$missing_seed_resp" | sed -e 's/HTTPSTATUS:.*//')
       missing_seed_status=$(echo "$missing_seed_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
@@ -341,7 +382,7 @@ import json,sys
 print(json.dumps({"seed": sys.argv[1]}))
 PY
 )
-      missing_nonce_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
+      missing_nonce_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_POW_IP}" -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
         -H "Content-Type: application/json" -X POST -d "$missing_nonce_payload" "$BASE_URL/pow/verify")
       missing_nonce_body=$(echo "$missing_nonce_resp" | sed -e 's/HTTPSTATUS:.*//')
       missing_nonce_status=$(echo "$missing_nonce_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
@@ -390,7 +431,7 @@ import json,sys
 print(json.dumps({"seed": sys.argv[1], "nonce": sys.argv[2]}))
 PY
 )
-      bad_proof_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
+      bad_proof_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_POW_IP}" -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
         -H "Content-Type: application/json" -X POST -d "$bad_proof_payload" "$BASE_URL/pow/verify")
       bad_proof_body=$(echo "$bad_proof_resp" | sed -e 's/HTTPSTATUS:.*//')
       bad_proof_status=$(echo "$bad_proof_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
@@ -470,7 +511,7 @@ fi
 
 # Test 9: Not-a-Bot flow validates pass + replay rejection in test mode
 info "Testing /challenge/not-a-bot-checkbox flow..."
-not_a_bot_page=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.151" -H "User-Agent: ${INTEGRATION_USER_AGENT}" "$BASE_URL/challenge/not-a-bot-checkbox")
+not_a_bot_page=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_NOT_A_BOT_IP}" -H "User-Agent: ${INTEGRATION_USER_AGENT}" "$BASE_URL/challenge/not-a-bot-checkbox")
 if echo "$not_a_bot_page" | grep -q 'I am not a bot'; then
   pass "GET /challenge/not-a-bot-checkbox returns not-a-bot page in test mode"
 else
@@ -490,7 +531,7 @@ else
   sleep 2
   not_a_bot_status=$(curl -s -D "$not_a_bot_headers" -o "$not_a_bot_body" -w "%{http_code}" \
     "${FORWARDED_SECRET_HEADER[@]}" \
-    -H "X-Forwarded-For: 10.0.0.151" \
+    -H "X-Forwarded-For: ${TEST_NOT_A_BOT_IP}" \
     -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
     --data-urlencode "seed=$not_a_bot_seed" \
     --data-urlencode "checked=1" \
@@ -511,7 +552,7 @@ else
 
   not_a_bot_replay_status=$(curl -s -o /dev/null -w "%{http_code}" \
     "${FORWARDED_SECRET_HEADER[@]}" \
-    -H "X-Forwarded-For: 10.0.0.151" \
+    -H "X-Forwarded-For: ${TEST_NOT_A_BOT_IP}" \
     -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
     --data-urlencode "seed=$not_a_bot_seed" \
     --data-urlencode "checked=1" \
@@ -526,8 +567,8 @@ else
   rm -f "$not_a_bot_headers" "$not_a_bot_body"
 fi
 
-# Test 10: Challenge flow is single-use (incorrect then replay expires)
-info "Testing /challenge/puzzle single-use flow..."
+# Test 10: Challenge failures route to maze in test mode (no short-ban side effects)
+info "Testing /challenge/puzzle failure routing flow..."
 challenge_page=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.150" -H "User-Agent: ${INTEGRATION_USER_AGENT}" "$BASE_URL/challenge/puzzle")
 if echo "$challenge_page" | grep -q 'Puzzle'; then
   pass "GET /challenge/puzzle returns challenge page in test mode"
@@ -564,10 +605,10 @@ else
     -X POST "$BASE_URL/challenge/puzzle")
   incorrect_body=$(echo "$incorrect_resp" | sed -e 's/HTTPSTATUS:.*//')
   incorrect_status=$(echo "$incorrect_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
-  if [[ "$incorrect_status" == "403" ]] && echo "$incorrect_body" | grep -q 'Incorrect'; then
-    pass "POST /challenge/puzzle returns Incorrect for wrong answer"
+  if [[ "$incorrect_status" == "200" ]] && echo "$incorrect_body" | grep -q 'data-link-kind="maze"'; then
+    pass "POST /challenge/puzzle routes wrong answer to maze in test mode"
   else
-    fail "POST /challenge/puzzle did not return expected Incorrect response"
+    fail "POST /challenge/puzzle did not return expected maze response for wrong answer"
     echo -e "${YELLOW}DEBUG incorrect status:${NC} $incorrect_status"
     echo -e "${YELLOW}DEBUG incorrect body:${NC} $incorrect_body"
   fi
@@ -579,10 +620,10 @@ else
     -X POST "$BASE_URL/challenge/puzzle")
   replay_body=$(echo "$replay_resp" | sed -e 's/HTTPSTATUS:.*//')
   replay_status=$(echo "$replay_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
-  if [[ "$replay_status" == "403" ]] && echo "$replay_body" | grep -q 'Expired'; then
-    pass "Replay submit returns Expired for consumed seed"
+  if [[ "$replay_status" == "200" ]] && echo "$replay_body" | grep -q 'data-link-kind="maze"'; then
+    pass "Replay submit routes to maze in test mode"
   else
-    fail "Replay submit did not return expected Expired response"
+    fail "Replay submit did not return expected maze response"
     echo -e "${YELLOW}DEBUG replay status:${NC} $replay_status"
     echo -e "${YELLOW}DEBUG replay body:${NC} $replay_body"
   fi
@@ -876,7 +917,7 @@ fi
 # Test 17: CDP report endpoint exists
 info "Testing POST /cdp-report endpoint..."
 cdp_report='{"cdp_detected":true,"score":0.5,"checks":["webdriver"]}'
-cdp_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Content-Type: application/json" -H "X-Forwarded-For: 10.0.0.200" -d "$cdp_report" "$BASE_URL/cdp-report")
+cdp_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Content-Type: application/json" -H "X-Forwarded-For: 10.0.0.200" -d "$cdp_report" "$BASE_URL$FINGERPRINT_REPORT_PATH")
 if echo "$cdp_resp" | grep -qiE 'received|disabled|detected'; then
   pass "/cdp-report endpoint accepts detection reports"
 else
@@ -887,7 +928,7 @@ fi
 # Test 18: CDP report with high score triggers action (when enabled)
 info "Testing CDP auto-ban with high score..."
 cdp_high='{"cdp_detected":true,"score":0.95,"checks":["webdriver","automation_props","cdp_timing"]}'
-cdp_high_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Content-Type: application/json" -H "X-Forwarded-For: 10.0.0.201" -d "$cdp_high" "$BASE_URL/cdp-report")
+cdp_high_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Content-Type: application/json" -H "X-Forwarded-For: 10.0.0.201" -d "$cdp_high" "$BASE_URL$FINGERPRINT_REPORT_PATH")
 if echo "$cdp_high_resp" | grep -qiE 'banned|received|disabled'; then
   pass "/cdp-report handles high-score detection"
 else
@@ -1092,9 +1133,10 @@ fi
 
 # Test 25: External rate limiter missing backend explicitly downgrades to internal behavior
 info "Testing external rate limiter downgrade-to-internal behavior..."
+rate_fallback_payload=$(printf '{"provider_backends":{"rate_limiter":"external"},"edge_integration_mode":"advisory","rate_limit":%s}' "${DEFAULT_RATE_LIMIT}")
 rate_fallback_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
-  -d '{"provider_backends":{"rate_limiter":"external"},"edge_integration_mode":"advisory","rate_limit":1}' \
+  -d "${rate_fallback_payload}" \
   "$BASE_URL/admin/config")
 if ! echo "$rate_fallback_cfg" | grep -q '"status":"updated"'; then
   fail "Failed to apply external rate-limiter fallback config"
@@ -1111,14 +1153,28 @@ print(provider.get("rate_limiter",""))' <<< "$rate_fallback_cfg")
   fi
 
   curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.232" > /dev/null
-  rate_first=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/")
-  rate_second=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/")
-  if echo "$rate_second" | grep -qE 'Rate Limit Exceeded|Access Blocked'; then
+  rate_attempts=$((DEFAULT_RATE_LIMIT + 2))
+  rate_blocked=false
+  rate_first=""
+  rate_last=""
+  for ((i=1; i<=rate_attempts; i++)); do
+    rate_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/")
+    if [[ $i -eq 1 ]]; then
+      rate_first="$rate_resp"
+    fi
+    rate_last="$rate_resp"
+    if echo "$rate_resp" | grep -qE 'Rate Limit Exceeded|Access Blocked'; then
+      rate_blocked=true
+      break
+    fi
+  done
+  if [[ "$rate_blocked" == "true" ]]; then
     pass "External rate limiter downgrades to internal limiter when backend unavailable"
   else
     fail "Rate limiter downgrade-to-internal behavior not observed"
     echo -e "${YELLOW}DEBUG rate first response:${NC} $rate_first"
-    echo -e "${YELLOW}DEBUG rate second response:${NC} $rate_second"
+    echo -e "${YELLOW}DEBUG rate last response:${NC} $rate_last"
+    echo -e "${YELLOW}DEBUG attempted requests:${NC} $rate_attempts"
   fi
 fi
 

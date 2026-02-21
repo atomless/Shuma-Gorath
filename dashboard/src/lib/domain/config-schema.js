@@ -1,6 +1,7 @@
 // @ts-check
 
 export const advancedConfigTemplatePaths = Object.freeze([
+    'test_mode',
     'ban_duration',
     'ban_durations.honeypot',
     'ban_durations.rate_limit',
@@ -10,6 +11,7 @@ export const advancedConfigTemplatePaths = Object.freeze([
     'rate_limit',
     'honeypot_enabled',
     'honeypots',
+    'browser_policy_enabled',
     'browser_block',
     'browser_whitelist',
     'geo_risk',
@@ -17,6 +19,7 @@ export const advancedConfigTemplatePaths = Object.freeze([
     'geo_challenge',
     'geo_maze',
     'geo_block',
+    'bypass_allowlists_enabled',
     'whitelist',
     'path_whitelist',
     'ip_range_policy_mode',
@@ -58,8 +61,11 @@ export const advancedConfigTemplatePaths = Object.freeze([
     'maze_seed_metadata_only',
     'robots_enabled',
     'ai_policy_block_training',
+    'robots_block_ai_training',
     'ai_policy_block_search',
+    'robots_block_ai_search',
     'ai_policy_allow_search_engines',
+    'robots_allow_search_engines',
     'robots_crawl_delay',
     'cdp_detection_enabled',
     'cdp_auto_ban',
@@ -81,8 +87,19 @@ export const advancedConfigTemplatePaths = Object.freeze([
     'pow_enabled',
     'pow_difficulty',
     'pow_ttl_seconds',
+    'not_a_bot_enabled',
+    'not_a_bot_risk_threshold',
+    'not_a_bot_pass_score',
+    'not_a_bot_fail_score',
+    'not_a_bot_nonce_ttl_seconds',
+    'not_a_bot_marker_ttl_seconds',
+    'not_a_bot_attempt_limit_per_window',
+    'not_a_bot_attempt_window_seconds',
     'challenge_puzzle_enabled',
     'challenge_puzzle_transform_count',
+    'challenge_puzzle_seed_ttl_seconds',
+    'challenge_puzzle_attempt_limit_per_window',
+    'challenge_puzzle_attempt_window_seconds',
     'challenge_puzzle_risk_threshold',
     'botness_maze_threshold',
     'botness_weights.js_required',
@@ -101,13 +118,4 @@ export const advancedConfigTemplatePaths = Object.freeze([
     'edge_integration_mode'
   ]);
 
-const LEGACY_ROBOTS_ALIAS_PATHS = Object.freeze([
-    'robots_block_ai_training',
-    'robots_block_ai_search',
-    'robots_allow_search_engines'
-  ]);
-
-export const writableStatusVarPaths = Object.freeze([
-    ...advancedConfigTemplatePaths,
-    ...LEGACY_ROBOTS_ALIAS_PATHS
-  ]);
+export const writableStatusVarPaths = advancedConfigTemplatePaths;

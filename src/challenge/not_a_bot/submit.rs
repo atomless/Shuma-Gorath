@@ -259,7 +259,7 @@ pub(crate) fn handle_not_a_bot_submit_with_outcome<S: crate::challenge::KeyValue
         );
     };
 
-    if score >= cfg.not_a_bot_score_pass_min {
+    if score >= cfg.not_a_bot_pass_score {
         return NotABotSubmitResult {
             outcome: NotABotSubmitOutcome::Pass,
             decision: NotABotDecision::Pass,
@@ -273,7 +273,7 @@ pub(crate) fn handle_not_a_bot_submit_with_outcome<S: crate::challenge::KeyValue
         };
     }
 
-    if score >= cfg.not_a_bot_score_escalate_min {
+    if score >= cfg.not_a_bot_fail_score {
         return NotABotSubmitResult {
             outcome: NotABotSubmitOutcome::EscalatePuzzle,
             decision: NotABotDecision::EscalatePuzzle,
@@ -284,7 +284,7 @@ pub(crate) fn handle_not_a_bot_submit_with_outcome<S: crate::challenge::KeyValue
     }
 
     failure_result(
-        NotABotSubmitOutcome::MazeOrBlock,
+        NotABotSubmitOutcome::FailedScore,
         NotABotDecision::MazeOrBlock,
         return_to.as_str(),
     )
@@ -372,7 +372,7 @@ fn parse_activation_method(value: &str) -> Option<&'static str> {
 }
 
 fn compute_not_a_bot_score(checked: bool, telemetry: &NotABotTelemetry) -> Option<u8> {
-    if !checked || !telemetry.events_order_valid || !telemetry.activation_trusted {
+    if !checked {
         return None;
     }
     let activation_method = parse_activation_method(telemetry.activation_method.as_str())?;
@@ -456,6 +456,9 @@ fn compute_not_a_bot_score(checked: bool, telemetry: &NotABotTelemetry) -> Optio
     if telemetry.focus_changes <= 3 && telemetry.visibility_changes <= 1 {
         score = score.saturating_add(1);
     }
+    if telemetry.activation_trusted {
+        score = score.saturating_add(1);
+    }
 
     Some(score.min(10))
 }
@@ -497,17 +500,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn score_rejects_unchecked_or_invalid_order() {
+    fn score_rejects_unchecked_submission() {
         let telemetry = NotABotTelemetry {
-            events_order_valid: false,
             interaction_elapsed_ms: 1500,
             activation_method: "pointer".to_string(),
             activation_trusted: true,
             activation_count: 1,
+            has_pointer: true,
             ..NotABotTelemetry::default()
         };
         assert!(compute_not_a_bot_score(false, &telemetry).is_none());
-        assert!(compute_not_a_bot_score(true, &telemetry).is_none());
     }
 
     #[test]
@@ -523,7 +525,6 @@ mod tests {
             interaction_elapsed_ms: 1800,
             keyboard_used: false,
             touch_used: false,
-            events_order_valid: true,
             activation_method: "pointer".to_string(),
             activation_trusted: true,
             activation_count: 1,
@@ -546,7 +547,6 @@ mod tests {
             interaction_elapsed_ms: 1700,
             keyboard_used: true,
             touch_used: false,
-            events_order_valid: true,
             activation_method: "keyboard".to_string(),
             activation_trusted: true,
             activation_count: 1,
@@ -562,7 +562,6 @@ mod tests {
     #[test]
     fn score_fails_too_fast_or_too_slow_interactions() {
         let telemetry_fast = NotABotTelemetry {
-            events_order_valid: true,
             interaction_elapsed_ms: 100,
             activation_method: "pointer".to_string(),
             activation_trusted: true,
@@ -571,7 +570,6 @@ mod tests {
             ..NotABotTelemetry::default()
         };
         let telemetry_slow = NotABotTelemetry {
-            events_order_valid: true,
             interaction_elapsed_ms: 200_000,
             activation_method: "pointer".to_string(),
             activation_trusted: true,
@@ -584,7 +582,7 @@ mod tests {
     }
 
     #[test]
-    fn score_rejects_untrusted_activation() {
+    fn score_treats_untrusted_activation_as_soft_signal() {
         let telemetry = NotABotTelemetry {
             has_pointer: true,
             pointer_move_count: 18,
@@ -594,14 +592,61 @@ mod tests {
             focus_changes: 1,
             visibility_changes: 0,
             interaction_elapsed_ms: 1500,
-            events_order_valid: true,
             activation_method: "pointer".to_string(),
             activation_trusted: false,
             activation_count: 1,
             control_focused: true,
             ..NotABotTelemetry::default()
         };
-        assert!(compute_not_a_bot_score(true, &telemetry).is_none());
+        let score = compute_not_a_bot_score(true, &telemetry).unwrap();
+        assert!(score >= 6);
+    }
+
+    #[test]
+    fn score_does_not_require_client_asserted_event_order_flag() {
+        let telemetry = NotABotTelemetry {
+            has_pointer: true,
+            pointer_move_count: 32,
+            pointer_path_length: 420.0,
+            pointer_direction_changes: 11,
+            down_up_ms: 210,
+            focus_changes: 1,
+            visibility_changes: 0,
+            interaction_elapsed_ms: 1500,
+            keyboard_used: false,
+            touch_used: false,
+            activation_method: "pointer".to_string(),
+            activation_trusted: true,
+            activation_count: 1,
+            control_focused: true,
+        };
+        let score = compute_not_a_bot_score(true, &telemetry).unwrap();
+        assert!(score >= 7);
+    }
+
+    #[test]
+    fn score_treats_activation_trust_as_soft_signal() {
+        let telemetry = NotABotTelemetry {
+            has_pointer: true,
+            pointer_move_count: 32,
+            pointer_path_length: 420.0,
+            pointer_direction_changes: 11,
+            down_up_ms: 210,
+            focus_changes: 1,
+            visibility_changes: 0,
+            interaction_elapsed_ms: 1500,
+            keyboard_used: false,
+            touch_used: false,
+            activation_method: "pointer".to_string(),
+            activation_trusted: false,
+            activation_count: 1,
+            control_focused: true,
+        };
+        let score = compute_not_a_bot_score(true, &telemetry).unwrap();
+        assert!(
+            score >= 6,
+            "untrusted activation should not hard-fail; stronger server checks handle authority"
+        );
     }
 
     #[test]
@@ -609,7 +654,6 @@ mod tests {
         let telemetry = NotABotTelemetry {
             interaction_elapsed_ms: 1600,
             keyboard_used: true,
-            events_order_valid: true,
             activation_method: "unknown".to_string(),
             activation_trusted: true,
             activation_count: 1,

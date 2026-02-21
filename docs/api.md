@@ -149,6 +149,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `POST /admin/maze/seeds` - Upsert maze operator-seed sources
 - `POST /admin/maze/seeds/refresh` - Trigger manual maze operator-corpus refresh
 - `GET /admin/robots` - robots.txt config and preview
+- `POST /admin/robots/preview` - robots.txt preview from an unsaved config patch (does not persist)
 - `GET /admin/cdp` - <abbr title="Chrome DevTools Protocol">CDP</abbr> + fingerprint detection config and stats
 
 `GET /admin/session` includes `access` as `read_only`, `read_write`, or `none`.
@@ -303,7 +304,7 @@ The unified botness model uses weighted scored signals plus terminal hard-ban si
 
 Core enforcement fields:
 - `js_required_enforced` - enable/disable <abbr title="JavaScript">JS</abbr>-required enforcement
-- `rate_limit` - per-minute request limit used for hard rate limiting and rate-pressure scoring
+- `rate_limit` - per-minute request limit used for hard rate limiting and rate-pressure scoring, applied per source IP bucket (IPv4 /24, IPv6 /64)
 - `honeypot_enabled` - enable/disable honeypot trap handling for configured trap paths
 - `challenge_puzzle_enabled` - enable/disable challenge serving at challenge-tier routes (when disabled, challenge tier falls back to maze or block)
 - `defence_modes.rate` / `defence_modes.geo` / `defence_modes.js` - per-module composability mode (`off`, `signal`, `enforce`, `both`)
@@ -315,10 +316,10 @@ Scored thresholds:
 
 Not-a-Bot controls:
 - `not_a_bot_enabled`
-- `not_a_bot_score_pass_min`
-- `not_a_bot_score_escalate_min`
-- `not_a_bot_nonce_ttl_seconds`
-- `not_a_bot_marker_ttl_seconds`
+- `not_a_bot_pass_score`
+- `not_a_bot_fail_score`
+- `not_a_bot_nonce_ttl_seconds` - Verification Token Lifetime (seconds): how long the signed Not-a-Bot token remains valid after page load. If it expires before submit, verification fails.
+- `not_a_bot_marker_ttl_seconds` - Pass Marker Lifetime (seconds): how long a successful Not-a-Bot pass is remembered for the same IP/UA bucket, so repeat requests can skip this step.
 - `not_a_bot_attempt_limit_per_window`
 - `not_a_bot_attempt_window_seconds`
 

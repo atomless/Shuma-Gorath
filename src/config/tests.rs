@@ -264,7 +264,12 @@ fn defaults_enable_both_signal_and_action_paths() {
     assert_eq!(cfg.edge_integration_mode, EdgeIntegrationMode::Off);
     assert!(cfg.js_required_enforced);
     assert!(cfg.honeypot_enabled);
+    assert!(cfg.browser_policy_enabled);
+    assert!(cfg.bypass_allowlists_enabled);
     assert!(cfg.challenge_puzzle_enabled);
+    assert_eq!(cfg.challenge_puzzle_seed_ttl_seconds, 300);
+    assert_eq!(cfg.challenge_puzzle_attempt_limit_per_window, 6);
+    assert_eq!(cfg.challenge_puzzle_attempt_window_seconds, 300);
     assert_eq!(cfg.defence_modes.js, ComposabilityMode::Both);
     assert_eq!(cfg.defence_modes.geo, ComposabilityMode::Both);
     assert_eq!(cfg.defence_modes.rate, ComposabilityMode::Both);
