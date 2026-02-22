@@ -45,7 +45,7 @@
   --page-fg: var(--color-900);
   --panel-bg: var(--color-back);
   --panel-fg: var(--color-front);
-  --muted-fg: var(--color-500);
+  --muted-fg: var(--color-600);
   --heading-fg: var(--color-front);
   --field-bg: var(--panel-bg);
   --field-fg: var(--panel-fg);
@@ -115,7 +115,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   white-space: nowrap;
-  color: var(--inline-link-fg);
+  color: var(--inline-link-fg); 
 }
 
 .pad-sm {
@@ -237,13 +237,6 @@ body {
    Shuma-Gorath Image (Dashboard Header)
    =========================================== */
 
-.shuma-image-wrapper {
-  /* display: flex;
-  justify-content: center;
-  align-items: center; */
-  /* background-image: radial-gradient(ellipse 310px 110px at 50% 55%, rgba(255, 255, 255, 0.99) 0%, rgba(255, 255, 255, 0.50) 55%, transparent 65%); */
-}
-
 .shuma-gorath-img {
   max-width: 320px;
   width: 100%;
@@ -251,17 +244,8 @@ body {
   display: block;
   margin: 0 auto;
   margin-top: -26px;
-  filter: sepia(1) hue-rotate(276deg) saturate(2) brightness(1);
+  /* filter: sepia(1) hue-rotate(276deg) saturate(2) brightness(1); */
   pointer-events: none;
-}
-
-
-.shuma-gorath-img--light {
-  display: block;
-}
-
-.shuma-gorath-img--dark {
-  display: none;
 }
 
 /* ===========================================
@@ -1070,7 +1054,7 @@ a:focus-visible {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: var(--color-300);
+  background-color: var(--color-400);
   transition: 0.4s;
   border-radius: 16px;
 }
@@ -1309,7 +1293,7 @@ input:checked + .toggle-slider:before {
 .control-label {
   min-width: 0;
   font-size: var(--text-md);
-  color: var(--color-700);
+  color: var(--inline-link-fg);
 }
 
 /* Wide variant for longer labels */
@@ -1504,6 +1488,7 @@ input:checked + .toggle-slider:before {
   justify-content: space-between;
   padding: 5px 0;
   border-bottom: 1px solid var(--color-200);
+  color: var(--inline-link-fg); 
 }
 
 .info-row:last-child {
@@ -1512,6 +1497,7 @@ input:checked + .toggle-slider:before {
 
 .info-label {
   font-size: var(--text-sm);
+  color: var(--inline-link-fg); 
 }
 
 .info-row span:last-child {
@@ -1626,7 +1612,7 @@ input:checked + .toggle-slider:before {
     --color-back: #200b24;
     --color-50: #251e24;
     --color-100: #2c1622;
-    --color-200: #2c2430;
+    --color-200: #3b2a43;
     --color-300: #3f1f46;
     --color-400: #595062;
     --color-500: #786a82;
@@ -1666,14 +1652,7 @@ input:checked + .toggle-slider:before {
     --striped-bright-bg: repeating-linear-gradient(-45deg, #200b24,#200b24 10px,#aa16a0 10px,#aa16a0 20px);
   }
 
-  .shuma-gorath-img--light {
-    display: none;
-  }
-  .shuma-gorath-img--dark {
-    display: block;
-  }
-
-  .container, .card, .info-panel, .robots-preview {
+  .container, .card, .robots-preview {
     background: var(--color-100);
     color: var(--color-800);
   }

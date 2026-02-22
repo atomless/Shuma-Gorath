@@ -381,8 +381,7 @@
   >Logout</button>
   <header>
     <div class="shuma-image-wrapper">
-      <img src={shumaImageLightSrc} alt="Shuma-Gorath" class="shuma-gorath-img shuma-gorath-img--light">
-      <img src={shumaImageDarkSrc} alt="Shuma-Gorath" class="shuma-gorath-img shuma-gorath-img--dark">
+      <img src={shumaImageDarkSrc} alt="Shuma-Gorath" class="shuma-gorath-img">
     </div>
     <h1>Shuma-Gorath</h1>
     <p class="subtitle text-muted"><a href="https://read.dukeupress.edu/books/book/27/Staying-with-the-TroubleMaking-Kin-in-the" target="_blank">Chthulucene</a> Bot Defence</p>

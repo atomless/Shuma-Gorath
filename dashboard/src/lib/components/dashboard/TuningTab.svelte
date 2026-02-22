@@ -208,7 +208,7 @@
           <label class="control-label" for="weight-rate-high">Weight: Rate 80% (points)</label>
           <input class="input-field" type="number" id="weight-rate-high" min="0" max="10" step="1" inputmode="numeric" aria-label="Weight for high rate pressure" bind:value={weightRateHigh} disabled={!writable}>
         </div>
-        <div class="info-panel panel-muted pad-sm">
+        <div class="info-panel">
           <h4>Status</h4>
           <div class="info-row">
             <span class="info-label text-muted">Config:</span>
@@ -227,7 +227,7 @@
             <span id="maze-threshold-default">{mazeDefault}</span>
           </div>
         </div>
-        <div class="info-panel panel-muted pad-sm">
+        <div class="info-panel">
           <h4>Scored Signals</h4>
           <div id="botness-signal-list">
             {#if scoredSignals.length === 0}
@@ -242,7 +242,7 @@
             {/if}
           </div>
         </div>
-        <div class="info-panel panel-muted pad-sm">
+        <div class="info-panel">
           <h4>Terminal Signals</h4>
           <div id="botness-terminal-list">
             {#if terminalSignals.length === 0}

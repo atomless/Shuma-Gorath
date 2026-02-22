@@ -1583,7 +1583,7 @@
           </label>
         </div>
       </div>
-      <div class="info-panel panel-soft">
+      <div class="info-panel">
         <h4>Managed Catalog Snapshot</h4>
         <div class="info-row">
           <span class="info-label text-muted">Version</span>
