@@ -6,6 +6,8 @@ For full documentation, see `docs/index.md`.
 
 ### 🐙 Setup
 ```bash
+make setup-runtime  # Runtime-only setup (Rust/wasm/Spin + env/bootstrap + KV seed)
+make verify-runtime # Runtime-only verification (no Node/pnpm/Playwright)
 make setup          # Install dependencies (Rust, Spin, cargo-watch, Node toolchain, pnpm deps, Playwright Chromium)
 make verify         # Verify dependencies are installed
 ```
@@ -14,8 +16,11 @@ make verify         # Verify dependencies are installed
 ```bash
 make dev            # Build and run with file watching (auto-rebuild)
 make run            # Build once and run (no watching)
-make build          # Build release binary only
+make build-runtime  # Build runtime/deploy release artifact (no dashboard budget gate)
+make build-full-dev # Build release artifact with dashboard budget gate (full-dev/CI)
+make build          # Alias of make build-runtime
 make prod           # Build for production and start server
+make smoke-single-host # Post-deploy smoke checks (health/admin auth/metrics/challenge)
 make stop           # Stop running Spin server
 make status         # Check if server is running
 make clean          # Clean build artifacts

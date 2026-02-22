@@ -14,13 +14,13 @@ Completed items are archived in `todos/completed-todo-history.md`.
 ## P0 Deployment Path Excellence (Single-Host + Akamai/Fermyon)
 Reference plan: `docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`
 
-- [ ] DEP-SH-1 Publish an explicit single-host (`self_hosted_minimal`) production runbook for average VM/shared-host operators with a 10-minute secure baseline (start/health/rollback).
-- [ ] DEP-SH-2 Add a single-host post-deploy smoke verification Make target (health, admin auth, metrics, and challenge-route sanity).
-- [ ] DEP-SH-3 Add `make setup-runtime` for minimal single-host/runtime installs (Rust + wasm target + Spin + config bootstrap prerequisites) without full dev/e2e toolchain.
-- [ ] DEP-SH-4 Add `make verify-runtime` so single-host operators can validate runtime prerequisites without requiring Node/pnpm/Playwright checks.
-- [ ] DEP-SH-5 Keep `make setup` as full contributor/dev path; document explicit selection guidance between runtime-only and full-dev setup flows.
-- [ ] DEP-SH-6 Split build/deploy targets so single-host production build paths do not require dashboard bundle-budget checks; keep budget gates in CI/full-dev verification targets.
-- [ ] DEP-SH-7 Add profile-first deployment wrappers/docs that keep one common baseline path and layer enterprise-only steps on top (`self_hosted_minimal` base + `enterprise_akamai` overlay).
+- [x] DEP-SH-1 Publish an explicit single-host (`self_hosted_minimal`) production runbook for average VM/shared-host operators with a 10-minute secure baseline (start/health/rollback).
+- [x] DEP-SH-2 Add a single-host post-deploy smoke verification Make target (health, admin auth, metrics, and challenge-route sanity).
+- [x] DEP-SH-3 Add `make setup-runtime` for minimal single-host/runtime installs (Rust + wasm target + Spin + config bootstrap prerequisites) without full dev/e2e toolchain.
+- [x] DEP-SH-4 Add `make verify-runtime` so single-host operators can validate runtime prerequisites without requiring Node/pnpm/Playwright checks.
+- [x] DEP-SH-5 Keep `make setup` as full contributor/dev path; document explicit selection guidance between runtime-only and full-dev setup flows.
+- [x] DEP-SH-6 Split build/deploy targets so single-host production build paths do not require dashboard bundle-budget checks; keep budget gates in CI/full-dev verification targets.
+- [x] DEP-SH-7 Add profile-first deployment wrappers/docs that keep one common baseline path and layer enterprise-only steps on top (`self_hosted_minimal` base + `enterprise_akamai` overlay).
 - [ ] DEP-ENT-1 Implement strict enterprise distributed ban-sync mode for authoritative multi-instance posture (no silent local-only divergence path).
 - [ ] DEP-ENT-2 Add ban-sync observability (<abbr title="Service Level Objective">SLO</abbr> metrics for sync result and lag) to support promotion/rollback decisions.
 - [ ] DEP-ENT-3 Add two-instance Spin integration coverage with shared Redis to prove ban/unban convergence behavior.

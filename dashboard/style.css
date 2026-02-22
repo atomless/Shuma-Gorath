@@ -394,7 +394,6 @@ h1 {
 .dashboard-tab-panel,
 .admin-group {
   position: relative;
-  background: var(--color-back);
 }
 
 .tab-state {
@@ -1626,7 +1625,7 @@ input:checked + .toggle-slider:before {
   :root {
     --color-back: #200b24;
     --color-50: #251e24;
-    --color-100: #291520;
+    --color-100: #2c1622;
     --color-200: #2c2430;
     --color-300: #3f1f46;
     --color-400: #595062;

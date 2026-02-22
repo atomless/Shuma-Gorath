@@ -11,12 +11,67 @@ For the current deployment-track execution backlog (single-host baseline and ent
 
 - Tunables are loaded from <abbr title="Key-Value">KV</abbr> (`config:default`) only.
 - Env vars are secrets/guardrails only.
-- `make setup` seeds <abbr title="Key-Value">KV</abbr> tunables from `config/defaults.env` using `make config-seed`.
+- `make setup` and `make setup-runtime` seed <abbr title="Key-Value">KV</abbr> tunables from `config/defaults.env` using `make config-seed`.
 - Runtime config is process-cached for a short <abbr title="Time To Live">TTL</abbr> (2 seconds) to reduce hot-path <abbr title="Key-Value">KV</abbr> reads.
 - `POST /admin/config` invalidates cache on the handling instance; other instances converge on their <abbr title="Time To Live">TTL</abbr> window.
 - `GET /admin/config/export` provides a non-secret `KEY=value` handoff snapshot for immutable redeploy workflows.
 
 If <abbr title="Key-Value">KV</abbr> config is missing/invalid at runtime, config-dependent request handling fails with `500 Configuration unavailable`.
+
+## 🐙 Setup Path Selection
+
+Pick one setup flow and stick to it for that machine:
+
+- Runtime-only single-host operator path (production/minimal):
+  - `make setup-runtime`
+  - `make verify-runtime`
+- Full contributor/dev path (includes dashboard/e2e toolchain):
+  - `make setup`
+  - `make verify`
+
+`make setup` remains the full contributor workflow. `make setup-runtime` intentionally skips Node/pnpm/Playwright.
+
+## 🐙 10-Minute `self_hosted_minimal` Runbook (Start + Health + Rollback)
+
+This is the fastest secure baseline for a single VM/shared host.
+
+1. Bootstrap runtime dependencies:
+
+```bash
+make setup-runtime
+make verify-runtime
+```
+
+2. Set production env-only values in your secret manager or `.env.local` (minimum: `SHUMA_API_KEY`, `SHUMA_JS_SECRET`, `SHUMA_ADMIN_IP_ALLOWLIST`, `SHUMA_HEALTH_SECRET`, `SHUMA_DEBUG_HEADERS=false`, `SHUMA_ENFORCE_HTTPS=true`, `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`, `SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true`, `SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true`).
+
+3. Build + validate single-host deployment posture:
+
+```bash
+make deploy-self-hosted-minimal
+```
+
+4. Start service:
+
+```bash
+make prod
+```
+
+5. Verify service health and baseline functionality:
+
+```bash
+make smoke-single-host
+```
+
+6. Rollback quickly if smoke fails:
+
+```bash
+make stop
+# restore previous known-good artifact/config via your normal deploy mechanism
+make prod
+make smoke-single-host
+```
+
+For immutable deployments, rollback is: redeploy previous release artifact + previous config export (`GET /admin/config/export` snapshot), then rerun `make smoke-single-host`.
 
 ## 🐙 Deployment Personas (Provider Scope)
 
@@ -51,6 +106,17 @@ Current implementation note:
 - One codebase policy:
   - keep one shared policy engine; profile differences should be state backend and precedence choices, not separate policy logic.
 
+### Profile-First Deployment Wrappers
+
+Use wrappers so every path starts from one baseline and layers profile-specific checks:
+
+- Shared baseline:
+  - `make deploy-profile-baseline` (config seed + runtime build)
+- Single-host profile:
+  - `make deploy-self-hosted-minimal`
+- Enterprise overlay:
+  - `make deploy-enterprise-akamai`
+
 ## 🐙 Required Env-Only Keys
 
 Set these in your deployment secret/config system:
@@ -72,7 +138,7 @@ Set these in your deployment secret/config system:
 - `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH` (optional; `fallback_internal|fail_open|fail_closed`)
 
 For the full env-only list and per-variable behavior, use `docs/configuration.md`.
-Template source: run `make setup` and use `.env.local` (gitignored) as your env-only override baseline.
+Template source: run `make setup` or `make setup-runtime` and use `.env.local` (gitignored) as your env-only override baseline.
 
 ## 🐙 Security Baseline
 

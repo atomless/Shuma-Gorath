@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build prod clean test test-unit unit-test test-integration integration-test test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready deploy logs status stop help setup verify config-seed dashboard-build ip-range-catalog-update env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build ip-range-catalog-update env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -79,8 +79,14 @@ SHUMA_DASHBOARD_BUNDLE_MAX_CSS_ASSET_BYTES ?= 30000
 setup: ## Install all dependencies (Rust, Spin, cargo-watch, Node toolchain, pnpm deps, Playwright Chromium)
 	@./scripts/bootstrap/setup.sh
 
+setup-runtime: ## Install runtime-only dependencies (Rust, wasm target, Spin, env bootstrap, KV seed)
+	@./scripts/bootstrap/setup-runtime.sh
+
 verify: ## Verify all dependencies are installed correctly
 	@./scripts/bootstrap/verify-setup.sh
+
+verify-runtime: ## Verify runtime-only dependencies and build path (no Node/pnpm/Playwright checks)
+	@./scripts/bootstrap/verify-runtime.sh
 
 config-seed: ## Seed KV tunable config from config/defaults.env (create + backfill missing keys)
 	@./scripts/config_seed.sh
@@ -184,9 +190,8 @@ run-prebuilt: ## Run Spin using prebuilt wasm (CI helper)
 # Production
 #--------------------------
 
-build: ## Build release binary only (no server start)
+build-runtime: ## Build release wasm artifact for runtime/deploy (no dashboard bundle-budget gate)
 	@echo "$(CYAN)🔨 Building release binary...$(NC)"
-	@$(MAKE) --no-print-directory test-dashboard-budgets >/dev/null
 	@./scripts/set_crate_type.sh cdylib
 	@cargo build --target wasm32-wasip1 --release
 	@mkdir -p $(dir $(WASM_ARTIFACT))
@@ -194,18 +199,56 @@ build: ## Build release binary only (no server start)
 	@echo "$(GREEN)✅ Build complete: $(WASM_ARTIFACT)$(NC)"
 	@./scripts/set_crate_type.sh rlib
 
-prod: build ## Build for production and start server
+build-full-dev: ## Build release wasm artifact with dashboard bundle-budget gate (full-dev/CI path)
+	@$(MAKE) --no-print-directory test-dashboard-budgets >/dev/null
+	@$(MAKE) --no-print-directory build-runtime
+
+build: build-runtime ## Alias for runtime/deploy release build
+
+prod: build-runtime ## Build for production and start server
 	@echo "$(CYAN)🚀 Starting production server...$(NC)"
 	@$(MAKE) --no-print-directory config-seed >/dev/null
 	@pkill -x spin 2>/dev/null || true
 	@spin up $(SPIN_ENV_ONLY_BASE) $(SPIN_PROD_OVERRIDES) --listen 0.0.0.0:3000
 
-deploy: build ## Deploy to Fermyon Cloud
+deploy: build-runtime ## Deploy to Fermyon Cloud
 	@$(MAKE) --no-print-directory api-key-validate
 	@$(MAKE) --no-print-directory deploy-env-validate
 	@echo "$(CYAN)☁️  Deploying to Fermyon Cloud...$(NC)"
 	@spin cloud deploy
 	@echo "$(GREEN)✅ Deployment complete!$(NC)"
+
+deploy-profile-baseline: ## Profile wrapper baseline: seed config + runtime build
+	@echo "$(CYAN)🔧 Running shared deployment baseline...$(NC)"
+	@$(MAKE) --no-print-directory config-seed
+	@$(MAKE) --no-print-directory build-runtime
+	@echo "$(GREEN)✅ Shared deployment baseline complete.$(NC)"
+
+deploy-self-hosted-minimal: deploy-profile-baseline ## Profile wrapper: self_hosted_minimal pre-deploy guardrails
+	@echo "$(CYAN)🏠 Validating self_hosted_minimal deployment posture...$(NC)"
+	@SHUMA_ENTERPRISE_MULTI_INSTANCE=false $(MAKE) --no-print-directory deploy-env-validate
+	@echo "$(GREEN)✅ self_hosted_minimal pre-deploy checks passed.$(NC)"
+
+deploy-enterprise-akamai: deploy-profile-baseline ## Profile wrapper: enterprise_akamai overlay checks on top of baseline
+	@echo "$(CYAN)🏢 Validating enterprise_akamai overlay posture...$(NC)"
+	@ENTERPRISE_MULTI_INSTANCE_RAW="$${SHUMA_ENTERPRISE_MULTI_INSTANCE:-false}"; \
+	ENTERPRISE_MULTI_INSTANCE_NORM="$$(printf '%s' "$$ENTERPRISE_MULTI_INSTANCE_RAW" | tr '[:upper:]' '[:lower:]')"; \
+	case "$$ENTERPRISE_MULTI_INSTANCE_NORM" in \
+		1|true|yes|on) ;; \
+		*) \
+			echo "$(RED)❌ SHUMA_ENTERPRISE_MULTI_INSTANCE must be true for deploy-enterprise-akamai.$(NC)"; \
+			exit 1 ;; \
+	esac; \
+	EDGE_MODE_RAW="$${SHUMA_EDGE_INTEGRATION_MODE:-off}"; \
+	EDGE_MODE_NORM="$$(printf '%s' "$$EDGE_MODE_RAW" | tr '[:upper:]' '[:lower:]')"; \
+	case "$$EDGE_MODE_NORM" in \
+		advisory|authoritative) ;; \
+		*) \
+			echo "$(RED)❌ SHUMA_EDGE_INTEGRATION_MODE must be advisory or authoritative for deploy-enterprise-akamai.$(NC)"; \
+			exit 1 ;; \
+	esac
+	@$(MAKE) --no-print-directory deploy-env-validate
+	@echo "$(GREEN)✅ enterprise_akamai overlay pre-deploy checks passed.$(NC)"
 
 #--------------------------
 # Testing
@@ -213,6 +256,9 @@ deploy: build ## Deploy to Fermyon Cloud
 
 spin-wait-ready: ## Wait for the existing local Spin server to pass /health
 	@SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" ./scripts/tests/wait_for_spin_ready.sh --timeout-seconds "$(SPIN_READY_TIMEOUT_SECONDS)"
+
+smoke-single-host: ## Run post-deploy single-host smoke checks (health/admin auth/metrics/challenge route)
+	@./scripts/tests/smoke_single_host.sh
 
 test: ## Run ALL tests in series: unit, maze benchmark, integration, and dashboard e2e (waits for existing server readiness)
 	@echo "$(CYAN)============================================$(NC)"
@@ -621,16 +667,16 @@ help: ## Show this help message
 	@echo "$(CYAN)WASM Bot Defence - Available Commands$(NC)"
 	@echo ""
 	@echo "$(GREEN)First-time Setup:$(NC)"
-	@grep -E '^(setup|verify|config-seed):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-15s %s\n", $$1, $$2}'
+	@grep -h -E '^(setup|setup-runtime|verify|verify-runtime|config-seed):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Development:$(NC)"
-	@grep -E '^(dev|local|run|build):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-15s %s\n", $$1, $$2}'
+	@grep -h -E '^(dev|local|run|build|build-runtime|build-full-dev):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Production:$(NC)"
-	@grep -E '^(prod|deploy):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-15s %s\n", $$1, $$2}'
+	@grep -h -E '^(prod|deploy|deploy-profile-baseline|deploy-self-hosted-minimal|deploy-enterprise-akamai):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Testing:$(NC)"
-	@grep -E '^test.*:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-15s %s\n", $$1, $$2}'
+	@grep -h -E '^(test.*|smoke-single-host):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Utilities:$(NC)"
-	@grep -E '^(stop|status|clean|logs|env-help|api-key-generate|gen-admin-api-key|api-key-show|api-key-rotate|api-key-validate|deploy-env-validate|help):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-15s %s\n", $$1, $$2}'
+	@grep -h -E '^(stop|status|clean|logs|env-help|api-key-generate|gen-admin-api-key|api-key-show|api-key-rotate|api-key-validate|deploy-env-validate|help):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'

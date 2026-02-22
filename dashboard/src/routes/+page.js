@@ -16,11 +16,11 @@ export function load({ url }) {
     ),
     shumaImageLightSrc: resolveDashboardAssetPath(
       dashboardBasePath,
-      'assets/shuma-gorath-pencil-light.jpg'
+      'assets/shuma-gorath-pencil.png'
     ),
     shumaImageDarkSrc: resolveDashboardAssetPath(
       dashboardBasePath,
-      'assets/shuma-gorath-pencil-dark.jpg'
+      'assets/shuma-gorath-pencil.png'
     ),
     initialHashTab
   };
