@@ -1277,7 +1277,7 @@ fi
 
 # Test 25: External rate limiter missing backend explicitly downgrades to internal behavior
 info "Testing external rate limiter downgrade-to-internal behavior..."
-rate_fallback_payload=$(printf '{"provider_backends":{"rate_limiter":"external"},"edge_integration_mode":"advisory","rate_limit":%s}' "${DEFAULT_RATE_LIMIT}")
+rate_fallback_payload=$(printf '{"provider_backends":{"rate_limiter":"external"},"edge_integration_mode":"advisory","defence_modes":{"rate":"both"},"rate_limit":%s}' "${DEFAULT_RATE_LIMIT}")
 rate_fallback_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
   -d "${rate_fallback_payload}" \
@@ -1302,12 +1302,14 @@ print(provider.get("rate_limiter",""))' <<< "$rate_fallback_cfg")
   rate_first=""
   rate_last=""
   for ((i=1; i<=rate_attempts; i++)); do
-    rate_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/")
+    rate_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/")
+    rate_body=$(echo "$rate_resp" | sed -e 's/HTTPSTATUS:.*//')
+    rate_status=$(echo "$rate_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
     if [[ $i -eq 1 ]]; then
-      rate_first="$rate_resp"
+      rate_first="status=${rate_status} body=${rate_body}"
     fi
-    rate_last="$rate_resp"
-    if echo "$rate_resp" | grep -qE 'Rate Limit Exceeded|Access Blocked'; then
+    rate_last="status=${rate_status} body=${rate_body}"
+    if [[ "$rate_status" == "429" || "$rate_status" == "403" ]] || echo "$rate_body" | grep -qE 'Rate Limit Exceeded|Access Blocked'; then
       rate_blocked=true
       break
     fi
