@@ -11,7 +11,8 @@ make test-integration # Integration tests only (waits for existing Spin readines
 make integration-test # alias for make test-integration
 make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)
-make test-dashboard-budgets # Dashboard /_app bundle-size ceilings
+make test-dashboard-budgets # Dashboard /_app bundle-size ceilings report (warn-only by default)
+make test-dashboard-budgets-strict # Dashboard /_app bundle-size ceilings (hard-fail)
 make test-dashboard-e2e # Playwright dashboard smoke tests (waits for existing Spin readiness)
 make seed-dashboard-data # Seed local dashboard sample records against running Spin
 make test-dashboard   # Manual dashboard checklist
@@ -122,7 +123,7 @@ Behavior:
    - if Chromium launch fails with a known sandbox signature while local HOME is forced, the runner retries preflight with system HOME
 3. Runs a Chromium launch preflight and fails fast with actionable diagnostics when sandbox permissions block browser startup.
 4. Runs dashboard module unit tests via `make test-dashboard-unit`.
-5. Runs dashboard bundle-size budget gate (`scripts/tests/check_dashboard_bundle_budget.js`) against `dist/dashboard/_app` (in the e2e flow this checks the currently served build without rebuilding first).
+5. Runs dashboard bundle-size budget reporting (`scripts/tests/check_dashboard_bundle_budget.js`) against `dist/dashboard/_app` (in the e2e flow this checks the currently served build without rebuilding first).
 6. Verifies the running Spin instance is serving the current dashboard artifact (`dist/dashboard/index.html`) and fails fast if the server is stale.
 7. Seeds deterministic dashboard data via `make seed-dashboard-data`.
 8. Runs browser smoke checks for core dashboard behavior:
@@ -145,6 +146,7 @@ Notes:
 - Seeding is test-only and does not run during `make setup`.
 - Seeded rows are operational test data and may appear in local dashboard history.
 - Restricted sandbox escape hatch (local-only): set `PLAYWRIGHT_SANDBOX_ALLOW_SKIP=1` to skip dashboard e2e after a detected Chromium launch permission block.
+- Bundle budgets are warn-only by default to preserve development flow; set `SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE=1` (or run `make test-dashboard-budgets-strict`) for hard-fail enforcement.
 
 ## 🐙 Build Mode Notes
 

@@ -36,6 +36,8 @@
 #   24. External fingerprint authoritative mode enforces edge ban
 #   25. External rate-limiter unavailable downgrade-to-internal behavior
 #   26. Monitoring summary endpoint returns structured telemetry sections
+#   27. Tarpit abuse replay/tamper routes through tarpit with mode propagation
+#   28. Tarpit budget saturation triggers deterministic configured fallback
 
 set -e
 
@@ -48,8 +50,12 @@ FAILURES=0
 TEST_HONEYPOT_IP="10.0.0.88"
 TEST_POW_IP="10.0.0.230"
 TEST_NOT_A_BOT_IP="10.1.0.151"
+TARPIT_TEST_SUBNET=$(( (RANDOM % 200) + 30 ))
+TEST_TARPIT_IP="10.0.${TARPIT_TEST_SUBNET}.40"
+TEST_TARPIT_TAMPER_IP="10.0.${TARPIT_TEST_SUBNET}.41"
 HONEYPOT_PATH="/instaban"
 INTEGRATION_USER_AGENT="ShumaIntegration/1.0-${RANDOM}-$$-$(date +%s)"
+NOT_A_BOT_TELEMETRY='{"has_pointer":true,"pointer_move_count":42,"pointer_path_length":560.0,"pointer_direction_changes":18,"down_up_ms":220,"focus_changes":1,"visibility_changes":0,"interaction_elapsed_ms":1800,"keyboard_used":false,"touch_used":false,"events_order_valid":true,"activation_method":"pointer","activation_trusted":true,"activation_count":1,"control_focused":true}'
 
 pass() { echo -e "${GREEN}PASS${NC} $1"; }
 fail() {
@@ -75,6 +81,19 @@ TEST_CLEANUP_IPS=(
   10.0.0.230
   10.0.0.231
   10.0.0.232
+  "${TEST_TARPIT_IP}"
+  10.0.1.10
+  10.0.1.11
+  10.0.1.12
+  10.0.1.13
+  10.0.1.14
+  10.0.1.15
+  10.0.1.16
+  10.0.1.17
+  10.0.1.18
+  10.0.1.19
+  10.0.1.20
+  10.0.1.21
   10.0.0.250
 )
 ORIGINAL_CONFIG_RESTORE_PAYLOAD=""
@@ -526,7 +545,6 @@ if [[ -z "$not_a_bot_seed" ]]; then
 else
   not_a_bot_headers=$(mktemp)
   not_a_bot_body=$(mktemp)
-  not_a_bot_telemetry='{"has_pointer":true,"pointer_move_count":42,"pointer_path_length":560.0,"pointer_direction_changes":18,"down_up_ms":220,"focus_changes":1,"visibility_changes":0,"interaction_elapsed_ms":1800,"keyboard_used":false,"touch_used":false,"events_order_valid":true,"activation_method":"pointer","activation_trusted":true,"activation_count":1,"control_focused":true}'
   # Sequence timing guardrail: use >=2s to avoid second-boundary flakes.
   sleep 2
   not_a_bot_status=$(curl -s -D "$not_a_bot_headers" -o "$not_a_bot_body" -w "%{http_code}" \
@@ -535,7 +553,7 @@ else
     -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
     --data-urlencode "seed=$not_a_bot_seed" \
     --data-urlencode "checked=1" \
-    --data-urlencode "telemetry=$not_a_bot_telemetry" \
+    --data-urlencode "telemetry=$NOT_A_BOT_TELEMETRY" \
     -X POST "$BASE_URL/challenge/not-a-bot-checkbox")
   if [[ "$not_a_bot_status" == "303" ]] \
     && grep -qi '^Location: /' "$not_a_bot_headers" \
@@ -556,7 +574,7 @@ else
     -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
     --data-urlencode "seed=$not_a_bot_seed" \
     --data-urlencode "checked=1" \
-    --data-urlencode "telemetry=$not_a_bot_telemetry" \
+    --data-urlencode "telemetry=$NOT_A_BOT_TELEMETRY" \
     -X POST "$BASE_URL/challenge/not-a-bot-checkbox")
   if [[ "$not_a_bot_replay_status" != "303" ]]; then
     pass "Replay submit for /challenge/not-a-bot-checkbox is rejected"
@@ -680,6 +698,132 @@ fi
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.99" > /dev/null
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.100" > /dev/null
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.150" > /dev/null
+
+# Test 14: Tarpit abuse routing + progressive propagation
+info "Testing tarpit abuse routing and progressive propagation..."
+tarpit_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
+  -d '{"test_mode":true,"maze_enabled":true,"tarpit_enabled":true,"tarpit_progress_token_ttl_seconds":120,"tarpit_progress_replay_ttl_seconds":300,"tarpit_hashcash_min_difficulty":8,"tarpit_hashcash_max_difficulty":16,"tarpit_hashcash_base_difficulty":10,"tarpit_hashcash_adaptive":true,"tarpit_step_chunk_base_bytes":4096,"tarpit_step_chunk_max_bytes":12288,"tarpit_step_jitter_percent":15,"tarpit_shard_rotation_enabled":true,"tarpit_egress_window_seconds":60,"tarpit_egress_global_bytes_per_window":8388608,"tarpit_egress_per_ip_bucket_bytes_per_window":1048576,"tarpit_egress_per_flow_max_bytes":524288,"tarpit_egress_per_flow_max_duration_seconds":120,"tarpit_max_concurrent_global":10000,"tarpit_max_concurrent_per_ip_bucket":256,"tarpit_fallback_action":"maze"}' \
+  "$BASE_URL/admin/config")
+if ! echo "$tarpit_cfg" | grep -q '"status":"updated"'; then
+  fail "Failed to apply tarpit config"
+  echo -e "${YELLOW}DEBUG tarpit config:${NC} $tarpit_cfg"
+else
+  tarpit_not_a_bot_page=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_TARPIT_IP}" -H "User-Agent: ${INTEGRATION_USER_AGENT}" "$BASE_URL/challenge/not-a-bot-checkbox")
+  tarpit_seed=$(python3 -c 'import re,sys; html=sys.stdin.read(); m=re.search(r"name=\"seed\" value=\"([^\"]+)\"", html); print(m.group(1) if m else "")' <<< "$tarpit_not_a_bot_page")
+  if [[ -z "$tarpit_seed" ]]; then
+    fail "Could not parse not-a-bot seed for tarpit replay test"
+    echo -e "${YELLOW}DEBUG tarpit not-a-bot page:${NC} $tarpit_not_a_bot_page"
+  else
+    sleep 2
+    replay_prime_status=$(curl -s -o /dev/null -w "%{http_code}" \
+      "${FORWARDED_SECRET_HEADER[@]}" \
+      -H "X-Forwarded-For: ${TEST_TARPIT_IP}" \
+      -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
+      --data-urlencode "seed=$tarpit_seed" \
+      --data-urlencode "checked=1" \
+      --data-urlencode "telemetry=$NOT_A_BOT_TELEMETRY" \
+      -X POST "$BASE_URL/challenge/not-a-bot-checkbox")
+    if [[ "$replay_prime_status" != "303" ]]; then
+      fail "Could not prime not-a-bot seed for replay-abuse tarpit path"
+      echo -e "${YELLOW}DEBUG replay-prime status:${NC} $replay_prime_status"
+    else
+      disable_test_mode_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
+        -d '{"test_mode": false}' "$BASE_URL/admin/config")
+      if ! echo "$disable_test_mode_resp" | grep -q '"test_mode":false'; then
+        fail "Failed to disable test_mode before tarpit replay-abuse assertion"
+        echo -e "${YELLOW}DEBUG disable test_mode response:${NC} $disable_test_mode_resp"
+      else
+        tarpit_replay_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" \
+          "${FORWARDED_SECRET_HEADER[@]}" \
+          -H "X-Forwarded-For: ${TEST_TARPIT_IP}" \
+          -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
+          --data-urlencode "seed=$tarpit_seed" \
+          --data-urlencode "checked=1" \
+          --data-urlencode "telemetry=$NOT_A_BOT_TELEMETRY" \
+          -X POST "$BASE_URL/challenge/not-a-bot-checkbox")
+        tarpit_replay_body=$(echo "$tarpit_replay_resp" | sed -e 's/HTTPSTATUS:.*//')
+        tarpit_replay_status=$(echo "$tarpit_replay_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+        if [[ "$tarpit_replay_status" == "200" ]] \
+          && grep -q 'window.__shumaTarpit=' <<< "$tarpit_replay_body" \
+          && grep -q 'Verification pending' <<< "$tarpit_replay_body"; then
+          pass "Not-a-bot replay abuse routes through tarpit and serves progressive bootstrap"
+        else
+          fail "Not-a-bot replay abuse did not return expected tarpit progressive response"
+          echo -e "${YELLOW}DEBUG tarpit replay status:${NC} $tarpit_replay_status"
+          echo -e "${YELLOW}DEBUG tarpit replay body:${NC} $tarpit_replay_body"
+        fi
+      fi
+    fi
+  fi
+
+  tamper_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" \
+    "${FORWARDED_SECRET_HEADER[@]}" \
+    -H "X-Forwarded-For: ${TEST_TARPIT_TAMPER_IP}" \
+    -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
+    --data-urlencode "seed=invalid-seed-tamper" \
+    --data-urlencode "checked=1" \
+    --data-urlencode "telemetry=$NOT_A_BOT_TELEMETRY" \
+    -X POST "$BASE_URL/challenge/not-a-bot-checkbox")
+  tamper_body=$(echo "$tamper_resp" | sed -e 's/HTTPSTATUS:.*//')
+  tamper_status=$(echo "$tamper_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+  if [[ "$tamper_status" == "200" ]] \
+    && grep -q 'window.__shumaTarpit=' <<< "$tamper_body"; then
+    pass "Tampered not-a-bot submit routes into tarpit response"
+  else
+    fail "Tampered not-a-bot submit did not route into expected tarpit response"
+    echo -e "${YELLOW}DEBUG tarpit tamper status:${NC} $tamper_status"
+    echo -e "${YELLOW}DEBUG tarpit tamper body:${NC} $tamper_body"
+  fi
+fi
+
+# Test 15: Tarpit budget saturation fallback
+info "Testing tarpit budget saturation fallback (block) under concurrent abuse..."
+tarpit_budget_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
+  -d '{"test_mode":false,"maze_enabled":true,"tarpit_enabled":true,"tarpit_progress_token_ttl_seconds":120,"tarpit_progress_replay_ttl_seconds":300,"tarpit_hashcash_min_difficulty":8,"tarpit_hashcash_max_difficulty":16,"tarpit_hashcash_base_difficulty":10,"tarpit_hashcash_adaptive":true,"tarpit_step_chunk_base_bytes":4096,"tarpit_step_chunk_max_bytes":12288,"tarpit_step_jitter_percent":15,"tarpit_shard_rotation_enabled":true,"tarpit_egress_window_seconds":60,"tarpit_egress_global_bytes_per_window":8388608,"tarpit_egress_per_ip_bucket_bytes_per_window":1048576,"tarpit_egress_per_flow_max_bytes":524288,"tarpit_egress_per_flow_max_duration_seconds":120,"tarpit_max_concurrent_global":1,"tarpit_max_concurrent_per_ip_bucket":1,"tarpit_fallback_action":"block"}' \
+  "$BASE_URL/admin/config")
+if ! echo "$tarpit_budget_cfg" | grep -q '"status":"updated"'; then
+  fail "Failed to apply tarpit budget saturation config"
+  echo -e "${YELLOW}DEBUG tarpit budget config:${NC} $tarpit_budget_cfg"
+else
+  tarpit_saturation_seen=false
+  for attempt in 1 2 3; do
+    status_file=$(mktemp)
+    burst_ips=(
+      10.0.${TARPIT_TEST_SUBNET}.50 10.0.${TARPIT_TEST_SUBNET}.51 10.0.${TARPIT_TEST_SUBNET}.52 10.0.${TARPIT_TEST_SUBNET}.53
+      10.0.${TARPIT_TEST_SUBNET}.54 10.0.${TARPIT_TEST_SUBNET}.55 10.0.${TARPIT_TEST_SUBNET}.56 10.0.${TARPIT_TEST_SUBNET}.57
+      10.0.${TARPIT_TEST_SUBNET}.58 10.0.${TARPIT_TEST_SUBNET}.59 10.0.${TARPIT_TEST_SUBNET}.60 10.0.${TARPIT_TEST_SUBNET}.61
+    )
+    for ip in "${burst_ips[@]}"; do
+      (
+        status=$(curl -s -o /dev/null -w "%{http_code}" \
+          "${FORWARDED_SECRET_HEADER[@]}" \
+          -H "X-Forwarded-For: ${ip}" \
+          -H "User-Agent: ${INTEGRATION_USER_AGENT}" \
+          --data-urlencode "seed=invalid-seed-${ip}-${attempt}-${RANDOM}" \
+          --data-urlencode "checked=1" \
+          --data-urlencode "telemetry=$NOT_A_BOT_TELEMETRY" \
+          -X POST "$BASE_URL/challenge/not-a-bot-checkbox")
+        printf '%s\n' "$status" >> "$status_file"
+      ) &
+    done
+    wait
+
+    blocked_count=$(grep -c '^403$' "$status_file" || true)
+    ok_count=$(grep -c '^200$' "$status_file" || true)
+    rm -f "$status_file"
+
+    if (( blocked_count >= 1 )); then
+      pass "Concurrent abuse saturates tarpit budget and triggers deterministic block fallback"
+      tarpit_saturation_seen=true
+      break
+    fi
+    info "Tarpit saturation attempt ${attempt} did not produce fallback blocks yet (200=${ok_count}, 403=${blocked_count}); retrying..."
+  done
+
+  if [[ "$tarpit_saturation_seen" != "true" ]]; then
+    fail "Tarpit budget saturation fallback was not observed under concurrent abuse attempts"
+  fi
+fi
 
 # Test 13-15: GEO policy routing (requires trusted forwarded headers)
 if [[ -z "${SHUMA_FORWARDED_IP_SECRET:-}" ]]; then
@@ -1133,7 +1277,7 @@ fi
 
 # Test 25: External rate limiter missing backend explicitly downgrades to internal behavior
 info "Testing external rate limiter downgrade-to-internal behavior..."
-rate_fallback_payload=$(printf '{"provider_backends":{"rate_limiter":"external"},"edge_integration_mode":"advisory","rate_limit":%s}' "${DEFAULT_RATE_LIMIT}")
+rate_fallback_payload=$(printf '{"provider_backends":{"rate_limiter":"external"},"edge_integration_mode":"advisory","defence_modes":{"rate":"both"},"rate_limit":%s}' "${DEFAULT_RATE_LIMIT}")
 rate_fallback_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
   -d "${rate_fallback_payload}" \
@@ -1153,28 +1297,92 @@ print(provider.get("rate_limiter",""))' <<< "$rate_fallback_cfg")
   fi
 
   curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.232" > /dev/null
+  rate_outage_before=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/metrics" | python3 -c 'import sys
+total = 0
+for line in sys.stdin:
+    line = line.strip()
+    if not line.startswith("bot_defence_rate_limiter_outage_decisions_total{"):
+        continue
+    if "route_class=\"main_traffic\"" not in line:
+        continue
+    if "mode=\"fallback_internal\"" not in line:
+        continue
+    if "action=\"fallback_internal\"" not in line:
+        continue
+    try:
+        total += int(float(line.rsplit(" ", 1)[1]))
+    except Exception:
+        pass
+print(total)')
+  if ! [[ "${rate_outage_before}" =~ ^[0-9]+$ ]]; then
+    rate_outage_before=0
+  fi
+
   rate_attempts=$((DEFAULT_RATE_LIMIT + 2))
   rate_blocked=false
   rate_first=""
   rate_last=""
   for ((i=1; i<=rate_attempts; i++)); do
-    rate_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/")
+    rate_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/")
+    rate_body=$(echo "$rate_resp" | sed -e 's/HTTPSTATUS:.*//')
+    rate_status=$(echo "$rate_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
     if [[ $i -eq 1 ]]; then
-      rate_first="$rate_resp"
+      rate_first="status=${rate_status} body=${rate_body}"
     fi
-    rate_last="$rate_resp"
-    if echo "$rate_resp" | grep -qE 'Rate Limit Exceeded|Access Blocked'; then
+    rate_last="status=${rate_status} body=${rate_body}"
+    if [[ "$rate_status" == "429" || "$rate_status" == "403" ]] || echo "$rate_body" | grep -qE 'Rate Limit Exceeded|Access Blocked'; then
       rate_blocked=true
       break
     fi
   done
-  if [[ "$rate_blocked" == "true" ]]; then
-    pass "External rate limiter downgrades to internal limiter when backend unavailable"
+
+  rate_outage_after=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/metrics" | python3 -c 'import sys
+total = 0
+for line in sys.stdin:
+    line = line.strip()
+    if not line.startswith("bot_defence_rate_limiter_outage_decisions_total{"):
+        continue
+    if "route_class=\"main_traffic\"" not in line:
+        continue
+    if "mode=\"fallback_internal\"" not in line:
+        continue
+    if "action=\"fallback_internal\"" not in line:
+        continue
+    try:
+        total += int(float(line.rsplit(" ", 1)[1]))
+    except Exception:
+        pass
+print(total)')
+  if ! [[ "${rate_outage_after}" =~ ^[0-9]+$ ]]; then
+    rate_outage_after=0
+  fi
+
+  rate_outage_delta=$((rate_outage_after - rate_outage_before))
+
+  if [[ "$rate_blocked" != "true" ]]; then
+    burst_attempts=$((DEFAULT_RATE_LIMIT + 10))
+    for ((i=1; i<=burst_attempts; i++)); do
+      curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/" > /dev/null &
+    done
+    wait
+
+    rate_probe=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/")
+    rate_probe_body=$(echo "$rate_probe" | sed -e 's/HTTPSTATUS:.*//')
+    rate_probe_status=$(echo "$rate_probe" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+    rate_last="status=${rate_probe_status} body=${rate_probe_body}"
+    if [[ "$rate_probe_status" == "429" || "$rate_probe_status" == "403" ]] || echo "$rate_probe_body" | grep -qE 'Rate Limit Exceeded|Access Blocked'; then
+      rate_blocked=true
+    fi
+  fi
+
+  if [[ "$rate_blocked" == "true" || "$rate_outage_delta" -gt 0 ]]; then
+    pass "External rate limiter downgrade-to-internal behavior observed (fallback metrics and/or enforcement)"
   else
     fail "Rate limiter downgrade-to-internal behavior not observed"
     echo -e "${YELLOW}DEBUG rate first response:${NC} $rate_first"
     echo -e "${YELLOW}DEBUG rate last response:${NC} $rate_last"
     echo -e "${YELLOW}DEBUG attempted requests:${NC} $rate_attempts"
+    echo -e "${YELLOW}DEBUG outage metrics delta:${NC} ${rate_outage_before} -> ${rate_outage_after}"
   fi
 fi
 

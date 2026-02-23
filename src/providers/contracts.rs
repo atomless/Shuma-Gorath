@@ -120,6 +120,9 @@ pub(crate) trait ChallengeEngineProvider {
 
 pub(crate) trait MazeTarpitProvider {
     fn is_maze_path(&self, path: &str) -> bool;
+    fn tarpit_progress_path(&self) -> &'static str {
+        crate::tarpit::progress_path()
+    }
     fn serve_maze_with_tracking(
         &self,
         req: &Request,
@@ -142,6 +145,18 @@ pub(crate) trait MazeTarpitProvider {
         _ip: &str,
     ) -> Option<Response> {
         None
+    }
+
+    fn handle_tarpit_progress(
+        &self,
+        _req: &Request,
+        _store: &Store,
+        _cfg: &crate::config::Config,
+        _site_id: &str,
+        _ip: &str,
+        _user_agent: &str,
+    ) -> Response {
+        Response::new(404, "Not Found")
     }
 }
 

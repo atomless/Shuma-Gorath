@@ -104,15 +104,17 @@ Shuma-Gorath exists to provide layered, practical bot defense that teams can dep
 ### P11. Stability and Change Discipline
 
 - MUST define lifecycle expectations for new config keys and APIs.
+- MUST treat the product as pre-launch unless explicitly stated otherwise for a task; pre-launch changes should prefer clean breaks over compatibility scaffolding.
 - MUST treat `config/defaults.env` as the canonical source of truth for `SHUMA_*` defaults and update it first when adding/changing variables.
 - MUST keep variable wiring in sync across setup/seed/runtime workflows so `make setup` and `make config-seed` establish a correct baseline without manual repair.
-- MUST keep dashboard Advanced <abbr title="JavaScript Object Notation">JSON</abbr> coverage in strict parity with all non-env-only writable admin config fields (`AdminConfigPatch` in `src/admin/api.rs`), including accepted compatibility aliases.
+- MUST keep dashboard Advanced <abbr title="JavaScript Object Notation">JSON</abbr> coverage in strict parity with all non-env-only writable admin config fields (`AdminConfigPatch` in `src/admin/api.rs`).
+- MUST NOT add backward-compatibility aliases/shims/windows in pre-launch work unless explicitly requested by the user for that exact change.
 - MUST preserve environment profile intent:
   - dev may apply explicit helper overrides for local manual config/monitoring/tuning,
   - tests must restore env/config changes they introduce and not leak mutated state,
   - production defaults must start from the most secure posture (no debug/unsafe defaults enabled by default).
-- MUST provide clear migration notes when breaking behavior is unavoidable.
-- SHOULD prefer additive change and compatibility windows for operationally sensitive paths.
+- MUST provide clear notes when behavior changes are intentionally breaking.
+- SHOULD keep pre-launch codepaths simple and avoid carrying compatibility debt.
 
 ## Decision Rubric (for new features)
 

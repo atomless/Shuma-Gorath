@@ -108,8 +108,10 @@ Controls:
 - robots.txt configuration with dirty-state preview (unsaved panel toggles render via `POST /admin/robots/preview` without persisting)
 - <abbr title="Chrome DevTools Protocol">CDP</abbr> detection controls
 - <abbr title="Proof of Work">PoW</abbr> enable toggle plus difficulty/<abbr title="Time To Live">TTL</abbr> tuning
-- Challenge puzzle controls (`challenge_puzzle_enabled`); transform-count and runtime hardening knobs (`challenge_puzzle_transform_count`, `challenge_puzzle_seed_ttl_seconds`, `challenge_puzzle_attempt_limit_per_window`, `challenge_puzzle_attempt_window_seconds`) are Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only. Wrong-answer user failures route to maze; abuse-grade failures (replay/tamper/attempt abuse) route to tarpit when available, otherwise short ban.
-- Not-a-Bot controls (`not_a_bot_enabled`, `not_a_bot_pass_score`, `not_a_bot_fail_score`) with escalation-path helper copy; Verification Token Lifetime (`not_a_bot_nonce_ttl_seconds`: how long the signed Not-a-Bot token remains valid after page load, and if it expires before submit, verification fails), Pass Marker Lifetime (`not_a_bot_marker_ttl_seconds`: how long a successful Not-a-Bot pass is remembered for the same IP/UA bucket so repeat requests can skip this step), and attempt knobs are Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only. Score-below-fail user failures route to maze; abuse-grade failures (replay/tamper/attempt abuse) route to tarpit when available, otherwise short ban.
+- Challenge puzzle controls (`challenge_puzzle_enabled`); transform-count and runtime hardening knobs (`challenge_puzzle_transform_count`, `challenge_puzzle_seed_ttl_seconds`, `challenge_puzzle_attempt_limit_per_window`, `challenge_puzzle_attempt_window_seconds`) are Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only. User-grade wrong-answer outcomes route to maze; abuse-grade outcomes (replay/tamper/sequence/attempt abuse) route to tarpit when eligible, otherwise short ban.
+- Not-a-Bot controls (`not_a_bot_enabled`, `not_a_bot_pass_score`, `not_a_bot_fail_score`) with escalation-path helper copy; Verification Token Lifetime (`not_a_bot_nonce_ttl_seconds`: how long the signed Not-a-Bot token remains valid after page load, and if it expires before submit, verification fails), Pass Marker Lifetime (`not_a_bot_marker_ttl_seconds`: how long a successful Not-a-Bot pass is remembered for the same IP/UA bucket so repeat requests can skip this step), and attempt knobs are Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only. Score-below-fail user outcomes route to maze; abuse-grade outcomes route to tarpit when eligible, otherwise short ban.
+- Tarpit main-pane exposure is intentionally minimal: only the `tarpit_enabled` toggle is shown alongside Maze. All other tarpit runtime controls are Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only: `tarpit_progress_token_ttl_seconds`, `tarpit_progress_replay_ttl_seconds`, `tarpit_hashcash_min_difficulty`, `tarpit_hashcash_max_difficulty`, `tarpit_hashcash_base_difficulty`, `tarpit_hashcash_adaptive`, `tarpit_step_chunk_base_bytes`, `tarpit_step_chunk_max_bytes`, `tarpit_step_jitter_percent`, `tarpit_shard_rotation_enabled`, `tarpit_egress_window_seconds`, `tarpit_egress_global_bytes_per_window`, `tarpit_egress_per_ip_bucket_bytes_per_window`, `tarpit_egress_per_flow_max_bytes`, `tarpit_egress_per_flow_max_duration_seconds`, `tarpit_max_concurrent_global`, `tarpit_max_concurrent_per_ip_bucket`, `tarpit_fallback_action`. Tarpit only activates when both maze and tarpit are enabled; repeated tarpit persistence escalates to short-ban/block and saturation follows deterministic fallback action.
+- Tarpit research links for operators: [`research/README.md`](research/README.md), with latest ecosystem re-review in [`research/2026-02-23-tarpit-docs-rereview-addendum.md`](research/2026-02-23-tarpit-docs-rereview-addendum.md).
 - Botness scoring controls:
 - challenge threshold
 - maze threshold
@@ -121,6 +123,7 @@ Controls:
 - routing toggle + tiered routing countries (`defence_modes.geo` action path + `geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`)
 - maze stats
 - non-operational Maze Preview link in Maze config
+- non-operational Tarpit preview link in Maze config
 - Enter key submits inputs (<abbr title="Application Programming Interface">API</abbr> key, ban, unban)
 - Active-tab scoped auto-refresh (no background full-dashboard refresh on hidden tabs)
 - <abbr title="Application Programming Interface">API</abbr> client defensively parses <abbr title="JavaScript Object Notation">JSON</abbr>-shaped payloads even when upstream omits `Content-Type`, to prevent false empty-state rendering
@@ -166,6 +169,7 @@ Event log retention is controlled by `SHUMA_EVENT_LOG_RETENTION_HOURS` (default:
 - `POST /admin/unban`
 - `GET  /admin/maze`
 - `GET  /admin/maze/preview`
+- `GET  /admin/tarpit/preview`
 - `GET  /admin/robots`
 - `POST /admin/robots/preview`
 - `GET  /admin/cdp`

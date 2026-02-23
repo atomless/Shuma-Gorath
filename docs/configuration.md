@@ -138,6 +138,25 @@ Managed catalog operations:
   `make ip-range-catalog-update`
 - See operational rollout/rollback guidance in `docs/ip-range-policy-runbook.md`.
 | `SHUMA_MAZE_ENABLED` | `true` | Enables maze feature. |
+| `SHUMA_TARPIT_ENABLED` | `true` | Enables tarpit handling for abuse-grade challenge failures (active only when maze is enabled). |
+| `SHUMA_TARPIT_PROGRESS_TOKEN_TTL_SECONDS` | `120` | Signed progression token lifetime for work-gated tarpit steps (seconds). |
+| `SHUMA_TARPIT_PROGRESS_REPLAY_TTL_SECONDS` | `300` | Replay-marker retention window for tarpit progression operations (seconds). |
+| `SHUMA_TARPIT_HASHCASH_MIN_DIFFICULTY` | `10` | Minimum bounded hashcash difficulty for progressive tarpit work gates. |
+| `SHUMA_TARPIT_HASHCASH_MAX_DIFFICULTY` | `16` | Maximum bounded hashcash difficulty for progressive tarpit work gates. |
+| `SHUMA_TARPIT_HASHCASH_BASE_DIFFICULTY` | `12` | Base hashcash difficulty used before adaptive adjustments. |
+| `SHUMA_TARPIT_HASHCASH_ADAPTIVE` | `true` | Enables bounded adaptive difficulty tuning under abuse/budget pressure. |
+| `SHUMA_TARPIT_STEP_CHUNK_BASE_BYTES` | `2048` | Base per-step tarpit chunk size before bounded jitter/rotation adjustments. |
+| `SHUMA_TARPIT_STEP_CHUNK_MAX_BYTES` | `8192` | Hard maximum bytes emitted per tarpit progression step. |
+| `SHUMA_TARPIT_STEP_JITTER_PERCENT` | `15` | Bounded chunk-size jitter percentage to reduce deterministic fingerprinting. |
+| `SHUMA_TARPIT_SHARD_ROTATION_ENABLED` | `true` | Enables rotation across pre-generated tarpit filler shards. |
+| `SHUMA_TARPIT_EGRESS_WINDOW_SECONDS` | `60` | Window size for tarpit egress budgeting (seconds). |
+| `SHUMA_TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW` | `4194304` | Global tarpit bytes budget per egress window. |
+| `SHUMA_TARPIT_EGRESS_PER_IP_BUCKET_BYTES_PER_WINDOW` | `524288` | Per-IP-bucket tarpit bytes budget per egress window (must remain <= global budget). |
+| `SHUMA_TARPIT_EGRESS_PER_FLOW_MAX_BYTES` | `262144` | Hard maximum tarpit bytes sent for one progression flow. |
+| `SHUMA_TARPIT_EGRESS_PER_FLOW_MAX_DURATION_SECONDS` | `120` | Hard maximum duration for one tarpit progression flow (seconds). |
+| `SHUMA_TARPIT_MAX_CONCURRENT_GLOBAL` | `64` | Global concurrent tarpit budget. |
+| `SHUMA_TARPIT_MAX_CONCURRENT_PER_IP_BUCKET` | `2` | Per-IP-bucket concurrent tarpit budget (must be <= global cap). |
+| `SHUMA_TARPIT_FALLBACK_ACTION` | `maze` | Fallback action when tarpit budget is saturated (`maze` or `block`). |
 | `SHUMA_MAZE_AUTO_BAN` | `true` | Enables maze auto-ban when threshold is exceeded. |
 | `SHUMA_MAZE_AUTO_BAN_THRESHOLD` | `50` | Maze hit threshold for auto-ban. |
 | `SHUMA_MAZE_ROLLOUT_PHASE` | `enforce` | Maze rollout phase (`instrument`, `advisory`, `enforce`). |
@@ -211,7 +230,7 @@ The following <abbr title="Key-Value">KV</abbr>-backed fields are currently writ
 
 - Core: `test_mode`, `rate_limit`, `ban_duration`, `ban_durations.{honeypot,rate_limit,browser,admin,cdp}`, `honeypot_enabled`, `honeypots`, `browser_policy_enabled`, `browser_block`, `browser_whitelist`, `bypass_allowlists_enabled`, `whitelist`, `path_whitelist`, `ip_range_policy_mode`, `ip_range_emergency_allowlist`, `ip_range_custom_rules`, `ip_range_managed_policies`, `ip_range_managed_max_staleness_hours`, `ip_range_allow_stale_managed_enforce`, `js_required_enforced`.
 - <abbr title="Geolocation">GEO</abbr> routing/policy: `geo_risk`, `geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`.
-- Maze: `maze_enabled`, `maze_auto_ban`, `maze_auto_ban_threshold`, `maze_rollout_phase`, `maze_token_ttl_seconds`, `maze_token_max_depth`, `maze_token_branch_budget`, `maze_replay_ttl_seconds`, `maze_entropy_window_seconds`, `maze_client_expansion_enabled`, `maze_checkpoint_every_nodes`, `maze_checkpoint_every_ms`, `maze_step_ahead_max`, `maze_no_js_fallback_max_depth`, `maze_micro_pow_enabled`, `maze_micro_pow_depth_start`, `maze_micro_pow_base_difficulty`, `maze_max_concurrent_global`, `maze_max_concurrent_per_ip_bucket`, `maze_max_response_bytes`, `maze_max_response_duration_ms`, `maze_server_visible_links`, `maze_max_links`, `maze_max_paragraphs`, `maze_path_entropy_segment_len`, `maze_covert_decoys_enabled`, `maze_seed_provider`, `maze_seed_refresh_interval_seconds`, `maze_seed_refresh_rate_limit_per_hour`, `maze_seed_refresh_max_sources`, `maze_seed_metadata_only`.
+- Maze/Tarpit: `maze_enabled`, `tarpit_enabled`, `tarpit_progress_token_ttl_seconds`, `tarpit_progress_replay_ttl_seconds`, `tarpit_hashcash_min_difficulty`, `tarpit_hashcash_max_difficulty`, `tarpit_hashcash_base_difficulty`, `tarpit_hashcash_adaptive`, `tarpit_step_chunk_base_bytes`, `tarpit_step_chunk_max_bytes`, `tarpit_step_jitter_percent`, `tarpit_shard_rotation_enabled`, `tarpit_egress_window_seconds`, `tarpit_egress_global_bytes_per_window`, `tarpit_egress_per_ip_bucket_bytes_per_window`, `tarpit_egress_per_flow_max_bytes`, `tarpit_egress_per_flow_max_duration_seconds`, `tarpit_max_concurrent_global`, `tarpit_max_concurrent_per_ip_bucket`, `tarpit_fallback_action`, `maze_auto_ban`, `maze_auto_ban_threshold`, `maze_rollout_phase`, `maze_token_ttl_seconds`, `maze_token_max_depth`, `maze_token_branch_budget`, `maze_replay_ttl_seconds`, `maze_entropy_window_seconds`, `maze_client_expansion_enabled`, `maze_checkpoint_every_nodes`, `maze_checkpoint_every_ms`, `maze_step_ahead_max`, `maze_no_js_fallback_max_depth`, `maze_micro_pow_enabled`, `maze_micro_pow_depth_start`, `maze_micro_pow_base_difficulty`, `maze_max_concurrent_global`, `maze_max_concurrent_per_ip_bucket`, `maze_max_response_bytes`, `maze_max_response_duration_ms`, `maze_server_visible_links`, `maze_max_links`, `maze_max_paragraphs`, `maze_path_entropy_segment_len`, `maze_covert_decoys_enabled`, `maze_seed_provider`, `maze_seed_refresh_interval_seconds`, `maze_seed_refresh_rate_limit_per_hour`, `maze_seed_refresh_max_sources`, `maze_seed_metadata_only`.
 - Robots/<abbr title="Artificial Intelligence">AI</abbr> policy: `robots_enabled`, `robots_crawl_delay`, `ai_policy_block_training`, `ai_policy_block_search`, `ai_policy_allow_search_engines` (legacy aliases `robots_block_ai_training`, `robots_block_ai_search`, `robots_allow_search_engines` are also accepted).
 - <abbr title="Chrome DevTools Protocol">CDP</abbr>/fingerprint: `cdp_detection_enabled`, `cdp_auto_ban`, `cdp_detection_threshold`, `cdp_probe_family`, `cdp_probe_rollout_percent`, `fingerprint_signal_enabled`, `fingerprint_state_ttl_seconds`, `fingerprint_flow_window_seconds`, `fingerprint_flow_violation_threshold`, `fingerprint_pseudonymize`, `fingerprint_entropy_budget`, `fingerprint_family_cap_header_runtime`, `fingerprint_family_cap_transport`, `fingerprint_family_cap_temporal`, `fingerprint_family_cap_persistence`, `fingerprint_family_cap_behavior`.
 - Provider/edge: `provider_backends.{rate_limiter,ban_store,challenge_engine,maze_tarpit,fingerprint_signal}`, `edge_integration_mode`.
@@ -227,6 +246,56 @@ Shuma follows a 2-class model only:
 - `pow_enabled=true` adds server-verified <abbr title="Proof of Work">PoW</abbr> to that verification flow.
 - `js_required_enforced=false` bypasses <abbr title="JavaScript">JS</abbr> verification for normal requests (and therefore bypasses <abbr title="Proof of Work">PoW</abbr> on that path).
 - `challenge_puzzle_enabled=false` disables challenge-page serving; challenge-tier routes fall back to maze when `maze_enabled=true`, otherwise hard block.
+
+## 🐙 Challenge Failures and Tarpit Routing
+
+Operator summary: tarpit is an abuse-only escalation layer, not a normal user-failure path. Routine challenge failures go to maze (or block if maze is disabled), while replay/tamper/sequence/attempt abuse can route to tarpit when both maze and tarpit are enabled. Tarpit is work-gated: the client must repeatedly present valid signed step tokens and hashcash proofs; each step is bound to source identity, replay/order checked, and limited by strict concurrency and egress budgets. If budgets are exhausted, fallback is deterministic (`maze` or `block`), and repeated tarpit persistence escalates to short ban, then block.
+
+Shuma separates normal challenge failures from abuse-grade failures:
+
+- Not-a-Bot user failures (score below `not_a_bot_fail_score`) route to maze when enabled, otherwise block.
+- Puzzle user failures (wrong/low-confidence answer paths) route to maze when enabled, otherwise block.
+- Abuse-grade failures (for example replay, seed tampering, sequence violations, attempt-window abuse) use tarpit-or-short-ban routing.
+
+Tarpit is served only when all of the following are true:
+
+- `maze_enabled=true`
+- `tarpit_enabled=true`
+- request reached an abuse-grade tarpit-capable route
+- runtime is not in `test_mode` simulation bypass
+- tarpit persistence escalation has not already forced short-ban/block
+- tarpit concurrency budgets are available
+
+Escalation and fallback behavior:
+
+- Persistent tarpit interactions are tracked per source <abbr title="Internet Protocol">IP</abbr> bucket.
+- Current thresholds are hard-coded guardrails:
+  - persistence counter `>= 5`: short ban (600s),
+  - persistence counter `>= 10`: hard block.
+- If tarpit budget is saturated, `tarpit_fallback_action` decides the deterministic fallback (`maze` or `block`).
+- For IP-range policy rules with `action=tarpit`, Shuma uses the same tarpit provider gate and falls back to maze/block when tarpit is unavailable.
+
+Tarpit behavior:
+
+- work-gated tarpit progression (`/tarpit/progress`) with signed single-use operation envelopes, bounded hashcash difficulty, strict chain/replay validation, and deterministic egress-budget fallback.
+
+Why Shuma moved away from classic slow-drip tarpit:
+
+- Early tarpit planning included bounded slow-drip modes, but pre-launch review showed that long-lived drip streams can push too much connection-residency risk onto the host under sustained abuse traffic.
+- In practice, the previous drip-oriented path still concentrated too much server-side payload generation in one response body, which did not deliver the intended attacker/defender cost asymmetry.
+- The current v2 direction prioritizes bounded host cost and explicit control:
+  - small entry response,
+  - iterative proof-gated progression,
+  - strict replay/order/binding checks,
+  - hard global/per-bucket/per-flow egress budgets,
+  - deterministic fallback and persistence escalation.
+- This is a deliberate departure from transport-delay-first tarpits: Shuma favors work-gated, budget-capped cost imposition because it is easier to bound operationally while still raising bot-side cost.
+
+Research references:
+
+- Tarpit research collection index: [`research/README.md`](research/README.md)
+- Latest tarpit docs re-review addendum: [`research/2026-02-23-tarpit-docs-rereview-addendum.md`](research/2026-02-23-tarpit-docs-rereview-addendum.md)
+- Cost-shift synthesis baseline: [`research/2026-02-22-http-tarpit-cost-shift-research-synthesis.md`](research/2026-02-22-http-tarpit-cost-shift-research-synthesis.md)
 
 ### <abbr title="Chrome DevTools Protocol">CDP</abbr>/Fingerprint rollout controls
 

@@ -52,6 +52,32 @@ const NOT_A_BOT_ATTEMPT_LIMIT_MIN: u64 = 1;
 const NOT_A_BOT_ATTEMPT_LIMIT_MAX: u64 = 100;
 const NOT_A_BOT_ATTEMPT_WINDOW_MIN: u64 = 30;
 const NOT_A_BOT_ATTEMPT_WINDOW_MAX: u64 = 3600;
+const TARPIT_PROGRESS_TOKEN_TTL_SECONDS_MIN: u64 = 20;
+const TARPIT_PROGRESS_TOKEN_TTL_SECONDS_MAX: u64 = 300;
+const TARPIT_PROGRESS_REPLAY_TTL_SECONDS_MIN: u64 = 30;
+const TARPIT_PROGRESS_REPLAY_TTL_SECONDS_MAX: u64 = 3_600;
+const TARPIT_HASHCASH_DIFFICULTY_MIN: u64 = 4;
+const TARPIT_HASHCASH_DIFFICULTY_MAX: u64 = 28;
+const TARPIT_STEP_CHUNK_BASE_BYTES_MIN: u64 = 256;
+const TARPIT_STEP_CHUNK_BASE_BYTES_MAX: u64 = 65_536;
+const TARPIT_STEP_CHUNK_MAX_BYTES_MIN: u64 = 512;
+const TARPIT_STEP_CHUNK_MAX_BYTES_MAX: u64 = 131_072;
+const TARPIT_STEP_JITTER_PERCENT_MIN: u64 = 0;
+const TARPIT_STEP_JITTER_PERCENT_MAX: u64 = 40;
+const TARPIT_EGRESS_WINDOW_SECONDS_MIN: u64 = 10;
+const TARPIT_EGRESS_WINDOW_SECONDS_MAX: u64 = 3_600;
+const TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW_MIN: u64 = 1_024;
+const TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW_MAX: u64 = 1_073_741_824;
+const TARPIT_EGRESS_PER_IP_BUCKET_BYTES_PER_WINDOW_MIN: u64 = 512;
+const TARPIT_EGRESS_PER_IP_BUCKET_BYTES_PER_WINDOW_MAX: u64 = 268_435_456;
+const TARPIT_EGRESS_PER_FLOW_MAX_BYTES_MIN: u64 = 1_024;
+const TARPIT_EGRESS_PER_FLOW_MAX_BYTES_MAX: u64 = 268_435_456;
+const TARPIT_EGRESS_PER_FLOW_MAX_DURATION_SECONDS_MIN: u64 = 5;
+const TARPIT_EGRESS_PER_FLOW_MAX_DURATION_SECONDS_MAX: u64 = 3_600;
+const TARPIT_MAX_CONCURRENT_GLOBAL_MIN: u64 = 1;
+const TARPIT_MAX_CONCURRENT_GLOBAL_MAX: u64 = 10_000;
+const TARPIT_MAX_CONCURRENT_PER_IP_BUCKET_MIN: u64 = 1;
+const TARPIT_MAX_CONCURRENT_PER_IP_BUCKET_MAX: u64 = 256;
 const IP_RANGE_MAX_RULES: usize = 64;
 const IP_RANGE_MAX_CIDRS_PER_RULE: usize = 512;
 const IP_RANGE_MAX_EMERGENCY_ALLOWLIST: usize = 1024;
@@ -487,6 +513,15 @@ mod admin_config_tests {
         cfg.honeypot_enabled = false;
         cfg.browser_policy_enabled = false;
         cfg.bypass_allowlists_enabled = false;
+        cfg.tarpit_enabled = false;
+        cfg.tarpit_progress_token_ttl_seconds = 140;
+        cfg.tarpit_progress_replay_ttl_seconds = 360;
+        cfg.tarpit_step_chunk_base_bytes = 4096;
+        cfg.tarpit_step_chunk_max_bytes = 12288;
+        cfg.tarpit_egress_global_bytes_per_window = 5_242_880;
+        cfg.tarpit_max_concurrent_global = 40;
+        cfg.tarpit_max_concurrent_per_ip_bucket = 3;
+        cfg.tarpit_fallback_action = crate::config::TarpitFallbackAction::Block;
         cfg.challenge_puzzle_enabled = false;
         cfg.honeypots = vec!["/trap-a".to_string(), "/trap-b".to_string()];
         cfg.defence_modes.rate = crate::config::ComposabilityMode::Signal;
@@ -530,6 +565,42 @@ mod admin_config_tests {
         assert_eq!(
             env.get("SHUMA_BYPASS_ALLOWLISTS_ENABLED"),
             Some(&serde_json::json!("false"))
+        );
+        assert_eq!(
+            env.get("SHUMA_TARPIT_ENABLED"),
+            Some(&serde_json::json!("false"))
+        );
+        assert_eq!(
+            env.get("SHUMA_TARPIT_PROGRESS_TOKEN_TTL_SECONDS"),
+            Some(&serde_json::json!("140"))
+        );
+        assert_eq!(
+            env.get("SHUMA_TARPIT_PROGRESS_REPLAY_TTL_SECONDS"),
+            Some(&serde_json::json!("360"))
+        );
+        assert_eq!(
+            env.get("SHUMA_TARPIT_STEP_CHUNK_BASE_BYTES"),
+            Some(&serde_json::json!("4096"))
+        );
+        assert_eq!(
+            env.get("SHUMA_TARPIT_STEP_CHUNK_MAX_BYTES"),
+            Some(&serde_json::json!("12288"))
+        );
+        assert_eq!(
+            env.get("SHUMA_TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW"),
+            Some(&serde_json::json!("5242880"))
+        );
+        assert_eq!(
+            env.get("SHUMA_TARPIT_MAX_CONCURRENT_GLOBAL"),
+            Some(&serde_json::json!("40"))
+        );
+        assert_eq!(
+            env.get("SHUMA_TARPIT_MAX_CONCURRENT_PER_IP_BUCKET"),
+            Some(&serde_json::json!("3"))
+        );
+        assert_eq!(
+            env.get("SHUMA_TARPIT_FALLBACK_ACTION"),
+            Some(&serde_json::json!("block"))
         );
         assert_eq!(
             env.get("SHUMA_CHALLENGE_PUZZLE_ENABLED"),
@@ -588,6 +659,15 @@ mod admin_config_tests {
         assert!(env_text.contains("SHUMA_HONEYPOT_ENABLED=false"));
         assert!(env_text.contains("SHUMA_BROWSER_POLICY_ENABLED=false"));
         assert!(env_text.contains("SHUMA_BYPASS_ALLOWLISTS_ENABLED=false"));
+        assert!(env_text.contains("SHUMA_TARPIT_ENABLED=false"));
+        assert!(env_text.contains("SHUMA_TARPIT_PROGRESS_TOKEN_TTL_SECONDS=140"));
+        assert!(env_text.contains("SHUMA_TARPIT_PROGRESS_REPLAY_TTL_SECONDS=360"));
+        assert!(env_text.contains("SHUMA_TARPIT_STEP_CHUNK_BASE_BYTES=4096"));
+        assert!(env_text.contains("SHUMA_TARPIT_STEP_CHUNK_MAX_BYTES=12288"));
+        assert!(env_text.contains("SHUMA_TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW=5242880"));
+        assert!(env_text.contains("SHUMA_TARPIT_MAX_CONCURRENT_GLOBAL=40"));
+        assert!(env_text.contains("SHUMA_TARPIT_MAX_CONCURRENT_PER_IP_BUCKET=3"));
+        assert!(env_text.contains("SHUMA_TARPIT_FALLBACK_ACTION=block"));
         assert!(env_text.contains("SHUMA_CHALLENGE_PUZZLE_ENABLED=false"));
         assert!(env_text.contains("SHUMA_CHALLENGE_PUZZLE_SEED_TTL_SECONDS="));
         assert!(env_text.contains("SHUMA_CHALLENGE_PUZZLE_ATTEMPT_LIMIT_PER_WINDOW="));
@@ -676,6 +756,25 @@ mod admin_config_tests {
         assert!(body.get("not_a_bot_enabled").is_some());
         assert!(body.get("not_a_bot_risk_threshold_default").is_some());
         assert!(body.get("challenge_puzzle_enabled").is_some());
+        assert!(body.get("tarpit_enabled").is_some());
+        assert!(body.get("tarpit_progress_token_ttl_seconds").is_some());
+        assert!(body.get("tarpit_progress_replay_ttl_seconds").is_some());
+        assert!(body.get("tarpit_hashcash_min_difficulty").is_some());
+        assert!(body.get("tarpit_hashcash_max_difficulty").is_some());
+        assert!(body.get("tarpit_hashcash_base_difficulty").is_some());
+        assert!(body.get("tarpit_hashcash_adaptive").is_some());
+        assert!(body.get("tarpit_step_chunk_base_bytes").is_some());
+        assert!(body.get("tarpit_step_chunk_max_bytes").is_some());
+        assert!(body.get("tarpit_step_jitter_percent").is_some());
+        assert!(body.get("tarpit_shard_rotation_enabled").is_some());
+        assert!(body.get("tarpit_egress_window_seconds").is_some());
+        assert!(body.get("tarpit_egress_global_bytes_per_window").is_some());
+        assert!(body.get("tarpit_egress_per_ip_bucket_bytes_per_window").is_some());
+        assert!(body.get("tarpit_egress_per_flow_max_bytes").is_some());
+        assert!(body.get("tarpit_egress_per_flow_max_duration_seconds").is_some());
+        assert!(body.get("tarpit_max_concurrent_global").is_some());
+        assert!(body.get("tarpit_max_concurrent_per_ip_bucket").is_some());
+        assert!(body.get("tarpit_fallback_action").is_some());
         assert!(body.get("challenge_puzzle_risk_threshold_default").is_some());
         assert!(body.get("challenge_puzzle_transform_count").is_some());
         assert!(body.get("challenge_puzzle_seed_ttl_seconds").is_some());
@@ -839,6 +938,71 @@ mod admin_config_tests {
             &Method::Get
         ));
         assert!(sanitize_path("/admin/maze/preview"));
+        assert!(sanitize_path("/admin/tarpit/preview"));
+    }
+
+    #[test]
+    fn admin_tarpit_preview_serves_progressive_bootstrap() {
+        let _lock = crate::test_support::lock_env();
+        let store = TestStore::default();
+
+        let req = make_request(Method::Get, "/admin/tarpit/preview", Vec::new());
+        let resp = handle_admin_tarpit_preview(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+        let body = String::from_utf8_lossy(resp.body());
+        assert!(body.contains("window.__shumaTarpit"));
+        assert!(body.contains("/tarpit/progress"));
+    }
+
+    #[test]
+    fn admin_tarpit_preview_is_non_mutating_get_only_path() {
+        let _lock = crate::test_support::lock_env();
+        let store = TestStore::default();
+        {
+            let mut map = store.map.lock().unwrap();
+            map.insert("tarpit:budget:active:global:default".to_string(), b"7".to_vec());
+            map.insert(
+                "tarpit:budget:active:bucket:default:bucket-a".to_string(),
+                b"2".to_vec(),
+            );
+            map.insert(
+                "tarpit:persistence:default:bucket-a".to_string(),
+                br#"{"count":4,"expires_at":9999999999}"#.to_vec(),
+            );
+        }
+
+        let before = {
+            let map = store.map.lock().unwrap();
+            map.iter()
+                .filter(|(k, _)| k.starts_with("tarpit:"))
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect::<std::collections::HashMap<_, _>>()
+        };
+
+        let req = make_request(
+            Method::Get,
+            "/admin/tarpit/preview",
+            Vec::new(),
+        );
+        let resp = handle_admin_tarpit_preview(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+
+        let after = {
+            let map = store.map.lock().unwrap();
+            map.iter()
+                .filter(|(k, _)| k.starts_with("tarpit:"))
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect::<std::collections::HashMap<_, _>>()
+        };
+        assert_eq!(before, after);
+
+        let post_req = make_request(Method::Post, "/admin/tarpit/preview", Vec::new());
+        let post_resp = handle_admin_tarpit_preview(&post_req, &store, "default");
+        assert_eq!(*post_resp.status(), 405u16);
+        assert!(!request_requires_admin_write(
+            "/admin/tarpit/preview",
+            &Method::Get
+        ));
     }
 
     #[test]
@@ -883,6 +1047,7 @@ mod admin_config_tests {
         assert!(details.get("events").is_some());
         assert!(details.get("bans").is_some());
         assert!(details.get("maze").is_some());
+        assert!(details.get("tarpit").is_some());
         assert!(details.get("cdp").is_some());
         assert!(details.get("cdp_events").is_some());
         assert_eq!(
@@ -975,6 +1140,61 @@ mod admin_config_tests {
                 .map(|v| v.is_array())
                 .unwrap_or(false)
         );
+    }
+
+    #[test]
+    fn admin_monitoring_tarpit_active_counters_are_site_scoped() {
+        let _lock = crate::test_support::lock_env();
+        let store = TestStore::default();
+
+        store
+            .set("tarpit:budget:active:global:default", b"3")
+            .unwrap();
+        store
+            .set("tarpit:budget:active:global:other-site", b"9")
+            .unwrap();
+        store
+            .set("tarpit:budget:active:bucket:default:bucket-a", b"2")
+            .unwrap();
+        store
+            .set("tarpit:budget:active:bucket:default:bucket-b", b"1")
+            .unwrap();
+        store
+            .set("tarpit:budget:active:bucket:other-site:bucket-z", b"7")
+            .unwrap();
+
+        let details = monitoring_details_payload(&store, "default", 24);
+        let tarpit = details.get("tarpit").unwrap();
+        assert_eq!(
+            tarpit
+                .get("active")
+                .and_then(|value| value.get("global"))
+                .and_then(|value| value.as_u64()),
+            Some(3)
+        );
+        let top_buckets = tarpit
+            .get("active")
+            .and_then(|value| value.get("top_buckets"))
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        assert!(top_buckets.iter().any(|entry| {
+            entry.get("bucket").and_then(|value| value.as_str()) == Some("bucket-a")
+                && entry.get("active").and_then(|value| value.as_u64()) == Some(2)
+        }));
+        assert!(top_buckets.iter().any(|entry| {
+            entry.get("bucket").and_then(|value| value.as_str()) == Some("bucket-b")
+                && entry.get("active").and_then(|value| value.as_u64()) == Some(1)
+        }));
+        assert!(!top_buckets.iter().any(|entry| {
+            entry.get("bucket")
+                .and_then(|value| value.as_str())
+                .unwrap_or("")
+                .contains("other-site")
+        }));
+        assert!(!top_buckets.iter().any(|entry| {
+            entry.get("bucket").and_then(|value| value.as_str()) == Some("bucket-z")
+        }));
     }
 
     #[test]
@@ -1539,6 +1759,241 @@ mod admin_config_tests {
         let saved_bytes = store.get("config:default").unwrap().unwrap();
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
         assert!(!saved_cfg.challenge_puzzle_enabled);
+
+        clear_env(&["SHUMA_ADMIN_CONFIG_WRITE_ENABLED"]);
+    }
+
+    #[test]
+    fn admin_config_updates_tarpit_enabled() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+
+        let post_req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"tarpit_enabled":false}"#.to_vec(),
+        );
+        let post_resp = handle_admin_config(&post_req, &store, "default");
+        assert_eq!(*post_resp.status(), 200u16);
+        let post_json: serde_json::Value = serde_json::from_slice(post_resp.body()).unwrap();
+        let cfg = post_json.get("config").unwrap();
+        assert_eq!(cfg.get("tarpit_enabled"), Some(&serde_json::Value::Bool(false)));
+
+        let saved_bytes = store.get("config:default").unwrap().unwrap();
+        let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
+        assert!(!saved_cfg.tarpit_enabled);
+
+        clear_env(&["SHUMA_ADMIN_CONFIG_WRITE_ENABLED"]);
+    }
+
+    #[test]
+    fn admin_config_updates_tarpit_runtime_controls() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+
+        let post_req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{
+                "tarpit_progress_token_ttl_seconds": 140,
+                "tarpit_progress_replay_ttl_seconds": 420,
+                "tarpit_hashcash_min_difficulty": 9,
+                "tarpit_hashcash_max_difficulty": 17,
+                "tarpit_hashcash_base_difficulty": 12,
+                "tarpit_hashcash_adaptive": false,
+                "tarpit_step_chunk_base_bytes": 4096,
+                "tarpit_step_chunk_max_bytes": 16384,
+                "tarpit_step_jitter_percent": 20,
+                "tarpit_shard_rotation_enabled": false,
+                "tarpit_egress_window_seconds": 90,
+                "tarpit_egress_global_bytes_per_window": 8388608,
+                "tarpit_egress_per_ip_bucket_bytes_per_window": 1048576,
+                "tarpit_egress_per_flow_max_bytes": 524288,
+                "tarpit_egress_per_flow_max_duration_seconds": 180,
+                "tarpit_max_concurrent_global": 24,
+                "tarpit_max_concurrent_per_ip_bucket": 3,
+                "tarpit_fallback_action":"block"
+            }"#
+            .to_vec(),
+        );
+        let post_resp = handle_admin_config(&post_req, &store, "default");
+        assert_eq!(*post_resp.status(), 200u16);
+        let post_json: serde_json::Value = serde_json::from_slice(post_resp.body()).unwrap();
+        let cfg = post_json.get("config").unwrap();
+        assert_eq!(
+            cfg.get("tarpit_progress_token_ttl_seconds"),
+            Some(&serde_json::Value::Number(140.into()))
+        );
+        assert_eq!(
+            cfg.get("tarpit_progress_replay_ttl_seconds"),
+            Some(&serde_json::Value::Number(420.into()))
+        );
+        assert_eq!(
+            cfg.get("tarpit_hashcash_min_difficulty"),
+            Some(&serde_json::Value::Number(9.into()))
+        );
+        assert_eq!(
+            cfg.get("tarpit_hashcash_max_difficulty"),
+            Some(&serde_json::Value::Number(17.into()))
+        );
+        assert_eq!(
+            cfg.get("tarpit_hashcash_base_difficulty"),
+            Some(&serde_json::Value::Number(12.into()))
+        );
+        assert_eq!(
+            cfg.get("tarpit_hashcash_adaptive"),
+            Some(&serde_json::Value::Bool(false))
+        );
+        assert_eq!(
+            cfg.get("tarpit_step_chunk_base_bytes"),
+            Some(&serde_json::Value::Number(4096.into()))
+        );
+        assert_eq!(
+            cfg.get("tarpit_step_chunk_max_bytes"),
+            Some(&serde_json::Value::Number(16384.into()))
+        );
+        assert_eq!(
+            cfg.get("tarpit_step_jitter_percent"),
+            Some(&serde_json::Value::Number(20.into()))
+        );
+        assert_eq!(
+            cfg.get("tarpit_shard_rotation_enabled"),
+            Some(&serde_json::Value::Bool(false))
+        );
+        assert_eq!(
+            cfg.get("tarpit_egress_window_seconds"),
+            Some(&serde_json::Value::Number(90.into()))
+        );
+        assert_eq!(
+            cfg.get("tarpit_egress_global_bytes_per_window"),
+            Some(&serde_json::Value::Number(8_388_608u64.into()))
+        );
+        assert_eq!(
+            cfg.get("tarpit_egress_per_ip_bucket_bytes_per_window"),
+            Some(&serde_json::Value::Number(1_048_576u64.into()))
+        );
+        assert_eq!(
+            cfg.get("tarpit_egress_per_flow_max_bytes"),
+            Some(&serde_json::Value::Number(524_288u64.into()))
+        );
+        assert_eq!(
+            cfg.get("tarpit_egress_per_flow_max_duration_seconds"),
+            Some(&serde_json::Value::Number(180.into()))
+        );
+        assert_eq!(
+            cfg.get("tarpit_max_concurrent_global"),
+            Some(&serde_json::Value::Number(24.into()))
+        );
+        assert_eq!(
+            cfg.get("tarpit_max_concurrent_per_ip_bucket"),
+            Some(&serde_json::Value::Number(3.into()))
+        );
+        assert_eq!(
+            cfg.get("tarpit_fallback_action"),
+            Some(&serde_json::Value::String("block".to_string()))
+        );
+
+        let saved_bytes = store.get("config:default").unwrap().unwrap();
+        let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
+        assert_eq!(saved_cfg.tarpit_progress_token_ttl_seconds, 140);
+        assert_eq!(saved_cfg.tarpit_progress_replay_ttl_seconds, 420);
+        assert_eq!(saved_cfg.tarpit_hashcash_min_difficulty, 9);
+        assert_eq!(saved_cfg.tarpit_hashcash_max_difficulty, 17);
+        assert_eq!(saved_cfg.tarpit_hashcash_base_difficulty, 12);
+        assert!(!saved_cfg.tarpit_hashcash_adaptive);
+        assert_eq!(saved_cfg.tarpit_step_chunk_base_bytes, 4096);
+        assert_eq!(saved_cfg.tarpit_step_chunk_max_bytes, 16384);
+        assert_eq!(saved_cfg.tarpit_step_jitter_percent, 20);
+        assert!(!saved_cfg.tarpit_shard_rotation_enabled);
+        assert_eq!(saved_cfg.tarpit_egress_window_seconds, 90);
+        assert_eq!(saved_cfg.tarpit_egress_global_bytes_per_window, 8_388_608);
+        assert_eq!(saved_cfg.tarpit_egress_per_ip_bucket_bytes_per_window, 1_048_576);
+        assert_eq!(saved_cfg.tarpit_egress_per_flow_max_bytes, 524_288);
+        assert_eq!(saved_cfg.tarpit_egress_per_flow_max_duration_seconds, 180);
+        assert_eq!(saved_cfg.tarpit_max_concurrent_global, 24);
+        assert_eq!(saved_cfg.tarpit_max_concurrent_per_ip_bucket, 3);
+        assert_eq!(
+            saved_cfg.tarpit_fallback_action,
+            crate::config::TarpitFallbackAction::Block
+        );
+
+        clear_env(&["SHUMA_ADMIN_CONFIG_WRITE_ENABLED"]);
+    }
+
+    #[test]
+    fn admin_config_rejects_invalid_tarpit_runtime_controls() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+
+        let invalid_token_ttl = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"tarpit_progress_token_ttl_seconds": 10}"#.to_vec(),
+        );
+        let invalid_token_ttl_resp = handle_admin_config(&invalid_token_ttl, &store, "default");
+        assert_eq!(*invalid_token_ttl_resp.status(), 400u16);
+        assert!(
+            String::from_utf8_lossy(invalid_token_ttl_resp.body())
+                .contains("tarpit_progress_token_ttl_seconds out of range")
+        );
+
+        let invalid_chunk_bounds = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"tarpit_step_chunk_base_bytes": 8192, "tarpit_step_chunk_max_bytes": 1024}"#
+                .to_vec(),
+        );
+        let invalid_chunk_bounds_resp =
+            handle_admin_config(&invalid_chunk_bounds, &store, "default");
+        assert_eq!(*invalid_chunk_bounds_resp.status(), 400u16);
+        assert!(
+            String::from_utf8_lossy(invalid_chunk_bounds_resp.body())
+                .contains("tarpit_step_chunk_max_bytes must be >=")
+        );
+
+        let invalid_budget = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"tarpit_max_concurrent_global": 2, "tarpit_max_concurrent_per_ip_bucket": 5}"#
+                .to_vec(),
+        );
+        let invalid_budget_resp = handle_admin_config(&invalid_budget, &store, "default");
+        assert_eq!(*invalid_budget_resp.status(), 400u16);
+        assert!(
+            String::from_utf8_lossy(invalid_budget_resp.body())
+                .contains("tarpit_max_concurrent_per_ip_bucket must be <=")
+        );
+
+        let invalid_egress = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{
+                "tarpit_egress_global_bytes_per_window": 10000,
+                "tarpit_egress_per_ip_bucket_bytes_per_window": 12000
+            }"#
+            .to_vec(),
+        );
+        let invalid_egress_resp = handle_admin_config(&invalid_egress, &store, "default");
+        assert_eq!(*invalid_egress_resp.status(), 400u16);
+        assert!(
+            String::from_utf8_lossy(invalid_egress_resp.body())
+                .contains("tarpit_egress_per_ip_bucket_bytes_per_window must be <=")
+        );
+
+        let invalid_fallback = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"tarpit_fallback_action":"challenge"}"#.to_vec(),
+        );
+        let invalid_fallback_resp = handle_admin_config(&invalid_fallback, &store, "default");
+        assert_eq!(*invalid_fallback_resp.status(), 400u16);
+        assert!(
+            String::from_utf8_lossy(invalid_fallback_resp.body())
+                .contains("tarpit_fallback_action must be one of")
+        );
 
         clear_env(&["SHUMA_ADMIN_CONFIG_WRITE_ENABLED"]);
     }
@@ -2186,6 +2641,10 @@ mod admin_auth_tests {
             &Method::Post
         ));
         assert!(!request_requires_admin_write(
+            "/admin/tarpit/preview",
+            &Method::Post
+        ));
+        assert!(!request_requires_admin_write(
             "/admin/events",
             &Method::Post
         ));
@@ -2240,6 +2699,7 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/config/export"
             | "/admin/maze"
             | "/admin/maze/preview"
+            | "/admin/tarpit/preview"
             | "/admin/maze/seeds"
             | "/admin/maze/seeds/refresh"
             | "/admin/robots"
@@ -3130,6 +3590,82 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
             bool_env(cfg.maze_enabled).to_string(),
         ),
         (
+            "SHUMA_TARPIT_ENABLED".to_string(),
+            bool_env(cfg.tarpit_enabled).to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_PROGRESS_TOKEN_TTL_SECONDS".to_string(),
+            cfg.tarpit_progress_token_ttl_seconds.to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_PROGRESS_REPLAY_TTL_SECONDS".to_string(),
+            cfg.tarpit_progress_replay_ttl_seconds.to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_HASHCASH_MIN_DIFFICULTY".to_string(),
+            cfg.tarpit_hashcash_min_difficulty.to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_HASHCASH_MAX_DIFFICULTY".to_string(),
+            cfg.tarpit_hashcash_max_difficulty.to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_HASHCASH_BASE_DIFFICULTY".to_string(),
+            cfg.tarpit_hashcash_base_difficulty.to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_HASHCASH_ADAPTIVE".to_string(),
+            bool_env(cfg.tarpit_hashcash_adaptive).to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_STEP_CHUNK_BASE_BYTES".to_string(),
+            cfg.tarpit_step_chunk_base_bytes.to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_STEP_CHUNK_MAX_BYTES".to_string(),
+            cfg.tarpit_step_chunk_max_bytes.to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_STEP_JITTER_PERCENT".to_string(),
+            cfg.tarpit_step_jitter_percent.to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_SHARD_ROTATION_ENABLED".to_string(),
+            bool_env(cfg.tarpit_shard_rotation_enabled).to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_EGRESS_WINDOW_SECONDS".to_string(),
+            cfg.tarpit_egress_window_seconds.to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW".to_string(),
+            cfg.tarpit_egress_global_bytes_per_window.to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_EGRESS_PER_IP_BUCKET_BYTES_PER_WINDOW".to_string(),
+            cfg.tarpit_egress_per_ip_bucket_bytes_per_window.to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_EGRESS_PER_FLOW_MAX_BYTES".to_string(),
+            cfg.tarpit_egress_per_flow_max_bytes.to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_EGRESS_PER_FLOW_MAX_DURATION_SECONDS".to_string(),
+            cfg.tarpit_egress_per_flow_max_duration_seconds.to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_MAX_CONCURRENT_GLOBAL".to_string(),
+            cfg.tarpit_max_concurrent_global.to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_MAX_CONCURRENT_PER_IP_BUCKET".to_string(),
+            cfg.tarpit_max_concurrent_per_ip_bucket.to_string(),
+        ),
+        (
+            "SHUMA_TARPIT_FALLBACK_ACTION".to_string(),
+            cfg.tarpit_fallback_action.as_str().to_string(),
+        ),
+        (
             "SHUMA_MAZE_AUTO_BAN".to_string(),
             bool_env(cfg.maze_auto_ban).to_string(),
         ),
@@ -3764,6 +4300,17 @@ fn parse_maze_seed_provider_json(
         .ok_or_else(|| format!("{} must be one of: internal, operator", field))
 }
 
+fn parse_tarpit_fallback_action_json(
+    field: &str,
+    value: &serde_json::Value,
+) -> Result<crate::config::TarpitFallbackAction, String> {
+    let raw = value
+        .as_str()
+        .ok_or_else(|| format!("{} must be one of: maze, block", field))?;
+    crate::config::parse_tarpit_fallback_action(raw)
+        .ok_or_else(|| format!("{} must be one of: maze, block", field))
+}
+
 fn admin_config_payload(
     cfg: &crate::config::Config,
     challenge_default: u8,
@@ -3935,6 +4482,25 @@ struct AdminConfigPatch {
     ip_range_allow_stale_managed_enforce: Option<bool>,
     ban_durations: Option<AdminBanDurationsPatch>,
     maze_enabled: Option<bool>,
+    tarpit_enabled: Option<bool>,
+    tarpit_progress_token_ttl_seconds: Option<u64>,
+    tarpit_progress_replay_ttl_seconds: Option<u64>,
+    tarpit_hashcash_min_difficulty: Option<u64>,
+    tarpit_hashcash_max_difficulty: Option<u64>,
+    tarpit_hashcash_base_difficulty: Option<u64>,
+    tarpit_hashcash_adaptive: Option<bool>,
+    tarpit_step_chunk_base_bytes: Option<u64>,
+    tarpit_step_chunk_max_bytes: Option<u64>,
+    tarpit_step_jitter_percent: Option<u64>,
+    tarpit_shard_rotation_enabled: Option<bool>,
+    tarpit_egress_window_seconds: Option<u64>,
+    tarpit_egress_global_bytes_per_window: Option<u64>,
+    tarpit_egress_per_ip_bucket_bytes_per_window: Option<u64>,
+    tarpit_egress_per_flow_max_bytes: Option<u64>,
+    tarpit_egress_per_flow_max_duration_seconds: Option<u64>,
+    tarpit_max_concurrent_global: Option<u64>,
+    tarpit_max_concurrent_per_ip_bucket: Option<u64>,
+    tarpit_fallback_action: Option<String>,
     maze_auto_ban: Option<bool>,
     maze_auto_ban_threshold: Option<u64>,
     maze_rollout_phase: Option<String>,
@@ -4429,9 +4995,415 @@ fn handle_admin_config_internal(
         }
 
         // Update maze settings if provided
+        let old_tarpit_enabled = cfg.tarpit_enabled;
+        let old_tarpit_progress_token_ttl_seconds = cfg.tarpit_progress_token_ttl_seconds;
+        let old_tarpit_progress_replay_ttl_seconds = cfg.tarpit_progress_replay_ttl_seconds;
+        let old_tarpit_hashcash_min_difficulty = cfg.tarpit_hashcash_min_difficulty;
+        let old_tarpit_hashcash_max_difficulty = cfg.tarpit_hashcash_max_difficulty;
+        let old_tarpit_hashcash_base_difficulty = cfg.tarpit_hashcash_base_difficulty;
+        let old_tarpit_hashcash_adaptive = cfg.tarpit_hashcash_adaptive;
+        let old_tarpit_step_chunk_base_bytes = cfg.tarpit_step_chunk_base_bytes;
+        let old_tarpit_step_chunk_max_bytes = cfg.tarpit_step_chunk_max_bytes;
+        let old_tarpit_step_jitter_percent = cfg.tarpit_step_jitter_percent;
+        let old_tarpit_shard_rotation_enabled = cfg.tarpit_shard_rotation_enabled;
+        let old_tarpit_egress_window_seconds = cfg.tarpit_egress_window_seconds;
+        let old_tarpit_egress_global_bytes_per_window = cfg.tarpit_egress_global_bytes_per_window;
+        let old_tarpit_egress_per_ip_bucket_bytes_per_window =
+            cfg.tarpit_egress_per_ip_bucket_bytes_per_window;
+        let old_tarpit_egress_per_flow_max_bytes = cfg.tarpit_egress_per_flow_max_bytes;
+        let old_tarpit_egress_per_flow_max_duration_seconds =
+            cfg.tarpit_egress_per_flow_max_duration_seconds;
+        let old_tarpit_max_concurrent_global = cfg.tarpit_max_concurrent_global;
+        let old_tarpit_max_concurrent_per_ip_bucket = cfg.tarpit_max_concurrent_per_ip_bucket;
+        let old_tarpit_fallback_action = cfg.tarpit_fallback_action;
+        let mut tarpit_changed = false;
+
         if let Some(maze_enabled) = json.get("maze_enabled").and_then(|v| v.as_bool()) {
             cfg.maze_enabled = maze_enabled;
             changed = true;
+        }
+        if let Some(tarpit_enabled) = json.get("tarpit_enabled").and_then(|v| v.as_bool()) {
+            if cfg.tarpit_enabled != tarpit_enabled {
+                cfg.tarpit_enabled = tarpit_enabled;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json
+            .get("tarpit_progress_token_ttl_seconds")
+            .and_then(|v| v.as_u64())
+        {
+            if !(TARPIT_PROGRESS_TOKEN_TTL_SECONDS_MIN..=TARPIT_PROGRESS_TOKEN_TTL_SECONDS_MAX)
+                .contains(&value)
+            {
+                return Response::new(
+                    400,
+                    format!(
+                        "tarpit_progress_token_ttl_seconds out of range ({}-{})",
+                        TARPIT_PROGRESS_TOKEN_TTL_SECONDS_MIN, TARPIT_PROGRESS_TOKEN_TTL_SECONDS_MAX
+                    ),
+                );
+            }
+            if cfg.tarpit_progress_token_ttl_seconds != value {
+                cfg.tarpit_progress_token_ttl_seconds = value;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json
+            .get("tarpit_progress_replay_ttl_seconds")
+            .and_then(|v| v.as_u64())
+        {
+            if !(TARPIT_PROGRESS_REPLAY_TTL_SECONDS_MIN..=TARPIT_PROGRESS_REPLAY_TTL_SECONDS_MAX)
+                .contains(&value)
+            {
+                return Response::new(
+                    400,
+                    format!(
+                        "tarpit_progress_replay_ttl_seconds out of range ({}-{})",
+                        TARPIT_PROGRESS_REPLAY_TTL_SECONDS_MIN,
+                        TARPIT_PROGRESS_REPLAY_TTL_SECONDS_MAX
+                    ),
+                );
+            }
+            if cfg.tarpit_progress_replay_ttl_seconds != value {
+                cfg.tarpit_progress_replay_ttl_seconds = value;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json
+            .get("tarpit_hashcash_min_difficulty")
+            .and_then(|v| v.as_u64())
+        {
+            if !(TARPIT_HASHCASH_DIFFICULTY_MIN..=TARPIT_HASHCASH_DIFFICULTY_MAX).contains(&value)
+            {
+                return Response::new(
+                    400,
+                    format!(
+                        "tarpit_hashcash_min_difficulty out of range ({}-{})",
+                        TARPIT_HASHCASH_DIFFICULTY_MIN, TARPIT_HASHCASH_DIFFICULTY_MAX
+                    ),
+                );
+            }
+            if cfg.tarpit_hashcash_min_difficulty != value as u8 {
+                cfg.tarpit_hashcash_min_difficulty = value as u8;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json
+            .get("tarpit_hashcash_max_difficulty")
+            .and_then(|v| v.as_u64())
+        {
+            if !(TARPIT_HASHCASH_DIFFICULTY_MIN..=TARPIT_HASHCASH_DIFFICULTY_MAX).contains(&value)
+            {
+                return Response::new(
+                    400,
+                    format!(
+                        "tarpit_hashcash_max_difficulty out of range ({}-{})",
+                        TARPIT_HASHCASH_DIFFICULTY_MIN, TARPIT_HASHCASH_DIFFICULTY_MAX
+                    ),
+                );
+            }
+            if cfg.tarpit_hashcash_max_difficulty != value as u8 {
+                cfg.tarpit_hashcash_max_difficulty = value as u8;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json
+            .get("tarpit_hashcash_base_difficulty")
+            .and_then(|v| v.as_u64())
+        {
+            if !(TARPIT_HASHCASH_DIFFICULTY_MIN..=TARPIT_HASHCASH_DIFFICULTY_MAX).contains(&value)
+            {
+                return Response::new(
+                    400,
+                    format!(
+                        "tarpit_hashcash_base_difficulty out of range ({}-{})",
+                        TARPIT_HASHCASH_DIFFICULTY_MIN, TARPIT_HASHCASH_DIFFICULTY_MAX
+                    ),
+                );
+            }
+            if cfg.tarpit_hashcash_base_difficulty != value as u8 {
+                cfg.tarpit_hashcash_base_difficulty = value as u8;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json.get("tarpit_hashcash_adaptive").and_then(|v| v.as_bool()) {
+            if cfg.tarpit_hashcash_adaptive != value {
+                cfg.tarpit_hashcash_adaptive = value;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json
+            .get("tarpit_step_chunk_base_bytes")
+            .and_then(|v| v.as_u64())
+        {
+            if !(TARPIT_STEP_CHUNK_BASE_BYTES_MIN..=TARPIT_STEP_CHUNK_BASE_BYTES_MAX)
+                .contains(&value)
+            {
+                return Response::new(
+                    400,
+                    format!(
+                        "tarpit_step_chunk_base_bytes out of range ({}-{})",
+                        TARPIT_STEP_CHUNK_BASE_BYTES_MIN, TARPIT_STEP_CHUNK_BASE_BYTES_MAX
+                    ),
+                );
+            }
+            if cfg.tarpit_step_chunk_base_bytes != value as u32 {
+                cfg.tarpit_step_chunk_base_bytes = value as u32;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json
+            .get("tarpit_step_chunk_max_bytes")
+            .and_then(|v| v.as_u64())
+        {
+            if !(TARPIT_STEP_CHUNK_MAX_BYTES_MIN..=TARPIT_STEP_CHUNK_MAX_BYTES_MAX).contains(&value)
+            {
+                return Response::new(
+                    400,
+                    format!(
+                        "tarpit_step_chunk_max_bytes out of range ({}-{})",
+                        TARPIT_STEP_CHUNK_MAX_BYTES_MIN, TARPIT_STEP_CHUNK_MAX_BYTES_MAX
+                    ),
+                );
+            }
+            if cfg.tarpit_step_chunk_max_bytes != value as u32 {
+                cfg.tarpit_step_chunk_max_bytes = value as u32;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json
+            .get("tarpit_step_jitter_percent")
+            .and_then(|v| v.as_u64())
+        {
+            if !(TARPIT_STEP_JITTER_PERCENT_MIN..=TARPIT_STEP_JITTER_PERCENT_MAX).contains(&value) {
+                return Response::new(
+                    400,
+                    format!(
+                        "tarpit_step_jitter_percent out of range ({}-{})",
+                        TARPIT_STEP_JITTER_PERCENT_MIN, TARPIT_STEP_JITTER_PERCENT_MAX
+                    ),
+                );
+            }
+            if cfg.tarpit_step_jitter_percent != value as u8 {
+                cfg.tarpit_step_jitter_percent = value as u8;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json
+            .get("tarpit_shard_rotation_enabled")
+            .and_then(|v| v.as_bool())
+        {
+            if cfg.tarpit_shard_rotation_enabled != value {
+                cfg.tarpit_shard_rotation_enabled = value;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json
+            .get("tarpit_egress_window_seconds")
+            .and_then(|v| v.as_u64())
+        {
+            if !(TARPIT_EGRESS_WINDOW_SECONDS_MIN..=TARPIT_EGRESS_WINDOW_SECONDS_MAX)
+                .contains(&value)
+            {
+                return Response::new(
+                    400,
+                    format!(
+                        "tarpit_egress_window_seconds out of range ({}-{})",
+                        TARPIT_EGRESS_WINDOW_SECONDS_MIN, TARPIT_EGRESS_WINDOW_SECONDS_MAX
+                    ),
+                );
+            }
+            if cfg.tarpit_egress_window_seconds != value {
+                cfg.tarpit_egress_window_seconds = value;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json
+            .get("tarpit_egress_global_bytes_per_window")
+            .and_then(|v| v.as_u64())
+        {
+            if !(TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW_MIN..=TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW_MAX)
+                .contains(&value)
+            {
+                return Response::new(
+                    400,
+                    format!(
+                        "tarpit_egress_global_bytes_per_window out of range ({}-{})",
+                        TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW_MIN,
+                        TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW_MAX
+                    ),
+                );
+            }
+            if cfg.tarpit_egress_global_bytes_per_window != value {
+                cfg.tarpit_egress_global_bytes_per_window = value;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json
+            .get("tarpit_egress_per_ip_bucket_bytes_per_window")
+            .and_then(|v| v.as_u64())
+        {
+            if !(TARPIT_EGRESS_PER_IP_BUCKET_BYTES_PER_WINDOW_MIN
+                ..=TARPIT_EGRESS_PER_IP_BUCKET_BYTES_PER_WINDOW_MAX)
+                .contains(&value)
+            {
+                return Response::new(
+                    400,
+                    format!(
+                        "tarpit_egress_per_ip_bucket_bytes_per_window out of range ({}-{})",
+                        TARPIT_EGRESS_PER_IP_BUCKET_BYTES_PER_WINDOW_MIN,
+                        TARPIT_EGRESS_PER_IP_BUCKET_BYTES_PER_WINDOW_MAX
+                    ),
+                );
+            }
+            if cfg.tarpit_egress_per_ip_bucket_bytes_per_window != value {
+                cfg.tarpit_egress_per_ip_bucket_bytes_per_window = value;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json
+            .get("tarpit_egress_per_flow_max_bytes")
+            .and_then(|v| v.as_u64())
+        {
+            if !(TARPIT_EGRESS_PER_FLOW_MAX_BYTES_MIN..=TARPIT_EGRESS_PER_FLOW_MAX_BYTES_MAX)
+                .contains(&value)
+            {
+                return Response::new(
+                    400,
+                    format!(
+                        "tarpit_egress_per_flow_max_bytes out of range ({}-{})",
+                        TARPIT_EGRESS_PER_FLOW_MAX_BYTES_MIN, TARPIT_EGRESS_PER_FLOW_MAX_BYTES_MAX
+                    ),
+                );
+            }
+            if cfg.tarpit_egress_per_flow_max_bytes != value {
+                cfg.tarpit_egress_per_flow_max_bytes = value;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json
+            .get("tarpit_egress_per_flow_max_duration_seconds")
+            .and_then(|v| v.as_u64())
+        {
+            if !(TARPIT_EGRESS_PER_FLOW_MAX_DURATION_SECONDS_MIN
+                ..=TARPIT_EGRESS_PER_FLOW_MAX_DURATION_SECONDS_MAX)
+                .contains(&value)
+            {
+                return Response::new(
+                    400,
+                    format!(
+                        "tarpit_egress_per_flow_max_duration_seconds out of range ({}-{})",
+                        TARPIT_EGRESS_PER_FLOW_MAX_DURATION_SECONDS_MIN,
+                        TARPIT_EGRESS_PER_FLOW_MAX_DURATION_SECONDS_MAX
+                    ),
+                );
+            }
+            if cfg.tarpit_egress_per_flow_max_duration_seconds != value {
+                cfg.tarpit_egress_per_flow_max_duration_seconds = value;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json
+            .get("tarpit_max_concurrent_global")
+            .and_then(|v| v.as_u64())
+        {
+            if !(TARPIT_MAX_CONCURRENT_GLOBAL_MIN..=TARPIT_MAX_CONCURRENT_GLOBAL_MAX)
+                .contains(&value)
+            {
+                return Response::new(
+                    400,
+                    format!(
+                        "tarpit_max_concurrent_global out of range ({}-{})",
+                        TARPIT_MAX_CONCURRENT_GLOBAL_MIN, TARPIT_MAX_CONCURRENT_GLOBAL_MAX
+                    ),
+                );
+            }
+            if cfg.tarpit_max_concurrent_global != value as u32 {
+                cfg.tarpit_max_concurrent_global = value as u32;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if let Some(value) = json
+            .get("tarpit_max_concurrent_per_ip_bucket")
+            .and_then(|v| v.as_u64())
+        {
+            if !(TARPIT_MAX_CONCURRENT_PER_IP_BUCKET_MIN..=TARPIT_MAX_CONCURRENT_PER_IP_BUCKET_MAX)
+                .contains(&value)
+            {
+                return Response::new(
+                    400,
+                    format!(
+                        "tarpit_max_concurrent_per_ip_bucket out of range ({}-{})",
+                        TARPIT_MAX_CONCURRENT_PER_IP_BUCKET_MIN,
+                        TARPIT_MAX_CONCURRENT_PER_IP_BUCKET_MAX
+                    ),
+                );
+            }
+            if cfg.tarpit_max_concurrent_per_ip_bucket != value as u32 {
+                cfg.tarpit_max_concurrent_per_ip_bucket = value as u32;
+                changed = true;
+                tarpit_changed = true;
+            }
+        }
+        if cfg.tarpit_max_concurrent_per_ip_bucket > cfg.tarpit_max_concurrent_global {
+            return Response::new(
+                400,
+                "tarpit_max_concurrent_per_ip_bucket must be <= tarpit_max_concurrent_global",
+            );
+        }
+        if cfg.tarpit_hashcash_max_difficulty < cfg.tarpit_hashcash_min_difficulty {
+            return Response::new(
+                400,
+                "tarpit_hashcash_max_difficulty must be >= tarpit_hashcash_min_difficulty",
+            );
+        }
+        if cfg.tarpit_hashcash_base_difficulty < cfg.tarpit_hashcash_min_difficulty
+            || cfg.tarpit_hashcash_base_difficulty > cfg.tarpit_hashcash_max_difficulty
+        {
+            return Response::new(
+                400,
+                "tarpit_hashcash_base_difficulty must be between min and max difficulty",
+            );
+        }
+        if cfg.tarpit_step_chunk_max_bytes < cfg.tarpit_step_chunk_base_bytes {
+            return Response::new(
+                400,
+                "tarpit_step_chunk_max_bytes must be >= tarpit_step_chunk_base_bytes",
+            );
+        }
+        if cfg.tarpit_egress_per_ip_bucket_bytes_per_window > cfg.tarpit_egress_global_bytes_per_window {
+            return Response::new(
+                400,
+                "tarpit_egress_per_ip_bucket_bytes_per_window must be <= tarpit_egress_global_bytes_per_window",
+            );
+        }
+        if let Some(value) = json.get("tarpit_fallback_action") {
+            let next = match parse_tarpit_fallback_action_json("tarpit_fallback_action", value) {
+                Ok(action) => action,
+                Err(msg) => return Response::new(400, msg),
+            };
+            if cfg.tarpit_fallback_action != next {
+                cfg.tarpit_fallback_action = next;
+                changed = true;
+                tarpit_changed = true;
+            }
         }
         if let Some(maze_auto_ban) = json.get("maze_auto_ban").and_then(|v| v.as_bool()) {
             cfg.maze_auto_ban = maze_auto_ban;
@@ -4616,6 +5588,59 @@ fn handle_admin_config_internal(
         {
             cfg.maze_seed_metadata_only = v;
             changed = true;
+        }
+        if tarpit_changed && !validate_only {
+            log_event(
+                store,
+                &EventLogEntry {
+                    ts: now_ts(),
+                    event: EventType::AdminAction,
+                    ip: None,
+                    reason: Some("tarpit_config_update".to_string()),
+                    outcome: Some(format!(
+                        "enabled:{}->{} token_ttl:{}->{} replay_ttl:{}->{} hashcash(min/max/base/adaptive):{}/{}/{}/{}->{}/{}/{}/{} chunk(base/max/jitter/rotation):{}/{}/{}/{}->{}/{}/{}/{} egress(window/global/per_bucket/flow_bytes/flow_duration):{}/{}/{}/{}/{}->{}/{}/{}/{}/{} max_global:{}->{} max_per_ip_bucket:{}->{} fallback_action:{}->{}",
+                        old_tarpit_enabled,
+                        cfg.tarpit_enabled,
+                        old_tarpit_progress_token_ttl_seconds,
+                        cfg.tarpit_progress_token_ttl_seconds,
+                        old_tarpit_progress_replay_ttl_seconds,
+                        cfg.tarpit_progress_replay_ttl_seconds,
+                        old_tarpit_hashcash_min_difficulty,
+                        old_tarpit_hashcash_max_difficulty,
+                        old_tarpit_hashcash_base_difficulty,
+                        old_tarpit_hashcash_adaptive,
+                        cfg.tarpit_hashcash_min_difficulty,
+                        cfg.tarpit_hashcash_max_difficulty,
+                        cfg.tarpit_hashcash_base_difficulty,
+                        cfg.tarpit_hashcash_adaptive,
+                        old_tarpit_step_chunk_base_bytes,
+                        old_tarpit_step_chunk_max_bytes,
+                        old_tarpit_step_jitter_percent,
+                        old_tarpit_shard_rotation_enabled,
+                        cfg.tarpit_step_chunk_base_bytes,
+                        cfg.tarpit_step_chunk_max_bytes,
+                        cfg.tarpit_step_jitter_percent,
+                        cfg.tarpit_shard_rotation_enabled,
+                        old_tarpit_egress_window_seconds,
+                        old_tarpit_egress_global_bytes_per_window,
+                        old_tarpit_egress_per_ip_bucket_bytes_per_window,
+                        old_tarpit_egress_per_flow_max_bytes,
+                        old_tarpit_egress_per_flow_max_duration_seconds,
+                        cfg.tarpit_egress_window_seconds,
+                        cfg.tarpit_egress_global_bytes_per_window,
+                        cfg.tarpit_egress_per_ip_bucket_bytes_per_window,
+                        cfg.tarpit_egress_per_flow_max_bytes,
+                        cfg.tarpit_egress_per_flow_max_duration_seconds,
+                        old_tarpit_max_concurrent_global,
+                        cfg.tarpit_max_concurrent_global,
+                        old_tarpit_max_concurrent_per_ip_bucket,
+                        cfg.tarpit_max_concurrent_per_ip_bucket,
+                        old_tarpit_fallback_action.as_str(),
+                        cfg.tarpit_fallback_action.as_str()
+                    )),
+                    admin: Some(crate::admin::auth::get_admin_id(req)),
+                },
+            );
         }
 
         // Update robots.txt settings if provided
@@ -5635,6 +6660,27 @@ where
         .build()
 }
 
+fn handle_admin_tarpit_preview<S>(req: &Request, store: &S, site_id: &str) -> Response
+where
+    S: crate::challenge::KeyValueStore,
+{
+    if *req.method() != Method::Get {
+        return Response::new(405, "Method Not Allowed");
+    }
+    let cfg = match crate::config::Config::load(store, site_id) {
+        Ok(cfg) => cfg,
+        Err(err) => return Response::new(500, err.user_message()),
+    };
+
+    crate::tarpit::runtime::build_progressive_entry_response(
+        &cfg,
+        "admin-preview-ip-bucket",
+        "admin-preview-ua-bucket",
+        "/admin/tarpit/preview",
+        crate::tarpit::progress_path(),
+    )
+}
+
 fn handle_admin_maze_seed_refresh<S>(req: &Request, store: &S, site_id: &str) -> Response
 where
     S: crate::challenge::KeyValueStore + crate::maze::state::MazeStateStore,
@@ -5829,6 +6875,30 @@ where
         .filter(|(_, ban)| ban.reason == "maze_crawler")
         .count();
 
+    let tarpit_bucket_prefix = crate::providers::internal::tarpit_budget_bucket_active_prefix(site_id);
+    let tarpit_bucket_key_prefix = format!("{}:", tarpit_bucket_prefix);
+    let mut tarpit_active_bucket_counts: Vec<(String, u64)> = Vec::new();
+    if let Ok(keys) = store.get_keys() {
+        for key in keys {
+            if !key.starts_with(tarpit_bucket_key_prefix.as_str()) {
+                continue;
+            }
+            let bucket = key
+                .strip_prefix(tarpit_bucket_key_prefix.as_str())
+                .unwrap_or("unknown")
+                .to_string();
+            let count = read_u64_counter(store, key.as_str());
+            tarpit_active_bucket_counts.push((bucket, count));
+        }
+    }
+    tarpit_active_bucket_counts.sort_by(|a, b| b.1.cmp(&a.1));
+    let tarpit_top_active_buckets: Vec<_> = tarpit_active_bucket_counts
+        .iter()
+        .take(10)
+        .map(|(bucket, count)| json!({"bucket": bucket, "active": count}))
+        .collect();
+    let tarpit_global_active_key = crate::providers::internal::tarpit_budget_global_active_key(site_id);
+
     let cfg = crate::config::Config::load(store, site_id).ok();
     let fail_mode = if crate::config::kv_store_fail_open() {
         "open"
@@ -5857,6 +6927,76 @@ where
             "maze_auto_bans": maze_bans,
             "deepest_crawler": deepest,
             "top_crawlers": top_crawlers
+        },
+        "tarpit": {
+            "enabled": cfg.as_ref().map(|value| value.tarpit_enabled).unwrap_or(false),
+            "progress_token_ttl_seconds": cfg.as_ref().map(|value| value.tarpit_progress_token_ttl_seconds).unwrap_or(0),
+            "progress_replay_ttl_seconds": cfg.as_ref().map(|value| value.tarpit_progress_replay_ttl_seconds).unwrap_or(0),
+            "hashcash_min_difficulty": cfg.as_ref().map(|value| value.tarpit_hashcash_min_difficulty).unwrap_or(0),
+            "hashcash_max_difficulty": cfg.as_ref().map(|value| value.tarpit_hashcash_max_difficulty).unwrap_or(0),
+            "hashcash_base_difficulty": cfg.as_ref().map(|value| value.tarpit_hashcash_base_difficulty).unwrap_or(0),
+            "hashcash_adaptive": cfg.as_ref().map(|value| value.tarpit_hashcash_adaptive).unwrap_or(false),
+            "step_chunk_base_bytes": cfg.as_ref().map(|value| value.tarpit_step_chunk_base_bytes).unwrap_or(0),
+            "step_chunk_max_bytes": cfg.as_ref().map(|value| value.tarpit_step_chunk_max_bytes).unwrap_or(0),
+            "step_jitter_percent": cfg.as_ref().map(|value| value.tarpit_step_jitter_percent).unwrap_or(0),
+            "shard_rotation_enabled": cfg.as_ref().map(|value| value.tarpit_shard_rotation_enabled).unwrap_or(false),
+            "egress_window_seconds": cfg.as_ref().map(|value| value.tarpit_egress_window_seconds).unwrap_or(0),
+            "egress_global_bytes_per_window": cfg.as_ref().map(|value| value.tarpit_egress_global_bytes_per_window).unwrap_or(0),
+            "egress_per_ip_bucket_bytes_per_window": cfg.as_ref().map(|value| value.tarpit_egress_per_ip_bucket_bytes_per_window).unwrap_or(0),
+            "egress_per_flow_max_bytes": cfg.as_ref().map(|value| value.tarpit_egress_per_flow_max_bytes).unwrap_or(0),
+            "egress_per_flow_max_duration_seconds": cfg.as_ref().map(|value| value.tarpit_egress_per_flow_max_duration_seconds).unwrap_or(0),
+            "max_concurrent_global": cfg.as_ref().map(|value| value.tarpit_max_concurrent_global).unwrap_or(0),
+            "max_concurrent_per_ip_bucket": cfg.as_ref().map(|value| value.tarpit_max_concurrent_per_ip_bucket).unwrap_or(0),
+            "fallback_action": cfg.as_ref().map(|value| value.tarpit_fallback_action.as_str()).unwrap_or("maze"),
+            "active": {
+                "global": read_u64_counter(store, tarpit_global_active_key.as_str()),
+                "top_buckets": tarpit_top_active_buckets
+            },
+            "metrics": {
+                "activations": {
+                    "progressive": read_u64_counter(store, "metrics:tarpit_activations_total:progressive")
+                },
+                "progress_outcomes": {
+                    "advanced": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:advanced"),
+                    "tarpit_progress_malformed": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:tarpit_progress_malformed"),
+                    "tarpit_progress_signature_mismatch": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:tarpit_progress_signature_mismatch"),
+                    "tarpit_progress_invalid_version": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:tarpit_progress_invalid_version"),
+                    "tarpit_progress_expired": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:tarpit_progress_expired"),
+                    "tarpit_progress_invalid_window": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:tarpit_progress_invalid_window"),
+                    "tarpit_progress_binding_ip_mismatch": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:tarpit_progress_binding_ip_mismatch"),
+                    "tarpit_progress_binding_ua_mismatch": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:tarpit_progress_binding_ua_mismatch"),
+                    "tarpit_progress_path_mismatch": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:tarpit_progress_path_mismatch"),
+                    "tarpit_progress_step_out_of_order": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:tarpit_progress_step_out_of_order"),
+                    "tarpit_progress_parent_chain_missing": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:tarpit_progress_parent_chain_missing"),
+                    "tarpit_progress_replay": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:tarpit_progress_replay"),
+                    "tarpit_progress_invalid_proof": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:tarpit_progress_invalid_proof"),
+                    "tarpit_progress_budget_exhausted": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:tarpit_progress_budget_exhausted")
+                },
+                "budget_outcomes": {
+                    "acquired": read_u64_counter(store, "metrics:tarpit_budget_outcomes_total:acquired"),
+                    "saturated": read_u64_counter(store, "metrics:tarpit_budget_outcomes_total:saturated"),
+                    "fallback_maze": read_u64_counter(store, "metrics:tarpit_budget_outcomes_total:fallback_maze"),
+                    "fallback_block": read_u64_counter(store, "metrics:tarpit_budget_outcomes_total:fallback_block")
+                },
+                "escalation_outcomes": {
+                    "none": read_u64_counter(store, "metrics:tarpit_escalation_outcomes_total:none"),
+                    "short_ban": read_u64_counter(store, "metrics:tarpit_escalation_outcomes_total:short_ban"),
+                    "block": read_u64_counter(store, "metrics:tarpit_escalation_outcomes_total:block")
+                },
+                "duration_buckets": {
+                    "lt_1s": read_u64_counter(store, "metrics:tarpit_duration_buckets_total:lt_1s"),
+                    "1_5s": read_u64_counter(store, "metrics:tarpit_duration_buckets_total:1_5s"),
+                    "5_20s": read_u64_counter(store, "metrics:tarpit_duration_buckets_total:5_20s"),
+                    "20s_plus": read_u64_counter(store, "metrics:tarpit_duration_buckets_total:20s_plus")
+                },
+                "bytes_buckets": {
+                    "lt_8kb": read_u64_counter(store, "metrics:tarpit_bytes_buckets_total:lt_8kb"),
+                    "8_32kb": read_u64_counter(store, "metrics:tarpit_bytes_buckets_total:8_32kb"),
+                    "32_128kb": read_u64_counter(store, "metrics:tarpit_bytes_buckets_total:32_128kb"),
+                    "128_512kb": read_u64_counter(store, "metrics:tarpit_bytes_buckets_total:128_512kb"),
+                    "512kb_plus": read_u64_counter(store, "metrics:tarpit_bytes_buckets_total:512kb_plus")
+                }
+            }
         },
         "cdp": {
             "config": {
@@ -5940,6 +7080,7 @@ fn monitoring_prometheus_helper_payload() -> serde_json::Value {
 ///   - POST /admin/config/validate: Validate a config patch without persisting changes
 ///   - GET /admin/config/export: Export non-secret runtime config for immutable deploy handoff
 ///   - GET /admin/maze/preview: Render a non-operational maze preview for operators
+///   - GET /admin/tarpit/preview: Render a non-operational progressive tarpit preview for operators
 ///   - GET /admin: API help
 pub fn handle_admin(req: &Request) -> Response {
     // Optional admin IP allowlist
@@ -6288,6 +7429,9 @@ pub fn handle_admin(req: &Request) -> Response {
         "/admin/maze/preview" => {
             return handle_admin_maze_preview(req, &store, site_id);
         }
+        "/admin/tarpit/preview" => {
+            return handle_admin_tarpit_preview(req, &store, site_id);
+        }
         "/admin/maze/seeds" => {
             return handle_admin_maze_seed_sources(req, &store, site_id);
         }
@@ -6307,7 +7451,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/config, /admin/config/validate, /admin/config/export, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/config, /admin/config/validate, /admin/config/export, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics

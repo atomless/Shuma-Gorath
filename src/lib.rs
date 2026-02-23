@@ -21,6 +21,7 @@ mod boundaries; // Domain boundary adapters for future repo splits
 mod challenge; // Interactive math challenge for banned users
 mod config; // Config loading and defaults
 mod crawler_policy; // Crawler-facing policy surfaces (robots.txt)
+mod deception; // Shared deception primitives (maze+tarpit)
 mod enforcement; // Enforcement actions (ban, block page, honeypot, rate limiting)
 mod maze; // maze crawler trap
 mod observability; // Metrics and monitoring surfaces
@@ -28,6 +29,7 @@ mod providers; // Provider contracts for swappable implementations
 mod request_validation; // Request validation/parsing helpers
 mod runtime; // request-time orchestration helpers
 mod signals; // Risk and identity signals (browser/CDP/GEO/IP/JS/whitelist)
+mod tarpit; // tarpit progressive endpoint/runtime
 
 /// Main HTTP handler for the bot defence. This function is invoked for every HTTP request.
 /// It applies a series of anti-bot checks in order of cost and effectiveness, returning early on block/allow.
@@ -157,6 +159,7 @@ pub(crate) fn should_bypass_expensive_bot_checks_for_static(req: &Request, path:
             | "/robots.txt"
             | "/pow"
             | "/pow/verify"
+            | "/tarpit/progress"
             | "/challenge/puzzle"
             | "/challenge/not-a-bot-checkbox"
     ) {
@@ -946,6 +949,12 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
 
     if path == crate::maze::issue_links_path() {
         return crate::maze::runtime::handle_issue_links(store, &cfg, req, &ip, ua);
+    }
+
+    if path == crate::tarpit::progress_path() {
+        return provider_registry
+            .maze_tarpit_provider()
+            .handle_tarpit_progress(req, store, &cfg, site_id, &ip, ua);
     }
 
     // Maze - route suspicious crawlers into deception space (only if enabled)

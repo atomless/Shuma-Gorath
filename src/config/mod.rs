@@ -43,6 +43,32 @@ const NOT_A_BOT_ATTEMPT_LIMIT_MIN: u32 = 1;
 const NOT_A_BOT_ATTEMPT_LIMIT_MAX: u32 = 100;
 const NOT_A_BOT_ATTEMPT_WINDOW_MIN: u64 = 30;
 const NOT_A_BOT_ATTEMPT_WINDOW_MAX: u64 = 3600;
+const TARPIT_PROGRESS_TOKEN_TTL_SECONDS_MIN: u64 = 20;
+const TARPIT_PROGRESS_TOKEN_TTL_SECONDS_MAX: u64 = 300;
+const TARPIT_PROGRESS_REPLAY_TTL_SECONDS_MIN: u64 = 30;
+const TARPIT_PROGRESS_REPLAY_TTL_SECONDS_MAX: u64 = 3_600;
+const TARPIT_HASHCASH_DIFFICULTY_MIN: u8 = 4;
+const TARPIT_HASHCASH_DIFFICULTY_MAX: u8 = 28;
+const TARPIT_STEP_CHUNK_BASE_BYTES_MIN: u32 = 256;
+const TARPIT_STEP_CHUNK_BASE_BYTES_MAX: u32 = 65_536;
+const TARPIT_STEP_CHUNK_MAX_BYTES_MIN: u32 = 512;
+const TARPIT_STEP_CHUNK_MAX_BYTES_MAX: u32 = 131_072;
+const TARPIT_STEP_JITTER_PERCENT_MIN: u8 = 0;
+const TARPIT_STEP_JITTER_PERCENT_MAX: u8 = 40;
+const TARPIT_EGRESS_WINDOW_SECONDS_MIN: u64 = 10;
+const TARPIT_EGRESS_WINDOW_SECONDS_MAX: u64 = 3_600;
+const TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW_MIN: u64 = 1_024;
+const TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW_MAX: u64 = 1_073_741_824;
+const TARPIT_EGRESS_PER_IP_BUCKET_BYTES_PER_WINDOW_MIN: u64 = 512;
+const TARPIT_EGRESS_PER_IP_BUCKET_BYTES_PER_WINDOW_MAX: u64 = 268_435_456;
+const TARPIT_EGRESS_PER_FLOW_MAX_BYTES_MIN: u64 = 1_024;
+const TARPIT_EGRESS_PER_FLOW_MAX_BYTES_MAX: u64 = 268_435_456;
+const TARPIT_EGRESS_PER_FLOW_MAX_DURATION_SECONDS_MIN: u64 = 5;
+const TARPIT_EGRESS_PER_FLOW_MAX_DURATION_SECONDS_MAX: u64 = 3_600;
+const TARPIT_MAX_CONCURRENT_GLOBAL_MIN: u32 = 1;
+const TARPIT_MAX_CONCURRENT_GLOBAL_MAX: u32 = 10_000;
+const TARPIT_MAX_CONCURRENT_PER_IP_BUCKET_MIN: u32 = 1;
+const TARPIT_MAX_CONCURRENT_PER_IP_BUCKET_MAX: u32 = 256;
 #[cfg(not(test))]
 const CONFIG_CACHE_TTL_SECONDS: u64 = 2;
 
@@ -229,6 +255,22 @@ impl MazeSeedProvider {
         match self {
             MazeSeedProvider::Internal => "internal",
             MazeSeedProvider::Operator => "operator",
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TarpitFallbackAction {
+    Maze,
+    Block,
+}
+
+impl TarpitFallbackAction {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            TarpitFallbackAction::Maze => "maze",
+            TarpitFallbackAction::Block => "block",
         }
     }
 }
@@ -463,6 +505,44 @@ pub struct Config {
     pub test_mode: bool,
     #[serde(default = "default_maze_enabled")]
     pub maze_enabled: bool,
+    #[serde(default = "default_tarpit_enabled")]
+    pub tarpit_enabled: bool,
+    #[serde(default = "default_tarpit_progress_token_ttl_seconds")]
+    pub tarpit_progress_token_ttl_seconds: u64,
+    #[serde(default = "default_tarpit_progress_replay_ttl_seconds")]
+    pub tarpit_progress_replay_ttl_seconds: u64,
+    #[serde(default = "default_tarpit_hashcash_min_difficulty")]
+    pub tarpit_hashcash_min_difficulty: u8,
+    #[serde(default = "default_tarpit_hashcash_max_difficulty")]
+    pub tarpit_hashcash_max_difficulty: u8,
+    #[serde(default = "default_tarpit_hashcash_base_difficulty")]
+    pub tarpit_hashcash_base_difficulty: u8,
+    #[serde(default = "default_tarpit_hashcash_adaptive")]
+    pub tarpit_hashcash_adaptive: bool,
+    #[serde(default = "default_tarpit_step_chunk_base_bytes")]
+    pub tarpit_step_chunk_base_bytes: u32,
+    #[serde(default = "default_tarpit_step_chunk_max_bytes")]
+    pub tarpit_step_chunk_max_bytes: u32,
+    #[serde(default = "default_tarpit_step_jitter_percent")]
+    pub tarpit_step_jitter_percent: u8,
+    #[serde(default = "default_tarpit_shard_rotation_enabled")]
+    pub tarpit_shard_rotation_enabled: bool,
+    #[serde(default = "default_tarpit_egress_window_seconds")]
+    pub tarpit_egress_window_seconds: u64,
+    #[serde(default = "default_tarpit_egress_global_bytes_per_window")]
+    pub tarpit_egress_global_bytes_per_window: u64,
+    #[serde(default = "default_tarpit_egress_per_ip_bucket_bytes_per_window")]
+    pub tarpit_egress_per_ip_bucket_bytes_per_window: u64,
+    #[serde(default = "default_tarpit_egress_per_flow_max_bytes")]
+    pub tarpit_egress_per_flow_max_bytes: u64,
+    #[serde(default = "default_tarpit_egress_per_flow_max_duration_seconds")]
+    pub tarpit_egress_per_flow_max_duration_seconds: u64,
+    #[serde(default = "default_tarpit_max_concurrent_global")]
+    pub tarpit_max_concurrent_global: u32,
+    #[serde(default = "default_tarpit_max_concurrent_per_ip_bucket")]
+    pub tarpit_max_concurrent_per_ip_bucket: u32,
+    #[serde(default = "default_tarpit_fallback_action")]
+    pub tarpit_fallback_action: TarpitFallbackAction,
     #[serde(default = "default_maze_auto_ban")]
     pub maze_auto_ban: bool,
     #[serde(default = "default_maze_auto_ban_threshold")]
@@ -878,6 +958,35 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         ip_range_allow_stale_managed_enforce: default_ip_range_allow_stale_managed_enforce(),
         test_mode: defaults_bool("SHUMA_TEST_MODE"),
         maze_enabled: defaults_bool("SHUMA_MAZE_ENABLED"),
+        tarpit_enabled: defaults_bool("SHUMA_TARPIT_ENABLED"),
+        tarpit_progress_token_ttl_seconds: defaults_u64("SHUMA_TARPIT_PROGRESS_TOKEN_TTL_SECONDS"),
+        tarpit_progress_replay_ttl_seconds: defaults_u64(
+            "SHUMA_TARPIT_PROGRESS_REPLAY_TTL_SECONDS",
+        ),
+        tarpit_hashcash_min_difficulty: defaults_u8("SHUMA_TARPIT_HASHCASH_MIN_DIFFICULTY"),
+        tarpit_hashcash_max_difficulty: defaults_u8("SHUMA_TARPIT_HASHCASH_MAX_DIFFICULTY"),
+        tarpit_hashcash_base_difficulty: defaults_u8("SHUMA_TARPIT_HASHCASH_BASE_DIFFICULTY"),
+        tarpit_hashcash_adaptive: defaults_bool("SHUMA_TARPIT_HASHCASH_ADAPTIVE"),
+        tarpit_step_chunk_base_bytes: defaults_u32("SHUMA_TARPIT_STEP_CHUNK_BASE_BYTES"),
+        tarpit_step_chunk_max_bytes: defaults_u32("SHUMA_TARPIT_STEP_CHUNK_MAX_BYTES"),
+        tarpit_step_jitter_percent: defaults_u8("SHUMA_TARPIT_STEP_JITTER_PERCENT"),
+        tarpit_shard_rotation_enabled: defaults_bool("SHUMA_TARPIT_SHARD_ROTATION_ENABLED"),
+        tarpit_egress_window_seconds: defaults_u64("SHUMA_TARPIT_EGRESS_WINDOW_SECONDS"),
+        tarpit_egress_global_bytes_per_window: defaults_u64(
+            "SHUMA_TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW",
+        ),
+        tarpit_egress_per_ip_bucket_bytes_per_window: defaults_u64(
+            "SHUMA_TARPIT_EGRESS_PER_IP_BUCKET_BYTES_PER_WINDOW",
+        ),
+        tarpit_egress_per_flow_max_bytes: defaults_u64("SHUMA_TARPIT_EGRESS_PER_FLOW_MAX_BYTES"),
+        tarpit_egress_per_flow_max_duration_seconds: defaults_u64(
+            "SHUMA_TARPIT_EGRESS_PER_FLOW_MAX_DURATION_SECONDS",
+        ),
+        tarpit_max_concurrent_global: defaults_u32("SHUMA_TARPIT_MAX_CONCURRENT_GLOBAL"),
+        tarpit_max_concurrent_per_ip_bucket: defaults_u32(
+            "SHUMA_TARPIT_MAX_CONCURRENT_PER_IP_BUCKET",
+        ),
+        tarpit_fallback_action: default_tarpit_fallback_action(),
         maze_auto_ban: defaults_bool("SHUMA_MAZE_AUTO_BAN"),
         maze_auto_ban_threshold: defaults_u32("SHUMA_MAZE_AUTO_BAN_THRESHOLD"),
         maze_rollout_phase: default_maze_rollout_phase(),
@@ -1272,6 +1381,14 @@ pub(crate) fn parse_maze_seed_provider(value: &str) -> Option<MazeSeedProvider> 
     }
 }
 
+pub(crate) fn parse_tarpit_fallback_action(value: &str) -> Option<TarpitFallbackAction> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "maze" => Some(TarpitFallbackAction::Maze),
+        "block" => Some(TarpitFallbackAction::Block),
+        _ => None,
+    }
+}
+
 pub(crate) fn parse_rate_limiter_outage_mode(value: &str) -> Option<RateLimiterOutageMode> {
     match value.trim().to_ascii_lowercase().as_str() {
         "fallback_internal" => Some(RateLimiterOutageMode::FallbackInternal),
@@ -1383,6 +1500,88 @@ fn clamp_not_a_bot_attempt_window(value: u64) -> u64 {
     value.clamp(NOT_A_BOT_ATTEMPT_WINDOW_MIN, NOT_A_BOT_ATTEMPT_WINDOW_MAX)
 }
 
+fn clamp_tarpit_progress_token_ttl_seconds(value: u64) -> u64 {
+    value.clamp(
+        TARPIT_PROGRESS_TOKEN_TTL_SECONDS_MIN,
+        TARPIT_PROGRESS_TOKEN_TTL_SECONDS_MAX,
+    )
+}
+
+fn clamp_tarpit_progress_replay_ttl_seconds(value: u64) -> u64 {
+    value.clamp(
+        TARPIT_PROGRESS_REPLAY_TTL_SECONDS_MIN,
+        TARPIT_PROGRESS_REPLAY_TTL_SECONDS_MAX,
+    )
+}
+
+fn clamp_tarpit_hashcash_difficulty(value: u8) -> u8 {
+    value.clamp(TARPIT_HASHCASH_DIFFICULTY_MIN, TARPIT_HASHCASH_DIFFICULTY_MAX)
+}
+
+fn clamp_tarpit_step_chunk_base_bytes(value: u32) -> u32 {
+    value.clamp(
+        TARPIT_STEP_CHUNK_BASE_BYTES_MIN,
+        TARPIT_STEP_CHUNK_BASE_BYTES_MAX,
+    )
+}
+
+fn clamp_tarpit_step_chunk_max_bytes(value: u32) -> u32 {
+    value.clamp(TARPIT_STEP_CHUNK_MAX_BYTES_MIN, TARPIT_STEP_CHUNK_MAX_BYTES_MAX)
+}
+
+fn clamp_tarpit_step_jitter_percent(value: u8) -> u8 {
+    value.clamp(TARPIT_STEP_JITTER_PERCENT_MIN, TARPIT_STEP_JITTER_PERCENT_MAX)
+}
+
+fn clamp_tarpit_egress_window_seconds(value: u64) -> u64 {
+    value.clamp(
+        TARPIT_EGRESS_WINDOW_SECONDS_MIN,
+        TARPIT_EGRESS_WINDOW_SECONDS_MAX,
+    )
+}
+
+fn clamp_tarpit_egress_global_bytes_per_window(value: u64) -> u64 {
+    value.clamp(
+        TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW_MIN,
+        TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW_MAX,
+    )
+}
+
+fn clamp_tarpit_egress_per_ip_bucket_bytes_per_window(value: u64) -> u64 {
+    value.clamp(
+        TARPIT_EGRESS_PER_IP_BUCKET_BYTES_PER_WINDOW_MIN,
+        TARPIT_EGRESS_PER_IP_BUCKET_BYTES_PER_WINDOW_MAX,
+    )
+}
+
+fn clamp_tarpit_egress_per_flow_max_bytes(value: u64) -> u64 {
+    value.clamp(
+        TARPIT_EGRESS_PER_FLOW_MAX_BYTES_MIN,
+        TARPIT_EGRESS_PER_FLOW_MAX_BYTES_MAX,
+    )
+}
+
+fn clamp_tarpit_egress_per_flow_max_duration_seconds(value: u64) -> u64 {
+    value.clamp(
+        TARPIT_EGRESS_PER_FLOW_MAX_DURATION_SECONDS_MIN,
+        TARPIT_EGRESS_PER_FLOW_MAX_DURATION_SECONDS_MAX,
+    )
+}
+
+fn clamp_tarpit_max_concurrent_global(value: u32) -> u32 {
+    value.clamp(
+        TARPIT_MAX_CONCURRENT_GLOBAL_MIN,
+        TARPIT_MAX_CONCURRENT_GLOBAL_MAX,
+    )
+}
+
+fn clamp_tarpit_max_concurrent_per_ip_bucket(value: u32) -> u32 {
+    value.clamp(
+        TARPIT_MAX_CONCURRENT_PER_IP_BUCKET_MIN,
+        TARPIT_MAX_CONCURRENT_PER_IP_BUCKET_MAX,
+    )
+}
+
 fn clamp_config_values(cfg: &mut Config) {
     cfg.pow_difficulty = clamp_pow_difficulty(cfg.pow_difficulty);
     cfg.pow_ttl_seconds = clamp_pow_ttl(cfg.pow_ttl_seconds);
@@ -1404,6 +1603,56 @@ fn clamp_config_values(cfg: &mut Config) {
         clamp_not_a_bot_attempt_limit(cfg.not_a_bot_attempt_limit_per_window);
     cfg.not_a_bot_attempt_window_seconds =
         clamp_not_a_bot_attempt_window(cfg.not_a_bot_attempt_window_seconds);
+    cfg.tarpit_progress_token_ttl_seconds =
+        clamp_tarpit_progress_token_ttl_seconds(cfg.tarpit_progress_token_ttl_seconds);
+    cfg.tarpit_progress_replay_ttl_seconds =
+        clamp_tarpit_progress_replay_ttl_seconds(cfg.tarpit_progress_replay_ttl_seconds);
+    cfg.tarpit_hashcash_min_difficulty =
+        clamp_tarpit_hashcash_difficulty(cfg.tarpit_hashcash_min_difficulty);
+    cfg.tarpit_hashcash_max_difficulty =
+        clamp_tarpit_hashcash_difficulty(cfg.tarpit_hashcash_max_difficulty);
+    cfg.tarpit_hashcash_base_difficulty =
+        clamp_tarpit_hashcash_difficulty(cfg.tarpit_hashcash_base_difficulty);
+    if cfg.tarpit_hashcash_max_difficulty < cfg.tarpit_hashcash_min_difficulty {
+        cfg.tarpit_hashcash_max_difficulty = cfg.tarpit_hashcash_min_difficulty;
+    }
+    cfg.tarpit_hashcash_base_difficulty = cfg
+        .tarpit_hashcash_base_difficulty
+        .clamp(cfg.tarpit_hashcash_min_difficulty, cfg.tarpit_hashcash_max_difficulty);
+    cfg.tarpit_step_chunk_base_bytes =
+        clamp_tarpit_step_chunk_base_bytes(cfg.tarpit_step_chunk_base_bytes);
+    cfg.tarpit_step_chunk_max_bytes =
+        clamp_tarpit_step_chunk_max_bytes(cfg.tarpit_step_chunk_max_bytes);
+    if cfg.tarpit_step_chunk_max_bytes < cfg.tarpit_step_chunk_base_bytes {
+        cfg.tarpit_step_chunk_max_bytes = cfg.tarpit_step_chunk_base_bytes;
+    }
+    cfg.tarpit_step_jitter_percent =
+        clamp_tarpit_step_jitter_percent(cfg.tarpit_step_jitter_percent);
+    cfg.tarpit_egress_window_seconds =
+        clamp_tarpit_egress_window_seconds(cfg.tarpit_egress_window_seconds);
+    cfg.tarpit_egress_global_bytes_per_window =
+        clamp_tarpit_egress_global_bytes_per_window(cfg.tarpit_egress_global_bytes_per_window);
+    cfg.tarpit_egress_per_ip_bucket_bytes_per_window =
+        clamp_tarpit_egress_per_ip_bucket_bytes_per_window(
+            cfg.tarpit_egress_per_ip_bucket_bytes_per_window,
+        );
+    if cfg.tarpit_egress_per_ip_bucket_bytes_per_window > cfg.tarpit_egress_global_bytes_per_window {
+        cfg.tarpit_egress_per_ip_bucket_bytes_per_window =
+            cfg.tarpit_egress_global_bytes_per_window;
+    }
+    cfg.tarpit_egress_per_flow_max_bytes =
+        clamp_tarpit_egress_per_flow_max_bytes(cfg.tarpit_egress_per_flow_max_bytes);
+    cfg.tarpit_egress_per_flow_max_duration_seconds =
+        clamp_tarpit_egress_per_flow_max_duration_seconds(
+            cfg.tarpit_egress_per_flow_max_duration_seconds,
+        );
+    cfg.tarpit_max_concurrent_global =
+        clamp_tarpit_max_concurrent_global(cfg.tarpit_max_concurrent_global);
+    cfg.tarpit_max_concurrent_per_ip_bucket =
+        clamp_tarpit_max_concurrent_per_ip_bucket(cfg.tarpit_max_concurrent_per_ip_bucket);
+    if cfg.tarpit_max_concurrent_per_ip_bucket > cfg.tarpit_max_concurrent_global {
+        cfg.tarpit_max_concurrent_per_ip_bucket = cfg.tarpit_max_concurrent_global;
+    }
     if cfg.not_a_bot_fail_score > cfg.not_a_bot_pass_score {
         cfg.not_a_bot_fail_score = cfg.not_a_bot_pass_score;
     }
@@ -1767,6 +2016,96 @@ fn default_test_mode() -> bool {
 
 fn default_maze_enabled() -> bool {
     defaults_bool("SHUMA_MAZE_ENABLED")
+}
+
+fn default_tarpit_enabled() -> bool {
+    defaults_bool("SHUMA_TARPIT_ENABLED")
+}
+
+fn default_tarpit_progress_token_ttl_seconds() -> u64 {
+    clamp_tarpit_progress_token_ttl_seconds(defaults_u64("SHUMA_TARPIT_PROGRESS_TOKEN_TTL_SECONDS"))
+}
+
+fn default_tarpit_progress_replay_ttl_seconds() -> u64 {
+    clamp_tarpit_progress_replay_ttl_seconds(defaults_u64(
+        "SHUMA_TARPIT_PROGRESS_REPLAY_TTL_SECONDS",
+    ))
+}
+
+fn default_tarpit_hashcash_min_difficulty() -> u8 {
+    clamp_tarpit_hashcash_difficulty(defaults_u8("SHUMA_TARPIT_HASHCASH_MIN_DIFFICULTY"))
+}
+
+fn default_tarpit_hashcash_max_difficulty() -> u8 {
+    clamp_tarpit_hashcash_difficulty(defaults_u8("SHUMA_TARPIT_HASHCASH_MAX_DIFFICULTY"))
+}
+
+fn default_tarpit_hashcash_base_difficulty() -> u8 {
+    clamp_tarpit_hashcash_difficulty(defaults_u8("SHUMA_TARPIT_HASHCASH_BASE_DIFFICULTY"))
+}
+
+fn default_tarpit_hashcash_adaptive() -> bool {
+    defaults_bool("SHUMA_TARPIT_HASHCASH_ADAPTIVE")
+}
+
+fn default_tarpit_step_chunk_base_bytes() -> u32 {
+    clamp_tarpit_step_chunk_base_bytes(defaults_u32("SHUMA_TARPIT_STEP_CHUNK_BASE_BYTES"))
+}
+
+fn default_tarpit_step_chunk_max_bytes() -> u32 {
+    clamp_tarpit_step_chunk_max_bytes(defaults_u32("SHUMA_TARPIT_STEP_CHUNK_MAX_BYTES"))
+}
+
+fn default_tarpit_step_jitter_percent() -> u8 {
+    clamp_tarpit_step_jitter_percent(defaults_u8("SHUMA_TARPIT_STEP_JITTER_PERCENT"))
+}
+
+fn default_tarpit_shard_rotation_enabled() -> bool {
+    defaults_bool("SHUMA_TARPIT_SHARD_ROTATION_ENABLED")
+}
+
+fn default_tarpit_egress_window_seconds() -> u64 {
+    clamp_tarpit_egress_window_seconds(defaults_u64("SHUMA_TARPIT_EGRESS_WINDOW_SECONDS"))
+}
+
+fn default_tarpit_egress_global_bytes_per_window() -> u64 {
+    clamp_tarpit_egress_global_bytes_per_window(defaults_u64(
+        "SHUMA_TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW",
+    ))
+}
+
+fn default_tarpit_egress_per_ip_bucket_bytes_per_window() -> u64 {
+    clamp_tarpit_egress_per_ip_bucket_bytes_per_window(defaults_u64(
+        "SHUMA_TARPIT_EGRESS_PER_IP_BUCKET_BYTES_PER_WINDOW",
+    ))
+}
+
+fn default_tarpit_egress_per_flow_max_bytes() -> u64 {
+    clamp_tarpit_egress_per_flow_max_bytes(defaults_u64("SHUMA_TARPIT_EGRESS_PER_FLOW_MAX_BYTES"))
+}
+
+fn default_tarpit_egress_per_flow_max_duration_seconds() -> u64 {
+    clamp_tarpit_egress_per_flow_max_duration_seconds(defaults_u64(
+        "SHUMA_TARPIT_EGRESS_PER_FLOW_MAX_DURATION_SECONDS",
+    ))
+}
+
+fn default_tarpit_max_concurrent_global() -> u32 {
+    clamp_tarpit_max_concurrent_global(defaults_u32("SHUMA_TARPIT_MAX_CONCURRENT_GLOBAL"))
+}
+
+fn default_tarpit_max_concurrent_per_ip_bucket() -> u32 {
+    clamp_tarpit_max_concurrent_per_ip_bucket(defaults_u32("SHUMA_TARPIT_MAX_CONCURRENT_PER_IP_BUCKET"))
+}
+
+fn default_tarpit_fallback_action() -> TarpitFallbackAction {
+    let raw = defaults_raw("SHUMA_TARPIT_FALLBACK_ACTION");
+    parse_tarpit_fallback_action(raw.as_str()).unwrap_or_else(|| {
+        panic!(
+            "Invalid tarpit fallback action default for SHUMA_TARPIT_FALLBACK_ACTION={}",
+            raw
+        )
+    })
 }
 
 fn default_maze_auto_ban() -> bool {

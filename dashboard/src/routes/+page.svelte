@@ -499,6 +499,7 @@
           runtimeTelemetry={runtimeTelemetry}
           tabStatus={tabStatus.status || {}}
           configSnapshot={snapshots.config}
+          dashboardBasePath={dashboardBasePath}
         />
       {:else}
         <section

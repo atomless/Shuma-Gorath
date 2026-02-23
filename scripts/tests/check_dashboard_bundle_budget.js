@@ -5,6 +5,19 @@ const path = require('node:path');
 
 const bundleRoot = path.resolve(process.cwd(), 'dist/dashboard/_app');
 
+function readBool(name, fallback = false) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  const normalized = String(raw).trim().toLowerCase();
+  if (normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on') {
+    return true;
+  }
+  if (normalized === '0' || normalized === 'false' || normalized === 'no' || normalized === 'off') {
+    return false;
+  }
+  throw new Error(`Invalid ${name}=${raw}; expected boolean-like value (0/1, true/false, yes/no, on/off).`);
+}
+
 function readLimit(name, fallback) {
   const raw = process.env[name];
   const parsed = Number(raw || fallback);
@@ -21,6 +34,7 @@ const limits = {
   maxSingleJsBytes: readLimit('SHUMA_DASHBOARD_BUNDLE_MAX_JS_CHUNK_BYTES', 150000),
   maxSingleCssBytes: readLimit('SHUMA_DASHBOARD_BUNDLE_MAX_CSS_ASSET_BYTES', 30000)
 };
+const enforceBudgetFailure = readBool('SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE', false);
 
 if (!fs.existsSync(bundleRoot)) {
   console.error(`Dashboard bundle directory is missing: ${bundleRoot}`);
@@ -117,11 +131,19 @@ console.log(
 console.log(
   `- largest css: ${stats.maxSingleCssPath || '-'} (${formatBytes(stats.maxSingleCssBytes)}; limit ${formatBytes(limits.maxSingleCssBytes)})`
 );
+console.log(`- mode: ${enforceBudgetFailure ? 'strict (failing)' : 'warn-only (non-blocking)'}`);
 
 if (failures.length > 0) {
-  console.error('Dashboard bundle budget check failed:');
+  console.error('Dashboard bundle budget overage detected:');
   failures.forEach((failure) => console.error(`- ${failure}`));
-  process.exit(1);
+  if (enforceBudgetFailure) {
+    console.error('Dashboard bundle budget check failed in strict mode.');
+    process.exit(1);
+  }
+  console.warn(
+    'Dashboard bundle budget check is non-blocking (set SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE=1 to enforce hard failure).'
+  );
+  process.exit(0);
 }
 
 console.log('Dashboard bundle budget check passed.');

@@ -22,6 +22,7 @@ Use the Makefile as the official workflow. These docs are the source of truth fo
 - [`features.md`](features.md) - Feature list and roadmap
 - [`challenge-verification.md`](challenge-verification.md) - Human verification strategy
 - [`maze.md`](maze.md) - maze crawler deception
+- [`research/README.md`](research/README.md) - Research index (including tarpit research collection and latest re-review addendum)
 - [`module-boundaries.md`](module-boundaries.md) - Domain boundary contracts and split prep
 - [`plans/2026-02-13-provider-externalization-design.md`](plans/2026-02-13-provider-externalization-design.md) - Provider externalization strategy (self-hosted-first, Akamai-integrated)
 - [`plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md) - Deployment-track and adversarial-traffic simulation execution plan

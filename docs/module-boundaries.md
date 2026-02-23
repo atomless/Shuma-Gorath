@@ -26,7 +26,7 @@ This document defines the in-repo boundaries used to prepare future repo splits.
 - Signal domain: `src/signals/` (browser/<abbr title="Chrome DevTools Protocol">CDP</abbr>/<abbr title="Geolocation">GEO</abbr>/<abbr title="Internet Protocol">IP</abbr>/<abbr title="JavaScript">JS</abbr>/whitelist)
 - Enforcement domain: `src/enforcement/` (ban/block/rate/honeypot)
 - Crawler policy domain: `src/crawler_policy/` (`robots` policy generation and crawler directives)
-- Maze/tarpit domain: `src/maze/` plus future tarpit implementation
+- Maze/tarpit domain: `src/maze/` + `src/tarpit/` with shared deception primitives in `src/deception/`
 - Challenge domain: `src/challenge/` (`puzzle` and future `not_a_bot` challenge modes)
 - Observability domain: `src/observability/` (`metrics` and monitoring surfaces)
 - Dashboard adapter: `dashboard/src/lib/domain/` <abbr title="Application Programming Interface">API</abbr>/session/config adapters
@@ -55,6 +55,8 @@ This taxonomy defines how modules participate in bot defense composition.
 | `src/enforcement/block_page.rs` | barrier | Block response rendering | Enforcement | Presentation-only enforcement utility. |
 | `src/enforcement/rate.rs` | barrier | Hard rate-limit cap enforcement for immediate protection | Enforcement | Owns allow/deny counter writes and threshold enforcement responses. |
 | `src/maze/` | barrier | Deception/maze barrier for suspicious traffic | Maze/Tarpit domain | Consumes policy decisions; should expose behavior via boundary adapters. |
+| `src/tarpit/` | barrier | Progressive tarpit barrier (proof/chain/budget-gated response progression) | Maze/Tarpit domain | Consumes policy outcomes, emits deterministic fallback/escalation outcomes, and routes via provider adapter contracts. |
+| `src/deception/` | barrier support | Shared replay/chain/budget primitives used by maze+tarpit | Maze/Tarpit domain | Shared low-level primitives only; no direct request routing ownership. |
 | `src/challenge/` | barrier | Interactive challenge barrier flow | Challenge domain | Consumes policy decisions; should expose behavior via boundary adapters. |
 | `src/challenge/pow.rs` | hybrid (candidate) | Cost-imposition challenge path + verification signal potential | Challenge domain | Current behavior is barrier-focused; future signal contribution should be explicit via normalized signal contract. |
 
@@ -105,7 +107,7 @@ Current `external` behavior:
 - `fingerprint_signal` uses an Akamai-first external adapter (`/fingerprint-report`) that maps edge/Bot Manager-style outcomes into normalized fingerprint/<abbr title="Chrome DevTools Protocol">CDP</abbr>-tier signals, with explicit fallback to the internal <abbr title="Chrome DevTools Protocol">CDP</abbr> handler when payloads are non-Akamai/legacy.
 - `rate_limiter` uses a Redis-backed distributed adapter (`INCR` + <abbr title="Time To Live">TTL</abbr>) when `SHUMA_RATE_LIMITER_REDIS_URL` is configured, with fallback to internal rate behavior when unavailable.
 - `ban_store` uses a Redis-backed distributed adapter (<abbr title="JavaScript Object Notation">JSON</abbr> ban records + Redis <abbr title="Time To Live">TTL</abbr>) when `SHUMA_BAN_STORE_REDIS_URL` is configured, with fallback to internal ban behavior when unavailable.
-- `challenge_engine` and `maze_tarpit` still use explicit unsupported external adapters that currently delegate to internal runtime behavior.
+- `challenge_engine` and `maze_tarpit` still use explicit unsupported external adapters that currently delegate to internal runtime behavior (including tarpit progression route handling).
 
 Implementation discipline for H4 coherence:
 

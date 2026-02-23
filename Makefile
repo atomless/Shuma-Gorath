@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build ip-range-catalog-update env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build ip-range-catalog-update env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -71,6 +71,7 @@ SHUMA_DASHBOARD_BUNDLE_MAX_JS_BYTES ?= 330000
 SHUMA_DASHBOARD_BUNDLE_MAX_CSS_BYTES ?= 40000
 SHUMA_DASHBOARD_BUNDLE_MAX_JS_CHUNK_BYTES ?= 150000
 SHUMA_DASHBOARD_BUNDLE_MAX_CSS_ASSET_BYTES ?= 30000
+SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE ?= 0
 
 #--------------------------
 # Setup (first-time)
@@ -199,7 +200,7 @@ build-runtime: ## Build release wasm artifact for runtime/deploy (no dashboard b
 	@echo "$(GREEN)✅ Build complete: $(WASM_ARTIFACT)$(NC)"
 	@./scripts/set_crate_type.sh rlib
 
-build-full-dev: ## Build release wasm artifact with dashboard bundle-budget gate (full-dev/CI path)
+build-full-dev: ## Build release wasm artifact with dashboard bundle-budget reporting (strict via SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE=1)
 	@$(MAKE) --no-print-directory test-dashboard-budgets >/dev/null
 	@$(MAKE) --no-print-directory build-runtime
 
@@ -371,7 +372,7 @@ test-dashboard-unit: ## Run dashboard module unit tests (Node + dashboard JS con
 	@$(MAKE) --no-print-directory test-dashboard-svelte-check
 	@corepack pnpm run test:dashboard:unit
 
-test-dashboard-budgets: ## Verify /dashboard/_app bundle size ceilings
+test-dashboard-budgets: ## Report /dashboard/_app bundle size ceilings (non-blocking by default)
 	@echo "$(CYAN)🧪 Checking dashboard bundle-size budgets...$(NC)"
 	@if [ "$${SHUMA_DASHBOARD_BUDGET_SKIP_BUILD:-0}" != "1" ]; then \
 		$(MAKE) --no-print-directory dashboard-build >/dev/null; \
@@ -381,7 +382,11 @@ test-dashboard-budgets: ## Verify /dashboard/_app bundle size ceilings
 	SHUMA_DASHBOARD_BUNDLE_MAX_CSS_BYTES=$(SHUMA_DASHBOARD_BUNDLE_MAX_CSS_BYTES) \
 	SHUMA_DASHBOARD_BUNDLE_MAX_JS_CHUNK_BYTES=$(SHUMA_DASHBOARD_BUNDLE_MAX_JS_CHUNK_BYTES) \
 	SHUMA_DASHBOARD_BUNDLE_MAX_CSS_ASSET_BYTES=$(SHUMA_DASHBOARD_BUNDLE_MAX_CSS_ASSET_BYTES) \
+	SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE=$(SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE) \
 	node scripts/tests/check_dashboard_bundle_budget.js
+
+test-dashboard-budgets-strict: ## Enforce hard-fail dashboard bundle-size ceilings
+	@SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE=1 $(MAKE) --no-print-directory test-dashboard-budgets
 
 test-dashboard-e2e: ## Run Playwright dashboard smoke tests (waits for existing server readiness)
 	@echo "$(CYAN)🧪 Running dashboard e2e smoke tests...$(NC)"

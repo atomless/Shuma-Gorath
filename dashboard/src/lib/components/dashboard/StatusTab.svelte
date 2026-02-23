@@ -1,9 +1,11 @@
 <script>
+  import { onMount } from 'svelte';
   import {
     buildFeatureStatusItems,
     buildVariableInventoryGroups,
     deriveStatusSnapshot
   } from '../../domain/status.js';
+  import { resolveDashboardAssetPath } from '../../runtime/dashboard-paths.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
 
   export let managed = false;
@@ -11,6 +13,11 @@
   export let runtimeTelemetry = null;
   export let tabStatus = null;
   export let configSnapshot = null;
+  export let dashboardBasePath = '/dashboard';
+
+  const STATUS_VAR_MEANINGS_ASSET = 'assets/status-var-meanings.json';
+  const EMPTY_VAR_MEANINGS = {};
+  let statusVarMeanings = EMPTY_VAR_MEANINGS;
 
   const formatMetricMs = (value) => {
     const numeric = Number(value);
@@ -24,9 +31,33 @@
     return raw;
   };
 
+  function normalizeStatusVarMeanings(value) {
+    if (!value || typeof value !== 'object') return EMPTY_VAR_MEANINGS;
+    return value;
+  }
+
+  async function loadStatusVarMeanings() {
+    if (typeof window === 'undefined') return;
+    try {
+      const response = await fetch(
+        resolveDashboardAssetPath(dashboardBasePath, STATUS_VAR_MEANINGS_ASSET),
+        { credentials: 'same-origin' }
+      );
+      if (!response.ok) return;
+      const parsed = await response.json();
+      statusVarMeanings = normalizeStatusVarMeanings(parsed);
+    } catch (_error) {}
+  }
+
+  onMount(() => {
+    void loadStatusVarMeanings();
+  });
+
   $: statusSnapshot = deriveStatusSnapshot(configSnapshot || {});
   $: featureStatusItems = buildFeatureStatusItems(statusSnapshot);
-  $: statusVariableGroups = buildVariableInventoryGroups(statusSnapshot);
+  $: statusVariableGroups = buildVariableInventoryGroups(statusSnapshot, {
+    varMeanings: statusVarMeanings
+  });
   $: refresh = runtimeTelemetry && runtimeTelemetry.refresh ? runtimeTelemetry.refresh : {};
   $: polling = runtimeTelemetry && runtimeTelemetry.polling ? runtimeTelemetry.polling : {};
 </script>

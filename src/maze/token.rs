@@ -84,7 +84,13 @@ fn constant_time_eq(a: &str, b: &str) -> bool {
 
 #[cfg(test)]
 pub(crate) fn secret_from_env() -> String {
-    "maze-unit-test-secret".to_string()
+    static TEST_SECRET: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    TEST_SECRET
+        .get_or_init(|| {
+            let seed = format!("{}:{}:{}", module_path!(), file!(), std::process::id());
+            digest(seed.as_str())
+        })
+        .clone()
 }
 
 #[cfg(not(test))]

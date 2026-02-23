@@ -98,6 +98,7 @@
   let pathWhitelist = '';
 
   let mazeEnabled = true;
+  let mazeTarpitEnabled = true;
   let mazeAutoBan = true;
   let mazeThreshold = 50;
 
@@ -173,7 +174,7 @@
     honeypot: { enabled: true, values: '' },
     browserPolicy: { enabled: true, block: '', whitelist: '' },
     whitelist: { enabled: true, network: '', path: '' },
-    maze: { enabled: true, autoBan: true, threshold: 50 },
+    maze: { enabled: true, tarpitEnabled: true, autoBan: true, threshold: 50 },
     cdp: { enabled: true, autoBan: true, threshold: 0.6 },
     edgeMode: { mode: 'off' },
     geo: {
@@ -487,6 +488,7 @@
     pathWhitelist = formatListTextarea(config.path_whitelist);
 
     mazeEnabled = config.maze_enabled !== false;
+    mazeTarpitEnabled = config.tarpit_enabled !== false;
     mazeAutoBan = config.maze_auto_ban !== false;
     mazeThreshold = parseInteger(config.maze_auto_ban_threshold, 50);
 
@@ -594,6 +596,7 @@
       },
       maze: {
         enabled: mazeEnabled,
+        tarpitEnabled: mazeTarpitEnabled,
         autoBan: mazeAutoBan,
         threshold: Number(mazeThreshold)
       },
@@ -766,6 +769,7 @@
     }
     if (includeAll || mazeDirty) {
       patch.maze_enabled = mazeEnabled;
+      patch.tarpit_enabled = mazeTarpitEnabled;
       patch.maze_auto_ban = mazeAutoBan;
       patch.maze_auto_ban_threshold = Number(mazeThreshold);
     }
@@ -1072,6 +1076,7 @@
   $: mazeValid = inRange(mazeThreshold, 5, 500);
   $: mazeDirty = (
     readBool(mazeEnabled) !== baseline.maze.enabled ||
+    readBool(mazeTarpitEnabled) !== baseline.maze.tarpitEnabled ||
     readBool(mazeAutoBan) !== baseline.maze.autoBan ||
     Number(mazeThreshold) !== baseline.maze.threshold
   );
@@ -1423,8 +1428,15 @@
           <span class="toggle-slider"></span>
         </label>
       </div>
-      <p class="control-desc text-muted">Toggle whether identified bot traffic gets routed into the Maze. Set the threshold of Maze pages visited before the IP of the visitor is added to the ban list. Low thresholds increase potential of false positives. You may click here to preview the <a id="preview-maze-link" href="/admin/maze/preview" target="_blank" rel="noopener noreferrer">Maze</a> without risk of being banned (admin session required).</p>
+      <p class="control-desc text-muted">Toggle whether identified bot traffic gets routed into the Maze. Set the threshold of Maze pages visited before the IP of the visitor is added to the ban list. Low thresholds increase potential of false positives. You may click here to preview the <a id="preview-maze-link" href="/admin/maze/preview" target="_blank" rel="noopener noreferrer">Maze</a> or the <a id="preview-tarpit-link" href="/admin/tarpit/preview" target="_blank" rel="noopener noreferrer">Tarpit</a> without risk of being banned (admin session required).</p>
       <div class="admin-controls">
+        <div class="toggle-row" class:toggle-row--disabled={!mazeEnabled} aria-disabled={!mazeEnabled}>
+          <label class="control-label" class:text-muted={!mazeEnabled} for="maze-tarpit-enabled-toggle">Enable Tarpit</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="maze-tarpit-enabled-toggle" aria-label="Enable tarpit" bind:checked={mazeTarpitEnabled} disabled={!mazeEnabled}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
         <div class="toggle-row">
           <label class="control-label" for="maze-auto-ban-toggle">Enable Auto-ban</label>
           <label class="toggle-switch">

@@ -720,6 +720,15 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
     assert.equal(schema.advancedConfigTemplatePaths.includes('test_mode'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('browser_policy_enabled'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('bypass_allowlists_enabled'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('tarpit_enabled'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('tarpit_progress_token_ttl_seconds'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('tarpit_progress_replay_ttl_seconds'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('tarpit_hashcash_base_difficulty'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('tarpit_step_chunk_base_bytes'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('tarpit_egress_global_bytes_per_window'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('tarpit_max_concurrent_global'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('tarpit_max_concurrent_per_ip_bucket'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('tarpit_fallback_action'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('challenge_puzzle_seed_ttl_seconds'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('challenge_puzzle_attempt_limit_per_window'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('challenge_puzzle_attempt_window_seconds'), true);
