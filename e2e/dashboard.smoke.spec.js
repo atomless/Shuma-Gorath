@@ -50,6 +50,11 @@ function ensureRuntimeGuard(page) {
       return;
     }
     const failure = request.failure();
+    const errorText = String(failure?.errorText || "");
+    // Navigation transitions can intentionally abort in-flight static fetches.
+    if (errorText.includes("ERR_ABORTED") || errorText.includes("NS_BINDING_ABORTED")) {
+      return;
+    }
     guard.failures.push(
       `requestfailed: ${request.method()} ${request.url()} (${failure ? failure.errorText : "unknown"})`
     );
@@ -162,8 +167,20 @@ async function openDashboard(page, options = {}) {
   await page.goto(targetUrl);
   await page.waitForTimeout(250);
   if (page.url().includes("/dashboard/login.html")) {
-    await page.fill("#login-apikey", API_KEY);
-    await page.click("#login-submit");
+    for (let attempt = 0; attempt < 2 && page.url().includes("/dashboard/login.html"); attempt += 1) {
+      await page.fill("#login-apikey", API_KEY);
+      await Promise.all([
+        page.waitForResponse((response) => (
+          response.request().method() === "POST"
+          && response.url().includes("/admin/login")
+        )),
+        page.click("#login-submit")
+      ]);
+      if (!page.url().includes("/dashboard/index.html")) {
+        await page.goto(targetUrl);
+        await page.waitForTimeout(250);
+      }
+    }
     await expect(page).toHaveURL(/\/dashboard\/index\.html/);
   }
   if (!page.url().endsWith(`#${initialTab}`)) {
@@ -395,11 +412,12 @@ test("not-a-bot browser lifecycle captures telemetry and rejects replayed submit
 
       const submitRequest = await submitRequestPromise;
       const submitResponse = await submitResponsePromise;
+      const submitStatus = submitResponse.status();
       submitOutcome = {
-        status: submitResponse.status(),
+        status: submitStatus,
         location: submitResponse.headers()["location"] || "",
         formBody: submitRequest.postData() || "",
-        responseBody: await submitResponse.text()
+        responseBody: submitStatus === 200 ? await submitResponse.text() : ""
       };
       if (submitOutcome.status === 303 || submitOutcome.status === 200) {
         break;

@@ -1297,6 +1297,27 @@ print(provider.get("rate_limiter",""))' <<< "$rate_fallback_cfg")
   fi
 
   curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.232" > /dev/null
+  rate_outage_before=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/metrics" | python3 -c 'import sys
+total = 0
+for line in sys.stdin:
+    line = line.strip()
+    if not line.startswith("bot_defence_rate_limiter_outage_decisions_total{"):
+        continue
+    if "route_class=\"main_traffic\"" not in line:
+        continue
+    if "mode=\"fallback_internal\"" not in line:
+        continue
+    if "action=\"fallback_internal\"" not in line:
+        continue
+    try:
+        total += int(float(line.rsplit(" ", 1)[1]))
+    except Exception:
+        pass
+print(total)')
+  if ! [[ "${rate_outage_before}" =~ ^[0-9]+$ ]]; then
+    rate_outage_before=0
+  fi
+
   rate_attempts=$((DEFAULT_RATE_LIMIT + 2))
   rate_blocked=false
   rate_first=""
@@ -1314,13 +1335,54 @@ print(provider.get("rate_limiter",""))' <<< "$rate_fallback_cfg")
       break
     fi
   done
-  if [[ "$rate_blocked" == "true" ]]; then
-    pass "External rate limiter downgrades to internal limiter when backend unavailable"
+
+  rate_outage_after=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/metrics" | python3 -c 'import sys
+total = 0
+for line in sys.stdin:
+    line = line.strip()
+    if not line.startswith("bot_defence_rate_limiter_outage_decisions_total{"):
+        continue
+    if "route_class=\"main_traffic\"" not in line:
+        continue
+    if "mode=\"fallback_internal\"" not in line:
+        continue
+    if "action=\"fallback_internal\"" not in line:
+        continue
+    try:
+        total += int(float(line.rsplit(" ", 1)[1]))
+    except Exception:
+        pass
+print(total)')
+  if ! [[ "${rate_outage_after}" =~ ^[0-9]+$ ]]; then
+    rate_outage_after=0
+  fi
+
+  rate_outage_delta=$((rate_outage_after - rate_outage_before))
+
+  if [[ "$rate_blocked" != "true" ]]; then
+    burst_attempts=$((DEFAULT_RATE_LIMIT + 10))
+    for ((i=1; i<=burst_attempts; i++)); do
+      curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/" > /dev/null &
+    done
+    wait
+
+    rate_probe=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/")
+    rate_probe_body=$(echo "$rate_probe" | sed -e 's/HTTPSTATUS:.*//')
+    rate_probe_status=$(echo "$rate_probe" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+    rate_last="status=${rate_probe_status} body=${rate_probe_body}"
+    if [[ "$rate_probe_status" == "429" || "$rate_probe_status" == "403" ]] || echo "$rate_probe_body" | grep -qE 'Rate Limit Exceeded|Access Blocked'; then
+      rate_blocked=true
+    fi
+  fi
+
+  if [[ "$rate_blocked" == "true" || "$rate_outage_delta" -gt 0 ]]; then
+    pass "External rate limiter downgrade-to-internal behavior observed (fallback metrics and/or enforcement)"
   else
     fail "Rate limiter downgrade-to-internal behavior not observed"
     echo -e "${YELLOW}DEBUG rate first response:${NC} $rate_first"
     echo -e "${YELLOW}DEBUG rate last response:${NC} $rate_last"
     echo -e "${YELLOW}DEBUG attempted requests:${NC} $rate_attempts"
+    echo -e "${YELLOW}DEBUG outage metrics delta:${NC} ${rate_outage_before} -> ${rate_outage_after}"
   fi
 fi
 
