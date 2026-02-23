@@ -245,6 +245,25 @@ fn parse_rate_limiter_outage_mode_accepts_expected_values() {
 }
 
 #[test]
+fn parse_tarpit_fallback_action_accepts_expected_values() {
+    assert_eq!(
+        parse_tarpit_fallback_action("maze"),
+        Some(TarpitFallbackAction::Maze)
+    );
+    assert_eq!(
+        parse_tarpit_fallback_action("block"),
+        Some(TarpitFallbackAction::Block)
+    );
+    assert_eq!(
+        parse_tarpit_fallback_action("  BLOCK "),
+        Some(TarpitFallbackAction::Block)
+    );
+    assert_eq!(parse_tarpit_fallback_action("invalid"), None);
+    assert_eq!(TarpitFallbackAction::Maze.as_str(), "maze");
+    assert_eq!(TarpitFallbackAction::Block.as_str(), "block");
+}
+
+#[test]
 fn parse_redis_url_accepts_expected_values() {
     assert_eq!(
         parse_redis_url("redis://localhost:6379"),
@@ -279,6 +298,25 @@ fn defaults_enable_both_signal_and_action_paths() {
     assert!(cfg.ip_range_managed_policies.is_empty());
     assert_eq!(cfg.ip_range_managed_max_staleness_hours, 168);
     assert!(!cfg.ip_range_allow_stale_managed_enforce);
+    assert!(cfg.tarpit_enabled);
+    assert_eq!(cfg.tarpit_progress_token_ttl_seconds, 120);
+    assert_eq!(cfg.tarpit_progress_replay_ttl_seconds, 300);
+    assert_eq!(cfg.tarpit_hashcash_min_difficulty, 10);
+    assert_eq!(cfg.tarpit_hashcash_max_difficulty, 16);
+    assert_eq!(cfg.tarpit_hashcash_base_difficulty, 12);
+    assert!(cfg.tarpit_hashcash_adaptive);
+    assert_eq!(cfg.tarpit_step_chunk_base_bytes, 2048);
+    assert_eq!(cfg.tarpit_step_chunk_max_bytes, 8192);
+    assert_eq!(cfg.tarpit_step_jitter_percent, 15);
+    assert!(cfg.tarpit_shard_rotation_enabled);
+    assert_eq!(cfg.tarpit_egress_window_seconds, 60);
+    assert_eq!(cfg.tarpit_egress_global_bytes_per_window, 4_194_304);
+    assert_eq!(cfg.tarpit_egress_per_ip_bucket_bytes_per_window, 524_288);
+    assert_eq!(cfg.tarpit_egress_per_flow_max_bytes, 262_144);
+    assert_eq!(cfg.tarpit_egress_per_flow_max_duration_seconds, 120);
+    assert_eq!(cfg.tarpit_max_concurrent_global, 64);
+    assert_eq!(cfg.tarpit_max_concurrent_per_ip_bucket, 2);
+    assert_eq!(cfg.tarpit_fallback_action, TarpitFallbackAction::Maze);
     assert!(cfg.rate_signal_enabled());
     assert!(cfg.rate_action_enabled());
     assert!(cfg.geo_signal_enabled());

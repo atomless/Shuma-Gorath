@@ -1,10 +1,13 @@
 # TODO Roadmap
 
-Last updated: 2026-02-21
+Last updated: 2026-02-23
 
 This is the active work queue.
 `todos/security-review.md` tracks security finding validity and closure status.
 Completed items are archived in `todos/completed-todo-history.md`.
+
+## P0 Launch-Readiness Performance Pass
+- [ ] PERF-LAUNCH-1 Execute a final pre-launch performance and optimization pass (dashboard bundle-size budgets in strict mode, runtime latency/<abbr title="Central Processing Unit">CPU</abbr>/memory envelopes, and high-cost request-path profiling), then lock release thresholds and acceptance criteria.
 
 ## P1 Privacy and Data-Protection Follow-up
 - [ ] SEC-GDPR-2 Enforce deterministic cleanup/expiry for stale fingerprint state keys (`fp:state:*`, `fp:flow:*`, `fp:flow:last_bucket:*`) aligned to configured fingerprint TTL/window controls.
@@ -14,13 +17,6 @@ Completed items are archived in `todos/completed-todo-history.md`.
 ## P0 Deployment Path Excellence (Single-Host + Akamai/Fermyon)
 Reference plan: `docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`
 
-- [x] DEP-SH-1 Publish an explicit single-host (`self_hosted_minimal`) production runbook for average VM/shared-host operators with a 10-minute secure baseline (start/health/rollback).
-- [x] DEP-SH-2 Add a single-host post-deploy smoke verification Make target (health, admin auth, metrics, and challenge-route sanity).
-- [x] DEP-SH-3 Add `make setup-runtime` for minimal single-host/runtime installs (Rust + wasm target + Spin + config bootstrap prerequisites) without full dev/e2e toolchain.
-- [x] DEP-SH-4 Add `make verify-runtime` so single-host operators can validate runtime prerequisites without requiring Node/pnpm/Playwright checks.
-- [x] DEP-SH-5 Keep `make setup` as full contributor/dev path; document explicit selection guidance between runtime-only and full-dev setup flows.
-- [x] DEP-SH-6 Split build/deploy targets so single-host production build paths do not require dashboard bundle-budget checks; keep budget gates in CI/full-dev verification targets.
-- [x] DEP-SH-7 Add profile-first deployment wrappers/docs that keep one common baseline path and layer enterprise-only steps on top (`self_hosted_minimal` base + `enterprise_akamai` overlay).
 - [ ] DEP-ENT-1 Implement strict enterprise distributed ban-sync mode for authoritative multi-instance posture (no silent local-only divergence path).
 - [ ] DEP-ENT-2 Add ban-sync observability (<abbr title="Service Level Objective">SLO</abbr> metrics for sync result and lag) to support promotion/rollback decisions.
 - [ ] DEP-ENT-3 Add two-instance Spin integration coverage with shared Redis to prove ban/unban convergence behavior.
@@ -58,37 +54,52 @@ Completion rule for every paper TODO below: capture key findings, map to `self_h
 - [ ] R-CH-10 Review Uysal, "Revisiting Text-Based CAPTCHAs" (Electronics 2025) and evaluate current CNN-solvability implications for fallback challenge modes. https://doi.org/10.3390/electronics14224403
 
 ### Rate Limiting, Tarpit, and Cost-Imposition
-- [ ] R-RL-01 Review Raghavan et al., "Cloud Control with Distributed Rate Limiting" (SIGCOMM 2007) and extract distributed limiter semantics for Shuma provider adapters. https://www.microsoft.com/en-us/research/publication/cloud-control-with-distributed-rate-limiting/
-- [ ] R-RL-03 Review Veroff et al., "Evaluation of a low-rate DoS attack against application servers" (Computers & Security 2008) and capture queue/resource-starvation mitigation patterns. https://doi.org/10.1016/j.cose.2008.07.004
-- [ ] R-RL-05 Review Srivatsa et al., "Mitigating application-level denial of service attacks on Web servers" (ACM TWEB 2008) and assess admission/congestion control patterns for Shuma policy pipeline. https://research.ibm.com/publications/mitigating-application-level-denial-of-service-attacks-on-web-servers-a-client-transparent-approach
-- [ ] R-RL-06 Review Lemon, "Resisting SYN flood DoS attacks with a SYN cache" (BSDCon 2002) and capture edge-vs-origin queue protection lessons relevant to Akamai authoritative mode. https://www.usenix.org/legacy/publications/library/proceedings/bsdcon02/full_papers/lemon/lemon_html/index.html
-- [ ] R-RL-07 Review Chen et al., "SMARTCOOKIE" (USENIX Security 2024) and evaluate split-proxy edge-cookie architecture fit for enterprise Akamai deployments. https://collaborate.princeton.edu/en/publications/smartcookie-blocking-large-scale-syn-floods-with-a-split-proxy-de/
+- Research synthesis recorded in `docs/research/2026-02-22-http-tarpit-cost-shift-research-synthesis.md` (includes source mapping, implementation implications, and cost-shift analysis).
 - [ ] OUT-1 Add explicit deployment guardrails that fail when `provider_backends.rate_limiter=external` or `provider_backends.ban_store=external` but required Redis outbound hosts are not allowlisted in `spin.toml` `allowed_outbound_hosts`.
 - [ ] OUT-2 Add a provider-to-outbound-requirements matrix in public docs (internal vs external backend, required host capabilities, required outbound host allowlists, fallback behavior).
 - [ ] OUT-3 Add integration verification that exercises external Redis provider selection under restricted outbound policy and confirms safe fallback/guardrail behavior is deterministic.
 - [ ] OUT-5 Before implementing non-stub `challenge_engine=external` and `maze_tarpit=external`, complete design work for their external transport path through Spin host capabilities or sidecar/adapter boundary, with rollback and security posture defined.
-- [ ] Build Shuma-native bounded slow-drip tarpit behavior in Rust/Spin; treat external projects (for example Finch/Sarracenia/caddy-defender) as design references, not runtime dependencies.
-- [ ] TP-C1: Reuse shared deception token primitives from maze scope (`MZ-2`) for tarpit progression; do not introduce a tarpit-only token format.
-- [ ] TP-C2: Reuse shared budget/fallback primitives from maze scope (`MZ-7`) for tarpit limits and deterministic fallback; do not fork budget logic by mode.
-- [ ] Implement `maze_plus_drip` mode with configurable byte rate and hard timeout using shared primitives.
-- [ ] Enforce strict tarpit budgets (global concurrent streams and per-IP-bucket caps) via shared budget governor.
-- [ ] Add deterministic fallback action when tarpit budget is exhausted (`maze` or `block`) via shared fallback matrix.
-- [ ] Add tarpit metrics/admin visibility for activation, saturation, duration, bytes sent, and escalation outcomes.
-- [ ] Escalate persistent tarpit clients to ban/block with guardrails to minimize false positives.
-- [ ] Integrate tarpit budgets/counters with distributed state work for multi-instance consistency.
 - [ ] (Enterprise/hybrid track) Extend distributed-state monitoring with ban sync-lag metrics (rate-limiter fallback/drift monitoring is implemented).
 
-#### SSH Tarpit and Honeypot Evasion Resistance
-- [ ] R-SSH-02 Review Bythwood et al., "Fingerprinting Bots in a Hybrid Honeypot" (IEEE SoutheastCon 2023) and assess hybrid interaction design implications for SSH deception tiers. https://doi.org/10.1109/SoutheastCon51012.2023.10115143
-- [ ] R-SSH-03 Review Vetterl et al., "A Comparison of an Adaptive Self-Guarded Honeypot with Conventional Honeypots" (Applied Sciences 2022) and evaluate adaptive risk-vs-observability controls for Shuma SSH tarpit mode. https://doi.org/10.3390/app12105224
-- [ ] R-SSH-04 Review Cordeiro/Vasilomanolakis, "Towards agnostic OT honeypot fingerprinting" (TMA 2025) and extract transport-stack realism requirements applicable to SSH tarpit surfaces. https://doi.org/10.23919/TMA66427.2025.11097018
+#### Tarpit Asymmetry Hardening (`work-gated`, `token-chained`, `egress-budgeted`)
+
+Architecture alignment reference: `docs/plans/2026-02-23-maze-tarpit-architecture-alignment-plan.md`
+
+- [x] TAH-ARCH-1 Publish the target module/file map for maze+tarpit ownership and boundaries (provider adapter vs domain runtime vs route handler) and pin it in `docs/module-boundaries.md`.
+- [x] TAH-ARCH-2 Move tarpit runtime logic out of `src/providers/internal.rs` into dedicated tarpit domain modules (`src/tarpit/runtime.rs`, `src/tarpit/types.rs`) so provider internals remain thin adapters.
+- [x] TAH-ARCH-3 Introduce dedicated tarpit HTTP handler ownership (`src/tarpit/http.rs`) and route wiring for progression endpoints; remove ad-hoc route handling from non-domain layers.
+- [x] TAH-ARCH-4 Extract shared maze+tarpit primitives for replay/chain/budget key handling into one shared module and migrate both maze runtime and tarpit runtime to consume it.
+- [x] TAH-ARCH-5 Define one typed tarpit progression reason taxonomy (enum -> metrics/admin labels) and make request-router/admin/runtime emit only that normalized set.
+- [x] TAH-ARCH-6 Reconcile tarpit config model for v2 progression (difficulty bounds + egress budgets) and explicitly deprecate/remove static-drip-only assumptions where no longer valid pre-launch.
+
+- [x] TAH-1 Publish a concise design note/ADR for the v2 tarpit contract: tiny initial response, work-gated progression, token-chain continuity, strict byte/time budgets, and deterministic fallback matrix (`maze`, `block`, short-ban escalation). (See `docs/adr/0004-tarpit-v2-progression-contract.md`.)
+- [x] TAH-2 Define and document the tarpit progression envelope schema (signed, short-lived, single-use operation token with `flow_id`, `step`, `issued_at`, `expires_at`, `ip_bucket`, and optional work parameters), including replay and binding rules. (See `docs/plans/2026-02-23-tarpit-v2-progression-envelope.md`.)
+- [x] TAH-3 Add a dedicated tarpit progression endpoint that verifies work proofs before issuing the next step token/content chunk; reject stale/replayed/out-of-order operations with explicit reason codes and monitoring labels.
+- [x] TAH-4 Implement a low-cost server-verified work gate (hashcash-style by default; configurable bounded difficulty window), with clear hooks for future memory-hard alternatives.
+- [x] TAH-5 Add adaptive work policy that raises/lower difficulty only within bounded limits based on abuse evidence and budget pressure; keep accessibility-safe fallback path to avoid impossible human flows.
+- [x] TAH-6 Replace static large filler payload behavior with iterative gated progression so server sends small chunks per verified step rather than prebuilding a large in-memory body.
+- [x] TAH-7 Add strict per-flow token-chain continuity checks (step monotonicity, parent-child digest linkage, single-use operation IDs, and replay TTL semantics) reusing maze shared token primitives where possible.
+- [x] TAH-8 Add tarpit egress budget controls in config/admin: global bytes-per-window, per-IP-bucket bytes-per-window, per-flow max-bytes, and per-flow max-duration; classify as KV-tunable vs env-only according to project policy.
+- [x] TAH-9 Enforce egress budgets before every tarpit step emission (admission + post-send accounting), with deterministic fallback when any budget is exhausted and explicit event/metric outcomes.
+- [x] TAH-10 Add budget state keys and lifecycle semantics (TTL/reset window, counter granularity, site scoping) and ensure enterprise/distributed-state behavior is explicit (no silent divergence in authoritative mode).
+- [ ] TAH-11 Expand observability: progression admissions/denials, proof verify outcomes, chain violations, bytes sent, duration, budget exhaustion reason, fallback action, and escalation outcomes (including top offender buckets with cardinality guardrails).
+- [ ] TAH-12 Add dashboard/admin visibility for the new tarpit progression + egress metrics and operator guidance for safe tuning (recommended starting ranges and rollback thresholds).
+- [ ] TAH-19 Before launch, tighten collateral-risk controls (especially bucket-based persistence escalation), then re-evaluate tarpit defaults.
+- [x] TAH-13 Add tests:
+  unit tests for envelope/proof/chain/budget logic;
+  integration tests for abuse route -> gated progression -> fallback/escalation;
+  concurrency/soak tests for egress-budget correctness under burst traffic.
+- [x] TAH-14 Wire new tarpit asymmetry tests into Makefile/CI verification lanes (`make test-unit`, `make test-integration`, `make test`) and add explicit failure-gate criteria for regressions.
+- [x] TAH-15 Update operator docs (`docs/configuration.md`, `docs/dashboard.md`, runbooks) to explain that tarpit cost-imposition is now progression-gated and budget-capped, including tradeoffs between attacker cost, host egress, and false-positive risk.
+- [x] TAH-16 Add bounded timing/content variability (jitter windows and template rotation with strict envelopes) to reduce tarpit fingerprintability without violating budget caps.
+- [x] TAH-17 Add pre-generated/cached tarpit content shards (text/media templates) so per-request host compute stays low while preserving high bot ingestion cost.
+- [x] TAH-18 Add an explicit crawler-safety policy path for known legitimate bots and sensitive endpoints (for example `robots.txt`) to avoid accidental tarpit impact on benign indexing/ops workflows.
+
+Execution order for remaining tarpit work:
+1. `TAH-11`
+2. `TAH-12`
 
 ### IP Range Policy, Reputation Feeds, and GEO Fencing
-- [x] R-IP-01 Review Ramanathan et al., "BLAG: Improving the Accuracy of Blacklists" (NDSS 2020) and derive feed-aggregation + false-positive controls for managed CIDR sets. https://doi.org/10.14722/ndss.2020.24232
-- [x] R-IP-02 Review Sheng et al., "An Empirical Analysis of Phishing Blacklists" (2009) and extract freshness/latency requirements for update cadence and rollout safety. https://kilthub.cmu.edu/articles/journal_contribution/An_Empirical_Analysis_of_Phishing_Blacklists/6469805
-- [x] R-IP-03 Review Oest et al., "PhishTime" (USENIX Security 2020) and map continuous quality-measurement methodology to Shuma feed validation. https://www.usenix.org/conference/usenixsecurity20/presentation/oest-phishtime
-- [x] R-IP-04 Review Li et al., "HADES Attack" (NDSS 2025) and define anti-poisoning controls for any external blocklist ingestion pipeline. https://doi.org/10.14722/ndss.2025.242156
-- [x] R-IP-05 Review Deri/Fusco, "Evaluating IP Blacklists effectiveness" (FiCloud 2023) and identify practical precision/recall limits for aggressive edge enforcement. https://research.ibm.com/publications/evaluating-ip-blacklists-effectiveness
 - Research synthesis recorded in `docs/research/2026-02-20-ip-range-policy-research-synthesis.md` (includes source mapping and implementation implications).
 - [ ] R-GEO-01 Review Hu/Heidemann/Pradkin, "Towards Geolocation of Millions of IP Addresses" (IMC 2012) and capture scalability/error-tradeoff implications for GEO policy confidence scoring. https://doi.org/10.1145/2398776.2398790
 - [ ] R-GEO-02 Review Dan/Parikh/Davison, "Improving IP Geolocation using Query Logs" (WSDM 2016) and define data-quality assumptions for geo-based enforcement. https://doi.org/10.1145/2835776.2835820
@@ -109,18 +120,6 @@ Completion rule for every paper TODO below: capture key findings, map to `self_h
 - [ ] MZ-T4 Wire the new maze integration + E2E + soak tests into canonical Makefile/CI verification paths (`make test`, focused rerun targets, and CI failure gates) so maze behavior regressions fail fast before merge.
 
 ## P2 Challenge Roadmap
-- [x] NAB-0 Research and policy synthesis: keep `docs/research/2026-02-19-not-a-bot-challenge-research-synthesis.md`, `docs/plans/2026-02-13-not-a-bot-excellence-plan.md`, and `todos/not-a-bot-spec.md` aligned as the single implementation source.
-- [x] NAB-1 Implement Not-a-Bot checkbox (`/challenge/not-a-bot-checkbox`) per `todos/not-a-bot-spec.md` with signed short-lived single-use nonce and IP-bucket binding.
-- [x] NAB-2 Implement Not-a-Bot telemetry capture/validation and deterministic scoring model (`0..10`) with threshold routing (`pass`, `escalate_puzzle`, `maze_or_block`).
-- [x] NAB-3 Add Not-a-Bot verification marker/token issuance after pass and enforce it in routing flow.
-- [x] NAB-4 Add Not-a-Bot routing integration so medium-certainty traffic hits Not-a-Bot before puzzle escalation, with deterministic maze/block fallback.
-- [x] NAB-5 Add Not-a-Bot admin visibility/config controls for thresholds, TTL, and attempt caps (read-only defaults plus optional mutability controls).
-- [x] NAB-6 Add Not-a-Bot monitoring parity (`served`, `pass`, `escalate`, `fail`, `replay`, solve-latency buckets, abandonment estimate) and dashboard exposure.
-- [x] NAB-7 Add dedicated e2e browser coverage for Not-a-Bot lifecycle and replay/abuse paths (unit + integration coverage is now in place).
-- [x] NAB-8 Add operator docs and threshold tuning guidance aligned to low-friction managed-first routing.
-- [x] NAB-9 Align Not-a-Bot control behavior to one-step state-of-the-art UX (checkbox-like control + auto-progress on activation).
-- [x] NAB-10 Explicitly document the very-low-certainty managed/invisible path mapping (passive + JS/PoW) and keep Not-a-Bot medium-certainty only.
-- [x] NAB-11 Preserve accessibility-neutral scoring policy: keyboard/touch flows remain pass-capable; assistive paths are never direct negative signals.
 - [ ] NAB-12 Evaluate optional PAT-style private attestation signal ingestion as additive evidence only (non-blocking).
 - [ ] NAB-13 Execute short Not-a-Bot hardening sprint per `docs/plans/2026-02-21-not-a-bot-hardening-sprint.md` (unknown-modality cap, stronger pass corroboration, cross-attempt/session consistency gating, accessibility-safe anti-fast-path tightening).
 

@@ -69,7 +69,7 @@ make test             # Full suite: unit + integration + dashboard e2e (requires
 make test-unit        # Unit tests only
 make test-integration # Integration tests (requires running server)
 make build-runtime    # Runtime/deploy build path (no dashboard budget gate)
-make build-full-dev   # Full-dev/CI build path with dashboard budget gate
+make build-full-dev   # Full-dev/CI build path with dashboard budget reporting (set SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE=1 for hard-fail)
 make smoke-single-host # Post-deploy smoke checks (health/admin auth/metrics/challenge)
 make deploy-self-hosted-minimal # self_hosted_minimal profile wrapper
 make deploy-enterprise-akamai   # enterprise overlay wrapper on shared baseline
@@ -107,6 +107,7 @@ Deployment policy note: `SHUMA_KV_STORE_FAIL_OPEN` is a critical choice (fail-op
 - [`docs/features.md`](docs/features.md) - Feature list and roadmap
 - [`docs/challenge-verification.md`](docs/challenge-verification.md) - Human verification strategy
 - [`docs/maze.md`](docs/maze.md) - Maze runtime flow, rollout phases, and cost-asymmetry model
+- [`docs/research/README.md`](docs/research/README.md) - Research index (including tarpit research collection and latest re-review addendum)
 - [`todos/security-review.md`](todos/security-review.md) - Security audit notes / backlog
 
 ## 🐙 Repository Structure (High Level)

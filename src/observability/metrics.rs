@@ -45,6 +45,28 @@ const MAZE_CHECKPOINT_OUTCOMES: [&str; 4] = [
 ];
 const MAZE_BUDGET_OUTCOMES: [&str; 3] = ["acquired", "saturated", "response_cap_exceeded"];
 const MAZE_PROOF_OUTCOMES: [&str; 3] = ["required", "passed", "failed"];
+const TARPIT_MODES: [&str; 1] = ["progressive"];
+const TARPIT_PROGRESS_OUTCOMES: [&str; 14] = [
+    "advanced",
+    "tarpit_progress_malformed",
+    "tarpit_progress_signature_mismatch",
+    "tarpit_progress_invalid_version",
+    "tarpit_progress_expired",
+    "tarpit_progress_invalid_window",
+    "tarpit_progress_binding_ip_mismatch",
+    "tarpit_progress_binding_ua_mismatch",
+    "tarpit_progress_path_mismatch",
+    "tarpit_progress_step_out_of_order",
+    "tarpit_progress_parent_chain_missing",
+    "tarpit_progress_replay",
+    "tarpit_progress_invalid_proof",
+    "tarpit_progress_budget_exhausted",
+];
+const TARPIT_BUDGET_OUTCOMES: [&str; 4] = ["acquired", "saturated", "fallback_maze", "fallback_block"];
+const TARPIT_ESCALATION_OUTCOMES: [&str; 3] = ["none", "short_ban", "block"];
+const TARPIT_DURATION_BUCKETS: [&str; 4] = ["lt_1s", "1_5s", "5_20s", "20s_plus"];
+const TARPIT_BYTES_BUCKETS: [&str; 5] =
+    ["lt_8kb", "8_32kb", "32_128kb", "128_512kb", "512kb_plus"];
 const MONITORING_CHALLENGE_FAILURE_REASON_KEYS: [&str; 5] = [
     "incorrect",
     "expired_replay",
@@ -143,6 +165,12 @@ pub enum MetricName {
     MazeBudgetOutcomes,
     MazeProofOutcomes,
     MazeEntropyVariants,
+    TarpitActivations,
+    TarpitProgressOutcomes,
+    TarpitBudgetOutcomes,
+    TarpitEscalationOutcomes,
+    TarpitDurationBuckets,
+    TarpitBytesBuckets,
     CdpDetections,
     BotnessSignalState,
     DefenceModeEffective,
@@ -180,6 +208,12 @@ impl MetricName {
             MetricName::MazeBudgetOutcomes => "maze_budget_outcomes_total",
             MetricName::MazeProofOutcomes => "maze_proof_outcomes_total",
             MetricName::MazeEntropyVariants => "maze_entropy_variants_total",
+            MetricName::TarpitActivations => "tarpit_activations_total",
+            MetricName::TarpitProgressOutcomes => "tarpit_progress_outcomes_total",
+            MetricName::TarpitBudgetOutcomes => "tarpit_budget_outcomes_total",
+            MetricName::TarpitEscalationOutcomes => "tarpit_escalation_outcomes_total",
+            MetricName::TarpitDurationBuckets => "tarpit_duration_buckets_total",
+            MetricName::TarpitBytesBuckets => "tarpit_bytes_buckets_total",
             MetricName::CdpDetections => "cdp_detections_total",
             MetricName::BotnessSignalState => "botness_signal_state_total",
             MetricName::DefenceModeEffective => "defence_mode_effective_total",
@@ -368,6 +402,30 @@ pub fn record_maze_entropy_variant(
 ) {
     let label = format!("{}:{}:{}", variant_family, provider, metadata_only as u8);
     increment(store, MetricName::MazeEntropyVariants, Some(label.as_str()));
+}
+
+pub fn record_tarpit_activation(store: &Store, mode: &str) {
+    increment(store, MetricName::TarpitActivations, Some(mode));
+}
+
+pub fn record_tarpit_progress_outcome(store: &Store, outcome: &str) {
+    increment(store, MetricName::TarpitProgressOutcomes, Some(outcome));
+}
+
+pub fn record_tarpit_budget_outcome(store: &Store, outcome: &str) {
+    increment(store, MetricName::TarpitBudgetOutcomes, Some(outcome));
+}
+
+pub fn record_tarpit_escalation_outcome(store: &Store, outcome: &str) {
+    increment(store, MetricName::TarpitEscalationOutcomes, Some(outcome));
+}
+
+pub fn record_tarpit_duration_bucket(store: &Store, bucket: &str) {
+    increment(store, MetricName::TarpitDurationBuckets, Some(bucket));
+}
+
+pub fn record_tarpit_bytes_bucket(store: &Store, bucket: &str) {
+    increment(store, MetricName::TarpitBytesBuckets, Some(bucket));
 }
 
 /// Get current value of a counter
@@ -614,6 +672,85 @@ pub fn render_metrics(store: &Store) -> String {
         output.push_str(&format!(
             "bot_defence_maze_entropy_variants_total{{variant=\"{}\",provider=\"{}\",metadata_only=\"{}\"}} {}\n",
             variant, provider, metadata_only, count
+        ));
+    }
+
+    output.push_str("\n# TYPE bot_defence_tarpit_activations_total counter\n");
+    output.push_str("# HELP bot_defence_tarpit_activations_total Tarpit activations by mode\n");
+    for mode in TARPIT_MODES {
+        let key = format!("{}tarpit_activations_total:{}", METRICS_PREFIX, mode);
+        let count = get_counter(store, &key);
+        output.push_str(&format!(
+            "bot_defence_tarpit_activations_total{{mode=\"{}\"}} {}\n",
+            mode, count
+        ));
+    }
+
+    output.push_str("\n# TYPE bot_defence_tarpit_progress_outcomes_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_tarpit_progress_outcomes_total Tarpit progression outcomes and rejection reasons\n",
+    );
+    for outcome in TARPIT_PROGRESS_OUTCOMES {
+        let key = format!("{}tarpit_progress_outcomes_total:{}", METRICS_PREFIX, outcome);
+        let count = get_counter(store, &key);
+        output.push_str(&format!(
+            "bot_defence_tarpit_progress_outcomes_total{{outcome=\"{}\"}} {}\n",
+            outcome, count
+        ));
+    }
+
+    output.push_str("\n# TYPE bot_defence_tarpit_budget_outcomes_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_tarpit_budget_outcomes_total Tarpit budget outcomes by outcome label\n",
+    );
+    for outcome in TARPIT_BUDGET_OUTCOMES {
+        let key = format!("{}tarpit_budget_outcomes_total:{}", METRICS_PREFIX, outcome);
+        let count = get_counter(store, &key);
+        output.push_str(&format!(
+            "bot_defence_tarpit_budget_outcomes_total{{outcome=\"{}\"}} {}\n",
+            outcome, count
+        ));
+    }
+
+    output.push_str("\n# TYPE bot_defence_tarpit_escalation_outcomes_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_tarpit_escalation_outcomes_total Tarpit persistence escalation outcomes\n",
+    );
+    for outcome in TARPIT_ESCALATION_OUTCOMES {
+        let key = format!(
+            "{}tarpit_escalation_outcomes_total:{}",
+            METRICS_PREFIX, outcome
+        );
+        let count = get_counter(store, &key);
+        output.push_str(&format!(
+            "bot_defence_tarpit_escalation_outcomes_total{{outcome=\"{}\"}} {}\n",
+            outcome, count
+        ));
+    }
+
+    output.push_str("\n# TYPE bot_defence_tarpit_duration_buckets_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_tarpit_duration_buckets_total Tarpit response duration buckets\n",
+    );
+    for bucket in TARPIT_DURATION_BUCKETS {
+        let key = format!("{}tarpit_duration_buckets_total:{}", METRICS_PREFIX, bucket);
+        let count = get_counter(store, &key);
+        output.push_str(&format!(
+            "bot_defence_tarpit_duration_buckets_total{{bucket=\"{}\"}} {}\n",
+            bucket, count
+        ));
+    }
+
+    output.push_str("\n# TYPE bot_defence_tarpit_bytes_buckets_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_tarpit_bytes_buckets_total Tarpit response bytes buckets\n",
+    );
+    for bucket in TARPIT_BYTES_BUCKETS {
+        let key = format!("{}tarpit_bytes_buckets_total:{}", METRICS_PREFIX, bucket);
+        let count = get_counter(store, &key);
+        output.push_str(&format!(
+            "bot_defence_tarpit_bytes_buckets_total{{bucket=\"{}\"}} {}\n",
+            bucket, count
         ));
     }
 

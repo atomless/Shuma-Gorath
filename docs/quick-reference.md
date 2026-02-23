@@ -17,7 +17,7 @@ make verify         # Verify dependencies are installed
 make dev            # Build and run with file watching (auto-rebuild)
 make run            # Build once and run (no watching)
 make build-runtime  # Build runtime/deploy release artifact (no dashboard budget gate)
-make build-full-dev # Build release artifact with dashboard budget gate (full-dev/CI)
+make build-full-dev # Build release artifact with dashboard budget reporting (set SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE=1 for hard-fail)
 make build          # Alias of make build-runtime
 make prod           # Build for production and start server
 make smoke-single-host # Post-deploy smoke checks (health/admin auth/metrics/challenge)

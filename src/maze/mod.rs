@@ -12,7 +12,7 @@ pub(crate) mod seeds;
 #[cfg(test)]
 mod simulation;
 pub(crate) mod state;
-mod token;
+pub(crate) mod token;
 mod types;
 
 pub use http::{

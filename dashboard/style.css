@@ -1319,6 +1319,11 @@ input:checked + .toggle-slider:before {
   pointer-events: none;
 }
 
+.toggle-row.toggle-row--disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
 /* GEO policy stacked country lists */
 .geo-controls {
   gap: 10px;

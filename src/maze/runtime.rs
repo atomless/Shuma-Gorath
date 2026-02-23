@@ -132,29 +132,8 @@ pub(crate) enum MazeServeDecision {
     Fallback(MazeFallbackDecision),
 }
 
-struct BudgetLease<'a, S: MazeStateStore> {
-    store: &'a S,
-    global_key: String,
-    bucket_key: String,
-    active: bool,
-}
-
-impl<'a, S: MazeStateStore> BudgetLease<'a, S> {
-    fn release(&mut self) {
-        if !self.active {
-            return;
-        }
-        decrement_counter(self.store, self.global_key.as_str());
-        decrement_counter(self.store, self.bucket_key.as_str());
-        self.active = false;
-    }
-}
-
-impl<S: MazeStateStore> Drop for BudgetLease<'_, S> {
-    fn drop(&mut self) {
-        self.release();
-    }
-}
+pub(crate) use crate::deception::primitives::SharedBudgetGovernor;
+type BudgetLease<'a, S> = crate::deception::primitives::BudgetLease<'a, S>;
 
 fn now_ms() -> u64 {
     SystemTime::now()
@@ -177,19 +156,6 @@ fn write_counter(store: &(impl MazeStateStore + ?Sized), key: &str, value: u32) 
     if let Err(err) = store.set(key, value.to_string().as_bytes()) {
         eprintln!("[maze] failed to persist counter key={} err={:?}", key, err);
     }
-}
-
-fn increment_counter(store: &(impl MazeStateStore + ?Sized), key: &str) -> u32 {
-    let next = read_counter(store, key).saturating_add(1);
-    write_counter(store, key, next);
-    next
-}
-
-fn decrement_counter(store: &(impl MazeStateStore + ?Sized), key: &str) -> u32 {
-    let current = read_counter(store, key);
-    let next = current.saturating_sub(1);
-    write_counter(store, key, next);
-    next
 }
 
 fn risk_key(ip_bucket: &str) -> String {
@@ -217,42 +183,28 @@ pub(crate) fn increment_behavior_score(
     write_counter(store, key.as_str(), next);
 }
 
-fn budget_bucket_key(ip_bucket: &str) -> String {
-    format!("{}:{}", BUDGET_BUCKET_ACTIVE_PREFIX, ip_bucket)
+pub(crate) fn budget_bucket_key(bucket_prefix: &str, ip_bucket: &str) -> String {
+    crate::deception::primitives::budget_bucket_key(bucket_prefix, ip_bucket)
 }
 
-fn try_acquire_budget<'a, S: MazeStateStore>(
+pub(crate) fn try_acquire_shared_budget<'a, S: MazeStateStore>(
     store: &'a S,
-    cfg: &crate::config::Config,
+    governor: SharedBudgetGovernor<'_>,
     ip_bucket: &str,
 ) -> Option<BudgetLease<'a, S>> {
-    let global = read_counter(store, BUDGET_GLOBAL_ACTIVE_KEY);
-    let bucket_key = budget_bucket_key(ip_bucket);
-    let bucket = read_counter(store, bucket_key.as_str());
-    if global >= cfg.maze_max_concurrent_global || bucket >= cfg.maze_max_concurrent_per_ip_bucket {
-        return None;
-    }
-
-    increment_counter(store, BUDGET_GLOBAL_ACTIVE_KEY);
-    increment_counter(store, bucket_key.as_str());
-    Some(BudgetLease {
-        store,
-        global_key: BUDGET_GLOBAL_ACTIVE_KEY.to_string(),
-        bucket_key,
-        active: true,
-    })
+    crate::deception::primitives::try_acquire_shared_budget(store, governor, ip_bucket)
 }
 
 fn token_replay_key(flow_id: &str, operation_id: &str) -> String {
-    format!("{}:{}:{}", TOKEN_REPLAY_PREFIX, flow_id, operation_id)
+    crate::deception::primitives::progression_replay_key(TOKEN_REPLAY_PREFIX, flow_id, operation_id)
 }
 
 fn token_issue_key(flow_id: &str, operation_id: &str) -> String {
-    format!("{}:{}:{}", TOKEN_ISSUE_PREFIX, flow_id, operation_id)
+    crate::deception::primitives::progression_issue_key(TOKEN_ISSUE_PREFIX, flow_id, operation_id)
 }
 
 fn token_chain_key(flow_id: &str, op_digest: &str) -> String {
-    format!("{}:{}:{}", TOKEN_CHAIN_PREFIX, flow_id, op_digest)
+    crate::deception::primitives::progression_chain_key(TOKEN_CHAIN_PREFIX, flow_id, op_digest)
 }
 
 fn checkpoint_key(flow_id: &str, ip_bucket: &str) -> String {
@@ -934,7 +886,16 @@ pub(crate) fn serve(
         }
     };
 
-    let mut budget_lease = match try_acquire_budget(store, cfg, ip_bucket.as_str()) {
+    let mut budget_lease = match try_acquire_shared_budget(
+        store,
+        SharedBudgetGovernor {
+            global_active_key: BUDGET_GLOBAL_ACTIVE_KEY,
+            bucket_active_prefix: BUDGET_BUCKET_ACTIVE_PREFIX,
+            max_concurrent_global: cfg.maze_max_concurrent_global,
+            max_concurrent_per_ip_bucket: cfg.maze_max_concurrent_per_ip_bucket,
+        },
+        ip_bucket.as_str(),
+    ) {
         Some(lease) => lease,
         None => {
             increment_behavior_score(store, ip, 1);

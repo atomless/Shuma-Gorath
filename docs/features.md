@@ -11,6 +11,7 @@
 - Proof-of-work (<abbr title="Proof of Work">PoW</abbr>) step before <abbr title="JavaScript">JS</abbr> verification (edge-served)
 - Optional browser whitelist to bypass <abbr title="JavaScript">JS</abbr> challenge
 - Maze deception stack with signed traversal tokens, rotating entropy variants, checkpointed progression, optional deep-tier micro-<abbr title="Proof of Work">PoW</abbr>, and auto-ban threshold controls
+- HTTP tarpit escalation path with bounded concurrency/time/byte controls and deterministic fallback
 - <abbr title="Chrome DevTools Protocol">CDP</abbr> automation detection and reporting (`/cdp-report`)
 - robots.txt generation and policy controls
 - Admin <abbr title="Application Programming Interface">API</abbr> (ban/unban, analytics, events, config, maze, robots, <abbr title="Chrome DevTools Protocol">CDP</abbr>)
@@ -24,7 +25,6 @@
 
 ## 🐙 Near-Term Roadmap
 - Human verification tuning (usability vs abuse resistance) and accessibility path
-- Tarpit mode (slow responses to waste bot resources)
 - Webhook notifications (Slack/Discord/PagerDuty)
 - CSV/<abbr title="JavaScript Object Notation">JSON</abbr> export for events and analytics
 - Additional geo/<abbr title="Internet Protocol">IP</abbr> intelligence sources and fallbacks

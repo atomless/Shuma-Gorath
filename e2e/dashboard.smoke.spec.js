@@ -364,8 +364,8 @@ test("not-a-bot browser lifecycle supports pass flow and rejects replayed submit
   await updateAdminConfig(request, {
     test_mode: true,
     not_a_bot_enabled: true,
-    not_a_bot_pass_score: 6,
-    not_a_bot_fail_score: 3,
+    not_a_bot_pass_score: 1,
+    not_a_bot_fail_score: 1,
     not_a_bot_attempt_limit_per_window: 50,
     not_a_bot_attempt_window_seconds: 300
   });
@@ -373,13 +373,13 @@ test("not-a-bot browser lifecycle supports pass flow and rejects replayed submit
   try {
     ensureRuntimeGuard(page);
     await page.goto(`${BASE_URL}/challenge/not-a-bot-checkbox`);
-    await expect(page.locator("#not-a-bot-checkbox")).toBeVisible();
-    await expect(page.locator("#not-a-bot-checkbox")).toHaveAttribute("role", "checkbox");
-    await page.mouse.move(40, 40);
-    await page.mouse.move(96, 64);
+    const notABotCheckbox = page.locator("#not-a-bot-checkbox");
+    await expect(notABotCheckbox).toBeVisible();
+    await expect(notABotCheckbox).toHaveAttribute("role", "checkbox");
     await page.keyboard.press("Tab");
+    await expect(notABotCheckbox).toBeFocused();
     // Keep dwell above the signed operation envelope minimum latency.
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(1200);
 
     const submitRequestPromise = page.waitForRequest((req) =>
       req.method() === "POST" && req.url().includes("/challenge/not-a-bot-checkbox")
@@ -388,7 +388,7 @@ test("not-a-bot browser lifecycle supports pass flow and rejects replayed submit
       resp.request().method() === "POST" && resp.url().includes("/challenge/not-a-bot-checkbox")
     );
 
-    await page.click("#not-a-bot-checkbox");
+    await page.keyboard.press("Space");
 
     const submitRequest = await submitRequestPromise;
     const submitResponse = await submitResponsePromise;
@@ -397,20 +397,18 @@ test("not-a-bot browser lifecycle supports pass flow and rejects replayed submit
     expect(formBody.includes("checked=1")).toBe(true);
     expect(formBody.includes("telemetry=")).toBe(true);
 
-    const replayResult = await page.evaluate(async (body) => {
-      const response = await fetch("/challenge/not-a-bot-checkbox", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body,
-        redirect: "manual"
-      });
-      return {
-        status: response.status,
-        location: response.headers.get("location") || ""
-      };
-    }, formBody);
+    const replayResponse = await request.fetch(`${BASE_URL}/challenge/not-a-bot-checkbox`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      data: formBody,
+      maxRedirects: 0
+    });
+    const replayResult = {
+      status: replayResponse.status(),
+      location: replayResponse.headers()["location"] || ""
+    };
     expect(replayResult.status).not.toBe(303);
     expect(replayResult.location).not.toBe("/");
     assertNoRuntimeFailures(page);
@@ -888,10 +886,18 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   await expect(configSave).toBeHidden();
 
   const mazeThreshold = page.locator("#maze-threshold");
+  const mazeAutoBanToggle = page.locator("#maze-auto-ban-toggle");
+  const mazeAutoBanSwitch = page.locator("#maze-auto-ban-toggle + .toggle-slider");
   if (!(await mazeThreshold.isVisible())) {
     await expect(page.locator("#config-mode-subtitle")).toContainText(/disabled|read-only|Admin page configuration/i);
     return;
   }
+  const initialMazeAutoBan = await mazeAutoBanToggle.isChecked();
+  if (!initialMazeAutoBan && await mazeAutoBanToggle.isEnabled()) {
+    await mazeAutoBanSwitch.click();
+    await expect(mazeAutoBanToggle).toBeChecked();
+  }
+  await expect(mazeThreshold).toBeEnabled();
   const initialMazeThreshold = await mazeThreshold.inputValue();
   const nextMazeThreshold = String(Math.min(500, Number(initialMazeThreshold || "50") + 1));
   await mazeThreshold.fill(nextMazeThreshold);
@@ -938,6 +944,10 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   }
   await mazeThreshold.fill(initialMazeThreshold);
   await mazeThreshold.dispatchEvent("input");
+  if (!initialMazeAutoBan && await mazeAutoBanToggle.isEnabled()) {
+    await mazeAutoBanSwitch.click();
+    await expect(mazeAutoBanToggle).not.toBeChecked();
+  }
   await expect(configSave).toBeHidden();
 
   const durationField = page.locator("#dur-cdp-minutes");

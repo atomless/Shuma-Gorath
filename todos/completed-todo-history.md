@@ -2,6 +2,69 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-02-23)
+
+### P0 Deployment Path Excellence (Single-Host + Akamai/Fermyon)
+
+- [x] DEP-SH-1 Publish an explicit single-host (`self_hosted_minimal`) production runbook for average VM/shared-host operators with a 10-minute secure baseline (start/health/rollback).
+- [x] DEP-SH-2 Add a single-host post-deploy smoke verification Make target (health, admin auth, metrics, and challenge-route sanity).
+- [x] DEP-SH-3 Add `make setup-runtime` for minimal single-host/runtime installs (Rust + wasm target + Spin + config bootstrap prerequisites) without full dev/e2e toolchain.
+- [x] DEP-SH-4 Add `make verify-runtime` so single-host operators can validate runtime prerequisites without requiring Node/pnpm/Playwright checks.
+- [x] DEP-SH-5 Keep `make setup` as full contributor/dev path; document explicit selection guidance between runtime-only and full-dev setup flows.
+- [x] DEP-SH-6 Split build/deploy targets so single-host production build paths do not require dashboard bundle-budget checks; keep budget gates in CI/full-dev verification targets.
+- [x] DEP-SH-7 Add profile-first deployment wrappers/docs that keep one common baseline path and layer enterprise-only steps on top (`self_hosted_minimal` base + `enterprise_akamai` overlay).
+
+### P1 Research Dossiers (Paper-by-Paper TODOs)
+
+#### Rate Limiting, Tarpit, and Cost-Imposition
+
+- [x] R-RL-01 Review Raghavan et al., "Cloud Control with Distributed Rate Limiting" (SIGCOMM 2007) and extract distributed limiter semantics for Shuma provider adapters. https://www.microsoft.com/en-us/research/publication/cloud-control-with-distributed-rate-limiting/
+- [x] R-RL-03 Review Veroff et al., "Evaluation of a low-rate DoS attack against application servers" (Computers & Security 2008) and capture queue/resource-starvation mitigation patterns. https://doi.org/10.1016/j.cose.2008.07.004
+- [x] R-RL-05 Review Srivatsa et al., "Mitigating application-level denial of service attacks on Web servers" (ACM TWEB 2008) and assess admission/congestion control patterns for Shuma policy pipeline. https://research.ibm.com/publications/mitigating-application-level-denial-of-service-attacks-on-web-servers-a-client-transparent-approach
+- [x] R-RL-06 Review Lemon, "Resisting SYN flood DoS attacks with a SYN cache" (BSDCon 2002) and capture edge-vs-origin queue protection lessons relevant to Akamai authoritative mode. https://www.usenix.org/legacy/publications/library/proceedings/bsdcon02/full_papers/lemon/lemon_html/index.html
+- [x] R-RL-07 Review Chen et al., "SMARTCOOKIE" (USENIX Security 2024) and evaluate split-proxy edge-cookie architecture fit for enterprise Akamai deployments. https://collaborate.princeton.edu/en/publications/smartcookie-blocking-large-scale-syn-floods-with-a-split-proxy-de/
+- [x] TP-C1 Reuse shared deception token primitives from maze scope (`MZ-2`) for tarpit progression; do not introduce a tarpit-only token format.
+- [x] TP-C2 Reuse shared budget/fallback primitives from maze scope (`MZ-7`) for tarpit limits and deterministic fallback; do not fork budget logic by mode.
+- [x] TP-0 Implement internal tarpit availability path so abuse-grade challenge failures can sink into tarpit instead of immediate short-ban when maze/tarpit capability is available.
+- [x] TP-1 Add tarpit config surface (`tarpit_enabled`, pacing/timeout caps, budget caps, fallback action) with secure defaults and clamping.
+- [x] TP-2 Ensure all tarpit KV-editable variables appear in Advanced JSON config and admin/config schema parity checks (env-only exceptions remain env-only).
+- [x] TP-3 Implement bounded progressive tarpit behavior with configurable byte-rate and hard timeout, reusing shared primitives.
+- [x] TP-4 Enforce strict tarpit budgets (global concurrent streams and per-IP-bucket caps) through the shared budget governor and emit explicit saturation outcomes.
+- [x] TP-5 Add deterministic fallback action when tarpit budget is exhausted (`maze` or `block`) via shared fallback matrix.
+- [x] TP-6 Add tarpit metrics/admin visibility for activation, saturation, duration, bytes sent, budget fallback, and escalation outcomes.
+- [x] TP-7 Escalate persistent tarpit clients to short-ban/block with guardrails to minimize false positives.
+- [x] TP-8 Add tarpit integration/e2e coverage (abuse route -> tarpit, budget saturation fallback, replay/tamper paths, and mode/config propagation).
+- [x] TP-9 Integrate tarpit budgets/counters with distributed-state work for multi-instance consistency (site-scoped counter keys and site-filtered admin visibility; enterprise authoritative external maze/tarpit backend remains tracked via `OUT-5`/`DEP-ENT-*`).
+
+#### SSH Tarpit and Honeypot Evasion Resistance
+
+- [x] R-SSH-02 Review Bythwood et al., "Fingerprinting Bots in a Hybrid Honeypot" (IEEE SoutheastCon 2023) and assess hybrid interaction design implications for SSH deception tiers. https://doi.org/10.1109/SoutheastCon51012.2023.10115143
+- [x] R-SSH-03 Review Vetterl et al., "A Comparison of an Adaptive Self-Guarded Honeypot with Conventional Honeypots" (Applied Sciences 2022) and evaluate adaptive risk-vs-observability controls for Shuma SSH tarpit mode. https://doi.org/10.3390/app12105224
+- [x] R-SSH-04 Review Cordeiro/Vasilomanolakis, "Towards agnostic OT honeypot fingerprinting" (TMA 2025) and extract transport-stack realism requirements applicable to SSH tarpit surfaces. https://doi.org/10.23919/TMA66427.2025.11097018
+
+#### IP Range Policy, Reputation Feeds, and GEO Fencing
+
+- [x] R-IP-01 Review Ramanathan et al., "BLAG: Improving the Accuracy of Blacklists" (NDSS 2020) and derive feed-aggregation + false-positive controls for managed CIDR sets. https://doi.org/10.14722/ndss.2020.24232
+- [x] R-IP-02 Review Sheng et al., "An Empirical Analysis of Phishing Blacklists" (2009) and extract freshness/latency requirements for update cadence and rollout safety. https://kilthub.cmu.edu/articles/journal_contribution/An_Empirical_Analysis_of_Phishing_Blacklists/6469805
+- [x] R-IP-03 Review Oest et al., "PhishTime" (USENIX Security 2020) and map continuous quality-measurement methodology to Shuma feed validation. https://www.usenix.org/conference/usenixsecurity20/presentation/oest-phishtime
+- [x] R-IP-04 Review Li et al., "HADES Attack" (NDSS 2025) and define anti-poisoning controls for any external blocklist ingestion pipeline. https://doi.org/10.14722/ndss.2025.242156
+- [x] R-IP-05 Review Deri/Fusco, "Evaluating IP Blacklists effectiveness" (FiCloud 2023) and identify practical precision/recall limits for aggressive edge enforcement. https://research.ibm.com/publications/evaluating-ip-blacklists-effectiveness
+
+### P2 Challenge Roadmap
+
+- [x] NAB-0 Research and policy synthesis: keep `docs/research/2026-02-19-not-a-bot-challenge-research-synthesis.md`, `docs/plans/2026-02-13-not-a-bot-excellence-plan.md`, and `todos/not-a-bot-spec.md` aligned as the single implementation source.
+- [x] NAB-1 Implement Not-a-Bot checkbox (`/challenge/not-a-bot-checkbox`) per `todos/not-a-bot-spec.md` with signed short-lived single-use nonce and IP-bucket binding.
+- [x] NAB-2 Implement Not-a-Bot telemetry capture/validation and deterministic scoring model (`0..10`) with threshold routing (`pass`, `escalate_puzzle`, `maze_or_block`).
+- [x] NAB-3 Add Not-a-Bot verification marker/token issuance after pass and enforce it in routing flow.
+- [x] NAB-4 Add Not-a-Bot routing integration so medium-certainty traffic hits Not-a-Bot before puzzle escalation, with deterministic maze/block fallback.
+- [x] NAB-5 Add Not-a-Bot admin visibility/config controls for thresholds, TTL, and attempt caps (read-only defaults plus optional mutability controls).
+- [x] NAB-6 Add Not-a-Bot monitoring parity (`served`, `pass`, `escalate`, `fail`, `replay`, solve-latency buckets, abandonment estimate) and dashboard exposure.
+- [x] NAB-7 Add dedicated e2e browser coverage for Not-a-Bot lifecycle and replay/abuse paths (unit + integration coverage is now in place).
+- [x] NAB-8 Add operator docs and threshold tuning guidance aligned to low-friction managed-first routing.
+- [x] NAB-9 Align Not-a-Bot control behavior to one-step state-of-the-art UX (checkbox-like control + auto-progress on activation).
+- [x] NAB-10 Explicitly document the very-low-certainty managed/invisible path mapping (passive + JS/PoW) and keep Not-a-Bot medium-certainty only.
+- [x] NAB-11 Preserve accessibility-neutral scoring policy: keyboard/touch flows remain pass-capable; assistive paths are never direct negative signals.
+
 ## Additional completions (2026-02-20)
 
 ### P1 IP Range Policy Controls

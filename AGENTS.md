@@ -19,6 +19,8 @@ This file provides instructions for coding agents working in this repository.
 - Prefer asymmetric designs where attacker cost rises faster than defender cost.
 - Prioritize resource efficiency (bandwidth, CPU, memory, energy).
 - Keep architecture modular and platform-agnostic.
+- For user-facing help text and documentation, prefer clear and helpful explanations over brevity.
+- Treat this repository as pre-launch by default: do not add backward-compatibility aliases/shims/migration layers unless the user explicitly requests them for the specific change.
 
 ## Required workflow for non-trivial changes
 
@@ -56,6 +58,10 @@ This file provides instructions for coding agents working in this repository.
    - keep dev-only overrides intentional for local manual config/monitoring/tuning workflows (do not silently broaden them),
    - ensure tests leave no strange state behind (restore env mutations and reset runtime config they toggle),
    - ensure production-start defaults remain secure-by-default (no debug/unsafe defaults enabled by default).
+13. Keep admin-writable config and Dashboard Advanced JSON in strict parity:
+   - every KV-editable key accepted by `POST /admin/config` must appear in `dashboard/src/lib/domain/config-schema.js` Advanced JSON paths,
+   - env-only keys remain excluded,
+   - maintain/update parity tests so drift fails fast.
 
 ## Security and abuse posture
 
@@ -68,7 +74,7 @@ This file provides instructions for coding agents working in this repository.
 - Respect module boundaries documented in `docs/module-boundaries.md`.
 - If internal feature work touches a capability covered by `src/providers/contracts.rs`, route the change through the provider interface and registry path rather than adding new direct module calls.
 - Use ADRs (`docs/adr/0000-template.md`) for cross-cutting architecture/security/ops decisions.
-- Keep compatibility shims temporary and remove when migrations complete.
+- Avoid compatibility shims in pre-launch work; if an exception is explicitly requested, keep it tightly scoped, temporary, and documented with removal criteria.
 - Use descriptive Rust module/file naming: prefer clear, responsibility-revealing `snake_case` names (for example `request_validation.rs`, `browser_user_agent.rs`) over vague names.
 - Prefer explicit module files (`foo.rs`) over opaque `mod.rs` for new work when practical; keep directory + filename understandable without opening the file.
 - Keep `.env.local` entries in unquoted `KEY=value` form for consistency. The setup script normalizes quoted values, so avoid introducing new quoted scalars unless a value truly needs shell quoting semantics.

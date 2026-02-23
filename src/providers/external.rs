@@ -976,6 +976,10 @@ impl MazeTarpitProvider for UnsupportedExternalMazeTarpitProvider {
         internal::MAZE_TARPIT.is_maze_path(path)
     }
 
+    fn tarpit_progress_path(&self) -> &'static str {
+        internal::MAZE_TARPIT.tarpit_progress_path()
+    }
+
     fn serve_maze_with_tracking(
         &self,
         req: &Request,
@@ -999,6 +1003,29 @@ impl MazeTarpitProvider for UnsupportedExternalMazeTarpitProvider {
             event_outcome,
             botness_hint,
         )
+    }
+
+    fn maybe_handle_tarpit(
+        &self,
+        req: &Request,
+        store: &Store,
+        cfg: &crate::config::Config,
+        site_id: &str,
+        ip: &str,
+    ) -> Option<Response> {
+        internal::MAZE_TARPIT.maybe_handle_tarpit(req, store, cfg, site_id, ip)
+    }
+
+    fn handle_tarpit_progress(
+        &self,
+        req: &Request,
+        store: &Store,
+        cfg: &crate::config::Config,
+        site_id: &str,
+        ip: &str,
+        user_agent: &str,
+    ) -> Response {
+        internal::MAZE_TARPIT.handle_tarpit_progress(req, store, cfg, site_id, ip, user_agent)
     }
 }
 
