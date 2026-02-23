@@ -67,15 +67,13 @@ pub(crate) fn handle_progress(
     let raw_token = payload
         .get("token")
         .and_then(|value| value.as_str())
-        .unwrap_or("")
-        .trim()
-        .to_string();
+        .map(|value| value.trim().to_string())
+        .unwrap_or_default();
     let nonce = payload
         .get("nonce")
         .and_then(|value| value.as_str())
-        .unwrap_or("")
-        .trim()
-        .to_string();
+        .map(|value| value.trim().to_string())
+        .unwrap_or_default();
     if raw_token.is_empty() || nonce.is_empty() {
         return ProgressHttpResult {
             response: Response::new(400, "Missing token or nonce"),

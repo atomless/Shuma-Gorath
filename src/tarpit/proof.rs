@@ -87,7 +87,8 @@ mod tests {
 
     #[test]
     fn hashcash_verifier_rejects_missing_nonce() {
-        assert!(!verify_hashcash("token", "", 10));
+        let missing_nonce = String::new();
+        assert!(!verify_hashcash("token", missing_nonce.as_str(), 10));
     }
 
     #[test]
