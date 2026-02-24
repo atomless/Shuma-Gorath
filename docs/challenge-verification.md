@@ -2,11 +2,22 @@
 
 This document describes the challenge system that is currently implemented.
 
+## 🐙 Design Value and Cost Placement
+
+Challenge controls are implemented as part of an escalation ladder, not as a single always-on barrier:
+
+- lower-friction paths are preferred first,
+- stronger challenge cost is applied only as confidence rises,
+- user-grade failures and abuse-grade failures are handled differently to preserve both usability and abuse resistance.
+
+For the capability-level research and value map, see `value-proposition.md`.
+
 ## 🐙 Current Puzzle
 
 - Grid puzzle with one worked example (`Before` -> `After`) and one user attempt
 - 4x4 grid with two active tones (black/pink)
 - Active cells per puzzle are randomized (7-9)
+- Puzzle logic is ARC-style (Abstraction and Reasoning Corpus style): users infer and apply abstract transform rules, not fixed captcha text/image classes
 - User solves by selecting the 1st and 2nd transforms from the legend
 - Transform set is ordered and configurable by count:
   - `shift up`, `shift down`, `shift left`, `shift right`

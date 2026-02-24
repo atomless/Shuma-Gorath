@@ -104,7 +104,7 @@ Fingerprinting currently relies on a limited set of in-app signals and an extern
 ## Research Addendum (2026-02-16)
 
 The `R-FP-01`..`R-FP-09` paper tranche is now completed in:
-`docs/research/2026-02-16-fingerprinting-research-synthesis.md`.
+`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`.
 
 Execution-priority deltas from that synthesis:
 

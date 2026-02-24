@@ -146,16 +146,16 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
   http://127.0.0.1:3000/admin/config
 ```
 
-Test mode is a <abbr title="Key-Value">KV</abbr>-backed runtime tunable; use dashboard or `POST /admin/config` to change it.
+Test mode is a <abbr title="Key-Value">KV</abbr>-backed admin-editable runtime setting; use dashboard or `POST /admin/config` to change it.
 
 ### 🐙 Default Config
-Defaults are defined in `config/defaults.env` and seeded into <abbr title="Key-Value">KV</abbr>:
+Defaults are defined in `config/defaults.env` and seeded into <abbr title="Key-Value">KV</abbr> for admin-editable runtime settings:
 - **Ban duration**: 21600 seconds (6 hours)
 - **Rate limit**: 80 requests/minute
 - **Honeypots**: `/instaban`
 - **Browser blocks**: Chrome <120, Firefox <115, Safari <15
 
-Full configuration reference: `docs/configuration.md`.
+Full configuration reference (including configuration-class explanation): `docs/configuration.md`.
 
 ## 🐙 Dashboard
 

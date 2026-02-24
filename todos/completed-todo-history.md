@@ -2,6 +2,15 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-02-24)
+
+### P0 Documentation Clarity and Information Architecture
+
+- [x] DOC-OPS-1 Replace operator-facing jargon in user docs with plain language, including one canonical explanation of configurable values:
+  variables editable in Admin (stored in runtime config) vs variables that are environment-only (set before startup).
+- [x] DOC-OPS-2 Audit `docs/plans/` and `docs/research/` document-by-document, then archive completed or superseded material into dedicated `archive/` subdirectories while keeping active work at top level.
+- [x] DOC-OPS-3 Create a single dedicated tarpit implementation reference document and consolidate scattered tarpit explanations to point to this canonical source.
+
 ## Additional completions (2026-02-23)
 
 ### P0 Deployment Path Excellence (Single-Host + Akamai/Fermyon)
@@ -386,7 +395,7 @@ Moved from active TODO files on 2026-02-14.
 
 ### todos/todo.md (Stage 2.5 completion)
 
-- [x] MZ-X0.R through MZ-X10.R completed via Stage 2.5 research synthesis memo in `/docs/research/2026-02-15-stage2.5-maze-efficiency-and-asymmetry.md`.
+- [x] MZ-X0.R through MZ-X10.R completed via Stage 2.5 research synthesis memo in `/docs/research/archive/2026-02-15-stage2.5-maze-efficiency-and-asymmetry.md`.
 - [x] MZ-X0.I completed: Web Worker-first client expansion now uses compact signed seed bootstrap with deterministic fallback behavior when worker/proof cannot complete.
 - [x] MZ-X1.I + MZ-X5.I completed: exact path commitment, chain marker checks, sibling edge-operation uniqueness, replay enforcement, and branch-budget-aware progressive issuance checks.
 - [x] MZ-X2.I + MZ-X9.I completed: compact maze shell with external versioned shared assets and adaptive styling tiers (full/lite/machine, optional no-CSS deep tier).
@@ -520,15 +529,15 @@ Moved from active TODO files on 2026-02-14.
 - [x] DSH-3 Refactor monolithic dashboard orchestration into tab-scoped controllers/modules with clear lifecycle (`init`, `mount`, `unmount`, `refresh`) and no cross-tab hidden coupling.
 
 #### Fingerprinting, JS Verification, and CDP-Adjacent Detection
-- [x] R-FP-01 Review Peter Eckersley, "How Unique Is Your Web Browser?" (PETS 2010) and extract entropy-design implications for Shuma fingerprint signals and replay windows. https://link.springer.com/chapter/10.1007/978-3-642-14527-8_1 (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
-- [x] R-FP-02 Review Acar et al., "The Web Never Forgets" (CCS 2014) and derive tracking/fingerprint abuse patterns relevant to bot-detection evasion hardening. https://doi.org/10.1145/2660267.2660347 (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
-- [x] R-FP-03 Review Vastel et al., "FP-STALKER" (IEEE S&P 2018) and define time-evolution checks for Shuma fingerprint consistency logic. https://doi.org/10.1109/SP.2018.00008 (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
-- [x] R-FP-04 Review Jonker/Krumnow/Vlot, "Fingerprint Surface-Based Detection of Web Bot Detectors" (ESORICS 2019) and identify detector-surface minimization requirements. https://doi.org/10.1007/978-3-030-29962-0_28 (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
-- [x] R-FP-05 Review Azad et al., "Web Runner 2049: Evaluating Third-Party Anti-bot Services" and extract anti-evasion architecture lessons for internal-vs-edge integration boundaries. https://pmc.ncbi.nlm.nih.gov/articles/PMC7338186/ (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
-- [x] R-FP-06 Review Iliou et al., "Detection of advanced web bots by combining web logs with mouse behavioural biometrics" (DTRAP 2021) and assess feasibility of low-friction behavior features in Shuma. https://doi.org/10.1145/3447815 (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
-- [x] R-FP-07 Review Zhao et al., "Toward the flow-centric detection of browser fingerprinting" (Computers & Security 2024) and evaluate flow-level JS signal extraction options. https://doi.org/10.1016/j.cose.2023.103642 (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
-- [x] R-FP-08 Review Venugopalan et al., "FP-Inconsistent: Detecting Evasive Bots using Browser Fingerprint Inconsistencies" (2024) and define cross-attribute consistency checks for Shuma scoring. https://arxiv.org/abs/2406.07647 (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
-- [x] R-FP-09 Review Bursztein et al., "Picasso: Lightweight Device Class Fingerprinting for Web Clients" (SPSM 2016) and assess replay-resistant challenge-bound fingerprint options. https://doi.org/10.1145/2994459.2994467 (summarized in `docs/research/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-01 Review Peter Eckersley, "How Unique Is Your Web Browser?" (PETS 2010) and extract entropy-design implications for Shuma fingerprint signals and replay windows. https://link.springer.com/chapter/10.1007/978-3-642-14527-8_1 (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-02 Review Acar et al., "The Web Never Forgets" (CCS 2014) and derive tracking/fingerprint abuse patterns relevant to bot-detection evasion hardening. https://doi.org/10.1145/2660267.2660347 (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-03 Review Vastel et al., "FP-STALKER" (IEEE S&P 2018) and define time-evolution checks for Shuma fingerprint consistency logic. https://doi.org/10.1109/SP.2018.00008 (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-04 Review Jonker/Krumnow/Vlot, "Fingerprint Surface-Based Detection of Web Bot Detectors" (ESORICS 2019) and identify detector-surface minimization requirements. https://doi.org/10.1007/978-3-030-29962-0_28 (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-05 Review Azad et al., "Web Runner 2049: Evaluating Third-Party Anti-bot Services" and extract anti-evasion architecture lessons for internal-vs-edge integration boundaries. https://pmc.ncbi.nlm.nih.gov/articles/PMC7338186/ (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-06 Review Iliou et al., "Detection of advanced web bots by combining web logs with mouse behavioural biometrics" (DTRAP 2021) and assess feasibility of low-friction behavior features in Shuma. https://doi.org/10.1145/3447815 (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-07 Review Zhao et al., "Toward the flow-centric detection of browser fingerprinting" (Computers & Security 2024) and evaluate flow-level JS signal extraction options. https://doi.org/10.1016/j.cose.2023.103642 (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-08 Review Venugopalan et al., "FP-Inconsistent: Detecting Evasive Bots using Browser Fingerprint Inconsistencies" (2024) and define cross-attribute consistency checks for Shuma scoring. https://arxiv.org/abs/2406.07647 (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-09 Review Bursztein et al., "Picasso: Lightweight Device Class Fingerprinting for Web Clients" (SPSM 2016) and assess replay-resistant challenge-bound fingerprint options. https://doi.org/10.1145/2994459.2994467 (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
 - [x] Strengthen fingerprinting by hardening internal baseline signals first, then ingesting trusted upstream edge signals (JA3/JA4 and similar) with provenance checks and explicit internal fallback when edge headers are absent or untrusted.
 - [x] Phase 1 completed: normalized fingerprint signals now carry provenance/confidence metadata, family entropy budgeting/caps are enforced, and data-minimization controls (TTL/pseudonymization/export visibility) are wired and documented.
 - [x] Phase 2 completed: cross-layer mismatch heuristics (UA/client-hint/transport), temporal coherence detection IDs, and bounded flow-window fingerprint telemetry are active.

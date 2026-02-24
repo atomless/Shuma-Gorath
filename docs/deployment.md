@@ -9,12 +9,15 @@ For the current deployment-track execution backlog (single-host baseline and ent
 
 ## 🐙 Runtime Configuration Model
 
-- Tunables are loaded from <abbr title="Key-Value">KV</abbr> (`config:default`) only.
-- Env vars are secrets/guardrails only.
-- `make setup` and `make setup-runtime` seed <abbr title="Key-Value">KV</abbr> tunables from `config/defaults.env` using `make config-seed`.
+- Admin-editable runtime settings are loaded from <abbr title="Key-Value">KV</abbr> (`config:default`).
+- Environment-only variables are secrets/guardrails and are read from process env.
+- `make setup` and `make setup-runtime` seed <abbr title="Key-Value">KV</abbr>-backed admin-editable settings from `config/defaults.env` using `make config-seed`.
 - Runtime config is process-cached for a short <abbr title="Time To Live">TTL</abbr> (2 seconds) to reduce hot-path <abbr title="Key-Value">KV</abbr> reads.
 - `POST /admin/config` invalidates cache on the handling instance; other instances converge on their <abbr title="Time To Live">TTL</abbr> window.
 - `GET /admin/config/export` provides a non-secret `KEY=value` handoff snapshot for immutable redeploy workflows.
+
+For the canonical explanation of these two configuration classes, see:
+`docs/configuration.md#configuration-sources-admin-editable-runtime-settings-vs-environment-only-variables`.
 
 If <abbr title="Key-Value">KV</abbr> config is missing/invalid at runtime, config-dependent request handling fails with `500 Configuration unavailable`.
 

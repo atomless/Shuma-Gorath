@@ -1,10 +1,26 @@
 # 🐙 Configuration
 
-Shuma-Gorath uses one runtime configuration model:
+Shuma-Gorath uses two configuration sources:
 
-- Tunables are stored in <abbr title="Key-Value">KV</abbr> under `config:<site_id>` (default `config:default`).
-- Env vars are reserved for secrets and runtime guardrails.
-- `config/defaults.env` is the canonical source for defaults (no hidden tunable defaults in Rust).
+1. **Admin-editable runtime settings** are stored in <abbr title="Key-Value">KV</abbr> under `config:<site_id>` (default `config:default`) and can be changed via dashboard or `POST /admin/config`.
+2. **Environment-only variables** are read from process environment and are reserved for secrets and deployment/runtime guardrails.
+
+`config/defaults.env` is the canonical source for defaults (no hidden defaults in Rust).
+
+## Configuration Sources: Admin-Editable Runtime Settings vs Environment-Only Variables
+
+This section is the canonical operator explanation of configuration classes.
+
+- **Admin-editable runtime settings (<abbr title="Key-Value">KV</abbr>-backed):**
+  - Stored in <abbr title="Key-Value">KV</abbr> (`config:<site_id>`).
+  - Editable at runtime in the dashboard or via `POST /admin/config` (when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`).
+  - Usually apply quickly without restart (instance-local cache invalidates on write; other instances converge within cache <abbr title="Time To Live">TTL</abbr>).
+  - Best for operational tuning values (for example rate thresholds, challenge routing knobs, maze/tarpit feature toggles).
+- **Environment-only variables:**
+  - Set outside the app (secret manager, deploy environment, or `.env.local` for local dev).
+  - Not writable via dashboard/admin config <abbr title="Application Programming Interface">API</abbr>.
+  - Used for secrets, trust-boundary controls, and deployment guardrails.
+  - Changes generally require restart/redeploy.
 
 ## 🐙 Startup Model
 
@@ -12,15 +28,15 @@ Shuma-Gorath uses one runtime configuration model:
 
 1. Creates `.env.local` from `config/defaults.env` if missing.
 2. Generates local dev secrets in `.env.local` (`SHUMA_API_KEY`, `SHUMA_JS_SECRET`, `SHUMA_FORWARDED_IP_SECRET`).
-3. Runs `make config-seed`, which creates `config:default` when missing and backfills newly introduced tunable keys when the record already exists.
+3. Runs `make config-seed`, which creates `config:default` when missing and backfills newly introduced admin-editable keys when the record already exists.
 4. Normalizes `.env.local` entries to unquoted `KEY=value` style for consistency.
 
 At runtime:
 
-- Tunables are loaded from <abbr title="Key-Value">KV</abbr>.
+- Admin-editable runtime settings are loaded from <abbr title="Key-Value">KV</abbr>.
 - Env-only keys are loaded from process env.
 - Missing/invalid <abbr title="Key-Value">KV</abbr> config returns `500 Configuration unavailable` for config-dependent requests.
-- `make dev`, `make run`, `make run-prebuilt`, and `make prod` now run `make config-seed` before Spin startup (and `make dev`/`make dev-closed` also backfill on watch-triggered restarts), so newly added tunables are automatically backfilled after branch switches or `make clean`.
+- `make dev`, `make run`, `make run-prebuilt`, and `make prod` now run `make config-seed` before Spin startup (and `make dev`/`make dev-closed` also backfill on watch-triggered restarts), so newly added admin-editable settings are automatically backfilled after branch switches or `make clean`.
 
 ## 🐙 Runtime Config Cache
 
@@ -65,7 +81,7 @@ These are read from process env at runtime (not from <abbr title="Key-Value">KV<
 
 Use `make env-help` for the supported env-only override list.
 
-### 🐙 <abbr title="Key-Value">KV</abbr> Tunables (Seeded From `config/defaults.env`)
+### 🐙 <abbr title="Key-Value">KV</abbr>-Backed Admin-Editable Runtime Settings (Seeded From `config/defaults.env`)
 
 These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <abbr title="Key-Value">KV</abbr> at runtime.
 
@@ -132,11 +148,6 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | `SHUMA_IP_RANGE_MANAGED_MAX_STALENESS_HOURS` | `168` | Maximum allowed age (hours) for the managed catalog in enforce mode before managed-set actions are skipped. |
 | `SHUMA_IP_RANGE_ALLOW_STALE_MANAGED_ENFORCE` | `false` | Explicit override to keep enforce-mode managed-set actions active even when the managed catalog is stale. |
 
-Managed catalog operations:
-
-- Refresh built-in managed <abbr title="Classless Inter-Domain Routing">CIDR</abbr> catalog from official sources with guardrails:
-  `make ip-range-catalog-update`
-- See operational rollout/rollback guidance in `docs/ip-range-policy-runbook.md`.
 | `SHUMA_MAZE_ENABLED` | `true` | Enables maze feature. |
 | `SHUMA_TARPIT_ENABLED` | `true` | Enables tarpit handling for abuse-grade challenge failures (active only when maze is enabled). |
 | `SHUMA_TARPIT_PROGRESS_TOKEN_TTL_SECONDS` | `120` | Signed progression token lifetime for work-gated tarpit steps (seconds). |
@@ -212,13 +223,19 @@ Managed catalog operations:
 | `SHUMA_FINGERPRINT_FAMILY_CAP_PERSISTENCE` | `1` | Per-family cap for persistence-abuse fingerprint contributions. |
 | `SHUMA_FINGERPRINT_FAMILY_CAP_BEHAVIOR` | `2` | Per-family cap for low-friction behavioral fingerprint contributions. |
 
+Managed catalog operations:
+
+- Refresh built-in managed <abbr title="Classless Inter-Domain Routing">CIDR</abbr> catalog from official sources with guardrails:
+  `make ip-range-catalog-update`
+- See operational rollout/rollback guidance in `docs/ip-range-policy-runbook.md`.
+
 ## 🐙 Admin Config Writes
 
 - `GET /admin/config` reads effective <abbr title="Key-Value">KV</abbr>-backed config.
 - `POST /admin/config` writes to <abbr title="Key-Value">KV</abbr> only when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`.
 - `POST /admin/config/validate` runs the same config validators as `POST /admin/config` without persisting writes (returns structured validation issues).
 - `GET /admin/config/export` returns a non-secret deploy handoff snapshot as env-style key/value output:
-  - `env`: object of deploy-ready `SHUMA_*` non-secret values (env guardrails + <abbr title="Key-Value">KV</abbr> tunables),
+  - `env`: object of deploy-ready `SHUMA_*` non-secret values (env guardrails + <abbr title="Key-Value">KV</abbr>-backed admin-editable settings),
   - `env_text`: newline-delimited `KEY=value` output for copy/paste into immutable deploy config,
   - `excluded_secrets`: explicit list of secret keys intentionally omitted (includes `SHUMA_RATE_LIMITER_REDIS_URL` and `SHUMA_BAN_STORE_REDIS_URL`).
 - Successful writes invalidate runtime config cache on the instance that processed the request.
@@ -238,7 +255,7 @@ The following <abbr title="Key-Value">KV</abbr>-backed fields are currently writ
 
 Shuma follows a 2-class model only:
 - Env-only runtime keys in the Env-Only table above.
-- <abbr title="Key-Value">KV</abbr>-backed tunables writable via `POST /admin/config`.
+- <abbr title="Key-Value">KV</abbr>-backed admin-editable runtime settings writable via `POST /admin/config`.
 
 ## 🐙 <abbr title="JavaScript">JS</abbr> Verification + <abbr title="Proof of Work">PoW</abbr>
 
@@ -249,15 +266,13 @@ Shuma follows a 2-class model only:
 
 ## 🐙 Challenge Failures and Tarpit Routing
 
-Operator summary: tarpit is an abuse-only escalation layer, not a normal user-failure path. Routine challenge failures go to maze (or block if maze is disabled), while replay/tamper/sequence/attempt abuse can route to tarpit when both maze and tarpit are enabled. Tarpit is work-gated: the client must repeatedly present valid signed step tokens and hashcash proofs; each step is bound to source identity, replay/order checked, and limited by strict concurrency and egress budgets. If budgets are exhausted, fallback is deterministic (`maze` or `block`), and repeated tarpit persistence escalates to short ban, then block.
-
-Shuma separates normal challenge failures from abuse-grade failures:
+Operator summary:
 
 - Not-a-Bot user failures (score below `not_a_bot_fail_score`) route to maze when enabled, otherwise block.
 - Puzzle user failures (wrong/low-confidence answer paths) route to maze when enabled, otherwise block.
-- Abuse-grade failures (for example replay, seed tampering, sequence violations, attempt-window abuse) use tarpit-or-short-ban routing.
+- Abuse-grade failures (for example replay, seed tampering, sequence violations, attempt-window abuse) can route to tarpit when both maze and tarpit are enabled.
 
-Tarpit is served only when all of the following are true:
+Tarpit activation requires all of:
 
 - `maze_enabled=true`
 - `tarpit_enabled=true`
@@ -266,36 +281,7 @@ Tarpit is served only when all of the following are true:
 - tarpit persistence escalation has not already forced short-ban/block
 - tarpit concurrency budgets are available
 
-Escalation and fallback behavior:
-
-- Persistent tarpit interactions are tracked per source <abbr title="Internet Protocol">IP</abbr> bucket.
-- Current thresholds are hard-coded guardrails:
-  - persistence counter `>= 5`: short ban (600s),
-  - persistence counter `>= 10`: hard block.
-- If tarpit budget is saturated, `tarpit_fallback_action` decides the deterministic fallback (`maze` or `block`).
-- For IP-range policy rules with `action=tarpit`, Shuma uses the same tarpit provider gate and falls back to maze/block when tarpit is unavailable.
-
-Tarpit behavior:
-
-- work-gated tarpit progression (`/tarpit/progress`) with signed single-use operation envelopes, bounded hashcash difficulty, strict chain/replay validation, and deterministic egress-budget fallback.
-
-Why Shuma moved away from classic slow-drip tarpit:
-
-- Early tarpit planning included bounded slow-drip modes, but pre-launch review showed that long-lived drip streams can push too much connection-residency risk onto the host under sustained abuse traffic.
-- In practice, the previous drip-oriented path still concentrated too much server-side payload generation in one response body, which did not deliver the intended attacker/defender cost asymmetry.
-- The current v2 direction prioritizes bounded host cost and explicit control:
-  - small entry response,
-  - iterative proof-gated progression,
-  - strict replay/order/binding checks,
-  - hard global/per-bucket/per-flow egress budgets,
-  - deterministic fallback and persistence escalation.
-- This is a deliberate departure from transport-delay-first tarpits: Shuma favors work-gated, budget-capped cost imposition because it is easier to bound operationally while still raising bot-side cost.
-
-Research references:
-
-- Tarpit research collection index: [`research/README.md`](research/README.md)
-- Latest tarpit docs re-review addendum: [`research/2026-02-23-tarpit-docs-rereview-addendum.md`](research/2026-02-23-tarpit-docs-rereview-addendum.md)
-- Cost-shift synthesis baseline: [`research/2026-02-22-http-tarpit-cost-shift-research-synthesis.md`](research/2026-02-22-http-tarpit-cost-shift-research-synthesis.md)
+For full tarpit implementation detail (flow mechanics, progression token chain, proof gates, budget model, fallback/escalation, and rationale vs classic slow-drip tarpits), see [`docs/tarpit.md`](tarpit.md).
 
 ### <abbr title="Chrome DevTools Protocol">CDP</abbr>/Fingerprint rollout controls
 

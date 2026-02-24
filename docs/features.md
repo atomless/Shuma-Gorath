@@ -23,6 +23,16 @@
 - Web dashboard for analytics and admin control
 - Makefile-based setup, build, and test workflows
 
+## 🐙 Why These Features Are Valuable
+
+Shuma’s feature set is implemented with an explicit asymmetry target:
+
+- keep normal-user friction low,
+- keep host resource cost bounded,
+- increase malicious-visitor cost progressively as confidence rises.
+
+For detailed rationale by capability (research basis, enterprise baseline followed, and Shuma-specific advancement), see `value-proposition.md`.
+
 ## 🐙 Near-Term Roadmap
 - Human verification tuning (usability vs abuse resistance) and accessibility path
 - Webhook notifications (Slack/Discord/PagerDuty)

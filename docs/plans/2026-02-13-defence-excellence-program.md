@@ -24,7 +24,7 @@ Each plan is structured to answer:
 6. `docs/plans/2026-02-13-puzzle-challenge-excellence-plan.md`
 7. `docs/plans/2026-02-13-rate-limiting-excellence-plan.md`
 8. `docs/plans/2026-02-13-http-tarpit-excellence-plan.md`
-9. `docs/plans/2026-02-13-ip-range-policy-excellence-plan.md`
+9. `docs/plans/archive/2026-02-13-ip-range-policy-excellence-plan.md`
 10. `docs/plans/2026-02-13-geo-fencing-excellence-plan.md`
 11. `docs/plans/2026-02-13-ssh-tarpit-excellence-plan.md`
 

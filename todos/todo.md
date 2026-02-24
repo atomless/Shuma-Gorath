@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-02-23
+Last updated: 2026-02-24
 
 This is the active work queue.
 `todos/security-review.md` tracks security finding validity and closure status.
@@ -38,7 +38,7 @@ Reference plan: `docs/plans/2026-02-20-deployment-paths-and-adversarial-simulati
 Completion rule for every paper TODO below: capture key findings, map to `self_hosted_minimal` vs `enterprise_akamai` ownership, and propose concrete Shuma TODO updates.
 
 ### Fingerprinting, JS Verification, and CDP-Adjacent Detection
-- Completed research tranche (`R-FP-01`..`R-FP-09`) archived in `docs/research/2026-02-16-fingerprinting-research-synthesis.md` and `todos/completed-todo-history.md`.
+- Completed research tranche (`R-FP-01`..`R-FP-09`) archived in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md` and `todos/completed-todo-history.md`.
 - [ ] Run a Finch comparison spike to see if Shuma might benefit from enabling enhancing its internal capabilities with allowing users to integrate finch alongside it(no direct dependency in core runtime).
 
 ### Challenges: PoW, Not-a-Bot, and Puzzle Escalation
@@ -100,7 +100,7 @@ Execution order for remaining tarpit work:
 2. `TAH-12`
 
 ### IP Range Policy, Reputation Feeds, and GEO Fencing
-- Research synthesis recorded in `docs/research/2026-02-20-ip-range-policy-research-synthesis.md` (includes source mapping and implementation implications).
+- Research synthesis recorded in `docs/research/archive/2026-02-20-ip-range-policy-research-synthesis.md` (includes source mapping and implementation implications).
 - [ ] R-GEO-01 Review Hu/Heidemann/Pradkin, "Towards Geolocation of Millions of IP Addresses" (IMC 2012) and capture scalability/error-tradeoff implications for GEO policy confidence scoring. https://doi.org/10.1145/2398776.2398790
 - [ ] R-GEO-02 Review Dan/Parikh/Davison, "Improving IP Geolocation using Query Logs" (WSDM 2016) and define data-quality assumptions for geo-based enforcement. https://doi.org/10.1145/2835776.2835820
 - [ ] R-GEO-03 Review Mazel et al., "Smartphone-based geolocation of Internet hosts" (Computer Networks 2017) and assess delay-model caveats for operational geofencing. https://doi.org/10.1016/j.comnet.2017.02.006

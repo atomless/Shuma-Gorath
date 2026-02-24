@@ -2,6 +2,9 @@
 
 This folder contains research syntheses, comparative analysis, and design references used to guide Shuma implementation choices.
 
+Top-level files in `docs/research/` are intended to remain active for upcoming work.
+Completed tranches that no longer guide active implementation are moved to `docs/research/archive/`.
+
 ## 🐙 Tarpit Research Collection
 
 Use this list as the canonical index for Shuma tarpit research and design context.
@@ -22,3 +25,7 @@ Related implementation plan:
 Related active backlog:
 
 - [`../../todos/todo.md`](../../todos/todo.md) (`TAH-*` items under “Tarpit Asymmetry Hardening”)
+
+Completed archive index:
+
+- [`archive/README.md`](archive/README.md)

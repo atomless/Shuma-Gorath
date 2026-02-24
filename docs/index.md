@@ -19,9 +19,11 @@ Use the Makefile as the official workflow. These docs are the source of truth fo
 - [`observability.md`](observability.md) - Prometheus/Grafana integration
 - [`monitoring-prometheus-parity-audit.md`](monitoring-prometheus-parity-audit.md) - Monitoring widget-to-Prometheus parity matrix and prioritized missing-export plan
 - [`bot-defence.md`](bot-defence.md) - Shuma-Gorath layered defence strategy with managed edge bot protection
+- [`value-proposition.md`](value-proposition.md) - Research-backed value map and cost-asymmetry positioning by capability
 - [`features.md`](features.md) - Feature list and roadmap
 - [`challenge-verification.md`](challenge-verification.md) - Human verification strategy
 - [`maze.md`](maze.md) - maze crawler deception
+- [`tarpit.md`](tarpit.md) - tarpit activation, progression, and bounded-cost behavior
 - [`research/README.md`](research/README.md) - Research index (including tarpit research collection and latest re-review addendum)
 - [`module-boundaries.md`](module-boundaries.md) - Domain boundary contracts and split prep
 - [`plans/2026-02-13-provider-externalization-design.md`](plans/2026-02-13-provider-externalization-design.md) - Provider externalization strategy (self-hosted-first, Akamai-integrated)

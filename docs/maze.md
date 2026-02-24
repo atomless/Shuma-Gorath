@@ -2,6 +2,8 @@
 
 The maze is Shuma-Gorath's deception subsystem: a synthetic crawl space designed to absorb suspicious automation while keeping normal human traffic friction low.
 
+For the cross-capability research and differentiation map (including enterprise baselines and Shuma-specific advancements), see `value-proposition.md`.
+
 ## 🐙 Maze At A Glance (Runtime Flow)
 
 This is the practical flow an operator should expect:
@@ -20,6 +22,13 @@ This is the practical flow an operator should expect:
    Budget exhaustion or high-confidence violation accumulation degrades to challenge/block behavior rather than continuing expensive maze serving.
 7. **Optional ban path is threshold-driven**
    If `maze_auto_ban` is enabled, threshold crossings trigger ban behavior (`maze_crawler` reason).
+
+## 🐙 Maze and Tarpit Relationship
+
+- Maze and tarpit are related but not identical controls.
+- Maze is the normal deception path for suspicious traffic and normal challenge failures.
+- Tarpit is abuse escalation and currently depends on maze being enabled (`maze_enabled=true` + `tarpit_enabled=true`).
+- For exact tarpit activation criteria, progression behavior, budgets, and escalation thresholds, see `tarpit.md`.
 
 ## 🐙 Maze Excellence Mission
 

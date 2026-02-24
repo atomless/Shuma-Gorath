@@ -64,7 +64,7 @@ Purpose:
 
 Scope:
 
-- Add tarpit config set (KV-tunable unless env-only by policy):
+- Add tarpit config set (<abbr title="Key-Value">KV</abbr>-backed admin-editable unless env-only by policy):
   - `tarpit_enabled`
   - single progressive tarpit behavior (no mode switch)
   - `tarpit_bytes_per_second`

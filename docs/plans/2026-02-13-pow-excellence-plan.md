@@ -90,7 +90,7 @@ PoW is currently available as an optional JS interstitial step (`/pow` and `/pow
 - Akamai:
   - Akamai bot controls provide edge challenge/deny workflows, but public operator docs emphasize risk-based challenge orchestration rather than tenant-defined PoW difficulty controls.
 - Cloudflare:
-  - Cloudflare managed challenges and Turnstile provide adaptive challenge outcomes and attestation, but do not expose first-class, tenant-tunable PoW difficulty policies.
+  - Cloudflare managed challenges and Turnstile provide adaptive challenge outcomes and attestation, but do not expose first-class, tenant-configurable PoW difficulty policies.
 - Planning implication:
   - Keep PoW issuance/verification and difficulty control internal to Shuma.
   - Use Akamai/Cloudflare signals to decide if PoW is required, while preserving Shuma-native replay controls and fallback routing.

@@ -97,6 +97,22 @@ When Akamai Bot Manager (or equivalent) is already in place, Shuma-Gorath should
 - Transparent, self-hosted observability:
   - event and policy telemetry aligned to your own incident response and tuning workflow.
 
+## 🐙 Research-Grounded Differentiation
+
+Shuma’s differentiation is not just feature breadth; it is the way those features are implemented:
+
+- research-first design for each capability (papers + active ecosystem + enterprise operating patterns),
+- bounded host-cost engineering (explicit CPU/memory/egress/concurrency guardrails),
+- progressive attacker-cost placement (challenge/maze/tarpit escalation with deterministic fallback).
+
+For the capability-by-capability map of:
+
+- where research directly shaped implementation,
+- where Shuma follows authoritative enterprise baselines, and
+- where Shuma extends them for app-context control and cost asymmetry,
+
+see `value-proposition.md`.
+
 ## 🐙 How They Work Together
 
 Typical layered order:
