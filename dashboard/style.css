@@ -79,6 +79,51 @@
   --text-6xl: 5rem;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    /* Reverse the light-theme brightness scale for dark mode */
+    --color-back: #0a0507;
+    --color-50: #27272a;
+    --color-100: #3f3f46;
+    --color-200: #523259;
+    --color-300: #71717a;
+    --color-400: #a181a6;
+    --color-500: #d4c4d8;
+    --color-600: #e4d4e3;
+    --color-700: #f4edf5;
+    --color-800: #faf2fa;
+    --color-900: rgb(255, 250, 253);
+    --color-front: rgb(255, 250, 253);
+
+    --color-env-var-bg: #523259;
+    --status-admin-write-row-bg: #3a2233;
+
+    --color-accent: #f4edf5;
+    --color-accent-hover: #faf2fa;
+
+    --color-success: rgb(255, 250, 253);
+    --color-success-bg: #3f3f46;
+    --color-error-bg: #4a1738;
+    --color-warning: #f4edf5;
+    --color-warning-bg: #3f3f46;
+
+    --color-toggle-active: #faf2fa;
+
+    --border-hairline: 0.5px solid var(--color-300);
+    --striped-bg: repeating-linear-gradient(-45deg, #0a0507, #0a0507 10px, #27272a 10px, #27272a 20px);
+    --striped-bright-bg: repeating-linear-gradient(-45deg, rgba(10, 5, 7, 0.5), rgba(10, 5, 7, 0.5) 10px, #fd74d6 10px, #fd74d6 20px);
+
+    --btn-contrast-fg: var(--color-back);
+
+    --inline-link-fg: #ff93e1;
+    --inline-link-hover-fg: #ffd0f1;
+    --inline-link-visited-fg: #f6a1e3;
+    --inline-link-focus-ring: rgba(255, 147, 225, 0.45);
+  }
+}
+
 /* ===========================================
    Shared Utility Classes
    =========================================== */
