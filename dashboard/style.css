@@ -1590,21 +1590,7 @@ input:checked + .toggle-slider:before {
    =========================================== */
 
 @media (max-width: 768px) {
-  .container {
-    padding: 15px;
-  }
 
-  .stats-cards {
-    grid-template-columns: 1fr;
-  }
-
-  .charts-row {
-    grid-template-columns: 1fr;
-  }
-
-  .controls-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* ===========================================
@@ -1613,119 +1599,7 @@ input:checked + .toggle-slider:before {
    =========================================== */
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --color-back: #200b24;
-    --color-50: #251e24;
-    --color-100: #2c1622;
-    --color-200: #3b2a43;
-    --color-300: #3f1f46;
-    --color-400: #595062;
-    --color-500: #786a82;
-    --color-600: #a99ab0;
-    --color-700: #dccedf;
-    --color-800: #ece0ed;
-    --color-900: #faeafa;
-    --color-front: #ffeffc;
-
-    --color-accent: #fff8fc;
-    --color-accent-hover: var(--color-800);
-    --color-success: var(--color-800);
-    --color-success-bg: var(--color-200);
-    --color-error: red;
-    --color-error-bg: var(--color-200);
-    --color-warning: var(--color-700);
-    --color-warning-bg: var(--color-50);
-    --color-toggle-active: #fff8fc;
-    --field-bg: var(--color-200);
-    --field-fg: var(--color-800);
-    --field-border: var(--color-400);
-    --slider-track-bg: var(--color-500);
-    --slider-track-border: var(--color-400);
-    --btn-contrast-fg: var(--color-front);
-    --btn-submit-bg: var(--color-accent);
-    --btn-submit-hover-bg: var(--color-accent-hover);
-    --btn-submit-fg: var(--color-back);
-    --btn-submit-disabled-bg: var(--color-400);
-    --btn-submit-disabled-fg: var(--color-700);
-    --inline-link-fg: #ffa5d8;
-    --inline-link-hover-fg: #ffd0eb;
-    --inline-link-visited-fg: #f0b4ff;
-    --inline-link-focus-ring: rgba(255, 165, 216, 0.42);
-    --color-env-var-bg: rgb(125, 75, 105);
-    --status-admin-write-row-bg: rgba(255, 165, 216, 0.18);
-    --striped-bg: repeating-linear-gradient(-45deg,#200b24,#200b24 10px,#251e24 10px,#251e24 20px);
-    --striped-bright-bg: repeating-linear-gradient(-45deg, #200b24,#200b24 10px,#aa16a0 10px,#aa16a0 20px);
-  }
-
-  .container, .card, .robots-preview {
-    background: var(--color-100);
-    color: var(--color-800);
-  }
-
-  .dashboard-tab-link {
-    background: #36233b;
-  }
-
-  .chart-container, .maze-crawlers {
-    background: var(--color-200);
-    color: var(--color-800);
-  }
-
-  input[type="text"],
-  input[type="password"],
-  input[type="number"],
-  select,
-  textarea {
-    background: var(--field-bg);
-    color: var(--field-fg);
-    border-color: var(--field-border);
-  }
-
-  /* Improve admin panel separation in dark mode: slightly darker panels
-     with a stronger border to make them stand out */
-  .control-group,
-  .controls-grid .control-group {
-    background: var(--color-200);
-    color: var(--color-900);
-    border: var(--border-hairline);
-  }
-
-  /* Make control headings more prominent */
-  .control-group h3 {
-    color: var(--color-900);
-  }
-
-  .control-group .btn {
-    background: var(--color-400);
-    color: var(--color-900);
-    border-color: var(--color-300);
-  }
-
-  /* Dark/subtle buttons retain their distinct bg & contrast-fg inside control groups */
-  .control-group .btn-dark {
-    background: var(--color-accent);
-    color: var(--color-back);
-  }
-
-  .control-group .btn-subtle {
-    background: var(--color-600);
-    color: var(--color-back);
-  }
-
-  .control-group .btn-submit {
-    background: var(--btn-submit-bg);
-    color: var(--btn-submit-fg);
-  }
-
-  .control-group .btn-submit:hover {
-    background: var(--btn-submit-hover-bg);
-  }
-
-  .control-group .btn-submit:disabled,
-  .control-group .btn-submit[disabled] {
-    background: var(--btn-submit-disabled-bg);
-    color: var(--btn-submit-disabled-fg);
-  }
+  
 
 }
 
