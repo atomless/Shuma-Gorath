@@ -17,21 +17,18 @@
     buildTemplateFromPaths,
     normalizeJsonObjectForCompare
   } from '../../domain/core/json-object.js';
+  import { durationPartsFromSeconds, durationSeconds } from '../../domain/core/date-time.js';
+  import { parseFloatNumber, parseInteger } from '../../domain/core/math.js';
+  import { formatUnknownForDisplay } from '../../domain/core/strings.js';
+  import { inRange, isDurationTupleValid } from '../../domain/core/validation.js';
   import {
-    durationPartsFromSeconds,
-    durationSeconds,
     formatCountryCodes,
-    formatIssueReceived,
     geoModeFromToggleState,
     geoToggleStateFromMode,
-    inRange,
     isIpRangePolicyMode,
-    isDurationTupleValid,
     normalizeEdgeMode,
     normalizeIpRangePolicyMode,
     normalizeJsonArrayForCompare,
-    parseFloatNumber,
-    parseInteger,
     rateEnforcementEnabledFromMode,
     rateModeFromToggleState
   } from '../../domain/config-tab-helpers.js';
@@ -1894,7 +1891,7 @@
                       <span class="validation-issue-expected">Expected: {issue.expected}</span>
                     {/if}
                     {#if issue.received !== undefined}
-                      <span class="validation-issue-received">Received: <code>{formatIssueReceived(issue.received)}</code></span>
+                      <span class="validation-issue-received">Received: <code>{formatUnknownForDisplay(issue.received)}</code></span>
                     {/if}
                   </li>
                 {/each}

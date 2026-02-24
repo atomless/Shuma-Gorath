@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
-  import { inRange, parseInteger } from '../../domain/config-tab-helpers.js';
+  import { parseInteger } from '../../domain/core/math.js';
+  import { inRange } from '../../domain/core/validation.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
 
   export let managed = false;

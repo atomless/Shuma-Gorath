@@ -13,10 +13,23 @@
     deriveIpRangeMonitoringViewModel,
     deriveMazeStatsViewModel,
     deriveMonitoringSummaryViewModel,
-    derivePrometheusHelperViewModel,
-    formatMetricLabel
+    derivePrometheusHelperViewModel
   } from './monitoring-view-model.js';
+  import {
+    buildTimeSeries,
+    hoursForRange,
+    normalizeDimensionRows,
+    normalizePairRows,
+    normalizeReasonRows,
+    normalizeTopCountries,
+    normalizeTopPaths,
+    normalizeTrendRows,
+    normalizeTrendSeries,
+    shouldFetchRange
+  } from '../../domain/monitoring-normalizers.js';
+  import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
   import { arraysEqualShallow } from '../../domain/core/format.js';
+  import { normalizeLowerTrimmed } from '../../domain/core/strings.js';
   import { formatIpRangeReasonLabel } from '../../domain/ip-range-policy.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
   import OverviewStats from './monitoring/OverviewStats.svelte';
@@ -34,13 +47,10 @@
 
   const EVENT_ROW_RENDER_LIMIT = 100;
   const CDP_ROW_RENDER_LIMIT = 500;
-  const MONITORING_LIST_LIMIT = 10;
-  const MONITORING_TREND_POINT_LIMIT = 720;
   const RANGE_EVENTS_FETCH_LIMIT = 5000;
   const RANGE_EVENTS_REQUEST_TIMEOUT_MS = 10000;
   const RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS = 180000;
   const CHART_RESIZE_REDRAW_DEBOUNCE_MS = 180;
-  const MAX_SAFE_COUNT = 1_000_000_000;
   const CHALLENGE_TREND_COLOR = 'rgba(122, 114, 255, 0.35)';
   const POW_TREND_COLOR = 'rgba(255, 130, 92, 0.35)';
   const POW_OUTCOME_LABELS = Object.freeze({
@@ -109,45 +119,7 @@
     clearTimeout(timerId);
     return null;
   };
-  const clampCount = (value) => {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric) || numeric < 0) return 0;
-    return Math.min(MAX_SAFE_COUNT, Math.floor(numeric));
-  };
-  const sanitizeText = (value, fallback = '-') => {
-    const text = String(value || '').replace(/[\u0000-\u001f\u007f]/g, '').trim();
-    return text || fallback;
-  };
-  const shouldFetchRange = (range) => range === 'week' || range === 'month';
-  const hoursForRange = (range) => {
-    if (range === 'hour') return 1;
-    if (range === 'day') return 24;
-    if (range === 'week') return 168;
-    return 720;
-  };
-  const cutoffForRange = (range, now) => {
-    if (range === 'hour') return now - (60 * 60 * 1000);
-    if (range === 'day') return now - (24 * 60 * 60 * 1000);
-    if (range === 'week') return now - (7 * 24 * 60 * 60 * 1000);
-    return now - (30 * 24 * 60 * 60 * 1000);
-  };
-  const bucketSizeForRange = (range) =>
-    range === 'hour' ? 300000 : range === 'day' ? 3600000 : 86400000;
-  const formatBucketLabel = (range, epochMs) => {
-    const date = new Date(epochMs);
-    if (range === 'hour') {
-      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    }
-    if (range === 'day') {
-      return date.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit'
-      });
-    }
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
+
   const sameSeries = (chart, nextLabels, nextData) => {
     if (!chart || !chart.data || !Array.isArray(chart.data.datasets) || chart.data.datasets.length === 0) {
       return false;
@@ -192,100 +164,15 @@
   };
 
   const eventBadgeClass = (eventType) => {
-    const normalized = String(eventType || '').toLowerCase().replace(/[^a-z_]/g, '');
+    const normalized = normalizeLowerTrimmed(eventType).replace(/[^a-z_]/g, '');
     return normalized ? `badge ${normalized}` : 'badge';
   };
 
-  const formatTime = (rawTs) => {
-    const ts = Number(rawTs || 0);
-    if (!Number.isFinite(ts) || ts <= 0) return '-';
-    return new Date(ts * 1000).toLocaleString();
-  };
+  const formatTime = (rawTs) => formatUnixSecondsLocal(rawTs, '-');
 
   const readCdpField = (text, key) => {
     const match = new RegExp(`${key}=([^\\s]+)`, 'i').exec(String(text || ''));
     return match ? match[1] : '-';
-  };
-
-  const normalizeReasonRows = (rows, labels) => {
-    if (!Array.isArray(rows)) return [];
-    return rows.slice(0, MONITORING_LIST_LIMIT).map(([key, value]) => ({
-      key: sanitizeText(key),
-      label: sanitizeText(formatMetricLabel(key, labels)),
-      count: clampCount(value)
-    }));
-  };
-
-  const normalizePairRows = (rows, labels) => {
-    if (!Array.isArray(rows)) return [];
-    return rows.slice(0, MONITORING_LIST_LIMIT).map(([key, value]) => ({
-      key: sanitizeText(key),
-      label: sanitizeText(formatMetricLabel(key, labels)),
-      count: clampCount(value)
-    }));
-  };
-
-  const normalizeDimensionRows = (rows, mapOrFormatter) => {
-    if (!Array.isArray(rows)) return [];
-    return rows.slice(0, MONITORING_LIST_LIMIT).map(([key, value]) => {
-      const safeKey = sanitizeText(key);
-      const label = typeof mapOrFormatter === 'function'
-        ? mapOrFormatter(safeKey)
-        : formatMetricLabel(safeKey, mapOrFormatter);
-      return {
-        key: safeKey,
-        label: sanitizeText(label, safeKey),
-        count: clampCount(value)
-      };
-    });
-  };
-
-  const normalizeTrendRows = (trend = {}) => {
-    const labels = Array.isArray(trend?.labels) ? trend.labels : [];
-    const data = Array.isArray(trend?.data) ? trend.data : [];
-    const count = Math.min(labels.length, data.length);
-    const start = Math.max(0, count - MONITORING_LIST_LIMIT);
-    const rows = [];
-    for (let index = start; index < count; index += 1) {
-      rows.push({
-        label: sanitizeText(labels[index], '-'),
-        count: clampCount(data[index])
-      });
-    }
-    return rows;
-  };
-
-  const normalizeTopPaths = (paths) => {
-    if (!Array.isArray(paths)) return [];
-    return paths.slice(0, MONITORING_LIST_LIMIT).map((entry) => ({
-      path: sanitizeText(entry.path, '-'),
-      count: clampCount(entry.count)
-    }));
-  };
-
-  const normalizeTopCountries = (rows) => {
-    if (!Array.isArray(rows)) return [];
-    return rows.slice(0, MONITORING_LIST_LIMIT).map((entry) => ({
-      country: sanitizeText(entry.country, '-'),
-      count: clampCount(entry.count)
-    }));
-  };
-
-  const normalizeTrendSeries = (series) => {
-    const labels = Array.isArray(series?.labels) ? series.labels : [];
-    const data = Array.isArray(series?.data) ? series.data : [];
-    const pointCount = Math.min(labels.length, data.length);
-    const start = Math.max(0, pointCount - MONITORING_TREND_POINT_LIMIT);
-    const nextLabels = [];
-    const nextData = [];
-    for (let index = start; index < pointCount; index += 1) {
-      nextLabels.push(sanitizeText(labels[index], '-'));
-      nextData.push(clampCount(data[index]));
-    }
-    return {
-      labels: nextLabels,
-      data: nextData
-    };
   };
 
   const getChartConstructor = () => {
@@ -460,35 +347,6 @@
     chart.data.datasets[0].borderColor = colors;
     chart.update();
     return stampChartRefresh(chart, refreshNonce);
-  };
-
-  const buildTimeSeries = (events, range) => {
-    const now = Date.now();
-    const cutoffTime = cutoffForRange(range, now);
-    const bucketSize = bucketSizeForRange(range);
-    const normalized = Array.isArray(events) ? events : [];
-    const filteredEvents = normalized.filter((entry) => (Number(entry?.ts || 0) * 1000) >= cutoffTime);
-    const boundedEvents = filteredEvents.length > RANGE_EVENTS_FETCH_LIMIT
-      ? filteredEvents.slice(0, RANGE_EVENTS_FETCH_LIMIT)
-      : filteredEvents;
-    const buckets = {};
-    for (let time = cutoffTime; time <= now; time += bucketSize) {
-      const bucketKey = Math.floor(time / bucketSize) * bucketSize;
-      buckets[bucketKey] = 0;
-    }
-    boundedEvents.forEach((entry) => {
-      const eventTime = Number(entry?.ts || 0) * 1000;
-      if (!Number.isFinite(eventTime) || eventTime <= 0) return;
-      const bucketKey = Math.floor(eventTime / bucketSize) * bucketSize;
-      buckets[bucketKey] = (buckets[bucketKey] || 0) + 1;
-    });
-    const sortedBuckets = Object.keys(buckets)
-      .map((key) => Number.parseInt(key, 10))
-      .sort((left, right) => left - right);
-    return {
-      labels: sortedBuckets.map((epochMs) => formatBucketLabel(range, epochMs)),
-      data: sortedBuckets.map((epochMs) => buckets[epochMs] || 0)
-    };
   };
 
   const updateTimeSeriesChart = (chart, canvas, series, refreshNonce = 0) => {
@@ -682,7 +540,9 @@
   $: selectedRangeEvents = shouldFetchRange(selectedTimeRange)
     ? (rangeEventsSnapshot.range === selectedTimeRange ? rangeEventsSnapshot.recent_events : [])
     : defaultRangeEvents;
-  $: timeSeries = buildTimeSeries(selectedRangeEvents, selectedTimeRange);
+  $: timeSeries = buildTimeSeries(selectedRangeEvents, selectedTimeRange, {
+    maxEvents: RANGE_EVENTS_FETCH_LIMIT
+  });
 
   $: if (browser && !isActive) {
     abortRangeEventsFetch();

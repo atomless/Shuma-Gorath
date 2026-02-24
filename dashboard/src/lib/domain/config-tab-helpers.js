@@ -1,57 +1,41 @@
 // @ts-check
 
+import { durationPartsFromSeconds, durationSeconds } from './core/date-time.js';
+import { parseFloatNumber, parseInteger } from './core/math.js';
+import { formatUnknownForDisplay, normalizeLowerTrimmed } from './core/strings.js';
+import { inRange, isDurationTupleValid, isNormalizedInSet } from './core/validation.js';
+
 const EDGE_MODES = new Set(['off', 'advisory', 'authoritative']);
 const COMPOSABILITY_MODES = new Set(['off', 'signal', 'enforce', 'both']);
 const IP_RANGE_POLICY_MODES = new Set(['off', 'advisory', 'enforce']);
 
 /**
  * @param {unknown} value
- * @param {number} fallback
- */
-export const parseInteger = (value, fallback) => {
-  const parsed = Number.parseInt(String(value), 10);
-  return Number.isInteger(parsed) ? parsed : fallback;
-};
-
-/**
- * @param {unknown} value
- * @param {number} fallback
- */
-export const parseFloatNumber = (value, fallback) => {
-  const parsed = Number.parseFloat(String(value));
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
-
-/**
- * @param {unknown} value
  */
 export const normalizeEdgeMode = (value) => {
-  const normalized = String(value || '').trim().toLowerCase();
-  return EDGE_MODES.has(normalized) ? normalized : 'off';
+  const normalized = normalizeLowerTrimmed(value);
+  return isNormalizedInSet(normalized, EDGE_MODES) ? normalized : 'off';
 };
 
 /**
  * @param {unknown} value
  */
 export const normalizeIpRangePolicyMode = (value) => {
-  const normalized = String(value || '').trim().toLowerCase();
-  return IP_RANGE_POLICY_MODES.has(normalized) ? normalized : 'off';
+  const normalized = normalizeLowerTrimmed(value);
+  return isNormalizedInSet(normalized, IP_RANGE_POLICY_MODES) ? normalized : 'off';
 };
 
 /**
  * @param {unknown} value
  */
-export const isIpRangePolicyMode = (value) => {
-  const normalized = String(value || '').trim().toLowerCase();
-  return IP_RANGE_POLICY_MODES.has(normalized);
-};
+export const isIpRangePolicyMode = (value) => isNormalizedInSet(value, IP_RANGE_POLICY_MODES);
 
 /**
  * @param {unknown} value
  */
 export const normalizeComposabilityMode = (value) => {
-  const normalized = String(value || '').trim().toLowerCase();
-  return COMPOSABILITY_MODES.has(normalized) ? normalized : 'off';
+  const normalized = normalizeLowerTrimmed(value);
+  return isNormalizedInSet(normalized, COMPOSABILITY_MODES) ? normalized : 'off';
 };
 
 /**
@@ -115,71 +99,13 @@ export const normalizeJsonArrayForCompare = (value) => {
   }
 };
 
-/**
- * @param {unknown} seconds
- * @param {number} fallbackSeconds
- */
-export const durationPartsFromSeconds = (seconds, fallbackSeconds) => {
-  const source = Number.parseInt(String(seconds), 10);
-  const safe = Number.isFinite(source) && source > 0 ? source : fallbackSeconds;
-  const days = Math.floor(safe / 86400);
-  const remainingAfterDays = safe - (days * 86400);
-  const hours = Math.floor(remainingAfterDays / 3600);
-  const remainingAfterHours = remainingAfterDays - (hours * 3600);
-  const minutes = Math.floor(remainingAfterHours / 60);
-  return {
-    days,
-    hours,
-    minutes
-  };
-};
+export const formatIssueReceived = formatUnknownForDisplay;
 
-/**
- * @param {unknown} days
- * @param {unknown} hours
- * @param {unknown} minutes
- */
-export const durationSeconds = (days, hours, minutes) => {
-  const d = parseInteger(days, 0);
-  const h = parseInteger(hours, 0);
-  const m = parseInteger(minutes, 0);
-  return (d * 86400) + (h * 3600) + (m * 60);
-};
-
-/**
- * @param {unknown} value
- * @param {number} min
- * @param {number} max
- */
-export const inRange = (value, min, max) => {
-  const parsed = Number.parseFloat(String(value));
-  return Number.isFinite(parsed) && parsed >= min && parsed <= max;
-};
-
-/**
- * @param {unknown} days
- * @param {unknown} hours
- * @param {unknown} minutes
- * @param {{ minSeconds: number, maxSeconds: number }} bounds
- */
-export const isDurationTupleValid = (days, hours, minutes, bounds) => {
-  if (!inRange(days, 0, 365)) return false;
-  if (!inRange(hours, 0, 23)) return false;
-  if (!inRange(minutes, 0, 59)) return false;
-  const total = durationSeconds(days, hours, minutes);
-  return total >= bounds.minSeconds && total <= bounds.maxSeconds;
-};
-
-/**
- * @param {unknown} value
- */
-export const formatIssueReceived = (value) => {
-  if (value === undefined) return '';
-  if (value === null) return 'null';
-  if (typeof value === 'string') return `"${value}"`;
-  try {
-    return JSON.stringify(value);
-  } catch (_error) {
-    return String(value);
-  }
+export {
+  durationPartsFromSeconds,
+  durationSeconds,
+  inRange,
+  isDurationTupleValid,
+  parseFloatNumber,
+  parseInteger
 };

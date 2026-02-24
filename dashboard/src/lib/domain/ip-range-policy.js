@@ -1,5 +1,7 @@
 // @ts-check
 
+import { normalizeTrimmed } from './core/strings.js';
+
 const IP_RANGE_REASON_PREFIX = 'ip_range_';
 
 const IP_RANGE_REASON_LABELS = Object.freeze({
@@ -20,8 +22,6 @@ const IP_RANGE_REASON_LABELS = Object.freeze({
   ip_range_policy_tarpit_fallback_block: 'Tarpit Fallback Block'
 });
 
-const sanitizeText = (value) => String(value || '').trim();
-
 const parseKeyValuePairs = (text) => {
   const source = String(text || '');
   const pairs = {};
@@ -29,7 +29,7 @@ const parseKeyValuePairs = (text) => {
   let match = matcher.exec(source);
   while (match) {
     const key = String(match[1] || '').trim().toLowerCase();
-    const value = sanitizeText(match[2]);
+    const value = normalizeTrimmed(match[2]);
     if (key && value) {
       pairs[key] = value;
     }
@@ -39,19 +39,19 @@ const parseKeyValuePairs = (text) => {
 };
 
 const normalizeSignals = (rawSignals) => {
-  const source = sanitizeText(rawSignals);
+  const source = normalizeTrimmed(rawSignals);
   if (!source) return [];
   return source
     .split(',')
-    .map((entry) => sanitizeText(entry))
+    .map((entry) => normalizeTrimmed(entry))
     .filter((entry) => entry.length > 0);
 };
 
 export const isIpRangeReason = (reason) =>
-  sanitizeText(reason).toLowerCase().startsWith(IP_RANGE_REASON_PREFIX);
+  normalizeTrimmed(reason).toLowerCase().startsWith(IP_RANGE_REASON_PREFIX);
 
 export const formatIpRangeReasonLabel = (reason) => {
-  const key = sanitizeText(reason).toLowerCase();
+  const key = normalizeTrimmed(reason).toLowerCase();
   if (Object.prototype.hasOwnProperty.call(IP_RANGE_REASON_LABELS, key)) {
     return IP_RANGE_REASON_LABELS[key];
   }
@@ -62,7 +62,7 @@ export const formatIpRangeReasonLabel = (reason) => {
 };
 
 export const parseIpRangeOutcome = (outcome) => {
-  const rawOutcome = sanitizeText(outcome);
+  const rawOutcome = normalizeTrimmed(outcome);
   const taxonomyMatch = /taxonomy\[([^\]]+)\]/i.exec(rawOutcome);
   const taxonomyPairs = parseKeyValuePairs(taxonomyMatch ? taxonomyMatch[1] : '');
   const outcomeWithoutTaxonomy = taxonomyMatch
@@ -70,25 +70,25 @@ export const parseIpRangeOutcome = (outcome) => {
     : rawOutcome;
   const outcomePairs = parseKeyValuePairs(outcomeWithoutTaxonomy);
   return {
-    source: sanitizeText(outcomePairs.source),
-    sourceId: sanitizeText(outcomePairs.source_id),
-    action: sanitizeText(outcomePairs.action),
-    matchedCidr: sanitizeText(outcomePairs.matched_cidr),
-    fallback: sanitizeText(outcomePairs.fallback),
-    location: sanitizeText(outcomePairs.location),
-    detection: sanitizeText(taxonomyPairs.detection),
-    level: sanitizeText(taxonomyPairs.level),
-    actionId: sanitizeText(taxonomyPairs.action),
+    source: normalizeTrimmed(outcomePairs.source),
+    sourceId: normalizeTrimmed(outcomePairs.source_id),
+    action: normalizeTrimmed(outcomePairs.action),
+    matchedCidr: normalizeTrimmed(outcomePairs.matched_cidr),
+    fallback: normalizeTrimmed(outcomePairs.fallback),
+    location: normalizeTrimmed(outcomePairs.location),
+    detection: normalizeTrimmed(taxonomyPairs.detection),
+    level: normalizeTrimmed(taxonomyPairs.level),
+    actionId: normalizeTrimmed(taxonomyPairs.action),
     signals: normalizeSignals(taxonomyPairs.signals),
     rawOutcome
   };
 };
 
 export const classifyIpRangeFallback = (reason, parsedOutcome = {}) => {
-  const fallback = sanitizeText(parsedOutcome.fallback).toLowerCase();
+  const fallback = normalizeTrimmed(parsedOutcome.fallback).toLowerCase();
   if (fallback) return fallback;
 
-  const reasonKey = sanitizeText(reason).toLowerCase();
+  const reasonKey = normalizeTrimmed(reason).toLowerCase();
   if (reasonKey.includes('fallback_maze')) return 'maze';
   if (reasonKey.includes('fallback_challenge')) return 'challenge';
   if (reasonKey.includes('fallback_block')) return 'block';
@@ -97,17 +97,16 @@ export const classifyIpRangeFallback = (reason, parsedOutcome = {}) => {
 };
 
 export const isIpRangeBanLike = (ban = {}) => {
-  const reason = sanitizeText(ban?.reason).toLowerCase();
+  const reason = normalizeTrimmed(ban?.reason).toLowerCase();
   if (isIpRangeReason(reason)) return true;
   const fingerprintSignals = Array.isArray(ban?.fingerprint?.signals)
     ? ban.fingerprint.signals
     : [];
   if (
-    fingerprintSignals.some((signal) => sanitizeText(signal).toLowerCase().includes('ip_range'))
+    fingerprintSignals.some((signal) => normalizeTrimmed(signal).toLowerCase().includes('ip_range'))
   ) {
     return true;
   }
   const parsed = parseIpRangeOutcome(ban?.fingerprint?.summary);
   return Boolean(parsed.source || parsed.sourceId || parsed.action || parsed.matchedCidr);
 };
-

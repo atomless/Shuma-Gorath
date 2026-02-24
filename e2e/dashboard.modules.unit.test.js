@@ -536,6 +536,7 @@ test('dashboard state and store contracts remain immutable and bounded', { concu
 test('monitoring view model and status module remain pure snapshot transforms', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const monitoringModelModule = await importBrowserModule('dashboard/src/lib/components/dashboard/monitoring-view-model.js');
+    const monitoringNormalizers = await importBrowserModule('dashboard/src/lib/domain/monitoring-normalizers.js');
     const ipRangePolicyModule = await importBrowserModule('dashboard/src/lib/domain/ip-range-policy.js');
     const statusModule = await importBrowserModule('dashboard/src/lib/domain/status.js');
 
@@ -648,6 +649,29 @@ test('monitoring view model and status module remain pure snapshot transforms', 
       true
     );
     assert.equal(ipRangeSummary.catalog.managedSetCount, 1);
+    assert.equal(monitoringNormalizers.shouldFetchRange('week'), true);
+    assert.equal(monitoringNormalizers.shouldFetchRange('day'), false);
+    assert.equal(monitoringNormalizers.hoursForRange('month'), 720);
+    assert.deepEqual(
+      toPlain(monitoringNormalizers.normalizeReasonRows([['invalid_proof', 4]], { invalid_proof: 'Invalid Proof' })),
+      [{ key: 'invalid_proof', label: 'Invalid Proof', count: 4 }]
+    );
+    assert.deepEqual(
+      toPlain(monitoringNormalizers.normalizeTopPaths([{ path: '/trap', count: 12 }])),
+      [{ path: '/trap', count: 12 }]
+    );
+    assert.deepEqual(
+      toPlain(monitoringNormalizers.normalizeTopCountries([{ country: 'us', count: 9 }])),
+      [{ country: 'us', count: 9 }]
+    );
+    const series = monitoringNormalizers.buildTimeSeries([
+      { ts: 1710000000 },
+      { ts: 1710000300 }
+    ], 'hour', { nowMs: 1710000600 * 1000, maxEvents: 5000 });
+    assert.equal(Array.isArray(series.labels), true);
+    assert.equal(Array.isArray(series.data), true);
+    assert.equal(series.labels.length > 0, true);
+    assert.equal(series.data.length, series.labels.length);
 
     const configSnapshot = {
       kv_store_fail_open: true,
@@ -704,6 +728,10 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
   await withBrowserGlobals({}, async () => {
     const formUtils = await importBrowserModule('dashboard/src/lib/domain/config-form-utils.js');
     const tabHelpers = await importBrowserModule('dashboard/src/lib/domain/config-tab-helpers.js');
+    const coreMath = await importBrowserModule('dashboard/src/lib/domain/core/math.js');
+    const coreStrings = await importBrowserModule('dashboard/src/lib/domain/core/strings.js');
+    const coreDateTime = await importBrowserModule('dashboard/src/lib/domain/core/date-time.js');
+    const coreValidation = await importBrowserModule('dashboard/src/lib/domain/core/validation.js');
     const json = await importBrowserModule('dashboard/src/lib/domain/core/json-object.js');
     const schema = await importBrowserModule('dashboard/src/lib/domain/config-schema.js');
 
@@ -713,6 +741,29 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
       ['Chrome', 120],
       ['Firefox', 115]
     ]);
+    assert.equal(coreMath.parseInteger('42', 0), 42);
+    assert.equal(coreMath.parseFloatNumber('4.5', 0), 4.5);
+    assert.equal(coreMath.toBoundedNonNegativeInteger('-1', 10), 0);
+    assert.equal(coreMath.toBoundedNonNegativeInteger('99.9', 10), 10);
+    assert.equal(coreStrings.normalizeTrimmed('  a  '), 'a');
+    assert.equal(coreStrings.normalizeLowerTrimmed('  A  '), 'a');
+    assert.equal(coreStrings.sanitizeDisplayText('\u0001alpha\u0007', '-'), 'alpha');
+    assert.equal(coreStrings.formatUnknownForDisplay({ ok: true }), '{"ok":true}');
+    assert.deepEqual(toPlain(coreDateTime.durationPartsFromSeconds(3660, 60)), {
+      days: 0,
+      hours: 1,
+      minutes: 1
+    });
+    assert.equal(coreDateTime.durationSeconds(1, 2, 3), 93780);
+    assert.equal(coreDateTime.formatUnixSecondsLocal(0, '-'), '-');
+    assert.equal(typeof coreDateTime.formatUnixSecondsLocal(1, '-'), 'string');
+    assert.equal(coreValidation.inRange('5', 1, 10), true);
+    assert.equal(coreValidation.inRange('x', 1, 10), false);
+    assert.equal(coreValidation.isNormalizedInSet('Advisory', new Set(['advisory'])), true);
+    assert.equal(
+      coreValidation.isDurationTupleValid(0, 1, 0, { minSeconds: 60, maxSeconds: 31536000 }),
+      true
+    );
     assert.equal(tabHelpers.parseInteger('42', 0), 42);
     assert.equal(tabHelpers.parseInteger('nope', 3), 3);
     assert.equal(tabHelpers.parseFloatNumber('0.75', 0), 0.75);
@@ -1018,15 +1069,15 @@ test('monitoring tab applies bounded sanitization and redraw guards', () => {
     'utf8'
   );
 
-  assert.match(source, /const MONITORING_LIST_LIMIT = 10;/);
-  assert.match(source, /const MONITORING_TREND_POINT_LIMIT = 720;/);
+  assert.match(source, /from '\.\.\/\.\.\/domain\/monitoring-normalizers\.js';/);
   assert.match(source, /const RANGE_EVENTS_FETCH_LIMIT = 5000;/);
   assert.match(source, /const RANGE_EVENTS_REQUEST_TIMEOUT_MS = 10000;/);
   assert.match(source, /const RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS = 180000;/);
   assert.match(source, /export let autoRefreshEnabled = false;/);
   assert.match(source, /sameSeries\(chart, trendSeries\.labels, trendSeries\.data\)/);
   assert.match(source, /abortRangeEventsFetch\(\);/);
-  assert.match(source, /clampCount\(/);
+  assert.match(source, /normalizeReasonRows\(/);
+  assert.match(source, /buildTimeSeries\(selectedRangeEvents, selectedTimeRange,/);
 });
 
 test('monitoring tab is decomposed into focused subsection components', () => {

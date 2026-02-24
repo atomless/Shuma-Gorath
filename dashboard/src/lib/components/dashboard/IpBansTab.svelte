@@ -8,7 +8,10 @@
     isIpRangeReason,
     parseIpRangeOutcome
   } from '../../domain/ip-range-policy.js';
-  import { durationPartsFromSeconds as durationPartsFromTotalSeconds } from '../../domain/config-tab-helpers.js';
+  import {
+    durationPartsFromSeconds as durationPartsFromTotalSeconds,
+    formatUnixSecondsLocal
+  } from '../../domain/core/date-time.js';
 
   export let managed = false;
   export let isActive = false;
@@ -31,11 +34,7 @@
   let unbanning = false;
   let banFilter = 'all';
 
-  const formatTimestamp = (rawTs) => {
-    const ts = Number(rawTs || 0);
-    if (!Number.isFinite(ts) || ts <= 0) return '-';
-    return new Date(ts * 1000).toLocaleString();
-  };
+  const formatTimestamp = (rawTs) => formatUnixSecondsLocal(rawTs, '-');
 
   const isValidIpv4 = (value) => {
     const segments = String(value || '').split('.');
