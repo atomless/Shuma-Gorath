@@ -1,6 +1,19 @@
 <script>
+  import ConfigAdvancedSection from './config/ConfigAdvancedSection.svelte';
+  import ConfigChallengeSection from './config/ConfigChallengeSection.svelte';
+  import ConfigDurationsSection from './config/ConfigDurationsSection.svelte';
+  import ConfigExportSection from './config/ConfigExportSection.svelte';
+  import ConfigGeoSection from './config/ConfigGeoSection.svelte';
+  import ConfigMazeSection from './config/ConfigMazeSection.svelte';
+  import ConfigNetworkSection from './config/ConfigNetworkSection.svelte';
+  import ConfigRobotsSection from './config/ConfigRobotsSection.svelte';
+  import ConfigPanel from './primitives/ConfigPanel.svelte';
+  import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
   import { onDestroy, onMount } from 'svelte';
+  import NumericInputRow from './primitives/NumericInputRow.svelte';
+  import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
+  import ToggleRow from './primitives/ToggleRow.svelte';
   import {
     formatBrowserRulesTextarea,
     formatListTextarea,
@@ -19,7 +32,6 @@
   } from '../../domain/core/json-object.js';
   import { durationPartsFromSeconds, durationSeconds } from '../../domain/core/date-time.js';
   import { parseFloatNumber, parseInteger } from '../../domain/core/math.js';
-  import { formatUnknownForDisplay } from '../../domain/core/strings.js';
   import { inRange, isDurationTupleValid } from '../../domain/core/validation.js';
   import {
     formatCountryCodes,
@@ -1206,10 +1218,7 @@
     {/if}
   </p>
   <div class="controls-grid controls-grid--config">
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-    >
+    <ConfigPanel writable={writable}>
       <div class="panel-heading-with-control">
         <h3>Test Mode</h3>
         <label class="toggle-switch" for="test-mode-toggle">
@@ -1226,64 +1235,43 @@
       </div>
       <p class="control-desc text-muted">Use for safe tuning. Enabled logs all detections without blocking; disable to enforce defenses.</p>
       <span id="test-mode-status" class={testModeStatusClass}>{testModeStatusText}</span>
-    </div>
+    </ConfigPanel>
 
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={jsRequiredDirty}
-    >
-      <div class="panel-heading-with-control">
-        <h3><abbr title="JavaScript">JS</abbr> Required</h3>
+    <ConfigPanel writable={writable} dirty={jsRequiredDirty}>
+      <ConfigPanelHeading title='<abbr title="JavaScript">JS</abbr> Required'>
         <label class="toggle-switch" for="js-required-enforced-toggle">
           <input type="checkbox" id="js-required-enforced-toggle" aria-label="Enforce JavaScript required" bind:checked={jsRequiredEnforced}>
           <span class="toggle-slider"></span>
         </label>
-      </div>
+      </ConfigPanelHeading>
       <p class="control-desc text-muted">Require non-allowlisted requests to present a valid <code>js_verified</code> cookie. The presence of this cookie is verification that <abbr title="JavaScript">JS</abbr> is enabled. With Shuma-Gorath&rsquo;s <abbr title="Proof of Work">PoW</abbr> requirement also enabled, the cookie is set by the server after <code>/pow/verify</code>; with <abbr title="Proof of Work">PoW</abbr> disabled, it is set directly by the interstitial script. Disable only for non-<abbr title="JavaScript">JS</abbr> clients.</p>
       {#if !jsRequiredEnforced}
         <p class="message warning">
           Disabling JS Required weakens bot defence and bypasses <abbr title="Proof of Work">PoW</abbr> on this path.
         </p>
       {/if}
-    </div>
+    </ConfigPanel>
 
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={powDirty}
-    >
-      <div class="panel-heading-with-control">
-        <h3>Proof-of-Work (<abbr title="Proof of Work">PoW</abbr>)</h3>
+    <ConfigPanel writable={writable} dirty={powDirty}>
+      <ConfigPanelHeading title='Proof-of-Work (<abbr title="Proof of Work">PoW</abbr>)'>
         <label class="toggle-switch" for="pow-enabled-toggle">
           <input type="checkbox" id="pow-enabled-toggle" aria-label="Enable Proof of Work challenge verification" bind:checked={powEnabled}>
           <span class="toggle-slider"></span>
         </label>
-      </div>
+      </ConfigPanelHeading>
       <p class="control-desc text-muted"><abbr title="Proof of Work">PoW</abbr> is a security mechanism used to help differentiate bots from humans by requiring the requesting client's device to solve a small, moderately complex computational puzzle before being granted access. It will be invisible to human users and incurrs only extremely low energy and request performance costs. <abbr title="Proof of Work">PoW</abbr> depends on <abbr title="JavaScript">JS</abbr> Required being enabled.</p>
-    </div>
+    </ConfigPanel>
 
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={cdpDirty}
-    >
-      <div class="panel-heading-with-control">
-        <h3><abbr title="Chrome DevTools Protocol">CDP</abbr> (Detect Browser Automation)</h3>
+    <ConfigPanel writable={writable} dirty={cdpDirty}>
+      <ConfigPanelHeading title='<abbr title="Chrome DevTools Protocol">CDP</abbr> (Detect Browser Automation)'>
         <label class="toggle-switch" for="cdp-enabled-toggle">
           <input type="checkbox" id="cdp-enabled-toggle" aria-label="Enable Chrome DevTools Protocol detection" bind:checked={cdpEnabled}>
           <span class="toggle-slider"></span>
         </label>
-      </div>
+      </ConfigPanelHeading>
       <p class="control-desc text-muted">Toggle detection of browser automation and optionally auto-ban when the signals indicating such automation breach the set threshold. Stricter thresholds catch more bots but may increase false positives.</p>
       <div class="admin-controls">
-        <div class="toggle-row">
-          <label class="control-label control-label--wide" for="cdp-auto-ban-toggle">Auto-ban on Detection</label>
-          <label class="toggle-switch">
-            <input type="checkbox" id="cdp-auto-ban-toggle" aria-label="Enable Chrome DevTools Protocol auto-ban" bind:checked={cdpAutoBan}>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
+        <ToggleRow id="cdp-auto-ban-toggle" label="Auto-ban on Detection" labelClass="control-label control-label--wide" ariaLabel="Enable Chrome DevTools Protocol auto-ban" bind:checked={cdpAutoBan} />
         <div class="slider-control">
           <div class="slider-header">
             <label class="control-label control-label--wide" for="cdp-threshold-slider">Detection Threshold</label>
@@ -1296,26 +1284,18 @@
           </div>
         </div>
       </div>
-    </div>
+    </ConfigPanel>
 
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={rateLimitDirty}
-    >
-      <div class="panel-heading-with-control">
-        <h3>Rate Limiting</h3>
+    <ConfigPanel writable={writable} dirty={rateLimitDirty}>
+      <ConfigPanelHeading title="Rate Limiting">
         <label class="toggle-switch" for="rate-limit-enabled-toggle">
           <input type="checkbox" id="rate-limit-enabled-toggle" aria-label="Enable rate limiting" bind:checked={rateLimitingEnabled}>
           <span class="toggle-slider"></span>
         </label>
-      </div>
+      </ConfigPanelHeading>
       <p class="control-desc text-muted">Define the allowed requests per minute per <abbr title="Internet Protocol">IP</abbr> bucket (<abbr title="Internet Protocol Version 4">IPv4</abbr> /24, <abbr title="Internet Protocol Version 6">IPv6</abbr> /64), not a single host <abbr title="Internet Protocol">IP</abbr>. Default budget is <code>80</code> requests; lower values are more strict but can affect legitimate burst traffic and innocent visitors when the budget of their <abbr title="Internet Protocol">IP</abbr> bucket is exhausted by a malicious bot.</p>
       <div class="admin-controls">
-        <div class="input-row">
-          <label class="control-label control-label--wide" for="rate-limit-threshold">Requests Per Minute (per <abbr title="Internet Protocol">IP</abbr> bucket)</label>
-          <input class="input-field" type="number" id="rate-limit-threshold" min="1" max="1000000" step="1" inputmode="numeric" aria-label="Rate limit requests per minute" bind:value={rateLimitThreshold}>
-        </div>
+        <NumericInputRow id="rate-limit-threshold" label='Requests Per Minute (per <abbr title="Internet Protocol">IP</abbr> bucket)' labelClass="control-label control-label--wide" min="1" max="1000000" step="1" inputmode="numeric" ariaLabel="Rate limit requests per minute" bind:value={rateLimitThreshold} />
       </div>
       {#if !rateLimitingEnabled}
         <p class="message warning">
@@ -1323,605 +1303,24 @@
           testing. Scoring still stays active.
         </p>
       {/if}
-    </div>
+    </ConfigPanel>
 
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={mazeDirty}
-    >
-      <div class="panel-heading-with-control">
-        <h3>Maze</h3>
-        <label class="toggle-switch" for="maze-enabled-toggle">
-          <input type="checkbox" id="maze-enabled-toggle" aria-label="Enable maze" bind:checked={mazeEnabled}>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <p class="control-desc text-muted">Toggle whether identified bot traffic gets routed into the Maze. Set the threshold of Maze pages visited before the IP of the visitor is added to the ban list. Low thresholds increase potential of false positives. You may click here to preview the <a id="preview-maze-link" href="/admin/maze/preview" target="_blank" rel="noopener noreferrer">Maze</a> without risk of being banned (admin session required).</p>
-      <div class="admin-controls">
-        <div class="toggle-row">
-          <label class="control-label" for="maze-auto-ban-toggle">Enable Auto-ban</label>
-          <label class="toggle-switch">
-            <input type="checkbox" id="maze-auto-ban-toggle" aria-label="Enable maze auto-ban" bind:checked={mazeAutoBan}>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="input-row" class:input-row--disabled={!mazeAutoBan} aria-disabled={!mazeAutoBan}>
-          <label class="control-label" class:text-muted={!mazeAutoBan} for="maze-threshold">Auto-ban Threshold (maze pages visited)</label>
-          <input class="input-field" type="number" id="maze-threshold" min="5" max="500" step="1" inputmode="numeric" aria-label="Maze ban threshold in pages" bind:value={mazeThreshold} disabled={!mazeAutoBan}>
-        </div>
-      </div>
-    </div>
+    <ConfigMazeSection bind:writable bind:mazeDirty bind:tarpitDirty bind:mazeEnabled bind:mazeAutoBan bind:mazeThreshold bind:tarpitEnabled />
 
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={tarpitDirty}
-    >
-      <div class="panel-heading-with-control">
-        <h3>Tarpit</h3>
-        <label class="toggle-switch" for="tarpit-enabled-toggle">
-          <input type="checkbox" id="tarpit-enabled-toggle" aria-label="Enable tarpit" bind:checked={tarpitEnabled}>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <p class="control-desc text-muted">Enable progression-gated tarpit defence for confirmed challenge attacks. Tarpit uses bounded work and deterministic fallback to keep host cost controlled while increasing attacker cost. You may click here to preview the <a id="preview-tarpit-link" href="/admin/tarpit/preview" target="_blank" rel="noopener noreferrer">Tarpit</a> without mutating runtime state (admin session required).</p>
-      {#if !mazeEnabled}
-        <p class="message warning">Maze is currently disabled, so tarpit cannot be served until Maze is enabled.</p>
-      {/if}
-    </div>
+    <ConfigChallengeSection bind:writable bind:notABotDirty bind:challengePuzzleDirty bind:notABotEnabled bind:challengePuzzleEnabled bind:notABotScorePassMinFloor bind:notABotScorePassMin bind:notABotScoreFailMaxCap bind:notABotScoreFailMax />
 
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={notABotDirty}
-    >
-      <div class="panel-heading-with-control">
-        <h3>Challenge: Not-a-Bot</h3>
-        <label class="toggle-switch" for="not-a-bot-enabled-toggle">
-          <input type="checkbox" id="not-a-bot-enabled-toggle" aria-label="Enable not-a-bot challenge routing" bind:checked={notABotEnabled}>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <p class="control-desc text-muted">Not-a-Bot is the low-friction checkbox style challenge routed to when the botness signal is above zero but below the instant ban criteria, and below the thresholds where the visitor will be routed to the Maze or Tarpit. When Shuma Gorath is optimally configured, human users should rarely be asked to complete either of the challenges. You may click here to preview <a id="preview-not-a-bot-link" href="/challenge/not-a-bot-checkbox" target="_blank" rel="noopener noreferrer">Not-a-Bot</a>, but test mode must be enabled. Advanced controls (<abbr title="Number Used Once">Nonce</abbr> <abbr title="Time To Live">TTL</abbr>, marker <abbr title="Time To Live">TTL</abbr>, and attempt limits) are available in Advanced <abbr title="JavaScript Object Notation">JSON</abbr>.</p>
-      <div class="admin-controls">
-        <div class="input-row">
-          <label class="control-label" for="not-a-bot-score-pass-min">Pass Score ({notABotScorePassMinFloor}-10)</label>
-          <input class="input-field" type="number" id="not-a-bot-score-pass-min" min={notABotScorePassMinFloor} max="10" step="1" inputmode="numeric" aria-label="Not-a-Bot pass score threshold" bind:value={notABotScorePassMin}>
-        </div>
-        <p class="text-muted">Any scores above Fail and below Pass will be shown a tougher challenge.</p>
-        <div class="input-row">
-          <label class="control-label" for="not-a-bot-score-fail-max">Fail Score (0-{notABotScoreFailMaxCap})</label>
-          <input class="input-field" type="number" id="not-a-bot-score-fail-max" min="0" max={notABotScoreFailMaxCap} step="1" inputmode="numeric" aria-label="Not-a-Bot fail score threshold" bind:value={notABotScoreFailMax}>
-        </div>
-        <p class="text-muted">Scores below Fail route to Maze (if enabled), otherwise Block (403). Confirmed attacks (replay, tamper, or attempt-window abuse) route to tarpit when available, otherwise a short ban.</p>
-      </div>
-    </div>
+    <ConfigNetworkSection bind:writable bind:honeypotDirty bind:honeypotEnabled bind:honeypotPaths bind:ipRangeDirty bind:ipRangePolicyMode bind:ipRangeEmergencyAllowlist bind:ipRangeCustomRulesJson bind:ipRangeManagedPoliciesJson bind:ipRangeManagedMaxStalenessHours bind:ipRangeAllowStaleManagedEnforce ipRangeManagedStalenessMin={IP_RANGE_MANAGED_STALENESS_MIN} ipRangeManagedStalenessMax={IP_RANGE_MANAGED_STALENESS_MAX} bind:ipRangeManagedSetRows bind:ipRangeCatalogVersion bind:ipRangeCatalogGeneratedAt bind:ipRangeCatalogAgeHours bind:ipRangeManagedSetStaleCount bind:ipRangeCatalogStale bind:browserPolicyDirty bind:browserPolicyEnabled bind:browserBlockRules bind:browserWhitelistRules bind:whitelistDirty bind:bypassAllowlistsEnabled bind:networkWhitelist bind:pathWhitelist bind:edgeModeDirty bind:edgeIntegrationMode />
 
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={challengePuzzleDirty}
-    >
-      <div class="panel-heading-with-control">
-        <h3>Challenge: Puzzle</h3>
-        <label class="toggle-switch" for="challenge-puzzle-enabled-toggle">
-          <input type="checkbox" id="challenge-puzzle-enabled-toggle" aria-label="Enable challenge puzzle routing" bind:checked={challengePuzzleEnabled}>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <p class="control-desc text-muted">The Puzzle Challenge is shown to visitors failing to attain a pass score on the not-a-bot challenge, but who also scored above the auto-ban, hard-fail level. It is designed to be significantly more costly for bots, while remaining relatively simple for humans. Very few humans should ever have to solve it. The Puzzle has deterministic solve verification (correct/incorrect) with strict signed-seed expiry and replay/timing enforcement. Advanced controls, including transform count (which increases the challenge difficulty), seed <abbr title="Time To Live">TTL</abbr>, and attempt limits, can be configured using the Advanced <abbr title="JavaScript Object Notation">JSON</abbr> input below. Wrong answers route to Maze. Confirmed attacks (replay, tamper, or attempt-window abuse) route to tarpit when available, otherwise a short ban. You may click here to preview the <a id="preview-challenge-puzzle-link" href="/challenge/puzzle" target="_blank" rel="noopener noreferrer">Puzzle</a>, but test mode must be enabled.</p>
-    </div>
+    <ConfigGeoSection bind:writable bind:geoScoringDirty bind:geoRoutingDirty bind:geoScoringEnabled bind:geoRoutingEnabled bind:geoRiskList bind:geoAllowList bind:geoChallengeList bind:geoMazeList bind:geoBlockList />
 
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={honeypotDirty}
-    >
-      <div class="panel-heading-with-control">
-        <h3>Honeypot Paths</h3>
-        <label class="toggle-switch" for="honeypot-enabled-toggle">
-          <input type="checkbox" id="honeypot-enabled-toggle" aria-label="Enable honeypot" bind:checked={honeypotEnabled}>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <p class="control-desc text-muted">One path per line. Requests that hit these paths are treated as high-confidence bot behavior. Paths must start with <code>/</code>.</p>
-      <div class="admin-controls">
-        <div class="geo-field">
-          <label class="control-label" for="honeypot-paths">Paths</label>
-          <textarea class="input-field geo-textarea" id="honeypot-paths" rows="3" aria-label="Honeypot paths" spellcheck="false" bind:value={honeypotPaths}></textarea>
-        </div>
-      </div>
-    </div>
+    <ConfigDurationsSection bind:writable bind:durationsDirty bind:durHoneypotDays bind:durHoneypotHours bind:durHoneypotMinutes bind:durRateLimitDays bind:durRateLimitHours bind:durRateLimitMinutes bind:durBrowserDays bind:durBrowserHours bind:durBrowserMinutes bind:durCdpDays bind:durCdpHours bind:durCdpMinutes bind:durAdminDays bind:durAdminHours bind:durAdminMinutes />
 
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={ipRangeDirty}
-    >
-      <div class="panel-heading-with-control">
-        <h3><abbr title="Internet Protocol">IP</abbr> Range Policy</h3>
-        <select class="input-field panel-heading-select" id="ip-range-policy-mode" aria-label="Internet Protocol range policy mode" bind:value={ipRangePolicyMode}>
-          <option value="off">off</option>
-          <option value="advisory">advisory</option>
-          <option value="enforce">enforce</option>
-        </select>
-      </div>
-      <p class="control-desc text-muted">
-        Configure <abbr title="Classless Inter-Domain Routing">CIDR</abbr> policy mode, emergency allowlist, custom rules, managed set policies, and managed-catalog staleness safeguards.
-      </p>
-      <div class="admin-controls">
-        <div class="geo-field">
-          <label class="control-label" for="ip-range-emergency-allowlist">Emergency Allowlist <abbr title="Classless Inter-Domain Routing">CIDRs</abbr></label>
-          <textarea
-            class="input-field geo-textarea"
-            id="ip-range-emergency-allowlist"
-            rows="3"
-            aria-label="Internet Protocol range emergency allowlist"
-            spellcheck="false"
-            bind:value={ipRangeEmergencyAllowlist}
-          ></textarea>
-        </div>
-        <div class="geo-field">
-          <label class="control-label" for="ip-range-custom-rules-json">Custom Rules <abbr title="JavaScript Object Notation">JSON</abbr></label>
-          <textarea
-            class="input-field geo-textarea input-field--mono"
-            id="ip-range-custom-rules-json"
-            rows="8"
-            aria-label="Internet Protocol range custom rules JavaScript Object Notation"
-            spellcheck="false"
-            bind:value={ipRangeCustomRulesJson}
-          ></textarea>
-        </div>
-        <div class="geo-field">
-          <label class="control-label" for="ip-range-managed-policies-json">Managed Policies <abbr title="JavaScript Object Notation">JSON</abbr></label>
-          <textarea
-            class="input-field geo-textarea input-field--mono"
-            id="ip-range-managed-policies-json"
-            rows="6"
-            aria-label="Internet Protocol range managed policies JavaScript Object Notation"
-            spellcheck="false"
-            bind:value={ipRangeManagedPoliciesJson}
-          ></textarea>
-        </div>
-        <div class="input-row">
-          <label class="control-label control-label--wide" for="ip-range-managed-max-staleness">
-            Managed Max Staleness (hours)
-          </label>
-          <input
-            class="input-field"
-            type="number"
-            id="ip-range-managed-max-staleness"
-            min={IP_RANGE_MANAGED_STALENESS_MIN}
-            max={IP_RANGE_MANAGED_STALENESS_MAX}
-            step="1"
-            inputmode="numeric"
-            aria-label="Internet Protocol range managed max staleness hours"
-            bind:value={ipRangeManagedMaxStalenessHours}
-          >
-        </div>
-        <div class="toggle-row">
-          <label class="control-label control-label--wide" for="ip-range-allow-stale-enforce">
-            Allow stale managed enforce
-          </label>
-          <label class="toggle-switch" for="ip-range-allow-stale-enforce">
-            <input
-              type="checkbox"
-              id="ip-range-allow-stale-enforce"
-              aria-label="Allow stale managed enforce"
-              bind:checked={ipRangeAllowStaleManagedEnforce}
-            >
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-      </div>
-      <div class="info-panel">
-        <h4>Managed Catalog Snapshot</h4>
-        <div class="info-row">
-          <span class="info-label text-muted">Version</span>
-          <span><code>{ipRangeCatalogVersion}</code></span>
-        </div>
-        <div class="info-row">
-          <span class="info-label text-muted">Generated At</span>
-          <span>{ipRangeCatalogGeneratedAt}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label text-muted">Catalog Age</span>
-          <span>
-            {#if Number.isFinite(ipRangeCatalogAgeHours)}
-              {ipRangeCatalogAgeHours}h
-            {:else}
-              -
-            {/if}
-          </span>
-        </div>
-        <div class="info-row">
-          <span class="info-label text-muted">Managed Sets (stale)</span>
-          <span>{ipRangeManagedSetRows.length} ({ipRangeManagedSetStaleCount})</span>
-        </div>
-      </div>
-      {#if ipRangeCatalogStale}
-        <p class="message warning">Managed catalog is stale under current max staleness policy.</p>
-      {/if}
-      {#if ipRangeManagedSetRows.length > 0}
-        <div class="table-wrapper">
-          <table id="ip-range-config-managed-sets-table">
-            <thead>
-              <tr>
-                <th>Set</th>
-                <th>Provider</th>
-                <th>Version</th>
-                <th>Entries</th>
-                <th>Stale</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each ipRangeManagedSetRows as set}
-                <tr>
-                  <td><code>{set?.set_id || '-'}</code></td>
-                  <td>{set?.provider || '-'}</td>
-                  <td><code>{set?.version || '-'}</code></td>
-                  <td>{set?.entry_count ?? 0}</td>
-                  <td>{set?.stale === true ? 'YES' : 'NO'}</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-      {/if}
-    </div>
+    <ConfigRobotsSection bind:writable bind:robotsDirty bind:aiPolicyDirty bind:robotsEnabled bind:robotsCrawlDelay bind:robotsBlockTraining bind:robotsBlockSearch bind:restrictSearchEngines bind:robotsPreviewOpen bind:robotsPreviewLoading bind:robotsPreviewContent onRobotsPreviewControlChanged={onRobotsPreviewControlChanged} onToggleRobotsPreview={toggleRobotsPreview} />
 
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={browserPolicyDirty}
-    >
-      <div class="panel-heading-with-control">
-        <h3>Browser Policy</h3>
-        <label class="toggle-switch" for="browser-policy-toggle">
-          <input type="checkbox" id="browser-policy-toggle" bind:checked={browserPolicyEnabled}>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <p class="control-desc text-muted">Use one rule per line in <code>BrowserName,min_major</code> format (for example <code>Chrome,120</code>).</p>
-      <div class="admin-controls">
-        <div class="geo-field">
-          <label class="control-label" for="browser-block-rules">Minimum Versions (Block)</label>
-          <textarea class="input-field geo-textarea" id="browser-block-rules" rows="3" aria-label="Browser block minimum versions" spellcheck="false" bind:value={browserBlockRules}></textarea>
-        </div>
-        <div class="geo-field">
-          <label class="control-label" for="browser-whitelist-rules">Allowlist Exceptions</label>
-          <textarea class="input-field geo-textarea" id="browser-whitelist-rules" rows="2" aria-label="Browser allowlist exceptions" spellcheck="false" bind:value={browserWhitelistRules}></textarea>
-        </div>
-      </div>
-    </div>
+    <ConfigExportSection bind:writable bind:exportConfigDisabled bind:exportConfigStatus bind:exportConfigStatusKind onExportCurrentConfigJson={exportCurrentConfigJson} />
 
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={whitelistDirty}
-    >
-      <div class="panel-heading-with-control">
-        <h3>Bypass Allowlists</h3>
-        <label class="toggle-switch" for="bypass-allowlists-toggle">
-          <input type="checkbox" id="bypass-allowlists-toggle" bind:checked={bypassAllowlistsEnabled}>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <p class="control-desc text-muted">Define trusted bypass entries. Use one entry per line.</p>
-      <div class="admin-controls">
-        <div class="geo-field">
-          <label class="control-label" for="network-whitelist"><abbr title="Internet Protocol">IP</abbr>/<abbr title="Classless Inter-Domain Routing">CIDR</abbr> Allowlist</label>
-          <textarea class="input-field geo-textarea" id="network-whitelist" rows="3" aria-label="Internet Protocol and Classless Inter-Domain Routing allowlist" spellcheck="false" bind:value={networkWhitelist}></textarea>
-        </div>
-        <div class="geo-field">
-          <label class="control-label" for="path-whitelist">Path Allowlist</label>
-          <textarea class="input-field geo-textarea" id="path-whitelist" rows="3" aria-label="Path allowlist" spellcheck="false" bind:value={pathWhitelist}></textarea>
-        </div>
-      </div>
-    </div>
+    <ConfigAdvancedSection bind:writable bind:advancedDirty bind:advancedConfigJson bind:advancedValidationPending bind:advancedInvalidMessage bind:advancedValidationIssues bind:advancedValid />
 
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={edgeModeDirty}
-    >
-      <div class="panel-heading-with-control">
-        <h3>Edge Integration Mode</h3>
-        <select class="input-field panel-heading-select" id="edge-integration-mode-select" aria-label="Edge integration mode" bind:value={edgeIntegrationMode}>
-          <option value="off">off</option>
-          <option value="advisory">advisory</option>
-          <option value="authoritative">authoritative</option>
-        </select>
-      </div>
-      <p class="control-desc text-muted">Control how external edge bot outcomes influence local policy: off ignores edge outcomes, advisory records them without direct enforcement, authoritative allows strong edge outcomes to short-circuit.</p>
-    </div>
-
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={geoScoringDirty}
-    >
-      <div class="panel-heading-with-control">
-        <h3><abbr title="Geolocation">GEO</abbr> Risk Based Scoring</h3>
-        <label class="toggle-switch" for="geo-scoring-toggle">
-          <input type="checkbox" id="geo-scoring-toggle" bind:checked={geoScoringEnabled}>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <p class="control-desc text-muted">Use <a href="https://www.iban.com/country-codes">2-letter country codes</a> to specify countries from where requests will receive added botness risk to contribute to the combined score.</p>
-      <div class="admin-controls geo-controls">
-        <div class="geo-field">
-          <label class="control-label" for="geo-risk-list">Scoring Countries</label>
-          <textarea class="input-field geo-textarea" id="geo-risk-list" rows="1" aria-label="Geolocation scoring countries" spellcheck="false" bind:value={geoRiskList}></textarea>
-        </div>
-      </div>
-    </div>
-
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={geoRoutingDirty}
-    >
-      <div class="panel-heading-with-control">
-        <h3><abbr title="Geolocation">GEO</abbr> Risk Based Routing</h3>
-        <label class="toggle-switch" for="geo-routing-toggle">
-          <input type="checkbox" id="geo-routing-toggle" bind:checked={geoRoutingEnabled}>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <p class="control-desc text-muted">Use <a href="https://www.iban.com/country-codes">2-letter country codes</a> to specify countries from where requests will be automatically routed. Precedence is Block &gt; Maze &gt; Challenge &gt; Allow.</p>
-      <div class="admin-controls geo-controls">
-        <div class="geo-field">
-          <label class="control-label" for="geo-block-list">Block Countries</label>
-          <textarea class="input-field geo-textarea" id="geo-block-list" rows="1" aria-label="Geolocation block countries" spellcheck="false" bind:value={geoBlockList}></textarea>
-        </div>
-        <div class="geo-field">
-          <label class="control-label" for="geo-maze-list">Maze Countries</label>
-          <textarea class="input-field geo-textarea" id="geo-maze-list" rows="1" aria-label="Geolocation maze countries" spellcheck="false" bind:value={geoMazeList}></textarea>
-        </div>
-        <div class="geo-field">
-          <label class="control-label" for="geo-challenge-list">Challenge Countries</label>
-          <textarea class="input-field geo-textarea" id="geo-challenge-list" rows="1" aria-label="Geolocation challenge countries" spellcheck="false" bind:value={geoChallengeList}></textarea>
-        </div>
-        <div class="geo-field">
-          <label class="control-label" for="geo-allow-list">Allow Countries</label>
-          <textarea class="input-field geo-textarea" id="geo-allow-list" rows="1" aria-label="Geolocation allow countries" spellcheck="false" bind:value={geoAllowList}></textarea>
-        </div>
-      </div>
-    </div>
-
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={durationsDirty}
-    >
-      <h3>Ban Durations</h3>
-      <p class="control-desc text-muted">Set ban length in days, hours, and minutes per trigger type. Longer bans increase deterrence but slow recovery from false positives.</p>
-      <div class="duration-grid">
-        <div class="duration-row">
-          <label class="control-label" for="dur-honeypot-days">Maze Threshold Exceeded</label>
-          <div class="duration-inputs">
-            <label class="duration-input" for="dur-honeypot-days">
-              <input id="dur-honeypot-days" class="input-field" type="number" min="0" max="365" step="1" inputmode="numeric" bind:value={durHoneypotDays} />
-              <span class="input-unit">days</span>
-            </label>
-            <label class="duration-input" for="dur-honeypot-hours">
-              <input id="dur-honeypot-hours" class="input-field" type="number" min="0" max="23" step="1" inputmode="numeric" bind:value={durHoneypotHours} />
-              <span class="input-unit">hrs</span>
-            </label>
-            <label class="duration-input" for="dur-honeypot-minutes">
-              <input id="dur-honeypot-minutes" class="input-field" type="number" min="0" max="59" step="1" inputmode="numeric" bind:value={durHoneypotMinutes} />
-              <span class="input-unit">mins</span>
-            </label>
-          </div>
-        </div>
-        <div class="duration-row">
-          <label class="control-label" for="dur-rate-limit-days">Rate Limit Exceeded</label>
-          <div class="duration-inputs">
-            <label class="duration-input" for="dur-rate-limit-days">
-              <input id="dur-rate-limit-days" class="input-field" type="number" min="0" max="365" step="1" inputmode="numeric" bind:value={durRateLimitDays} />
-              <span class="input-unit">days</span>
-            </label>
-            <label class="duration-input" for="dur-rate-limit-hours">
-              <input id="dur-rate-limit-hours" class="input-field" type="number" min="0" max="23" step="1" inputmode="numeric" bind:value={durRateLimitHours} />
-              <span class="input-unit">hrs</span>
-            </label>
-            <label class="duration-input" for="dur-rate-limit-minutes">
-              <input id="dur-rate-limit-minutes" class="input-field" type="number" min="0" max="59" step="1" inputmode="numeric" bind:value={durRateLimitMinutes} />
-              <span class="input-unit">mins</span>
-            </label>
-          </div>
-        </div>
-        <div class="duration-row">
-          <label class="control-label" for="dur-browser-days">Browser Automation Detected</label>
-          <div class="duration-inputs">
-            <label class="duration-input" for="dur-browser-days">
-              <input id="dur-browser-days" class="input-field" type="number" min="0" max="365" step="1" inputmode="numeric" bind:value={durBrowserDays} />
-              <span class="input-unit">days</span>
-            </label>
-            <label class="duration-input" for="dur-browser-hours">
-              <input id="dur-browser-hours" class="input-field" type="number" min="0" max="23" step="1" inputmode="numeric" bind:value={durBrowserHours} />
-              <span class="input-unit">hrs</span>
-            </label>
-            <label class="duration-input" for="dur-browser-minutes">
-              <input id="dur-browser-minutes" class="input-field" type="number" min="0" max="59" step="1" inputmode="numeric" bind:value={durBrowserMinutes} />
-              <span class="input-unit">mins</span>
-            </label>
-          </div>
-        </div>
-        <div class="duration-row">
-          <label class="control-label" for="dur-cdp-days"><abbr title="Chrome DevTools Protocol">CDP</abbr> Automation Detected</label>
-          <div class="duration-inputs">
-            <label class="duration-input" for="dur-cdp-days">
-              <input id="dur-cdp-days" class="input-field" type="number" min="0" max="365" step="1" inputmode="numeric" bind:value={durCdpDays} />
-              <span class="input-unit">days</span>
-            </label>
-            <label class="duration-input" for="dur-cdp-hours">
-              <input id="dur-cdp-hours" class="input-field" type="number" min="0" max="23" step="1" inputmode="numeric" bind:value={durCdpHours} />
-              <span class="input-unit">hrs</span>
-            </label>
-            <label class="duration-input" for="dur-cdp-minutes">
-              <input id="dur-cdp-minutes" class="input-field" type="number" min="0" max="59" step="1" inputmode="numeric" bind:value={durCdpMinutes} />
-              <span class="input-unit">mins</span>
-            </label>
-          </div>
-        </div>
-        <div class="duration-row">
-          <label class="control-label" for="dur-admin-days">Admin Manual Ban Default</label>
-          <div class="duration-inputs">
-            <label class="duration-input" for="dur-admin-days">
-              <input id="dur-admin-days" class="input-field" type="number" min="0" max="365" step="1" inputmode="numeric" bind:value={durAdminDays} />
-              <span class="input-unit">days</span>
-            </label>
-            <label class="duration-input" for="dur-admin-hours">
-              <input id="dur-admin-hours" class="input-field" type="number" min="0" max="23" step="1" inputmode="numeric" bind:value={durAdminHours} />
-              <span class="input-unit">hrs</span>
-            </label>
-            <label class="duration-input" for="dur-admin-minutes">
-              <input id="dur-admin-minutes" class="input-field" type="number" min="0" max="59" step="1" inputmode="numeric" bind:value={durAdminMinutes} />
-              <span class="input-unit">mins</span>
-            </label>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={robotsDirty || aiPolicyDirty}
-    >
-      <div class="panel-heading-with-control">
-        <h3>Serve a Robots.txt Specifying Bot Policy</h3>
-        <label class="toggle-switch" for="robots-enabled-toggle">
-          <input type="checkbox" id="robots-enabled-toggle" aria-label="Serve robots.txt" bind:checked={robotsEnabled} on:change={onRobotsPreviewControlChanged}>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <p class="control-desc text-muted">View the current policy as configured below: <a id="open-robots-txt-link" href="/robots.txt" target="_blank" rel="noopener noreferrer">robots.txt</a></p>
-      <div class="admin-controls">
-        <div class="input-row">
-          <label class="control-label control-label--wide" for="robots-crawl-delay">Crawl Delay (seconds)</label>
-          <input class="input-field" type="number" id="robots-crawl-delay" min="0" max="60" step="1" inputmode="numeric" aria-label="Robots crawl delay in seconds" bind:value={robotsCrawlDelay} on:input={onRobotsPreviewControlChanged}>
-        </div>
-        <h4 class="control-subtitle"><abbr title="Large Language Models">AI</abbr> Bot Policy</h4>
-        <div class="toggle-row">
-          <label class="control-label control-label--wide" for="robots-block-training-toggle">Opt-out <abbr title="Large Language Models">AI</abbr> Training</label>
-          <label class="toggle-switch">
-            <input type="checkbox" id="robots-block-training-toggle" aria-label="Opt-out Large Language Models training" bind:checked={robotsBlockTraining} on:change={onRobotsPreviewControlChanged}>
-            <span class="toggle-slider"></span>
-          </label>
-          <span class="toggle-hint">GPTBot, CCBot, ClaudeBot</span>
-        </div>
-        <div class="toggle-row">
-          <label class="control-label control-label--wide" for="robots-block-search-toggle">Opt-out <abbr title="Large Language Models">AI</abbr> Search</label>
-          <label class="toggle-switch">
-            <input type="checkbox" id="robots-block-search-toggle" aria-label="Opt-out Large Language Models search" bind:checked={robotsBlockSearch} on:change={onRobotsPreviewControlChanged}>
-            <span class="toggle-slider"></span>
-          </label>
-          <span class="toggle-hint">PerplexityBot, etc.</span>
-        </div>
-        <div class="toggle-row">
-          <label class="control-label control-label--wide" for="robots-allow-search-toggle">Restrict Search Engines</label>
-          <label class="toggle-switch">
-            <input type="checkbox" id="robots-allow-search-toggle" aria-label="Restrict search engines" bind:checked={restrictSearchEngines} on:change={onRobotsPreviewControlChanged}>
-            <span class="toggle-slider"></span>
-          </label>
-          <span class="toggle-hint">Google, Bing, etc.</span>
-        </div>
-      </div>
-      <button id="preview-robots" class="btn btn-subtle" on:click={toggleRobotsPreview}>{robotsPreviewOpen ? 'Hide robots.txt' : 'Show robots.txt'}</button>
-      <div id="robots-preview" class="robots-preview panel pad-sm" class:hidden={!robotsPreviewOpen}>
-        <h4>robots.txt Preview</h4>
-        <pre id="robots-preview-content">{robotsPreviewLoading ? 'Loading...' : robotsPreviewContent}</pre>
-      </div>
-    </div>
-
-    <div
-      class="control-group panel-soft pad-md config-export-pane"
-      class:hidden={!writable}
-    >
-      <button
-        id="export-current-config-json"
-        class="btn btn-subtle"
-        disabled={exportConfigDisabled}
-        on:click={exportCurrentConfigJson}
-      >Export a JSON copy of the above configuration</button>
-      {#if exportConfigStatus}
-        <p id="export-current-config-status" class={`message ${exportConfigStatusKind}`}>{exportConfigStatus}</p>
-      {/if}
-    </div>
-
-    <div
-      class="control-group panel-soft pad-md config-edit-pane"
-      class:hidden={!writable}
-      class:config-edit-pane--dirty={advancedDirty}
-    >
-      <h3>Advanced Config <abbr title="JavaScript Object Notation">JSON</abbr></h3>
-      <p class="control-desc text-muted">Directly edit writable config keys as a <abbr title="JavaScript Object Notation">JSON</abbr> object. This editor reflects the last loaded snapshot and does not auto-sync while you change controls above.</p>
-      <div class="admin-controls">
-        <div class="geo-field">
-          <label class="control-label" for="advanced-config-json"><abbr title="JavaScript Object Notation">JSON</abbr> Patch</label>
-          <textarea
-            class="input-field geo-textarea"
-            id="advanced-config-json"
-            rows="8"
-            aria-label="Advanced config JavaScript Object Notation patch"
-            aria-invalid={advancedValid ? 'false' : 'true'}
-            spellcheck="false"
-            bind:value={advancedConfigJson}
-          ></textarea>
-        </div>
-        {#if advancedValidationPending}
-          <p id="advanced-config-json-validating" class="text-muted">Validating Advanced <abbr title="JavaScript Object Notation">JSON</abbr>...</p>
-        {/if}
-        {#if advancedInvalidMessage}
-          <div id="advanced-config-json-error" class="message error">
-            <p>{advancedInvalidMessage}</p>
-            {#if advancedValidationIssues.length > 0}
-              <ul id="advanced-config-json-issue-list" class="validation-issue-list">
-                {#each advancedValidationIssues as issue, issueIndex}
-                  <li id={`advanced-config-json-issue-${issueIndex}`}>
-                    {#if issue.field}
-                      <code>{issue.field}</code>:&nbsp;
-                    {/if}
-                    {issue.message}
-                    {#if issue.expected}
-                      <span class="validation-issue-expected">Expected: {issue.expected}</span>
-                    {/if}
-                    {#if issue.received !== undefined}
-                      <span class="validation-issue-received">Received: <code>{formatUnknownForDisplay(issue.received)}</code></span>
-                    {/if}
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-            <a
-              id="advanced-config-json-docs-link"
-              href="https://github.com/atomless/Shuma-Gorath/blob/main/docs/configuration.md"
-              target="_blank"
-              rel="noopener noreferrer"
-            >Configuration docs</a>
-          </div>
-        {/if}
-      </div>
-    </div>
-
-    <div
-      id="config-save-all-bar"
-      class="config-save-bar panel panel-border"
-      class:hidden={!writable || !hasUnsavedChanges}
-    >
-      <div class="config-save-bar__meta">
-        <span id="config-unsaved-summary" class="text-unsaved-changes">{saveAllSummaryText}</span>
-        {#if saveAllInvalidText}
-          <span id="config-invalid-summary" class="config-save-bar__warning">{saveAllInvalidText}</span>
-        {/if}
-        <button id="save-config-all" class="btn btn-submit" disabled={saveAllConfigDisabled} on:click={saveAllConfig}>
-          {saveAllConfigLabel}
-        </button>
-      </div>
-    </div>
+    <SaveChangesBar containerId="config-save-all-bar" hidden={!writable || !hasUnsavedChanges} summaryId="config-unsaved-summary" summaryText={saveAllSummaryText} summaryClass="text-unsaved-changes" invalidId="config-invalid-summary" invalidText={saveAllInvalidText} buttonId="save-config-all" buttonLabel={saveAllConfigLabel} buttonDisabled={saveAllConfigDisabled} onSave={saveAllConfig} />
   </div>
 </section>

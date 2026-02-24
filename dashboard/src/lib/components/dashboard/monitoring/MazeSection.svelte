@@ -1,4 +1,7 @@
 <script>
+  import MetricStatCard from '../primitives/MetricStatCard.svelte';
+  import SectionBlock from '../primitives/SectionBlock.svelte';
+
   export let loading = false;
   export let mazeStats = {
     totalHits: '0',
@@ -8,25 +11,20 @@
   };
 </script>
 
-<div class="section events">
-  <h2>Maze</h2>
-  <p class="section-desc text-muted">Crawlers trapped in infinite fake pages</p>
+<SectionBlock
+  title="Maze"
+  description="Crawlers trapped in infinite fake pages"
+>
   <div class="stats-cards stats-cards--compact">
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Total Hits</h3>
-      <span class="stat-value" id="maze-total-hits">{loading ? '...' : mazeStats.totalHits}</span>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Unique Crawlers</h3>
-      <span class="stat-value" id="maze-unique-crawlers">{loading ? '...' : mazeStats.uniqueCrawlers}</span>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Auto-Banned</h3>
-      <span class="stat-value" id="maze-auto-bans">{loading ? '...' : mazeStats.mazeAutoBans}</span>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label" id="maze-top-offender-label">{loading ? 'Top Offender' : mazeStats.topOffender.label}</h3>
-      <span class="stat-value" id="maze-top-offender">{loading ? '...' : mazeStats.topOffender.value}</span>
-    </div>
+    <MetricStatCard title="Total Hits" valueId="maze-total-hits" {loading} value={mazeStats.totalHits} />
+    <MetricStatCard title="Unique Crawlers" valueId="maze-unique-crawlers" {loading} value={mazeStats.uniqueCrawlers} />
+    <MetricStatCard title="Auto-Banned" valueId="maze-auto-bans" {loading} value={mazeStats.mazeAutoBans} />
+    <MetricStatCard
+      title={loading ? 'Top Offender' : mazeStats.topOffender.label}
+      titleId="maze-top-offender-label"
+      valueId="maze-top-offender"
+      {loading}
+      value={mazeStats.topOffender.value}
+    />
   </div>
-</div>
+</SectionBlock>

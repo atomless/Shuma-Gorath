@@ -1,4 +1,6 @@
 <script>
+  import SectionBlock from '../primitives/SectionBlock.svelte';
+
   export let selectedTimeRange = 'hour';
   export let onSelectTimeRange = null;
   export let eventTypesCanvas = null;
@@ -23,9 +25,11 @@
   </div>
 </div>
 
-<div class="section">
-  <h2>Events Over Time</h2>
-  <p class="section-desc text-muted">Recent events plotted over various time windows</p>
+<SectionBlock
+  title="Events Over Time"
+  description="Recent events plotted over various time windows"
+  rootClass="section"
+>
   <div class="chart-header">
     <div class="time-range-buttons">
       <button type="button" class="btn time-btn" class:active={selectedTimeRange === 'hour'} data-range="hour" on:click={() => selectRange('hour')}>60 Mins</button>
@@ -37,4 +41,4 @@
   <div class="chart-container panel-soft panel-border pad-md-trb">
     <canvas id="timeSeriesChart" bind:this={timeSeriesCanvas}></canvas>
   </div>
-</div>
+</SectionBlock>

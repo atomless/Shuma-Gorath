@@ -1,5 +1,7 @@
 <script>
   import { formatCompactNumber } from '../../../domain/core/format.js';
+  import MetricStatCard from '../primitives/MetricStatCard.svelte';
+  import SectionBlock from '../primitives/SectionBlock.svelte';
 
   export let loading = false;
   export let rateSummary = {
@@ -10,22 +12,20 @@
   export let rateOutcomeRows = [];
 </script>
 
-<div class="section events">
-  <h2>Rate Limiting Violations</h2>
-  <p class="section-desc text-muted">Rate-limit outcomes and top offender bucket.</p>
+<SectionBlock
+  title="Rate Limiting Violations"
+  description="Rate-limit outcomes and top offender bucket."
+>
   <div class="stats-cards stats-cards--compact">
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Total Violations</h3>
-      <div class="stat-value" id="rate-violations-total">{loading ? '...' : rateSummary.totalViolations}</div>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Unique Offenders</h3>
-      <div class="stat-value" id="rate-violations-unique">{loading ? '...' : rateSummary.uniqueOffenders}</div>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label" id="rate-top-offender-label">{loading ? 'Top Offender' : rateSummary.topOffender.label}</h3>
-      <div class="stat-value" id="rate-top-offender">{loading ? '...' : rateSummary.topOffender.value}</div>
-    </div>
+    <MetricStatCard title="Total Violations" valueId="rate-violations-total" {loading} value={rateSummary.totalViolations} />
+    <MetricStatCard title="Unique Offenders" valueId="rate-violations-unique" {loading} value={rateSummary.uniqueOffenders} />
+    <MetricStatCard
+      title={loading ? 'Top Offender' : rateSummary.topOffender.label}
+      titleId="rate-top-offender-label"
+      valueId="rate-top-offender"
+      {loading}
+      value={rateSummary.topOffender.value}
+    />
   </div>
   <div class="panel panel-border pad-md-b">
     <h3>Enforcement Outcomes</h3>
@@ -39,4 +39,4 @@
       {/if}
     </ul>
   </div>
-</div>
+</SectionBlock>

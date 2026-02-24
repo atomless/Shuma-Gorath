@@ -1,5 +1,9 @@
 <script>
   import { formatCompactNumber } from '../../../domain/core/format.js';
+  import MetricStatCard from '../primitives/MetricStatCard.svelte';
+  import SectionBlock from '../primitives/SectionBlock.svelte';
+  import TableEmptyRow from '../primitives/TableEmptyRow.svelte';
+  import TableWrapper from '../primitives/TableWrapper.svelte';
 
   export let loading = false;
   export let cdpDetections = 0;
@@ -11,28 +15,17 @@
   export let readCdpField = () => '-';
 </script>
 
-<div class="section events">
-  <h2><abbr title="Chrome DevTools Protocol">CDP</abbr> Detections</h2>
-  <p class="section-desc text-muted">Browser automation detection and bans in the last 24hrs</p>
+<SectionBlock
+  title='<abbr title="Chrome DevTools Protocol">CDP</abbr> Detections'
+  description='Browser automation detection and bans in the last 24hrs'
+>
   <div class="stats-cards stats-cards--compact">
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Total Detections</h3>
-      <div class="stat-value stat-value" id="cdp-total-detections">{loading ? '...' : formatCompactNumber(cdpDetections, '0')}</div>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Auto-Bans</h3>
-      <div class="stat-value stat-value" id="cdp-total-auto-bans">{loading ? '...' : formatCompactNumber(cdpAutoBans, '0')}</div>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label"><abbr title="Fingerprint">FP</abbr> Mismatch Events</h3>
-      <div class="stat-value stat-value" id="cdp-fp-events">{loading ? '...' : formatCompactNumber(cdpFingerprintEvents, '0')}</div>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label"><abbr title="Fingerprint">FP</abbr> Flow Violations</h3>
-      <div class="stat-value stat-value" id="cdp-fp-flow-violations">{loading ? '...' : formatCompactNumber(cdpFingerprintFlowViolations, '0')}</div>
-    </div>
+    <MetricStatCard title="Total Detections" valueId="cdp-total-detections" {loading} value={formatCompactNumber(cdpDetections, '0')} />
+    <MetricStatCard title="Auto-Bans" valueId="cdp-total-auto-bans" {loading} value={formatCompactNumber(cdpAutoBans, '0')} />
+    <MetricStatCard title='<abbr title="Fingerprint">FP</abbr> Mismatch Events' valueId="cdp-fp-events" {loading} value={formatCompactNumber(cdpFingerprintEvents, '0')} />
+    <MetricStatCard title='<abbr title="Fingerprint">FP</abbr> Flow Violations' valueId="cdp-fp-flow-violations" {loading} value={formatCompactNumber(cdpFingerprintFlowViolations, '0')} />
   </div>
-  <div class="table-wrapper">
+  <TableWrapper>
     <table id="cdp-events" class="panel panel-border">
       <thead>
         <tr>
@@ -46,7 +39,9 @@
       </thead>
       <tbody>
         {#if recentCdpEvents.length === 0}
-          <tr><td colspan="6" style="text-align: center; color: #6b7280;">No <abbr title="Chrome DevTools Protocol">CDP</abbr> detections or auto-bans in the selected window</td></tr>
+          <TableEmptyRow colspan={6}>
+            No <abbr title="Chrome DevTools Protocol">CDP</abbr> detections or auto-bans in the selected window
+          </TableEmptyRow>
         {:else}
           {#each recentCdpEvents as ev}
             {@const reason = String(ev.reason || '')}
@@ -70,5 +65,5 @@
         {/if}
       </tbody>
     </table>
-  </div>
-</div>
+  </TableWrapper>
+</SectionBlock>

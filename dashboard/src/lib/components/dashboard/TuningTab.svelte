@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { parseInteger } from '../../domain/core/math.js';
   import { inRange } from '../../domain/core/validation.js';
+  import NumericInputRow from './primitives/NumericInputRow.svelte';
+  import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
 
   export let managed = false;
@@ -172,34 +174,13 @@
       <h3>Botness Scoring</h3>
       <p class="control-desc text-muted">Weighted signals form a unified score. Moderate scores get the challenge; higher scores route to maze.</p>
       <div class="admin-controls">
-        <div class="input-row">
-          <label class="control-label" for="not-a-bot-threshold-score">Not-a-Bot (score)</label>
-          <input class="input-field" type="number" id="not-a-bot-threshold-score" min="1" max="10" step="1" inputmode="numeric" aria-label="Not-a-Bot risk threshold" bind:value={notABotThreshold} disabled={!writable}>
-        </div>
-        <div class="input-row">
-          <label class="control-label" for="challenge-puzzle-threshold">Challenge (score)</label>
-          <input class="input-field" type="number" id="challenge-puzzle-threshold" min="1" max="10" step="1" inputmode="numeric" aria-label="Challenge risk threshold" bind:value={challengeThreshold} disabled={!writable}>
-        </div>
-        <div class="input-row">
-          <label class="control-label" for="maze-threshold-score">Maze (score)</label>
-          <input class="input-field" type="number" id="maze-threshold-score" min="1" max="10" step="1" inputmode="numeric" aria-label="Maze risk threshold" bind:value={mazeThreshold} disabled={!writable}>
-        </div>
-        <div class="input-row">
-          <label class="control-label" for="weight-js-required">Weight: <abbr title="JavaScript">JS</abbr> (points)</label>
-          <input class="input-field" type="number" id="weight-js-required" min="0" max="10" step="1" inputmode="numeric" aria-label="Weight for JavaScript verification required" bind:value={weightJsRequired} disabled={!writable}>
-        </div>
-        <div class="input-row">
-          <label class="control-label" for="weight-geo-risk">Weight: Geo (points)</label>
-          <input class="input-field" type="number" id="weight-geo-risk" min="0" max="10" step="1" inputmode="numeric" aria-label="Weight for high-risk geography" bind:value={weightGeoRisk} disabled={!writable}>
-        </div>
-        <div class="input-row">
-          <label class="control-label" for="weight-rate-medium">Weight: Rate 50% (points)</label>
-          <input class="input-field" type="number" id="weight-rate-medium" min="0" max="10" step="1" inputmode="numeric" aria-label="Weight for medium rate pressure" bind:value={weightRateMedium} disabled={!writable}>
-        </div>
-        <div class="input-row">
-          <label class="control-label" for="weight-rate-high">Weight: Rate 80% (points)</label>
-          <input class="input-field" type="number" id="weight-rate-high" min="0" max="10" step="1" inputmode="numeric" aria-label="Weight for high rate pressure" bind:value={weightRateHigh} disabled={!writable}>
-        </div>
+        <NumericInputRow id="not-a-bot-threshold-score" label="Not-a-Bot (score)" min="1" max="10" step="1" inputmode="numeric" ariaLabel="Not-a-Bot risk threshold" bind:value={notABotThreshold} disabled={!writable} />
+        <NumericInputRow id="challenge-puzzle-threshold" label="Challenge (score)" min="1" max="10" step="1" inputmode="numeric" ariaLabel="Challenge risk threshold" bind:value={challengeThreshold} disabled={!writable} />
+        <NumericInputRow id="maze-threshold-score" label="Maze (score)" min="1" max="10" step="1" inputmode="numeric" ariaLabel="Maze risk threshold" bind:value={mazeThreshold} disabled={!writable} />
+        <NumericInputRow id="weight-js-required" label='Weight: <abbr title="JavaScript">JS</abbr> (points)' min="0" max="10" step="1" inputmode="numeric" ariaLabel="Weight for JavaScript verification required" bind:value={weightJsRequired} disabled={!writable} />
+        <NumericInputRow id="weight-geo-risk" label="Weight: Geo (points)" min="0" max="10" step="1" inputmode="numeric" ariaLabel="Weight for high-risk geography" bind:value={weightGeoRisk} disabled={!writable} />
+        <NumericInputRow id="weight-rate-medium" label="Weight: Rate 50% (points)" min="0" max="10" step="1" inputmode="numeric" ariaLabel="Weight for medium rate pressure" bind:value={weightRateMedium} disabled={!writable} />
+        <NumericInputRow id="weight-rate-high" label="Weight: Rate 80% (points)" min="0" max="10" step="1" inputmode="numeric" ariaLabel="Weight for high rate pressure" bind:value={weightRateHigh} disabled={!writable} />
         <div class="info-panel">
           <h4>Status</h4>
           <div class="info-row">
@@ -251,20 +232,6 @@
         </div>
       </div>
     </div>
-    <div
-      id="tuning-save-all-bar"
-      class="config-save-bar panel panel-border"
-      class:hidden={!writable || !botnessDirty}
-    >
-      <div class="config-save-bar__meta">
-        <span id="tuning-unsaved-summary" class="text-muted">{saveAllTuningSummary}</span>
-        {#if saveAllTuningInvalidText}
-          <span id="tuning-invalid-summary" class="config-save-bar__warning">{saveAllTuningInvalidText}</span>
-        {/if}
-        <button id="save-tuning-all" class="btn btn-submit" disabled={saveAllTuningDisabled} on:click={saveBotness}>
-          {saveAllTuningLabel}
-        </button>
-      </div>
-    </div>
+    <SaveChangesBar containerId="tuning-save-all-bar" hidden={!writable || !botnessDirty} summaryId="tuning-unsaved-summary" summaryText={saveAllTuningSummary} summaryClass="text-muted" invalidId="tuning-invalid-summary" invalidText={saveAllTuningInvalidText} buttonId="save-tuning-all" buttonLabel={saveAllTuningLabel} buttonDisabled={saveAllTuningDisabled} onSave={saveBotness} />
   </div>
 </section>

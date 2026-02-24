@@ -1,5 +1,9 @@
 <script>
   import { formatCompactNumber } from '../../../domain/core/format.js';
+  import MetricStatCard from '../primitives/MetricStatCard.svelte';
+  import SectionBlock from '../primitives/SectionBlock.svelte';
+  import TableEmptyRow from '../primitives/TableEmptyRow.svelte';
+  import TableWrapper from '../primitives/TableWrapper.svelte';
 
   export let loading = false;
   export let summary = {
@@ -50,30 +54,19 @@
   $: trendPreviewRows = topRows(trendRows, 6);
 </script>
 
-<div class="section events">
-  <h2><abbr title="Internet Protocol">IP</abbr> Range Policy</h2>
-  <p class="section-desc text-muted">Match outcomes, source coverage, and managed-catalog health.</p>
+<SectionBlock
+  title='<abbr title="Internet Protocol">IP</abbr> Range Policy'
+  description="Match outcomes, source coverage, and managed-catalog health."
+>
 
   <div class="stats-cards stats-cards--compact">
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Mode</h3>
-      <div class="stat-value" id="ip-range-mode">{loading ? '...' : toModeLabel(summary.mode)}</div>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Matches (24h)</h3>
-      <div class="stat-value" id="ip-range-matches-total">{loading ? '...' : formatCompactNumber(summary.totalMatches, '0')}</div>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Fallbacks (24h)</h3>
-      <div class="stat-value" id="ip-range-fallback-total">{loading ? '...' : formatCompactNumber(summary.totalFallbacks, '0')}</div>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Unique Source <abbr title="Identifiers">IDs</abbr></h3>
-      <div class="stat-value" id="ip-range-source-id-unique">{loading ? '...' : formatCompactNumber(summary.uniqueSourceIds, '0')}</div>
-    </div>
+    <MetricStatCard title="Mode" valueId="ip-range-mode" {loading} value={toModeLabel(summary.mode)} />
+    <MetricStatCard title="Matches (24h)" valueId="ip-range-matches-total" {loading} value={formatCompactNumber(summary.totalMatches, '0')} />
+    <MetricStatCard title="Fallbacks (24h)" valueId="ip-range-fallback-total" {loading} value={formatCompactNumber(summary.totalFallbacks, '0')} />
+    <MetricStatCard title='Unique Source <abbr title="Identifiers">IDs</abbr>' valueId="ip-range-source-id-unique" {loading} value={formatCompactNumber(summary.uniqueSourceIds, '0')} />
   </div>
 
-  <div class="table-wrapper">
+  <TableWrapper>
     <table class="panel panel-border">
       <thead>
         <tr>
@@ -83,7 +76,7 @@
       </thead>
       <tbody id="ip-range-reasons">
         {#if reasonRows.length === 0}
-          <tr><td colspan="2" style="text-align: center; color: #6b7280;">No <abbr title="Internet Protocol">IP</abbr>-range matches in window</td></tr>
+          <TableEmptyRow colspan={2}>No <abbr title="Internet Protocol">IP</abbr>-range matches in window</TableEmptyRow>
         {:else}
           {#each reasonRows as row}
             <tr>
@@ -104,7 +97,7 @@
       </thead>
       <tbody id="ip-range-source-actions">
         {#if sourceRows.length === 0 && actionRows.length === 0}
-          <tr><td colspan="2" style="text-align: center; color: #6b7280;">No source/action data in window</td></tr>
+          <TableEmptyRow colspan={2}>No source/action data in window</TableEmptyRow>
         {:else}
           {#each sourceRows as row}
             <tr>
@@ -118,12 +111,12 @@
               <td>{formatCompactNumber(row.count, '0')}</td>
             </tr>
           {/each}
-        {/if}
-      </tbody>
-    </table>
-  </div>
+          {/if}
+        </tbody>
+      </table>
+  </TableWrapper>
 
-  <div class="table-wrapper">
+  <TableWrapper>
     <table class="panel panel-border">
       <thead>
         <tr>
@@ -133,7 +126,7 @@
       </thead>
       <tbody id="ip-range-detection-fallback">
         {#if detectionRows.length === 0 && fallbackRows.length === 0}
-          <tr><td colspan="2" style="text-align: center; color: #6b7280;">No detection/fallback data in window</td></tr>
+          <TableEmptyRow colspan={2}>No detection/fallback data in window</TableEmptyRow>
         {:else}
           {#each detectionRows as row}
             <tr>
@@ -160,7 +153,7 @@
       </thead>
       <tbody id="ip-range-source-ids">
         {#if topSourceIdRows.length === 0}
-          <tr><td colspan="2" style="text-align: center; color: #6b7280;">No source <abbr title="Identifiers">IDs</abbr> in window</td></tr>
+          <TableEmptyRow colspan={2}>No source <abbr title="Identifiers">IDs</abbr> in window</TableEmptyRow>
         {:else}
           {#each topSourceIdRows as row}
             <tr>
@@ -168,10 +161,10 @@
               <td>{formatCompactNumber(row.count, '0')}</td>
             </tr>
           {/each}
-        {/if}
-      </tbody>
-    </table>
-  </div>
+          {/if}
+        </tbody>
+      </table>
+  </TableWrapper>
 
   <div class="panel panel-border pad-md-b">
     <h3>Managed Catalog</h3>
@@ -202,4 +195,4 @@
       {/if}
     </ul>
   </div>
-</div>
+</SectionBlock>

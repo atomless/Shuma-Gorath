@@ -1,5 +1,9 @@
 <script>
   import { formatCompactNumber } from '../../../domain/core/format.js';
+  import MetricStatCard from '../primitives/MetricStatCard.svelte';
+  import SectionBlock from '../primitives/SectionBlock.svelte';
+  import TableEmptyRow from '../primitives/TableEmptyRow.svelte';
+  import TableWrapper from '../primitives/TableWrapper.svelte';
 
   export let loading = false;
   export let challengeSummary = {
@@ -23,48 +27,31 @@
   export let challengeTrendCanvas = null;
 </script>
 
-<div class="section events">
-  <h2>Challenge Outcomes</h2>
-  <p class="section-desc text-muted">Challenge rejections and confirmed attack signals by reason class, with trend and top offender.</p>
+<SectionBlock
+  title="Challenge Outcomes"
+  description="Challenge rejections and confirmed attack signals by reason class, with trend and top offender."
+>
   <div class="stats-cards stats-cards--compact">
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Total Rejections</h3>
-      <div class="stat-value" id="challenge-failures-total">{loading ? '...' : challengeSummary.totalFailures}</div>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Unique Offenders</h3>
-      <div class="stat-value" id="challenge-failures-unique">{loading ? '...' : challengeSummary.uniqueOffenders}</div>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label" id="challenge-top-offender-label">{loading ? 'Top Offender' : challengeSummary.topOffender.label}</h3>
-      <div class="stat-value" id="challenge-top-offender">{loading ? '...' : challengeSummary.topOffender.value}</div>
-    </div>
+    <MetricStatCard title="Total Rejections" valueId="challenge-failures-total" {loading} value={challengeSummary.totalFailures} />
+    <MetricStatCard title="Unique Offenders" valueId="challenge-failures-unique" {loading} value={challengeSummary.uniqueOffenders} />
+    <MetricStatCard
+      title={loading ? 'Top Offender' : challengeSummary.topOffender.label}
+      titleId="challenge-top-offender-label"
+      valueId="challenge-top-offender"
+      {loading}
+      value={challengeSummary.topOffender.value}
+    />
   </div>
   <div class="panel panel-border">
     <h3 class="caps-label">Not-a-Bot Outcomes (24h)</h3>
     <div class="stats-cards stats-cards--compact">
-      <div class="card panel panel-border pad-md-b">
-        <h4 class="caps-label">Served</h4>
-        <div class="stat-value stat-value--small">{loading ? '...' : notABotSummary.served}</div>
-      </div>
-      <div class="card panel panel-border pad-md-b">
-        <h4 class="caps-label">Submitted</h4>
-        <div class="stat-value stat-value--small">{loading ? '...' : notABotSummary.submitted}</div>
-      </div>
-      <div class="card panel panel-border pad-md-b">
-        <h4 class="caps-label">Pass / Escalate</h4>
-        <div class="stat-value stat-value--small">{loading ? '...' : `${notABotSummary.pass} / ${notABotSummary.escalate}`}</div>
-      </div>
-      <div class="card panel panel-border pad-md-b">
-        <h4 class="caps-label">Fail / Replay</h4>
-        <div class="stat-value stat-value--small">{loading ? '...' : `${notABotSummary.fail} / ${notABotSummary.replay}`}</div>
-      </div>
-      <div class="card panel panel-border pad-md-b">
-        <h4 class="caps-label">Abandonment</h4>
-        <div class="stat-value stat-value--small">{loading ? '...' : `${notABotSummary.abandonmentsEstimated} (${notABotSummary.abandonmentRate})`}</div>
-      </div>
+      <MetricStatCard title="Served" titleLevel="h4" {loading} small={true} value={notABotSummary.served} />
+      <MetricStatCard title="Submitted" titleLevel="h4" {loading} small={true} value={notABotSummary.submitted} />
+      <MetricStatCard title="Pass / Escalate" titleLevel="h4" {loading} small={true} value={`${notABotSummary.pass} / ${notABotSummary.escalate}`} />
+      <MetricStatCard title="Fail / Replay" titleLevel="h4" {loading} small={true} value={`${notABotSummary.fail} / ${notABotSummary.replay}`} />
+      <MetricStatCard title="Abandonment" titleLevel="h4" {loading} small={true} value={`${notABotSummary.abandonmentsEstimated} (${notABotSummary.abandonmentRate})`} />
     </div>
-    <div class="table-wrapper">
+    <TableWrapper>
       <table class="panel panel-border">
         <thead>
           <tr>
@@ -74,7 +61,7 @@
         </thead>
         <tbody id="not-a-bot-outcomes">
           {#if notABotOutcomeRows.length === 0}
-            <tr><td colspan="2" style="text-align: center; color: #6b7280;">No not-a-bot submissions in window</td></tr>
+            <TableEmptyRow colspan={2}>No not-a-bot submissions in window</TableEmptyRow>
           {:else}
             {#each notABotOutcomeRows as row}
               <tr>
@@ -94,7 +81,7 @@
         </thead>
         <tbody id="not-a-bot-latency">
           {#if notABotLatencyRows.length === 0}
-            <tr><td colspan="2" style="text-align: center; color: #6b7280;">No solve latency data in window</td></tr>
+            <TableEmptyRow colspan={2}>No solve latency data in window</TableEmptyRow>
           {:else}
             {#each notABotLatencyRows as row}
               <tr>
@@ -105,13 +92,13 @@
           {/if}
         </tbody>
       </table>
-    </div>
+    </TableWrapper>
   </div>
   <div class="chart-container panel-soft panel-border pad-md-trb">
     <canvas id="challengeFailuresTrendChart" bind:this={challengeTrendCanvas}></canvas>
   </div>
   <div class="panel panel-border">
-    <div class="table-wrapper">
+    <TableWrapper>
       <table class="panel panel-border">
         <thead>
           <tr>
@@ -121,7 +108,7 @@
         </thead>
         <tbody id="challenge-failure-reasons">
           {#if challengeReasonRows.length === 0}
-            <tr><td colspan="2" style="text-align: center; color: #6b7280;">No failures in window</td></tr>
+            <TableEmptyRow colspan={2}>No failures in window</TableEmptyRow>
           {:else}
             {#each challengeReasonRows as row}
               <tr>
@@ -132,6 +119,6 @@
           {/if}
         </tbody>
       </table>
-    </div>
+    </TableWrapper>
   </div>
-</div>
+</SectionBlock>

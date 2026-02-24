@@ -1,4 +1,5 @@
 <script>
+  import TableEmptyRow from './primitives/TableEmptyRow.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
   import TableWrapper from './primitives/TableWrapper.svelte';
   import {
@@ -192,15 +193,13 @@
               </thead>
               <tbody>
                 {#if filteredBanRows.length === 0}
-                  <tr>
-                    <td colspan="6" style="text-align: center; color: #6b7280;">
-                      {#if banFilter === 'ip-range'}
-                        No active <abbr title="Internet Protocol">IP</abbr> range policy bans
-                      {:else}
-                        No active bans
-                      {/if}
-                    </td>
-                  </tr>
+                  <TableEmptyRow colspan={6}>
+                    {#if banFilter === 'ip-range'}
+                      No active <abbr title="Internet Protocol">IP</abbr> range policy bans
+                    {:else}
+                      No active bans
+                    {/if}
+                  </TableEmptyRow>
                 {:else}
                   {#each filteredBanRows as row (row.key)}
                     {@const ban = row.ban}

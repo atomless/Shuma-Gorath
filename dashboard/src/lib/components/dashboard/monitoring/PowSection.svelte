@@ -1,5 +1,9 @@
 <script>
   import { formatCompactNumber } from '../../../domain/core/format.js';
+  import MetricStatCard from '../primitives/MetricStatCard.svelte';
+  import SectionBlock from '../primitives/SectionBlock.svelte';
+  import TableEmptyRow from '../primitives/TableEmptyRow.svelte';
+  import TableWrapper from '../primitives/TableWrapper.svelte';
 
   export let loading = false;
   export let powSummary = {
@@ -15,32 +19,27 @@
   export let powTrendCanvas = null;
 </script>
 
-<div class="section events">
-  <h2><abbr title="Proof of Work">PoW</abbr> Verification</h2>
-  <p class="section-desc text-muted"><abbr title="Proof of Work">PoW</abbr> verify outcomes with failure reasons, trend, and top offender.</p>
+<SectionBlock
+  title='<abbr title="Proof of Work">PoW</abbr> Verification'
+  description='<abbr title="Proof of Work">PoW</abbr> verify outcomes with failure reasons, trend, and top offender.'
+>
   <div class="stats-cards stats-cards--compact">
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Total Verifies</h3>
-      <div class="stat-value" id="pow-total-attempts">{loading ? '...' : powSummary.totalAttempts}</div>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Total Failures</h3>
-      <div class="stat-value" id="pow-failures-total">{loading ? '...' : powSummary.totalFailures}</div>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Unique Offenders</h3>
-      <div class="stat-value" id="pow-failures-unique">{loading ? '...' : powSummary.uniqueOffenders}</div>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label" id="pow-top-offender-label">{loading ? 'Top Offender' : powSummary.topOffender.label}</h3>
-      <div class="stat-value" id="pow-top-offender">{loading ? '...' : powSummary.topOffender.value}</div>
-    </div>
+    <MetricStatCard title="Total Verifies" valueId="pow-total-attempts" {loading} value={powSummary.totalAttempts} />
+    <MetricStatCard title="Total Failures" valueId="pow-failures-total" {loading} value={powSummary.totalFailures} />
+    <MetricStatCard title="Unique Offenders" valueId="pow-failures-unique" {loading} value={powSummary.uniqueOffenders} />
+    <MetricStatCard
+      title={loading ? 'Top Offender' : powSummary.topOffender.label}
+      titleId="pow-top-offender-label"
+      valueId="pow-top-offender"
+      {loading}
+      value={powSummary.topOffender.value}
+    />
   </div>
   <div class="chart-container panel-soft panel-border pad-md-trb">
     <canvas id="powFailuresTrendChart" bind:this={powTrendCanvas}></canvas>
   </div>
   <div class="panel panel-border">
-    <div class="table-wrapper">
+    <TableWrapper>
       <table class="panel panel-border">
         <thead>
           <tr>
@@ -50,7 +49,7 @@
         </thead>
         <tbody id="pow-failure-reasons">
           {#if powReasonRows.length === 0}
-            <tr><td colspan="2" style="text-align: center; color: #6b7280;">No failures in window</td></tr>
+            <TableEmptyRow colspan={2}>No failures in window</TableEmptyRow>
           {:else}
             {#each powReasonRows as row}
               <tr>
@@ -61,7 +60,7 @@
           {/if}
         </tbody>
       </table>
-    </div>
+    </TableWrapper>
   </div>
   <div class="panel panel-border pad-md-b">
     <h3>Verify Outcomes</h3>
@@ -75,4 +74,4 @@
       {/if}
     </ul>
   </div>
-</div>
+</SectionBlock>

@@ -1,5 +1,7 @@
 <script>
   import { formatCompactNumber } from '../../../domain/core/format.js';
+  import MetricStatCard from '../primitives/MetricStatCard.svelte';
+  import SectionBlock from '../primitives/SectionBlock.svelte';
 
   export let loading = false;
   export let honeypot = {
@@ -10,22 +12,20 @@
   export let topPaths = [];
 </script>
 
-<div class="section events">
-  <h2>Honeypot Hits</h2>
-  <p class="section-desc text-muted">Structured honeypot telemetry (hits, offender buckets, and trap paths).</p>
+<SectionBlock
+  title="Honeypot Hits"
+  description="Structured honeypot telemetry (hits, offender buckets, and trap paths)."
+>
   <div class="stats-cards stats-cards--compact">
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Total Hits</h3>
-      <span class="stat-value" id="honeypot-total-hits">{loading ? '...' : honeypot.totalHits}</span>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Unique Crawlers</h3>
-      <span class="stat-value" id="honeypot-unique-crawlers">{loading ? '...' : honeypot.uniqueCrawlers}</span>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label" id="honeypot-top-offender-label">{loading ? 'Top Offender' : honeypot.topOffender.label}</h3>
-      <span class="stat-value" id="honeypot-top-offender">{loading ? '...' : honeypot.topOffender.value}</span>
-    </div>
+    <MetricStatCard title="Total Hits" valueId="honeypot-total-hits" {loading} value={honeypot.totalHits} />
+    <MetricStatCard title="Unique Crawlers" valueId="honeypot-unique-crawlers" {loading} value={honeypot.uniqueCrawlers} />
+    <MetricStatCard
+      title={loading ? 'Top Offender' : honeypot.topOffender.label}
+      titleId="honeypot-top-offender-label"
+      valueId="honeypot-top-offender"
+      {loading}
+      value={honeypot.topOffender.value}
+    />
   </div>
   <div class="panel panel-border pad-md-b">
     <h3>Top Honeypot Paths</h3>
@@ -42,4 +42,4 @@
       {/if}
     </div>
   </div>
-</div>
+</SectionBlock>

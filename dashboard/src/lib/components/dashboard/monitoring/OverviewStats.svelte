@@ -1,6 +1,6 @@
 <script>
-  import StatCard from '../primitives/StatCard.svelte';
   import { formatCompactNumber } from '../../../domain/core/format.js';
+  import MetricStatCard from '../primitives/MetricStatCard.svelte';
 
   export let loading = false;
   export let totalBans = 0;
@@ -10,16 +10,8 @@
 </script>
 
 <div class="stats-cards">
-  <StatCard title="Total Bans">
-    <div class="stat-value" id="total-bans">{loading ? '...' : formatCompactNumber(totalBans, '0')}</div>
-  </StatCard>
-  <StatCard title="Active Bans">
-    <div class="stat-value" id="active-bans">{loading ? '...' : formatCompactNumber(activeBans, '0')}</div>
-  </StatCard>
-  <StatCard title="Events (24h)">
-    <div class="stat-value" id="total-events">{loading ? '...' : formatCompactNumber(eventCount, '0')}</div>
-  </StatCard>
-  <StatCard title="Unique <abbr title=&quot;Internet Protocol&quot;>IP</abbr>s">
-    <div class="stat-value" id="unique-ips">{loading ? '...' : formatCompactNumber(uniqueIps, '0')}</div>
-  </StatCard>
+  <MetricStatCard title="Total Bans" valueId="total-bans" {loading} value={formatCompactNumber(totalBans, '0')} />
+  <MetricStatCard title="Active Bans" valueId="active-bans" {loading} value={formatCompactNumber(activeBans, '0')} />
+  <MetricStatCard title="Events (24h)" valueId="total-events" {loading} value={formatCompactNumber(eventCount, '0')} />
+  <MetricStatCard title='Unique <abbr title="Internet Protocol">IP</abbr>s' valueId="unique-ips" {loading} value={formatCompactNumber(uniqueIps, '0')} />
 </div>

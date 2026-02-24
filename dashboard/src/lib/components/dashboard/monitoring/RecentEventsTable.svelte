@@ -1,4 +1,6 @@
 <script>
+  import SectionBlock from '../primitives/SectionBlock.svelte';
+  import TableEmptyRow from '../primitives/TableEmptyRow.svelte';
   import TableWrapper from '../primitives/TableWrapper.svelte';
 
   export let recentEvents = [];
@@ -6,9 +8,10 @@
   export let eventBadgeClass = () => 'badge';
 </script>
 
-<div class="section events">
-  <h2>Recent Events</h2>
-  <p class="section-desc text-muted">Last 100 recorded events</p>
+<SectionBlock
+  title="Recent Events"
+  description="Last 100 recorded events"
+>
   <TableWrapper>
     <table id="events" class="panel panel-border">
       <thead>
@@ -23,7 +26,7 @@
       </thead>
       <tbody>
         {#if recentEvents.length === 0}
-          <tr><td colspan="6" style="text-align: center; color: #6b7280;">No recent events</td></tr>
+          <TableEmptyRow colspan={6}>No recent events</TableEmptyRow>
         {:else}
           {#each recentEvents as ev}
             <tr>
@@ -39,4 +42,4 @@
       </tbody>
     </table>
   </TableWrapper>
-</div>
+</SectionBlock>

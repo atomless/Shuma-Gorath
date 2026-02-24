@@ -1,5 +1,7 @@
 <script>
   import { formatCompactNumber } from '../../../domain/core/format.js';
+  import MetricStatCard from '../primitives/MetricStatCard.svelte';
+  import SectionBlock from '../primitives/SectionBlock.svelte';
 
   export let loading = false;
   export let geoSummary = {
@@ -13,18 +15,19 @@
   export let geoTopCountries = [];
 </script>
 
-<div class="section events">
-  <h2><abbr title="Geolocation">GEO</abbr> Violations</h2>
-  <p class="section-desc text-muted"><abbr title="Geolocation">GEO</abbr> policy actions by route and top country sources.</p>
+<SectionBlock
+  title='<abbr title="Geolocation">GEO</abbr> Violations'
+  description='<abbr title="Geolocation">GEO</abbr> policy actions by route and top country sources.'
+>
   <div class="stats-cards stats-cards--compact">
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Total Violations</h3>
-      <div class="stat-value" id="geo-violations-total">{loading ? '...' : geoSummary.totalViolations}</div>
-    </div>
-    <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Action Mix</h3>
-      <div class="stat-value stat-value--small" id="geo-action-mix">block {geoSummary.actionMix.block} | challenge {geoSummary.actionMix.challenge} | maze {geoSummary.actionMix.maze}</div>
-    </div>
+    <MetricStatCard title="Total Violations" valueId="geo-violations-total" {loading} value={geoSummary.totalViolations} />
+    <MetricStatCard
+      title="Action Mix"
+      valueId="geo-action-mix"
+      {loading}
+      small={true}
+      value={`block ${geoSummary.actionMix.block} | challenge ${geoSummary.actionMix.challenge} | maze ${geoSummary.actionMix.maze}`}
+    />
   </div>
   <div class="panel panel-border pad-md-b">
     <h3>Top Countries Triggering <abbr title="Geolocation">GEO</abbr> Actions</h3>
@@ -41,4 +44,4 @@
       {/if}
     </div>
   </div>
-</div>
+</SectionBlock>

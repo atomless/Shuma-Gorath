@@ -1,4 +1,6 @@
 <script>
+  import SectionBlock from '../primitives/SectionBlock.svelte';
+
   export let prometheusHelper = {
     facts: [],
     exampleJs: '',
@@ -28,8 +30,10 @@
   };
 </script>
 
-<div class="section panel panel-border">
-  <h2>External Monitoring</h2>
+<SectionBlock
+  title="External Monitoring"
+  rootClass="section panel panel-border"
+>
   <ul id="monitoring-prometheus-facts" class="prometheus-facts text-muted">
     {#each prometheusHelper.facts as fact}
       <li>{fact}</li>
@@ -50,4 +54,4 @@
   <h3 class="caps-label">5) Read Specific Summary Stats from <abbr title="JavaScript Object Notation">JSON</abbr> (<abbr title="JavaScript">JS</abbr>)</h3>
   <pre id="monitoring-prometheus-summary-stats" class="prometheus-example prometheus-example--code">{prometheusHelper.exampleSummaryStats}</pre>
   <p class="section-desc text-muted">Detailed docs: <a id="monitoring-prometheus-observability-link" href={prometheusHelper.observabilityLink || 'https://github.com/atomless/Shuma-Gorath/blob/main/docs/observability.md'} target="_blank" rel="noopener noreferrer">Observability</a> and <a id="monitoring-prometheus-api-link" href={prometheusHelper.apiLink || 'https://github.com/atomless/Shuma-Gorath/blob/main/docs/api.md'} target="_blank" rel="noopener noreferrer"><abbr title="Application Programming Interface">API</abbr></a>.</p>
-</div>
+</SectionBlock>

@@ -909,6 +909,54 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/ConfigTab.svelte'),
     'utf8'
   );
+  const configMazeSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigMazeSection.svelte'),
+    'utf8'
+  );
+  const configChallengeSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigChallengeSection.svelte'),
+    'utf8'
+  );
+  const configNetworkSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigNetworkSection.svelte'),
+    'utf8'
+  );
+  const configDurationsSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigDurationsSection.svelte'),
+    'utf8'
+  );
+  const configExportSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigExportSection.svelte'),
+    'utf8'
+  );
+  const configAdvancedSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigAdvancedSection.svelte'),
+    'utf8'
+  );
+  const configGeoSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigGeoSection.svelte'),
+    'utf8'
+  );
+  const configRobotsSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigRobotsSection.svelte'),
+    'utf8'
+  );
+  const saveChangesBarSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/primitives/SaveChangesBar.svelte'),
+    'utf8'
+  );
+  const configSurfaceSource = [
+    configSource,
+    configMazeSource,
+    configChallengeSource,
+    configNetworkSource,
+    configDurationsSource,
+    configExportSource,
+    configAdvancedSource,
+    configGeoSource,
+    configRobotsSource,
+    saveChangesBarSource
+  ].join('\n');
   const tuningSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/TuningTab.svelte'),
     'utf8'
@@ -939,58 +987,76 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
   assert.equal(configSource.includes('robotsAllowSearch'), false);
   assert.match(configSource, /onTestModeToggleChange/);
   assert.match(configSource, /await onSaveConfig\(/);
+  assert.match(configSource, /import ConfigChallengeSection from '\.\/config\/ConfigChallengeSection\.svelte';/);
+  assert.match(configSource, /import ConfigMazeSection from '\.\/config\/ConfigMazeSection\.svelte';/);
+  assert.match(configSource, /import ConfigNetworkSection from '\.\/config\/ConfigNetworkSection\.svelte';/);
+  assert.match(configSource, /import ConfigDurationsSection from '\.\/config\/ConfigDurationsSection\.svelte';/);
+  assert.match(configSource, /import ConfigExportSection from '\.\/config\/ConfigExportSection\.svelte';/);
+  assert.match(configSource, /import ConfigAdvancedSection from '\.\/config\/ConfigAdvancedSection\.svelte';/);
+  assert.match(configSource, /import ConfigGeoSection from '\.\/config\/ConfigGeoSection\.svelte';/);
+  assert.match(configSource, /import ConfigRobotsSection from '\.\/config\/ConfigRobotsSection\.svelte';/);
+  assert.match(configSource, /import SaveChangesBar from '\.\/primitives\/SaveChangesBar\.svelte';/);
+  assert.match(configSource, /<ConfigChallengeSection/);
+  assert.match(configSource, /<ConfigMazeSection/);
+  assert.match(configSource, /<ConfigNetworkSection/);
+  assert.match(configSource, /<ConfigDurationsSection/);
+  assert.match(configSource, /<ConfigExportSection/);
+  assert.match(configSource, /<ConfigAdvancedSection/);
+  assert.match(configSource, /<ConfigGeoSection/);
+  assert.match(configSource, /<ConfigRobotsSection/);
+  assert.match(configSource, /<SaveChangesBar/);
   assert.match(
     configSource,
     /<div class="panel-heading-with-control">[\s\S]*?<h3>Test Mode<\/h3>[\s\S]*?for="test-mode-toggle"/
   );
-  assert.match(configSource, /id="preview-challenge-puzzle-link"/);
-  assert.match(configSource, /id="preview-not-a-bot-link"/);
+  assert.match(configSurfaceSource, /id="preview-challenge-puzzle-link"/);
+  assert.match(configSurfaceSource, /id="preview-not-a-bot-link"/);
   assert.equal(
-    configSource.indexOf('<h3>Challenge: Not-a-Bot</h3>')
-      < configSource.indexOf('<h3>Challenge: Puzzle</h3>'),
+    configSurfaceSource.indexOf('id="not-a-bot-enabled-toggle"')
+      < configSurfaceSource.indexOf('id="challenge-puzzle-enabled-toggle"'),
     true
   );
   assert.equal(
-    configSource.indexOf('id="pow-enabled-toggle"')
-      < configSource.indexOf('id="cdp-enabled-toggle"')
-      && configSource.indexOf('id="cdp-enabled-toggle"')
-      < configSource.indexOf('id="rate-limit-enabled-toggle"'),
+    configSurfaceSource.indexOf('id="pow-enabled-toggle"')
+      < configSurfaceSource.indexOf('id="cdp-enabled-toggle"')
+      && configSurfaceSource.indexOf('id="cdp-enabled-toggle"')
+      < configSurfaceSource.indexOf('id="rate-limit-enabled-toggle"'),
     true
   );
   assert.equal(
-    configSource.indexOf('id="rate-limit-enabled-toggle"')
-      < configSource.indexOf('id="maze-enabled-toggle"'),
+    configSurfaceSource.indexOf('id="rate-limit-enabled-toggle"')
+      < configSurfaceSource.indexOf('id="maze-enabled-toggle"'),
     true
   );
   assert.equal(
-    configSource.indexOf('id="challenge-puzzle-enabled-toggle"')
-      < configSource.indexOf('id="honeypot-enabled-toggle"')
-      && configSource.indexOf('id="honeypot-enabled-toggle"')
-      < configSource.indexOf('id="ip-range-policy-mode"'),
+    configSurfaceSource.indexOf('id="challenge-puzzle-enabled-toggle"')
+      < configSurfaceSource.indexOf('id="honeypot-enabled-toggle"')
+      && configSurfaceSource.indexOf('id="honeypot-enabled-toggle"')
+      < configSurfaceSource.indexOf('id="ip-range-policy-mode"'),
     true
   );
-  assert.match(configSource, /for="maze-auto-ban-toggle">Enable Auto-ban<\/label>/);
-  assert.match(configSource, /class:input-row--disabled=\{!mazeAutoBan\}/);
-  assert.match(configSource, /id="maze-threshold"[^>]*disabled=\{!mazeAutoBan\}/);
-  assert.equal(configSource.includes('Threshold is used only when auto-ban is enabled.'), false);
-  assert.equal(configSource.includes('id="not-a-bot-nonce-ttl"'), false);
-  assert.equal(configSource.includes('id="not-a-bot-marker-ttl"'), false);
-  assert.equal(configSource.includes('id="not-a-bot-attempt-limit"'), false);
-  assert.equal(configSource.includes('id="not-a-bot-attempt-window"'), false);
+  assert.match(configSurfaceSource, /for="maze-auto-ban-toggle">Enable Auto-ban<\/label>/);
+  assert.match(configSurfaceSource, /class:input-row--disabled=\{!mazeAutoBan\}/);
+  assert.match(configSurfaceSource, /id="maze-threshold"[^>]*disabled=\{!mazeAutoBan\}/);
+  assert.equal(configSurfaceSource.includes('Threshold is used only when auto-ban is enabled.'), false);
+  assert.equal(configSurfaceSource.includes('id="not-a-bot-nonce-ttl"'), false);
+  assert.equal(configSurfaceSource.includes('id="not-a-bot-marker-ttl"'), false);
+  assert.equal(configSurfaceSource.includes('id="not-a-bot-attempt-limit"'), false);
+  assert.equal(configSurfaceSource.includes('id="not-a-bot-attempt-window"'), false);
   assert.match(configSource, /\$: notABotScoreFailMaxCap = Math\.max\(0, Number\(notABotScorePassMin\) - 1\);/);
   assert.match(configSource, /\$: notABotScorePassMinFloor = Math\.min\(10, Number\(notABotScoreFailMax\) \+ 1\);/);
-  assert.match(configSource, /max=\{notABotScoreFailMaxCap\}/);
-  assert.match(configSource, /Any scores above Fail and below Pass will be shown a tougher challenge\./);
-  assert.match(configSource, /id="export-current-config-json"/);
+  assert.match(configSurfaceSource, /max=\{notABotScoreFailMaxCap\}/);
+  assert.match(configSurfaceSource, /Any scores above Fail and below Pass will be shown a tougher challenge\./);
+  assert.match(configSurfaceSource, /id="export-current-config-json"/);
   assert.match(
-    configSource,
+    configSurfaceSource,
     /Export (the current configuration as JSON|a JSON copy of the above configuration)/
   );
-  assert.match(configSource, /id="advanced-config-json-error"/);
-  assert.match(configSource, /id="advanced-config-json-issue-list"/);
-  assert.match(configSource, /id="advanced-config-json-validating"/);
-  assert.match(configSource, /id="advanced-config-json-docs-link"/);
-  assert.match(configSource, /id="save-config-all"/);
+  assert.match(configSurfaceSource, /id="advanced-config-json-error"/);
+  assert.match(configSurfaceSource, /id="advanced-config-json-issue-list"/);
+  assert.match(configSurfaceSource, /id="advanced-config-json-validating"/);
+  assert.match(configSurfaceSource, /id="advanced-config-json-docs-link"/);
+  assert.match(configSource, /buttonId="save-config-all"/);
   assert.match(configSource, /saveAllConfig\(/);
   assert.match(
     configSource,
@@ -1008,14 +1074,14 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
     configSource,
     /\$: if \(robotsPreviewOpen\) \{\s*void robotsPreviewPatchKey;\s*scheduleRobotsPreviewRefresh\(\);\s*\}/
   );
-  assert.match(configSource, /id="open-robots-txt-link"/);
+  assert.match(configSurfaceSource, /id="open-robots-txt-link"/);
   assert.match(configSource, /window\.addEventListener\('beforeunload'/);
-  assert.match(configSource, /id="ip-range-policy-mode"/);
+  assert.match(configSurfaceSource, /id="ip-range-policy-mode"/);
   assert.match(configSource, /ip_range_policy_mode/);
-  assert.match(configSource, /id="browser-policy-toggle"/);
-  assert.match(configSource, /id="bypass-allowlists-toggle"/);
-  assert.match(configSource, /id="geo-scoring-toggle"/);
-  assert.match(configSource, /id="geo-routing-toggle"/);
+  assert.match(configSurfaceSource, /id="browser-policy-toggle"/);
+  assert.match(configSurfaceSource, /id="bypass-allowlists-toggle"/);
+  assert.match(configSurfaceSource, /id="geo-scoring-toggle"/);
+  assert.match(configSurfaceSource, /id="geo-routing-toggle"/);
   assert.match(configSource, /browser_policy_enabled/);
   assert.match(configSource, /bypass_allowlists_enabled/);
   assert.match(configSource, /\(LOGGING ONLY\)/);
@@ -1030,7 +1096,8 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
 
   assert.match(tuningSource, /export let onSaveConfig = null;/);
   assert.match(tuningSource, /await onSaveConfig\(payload/);
-  assert.match(tuningSource, /id="save-tuning-all"/);
+  assert.match(tuningSource, /buttonId="save-tuning-all"/);
+  assert.match(tuningSource, /import SaveChangesBar from '\.\/primitives\/SaveChangesBar\.svelte';/);
   assert.match(tuningSource, /window\.addEventListener\('beforeunload'/);
   assert.equal(tuningSource.includes('id="save-botness-config"'), false);
 });
