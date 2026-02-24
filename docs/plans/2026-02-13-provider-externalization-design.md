@@ -90,7 +90,7 @@ Guardrails:
 - Safety-critical local controls stay enforceable (admin protections, trusted-origin gates).
 - Effective mode and provider/backend selection must be observable in metrics/logs.
 - Fallback behavior must degrade to internal logic on external unavailability.
-- See ADR for the single-project, profile-gated state-plane rule: `docs/adr/0001-profile-gated-state-plane.md`.
+- See ADR for the single-project, profile-gated state-plane rule: [`docs/adr/0001-profile-gated-state-plane.md`](../adr/0001-profile-gated-state-plane.md).
 
 ## Enterprise Offering Snapshot (Akamai and Cloudflare)
 

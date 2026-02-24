@@ -5,8 +5,8 @@ Status: Proposed
 
 Reference research:
 
-- `docs/research/2026-02-22-http-tarpit-cost-shift-research-synthesis.md`
-- `docs/research/2026-02-14-maze-tarpit-research-synthesis.md`
+- [`docs/research/2026-02-22-http-tarpit-cost-shift-research-synthesis.md`](../research/2026-02-22-http-tarpit-cost-shift-research-synthesis.md)
+- [`docs/research/2026-02-14-maze-tarpit-research-synthesis.md`](../research/2026-02-14-maze-tarpit-research-synthesis.md)
 
 ## Objective
 

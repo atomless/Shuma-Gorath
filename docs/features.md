@@ -43,4 +43,4 @@ For detailed rationale by capability (research basis, enterprise baseline follow
 
 ## 🐙 Longer-Term / Modern Threats
 
-See `docs/bot-defence.md` for Shuma-Gorath layering strategy with managed edge bot defences (including Akamai Bot Manager).
+See [`docs/bot-defence.md`](bot-defence.md) for Shuma-Gorath layering strategy with managed edge bot defences (including Akamai Bot Manager).

@@ -4,7 +4,7 @@ Date: 2026-02-20
 Status: Proposed (implementation-ready)
 
 Related research:
-- `docs/research/2026-02-20-deployment-and-adversarial-simulation-research-synthesis.md`
+- [`docs/research/2026-02-20-deployment-and-adversarial-simulation-research-synthesis.md`](../research/2026-02-20-deployment-and-adversarial-simulation-research-synthesis.md)
 
 ## Objectives
 

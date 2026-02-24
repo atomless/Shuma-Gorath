@@ -5,9 +5,9 @@ Status: Proposed
 
 Related:
 
-- `docs/module-boundaries.md`
-- `docs/adr/0004-tarpit-v2-progression-contract.md`
-- `docs/plans/2026-02-23-tarpit-v2-progression-envelope.md`
+- [`docs/module-boundaries.md`](../module-boundaries.md)
+- [`docs/adr/0004-tarpit-v2-progression-contract.md`](../adr/0004-tarpit-v2-progression-contract.md)
+- [`docs/plans/2026-02-23-tarpit-v2-progression-envelope.md`](2026-02-23-tarpit-v2-progression-envelope.md)
 - `todos/todo.md` (`TAH-ARCH-*`, `TAH-*`)
 
 ## Why now (pre-launch window)

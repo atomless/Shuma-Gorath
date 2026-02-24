@@ -217,7 +217,7 @@ Event `outcome` values may include canonical taxonomy metadata:
 
 - `taxonomy[level=L* action=A* detection=D* signals=S_*...]`
 
-This uses the same public ladder documented in `/docs/bot-defence.md` (`Escalation Ladder (L0-L11)`).
+This uses the same public ladder documented in [`/docs/bot-defence.md`](bot-defence.md) (`Escalation Ladder (L0-L11)`).
 
 ### 🐙 <abbr title="Chrome DevTools Protocol">CDP</abbr> + Fingerprint Admin View
 
@@ -421,7 +421,7 @@ Managed-set catalog visibility in `GET /admin/config`:
 Operational guidance:
 
 - Managed catalog refresh command: `make ip-range-catalog-update`
-- Rollout/rollback/staleness runbook: `docs/ip-range-policy-runbook.md`
+- Rollout/rollback/staleness runbook: [`docs/ip-range-policy-runbook.md`](ip-range-policy-runbook.md)
 
 ## 🐙 Maze Excellence Fields (`/admin/config`)
 

@@ -227,7 +227,7 @@ Managed catalog operations:
 
 - Refresh built-in managed <abbr title="Classless Inter-Domain Routing">CIDR</abbr> catalog from official sources with guardrails:
   `make ip-range-catalog-update`
-- See operational rollout/rollback guidance in `docs/ip-range-policy-runbook.md`.
+- See operational rollout/rollback guidance in [`docs/ip-range-policy-runbook.md`](ip-range-policy-runbook.md).
 
 ## 🐙 Admin Config Writes
 
@@ -412,7 +412,7 @@ Use these as startup presets, then tune incrementally:
 - `self_hosted_minimal` is valid with internal local state only.
 - `enterprise_akamai` should move `rate_limiter` and `ban_store` to distributed/external adapters before multi-instance authoritative rollout.
 - Multi-instance deployments using only local state should be treated as advisory/staging posture until distributed state correctness is enabled.
-- Deploy-time guardrail keys for this posture are documented in `docs/deployment.md`:
+- Deploy-time guardrail keys for this posture are documented in [`docs/deployment.md`](deployment.md):
   - `SHUMA_ENTERPRISE_MULTI_INSTANCE`
   - `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED`
   - `SHUMA_RATE_LIMITER_REDIS_URL` (required when `SHUMA_PROVIDER_RATE_LIMITER=external` under enterprise multi-instance posture)
@@ -440,7 +440,7 @@ Use these as startup presets, then tune incrementally:
 
 ### Public Escalation Ladder Reference
 
-- The canonical public escalation ladder (`L0_ALLOW_CLEAN` through `L11_DENY_HARD`) is documented in `/docs/bot-defence.md` under `Escalation Ladder (L0-L11)`.
+- The canonical public escalation ladder (`L0_ALLOW_CLEAN` through `L11_DENY_HARD`) is documented in [`/docs/bot-defence.md`](bot-defence.md) under `Escalation Ladder (L0-L11)`.
 - Use that ladder as the operator-facing policy vocabulary; metrics and admin events reuse the same IDs.
 - Signal semantics (for example `S_JS_REQUIRED_MISSING` meaning missing/expired/invalid `js_verified` marker under <abbr title="JavaScript">JS</abbr> enforcement) are documented alongside that ladder and should be treated as evidence inputs, not separate action levels.
 

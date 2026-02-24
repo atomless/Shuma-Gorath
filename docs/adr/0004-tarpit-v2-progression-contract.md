@@ -4,8 +4,8 @@
 - Date: 2026-02-23
 - Owners: @jamestindall
 - Related:
-  - `docs/plans/2026-02-22-http-tarpit-cost-shift-implementation-plan.md`
-  - `docs/plans/2026-02-23-tarpit-v2-progression-envelope.md`
+  - [`docs/plans/2026-02-22-http-tarpit-cost-shift-implementation-plan.md`](../plans/2026-02-22-http-tarpit-cost-shift-implementation-plan.md)
+  - [`docs/plans/2026-02-23-tarpit-v2-progression-envelope.md`](../plans/2026-02-23-tarpit-v2-progression-envelope.md)
   - `todos/todo.md` (`TAH-1`..`TAH-18`)
 
 ## Context
@@ -103,8 +103,8 @@ Adopt a tarpit v2 contract with the following invariants.
 - Benchmarks (if relevant):
   - step verification overhead and bounded emission checks under burst traffic.
 - Docs updated:
-  - `docs/plans/2026-02-23-tarpit-v2-progression-envelope.md`
-  - `docs/dashboard.md`
+  - [`docs/plans/2026-02-23-tarpit-v2-progression-envelope.md`](../plans/2026-02-23-tarpit-v2-progression-envelope.md)
+  - [`docs/dashboard.md`](../dashboard.md)
   - `todos/todo.md`
 
 ## Follow-ups

@@ -17,7 +17,7 @@ Create an ADR when a change:
 
 - Location: `docs/adr/`
 - File format: `NNNN-short-title.md` (example: `0001-rate-limiter-backend.md`)
-- Start from template: `docs/adr/0000-template.md`
+- Start from template: [`docs/adr/0000-template.md`](0000-template.md)
 
 ## Status lifecycle
 

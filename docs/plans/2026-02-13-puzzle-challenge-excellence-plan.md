@@ -90,7 +90,7 @@ Puzzle challenge is implemented (`/challenge/puzzle`) with signed seed, determin
 - https://doi.org/10.1145/2556288.2557322
 - https://doi.org/10.3390/electronics14224403
 - https://doi.org/10.3390/app13074602
-- `docs/challenge-verification.md`
+- [`docs/challenge-verification.md`](../challenge-verification.md)
 - https://techdocs.akamai.com/cloud-security/docs/handle-adversarial-bots
 - https://developers.cloudflare.com/cloudflare-challenges/challenge-types/challenge-pages/
 - https://developers.cloudflare.com/turnstile/

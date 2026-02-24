@@ -15,7 +15,7 @@ Completed items are archived in `todos/completed-todo-history.md`.
 - [ ] SEC-GDPR-4 Add a deployer-ready privacy/cookie disclosure template in docs (lawful basis, retention table, storage inventory, and rights-handling workflow).
 
 ## P0 Deployment Path Excellence (Single-Host + Akamai/Fermyon)
-Reference plan: `docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`
+Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
 
 - [ ] DEP-ENT-1 Implement strict enterprise distributed ban-sync mode for authoritative multi-instance posture (no silent local-only divergence path).
 - [ ] DEP-ENT-2 Add ban-sync observability (<abbr title="Service Level Objective">SLO</abbr> metrics for sync result and lag) to support promotion/rollback decisions.
@@ -25,7 +25,7 @@ Reference plan: `docs/plans/2026-02-20-deployment-paths-and-adversarial-simulati
 - [ ] DEP-ENT-6 Design optional asynchronous mirror of high-confidence bans to Akamai Network Lists (additive perimeter control; Shuma policy remains source-of-truth).
 
 ## P0 Adversarial Traffic Simulation Program
-Reference plan: `docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`
+Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
 
 - [ ] SIM-1 Define canonical scenario manifest for botness/threat tiers (`SIM-T0`..`SIM-T4`) and expected outcomes (`allow`, `monitor`, `not-a-bot`, `challenge`, `maze`, `deny_temp`).
 - [ ] SIM-2 Build a unified simulation harness in `scripts/tests/` that combines browser-realistic, scraper, crawler, and load-generator traffic profiles with deterministic seeds.
@@ -38,7 +38,7 @@ Reference plan: `docs/plans/2026-02-20-deployment-paths-and-adversarial-simulati
 Completion rule for every paper TODO below: capture key findings, map to `self_hosted_minimal` vs `enterprise_akamai` ownership, and propose concrete Shuma TODO updates.
 
 ### Fingerprinting, JS Verification, and CDP-Adjacent Detection
-- Completed research tranche (`R-FP-01`..`R-FP-09`) archived in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md` and `todos/completed-todo-history.md`.
+- Completed research tranche (`R-FP-01`..`R-FP-09`) archived in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md) and `todos/completed-todo-history.md`.
 - [ ] Run a Finch comparison spike to see if Shuma might benefit from enabling enhancing its internal capabilities with allowing users to integrate finch alongside it(no direct dependency in core runtime).
 
 ### Challenges: PoW, Not-a-Bot, and Puzzle Escalation
@@ -54,7 +54,7 @@ Completion rule for every paper TODO below: capture key findings, map to `self_h
 - [ ] R-CH-10 Review Uysal, "Revisiting Text-Based CAPTCHAs" (Electronics 2025) and evaluate current CNN-solvability implications for fallback challenge modes. https://doi.org/10.3390/electronics14224403
 
 ### Rate Limiting, Tarpit, and Cost-Imposition
-- Research synthesis recorded in `docs/research/2026-02-22-http-tarpit-cost-shift-research-synthesis.md` (includes source mapping, implementation implications, and cost-shift analysis).
+- Research synthesis recorded in [`docs/research/2026-02-22-http-tarpit-cost-shift-research-synthesis.md`](../docs/research/2026-02-22-http-tarpit-cost-shift-research-synthesis.md) (includes source mapping, implementation implications, and cost-shift analysis).
 - [ ] OUT-1 Add explicit deployment guardrails that fail when `provider_backends.rate_limiter=external` or `provider_backends.ban_store=external` but required Redis outbound hosts are not allowlisted in `spin.toml` `allowed_outbound_hosts`.
 - [ ] OUT-2 Add a provider-to-outbound-requirements matrix in public docs (internal vs external backend, required host capabilities, required outbound host allowlists, fallback behavior).
 - [ ] OUT-3 Add integration verification that exercises external Redis provider selection under restricted outbound policy and confirms safe fallback/guardrail behavior is deterministic.
@@ -63,17 +63,17 @@ Completion rule for every paper TODO below: capture key findings, map to `self_h
 
 #### Tarpit Asymmetry Hardening (`work-gated`, `token-chained`, `egress-budgeted`)
 
-Architecture alignment reference: `docs/plans/2026-02-23-maze-tarpit-architecture-alignment-plan.md`
+Architecture alignment reference: [`docs/plans/2026-02-23-maze-tarpit-architecture-alignment-plan.md`](../docs/plans/2026-02-23-maze-tarpit-architecture-alignment-plan.md)
 
-- [x] TAH-ARCH-1 Publish the target module/file map for maze+tarpit ownership and boundaries (provider adapter vs domain runtime vs route handler) and pin it in `docs/module-boundaries.md`.
+- [x] TAH-ARCH-1 Publish the target module/file map for maze+tarpit ownership and boundaries (provider adapter vs domain runtime vs route handler) and pin it in [`docs/module-boundaries.md`](../docs/module-boundaries.md).
 - [x] TAH-ARCH-2 Move tarpit runtime logic out of `src/providers/internal.rs` into dedicated tarpit domain modules (`src/tarpit/runtime.rs`, `src/tarpit/types.rs`) so provider internals remain thin adapters.
 - [x] TAH-ARCH-3 Introduce dedicated tarpit HTTP handler ownership (`src/tarpit/http.rs`) and route wiring for progression endpoints; remove ad-hoc route handling from non-domain layers.
 - [x] TAH-ARCH-4 Extract shared maze+tarpit primitives for replay/chain/budget key handling into one shared module and migrate both maze runtime and tarpit runtime to consume it.
 - [x] TAH-ARCH-5 Define one typed tarpit progression reason taxonomy (enum -> metrics/admin labels) and make request-router/admin/runtime emit only that normalized set.
 - [x] TAH-ARCH-6 Reconcile tarpit config model for v2 progression (difficulty bounds + egress budgets) and explicitly deprecate/remove static-drip-only assumptions where no longer valid pre-launch.
 
-- [x] TAH-1 Publish a concise design note/ADR for the v2 tarpit contract: tiny initial response, work-gated progression, token-chain continuity, strict byte/time budgets, and deterministic fallback matrix (`maze`, `block`, short-ban escalation). (See `docs/adr/0004-tarpit-v2-progression-contract.md`.)
-- [x] TAH-2 Define and document the tarpit progression envelope schema (signed, short-lived, single-use operation token with `flow_id`, `step`, `issued_at`, `expires_at`, `ip_bucket`, and optional work parameters), including replay and binding rules. (See `docs/plans/2026-02-23-tarpit-v2-progression-envelope.md`.)
+- [x] TAH-1 Publish a concise design note/ADR for the v2 tarpit contract: tiny initial response, work-gated progression, token-chain continuity, strict byte/time budgets, and deterministic fallback matrix (`maze`, `block`, short-ban escalation). (See [`docs/adr/0004-tarpit-v2-progression-contract.md`](../docs/adr/0004-tarpit-v2-progression-contract.md).)
+- [x] TAH-2 Define and document the tarpit progression envelope schema (signed, short-lived, single-use operation token with `flow_id`, `step`, `issued_at`, `expires_at`, `ip_bucket`, and optional work parameters), including replay and binding rules. (See [`docs/plans/2026-02-23-tarpit-v2-progression-envelope.md`](../docs/plans/2026-02-23-tarpit-v2-progression-envelope.md).)
 - [x] TAH-3 Add a dedicated tarpit progression endpoint that verifies work proofs before issuing the next step token/content chunk; reject stale/replayed/out-of-order operations with explicit reason codes and monitoring labels.
 - [x] TAH-4 Implement a low-cost server-verified work gate (hashcash-style by default; configurable bounded difficulty window), with clear hooks for future memory-hard alternatives.
 - [x] TAH-5 Add adaptive work policy that raises/lower difficulty only within bounded limits based on abuse evidence and budget pressure; keep accessibility-safe fallback path to avoid impossible human flows.
@@ -90,7 +90,7 @@ Architecture alignment reference: `docs/plans/2026-02-23-maze-tarpit-architectur
   integration tests for abuse route -> gated progression -> fallback/escalation;
   concurrency/soak tests for egress-budget correctness under burst traffic.
 - [x] TAH-14 Wire new tarpit asymmetry tests into Makefile/CI verification lanes (`make test-unit`, `make test-integration`, `make test`) and add explicit failure-gate criteria for regressions.
-- [x] TAH-15 Update operator docs (`docs/configuration.md`, `docs/dashboard.md`, runbooks) to explain that tarpit cost-imposition is now progression-gated and budget-capped, including tradeoffs between attacker cost, host egress, and false-positive risk.
+- [x] TAH-15 Update operator docs ([`docs/configuration.md`](../docs/configuration.md), [`docs/dashboard.md`](../docs/dashboard.md), runbooks) to explain that tarpit cost-imposition is now progression-gated and budget-capped, including tradeoffs between attacker cost, host egress, and false-positive risk.
 - [x] TAH-16 Add bounded timing/content variability (jitter windows and template rotation with strict envelopes) to reduce tarpit fingerprintability without violating budget caps.
 - [x] TAH-17 Add pre-generated/cached tarpit content shards (text/media templates) so per-request host compute stays low while preserving high bot ingestion cost.
 - [x] TAH-18 Add an explicit crawler-safety policy path for known legitimate bots and sensitive endpoints (for example `robots.txt`) to avoid accidental tarpit impact on benign indexing/ops workflows.
@@ -100,7 +100,7 @@ Execution order for remaining tarpit work:
 2. `TAH-12`
 
 ### IP Range Policy, Reputation Feeds, and GEO Fencing
-- Research synthesis recorded in `docs/research/archive/2026-02-20-ip-range-policy-research-synthesis.md` (includes source mapping and implementation implications).
+- Research synthesis recorded in [`docs/research/archive/2026-02-20-ip-range-policy-research-synthesis.md`](../docs/research/archive/2026-02-20-ip-range-policy-research-synthesis.md) (includes source mapping and implementation implications).
 - [ ] R-GEO-01 Review Hu/Heidemann/Pradkin, "Towards Geolocation of Millions of IP Addresses" (IMC 2012) and capture scalability/error-tradeoff implications for GEO policy confidence scoring. https://doi.org/10.1145/2398776.2398790
 - [ ] R-GEO-02 Review Dan/Parikh/Davison, "Improving IP Geolocation using Query Logs" (WSDM 2016) and define data-quality assumptions for geo-based enforcement. https://doi.org/10.1145/2835776.2835820
 - [ ] R-GEO-03 Review Mazel et al., "Smartphone-based geolocation of Internet hosts" (Computer Networks 2017) and assess delay-model caveats for operational geofencing. https://doi.org/10.1016/j.comnet.2017.02.006
@@ -121,7 +121,7 @@ Execution order for remaining tarpit work:
 
 ## P2 Challenge Roadmap
 - [ ] NAB-12 Evaluate optional PAT-style private attestation signal ingestion as additive evidence only (non-blocking).
-- [ ] NAB-13 Execute short Not-a-Bot hardening sprint per `docs/plans/2026-02-21-not-a-bot-hardening-sprint.md` (unknown-modality cap, stronger pass corroboration, cross-attempt/session consistency gating, accessibility-safe anti-fast-path tightening).
+- [ ] NAB-13 Execute short Not-a-Bot hardening sprint per [`docs/plans/2026-02-21-not-a-bot-hardening-sprint.md`](../docs/plans/2026-02-21-not-a-bot-hardening-sprint.md) (unknown-modality cap, stronger pass corroboration, cross-attempt/session consistency gating, accessibility-safe anti-fast-path tightening).
 
 ## P2 GEO Defence Maturity
 - [ ] Add ASN/network dimensions in GEO policy logic (not just country list). (`src/signals/geo/mod.rs`, `src/config/mod.rs`, `src/admin/api.rs`)

@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-02-13
 - Owners: @jamestindall
-- Related: `docs/plans/2026-02-13-provider-externalization-design.md`, `todos/todo.md` (P1 Distributed State)
+- Related: [`docs/plans/2026-02-13-provider-externalization-design.md`](../plans/2026-02-13-provider-externalization-design.md), `todos/todo.md` (P1 Distributed State)
 
 ## Context
 
@@ -99,10 +99,10 @@ Keep one project and one shared policy engine, with profile-gated state backends
 - Benchmarks (if relevant):
   - compare local vs distributed limiter overhead before authoritative rollout.
 - Docs updated:
-  - `docs/bot-defence.md`
-  - `docs/configuration.md`
-  - `docs/deployment.md`
-  - `docs/plans/2026-02-13-provider-externalization-design.md`
+  - [`docs/bot-defence.md`](../bot-defence.md)
+  - [`docs/configuration.md`](../configuration.md)
+  - [`docs/deployment.md`](../deployment.md)
+  - [`docs/plans/2026-02-13-provider-externalization-design.md`](../plans/2026-02-13-provider-externalization-design.md)
   - `todos/todo.md`
   - `todos/security-review.md`
 

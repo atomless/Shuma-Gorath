@@ -9,7 +9,7 @@ IP range policy controls are now implemented for the planned P1 scope (CIDR matc
 
 Extended research and source mapping are captured in:
 
-- `docs/research/archive/2026-02-20-ip-range-policy-research-synthesis.md`
+- [`docs/research/archive/2026-02-20-ip-range-policy-research-synthesis.md`](../../research/archive/2026-02-20-ip-range-policy-research-synthesis.md)
 
 ## Goals
 

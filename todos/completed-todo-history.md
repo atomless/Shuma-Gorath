@@ -61,7 +61,7 @@ Moved from active TODO files on 2026-02-14.
 
 ### P2 Challenge Roadmap
 
-- [x] NAB-0 Research and policy synthesis: keep `docs/research/2026-02-19-not-a-bot-challenge-research-synthesis.md`, `docs/plans/2026-02-13-not-a-bot-excellence-plan.md`, and `todos/not-a-bot-spec.md` aligned as the single implementation source.
+- [x] NAB-0 Research and policy synthesis: keep [`docs/research/2026-02-19-not-a-bot-challenge-research-synthesis.md`](../docs/research/2026-02-19-not-a-bot-challenge-research-synthesis.md), [`docs/plans/2026-02-13-not-a-bot-excellence-plan.md`](../docs/plans/2026-02-13-not-a-bot-excellence-plan.md), and `todos/not-a-bot-spec.md` aligned as the single implementation source.
 - [x] NAB-1 Implement Not-a-Bot checkbox (`/challenge/not-a-bot-checkbox`) per `todos/not-a-bot-spec.md` with signed short-lived single-use nonce and IP-bucket binding.
 - [x] NAB-2 Implement Not-a-Bot telemetry capture/validation and deterministic scoring model (`0..10`) with threshold routing (`pass`, `escalate_puzzle`, `maze_or_block`).
 - [x] NAB-3 Add Not-a-Bot verification marker/token issuance after pass and enforce it in routing flow.
@@ -119,7 +119,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] MON-COST-8 Reduce dashboard monitoring cache serialization/storage overhead and clear monitoring/IP-ban cache on logout/session end.
 - [x] MON-COST-9 Sanitize external documentation URLs in dashboard monitoring helper rendering.
 - [x] MON-COST-10 Document retention, read throttling, and monitoring telemetry cost controls in operator docs.
-- [x] SEC-GDPR-1 Run a GDPR/privacy compliance review for telemetry/logging data collected by Shuma and determine whether deployment contexts require a cookie consent notice and/or other disclosure controls. (`docs/privacy-gdpr-review.md`)
+- [x] SEC-GDPR-1 Run a GDPR/privacy compliance review for telemetry/logging data collected by Shuma and determine whether deployment contexts require a cookie consent notice and/or other disclosure controls. ([`docs/privacy-gdpr-review.md`](../docs/privacy-gdpr-review.md))
 
 ## Additional completions (2026-02-19, TODO cleanup sweep)
 
@@ -162,7 +162,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] DSH-MON-4 Add a `Rate Limiting Violations` monitoring section with totals, unique offender buckets, top offender buckets, and enforcement outcomes (`limited`, `banned`, `fallback_allow`, `fallback_deny`).
 - [x] DSH-MON-5 Add a `GEO Violations` monitoring section with totals by route/action (`block`, `challenge`, `maze`) and top country codes causing policy actions.
 - [x] DSH-MON-6 Add a Monitoring-page helper panel that explains how to export/scrape the same signals in Prometheus format (`/metrics`) for external visualization platforms (for example Prometheus/Grafana), including copyable scrape examples.
-- [x] DSH-MON-7 Deliberate Prometheus parity scope for Monitoring: audit each Monitoring widget/signal as `already_exported`, `derivable_from_existing_series`, or `missing_export`; then define a prioritized add-list with cardinality/cost guardrails before implementing new metric series. (`docs/monitoring-prometheus-parity-audit.md`)
+- [x] DSH-MON-7 Deliberate Prometheus parity scope for Monitoring: audit each Monitoring widget/signal as `already_exported`, `derivable_from_existing_series`, or `missing_export`; then define a prioritized add-list with cardinality/cost guardrails before implementing new metric series. ([`docs/monitoring-prometheus-parity-audit.md`](../docs/monitoring-prometheus-parity-audit.md))
 - [x] MON-TEL-1 Add structured honeypot hit telemetry (KV/metric counters by IP bucket and path key) so dashboard can report path-level honeypot activity without relying on free-form event text parsing.
 - [x] MON-TEL-2 Add challenge-submit failure telemetry with explicit counters and optional event records for failure classes that currently only increment coarse counters (enable top-offender and reason panels).
 - [x] MON-TEL-3 Add explicit PoW verify outcome telemetry (success + failure classes) since invalid-proof and malformed-request paths are not currently surfaced as dashboard-ready counters/events.
@@ -180,9 +180,9 @@ Moved from active TODO files on 2026-02-14.
 
 #### Policy/Guideline Backlog Hygiene
 
-- [x] Moved internal-first delivery policy from active TODO guidance into `docs/project-principles.md` (`P7 Platform-Agnostic Core`) so it is governed as principle, not tracked as open feature work.
-- [x] Removed duplicated policy-only sections from active TODO (`H4`, `H5`, and `Recurring Quality Gates`) because those rules are already governed by `CONTRIBUTING.md` and `docs/project-principles.md`.
-- [x] Captured recurring quality-gate operations guidance in canonical docs: verification-lane health in `CONTRIBUTING.md` and periodic retention reassessment in `docs/security-hardening.md`.
+- [x] Moved internal-first delivery policy from active TODO guidance into [`docs/project-principles.md`](../docs/project-principles.md) (`P7 Platform-Agnostic Core`) so it is governed as principle, not tracked as open feature work.
+- [x] Removed duplicated policy-only sections from active TODO (`H4`, `H5`, and `Recurring Quality Gates`) because those rules are already governed by `CONTRIBUTING.md` and [`docs/project-principles.md`](../docs/project-principles.md).
+- [x] Captured recurring quality-gate operations guidance in canonical docs: verification-lane health in `CONTRIBUTING.md` and periodic retention reassessment in [`docs/security-hardening.md`](../docs/security-hardening.md).
 
 ## todos/todo.md
 
@@ -217,7 +217,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] M9 Directory structure prep for future repo boundaries (core policy, maze+tarpit, challenge, dashboard adapter) with explicit interface contracts.
 - [x] M9.1 Add explicit Rust boundary contracts for challenge/maze/admin in `src/boundaries/contracts.rs`.
 - [x] M9.2 Add default adapter implementations in `src/boundaries/adapters.rs` and route `src/lib.rs` through `src/boundaries/`.
-- [x] M9.3 Document boundary rules and target split direction in `docs/module-boundaries.md`.
+- [x] M9.3 Document boundary rules and target split direction in [`docs/module-boundaries.md`](../docs/module-boundaries.md).
 
 - [x] Enforce `SHUMA_ADMIN_IP_ALLOWLIST` in every production environment.
 - [x] Configure CDN/WAF rate limits for `POST /admin/login` and all `/admin/*` in every deployment (Cloudflare and Akamai guidance already documented).
@@ -230,9 +230,9 @@ Moved from active TODO files on 2026-02-14.
 - [x] P0.4 slice completed: added `gen-admin-api-key` alias + deploy-time API key rotation attestation guard (`SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true`) and documented a recommended 90-day rotation cadence in deployment/security runbooks.
 
 - [x] (Enterprise/hybrid track; non-blocking for `self_hosted_minimal`) Formalize profile-gated state-plane architecture: shared policy engine across personas, swappable state backends by profile (`self_hosted_minimal` vs `enterprise_akamai`), and no persona-specific policy fork.
-- [x] P1.0 slice completed: documented the profile-gated state-plane architecture as ADR `docs/adr/0001-profile-gated-state-plane.md` and synchronized policy/deployment/config docs.
+- [x] P1.0 slice completed: documented the profile-gated state-plane architecture as ADR [`docs/adr/0001-profile-gated-state-plane.md`](../docs/adr/0001-profile-gated-state-plane.md) and synchronized policy/deployment/config docs.
 - [x] (Enterprise/hybrid track; non-blocking for `self_hosted_minimal`) Design and implement atomic distributed rate limiting (Redis `INCR`/Lua) for main traffic and admin auth, aligned with edge-state sync work. (`src/rate.rs`, `src/auth.rs`, `spin.toml`)
-- [x] (Enterprise/hybrid track; non-blocking for `self_hosted_minimal`) Define outage posture for distributed limiter (`fail-open` vs `fail-closed`) and add monitoring/alerts for limiter backend health. (architecture, ops, `docs/deployment.md`)
+- [x] (Enterprise/hybrid track; non-blocking for `self_hosted_minimal`) Define outage posture for distributed limiter (`fail-open` vs `fail-closed`) and add monitoring/alerts for limiter backend health. (architecture, ops, [`docs/deployment.md`](../docs/deployment.md))
 - [x] (Enterprise/hybrid track) Add deploy guardrails that block unsafe multi-instance enterprise rollouts when `rate_limiter`/`ban_store` remain local-only, with explicit override attestation for temporary advisory-only exceptions.
 - [x] P1.1 slice completed: `make deploy-env-validate` now enforces multi-instance enterprise state posture (`SHUMA_ENTERPRISE_MULTI_INSTANCE`) and blocks authoritative local-only rate/ban state while requiring explicit advisory/off exception attestation (`SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=true`) for temporary unsynced operation.
 - [x] (Enterprise/hybrid track) Add startup/runtime warnings or hard-fail hooks for enterprise multi-instance local-only state posture, aligned with deploy guardrail semantics.
@@ -242,8 +242,8 @@ Moved from active TODO files on 2026-02-14.
 - [x] P1.5 slice completed: routed admin auth failure throttling through the provider-selected rate limiter so external distributed rate-limiter mode covers admin auth (`/admin/login`, `/admin/logout`, unauthorized admin endpoints) with safe internal fallback when runtime config/provider selection is unavailable.
 - [x] P1.6 slice completed: added route-class outage posture controls for external rate limiter degradation (`SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN`, `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH`) and shipped limiter degradation observability (`backend_errors`, `outage_decisions`, `usage_fallback`, `state_drift` metrics) with deployment/config docs.
 
-- [x] S1.0 taxonomy spec drafted: canonical escalation levels, signal IDs, transition precedence, and current signal-collection map documented in `docs/plans/2026-02-14-stage1-policy-signal-taxonomy-spec.md`.
-- [x] Add stable detection ID taxonomy and policy matching using canonical escalation/action IDs from `docs/plans/2026-02-14-stage1-policy-signal-taxonomy-spec.md` (`L0_ALLOW_CLEAN` through `L11_DENY_HARD`) and canonical signal IDs (`S_*`) in logs/metrics/admin events.
+- [x] S1.0 taxonomy spec drafted: canonical escalation levels, signal IDs, transition precedence, and current signal-collection map documented in [`docs/plans/2026-02-14-stage1-policy-signal-taxonomy-spec.md`](../docs/plans/2026-02-14-stage1-policy-signal-taxonomy-spec.md).
+- [x] Add stable detection ID taxonomy and policy matching using canonical escalation/action IDs from [`docs/plans/2026-02-14-stage1-policy-signal-taxonomy-spec.md`](../docs/plans/2026-02-14-stage1-policy-signal-taxonomy-spec.md) (`L0_ALLOW_CLEAN` through `L11_DENY_HARD`) and canonical signal IDs (`S_*`) in logs/metrics/admin events.
 - [x] S1.1 slice completed: added `src/runtime/policy_taxonomy.rs` canonical IDs + deterministic precedence tests, threaded policy-match telemetry through runtime/CDP/external event paths, and exposed canonical policy/signal metrics (`bot_defence_policy_matches_total`, `bot_defence_policy_signals_total`) plus taxonomy-annotated admin event outcomes.
 - [x] Add static-resource bypass defaults to avoid expensive bot checks on obvious static assets.
 - [x] S1.2 slice completed: added early static-asset bypass defaults for obvious `GET`/`HEAD` resource paths/extensions (with admin/challenge/control-path exclusions) to skip expensive JS/botness/geo challenge checks, plus unit + routing-order regression coverage.
@@ -278,7 +278,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] H3.3/H3.4 slice completed: regrouped signal modules under `src/signals/` and enforcement modules under `src/enforcement/`, then added crate-level compatibility re-exports in `src/lib.rs` to keep call sites stable during the move.
 - [x] H3.5 slice completed: migrated remaining call sites to `src/signals/*` and `src/enforcement/*` paths and removed temporary compatibility re-exports from `src/lib.rs`.
 
-- [x] Define and document the defence taxonomy with an explicit inventory of `signal`, `barrier`, and `hybrid` modules (for example `rate` as hybrid); include ownership and dependency direction. (`docs/module-boundaries.md`, Defence Taxonomy section)
+- [x] Define and document the defence taxonomy with an explicit inventory of `signal`, `barrier`, and `hybrid` modules (for example `rate` as hybrid); include ownership and dependency direction. ([`docs/module-boundaries.md`](../docs/module-boundaries.md), Defence Taxonomy section)
 - [x] Introduce a canonical per-request signal contract (for example `BotSignal` + `SignalAccumulator`) that every signal/hybrid module writes to.
 - [x] Add explicit signal availability semantics (`active`, `disabled`, `unavailable`) so botness logic never treats missing modules as silent zero.
 - [x] Split hybrid modules into distinct paths:
@@ -292,7 +292,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] Add observability for mode and signal-state visibility (metrics/log fields indicating enabled/disabled/unavailable contributors).
 - [x] Update docs (`configuration`, `features`, `observability`, `module-boundaries`) to explain composability semantics and tuning implications.
 - [x] Keep implementations internal-only for now; defer external provider registry/factory work until signal contract and mode semantics stabilize.
-- [x] H3.6.1 slice completed: added explicit defence taxonomy + inventory (`signal`, `barrier`, `hybrid`) with ownership and dependency direction in `docs/module-boundaries.md`.
+- [x] H3.6.1 slice completed: added explicit defence taxonomy + inventory (`signal`, `barrier`, `hybrid`) with ownership and dependency direction in [`docs/module-boundaries.md`](../docs/module-boundaries.md).
 - [x] H3.6.2 slice completed: introduced `BotSignal`/`SignalAccumulator` in `src/signals/botness.rs` and rewired JS, GEO, and rate-pressure botness scoring paths in `src/lib.rs` to emit normalized signal contributions with no behavior change.
 - [x] H3.6.3 slice completed: added explicit signal availability states (`active`, `disabled`, `unavailable`) across JS/GEO/rate signal emitters and botness assessment flow, with regression tests for non-silent disabled/unavailable handling.
 - [x] H3.6.4 slice completed: split rate hybrid paths into `src/signals/rate_pressure.rs` (telemetry + pressure scoring signals) and `src/enforcement/rate.rs` (hard limit enforcement path), then rewired runtime botness flow accordingly.
@@ -301,7 +301,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] H3.6.7 slice completed: introduced `BotnessSignalContext` and split botness into contribution collection + score finalization (`collect_botness_contributions`, `compute_botness_assessment_from_contributions`) so runtime policy consumes normalized contributions rather than direct scoring internals.
 - [x] H3.6.8 slice completed: locked pre-launch default-mode semantics with explicit config tests and added mode-matrix regression coverage for JS/GEO/rate signal paths (including rate hybrid signal behavior), while retaining early-route ordering integration guards.
 - [x] H3.6.9 slice completed: added botness signal-state and effective defence-mode observability (`botness_signal_state_total`, `defence_mode_effective_total`) plus richer botness log outcomes (`signal_states`, `modes`) for maze/challenge decisions.
-- [x] H3.6.10 slice completed: updated composability/tuning/operator docs (`docs/configuration.md`, `docs/features.md`, `docs/observability.md`, `docs/module-boundaries.md`) with effective-mode semantics and observability guidance.
+- [x] H3.6.10 slice completed: updated composability/tuning/operator docs ([`docs/configuration.md`](../docs/configuration.md), [`docs/features.md`](../docs/features.md), [`docs/observability.md`](../docs/observability.md), [`docs/module-boundaries.md`](../docs/module-boundaries.md)) with effective-mode semantics and observability guidance.
 - [x] H3.6.11 slice completed: kept implementation internal-only (no provider registry/factory introduced) and explicitly deferred external-provider wiring to H4.
 
 - [x] Define provider traits for swappable capabilities:
@@ -332,13 +332,13 @@ Moved from active TODO files on 2026-02-14.
 - [x] H4.4.2 slice completed: added explicit `external` provider adapters in `src/providers/external.rs`; `fingerprint_signal` now routes to an external stub contract, while `challenge_engine` and `maze_tarpit` remain explicit unsupported adapter paths with safe fallback semantics.
 - [x] H4.4.3 slice completed: added provider implementation observability with capability/backend/implementation metrics (`bot_defence_provider_implementation_effective_total`) and runtime event-tag provider summaries (`providers=...`) wired from registry-selected implementations.
 - [x] H4.4.4 slice completed: added fingerprint provider contract availability semantics (`active`/`disabled`/`unavailable`) across internal/external adapters plus registry tests enforcing explicit unavailability behavior when external fingerprint is selected but not configured.
-- [x] H4.4.5 slice completed: documented deployment personas plus provider selection matrix and added Akamai-focused advisory/authoritative rollout + rollback runbook with explicit fallback-to-internal procedure in `docs/configuration.md`, `docs/deployment.md`, and `docs/observability.md`.
-- [x] H4.5 plan follow-up (`docs/plans/2026-02-13-provider-externalization-design.md` step 3): replace external fingerprint stub with an Akamai-first adapter that maps edge/Bot Manager outcomes into normalized fingerprint signals.
+- [x] H4.4.5 slice completed: documented deployment personas plus provider selection matrix and added Akamai-focused advisory/authoritative rollout + rollback runbook with explicit fallback-to-internal procedure in [`docs/configuration.md`](../docs/configuration.md), [`docs/deployment.md`](../docs/deployment.md), and [`docs/observability.md`](../docs/observability.md).
+- [x] H4.5 plan follow-up ([`docs/plans/2026-02-13-provider-externalization-design.md`](../docs/plans/2026-02-13-provider-externalization-design.md) step 3): replace external fingerprint stub with an Akamai-first adapter that maps edge/Bot Manager outcomes into normalized fingerprint signals.
 - [x] H4.5 slice completed: external `fingerprint_signal` now uses an Akamai-first adapter (`/fingerprint-report`) that normalizes edge/Bot Manager-style outcomes into CDP-tier-compatible signals, retains explicit fallback to the internal CDP handler for non-Akamai/legacy payloads, and exports implementation label `external_akamai_with_internal_fallback`.
-- [x] H4.6 plan follow-up (`docs/plans/2026-02-13-provider-externalization-design.md` step 4): implemented external `rate_limiter` and `ban_store` adapters with distributed state/sync semantics and retired unsupported-stub behavior for those capabilities.
+- [x] H4.6 plan follow-up ([`docs/plans/2026-02-13-provider-externalization-design.md`](../docs/plans/2026-02-13-provider-externalization-design.md) step 4): implemented external `rate_limiter` and `ban_store` adapters with distributed state/sync semantics and retired unsupported-stub behavior for those capabilities.
 - [x] H4.6.1 slice completed: external `rate_limiter` now uses Redis-backed distributed counting (`INCR` + TTL) with explicit internal fallback and provider implementation labeling (`external_redis_with_internal_fallback`).
 - [x] H4.6.2 slice completed: external `ban_store` now uses Redis-backed distributed ban state (JSON + TTL) with explicit internal fallback, provider implementation labeling (`external_redis_with_internal_fallback`), and admin ban/unban/list provider routing.
-- [x] H4.7 plan follow-up (`docs/plans/2026-02-13-provider-externalization-design.md` step 5): add integration tests for advisory vs authoritative mode precedence and explicit downgrade-to-internal behavior when external providers are unavailable.
+- [x] H4.7 plan follow-up ([`docs/plans/2026-02-13-provider-externalization-design.md`](../docs/plans/2026-02-13-provider-externalization-design.md) step 5): add integration tests for advisory vs authoritative mode precedence and explicit downgrade-to-internal behavior when external providers are unavailable.
 - [x] H4.7 slice completed: admin config now supports validated `provider_backends` + `edge_integration_mode` updates, external fingerprint precedence is mode-aware (`off` ignore, `advisory` non-authoritative, `authoritative` strong-edge auto-ban), and integration coverage was added for advisory-vs-authoritative behavior plus external rate-limiter downgrade-to-internal fallback.
 - [x] H4.7.1 UX follow-up completed: added an Admin Dashboard Config control for `edge_integration_mode` (`off`/`advisory`/`authoritative`) with save/dirty-state wiring and dashboard e2e smoke coverage so operators can stage and verify H4.7 precedence behavior without manual env edits.
 
@@ -346,8 +346,8 @@ Moved from active TODO files on 2026-02-14.
 
 - [x] Define platform scope boundaries to avoid overreach by leaning on upstream bot managers (for example Akamai) for features better handled there.
 - [x] Add non-secret runtime config export for deploy handoff (exclude secrets) so dashboard-tuned settings can be applied in immutable redeploys.
-- [x] P3.1 slice completed: documented Akamai-vs-Shuma platform scope ownership boundaries, non-goals, and decision rules in `docs/bot-defence.md` to keep edge-vs-app responsibilities explicit.
-- [x] S1.3.a slice completed: defined canonical request-sequence signal IDs (`S_SEQ_*`) and matching detection IDs (`D_SEQ_*`) in `src/runtime/policy_taxonomy.rs` and documented them in `docs/plans/2026-02-14-stage1-policy-signal-taxonomy-spec.md`.
+- [x] P3.1 slice completed: documented Akamai-vs-Shuma platform scope ownership boundaries, non-goals, and decision rules in [`docs/bot-defence.md`](../docs/bot-defence.md) to keep edge-vs-app responsibilities explicit.
+- [x] S1.3.a slice completed: defined canonical request-sequence signal IDs (`S_SEQ_*`) and matching detection IDs (`D_SEQ_*`) in `src/runtime/policy_taxonomy.rs` and documented them in [`docs/plans/2026-02-14-stage1-policy-signal-taxonomy-spec.md`](../docs/plans/2026-02-14-stage1-policy-signal-taxonomy-spec.md).
 - [x] S1.3.b slice completed: added signed operation-envelope primitives (`operation_id`, `flow_id`, `step_id`, `issued_at`, `expires_at`, `token_version`) for puzzle/PoW challenge seeds with shared integrity validation in `src/challenge/operation_envelope.rs`, enforced token parse-time validation before scoring paths, and added regression coverage.
 - [x] S1.3.c slice completed: added binding/integrity primitives for signed challenge/PoW tokens (`ip_bucket`, `ua_bucket`, `path_class`) with shared request-binding validation, enforced mismatch handling on puzzle/PoW verification paths, and emitted canonical sequence mismatch taxonomy telemetry (`D_SEQ_BINDING_MISMATCH`, `S_SEQ_BINDING_MISMATCH`) instead of silent fallback.
 - [x] S1.3.d slice completed: added ordering-window primitives (`step_index`, expected flow/step/index validation, and bounded step windows) for challenge submit and PoW verify paths, mapped order/window failures to canonical taxonomy transitions (`D_SEQ_ORDER_VIOLATION`, `S_SEQ_ORDER_VIOLATION`, `D_SEQ_WINDOW_EXCEEDED`, `S_SEQ_WINDOW_EXCEEDED`), and added deterministic coverage in challenge, envelope, and policy-taxonomy tests.
@@ -362,7 +362,7 @@ Moved from active TODO files on 2026-02-14.
 
 - [x] MZ-S1: Keep Stage 2 completion criteria internal-first (no external-provider dependency).
 - [x] MZ-S2: Execute Stage 2 delivery order as `MZ-R0 -> MZ-R1 -> MZ-R2 -> MZ-R3 -> MZ-1 -> MZ-2 -> MZ-7 -> MZ-5 -> MZ-3 -> MZ-4 -> MZ-8 -> MZ-9 -> MZ-10 -> MZ-6`.
-- [x] MZ-R0: Research-first hold gate accepted from `docs/research/2026-02-14-maze-tarpit-research-synthesis.md`.
+- [x] MZ-R0: Research-first hold gate accepted from [`docs/research/2026-02-14-maze-tarpit-research-synthesis.md`](../docs/research/2026-02-14-maze-tarpit-research-synthesis.md).
 - [x] MZ-1 through MZ-10 completed (entropy rotation, signed traversal + replay, budgets, client checkpoint flow, polymorphic rendering, pluggable seed providers/refresh/metadata-only extraction, covert non-maze decoys, crawler simulation harness, botness + observability wiring, rollout/rollback runbook guidance, optional adaptive micro-PoW).
 
 
@@ -395,7 +395,7 @@ Moved from active TODO files on 2026-02-14.
 
 ### todos/todo.md (Stage 2.5 completion)
 
-- [x] MZ-X0.R through MZ-X10.R completed via Stage 2.5 research synthesis memo in `/docs/research/archive/2026-02-15-stage2.5-maze-efficiency-and-asymmetry.md`.
+- [x] MZ-X0.R through MZ-X10.R completed via Stage 2.5 research synthesis memo in [`/docs/research/archive/2026-02-15-stage2.5-maze-efficiency-and-asymmetry.md`](../docs/research/archive/2026-02-15-stage2.5-maze-efficiency-and-asymmetry.md).
 - [x] MZ-X0.I completed: Web Worker-first client expansion now uses compact signed seed bootstrap with deterministic fallback behavior when worker/proof cannot complete.
 - [x] MZ-X1.I + MZ-X5.I completed: exact path commitment, chain marker checks, sibling edge-operation uniqueness, replay enforcement, and branch-budget-aware progressive issuance checks.
 - [x] MZ-X2.I + MZ-X9.I completed: compact maze shell with external versioned shared assets and adaptive styling tiers (full/lite/machine, optional no-CSS deep tier).
@@ -419,7 +419,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] DSH-10 completed: per-tab loading/empty/error states implemented for silent-failure resistance.
 - [x] DSH-11 completed: Playwright e2e coverage expanded for tabbed routing, keyboard navigation, and tab error-state surfacing.
 - [x] DSH-12 completed: dashboard module unit-style tests added for API adapters, state invalidation, and tab normalization (`e2e/dashboard.modules.unit.test.js`).
-- [x] DSH-13 completed: public docs updated (`README.md`, `docs/dashboard.md`, `docs/testing.md`) for tab model and dashboard test workflow.
+- [x] DSH-13 completed: public docs updated (`README.md`, [`docs/dashboard.md`](../docs/dashboard.md), [`docs/testing.md`](../docs/testing.md)) for tab model and dashboard test workflow.
 - [x] DSH-14 completed: migration/rollback notes added to public dashboard docs.
 - [x] DSH-G1 closure: framework-adoption gate did not trip after DSH-1..DSH-14; Lit pilot deferred.
 
@@ -428,15 +428,15 @@ Moved from active TODO files on 2026-02-14.
 ### todos/todo.md
 
 #### Fingerprinting, JS Verification, and CDP-Adjacent Detection
-- [x] R-FP-10 Review Li et al., "PathMarker: protecting web contents against inside crawlers" (Cybersecurity 2019) and map path/timing marker concepts to Shuma detection IDs. https://cybersecurity.springeropen.com/articles/10.1186/s42400-019-0023-1 (summarized in `docs/research/2026-02-14-maze-tarpit-research-synthesis.md`)
+- [x] R-FP-10 Review Li et al., "PathMarker: protecting web contents against inside crawlers" (Cybersecurity 2019) and map path/timing marker concepts to Shuma detection IDs. https://cybersecurity.springeropen.com/articles/10.1186/s42400-019-0023-1 (summarized in [`docs/research/2026-02-14-maze-tarpit-research-synthesis.md`](../docs/research/2026-02-14-maze-tarpit-research-synthesis.md))
 
 #### Rate Limiting, Tarpit, and Cost-Imposition
-- [x] R-RL-02 Review Kuzmanovic/Knightly, "Low-Rate TCP-Targeted DoS Attacks" (SIGCOMM 2003) and map low-rate adversary behaviors to Shuma tarpit/limiter heuristics. https://doi.org/10.1145/863955.863966 (summarized in `docs/research/2026-02-14-maze-tarpit-research-synthesis.md`)
-- [x] R-RL-04 Review Veroff et al., "Defense techniques for low-rate DoS attacks against application servers" (Computer Networks 2010) and identify bounded-randomization strategies usable in Shuma tarpit controls. https://doi.org/10.1016/j.comnet.2010.05.002 (summarized in `docs/research/2026-02-14-maze-tarpit-research-synthesis.md`)
-- [x] R-RL-08 Review Vedula et al., "On the Detection of Low-Rate Denial of Service Attacks at Transport and Application Layers" (Electronics 2021) and map detector candidates to Shuma observability/tuning. https://doi.org/10.3390/electronics10172105 (summarized in `docs/research/2026-02-14-maze-tarpit-research-synthesis.md`)
+- [x] R-RL-02 Review Kuzmanovic/Knightly, "Low-Rate TCP-Targeted DoS Attacks" (SIGCOMM 2003) and map low-rate adversary behaviors to Shuma tarpit/limiter heuristics. https://doi.org/10.1145/863955.863966 (summarized in [`docs/research/2026-02-14-maze-tarpit-research-synthesis.md`](../docs/research/2026-02-14-maze-tarpit-research-synthesis.md))
+- [x] R-RL-04 Review Veroff et al., "Defense techniques for low-rate DoS attacks against application servers" (Computer Networks 2010) and identify bounded-randomization strategies usable in Shuma tarpit controls. https://doi.org/10.1016/j.comnet.2010.05.002 (summarized in [`docs/research/2026-02-14-maze-tarpit-research-synthesis.md`](../docs/research/2026-02-14-maze-tarpit-research-synthesis.md))
+- [x] R-RL-08 Review Vedula et al., "On the Detection of Low-Rate Denial of Service Attacks at Transport and Application Layers" (Electronics 2021) and map detector candidates to Shuma observability/tuning. https://doi.org/10.3390/electronics10172105 (summarized in [`docs/research/2026-02-14-maze-tarpit-research-synthesis.md`](../docs/research/2026-02-14-maze-tarpit-research-synthesis.md))
 
 #### SSH Tarpit and Honeypot Evasion Resistance
-- [x] R-SSH-01 Review Vasilomanolakis et al., "Gotta catch 'em all: A Multistage Framework for Honeypot Fingerprinting" (Digital Threats 2023) and derive anti-fingerprint requirements for SSH tarpit realism. https://doi.org/10.1145/3584976 (summarized in `docs/research/2026-02-14-maze-tarpit-research-synthesis.md`)
+- [x] R-SSH-01 Review Vasilomanolakis et al., "Gotta catch 'em all: A Multistage Framework for Honeypot Fingerprinting" (Digital Threats 2023) and derive anti-fingerprint requirements for SSH tarpit realism. https://doi.org/10.1145/3584976 (summarized in [`docs/research/2026-02-14-maze-tarpit-research-synthesis.md`](../docs/research/2026-02-14-maze-tarpit-research-synthesis.md))
 
 #### Stage 1: Policy and signal prerequisites
 - [x] Add request-sequence signal primitives end-to-end (canonical `S_SEQ_*`/`D_SEQ_*` taxonomy IDs, signed operation envelope fields, binding checks, ordering windows, timing thresholds, replay detection, telemetry wiring, and deterministic/integration coverage).
@@ -449,10 +449,10 @@ Moved from active TODO files on 2026-02-14.
 #### Stage 2: Maze excellence execution (Cloudflare-inspired, Shuma-native)
 - [x] MZ-S1: Keep Stage 2 completion criteria internal-first (no external-provider dependency).
 - [x] MZ-S2: Execute Stage 2 delivery order as `MZ-R0 -> MZ-R1 -> MZ-R2 -> MZ-R3 -> MZ-1 -> MZ-2 -> MZ-7 -> MZ-5 -> MZ-3 -> MZ-4 -> MZ-8 -> MZ-9 -> MZ-10 -> MZ-6`.
-- [x] MZ-R0: Research-first hold gate. Do not start Stage 2 implementation slices until the Maze/Tarpit research tranche is synthesized and accepted. (accepted research baseline in `docs/research/2026-02-14-maze-tarpit-research-synthesis.md`)
-- [x] MZ-R1: Complete and summarize the highest-impact Maze/Tarpit research items (`R-FP-10`, `R-RL-02`, `R-RL-04`, `R-RL-08`, `R-SSH-01`) with concrete anti-fingerprinting and bounded-cost implications. (`docs/research/2026-02-14-maze-tarpit-research-synthesis.md`)
-- [x] MZ-R2: Map research outcomes to `self_hosted_minimal` vs `enterprise_akamai` ownership and explicitly define what remains internal-first for Stage 2. (`docs/research/2026-02-14-maze-tarpit-research-synthesis.md`)
-- [x] MZ-R3: Convert research findings into enforceable implementation guardrails (budget caps, replay windows, fallback policy, rollout abort thresholds) and update Stage 2 acceptance criteria before coding. (`docs/research/2026-02-14-maze-tarpit-research-synthesis.md`)
+- [x] MZ-R0: Research-first hold gate. Do not start Stage 2 implementation slices until the Maze/Tarpit research tranche is synthesized and accepted. (accepted research baseline in [`docs/research/2026-02-14-maze-tarpit-research-synthesis.md`](../docs/research/2026-02-14-maze-tarpit-research-synthesis.md))
+- [x] MZ-R1: Complete and summarize the highest-impact Maze/Tarpit research items (`R-FP-10`, `R-RL-02`, `R-RL-04`, `R-RL-08`, `R-SSH-01`) with concrete anti-fingerprinting and bounded-cost implications. ([`docs/research/2026-02-14-maze-tarpit-research-synthesis.md`](../docs/research/2026-02-14-maze-tarpit-research-synthesis.md))
+- [x] MZ-R2: Map research outcomes to `self_hosted_minimal` vs `enterprise_akamai` ownership and explicitly define what remains internal-first for Stage 2. ([`docs/research/2026-02-14-maze-tarpit-research-synthesis.md`](../docs/research/2026-02-14-maze-tarpit-research-synthesis.md))
+- [x] MZ-R3: Convert research findings into enforceable implementation guardrails (budget caps, replay windows, fallback policy, rollout abort thresholds) and update Stage 2 acceptance criteria before coding. ([`docs/research/2026-02-14-maze-tarpit-research-synthesis.md`](../docs/research/2026-02-14-maze-tarpit-research-synthesis.md))
 - [x] MZ-1: Replace path-only deterministic seeding with rotating signed entropy for suspicious traffic; keep short TTL deterministic windows for cacheability/debugging.
 - [x] MZ-2: Add signed traversal-link tokens with TTL, depth scope, branch budget, and replay protection.
 - [x] MZ-7: Enforce maze cost budgets (global concurrency, per-bucket spend, response byte/time caps) with deterministic fallback behavior.
@@ -503,14 +503,14 @@ Moved from active TODO files on 2026-02-14.
 ### todos/todo.md
 
 #### Stage 2.7 follow-up: Honeypot + Maze stealth excellence (research-first, pre-launch no-compat mode)
-- [x] MZ-SR1 Publish a current research synthesis for stealth deception routing and honeypot fingerprinting resistance with explicit source mapping and implementation requirements. (`docs/research/2026-02-16-honeypot-maze-stealth-excellence.md`)
+- [x] MZ-SR1 Publish a current research synthesis for stealth deception routing and honeypot fingerprinting resistance with explicit source mapping and implementation requirements. ([`docs/research/2026-02-16-honeypot-maze-stealth-excellence.md`](../docs/research/2026-02-16-honeypot-maze-stealth-excellence.md))
 - [x] MZ-S1 Remove explicit `/trap/*` route handling and trap-specific robots bait comments; keep deception routes non-semantic and reduce immediate classifier signal.
 - [x] MZ-S2 Introduce an opaque, deployment-specific maze route namespace (secret-derived prefix) and route helper API; remove remaining public `/maze/*` labels from live routing paths.
 - [x] MZ-S3 Move maze support endpoints (`checkpoint`, `issue-links`) and versioned maze assets under the same opaque namespace and update worker/bootstrap generation to consume helper paths only.
 - [x] MZ-S4 Remove deception-path disclosure from `robots.txt` defaults (no explicit maze/trap path disallow lines or bait comments); keep robots focused on crawler policy communication, not trap advertisement.
 - [x] MZ-S5 Update admin preview + dashboard links to use runtime path helpers so preview reflects live namespace while staying non-operational.
 - [x] MZ-S6 Add regression tests for route stealth and canonicalization (slash variants, malformed prefixes, old explicit-path rejection) across unit/integration paths.
-- [x] MZ-S7 Refresh public docs (`docs/maze.md`, `docs/api.md`, `docs/configuration.md`, `README.md`/`docs/quick-reference.md`) to describe the new opaque routing model and operator expectations.
+- [x] MZ-S7 Refresh public docs ([`docs/maze.md`](../docs/maze.md), [`docs/api.md`](../docs/api.md), [`docs/configuration.md`](../docs/configuration.md), `README.md`/[`docs/quick-reference.md`](../docs/quick-reference.md)) to describe the new opaque routing model and operator expectations.
 - [x] MZ-S8 Re-run benchmark and verification gates (`make test`, `make build`) and record resource/behavior deltas for stealth migration.
   Verification notes (2026-02-16): `make test` passed end-to-end (unit + benchmark + integration + dashboard e2e), `make build` passed, and maze benchmark gate reported `pages=6 avg_page_bytes=6638 host_set_ops=46 host_write_bytes=511 attacker_requests=16 issue_links_calls=5 attacker_pow_iterations=3553`.
 
@@ -529,15 +529,15 @@ Moved from active TODO files on 2026-02-14.
 - [x] DSH-3 Refactor monolithic dashboard orchestration into tab-scoped controllers/modules with clear lifecycle (`init`, `mount`, `unmount`, `refresh`) and no cross-tab hidden coupling.
 
 #### Fingerprinting, JS Verification, and CDP-Adjacent Detection
-- [x] R-FP-01 Review Peter Eckersley, "How Unique Is Your Web Browser?" (PETS 2010) and extract entropy-design implications for Shuma fingerprint signals and replay windows. https://link.springer.com/chapter/10.1007/978-3-642-14527-8_1 (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
-- [x] R-FP-02 Review Acar et al., "The Web Never Forgets" (CCS 2014) and derive tracking/fingerprint abuse patterns relevant to bot-detection evasion hardening. https://doi.org/10.1145/2660267.2660347 (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
-- [x] R-FP-03 Review Vastel et al., "FP-STALKER" (IEEE S&P 2018) and define time-evolution checks for Shuma fingerprint consistency logic. https://doi.org/10.1109/SP.2018.00008 (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
-- [x] R-FP-04 Review Jonker/Krumnow/Vlot, "Fingerprint Surface-Based Detection of Web Bot Detectors" (ESORICS 2019) and identify detector-surface minimization requirements. https://doi.org/10.1007/978-3-030-29962-0_28 (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
-- [x] R-FP-05 Review Azad et al., "Web Runner 2049: Evaluating Third-Party Anti-bot Services" and extract anti-evasion architecture lessons for internal-vs-edge integration boundaries. https://pmc.ncbi.nlm.nih.gov/articles/PMC7338186/ (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
-- [x] R-FP-06 Review Iliou et al., "Detection of advanced web bots by combining web logs with mouse behavioural biometrics" (DTRAP 2021) and assess feasibility of low-friction behavior features in Shuma. https://doi.org/10.1145/3447815 (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
-- [x] R-FP-07 Review Zhao et al., "Toward the flow-centric detection of browser fingerprinting" (Computers & Security 2024) and evaluate flow-level JS signal extraction options. https://doi.org/10.1016/j.cose.2023.103642 (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
-- [x] R-FP-08 Review Venugopalan et al., "FP-Inconsistent: Detecting Evasive Bots using Browser Fingerprint Inconsistencies" (2024) and define cross-attribute consistency checks for Shuma scoring. https://arxiv.org/abs/2406.07647 (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
-- [x] R-FP-09 Review Bursztein et al., "Picasso: Lightweight Device Class Fingerprinting for Web Clients" (SPSM 2016) and assess replay-resistant challenge-bound fingerprint options. https://doi.org/10.1145/2994459.2994467 (summarized in `docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`)
+- [x] R-FP-01 Review Peter Eckersley, "How Unique Is Your Web Browser?" (PETS 2010) and extract entropy-design implications for Shuma fingerprint signals and replay windows. https://link.springer.com/chapter/10.1007/978-3-642-14527-8_1 (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-02 Review Acar et al., "The Web Never Forgets" (CCS 2014) and derive tracking/fingerprint abuse patterns relevant to bot-detection evasion hardening. https://doi.org/10.1145/2660267.2660347 (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-03 Review Vastel et al., "FP-STALKER" (IEEE S&P 2018) and define time-evolution checks for Shuma fingerprint consistency logic. https://doi.org/10.1109/SP.2018.00008 (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-04 Review Jonker/Krumnow/Vlot, "Fingerprint Surface-Based Detection of Web Bot Detectors" (ESORICS 2019) and identify detector-surface minimization requirements. https://doi.org/10.1007/978-3-030-29962-0_28 (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-05 Review Azad et al., "Web Runner 2049: Evaluating Third-Party Anti-bot Services" and extract anti-evasion architecture lessons for internal-vs-edge integration boundaries. https://pmc.ncbi.nlm.nih.gov/articles/PMC7338186/ (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-06 Review Iliou et al., "Detection of advanced web bots by combining web logs with mouse behavioural biometrics" (DTRAP 2021) and assess feasibility of low-friction behavior features in Shuma. https://doi.org/10.1145/3447815 (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-07 Review Zhao et al., "Toward the flow-centric detection of browser fingerprinting" (Computers & Security 2024) and evaluate flow-level JS signal extraction options. https://doi.org/10.1016/j.cose.2023.103642 (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-08 Review Venugopalan et al., "FP-Inconsistent: Detecting Evasive Bots using Browser Fingerprint Inconsistencies" (2024) and define cross-attribute consistency checks for Shuma scoring. https://arxiv.org/abs/2406.07647 (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-09 Review Bursztein et al., "Picasso: Lightweight Device Class Fingerprinting for Web Clients" (SPSM 2016) and assess replay-resistant challenge-bound fingerprint options. https://doi.org/10.1145/2994459.2994467 (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
 - [x] Strengthen fingerprinting by hardening internal baseline signals first, then ingesting trusted upstream edge signals (JA3/JA4 and similar) with provenance checks and explicit internal fallback when edge headers are absent or untrusted.
 - [x] Phase 1 completed: normalized fingerprint signals now carry provenance/confidence metadata, family entropy budgeting/caps are enforced, and data-minimization controls (TTL/pseudonymization/export visibility) are wired and documented.
 - [x] Phase 2 completed: cross-layer mismatch heuristics (UA/client-hint/transport), temporal coherence detection IDs, and bounded flow-window fingerprint telemetry are active.
@@ -558,11 +558,11 @@ Moved from active TODO files on 2026-02-14.
 
 #### P3 Dashboard Native ESM + Functional JS Modernization (No Build Step)
 - [x] DSH-ESM-1 Hard cutover selected for pre-launch: migrate dashboard JS to native ESM without dual global-script wiring; decision captured during the native ESM cutover tranche.
-- [x] DSH-ESM-2 Freeze behavior contracts to preserve during refactor: tab routing/hash behavior, API payload expectations, status/config control semantics, and monitoring render states. (`docs/plans/2026-02-17-dashboard-esm-behavior-contracts.md`)
+- [x] DSH-ESM-2 Freeze behavior contracts to preserve during refactor: tab routing/hash behavior, API payload expectations, status/config control semantics, and monitoring render states. ([`docs/plans/2026-02-17-dashboard-esm-behavior-contracts.md`](../docs/plans/2026-02-17-dashboard-esm-behavior-contracts.md))
 - [x] DSH-ESM-3 Add/expand regression coverage before migration for all dashboard tabs (`loading`/`empty`/`error`/`data`) and critical config dirty-state/save flows. (`e2e/dashboard.smoke.spec.js`, `e2e/dashboard.modules.unit.test.js`)
 - [x] DSH-ESM-4 Introduce a single native module entrypoint (`<script type="module">`) and convert dashboard boot from global-init order to explicit imports.
 - [x] DSH-ESM-5 Replace `window.ShumaDashboard*` global module registry wiring with ESM `export`/`import` contracts across dashboard modules.
-- [x] DSH-ESM-6 Define and enforce a stable module graph (`core` -> `services` -> `features` -> `main`) with no circular imports. (`docs/plans/2026-02-17-dashboard-esm-module-graph.md` + module-graph guard test)
+- [x] DSH-ESM-6 Define and enforce a stable module graph (`core` -> `services` -> `features` -> `main`) with no circular imports. ([`docs/plans/2026-02-17-dashboard-esm-module-graph.md`](../docs/plans/2026-02-17-dashboard-esm-module-graph.md) + module-graph guard test)
 - [x] DSH-ESM-7 Refactor feature modules to functional boundaries: pure `deriveViewModel(snapshot, options)` and side-effectful `render(viewModel, effects)`; no class-based state.
 - [x] DSH-ESM-8 Centralize side effects in dedicated effect adapters (DOM writes, network calls, clipboard, timers) so feature logic remains pure/testable. (`dashboard/modules/services/runtime-effects.js`)
 - [x] DSH-ESM-9 Consolidate dashboard state updates around immutable transition functions (`nextState = reduce(prevState, event)`) and remove ad-hoc mutable globals where possible.
@@ -570,8 +570,8 @@ Moved from active TODO files on 2026-02-14.
 - [x] DSH-ESM-11 Remove legacy IIFE wrappers and duplicate helper code paths that were only needed for global-script loading.
 - [x] DSH-ESM-12 Add lightweight static guard checks for dashboard JS (for example: fail on new `window.ShumaDashboard*` exports, fail on `class` usage in dashboard modules, fail on duplicate helper definitions across modules).
 - [x] DSH-ESM-13 Execute migration in small slices with mandatory full verification per slice via Makefile (`make test` with dev Spin running).
-- [x] DSH-ESM-14 Update public and contributor docs (`docs/dashboard.md`, architecture plan, contributor notes) with native ESM conventions, functional patterns, and module-boundary rules.
-- [x] DSH-ESM-15 Run a final no-net-behavior-change audit against baseline contracts and capture known intentional deltas (if any) before merge. (`docs/plans/2026-02-17-dashboard-esm-no-net-behavior-audit.md`)
+- [x] DSH-ESM-14 Update public and contributor docs ([`docs/dashboard.md`](../docs/dashboard.md), architecture plan, contributor notes) with native ESM conventions, functional patterns, and module-boundary rules.
+- [x] DSH-ESM-15 Run a final no-net-behavior-change audit against baseline contracts and capture known intentional deltas (if any) before merge. ([`docs/plans/2026-02-17-dashboard-esm-no-net-behavior-audit.md`](../docs/plans/2026-02-17-dashboard-esm-no-net-behavior-audit.md))
 
 ## Additional completions (2026-02-17, section-preserving archive)
 
@@ -606,7 +606,7 @@ Moved from active TODO files on 2026-02-14.
 ### todos/todo.md
 
 #### P0 Dashboard SvelteKit Full Cutover (All Tabs, Excellence Architecture)
-- [x] DSH-SVLT-R0 Record architecture decision for SvelteKit full cutover and supersede the prior framework migration direction (`docs/adr/0002-dashboard-sveltekit-cutover.md`).
+- [x] DSH-SVLT-R0 Record architecture decision for SvelteKit full cutover and supersede the prior framework migration direction ([`docs/adr/0002-dashboard-sveltekit-cutover.md`](../docs/adr/0002-dashboard-sveltekit-cutover.md)).
 - [x] DSH-SVLT-R1 Preserve route and behavior contracts (`/dashboard/index.html`, `/dashboard/login.html`, hash-tab UX) during migration.
 - [x] DSH-SVLT-R2 Keep deployment static-only (adapter-static + Spin fileserver), with no Node server in production runtime.
 - [x] DSH-SVLT-PLAT1 Add SvelteKit app scaffolding under `dashboard/` with static adapter output to `dist/dashboard`.
@@ -775,7 +775,7 @@ Policy stance for this section: no backward DOM-ID compatibility is required pre
 ### todos/todo.md
 
 #### P3 Monitoring Signal Expansion (Dashboard + Telemetry)
-- [x] DSH-MON-7 Deliberate Prometheus parity scope for Monitoring completed with widget-by-widget audit matrix, parity classifications, prioritized add-list, and cardinality/cost guardrails. (`docs/monitoring-prometheus-parity-audit.md`)
+- [x] DSH-MON-7 Deliberate Prometheus parity scope for Monitoring completed with widget-by-widget audit matrix, parity classifications, prioritized add-list, and cardinality/cost guardrails. ([`docs/monitoring-prometheus-parity-audit.md`](../docs/monitoring-prometheus-parity-audit.md))
 
 #### P1 Dashboard SvelteKit Excellence Continuation
 - [x] DSH-SX-17 Extract route orchestration from `dashboard/src/routes/+page.svelte` into a dedicated runtime controller module (`dashboard/src/lib/runtime/dashboard-route-controller.js`) while preserving hash/polling/session behavior contracts.
@@ -787,7 +787,7 @@ Policy stance for this section: no backward DOM-ID compatibility is required pre
 ### todos/todo.md
 
 #### P3 Monitoring Signal Expansion (Dashboard + Telemetry)
-- [x] DSH-MON-8 Implement Priority-1 low-cardinality missing-export metric families from `docs/monitoring-prometheus-parity-audit.md` (`cdp_detections`, challenge reason totals, PoW outcomes/reasons, rate outcomes, GEO action totals).
+- [x] DSH-MON-8 Implement Priority-1 low-cardinality missing-export metric families from [`docs/monitoring-prometheus-parity-audit.md`](../docs/monitoring-prometheus-parity-audit.md) (`cdp_detections`, challenge reason totals, PoW outcomes/reasons, rate outcomes, GEO action totals).
 - [x] DSH-MON-9 Add `/metrics` regression coverage and dashboard parity assertions for newly exported monitoring families (including cardinality guardrail tests).
 - [x] MON-TEL-4 Add rate-limit violation summary endpoint (or equivalent aggregation contract) that returns filtered offender/top-path/top-window data without requiring expensive client-side filtering over generic event feeds.
 

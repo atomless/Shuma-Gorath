@@ -5,7 +5,7 @@ Status: Proposed
 
 Related:
 
-- `docs/adr/0004-tarpit-v2-progression-contract.md`
+- [`docs/adr/0004-tarpit-v2-progression-contract.md`](../adr/0004-tarpit-v2-progression-contract.md)
 - `todos/todo.md` (`TAH-2`, `TAH-3`, `TAH-4`, `TAH-7`, `TAH-9`, `TAH-11`)
 
 ## Objective

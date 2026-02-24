@@ -80,7 +80,7 @@ Default Shuma runtime storage is security/operations-oriented (auth/session cook
 - Operators must still publish a clear privacy/cookie disclosure covering what is stored, why, and for how long.
 - If non-essential analytics/marketing tracking storage is added, prior consent is required.
 
-Use `docs/privacy-gdpr-review.md` as the implementation-grounded baseline for deployment policy decisions.
+Use [`docs/privacy-gdpr-review.md`](privacy-gdpr-review.md) as the implementation-grounded baseline for deployment policy decisions.
 
 ## 🐙 Metrics Endpoint Exposure
 

@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-02-18
-- Extends: `docs/adr/0002-dashboard-sveltekit-cutover.md`
+- Extends: [`docs/adr/0002-dashboard-sveltekit-cutover.md`](0002-dashboard-sveltekit-cutover.md)
 
 ## Context
 

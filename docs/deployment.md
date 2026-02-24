@@ -5,7 +5,7 @@ Shuma-Gorath is designed to run on Spin (local or cloud). Use the Makefile paths
 Shuma-Gorath is intended to complement enterprise bot defenses (for example Akamai Bot Manager), but can run standalone.
 
 For the current deployment-track execution backlog (single-host baseline and enterprise multi-instance sync hardening), see:
-`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`.
+[`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md).
 
 ## 🐙 Runtime Configuration Model
 
@@ -17,7 +17,7 @@ For the current deployment-track execution backlog (single-host baseline and ent
 - `GET /admin/config/export` provides a non-secret `KEY=value` handoff snapshot for immutable redeploy workflows.
 
 For the canonical explanation of these two configuration classes, see:
-`docs/configuration.md#configuration-sources-admin-editable-runtime-settings-vs-environment-only-variables`.
+[`docs/configuration.md#configuration-sources-admin-editable-runtime-settings-vs-environment-only-variables`](configuration.md#configuration-sources-admin-editable-runtime-settings-vs-environment-only-variables).
 
 If <abbr title="Key-Value">KV</abbr> config is missing/invalid at runtime, config-dependent request handling fails with `500 Configuration unavailable`.
 
@@ -140,7 +140,7 @@ Set these in your deployment secret/config system:
 - `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` (optional; `fallback_internal|fail_open|fail_closed`)
 - `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH` (optional; `fallback_internal|fail_open|fail_closed`)
 
-For the full env-only list and per-variable behavior, use `docs/configuration.md`.
+For the full env-only list and per-variable behavior, use [`docs/configuration.md`](configuration.md).
 Template source: run `make setup` or `make setup-runtime` and use `.env.local` (gitignored) as your env-only override baseline.
 
 ## 🐙 Security Baseline

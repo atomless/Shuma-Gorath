@@ -32,7 +32,7 @@ Not-a-bot (`/challenge/not-a-bot-checkbox`) is the intended low-friction checkpo
 7. Interaction must be single-step (checkbox-like activation progresses immediately; no secondary submit button).
 8. Accessibility paths are neutral-to-positive evidence only; never penalize assistive usage patterns directly.
 
-Reference synthesis: `docs/research/2026-02-19-not-a-bot-challenge-research-synthesis.md`.
+Reference synthesis: [`docs/research/2026-02-19-not-a-bot-challenge-research-synthesis.md`](../research/2026-02-19-not-a-bot-challenge-research-synthesis.md).
 
 ## Internal vs Akamai ownership
 
@@ -105,7 +105,7 @@ Reference synthesis: `docs/research/2026-02-19-not-a-bot-challenge-research-synt
 ## Source references
 
 - `todos/not-a-bot-spec.md`
-- `docs/research/2026-02-19-not-a-bot-challenge-research-synthesis.md`
+- [`docs/research/2026-02-19-not-a-bot-challenge-research-synthesis.md`](../research/2026-02-19-not-a-bot-challenge-research-synthesis.md)
 - https://www.akamai.com/products/bot-manager
 - https://techdocs.akamai.com/cloud-security/docs/handle-adversarial-bots
 - https://developers.cloudflare.com/cloudflare-challenges/challenge-types/challenge-pages/

@@ -28,7 +28,7 @@ This endpoint returns bounded-cardinality summaries for:
 Use this endpoint for dashboard <abbr title="User Experience">UX</abbr> and operator <abbr title="Application Programming Interface">API</abbr> queries; use `/metrics` for external time-series scraping.
 
 Prometheus parity scope for Monitoring widgets is tracked in:
-- `docs/monitoring-prometheus-parity-audit.md`
+- [`docs/monitoring-prometheus-parity-audit.md`](monitoring-prometheus-parity-audit.md)
 
 ### 🐙 Monitoring Cost Controls
 

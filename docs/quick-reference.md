@@ -1,6 +1,6 @@
 # 🐙 Quick Reference - <abbr title="WebAssembly">WASM</abbr> Bot Defence
 
-For full documentation, see `docs/index.md`.
+For full documentation, see [`docs/index.md`](index.md).
 
 ## 🐙 Common Commands
 
@@ -126,7 +126,7 @@ Other deploy targets:
 - Set `SHUMA_FORWARDED_IP_SECRET` as an environment variable in your platform's secrets/config (Kubernetes, Docker, systemd, etc.).
 - Ensure your proxy/<abbr title="Content Delivery Network">CDN</abbr> sends `X-Shuma-Forwarded-Secret` with the same value on each request.
 
-For more deployment detail, see `docs/deployment.md`.
+For more deployment detail, see [`docs/deployment.md`](deployment.md).
 
 ### 🐙 Test Mode
 Enable for safe production testing (logs but doesn't block):
@@ -155,7 +155,7 @@ Defaults are defined in `config/defaults.env` and seeded into <abbr title="Key-V
 - **Honeypots**: `/instaban`
 - **Browser blocks**: Chrome <120, Firefox <115, Safari <15
 
-Full configuration reference (including configuration-class explanation): `docs/configuration.md`.
+Full configuration reference (including configuration-class explanation): [`docs/configuration.md`](configuration.md).
 
 ## 🐙 Dashboard
 
