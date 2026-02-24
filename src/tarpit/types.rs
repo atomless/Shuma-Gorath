@@ -73,19 +73,3 @@ impl ProgressRejectReason {
         matches!(self, ProgressRejectReason::BudgetExhausted)
     }
 }
-
-pub(crate) const PROGRESS_REJECT_REASON_KEYS: [&str; 13] = [
-    "tarpit_progress_malformed",
-    "tarpit_progress_signature_mismatch",
-    "tarpit_progress_invalid_version",
-    "tarpit_progress_expired",
-    "tarpit_progress_invalid_window",
-    "tarpit_progress_binding_ip_mismatch",
-    "tarpit_progress_binding_ua_mismatch",
-    "tarpit_progress_path_mismatch",
-    "tarpit_progress_step_out_of_order",
-    "tarpit_progress_parent_chain_missing",
-    "tarpit_progress_replay",
-    "tarpit_progress_invalid_proof",
-    "tarpit_progress_budget_exhausted",
-];

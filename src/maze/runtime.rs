@@ -183,10 +183,6 @@ pub(crate) fn increment_behavior_score(
     write_counter(store, key.as_str(), next);
 }
 
-pub(crate) fn budget_bucket_key(bucket_prefix: &str, ip_bucket: &str) -> String {
-    crate::deception::primitives::budget_bucket_key(bucket_prefix, ip_bucket)
-}
-
 pub(crate) fn try_acquire_shared_budget<'a, S: MazeStateStore>(
     store: &'a S,
     governor: SharedBudgetGovernor<'_>,

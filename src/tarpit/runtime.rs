@@ -309,10 +309,6 @@ pub(crate) fn now_millis() -> u64 {
     now_ms()
 }
 
-pub(crate) fn now_seconds() -> u64 {
-    now_secs()
-}
-
 pub(crate) fn next_persistence_count(
     store: &Store,
     site_id: &str,
