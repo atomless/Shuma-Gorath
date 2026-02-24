@@ -9,6 +9,7 @@ const INITIAL_STATE = Object.freeze({
     testMode: false,
     powEnabled: false,
     mazeEnabled: false,
+    tarpitEnabled: false,
     mazeAutoBan: false,
     cdpEnabled: false,
     cdpAutoBan: false,
@@ -154,7 +155,12 @@ const VAR_GROUP_DEFINITIONS = Object.freeze([
     {
       key: 'maze_runtime',
       title: 'Maze Runtime',
-      matches: path => path.startsWith('maze_') || path.startsWith('tarpit_')
+      matches: path => path.startsWith('maze_')
+    },
+    {
+      key: 'tarpit_runtime',
+      title: 'Tarpit Runtime',
+      matches: path => path.startsWith('tarpit_')
     },
     {
       key: 'crawler_policy',
@@ -265,6 +271,7 @@ export function deriveStatusSnapshot(configSnapshot = {}) {
       testMode: parseBoolLike(config.test_mode, false),
       powEnabled: parseBoolLike(config.pow_enabled, true),
       mazeEnabled: parseBoolLike(config.maze_enabled, true),
+      tarpitEnabled: parseBoolLike(config.tarpit_enabled, true),
       mazeAutoBan: parseBoolLike(config.maze_auto_ban, true),
       cdpEnabled: parseBoolLike(config.cdp_detection_enabled, true),
       cdpAutoBan: parseBoolLike(config.cdp_auto_ban, true),
@@ -459,6 +466,14 @@ const STATUS_DEFINITIONS = [
         `If ${envVar('SHUMA_MAZE_AUTO_BAN')} is enabled, automatic bans trigger when maze hits exceed ${envVar('SHUMA_MAZE_AUTO_BAN_THRESHOLD')}.`
       ),
       status: snapshot => boolStatus(snapshot.mazeEnabled)
+    },
+    {
+      title: 'Tarpit',
+      description: () => (
+        `Tarpit applies progression-gated attack defence for confirmed challenge attacks when ${envVar('SHUMA_TARPIT_ENABLED')} is enabled. ` +
+        `Tarpit is served only when maze routing is available and uses bounded concurrency, egress, and flow-duration budgets.`
+      ),
+      status: snapshot => boolStatus(snapshot.tarpitEnabled)
     },
     {
       title: 'JS Required',

@@ -9,7 +9,7 @@ HTTP tarpit behavior is planned (`maze_plus_drip`) but not yet implemented as a 
 
 ## Goals
 
-- Add bounded slow-drip cost imposition for high-confidence abusive clients.
+- Add bounded slow-drip attacker-cost escalation for high-confidence malicious clients.
 - Keep host-side resource usage strictly budgeted.
 - Ensure deterministic fallback when tarpit budgets saturate.
 

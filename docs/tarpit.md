@@ -1,13 +1,13 @@
 # 🐙 Tarpit
 
-Shuma-Gorath tarpit is an abuse-escalation control, not a normal user-failure path.
-Normal challenge failures go to maze (or block if maze is disabled). Tarpit is reserved for abuse-grade failures and selected policy actions.
+Shuma-Gorath tarpit is an attack-escalation control, not a normal unsolved-user path.
+Normal unsolved challenge attempts go to maze (or block if maze is disabled). Tarpit is reserved for confirmed challenge attacks and selected policy actions.
 
 ## 🐙 What Tarpit Is For
 
 - Raise malicious-automation cost with repeated proof-gated progression.
 - Keep host cost bounded with strict concurrency and egress budgets.
-- Escalate persistent abusive sources to short-ban, then block.
+- Escalate persistent attacking sources to short-ban, then block.
 
 ## 🐙 Why This Is A Differentiator
 
@@ -15,7 +15,7 @@ Normal challenge failures go to maze (or block if maze is disabled). Tarpit is r
 - Keeps the operational discipline seen in strong enterprise/operator examples (strict budgets, explicit fallback, observability-first posture).
 - Extends that baseline with Shuma-specific progression chaining, proof gating, and app-level routing control.
 
-For the cross-capability comparison of enterprise baseline vs Shuma advancement, see `value-proposition.md`.
+For the cross-capability comparison of enterprise baseline vs Shuma advancement, see [`value-proposition.md`](value-proposition.md).
 
 ## 🐙 When Tarpit Is Served
 
@@ -26,13 +26,13 @@ Tarpit handling is attempted only when both are enabled:
 
 Tarpit-capable entry paths:
 
-- Challenge abuse outcomes (for example replay/tamper/sequence abuse).
-- Not-a-Bot abuse outcomes (for example replay/invalid-seed/binding/attempt-window abuse).
+- Challenge attack outcomes (for example replay/tamper/sequence abuse).
+- Not-a-Bot attack outcomes (for example replay/invalid-seed/binding/attempt-window abuse).
 - IP-range policy rules with `action=tarpit`.
 
 If tarpit cannot be served, behavior is deterministic:
 
-- Challenge abuse path: short ban (600s) + block response.
+- Challenge attack path: short ban (600s) + block response.
 - IP-range tarpit action: fallback to maze (if enabled) otherwise block.
 
 Crawler/safety bypass:
@@ -107,7 +107,7 @@ Advanced JSON config (runtime controls):
 - active concurrency budgets (`tarpit_max_concurrent_*`)
 - saturated-path fallback (`tarpit_fallback_action`)
 
-For full variable definitions and ranges, see `configuration.md`.
+For full variable definitions and ranges, see [`configuration.md`](configuration.md).
 
 ## 🐙 Monitoring and Operator Visibility
 

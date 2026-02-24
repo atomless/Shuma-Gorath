@@ -35,7 +35,7 @@ Ship a Shuma-native tarpit implementation that:
 4. **Deterministic fallback**
    - On tarpit budget saturation, fallback is explicit (`maze` or `block`) and observable.
 5. **High-confidence gating**
-   - Keep tarpit tied to abuse-grade paths; preserve low-friction handling for humans.
+   - Keep tarpit tied to confirmed attack paths; preserve low-friction handling for humans.
 
 ## Delivery Phases
 
@@ -154,7 +154,7 @@ Rollout should pause/rollback if sustained:
 ## Security and Resource Notes
 
 - Security:
-  - Keep tarpit limited to abuse-grade signals to reduce false positives.
+  - Keep tarpit limited to confirmed attack signals to reduce false positives.
   - Maintain explicit reason/outcome labeling for post-incident audits.
 - Resource:
   - Hard caps are mandatory to avoid self-DoS.

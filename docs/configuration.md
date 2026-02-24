@@ -149,7 +149,7 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | `SHUMA_IP_RANGE_ALLOW_STALE_MANAGED_ENFORCE` | `false` | Explicit override to keep enforce-mode managed-set actions active even when the managed catalog is stale. |
 
 | `SHUMA_MAZE_ENABLED` | `true` | Enables maze feature. |
-| `SHUMA_TARPIT_ENABLED` | `true` | Enables tarpit handling for abuse-grade challenge failures (active only when maze is enabled). |
+| `SHUMA_TARPIT_ENABLED` | `true` | Enables tarpit handling for confirmed challenge attacks (active only when maze is enabled). |
 | `SHUMA_TARPIT_PROGRESS_TOKEN_TTL_SECONDS` | `120` | Signed progression token lifetime for work-gated tarpit steps (seconds). |
 | `SHUMA_TARPIT_PROGRESS_REPLAY_TTL_SECONDS` | `300` | Replay-marker retention window for tarpit progression operations (seconds). |
 | `SHUMA_TARPIT_HASHCASH_MIN_DIFFICULTY` | `10` | Minimum bounded hashcash difficulty for progressive tarpit work gates. |
@@ -264,19 +264,19 @@ Shuma follows a 2-class model only:
 - `js_required_enforced=false` bypasses <abbr title="JavaScript">JS</abbr> verification for normal requests (and therefore bypasses <abbr title="Proof of Work">PoW</abbr> on that path).
 - `challenge_puzzle_enabled=false` disables challenge-page serving; challenge-tier routes fall back to maze when `maze_enabled=true`, otherwise hard block.
 
-## 🐙 Challenge Failures and Tarpit Routing
+## 🐙 Challenge Outcomes and Tarpit Routing
 
 Operator summary:
 
-- Not-a-Bot user failures (score below `not_a_bot_fail_score`) route to maze when enabled, otherwise block.
-- Puzzle user failures (wrong/low-confidence answer paths) route to maze when enabled, otherwise block.
-- Abuse-grade failures (for example replay, seed tampering, sequence violations, attempt-window abuse) can route to tarpit when both maze and tarpit are enabled.
+- Not-a-Bot unsolved attempts (score below `not_a_bot_fail_score`) route to maze when enabled, otherwise block.
+- Puzzle unsolved attempts (wrong/low-confidence answer paths) route to maze when enabled, otherwise block.
+- Confirmed challenge attacks (for example replay, seed tampering, sequence violations, attempt-window abuse) can route to tarpit when both maze and tarpit are enabled.
 
 Tarpit activation requires all of:
 
 - `maze_enabled=true`
 - `tarpit_enabled=true`
-- request reached an abuse-grade tarpit-capable route
+- request reached a confirmed-attack tarpit-capable route
 - runtime is not in `test_mode` simulation bypass
 - tarpit persistence escalation has not already forced short-ban/block
 - tarpit concurrency budgets are available

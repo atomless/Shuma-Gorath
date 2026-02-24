@@ -24,11 +24,11 @@
 </script>
 
 <div class="section events">
-  <h2>Challenge Failures</h2>
-  <p class="section-desc text-muted">Challenge submit failures by reason class with trend and top offender.</p>
+  <h2>Challenge Outcomes</h2>
+  <p class="section-desc text-muted">Challenge rejections and confirmed attack signals by reason class, with trend and top offender.</p>
   <div class="stats-cards stats-cards--compact">
     <div class="card panel panel-border pad-md-b">
-      <h3 class="caps-label">Total Failures</h3>
+      <h3 class="caps-label">Total Rejections</h3>
       <div class="stat-value" id="challenge-failures-total">{loading ? '...' : challengeSummary.totalFailures}</div>
     </div>
     <div class="card panel panel-border pad-md-b">

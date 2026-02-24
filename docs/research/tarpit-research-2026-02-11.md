@@ -95,7 +95,7 @@ This means Shuma should **extend current maze/routing**, not create a separate t
 ## Proposed Runtime Controls (Admin Config)
 
 - `tarpit_enabled` (bool)
-- Single tarpit path: proof-gated progressive cost imposition (no intermediate mode toggle)
+- Single tarpit path: proof-gated progressive attacker-cost escalation (no intermediate mode toggle)
 - `tarpit_trigger_score` (u8)
 - `tarpit_stream_timeout_seconds` (u64)
 - `tarpit_bytes_per_second` (u32)

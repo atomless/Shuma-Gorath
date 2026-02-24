@@ -80,7 +80,7 @@ Tables:
 - <abbr title="Chrome DevTools Protocol">CDP</abbr> cumulative totals (all-time detections + auto-bans)
 - Monitoring summaries:
 - Honeypot Hits (total hits, unique crawler buckets, top crawlers, top paths)
-- Challenge Failures (reason breakdown + trend)
+- Challenge Outcomes (rejection/attack reason breakdown + trend)
 - <abbr title="Proof of Work">PoW</abbr> Verification (success/failure outcomes, success ratio, failure reason breakdown + trend)
 - Rate Limiting Violations (total, offenders, outcomes)
 - <abbr title="Geolocation">GEO</abbr> Violations (actions + top countries)
@@ -110,8 +110,8 @@ Controls:
 - <abbr title="Proof of Work">PoW</abbr> enable toggle plus difficulty/<abbr title="Time To Live">TTL</abbr> tuning
 - Challenge puzzle controls (`challenge_puzzle_enabled`); transform-count and runtime hardening knobs remain Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only.
 - Not-a-Bot controls (`not_a_bot_enabled`, `not_a_bot_pass_score`, `not_a_bot_fail_score`); verification-token lifetime, pass-marker lifetime, and attempt-window knobs remain Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only.
-- Tarpit main-pane exposure is intentionally minimal: only `tarpit_enabled` is in the main panel with Maze. All other tarpit controls are Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only.
-- For exact challenge-failure routing and tarpit behavior, see [`tarpit.md`](tarpit.md). For full key definitions/ranges, see [`configuration.md`](configuration.md).
+- Tarpit main-pane exposure is intentionally minimal: only `tarpit_enabled` is exposed in the dedicated Tarpit panel. All other tarpit controls are Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only.
+- For exact challenge-outcome routing and tarpit attack behavior, see [`tarpit.md`](tarpit.md). For full key definitions/ranges, see [`configuration.md`](configuration.md).
 - Tarpit research index: [`research/README.md`](research/README.md).
 - Botness scoring controls:
 - challenge threshold
@@ -124,7 +124,7 @@ Controls:
 - routing toggle + tiered routing countries (`defence_modes.geo` action path + `geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`)
 - maze stats
 - non-operational Maze Preview link in Maze config
-- non-operational Tarpit preview link in Maze config
+- non-operational Tarpit preview link in Tarpit config
 - Enter key submits inputs (<abbr title="Application Programming Interface">API</abbr> key, ban, unban)
 - Active-tab scoped auto-refresh (no background full-dashboard refresh on hidden tabs)
 - <abbr title="Application Programming Interface">API</abbr> client defensively parses <abbr title="JavaScript Object Notation">JSON</abbr>-shaped payloads even when upstream omits `Content-Type`, to prevent false empty-state rendering

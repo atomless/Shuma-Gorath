@@ -72,7 +72,7 @@ Adopt a tarpit v2 contract with the following invariants.
 
 ## Human Friction Impact
 
-- No additional friction for likely-human paths because tarpit remains abuse-grade only.
+- No additional friction for likely-human paths because tarpit remains limited to confirmed attack paths.
 - Legitimate crawler/sensitive-path bypass behavior must remain explicit and documented.
 
 ## Adversary Cost Placement

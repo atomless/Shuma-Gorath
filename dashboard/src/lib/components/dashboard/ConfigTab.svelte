@@ -98,7 +98,7 @@
   let pathWhitelist = '';
 
   let mazeEnabled = true;
-  let mazeTarpitEnabled = true;
+  let tarpitEnabled = true;
   let mazeAutoBan = true;
   let mazeThreshold = 50;
 
@@ -174,7 +174,8 @@
     honeypot: { enabled: true, values: '' },
     browserPolicy: { enabled: true, block: '', whitelist: '' },
     whitelist: { enabled: true, network: '', path: '' },
-    maze: { enabled: true, tarpitEnabled: true, autoBan: true, threshold: 50 },
+    maze: { enabled: true, autoBan: true, threshold: 50 },
+    tarpit: { enabled: true },
     cdp: { enabled: true, autoBan: true, threshold: 0.6 },
     edgeMode: { mode: 'off' },
     geo: {
@@ -488,7 +489,7 @@
     pathWhitelist = formatListTextarea(config.path_whitelist);
 
     mazeEnabled = config.maze_enabled !== false;
-    mazeTarpitEnabled = config.tarpit_enabled !== false;
+    tarpitEnabled = config.tarpit_enabled !== false;
     mazeAutoBan = config.maze_auto_ban !== false;
     mazeThreshold = parseInteger(config.maze_auto_ban_threshold, 50);
 
@@ -596,9 +597,11 @@
       },
       maze: {
         enabled: mazeEnabled,
-        tarpitEnabled: mazeTarpitEnabled,
         autoBan: mazeAutoBan,
         threshold: Number(mazeThreshold)
+      },
+      tarpit: {
+        enabled: tarpitEnabled
       },
       cdp: {
         enabled: cdpEnabled,
@@ -769,9 +772,11 @@
     }
     if (includeAll || mazeDirty) {
       patch.maze_enabled = mazeEnabled;
-      patch.tarpit_enabled = mazeTarpitEnabled;
       patch.maze_auto_ban = mazeAutoBan;
       patch.maze_auto_ban_threshold = Number(mazeThreshold);
+    }
+    if (includeAll || tarpitDirty) {
+      patch.tarpit_enabled = tarpitEnabled;
     }
     if (includeAll || cdpDirty) {
       patch.cdp_detection_enabled = cdpEnabled;
@@ -1076,10 +1081,11 @@
   $: mazeValid = inRange(mazeThreshold, 5, 500);
   $: mazeDirty = (
     readBool(mazeEnabled) !== baseline.maze.enabled ||
-    readBool(mazeTarpitEnabled) !== baseline.maze.tarpitEnabled ||
     readBool(mazeAutoBan) !== baseline.maze.autoBan ||
     Number(mazeThreshold) !== baseline.maze.threshold
   );
+  $: tarpitValid = true;
+  $: tarpitDirty = readBool(tarpitEnabled) !== baseline.tarpit.enabled;
 
   $: cdpValid = inRange(cdpThreshold, 0.3, 1.0);
   $: cdpDirty = (
@@ -1225,6 +1231,7 @@
     { label: 'Browser policy', dirty: browserPolicyDirty, valid: browserPolicyValid },
     { label: 'Bypass allowlists', dirty: whitelistDirty, valid: true },
     { label: 'Maze', dirty: mazeDirty, valid: mazeValid },
+    { label: 'Tarpit', dirty: tarpitDirty, valid: tarpitValid },
     { label: 'Chrome DevTools Protocol', dirty: cdpDirty, valid: cdpValid },
     { label: 'Edge mode', dirty: edgeModeDirty, valid: true },
     { label: 'Geolocation scoring', dirty: geoScoringDirty, valid: geoScoringValid },
@@ -1428,15 +1435,8 @@
           <span class="toggle-slider"></span>
         </label>
       </div>
-      <p class="control-desc text-muted">Toggle whether identified bot traffic gets routed into the Maze. Set the threshold of Maze pages visited before the IP of the visitor is added to the ban list. Low thresholds increase potential of false positives. You may click here to preview the <a id="preview-maze-link" href="/admin/maze/preview" target="_blank" rel="noopener noreferrer">Maze</a> or the <a id="preview-tarpit-link" href="/admin/tarpit/preview" target="_blank" rel="noopener noreferrer">Tarpit</a> without risk of being banned (admin session required).</p>
+      <p class="control-desc text-muted">Toggle whether identified bot traffic gets routed into the Maze. Set the threshold of Maze pages visited before the IP of the visitor is added to the ban list. Low thresholds increase potential of false positives. You may click here to preview the <a id="preview-maze-link" href="/admin/maze/preview" target="_blank" rel="noopener noreferrer">Maze</a> without risk of being banned (admin session required).</p>
       <div class="admin-controls">
-        <div class="toggle-row" class:toggle-row--disabled={!mazeEnabled} aria-disabled={!mazeEnabled}>
-          <label class="control-label" class:text-muted={!mazeEnabled} for="maze-tarpit-enabled-toggle">Enable Tarpit</label>
-          <label class="toggle-switch">
-            <input type="checkbox" id="maze-tarpit-enabled-toggle" aria-label="Enable tarpit" bind:checked={mazeTarpitEnabled} disabled={!mazeEnabled}>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
         <div class="toggle-row">
           <label class="control-label" for="maze-auto-ban-toggle">Enable Auto-ban</label>
           <label class="toggle-switch">
@@ -1449,6 +1449,24 @@
           <input class="input-field" type="number" id="maze-threshold" min="5" max="500" step="1" inputmode="numeric" aria-label="Maze ban threshold in pages" bind:value={mazeThreshold} disabled={!mazeAutoBan}>
         </div>
       </div>
+    </div>
+
+    <div
+      class="control-group panel-soft pad-md config-edit-pane"
+      class:hidden={!writable}
+      class:config-edit-pane--dirty={tarpitDirty}
+    >
+      <div class="panel-heading-with-control">
+        <h3>Tarpit</h3>
+        <label class="toggle-switch" for="tarpit-enabled-toggle">
+          <input type="checkbox" id="tarpit-enabled-toggle" aria-label="Enable tarpit" bind:checked={tarpitEnabled}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <p class="control-desc text-muted">Enable progression-gated tarpit defence for confirmed challenge attacks. Tarpit uses bounded work and deterministic fallback to keep host cost controlled while increasing attacker cost. You may click here to preview the <a id="preview-tarpit-link" href="/admin/tarpit/preview" target="_blank" rel="noopener noreferrer">Tarpit</a> without mutating runtime state (admin session required).</p>
+      {#if !mazeEnabled}
+        <p class="message warning">Maze is currently disabled, so tarpit cannot be served until Maze is enabled.</p>
+      {/if}
     </div>
 
     <div
@@ -1474,7 +1492,7 @@
           <label class="control-label" for="not-a-bot-score-fail-max">Fail Score (0-{notABotScoreFailMaxCap})</label>
           <input class="input-field" type="number" id="not-a-bot-score-fail-max" min="0" max={notABotScoreFailMaxCap} step="1" inputmode="numeric" aria-label="Not-a-Bot fail score threshold" bind:value={notABotScoreFailMax}>
         </div>
-        <p class="text-muted">Scores below Fail route to Maze (if enabled), otherwise Block (403). Abuse failures (replay/tamper/attempt abuse) route to tarpit when available, otherwise a short ban.</p>
+        <p class="text-muted">Scores below Fail route to Maze (if enabled), otherwise Block (403). Confirmed attacks (replay, tamper, or attempt-window abuse) route to tarpit when available, otherwise a short ban.</p>
       </div>
     </div>
 
@@ -1490,7 +1508,7 @@
           <span class="toggle-slider"></span>
         </label>
       </div>
-      <p class="control-desc text-muted">The Puzzle Challenge is shown to visitors failing to attain a pass score on the not-a-bot challenge, but who also scored above the hard fail level. It is designed to be significantly more costly for bots, while remaining relatively simple for humans. Very few humans should ever have to solve it. The Puzzle has deterministic solve verification (correct/incorrect) with strict signed-seed expiry and replay/timing enforcement. Advanced controls, including transform count (which increases the challenge difficulty), seed <abbr title="Time To Live">TTL</abbr>, and attempt limits, can be configured using the Advanced <abbr title="JavaScript Object Notation">JSON</abbr> input below. Wrong-answer user failures route to Maze. Abuse failures (replay/tamper/attempt abuse) route to tarpit when available, otherwise a short ban. You may click here to preview the <a id="preview-challenge-puzzle-link" href="/challenge/puzzle" target="_blank" rel="noopener noreferrer">Puzzle</a>, but test mode must be enabled.</p>
+      <p class="control-desc text-muted">The Puzzle Challenge is shown to visitors failing to attain a pass score on the not-a-bot challenge, but who also scored above the hard fail level. It is designed to be significantly more costly for bots, while remaining relatively simple for humans. Very few humans should ever have to solve it. The Puzzle has deterministic solve verification (correct/incorrect) with strict signed-seed expiry and replay/timing enforcement. Advanced controls, including transform count (which increases the challenge difficulty), seed <abbr title="Time To Live">TTL</abbr>, and attempt limits, can be configured using the Advanced <abbr title="JavaScript Object Notation">JSON</abbr> input below. Wrong answers route to Maze. Confirmed attacks (replay, tamper, or attempt-window abuse) route to tarpit when available, otherwise a short ban. You may click here to preview the <a id="preview-challenge-puzzle-link" href="/challenge/puzzle" target="_blank" rel="noopener noreferrer">Puzzle</a>, but test mode must be enabled.</p>
     </div>
 
     <div

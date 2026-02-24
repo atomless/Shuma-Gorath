@@ -20,7 +20,7 @@ GET /admin/monitoring?hours=24&limit=10
 
 This endpoint returns bounded-cardinality summaries for:
 - honeypot hits (top crawler buckets + top paths)
-- challenge failures (reasons + trend)
+- challenge rejections and attack signals (reasons + trend)
 - <abbr title="Proof of Work">PoW</abbr> verification outcomes (success/failure + reasons + trend)
 - rate-limiting violations (outcomes + offenders + top paths)
 - <abbr title="Geolocation">GEO</abbr> violations (actions + top countries)

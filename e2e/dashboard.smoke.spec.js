@@ -853,10 +853,12 @@ test("status tab resolves fail mode without requiring monitoring bootstrap", asy
   await expect(failModeCard.locator(".status-value")).not.toHaveText("UNKNOWN");
   await expect(page.locator("#status-items .status-item h3", { hasText: "Challenge Puzzle" })).toHaveCount(1);
   await expect(page.locator("#status-items .status-item h3", { hasText: "Challenge Not-A-Bot" })).toHaveCount(1);
+  await expect(page.locator("#status-items .status-item h3", { hasText: "Tarpit" })).toHaveCount(1);
   await expect(page.locator("#status-items .status-item h3", { hasText: /^Challenge$/ })).toHaveCount(0);
 
   const statusVarTables = page.locator("#status-vars-groups .status-vars-table");
   expect(await statusVarTables.count()).toBeGreaterThan(1);
+  await expect(page.locator("#status-vars-groups .status-var-group-title", { hasText: "Tarpit Runtime" })).toHaveCount(1);
 
   const statusVarRows = page.locator("#status-vars-groups .status-vars-table tbody tr");
   expect(await statusVarRows.count()).toBeGreaterThan(20);
@@ -925,6 +927,8 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   const geoScoringEnabledSwitch = page.locator("label.toggle-switch[for='geo-scoring-toggle']");
   const geoRoutingEnabledToggle = page.locator("#geo-routing-toggle");
   const geoRoutingEnabledSwitch = page.locator("label.toggle-switch[for='geo-routing-toggle']");
+  const tarpitEnabledToggle = page.locator("#tarpit-enabled-toggle");
+  const tarpitEnabledSwitch = page.locator("label.toggle-switch[for='tarpit-enabled-toggle']");
   const edgeModeSelect = page.locator("#edge-integration-mode-select");
   const advancedField = page.locator("#advanced-config-json");
 
@@ -994,6 +998,16 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
     await expect(mazeAutoBanToggle).not.toBeChecked();
   }
   await expect(configSave).toBeHidden();
+
+  if (await tarpitEnabledSwitch.isVisible() && await tarpitEnabledToggle.isEnabled()) {
+    const initialTarpitEnabled = await tarpitEnabledToggle.isChecked();
+    await tarpitEnabledSwitch.click();
+    await expect(configSave).toBeEnabled();
+    if (initialTarpitEnabled !== await tarpitEnabledToggle.isChecked()) {
+      await tarpitEnabledSwitch.click();
+    }
+    await expect(configSave).toBeHidden();
+  }
 
   const durationField = page.locator("#dur-cdp-minutes");
   const initialDuration = await durationField.inputValue();

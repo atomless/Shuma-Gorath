@@ -8,9 +8,9 @@ Challenge controls are implemented as part of an escalation ladder, not as a sin
 
 - lower-friction paths are preferred first,
 - stronger challenge cost is applied only as confidence rises,
-- user-grade failures and abuse-grade failures are handled differently to preserve both usability and abuse resistance.
+- unsolved challenge attempts and confirmed attack attempts are handled differently to preserve both usability and abuse resistance.
 
-For the capability-level research and value map, see `value-proposition.md`.
+For the capability-level research and value map, see [`value-proposition.md`](value-proposition.md).
 
 ## 🐙 Current Puzzle
 

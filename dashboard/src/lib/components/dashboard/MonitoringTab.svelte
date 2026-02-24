@@ -736,7 +736,7 @@
     challengeTrendChart = updateTrendChart(
       challengeTrendChart,
       challengeTrendCanvas,
-      'Challenge Failures',
+      'Challenge Outcomes',
       CHALLENGE_TREND_COLOR,
       challengeTrendSeries,
       chartRefreshNonce

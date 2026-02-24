@@ -34,7 +34,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] R-RL-07 Review Chen et al., "SMARTCOOKIE" (USENIX Security 2024) and evaluate split-proxy edge-cookie architecture fit for enterprise Akamai deployments. https://collaborate.princeton.edu/en/publications/smartcookie-blocking-large-scale-syn-floods-with-a-split-proxy-de/
 - [x] TP-C1 Reuse shared deception token primitives from maze scope (`MZ-2`) for tarpit progression; do not introduce a tarpit-only token format.
 - [x] TP-C2 Reuse shared budget/fallback primitives from maze scope (`MZ-7`) for tarpit limits and deterministic fallback; do not fork budget logic by mode.
-- [x] TP-0 Implement internal tarpit availability path so abuse-grade challenge failures can sink into tarpit instead of immediate short-ban when maze/tarpit capability is available.
+- [x] TP-0 Implement internal tarpit availability path so confirmed challenge attacks can sink into tarpit instead of immediate short-ban when maze/tarpit capability is available.
 - [x] TP-1 Add tarpit config surface (`tarpit_enabled`, pacing/timeout caps, budget caps, fallback action) with secure defaults and clamping.
 - [x] TP-2 Ensure all tarpit KV-editable variables appear in Advanced JSON config and admin/config schema parity checks (env-only exceptions remain env-only).
 - [x] TP-3 Implement bounded progressive tarpit behavior with configurable byte-rate and hard timeout, reusing shared primitives.

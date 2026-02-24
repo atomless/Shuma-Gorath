@@ -138,7 +138,7 @@ Shuma uses a canonical escalation taxonomy so policy, metrics, and event logs sh
 | `L6_CHALLENGE_STRONG` | Challenge (strong) | Strong challenge path (puzzle/<abbr title="Proof of Work">PoW</abbr>-backed flows). | Active |
 | `L7_DECEPTION_EXPLICIT` | Deception | Explicit maze routing. | Active |
 | `L8_DECEPTION_COVERT` | Deception | Covert decoy behavior in eligible non-maze responses for medium-suspicion traffic. | Active |
-| `L9_COST_IMPOSITION` | Cost | Work-gated, budget-capped tarpit cost imposition. | Active |
+| `L9_COST_IMPOSITION` | Cost | Work-gated, budget-capped tarpit attack defence. | Active |
 | `L10_DENY_TEMP` | Deny (temporary) | Temporary block/ban with <abbr title="Time To Live">TTL</abbr>. | Active |
 | `L11_DENY_HARD` | Deny (hard) | Long/indefinite deny posture for high confidence abuse. | Reserved |
 
@@ -254,7 +254,7 @@ Pattern A is generally stronger for high-risk/high-volume environments.
 Shuma-Gorath roadmap should continue focusing on:
 
 - low-friction human-passive signals,
-- progressive cost imposition for suspicious automation,
+- progressive attacker-cost escalation for suspicious automation,
 - modular barriers and signal composition,
 - resource-efficient controls with asymmetric attacker cost.
 
