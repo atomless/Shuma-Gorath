@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { inRange, parseInteger } from '../../domain/config-tab-helpers.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
 
   export let managed = false;
@@ -29,16 +30,6 @@
     weightRateHigh: 2
   };
   let lastAppliedConfigVersion = -1;
-
-  const parseInteger = (value, fallback) => {
-    const parsed = Number.parseInt(value, 10);
-    return Number.isInteger(parsed) ? parsed : fallback;
-  };
-
-  const inRange = (value, min, max) => {
-    const parsed = Number.parseInt(value, 10);
-    return Number.isInteger(parsed) && parsed >= min && parsed <= max;
-  };
 
   const toBotnessBaseline = (config = {}) => {
     const weights = config && typeof config.botness_weights === 'object'

@@ -17,6 +17,24 @@
     buildTemplateFromPaths,
     normalizeJsonObjectForCompare
   } from '../../domain/core/json-object.js';
+  import {
+    durationPartsFromSeconds,
+    durationSeconds,
+    formatCountryCodes,
+    formatIssueReceived,
+    geoModeFromToggleState,
+    geoToggleStateFromMode,
+    inRange,
+    isIpRangePolicyMode,
+    isDurationTupleValid,
+    normalizeEdgeMode,
+    normalizeIpRangePolicyMode,
+    normalizeJsonArrayForCompare,
+    parseFloatNumber,
+    parseInteger,
+    rateEnforcementEnabledFromMode,
+    rateModeFromToggleState
+  } from '../../domain/config-tab-helpers.js';
 
   export let managed = false;
   export let isActive = false;
@@ -29,9 +47,10 @@
 
   const MAX_DURATION_SECONDS = 31536000;
   const MIN_DURATION_SECONDS = 60;
-  const EDGE_MODES = new Set(['off', 'advisory', 'authoritative']);
-  const COMPOSABILITY_MODES = new Set(['off', 'signal', 'enforce', 'both']);
-  const IP_RANGE_POLICY_MODES = new Set(['off', 'advisory', 'enforce']);
+  const DURATION_VALIDATION_BOUNDS = Object.freeze({
+    minSeconds: MIN_DURATION_SECONDS,
+    maxSeconds: MAX_DURATION_SECONDS
+  });
   const IP_RANGE_MANAGED_STALENESS_MIN = 1;
   const IP_RANGE_MANAGED_STALENESS_MAX = 2160;
   const EXPORT_STATUS_RESET_MS = 4000;
@@ -199,109 +218,6 @@
     advanced: { normalized: '{}' }
   };
 
-  const parseInteger = (value, fallback) => {
-    const parsed = Number.parseInt(value, 10);
-    return Number.isInteger(parsed) ? parsed : fallback;
-  };
-
-  const parseFloatNumber = (value, fallback) => {
-    const parsed = Number.parseFloat(value);
-    return Number.isFinite(parsed) ? parsed : fallback;
-  };
-
-  const formatCountryCodes = (values) => {
-    if (!Array.isArray(values) || values.length === 0) return '';
-    return values
-      .map((value) => String(value || '').trim().toUpperCase())
-      .filter(Boolean)
-      .join(',');
-  };
-
-  const normalizeEdgeMode = (value) => {
-    const normalized = String(value || '').trim().toLowerCase();
-    return EDGE_MODES.has(normalized) ? normalized : 'off';
-  };
-
-  const normalizeIpRangePolicyMode = (value) => {
-    const normalized = String(value || '').trim().toLowerCase();
-    return IP_RANGE_POLICY_MODES.has(normalized) ? normalized : 'off';
-  };
-
-  const normalizeComposabilityMode = (value) => {
-    const normalized = String(value || '').trim().toLowerCase();
-    return COMPOSABILITY_MODES.has(normalized) ? normalized : 'off';
-  };
-
-  const geoToggleStateFromMode = (mode) => {
-    const normalized = normalizeComposabilityMode(mode);
-    return {
-      scoringEnabled: normalized === 'signal' || normalized === 'both',
-      routingEnabled: normalized === 'enforce' || normalized === 'both'
-    };
-  };
-
-  const geoModeFromToggleState = ({ scoringEnabled, routingEnabled }) => {
-    if (scoringEnabled && routingEnabled) return 'both';
-    if (scoringEnabled) return 'signal';
-    if (routingEnabled) return 'enforce';
-    return 'off';
-  };
-
-  const rateEnforcementEnabledFromMode = (mode) => {
-    const normalized = normalizeComposabilityMode(mode);
-    return normalized === 'enforce' || normalized === 'both';
-  };
-
-  const rateModeFromToggleState = ({ enforcementEnabled }) => {
-    if (enforcementEnabled) return 'both';
-    return 'signal';
-  };
-
-  const normalizeJsonArrayForCompare = (value) => {
-    try {
-      const parsed = JSON.parse(String(value || '[]'));
-      if (!Array.isArray(parsed)) return null;
-      return JSON.stringify(parsed);
-    } catch (_error) {
-      return null;
-    }
-  };
-
-  const durationPartsFromSeconds = (seconds, fallbackSeconds) => {
-    const source = Number.parseInt(seconds, 10);
-    const safe = Number.isFinite(source) && source > 0 ? source : fallbackSeconds;
-    const days = Math.floor(safe / 86400);
-    const remainingAfterDays = safe - (days * 86400);
-    const hours = Math.floor(remainingAfterDays / 3600);
-    const remainingAfterHours = remainingAfterDays - (hours * 3600);
-    const minutes = Math.floor(remainingAfterHours / 60);
-    return {
-      days,
-      hours,
-      minutes
-    };
-  };
-
-  const durationSeconds = (days, hours, minutes) => {
-    const d = parseInteger(days, 0);
-    const h = parseInteger(hours, 0);
-    const m = parseInteger(minutes, 0);
-    return (d * 86400) + (h * 3600) + (m * 60);
-  };
-
-  const inRange = (value, min, max) => {
-    const parsed = Number.parseFloat(value);
-    return Number.isFinite(parsed) && parsed >= min && parsed <= max;
-  };
-
-  const isDurationTupleValid = (days, hours, minutes) => {
-    if (!inRange(days, 0, 365)) return false;
-    if (!inRange(hours, 0, 23)) return false;
-    if (!inRange(minutes, 0, 59)) return false;
-    const total = durationSeconds(days, hours, minutes);
-    return total >= MIN_DURATION_SECONDS && total <= MAX_DURATION_SECONDS;
-  };
-
   const handleBeforeUnload = (event) => {
     if (!warnOnUnload) return;
     event.preventDefault();
@@ -360,17 +276,6 @@
             : undefined
         };
       });
-  };
-
-  const formatIssueReceived = (value) => {
-    if (value === undefined) return '';
-    if (value === null) return 'null';
-    if (typeof value === 'string') return `"${value}"`;
-    try {
-      return JSON.stringify(value);
-    } catch (_error) {
-      return String(value);
-    }
   };
 
   async function runAdvancedServerValidation(advancedPatch, requestId) {
@@ -1012,7 +917,7 @@
   $: ipRangeManagedPoliciesNormalized = normalizeJsonArrayForCompare(ipRangeManagedPoliciesJson);
   $: ipRangeModeNormalized = normalizeIpRangePolicyMode(ipRangePolicyMode);
   $: ipRangeValid = (
-    IP_RANGE_POLICY_MODES.has(ipRangeModeNormalized) &&
+    isIpRangePolicyMode(ipRangeModeNormalized) &&
     ipRangeCustomRulesNormalized !== null &&
     ipRangeManagedPoliciesNormalized !== null &&
     inRange(
@@ -1146,11 +1051,11 @@
   $: adminDurationSeconds = durationSeconds(durAdminDays, durAdminHours, durAdminMinutes);
 
   $: durationsValid = (
-    isDurationTupleValid(durHoneypotDays, durHoneypotHours, durHoneypotMinutes) &&
-    isDurationTupleValid(durRateLimitDays, durRateLimitHours, durRateLimitMinutes) &&
-    isDurationTupleValid(durBrowserDays, durBrowserHours, durBrowserMinutes) &&
-    isDurationTupleValid(durCdpDays, durCdpHours, durCdpMinutes) &&
-    isDurationTupleValid(durAdminDays, durAdminHours, durAdminMinutes)
+    isDurationTupleValid(durHoneypotDays, durHoneypotHours, durHoneypotMinutes, DURATION_VALIDATION_BOUNDS) &&
+    isDurationTupleValid(durRateLimitDays, durRateLimitHours, durRateLimitMinutes, DURATION_VALIDATION_BOUNDS) &&
+    isDurationTupleValid(durBrowserDays, durBrowserHours, durBrowserMinutes, DURATION_VALIDATION_BOUNDS) &&
+    isDurationTupleValid(durCdpDays, durCdpHours, durCdpMinutes, DURATION_VALIDATION_BOUNDS) &&
+    isDurationTupleValid(durAdminDays, durAdminHours, durAdminMinutes, DURATION_VALIDATION_BOUNDS)
   );
 
   $: durationsDirty = (

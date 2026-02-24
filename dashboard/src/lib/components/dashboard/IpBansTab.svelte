@@ -8,6 +8,7 @@
     isIpRangeReason,
     parseIpRangeOutcome
   } from '../../domain/ip-range-policy.js';
+  import { durationPartsFromSeconds as durationPartsFromTotalSeconds } from '../../domain/config-tab-helpers.js';
 
   export let managed = false;
   export let isActive = false;
@@ -58,26 +59,11 @@
     return isValidIpv4(trimmed) || isValidIpv6(trimmed);
   };
 
-  const durationPartsFromSeconds = (seconds, fallbackSeconds = MANUAL_BAN_FALLBACK_SECONDS) => {
-    const parsed = Number.parseInt(seconds, 10);
-    const safe = Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackSeconds;
-    const days = Math.floor(safe / 86400);
-    const remainingAfterDays = safe - (days * 86400);
-    const hours = Math.floor(remainingAfterDays / 3600);
-    const remainingAfterHours = remainingAfterDays - (hours * 3600);
-    const minutes = Math.floor(remainingAfterHours / 60);
-    return {
-      days,
-      hours,
-      minutes
-    };
-  };
-
   const applyConfiguredBanDuration = (config) => {
     const rawAdminDuration = config && typeof config === 'object' && config.ban_durations
       ? config.ban_durations.admin
       : undefined;
-    const parts = durationPartsFromSeconds(rawAdminDuration, MANUAL_BAN_FALLBACK_SECONDS);
+    const parts = durationPartsFromTotalSeconds(rawAdminDuration, MANUAL_BAN_FALLBACK_SECONDS);
     banDurationDays = parts.days;
     banDurationHours = parts.hours;
     banDurationMinutes = parts.minutes;

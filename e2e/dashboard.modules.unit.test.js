@@ -703,6 +703,7 @@ test('monitoring view model and status module remain pure snapshot transforms', 
 test('config form utils and JSON object helpers preserve parser contracts', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const formUtils = await importBrowserModule('dashboard/src/lib/domain/config-form-utils.js');
+    const tabHelpers = await importBrowserModule('dashboard/src/lib/domain/config-tab-helpers.js');
     const json = await importBrowserModule('dashboard/src/lib/domain/core/json-object.js');
     const schema = await importBrowserModule('dashboard/src/lib/domain/config-schema.js');
 
@@ -712,6 +713,44 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
       ['Chrome', 120],
       ['Firefox', 115]
     ]);
+    assert.equal(tabHelpers.parseInteger('42', 0), 42);
+    assert.equal(tabHelpers.parseInteger('nope', 3), 3);
+    assert.equal(tabHelpers.parseFloatNumber('0.75', 0), 0.75);
+    assert.equal(tabHelpers.normalizeEdgeMode('Advisory'), 'advisory');
+    assert.equal(tabHelpers.normalizeEdgeMode('invalid'), 'off');
+    assert.equal(tabHelpers.normalizeIpRangePolicyMode('ENFORCE'), 'enforce');
+    assert.equal(tabHelpers.normalizeIpRangePolicyMode('invalid'), 'off');
+    assert.equal(tabHelpers.isIpRangePolicyMode('enforce'), true);
+    assert.equal(tabHelpers.isIpRangePolicyMode('invalid'), false);
+    assert.equal(tabHelpers.geoModeFromToggleState({ scoringEnabled: true, routingEnabled: false }), 'signal');
+    assert.deepEqual(toPlain(tabHelpers.geoToggleStateFromMode('both')), {
+      scoringEnabled: true,
+      routingEnabled: true
+    });
+    assert.equal(tabHelpers.rateModeFromToggleState({ enforcementEnabled: false }), 'signal');
+    assert.equal(tabHelpers.rateEnforcementEnabledFromMode('both'), true);
+    assert.equal(tabHelpers.rateEnforcementEnabledFromMode('signal'), false);
+    assert.equal(tabHelpers.formatCountryCodes(['gb', 'US', '', null]), 'GB,US');
+    assert.equal(tabHelpers.normalizeJsonArrayForCompare('[1,2,3]'), '[1,2,3]');
+    assert.equal(tabHelpers.normalizeJsonArrayForCompare('{"bad":true}'), null);
+    assert.deepEqual(toPlain(tabHelpers.durationPartsFromSeconds(3660, 60)), {
+      days: 0,
+      hours: 1,
+      minutes: 1
+    });
+    assert.equal(tabHelpers.durationSeconds(1, 2, 3), 93780);
+    assert.equal(tabHelpers.inRange('9', 1, 10), true);
+    assert.equal(tabHelpers.inRange('x', 1, 10), false);
+    assert.equal(
+      tabHelpers.isDurationTupleValid(0, 1, 0, { minSeconds: 60, maxSeconds: 31536000 }),
+      true
+    );
+    assert.equal(
+      tabHelpers.isDurationTupleValid(0, 0, 0, { minSeconds: 60, maxSeconds: 31536000 }),
+      false
+    );
+    assert.equal(tabHelpers.formatIssueReceived('abc'), '"abc"');
+    assert.equal(tabHelpers.formatIssueReceived(null), 'null');
 
     const template = json.buildTemplateFromPaths(
       { pow_enabled: true, botness_weights: { geo_risk: 3 }, extra: 1 },
