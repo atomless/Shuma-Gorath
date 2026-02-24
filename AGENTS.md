@@ -49,7 +49,8 @@ This file provides instructions for coding agents working in this repository.
    - one logical change per commit,
    - avoid mixing unrelated refactors and feature/bug work in the same commit,
    - run relevant Makefile verification before each commit,
-   - push after each validated atomic commit unless the user explicitly asks for batching.
+   - push after each validated atomic commit unless the user explicitly asks for batching,
+   - after changes are merged, clean up merged branches as housekeeping (delete merged local topic branches and merged remote topic branches), while preserving protected branches such as `main`.
 10. Document security, operational, and resource implications.
 11. When a full TODO section is completed, move its completed checklist items from `todos/todo.md` to `todos/completed-todo-history.md` and preserve the original section title as a heading in the archive entry.
 12. For any new `SHUMA_*` variable, follow the single-source-of-truth lifecycle:
