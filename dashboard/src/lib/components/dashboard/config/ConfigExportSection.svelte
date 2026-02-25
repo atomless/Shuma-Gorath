@@ -20,7 +20,7 @@
     class="btn btn-subtle"
     disabled={exportConfigDisabled}
     on:click={handleExport}
-  >Export a JSON copy of the above configuration</button>
+  >Download the current JSON configuration</button>
   {#if exportConfigStatus}
     <p id="export-current-config-status" class={`message ${exportConfigStatusKind}`}>{exportConfigStatus}</p>
   {/if}

@@ -26,7 +26,6 @@ Panels:
   - toggle (`browser_policy_enabled`),
   - minimum-version rules (`browser_block`),
   - allowlist rules (`browser_whitelist`).
-- `Export Config JSON` helper (download + clipboard copy for current tab-scope config payload).
 
 Notes:
 

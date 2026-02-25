@@ -1,6 +1,7 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
   import ConfigAdvancedSection from './config/ConfigAdvancedSection.svelte';
+  import ConfigExportSection from './config/ConfigExportSection.svelte';
   import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
@@ -29,6 +30,7 @@
 
   const STATUS_VAR_MEANINGS_ASSET = 'assets/status-var-meanings.json';
   const ADVANCED_VALIDATE_DEBOUNCE_MS = 350;
+  const EXPORT_STATUS_RESET_MS = 4000;
   const EMPTY_VAR_MEANINGS = {};
 
   let statusVarMeanings = EMPTY_VAR_MEANINGS;
@@ -49,6 +51,9 @@
   let advancedValidationTimer = null;
   let advancedValidationRequestId = 0;
   let baselineAdvancedNormalized = '{}';
+  let exportConfigStatus = '';
+  let exportConfigStatusKind = 'info';
+  let exportConfigStatusTimer = null;
 
   function normalizeStatusVarMeanings(value) {
     if (!value || typeof value !== 'object') return EMPTY_VAR_MEANINGS;
@@ -72,6 +77,22 @@
     if (!warnOnUnload) return;
     event.preventDefault();
     event.returnValue = '';
+  };
+
+  const clearExportStatusTimer = () => {
+    if (exportConfigStatusTimer) {
+      clearTimeout(exportConfigStatusTimer);
+      exportConfigStatusTimer = null;
+    }
+  };
+
+  const scheduleExportStatusReset = () => {
+    clearExportStatusTimer();
+    exportConfigStatusTimer = setTimeout(() => {
+      exportConfigStatus = '';
+      exportConfigStatusKind = 'info';
+      exportConfigStatusTimer = null;
+    }, EXPORT_STATUS_RESET_MS);
   };
 
   const clearAdvancedValidationTimer = () => {
@@ -149,6 +170,9 @@
     baselineAdvancedNormalized = normalizeJsonObjectForCompare(advancedText) || '{}';
 
     resetAdvancedValidationState();
+    clearExportStatusTimer();
+    exportConfigStatus = '';
+    exportConfigStatusKind = 'info';
   }
 
   const parseAdvancedPatchObject = () => {
@@ -178,6 +202,65 @@
     }
   }
 
+  const downloadJsonFile = (filename, payload) => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(url);
+    return true;
+  };
+
+  async function exportCurrentConfigJson(event) {
+    if (event && typeof event.preventDefault === 'function') {
+      event.preventDefault();
+    }
+    if (exportConfigDisabled) return;
+
+    try {
+      const text = JSON.stringify(advancedParseResult.value || {}, null, 2);
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `shuma-config-${stamp}.json`;
+      const downloaded = downloadJsonFile(filename, text);
+      let copied = false;
+      if (
+        typeof window !== 'undefined' &&
+        window.isSecureContext === true &&
+        typeof navigator !== 'undefined' &&
+        navigator.clipboard
+      ) {
+        try {
+          await navigator.clipboard.writeText(text);
+          copied = true;
+        } catch (_error) {}
+      }
+
+      if (downloaded && copied) {
+        exportConfigStatus = 'Exported config JSON downloaded and copied to clipboard.';
+      } else if (downloaded) {
+        exportConfigStatus = 'Exported config JSON downloaded.';
+      } else if (copied) {
+        exportConfigStatus = 'Exported config JSON copied to clipboard.';
+      } else {
+        exportConfigStatus = 'Exported config JSON generated.';
+      }
+      exportConfigStatusKind = 'success';
+      scheduleExportStatusReset();
+    } catch (error) {
+      exportConfigStatus = error && error.message
+        ? error.message
+        : 'Failed to export config JSON.';
+      exportConfigStatusKind = 'error';
+      scheduleExportStatusReset();
+    }
+  }
+
   onMount(() => {
     if (typeof window === 'undefined') return undefined;
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -189,6 +272,7 @@
 
   onDestroy(() => {
     clearAdvancedValidationTimer();
+    clearExportStatusTimer();
   });
 
   $: statusSnapshot = deriveStatusSnapshot(configSnapshot || {});
@@ -261,6 +345,7 @@
   $: saveAdvancedInvalidText = !advancedValid
     ? 'Fix invalid Advanced JSON values before saving.'
     : '';
+  $: exportConfigDisabled = !hasConfigSnapshot || !advancedShapeValid;
   $: warnOnUnload = writable && hasUnsavedChanges;
 
   $: {
@@ -339,6 +424,14 @@
         {/if}
       </div>
     </div>
+
+    <ConfigExportSection
+      bind:writable
+      bind:exportConfigDisabled
+      bind:exportConfigStatus
+      bind:exportConfigStatusKind
+      onExportCurrentConfigJson={exportCurrentConfigJson}
+    />
 
     <ConfigAdvancedSection
       bind:writable

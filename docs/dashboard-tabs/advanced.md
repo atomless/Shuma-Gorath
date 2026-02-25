@@ -13,6 +13,8 @@ Panels:
   - grouped snapshot of runtime config variables,
   - rows highlight admin-writable variables,
   - per-variable meaning text from status variable metadata.
+- `Export Config JSON` helper:
+  - downloads and optionally copies the current Advanced JSON payload.
 - `Advanced Config JSON`:
   - editable JSON object patch seeded from writable template paths,
   - always-on line numbers,

@@ -1013,7 +1013,6 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   const configSurfaceSource = [
     configSource,
     configChallengeSource,
-    configExportSource,
     saveChangesBarSource
   ].join('\n');
   const trapsSurfaceSource = [
@@ -1024,6 +1023,7 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   ].join('\n');
   const advancedSurfaceSource = [
     advancedSource,
+    configExportSource,
     configAdvancedSource,
     saveChangesBarSource
   ].join('\n');
@@ -1080,7 +1080,7 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(configSource, /await onSaveConfig\(/);
   assert.match(configSource, /import ConfigChallengeSection from '\.\/config\/ConfigChallengeSection\.svelte';/);
   assert.match(configSource, /import ConfigNetworkSection from '\.\/config\/ConfigNetworkSection\.svelte';/);
-  assert.match(configSource, /import ConfigExportSection from '\.\/config\/ConfigExportSection\.svelte';/);
+  assert.equal(configSource.includes("import ConfigExportSection from './config/ConfigExportSection.svelte';"), false);
   assert.equal(configSource.includes("import ConfigMazeSection from './config/ConfigMazeSection.svelte';"), false);
   assert.equal(configSource.includes("import ConfigDurationsSection from './config/ConfigDurationsSection.svelte';"), false);
   assert.equal(configSource.includes("import ConfigGeoSection from './config/ConfigGeoSection.svelte';"), false);
@@ -1088,7 +1088,7 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(configSource, /import SaveChangesBar from '\.\/primitives\/SaveChangesBar\.svelte';/);
   assert.match(configSource, /<ConfigChallengeSection/);
   assert.match(configSource, /<ConfigNetworkSection/);
-  assert.match(configSource, /<ConfigExportSection/);
+  assert.equal(configSource.includes('<ConfigExportSection'), false);
   assert.equal(configSource.includes('<ConfigMazeSection'), false);
   assert.equal(configSource.includes('<ConfigDurationsSection'), false);
   assert.equal(configSource.includes('<ConfigGeoSection'), false);
@@ -1112,11 +1112,7 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(configSource, /\$: notABotScorePassMinFloor = Math\.min\(10, Number\(notABotScoreFailMax\) \+ 1\);/);
   assert.match(configSurfaceSource, /max=\{notABotScoreFailMaxCap\}/);
   assert.match(configSurfaceSource, /Any scores above Fail and below Pass will be shown a tougher challenge\./);
-  assert.match(configSurfaceSource, /id="export-current-config-json"/);
-  assert.match(
-    configSurfaceSource,
-    /Export (the current configuration as JSON|a JSON copy of the above configuration)/
-  );
+  assert.equal(configSurfaceSource.includes('id="export-current-config-json"'), false);
   assert.match(configSource, /buttonId="save-verification-all"/);
   assert.match(configSource, /saveAllConfig\(/);
   assert.match(configSource, /window\.addEventListener\('beforeunload'/);
@@ -1159,12 +1155,16 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(advancedSource, /export let onValidateConfig = null;/);
   assert.match(advancedSource, /export let configVersion = 0;/);
   assert.match(advancedSource, /export let configSnapshot = null;/);
+  assert.match(advancedSource, /import ConfigExportSection from '\.\/config\/ConfigExportSection\.svelte';/);
   assert.match(advancedSource, /import ConfigAdvancedSection from '\.\/config\/ConfigAdvancedSection\.svelte';/);
   assert.match(advancedSource, /await onSaveConfig\(patch/);
   assert.match(advancedSource, /await onValidateConfig\(advancedPatch\)/);
   assert.match(advancedSource, /id="status-vars-groups"/);
+  assert.match(advancedSource, /<ConfigExportSection/);
   assert.match(advancedSource, /buttonId="save-advanced-config"/);
   assert.match(advancedSource, /window\.addEventListener\('beforeunload'/);
+  assert.match(advancedSurfaceSource, /id="export-current-config-json"/);
+  assert.match(advancedSurfaceSource, /Download the current JSON configuration/);
   assert.match(advancedSurfaceSource, /id="advanced-config-json-error"/);
   assert.match(advancedSurfaceSource, /id="advanced-config-json-issue-list"/);
   assert.match(advancedSurfaceSource, /id="advanced-config-json-validating"/);

@@ -1,11 +1,10 @@
 <script>
   import ConfigChallengeSection from './config/ConfigChallengeSection.svelte';
-  import ConfigExportSection from './config/ConfigExportSection.svelte';
   import ConfigNetworkSection from './config/ConfigNetworkSection.svelte';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
   import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
-  import { onDestroy, onMount } from 'svelte';
+  import { onMount } from 'svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
   import {
@@ -23,8 +22,6 @@
   export let configSnapshot = null;
   export let configVersion = 0;
   export let onSaveConfig = null;
-
-  const EXPORT_STATUS_RESET_MS = 4000;
 
   let writable = false;
   let hasConfigSnapshot = false;
@@ -55,10 +52,6 @@
   let browserBlockRules = '';
   let browserWhitelistRules = '';
 
-  let exportConfigStatus = '';
-  let exportConfigStatusKind = 'info';
-  let exportConfigStatusTimer = null;
-
   let baseline = {
     jsRequired: { enforced: true },
     cdp: { enabled: true, autoBan: true, threshold: 0.6 },
@@ -82,32 +75,12 @@
     event.returnValue = '';
   };
 
-  const clearExportStatusTimer = () => {
-    if (exportConfigStatusTimer) {
-      clearTimeout(exportConfigStatusTimer);
-      exportConfigStatusTimer = null;
-    }
-  };
-
-  const scheduleExportStatusReset = () => {
-    clearExportStatusTimer();
-    exportConfigStatusTimer = setTimeout(() => {
-      exportConfigStatus = '';
-      exportConfigStatusKind = 'info';
-      exportConfigStatusTimer = null;
-    }, EXPORT_STATUS_RESET_MS);
-  };
-
   onMount(() => {
     if (typeof window === 'undefined') return undefined;
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  });
-
-  onDestroy(() => {
-    clearExportStatusTimer();
   });
 
   function applyConfig(config = {}) {
@@ -167,9 +140,6 @@
       }
     };
 
-    clearExportStatusTimer();
-    exportConfigStatus = '';
-    exportConfigStatusKind = 'info';
   }
 
   const buildConfigPatch = ({ includeAll = false } = {}) => {
@@ -210,66 +180,6 @@
     }
     return patch;
   };
-
-  const downloadJsonFile = (filename, payload) => {
-    if (typeof window === 'undefined' || typeof document === 'undefined') return false;
-    const blob = new Blob([payload], { type: 'application/json' });
-    const url = window.URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = filename;
-    anchor.rel = 'noopener';
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    window.URL.revokeObjectURL(url);
-    return true;
-  };
-
-  async function exportCurrentConfigJson(event) {
-    if (event && typeof event.preventDefault === 'function') {
-      event.preventDefault();
-    }
-    if (exportConfigDisabled) return;
-
-    try {
-      const payload = buildConfigPatch({ includeAll: true });
-      const text = JSON.stringify(payload, null, 2);
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `shuma-config-${stamp}.json`;
-      const downloaded = downloadJsonFile(filename, text);
-      let copied = false;
-      if (
-        typeof window !== 'undefined' &&
-        window.isSecureContext === true &&
-        typeof navigator !== 'undefined' &&
-        navigator.clipboard
-      ) {
-        try {
-          await navigator.clipboard.writeText(text);
-          copied = true;
-        } catch (_error) {}
-      }
-
-      if (downloaded && copied) {
-        exportConfigStatus = 'Exported config JSON downloaded and copied to clipboard.';
-      } else if (downloaded) {
-        exportConfigStatus = 'Exported config JSON downloaded.';
-      } else if (copied) {
-        exportConfigStatus = 'Exported config JSON copied to clipboard.';
-      } else {
-        exportConfigStatus = 'Exported config JSON generated.';
-      }
-      exportConfigStatusKind = 'success';
-      scheduleExportStatusReset();
-    } catch (error) {
-      exportConfigStatus = error && error.message
-        ? error.message
-        : 'Failed to export config JSON.';
-      exportConfigStatusKind = 'error';
-      scheduleExportStatusReset();
-    }
-  }
 
   async function saveAllConfig() {
     if (saveAllConfigDisabled || typeof onSaveConfig !== 'function') return;
@@ -370,7 +280,6 @@
   $: saveAllInvalidText = hasInvalidUnsavedChanges
     ? `Fix invalid values in: ${invalidDirtySectionLabels.join(', ')}`
     : '';
-  $: exportConfigDisabled = !hasConfigSnapshot;
   $: warnOnUnload = writable && hasUnsavedChanges;
 
   $: {
@@ -499,8 +408,6 @@
       browserBlockRulesValid={browserBlockRulesValid}
       browserWhitelistRulesValid={browserWhitelistRulesValid}
     />
-
-    <ConfigExportSection bind:writable bind:exportConfigDisabled bind:exportConfigStatus bind:exportConfigStatusKind onExportCurrentConfigJson={exportCurrentConfigJson} />
 
     <SaveChangesBar containerId="verification-save-all-bar" isHidden={!writable || !hasUnsavedChanges} summaryId="verification-unsaved-summary" summaryText={saveAllSummaryText} summaryClass="text-unsaved-changes" invalidId="verification-invalid-summary" invalidText={saveAllInvalidText} buttonId="save-verification-all" buttonLabel={saveAllConfigLabel} buttonDisabled={saveAllConfigDisabled} onSave={saveAllConfig} />
   </div>
