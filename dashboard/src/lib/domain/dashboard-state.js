@@ -1,6 +1,6 @@
 // @ts-check
 
-export const DASHBOARD_TABS = Object.freeze(['monitoring', 'ip-bans', 'status', 'config', 'tuning']);
+export const DASHBOARD_TABS = Object.freeze(['monitoring', 'ip-bans', 'status', 'config', 'fingerprinting', 'robots', 'tuning']);
 export const DEFAULT_TAB = 'monitoring';
 
 const SNAPSHOT_KEYS = Object.freeze([
@@ -28,8 +28,10 @@ const INVALIDATION_SCOPES = Object.freeze({
   'ip-bans': ['ip-bans'],
   status: ['status'],
   config: ['config'],
+  fingerprinting: ['fingerprinting'],
   tuning: ['tuning'],
-  securityConfig: ['status', 'config', 'tuning']
+  robots: ['robots'],
+  securityConfig: ['status', 'config', 'fingerprinting', 'robots', 'tuning']
 });
 
 const cloneTabFlags = (value) => {

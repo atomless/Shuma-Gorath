@@ -741,6 +741,23 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
       ['Chrome', 120],
       ['Firefox', 115]
     ]);
+    assert.deepEqual(formUtils.parseHoneypotPathsTextarea('/instaban\n/trap/%7Ebot'), [
+      '/instaban',
+      '/trap/%7Ebot'
+    ]);
+    assert.deepEqual(formUtils.parseHoneypotPathsTextarea('/trap,segment'), ['/trap,segment']);
+    assert.throws(
+      () => formUtils.parseHoneypotPathsTextarea('/instaban.  gfdgfdgdfgderg.  egfsdfg'),
+      /Invalid honeypot path on line 1/
+    );
+    assert.throws(
+      () => formUtils.parseHoneypotPathsTextarea('/good\n/trap?source=bot'),
+      /Invalid honeypot path on line 2/
+    );
+    assert.throws(
+      () => formUtils.parseHoneypotPathsTextarea('/trap/%ZZ'),
+      /Invalid honeypot path on line 1/
+    );
     assert.equal(coreMath.parseInteger('42', 0), 42);
     assert.equal(coreMath.parseFloatNumber('4.5', 0), 4.5);
     assert.equal(coreMath.toBoundedNonNegativeInteger('-1', 10), 0);
@@ -900,13 +917,21 @@ test('admin endpoint resolver applies loopback override only for local hostnames
   });
 });
 
-test('ip bans, config, and tuning tabs are declarative and callback-driven', () => {
+test('ip bans, config, fingerprinting, robots, and tuning tabs are declarative and callback-driven', () => {
   const ipBansSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/IpBansTab.svelte'),
     'utf8'
   );
   const configSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/ConfigTab.svelte'),
+    'utf8'
+  );
+  const robotsSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/RobotsTab.svelte'),
+    'utf8'
+  );
+  const fingerprintingSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/FingerprintingTab.svelte'),
     'utf8'
   );
   const configMazeSource = fs.readFileSync(
@@ -954,7 +979,15 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
     configExportSource,
     configAdvancedSource,
     configGeoSource,
+    saveChangesBarSource
+  ].join('\n');
+  const robotsSurfaceSource = [
+    robotsSource,
     configRobotsSource,
+    saveChangesBarSource
+  ].join('\n');
+  const fingerprintingSurfaceSource = [
+    fingerprintingSource,
     saveChangesBarSource
   ].join('\n');
   const tuningSource = fs.readFileSync(
@@ -964,12 +997,21 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
 
   assert.match(ipBansSource, /export let onBan = null;/);
   assert.match(ipBansSource, /export let onUnban = null;/);
+  assert.match(ipBansSource, /export let onSaveConfig = null;/);
+  assert.match(ipBansSource, /export let configVersion = 0;/);
   assert.match(ipBansSource, /export let configSnapshot = null;/);
   assert.match(ipBansSource, /let banFilter = 'all';/);
   assert.match(ipBansSource, /id="ip-ban-filter"/);
+  assert.match(ipBansSource, /id="bypass-allowlists-toggle"/);
+  assert.match(ipBansSource, /id="network-whitelist"/);
+  assert.match(ipBansSource, /id="path-whitelist"/);
+  assert.match(ipBansSource, /buttonId="save-bypass-allowlists"/);
+  assert.match(ipBansSource, /id="ip-range-policy-mode"/);
+  assert.match(ipBansSource, /buttonId="save-ip-range-policy"/);
+  assert.match(ipBansSource, /await onSaveConfig\(payload/);
   assert.match(ipBansSource, /isIpRangeBanLike/);
   assert.match(ipBansSource, /config\.ban_durations\.admin/);
-  assert.match(ipBansSource, /applyConfiguredBanDuration\(configSnapshot\)/);
+  assert.match(ipBansSource, /applyConfiguredBanDuration\(nextConfig\)/);
   assert.match(ipBansSource, /#each filteredBanRows as row \(row\.key\)/);
   assert.match(ipBansSource, /aria-expanded=\{detailVisible \? 'true' : 'false'\}/);
   assert.match(ipBansSource, /#if detailVisible/);
@@ -980,10 +1022,9 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
 
   assert.match(configSource, /export let onSaveConfig = null;/);
   assert.match(configSource, /export let onValidateConfig = null;/);
-  assert.match(configSource, /export let onFetchRobotsPreview = null;/);
+  assert.equal(configSource.includes('onFetchRobotsPreview'), false);
   assert.match(configSource, /let testMode = false;/);
   assert.match(configSource, /let ipRangePolicyMode = 'off';/);
-  assert.match(configSource, /let restrictSearchEngines = false;/);
   assert.equal(configSource.includes('robotsAllowSearch'), false);
   assert.match(configSource, /onTestModeToggleChange/);
   assert.match(configSource, /await onSaveConfig\(/);
@@ -994,7 +1035,7 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
   assert.match(configSource, /import ConfigExportSection from '\.\/config\/ConfigExportSection\.svelte';/);
   assert.match(configSource, /import ConfigAdvancedSection from '\.\/config\/ConfigAdvancedSection\.svelte';/);
   assert.match(configSource, /import ConfigGeoSection from '\.\/config\/ConfigGeoSection\.svelte';/);
-  assert.match(configSource, /import ConfigRobotsSection from '\.\/config\/ConfigRobotsSection\.svelte';/);
+  assert.equal(configSource.includes('ConfigRobotsSection'), false);
   assert.match(configSource, /import SaveChangesBar from '\.\/primitives\/SaveChangesBar\.svelte';/);
   assert.match(configSource, /<ConfigChallengeSection/);
   assert.match(configSource, /<ConfigMazeSection/);
@@ -1003,7 +1044,7 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
   assert.match(configSource, /<ConfigExportSection/);
   assert.match(configSource, /<ConfigAdvancedSection/);
   assert.match(configSource, /<ConfigGeoSection/);
-  assert.match(configSource, /<ConfigRobotsSection/);
+  assert.equal(configSource.includes('<ConfigRobotsSection'), false);
   assert.match(configSource, /<SaveChangesBar/);
   assert.match(
     configSource,
@@ -1018,8 +1059,6 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
   );
   assert.equal(
     configSurfaceSource.indexOf('id="pow-enabled-toggle"')
-      < configSurfaceSource.indexOf('id="cdp-enabled-toggle"')
-      && configSurfaceSource.indexOf('id="cdp-enabled-toggle"')
       < configSurfaceSource.indexOf('id="rate-limit-enabled-toggle"'),
     true
   );
@@ -1030,9 +1069,7 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
   );
   assert.equal(
     configSurfaceSource.indexOf('id="challenge-puzzle-enabled-toggle"')
-      < configSurfaceSource.indexOf('id="honeypot-enabled-toggle"')
-      && configSurfaceSource.indexOf('id="honeypot-enabled-toggle"')
-      < configSurfaceSource.indexOf('id="ip-range-policy-mode"'),
+      < configSurfaceSource.indexOf('id="honeypot-enabled-toggle"'),
     true
   );
   assert.match(configSurfaceSource, /for="maze-auto-ban-toggle">Enable Auto-ban<\/label>/);
@@ -1058,32 +1095,17 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
   assert.match(configSurfaceSource, /id="advanced-config-json-docs-link"/);
   assert.match(configSource, /buttonId="save-config-all"/);
   assert.match(configSource, /saveAllConfig\(/);
-  assert.match(
-    configSource,
-    /const shouldRefreshRobotsPreview = robotsPreviewOpen && \(robotsDirty \|\| aiPolicyDirty\);/
-  );
-  assert.match(
-    configSource,
-    /if \(shouldRefreshRobotsPreview\) \{\s*robotsPreviewOpen = true;\s*await refreshRobotsPreview\(\);/
-  );
-  assert.match(configSource, /const buildRobotsPreviewPatch = \(\) => \{/);
-  assert.match(configSource, /const patch = previewPatch && typeof previewPatch === 'object'/);
-  assert.match(configSource, /await onFetchRobotsPreview\(patch\);/);
-  assert.match(configSource, /\$: robotsPreviewPatchKey = JSON\.stringify\(buildRobotsPreviewPatch\(\)\);/);
-  assert.match(
-    configSource,
-    /\$: if \(robotsPreviewOpen\) \{\s*void robotsPreviewPatchKey;\s*scheduleRobotsPreviewRefresh\(\);\s*\}/
-  );
-  assert.match(configSurfaceSource, /id="open-robots-txt-link"/);
   assert.match(configSource, /window\.addEventListener\('beforeunload'/);
-  assert.match(configSurfaceSource, /id="ip-range-policy-mode"/);
+  assert.equal(configSurfaceSource.includes('id="ip-range-policy-mode"'), false);
   assert.match(configSource, /ip_range_policy_mode/);
   assert.match(configSurfaceSource, /id="browser-policy-toggle"/);
-  assert.match(configSurfaceSource, /id="bypass-allowlists-toggle"/);
+  assert.equal(configSurfaceSource.includes('id="cdp-enabled-toggle"'), false);
+  assert.equal(configSurfaceSource.includes('id="edge-integration-mode-select"'), false);
+  assert.equal(configSurfaceSource.includes('id="bypass-allowlists-toggle"'), false);
   assert.match(configSurfaceSource, /id="geo-scoring-toggle"/);
   assert.match(configSurfaceSource, /id="geo-routing-toggle"/);
   assert.match(configSource, /browser_policy_enabled/);
-  assert.match(configSource, /bypass_allowlists_enabled/);
+  assert.equal(configSource.includes('bypass_allowlists_enabled'), false);
   assert.match(configSource, /\(LOGGING ONLY\)/);
   assert.match(configSource, /\(BLOCKING ACTIVE\)/);
   assert.equal(configSource.includes('Test Mode Active'), false);
@@ -1093,6 +1115,27 @@ test('ip bans, config, and tuning tabs are declarative and callback-driven', () 
   assert.equal(configSource.includes('id="save-test-mode-config"'), false);
   assert.equal(configSource.includes('id="save-advanced-config"'), false);
   assert.equal(configSource.includes('{@html'), false);
+
+  assert.match(robotsSource, /export let onSaveConfig = null;/);
+  assert.match(robotsSource, /export let onFetchRobotsPreview = null;/);
+  assert.match(robotsSource, /const buildRobotsPreviewPatch = \(\) => \{/);
+  assert.match(robotsSource, /await onSaveConfig\(payload/);
+  assert.match(robotsSource, /await onFetchRobotsPreview\(patch\);/);
+  assert.match(robotsSource, /buttonId="save-robots-config"/);
+  assert.match(robotsSource, /window\.addEventListener\('beforeunload'/);
+  assert.match(robotsSurfaceSource, /id="open-robots-txt-link"/);
+  assert.match(robotsSurfaceSource, /id="preview-robots"/);
+
+  assert.match(fingerprintingSource, /export let cdpSnapshot = null;/);
+  assert.match(fingerprintingSource, /export let onSaveConfig = null;/);
+  assert.match(fingerprintingSource, /await onSaveConfig\(payload/);
+  assert.match(fingerprintingSource, /id="fingerprinting-cdp-enabled-toggle"/);
+  assert.match(fingerprintingSource, /id="fingerprinting-cdp-threshold-slider"/);
+  assert.match(fingerprintingSource, /id="fingerprinting-edge-mode-select"/);
+  assert.match(fingerprintingSource, /id="fingerprinting-provider-backend-select"/);
+  assert.match(fingerprintingSource, /buttonId="save-fingerprinting-config"/);
+  assert.match(fingerprintingSource, /window\.addEventListener\('beforeunload'/);
+  assert.match(fingerprintingSurfaceSource, /id="fingerprinting-total-detections"/);
 
   assert.match(tuningSource, /export let onSaveConfig = null;/);
   assert.match(tuningSource, /await onSaveConfig\(payload/);
@@ -1106,6 +1149,8 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   const source = fs.readFileSync(path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'), 'utf8');
 
   assert.match(source, /import\('\$lib\/components\/dashboard\/ConfigTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/dashboard\/FingerprintingTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/dashboard\/RobotsTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/TuningTab\.svelte'\)/);
   assert.match(source, /\$lib\/runtime\/dashboard-route-controller\.js/);
   assert.match(source, /<svelte:window on:hashchange=\{onWindowHashChange\} \/>/);
@@ -1127,6 +1172,7 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /onBan=\{onBan\}/);
   assert.match(source, /onUnban=\{onUnban\}/);
   assert.match(source, /configSnapshot=\{snapshots\.config\}/);
+  assert.match(source, /cdpSnapshot=\{snapshots\.cdp\}/);
   assert.match(source, /id="admin-msg"/);
 });
 
@@ -1204,6 +1250,8 @@ test('dashboard refresh runtime remains snapshot-only and excludes legacy config
   assert.match(source, /if \(hasConfigSnapshot\(existingConfig\)\) \{/);
   assert.equal(source.includes("? { monitoring: monitoringData }"), false);
   assert.match(source, /const refreshConfigTab = \(reason = 'manual'/);
+  assert.match(source, /async function refreshFingerprintingTab\(reason = 'manual'/);
+  assert.match(source, /dashboardApiClient\.getCdp\(requestOptions\)/);
   assert.match(source, /const includeConfigRefresh = reason !== 'auto-refresh';/);
   assert.match(
     source,

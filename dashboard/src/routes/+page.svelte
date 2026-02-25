@@ -35,6 +35,8 @@
     'ip-bans': 'Loading ban list...',
     status: 'Loading status signals...',
     config: 'Loading config...',
+    fingerprinting: 'Loading fingerprinting controls...',
+    robots: 'Loading robots policy...',
     tuning: 'Loading tuning values...'
   });
   const AUTO_REFRESH_INTERVAL_MS = 60000;
@@ -70,6 +72,8 @@
   let IpBansTabComponent = null;
   let StatusTabComponent = null;
   let ConfigTabComponent = null;
+  let FingerprintingTabComponent = null;
+  let RobotsTabComponent = null;
   let TuningTabComponent = null;
   const tabLinks = {};
 
@@ -197,16 +201,22 @@
         { default: loadedIpBansTab },
         { default: loadedStatusTab },
         { default: loadedConfigTab },
+        { default: loadedFingerprintingTab },
+        { default: loadedRobotsTab },
         { default: loadedTuningTab }
       ] = await Promise.all([
         import('$lib/components/dashboard/IpBansTab.svelte'),
         import('$lib/components/dashboard/StatusTab.svelte'),
         import('$lib/components/dashboard/ConfigTab.svelte'),
+        import('$lib/components/dashboard/FingerprintingTab.svelte'),
+        import('$lib/components/dashboard/RobotsTab.svelte'),
         import('$lib/components/dashboard/TuningTab.svelte')
       ]);
       IpBansTabComponent = loadedIpBansTab;
       StatusTabComponent = loadedStatusTab;
       ConfigTabComponent = loadedConfigTab;
+      FingerprintingTabComponent = loadedFingerprintingTab;
+      RobotsTabComponent = loadedRobotsTab;
       TuningTabComponent = loadedTuningTab;
 
       const bootstrapped = await routeController.bootstrapRuntime({
@@ -339,8 +349,8 @@
     }
   }
 
-  async function onRobotsPreview() {
-    return getDashboardRobotsPreview();
+  async function onRobotsPreview(patch = null) {
+    return getDashboardRobotsPreview(patch);
   }
 
   async function onFetchEventsRange(hours, options = {}) {
@@ -370,7 +380,7 @@
 <svelte:document on:visibilitychange={onDocumentVisibilityChange} />
 <div class="container panel panel-border" data-dashboard-runtime-mode="native">
   <div id="test-mode-banner" class="test-mode-banner" class:hidden={!testModeEnabled}>
-    TEST MODE ACTIVE - Logging only, no blocking
+    TEST MODE ACTIVE - Logging only, no active defences
   </div>
   <button
     id="logout-btn"
@@ -405,6 +415,8 @@
         >
           {#if tab === 'ip-bans'}
             <abbr title="Internet Protocol">IP</abbr>&nbsp;Bans
+          {:else if tab === 'robots'}
+            Robots.txt
           {:else}
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           {/if}
@@ -476,6 +488,8 @@
           tabStatus={tabStatus['ip-bans'] || {}}
           bansSnapshot={snapshots.bans}
           configSnapshot={snapshots.config}
+          configVersion={snapshotVersions.config || 0}
+          onSaveConfig={onSaveConfig}
           onBan={onBan}
           onUnban={onUnban}
         />
@@ -523,7 +537,6 @@
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
           onValidateConfig={onValidateConfig}
-          onFetchRobotsPreview={onRobotsPreview}
         />
       {:else}
         <section
@@ -535,6 +548,52 @@
           aria-hidden={activeTabKey === 'config' ? 'false' : 'true'}
         >
           <p class="message info">Loading config controls...</p>
+        </section>
+      {/if}
+      {#if FingerprintingTabComponent}
+        <svelte:component
+          this={FingerprintingTabComponent}
+          managed={true}
+          isActive={activeTabKey === 'fingerprinting'}
+          tabStatus={tabStatus.fingerprinting || {}}
+          configSnapshot={snapshots.config}
+          configVersion={snapshotVersions.config || 0}
+          cdpSnapshot={snapshots.cdp}
+          onSaveConfig={onSaveConfig}
+        />
+      {:else}
+        <section
+          id="dashboard-panel-fingerprinting"
+          class="admin-group"
+          data-dashboard-tab-panel="fingerprinting"
+          aria-labelledby="dashboard-tab-fingerprinting"
+          hidden={activeTabKey !== 'fingerprinting'}
+          aria-hidden={activeTabKey === 'fingerprinting' ? 'false' : 'true'}
+        >
+          <p class="message info">Loading fingerprinting controls...</p>
+        </section>
+      {/if}
+      {#if RobotsTabComponent}
+        <svelte:component
+          this={RobotsTabComponent}
+          managed={true}
+          isActive={activeTabKey === 'robots'}
+          tabStatus={tabStatus.robots || {}}
+          configSnapshot={snapshots.config}
+          configVersion={snapshotVersions.config || 0}
+          onSaveConfig={onSaveConfig}
+          onFetchRobotsPreview={onRobotsPreview}
+        />
+      {:else}
+        <section
+          id="dashboard-panel-robots"
+          class="admin-group"
+          data-dashboard-tab-panel="robots"
+          aria-labelledby="dashboard-tab-robots"
+          hidden={activeTabKey !== 'robots'}
+          aria-hidden={activeTabKey === 'robots' ? 'false' : 'true'}
+        >
+          <p class="message info">Loading robots policy...</p>
         </section>
       {/if}
       {#if TuningTabComponent}

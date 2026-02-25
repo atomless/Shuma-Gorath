@@ -4,8 +4,8 @@ const { seedDashboardData } = require("./seed-dashboard-data");
 const BASE_URL = process.env.SHUMA_BASE_URL || "http://127.0.0.1:3000";
 const API_KEY = (process.env.SHUMA_API_KEY || "").trim();
 const FORWARDED_IP_SECRET = (process.env.SHUMA_FORWARDED_IP_SECRET || "").trim();
-const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "status", "config", "tuning"]);
-const ADMIN_TABS = Object.freeze(["ip-bans", "status", "config", "tuning"]);
+const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "status", "config", "fingerprinting", "robots", "tuning"]);
+const ADMIN_TABS = Object.freeze(["ip-bans", "status", "config", "fingerprinting", "robots", "tuning"]);
 const runtimeGuards = new WeakMap();
 
 function ensureRequiredEnv() {
@@ -473,6 +473,7 @@ test("dashboard generated runtime has no missing script or stylesheet requests",
   await openDashboard(page);
   await openTab(page, "status");
   await openTab(page, "config");
+  await openTab(page, "fingerprinting");
   await openTab(page, "tuning");
   await openTab(page, "ip-bans");
   await openTab(page, "monitoring");
@@ -704,7 +705,7 @@ test("monitoring summary sections render data and cap oversized result lists", a
   await expect(page.locator("#geo-top-countries .crawler-item")).toHaveCount(10);
 });
 
-test("status/config/tuning show empty state when config snapshot is empty", async ({ page }) => {
+test("status/config/fingerprinting/tuning show empty state when config snapshot is empty", async ({ page }) => {
   await page.route("**/admin/config", async (route) => {
     if (route.request().method() !== "GET") {
       await route.continue();
@@ -722,6 +723,9 @@ test("status/config/tuning show empty state when config snapshot is empty", asyn
 
   await openTab(page, "config");
   await expect(page.locator('[data-tab-state="config"]')).toContainText("No config snapshot available yet.");
+
+  await openTab(page, "fingerprinting");
+  await expect(page.locator('[data-tab-state="fingerprinting"]')).toContainText("No fingerprinting config snapshot available yet.");
 
   await openTab(page, "tuning");
   await expect(page.locator('[data-tab-state="tuning"]')).toContainText("No tuning config snapshot available yet.");
@@ -908,6 +912,41 @@ test("ban form enforces IP validity and submit state", async ({ page }) => {
   await expect(banButton).toBeEnabled();
 });
 
+test("ip bans bypass allowlists pane reflects dirty-state changes", async ({ page }) => {
+  await openDashboard(page);
+  await openTab(page, "ip-bans");
+
+  const saveBar = page.locator("#bypass-allowlists-save-bar");
+  const networkWhitelistField = page.locator("#network-whitelist");
+  const bypassAllowlistsEnabledToggle = page.locator("#bypass-allowlists-toggle");
+  const bypassAllowlistsEnabledSwitch = page.locator("label.toggle-switch[for='bypass-allowlists-toggle']");
+
+  await expect(saveBar).toBeHidden();
+
+  if (!(await networkWhitelistField.isEditable())) {
+    await expect(networkWhitelistField).toBeDisabled();
+    return;
+  }
+
+  const initialNetworkWhitelist = await networkWhitelistField.inputValue();
+  await networkWhitelistField.fill(`${initialNetworkWhitelist}\n198.51.100.0/24`);
+  await networkWhitelistField.dispatchEvent("input");
+  await expect(saveBar).toBeVisible();
+  await networkWhitelistField.fill(initialNetworkWhitelist);
+  await networkWhitelistField.dispatchEvent("input");
+  await expect(saveBar).toBeHidden();
+
+  if (await bypassAllowlistsEnabledSwitch.isVisible() && await bypassAllowlistsEnabledToggle.isEnabled()) {
+    const initialBypassEnabled = await bypassAllowlistsEnabledToggle.isChecked();
+    await bypassAllowlistsEnabledSwitch.click();
+    await expect(saveBar).toBeVisible();
+    if (initialBypassEnabled !== await bypassAllowlistsEnabledToggle.isChecked()) {
+      await bypassAllowlistsEnabledSwitch.click();
+    }
+    await expect(saveBar).toBeHidden();
+  }
+});
+
 test("config save-all button reflects shared dirty-state behavior", async ({ page }) => {
   await openDashboard(page);
   await openTab(page, "config", { waitForReady: true });
@@ -919,8 +958,6 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   const honeypotEnabledSwitch = page.locator("label.toggle-switch[for='honeypot-enabled-toggle']");
   const browserPolicyEnabledToggle = page.locator("#browser-policy-toggle");
   const browserPolicyEnabledSwitch = page.locator("label.toggle-switch[for='browser-policy-toggle']");
-  const bypassAllowlistsEnabledToggle = page.locator("#bypass-allowlists-toggle");
-  const bypassAllowlistsEnabledSwitch = page.locator("label.toggle-switch[for='bypass-allowlists-toggle']");
   const rateLimitingEnabledToggle = page.locator("#rate-limit-enabled-toggle");
   const rateLimitingEnabledSwitch = page.locator("label.toggle-switch[for='rate-limit-enabled-toggle']");
   const geoScoringEnabledToggle = page.locator("#geo-scoring-toggle");
@@ -951,6 +988,7 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   const nextMazeThreshold = String(Math.min(500, Number(initialMazeThreshold || "50") + 1));
   await mazeThreshold.fill(nextMazeThreshold);
   await mazeThreshold.dispatchEvent("input");
+  await expect(page.locator("#config-save-all-bar")).toBeVisible();
   await expect(configSave).toBeEnabled();
   if (await testModeToggleSwitch.isVisible()) {
     const testModeInitial = await testModeToggle.isChecked();
@@ -1095,25 +1133,6 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
     await expect(configSave).toBeEnabled();
     if (initialBrowserPolicyEnabled !== await browserPolicyEnabledToggle.isChecked()) {
       await browserPolicyEnabledSwitch.click();
-    }
-    await expect(configSave).toBeHidden();
-  }
-
-  const networkWhitelistField = page.locator("#network-whitelist");
-  const initialNetworkWhitelist = await networkWhitelistField.inputValue();
-  await networkWhitelistField.fill(`${initialNetworkWhitelist}\n198.51.100.0/24`);
-  await networkWhitelistField.dispatchEvent("input");
-  await expect(configSave).toBeEnabled();
-  await networkWhitelistField.fill(initialNetworkWhitelist);
-  await networkWhitelistField.dispatchEvent("input");
-  await expect(configSave).toBeHidden();
-
-  if (await bypassAllowlistsEnabledSwitch.isVisible() && await bypassAllowlistsEnabledToggle.isEnabled()) {
-    const initialBypassEnabled = await bypassAllowlistsEnabledToggle.isChecked();
-    await bypassAllowlistsEnabledSwitch.click();
-    await expect(configSave).toBeEnabled();
-    if (initialBypassEnabled !== await bypassAllowlistsEnabledToggle.isChecked()) {
-      await bypassAllowlistsEnabledSwitch.click();
     }
     await expect(configSave).toBeHidden();
   }
@@ -1614,6 +1633,9 @@ test("tab states surface loading and data-ready transitions across all tabs", as
   await openTab(page, "config");
   await expect(page.locator('[data-tab-state="config"]')).toBeHidden();
 
+  await openTab(page, "fingerprinting");
+  await expect(page.locator('[data-tab-state="fingerprinting"]')).toBeHidden();
+
   await openTab(page, "tuning");
   await expect(page.locator('[data-tab-state="tuning"]')).toBeHidden();
 
@@ -1701,7 +1723,7 @@ test("config save roundtrip clears dirty state after successful write", async ({
   }
 });
 
-test("config save-all flows cover robots, AI policy, GEO, CDP, and botness controls", async ({ page }) => {
+test("config save-all flows cover GEO and botness controls", async ({ page }) => {
   await openDashboard(page);
   await openTab(page, "config");
 
@@ -1712,28 +1734,6 @@ test("config save-all flows cover robots, AI policy, GEO, CDP, and botness contr
 
   const configSave = page.locator("#save-config-all");
   await expect(configSave).toBeHidden();
-
-  const robotsCrawlDelay = page.locator("#robots-crawl-delay");
-  const robotsDelayInitial = await robotsCrawlDelay.inputValue();
-  const robotsDelayNext = String(Math.min(60, Number(robotsDelayInitial || "2") + 1));
-  await robotsCrawlDelay.fill(robotsDelayNext);
-  await robotsCrawlDelay.dispatchEvent("input");
-  await submitConfigSave(page, configSave);
-  await robotsCrawlDelay.fill(robotsDelayInitial);
-  await robotsCrawlDelay.dispatchEvent("input");
-  await submitConfigSave(page, configSave);
-
-  const aiToggle = page.locator("#robots-block-training-toggle");
-  const aiToggleSwitch = page.locator("label.toggle-switch[for='robots-block-training-toggle']");
-  if (await aiToggleSwitch.isVisible() && await aiToggle.isEnabled()) {
-    const aiInitial = await aiToggle.isChecked();
-    await aiToggleSwitch.click();
-    await submitConfigSave(page, configSave);
-    if (aiInitial !== await aiToggle.isChecked()) {
-      await aiToggleSwitch.click();
-      await submitConfigSave(page, configSave);
-    }
-  }
 
   const geoRiskList = page.locator("#geo-risk-list");
   if (await geoRiskList.isVisible() && await geoRiskList.isEnabled()) {
@@ -1763,18 +1763,6 @@ test("config save-all flows cover robots, AI policy, GEO, CDP, and botness contr
     await submitConfigSave(page, configSave);
   }
 
-  const cdpThreshold = page.locator("#cdp-threshold-slider");
-  const cdpInitial = await cdpThreshold.inputValue();
-  const cdpNext = Number(cdpInitial || "0.6") >= 0.9
-    ? "0.8"
-    : (Number(cdpInitial || "0.6") + 0.1).toFixed(1);
-  await cdpThreshold.fill(cdpNext);
-  await cdpThreshold.dispatchEvent("input");
-  await submitConfigSave(page, configSave);
-  await cdpThreshold.fill(cdpInitial);
-  await cdpThreshold.dispatchEvent("input");
-  await submitConfigSave(page, configSave);
-
   await openTab(page, "tuning");
   const tuningSave = page.locator("#save-tuning-all");
   const botnessWeight = page.locator("#weight-js-required");
@@ -1789,6 +1777,83 @@ test("config save-all flows cover robots, AI policy, GEO, CDP, and botness contr
     await botnessWeight.fill(botnessInitial);
     await botnessWeight.dispatchEvent("input");
     await submitConfigSave(page, tuningSave);
+  }
+});
+
+test("fingerprinting tab save flows cover CDP, provider backend, and edge mode controls", async ({ page }) => {
+  await openDashboard(page);
+  await openTab(page, "fingerprinting");
+
+  const saveButton = page.locator("#save-fingerprinting-config");
+  await expect(saveButton).toBeHidden();
+
+  const cdpThreshold = page.locator("#fingerprinting-cdp-threshold-slider");
+  if (await cdpThreshold.isVisible() && await cdpThreshold.isEnabled()) {
+    const cdpInitial = await cdpThreshold.inputValue();
+    const cdpNext = Number(cdpInitial || "0.6") >= 0.9
+      ? "0.8"
+      : (Number(cdpInitial || "0.6") + 0.1).toFixed(1);
+    await cdpThreshold.fill(cdpNext);
+    await cdpThreshold.dispatchEvent("input");
+    await submitConfigSave(page, saveButton);
+    await cdpThreshold.fill(cdpInitial);
+    await cdpThreshold.dispatchEvent("input");
+    await submitConfigSave(page, saveButton);
+  }
+
+  const edgeModeSelect = page.locator("#fingerprinting-edge-mode-select");
+  if (await edgeModeSelect.isVisible() && await edgeModeSelect.isEnabled()) {
+    const edgeModeInitial = await edgeModeSelect.inputValue();
+    const edgeModeNext = edgeModeInitial === "off" ? "advisory" : "off";
+    await edgeModeSelect.selectOption(edgeModeNext);
+    await submitConfigSave(page, saveButton);
+    await edgeModeSelect.selectOption(edgeModeInitial);
+    await submitConfigSave(page, saveButton);
+  }
+
+  const providerSelect = page.locator("#fingerprinting-provider-backend-select");
+  if (await providerSelect.isVisible() && await providerSelect.isEnabled()) {
+    const providerInitial = await providerSelect.inputValue();
+    const providerNext = providerInitial === "internal" ? "external" : "internal";
+    await providerSelect.selectOption(providerNext);
+    await submitConfigSave(page, saveButton);
+    await providerSelect.selectOption(providerInitial);
+    await submitConfigSave(page, saveButton);
+  }
+});
+
+test("robots tab save flows cover robots serving and AI policy controls", async ({ page }) => {
+  await openDashboard(page);
+  await openTab(page, "robots");
+
+  const saveButton = page.locator("#save-robots-config");
+  await expect(saveButton).toBeHidden();
+
+  const robotsCrawlDelay = page.locator("#robots-crawl-delay");
+  if (!(await robotsCrawlDelay.isVisible()) || !(await robotsCrawlDelay.isEditable())) {
+    await expect(robotsCrawlDelay).toBeDisabled();
+    return;
+  }
+
+  const robotsDelayInitial = await robotsCrawlDelay.inputValue();
+  const robotsDelayNext = String(Math.min(60, Number(robotsDelayInitial || "2") + 1));
+  await robotsCrawlDelay.fill(robotsDelayNext);
+  await robotsCrawlDelay.dispatchEvent("input");
+  await submitConfigSave(page, saveButton);
+  await robotsCrawlDelay.fill(robotsDelayInitial);
+  await robotsCrawlDelay.dispatchEvent("input");
+  await submitConfigSave(page, saveButton);
+
+  const aiToggle = page.locator("#robots-block-training-toggle");
+  const aiToggleSwitch = page.locator("label.toggle-switch[for='robots-block-training-toggle']");
+  if (await aiToggleSwitch.isVisible() && await aiToggle.isEnabled()) {
+    const aiInitial = await aiToggle.isChecked();
+    await aiToggleSwitch.click();
+    await submitConfigSave(page, saveButton);
+    if (aiInitial !== await aiToggle.isChecked()) {
+      await aiToggleSwitch.click();
+      await submitConfigSave(page, saveButton);
+    }
   }
 });
 
@@ -1826,7 +1891,7 @@ test("monitoring tab surfaces tab-scoped error when consolidated monitoring fetc
   );
 });
 
-test("shared config endpoint failures surface per-tab errors for status/config/tuning", async ({ page }) => {
+test("shared config endpoint failures surface per-tab errors for status/config/fingerprinting/robots/tuning", async ({ page }) => {
   const assertSharedConfigErrorOnInitialTab = async (tab, message) => {
     await page.route("**/admin/config", async (route) => {
       if (route.request().method() !== "GET") {
@@ -1846,6 +1911,8 @@ test("shared config endpoint failures surface per-tab errors for status/config/t
 
   await assertSharedConfigErrorOnInitialTab("status", "status endpoint outage");
   await assertSharedConfigErrorOnInitialTab("config", "config endpoint outage");
+  await assertSharedConfigErrorOnInitialTab("fingerprinting", "fingerprinting endpoint outage");
+  await assertSharedConfigErrorOnInitialTab("robots", "robots endpoint outage");
   await assertSharedConfigErrorOnInitialTab("tuning", "tuning endpoint outage");
 });
 

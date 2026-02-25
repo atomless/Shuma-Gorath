@@ -227,13 +227,26 @@ fn flow_identity(ip: &str, cfg: &crate::config::Config) -> String {
 fn load_state<S: crate::challenge::KeyValueStore>(
     store: &S,
     identity: &str,
+    now: u64,
+    ttl_seconds: u64,
 ) -> Option<FingerprintState> {
     let key = format!("{}{}", FP_KEY_PREFIX_STATE, identity);
-    store
+    let state = store
         .get(key.as_str())
         .ok()
         .flatten()
-        .and_then(|raw| serde_json::from_slice::<FingerprintState>(&raw).ok())
+        .and_then(|raw| serde_json::from_slice::<FingerprintState>(&raw).ok());
+
+    let Some(state) = state else {
+        return None;
+    };
+
+    if now.saturating_sub(state.ts) > ttl_seconds.max(1) {
+        let _ = store.delete(key.as_str());
+        return None;
+    }
+
+    Some(state)
 }
 
 fn store_state<S: crate::challenge::KeyValueStore>(store: &S, identity: &str, state: &FingerprintState) {
@@ -417,7 +430,12 @@ pub(crate) fn collect_bot_signals<S: crate::challenge::KeyValueStore>(
     let now = now_ts();
 
     let ja4_hash = transport.ja4.as_deref().map(|ja4| hash_prefix(ja4, 16));
-    let previous_state = load_state(store, identity.as_str());
+    let previous_state = load_state(
+        store,
+        identity.as_str(),
+        now,
+        cfg.fingerprint_state_ttl_seconds,
+    );
     let temporal_transition = temporal_transition_impossible(
         previous_state.as_ref(),
         now,
@@ -552,8 +570,10 @@ pub(crate) fn collect_bot_signals<S: crate::challenge::KeyValueStore>(
 
 #[cfg(test)]
 mod tests {
+    use crate::challenge::KeyValueStore;
     use super::{
-        collect_bot_signals, FP_FLOW_VIOLATION_KEY, FP_TEMPORAL_TRANSITION_KEY, FP_UA_CH_MISMATCH_KEY,
+        collect_bot_signals, flow_identity, now_ts, FingerprintState, FP_FLOW_VIOLATION_KEY,
+        FP_KEY_PREFIX_STATE, FP_TEMPORAL_TRANSITION_KEY, FP_UA_CH_MISMATCH_KEY,
         FP_UA_TRANSPORT_MISMATCH_KEY, FP_UNTRUSTED_TRANSPORT_HEADER_KEY,
     };
     use spin_sdk::http::Request;
@@ -687,5 +707,39 @@ mod tests {
         let _first = collect_bot_signals(&store, &req, &cfg, "203.0.113.13", true);
         let second = collect_bot_signals(&store, &req, &cfg, "203.0.113.13", true);
         assert!(signal_active(&second, FP_FLOW_VIOLATION_KEY));
+    }
+
+    #[test]
+    fn stale_fingerprint_state_is_evicted_by_configured_ttl() {
+        let store = MockStore::default();
+        let mut cfg = crate::config::defaults().clone();
+        cfg.fingerprint_signal_enabled = true;
+        cfg.fingerprint_state_ttl_seconds = 60;
+        cfg.fingerprint_flow_window_seconds = 300;
+
+        let ip = "203.0.113.14";
+        let identity = flow_identity(ip, &cfg);
+        let state_key = format!("{}{}", FP_KEY_PREFIX_STATE, identity);
+        let stale_state = FingerprintState {
+            ts: now_ts().saturating_sub(120),
+            ua_family: "chrome".to_string(),
+            ja4_hash: Some("legacyhash".to_string()),
+        };
+        let serialized = serde_json::to_vec(&stale_state).unwrap();
+        store.set(state_key.as_str(), &serialized).unwrap();
+
+        let req = request(
+            "/",
+            &[("user-agent", "Mozilla/5.0 Version/17.0 Safari/605.1.15")],
+        );
+        let observed_start = now_ts();
+        let signals = collect_bot_signals(&store, &req, &cfg, ip, true);
+        let observed_end = now_ts();
+        assert!(!signal_active(&signals, FP_TEMPORAL_TRANSITION_KEY));
+
+        let persisted_raw = store.get(state_key.as_str()).unwrap().unwrap();
+        let persisted: FingerprintState = serde_json::from_slice(&persisted_raw).unwrap();
+        assert!((observed_start..=observed_end).contains(&persisted.ts));
+        assert_eq!(persisted.ua_family, "safari");
     }
 }

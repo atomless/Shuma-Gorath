@@ -6,19 +6,18 @@
   import ConfigGeoSection from './config/ConfigGeoSection.svelte';
   import ConfigMazeSection from './config/ConfigMazeSection.svelte';
   import ConfigNetworkSection from './config/ConfigNetworkSection.svelte';
-  import ConfigRobotsSection from './config/ConfigRobotsSection.svelte';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
   import { onDestroy, onMount } from 'svelte';
   import NumericInputRow from './primitives/NumericInputRow.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
-  import ToggleRow from './primitives/ToggleRow.svelte';
   import {
     formatBrowserRulesTextarea,
     formatListTextarea,
     normalizeBrowserRulesForCompare,
     normalizeCountryCodesForCompare,
+    normalizeHoneypotPathsForCompare,
     normalizeListTextareaForCompare,
     parseBrowserRulesTextarea,
     parseCountryCodesStrict,
@@ -31,14 +30,13 @@
     normalizeJsonObjectForCompare
   } from '../../domain/core/json-object.js';
   import { durationPartsFromSeconds, durationSeconds } from '../../domain/core/date-time.js';
-  import { parseFloatNumber, parseInteger } from '../../domain/core/math.js';
+  import { parseInteger } from '../../domain/core/math.js';
   import { inRange, isDurationTupleValid } from '../../domain/core/validation.js';
   import {
     formatCountryCodes,
     geoModeFromToggleState,
     geoToggleStateFromMode,
     isIpRangePolicyMode,
-    normalizeEdgeMode,
     normalizeIpRangePolicyMode,
     normalizeJsonArrayForCompare,
     rateEnforcementEnabledFromMode,
@@ -52,7 +50,6 @@
   export let configVersion = 0;
   export let onSaveConfig = null;
   export let onValidateConfig = null;
-  export let onFetchRobotsPreview = null;
 
   const MAX_DURATION_SECONDS = 31536000;
   const MIN_DURATION_SECONDS = 60;
@@ -64,7 +61,6 @@
   const IP_RANGE_MANAGED_STALENESS_MAX = 2160;
   const EXPORT_STATUS_RESET_MS = 4000;
   const ADVANCED_VALIDATE_DEBOUNCE_MS = 350;
-  const ROBOTS_PREVIEW_AUTO_REFRESH_DEBOUNCE_MS = 120;
 
   let writable = false;
   let hasConfigSnapshot = false;
@@ -74,13 +70,6 @@
   let savingTestMode = false;
   let savingAll = false;
   let warnOnUnload = false;
-
-  let robotsPreviewOpen = false;
-  let robotsPreviewLoading = false;
-  let robotsPreviewContent = '';
-  let robotsPreviewPatchKey = '';
-  let robotsPreviewRequestId = 0;
-  let robotsPreviewAutoRefreshTimer = null;
 
   let testMode = false;
 
@@ -121,20 +110,10 @@
   let browserBlockRules = '';
   let browserWhitelistRules = '';
 
-  let bypassAllowlistsEnabled = true;
-  let networkWhitelist = '';
-  let pathWhitelist = '';
-
   let mazeEnabled = true;
   let tarpitEnabled = true;
   let mazeAutoBan = true;
   let mazeThreshold = 50;
-
-  let cdpEnabled = true;
-  let cdpAutoBan = true;
-  let cdpThreshold = 0.6;
-
-  let edgeIntegrationMode = 'off';
 
   let geoRiskList = '';
   let geoAllowList = '';
@@ -160,16 +139,11 @@
   let durAdminHours = 6;
   let durAdminMinutes = 0;
 
-  let robotsEnabled = true;
-  let robotsCrawlDelay = 2;
-  let robotsBlockTraining = true;
-  let robotsBlockSearch = false;
-  let restrictSearchEngines = false;
-
   let advancedConfigJson = '{}';
   let advancedValidationPending = false;
   let advancedValidationError = '';
   let advancedValidationIssues = [];
+  let honeypotInvalidMessage = '';
   let advancedValidationTimer = null;
   let advancedValidationRequestId = 0;
   let exportConfigStatus = '';
@@ -201,11 +175,8 @@
     rateLimit: { value: 80, enabled: true },
     honeypot: { enabled: true, values: '' },
     browserPolicy: { enabled: true, block: '', whitelist: '' },
-    whitelist: { enabled: true, network: '', path: '' },
     maze: { enabled: true, autoBan: true, threshold: 50 },
     tarpit: { enabled: true },
-    cdp: { enabled: true, autoBan: true, threshold: 0.6 },
-    edgeMode: { mode: 'off' },
     geo: {
       scoringEnabled: true,
       routingEnabled: true,
@@ -222,8 +193,6 @@
       cdp: 43200,
       admin: 21600
     },
-    robots: { enabled: true, crawlDelay: 2 },
-    aiPolicy: { blockTraining: true, blockSearch: false, restrictSearchEngines: false },
     advanced: { normalized: '{}' }
   };
 
@@ -253,13 +222,6 @@
     if (advancedValidationTimer) {
       clearTimeout(advancedValidationTimer);
       advancedValidationTimer = null;
-    }
-  };
-
-  const clearRobotsPreviewAutoRefreshTimer = () => {
-    if (robotsPreviewAutoRefreshTimer) {
-      clearTimeout(robotsPreviewAutoRefreshTimer);
-      robotsPreviewAutoRefreshTimer = null;
     }
   };
 
@@ -324,16 +286,7 @@
   onDestroy(() => {
     clearExportStatusTimer();
     clearAdvancedValidationTimer();
-    clearRobotsPreviewAutoRefreshTimer();
   });
-
-  function resetRobotsPreview() {
-    clearRobotsPreviewAutoRefreshTimer();
-    robotsPreviewRequestId += 1;
-    robotsPreviewOpen = false;
-    robotsPreviewLoading = false;
-    robotsPreviewContent = '';
-  }
 
   function applyConfig(config = {}) {
     configLoaded = true;
@@ -398,20 +351,10 @@
     browserBlockRules = formatBrowserRulesTextarea(config.browser_block);
     browserWhitelistRules = formatBrowserRulesTextarea(config.browser_whitelist);
 
-    bypassAllowlistsEnabled = config.bypass_allowlists_enabled !== false;
-    networkWhitelist = formatListTextarea(config.whitelist);
-    pathWhitelist = formatListTextarea(config.path_whitelist);
-
     mazeEnabled = config.maze_enabled !== false;
     tarpitEnabled = config.tarpit_enabled !== false;
     mazeAutoBan = config.maze_auto_ban !== false;
     mazeThreshold = parseInteger(config.maze_auto_ban_threshold, 50);
-
-    cdpEnabled = config.cdp_detection_enabled !== false;
-    cdpAutoBan = config.cdp_auto_ban !== false;
-    cdpThreshold = Number(parseFloatNumber(config.cdp_detection_threshold, 0.6).toFixed(1));
-
-    edgeIntegrationMode = normalizeEdgeMode(config.edge_integration_mode);
 
     geoRiskList = formatCountryCodes(config.geo_risk);
     geoAllowList = formatCountryCodes(config.geo_allow);
@@ -451,14 +394,6 @@
     durAdminHours = adminParts.hours;
     durAdminMinutes = adminParts.minutes;
 
-    robotsEnabled = config.robots_enabled !== false;
-    robotsCrawlDelay = parseInteger(config.robots_crawl_delay, 2);
-
-    robotsBlockTraining = (config.ai_policy_block_training ?? config.robots_block_ai_training) !== false;
-    robotsBlockSearch = (config.ai_policy_block_search ?? config.robots_block_ai_search) === true;
-    const aiAllowSearchEngines = config.ai_policy_allow_search_engines ?? config.robots_allow_search_engines;
-    restrictSearchEngines = aiAllowSearchEngines === undefined ? false : aiAllowSearchEngines !== true;
-
     const advancedTemplate = buildTemplateFromPaths(config, advancedConfigTemplatePaths || []);
     const advancedText = JSON.stringify(advancedTemplate, null, 2);
     advancedConfigJson = advancedText;
@@ -497,17 +432,12 @@
       },
       honeypot: {
         enabled: honeypotEnabled,
-        values: normalizeListTextareaForCompare(honeypotPaths)
+        values: normalizeHoneypotPathsForCompare(honeypotPaths)
       },
       browserPolicy: {
         enabled: browserPolicyEnabled,
         block: normalizeBrowserRulesForCompare(browserBlockRules),
         whitelist: normalizeBrowserRulesForCompare(browserWhitelistRules)
-      },
-      whitelist: {
-        enabled: bypassAllowlistsEnabled,
-        network: normalizeListTextareaForCompare(networkWhitelist),
-        path: normalizeListTextareaForCompare(pathWhitelist)
       },
       maze: {
         enabled: mazeEnabled,
@@ -516,14 +446,6 @@
       },
       tarpit: {
         enabled: tarpitEnabled
-      },
-      cdp: {
-        enabled: cdpEnabled,
-        autoBan: cdpAutoBan,
-        threshold: Number(cdpThreshold)
-      },
-      edgeMode: {
-        mode: edgeIntegrationMode
       },
       geo: {
         scoringEnabled: geoScoringEnabled,
@@ -541,15 +463,6 @@
         cdp: durationSeconds(durCdpDays, durCdpHours, durCdpMinutes),
         admin: durationSeconds(durAdminDays, durAdminHours, durAdminMinutes)
       },
-      robots: {
-        enabled: robotsEnabled,
-        crawlDelay: Number(robotsCrawlDelay)
-      },
-      aiPolicy: {
-        blockTraining: robotsBlockTraining,
-        blockSearch: robotsBlockSearch,
-        restrictSearchEngines
-      },
       advanced: {
         normalized: normalizeJsonObjectForCompare(advancedText) || '{}'
       }
@@ -559,7 +472,6 @@
     exportConfigStatus = '';
     exportConfigStatusKind = 'info';
     resetAdvancedValidationState();
-    resetRobotsPreview();
   }
 
   async function onTestModeToggleChange(event) {
@@ -679,11 +591,6 @@
       patch.browser_block = parseBrowserRulesTextarea(browserBlockRules);
       patch.browser_whitelist = parseBrowserRulesTextarea(browserWhitelistRules);
     }
-    if (includeAll || whitelistDirty) {
-      patch.bypass_allowlists_enabled = bypassAllowlistsEnabled;
-      patch.whitelist = parseListTextarea(networkWhitelist);
-      patch.path_whitelist = parseListTextarea(pathWhitelist);
-    }
     if (includeAll || mazeDirty) {
       patch.maze_enabled = mazeEnabled;
       patch.maze_auto_ban = mazeAutoBan;
@@ -691,14 +598,6 @@
     }
     if (includeAll || tarpitDirty) {
       patch.tarpit_enabled = tarpitEnabled;
-    }
-    if (includeAll || cdpDirty) {
-      patch.cdp_detection_enabled = cdpEnabled;
-      patch.cdp_auto_ban = cdpAutoBan;
-      patch.cdp_detection_threshold = Number(cdpThreshold);
-    }
-    if (includeAll || edgeModeDirty) {
-      patch.edge_integration_mode = edgeIntegrationMode;
     }
     if (includeAll || geoScoringDirty) {
       mergeDefenceModes({ geo: geoModeNormalized });
@@ -720,27 +619,7 @@
         admin: durationSeconds(durAdminDays, durAdminHours, durAdminMinutes)
       };
     }
-    if (includeAll || robotsDirty) {
-      patch.robots_enabled = robotsEnabled;
-      patch.robots_crawl_delay = Number(robotsCrawlDelay);
-    }
-    if (includeAll || aiPolicyDirty) {
-      patch.ai_policy_block_training = robotsBlockTraining;
-      patch.ai_policy_block_search = robotsBlockSearch;
-      patch.ai_policy_allow_search_engines = !restrictSearchEngines;
-    }
     return patch;
-  };
-
-  const buildRobotsPreviewPatch = () => {
-    const crawlDelayValue = Number(robotsCrawlDelay);
-    return {
-      robots_enabled: robotsEnabled === true,
-      robots_crawl_delay: Number.isFinite(crawlDelayValue) ? Math.max(0, Math.floor(crawlDelayValue)) : 0,
-      ai_policy_block_training: robotsBlockTraining === true,
-      ai_policy_block_search: robotsBlockSearch === true,
-      ai_policy_allow_search_engines: restrictSearchEngines !== true
-    };
   };
 
   const downloadJsonFile = (filename, payload) => {
@@ -814,8 +693,6 @@
 
     if (Object.keys(patch).length === 0) return;
 
-    const shouldRefreshRobotsPreview = robotsPreviewOpen && (robotsDirty || aiPolicyDirty);
-
     savingAll = true;
     try {
       const successMessage = dirtySectionCount === 1
@@ -825,60 +702,9 @@
       if (nextConfig && typeof nextConfig === 'object') {
         applyConfig(nextConfig);
       }
-      if (shouldRefreshRobotsPreview) {
-        robotsPreviewOpen = true;
-        await refreshRobotsPreview();
-      }
     } finally {
       savingAll = false;
     }
-  }
-
-  async function refreshRobotsPreview(previewPatch = null) {
-    if (typeof onFetchRobotsPreview !== 'function') return;
-    const patch = previewPatch && typeof previewPatch === 'object'
-      ? previewPatch
-      : buildRobotsPreviewPatch();
-    const requestId = ++robotsPreviewRequestId;
-    robotsPreviewLoading = true;
-    try {
-      const payload = await onFetchRobotsPreview(patch);
-      if (requestId !== robotsPreviewRequestId) return;
-      robotsPreviewContent = payload && typeof payload.content === 'string'
-        ? payload.content
-        : '# No preview available';
-    } catch (error) {
-      if (requestId !== robotsPreviewRequestId) return;
-      robotsPreviewContent = `# Error loading preview: ${error && error.message ? error.message : 'Unknown error'}`;
-    } finally {
-      if (requestId === robotsPreviewRequestId) {
-        robotsPreviewLoading = false;
-      }
-    }
-  }
-
-  function scheduleRobotsPreviewRefresh() {
-    clearRobotsPreviewAutoRefreshTimer();
-    robotsPreviewAutoRefreshTimer = setTimeout(() => {
-      void refreshRobotsPreview();
-    }, ROBOTS_PREVIEW_AUTO_REFRESH_DEBOUNCE_MS);
-  }
-
-  function onRobotsPreviewControlChanged() {
-    if (!robotsPreviewOpen) return;
-    scheduleRobotsPreviewRefresh();
-  }
-
-  function toggleRobotsPreview() {
-    if (robotsPreviewOpen) {
-      clearRobotsPreviewAutoRefreshTimer();
-      robotsPreviewRequestId += 1;
-      robotsPreviewOpen = false;
-      robotsPreviewLoading = false;
-      return;
-    }
-    robotsPreviewOpen = true;
-    scheduleRobotsPreviewRefresh();
   }
 
   const readBool = (value) => value === true;
@@ -910,10 +736,17 @@
   }
   $: notABotScorePassMinFloor = Math.min(10, Number(notABotScoreFailMax) + 1);
 
-  $: notABotValid = (
+  $: notABotPassScoreValid = (
     inRange(notABotScorePassMin, 1, 10) &&
+    Number(notABotScorePassMin) > Number(notABotScoreFailMax)
+  );
+  $: notABotFailScoreValid = (
     inRange(notABotScoreFailMax, 0, 9) &&
     Number(notABotScoreFailMax) < Number(notABotScorePassMin)
+  );
+  $: notABotValid = (
+    notABotPassScoreValid &&
+    notABotFailScoreValid
   );
   $: notABotDirty = (
     readBool(notABotEnabled) !== baseline.notABot.enabled ||
@@ -925,15 +758,18 @@
   $: ipRangeCustomRulesNormalized = normalizeJsonArrayForCompare(ipRangeCustomRulesJson);
   $: ipRangeManagedPoliciesNormalized = normalizeJsonArrayForCompare(ipRangeManagedPoliciesJson);
   $: ipRangeModeNormalized = normalizeIpRangePolicyMode(ipRangePolicyMode);
+  $: ipRangeCustomRulesValid = ipRangeCustomRulesNormalized !== null;
+  $: ipRangeManagedPoliciesValid = ipRangeManagedPoliciesNormalized !== null;
+  $: ipRangeManagedMaxStalenessValid = inRange(
+    ipRangeManagedMaxStalenessHours,
+    IP_RANGE_MANAGED_STALENESS_MIN,
+    IP_RANGE_MANAGED_STALENESS_MAX
+  );
   $: ipRangeValid = (
     isIpRangePolicyMode(ipRangeModeNormalized) &&
-    ipRangeCustomRulesNormalized !== null &&
-    ipRangeManagedPoliciesNormalized !== null &&
-    inRange(
-      ipRangeManagedMaxStalenessHours,
-      IP_RANGE_MANAGED_STALENESS_MIN,
-      IP_RANGE_MANAGED_STALENESS_MAX
-    )
+    ipRangeCustomRulesValid &&
+    ipRangeManagedPoliciesValid &&
+    ipRangeManagedMaxStalenessValid
   );
   $: ipRangeDirty = (
     ipRangeModeNormalized !== baseline.ipRange.mode ||
@@ -961,12 +797,16 @@
     readBool(rateLimitingEnabled) !== baseline.rateLimit.enabled
   );
 
-  $: honeypotNormalized = normalizeListTextareaForCompare(honeypotPaths);
+  $: honeypotNormalized = normalizeHoneypotPathsForCompare(honeypotPaths);
   $: honeypotValid = (() => {
     try {
       parseHoneypotPathsTextarea(honeypotPaths);
+      honeypotInvalidMessage = '';
       return true;
-    } catch (_error) {
+    } catch (error) {
+      honeypotInvalidMessage = error && error.message
+        ? String(error.message)
+        : 'Invalid honeypot path list.';
       return false;
     }
   })();
@@ -977,22 +817,17 @@
 
   $: browserBlockNormalized = normalizeBrowserRulesForCompare(browserBlockRules);
   $: browserWhitelistNormalized = normalizeBrowserRulesForCompare(browserWhitelistRules);
-  $: browserPolicyValid = browserBlockNormalized !== '__invalid__' && browserWhitelistNormalized !== '__invalid__';
+  $: browserBlockRulesValid = browserBlockNormalized !== '__invalid__';
+  $: browserWhitelistRulesValid = browserWhitelistNormalized !== '__invalid__';
+  $: browserPolicyValid = browserBlockRulesValid && browserWhitelistRulesValid;
   $: browserPolicyDirty = (
     readBool(browserPolicyEnabled) !== baseline.browserPolicy.enabled ||
     browserBlockNormalized !== baseline.browserPolicy.block ||
     browserWhitelistNormalized !== baseline.browserPolicy.whitelist
   );
 
-  $: whitelistNetworkNormalized = normalizeListTextareaForCompare(networkWhitelist);
-  $: whitelistPathNormalized = normalizeListTextareaForCompare(pathWhitelist);
-  $: whitelistDirty = (
-    readBool(bypassAllowlistsEnabled) !== baseline.whitelist.enabled ||
-    whitelistNetworkNormalized !== baseline.whitelist.network ||
-    whitelistPathNormalized !== baseline.whitelist.path
-  );
-
-  $: mazeValid = inRange(mazeThreshold, 5, 500);
+  $: mazeThresholdValid = inRange(mazeThreshold, 5, 500);
+  $: mazeValid = mazeThresholdValid;
   $: mazeDirty = (
     readBool(mazeEnabled) !== baseline.maze.enabled ||
     readBool(mazeAutoBan) !== baseline.maze.autoBan ||
@@ -1000,15 +835,6 @@
   );
   $: tarpitValid = true;
   $: tarpitDirty = readBool(tarpitEnabled) !== baseline.tarpit.enabled;
-
-  $: cdpValid = inRange(cdpThreshold, 0.3, 1.0);
-  $: cdpDirty = (
-    readBool(cdpEnabled) !== baseline.cdp.enabled ||
-    readBool(cdpAutoBan) !== baseline.cdp.autoBan ||
-    Number(cdpThreshold) !== baseline.cdp.threshold
-  );
-
-  $: edgeModeDirty = normalizeEdgeMode(edgeIntegrationMode) !== baseline.edgeMode.mode;
 
   $: geoRiskNormalized = normalizeCountryCodesForCompare(geoRiskList);
   $: geoAllowNormalized = normalizeCountryCodesForCompare(geoAllowList);
@@ -1020,7 +846,7 @@
     routingEnabled: readBool(geoRoutingEnabled)
   });
 
-  $: geoScoringValid = (() => {
+  $: geoRiskListValid = (() => {
     try {
       parseCountryCodesStrict(geoRiskList);
       return true;
@@ -1029,17 +855,45 @@
     }
   })();
 
-  $: geoRoutingValid = (() => {
+  $: geoAllowListValid = (() => {
     try {
       parseCountryCodesStrict(geoAllowList);
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  })();
+  $: geoChallengeListValid = (() => {
+    try {
       parseCountryCodesStrict(geoChallengeList);
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  })();
+  $: geoMazeListValid = (() => {
+    try {
       parseCountryCodesStrict(geoMazeList);
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  })();
+  $: geoBlockListValid = (() => {
+    try {
       parseCountryCodesStrict(geoBlockList);
       return true;
     } catch (_error) {
       return false;
     }
   })();
+  $: geoScoringValid = geoRiskListValid;
+  $: geoRoutingValid = (
+    geoAllowListValid &&
+    geoChallengeListValid &&
+    geoMazeListValid &&
+    geoBlockListValid
+  );
 
   $: geoScoringDirty = (
     readBool(geoScoringEnabled) !== baseline.geo.scoringEnabled ||
@@ -1059,12 +913,42 @@
   $: cdpDurationSeconds = durationSeconds(durCdpDays, durCdpHours, durCdpMinutes);
   $: adminDurationSeconds = durationSeconds(durAdminDays, durAdminHours, durAdminMinutes);
 
+  $: durHoneypotValid = isDurationTupleValid(
+    durHoneypotDays,
+    durHoneypotHours,
+    durHoneypotMinutes,
+    DURATION_VALIDATION_BOUNDS
+  );
+  $: durRateLimitValid = isDurationTupleValid(
+    durRateLimitDays,
+    durRateLimitHours,
+    durRateLimitMinutes,
+    DURATION_VALIDATION_BOUNDS
+  );
+  $: durBrowserValid = isDurationTupleValid(
+    durBrowserDays,
+    durBrowserHours,
+    durBrowserMinutes,
+    DURATION_VALIDATION_BOUNDS
+  );
+  $: durCdpValid = isDurationTupleValid(
+    durCdpDays,
+    durCdpHours,
+    durCdpMinutes,
+    DURATION_VALIDATION_BOUNDS
+  );
+  $: durAdminValid = isDurationTupleValid(
+    durAdminDays,
+    durAdminHours,
+    durAdminMinutes,
+    DURATION_VALIDATION_BOUNDS
+  );
   $: durationsValid = (
-    isDurationTupleValid(durHoneypotDays, durHoneypotHours, durHoneypotMinutes, DURATION_VALIDATION_BOUNDS) &&
-    isDurationTupleValid(durRateLimitDays, durRateLimitHours, durRateLimitMinutes, DURATION_VALIDATION_BOUNDS) &&
-    isDurationTupleValid(durBrowserDays, durBrowserHours, durBrowserMinutes, DURATION_VALIDATION_BOUNDS) &&
-    isDurationTupleValid(durCdpDays, durCdpHours, durCdpMinutes, DURATION_VALIDATION_BOUNDS) &&
-    isDurationTupleValid(durAdminDays, durAdminHours, durAdminMinutes, DURATION_VALIDATION_BOUNDS)
+    durHoneypotValid &&
+    durRateLimitValid &&
+    durBrowserValid &&
+    durCdpValid &&
+    durAdminValid
   );
 
   $: durationsDirty = (
@@ -1073,18 +957,6 @@
     browserDurationSeconds !== baseline.durations.browser ||
     cdpDurationSeconds !== baseline.durations.cdp ||
     adminDurationSeconds !== baseline.durations.admin
-  );
-
-  $: robotsValid = inRange(robotsCrawlDelay, 0, 60);
-  $: robotsDirty = (
-    readBool(robotsEnabled) !== baseline.robots.enabled ||
-    Number(robotsCrawlDelay) !== baseline.robots.crawlDelay
-  );
-
-  $: aiPolicyDirty = (
-    readBool(robotsBlockTraining) !== baseline.aiPolicy.blockTraining ||
-    readBool(robotsBlockSearch) !== baseline.aiPolicy.blockSearch ||
-    readBool(restrictSearchEngines) !== baseline.aiPolicy.restrictSearchEngines
   );
 
   $: advancedNormalized = normalizeJsonObjectForCompare(advancedConfigJson);
@@ -1139,20 +1011,14 @@
     { label: 'Proof of Work', dirty: powDirty, valid: powValid },
     { label: 'Challenge puzzle', dirty: challengePuzzleDirty, valid: challengePuzzleValid },
     { label: 'Not-a-Bot', dirty: notABotDirty, valid: notABotValid },
-    { label: 'Internet Protocol range policy', dirty: ipRangeDirty, valid: ipRangeValid },
     { label: 'Rate limit', dirty: rateLimitDirty, valid: rateLimitValid },
     { label: 'Honeypots', dirty: honeypotDirty, valid: honeypotValid },
     { label: 'Browser policy', dirty: browserPolicyDirty, valid: browserPolicyValid },
-    { label: 'Bypass allowlists', dirty: whitelistDirty, valid: true },
     { label: 'Maze', dirty: mazeDirty, valid: mazeValid },
     { label: 'Tarpit', dirty: tarpitDirty, valid: tarpitValid },
-    { label: 'Chrome DevTools Protocol', dirty: cdpDirty, valid: cdpValid },
-    { label: 'Edge mode', dirty: edgeModeDirty, valid: true },
     { label: 'Geolocation scoring', dirty: geoScoringDirty, valid: geoScoringValid },
     { label: 'Geolocation routing', dirty: geoRoutingDirty, valid: geoRoutingValid },
     { label: 'Ban durations', dirty: durationsDirty, valid: durationsValid },
-    { label: 'Robots serving', dirty: robotsDirty, valid: robotsValid },
-    { label: 'Large Language Models bot policy', dirty: aiPolicyDirty, valid: true },
     { label: 'Advanced config', dirty: advancedDirty, valid: advancedValid }
   ];
   $: dirtySectionEntries = dirtySections.filter((section) => section.dirty === true);
@@ -1172,13 +1038,6 @@
     : '';
   $: exportConfigDisabled = !hasConfigSnapshot;
   $: warnOnUnload = writable && hasUnsavedChanges;
-
-  $: robotsPreviewPatchKey = JSON.stringify(buildRobotsPreviewPatch());
-
-  $: if (robotsPreviewOpen) {
-    void robotsPreviewPatchKey;
-    scheduleRobotsPreviewRefresh();
-  }
 
   $: {
     const nextVersion = Number(configVersion || 0);
@@ -1262,30 +1121,6 @@
       <p class="control-desc text-muted"><abbr title="Proof of Work">PoW</abbr> is a security mechanism used to help differentiate bots from humans by requiring the requesting client's device to solve a small, moderately complex computational puzzle before being granted access. It will be invisible to human users and incurrs only extremely low energy and request performance costs. <abbr title="Proof of Work">PoW</abbr> depends on <abbr title="JavaScript">JS</abbr> Required being enabled.</p>
     </ConfigPanel>
 
-    <ConfigPanel writable={writable} dirty={cdpDirty}>
-      <ConfigPanelHeading title='<abbr title="Chrome DevTools Protocol">CDP</abbr> (Detect Browser Automation)'>
-        <label class="toggle-switch" for="cdp-enabled-toggle">
-          <input type="checkbox" id="cdp-enabled-toggle" aria-label="Enable Chrome DevTools Protocol detection" bind:checked={cdpEnabled}>
-          <span class="toggle-slider"></span>
-        </label>
-      </ConfigPanelHeading>
-      <p class="control-desc text-muted">Toggle detection of browser automation and optionally auto-ban when the signals indicating such automation breach the set threshold. Stricter thresholds catch more bots but may increase false positives.</p>
-      <div class="admin-controls">
-        <ToggleRow id="cdp-auto-ban-toggle" label="Auto-ban on Detection" labelClass="control-label control-label--wide" ariaLabel="Enable Chrome DevTools Protocol auto-ban" bind:checked={cdpAutoBan} />
-        <div class="slider-control">
-          <div class="slider-header">
-            <label class="control-label control-label--wide" for="cdp-threshold-slider">Detection Threshold</label>
-            <span id="cdp-threshold-value" class="slider-badge">{Number(cdpThreshold).toFixed(1)}</span>
-          </div>
-          <input type="range" id="cdp-threshold-slider" min="0.3" max="1.0" step="0.1" aria-label="Chrome DevTools Protocol detection threshold" bind:value={cdpThreshold}>
-          <div class="slider-labels">
-            <span>Strict</span>
-            <span>Permissive</span>
-          </div>
-        </div>
-      </div>
-    </ConfigPanel>
-
     <ConfigPanel writable={writable} dirty={rateLimitDirty}>
       <ConfigPanelHeading title="Rate Limiting">
         <label class="toggle-switch" for="rate-limit-enabled-toggle">
@@ -1295,7 +1130,7 @@
       </ConfigPanelHeading>
       <p class="control-desc text-muted">Define the allowed requests per minute per <abbr title="Internet Protocol">IP</abbr> bucket (<abbr title="Internet Protocol Version 4">IPv4</abbr> /24, <abbr title="Internet Protocol Version 6">IPv6</abbr> /64), not a single host <abbr title="Internet Protocol">IP</abbr>. Default budget is <code>80</code> requests; lower values are more strict but can affect legitimate burst traffic and innocent visitors when the budget of their <abbr title="Internet Protocol">IP</abbr> bucket is exhausted by a malicious bot.</p>
       <div class="admin-controls">
-        <NumericInputRow id="rate-limit-threshold" label='Requests Per Minute (per <abbr title="Internet Protocol">IP</abbr> bucket)' labelClass="control-label control-label--wide" min="1" max="1000000" step="1" inputmode="numeric" ariaLabel="Rate limit requests per minute" bind:value={rateLimitThreshold} />
+        <NumericInputRow id="rate-limit-threshold" label='Requests Per Minute (per <abbr title="Internet Protocol">IP</abbr> bucket)' labelClass="control-label control-label--wide" min="1" max="1000000" step="1" inputmode="numeric" ariaLabel="Rate limit requests per minute" ariaInvalid={rateLimitValid ? 'false' : 'true'} bind:value={rateLimitThreshold} />
       </div>
       {#if !rateLimitingEnabled}
         <p class="message warning">
@@ -1305,22 +1140,20 @@
       {/if}
     </ConfigPanel>
 
-    <ConfigMazeSection bind:writable bind:mazeDirty bind:tarpitDirty bind:mazeEnabled bind:mazeAutoBan bind:mazeThreshold bind:tarpitEnabled />
+    <ConfigMazeSection bind:writable bind:mazeDirty bind:tarpitDirty bind:mazeEnabled bind:mazeAutoBan bind:mazeThreshold mazeThresholdValid={mazeThresholdValid} bind:tarpitEnabled />
 
-    <ConfigChallengeSection bind:writable bind:notABotDirty bind:challengePuzzleDirty bind:notABotEnabled bind:challengePuzzleEnabled bind:notABotScorePassMinFloor bind:notABotScorePassMin bind:notABotScoreFailMaxCap bind:notABotScoreFailMax />
+    <ConfigChallengeSection bind:writable bind:notABotDirty bind:challengePuzzleDirty bind:notABotEnabled bind:challengePuzzleEnabled bind:notABotScorePassMinFloor bind:notABotScorePassMin bind:notABotScoreFailMaxCap bind:notABotScoreFailMax notABotPassScoreValid={notABotPassScoreValid} notABotFailScoreValid={notABotFailScoreValid} />
 
-    <ConfigNetworkSection bind:writable bind:honeypotDirty bind:honeypotEnabled bind:honeypotPaths bind:ipRangeDirty bind:ipRangePolicyMode bind:ipRangeEmergencyAllowlist bind:ipRangeCustomRulesJson bind:ipRangeManagedPoliciesJson bind:ipRangeManagedMaxStalenessHours bind:ipRangeAllowStaleManagedEnforce ipRangeManagedStalenessMin={IP_RANGE_MANAGED_STALENESS_MIN} ipRangeManagedStalenessMax={IP_RANGE_MANAGED_STALENESS_MAX} bind:ipRangeManagedSetRows bind:ipRangeCatalogVersion bind:ipRangeCatalogGeneratedAt bind:ipRangeCatalogAgeHours bind:ipRangeManagedSetStaleCount bind:ipRangeCatalogStale bind:browserPolicyDirty bind:browserPolicyEnabled bind:browserBlockRules bind:browserWhitelistRules bind:whitelistDirty bind:bypassAllowlistsEnabled bind:networkWhitelist bind:pathWhitelist bind:edgeModeDirty bind:edgeIntegrationMode />
+    <ConfigNetworkSection bind:writable bind:honeypotDirty bind:honeypotEnabled bind:honeypotPaths honeypotPathsValid={honeypotValid} honeypotInvalidMessage={honeypotInvalidMessage} bind:browserPolicyDirty bind:browserPolicyEnabled bind:browserBlockRules bind:browserWhitelistRules browserBlockRulesValid={browserBlockRulesValid} browserWhitelistRulesValid={browserWhitelistRulesValid} />
 
-    <ConfigGeoSection bind:writable bind:geoScoringDirty bind:geoRoutingDirty bind:geoScoringEnabled bind:geoRoutingEnabled bind:geoRiskList bind:geoAllowList bind:geoChallengeList bind:geoMazeList bind:geoBlockList />
+    <ConfigGeoSection bind:writable bind:geoScoringDirty bind:geoRoutingDirty bind:geoScoringEnabled bind:geoRoutingEnabled bind:geoRiskList bind:geoAllowList bind:geoChallengeList bind:geoMazeList bind:geoBlockList geoRiskListValid={geoRiskListValid} geoAllowListValid={geoAllowListValid} geoChallengeListValid={geoChallengeListValid} geoMazeListValid={geoMazeListValid} geoBlockListValid={geoBlockListValid} />
 
-    <ConfigDurationsSection bind:writable bind:durationsDirty bind:durHoneypotDays bind:durHoneypotHours bind:durHoneypotMinutes bind:durRateLimitDays bind:durRateLimitHours bind:durRateLimitMinutes bind:durBrowserDays bind:durBrowserHours bind:durBrowserMinutes bind:durCdpDays bind:durCdpHours bind:durCdpMinutes bind:durAdminDays bind:durAdminHours bind:durAdminMinutes />
-
-    <ConfigRobotsSection bind:writable bind:robotsDirty bind:aiPolicyDirty bind:robotsEnabled bind:robotsCrawlDelay bind:robotsBlockTraining bind:robotsBlockSearch bind:restrictSearchEngines bind:robotsPreviewOpen bind:robotsPreviewLoading bind:robotsPreviewContent onRobotsPreviewControlChanged={onRobotsPreviewControlChanged} onToggleRobotsPreview={toggleRobotsPreview} />
+    <ConfigDurationsSection bind:writable bind:durationsDirty bind:durHoneypotDays bind:durHoneypotHours bind:durHoneypotMinutes bind:durRateLimitDays bind:durRateLimitHours bind:durRateLimitMinutes bind:durBrowserDays bind:durBrowserHours bind:durBrowserMinutes bind:durCdpDays bind:durCdpHours bind:durCdpMinutes bind:durAdminDays bind:durAdminHours bind:durAdminMinutes durHoneypotValid={durHoneypotValid} durRateLimitValid={durRateLimitValid} durBrowserValid={durBrowserValid} durCdpValid={durCdpValid} durAdminValid={durAdminValid} />
 
     <ConfigExportSection bind:writable bind:exportConfigDisabled bind:exportConfigStatus bind:exportConfigStatusKind onExportCurrentConfigJson={exportCurrentConfigJson} />
 
     <ConfigAdvancedSection bind:writable bind:advancedDirty bind:advancedConfigJson bind:advancedValidationPending bind:advancedInvalidMessage bind:advancedValidationIssues bind:advancedValid />
 
-    <SaveChangesBar containerId="config-save-all-bar" hidden={!writable || !hasUnsavedChanges} summaryId="config-unsaved-summary" summaryText={saveAllSummaryText} summaryClass="text-unsaved-changes" invalidId="config-invalid-summary" invalidText={saveAllInvalidText} buttonId="save-config-all" buttonLabel={saveAllConfigLabel} buttonDisabled={saveAllConfigDisabled} onSave={saveAllConfig} />
+    <SaveChangesBar containerId="config-save-all-bar" isHidden={!writable || !hasUnsavedChanges} summaryId="config-unsaved-summary" summaryText={saveAllSummaryText} summaryClass="text-unsaved-changes" invalidId="config-invalid-summary" invalidText={saveAllInvalidText} buttonId="save-config-all" buttonLabel={saveAllConfigLabel} buttonDisabled={saveAllConfigDisabled} onSave={saveAllConfig} />
   </div>
 </section>

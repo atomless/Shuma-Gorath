@@ -334,6 +334,37 @@ export function createDashboardRefreshRuntime(options = {}) {
       runtimeOptions
     );
 
+  async function refreshFingerprintingTab(reason = 'manual', runtimeOptions = {}) {
+    const dashboardApiClient = getApiClient();
+    if (!dashboardApiClient) return;
+
+    if (reason !== 'auto-refresh') {
+      showTabLoading('fingerprinting', 'Loading fingerprinting controls...');
+    }
+
+    const requestOptions = toRequestOptions(runtimeOptions);
+    const [config, cdp] = await Promise.all([
+      refreshSharedConfig(reason, runtimeOptions),
+      dashboardApiClient.getCdp(requestOptions)
+    ]);
+
+    applySnapshots({ cdp });
+    if (isConfigSnapshotEmpty(config)) {
+      showTabEmpty('fingerprinting', 'No fingerprinting config snapshot available yet.');
+    } else {
+      clearTabStateMessage('fingerprinting');
+    }
+  }
+
+  const refreshRobotsTab = (reason = 'manual', runtimeOptions = {}) =>
+    refreshConfigBackedTab(
+      'robots',
+      reason,
+      'Loading robots policy...',
+      'No robots config snapshot available yet.',
+      runtimeOptions
+    );
+
   const refreshTuningTab = (reason = 'manual', runtimeOptions = {}) =>
     refreshConfigBackedTab(
       'tuning',
@@ -353,6 +384,8 @@ export function createDashboardRefreshRuntime(options = {}) {
     'ip-bans': refreshIpBansTab,
     status: refreshStatusTab,
     config: refreshConfigTab,
+    fingerprinting: refreshFingerprintingTab,
+    robots: refreshRobotsTab,
     tuning: refreshTuningTab
   });
 
@@ -388,6 +421,8 @@ export function createDashboardRefreshRuntime(options = {}) {
     refreshIpBansTab,
     refreshStatusTab,
     refreshConfigTab,
+    refreshFingerprintingTab,
+    refreshRobotsTab,
     refreshTuningTab,
     refreshDashboardForTab,
     refreshActiveTab
