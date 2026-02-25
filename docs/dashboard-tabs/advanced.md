@@ -1,0 +1,30 @@
+# Dashboard Tab: Advanced
+
+Route: `#advanced`  
+Component: [`dashboard/src/lib/components/dashboard/AdvancedTab.svelte`](../../dashboard/src/lib/components/dashboard/AdvancedTab.svelte)
+
+Purpose:
+
+- Provide full runtime variable inventory and low-level JSON patch editing.
+
+Panels:
+
+- `Runtime Variable Inventory`:
+  - grouped snapshot of runtime config variables,
+  - rows highlight admin-writable variables,
+  - per-variable meaning text from status variable metadata.
+- `Advanced Config JSON`:
+  - editable JSON object patch seeded from writable template paths,
+  - always-on line numbers,
+  - parse diagnostics and server validation diagnostics,
+  - line/column issue reporting where available.
+
+Validation/save flow:
+
+- Client parse check must pass (valid JSON object).
+- Server validation (`POST /admin/config/validate`) must pass.
+- Save writes patch to `POST /admin/config`.
+
+Policy note:
+
+- Advanced JSON must remain in parity with all non-env-only writable admin config keys.

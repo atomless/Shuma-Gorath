@@ -1074,7 +1074,7 @@ test('ip bans, config, traps, advanced, rate-limiting, geo, fingerprinting, robo
   assert.match(configSource, /export let onSaveConfig = null;/);
   assert.equal(configSource.includes('onFetchRobotsPreview'), false);
   assert.equal(configSource.includes('test_mode'), false);
-  assert.match(configSource, /let ipRangePolicyMode = 'off';/);
+  assert.equal(configSource.includes('let ipRangePolicyMode = '), false);
   assert.equal(configSource.includes('robotsAllowSearch'), false);
   assert.equal(configSource.includes('onTestModeToggleChange'), false);
   assert.match(configSource, /await onSaveConfig\(/);
@@ -1121,7 +1121,7 @@ test('ip bans, config, traps, advanced, rate-limiting, geo, fingerprinting, robo
   assert.match(configSource, /saveAllConfig\(/);
   assert.match(configSource, /window\.addEventListener\('beforeunload'/);
   assert.equal(configSurfaceSource.includes('id="ip-range-policy-mode"'), false);
-  assert.match(configSource, /ip_range_policy_mode/);
+  assert.equal(configSource.includes('ip_range_policy_mode'), false);
   assert.match(configSurfaceSource, /id="config-cdp-enabled-toggle"/);
   assert.match(configSurfaceSource, /id="config-cdp-threshold-slider"/);
   assert.equal(configSurfaceSource.includes('id="edge-integration-mode-select"'), false);

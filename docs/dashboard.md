@@ -2,257 +2,104 @@
 
 ## 🐙 Overview
 
-The dashboard provides real-time monitoring, analytics, and admin controls for Shuma-Gorath.
+The dashboard is a tabbed SvelteKit admin UI for monitoring and runtime configuration of Shuma-Gorath.
 
-Terminology and architecture references for this area:
+Canonical tab behavior and controls are documented in [`docs/dashboard-tabs/README.md`](dashboard-tabs/README.md).
+
+Related terminology and architecture docs:
+
 - [`fingerprinting-terminology.md`](fingerprinting-terminology.md)
 - [`fingerprinting-signal-planes.md`](fingerprinting-signal-planes.md)
 
-## 🐙 Tabbed <abbr title="Single-Page Application">SPA</abbr> Layout
+## 🐙 Tab Routes
 
-The dashboard is now organized as a tabbed <abbr title="Single-Page Application">SPA</abbr> with <abbr title="Uniform Resource Locator">URL</abbr>-backed hash routes:
+The dashboard uses URL hash routes:
 
-- `#monitoring`
-- `#ip-bans`
-- `#status`
-- `#config`
-- `#rate-limiting`
-- `#geo`
-- `#fingerprinting`
-- `#robots`
-- `#tuning`
+- `#monitoring` - [`dashboard-tabs/monitoring.md`](dashboard-tabs/monitoring.md)
+- `#ip-bans` - [`dashboard-tabs/ip-bans.md`](dashboard-tabs/ip-bans.md)
+- `#status` - [`dashboard-tabs/status.md`](dashboard-tabs/status.md)
+- `#config` - [`dashboard-tabs/config.md`](dashboard-tabs/config.md)
+- `#traps` - [`dashboard-tabs/traps.md`](dashboard-tabs/traps.md)
+- `#rate-limiting` - [`dashboard-tabs/rate-limiting.md`](dashboard-tabs/rate-limiting.md)
+- `#geo` - [`dashboard-tabs/geo.md`](dashboard-tabs/geo.md)
+- `#fingerprinting` - [`dashboard-tabs/fingerprinting.md`](dashboard-tabs/fingerprinting.md)
+- `#robots` - [`dashboard-tabs/robots.md`](dashboard-tabs/robots.md)
+- `#tuning` - [`dashboard-tabs/tuning.md`](dashboard-tabs/tuning.md)
+- `#advanced` - [`dashboard-tabs/advanced.md`](dashboard-tabs/advanced.md)
 
 Behavior:
-- Selected tab is reflected in the <abbr title="Uniform Resource Locator">URL</abbr> hash.
-- Reload preserves the selected tab.
-- Keyboard navigation is supported on tabs (`Left`, `Right`, `Home`, `End`).
-- Tab panels expose explicit loading/empty/error states.
 
-Refresh model:
-- Polling is scoped to the active tab only.
-- One bounded timer is used (no per-tab timer accumulation).
-- Polling pauses while the page is hidden and resumes on visibility restore.
-- Auto-refresh defaults to `OFF` and is explicitly user-toggled.
-- Auto-refresh is only available on `Monitoring` and `IP Bans` (cadence `60s`).
-- `Status`/`Config`/`Rate Limiting`/`GEO`/`Fingerprinting`/`Robots`/`Tuning` refresh on page-load bootstrap and explicit save flows (no background polling).
-- Monitoring and <abbr title="Internet Protocol">IP</abbr>-ban snapshots are cached in local storage with a short <abbr title="Time To Live">TTL</abbr> (`60s`) to reduce repeated <abbr title="Application Programming Interface">API</abbr> load/cost on quick remount/tab revisit paths.
-- Cached monitoring payloads are compacted before storage (bounded recent events/<abbr title="Chrome DevTools Protocol">CDP</abbr> rows/ban rows) to reduce serialization and local-storage overhead.
-- Logout/session-expiry clears monitoring/<abbr title="Internet Protocol">IP</abbr>-ban local cache keys to avoid telemetry bleed across session boundaries.
-- Dashboard <abbr title="Application Programming Interface">API</abbr> requests now apply a client timeout guard (`12s` default) so stalled admin endpoints fail fast instead of hanging polling/refresh cycles indefinitely.
-- Monitoring refresh uses a single consolidated read (`/admin/monitoring`) and now updates all monitoring sections from equally fresh snapshot state (cards, tables, and charts).
-- Monitoring long-range (`7d`/`30d`) range reads stay explicit user-driven in manual mode and only run on bounded cadence while auto-refresh is enabled.
-- Monitoring events/<abbr title="Chrome DevTools Protocol">CDP</abbr> tables now use keyed row patching with bounded row windows (`events<=100`, `cdp<=500`) to avoid full-table <abbr title="Document Object Model">DOM</abbr> rebuild churn on refresh.
-- Monitoring summary/trend rendering now applies bounded sanitization before chart/table paint (top-list rows capped at `10`, trend points capped at `720`, range-event fetch rows capped at `5000`, non-finite/negative counts coerced to safe bounded integers).
-- Monitoring long-range (`7d`/`30d`) fetches now abort when the tab becomes inactive and apply a dedicated fetch timeout (`10s`) to avoid background request churn.
-- Runtime telemetry now captures:
-- refresh fetch latency (last/rolling avg/p95/max over a bounded sample window),
-- render timing to next frame (last/rolling avg/p95/max over a bounded sample window),
-- polling skip/resume counters and last skip/resume reasons.
+- Selected tab is reflected in the URL hash.
+- Reload preserves selected tab.
+- Keyboard tab navigation is supported (`Left`, `Right`, `Home`, `End`).
+- Each tab exposes explicit loading, empty, and error state messaging.
 
-## 🐙 SvelteKit Runtime
+## 🐙 Refresh Model
 
-- Dashboard <abbr title="User Interface">UI</abbr> is now generated by SvelteKit (`adapter-static`) and served from `dist/dashboard`.
-- Route contracts are preserved:
-- `/dashboard/index.html`
-- `/dashboard/login.html`
-- Existing tab hash routes (`#monitoring`, `#ip-bans`, `#status`, `#config`, `#rate-limiting`, `#geo`, `#fingerprinting`, `#robots`, `#tuning`).
-- The page is now a Svelte component tree (`Monitoring`, `IP Bans`, `Status`, `Config`, `Rate Limiting`, `GEO`, `Fingerprinting`, `Robots`, `Tuning`) instead of shell-fragment injection.
-- Runtime behavior mounts directly through `src/lib/runtime/dashboard-native-runtime.js` (`mountDashboardApp`/`unmountDashboardApp`) with explicit lifecycle cleanup.
-- Svelte-native orchestration is route-local through `src/routes/+page.svelte` + `src/lib/runtime/dashboard-route-controller.js` (hash sync, polling cadence, visibility pause/resume, session bootstrap/logout, and keyboard tab focus) with `src/lib/state/dashboard-store.js` as the single state source.
-- Refresh orchestration and tab-state message transitions are centralized in `src/lib/runtime/dashboard-runtime-refresh.js`.
-- `src/lib/runtime/dashboard-native-runtime.js` is now a slim runtime boundary for session restore/logout, snapshot refresh wiring, and domain <abbr title="Application Programming Interface">API</abbr> mutations (config save, ban/unban, robots preview) with no per-field <abbr title="Document Object Model">DOM</abbr> mutation layer.
-- Config, rate-limiting, GEO, fingerprinting, robots, tuning, and <abbr title="Internet Protocol">IP</abbr>-ban workflows are now component-local Svelte state with explicit callback props and declarative dirty/validation/submit behavior.
-- Chart runtime lifecycle is module-scoped through `src/lib/domain/services/chart-runtime-adapter.js` (lazy load, singleton guard, teardown on final unmount) instead of static head-script injection.
-- `dashboard/package.json` still sets `"type": "module"` so existing dashboard module unit tests run via native <abbr title="ECMAScript Module">ESM</abbr> in Node.
+- Polling and refresh are scoped to the active tab.
+- Auto-refresh is available only on `Monitoring` and `IP Bans`.
+- All other tabs refresh on initial load, on explicit refresh events, and after relevant save flows.
+- Monitoring and IP-bans snapshots use bounded local cache to reduce repeated admin API load on rapid remount/revisit.
 
-## 🐙 Features
+## 🐙 Runtime Architecture
 
-Stats:
-- Total bans
-- Active bans
-- Total events
-- Unique IPs
-- Test mode banner
-- Fail-open/closed indicator (read-only)
-
-Charts:
-- Event types distribution (doughnut)
-- Top IPs by activity (bar)
-- Events over time (line, 60m/24h/7d/30d)
-- Local chart runtime renders legends and readable axes/ticks (no <abbr title="Content Delivery Network">CDN</abbr> dependency)
-
-Tables:
-- Current bans (<abbr title="Internet Protocol">IP</abbr>, reason, timestamps, signal badges, expandable fingerprint details, quick unban)
-- Recent events (type, <abbr title="Internet Protocol">IP</abbr>, timestamp, reason)
-- <abbr title="Chrome DevTools Protocol">CDP</abbr> detections & bans table (time-windowed <abbr title="Chrome DevTools Protocol">CDP</abbr>-only feed)
-- <abbr title="Chrome DevTools Protocol">CDP</abbr> cumulative totals (all-time detections + auto-bans)
-- Monitoring summaries:
-- Honeypot Hits (total hits, unique crawler buckets, top crawlers, top paths)
-- Challenge Outcomes (rejection/attack reason breakdown + trend)
-- <abbr title="Proof of Work">PoW</abbr> Verification (success/failure outcomes, success ratio, failure reason breakdown + trend)
-- Rate Limiting Violations (total, offenders, outcomes)
-- <abbr title="Geolocation">GEO</abbr> Violations (actions + top countries)
-- Prometheus helper panel (examples and guidance sourced from `/admin/monitoring` payload as the single contract source, including explicit `/metrics` semantics, `/admin/monitoring?hours=1-720&limit=1-50` bounded-query examples, sample text output, stat-extraction snippets, and copy actions for <abbr title="JavaScript">JS</abbr> and curl examples with links to observability/<abbr title="Application Programming Interface">API</abbr> docs)
-- Runtime Variable Inventory tables in Status tab:
-- full runtime config snapshot (including nested keys)
-- grouped by concern for faster operator scanning
-- admin-writable variables highlighted with row background
-- per-variable meaning text so operators can read value + intent in one place
-- Runtime Performance Telemetry panel in Status tab:
-- fetch latency and render timing cards (last + rolling avg + p95 + bounded window/total sample counts)
-- polling skip/resume counters with last skip reason and resume timestamp
-- operator thresholds: keep rolling p95 fetch latency below `500 ms`, rolling p95 render timing below `16 ms`, and investigate sustained polling skip/resume churn.
-
-Controls:
-- Test mode toggle
-- Manual ban/unban
-- Ban <abbr title="Internet Protocol">IP</abbr> duration inputs initialize from `ban_durations.admin` (same default source as Ban Durations config)
-- <abbr title="JavaScript">JS</abbr> Required enforcement toggle
-- Rate Limiting tab controls: enable/disable hard rate-limit enforcement plus requests/minute threshold per source <abbr title="Internet Protocol">IP</abbr> bucket (`defence_modes.rate`: `both` when enabled, `signal` when disabled; bucket model is IPv4 /24 and IPv6 /64), plus Akamai rate backend toggle (`provider_backends.rate_limiter`).
-- Honeypot controls (`honeypot_enabled`, `honeypots`)
-- Browser policy controls (`browser_policy_enabled`, `browser_block`, `browser_whitelist`)
-- Bypass allowlist controls (`bypass_allowlists_enabled`, `whitelist`, `path_whitelist`)
-- Per-trigger ban durations, including <abbr title="Chrome DevTools Protocol">CDP</abbr> automation duration (`ban_durations.cdp`)
-- robots.txt configuration with dirty-state preview (unsaved panel toggles render via `POST /admin/robots/preview` without persisting)
-- <abbr title="JavaScript">JS</abbr> Required + browser <abbr title="Chrome DevTools Protocol">CDP</abbr> automation detection controls controls in Config (`cdp_detection_enabled`, `cdp_auto_ban`, `cdp_detection_threshold`), with CDP controls disabled when JS Required is off
-- Fingerprinting tab `Akamai Bot Signal` controls: Akamai on/off toggle + mode (`additive` or `authoritative`)
-- <abbr title="Proof of Work">PoW</abbr> enable toggle plus difficulty/<abbr title="Time To Live">TTL</abbr> tuning
-- Challenge puzzle controls (`challenge_puzzle_enabled`); transform-count and runtime hardening knobs remain Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only.
-- Not-a-Bot controls (`not_a_bot_enabled`, `not_a_bot_pass_score`, `not_a_bot_fail_score`); verification-token lifetime, pass-marker lifetime, and attempt-window knobs remain Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only.
-- Tarpit main-pane exposure is intentionally minimal: only `tarpit_enabled` is exposed in the dedicated Tarpit panel. All other tarpit controls are Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only.
-- For exact challenge-outcome routing and tarpit attack behavior, see [`tarpit.md`](tarpit.md). For full key definitions/ranges, see [`configuration.md`](configuration.md).
-- Tarpit research index: [`research/README.md`](research/README.md).
-- Botness scoring controls:
-- challenge threshold
-- maze threshold
-- per-signal weights (`js_required`, `geo_risk`, `rate_medium`, `rate_high`)
-- read-only terminal signal catalog
-- editable when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`
-- GEO tab controls:
-- scoring toggle + risk countries (`defence_modes.geo` signal path + `geo_risk`)
-- routing toggle + tiered routing countries (`defence_modes.geo` action path + `geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`)
-- Akamai GEO signal toggle (`geo_edge_headers_enabled`) to enable/disable trusted edge country-header ingestion
-- maze stats
-- non-operational Maze Preview link in Maze config
-- non-operational Tarpit preview link in Tarpit config
-- Enter key submits inputs (<abbr title="Application Programming Interface">API</abbr> key, ban, unban)
-- Active-tab scoped auto-refresh (no background full-dashboard refresh on hidden tabs)
-- <abbr title="Application Programming Interface">API</abbr> client defensively parses <abbr title="JavaScript Object Notation">JSON</abbr>-shaped payloads even when upstream omits `Content-Type`, to prevent false empty-state rendering
-- Advanced Config <abbr title="JavaScript Object Notation">JSON</abbr> editor:
-- prefilled with a writable-key template from current config snapshot
-- accepts <abbr title="JavaScript Object Notation">JSON</abbr> object patch and submits directly to `POST /admin/config`
-- dirty-state + validation guarded (save enabled only for valid changed <abbr title="JavaScript Object Notation">JSON</abbr>)
-- server-side live validation via `POST /admin/config/validate` (field-specific issue feedback with expected-value hints)
+- UI is SvelteKit static output served from `dist/dashboard`.
+- Route orchestration lives in [`dashboard/src/routes/+page.svelte`](../dashboard/src/routes/+page.svelte).
+- Tab list/state contracts are defined in [`dashboard/src/lib/domain/dashboard-state.js`](../dashboard/src/lib/domain/dashboard-state.js).
+- Refresh orchestration is in [`dashboard/src/lib/runtime/dashboard-runtime-refresh.js`](../dashboard/src/lib/runtime/dashboard-runtime-refresh.js).
+- Runtime session/config mutation boundary is [`dashboard/src/lib/runtime/dashboard-native-runtime.js`](../dashboard/src/lib/runtime/dashboard-native-runtime.js).
 
 ## 🐙 Access
 
 Development:
+
 - `http://127.0.0.1:3000/dashboard/index.html`
-- `http://127.0.0.1:3000/dashboard` (canonical redirect to `/dashboard/index.html`)
-- Dashboard assets are built via `pnpm run build:dashboard` and emitted to `dist/dashboard` (wired into `make dev`, `make run`, and `make build`).
-- <abbr title="Application Programming Interface">API</abbr> key source: `SHUMA_API_KEY` from environment (local dev commonly loads this from `.env.local`)
-- Login flow: unauthenticated visits to `/dashboard/index.html` are redirected to `/dashboard/login.html`; enter <abbr title="Application Programming Interface">API</abbr> key once to create a short-lived same-origin admin session cookie
-- Admin <abbr title="Application Programming Interface">API</abbr> endpoint is inferred from the page origin (same-origin only)
-- `make dev` applies local-write defaults (`DEV_ADMIN_CONFIG_WRITE_ENABLED=true`) even when `.env.local` is stricter.
-- `make dev` also clears `SHUMA_ADMIN_IP_ALLOWLIST` by default (`DEV_ADMIN_IP_ALLOWLIST=`) so localhost browser login works without trusted proxy headers.
-- Override dev defaults per run if you want production-like behavior (example: `make dev DEV_ADMIN_CONFIG_WRITE_ENABLED=false DEV_ADMIN_IP_ALLOWLIST=127.0.0.1,::1`).
+- `http://127.0.0.1:3000/dashboard` (redirects to `/dashboard/index.html`)
 
-Production (recommended):
-- Protect the dashboard with auth
-- Use `SHUMA_ADMIN_IP_ALLOWLIST` to restrict admin access
-- Serve over <abbr title="Hypertext Transfer Protocol Secure">HTTPS</abbr>
-- Store secrets in your platform’s secret store
+Notes:
 
-## 🐙 Event Retention
+- Login page: `/dashboard/login.html`
+- Admin session uses same-origin cookie + CSRF header for state-changing calls.
+- Config panes are editable only when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`.
 
-Event log retention is controlled by `SHUMA_EVENT_LOG_RETENTION_HOURS` (default: `168`). Set to `0` to disable cleanup.
+## 🐙 Admin API Endpoints Used by Dashboard
 
-## 🐙 <abbr title="Application Programming Interface">API</abbr> Endpoints Used
-
-- `GET  /admin/analytics`
-- `GET  /admin/events?hours=24`
-- `GET  /admin/cdp/events?hours=24&limit=500`
-- `GET  /admin/monitoring?hours=24&limit=10`
-- `GET  /admin/config`
-- `POST /admin/config`
-- `POST /admin/config/validate`
+- `GET /admin/session`
+- `POST /admin/logout`
+- `GET /admin/monitoring?hours=24&limit=10`
+- `GET /admin/events?hours=N`
+- `GET /admin/ban`
 - `POST /admin/ban`
 - `POST /admin/unban`
-- `GET  /admin/maze`
-- `GET  /admin/maze/preview`
-- `GET  /admin/tarpit/preview`
-- `GET  /admin/robots`
+- `GET /admin/cdp`
+- `GET /admin/config`
+- `POST /admin/config`
+- `POST /admin/config/validate`
+- `GET /admin/robots`
 - `POST /admin/robots/preview`
-- `GET  /admin/cdp`
 
-## 🐙 Files
+Preview links surfaced in tab UI:
 
-```
-dashboard/
-  svelte.config.js
-  vite.config.js
-  src/app.html
-  src/app.css
-  src/routes/+page.svelte
-  src/routes/login.html/+page.svelte
-  src/lib/components/dashboard/MonitoringTab.svelte
-  src/lib/components/dashboard/monitoring/*.svelte
-  src/lib/components/dashboard/IpBansTab.svelte
-  src/lib/components/dashboard/StatusTab.svelte
-  src/lib/components/dashboard/ConfigTab.svelte
-  src/lib/components/dashboard/TuningTab.svelte
-  src/lib/components/dashboard/primitives/TabStateMessage.svelte
-  src/lib/components/dashboard/primitives/StatCard.svelte
-  src/lib/components/dashboard/primitives/TableWrapper.svelte
-  src/lib/state/dashboard-store.js
-  src/lib/runtime/dashboard-runtime-refresh.js
-  src/lib/runtime/dashboard-route-controller.js
-  src/lib/runtime/dashboard-native-runtime.js
-  src/lib/domain/core/format.js
-  src/lib/domain/core/json-object.js
-  src/lib/domain/api-client.js
-  src/lib/domain/config-form-utils.js
-  src/lib/domain/config-schema.js
-  src/lib/domain/services/admin-endpoint.js
-  src/lib/domain/services/chart-runtime-adapter.js
-  src/lib/domain/status.js
-  src/lib/domain/dashboard-state.js
-  static/assets/vendor/chart-lite-1.0.0.min.js
-  package.json
-  src/lib/components/dashboard/monitoring-view-model.js
-  style.css
-
-dist/
-  dashboard/            # generated static output served by Spin
-```
-
-## 🐙 Data Flow (High Level)
-
-1. SvelteKit renders the dashboard page from `src/routes/+page.svelte` with dedicated tab components.
-2. On route mount, `src/routes/+page.svelte` directly calls `src/lib/runtime/dashboard-native-runtime.js` as a single native runtime path (no compatibility flag matrix).
-3. Route-local Svelte orchestration in `src/routes/+page.svelte` delegates lifecycle/polling/hash/session coordination to `src/lib/runtime/dashboard-route-controller.js`, using `src/lib/state/dashboard-store.js` for state and telemetry.
-4. `src/lib/runtime/dashboard-native-runtime.js` provides lifecycle entrypoints (`mountDashboardApp()` / `unmountDashboardApp()`), auth/session state, and domain <abbr title="Application Programming Interface">API</abbr> actions without legacy control binding/<abbr title="Document Object Model">DOM</abbr> mutation wiring.
-5. Monitoring rendering is Svelte-native (`src/lib/components/dashboard/MonitoringTab.svelte`) with focused subsection components in `src/lib/components/dashboard/monitoring/*.svelte`, consuming snapshot/view-model data from `src/lib/components/dashboard/monitoring-view-model.js`; runtime no longer mutates monitoring <abbr title="Document Object Model">DOM</abbr> by global IDs.
-6. Config, Rate Limiting, GEO, tuning, and <abbr title="Internet Protocol">IP</abbr>-ban form state/save behavior are Svelte-owned in `src/lib/components/dashboard/ConfigTab.svelte`, `src/lib/components/dashboard/RateLimitingTab.svelte`, `src/lib/components/dashboard/GeoTab.svelte`, `src/lib/components/dashboard/TuningTab.svelte`, and `src/lib/components/dashboard/IpBansTab.svelte`.
-7. Login is Svelte-native in `src/routes/login.html/+page.svelte` (no shell injection/bridge).
-8. `adapter-static` writes final static assets to `dist/dashboard`, which Spin serves for `/dashboard/...`.
+- `GET /admin/maze/preview`
+- `GET /admin/tarpit/preview`
+- `GET /robots.txt`
 
 ## 🐙 Local Asset Provenance
 
-Chart runtime is vendored locally to avoid runtime <abbr title="Content Delivery Network">CDN</abbr> dependency and supply-chain variability:
+Chart runtime is vendored locally:
 
 - Asset: `dashboard/static/assets/vendor/chart-lite-1.0.0.min.js`
 - Version: `chart-lite-1.0.0`
-- <abbr title="Secure Hash Algorithm">SHA</abbr>-256: `5eec3d4b98e9ddc1fb88c44e0953b8bded137779a4d930c6ab2647a431308388`
-- Policy: update only via reviewed commit; recompute <abbr title="Secure Hash Algorithm">SHA</abbr>-256 and update this section when changed.
+- SHA-256: `5eec3d4b98e9ddc1fb88c44e0953b8bded137779a4d930c6ab2647a431308388`
 
-## 🐙 Rollback Notes
+## 🐙 Rollback
 
-This is a pre-launch hard cutover: no archived legacy dashboard runtime is retained in-tree.
+Pre-launch cutover model: no legacy dashboard runtime branch is retained in-tree.
 
-If a regression appears, use a normal source rollback path (revert offending commit(s), then run `make test` and `make build` before deploy).
+Rollback method:
 
-Note: `SHUMA_KV_STORE_FAIL_OPEN` is an environment-level policy and is shown read-only in the dashboard.
-Note: Admin config panes are editable only when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`.
-Note: <abbr title="Proof of Work">PoW</abbr> config changes are logged to the event log as admin actions.
-Note: Botness scoring changes are logged as `botness_config_update` admin actions.
+1. Revert offending commit(s).
+2. Run `make test`.
+3. Run `make build`.
+4. Redeploy.
+

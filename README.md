@@ -54,7 +54,10 @@ make smoke-single-host
 Dashboard:
 - `http://127.0.0.1:3000/dashboard/index.html`
 - `http://127.0.0.1:3000/dashboard` (redirects to `/dashboard/index.html`)
-- Tabbed <abbr title="Single-Page Application">SPA</abbr> routes: `#monitoring`, `#ip-bans`, `#status`, `#config`, `#tuning`
+- Tabbed <abbr title="Single-Page Application">SPA</abbr> routes:
+  `#monitoring`, `#ip-bans`, `#status`, `#config`, `#traps`, `#rate-limiting`, `#geo`,
+  `#fingerprinting`, `#robots`, `#tuning`, `#advanced`
+- Per-tab operator docs: [`docs/dashboard-tabs/README.md`](docs/dashboard-tabs/README.md)
 - Dashboard <abbr title="User Interface">UI</abbr> is built with SvelteKit static output (`dist/dashboard`) and served by Spin.
 - Charts use local vendored runtime (`dashboard/static/assets/vendor/chart-lite-1.0.0.min.js`) rather than <abbr title="Content Delivery Network">CDN</abbr> scripts.
 - `make dev` forces local-write defaults (`WRITE=true`) so config controls are usable in local sessions.

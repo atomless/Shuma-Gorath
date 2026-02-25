@@ -11,6 +11,7 @@ Use the Makefile as the official workflow. These docs are the source of truth fo
 - [`quick-reference.md`](quick-reference.md) - Command and <abbr title="Application Programming Interface">API</abbr> cheat sheet
 - [`testing.md`](testing.md) - Testing guide (Makefile-only)
 - [`dashboard.md`](dashboard.md) - Dashboard and admin <abbr title="User Interface">UI</abbr>
+- [`dashboard-tabs/README.md`](dashboard-tabs/README.md) - Per-tab dashboard operator docs
 - [`deployment.md`](deployment.md) - Production/deploy configuration
 - [`api.md`](api.md) - <abbr title="Application Programming Interface">API</abbr> usage and endpoint details
 - [`configuration.md`](configuration.md) - Runtime configuration reference

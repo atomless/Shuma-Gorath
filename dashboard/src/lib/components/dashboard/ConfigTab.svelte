@@ -9,20 +9,12 @@
   import TabStateMessage from './primitives/TabStateMessage.svelte';
   import {
     formatBrowserRulesTextarea,
-    formatListTextarea,
     normalizeBrowserRulesForCompare,
-    normalizeListTextareaForCompare,
-    parseBrowserRulesTextarea,
-    parseListTextarea
+    parseBrowserRulesTextarea
   } from '../../domain/config-form-utils.js';
   import { parseFloatNumber, parseInteger } from '../../domain/core/math.js';
   import { inRange } from '../../domain/core/validation.js';
   import ToggleRow from './primitives/ToggleRow.svelte';
-  import {
-    isIpRangePolicyMode,
-    normalizeIpRangePolicyMode,
-    normalizeJsonArrayForCompare
-  } from '../../domain/config-tab-helpers.js';
 
   export let managed = false;
   export let isActive = false;
@@ -31,8 +23,6 @@
   export let configVersion = 0;
   export let onSaveConfig = null;
 
-  const IP_RANGE_MANAGED_STALENESS_MIN = 1;
-  const IP_RANGE_MANAGED_STALENESS_MAX = 2160;
   const EXPORT_STATUS_RESET_MS = 4000;
 
   let writable = false;
@@ -61,18 +51,6 @@
   let notABotAttemptLimit = 6;
   let notABotAttemptWindow = 300;
 
-  let ipRangePolicyMode = 'off';
-  let ipRangeEmergencyAllowlist = '';
-  let ipRangeCustomRulesJson = '[]';
-  let ipRangeManagedPoliciesJson = '[]';
-  let ipRangeManagedMaxStalenessHours = 168;
-  let ipRangeAllowStaleManagedEnforce = false;
-  let ipRangeManagedSets = [];
-  let ipRangeCatalogVersion = '-';
-  let ipRangeCatalogGeneratedAt = '-';
-  let ipRangeCatalogAgeHours = null;
-  let ipRangeCatalogStale = false;
-
   let browserPolicyEnabled = true;
   let browserBlockRules = '';
   let browserWhitelistRules = '';
@@ -94,14 +72,6 @@
       markerTtl: 600,
       attemptLimit: 6,
       attemptWindow: 300
-    },
-    ipRange: {
-      mode: 'off',
-      emergencyAllowlist: '',
-      customRulesJson: '[]',
-      managedPoliciesJson: '[]',
-      managedMaxStalenessHours: 168,
-      allowStaleManagedEnforce: false
     },
     browserPolicy: { enabled: true, block: '', whitelist: '' }
   };
@@ -163,38 +133,6 @@
     notABotAttemptLimit = parseInteger(config.not_a_bot_attempt_limit_per_window, 6);
     notABotAttemptWindow = parseInteger(config.not_a_bot_attempt_window_seconds, 300);
 
-    ipRangePolicyMode = normalizeIpRangePolicyMode(config.ip_range_policy_mode);
-    ipRangeEmergencyAllowlist = formatListTextarea(config.ip_range_emergency_allowlist);
-    ipRangeCustomRulesJson = JSON.stringify(
-      Array.isArray(config.ip_range_custom_rules) ? config.ip_range_custom_rules : [],
-      null,
-      2
-    );
-    ipRangeManagedPoliciesJson = JSON.stringify(
-      Array.isArray(config.ip_range_managed_policies) ? config.ip_range_managed_policies : [],
-      null,
-      2
-    );
-    ipRangeManagedMaxStalenessHours = parseInteger(config.ip_range_managed_max_staleness_hours, 168);
-    ipRangeAllowStaleManagedEnforce = config.ip_range_allow_stale_managed_enforce === true;
-    ipRangeManagedSets = Array.isArray(config.ip_range_managed_sets) ? config.ip_range_managed_sets : [];
-    ipRangeCatalogVersion = String(config.ip_range_managed_catalog_version || '-');
-    ipRangeCatalogGeneratedAt = String(config.ip_range_managed_catalog_generated_at || '-');
-    const catalogGeneratedAtUnix = Number(config.ip_range_managed_catalog_generated_at_unix || 0);
-    if (Number.isFinite(catalogGeneratedAtUnix) && catalogGeneratedAtUnix > 0) {
-      const nowUnix = Math.floor(Date.now() / 1000);
-      ipRangeCatalogAgeHours = nowUnix >= catalogGeneratedAtUnix
-        ? Math.floor((nowUnix - catalogGeneratedAtUnix) / 3600)
-        : 0;
-    } else {
-      ipRangeCatalogAgeHours = null;
-    }
-    const staleByAge = Number.isFinite(ipRangeCatalogAgeHours)
-      ? Number(ipRangeCatalogAgeHours) > Number(ipRangeManagedMaxStalenessHours)
-      : false;
-    ipRangeCatalogStale =
-      staleByAge || ipRangeManagedSets.some((set) => set && set.stale === true);
-
     browserPolicyEnabled = config.browser_policy_enabled !== false;
     browserBlockRules = formatBrowserRulesTextarea(config.browser_block);
     browserWhitelistRules = formatBrowserRulesTextarea(config.browser_whitelist);
@@ -222,14 +160,6 @@
         markerTtl: Number(notABotMarkerTtl),
         attemptLimit: Number(notABotAttemptLimit),
         attemptWindow: Number(notABotAttemptWindow)
-      },
-      ipRange: {
-        mode: normalizeIpRangePolicyMode(ipRangePolicyMode),
-        emergencyAllowlist: normalizeListTextareaForCompare(ipRangeEmergencyAllowlist),
-        customRulesJson: normalizeJsonArrayForCompare(ipRangeCustomRulesJson) || '[]',
-        managedPoliciesJson: normalizeJsonArrayForCompare(ipRangeManagedPoliciesJson) || '[]',
-        managedMaxStalenessHours: Number(ipRangeManagedMaxStalenessHours),
-        allowStaleManagedEnforce: ipRangeAllowStaleManagedEnforce === true
       },
       browserPolicy: {
         enabled: browserPolicyEnabled,
@@ -273,14 +203,6 @@
         patch.not_a_bot_attempt_limit_per_window = Number(notABotAttemptLimit);
         patch.not_a_bot_attempt_window_seconds = Number(notABotAttemptWindow);
       }
-    }
-    if (includeAll || ipRangeDirty) {
-      patch.ip_range_policy_mode = ipRangeModeNormalized;
-      patch.ip_range_emergency_allowlist = parseListTextarea(ipRangeEmergencyAllowlist);
-      patch.ip_range_custom_rules = JSON.parse(ipRangeCustomRulesJson);
-      patch.ip_range_managed_policies = JSON.parse(ipRangeManagedPoliciesJson);
-      patch.ip_range_managed_max_staleness_hours = Number(ipRangeManagedMaxStalenessHours);
-      patch.ip_range_allow_stale_managed_enforce = ipRangeAllowStaleManagedEnforce === true;
     }
     if (includeAll || browserPolicyDirty) {
       patch.browser_policy_enabled = browserPolicyEnabled;
@@ -413,40 +335,6 @@
     readBool(notABotEnabled) !== baseline.notABot.enabled ||
     Number(notABotScorePassMin) !== baseline.notABot.scorePassMin ||
     Number(notABotScoreFailMax) !== baseline.notABot.scoreFailMax
-  );
-
-  $: ipRangeEmergencyAllowlistNormalized = normalizeListTextareaForCompare(ipRangeEmergencyAllowlist);
-  $: ipRangeCustomRulesNormalized = normalizeJsonArrayForCompare(ipRangeCustomRulesJson);
-  $: ipRangeManagedPoliciesNormalized = normalizeJsonArrayForCompare(ipRangeManagedPoliciesJson);
-  $: ipRangeModeNormalized = normalizeIpRangePolicyMode(ipRangePolicyMode);
-  $: ipRangeCustomRulesValid = ipRangeCustomRulesNormalized !== null;
-  $: ipRangeManagedPoliciesValid = ipRangeManagedPoliciesNormalized !== null;
-  $: ipRangeManagedMaxStalenessValid = inRange(
-    ipRangeManagedMaxStalenessHours,
-    IP_RANGE_MANAGED_STALENESS_MIN,
-    IP_RANGE_MANAGED_STALENESS_MAX
-  );
-  $: ipRangeValid = (
-    isIpRangePolicyMode(ipRangeModeNormalized) &&
-    ipRangeCustomRulesValid &&
-    ipRangeManagedPoliciesValid &&
-    ipRangeManagedMaxStalenessValid
-  );
-  $: ipRangeDirty = (
-    ipRangeModeNormalized !== baseline.ipRange.mode ||
-    ipRangeEmergencyAllowlistNormalized !== baseline.ipRange.emergencyAllowlist ||
-    ipRangeCustomRulesNormalized !== baseline.ipRange.customRulesJson ||
-    ipRangeManagedPoliciesNormalized !== baseline.ipRange.managedPoliciesJson ||
-    Number(ipRangeManagedMaxStalenessHours) !== baseline.ipRange.managedMaxStalenessHours ||
-    (ipRangeAllowStaleManagedEnforce === true) !== baseline.ipRange.allowStaleManagedEnforce
-  );
-  $: ipRangeManagedSetRows = Array.isArray(ipRangeManagedSets) ? ipRangeManagedSets : [];
-  $: ipRangeManagedSetStaleCount = ipRangeManagedSetRows.filter((set) => set?.stale === true).length;
-  $: ipRangeCatalogStale = (
-    (Number.isFinite(ipRangeCatalogAgeHours)
-      ? Number(ipRangeCatalogAgeHours) > Number(ipRangeManagedMaxStalenessHours)
-      : false) ||
-    ipRangeManagedSetStaleCount > 0
   );
 
   $: browserBlockNormalized = normalizeBrowserRulesForCompare(browserBlockRules);
