@@ -145,7 +145,7 @@ Shuma uses a canonical escalation taxonomy so policy, metrics, and event logs sh
 ### 🐙 Transition and Precedence Summary
 
 - The most restrictive eligible level wins for a request.
-- Current hard transitions route to `L10_DENY_TEMP` (for example honeypot hit, rate-limit hit, existing active ban, outdated browser policy hit, <abbr title="Geolocation">GEO</abbr> block route, strong automation auto-ban paths).
+- Current hard transitions route to `L10_DENY_TEMP` (for example honeypot hit, rate-limit hit, existing active ban, <abbr title="Geolocation">GEO</abbr> block route, strong automation auto-ban paths).
 - Threshold-driven flows route to `L4` / `L5` / `L6` / `L7` based on configured <abbr title="JavaScript">JS</abbr>, not-a-bot, challenge, and maze thresholds.
 - `L11_DENY_HARD` is not automatic by default and should be gated by explicit policy.
 

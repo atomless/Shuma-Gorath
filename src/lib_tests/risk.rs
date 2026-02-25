@@ -21,8 +21,9 @@ mod tests {
         rate_count: u32,
         rate_limit: u32,
     ) -> crate::BotnessSignalContext {
-        context_with_maze(
+        context_with_browser(
             js_needed,
+            false,
             geo_signal_available,
             geo_risk,
             rate_count,
@@ -39,8 +40,29 @@ mod tests {
         rate_limit: u32,
         maze_behavior_score: u8,
     ) -> crate::BotnessSignalContext {
+        context_with_browser(
+            js_needed,
+            false,
+            geo_signal_available,
+            geo_risk,
+            rate_count,
+            rate_limit,
+            maze_behavior_score,
+        )
+    }
+
+    fn context_with_browser(
+        js_needed: bool,
+        browser_outdated: bool,
+        geo_signal_available: bool,
+        geo_risk: bool,
+        rate_count: u32,
+        rate_limit: u32,
+        maze_behavior_score: u8,
+    ) -> crate::BotnessSignalContext {
         crate::BotnessSignalContext {
             js_needed,
+            browser_outdated,
             geo_signal_available,
             geo_risk,
             rate_count,
@@ -155,6 +177,29 @@ mod tests {
             crate::signals::botness::SignalAvailability::Unavailable
         );
         assert_eq!(geo.contribution, 0);
+
+        let browser = assessment
+            .contributions
+            .iter()
+            .find(|c| c.key == "browser_outdated")
+            .expect("browser signal must exist");
+        assert_eq!(
+            browser.availability,
+            crate::signals::botness::SignalAvailability::Active
+        );
+        assert_eq!(browser.contribution, 0);
+    }
+
+    #[test]
+    fn botness_assessment_adds_small_score_for_browser_policy_match() {
+        let cfg = crate::config::defaults().clone();
+        let assessment = crate::compute_botness_assessment(
+            context_with_browser(false, true, true, false, 0, 80, 0),
+            &cfg,
+        );
+        let browser = contribution(&assessment, "browser_outdated");
+        assert!(browser.active);
+        assert_eq!(browser.contribution, 1);
     }
 
     #[test]

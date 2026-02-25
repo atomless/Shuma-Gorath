@@ -1,9 +1,15 @@
 <script>
   import { onMount } from 'svelte';
+  import {
+    formatBrowserRulesTextarea,
+    normalizeBrowserRulesForCompare,
+    parseBrowserRulesTextarea
+  } from '../../domain/config-form-utils.js';
   import { durationPartsFromSeconds, durationSeconds } from '../../domain/core/date-time.js';
   import { parseInteger } from '../../domain/core/math.js';
   import { inRange, isDurationTupleValid } from '../../domain/core/validation.js';
   import ConfigDurationsSection from './config/ConfigDurationsSection.svelte';
+  import ConfigNetworkSection from './config/ConfigNetworkSection.svelte';
   import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
   import NumericInputRow from './primitives/NumericInputRow.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
@@ -37,15 +43,14 @@
   let durRateLimitDays = 0;
   let durRateLimitHours = 1;
   let durRateLimitMinutes = 0;
-  let durBrowserDays = 0;
-  let durBrowserHours = 6;
-  let durBrowserMinutes = 0;
   let durCdpDays = 0;
   let durCdpHours = 12;
   let durCdpMinutes = 0;
   let durAdminDays = 0;
   let durAdminHours = 6;
   let durAdminMinutes = 0;
+  let browserPolicyEnabled = true;
+  let browserBlockRules = '';
 
   let savingTuning = false;
   let warnOnUnload = false;
@@ -64,9 +69,12 @@
     durations: {
       honeypot: 86400,
       rateLimit: 3600,
-      browser: 21600,
       cdp: 43200,
       admin: 21600
+    },
+    browserPolicy: {
+      enabled: true,
+      block: ''
     }
   };
   let lastSaveInvalidLabel = '';
@@ -93,7 +101,6 @@
     return {
       honeypot: parseInteger(durations.honeypot, 86400),
       rateLimit: parseInteger(durations.rate_limit, 3600),
-      browser: parseInteger(durations.browser, 21600),
       cdp: parseInteger(durations.cdp, 43200),
       admin: parseInteger(durations.admin, 21600)
     };
@@ -104,7 +111,11 @@
     const durations = toDurationBaseline(config);
     baseline = {
       botness,
-      durations
+      durations,
+      browserPolicy: {
+        enabled: config.browser_policy_enabled !== false,
+        block: normalizeBrowserRulesForCompare(formatBrowserRulesTextarea(config.browser_block))
+      }
     };
 
     notABotThreshold = botness.notABotThreshold;
@@ -125,11 +136,6 @@
     durRateLimitHours = rateLimitParts.hours;
     durRateLimitMinutes = rateLimitParts.minutes;
 
-    const browserParts = durationPartsFromSeconds(durations.browser, 21600);
-    durBrowserDays = browserParts.days;
-    durBrowserHours = browserParts.hours;
-    durBrowserMinutes = browserParts.minutes;
-
     const cdpParts = durationPartsFromSeconds(durations.cdp, 43200);
     durCdpDays = cdpParts.days;
     durCdpHours = cdpParts.hours;
@@ -139,6 +145,9 @@
     durAdminDays = adminParts.days;
     durAdminHours = adminParts.hours;
     durAdminMinutes = adminParts.minutes;
+
+    browserPolicyEnabled = config.browser_policy_enabled !== false;
+    browserBlockRules = formatBrowserRulesTextarea(config.browser_block);
   }
 
   async function saveTuningConfig() {
@@ -161,10 +170,13 @@
       payload.ban_durations = {
         honeypot: honeypotDurationSeconds,
         rate_limit: rateDurationSeconds,
-        browser: browserDurationSeconds,
         cdp: cdpDurationSeconds,
         admin: adminDurationSeconds
       };
+    }
+    if (browserPolicyDirty) {
+      payload.browser_policy_enabled = browserPolicyEnabled;
+      payload.browser_block = parseBrowserRulesTextarea(browserBlockRules);
     }
 
     try {
@@ -185,9 +197,12 @@
           durations: {
             honeypot: honeypotDurationSeconds,
             rateLimit: rateDurationSeconds,
-            browser: browserDurationSeconds,
             cdp: cdpDurationSeconds,
             admin: adminDurationSeconds
+          },
+          browserPolicy: {
+            enabled: browserPolicyEnabled,
+            block: normalizeBrowserRulesForCompare(browserBlockRules)
           }
         };
       }
@@ -260,7 +275,6 @@
 
   $: honeypotDurationSeconds = durationSeconds(durHoneypotDays, durHoneypotHours, durHoneypotMinutes);
   $: rateDurationSeconds = durationSeconds(durRateLimitDays, durRateLimitHours, durRateLimitMinutes);
-  $: browserDurationSeconds = durationSeconds(durBrowserDays, durBrowserHours, durBrowserMinutes);
   $: cdpDurationSeconds = durationSeconds(durCdpDays, durCdpHours, durCdpMinutes);
   $: adminDurationSeconds = durationSeconds(durAdminDays, durAdminHours, durAdminMinutes);
 
@@ -274,12 +288,6 @@
     durRateLimitDays,
     durRateLimitHours,
     durRateLimitMinutes,
-    DURATION_VALIDATION_BOUNDS
-  );
-  $: durBrowserValid = isDurationTupleValid(
-    durBrowserDays,
-    durBrowserHours,
-    durBrowserMinutes,
     DURATION_VALIDATION_BOUNDS
   );
   $: durCdpValid = isDurationTupleValid(
@@ -297,21 +305,28 @@
   $: durationsValid = (
     durHoneypotValid &&
     durRateLimitValid &&
-    durBrowserValid &&
     durCdpValid &&
     durAdminValid
   );
   $: durationsDirty = (
     honeypotDurationSeconds !== baseline.durations.honeypot ||
     rateDurationSeconds !== baseline.durations.rateLimit ||
-    browserDurationSeconds !== baseline.durations.browser ||
     cdpDurationSeconds !== baseline.durations.cdp ||
     adminDurationSeconds !== baseline.durations.admin
   );
 
+  $: browserBlockNormalized = normalizeBrowserRulesForCompare(browserBlockRules);
+  $: browserBlockRulesValid = browserBlockNormalized !== '__invalid__';
+  $: browserPolicyValid = browserBlockRulesValid;
+  $: browserPolicyDirty = (
+    (browserPolicyEnabled === true) !== baseline.browserPolicy.enabled ||
+    browserBlockNormalized !== baseline.browserPolicy.block
+  );
+
   $: dirtySections = [
     { label: 'Botness scoring', dirty: botnessDirty, valid: botnessValid },
-    { label: 'Ban durations', dirty: durationsDirty, valid: durationsValid }
+    { label: 'Ban durations', dirty: durationsDirty, valid: durationsValid },
+    { label: 'Browser policy', dirty: browserPolicyDirty, valid: browserPolicyValid }
   ];
   $: dirtySectionEntries = dirtySections.filter((section) => section.dirty === true);
   $: invalidDirtySectionEntries = dirtySectionEntries.filter((section) => section.valid !== true);
@@ -436,9 +451,6 @@
       bind:durRateLimitDays
       bind:durRateLimitHours
       bind:durRateLimitMinutes
-      bind:durBrowserDays
-      bind:durBrowserHours
-      bind:durBrowserMinutes
       bind:durCdpDays
       bind:durCdpHours
       bind:durCdpMinutes
@@ -447,9 +459,18 @@
       bind:durAdminMinutes
       durHoneypotValid={durHoneypotValid}
       durRateLimitValid={durRateLimitValid}
-      durBrowserValid={durBrowserValid}
       durCdpValid={durCdpValid}
       durAdminValid={durAdminValid}
+    />
+
+    <ConfigNetworkSection
+      bind:writable
+      showHoneypot={false}
+      showBrowserPolicy={true}
+      bind:browserPolicyDirty
+      bind:browserPolicyEnabled
+      bind:browserBlockRules
+      browserBlockRulesValid={browserBlockRulesValid}
     />
 
     <SaveChangesBar

@@ -421,8 +421,6 @@ pub struct BanDurations {
     pub honeypot: u64,
     #[serde(default = "default_ban_duration_rate_limit")]
     pub rate_limit: u64,
-    #[serde(default = "default_ban_duration_browser")]
-    pub browser: u64,
     #[serde(default = "default_ban_duration_admin")]
     pub admin: u64,
     #[serde(default = "default_ban_duration_cdp")]
@@ -434,7 +432,6 @@ impl Default for BanDurations {
         BanDurations {
             honeypot: default_ban_duration_honeypot(),
             rate_limit: default_ban_duration_rate_limit(),
-            browser: default_ban_duration_browser(),
             admin: default_ban_duration_admin(),
             cdp: default_ban_duration_cdp(),
         }
@@ -447,7 +444,6 @@ impl BanDurations {
         match ban_type {
             "honeypot" => self.honeypot,
             "rate" | "rate_limit" => self.rate_limit,
-            "browser" => self.browser,
             "cdp" | "cdp_automation" => self.cdp,
             _ => self.admin,
         }
@@ -934,7 +930,6 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         ban_durations: BanDurations {
             honeypot: defaults_u64("SHUMA_BAN_DURATION_HONEYPOT"),
             rate_limit: defaults_u64("SHUMA_BAN_DURATION_RATE_LIMIT"),
-            browser: defaults_u64("SHUMA_BAN_DURATION_BROWSER"),
             admin: defaults_u64("SHUMA_BAN_DURATION_ADMIN"),
             cdp: defaults_u64("SHUMA_BAN_DURATION_CDP"),
         },
@@ -1917,10 +1912,6 @@ fn default_ban_duration_honeypot() -> u64 {
 
 fn default_ban_duration_rate_limit() -> u64 {
     defaults_u64("SHUMA_BAN_DURATION_RATE_LIMIT")
-}
-
-fn default_ban_duration_browser() -> u64 {
-    defaults_u64("SHUMA_BAN_DURATION_BROWSER")
 }
 
 fn default_ban_duration_admin() -> u64 {

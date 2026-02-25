@@ -1042,6 +1042,7 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   );
   const tuningSurfaceSource = [
     tuningSource,
+    configNetworkSource,
     configDurationsSource,
     saveChangesBarSource
   ].join('\n');
@@ -1079,7 +1080,7 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.equal(configSource.includes('onTestModeToggleChange'), false);
   assert.match(configSource, /await onSaveConfig\(/);
   assert.match(configSource, /import ConfigChallengeSection from '\.\/config\/ConfigChallengeSection\.svelte';/);
-  assert.match(configSource, /import ConfigNetworkSection from '\.\/config\/ConfigNetworkSection\.svelte';/);
+  assert.equal(configSource.includes("import ConfigNetworkSection from './config/ConfigNetworkSection.svelte';"), false);
   assert.equal(configSource.includes("import ConfigExportSection from './config/ConfigExportSection.svelte';"), false);
   assert.equal(configSource.includes("import ConfigMazeSection from './config/ConfigMazeSection.svelte';"), false);
   assert.equal(configSource.includes("import ConfigDurationsSection from './config/ConfigDurationsSection.svelte';"), false);
@@ -1087,7 +1088,7 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.equal(configSource.includes('ConfigRobotsSection'), false);
   assert.match(configSource, /import SaveChangesBar from '\.\/primitives\/SaveChangesBar\.svelte';/);
   assert.match(configSource, /<ConfigChallengeSection/);
-  assert.match(configSource, /<ConfigNetworkSection/);
+  assert.equal(configSource.includes('<ConfigNetworkSection'), false);
   assert.equal(configSurfaceSource.includes('id="js-browser-allowlist-rules"'), false);
   assert.equal(configNetworkSource.includes('id="browser-allowlist-rules"'), false);
   assert.equal(configSource.includes('<ConfigExportSection'), false);
@@ -1095,8 +1096,8 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.equal(configSource.includes('<ConfigDurationsSection'), false);
   assert.equal(configSource.includes('<ConfigGeoSection'), false);
   assert.equal(configSource.includes('<ConfigRobotsSection'), false);
-  assert.match(configSource, /showHoneypot=\{false\}/);
-  assert.match(configSource, /showBrowserPolicy=\{true\}/);
+  assert.equal(configSource.includes('showHoneypot={false}'), false);
+  assert.equal(configSource.includes('showBrowserPolicy={true}'), false);
   assert.match(configSource, /<SaveChangesBar/);
   assert.equal(configSurfaceSource.includes('id="test-mode-toggle"'), false);
   assert.match(configSurfaceSource, /id="preview-challenge-puzzle-link"/);
@@ -1126,7 +1127,7 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.equal(configSurfaceSource.includes('id="bypass-allowlists-toggle"'), false);
   assert.equal(configSurfaceSource.includes('id="geo-scoring-toggle"'), false);
   assert.equal(configSurfaceSource.includes('id="geo-routing-toggle"'), false);
-  assert.match(configSource, /browser_policy_enabled/);
+  assert.equal(configSource.includes('browser_policy_enabled'), false);
   assert.equal(configSource.includes('bypass_allowlists_enabled'), false);
   assert.equal(configSource.includes('(LOGGING ONLY)'), false);
   assert.equal(configSource.includes('(BLOCKING ACTIVE)'), false);
@@ -1215,7 +1216,12 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(tuningSource, /export let onSaveConfig = null;/);
   assert.match(tuningSource, /await onSaveConfig\(payload/);
   assert.match(tuningSource, /import ConfigDurationsSection from '\.\/config\/ConfigDurationsSection\.svelte';/);
+  assert.match(tuningSource, /import ConfigNetworkSection from '\.\/config\/ConfigNetworkSection\.svelte';/);
   assert.match(tuningSource, /<ConfigDurationsSection/);
+  assert.match(tuningSource, /<ConfigNetworkSection/);
+  assert.match(tuningSource, /showHoneypot=\{false\}/);
+  assert.match(tuningSource, /showBrowserPolicy=\{true\}/);
+  assert.match(tuningSource, /browser_policy_enabled/);
   assert.match(tuningSource, /ban_durations/);
   assert.match(tuningSource, /buttonId="save-tuning-all"/);
   assert.match(tuningSource, /import SaveChangesBar from '\.\/primitives\/SaveChangesBar\.svelte';/);
@@ -1223,6 +1229,8 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.equal(tuningSource.includes('id="save-botness-config"'), false);
   assert.match(tuningSurfaceSource, /dayId="dur-honeypot-days"/);
   assert.match(tuningSurfaceSource, /dayId="dur-rate-limit-days"/);
+  assert.match(tuningSurfaceSource, /id="browser-policy-toggle"/);
+  assert.match(tuningSurfaceSource, /id="browser-block-rules"/);
 });
 
 test('dashboard route lazily loads heavy tabs and keeps orchestration local', () => {

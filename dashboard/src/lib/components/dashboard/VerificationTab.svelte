@@ -1,17 +1,11 @@
 <script>
   import ConfigChallengeSection from './config/ConfigChallengeSection.svelte';
-  import ConfigNetworkSection from './config/ConfigNetworkSection.svelte';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
   import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
   import { onMount } from 'svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
-  import {
-    formatBrowserRulesTextarea,
-    normalizeBrowserRulesForCompare,
-    parseBrowserRulesTextarea
-  } from '../../domain/config-form-utils.js';
   import { parseFloatNumber, parseInteger } from '../../domain/core/math.js';
   import { inRange } from '../../domain/core/validation.js';
   import ToggleRow from './primitives/ToggleRow.svelte';
@@ -48,9 +42,6 @@
   let notABotAttemptLimit = 6;
   let notABotAttemptWindow = 300;
 
-  let browserPolicyEnabled = true;
-  let browserBlockRules = '';
-
   let baseline = {
     jsRequired: { enforced: true },
     cdp: { enabled: true, autoBan: true, threshold: 0.6 },
@@ -64,8 +55,7 @@
       markerTtl: 600,
       attemptLimit: 6,
       attemptWindow: 300
-    },
-    browserPolicy: { enabled: true, block: '' }
+    }
   };
 
   const handleBeforeUnload = (event) => {
@@ -104,9 +94,6 @@
     notABotAttemptLimit = parseInteger(config.not_a_bot_attempt_limit_per_window, 6);
     notABotAttemptWindow = parseInteger(config.not_a_bot_attempt_window_seconds, 300);
 
-    browserPolicyEnabled = config.browser_policy_enabled !== false;
-    browserBlockRules = formatBrowserRulesTextarea(config.browser_block);
-
     baseline = {
       jsRequired: { enforced: jsRequiredEnforced },
       cdp: {
@@ -130,10 +117,6 @@
         markerTtl: Number(notABotMarkerTtl),
         attemptLimit: Number(notABotAttemptLimit),
         attemptWindow: Number(notABotAttemptWindow)
-      },
-      browserPolicy: {
-        enabled: browserPolicyEnabled,
-        block: normalizeBrowserRulesForCompare(browserBlockRules)
       }
     };
 
@@ -169,10 +152,6 @@
         patch.not_a_bot_attempt_limit_per_window = Number(notABotAttemptLimit);
         patch.not_a_bot_attempt_window_seconds = Number(notABotAttemptWindow);
       }
-    }
-    if (includeAll || browserPolicyDirty) {
-      patch.browser_policy_enabled = browserPolicyEnabled;
-      patch.browser_block = parseBrowserRulesTextarea(browserBlockRules);
     }
     return patch;
   };
@@ -242,21 +221,12 @@
     Number(notABotScoreFailMax) !== baseline.notABot.scoreFailMax
   );
 
-  $: browserBlockNormalized = normalizeBrowserRulesForCompare(browserBlockRules);
-  $: browserBlockRulesValid = browserBlockNormalized !== '__invalid__';
-  $: browserPolicyValid = browserBlockRulesValid;
-  $: browserPolicyDirty = (
-    readBool(browserPolicyEnabled) !== baseline.browserPolicy.enabled ||
-    browserBlockNormalized !== baseline.browserPolicy.block
-  );
-
   $: dirtySections = [
     { label: 'JavaScript required', dirty: jsRequiredDirty, valid: true },
     { label: 'Internal CDP probe', dirty: cdpDirty, valid: cdpValid },
     { label: 'Proof of Work', dirty: powDirty, valid: powValid },
     { label: 'Challenge puzzle', dirty: challengePuzzleDirty, valid: challengePuzzleValid },
-    { label: 'Not-a-Bot', dirty: notABotDirty, valid: notABotValid },
-    { label: 'Browser policy', dirty: browserPolicyDirty, valid: browserPolicyValid }
+    { label: 'Not-a-Bot', dirty: notABotDirty, valid: notABotValid }
   ];
   $: dirtySectionEntries = dirtySections.filter((section) => section.dirty === true);
   $: invalidDirtySectionEntries = dirtySectionEntries.filter((section) => section.valid !== true);
@@ -389,16 +359,6 @@
     </ConfigPanel>
 
     <ConfigChallengeSection bind:writable bind:notABotDirty bind:challengePuzzleDirty bind:notABotEnabled bind:challengePuzzleEnabled bind:notABotScorePassMinFloor bind:notABotScorePassMin bind:notABotScoreFailMaxCap bind:notABotScoreFailMax notABotPassScoreValid={notABotPassScoreValid} notABotFailScoreValid={notABotFailScoreValid} />
-
-    <ConfigNetworkSection
-      bind:writable
-      showHoneypot={false}
-      showBrowserPolicy={true}
-      bind:browserPolicyDirty
-      bind:browserPolicyEnabled
-      bind:browserBlockRules
-      browserBlockRulesValid={browserBlockRulesValid}
-    />
 
     <SaveChangesBar containerId="verification-save-all-bar" isHidden={!writable || !hasUnsavedChanges} summaryId="verification-unsaved-summary" summaryText={saveAllSummaryText} summaryClass="text-unsaved-changes" invalidId="verification-invalid-summary" invalidText={saveAllInvalidText} buttonId="save-verification-all" buttonLabel={saveAllConfigLabel} buttonDisabled={saveAllConfigDisabled} onSave={saveAllConfig} />
   </div>

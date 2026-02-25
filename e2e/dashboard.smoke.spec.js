@@ -503,7 +503,6 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
     ban_durations: {
       honeypot: 86400,
       rate_limit: 3600,
-      browser: 21600,
       cdp: 43200,
       admin: 21600
     },
@@ -963,114 +962,26 @@ test("verification save-all button reflects shared dirty-state behavior", async 
   await openTab(page, "verification", { waitForReady: true });
 
   const configSave = page.locator("#save-verification-all");
-  const testModeToggle = page.locator("#global-test-mode-toggle");
-  const testModeToggleSwitch = page.locator("label.toggle-switch[for='global-test-mode-toggle']");
-  const honeypotEnabledToggle = page.locator("#honeypot-enabled-toggle");
-  const honeypotEnabledSwitch = page.locator("label.toggle-switch[for='honeypot-enabled-toggle']");
-  const browserPolicyEnabledToggle = page.locator("#browser-policy-toggle");
-  const browserPolicyEnabledSwitch = page.locator("label.toggle-switch[for='browser-policy-toggle']");
-  const tarpitEnabledToggle = page.locator("#tarpit-enabled-toggle");
-  const tarpitEnabledSwitch = page.locator("label.toggle-switch[for='tarpit-enabled-toggle']");
-
+  const jsRequiredToggle = page.locator("#js-required-enforced-toggle");
   await expect(configSave).toBeHidden();
 
-  const mazeThreshold = page.locator("#maze-threshold");
-  const mazeAutoBanToggle = page.locator("#maze-auto-ban-toggle");
-  const mazeAutoBanSwitch = page.locator("#maze-auto-ban-toggle + .toggle-slider");
-  if (!(await mazeThreshold.isVisible())) {
+  if (!(await jsRequiredToggle.isVisible())) {
     await expect(page.locator("#verification-mode-subtitle")).toContainText(/disabled|read-only|Verification controls/i);
     return;
   }
-  const initialMazeAutoBan = await mazeAutoBanToggle.isChecked();
-  if (!initialMazeAutoBan && await mazeAutoBanToggle.isEnabled()) {
-    await mazeAutoBanSwitch.click();
-    await expect(mazeAutoBanToggle).toBeChecked();
-  }
-  await expect(mazeThreshold).toBeEnabled();
-  const initialMazeThreshold = await mazeThreshold.inputValue();
-  const nextMazeThreshold = String(Math.min(500, Number(initialMazeThreshold || "50") + 1));
-  await mazeThreshold.fill(nextMazeThreshold);
-  await mazeThreshold.dispatchEvent("input");
-  await expect(page.locator("#verification-save-all-bar")).toBeVisible();
-  await expect(configSave).toBeEnabled();
-  if (await testModeToggleSwitch.isVisible()) {
-    const testModeInitial = await testModeToggle.isChecked();
-    if (await testModeToggle.isEnabled()) {
-      await Promise.all([
-        page.waitForResponse((resp) => (
-          resp.url().includes("/admin/config") &&
-          resp.request().method() === "POST" &&
-          resp.status() >= 200 &&
-          resp.status() < 300
-        )),
-        testModeToggleSwitch.click()
-      ]);
-      await expect(configSave).toBeEnabled();
-      await expect(mazeThreshold).toHaveValue(nextMazeThreshold);
-      if (testModeInitial) {
-        await expect(testModeToggle).not.toBeChecked();
-      } else {
-        await expect(testModeToggle).toBeChecked();
-      }
-      if (testModeInitial !== await testModeToggle.isChecked()) {
-        await Promise.all([
-          page.waitForResponse((resp) => (
-            resp.url().includes("/admin/config") &&
-            resp.request().method() === "POST" &&
-            resp.status() >= 200 &&
-            resp.status() < 300
-          )),
-          testModeToggleSwitch.click()
-        ]);
-        if (testModeInitial) {
-          await expect(testModeToggle).toBeChecked();
-        } else {
-          await expect(testModeToggle).not.toBeChecked();
-        }
-      }
-    } else {
-      await expect(testModeToggle).toBeDisabled();
-    }
-  }
-  await mazeThreshold.fill(initialMazeThreshold);
-  await mazeThreshold.dispatchEvent("input");
-  if (!initialMazeAutoBan && await mazeAutoBanToggle.isEnabled()) {
-    await mazeAutoBanSwitch.click();
-    await expect(mazeAutoBanToggle).not.toBeChecked();
-  }
-  await expect(configSave).toBeHidden();
 
-  if (await tarpitEnabledSwitch.isVisible() && await tarpitEnabledToggle.isEnabled()) {
-    const initialTarpitEnabled = await tarpitEnabledToggle.isChecked();
-    await tarpitEnabledSwitch.click();
-    await expect(configSave).toBeEnabled();
-    if (initialTarpitEnabled !== await tarpitEnabledToggle.isChecked()) {
-      await tarpitEnabledSwitch.click();
-    }
+  if (!(await jsRequiredToggle.isEnabled())) {
     await expect(configSave).toBeHidden();
+    return;
   }
 
-  const durationField = page.locator("#dur-cdp-minutes");
-  const initialDuration = await durationField.inputValue();
-  const nextDuration = String((Number(initialDuration || "0") + 1) % 60);
-  await durationField.fill(nextDuration);
-  await durationField.dispatchEvent("input");
+  const jsRequiredInitial = await jsRequiredToggle.isChecked();
+  await jsRequiredToggle.click();
   await expect(configSave).toBeEnabled();
-  await durationField.fill(initialDuration);
-  await durationField.dispatchEvent("input");
-  await expect(configSave).toBeHidden();
-
-  const jsRequiredToggle = page.locator("#js-required-enforced-toggle");
-
-  if (await jsRequiredToggle.isVisible()) {
-    const jsRequiredInitial = await jsRequiredToggle.isChecked();
+  if (jsRequiredInitial !== await jsRequiredToggle.isChecked()) {
     await jsRequiredToggle.click();
-    await expect(configSave).toBeEnabled();
-    if (jsRequiredInitial !== await jsRequiredToggle.isChecked()) {
-      await jsRequiredToggle.click();
-    }
-    await expect(configSave).toBeHidden();
   }
+  await expect(configSave).toBeHidden();
 
   const powToggle = page.locator("#pow-enabled-toggle");
   const powToggleSwitch = page.locator("label.toggle-switch[for='pow-enabled-toggle']");
@@ -1098,40 +1009,17 @@ test("verification save-all button reflects shared dirty-state behavior", async 
     await expect(configSave).toBeHidden();
   }
 
-  const honeypotField = page.locator("#honeypot-paths");
-  const initialHoneypots = await honeypotField.inputValue();
-  await honeypotField.fill(`${initialHoneypots}\n/trap-e2e`);
-  await honeypotField.dispatchEvent("input");
-  await expect(configSave).toBeEnabled();
-  await honeypotField.fill(initialHoneypots);
-  await honeypotField.dispatchEvent("input");
-  await expect(configSave).toBeHidden();
-  if (await honeypotEnabledSwitch.isVisible() && await honeypotEnabledToggle.isEnabled()) {
-    const initialHoneypotEnabled = await honeypotEnabledToggle.isChecked();
-    await honeypotEnabledSwitch.click();
+  const passScore = page.locator("#not-a-bot-score-pass-min");
+  if (await passScore.isVisible() && await passScore.isEnabled()) {
+    const initialPassScore = await passScore.inputValue();
+    const nextPassScore = Number(initialPassScore || "7") >= 10
+      ? "9"
+      : String(Number(initialPassScore || "7") + 1);
+    await passScore.fill(nextPassScore);
+    await passScore.dispatchEvent("input");
     await expect(configSave).toBeEnabled();
-    if (initialHoneypotEnabled !== await honeypotEnabledToggle.isChecked()) {
-      await honeypotEnabledSwitch.click();
-    }
-    await expect(configSave).toBeHidden();
-  }
-
-  const browserBlockField = page.locator("#browser-block-rules");
-  const initialBrowserBlock = await browserBlockField.inputValue();
-  await browserBlockField.fill(`${initialBrowserBlock}\nEdge,120`);
-  await browserBlockField.dispatchEvent("input");
-  await expect(configSave).toBeEnabled();
-  await browserBlockField.fill(initialBrowserBlock);
-  await browserBlockField.dispatchEvent("input");
-  await expect(configSave).toBeHidden();
-
-  if (await browserPolicyEnabledSwitch.isVisible() && await browserPolicyEnabledToggle.isEnabled()) {
-    const initialBrowserPolicyEnabled = await browserPolicyEnabledToggle.isChecked();
-    await browserPolicyEnabledSwitch.click();
-    await expect(configSave).toBeEnabled();
-    if (initialBrowserPolicyEnabled !== await browserPolicyEnabledToggle.isChecked()) {
-      await browserPolicyEnabledSwitch.click();
-    }
+    await passScore.fill(initialPassScore);
+    await passScore.dispatchEvent("input");
     await expect(configSave).toBeHidden();
   }
 
@@ -1717,7 +1605,7 @@ test("verification save roundtrip clears dirty state after successful write", as
   }
 });
 
-test("geo and tuning save flows cover GEO lists and botness controls", async ({ page }) => {
+test("geo and tuning save flows cover GEO lists, botness controls, and browser policy controls", async ({ page }) => {
   await openDashboard(page);
   await openTab(page, "geo");
 
@@ -1801,6 +1689,37 @@ test("geo and tuning save flows cover GEO lists and botness controls", async ({ 
     await submitConfigSave(page, tuningSave);
     await botnessWeight.fill(botnessInitial);
     await botnessWeight.dispatchEvent("input");
+    await submitConfigSave(page, tuningSave);
+  }
+
+  const browserPolicyToggle = page.locator("#browser-policy-toggle");
+  const browserPolicySwitch = page.locator("label.toggle-switch[for='browser-policy-toggle']");
+  if (await browserPolicySwitch.isVisible() && await browserPolicyToggle.isEnabled()) {
+    const initialBrowserPolicyEnabled = await browserPolicyToggle.isChecked();
+    await browserPolicySwitch.click();
+    await submitConfigSave(page, tuningSave);
+    if (initialBrowserPolicyEnabled !== await browserPolicyToggle.isChecked()) {
+      await browserPolicySwitch.click();
+      await submitConfigSave(page, tuningSave);
+    }
+  }
+
+  const browserBlockRules = page.locator("#browser-block-rules");
+  if (await browserBlockRules.isVisible() && await browserBlockRules.isEnabled()) {
+    const initialBrowserRules = await browserBlockRules.inputValue();
+    const candidateRule = "Brave,120";
+    const existingRules = initialBrowserRules
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    const nextBrowserRules = existingRules.includes(candidateRule)
+      ? existingRules.filter((line) => line !== candidateRule).join("\n")
+      : [...existingRules, candidateRule].join("\n");
+    await browserBlockRules.fill(nextBrowserRules);
+    await browserBlockRules.dispatchEvent("input");
+    await submitConfigSave(page, tuningSave);
+    await browserBlockRules.fill(initialBrowserRules);
+    await browserBlockRules.dispatchEvent("input");
     await submitConfigSave(page, tuningSave);
   }
 });

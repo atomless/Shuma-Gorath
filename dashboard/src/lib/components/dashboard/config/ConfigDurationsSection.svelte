@@ -10,9 +10,6 @@
   export let durRateLimitDays = 0;
   export let durRateLimitHours = 1;
   export let durRateLimitMinutes = 0;
-  export let durBrowserDays = 0;
-  export let durBrowserHours = 6;
-  export let durBrowserMinutes = 0;
   export let durCdpDays = 0;
   export let durCdpHours = 12;
   export let durCdpMinutes = 0;
@@ -21,7 +18,6 @@
   export let durAdminMinutes = 0;
   export let durHoneypotValid = true;
   export let durRateLimitValid = true;
-  export let durBrowserValid = true;
   export let durCdpValid = true;
   export let durAdminValid = true;
 </script>
@@ -32,7 +28,6 @@
   <div class="duration-grid">
     <DurationInputRow label="Maze Threshold Exceeded" dayId="dur-honeypot-days" hourId="dur-honeypot-hours" minuteId="dur-honeypot-minutes" ariaInvalid={durHoneypotValid ? 'false' : 'true'} bind:days={durHoneypotDays} bind:hours={durHoneypotHours} bind:minutes={durHoneypotMinutes} />
     <DurationInputRow label="Rate Limit Exceeded" dayId="dur-rate-limit-days" hourId="dur-rate-limit-hours" minuteId="dur-rate-limit-minutes" ariaInvalid={durRateLimitValid ? 'false' : 'true'} bind:days={durRateLimitDays} bind:hours={durRateLimitHours} bind:minutes={durRateLimitMinutes} />
-    <DurationInputRow label="Browser Automation Detected" dayId="dur-browser-days" hourId="dur-browser-hours" minuteId="dur-browser-minutes" ariaInvalid={durBrowserValid ? 'false' : 'true'} bind:days={durBrowserDays} bind:hours={durBrowserHours} bind:minutes={durBrowserMinutes} />
     <DurationInputRow label='<abbr title="Chrome DevTools Protocol">CDP</abbr> Automation Detected' dayId="dur-cdp-days" hourId="dur-cdp-hours" minuteId="dur-cdp-minutes" ariaInvalid={durCdpValid ? 'false' : 'true'} bind:days={durCdpDays} bind:hours={durCdpHours} bind:minutes={durCdpMinutes} />
     <DurationInputRow label="Admin Manual Ban Default" dayId="dur-admin-days" hourId="dur-admin-hours" minuteId="dur-admin-minutes" ariaInvalid={durAdminValid ? 'false' : 'true'} bind:days={durAdminDays} bind:hours={durAdminHours} bind:minutes={durAdminMinutes} />
   </div>

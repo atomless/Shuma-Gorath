@@ -27,7 +27,6 @@ pub(crate) fn maybe_handle_test_mode<S, F, G>(
     cfg: &crate::config::Config,
     site_id: &str,
     ip: &str,
-    ua: &str,
     path: &str,
     ip_range_evaluation: &crate::signals::ip_range_policy::Evaluation,
     geo_route: crate::signals::geo::GeoPolicyRoute,
@@ -169,26 +168,6 @@ where
             &record_test_mode_action,
         );
         return Some(Response::new(200, "TEST MODE: Would inject JS challenge"));
-    }
-
-    if cfg.browser_policy_enabled
-        && crate::signals::browser_user_agent::is_outdated_browser(ua, &cfg.browser_block)
-    {
-        crate::log_line(&format!(
-            "[TEST MODE] Would ban IP {ip} for outdated browser"
-        ));
-        log_test_mode_event(
-            store,
-            crate::admin::EventType::Block,
-            ip,
-            "browser [TEST MODE]",
-            "would_block",
-            &record_test_mode_action,
-        );
-        return Some(Response::new(
-            200,
-            "TEST MODE: Would block (outdated browser)",
-        ));
     }
 
     match geo_route {

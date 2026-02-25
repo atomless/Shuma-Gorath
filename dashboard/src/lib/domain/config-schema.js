@@ -5,7 +5,6 @@ export const advancedConfigTemplatePaths = Object.freeze([
     'ban_duration',
     'ban_durations.honeypot',
     'ban_durations.rate_limit',
-    'ban_durations.browser',
     'ban_durations.admin',
     'ban_durations.cdp',
     'rate_limit',

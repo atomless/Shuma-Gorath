@@ -75,7 +75,6 @@ cat > "${tmp_json}" <<EOF
   "ban_durations": {
     "honeypot": ${SHUMA_BAN_DURATION_HONEYPOT},
     "rate_limit": ${SHUMA_BAN_DURATION_RATE_LIMIT},
-    "browser": ${SHUMA_BAN_DURATION_BROWSER},
     "admin": ${SHUMA_BAN_DURATION_ADMIN},
     "cdp": ${SHUMA_BAN_DURATION_CDP}
   },

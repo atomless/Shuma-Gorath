@@ -11,7 +11,6 @@ fn maybe_handle_test_mode_returns_none_when_disabled() {
         &cfg,
         "default",
         "1.2.3.4",
-        "Mozilla/5.0",
         "/",
         &crate::signals::ip_range_policy::Evaluation::NoMatch,
         crate::signals::geo::GeoPolicyRoute::None,
@@ -33,7 +32,6 @@ fn maybe_handle_test_mode_pow_path_bypasses() {
         &cfg,
         "default",
         "1.2.3.4",
-        "Mozilla/5.0",
         "/pow",
         &crate::signals::ip_range_policy::Evaluation::NoMatch,
         crate::signals::geo::GeoPolicyRoute::None,
@@ -61,7 +59,6 @@ fn maybe_handle_test_mode_honeypot_blocks_without_calling_js_check() {
         &cfg,
         "default",
         "1.2.3.4",
-        "Mozilla/5.0",
         "/trap-me",
         &crate::signals::ip_range_policy::Evaluation::NoMatch,
         crate::signals::geo::GeoPolicyRoute::None,
@@ -90,7 +87,6 @@ fn maybe_handle_test_mode_honeypot_disabled_does_not_block() {
         &cfg,
         "default",
         "1.2.3.4",
-        "Mozilla/5.0",
         "/trap-me",
         &crate::signals::ip_range_policy::Evaluation::NoMatch,
         crate::signals::geo::GeoPolicyRoute::Allow,
@@ -120,7 +116,6 @@ fn maybe_handle_test_mode_allows_when_no_checks_trigger() {
         &cfg,
         "default",
         "1.2.3.4",
-        "Mozilla/5.0",
         "/home",
         &crate::signals::ip_range_policy::Evaluation::NoMatch,
         crate::signals::geo::GeoPolicyRoute::Allow,
@@ -137,19 +132,18 @@ fn maybe_handle_test_mode_allows_when_no_checks_trigger() {
 }
 
 #[test]
-fn maybe_handle_test_mode_skips_browser_block_when_browser_policy_disabled() {
+fn maybe_handle_test_mode_does_not_directly_block_for_browser_policy_match() {
     let store = crate::test_support::InMemoryStore::default();
     let mut cfg = crate::config::defaults().clone();
     cfg.test_mode = true;
     cfg.js_required_enforced = false;
-    cfg.browser_policy_enabled = false;
+    cfg.browser_policy_enabled = true;
 
     let resp = maybe_handle_test_mode(
         &store,
         &cfg,
         "default",
         "1.2.3.4",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36",
         "/",
         &crate::signals::ip_range_policy::Evaluation::NoMatch,
         crate::signals::geo::GeoPolicyRoute::Allow,
@@ -178,7 +172,6 @@ fn maybe_handle_test_mode_geo_challenge_falls_back_to_maze_when_challenge_disabl
         &cfg,
         "default",
         "1.2.3.4",
-        "Mozilla/5.0",
         "/",
         &crate::signals::ip_range_policy::Evaluation::NoMatch,
         crate::signals::geo::GeoPolicyRoute::Challenge,
@@ -207,7 +200,6 @@ fn maybe_handle_test_mode_geo_challenge_falls_back_to_block_when_disabled() {
         &cfg,
         "default",
         "1.2.3.4",
-        "Mozilla/5.0",
         "/",
         &crate::signals::ip_range_policy::Evaluation::NoMatch,
         crate::signals::geo::GeoPolicyRoute::Challenge,
@@ -245,7 +237,6 @@ fn maybe_handle_test_mode_reports_ip_range_actions() {
         &cfg,
         "default",
         "203.0.113.4",
-        "Mozilla/5.0",
         "/",
         &ip_range,
         crate::signals::geo::GeoPolicyRoute::Allow,

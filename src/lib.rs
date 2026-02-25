@@ -8,7 +8,7 @@ mod test_support;
 // Entry point for the WASM Stealth Bot Defence Spin app
 
 use crate::enforcement::{ban, block_page};
-use crate::signals::{browser_user_agent as browser, geo, js_verification as js, allowlist};
+use crate::signals::{allowlist, geo, js_verification as js};
 use serde::Serialize;
 use spin_sdk::http::{Method, Request, Response};
 use spin_sdk::http_component;
@@ -372,6 +372,9 @@ pub(crate) fn compute_risk_score(
 }
 
 pub type BotnessContribution = crate::signals::botness::BotSignal;
+const BROWSER_POLICY_SIGNAL_WEIGHT: u8 = 1;
+const BROWSER_POLICY_SIGNAL_KEY: &str = "browser_outdated";
+const BROWSER_POLICY_SIGNAL_LABEL: &str = "Browser policy minimum-version match";
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct BotnessAssessment {
@@ -382,6 +385,7 @@ pub struct BotnessAssessment {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BotnessSignalContext {
     pub js_needed: bool,
+    pub browser_outdated: bool,
     pub geo_signal_available: bool,
     pub geo_risk: bool,
     pub rate_count: u32,
@@ -422,7 +426,7 @@ pub(crate) fn collect_botness_contributions(
     context: BotnessSignalContext,
     cfg: &config::Config,
 ) -> Vec<BotnessContribution> {
-    let signal_capacity = 5 + context.fingerprint_signals.len();
+    let signal_capacity = 6 + context.fingerprint_signals.len();
     let mut accumulator = crate::signals::botness::SignalAccumulator::with_capacity_and_policy(
         signal_capacity,
         crate::signals::botness::SignalBudgetPolicy {
@@ -440,6 +444,27 @@ pub(crate) fn collect_botness_contributions(
         context.js_needed,
         cfg.botness_weights.js_required,
     ));
+
+    let browser_signal = if cfg.browser_policy_enabled {
+        crate::signals::botness::BotSignal::scored_with_metadata(
+            BROWSER_POLICY_SIGNAL_KEY,
+            BROWSER_POLICY_SIGNAL_LABEL,
+            context.browser_outdated,
+            BROWSER_POLICY_SIGNAL_WEIGHT,
+            crate::signals::botness::SignalProvenance::Internal,
+            10,
+            crate::signals::botness::SignalFamily::RequestIntegrity,
+        )
+    } else {
+        crate::signals::botness::BotSignal::disabled_with_metadata(
+            BROWSER_POLICY_SIGNAL_KEY,
+            BROWSER_POLICY_SIGNAL_LABEL,
+            crate::signals::botness::SignalProvenance::Internal,
+            10,
+            crate::signals::botness::SignalFamily::RequestIntegrity,
+        )
+    };
+    accumulator.push(browser_signal);
 
     let geo_signal = if cfg.geo_signal_enabled() {
         geo::bot_signal(
@@ -1017,7 +1042,6 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         &cfg,
         site_id,
         &ip,
-        ua,
         path,
         &ip_range_evaluation,
         geo_assessment.route,
@@ -1088,53 +1112,6 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         return provider_registry
             .challenge_engine_provider()
             .handle_pow_verify(req, &ip, cfg.pow_enabled);
-    }
-    // Outdated browser
-    if cfg.browser_policy_enabled && browser::is_outdated_browser(ua, &cfg.browser_block) {
-        let policy_match = runtime::policy_taxonomy::resolve_policy_match(
-            runtime::policy_taxonomy::PolicyTransition::BrowserOutdated,
-        );
-        observability::metrics::record_policy_match(store, &policy_match);
-        provider_registry
-            .ban_store_provider()
-            .ban_ip_with_fingerprint(
-                store,
-                site_id,
-                &ip,
-                "browser",
-                cfg.get_ban_duration("browser"),
-                Some(crate::enforcement::ban::BanFingerprint {
-                    score: None,
-                    signals: vec!["outdated_browser".to_string()],
-                    summary: Some(format!("ua={}", ua)),
-                }),
-            );
-        observability::metrics::increment(
-            store,
-            observability::metrics::MetricName::BansTotal,
-            Some("browser"),
-        );
-        observability::metrics::increment(
-            store,
-            observability::metrics::MetricName::BlocksTotal,
-            None,
-        );
-        // Log ban event
-        crate::admin::log_event(
-            store,
-            &crate::admin::EventLogEntry {
-                ts: crate::admin::now_ts(),
-                event: crate::admin::EventType::Ban,
-                ip: Some(ip.clone()),
-                reason: Some("browser".to_string()),
-                outcome: Some(policy_match.annotate_outcome("banned")),
-                admin: None,
-            },
-        );
-        return Response::new(
-            403,
-            block_page::render_block_page(block_page::BlockReason::OutdatedBrowser),
-        );
     }
     if let Some(response) = runtime::policy_pipeline::maybe_handle_geo_policy(
         req,

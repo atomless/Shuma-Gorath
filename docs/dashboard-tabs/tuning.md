@@ -14,7 +14,10 @@ Panels:
   - signal weights: `botness_weights.js_required`, `botness_weights.geo_risk`, `botness_weights.rate_medium`, `botness_weights.rate_high`.
   - read-only status/default values and scored/terminal signal inventories.
 - `Ban Durations`:
-  - per-trigger duration tuples for `honeypot`, `rate_limit`, `browser`, `cdp`, `admin`.
+  - per-trigger duration tuples for `honeypot`, `rate_limit`, `cdp`, `admin`.
+- `Browser Policy`:
+  - toggle (`browser_policy_enabled`),
+  - minimum-version signal rules (`browser_block`).
 
 Validation:
 

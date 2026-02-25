@@ -1014,6 +1014,12 @@ pub(crate) fn maybe_handle_botness(
     needs_js: bool,
     geo_assessment: &crate::GeoAssessment,
 ) -> Option<Response> {
+    let ua = req
+        .header("user-agent")
+        .map(|v| v.as_str().unwrap_or(""))
+        .unwrap_or("");
+    let browser_outdated = cfg.browser_policy_enabled
+        && crate::signals::browser_user_agent::is_outdated_browser(ua, &cfg.browser_block);
     let geo_risk = geo_assessment.scored_risk;
     let geo_signal_available = geo_assessment.headers_trusted && geo_assessment.country.is_some();
     let rate_usage = provider_registry
@@ -1030,6 +1036,7 @@ pub(crate) fn maybe_handle_botness(
     let botness = crate::compute_botness_assessment(
         crate::BotnessSignalContext {
             js_needed: needs_js,
+            browser_outdated,
             geo_signal_available,
             geo_risk,
             rate_count: rate_usage,
@@ -1044,10 +1051,6 @@ pub(crate) fn maybe_handle_botness(
     let botness_state_summary = crate::botness_signal_states_summary(&botness);
     let runtime_metadata_summary = crate::defence_runtime_metadata_summary(cfg);
     let provider_summary = crate::provider_implementations_summary(provider_registry);
-    let ua = req
-        .header("user-agent")
-        .map(|v| v.as_str().unwrap_or(""))
-        .unwrap_or("");
     let base_outcome = format!(
         "score={} signals={} signal_states={} {} providers={}",
         botness.score, botness_summary, botness_state_summary, runtime_metadata_summary, provider_summary

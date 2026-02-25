@@ -22,9 +22,6 @@ Panels:
   - fail score (`not_a_bot_fail_score`).
   - UI enforces `fail < pass` and `pass > fail`.
 - `Challenge: Puzzle` toggle (`challenge_puzzle_enabled`).
-- `Browser Policy`:
-  - toggle (`browser_policy_enabled`),
-  - minimum-version rules (`browser_block`).
 
 Notes:
 

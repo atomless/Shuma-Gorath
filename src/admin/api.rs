@@ -3262,6 +3262,11 @@ fn botness_signal_definitions(cfg: &crate::config::Config) -> serde_json::Value 
                 "weight": cfg.botness_weights.js_required
             },
             {
+                "key": "browser_outdated",
+                "label": "Browser policy minimum-version match",
+                "weight": 1
+            },
+            {
                 "key": "geo_risk",
                 "label": "High-risk geography",
                 "weight": cfg.botness_weights.geo_risk
@@ -3315,7 +3320,6 @@ fn botness_signal_definitions(cfg: &crate::config::Config) -> serde_json::Value 
         "terminal_signals": [
             { "key": "honeypot", "label": "Honeypot hit", "action": "Immediate ban" },
             { "key": "rate_limit_exceeded", "label": "Rate limit exceeded", "action": "Immediate ban" },
-            { "key": "outdated_browser", "label": "Outdated browser", "action": "Immediate ban" },
             { "key": "cdp_automation", "label": "CDP automation detected", "action": "Immediate ban (if enabled)" },
             { "key": "maze_crawler_threshold", "label": "Maze crawler threshold reached", "action": "Immediate ban (if enabled)" },
             { "key": "already_banned", "label": "Existing active ban", "action": "Block page" }
@@ -3527,10 +3531,6 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
         (
             "SHUMA_BAN_DURATION_RATE_LIMIT".to_string(),
             cfg.ban_durations.rate_limit.to_string(),
-        ),
-        (
-            "SHUMA_BAN_DURATION_BROWSER".to_string(),
-            cfg.ban_durations.browser.to_string(),
         ),
         (
             "SHUMA_BAN_DURATION_ADMIN".to_string(),
@@ -4516,7 +4516,6 @@ fn admin_config_payload(
 struct AdminBanDurationsPatch {
     honeypot: Option<u64>,
     rate_limit: Option<u64>,
-    browser: Option<u64>,
     admin: Option<u64>,
     cdp: Option<u64>,
 }
@@ -5080,10 +5079,6 @@ fn handle_admin_config_internal(
             }
             if let Some(rate_limit) = ban_durations.get("rate_limit").and_then(|v| v.as_u64()) {
                 cfg.ban_durations.rate_limit = rate_limit;
-                changed = true;
-            }
-            if let Some(browser) = ban_durations.get("browser").and_then(|v| v.as_u64()) {
-                cfg.ban_durations.browser = browser;
                 changed = true;
             }
             if let Some(admin) = ban_durations.get("admin").and_then(|v| v.as_u64()) {

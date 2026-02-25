@@ -124,14 +124,13 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | `SHUMA_BAN_DURATION` | `21600` | Legacy/default ban duration fallback (seconds). |
 | `SHUMA_BAN_DURATION_HONEYPOT` | `86400` | Ban duration for honeypot/instaban trigger (seconds). |
 | `SHUMA_BAN_DURATION_RATE_LIMIT` | `3600` | Ban duration for rate-limit ban (seconds). |
-| `SHUMA_BAN_DURATION_BROWSER` | `21600` | Ban duration for browser-policy based bans (seconds). |
 | `SHUMA_BAN_DURATION_ADMIN` | `21600` | Ban duration for manual admin bans (seconds). |
 | `SHUMA_BAN_DURATION_CDP` | `43200` | Ban duration for <abbr title="Chrome DevTools Protocol">CDP</abbr> automation bans (seconds). |
 | `SHUMA_RATE_LIMIT` | `80` | Requests per minute threshold for rate limiting per source IP bucket (IPv4 /24, IPv6 /64). |
 | `SHUMA_HONEYPOT_ENABLED` | `true` | Enables/disables honeypot trap handling for configured honeypot paths. |
 | `SHUMA_HONEYPOTS` | `['/instaban']` | Honeypot endpoints that immediately trigger ban flow. |
-| `SHUMA_BROWSER_POLICY_ENABLED` | `true` | Master on/off switch for browser minimum-version policy enforcement. |
-| `SHUMA_BROWSER_BLOCK` | `[["Chrome",120],["Firefox",115],["Safari",15]]` | Browser/version minimums used by browser policy checks. |
+| `SHUMA_BROWSER_POLICY_ENABLED` | `true` | Master on/off switch for browser minimum-version botness signaling. |
+| `SHUMA_BROWSER_BLOCK` | `[["Chrome",120],["Firefox",115],["Safari",15]]` | Browser/version minimums used as a low-weight botness signal when matched. |
 | `SHUMA_BROWSER_ALLOWLIST` | `[]` | Optional browser/version rules that bypass the JS Verification Interstitial requirement. |
 | `SHUMA_GEO_RISK_COUNTRIES` | `[]` | 2-letter countries that add <abbr title="Geolocation">GEO</abbr> botness score. |
 | `SHUMA_GEO_ALLOW_COUNTRIES` | `[]` | 2-letter countries explicitly allowed in <abbr title="Geolocation">GEO</abbr> routing precedence. |
@@ -246,7 +245,7 @@ Managed catalog operations:
 
 The following <abbr title="Key-Value">KV</abbr>-backed fields are currently writable via admin <abbr title="Application Programming Interface">API</abbr>:
 
-- Core: `test_mode`, `rate_limit`, `ban_duration`, `ban_durations.{honeypot,rate_limit,browser,admin,cdp}`, `honeypot_enabled`, `honeypots`, `browser_policy_enabled`, `browser_block`, `browser_allowlist`, `bypass_allowlists_enabled`, `allowlist`, `path_allowlist`, `ip_range_policy_mode`, `ip_range_emergency_allowlist`, `ip_range_custom_rules`, `ip_range_managed_policies`, `ip_range_managed_max_staleness_hours`, `ip_range_allow_stale_managed_enforce`, `js_required_enforced`.
+- Core: `test_mode`, `rate_limit`, `ban_duration`, `ban_durations.{honeypot,rate_limit,admin,cdp}`, `honeypot_enabled`, `honeypots`, `browser_policy_enabled`, `browser_block`, `browser_allowlist`, `bypass_allowlists_enabled`, `allowlist`, `path_allowlist`, `ip_range_policy_mode`, `ip_range_emergency_allowlist`, `ip_range_custom_rules`, `ip_range_managed_policies`, `ip_range_managed_max_staleness_hours`, `ip_range_allow_stale_managed_enforce`, `js_required_enforced`.
 - <abbr title="Geolocation">GEO</abbr> routing/policy: `geo_risk`, `geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`, `geo_edge_headers_enabled`.
 - Maze/Tarpit: `maze_enabled`, `tarpit_enabled`, `tarpit_progress_token_ttl_seconds`, `tarpit_progress_replay_ttl_seconds`, `tarpit_hashcash_min_difficulty`, `tarpit_hashcash_max_difficulty`, `tarpit_hashcash_base_difficulty`, `tarpit_hashcash_adaptive`, `tarpit_step_chunk_base_bytes`, `tarpit_step_chunk_max_bytes`, `tarpit_step_jitter_percent`, `tarpit_shard_rotation_enabled`, `tarpit_egress_window_seconds`, `tarpit_egress_global_bytes_per_window`, `tarpit_egress_per_ip_bucket_bytes_per_window`, `tarpit_egress_per_flow_max_bytes`, `tarpit_egress_per_flow_max_duration_seconds`, `tarpit_max_concurrent_global`, `tarpit_max_concurrent_per_ip_bucket`, `tarpit_fallback_action`, `maze_auto_ban`, `maze_auto_ban_threshold`, `maze_rollout_phase`, `maze_token_ttl_seconds`, `maze_token_max_depth`, `maze_token_branch_budget`, `maze_replay_ttl_seconds`, `maze_entropy_window_seconds`, `maze_client_expansion_enabled`, `maze_checkpoint_every_nodes`, `maze_checkpoint_every_ms`, `maze_step_ahead_max`, `maze_no_js_fallback_max_depth`, `maze_micro_pow_enabled`, `maze_micro_pow_depth_start`, `maze_micro_pow_base_difficulty`, `maze_max_concurrent_global`, `maze_max_concurrent_per_ip_bucket`, `maze_max_response_bytes`, `maze_max_response_duration_ms`, `maze_server_visible_links`, `maze_max_links`, `maze_max_paragraphs`, `maze_path_entropy_segment_len`, `maze_covert_decoys_enabled`, `maze_seed_provider`, `maze_seed_refresh_interval_seconds`, `maze_seed_refresh_rate_limit_per_hour`, `maze_seed_refresh_max_sources`, `maze_seed_metadata_only`.
 - Robots/<abbr title="Artificial Intelligence">AI</abbr> policy: `robots_enabled`, `robots_crawl_delay`, `ai_policy_block_training`, `ai_policy_block_search`, `ai_policy_allow_search_engines` (legacy aliases `robots_block_ai_training`, `robots_block_ai_search`, `robots_allow_search_engines` are also accepted).

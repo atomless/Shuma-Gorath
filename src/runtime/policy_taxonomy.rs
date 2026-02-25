@@ -203,7 +203,6 @@ pub enum DetectionId {
     HoneypotHit,
     RateLimitHit,
     ExistingBan,
-    BrowserOutdated,
     SeqOpMissing,
     SeqOpInvalid,
     SeqOpExpired,
@@ -265,7 +264,6 @@ impl DetectionId {
             DetectionId::HoneypotHit => "D_HONEYPOT_HIT",
             DetectionId::RateLimitHit => "D_RATE_LIMIT_HIT",
             DetectionId::ExistingBan => "D_EXISTING_BAN",
-            DetectionId::BrowserOutdated => "D_BROWSER_OUTDATED",
             DetectionId::SeqOpMissing => "D_SEQ_OP_MISSING",
             DetectionId::SeqOpInvalid => "D_SEQ_OP_INVALID",
             DetectionId::SeqOpExpired => "D_SEQ_OP_EXPIRED",
@@ -388,7 +386,6 @@ pub enum PolicyTransition {
     HoneypotHit,
     RateLimitHit,
     ExistingBan,
-    BrowserOutdated,
     SeqOpMissing,
     SeqOpInvalid,
     SeqOpExpired,
@@ -458,11 +455,6 @@ pub fn resolve_policy_match(transition: PolicyTransition) -> PolicyMatch {
             EscalationLevelId::L10DenyTemp,
             DetectionId::ExistingBan,
             vec![],
-        ),
-        PolicyTransition::BrowserOutdated => PolicyMatch::new(
-            EscalationLevelId::L10DenyTemp,
-            DetectionId::BrowserOutdated,
-            vec![SignalId::BrowserOutdated],
         ),
         PolicyTransition::SeqOpMissing => PolicyMatch::new(
             EscalationLevelId::L6ChallengeStrong,
@@ -709,6 +701,7 @@ pub fn resolve_highest_level(candidates: &[EscalationLevelId]) -> EscalationLeve
 pub fn signal_id_for_botness_key(key: &str) -> Option<SignalId> {
     match key {
         "js_verification_required" => Some(SignalId::JsRequiredMissing),
+        "browser_outdated" => Some(SignalId::BrowserOutdated),
         "geo_risk" => Some(SignalId::GeoRisk),
         "rate_pressure_medium" => Some(SignalId::RateUsageMedium),
         "rate_pressure_high" => Some(SignalId::RateUsageHigh),
@@ -760,6 +753,12 @@ mod tests {
                 .expect("known signal")
                 .as_str(),
             "S_JS_REQUIRED_MISSING"
+        );
+        assert_eq!(
+            signal_id_for_botness_key("browser_outdated")
+                .expect("known signal")
+                .as_str(),
+            "S_BROWSER_OUTDATED"
         );
         assert_eq!(
             signal_id_for_botness_key("rate_pressure_high")
