@@ -16,9 +16,9 @@
   export let browserPolicyDirty = false;
   export let browserPolicyEnabled = true;
   export let browserBlockRules = '';
-  export let browserWhitelistRules = '';
+  export let browserAllowlistRules = '';
   export let browserBlockRulesValid = true;
-  export let browserWhitelistRulesValid = true;
+  export let browserAllowlistRulesValid = true;
 </script>
 
 {#if showHoneypot}
@@ -50,7 +50,7 @@
     <p class="control-desc text-muted">Use one rule per line in <code>BrowserName,min_major</code> format (for example <code>Chrome,120</code>).</p>
     <div class="admin-controls">
       <TextareaField id="browser-block-rules" label="Minimum Versions (Block)" rows="3" ariaLabel="Browser block minimum versions" spellcheck={false} ariaInvalid={browserBlockRulesValid ? 'false' : 'true'} bind:value={browserBlockRules} />
-      <TextareaField id="browser-whitelist-rules" label="Allowlist Exceptions" rows="2" ariaLabel="Browser allowlist exceptions" spellcheck={false} ariaInvalid={browserWhitelistRulesValid ? 'false' : 'true'} bind:value={browserWhitelistRules} />
+      <TextareaField id="browser-allowlist-rules" label="Allowlist Exceptions" rows="2" ariaLabel="Browser allowlist exceptions" spellcheck={false} ariaInvalid={browserAllowlistRulesValid ? 'false' : 'true'} bind:value={browserAllowlistRules} />
     </div>
   </ConfigPanel>
 {/if}

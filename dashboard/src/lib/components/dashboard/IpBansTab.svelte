@@ -70,8 +70,8 @@
   let lastAppliedConfigVersion = -1;
 
   let bypassAllowlistsEnabled = true;
-  let networkWhitelist = '';
-  let pathWhitelist = '';
+  let networkAllowlist = '';
+  let pathAllowlist = '';
   let bypassAllowlistsBaseline = {
     enabled: true,
     network: '',
@@ -343,8 +343,8 @@
 
   const readBypassAllowlistsConfig = (config = {}) => ({
     enabled: config.bypass_allowlists_enabled !== false,
-    network: formatListTextarea(config.whitelist),
-    path: formatListTextarea(config.path_whitelist)
+    network: formatListTextarea(config.allowlist),
+    path: formatListTextarea(config.path_allowlist)
   });
 
   const currentBypassAllowlistsBaseline = () => ({
@@ -356,8 +356,8 @@
   const applyBypassAllowlistsConfig = (config = {}) => {
     const next = readBypassAllowlistsConfig(config);
     bypassAllowlistsEnabled = next.enabled;
-    networkWhitelist = next.network;
-    pathWhitelist = next.path;
+    networkAllowlist = next.network;
+    pathAllowlist = next.path;
     bypassAllowlistsBaseline = {
       enabled: next.enabled === true,
       network: normalizeListTextareaForCompare(next.network),
@@ -480,8 +480,8 @@
     try {
       const payload = {
         bypass_allowlists_enabled: bypassAllowlistsEnabled === true,
-        whitelist: parseListTextarea(networkWhitelist),
-        path_whitelist: parseListTextarea(pathWhitelist)
+        allowlist: parseListTextarea(networkAllowlist),
+        path_allowlist: parseListTextarea(pathAllowlist)
       };
       const nextConfig = await onSaveConfig(payload, { successMessage: 'Bypass allowlists saved' });
       if (nextConfig && typeof nextConfig === 'object') {
@@ -547,8 +547,8 @@
 
   $: writable = configSnapshot && configSnapshot.admin_config_write_enabled === true;
   $: hasConfigSnapshot = configSnapshot && typeof configSnapshot === 'object' && Object.keys(configSnapshot).length > 0;
-  $: bypassAllowlistsNetworkNormalized = normalizeListTextareaForCompare(networkWhitelist);
-  $: bypassAllowlistsPathNormalized = normalizeListTextareaForCompare(pathWhitelist);
+  $: bypassAllowlistsNetworkNormalized = normalizeListTextareaForCompare(networkAllowlist);
+  $: bypassAllowlistsPathNormalized = normalizeListTextareaForCompare(pathAllowlist);
   $: bypassAllowlistsDirty = (
     (bypassAllowlistsEnabled === true) !== bypassAllowlistsBaseline.enabled ||
     bypassAllowlistsNetworkNormalized !== bypassAllowlistsBaseline.network ||
@@ -1025,8 +1025,8 @@
       If a legitimate visitor is blocked by IP range policy, their specific IP will not be in the ban list so unbanning it will not help. If they still match the same range rule, they will be blocked again on the next request. You will need to add their known-to-be-safe IP or CIDR to the IP/CIDR Allowlist below, or change the matching IP range rule to avoid their IP.
     </p>
     <div class="admin-controls">
-      <TextareaField id="network-whitelist" label='<abbr title="Internet Protocol">IP</abbr>/<abbr title="Classless Inter-Domain Routing">CIDR</abbr> Allowlist' rows="3" ariaLabel="Internet Protocol and Classless Inter-Domain Routing allowlist" spellcheck={false} disabled={!writable} bind:value={networkWhitelist} />
-      <TextareaField id="path-whitelist" label="Path Allowlist" rows="3" ariaLabel="Path allowlist" spellcheck={false} disabled={!writable} bind:value={pathWhitelist} />
+      <TextareaField id="network-allowlist" label='<abbr title="Internet Protocol">IP</abbr>/<abbr title="Classless Inter-Domain Routing">CIDR</abbr> Allowlist' rows="3" ariaLabel="Internet Protocol and Classless Inter-Domain Routing allowlist" spellcheck={false} disabled={!writable} bind:value={networkAllowlist} />
+      <TextareaField id="path-allowlist" label="Path Allowlist" rows="3" ariaLabel="Path allowlist" spellcheck={false} disabled={!writable} bind:value={pathAllowlist} />
     </div>
     <SaveChangesBar
       containerId="bypass-allowlists-save-bar"

@@ -33,4 +33,4 @@ Writes:
 
 - Ban/unban APIs.
 - `ip_range_*` policy keys.
-- `bypass_allowlists_enabled`, `whitelist`, `path_whitelist`.
+- `bypass_allowlists_enabled`, `allowlist`, `path_allowlist`.

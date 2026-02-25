@@ -1,18 +1,18 @@
 /// Returns true if the request needs JS verification (no valid js_verified cookie),
-/// but bypasses challenge for whitelisted browsers.
-pub fn needs_js_verification_with_whitelist(
+/// but bypasses challenge for allowlisted browsers.
+pub fn needs_js_verification_with_allowlist(
     req: &Request,
     _store: &Store,
     _site_id: &str,
     ip: &str,
-    browser_whitelist: &[(String, u32)],
+    browser_allowlist: &[(String, u32)],
 ) -> bool {
-    // Check for browser whitelist
+    // Check for browser allowlist
     let ua = req
         .header("user-agent")
         .map(|v| v.as_str().unwrap_or(""))
         .unwrap_or("");
-    for (name, min_version) in browser_whitelist {
+    for (name, min_version) in browser_allowlist {
         if let Some(ver) = super::browser_user_agent::extract_version(ua, name) {
             if ver >= *min_version {
                 return false;

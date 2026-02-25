@@ -47,7 +47,7 @@ Prometheus parity scope for Monitoring widgets is tracked in:
 - `bot_defence_challenge_incorrect_total`
 - `bot_defence_challenge_expired_replay_total`
 - `bot_defence_cdp_detections_total`
-- `bot_defence_whitelisted_total`
+- `bot_defence_allowlisted_total`
 - `bot_defence_test_mode_actions_total`
 - `bot_defence_maze_hits_total`
 - `bot_defence_maze_token_outcomes_total{outcome="entry|validated|invalid|expired|replay|binding_mismatch|depth_exceeded|budget_exceeded|checkpoint_missing|micro_pow_failed"}`

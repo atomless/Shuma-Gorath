@@ -1,5 +1,5 @@
 use crate::challenge::KeyValueStore;
-use crate::signals::whitelist;
+use crate::signals::allowlist;
 use rand::Rng as _;
 use serde::{Deserialize, Serialize};
 use spin_sdk::http::{Method, Request};
@@ -394,7 +394,7 @@ pub fn is_admin_ip_allowed(req: &Request) -> bool {
     };
 
     let ip = crate::extract_client_ip(req);
-    whitelist::is_whitelisted(&ip, &list)
+    allowlist::is_allowlisted(&ip, &list)
 }
 
 #[cfg(test)]

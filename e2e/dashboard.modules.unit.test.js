@@ -1054,8 +1054,8 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(ipBansSource, /let banFilter = 'all';/);
   assert.match(ipBansSource, /id="ip-ban-filter"/);
   assert.match(ipBansSource, /id="bypass-allowlists-toggle"/);
-  assert.match(ipBansSource, /id="network-whitelist"/);
-  assert.match(ipBansSource, /id="path-whitelist"/);
+  assert.match(ipBansSource, /id="network-allowlist"/);
+  assert.match(ipBansSource, /id="path-allowlist"/);
   assert.match(ipBansSource, /buttonId="save-bypass-allowlists"/);
   assert.match(ipBansSource, /id="ip-range-policy-mode"/);
   assert.match(ipBansSource, /buttonId="save-ip-range-policy"/);

@@ -314,7 +314,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] Incrementally migrate top-level `src/*_tests.rs` files into colocated module tests and/or `tests/` integration suites (no behavior changes).
 - [x] Keep test discovery and CI commands stable (`cargo test`, Make targets) throughout migration.
 - [x] Add/adjust regression tests to ensure routing and enforcement order remain stable while tests move (runtime-backed early routes should be covered in integration-level tests, not native unit tests).
-- [x] H2 slice A completed: moved ban/CDP/GEO/request-router/test-mode/whitelist test files to module-local paths and removed corresponding top-level test module wiring in `src/lib.rs`.
+- [x] H2 slice A completed: moved ban/CDP/GEO/request-router/test-mode/allowlist test files to module-local paths and removed corresponding top-level test module wiring in `src/lib.rs`.
 - [x] H2 slice A completed: added shared unit-test helpers in `src/test_support.rs` and adopted them in env-sensitive suites.
 - [x] H2 slice A verification: `cargo test` passes after migration with no behavior changes.
 - [x] H2 slice B completed: migrated config tests from `src/config_tests.rs` to module-local `src/config/tests.rs`, including shared env-lock adoption.

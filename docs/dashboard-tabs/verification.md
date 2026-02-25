@@ -25,7 +25,7 @@ Panels:
 - `Browser Policy`:
   - toggle (`browser_policy_enabled`),
   - minimum-version rules (`browser_block`),
-  - allowlist rules (`browser_whitelist`).
+  - allowlist rules (`browser_allowlist`).
 
 Notes:
 

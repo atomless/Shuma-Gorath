@@ -157,7 +157,7 @@ pub enum MetricName {
     ChallengeSolvedTotal,
     ChallengeIncorrectTotal,
     ChallengeExpiredReplayTotal,
-    WhitelistedTotal,
+    AllowlistedTotal,
     TestModeActions,
     MazeHits,
     MazeTokenOutcomes,
@@ -200,7 +200,7 @@ impl MetricName {
             MetricName::ChallengeSolvedTotal => "challenge_solved_total",
             MetricName::ChallengeIncorrectTotal => "challenge_incorrect_total",
             MetricName::ChallengeExpiredReplayTotal => "challenge_expired_replay_total",
-            MetricName::WhitelistedTotal => "whitelisted_total",
+            MetricName::AllowlistedTotal => "allowlisted_total",
             MetricName::TestModeActions => "test_mode_actions_total",
             MetricName::MazeHits => "maze_hits_total",
             MetricName::MazeTokenOutcomes => "maze_token_outcomes_total",
@@ -588,10 +588,10 @@ pub fn render_metrics(store: &Store) -> String {
         cdp_detections
     ));
 
-    // Whitelisted total
-    output.push_str("\n# TYPE bot_defence_whitelisted_total counter\n");
-    let whitelisted = get_counter(store, &format!("{}whitelisted_total", METRICS_PREFIX));
-    output.push_str(&format!("bot_defence_whitelisted_total {}\n", whitelisted));
+    // Allowlisted total
+    output.push_str("\n# TYPE bot_defence_allowlisted_total counter\n");
+    let allowlisted = get_counter(store, &format!("{}allowlisted_total", METRICS_PREFIX));
+    output.push_str(&format!("bot_defence_allowlisted_total {}\n", allowlisted));
 
     // Test mode actions
     output.push_str("\n# TYPE bot_defence_test_mode_actions_total counter\n");

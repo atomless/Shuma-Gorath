@@ -41,7 +41,7 @@ This project uses five distinct test environments, each optimized for its scope:
 Rust test layout is now standardized as follows:
 
 - Unit tests should live with the owning module, wired via `#[cfg(test)] mod tests;`.
-- Module-specific test files should be placed under that module directory (for example `src/ban/tests.rs` or `src/whitelist/path_tests.rs`).
+- Module-specific test files should be placed under that module directory (for example `src/ban/tests.rs` or `src/allowlist/path_tests.rs`).
 - Shared unit-test utilities belong in `src/test_support.rs` (request builders, env lock, in-memory <abbr title="Key-Value">KV</abbr> store fixtures).
 - New black-box integration tests should be added in `tests/` when they can rely on public interfaces only.
 - Cross-module crate-internal suites should live under `src/lib_tests/`.
@@ -59,9 +59,9 @@ Run with:
 make test-unit
 ```
 
-Unit tests validate core logic in isolation (ban logic, whitelist parsing, config defaults, <abbr title="Chrome DevTools Protocol">CDP</abbr> parsing, etc.).
+Unit tests validate core logic in isolation (ban logic, allowlist parsing, config defaults, <abbr title="Chrome DevTools Protocol">CDP</abbr> parsing, etc.).
 Test counts may change as coverage evolves; rely on `make test-unit` output for the current total.
-Coverage includes ban/unban flows, whitelists, maze generation, challenge logic, <abbr title="Chrome DevTools Protocol">CDP</abbr> parsing, and helper utilities.
+Coverage includes ban/unban flows, allowlists, maze generation, challenge logic, <abbr title="Chrome DevTools Protocol">CDP</abbr> parsing, and helper utilities.
 
 ## 🐙 Integration Tests (Spin Environment)
 
@@ -348,7 +348,7 @@ curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
 
 ## 🐙 Additional Manual Checks
 
-- Whitelist: add your <abbr title="Internet Protocol">IP</abbr> via `/admin/config` and confirm access is always allowed
+- Allowlist: add your <abbr title="Internet Protocol">IP</abbr> via `/admin/config` and confirm access is always allowed
 - Rate limit: send a burst of requests and confirm auto-ban
 - Outdated browser: send a low-version User-Agent (example: `Chrome/50`)
 - <abbr title="Geolocation">GEO</abbr> policy: set `geo_*` lists via `/admin/config`, then send `X-Geo-Country` with a trusted forwarded-secret request and verify `allow/challenge/maze/block` routing precedence

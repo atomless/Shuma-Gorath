@@ -9,7 +9,7 @@
 - <abbr title="JavaScript">JS</abbr> challenge with signed cookie
 - Puzzle challenge step-up with single-use seeds
 - Proof-of-work (<abbr title="Proof of Work">PoW</abbr>) step before <abbr title="JavaScript">JS</abbr> verification (edge-served)
-- Optional browser whitelist to bypass <abbr title="JavaScript">JS</abbr> challenge
+- Optional browser allowlist to bypass <abbr title="JavaScript">JS</abbr> challenge
 - Maze deception stack with signed traversal tokens, rotating entropy variants, checkpointed progression, optional deep-tier micro-<abbr title="Proof of Work">PoW</abbr>, and auto-ban threshold controls
 - HTTP tarpit escalation path with bounded concurrency/time/byte controls and deterministic fallback
 - <abbr title="Chrome DevTools Protocol">CDP</abbr> automation detection and reporting (`/cdp-report`)

@@ -236,10 +236,10 @@ curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -d '{"provider_backends":{"rate_limiter":"internal","fingerprint_signal":"internal"},"edge_integration_mode":"off"}' \
   "$BASE_URL/admin/config" > /dev/null || true
 
-info "Resetting whitelist/path whitelist to empty defaults..."
+info "Resetting allowlist/path allowlist to empty defaults..."
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
-  -d '{"whitelist":[],"path_whitelist":[]}' \
+  -d '{"allowlist":[],"path_allowlist":[]}' \
   "$BASE_URL/admin/config" > /dev/null || true
 
 info "Resetting IP-range policy to defaults..."

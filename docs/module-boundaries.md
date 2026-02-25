@@ -23,7 +23,7 @@ This document defines the in-repo boundaries used to prepare future repo splits.
 - Core policy/orchestration: `src/lib.rs` and `src/runtime/` helpers (`request_router`, `kv_gate`, `policy_pipeline`)
 - Admin adapter domain: `src/admin/` (`api.rs` endpoint surface + `auth.rs` auth/session concerns)
 - Config domain: `src/config/mod.rs` (+ `src/config/tests.rs`)
-- Signal domain: `src/signals/` (browser/<abbr title="Chrome DevTools Protocol">CDP</abbr>/<abbr title="Geolocation">GEO</abbr>/<abbr title="Internet Protocol">IP</abbr>/<abbr title="JavaScript">JS</abbr>/whitelist)
+- Signal domain: `src/signals/` (browser/<abbr title="Chrome DevTools Protocol">CDP</abbr>/<abbr title="Geolocation">GEO</abbr>/<abbr title="Internet Protocol">IP</abbr>/<abbr title="JavaScript">JS</abbr>/allowlist)
 - Enforcement domain: `src/enforcement/` (ban/block/rate/honeypot)
 - Crawler policy domain: `src/crawler_policy/` (`robots` policy generation and crawler directives)
 - Maze/tarpit domain: `src/maze/` + `src/tarpit/` with shared deception primitives in `src/deception/`
@@ -49,7 +49,7 @@ This taxonomy defines how modules participate in bot defense composition.
 | `src/signals/browser_user_agent.rs` | signal | Browser capability/version signal | Signals | Independent utility signal source; no enforcement dependencies. |
 | `src/signals/ip_identity.rs` | signal | <abbr title="Internet Protocol">IP</abbr> bucketing utility for telemetry/signal keys | Signals | Leaf utility; no enforcement dependencies. |
 | `src/signals/rate_pressure.rs` | signal | Rate-window telemetry and pressure-band scoring signals | Signals | Reads request-rate counters for scoring only; does not enforce bans/blocks. |
-| `src/signals/whitelist/` | signal | Allow-list signal short-circuit inputs | Signals | Can depend on parsing/input modules; no enforcement dependencies. |
+| `src/signals/allowlist/` | signal | Allow-list signal short-circuit inputs | Signals | Can depend on parsing/input modules; no enforcement dependencies. |
 | `src/enforcement/honeypot.rs` | barrier | Honeypot path detection for immediate defensive action | Enforcement | May consume routing/config context; should not calculate botness directly. |
 | `src/enforcement/ban/` | barrier | Ban persistence and ban-state enforcement primitives | Enforcement | May depend on storage/input sanitation; no direct dependence on signal module internals. |
 | `src/enforcement/block_page.rs` | barrier | Block response rendering | Enforcement | Presentation-only enforcement utility. |

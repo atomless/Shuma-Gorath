@@ -471,8 +471,8 @@ pub struct Config {
     pub browser_policy_enabled: bool,
     #[serde(default = "default_browser_block")]
     pub browser_block: Vec<(String, u32)>,
-    #[serde(default = "default_browser_whitelist")]
-    pub browser_whitelist: Vec<(String, u32)>,
+    #[serde(default = "default_browser_allowlist")]
+    pub browser_allowlist: Vec<(String, u32)>,
     #[serde(default = "default_geo_risk")]
     pub geo_risk: Vec<String>,
     #[serde(default = "default_geo_allow")]
@@ -487,10 +487,10 @@ pub struct Config {
     pub geo_edge_headers_enabled: bool,
     #[serde(default = "default_bypass_allowlists_enabled")]
     pub bypass_allowlists_enabled: bool,
-    #[serde(default = "default_whitelist")]
-    pub whitelist: Vec<String>,
-    #[serde(default = "default_path_whitelist")]
-    pub path_whitelist: Vec<String>,
+    #[serde(default = "default_allowlist")]
+    pub allowlist: Vec<String>,
+    #[serde(default = "default_path_allowlist")]
+    pub path_allowlist: Vec<String>,
     #[serde(default = "default_ip_range_policy_mode")]
     pub ip_range_policy_mode: IpRangePolicyMode,
     #[serde(default = "default_ip_range_emergency_allowlist")]
@@ -943,7 +943,7 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         honeypots: defaults_string_list("SHUMA_HONEYPOTS"),
         browser_policy_enabled: defaults_bool("SHUMA_BROWSER_POLICY_ENABLED"),
         browser_block: defaults_browser_rules("SHUMA_BROWSER_BLOCK"),
-        browser_whitelist: defaults_browser_rules("SHUMA_BROWSER_WHITELIST"),
+        browser_allowlist: defaults_browser_rules("SHUMA_BROWSER_ALLOWLIST"),
         geo_risk: defaults_country_list("SHUMA_GEO_RISK_COUNTRIES"),
         geo_allow: defaults_country_list("SHUMA_GEO_ALLOW_COUNTRIES"),
         geo_challenge: defaults_country_list("SHUMA_GEO_CHALLENGE_COUNTRIES"),
@@ -951,8 +951,8 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         geo_block: defaults_country_list("SHUMA_GEO_BLOCK_COUNTRIES"),
         geo_edge_headers_enabled: defaults_bool("SHUMA_GEO_EDGE_HEADERS_ENABLED"),
         bypass_allowlists_enabled: defaults_bool("SHUMA_BYPASS_ALLOWLISTS_ENABLED"),
-        whitelist: defaults_string_list("SHUMA_WHITELIST"),
-        path_whitelist: defaults_string_list("SHUMA_PATH_WHITELIST"),
+        allowlist: defaults_string_list("SHUMA_ALLOWLIST"),
+        path_allowlist: defaults_string_list("SHUMA_PATH_ALLOWLIST"),
         ip_range_policy_mode: default_ip_range_policy_mode(),
         ip_range_emergency_allowlist: defaults_string_list("SHUMA_IP_RANGE_EMERGENCY_ALLOWLIST"),
         ip_range_custom_rules: defaults_json("SHUMA_IP_RANGE_CUSTOM_RULES"),
@@ -1951,8 +1951,8 @@ fn default_browser_block() -> Vec<(String, u32)> {
     defaults_browser_rules("SHUMA_BROWSER_BLOCK")
 }
 
-fn default_browser_whitelist() -> Vec<(String, u32)> {
-    defaults_browser_rules("SHUMA_BROWSER_WHITELIST")
+fn default_browser_allowlist() -> Vec<(String, u32)> {
+    defaults_browser_rules("SHUMA_BROWSER_ALLOWLIST")
 }
 
 fn default_geo_risk() -> Vec<String> {
@@ -1983,12 +1983,12 @@ fn default_bypass_allowlists_enabled() -> bool {
     defaults_bool("SHUMA_BYPASS_ALLOWLISTS_ENABLED")
 }
 
-fn default_whitelist() -> Vec<String> {
-    defaults_string_list("SHUMA_WHITELIST")
+fn default_allowlist() -> Vec<String> {
+    defaults_string_list("SHUMA_ALLOWLIST")
 }
 
-fn default_path_whitelist() -> Vec<String> {
-    defaults_string_list("SHUMA_PATH_WHITELIST")
+fn default_path_allowlist() -> Vec<String> {
+    defaults_string_list("SHUMA_PATH_ALLOWLIST")
 }
 
 fn default_ip_range_policy_mode() -> IpRangePolicyMode {

@@ -200,14 +200,14 @@ mod tests {
         cfg.rate_limit = 80;
         cfg.honeypots = vec!["/instaban".to_string()];
         cfg.browser_block = vec![];
-        cfg.browser_whitelist = vec![];
+        cfg.browser_allowlist = vec![];
         cfg.geo_risk = vec![];
         cfg.geo_allow = vec![];
         cfg.geo_challenge = vec![];
         cfg.geo_maze = vec![];
         cfg.geo_block = vec![];
-        cfg.whitelist = vec![];
-        cfg.path_whitelist = vec![];
+        cfg.allowlist = vec![];
+        cfg.path_allowlist = vec![];
         cfg.test_mode = false;
         cfg.maze_enabled = true;
         cfg.maze_auto_ban = true;

@@ -47,7 +47,7 @@ pub(crate) fn maybe_handle_ip_range_policy(
         crate::signals::ip_range_policy::Evaluation::EmergencyAllowlisted { matched_cidr } => {
             crate::observability::metrics::increment(
                 store,
-                crate::observability::metrics::MetricName::WhitelistedTotal,
+                crate::observability::metrics::MetricName::AllowlistedTotal,
                 None,
             );
             crate::admin::log_event(
@@ -992,18 +992,18 @@ pub(crate) fn compute_needs_js(
         return false;
     }
 
-    let browser_whitelist = if cfg.browser_policy_enabled {
-        cfg.browser_whitelist.as_slice()
+    let browser_allowlist = if cfg.browser_policy_enabled {
+        cfg.browser_allowlist.as_slice()
     } else {
         &[]
     };
     let js_missing_verification = path != "/health"
-        && crate::signals::js_verification::needs_js_verification_with_whitelist(
+        && crate::signals::js_verification::needs_js_verification_with_allowlist(
             req,
             store,
             site_id,
             ip,
-            browser_whitelist,
+            browser_allowlist,
         );
     js_missing_verification
 }

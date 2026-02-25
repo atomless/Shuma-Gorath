@@ -8,7 +8,7 @@ mod test_support;
 // Entry point for the WASM Stealth Bot Defence Spin app
 
 use crate::enforcement::{ban, block_page};
-use crate::signals::{browser_user_agent as browser, geo, js_verification as js, whitelist};
+use crate::signals::{browser_user_agent as browser, geo, js_verification as js, allowlist};
 use serde::Serialize;
 use spin_sdk::http::{Method, Request, Response};
 use spin_sdk::http_component;
@@ -28,7 +28,7 @@ mod observability; // Metrics and monitoring surfaces
 mod providers; // Provider contracts for swappable implementations
 mod request_validation; // Request validation/parsing helpers
 mod runtime; // request-time orchestration helpers
-mod signals; // Risk and identity signals (browser/CDP/GEO/IP/JS/whitelist)
+mod signals; // Risk and identity signals (browser/CDP/GEO/IP/JS/allowlist)
 mod tarpit; // tarpit progressive endpoint/runtime
 
 /// Main HTTP handler for the bot defence. This function is invoked for every HTTP request.
@@ -993,23 +993,23 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         None,
     );
 
-    // Path-based whitelist (for webhooks/integrations)
-    if cfg.bypass_allowlists_enabled && whitelist::is_path_whitelisted(path, &cfg.path_whitelist) {
+    // Path-based allowlist (for webhooks/integrations)
+    if cfg.bypass_allowlists_enabled && allowlist::is_path_allowlisted(path, &cfg.path_allowlist) {
         observability::metrics::increment(
             store,
-            observability::metrics::MetricName::WhitelistedTotal,
+            observability::metrics::MetricName::AllowlistedTotal,
             None,
         );
-        return Response::new(200, "OK (path whitelisted)");
+        return Response::new(200, "OK (path allowlisted)");
     }
-    // IP/CIDR whitelist
-    if cfg.bypass_allowlists_enabled && whitelist::is_whitelisted(&ip, &cfg.whitelist) {
+    // IP/CIDR allowlist
+    if cfg.bypass_allowlists_enabled && allowlist::is_allowlisted(&ip, &cfg.allowlist) {
         observability::metrics::increment(
             store,
-            observability::metrics::MetricName::WhitelistedTotal,
+            observability::metrics::MetricName::AllowlistedTotal,
             None,
         );
-        return Response::new(200, "OK (whitelisted)");
+        return Response::new(200, "OK (allowlisted)");
     }
     let ip_range_evaluation = crate::signals::ip_range_policy::evaluate(&cfg, &ip);
     if let Some(response) = runtime::test_mode::maybe_handle_test_mode(

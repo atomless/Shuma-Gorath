@@ -510,9 +510,9 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
     honeypot_enabled: true,
     honeypots: ["/instaban"],
     browser_block: [["Chrome", 120], ["Firefox", 115], ["Safari", 15]],
-    browser_whitelist: [],
-    whitelist: [],
-    path_whitelist: [],
+    browser_allowlist: [],
+    allowlist: [],
+    path_allowlist: [],
     maze_enabled: true,
     maze_threshold: 50,
     maze_auto_ban: false,
@@ -928,23 +928,23 @@ test("ip bans bypass allowlists pane reflects dirty-state changes", async ({ pag
   await openTab(page, "ip-bans");
 
   const saveBar = page.locator("#bypass-allowlists-save-bar");
-  const networkWhitelistField = page.locator("#network-whitelist");
+  const networkAllowlistField = page.locator("#network-allowlist");
   const bypassAllowlistsEnabledToggle = page.locator("#bypass-allowlists-toggle");
   const bypassAllowlistsEnabledSwitch = page.locator("label.toggle-switch[for='bypass-allowlists-toggle']");
 
   await expect(saveBar).toBeHidden();
 
-  if (!(await networkWhitelistField.isEditable())) {
-    await expect(networkWhitelistField).toBeDisabled();
+  if (!(await networkAllowlistField.isEditable())) {
+    await expect(networkAllowlistField).toBeDisabled();
     return;
   }
 
-  const initialNetworkWhitelist = await networkWhitelistField.inputValue();
-  await networkWhitelistField.fill(`${initialNetworkWhitelist}\n198.51.100.0/24`);
-  await networkWhitelistField.dispatchEvent("input");
+  const initialNetworkAllowlist = await networkAllowlistField.inputValue();
+  await networkAllowlistField.fill(`${initialNetworkAllowlist}\n198.51.100.0/24`);
+  await networkAllowlistField.dispatchEvent("input");
   await expect(saveBar).toBeVisible();
-  await networkWhitelistField.fill(initialNetworkWhitelist);
-  await networkWhitelistField.dispatchEvent("input");
+  await networkAllowlistField.fill(initialNetworkAllowlist);
+  await networkAllowlistField.dispatchEvent("input");
   await expect(saveBar).toBeHidden();
 
   if (await bypassAllowlistsEnabledSwitch.isVisible() && await bypassAllowlistsEnabledToggle.isEnabled()) {
@@ -1601,11 +1601,11 @@ test("tab keyboard navigation updates hash and selected state", async ({ page })
 
   await page.locator("#dashboard-tab-ip-bans").focus();
   await page.keyboard.press("End");
-  await expect(page).toHaveURL(/#tuning$/);
-  await expect(page.locator("#dashboard-tab-tuning")).toHaveAttribute("aria-selected", "true");
-  await assertActiveTabPanelVisibility(page, "tuning");
+  await expect(page).toHaveURL(/#advanced$/);
+  await expect(page.locator("#dashboard-tab-advanced")).toHaveAttribute("aria-selected", "true");
+  await assertActiveTabPanelVisibility(page, "advanced");
 
-  await page.locator("#dashboard-tab-tuning").focus();
+  await page.locator("#dashboard-tab-advanced").focus();
   await page.keyboard.press("Home");
   await expect(page).toHaveURL(/#monitoring$/);
   await expect(page.locator("#dashboard-tab-monitoring")).toHaveAttribute("aria-selected", "true");

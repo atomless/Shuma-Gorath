@@ -1551,10 +1551,10 @@ mod admin_config_tests {
                 "honeypots": ["/instaban", "/trap-b"],
                 "browser_policy_enabled": false,
                 "browser_block": [["Chrome",126],["Firefox",120]],
-                "browser_whitelist": [["Safari",16]],
+                "browser_allowlist": [["Safari",16]],
                 "bypass_allowlists_enabled": false,
-                "whitelist": ["203.0.113.0/24", "198.51.100.9"],
-                "path_whitelist": ["/status", "/assets/*"],
+                "allowlist": ["203.0.113.0/24", "198.51.100.9"],
+                "path_allowlist": ["/status", "/assets/*"],
                 "ban_durations": {"cdp": 777}
             }"#
             .to_vec(),
@@ -1574,7 +1574,7 @@ mod admin_config_tests {
             Some(&serde_json::Value::Bool(false))
         );
         assert_eq!(
-            cfg.get("browser_whitelist"),
+            cfg.get("browser_allowlist"),
             Some(&serde_json::json!([["Safari", 16]]))
         );
         assert_eq!(
@@ -1582,11 +1582,11 @@ mod admin_config_tests {
             Some(&serde_json::Value::Bool(false))
         );
         assert_eq!(
-            cfg.get("whitelist"),
+            cfg.get("allowlist"),
             Some(&serde_json::json!(["203.0.113.0/24", "198.51.100.9"]))
         );
         assert_eq!(
-            cfg.get("path_whitelist"),
+            cfg.get("path_allowlist"),
             Some(&serde_json::json!(["/status", "/assets/*"]))
         );
         assert_eq!(
@@ -1609,16 +1609,16 @@ mod admin_config_tests {
         );
         assert!(!saved_cfg.browser_policy_enabled);
         assert_eq!(
-            saved_cfg.browser_whitelist,
+            saved_cfg.browser_allowlist,
             vec![("Safari".to_string(), 16)]
         );
         assert!(!saved_cfg.bypass_allowlists_enabled);
         assert_eq!(
-            saved_cfg.whitelist,
+            saved_cfg.allowlist,
             vec!["203.0.113.0/24".to_string(), "198.51.100.9".to_string()]
         );
         assert_eq!(
-            saved_cfg.path_whitelist,
+            saved_cfg.path_allowlist,
             vec!["/status".to_string(), "/assets/*".to_string()]
         );
         assert_eq!(saved_cfg.ban_durations.cdp, 777);
@@ -3555,8 +3555,8 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
             json_env(&cfg.browser_block),
         ),
         (
-            "SHUMA_BROWSER_WHITELIST".to_string(),
-            json_env(&cfg.browser_whitelist),
+            "SHUMA_BROWSER_ALLOWLIST".to_string(),
+            json_env(&cfg.browser_allowlist),
         ),
         (
             "SHUMA_GEO_RISK_COUNTRIES".to_string(),
@@ -3586,10 +3586,10 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
             "SHUMA_BYPASS_ALLOWLISTS_ENABLED".to_string(),
             bool_env(cfg.bypass_allowlists_enabled).to_string(),
         ),
-        ("SHUMA_WHITELIST".to_string(), json_env(&cfg.whitelist)),
+        ("SHUMA_ALLOWLIST".to_string(), json_env(&cfg.allowlist)),
         (
-            "SHUMA_PATH_WHITELIST".to_string(),
-            json_env(&cfg.path_whitelist),
+            "SHUMA_PATH_ALLOWLIST".to_string(),
+            json_env(&cfg.path_allowlist),
         ),
         (
             "SHUMA_IP_RANGE_POLICY_MODE".to_string(),
@@ -4566,10 +4566,10 @@ struct AdminConfigPatch {
     honeypots: Option<serde_json::Value>,
     browser_policy_enabled: Option<bool>,
     browser_block: Option<serde_json::Value>,
-    browser_whitelist: Option<serde_json::Value>,
+    browser_allowlist: Option<serde_json::Value>,
     bypass_allowlists_enabled: Option<bool>,
-    whitelist: Option<serde_json::Value>,
-    path_whitelist: Option<serde_json::Value>,
+    allowlist: Option<serde_json::Value>,
+    path_allowlist: Option<serde_json::Value>,
     ip_range_policy_mode: Option<String>,
     ip_range_emergency_allowlist: Option<serde_json::Value>,
     ip_range_custom_rules: Option<serde_json::Value>,
@@ -4965,10 +4965,10 @@ fn handle_admin_config_internal(
                 Err(msg) => return Response::new(400, msg),
             }
         }
-        if let Some(value) = json.get("browser_whitelist") {
-            match parse_browser_rules_json("browser_whitelist", value) {
+        if let Some(value) = json.get("browser_allowlist") {
+            match parse_browser_rules_json("browser_allowlist", value) {
                 Ok(rules) => {
-                    cfg.browser_whitelist = rules;
+                    cfg.browser_allowlist = rules;
                     changed = true;
                 }
                 Err(msg) => return Response::new(400, msg),
@@ -4980,19 +4980,19 @@ fn handle_admin_config_internal(
             cfg.bypass_allowlists_enabled = bypass_allowlists_enabled;
             changed = true;
         }
-        if let Some(value) = json.get("whitelist") {
-            match parse_string_list_json("whitelist", value) {
+        if let Some(value) = json.get("allowlist") {
+            match parse_string_list_json("allowlist", value) {
                 Ok(list) => {
-                    cfg.whitelist = list;
+                    cfg.allowlist = list;
                     changed = true;
                 }
                 Err(msg) => return Response::new(400, msg),
             }
         }
-        if let Some(value) = json.get("path_whitelist") {
-            match parse_string_list_json("path_whitelist", value) {
+        if let Some(value) = json.get("path_allowlist") {
+            match parse_string_list_json("path_allowlist", value) {
                 Ok(list) => {
-                    cfg.path_whitelist = list;
+                    cfg.path_allowlist = list;
                     changed = true;
                 }
                 Err(msg) => return Response::new(400, msg),

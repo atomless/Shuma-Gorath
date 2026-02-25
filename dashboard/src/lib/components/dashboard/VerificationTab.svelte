@@ -50,7 +50,7 @@
 
   let browserPolicyEnabled = true;
   let browserBlockRules = '';
-  let browserWhitelistRules = '';
+  let browserAllowlistRules = '';
 
   let baseline = {
     jsRequired: { enforced: true },
@@ -66,7 +66,7 @@
       attemptLimit: 6,
       attemptWindow: 300
     },
-    browserPolicy: { enabled: true, block: '', whitelist: '' }
+    browserPolicy: { enabled: true, block: '', allowlist: '' }
   };
 
   const handleBeforeUnload = (event) => {
@@ -107,7 +107,7 @@
 
     browserPolicyEnabled = config.browser_policy_enabled !== false;
     browserBlockRules = formatBrowserRulesTextarea(config.browser_block);
-    browserWhitelistRules = formatBrowserRulesTextarea(config.browser_whitelist);
+    browserAllowlistRules = formatBrowserRulesTextarea(config.browser_allowlist);
 
     baseline = {
       jsRequired: { enforced: jsRequiredEnforced },
@@ -136,7 +136,7 @@
       browserPolicy: {
         enabled: browserPolicyEnabled,
         block: normalizeBrowserRulesForCompare(browserBlockRules),
-        whitelist: normalizeBrowserRulesForCompare(browserWhitelistRules)
+        allowlist: normalizeBrowserRulesForCompare(browserAllowlistRules)
       }
     };
 
@@ -176,7 +176,7 @@
     if (includeAll || browserPolicyDirty) {
       patch.browser_policy_enabled = browserPolicyEnabled;
       patch.browser_block = parseBrowserRulesTextarea(browserBlockRules);
-      patch.browser_whitelist = parseBrowserRulesTextarea(browserWhitelistRules);
+      patch.browser_allowlist = parseBrowserRulesTextarea(browserAllowlistRules);
     }
     return patch;
   };
@@ -247,14 +247,14 @@
   );
 
   $: browserBlockNormalized = normalizeBrowserRulesForCompare(browserBlockRules);
-  $: browserWhitelistNormalized = normalizeBrowserRulesForCompare(browserWhitelistRules);
+  $: browserAllowlistNormalized = normalizeBrowserRulesForCompare(browserAllowlistRules);
   $: browserBlockRulesValid = browserBlockNormalized !== '__invalid__';
-  $: browserWhitelistRulesValid = browserWhitelistNormalized !== '__invalid__';
-  $: browserPolicyValid = browserBlockRulesValid && browserWhitelistRulesValid;
+  $: browserAllowlistRulesValid = browserAllowlistNormalized !== '__invalid__';
+  $: browserPolicyValid = browserBlockRulesValid && browserAllowlistRulesValid;
   $: browserPolicyDirty = (
     readBool(browserPolicyEnabled) !== baseline.browserPolicy.enabled ||
     browserBlockNormalized !== baseline.browserPolicy.block ||
-    browserWhitelistNormalized !== baseline.browserPolicy.whitelist
+    browserAllowlistNormalized !== baseline.browserPolicy.allowlist
   );
 
   $: dirtySections = [
@@ -404,9 +404,9 @@
       bind:browserPolicyDirty
       bind:browserPolicyEnabled
       bind:browserBlockRules
-      bind:browserWhitelistRules
+      bind:browserAllowlistRules
       browserBlockRulesValid={browserBlockRulesValid}
-      browserWhitelistRulesValid={browserWhitelistRulesValid}
+      browserAllowlistRulesValid={browserAllowlistRulesValid}
     />
 
     <SaveChangesBar containerId="verification-save-all-bar" isHidden={!writable || !hasUnsavedChanges} summaryId="verification-unsaved-summary" summaryText={saveAllSummaryText} summaryClass="text-unsaved-changes" invalidId="verification-invalid-summary" invalidText={saveAllInvalidText} buttonId="save-verification-all" buttonLabel={saveAllConfigLabel} buttonDisabled={saveAllConfigDisabled} onSave={saveAllConfig} />

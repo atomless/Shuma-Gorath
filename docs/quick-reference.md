@@ -233,7 +233,7 @@ src/
 ├── observability/         # Metrics/export
 ├── providers/             # Provider contracts + registry + internal adapters
 ├── runtime/               # Request router/policy pipeline/test-mode helpers
-└── signals/               # Browser/CDP/GEO/IP/JS/whitelist signals
+└── signals/               # Browser/CDP/GEO/IP/JS/allowlist signals
 
 dashboard/                 # Web dashboard UI
 scripts/tests/integration.sh # Spin integration scenarios

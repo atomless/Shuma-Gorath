@@ -61,7 +61,7 @@ Upgrade idea: add versioned policy presets + scheduled bot-list refresh + policy
 
 7. [Static resources](https://developers.cloudflare.com/bots/additional-configurations/static-resources/)
 Shuma takeaway: skip expensive bot checks for likely static assets by default.
-Current gap: only manual path whitelist bypass exists (`/Users/jamestindall/Projects/Shuma-Gorath/src/lib.rs:615`).
+Current gap: only manual path allowlist bypass exists (`/Users/jamestindall/Projects/Shuma-Gorath/src/lib.rs:615`).
 Design direction: add built-in extension/content-type static bypass mode to reduce latency and false positives.
 
 Most impactful next 3, in order:

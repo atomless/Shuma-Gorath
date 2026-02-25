@@ -145,8 +145,8 @@ const VAR_GROUP_DEFINITIONS = Object.freeze([
       matches: path => (
         path === 'honeypots' ||
         path.startsWith('browser_') ||
-        path === 'whitelist' ||
-        path === 'path_whitelist' ||
+        path === 'allowlist' ||
+        path === 'path_allowlist' ||
         path.startsWith('geo_') ||
         path.startsWith('cdp_') ||
         path.startsWith('fingerprint_')
