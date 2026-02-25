@@ -220,7 +220,7 @@ curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
 info "Resetting GEO policy lists to empty defaults..."
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
-  -d '{"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":[]}' \
+  -d '{"geo_edge_headers_enabled":false,"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":[]}' \
   "$BASE_URL/admin/config" > /dev/null || true
 
 info "Resetting whitelist/path whitelist to empty defaults..."
@@ -831,7 +831,7 @@ if [[ -z "${SHUMA_FORWARDED_IP_SECRET:-}" ]]; then
 else
   info "Testing GEO policy route: challenge tier..."
   geo_challenge_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-    -d '{"geo_risk":[],"geo_allow":[],"geo_challenge":["BR"],"geo_maze":[],"geo_block":[]}' "$BASE_URL/admin/config")
+    -d '{"geo_edge_headers_enabled":true,"geo_risk":[],"geo_allow":[],"geo_challenge":["BR"],"geo_maze":[],"geo_block":[]}' "$BASE_URL/admin/config")
   if ! echo "$geo_challenge_cfg" | grep -q '"geo_challenge":\["BR"\]'; then
     fail "Failed to apply GEO challenge policy config"
     echo -e "${YELLOW}DEBUG geo challenge config:${NC} $geo_challenge_cfg"
@@ -847,7 +847,7 @@ else
 
   info "Testing GEO policy route: maze tier..."
   geo_maze_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-    -d '{"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":["RU"],"geo_block":[],"maze_enabled":true,"maze_auto_ban":false}' "$BASE_URL/admin/config")
+    -d '{"geo_edge_headers_enabled":true,"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":["RU"],"geo_block":[],"maze_enabled":true,"maze_auto_ban":false}' "$BASE_URL/admin/config")
   if ! echo "$geo_maze_cfg" | grep -q '"geo_maze":\["RU"\]'; then
     fail "Failed to apply GEO maze policy config"
     echo -e "${YELLOW}DEBUG geo maze config:${NC} $geo_maze_cfg"
@@ -863,7 +863,7 @@ else
 
   info "Testing GEO policy route: block tier..."
   geo_block_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-    -d '{"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":["KP"]}' "$BASE_URL/admin/config")
+    -d '{"geo_edge_headers_enabled":true,"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":["KP"]}' "$BASE_URL/admin/config")
   if ! echo "$geo_block_cfg" | grep -q '"geo_block":\["KP"\]'; then
     fail "Failed to apply GEO block policy config"
     echo -e "${YELLOW}DEBUG geo block config:${NC} $geo_block_cfg"
@@ -882,7 +882,7 @@ else
 
   info "Resetting GEO policy lists after routing tests..."
   curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-    -d '{"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":[]}' "$BASE_URL/admin/config" > /dev/null || true
+    -d '{"geo_edge_headers_enabled":false,"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":[]}' "$BASE_URL/admin/config" > /dev/null || true
 
   info "Testing legacy explicit maze/trap path rejection..."
   legacy_maze_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.233" "$BASE_URL/maze/legacy-path")

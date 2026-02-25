@@ -30,7 +30,7 @@
   let geoBlockList = '';
   let geoScoringEnabled = true;
   let geoRoutingEnabled = true;
-  let akamaiGeoSignalEnabled = true;
+  let akamaiGeoSignalEnabled = false;
 
   let baseline = {
     geo: {
@@ -43,7 +43,7 @@
       block: ''
     },
     akamai: {
-      enabled: true
+      enabled: false
     }
   };
 
@@ -65,7 +65,7 @@
     const geoToggleState = geoToggleStateFromMode(config?.defence_modes?.geo);
     geoScoringEnabled = geoToggleState.scoringEnabled;
     geoRoutingEnabled = geoToggleState.routingEnabled;
-    akamaiGeoSignalEnabled = config.geo_edge_headers_enabled !== false;
+    akamaiGeoSignalEnabled = config.geo_edge_headers_enabled === true;
 
     baseline = {
       geo: {

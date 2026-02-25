@@ -138,7 +138,7 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | `SHUMA_GEO_CHALLENGE_COUNTRIES` | `[]` | 2-letter countries forced to challenge tier. |
 | `SHUMA_GEO_MAZE_COUNTRIES` | `[]` | 2-letter countries forced to maze tier. |
 | `SHUMA_GEO_BLOCK_COUNTRIES` | `[]` | 2-letter countries forced to block tier. |
-| `SHUMA_GEO_EDGE_HEADERS_ENABLED` | `true` | Enables/disables use of trusted edge country headers for GEO scoring and GEO routing. |
+| `SHUMA_GEO_EDGE_HEADERS_ENABLED` | `false` | Enables/disables use of trusted edge country headers for GEO scoring and GEO routing. |
 | `SHUMA_BYPASS_ALLOWLISTS_ENABLED` | `true` | Master on/off switch for path/IP allowlist bypass behavior. |
 | `SHUMA_WHITELIST` | `[]` | <abbr title="Internet Protocol">IP</abbr>/<abbr title="Classless Inter-Domain Routing">CIDR</abbr> allowlist bypassing bot defenses. |
 | `SHUMA_PATH_WHITELIST` | `[]` | <abbr title="Uniform Resource Locator">URL</abbr> path allowlist bypassing bot defenses. |

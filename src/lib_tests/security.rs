@@ -279,6 +279,7 @@ fn geo_headers_are_used_when_forwarding_is_trusted() {
 
     let mut cfg = crate::config::defaults().clone();
     cfg.geo_risk = vec!["US".to_string()];
+    cfg.geo_edge_headers_enabled = true;
     let assessment = crate::assess_geo_request(&req, &cfg);
     assert!(assessment.headers_trusted);
     assert_eq!(assessment.country.as_deref(), Some("US"));
