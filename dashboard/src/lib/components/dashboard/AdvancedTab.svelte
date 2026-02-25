@@ -5,8 +5,11 @@
   import TabStateMessage from './primitives/TabStateMessage.svelte';
   import { advancedConfigTemplatePaths } from '../../domain/config-schema.js';
   import {
+    buildJsonFieldLineMap,
     buildTemplateFromPaths,
-    normalizeJsonObjectForCompare
+    normalizeJsonObjectForCompare,
+    parseJsonObjectWithDiagnostics,
+    resolveJsonFieldLine
   } from '../../domain/core/json-object.js';
   import {
     buildVariableInventoryGroups,
@@ -39,6 +42,9 @@
   let advancedValidationPending = false;
   let advancedValidationError = '';
   let advancedValidationIssues = [];
+  let advancedParseIssue = null;
+  let advancedFieldLineMap = new Map();
+  let advancedDisplayValidationIssues = [];
   let advancedValidationTimer = null;
   let advancedValidationRequestId = 0;
   let baselineAdvancedNormalized = '{}';
@@ -81,24 +87,32 @@
     advancedValidationIssues = [];
   };
 
-  const normalizeAdvancedValidationIssues = (issues) => {
+  const normalizeAdvancedValidationIssues = (issues, fieldLineMap = new Map()) => {
     if (!Array.isArray(issues)) return [];
     return issues
       .filter((issue) => issue && typeof issue === 'object')
       .map((issue) => {
         const source = /** @type {Record<string, unknown>} */ (issue);
+        const field = typeof source.field === 'string' ? source.field : '';
+        const sourceLine = Number(source.line);
+        const resolvedLine = Number.isInteger(sourceLine) && sourceLine > 0
+          ? sourceLine
+          : resolveJsonFieldLine(field, fieldLineMap);
+        const sourceColumn = Number(source.column);
         return {
-          field: typeof source.field === 'string' ? source.field : '',
+          field,
           message: typeof source.message === 'string' ? source.message : 'Invalid value.',
           expected: typeof source.expected === 'string' ? source.expected : '',
           received: Object.prototype.hasOwnProperty.call(source, 'received')
             ? source.received
-            : undefined
+            : undefined,
+          line: Number.isInteger(resolvedLine) && resolvedLine > 0 ? resolvedLine : null,
+          column: Number.isInteger(sourceColumn) && sourceColumn > 0 ? sourceColumn : null
         };
       });
   };
 
-  async function runAdvancedServerValidation(advancedPatch, requestId) {
+  async function runAdvancedServerValidation(advancedPatch, requestId, fieldLineMap) {
     if (typeof onValidateConfig !== 'function') {
       if (requestId !== advancedValidationRequestId) return;
       advancedValidationPending = false;
@@ -110,7 +124,7 @@
     try {
       const result = await onValidateConfig(advancedPatch);
       if (requestId !== advancedValidationRequestId) return;
-      const issues = normalizeAdvancedValidationIssues(result && result.issues);
+      const issues = normalizeAdvancedValidationIssues(result && result.issues, fieldLineMap);
       advancedValidationIssues = issues;
       advancedValidationError = '';
       advancedValidationPending = false;
@@ -137,11 +151,14 @@
   }
 
   const parseAdvancedPatchObject = () => {
-    const advancedPatch = JSON.parse(advancedConfigJson);
-    if (!advancedPatch || typeof advancedPatch !== 'object' || Array.isArray(advancedPatch)) {
-      throw new Error('Advanced config JSON patch must be an object.');
+    const parsed = parseJsonObjectWithDiagnostics(advancedConfigJson);
+    if (!parsed.ok || !parsed.value) {
+      const parseMessage = parsed.issue && typeof parsed.issue.message === 'string'
+        ? parsed.issue.message
+        : 'Advanced config JSON patch must be an object.';
+      throw new Error(parseMessage);
     }
-    return { ...advancedPatch };
+    return { ...parsed.value };
   };
 
   async function saveAdvancedConfig() {
@@ -178,15 +195,27 @@
     varMeanings: statusVarMeanings
   });
 
-  $: advancedNormalized = normalizeJsonObjectForCompare(advancedConfigJson);
+  $: advancedParseResult = parseJsonObjectWithDiagnostics(advancedConfigJson);
+  $: advancedNormalized = advancedParseResult.ok
+    ? advancedParseResult.normalized
+    : normalizeJsonObjectForCompare(advancedConfigJson);
   $: advancedShapeValid = advancedNormalized !== null;
+  $: advancedParseIssue = advancedShapeValid ? null : advancedParseResult.issue;
+  $: advancedFieldLineMap = advancedShapeValid
+    ? buildJsonFieldLineMap(advancedConfigJson)
+    : new Map();
+  $: advancedDisplayValidationIssues = !advancedShapeValid && advancedParseIssue
+    ? [advancedParseIssue]
+    : advancedValidationIssues;
   $: advancedDirty = advancedShapeValid && advancedNormalized !== baselineAdvancedNormalized;
   $: advancedValid = advancedShapeValid
     && !advancedValidationPending
     && advancedValidationError === ''
     && advancedValidationIssues.length === 0;
   $: advancedInvalidMessage = !advancedShapeValid
-    ? 'Advanced JSON must be a valid JSON object.'
+    ? (advancedParseIssue && typeof advancedParseIssue.message === 'string'
+      ? advancedParseIssue.message
+      : 'Advanced JSON must be a valid JSON object.')
     : (advancedValidationError
       ? `Advanced JSON validation failed: ${advancedValidationError}`
       : (advancedValidationIssues.length > 0 ? 'Advanced JSON has invalid values.' : ''));
@@ -205,22 +234,19 @@
       advancedValidationError = '';
       advancedValidationIssues = [];
     } else {
-      let advancedPatch = null;
-      try {
-        advancedPatch = parseAdvancedPatchObject();
-      } catch (_error) {
-        advancedValidationPending = false;
-        advancedValidationError = '';
-        advancedValidationIssues = [];
-      }
-
-      if (advancedPatch && typeof advancedPatch === 'object') {
+      if (advancedParseResult.ok && advancedParseResult.value) {
+        const advancedPatch = { ...advancedParseResult.value };
+        const fieldLineMap = new Map(advancedFieldLineMap);
         advancedValidationPending = true;
         advancedValidationError = '';
         advancedValidationIssues = [];
         advancedValidationTimer = setTimeout(() => {
-          void runAdvancedServerValidation(advancedPatch, requestId);
+          void runAdvancedServerValidation(advancedPatch, requestId, fieldLineMap);
         }, ADVANCED_VALIDATE_DEBOUNCE_MS);
+      } else {
+        advancedValidationPending = false;
+        advancedValidationError = '';
+        advancedValidationIssues = [];
       }
     }
   }
@@ -312,7 +338,7 @@
       bind:advancedConfigJson
       bind:advancedValidationPending
       bind:advancedInvalidMessage
-      bind:advancedValidationIssues
+      advancedValidationIssues={advancedDisplayValidationIssues}
       bind:advancedValid
     />
 

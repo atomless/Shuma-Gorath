@@ -38,7 +38,9 @@
             {#each advancedValidationIssues as issue, issueIndex}
               <li id={`advanced-config-json-issue-${issueIndex}`}>
                 {#if Number.isFinite(Number(issue.line)) && Number(issue.line) > 0}
-                  <span class="validation-issue-line">Line {Number(issue.line)}:</span>
+                  <span class="validation-issue-line">
+                    Line {Number(issue.line)}{#if Number.isFinite(Number(issue.column)) && Number(issue.column) > 0}, column {Number(issue.column)}{/if}:
+                  </span>
                 {/if}
                 {#if issue.field}
                   <code>{issue.field}</code>:&nbsp;

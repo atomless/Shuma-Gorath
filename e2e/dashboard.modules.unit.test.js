@@ -828,6 +828,27 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
     );
     assert.deepEqual(toPlain(template), { pow_enabled: true, botness_weights: { geo_risk: 3 } });
     assert.equal(json.normalizeJsonObjectForCompare('{"ok":true}'), '{"ok":true}');
+    const parsedObject = json.parseJsonObjectWithDiagnostics('{\n  "rate_limit": 80\n}');
+    assert.equal(parsedObject.ok, true);
+    assert.deepEqual(toPlain(parsedObject.value), { rate_limit: 80 });
+    assert.equal(parsedObject.normalized, '{"rate_limit":80}');
+
+    const parsedInvalid = json.parseJsonObjectWithDiagnostics('{\n  "rate_limit": 80,\n  "pow_enabled":\n}');
+    assert.equal(parsedInvalid.ok, false);
+    assert.equal(typeof parsedInvalid.issue?.message, 'string');
+    assert.equal(Number(parsedInvalid.issue?.line) > 0, true);
+    assert.equal(Number(parsedInvalid.issue?.column) > 0, true);
+
+    const fieldLineMap = json.buildJsonFieldLineMap(
+      '{\n  "ban_durations": {\n    "honeypot": 300,\n    "rate_limit": 120\n  },\n  "rate_limit": 80\n}'
+    );
+    assert.equal(fieldLineMap.get('ban_durations'), 2);
+    assert.equal(fieldLineMap.get('ban_durations.honeypot'), 3);
+    assert.equal(fieldLineMap.get('ban_durations.rate_limit'), 4);
+    assert.equal(fieldLineMap.get('rate_limit'), 6);
+    assert.equal(json.resolveJsonFieldLine('ban_durations.honeypot', fieldLineMap), 3);
+    assert.equal(json.resolveJsonFieldLine('honeypot', fieldLineMap), 3);
+    assert.equal(json.resolveJsonFieldLine('missing_field', fieldLineMap), null);
     assert.equal(Array.isArray(schema.advancedConfigTemplatePaths), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('test_mode'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('browser_policy_enabled'), true);
