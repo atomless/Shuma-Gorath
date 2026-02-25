@@ -110,6 +110,13 @@ cleanup_integration_state() {
       "$BASE_URL/admin/config" > /dev/null || true
   fi
 
+  # Ensure edge/Akamai toggles return to secure defaults even when later
+  # scenarios temporarily switch them to external backends.
+  curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"provider_backends":{"rate_limiter":"internal","fingerprint_signal":"internal"},"edge_integration_mode":"off","geo_edge_headers_enabled":false}' \
+    "$BASE_URL/admin/config" > /dev/null || true
+
   for ip in "${TEST_CLEANUP_IPS[@]}"; do
     curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
       "$BASE_URL/admin/unban?ip=${ip}" > /dev/null || true
@@ -221,6 +228,12 @@ info "Resetting GEO policy lists to empty defaults..."
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
   -d '{"geo_edge_headers_enabled":false,"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":[]}' \
+  "$BASE_URL/admin/config" > /dev/null || true
+
+info "Resetting Akamai backend toggles to defaults..."
+curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"provider_backends":{"rate_limiter":"internal","fingerprint_signal":"internal"},"edge_integration_mode":"off"}' \
   "$BASE_URL/admin/config" > /dev/null || true
 
 info "Resetting whitelist/path whitelist to empty defaults..."
