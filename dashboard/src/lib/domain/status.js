@@ -412,14 +412,6 @@ const STATUS_DEFINITIONS = [
       status: snapshot => boolStatus(snapshot.httpsEnforced)
     },
     {
-      title: 'Test Mode',
-      description: () => (
-        `${envVar('SHUMA_TEST_MODE')} controls whether defenses are enforce-only or log-only. When enabled, detections and ban actions are logged but traffic is not blocked. ` +
-        'Use this for safe tuning before turning enforcement on.'
-      ),
-      status: snapshot => boolStatus(snapshot.testMode)
-    },
-    {
       title: 'Proof-of-Work (PoW)',
       description: snapshot => (
         `PoW is applied in the JS verification flow and increases bot cost before <code>js_verified</code> is issued. ` +

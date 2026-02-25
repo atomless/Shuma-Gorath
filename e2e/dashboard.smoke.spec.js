@@ -858,6 +858,7 @@ test("status tab resolves fail mode without requiring monitoring bootstrap", asy
   await expect(page.locator("#status-items .status-item h3", { hasText: "Challenge Puzzle" })).toHaveCount(1);
   await expect(page.locator("#status-items .status-item h3", { hasText: "Challenge Not-A-Bot" })).toHaveCount(1);
   await expect(page.locator("#status-items .status-item h3", { hasText: "Tarpit" })).toHaveCount(1);
+  await expect(page.locator("#status-items .status-item h3", { hasText: "Test Mode" })).toHaveCount(0);
   await expect(page.locator("#status-items .status-item h3", { hasText: /^Challenge$/ })).toHaveCount(0);
 
   const statusVarTables = page.locator("#status-vars-groups .status-vars-table");

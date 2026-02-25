@@ -712,10 +712,12 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     const challengeNotABotItem = statusItems.find((item) => stripHtml(item.title) === 'Challenge Not-A-Bot');
     const tarpitItem = statusItems.find((item) => stripHtml(item.title) === 'Tarpit');
     const ipRangeItem = statusItems.find((item) => stripHtml(item.title) === 'IP Range Policy');
+    const testModeItem = statusItems.find((item) => stripHtml(item.title) === 'Test Mode');
     assert.equal(Boolean(challengePuzzleItem), true);
     assert.equal(Boolean(challengeNotABotItem), true);
     assert.equal(Boolean(tarpitItem), true);
     assert.equal(Boolean(ipRangeItem), true);
+    assert.equal(Boolean(testModeItem), false);
     assert.equal(challengePuzzleItem?.status, 'ENABLED');
     assert.equal(challengeNotABotItem?.status, 'ENABLED');
     assert.equal(tarpitItem?.status, 'ENABLED');
