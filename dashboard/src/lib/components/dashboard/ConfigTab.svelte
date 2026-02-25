@@ -900,7 +900,7 @@
     </ConfigPanel>
 
     <ConfigPanel writable={writable} dirty={cdpDirty}>
-      <ConfigPanelHeading title='Internal Browser <abbr title="Chrome DevTools Protocol">CDP</abbr> Probe'>
+      <ConfigPanelHeading title='Browser <abbr title="Chrome DevTools Protocol">CDP</abbr> Automation Probe'>
         <label class="toggle-switch" for="config-cdp-enabled-toggle">
           <input
             type="checkbox"
@@ -947,7 +947,7 @@
       </div>
       {#if !jsRequiredEnforced}
         <p class="message warning">
-          JS Required is disabled, so the internal browser <abbr title="Chrome DevTools Protocol">CDP</abbr> probe is inactive and these controls are disabled.
+          JS Required is disabled, so the browser <abbr title="Chrome DevTools Protocol">CDP</abbr> automation probe is inactive and these controls are disabled.
         </p>
       {/if}
     </ConfigPanel>
