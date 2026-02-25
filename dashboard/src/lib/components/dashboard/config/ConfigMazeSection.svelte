@@ -8,6 +8,7 @@
   export let mazeEnabled = true;
   export let mazeAutoBan = true;
   export let mazeThreshold = 50;
+  export let mazeThresholdValid = true;
   export let tarpitEnabled = true;
 </script>
 
@@ -29,7 +30,7 @@
     </div>
     <div class="input-row" class:input-row--disabled={!mazeAutoBan} aria-disabled={!mazeAutoBan}>
       <label class="control-label" class:text-muted={!mazeAutoBan} for="maze-threshold">Auto-ban Threshold (maze pages visited)</label>
-      <input class="input-field" type="number" id="maze-threshold" min="5" max="500" step="1" inputmode="numeric" aria-label="Maze ban threshold in pages" bind:value={mazeThreshold} disabled={!mazeAutoBan}>
+      <input class="input-field" type="number" id="maze-threshold" min="5" max="500" step="1" inputmode="numeric" aria-label="Maze ban threshold in pages" aria-invalid={mazeThresholdValid ? 'false' : 'true'} bind:value={mazeThreshold} disabled={!mazeAutoBan}>
     </div>
   </div>
 </ConfigPanel>

@@ -20,7 +20,9 @@ This file provides instructions for coding agents working in this repository.
 - Prioritize resource efficiency (bandwidth, CPU, memory, energy).
 - Keep architecture modular and platform-agnostic.
 - For user-facing help text and documentation, prefer clear and helpful explanations over brevity.
+- For user-facing validation/help text, write constraints as explicit rules using “must”/“must not” phrasing and concrete examples; avoid compressed slash notation (for example, avoid phrasing like `no spaces/query/fragment`).
 - Treat this repository as pre-launch by default: do not add backward-compatibility aliases/shims/migration layers unless the user explicitly requests them for the specific change.
+- UI design language is controlled and must remain consistent: do not invent, introduce, or experiment with new visual language (new border styles, spacing systems, color semantics, component idioms, interaction patterns, or typography shifts) unless the user explicitly asks for a design change. Default behavior is strict reuse of the existing canonical dashboard styles/components.
 
 ## Required workflow for non-trivial changes
 

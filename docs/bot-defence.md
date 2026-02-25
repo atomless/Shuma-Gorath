@@ -28,7 +28,7 @@ Used in concert, and sensibly configured, they limit human friction while increa
 - Enterprise integration focus: prioritize Akamai-compatible ingestion and control surfaces.
 - Runtime posture: keep Fermyon/Spin as a primary deployment path.
 - Decision authority:
-  - advisory mode (default): managed-edge outcomes are signals for Shuma policy.
+  - additive mode (default): managed-edge outcomes add bounded evidence into Shuma scoring.
   - authoritative mode (optional): managed-edge outcomes can short-circuit selected local paths.
 - Boundary rule:
   externalize state and upstream signals where edge providers have superior reach,
@@ -182,7 +182,7 @@ Use this section to avoid overreach and duplicated controls.
 
 | Capability Family | System of Record | Why | Shuma Role | Explicit Non-Goal |
 |---|---|---|---|---|
-| Global reputation, bot category models, and internet-scale classifier training | Akamai (managed edge) | Edge has cross-tenant/global telemetry and model lifecycle tooling | Ingest outputs as advisory/authoritative signals where configured | Rebuilding global bot classifier training inside Shuma |
+| Global reputation, bot category models, and internet-scale classifier training | Akamai (managed edge) | Edge has cross-tenant/global telemetry and model lifecycle tooling | Ingest outputs as additive/authoritative signals where configured | Rebuilding global bot classifier training inside Shuma |
 | Transport/network identity signals (for example JA3/JA4-like fingerprints, <abbr title="Autonomous System Number">ASN</abbr> reputation, network provenance) | Akamai (managed edge) | Edge sees handshake/network context origin apps usually do not | Normalize and consume trusted upstream signals in policy | Duplicating edge-only transport fingerprint collection logic in app runtime |
 | Volumetric pre-filtering and broad perimeter suppression | Akamai (managed edge) | Best placed before app resource spend | Assume pre-filtered traffic and apply app-aware controls | Treating Shuma as a DDoS/perimeter replacement |
 | App workflow abuse controls (route/action semantics, business logic checks) | Shuma | Requires application context and product semantics | Primary policy and enforcement ownership | Delegating all app-abuse policy design to generic edge controls |
@@ -247,7 +247,7 @@ Pattern A is generally stronger for high-risk/high-volume environments.
 - Avoid duplicate friction: if the edge layer already challenged, keep Shuma defaults conservative.
 - Monitor challenge rates and false positives at both layers.
 - Treat Shuma as the place for business-context logic, not as a clone of global bot classification.
-- Use advisory integration as the default enterprise posture; enable authoritative overrides only when needed and observable.
+- Use additive integration as the default enterprise posture; enable authoritative overrides only when needed and observable.
 
 ## 🐙 Current and Future Threat Model Alignment
 

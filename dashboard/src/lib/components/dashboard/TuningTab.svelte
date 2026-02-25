@@ -120,15 +120,27 @@
     ? signalDefinitions.terminal_signals
     : [];
 
-  $: botnessValid = (
+  $: notABotThresholdValid = (
     inRange(notABotThreshold, 1, 10) &&
+    (Number(challengeThreshold) <= 1 || Number(notABotThreshold) < Number(challengeThreshold))
+  );
+  $: challengeThresholdValid = (
     inRange(challengeThreshold, 1, 10) &&
-    (Number(challengeThreshold) <= 1 || Number(notABotThreshold) < Number(challengeThreshold)) &&
-    inRange(mazeThreshold, 1, 10) &&
-    inRange(weightJsRequired, 0, 10) &&
-    inRange(weightGeoRisk, 0, 10) &&
-    inRange(weightRateMedium, 0, 10) &&
-    inRange(weightRateHigh, 0, 10)
+    (Number(challengeThreshold) <= 1 || Number(notABotThreshold) < Number(challengeThreshold))
+  );
+  $: mazeThresholdValid = inRange(mazeThreshold, 1, 10);
+  $: weightJsRequiredValid = inRange(weightJsRequired, 0, 10);
+  $: weightGeoRiskValid = inRange(weightGeoRisk, 0, 10);
+  $: weightRateMediumValid = inRange(weightRateMedium, 0, 10);
+  $: weightRateHighValid = inRange(weightRateHigh, 0, 10);
+  $: botnessValid = (
+    notABotThresholdValid &&
+    challengeThresholdValid &&
+    mazeThresholdValid &&
+    weightJsRequiredValid &&
+    weightGeoRiskValid &&
+    weightRateMediumValid &&
+    weightRateHighValid
   );
   $: botnessDirty = (
     Number(notABotThreshold) !== baseline.notABotThreshold ||
@@ -174,13 +186,13 @@
       <h3>Botness Scoring</h3>
       <p class="control-desc text-muted">Weighted signals form a unified score. Moderate scores get the challenge; higher scores route to maze.</p>
       <div class="admin-controls">
-        <NumericInputRow id="not-a-bot-threshold-score" label="Not-a-Bot (score)" min="1" max="10" step="1" inputmode="numeric" ariaLabel="Not-a-Bot risk threshold" bind:value={notABotThreshold} disabled={!writable} />
-        <NumericInputRow id="challenge-puzzle-threshold" label="Challenge (score)" min="1" max="10" step="1" inputmode="numeric" ariaLabel="Challenge risk threshold" bind:value={challengeThreshold} disabled={!writable} />
-        <NumericInputRow id="maze-threshold-score" label="Maze (score)" min="1" max="10" step="1" inputmode="numeric" ariaLabel="Maze risk threshold" bind:value={mazeThreshold} disabled={!writable} />
-        <NumericInputRow id="weight-js-required" label='Weight: <abbr title="JavaScript">JS</abbr> (points)' min="0" max="10" step="1" inputmode="numeric" ariaLabel="Weight for JavaScript verification required" bind:value={weightJsRequired} disabled={!writable} />
-        <NumericInputRow id="weight-geo-risk" label="Weight: Geo (points)" min="0" max="10" step="1" inputmode="numeric" ariaLabel="Weight for high-risk geography" bind:value={weightGeoRisk} disabled={!writable} />
-        <NumericInputRow id="weight-rate-medium" label="Weight: Rate 50% (points)" min="0" max="10" step="1" inputmode="numeric" ariaLabel="Weight for medium rate pressure" bind:value={weightRateMedium} disabled={!writable} />
-        <NumericInputRow id="weight-rate-high" label="Weight: Rate 80% (points)" min="0" max="10" step="1" inputmode="numeric" ariaLabel="Weight for high rate pressure" bind:value={weightRateHigh} disabled={!writable} />
+        <NumericInputRow id="not-a-bot-threshold-score" label="Not-a-Bot (score)" min="1" max="10" step="1" inputmode="numeric" ariaLabel="Not-a-Bot risk threshold" ariaInvalid={notABotThresholdValid ? 'false' : 'true'} bind:value={notABotThreshold} disabled={!writable} />
+        <NumericInputRow id="challenge-puzzle-threshold" label="Challenge (score)" min="1" max="10" step="1" inputmode="numeric" ariaLabel="Challenge risk threshold" ariaInvalid={challengeThresholdValid ? 'false' : 'true'} bind:value={challengeThreshold} disabled={!writable} />
+        <NumericInputRow id="maze-threshold-score" label="Maze (score)" min="1" max="10" step="1" inputmode="numeric" ariaLabel="Maze risk threshold" ariaInvalid={mazeThresholdValid ? 'false' : 'true'} bind:value={mazeThreshold} disabled={!writable} />
+        <NumericInputRow id="weight-js-required" label='Weight: <abbr title="JavaScript">JS</abbr> (points)' min="0" max="10" step="1" inputmode="numeric" ariaLabel="Weight for JavaScript verification required" ariaInvalid={weightJsRequiredValid ? 'false' : 'true'} bind:value={weightJsRequired} disabled={!writable} />
+        <NumericInputRow id="weight-geo-risk" label="Weight: Geo (points)" min="0" max="10" step="1" inputmode="numeric" ariaLabel="Weight for high-risk geography" ariaInvalid={weightGeoRiskValid ? 'false' : 'true'} bind:value={weightGeoRisk} disabled={!writable} />
+        <NumericInputRow id="weight-rate-medium" label="Weight: Rate 50% (points)" min="0" max="10" step="1" inputmode="numeric" ariaLabel="Weight for medium rate pressure" ariaInvalid={weightRateMediumValid ? 'false' : 'true'} bind:value={weightRateMedium} disabled={!writable} />
+        <NumericInputRow id="weight-rate-high" label="Weight: Rate 80% (points)" min="0" max="10" step="1" inputmode="numeric" ariaLabel="Weight for high rate pressure" ariaInvalid={weightRateHighValid ? 'false' : 'true'} bind:value={weightRateHigh} disabled={!writable} />
         <div class="info-panel">
           <h4>Status</h4>
           <div class="info-row">
@@ -232,6 +244,6 @@
         </div>
       </div>
     </div>
-    <SaveChangesBar containerId="tuning-save-all-bar" hidden={!writable || !botnessDirty} summaryId="tuning-unsaved-summary" summaryText={saveAllTuningSummary} summaryClass="text-muted" invalidId="tuning-invalid-summary" invalidText={saveAllTuningInvalidText} buttonId="save-tuning-all" buttonLabel={saveAllTuningLabel} buttonDisabled={saveAllTuningDisabled} onSave={saveBotness} />
+    <SaveChangesBar containerId="tuning-save-all-bar" isHidden={!writable || !botnessDirty} summaryId="tuning-unsaved-summary" summaryText={saveAllTuningSummary} summaryClass="text-muted" invalidId="tuning-invalid-summary" invalidText={saveAllTuningInvalidText} buttonId="save-tuning-all" buttonLabel={saveAllTuningLabel} buttonDisabled={saveAllTuningDisabled} onSave={saveBotness} />
   </div>
 </section>

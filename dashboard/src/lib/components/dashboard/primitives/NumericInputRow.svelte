@@ -11,6 +11,7 @@
   export let disabled = false;
   export let rowClass = '';
   export let ariaDisabled = null;
+  export let ariaInvalid = undefined;
   export let onInput = null;
 
   const handleInput = (event) => {
@@ -33,6 +34,7 @@
     aria-label={ariaLabel}
     bind:value
     {disabled}
+    aria-invalid={ariaInvalid}
     on:input={handleInput}
   >
 </div>

@@ -191,7 +191,7 @@ impl ProviderBackend {
 #[serde(rename_all = "snake_case")]
 pub enum EdgeIntegrationMode {
     Off,
-    Advisory,
+    Additive,
     Authoritative,
 }
 
@@ -199,7 +199,7 @@ impl EdgeIntegrationMode {
     pub fn as_str(self) -> &'static str {
         match self {
             EdgeIntegrationMode::Off => "off",
-            EdgeIntegrationMode::Advisory => "advisory",
+            EdgeIntegrationMode::Additive => "additive",
             EdgeIntegrationMode::Authoritative => "authoritative",
         }
     }
@@ -812,7 +812,7 @@ impl Config {
         }
 
         if enterprise_unsynced_state_exception_confirmed() {
-            vec!["enterprise multi-instance rollout is using local-only rate/ban state under explicit advisory/off exception; keep this temporary until distributed state is enabled".to_string()]
+            vec!["enterprise multi-instance rollout is using local-only rate/ban state under explicit additive/off exception; keep this temporary until distributed state is enabled".to_string()]
         } else {
             Vec::new()
         }
@@ -1349,7 +1349,7 @@ pub(crate) fn parse_provider_backend(value: &str) -> Option<ProviderBackend> {
 pub(crate) fn parse_edge_integration_mode(value: &str) -> Option<EdgeIntegrationMode> {
     match value.trim().to_ascii_lowercase().as_str() {
         "off" => Some(EdgeIntegrationMode::Off),
-        "advisory" => Some(EdgeIntegrationMode::Advisory),
+        "additive" => Some(EdgeIntegrationMode::Additive),
         "authoritative" => Some(EdgeIntegrationMode::Authoritative),
         _ => None,
     }

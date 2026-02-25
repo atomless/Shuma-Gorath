@@ -137,7 +137,7 @@
   "provider_backends.challenge_engine": "Selected provider backend for challenge generation.",
   "provider_backends.maze_tarpit": "Selected provider backend for maze/tarpit capability.",
   "provider_backends.fingerprint_signal": "Selected provider backend for fingerprint signals. External currently maps to the Akamai adapter.",
-  "edge_integration_mode": "How external edge outcomes affect local routing: off, advisory, authoritative.",
+  "edge_integration_mode": "How Akamai outcomes affect local routing: off, additive, authoritative.",
   "admin_config_write_enabled": "Enables/disables admin API config writes.",
   "kv_store_fail_open": "KV outage posture. true=fail-open, false=fail-closed.",
   "https_enforced": "Reject non-HTTPS requests when enabled.",

@@ -200,8 +200,8 @@ fn parse_edge_integration_mode_accepts_expected_values() {
         Some(EdgeIntegrationMode::Off)
     );
     assert_eq!(
-        parse_edge_integration_mode("advisory"),
-        Some(EdgeIntegrationMode::Advisory)
+        parse_edge_integration_mode("additive"),
+        Some(EdgeIntegrationMode::Additive)
     );
     assert_eq!(
         parse_edge_integration_mode("authoritative"),
@@ -213,7 +213,7 @@ fn parse_edge_integration_mode_accepts_expected_values() {
     );
     assert_eq!(parse_edge_integration_mode("invalid"), None);
     assert_eq!(EdgeIntegrationMode::Off.as_str(), "off");
-    assert_eq!(EdgeIntegrationMode::Advisory.as_str(), "advisory");
+    assert_eq!(EdgeIntegrationMode::Additive.as_str(), "additive");
     assert_eq!(EdgeIntegrationMode::Authoritative.as_str(), "authoritative");
 }
 
@@ -380,7 +380,7 @@ fn enterprise_state_guardrail_errors_without_exception_for_unsynced_multi_instan
 }
 
 #[test]
-fn enterprise_state_guardrail_warns_for_exceptioned_advisory_unsynced_posture() {
+fn enterprise_state_guardrail_warns_for_exceptioned_additive_unsynced_posture() {
     let _lock = crate::test_support::lock_env();
     clear_env(&[
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
@@ -397,11 +397,11 @@ fn enterprise_state_guardrail_warns_for_exceptioned_advisory_unsynced_posture() 
     );
 
     let mut cfg = defaults().clone();
-    cfg.edge_integration_mode = EdgeIntegrationMode::Advisory;
+    cfg.edge_integration_mode = EdgeIntegrationMode::Additive;
     assert_eq!(cfg.enterprise_state_guardrail_error(), None);
     let warnings = cfg.enterprise_state_guardrail_warnings();
     assert_eq!(warnings.len(), 1);
-    assert!(warnings[0].contains("explicit advisory/off exception"));
+    assert!(warnings[0].contains("explicit additive/off exception"));
 
     clear_env(&[
         "SHUMA_ENTERPRISE_MULTI_INSTANCE",
@@ -498,7 +498,7 @@ fn enterprise_state_guardrail_requires_redis_url_for_external_rate_limiter() {
 
     let mut cfg = defaults().clone();
     cfg.provider_backends.rate_limiter = ProviderBackend::External;
-    cfg.edge_integration_mode = EdgeIntegrationMode::Advisory;
+    cfg.edge_integration_mode = EdgeIntegrationMode::Additive;
 
     let error = cfg.enterprise_state_guardrail_error();
     assert!(error.is_some());
@@ -533,7 +533,7 @@ fn enterprise_state_guardrail_requires_redis_url_for_external_ban_store() {
 
     let mut cfg = defaults().clone();
     cfg.provider_backends.ban_store = ProviderBackend::External;
-    cfg.edge_integration_mode = EdgeIntegrationMode::Advisory;
+    cfg.edge_integration_mode = EdgeIntegrationMode::Additive;
 
     let error = cfg.enterprise_state_guardrail_error();
     assert!(error.is_some());

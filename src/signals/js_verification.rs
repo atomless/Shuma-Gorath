@@ -107,6 +107,7 @@ pub fn bot_signal(
 pub fn inject_js_challenge(
     ip: &str,
     user_agent: &str,
+    report_endpoint: &str,
     pow_enabled: bool,
     pow_difficulty: u8,
     pow_ttl_seconds: u64,
@@ -134,7 +135,7 @@ pub fn inject_js_challenge(
             if (window._checkCDPAutomation) {{
                 window._checkCDPAutomation().then(function(result) {{
                     if (result.detected) {{
-                        fetch('/cdp-report', {{
+                        fetch('{report_endpoint}', {{
                             method: 'POST',
                             headers: {{ 'Content-Type': 'application/json' }},
                             body: JSON.stringify({{
@@ -227,7 +228,7 @@ pub fn inject_js_challenge(
             if (window._checkCDPAutomation) {{
                 window._checkCDPAutomation().then(function(result) {{
                     if (result.detected) {{
-                        fetch('/cdp-report', {{
+                        fetch('{report_endpoint}', {{
                             method: 'POST',
                             headers: {{ 'Content-Type': 'application/json' }},
                             body: JSON.stringify({{
@@ -249,4 +250,41 @@ pub fn inject_js_challenge(
         fp_marker_cookie = fingerprint_marker_cookie()
     );
     Response::new(200, html)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::inject_js_challenge;
+
+    #[test]
+    fn js_verification_interstitial_uses_configured_report_endpoint_without_pow() {
+        let resp = inject_js_challenge(
+            "203.0.113.20",
+            "Mozilla/5.0",
+            "/fingerprint-report",
+            false,
+            15,
+            120,
+            crate::config::CdpProbeFamily::V1,
+            100,
+        );
+        let body = String::from_utf8_lossy(resp.body());
+        assert!(body.contains("fetch('/fingerprint-report'"));
+    }
+
+    #[test]
+    fn js_verification_interstitial_uses_configured_report_endpoint_with_pow() {
+        let resp = inject_js_challenge(
+            "203.0.113.21",
+            "Mozilla/5.0",
+            "/cdp-report",
+            true,
+            15,
+            120,
+            crate::config::CdpProbeFamily::V2,
+            100,
+        );
+        let body = String::from_utf8_lossy(resp.body());
+        assert!(body.contains("fetch('/cdp-report'"));
+    }
 }

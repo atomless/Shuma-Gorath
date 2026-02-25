@@ -526,7 +526,7 @@ mod admin_config_tests {
         cfg.honeypots = vec!["/trap-a".to_string(), "/trap-b".to_string()];
         cfg.defence_modes.rate = crate::config::ComposabilityMode::Signal;
         cfg.provider_backends.fingerprint_signal = crate::config::ProviderBackend::External;
-        cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Advisory;
+        cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Additive;
         store
             .set("config:default", &serde_json::to_vec(&cfg).unwrap())
             .unwrap();
@@ -552,7 +552,7 @@ mod admin_config_tests {
         );
         assert_eq!(
             env.get("SHUMA_EDGE_INTEGRATION_MODE"),
-            Some(&serde_json::json!("advisory"))
+            Some(&serde_json::json!("additive"))
         );
         assert_eq!(
             env.get("SHUMA_HONEYPOT_ENABLED"),
@@ -1631,15 +1631,36 @@ mod admin_config_tests {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         let store = TestStore::default();
+        let invalid_payloads = [
+            br#"{"honeypots":["instaban"]}"#.to_vec(),
+            br#"{"honeypots":["/instaban.  gfdgfdgdfgderg.  egfsdfg"]}"#.to_vec(),
+            br#"{"honeypots":["/trap?source=bot"]}"#.to_vec(),
+            br#"{"honeypots":["/trap/%ZZ"]}"#.to_vec(),
+        ];
+
+        for payload in invalid_payloads {
+            let post_req = make_request(Method::Post, "/admin/config", payload);
+            let post_resp = handle_admin_config(&post_req, &store, "default");
+            assert_eq!(*post_resp.status(), 400u16);
+            let msg = String::from_utf8_lossy(post_resp.body());
+            assert!(msg.contains("invalid path"));
+            assert!(msg.contains("percent-encoded"));
+        }
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
+    fn admin_config_accepts_valid_honeypot_path_percent_encoding() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
         let post_req = make_request(
             Method::Post,
             "/admin/config",
-            br#"{"honeypots":["instaban"]}"#.to_vec(),
+            br#"{"honeypots":["/instaban","/trap/%7Ebot"]}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
-        assert_eq!(*post_resp.status(), 400u16);
-        let msg = String::from_utf8_lossy(post_resp.body());
-        assert!(msg.contains("must start with '/'"));
+        assert_eq!(*post_resp.status(), 200u16);
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
     }
 
@@ -2439,7 +2460,7 @@ mod admin_config_tests {
                     "ban_store": "external",
                     "fingerprint_signal": "external"
                 },
-                "edge_integration_mode": "advisory"
+                "edge_integration_mode": "additive"
             }"#
             .to_vec(),
         );
@@ -2459,7 +2480,7 @@ mod admin_config_tests {
         );
         assert_eq!(
             cfg.get("edge_integration_mode"),
-            Some(&serde_json::json!("advisory"))
+            Some(&serde_json::json!("additive"))
         );
 
         let saved_bytes = store.get("config:default").unwrap().unwrap();
@@ -2478,7 +2499,7 @@ mod admin_config_tests {
         );
         assert_eq!(
             saved_cfg.edge_integration_mode,
-            crate::config::EdgeIntegrationMode::Advisory
+            crate::config::EdgeIntegrationMode::Additive
         );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
@@ -3284,6 +3305,11 @@ fn botness_signal_definitions(cfg: &crate::config::Config) -> serde_json::Value 
                 "key": "fp_untrusted_transport_header",
                 "label": "Fingerprint untrusted transport header",
                 "weight": 3
+            },
+            {
+                "key": "fp_akamai_edge_additive",
+                "label": "Fingerprint Akamai edge signal (additive)",
+                "weight": 2
             }
         ],
         "terminal_signals": [
@@ -4207,14 +4233,79 @@ fn parse_ip_range_managed_policies_json(
 fn parse_honeypot_paths_json(field: &str, value: &serde_json::Value) -> Result<Vec<String>, String> {
     let paths = parse_string_list_json(field, value)?;
     for path in &paths {
-        if !path.starts_with('/') {
+        if !is_valid_honeypot_path(path) {
             return Err(format!(
-                "{} contains invalid path '{}'; honeypot paths must start with '/'",
-                field, path
+                "{} contains invalid path '{}'; each path must start with '/'; allowed unencoded characters are letters, digits, '/', '-', '.', '_', '~', '!', '$', '&', '\\'', '(', ')', '*', '+', ',', ';', '=', ':', and '@'; query ('?') and fragment ('#') are not allowed; any other character must be percent-encoded as '%HH'",
+                field, path,
             ));
         }
     }
     Ok(paths)
+}
+
+fn is_valid_honeypot_path(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    if bytes.is_empty() || bytes[0] != b'/' {
+        return false;
+    }
+
+    let mut index = 0usize;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if !(0x21..=0x7e).contains(&byte) {
+            return false;
+        }
+
+        if byte == b'%' {
+            if index + 2 >= bytes.len() {
+                return false;
+            }
+            if !is_ascii_hex_digit(bytes[index + 1]) || !is_ascii_hex_digit(bytes[index + 2]) {
+                return false;
+            }
+            index += 3;
+            continue;
+        }
+
+        if is_ascii_alphanumeric(byte) || is_allowed_honeypot_path_byte(byte) {
+            index += 1;
+            continue;
+        }
+
+        return false;
+    }
+    true
+}
+
+fn is_ascii_alphanumeric(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric()
+}
+
+fn is_ascii_hex_digit(byte: u8) -> bool {
+    byte.is_ascii_hexdigit()
+}
+
+fn is_allowed_honeypot_path_byte(byte: u8) -> bool {
+    matches!(
+        byte,
+        b'/' | b'-'
+            | b'.'
+            | b'_'
+            | b'~'
+            | b'!'
+            | b'$'
+            | b'&'
+            | b'\''
+            | b'('
+            | b')'
+            | b'*'
+            | b'+'
+            | b','
+            | b';'
+            | b'='
+            | b':'
+            | b'@'
+    )
 }
 
 fn parse_browser_rules_json(
@@ -4262,9 +4353,9 @@ fn parse_edge_integration_mode_json(
 ) -> Result<crate::config::EdgeIntegrationMode, String> {
     let raw = value
         .as_str()
-        .ok_or_else(|| format!("{} must be one of: off, advisory, authoritative", field))?;
+        .ok_or_else(|| format!("{} must be one of: off, additive, authoritative", field))?;
     crate::config::parse_edge_integration_mode(raw)
-        .ok_or_else(|| format!("{} must be one of: off, advisory, authoritative", field))
+        .ok_or_else(|| format!("{} must be one of: off, additive, authoritative", field))
 }
 
 fn parse_cdp_probe_family_json(

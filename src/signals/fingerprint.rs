@@ -13,10 +13,12 @@ const FP_TEMPORAL_TRANSITION_KEY: &str = "fp_temporal_transition";
 const FP_FLOW_VIOLATION_KEY: &str = "fp_flow_violation";
 const FP_PERSISTENCE_MARKER_KEY: &str = "fp_persistence_marker_missing";
 const FP_UNTRUSTED_TRANSPORT_HEADER_KEY: &str = "fp_untrusted_transport_header";
+const FP_AKAMAI_EDGE_ADDITIVE_KEY: &str = "fp_akamai_edge_additive";
 
 const FP_KEY_PREFIX_STATE: &str = "fp:state:";
 const FP_KEY_PREFIX_FLOW: &str = "fp:flow:";
 const FP_KEY_PREFIX_FLOW_LAST_BUCKET: &str = "fp:flow:last_bucket:";
+const FP_KEY_PREFIX_EDGE_SIGNAL: &str = "fp:edge:";
 
 const WEIGHT_UA_CH_MISMATCH: u8 = 2;
 const WEIGHT_UA_TRANSPORT_MISMATCH: u8 = 3;
@@ -24,12 +26,21 @@ const WEIGHT_TEMPORAL_TRANSITION: u8 = 2;
 const WEIGHT_FLOW_VIOLATION: u8 = 2;
 const WEIGHT_PERSISTENCE_MARKER_MISSING: u8 = 1;
 const WEIGHT_UNTRUSTED_TRANSPORT_HEADER: u8 = 3;
+const WEIGHT_AKAMAI_EDGE_ADDITIVE: u8 = 2;
+const AKAMAI_EDGE_ADDITIVE_CONFIDENCE_MIN: u8 = 7;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct FingerprintState {
     ts: u64,
     ua_family: String,
     ja4_hash: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ExternalEdgeSignalState {
+    ts: u64,
+    confidence: u8,
+    hard_signal: bool,
 }
 
 #[derive(Debug, Default)]
@@ -224,6 +235,67 @@ fn flow_identity(ip: &str, cfg: &crate::config::Config) -> String {
     )
 }
 
+fn external_edge_signal_ttl_seconds(cfg: &crate::config::Config) -> u64 {
+    cfg.fingerprint_flow_window_seconds.max(1)
+}
+
+fn load_external_edge_signal_state<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    identity: &str,
+    now: u64,
+    ttl_seconds: u64,
+) -> Option<ExternalEdgeSignalState> {
+    let key = format!("{}{}", FP_KEY_PREFIX_EDGE_SIGNAL, identity);
+    let state = store
+        .get(key.as_str())
+        .ok()
+        .flatten()
+        .and_then(|raw| serde_json::from_slice::<ExternalEdgeSignalState>(&raw).ok());
+
+    let Some(state) = state else {
+        return None;
+    };
+
+    if now.saturating_sub(state.ts) > ttl_seconds.max(1) {
+        let _ = store.delete(key.as_str());
+        return None;
+    }
+
+    Some(state)
+}
+
+fn store_external_edge_signal_state<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    identity: &str,
+    state: &ExternalEdgeSignalState,
+) {
+    let key = format!("{}{}", FP_KEY_PREFIX_EDGE_SIGNAL, identity);
+    let Ok(raw) = serde_json::to_vec(state) else {
+        return;
+    };
+    let _ = store.set(key.as_str(), &raw);
+}
+
+pub(crate) fn record_akamai_edge_signal<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    cfg: &crate::config::Config,
+    ip: &str,
+    confidence: u8,
+    hard_signal: bool,
+) {
+    if cfg.provider_backends.fingerprint_signal != crate::config::ProviderBackend::External {
+        return;
+    }
+    let identity = flow_identity(ip, cfg);
+    let now = now_ts();
+    let state = ExternalEdgeSignalState {
+        ts: now,
+        confidence: confidence.clamp(0, 10),
+        hard_signal,
+    };
+    store_external_edge_signal_state(store, identity.as_str(), &state);
+}
+
 fn load_state<S: crate::challenge::KeyValueStore>(
     store: &S,
     identity: &str,
@@ -361,7 +433,7 @@ fn ua_transport_family_mismatch(ua_family: &str, transport: &TransportEvidence) 
     edge_family != "other" && ua_family != "other" && edge_family != ua_family
 }
 
-fn fingerprint_signal_catalog() -> [(&'static str, &'static str, SignalFamily); 6] {
+fn fingerprint_signal_catalog() -> [(&'static str, &'static str, SignalFamily); 7] {
     [
         (
             FP_UA_CH_MISMATCH_KEY,
@@ -391,6 +463,11 @@ fn fingerprint_signal_catalog() -> [(&'static str, &'static str, SignalFamily); 
         (
             FP_UNTRUSTED_TRANSPORT_HEADER_KEY,
             "Untrusted transport fingerprint headers present",
+            SignalFamily::FingerprintTransport,
+        ),
+        (
+            FP_AKAMAI_EDGE_ADDITIVE_KEY,
+            "Akamai edge bot signal (additive)",
             SignalFamily::FingerprintTransport,
         ),
     ]
@@ -428,6 +505,23 @@ pub(crate) fn collect_bot_signals<S: crate::challenge::KeyValueStore>(
     let ua_ch_mismatch = detect_ua_client_hint_mismatch(req);
     let ua_transport_mismatch = ua_transport_family_mismatch(ua_family, &transport);
     let now = now_ts();
+    let edge_additive_state = if cfg.provider_backends.fingerprint_signal
+        == crate::config::ProviderBackend::External
+        && cfg.edge_integration_mode == crate::config::EdgeIntegrationMode::Additive
+    {
+        load_external_edge_signal_state(
+            store,
+            identity.as_str(),
+            now,
+            external_edge_signal_ttl_seconds(cfg),
+        )
+    } else {
+        None
+    };
+    let akamai_edge_additive_active = edge_additive_state
+        .as_ref()
+        .map(|state| state.hard_signal || state.confidence >= AKAMAI_EDGE_ADDITIVE_CONFIDENCE_MIN)
+        .unwrap_or(false);
 
     let ja4_hash = transport.ja4.as_deref().map(|ja4| hash_prefix(ja4, 16));
     let previous_state = load_state(
@@ -498,7 +592,7 @@ pub(crate) fn collect_bot_signals<S: crate::challenge::KeyValueStore>(
     } else {
         7
     };
-    let mut signals = Vec::with_capacity(6);
+    let mut signals = Vec::with_capacity(7);
     signals.push(BotSignal::scored_with_metadata(
         FP_UA_CH_MISMATCH_KEY,
         "UA and client-hint mismatch",
@@ -553,6 +647,31 @@ pub(crate) fn collect_bot_signals<S: crate::challenge::KeyValueStore>(
         9,
         SignalFamily::FingerprintTransport,
     ));
+    if cfg.provider_backends.fingerprint_signal == crate::config::ProviderBackend::External
+        && cfg.edge_integration_mode == crate::config::EdgeIntegrationMode::Additive
+    {
+        let additive_confidence = edge_additive_state
+            .as_ref()
+            .map(|state| state.confidence.max(6))
+            .unwrap_or(7);
+        signals.push(BotSignal::scored_with_metadata(
+            FP_AKAMAI_EDGE_ADDITIVE_KEY,
+            "Akamai edge bot signal (additive)",
+            akamai_edge_additive_active,
+            WEIGHT_AKAMAI_EDGE_ADDITIVE,
+            SignalProvenance::ExternalTrusted,
+            additive_confidence,
+            SignalFamily::FingerprintTransport,
+        ));
+    } else {
+        signals.push(BotSignal::disabled_with_metadata(
+            FP_AKAMAI_EDGE_ADDITIVE_KEY,
+            "Akamai edge bot signal (additive)",
+            SignalProvenance::ExternalTrusted,
+            10,
+            SignalFamily::FingerprintTransport,
+        ));
+    }
 
     // Keep transport signal availability explicit when trusted transport ingestion is unavailable.
     if !headers_trusted && !transport.untrusted_headers_present {
@@ -572,7 +691,8 @@ pub(crate) fn collect_bot_signals<S: crate::challenge::KeyValueStore>(
 mod tests {
     use crate::challenge::KeyValueStore;
     use super::{
-        collect_bot_signals, flow_identity, now_ts, FingerprintState, FP_FLOW_VIOLATION_KEY,
+        collect_bot_signals, flow_identity, now_ts, record_akamai_edge_signal,
+        FingerprintState, FP_AKAMAI_EDGE_ADDITIVE_KEY, FP_FLOW_VIOLATION_KEY,
         FP_KEY_PREFIX_STATE, FP_TEMPORAL_TRANSITION_KEY, FP_UA_CH_MISMATCH_KEY,
         FP_UA_TRANSPORT_MISMATCH_KEY, FP_UNTRUSTED_TRANSPORT_HEADER_KEY,
     };
@@ -741,5 +861,50 @@ mod tests {
         let persisted: FingerprintState = serde_json::from_slice(&persisted_raw).unwrap();
         assert!((observed_start..=observed_end).contains(&persisted.ts));
         assert_eq!(persisted.ua_family, "safari");
+    }
+
+    #[test]
+    fn additive_akamai_signal_contributes_when_recent_high_confidence_state_exists() {
+        let store = MockStore::default();
+        let mut cfg = crate::config::defaults().clone();
+        cfg.fingerprint_signal_enabled = true;
+        cfg.provider_backends.fingerprint_signal = crate::config::ProviderBackend::External;
+        cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Additive;
+
+        let ip = "203.0.113.15";
+        record_akamai_edge_signal(&store, &cfg, ip, 9, false);
+        let req = request("/", &[("user-agent", "Mozilla/5.0 Chrome/120.0")]);
+        let signals = collect_bot_signals(&store, &req, &cfg, ip, true);
+
+        let additive = signals
+            .iter()
+            .find(|signal| signal.key == FP_AKAMAI_EDGE_ADDITIVE_KEY)
+            .expect("missing Akamai additive signal");
+        assert!(additive.active);
+        assert_eq!(additive.contribution, 2);
+    }
+
+    #[test]
+    fn additive_akamai_signal_is_disabled_when_edge_mode_is_off() {
+        let store = MockStore::default();
+        let mut cfg = crate::config::defaults().clone();
+        cfg.fingerprint_signal_enabled = true;
+        cfg.provider_backends.fingerprint_signal = crate::config::ProviderBackend::External;
+        cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Off;
+
+        let ip = "203.0.113.16";
+        record_akamai_edge_signal(&store, &cfg, ip, 10, true);
+        let req = request("/", &[("user-agent", "Mozilla/5.0 Chrome/120.0")]);
+        let signals = collect_bot_signals(&store, &req, &cfg, ip, true);
+
+        let additive = signals
+            .iter()
+            .find(|signal| signal.key == FP_AKAMAI_EDGE_ADDITIVE_KEY)
+            .expect("missing Akamai additive signal");
+        assert_eq!(
+            additive.availability,
+            crate::signals::botness::SignalAvailability::Disabled
+        );
+        assert_eq!(additive.contribution, 0);
     }
 }

@@ -343,7 +343,7 @@ mod tests {
         cfg.defence_modes.rate = crate::config::ComposabilityMode::Signal;
         cfg.defence_modes.geo = crate::config::ComposabilityMode::Enforce;
         cfg.defence_modes.js = crate::config::ComposabilityMode::Both;
-        cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Advisory;
+        cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Additive;
 
         let assessment = crate::compute_botness_assessment(context(true, true, true, 70, 80), &cfg);
         let state_summary = crate::botness_signal_states_summary(&assessment);
@@ -354,7 +354,7 @@ mod tests {
         let mode_summary = crate::defence_runtime_metadata_summary(&cfg);
         assert_eq!(
             mode_summary,
-            "modes=rate=signal/true/false geo=enforce/false/true js=both/true/true edge=advisory"
+            "modes=rate=signal/true/false geo=enforce/false/true js=both/true/true edge=additive"
         );
 
         let provider_registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);

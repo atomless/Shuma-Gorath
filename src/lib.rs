@@ -728,9 +728,13 @@ pub(crate) fn serve_maze_with_tracking(
                         observability::metrics::MetricName::ChallengesTotal,
                         None,
                     );
+                    let report_endpoint = crate::providers::registry::ProviderRegistry::from_config(cfg)
+                        .fingerprint_signal_provider()
+                        .report_path();
                     return crate::signals::js_verification::inject_js_challenge(
                         ip,
                         user_agent,
+                        report_endpoint,
                         cfg.pow_enabled,
                         cfg.pow_difficulty,
                         cfg.pow_ttl_seconds,
@@ -1158,9 +1162,14 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         return response;
     }
 
-    if let Some(response) =
-        runtime::policy_pipeline::maybe_handle_js(store, &cfg, &ip, ua, needs_js)
-    {
+    if let Some(response) = runtime::policy_pipeline::maybe_handle_js(
+        store,
+        &cfg,
+        &provider_registry,
+        &ip,
+        ua,
+        needs_js,
+    ) {
         return response;
     }
 

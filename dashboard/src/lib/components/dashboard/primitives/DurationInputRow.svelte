@@ -6,6 +6,7 @@
   export let days = 0;
   export let hours = 0;
   export let minutes = 0;
+  export let ariaInvalid = undefined;
 </script>
 
 <div class="duration-row">
@@ -21,6 +22,7 @@
         step="1"
         inputmode="numeric"
         bind:value={days}
+        aria-invalid={ariaInvalid}
       />
       <span class="input-unit">days</span>
     </label>
@@ -34,6 +36,7 @@
         step="1"
         inputmode="numeric"
         bind:value={hours}
+        aria-invalid={ariaInvalid}
       />
       <span class="input-unit">hrs</span>
     </label>
@@ -47,6 +50,7 @@
         step="1"
         inputmode="numeric"
         bind:value={minutes}
+        aria-invalid={ariaInvalid}
       />
       <span class="input-unit">mins</span>
     </label>

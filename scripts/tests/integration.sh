@@ -32,7 +32,7 @@
 #   20. CDP config via admin API
 #   21. CDP stats counters reflect reports
 #   22. Unban functionality test
-#   23. External fingerprint advisory vs authoritative precedence
+#   23. External fingerprint additive vs authoritative precedence
 #   24. External fingerprint authoritative mode enforces edge ban
 #   25. External rate-limiter unavailable downgrade-to-internal behavior
 #   26. Monitoring summary endpoint returns structured telemetry sections
@@ -1212,36 +1212,36 @@ else
   echo -e "${YELLOW}DEBUG unban response:${NC} $unban_resp"
 fi
 
-# Test 23: External fingerprint advisory mode should not immediately ban on strong edge report
-info "Testing external fingerprint advisory precedence..."
-fingerprint_advisory_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
+# Test 23: External fingerprint additive mode should not immediately ban on strong edge report
+info "Testing external fingerprint additive precedence..."
+fingerprint_additive_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
-  -d '{"provider_backends":{"fingerprint_signal":"external"},"edge_integration_mode":"advisory","cdp_detection_enabled":true,"cdp_auto_ban":true}' \
+  -d '{"provider_backends":{"fingerprint_signal":"external"},"edge_integration_mode":"additive","cdp_detection_enabled":true,"cdp_auto_ban":true}' \
   "$BASE_URL/admin/config")
-if ! echo "$fingerprint_advisory_cfg" | grep -q '"status":"updated"'; then
-  fail "Failed to apply external fingerprint advisory config"
-  echo -e "${YELLOW}DEBUG advisory config:${NC} $fingerprint_advisory_cfg"
+if ! echo "$fingerprint_additive_cfg" | grep -q '"status":"updated"'; then
+  fail "Failed to apply external fingerprint additive config"
+  echo -e "${YELLOW}DEBUG additive config:${NC} $fingerprint_additive_cfg"
 else
   curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.230" > /dev/null
   edge_report='{"bot_score":99.0,"action":"deny","detection_ids":["bm_automation"],"tags":["ja3_mismatch"]}'
-  advisory_edge_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.230" -X POST \
+  additive_edge_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.230" -X POST \
     -H "Content-Type: application/json" \
     -d "$edge_report" \
     "$BASE_URL/fingerprint-report")
-  if echo "$advisory_edge_resp" | grep -qi 'banned'; then
-    fail "Advisory mode unexpectedly enforced immediate edge ban"
-    echo -e "${YELLOW}DEBUG advisory /fingerprint-report:${NC} $advisory_edge_resp"
-  elif echo "$advisory_edge_resp" | grep -qiE 'received|advisory'; then
-    advisory_followup=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.230" "$BASE_URL/")
-    if echo "$advisory_followup" | grep -q 'Access Blocked'; then
-      fail "Advisory mode follow-up request was blocked"
-      echo -e "${YELLOW}DEBUG advisory follow-up:${NC} $advisory_followup"
+  if echo "$additive_edge_resp" | grep -qi 'banned'; then
+    fail "Additive mode unexpectedly enforced immediate edge ban"
+    echo -e "${YELLOW}DEBUG additive /fingerprint-report:${NC} $additive_edge_resp"
+  elif echo "$additive_edge_resp" | grep -qiE 'received|additive'; then
+    additive_followup=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.230" "$BASE_URL/")
+    if echo "$additive_followup" | grep -q 'Access Blocked'; then
+      fail "Additive mode follow-up request was blocked"
+      echo -e "${YELLOW}DEBUG additive follow-up:${NC} $additive_followup"
     else
-      pass "Advisory mode records edge report without immediate authoritative ban"
+      pass "Additive mode records edge report without immediate authoritative ban"
     fi
   else
-    fail "Advisory mode did not return expected fingerprint response"
-    echo -e "${YELLOW}DEBUG advisory /fingerprint-report:${NC} $advisory_edge_resp"
+    fail "Additive mode did not return expected fingerprint response"
+    echo -e "${YELLOW}DEBUG additive /fingerprint-report:${NC} $additive_edge_resp"
   fi
 fi
 
@@ -1277,7 +1277,7 @@ fi
 
 # Test 25: External rate limiter missing backend explicitly downgrades to internal behavior
 info "Testing external rate limiter downgrade-to-internal behavior..."
-rate_fallback_payload=$(printf '{"provider_backends":{"rate_limiter":"external"},"edge_integration_mode":"advisory","defence_modes":{"rate":"both"},"rate_limit":%s}' "${DEFAULT_RATE_LIMIT}")
+rate_fallback_payload=$(printf '{"provider_backends":{"rate_limiter":"external"},"edge_integration_mode":"additive","defence_modes":{"rate":"both"},"rate_limit":%s}' "${DEFAULT_RATE_LIMIT}")
 rate_fallback_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
   -d "${rate_fallback_payload}" \

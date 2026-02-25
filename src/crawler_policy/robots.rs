@@ -68,6 +68,7 @@ pub fn generate_robots_txt(cfg: &Config) -> String {
         "# Generated dynamically - Policy: {}",
         get_policy_name(cfg)
     ));
+    lines.push("# Note: robots.txt is advisory; compliant crawlers choose to honor directives.".to_string());
     lines.push("#".to_string());
 
     // Add Content-Signal as comment (some crawlers may parse it)
@@ -95,7 +96,7 @@ pub fn generate_robots_txt(cfg: &Config) -> String {
 
     // Block AI training bots
     if cfg.robots_block_ai_training {
-        lines.push("# AI Training Crawlers - BLOCKED".to_string());
+        lines.push("# AI training crawler directives (Disallow policy)".to_string());
         for bot in AI_TRAINING_BOTS {
             lines.push(format!("User-agent: {}", bot));
             lines.push("Disallow: /".to_string());
@@ -105,7 +106,7 @@ pub fn generate_robots_txt(cfg: &Config) -> String {
 
     // Block AI search/assistant bots
     if cfg.robots_block_ai_search {
-        lines.push("# AI Search/Assistant Crawlers - BLOCKED".to_string());
+        lines.push("# AI search/assistant crawler directives (Disallow policy)".to_string());
         for bot in AI_SEARCH_BOTS {
             lines.push(format!("User-agent: {}", bot));
             lines.push("Disallow: /".to_string());
@@ -115,7 +116,7 @@ pub fn generate_robots_txt(cfg: &Config) -> String {
 
     // Allow legitimate search engines with crawl delay
     if cfg.robots_allow_search_engines {
-        lines.push("# Search Engine Crawlers - ALLOWED".to_string());
+        lines.push("# Search engine crawler directives (Allow policy)".to_string());
         for bot in SEARCH_ENGINE_BOTS {
             lines.push(format!("User-agent: {}", bot));
             lines.push("Allow: /".to_string());
@@ -153,14 +154,14 @@ fn get_policy_name(cfg: &Config) -> &'static str {
         cfg.robots_block_ai_search,
         cfg.robots_allow_search_engines,
     ) {
-        (true, true, true) => "Search Only (Block All AI)",
-        (true, true, false) => "Block Everything",
-        (true, false, true) => "Block AI Training, Allow AI Search & Search Engines",
-        (true, false, false) => "Block AI Training & Search Engines, Allow AI Search",
-        (false, true, true) => "Allow AI Training, Block AI Search, Allow Search Engines",
-        (false, true, false) => "Allow AI Training, Block AI Search & Search Engines",
+        (true, true, true) => "Search Only (Disallow All AI)",
+        (true, true, false) => "Disallow Everything",
+        (true, false, true) => "Disallow AI Training, Allow AI Search & Search Engines",
+        (true, false, false) => "Disallow AI Training & Search Engines, Allow AI Search",
+        (false, true, true) => "Allow AI Training, Disallow AI Search, Allow Search Engines",
+        (false, true, false) => "Allow AI Training, Disallow AI Search & Search Engines",
         (false, false, true) => "Allow Everything",
-        (false, false, false) => "Block Search Engines Only",
+        (false, false, false) => "Disallow Search Engines Only",
     }
 }
 
@@ -293,5 +294,19 @@ mod tests {
         let robots = generate_robots_txt(&cfg);
 
         assert!(!robots.contains("Disallow: /instaban"));
+    }
+
+    #[test]
+    fn test_robots_comments_describe_directives_not_enforcement() {
+        let cfg = test_config();
+        let robots = generate_robots_txt(&cfg);
+
+        assert!(robots.contains(
+            "# Note: robots.txt is advisory; compliant crawlers choose to honor directives."
+        ));
+        assert!(robots.contains("# AI training crawler directives (Disallow policy)"));
+        assert!(robots.contains("# Search engine crawler directives (Allow policy)"));
+        assert!(!robots.contains("Crawlers - BLOCKED"));
+        assert!(!robots.contains("Crawlers - ALLOWED"));
     }
 }

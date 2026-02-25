@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-02-24
+Last updated: 2026-02-25
 
 This is the active work queue.
 `todos/security-review.md` tracks security finding validity and closure status.

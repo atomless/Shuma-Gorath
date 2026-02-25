@@ -1070,6 +1070,20 @@ impl FingerprintSignalProvider for ExternalFingerprintSignalProvider {
         if !looks_like_akamai_payload(&parsed) {
             return internal::FINGERPRINT_SIGNAL.handle_report(store, req);
         }
+        if !crate::forwarded_ip_trusted(req) {
+            crate::admin::log_event(
+                store,
+                &crate::admin::EventLogEntry {
+                    ts: crate::admin::now_ts(),
+                    event: crate::admin::EventType::AdminAction,
+                    ip: Some(crate::extract_client_ip(req)),
+                    reason: Some("external_fingerprint_rejected_untrusted_source".to_string()),
+                    outcome: Some("forbidden".to_string()),
+                    admin: None,
+                },
+            );
+            return Response::new(403, "External fingerprint report rejected (untrusted source)");
+        }
         if cfg.edge_integration_mode == crate::config::EdgeIntegrationMode::Off {
             return Response::new(200, "External fingerprint report ignored (edge mode off)");
         }
@@ -1083,13 +1097,22 @@ impl FingerprintSignalProvider for ExternalFingerprintSignalProvider {
             crate::signals::cdp::classify_cdp_tier(&cdp_report, cfg.cdp_detection_threshold);
         let tier_label = cdp_tier_label(cdp_tier);
         let ip = crate::extract_client_ip(req);
+        if cfg.edge_integration_mode == crate::config::EdgeIntegrationMode::Additive {
+            crate::signals::fingerprint::record_akamai_edge_signal(
+                store,
+                &cfg,
+                ip.as_str(),
+                normalized.confidence.round().clamp(0.0, 10.0) as u8,
+                normalized.hard_signal,
+            );
+        }
         let detection_policy_match = if cdp_tier == crate::signals::cdp::CdpTier::Strong {
             crate::runtime::policy_taxonomy::resolve_policy_match(
                 crate::runtime::policy_taxonomy::PolicyTransition::EdgeFingerprintStrong,
             )
         } else {
             crate::runtime::policy_taxonomy::resolve_policy_match(
-                crate::runtime::policy_taxonomy::PolicyTransition::EdgeFingerprintAdvisory,
+                crate::runtime::policy_taxonomy::PolicyTransition::EdgeFingerprintAdditive,
             )
         };
         crate::observability::metrics::record_policy_match(store, &detection_policy_match);
@@ -1161,8 +1184,8 @@ impl FingerprintSignalProvider for ExternalFingerprintSignalProvider {
             return Response::new(200, "External fingerprint automation detected - banned");
         }
 
-        if cfg.edge_integration_mode == crate::config::EdgeIntegrationMode::Advisory {
-            return Response::new(200, "External fingerprint report received (advisory)");
+        if cfg.edge_integration_mode == crate::config::EdgeIntegrationMode::Additive {
+            return Response::new(200, "External fingerprint report received (additive)");
         }
 
         Response::new(200, "External fingerprint report received")
@@ -1202,7 +1225,7 @@ mod tests {
             crate::config::EdgeIntegrationMode::Off
         ));
         assert!(!fingerprint_authoritative_mode_enabled(
-            crate::config::EdgeIntegrationMode::Advisory
+            crate::config::EdgeIntegrationMode::Additive
         ));
         assert!(fingerprint_authoritative_mode_enabled(
             crate::config::EdgeIntegrationMode::Authoritative

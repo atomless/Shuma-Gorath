@@ -17,6 +17,8 @@ const ISO_ALPHA2_CODES = new Set([
     'UZ', 'VA', 'VC', 'VE', 'VG', 'VI', 'VN', 'VU', 'WF', 'WS', 'YE', 'YT', 'ZA', 'ZM', 'ZW'
   ]);
 
+const HONEYPOT_PATH_ALLOWED_CHARS = "/-._~!$&'()*+,;=:@";
+
   function sanitizeGeoTextareaValue(value) {
     return (value || '')
       .replace(/[^a-zA-Z,]/g, '')
@@ -79,14 +81,75 @@ export function normalizeListTextareaForCompare(raw) {
   }
 
 export function parseHoneypotPathsTextarea(raw) {
-    const paths = parseListTextarea(raw);
-    for (const path of paths) {
-      if (!path.startsWith('/')) {
-        throw new Error(`Invalid honeypot path '${path}'. Paths must start with '/'.`);
-      }
+  const entries = parseHoneypotPathEntries(raw);
+  for (const entry of entries) {
+    if (!isValidHoneypotPath(entry.path)) {
+      throw new Error(
+        `Invalid honeypot path on line ${entry.line}: '${entry.path}'. Path must start with '/'. Unencoded path characters are limited to letters, digits, '/', '-', '.', '_', '~', '!', '$', '&', \"'\", '(', ')', '*', '+', ',', ';', '=', ':', and '@'. Query ('?') and fragment ('#') are not allowed. Any other character must use percent-encoding as '%HH'.`
+      );
     }
-    return paths;
   }
+  return entries.map((entry) => entry.path);
+}
+
+export function normalizeHoneypotPathsForCompare(raw) {
+  return parseHoneypotPathEntries(raw)
+    .map((entry) => entry.path)
+    .join('\n');
+}
+
+function parseHoneypotPathEntries(raw) {
+  const lines = String(raw || '').split('\n');
+  const seen = new Set();
+  const entries = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const trimmed = lines[index].trim();
+    if (!trimmed) continue;
+    if (seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    entries.push({ path: trimmed, line: index + 1 });
+  }
+  return entries;
+}
+
+function isValidHoneypotPath(path) {
+  if (!path || !path.startsWith('/')) return false;
+  for (let index = 0; index < path.length; index += 1) {
+    const code = path.charCodeAt(index);
+    const char = path[index];
+
+    if (code < 0x21 || code > 0x7e) return false;
+
+    if (char === '%') {
+      if (index + 2 >= path.length) return false;
+      if (!isAsciiHexDigit(path.charCodeAt(index + 1))) return false;
+      if (!isAsciiHexDigit(path.charCodeAt(index + 2))) return false;
+      index += 2;
+      continue;
+    }
+
+    if (isAsciiAlphaNumeric(code)) continue;
+    if (HONEYPOT_PATH_ALLOWED_CHARS.includes(char)) continue;
+    return false;
+  }
+  return true;
+}
+
+function isAsciiAlphaNumeric(code) {
+  return (
+    (code >= 0x30 && code <= 0x39) ||
+    (code >= 0x41 && code <= 0x5a) ||
+    (code >= 0x61 && code <= 0x7a)
+  );
+}
+
+function isAsciiHexDigit(code) {
+  return (
+    (code >= 0x30 && code <= 0x39) ||
+    (code >= 0x41 && code <= 0x46) ||
+    (code >= 0x61 && code <= 0x66)
+  );
+}
 
 export function formatBrowserRulesTextarea(rules) {
     if (!Array.isArray(rules) || rules.length === 0) return '';

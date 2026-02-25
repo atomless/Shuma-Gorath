@@ -1,13 +1,10 @@
 <script>
   import { onMount } from 'svelte';
   import { normalizeEdgeMode } from '../../domain/config-tab-helpers.js';
-  import { parseFloatNumber } from '../../domain/core/math.js';
-  import { inRange } from '../../domain/core/validation.js';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
-  import ToggleRow from './primitives/ToggleRow.svelte';
 
   export let managed = false;
   export let isActive = false;
@@ -22,28 +19,21 @@
   let warnOnUnload = false;
   let lastAppliedConfigVersion = -1;
 
-  let cdpEnabled = true;
-  let cdpAutoBan = true;
-  let cdpThreshold = 0.6;
-  let edgeIntegrationMode = 'off';
-  let fingerprintProviderBackend = 'internal';
+  let akamaiBotSignalEnabled = false;
+  let edgeIntegrationMode = 'additive';
 
   let baseline = {
-    cdp: {
-      enabled: true,
-      autoBan: true,
-      threshold: 0.6
-    },
-    edgeMode: {
-      mode: 'off'
-    },
-    providerBackend: {
-      fingerprintSignal: 'internal'
+    akamai: {
+      enabled: false,
+      mode: 'additive'
     }
   };
 
   const readBool = (value) => value === true;
-  const toProviderBackend = (value) => (String(value || '').toLowerCase() === 'external' ? 'external' : 'internal');
+  const normalizedModeFromConfig = (value) => {
+    const normalized = normalizeEdgeMode(value);
+    return normalized === 'off' ? 'additive' : normalized;
+  };
 
   const handleBeforeUnload = (event) => {
     if (!warnOnUnload) return;
@@ -53,24 +43,13 @@
 
   function applyConfig(config = {}) {
     writable = config.admin_config_write_enabled === true;
-
-    cdpEnabled = config.cdp_detection_enabled !== false;
-    cdpAutoBan = config.cdp_auto_ban !== false;
-    cdpThreshold = Number(parseFloatNumber(config.cdp_detection_threshold, 0.6).toFixed(1));
-    edgeIntegrationMode = normalizeEdgeMode(config.edge_integration_mode);
-    fingerprintProviderBackend = toProviderBackend(config?.provider_backends?.fingerprint_signal);
+    akamaiBotSignalEnabled = String(config?.provider_backends?.fingerprint_signal || '').toLowerCase() === 'external';
+    edgeIntegrationMode = normalizedModeFromConfig(config.edge_integration_mode);
 
     baseline = {
-      cdp: {
-        enabled: cdpEnabled,
-        autoBan: cdpAutoBan,
-        threshold: Number(cdpThreshold)
-      },
-      edgeMode: {
+      akamai: {
+        enabled: akamaiBotSignalEnabled,
         mode: edgeIntegrationMode
-      },
-      providerBackend: {
-        fingerprintSignal: fingerprintProviderBackend
       }
     };
   }
@@ -80,12 +59,9 @@
 
     savingFingerprinting = true;
     const payload = {
-      cdp_detection_enabled: cdpEnabled === true,
-      cdp_auto_ban: cdpAutoBan === true,
-      cdp_detection_threshold: Number(cdpThreshold),
-      edge_integration_mode: normalizeEdgeMode(edgeIntegrationMode),
+      edge_integration_mode: akamaiBotSignalEnabled ? normalizeEdgeMode(edgeIntegrationMode) : 'off',
       provider_backends: {
-        fingerprint_signal: toProviderBackend(fingerprintProviderBackend)
+        fingerprint_signal: akamaiBotSignalEnabled ? 'external' : 'internal'
       }
     };
 
@@ -95,16 +71,9 @@
         applyConfig(nextConfig);
       } else {
         baseline = {
-          cdp: {
-            enabled: cdpEnabled === true,
-            autoBan: cdpAutoBan === true,
-            threshold: Number(cdpThreshold)
-          },
-          edgeMode: {
+          akamai: {
+            enabled: akamaiBotSignalEnabled === true,
             mode: normalizeEdgeMode(edgeIntegrationMode)
-          },
-          providerBackend: {
-            fingerprintSignal: toProviderBackend(fingerprintProviderBackend)
           }
         };
       }
@@ -121,19 +90,12 @@
     };
   });
 
-  $: cdpValid = inRange(cdpThreshold, 0.3, 1.0);
-  $: edgeModeValid = ['off', 'advisory', 'authoritative'].includes(normalizeEdgeMode(edgeIntegrationMode));
-  $: fingerprintProviderBackendValid = ['internal', 'external'].includes(toProviderBackend(fingerprintProviderBackend));
-  $: fingerprintingValid = cdpValid && edgeModeValid && fingerprintProviderBackendValid;
-
-  $: cdpDirty = (
-    readBool(cdpEnabled) !== baseline.cdp.enabled ||
-    readBool(cdpAutoBan) !== baseline.cdp.autoBan ||
-    Number(cdpThreshold) !== baseline.cdp.threshold
+  $: edgeModeValid = ['additive', 'authoritative'].includes(normalizeEdgeMode(edgeIntegrationMode));
+  $: fingerprintingValid = edgeModeValid;
+  $: hasUnsavedChanges = (
+    readBool(akamaiBotSignalEnabled) !== baseline.akamai.enabled ||
+    normalizeEdgeMode(edgeIntegrationMode) !== baseline.akamai.mode
   );
-  $: edgeModeDirty = normalizeEdgeMode(edgeIntegrationMode) !== baseline.edgeMode.mode;
-  $: providerBackendDirty = toProviderBackend(fingerprintProviderBackend) !== baseline.providerBackend.fingerprintSignal;
-  $: hasUnsavedChanges = cdpDirty || edgeModeDirty || providerBackendDirty;
 
   $: saveFingerprintingDisabled = !writable || !hasUnsavedChanges || !fingerprintingValid || savingFingerprinting;
   $: saveFingerprintingLabel = savingFingerprinting ? 'Saving...' : 'Save fingerprinting settings';
@@ -160,20 +122,18 @@
   $: fingerprintSignals = scoredSignals.filter((signal) => String(signal?.key || '').startsWith('fp_'));
 
   $: effectivePosture = (() => {
-    if (!cdpEnabled) return 'Detection is disabled.';
-    if (!cdpAutoBan) return 'Detection and logging only. Auto-ban is disabled.';
-    if (toProviderBackend(fingerprintProviderBackend) === 'external' && normalizeEdgeMode(edgeIntegrationMode) === 'authoritative') {
-      return `Strong external edge outcomes can trigger immediate bans at threshold ${Number(cdpThreshold).toFixed(1)}.`;
+    if (!akamaiBotSignalEnabled) {
+      return 'Akamai bot signals are disabled. Internal passive fingerprint signals remain active.';
     }
-    return `Detection and auto-ban enabled at threshold ${Number(cdpThreshold).toFixed(1)}.`;
+    if (normalizeEdgeMode(edgeIntegrationMode) === 'authoritative') {
+      return 'Authoritative mode allows high-confidence Akamai outcomes to trigger immediate ban actions.';
+    }
+    return 'Additive mode contributes Akamai outcomes into internal fingerprint scoring with bounded weight.';
   })();
 
-  $: showStrictComboWarning = (
-    cdpEnabled &&
-    cdpAutoBan &&
-    toProviderBackend(fingerprintProviderBackend) === 'external' &&
-    normalizeEdgeMode(edgeIntegrationMode) === 'authoritative' &&
-    Number(cdpThreshold) <= 0.5
+  $: showAuthoritativeWarning = (
+    akamaiBotSignalEnabled &&
+    normalizeEdgeMode(edgeIntegrationMode) === 'authoritative'
   );
 
   $: {
@@ -198,82 +158,37 @@
 >
   <TabStateMessage tab="fingerprinting" status={tabStatus} />
   <div class="controls-grid controls-grid--config">
-    <ConfigPanel writable={writable} dirty={edgeModeDirty || providerBackendDirty}>
-      <ConfigPanelHeading title="Edge and Provider">
-        <span class="status-value text-muted">External integration</span>
-      </ConfigPanelHeading>
-      <p class="control-desc text-muted">When calculating bot fingerprinting, edge hosting platforms can use transport/network-layer telemetry (for example TLS/client fingerprinting, network reputation, global bot intel). By enabling edge integration Shuma-Gorath can thereby take into account and optionally act on signals that it cannot otherwise directly observe. Supported external fingerprint providers currently: ["Akamai"].</p>
-      <div class="admin-controls">
-        <div class="input-row">
-          <label class="control-label control-label--wide" for="fingerprinting-provider-backend-select">Fingerprint Provider Backend</label>
-          <select
-            class="input-field input-row-control"
-            id="fingerprinting-provider-backend-select"
-            aria-label="Fingerprint provider backend"
-            bind:value={fingerprintProviderBackend}
-          >
-            <option value="internal">internal</option>
-            <option value="external">external (Akamai)</option>
-          </select>
-        </div>
-        <div class="input-row">
-          <label class="control-label control-label--wide" for="fingerprinting-edge-mode-select">Edge Integration Mode</label>
-          <select
-            class="input-field input-row-control"
-            id="fingerprinting-edge-mode-select"
-            aria-label="Edge integration mode"
-            bind:value={edgeIntegrationMode}
-          >
-            <option value="off">off</option>
-            <option value="advisory">advisory</option>
-            <option value="authoritative">authoritative</option>
-          </select>
-        </div>
-        <p class="text-muted">Effective posture: {effectivePosture}</p>
-      </div>
-    </ConfigPanel>
-
-    <ConfigPanel writable={writable} dirty={cdpDirty}>
-      <ConfigPanelHeading title='<abbr title="Chrome DevTools Protocol">CDP</abbr> Detection'>
-        <label class="toggle-switch" for="fingerprinting-cdp-enabled-toggle">
+    <ConfigPanel writable={writable} dirty={hasUnsavedChanges}>
+      <ConfigPanelHeading title="Akamai Bot Signal">
+        <label class="toggle-switch" for="fingerprinting-akamai-enabled-toggle">
           <input
             type="checkbox"
-            id="fingerprinting-cdp-enabled-toggle"
-            aria-label="Enable Chrome DevTools Protocol detection"
-            bind:checked={cdpEnabled}
+            id="fingerprinting-akamai-enabled-toggle"
+            aria-label="Enable Akamai bot signals"
+            bind:checked={akamaiBotSignalEnabled}
           >
           <span class="toggle-slider"></span>
         </label>
       </ConfigPanelHeading>
-      <p class="control-desc text-muted">Detect browser automation using <abbr title="Chrome DevTools Protocol">CDP</abbr> signals, then optionally auto-ban based on confidence threshold.</p>
+      <p class="control-desc text-muted">When calculating bot fingerprinting, Akamai can contribute transport and network-layer telemetry that Shuma-Gorath cannot directly observe at app level. Enable this only when your edge forwards trusted Akamai bot outcomes.</p>
       <div class="admin-controls">
-        <ToggleRow
-          id="fingerprinting-cdp-auto-ban-toggle"
-          label="Auto-ban on Detection"
-          labelClass="control-label control-label--wide"
-          ariaLabel="Enable Chrome DevTools Protocol auto-ban"
-          bind:checked={cdpAutoBan}
-        />
-        <div class="slider-control">
-          <div class="slider-header">
-            <label class="control-label control-label--wide" for="fingerprinting-cdp-threshold-slider">Detection Threshold</label>
-            <span id="fingerprinting-cdp-threshold-value" class="slider-badge">{Number(cdpThreshold).toFixed(1)}</span>
-          </div>
-          <input
-            type="range"
-            id="fingerprinting-cdp-threshold-slider"
-            min="0.3"
-            max="1.0"
-            step="0.1"
-            aria-label="Chrome DevTools Protocol detection threshold"
-            aria-invalid={cdpValid ? 'false' : 'true'}
-            bind:value={cdpThreshold}
+        <div class="input-row" class:input-row--disabled={!akamaiBotSignalEnabled}>
+          <label class="control-label control-label--wide" for="fingerprinting-edge-mode-select">Akamai Influence Mode</label>
+          <select
+            class="input-field input-row-control"
+            id="fingerprinting-edge-mode-select"
+            aria-label="Akamai influence mode"
+            bind:value={edgeIntegrationMode}
+            disabled={!akamaiBotSignalEnabled}
           >
-          <div class="slider-labels">
-            <span>Strict</span>
-            <span>Permissive</span>
-          </div>
+            <option value="additive">additive</option>
+            <option value="authoritative">authoritative</option>
+          </select>
         </div>
+        <p class="text-muted">Effective posture: {effectivePosture}</p>
+        {#if !akamaiBotSignalEnabled}
+          <p class="text-muted">Akamai mode is unavailable while Akamai bot signals are disabled.</p>
+        {/if}
       </div>
     </ConfigPanel>
 
@@ -281,7 +196,7 @@
       <ConfigPanelHeading title="Diagnostics">
         <span class="status-value text-muted">Read-only</span>
       </ConfigPanelHeading>
-      <p class="control-desc text-muted">Current runtime counters and active fingerprint signal definitions.</p>
+      <p class="control-desc text-muted">Current runtime counters and active internal fingerprint signal definitions.</p>
       <div class="admin-controls">
         <div class="info-panel">
           <h4>Runtime Counters</h4>
@@ -327,9 +242,9 @@
       </div>
     </ConfigPanel>
 
-    {#if showStrictComboWarning}
+    {#if showAuthoritativeWarning}
       <p class="message warning">
-        This combination is strict: external provider + authoritative edge mode + low threshold can increase false positives.
+        Authoritative mode should be enabled only when Akamai signals are trusted and monitored, because high-confidence edge outcomes can trigger direct ban actions.
       </p>
     {/if}
 

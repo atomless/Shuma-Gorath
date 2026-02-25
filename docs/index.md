@@ -14,6 +14,8 @@ Use the Makefile as the official workflow. These docs are the source of truth fo
 - [`deployment.md`](deployment.md) - Production/deploy configuration
 - [`api.md`](api.md) - <abbr title="Application Programming Interface">API</abbr> usage and endpoint details
 - [`configuration.md`](configuration.md) - Runtime configuration reference
+- [`fingerprinting-terminology.md`](fingerprinting-terminology.md) - Canonical fingerprinting/JS verification terminology map
+- [`fingerprinting-signal-planes.md`](fingerprinting-signal-planes.md) - Signal-plane architecture, trust boundaries, and Akamai add-vs-replace behavior
 - [`fingerprint-edge-adapter-guide.md`](fingerprint-edge-adapter-guide.md) - How to add a new external edge fingerprint provider adapter
 - [`security-hardening.md`](security-hardening.md) - Deployment security checklist
 - [`privacy-gdpr-review.md`](privacy-gdpr-review.md) - <abbr title="General Data Protection Regulation">GDPR</abbr>/privacy and cookie/storage compliance review for telemetry and logging

@@ -9,6 +9,7 @@
   export let aiPolicyDirty = false;
   export let robotsEnabled = true;
   export let robotsCrawlDelay = 2;
+  export let robotsCrawlDelayValid = true;
   export let robotsBlockTraining = true;
   export let robotsBlockSearch = false;
   export let restrictSearchEngines = false;
@@ -40,7 +41,7 @@
   </ConfigPanelHeading>
   <p class="control-desc text-muted">View the current policy as configured below: <a id="open-robots-txt-link" href="/robots.txt" target="_blank" rel="noopener noreferrer">robots.txt</a></p>
   <div class="admin-controls">
-    <NumericInputRow id="robots-crawl-delay" label="Crawl Delay (seconds)" labelClass="control-label control-label--wide" min="0" max="60" step="1" inputmode="numeric" ariaLabel="Robots crawl delay in seconds" bind:value={robotsCrawlDelay} onInput={handlePreviewControlChange} />
+    <NumericInputRow id="robots-crawl-delay" label="Crawl Delay (seconds)" labelClass="control-label control-label--wide" min="0" max="60" step="1" inputmode="numeric" ariaLabel="Robots crawl delay in seconds" ariaInvalid={robotsCrawlDelayValid ? 'false' : 'true'} bind:value={robotsCrawlDelay} onInput={handlePreviewControlChange} />
     <h4 class="control-subtitle"><abbr title="Large Language Models">AI</abbr> Bot Policy</h4>
     <ToggleRow id="robots-block-training-toggle" label='Opt-out <abbr title="Large Language Models">AI</abbr> Training' labelClass="control-label control-label--wide" ariaLabel="Opt-out Large Language Models training" hint="GPTBot, CCBot, ClaudeBot" bind:checked={robotsBlockTraining} onChange={handlePreviewControlChange} />
     <ToggleRow id="robots-block-search-toggle" label='Opt-out <abbr title="Large Language Models">AI</abbr> Search' labelClass="control-label control-label--wide" ariaLabel="Opt-out Large Language Models search" hint="PerplexityBot, etc." bind:checked={robotsBlockSearch} onChange={handlePreviewControlChange} />

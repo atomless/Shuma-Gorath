@@ -79,7 +79,7 @@ Keep one project and one shared policy engine, with profile-gated state backends
 - Monitoring/alerts:
   - monitor limiter fallback usage, ban-sync lag/drift, and state backend health in enterprise profile.
 - Rollback:
-  - enterprise fallback to internal remains available, with explicit advisory-only posture during fallback windows.
+  - enterprise fallback to internal remains available, with explicit additive/off posture during fallback windows.
 
 ## Resource Impact
 

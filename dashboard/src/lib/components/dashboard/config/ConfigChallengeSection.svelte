@@ -12,6 +12,8 @@
   export let notABotScorePassMin = 7;
   export let notABotScoreFailMaxCap = 6;
   export let notABotScoreFailMax = 3;
+  export let notABotPassScoreValid = true;
+  export let notABotFailScoreValid = true;
 </script>
 
 <ConfigPanel writable={writable} dirty={notABotDirty}>
@@ -23,9 +25,9 @@
   </ConfigPanelHeading>
   <p class="control-desc text-muted">Not-a-Bot is the low-friction checkbox style challenge routed to when the botness signal is above zero but below the instant ban criteria, and below the thresholds where the visitor will be routed to the Maze or Tarpit. When Shuma Gorath is optimally configured, human users should rarely be asked to complete either of the challenges. You may click here to preview <a id="preview-not-a-bot-link" href="/challenge/not-a-bot-checkbox" target="_blank" rel="noopener noreferrer">Not-a-Bot</a>, but test mode must be enabled. Advanced controls (<abbr title="Number Used Once">Nonce</abbr> <abbr title="Time To Live">TTL</abbr>, marker <abbr title="Time To Live">TTL</abbr>, and attempt limits) are available in Advanced <abbr title="JavaScript Object Notation">JSON</abbr>.</p>
   <div class="admin-controls">
-    <NumericInputRow id="not-a-bot-score-pass-min" label={`Pass Score (${notABotScorePassMinFloor}-10)`} min={notABotScorePassMinFloor} max="10" step="1" inputmode="numeric" ariaLabel="Not-a-Bot pass score threshold" bind:value={notABotScorePassMin} />
+    <NumericInputRow id="not-a-bot-score-pass-min" label={`Pass Score (${notABotScorePassMinFloor}-10)`} min={notABotScorePassMinFloor} max="10" step="1" inputmode="numeric" ariaLabel="Not-a-Bot pass score threshold" ariaInvalid={notABotPassScoreValid ? 'false' : 'true'} bind:value={notABotScorePassMin} />
     <p class="text-muted">Any scores above Fail and below Pass will be shown a tougher challenge.</p>
-    <NumericInputRow id="not-a-bot-score-fail-max" label={`Fail Score (0-${notABotScoreFailMaxCap})`} min="0" max={notABotScoreFailMaxCap} step="1" inputmode="numeric" ariaLabel="Not-a-Bot fail score threshold" bind:value={notABotScoreFailMax} />
+    <NumericInputRow id="not-a-bot-score-fail-max" label={`Fail Score (0-${notABotScoreFailMaxCap})`} min="0" max={notABotScoreFailMaxCap} step="1" inputmode="numeric" ariaLabel="Not-a-Bot fail score threshold" ariaInvalid={notABotFailScoreValid ? 'false' : 'true'} bind:value={notABotScoreFailMax} />
     <p class="text-muted">Scores below Fail route to Maze (if enabled), otherwise Block (403). Confirmed attacks (replay, tamper, or attempt-window abuse) route to tarpit when available, otherwise a short ban.</p>
   </div>
 </ConfigPanel>

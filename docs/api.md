@@ -349,6 +349,20 @@ Signal catalog:
 - `botness_signal_definitions.scored_signals` lists weighted contributors.
 - `botness_signal_definitions.terminal_signals` lists immediate actions that bypass scoring.
 
+## 🐙 Akamai Bot Signal Fields (`/admin/config`)
+
+- `provider_backends.fingerprint_signal`
+  - `internal`: internal report path and internal browser CDP probe pipeline.
+  - `external`: edge adapter path (currently Akamai on `/fingerprint-report`, with internal fallback for non-Akamai/legacy payloads).
+- `edge_integration_mode`
+  - `off`: ignore Akamai outcomes.
+  - `additive`: add bounded Akamai evidence into local fingerprint scoring.
+  - `authoritative`: allow documented strong-signal short-circuit actions.
+
+Terminology and architecture references:
+- [`fingerprinting-terminology.md`](fingerprinting-terminology.md)
+- [`fingerprinting-signal-planes.md`](fingerprinting-signal-planes.md)
+
 ## 🐙 Robots + <abbr title="Artificial Intelligence">AI</abbr> Policy Fields (`/admin/config`)
 
 Robots serving controls:

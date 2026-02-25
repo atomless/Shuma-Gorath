@@ -243,9 +243,9 @@ deploy-enterprise-akamai: deploy-profile-baseline ## Profile wrapper: enterprise
 	EDGE_MODE_RAW="$${SHUMA_EDGE_INTEGRATION_MODE:-off}"; \
 	EDGE_MODE_NORM="$$(printf '%s' "$$EDGE_MODE_RAW" | tr '[:upper:]' '[:lower:]')"; \
 	case "$$EDGE_MODE_NORM" in \
-		advisory|authoritative) ;; \
+		additive|authoritative) ;; \
 		*) \
-			echo "$(RED)❌ SHUMA_EDGE_INTEGRATION_MODE must be advisory or authoritative for deploy-enterprise-akamai.$(NC)"; \
+			echo "$(RED)❌ SHUMA_EDGE_INTEGRATION_MODE must be additive or authoritative for deploy-enterprise-akamai.$(NC)"; \
 			exit 1 ;; \
 	esac
 	@$(MAKE) --no-print-directory deploy-env-validate
@@ -572,9 +572,9 @@ deploy-env-validate: ## Fail deployment when unsafe debug flags are enabled, adm
 			EDGE_MODE_RAW="$${SHUMA_EDGE_INTEGRATION_MODE:-off}"; \
 			EDGE_MODE_NORM="$$(printf '%s' "$$EDGE_MODE_RAW" | tr '[:upper:]' '[:lower:]')"; \
 			case "$$EDGE_MODE_NORM" in \
-				off|advisory|authoritative) ;; \
+				off|additive|authoritative) ;; \
 				*) \
-					echo "$(RED)❌ Refusing deployment: SHUMA_EDGE_INTEGRATION_MODE must be one of off|advisory|authoritative when SHUMA_ENTERPRISE_MULTI_INSTANCE=true.$(NC)"; \
+					echo "$(RED)❌ Refusing deployment: SHUMA_EDGE_INTEGRATION_MODE must be one of off|additive|authoritative when SHUMA_ENTERPRISE_MULTI_INSTANCE=true.$(NC)"; \
 					exit 1 ;; \
 			esac; \
 			RATE_BACKEND_RAW="$${SHUMA_PROVIDER_RATE_LIMITER:-internal}"; \

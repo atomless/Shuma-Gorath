@@ -83,7 +83,7 @@ Use one of these operating profiles as your baseline:
 | Persona | Who it is for | Provider posture | Edge mode posture | Default recommendation |
 | --- | --- | --- | --- | --- |
 | `self_hosted_minimal` | Small/self-hosted deployments without managed edge bot tooling | All `provider_backends.*=internal` | `off` | Recommended default for all new installs |
-| `enterprise_akamai` (advisory) | Enterprise deployments with Akamai edge/Bot Manager telemetry | Start internal, then selectively enable external per capability after validation | `advisory` | First enterprise cutover stage |
+| `enterprise_akamai` (additive) | Enterprise deployments with Akamai edge/Bot Manager telemetry | Start internal, then selectively enable external per capability after validation | `additive` | First enterprise cutover stage |
 | `enterprise_akamai` (authoritative) | Mature enterprise deployments with validated external adapters and explicit rollback drills | External only for capabilities with proven parity/SLOs | `authoritative` | Optional, advanced stage only |
 
 Current implementation note:
@@ -104,7 +104,7 @@ Current implementation note:
   - distributed sync is not required for baseline correctness.
 - `enterprise_akamai`:
   - multi-instance deployments must treat distributed state as a critical-path control.
-  - keep rollout in advisory posture until rate-limiter atomicity and ban-sync semantics are validated.
+  - keep rollout in additive posture until rate-limiter atomicity and ban-sync semantics are validated.
   - runtime now hard-fails (`503`) when enterprise multi-instance posture is unsafe (for example authoritative mode with local-only rate/ban state).
 - One codebase policy:
   - keep one shared policy engine; profile differences should be state backend and precedence choices, not separate policy logic.
@@ -134,7 +134,7 @@ Set these in your deployment secret/config system:
 - `SHUMA_ENFORCE_HTTPS`
 - `SHUMA_DEBUG_HEADERS`
 - `SHUMA_ENTERPRISE_MULTI_INSTANCE` (optional; required for enterprise multi-instance guardrail posture)
-- `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED` (optional; temporary advisory/off exception attestation only)
+- `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED` (optional; temporary additive/off exception attestation only)
 - `SHUMA_RATE_LIMITER_REDIS_URL` (optional generally; required when enterprise multi-instance uses `SHUMA_PROVIDER_RATE_LIMITER=external`)
 - `SHUMA_BAN_STORE_REDIS_URL` (optional generally; required when enterprise multi-instance uses `SHUMA_PROVIDER_BAN_STORE=external`)
 - `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` (optional; `fallback_internal|fail_open|fail_closed`)
@@ -172,7 +172,7 @@ make deploy-env-validate
   - require `SHUMA_RATE_LIMITER_REDIS_URL` (`redis://...` or `rediss://...`) when `SHUMA_PROVIDER_RATE_LIMITER=external`,
   - require `SHUMA_BAN_STORE_REDIS_URL` (`redis://...` or `rediss://...`) when `SHUMA_PROVIDER_BAN_STORE=external`,
   - block local-only rate/ban state in authoritative mode,
-  - require `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=true` for temporary advisory/off exceptions when distributed state is not yet enabled.
+  - require `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=true` for temporary additive/off exceptions when distributed state is not yet enabled.
 
 ### 🐙 Admin Surface Pre-Deploy Checklist
 
@@ -203,7 +203,7 @@ Run this checklist for every production deployment:
      - `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN`
      - `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH`
    - Do not run local-only rate/ban state with `SHUMA_EDGE_INTEGRATION_MODE=authoritative`.
-   - If you must run temporary advisory/off posture without distributed state, set `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=true` and track a time-bounded remediation plan.
+   - If you must run temporary additive/off posture without distributed state, set `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=true` and track a time-bounded remediation plan.
 
 ## 🐙 External Provider Rollout & Rollback Runbook
 
@@ -226,13 +226,13 @@ This runbook is required before enabling any external provider in non-dev enviro
    - Keep all providers `internal`.
    - Keep `edge_integration_mode=off`.
    - Confirm stable baseline metrics and normal challenge/block behavior.
-2. Advisory stage (first external stage):
+2. Additive stage (first external stage):
    - Enable one capability at a time, beginning with `fingerprint_signal`.
-   - Set `edge_integration_mode=advisory`.
+   - Set `edge_integration_mode=additive`.
    - Keep all other providers internal during this stage.
    - Soak in staging, then production, and confirm expected metrics/outcomes before expanding scope.
 3. Authoritative stage (optional):
-   - Enter only after advisory stage shows stable behavior and clear operational benefit.
+   - Enter only after additive stage shows stable behavior and clear operational benefit.
    - Set `edge_integration_mode=authoritative` only for capabilities with explicit authoritative semantics and rollback confidence.
    - Maintain safety-critical local controls and admin protections regardless of edge mode.
 
@@ -241,7 +241,7 @@ This runbook is required before enabling any external provider in non-dev enviro
 - Provider selection gate:
   - `bot_defence_provider_implementation_effective_total` shows expected capability/backend/implementation labels.
 - Edge mode gate:
-  - `bot_defence_edge_integration_mode_total` confirms requested mode (`off`, `advisory`, `authoritative`).
+  - `bot_defence_edge_integration_mode_total` confirms requested mode (`off`, `additive`, `authoritative`).
 - Signal health gate:
   - `bot_defence_botness_signal_state_total{state="unavailable"}` does not spike unexpectedly for enabled external signal paths.
 - Outcome gate:

@@ -966,7 +966,6 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   const geoRoutingEnabledSwitch = page.locator("label.toggle-switch[for='geo-routing-toggle']");
   const tarpitEnabledToggle = page.locator("#tarpit-enabled-toggle");
   const tarpitEnabledSwitch = page.locator("label.toggle-switch[for='tarpit-enabled-toggle']");
-  const edgeModeSelect = page.locator("#edge-integration-mode-select");
   const advancedField = page.locator("#advanced-config-json");
 
   await expect(configSave).toBeHidden();
@@ -1100,6 +1099,20 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
     await expect(configSave).toBeHidden();
   }
 
+  const cdpThresholdSlider = page.locator("#config-cdp-threshold-slider");
+  if (await cdpThresholdSlider.isVisible() && await cdpThresholdSlider.isEnabled()) {
+    const cdpThresholdInitial = await cdpThresholdSlider.inputValue();
+    const cdpThresholdNext = Number(cdpThresholdInitial || "0.6") >= 0.9
+      ? "0.8"
+      : (Number(cdpThresholdInitial || "0.6") + 0.1).toFixed(1);
+    await cdpThresholdSlider.fill(cdpThresholdNext);
+    await cdpThresholdSlider.dispatchEvent("input");
+    await expect(configSave).toBeEnabled();
+    await cdpThresholdSlider.fill(cdpThresholdInitial);
+    await cdpThresholdSlider.dispatchEvent("input");
+    await expect(configSave).toBeHidden();
+  }
+
   const honeypotField = page.locator("#honeypot-paths");
   const initialHoneypots = await honeypotField.inputValue();
   await honeypotField.fill(`${initialHoneypots}\n/trap-e2e`);
@@ -1156,13 +1169,6 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
     }
     await expect(configSave).toBeHidden();
   }
-
-  const initialEdgeMode = await edgeModeSelect.inputValue();
-  const nextEdgeMode = initialEdgeMode === "off" ? "advisory" : "off";
-  await edgeModeSelect.selectOption(nextEdgeMode);
-  await expect(configSave).toBeEnabled();
-  await edgeModeSelect.selectOption(initialEdgeMode);
-  await expect(configSave).toBeHidden();
 
   const initialAdvanced = await advancedField.inputValue();
   let parsedAdvanced;
@@ -1780,44 +1786,33 @@ test("config save-all flows cover GEO and botness controls", async ({ page }) =>
   }
 });
 
-test("fingerprinting tab save flows cover CDP, provider backend, and edge mode controls", async ({ page }) => {
+test("fingerprinting tab save flows cover Akamai toggle and additive/authoritative mode controls", async ({ page }) => {
   await openDashboard(page);
   await openTab(page, "fingerprinting");
 
   const saveButton = page.locator("#save-fingerprinting-config");
   await expect(saveButton).toBeHidden();
 
-  const cdpThreshold = page.locator("#fingerprinting-cdp-threshold-slider");
-  if (await cdpThreshold.isVisible() && await cdpThreshold.isEnabled()) {
-    const cdpInitial = await cdpThreshold.inputValue();
-    const cdpNext = Number(cdpInitial || "0.6") >= 0.9
-      ? "0.8"
-      : (Number(cdpInitial || "0.6") + 0.1).toFixed(1);
-    await cdpThreshold.fill(cdpNext);
-    await cdpThreshold.dispatchEvent("input");
-    await submitConfigSave(page, saveButton);
-    await cdpThreshold.fill(cdpInitial);
-    await cdpThreshold.dispatchEvent("input");
-    await submitConfigSave(page, saveButton);
-  }
-
+  const akamaiToggle = page.locator("#fingerprinting-akamai-enabled-toggle");
+  const akamaiToggleSwitch = page.locator("label.toggle-switch[for='fingerprinting-akamai-enabled-toggle']");
   const edgeModeSelect = page.locator("#fingerprinting-edge-mode-select");
+
   if (await edgeModeSelect.isVisible() && await edgeModeSelect.isEnabled()) {
     const edgeModeInitial = await edgeModeSelect.inputValue();
-    const edgeModeNext = edgeModeInitial === "off" ? "advisory" : "off";
+    const edgeModeNext = edgeModeInitial === "additive" ? "authoritative" : "additive";
     await edgeModeSelect.selectOption(edgeModeNext);
     await submitConfigSave(page, saveButton);
     await edgeModeSelect.selectOption(edgeModeInitial);
     await submitConfigSave(page, saveButton);
   }
 
-  const providerSelect = page.locator("#fingerprinting-provider-backend-select");
-  if (await providerSelect.isVisible() && await providerSelect.isEnabled()) {
-    const providerInitial = await providerSelect.inputValue();
-    const providerNext = providerInitial === "internal" ? "external" : "internal";
-    await providerSelect.selectOption(providerNext);
+  if (await akamaiToggleSwitch.isVisible() && await akamaiToggle.isEnabled()) {
+    const initialEnabled = await akamaiToggle.isChecked();
+    await akamaiToggleSwitch.click();
     await submitConfigSave(page, saveButton);
-    await providerSelect.selectOption(providerInitial);
+    if (initialEnabled !== await akamaiToggle.isChecked()) {
+      await akamaiToggleSwitch.click();
+    }
     await submitConfigSave(page, saveButton);
   }
 });

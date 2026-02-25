@@ -1,6 +1,6 @@
 <script>
   export let containerId = '';
-  export let hidden = true;
+  export let isHidden = true;
   export let summaryId = '';
   export let summaryText = '';
   export let summaryClass = 'text-muted';
@@ -21,7 +21,7 @@
 <div
   id={containerId}
   class="config-save-bar panel panel-border"
-  class:hidden={hidden}
+  class:hidden={isHidden}
 >
   <div class="config-save-bar__meta">
     <span id={summaryId} class={summaryClass}>{summaryText}</span>

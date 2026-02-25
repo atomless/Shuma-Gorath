@@ -7,11 +7,13 @@
   export let spellcheck = false;
   export let disabled = false;
   export let labelClass = 'control-label';
-  export let textareaClass = 'input-field geo-textarea';
+  export let monospace = false;
   export let ariaInvalid = undefined;
+
+  $: textareaClass = `input-field textarea-field__input ${monospace ? 'input-field--mono' : ''}`.trim();
 </script>
 
-<div class="geo-field">
+<div class="textarea-field">
   <label class={labelClass} for={id}>{@html label}</label>
   <textarea
     class={textareaClass}

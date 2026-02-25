@@ -121,7 +121,7 @@ pub enum SignalId {
     FingerprintFlowViolation,
     FingerprintPersistenceMissing,
     FingerprintUntrustedHeader,
-    EdgeFingerprintAdvisory,
+    EdgeFingerprintAdditive,
     EdgeFingerprintStrong,
     EdgeFingerprintAuthoritativeBan,
     MazeTraversal,
@@ -175,7 +175,7 @@ impl SignalId {
             SignalId::FingerprintFlowViolation => "S_FP_FLOW_VIOLATION",
             SignalId::FingerprintPersistenceMissing => "S_FP_PERSISTENCE_MISSING",
             SignalId::FingerprintUntrustedHeader => "S_FP_UNTRUSTED_HEADER",
-            SignalId::EdgeFingerprintAdvisory => "S_FP_EDGE_ADVISORY",
+            SignalId::EdgeFingerprintAdditive => "S_FP_EDGE_ADDITIVE",
             SignalId::EdgeFingerprintStrong => "S_FP_EDGE_STRONG",
             SignalId::EdgeFingerprintAuthoritativeBan => "S_FP_EDGE_AUTHORITATIVE_BAN",
             SignalId::MazeTraversal => "S_MAZE_TRAVERSAL",
@@ -234,7 +234,7 @@ pub enum DetectionId {
     FingerprintFlowViolation,
     FingerprintPersistenceMissing,
     FingerprintUntrustedHeader,
-    EdgeFingerprintAdvisory,
+    EdgeFingerprintAdditive,
     EdgeFingerprintStrong,
     EdgeFingerprintAuthoritativeBan,
     MazeTraversal,
@@ -298,7 +298,7 @@ impl DetectionId {
             DetectionId::FingerprintFlowViolation => "D_FP_FLOW_VIOLATION",
             DetectionId::FingerprintPersistenceMissing => "D_FP_PERSISTENCE_MISSING",
             DetectionId::FingerprintUntrustedHeader => "D_FP_UNTRUSTED_HEADER",
-            DetectionId::EdgeFingerprintAdvisory => "D_EDGE_FP_ADVISORY",
+            DetectionId::EdgeFingerprintAdditive => "D_EDGE_FP_ADDITIVE",
             DetectionId::EdgeFingerprintStrong => "D_EDGE_FP_STRONG",
             DetectionId::EdgeFingerprintAuthoritativeBan => "D_EDGE_FP_AUTHORITATIVE_BAN",
             DetectionId::MazeTraversal => "D_MAZE_TRAVERSAL",
@@ -410,7 +410,7 @@ pub enum PolicyTransition {
     CdpReportMedium,
     CdpReportStrong,
     CdpAutoBan,
-    EdgeFingerprintAdvisory,
+    EdgeFingerprintAdditive,
     EdgeFingerprintStrong,
     EdgeFingerprintAuthoritativeBan,
     SeqBindingMismatch,
@@ -569,10 +569,10 @@ pub fn resolve_policy_match(transition: PolicyTransition) -> PolicyMatch {
             DetectionId::CdpAutoBan,
             vec![SignalId::CdpReportStrong],
         ),
-        PolicyTransition::EdgeFingerprintAdvisory => PolicyMatch::new(
+        PolicyTransition::EdgeFingerprintAdditive => PolicyMatch::new(
             EscalationLevelId::L2Monitor,
-            DetectionId::EdgeFingerprintAdvisory,
-            vec![SignalId::EdgeFingerprintAdvisory],
+            DetectionId::EdgeFingerprintAdditive,
+            vec![SignalId::EdgeFingerprintAdditive],
         ),
         PolicyTransition::EdgeFingerprintStrong => PolicyMatch::new(
             EscalationLevelId::L6ChallengeStrong,
@@ -719,6 +719,7 @@ pub fn signal_id_for_botness_key(key: &str) -> Option<SignalId> {
         "fp_flow_violation" => Some(SignalId::FingerprintFlowViolation),
         "fp_persistence_marker_missing" => Some(SignalId::FingerprintPersistenceMissing),
         "fp_untrusted_transport_header" => Some(SignalId::FingerprintUntrustedHeader),
+        "fp_akamai_edge_additive" => Some(SignalId::EdgeFingerprintAdditive),
         _ => None,
     }
 }
@@ -777,6 +778,12 @@ mod tests {
                 .expect("known signal")
                 .as_str(),
             "S_FP_TEMPORAL_TRANSITION"
+        );
+        assert_eq!(
+            signal_id_for_botness_key("fp_akamai_edge_additive")
+                .expect("known signal")
+                .as_str(),
+            "S_FP_EDGE_ADDITIVE"
         );
         assert!(signal_id_for_botness_key("unknown").is_none());
     }

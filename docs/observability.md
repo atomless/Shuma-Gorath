@@ -59,7 +59,7 @@ Prometheus parity scope for Monitoring widgets is tracked in:
 - `bot_defence_test_mode_enabled`
 - `bot_defence_botness_signal_state_total{signal="...",state="active|disabled|unavailable"}`
 - `bot_defence_defence_mode_effective_total{module="rate|geo|js",configured="off|signal|enforce|both",signal_enabled="true|false",action_enabled="true|false"}`
-- `bot_defence_edge_integration_mode_total{mode="off|advisory|authoritative"}`
+- `bot_defence_edge_integration_mode_total{mode="off|additive|authoritative"}`
 - `bot_defence_provider_implementation_effective_total{capability="...",backend="internal|external",implementation="..."}`
 - `bot_defence_rate_limiter_backend_errors_total{route_class="main_traffic|admin_auth"}`
 - `bot_defence_rate_limiter_outage_decisions_total{route_class="...",mode="fallback_internal|fail_open|fail_closed",action="fallback_internal|allow|deny",decision="allowed|limited"}`
@@ -102,14 +102,14 @@ scrape_configs:
   - unavailable inputs (`state=unavailable`), and
   - active contributors (`state=active`).
 
-## 🐙 External Provider Cutover Monitoring
+## 🐙 Edge Provider Cutover Monitoring
 
-Use this when moving from internal-only to advisory/authoritative edge integration.
+Use this when moving from internal-only to additive/authoritative edge integration.
 
 ### 1. Mode and Provider Selection Checks
 
 - Confirm configured edge mode is being observed:
-  - `bot_defence_edge_integration_mode_total{mode="off|advisory|authoritative"}`
+  - `bot_defence_edge_integration_mode_total{mode="off|additive|authoritative"}`
 - Confirm active provider implementation by capability:
   - `bot_defence_provider_implementation_effective_total{capability="...",backend="...",implementation="..."}`
   - For `rate_limiter` external mode, expect `implementation="external_redis_with_internal_fallback"`.
@@ -154,7 +154,7 @@ Correlate provider/mode transitions with:
 
 If challenge/block behavior changes sharply without matching traffic or threat context, roll back to internal/`off` and investigate.
 
-### 4. External Rate-Limiter Degradation Monitoring
+### 4. Edge-Backed Rate-Limiter Degradation Monitoring
 
 During external rate-limiter operation, watch:
 
@@ -187,7 +187,7 @@ sum by (route_class, delta_band) (
 
 ### 5. Minimum Alerting Guidance
 
-During any external provider rollout, alert on:
+During any edge provider rollout, alert on:
 
 - sustained increase in unavailable signal state,
 - unexpected provider implementation label changes,

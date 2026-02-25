@@ -1257,6 +1257,7 @@ pub(crate) fn maybe_handle_botness(
 pub(crate) fn maybe_handle_js(
     store: &Store,
     cfg: &crate::config::Config,
+    provider_registry: &crate::providers::registry::ProviderRegistry,
     ip: &str,
     user_agent: &str,
     needs_js: bool,
@@ -1287,9 +1288,11 @@ pub(crate) fn maybe_handle_js(
             admin: None,
         },
     );
+    let report_endpoint = provider_registry.fingerprint_signal_provider().report_path();
     Some(crate::signals::js_verification::inject_js_challenge(
         ip,
         user_agent,
+        report_endpoint,
         cfg.pow_enabled,
         cfg.pow_difficulty,
         cfg.pow_ttl_seconds,

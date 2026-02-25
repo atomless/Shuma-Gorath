@@ -30,8 +30,9 @@
     normalizeJsonObjectForCompare
   } from '../../domain/core/json-object.js';
   import { durationPartsFromSeconds, durationSeconds } from '../../domain/core/date-time.js';
-  import { parseInteger } from '../../domain/core/math.js';
+  import { parseFloatNumber, parseInteger } from '../../domain/core/math.js';
   import { inRange, isDurationTupleValid } from '../../domain/core/validation.js';
+  import ToggleRow from './primitives/ToggleRow.svelte';
   import {
     formatCountryCodes,
     geoModeFromToggleState,
@@ -74,6 +75,9 @@
   let testMode = false;
 
   let jsRequiredEnforced = true;
+  let cdpDetectionEnabled = true;
+  let cdpAutoBan = true;
+  let cdpDetectionThreshold = 0.6;
 
   let powEnabled = true;
   let powDifficulty = 15;
@@ -153,6 +157,7 @@
   let baseline = {
     testMode: { enabled: false },
     jsRequired: { enforced: true },
+    cdp: { enabled: true, autoBan: true, threshold: 0.6 },
     pow: { enabled: true, difficulty: 15, ttl: 90 },
     challenge: { enabled: true },
     notABot: {
@@ -295,6 +300,9 @@
 
     testMode = config.test_mode === true;
     jsRequiredEnforced = config.js_required_enforced !== false;
+    cdpDetectionEnabled = config.cdp_detection_enabled !== false;
+    cdpAutoBan = config.cdp_auto_ban !== false;
+    cdpDetectionThreshold = Number(parseFloatNumber(config.cdp_detection_threshold, 0.6).toFixed(1));
 
     powEnabled = config.pow_enabled !== false;
     powDifficulty = parseInteger(config.pow_difficulty, 15);
@@ -401,6 +409,11 @@
     baseline = {
       testMode: { enabled: testMode },
       jsRequired: { enforced: jsRequiredEnforced },
+      cdp: {
+        enabled: cdpDetectionEnabled,
+        autoBan: cdpAutoBan,
+        threshold: Number(cdpDetectionThreshold)
+      },
       pow: {
         enabled: powEnabled,
         difficulty: Number(powDifficulty),
@@ -548,6 +561,11 @@
     }
     if (includeAll || jsRequiredDirty) {
       patch.js_required_enforced = jsRequiredEnforced;
+    }
+    if (includeAll || cdpDirty) {
+      patch.cdp_detection_enabled = cdpDetectionEnabled === true;
+      patch.cdp_auto_ban = cdpAutoBan === true;
+      patch.cdp_detection_threshold = Number(cdpDetectionThreshold);
     }
     if (includeAll || powDirty) {
       patch.pow_enabled = powEnabled;
@@ -721,6 +739,14 @@
   $: testModeToggleDisabled = !writable || savingTestMode;
 
   $: jsRequiredDirty = readBool(jsRequiredEnforced) !== baseline.jsRequired.enforced;
+
+  $: cdpThresholdValid = inRange(cdpDetectionThreshold, 0.3, 1.0);
+  $: cdpValid = cdpThresholdValid;
+  $: cdpDirty = (
+    readBool(cdpDetectionEnabled) !== baseline.cdp.enabled ||
+    readBool(cdpAutoBan) !== baseline.cdp.autoBan ||
+    Number(cdpDetectionThreshold) !== baseline.cdp.threshold
+  );
 
   $: powValid = true;
   $: powDirty = readBool(powEnabled) !== baseline.pow.enabled;
@@ -1008,6 +1034,7 @@
 
   $: dirtySections = [
     { label: 'JavaScript required', dirty: jsRequiredDirty, valid: true },
+    { label: 'Internal CDP probe', dirty: cdpDirty, valid: cdpValid },
     { label: 'Proof of Work', dirty: powDirty, valid: powValid },
     { label: 'Challenge puzzle', dirty: challengePuzzleDirty, valid: challengePuzzleValid },
     { label: 'Not-a-Bot', dirty: notABotDirty, valid: notABotValid },
@@ -1106,7 +1133,60 @@
       <p class="control-desc text-muted">Require non-allowlisted requests to present a valid <code>js_verified</code> cookie. The presence of this cookie is verification that <abbr title="JavaScript">JS</abbr> is enabled. With Shuma-Gorath&rsquo;s <abbr title="Proof of Work">PoW</abbr> requirement also enabled, the cookie is set by the server after <code>/pow/verify</code>; with <abbr title="Proof of Work">PoW</abbr> disabled, it is set directly by the interstitial script. Disable only for non-<abbr title="JavaScript">JS</abbr> clients.</p>
       {#if !jsRequiredEnforced}
         <p class="message warning">
-          Disabling JS Required weakens bot defence and bypasses <abbr title="Proof of Work">PoW</abbr> on this path.
+          Disabling JS Required weakens bot defence and bypasses both <abbr title="Proof of Work">PoW</abbr> and the JS Verification Interstitial.
+        </p>
+      {/if}
+    </ConfigPanel>
+
+    <ConfigPanel writable={writable} dirty={cdpDirty}>
+      <ConfigPanelHeading title='Internal Browser <abbr title="Chrome DevTools Protocol">CDP</abbr> Probe'>
+        <label class="toggle-switch" for="config-cdp-enabled-toggle">
+          <input
+            type="checkbox"
+            id="config-cdp-enabled-toggle"
+            aria-label="Enable internal browser CDP probe"
+            bind:checked={cdpDetectionEnabled}
+            disabled={!jsRequiredEnforced}
+          >
+          <span class="toggle-slider"></span>
+        </label>
+      </ConfigPanelHeading>
+      <p class="control-desc text-muted">The JS Verification Interstitial can run an internal browser automation probe and submit a report to Shuma-Gorath. This is distinct from Akamai bot signals in the Fingerprinting tab.</p>
+      <div class="admin-controls">
+        <ToggleRow
+          id="config-cdp-auto-ban-toggle"
+          label="Auto-ban on Strong Detection"
+          labelClass="control-label control-label--wide"
+          ariaLabel="Enable internal browser CDP auto-ban"
+          bind:checked={cdpAutoBan}
+          disabled={!jsRequiredEnforced || !cdpDetectionEnabled}
+          rowClass={!jsRequiredEnforced || !cdpDetectionEnabled ? 'toggle-row--disabled' : ''}
+        />
+        <div class="slider-control" class:slider-control--disabled={!jsRequiredEnforced || !cdpDetectionEnabled}>
+          <div class="slider-header">
+            <label class="control-label control-label--wide" for="config-cdp-threshold-slider">Detection Threshold</label>
+            <span id="config-cdp-threshold-value" class="slider-badge">{Number(cdpDetectionThreshold).toFixed(1)}</span>
+          </div>
+          <input
+            type="range"
+            id="config-cdp-threshold-slider"
+            min="0.3"
+            max="1.0"
+            step="0.1"
+            aria-label="Internal browser CDP detection threshold"
+            aria-invalid={cdpThresholdValid ? 'false' : 'true'}
+            bind:value={cdpDetectionThreshold}
+            disabled={!jsRequiredEnforced || !cdpDetectionEnabled}
+          >
+          <div class="slider-labels">
+            <span>Strict</span>
+            <span>Permissive</span>
+          </div>
+        </div>
+      </div>
+      {#if !jsRequiredEnforced}
+        <p class="message warning">
+          JS Required is disabled, so the internal browser <abbr title="Chrome DevTools Protocol">CDP</abbr> probe is inactive and these controls are disabled.
         </p>
       {/if}
     </ConfigPanel>

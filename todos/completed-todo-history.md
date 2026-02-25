@@ -2,6 +2,29 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-02-25)
+
+### P0 Fingerprinting + Akamai Architecture Clarity and Runtime Alignment
+
+- [x] Scope acceptance: operators can clearly distinguish `JS Verification`, `JS Verification Interstitial`, `Internal Browser CDP Probe`, `Internal Passive Fingerprint Signals`, and `Akamai Bot Signal` from dashboard/docs.
+- [x] Scope acceptance: Fingerprinting tab is Akamai-focused (no generic multi-provider UI exposure).
+- [x] Scope acceptance: internal CDP controls are in Config near JS Required and are disabled when JS Required is off.
+- [x] Scope acceptance: Akamai modes are exactly `additive` and `authoritative`, with explicit behavior and tests.
+- [x] Scope acceptance: JS verification report-path selection is coherent with selected ingestion path (no hardcoded `/cdp-report` mismatch).
+- [x] FPAK-1 Canonical terminology contract implemented (new canonical terminology doc and removal of deprecated wording in active operator docs/UI copy).
+- [x] FPAK-2 Architecture semantics spec implemented (four-plane trust-boundary/persistence/policy spec with explicit Akamai add-vs-replace matrix).
+- [x] FPAK-3 Fingerprinting IA rewrite completed (`Akamai Bot Signal` pane title, top-right Akamai toggle, no provider dropdown).
+- [x] FPAK-4 Mode model simplification completed (toggle + `additive|authoritative`; disabled-mode behavior and parsing aligned).
+- [x] FPAK-5 Internal CDP controls moved back to Config under JS Required with disabled-state coupling.
+- [x] FPAK-6 Runtime report-path coherence fix completed (mode-aware report endpoint selection with regression tests).
+- [x] FPAK-7 Additive Akamai blending implemented with bounded contribution and non-short-circuit behavior.
+- [x] FPAK-8 Authoritative behavior hardened with deterministic criteria and taxonomy/monitoring alignment.
+- [x] FPAK-9 Provenance visibility improved in diagnostics/monitoring + documentation guidance.
+- [x] FPAK-10 Edge ingestion trust-boundary hardening implemented (reject untrusted Akamai-shaped payloads with explicit reasons).
+- [x] FPAK-11 Documentation synchronization pass completed across dashboard/configuration/api/observability/deployment/bot-defence docs.
+- [x] FPAK-12 Verification matrix completed with canonical Makefile targets (`make test`, `make build`) and dashboard/unit/e2e coverage.
+- [x] Workstream done: dashboard model is coherent, runtime behavior matches controls, terminology is consistent across UI/API/docs/metrics/tests, and no backward-compatibility shim clutter was introduced.
+
 ## Additional completions (2026-02-24)
 
 ### P0 Documentation Clarity and Information Architecture

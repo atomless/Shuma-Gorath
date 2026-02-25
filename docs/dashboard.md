@@ -4,6 +4,10 @@
 
 The dashboard provides real-time monitoring, analytics, and admin controls for Shuma-Gorath.
 
+Terminology and architecture references for this area:
+- [`fingerprinting-terminology.md`](fingerprinting-terminology.md)
+- [`fingerprinting-signal-planes.md`](fingerprinting-signal-planes.md)
+
 ## 🐙 Tabbed <abbr title="Single-Page Application">SPA</abbr> Layout
 
 The dashboard is now organized as a tabbed <abbr title="Single-Page Application">SPA</abbr> with <abbr title="Uniform Resource Locator">URL</abbr>-backed hash routes:
@@ -108,7 +112,8 @@ Controls:
 - Bypass allowlist controls (`bypass_allowlists_enabled`, `whitelist`, `path_whitelist`)
 - Per-trigger ban durations, including <abbr title="Chrome DevTools Protocol">CDP</abbr> automation duration (`ban_durations.cdp`)
 - robots.txt configuration with dirty-state preview (unsaved panel toggles render via `POST /admin/robots/preview` without persisting)
-- <abbr title="Chrome DevTools Protocol">CDP</abbr> detection controls and fingerprint provider controls (`internal` or `external (Akamai)`; current external provider list: `["Akamai"]`)
+- <abbr title="JavaScript">JS</abbr> Required + internal browser <abbr title="Chrome DevTools Protocol">CDP</abbr> probe controls in Config (`cdp_detection_enabled`, `cdp_auto_ban`, `cdp_detection_threshold`), with CDP controls disabled when JS Required is off
+- Fingerprinting tab `Akamai Bot Signal` controls: Akamai on/off toggle + mode (`additive` or `authoritative`)
 - <abbr title="Proof of Work">PoW</abbr> enable toggle plus difficulty/<abbr title="Time To Live">TTL</abbr> tuning
 - Challenge puzzle controls (`challenge_puzzle_enabled`); transform-count and runtime hardening knobs remain Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only.
 - Not-a-Bot controls (`not_a_bot_enabled`, `not_a_bot_pass_score`, `not_a_bot_fail_score`); verification-token lifetime, pass-marker lifetime, and attempt-window knobs remain Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only.

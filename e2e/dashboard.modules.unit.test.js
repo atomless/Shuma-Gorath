@@ -784,7 +784,7 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
     assert.equal(tabHelpers.parseInteger('42', 0), 42);
     assert.equal(tabHelpers.parseInteger('nope', 3), 3);
     assert.equal(tabHelpers.parseFloatNumber('0.75', 0), 0.75);
-    assert.equal(tabHelpers.normalizeEdgeMode('Advisory'), 'advisory');
+    assert.equal(tabHelpers.normalizeEdgeMode('Additive'), 'additive');
     assert.equal(tabHelpers.normalizeEdgeMode('invalid'), 'off');
     assert.equal(tabHelpers.normalizeIpRangePolicyMode('ENFORCE'), 'enforce');
     assert.equal(tabHelpers.normalizeIpRangePolicyMode('invalid'), 'off');
@@ -1099,7 +1099,8 @@ test('ip bans, config, fingerprinting, robots, and tuning tabs are declarative a
   assert.equal(configSurfaceSource.includes('id="ip-range-policy-mode"'), false);
   assert.match(configSource, /ip_range_policy_mode/);
   assert.match(configSurfaceSource, /id="browser-policy-toggle"/);
-  assert.equal(configSurfaceSource.includes('id="cdp-enabled-toggle"'), false);
+  assert.match(configSurfaceSource, /id="config-cdp-enabled-toggle"/);
+  assert.match(configSurfaceSource, /id="config-cdp-threshold-slider"/);
   assert.equal(configSurfaceSource.includes('id="edge-integration-mode-select"'), false);
   assert.equal(configSurfaceSource.includes('id="bypass-allowlists-toggle"'), false);
   assert.match(configSurfaceSource, /id="geo-scoring-toggle"/);
@@ -1129,10 +1130,11 @@ test('ip bans, config, fingerprinting, robots, and tuning tabs are declarative a
   assert.match(fingerprintingSource, /export let cdpSnapshot = null;/);
   assert.match(fingerprintingSource, /export let onSaveConfig = null;/);
   assert.match(fingerprintingSource, /await onSaveConfig\(payload/);
-  assert.match(fingerprintingSource, /id="fingerprinting-cdp-enabled-toggle"/);
-  assert.match(fingerprintingSource, /id="fingerprinting-cdp-threshold-slider"/);
+  assert.match(fingerprintingSource, /id="fingerprinting-akamai-enabled-toggle"/);
   assert.match(fingerprintingSource, /id="fingerprinting-edge-mode-select"/);
-  assert.match(fingerprintingSource, /id="fingerprinting-provider-backend-select"/);
+  assert.equal(fingerprintingSource.includes('id="fingerprinting-provider-backend-select"'), false);
+  assert.equal(fingerprintingSource.includes('id="fingerprinting-cdp-enabled-toggle"'), false);
+  assert.equal(fingerprintingSource.includes('id="fingerprinting-cdp-threshold-slider"'), false);
   assert.match(fingerprintingSource, /buttonId="save-fingerprinting-config"/);
   assert.match(fingerprintingSource, /window\.addEventListener\('beforeunload'/);
   assert.match(fingerprintingSurfaceSource, /id="fingerprinting-total-detections"/);

@@ -73,7 +73,7 @@ These are read from process env at runtime (not from <abbr title="Key-Value">KV<
 | `SHUMA_ENFORCE_HTTPS` | Yes | `false` | Rejects non-<abbr title="Hypertext Transfer Protocol Secure">HTTPS</abbr> requests when `true` (proxy/header trust rules still apply). |
 | `SHUMA_DEBUG_HEADERS` | Yes | `false` | Enables internal debug headers (for example health diagnostics). Keep `false` in production. |
 | `SHUMA_ENTERPRISE_MULTI_INSTANCE` | No | `false` | Marks deployment as enterprise multi-instance for runtime/deploy state guardrails. |
-| `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED` | No | `false` | Explicit temporary attestation for advisory/off operation when enterprise multi-instance still uses local-only rate/ban state. |
+| `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED` | No | `false` | Explicit temporary attestation for additive/off operation when enterprise multi-instance still uses local-only rate/ban state. |
 | `SHUMA_RATE_LIMITER_REDIS_URL` | No | empty | Redis endpoint for external distributed rate limiter mode (`redis://...` or `rediss://...`). |
 | `SHUMA_BAN_STORE_REDIS_URL` | No | empty | Redis endpoint for external distributed ban store mode (`redis://...` or `rediss://...`). |
 | `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` | No | `fallback_internal` | Outage posture for external rate-limiter degradation on main traffic (`fallback_internal`, `fail_open`, `fail_closed`). |
@@ -97,7 +97,7 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | `SHUMA_PROVIDER_CHALLENGE_ENGINE` | `internal` | Backend selection for challenge engine capability (`internal`, `external`). |
 | `SHUMA_PROVIDER_MAZE_TARPIT` | `internal` | Backend selection for maze/tarpit capability (`internal`, `external`). |
 | `SHUMA_PROVIDER_FINGERPRINT_SIGNAL` | `internal` | Backend selection for fingerprint signal capability (`internal`, `external`). |
-| `SHUMA_EDGE_INTEGRATION_MODE` | `off` | Managed-edge integration precedence: `off` ignores Akamai-style edge outcomes, `advisory` ingests edge outcomes as non-authoritative signals, `authoritative` enables supported edge short-circuit actions (currently strong external fingerprint auto-ban). |
+| `SHUMA_EDGE_INTEGRATION_MODE` | `off` | Managed-edge integration precedence: `off` ignores Akamai-style edge outcomes, `additive` ingests Akamai outcomes as bounded scoring input, `authoritative` enables documented strong-signal short-circuit actions (currently strong Akamai fingerprint auto-ban). |
 | `SHUMA_POW_ENABLED` | `true` | Enables <abbr title="Proof of Work">PoW</abbr> in <abbr title="JavaScript">JS</abbr> verification flow. |
 | `SHUMA_POW_DIFFICULTY` | `15` | <abbr title="Proof of Work">PoW</abbr> cost level (clamped to supported range). |
 | `SHUMA_POW_TTL_SECONDS` | `90` | <abbr title="Proof of Work">PoW</abbr> seed lifetime in seconds (clamped). |
@@ -360,9 +360,12 @@ Default seeded modes are `both` for all three modules as the current pre-launch 
 
 - Provider selection is now explicit in config under `provider_backends`.
 - All capabilities default to `internal`.
+- Terminology and architecture references:
+  - [`fingerprinting-terminology.md`](fingerprinting-terminology.md)
+  - [`fingerprinting-signal-planes.md`](fingerprinting-signal-planes.md)
 - `external` backend behavior in the current slice:
   - `fingerprint_signal=external` currently supports only Akamai and routes to an Akamai-first adapter (`/fingerprint-report`) that accepts edge/Bot Manager-style outcome payloads, maps them into normalized fingerprint/<abbr title="Chrome DevTools Protocol">CDP</abbr>-tier signals, and preserves explicit fallback to the internal <abbr title="Chrome DevTools Protocol">CDP</abbr> report handler for non-Akamai/legacy payloads.
-  - External fingerprint provider list right now: `["Akamai"]`.
+  - Supported edge fingerprint provider list right now: `["Akamai"]`.
   - For adding future providers, see [`fingerprint-edge-adapter-guide.md`](fingerprint-edge-adapter-guide.md).
   - Fingerprint source availability is explicit:
     - internal provider reports `active` when `cdp_detection_enabled=true`, `disabled` when `cdp_detection_enabled=false`.
@@ -376,18 +379,18 @@ Default seeded modes are `both` for all three modules as the current pre-launch 
 - `edge_integration_mode` defaults to `off` for self-hosted baseline.
 - External fingerprint adapter precedence is mode-aware:
   - `off`: ignore Akamai-style edge outcomes (legacy/non-Akamai payloads still fall back to internal <abbr title="Chrome DevTools Protocol">CDP</abbr> handler).
-  - `advisory`: record normalized edge detections without authoritative ban short-circuit.
+  - `additive`: add bounded Akamai evidence into local fingerprint scoring (no direct short-circuit ban).
   - `authoritative`: allow strong edge outcomes to trigger immediate auto-ban when `cdp_auto_ban=true`.
 
 ### Provider + Edge Matrix (Operator Quick Reference)
 
 This matrix is meant to answer: "What actually happens if I change this setting?"
 
-| Capability | `internal` backend | `external` backend (current) | Advisory mode intent | Authoritative mode intent | Safe fallback behavior |
+| Capability | `internal` backend | `external` backend (current) | Additive mode intent | Authoritative mode intent | Safe fallback behavior |
 | --- | --- | --- | --- | --- | --- |
-| `fingerprint_signal` | Uses internal <abbr title="Chrome DevTools Protocol">CDP</abbr> scripts and `/cdp-report` | Uses Akamai-first adapter (`/fingerprint-report`) that maps edge outcomes and falls back to internal <abbr title="Chrome DevTools Protocol">CDP</abbr> handler for non-Akamai/legacy payloads. Current external provider list: `["Akamai"]`. | Edge outcomes are ingested/logged without authoritative edge-ban short-circuit | Strong edge outcomes can trigger immediate auto-ban when `cdp_auto_ban=true` | Non-Akamai/legacy payloads downgrade to internal <abbr title="Chrome DevTools Protocol">CDP</abbr> handling; `off` mode ignores Akamai-style edge outcomes |
-| `rate_limiter` | Internal local rate logic | Redis-backed distributed limiter (`INCR` + <abbr title="Time To Live">TTL</abbr>) with configurable outage posture (`fallback_internal`/`fail_open`/`fail_closed`) by route class | Consume distributed rate state as advisory pressure | External authoritative limit decisions only after semantic parity and outage posture are validated | Applies route-class outage mode on Redis unavailability/degradation |
-| `ban_store` | Internal ban persistence and checks | Redis-backed distributed ban adapter with fallback to internal when external backend is unavailable/unconfigured | Use distributed ban state as advisory input | External authoritative ban sync only with explicit outage controls | Falls back to internal ban store on Redis unavailability/misconfiguration |
+| `fingerprint_signal` | Uses internal <abbr title="Chrome DevTools Protocol">CDP</abbr> scripts and `/cdp-report` | Uses Akamai-first adapter (`/fingerprint-report`) that maps edge outcomes and falls back to internal <abbr title="Chrome DevTools Protocol">CDP</abbr> handler for non-Akamai/legacy payloads. Current supported edge provider list: `["Akamai"]`. | Adds bounded Akamai evidence into fingerprint scoring; no direct short-circuit ban | Strong edge outcomes can trigger immediate auto-ban when `cdp_auto_ban=true` | Non-Akamai/legacy payloads downgrade to internal <abbr title="Chrome DevTools Protocol">CDP</abbr> handling; `off` mode ignores Akamai-style edge outcomes |
+| `rate_limiter` | Internal local rate logic | Redis-backed distributed limiter (`INCR` + <abbr title="Time To Live">TTL</abbr>) with configurable outage posture (`fallback_internal`/`fail_open`/`fail_closed`) by route class | Not controlled by `edge_integration_mode` | External authoritative limit decisions only after semantic parity and outage posture are validated | Applies route-class outage mode on Redis unavailability/degradation |
+| `ban_store` | Internal ban persistence and checks | Redis-backed distributed ban adapter with fallback to internal when external backend is unavailable/unconfigured | Not controlled by `edge_integration_mode` | External authoritative ban sync only with explicit outage controls | Falls back to internal ban store on Redis unavailability/misconfiguration |
 | `challenge_engine` | Internal challenge rendering/verification | Explicit unsupported external adapter currently delegates to internal behavior | External challenge attestations may inform policy once implemented | Authoritative external challenge only when replay/expiry semantics are parity-tested | Unsupported external path keeps internal challenge path |
 | `maze_tarpit` | Internal Shuma-native maze/tarpit | Explicit unsupported external adapter delegates to internal behavior | Keep internal (no practical external target currently) | Keep internal | Internal-only path remains the source of truth |
 | Policy composition (`botness`, routing, modes) | Internal | Not externalized | Shuma remains policy brain | Shuma remains policy brain | Not swappable by design |
@@ -399,12 +402,12 @@ Use these as startup presets, then tune incrementally:
 1. `self_hosted_minimal`:
    - all `SHUMA_PROVIDER_*` values = `internal`
    - `SHUMA_EDGE_INTEGRATION_MODE=off`
-2. `enterprise_akamai` (advisory-first):
+2. `enterprise_akamai` (additive-first):
    - begin with all providers `internal`
    - enable one external provider at a time only after staging soak
-   - set `SHUMA_EDGE_INTEGRATION_MODE=advisory` during initial enterprise rollout
+   - set `SHUMA_EDGE_INTEGRATION_MODE=additive` during initial enterprise rollout
 3. `enterprise_akamai` (authoritative-optional):
-   - only after advisory stability and rollback rehearsal
+   - only after additive stability and rollback rehearsal
    - keep non-validated capabilities on `internal`
    - set `SHUMA_EDGE_INTEGRATION_MODE=authoritative` only for validated integrations
 
@@ -413,7 +416,7 @@ Use these as startup presets, then tune incrementally:
 - Keep policy logic shared across all profiles; do not maintain a separate policy branch for enterprise.
 - `self_hosted_minimal` is valid with internal local state only.
 - `enterprise_akamai` should move `rate_limiter` and `ban_store` to distributed/external adapters before multi-instance authoritative rollout.
-- Multi-instance deployments using only local state should be treated as advisory/staging posture until distributed state correctness is enabled.
+- Multi-instance deployments using only local state should be treated as additive/off staging posture until distributed state correctness is enabled.
 - Deploy-time guardrail keys for this posture are documented in [`docs/deployment.md`](deployment.md):
   - `SHUMA_ENTERPRISE_MULTI_INSTANCE`
   - `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED`
@@ -426,7 +429,7 @@ Use these as startup presets, then tune incrementally:
 - `/metrics` includes:
   - `bot_defence_botness_signal_state_total{signal="...",state="active|disabled|unavailable"}`
   - `bot_defence_defence_mode_effective_total{module="rate|geo|js",configured="off|signal|enforce|both",signal_enabled="true|false",action_enabled="true|false"}`
-  - `bot_defence_edge_integration_mode_total{mode="off|advisory|authoritative"}`
+  - `bot_defence_edge_integration_mode_total{mode="off|additive|authoritative"}`
   - `bot_defence_provider_implementation_effective_total{capability="...",backend="internal|external",implementation="..."}`
   - `bot_defence_rate_limiter_backend_errors_total{route_class="main_traffic|admin_auth"}`
   - `bot_defence_rate_limiter_outage_decisions_total{route_class="...",mode="fallback_internal|fail_open|fail_closed",action="fallback_internal|allow|deny",decision="allowed|limited"}`

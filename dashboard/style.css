@@ -49,9 +49,8 @@
   --heading-fg: var(--color-front);
   --field-bg: var(--panel-bg);
   --field-fg: var(--panel-fg);
-  --field-border: var(--color-300);
   --slider-track-bg: var(--color-200);
-  --slider-track-border: var(--color-300);
+  --slider-track-border: var(--color-100);
   /* Foreground for buttons that use dark backgrounds in light mode
      and become light in dark mode (swap text color accordingly) */
   --btn-contrast-fg: var(--color-back);
@@ -85,14 +84,14 @@
 
     /* Reverse the light-theme brightness scale for dark mode */
     --color-back: #0a0507;
-    --color-50: #27272a;
-    --color-100: #3f3f46;
-    --color-200: #523259;
-    --color-300: #71717a;
+    --color-50: #261724;
+    --color-100: #3f263e;
+    --color-200: #593250;
+    --color-300: #7a6576;
     --color-400: #a181a6;
-    --color-500: #d4c4d8;
-    --color-600: #e4d4e3;
-    --color-700: #f4edf5;
+    --color-500: #dab9d9;
+    --color-600: #e6bfe3;
+    --color-700: #f6ddf5;
     --color-800: #faf2fa;
     --color-900: rgb(255, 250, 253);
     --color-front: rgb(255, 250, 253);
@@ -111,8 +110,8 @@
 
     --color-toggle-active: #faf2fa;
 
-    --border-hairline: 0.5px solid var(--color-300);
-    --striped-bg: repeating-linear-gradient(-45deg, #0a0507, #0a0507 10px, #27272a 10px, #27272a 20px);
+    --border-hairline: 0.5px solid var(--color-100);
+    --striped-bg: repeating-linear-gradient(-45deg, #0a0507, #0a0509 10px, #1c161b 10px, #1c161b 20px);
     --striped-bright-bg: repeating-linear-gradient(-45deg, rgba(10, 5, 7, 0.5), rgba(10, 5, 7, 0.5) 10px, #fd74d6 10px, #fd74d6 20px);
 
     --btn-contrast-fg: var(--color-back);
@@ -180,10 +179,10 @@
 }
 
 .input-field {
-  border: 1px solid var(--field-border);
+  border: 1px solid var(--border-hairline);
   background: var(--field-bg);
   color: var(--field-fg);
-  font-size: var(--text-base);
+  font-size: var(--text-lg);
   box-shadow: inset 0 0 5px var(--color-300);
 }
 
@@ -370,7 +369,7 @@ h1 {
 
 .subtitle {
   font-size: var(--text-lg);
-  margin: -18px 0 1rem 0;
+  margin: -18px 0 2rem 0;
 }
 
 .dashboard-tabs {
@@ -639,7 +638,7 @@ th {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: var(--color-100);
+  background: var(--color-50);
   border-bottom: var(--border-hairline);
 }
 
@@ -863,15 +862,19 @@ code.env-var {
 }
 
 .config-save-bar {
-  position: sticky;
+  position: fixed;
+  left: 20px;
+  right: 20px;
   bottom: 0;
-  z-index: 8;
+  z-index: 800;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  margin-top: 8px;
+  margin: 0 auto;
+  width: auto;
+  max-width: 1400px;
   background: var(--striped-bright-bg);
   font-size: var(--text-2xl);
 }
@@ -932,10 +935,18 @@ code.env-var {
 
 .input-field[aria-invalid="true"] {
   border-color: var(--color-error);
+  background: var(--color-error-bg);
 }
 
-.geo-textarea[aria-invalid="true"] {
-  background: var(--color-error-bg);
+input[type="range"][aria-invalid="true"] {
+  accent-color: var(--color-error);
+  outline: 2px solid var(--color-error-bg);
+  border-radius: 999px;
+}
+
+input::placeholder {
+  color: var(--color-300);
+  font-style: italic;
 }
 
 .validation-issue-list {
@@ -1172,7 +1183,6 @@ input:checked + .toggle-slider:before {
 .duration-input .input-field {
   width: 100%;
   min-width: 0;
-  padding: 6px 10px;
   margin: 0;
   flex: 1 1 auto;
 }
@@ -1345,8 +1355,6 @@ input:checked + .toggle-slider:before {
 /* Number/text inputs in control rows */
 .input-row .input-field {
   width: 100px;
-  padding: 8px 10px;
-  font-size: var(--text-lg);
   justify-self: end;
 }
 
@@ -1370,13 +1378,13 @@ input:checked + .toggle-slider:before {
   gap: 10px;
 }
 
-.geo-field {
+.textarea-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.geo-textarea {
+.textarea-field__input {
   width: 100%;
   min-height: 0;
   padding: 10px;
@@ -1386,25 +1394,17 @@ input:checked + .toggle-slider:before {
   line-height: 1.4;
 }
 
-.geo-textarea:focus {
+.textarea-field__input:focus {
   outline: none;
   border-color: var(--color-500);
 }
 
-.geo-textarea:disabled {
+.textarea-field__input:disabled {
   background: var(--color-100);
   color: var(--muted-fg);
-  border-style: dashed;
   cursor: not-allowed;
   pointer-events: none;
   opacity: 1;
-}
-
-.geo-divider {
-  width: 100%;
-  height: 1px;
-  background: var(--color-300);
-  margin: 4px 0;
 }
 
 /* Unit labels (e.g., "pages", "seconds") */
@@ -1440,6 +1440,11 @@ input:checked + .toggle-slider:before {
   margin-top: 5px;
 }
 
+.slider-control.slider-control--disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
 .slider-header {
   display: flex;
   align-items: center;
@@ -1447,7 +1452,7 @@ input:checked + .toggle-slider:before {
 }
 
 .slider-badge {
-  border: 1px solid var(--field-border);
+  border: 1px solid var(--border-hairline);
   background: var(--field-bg);
   color: var(--field-fg);
   font-weight: 600;

@@ -5,7 +5,7 @@ import { parseFloatNumber, parseInteger } from './core/math.js';
 import { formatUnknownForDisplay, normalizeLowerTrimmed } from './core/strings.js';
 import { inRange, isDurationTupleValid, isNormalizedInSet } from './core/validation.js';
 
-const EDGE_MODES = new Set(['off', 'advisory', 'authoritative']);
+const EDGE_MODES = new Set(['off', 'additive', 'authoritative']);
 const COMPOSABILITY_MODES = new Set(['off', 'signal', 'enforce', 'both']);
 const IP_RANGE_POLICY_MODES = new Set(['off', 'advisory', 'enforce']);
 
