@@ -10,7 +10,6 @@ Purpose:
 Panels:
 
 - `JS Required` toggle (`js_required_enforced`).
-- `JS Browser Allowlist` rules (`browser_allowlist`) used to bypass JS Verification Interstitial requirements for matching browser/version pairs.
 - `Browser CDP Automation Probe`:
   - enable toggle (`cdp_detection_enabled`),
   - auto-ban toggle (`cdp_auto_ban`),

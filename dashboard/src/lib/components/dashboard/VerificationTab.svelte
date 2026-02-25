@@ -7,7 +7,6 @@
   import { onMount } from 'svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
-  import TextareaField from './primitives/TextareaField.svelte';
   import {
     formatBrowserRulesTextarea,
     normalizeBrowserRulesForCompare,
@@ -51,7 +50,6 @@
 
   let browserPolicyEnabled = true;
   let browserBlockRules = '';
-  let jsBrowserAllowlistRules = '';
 
   let baseline = {
     jsRequired: { enforced: true },
@@ -67,8 +65,7 @@
       attemptLimit: 6,
       attemptWindow: 300
     },
-    browserPolicy: { enabled: true, block: '' },
-    jsAllowlist: { rules: '' }
+    browserPolicy: { enabled: true, block: '' }
   };
 
   const handleBeforeUnload = (event) => {
@@ -109,7 +106,6 @@
 
     browserPolicyEnabled = config.browser_policy_enabled !== false;
     browserBlockRules = formatBrowserRulesTextarea(config.browser_block);
-    jsBrowserAllowlistRules = formatBrowserRulesTextarea(config.browser_allowlist);
 
     baseline = {
       jsRequired: { enforced: jsRequiredEnforced },
@@ -138,9 +134,6 @@
       browserPolicy: {
         enabled: browserPolicyEnabled,
         block: normalizeBrowserRulesForCompare(browserBlockRules)
-      },
-      jsAllowlist: {
-        rules: normalizeBrowserRulesForCompare(jsBrowserAllowlistRules)
       }
     };
 
@@ -180,9 +173,6 @@
     if (includeAll || browserPolicyDirty) {
       patch.browser_policy_enabled = browserPolicyEnabled;
       patch.browser_block = parseBrowserRulesTextarea(browserBlockRules);
-    }
-    if (includeAll || jsAllowlistDirty) {
-      patch.browser_allowlist = parseBrowserRulesTextarea(jsBrowserAllowlistRules);
     }
     return patch;
   };
@@ -253,16 +243,11 @@
   );
 
   $: browserBlockNormalized = normalizeBrowserRulesForCompare(browserBlockRules);
-  $: jsBrowserAllowlistNormalized = normalizeBrowserRulesForCompare(jsBrowserAllowlistRules);
   $: browserBlockRulesValid = browserBlockNormalized !== '__invalid__';
-  $: jsBrowserAllowlistRulesValid = jsBrowserAllowlistNormalized !== '__invalid__';
   $: browserPolicyValid = browserBlockRulesValid;
   $: browserPolicyDirty = (
     readBool(browserPolicyEnabled) !== baseline.browserPolicy.enabled ||
     browserBlockNormalized !== baseline.browserPolicy.block
-  );
-  $: jsAllowlistDirty = (
-    jsBrowserAllowlistNormalized !== baseline.jsAllowlist.rules
   );
 
   $: dirtySections = [
@@ -271,8 +256,7 @@
     { label: 'Proof of Work', dirty: powDirty, valid: powValid },
     { label: 'Challenge puzzle', dirty: challengePuzzleDirty, valid: challengePuzzleValid },
     { label: 'Not-a-Bot', dirty: notABotDirty, valid: notABotValid },
-    { label: 'Browser policy', dirty: browserPolicyDirty, valid: browserPolicyValid },
-    { label: 'JS browser allowlist', dirty: jsAllowlistDirty, valid: jsBrowserAllowlistRulesValid }
+    { label: 'Browser policy', dirty: browserPolicyDirty, valid: browserPolicyValid }
   ];
   $: dirtySectionEntries = dirtySections.filter((section) => section.dirty === true);
   $: invalidDirtySectionEntries = dirtySectionEntries.filter((section) => section.valid !== true);
@@ -339,25 +323,6 @@
           Disabling JS Required weakens bot defence and bypasses both <abbr title="Proof of Work">PoW</abbr> and the JS Verification Interstitial.
         </p>
       {/if}
-    </ConfigPanel>
-
-    <ConfigPanel writable={writable} dirty={jsAllowlistDirty}>
-      <ConfigPanelHeading title='<abbr title="JavaScript">JS</abbr> Browser Allowlist' />
-      <p class="control-desc text-muted">Use one rule per line in <code>BrowserName,min_major</code> format (for example <code>Chrome,120</code>). Matching browsers bypass the JS Verification Interstitial requirement. This allowlist is independent from Browser Policy minimum-version blocking.</p>
-      <div class="admin-controls">
-        <TextareaField
-          id="js-browser-allowlist-rules"
-          label="Allowlist Rules"
-          rows="2"
-          ariaLabel="JavaScript verification browser allowlist rules"
-          spellcheck={false}
-          ariaInvalid={jsBrowserAllowlistRulesValid ? 'false' : 'true'}
-          bind:value={jsBrowserAllowlistRules}
-        />
-        {#if !jsBrowserAllowlistRulesValid}
-          <p id="js-browser-allowlist-rules-error" class="field-error visible">Invalid browser rule format. Use <code>BrowserName,min_major</code> one per line.</p>
-        {/if}
-      </div>
     </ConfigPanel>
 
     <ConfigPanel writable={writable} dirty={cdpDirty}>
