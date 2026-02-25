@@ -1,11 +1,8 @@
 <script>
-  import { onMount } from 'svelte';
   import {
     buildFeatureStatusItems,
-    buildVariableInventoryGroups,
     deriveStatusSnapshot
   } from '../../domain/status.js';
-  import { resolveDashboardAssetPath } from '../../runtime/dashboard-paths.js';
   import MetricStatCard from './primitives/MetricStatCard.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
 
@@ -14,11 +11,6 @@
   export let runtimeTelemetry = null;
   export let tabStatus = null;
   export let configSnapshot = null;
-  export let dashboardBasePath = '/dashboard';
-
-  const STATUS_VAR_MEANINGS_ASSET = 'assets/status-var-meanings.json';
-  const EMPTY_VAR_MEANINGS = {};
-  let statusVarMeanings = EMPTY_VAR_MEANINGS;
 
   const formatMetricMs = (value) => {
     const numeric = Number(value);
@@ -32,33 +24,8 @@
     return raw;
   };
 
-  function normalizeStatusVarMeanings(value) {
-    if (!value || typeof value !== 'object') return EMPTY_VAR_MEANINGS;
-    return value;
-  }
-
-  async function loadStatusVarMeanings() {
-    if (typeof window === 'undefined') return;
-    try {
-      const response = await fetch(
-        resolveDashboardAssetPath(dashboardBasePath, STATUS_VAR_MEANINGS_ASSET),
-        { credentials: 'same-origin' }
-      );
-      if (!response.ok) return;
-      const parsed = await response.json();
-      statusVarMeanings = normalizeStatusVarMeanings(parsed);
-    } catch (_error) {}
-  }
-
-  onMount(() => {
-    void loadStatusVarMeanings();
-  });
-
   $: statusSnapshot = deriveStatusSnapshot(configSnapshot || {});
   $: featureStatusItems = buildFeatureStatusItems(statusSnapshot);
-  $: statusVariableGroups = buildVariableInventoryGroups(statusSnapshot, {
-    varMeanings: statusVarMeanings
-  });
   $: refresh = runtimeTelemetry && runtimeTelemetry.refresh ? runtimeTelemetry.refresh : {};
   $: polling = runtimeTelemetry && runtimeTelemetry.polling ? runtimeTelemetry.polling : {};
 </script>
@@ -88,47 +55,6 @@
             </div>
           </div>
         {/each}
-      </div>
-    </div>
-    <div class="control-group panel-soft pad-md status-inventory-group">
-      <h3>Runtime Variable Inventory</h3>
-      <p class="control-desc text-muted">
-        Complete runtime snapshot of active configuration variables, grouped by concern.
-        Rows with highlighted background are runtime admin-writable variables.
-      </p>
-      <div id="status-vars-groups" class="status-var-groups">
-        {#if statusVariableGroups.length === 0}
-          <p class="text-muted">No configuration snapshot loaded yet.</p>
-        {:else}
-          {#each statusVariableGroups as group}
-            <section class="status-var-group">
-              <h4 class="status-var-group-title">{@html group.title}</h4>
-              <table class="status-vars-table">
-                <colgroup>
-                  <col class="status-vars-col status-vars-col--variable">
-                  <col class="status-vars-col status-vars-col--value">
-                  <col class="status-vars-col status-vars-col--meaning">
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th scope="col">Variable</th>
-                    <th scope="col">Current Value</th>
-                    <th scope="col">Meaning</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each group.entries as entry}
-                    <tr class={`status-var-row ${entry.isAdminWrite ? 'status-var-row--admin-write' : ''}`.trim()}>
-                      <td><code>{entry.path}</code></td>
-                      <td><code>{entry.valueText}</code></td>
-                      <td>{@html entry.meaning}</td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
-            </section>
-          {/each}
-        {/if}
       </div>
     </div>
     <div class="control-group panel-soft pad-md">

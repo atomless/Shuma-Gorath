@@ -920,13 +920,17 @@ test('admin endpoint resolver applies loopback override only for local hostnames
   });
 });
 
-test('ip bans, config, rate-limiting, geo, fingerprinting, robots, and tuning tabs are declarative and callback-driven', () => {
+test('ip bans, config, advanced, rate-limiting, geo, fingerprinting, robots, and tuning tabs are declarative and callback-driven', () => {
   const ipBansSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/IpBansTab.svelte'),
     'utf8'
   );
   const configSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/ConfigTab.svelte'),
+    'utf8'
+  );
+  const advancedSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/AdvancedTab.svelte'),
     'utf8'
   );
   const robotsSource = fs.readFileSync(
@@ -988,6 +992,10 @@ test('ip bans, config, rate-limiting, geo, fingerprinting, robots, and tuning ta
     configNetworkSource,
     configDurationsSource,
     configExportSource,
+    saveChangesBarSource
+  ].join('\n');
+  const advancedSurfaceSource = [
+    advancedSource,
     configAdvancedSource,
     saveChangesBarSource
   ].join('\n');
@@ -1031,7 +1039,6 @@ test('ip bans, config, rate-limiting, geo, fingerprinting, robots, and tuning ta
   assert.equal(ipBansSource.includes('querySelectorAll('), false);
 
   assert.match(configSource, /export let onSaveConfig = null;/);
-  assert.match(configSource, /export let onValidateConfig = null;/);
   assert.equal(configSource.includes('onFetchRobotsPreview'), false);
   assert.equal(configSource.includes('test_mode'), false);
   assert.match(configSource, /let ipRangePolicyMode = 'off';/);
@@ -1043,7 +1050,6 @@ test('ip bans, config, rate-limiting, geo, fingerprinting, robots, and tuning ta
   assert.match(configSource, /import ConfigNetworkSection from '\.\/config\/ConfigNetworkSection\.svelte';/);
   assert.match(configSource, /import ConfigDurationsSection from '\.\/config\/ConfigDurationsSection\.svelte';/);
   assert.match(configSource, /import ConfigExportSection from '\.\/config\/ConfigExportSection\.svelte';/);
-  assert.match(configSource, /import ConfigAdvancedSection from '\.\/config\/ConfigAdvancedSection\.svelte';/);
   assert.equal(configSource.includes("import ConfigGeoSection from './config/ConfigGeoSection.svelte';"), false);
   assert.equal(configSource.includes('ConfigRobotsSection'), false);
   assert.match(configSource, /import SaveChangesBar from '\.\/primitives\/SaveChangesBar\.svelte';/);
@@ -1052,7 +1058,6 @@ test('ip bans, config, rate-limiting, geo, fingerprinting, robots, and tuning ta
   assert.match(configSource, /<ConfigNetworkSection/);
   assert.match(configSource, /<ConfigDurationsSection/);
   assert.match(configSource, /<ConfigExportSection/);
-  assert.match(configSource, /<ConfigAdvancedSection/);
   assert.equal(configSource.includes('<ConfigGeoSection'), false);
   assert.equal(configSource.includes('<ConfigRobotsSection'), false);
   assert.match(configSource, /<SaveChangesBar/);
@@ -1091,10 +1096,6 @@ test('ip bans, config, rate-limiting, geo, fingerprinting, robots, and tuning ta
     configSurfaceSource,
     /Export (the current configuration as JSON|a JSON copy of the above configuration)/
   );
-  assert.match(configSurfaceSource, /id="advanced-config-json-error"/);
-  assert.match(configSurfaceSource, /id="advanced-config-json-issue-list"/);
-  assert.match(configSurfaceSource, /id="advanced-config-json-validating"/);
-  assert.match(configSurfaceSource, /id="advanced-config-json-docs-link"/);
   assert.match(configSource, /buttonId="save-config-all"/);
   assert.match(configSource, /saveAllConfig\(/);
   assert.match(configSource, /window\.addEventListener\('beforeunload'/);
@@ -1118,6 +1119,21 @@ test('ip bans, config, rate-limiting, geo, fingerprinting, robots, and tuning ta
   assert.equal(configSource.includes('id="save-test-mode-config"'), false);
   assert.equal(configSource.includes('id="save-advanced-config"'), false);
   assert.equal(configSource.includes('{@html'), false);
+
+  assert.match(advancedSource, /export let onSaveConfig = null;/);
+  assert.match(advancedSource, /export let onValidateConfig = null;/);
+  assert.match(advancedSource, /export let configVersion = 0;/);
+  assert.match(advancedSource, /export let configSnapshot = null;/);
+  assert.match(advancedSource, /import ConfigAdvancedSection from '\.\/config\/ConfigAdvancedSection\.svelte';/);
+  assert.match(advancedSource, /await onSaveConfig\(patch/);
+  assert.match(advancedSource, /await onValidateConfig\(advancedPatch\)/);
+  assert.match(advancedSource, /id="status-vars-groups"/);
+  assert.match(advancedSource, /buttonId="save-advanced-config"/);
+  assert.match(advancedSource, /window\.addEventListener\('beforeunload'/);
+  assert.match(advancedSurfaceSource, /id="advanced-config-json-error"/);
+  assert.match(advancedSurfaceSource, /id="advanced-config-json-issue-list"/);
+  assert.match(advancedSurfaceSource, /id="advanced-config-json-validating"/);
+  assert.match(advancedSurfaceSource, /id="advanced-config-json-docs-link"/);
 
   assert.match(rateLimitingSource, /export let onSaveConfig = null;/);
   assert.match(rateLimitingSource, /await onSaveConfig\(payload/);
@@ -1171,6 +1187,7 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   const source = fs.readFileSync(path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'), 'utf8');
 
   assert.match(source, /import\('\$lib\/components\/dashboard\/ConfigTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/dashboard\/AdvancedTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/RateLimitingTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/GeoTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/FingerprintingTab\.svelte'\)/);

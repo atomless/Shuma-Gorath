@@ -14,7 +14,9 @@ The project provides an intuitive <abbr title="User Interface">UI</abbr> through
 
 Shuma-Gorath provides comprehensive bot defense on its own, however, it can optionally **complement and integrate with enterprise bot defenses** (such as [Akamai Bot Manager](https://www.akamai.com/products/bot-manager_)), in which case it operates as a second-layer of application-specific protection.
 
-Shuma is intentionally research-driven and cost-asymmetry focused: detection and defence layers are designed to keep host CPU/memory/egress bounded while shifting incremental work toward malicious visitors. For a capability-by-capability map of research inputs, enterprise baselines followed, and where Shuma extends them, see [`docs/value-proposition.md`](docs/value-proposition.md).
+Shuma-Gorath is intentionally research-driven and cost-asymmetry focused: detection and defence layers are designed to keep host CPU/memory/egress bounded while shifting incremental work toward malicious visitors. For a capability-by-capability map of research inputs, enterprise baselines followed, and where Shuma extends them, see [`docs/value-proposition.md`](docs/value-proposition.md).
+
+This is bot defence built by bots and tested by bots. 
 
 ## 🐙 Quickstart (Official)
 

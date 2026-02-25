@@ -1,5 +1,4 @@
 <script>
-  import ConfigAdvancedSection from './config/ConfigAdvancedSection.svelte';
   import ConfigChallengeSection from './config/ConfigChallengeSection.svelte';
   import ConfigDurationsSection from './config/ConfigDurationsSection.svelte';
   import ConfigExportSection from './config/ConfigExportSection.svelte';
@@ -20,11 +19,6 @@
     parseHoneypotPathsTextarea,
     parseListTextarea
   } from '../../domain/config-form-utils.js';
-  import { advancedConfigTemplatePaths } from '../../domain/config-schema.js';
-  import {
-    buildTemplateFromPaths,
-    normalizeJsonObjectForCompare
-  } from '../../domain/core/json-object.js';
   import { durationPartsFromSeconds, durationSeconds } from '../../domain/core/date-time.js';
   import { parseFloatNumber, parseInteger } from '../../domain/core/math.js';
   import { inRange, isDurationTupleValid } from '../../domain/core/validation.js';
@@ -41,7 +35,6 @@
   export let configSnapshot = null;
   export let configVersion = 0;
   export let onSaveConfig = null;
-  export let onValidateConfig = null;
 
   const MAX_DURATION_SECONDS = 31536000;
   const MIN_DURATION_SECONDS = 60;
@@ -52,7 +45,6 @@
   const IP_RANGE_MANAGED_STALENESS_MIN = 1;
   const IP_RANGE_MANAGED_STALENESS_MAX = 2160;
   const EXPORT_STATUS_RESET_MS = 4000;
-  const ADVANCED_VALIDATE_DEBOUNCE_MS = 350;
 
   let writable = false;
   let hasConfigSnapshot = false;
@@ -120,13 +112,7 @@
   let durAdminHours = 6;
   let durAdminMinutes = 0;
 
-  let advancedConfigJson = '{}';
-  let advancedValidationPending = false;
-  let advancedValidationError = '';
-  let advancedValidationIssues = [];
   let honeypotInvalidMessage = '';
-  let advancedValidationTimer = null;
-  let advancedValidationRequestId = 0;
   let exportConfigStatus = '';
   let exportConfigStatusKind = 'info';
   let exportConfigStatusTimer = null;
@@ -163,8 +149,7 @@
       browser: 21600,
       cdp: 43200,
       admin: 21600
-    },
-    advanced: { normalized: '{}' }
+    }
   };
 
   const handleBeforeUnload = (event) => {
@@ -189,63 +174,6 @@
     }, EXPORT_STATUS_RESET_MS);
   };
 
-  const clearAdvancedValidationTimer = () => {
-    if (advancedValidationTimer) {
-      clearTimeout(advancedValidationTimer);
-      advancedValidationTimer = null;
-    }
-  };
-
-  const resetAdvancedValidationState = () => {
-    clearAdvancedValidationTimer();
-    advancedValidationPending = false;
-    advancedValidationError = '';
-    advancedValidationIssues = [];
-  };
-
-  const normalizeAdvancedValidationIssues = (issues) => {
-    if (!Array.isArray(issues)) return [];
-    return issues
-      .filter((issue) => issue && typeof issue === 'object')
-      .map((issue) => {
-        const source = /** @type {Record<string, unknown>} */ (issue);
-        return {
-          field: typeof source.field === 'string' ? source.field : '',
-          message: typeof source.message === 'string' ? source.message : 'Invalid value.',
-          expected: typeof source.expected === 'string' ? source.expected : '',
-          received: Object.prototype.hasOwnProperty.call(source, 'received')
-            ? source.received
-            : undefined
-        };
-      });
-  };
-
-  async function runAdvancedServerValidation(advancedPatch, requestId) {
-    if (typeof onValidateConfig !== 'function') {
-      if (requestId !== advancedValidationRequestId) return;
-      advancedValidationPending = false;
-      advancedValidationError = '';
-      advancedValidationIssues = [];
-      return;
-    }
-
-    try {
-      const result = await onValidateConfig(advancedPatch);
-      if (requestId !== advancedValidationRequestId) return;
-      const issues = normalizeAdvancedValidationIssues(result && result.issues);
-      advancedValidationIssues = issues;
-      advancedValidationError = '';
-      advancedValidationPending = false;
-    } catch (error) {
-      if (requestId !== advancedValidationRequestId) return;
-      advancedValidationIssues = [];
-      advancedValidationPending = false;
-      advancedValidationError = error && error.message
-        ? String(error.message)
-        : 'Unable to validate Advanced JSON right now.';
-    }
-  }
-
   onMount(() => {
     if (typeof window === 'undefined') return undefined;
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -256,7 +184,6 @@
 
   onDestroy(() => {
     clearExportStatusTimer();
-    clearAdvancedValidationTimer();
   });
 
   function applyConfig(config = {}) {
@@ -355,10 +282,6 @@
     durAdminHours = adminParts.hours;
     durAdminMinutes = adminParts.minutes;
 
-    const advancedTemplate = buildTemplateFromPaths(config, advancedConfigTemplatePaths || []);
-    const advancedText = JSON.stringify(advancedTemplate, null, 2);
-    advancedConfigJson = advancedText;
-
     baseline = {
       jsRequired: { enforced: jsRequiredEnforced },
       cdp: {
@@ -414,35 +337,16 @@
         browser: durationSeconds(durBrowserDays, durBrowserHours, durBrowserMinutes),
         cdp: durationSeconds(durCdpDays, durCdpHours, durCdpMinutes),
         admin: durationSeconds(durAdminDays, durAdminHours, durAdminMinutes)
-      },
-      advanced: {
-        normalized: normalizeJsonObjectForCompare(advancedText) || '{}'
       }
     };
 
     clearExportStatusTimer();
     exportConfigStatus = '';
     exportConfigStatusKind = 'info';
-    resetAdvancedValidationState();
   }
 
-  const parseAdvancedPatchObject = () => {
-    const advancedPatch = JSON.parse(advancedConfigJson);
-    if (!advancedPatch || typeof advancedPatch !== 'object' || Array.isArray(advancedPatch)) {
-      throw new Error('Advanced config JSON patch must be an object.');
-    }
-    return { ...advancedPatch };
-  };
-
-  const buildConfigPatch = ({ includeAll = false, includeAdvanced = true } = {}) => {
+  const buildConfigPatch = ({ includeAll = false } = {}) => {
     const patch = {};
-    if (includeAll) {
-      if (includeAdvanced && advancedValid) {
-        Object.assign(patch, parseAdvancedPatchObject());
-      }
-    } else if (advancedDirty) {
-      Object.assign(patch, parseAdvancedPatchObject());
-    }
     if (includeAll || jsRequiredDirty) {
       patch.js_required_enforced = jsRequiredEnforced;
     }
@@ -531,8 +435,7 @@
     if (exportConfigDisabled) return;
 
     try {
-      const includeAdvancedPatch = advancedValid === true;
-      const payload = buildConfigPatch({ includeAll: true, includeAdvanced: includeAdvancedPatch });
+      const payload = buildConfigPatch({ includeAll: true });
       const text = JSON.stringify(payload, null, 2);
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = `shuma-config-${stamp}.json`;
@@ -558,9 +461,6 @@
         exportConfigStatus = 'Exported config JSON copied to clipboard.';
       } else {
         exportConfigStatus = 'Exported config JSON generated.';
-      }
-      if (!includeAdvancedPatch) {
-        exportConfigStatus += ' Advanced JSON editor input was invalid and excluded.';
       }
       exportConfigStatusKind = 'success';
       scheduleExportStatusReset();
@@ -763,53 +663,6 @@
     adminDurationSeconds !== baseline.durations.admin
   );
 
-  $: advancedNormalized = normalizeJsonObjectForCompare(advancedConfigJson);
-  $: advancedShapeValid = advancedNormalized !== null;
-  $: advancedDirty = advancedShapeValid && advancedNormalized !== baseline.advanced.normalized;
-  $: advancedValid = advancedShapeValid
-    && !advancedValidationPending
-    && advancedValidationError === ''
-    && advancedValidationIssues.length === 0;
-  $: advancedInvalidMessage = !advancedShapeValid
-    ? 'Advanced JSON must be a valid JSON object.'
-    : (advancedValidationError
-      ? `Advanced JSON validation failed: ${advancedValidationError}`
-      : (advancedValidationIssues.length > 0 ? 'Advanced JSON has invalid values.' : ''));
-
-  $: {
-    clearAdvancedValidationTimer();
-    advancedValidationRequestId += 1;
-    const requestId = advancedValidationRequestId;
-
-    if (!writable || typeof onValidateConfig !== 'function' || !advancedDirty) {
-      advancedValidationPending = false;
-      advancedValidationError = '';
-      advancedValidationIssues = [];
-    } else if (!advancedShapeValid) {
-      advancedValidationPending = false;
-      advancedValidationError = '';
-      advancedValidationIssues = [];
-    } else {
-      let advancedPatch = null;
-      try {
-        advancedPatch = parseAdvancedPatchObject();
-      } catch (_error) {
-        advancedValidationPending = false;
-        advancedValidationError = '';
-        advancedValidationIssues = [];
-      }
-
-      if (advancedPatch && typeof advancedPatch === 'object') {
-        advancedValidationPending = true;
-        advancedValidationError = '';
-        advancedValidationIssues = [];
-        advancedValidationTimer = setTimeout(() => {
-          void runAdvancedServerValidation(advancedPatch, requestId);
-        }, ADVANCED_VALIDATE_DEBOUNCE_MS);
-      }
-    }
-  }
-
   $: dirtySections = [
     { label: 'JavaScript required', dirty: jsRequiredDirty, valid: true },
     { label: 'Internal CDP probe', dirty: cdpDirty, valid: cdpValid },
@@ -820,8 +673,7 @@
     { label: 'Browser policy', dirty: browserPolicyDirty, valid: browserPolicyValid },
     { label: 'Maze', dirty: mazeDirty, valid: mazeValid },
     { label: 'Tarpit', dirty: tarpitDirty, valid: tarpitValid },
-    { label: 'Ban durations', dirty: durationsDirty, valid: durationsValid },
-    { label: 'Advanced config', dirty: advancedDirty, valid: advancedValid }
+    { label: 'Ban durations', dirty: durationsDirty, valid: durationsValid }
   ];
   $: dirtySectionEntries = dirtySections.filter((section) => section.dirty === true);
   $: invalidDirtySectionEntries = dirtySectionEntries.filter((section) => section.valid !== true);
@@ -912,7 +764,7 @@
           <span class="toggle-slider"></span>
         </label>
       </ConfigPanelHeading>
-      <p class="control-desc text-muted">The JS Verification Interstitial can run a browser <abbr title="Chrome DevTools Protocol">CDP</abbr> automation detection probe and submit a report to Shuma-Gorath. This is distinct from Akamai bot signals in the Fingerprinting tab.</p>
+      <p class="control-desc text-muted">When this is enabled, the JS Verification Interstitial injects a browser <abbr title="Chrome DevTools Protocol">CDP</abbr> automation detection probe that calculates an automation score --the higher the scores the higher the certainty that the visitor is a form of browser automation.</p>
       <div class="admin-controls">
         <ToggleRow
           id="config-cdp-auto-ban-toggle"
@@ -959,7 +811,7 @@
           <span class="toggle-slider"></span>
         </label>
       </ConfigPanelHeading>
-      <p class="control-desc text-muted"><abbr title="Proof of Work">PoW</abbr> is a security mechanism used to help differentiate bots from humans by requiring the requesting client's device to solve a small, moderately complex computational puzzle before being granted access. It will be invisible to human users and incurrs only extremely low energy and request performance costs. <abbr title="Proof of Work">PoW</abbr> depends on <abbr title="JavaScript">JS</abbr> Required being enabled.</p>
+      <p class="control-desc text-muted">Similarly injected by the JS Verification Interstitial, <abbr title="Proof of Work">PoW</abbr> is a security mechanism used to help differentiate bots from humans by requiring the requesting client's device to solve a small, moderately complex computational puzzle before being granted access. It will be invisible to human users and incurrs only extremely low energy and request performance costs. <abbr title="Proof of Work">PoW</abbr> depends on <abbr title="JavaScript">JS</abbr> Required being enabled.</p>
     </ConfigPanel>
 
     <ConfigMazeSection bind:writable bind:mazeDirty bind:tarpitDirty bind:mazeEnabled bind:mazeAutoBan bind:mazeThreshold mazeThresholdValid={mazeThresholdValid} bind:tarpitEnabled />
@@ -971,8 +823,6 @@
     <ConfigDurationsSection bind:writable bind:durationsDirty bind:durHoneypotDays bind:durHoneypotHours bind:durHoneypotMinutes bind:durRateLimitDays bind:durRateLimitHours bind:durRateLimitMinutes bind:durBrowserDays bind:durBrowserHours bind:durBrowserMinutes bind:durCdpDays bind:durCdpHours bind:durCdpMinutes bind:durAdminDays bind:durAdminHours bind:durAdminMinutes durHoneypotValid={durHoneypotValid} durRateLimitValid={durRateLimitValid} durBrowserValid={durBrowserValid} durCdpValid={durCdpValid} durAdminValid={durAdminValid} />
 
     <ConfigExportSection bind:writable bind:exportConfigDisabled bind:exportConfigStatus bind:exportConfigStatusKind onExportCurrentConfigJson={exportCurrentConfigJson} />
-
-    <ConfigAdvancedSection bind:writable bind:advancedDirty bind:advancedConfigJson bind:advancedValidationPending bind:advancedInvalidMessage bind:advancedValidationIssues bind:advancedValid />
 
     <SaveChangesBar containerId="config-save-all-bar" isHidden={!writable || !hasUnsavedChanges} summaryId="config-unsaved-summary" summaryText={saveAllSummaryText} summaryClass="text-unsaved-changes" invalidId="config-invalid-summary" invalidText={saveAllInvalidText} buttonId="save-config-all" buttonLabel={saveAllConfigLabel} buttonDisabled={saveAllConfigDisabled} onSave={saveAllConfig} />
   </div>

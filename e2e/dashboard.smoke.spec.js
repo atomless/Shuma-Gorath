@@ -4,8 +4,8 @@ const { seedDashboardData } = require("./seed-dashboard-data");
 const BASE_URL = process.env.SHUMA_BASE_URL || "http://127.0.0.1:3000";
 const API_KEY = (process.env.SHUMA_API_KEY || "").trim();
 const FORWARDED_IP_SECRET = (process.env.SHUMA_FORWARDED_IP_SECRET || "").trim();
-const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "status", "config", "rate-limiting", "geo", "fingerprinting", "robots", "tuning"]);
-const ADMIN_TABS = Object.freeze(["ip-bans", "status", "config", "rate-limiting", "geo", "fingerprinting", "robots", "tuning"]);
+const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "status", "config", "advanced", "rate-limiting", "geo", "fingerprinting", "robots", "tuning"]);
+const ADMIN_TABS = Object.freeze(["ip-bans", "status", "config", "advanced", "rate-limiting", "geo", "fingerprinting", "robots", "tuning"]);
 const runtimeGuards = new WeakMap();
 
 function ensureRequiredEnv() {
@@ -867,6 +867,14 @@ test("status tab resolves fail mode without requiring monitoring bootstrap", asy
   await expect(page.locator("#status-items .status-item h3", { hasText: "Test Mode" })).toHaveCount(0);
   await expect(page.locator("#status-items .status-item h3", { hasText: /^Challenge$/ })).toHaveCount(0);
 
+  await expect(page.locator("#runtime-fetch-latency-last")).toContainText("ms");
+  await expect(page.locator("#runtime-render-timing-last")).toContainText("ms");
+  await expect(page.locator("#runtime-polling-resume-count")).toContainText("resumes:");
+});
+
+test("advanced tab shows runtime variable inventory groups", async ({ page }) => {
+  await openDashboard(page, { initialTab: "advanced" });
+
   const statusVarTables = page.locator("#status-vars-groups .status-vars-table");
   expect(await statusVarTables.count()).toBeGreaterThan(1);
   await expect(page.locator("#status-vars-groups .status-var-group-title", { hasText: "Tarpit Runtime" })).toHaveCount(1);
@@ -879,10 +887,6 @@ test("status tab resolves fail mode without requiring monitoring bootstrap", asy
   await expect(testModeRow).toHaveCount(1);
   await expect(testModeRow).toHaveClass(/status-var-row--admin-write/);
   await expect(testModeRow.locator("td").nth(2)).not.toHaveText("");
-
-  await expect(page.locator("#runtime-fetch-latency-last")).toContainText("ms");
-  await expect(page.locator("#runtime-render-timing-last")).toContainText("ms");
-  await expect(page.locator("#runtime-polling-resume-count")).toContainText("resumes:");
 });
 
 test("ban form enforces IP validity and submit state", async ({ page }) => {
@@ -967,7 +971,6 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   const browserPolicyEnabledSwitch = page.locator("label.toggle-switch[for='browser-policy-toggle']");
   const tarpitEnabledToggle = page.locator("#tarpit-enabled-toggle");
   const tarpitEnabledSwitch = page.locator("label.toggle-switch[for='tarpit-enabled-toggle']");
-  const advancedField = page.locator("#advanced-config-json");
 
   await expect(configSave).toBeHidden();
 
@@ -1132,6 +1135,32 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
     await expect(configSave).toBeHidden();
   }
 
+  const challengeEnabledToggle = page.locator("#challenge-puzzle-enabled-toggle");
+  const challengeEnabledSwitch = page.locator("label.toggle-switch[for='challenge-puzzle-enabled-toggle']");
+  if (await challengeEnabledSwitch.isVisible() && await challengeEnabledToggle.isEnabled()) {
+    const initialEnabled = await challengeEnabledToggle.isChecked();
+    await challengeEnabledSwitch.click();
+    await expect(configSave).toBeEnabled();
+    if (initialEnabled !== await challengeEnabledToggle.isChecked()) {
+      await challengeEnabledSwitch.click();
+    }
+    await expect(configSave).toBeHidden();
+  }
+});
+
+test("advanced tab save flow validates and persists advanced JSON edits", async ({ page }) => {
+  await openDashboard(page);
+  await openTab(page, "advanced", { waitForReady: true });
+
+  const saveButton = page.locator("#save-advanced-config");
+  const advancedField = page.locator("#advanced-config-json");
+
+  await expect(saveButton).toBeHidden();
+  if (!(await advancedField.isVisible()) || !(await advancedField.isEditable())) {
+    await expect(advancedField).toBeDisabled();
+    return;
+  }
+
   const initialAdvanced = await advancedField.inputValue();
   let parsedAdvanced;
   try {
@@ -1145,25 +1174,16 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   };
   await advancedField.fill(JSON.stringify(nextAdvanced, null, 2));
   await advancedField.dispatchEvent("input");
-  await expect(configSave).toBeEnabled();
+  await expect(saveButton).toBeVisible();
+  await expect(saveButton).toBeEnabled();
+
   await advancedField.fill("{invalid");
   await advancedField.dispatchEvent("input");
-  await expect(configSave).toBeDisabled();
+  await expect(saveButton).toBeDisabled();
+
   await advancedField.fill(initialAdvanced);
   await advancedField.dispatchEvent("input");
-  await expect(configSave).toBeHidden();
-
-  const challengeEnabledToggle = page.locator("#challenge-puzzle-enabled-toggle");
-  const challengeEnabledSwitch = page.locator("label.toggle-switch[for='challenge-puzzle-enabled-toggle']");
-  if (await challengeEnabledSwitch.isVisible() && await challengeEnabledToggle.isEnabled()) {
-    const initialEnabled = await challengeEnabledToggle.isChecked();
-    await challengeEnabledSwitch.click();
-    await expect(configSave).toBeEnabled();
-    if (initialEnabled !== await challengeEnabledToggle.isChecked()) {
-      await challengeEnabledSwitch.click();
-    }
-    await expect(configSave).toBeHidden();
-  }
+  await expect(saveButton).toBeHidden();
 });
 
 test("session survives reload and time-range controls refresh chart data", async ({ page }) => {
@@ -1929,7 +1949,7 @@ test("monitoring tab surfaces tab-scoped error when consolidated monitoring fetc
   );
 });
 
-test("shared config endpoint failures surface per-tab errors for status/config/fingerprinting/robots/tuning", async ({ page }) => {
+test("shared config endpoint failures surface per-tab errors for status/config/advanced/fingerprinting/robots/tuning", async ({ page }) => {
   const assertSharedConfigErrorOnInitialTab = async (tab, message) => {
     await page.route("**/admin/config", async (route) => {
       if (route.request().method() !== "GET") {
@@ -1949,6 +1969,7 @@ test("shared config endpoint failures surface per-tab errors for status/config/f
 
   await assertSharedConfigErrorOnInitialTab("status", "status endpoint outage");
   await assertSharedConfigErrorOnInitialTab("config", "config endpoint outage");
+  await assertSharedConfigErrorOnInitialTab("advanced", "advanced endpoint outage");
   await assertSharedConfigErrorOnInitialTab("fingerprinting", "fingerprinting endpoint outage");
   await assertSharedConfigErrorOnInitialTab("robots", "robots endpoint outage");
   await assertSharedConfigErrorOnInitialTab("tuning", "tuning endpoint outage");

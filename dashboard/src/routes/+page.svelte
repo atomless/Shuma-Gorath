@@ -35,6 +35,7 @@
     'ip-bans': 'Loading ban list...',
     status: 'Loading status signals...',
     config: 'Loading config...',
+    advanced: 'Loading advanced controls...',
     'rate-limiting': 'Loading rate limiting controls...',
     geo: 'Loading GEO controls...',
     fingerprinting: 'Loading fingerprinting controls...',
@@ -75,6 +76,7 @@
   let IpBansTabComponent = null;
   let StatusTabComponent = null;
   let ConfigTabComponent = null;
+  let AdvancedTabComponent = null;
   let RateLimitingTabComponent = null;
   let GeoTabComponent = null;
   let FingerprintingTabComponent = null;
@@ -216,6 +218,7 @@
         { default: loadedIpBansTab },
         { default: loadedStatusTab },
         { default: loadedConfigTab },
+        { default: loadedAdvancedTab },
         { default: loadedRateLimitingTab },
         { default: loadedGeoTab },
         { default: loadedFingerprintingTab },
@@ -225,6 +228,7 @@
         import('$lib/components/dashboard/IpBansTab.svelte'),
         import('$lib/components/dashboard/StatusTab.svelte'),
         import('$lib/components/dashboard/ConfigTab.svelte'),
+        import('$lib/components/dashboard/AdvancedTab.svelte'),
         import('$lib/components/dashboard/RateLimitingTab.svelte'),
         import('$lib/components/dashboard/GeoTab.svelte'),
         import('$lib/components/dashboard/FingerprintingTab.svelte'),
@@ -234,6 +238,7 @@
       IpBansTabComponent = loadedIpBansTab;
       StatusTabComponent = loadedStatusTab;
       ConfigTabComponent = loadedConfigTab;
+      AdvancedTabComponent = loadedAdvancedTab;
       RateLimitingTabComponent = loadedRateLimitingTab;
       GeoTabComponent = loadedGeoTab;
       FingerprintingTabComponent = loadedFingerprintingTab;
@@ -583,7 +588,6 @@
           runtimeTelemetry={runtimeTelemetry}
           tabStatus={tabStatus.status || {}}
           configSnapshot={snapshots.config}
-          dashboardBasePath={dashboardBasePath}
         />
       {:else}
         <section
@@ -606,7 +610,6 @@
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
-          onValidateConfig={onValidateConfig}
         />
       {:else}
         <section
@@ -618,6 +621,30 @@
           aria-hidden={activeTabKey === 'config' ? 'false' : 'true'}
         >
           <p class="message info">Loading config controls...</p>
+        </section>
+      {/if}
+      {#if AdvancedTabComponent}
+        <svelte:component
+          this={AdvancedTabComponent}
+          managed={true}
+          isActive={activeTabKey === 'advanced'}
+          tabStatus={tabStatus.advanced || {}}
+          configSnapshot={snapshots.config}
+          configVersion={snapshotVersions.config || 0}
+          dashboardBasePath={dashboardBasePath}
+          onSaveConfig={onSaveConfig}
+          onValidateConfig={onValidateConfig}
+        />
+      {:else}
+        <section
+          id="dashboard-panel-advanced"
+          class="admin-group"
+          data-dashboard-tab-panel="advanced"
+          aria-labelledby="dashboard-tab-advanced"
+          hidden={activeTabKey !== 'advanced'}
+          aria-hidden={activeTabKey === 'advanced' ? 'false' : 'true'}
+        >
+          <p class="message info">Loading advanced controls...</p>
         </section>
       {/if}
       {#if RateLimitingTabComponent}

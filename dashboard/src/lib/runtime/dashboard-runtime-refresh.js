@@ -334,6 +334,15 @@ export function createDashboardRefreshRuntime(options = {}) {
       runtimeOptions
     );
 
+  const refreshAdvancedTab = (reason = 'manual', runtimeOptions = {}) =>
+    refreshConfigBackedTab(
+      'advanced',
+      reason,
+      'Loading advanced controls...',
+      'No advanced config snapshot available yet.',
+      runtimeOptions
+    );
+
   const refreshRateLimitingTab = (reason = 'manual', runtimeOptions = {}) =>
     refreshConfigBackedTab(
       'rate-limiting',
@@ -402,6 +411,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     'ip-bans': refreshIpBansTab,
     status: refreshStatusTab,
     config: refreshConfigTab,
+    advanced: refreshAdvancedTab,
     'rate-limiting': refreshRateLimitingTab,
     geo: refreshGeoTab,
     fingerprinting: refreshFingerprintingTab,
@@ -441,6 +451,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     refreshIpBansTab,
     refreshStatusTab,
     refreshConfigTab,
+    refreshAdvancedTab,
     refreshRateLimitingTab,
     refreshGeoTab,
     refreshFingerprintingTab,
