@@ -10,7 +10,7 @@ This synthesis combines:
 1. Existing Shuma tarpit research and plan work:
    - [`docs/research/tarpit-research-2026-02-11.md`](tarpit-research-2026-02-11.md)
    - [`docs/research/2026-02-14-maze-tarpit-research-synthesis.md`](2026-02-14-maze-tarpit-research-synthesis.md)
-   - [`docs/plans/2026-02-13-http-tarpit-excellence-plan.md`](../plans/2026-02-13-http-tarpit-excellence-plan.md)
+   - [`docs/plans/archive/2026-02-13-http-tarpit-excellence-plan.md`](../plans/archive/2026-02-13-http-tarpit-excellence-plan.md)
 2. Pending paper TODOs in `todos/todo.md` related to rate limiting/tarpit and SSH tarpit:
    - `R-RL-01`, `R-RL-03`, `R-RL-05`, `R-RL-06`, `R-RL-07`
    - `R-SSH-02`, `R-SSH-03`, `R-SSH-04`
@@ -214,7 +214,7 @@ Adopt a phased implementation:
 - Existing Shuma docs:
   - [`docs/research/tarpit-research-2026-02-11.md`](tarpit-research-2026-02-11.md)
   - [`docs/research/2026-02-14-maze-tarpit-research-synthesis.md`](2026-02-14-maze-tarpit-research-synthesis.md)
-  - [`docs/plans/2026-02-13-http-tarpit-excellence-plan.md`](../plans/2026-02-13-http-tarpit-excellence-plan.md)
+  - [`docs/plans/archive/2026-02-13-http-tarpit-excellence-plan.md`](../plans/archive/2026-02-13-http-tarpit-excellence-plan.md)
 - Paper sources:
   - R-RL-01: https://www.microsoft.com/en-us/research/publication/cloud-control-with-distributed-rate-limiting/
   - R-RL-03: https://doi.org/10.1016/j.cose.2008.07.004

@@ -54,7 +54,11 @@ This file provides instructions for coding agents working in this repository.
    - push after each validated atomic commit unless the user explicitly asks for batching,
    - after changes are merged, clean up merged branches as housekeeping (delete merged local topic branches and merged remote topic branches), while preserving protected branches such as `main`.
 10. Document security, operational, and resource implications.
-11. When a full TODO section is completed, move its completed checklist items from `todos/todo.md` to `todos/completed-todo-history.md` and preserve the original section title as a heading in the archive entry.
+11. TODO housekeeping is immediate, not batched:
+   - when any TODO checklist item is completed, move it from `todos/todo.md` to `todos/completed-todo-history.md` at the point of completion,
+   - prepend new completion entries to the top of `todos/completed-todo-history.md`,
+   - include the completion date for the moved entries,
+   - preserve the original TODO section title(s) as headings in the archive entry.
 12. For any new `SHUMA_*` variable, follow the single-source-of-truth lifecycle:
    - define/update canonical default in `config/defaults.env` first and classify it as env-only or KV-tunable,
    - wire seeding/bootstrap paths so `make config-seed`/`make setup` produce a correct local baseline (at minimum update `scripts/config_seed.sh`, `scripts/bootstrap/setup.sh`, and `Makefile` env wiring/help as applicable),

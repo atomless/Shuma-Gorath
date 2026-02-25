@@ -65,35 +65,9 @@ Completion rule for every paper TODO below: capture key findings, map to `self_h
 
 Architecture alignment reference: [`docs/plans/2026-02-23-maze-tarpit-architecture-alignment-plan.md`](../docs/plans/2026-02-23-maze-tarpit-architecture-alignment-plan.md)
 
-- [x] TAH-ARCH-1 Publish the target module/file map for maze+tarpit ownership and boundaries (provider adapter vs domain runtime vs route handler) and pin it in [`docs/module-boundaries.md`](../docs/module-boundaries.md).
-- [x] TAH-ARCH-2 Move tarpit runtime logic out of `src/providers/internal.rs` into dedicated tarpit domain modules (`src/tarpit/runtime.rs`, `src/tarpit/types.rs`) so provider internals remain thin adapters.
-- [x] TAH-ARCH-3 Introduce dedicated tarpit HTTP handler ownership (`src/tarpit/http.rs`) and route wiring for progression endpoints; remove ad-hoc route handling from non-domain layers.
-- [x] TAH-ARCH-4 Extract shared maze+tarpit primitives for replay/chain/budget key handling into one shared module and migrate both maze runtime and tarpit runtime to consume it.
-- [x] TAH-ARCH-5 Define one typed tarpit progression reason taxonomy (enum -> metrics/admin labels) and make request-router/admin/runtime emit only that normalized set.
-- [x] TAH-ARCH-6 Reconcile tarpit config model for v2 progression (difficulty bounds + egress budgets) and explicitly deprecate/remove static-drip-only assumptions where no longer valid pre-launch.
-
-- [x] TAH-1 Publish a concise design note/ADR for the v2 tarpit contract: tiny initial response, work-gated progression, token-chain continuity, strict byte/time budgets, and deterministic fallback matrix (`maze`, `block`, short-ban escalation). (See [`docs/adr/0004-tarpit-v2-progression-contract.md`](../docs/adr/0004-tarpit-v2-progression-contract.md).)
-- [x] TAH-2 Define and document the tarpit progression envelope schema (signed, short-lived, single-use operation token with `flow_id`, `step`, `issued_at`, `expires_at`, `ip_bucket`, and optional work parameters), including replay and binding rules. (See [`docs/plans/2026-02-23-tarpit-v2-progression-envelope.md`](../docs/plans/2026-02-23-tarpit-v2-progression-envelope.md).)
-- [x] TAH-3 Add a dedicated tarpit progression endpoint that verifies work proofs before issuing the next step token/content chunk; reject stale/replayed/out-of-order operations with explicit reason codes and monitoring labels.
-- [x] TAH-4 Implement a low-cost server-verified work gate (hashcash-style by default; configurable bounded difficulty window), with clear hooks for future memory-hard alternatives.
-- [x] TAH-5 Add adaptive work policy that raises/lower difficulty only within bounded limits based on abuse evidence and budget pressure; keep accessibility-safe fallback path to avoid impossible human flows.
-- [x] TAH-6 Replace static large filler payload behavior with iterative gated progression so server sends small chunks per verified step rather than prebuilding a large in-memory body.
-- [x] TAH-7 Add strict per-flow token-chain continuity checks (step monotonicity, parent-child digest linkage, single-use operation IDs, and replay TTL semantics) reusing maze shared token primitives where possible.
-- [x] TAH-8 Add tarpit egress budget controls in config/admin: global bytes-per-window, per-IP-bucket bytes-per-window, per-flow max-bytes, and per-flow max-duration; classify as KV-tunable vs env-only according to project policy.
-- [x] TAH-9 Enforce egress budgets before every tarpit step emission (admission + post-send accounting), with deterministic fallback when any budget is exhausted and explicit event/metric outcomes.
-- [x] TAH-10 Add budget state keys and lifecycle semantics (TTL/reset window, counter granularity, site scoping) and ensure enterprise/distributed-state behavior is explicit (no silent divergence in authoritative mode).
 - [ ] TAH-11 Expand observability: progression admissions/denials, proof verify outcomes, chain violations, bytes sent, duration, budget exhaustion reason, fallback action, and escalation outcomes (including top offender buckets with cardinality guardrails).
 - [ ] TAH-12 Add dashboard/admin visibility for the new tarpit progression + egress metrics and operator guidance for safe tuning (recommended starting ranges and rollback thresholds).
 - [ ] TAH-19 Before launch, tighten collateral-risk controls (especially bucket-based persistence escalation), then re-evaluate tarpit defaults.
-- [x] TAH-13 Add tests:
-  unit tests for envelope/proof/chain/budget logic;
-  integration tests for abuse route -> gated progression -> fallback/escalation;
-  concurrency/soak tests for egress-budget correctness under burst traffic.
-- [x] TAH-14 Wire new tarpit asymmetry tests into Makefile/CI verification lanes (`make test-unit`, `make test-integration`, `make test`) and add explicit failure-gate criteria for regressions.
-- [x] TAH-15 Update operator docs ([`docs/configuration.md`](../docs/configuration.md), [`docs/dashboard.md`](../docs/dashboard.md), runbooks) to explain that tarpit cost-imposition is now progression-gated and budget-capped, including tradeoffs between attacker cost, host egress, and false-positive risk.
-- [x] TAH-16 Add bounded timing/content variability (jitter windows and template rotation with strict envelopes) to reduce tarpit fingerprintability without violating budget caps.
-- [x] TAH-17 Add pre-generated/cached tarpit content shards (text/media templates) so per-request host compute stays low while preserving high bot ingestion cost.
-- [x] TAH-18 Add an explicit crawler-safety policy path for known legitimate bots and sensitive endpoints (for example `robots.txt`) to avoid accidental tarpit impact on benign indexing/ops workflows.
 
 Execution order for remaining tarpit work:
 1. `TAH-11`

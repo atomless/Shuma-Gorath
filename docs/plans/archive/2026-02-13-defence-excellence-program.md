@@ -16,17 +16,17 @@ Each plan is structured to answer:
 
 ## Plan Set
 
-1. [`docs/plans/2026-02-13-fingerprint-excellence-plan.md`](2026-02-13-fingerprint-excellence-plan.md)
-2. [`docs/plans/2026-02-13-js-verification-excellence-plan.md`](2026-02-13-js-verification-excellence-plan.md)
-3. [`docs/plans/2026-02-13-cdp-detection-excellence-plan.md`](2026-02-13-cdp-detection-excellence-plan.md)
-4. [`docs/plans/2026-02-13-pow-excellence-plan.md`](2026-02-13-pow-excellence-plan.md)
-5. [`docs/plans/2026-02-13-not-a-bot-excellence-plan.md`](2026-02-13-not-a-bot-excellence-plan.md)
-6. [`docs/plans/2026-02-13-puzzle-challenge-excellence-plan.md`](2026-02-13-puzzle-challenge-excellence-plan.md)
-7. [`docs/plans/2026-02-13-rate-limiting-excellence-plan.md`](2026-02-13-rate-limiting-excellence-plan.md)
-8. [`docs/plans/2026-02-13-http-tarpit-excellence-plan.md`](2026-02-13-http-tarpit-excellence-plan.md)
-9. [`docs/plans/archive/2026-02-13-ip-range-policy-excellence-plan.md`](archive/2026-02-13-ip-range-policy-excellence-plan.md)
-10. [`docs/plans/2026-02-13-geo-fencing-excellence-plan.md`](2026-02-13-geo-fencing-excellence-plan.md)
-11. [`docs/plans/2026-02-13-ssh-tarpit-excellence-plan.md`](2026-02-13-ssh-tarpit-excellence-plan.md)
+1. [`docs/plans/2026-02-13-fingerprint-excellence-plan.md`](../2026-02-13-fingerprint-excellence-plan.md)
+2. [`docs/plans/archive/2026-02-13-js-verification-excellence-plan.md`](2026-02-13-js-verification-excellence-plan.md)
+3. [`docs/plans/archive/2026-02-13-cdp-detection-excellence-plan.md`](2026-02-13-cdp-detection-excellence-plan.md)
+4. [`docs/plans/archive/2026-02-13-pow-excellence-plan.md`](2026-02-13-pow-excellence-plan.md)
+5. [`docs/plans/2026-02-13-not-a-bot-excellence-plan.md`](../2026-02-13-not-a-bot-excellence-plan.md)
+6. [`docs/plans/archive/2026-02-13-puzzle-challenge-excellence-plan.md`](2026-02-13-puzzle-challenge-excellence-plan.md)
+7. [`docs/plans/archive/2026-02-13-rate-limiting-excellence-plan.md`](2026-02-13-rate-limiting-excellence-plan.md)
+8. [`docs/plans/archive/2026-02-13-http-tarpit-excellence-plan.md`](2026-02-13-http-tarpit-excellence-plan.md)
+9. [`docs/plans/archive/2026-02-13-ip-range-policy-excellence-plan.md`](2026-02-13-ip-range-policy-excellence-plan.md)
+10. [`docs/plans/2026-02-13-geo-fencing-excellence-plan.md`](../2026-02-13-geo-fencing-excellence-plan.md)
+11. [`docs/plans/archive/2026-02-13-ssh-tarpit-excellence-plan.md`](2026-02-13-ssh-tarpit-excellence-plan.md)
 
 ## Recommended Execution Order
 
