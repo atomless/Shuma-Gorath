@@ -16,7 +16,17 @@
   <h3>Advanced Config <abbr title="JavaScript Object Notation">JSON</abbr></h3>
   <p class="control-desc text-muted">Directly edit writable config keys as a <abbr title="JavaScript Object Notation">JSON</abbr> object. This editor reflects the last loaded snapshot and does not auto-sync while you change controls above.</p>
   <div class="admin-controls">
-    <TextareaField id="advanced-config-json" label='<abbr title="JavaScript Object Notation">JSON</abbr> Patch' rows="8" ariaLabel="Advanced config JavaScript Object Notation patch" ariaInvalid={advancedValid ? 'false' : 'true'} spellcheck={false} bind:value={advancedConfigJson} />
+    <TextareaField
+      id="advanced-config-json"
+      label='<abbr title="JavaScript Object Notation">JSON</abbr> Patch'
+      rows="8"
+      ariaLabel="Advanced config JavaScript Object Notation patch"
+      ariaInvalid={advancedValid ? 'false' : 'true'}
+      spellcheck={false}
+      monospace={true}
+      showLineNumbers={true}
+      bind:value={advancedConfigJson}
+    />
     {#if advancedValidationPending}
       <p id="advanced-config-json-validating" class="text-muted">Validating Advanced <abbr title="JavaScript Object Notation">JSON</abbr>...</p>
     {/if}
@@ -27,6 +37,9 @@
           <ul id="advanced-config-json-issue-list" class="validation-issue-list">
             {#each advancedValidationIssues as issue, issueIndex}
               <li id={`advanced-config-json-issue-${issueIndex}`}>
+                {#if Number.isFinite(Number(issue.line)) && Number(issue.line) > 0}
+                  <span class="validation-issue-line">Line {Number(issue.line)}:</span>
+                {/if}
                 {#if issue.field}
                   <code>{issue.field}</code>:&nbsp;
                 {/if}
