@@ -4,6 +4,7 @@
   import { parseInteger } from '../../domain/core/math.js';
   import { inRange, isDurationTupleValid } from '../../domain/core/validation.js';
   import ConfigDurationsSection from './config/ConfigDurationsSection.svelte';
+  import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
   import NumericInputRow from './primitives/NumericInputRow.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
@@ -211,6 +212,7 @@
   });
 
   $: writable = configSnapshot && configSnapshot.admin_config_write_enabled === true;
+  $: hasConfigSnapshot = configSnapshot && typeof configSnapshot === 'object' && Object.keys(configSnapshot).length > 0;
   $: notABotDefault = parseInteger(configSnapshot?.not_a_bot_risk_threshold_default, 2);
   $: challengeDefault = parseInteger(configSnapshot?.challenge_puzzle_risk_threshold_default, 3);
   $: mazeDefault = parseInteger(configSnapshot?.botness_maze_threshold_default, 6);
@@ -354,6 +356,13 @@
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
   <TabStateMessage tab="tuning" status={tabStatus} />
+  <ConfigWriteModeMessage
+    id="tuning-mode-subtitle"
+    controlsLabel="Tuning controls"
+    loading={tabStatus?.loading === true}
+    {hasConfigSnapshot}
+    {writable}
+  />
   <div class="controls-grid controls-grid--config">
     <div class="control-group panel-soft pad-md">
       <h3>Botness Scoring</h3>

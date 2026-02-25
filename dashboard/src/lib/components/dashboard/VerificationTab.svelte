@@ -4,6 +4,7 @@
   import ConfigNetworkSection from './config/ConfigNetworkSection.svelte';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
+  import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
   import { onDestroy, onMount } from 'svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
@@ -27,7 +28,6 @@
 
   let writable = false;
   let hasConfigSnapshot = false;
-  let configLoaded = true;
   let lastAppliedConfigVersion = -1;
   let deferredConfigApply = false;
   let savingAll = false;
@@ -111,7 +111,6 @@
   });
 
   function applyConfig(config = {}) {
-    configLoaded = true;
     hasConfigSnapshot = config && typeof config === 'object' && Object.keys(config).length > 0;
     writable = config.admin_config_write_enabled === true;
 
@@ -401,21 +400,13 @@
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
   <TabStateMessage tab="verification" status={tabStatus} />
-  <p id="verification-mode-subtitle" class="admin-group-subtitle text-muted">
-    {#if !configLoaded}
-      Verification controls are LOADING.
-    {:else if hasConfigSnapshot}
-      {#if writable}
-        Verification controls are editable. Saved changes persist across builds.
-        Set <code class="env-var">SHUMA_ADMIN_CONFIG_WRITE_ENABLED</code> to false in deployment env to disable.
-      {:else}
-        Verification controls are read-only.
-        Set <code class="env-var">SHUMA_ADMIN_CONFIG_WRITE_ENABLED</code> to true to enable.
-      {/if}
-    {:else}
-      Verification controls loaded, but the config snapshot is empty.
-    {/if}
-  </p>
+  <ConfigWriteModeMessage
+    id="verification-mode-subtitle"
+    controlsLabel="Verification controls"
+    loading={tabStatus?.loading === true}
+    {hasConfigSnapshot}
+    {writable}
+  />
   <div class="controls-grid controls-grid--config">
     <ConfigPanel writable={writable} dirty={jsRequiredDirty}>
       <ConfigPanelHeading title='<abbr title="JavaScript">JS</abbr> Required'>

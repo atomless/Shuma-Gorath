@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
   import NumericInputRow from './primitives/NumericInputRow.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TableEmptyRow from './primitives/TableEmptyRow.svelte';
@@ -545,6 +546,7 @@
   }
 
   $: writable = configSnapshot && configSnapshot.admin_config_write_enabled === true;
+  $: hasConfigSnapshot = configSnapshot && typeof configSnapshot === 'object' && Object.keys(configSnapshot).length > 0;
   $: bypassAllowlistsNetworkNormalized = normalizeListTextareaForCompare(networkWhitelist);
   $: bypassAllowlistsPathNormalized = normalizeListTextareaForCompare(pathWhitelist);
   $: bypassAllowlistsDirty = (
@@ -659,6 +661,13 @@
   tabindex="-1"
 >
   <TabStateMessage tab="ip-bans" status={tabStatus} />
+  <ConfigWriteModeMessage
+    id="ip-bans-mode-subtitle"
+    controlsLabel="IP-ban policy controls"
+    loading={tabStatus?.loading === true}
+    {hasConfigSnapshot}
+    {writable}
+  />
   <div class="control-group panel-soft pad-sm">
     <div class="input-row">
       <label class="control-label control-label--wide" for="ip-ban-filter">Ban View</label>

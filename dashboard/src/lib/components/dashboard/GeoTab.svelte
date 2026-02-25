@@ -8,6 +8,7 @@
   import ConfigGeoSection from './config/ConfigGeoSection.svelte';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
+  import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
 
@@ -221,6 +222,7 @@
     ? ''
     : 'Fix invalid GEO country lists before saving.';
   $: warnOnUnload = writable && hasUnsavedChanges;
+  $: hasConfigSnapshot = configSnapshot && typeof configSnapshot === 'object' && Object.keys(configSnapshot).length > 0;
 
   $: {
     const nextVersion = Number(configVersion || 0);
@@ -242,6 +244,13 @@
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
   <TabStateMessage tab="geo" status={tabStatus} />
+  <ConfigWriteModeMessage
+    id="geo-mode-subtitle"
+    controlsLabel="GEO controls"
+    loading={tabStatus?.loading === true}
+    {hasConfigSnapshot}
+    {writable}
+  />
   <div class="controls-grid controls-grid--config">
     <ConfigPanel writable={writable} dirty={akamaiGeoDirty}>
       <ConfigPanelHeading title="Akamai GEO Signal">

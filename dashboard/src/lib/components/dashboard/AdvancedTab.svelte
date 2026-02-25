@@ -1,6 +1,7 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
   import ConfigAdvancedSection from './config/ConfigAdvancedSection.svelte';
+  import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
   import { advancedConfigTemplatePaths } from '../../domain/config-schema.js';
@@ -289,6 +290,13 @@
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
   <TabStateMessage tab="advanced" status={tabStatus} />
+  <ConfigWriteModeMessage
+    id="advanced-mode-subtitle"
+    controlsLabel="Advanced controls"
+    loading={tabStatus?.loading === true}
+    {hasConfigSnapshot}
+    {writable}
+  />
   <div class="controls-grid controls-grid--config">
     <div class="control-group panel-soft pad-md status-inventory-group">
       <h3>Runtime Variable Inventory</h3>
