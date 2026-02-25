@@ -243,24 +243,6 @@
 >
   <TabStateMessage tab="geo" status={tabStatus} />
   <div class="controls-grid controls-grid--config">
-    <ConfigGeoSection
-      bind:writable
-      bind:geoScoringDirty
-      bind:geoRoutingDirty
-      bind:geoScoringEnabled
-      bind:geoRoutingEnabled
-      bind:geoRiskList
-      bind:geoAllowList
-      bind:geoChallengeList
-      bind:geoMazeList
-      bind:geoBlockList
-      {geoRiskListValid}
-      {geoAllowListValid}
-      {geoChallengeListValid}
-      {geoMazeListValid}
-      {geoBlockListValid}
-    />
-
     <ConfigPanel writable={writable} dirty={akamaiGeoDirty}>
       <ConfigPanelHeading title="Akamai GEO Signal">
         <label class="toggle-switch" for="geo-akamai-enabled-toggle">
@@ -280,6 +262,24 @@
         </p>
       {/if}
     </ConfigPanel>
+
+    <ConfigGeoSection
+      bind:writable
+      bind:geoScoringDirty
+      bind:geoRoutingDirty
+      bind:geoScoringEnabled
+      bind:geoRoutingEnabled
+      bind:geoRiskList
+      bind:geoAllowList
+      bind:geoChallengeList
+      bind:geoMazeList
+      bind:geoBlockList
+      {geoRiskListValid}
+      {geoAllowListValid}
+      {geoChallengeListValid}
+      {geoMazeListValid}
+      {geoBlockListValid}
+    />
 
     <SaveChangesBar
       containerId="geo-save-bar"

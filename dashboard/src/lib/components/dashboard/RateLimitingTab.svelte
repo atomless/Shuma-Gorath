@@ -151,6 +151,22 @@
 >
   <TabStateMessage tab="rate-limiting" status={tabStatus} />
   <div class="controls-grid controls-grid--config">
+    <ConfigPanel writable={writable} dirty={akamaiRateDirty}>
+      <ConfigPanelHeading title="Akamai Rate Signal">
+        <label class="toggle-switch" for="rate-akamai-enabled-toggle">
+          <input
+            type="checkbox"
+            id="rate-akamai-enabled-toggle"
+            aria-label="Enable Akamai rate signal backend"
+            bind:checked={akamaiRateSignalEnabled}
+          >
+          <span class="toggle-slider"></span>
+        </label>
+      </ConfigPanelHeading>
+      <p class="control-desc text-muted">Enable this when Akamai/Fermyon deployment provides a trusted distributed rate-limiter backend path. When disabled, Shuma-Gorath uses its internal rate limiter.</p>
+      <p class="text-muted">This toggle controls <code>provider_backends.rate_limiter</code>. It does not change fingerprint Akamai controls.</p>
+    </ConfigPanel>
+
     <ConfigPanel writable={writable} dirty={rateLimitDirty}>
       <ConfigPanelHeading title="Rate Limiting">
         <label class="toggle-switch" for="rate-limiting-enabled-toggle">
@@ -184,22 +200,6 @@
           testing. Scoring still stays active.
         </p>
       {/if}
-    </ConfigPanel>
-
-    <ConfigPanel writable={writable} dirty={akamaiRateDirty}>
-      <ConfigPanelHeading title="Akamai Rate Signal">
-        <label class="toggle-switch" for="rate-akamai-enabled-toggle">
-          <input
-            type="checkbox"
-            id="rate-akamai-enabled-toggle"
-            aria-label="Enable Akamai rate signal backend"
-            bind:checked={akamaiRateSignalEnabled}
-          >
-          <span class="toggle-slider"></span>
-        </label>
-      </ConfigPanelHeading>
-      <p class="control-desc text-muted">Enable this when Akamai/Fermyon deployment provides a trusted distributed rate-limiter backend path. When disabled, Shuma-Gorath uses its internal rate limiter.</p>
-      <p class="text-muted">This toggle controls <code>provider_backends.rate_limiter</code>. It does not change fingerprint Akamai controls.</p>
     </ConfigPanel>
 
     <SaveChangesBar
