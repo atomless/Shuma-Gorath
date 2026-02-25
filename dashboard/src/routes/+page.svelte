@@ -34,7 +34,7 @@
     monitoring: 'Loading monitoring data...',
     'ip-bans': 'Loading ban list...',
     status: 'Loading status signals...',
-    config: 'Loading config...',
+    verification: 'Loading verification controls...',
     traps: 'Loading trap controls...',
     advanced: 'Loading advanced controls...',
     'rate-limiting': 'Loading rate limiting controls...',
@@ -76,7 +76,7 @@
   let adminMessageKind = 'info';
   let IpBansTabComponent = null;
   let StatusTabComponent = null;
-  let ConfigTabComponent = null;
+  let VerificationTabComponent = null;
   let TrapsTabComponent = null;
   let AdvancedTabComponent = null;
   let RateLimitingTabComponent = null;
@@ -219,7 +219,7 @@
       const [
         { default: loadedIpBansTab },
         { default: loadedStatusTab },
-        { default: loadedConfigTab },
+        { default: loadedVerificationTab },
         { default: loadedTrapsTab },
         { default: loadedAdvancedTab },
         { default: loadedRateLimitingTab },
@@ -230,7 +230,7 @@
       ] = await Promise.all([
         import('$lib/components/dashboard/IpBansTab.svelte'),
         import('$lib/components/dashboard/StatusTab.svelte'),
-        import('$lib/components/dashboard/ConfigTab.svelte'),
+        import('$lib/components/dashboard/VerificationTab.svelte'),
         import('$lib/components/dashboard/TrapsTab.svelte'),
         import('$lib/components/dashboard/AdvancedTab.svelte'),
         import('$lib/components/dashboard/RateLimitingTab.svelte'),
@@ -241,7 +241,7 @@
       ]);
       IpBansTabComponent = loadedIpBansTab;
       StatusTabComponent = loadedStatusTab;
-      ConfigTabComponent = loadedConfigTab;
+      VerificationTabComponent = loadedVerificationTab;
       TrapsTabComponent = loadedTrapsTab;
       AdvancedTabComponent = loadedAdvancedTab;
       RateLimitingTabComponent = loadedRateLimitingTab;
@@ -606,26 +606,26 @@
           <p class="message info">Loading status signals...</p>
         </section>
       {/if}
-      {#if ConfigTabComponent}
+      {#if VerificationTabComponent}
         <svelte:component
-          this={ConfigTabComponent}
+          this={VerificationTabComponent}
           managed={true}
-          isActive={activeTabKey === 'config'}
-          tabStatus={tabStatus.config || {}}
+          isActive={activeTabKey === 'verification'}
+          tabStatus={tabStatus.verification || {}}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
         />
       {:else}
         <section
-          id="dashboard-panel-config"
+          id="dashboard-panel-verification"
           class="admin-group"
-          data-dashboard-tab-panel="config"
-          aria-labelledby="dashboard-tab-config"
-          hidden={activeTabKey !== 'config'}
-          aria-hidden={activeTabKey === 'config' ? 'false' : 'true'}
+          data-dashboard-tab-panel="verification"
+          aria-labelledby="dashboard-tab-verification"
+          hidden={activeTabKey !== 'verification'}
+          aria-hidden={activeTabKey === 'verification' ? 'false' : 'true'}
         >
-          <p class="message info">Loading config controls...</p>
+          <p class="message info">Loading verification controls...</p>
         </section>
       {/if}
       {#if TrapsTabComponent}

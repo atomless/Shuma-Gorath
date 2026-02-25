@@ -18,7 +18,7 @@ The dashboard uses URL hash routes:
 - `#monitoring` - [`dashboard-tabs/monitoring.md`](dashboard-tabs/monitoring.md)
 - `#ip-bans` - [`dashboard-tabs/ip-bans.md`](dashboard-tabs/ip-bans.md)
 - `#status` - [`dashboard-tabs/status.md`](dashboard-tabs/status.md)
-- `#config` - [`dashboard-tabs/config.md`](dashboard-tabs/config.md)
+- `#verification` - [`dashboard-tabs/verification.md`](dashboard-tabs/verification.md)
 - `#traps` - [`dashboard-tabs/traps.md`](dashboard-tabs/traps.md)
 - `#rate-limiting` - [`dashboard-tabs/rate-limiting.md`](dashboard-tabs/rate-limiting.md)
 - `#geo` - [`dashboard-tabs/geo.md`](dashboard-tabs/geo.md)

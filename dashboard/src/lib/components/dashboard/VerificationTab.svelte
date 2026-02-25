@@ -393,27 +393,27 @@
 </script>
 
 <section
-  id="dashboard-panel-config"
+  id="dashboard-panel-verification"
   class="admin-group"
-  data-dashboard-tab-panel="config"
-  aria-labelledby="dashboard-tab-config"
+  data-dashboard-tab-panel="verification"
+  aria-labelledby="dashboard-tab-verification"
   hidden={managed ? !isActive : false}
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
-  <TabStateMessage tab="config" status={tabStatus} />
-  <p id="config-mode-subtitle" class="admin-group-subtitle text-muted">
+  <TabStateMessage tab="verification" status={tabStatus} />
+  <p id="verification-mode-subtitle" class="admin-group-subtitle text-muted">
     {#if !configLoaded}
-      Admin page configuration state is LOADING.
+      Verification controls are LOADING.
     {:else if hasConfigSnapshot}
       {#if writable}
-        Admin page configuration enabled. Saved changes persist across builds.
+        Verification controls are editable. Saved changes persist across builds.
         Set <code class="env-var">SHUMA_ADMIN_CONFIG_WRITE_ENABLED</code> to false in deployment env to disable.
       {:else}
-        Admin page configuration disabled.
+        Verification controls are read-only.
         Set <code class="env-var">SHUMA_ADMIN_CONFIG_WRITE_ENABLED</code> to true to enable.
       {/if}
     {:else}
-      Admin page configuration loaded, but the snapshot is empty.
+      Verification controls loaded, but the config snapshot is empty.
     {/if}
   </p>
   <div class="controls-grid controls-grid--config">
@@ -434,10 +434,10 @@
 
     <ConfigPanel writable={writable} dirty={cdpDirty}>
       <ConfigPanelHeading title='Browser <abbr title="Chrome DevTools Protocol">CDP</abbr> Automation Probe'>
-        <label class="toggle-switch" for="config-cdp-enabled-toggle">
+        <label class="toggle-switch" for="verification-cdp-enabled-toggle">
           <input
             type="checkbox"
-            id="config-cdp-enabled-toggle"
+            id="verification-cdp-enabled-toggle"
             aria-label="Enable Browser CDP Automation Detection"
             bind:checked={cdpDetectionEnabled}
             disabled={!jsRequiredEnforced}
@@ -448,7 +448,7 @@
       <p class="control-desc text-muted">When this is enabled, the JS Verification Interstitial injects a browser <abbr title="Chrome DevTools Protocol">CDP</abbr> automation detection probe that calculates an automation score --the higher the scores the higher the certainty that the visitor is a form of browser automation.</p>
       <div class="admin-controls">
         <ToggleRow
-          id="config-cdp-auto-ban-toggle"
+          id="verification-cdp-auto-ban-toggle"
           label="Auto-ban on Strong Detection"
           labelClass="control-label control-label--wide"
           ariaLabel="Enable browser automation auto-ban"
@@ -458,12 +458,12 @@
         />
         <div class="slider-control" class:slider-control--disabled={!jsRequiredEnforced || !cdpDetectionEnabled}>
           <div class="slider-header">
-            <label class="control-label control-label--wide" for="config-cdp-threshold-slider">Detection Threshold</label>
-            <span id="config-cdp-threshold-value" class="slider-badge">{Number(cdpDetectionThreshold).toFixed(1)}</span>
+            <label class="control-label control-label--wide" for="verification-cdp-threshold-slider">Detection Threshold</label>
+            <span id="verification-cdp-threshold-value" class="slider-badge">{Number(cdpDetectionThreshold).toFixed(1)}</span>
           </div>
           <input
             type="range"
-            id="config-cdp-threshold-slider"
+            id="verification-cdp-threshold-slider"
             min="0.3"
             max="1.0"
             step="0.1"
@@ -511,6 +511,6 @@
 
     <ConfigExportSection bind:writable bind:exportConfigDisabled bind:exportConfigStatus bind:exportConfigStatusKind onExportCurrentConfigJson={exportCurrentConfigJson} />
 
-    <SaveChangesBar containerId="config-save-all-bar" isHidden={!writable || !hasUnsavedChanges} summaryId="config-unsaved-summary" summaryText={saveAllSummaryText} summaryClass="text-unsaved-changes" invalidId="config-invalid-summary" invalidText={saveAllInvalidText} buttonId="save-config-all" buttonLabel={saveAllConfigLabel} buttonDisabled={saveAllConfigDisabled} onSave={saveAllConfig} />
+    <SaveChangesBar containerId="verification-save-all-bar" isHidden={!writable || !hasUnsavedChanges} summaryId="verification-unsaved-summary" summaryText={saveAllSummaryText} summaryClass="text-unsaved-changes" invalidId="verification-invalid-summary" invalidText={saveAllInvalidText} buttonId="save-verification-all" buttonLabel={saveAllConfigLabel} buttonDisabled={saveAllConfigDisabled} onSave={saveAllConfig} />
   </div>
 </section>

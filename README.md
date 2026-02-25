@@ -55,7 +55,7 @@ Dashboard:
 - `http://127.0.0.1:3000/dashboard/index.html`
 - `http://127.0.0.1:3000/dashboard` (redirects to `/dashboard/index.html`)
 - Tabbed <abbr title="Single-Page Application">SPA</abbr> routes:
-  `#monitoring`, `#ip-bans`, `#status`, `#config`, `#traps`, `#rate-limiting`, `#geo`,
+  `#monitoring`, `#ip-bans`, `#status`, `#verification`, `#traps`, `#rate-limiting`, `#geo`,
   `#fingerprinting`, `#robots`, `#tuning`, `#advanced`
 - Per-tab operator docs: [`docs/dashboard-tabs/README.md`](docs/dashboard-tabs/README.md)
 - Dashboard <abbr title="User Interface">UI</abbr> is built with SvelteKit static output (`dist/dashboard`) and served by Spin.

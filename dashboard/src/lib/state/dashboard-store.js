@@ -13,7 +13,7 @@ export const TAB_REFRESH_INTERVAL_MS = Object.freeze({
   monitoring: 30000,
   'ip-bans': 45000,
   status: 60000,
-  config: 60000,
+  verification: 60000,
   traps: 60000,
   advanced: 60000,
   'rate-limiting': 60000,

@@ -1,7 +1,7 @@
-# Dashboard Tab: Config
+# Dashboard Tab: Verification
 
-Route: `#config`  
-Component: [`dashboard/src/lib/components/dashboard/ConfigTab.svelte`](../../dashboard/src/lib/components/dashboard/ConfigTab.svelte)
+Route: `#verification`  
+Component: [`dashboard/src/lib/components/dashboard/VerificationTab.svelte`](../../dashboard/src/lib/components/dashboard/VerificationTab.svelte)
 
 Purpose:
 

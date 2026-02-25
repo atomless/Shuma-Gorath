@@ -325,12 +325,12 @@ export function createDashboardRefreshRuntime(options = {}) {
       runtimeOptions
     );
 
-  const refreshConfigTab = (reason = 'manual', runtimeOptions = {}) =>
+  const refreshVerificationTab = (reason = 'manual', runtimeOptions = {}) =>
     refreshConfigBackedTab(
-      'config',
+      'verification',
       reason,
-      'Loading config...',
-      'No config snapshot available yet.',
+      'Loading verification controls...',
+      'No verification config snapshot available yet.',
       runtimeOptions
     );
 
@@ -419,7 +419,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     },
     'ip-bans': refreshIpBansTab,
     status: refreshStatusTab,
-    config: refreshConfigTab,
+    verification: refreshVerificationTab,
     traps: refreshTrapsTab,
     advanced: refreshAdvancedTab,
     'rate-limiting': refreshRateLimitingTab,
@@ -460,7 +460,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     refreshMonitoringTab,
     refreshIpBansTab,
     refreshStatusTab,
-    refreshConfigTab,
+    refreshVerificationTab,
     refreshTrapsTab,
     refreshAdvancedTab,
     refreshRateLimitingTab,

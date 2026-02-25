@@ -4,8 +4,8 @@ const { seedDashboardData } = require("./seed-dashboard-data");
 const BASE_URL = process.env.SHUMA_BASE_URL || "http://127.0.0.1:3000";
 const API_KEY = (process.env.SHUMA_API_KEY || "").trim();
 const FORWARDED_IP_SECRET = (process.env.SHUMA_FORWARDED_IP_SECRET || "").trim();
-const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "status", "config", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"]);
-const ADMIN_TABS = Object.freeze(["ip-bans", "status", "config", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"]);
+const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"]);
+const ADMIN_TABS = Object.freeze(["ip-bans", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"]);
 const runtimeGuards = new WeakMap();
 
 function ensureRequiredEnv() {
@@ -264,7 +264,7 @@ async function updateAdminConfig(request, patch, ip = "127.0.0.1") {
   return payload && payload.config ? payload.config : {};
 }
 
-async function submitConfigSave(page, button = page.locator("#save-config-all")) {
+async function submitConfigSave(page, button = page.locator("#save-verification-all")) {
   await expect(button).toBeEnabled();
   const [response] = await Promise.all([
     page.waitForResponse((resp) => (
@@ -472,7 +472,7 @@ test("not-a-bot browser lifecycle captures telemetry and rejects replayed submit
 test("dashboard generated runtime has no missing script or stylesheet requests", async ({ page }) => {
   await openDashboard(page);
   await openTab(page, "status");
-  await openTab(page, "config");
+  await openTab(page, "verification");
   await openTab(page, "fingerprinting");
   await openTab(page, "tuning");
   await openTab(page, "ip-bans");
@@ -705,7 +705,7 @@ test("monitoring summary sections render data and cap oversized result lists", a
   await expect(page.locator("#geo-top-countries .crawler-item")).toHaveCount(10);
 });
 
-test("status/config/rate-limiting/geo/fingerprinting/tuning show empty state when config snapshot is empty", async ({ page }) => {
+test("status/verification/rate-limiting/geo/fingerprinting/tuning show empty state when config snapshot is empty", async ({ page }) => {
   await page.route("**/admin/config", async (route) => {
     if (route.request().method() !== "GET") {
       await route.continue();
@@ -721,8 +721,8 @@ test("status/config/rate-limiting/geo/fingerprinting/tuning show empty state whe
   await openDashboard(page, { initialTab: "status" });
   await expect(page.locator('[data-tab-state="status"]')).toContainText("No status config snapshot available yet.");
 
-  await openTab(page, "config");
-  await expect(page.locator('[data-tab-state="config"]')).toContainText("No config snapshot available yet.");
+  await openTab(page, "verification");
+  await expect(page.locator('[data-tab-state="verification"]')).toContainText("No verification config snapshot available yet.");
 
   await openTab(page, "rate-limiting");
   await expect(page.locator('[data-tab-state="rate-limiting"]')).toContainText("No rate limiting config snapshot available yet.");
@@ -745,7 +745,7 @@ test("dashboard loads and shows seeded operational data", async ({ page }) => {
   await expect(page.locator("h3", { hasText: "API Access" })).toHaveCount(0);
 
   await expect(page.locator("#last-updated")).toContainText("updated:");
-  await expect(page.locator("#config-mode-subtitle")).toContainText("Admin page configuration");
+  await expect(page.locator("#verification-mode-subtitle")).toContainText("Verification controls");
 
   await expect(page.locator("#total-events")).not.toHaveText("-");
   await expect(page.locator("#events tbody tr").first()).toBeVisible();
@@ -958,11 +958,11 @@ test("ip bans bypass allowlists pane reflects dirty-state changes", async ({ pag
   }
 });
 
-test("config save-all button reflects shared dirty-state behavior", async ({ page }) => {
+test("verification save-all button reflects shared dirty-state behavior", async ({ page }) => {
   await openDashboard(page);
-  await openTab(page, "config", { waitForReady: true });
+  await openTab(page, "verification", { waitForReady: true });
 
-  const configSave = page.locator("#save-config-all");
+  const configSave = page.locator("#save-verification-all");
   const testModeToggle = page.locator("#global-test-mode-toggle");
   const testModeToggleSwitch = page.locator("label.toggle-switch[for='global-test-mode-toggle']");
   const honeypotEnabledToggle = page.locator("#honeypot-enabled-toggle");
@@ -978,7 +978,7 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   const mazeAutoBanToggle = page.locator("#maze-auto-ban-toggle");
   const mazeAutoBanSwitch = page.locator("#maze-auto-ban-toggle + .toggle-slider");
   if (!(await mazeThreshold.isVisible())) {
-    await expect(page.locator("#config-mode-subtitle")).toContainText(/disabled|read-only|Admin page configuration/i);
+    await expect(page.locator("#verification-mode-subtitle")).toContainText(/disabled|read-only|Verification controls/i);
     return;
   }
   const initialMazeAutoBan = await mazeAutoBanToggle.isChecked();
@@ -991,7 +991,7 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   const nextMazeThreshold = String(Math.min(500, Number(initialMazeThreshold || "50") + 1));
   await mazeThreshold.fill(nextMazeThreshold);
   await mazeThreshold.dispatchEvent("input");
-  await expect(page.locator("#config-save-all-bar")).toBeVisible();
+  await expect(page.locator("#verification-save-all-bar")).toBeVisible();
   await expect(configSave).toBeEnabled();
   if (await testModeToggleSwitch.isVisible()) {
     const testModeInitial = await testModeToggle.isChecked();
@@ -1084,7 +1084,7 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
     await expect(configSave).toBeHidden();
   }
 
-  const cdpThresholdSlider = page.locator("#config-cdp-threshold-slider");
+  const cdpThresholdSlider = page.locator("#verification-cdp-threshold-slider");
   if (await cdpThresholdSlider.isVisible() && await cdpThresholdSlider.isEnabled()) {
     const cdpThresholdInitial = await cdpThresholdSlider.inputValue();
     const cdpThresholdNext = Number(cdpThresholdInitial || "0.6") >= 0.9
@@ -1229,7 +1229,7 @@ test("auto refresh defaults off and is only available on monitoring/ip-bans tabs
   await expect(page.locator("#refresh-now-btn")).toBeVisible();
 });
 
-test("route remount preserves keyboard navigation, ban/unban, config save, and polling", async ({ page }) => {
+test("route remount preserves keyboard navigation, ban/unban, verification save, and polling", async ({ page }) => {
   await page.addInitScript(() => {
     const nativeSetTimeout = window.setTimeout.bind(window);
     window.setTimeout = (handler, ms, ...args) => {
@@ -1286,9 +1286,9 @@ test("route remount preserves keyboard navigation, ban/unban, config save, and p
   ]);
   await expect(page.locator("#admin-msg")).toContainText(`Unbanned ${ip}`);
 
-  await openTab(page, "config");
+  await openTab(page, "verification");
   const jsRequiredToggle = page.locator("#js-required-enforced-toggle");
-  const configSave = page.locator("#save-config-all");
+  const configSave = page.locator("#save-verification-all");
   if (await jsRequiredToggle.isVisible() && await jsRequiredToggle.isEnabled()) {
     const initial = await jsRequiredToggle.isChecked();
     await jsRequiredToggle.click();
@@ -1577,14 +1577,14 @@ test("dashboard tables keep sticky headers", async ({ page }) => {
 
 test("tab hash route persists selected panel across reload", async ({ page }) => {
   await openDashboard(page);
-  await openTab(page, "config");
-  await expect(page.locator("#dashboard-panel-config")).toBeVisible();
+  await openTab(page, "verification");
+  await expect(page.locator("#dashboard-panel-verification")).toBeVisible();
   await expect(page.locator("#dashboard-panel-monitoring")).toBeHidden();
 
   await page.reload();
-  await expect(page).toHaveURL(/\/dashboard\/index\.html#config/);
-  await expect(page.locator("#dashboard-panel-config")).toBeVisible();
-  await assertActiveTabPanelVisibility(page, "config");
+  await expect(page).toHaveURL(/\/dashboard\/index\.html#verification/);
+  await expect(page.locator("#dashboard-panel-verification")).toBeVisible();
+  await assertActiveTabPanelVisibility(page, "verification");
 });
 
 test("tab keyboard navigation updates hash and selected state", async ({ page }) => {
@@ -1618,8 +1618,8 @@ test("tab states surface loading and data-ready transitions across all tabs", as
   await openTab(page, "status");
   await expect(page.locator('[data-tab-state="status"]')).toBeHidden();
 
-  await openTab(page, "config");
-  await expect(page.locator('[data-tab-state="config"]')).toBeHidden();
+  await openTab(page, "verification");
+  await expect(page.locator('[data-tab-state="verification"]')).toBeHidden();
 
   await openTab(page, "rate-limiting");
   await expect(page.locator('[data-tab-state="rate-limiting"]')).toBeHidden();
@@ -1674,12 +1674,12 @@ test("tab states surface loading and data-ready transitions across all tabs", as
   await expect(page.locator('[data-tab-state="monitoring"]')).toBeHidden();
 });
 
-test("config save roundtrip clears dirty state after successful write", async ({ page }) => {
+test("verification save roundtrip clears dirty state after successful write", async ({ page }) => {
   await openDashboard(page);
-  await openTab(page, "config");
+  await openTab(page, "verification");
 
   const jsRequiredToggle = page.locator("#js-required-enforced-toggle");
-  const configSave = page.locator("#save-config-all");
+  const configSave = page.locator("#save-verification-all");
   if (!(await jsRequiredToggle.isVisible()) || !(await jsRequiredToggle.isEnabled())) {
     await expect(configSave).toBeHidden();
     return;
@@ -1949,7 +1949,7 @@ test("monitoring tab surfaces tab-scoped error when consolidated monitoring fetc
   );
 });
 
-test("shared config endpoint failures surface per-tab errors for status/config/advanced/fingerprinting/robots/tuning", async ({ page }) => {
+test("shared config endpoint failures surface per-tab errors for status/verification/advanced/fingerprinting/robots/tuning", async ({ page }) => {
   const assertSharedConfigErrorOnInitialTab = async (tab, message) => {
     await page.route("**/admin/config", async (route) => {
       if (route.request().method() !== "GET") {
@@ -1968,7 +1968,7 @@ test("shared config endpoint failures surface per-tab errors for status/config/a
   };
 
   await assertSharedConfigErrorOnInitialTab("status", "status endpoint outage");
-  await assertSharedConfigErrorOnInitialTab("config", "config endpoint outage");
+  await assertSharedConfigErrorOnInitialTab("verification", "config endpoint outage");
   await assertSharedConfigErrorOnInitialTab("advanced", "advanced endpoint outage");
   await assertSharedConfigErrorOnInitialTab("fingerprinting", "fingerprinting endpoint outage");
   await assertSharedConfigErrorOnInitialTab("robots", "robots endpoint outage");

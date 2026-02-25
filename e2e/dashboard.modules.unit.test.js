@@ -514,10 +514,10 @@ test('dashboard state and store contracts remain immutable and bounded', { concu
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
     const initial = stateModule.createInitialState('monitoring');
-    const next = stateModule.reduceState(initial, { type: 'set-active-tab', tab: 'config' });
+    const next = stateModule.reduceState(initial, { type: 'set-active-tab', tab: 'verification' });
     assert.notEqual(initial, next);
     assert.equal(initial.activeTab, 'monitoring');
-    assert.equal(next.activeTab, 'config');
+    assert.equal(next.activeTab, 'verification');
 
     const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
     store.recordRefreshMetrics({ tab: 'monitoring', reason: 'manual', fetchLatencyMs: 100, renderTimingMs: 10 });
@@ -941,13 +941,13 @@ test('admin endpoint resolver applies loopback override only for local hostnames
   });
 });
 
-test('ip bans, config, traps, advanced, rate-limiting, geo, fingerprinting, robots, and tuning tabs are declarative and callback-driven', () => {
+test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting, robots, and tuning tabs are declarative and callback-driven', () => {
   const ipBansSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/IpBansTab.svelte'),
     'utf8'
   );
   const configSource = fs.readFileSync(
-    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/ConfigTab.svelte'),
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/VerificationTab.svelte'),
     'utf8'
   );
   const trapsSource = fs.readFileSync(
@@ -1117,13 +1117,13 @@ test('ip bans, config, traps, advanced, rate-limiting, geo, fingerprinting, robo
     configSurfaceSource,
     /Export (the current configuration as JSON|a JSON copy of the above configuration)/
   );
-  assert.match(configSource, /buttonId="save-config-all"/);
+  assert.match(configSource, /buttonId="save-verification-all"/);
   assert.match(configSource, /saveAllConfig\(/);
   assert.match(configSource, /window\.addEventListener\('beforeunload'/);
   assert.equal(configSurfaceSource.includes('id="ip-range-policy-mode"'), false);
   assert.equal(configSource.includes('ip_range_policy_mode'), false);
-  assert.match(configSurfaceSource, /id="config-cdp-enabled-toggle"/);
-  assert.match(configSurfaceSource, /id="config-cdp-threshold-slider"/);
+  assert.match(configSurfaceSource, /id="verification-cdp-enabled-toggle"/);
+  assert.match(configSurfaceSource, /id="verification-cdp-threshold-slider"/);
   assert.equal(configSurfaceSource.includes('id="edge-integration-mode-select"'), false);
   assert.equal(configSurfaceSource.includes('id="bypass-allowlists-toggle"'), false);
   assert.equal(configSurfaceSource.includes('id="geo-scoring-toggle"'), false);
@@ -1226,7 +1226,7 @@ test('ip bans, config, traps, advanced, rate-limiting, geo, fingerprinting, robo
 test('dashboard route lazily loads heavy tabs and keeps orchestration local', () => {
   const source = fs.readFileSync(path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'), 'utf8');
 
-  assert.match(source, /import\('\$lib\/components\/dashboard\/ConfigTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/dashboard\/VerificationTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/TrapsTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/AdvancedTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/RateLimitingTab\.svelte'\)/);
@@ -1334,7 +1334,7 @@ test('dashboard refresh runtime remains snapshot-only and excludes legacy config
   assert.match(source, /writeCache\(MONITORING_CACHE_KEY, \{ monitoring: compactMonitoring \}\);/);
   assert.match(source, /if \(hasConfigSnapshot\(existingConfig\)\) \{/);
   assert.equal(source.includes("? { monitoring: monitoringData }"), false);
-  assert.match(source, /const refreshConfigTab = \(reason = 'manual'/);
+  assert.match(source, /const refreshVerificationTab = \(reason = 'manual'/);
   assert.match(source, /async function refreshFingerprintingTab\(reason = 'manual'/);
   assert.match(source, /dashboardApiClient\.getCdp\(requestOptions\)/);
   assert.match(source, /const includeConfigRefresh = reason !== 'auto-refresh';/);
