@@ -143,8 +143,7 @@
 
 <section
   id="dashboard-panel-rate-limiting"
-  class="admin-group config-edit-pane"
-  class:config-edit-pane--dirty={hasUnsavedChanges}
+  class="admin-group"
   data-dashboard-tab-panel="rate-limiting"
   aria-labelledby="dashboard-tab-rate-limiting"
   hidden={managed ? !isActive : false}

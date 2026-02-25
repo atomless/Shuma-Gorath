@@ -235,8 +235,7 @@
 
 <section
   id="dashboard-panel-geo"
-  class="admin-group config-edit-pane"
-  class:config-edit-pane--dirty={hasUnsavedChanges}
+  class="admin-group"
   data-dashboard-tab-panel="geo"
   aria-labelledby="dashboard-tab-geo"
   hidden={managed ? !isActive : false}
