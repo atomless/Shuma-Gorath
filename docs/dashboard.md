@@ -12,6 +12,8 @@ The dashboard is now organized as a tabbed <abbr title="Single-Page Application"
 - `#ip-bans`
 - `#status`
 - `#config`
+- `#fingerprinting`
+- `#robots`
 - `#tuning`
 
 Behavior:
@@ -26,7 +28,7 @@ Refresh model:
 - Polling pauses while the page is hidden and resumes on visibility restore.
 - Auto-refresh defaults to `OFF` and is explicitly user-toggled.
 - Auto-refresh is only available on `Monitoring` and `IP Bans` (cadence `60s`).
-- `Status`/`Config`/`Tuning` refresh on page-load bootstrap and explicit config/tuning save flows (no background polling).
+- `Status`/`Config`/`Fingerprinting`/`Robots`/`Tuning` refresh on page-load bootstrap and explicit save flows (no background polling).
 - Monitoring and <abbr title="Internet Protocol">IP</abbr>-ban snapshots are cached in local storage with a short <abbr title="Time To Live">TTL</abbr> (`60s`) to reduce repeated <abbr title="Application Programming Interface">API</abbr> load/cost on quick remount/tab revisit paths.
 - Cached monitoring payloads are compacted before storage (bounded recent events/<abbr title="Chrome DevTools Protocol">CDP</abbr> rows/ban rows) to reduce serialization and local-storage overhead.
 - Logout/session-expiry clears monitoring/<abbr title="Internet Protocol">IP</abbr>-ban local cache keys to avoid telemetry bleed across session boundaries.
@@ -47,13 +49,13 @@ Refresh model:
 - Route contracts are preserved:
 - `/dashboard/index.html`
 - `/dashboard/login.html`
-- Existing tab hash routes (`#monitoring`, `#ip-bans`, `#status`, `#config`, `#tuning`).
-- The page is now a Svelte component tree (`Monitoring`, `IP Bans`, `Status`, `Config`, `Tuning`) instead of shell-fragment injection.
+- Existing tab hash routes (`#monitoring`, `#ip-bans`, `#status`, `#config`, `#fingerprinting`, `#robots`, `#tuning`).
+- The page is now a Svelte component tree (`Monitoring`, `IP Bans`, `Status`, `Config`, `Fingerprinting`, `Robots`, `Tuning`) instead of shell-fragment injection.
 - Runtime behavior mounts directly through `src/lib/runtime/dashboard-native-runtime.js` (`mountDashboardApp`/`unmountDashboardApp`) with explicit lifecycle cleanup.
 - Svelte-native orchestration is route-local through `src/routes/+page.svelte` + `src/lib/runtime/dashboard-route-controller.js` (hash sync, polling cadence, visibility pause/resume, session bootstrap/logout, and keyboard tab focus) with `src/lib/state/dashboard-store.js` as the single state source.
 - Refresh orchestration and tab-state message transitions are centralized in `src/lib/runtime/dashboard-runtime-refresh.js`.
 - `src/lib/runtime/dashboard-native-runtime.js` is now a slim runtime boundary for session restore/logout, snapshot refresh wiring, and domain <abbr title="Application Programming Interface">API</abbr> mutations (config save, ban/unban, robots preview) with no per-field <abbr title="Document Object Model">DOM</abbr> mutation layer.
-- Config, tuning, and <abbr title="Internet Protocol">IP</abbr>-ban workflows are now component-local Svelte state with explicit callback props and declarative dirty/validation/submit behavior.
+- Config, fingerprinting, robots, tuning, and <abbr title="Internet Protocol">IP</abbr>-ban workflows are now component-local Svelte state with explicit callback props and declarative dirty/validation/submit behavior.
 - Chart runtime lifecycle is module-scoped through `src/lib/domain/services/chart-runtime-adapter.js` (lazy load, singleton guard, teardown on final unmount) instead of static head-script injection.
 - `dashboard/package.json` still sets `"type": "module"` so existing dashboard module unit tests run via native <abbr title="ECMAScript Module">ESM</abbr> in Node.
 
@@ -106,7 +108,7 @@ Controls:
 - Bypass allowlist controls (`bypass_allowlists_enabled`, `whitelist`, `path_whitelist`)
 - Per-trigger ban durations, including <abbr title="Chrome DevTools Protocol">CDP</abbr> automation duration (`ban_durations.cdp`)
 - robots.txt configuration with dirty-state preview (unsaved panel toggles render via `POST /admin/robots/preview` without persisting)
-- <abbr title="Chrome DevTools Protocol">CDP</abbr> detection controls
+- <abbr title="Chrome DevTools Protocol">CDP</abbr> detection controls and fingerprint provider controls (`internal` or `external (Akamai)`; current external provider list: `["Akamai"]`)
 - <abbr title="Proof of Work">PoW</abbr> enable toggle plus difficulty/<abbr title="Time To Live">TTL</abbr> tuning
 - Challenge puzzle controls (`challenge_puzzle_enabled`); transform-count and runtime hardening knobs remain Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only.
 - Not-a-Bot controls (`not_a_bot_enabled`, `not_a_bot_pass_score`, `not_a_bot_fail_score`); verification-token lifetime, pass-marker lifetime, and attempt-window knobs remain Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only.

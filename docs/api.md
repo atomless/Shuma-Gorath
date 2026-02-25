@@ -38,7 +38,7 @@ If `SHUMA_HEALTH_SECRET` is configured, `/health` also requires:
 - `GET /pow` - <abbr title="Proof of Work">PoW</abbr> challenge seed (when enabled)
 - `POST /pow/verify` - <abbr title="Proof of Work">PoW</abbr> verification (sets js_verified cookie)
 - `POST /cdp-report` - Client automation reports (<abbr title="JavaScript Object Notation">JSON</abbr>)
-- `POST /fingerprint-report` - External/edge fingerprint intake (Akamai-first shape with internal <abbr title="Chrome DevTools Protocol">CDP</abbr> fallback)
+- `POST /fingerprint-report` - External/edge fingerprint intake (currently Akamai-only adapter shape, with internal <abbr title="Chrome DevTools Protocol">CDP</abbr> fallback for non-Akamai/legacy payloads)
 - `POST <maze_path_prefix>checkpoint` - Maze traversal checkpoint submission
 - `POST <maze_path_prefix>issue-links` - Maze progressive hidden-link issuance (signed seed + checkpoint gated)
 - `GET <maze_assets_prefix>/maze.<hash>.min.css` - Shared maze stylesheet asset (immutable cache)
@@ -384,44 +384,60 @@ Routing precedence for overlapping lists is:
 
 ## 🐙 <abbr title="Internet Protocol">IP</abbr>-Range Policy Fields (`/admin/config`)
 
-- `ip_range_policy_mode` - policy mode (`off`, `advisory`, `enforce`)
-- `ip_range_emergency_allowlist` - <abbr title="Classless Inter-Domain Routing">CIDR</abbr> allowlist evaluated before all <abbr title="Internet Protocol">IP</abbr>-range rules
-- `ip_range_managed_max_staleness_hours` - managed catalog enforce-mode freshness limit in hours
-- `ip_range_allow_stale_managed_enforce` - explicit override to allow enforce-mode managed-set actions when catalog is stale
-- `ip_range_custom_rules` - ordered custom rule objects:
-  - `id` (stable operator rule id),
-  - `enabled` (boolean),
-  - `cidrs` (<abbr title="Classless Inter-Domain Routing">CIDR</abbr> array),
-  - `action` (one of `forbidden_403`, `custom_message`, `drop_connection`, `redirect_308`, `rate_limit`, `honeypot`, `maze`, `tarpit`),
-  - optional `redirect_url` (required for `redirect_308`),
-  - optional `custom_message` (required for `custom_message`)
-- `ip_range_managed_policies` - managed-set policy objects:
-  - `set_id` (for example `openai_gptbot`, `openai_oai_searchbot`, `openai_chatgpt_user`, `github_copilot`),
-  - `enabled`,
-  - `action`,
-  - optional `redirect_url`,
-  - optional `custom_message`
-  - note: `deepseek` is intentionally rejected (`official source unavailable`)
+Use this policy to match requests by <abbr title="Internet Protocol">IP</abbr> address/range and apply a configured action.
 
-Precedence:
+Mode:
 
-- emergency allowlist > custom rules (first match) > managed policies > default pipeline
+- `ip_range_policy_mode`
+  - `off`: do not run IP range policy.
+  - `advisory`: evaluate and record outcomes only.
+  - `enforce`: apply actions for matching rules.
 
-Managed-set catalog visibility in `GET /admin/config`:
+Core fields:
+
+- `ip_range_emergency_allowlist`
+  - <abbr title="Classless Inter-Domain Routing">CIDR</abbr> ranges that bypass IP range actions.
+  - Evaluated before custom and managed rules.
+- `ip_range_custom_rules`
+  - Ordered custom rule objects (`id`, `enabled`, `cidrs`, `action`, optional `redirect_url`, optional `custom_message`).
+  - First matching custom rule wins.
+- `ip_range_managed_policies`
+  - Managed-set policy objects (`set_id`, `enabled`, `action`, optional `redirect_url`, optional `custom_message`).
+  - Evaluated only when no custom rule matched.
+  - `deepseek` is intentionally rejected (official machine-readable source unavailable).
+- `ip_range_managed_max_staleness_hours`
+  - Maximum managed catalog age allowed for enforce-mode actions.
+- `ip_range_allow_stale_managed_enforce`
+  - `false` (recommended): stale managed sets do not enforce.
+  - `true`: stale managed sets can still enforce as an emergency override.
+
+Valid actions for custom and managed rules:
+
+- `forbidden_403`
+- `custom_message`
+- `drop_connection`
+- `redirect_308`
+- `rate_limit`
+- `honeypot`
+- `maze`
+- `tarpit`
+
+Decision order:
+
+- emergency allowlist -> custom rules (first match) -> managed policies -> default pipeline
+
+Managed catalog visibility in `GET /admin/config`:
 
 - `ip_range_managed_sets`
 - `ip_range_managed_catalog_version`
 - `ip_range_managed_catalog_generated_at`
 - `ip_range_managed_catalog_generated_at_unix`
-- each `ip_range_managed_sets` entry includes:
-  - `catalog_age_hours`
-  - `catalog_stale`
-  - `managed_max_staleness_hours`
+- each `ip_range_managed_sets` entry includes `catalog_age_hours`, `catalog_stale`, and `managed_max_staleness_hours`
 
 Operational guidance:
 
-- Managed catalog refresh command: `make ip-range-catalog-update`
-- Rollout/rollback/staleness runbook: [`docs/ip-range-policy-runbook.md`](ip-range-policy-runbook.md)
+- Refresh managed catalog: `make ip-range-catalog-update`
+- Full plain-English rollout/rollback/staleness runbook: [`docs/ip-range-policy-runbook.md`](ip-range-policy-runbook.md)
 
 ## 🐙 Maze Excellence Fields (`/admin/config`)
 

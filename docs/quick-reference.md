@@ -58,7 +58,7 @@ make test-dashboard-e2e    # In terminal 2
 - `GET /pow` - <abbr title="Proof of Work">PoW</abbr> seed (when enabled)
 - `POST /pow/verify` - <abbr title="Proof of Work">PoW</abbr> verification
 - `POST /cdp-report` - <abbr title="Chrome DevTools Protocol">CDP</abbr> automation report intake
-- `POST /fingerprint-report` - External/edge fingerprint intake (Akamai-first mapping)
+- `POST /fingerprint-report` - External/edge fingerprint intake (currently Akamai-only mapping)
 - `POST /challenge/puzzle` - Submit puzzle challenge answer (if challenge is served)
 
 ### 🐙 Admin <abbr title="Application Programming Interface">API</abbr> (requires `Authorization: Bearer <SHUMA_API_KEY>`)

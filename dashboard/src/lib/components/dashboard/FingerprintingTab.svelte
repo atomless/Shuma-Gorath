@@ -198,6 +198,41 @@
 >
   <TabStateMessage tab="fingerprinting" status={tabStatus} />
   <div class="controls-grid controls-grid--config">
+    <ConfigPanel writable={writable} dirty={edgeModeDirty || providerBackendDirty}>
+      <ConfigPanelHeading title="Edge and Provider">
+        <span class="status-value text-muted">External integration</span>
+      </ConfigPanelHeading>
+      <p class="control-desc text-muted">When calculating bot fingerprinting, edge hosting platforms can use transport/network-layer telemetry (for example TLS/client fingerprinting, network reputation, global bot intel). By enabling edge integration Shuma-Gorath can thereby take into account and optionally act on signals that it cannot otherwise directly observe. Supported external fingerprint providers currently: ["Akamai"].</p>
+      <div class="admin-controls">
+        <div class="input-row">
+          <label class="control-label control-label--wide" for="fingerprinting-provider-backend-select">Fingerprint Provider Backend</label>
+          <select
+            class="input-field input-row-control"
+            id="fingerprinting-provider-backend-select"
+            aria-label="Fingerprint provider backend"
+            bind:value={fingerprintProviderBackend}
+          >
+            <option value="internal">internal</option>
+            <option value="external">external (Akamai)</option>
+          </select>
+        </div>
+        <div class="input-row">
+          <label class="control-label control-label--wide" for="fingerprinting-edge-mode-select">Edge Integration Mode</label>
+          <select
+            class="input-field input-row-control"
+            id="fingerprinting-edge-mode-select"
+            aria-label="Edge integration mode"
+            bind:value={edgeIntegrationMode}
+          >
+            <option value="off">off</option>
+            <option value="advisory">advisory</option>
+            <option value="authoritative">authoritative</option>
+          </select>
+        </div>
+        <p class="text-muted">Effective posture: {effectivePosture}</p>
+      </div>
+    </ConfigPanel>
+
     <ConfigPanel writable={writable} dirty={cdpDirty}>
       <ConfigPanelHeading title='<abbr title="Chrome DevTools Protocol">CDP</abbr> Detection'>
         <label class="toggle-switch" for="fingerprinting-cdp-enabled-toggle">
@@ -239,41 +274,6 @@
             <span>Permissive</span>
           </div>
         </div>
-      </div>
-    </ConfigPanel>
-
-    <ConfigPanel writable={writable} dirty={edgeModeDirty || providerBackendDirty}>
-      <ConfigPanelHeading title="Edge and Provider">
-        <span class="status-value text-muted">External integration</span>
-      </ConfigPanelHeading>
-      <p class="control-desc text-muted">Choose where fingerprinting reports come from, then set how strongly edge outcomes can influence routing.</p>
-      <div class="admin-controls">
-        <div class="input-row">
-          <label class="control-label control-label--wide" for="fingerprinting-provider-backend-select">Fingerprint Provider Backend</label>
-          <select
-            class="input-field input-row-control"
-            id="fingerprinting-provider-backend-select"
-            aria-label="Fingerprint provider backend"
-            bind:value={fingerprintProviderBackend}
-          >
-            <option value="internal">internal</option>
-            <option value="external">external</option>
-          </select>
-        </div>
-        <div class="input-row">
-          <label class="control-label control-label--wide" for="fingerprinting-edge-mode-select">Edge Integration Mode</label>
-          <select
-            class="input-field input-row-control"
-            id="fingerprinting-edge-mode-select"
-            aria-label="Edge integration mode"
-            bind:value={edgeIntegrationMode}
-          >
-            <option value="off">off</option>
-            <option value="advisory">advisory</option>
-            <option value="authoritative">authoritative</option>
-          </select>
-        </div>
-        <p class="text-muted">Effective posture: {effectivePosture}</p>
       </div>
     </ConfigPanel>
 

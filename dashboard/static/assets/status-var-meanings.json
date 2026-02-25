@@ -136,7 +136,7 @@
   "provider_backends.ban_store": "Selected provider backend for ban state.",
   "provider_backends.challenge_engine": "Selected provider backend for challenge generation.",
   "provider_backends.maze_tarpit": "Selected provider backend for maze/tarpit capability.",
-  "provider_backends.fingerprint_signal": "Selected provider backend for fingerprint signals.",
+  "provider_backends.fingerprint_signal": "Selected provider backend for fingerprint signals. External currently maps to the Akamai adapter.",
   "edge_integration_mode": "How external edge outcomes affect local routing: off, advisory, authoritative.",
   "admin_config_write_enabled": "Enables/disables admin API config writes.",
   "kv_store_fail_open": "KV outage posture. true=fail-open, false=fail-closed.",
