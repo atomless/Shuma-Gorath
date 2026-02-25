@@ -149,8 +149,7 @@
 
 <section
   id="dashboard-panel-fingerprinting"
-  class="admin-group config-edit-pane"
-  class:config-edit-pane--dirty={hasUnsavedChanges}
+  class="admin-group"
   data-dashboard-tab-panel="fingerprinting"
   aria-labelledby="dashboard-tab-fingerprinting"
   hidden={managed ? !isActive : false}
@@ -186,9 +185,6 @@
           </select>
         </div>
         <p class="text-muted">Effective posture: {effectivePosture}</p>
-        {#if !akamaiBotSignalEnabled}
-          <p class="text-muted">Akamai mode is unavailable while Akamai bot signals are disabled.</p>
-        {/if}
       </div>
     </ConfigPanel>
 
