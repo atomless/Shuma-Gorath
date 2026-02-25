@@ -12,7 +12,7 @@ import {
   resolveDashboardBasePathFromLocation
 } from './dashboard-paths.js';
 
-const DASHBOARD_TABS = Object.freeze(['monitoring', 'ip-bans', 'status', 'config', 'rate-limiting', 'geo', 'fingerprinting', 'robots', 'tuning', 'advanced']);
+const DASHBOARD_TABS = Object.freeze(['monitoring', 'ip-bans', 'status', 'config', 'traps', 'rate-limiting', 'geo', 'fingerprinting', 'robots', 'tuning', 'advanced']);
 
 const DASHBOARD_STATE_REQUIRED_METHODS = Object.freeze([
   'getState',

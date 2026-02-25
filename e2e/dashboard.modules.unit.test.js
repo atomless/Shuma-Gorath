@@ -941,13 +941,17 @@ test('admin endpoint resolver applies loopback override only for local hostnames
   });
 });
 
-test('ip bans, config, advanced, rate-limiting, geo, fingerprinting, robots, and tuning tabs are declarative and callback-driven', () => {
+test('ip bans, config, traps, advanced, rate-limiting, geo, fingerprinting, robots, and tuning tabs are declarative and callback-driven', () => {
   const ipBansSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/IpBansTab.svelte'),
     'utf8'
   );
   const configSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/ConfigTab.svelte'),
+    'utf8'
+  );
+  const trapsSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/TrapsTab.svelte'),
     'utf8'
   );
   const advancedSource = fs.readFileSync(
@@ -1008,11 +1012,14 @@ test('ip bans, config, advanced, rate-limiting, geo, fingerprinting, robots, and
   );
   const configSurfaceSource = [
     configSource,
-    configMazeSource,
     configChallengeSource,
-    configNetworkSource,
-    configDurationsSource,
     configExportSource,
+    saveChangesBarSource
+  ].join('\n');
+  const trapsSurfaceSource = [
+    trapsSource,
+    configMazeSource,
+    configNetworkSource,
     saveChangesBarSource
   ].join('\n');
   const advancedSurfaceSource = [
@@ -1033,6 +1040,11 @@ test('ip bans, config, advanced, rate-limiting, geo, fingerprinting, robots, and
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/TuningTab.svelte'),
     'utf8'
   );
+  const tuningSurfaceSource = [
+    tuningSource,
+    configDurationsSource,
+    saveChangesBarSource
+  ].join('\n');
 
   assert.match(ipBansSource, /export let onBan = null;/);
   assert.match(ipBansSource, /export let onUnban = null;/);
@@ -1067,20 +1079,22 @@ test('ip bans, config, advanced, rate-limiting, geo, fingerprinting, robots, and
   assert.equal(configSource.includes('onTestModeToggleChange'), false);
   assert.match(configSource, /await onSaveConfig\(/);
   assert.match(configSource, /import ConfigChallengeSection from '\.\/config\/ConfigChallengeSection\.svelte';/);
-  assert.match(configSource, /import ConfigMazeSection from '\.\/config\/ConfigMazeSection\.svelte';/);
   assert.match(configSource, /import ConfigNetworkSection from '\.\/config\/ConfigNetworkSection\.svelte';/);
-  assert.match(configSource, /import ConfigDurationsSection from '\.\/config\/ConfigDurationsSection\.svelte';/);
   assert.match(configSource, /import ConfigExportSection from '\.\/config\/ConfigExportSection\.svelte';/);
+  assert.equal(configSource.includes("import ConfigMazeSection from './config/ConfigMazeSection.svelte';"), false);
+  assert.equal(configSource.includes("import ConfigDurationsSection from './config/ConfigDurationsSection.svelte';"), false);
   assert.equal(configSource.includes("import ConfigGeoSection from './config/ConfigGeoSection.svelte';"), false);
   assert.equal(configSource.includes('ConfigRobotsSection'), false);
   assert.match(configSource, /import SaveChangesBar from '\.\/primitives\/SaveChangesBar\.svelte';/);
   assert.match(configSource, /<ConfigChallengeSection/);
-  assert.match(configSource, /<ConfigMazeSection/);
   assert.match(configSource, /<ConfigNetworkSection/);
-  assert.match(configSource, /<ConfigDurationsSection/);
   assert.match(configSource, /<ConfigExportSection/);
+  assert.equal(configSource.includes('<ConfigMazeSection'), false);
+  assert.equal(configSource.includes('<ConfigDurationsSection'), false);
   assert.equal(configSource.includes('<ConfigGeoSection'), false);
   assert.equal(configSource.includes('<ConfigRobotsSection'), false);
+  assert.match(configSource, /showHoneypot=\{false\}/);
+  assert.match(configSource, /showBrowserPolicy=\{true\}/);
   assert.match(configSource, /<SaveChangesBar/);
   assert.equal(configSurfaceSource.includes('id="test-mode-toggle"'), false);
   assert.match(configSurfaceSource, /id="preview-challenge-puzzle-link"/);
@@ -1090,20 +1104,6 @@ test('ip bans, config, advanced, rate-limiting, geo, fingerprinting, robots, and
       < configSurfaceSource.indexOf('id="challenge-puzzle-enabled-toggle"'),
     true
   );
-  assert.equal(
-    configSurfaceSource.indexOf('id="pow-enabled-toggle"')
-      < configSurfaceSource.indexOf('id="maze-enabled-toggle"'),
-    true
-  );
-  assert.equal(
-    configSurfaceSource.indexOf('id="challenge-puzzle-enabled-toggle"')
-      < configSurfaceSource.indexOf('id="honeypot-enabled-toggle"'),
-    true
-  );
-  assert.match(configSurfaceSource, /for="maze-auto-ban-toggle">Enable Auto-ban<\/label>/);
-  assert.match(configSurfaceSource, /class:input-row--disabled=\{!mazeAutoBan\}/);
-  assert.match(configSurfaceSource, /id="maze-threshold"[^>]*disabled=\{!mazeAutoBan\}/);
-  assert.equal(configSurfaceSource.includes('Threshold is used only when auto-ban is enabled.'), false);
   assert.equal(configSurfaceSource.includes('id="not-a-bot-nonce-ttl"'), false);
   assert.equal(configSurfaceSource.includes('id="not-a-bot-marker-ttl"'), false);
   assert.equal(configSurfaceSource.includes('id="not-a-bot-attempt-limit"'), false);
@@ -1122,7 +1122,6 @@ test('ip bans, config, advanced, rate-limiting, geo, fingerprinting, robots, and
   assert.match(configSource, /window\.addEventListener\('beforeunload'/);
   assert.equal(configSurfaceSource.includes('id="ip-range-policy-mode"'), false);
   assert.match(configSource, /ip_range_policy_mode/);
-  assert.match(configSurfaceSource, /id="browser-policy-toggle"/);
   assert.match(configSurfaceSource, /id="config-cdp-enabled-toggle"/);
   assert.match(configSurfaceSource, /id="config-cdp-threshold-slider"/);
   assert.equal(configSurfaceSource.includes('id="edge-integration-mode-select"'), false);
@@ -1140,6 +1139,21 @@ test('ip bans, config, advanced, rate-limiting, geo, fingerprinting, robots, and
   assert.equal(configSource.includes('id="save-test-mode-config"'), false);
   assert.equal(configSource.includes('id="save-advanced-config"'), false);
   assert.equal(configSource.includes('{@html'), false);
+
+  assert.match(trapsSource, /export let onSaveConfig = null;/);
+  assert.match(trapsSource, /await onSaveConfig\(payload/);
+  assert.match(trapsSource, /import ConfigMazeSection from '\.\/config\/ConfigMazeSection\.svelte';/);
+  assert.match(trapsSource, /import ConfigNetworkSection from '\.\/config\/ConfigNetworkSection\.svelte';/);
+  assert.match(trapsSource, /showHoneypot=\{true\}/);
+  assert.match(trapsSource, /showBrowserPolicy=\{false\}/);
+  assert.match(trapsSource, /buttonId="save-traps-config"/);
+  assert.match(trapsSource, /window\.addEventListener\('beforeunload'/);
+  assert.match(trapsSurfaceSource, /id="maze-enabled-toggle"/);
+  assert.match(trapsSurfaceSource, /id="tarpit-enabled-toggle"/);
+  assert.match(trapsSurfaceSource, /id="honeypot-enabled-toggle"/);
+  assert.match(trapsSurfaceSource, /id="honeypot-paths"/);
+  assert.match(trapsSurfaceSource, /id="preview-maze-link"/);
+  assert.match(trapsSurfaceSource, /id="preview-tarpit-link"/);
 
   assert.match(advancedSource, /export let onSaveConfig = null;/);
   assert.match(advancedSource, /export let onValidateConfig = null;/);
@@ -1198,16 +1212,22 @@ test('ip bans, config, advanced, rate-limiting, geo, fingerprinting, robots, and
 
   assert.match(tuningSource, /export let onSaveConfig = null;/);
   assert.match(tuningSource, /await onSaveConfig\(payload/);
+  assert.match(tuningSource, /import ConfigDurationsSection from '\.\/config\/ConfigDurationsSection\.svelte';/);
+  assert.match(tuningSource, /<ConfigDurationsSection/);
+  assert.match(tuningSource, /ban_durations/);
   assert.match(tuningSource, /buttonId="save-tuning-all"/);
   assert.match(tuningSource, /import SaveChangesBar from '\.\/primitives\/SaveChangesBar\.svelte';/);
   assert.match(tuningSource, /window\.addEventListener\('beforeunload'/);
   assert.equal(tuningSource.includes('id="save-botness-config"'), false);
+  assert.match(tuningSurfaceSource, /dayId="dur-honeypot-days"/);
+  assert.match(tuningSurfaceSource, /dayId="dur-rate-limit-days"/);
 });
 
 test('dashboard route lazily loads heavy tabs and keeps orchestration local', () => {
   const source = fs.readFileSync(path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'), 'utf8');
 
   assert.match(source, /import\('\$lib\/components\/dashboard\/ConfigTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/dashboard\/TrapsTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/AdvancedTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/RateLimitingTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/GeoTab\.svelte'\)/);

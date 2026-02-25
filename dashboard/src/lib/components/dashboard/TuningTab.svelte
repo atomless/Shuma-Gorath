@@ -1,7 +1,9 @@
 <script>
   import { onMount } from 'svelte';
+  import { durationPartsFromSeconds, durationSeconds } from '../../domain/core/date-time.js';
   import { parseInteger } from '../../domain/core/math.js';
-  import { inRange } from '../../domain/core/validation.js';
+  import { inRange, isDurationTupleValid } from '../../domain/core/validation.js';
+  import ConfigDurationsSection from './config/ConfigDurationsSection.svelte';
   import NumericInputRow from './primitives/NumericInputRow.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
@@ -13,6 +15,13 @@
   export let configVersion = 0;
   export let onSaveConfig = null;
 
+  const MAX_DURATION_SECONDS = 31536000;
+  const MIN_DURATION_SECONDS = 60;
+  const DURATION_VALIDATION_BOUNDS = Object.freeze({
+    minSeconds: MIN_DURATION_SECONDS,
+    maxSeconds: MAX_DURATION_SECONDS
+  });
+
   let notABotThreshold = 2;
   let challengeThreshold = 3;
   let mazeThreshold = 6;
@@ -20,19 +29,46 @@
   let weightGeoRisk = 2;
   let weightRateMedium = 1;
   let weightRateHigh = 2;
-  let savingBotness = false;
+
+  let durHoneypotDays = 1;
+  let durHoneypotHours = 0;
+  let durHoneypotMinutes = 0;
+  let durRateLimitDays = 0;
+  let durRateLimitHours = 1;
+  let durRateLimitMinutes = 0;
+  let durBrowserDays = 0;
+  let durBrowserHours = 6;
+  let durBrowserMinutes = 0;
+  let durCdpDays = 0;
+  let durCdpHours = 12;
+  let durCdpMinutes = 0;
+  let durAdminDays = 0;
+  let durAdminHours = 6;
+  let durAdminMinutes = 0;
+
+  let savingTuning = false;
   let warnOnUnload = false;
+  let lastAppliedConfigVersion = -1;
 
   let baseline = {
-    notABotThreshold: 2,
-    challengeThreshold: 3,
-    mazeThreshold: 6,
-    weightJsRequired: 1,
-    weightGeoRisk: 2,
-    weightRateMedium: 1,
-    weightRateHigh: 2
+    botness: {
+      notABotThreshold: 2,
+      challengeThreshold: 3,
+      mazeThreshold: 6,
+      weightJsRequired: 1,
+      weightGeoRisk: 2,
+      weightRateMedium: 1,
+      weightRateHigh: 2
+    },
+    durations: {
+      honeypot: 86400,
+      rateLimit: 3600,
+      browser: 21600,
+      cdp: 43200,
+      admin: 21600
+    }
   };
-  let lastAppliedConfigVersion = -1;
+  let lastSaveInvalidLabel = '';
 
   const toBotnessBaseline = (config = {}) => {
     const weights = config && typeof config.botness_weights === 'object'
@@ -49,46 +85,114 @@
     };
   };
 
+  const toDurationBaseline = (config = {}) => {
+    const durations = config && typeof config.ban_durations === 'object'
+      ? config.ban_durations
+      : {};
+    return {
+      honeypot: parseInteger(durations.honeypot, 86400),
+      rateLimit: parseInteger(durations.rate_limit, 3600),
+      browser: parseInteger(durations.browser, 21600),
+      cdp: parseInteger(durations.cdp, 43200),
+      admin: parseInteger(durations.admin, 21600)
+    };
+  };
+
   function applyConfig(config = {}) {
-    const next = toBotnessBaseline(config);
-    baseline = next;
-    notABotThreshold = next.notABotThreshold;
-    challengeThreshold = next.challengeThreshold;
-    mazeThreshold = next.mazeThreshold;
-    weightJsRequired = next.weightJsRequired;
-    weightGeoRisk = next.weightGeoRisk;
-    weightRateMedium = next.weightRateMedium;
-    weightRateHigh = next.weightRateHigh;
+    const botness = toBotnessBaseline(config);
+    const durations = toDurationBaseline(config);
+    baseline = {
+      botness,
+      durations
+    };
+
+    notABotThreshold = botness.notABotThreshold;
+    challengeThreshold = botness.challengeThreshold;
+    mazeThreshold = botness.mazeThreshold;
+    weightJsRequired = botness.weightJsRequired;
+    weightGeoRisk = botness.weightGeoRisk;
+    weightRateMedium = botness.weightRateMedium;
+    weightRateHigh = botness.weightRateHigh;
+
+    const honeypotParts = durationPartsFromSeconds(durations.honeypot, 86400);
+    durHoneypotDays = honeypotParts.days;
+    durHoneypotHours = honeypotParts.hours;
+    durHoneypotMinutes = honeypotParts.minutes;
+
+    const rateLimitParts = durationPartsFromSeconds(durations.rateLimit, 3600);
+    durRateLimitDays = rateLimitParts.days;
+    durRateLimitHours = rateLimitParts.hours;
+    durRateLimitMinutes = rateLimitParts.minutes;
+
+    const browserParts = durationPartsFromSeconds(durations.browser, 21600);
+    durBrowserDays = browserParts.days;
+    durBrowserHours = browserParts.hours;
+    durBrowserMinutes = browserParts.minutes;
+
+    const cdpParts = durationPartsFromSeconds(durations.cdp, 43200);
+    durCdpDays = cdpParts.days;
+    durCdpHours = cdpParts.hours;
+    durCdpMinutes = cdpParts.minutes;
+
+    const adminParts = durationPartsFromSeconds(durations.admin, 21600);
+    durAdminDays = adminParts.days;
+    durAdminHours = adminParts.hours;
+    durAdminMinutes = adminParts.minutes;
   }
 
-  async function saveBotness() {
-    if (!botnessValid || !botnessDirty || !writable || typeof onSaveConfig !== 'function') return;
-    savingBotness = true;
-    const payload = {
-      not_a_bot_risk_threshold: Number(notABotThreshold),
-      challenge_puzzle_risk_threshold: Number(challengeThreshold),
-      botness_maze_threshold: Number(mazeThreshold),
-      botness_weights: {
+  async function saveTuningConfig() {
+    if (!tuningValid || !hasUnsavedChanges || !writable || typeof onSaveConfig !== 'function') return;
+    savingTuning = true;
+    const payload = {};
+
+    if (botnessDirty) {
+      payload.not_a_bot_risk_threshold = Number(notABotThreshold);
+      payload.challenge_puzzle_risk_threshold = Number(challengeThreshold);
+      payload.botness_maze_threshold = Number(mazeThreshold);
+      payload.botness_weights = {
         js_required: Number(weightJsRequired),
         geo_risk: Number(weightGeoRisk),
         rate_medium: Number(weightRateMedium),
         rate_high: Number(weightRateHigh)
-      }
-    };
+      };
+    }
+    if (durationsDirty) {
+      payload.ban_durations = {
+        honeypot: honeypotDurationSeconds,
+        rate_limit: rateDurationSeconds,
+        browser: browserDurationSeconds,
+        cdp: cdpDurationSeconds,
+        admin: adminDurationSeconds
+      };
+    }
 
     try {
-      await onSaveConfig(payload, { successMessage: 'Botness scoring saved' });
-      baseline = {
-        notABotThreshold: Number(notABotThreshold),
-        challengeThreshold: Number(challengeThreshold),
-        mazeThreshold: Number(mazeThreshold),
-        weightJsRequired: Number(weightJsRequired),
-        weightGeoRisk: Number(weightGeoRisk),
-        weightRateMedium: Number(weightRateMedium),
-        weightRateHigh: Number(weightRateHigh)
-      };
+      const nextConfig = await onSaveConfig(payload, { successMessage: 'Tuning settings saved' });
+      if (nextConfig && typeof nextConfig === 'object') {
+        applyConfig(nextConfig);
+      } else {
+        baseline = {
+          botness: {
+            notABotThreshold: Number(notABotThreshold),
+            challengeThreshold: Number(challengeThreshold),
+            mazeThreshold: Number(mazeThreshold),
+            weightJsRequired: Number(weightJsRequired),
+            weightGeoRisk: Number(weightGeoRisk),
+            weightRateMedium: Number(weightRateMedium),
+            weightRateHigh: Number(weightRateHigh)
+          },
+          durations: {
+            honeypot: honeypotDurationSeconds,
+            rateLimit: rateDurationSeconds,
+            browser: browserDurationSeconds,
+            cdp: cdpDurationSeconds,
+            admin: adminDurationSeconds
+          }
+        };
+      }
+      lastSaveInvalidLabel = '';
     } finally {
-      savingBotness = false;
+      savingTuning = false;
     }
   }
 
@@ -143,30 +247,99 @@
     weightRateHighValid
   );
   $: botnessDirty = (
-    Number(notABotThreshold) !== baseline.notABotThreshold ||
-    Number(challengeThreshold) !== baseline.challengeThreshold ||
-    Number(mazeThreshold) !== baseline.mazeThreshold ||
-    Number(weightJsRequired) !== baseline.weightJsRequired ||
-    Number(weightGeoRisk) !== baseline.weightGeoRisk ||
-    Number(weightRateMedium) !== baseline.weightRateMedium ||
-    Number(weightRateHigh) !== baseline.weightRateHigh
+    Number(notABotThreshold) !== baseline.botness.notABotThreshold ||
+    Number(challengeThreshold) !== baseline.botness.challengeThreshold ||
+    Number(mazeThreshold) !== baseline.botness.mazeThreshold ||
+    Number(weightJsRequired) !== baseline.botness.weightJsRequired ||
+    Number(weightGeoRisk) !== baseline.botness.weightGeoRisk ||
+    Number(weightRateMedium) !== baseline.botness.weightRateMedium ||
+    Number(weightRateHigh) !== baseline.botness.weightRateHigh
   );
-  $: saveBotnessDisabled = !writable || !botnessDirty || !botnessValid || savingBotness;
-  $: saveAllTuningDisabled = saveBotnessDisabled;
-  $: saveAllTuningLabel = savingBotness ? 'Saving...' : 'Save all changes';
-  $: saveAllTuningSummary = botnessDirty
-    ? '1 section with unsaved changes'
+
+  $: honeypotDurationSeconds = durationSeconds(durHoneypotDays, durHoneypotHours, durHoneypotMinutes);
+  $: rateDurationSeconds = durationSeconds(durRateLimitDays, durRateLimitHours, durRateLimitMinutes);
+  $: browserDurationSeconds = durationSeconds(durBrowserDays, durBrowserHours, durBrowserMinutes);
+  $: cdpDurationSeconds = durationSeconds(durCdpDays, durCdpHours, durCdpMinutes);
+  $: adminDurationSeconds = durationSeconds(durAdminDays, durAdminHours, durAdminMinutes);
+
+  $: durHoneypotValid = isDurationTupleValid(
+    durHoneypotDays,
+    durHoneypotHours,
+    durHoneypotMinutes,
+    DURATION_VALIDATION_BOUNDS
+  );
+  $: durRateLimitValid = isDurationTupleValid(
+    durRateLimitDays,
+    durRateLimitHours,
+    durRateLimitMinutes,
+    DURATION_VALIDATION_BOUNDS
+  );
+  $: durBrowserValid = isDurationTupleValid(
+    durBrowserDays,
+    durBrowserHours,
+    durBrowserMinutes,
+    DURATION_VALIDATION_BOUNDS
+  );
+  $: durCdpValid = isDurationTupleValid(
+    durCdpDays,
+    durCdpHours,
+    durCdpMinutes,
+    DURATION_VALIDATION_BOUNDS
+  );
+  $: durAdminValid = isDurationTupleValid(
+    durAdminDays,
+    durAdminHours,
+    durAdminMinutes,
+    DURATION_VALIDATION_BOUNDS
+  );
+  $: durationsValid = (
+    durHoneypotValid &&
+    durRateLimitValid &&
+    durBrowserValid &&
+    durCdpValid &&
+    durAdminValid
+  );
+  $: durationsDirty = (
+    honeypotDurationSeconds !== baseline.durations.honeypot ||
+    rateDurationSeconds !== baseline.durations.rateLimit ||
+    browserDurationSeconds !== baseline.durations.browser ||
+    cdpDurationSeconds !== baseline.durations.cdp ||
+    adminDurationSeconds !== baseline.durations.admin
+  );
+
+  $: dirtySections = [
+    { label: 'Botness scoring', dirty: botnessDirty, valid: botnessValid },
+    { label: 'Ban durations', dirty: durationsDirty, valid: durationsValid }
+  ];
+  $: dirtySectionEntries = dirtySections.filter((section) => section.dirty === true);
+  $: invalidDirtySectionEntries = dirtySectionEntries.filter((section) => section.valid !== true);
+  $: invalidDirtySectionLabels = invalidDirtySectionEntries.map((section) => section.label);
+  $: dirtySectionCount = dirtySectionEntries.length;
+  $: hasUnsavedChanges = dirtySectionCount > 0;
+  $: tuningValid = botnessValid && durationsValid;
+  $: hasInvalidUnsavedChanges = invalidDirtySectionEntries.length > 0;
+  $: if (hasInvalidUnsavedChanges) {
+    lastSaveInvalidLabel = invalidDirtySectionLabels.join(', ');
+  } else if (!hasUnsavedChanges) {
+    lastSaveInvalidLabel = '';
+  }
+  $: saveAllTuningDisabled = !writable || !hasUnsavedChanges || hasInvalidUnsavedChanges || savingTuning;
+  $: saveAllTuningLabel = savingTuning ? 'Saving...' : 'Save all changes';
+  $: saveAllTuningSummary = hasUnsavedChanges
+    ? `${dirtySectionCount} section${dirtySectionCount === 1 ? '' : 's'} with unsaved changes`
     : 'No unsaved changes';
-  $: saveAllTuningInvalidText = botnessDirty && !botnessValid
-    ? 'Fix invalid tuning values before saving.'
+  $: saveAllTuningInvalidText = hasInvalidUnsavedChanges
+    ? `Fix invalid values in: ${lastSaveInvalidLabel}`
     : '';
-  $: warnOnUnload = writable && botnessDirty;
+  $: warnOnUnload = writable && hasUnsavedChanges;
 
   $: {
     const nextVersion = Number(configVersion || 0);
     if (nextVersion !== lastAppliedConfigVersion) {
       lastAppliedConfigVersion = nextVersion;
-      applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
+      if (!hasUnsavedChanges && !savingTuning) {
+        applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
+      }
     }
   }
 </script>
@@ -174,7 +347,7 @@
 <section
   id="dashboard-panel-tuning"
   class="admin-group config-edit-pane"
-  class:config-edit-pane--dirty={botnessDirty}
+  class:config-edit-pane--dirty={hasUnsavedChanges}
   data-dashboard-tab-panel="tuning"
   aria-labelledby="dashboard-tab-tuning"
   hidden={managed ? !isActive : false}
@@ -244,6 +417,44 @@
         </div>
       </div>
     </div>
-    <SaveChangesBar containerId="tuning-save-all-bar" isHidden={!writable || !botnessDirty} summaryId="tuning-unsaved-summary" summaryText={saveAllTuningSummary} summaryClass="text-muted" invalidId="tuning-invalid-summary" invalidText={saveAllTuningInvalidText} buttonId="save-tuning-all" buttonLabel={saveAllTuningLabel} buttonDisabled={saveAllTuningDisabled} onSave={saveBotness} />
+
+    <ConfigDurationsSection
+      bind:writable
+      durationsDirty={durationsDirty}
+      bind:durHoneypotDays
+      bind:durHoneypotHours
+      bind:durHoneypotMinutes
+      bind:durRateLimitDays
+      bind:durRateLimitHours
+      bind:durRateLimitMinutes
+      bind:durBrowserDays
+      bind:durBrowserHours
+      bind:durBrowserMinutes
+      bind:durCdpDays
+      bind:durCdpHours
+      bind:durCdpMinutes
+      bind:durAdminDays
+      bind:durAdminHours
+      bind:durAdminMinutes
+      durHoneypotValid={durHoneypotValid}
+      durRateLimitValid={durRateLimitValid}
+      durBrowserValid={durBrowserValid}
+      durCdpValid={durCdpValid}
+      durAdminValid={durAdminValid}
+    />
+
+    <SaveChangesBar
+      containerId="tuning-save-all-bar"
+      isHidden={!writable || !hasUnsavedChanges}
+      summaryId="tuning-unsaved-summary"
+      summaryText={saveAllTuningSummary}
+      summaryClass="text-muted"
+      invalidId="tuning-invalid-summary"
+      invalidText={saveAllTuningInvalidText}
+      buttonId="save-tuning-all"
+      buttonLabel={saveAllTuningLabel}
+      buttonDisabled={saveAllTuningDisabled}
+      onSave={saveTuningConfig}
+    />
   </div>
 </section>

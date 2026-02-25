@@ -334,6 +334,15 @@ export function createDashboardRefreshRuntime(options = {}) {
       runtimeOptions
     );
 
+  const refreshTrapsTab = (reason = 'manual', runtimeOptions = {}) =>
+    refreshConfigBackedTab(
+      'traps',
+      reason,
+      'Loading trap controls...',
+      'No trap config snapshot available yet.',
+      runtimeOptions
+    );
+
   const refreshAdvancedTab = (reason = 'manual', runtimeOptions = {}) =>
     refreshConfigBackedTab(
       'advanced',
@@ -411,6 +420,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     'ip-bans': refreshIpBansTab,
     status: refreshStatusTab,
     config: refreshConfigTab,
+    traps: refreshTrapsTab,
     advanced: refreshAdvancedTab,
     'rate-limiting': refreshRateLimitingTab,
     geo: refreshGeoTab,
@@ -451,6 +461,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     refreshIpBansTab,
     refreshStatusTab,
     refreshConfigTab,
+    refreshTrapsTab,
     refreshAdvancedTab,
     refreshRateLimitingTab,
     refreshGeoTab,

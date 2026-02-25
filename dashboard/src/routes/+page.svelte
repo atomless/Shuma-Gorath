@@ -35,6 +35,7 @@
     'ip-bans': 'Loading ban list...',
     status: 'Loading status signals...',
     config: 'Loading config...',
+    traps: 'Loading trap controls...',
     advanced: 'Loading advanced controls...',
     'rate-limiting': 'Loading rate limiting controls...',
     geo: 'Loading GEO controls...',
@@ -76,6 +77,7 @@
   let IpBansTabComponent = null;
   let StatusTabComponent = null;
   let ConfigTabComponent = null;
+  let TrapsTabComponent = null;
   let AdvancedTabComponent = null;
   let RateLimitingTabComponent = null;
   let GeoTabComponent = null;
@@ -218,6 +220,7 @@
         { default: loadedIpBansTab },
         { default: loadedStatusTab },
         { default: loadedConfigTab },
+        { default: loadedTrapsTab },
         { default: loadedAdvancedTab },
         { default: loadedRateLimitingTab },
         { default: loadedGeoTab },
@@ -228,6 +231,7 @@
         import('$lib/components/dashboard/IpBansTab.svelte'),
         import('$lib/components/dashboard/StatusTab.svelte'),
         import('$lib/components/dashboard/ConfigTab.svelte'),
+        import('$lib/components/dashboard/TrapsTab.svelte'),
         import('$lib/components/dashboard/AdvancedTab.svelte'),
         import('$lib/components/dashboard/RateLimitingTab.svelte'),
         import('$lib/components/dashboard/GeoTab.svelte'),
@@ -238,6 +242,7 @@
       IpBansTabComponent = loadedIpBansTab;
       StatusTabComponent = loadedStatusTab;
       ConfigTabComponent = loadedConfigTab;
+      TrapsTabComponent = loadedTrapsTab;
       AdvancedTabComponent = loadedAdvancedTab;
       RateLimitingTabComponent = loadedRateLimitingTab;
       GeoTabComponent = loadedGeoTab;
@@ -623,28 +628,26 @@
           <p class="message info">Loading config controls...</p>
         </section>
       {/if}
-      {#if AdvancedTabComponent}
+      {#if TrapsTabComponent}
         <svelte:component
-          this={AdvancedTabComponent}
+          this={TrapsTabComponent}
           managed={true}
-          isActive={activeTabKey === 'advanced'}
-          tabStatus={tabStatus.advanced || {}}
+          isActive={activeTabKey === 'traps'}
+          tabStatus={tabStatus.traps || {}}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
-          dashboardBasePath={dashboardBasePath}
           onSaveConfig={onSaveConfig}
-          onValidateConfig={onValidateConfig}
         />
       {:else}
         <section
-          id="dashboard-panel-advanced"
+          id="dashboard-panel-traps"
           class="admin-group"
-          data-dashboard-tab-panel="advanced"
-          aria-labelledby="dashboard-tab-advanced"
-          hidden={activeTabKey !== 'advanced'}
-          aria-hidden={activeTabKey === 'advanced' ? 'false' : 'true'}
+          data-dashboard-tab-panel="traps"
+          aria-labelledby="dashboard-tab-traps"
+          hidden={activeTabKey !== 'traps'}
+          aria-hidden={activeTabKey === 'traps' ? 'false' : 'true'}
         >
-          <p class="message info">Loading advanced controls...</p>
+          <p class="message info">Loading trap controls...</p>
         </section>
       {/if}
       {#if RateLimitingTabComponent}
@@ -757,6 +760,30 @@
           aria-hidden={activeTabKey === 'tuning' ? 'false' : 'true'}
         >
           <p class="message info">Loading tuning controls...</p>
+        </section>
+      {/if}
+      {#if AdvancedTabComponent}
+        <svelte:component
+          this={AdvancedTabComponent}
+          managed={true}
+          isActive={activeTabKey === 'advanced'}
+          tabStatus={tabStatus.advanced || {}}
+          configSnapshot={snapshots.config}
+          configVersion={snapshotVersions.config || 0}
+          dashboardBasePath={dashboardBasePath}
+          onSaveConfig={onSaveConfig}
+          onValidateConfig={onValidateConfig}
+        />
+      {:else}
+        <section
+          id="dashboard-panel-advanced"
+          class="admin-group"
+          data-dashboard-tab-panel="advanced"
+          aria-labelledby="dashboard-tab-advanced"
+          hidden={activeTabKey !== 'advanced'}
+          aria-hidden={activeTabKey === 'advanced' ? 'false' : 'true'}
+        >
+          <p class="message info">Loading advanced controls...</p>
         </section>
       {/if}
     </div>

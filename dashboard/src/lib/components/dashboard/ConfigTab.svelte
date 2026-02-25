@@ -1,8 +1,6 @@
 <script>
   import ConfigChallengeSection from './config/ConfigChallengeSection.svelte';
-  import ConfigDurationsSection from './config/ConfigDurationsSection.svelte';
   import ConfigExportSection from './config/ConfigExportSection.svelte';
-  import ConfigMazeSection from './config/ConfigMazeSection.svelte';
   import ConfigNetworkSection from './config/ConfigNetworkSection.svelte';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
@@ -13,15 +11,12 @@
     formatBrowserRulesTextarea,
     formatListTextarea,
     normalizeBrowserRulesForCompare,
-    normalizeHoneypotPathsForCompare,
     normalizeListTextareaForCompare,
     parseBrowserRulesTextarea,
-    parseHoneypotPathsTextarea,
     parseListTextarea
   } from '../../domain/config-form-utils.js';
-  import { durationPartsFromSeconds, durationSeconds } from '../../domain/core/date-time.js';
   import { parseFloatNumber, parseInteger } from '../../domain/core/math.js';
-  import { inRange, isDurationTupleValid } from '../../domain/core/validation.js';
+  import { inRange } from '../../domain/core/validation.js';
   import ToggleRow from './primitives/ToggleRow.svelte';
   import {
     isIpRangePolicyMode,
@@ -36,12 +31,6 @@
   export let configVersion = 0;
   export let onSaveConfig = null;
 
-  const MAX_DURATION_SECONDS = 31536000;
-  const MIN_DURATION_SECONDS = 60;
-  const DURATION_VALIDATION_BOUNDS = Object.freeze({
-    minSeconds: MIN_DURATION_SECONDS,
-    maxSeconds: MAX_DURATION_SECONDS
-  });
   const IP_RANGE_MANAGED_STALENESS_MIN = 1;
   const IP_RANGE_MANAGED_STALENESS_MAX = 2160;
   const EXPORT_STATUS_RESET_MS = 4000;
@@ -84,35 +73,10 @@
   let ipRangeCatalogAgeHours = null;
   let ipRangeCatalogStale = false;
 
-  let honeypotEnabled = true;
-  let honeypotPaths = '';
-
   let browserPolicyEnabled = true;
   let browserBlockRules = '';
   let browserWhitelistRules = '';
 
-  let mazeEnabled = true;
-  let tarpitEnabled = true;
-  let mazeAutoBan = true;
-  let mazeThreshold = 50;
-
-  let durHoneypotDays = 1;
-  let durHoneypotHours = 0;
-  let durHoneypotMinutes = 0;
-  let durRateLimitDays = 0;
-  let durRateLimitHours = 1;
-  let durRateLimitMinutes = 0;
-  let durBrowserDays = 0;
-  let durBrowserHours = 6;
-  let durBrowserMinutes = 0;
-  let durCdpDays = 0;
-  let durCdpHours = 12;
-  let durCdpMinutes = 0;
-  let durAdminDays = 0;
-  let durAdminHours = 6;
-  let durAdminMinutes = 0;
-
-  let honeypotInvalidMessage = '';
   let exportConfigStatus = '';
   let exportConfigStatusKind = 'info';
   let exportConfigStatusTimer = null;
@@ -139,17 +103,7 @@
       managedMaxStalenessHours: 168,
       allowStaleManagedEnforce: false
     },
-    honeypot: { enabled: true, values: '' },
-    browserPolicy: { enabled: true, block: '', whitelist: '' },
-    maze: { enabled: true, autoBan: true, threshold: 50 },
-    tarpit: { enabled: true },
-    durations: {
-      honeypot: 86400,
-      rateLimit: 3600,
-      browser: 21600,
-      cdp: 43200,
-      admin: 21600
-    }
+    browserPolicy: { enabled: true, block: '', whitelist: '' }
   };
 
   const handleBeforeUnload = (event) => {
@@ -241,46 +195,9 @@
     ipRangeCatalogStale =
       staleByAge || ipRangeManagedSets.some((set) => set && set.stale === true);
 
-    honeypotEnabled = config.honeypot_enabled !== false;
-    honeypotPaths = formatListTextarea(config.honeypots);
-
     browserPolicyEnabled = config.browser_policy_enabled !== false;
     browserBlockRules = formatBrowserRulesTextarea(config.browser_block);
     browserWhitelistRules = formatBrowserRulesTextarea(config.browser_whitelist);
-
-    mazeEnabled = config.maze_enabled !== false;
-    tarpitEnabled = config.tarpit_enabled !== false;
-    mazeAutoBan = config.maze_auto_ban !== false;
-    mazeThreshold = parseInteger(config.maze_auto_ban_threshold, 50);
-
-    const banDurations = config && typeof config.ban_durations === 'object'
-      ? config.ban_durations
-      : {};
-
-    const honeypotParts = durationPartsFromSeconds(banDurations.honeypot, 86400);
-    durHoneypotDays = honeypotParts.days;
-    durHoneypotHours = honeypotParts.hours;
-    durHoneypotMinutes = honeypotParts.minutes;
-
-    const rateLimitParts = durationPartsFromSeconds(banDurations.rate_limit, 3600);
-    durRateLimitDays = rateLimitParts.days;
-    durRateLimitHours = rateLimitParts.hours;
-    durRateLimitMinutes = rateLimitParts.minutes;
-
-    const browserParts = durationPartsFromSeconds(banDurations.browser, 21600);
-    durBrowserDays = browserParts.days;
-    durBrowserHours = browserParts.hours;
-    durBrowserMinutes = browserParts.minutes;
-
-    const cdpParts = durationPartsFromSeconds(banDurations.cdp, 43200);
-    durCdpDays = cdpParts.days;
-    durCdpHours = cdpParts.hours;
-    durCdpMinutes = cdpParts.minutes;
-
-    const adminParts = durationPartsFromSeconds(banDurations.admin, 21600);
-    durAdminDays = adminParts.days;
-    durAdminHours = adminParts.hours;
-    durAdminMinutes = adminParts.minutes;
 
     baseline = {
       jsRequired: { enforced: jsRequiredEnforced },
@@ -314,29 +231,10 @@
         managedMaxStalenessHours: Number(ipRangeManagedMaxStalenessHours),
         allowStaleManagedEnforce: ipRangeAllowStaleManagedEnforce === true
       },
-      honeypot: {
-        enabled: honeypotEnabled,
-        values: normalizeHoneypotPathsForCompare(honeypotPaths)
-      },
       browserPolicy: {
         enabled: browserPolicyEnabled,
         block: normalizeBrowserRulesForCompare(browserBlockRules),
         whitelist: normalizeBrowserRulesForCompare(browserWhitelistRules)
-      },
-      maze: {
-        enabled: mazeEnabled,
-        autoBan: mazeAutoBan,
-        threshold: Number(mazeThreshold)
-      },
-      tarpit: {
-        enabled: tarpitEnabled
-      },
-      durations: {
-        honeypot: durationSeconds(durHoneypotDays, durHoneypotHours, durHoneypotMinutes),
-        rateLimit: durationSeconds(durRateLimitDays, durRateLimitHours, durRateLimitMinutes),
-        browser: durationSeconds(durBrowserDays, durBrowserHours, durBrowserMinutes),
-        cdp: durationSeconds(durCdpDays, durCdpHours, durCdpMinutes),
-        admin: durationSeconds(durAdminDays, durAdminHours, durAdminMinutes)
       }
     };
 
@@ -384,31 +282,10 @@
       patch.ip_range_managed_max_staleness_hours = Number(ipRangeManagedMaxStalenessHours);
       patch.ip_range_allow_stale_managed_enforce = ipRangeAllowStaleManagedEnforce === true;
     }
-    if (includeAll || honeypotDirty) {
-      patch.honeypot_enabled = honeypotEnabled;
-      patch.honeypots = parseHoneypotPathsTextarea(honeypotPaths);
-    }
     if (includeAll || browserPolicyDirty) {
       patch.browser_policy_enabled = browserPolicyEnabled;
       patch.browser_block = parseBrowserRulesTextarea(browserBlockRules);
       patch.browser_whitelist = parseBrowserRulesTextarea(browserWhitelistRules);
-    }
-    if (includeAll || mazeDirty) {
-      patch.maze_enabled = mazeEnabled;
-      patch.maze_auto_ban = mazeAutoBan;
-      patch.maze_auto_ban_threshold = Number(mazeThreshold);
-    }
-    if (includeAll || tarpitDirty) {
-      patch.tarpit_enabled = tarpitEnabled;
-    }
-    if (includeAll || durationsDirty) {
-      patch.ban_durations = {
-        honeypot: durationSeconds(durHoneypotDays, durHoneypotHours, durHoneypotMinutes),
-        rate_limit: durationSeconds(durRateLimitDays, durRateLimitHours, durRateLimitMinutes),
-        browser: durationSeconds(durBrowserDays, durBrowserHours, durBrowserMinutes),
-        cdp: durationSeconds(durCdpDays, durCdpHours, durCdpMinutes),
-        admin: durationSeconds(durAdminDays, durAdminHours, durAdminMinutes)
-      };
     }
     return patch;
   };
@@ -572,24 +449,6 @@
     ipRangeManagedSetStaleCount > 0
   );
 
-  $: honeypotNormalized = normalizeHoneypotPathsForCompare(honeypotPaths);
-  $: honeypotValid = (() => {
-    try {
-      parseHoneypotPathsTextarea(honeypotPaths);
-      honeypotInvalidMessage = '';
-      return true;
-    } catch (error) {
-      honeypotInvalidMessage = error && error.message
-        ? String(error.message)
-        : 'Invalid honeypot path list.';
-      return false;
-    }
-  })();
-  $: honeypotDirty = (
-    readBool(honeypotEnabled) !== baseline.honeypot.enabled ||
-    honeypotNormalized !== baseline.honeypot.values
-  );
-
   $: browserBlockNormalized = normalizeBrowserRulesForCompare(browserBlockRules);
   $: browserWhitelistNormalized = normalizeBrowserRulesForCompare(browserWhitelistRules);
   $: browserBlockRulesValid = browserBlockNormalized !== '__invalid__';
@@ -601,79 +460,13 @@
     browserWhitelistNormalized !== baseline.browserPolicy.whitelist
   );
 
-  $: mazeThresholdValid = inRange(mazeThreshold, 5, 500);
-  $: mazeValid = mazeThresholdValid;
-  $: mazeDirty = (
-    readBool(mazeEnabled) !== baseline.maze.enabled ||
-    readBool(mazeAutoBan) !== baseline.maze.autoBan ||
-    Number(mazeThreshold) !== baseline.maze.threshold
-  );
-  $: tarpitValid = true;
-  $: tarpitDirty = readBool(tarpitEnabled) !== baseline.tarpit.enabled;
-
-  $: honeypotDurationSeconds = durationSeconds(durHoneypotDays, durHoneypotHours, durHoneypotMinutes);
-  $: rateDurationSeconds = durationSeconds(durRateLimitDays, durRateLimitHours, durRateLimitMinutes);
-  $: browserDurationSeconds = durationSeconds(durBrowserDays, durBrowserHours, durBrowserMinutes);
-  $: cdpDurationSeconds = durationSeconds(durCdpDays, durCdpHours, durCdpMinutes);
-  $: adminDurationSeconds = durationSeconds(durAdminDays, durAdminHours, durAdminMinutes);
-
-  $: durHoneypotValid = isDurationTupleValid(
-    durHoneypotDays,
-    durHoneypotHours,
-    durHoneypotMinutes,
-    DURATION_VALIDATION_BOUNDS
-  );
-  $: durRateLimitValid = isDurationTupleValid(
-    durRateLimitDays,
-    durRateLimitHours,
-    durRateLimitMinutes,
-    DURATION_VALIDATION_BOUNDS
-  );
-  $: durBrowserValid = isDurationTupleValid(
-    durBrowserDays,
-    durBrowserHours,
-    durBrowserMinutes,
-    DURATION_VALIDATION_BOUNDS
-  );
-  $: durCdpValid = isDurationTupleValid(
-    durCdpDays,
-    durCdpHours,
-    durCdpMinutes,
-    DURATION_VALIDATION_BOUNDS
-  );
-  $: durAdminValid = isDurationTupleValid(
-    durAdminDays,
-    durAdminHours,
-    durAdminMinutes,
-    DURATION_VALIDATION_BOUNDS
-  );
-  $: durationsValid = (
-    durHoneypotValid &&
-    durRateLimitValid &&
-    durBrowserValid &&
-    durCdpValid &&
-    durAdminValid
-  );
-
-  $: durationsDirty = (
-    honeypotDurationSeconds !== baseline.durations.honeypot ||
-    rateDurationSeconds !== baseline.durations.rateLimit ||
-    browserDurationSeconds !== baseline.durations.browser ||
-    cdpDurationSeconds !== baseline.durations.cdp ||
-    adminDurationSeconds !== baseline.durations.admin
-  );
-
   $: dirtySections = [
     { label: 'JavaScript required', dirty: jsRequiredDirty, valid: true },
     { label: 'Internal CDP probe', dirty: cdpDirty, valid: cdpValid },
     { label: 'Proof of Work', dirty: powDirty, valid: powValid },
     { label: 'Challenge puzzle', dirty: challengePuzzleDirty, valid: challengePuzzleValid },
     { label: 'Not-a-Bot', dirty: notABotDirty, valid: notABotValid },
-    { label: 'Honeypots', dirty: honeypotDirty, valid: honeypotValid },
-    { label: 'Browser policy', dirty: browserPolicyDirty, valid: browserPolicyValid },
-    { label: 'Maze', dirty: mazeDirty, valid: mazeValid },
-    { label: 'Tarpit', dirty: tarpitDirty, valid: tarpitValid },
-    { label: 'Ban durations', dirty: durationsDirty, valid: durationsValid }
+    { label: 'Browser policy', dirty: browserPolicyDirty, valid: browserPolicyValid }
   ];
   $: dirtySectionEntries = dirtySections.filter((section) => section.dirty === true);
   $: invalidDirtySectionEntries = dirtySectionEntries.filter((section) => section.valid !== true);
@@ -814,13 +607,19 @@
       <p class="control-desc text-muted">Similarly injected by the JS Verification Interstitial, <abbr title="Proof of Work">PoW</abbr> is a security mechanism used to help differentiate bots from humans by requiring the requesting client's device to solve a small, moderately complex computational puzzle before being granted access. It will be invisible to human users and incurrs only extremely low energy and request performance costs. <abbr title="Proof of Work">PoW</abbr> depends on <abbr title="JavaScript">JS</abbr> Required being enabled.</p>
     </ConfigPanel>
 
-    <ConfigMazeSection bind:writable bind:mazeDirty bind:tarpitDirty bind:mazeEnabled bind:mazeAutoBan bind:mazeThreshold mazeThresholdValid={mazeThresholdValid} bind:tarpitEnabled />
-
     <ConfigChallengeSection bind:writable bind:notABotDirty bind:challengePuzzleDirty bind:notABotEnabled bind:challengePuzzleEnabled bind:notABotScorePassMinFloor bind:notABotScorePassMin bind:notABotScoreFailMaxCap bind:notABotScoreFailMax notABotPassScoreValid={notABotPassScoreValid} notABotFailScoreValid={notABotFailScoreValid} />
 
-    <ConfigNetworkSection bind:writable bind:honeypotDirty bind:honeypotEnabled bind:honeypotPaths honeypotPathsValid={honeypotValid} honeypotInvalidMessage={honeypotInvalidMessage} bind:browserPolicyDirty bind:browserPolicyEnabled bind:browserBlockRules bind:browserWhitelistRules browserBlockRulesValid={browserBlockRulesValid} browserWhitelistRulesValid={browserWhitelistRulesValid} />
-
-    <ConfigDurationsSection bind:writable bind:durationsDirty bind:durHoneypotDays bind:durHoneypotHours bind:durHoneypotMinutes bind:durRateLimitDays bind:durRateLimitHours bind:durRateLimitMinutes bind:durBrowserDays bind:durBrowserHours bind:durBrowserMinutes bind:durCdpDays bind:durCdpHours bind:durCdpMinutes bind:durAdminDays bind:durAdminHours bind:durAdminMinutes durHoneypotValid={durHoneypotValid} durRateLimitValid={durRateLimitValid} durBrowserValid={durBrowserValid} durCdpValid={durCdpValid} durAdminValid={durAdminValid} />
+    <ConfigNetworkSection
+      bind:writable
+      showHoneypot={false}
+      showBrowserPolicy={true}
+      bind:browserPolicyDirty
+      bind:browserPolicyEnabled
+      bind:browserBlockRules
+      bind:browserWhitelistRules
+      browserBlockRulesValid={browserBlockRulesValid}
+      browserWhitelistRulesValid={browserWhitelistRulesValid}
+    />
 
     <ConfigExportSection bind:writable bind:exportConfigDisabled bind:exportConfigStatus bind:exportConfigStatusKind onExportCurrentConfigJson={exportCurrentConfigJson} />
 
