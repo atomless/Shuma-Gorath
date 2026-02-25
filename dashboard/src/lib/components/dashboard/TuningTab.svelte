@@ -354,7 +354,7 @@
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
   <TabStateMessage tab="tuning" status={tabStatus} />
-  <div class="controls-grid controls-grid--tuning">
+  <div class="controls-grid controls-grid--config">
     <div class="control-group panel-soft pad-md">
       <h3>Botness Scoring</h3>
       <p class="control-desc text-muted">Weighted signals form a unified score. Moderate scores get the challenge; higher scores route to maze.</p>
