@@ -1372,6 +1372,10 @@ input:checked + .toggle-slider:before {
   width: 100px;
   justify-self: end;
 }
+.input-row select.input-field {
+  width: unset;
+  max-width: 250px;
+}
 
 .input-row input:focus {
   outline: none;
