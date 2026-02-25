@@ -344,6 +344,7 @@ header {
   margin-bottom: 30px;
   border-bottom: 2px solid var(--color-200);
   position: relative;
+  perspective: 230px;
 }
 
 h1 {
@@ -355,6 +356,8 @@ h1 {
   font-weight: 900;
   /* text-shadow: 0 -190px 90px white, 0 -150px 110px white, 0 -110px 80px white, 0 -170px 90px white, 0 -80px 90px white; */
   line-height: 1;
+  transform: rotateX(33deg);
+  transform-origin: center;
 }
 
 .dashboard-logout {

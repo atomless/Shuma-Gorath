@@ -265,11 +265,6 @@
         </label>
       </ConfigPanelHeading>
       <p class="control-desc text-muted">When enabled, Shuma-Gorath accepts trusted edge-provided country headers for GEO scoring and routing decisions. Disable this to force GEO behavior off even when upstream headers are present.</p>
-      {#if !akamaiGeoSignalEnabled}
-        <p class="message warning">
-          Akamai GEO signal is disabled. GEO scoring and routing will not use edge country headers.
-        </p>
-      {/if}
     </ConfigPanel>
 
     <ConfigGeoSection
