@@ -29,7 +29,9 @@
   {#if showLineNumbers}
     <div class="textarea-field__with-lines">
       <div class="textarea-field__line-numbers-wrap" aria-hidden="true">
-        <pre class="textarea-field__line-numbers" style={`transform: translateY(-${lineNumberOffset}px);`}>{lineNumbers.join('\n')}</pre>
+        <div class="textarea-field__line-numbers-inner" style={`transform: translateY(-${lineNumberOffset}px);`}>
+          <pre class="textarea-field__line-numbers">{lineNumbers.join('\n')}</pre>
+        </div>
       </div>
       <textarea
         class={textareaClass}
