@@ -69,7 +69,7 @@ function normalizeRefreshInterval(value) {
 export function createDashboardRouteController(options = {}) {
   const tabs = Array.isArray(options.tabs) && options.tabs.length > 0
     ? Object.freeze([...options.tabs])
-    : Object.freeze(['monitoring', 'ip-bans', 'status', 'config', 'advanced', 'rate-limiting', 'geo', 'fingerprinting', 'robots', 'tuning']);
+    : Object.freeze(['monitoring', 'ip-bans', 'status', 'config', 'rate-limiting', 'geo', 'fingerprinting', 'robots', 'tuning', 'advanced']);
 
   const normalizeTab =
     typeof options.normalizeTab === 'function' ? options.normalizeTab : (tab) => String(tab || '');

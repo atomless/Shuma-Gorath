@@ -4,8 +4,8 @@ const { seedDashboardData } = require("./seed-dashboard-data");
 const BASE_URL = process.env.SHUMA_BASE_URL || "http://127.0.0.1:3000";
 const API_KEY = (process.env.SHUMA_API_KEY || "").trim();
 const FORWARDED_IP_SECRET = (process.env.SHUMA_FORWARDED_IP_SECRET || "").trim();
-const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "status", "config", "advanced", "rate-limiting", "geo", "fingerprinting", "robots", "tuning"]);
-const ADMIN_TABS = Object.freeze(["ip-bans", "status", "config", "advanced", "rate-limiting", "geo", "fingerprinting", "robots", "tuning"]);
+const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "status", "config", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"]);
+const ADMIN_TABS = Object.freeze(["ip-bans", "status", "config", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"]);
 const runtimeGuards = new WeakMap();
 
 function ensureRequiredEnv() {
