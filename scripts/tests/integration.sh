@@ -50,6 +50,7 @@ FAILURES=0
 TEST_HONEYPOT_IP="10.0.0.88"
 TEST_POW_IP="10.0.0.230"
 TEST_NOT_A_BOT_IP="10.1.0.151"
+TEST_JS_ALLOWLIST_IP="10.0.0.177"
 TARPIT_TEST_SUBNET=$(( (RANDOM % 200) + 30 ))
 TEST_TARPIT_IP="10.0.${TARPIT_TEST_SUBNET}.40"
 TEST_TARPIT_TAMPER_IP="10.0.${TARPIT_TEST_SUBNET}.41"
@@ -72,6 +73,7 @@ TEST_CLEANUP_IPS=(
   10.0.0.100
   10.0.0.150
   "${TEST_NOT_A_BOT_IP}"
+  "${TEST_JS_ALLOWLIST_IP}"
   10.0.0.200
   10.0.0.201
   10.0.0.202
@@ -488,6 +490,29 @@ else
   fail "/ did not return expected JS challenge page"
   echo -e "${YELLOW}DEBUG / response:${NC} $root_resp"
 fi
+
+# Test 3a: Browser allowlist bypass remains active when browser policy is disabled
+info "Testing JS browser allowlist behavior independent of browser policy toggle..."
+curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"browser_policy_enabled":false,"browser_allowlist":[["Chrome",120]]}' \
+  "$BASE_URL/admin/config" > /dev/null || true
+
+js_allowlist_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" \
+  -H "X-Forwarded-For: ${TEST_JS_ALLOWLIST_IP}" \
+  -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+  "$BASE_URL/")
+if echo "$js_allowlist_resp" | grep -q "OK (passed bot defence)"; then
+  pass "JS browser allowlist bypass remains active when browser policy is disabled"
+else
+  fail "JS browser allowlist bypass did not apply independently of browser policy"
+  echo -e "${YELLOW}DEBUG JS allowlist response:${NC} $js_allowlist_resp"
+fi
+
+curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"browser_policy_enabled":true,"browser_allowlist":[]}' \
+  "$BASE_URL/admin/config" > /dev/null || true
 
 # Test 4: Honeypot triggers ban
 info "Testing honeypot ban..."

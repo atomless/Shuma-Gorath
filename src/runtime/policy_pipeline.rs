@@ -992,11 +992,7 @@ pub(crate) fn compute_needs_js(
         return false;
     }
 
-    let browser_allowlist = if cfg.browser_policy_enabled {
-        cfg.browser_allowlist.as_slice()
-    } else {
-        &[]
-    };
+    let browser_allowlist = cfg.browser_allowlist.as_slice();
     let js_missing_verification = path != "/health"
         && crate::signals::js_verification::needs_js_verification_with_allowlist(
             req,

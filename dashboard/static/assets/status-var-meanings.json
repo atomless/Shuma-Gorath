@@ -10,7 +10,7 @@
   "honeypot_enabled": "Enables/disables honeypot trap handling and enforcement for configured honeypot paths.",
   "honeypots": "Trap paths that are treated as high-confidence bot traffic.",
   "browser_block": "Minimum browser-version policy used for blocking suspicious automation stacks.",
-  "browser_allowlist": "Browser-version exceptions allowed past browser policy blocks.",
+  "browser_allowlist": "Browser/version rules that bypass the JS Verification Interstitial requirement.",
   "geo_risk": "Country codes that add GEO botness score.",
   "geo_allow": "Country codes explicitly allowed by GEO routing precedence.",
   "geo_challenge": "Country codes forced to challenge routing.",

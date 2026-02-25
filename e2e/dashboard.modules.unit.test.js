@@ -1088,6 +1088,8 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(configSource, /import SaveChangesBar from '\.\/primitives\/SaveChangesBar\.svelte';/);
   assert.match(configSource, /<ConfigChallengeSection/);
   assert.match(configSource, /<ConfigNetworkSection/);
+  assert.match(configSurfaceSource, /id="js-browser-allowlist-rules"/);
+  assert.equal(configNetworkSource.includes('id="browser-allowlist-rules"'), false);
   assert.equal(configSource.includes('<ConfigExportSection'), false);
   assert.equal(configSource.includes('<ConfigMazeSection'), false);
   assert.equal(configSource.includes('<ConfigDurationsSection'), false);

@@ -130,9 +130,9 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | `SHUMA_RATE_LIMIT` | `80` | Requests per minute threshold for rate limiting per source IP bucket (IPv4 /24, IPv6 /64). |
 | `SHUMA_HONEYPOT_ENABLED` | `true` | Enables/disables honeypot trap handling for configured honeypot paths. |
 | `SHUMA_HONEYPOTS` | `['/instaban']` | Honeypot endpoints that immediately trigger ban flow. |
-| `SHUMA_BROWSER_POLICY_ENABLED` | `true` | Master on/off switch for browser policy enforcement and browser allowlist exceptions. |
+| `SHUMA_BROWSER_POLICY_ENABLED` | `true` | Master on/off switch for browser minimum-version policy enforcement. |
 | `SHUMA_BROWSER_BLOCK` | `[["Chrome",120],["Firefox",115],["Safari",15]]` | Browser/version minimums used by browser policy checks. |
-| `SHUMA_BROWSER_ALLOWLIST` | `[]` | Optional browser/version allowlist exceptions. |
+| `SHUMA_BROWSER_ALLOWLIST` | `[]` | Optional browser/version rules that bypass the JS Verification Interstitial requirement. |
 | `SHUMA_GEO_RISK_COUNTRIES` | `[]` | 2-letter countries that add <abbr title="Geolocation">GEO</abbr> botness score. |
 | `SHUMA_GEO_ALLOW_COUNTRIES` | `[]` | 2-letter countries explicitly allowed in <abbr title="Geolocation">GEO</abbr> routing precedence. |
 | `SHUMA_GEO_CHALLENGE_COUNTRIES` | `[]` | 2-letter countries forced to challenge tier. |
