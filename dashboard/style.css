@@ -372,7 +372,7 @@ h1 {
   top: 30px;
   left: 30px;
   display: flex;
-  flex-direction: colurowmn;
+  flex-direction: row;
   gap: 8px;
   z-index: 20;
 }

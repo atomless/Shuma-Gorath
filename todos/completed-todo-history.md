@@ -38,7 +38,7 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 Fingerprinting + Akamai Architecture Clarity and Runtime Alignment
 
-- [x] Scope acceptance: operators can clearly distinguish `JS Verification`, `JS Verification Interstitial`, `Internal Browser CDP Probe`, `Internal Passive Fingerprint Signals`, and `Akamai Bot Signal` from dashboard/docs.
+- [x] Scope acceptance: operators can clearly distinguish `JS Verification`, `JS Verification Interstitial`, `Browser CDP Automation Detection`, `Internal Passive Fingerprint Signals`, and `Akamai Bot Signal` from dashboard/docs.
 - [x] Scope acceptance: Fingerprinting tab is Akamai-focused (no generic multi-provider UI exposure).
 - [x] Scope acceptance: internal CDP controls are in Config near JS Required and are disabled when JS Required is off.
 - [x] Scope acceptance: Akamai modes are exactly `additive` and `authoritative`, with explicit behavior and tests.

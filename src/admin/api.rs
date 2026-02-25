@@ -3579,6 +3579,10 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
             json_env(&cfg.geo_block),
         ),
         (
+            "SHUMA_GEO_EDGE_HEADERS_ENABLED".to_string(),
+            bool_env(cfg.geo_edge_headers_enabled).to_string(),
+        ),
+        (
             "SHUMA_BYPASS_ALLOWLISTS_ENABLED".to_string(),
             bool_env(cfg.bypass_allowlists_enabled).to_string(),
         ),
@@ -4557,6 +4561,7 @@ struct AdminConfigPatch {
     geo_challenge: Option<serde_json::Value>,
     geo_maze: Option<serde_json::Value>,
     geo_block: Option<serde_json::Value>,
+    geo_edge_headers_enabled: Option<bool>,
     honeypot_enabled: Option<bool>,
     honeypots: Option<serde_json::Value>,
     browser_policy_enabled: Option<bool>,
@@ -4924,6 +4929,12 @@ fn handle_admin_config_internal(
                 }
                 Err(msg) => return Response::new(400, msg),
             }
+        }
+        if let Some(geo_edge_headers_enabled) =
+            json.get("geo_edge_headers_enabled").and_then(|v| v.as_bool())
+        {
+            cfg.geo_edge_headers_enabled = geo_edge_headers_enabled;
+            changed = true;
         }
 
         if let Some(honeypot_enabled) = json.get("honeypot_enabled").and_then(|v| v.as_bool()) {

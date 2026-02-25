@@ -832,6 +832,7 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
     assert.equal(schema.advancedConfigTemplatePaths.includes('test_mode'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('browser_policy_enabled'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('bypass_allowlists_enabled'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('geo_edge_headers_enabled'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('tarpit_enabled'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('tarpit_progress_token_ttl_seconds'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('tarpit_progress_replay_ttl_seconds'), true);
@@ -919,7 +920,7 @@ test('admin endpoint resolver applies loopback override only for local hostnames
   });
 });
 
-test('ip bans, config, fingerprinting, robots, and tuning tabs are declarative and callback-driven', () => {
+test('ip bans, config, rate-limiting, geo, fingerprinting, robots, and tuning tabs are declarative and callback-driven', () => {
   const ipBansSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/IpBansTab.svelte'),
     'utf8'
@@ -930,6 +931,14 @@ test('ip bans, config, fingerprinting, robots, and tuning tabs are declarative a
   );
   const robotsSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/RobotsTab.svelte'),
+    'utf8'
+  );
+  const rateLimitingSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/RateLimitingTab.svelte'),
+    'utf8'
+  );
+  const geoSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/GeoTab.svelte'),
     'utf8'
   );
   const fingerprintingSource = fs.readFileSync(
@@ -952,16 +961,16 @@ test('ip bans, config, fingerprinting, robots, and tuning tabs are declarative a
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigDurationsSection.svelte'),
     'utf8'
   );
+  const configGeoSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigGeoSection.svelte'),
+    'utf8'
+  );
   const configExportSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigExportSection.svelte'),
     'utf8'
   );
   const configAdvancedSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigAdvancedSection.svelte'),
-    'utf8'
-  );
-  const configGeoSource = fs.readFileSync(
-    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigGeoSection.svelte'),
     'utf8'
   );
   const configRobotsSource = fs.readFileSync(
@@ -980,7 +989,6 @@ test('ip bans, config, fingerprinting, robots, and tuning tabs are declarative a
     configDurationsSource,
     configExportSource,
     configAdvancedSource,
-    configGeoSource,
     saveChangesBarSource
   ].join('\n');
   const robotsSurfaceSource = [
@@ -1036,7 +1044,7 @@ test('ip bans, config, fingerprinting, robots, and tuning tabs are declarative a
   assert.match(configSource, /import ConfigDurationsSection from '\.\/config\/ConfigDurationsSection\.svelte';/);
   assert.match(configSource, /import ConfigExportSection from '\.\/config\/ConfigExportSection\.svelte';/);
   assert.match(configSource, /import ConfigAdvancedSection from '\.\/config\/ConfigAdvancedSection\.svelte';/);
-  assert.match(configSource, /import ConfigGeoSection from '\.\/config\/ConfigGeoSection\.svelte';/);
+  assert.equal(configSource.includes("import ConfigGeoSection from './config/ConfigGeoSection.svelte';"), false);
   assert.equal(configSource.includes('ConfigRobotsSection'), false);
   assert.match(configSource, /import SaveChangesBar from '\.\/primitives\/SaveChangesBar\.svelte';/);
   assert.match(configSource, /<ConfigChallengeSection/);
@@ -1045,7 +1053,7 @@ test('ip bans, config, fingerprinting, robots, and tuning tabs are declarative a
   assert.match(configSource, /<ConfigDurationsSection/);
   assert.match(configSource, /<ConfigExportSection/);
   assert.match(configSource, /<ConfigAdvancedSection/);
-  assert.match(configSource, /<ConfigGeoSection/);
+  assert.equal(configSource.includes('<ConfigGeoSection'), false);
   assert.equal(configSource.includes('<ConfigRobotsSection'), false);
   assert.match(configSource, /<SaveChangesBar/);
   assert.equal(configSurfaceSource.includes('id="test-mode-toggle"'), false);
@@ -1058,11 +1066,6 @@ test('ip bans, config, fingerprinting, robots, and tuning tabs are declarative a
   );
   assert.equal(
     configSurfaceSource.indexOf('id="pow-enabled-toggle"')
-      < configSurfaceSource.indexOf('id="rate-limit-enabled-toggle"'),
-    true
-  );
-  assert.equal(
-    configSurfaceSource.indexOf('id="rate-limit-enabled-toggle"')
       < configSurfaceSource.indexOf('id="maze-enabled-toggle"'),
     true
   );
@@ -1102,8 +1105,8 @@ test('ip bans, config, fingerprinting, robots, and tuning tabs are declarative a
   assert.match(configSurfaceSource, /id="config-cdp-threshold-slider"/);
   assert.equal(configSurfaceSource.includes('id="edge-integration-mode-select"'), false);
   assert.equal(configSurfaceSource.includes('id="bypass-allowlists-toggle"'), false);
-  assert.match(configSurfaceSource, /id="geo-scoring-toggle"/);
-  assert.match(configSurfaceSource, /id="geo-routing-toggle"/);
+  assert.equal(configSurfaceSource.includes('id="geo-scoring-toggle"'), false);
+  assert.equal(configSurfaceSource.includes('id="geo-routing-toggle"'), false);
   assert.match(configSource, /browser_policy_enabled/);
   assert.equal(configSource.includes('bypass_allowlists_enabled'), false);
   assert.equal(configSource.includes('(LOGGING ONLY)'), false);
@@ -1115,6 +1118,24 @@ test('ip bans, config, fingerprinting, robots, and tuning tabs are declarative a
   assert.equal(configSource.includes('id="save-test-mode-config"'), false);
   assert.equal(configSource.includes('id="save-advanced-config"'), false);
   assert.equal(configSource.includes('{@html'), false);
+
+  assert.match(rateLimitingSource, /export let onSaveConfig = null;/);
+  assert.match(rateLimitingSource, /await onSaveConfig\(payload/);
+  assert.match(rateLimitingSource, /id="rate-limiting-enabled-toggle"/);
+  assert.match(rateLimitingSource, /id="rate-limit-threshold"/);
+  assert.match(rateLimitingSource, /id="rate-akamai-enabled-toggle"/);
+  assert.match(rateLimitingSource, /buttonId="save-rate-limiting-config"/);
+  assert.match(rateLimitingSource, /window\.addEventListener\('beforeunload'/);
+
+  assert.match(geoSource, /export let onSaveConfig = null;/);
+  assert.match(geoSource, /await onSaveConfig\(payload/);
+  assert.match(geoSource, /<ConfigGeoSection/);
+  assert.match(configGeoSource, /id="geo-scoring-toggle"/);
+  assert.match(configGeoSource, /id="geo-routing-toggle"/);
+  assert.match(geoSource, /id="geo-akamai-enabled-toggle"/);
+  assert.match(geoSource, /geo_edge_headers_enabled/);
+  assert.match(geoSource, /buttonId="save-geo-config"/);
+  assert.match(geoSource, /window\.addEventListener\('beforeunload'/);
 
   assert.match(robotsSource, /export let onSaveConfig = null;/);
   assert.match(robotsSource, /export let onFetchRobotsPreview = null;/);
@@ -1150,6 +1171,8 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   const source = fs.readFileSync(path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'), 'utf8');
 
   assert.match(source, /import\('\$lib\/components\/dashboard\/ConfigTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/dashboard\/RateLimitingTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/dashboard\/GeoTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/FingerprintingTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/RobotsTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/TuningTab\.svelte'\)/);

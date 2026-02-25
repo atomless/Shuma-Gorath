@@ -35,6 +35,8 @@
     'ip-bans': 'Loading ban list...',
     status: 'Loading status signals...',
     config: 'Loading config...',
+    'rate-limiting': 'Loading rate limiting controls...',
+    geo: 'Loading GEO controls...',
     fingerprinting: 'Loading fingerprinting controls...',
     robots: 'Loading robots policy...',
     tuning: 'Loading tuning values...'
@@ -73,6 +75,8 @@
   let IpBansTabComponent = null;
   let StatusTabComponent = null;
   let ConfigTabComponent = null;
+  let RateLimitingTabComponent = null;
+  let GeoTabComponent = null;
   let FingerprintingTabComponent = null;
   let RobotsTabComponent = null;
   let TuningTabComponent = null;
@@ -212,6 +216,8 @@
         { default: loadedIpBansTab },
         { default: loadedStatusTab },
         { default: loadedConfigTab },
+        { default: loadedRateLimitingTab },
+        { default: loadedGeoTab },
         { default: loadedFingerprintingTab },
         { default: loadedRobotsTab },
         { default: loadedTuningTab }
@@ -219,6 +225,8 @@
         import('$lib/components/dashboard/IpBansTab.svelte'),
         import('$lib/components/dashboard/StatusTab.svelte'),
         import('$lib/components/dashboard/ConfigTab.svelte'),
+        import('$lib/components/dashboard/RateLimitingTab.svelte'),
+        import('$lib/components/dashboard/GeoTab.svelte'),
         import('$lib/components/dashboard/FingerprintingTab.svelte'),
         import('$lib/components/dashboard/RobotsTab.svelte'),
         import('$lib/components/dashboard/TuningTab.svelte')
@@ -226,6 +234,8 @@
       IpBansTabComponent = loadedIpBansTab;
       StatusTabComponent = loadedStatusTab;
       ConfigTabComponent = loadedConfigTab;
+      RateLimitingTabComponent = loadedRateLimitingTab;
+      GeoTabComponent = loadedGeoTab;
       FingerprintingTabComponent = loadedFingerprintingTab;
       RobotsTabComponent = loadedRobotsTab;
       TuningTabComponent = loadedTuningTab;
@@ -471,6 +481,10 @@
         >
           {#if tab === 'ip-bans'}
             <abbr title="Internet Protocol">IP</abbr>&nbsp;Bans
+          {:else if tab === 'rate-limiting'}
+            Rate Limiting
+          {:else if tab === 'geo'}
+            <abbr title="Geolocation">GEO</abbr>
           {:else if tab === 'robots'}
             Robots.txt
           {:else}
@@ -604,6 +618,50 @@
           aria-hidden={activeTabKey === 'config' ? 'false' : 'true'}
         >
           <p class="message info">Loading config controls...</p>
+        </section>
+      {/if}
+      {#if RateLimitingTabComponent}
+        <svelte:component
+          this={RateLimitingTabComponent}
+          managed={true}
+          isActive={activeTabKey === 'rate-limiting'}
+          tabStatus={tabStatus['rate-limiting'] || {}}
+          configSnapshot={snapshots.config}
+          configVersion={snapshotVersions.config || 0}
+          onSaveConfig={onSaveConfig}
+        />
+      {:else}
+        <section
+          id="dashboard-panel-rate-limiting"
+          class="admin-group"
+          data-dashboard-tab-panel="rate-limiting"
+          aria-labelledby="dashboard-tab-rate-limiting"
+          hidden={activeTabKey !== 'rate-limiting'}
+          aria-hidden={activeTabKey === 'rate-limiting' ? 'false' : 'true'}
+        >
+          <p class="message info">Loading rate limiting controls...</p>
+        </section>
+      {/if}
+      {#if GeoTabComponent}
+        <svelte:component
+          this={GeoTabComponent}
+          managed={true}
+          isActive={activeTabKey === 'geo'}
+          tabStatus={tabStatus.geo || {}}
+          configSnapshot={snapshots.config}
+          configVersion={snapshotVersions.config || 0}
+          onSaveConfig={onSaveConfig}
+        />
+      {:else}
+        <section
+          id="dashboard-panel-geo"
+          class="admin-group"
+          data-dashboard-tab-panel="geo"
+          aria-labelledby="dashboard-tab-geo"
+          hidden={activeTabKey !== 'geo'}
+          aria-hidden={activeTabKey === 'geo' ? 'false' : 'true'}
+        >
+          <p class="message info">Loading GEO controls...</p>
         </section>
       {/if}
       {#if FingerprintingTabComponent}

@@ -399,7 +399,7 @@ pub struct GeoAssessment {
 }
 
 pub(crate) fn assess_geo_request(req: &Request, cfg: &config::Config) -> GeoAssessment {
-    let headers_trusted = forwarded_ip_trusted(req);
+    let headers_trusted = cfg.geo_edge_headers_enabled && forwarded_ip_trusted(req);
     let country = geo::extract_geo_country(req, headers_trusted);
     let route = geo::evaluate_geo_policy(country.as_deref(), cfg);
     let scored_risk = if route == geo::GeoPolicyRoute::Allow {

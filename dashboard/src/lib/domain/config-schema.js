@@ -19,6 +19,7 @@ export const advancedConfigTemplatePaths = Object.freeze([
     'geo_challenge',
     'geo_maze',
     'geo_block',
+    'geo_edge_headers_enabled',
     'bypass_allowlists_enabled',
     'whitelist',
     'path_whitelist',

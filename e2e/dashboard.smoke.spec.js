@@ -4,8 +4,8 @@ const { seedDashboardData } = require("./seed-dashboard-data");
 const BASE_URL = process.env.SHUMA_BASE_URL || "http://127.0.0.1:3000";
 const API_KEY = (process.env.SHUMA_API_KEY || "").trim();
 const FORWARDED_IP_SECRET = (process.env.SHUMA_FORWARDED_IP_SECRET || "").trim();
-const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "status", "config", "fingerprinting", "robots", "tuning"]);
-const ADMIN_TABS = Object.freeze(["ip-bans", "status", "config", "fingerprinting", "robots", "tuning"]);
+const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "status", "config", "rate-limiting", "geo", "fingerprinting", "robots", "tuning"]);
+const ADMIN_TABS = Object.freeze(["ip-bans", "status", "config", "rate-limiting", "geo", "fingerprinting", "robots", "tuning"]);
 const runtimeGuards = new WeakMap();
 
 function ensureRequiredEnv() {
@@ -705,7 +705,7 @@ test("monitoring summary sections render data and cap oversized result lists", a
   await expect(page.locator("#geo-top-countries .crawler-item")).toHaveCount(10);
 });
 
-test("status/config/fingerprinting/tuning show empty state when config snapshot is empty", async ({ page }) => {
+test("status/config/rate-limiting/geo/fingerprinting/tuning show empty state when config snapshot is empty", async ({ page }) => {
   await page.route("**/admin/config", async (route) => {
     if (route.request().method() !== "GET") {
       await route.continue();
@@ -723,6 +723,12 @@ test("status/config/fingerprinting/tuning show empty state when config snapshot 
 
   await openTab(page, "config");
   await expect(page.locator('[data-tab-state="config"]')).toContainText("No config snapshot available yet.");
+
+  await openTab(page, "rate-limiting");
+  await expect(page.locator('[data-tab-state="rate-limiting"]')).toContainText("No rate limiting config snapshot available yet.");
+
+  await openTab(page, "geo");
+  await expect(page.locator('[data-tab-state="geo"]')).toContainText("No GEO config snapshot available yet.");
 
   await openTab(page, "fingerprinting");
   await expect(page.locator('[data-tab-state="fingerprinting"]')).toContainText("No fingerprinting config snapshot available yet.");
@@ -747,7 +753,7 @@ test("dashboard loads and shows seeded operational data", async ({ page }) => {
 
   await expect(page.locator("#cdp-events tbody tr").first()).toBeVisible();
   await expect(page.locator("#cdp-total-detections")).not.toHaveText("-");
-  await expect(page.locator("#global-test-mode-toggle")).toBeVisible();
+  await expect(page.locator('label[for="global-test-mode-toggle"]')).toBeVisible();
 });
 
 test("dashboard monitoring totals stay in parity with /metrics monitoring families", async ({ page, request }) => {
@@ -959,12 +965,6 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   const honeypotEnabledSwitch = page.locator("label.toggle-switch[for='honeypot-enabled-toggle']");
   const browserPolicyEnabledToggle = page.locator("#browser-policy-toggle");
   const browserPolicyEnabledSwitch = page.locator("label.toggle-switch[for='browser-policy-toggle']");
-  const rateLimitingEnabledToggle = page.locator("#rate-limit-enabled-toggle");
-  const rateLimitingEnabledSwitch = page.locator("label.toggle-switch[for='rate-limit-enabled-toggle']");
-  const geoScoringEnabledToggle = page.locator("#geo-scoring-toggle");
-  const geoScoringEnabledSwitch = page.locator("label.toggle-switch[for='geo-scoring-toggle']");
-  const geoRoutingEnabledToggle = page.locator("#geo-routing-toggle");
-  const geoRoutingEnabledSwitch = page.locator("label.toggle-switch[for='geo-routing-toggle']");
   const tarpitEnabledToggle = page.locator("#tarpit-enabled-toggle");
   const tarpitEnabledSwitch = page.locator("label.toggle-switch[for='tarpit-enabled-toggle']");
   const advancedField = page.locator("#advanced-config-json");
@@ -1057,25 +1057,6 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   await durationField.dispatchEvent("input");
   await expect(configSave).toBeHidden();
 
-  const rateLimitField = page.locator("#rate-limit-threshold");
-  const initialRateLimit = await rateLimitField.inputValue();
-  const nextRateLimit = String(Math.max(1, Number(initialRateLimit || "80") + 1));
-  await rateLimitField.fill(nextRateLimit);
-  await rateLimitField.dispatchEvent("input");
-  await expect(configSave).toBeEnabled();
-  await rateLimitField.fill(initialRateLimit);
-  await rateLimitField.dispatchEvent("input");
-  await expect(configSave).toBeHidden();
-  if (await rateLimitingEnabledSwitch.isVisible() && await rateLimitingEnabledToggle.isEnabled()) {
-    const initialRateLimitEnabled = await rateLimitingEnabledToggle.isChecked();
-    await rateLimitingEnabledSwitch.click();
-    await expect(configSave).toBeEnabled();
-    if (initialRateLimitEnabled !== await rateLimitingEnabledToggle.isChecked()) {
-      await rateLimitingEnabledSwitch.click();
-    }
-    await expect(configSave).toBeHidden();
-  }
-
   const jsRequiredToggle = page.locator("#js-required-enforced-toggle");
 
   if (await jsRequiredToggle.isVisible()) {
@@ -1147,26 +1128,6 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
     await expect(configSave).toBeEnabled();
     if (initialBrowserPolicyEnabled !== await browserPolicyEnabledToggle.isChecked()) {
       await browserPolicyEnabledSwitch.click();
-    }
-    await expect(configSave).toBeHidden();
-  }
-
-  if (await geoScoringEnabledSwitch.isVisible() && await geoScoringEnabledToggle.isEnabled()) {
-    const initialGeoScoringEnabled = await geoScoringEnabledToggle.isChecked();
-    await geoScoringEnabledSwitch.click();
-    await expect(configSave).toBeEnabled();
-    if (initialGeoScoringEnabled !== await geoScoringEnabledToggle.isChecked()) {
-      await geoScoringEnabledSwitch.click();
-    }
-    await expect(configSave).toBeHidden();
-  }
-
-  if (await geoRoutingEnabledSwitch.isVisible() && await geoRoutingEnabledToggle.isEnabled()) {
-    const initialGeoRoutingEnabled = await geoRoutingEnabledToggle.isChecked();
-    await geoRoutingEnabledSwitch.click();
-    await expect(configSave).toBeEnabled();
-    if (initialGeoRoutingEnabled !== await geoRoutingEnabledToggle.isChecked()) {
-      await geoRoutingEnabledSwitch.click();
     }
     await expect(configSave).toBeHidden();
   }
@@ -1640,6 +1601,12 @@ test("tab states surface loading and data-ready transitions across all tabs", as
   await openTab(page, "config");
   await expect(page.locator('[data-tab-state="config"]')).toBeHidden();
 
+  await openTab(page, "rate-limiting");
+  await expect(page.locator('[data-tab-state="rate-limiting"]')).toBeHidden();
+
+  await openTab(page, "geo");
+  await expect(page.locator('[data-tab-state="geo"]')).toBeHidden();
+
   await openTab(page, "fingerprinting");
   await expect(page.locator('[data-tab-state="fingerprinting"]')).toBeHidden();
 
@@ -1730,17 +1697,48 @@ test("config save roundtrip clears dirty state after successful write", async ({
   }
 });
 
-test("config save-all flows cover GEO and botness controls", async ({ page }) => {
+test("geo and tuning save flows cover GEO lists and botness controls", async ({ page }) => {
   await openDashboard(page);
-  await openTab(page, "config");
+  await openTab(page, "geo");
 
-  const subtitle = (await page.locator("#config-mode-subtitle").textContent()) || "";
-  if (/disabled|read-only|Admin page configuration disabled/i.test(subtitle)) {
-    return;
+  const geoSave = page.locator("#save-geo-config");
+  await expect(geoSave).toBeHidden();
+
+  const geoSignalToggle = page.locator("#geo-akamai-enabled-toggle");
+  const geoSignalSwitch = page.locator("label.toggle-switch[for='geo-akamai-enabled-toggle']");
+  if (await geoSignalSwitch.isVisible() && await geoSignalToggle.isEnabled()) {
+    const initialGeoSignalEnabled = await geoSignalToggle.isChecked();
+    await geoSignalSwitch.click();
+    await submitConfigSave(page, geoSave);
+    if (initialGeoSignalEnabled !== await geoSignalToggle.isChecked()) {
+      await geoSignalSwitch.click();
+      await submitConfigSave(page, geoSave);
+    }
   }
 
-  const configSave = page.locator("#save-config-all");
-  await expect(configSave).toBeHidden();
+  const geoScoringToggle = page.locator("#geo-scoring-toggle");
+  const geoScoringSwitch = page.locator("label.toggle-switch[for='geo-scoring-toggle']");
+  if (await geoScoringSwitch.isVisible() && await geoScoringToggle.isEnabled()) {
+    const initialGeoScoringEnabled = await geoScoringToggle.isChecked();
+    await geoScoringSwitch.click();
+    await submitConfigSave(page, geoSave);
+    if (initialGeoScoringEnabled !== await geoScoringToggle.isChecked()) {
+      await geoScoringSwitch.click();
+      await submitConfigSave(page, geoSave);
+    }
+  }
+
+  const geoRoutingToggle = page.locator("#geo-routing-toggle");
+  const geoRoutingSwitch = page.locator("label.toggle-switch[for='geo-routing-toggle']");
+  if (await geoRoutingSwitch.isVisible() && await geoRoutingToggle.isEnabled()) {
+    const initialGeoRoutingEnabled = await geoRoutingToggle.isChecked();
+    await geoRoutingSwitch.click();
+    await submitConfigSave(page, geoSave);
+    if (initialGeoRoutingEnabled !== await geoRoutingToggle.isChecked()) {
+      await geoRoutingSwitch.click();
+      await submitConfigSave(page, geoSave);
+    }
+  }
 
   const geoRiskList = page.locator("#geo-risk-list");
   if (await geoRiskList.isVisible() && await geoRiskList.isEnabled()) {
@@ -1750,10 +1748,10 @@ test("config save-all flows cover GEO and botness controls", async ({ page }) =>
       : (geoRiskInitial ? `${geoRiskInitial},CA` : "CA");
     await geoRiskList.fill(geoRiskNext);
     await geoRiskList.dispatchEvent("input");
-    await submitConfigSave(page, configSave);
+    await submitConfigSave(page, geoSave);
     await geoRiskList.fill(geoRiskInitial);
     await geoRiskList.dispatchEvent("input");
-    await submitConfigSave(page, configSave);
+    await submitConfigSave(page, geoSave);
   }
 
   const geoAllowList = page.locator("#geo-allow-list");
@@ -1764,10 +1762,10 @@ test("config save-all flows cover GEO and botness controls", async ({ page }) =>
       : (geoAllowInitial ? `${geoAllowInitial},GB` : "GB");
     await geoAllowList.fill(geoAllowNext);
     await geoAllowList.dispatchEvent("input");
-    await submitConfigSave(page, configSave);
+    await submitConfigSave(page, geoSave);
     await geoAllowList.fill(geoAllowInitial);
     await geoAllowList.dispatchEvent("input");
-    await submitConfigSave(page, configSave);
+    await submitConfigSave(page, geoSave);
   }
 
   await openTab(page, "tuning");
@@ -1784,6 +1782,50 @@ test("config save-all flows cover GEO and botness controls", async ({ page }) =>
     await botnessWeight.fill(botnessInitial);
     await botnessWeight.dispatchEvent("input");
     await submitConfigSave(page, tuningSave);
+  }
+});
+
+test("rate-limiting tab save flows cover local controls and Akamai backend toggle", async ({ page }) => {
+  await openDashboard(page);
+  await openTab(page, "rate-limiting");
+
+  const saveButton = page.locator("#save-rate-limiting-config");
+  await expect(saveButton).toBeHidden();
+
+  const rateThreshold = page.locator("#rate-limit-threshold");
+  if (await rateThreshold.isVisible() && await rateThreshold.isEnabled()) {
+    const initialRateThreshold = await rateThreshold.inputValue();
+    const nextRateThreshold = String(Math.max(1, Number(initialRateThreshold || "80") + 1));
+    await rateThreshold.fill(nextRateThreshold);
+    await rateThreshold.dispatchEvent("input");
+    await submitConfigSave(page, saveButton);
+    await rateThreshold.fill(initialRateThreshold);
+    await rateThreshold.dispatchEvent("input");
+    await submitConfigSave(page, saveButton);
+  }
+
+  const rateEnabledToggle = page.locator("#rate-limiting-enabled-toggle");
+  const rateEnabledSwitch = page.locator("label.toggle-switch[for='rate-limiting-enabled-toggle']");
+  if (await rateEnabledSwitch.isVisible() && await rateEnabledToggle.isEnabled()) {
+    const initialEnabled = await rateEnabledToggle.isChecked();
+    await rateEnabledSwitch.click();
+    await submitConfigSave(page, saveButton);
+    if (initialEnabled !== await rateEnabledToggle.isChecked()) {
+      await rateEnabledSwitch.click();
+      await submitConfigSave(page, saveButton);
+    }
+  }
+
+  const akamaiToggle = page.locator("#rate-akamai-enabled-toggle");
+  const akamaiSwitch = page.locator("label.toggle-switch[for='rate-akamai-enabled-toggle']");
+  if (await akamaiSwitch.isVisible() && await akamaiToggle.isEnabled()) {
+    const initialAkamaiEnabled = await akamaiToggle.isChecked();
+    await akamaiSwitch.click();
+    await submitConfigSave(page, saveButton);
+    if (initialAkamaiEnabled !== await akamaiToggle.isChecked()) {
+      await akamaiSwitch.click();
+      await submitConfigSave(page, saveButton);
+    }
   }
 });
 

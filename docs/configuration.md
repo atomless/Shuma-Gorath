@@ -138,6 +138,7 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | `SHUMA_GEO_CHALLENGE_COUNTRIES` | `[]` | 2-letter countries forced to challenge tier. |
 | `SHUMA_GEO_MAZE_COUNTRIES` | `[]` | 2-letter countries forced to maze tier. |
 | `SHUMA_GEO_BLOCK_COUNTRIES` | `[]` | 2-letter countries forced to block tier. |
+| `SHUMA_GEO_EDGE_HEADERS_ENABLED` | `true` | Enables/disables use of trusted edge country headers for GEO scoring and GEO routing. |
 | `SHUMA_BYPASS_ALLOWLISTS_ENABLED` | `true` | Master on/off switch for path/IP allowlist bypass behavior. |
 | `SHUMA_WHITELIST` | `[]` | <abbr title="Internet Protocol">IP</abbr>/<abbr title="Classless Inter-Domain Routing">CIDR</abbr> allowlist bypassing bot defenses. |
 | `SHUMA_PATH_WHITELIST` | `[]` | <abbr title="Uniform Resource Locator">URL</abbr> path allowlist bypassing bot defenses. |
@@ -246,7 +247,7 @@ Managed catalog operations:
 The following <abbr title="Key-Value">KV</abbr>-backed fields are currently writable via admin <abbr title="Application Programming Interface">API</abbr>:
 
 - Core: `test_mode`, `rate_limit`, `ban_duration`, `ban_durations.{honeypot,rate_limit,browser,admin,cdp}`, `honeypot_enabled`, `honeypots`, `browser_policy_enabled`, `browser_block`, `browser_whitelist`, `bypass_allowlists_enabled`, `whitelist`, `path_whitelist`, `ip_range_policy_mode`, `ip_range_emergency_allowlist`, `ip_range_custom_rules`, `ip_range_managed_policies`, `ip_range_managed_max_staleness_hours`, `ip_range_allow_stale_managed_enforce`, `js_required_enforced`.
-- <abbr title="Geolocation">GEO</abbr> routing/policy: `geo_risk`, `geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`.
+- <abbr title="Geolocation">GEO</abbr> routing/policy: `geo_risk`, `geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`, `geo_edge_headers_enabled`.
 - Maze/Tarpit: `maze_enabled`, `tarpit_enabled`, `tarpit_progress_token_ttl_seconds`, `tarpit_progress_replay_ttl_seconds`, `tarpit_hashcash_min_difficulty`, `tarpit_hashcash_max_difficulty`, `tarpit_hashcash_base_difficulty`, `tarpit_hashcash_adaptive`, `tarpit_step_chunk_base_bytes`, `tarpit_step_chunk_max_bytes`, `tarpit_step_jitter_percent`, `tarpit_shard_rotation_enabled`, `tarpit_egress_window_seconds`, `tarpit_egress_global_bytes_per_window`, `tarpit_egress_per_ip_bucket_bytes_per_window`, `tarpit_egress_per_flow_max_bytes`, `tarpit_egress_per_flow_max_duration_seconds`, `tarpit_max_concurrent_global`, `tarpit_max_concurrent_per_ip_bucket`, `tarpit_fallback_action`, `maze_auto_ban`, `maze_auto_ban_threshold`, `maze_rollout_phase`, `maze_token_ttl_seconds`, `maze_token_max_depth`, `maze_token_branch_budget`, `maze_replay_ttl_seconds`, `maze_entropy_window_seconds`, `maze_client_expansion_enabled`, `maze_checkpoint_every_nodes`, `maze_checkpoint_every_ms`, `maze_step_ahead_max`, `maze_no_js_fallback_max_depth`, `maze_micro_pow_enabled`, `maze_micro_pow_depth_start`, `maze_micro_pow_base_difficulty`, `maze_max_concurrent_global`, `maze_max_concurrent_per_ip_bucket`, `maze_max_response_bytes`, `maze_max_response_duration_ms`, `maze_server_visible_links`, `maze_max_links`, `maze_max_paragraphs`, `maze_path_entropy_segment_len`, `maze_covert_decoys_enabled`, `maze_seed_provider`, `maze_seed_refresh_interval_seconds`, `maze_seed_refresh_rate_limit_per_hour`, `maze_seed_refresh_max_sources`, `maze_seed_metadata_only`.
 - Robots/<abbr title="Artificial Intelligence">AI</abbr> policy: `robots_enabled`, `robots_crawl_delay`, `ai_policy_block_training`, `ai_policy_block_search`, `ai_policy_allow_search_engines` (legacy aliases `robots_block_ai_training`, `robots_block_ai_search`, `robots_allow_search_engines` are also accepted).
 - <abbr title="Chrome DevTools Protocol">CDP</abbr>/fingerprint: `cdp_detection_enabled`, `cdp_auto_ban`, `cdp_detection_threshold`, `cdp_probe_family`, `cdp_probe_rollout_percent`, `fingerprint_signal_enabled`, `fingerprint_state_ttl_seconds`, `fingerprint_flow_window_seconds`, `fingerprint_flow_violation_threshold`, `fingerprint_pseudonymize`, `fingerprint_entropy_budget`, `fingerprint_family_cap_header_runtime`, `fingerprint_family_cap_transport`, `fingerprint_family_cap_temporal`, `fingerprint_family_cap_persistence`, `fingerprint_family_cap_behavior`.
@@ -455,5 +456,6 @@ Use these as startup presets, then tune incrementally:
 
 - `SHUMA_FORWARDED_IP_SECRET` is configured, and
 - request includes matching `X-Shuma-Forwarded-Secret`.
+- `SHUMA_GEO_EDGE_HEADERS_ENABLED=true`.
 
 Without trust, forwarded <abbr title="Internet Protocol">IP</abbr>/proto/<abbr title="Geolocation">GEO</abbr>-derived routing and <abbr title="Geolocation">GEO</abbr> scoring are skipped.

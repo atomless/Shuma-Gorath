@@ -7,7 +7,7 @@ This document defines the four cooperating planes used in Shuma-Gorath fingerpri
 | Plane | Inputs | Trust Boundary | Persistence Keys | Policy/Routing Impact |
 | --- | --- | --- | --- | --- |
 | `JS Verification` | Browser execution of the JS verification flow and optional PoW. | Origin-controlled verification scripts and signed server envelopes. | `js_verified` cookie marker and signed verification/PoW envelopes. | Gates normal request flow before higher-friction escalation. |
-| `Internal Browser CDP Probe` | Browser telemetry posted by Shuma’s internal probe path. | Browser payload is untrusted until validated by server checks/thresholds. | CDP event log + counters; config under `cdp_detection_*`. | Contributes automation evidence and can trigger auto-ban under configured thresholds. |
+| `Browser CDP Automation Detection` | Browser telemetry posted by Shuma’s internal probe path. | Browser payload is untrusted until validated by server checks/thresholds. | CDP event log + counters; config under `cdp_detection_*`. | Contributes automation evidence and can trigger auto-ban under configured thresholds. |
 | `Internal Passive Fingerprint Signals` | Headers, timing/flow windows, transport-header trust state, persistence-marker coherence. | Forwarded/transport evidence is only trusted with valid forwarded-header secret. | `fp:state:*`, `fp:flow:*`, `fp:flow:last_bucket:*`. | Contributes to scored botness and routing outcomes. |
 | `Akamai Bot Signal` | Akamai-shaped edge payloads on `/fingerprint-report`. | Requires trusted forwarding boundary for Akamai-shaped payload acceptance. | `fp:edge:*` (short-window additive evidence state). | In `additive`, contributes bounded score. In `authoritative`, can trigger documented short-circuit enforcement. |
 
@@ -15,7 +15,7 @@ This document defines the four cooperating planes used in Shuma-Gorath fingerpri
 
 | Capability | Internal Plane | Akamai Plane | Effective Behavior |
 | --- | --- | --- | --- |
-| Browser-runtime CDP introspection | Yes (`Internal Browser CDP Probe`) | No | Akamai does not replace internal browser CDP probing. |
+| Browser-runtime CDP introspection | Yes (`Browser CDP Automation Detection`) | No | Akamai does not replace internal browser CDP automation probing. |
 | Passive request fingerprinting | Yes (`Internal Passive Fingerprint Signals`) | No | Akamai augments evidence; internal passive signals remain active. |
 | Edge/global bot intelligence | Limited at origin | Yes | Akamai adds edge/global confidence signals unavailable to origin runtime. |
 | Final policy composition | Yes (Shuma policy pipeline) | No | Shuma remains the policy/routing source of truth. |

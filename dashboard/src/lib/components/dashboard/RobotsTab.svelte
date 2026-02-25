@@ -69,7 +69,7 @@
   };
 
   const applyConfig = (config = {}) => {
-    writable = config.admin_config_write_enabled === true;
+    writable = config.admin_config_write_enabled !== false;
     robotsEnabled = config.robots_enabled !== false;
     robotsCrawlDelay = parseInteger(config.robots_crawl_delay, 2);
     robotsBlockTraining = (config.ai_policy_block_training ?? config.robots_block_ai_training) !== false;

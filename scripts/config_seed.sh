@@ -90,6 +90,7 @@ cat > "${tmp_json}" <<EOF
   "geo_challenge": ${SHUMA_GEO_CHALLENGE_COUNTRIES},
   "geo_maze": ${SHUMA_GEO_MAZE_COUNTRIES},
   "geo_block": ${SHUMA_GEO_BLOCK_COUNTRIES},
+  "geo_edge_headers_enabled": $(bool_norm "${SHUMA_GEO_EDGE_HEADERS_ENABLED}"),
   "bypass_allowlists_enabled": $(bool_norm "${SHUMA_BYPASS_ALLOWLISTS_ENABLED}"),
   "whitelist": ${SHUMA_WHITELIST},
   "path_whitelist": ${SHUMA_PATH_WHITELIST},

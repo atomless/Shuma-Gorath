@@ -483,6 +483,8 @@ pub struct Config {
     pub geo_maze: Vec<String>,
     #[serde(default = "default_geo_block")]
     pub geo_block: Vec<String>,
+    #[serde(default = "default_geo_edge_headers_enabled")]
+    pub geo_edge_headers_enabled: bool,
     #[serde(default = "default_bypass_allowlists_enabled")]
     pub bypass_allowlists_enabled: bool,
     #[serde(default = "default_whitelist")]
@@ -947,6 +949,7 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         geo_challenge: defaults_country_list("SHUMA_GEO_CHALLENGE_COUNTRIES"),
         geo_maze: defaults_country_list("SHUMA_GEO_MAZE_COUNTRIES"),
         geo_block: defaults_country_list("SHUMA_GEO_BLOCK_COUNTRIES"),
+        geo_edge_headers_enabled: defaults_bool("SHUMA_GEO_EDGE_HEADERS_ENABLED"),
         bypass_allowlists_enabled: defaults_bool("SHUMA_BYPASS_ALLOWLISTS_ENABLED"),
         whitelist: defaults_string_list("SHUMA_WHITELIST"),
         path_whitelist: defaults_string_list("SHUMA_PATH_WHITELIST"),
@@ -1970,6 +1973,10 @@ fn default_geo_maze() -> Vec<String> {
 
 fn default_geo_block() -> Vec<String> {
     defaults_country_list("SHUMA_GEO_BLOCK_COUNTRIES")
+}
+
+fn default_geo_edge_headers_enabled() -> bool {
+    defaults_bool("SHUMA_GEO_EDGE_HEADERS_ENABLED")
 }
 
 fn default_bypass_allowlists_enabled() -> bool {

@@ -352,7 +352,7 @@ Signal catalog:
 ## 🐙 Akamai Bot Signal Fields (`/admin/config`)
 
 - `provider_backends.fingerprint_signal`
-  - `internal`: internal report path and internal browser CDP probe pipeline.
+  - `internal`: internal report path and Browser CDP Automation Detection pipeline.
   - `external`: edge adapter path (currently Akamai on `/fingerprint-report`, with internal fallback for non-Akamai/legacy payloads).
 - `edge_integration_mode`
   - `off`: ignore Akamai outcomes.
@@ -386,6 +386,7 @@ Legacy compatibility mirrors (still returned and accepted):
 - `geo_challenge` - country list that routes directly to challenge
 - `geo_maze` - country list that routes directly to maze
 - `geo_block` - country list that routes directly to block
+- `geo_edge_headers_enabled` - enables/disables use of trusted edge country headers for GEO policy
 
 Routing precedence for overlapping lists is:
 
@@ -395,6 +396,7 @@ Routing precedence for overlapping lists is:
 
 - `SHUMA_FORWARDED_IP_SECRET` must be configured
 - caller must provide matching `X-Shuma-Forwarded-Secret`
+- `geo_edge_headers_enabled` must be `true`
 
 ## 🐙 <abbr title="Internet Protocol">IP</abbr>-Range Policy Fields (`/admin/config`)
 

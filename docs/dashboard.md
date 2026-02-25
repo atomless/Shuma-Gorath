@@ -16,6 +16,8 @@ The dashboard is now organized as a tabbed <abbr title="Single-Page Application"
 - `#ip-bans`
 - `#status`
 - `#config`
+- `#rate-limiting`
+- `#geo`
 - `#fingerprinting`
 - `#robots`
 - `#tuning`
@@ -32,7 +34,7 @@ Refresh model:
 - Polling pauses while the page is hidden and resumes on visibility restore.
 - Auto-refresh defaults to `OFF` and is explicitly user-toggled.
 - Auto-refresh is only available on `Monitoring` and `IP Bans` (cadence `60s`).
-- `Status`/`Config`/`Fingerprinting`/`Robots`/`Tuning` refresh on page-load bootstrap and explicit save flows (no background polling).
+- `Status`/`Config`/`Rate Limiting`/`GEO`/`Fingerprinting`/`Robots`/`Tuning` refresh on page-load bootstrap and explicit save flows (no background polling).
 - Monitoring and <abbr title="Internet Protocol">IP</abbr>-ban snapshots are cached in local storage with a short <abbr title="Time To Live">TTL</abbr> (`60s`) to reduce repeated <abbr title="Application Programming Interface">API</abbr> load/cost on quick remount/tab revisit paths.
 - Cached monitoring payloads are compacted before storage (bounded recent events/<abbr title="Chrome DevTools Protocol">CDP</abbr> rows/ban rows) to reduce serialization and local-storage overhead.
 - Logout/session-expiry clears monitoring/<abbr title="Internet Protocol">IP</abbr>-ban local cache keys to avoid telemetry bleed across session boundaries.
@@ -53,13 +55,13 @@ Refresh model:
 - Route contracts are preserved:
 - `/dashboard/index.html`
 - `/dashboard/login.html`
-- Existing tab hash routes (`#monitoring`, `#ip-bans`, `#status`, `#config`, `#fingerprinting`, `#robots`, `#tuning`).
-- The page is now a Svelte component tree (`Monitoring`, `IP Bans`, `Status`, `Config`, `Fingerprinting`, `Robots`, `Tuning`) instead of shell-fragment injection.
+- Existing tab hash routes (`#monitoring`, `#ip-bans`, `#status`, `#config`, `#rate-limiting`, `#geo`, `#fingerprinting`, `#robots`, `#tuning`).
+- The page is now a Svelte component tree (`Monitoring`, `IP Bans`, `Status`, `Config`, `Rate Limiting`, `GEO`, `Fingerprinting`, `Robots`, `Tuning`) instead of shell-fragment injection.
 - Runtime behavior mounts directly through `src/lib/runtime/dashboard-native-runtime.js` (`mountDashboardApp`/`unmountDashboardApp`) with explicit lifecycle cleanup.
 - Svelte-native orchestration is route-local through `src/routes/+page.svelte` + `src/lib/runtime/dashboard-route-controller.js` (hash sync, polling cadence, visibility pause/resume, session bootstrap/logout, and keyboard tab focus) with `src/lib/state/dashboard-store.js` as the single state source.
 - Refresh orchestration and tab-state message transitions are centralized in `src/lib/runtime/dashboard-runtime-refresh.js`.
 - `src/lib/runtime/dashboard-native-runtime.js` is now a slim runtime boundary for session restore/logout, snapshot refresh wiring, and domain <abbr title="Application Programming Interface">API</abbr> mutations (config save, ban/unban, robots preview) with no per-field <abbr title="Document Object Model">DOM</abbr> mutation layer.
-- Config, fingerprinting, robots, tuning, and <abbr title="Internet Protocol">IP</abbr>-ban workflows are now component-local Svelte state with explicit callback props and declarative dirty/validation/submit behavior.
+- Config, rate-limiting, GEO, fingerprinting, robots, tuning, and <abbr title="Internet Protocol">IP</abbr>-ban workflows are now component-local Svelte state with explicit callback props and declarative dirty/validation/submit behavior.
 - Chart runtime lifecycle is module-scoped through `src/lib/domain/services/chart-runtime-adapter.js` (lazy load, singleton guard, teardown on final unmount) instead of static head-script injection.
 - `dashboard/package.json` still sets `"type": "module"` so existing dashboard module unit tests run via native <abbr title="ECMAScript Module">ESM</abbr> in Node.
 
@@ -106,13 +108,13 @@ Controls:
 - Manual ban/unban
 - Ban <abbr title="Internet Protocol">IP</abbr> duration inputs initialize from `ban_durations.admin` (same default source as Ban Durations config)
 - <abbr title="JavaScript">JS</abbr> Required enforcement toggle
-- Rate limiting controls: enable/disable hard rate-limit enforcement plus requests/minute threshold per source <abbr title="Internet Protocol">IP</abbr> bucket (`defence_modes.rate`: `both` when enabled, `signal` when disabled; bucket model is IPv4 /24 and IPv6 /64)
+- Rate Limiting tab controls: enable/disable hard rate-limit enforcement plus requests/minute threshold per source <abbr title="Internet Protocol">IP</abbr> bucket (`defence_modes.rate`: `both` when enabled, `signal` when disabled; bucket model is IPv4 /24 and IPv6 /64), plus Akamai rate backend toggle (`provider_backends.rate_limiter`).
 - Honeypot controls (`honeypot_enabled`, `honeypots`)
 - Browser policy controls (`browser_policy_enabled`, `browser_block`, `browser_whitelist`)
 - Bypass allowlist controls (`bypass_allowlists_enabled`, `whitelist`, `path_whitelist`)
 - Per-trigger ban durations, including <abbr title="Chrome DevTools Protocol">CDP</abbr> automation duration (`ban_durations.cdp`)
 - robots.txt configuration with dirty-state preview (unsaved panel toggles render via `POST /admin/robots/preview` without persisting)
-- <abbr title="JavaScript">JS</abbr> Required + internal browser <abbr title="Chrome DevTools Protocol">CDP</abbr> probe controls in Config (`cdp_detection_enabled`, `cdp_auto_ban`, `cdp_detection_threshold`), with CDP controls disabled when JS Required is off
+- <abbr title="JavaScript">JS</abbr> Required + browser <abbr title="Chrome DevTools Protocol">CDP</abbr> automation detection controls controls in Config (`cdp_detection_enabled`, `cdp_auto_ban`, `cdp_detection_threshold`), with CDP controls disabled when JS Required is off
 - Fingerprinting tab `Akamai Bot Signal` controls: Akamai on/off toggle + mode (`additive` or `authoritative`)
 - <abbr title="Proof of Work">PoW</abbr> enable toggle plus difficulty/<abbr title="Time To Live">TTL</abbr> tuning
 - Challenge puzzle controls (`challenge_puzzle_enabled`); transform-count and runtime hardening knobs remain Advanced <abbr title="JavaScript Object Notation">JSON</abbr>-only.
@@ -126,9 +128,10 @@ Controls:
 - per-signal weights (`js_required`, `geo_risk`, `rate_medium`, `rate_high`)
 - read-only terminal signal catalog
 - editable when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`
-- <abbr title="Geolocation">GEO</abbr> policy controls:
+- GEO tab controls:
 - scoring toggle + risk countries (`defence_modes.geo` signal path + `geo_risk`)
 - routing toggle + tiered routing countries (`defence_modes.geo` action path + `geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`)
+- Akamai GEO signal toggle (`geo_edge_headers_enabled`) to enable/disable trusted edge country-header ingestion
 - maze stats
 - non-operational Maze Preview link in Maze config
 - non-operational Tarpit preview link in Tarpit config
@@ -230,7 +233,7 @@ dist/
 3. Route-local Svelte orchestration in `src/routes/+page.svelte` delegates lifecycle/polling/hash/session coordination to `src/lib/runtime/dashboard-route-controller.js`, using `src/lib/state/dashboard-store.js` for state and telemetry.
 4. `src/lib/runtime/dashboard-native-runtime.js` provides lifecycle entrypoints (`mountDashboardApp()` / `unmountDashboardApp()`), auth/session state, and domain <abbr title="Application Programming Interface">API</abbr> actions without legacy control binding/<abbr title="Document Object Model">DOM</abbr> mutation wiring.
 5. Monitoring rendering is Svelte-native (`src/lib/components/dashboard/MonitoringTab.svelte`) with focused subsection components in `src/lib/components/dashboard/monitoring/*.svelte`, consuming snapshot/view-model data from `src/lib/components/dashboard/monitoring-view-model.js`; runtime no longer mutates monitoring <abbr title="Document Object Model">DOM</abbr> by global IDs.
-6. Config, tuning, and <abbr title="Internet Protocol">IP</abbr>-ban form state/save behavior are Svelte-owned in `src/lib/components/dashboard/ConfigTab.svelte`, `src/lib/components/dashboard/TuningTab.svelte`, and `src/lib/components/dashboard/IpBansTab.svelte`.
+6. Config, Rate Limiting, GEO, tuning, and <abbr title="Internet Protocol">IP</abbr>-ban form state/save behavior are Svelte-owned in `src/lib/components/dashboard/ConfigTab.svelte`, `src/lib/components/dashboard/RateLimitingTab.svelte`, `src/lib/components/dashboard/GeoTab.svelte`, `src/lib/components/dashboard/TuningTab.svelte`, and `src/lib/components/dashboard/IpBansTab.svelte`.
 7. Login is Svelte-native in `src/routes/login.html/+page.svelte` (no shell injection/bridge).
 8. `adapter-static` writes final static assets to `dist/dashboard`, which Spin serves for `/dashboard/...`.
 

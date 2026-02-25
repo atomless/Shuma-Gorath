@@ -334,6 +334,24 @@ export function createDashboardRefreshRuntime(options = {}) {
       runtimeOptions
     );
 
+  const refreshRateLimitingTab = (reason = 'manual', runtimeOptions = {}) =>
+    refreshConfigBackedTab(
+      'rate-limiting',
+      reason,
+      'Loading rate limiting controls...',
+      'No rate limiting config snapshot available yet.',
+      runtimeOptions
+    );
+
+  const refreshGeoTab = (reason = 'manual', runtimeOptions = {}) =>
+    refreshConfigBackedTab(
+      'geo',
+      reason,
+      'Loading GEO controls...',
+      'No GEO config snapshot available yet.',
+      runtimeOptions
+    );
+
   async function refreshFingerprintingTab(reason = 'manual', runtimeOptions = {}) {
     const dashboardApiClient = getApiClient();
     if (!dashboardApiClient) return;
@@ -384,6 +402,8 @@ export function createDashboardRefreshRuntime(options = {}) {
     'ip-bans': refreshIpBansTab,
     status: refreshStatusTab,
     config: refreshConfigTab,
+    'rate-limiting': refreshRateLimitingTab,
+    geo: refreshGeoTab,
     fingerprinting: refreshFingerprintingTab,
     robots: refreshRobotsTab,
     tuning: refreshTuningTab
@@ -421,6 +441,8 @@ export function createDashboardRefreshRuntime(options = {}) {
     refreshIpBansTab,
     refreshStatusTab,
     refreshConfigTab,
+    refreshRateLimitingTab,
+    refreshGeoTab,
     refreshFingerprintingTab,
     refreshRobotsTab,
     refreshTuningTab,

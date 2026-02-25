@@ -3,24 +3,20 @@
   import ConfigChallengeSection from './config/ConfigChallengeSection.svelte';
   import ConfigDurationsSection from './config/ConfigDurationsSection.svelte';
   import ConfigExportSection from './config/ConfigExportSection.svelte';
-  import ConfigGeoSection from './config/ConfigGeoSection.svelte';
   import ConfigMazeSection from './config/ConfigMazeSection.svelte';
   import ConfigNetworkSection from './config/ConfigNetworkSection.svelte';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
   import { onDestroy, onMount } from 'svelte';
-  import NumericInputRow from './primitives/NumericInputRow.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
   import {
     formatBrowserRulesTextarea,
     formatListTextarea,
     normalizeBrowserRulesForCompare,
-    normalizeCountryCodesForCompare,
     normalizeHoneypotPathsForCompare,
     normalizeListTextareaForCompare,
     parseBrowserRulesTextarea,
-    parseCountryCodesStrict,
     parseHoneypotPathsTextarea,
     parseListTextarea
   } from '../../domain/config-form-utils.js';
@@ -34,14 +30,9 @@
   import { inRange, isDurationTupleValid } from '../../domain/core/validation.js';
   import ToggleRow from './primitives/ToggleRow.svelte';
   import {
-    formatCountryCodes,
-    geoModeFromToggleState,
-    geoToggleStateFromMode,
     isIpRangePolicyMode,
     normalizeIpRangePolicyMode,
-    normalizeJsonArrayForCompare,
-    rateEnforcementEnabledFromMode,
-    rateModeFromToggleState
+    normalizeJsonArrayForCompare
   } from '../../domain/config-tab-helpers.js';
 
   export let managed = false;
@@ -101,9 +92,6 @@
   let ipRangeCatalogAgeHours = null;
   let ipRangeCatalogStale = false;
 
-  let rateLimitingEnabled = true;
-  let rateLimitThreshold = 80;
-
   let honeypotEnabled = true;
   let honeypotPaths = '';
 
@@ -115,14 +103,6 @@
   let tarpitEnabled = true;
   let mazeAutoBan = true;
   let mazeThreshold = 50;
-
-  let geoRiskList = '';
-  let geoAllowList = '';
-  let geoChallengeList = '';
-  let geoMazeList = '';
-  let geoBlockList = '';
-  let geoScoringEnabled = true;
-  let geoRoutingEnabled = true;
 
   let durHoneypotDays = 1;
   let durHoneypotHours = 0;
@@ -173,20 +153,10 @@
       managedMaxStalenessHours: 168,
       allowStaleManagedEnforce: false
     },
-    rateLimit: { value: 80, enabled: true },
     honeypot: { enabled: true, values: '' },
     browserPolicy: { enabled: true, block: '', whitelist: '' },
     maze: { enabled: true, autoBan: true, threshold: 50 },
     tarpit: { enabled: true },
-    geo: {
-      scoringEnabled: true,
-      routingEnabled: true,
-      risk: '',
-      allow: '',
-      challenge: '',
-      maze: '',
-      block: ''
-    },
     durations: {
       honeypot: 86400,
       rateLimit: 3600,
@@ -344,9 +314,6 @@
     ipRangeCatalogStale =
       staleByAge || ipRangeManagedSets.some((set) => set && set.stale === true);
 
-    rateLimitThreshold = parseInteger(config.rate_limit, 80);
-    rateLimitingEnabled = rateEnforcementEnabledFromMode(config?.defence_modes?.rate ?? 'both');
-
     honeypotEnabled = config.honeypot_enabled !== false;
     honeypotPaths = formatListTextarea(config.honeypots);
 
@@ -358,15 +325,6 @@
     tarpitEnabled = config.tarpit_enabled !== false;
     mazeAutoBan = config.maze_auto_ban !== false;
     mazeThreshold = parseInteger(config.maze_auto_ban_threshold, 50);
-
-    geoRiskList = formatCountryCodes(config.geo_risk);
-    geoAllowList = formatCountryCodes(config.geo_allow);
-    geoChallengeList = formatCountryCodes(config.geo_challenge);
-    geoMazeList = formatCountryCodes(config.geo_maze);
-    geoBlockList = formatCountryCodes(config.geo_block);
-    const geoToggleState = geoToggleStateFromMode(config?.defence_modes?.geo);
-    geoScoringEnabled = geoToggleState.scoringEnabled;
-    geoRoutingEnabled = geoToggleState.routingEnabled;
 
     const banDurations = config && typeof config.ban_durations === 'object'
       ? config.ban_durations
@@ -433,10 +391,6 @@
         managedMaxStalenessHours: Number(ipRangeManagedMaxStalenessHours),
         allowStaleManagedEnforce: ipRangeAllowStaleManagedEnforce === true
       },
-      rateLimit: {
-        value: Number(rateLimitThreshold),
-        enabled: rateLimitingEnabled
-      },
       honeypot: {
         enabled: honeypotEnabled,
         values: normalizeHoneypotPathsForCompare(honeypotPaths)
@@ -453,15 +407,6 @@
       },
       tarpit: {
         enabled: tarpitEnabled
-      },
-      geo: {
-        scoringEnabled: geoScoringEnabled,
-        routingEnabled: geoRoutingEnabled,
-        risk: normalizeCountryCodesForCompare(geoRiskList),
-        allow: normalizeCountryCodesForCompare(geoAllowList),
-        challenge: normalizeCountryCodesForCompare(geoChallengeList),
-        maze: normalizeCountryCodesForCompare(geoMazeList),
-        block: normalizeCountryCodesForCompare(geoBlockList)
       },
       durations: {
         honeypot: durationSeconds(durHoneypotDays, durHoneypotHours, durHoneypotMinutes),
@@ -491,15 +436,6 @@
 
   const buildConfigPatch = ({ includeAll = false, includeAdvanced = true } = {}) => {
     const patch = {};
-    const mergeDefenceModes = (nextModes) => {
-      const existingDefenceModes = (
-        patch.defence_modes && typeof patch.defence_modes === 'object' && !Array.isArray(patch.defence_modes)
-      ) ? patch.defence_modes : {};
-      patch.defence_modes = {
-        ...existingDefenceModes,
-        ...nextModes
-      };
-    };
     if (includeAll) {
       if (includeAdvanced && advancedValid) {
         Object.assign(patch, parseAdvancedPatchObject());
@@ -544,10 +480,6 @@
       patch.ip_range_managed_max_staleness_hours = Number(ipRangeManagedMaxStalenessHours);
       patch.ip_range_allow_stale_managed_enforce = ipRangeAllowStaleManagedEnforce === true;
     }
-    if (includeAll || rateLimitDirty) {
-      patch.rate_limit = Number(rateLimitThreshold);
-      mergeDefenceModes({ rate: rateModeNormalized });
-    }
     if (includeAll || honeypotDirty) {
       patch.honeypot_enabled = honeypotEnabled;
       patch.honeypots = parseHoneypotPathsTextarea(honeypotPaths);
@@ -564,17 +496,6 @@
     }
     if (includeAll || tarpitDirty) {
       patch.tarpit_enabled = tarpitEnabled;
-    }
-    if (includeAll || geoScoringDirty) {
-      mergeDefenceModes({ geo: geoModeNormalized });
-      patch.geo_risk = parseCountryCodesStrict(geoRiskList);
-    }
-    if (includeAll || geoRoutingDirty) {
-      mergeDefenceModes({ geo: geoModeNormalized });
-      patch.geo_allow = parseCountryCodesStrict(geoAllowList);
-      patch.geo_challenge = parseCountryCodesStrict(geoChallengeList);
-      patch.geo_maze = parseCountryCodesStrict(geoMazeList);
-      patch.geo_block = parseCountryCodesStrict(geoBlockList);
     }
     if (includeAll || durationsDirty) {
       patch.ban_durations = {
@@ -751,15 +672,6 @@
     ipRangeManagedSetStaleCount > 0
   );
 
-  $: rateModeNormalized = rateModeFromToggleState({
-    enforcementEnabled: readBool(rateLimitingEnabled)
-  });
-  $: rateLimitValid = inRange(rateLimitThreshold, 1, 1000000);
-  $: rateLimitDirty = (
-    Number(rateLimitThreshold) !== baseline.rateLimit.value ||
-    readBool(rateLimitingEnabled) !== baseline.rateLimit.enabled
-  );
-
   $: honeypotNormalized = normalizeHoneypotPathsForCompare(honeypotPaths);
   $: honeypotValid = (() => {
     try {
@@ -798,77 +710,6 @@
   );
   $: tarpitValid = true;
   $: tarpitDirty = readBool(tarpitEnabled) !== baseline.tarpit.enabled;
-
-  $: geoRiskNormalized = normalizeCountryCodesForCompare(geoRiskList);
-  $: geoAllowNormalized = normalizeCountryCodesForCompare(geoAllowList);
-  $: geoChallengeNormalized = normalizeCountryCodesForCompare(geoChallengeList);
-  $: geoMazeNormalized = normalizeCountryCodesForCompare(geoMazeList);
-  $: geoBlockNormalized = normalizeCountryCodesForCompare(geoBlockList);
-  $: geoModeNormalized = geoModeFromToggleState({
-    scoringEnabled: readBool(geoScoringEnabled),
-    routingEnabled: readBool(geoRoutingEnabled)
-  });
-
-  $: geoRiskListValid = (() => {
-    try {
-      parseCountryCodesStrict(geoRiskList);
-      return true;
-    } catch (_error) {
-      return false;
-    }
-  })();
-
-  $: geoAllowListValid = (() => {
-    try {
-      parseCountryCodesStrict(geoAllowList);
-      return true;
-    } catch (_error) {
-      return false;
-    }
-  })();
-  $: geoChallengeListValid = (() => {
-    try {
-      parseCountryCodesStrict(geoChallengeList);
-      return true;
-    } catch (_error) {
-      return false;
-    }
-  })();
-  $: geoMazeListValid = (() => {
-    try {
-      parseCountryCodesStrict(geoMazeList);
-      return true;
-    } catch (_error) {
-      return false;
-    }
-  })();
-  $: geoBlockListValid = (() => {
-    try {
-      parseCountryCodesStrict(geoBlockList);
-      return true;
-    } catch (_error) {
-      return false;
-    }
-  })();
-  $: geoScoringValid = geoRiskListValid;
-  $: geoRoutingValid = (
-    geoAllowListValid &&
-    geoChallengeListValid &&
-    geoMazeListValid &&
-    geoBlockListValid
-  );
-
-  $: geoScoringDirty = (
-    readBool(geoScoringEnabled) !== baseline.geo.scoringEnabled ||
-    geoRiskNormalized !== baseline.geo.risk
-  );
-  $: geoRoutingDirty = (
-    readBool(geoRoutingEnabled) !== baseline.geo.routingEnabled ||
-    geoAllowNormalized !== baseline.geo.allow ||
-    geoChallengeNormalized !== baseline.geo.challenge ||
-    geoMazeNormalized !== baseline.geo.maze ||
-    geoBlockNormalized !== baseline.geo.block
-  );
 
   $: honeypotDurationSeconds = durationSeconds(durHoneypotDays, durHoneypotHours, durHoneypotMinutes);
   $: rateDurationSeconds = durationSeconds(durRateLimitDays, durRateLimitHours, durRateLimitMinutes);
@@ -975,13 +816,10 @@
     { label: 'Proof of Work', dirty: powDirty, valid: powValid },
     { label: 'Challenge puzzle', dirty: challengePuzzleDirty, valid: challengePuzzleValid },
     { label: 'Not-a-Bot', dirty: notABotDirty, valid: notABotValid },
-    { label: 'Rate limit', dirty: rateLimitDirty, valid: rateLimitValid },
     { label: 'Honeypots', dirty: honeypotDirty, valid: honeypotValid },
     { label: 'Browser policy', dirty: browserPolicyDirty, valid: browserPolicyValid },
     { label: 'Maze', dirty: mazeDirty, valid: mazeValid },
     { label: 'Tarpit', dirty: tarpitDirty, valid: tarpitValid },
-    { label: 'Geolocation scoring', dirty: geoScoringDirty, valid: geoScoringValid },
-    { label: 'Geolocation routing', dirty: geoRoutingDirty, valid: geoRoutingValid },
     { label: 'Ban durations', dirty: durationsDirty, valid: durationsValid },
     { label: 'Advanced config', dirty: advancedDirty, valid: advancedValid }
   ];
@@ -1067,20 +905,20 @@
           <input
             type="checkbox"
             id="config-cdp-enabled-toggle"
-            aria-label="Enable internal browser CDP probe"
+            aria-label="Enable Browser CDP Automation Detection"
             bind:checked={cdpDetectionEnabled}
             disabled={!jsRequiredEnforced}
           >
           <span class="toggle-slider"></span>
         </label>
       </ConfigPanelHeading>
-      <p class="control-desc text-muted">The JS Verification Interstitial can run an internal browser automation probe and submit a report to Shuma-Gorath. This is distinct from Akamai bot signals in the Fingerprinting tab.</p>
+      <p class="control-desc text-muted">The JS Verification Interstitial can run a browser <abbr title="Chrome DevTools Protocol">CDP</abbr> automation detection probe and submit a report to Shuma-Gorath. This is distinct from Akamai bot signals in the Fingerprinting tab.</p>
       <div class="admin-controls">
         <ToggleRow
           id="config-cdp-auto-ban-toggle"
           label="Auto-ban on Strong Detection"
           labelClass="control-label control-label--wide"
-          ariaLabel="Enable internal browser CDP auto-ban"
+          ariaLabel="Enable browser automation auto-ban"
           bind:checked={cdpAutoBan}
           disabled={!jsRequiredEnforced || !cdpDetectionEnabled}
           rowClass={!jsRequiredEnforced || !cdpDetectionEnabled ? 'toggle-row--disabled' : ''}
@@ -1124,32 +962,11 @@
       <p class="control-desc text-muted"><abbr title="Proof of Work">PoW</abbr> is a security mechanism used to help differentiate bots from humans by requiring the requesting client's device to solve a small, moderately complex computational puzzle before being granted access. It will be invisible to human users and incurrs only extremely low energy and request performance costs. <abbr title="Proof of Work">PoW</abbr> depends on <abbr title="JavaScript">JS</abbr> Required being enabled.</p>
     </ConfigPanel>
 
-    <ConfigPanel writable={writable} dirty={rateLimitDirty}>
-      <ConfigPanelHeading title="Rate Limiting">
-        <label class="toggle-switch" for="rate-limit-enabled-toggle">
-          <input type="checkbox" id="rate-limit-enabled-toggle" aria-label="Enable rate limiting" bind:checked={rateLimitingEnabled}>
-          <span class="toggle-slider"></span>
-        </label>
-      </ConfigPanelHeading>
-      <p class="control-desc text-muted">Define the allowed requests per minute per <abbr title="Internet Protocol">IP</abbr> bucket (<abbr title="Internet Protocol Version 4">IPv4</abbr> /24, <abbr title="Internet Protocol Version 6">IPv6</abbr> /64), not a single host <abbr title="Internet Protocol">IP</abbr>. Default budget is <code>80</code> requests; lower values are more strict but can affect legitimate burst traffic and innocent visitors when the budget of their <abbr title="Internet Protocol">IP</abbr> bucket is exhausted by a malicious bot.</p>
-      <div class="admin-controls">
-        <NumericInputRow id="rate-limit-threshold" label='Requests Per Minute (per <abbr title="Internet Protocol">IP</abbr> bucket)' labelClass="control-label control-label--wide" min="1" max="1000000" step="1" inputmode="numeric" ariaLabel="Rate limit requests per minute" ariaInvalid={rateLimitValid ? 'false' : 'true'} bind:value={rateLimitThreshold} />
-      </div>
-      {#if !rateLimitingEnabled}
-        <p class="message warning">
-          Rate limiting is strongly advised. Disable only if upstream already enforces it or for temporary
-          testing. Scoring still stays active.
-        </p>
-      {/if}
-    </ConfigPanel>
-
     <ConfigMazeSection bind:writable bind:mazeDirty bind:tarpitDirty bind:mazeEnabled bind:mazeAutoBan bind:mazeThreshold mazeThresholdValid={mazeThresholdValid} bind:tarpitEnabled />
 
     <ConfigChallengeSection bind:writable bind:notABotDirty bind:challengePuzzleDirty bind:notABotEnabled bind:challengePuzzleEnabled bind:notABotScorePassMinFloor bind:notABotScorePassMin bind:notABotScoreFailMaxCap bind:notABotScoreFailMax notABotPassScoreValid={notABotPassScoreValid} notABotFailScoreValid={notABotFailScoreValid} />
 
     <ConfigNetworkSection bind:writable bind:honeypotDirty bind:honeypotEnabled bind:honeypotPaths honeypotPathsValid={honeypotValid} honeypotInvalidMessage={honeypotInvalidMessage} bind:browserPolicyDirty bind:browserPolicyEnabled bind:browserBlockRules bind:browserWhitelistRules browserBlockRulesValid={browserBlockRulesValid} browserWhitelistRulesValid={browserWhitelistRulesValid} />
-
-    <ConfigGeoSection bind:writable bind:geoScoringDirty bind:geoRoutingDirty bind:geoScoringEnabled bind:geoRoutingEnabled bind:geoRiskList bind:geoAllowList bind:geoChallengeList bind:geoMazeList bind:geoBlockList geoRiskListValid={geoRiskListValid} geoAllowListValid={geoAllowListValid} geoChallengeListValid={geoChallengeListValid} geoMazeListValid={geoMazeListValid} geoBlockListValid={geoBlockListValid} />
 
     <ConfigDurationsSection bind:writable bind:durationsDirty bind:durHoneypotDays bind:durHoneypotHours bind:durHoneypotMinutes bind:durRateLimitDays bind:durRateLimitHours bind:durRateLimitMinutes bind:durBrowserDays bind:durBrowserHours bind:durBrowserMinutes bind:durCdpDays bind:durCdpHours bind:durCdpMinutes bind:durAdminDays bind:durAdminHours bind:durAdminMinutes durHoneypotValid={durHoneypotValid} durRateLimitValid={durRateLimitValid} durBrowserValid={durBrowserValid} durCdpValid={durCdpValid} durAdminValid={durAdminValid} />
 
