@@ -14,14 +14,13 @@
   $: textareaClass = `input-field textarea-field__input ${monospace ? 'input-field--mono' : ''}`.trim();
   $: lineCount = Math.max(1, String(value || '').split('\n').length);
   $: lineNumbers = Array.from({ length: lineCount }, (_value, index) => index + 1);
-
-  let lineNumberGutter = null;
+  let lineNumberOffset = 0;
 
   const handleTextareaScroll = (event) => {
-    if (!showLineNumbers || !lineNumberGutter) return;
+    if (!showLineNumbers) return;
     const target = event && event.currentTarget ? event.currentTarget : null;
     if (!target) return;
-    lineNumberGutter.scrollTop = target.scrollTop;
+    lineNumberOffset = target.scrollTop;
   };
 </script>
 
@@ -29,7 +28,9 @@
   <label class={labelClass} for={id}>{@html label}</label>
   {#if showLineNumbers}
     <div class="textarea-field__with-lines">
-      <pre class="textarea-field__line-numbers" aria-hidden="true" bind:this={lineNumberGutter}>{lineNumbers.join('\n')}</pre>
+      <div class="textarea-field__line-numbers-wrap" aria-hidden="true">
+        <pre class="textarea-field__line-numbers" style={`transform: translateY(-${lineNumberOffset}px);`}>{lineNumbers.join('\n')}</pre>
+      </div>
       <textarea
         class={textareaClass}
         {id}
