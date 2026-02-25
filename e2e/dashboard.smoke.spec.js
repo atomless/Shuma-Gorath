@@ -747,7 +747,7 @@ test("dashboard loads and shows seeded operational data", async ({ page }) => {
 
   await expect(page.locator("#cdp-events tbody tr").first()).toBeVisible();
   await expect(page.locator("#cdp-total-detections")).not.toHaveText("-");
-  await expect(page.locator("#test-mode-status")).toHaveClass(/test-mode-status--(enabled|disabled)/);
+  await expect(page.locator("#global-test-mode-toggle")).toBeVisible();
 });
 
 test("dashboard monitoring totals stay in parity with /metrics monitoring families", async ({ page, request }) => {
@@ -952,8 +952,8 @@ test("config save-all button reflects shared dirty-state behavior", async ({ pag
   await openTab(page, "config", { waitForReady: true });
 
   const configSave = page.locator("#save-config-all");
-  const testModeToggle = page.locator("#test-mode-toggle");
-  const testModeToggleSwitch = page.locator("label.toggle-switch[for='test-mode-toggle']");
+  const testModeToggle = page.locator("#global-test-mode-toggle");
+  const testModeToggleSwitch = page.locator("label.toggle-switch[for='global-test-mode-toggle']");
   const honeypotEnabledToggle = page.locator("#honeypot-enabled-toggle");
   const honeypotEnabledSwitch = page.locator("label.toggle-switch[for='honeypot-enabled-toggle']");
   const browserPolicyEnabledToggle = page.locator("#browser-policy-toggle");

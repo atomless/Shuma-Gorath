@@ -67,12 +67,9 @@
   let hasConfigSnapshot = false;
   let configLoaded = true;
   let lastAppliedConfigVersion = -1;
-  let skipNextConfigVersionApply = false;
-  let savingTestMode = false;
+  let deferredConfigApply = false;
   let savingAll = false;
   let warnOnUnload = false;
-
-  let testMode = false;
 
   let jsRequiredEnforced = true;
   let cdpDetectionEnabled = true;
@@ -155,7 +152,6 @@
   let exportConfigStatusTimer = null;
 
   let baseline = {
-    testMode: { enabled: false },
     jsRequired: { enforced: true },
     cdp: { enabled: true, autoBan: true, threshold: 0.6 },
     pow: { enabled: true, difficulty: 15, ttl: 90 },
@@ -298,7 +294,6 @@
     hasConfigSnapshot = config && typeof config === 'object' && Object.keys(config).length > 0;
     writable = config.admin_config_write_enabled === true;
 
-    testMode = config.test_mode === true;
     jsRequiredEnforced = config.js_required_enforced !== false;
     cdpDetectionEnabled = config.cdp_detection_enabled !== false;
     cdpAutoBan = config.cdp_auto_ban !== false;
@@ -407,7 +402,6 @@
     advancedConfigJson = advancedText;
 
     baseline = {
-      testMode: { enabled: testMode },
       jsRequired: { enforced: jsRequiredEnforced },
       cdp: {
         enabled: cdpDetectionEnabled,
@@ -485,52 +479,6 @@
     exportConfigStatus = '';
     exportConfigStatusKind = 'info';
     resetAdvancedValidationState();
-  }
-
-  async function onTestModeToggleChange(event) {
-    const target = event && event.currentTarget ? event.currentTarget : null;
-    const nextValue = target && target.checked === true;
-    const previousValue = !nextValue;
-    if (testModeToggleDisabled) {
-      if (target) target.checked = testMode === true;
-      return;
-    }
-    if (typeof onSaveConfig !== 'function') {
-      if (target) target.checked = testMode === true;
-      return;
-    }
-    if (savingTestMode) {
-      if (target) target.checked = testMode === true;
-      return;
-    }
-    savingTestMode = true;
-    skipNextConfigVersionApply = true;
-    try {
-      const nextConfig = await onSaveConfig(
-        { test_mode: nextValue },
-        {
-          successMessage: `Test mode ${nextValue ? 'enabled (logging only)' : 'disabled (blocking active)'}`,
-          refresh: false
-        }
-      );
-      const persistedValue = nextConfig && typeof nextConfig === 'object'
-        ? nextConfig.test_mode === true
-        : nextValue;
-      testMode = persistedValue;
-      baseline = {
-        ...baseline,
-        testMode: {
-          enabled: persistedValue
-        }
-      };
-      if (target) target.checked = persistedValue;
-    } catch (_error) {
-      skipNextConfigVersionApply = false;
-      testMode = previousValue;
-      if (target) target.checked = previousValue;
-    } finally {
-      savingTestMode = false;
-    }
   }
 
   const parseAdvancedPatchObject = () => {
@@ -726,17 +674,6 @@
   }
 
   const readBool = (value) => value === true;
-
-  $: testModeStatusText = !hasConfigSnapshot
-    ? 'LOADING...'
-    : (testMode ? '(LOGGING ONLY)' : '(BLOCKING ACTIVE)');
-  $: testModeStatusClass = `text-muted status-value ${
-    !hasConfigSnapshot
-      ? ''
-      : (testMode ? 'test-mode-status--enabled' : 'test-mode-status--disabled')
-  }`.trim();
-
-  $: testModeToggleDisabled = !writable || savingTestMode;
 
   $: jsRequiredDirty = readBool(jsRequiredEnforced) !== baseline.jsRequired.enforced;
 
@@ -1070,12 +1007,17 @@
     const nextVersion = Number(configVersion || 0);
     if (nextVersion !== lastAppliedConfigVersion) {
       lastAppliedConfigVersion = nextVersion;
-      if (skipNextConfigVersionApply) {
-        skipNextConfigVersionApply = false;
+      if (hasUnsavedChanges && !savingAll) {
+        deferredConfigApply = true;
       } else {
         applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
       }
     }
+  }
+
+  $: if (deferredConfigApply && !hasUnsavedChanges && !savingAll) {
+    deferredConfigApply = false;
+    applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
   }
 </script>
 
@@ -1104,25 +1046,6 @@
     {/if}
   </p>
   <div class="controls-grid controls-grid--config">
-    <ConfigPanel writable={writable}>
-      <div class="panel-heading-with-control">
-        <h3>Test Mode</h3>
-        <label class="toggle-switch" for="test-mode-toggle">
-          <input
-            type="checkbox"
-            id="test-mode-toggle"
-            aria-label="Test mode active"
-            bind:checked={testMode}
-            disabled={testModeToggleDisabled}
-            on:change={onTestModeToggleChange}
-          >
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <p class="control-desc text-muted">Use for safe tuning. Enabled logs all detections without blocking; disable to enforce defenses.</p>
-      <span id="test-mode-status" class={testModeStatusClass}>{testModeStatusText}</span>
-    </ConfigPanel>
-
     <ConfigPanel writable={writable} dirty={jsRequiredDirty}>
       <ConfigPanelHeading title='<abbr title="JavaScript">JS</abbr> Required'>
         <label class="toggle-switch" for="js-required-enforced-toggle">

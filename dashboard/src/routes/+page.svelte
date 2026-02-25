@@ -66,6 +66,7 @@
   let runtimeReady = false;
   let runtimeError = '';
   let loggingOut = false;
+  let savingGlobalTestMode = false;
   let autoRefreshEnabled = false;
   let adminMessageText = '';
   let adminMessageKind = 'info';
@@ -95,7 +96,17 @@
   $: snapshotVersions = dashboardState?.snapshotVersions || {};
   $: analyticsSnapshot = snapshots.analytics || {};
   $: configSnapshot = snapshots.config || {};
-  $: testModeEnabled = configSnapshot.test_mode === true || analyticsSnapshot.test_mode === true;
+  $: hasConfigTestMode = typeof configSnapshot.test_mode === 'boolean';
+  $: currentTestModeValue = hasConfigTestMode
+    ? configSnapshot.test_mode === true
+    : analyticsSnapshot.test_mode === true;
+  $: testModeEnabled = currentTestModeValue;
+  $: globalTestModeToggleDisabled =
+    !runtimeReady ||
+    loggingOut ||
+    savingGlobalTestMode ||
+    dashboardState?.session?.authenticated !== true ||
+    configSnapshot.admin_config_write_enabled !== true;
 
   function registerTabLink(node, tab) {
     let key = normalizeTab(tab);
@@ -287,6 +298,37 @@
     await routeController.refreshTab(activeTabKey, 'manual-refresh');
   }
 
+  async function onGlobalTestModeToggleChange(event) {
+    const target = event && event.currentTarget ? event.currentTarget : null;
+    const nextValue = target && target.checked === true;
+    const previousValue = currentTestModeValue;
+    if (globalTestModeToggleDisabled || typeof onSaveConfig !== 'function') {
+      if (target) target.checked = previousValue;
+      return;
+    }
+    if (nextValue === previousValue) return;
+
+    savingGlobalTestMode = true;
+    try {
+      const nextConfig = await onSaveConfig(
+        { test_mode: nextValue },
+        {
+          successMessage: `Test mode ${nextValue ? 'enabled (logging only)' : 'disabled (blocking active)'}`,
+          refresh: false
+        }
+      );
+      const persistedValue =
+        nextConfig && typeof nextConfig === 'object'
+          ? nextConfig.test_mode === true
+          : nextValue;
+      if (target) target.checked = persistedValue;
+    } catch (_error) {
+      if (target) target.checked = previousValue;
+    } finally {
+      savingGlobalTestMode = false;
+    }
+  }
+
   function formatActionError(error, fallback = 'Action failed.') {
     if (error && typeof error.message === 'string' && error.message.trim()) {
       return error.message.trim();
@@ -381,6 +423,20 @@
 <div class="container panel panel-border" data-dashboard-runtime-mode="native">
   <div id="test-mode-banner" class="test-mode-banner" class:hidden={!testModeEnabled}>
     TEST MODE ACTIVE - Logging only, no active defences
+  </div>
+  <div class="dashboard-global-control dashboard-test-mode-control">
+    <label class="toggle-switch" for="global-test-mode-toggle">
+      <input
+        id="global-test-mode-toggle"
+        type="checkbox"
+        aria-label="Enable test mode"
+        checked={currentTestModeValue}
+        disabled={globalTestModeToggleDisabled}
+        on:change={onGlobalTestModeToggleChange}
+      >
+      <span class="toggle-slider"></span>
+    </label>
+    <span class="dashboard-global-control-label" class:dashboard-global-control-label--disabled={globalTestModeToggleDisabled}>Test Mode</span>
   </div>
   <button
     id="logout-btn"

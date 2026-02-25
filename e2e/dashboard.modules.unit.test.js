@@ -1023,10 +1023,10 @@ test('ip bans, config, fingerprinting, robots, and tuning tabs are declarative a
   assert.match(configSource, /export let onSaveConfig = null;/);
   assert.match(configSource, /export let onValidateConfig = null;/);
   assert.equal(configSource.includes('onFetchRobotsPreview'), false);
-  assert.match(configSource, /let testMode = false;/);
+  assert.equal(configSource.includes('test_mode'), false);
   assert.match(configSource, /let ipRangePolicyMode = 'off';/);
   assert.equal(configSource.includes('robotsAllowSearch'), false);
-  assert.match(configSource, /onTestModeToggleChange/);
+  assert.equal(configSource.includes('onTestModeToggleChange'), false);
   assert.match(configSource, /await onSaveConfig\(/);
   assert.match(configSource, /import ConfigChallengeSection from '\.\/config\/ConfigChallengeSection\.svelte';/);
   assert.match(configSource, /import ConfigMazeSection from '\.\/config\/ConfigMazeSection\.svelte';/);
@@ -1046,10 +1046,7 @@ test('ip bans, config, fingerprinting, robots, and tuning tabs are declarative a
   assert.match(configSource, /<ConfigGeoSection/);
   assert.equal(configSource.includes('<ConfigRobotsSection'), false);
   assert.match(configSource, /<SaveChangesBar/);
-  assert.match(
-    configSource,
-    /<div class="panel-heading-with-control">[\s\S]*?<h3>Test Mode<\/h3>[\s\S]*?for="test-mode-toggle"/
-  );
+  assert.equal(configSurfaceSource.includes('id="test-mode-toggle"'), false);
   assert.match(configSurfaceSource, /id="preview-challenge-puzzle-link"/);
   assert.match(configSurfaceSource, /id="preview-not-a-bot-link"/);
   assert.equal(
@@ -1107,8 +1104,8 @@ test('ip bans, config, fingerprinting, robots, and tuning tabs are declarative a
   assert.match(configSurfaceSource, /id="geo-routing-toggle"/);
   assert.match(configSource, /browser_policy_enabled/);
   assert.equal(configSource.includes('bypass_allowlists_enabled'), false);
-  assert.match(configSource, /\(LOGGING ONLY\)/);
-  assert.match(configSource, /\(BLOCKING ACTIVE\)/);
+  assert.equal(configSource.includes('(LOGGING ONLY)'), false);
+  assert.equal(configSource.includes('(BLOCKING ACTIVE)'), false);
   assert.equal(configSource.includes('Test Mode Active'), false);
   assert.equal(configSource.includes('ENABLED (LOGGING ONLY)'), false);
   assert.equal(configSource.includes('DISABLED (BLOCKING ACTIVE)'), false);
@@ -1175,6 +1172,9 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /onUnban=\{onUnban\}/);
   assert.match(source, /configSnapshot=\{snapshots\.config\}/);
   assert.match(source, /cdpSnapshot=\{snapshots\.cdp\}/);
+  assert.match(source, /id="global-test-mode-toggle"/);
+  assert.match(source, /onGlobalTestModeToggleChange/);
+  assert.match(source, /dashboard-global-control-label/);
   assert.match(source, /id="admin-msg"/);
 });
 

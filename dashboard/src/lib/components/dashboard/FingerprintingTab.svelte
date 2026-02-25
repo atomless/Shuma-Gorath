@@ -169,7 +169,7 @@
           <span class="toggle-slider"></span>
         </label>
       </ConfigPanelHeading>
-      <p class="control-desc text-muted">When calculating bot fingerprinting, Akamai can contribute transport and network-layer telemetry that Shuma-Gorath cannot directly observe at app level. Enable this only when your edge forwards trusted Akamai bot outcomes.</p>
+      <p class="control-desc text-muted">When calculating bot fingerprinting, Akamai can contribute transport and network-layer telemetry that Shuma-Gorath cannot directly observe at app level. Enable this only when your edge forwards trusted bot outcomes.</p>
       <div class="admin-controls">
         <div class="input-row" class:input-row--disabled={!akamaiBotSignalEnabled}>
           <label class="control-label control-label--wide" for="fingerprinting-edge-mode-select">Akamai Influence Mode</label>
