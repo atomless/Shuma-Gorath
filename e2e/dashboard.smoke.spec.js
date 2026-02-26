@@ -160,38 +160,59 @@ async function assertActiveTabPanelVisibility(page, activeTab) {
   }
 }
 
+function dashboardRelativePath(url) {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch (_error) {
+    return "/dashboard/index.html";
+  }
+}
+
 async function bootstrapDashboardSession(page, targetUrl) {
+  const nextPath = dashboardRelativePath(targetUrl);
+  const loginUrl = `${BASE_URL}/dashboard/login.html?next=${encodeURIComponent(nextPath)}`;
   const maxAttempts = 4;
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const response = await page.request.post(`${BASE_URL}/admin/login`, {
-      headers: { "Content-Type": "application/json" },
-      data: { api_key: API_KEY }
-    });
+    await page.goto(loginUrl);
+    await page.waitForSelector("#login-form", { timeout: 10000 });
+    await page.fill("#login-apikey", API_KEY);
+    await page.click("#login-submit");
 
-    if (response.ok()) {
+    await page.waitForFunction(() => {
+      const path = window.location.pathname;
+      if (path.endsWith("/dashboard/index.html")) {
+        return true;
+      }
+      const message = (document.getElementById("login-msg")?.textContent || "").trim();
+      return message.length > 0;
+    }, { timeout: 8000 }).catch(() => {});
+
+    let failureMessage = "";
+    if (page.url().includes("/dashboard/login.html")) {
+      failureMessage = (await page.locator("#login-msg").textContent().catch(() => "") || "").trim();
+    } else {
       await page.goto(targetUrl);
+      await page.waitForTimeout(200);
       if (!page.url().includes("/dashboard/login.html")) {
         return;
       }
+      failureMessage = "redirected back to login after successful submit";
     }
 
-    const status = response.status();
-    const retryAfterRaw = response.headers()["retry-after"];
-    const retryAfterSeconds = Number.parseInt(String(retryAfterRaw || ""), 10);
+    const retryMatch = /retry in\s+(\d+)s/i.exec(failureMessage);
+    const retryAfterSeconds = retryMatch ? Number.parseInt(retryMatch[1], 10) : Number.NaN;
     const backoffMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
       ? retryAfterSeconds * 1000
       : 600 * (attempt + 1);
 
     if (attempt < (maxAttempts - 1)) {
       await page.waitForTimeout(backoffMs);
-      await page.goto(targetUrl);
-      await page.waitForTimeout(200);
       continue;
     }
 
-    const responseBody = await response.text().catch(() => "");
     throw new Error(
-      `Dashboard login bootstrap failed after ${maxAttempts} attempts (status ${status}): ${responseBody.slice(0, 200)}`
+      `Dashboard login bootstrap failed after ${maxAttempts} attempts: ${failureMessage || "no login error message"}`
     );
   }
 }
@@ -207,7 +228,10 @@ async function openDashboard(page, options = {}) {
     await expect(page).toHaveURL(/\/dashboard\/index\.html/);
   }
   if (!page.url().endsWith(`#${initialTab}`)) {
-    await page.goto(targetUrl);
+    await page.evaluate((tab) => {
+      window.location.hash = tab;
+    }, initialTab);
+    await expect(page).toHaveURL(new RegExp(`#${initialTab}$`));
   }
   await page.waitForSelector("#logout-btn", { timeout: 15000 });
   await expect(page.locator("#logout-btn")).toBeEnabled();
