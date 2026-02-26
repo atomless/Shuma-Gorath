@@ -13,6 +13,7 @@ make test-adversarial-manifest # Validate adversarial scenario manifest + fixtur
 make test-adversarial-smoke # Mandatory adversarial fast smoke profile (waits for existing Spin readiness)
 make test-adversarial-abuse # Replay/stale/order-cadence abuse regression profile
 make test-adversarial-akamai # Akamai fixture-driven simulation profile
+make test-ip-range-suggestions # Focused IP-range suggestion regression gate (runtime + dashboard)
 make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)
 make test-dashboard-budgets # Dashboard /_app bundle-size ceilings report (warn-only by default)

@@ -937,6 +937,7 @@ mod admin_config_tests {
         ));
         assert!(sanitize_path("/admin/maze/preview"));
         assert!(sanitize_path("/admin/tarpit/preview"));
+        assert!(sanitize_path("/admin/ip-range/suggestions"));
     }
 
     #[test]
@@ -2696,6 +2697,7 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/cdp"
             | "/admin/cdp/events"
             | "/admin/monitoring"
+            | "/admin/ip-range/suggestions"
     )
 }
 

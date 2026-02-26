@@ -721,30 +721,66 @@ mod tests {
     use crate::challenge::KeyValueStore;
     use std::sync::Mutex;
 
-    #[derive(Default)]
+    #[derive(Default, Clone, Copy)]
+    struct StoreOpCounts {
+        get: u64,
+        set: u64,
+        delete: u64,
+        get_keys: u64,
+    }
+
     struct MockStore {
         map: Mutex<HashMap<String, Vec<u8>>>,
+        counts: Mutex<StoreOpCounts>,
+    }
+
+    impl Default for MockStore {
+        fn default() -> Self {
+            Self {
+                map: Mutex::new(HashMap::new()),
+                counts: Mutex::new(StoreOpCounts::default()),
+            }
+        }
+    }
+
+    impl MockStore {
+        fn reset_counts(&self) {
+            let mut counts = self.counts.lock().unwrap();
+            *counts = StoreOpCounts::default();
+        }
+
+        fn counts(&self) -> StoreOpCounts {
+            *self.counts.lock().unwrap()
+        }
     }
 
     impl KeyValueStore for MockStore {
         fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()> {
+            let mut counts = self.counts.lock().unwrap();
+            counts.get = counts.get.saturating_add(1);
             let map = self.map.lock().unwrap();
             Ok(map.get(key).cloned())
         }
 
         fn set(&self, key: &str, value: &[u8]) -> Result<(), ()> {
+            let mut counts = self.counts.lock().unwrap();
+            counts.set = counts.set.saturating_add(1);
             let mut map = self.map.lock().unwrap();
             map.insert(key.to_string(), value.to_vec());
             Ok(())
         }
 
         fn delete(&self, key: &str) -> Result<(), ()> {
+            let mut counts = self.counts.lock().unwrap();
+            counts.delete = counts.delete.saturating_add(1);
             let mut map = self.map.lock().unwrap();
             map.remove(key);
             Ok(())
         }
 
         fn get_keys(&self) -> Result<Vec<String>, ()> {
+            let mut counts = self.counts.lock().unwrap();
+            counts.get_keys = counts.get_keys.saturating_add(1);
             let map = self.map.lock().unwrap();
             Ok(map.keys().cloned().collect())
         }
@@ -856,5 +892,33 @@ mod tests {
             .iter()
             .any(|note| note == "high_collateral_split_recommended"));
         assert!(!parent.safer_alternatives.is_empty());
+    }
+
+    #[test]
+    fn suggestion_read_path_has_bounded_reads_and_no_runtime_writes() {
+        let store = MockStore::default();
+        let mut cfg = crate::config::defaults().clone();
+        cfg.ip_range_suggestions_min_observations = 1;
+        cfg.ip_range_suggestions_min_bot_events = 1;
+        cfg.ip_range_suggestions_min_confidence_percent = 1;
+
+        let now = 1_700_000_000u64;
+        let hour = now / 3600;
+        let encoded_bucket = general_purpose::URL_SAFE_NO_PAD.encode("198.51.100.0");
+        let human_key = format!(
+            "{}:ip_range_suggestions:human_ip:{}:{}",
+            MONITORING_PREFIX, encoded_bucket, hour
+        );
+        set_counter(&store, human_key.as_str(), 8);
+
+        let events = vec![make_event("198.51.100.7", EventType::Ban, "honeypot")];
+        store.reset_counts();
+        let _payload = build_ip_range_suggestions(&store, &cfg, &events, now, 24, 20);
+        let counts = store.counts();
+
+        assert_eq!(counts.set, 0);
+        assert_eq!(counts.delete, 0);
+        assert!(counts.get_keys <= 1);
+        assert!(counts.get <= 4);
     }
 }

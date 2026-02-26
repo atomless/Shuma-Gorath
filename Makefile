@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -319,6 +319,13 @@ test-unit: ## Run Rust unit tests only (34 tests)
 	@echo "$(CYAN)🧪 Running Rust unit tests...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test
+
+test-ip-range-suggestions: ## Run focused IP-range suggestion regression checks
+	@echo "$(CYAN)🧪 Running focused IP-range suggestion regression checks...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test signals::ip_range_suggestions::tests:: -- --test-threads=1
+	@cargo test admin::api::admin_config_tests::admin_ip_range_suggestions_returns_structured_payload -- --test-threads=1
+	@$(MAKE) --no-print-directory test-dashboard-unit
 
 test-maze-benchmark: ## Run deterministic maze asymmetry benchmark gate
 	@echo "$(CYAN)🧪 Running maze asymmetry benchmark gate...$(NC)"
