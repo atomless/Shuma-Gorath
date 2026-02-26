@@ -798,6 +798,29 @@ code.env-var {
   font-weight: 600;
 }
 
+.suggestion-risk-badge {
+  text-transform: uppercase;
+}
+
+.suggestion-risk-badge--low {
+  background: var(--color-200);
+}
+
+.suggestion-risk-badge--medium {
+  background: var(--color-300);
+}
+
+.suggestion-risk-badge--high {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.suggestion-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .ban-detail-row td {
   background: var(--color-50);
 }

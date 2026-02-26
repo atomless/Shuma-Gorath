@@ -5,6 +5,7 @@ export function createDashboardRefreshRuntime(options = {}) {
   const MONITORING_CACHE_MAX_RECENT_EVENTS = 25;
   const MONITORING_CACHE_MAX_CDP_EVENTS = 50;
   const MONITORING_CACHE_MAX_BANS = 100;
+  const IP_BANS_CACHE_MAX_SUGGESTIONS = 50;
   const normalizeTab =
     typeof options.normalizeTab === 'function' ? options.normalizeTab : (value) => String(value || '');
   const getApiClient =
@@ -34,6 +35,15 @@ export function createDashboardRefreshRuntime(options = {}) {
     return {
       ...source,
       bans: toArray(source.bans).slice(0, MONITORING_CACHE_MAX_BANS)
+    };
+  }
+
+  function compactIpRangeSuggestionsSnapshot(suggestionsData = {}) {
+    const source = suggestionsData && typeof suggestionsData === 'object' ? suggestionsData : {};
+    return {
+      ...source,
+      summary: source.summary && typeof source.summary === 'object' ? source.summary : {},
+      suggestions: toArray(source.suggestions).slice(0, IP_BANS_CACHE_MAX_SUGGESTIONS)
     };
   }
 
@@ -245,10 +255,12 @@ export function createDashboardRefreshRuntime(options = {}) {
     if (dashboardState) {
       applySnapshots(monitoringSnapshots);
       writeCache(MONITORING_CACHE_KEY, { monitoring: compactMonitoring });
-      writeCache(IP_BANS_CACHE_KEY, { bans: compactBans });
+      const existingIpBansCache = readCache(IP_BANS_CACHE_KEY) || {};
+      writeCache(IP_BANS_CACHE_KEY, { ...existingIpBansCache, bans: compactBans });
     } else {
       writeCache(MONITORING_CACHE_KEY, { monitoring: compactMonitoring });
-      writeCache(IP_BANS_CACHE_KEY, { bans: compactBans });
+      const existingIpBansCache = readCache(IP_BANS_CACHE_KEY) || {};
+      writeCache(IP_BANS_CACHE_KEY, { ...existingIpBansCache, bans: compactBans });
     }
 
     if (dashboardState && dashboardState.getDerivedState().monitoringEmpty) {
@@ -276,19 +288,30 @@ export function createDashboardRefreshRuntime(options = {}) {
     }
 
     const requestOptions = toRequestOptions(runtimeOptions);
-    const [bansData, configSnapshot] = await Promise.all([
+    const [bansData, ipRangeSuggestions, configSnapshot] = await Promise.all([
       dashboardApiClient.getBans(requestOptions),
+      dashboardApiClient.getIpRangeSuggestions({ hours: 24, limit: 20 }, requestOptions),
       includeConfigRefresh ? refreshSharedConfig(reason, runtimeOptions) : Promise.resolve(null)
     ]);
     const compactBans = compactBansSnapshot(bansData);
+    const compactSuggestions = compactIpRangeSuggestionsSnapshot(ipRangeSuggestions);
     if (dashboardState) {
-      applySnapshots({ bans: bansData });
+      applySnapshots({
+        bans: bansData,
+        ipRangeSuggestions
+      });
       if (hasConfigSnapshot(configSnapshot)) {
         applySnapshots({ config: configSnapshot });
       }
-      writeCache(IP_BANS_CACHE_KEY, { bans: compactBans });
+      writeCache(IP_BANS_CACHE_KEY, {
+        bans: compactBans,
+        ipRangeSuggestions: compactSuggestions
+      });
     } else {
-      writeCache(IP_BANS_CACHE_KEY, { bans: compactBans });
+      writeCache(IP_BANS_CACHE_KEY, {
+        bans: compactBans,
+        ipRangeSuggestions: compactSuggestions
+      });
     }
 
     if (reason === 'ban-save' || reason === 'unban-save') {

@@ -245,6 +245,46 @@ export const adaptMonitoring = (payload) => {
 /**
  * @param {unknown} payload
  */
+export const adaptIpRangeSuggestions = (payload) => {
+  const source = asRecord(payload);
+  const summarySource = asRecord(source.summary);
+  const suggestions = asObjectArray(source.suggestions).map((entry) => {
+    const record = asRecord(entry);
+    return {
+      cidr: String(record.cidr || ''),
+      ip_family: String(record.ip_family || ''),
+      bot_evidence_score: Number(record.bot_evidence_score || 0),
+      human_evidence_score: Number(record.human_evidence_score || 0),
+      collateral_risk: Number(record.collateral_risk || 0),
+      confidence: Number(record.confidence || 0),
+      risk_band: String(record.risk_band || 'high'),
+      recommended_action: String(record.recommended_action || 'logging-only'),
+      recommended_mode: String(record.recommended_mode || 'logging-only'),
+      evidence_counts: asRecord(record.evidence_counts),
+      safer_alternatives: Array.isArray(record.safer_alternatives)
+        ? record.safer_alternatives.map((value) => String(value || ''))
+        : [],
+      guardrail_notes: Array.isArray(record.guardrail_notes)
+        ? record.guardrail_notes.map((value) => String(value || ''))
+        : []
+    };
+  });
+  return {
+    generated_at: Number(source.generated_at || 0),
+    hours: Number(source.hours || 24),
+    summary: {
+      suggestions_total: Number(summarySource.suggestions_total || 0),
+      low_risk: Number(summarySource.low_risk || 0),
+      medium_risk: Number(summarySource.medium_risk || 0),
+      high_risk: Number(summarySource.high_risk || 0)
+    },
+    suggestions
+  };
+};
+
+/**
+ * @param {unknown} payload
+ */
 export const adaptConfig = (payload) => asRecord(payload);
 
 /**
@@ -484,6 +524,21 @@ export const create = (options = {}) => {
   };
 
   /**
+   * @param {{hours?: number, limit?: number}} [options]
+   * @param {RequestOptions} [requestOptions]
+   */
+  const getIpRangeSuggestions = async (options = {}, requestOptions = {}) => {
+    const hours = Number.isFinite(options.hours) ? Number(options.hours) : 24;
+    const limit = Number.isFinite(options.limit) ? Number(options.limit) : 20;
+    return adaptIpRangeSuggestions(
+      await request(
+        `/admin/ip-range/suggestions?hours=${encodeURIComponent(String(hours))}&limit=${encodeURIComponent(String(limit))}`,
+        requestOptions
+      )
+    );
+  };
+
+  /**
    * @param {Record<string, unknown> | null} [previewPatch]
    * @param {RequestOptions} [requestOptions]
    */
@@ -554,6 +609,7 @@ export const create = (options = {}) => {
     getCdp,
     getCdpEvents,
     getMonitoring,
+    getIpRangeSuggestions,
     getConfig,
     getRobotsPreview,
     updateConfig,

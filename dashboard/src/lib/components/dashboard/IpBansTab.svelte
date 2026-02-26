@@ -28,8 +28,10 @@
   export let isActive = false;
   export let tabStatus = null;
   export let bansSnapshot = null;
+  export let ipRangeSuggestionsSnapshot = null;
   export let configSnapshot = null;
   export let configVersion = 0;
+  export let ipRangeSuggestionsVersion = 0;
   export let onSaveConfig = null;
   export let onBan = null;
   export let onUnban = null;
@@ -60,6 +62,7 @@
   let savingIpRange = false;
   let warnOnUnload = false;
   let lastAppliedConfigVersion = -1;
+  let lastAppliedSuggestionsVersion = -1;
 
   let bypassAllowlistsEnabled = true;
   let networkAllowlist = '';
@@ -73,6 +76,13 @@
   let ipRangePolicyMode = 'off';
   let ipRangeEmergencyAllowlist = '';
   let ipRangeCustomRulesJson = '';
+  let ipRangeSuggestions = [];
+  let ipRangeSuggestionsSummary = {
+    suggestionsTotal: 0,
+    lowRisk: 0,
+    mediumRisk: 0,
+    highRisk: 0
+  };
   let ipRangeBaseline = {
     mode: 'off',
     emergencyAllowlist: '',
@@ -352,6 +362,165 @@
     };
   };
 
+  const normalizeSuggestionCidr = (value) => String(value || '').trim();
+
+  const normalizeSuggestionRiskBand = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'low') return 'low';
+    if (normalized === 'medium') return 'medium';
+    return 'high';
+  };
+
+  const normalizeSuggestionAction = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'deny_temp') return 'deny_temp';
+    if (normalized === 'tarpit') return 'tarpit';
+    return 'logging-only';
+  };
+
+  const normalizeSuggestionMode = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized === 'enforce' ? 'enforce' : 'logging-only';
+  };
+
+  const toPercentLabel = (value) => `${(Number(value || 0) * 100).toFixed(1)}%`;
+
+  const suggestionActionLabel = (action) => {
+    if (action === 'deny_temp') return 'deny_temp';
+    if (action === 'tarpit') return 'tarpit';
+    return 'logging-only';
+  };
+
+  const suggestionRuleAction = (action) => {
+    if (action === 'deny_temp') return 'honeypot';
+    if (action === 'tarpit') return 'tarpit';
+    return 'tarpit';
+  };
+
+  const suggestionRuleIdBase = (cidr, action) => {
+    const actionPart = String(action || 'tarpit').toLowerCase();
+    const cidrPart = String(cidr || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 42);
+    return `suggested-${actionPart}-${cidrPart || 'range'}`;
+  };
+
+  const normalizeCidrs = (value) => (
+    Array.isArray(value)
+      ? value
+        .map((entry) => String(entry || '').trim())
+        .filter((entry) => entry.length > 0)
+        .sort()
+      : []
+  );
+
+  const suggestionAlreadyMapped = (rule, existingRules) => {
+    const targetCidrs = normalizeCidrs(rule.cidrs);
+    return existingRules.some((candidate) => {
+      if (!candidate || typeof candidate !== 'object') return false;
+      if (String(candidate.id || '').trim() === String(rule.id || '').trim()) return true;
+      const candidateCidrs = normalizeCidrs(candidate.cidrs);
+      if (candidateCidrs.length !== targetCidrs.length) return false;
+      if (candidateCidrs.join(',') !== targetCidrs.join(',')) return false;
+      return String(candidate.action || '').trim() === String(rule.action || '').trim();
+    });
+  };
+
+  const ensureUniqueRuleId = (baseId, existingRules) => {
+    const takenIds = new Set(
+      existingRules
+        .map((rule) => (rule && typeof rule === 'object' ? String(rule.id || '').trim() : ''))
+        .filter((value) => value.length > 0)
+    );
+    if (!takenIds.has(baseId)) return baseId;
+    let suffix = 2;
+    let candidate = `${baseId}-${suffix}`;
+    while (takenIds.has(candidate)) {
+      suffix += 1;
+      candidate = `${baseId}-${suffix}`;
+    }
+    return candidate;
+  };
+
+  const normalizeIpRangeSuggestionsSnapshot = (snapshot = {}) => {
+    const source = snapshot && typeof snapshot === 'object' ? snapshot : {};
+    const summary = source.summary && typeof source.summary === 'object' ? source.summary : {};
+    const suggestions = Array.isArray(source.suggestions) ? source.suggestions : [];
+    return {
+      summary: {
+        suggestionsTotal: Number(summary.suggestions_total || suggestions.length || 0),
+        lowRisk: Number(summary.low_risk || 0),
+        mediumRisk: Number(summary.medium_risk || 0),
+        highRisk: Number(summary.high_risk || 0)
+      },
+      suggestions: suggestions
+        .map((entry, index) => {
+          const candidate = entry && typeof entry === 'object' ? entry : {};
+          const cidr = normalizeSuggestionCidr(candidate.cidr);
+          if (!cidr) return null;
+          const recommendedAction = normalizeSuggestionAction(candidate.recommended_action);
+          const recommendedMode = normalizeSuggestionMode(candidate.recommended_mode);
+          const riskBand = normalizeSuggestionRiskBand(candidate.risk_band);
+          const key = `${cidr}|${recommendedAction}|${recommendedMode}|${index}`;
+          return {
+            key,
+            cidr,
+            ipFamily: String(candidate.ip_family || '').toLowerCase() === 'ipv6' ? 'ipv6' : 'ipv4',
+            botEvidenceScore: Number(candidate.bot_evidence_score || 0),
+            humanEvidenceScore: Number(candidate.human_evidence_score || 0),
+            collateralRisk: Number(candidate.collateral_risk || 0),
+            confidence: Number(candidate.confidence || 0),
+            riskBand,
+            recommendedAction,
+            recommendedMode,
+            saferAlternatives: Array.isArray(candidate.safer_alternatives)
+              ? candidate.safer_alternatives.map((value) => String(value || '')).filter((value) => value)
+              : [],
+            guardrailNotes: Array.isArray(candidate.guardrail_notes)
+              ? candidate.guardrail_notes.map((value) => String(value || '')).filter((value) => value)
+              : []
+          };
+        })
+        .filter(Boolean)
+    };
+  };
+
+  const buildRuleFromSuggestion = (suggestion, applyMode, existingRules) => {
+    const recommendedAction = suggestionRuleAction(suggestion.recommendedAction);
+    const baseId = suggestionRuleIdBase(suggestion.cidr, suggestion.recommendedAction);
+    return {
+      id: ensureUniqueRuleId(baseId, existingRules),
+      enabled: applyMode === 'enforce',
+      cidrs: [suggestion.cidr],
+      action: recommendedAction
+    };
+  };
+
+  const hasSuggestionRule = (suggestion) => {
+    const existingRules = Array.isArray(ipRangeCustomRulesValidation.parsed)
+      ? ipRangeCustomRulesValidation.parsed
+      : [];
+    const draft = {
+      id: suggestionRuleIdBase(suggestion.cidr, suggestion.recommendedAction),
+      cidrs: [suggestion.cidr],
+      action: suggestionRuleAction(suggestion.recommendedAction)
+    };
+    return suggestionAlreadyMapped(draft, existingRules);
+  };
+
+  const applySuggestionToCustomRules = (suggestion, applyMode) => {
+    if (!writable || !suggestion) return;
+    const existingRules = Array.isArray(ipRangeCustomRulesValidation.parsed)
+      ? [...ipRangeCustomRulesValidation.parsed]
+      : [];
+    const rule = buildRuleFromSuggestion(suggestion, applyMode, existingRules);
+    if (suggestionAlreadyMapped(rule, existingRules)) return;
+    existingRules.push(rule);
+    ipRangeCustomRulesJson = formatJsonObjectLines(existingRules);
+  };
+
   const toKey = (ban, index) =>
     `${String(ban?.ip || '-')}:${String(ban?.reason || '-')}:${String(ban?.banned_at || 0)}:${String(ban?.expires || 0)}:${index}`;
 
@@ -513,6 +682,16 @@
   );
   $: canBan = isValidIp(banIp) && banDurationSeconds > 0 && !banning;
   $: canUnban = isValidIp(unbanIp) && !unbanning;
+
+  $: {
+    const nextSuggestionsVersion = Number(ipRangeSuggestionsVersion || 0);
+    if (nextSuggestionsVersion !== lastAppliedSuggestionsVersion) {
+      lastAppliedSuggestionsVersion = nextSuggestionsVersion;
+      const normalized = normalizeIpRangeSuggestionsSnapshot(ipRangeSuggestionsSnapshot || {});
+      ipRangeSuggestions = normalized.suggestions;
+      ipRangeSuggestionsSummary = normalized.summary;
+    }
+  }
 
   $: {
     const nextVersion = Number(configVersion || 0);
@@ -683,6 +862,96 @@
       <input id="unban-ip" class="input-field" type="text" placeholder="Internet Protocol address" aria-label="Internet Protocol address to unban" maxlength="45" spellcheck="false" autocomplete="off" bind:value={unbanIp} />
       <button id="unban-btn" class="btn btn-submit" disabled={!canUnban} on:click={submitUnban}>Unban</button>
     </div>
+  </div>
+
+  <div class="control-group panel-soft pad-md">
+    <div class="panel-heading-with-control">
+      <h3>Suggested Ranges (Last 24h)</h3>
+      <span class="text-muted">
+        {ipRangeSuggestionsSummary.suggestionsTotal} candidate{ipRangeSuggestionsSummary.suggestionsTotal === 1 ? '' : 's'}
+      </span>
+    </div>
+    <p class="control-desc text-muted">
+      Suggestions are computed from recent abuse and likely-human evidence.
+      Apply as <code>logging-only</code> first when uncertain, then promote to enforce after validation.
+    </p>
+    <p class="control-desc text-muted">
+      <strong>Recommendation mapping:</strong> <code>deny_temp</code> suggestions map to the existing <code>honeypot</code> rule action on apply.
+    </p>
+    {#if ipRangeSuggestions.length === 0}
+      <p class="control-desc text-muted">No suggestions available for the current telemetry window.</p>
+    {:else}
+      <TableWrapper>
+        <table id="ip-range-suggestions-table" class="panel panel-border bans-table-admin">
+          <thead>
+            <tr>
+              <th class="caps-label"><abbr title="Classless Inter-Domain Routing">CIDR</abbr></th>
+              <th class="caps-label">Risk</th>
+              <th class="caps-label">Evidence</th>
+              <th class="caps-label">Recommendation</th>
+              <th class="caps-label">Apply</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each ipRangeSuggestions as suggestion (suggestion.key)}
+              {@const alreadyMapped = hasSuggestionRule(suggestion)}
+              <tr>
+                <td>
+                  <code>{suggestion.cidr}</code>
+                  <div class="ban-detail-content">
+                    <span class="text-muted">{suggestion.ipFamily}</span>
+                  </div>
+                </td>
+                <td>
+                  <span class={`ban-signal-badge suggestion-risk-badge suggestion-risk-badge--${suggestion.riskBand}`}>{suggestion.riskBand}</span>
+                  <div class="ban-detail-content">
+                    <span>confidence {toPercentLabel(suggestion.confidence)}</span>
+                    <span>collateral {toPercentLabel(suggestion.collateralRisk)}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="ban-detail-content">
+                    <span>bot score {suggestion.botEvidenceScore.toFixed(2)}</span>
+                    <span>human score {suggestion.humanEvidenceScore.toFixed(2)}</span>
+                    {#if suggestion.saferAlternatives.length > 0}
+                      <span>safer: {suggestion.saferAlternatives.join(', ')}</span>
+                    {/if}
+                    {#if suggestion.guardrailNotes.length > 0}
+                      <span class="text-muted">{suggestion.guardrailNotes.join(' · ')}</span>
+                    {/if}
+                  </div>
+                </td>
+                <td>
+                  <div class="ban-detail-content">
+                    <span><code>{suggestionActionLabel(suggestion.recommendedAction)}</code></span>
+                    <span class="text-muted">{suggestion.recommendedMode}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="suggestion-actions">
+                    <button
+                      type="button"
+                      class="btn btn-subtle"
+                      disabled={!writable || alreadyMapped}
+                      on:click={() => applySuggestionToCustomRules(suggestion, 'logging-only')}
+                    >Add as logging-only</button>
+                    <button
+                      type="button"
+                      class="btn btn-subtle"
+                      disabled={!writable || alreadyMapped}
+                      on:click={() => applySuggestionToCustomRules(suggestion, 'enforce')}
+                    >Add as enforce</button>
+                    {#if alreadyMapped}
+                      <span class="text-muted">Already added to custom rules.</span>
+                    {/if}
+                  </div>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </TableWrapper>
+    {/if}
   </div>
 
   <div class="control-group panel-soft pad-md config-edit-pane" class:config-edit-pane--dirty={ipRangeDirty}>

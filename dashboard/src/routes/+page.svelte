@@ -564,8 +564,10 @@
           isActive={activeTabKey === 'ip-bans'}
           tabStatus={tabStatus['ip-bans'] || {}}
           bansSnapshot={snapshots.bans}
+          ipRangeSuggestionsSnapshot={snapshots.ipRangeSuggestions}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
+          ipRangeSuggestionsVersion={snapshotVersions.ipRangeSuggestions || 0}
           onSaveConfig={onSaveConfig}
           onBan={onBan}
           onUnban={onUnban}

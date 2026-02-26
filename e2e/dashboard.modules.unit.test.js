@@ -277,6 +277,29 @@ test('dashboard API adapters normalize sparse payloads safely', { concurrency: f
     assert.deepEqual(toPlain(configValidation.issues), [
       { field: 'rate_limit', message: 'out of range' }
     ]);
+
+    const suggestions = api.adaptIpRangeSuggestions({
+      generated_at: 1700000000,
+      hours: 24,
+      summary: { suggestions_total: 1, low_risk: 1, medium_risk: 0, high_risk: 0 },
+      suggestions: [{
+        cidr: '198.51.100.0/24',
+        ip_family: 'ipv4',
+        bot_evidence_score: '18.5',
+        human_evidence_score: 0,
+        collateral_risk: 0.02,
+        confidence: 0.91,
+        risk_band: 'low',
+        recommended_action: 'deny_temp',
+        recommended_mode: 'enforce',
+        evidence_counts: { honeypot: 12 },
+        safer_alternatives: ['198.51.100.0/25'],
+        guardrail_notes: []
+      }]
+    });
+    assert.equal(suggestions.summary.suggestions_total, 1);
+    assert.equal(suggestions.suggestions.length, 1);
+    assert.equal(suggestions.suggestions[0].recommended_action, 'deny_temp');
   });
 });
 
@@ -1084,9 +1107,12 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(ipBansSource, /export let onUnban = null;/);
   assert.match(ipBansSource, /export let onSaveConfig = null;/);
   assert.match(ipBansSource, /export let configVersion = 0;/);
+  assert.match(ipBansSource, /export let ipRangeSuggestionsVersion = 0;/);
   assert.match(ipBansSource, /export let configSnapshot = null;/);
+  assert.match(ipBansSource, /export let ipRangeSuggestionsSnapshot = null;/);
   assert.match(ipBansSource, /let banFilter = 'all';/);
   assert.match(ipBansSource, /id="ip-ban-filter"/);
+  assert.match(ipBansSource, /id="ip-range-suggestions-table"/);
   assert.match(ipBansSource, /id="bypass-allowlists-toggle"/);
   assert.match(ipBansSource, /id="network-allowlist"/);
   assert.match(ipBansSource, /id="path-allowlist"/);
@@ -1297,6 +1323,7 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /onBan=\{onBan\}/);
   assert.match(source, /onUnban=\{onUnban\}/);
   assert.match(source, /configSnapshot=\{snapshots\.config\}/);
+  assert.match(source, /ipRangeSuggestionsSnapshot=\{snapshots\.ipRangeSuggestions\}/);
   assert.match(source, /cdpSnapshot=\{snapshots\.cdp\}/);
   assert.match(source, /id="global-test-mode-toggle"/);
   assert.match(source, /onGlobalTestModeToggleChange/);
@@ -1373,6 +1400,7 @@ test('dashboard refresh runtime remains snapshot-only and excludes legacy config
   assert.match(source, /const MONITORING_CACHE_MAX_RECENT_EVENTS = 25;/);
   assert.match(source, /const MONITORING_CACHE_MAX_CDP_EVENTS = 50;/);
   assert.match(source, /const MONITORING_CACHE_MAX_BANS = 100;/);
+  assert.match(source, /const IP_BANS_CACHE_MAX_SUGGESTIONS = 50;/);
   assert.match(source, /function clearAllCaches\(\) \{/);
   assert.match(source, /writeCache\(MONITORING_CACHE_KEY, \{ monitoring: compactMonitoring \}\);/);
   assert.match(source, /if \(hasConfigSnapshot\(existingConfig\)\) \{/);
@@ -1380,6 +1408,11 @@ test('dashboard refresh runtime remains snapshot-only and excludes legacy config
   assert.match(source, /const refreshVerificationTab = \(reason = 'manual'/);
   assert.match(source, /async function refreshFingerprintingTab\(reason = 'manual'/);
   assert.match(source, /dashboardApiClient\.getCdp\(requestOptions\)/);
+  assert.match(source, /dashboardApiClient\.getIpRangeSuggestions\(\{ hours: 24, limit: 20 \}, requestOptions\)/);
+  assert.match(
+    source,
+    /writeCache\(IP_BANS_CACHE_KEY, \{\s*bans: compactBans,\s*ipRangeSuggestions: compactSuggestions\s*\}\);/m
+  );
   assert.match(source, /const includeConfigRefresh = reason !== 'auto-refresh';/);
   assert.match(
     source,
