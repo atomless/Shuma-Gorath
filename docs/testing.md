@@ -13,6 +13,7 @@ make test-adversarial-manifest # Validate adversarial scenario manifest + fixtur
 make test-adversarial-smoke # Mandatory adversarial fast smoke profile (waits for existing Spin readiness)
 make test-adversarial-abuse # Replay/stale/order-cadence abuse regression profile
 make test-adversarial-akamai # Akamai fixture-driven simulation profile
+make test-adversarial-live # Loop adversarial profile for live monitoring demos (Ctrl+C to stop)
 make test-ip-range-suggestions # Focused IP-range suggestion regression gate (runtime + dashboard)
 make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)
@@ -125,6 +126,26 @@ Available profiles:
 - `make test-adversarial-abuse` - mandatory replay/stale/order-cadence abuse regressions
 - `make test-adversarial-akamai` - mandatory Akamai signal fixture coverage
 - `make test-adversarial-manifest` - schema/fixture validation without server
+- `make test-adversarial-live` - repeated live traffic generator for operator monitoring drills
+
+Live loop examples:
+
+```bash
+# Infinite fast-smoke loop until Ctrl+C
+make test-adversarial-live
+
+# Five abuse cycles with a 1-second pause between cycles
+ADVERSARIAL_PROFILE=abuse_regression ADVERSARIAL_RUNS=5 ADVERSARIAL_PAUSE_SECONDS=1 make test-adversarial-live
+
+# Akamai fixture profile with custom report output
+ADVERSARIAL_PROFILE=akamai_smoke ADVERSARIAL_REPORT_PATH=scripts/tests/adversarial/live_akamai_report.json make test-adversarial-live
+```
+
+Live loop controls:
+- `ADVERSARIAL_PROFILE` (default `fast_smoke`) must be one of `fast_smoke`, `abuse_regression`, `akamai_smoke`.
+- `ADVERSARIAL_RUNS` (default `0`) controls cycle count; `0` means run until interrupted.
+- `ADVERSARIAL_PAUSE_SECONDS` (default `2`) controls delay between cycles.
+- `ADVERSARIAL_REPORT_PATH` (default `scripts/tests/adversarial/latest_report.json`) controls report output file.
 
 `make test` runs `test-adversarial-smoke`, `test-adversarial-abuse`, and `test-adversarial-akamai` in sequence.
 `test-adversarial-akamai` is fixture-driven (local `/fingerprint-report` with canned payloads) and does not require a live Akamai edge instance.

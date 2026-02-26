@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-live test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -415,6 +415,48 @@ test-adversarial-akamai: ## Run Akamai signal fixture smoke profile (requires ru
 	@echo "$(CYAN)🧪 Running adversarial Akamai fixture profile...$(NC)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile akamai_smoke; \
+	else \
+		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
+		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
+		exit 1; \
+	fi
+
+test-adversarial-live: ## Continuously run adversarial simulation profile for live operator monitoring (requires running server)
+	@echo "$(CYAN)🧪 Running adversarial live simulation loop...$(NC)"
+	@PROFILE="$${ADVERSARIAL_PROFILE:-fast_smoke}"; \
+	RUNS="$${ADVERSARIAL_RUNS:-0}"; \
+	PAUSE="$${ADVERSARIAL_PAUSE_SECONDS:-2}"; \
+	REPORT_PATH="$${ADVERSARIAL_REPORT_PATH:-scripts/tests/adversarial/latest_report.json}"; \
+	case "$$RUNS" in ''|*[!0-9]*) \
+		echo "$(RED)❌ ADVERSARIAL_RUNS must be an integer (0 means run until Ctrl+C).$(NC)"; \
+		exit 1 ;; \
+	esac; \
+	case "$$PAUSE" in ''|*[!0-9]*) \
+		echo "$(RED)❌ ADVERSARIAL_PAUSE_SECONDS must be an integer >= 0.$(NC)"; \
+		exit 1 ;; \
+	esac; \
+	if ! python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile "$$PROFILE" --validate-only >/dev/null 2>&1; then \
+		echo "$(RED)❌ Unknown ADVERSARIAL_PROFILE='$$PROFILE'.$(NC)"; \
+		echo "$(YELLOW)   Supported profiles: fast_smoke, abuse_regression, akamai_smoke$(NC)"; \
+		exit 1; \
+	fi; \
+	echo "$(YELLOW)   profile=$$PROFILE runs=$$RUNS pause_seconds=$$PAUSE report=$$REPORT_PATH$(NC)"; \
+	echo "$(YELLOW)   Press Ctrl+C to stop.$(NC)"; \
+	if $(MAKE) --no-print-directory spin-wait-ready; then \
+		ITER=1; \
+		while true; do \
+			echo "$(CYAN)[adversarial-live] cycle $$ITER$(NC)"; \
+			SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" \
+				python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile "$$PROFILE" --report "$$REPORT_PATH" || exit 1; \
+			if [ "$$RUNS" -gt 0 ] && [ "$$ITER" -ge "$$RUNS" ]; then \
+				echo "$(GREEN)✅ adversarial live loop completed $$ITER cycle(s).$(NC)"; \
+				break; \
+			fi; \
+			ITER=$$((ITER + 1)); \
+			if [ "$$PAUSE" -gt 0 ]; then \
+				sleep "$$PAUSE"; \
+			fi; \
+		done; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \

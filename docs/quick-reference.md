@@ -41,6 +41,10 @@ make test-dashboard-unit   # Run dashboard JS/module contract tests
 make dev                   # In terminal 1
 make test-integration      # In terminal 2
 
+# Live adversarial detection drill (Spin environment required)
+make dev                   # In terminal 1
+make test-adversarial-live # In terminal 2 (Ctrl+C to stop)
+
 # Dashboard e2e smoke tests only (Spin environment required)
 make dev                   # In terminal 1
 make test-dashboard-e2e    # In terminal 2
