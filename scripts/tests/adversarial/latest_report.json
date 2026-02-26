@@ -4,9 +4,9 @@
   "profile": "akamai_smoke",
   "base_url": "http://127.0.0.1:3000",
   "request_count": 4,
-  "suite_runtime_ms": 123,
+  "suite_runtime_ms": 128,
   "monitoring_before": {
-    "fingerprint_events": 6761,
+    "fingerprint_events": 6830,
     "monitoring_total": 0,
     "components": {
       "honeypot_hits": 0,
@@ -18,7 +18,7 @@
     }
   },
   "monitoring_after": {
-    "fingerprint_events": 6762,
+    "fingerprint_events": 6831,
     "monitoring_total": 0,
     "components": {
       "honeypot_hits": 0,
@@ -37,7 +37,7 @@
       "expected_outcome": "monitor",
       "observed_outcome": "monitor",
       "passed": true,
-      "latency_ms": 13,
+      "latency_ms": 12,
       "runtime_budget_ms": 9000,
       "detail": "ok"
     },
@@ -59,8 +59,8 @@
       {
         "name": "latency_p95",
         "passed": true,
-        "detail": "p95=13ms limit=2000ms",
-        "observed": 13,
+        "detail": "p95=12ms limit=2000ms",
+        "observed": 12,
         "limit": 2000
       },
       {
@@ -96,8 +96,8 @@
       {
         "name": "suite_runtime_budget",
         "passed": true,
-        "detail": "runtime=123ms limit=45000ms",
-        "observed": 123,
+        "detail": "runtime=128ms limit=45000ms",
+        "observed": 128,
         "limit": 45000
       }
     ],
@@ -108,5 +108,5 @@
     "request_count": 4
   },
   "passed": true,
-  "generated_at_unix": 1772102258
+  "generated_at_unix": 1772103591
 }

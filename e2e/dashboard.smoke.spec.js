@@ -160,6 +160,42 @@ async function assertActiveTabPanelVisibility(page, activeTab) {
   }
 }
 
+async function bootstrapDashboardSession(page, targetUrl) {
+  const maxAttempts = 4;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const response = await page.request.post(`${BASE_URL}/admin/login`, {
+      headers: { "Content-Type": "application/json" },
+      data: { api_key: API_KEY }
+    });
+
+    if (response.ok()) {
+      await page.goto(targetUrl);
+      if (!page.url().includes("/dashboard/login.html")) {
+        return;
+      }
+    }
+
+    const status = response.status();
+    const retryAfterRaw = response.headers()["retry-after"];
+    const retryAfterSeconds = Number.parseInt(String(retryAfterRaw || ""), 10);
+    const backoffMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+      ? retryAfterSeconds * 1000
+      : 600 * (attempt + 1);
+
+    if (attempt < (maxAttempts - 1)) {
+      await page.waitForTimeout(backoffMs);
+      await page.goto(targetUrl);
+      await page.waitForTimeout(200);
+      continue;
+    }
+
+    const responseBody = await response.text().catch(() => "");
+    throw new Error(
+      `Dashboard login bootstrap failed after ${maxAttempts} attempts (status ${status}): ${responseBody.slice(0, 200)}`
+    );
+  }
+}
+
 async function openDashboard(page, options = {}) {
   const initialTab = typeof options.initialTab === "string" ? options.initialTab : "monitoring";
   const targetUrl = `${BASE_URL}/dashboard/index.html#${initialTab}`;
@@ -167,20 +203,7 @@ async function openDashboard(page, options = {}) {
   await page.goto(targetUrl);
   await page.waitForTimeout(250);
   if (page.url().includes("/dashboard/login.html")) {
-    for (let attempt = 0; attempt < 2 && page.url().includes("/dashboard/login.html"); attempt += 1) {
-      await page.fill("#login-apikey", API_KEY);
-      await Promise.all([
-        page.waitForResponse((response) => (
-          response.request().method() === "POST"
-          && response.url().includes("/admin/login")
-        )),
-        page.click("#login-submit")
-      ]);
-      if (!page.url().includes("/dashboard/index.html")) {
-        await page.goto(targetUrl);
-        await page.waitForTimeout(250);
-      }
-    }
+    await bootstrapDashboardSession(page, targetUrl);
     await expect(page).toHaveURL(/\/dashboard\/index\.html/);
   }
   if (!page.url().endsWith(`#${initialTab}`)) {
