@@ -484,6 +484,21 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                         crate::observability::metrics::MetricName::ChallengeSolvedTotal,
                         None,
                     );
+                    crate::observability::monitoring::record_ip_range_challenge_solved(
+                        &store,
+                        challenge_ip.as_str(),
+                    );
+                    crate::admin::log_event(
+                        &store,
+                        &crate::admin::EventLogEntry {
+                            ts: crate::admin::now_ts(),
+                            event: crate::admin::EventType::Challenge,
+                            ip: Some(challenge_ip.clone()),
+                            reason: Some("challenge_puzzle_pass".to_string()),
+                            outcome: Some("Solved".to_string()),
+                            admin: None,
+                        },
+                    );
                 }
                 crate::boundaries::ChallengeSubmitOutcome::Incorrect => {
                     crate::observability::metrics::increment(

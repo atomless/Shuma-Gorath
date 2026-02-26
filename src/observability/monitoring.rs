@@ -3,6 +3,7 @@ use base64::{engine::general_purpose, Engine as _};
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
+use std::hash::{Hash, Hasher};
 use std::sync::Mutex;
 
 const MONITORING_PREFIX: &str = "monitoring:v1";
@@ -282,6 +283,14 @@ fn normalize_not_a_bot_outcome(outcome: &str) -> &'static str {
     }
 }
 
+fn normalize_ip_range_human_signal(signal: &str) -> &'static str {
+    match signal {
+        "challenge_puzzle_pass" => "challenge_puzzle_pass",
+        "likely_human_sample" => "likely_human_sample",
+        _ => "likely_human_sample",
+    }
+}
+
 fn not_a_bot_solve_ms_bucket(solve_ms: u64) -> &'static str {
     match solve_ms {
         0..=999 => "lt_1s",
@@ -289,6 +298,25 @@ fn not_a_bot_solve_ms_bucket(solve_ms: u64) -> &'static str {
         3000..=9999 => "3_10s",
         _ => "10s_plus",
     }
+}
+
+fn should_sample_likely_human(
+    ip: &str,
+    sample_hint: &str,
+    sample_percent: u8,
+    minute_bucket: u64,
+) -> bool {
+    if sample_percent == 0 {
+        return false;
+    }
+    if sample_percent >= 100 {
+        return true;
+    }
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    ip.hash(&mut hasher);
+    sample_hint.hash(&mut hasher);
+    minute_bucket.hash(&mut hasher);
+    (hasher.finish() % 100) < u64::from(sample_percent)
 }
 
 fn normalize_country(country: Option<&str>) -> String {
@@ -559,6 +587,44 @@ pub(crate) fn record_not_a_bot_submit<S: crate::challenge::KeyValueStore>(
         let bucket = not_a_bot_solve_ms_bucket(ms);
         record_with_dimension(store, "not_a_bot", "solve_ms_bucket", Some(bucket));
     }
+}
+
+fn record_ip_range_human_signal<S: crate::challenge::KeyValueStore>(store: &S, ip: &str, signal: &str) {
+    let normalized_signal = normalize_ip_range_human_signal(signal);
+    let ip_bucket = crate::signals::ip_identity::bucket_ip(ip);
+    record_with_dimension(store, "ip_range_suggestions", "human_total", None);
+    record_with_dimension(
+        store,
+        "ip_range_suggestions",
+        "human_signal",
+        Some(normalized_signal),
+    );
+    record_with_dimension(
+        store,
+        "ip_range_suggestions",
+        "human_ip",
+        Some(ip_bucket.as_str()),
+    );
+}
+
+pub(crate) fn record_ip_range_challenge_solved<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    ip: &str,
+) {
+    record_ip_range_human_signal(store, ip, "challenge_puzzle_pass");
+}
+
+pub(crate) fn maybe_record_ip_range_likely_human_sample<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    ip: &str,
+    sample_percent: u8,
+    sample_hint: &str,
+) {
+    let minute_bucket = now_ts() / 60;
+    if !should_sample_likely_human(ip, sample_hint, sample_percent, minute_bucket) {
+        return;
+    }
+    record_ip_range_human_signal(store, ip, "likely_human_sample");
 }
 
 fn build_seeded_map(keys: &[&str]) -> BTreeMap<String, u64> {
@@ -1321,6 +1387,67 @@ mod tests {
             ),
             "/events/:id/:id/*"
         );
+    }
+
+    #[test]
+    fn ip_range_human_evidence_uses_bucketed_monitoring_dimensions() {
+        let store = MockStore::default();
+        let hour = now_ts() / 3600;
+
+        record_ip_range_challenge_solved(&store, "198.51.100.42");
+        maybe_record_ip_range_likely_human_sample(&store, "198.51.100.43", 100, "/checkout");
+
+        let challenge_signal_key = monitoring_key(
+            "ip_range_suggestions",
+            "human_signal",
+            Some("challenge_puzzle_pass"),
+            hour,
+        );
+        let sampled_signal_key = monitoring_key(
+            "ip_range_suggestions",
+            "human_signal",
+            Some("likely_human_sample"),
+            hour,
+        );
+        assert_eq!(read_counter(&store, challenge_signal_key.as_str()), 1);
+        assert_eq!(read_counter(&store, sampled_signal_key.as_str()), 1);
+
+        let bucket = crate::signals::ip_identity::bucket_ip("198.51.100.42");
+        let bucket_key = monitoring_key(
+            "ip_range_suggestions",
+            "human_ip",
+            Some(bucket.as_str()),
+            hour,
+        );
+        assert_eq!(read_counter(&store, bucket_key.as_str()), 2);
+    }
+
+    #[test]
+    fn likely_human_sampling_respects_disabled_percent() {
+        let store = MockStore::default();
+        maybe_record_ip_range_likely_human_sample(&store, "198.51.100.10", 0, "/");
+        let keys = store.get_keys().expect("keys should load");
+        assert!(keys.is_empty());
+    }
+
+    #[test]
+    fn likely_human_sampling_hash_is_deterministic_for_same_minute_bucket() {
+        let minute_bucket = 123_456u64;
+        let first = should_sample_likely_human("198.51.100.10", "/products", 10, minute_bucket);
+        let second = should_sample_likely_human("198.51.100.10", "/products", 10, minute_bucket);
+        assert_eq!(first, second);
+        assert!(!should_sample_likely_human(
+            "198.51.100.10",
+            "/products",
+            0,
+            minute_bucket
+        ));
+        assert!(should_sample_likely_human(
+            "198.51.100.10",
+            "/products",
+            100,
+            minute_bucket
+        ));
     }
 
     #[test]

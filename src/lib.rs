@@ -1154,6 +1154,12 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         runtime::policy_taxonomy::PolicyTransition::AllowClean,
     );
     observability::metrics::record_policy_match(store, &policy_match);
+    observability::monitoring::maybe_record_ip_range_likely_human_sample(
+        store,
+        ip.as_str(),
+        cfg.ip_range_suggestions_likely_human_sample_percent,
+        path,
+    );
 
     Response::new(200, "OK (passed bot defence)")
 }
