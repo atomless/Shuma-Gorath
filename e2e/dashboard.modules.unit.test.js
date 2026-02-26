@@ -909,6 +909,52 @@ test('advanced config template paths match writable admin config patch keys', { 
   assert.deepEqual(nonWritableInAdvanced, []);
 });
 
+test('runtime variable inventory meanings match writable and read-only admin config payload paths', { concurrency: false }, async () => {
+  const apiSource = fs.readFileSync(path.join(__dirname, '..', 'src/admin/api.rs'), 'utf8');
+  const schema = await importBrowserModule('dashboard/src/lib/domain/config-schema.js');
+  const statusVarMeanings = JSON.parse(
+    fs.readFileSync(path.join(DASHBOARD_ROOT, 'static/assets/status-var-meanings.json'), 'utf8')
+  );
+
+  const payloadFnStart = apiSource.indexOf('fn admin_config_payload(');
+  const payloadFnEnd = apiSource.indexOf('\n#[derive(Debug, Deserialize, Default)]', payloadFnStart);
+  if (payloadFnStart < 0 || payloadFnEnd < 0) {
+    throw new Error('Unable to parse admin_config_payload function body');
+  }
+  const payloadFnSource = apiSource.slice(payloadFnStart, payloadFnEnd);
+  const insertedReadOnlyTopLevelPaths = Array.from(payloadFnSource.matchAll(/obj\.insert\(\s*"([^"]+)"/g))
+    .map((match) => String(match[1] || '').trim())
+    .filter((value) => value.length > 0);
+
+  const expectedReadOnlyPaths = insertedReadOnlyTopLevelPaths.filter(
+    (pathValue) => pathValue !== 'defence_modes_effective' && pathValue !== 'botness_signal_definitions'
+  );
+  ['rate', 'geo', 'js'].forEach((moduleName) => {
+    expectedReadOnlyPaths.push(`defence_modes_effective.${moduleName}.configured`);
+    expectedReadOnlyPaths.push(`defence_modes_effective.${moduleName}.signal_enabled`);
+    expectedReadOnlyPaths.push(`defence_modes_effective.${moduleName}.action_enabled`);
+    expectedReadOnlyPaths.push(`defence_modes_effective.${moduleName}.note`);
+  });
+  expectedReadOnlyPaths.push('botness_signal_definitions.scored_signals');
+  expectedReadOnlyPaths.push('botness_signal_definitions.terminal_signals');
+
+  const expectedInventoryPaths = new Set([
+    ...schema.advancedConfigTemplatePaths,
+    ...expectedReadOnlyPaths
+  ]);
+  const statusVarMeaningPaths = Object.keys(statusVarMeanings || {});
+
+  const missingMeaningPaths = Array.from(expectedInventoryPaths)
+    .filter((pathValue) => !Object.prototype.hasOwnProperty.call(statusVarMeanings, pathValue))
+    .sort();
+  const staleMeaningPaths = statusVarMeaningPaths
+    .filter((pathValue) => !expectedInventoryPaths.has(pathValue))
+    .sort();
+
+  assert.deepEqual(missingMeaningPaths, []);
+  assert.deepEqual(staleMeaningPaths, []);
+});
+
 test('admin endpoint resolver applies loopback override only for local hostnames', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const endpointModule = await importBrowserModule('dashboard/src/lib/domain/services/admin-endpoint.js');

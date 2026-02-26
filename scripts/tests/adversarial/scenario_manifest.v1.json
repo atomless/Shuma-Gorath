@@ -1,0 +1,247 @@
+{
+  "schema_version": "sim-manifest.v1",
+  "suite_id": "shuma-adversarial-scenarios",
+  "description": "Canonical threat-tier simulation matrix for deterministic adversarial regression with bounded runtime and quantitative gates.",
+  "profiles": {
+    "fast_smoke": {
+      "description": "Mandatory CI smoke slice for release-to-release threat-tier routing and cost guardrails.",
+      "max_runtime_seconds": 30,
+      "scenario_ids": [
+        "sim_t0_allow_browser_allowlist",
+        "sim_t1_not_a_bot_pass",
+        "sim_t2_geo_challenge",
+        "sim_t3_geo_maze",
+        "sim_t4_honeypot_deny_temp",
+        "sim_t3_replay_abuse"
+      ],
+      "gates": {
+        "latency": {
+          "p95_max_ms": 1200
+        },
+        "outcome_ratio_bounds": {
+          "allow": {
+            "min": 0.15,
+            "max": 0.18
+          },
+          "not-a-bot": {
+            "min": 0.15,
+            "max": 0.18
+          },
+          "challenge": {
+            "min": 0.15,
+            "max": 0.18
+          },
+          "maze": {
+            "min": 0.32,
+            "max": 0.35
+          },
+          "deny_temp": {
+            "min": 0.15,
+            "max": 0.18
+          }
+        },
+        "telemetry_amplification": {
+          "max_fingerprint_events_per_request": 0.5,
+          "max_monitoring_events_per_request": 1.0
+        }
+      }
+    },
+    "abuse_regression": {
+      "description": "Focused replay/stale-token/ordering-cadence abuse paths as first-class regressions.",
+      "max_runtime_seconds": 80,
+      "scenario_ids": [
+        "sim_t3_replay_abuse",
+        "sim_t3_stale_token_abuse",
+        "sim_t4_ordering_cadence_abuse"
+      ],
+      "gates": {
+        "latency": {
+          "p95_max_ms": 2200
+        },
+        "outcome_ratio_bounds": {
+          "maze": {
+            "min": 0.80,
+            "max": 1.00
+          }
+        },
+        "telemetry_amplification": {
+          "max_fingerprint_events_per_request": 2.5,
+          "max_monitoring_events_per_request": 4.0
+        }
+      }
+    },
+    "akamai_smoke": {
+      "description": "Akamai signal-ingestion smoke matrix using canned edge payload fixtures.",
+      "max_runtime_seconds": 45,
+      "scenario_ids": [
+        "sim_t2_akamai_additive_monitor",
+        "sim_t4_akamai_authoritative_deny"
+      ],
+      "gates": {
+        "latency": {
+          "p95_max_ms": 2000
+        },
+        "outcome_ratio_bounds": {
+          "monitor": {
+            "min": 0.40,
+            "max": 0.60
+          },
+          "deny_temp": {
+            "min": 0.40,
+            "max": 0.60
+          }
+        },
+        "telemetry_amplification": {
+          "max_fingerprint_events_per_request": 3.0,
+          "max_monitoring_events_per_request": 3.0
+        }
+      }
+    }
+  },
+  "scenarios": [
+    {
+      "id": "sim_t0_allow_browser_allowlist",
+      "description": "Legitimate browser in explicit allowlist receives pass-through access.",
+      "tier": "SIM-T0",
+      "driver": "allow_browser_allowlist",
+      "expected_outcome": "allow",
+      "ip": "10.2.0.40",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "seed": 12040,
+      "runtime_budget_ms": 7000,
+      "assertions": {
+        "max_latency_ms": 1200
+      }
+    },
+    {
+      "id": "sim_t1_not_a_bot_pass",
+      "description": "Low-risk flow successfully passes Not-a-Bot and receives marker redirect.",
+      "tier": "SIM-T1",
+      "driver": "not_a_bot_pass",
+      "expected_outcome": "not-a-bot",
+      "ip": "10.2.0.41",
+      "user_agent": "ShumaAdversarial/1.0 not-a-bot-pass",
+      "seed": 12041,
+      "runtime_budget_ms": 9000,
+      "assertions": {
+        "max_latency_ms": 1600
+      }
+    },
+    {
+      "id": "sim_t2_geo_challenge",
+      "description": "Medium-risk GEO rule routes to challenge path.",
+      "tier": "SIM-T2",
+      "driver": "geo_challenge",
+      "expected_outcome": "challenge",
+      "ip": "10.2.0.42",
+      "user_agent": "ShumaAdversarial/1.0 geo-challenge",
+      "geo_country": "BR",
+      "seed": 12042,
+      "runtime_budget_ms": 7000,
+      "assertions": {
+        "max_latency_ms": 1200
+      }
+    },
+    {
+      "id": "sim_t3_geo_maze",
+      "description": "High-threat GEO rule routes directly to maze deception flow.",
+      "tier": "SIM-T3",
+      "driver": "geo_maze",
+      "expected_outcome": "maze",
+      "ip": "10.2.0.43",
+      "user_agent": "ShumaAdversarial/1.0 geo-maze",
+      "geo_country": "RU",
+      "seed": 12043,
+      "runtime_budget_ms": 7000,
+      "assertions": {
+        "max_latency_ms": 1200
+      }
+    },
+    {
+      "id": "sim_t4_honeypot_deny_temp",
+      "description": "Active adversarial honeypot hit yields temporary deny behavior.",
+      "tier": "SIM-T4",
+      "driver": "honeypot_deny_temp",
+      "expected_outcome": "deny_temp",
+      "ip": "10.2.0.44",
+      "user_agent": "ShumaAdversarial/1.0 honeypot-deny",
+      "seed": 12044,
+      "runtime_budget_ms": 7000,
+      "assertions": {
+        "max_latency_ms": 1200
+      }
+    },
+    {
+      "id": "sim_t3_replay_abuse",
+      "description": "Replay abuse on Not-a-Bot seed is rejected and routed to maze response.",
+      "tier": "SIM-T3",
+      "driver": "not_a_bot_replay_abuse",
+      "expected_outcome": "maze",
+      "ip": "10.2.0.45",
+      "user_agent": "ShumaAdversarial/1.0 replay-abuse",
+      "seed": 12045,
+      "runtime_budget_ms": 12000,
+      "assertions": {
+        "max_latency_ms": 2000
+      }
+    },
+    {
+      "id": "sim_t3_stale_token_abuse",
+      "description": "Stale Not-a-Bot token is rejected as abuse and falls into maze in test mode.",
+      "tier": "SIM-T3",
+      "driver": "not_a_bot_stale_token_abuse",
+      "expected_outcome": "maze",
+      "ip": "10.2.0.46",
+      "user_agent": "ShumaAdversarial/1.0 stale-token-abuse",
+      "seed": 12046,
+      "runtime_budget_ms": 14000,
+      "assertions": {
+        "max_latency_ms": 2200
+      }
+    },
+    {
+      "id": "sim_t4_ordering_cadence_abuse",
+      "description": "Ordering/cadence telemetry abuse on Not-a-Bot submit is rejected into maze path.",
+      "tier": "SIM-T4",
+      "driver": "not_a_bot_ordering_cadence_abuse",
+      "expected_outcome": "maze",
+      "ip": "10.2.0.47",
+      "user_agent": "ShumaAdversarial/1.0 ordering-cadence-abuse",
+      "seed": 12047,
+      "runtime_budget_ms": 12000,
+      "assertions": {
+        "max_latency_ms": 2200
+      }
+    },
+    {
+      "id": "sim_t2_akamai_additive_monitor",
+      "description": "Akamai additive payload is accepted without immediate deny; request remains pass-through.",
+      "tier": "SIM-T2",
+      "driver": "akamai_additive_report",
+      "expected_outcome": "monitor",
+      "ip": "10.2.0.48",
+      "user_agent": "ShumaAdversarial/1.0 akamai-additive",
+      "payload_fixture": "scripts/tests/fixtures/akamai/fingerprint_additive_deny_signal.json",
+      "seed": 12048,
+      "runtime_budget_ms": 9000,
+      "assertions": {
+        "max_latency_ms": 1800
+      }
+    },
+    {
+      "id": "sim_t4_akamai_authoritative_deny",
+      "description": "Akamai authoritative high-confidence deny payload triggers temporary deny path.",
+      "tier": "SIM-T4",
+      "driver": "akamai_authoritative_deny",
+      "expected_outcome": "deny_temp",
+      "ip": "10.2.0.49",
+      "user_agent": "ShumaAdversarial/1.0 akamai-authoritative",
+      "payload_fixture": "scripts/tests/fixtures/akamai/fingerprint_authoritative_deny_signal.json",
+      "seed": 12049,
+      "runtime_budget_ms": 9000,
+      "assertions": {
+        "max_latency_ms": 1800
+      }
+    }
+  ]
+}

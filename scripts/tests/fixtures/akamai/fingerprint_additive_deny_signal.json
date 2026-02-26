@@ -1,0 +1,10 @@
+{
+  "bot_score": 99.0,
+  "action": "deny",
+  "detection_ids": [
+    "bm_automation"
+  ],
+  "tags": [
+    "ja3_mismatch"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "bot_score": 68.0,
+  "action": "challenge",
+  "detection_ids": [
+    "bm_browser_anomaly"
+  ],
+  "tags": [
+    "ua_mismatch"
+  ]
+}

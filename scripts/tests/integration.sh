@@ -57,6 +57,7 @@ TEST_TARPIT_TAMPER_IP="10.0.${TARPIT_TEST_SUBNET}.41"
 HONEYPOT_PATH="/instaban"
 INTEGRATION_USER_AGENT="ShumaIntegration/1.0-${RANDOM}-$$-$(date +%s)"
 NOT_A_BOT_TELEMETRY='{"has_pointer":true,"pointer_move_count":42,"pointer_path_length":560.0,"pointer_direction_changes":18,"down_up_ms":220,"focus_changes":1,"visibility_changes":0,"interaction_elapsed_ms":1800,"keyboard_used":false,"touch_used":false,"events_order_valid":true,"activation_method":"pointer","activation_trusted":true,"activation_count":1,"control_focused":true}'
+AKAMAI_FIXTURE_DIR="scripts/tests/fixtures/akamai"
 
 pass() { echo -e "${GREEN}PASS${NC} $1"; }
 fail() {
@@ -1261,7 +1262,11 @@ if ! echo "$fingerprint_additive_cfg" | grep -q '"status":"updated"'; then
   echo -e "${YELLOW}DEBUG additive config:${NC} $fingerprint_additive_cfg"
 else
   curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.230" > /dev/null
-  edge_report='{"bot_score":99.0,"action":"deny","detection_ids":["bm_automation"],"tags":["ja3_mismatch"]}'
+  edge_report=$(cat "${AKAMAI_FIXTURE_DIR}/fingerprint_additive_deny_signal.json" 2>/dev/null || true)
+  if [[ -z "$edge_report" ]]; then
+    fail "Missing Akamai additive fixture payload (${AKAMAI_FIXTURE_DIR}/fingerprint_additive_deny_signal.json)"
+    edge_report='{"bot_score":99.0,"action":"deny","detection_ids":["bm_automation"],"tags":["ja3_mismatch"]}'
+  fi
   additive_edge_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.230" -X POST \
     -H "Content-Type: application/json" \
     -d "$edge_report" \
@@ -1294,7 +1299,11 @@ if ! echo "$fingerprint_authoritative_cfg" | grep -q '"status":"updated"'; then
   echo -e "${YELLOW}DEBUG authoritative config:${NC} $fingerprint_authoritative_cfg"
 else
   curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.231" > /dev/null
-  edge_report='{"bot_score":99.0,"action":"deny","detection_ids":["bm_automation"],"tags":["ja3_mismatch"]}'
+  edge_report=$(cat "${AKAMAI_FIXTURE_DIR}/fingerprint_authoritative_deny_signal.json" 2>/dev/null || true)
+  if [[ -z "$edge_report" ]]; then
+    fail "Missing Akamai authoritative fixture payload (${AKAMAI_FIXTURE_DIR}/fingerprint_authoritative_deny_signal.json)"
+    edge_report='{"bot_score":99.0,"action":"deny","detection_ids":["bm_automation"],"tags":["ja3_mismatch"]}'
+  fi
   authoritative_edge_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.231" -X POST \
     -H "Content-Type: application/json" \
     -d "$edge_report" \

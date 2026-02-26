@@ -173,7 +173,7 @@
         </label>
       </ConfigPanelHeading>
       <p class="control-desc text-muted">Enable this when Akamai/Fermyon deployment provides a trusted distributed rate-limiter backend path. When disabled, Shuma-Gorath uses its internal rate limiter.</p>
-      <p class="text-muted">This toggle controls <code>provider_backends.rate_limiter</code>. It does not change fingerprint Akamai controls.</p>
+      <p class="text-muted">This toggle controls <code>provider_backends.rate_limiter</code>.</p>
     </ConfigPanel>
 
     <ConfigPanel writable={writable} dirty={rateLimitDirty}>

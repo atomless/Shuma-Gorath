@@ -1,0 +1,112 @@
+{
+  "schema_version": "sim-report.v1",
+  "suite_id": "shuma-adversarial-scenarios",
+  "profile": "akamai_smoke",
+  "base_url": "http://127.0.0.1:3000",
+  "request_count": 4,
+  "suite_runtime_ms": 116,
+  "monitoring_before": {
+    "fingerprint_events": 6543,
+    "monitoring_total": 0,
+    "components": {
+      "honeypot_hits": 0,
+      "challenge_failures": 0,
+      "not_a_bot_submitted": 0,
+      "pow_attempts": 0,
+      "rate_violations": 0,
+      "geo_violations": 0
+    }
+  },
+  "monitoring_after": {
+    "fingerprint_events": 6544,
+    "monitoring_total": 0,
+    "components": {
+      "honeypot_hits": 0,
+      "challenge_failures": 0,
+      "not_a_bot_submitted": 0,
+      "pow_attempts": 0,
+      "rate_violations": 0,
+      "geo_violations": 0
+    }
+  },
+  "results": [
+    {
+      "id": "sim_t2_akamai_additive_monitor",
+      "tier": "SIM-T2",
+      "driver": "akamai_additive_report",
+      "expected_outcome": "monitor",
+      "observed_outcome": "monitor",
+      "passed": true,
+      "latency_ms": 11,
+      "runtime_budget_ms": 9000,
+      "detail": "ok"
+    },
+    {
+      "id": "sim_t4_akamai_authoritative_deny",
+      "tier": "SIM-T4",
+      "driver": "akamai_authoritative_deny",
+      "expected_outcome": "deny_temp",
+      "observed_outcome": "deny_temp",
+      "passed": true,
+      "latency_ms": 12,
+      "runtime_budget_ms": 9000,
+      "detail": "ok"
+    }
+  ],
+  "gates": {
+    "all_passed": true,
+    "checks": [
+      {
+        "name": "latency_p95",
+        "passed": true,
+        "detail": "p95=12ms limit=2000ms",
+        "observed": 12,
+        "limit": 2000
+      },
+      {
+        "name": "ratio_monitor",
+        "passed": true,
+        "detail": "ratio=0.500 bounds=[0.400,0.600] count=1 total=2",
+        "observed": 0.5,
+        "min": 0.4,
+        "max": 0.6
+      },
+      {
+        "name": "ratio_deny_temp",
+        "passed": true,
+        "detail": "ratio=0.500 bounds=[0.400,0.600] count=1 total=2",
+        "observed": 0.5,
+        "min": 0.4,
+        "max": 0.6
+      },
+      {
+        "name": "telemetry_fingerprint_amplification",
+        "passed": true,
+        "detail": "amp=0.250 limit=3.000 delta=1 requests=4",
+        "observed": 0.25,
+        "limit": 3.0
+      },
+      {
+        "name": "telemetry_monitoring_amplification",
+        "passed": true,
+        "detail": "amp=0.000 limit=3.000 delta=0 requests=4",
+        "observed": 0.0,
+        "limit": 3.0
+      },
+      {
+        "name": "suite_runtime_budget",
+        "passed": true,
+        "detail": "runtime=116ms limit=45000ms",
+        "observed": 116,
+        "limit": 45000
+      }
+    ],
+    "outcome_counts": {
+      "monitor": 1,
+      "deny_temp": 1
+    },
+    "request_count": 4
+  },
+  "passed": true,
+  "generated_at_unix": 1772086382
+}

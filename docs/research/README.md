@@ -29,3 +29,8 @@ Related active backlog:
 Completed archive index:
 
 - [`archive/README.md`](archive/README.md)
+
+## 🐙 Adversarial Simulation and LLM Testing
+
+1. [`2026-02-25-llm-adversarial-testing-research-synthesis.md`](2026-02-25-llm-adversarial-testing-research-synthesis.md)  
+   LLM-driven adversarial testing methods, benchmark lessons, and direct mapping to `SIM-1`..`SIM-4` simulation design.

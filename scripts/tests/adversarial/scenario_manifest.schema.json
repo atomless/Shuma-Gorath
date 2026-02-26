@@ -1,0 +1,245 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://shuma-gorath.local/schemas/adversarial-scenario-manifest.schema.json",
+  "title": "Shuma Adversarial Scenario Manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "suite_id",
+    "description",
+    "profiles",
+    "scenarios"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "sim-manifest.v1"
+    },
+    "suite_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "description": {
+      "type": "string",
+      "minLength": 10
+    },
+    "profiles": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/definitions/profile"
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/scenario"
+      }
+    }
+  },
+  "definitions": {
+    "profile": {
+      "type": "object",
+      "required": [
+        "description",
+        "max_runtime_seconds",
+        "scenario_ids",
+        "gates"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 8
+        },
+        "max_runtime_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3600
+        },
+        "scenario_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 3
+          },
+          "uniqueItems": true
+        },
+        "gates": {
+          "type": "object",
+          "required": [
+            "latency",
+            "outcome_ratio_bounds",
+            "telemetry_amplification"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "latency": {
+              "type": "object",
+              "required": [
+                "p95_max_ms"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "p95_max_ms": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 120000
+                }
+              }
+            },
+            "outcome_ratio_bounds": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "$ref": "#/definitions/ratioBound"
+              }
+            },
+            "telemetry_amplification": {
+              "type": "object",
+              "required": [
+                "max_fingerprint_events_per_request",
+                "max_monitoring_events_per_request"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "max_fingerprint_events_per_request": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "max_monitoring_events_per_request": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ratioBound": {
+      "type": "object",
+      "required": [
+        "min",
+        "max"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "min": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "max": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "required": [
+        "id",
+        "description",
+        "tier",
+        "driver",
+        "expected_outcome",
+        "ip",
+        "user_agent",
+        "seed",
+        "runtime_budget_ms",
+        "assertions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_\\-]+$"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 8
+        },
+        "tier": {
+          "type": "string",
+          "enum": [
+            "SIM-T0",
+            "SIM-T1",
+            "SIM-T2",
+            "SIM-T3",
+            "SIM-T4"
+          ]
+        },
+        "driver": {
+          "type": "string",
+          "enum": [
+            "allow_browser_allowlist",
+            "not_a_bot_pass",
+            "geo_challenge",
+            "geo_maze",
+            "honeypot_deny_temp",
+            "not_a_bot_replay_abuse",
+            "not_a_bot_stale_token_abuse",
+            "not_a_bot_ordering_cadence_abuse",
+            "akamai_additive_report",
+            "akamai_authoritative_deny"
+          ]
+        },
+        "expected_outcome": {
+          "type": "string",
+          "enum": [
+            "allow",
+            "monitor",
+            "not-a-bot",
+            "challenge",
+            "maze",
+            "deny_temp"
+          ]
+        },
+        "ip": {
+          "type": "string",
+          "minLength": 7
+        },
+        "user_agent": {
+          "type": "string",
+          "minLength": 3
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "geo_country": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "payload_fixture": {
+          "type": "string",
+          "minLength": 3
+        },
+        "runtime_budget_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120000
+        },
+        "assertions": {
+          "type": "object",
+          "required": [
+            "max_latency_ms"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "max_latency_ms": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 120000
+            }
+          }
+        }
+      }
+    }
+  }
+}

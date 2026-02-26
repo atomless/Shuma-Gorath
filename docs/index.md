@@ -32,4 +32,6 @@ Use the Makefile as the official workflow. These docs are the source of truth fo
 - [`module-boundaries.md`](module-boundaries.md) - Domain boundary contracts and split prep
 - [`plans/2026-02-13-provider-externalization-design.md`](plans/2026-02-13-provider-externalization-design.md) - Provider externalization strategy (self-hosted-first, Akamai-integrated)
 - [`plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md) - Deployment-track and adversarial-traffic simulation execution plan
+- [`plans/2026-02-25-adversarial-simulation-fast-smoke-design.md`](plans/2026-02-25-adversarial-simulation-fast-smoke-design.md) - Initial executable manifest + runner + mandatory fast-smoke gate design
+- [`research/2026-02-25-llm-adversarial-testing-research-synthesis.md`](research/2026-02-25-llm-adversarial-testing-research-synthesis.md) - LLM-driven adversarial testing research and Shuma implications
 - [`../todos/security-review.md`](../todos/security-review.md) - Security audit notes / backlog

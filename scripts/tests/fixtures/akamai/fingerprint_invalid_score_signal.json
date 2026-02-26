@@ -1,0 +1,10 @@
+{
+  "bot_score": 101.0,
+  "action": "deny",
+  "detection_ids": [
+    "bm_invalid"
+  ],
+  "tags": [
+    "invalid_score"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "bot_score": 24.0,
+  "action": "monitor",
+  "detection_ids": [
+    "bm_low_confidence"
+  ],
+  "tags": [
+    "monitor"
+  ]
+}

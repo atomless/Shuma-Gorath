@@ -553,7 +553,7 @@ h1 {
 .stat-value {
   font-size: var(--text-6xl);
   font-weight: 700;
-  line-height: 1;
+  line-height: 0.9;
 }
 
 .stat-value-sm {
@@ -865,6 +865,9 @@ code.env-var {
 }
 .controls-grid--config .panel-soft {
   border-bottom: var(--border-hairline);
+}
+.controls-grid--status .panel {
+  background: transparent;
 }
 
 .config-edit-pane--dirty {
