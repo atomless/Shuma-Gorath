@@ -1818,6 +1818,25 @@ test("geo and tuning save flows cover GEO lists, botness controls, and browser p
     await browserBlockRules.dispatchEvent("input");
     await submitConfigSave(page, tuningSave);
   }
+
+  const pathAllowlist = page.locator("#path-allowlist");
+  if (await pathAllowlist.isVisible() && await pathAllowlist.isEnabled()) {
+    const initialPathAllowlist = await pathAllowlist.inputValue();
+    const candidatePath = "/webhook/stripe";
+    const existingPaths = initialPathAllowlist
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    const nextPathAllowlist = existingPaths.includes(candidatePath)
+      ? existingPaths.filter((line) => line !== candidatePath).join("\n")
+      : [...existingPaths, candidatePath].join("\n");
+    await pathAllowlist.fill(nextPathAllowlist);
+    await pathAllowlist.dispatchEvent("input");
+    await submitConfigSave(page, tuningSave);
+    await pathAllowlist.fill(initialPathAllowlist);
+    await pathAllowlist.dispatchEvent("input");
+    await submitConfigSave(page, tuningSave);
+  }
 });
 
 test("rate-limiting tab save flows cover local controls and Akamai backend toggle", async ({ page }) => {

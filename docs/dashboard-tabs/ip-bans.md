@@ -24,7 +24,6 @@ Panels and behavior:
 - Bypass Allowlists panel:
   - Enable toggle.
   - IP/CIDR allowlist textarea.
-  - Path allowlist textarea.
 
 Validation:
 
@@ -35,7 +34,7 @@ Writes:
 
 - Ban/unban APIs.
 - `ip_range_*` policy keys.
-- `bypass_allowlists_enabled`, `allowlist`, `path_allowlist`.
+- `bypass_allowlists_enabled`, `allowlist`.
 
 Suggestion endpoint used by this tab:
 

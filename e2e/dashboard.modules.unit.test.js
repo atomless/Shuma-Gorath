@@ -1115,7 +1115,7 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(ipBansSource, /id="ip-range-suggestions-table"/);
   assert.match(ipBansSource, /id="bypass-allowlists-toggle"/);
   assert.match(ipBansSource, /id="network-allowlist"/);
-  assert.match(ipBansSource, /id="path-allowlist"/);
+  assert.equal(ipBansSource.includes('id="path-allowlist"'), false);
   assert.match(ipBansSource, /buttonId="save-bypass-allowlists"/);
   assert.match(ipBansSource, /id="ip-range-policy-mode"/);
   assert.match(ipBansSource, /buttonId="save-ip-range-policy"/);
@@ -1197,6 +1197,9 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.equal(configSource.includes('id="save-test-mode-config"'), false);
   assert.equal(configSource.includes('id="save-advanced-config"'), false);
   assert.equal(configSource.includes('{@html'), false);
+
+  assert.match(tuningSource, /id="path-allowlist"/);
+  assert.match(tuningSource, /payload\.path_allowlist = parseListTextarea\(pathAllowlist\);/);
 
   assert.match(trapsSource, /export let onSaveConfig = null;/);
   assert.match(trapsSource, /await onSaveConfig\(payload/);

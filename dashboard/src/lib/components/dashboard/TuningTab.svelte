@@ -2,6 +2,9 @@
   import { onMount } from 'svelte';
   import {
     formatBrowserRulesTextarea,
+    formatListTextarea,
+    normalizeListTextareaForCompare,
+    parseListTextarea,
     normalizeBrowserRulesForCompare,
     parseBrowserRulesTextarea
   } from '../../domain/config-form-utils.js';
@@ -13,6 +16,7 @@
   import NumericInputRow from './primitives/NumericInputRow.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
+  import TextareaField from './primitives/TextareaField.svelte';
 
   export let managed = false;
   export let isActive = false;
@@ -50,6 +54,7 @@
   let durAdminMinutes = 0;
   let browserPolicyEnabled = true;
   let browserBlockRules = '';
+  let pathAllowlist = '';
 
   let savingTuning = false;
   let warnOnUnload = false;
@@ -74,7 +79,8 @@
     browserPolicy: {
       enabled: true,
       block: ''
-    }
+    },
+    pathAllowlist: ''
   };
   let lastSaveInvalidLabel = '';
 
@@ -114,7 +120,8 @@
       browserPolicy: {
         enabled: config.browser_policy_enabled !== false,
         block: normalizeBrowserRulesForCompare(formatBrowserRulesTextarea(config.browser_block))
-      }
+      },
+      pathAllowlist: normalizeListTextareaForCompare(formatListTextarea(config.path_allowlist))
     };
 
     notABotThreshold = botness.notABotThreshold;
@@ -147,6 +154,7 @@
 
     browserPolicyEnabled = config.browser_policy_enabled !== false;
     browserBlockRules = formatBrowserRulesTextarea(config.browser_block);
+    pathAllowlist = formatListTextarea(config.path_allowlist);
   }
 
   async function saveTuningConfig() {
@@ -177,6 +185,9 @@
       payload.browser_policy_enabled = browserPolicyEnabled;
       payload.browser_block = parseBrowserRulesTextarea(browserBlockRules);
     }
+    if (pathAllowlistDirty) {
+      payload.path_allowlist = parseListTextarea(pathAllowlist);
+    }
 
     try {
       const nextConfig = await onSaveConfig(payload, { successMessage: 'Tuning settings saved' });
@@ -202,7 +213,8 @@
           browserPolicy: {
             enabled: browserPolicyEnabled,
             block: normalizeBrowserRulesForCompare(browserBlockRules)
-          }
+          },
+          pathAllowlist: normalizeListTextareaForCompare(pathAllowlist)
         };
       }
       lastSaveInvalidLabel = '';
@@ -322,10 +334,15 @@
     browserBlockNormalized !== baseline.browserPolicy.block
   );
 
+  $: pathAllowlistNormalized = normalizeListTextareaForCompare(pathAllowlist);
+  $: pathAllowlistDirty = pathAllowlistNormalized !== baseline.pathAllowlist;
+  $: bypassAllowlistsEnabled = configSnapshot?.bypass_allowlists_enabled !== false;
+
   $: dirtySections = [
     { label: 'Botness scoring', dirty: botnessDirty, valid: botnessValid },
     { label: 'Ban durations', dirty: durationsDirty, valid: durationsValid },
-    { label: 'Browser policy', dirty: browserPolicyDirty, valid: browserPolicyValid }
+    { label: 'Browser policy', dirty: browserPolicyDirty, valid: browserPolicyValid },
+    { label: 'Path allowlist', dirty: pathAllowlistDirty, valid: true }
   ];
   $: dirtySectionEntries = dirtySections.filter((section) => section.dirty === true);
   $: invalidDirtySectionEntries = dirtySectionEntries.filter((section) => section.valid !== true);
@@ -464,6 +481,31 @@
       bind:browserBlockRules
       browserBlockRulesValid={browserBlockRulesValid}
     />
+
+    <div class="control-group panel-soft pad-md config-edit-pane" class:config-edit-pane--dirty={pathAllowlistDirty}>
+      <h3>Path Allowlist</h3>
+      <p class="control-desc text-muted">
+        Use this list to bypass bot defenses for trusted machine paths such as payment webhooks and partner callbacks.
+      </p>
+      <p class="control-desc text-muted">
+        Rules: each entry must be a path, not a full URL. Exact paths must match exactly (example: <code>/webhook/stripe</code>). Prefix rules must end with <code>*</code> (example: <code>/api/integrations/*</code>).
+      </p>
+      <p class="control-desc text-muted">
+        You must not enter hostnames, query strings, or fragments (for example, do not enter <code>https://example.com/hook</code>, <code>/hook?token=1</code>, or <code>/hook#frag</code>).
+      </p>
+      <p class="control-desc text-muted">
+        This allowlist is currently <strong>{bypassAllowlistsEnabled ? 'active' : 'inactive'}</strong>. It only applies when <strong>Bypass Allowlists</strong> is enabled in the IP Bans tab.
+      </p>
+      <TextareaField
+        id="path-allowlist"
+        label="Path Allowlist"
+        rows="5"
+        ariaLabel="Path allowlist"
+        spellcheck={false}
+        disabled={!writable}
+        bind:value={pathAllowlist}
+      />
+    </div>
 
     <SaveChangesBar
       containerId="tuning-save-all-bar"

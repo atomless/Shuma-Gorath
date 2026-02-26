@@ -18,6 +18,10 @@ Panels:
 - `Browser Policy`:
   - toggle (`browser_policy_enabled`),
   - minimum-version signal rules (`browser_block`).
+- `Path Allowlist`:
+  - trusted bypass paths (`path_allowlist`) for webhook/integration endpoints,
+  - supports exact paths (for example `/webhook/stripe`) and prefix wildcards (for example `/api/integrations/*`),
+  - active only when `bypass_allowlists_enabled` is enabled.
 
 Validation:
 

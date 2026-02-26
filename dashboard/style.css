@@ -38,7 +38,7 @@
   /* Borders */
   --border-hairline: 0.5px solid var(--color-300);
   --striped-bg: repeating-linear-gradient(-45deg, hsl(312, 100%, 99%), hsl(312, 100%, 99%) 10px, hsl(300, 44%, 96%) 10px, hsl(300, 44%, 96%) 20px);
-  --striped-bright-bg: repeating-linear-gradient(-45deg, rgba(255, 250, 253, 0.5), rgba(255, 250, 253, 0.5) 10px, #fd74d6 10px, #fd74d6 20px);
+  --striped-bright-bg: repeating-linear-gradient(-45deg, rgba(255, 250, 253, 0.5), rgba(255, 250, 253, 0.5) 10px, hsl(317, 97%, 72%) 10px, hsl(317, 97%, 72%) 20px);
   --striped-testmode-bg: repeating-linear-gradient(-45deg, rgba(148, 198, 136, 0.85), rgba(148, 198, 136, 0.85) 10px, #50bc40 10px, #50bc40 20px);
   /* Semantic panel colors that follow the page theme. */
   --page-bg: var(--color-back);
@@ -358,6 +358,7 @@ h1 {
   line-height: 1;
   transform: rotateX(10deg);
   transform-origin: center;
+  font-family: BlinkMacSystemFont, Arial Black;
 }
 
 .dashboard-logout {
