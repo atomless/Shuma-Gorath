@@ -139,6 +139,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `GET /admin/events?hours=N` - Recent events + summary stats
 - `GET /admin/cdp/events?hours=N&limit=M` - <abbr title="Chrome DevTools Protocol">CDP</abbr>-only detections/auto-bans (time-windowed, limit configurable)
 - `GET /admin/monitoring?hours=N&limit=M` - Consolidated monitoring summaries plus dashboard-native detail payload for Monitoring tab refreshes
+- `GET /admin/ip-range/suggestions?hours=N&limit=M` - Suggested IP-range candidates with collateral-risk scoring
 - `GET /admin/config` - Read configuration
 - `POST /admin/config` - Update configuration (partial <abbr title="JavaScript Object Notation">JSON</abbr>, disabled when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`)
 - `POST /admin/config/validate` - Validate a config patch without persisting changes (returns `{ valid, issues[] }` with field/expected/received hints when invalid)
@@ -154,7 +155,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 
 `GET /admin/session` includes `access` as `read_only`, `read_write`, or `none`.
 
-Expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/ban` `GET`) are rate-limited to reduce <abbr title="Key-Value">KV</abbr>/<abbr title="Central Processing Unit">CPU</abbr> abuse amplification (`429` with `Retry-After: 60` when limited).
+Expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/ip-range/suggestions`, `/admin/ban` `GET`) are rate-limited to reduce <abbr title="Key-Value">KV</abbr>/<abbr title="Central Processing Unit">CPU</abbr> abuse amplification (`429` with `Retry-After: 60` when limited).
 
 `GET /admin/maze/preview` is intentionally non-operational:
 - links recurse only into `/admin/maze/preview`,
@@ -212,6 +213,22 @@ For <abbr title="Chrome DevTools Protocol">CDP</abbr>-only operational views wit
 - `maze`: `total_hits`, `unique_crawlers`, `maze_auto_bans`, `deepest_crawler`, `top_crawlers`
 - `cdp`: `config`, `stats`, `fingerprint_stats`
 - `cdp_events`: `events`, `hours`, `limit`, `total_matches`, `counts`
+
+### 🐙 IP Range Suggestions Response
+
+`GET /admin/ip-range/suggestions?hours=24&limit=20` returns:
+- `generated_at` (unix seconds)
+- `hours` (effective window, clamped to `1..720`)
+- `summary`: `suggestions_total`, `low_risk`, `medium_risk`, `high_risk`
+- `suggestions[]`:
+- `cidr`, `ip_family`
+- `bot_evidence_score`, `human_evidence_score`
+- `collateral_risk`, `confidence`, `risk_band`
+- `recommended_action` (`deny_temp`, `tarpit`, `logging-only`)
+- `recommended_mode` (`enforce`, `logging-only`)
+- `evidence_counts` (signal/event counters used in the score)
+- `safer_alternatives` (narrower CIDR candidates when high-collateral parent suggestions are split)
+- `guardrail_notes` (explanations for suppression/split/clamp behavior)
 
 Event `outcome` values may include canonical taxonomy metadata:
 

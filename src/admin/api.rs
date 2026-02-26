@@ -1141,6 +1141,69 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn admin_ip_range_suggestions_returns_structured_payload() {
+        let _lock = crate::test_support::lock_env();
+        let store = TestStore::default();
+        let now = now_ts();
+
+        for host in 0..40usize {
+            log_event(
+                &store,
+                &EventLogEntry {
+                    ts: now,
+                    event: EventType::Ban,
+                    ip: Some(format!("198.51.100.{}", host)),
+                    reason: Some("honeypot".to_string()),
+                    outcome: Some("banned".to_string()),
+                    admin: None,
+                },
+            );
+        }
+
+        let req = make_request(
+            Method::Get,
+            "/admin/ip-range/suggestions?hours=24&limit=5",
+            Vec::new(),
+        );
+        let resp = handle_admin_ip_range_suggestions(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        let summary = body.get("summary").expect("summary should exist");
+        let suggestions = body
+            .get("suggestions")
+            .and_then(|value| value.as_array())
+            .expect("suggestions array should exist");
+
+        assert_eq!(
+            body.get("hours").and_then(|value| value.as_u64()),
+            Some(24u64)
+        );
+        assert!(!suggestions.is_empty());
+        assert!(suggestions.len() <= 5);
+        assert!(
+            summary
+                .get("suggestions_total")
+                .and_then(|value| value.as_u64())
+                .unwrap_or(0)
+                >= 1
+        );
+        let first = suggestions.first().unwrap();
+        assert!(first.get("cidr").and_then(|value| value.as_str()).is_some());
+        assert!(
+            first
+                .get("recommended_action")
+                .and_then(|value| value.as_str())
+                .is_some()
+        );
+        assert!(
+            first
+                .get("recommended_mode")
+                .and_then(|value| value.as_str())
+                .is_some()
+        );
+    }
+
+    #[test]
     fn admin_monitoring_tarpit_active_counters_are_site_scoped() {
         let _lock = crate::test_support::lock_env();
         let store = TestStore::default();
@@ -6608,6 +6671,35 @@ where
     Response::new(200, body)
 }
 
+fn handle_admin_ip_range_suggestions<S>(req: &Request, store: &S, site_id: &str) -> Response
+where
+    S: crate::challenge::KeyValueStore,
+{
+    let cfg = match crate::config::load_runtime_cached(store, site_id) {
+        Ok(cfg) => cfg,
+        Err(err) => return Response::new(500, err.user_message()),
+    };
+    let requested_hours = query_u64_param(req.query(), "hours", 24);
+    let requested_limit = query_u64_param(req.query(), "limit", 20);
+    let hours = crate::signals::ip_range_suggestions::normalize_suggestion_hours(requested_hours);
+    let safe_limit_u64 = requested_limit.min(usize::MAX as u64);
+    let limit =
+        crate::signals::ip_range_suggestions::normalize_suggestion_limit(safe_limit_u64 as usize);
+    let now = now_ts();
+    let events = load_recent_events(store, now, hours);
+    let payload = crate::signals::ip_range_suggestions::build_ip_range_suggestions(
+        store, &cfg, &events, now, hours, limit,
+    );
+
+    let body = serde_json::to_string(&payload).unwrap();
+    Response::builder()
+        .status(200)
+        .header("Content-Type", "application/json")
+        .header("Cache-Control", "no-store")
+        .body(body)
+        .build()
+}
+
 fn read_u64_counter<S>(store: &S, key: &str) -> u64
 where
     S: crate::challenge::KeyValueStore,
@@ -6927,6 +7019,7 @@ fn monitoring_prometheus_helper_payload() -> serde_json::Value {
 ///   - GET /admin/events: Query event log
 ///   - GET /admin/cdp/events: Query CDP-only events
 ///   - GET /admin/monitoring: Query consolidated monitoring telemetry summaries
+///   - GET /admin/ip-range/suggestions: Query IP range recommendation suggestions
 ///   - GET /admin/config: Get current config including test_mode status
 ///   - POST /admin/config: Update config (e.g., toggle test_mode)
 ///   - POST /admin/config/validate: Validate a config patch without persisting changes
@@ -7121,6 +7214,14 @@ pub fn handle_admin(req: &Request) -> Response {
             }
             handle_admin_monitoring(req, &store)
         }
+        "/admin/ip-range/suggestions" => {
+            if dashboard_refresh_is_limited(&store, &auth, provider_registry.as_ref())
+                || expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref())
+            {
+                return too_many_admin_read_requests_response();
+            }
+            handle_admin_ip_range_suggestions(req, &store, site_id)
+        }
         "/admin/ban" => {
             if *req.method() == spin_sdk::http::Method::Get
                 && (dashboard_refresh_is_limited(&store, &auth, provider_registry.as_ref())
@@ -7303,7 +7404,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/config, /admin/config/validate, /admin/config/export, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/ip-range/suggestions, /admin/config, /admin/config/validate, /admin/config/export, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics
