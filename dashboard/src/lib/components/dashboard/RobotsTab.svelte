@@ -3,7 +3,6 @@
   import { parseInteger } from '../../domain/core/math.js';
   import { inRange } from '../../domain/core/validation.js';
   import ConfigRobotsSection from './config/ConfigRobotsSection.svelte';
-  import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
 
@@ -223,13 +222,6 @@
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
   <TabStateMessage tab="robots" status={tabStatus} />
-  <ConfigWriteModeMessage
-    id="robots-mode-subtitle"
-    controlsLabel="Robots policy controls"
-    loading={tabStatus?.loading === true}
-    {hasConfigSnapshot}
-    {writable}
-  />
   <div class="controls-grid controls-grid--config">
     <ConfigRobotsSection
       bind:writable

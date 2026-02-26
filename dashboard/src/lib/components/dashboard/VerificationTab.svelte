@@ -2,7 +2,6 @@
   import ConfigChallengeSection from './config/ConfigChallengeSection.svelte';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
-  import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
   import { onMount } from 'svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
@@ -272,13 +271,6 @@
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
   <TabStateMessage tab="verification" status={tabStatus} />
-  <ConfigWriteModeMessage
-    id="verification-mode-subtitle"
-    controlsLabel="Verification controls"
-    loading={tabStatus?.loading === true}
-    {hasConfigSnapshot}
-    {writable}
-  />
   <div class="controls-grid controls-grid--config">
     <ConfigPanel writable={writable} dirty={jsRequiredDirty}>
       <ConfigPanelHeading title='<abbr title="JavaScript">JS</abbr> Required'>
@@ -356,6 +348,11 @@
         </label>
       </ConfigPanelHeading>
       <p class="control-desc text-muted">Similarly injected by the JS Verification Interstitial, <abbr title="Proof of Work">PoW</abbr> is a security mechanism used to help differentiate bots from humans by requiring the requesting client's device to solve a small, moderately complex computational puzzle before being granted access. It will be invisible to human users and incurrs only extremely low energy and request performance costs. <abbr title="Proof of Work">PoW</abbr> depends on <abbr title="JavaScript">JS</abbr> Required being enabled.</p>
+      {#if !jsRequiredEnforced}
+        <p id="verification-pow-js-required-warning" class="message warning">
+          JS Required is disabled, so <abbr title="Proof of Work">PoW</abbr> is inactive. These settings stay saved and apply again when <abbr title="JavaScript">JS</abbr> Required is re-enabled.
+        </p>
+      {/if}
     </ConfigPanel>
 
     <ConfigChallengeSection bind:writable bind:notABotDirty bind:challengePuzzleDirty bind:notABotEnabled bind:challengePuzzleEnabled bind:notABotScorePassMinFloor bind:notABotScorePassMin bind:notABotScoreFailMaxCap bind:notABotScoreFailMax notABotPassScoreValid={notABotPassScoreValid} notABotFailScoreValid={notABotFailScoreValid} />

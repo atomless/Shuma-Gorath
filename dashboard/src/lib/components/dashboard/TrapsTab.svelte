@@ -9,7 +9,6 @@
   import { inRange } from '../../domain/core/validation.js';
   import ConfigMazeSection from './config/ConfigMazeSection.svelte';
   import ConfigNetworkSection from './config/ConfigNetworkSection.svelte';
-  import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
 
@@ -204,13 +203,6 @@
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
   <TabStateMessage tab="traps" status={tabStatus} />
-  <ConfigWriteModeMessage
-    id="traps-mode-subtitle"
-    controlsLabel="Trap controls"
-    loading={tabStatus?.loading === true}
-    {hasConfigSnapshot}
-    {writable}
-  />
   <div class="controls-grid controls-grid--config">
     <ConfigMazeSection
       bind:writable

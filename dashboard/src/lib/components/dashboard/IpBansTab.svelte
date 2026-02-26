@@ -1,6 +1,5 @@
 <script>
   import { onMount } from 'svelte';
-  import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TableEmptyRow from './primitives/TableEmptyRow.svelte';
   import TableWrapper from './primitives/TableWrapper.svelte';
@@ -719,13 +718,6 @@
   tabindex="-1"
 >
   <TabStateMessage tab="ip-bans" status={tabStatus} />
-  <ConfigWriteModeMessage
-    id="ip-bans-mode-subtitle"
-    controlsLabel="IP-ban policy controls"
-    loading={tabStatus?.loading === true}
-    {hasConfigSnapshot}
-    {writable}
-  />
   <div class="control-group panel-soft pad-sm">
     <div class="input-row">
       <label class="control-label control-label--wide" for="ip-ban-filter">Ban View</label>

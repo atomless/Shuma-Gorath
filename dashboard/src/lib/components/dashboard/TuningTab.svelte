@@ -10,7 +10,6 @@
   import { inRange, isDurationTupleValid } from '../../domain/core/validation.js';
   import ConfigDurationsSection from './config/ConfigDurationsSection.svelte';
   import ConfigNetworkSection from './config/ConfigNetworkSection.svelte';
-  import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
   import NumericInputRow from './primitives/NumericInputRow.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
@@ -371,13 +370,6 @@
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
   <TabStateMessage tab="tuning" status={tabStatus} />
-  <ConfigWriteModeMessage
-    id="tuning-mode-subtitle"
-    controlsLabel="Tuning controls"
-    loading={tabStatus?.loading === true}
-    {hasConfigSnapshot}
-    {writable}
-  />
   <div class="controls-grid controls-grid--config">
     <div class="control-group panel-soft pad-md">
       <h3>Botness Scoring</h3>

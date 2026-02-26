@@ -3,7 +3,6 @@
   import { normalizeEdgeMode } from '../../domain/config-tab-helpers.js';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
-  import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
 
@@ -158,13 +157,6 @@
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
   <TabStateMessage tab="fingerprinting" status={tabStatus} />
-  <ConfigWriteModeMessage
-    id="fingerprinting-mode-subtitle"
-    controlsLabel="Fingerprinting controls"
-    loading={tabStatus?.loading === true}
-    {hasConfigSnapshot}
-    {writable}
-  />
   <div class="controls-grid controls-grid--config">
     <ConfigPanel writable={writable} dirty={hasUnsavedChanges}>
       <ConfigPanelHeading title="Akamai Bot Signal">

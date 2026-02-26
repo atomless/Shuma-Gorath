@@ -4,40 +4,40 @@
    =========================================== */
 :root {
   /* Monochrome scale */
-  --color-back: rgb(255, 250, 253);
-  --color-50: #faf2fa;
-  --color-100: #f4edf5;
-  --color-200: #e4d4e3;
-  --color-300: #d4c4d8;
-  --color-400: #a181a6;
-  --color-500: #614465;
-  --color-600: #523259;
-  --color-700: #3f3f46;
-  --color-800: #27272a;
-  --color-900: #27272a;
-  --color-front: #0a0507;
-  --color-env-var-bg: rgb(255, 205, 235);
-  --status-admin-write-row-bg: #fdebf6;
-  --color-bright-pink: #fd74d6;
+  --color-back: hsl(312, 100%, 99%);
+  --color-50: hsl(300, 44%, 96%);
+  --color-100: hsl(293, 29%, 95%);
+  --color-200: hsl(304, 23%, 86%);
+  --color-300: hsl(288, 20%, 81%);
+  --color-400: hsl(292, 17%, 58%);
+  --color-500: hsl(293, 20%, 33%);
+  --color-600: hsl(289, 28%, 27%);
+  --color-700: hsl(303, 88%, 13%);
+  --color-800: hsl(300, 4%, 16%);
+  --color-900: hsl(300, 4%, 16%);
+  --color-front: hsl(312, 33%, 3%);
+  --color-env-var-bg: hsl(324, 100%, 90%);
+  --status-admin-write-row-bg: hsl(323, 82%, 96%);
+  --color-bright-pink: hsl(304, 97%, 72%);
 
   /* Primary accent (used sparingly) */
-  --color-accent: #280517;
-  --color-accent-hover: #09090b;
+  --color-accent: hsl(302, 78%, 9%);
+  --color-accent-hover: hsl(300, 10%, 4%);
 
   /* Semantic colors */
-  --color-success: #27272a;
-  --color-success-bg: #e4e4e7;
+  --color-success: hsl(300, 4%, 16%);
+  --color-success-bg: hsl(300, 6%, 90%);
   --color-error: var(--color-bright-pink);
-  --color-error-bg: #ffd8f2;
-  --color-warning: #3f3f46;
-  --color-warning-bg: #f4f4f5;
+  --color-error-bg: hsl(315, 100%, 92%);
+  --color-warning: hsl(309, 5%, 26%);
+  --color-warning-bg: hsl(300, 5%, 96%);
 
   /* Toggle active state */
-  --color-toggle-active: #18181b;
+  --color-toggle-active: #1b181b;
 
   /* Borders */
   --border-hairline: 0.5px solid var(--color-300);
-  --striped-bg: repeating-linear-gradient(-45deg, #fffafd, #fffafd 10px, #faf2fa 10px, #faf2fa 20px);
+  --striped-bg: repeating-linear-gradient(-45deg, #fffafe, #fffafe 10px, #faf2fa 10px, #faf2fa 20px);
   --striped-bright-bg: repeating-linear-gradient(-45deg, rgba(255, 250, 253, 0.5), rgba(255, 250, 253, 0.5) 10px, #fd74d6 10px, #fd74d6 20px);
   --striped-testmode-bg: repeating-linear-gradient(-45deg, rgba(148, 198, 136, 0.85), rgba(148, 198, 136, 0.85) 10px, #50bc40 10px, #50bc40 20px);
   /* Semantic panel colors that follow the page theme. */
@@ -83,30 +83,30 @@
     color-scheme: dark;
 
     /* Reverse the light-theme brightness scale for dark mode */
-    --color-back: #0a0507;
+    --color-back: #0a0508;
     --color-50: #261724;
     --color-100: #3f263e;
     --color-200: #593250;
     --color-300: #7a6576;
-    --color-400: #a181a6;
+    --color-400: #a6819e;
     --color-500: #dab9d9;
     --color-600: #e6bfe3;
     --color-700: #f6ddf5;
     --color-800: #faf2fa;
-    --color-900: rgb(255, 250, 253);
-    --color-front: rgb(255, 250, 253);
+    --color-900: rgb(255, 250, 254);
+    --color-front: rgb(255, 250, 254);
 
-    --color-env-var-bg: #523259;
-    --status-admin-write-row-bg: #3a2233;
+    --color-env-var-bg: #593256;
+    --status-admin-write-row-bg: #3a2236;
 
-    --color-accent: #f4edf5;
-    --color-accent-hover: #faf2fa;
+    --color-accent: #f5edf4;
+    --color-accent-hover: #faf2f9;
 
-    --color-success: rgb(255, 250, 253);
-    --color-success-bg: #3f3f46;
-    --color-error-bg: #4a1738;
-    --color-warning: #f4edf5;
-    --color-warning-bg: #3f3f46;
+    --color-success: rgb(255, 250, 254);
+    --color-success-bg: #463f45;
+    --color-error-bg: #4a1747;
+    --color-warning: #f5edf3;
+    --color-warning-bg: #463f46;
 
     --color-toggle-active: #faf2fa;
 
@@ -116,10 +116,10 @@
 
     --btn-contrast-fg: var(--color-back);
 
-    --inline-link-fg: #ff93e1;
-    --inline-link-hover-fg: #ffd0f1;
+    --inline-link-fg: #ff93e2;
+    --inline-link-hover-fg: #ffd0f6;
     --inline-link-visited-fg: #f6a1e3;
-    --inline-link-focus-ring: rgba(255, 147, 225, 0.45);
+    --inline-link-focus-ring: rgba(255, 147, 237, 0.45);
   }
 }
 
@@ -470,9 +470,9 @@ h1 {
 }
 
 .tab-state--error {
-  border-color: rgba(220, 38, 38, 0.45);
+  border-color: rgba(220, 38, 184, 0.45);
   background: rgb(255 218 246);
-  color: #8f1111;
+  color: #8f116b;
 }
 
 .tab-state--empty {

@@ -8,7 +8,6 @@
   } from '../../domain/config-tab-helpers.js';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
-  import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
   import NumericInputRow from './primitives/NumericInputRow.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
@@ -152,13 +151,6 @@
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
   <TabStateMessage tab="rate-limiting" status={tabStatus} />
-  <ConfigWriteModeMessage
-    id="rate-limiting-mode-subtitle"
-    controlsLabel="Rate limiting controls"
-    loading={tabStatus?.loading === true}
-    {hasConfigSnapshot}
-    {writable}
-  />
   <div class="controls-grid controls-grid--config">
     <ConfigPanel writable={writable} dirty={akamaiRateDirty}>
       <ConfigPanelHeading title="Akamai Rate Signal">

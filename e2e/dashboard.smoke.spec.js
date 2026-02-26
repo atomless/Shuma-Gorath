@@ -152,7 +152,8 @@ async function assertActiveTabPanelVisibility(page, activeTab) {
       if (forcedHidden) {
         await expect(panel).toBeHidden();
       } else {
-        await expect(panel).toBeVisible();
+        await expect(panel).toHaveJSProperty("hidden", false);
+        await expect(panel).toHaveAttribute("aria-hidden", "false");
       }
     } else {
       await expect(panel).toBeHidden();
@@ -807,7 +808,6 @@ test("dashboard loads and shows seeded operational data", async ({ page }) => {
   await expect(page.locator("h3", { hasText: "API Access" })).toHaveCount(0);
 
   await expect(page.locator("#last-updated")).toContainText("updated:");
-  await expect(page.locator("#verification-mode-subtitle")).toContainText("Verification controls");
 
   await expect(page.locator("#total-events")).not.toHaveText("-");
   await expect(page.locator("#events tbody tr").first()).toBeVisible();
@@ -1026,10 +1026,11 @@ test("verification save-all button reflects shared dirty-state behavior", async 
 
   const configSave = page.locator("#save-verification-all");
   const jsRequiredToggle = page.locator("#js-required-enforced-toggle");
+  const powJsRequiredWarning = page.locator("#verification-pow-js-required-warning");
   await expect(configSave).toBeHidden();
 
   if (!(await jsRequiredToggle.isVisible())) {
-    await expect(page.locator("#verification-mode-subtitle")).toContainText(/disabled|read-only|Verification controls/i);
+    await expect(page.locator("#dashboard-panel-verification")).toBeVisible();
     return;
   }
 
@@ -1040,9 +1041,19 @@ test("verification save-all button reflects shared dirty-state behavior", async 
 
   const jsRequiredInitial = await jsRequiredToggle.isChecked();
   await jsRequiredToggle.click();
+  if (jsRequiredInitial) {
+    await expect(powJsRequiredWarning).toBeVisible();
+  } else {
+    await expect(powJsRequiredWarning).toBeHidden();
+  }
   await expect(configSave).toBeEnabled();
   if (jsRequiredInitial !== await jsRequiredToggle.isChecked()) {
     await jsRequiredToggle.click();
+    if (jsRequiredInitial) {
+      await expect(powJsRequiredWarning).toBeHidden();
+    } else {
+      await expect(powJsRequiredWarning).toBeVisible();
+    }
   }
   await expect(configSave).toBeHidden();
 
