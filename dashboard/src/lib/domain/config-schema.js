@@ -21,6 +21,7 @@ export const advancedConfigTemplatePaths = Object.freeze([
     'geo_edge_headers_enabled',
     'bypass_allowlists_enabled',
     'allowlist',
+    'path_allowlist_enabled',
     'path_allowlist',
     'ip_range_policy_mode',
     'ip_range_emergency_allowlist',

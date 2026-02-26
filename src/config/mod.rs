@@ -485,6 +485,8 @@ pub struct Config {
     pub bypass_allowlists_enabled: bool,
     #[serde(default = "default_allowlist")]
     pub allowlist: Vec<String>,
+    #[serde(default = "default_path_allowlist_enabled")]
+    pub path_allowlist_enabled: bool,
     #[serde(default = "default_path_allowlist")]
     pub path_allowlist: Vec<String>,
     #[serde(default = "default_ip_range_policy_mode")]
@@ -957,6 +959,7 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         geo_edge_headers_enabled: defaults_bool("SHUMA_GEO_EDGE_HEADERS_ENABLED"),
         bypass_allowlists_enabled: defaults_bool("SHUMA_BYPASS_ALLOWLISTS_ENABLED"),
         allowlist: defaults_string_list("SHUMA_ALLOWLIST"),
+        path_allowlist_enabled: defaults_bool("SHUMA_PATH_ALLOWLIST_ENABLED"),
         path_allowlist: defaults_string_list("SHUMA_PATH_ALLOWLIST"),
         ip_range_policy_mode: default_ip_range_policy_mode(),
         ip_range_emergency_allowlist: defaults_string_list("SHUMA_IP_RANGE_EMERGENCY_ALLOWLIST"),
@@ -2076,6 +2079,10 @@ fn default_bypass_allowlists_enabled() -> bool {
 
 fn default_allowlist() -> Vec<String> {
     defaults_string_list("SHUMA_ALLOWLIST")
+}
+
+fn default_path_allowlist_enabled() -> bool {
+    defaults_bool("SHUMA_PATH_ALLOWLIST_ENABLED")
 }
 
 fn default_path_allowlist() -> Vec<String> {

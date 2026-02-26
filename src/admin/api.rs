@@ -511,6 +511,7 @@ mod admin_config_tests {
         cfg.honeypot_enabled = false;
         cfg.browser_policy_enabled = false;
         cfg.bypass_allowlists_enabled = false;
+        cfg.path_allowlist_enabled = false;
         cfg.tarpit_enabled = false;
         cfg.tarpit_progress_token_ttl_seconds = 140;
         cfg.tarpit_progress_replay_ttl_seconds = 360;
@@ -562,6 +563,10 @@ mod admin_config_tests {
         );
         assert_eq!(
             env.get("SHUMA_BYPASS_ALLOWLISTS_ENABLED"),
+            Some(&serde_json::json!("false"))
+        );
+        assert_eq!(
+            env.get("SHUMA_PATH_ALLOWLIST_ENABLED"),
             Some(&serde_json::json!("false"))
         );
         assert_eq!(
@@ -657,6 +662,7 @@ mod admin_config_tests {
         assert!(env_text.contains("SHUMA_HONEYPOT_ENABLED=false"));
         assert!(env_text.contains("SHUMA_BROWSER_POLICY_ENABLED=false"));
         assert!(env_text.contains("SHUMA_BYPASS_ALLOWLISTS_ENABLED=false"));
+        assert!(env_text.contains("SHUMA_PATH_ALLOWLIST_ENABLED=false"));
         assert!(env_text.contains("SHUMA_TARPIT_ENABLED=false"));
         assert!(env_text.contains("SHUMA_TARPIT_PROGRESS_TOKEN_TTL_SECONDS=140"));
         assert!(env_text.contains("SHUMA_TARPIT_PROGRESS_REPLAY_TTL_SECONDS=360"));
@@ -1616,6 +1622,7 @@ mod admin_config_tests {
                 "browser_allowlist": [["Safari",16]],
                 "bypass_allowlists_enabled": false,
                 "allowlist": ["203.0.113.0/24", "198.51.100.9"],
+                "path_allowlist_enabled": false,
                 "path_allowlist": ["/status", "/assets/*"],
                 "ban_durations": {"cdp": 777}
             }"#
@@ -1646,6 +1653,10 @@ mod admin_config_tests {
         assert_eq!(
             cfg.get("allowlist"),
             Some(&serde_json::json!(["203.0.113.0/24", "198.51.100.9"]))
+        );
+        assert_eq!(
+            cfg.get("path_allowlist_enabled"),
+            Some(&serde_json::Value::Bool(false))
         );
         assert_eq!(
             cfg.get("path_allowlist"),
@@ -1679,6 +1690,7 @@ mod admin_config_tests {
             saved_cfg.allowlist,
             vec!["203.0.113.0/24".to_string(), "198.51.100.9".to_string()]
         );
+        assert!(!saved_cfg.path_allowlist_enabled);
         assert_eq!(
             saved_cfg.path_allowlist,
             vec!["/status".to_string(), "/assets/*".to_string()]
@@ -3558,6 +3570,10 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
         ),
         ("SHUMA_ALLOWLIST".to_string(), json_env(&cfg.allowlist)),
         (
+            "SHUMA_PATH_ALLOWLIST_ENABLED".to_string(),
+            bool_env(cfg.path_allowlist_enabled).to_string(),
+        ),
+        (
             "SHUMA_PATH_ALLOWLIST".to_string(),
             json_env(&cfg.path_allowlist),
         ),
@@ -4433,6 +4449,7 @@ struct AdminConfigPatch {
     browser_allowlist: Option<serde_json::Value>,
     bypass_allowlists_enabled: Option<bool>,
     allowlist: Option<serde_json::Value>,
+    path_allowlist_enabled: Option<bool>,
     path_allowlist: Option<serde_json::Value>,
     ip_range_policy_mode: Option<String>,
     ip_range_emergency_allowlist: Option<serde_json::Value>,
@@ -4849,6 +4866,12 @@ fn handle_admin_config_internal(
                 }
                 Err(msg) => return Response::new(400, msg),
             }
+        }
+        if let Some(path_allowlist_enabled) =
+            json.get("path_allowlist_enabled").and_then(|v| v.as_bool())
+        {
+            cfg.path_allowlist_enabled = path_allowlist_enabled;
+            changed = true;
         }
         if let Some(value) = json.get("path_allowlist") {
             match parse_string_list_json("path_allowlist", value) {

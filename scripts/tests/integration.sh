@@ -242,7 +242,7 @@ curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
 info "Resetting allowlist/path allowlist to empty defaults..."
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
-  -d '{"allowlist":[],"path_allowlist":[]}' \
+  -d '{"allowlist":[],"path_allowlist_enabled":true,"path_allowlist":[]}' \
   "$BASE_URL/admin/config" > /dev/null || true
 
 info "Resetting IP-range policy to defaults..."

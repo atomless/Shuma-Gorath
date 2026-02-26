@@ -54,6 +54,7 @@
   let durAdminMinutes = 0;
   let browserPolicyEnabled = true;
   let browserBlockRules = '';
+  let pathAllowlistEnabled = true;
   let pathAllowlist = '';
 
   let savingTuning = false;
@@ -80,7 +81,10 @@
       enabled: true,
       block: ''
     },
-    pathAllowlist: ''
+    pathAllowlist: {
+      enabled: true,
+      entries: ''
+    }
   };
   let lastSaveInvalidLabel = '';
 
@@ -121,7 +125,10 @@
         enabled: config.browser_policy_enabled !== false,
         block: normalizeBrowserRulesForCompare(formatBrowserRulesTextarea(config.browser_block))
       },
-      pathAllowlist: normalizeListTextareaForCompare(formatListTextarea(config.path_allowlist))
+      pathAllowlist: {
+        enabled: config.path_allowlist_enabled !== false,
+        entries: normalizeListTextareaForCompare(formatListTextarea(config.path_allowlist))
+      }
     };
 
     notABotThreshold = botness.notABotThreshold;
@@ -154,6 +161,7 @@
 
     browserPolicyEnabled = config.browser_policy_enabled !== false;
     browserBlockRules = formatBrowserRulesTextarea(config.browser_block);
+    pathAllowlistEnabled = config.path_allowlist_enabled !== false;
     pathAllowlist = formatListTextarea(config.path_allowlist);
   }
 
@@ -186,6 +194,7 @@
       payload.browser_block = parseBrowserRulesTextarea(browserBlockRules);
     }
     if (pathAllowlistDirty) {
+      payload.path_allowlist_enabled = pathAllowlistEnabled === true;
       payload.path_allowlist = parseListTextarea(pathAllowlist);
     }
 
@@ -214,7 +223,10 @@
             enabled: browserPolicyEnabled,
             block: normalizeBrowserRulesForCompare(browserBlockRules)
           },
-          pathAllowlist: normalizeListTextareaForCompare(pathAllowlist)
+          pathAllowlist: {
+            enabled: pathAllowlistEnabled === true,
+            entries: normalizeListTextareaForCompare(pathAllowlist)
+          }
         };
       }
       lastSaveInvalidLabel = '';
@@ -335,8 +347,10 @@
   );
 
   $: pathAllowlistNormalized = normalizeListTextareaForCompare(pathAllowlist);
-  $: pathAllowlistDirty = pathAllowlistNormalized !== baseline.pathAllowlist;
-  $: bypassAllowlistsEnabled = configSnapshot?.bypass_allowlists_enabled !== false;
+  $: pathAllowlistDirty = (
+    (pathAllowlistEnabled === true) !== baseline.pathAllowlist.enabled ||
+    pathAllowlistNormalized !== baseline.pathAllowlist.entries
+  );
 
   $: dirtySections = [
     { label: 'Botness scoring', dirty: botnessDirty, valid: botnessValid },
@@ -483,7 +497,19 @@
     />
 
     <div class="control-group panel-soft pad-md config-edit-pane" class:config-edit-pane--dirty={pathAllowlistDirty}>
-      <h3>Path Allowlist</h3>
+      <div class="panel-heading-with-control">
+        <h3>Path Allowlist</h3>
+        <label class="toggle-switch" for="path-allowlist-enabled-toggle">
+          <input
+            type="checkbox"
+            id="path-allowlist-enabled-toggle"
+            aria-label="Enable path allowlist bypass"
+            bind:checked={pathAllowlistEnabled}
+            disabled={!writable}
+          >
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
       <p class="control-desc text-muted">
         Use this list to bypass bot defenses for trusted machine paths such as payment webhooks and partner callbacks.
       </p>
@@ -493,16 +519,18 @@
       <p class="control-desc text-muted">
         You must not enter hostnames, query strings, or fragments (for example, do not enter <code>https://example.com/hook</code>, <code>/hook?token=1</code>, or <code>/hook#frag</code>).
       </p>
-      <p class="control-desc text-muted">
-        This allowlist is currently <strong>{bypassAllowlistsEnabled ? 'active' : 'inactive'}</strong>. It only applies when <strong>Bypass Allowlists</strong> is enabled in the IP Bans tab.
-      </p>
+      {#if !pathAllowlistEnabled}
+        <p class="message warning">
+          Path allowlist bypass is disabled. Existing entries are preserved and will be applied again when you re-enable this toggle.
+        </p>
+      {/if}
       <TextareaField
         id="path-allowlist"
         label="Path Allowlist"
         rows="5"
         ariaLabel="Path allowlist"
         spellcheck={false}
-        disabled={!writable}
+        disabled={!writable || !pathAllowlistEnabled}
         bind:value={pathAllowlist}
       />
     </div>

@@ -92,6 +92,7 @@ cat > "${tmp_json}" <<EOF
   "geo_edge_headers_enabled": $(bool_norm "${SHUMA_GEO_EDGE_HEADERS_ENABLED}"),
   "bypass_allowlists_enabled": $(bool_norm "${SHUMA_BYPASS_ALLOWLISTS_ENABLED}"),
   "allowlist": ${SHUMA_ALLOWLIST},
+  "path_allowlist_enabled": $(bool_norm "${SHUMA_PATH_ALLOWLIST_ENABLED}"),
   "path_allowlist": ${SHUMA_PATH_ALLOWLIST},
   "ip_range_policy_mode": "${SHUMA_IP_RANGE_POLICY_MODE}",
   "ip_range_emergency_allowlist": ${SHUMA_IP_RANGE_EMERGENCY_ALLOWLIST},

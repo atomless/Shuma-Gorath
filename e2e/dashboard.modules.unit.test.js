@@ -1199,6 +1199,8 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.equal(configSource.includes('{@html'), false);
 
   assert.match(tuningSource, /id="path-allowlist"/);
+  assert.match(tuningSource, /id="path-allowlist-enabled-toggle"/);
+  assert.match(tuningSource, /payload\.path_allowlist_enabled = pathAllowlistEnabled === true;/);
   assert.match(tuningSource, /payload\.path_allowlist = parseListTextarea\(pathAllowlist\);/);
 
   assert.match(trapsSource, /export let onSaveConfig = null;/);

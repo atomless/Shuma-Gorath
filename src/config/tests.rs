@@ -285,6 +285,7 @@ fn defaults_enable_both_signal_and_action_paths() {
     assert!(cfg.honeypot_enabled);
     assert!(cfg.browser_policy_enabled);
     assert!(cfg.bypass_allowlists_enabled);
+    assert!(cfg.path_allowlist_enabled);
     assert!(cfg.challenge_puzzle_enabled);
     assert_eq!(cfg.challenge_puzzle_seed_ttl_seconds, 300);
     assert_eq!(cfg.challenge_puzzle_attempt_limit_per_window, 6);

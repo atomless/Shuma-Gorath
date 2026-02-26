@@ -1019,7 +1019,7 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
     );
 
     // Path-based allowlist (for webhooks/integrations)
-    if cfg.bypass_allowlists_enabled && allowlist::is_path_allowlisted(path, &cfg.path_allowlist) {
+    if cfg.path_allowlist_enabled && allowlist::is_path_allowlisted(path, &cfg.path_allowlist) {
         observability::metrics::increment(
             store,
             observability::metrics::MetricName::AllowlistedTotal,

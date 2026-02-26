@@ -1820,6 +1820,17 @@ test("geo and tuning save flows cover GEO lists, botness controls, and browser p
   }
 
   const pathAllowlist = page.locator("#path-allowlist");
+  const pathAllowlistToggle = page.locator("#path-allowlist-enabled-toggle");
+  const pathAllowlistSwitch = page.locator("label.toggle-switch[for='path-allowlist-enabled-toggle']");
+  if (await pathAllowlistSwitch.isVisible() && await pathAllowlistToggle.isEnabled()) {
+    const initialPathAllowlistEnabled = await pathAllowlistToggle.isChecked();
+    await pathAllowlistSwitch.click();
+    await submitConfigSave(page, tuningSave);
+    if (initialPathAllowlistEnabled !== await pathAllowlistToggle.isChecked()) {
+      await pathAllowlistSwitch.click();
+      await submitConfigSave(page, tuningSave);
+    }
+  }
   if (await pathAllowlist.isVisible() && await pathAllowlist.isEnabled()) {
     const initialPathAllowlist = await pathAllowlist.inputValue();
     const candidatePath = "/webhook/stripe";

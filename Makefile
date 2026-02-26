@@ -125,7 +125,7 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	@mkdir -p $(dir $(WASM_ARTIFACT))
 	@cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT)
 	@./scripts/set_crate_type.sh rlib
-	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'dist/wasm/shuma_gorath.wasm' -i '.spin/**' \
+	@./scripts/dev_watch_lock.sh cargo watch --poll --watch-when-idle -w src -w dashboard -w spin.toml -i '*.wasm' -i 'dist/wasm/shuma_gorath.wasm' -i '.spin/**' -i '.svelte-kit/**' -i '**/.svelte-kit/**' -i 'dashboard/.svelte-kit/**' -i 'node_modules/**' -i 'dashboard/node_modules/**' -i '.DS_Store' -i 'dashboard/.DS_Store' \
 		-s 'if [ ! -f $(WASM_BUILD_OUTPUT) ] || find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && mkdir -p $(dir $(WASM_ARTIFACT)) && cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT) && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
 		-s '$(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; pkill -x spin 2>/dev/null || true; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --listen 127.0.0.1:3000'
 

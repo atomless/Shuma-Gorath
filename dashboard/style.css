@@ -4,42 +4,42 @@
    =========================================== */
 :root {
   /* Monochrome scale */
-  --color-back: hsl(312, 100%, 99%);
-  --color-50: hsl(300, 44%, 96%);
-  --color-100: hsl(293, 29%, 95%);
-  --color-200: hsl(304, 23%, 86%);
-  --color-300: hsl(288, 20%, 81%);
-  --color-400: hsl(292, 17%, 58%);
-  --color-500: hsl(293, 20%, 33%);
-  --color-600: hsl(289, 28%, 27%);
-  --color-700: hsl(303, 88%, 13%);
-  --color-800: hsl(300, 4%, 16%);
-  --color-900: hsl(300, 4%, 16%);
-  --color-front: hsl(312, 33%, 3%);
-  --color-env-var-bg: hsl(324, 100%, 90%);
-  --status-admin-write-row-bg: hsl(323, 82%, 96%);
-  --color-bright-pink: hsl(304, 97%, 72%);
+  --color-back: hsl(306, 100%, 99%);
+  --color-50: hsl(306, 44%, 96%);
+  --color-100: hsl(306, 29%, 95%);
+  --color-200: hsl(306, 23%, 86%);
+  --color-300: hsl(306, 20%, 81%);
+  --color-400: hsl(306, 17%, 58%);
+  --color-500: hsl(306, 20%, 33%);
+  --color-600: hsl(306, 28%, 27%);
+  --color-700: hsl(306, 88%, 13%);
+  --color-800: hsl(306, 4%, 16%);
+  --color-900: hsl(306, 4%, 16%);
+  --color-front: hsl(306, 33%, 3%);
+  --color-env-var-bg: hsl(306, 100%, 90%);
+  --status-admin-write-row-bg: hsl(306, 82%, 96%);
+  --color-bright-pink: hsl(306, 97%, 72%);
 
   /* Primary accent (used sparingly) */
-  --color-accent: hsl(302, 78%, 9%);
-  --color-accent-hover: hsl(300, 10%, 4%);
+  --color-accent: hsl(306, 78%, 9%);
+  --color-accent-hover: hsl(306, 10%, 4%);
 
   /* Semantic colors */
-  --color-success: hsl(300, 4%, 16%);
-  --color-success-bg: hsl(300, 6%, 90%);
+  --color-success: hsl(306, 4%, 16%);
+  --color-success-bg: hsl(306, 6%, 90%);
   --color-error: var(--color-bright-pink);
-  --color-error-bg: hsl(315, 100%, 92%);
-  --color-warning: hsl(309, 5%, 26%);
-  --color-warning-bg: hsl(300, 5%, 96%);
+  --color-error-bg: hsl(306, 100%, 92%);
+  --color-warning: hsl(306, 5%, 26%);
+  --color-warning-bg: hsl(306, 5%, 96%);
 
   /* Toggle active state */
-  --color-toggle-active: hsl(300, 6%, 10%);
+  --color-toggle-active: hsl(306, 6%, 10%);
 
   /* Borders */
   --border-hairline: 0.5px solid var(--color-300);
-  --striped-bg: repeating-linear-gradient(-45deg, hsl(312, 100%, 99%), hsl(312, 100%, 99%) 10px, hsl(300, 44%, 96%) 10px, hsl(300, 44%, 96%) 20px);
-  --striped-bright-bg: repeating-linear-gradient(-45deg, rgba(255, 250, 253, 0.5), rgba(255, 250, 253, 0.5) 10px, hsl(317, 97%, 72%) 10px, hsl(317, 97%, 72%) 20px);
-  --striped-testmode-bg: repeating-linear-gradient(-45deg, rgba(148, 198, 136, 0.85), rgba(148, 198, 136, 0.85) 10px, #50bc40 10px, #50bc40 20px);
+  --striped-bg: repeating-linear-gradient(-45deg, hsl(306, 100%, 99%), hsl(306, 100%, 99%) 10px, hsl(306, 44%, 96%) 10px, hsl(306, 44%, 96%) 20px);
+  --striped-bright-bg: repeating-linear-gradient(-45deg, rgba(255, 250, 253, 0.5), rgba(255, 250, 253, 0.5) 10px, hsl(306, 97%, 72%) 10px, hsl(306, 97%, 72%) 20px);
+  --striped-testmode-bg: repeating-linear-gradient(-45deg, hsla(100, 35%, 65%, 0.85), hsla(100, 35%, 65%, 0.85) 10px, hsl(100, 49%, 49%) 10px, hsl(100, 49%, 49%) 20px);
   /* Semantic panel colors that follow the page theme. */
   --page-bg: var(--color-back);
   --page-fg: var(--color-900);
@@ -59,9 +59,9 @@
   --btn-submit-fg: var(--color-back);
   --btn-submit-disabled-bg: var(--color-400);
   --btn-submit-disabled-fg: var(--color-300);
-  --inline-link-fg: hsl(315, 73%, 37%);
-  --inline-link-hover-fg: hsl(314, 100%, 59%);
-  --inline-link-visited-fg: hsl(315, 73%, 30%);
+  --inline-link-fg: hsl(306, 73%, 37%);
+  --inline-link-hover-fg: hsl(306, 100%, 59%);
+  --inline-link-visited-fg: hsl(306, 83%, 30%);
   --inline-link-focus-ring: hsla(303, 82%, 33%, 0.35);
 
   /* Typography scale */
@@ -83,42 +83,42 @@
     color-scheme: dark;
 
     /* Reverse the light-theme brightness scale for dark mode */
-    --color-back: hsl(324, 33%, 3%);
-    --color-50: hsl(308, 25%, 12%);
-    --color-100: hsl(302, 25%, 20%);
-    --color-200: hsl(314, 28%, 27%);
-    --color-300: hsl(311, 9%, 44%);
-    --color-400: hsl(313, 17%, 58%);
-    --color-500: hsl(302, 31%, 79%);
-    --color-600: hsl(305, 44%, 83%);
-    --color-700: hsl(302, 58%, 92%);
-    --color-800: hsl(300, 44%, 96%);
-    --color-900: hsl(312, 100%, 99%);
-    --color-front: hsl(312, 100%, 99%);
+    --color-back: hsl(306, 33%, 3%);
+    --color-50: hsl(306, 25%, 12%);
+    --color-100: hsl(306, 25%, 20%);
+    --color-200: hsl(306, 28%, 27%);
+    --color-300: hsl(306, 9%, 44%);
+    --color-400: hsl(306, 17%, 58%);
+    --color-500: hsl(306, 31%, 79%);
+    --color-600: hsl(306, 44%, 83%);
+    --color-700: hsl(306, 58%, 92%);
+    --color-800: hsl(306, 44%, 96%);
+    --color-900: hsl(306, 100%, 99%);
+    --color-front: hsl(306, 100%, 99%);
 
-    --color-env-var-bg: hsl(305, 28%, 27%);
-    --status-admin-write-row-bg: hsl(310, 26%, 18%);
+    --color-env-var-bg: hsl(306, 28%, 27%);
+    --status-admin-write-row-bg: hsl(306, 26%, 18%);
 
-    --color-accent: hsl(308, 29%, 95%);
-    --color-accent-hover: hsl(308, 44%, 96%);
+    --color-accent: hsl(306, 29%, 95%);
+    --color-accent-hover: hsl(306, 44%, 96%);
 
-    --color-success: hsl(312, 100%, 99%);
-    --color-success-bg: hsl(309, 5%, 26%);
-    --color-error-bg: hsl(304, 53%, 19%);
-    --color-warning: hsl(315, 29%, 95%);
-    --color-warning-bg: hsl(300, 5%, 26%);
+    --color-success: hsl(306, 100%, 99%);
+    --color-success-bg: hsl(306, 5%, 26%);
+    --color-error-bg: hsl(306, 53%, 19%);
+    --color-warning: hsl(306, 29%, 95%);
+    --color-warning-bg: hsl(306, 5%, 26%);
 
-    --color-toggle-active: hsl(300, 44%, 96%);
+    --color-toggle-active: hsl(306, 44%, 96%);
 
     --border-hairline: 0.5px solid var(--color-100);
-    --striped-bg: repeating-linear-gradient(-45deg, hsl(336, 33%, 3%), hsl(312, 33%, 3%) 10px, hsl(310, 12%, 10%) 10px, hsl(310, 12%, 10%) 20px);
-    --striped-bright-bg: repeating-linear-gradient(-45deg, hsla(312, 33%, 3%, 0.502), hsla(312, 33%, 3%, 0.5) 10px, hsl(317, 97%, 72%) 10px, hsl(317, 97%, 72%) 20px);
+    --striped-bg: repeating-linear-gradient(-45deg, hsl(306, 33%, 3%), hsl(306, 33%, 3%) 10px, hsl(306, 12%, 10%) 10px, hsl(306, 12%, 10%) 20px);
+    --striped-bright-bg: repeating-linear-gradient(-45deg, hsla(312, 33%, 3%, 0.502), hsla(312, 33%, 3%, 0.5) 10px, hsl(306, 97%, 72%) 10px, hsl(306, 97%, 72%) 20px);
 
     --btn-contrast-fg: var(--color-back);
 
-    --inline-link-fg: hsl(316, 100%, 79%);
-    --inline-link-hover-fg: hsl(311, 100%, 91%);
-    --inline-link-visited-fg: hsl(313, 83%, 80%);
+    --inline-link-fg: hsl(306, 100%, 79%);
+    --inline-link-hover-fg: hsl(306, 100%, 91%);
+    --inline-link-visited-fg: hsl(306, 83%, 80%);
     --inline-link-focus-ring: hsla(310, 100%, 79%, 0.45);
   }
 }
@@ -472,8 +472,8 @@ h1 {
 
 .tab-state--error {
   border-color: hsla(312, 72%, 51%, 0.45);
-  background: hsl(315, 100%, 93%);
-  color: hsl(317, 79%, 31%);
+  background: hsl(306, 100%, 93%);
+  color: hsl(306, 79%, 31%);
 }
 
 .tab-state--empty {
@@ -1093,7 +1093,7 @@ a:focus-visible {
 }
 
 .message.error {
-  background: hsl(315, 100%, 93%);
+  background: hsl(306, 100%, 93%);
   color: var(--color-back);
 }
 
