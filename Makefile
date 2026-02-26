@@ -116,15 +116,34 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/admin/maze/preview (admin auth)$(NC)"
 	@echo "$(YELLOW)⚙️  Effective dev flags: WRITE=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) DEBUG_HEADERS=$(DEV_DEBUG_HEADERS)$(NC)"
 	@echo "$(YELLOW)🔐 Local admin allowlist override: DEV_ADMIN_IP_ALLOWLIST='$(DEV_ADMIN_IP_ALLOWLIST)' (empty by default)$(NC)"
+	@echo "$(YELLOW)⚡ Startup rebuild override: DEV_FORCE_REBUILD=$${DEV_FORCE_REBUILD:-0}$(NC)"
 	@echo "$(CYAN)👀 Watching src/*.rs, dashboard/*, and spin.toml for changes... (Ctrl+C to stop)$(NC)"
 	@$(MAKE) --no-print-directory config-seed >/dev/null
-	@$(MAKE) --no-print-directory dashboard-build >/dev/null
+	@DASHBOARD_STAMP="dist/dashboard/_app/version.json"; \
+	if [ "$${DEV_FORCE_REBUILD:-0}" = "1" ] || [ ! -f "$$DASHBOARD_STAMP" ] || \
+	   [ dashboard/style.css -nt "$$DASHBOARD_STAMP" ] || \
+	   [ dashboard/svelte.config.js -nt "$$DASHBOARD_STAMP" ] || \
+	   [ dashboard/vite.config.js -nt "$$DASHBOARD_STAMP" ] || \
+	   [ package.json -nt "$$DASHBOARD_STAMP" ] || \
+	   [ pnpm-lock.yaml -nt "$$DASHBOARD_STAMP" ] || \
+	   find dashboard/src dashboard/static -type f -newer "$$DASHBOARD_STAMP" -print -quit | grep -q .; then \
+		$(MAKE) --no-print-directory dashboard-build >/dev/null; \
+	else \
+		echo "Dashboard assets unchanged; skipping dashboard-build."; \
+	fi
 	@pkill -x spin 2>/dev/null || true
-	@./scripts/set_crate_type.sh cdylib
-	@cargo build --target wasm32-wasip1 --release
-	@mkdir -p $(dir $(WASM_ARTIFACT))
-	@cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT)
-	@./scripts/set_crate_type.sh rlib
+	@if [ "$${DEV_FORCE_REBUILD:-0}" = "1" ] || [ ! -f $(WASM_BUILD_OUTPUT) ] || [ ! -f $(WASM_ARTIFACT) ] || \
+	   [ Cargo.toml -nt $(WASM_BUILD_OUTPUT) ] || [ Cargo.lock -nt $(WASM_BUILD_OUTPUT) ] || \
+	   { [ -f build.rs ] && [ build.rs -nt $(WASM_BUILD_OUTPUT) ]; } || \
+	   find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then \
+		./scripts/set_crate_type.sh cdylib; \
+		cargo build --target wasm32-wasip1 --release; \
+		mkdir -p $(dir $(WASM_ARTIFACT)); \
+		cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT); \
+		./scripts/set_crate_type.sh rlib; \
+	else \
+		echo "Rust/WASM artifacts unchanged; skipping initial release build."; \
+	fi
 	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'dist/wasm/shuma_gorath.wasm' -i '.spin/**' \
 		-s 'if [ ! -f $(WASM_BUILD_OUTPUT) ] || find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && mkdir -p $(dir $(WASM_ARTIFACT)) && cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT) && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
 		-s '$(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; pkill -x spin 2>/dev/null || true; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --listen 127.0.0.1:3000'
@@ -137,15 +156,34 @@ dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=fal
 	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/admin/maze/preview (admin auth)$(NC)"
 	@echo "$(YELLOW)⚙️  Effective dev flags: WRITE=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) DEBUG_HEADERS=$(DEV_DEBUG_HEADERS)$(NC)"
 	@echo "$(YELLOW)🔐 Local admin allowlist override: DEV_ADMIN_IP_ALLOWLIST='$(DEV_ADMIN_IP_ALLOWLIST)' (empty by default)$(NC)"
+	@echo "$(YELLOW)⚡ Startup rebuild override: DEV_FORCE_REBUILD=$${DEV_FORCE_REBUILD:-0}$(NC)"
 	@echo "$(CYAN)👀 Watching src/*.rs, dashboard/*, and spin.toml for changes... (Ctrl+C to stop)$(NC)"
 	@$(MAKE) --no-print-directory config-seed >/dev/null
-	@$(MAKE) --no-print-directory dashboard-build >/dev/null
+	@DASHBOARD_STAMP="dist/dashboard/_app/version.json"; \
+	if [ "$${DEV_FORCE_REBUILD:-0}" = "1" ] || [ ! -f "$$DASHBOARD_STAMP" ] || \
+	   [ dashboard/style.css -nt "$$DASHBOARD_STAMP" ] || \
+	   [ dashboard/svelte.config.js -nt "$$DASHBOARD_STAMP" ] || \
+	   [ dashboard/vite.config.js -nt "$$DASHBOARD_STAMP" ] || \
+	   [ package.json -nt "$$DASHBOARD_STAMP" ] || \
+	   [ pnpm-lock.yaml -nt "$$DASHBOARD_STAMP" ] || \
+	   find dashboard/src dashboard/static -type f -newer "$$DASHBOARD_STAMP" -print -quit | grep -q .; then \
+		$(MAKE) --no-print-directory dashboard-build >/dev/null; \
+	else \
+		echo "Dashboard assets unchanged; skipping dashboard-build."; \
+	fi
 	@pkill -x spin 2>/dev/null || true
-	@./scripts/set_crate_type.sh cdylib
-	@cargo build --target wasm32-wasip1 --release
-	@mkdir -p $(dir $(WASM_ARTIFACT))
-	@cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT)
-	@./scripts/set_crate_type.sh rlib
+	@if [ "$${DEV_FORCE_REBUILD:-0}" = "1" ] || [ ! -f $(WASM_BUILD_OUTPUT) ] || [ ! -f $(WASM_ARTIFACT) ] || \
+	   [ Cargo.toml -nt $(WASM_BUILD_OUTPUT) ] || [ Cargo.lock -nt $(WASM_BUILD_OUTPUT) ] || \
+	   { [ -f build.rs ] && [ build.rs -nt $(WASM_BUILD_OUTPUT) ]; } || \
+	   find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then \
+		./scripts/set_crate_type.sh cdylib; \
+		cargo build --target wasm32-wasip1 --release; \
+		mkdir -p $(dir $(WASM_ARTIFACT)); \
+		cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT); \
+		./scripts/set_crate_type.sh rlib; \
+	else \
+		echo "Rust/WASM artifacts unchanged; skipping initial release build."; \
+	fi
 	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'dist/wasm/shuma_gorath.wasm' -i '.spin/**' \
 		-s 'if [ ! -f $(WASM_BUILD_OUTPUT) ] || find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && mkdir -p $(dir $(WASM_ARTIFACT)) && cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT) && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
 		-s '$(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; pkill -x spin 2>/dev/null || true; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env SHUMA_KV_STORE_FAIL_OPEN=false --listen 127.0.0.1:3000'
