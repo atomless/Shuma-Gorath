@@ -58,7 +58,7 @@
   --btn-submit-hover-bg: var(--color-accent-hover);
   --btn-submit-fg: var(--color-back);
   --btn-submit-disabled-bg: var(--color-400);
-  --btn-submit-disabled-fg: var(--color-500);
+  --btn-submit-disabled-fg: var(--color-300);
   --inline-link-fg: #a41a82;
   --inline-link-hover-fg: #ff2dce;
   --inline-link-visited-fg: #841568;

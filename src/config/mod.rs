@@ -69,6 +69,20 @@ const TARPIT_MAX_CONCURRENT_GLOBAL_MIN: u32 = 1;
 const TARPIT_MAX_CONCURRENT_GLOBAL_MAX: u32 = 10_000;
 const TARPIT_MAX_CONCURRENT_PER_IP_BUCKET_MIN: u32 = 1;
 const TARPIT_MAX_CONCURRENT_PER_IP_BUCKET_MAX: u32 = 256;
+const IP_RANGE_SUGGESTIONS_MIN_OBSERVATIONS_MIN: u32 = 1;
+const IP_RANGE_SUGGESTIONS_MIN_OBSERVATIONS_MAX: u32 = 50_000;
+const IP_RANGE_SUGGESTIONS_MIN_BOT_EVENTS_MIN: u32 = 1;
+const IP_RANGE_SUGGESTIONS_MIN_BOT_EVENTS_MAX: u32 = 10_000;
+const IP_RANGE_SUGGESTIONS_CONFIDENCE_PERCENT_MIN: u8 = 0;
+const IP_RANGE_SUGGESTIONS_CONFIDENCE_PERCENT_MAX: u8 = 100;
+const IP_RANGE_SUGGESTIONS_COLLATERAL_PERCENT_MIN: u8 = 0;
+const IP_RANGE_SUGGESTIONS_COLLATERAL_PERCENT_MAX: u8 = 100;
+const IP_RANGE_SUGGESTIONS_IPV4_MIN_PREFIX_LEN_MIN: u8 = 8;
+const IP_RANGE_SUGGESTIONS_IPV4_MIN_PREFIX_LEN_MAX: u8 = 32;
+const IP_RANGE_SUGGESTIONS_IPV6_MIN_PREFIX_LEN_MIN: u8 = 24;
+const IP_RANGE_SUGGESTIONS_IPV6_MIN_PREFIX_LEN_MAX: u8 = 128;
+const IP_RANGE_SUGGESTIONS_LIKELY_HUMAN_SAMPLE_PERCENT_MIN: u8 = 0;
+const IP_RANGE_SUGGESTIONS_LIKELY_HUMAN_SAMPLE_PERCENT_MAX: u8 = 100;
 #[cfg(not(test))]
 const CONFIG_CACHE_TTL_SECONDS: u64 = 2;
 
@@ -479,6 +493,22 @@ pub struct Config {
     pub ip_range_emergency_allowlist: Vec<String>,
     #[serde(default = "default_ip_range_custom_rules")]
     pub ip_range_custom_rules: Vec<IpRangePolicyRule>,
+    #[serde(default = "default_ip_range_suggestions_min_observations")]
+    pub ip_range_suggestions_min_observations: u32,
+    #[serde(default = "default_ip_range_suggestions_min_bot_events")]
+    pub ip_range_suggestions_min_bot_events: u32,
+    #[serde(default = "default_ip_range_suggestions_min_confidence_percent")]
+    pub ip_range_suggestions_min_confidence_percent: u8,
+    #[serde(default = "default_ip_range_suggestions_low_collateral_percent")]
+    pub ip_range_suggestions_low_collateral_percent: u8,
+    #[serde(default = "default_ip_range_suggestions_high_collateral_percent")]
+    pub ip_range_suggestions_high_collateral_percent: u8,
+    #[serde(default = "default_ip_range_suggestions_ipv4_min_prefix_len")]
+    pub ip_range_suggestions_ipv4_min_prefix_len: u8,
+    #[serde(default = "default_ip_range_suggestions_ipv6_min_prefix_len")]
+    pub ip_range_suggestions_ipv6_min_prefix_len: u8,
+    #[serde(default = "default_ip_range_suggestions_likely_human_sample_percent")]
+    pub ip_range_suggestions_likely_human_sample_percent: u8,
     #[serde(default = "default_test_mode")]
     pub test_mode: bool,
     #[serde(default = "default_maze_enabled")]
@@ -931,6 +961,20 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         ip_range_policy_mode: default_ip_range_policy_mode(),
         ip_range_emergency_allowlist: defaults_string_list("SHUMA_IP_RANGE_EMERGENCY_ALLOWLIST"),
         ip_range_custom_rules: defaults_json("SHUMA_IP_RANGE_CUSTOM_RULES"),
+        ip_range_suggestions_min_observations: default_ip_range_suggestions_min_observations(),
+        ip_range_suggestions_min_bot_events: default_ip_range_suggestions_min_bot_events(),
+        ip_range_suggestions_min_confidence_percent:
+            default_ip_range_suggestions_min_confidence_percent(),
+        ip_range_suggestions_low_collateral_percent:
+            default_ip_range_suggestions_low_collateral_percent(),
+        ip_range_suggestions_high_collateral_percent:
+            default_ip_range_suggestions_high_collateral_percent(),
+        ip_range_suggestions_ipv4_min_prefix_len:
+            default_ip_range_suggestions_ipv4_min_prefix_len(),
+        ip_range_suggestions_ipv6_min_prefix_len:
+            default_ip_range_suggestions_ipv6_min_prefix_len(),
+        ip_range_suggestions_likely_human_sample_percent:
+            default_ip_range_suggestions_likely_human_sample_percent(),
         test_mode: defaults_bool("SHUMA_TEST_MODE"),
         maze_enabled: defaults_bool("SHUMA_MAZE_ENABLED"),
         tarpit_enabled: defaults_bool("SHUMA_TARPIT_ENABLED"),
@@ -1557,6 +1601,55 @@ fn clamp_tarpit_max_concurrent_per_ip_bucket(value: u32) -> u32 {
     )
 }
 
+fn clamp_ip_range_suggestions_min_observations(value: u32) -> u32 {
+    value.clamp(
+        IP_RANGE_SUGGESTIONS_MIN_OBSERVATIONS_MIN,
+        IP_RANGE_SUGGESTIONS_MIN_OBSERVATIONS_MAX,
+    )
+}
+
+fn clamp_ip_range_suggestions_min_bot_events(value: u32) -> u32 {
+    value.clamp(
+        IP_RANGE_SUGGESTIONS_MIN_BOT_EVENTS_MIN,
+        IP_RANGE_SUGGESTIONS_MIN_BOT_EVENTS_MAX,
+    )
+}
+
+fn clamp_ip_range_suggestions_confidence_percent(value: u8) -> u8 {
+    value.clamp(
+        IP_RANGE_SUGGESTIONS_CONFIDENCE_PERCENT_MIN,
+        IP_RANGE_SUGGESTIONS_CONFIDENCE_PERCENT_MAX,
+    )
+}
+
+fn clamp_ip_range_suggestions_collateral_percent(value: u8) -> u8 {
+    value.clamp(
+        IP_RANGE_SUGGESTIONS_COLLATERAL_PERCENT_MIN,
+        IP_RANGE_SUGGESTIONS_COLLATERAL_PERCENT_MAX,
+    )
+}
+
+fn clamp_ip_range_suggestions_ipv4_min_prefix_len(value: u8) -> u8 {
+    value.clamp(
+        IP_RANGE_SUGGESTIONS_IPV4_MIN_PREFIX_LEN_MIN,
+        IP_RANGE_SUGGESTIONS_IPV4_MIN_PREFIX_LEN_MAX,
+    )
+}
+
+fn clamp_ip_range_suggestions_ipv6_min_prefix_len(value: u8) -> u8 {
+    value.clamp(
+        IP_RANGE_SUGGESTIONS_IPV6_MIN_PREFIX_LEN_MIN,
+        IP_RANGE_SUGGESTIONS_IPV6_MIN_PREFIX_LEN_MAX,
+    )
+}
+
+fn clamp_ip_range_suggestions_likely_human_sample_percent(value: u8) -> u8 {
+    value.clamp(
+        IP_RANGE_SUGGESTIONS_LIKELY_HUMAN_SAMPLE_PERCENT_MIN,
+        IP_RANGE_SUGGESTIONS_LIKELY_HUMAN_SAMPLE_PERCENT_MAX,
+    )
+}
+
 fn clamp_config_values(cfg: &mut Config) {
     cfg.pow_difficulty = clamp_pow_difficulty(cfg.pow_difficulty);
     cfg.pow_ttl_seconds = clamp_pow_ttl(cfg.pow_ttl_seconds);
@@ -1636,6 +1729,36 @@ fn clamp_config_values(cfg: &mut Config) {
     {
         cfg.not_a_bot_risk_threshold = cfg.challenge_puzzle_risk_threshold.saturating_sub(1);
     }
+    cfg.ip_range_suggestions_min_observations = clamp_ip_range_suggestions_min_observations(
+        cfg.ip_range_suggestions_min_observations,
+    );
+    cfg.ip_range_suggestions_min_bot_events =
+        clamp_ip_range_suggestions_min_bot_events(cfg.ip_range_suggestions_min_bot_events);
+    cfg.ip_range_suggestions_min_confidence_percent =
+        clamp_ip_range_suggestions_confidence_percent(
+            cfg.ip_range_suggestions_min_confidence_percent,
+        );
+    cfg.ip_range_suggestions_low_collateral_percent = clamp_ip_range_suggestions_collateral_percent(
+        cfg.ip_range_suggestions_low_collateral_percent,
+    );
+    cfg.ip_range_suggestions_high_collateral_percent = clamp_ip_range_suggestions_collateral_percent(
+        cfg.ip_range_suggestions_high_collateral_percent,
+    );
+    if cfg.ip_range_suggestions_low_collateral_percent > cfg.ip_range_suggestions_high_collateral_percent
+    {
+        cfg.ip_range_suggestions_low_collateral_percent =
+            cfg.ip_range_suggestions_high_collateral_percent;
+    }
+    cfg.ip_range_suggestions_ipv4_min_prefix_len = clamp_ip_range_suggestions_ipv4_min_prefix_len(
+        cfg.ip_range_suggestions_ipv4_min_prefix_len,
+    );
+    cfg.ip_range_suggestions_ipv6_min_prefix_len = clamp_ip_range_suggestions_ipv6_min_prefix_len(
+        cfg.ip_range_suggestions_ipv6_min_prefix_len,
+    );
+    cfg.ip_range_suggestions_likely_human_sample_percent =
+        clamp_ip_range_suggestions_likely_human_sample_percent(
+            cfg.ip_range_suggestions_likely_human_sample_percent,
+        );
     cfg.botness_maze_threshold = clamp_maze_threshold(cfg.botness_maze_threshold);
     cfg.botness_weights.js_required = clamp_botness_weight(cfg.botness_weights.js_required);
     cfg.botness_weights.geo_risk = clamp_botness_weight(cfg.botness_weights.geo_risk);
@@ -1971,6 +2094,54 @@ fn default_ip_range_emergency_allowlist() -> Vec<String> {
 
 fn default_ip_range_custom_rules() -> Vec<IpRangePolicyRule> {
     defaults_json("SHUMA_IP_RANGE_CUSTOM_RULES")
+}
+
+fn default_ip_range_suggestions_min_observations() -> u32 {
+    clamp_ip_range_suggestions_min_observations(defaults_u32(
+        "SHUMA_IP_RANGE_SUGGESTIONS_MIN_OBSERVATIONS",
+    ))
+}
+
+fn default_ip_range_suggestions_min_bot_events() -> u32 {
+    clamp_ip_range_suggestions_min_bot_events(defaults_u32(
+        "SHUMA_IP_RANGE_SUGGESTIONS_MIN_BOT_EVENTS",
+    ))
+}
+
+fn default_ip_range_suggestions_min_confidence_percent() -> u8 {
+    clamp_ip_range_suggestions_confidence_percent(defaults_u8(
+        "SHUMA_IP_RANGE_SUGGESTIONS_MIN_CONFIDENCE_PERCENT",
+    ))
+}
+
+fn default_ip_range_suggestions_low_collateral_percent() -> u8 {
+    clamp_ip_range_suggestions_collateral_percent(defaults_u8(
+        "SHUMA_IP_RANGE_SUGGESTIONS_LOW_COLLATERAL_PERCENT",
+    ))
+}
+
+fn default_ip_range_suggestions_high_collateral_percent() -> u8 {
+    clamp_ip_range_suggestions_collateral_percent(defaults_u8(
+        "SHUMA_IP_RANGE_SUGGESTIONS_HIGH_COLLATERAL_PERCENT",
+    ))
+}
+
+fn default_ip_range_suggestions_ipv4_min_prefix_len() -> u8 {
+    clamp_ip_range_suggestions_ipv4_min_prefix_len(defaults_u8(
+        "SHUMA_IP_RANGE_SUGGESTIONS_IPV4_MIN_PREFIX_LEN",
+    ))
+}
+
+fn default_ip_range_suggestions_ipv6_min_prefix_len() -> u8 {
+    clamp_ip_range_suggestions_ipv6_min_prefix_len(defaults_u8(
+        "SHUMA_IP_RANGE_SUGGESTIONS_IPV6_MIN_PREFIX_LEN",
+    ))
+}
+
+fn default_ip_range_suggestions_likely_human_sample_percent() -> u8 {
+    clamp_ip_range_suggestions_likely_human_sample_percent(defaults_u8(
+        "SHUMA_IP_RANGE_SUGGESTIONS_LIKELY_HUMAN_SAMPLE_PERCENT",
+    ))
 }
 
 fn default_test_mode() -> bool {

@@ -295,6 +295,14 @@ fn defaults_enable_both_signal_and_action_paths() {
     assert_eq!(cfg.ip_range_policy_mode, IpRangePolicyMode::Off);
     assert!(cfg.ip_range_emergency_allowlist.is_empty());
     assert!(cfg.ip_range_custom_rules.is_empty());
+    assert_eq!(cfg.ip_range_suggestions_min_observations, 30);
+    assert_eq!(cfg.ip_range_suggestions_min_bot_events, 8);
+    assert_eq!(cfg.ip_range_suggestions_min_confidence_percent, 60);
+    assert_eq!(cfg.ip_range_suggestions_low_collateral_percent, 10);
+    assert_eq!(cfg.ip_range_suggestions_high_collateral_percent, 25);
+    assert_eq!(cfg.ip_range_suggestions_ipv4_min_prefix_len, 24);
+    assert_eq!(cfg.ip_range_suggestions_ipv6_min_prefix_len, 48);
+    assert_eq!(cfg.ip_range_suggestions_likely_human_sample_percent, 10);
     assert!(cfg.tarpit_enabled);
     assert_eq!(cfg.tarpit_progress_token_ttl_seconds, 120);
     assert_eq!(cfg.tarpit_progress_replay_ttl_seconds, 300);
@@ -343,6 +351,30 @@ fn defaults_enable_both_signal_and_action_paths() {
         cfg.provider_backends.fingerprint_signal,
         ProviderBackend::Internal
     );
+}
+
+#[test]
+fn clamp_config_values_normalizes_ip_range_suggestion_bounds() {
+    let mut cfg = defaults().clone();
+    cfg.ip_range_suggestions_min_observations = 0;
+    cfg.ip_range_suggestions_min_bot_events = 0;
+    cfg.ip_range_suggestions_min_confidence_percent = 255;
+    cfg.ip_range_suggestions_low_collateral_percent = 90;
+    cfg.ip_range_suggestions_high_collateral_percent = 20;
+    cfg.ip_range_suggestions_ipv4_min_prefix_len = 1;
+    cfg.ip_range_suggestions_ipv6_min_prefix_len = 200;
+    cfg.ip_range_suggestions_likely_human_sample_percent = 255;
+
+    super::clamp_config_values(&mut cfg);
+
+    assert_eq!(cfg.ip_range_suggestions_min_observations, 1);
+    assert_eq!(cfg.ip_range_suggestions_min_bot_events, 1);
+    assert_eq!(cfg.ip_range_suggestions_min_confidence_percent, 100);
+    assert_eq!(cfg.ip_range_suggestions_low_collateral_percent, 20);
+    assert_eq!(cfg.ip_range_suggestions_high_collateral_percent, 20);
+    assert_eq!(cfg.ip_range_suggestions_ipv4_min_prefix_len, 8);
+    assert_eq!(cfg.ip_range_suggestions_ipv6_min_prefix_len, 128);
+    assert_eq!(cfg.ip_range_suggestions_likely_human_sample_percent, 100);
 }
 
 #[test]
