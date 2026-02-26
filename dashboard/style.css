@@ -928,11 +928,6 @@ code.env-var {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
 
-.control-group h3 {
-  font-size: var(--text-lg);
-  color: var(--color-700);
-}
-
 .panel-heading-with-control {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

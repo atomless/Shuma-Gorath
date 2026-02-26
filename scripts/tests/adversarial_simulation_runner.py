@@ -156,79 +156,89 @@ class Runner:
         all_ips = sorted({scenario["ip"] for scenario in self.selected_scenarios})
         self.cleanup_ips(all_ips)
 
-        monitoring_before = self.monitoring_snapshot()
-        suite_start = time.monotonic()
-        results: List[ScenarioResult] = []
+        try:
+            monitoring_before = self.monitoring_snapshot()
+            suite_start = time.monotonic()
+            results: List[ScenarioResult] = []
 
-        for scenario in self.selected_scenarios:
-            elapsed = time.monotonic() - suite_start
-            if elapsed > self.profile["max_runtime_seconds"]:
-                results.append(
-                    ScenarioResult(
-                        id=scenario["id"],
-                        tier=scenario["tier"],
-                        driver=scenario["driver"],
-                        expected_outcome=scenario["expected_outcome"],
-                        observed_outcome=None,
-                        passed=False,
-                        latency_ms=0,
-                        runtime_budget_ms=scenario["runtime_budget_ms"],
-                        detail=(
-                            f"Suite runtime budget exceeded before scenario start "
-                            f"({elapsed:.2f}s > {self.profile['max_runtime_seconds']}s)"
-                        ),
+            for scenario in self.selected_scenarios:
+                elapsed = time.monotonic() - suite_start
+                if elapsed > self.profile["max_runtime_seconds"]:
+                    results.append(
+                        ScenarioResult(
+                            id=scenario["id"],
+                            tier=scenario["tier"],
+                            driver=scenario["driver"],
+                            expected_outcome=scenario["expected_outcome"],
+                            observed_outcome=None,
+                            passed=False,
+                            latency_ms=0,
+                            runtime_budget_ms=scenario["runtime_budget_ms"],
+                            detail=(
+                                f"Suite runtime budget exceeded before scenario start "
+                                f"({elapsed:.2f}s > {self.profile['max_runtime_seconds']}s)"
+                            ),
+                        )
                     )
+                    break
+
+                result = self.run_scenario(scenario)
+                results.append(result)
+
+            monitoring_after = self.monitoring_snapshot()
+            suite_runtime_ms = int((time.monotonic() - suite_start) * 1000)
+            gate_results = self.evaluate_gates(results, monitoring_before, monitoring_after, suite_runtime_ms)
+
+            report = {
+                "schema_version": "sim-report.v1",
+                "suite_id": self.manifest["suite_id"],
+                "profile": self.profile_name,
+                "base_url": self.base_url,
+                "request_count": self.request_count,
+                "suite_runtime_ms": suite_runtime_ms,
+                "monitoring_before": monitoring_before,
+                "monitoring_after": monitoring_after,
+                "results": [result.__dict__ for result in results],
+                "gates": gate_results,
+                "passed": all(result.passed for result in results) and gate_results["all_passed"],
+                "generated_at_unix": int(time.time()),
+            }
+
+            self.report_path.parent.mkdir(parents=True, exist_ok=True)
+            self.report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+
+            print(f"[adversarial] report: {self.report_path}")
+            for result in results:
+                status = "PASS" if result.passed else "FAIL"
+                print(
+                    f"[{status}] {result.id} tier={result.tier} driver={result.driver} "
+                    f"expected={result.expected_outcome} observed={result.observed_outcome or 'n/a'} "
+                    f"latency_ms={result.latency_ms} detail={result.detail}"
                 )
-                break
 
-            result = self.run_scenario(scenario)
-            results.append(result)
+            if gate_results["all_passed"]:
+                print("[adversarial] quantitative gates: PASS")
+            else:
+                print("[adversarial] quantitative gates: FAIL")
+                for gate in gate_results["checks"]:
+                    if not gate["passed"]:
+                        print(f"  - {gate['name']}: {gate['detail']}")
 
-        monitoring_after = self.monitoring_snapshot()
-        suite_runtime_ms = int((time.monotonic() - suite_start) * 1000)
-        gate_results = self.evaluate_gates(results, monitoring_before, monitoring_after, suite_runtime_ms)
+            if report["passed"]:
+                print("[adversarial] profile PASS")
+                return 0
 
-        report = {
-            "schema_version": "sim-report.v1",
-            "suite_id": self.manifest["suite_id"],
-            "profile": self.profile_name,
-            "base_url": self.base_url,
-            "request_count": self.request_count,
-            "suite_runtime_ms": suite_runtime_ms,
-            "monitoring_before": monitoring_before,
-            "monitoring_after": monitoring_after,
-            "results": [result.__dict__ for result in results],
-            "gates": gate_results,
-            "passed": all(result.passed for result in results) and gate_results["all_passed"],
-            "generated_at_unix": int(time.time()),
-        }
-
-        self.report_path.parent.mkdir(parents=True, exist_ok=True)
-        self.report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
-
-        print(f"[adversarial] report: {self.report_path}")
-        for result in results:
-            status = "PASS" if result.passed else "FAIL"
-            print(
-                f"[{status}] {result.id} tier={result.tier} driver={result.driver} "
-                f"expected={result.expected_outcome} observed={result.observed_outcome or 'n/a'} "
-                f"latency_ms={result.latency_ms} detail={result.detail}"
-            )
-
-        if gate_results["all_passed"]:
-            print("[adversarial] quantitative gates: PASS")
-        else:
-            print("[adversarial] quantitative gates: FAIL")
-            for gate in gate_results["checks"]:
-                if not gate["passed"]:
-                    print(f"  - {gate['name']}: {gate['detail']}")
-
-        if report["passed"]:
-            print("[adversarial] profile PASS")
-            return 0
-
-        print("[adversarial] profile FAIL")
-        return 1
+            print("[adversarial] profile FAIL")
+            return 1
+        finally:
+            try:
+                self.reset_baseline_config()
+            except Exception as exc:
+                print(f"[adversarial] warning: failed to restore baseline config: {exc}")
+            try:
+                self.cleanup_ips(all_ips)
+            except Exception as exc:
+                print(f"[adversarial] warning: failed to cleanup scenario IPs: {exc}")
 
     def wait_ready(self, timeout_seconds: int) -> None:
         deadline = time.monotonic() + timeout_seconds
