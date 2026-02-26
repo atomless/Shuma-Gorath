@@ -152,12 +152,14 @@ Behavior:
    - by default the runner uses repo-local browser `HOME`/config at `.cache/playwright-home`
    - optional: set `PLAYWRIGHT_FORCE_LOCAL_HOME=0` to keep system `HOME`
    - if Chromium launch fails with a known sandbox signature while local HOME is forced, the runner retries preflight with system HOME
+   - if preflight still fails with repo-local browser cache, the runner automatically retries with system Playwright browser cache (when `PLAYWRIGHT_BROWSERS_PATH` was not explicitly set)
 3. Runs a Chromium launch preflight and fails fast with actionable diagnostics when sandbox permissions block browser startup.
 4. Runs dashboard module unit tests via `make test-dashboard-unit`.
 5. Runs dashboard bundle-size budget reporting (`scripts/tests/check_dashboard_bundle_budget.js`) against `dist/dashboard/_app` (in the e2e flow this checks the currently served build without rebuilding first).
 6. Verifies the running Spin instance is serving the current dashboard artifact (`dist/dashboard/index.html`) and fails fast if the server is stale.
 7. Seeds deterministic dashboard data via `make seed-dashboard-data`.
 8. Runs browser smoke checks for core dashboard behavior:
+   - only browser smoke specs (`e2e/*.spec.js`) are executed in this stage; Node unit tests (`e2e/*.unit.test.js`) run in `make test-dashboard-unit`
    - page loads and refresh succeeds
    - runtime page errors or failed <abbr title="JavaScript">JS</abbr>/CSS loads fail the run
    - only one dashboard tab panel is visible at a time (panel exclusivity)
@@ -177,6 +179,7 @@ Notes:
 - Seeding is test-only and does not run during `make setup`.
 - Seeded rows are operational test data and may appear in local dashboard history.
 - Restricted sandbox escape hatch (local-only): set `PLAYWRIGHT_SANDBOX_ALLOW_SKIP=1` to skip dashboard e2e after a detected Chromium launch permission block.
+- CI safeguard: when `CI` is set, `PLAYWRIGHT_SANDBOX_ALLOW_SKIP=1` is rejected and the run fails so mandatory e2e checks cannot silently downgrade to skip.
 - Bundle budgets are warn-only by default to preserve development flow; set `SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE=1` (or run `make test-dashboard-budgets-strict`) for hard-fail enforcement.
 
 ## 🐙 Build Mode Notes

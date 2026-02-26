@@ -337,7 +337,20 @@ test("sveltekit assets resolve under /dashboard/_app and /dashboard/assets base 
       .map((node) => new URL(node.getAttribute("src"), window.location.href).pathname);
     const styles = Array.from(document.querySelectorAll("link[rel='stylesheet'][href]"))
       .map((node) => new URL(node.getAttribute("href"), window.location.href).pathname);
-    return { modulePreloads, scripts, styles };
+    const shumaImage = document.querySelector("img.shuma-gorath-img");
+    const shumaImagePath = shumaImage
+      ? new URL(shumaImage.getAttribute("src") || "", window.location.href).pathname
+      : "";
+    const shumaImageComplete = Boolean(shumaImage && shumaImage.complete);
+    const shumaImageNaturalWidth = Number(shumaImage?.naturalWidth || 0);
+    return {
+      modulePreloads,
+      scripts,
+      styles,
+      shumaImagePath,
+      shumaImageComplete,
+      shumaImageNaturalWidth
+    };
   });
 
   expect(assets.modulePreloads.some((path) => path.startsWith("/dashboard/_app/"))).toBe(true);
@@ -345,6 +358,9 @@ test("sveltekit assets resolve under /dashboard/_app and /dashboard/assets base 
   expect(
     assets.scripts.some((path) => path.startsWith("/dashboard/assets/vendor/chart-lite-1.0.0.min.js"))
   ).toBe(true);
+  expect(assets.shumaImagePath).toBe("/dashboard/assets/shuma-gorath-pencil.png");
+  expect(assets.shumaImageComplete).toBe(true);
+  expect(assets.shumaImageNaturalWidth).toBeGreaterThan(0);
 });
 
 test("dashboard login route remains functional after direct navigation and refresh", async ({ page }) => {
@@ -1522,12 +1538,21 @@ test("tab states surface loading and data-ready transitions across all tabs", as
   await expect(page.locator('[data-tab-state="tuning"]')).toBeHidden();
 
   await clearDashboardClientCache(page);
+  let releaseBanFetch = null;
+  const banFetchObserved = new Promise((resolve) => {
+    releaseBanFetch = resolve;
+  });
+  let releaseBanResponse = null;
+  const banResponseGate = new Promise((resolve) => {
+    releaseBanResponse = resolve;
+  });
   await page.route("**/admin/ban", async (route) => {
     if (route.request().method() !== "GET") {
       await route.continue();
       return;
     }
-    await page.waitForTimeout(450);
+    releaseBanFetch();
+    await banResponseGate;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -1546,19 +1571,32 @@ test("tab states surface loading and data-ready transitions across all tabs", as
   }, { times: 1 });
 
   await openTab(page, "ip-bans");
+  await banFetchObserved;
   await expect(page.locator('[data-tab-state="ip-bans"]')).toContainText("Loading ban list...");
+  releaseBanResponse();
   await expect(page.locator("#bans-table tbody")).toContainText("198.51.100.250");
   await expect(page.locator('[data-tab-state="ip-bans"]')).toBeHidden();
 
   await clearDashboardClientCache(page);
+  let releaseMonitoringFetch = null;
+  const monitoringFetchObserved = new Promise((resolve) => {
+    releaseMonitoringFetch = resolve;
+  });
+  let releaseMonitoringResponse = null;
+  const monitoringResponseGate = new Promise((resolve) => {
+    releaseMonitoringResponse = resolve;
+  });
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+    releaseMonitoringFetch();
+    await monitoringResponseGate;
     const upstream = await route.fetch();
-    await page.waitForTimeout(450);
     await route.fulfill({ response: upstream });
   }, { times: 1 });
 
   await openTab(page, "monitoring");
+  await monitoringFetchObserved;
   await expect(page.locator('[data-tab-state="monitoring"]')).toContainText("Loading monitoring data...");
+  releaseMonitoringResponse();
   await expect(page.locator('[data-tab-state="monitoring"]')).toBeHidden();
 });
 

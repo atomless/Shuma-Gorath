@@ -44,6 +44,6 @@
   </ConfigPanelHeading>
   <p class="control-desc text-muted">Enable progression-gated tarpit defence for confirmed challenge attacks. Tarpit uses bounded work and deterministic fallback to keep host cost controlled while increasing attacker cost. You may click here to preview the <a id="preview-tarpit-link" href="/admin/tarpit/preview" target="_blank" rel="noopener noreferrer">Tarpit</a> without mutating runtime state (admin session required).</p>
   {#if !mazeEnabled}
-    <p class="message warning">Maze is currently disabled, so tarpit cannot be served until Maze is enabled.</p>
+    <p class="message warning">Tarpit depends on Maze being enabled.</p>
   {/if}
 </ConfigPanel>
