@@ -248,7 +248,7 @@ curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
 info "Resetting IP-range policy to defaults..."
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
-  -d '{"ip_range_policy_mode":"off","ip_range_emergency_allowlist":[],"ip_range_custom_rules":[],"ip_range_managed_policies":[]}' \
+  -d '{"ip_range_policy_mode":"off","ip_range_emergency_allowlist":[],"ip_range_custom_rules":[]}' \
   "$BASE_URL/admin/config" > /dev/null || true
 
 info "Clearing bans for integration test IPs..."
@@ -998,29 +998,9 @@ else
     fi
   fi
 
-  info "Testing managed GitHub Copilot set routing..."
-  managed_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-    -d '{"ip_range_policy_mode":"enforce","ip_range_emergency_allowlist":[],"ip_range_custom_rules":[],"ip_range_managed_policies":[{"set_id":"github_copilot","enabled":true,"action":"forbidden_403"}]}' \
-    "$BASE_URL/admin/config")
-  if ! echo "$managed_cfg" | grep -q '"set_id":"github_copilot"'; then
-    fail "Failed to apply managed GitHub Copilot IP-range policy config"
-    echo -e "${YELLOW}DEBUG managed ip-range config:${NC} $managed_cfg"
-  else
-    managed_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 20.85.130.105" "$BASE_URL/")
-    managed_status=$(echo "$managed_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
-    managed_body=$(echo "$managed_resp" | sed -e 's/HTTPSTATUS:.*//')
-    if [[ "$managed_status" == "403" ]] && echo "$managed_body" | grep -qE 'Access Restricted|Access Blocked'; then
-      pass "Managed GitHub Copilot CIDR policy blocks known managed-set IP"
-    else
-      fail "Managed GitHub Copilot CIDR policy did not block known managed-set IP"
-      echo -e "${YELLOW}DEBUG managed status:${NC} $managed_status"
-      echo -e "${YELLOW}DEBUG managed body:${NC} $managed_body"
-    fi
-  fi
-
   info "Resetting IP-range policy lists after routing tests..."
   curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-    -d '{"ip_range_policy_mode":"off","ip_range_emergency_allowlist":[],"ip_range_custom_rules":[],"ip_range_managed_policies":[]}' \
+    -d '{"ip_range_policy_mode":"off","ip_range_emergency_allowlist":[],"ip_range_custom_rules":[]}' \
     "$BASE_URL/admin/config" > /dev/null || true
 fi
 

@@ -295,9 +295,6 @@ fn defaults_enable_both_signal_and_action_paths() {
     assert_eq!(cfg.ip_range_policy_mode, IpRangePolicyMode::Off);
     assert!(cfg.ip_range_emergency_allowlist.is_empty());
     assert!(cfg.ip_range_custom_rules.is_empty());
-    assert!(cfg.ip_range_managed_policies.is_empty());
-    assert_eq!(cfg.ip_range_managed_max_staleness_hours, 168);
-    assert!(!cfg.ip_range_allow_stale_managed_enforce);
     assert!(cfg.tarpit_enabled);
     assert_eq!(cfg.tarpit_progress_token_ttl_seconds, 120);
     assert_eq!(cfg.tarpit_progress_replay_ttl_seconds, 300);

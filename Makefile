@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build ip-range-catalog-update env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -91,9 +91,6 @@ verify-runtime: ## Verify runtime-only dependencies and build path (no Node/pnpm
 
 config-seed: ## Seed KV tunable config from config/defaults.env (create + backfill missing keys)
 	@./scripts/config_seed.sh
-
-ip-range-catalog-update: ## Refresh managed IP-range catalog from official sources with guardrails
-	@python3 ./scripts/ip_ranges/update_managed_catalog.py
 
 dashboard-build: ## Build SvelteKit dashboard static assets to dist/dashboard
 	@if ! command -v corepack >/dev/null 2>&1; then \

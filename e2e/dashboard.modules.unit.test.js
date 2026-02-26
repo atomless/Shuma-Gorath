@@ -611,19 +611,19 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(helper.apiLink, 'https://example.com/api');
 
     const parsedOutcome = ipRangePolicyModule.parseIpRangeOutcome(
-      'source=managed source_id=openai-gptbot action=forbidden_403 matched_cidr=203.0.113.0/24 taxonomy[level=L11 action=A_DENY_HARD detection=D_IP_RANGE_FORBIDDEN signals=S_IP_RANGE_MANAGED]'
+      'source=custom source_id=manual-block action=forbidden_403 matched_cidr=203.0.113.0/24 taxonomy[level=L11 action=A_DENY_HARD detection=D_IP_RANGE_FORBIDDEN signals=S_IP_RANGE_CUSTOM]'
     );
-    assert.equal(parsedOutcome.source, 'managed');
-    assert.equal(parsedOutcome.sourceId, 'openai-gptbot');
+    assert.equal(parsedOutcome.source, 'custom');
+    assert.equal(parsedOutcome.sourceId, 'manual-block');
     assert.equal(parsedOutcome.action, 'forbidden_403');
     assert.equal(parsedOutcome.detection, 'D_IP_RANGE_FORBIDDEN');
-    assert.deepEqual(toPlain(parsedOutcome.signals), ['S_IP_RANGE_MANAGED']);
+    assert.deepEqual(toPlain(parsedOutcome.signals), ['S_IP_RANGE_CUSTOM']);
 
     const ipRangeSummary = monitoringModelModule.deriveIpRangeMonitoringViewModel([
       {
         ts: Math.floor(Date.now() / 1000),
         reason: 'ip_range_policy_forbidden',
-        outcome: 'source=managed source_id=openai-gptbot action=forbidden_403 matched_cidr=203.0.113.0/24 taxonomy[level=L11 action=A_DENY_HARD detection=D_IP_RANGE_FORBIDDEN signals=S_IP_RANGE_MANAGED]'
+        outcome: 'source=custom source_id=manual-block action=forbidden_403 matched_cidr=203.0.113.0/24 taxonomy[level=L11 action=A_DENY_HARD detection=D_IP_RANGE_FORBIDDEN signals=S_IP_RANGE_CUSTOM]'
       },
       {
         ts: Math.floor(Date.now() / 1000),
@@ -633,14 +633,7 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     ], {
       ip_range_policy_mode: 'enforce',
       ip_range_emergency_allowlist: ['198.51.100.7/32'],
-      ip_range_custom_rules: [{ id: 'manual-bad-range', enabled: true }],
-      ip_range_managed_policies: [{ set_id: 'openai-gptbot', enabled: true }],
-      ip_range_managed_max_staleness_hours: 24,
-      ip_range_allow_stale_managed_enforce: false,
-      ip_range_managed_catalog_version: '2026-02-20',
-      ip_range_managed_catalog_generated_at: '2026-02-20T00:00:00Z',
-      ip_range_managed_catalog_generated_at_unix: Math.floor(Date.now() / 1000) - 3600,
-      ip_range_managed_sets: [{ set_id: 'openai-gptbot', provider: 'openai', stale: false, entry_count: 42 }]
+      ip_range_custom_rules: [{ id: 'manual-bad-range', enabled: true }]
     });
     assert.equal(ipRangeSummary.totalMatches, 2);
     assert.equal(ipRangeSummary.mode, 'enforce');
@@ -648,7 +641,7 @@ test('monitoring view model and status module remain pure snapshot transforms', 
       ipRangeSummary.actions.some(([label, count]) => label === 'forbidden_403' && Number(count) === 1),
       true
     );
-    assert.equal(ipRangeSummary.catalog.managedSetCount, 1);
+    assert.equal(ipRangeSummary.catalog.customRuleCount, 1);
     assert.equal(monitoringNormalizers.shouldFetchRange('week'), true);
     assert.equal(monitoringNormalizers.shouldFetchRange('day'), false);
     assert.equal(monitoringNormalizers.hoursForRange('month'), 720);
@@ -685,12 +678,6 @@ test('monitoring view model and status module remain pure snapshot transforms', 
       ip_range_policy_mode: 'advisory',
       ip_range_emergency_allowlist: ['198.51.100.0/24'],
       ip_range_custom_rules: [{ id: 'custom-1', enabled: true }],
-      ip_range_managed_policies: [{ set_id: 'openai-gptbot', enabled: true }],
-      ip_range_managed_max_staleness_hours: 24,
-      ip_range_allow_stale_managed_enforce: false,
-      ip_range_managed_catalog_version: '2026-02-20',
-      ip_range_managed_catalog_generated_at_unix: Math.floor(Date.now() / 1000) - 7200,
-      ip_range_managed_sets: [{ set_id: 'openai-gptbot', stale: false }],
       botness_maze_threshold: 6,
       botness_weights: {
         js_required: 1,
@@ -721,7 +708,7 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(challengePuzzleItem?.status, 'ENABLED');
     assert.equal(challengeNotABotItem?.status, 'ENABLED');
     assert.equal(tarpitItem?.status, 'ENABLED');
-    assert.equal(ipRangeItem?.status, 'ADVISORY');
+    assert.equal(ipRangeItem?.status, 'LOGGING-ONLY');
     assert.equal(statusItems.some((item) => stripHtml(item.title) === 'Challenge'), false);
   });
 });

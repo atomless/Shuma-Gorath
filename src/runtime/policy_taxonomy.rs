@@ -137,7 +137,6 @@ pub enum SignalId {
     DecoyInteraction,
     TarpitPersistence,
     IpRangeCustom,
-    IpRangeManaged,
 }
 
 impl SignalId {
@@ -191,7 +190,6 @@ impl SignalId {
             SignalId::DecoyInteraction => "S_DECOY_INTERACTION",
             SignalId::TarpitPersistence => "S_TARPIT_PERSISTENCE",
             SignalId::IpRangeCustom => "S_IP_RANGE_CUSTOM",
-            SignalId::IpRangeManaged => "S_IP_RANGE_MANAGED",
         }
     }
 }

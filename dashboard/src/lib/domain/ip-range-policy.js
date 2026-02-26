@@ -6,7 +6,7 @@ const IP_RANGE_REASON_PREFIX = 'ip_range_';
 
 const IP_RANGE_REASON_LABELS = Object.freeze({
   ip_range_emergency_allowlist: 'Emergency Allowlist',
-  ip_range_policy_advisory: 'Advisory Match',
+  ip_range_policy_advisory: 'Logging-Only Match',
   ip_range_policy_forbidden: '403 Forbidden',
   ip_range_policy_custom_message: 'Custom Message',
   ip_range_policy_drop_connection: 'Drop Connection',

@@ -17,8 +17,6 @@ Panels and behavior:
   - Mode: `off`, `advisory`, `enforce`.
   - Emergency allowlist: one CIDR per line.
   - Custom rules: one JSON object per line.
-  - Managed policies: one JSON object per line.
-  - Managed catalog staleness controls and snapshot table.
 - Bypass Allowlists panel:
   - Enable toggle.
   - IP/CIDR allowlist textarea.

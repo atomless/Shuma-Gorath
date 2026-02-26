@@ -357,20 +357,6 @@ pub struct IpRangePolicyRule {
     pub custom_message: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
-pub struct IpRangeManagedPolicy {
-    #[serde(default)]
-    pub set_id: String,
-    #[serde(default)]
-    pub enabled: bool,
-    #[serde(default)]
-    pub action: IpRangePolicyAction,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub redirect_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub custom_message: Option<String>,
-}
-
 /// Per-capability provider backend selections.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ProviderBackends {
@@ -493,12 +479,6 @@ pub struct Config {
     pub ip_range_emergency_allowlist: Vec<String>,
     #[serde(default = "default_ip_range_custom_rules")]
     pub ip_range_custom_rules: Vec<IpRangePolicyRule>,
-    #[serde(default = "default_ip_range_managed_policies")]
-    pub ip_range_managed_policies: Vec<IpRangeManagedPolicy>,
-    #[serde(default = "default_ip_range_managed_max_staleness_hours")]
-    pub ip_range_managed_max_staleness_hours: u64,
-    #[serde(default = "default_ip_range_allow_stale_managed_enforce")]
-    pub ip_range_allow_stale_managed_enforce: bool,
     #[serde(default = "default_test_mode")]
     pub test_mode: bool,
     #[serde(default = "default_maze_enabled")]
@@ -951,9 +931,6 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         ip_range_policy_mode: default_ip_range_policy_mode(),
         ip_range_emergency_allowlist: defaults_string_list("SHUMA_IP_RANGE_EMERGENCY_ALLOWLIST"),
         ip_range_custom_rules: defaults_json("SHUMA_IP_RANGE_CUSTOM_RULES"),
-        ip_range_managed_policies: defaults_json("SHUMA_IP_RANGE_MANAGED_POLICIES"),
-        ip_range_managed_max_staleness_hours: default_ip_range_managed_max_staleness_hours(),
-        ip_range_allow_stale_managed_enforce: default_ip_range_allow_stale_managed_enforce(),
         test_mode: defaults_bool("SHUMA_TEST_MODE"),
         maze_enabled: defaults_bool("SHUMA_MAZE_ENABLED"),
         tarpit_enabled: defaults_bool("SHUMA_TARPIT_ENABLED"),
@@ -1994,18 +1971,6 @@ fn default_ip_range_emergency_allowlist() -> Vec<String> {
 
 fn default_ip_range_custom_rules() -> Vec<IpRangePolicyRule> {
     defaults_json("SHUMA_IP_RANGE_CUSTOM_RULES")
-}
-
-fn default_ip_range_managed_policies() -> Vec<IpRangeManagedPolicy> {
-    defaults_json("SHUMA_IP_RANGE_MANAGED_POLICIES")
-}
-
-fn default_ip_range_managed_max_staleness_hours() -> u64 {
-    defaults_u64("SHUMA_IP_RANGE_MANAGED_MAX_STALENESS_HOURS")
-}
-
-fn default_ip_range_allow_stale_managed_enforce() -> bool {
-    defaults_bool("SHUMA_IP_RANGE_ALLOW_STALE_MANAGED_ENFORCE")
 }
 
 fn default_test_mode() -> bool {

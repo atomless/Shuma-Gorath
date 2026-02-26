@@ -1,16 +1,11 @@
-use crate::config::{
-    Config, IpRangeManagedPolicy, IpRangePolicyAction, IpRangePolicyMode, IpRangePolicyRule,
-};
+use crate::config::{Config, IpRangePolicyAction, IpRangePolicyMode, IpRangePolicyRule};
 use ipnet::IpNet;
 use once_cell::sync::Lazy;
-use serde::Deserialize;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::net::IpAddr;
 use std::sync::Mutex;
-use std::time::{SystemTime, UNIX_EPOCH};
 
-const MANAGED_IP_RANGES_TEXT: &str = include_str!("../../config/managed_ip_ranges.json");
 const CACHE_MAX_ENTRIES: usize = 16;
 const MIN_IPV4_PREFIX_LEN: u8 = 8;
 const MIN_IPV6_PREFIX_LEN: u8 = 24;
@@ -18,7 +13,6 @@ const MIN_IPV6_PREFIX_LEN: u8 = 24;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum MatchSource {
     CustomRule,
-    ManagedSet,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,41 +32,6 @@ pub(crate) enum Evaluation {
     Matched(MatchDetails),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub(crate) struct ManagedSetMetadata {
-    pub id: String,
-    pub label: String,
-    pub provider: String,
-    pub source_url: String,
-    pub source_timestamp: Option<String>,
-    pub source_timestamp_unix: Option<u64>,
-    pub version: String,
-    pub cidr_count: usize,
-    pub catalog_age_hours: u64,
-    pub catalog_stale: bool,
-    pub managed_max_staleness_hours: u64,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct ManagedCatalog {
-    catalog_version: String,
-    generated_at: String,
-    generated_at_unix: u64,
-    sets: Vec<ManagedSet>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct ManagedSet {
-    id: String,
-    label: String,
-    provider: String,
-    source_url: String,
-    source_timestamp: Option<String>,
-    source_timestamp_unix: Option<u64>,
-    version: String,
-    cidrs: Vec<String>,
-}
-
 #[derive(Debug, Clone)]
 struct CompiledRule {
     source: MatchSource,
@@ -87,79 +46,10 @@ struct CompiledRule {
 struct CompiledPolicy {
     emergency_allowlist: Vec<IpNet>,
     custom_rules: Vec<CompiledRule>,
-    managed_rules: Vec<CompiledRule>,
 }
-
-static MANAGED_CATALOG: Lazy<ManagedCatalog> = Lazy::new(|| {
-    serde_json::from_str::<ManagedCatalog>(MANAGED_IP_RANGES_TEXT)
-        .unwrap_or_else(|err| panic!("Invalid managed IP range catalog: {}", err))
-});
 
 static COMPILED_POLICY_CACHE: Lazy<Mutex<HashMap<u64, CompiledPolicy>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
-
-fn current_unix() -> u64 {
-    match SystemTime::now().duration_since(UNIX_EPOCH) {
-        Ok(duration) => duration.as_secs(),
-        Err(_) => 0,
-    }
-}
-
-fn managed_catalog_age_hours(now_unix: u64) -> u64 {
-    if now_unix <= MANAGED_CATALOG.generated_at_unix {
-        return 0;
-    }
-    (now_unix - MANAGED_CATALOG.generated_at_unix) / 3600
-}
-
-fn managed_catalog_is_stale(max_staleness_hours: u64, now_unix: u64) -> bool {
-    managed_catalog_age_hours(now_unix) > max_staleness_hours
-}
-
-pub(crate) fn managed_set_metadata_with_staleness(
-    managed_max_staleness_hours: u64,
-) -> Vec<ManagedSetMetadata> {
-    let now_unix = current_unix();
-    let catalog_age_hours = managed_catalog_age_hours(now_unix);
-    let catalog_stale = managed_catalog_is_stale(managed_max_staleness_hours, now_unix);
-    MANAGED_CATALOG
-        .sets
-        .iter()
-        .map(|set| ManagedSetMetadata {
-            id: set.id.clone(),
-            label: set.label.clone(),
-            provider: set.provider.clone(),
-            source_url: set.source_url.clone(),
-            source_timestamp: set.source_timestamp.clone(),
-            source_timestamp_unix: set.source_timestamp_unix,
-            version: set.version.clone(),
-            cidr_count: set.cidrs.len(),
-            catalog_age_hours,
-            catalog_stale,
-            managed_max_staleness_hours,
-        })
-        .collect()
-}
-
-pub(crate) fn managed_catalog_version() -> String {
-    MANAGED_CATALOG.catalog_version.clone()
-}
-
-pub(crate) fn managed_catalog_generated_at() -> String {
-    MANAGED_CATALOG.generated_at.clone()
-}
-
-pub(crate) fn managed_catalog_generated_at_unix() -> u64 {
-    MANAGED_CATALOG.generated_at_unix
-}
-
-pub(crate) fn has_managed_set(set_id: &str) -> bool {
-    let normalized = set_id.trim().to_ascii_lowercase();
-    MANAGED_CATALOG
-        .sets
-        .iter()
-        .any(|set| set.id.eq_ignore_ascii_case(normalized.as_str()))
-}
 
 fn policy_cache_key(cfg: &Config) -> u64 {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
@@ -170,11 +60,6 @@ fn policy_cache_key(cfg: &Config) -> u64 {
     if let Ok(bytes) = serde_json::to_vec(&cfg.ip_range_custom_rules) {
         bytes.hash(&mut hasher);
     }
-    if let Ok(bytes) = serde_json::to_vec(&cfg.ip_range_managed_policies) {
-        bytes.hash(&mut hasher);
-    }
-    MANAGED_CATALOG.catalog_version.hash(&mut hasher);
-    MANAGED_CATALOG.generated_at_unix.hash(&mut hasher);
     hasher.finish()
 }
 
@@ -284,29 +169,6 @@ fn compile_custom_rule(rule: &IpRangePolicyRule, index: usize) -> Option<Compile
     })
 }
 
-fn compile_managed_rule(policy: &IpRangeManagedPolicy) -> Option<CompiledRule> {
-    if !policy.enabled {
-        return None;
-    }
-    let normalized_set_id = policy.set_id.trim().to_ascii_lowercase();
-    let set = MANAGED_CATALOG
-        .sets
-        .iter()
-        .find(|entry| entry.id.eq_ignore_ascii_case(normalized_set_id.as_str()))?;
-    let nets = parse_cidr_list(&set.cidrs);
-    if nets.is_empty() {
-        return None;
-    }
-    Some(CompiledRule {
-        source: MatchSource::ManagedSet,
-        source_id: set.id.clone(),
-        action: policy.action,
-        redirect_url: sanitize_redirect_url(policy.redirect_url.as_deref()),
-        custom_message: sanitize_custom_message(policy.custom_message.as_deref()),
-        nets,
-    })
-}
-
 fn compile_policy(cfg: &Config) -> CompiledPolicy {
     let emergency_allowlist = parse_cidr_list(&cfg.ip_range_emergency_allowlist);
     let custom_rules = cfg
@@ -315,15 +177,9 @@ fn compile_policy(cfg: &Config) -> CompiledPolicy {
         .enumerate()
         .filter_map(|(index, rule)| compile_custom_rule(rule, index))
         .collect::<Vec<_>>();
-    let managed_rules = cfg
-        .ip_range_managed_policies
-        .iter()
-        .filter_map(compile_managed_rule)
-        .collect::<Vec<_>>();
     CompiledPolicy {
         emergency_allowlist,
         custom_rules,
-        managed_rules,
     }
 }
 
@@ -362,7 +218,7 @@ fn match_rule(rule: &CompiledRule, ip: IpAddr) -> Option<MatchDetails> {
     None
 }
 
-fn evaluate_with_now(cfg: &Config, ip: &str, now_unix: u64) -> Evaluation {
+fn evaluate_with_now(cfg: &Config, ip: &str, _now_unix: u64) -> Evaluation {
     if cfg.ip_range_policy_mode == IpRangePolicyMode::Off {
         return Evaluation::NoMatch;
     }
@@ -385,41 +241,17 @@ fn evaluate_with_now(cfg: &Config, ip: &str, now_unix: u64) -> Evaluation {
         }
     }
 
-    if cfg.ip_range_policy_mode == IpRangePolicyMode::Enforce
-        && !cfg.ip_range_allow_stale_managed_enforce
-        && managed_catalog_is_stale(cfg.ip_range_managed_max_staleness_hours, now_unix)
-    {
-        return Evaluation::NoMatch;
-    }
-
-    for rule in &compiled.managed_rules {
-        if let Some(matched) = match_rule(rule, ip_addr) {
-            return Evaluation::Matched(matched);
-        }
-    }
-
     Evaluation::NoMatch
 }
 
 pub(crate) fn evaluate(cfg: &Config, ip: &str) -> Evaluation {
-    evaluate_with_now(cfg, ip, current_unix())
+    evaluate_with_now(cfg, ip, 0)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        evaluate, evaluate_with_now, has_managed_set, managed_set_metadata_with_staleness,
-        Evaluation, MatchSource, MANAGED_CATALOG,
-    };
-    use crate::config::{defaults, IpRangeManagedPolicy, IpRangePolicyAction, IpRangePolicyMode, IpRangePolicyRule};
-
-    #[test]
-    fn managed_catalog_exposes_expected_sets() {
-        assert!(has_managed_set("openai_gptbot"));
-        assert!(has_managed_set("github_copilot"));
-        let metadata = managed_set_metadata_with_staleness(168);
-        assert!(metadata.iter().any(|entry| entry.id == "openai_chatgpt_user"));
-    }
+    use super::{evaluate, evaluate_with_now, Evaluation, MatchSource};
+    use crate::config::{defaults, IpRangePolicyAction, IpRangePolicyMode, IpRangePolicyRule};
 
     #[test]
     fn emergency_allowlist_short_circuits_matches() {
@@ -445,104 +277,42 @@ mod tests {
     }
 
     #[test]
-    fn custom_rule_precedes_managed_rule() {
+    fn custom_rule_matches_and_returns_details() {
         let mut cfg = defaults().clone();
         cfg.ip_range_policy_mode = IpRangePolicyMode::Enforce;
         cfg.ip_range_custom_rules = vec![IpRangePolicyRule {
             id: "challenge_me".to_string(),
             enabled: true,
-            cidrs: vec!["20.171.206.0/24".to_string()],
+            cidrs: vec!["198.51.100.0/24".to_string()],
             action: IpRangePolicyAction::Maze,
             redirect_url: None,
             custom_message: None,
         }];
-        cfg.ip_range_managed_policies = vec![IpRangeManagedPolicy {
-            set_id: "openai_gptbot".to_string(),
-            enabled: true,
-            action: IpRangePolicyAction::Forbidden403,
-            redirect_url: None,
-            custom_message: None,
-        }];
 
-        let result = evaluate(&cfg, "20.171.206.10");
+        let result = evaluate(&cfg, "198.51.100.10");
         let Evaluation::Matched(details) = result else {
             panic!("expected custom match");
         };
         assert_eq!(details.source, MatchSource::CustomRule);
         assert_eq!(details.source_id, "challenge_me");
         assert_eq!(details.action, IpRangePolicyAction::Maze);
+        assert_eq!(details.matched_cidr, "198.51.100.0/24");
     }
 
     #[test]
-    fn managed_rule_matches_official_set() {
+    fn disabled_custom_rules_are_skipped() {
         let mut cfg = defaults().clone();
         cfg.ip_range_policy_mode = IpRangePolicyMode::Enforce;
-        cfg.ip_range_managed_policies = vec![IpRangeManagedPolicy {
-            set_id: "github_copilot".to_string(),
-            enabled: true,
-            action: IpRangePolicyAction::RateLimit,
+        cfg.ip_range_custom_rules = vec![IpRangePolicyRule {
+            id: "disabled".to_string(),
+            enabled: false,
+            cidrs: vec!["198.51.100.0/24".to_string()],
+            action: IpRangePolicyAction::Forbidden403,
             redirect_url: None,
             custom_message: None,
         }];
 
-        let result = evaluate(&cfg, "20.85.130.105");
-        let Evaluation::Matched(details) = result else {
-            panic!("expected managed set match");
-        };
-        assert_eq!(details.source, MatchSource::ManagedSet);
-        assert_eq!(details.source_id, "github_copilot");
-        assert_eq!(details.action, IpRangePolicyAction::RateLimit);
-    }
-
-    #[test]
-    fn managed_sets_are_skipped_when_catalog_is_stale_in_enforce_mode() {
-        let mut cfg = defaults().clone();
-        cfg.ip_range_policy_mode = IpRangePolicyMode::Enforce;
-        cfg.ip_range_managed_max_staleness_hours = 24;
-        cfg.ip_range_allow_stale_managed_enforce = false;
-        cfg.ip_range_managed_policies = vec![IpRangeManagedPolicy {
-            set_id: "github_copilot".to_string(),
-            enabled: true,
-            action: IpRangePolicyAction::RateLimit,
-            redirect_url: None,
-            custom_message: None,
-        }];
-
-        let stale_now = MANAGED_CATALOG.generated_at_unix + ((cfg.ip_range_managed_max_staleness_hours + 2) * 3600);
-        assert_eq!(
-            evaluate_with_now(&cfg, "20.85.130.105", stale_now),
-            Evaluation::NoMatch
-        );
-    }
-
-    #[test]
-    fn managed_sets_can_be_allowed_when_catalog_is_stale() {
-        let mut cfg = defaults().clone();
-        cfg.ip_range_policy_mode = IpRangePolicyMode::Enforce;
-        cfg.ip_range_managed_max_staleness_hours = 24;
-        cfg.ip_range_allow_stale_managed_enforce = true;
-        cfg.ip_range_managed_policies = vec![IpRangeManagedPolicy {
-            set_id: "github_copilot".to_string(),
-            enabled: true,
-            action: IpRangePolicyAction::RateLimit,
-            redirect_url: None,
-            custom_message: None,
-        }];
-
-        let stale_now = MANAGED_CATALOG.generated_at_unix + ((cfg.ip_range_managed_max_staleness_hours + 2) * 3600);
-        let result = evaluate_with_now(&cfg, "20.85.130.105", stale_now);
-        let Evaluation::Matched(details) = result else {
-            panic!("expected managed set match with stale override enabled");
-        };
-        assert_eq!(details.source, MatchSource::ManagedSet);
-    }
-
-    #[test]
-    fn managed_set_metadata_marks_catalog_staleness() {
-        let stale_hours = 1;
-        let metadata = managed_set_metadata_with_staleness(stale_hours);
-        assert!(!metadata.is_empty());
-        assert!(metadata.iter().all(|entry| entry.managed_max_staleness_hours == stale_hours));
+        assert_eq!(evaluate_with_now(&cfg, "198.51.100.10", 123), Evaluation::NoMatch);
     }
 
     #[test]

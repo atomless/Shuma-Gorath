@@ -12,19 +12,9 @@
     totalFallbacks: 0,
     uniqueSourceIds: 0,
     catalog: {
-      version: '-',
-      generatedAt: '-',
-      ageHours: null,
-      stale: false,
-      managedSetCount: 0,
-      managedSetStaleCount: 0,
-      managedPolicyCount: 0,
-      managedPolicyEnabledCount: 0,
       customRuleCount: 0,
       customRuleEnabledCount: 0,
-      emergencyAllowlistCount: 0,
-      managedMaxStalenessHours: 0,
-      allowStaleManagedEnforce: false
+      emergencyAllowlistCount: 0
     }
   };
   export let reasonRows = [];
@@ -38,13 +28,8 @@
   const toModeLabel = (mode) => {
     const normalized = String(mode || '').toLowerCase();
     if (normalized === 'enforce') return 'Enforce';
-    if (normalized === 'advisory') return 'Advisory';
+    if (normalized === 'advisory') return 'Logging-only';
     return 'Off';
-  };
-
-  const toCatalogAgeLabel = (hours) => {
-    if (!Number.isFinite(hours) || hours < 0) return '-';
-    return `${hours}h`;
   };
 
   const topRows = (rows, limit = 5) =>
@@ -56,7 +41,7 @@
 
 <SectionBlock
   title='<abbr title="Internet Protocol">IP</abbr> Range Policy'
-  description="Match outcomes, source coverage, and managed-catalog health."
+  description="Match outcomes and policy coverage."
 >
 
   <div class="stats-cards stats-cards--compact">
@@ -167,19 +152,10 @@
   </TableWrapper>
 
   <div class="panel panel-border pad-md-b">
-    <h3>Managed Catalog</h3>
+    <h3>Policy Snapshot</h3>
     <ul class="metric-list" id="ip-range-catalog">
-      <li><strong>Version:</strong> {loading ? '...' : summary.catalog.version}</li>
-      <li><strong>Generated:</strong> {loading ? '...' : summary.catalog.generatedAt}</li>
-      <li><strong>Age:</strong> {loading ? '...' : toCatalogAgeLabel(summary.catalog.ageHours)}</li>
-      <li><strong>Stale:</strong> {loading ? '...' : (summary.catalog.stale ? 'Yes' : 'No')}</li>
-      <li><strong>Managed Sets:</strong> {loading ? '...' : formatCompactNumber(summary.catalog.managedSetCount, '0')}</li>
-      <li><strong>Managed Set Policies:</strong> {loading ? '...' : `${formatCompactNumber(summary.catalog.managedPolicyEnabledCount, '0')} enabled / ${formatCompactNumber(summary.catalog.managedPolicyCount, '0')} total`}</li>
       <li><strong>Custom Rules:</strong> {loading ? '...' : `${formatCompactNumber(summary.catalog.customRuleEnabledCount, '0')} enabled / ${formatCompactNumber(summary.catalog.customRuleCount, '0')} total`}</li>
       <li><strong>Emergency Allowlist <abbr title="Classless Inter-Domain Routing">CIDRs</abbr>:</strong> {loading ? '...' : formatCompactNumber(summary.catalog.emergencyAllowlistCount, '0')}</li>
-      <li><strong>Stale Managed Sets:</strong> {loading ? '...' : formatCompactNumber(summary.catalog.managedSetStaleCount, '0')}</li>
-      <li><strong>Max Staleness:</strong> {loading ? '...' : `${formatCompactNumber(summary.catalog.managedMaxStalenessHours, '0')}h`}</li>
-      <li><strong>Allow Stale Enforce:</strong> {loading ? '...' : (summary.catalog.allowStaleManagedEnforce ? 'Yes' : 'No')}</li>
     </ul>
   </div>
 

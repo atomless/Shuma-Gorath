@@ -142,11 +142,8 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | `SHUMA_ALLOWLIST` | `[]` | <abbr title="Internet Protocol">IP</abbr>/<abbr title="Classless Inter-Domain Routing">CIDR</abbr> allowlist bypassing bot defenses. |
 | `SHUMA_PATH_ALLOWLIST` | `[]` | <abbr title="Uniform Resource Locator">URL</abbr> path allowlist bypassing bot defenses. |
 | `SHUMA_IP_RANGE_POLICY_MODE` | `off` | <abbr title="Internet Protocol">IP</abbr>-range policy mode (`off`, `advisory`, `enforce`). |
-| `SHUMA_IP_RANGE_EMERGENCY_ALLOWLIST` | `[]` | Emergency <abbr title="Classless Inter-Domain Routing">CIDR</abbr> allowlist evaluated before custom/managed <abbr title="Internet Protocol">IP</abbr>-range policy rules. |
+| `SHUMA_IP_RANGE_EMERGENCY_ALLOWLIST` | `[]` | Emergency <abbr title="Classless Inter-Domain Routing">CIDR</abbr> allowlist evaluated before custom <abbr title="Internet Protocol">IP</abbr>-range policy rules. |
 | `SHUMA_IP_RANGE_CUSTOM_RULES` | `[]` | Operator-defined <abbr title="Internet Protocol">IP</abbr>-range rule objects (`id`, `enabled`, `cidrs`, `action`, optional `redirect_url`/`custom_message`). |
-| `SHUMA_IP_RANGE_MANAGED_POLICIES` | `[]` | Managed-set policy objects (`set_id`, `enabled`, `action`, optional `redirect_url`/`custom_message`). |
-| `SHUMA_IP_RANGE_MANAGED_MAX_STALENESS_HOURS` | `168` | Maximum allowed age (hours) for the managed catalog in enforce mode before managed-set actions are skipped. |
-| `SHUMA_IP_RANGE_ALLOW_STALE_MANAGED_ENFORCE` | `false` | Explicit override to keep enforce-mode managed-set actions active even when the managed catalog is stale. |
 
 | `SHUMA_MAZE_ENABLED` | `true` | Enables maze feature. |
 | `SHUMA_TARPIT_ENABLED` | `true` | Enables tarpit handling for confirmed challenge attacks (active only when maze is enabled). |
@@ -223,12 +220,6 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | `SHUMA_FINGERPRINT_FAMILY_CAP_PERSISTENCE` | `1` | Per-family cap for persistence-abuse fingerprint contributions. |
 | `SHUMA_FINGERPRINT_FAMILY_CAP_BEHAVIOR` | `2` | Per-family cap for low-friction behavioral fingerprint contributions. |
 
-Managed catalog operations:
-
-- Refresh built-in managed <abbr title="Classless Inter-Domain Routing">CIDR</abbr> catalog from official sources with guardrails:
-  `make ip-range-catalog-update`
-- See operational rollout/rollback guidance in [`docs/ip-range-policy-runbook.md`](ip-range-policy-runbook.md).
-
 ## 🐙 Admin Config Writes
 
 - `GET /admin/config` reads effective <abbr title="Key-Value">KV</abbr>-backed config.
@@ -245,7 +236,7 @@ Managed catalog operations:
 
 The following <abbr title="Key-Value">KV</abbr>-backed fields are currently writable via admin <abbr title="Application Programming Interface">API</abbr>:
 
-- Core: `test_mode`, `rate_limit`, `ban_duration`, `ban_durations.{honeypot,rate_limit,admin,cdp}`, `honeypot_enabled`, `honeypots`, `browser_policy_enabled`, `browser_block`, `browser_allowlist`, `bypass_allowlists_enabled`, `allowlist`, `path_allowlist`, `ip_range_policy_mode`, `ip_range_emergency_allowlist`, `ip_range_custom_rules`, `ip_range_managed_policies`, `ip_range_managed_max_staleness_hours`, `ip_range_allow_stale_managed_enforce`, `js_required_enforced`.
+- Core: `test_mode`, `rate_limit`, `ban_duration`, `ban_durations.{honeypot,rate_limit,admin,cdp}`, `honeypot_enabled`, `honeypots`, `browser_policy_enabled`, `browser_block`, `browser_allowlist`, `bypass_allowlists_enabled`, `allowlist`, `path_allowlist`, `ip_range_policy_mode`, `ip_range_emergency_allowlist`, `ip_range_custom_rules`, `js_required_enforced`.
 - <abbr title="Geolocation">GEO</abbr> routing/policy: `geo_risk`, `geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`, `geo_edge_headers_enabled`.
 - Maze/Tarpit: `maze_enabled`, `tarpit_enabled`, `tarpit_progress_token_ttl_seconds`, `tarpit_progress_replay_ttl_seconds`, `tarpit_hashcash_min_difficulty`, `tarpit_hashcash_max_difficulty`, `tarpit_hashcash_base_difficulty`, `tarpit_hashcash_adaptive`, `tarpit_step_chunk_base_bytes`, `tarpit_step_chunk_max_bytes`, `tarpit_step_jitter_percent`, `tarpit_shard_rotation_enabled`, `tarpit_egress_window_seconds`, `tarpit_egress_global_bytes_per_window`, `tarpit_egress_per_ip_bucket_bytes_per_window`, `tarpit_egress_per_flow_max_bytes`, `tarpit_egress_per_flow_max_duration_seconds`, `tarpit_max_concurrent_global`, `tarpit_max_concurrent_per_ip_bucket`, `tarpit_fallback_action`, `maze_auto_ban`, `maze_auto_ban_threshold`, `maze_rollout_phase`, `maze_token_ttl_seconds`, `maze_token_max_depth`, `maze_token_branch_budget`, `maze_replay_ttl_seconds`, `maze_entropy_window_seconds`, `maze_client_expansion_enabled`, `maze_checkpoint_every_nodes`, `maze_checkpoint_every_ms`, `maze_step_ahead_max`, `maze_no_js_fallback_max_depth`, `maze_micro_pow_enabled`, `maze_micro_pow_depth_start`, `maze_micro_pow_base_difficulty`, `maze_max_concurrent_global`, `maze_max_concurrent_per_ip_bucket`, `maze_max_response_bytes`, `maze_max_response_duration_ms`, `maze_server_visible_links`, `maze_max_links`, `maze_max_paragraphs`, `maze_path_entropy_segment_len`, `maze_covert_decoys_enabled`, `maze_seed_provider`, `maze_seed_refresh_interval_seconds`, `maze_seed_refresh_rate_limit_per_hour`, `maze_seed_refresh_max_sources`, `maze_seed_metadata_only`.
 - Robots/<abbr title="Artificial Intelligence">AI</abbr> policy: `robots_enabled`, `robots_crawl_delay`, `ai_policy_block_training`, `ai_policy_block_search`, `ai_policy_allow_search_engines` (legacy aliases `robots_block_ai_training`, `robots_block_ai_search`, `robots_allow_search_engines` are also accepted).

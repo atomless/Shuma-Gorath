@@ -1,27 +1,21 @@
 <script>
   import { onMount } from 'svelte';
   import ConfigWriteModeMessage from './primitives/ConfigWriteModeMessage.svelte';
-  import NumericInputRow from './primitives/NumericInputRow.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TableEmptyRow from './primitives/TableEmptyRow.svelte';
   import TableWrapper from './primitives/TableWrapper.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
   import TextareaField from './primitives/TextareaField.svelte';
-  import ToggleRow from './primitives/ToggleRow.svelte';
   import {
     formatListTextarea,
     normalizeListTextareaForCompare,
     parseListTextarea
   } from '../../domain/config-form-utils.js';
-  import {
-    normalizeIpRangePolicyMode,
-    parseInteger
-  } from '../../domain/config-tab-helpers.js';
+  import { normalizeIpRangePolicyMode } from '../../domain/config-tab-helpers.js';
   import {
     durationPartsFromSeconds as durationPartsFromTotalSeconds,
     formatUnixSecondsLocal
   } from '../../domain/core/date-time.js';
-  import { inRange } from '../../domain/core/validation.js';
   import {
     classifyIpRangeFallback,
     formatIpRangeReasonLabel,
@@ -41,8 +35,6 @@
   export let onUnban = null;
 
   const MANUAL_BAN_FALLBACK_SECONDS = 21600;
-  const IP_RANGE_MANAGED_STALENESS_MIN = 1;
-  const IP_RANGE_MANAGED_STALENESS_MAX = 2160;
   const VALID_IP_RANGE_ACTIONS = new Set([
     'forbidden_403',
     'custom_message',
@@ -81,20 +73,10 @@
   let ipRangePolicyMode = 'off';
   let ipRangeEmergencyAllowlist = '';
   let ipRangeCustomRulesJson = '';
-  let ipRangeManagedPoliciesJson = '';
-  let ipRangeManagedMaxStalenessHours = 168;
-  let ipRangeAllowStaleManagedEnforce = false;
-  let ipRangeCatalogVersion = '-';
-  let ipRangeCatalogGeneratedAt = '-';
-  let ipRangeCatalogAgeHours = null;
-  let ipRangeManagedSetRows = [];
   let ipRangeBaseline = {
     mode: 'off',
     emergencyAllowlist: '',
-    customRulesJson: '[]',
-    managedPoliciesJson: '[]',
-    managedMaxStalenessHours: 168,
-    allowStaleManagedEnforce: false
+    customRulesJson: '[]'
   };
 
   let ipRangeCustomRulesValidation = {
@@ -107,12 +89,6 @@
     valid: true,
     parsed: EMPTY_JSON_ARRAY,
     normalized: '',
-    error: ''
-  };
-  let ipRangeManagedPoliciesValidation = {
-    valid: true,
-    parsed: EMPTY_JSON_ARRAY,
-    normalized: '[]',
     error: ''
   };
 
@@ -273,25 +249,6 @@
     return '';
   };
 
-  const validateManagedPolicyShape = (rule, line) => {
-    if (typeof rule.set_id !== 'string' || !rule.set_id.trim()) {
-      return `Managed policies line ${line} is invalid: required key 'set_id' must be a non-empty string.`;
-    }
-    if (typeof rule.enabled !== 'boolean') {
-      return `Managed policies line ${line} is invalid: required key 'enabled' must be true or false.`;
-    }
-    if (typeof rule.action !== 'string' || !VALID_IP_RANGE_ACTIONS.has(rule.action)) {
-      return `Managed policies line ${line} is invalid: 'action' must be one of ${Array.from(VALID_IP_RANGE_ACTIONS).join(', ')}.`;
-    }
-    if (rule.action === 'redirect_308' && (typeof rule.redirect_url !== 'string' || !rule.redirect_url.trim())) {
-      return `Managed policies line ${line} is invalid: 'redirect_url' is required when action is redirect_308.`;
-    }
-    if (rule.action === 'custom_message' && (typeof rule.custom_message !== 'string' || !rule.custom_message.trim())) {
-      return `Managed policies line ${line} is invalid: 'custom_message' is required when action is custom_message.`;
-    }
-    return '';
-  };
-
   const parseJsonObjectLinesField = (raw, fieldLabel, validateShape) => {
     const entries = splitLineEntries(raw);
     const parsed = [];
@@ -368,36 +325,13 @@
   const readIpRangeConfig = (config = {}) => ({
     mode: normalizeIpRangePolicyMode(config.ip_range_policy_mode),
     emergencyAllowlist: formatListTextarea(config.ip_range_emergency_allowlist),
-    customRulesJson: formatJsonObjectLines(config.ip_range_custom_rules),
-    managedPoliciesJson: formatJsonObjectLines(config.ip_range_managed_policies),
-    managedMaxStalenessHours: parseInteger(config.ip_range_managed_max_staleness_hours, 168),
-    allowStaleManagedEnforce: config.ip_range_allow_stale_managed_enforce === true
+    customRulesJson: formatJsonObjectLines(config.ip_range_custom_rules)
   });
-
-  const readIpRangeCatalog = (config = {}) => {
-    const generatedAtUnix = Number(config.ip_range_managed_catalog_generated_at_unix || 0);
-    let catalogAgeHours = null;
-    if (Number.isFinite(generatedAtUnix) && generatedAtUnix > 0) {
-      const nowUnix = Math.floor(Date.now() / 1000);
-      catalogAgeHours = nowUnix >= generatedAtUnix
-        ? Math.floor((nowUnix - generatedAtUnix) / 3600)
-        : 0;
-    }
-    return {
-      version: String(config.ip_range_managed_catalog_version || '-'),
-      generatedAt: String(config.ip_range_managed_catalog_generated_at || '-'),
-      ageHours: catalogAgeHours,
-      managedSets: Array.isArray(config.ip_range_managed_sets) ? config.ip_range_managed_sets : []
-    };
-  };
 
   const currentIpRangeBaseline = () => ({
     mode: ipRangeModeNormalized,
     emergencyAllowlist: ipRangeEmergencyAllowlistNormalized,
-    customRulesJson: ipRangeCustomRulesValidation.normalized,
-    managedPoliciesJson: ipRangeManagedPoliciesValidation.normalized,
-    managedMaxStalenessHours: Number(ipRangeManagedMaxStalenessHours),
-    allowStaleManagedEnforce: ipRangeAllowStaleManagedEnforce === true
+    customRulesJson: ipRangeCustomRulesValidation.normalized
   });
 
   const applyIpRangeConfig = (config = {}) => {
@@ -408,33 +342,14 @@
       'Custom rules',
       validateCustomRuleShape
     );
-    const parsedManagedPolicies = parseJsonObjectLinesField(
-      next.managedPoliciesJson,
-      'Managed policies',
-      validateManagedPolicyShape
-    );
     ipRangePolicyMode = next.mode;
     ipRangeEmergencyAllowlist = next.emergencyAllowlist;
     ipRangeCustomRulesJson = next.customRulesJson;
-    ipRangeManagedPoliciesJson = next.managedPoliciesJson;
-    ipRangeManagedMaxStalenessHours = next.managedMaxStalenessHours;
-    ipRangeAllowStaleManagedEnforce = next.allowStaleManagedEnforce;
     ipRangeBaseline = {
       mode: next.mode,
       emergencyAllowlist: parsedEmergencyAllowlist.normalized,
-      customRulesJson: parsedCustomRules.normalized,
-      managedPoliciesJson: parsedManagedPolicies.normalized,
-      managedMaxStalenessHours: Number(next.managedMaxStalenessHours),
-      allowStaleManagedEnforce: next.allowStaleManagedEnforce === true
+      customRulesJson: parsedCustomRules.normalized
     };
-  };
-
-  const applyIpRangeCatalog = (config = {}) => {
-    const catalog = readIpRangeCatalog(config);
-    ipRangeCatalogVersion = catalog.version;
-    ipRangeCatalogGeneratedAt = catalog.generatedAt;
-    ipRangeCatalogAgeHours = catalog.ageHours;
-    ipRangeManagedSetRows = catalog.managedSets;
   };
 
   const toKey = (ban, index) =>
@@ -444,7 +359,6 @@
 
   const formatIpRangeSourceLabel = (source) => {
     const normalized = String(source || '').trim().toLowerCase();
-    if (normalized === 'managed') return 'Managed Set';
     if (normalized === 'custom') return 'Custom Rule';
     return normalized ? normalized : '-';
   };
@@ -501,15 +415,11 @@
       const payload = {
         ip_range_policy_mode: ipRangeModeNormalized,
         ip_range_emergency_allowlist: ipRangeEmergencyAllowlistValidation.parsed,
-        ip_range_custom_rules: ipRangeCustomRulesValidation.parsed,
-        ip_range_managed_policies: ipRangeManagedPoliciesValidation.parsed,
-        ip_range_managed_max_staleness_hours: Number(ipRangeManagedMaxStalenessHours),
-        ip_range_allow_stale_managed_enforce: ipRangeAllowStaleManagedEnforce === true
+        ip_range_custom_rules: ipRangeCustomRulesValidation.parsed
       };
       const nextConfig = await onSaveConfig(payload, { successMessage: 'IP range policy saved' });
       if (nextConfig && typeof nextConfig === 'object') {
         applyIpRangeConfig(nextConfig);
-        applyIpRangeCatalog(nextConfig);
       } else {
         ipRangeBaseline = currentIpRangeBaseline();
       }
@@ -568,48 +478,18 @@
     'Custom rules',
     validateCustomRuleShape
   );
-  $: ipRangeManagedPoliciesValidation = parseJsonObjectLinesField(
-    ipRangeManagedPoliciesJson,
-    'Managed policies',
-    validateManagedPolicyShape
-  );
   $: ipRangeCustomRulesValid = ipRangeCustomRulesValidation.valid;
-  $: ipRangeManagedPoliciesValid = ipRangeManagedPoliciesValidation.valid;
-  $: ipRangeManagedMaxStalenessValid = inRange(
-    ipRangeManagedMaxStalenessHours,
-    IP_RANGE_MANAGED_STALENESS_MIN,
-    IP_RANGE_MANAGED_STALENESS_MAX
-  );
-  $: ipRangeValid = (
-    ipRangeEmergencyAllowlistValid &&
-    ipRangeCustomRulesValid &&
-    ipRangeManagedPoliciesValid &&
-    ipRangeManagedMaxStalenessValid
-  );
+  $: ipRangeValid = ipRangeEmergencyAllowlistValid && ipRangeCustomRulesValid;
   $: ipRangeDirty = (
     ipRangeModeNormalized !== ipRangeBaseline.mode ||
     ipRangeEmergencyAllowlistNormalized !== ipRangeBaseline.emergencyAllowlist ||
-    ipRangeCustomRulesValidation.normalized !== ipRangeBaseline.customRulesJson ||
-    ipRangeManagedPoliciesValidation.normalized !== ipRangeBaseline.managedPoliciesJson ||
-    Number(ipRangeManagedMaxStalenessHours) !== ipRangeBaseline.managedMaxStalenessHours ||
-    (ipRangeAllowStaleManagedEnforce === true) !== ipRangeBaseline.allowStaleManagedEnforce
-  );
-  $: ipRangeManagedSetStaleCount = ipRangeManagedSetRows.filter((set) => set?.stale === true).length;
-  $: ipRangeCatalogStale = (
-    (Number.isFinite(ipRangeCatalogAgeHours)
-      ? Number(ipRangeCatalogAgeHours) > Number(ipRangeManagedMaxStalenessHours)
-      : false) ||
-    ipRangeManagedSetStaleCount > 0
+    ipRangeCustomRulesValidation.normalized !== ipRangeBaseline.customRulesJson
   );
   $: ipRangeInvalidSummary = !ipRangeEmergencyAllowlistValid
     ? ipRangeEmergencyAllowlistValidation.error
     : (!ipRangeCustomRulesValid
       ? ipRangeCustomRulesValidation.error
-      : (!ipRangeManagedPoliciesValid
-      ? ipRangeManagedPoliciesValidation.error
-      : (!ipRangeManagedMaxStalenessValid
-        ? `Managed max staleness must be between ${IP_RANGE_MANAGED_STALENESS_MIN} and ${IP_RANGE_MANAGED_STALENESS_MAX} hours.`
-        : '')));
+      : '');
   $: saveIpRangeDisabled = !writable || !ipRangeDirty || !ipRangeValid || savingIpRange;
   $: saveIpRangeLabel = savingIpRange ? 'Saving...' : 'Save IP range policy';
   $: saveIpRangeSummary = ipRangeDirty
@@ -640,7 +520,6 @@
       lastAppliedConfigVersion = nextVersion;
       const nextConfig = configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {};
       applyConfiguredBanDuration(nextConfig);
-      applyIpRangeCatalog(nextConfig);
       if (!bypassAllowlistsDirty && !savingBypassAllowlists) {
         applyBypassAllowlistsConfig(nextConfig);
       }
@@ -817,16 +696,13 @@
         disabled={!writable}
       >
         <option value="off">off</option>
-        <option value="advisory">advisory</option>
+        <option value="advisory">logging-only</option>
         <option value="enforce">enforce</option>
       </select>
     </div>
     <p class="control-desc text-muted">
       Use this to control what happens when traffic matches configured IP ranges.
-      Start in <code>advisory</code> first so you can observe outcomes before enabling enforcement.
-    </p>
-    <p class="control-desc text-muted">
-      <strong>Mode behavior:</strong> <code>off</code> = disabled, <code>advisory</code> = log only, <code>enforce</code> = apply rule action.
+      Start in <code>logging-only</code> first so you can observe outcomes before enabling enforcement.
     </p>
     <div class="admin-controls">
       <TextareaField
@@ -881,122 +757,7 @@
       {#if !ipRangeCustomRulesValid}
         <p id="ip-range-custom-rules-error" class="field-error visible">{ipRangeCustomRulesValidation.error}</p>
       {/if}
-      <TextareaField
-        id="ip-range-managed-policies-json"
-        label='Managed Policies (one <abbr title="JavaScript Object Notation">JSON</abbr> object per line)'
-        rows="6"
-        ariaLabel="Internet Protocol range managed policies JavaScript Object Notation"
-        spellcheck={false}
-        monospace={true}
-        ariaInvalid={ipRangeManagedPoliciesValid ? 'false' : 'true'}
-        disabled={!writable}
-        bind:value={ipRangeManagedPoliciesJson}
-      />
-      <p class="control-desc text-muted">
-        Enter one JSON object per line. Do not wrap lines in square brackets, and no trailing comma is required.
-      </p>
-      <p class="control-desc text-muted">
-        Each line maps a managed <code>set_id</code> to an action.
-        Common set IDs include <code>openai_gptbot</code>, <code>openai_oai_searchbot</code>,
-        <code>openai_chatgpt_user</code>, and <code>github_copilot</code>.
-      </p>
-      <p class="control-desc text-muted">
-        Available <code>action</code> values: <code>forbidden_403</code>, <code>custom_message</code>,
-        <code>drop_connection</code>, <code>redirect_308</code>, <code>rate_limit</code>,
-        <code>honeypot</code>, <code>maze</code>, <code>tarpit</code>.
-      </p>
-      <p class="control-desc text-muted">
-        <strong>Example line:</strong>
-        <code>&#123;"set_id":"openai_gptbot","enabled":true,"action":"forbidden_403"&#125;</code>
-      </p>
-      <p class="control-desc text-muted">
-        <strong>Second example line:</strong>
-        <code>&#123;"set_id":"openai_chatgpt_user","enabled":true,"action":"rate_limit"&#125;</code>
-      </p>
-      {#if !ipRangeManagedPoliciesValid}
-        <p id="ip-range-managed-policies-error" class="field-error visible">{ipRangeManagedPoliciesValidation.error}</p>
-      {/if}
-      <NumericInputRow
-        id="ip-range-managed-max-staleness"
-        label="Managed Max Staleness (hours)"
-        labelClass="control-label control-label--wide"
-        min={IP_RANGE_MANAGED_STALENESS_MIN}
-        max={IP_RANGE_MANAGED_STALENESS_MAX}
-        step="1"
-        inputmode="numeric"
-        ariaLabel="Internet Protocol range managed max staleness hours"
-        ariaInvalid={ipRangeManagedMaxStalenessValid ? 'false' : 'true'}
-        disabled={!writable}
-        bind:value={ipRangeManagedMaxStalenessHours}
-      />
-      <p class="control-desc text-muted">
-        How old the managed IP catalog snapshot can be before managed-set rules are considered stale.
-      </p>
-      <ToggleRow
-        id="ip-range-allow-stale-enforce"
-        label="Allow stale managed enforce"
-        labelClass="control-label control-label--wide"
-        ariaLabel="Allow stale managed enforce"
-        disabled={!writable}
-        bind:checked={ipRangeAllowStaleManagedEnforce}
-      />
     </div>
-    <div class="info-panel">
-      <h4>Managed Catalog Snapshot</h4>
-      <div class="info-row">
-        <span class="info-label text-muted">Version</span>
-        <span><code>{ipRangeCatalogVersion}</code></span>
-      </div>
-      <div class="info-row">
-        <span class="info-label text-muted">Generated At</span>
-        <span>{ipRangeCatalogGeneratedAt}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label text-muted">Catalog Age</span>
-        <span>
-          {#if Number.isFinite(ipRangeCatalogAgeHours)}
-            {ipRangeCatalogAgeHours}h
-          {:else}
-            -
-          {/if}
-        </span>
-      </div>
-      <div class="info-row">
-        <span class="info-label text-muted">Managed Sets (stale)</span>
-        <span>{ipRangeManagedSetRows.length} ({ipRangeManagedSetStaleCount})</span>
-      </div>
-    </div>
-    {#if ipRangeManagedSetRows.length > 0}
-      <TableWrapper>
-        <table id="ip-range-config-managed-sets-table" class="panel panel-border">
-          <thead>
-            <tr>
-              <th class="caps-label">Set</th>
-              <th class="caps-label">Provider</th>
-              <th class="caps-label">Version</th>
-              <th class="caps-label">Entries</th>
-              <th class="caps-label">Stale</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each ipRangeManagedSetRows as set}
-              <tr>
-                <td><code>{set?.set_id || '-'}</code></td>
-                <td>{set?.provider || '-'}</td>
-                <td><code>{set?.version || '-'}</code></td>
-                <td>{set?.entry_count ?? 0}</td>
-                <td>{set?.stale === true ? 'YES' : 'NO'}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </TableWrapper>
-    {/if}
-    {#if ipRangeCatalogStale}
-      <p class="message warning">
-        The managed IP catalog snapshot is older than your staleness limit. Managed-set enforcement may be skipped until the catalog is refreshed.
-      </p>
-    {/if}
     <SaveChangesBar
       containerId="ip-range-policy-save-bar"
       isHidden={!writable || !ipRangeDirty}
@@ -1022,7 +783,7 @@
     </div>
     <p class="control-desc text-muted">Define trusted bypass entries. Use one entry per line.</p>
     <p class="control-desc text-muted">
-      If a legitimate visitor is blocked by IP range policy, their specific IP will not be in the ban list so unbanning it will not help. If they still match the same range rule, they will be blocked again on the next request. You will need to add their known-to-be-safe IP or CIDR to the IP/CIDR Allowlist below, or change the matching IP range rule to avoid their IP.
+      If a legitimate visitor is blocked by IP range policy, their specific IP will not be in the IP Ban list so unbanning it will not help. If they still match the same range rule, they will be blocked again on the next request. You will need to add their known-to-be-safe IP or CIDR to the IP/CIDR Allowlist below, or change the matching IP range rule to avoid their IP.
     </p>
     <div class="admin-controls">
       <TextareaField id="network-allowlist" label='<abbr title="Internet Protocol">IP</abbr>/<abbr title="Classless Inter-Domain Routing">CIDR</abbr> Allowlist' rows="3" ariaLabel="Internet Protocol and Classless Inter-Domain Routing allowlist" spellcheck={false} disabled={!writable} bind:value={networkAllowlist} />

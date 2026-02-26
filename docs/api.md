@@ -413,21 +413,12 @@ Core fields:
 
 - `ip_range_emergency_allowlist`
   - <abbr title="Classless Inter-Domain Routing">CIDR</abbr> ranges that bypass IP range actions.
-  - Evaluated before custom and managed rules.
+  - Evaluated before custom rules.
 - `ip_range_custom_rules`
   - Ordered custom rule objects (`id`, `enabled`, `cidrs`, `action`, optional `redirect_url`, optional `custom_message`).
   - First matching custom rule wins.
-- `ip_range_managed_policies`
-  - Managed-set policy objects (`set_id`, `enabled`, `action`, optional `redirect_url`, optional `custom_message`).
-  - Evaluated only when no custom rule matched.
-  - `deepseek` is intentionally rejected (official machine-readable source unavailable).
-- `ip_range_managed_max_staleness_hours`
-  - Maximum managed catalog age allowed for enforce-mode actions.
-- `ip_range_allow_stale_managed_enforce`
-  - `false` (recommended): stale managed sets do not enforce.
-  - `true`: stale managed sets can still enforce as an emergency override.
 
-Valid actions for custom and managed rules:
+Valid actions for custom rules:
 
 - `forbidden_403`
 - `custom_message`
@@ -440,20 +431,11 @@ Valid actions for custom and managed rules:
 
 Decision order:
 
-- emergency allowlist -> custom rules (first match) -> managed policies -> default pipeline
-
-Managed catalog visibility in `GET /admin/config`:
-
-- `ip_range_managed_sets`
-- `ip_range_managed_catalog_version`
-- `ip_range_managed_catalog_generated_at`
-- `ip_range_managed_catalog_generated_at_unix`
-- each `ip_range_managed_sets` entry includes `catalog_age_hours`, `catalog_stale`, and `managed_max_staleness_hours`
+- emergency allowlist -> custom rules (first match) -> default pipeline
 
 Operational guidance:
 
-- Refresh managed catalog: `make ip-range-catalog-update`
-- Full plain-English rollout/rollback/staleness runbook: [`docs/ip-range-policy-runbook.md`](ip-range-policy-runbook.md)
+- Full plain-English rollout/rollback runbook: [`docs/ip-range-policy-runbook.md`](ip-range-policy-runbook.md)
 
 ## 🐙 Maze Excellence Fields (`/admin/config`)
 

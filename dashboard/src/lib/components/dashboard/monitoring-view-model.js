@@ -142,8 +142,7 @@ const TREND_POINT_LIMIT = 24;
 
 export const deriveIpRangeMonitoringViewModel = (
   events = [],
-  configSnapshot = {},
-  nowUnix = Math.floor(Date.now() / 1000)
+  configSnapshot = {}
 ) => {
   const rows = Array.isArray(events) ? events : [];
   const config = configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {};
@@ -194,28 +193,12 @@ export const deriveIpRangeMonitoringViewModel = (
     data: trendHours.map((hour) => Number(trendBuckets[hour] || 0))
   };
 
-  const managedSets = Array.isArray(config.ip_range_managed_sets)
-    ? config.ip_range_managed_sets
-    : [];
-  const managedPolicies = Array.isArray(config.ip_range_managed_policies)
-    ? config.ip_range_managed_policies
-    : [];
   const customRules = Array.isArray(config.ip_range_custom_rules)
     ? config.ip_range_custom_rules
     : [];
   const emergencyAllowlist = Array.isArray(config.ip_range_emergency_allowlist)
     ? config.ip_range_emergency_allowlist
     : [];
-  const managedStaleCount = managedSets.filter((set) => set?.stale === true).length;
-  const managedMaxStalenessHours = toNonNegativeNumber(config.ip_range_managed_max_staleness_hours);
-  const generatedAtUnix = toNonNegativeNumber(config.ip_range_managed_catalog_generated_at_unix);
-  const catalogAgeHours = generatedAtUnix > 0 && nowUnix >= generatedAtUnix
-    ? Math.floor((nowUnix - generatedAtUnix) / 3600)
-    : null;
-  const staleByAge = Number.isFinite(catalogAgeHours) && managedMaxStalenessHours > 0
-    ? Number(catalogAgeHours) > managedMaxStalenessHours
-    : false;
-  const catalogStale = managedStaleCount > 0 || staleByAge;
 
   return {
     mode: normalizeMode(config.ip_range_policy_mode),
@@ -230,27 +213,9 @@ export const deriveIpRangeMonitoringViewModel = (
     fallbacks: toSortedCountEntries(fallbackCounts),
     trend,
     catalog: {
-      version: String(config.ip_range_managed_catalog_version || '-'),
-      generatedAt: String(config.ip_range_managed_catalog_generated_at || '-'),
-      ageHours: Number.isFinite(catalogAgeHours) ? Number(catalogAgeHours) : null,
-      stale: catalogStale,
-      managedSets: managedSets.map((set) => ({
-        setId: String(set?.set_id || '-'),
-        provider: String(set?.provider || '-'),
-        version: String(set?.version || '-'),
-        generatedAt: String(set?.generated_at || '-'),
-        entryCount: toNonNegativeNumber(set?.entry_count),
-        stale: set?.stale === true
-      })),
-      managedSetCount: managedSets.length,
-      managedSetStaleCount: managedStaleCount,
-      managedPolicyCount: managedPolicies.length,
-      managedPolicyEnabledCount: managedPolicies.filter((policy) => policy?.enabled === true).length,
       customRuleCount: customRules.length,
       customRuleEnabledCount: customRules.filter((rule) => rule?.enabled === true).length,
-      emergencyAllowlistCount: emergencyAllowlist.length,
-      managedMaxStalenessHours,
-      allowStaleManagedEnforce: config.ip_range_allow_stale_managed_enforce === true
+      emergencyAllowlistCount: emergencyAllowlist.length
     }
   };
 };

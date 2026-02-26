@@ -68,7 +68,6 @@ where
         crate::signals::ip_range_policy::Evaluation::Matched(details) => {
             let source = match details.source {
                 crate::signals::ip_range_policy::MatchSource::CustomRule => "custom",
-                crate::signals::ip_range_policy::MatchSource::ManagedSet => "managed",
             };
             crate::log_line(&format!(
                 "[TEST MODE] Would apply IP range action {} for IP {} (source={} source_id={} cidr={})",

@@ -14,22 +14,14 @@ fn active_botness_signal_ids(
         .collect()
 }
 
-fn ip_range_signal_ids(source: &crate::signals::ip_range_policy::MatchSource) -> Vec<crate::runtime::policy_taxonomy::SignalId> {
-    match source {
-        crate::signals::ip_range_policy::MatchSource::CustomRule => {
-            vec![crate::runtime::policy_taxonomy::SignalId::IpRangeCustom]
-        }
-        crate::signals::ip_range_policy::MatchSource::ManagedSet => {
-            vec![crate::runtime::policy_taxonomy::SignalId::IpRangeManaged]
-        }
-    }
+fn ip_range_signal_ids(
+    _source: &crate::signals::ip_range_policy::MatchSource,
+) -> Vec<crate::runtime::policy_taxonomy::SignalId> {
+    vec![crate::runtime::policy_taxonomy::SignalId::IpRangeCustom]
 }
 
-fn ip_range_source_label(source: &crate::signals::ip_range_policy::MatchSource) -> &'static str {
-    match source {
-        crate::signals::ip_range_policy::MatchSource::CustomRule => "custom",
-        crate::signals::ip_range_policy::MatchSource::ManagedSet => "managed",
-    }
+fn ip_range_source_label(_source: &crate::signals::ip_range_policy::MatchSource) -> &'static str {
+    "custom"
 }
 
 pub(crate) fn maybe_handle_ip_range_policy(
