@@ -33,11 +33,11 @@
   --color-warning-bg: hsl(300, 5%, 96%);
 
   /* Toggle active state */
-  --color-toggle-active: #1b181b;
+  --color-toggle-active: hsl(300, 6%, 10%);
 
   /* Borders */
   --border-hairline: 0.5px solid var(--color-300);
-  --striped-bg: repeating-linear-gradient(-45deg, #fffafe, #fffafe 10px, #faf2fa 10px, #faf2fa 20px);
+  --striped-bg: repeating-linear-gradient(-45deg, hsl(312, 100%, 99%), hsl(312, 100%, 99%) 10px, hsl(300, 44%, 96%) 10px, hsl(300, 44%, 96%) 20px);
   --striped-bright-bg: repeating-linear-gradient(-45deg, rgba(255, 250, 253, 0.5), rgba(255, 250, 253, 0.5) 10px, #fd74d6 10px, #fd74d6 20px);
   --striped-testmode-bg: repeating-linear-gradient(-45deg, rgba(148, 198, 136, 0.85), rgba(148, 198, 136, 0.85) 10px, #50bc40 10px, #50bc40 20px);
   /* Semantic panel colors that follow the page theme. */
@@ -59,10 +59,10 @@
   --btn-submit-fg: var(--color-back);
   --btn-submit-disabled-bg: var(--color-400);
   --btn-submit-disabled-fg: var(--color-300);
-  --inline-link-fg: #a41a82;
-  --inline-link-hover-fg: #ff2dce;
-  --inline-link-visited-fg: #841568;
-  --inline-link-focus-ring: rgba(154, 15, 99, 0.35);
+  --inline-link-fg: hsl(315, 73%, 37%);
+  --inline-link-hover-fg: hsl(314, 100%, 59%);
+  --inline-link-visited-fg: hsl(315, 73%, 30%);
+  --inline-link-focus-ring: hsla(303, 82%, 33%, 0.35);
 
   /* Typography scale */
   --text-xs: 0.8571rem;
@@ -83,43 +83,43 @@
     color-scheme: dark;
 
     /* Reverse the light-theme brightness scale for dark mode */
-    --color-back: #0a0508;
-    --color-50: #261724;
-    --color-100: #3f263e;
-    --color-200: #593250;
-    --color-300: #7a6576;
-    --color-400: #a6819e;
-    --color-500: #dab9d9;
-    --color-600: #e6bfe3;
-    --color-700: #f6ddf5;
-    --color-800: #faf2fa;
-    --color-900: rgb(255, 250, 254);
-    --color-front: rgb(255, 250, 254);
+    --color-back: hsl(324, 33%, 3%);
+    --color-50: hsl(308, 25%, 12%);
+    --color-100: hsl(302, 25%, 20%);
+    --color-200: hsl(314, 28%, 27%);
+    --color-300: hsl(311, 9%, 44%);
+    --color-400: hsl(313, 17%, 58%);
+    --color-500: hsl(302, 31%, 79%);
+    --color-600: hsl(305, 44%, 83%);
+    --color-700: hsl(302, 58%, 92%);
+    --color-800: hsl(300, 44%, 96%);
+    --color-900: hsl(312, 100%, 99%);
+    --color-front: hsl(312, 100%, 99%);
 
-    --color-env-var-bg: #593256;
-    --status-admin-write-row-bg: #3a2236;
+    --color-env-var-bg: hsl(305, 28%, 27%);
+    --status-admin-write-row-bg: hsl(310, 26%, 18%);
 
-    --color-accent: #f5edf4;
-    --color-accent-hover: #faf2f9;
+    --color-accent: hsl(308, 29%, 95%);
+    --color-accent-hover: hsl(308, 44%, 96%);
 
-    --color-success: rgb(255, 250, 254);
-    --color-success-bg: #463f45;
-    --color-error-bg: #4a1747;
-    --color-warning: #f5edf3;
-    --color-warning-bg: #463f46;
+    --color-success: hsl(312, 100%, 99%);
+    --color-success-bg: hsl(309, 5%, 26%);
+    --color-error-bg: hsl(304, 53%, 19%);
+    --color-warning: hsl(315, 29%, 95%);
+    --color-warning-bg: hsl(300, 5%, 26%);
 
-    --color-toggle-active: #faf2fa;
+    --color-toggle-active: hsl(300, 44%, 96%);
 
     --border-hairline: 0.5px solid var(--color-100);
-    --striped-bg: repeating-linear-gradient(-45deg, #0a0507, #0a0509 10px, #1c161b 10px, #1c161b 20px);
-    --striped-bright-bg: repeating-linear-gradient(-45deg, rgba(10, 5, 7, 0.5), rgba(10, 5, 7, 0.5) 10px, #fd74d6 10px, #fd74d6 20px);
+    --striped-bg: repeating-linear-gradient(-45deg, hsl(336, 33%, 3%), hsl(312, 33%, 3%) 10px, hsl(310, 12%, 10%) 10px, hsl(310, 12%, 10%) 20px);
+    --striped-bright-bg: repeating-linear-gradient(-45deg, hsla(312, 33%, 3%, 0.502), hsla(312, 33%, 3%, 0.5) 10px, hsl(317, 97%, 72%) 10px, hsl(317, 97%, 72%) 20px);
 
     --btn-contrast-fg: var(--color-back);
 
-    --inline-link-fg: #ff93e2;
-    --inline-link-hover-fg: #ffd0f6;
-    --inline-link-visited-fg: #f6a1e3;
-    --inline-link-focus-ring: rgba(255, 147, 237, 0.45);
+    --inline-link-fg: hsl(316, 100%, 79%);
+    --inline-link-hover-fg: hsl(311, 100%, 91%);
+    --inline-link-visited-fg: hsl(313, 83%, 80%);
+    --inline-link-focus-ring: hsla(310, 100%, 79%, 0.45);
   }
 }
 
@@ -470,9 +470,9 @@ h1 {
 }
 
 .tab-state--error {
-  border-color: rgba(220, 38, 184, 0.45);
-  background: rgb(255 218 246);
-  color: #8f116b;
+  border-color: hsla(312, 72%, 51%, 0.45);
+  background: hsl(315, 100%, 93%);
+  color: hsl(317, 79%, 31%);
 }
 
 .tab-state--empty {
@@ -1092,7 +1092,7 @@ a:focus-visible {
 }
 
 .message.error {
-  background: #ffdaf6;
+  background: hsl(315, 100%, 93%);
   color: var(--color-back);
 }
 
