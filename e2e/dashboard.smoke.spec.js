@@ -126,6 +126,15 @@ function parseDashboardCounterText(text) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function expectMonitoringRequestIncludesSim(requestUrl, expectedEnabled = false) {
+  const includeSim = new URL(String(requestUrl || "")).searchParams.get("include_sim");
+  if (expectedEnabled) {
+    expect(includeSim).toBe("1");
+    return;
+  }
+  expect(includeSim === null || includeSim === "0").toBe(true);
+}
+
 async function assertActiveTabPanelVisibility(page, activeTab) {
   for (const tab of DASHBOARD_TABS) {
     await expect(page.locator(`#dashboard-tab-${tab}`)).toHaveAttribute(
@@ -630,6 +639,7 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
   };
 
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+    expectMonitoringRequestIncludesSim(route.request().url());
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -709,6 +719,7 @@ test("monitoring summary sections render data and cap oversized result lists", a
     );
 
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+    expectMonitoringRequestIncludesSim(route.request().url());
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -844,6 +855,42 @@ test("dashboard loads and shows seeded operational data", async ({ page }) => {
   await expect(page.locator("#cdp-events tbody tr").first()).toBeVisible();
   await expect(page.locator("#cdp-total-detections")).not.toHaveText("-");
   await expect(page.locator('label[for="global-test-mode-toggle"]')).toBeVisible();
+});
+
+test("monitoring requests include simulation telemetry flag when adversary sim is enabled", async ({ page }) => {
+  let sawMonitoringRequest = false;
+
+  await page.route("**/admin/config", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+
+    const upstream = await route.fetch();
+    const payload = await upstream.json();
+    payload.runtime_environment = "runtime-dev";
+    payload.adversary_sim_available = true;
+    payload.adversary_sim_enabled = true;
+
+    await route.fulfill({
+      status: upstream.status(),
+      headers: {
+        ...upstream.headers(),
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+  }, { times: 1 });
+
+  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+    expectMonitoringRequestIncludesSim(route.request().url(), true);
+    sawMonitoringRequest = true;
+    const upstream = await route.fetch();
+    await route.fulfill({ response: upstream });
+  }, { times: 1 });
+
+  await openDashboard(page);
+  expect(sawMonitoringRequest).toBe(true);
 });
 
 test("dashboard monitoring totals stay in parity with /metrics monitoring families", async ({ page, request }) => {
@@ -1458,6 +1505,7 @@ test("monitoring auto-refresh avoids placeholder flicker and bounds table churn"
 
   let monitoringRequests = 0;
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+    expectMonitoringRequestIncludesSim(route.request().url());
     monitoringRequests += 1;
     const sample = monitoringRequests;
     await new Promise((resolve) => setTimeout(resolve, 120));
@@ -1624,6 +1672,7 @@ test("native remount soak keeps refresh p95 and polling cadence within bounds", 
 
   let monitoringRequests = 0;
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+    expectMonitoringRequestIncludesSim(route.request().url());
     monitoringRequests += 1;
     await page.waitForTimeout(18);
     await route.continue();
@@ -1815,6 +1864,7 @@ test("tab states surface loading and data-ready transitions across all tabs", as
     releaseMonitoringResponse = resolve;
   });
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+    expectMonitoringRequestIncludesSim(route.request().url());
     releaseMonitoringFetch();
     await monitoringResponseGate;
     const upstream = await route.fetch();
@@ -2151,6 +2201,7 @@ test("monitoring tab surfaces tab-scoped error when consolidated monitoring fetc
   await openDashboard(page, { initialTab: "status" });
 
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+    expectMonitoringRequestIncludesSim(route.request().url());
     await route.fulfill({
       status: 503,
       contentType: "application/json",

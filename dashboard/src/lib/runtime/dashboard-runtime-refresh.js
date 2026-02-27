@@ -29,6 +29,8 @@ export function createDashboardRefreshRuntime(options = {}) {
     !config || typeof config !== 'object' || Object.keys(config).length === 0;
   const hasConfigSnapshot = (config) => !isConfigSnapshotEmpty(config);
   const toArray = (value) => (Array.isArray(value) ? value : []);
+  const shouldIncludeSimulationMonitoring = (configSnapshot) =>
+    Boolean(configSnapshot && typeof configSnapshot === 'object' && configSnapshot.adversary_sim_enabled === true);
 
   function compactBansSnapshot(bansData = {}) {
     const source = bansData && typeof bansData === 'object' ? bansData : {};
@@ -247,7 +249,17 @@ export function createDashboardRefreshRuntime(options = {}) {
     }
 
     const requestOptions = toRequestOptions(runtimeOptions);
-    const monitoringData = await dashboardApiClient.getMonitoring({ hours: 24, limit: 10 }, requestOptions);
+    const includeSim = shouldIncludeSimulationMonitoring(
+      dashboardState ? dashboardState.getSnapshot('config') : {}
+    );
+    const monitoringData = await dashboardApiClient.getMonitoring(
+      {
+        hours: 24,
+        limit: 10,
+        includeSim
+      },
+      requestOptions
+    );
     const configSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
     const monitoringSnapshots = buildMonitoringSnapshots(monitoringData, configSnapshot);
     const compactMonitoring = compactMonitoringSnapshot(monitoringData);
@@ -435,10 +447,10 @@ export function createDashboardRefreshRuntime(options = {}) {
 
   const TAB_REFRESH_HANDLERS = Object.freeze({
     monitoring: async (reason = 'manual', runtimeOptions = {}) => {
-      await refreshMonitoringTab(reason, runtimeOptions);
       if (reason !== 'auto-refresh') {
         await refreshSharedConfig(reason, runtimeOptions);
       }
+      await refreshMonitoringTab(reason, runtimeOptions);
     },
     'ip-bans': refreshIpBansTab,
     status: refreshStatusTab,

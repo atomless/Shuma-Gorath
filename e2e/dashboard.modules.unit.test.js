@@ -391,6 +391,33 @@ test('dashboard API client parses JSON payloads when content-type is missing', {
   });
 });
 
+test('dashboard API client includes simulation query only when monitoring includeSim is enabled', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
+    const requestUrls = [];
+    const client = apiModule.create({
+      getAdminContext: () => ({ endpoint: 'https://edge.local', apikey: '', sessionAuth: false }),
+      request: async (url) => {
+        requestUrls.push(String(url || ''));
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ summary: {}, details: {} }),
+          text: async () => JSON.stringify({ summary: {}, details: {} })
+        };
+      }
+    });
+
+    await client.getMonitoring({ hours: 24, limit: 10 });
+    await client.getMonitoring({ hours: 24, limit: 10, includeSim: true });
+
+    assert.equal(requestUrls.length, 2);
+    assert.equal(requestUrls[0].includes('include_sim=1'), false);
+    assert.equal(requestUrls[1].includes('include_sim=1'), true);
+  });
+});
+
 test('dashboard API client adds CSRF + same-origin for session-auth writes and strips empty bearer', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
@@ -1594,6 +1621,7 @@ test('dashboard refresh runtime remains snapshot-only and excludes legacy config
   assert.match(source, /const MONITORING_CACHE_MAX_CDP_EVENTS = 50;/);
   assert.match(source, /const MONITORING_CACHE_MAX_BANS = 100;/);
   assert.match(source, /const IP_BANS_CACHE_MAX_SUGGESTIONS = 50;/);
+  assert.match(source, /const shouldIncludeSimulationMonitoring = \(configSnapshot\) =>/);
   assert.match(source, /function clearAllCaches\(\) \{/);
   assert.match(source, /writeCache\(MONITORING_CACHE_KEY, \{ monitoring: compactMonitoring \}\);/);
   assert.match(source, /if \(hasConfigSnapshot\(existingConfig\)\) \{/);
@@ -1610,6 +1638,11 @@ test('dashboard refresh runtime remains snapshot-only and excludes legacy config
   assert.match(
     source,
     /includeConfigRefresh \? refreshSharedConfig\(reason, runtimeOptions\) : Promise\.resolve\(null\)/
+  );
+  assert.match(source, /const includeSim = shouldIncludeSimulationMonitoring\(/);
+  assert.match(
+    source,
+    /if \(reason !== 'auto-refresh'\) \{\s*await refreshSharedConfig\(reason, runtimeOptions\);\s*\}\s*await refreshMonitoringTab\(reason, runtimeOptions\);/m
   );
 });
 
