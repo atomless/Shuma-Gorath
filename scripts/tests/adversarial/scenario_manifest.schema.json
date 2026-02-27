@@ -210,17 +210,21 @@
           ]
         },
         "driver": {
-          "type": "string",
-          "enum": [
-            "allow_browser_allowlist",
-            "not_a_bot_pass",
-            "geo_challenge",
-            "geo_maze",
-            "honeypot_deny_temp",
-            "not_a_bot_replay_abuse",
-            "not_a_bot_stale_token_abuse",
-            "not_a_bot_ordering_cadence_abuse",
-            "akamai_additive_report",
+            "type": "string",
+            "enum": [
+              "allow_browser_allowlist",
+              "not_a_bot_pass",
+              "pow_success",
+              "pow_invalid_proof",
+              "rate_limit_enforce",
+              "geo_challenge",
+              "geo_maze",
+              "geo_block",
+              "honeypot_deny_temp",
+              "not_a_bot_replay_abuse",
+              "not_a_bot_stale_token_abuse",
+              "not_a_bot_ordering_cadence_abuse",
+              "akamai_additive_report",
             "akamai_authoritative_deny"
           ]
         },

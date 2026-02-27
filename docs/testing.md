@@ -126,7 +126,7 @@ Available profiles:
 - `make test-adversarial-smoke` - mandatory fast smoke gate (`SIM-T0`..`SIM-T4`)
 - `make test-adversarial-abuse` - mandatory replay/stale/order-cadence abuse regressions
 - `make test-adversarial-akamai` - mandatory Akamai signal fixture coverage
-- `make test-adversarial-coverage` - expanded coverage contract profile (`full_coverage`)
+- `make test-adversarial-coverage` - expanded coverage contract profile (`full_coverage`) including PoW success/failure, rate-limit enforcement, and GEO block coverage
 - `make test-adversarial-manifest` - schema/fixture validation without server
 - `make test-adversarial-live` - repeated live traffic generator for operator monitoring drills
 

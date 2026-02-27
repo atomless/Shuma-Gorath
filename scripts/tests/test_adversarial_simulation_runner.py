@@ -45,6 +45,27 @@ def minimal_manifest(gates_extra=None):
 
 
 class AdversarialRunnerUnitTests(unittest.TestCase):
+    def test_has_leading_zero_bits_accepts_full_and_partial_prefixes(self):
+        self.assertTrue(runner.has_leading_zero_bits(bytes.fromhex("00ff"), 8))
+        self.assertTrue(runner.has_leading_zero_bits(bytes.fromhex("0fff"), 4))
+        self.assertFalse(runner.has_leading_zero_bits(bytes.fromhex("10ff"), 4))
+
+    def test_solve_pow_nonce_returns_valid_nonce_for_low_difficulty(self):
+        seed = "unit-seed"
+        difficulty = 8
+        nonce = runner.solve_pow_nonce(seed, difficulty, max_iter=200_000)
+        self.assertGreaterEqual(nonce, 0)
+        digest = runner.pow_digest(seed, nonce)
+        self.assertTrue(runner.has_leading_zero_bits(digest, difficulty))
+
+    def test_find_invalid_pow_nonce_returns_nonce_that_fails_target(self):
+        seed = "unit-seed"
+        difficulty = 12
+        nonce = runner.find_invalid_pow_nonce(seed, difficulty, max_iter=20)
+        self.assertGreaterEqual(nonce, 0)
+        digest = runner.pow_digest(seed, nonce)
+        self.assertFalse(runner.has_leading_zero_bits(digest, difficulty))
+
     def test_extract_monitoring_snapshot_maps_coverage_fields(self):
         payload = {
             "summary": {
@@ -107,6 +128,12 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
                 manifest,
                 "test_profile",
             )
+
+    def test_validate_manifest_accepts_new_driver_enum_values(self):
+        manifest = minimal_manifest()
+        manifest["scenarios"][0]["driver"] = "pow_success"
+        manifest["scenarios"][0]["expected_outcome"] = "allow"
+        runner.validate_manifest(Path("scripts/tests/adversarial/scenario_manifest.v1.json"), manifest, "test_profile")
 
 
 if __name__ == "__main__":

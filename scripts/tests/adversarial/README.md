@@ -32,3 +32,4 @@ Notes:
 - `abuse_regression` stale-token coverage is simulated with a signed expired Not-a-Bot seed so the test remains fast and deterministic.
 - `akamai_smoke` uses canned JSON fixtures posted to local `/fingerprint-report`; it does not require a live Akamai edge deployment.
 - `full_coverage` adds profile-level coverage gates (`gates.coverage_requirements`) using monitoring deltas captured over the run.
+- `full_coverage` now includes explicit PoW success/failure, rate-limit enforcement, and GEO block scenarios in addition to existing challenge/maze/honeypot/Akamai families.

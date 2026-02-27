@@ -29,8 +29,12 @@ ALLOWED_TIERS = {"SIM-T0", "SIM-T1", "SIM-T2", "SIM-T3", "SIM-T4"}
 ALLOWED_DRIVERS = {
     "allow_browser_allowlist",
     "not_a_bot_pass",
+    "pow_success",
+    "pow_invalid_proof",
+    "rate_limit_enforce",
     "geo_challenge",
     "geo_maze",
+    "geo_block",
     "honeypot_deny_temp",
     "not_a_bot_replay_abuse",
     "not_a_bot_stale_token_abuse",
@@ -456,10 +460,18 @@ class Runner:
                 observed_outcome = self.driver_allow_browser_allowlist(scenario)
             elif driver == "not_a_bot_pass":
                 observed_outcome = self.driver_not_a_bot_pass(scenario)
+            elif driver == "pow_success":
+                observed_outcome = self.driver_pow_success(scenario)
+            elif driver == "pow_invalid_proof":
+                observed_outcome = self.driver_pow_invalid_proof(scenario)
+            elif driver == "rate_limit_enforce":
+                observed_outcome = self.driver_rate_limit_enforce(scenario)
             elif driver == "geo_challenge":
                 observed_outcome = self.driver_geo_challenge(scenario)
             elif driver == "geo_maze":
                 observed_outcome = self.driver_geo_maze(scenario)
+            elif driver == "geo_block":
+                observed_outcome = self.driver_geo_block(scenario)
             elif driver == "honeypot_deny_temp":
                 observed_outcome = self.driver_honeypot_deny_temp(scenario)
             elif driver == "not_a_bot_replay_abuse":
@@ -575,6 +587,56 @@ class Runner:
             return "not-a-bot"
         raise SimulationError(f"Expected 303 + marker cookie, got status={submit.status}")
 
+    def driver_pow_success(self, scenario: Dict[str, Any]) -> str:
+        self.admin_patch({"test_mode": False, "pow_enabled": True, "pow_difficulty": 12, "pow_ttl_seconds": 120})
+        seed, difficulty = self.fetch_pow_seed(scenario)
+        nonce = solve_pow_nonce(seed, difficulty)
+        if nonce < 0:
+            raise SimulationError("Failed to solve PoW challenge within iteration budget")
+        # Sequence timing guardrail avoids TooFast failures in operation envelope checks.
+        time.sleep(2)
+        verify = self.submit_pow_verify(seed, str(nonce), scenario)
+        headers_lower = lower_headers(verify.headers)
+        if verify.status == 200 and "js_verified=" in headers_lower.get("set-cookie", ""):
+            return "allow"
+        raise SimulationError(
+            f"Expected successful pow verify, got status={verify.status} body={collapse_whitespace(verify.body)[:120]}"
+        )
+
+    def driver_pow_invalid_proof(self, scenario: Dict[str, Any]) -> str:
+        self.admin_patch({"test_mode": False, "pow_enabled": True, "pow_difficulty": 12, "pow_ttl_seconds": 120})
+        seed, difficulty = self.fetch_pow_seed(scenario)
+        bad_nonce = find_invalid_pow_nonce(seed, difficulty)
+        if bad_nonce < 0:
+            raise SimulationError("Failed to find invalid PoW nonce candidate")
+        # Sequence timing guardrail avoids TooFast failures in operation envelope checks.
+        time.sleep(2)
+        verify = self.submit_pow_verify(seed, str(bad_nonce), scenario)
+        if verify.status == 400 and "Invalid proof" in verify.body:
+            return "monitor"
+        raise SimulationError(
+            f"Expected pow verify invalid-proof rejection, got status={verify.status} body={collapse_whitespace(verify.body)[:120]}"
+        )
+
+    def driver_rate_limit_enforce(self, scenario: Dict[str, Any]) -> str:
+        self.admin_patch(
+            {
+                "test_mode": False,
+                "rate_limit": 2,
+                "js_required_enforced": False,
+                "defence_modes": {"rate": "both"},
+                "provider_backends": {"rate_limiter": "internal"},
+                "edge_integration_mode": "off",
+                "browser_policy_enabled": False,
+            }
+        )
+        headers = self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"])
+        for _ in range(20):
+            result = self.request("GET", "/", headers=headers, count_request=True)
+            if result.status in {403, 429} or "Rate Limit Exceeded" in result.body or "Access Blocked" in result.body:
+                return "deny_temp"
+        raise SimulationError("Expected rate limiter enforcement, but requests were not blocked")
+
     def driver_geo_challenge(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch(
             {
@@ -614,6 +676,25 @@ class Runner:
         if result.status == 200 and 'data-link-kind="maze"' in result.body:
             return "maze"
         raise SimulationError(f"Expected maze response, got status={result.status}")
+
+    def driver_geo_block(self, scenario: Dict[str, Any]) -> str:
+        self.admin_patch(
+            {
+                "test_mode": False,
+                "geo_edge_headers_enabled": True,
+                "geo_risk": [],
+                "geo_allow": [],
+                "geo_challenge": [],
+                "geo_maze": [],
+                "geo_block": [scenario["geo_country"]],
+            }
+        )
+        headers = self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"])
+        headers["X-Geo-Country"] = scenario["geo_country"]
+        result = self.request("GET", "/", headers=headers, count_request=True)
+        if result.status == 403 and ("Access Blocked" in result.body or "Access Restricted" in result.body):
+            return "deny_temp"
+        raise SimulationError(f"Expected geo block response, got status={result.status}")
 
     def driver_honeypot_deny_temp(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch({"test_mode": False, "honeypot_enabled": True})
@@ -762,6 +843,32 @@ class Runner:
             "/challenge/not-a-bot-checkbox",
             headers=self.forwarded_headers(scenario["ip"], user_agent=self.not_a_bot_user_agent(scenario)),
             form_body=form_body,
+            count_request=True,
+        )
+
+    def fetch_pow_seed(self, scenario: Dict[str, Any]) -> Tuple[str, int]:
+        challenge = self.request(
+            "GET",
+            "/pow",
+            headers=self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"]),
+            count_request=True,
+        )
+        if challenge.status != 200:
+            raise SimulationError(f"PoW challenge unavailable (status={challenge.status})")
+        payload = parse_json_or_raise(challenge.body, "Failed to parse /pow challenge response")
+        seed = str(payload.get("seed") or "").strip()
+        difficulty = int_or_zero(payload.get("difficulty"))
+        if not seed or difficulty <= 0:
+            raise SimulationError("PoW challenge response missing seed/difficulty")
+        return seed, difficulty
+
+    def submit_pow_verify(self, seed: str, nonce: str, scenario: Dict[str, Any]) -> HttpResult:
+        payload = {"seed": seed, "nonce": nonce}
+        return self.request(
+            "POST",
+            "/pow/verify",
+            headers=self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"]),
+            json_body=payload,
             count_request=True,
         )
 
@@ -950,6 +1057,45 @@ def int_or_zero(value: Any) -> int:
         return int(value)
     except Exception:
         return 0
+
+
+def has_leading_zero_bits(digest: bytes, bits: int) -> bool:
+    remaining = max(0, bits)
+    for byte in digest:
+        if remaining <= 0:
+            return True
+        if remaining >= 8:
+            if byte != 0:
+                return False
+            remaining -= 8
+        else:
+            mask = (0xFF << (8 - remaining)) & 0xFF
+            return (byte & mask) == 0
+    return True
+
+
+def pow_digest(seed: str, nonce: int) -> bytes:
+    return hashlib.sha256(f"{seed}:{nonce}".encode("utf-8")).digest()
+
+
+def solve_pow_nonce(seed: str, difficulty: int, max_iter: int = 5_000_000) -> int:
+    nonce = 0
+    while nonce < max_iter:
+        digest = pow_digest(seed, nonce)
+        if has_leading_zero_bits(digest, difficulty):
+            return nonce
+        nonce += 1
+    return -1
+
+
+def find_invalid_pow_nonce(seed: str, difficulty: int, max_iter: int = 5_000_000) -> int:
+    nonce = 0
+    while nonce < max_iter:
+        digest = pow_digest(seed, nonce)
+        if not has_leading_zero_bits(digest, difficulty):
+            return nonce
+        nonce += 1
+    return -1
 
 
 def extract_monitoring_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
