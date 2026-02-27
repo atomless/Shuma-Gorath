@@ -65,6 +65,7 @@ For every failing run, operators must capture:
 4. Runtime config snapshot (`GET /admin/config`) from the failing environment.
 5. Monitoring snapshot (`GET /admin/monitoring`) from the same time window.
 6. Commit SHA and environment (`runtime-dev` or `runtime-prod`).
+7. Runner plane-separation evidence (`latest_report.json` -> `plane_contract`).
 
 ## Triage Order
 

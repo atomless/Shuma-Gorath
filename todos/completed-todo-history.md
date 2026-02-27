@@ -9,6 +9,7 @@ Moved from active TODO files on 2026-02-14.
 Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)  
 Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
 
+- [x] SIM-V2-7 Strict attacker/control-plane separation.
 - [x] SIM-V2-3 Abuse/evasion regression suite parity (`replay`, `stale`, `ordering`, `cadence`, `retry-storm`).
 - [x] SIM-V2-5 Full category coverage profile (`full_coverage`) as pre-release mandatory gate.
 - [x] SIM-V2-8 Realistic mixed persona traffic model.

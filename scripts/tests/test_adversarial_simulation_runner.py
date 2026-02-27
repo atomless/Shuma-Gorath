@@ -387,6 +387,23 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertAlmostEqual(metrics["human_like"]["collateral_ratio"], 0.5, places=3)
         self.assertEqual(metrics["adversarial"]["collateral_count"], 1)
 
+    def test_enforce_attacker_request_contract_rejects_admin_paths(self):
+        with self.assertRaises(runner.SimulationError):
+            runner.enforce_attacker_request_contract("/admin/config", {})
+
+    def test_enforce_attacker_request_contract_rejects_privileged_headers(self):
+        with self.assertRaises(runner.SimulationError):
+            runner.enforce_attacker_request_contract(
+                "/",
+                {"Authorization": "Bearer test-token"},
+            )
+
+    def test_enforce_attacker_request_contract_allows_public_path_without_privileged_headers(self):
+        runner.enforce_attacker_request_contract(
+            "http://127.0.0.1:3000/challenge/not-a-bot-checkbox",
+            {"X-Forwarded-For": "10.0.0.1", "User-Agent": "UnitTest/1.0"},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

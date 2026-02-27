@@ -111,6 +111,15 @@ ALLOWED_COVERAGE_REQUIREMENTS = {
     "recent_event_count",
 }
 SUPPORTED_MANIFEST_SCHEMA_VERSIONS = {"sim-manifest.v1", "sim-manifest.v2"}
+ALLOWED_REQUEST_PLANES = {"attacker", "control"}
+ATTACKER_FORBIDDEN_PATH_PREFIXES = ("/admin/",)
+ATTACKER_FORBIDDEN_HEADERS = {
+    "authorization",
+    "x-shuma-health-secret",
+    "x-shuma-js-secret",
+    "x-shuma-challenge-secret",
+    "x-shuma-api-key",
+}
 ALLOWED_TRAFFIC_PERSONAS = {
     "human_like",
     "benign_automation",
@@ -400,6 +409,11 @@ class Runner:
                 "coverage_gates": gate_results.get("coverage_gates", {}),
                 "cohort_metrics": gate_results.get("cohort_metrics", {}),
                 "ip_range_suggestions": gate_results.get("ip_range_suggestions", {}),
+                "plane_contract": {
+                    "attacker_forbidden_path_prefixes": list(ATTACKER_FORBIDDEN_PATH_PREFIXES),
+                    "attacker_forbidden_headers": sorted(ATTACKER_FORBIDDEN_HEADERS),
+                    "enforced": True,
+                },
                 "frontier": frontier_metadata,
                 "attack_plan_path": str(attack_plan_path),
                 "passed": all(result.passed for result in results) and gate_results["all_passed"],
@@ -452,6 +466,7 @@ class Runner:
                     "GET",
                     "/health",
                     headers=self.forwarded_headers("127.0.0.1", include_health_secret=True),
+                    plane="control",
                     count_request=False,
                 )
                 if result.status == 200 and "OK" in result.body:
@@ -1482,6 +1497,7 @@ class Runner:
             method,
             path,
             headers=self.admin_headers(),
+            plane="control",
             json_body=json_body,
             count_request=False,
         )
@@ -1519,12 +1535,17 @@ class Runner:
         headers: Optional[Dict[str, str]] = None,
         json_body: Optional[Dict[str, Any]] = None,
         form_body: Optional[Dict[str, str]] = None,
+        plane: str = "attacker",
         count_request: bool = False,
     ) -> HttpResult:
+        if plane not in ALLOWED_REQUEST_PLANES:
+            raise SimulationError(f"unknown request plane: {plane}")
         url = path if path.startswith("http://") or path.startswith("https://") else f"{self.base_url}{path}"
 
         data: Optional[bytes] = None
         request_headers = dict(headers or {})
+        if plane == "attacker":
+            enforce_attacker_request_contract(path, request_headers)
         if json_body is not None:
             data = json.dumps(json_body, separators=(",", ":")).encode("utf-8")
             request_headers["Content-Type"] = "application/json"
@@ -1590,6 +1611,32 @@ def dict_or_empty(value: Any) -> Dict[str, Any]:
 
 def list_or_empty(value: Any) -> List[Any]:
     return value if isinstance(value, list) else []
+
+
+def normalize_request_path(raw_path: str) -> str:
+    parsed = urllib.parse.urlparse(raw_path)
+    if parsed.scheme and parsed.netloc:
+        return parsed.path or "/"
+    if raw_path.startswith("/"):
+        return raw_path
+    return f"/{raw_path}"
+
+
+def enforce_attacker_request_contract(path: str, headers: Dict[str, str]) -> None:
+    normalized_path = normalize_request_path(str(path or ""))
+    lowered_headers = {str(key).strip().lower() for key in headers.keys()}
+
+    for prefix in ATTACKER_FORBIDDEN_PATH_PREFIXES:
+        if normalized_path.startswith(prefix):
+            raise SimulationError(
+                f"attacker_plane_forbidden_path path={normalized_path} prefix={prefix}"
+            )
+
+    for forbidden_header in ATTACKER_FORBIDDEN_HEADERS:
+        if forbidden_header in lowered_headers:
+            raise SimulationError(
+                f"attacker_plane_forbidden_header header={forbidden_header} path={normalized_path}"
+            )
 
 
 def nested_dict_value(data: Dict[str, Any], path: Tuple[str, ...]) -> Any:

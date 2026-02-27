@@ -43,7 +43,8 @@ The runner writes machine-readable artifacts to:
 - `latest_report.json` includes:
   - quantitative `gates` and `coverage_gates` sections (each check includes `threshold_source`),
   - `cohort_metrics` (persona-level outcome/latency/collateral summaries),
-  - `ip_range_suggestions` seed evidence (`seeded_summary`, `seeded_suggestions`, `matched_seed_suggestions`, `near_miss_suggestions`).
+  - `ip_range_suggestions` seed evidence (`seeded_summary`, `seeded_suggestions`, `matched_seed_suggestions`, `near_miss_suggestions`),
+  - `plane_contract` metadata for attacker/control-plane guardrails.
 
 Notes:
 
@@ -60,5 +61,8 @@ Notes:
   - `human_like_collateral_max_ratio`,
   - `required_event_reasons`,
   - `ip_range_suggestion_seed_required` (with deterministic seed traffic + evidence snapshot).
+- Plane separation contract:
+  - attacker-plane requests are restricted to public paths and reject privileged headers (`Authorization`, health/admin/signing secret headers),
+  - orchestrator-only setup/reset/config hooks remain on the control plane via admin-authenticated calls.
 - Protected-lane frontier probe output (`frontier_lane_status.json`) is advisory only; deterministic coverage/replay gates remain blocking.
 - `adversarial_sim_selftest.py` is intentionally tiny and non-circular: it validates simulator mechanics against fixed stub routes without asserting product defense efficacy.

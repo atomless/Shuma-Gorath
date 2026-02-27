@@ -71,15 +71,6 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
 Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
 
-- [ ] SIM-V2-7 Strict attacker/control-plane separation.
-  - Acceptance criteria:
-    - Attacker agents cannot read/use `SHUMA_API_KEY`, admin bearer keys, or signing secrets.
-    - Orchestrator-only setup/reset hooks are isolated and auditable in code path separation.
-    - Runner enforces separation contract and fails if attacker path attempts privileged operations.
-  - Definition of done:
-    - Code boundaries are documented and verified by integration tests.
-    - Mandatory adversarial profiles run with attacker plane using only public endpoints.
-
 - [ ] SIM-V2-9 Adversarial live loop observability quality and tarpit monitoring completeness.
   - Acceptance criteria:
     - `make test-adversarial-live` generates meaningful defense events across monitored categories instead of admin-only noise.
