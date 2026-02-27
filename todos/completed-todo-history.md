@@ -2,6 +2,19 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-02-27)
+
+### P0 Adversarial Traffic Simulation Program
+
+Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
+
+- [x] SIM-1 Define canonical scenario manifest for botness/threat tiers (`SIM-T0`..`SIM-T4`) and expected outcomes (`allow`, `monitor`, `not-a-bot`, `challenge`, `maze`, `deny_temp`).
+- [x] SIM-2 Build a unified simulation harness in `scripts/tests/` that combines browser-realistic, scraper, crawler, and load-generator traffic profiles with deterministic seeds.
+- [x] SIM-3 Add replay/sequence-evasion simulation paths (token replay, stale token, order violation, cadence anomalies) to close current threat-coverage gaps.
+- [x] SIM-4 Add simulation assertions for effectiveness and cost (`challenge/ban` ratios, false-positive envelope, monitoring write/read amplification guardrails).
+- [x] SIM-5 Add tiered Make targets and CI policy (fast mandatory adversarial smoke + scheduled/deep soak profiles).
+- [x] SIM-6 Document operator interpretation workflow for simulation failures and tuning actions.
+
 ## Additional completions (2026-02-25)
 
 ### P1 Research Dossiers (Paper-by-Paper TODOs)
