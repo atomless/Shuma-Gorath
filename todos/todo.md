@@ -92,19 +92,6 @@ Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../
     - Coverage report includes explicit evidence section for seeded IP-range suggestion prerequisites and resulting suggestion/near-miss outputs.
     - CI policy marks coverage profile mandatory while project remains pre-launch.
 
-- [ ] SIM-V2-6 Dev/test crawl surface and toggle (`/sim/public/...`) with strict production exclusion.
-  - Acceptance criteria:
-    - Minimal crawl graph pages exist at `/sim/public/landing`, `/sim/public/docs`, `/sim/public/pricing`, `/sim/public/contact`, and `/sim/public/search`.
-    - `SHUMA_ADVERSARY_SIM_AVAILABLE` is env-only (not admin-writable), defaults to `true` in `make dev`, and defaults to `false` in production paths.
-    - Surface is enabled only when `SHUMA_ADVERSARY_SIM_AVAILABLE=true` and runtime `adversary_sim_enabled=true`.
-    - Production paths fail closed for adversary sim: toggle/control endpoints are not exposed, and orchestration cannot be started when runtime is `runtime-prod`.
-    - Pages flow through normal defense pipeline and do not bypass policy enforcement paths.
-  - Definition of done:
-    - Requests to `/sim/public/...` return `404` when unavailable/disabled.
-    - Dashboard exposes a dedicated adversary-sim toggle directly under the `test_mode` toggle (not alongside it).
-    - Config docs and env-help clearly describe availability vs enablement semantics.
-    - Integration checks prove adversary-sim start attempts are rejected in production mode even if a stale UI/config state exists.
-
 - [ ] SIM-V2-7 Strict attacker/control-plane separation.
   - Acceptance criteria:
     - Attacker agents cannot read/use `SHUMA_API_KEY`, admin bearer keys, or signing secrets.
@@ -169,15 +156,6 @@ Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../
     - CI workflow documents deterministic-oracle policy explicitly: frontier is the adaptive discovery engine, deterministic replay is the blocking regression oracle.
     - Failures route to actionable logs (no silent skip modes for mandatory adversarial checks).
     - CI docs define who owns model-list refresh and what threshold triggers it.
-
-- [ ] SIM-V2-13 Operator interpretation and tuning playbook.
-  - Acceptance criteria:
-    - Docs map each failed category/gate to likely root causes and recommended tuning actions.
-    - Playbook includes rollback guidance for high-collateral outcomes and false-positive spikes.
-    - Guidance distinguishes dev-live simulation signals from release-gate profile signals.
-  - Definition of done:
-    - `docs/` includes a single canonical adversarial operations guide linked from README/config docs.
-    - On-call workflow can classify and triage a failed adversarial report without code spelunking.
 
 - [ ] SIM-V2-15 Deterministic harness and containerized adversary coexistence contract.
   - Acceptance criteria:
