@@ -1579,12 +1579,23 @@ test("repeated route remount loops keep polling request fan-out bounded", async 
     await setAutoRefresh(page, true);
     const beforeWindow = monitoringRequests;
     await page.waitForTimeout(remountObservationWindowMs);
-    const delta = monitoringRequests - beforeWindow;
+    let delta = monitoringRequests - beforeWindow;
+    let maxRequestsForObservedWindow = maxExpectedRequestsInWindow;
+    if (delta === 0) {
+      // Polling is serialized behind in-flight refresh work; if one request
+      // started just before sampling, the 240ms window can observe zero starts.
+      const extraWindowMs = acceleratedPollingIntervalMs * 2;
+      await page.waitForTimeout(extraWindowMs);
+      delta = monitoringRequests - beforeWindow;
+      maxRequestsForObservedWindow = Math.ceil(
+        (remountObservationWindowMs + extraWindowMs) / acceleratedPollingIntervalMs
+      );
+    }
     remountRequestDeltas.push(delta);
     expect(delta).toBeGreaterThan(0);
     // Under accelerated timer mode (>=30s -> 50ms), a 240ms sample can include
     // up to five polling requests without indicating fan-out duplication.
-    expect(delta).toBeLessThanOrEqual(maxExpectedRequestsInWindow);
+    expect(delta).toBeLessThanOrEqual(maxRequestsForObservedWindow);
     await page.goto("about:blank");
   }
 
