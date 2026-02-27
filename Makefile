@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-lane-contract test-adversarial-coverage-contract test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -43,6 +43,7 @@ SHUMA_ENFORCE_HTTPS := $(call strip_wrapping_quotes,$(SHUMA_ENFORCE_HTTPS))
 SHUMA_DEBUG_HEADERS := $(call strip_wrapping_quotes,$(SHUMA_DEBUG_HEADERS))
 SHUMA_RUNTIME_ENV := $(call strip_wrapping_quotes,$(SHUMA_RUNTIME_ENV))
 SHUMA_ADVERSARY_SIM_AVAILABLE := $(call strip_wrapping_quotes,$(SHUMA_ADVERSARY_SIM_AVAILABLE))
+SHUMA_SIM_TELEMETRY_SECRET := $(call strip_wrapping_quotes,$(SHUMA_SIM_TELEMETRY_SECRET))
 SHUMA_FRONTIER_OPENAI_API_KEY := $(call strip_wrapping_quotes,$(SHUMA_FRONTIER_OPENAI_API_KEY))
 SHUMA_FRONTIER_ANTHROPIC_API_KEY := $(call strip_wrapping_quotes,$(SHUMA_FRONTIER_ANTHROPIC_API_KEY))
 SHUMA_FRONTIER_GOOGLE_API_KEY := $(call strip_wrapping_quotes,$(SHUMA_FRONTIER_GOOGLE_API_KEY))
@@ -68,7 +69,7 @@ SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH := $(call strip_wrapping_quotes,$(SHUM
 
 # Inject env-only runtime keys into Spin from .env.local / shell env.
 # This list is the operator-facing copy surface for deploy-time env overrides.
-SPIN_ENV_ONLY_BASE := --env SHUMA_API_KEY=$(SHUMA_API_KEY) --env SHUMA_ADMIN_READONLY_API_KEY=$(SHUMA_ADMIN_READONLY_API_KEY) --env SHUMA_JS_SECRET=$(SHUMA_JS_SECRET) --env SHUMA_POW_SECRET=$(SHUMA_POW_SECRET) --env SHUMA_CHALLENGE_SECRET=$(SHUMA_CHALLENGE_SECRET) --env SHUMA_MAZE_PREVIEW_SECRET=$(SHUMA_MAZE_PREVIEW_SECRET) --env SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) --env SHUMA_HEALTH_SECRET=$(SHUMA_HEALTH_SECRET) --env SHUMA_ADMIN_IP_ALLOWLIST=$(SHUMA_ADMIN_IP_ALLOWLIST) --env SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE=$(SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE) --env SHUMA_EVENT_LOG_RETENTION_HOURS=$(SHUMA_EVENT_LOG_RETENTION_HOURS) --env SHUMA_KV_STORE_FAIL_OPEN=$(SHUMA_KV_STORE_FAIL_OPEN) --env SHUMA_ENFORCE_HTTPS=$(SHUMA_ENFORCE_HTTPS) --env SHUMA_RUNTIME_ENV=$(SHUMA_RUNTIME_ENV) --env SHUMA_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE) --env SHUMA_FRONTIER_OPENAI_API_KEY=$(SHUMA_FRONTIER_OPENAI_API_KEY) --env SHUMA_FRONTIER_ANTHROPIC_API_KEY=$(SHUMA_FRONTIER_ANTHROPIC_API_KEY) --env SHUMA_FRONTIER_GOOGLE_API_KEY=$(SHUMA_FRONTIER_GOOGLE_API_KEY) --env SHUMA_FRONTIER_XAI_API_KEY=$(SHUMA_FRONTIER_XAI_API_KEY) --env SHUMA_FRONTIER_OPENAI_MODEL=$(SHUMA_FRONTIER_OPENAI_MODEL) --env SHUMA_FRONTIER_ANTHROPIC_MODEL=$(SHUMA_FRONTIER_ANTHROPIC_MODEL) --env SHUMA_FRONTIER_GOOGLE_MODEL=$(SHUMA_FRONTIER_GOOGLE_MODEL) --env SHUMA_FRONTIER_XAI_MODEL=$(SHUMA_FRONTIER_XAI_MODEL) --env SHUMA_ENTERPRISE_MULTI_INSTANCE=$(SHUMA_ENTERPRISE_MULTI_INSTANCE) --env SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=$(SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED) --env SHUMA_RATE_LIMITER_REDIS_URL=$(SHUMA_RATE_LIMITER_REDIS_URL) --env SHUMA_BAN_STORE_REDIS_URL=$(SHUMA_BAN_STORE_REDIS_URL) --env SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN=$(SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN) --env SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH=$(SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH)
+SPIN_ENV_ONLY_BASE := --env SHUMA_API_KEY=$(SHUMA_API_KEY) --env SHUMA_ADMIN_READONLY_API_KEY=$(SHUMA_ADMIN_READONLY_API_KEY) --env SHUMA_JS_SECRET=$(SHUMA_JS_SECRET) --env SHUMA_POW_SECRET=$(SHUMA_POW_SECRET) --env SHUMA_CHALLENGE_SECRET=$(SHUMA_CHALLENGE_SECRET) --env SHUMA_MAZE_PREVIEW_SECRET=$(SHUMA_MAZE_PREVIEW_SECRET) --env SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) --env SHUMA_HEALTH_SECRET=$(SHUMA_HEALTH_SECRET) --env SHUMA_ADMIN_IP_ALLOWLIST=$(SHUMA_ADMIN_IP_ALLOWLIST) --env SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE=$(SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE) --env SHUMA_EVENT_LOG_RETENTION_HOURS=$(SHUMA_EVENT_LOG_RETENTION_HOURS) --env SHUMA_KV_STORE_FAIL_OPEN=$(SHUMA_KV_STORE_FAIL_OPEN) --env SHUMA_ENFORCE_HTTPS=$(SHUMA_ENFORCE_HTTPS) --env SHUMA_RUNTIME_ENV=$(SHUMA_RUNTIME_ENV) --env SHUMA_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE) --env SHUMA_SIM_TELEMETRY_SECRET=$(SHUMA_SIM_TELEMETRY_SECRET) --env SHUMA_FRONTIER_OPENAI_API_KEY=$(SHUMA_FRONTIER_OPENAI_API_KEY) --env SHUMA_FRONTIER_ANTHROPIC_API_KEY=$(SHUMA_FRONTIER_ANTHROPIC_API_KEY) --env SHUMA_FRONTIER_GOOGLE_API_KEY=$(SHUMA_FRONTIER_GOOGLE_API_KEY) --env SHUMA_FRONTIER_XAI_API_KEY=$(SHUMA_FRONTIER_XAI_API_KEY) --env SHUMA_FRONTIER_OPENAI_MODEL=$(SHUMA_FRONTIER_OPENAI_MODEL) --env SHUMA_FRONTIER_ANTHROPIC_MODEL=$(SHUMA_FRONTIER_ANTHROPIC_MODEL) --env SHUMA_FRONTIER_GOOGLE_MODEL=$(SHUMA_FRONTIER_GOOGLE_MODEL) --env SHUMA_FRONTIER_XAI_MODEL=$(SHUMA_FRONTIER_XAI_MODEL) --env SHUMA_ENTERPRISE_MULTI_INSTANCE=$(SHUMA_ENTERPRISE_MULTI_INSTANCE) --env SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=$(SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED) --env SHUMA_RATE_LIMITER_REDIS_URL=$(SHUMA_RATE_LIMITER_REDIS_URL) --env SHUMA_BAN_STORE_REDIS_URL=$(SHUMA_BAN_STORE_REDIS_URL) --env SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN=$(SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN) --env SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH=$(SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH)
 SPIN_RUNTIME_CONTROL_ENV := --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_DEBUG_HEADERS=$(SHUMA_DEBUG_HEADERS)
 SPIN_ENV_ONLY := $(SPIN_ENV_ONLY_BASE) $(SPIN_RUNTIME_CONTROL_ENV)
 
@@ -397,9 +398,10 @@ integration-test: test-integration ## Alias for Spin integration tests
 
 test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtures (no server required)
 	@echo "$(CYAN)🧪 Validating adversarial simulation manifest...$(NC)"
-	@python3 -m py_compile scripts/tests/adversarial_simulation_runner.py scripts/tests/adversarial_live_loop.py scripts/tests/adversarial_repeatability.py scripts/tests/adversarial_promote_candidates.py scripts/tests/adversarial_container_runner.py scripts/tests/adversarial_container/worker.py scripts/tests/frontier_lane_attempt.py scripts/tests/frontier_unavailability_policy.py scripts/tests/check_frontier_payload_artifacts.py scripts/tests/check_adversarial_lane_contract.py scripts/tests/check_adversarial_coverage_contract.py
-	@python3 -m unittest scripts/tests/test_adversarial_simulation_runner.py scripts/tests/test_adversarial_live_loop.py scripts/tests/test_adversarial_repeatability.py scripts/tests/test_adversarial_promote_candidates.py scripts/tests/test_adversarial_container_runner.py scripts/tests/test_frontier_lane_and_governance.py scripts/tests/test_adversarial_lane_contract.py scripts/tests/test_adversarial_coverage_contract.py
+	@python3 -m py_compile scripts/tests/adversarial_simulation_runner.py scripts/tests/adversarial_live_loop.py scripts/tests/adversarial_repeatability.py scripts/tests/adversarial_promote_candidates.py scripts/tests/adversarial_container_runner.py scripts/tests/adversarial_container/worker.py scripts/tests/frontier_lane_attempt.py scripts/tests/frontier_unavailability_policy.py scripts/tests/check_frontier_payload_artifacts.py scripts/tests/check_adversarial_lane_contract.py scripts/tests/check_adversarial_sim_tag_contract.py scripts/tests/check_adversarial_coverage_contract.py
+	@python3 -m unittest scripts/tests/test_adversarial_simulation_runner.py scripts/tests/test_adversarial_live_loop.py scripts/tests/test_adversarial_repeatability.py scripts/tests/test_adversarial_promote_candidates.py scripts/tests/test_adversarial_container_runner.py scripts/tests/test_frontier_lane_and_governance.py scripts/tests/test_adversarial_lane_contract.py scripts/tests/test_adversarial_sim_tag_contract.py scripts/tests/test_adversarial_coverage_contract.py
 	@$(MAKE) --no-print-directory test-adversarial-lane-contract
+	@$(MAKE) --no-print-directory test-adversarial-sim-tag-contract
 	@$(MAKE) --no-print-directory test-adversarial-coverage-contract
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile fast_smoke --validate-only
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile abuse_regression --validate-only
@@ -414,6 +416,10 @@ test-adversarial-lane-contract: ## Validate black-box lane capability contract p
 	@echo "$(CYAN)🧪 Validating adversarial lane capability contract...$(NC)"
 	@python3 scripts/tests/check_adversarial_lane_contract.py
 
+test-adversarial-sim-tag-contract: ## Validate simulation tag signing contract parity across runtime/tooling
+	@echo "$(CYAN)🧪 Validating adversarial sim-tag contract...$(NC)"
+	@python3 scripts/tests/check_adversarial_sim_tag_contract.py
+
 test-adversarial-coverage-contract: ## Validate full-coverage contract parity across plan, manifest, and runner
 	@echo "$(CYAN)🧪 Validating adversarial coverage contract...$(NC)"
 	@python3 scripts/tests/check_adversarial_coverage_contract.py
@@ -425,6 +431,7 @@ test-adversarial-sim-selftest: ## Run minimal deterministic simulator self-test 
 test-adversarial-fast: ## Run mandatory fast adversarial matrix (smoke + abuse + Akamai profiles)
 	@echo "$(CYAN)🧪 Running mandatory fast adversarial matrix...$(NC)"
 	@$(MAKE) --no-print-directory test-adversarial-lane-contract || exit 1
+	@$(MAKE) --no-print-directory test-adversarial-sim-tag-contract || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-coverage-contract || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-sim-selftest || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-smoke || exit 1
@@ -464,6 +471,7 @@ test-adversarial-akamai: ## Run Akamai signal fixture smoke profile (requires ru
 
 test-adversarial-coverage: ## Run deterministic full-coverage oracle profile (protected-lane/release blocker; requires running server)
 	@echo "$(CYAN)🧪 Running adversarial coverage profile...$(NC)"
+	@$(MAKE) --no-print-directory test-adversarial-sim-tag-contract || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-coverage-contract || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-sim-selftest || exit 1
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
@@ -747,6 +755,7 @@ env-help: ## Show supported env-only runtime overrides
 	@echo "  SHUMA_DEBUG_HEADERS"
 	@echo "  SHUMA_RUNTIME_ENV"
 	@echo "  SHUMA_ADVERSARY_SIM_AVAILABLE"
+	@echo "  SHUMA_SIM_TELEMETRY_SECRET"
 	@echo "  SHUMA_FRONTIER_OPENAI_API_KEY"
 	@echo "  SHUMA_FRONTIER_ANTHROPIC_API_KEY"
 	@echo "  SHUMA_FRONTIER_GOOGLE_API_KEY"

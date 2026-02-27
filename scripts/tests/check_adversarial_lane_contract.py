@@ -94,6 +94,12 @@ def validate_lane_contract() -> List[str]:
         errors,
     )
     compare_sets(
+        "attacker.required_sim_headers parity (sim-tag contract)",
+        required_sim_headers,
+        set(sim_runner.SIM_TAG_REQUIRED_SIM_HEADERS),
+        errors,
+    )
+    compare_sets(
         "attacker.forbidden_path_prefixes parity",
         forbidden_paths,
         set(sim_runner.ATTACKER_FORBIDDEN_PATH_PREFIXES),
@@ -107,6 +113,7 @@ def validate_lane_contract() -> List[str]:
         "SHUMA_CHALLENGE_SECRET",
         "SHUMA_HEALTH_SECRET",
         "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_SIM_TELEMETRY_SECRET",
     }
     compare_sets(
         "container worker forbidden env keys",

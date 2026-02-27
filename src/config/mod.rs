@@ -1180,6 +1180,7 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_bool_like_var("SHUMA_DEBUG_HEADERS")?;
     validate_optional_runtime_environment_var("SHUMA_RUNTIME_ENV")?;
     validate_optional_bool_like_var("SHUMA_ADVERSARY_SIM_AVAILABLE")?;
+    validate_optional_secret_var("SHUMA_SIM_TELEMETRY_SECRET")?;
     validate_optional_model_id_var("SHUMA_FRONTIER_OPENAI_MODEL")?;
     validate_optional_model_id_var("SHUMA_FRONTIER_ANTHROPIC_MODEL")?;
     validate_optional_model_id_var("SHUMA_FRONTIER_GOOGLE_MODEL")?;
@@ -1307,6 +1308,23 @@ fn validate_optional_model_id_var(name: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_optional_secret_var(name: &str) -> Result<(), String> {
+    let Some(value) = env::var(name).ok() else {
+        return Ok(());
+    };
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Ok(());
+    }
+    if trimmed.contains('\n') || trimmed.contains('\r') {
+        return Err(format!(
+            "Invalid secret env var {} (must not contain newlines)",
+            name
+        ));
+    }
+    Ok(())
+}
+
 fn validate_u64_var(name: &str) -> Result<(), String> {
     let value = env::var(name).map_err(|_| format!("Missing required env var {}", name))?;
     if value.trim().parse::<u64>().is_err() {
@@ -1398,6 +1416,10 @@ pub fn runtime_environment() -> RuntimeEnvironment {
 
 pub fn adversary_sim_available() -> bool {
     env_bool_optional("SHUMA_ADVERSARY_SIM_AVAILABLE", false)
+}
+
+pub fn sim_telemetry_secret() -> Option<String> {
+    env_trimmed_optional("SHUMA_SIM_TELEMETRY_SECRET")
 }
 
 pub fn frontier_summary() -> FrontierSummary {

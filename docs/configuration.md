@@ -27,7 +27,7 @@ This section is the canonical operator explanation of configuration classes.
 `make setup`:
 
 1. Creates `.env.local` from `config/defaults.env` if missing.
-2. Generates local dev secrets in `.env.local` (`SHUMA_API_KEY`, `SHUMA_JS_SECRET`, `SHUMA_FORWARDED_IP_SECRET`).
+2. Generates local dev secrets in `.env.local` (`SHUMA_API_KEY`, `SHUMA_JS_SECRET`, `SHUMA_FORWARDED_IP_SECRET`, `SHUMA_SIM_TELEMETRY_SECRET`).
 3. Runs `make config-seed`, which creates `config:default` when missing and backfills newly introduced admin-editable keys when the record already exists.
 4. Normalizes `.env.local` entries to unquoted `KEY=value` style for consistency.
 
@@ -74,6 +74,7 @@ These are read from process env at runtime (not from <abbr title="Key-Value">KV<
 | `SHUMA_DEBUG_HEADERS` | Yes | `false` | Enables internal debug headers (for example health diagnostics). Keep `false` in production. |
 | `SHUMA_RUNTIME_ENV` | No | `runtime-prod` | Trusted runtime environment class (`runtime-dev` or `runtime-prod`) used for fail-closed dev-only orchestration guards. |
 | `SHUMA_ADVERSARY_SIM_AVAILABLE` | No | `false` | Env-only availability gate for adversary simulation surfaces; dev workflows override to `true`. Runtime-prod must keep this `false`; startup env validation fails fast when `SHUMA_RUNTIME_ENV=runtime-prod` and this is `true`. |
+| `SHUMA_SIM_TELEMETRY_SECRET` | No | empty | Dev/test simulation-tag signing key used to authenticate `x-shuma-sim-*` telemetry headers. Required for adversarial simulation lanes that stamp simulation metadata; keep unset in production where simulation tagging is fail-closed by environment guards. |
 | `SHUMA_FRONTIER_OPENAI_API_KEY` | No | empty | Optional OpenAI API key for frontier adversary planner/attacker/critic roles. |
 | `SHUMA_FRONTIER_ANTHROPIC_API_KEY` | No | empty | Optional Anthropic API key for frontier adversary provider rotation. |
 | `SHUMA_FRONTIER_GOOGLE_API_KEY` | No | empty | Optional Google API key for frontier adversary provider rotation. |

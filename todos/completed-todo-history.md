@@ -34,6 +34,17 @@ Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../
 
 ### P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)
 
+#### SIM2-SF4: Simulation Telemetry Authenticity
+
+- [x] SIM2-SF4-1 Define signed simulation tag contract (`sim-tag.v1`) including canonical fields, HMAC algorithm, timestamp, and nonce requirements.
+- [x] SIM2-SF4-2 Add env-only signing secret lifecycle wiring (defaults/bootstrap/setup/docs) for dev/test simulation environments.
+- [x] SIM2-SF4-3 Implement runtime signature/timestamp/nonce validation in `sim_telemetry` before activating simulation context.
+- [x] SIM2-SF4-4 Add nonce replay-window enforcement and bounded state handling for simulation tag verification.
+- [x] SIM2-SF4-5 Update deterministic runner and container worker to emit valid signed simulation metadata.
+- [x] SIM2-SF4-6 Add observability and event taxonomy for invalid simulation tag attempts and verification failures.
+- [x] SIM2-SF4-7 Add unit/integration/adversarial tests for valid/invalid/stale/replay simulation-tag paths.
+- [x] SIM2-SF4-8 Update operator docs for simulation-signing setup, key rotation, and failure troubleshooting.
+
 #### SIM2-SF3: Traffic-Model Execution Realism
 
 - [x] SIM2-SF3-1 Implement deterministic traffic-execution policy layer that all drivers must pass through.

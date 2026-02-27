@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import hmac
 import json
 import os
 import subprocess
@@ -21,6 +23,7 @@ DEFAULT_WORKER_PATH = "scripts/tests/adversarial_container/worker.py"
 DEFAULT_DOCKERFILE_PATH = "scripts/tests/adversarial_container/Dockerfile"
 DEFAULT_BLACKBOX_REPORT = "scripts/tests/adversarial/container_blackbox_report.json"
 DEFAULT_ISOLATION_REPORT = "scripts/tests/adversarial/container_isolation_report.json"
+SIM_TAG_CONTRACT_PATH = "scripts/tests/adversarial/sim_tag_contract.v1.json"
 FORBIDDEN_ENV_PREFIXES = ("SHUMA_",)
 FORBIDDEN_ENV_KEYS = {
     "SHUMA_API_KEY",
@@ -29,7 +32,37 @@ FORBIDDEN_ENV_KEYS = {
     "SHUMA_CHALLENGE_SECRET",
     "SHUMA_HEALTH_SECRET",
     "SHUMA_FORWARDED_IP_SECRET",
+    "SHUMA_SIM_TELEMETRY_SECRET",
 }
+
+
+def load_sim_tag_contract(path: str = SIM_TAG_CONTRACT_PATH) -> Dict[str, Any]:
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise RuntimeError("sim tag contract must be a JSON object")
+    schema_version = str(payload.get("schema_version") or "").strip()
+    if schema_version != "sim-tag-contract.v1":
+        raise RuntimeError(
+            f"sim tag contract schema_version must be sim-tag-contract.v1 (got {schema_version})"
+        )
+    return payload
+
+
+SIM_TAG_CONTRACT = load_sim_tag_contract()
+SIM_TAG_HEADERS = {
+    str(key): str(value).strip().lower()
+    for key, value in dict(SIM_TAG_CONTRACT.get("headers") or {}).items()
+    if str(key).strip() and str(value).strip()
+}
+SIM_TAG_HEADER_TIMESTAMP = SIM_TAG_HEADERS.get("sim_timestamp", "x-shuma-sim-ts")
+SIM_TAG_HEADER_NONCE = SIM_TAG_HEADERS.get("sim_nonce", "x-shuma-sim-nonce")
+SIM_TAG_HEADER_SIGNATURE = SIM_TAG_HEADERS.get("sim_signature", "x-shuma-sim-signature")
+SIM_TAG_CANONICAL_PREFIX = str(
+    dict(SIM_TAG_CONTRACT.get("canonical") or {}).get("prefix") or "sim-tag.v1"
+).strip()
+SIM_TAG_CANONICAL_SEPARATOR = str(
+    dict(SIM_TAG_CONTRACT.get("canonical") or {}).get("separator") or "\n"
+)
 
 
 def normalize_container_base_url(base_url: str) -> str:
@@ -67,6 +100,59 @@ def docker_available() -> bool:
 
 def run_cmd(command: List[str], *, env: Dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, capture_output=True, text=True, check=False, env=env)
+
+
+def build_sim_tag_canonical_message(
+    run_id: str, profile: str, lane: str, timestamp: str, nonce: str
+) -> str:
+    parts = [
+        SIM_TAG_CANONICAL_PREFIX,
+        str(run_id).strip(),
+        str(profile).strip(),
+        str(lane).strip(),
+        str(timestamp).strip(),
+        str(nonce).strip(),
+    ]
+    return SIM_TAG_CANONICAL_SEPARATOR.join(parts)
+
+
+def sign_sim_tag(
+    secret: str, run_id: str, profile: str, lane: str, timestamp: str, nonce: str
+) -> str:
+    message = build_sim_tag_canonical_message(run_id, profile, lane, timestamp, nonce)
+    return hmac.new(
+        str(secret).encode("utf-8"),
+        message.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def build_sim_tag_envelopes(
+    *,
+    secret: str,
+    run_id: str,
+    profile: str,
+    lane: str,
+    count: int,
+) -> List[Dict[str, str]]:
+    count = max(0, int(count))
+    if not secret or count == 0:
+        return []
+    timestamp = str(int(time.time()))
+    envelopes: List[Dict[str, str]] = []
+    for index in range(count):
+        nonce_raw = f"{run_id}:{profile}:{lane}:{timestamp}:{index + 1}"
+        nonce = hashlib.sha256(nonce_raw.encode("utf-8")).hexdigest()[:24]
+        signature = sign_sim_tag(
+            secret=secret,
+            run_id=run_id,
+            profile=profile,
+            lane=lane,
+            timestamp=timestamp,
+            nonce=nonce,
+        )
+        envelopes.append({"ts": timestamp, "nonce": nonce, "signature": signature})
+    return envelopes
 
 
 def ensure_image_built(image_tag: str, dockerfile_path: str) -> None:
@@ -173,6 +259,7 @@ def container_command(
     run_id: str,
     request_budget: int,
     time_budget_seconds: int,
+    sim_tag_envelopes_json: str,
 ) -> List[str]:
     command = [
         "docker",
@@ -199,6 +286,8 @@ def container_command(
         f"BLACKBOX_REQUEST_BUDGET={request_budget}",
         "-e",
         f"BLACKBOX_TIME_BUDGET_SECONDS={time_budget_seconds}",
+        "-e",
+        f"BLACKBOX_SIM_TAG_ENVELOPES={sim_tag_envelopes_json}",
         image_tag,
     ]
     return command
@@ -212,6 +301,7 @@ def run_container_worker(
     run_id: str,
     request_budget: int,
     time_budget_seconds: int,
+    sim_tag_envelopes_json: str,
 ) -> Tuple[Dict[str, Any], subprocess.CompletedProcess[str], List[str]]:
     command = container_command(
         image_tag=image_tag,
@@ -221,6 +311,7 @@ def run_container_worker(
         run_id=run_id,
         request_budget=request_budget,
         time_budget_seconds=time_budget_seconds,
+        sim_tag_envelopes_json=sim_tag_envelopes_json,
     )
     result = run_cmd(command)
     parsed = parse_worker_json(result.stdout)
@@ -294,15 +385,32 @@ def main() -> int:
     forwarded_secret = os.environ.get("SHUMA_FORWARDED_IP_SECRET", "").strip()
     health_secret = os.environ.get("SHUMA_HEALTH_SECRET", "").strip()
     api_key = os.environ.get("SHUMA_API_KEY", "").strip()
+    sim_tag_secret = os.environ.get("SHUMA_SIM_TELEMETRY_SECRET", "").strip()
+    sim_tag_envelopes: List[Dict[str, str]] = []
     orchestrator_hook = {"hook": "orchestrator_reset", "performed": False, "reason": "not_applicable"}
 
     if args.mode == "blackbox":
+        if not sim_tag_secret:
+            print(
+                "[adversarial-container] missing SHUMA_SIM_TELEMETRY_SECRET for blackbox sim-tag envelopes",
+                file=sys.stderr,
+            )
+            return 1
         try:
             wait_ready(host_base_url, forwarded_secret, health_secret, timeout_seconds=30)
         except Exception as exc:
             print(f"[adversarial-container] {exc}", file=sys.stderr)
             return 1
         orchestrator_hook = orchestrator_reset_hook(host_base_url, api_key, forwarded_secret)
+        sim_tag_envelopes = build_sim_tag_envelopes(
+            secret=sim_tag_secret,
+            run_id=run_id,
+            profile=args.mode,
+            lane="container_blackbox",
+            count=request_budget,
+        )
+
+    sim_tag_envelopes_json = json.dumps(sim_tag_envelopes, separators=(",", ":"))
 
     try:
         worker_payload, worker_result, command = run_container_worker(
@@ -313,6 +421,7 @@ def main() -> int:
             run_id=run_id,
             request_budget=request_budget,
             time_budget_seconds=time_budget_seconds,
+            sim_tag_envelopes_json=sim_tag_envelopes_json,
         )
     except Exception as exc:
         print(f"[adversarial-container] worker execution failed: {exc}", file=sys.stderr)

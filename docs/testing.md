@@ -144,6 +144,7 @@ Available profiles:
 - `make test-adversarial-soak` - deep soak alias for `full_coverage` (scheduled/manual gate)
 - `make test-adversarial-manifest` - schema/fixture validation without server
 - `make test-adversarial-lane-contract` - black-box attacker/control capability contract parity check across deterministic/container tooling
+- `make test-adversarial-sim-tag-contract` - signed simulation-tag contract parity check across lane contract, runner, and container worker
 - `make test-adversarial-coverage-contract` - canonical `full_coverage` contract parity check across SIM2 plan rows, manifests, and runner enforcement
 - `make test-adversarial-live` - repeated live traffic generator for operator monitoring drills
 - `make test-adversarial-repeatability` - deterministic replay consistency gate across `fast_smoke`, `abuse_regression`, and `full_coverage`
@@ -202,13 +203,18 @@ Live loop controls:
 - Runner also emits `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
 - Promotion lane emits `scripts/tests/adversarial/promotion_candidates_report.json` with candidate -> replay -> promotion lineage and owner-review requirements.
 - Frontier threshold lane emits `scripts/tests/adversarial/frontier_unavailability_policy.json` and can auto-open/assign model-refresh action when protected-lane degradation thresholds are exceeded.
-- Deterministic and container black-box runners now stamp attacker-plane traffic with simulation headers:
+- Deterministic and container black-box runners now stamp attacker-plane traffic with signed simulation headers:
   - `X-Shuma-Sim-Run-Id`
   - `X-Shuma-Sim-Profile`
   - `X-Shuma-Sim-Lane`
+  - `X-Shuma-Sim-Ts`
+  - `X-Shuma-Sim-Nonce`
+  - `X-Shuma-Sim-Signature`
   The canonical lane contract is versioned in `scripts/tests/adversarial/lane_contract.v1.json`.
+  The signing contract is versioned in `scripts/tests/adversarial/sim_tag_contract.v1.json`.
   Attacker-plane requests must not include privileged headers (including `X-Shuma-Forwarded-Secret`).
-  Runtime tagging is accepted only when `SHUMA_RUNTIME_ENV=runtime-dev` and `SHUMA_ADVERSARY_SIM_AVAILABLE=true`.
+  Runtime tagging is accepted only when `SHUMA_RUNTIME_ENV=runtime-dev`, `SHUMA_ADVERSARY_SIM_AVAILABLE=true`, and signature/timestamp/nonce verification succeeds under `SHUMA_SIM_TELEMETRY_SECRET`.
+  Container black-box workers receive bounded pre-signed sim-tag envelopes from the host runner (no runtime signing secret is injected into the container).
 - `latest_report.json` includes quantitative `gates` and separate `coverage_gates` sections with per-check `threshold_source`.
 - `latest_report.json` also includes `cohort_metrics` (persona-level collateral/latency summaries) and `ip_range_suggestions` seed evidence for `full_coverage`.
 - `latest_report.json` includes `realism_metrics` and `realism_gates` proving runtime execution behavior for traffic-model pacing, retry envelopes, and state-mode handling (`stateless`, `stateful_cookie_jar`, `cookie_reset_each_request`).
@@ -217,8 +223,8 @@ Live loop controls:
 
 `make test` runs `test-adversarial-fast` (which executes `test-adversarial-smoke`, `test-adversarial-abuse`, and `test-adversarial-akamai`) in sequence.
 `make test-adversarial-soak` runs `test-adversarial-coverage` (`full_coverage`) for deeper scheduled/manual validation.
-`test-adversarial-fast` enforces both `test-adversarial-lane-contract` and `test-adversarial-coverage-contract` before running profile lanes.
-`test-adversarial-coverage` enforces `test-adversarial-coverage-contract` and `test-frontier-governance` after artifact generation.
+`test-adversarial-fast` enforces `test-adversarial-lane-contract`, `test-adversarial-sim-tag-contract`, and `test-adversarial-coverage-contract` before running profile lanes.
+`test-adversarial-coverage` enforces `test-adversarial-sim-tag-contract`, `test-adversarial-coverage-contract`, and `test-frontier-governance` after artifact generation.
 `test-adversarial-coverage` forces deterministic cleanup plus per-run scenario-IP rotation (`SHUMA_ADVERSARIAL_PRESERVE_STATE=0`, `SHUMA_ADVERSARIAL_ROTATE_IPS=1`) to avoid stale local cadence/persistence collisions.
 Monitoring tab now includes explicit tarpit progression telemetry (activations, progression outcomes, budget fallbacks, escalation outcomes, and top active bucket) sourced from `/admin/monitoring`.
 Container black-box controls:

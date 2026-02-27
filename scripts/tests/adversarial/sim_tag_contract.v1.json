@@ -1,0 +1,35 @@
+{
+  "schema_version": "sim-tag-contract.v1",
+  "algorithm": "hmac-sha256",
+  "signature_encoding": "hex_lower",
+  "headers": {
+    "sim_run_id": "x-shuma-sim-run-id",
+    "sim_profile": "x-shuma-sim-profile",
+    "sim_lane": "x-shuma-sim-lane",
+    "sim_timestamp": "x-shuma-sim-ts",
+    "sim_nonce": "x-shuma-sim-nonce",
+    "sim_signature": "x-shuma-sim-signature"
+  },
+  "required_sim_headers": [
+    "x-shuma-sim-run-id",
+    "x-shuma-sim-profile",
+    "x-shuma-sim-lane",
+    "x-shuma-sim-ts",
+    "x-shuma-sim-nonce",
+    "x-shuma-sim-signature"
+  ],
+  "canonical": {
+    "prefix": "sim-tag.v1",
+    "separator": "\n",
+    "ordered_fields": [
+      "sim_run_id",
+      "sim_profile",
+      "sim_lane",
+      "sim_timestamp",
+      "sim_nonce"
+    ]
+  },
+  "timestamp_max_skew_seconds": 300,
+  "nonce_ttl_seconds": 600,
+  "nonce_max_entries": 4096
+}

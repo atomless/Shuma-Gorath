@@ -58,24 +58,6 @@ Plan bundle:
 4. [`docs/plans/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity-plan.md`](../docs/plans/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity-plan.md)
 5. [`docs/plans/2026-02-27-sim2-orchestration-capability-architecture-plan.md`](../docs/plans/2026-02-27-sim2-orchestration-capability-architecture-plan.md)
 
-### SIM2-SF4: Simulation Telemetry Authenticity
-
-- [ ] SIM2-SF4-1 Define signed simulation tag contract (`sim-tag.v1`) including canonical fields, HMAC algorithm, timestamp, and nonce requirements.
-- [ ] SIM2-SF4-2 Add env-only signing secret lifecycle wiring (defaults/bootstrap/setup/docs) for dev/test simulation environments.
-- [ ] SIM2-SF4-3 Implement runtime signature/timestamp/nonce validation in `sim_telemetry` before activating simulation context.
-- [ ] SIM2-SF4-4 Add nonce replay-window enforcement and bounded state handling for simulation tag verification.
-- [ ] SIM2-SF4-5 Update deterministic runner and container worker to emit valid signed simulation metadata.
-- [ ] SIM2-SF4-6 Add observability and event taxonomy for invalid simulation tag attempts and verification failures.
-- [ ] SIM2-SF4-7 Add unit/integration/adversarial tests for valid/invalid/stale/replay simulation-tag paths.
-- [ ] SIM2-SF4-8 Update operator docs for simulation-signing setup, key rotation, and failure troubleshooting.
-
-Acceptance criteria:
-1. Unsigned or invalid simulation-tag headers never activate simulation context.
-2. Replay/stale/forged simulation tags are rejected and observable.
-3. Valid signed simulation requests continue to route into simulation telemetry partition in runtime-dev only.
-4. Production behavior remains fail-closed (no simulation context activation path).
-5. Adversarial make-target suite remains green under signed metadata enforcement.
-
 ### SIM2-ARCH: Functional Orchestration and Capability-by-Construction Uplift
 
 - [ ] SIM2-ARCH-1 Publish ADR for functional-core/imperative-shell orchestration and explicit capability model (trust boundaries, migration order, rollback).

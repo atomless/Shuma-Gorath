@@ -14,6 +14,21 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         origin = container_runner.target_origin("https://example.com:8443/path?q=1")
         self.assertEqual(origin, "https://example.com:8443")
 
+    def test_build_sim_tag_envelopes_uses_unique_nonces(self):
+        envelopes = container_runner.build_sim_tag_envelopes(
+            secret="sim-secret",
+            run_id="run-123",
+            profile="blackbox",
+            lane="container_blackbox",
+            count=3,
+        )
+        self.assertEqual(len(envelopes), 3)
+        nonces = {entry["nonce"] for entry in envelopes}
+        self.assertEqual(len(nonces), 3)
+        for entry in envelopes:
+            self.assertTrue(entry["ts"])
+            self.assertTrue(entry["signature"])
+
     def test_container_command_includes_hardening_flags(self):
         command = container_runner.container_command(
             image_tag="test:image",
@@ -23,6 +38,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
             run_id="run-123",
             request_budget=12,
             time_budget_seconds=90,
+            sim_tag_envelopes_json='[{"ts":"1","nonce":"n","signature":"s"}]',
         )
         joined = " ".join(command)
         self.assertIn("--read-only", joined)
@@ -30,6 +46,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         self.assertIn("--security-opt=no-new-privileges", joined)
         self.assertIn("--tmpfs=/tmp:rw,nosuid,nodev,size=64m", joined)
         self.assertIn("--add-host=host.docker.internal:host-gateway", joined)
+        self.assertIn("BLACKBOX_SIM_TAG_ENVELOPES=", joined)
 
 
 if __name__ == "__main__":

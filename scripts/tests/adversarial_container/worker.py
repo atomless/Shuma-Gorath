@@ -21,6 +21,7 @@ FORBIDDEN_ENV_KEYS = {
     "SHUMA_CHALLENGE_SECRET",
     "SHUMA_HEALTH_SECRET",
     "SHUMA_FORWARDED_IP_SECRET",
+    "SHUMA_SIM_TELEMETRY_SECRET",
 }
 DEFAULT_ENDPOINTS = (
     "/",
@@ -31,6 +32,7 @@ DEFAULT_ENDPOINTS = (
     "/sim/public/search?q=adversarial+simulation",
 )
 LANE_CONTRACT_PATH = Path("scripts/tests/adversarial/lane_contract.v1.json")
+SIM_TAG_CONTRACT_PATH = Path("scripts/tests/adversarial/sim_tag_contract.v1.json")
 
 
 def bool_env(name: str, default: bool = False) -> bool:
@@ -67,6 +69,41 @@ def load_lane_contract(path: Path = LANE_CONTRACT_PATH) -> Dict[str, Any]:
     return payload
 
 
+def load_sim_tag_contract(path: Path = SIM_TAG_CONTRACT_PATH) -> Dict[str, Any]:
+    if not path.exists():
+        raise RuntimeError(f"sim tag contract not found: {path}")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise RuntimeError("sim tag contract must be a JSON object")
+    schema_version = str(payload.get("schema_version") or "").strip()
+    if schema_version != "sim-tag-contract.v1":
+        raise RuntimeError(
+            f"sim tag contract schema_version must be sim-tag-contract.v1 (got {schema_version})"
+        )
+    return payload
+
+
+SIM_TAG_CONTRACT = load_sim_tag_contract()
+SIM_TAG_HEADERS = {
+    str(key): str(value).strip().lower()
+    for key, value in dict(SIM_TAG_CONTRACT.get("headers") or {}).items()
+    if str(key).strip() and str(value).strip()
+}
+SIM_TAG_HEADER_RUN_ID = SIM_TAG_HEADERS.get("sim_run_id", "x-shuma-sim-run-id")
+SIM_TAG_HEADER_PROFILE = SIM_TAG_HEADERS.get("sim_profile", "x-shuma-sim-profile")
+SIM_TAG_HEADER_LANE = SIM_TAG_HEADERS.get("sim_lane", "x-shuma-sim-lane")
+SIM_TAG_HEADER_TIMESTAMP = SIM_TAG_HEADERS.get("sim_timestamp", "x-shuma-sim-ts")
+SIM_TAG_HEADER_NONCE = SIM_TAG_HEADERS.get("sim_nonce", "x-shuma-sim-nonce")
+SIM_TAG_HEADER_SIGNATURE = SIM_TAG_HEADERS.get("sim_signature", "x-shuma-sim-signature")
+SIM_TAG_CANONICAL_PREFIX = str(
+    dict(SIM_TAG_CONTRACT.get("canonical") or {}).get("prefix") or "sim-tag.v1"
+).strip()
+SIM_TAG_CANONICAL_SEPARATOR = str(
+    dict(SIM_TAG_CONTRACT.get("canonical") or {}).get("separator") or "\n"
+)
+SIM_TAG_ENVELOPE_ENV = "BLACKBOX_SIM_TAG_ENVELOPES"
+
+
 def lane_required_sim_headers(lane_contract: Dict[str, Any]) -> List[str]:
     attacker = lane_contract.get("attacker")
     if not isinstance(attacker, dict):
@@ -85,6 +122,30 @@ def lane_forbidden_headers(lane_contract: Dict[str, Any]) -> List[str]:
     if not isinstance(headers, list):
         return []
     return [str(item).strip().lower() for item in headers if str(item).strip()]
+
+
+def parse_sim_tag_envelopes(raw_value: str) -> List[Dict[str, str]]:
+    text = str(raw_value or "").strip()
+    if not text:
+        return []
+    try:
+        payload = json.loads(text)
+    except Exception:
+        return []
+    if not isinstance(payload, list):
+        return []
+
+    envelopes: List[Dict[str, str]] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            return []
+        timestamp = str(item.get("ts") or "").strip()
+        nonce = str(item.get("nonce") or "").strip()
+        signature = str(item.get("signature") or "").strip()
+        if not timestamp or not nonce or not signature:
+            return []
+        envelopes.append({"ts": timestamp, "nonce": nonce, "signature": signature})
+    return envelopes
 
 
 def workspace_mount_absent() -> bool:
@@ -213,12 +274,22 @@ def main() -> int:
 
     statuses: List[int] = []
     errors: List[str] = []
+    sim_tag_envelopes = parse_sim_tag_envelopes(os.environ.get(SIM_TAG_ENVELOPE_ENV, ""))
+    if not sim_tag_envelopes:
+        errors.append("missing_or_invalid_sim_tag_envelopes")
     sim_headers = {
-        "X-Shuma-Sim-Run-Id": run_id,
-        "X-Shuma-Sim-Profile": mode,
-        "X-Shuma-Sim-Lane": "container_blackbox",
+        SIM_TAG_HEADER_RUN_ID: run_id,
+        SIM_TAG_HEADER_PROFILE: mode,
+        SIM_TAG_HEADER_LANE: "container_blackbox",
     }
-    sim_header_names = {key.strip().lower() for key in sim_headers.keys()}
+    sim_header_names = {
+        SIM_TAG_HEADER_RUN_ID,
+        SIM_TAG_HEADER_PROFILE,
+        SIM_TAG_HEADER_LANE,
+        SIM_TAG_HEADER_TIMESTAMP,
+        SIM_TAG_HEADER_NONCE,
+        SIM_TAG_HEADER_SIGNATURE,
+    }
     required_sim_headers = set(lane_required_sim_headers(lane_contract))
     missing_sim_headers = sorted([header for header in required_sim_headers if header not in sim_header_names])
     if missing_sim_headers:
@@ -234,14 +305,22 @@ def main() -> int:
             break
         if requests_sent >= request_budget:
             break
+        if requests_sent >= len(sim_tag_envelopes):
+            errors.append("sim_tag_envelopes_exhausted")
+            break
         if (time.monotonic() - start) >= time_budget_seconds:
             errors.append("time_budget_exhausted")
             break
+        envelope = sim_tag_envelopes[requests_sent]
+        request_headers = dict(sim_headers)
+        request_headers[SIM_TAG_HEADER_TIMESTAMP] = envelope["ts"]
+        request_headers[SIM_TAG_HEADER_NONCE] = envelope["nonce"]
+        request_headers[SIM_TAG_HEADER_SIGNATURE] = envelope["signature"]
         url = f"{base_url}{endpoint}"
         if not enforce_allowlist(url, allowed_origins):
             errors.append(f"egress_disallowed:{url}")
             break
-        result = make_request(url, sim_headers)
+        result = make_request(url, request_headers)
         payload["traffic"].append(result)
         requests_sent += 1
         statuses.append(int(result.get("status", 0)))

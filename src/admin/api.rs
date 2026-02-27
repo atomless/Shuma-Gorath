@@ -110,7 +110,7 @@ const IP_RANGE_MAX_CIDRS_PER_RULE: usize = 512;
 const IP_RANGE_MAX_EMERGENCY_ALLOWLIST: usize = 1024;
 const IP_RANGE_CUSTOM_MESSAGE_MAX_CHARS: usize = 280;
 const IP_RANGE_REDIRECT_URL_MAX_CHARS: usize = 512;
-const CONFIG_EXPORT_SECRET_KEYS: [&str; 14] = [
+const CONFIG_EXPORT_SECRET_KEYS: [&str; 15] = [
     "SHUMA_API_KEY",
     "SHUMA_ADMIN_READONLY_API_KEY",
     "SHUMA_JS_SECRET",
@@ -119,6 +119,7 @@ const CONFIG_EXPORT_SECRET_KEYS: [&str; 14] = [
     "SHUMA_MAZE_PREVIEW_SECRET",
     "SHUMA_FORWARDED_IP_SECRET",
     "SHUMA_HEALTH_SECRET",
+    "SHUMA_SIM_TELEMETRY_SECRET",
     "SHUMA_FRONTIER_OPENAI_API_KEY",
     "SHUMA_FRONTIER_ANTHROPIC_API_KEY",
     "SHUMA_FRONTIER_GOOGLE_API_KEY",
@@ -945,6 +946,7 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_CHALLENGE_SECRET", "challenge-secret");
         std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "forwarded-secret");
         std::env::set_var("SHUMA_HEALTH_SECRET", "health-secret");
+        std::env::set_var("SHUMA_SIM_TELEMETRY_SECRET", "sim-telemetry-secret");
         std::env::set_var("SHUMA_FRONTIER_OPENAI_API_KEY", "frontier-openai-secret");
         std::env::set_var("SHUMA_FRONTIER_ANTHROPIC_API_KEY", "frontier-anthropic-secret");
         std::env::set_var("SHUMA_FRONTIER_GOOGLE_API_KEY", "frontier-google-secret");
@@ -985,6 +987,7 @@ mod admin_config_tests {
             "SHUMA_CHALLENGE_SECRET",
             "SHUMA_FORWARDED_IP_SECRET",
             "SHUMA_HEALTH_SECRET",
+            "SHUMA_SIM_TELEMETRY_SECRET",
             "SHUMA_FRONTIER_OPENAI_API_KEY",
             "SHUMA_FRONTIER_ANTHROPIC_API_KEY",
             "SHUMA_FRONTIER_GOOGLE_API_KEY",

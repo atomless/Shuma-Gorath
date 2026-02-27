@@ -942,6 +942,13 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         Err(response) => return response,
     };
     let store = &store;
+    if let Some(sim_tag_failure) = runtime::sim_telemetry::take_last_validation_failure() {
+        observability::metrics::record_policy_signal(store, sim_tag_failure.signal_id());
+        log_line(&format!(
+            "[SIM TAG] rejected reason={}",
+            sim_tag_failure.as_str()
+        ));
+    }
 
     let cfg = match load_runtime_config(store, site_id, path) {
         Ok(cfg) => cfg,

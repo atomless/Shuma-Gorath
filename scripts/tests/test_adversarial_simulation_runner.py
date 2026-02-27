@@ -67,6 +67,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             {
                 "SHUMA_API_KEY": "test-api-key",
                 "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
             },
             clear=False,
         ):
@@ -80,9 +81,12 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
                 report_path=Path("scripts/tests/adversarial/latest_report.json"),
             )
             headers = sim_runner.forwarded_headers("10.0.0.11", user_agent="UnitTest/1.0")
-            self.assertIn("X-Shuma-Sim-Run-Id", headers)
-            self.assertEqual(headers.get("X-Shuma-Sim-Profile"), "test_profile")
-            self.assertEqual(headers.get("X-Shuma-Sim-Lane"), "deterministic_black_box")
+            self.assertIn(runner.SIM_TAG_HEADER_RUN_ID, headers)
+            self.assertEqual(headers.get(runner.SIM_TAG_HEADER_PROFILE), "test_profile")
+            self.assertEqual(headers.get(runner.SIM_TAG_HEADER_LANE), "deterministic_black_box")
+            self.assertIn(runner.SIM_TAG_HEADER_TIMESTAMP, headers)
+            self.assertIn(runner.SIM_TAG_HEADER_NONCE, headers)
+            self.assertIn(runner.SIM_TAG_HEADER_SIGNATURE, headers)
             self.assertNotIn("X-Shuma-Forwarded-Secret", headers)
 
     def test_build_frontier_metadata_reports_disabled_single_and_multi_modes(self):
@@ -520,6 +524,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             {
                 "SHUMA_API_KEY": "test-api-key",
                 "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
             },
             clear=False,
         ):
@@ -577,6 +582,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             {
                 "SHUMA_API_KEY": "test-api-key",
                 "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
             },
             clear=False,
         ):
@@ -624,7 +630,16 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
     def test_enforce_attacker_request_contract_allows_public_path_without_privileged_headers(self):
         runner.enforce_attacker_request_contract(
             "http://127.0.0.1:3000/challenge/not-a-bot-checkbox",
-            {"X-Forwarded-For": "10.0.0.1", "User-Agent": "UnitTest/1.0"},
+            {
+                "X-Forwarded-For": "10.0.0.1",
+                "User-Agent": "UnitTest/1.0",
+                runner.SIM_TAG_HEADER_RUN_ID: "run-1",
+                runner.SIM_TAG_HEADER_PROFILE: "fast_smoke",
+                runner.SIM_TAG_HEADER_LANE: "deterministic_black_box",
+                runner.SIM_TAG_HEADER_TIMESTAMP: "1700000000",
+                runner.SIM_TAG_HEADER_NONCE: "nonce-1",
+                runner.SIM_TAG_HEADER_SIGNATURE: "a" * 64,
+            },
         )
 
 

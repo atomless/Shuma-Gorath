@@ -14,6 +14,7 @@ Use this guide for:
 - `make test-adversarial-live`
 - `make test-adversarial-repeatability`
 - `make test-adversarial-promote-candidates`
+- `make test-adversarial-sim-tag-contract`
 - `make test-frontier-unavailability-policy`
 - `make test-adversarial-container-isolation`
 - `make test-adversarial-container-blackbox`
@@ -24,6 +25,7 @@ Promotion triage emits `scripts/tests/adversarial/promotion_candidates_report.js
 Frontier threshold policy emits `scripts/tests/adversarial/frontier_unavailability_policy.json`.
 All manifests and reports are locked to `execution_lane=black_box`; non-black-box lane values are rejected at validation time.
 Lane capability boundaries are versioned in `scripts/tests/adversarial/lane_contract.v1.json` and validated by `make test-adversarial-lane-contract`.
+Simulation-tag signing contract is versioned in `scripts/tests/adversarial/sim_tag_contract.v1.json` and validated by `make test-adversarial-sim-tag-contract`.
 Full-coverage category obligations are versioned in `scripts/tests/adversarial/coverage_contract.v1.json` and validated by `make test-adversarial-coverage-contract`.
 `make test-adversarial-live` now classifies failures as `transient` or `fatal`, retries transient cycles with capped backoff, and only terminates after `ADVERSARIAL_FATAL_CYCLE_LIMIT` consecutive fatal cycles.
 Container lane emits:
@@ -69,12 +71,46 @@ Adversary-generated traffic is tagged at request time with:
 1. `sim_run_id`
 2. `sim_profile`
 3. `sim_lane`
+4. `sim_ts`
+5. `sim_nonce`
+6. `sim_signature` (HMAC-SHA256 over canonical `sim-tag.v1` message)
 
 Storage and read-path policy:
 
 1. Simulation telemetry uses dedicated namespaces (`eventlog:v2:sim:*`, `monitoring:v1:sim:*`).
 2. Admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`) support `include_sim=1` in dev runtime.
 3. Non-dev runtime remains default-safe: simulation rows/counters are excluded even if `include_sim=1` is requested.
+4. Unsigned/invalid/stale/replayed simulation tags must not activate simulation context; requests stay in normal telemetry partition.
+5. Invalid simulation-tag attempts emit explicit policy-signal telemetry:
+   - `S_SIM_TAG_MISSING_SECRET`
+   - `S_SIM_TAG_MISSING_REQUIRED_HEADERS`
+   - `S_SIM_TAG_INVALID_HEADER_VALUE`
+   - `S_SIM_TAG_INVALID_TIMESTAMP`
+   - `S_SIM_TAG_TIMESTAMP_SKEW`
+   - `S_SIM_TAG_SIGNATURE_MISMATCH`
+   - `S_SIM_TAG_NONCE_REPLAY`
+
+Containerized attacker-lane handling:
+
+1. Container black-box workers must not receive `SHUMA_*` secrets (including `SHUMA_SIM_TELEMETRY_SECRET`).
+2. Host orchestrator issues bounded pre-signed sim-tag envelopes per run and passes only those non-secret envelopes into the container.
+3. Replay-window checks in runtime enforce one-use nonce semantics for signed tags.
+
+## Sim-Tag Secret Rotation and Troubleshooting
+
+Rotation policy:
+
+1. Rotate `SHUMA_SIM_TELEMETRY_SECRET` whenever adversarial runner hosts are reprovisioned or when simulation-tag validation anomalies are detected.
+2. Rotate by updating the secret in `.env.local`/deploy environment, restarting runtime-dev, and re-running `make test-adversarial-fast`.
+3. Do not share this secret with containerized attacker lanes; only deterministic host-side signers should hold it.
+
+Troubleshooting sequence for failed sim tagging:
+
+1. Confirm runtime guards: `SHUMA_RUNTIME_ENV=runtime-dev` and `SHUMA_ADVERSARY_SIM_AVAILABLE=true`.
+2. Confirm secret presence on host runner and runtime process: `SHUMA_SIM_TELEMETRY_SECRET` is non-empty.
+3. Run `make test-adversarial-sim-tag-contract` to verify contract parity.
+4. Inspect `/metrics` for `bot_defence_policy_signals_total{signal=\"S_SIM_TAG_*\"}` counters and identify dominant failure reason.
+5. If failures persist, restart `make dev` to clear stale process env and rerun `make test-adversarial-fast`.
 
 ## Frontier Architecture Modes
 

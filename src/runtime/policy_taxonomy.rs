@@ -137,6 +137,13 @@ pub enum SignalId {
     DecoyInteraction,
     TarpitPersistence,
     IpRangeCustom,
+    SimTagMissingSecret,
+    SimTagMissingRequiredHeaders,
+    SimTagInvalidHeaderValue,
+    SimTagInvalidTimestamp,
+    SimTagTimestampSkew,
+    SimTagSignatureMismatch,
+    SimTagNonceReplay,
 }
 
 impl SignalId {
@@ -190,6 +197,13 @@ impl SignalId {
             SignalId::DecoyInteraction => "S_DECOY_INTERACTION",
             SignalId::TarpitPersistence => "S_TARPIT_PERSISTENCE",
             SignalId::IpRangeCustom => "S_IP_RANGE_CUSTOM",
+            SignalId::SimTagMissingSecret => "S_SIM_TAG_MISSING_SECRET",
+            SignalId::SimTagMissingRequiredHeaders => "S_SIM_TAG_MISSING_REQUIRED_HEADERS",
+            SignalId::SimTagInvalidHeaderValue => "S_SIM_TAG_INVALID_HEADER_VALUE",
+            SignalId::SimTagInvalidTimestamp => "S_SIM_TAG_INVALID_TIMESTAMP",
+            SignalId::SimTagTimestampSkew => "S_SIM_TAG_TIMESTAMP_SKEW",
+            SignalId::SimTagSignatureMismatch => "S_SIM_TAG_SIGNATURE_MISMATCH",
+            SignalId::SimTagNonceReplay => "S_SIM_TAG_NONCE_REPLAY",
         }
     }
 }

@@ -118,6 +118,7 @@ SHUMA_ENFORCE_HTTPS=${SHUMA_ENFORCE_HTTPS:-}
 SHUMA_DEBUG_HEADERS=${SHUMA_DEBUG_HEADERS:-}
 SHUMA_RUNTIME_ENV=${SHUMA_RUNTIME_ENV:-}
 SHUMA_ADVERSARY_SIM_AVAILABLE=${SHUMA_ADVERSARY_SIM_AVAILABLE:-}
+SHUMA_SIM_TELEMETRY_SECRET=${SHUMA_SIM_TELEMETRY_SECRET:-}
 SHUMA_FRONTIER_OPENAI_API_KEY=${SHUMA_FRONTIER_OPENAI_API_KEY:-}
 SHUMA_FRONTIER_ANTHROPIC_API_KEY=${SHUMA_FRONTIER_ANTHROPIC_API_KEY:-}
 SHUMA_FRONTIER_GOOGLE_API_KEY=${SHUMA_FRONTIER_GOOGLE_API_KEY:-}
@@ -162,6 +163,13 @@ ensure_local_dev_secret() {
         SHUMA_FORWARDED_IP_SECRET)
             case "$current_value" in
                 ""|changeme-dev-only-ip-secret|changeme-prod-forwarded-ip-secret)
+                    should_generate=1
+                    ;;
+            esac
+            ;;
+        SHUMA_SIM_TELEMETRY_SECRET)
+            case "$current_value" in
+                ""|changeme-dev-only-sim-telemetry-secret)
                     should_generate=1
                     ;;
             esac
@@ -288,6 +296,7 @@ ensure_local_dev_secret "SHUMA_API_KEY" 32
 ensure_env_local_default_from_defaults "SHUMA_ADMIN_READONLY_API_KEY"
 ensure_local_dev_secret "SHUMA_JS_SECRET" 32
 ensure_local_dev_secret "SHUMA_FORWARDED_IP_SECRET" 32
+ensure_local_dev_secret "SHUMA_SIM_TELEMETRY_SECRET" 32
 ensure_env_local_default_from_defaults "SHUMA_POW_SECRET"
 ensure_env_local_default_from_defaults "SHUMA_CHALLENGE_SECRET"
 ensure_env_local_default_from_defaults "SHUMA_MAZE_PREVIEW_SECRET"

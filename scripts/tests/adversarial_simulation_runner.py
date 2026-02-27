@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -24,6 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 
 LANE_CONTRACT_PATH = Path("scripts/tests/adversarial/lane_contract.v1.json")
+SIM_TAG_CONTRACT_PATH = Path("scripts/tests/adversarial/sim_tag_contract.v1.json")
 
 
 def load_lane_contract(path: Path = LANE_CONTRACT_PATH) -> Dict[str, Any]:
@@ -75,6 +77,82 @@ ATTACKER_REQUIRED_SIM_HEADERS = {
     for item in ATTACKER_CONTRACT.get("required_sim_headers", [])
     if str(item).strip()
 }
+
+
+def load_sim_tag_contract(path: Path = SIM_TAG_CONTRACT_PATH) -> Dict[str, Any]:
+    if not path.exists():
+        raise RuntimeError(f"sim tag contract not found: {path}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise RuntimeError(f"invalid sim tag contract JSON: {path}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"sim tag contract must be a JSON object: {path}")
+    schema_version = str(payload.get("schema_version") or "").strip()
+    if schema_version != "sim-tag-contract.v1":
+        raise RuntimeError(
+            f"sim tag contract schema_version must be sim-tag-contract.v1 (got {schema_version})"
+        )
+    headers = payload.get("headers")
+    if not isinstance(headers, dict):
+        raise RuntimeError("sim tag contract headers must be an object")
+    required_header_keys = {
+        "sim_run_id",
+        "sim_profile",
+        "sim_lane",
+        "sim_timestamp",
+        "sim_nonce",
+        "sim_signature",
+    }
+    missing_headers = [key for key in required_header_keys if not str(headers.get(key) or "").strip()]
+    if missing_headers:
+        raise RuntimeError(
+            f"sim tag contract headers missing required keys: {', '.join(sorted(missing_headers))}"
+        )
+    required_sim_headers = payload.get("required_sim_headers")
+    if not isinstance(required_sim_headers, list) or not required_sim_headers:
+        raise RuntimeError("sim tag contract required_sim_headers must be a non-empty array")
+    for key in ("timestamp_max_skew_seconds", "nonce_ttl_seconds", "nonce_max_entries"):
+        value = payload.get(key)
+        if isinstance(value, bool) or not isinstance(value, int) or int(value) < 1:
+            raise RuntimeError(f"sim tag contract {key} must be integer >= 1")
+    canonical = payload.get("canonical")
+    if not isinstance(canonical, dict):
+        raise RuntimeError("sim tag contract canonical must be an object")
+    if str(canonical.get("prefix") or "").strip() != "sim-tag.v1":
+        raise RuntimeError("sim tag contract canonical.prefix must be sim-tag.v1")
+    separator = canonical.get("separator")
+    if not isinstance(separator, str) or separator != "\n":
+        raise RuntimeError("sim tag contract canonical.separator must be \\n")
+    return payload
+
+
+SIM_TAG_CONTRACT = load_sim_tag_contract()
+SIM_TAG_HEADERS = {
+    str(key): str(value).strip().lower()
+    for key, value in dict(SIM_TAG_CONTRACT.get("headers") or {}).items()
+    if str(key).strip() and str(value).strip()
+}
+SIM_TAG_REQUIRED_SIM_HEADERS = {
+    str(value).strip().lower()
+    for value in list(SIM_TAG_CONTRACT.get("required_sim_headers") or [])
+    if str(value).strip()
+}
+SIM_TAG_HEADER_RUN_ID = SIM_TAG_HEADERS.get("sim_run_id", "x-shuma-sim-run-id")
+SIM_TAG_HEADER_PROFILE = SIM_TAG_HEADERS.get("sim_profile", "x-shuma-sim-profile")
+SIM_TAG_HEADER_LANE = SIM_TAG_HEADERS.get("sim_lane", "x-shuma-sim-lane")
+SIM_TAG_HEADER_TIMESTAMP = SIM_TAG_HEADERS.get("sim_timestamp", "x-shuma-sim-ts")
+SIM_TAG_HEADER_NONCE = SIM_TAG_HEADERS.get("sim_nonce", "x-shuma-sim-nonce")
+SIM_TAG_HEADER_SIGNATURE = SIM_TAG_HEADERS.get("sim_signature", "x-shuma-sim-signature")
+SIM_TAG_CANONICAL_PREFIX = str(
+    dict(SIM_TAG_CONTRACT.get("canonical") or {}).get("prefix") or "sim-tag.v1"
+).strip()
+SIM_TAG_CANONICAL_SEPARATOR = str(
+    dict(SIM_TAG_CONTRACT.get("canonical") or {}).get("separator") or "\n"
+)
+SIM_TAG_TIMESTAMP_MAX_SKEW_SECONDS = int(SIM_TAG_CONTRACT.get("timestamp_max_skew_seconds") or 300)
+SIM_TAG_NONCE_TTL_SECONDS = int(SIM_TAG_CONTRACT.get("nonce_ttl_seconds") or 600)
+SIM_TAG_NONCE_MAX_ENTRIES = int(SIM_TAG_CONTRACT.get("nonce_max_entries") or 4096)
 
 
 ALLOWED_OUTCOMES = {"allow", "monitor", "not-a-bot", "challenge", "maze", "tarpit", "deny_temp"}
@@ -381,6 +459,37 @@ def state_mode_bucket(state_mode: str) -> str:
     return normalized or "unknown"
 
 
+def build_sim_tag_canonical_message(
+    run_id: str, profile: str, lane: str, timestamp: str, nonce: str
+) -> str:
+    fields = [
+        SIM_TAG_CANONICAL_PREFIX,
+        str(run_id).strip(),
+        str(profile).strip(),
+        str(lane).strip(),
+        str(timestamp).strip(),
+        str(nonce).strip(),
+    ]
+    return SIM_TAG_CANONICAL_SEPARATOR.join(fields)
+
+
+def sign_sim_tag(
+    secret: str, run_id: str, profile: str, lane: str, timestamp: str, nonce: str
+) -> str:
+    message = build_sim_tag_canonical_message(
+        run_id=run_id,
+        profile=profile,
+        lane=lane,
+        timestamp=timestamp,
+        nonce=nonce,
+    )
+    return hmac.new(
+        str(secret).encode("utf-8"),
+        message.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
 class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
@@ -420,9 +529,10 @@ class AttackerPlaneClient:
         headers = {"X-Forwarded-For": ip}
         if user_agent:
             headers["User-Agent"] = user_agent
-        headers["X-Shuma-Sim-Run-Id"] = self.owner.sim_run_id
-        headers["X-Shuma-Sim-Profile"] = self.owner.sim_profile
-        headers["X-Shuma-Sim-Lane"] = self.owner.sim_lane
+        headers[SIM_TAG_HEADER_RUN_ID] = self.owner.sim_run_id
+        headers[SIM_TAG_HEADER_PROFILE] = self.owner.sim_profile
+        headers[SIM_TAG_HEADER_LANE] = self.owner.sim_lane
+        headers.update(self.owner.signed_sim_tag_headers())
         return headers
 
     def request(
@@ -509,10 +619,12 @@ class Runner:
         self.forwarded_secret = env_or_local("SHUMA_FORWARDED_IP_SECRET")
         self.health_secret = env_or_local("SHUMA_HEALTH_SECRET")
         self.api_key = env_or_local("SHUMA_API_KEY")
+        self.sim_telemetry_secret = env_or_local("SHUMA_SIM_TELEMETRY_SECRET")
         self.session_nonce = f"{int(time.time())}-{os.getpid()}"
         self.sim_run_id = f"deterministic-{self.session_nonce}"
         self.sim_profile = profile_name
         self.sim_lane = f"deterministic_{self.execution_lane}"
+        self.sim_tag_nonce_counter = 0
         self.attacker_client = AttackerPlaneClient(self)
         self.control_client = ControlPlaneClient(self)
         self.honeypot_path = "/instaban"
@@ -535,6 +647,10 @@ class Runner:
         }:
             raise SimulationError(
                 "SHUMA_API_KEY is a placeholder. Run make setup or make api-key-generate first."
+            )
+        if not self.sim_telemetry_secret:
+            raise SimulationError(
+                "Missing SHUMA_SIM_TELEMETRY_SECRET. Run make setup (or export SHUMA_SIM_TELEMETRY_SECRET) before adversarial tests."
             )
 
         self.scenarios = scenario_map(self.manifest)
@@ -1618,12 +1734,19 @@ class Runner:
                 "browser_policy_enabled": False,
             }
         )
-        # Intentionally omit simulation metadata headers so this probe models
-        # generic untrusted geo-header spoofing traffic.
+        # Intentionally use forged simulation metadata so runtime keeps this
+        # traffic untrusted while still exercising required attacker-lane
+        # header presence constraints.
         headers = {
             "X-Forwarded-For": self.scenario_ip(scenario),
             "X-Geo-Country": str(scenario.get("geo_country") or "RU"),
             "User-Agent": str(scenario.get("user_agent") or "ShumaAdversarial/1.0"),
+            SIM_TAG_HEADER_RUN_ID: "spoofed-run",
+            SIM_TAG_HEADER_PROFILE: "spoof_probe",
+            SIM_TAG_HEADER_LANE: "spoofed_lane",
+            SIM_TAG_HEADER_TIMESTAMP: str(int(time.time())),
+            SIM_TAG_HEADER_NONCE: "spoofed-nonce",
+            SIM_TAG_HEADER_SIGNATURE: "0" * 64,
         }
         result = self.attacker_client.request("GET", "/", headers=headers, count_request=True)
         if result.status in {403, 429} or "Access Blocked" in result.body or "Access Restricted" in result.body:
@@ -1875,6 +1998,31 @@ class Runner:
         user_agent: Optional[str] = None,
     ) -> Dict[str, str]:
         return self.attacker_client.headers(ip, user_agent=user_agent)
+
+    def next_sim_tag_nonce(self) -> str:
+        self.sim_tag_nonce_counter += 1
+        raw = (
+            f"{self.session_nonce}:{self.sim_run_id}:{self.sim_profile}:{self.sim_lane}:"
+            f"{self.sim_tag_nonce_counter}"
+        )
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
+
+    def signed_sim_tag_headers(self) -> Dict[str, str]:
+        timestamp = str(int(time.time()))
+        nonce = self.next_sim_tag_nonce()
+        signature = sign_sim_tag(
+            secret=self.sim_telemetry_secret,
+            run_id=self.sim_run_id,
+            profile=self.sim_profile,
+            lane=self.sim_lane,
+            timestamp=timestamp,
+            nonce=nonce,
+        )
+        return {
+            SIM_TAG_HEADER_TIMESTAMP: timestamp,
+            SIM_TAG_HEADER_NONCE: nonce,
+            SIM_TAG_HEADER_SIGNATURE: signature,
+        }
 
     def begin_scenario_execution(self, scenario: Dict[str, Any]) -> None:
         traffic_model = scenario.get("traffic_model")
@@ -2218,6 +2366,15 @@ def enforce_attacker_request_contract(path: str, headers: Dict[str, str]) -> Non
             raise SimulationError(
                 f"attacker_plane_forbidden_header header={forbidden_header} path={normalized_path}"
             )
+
+    missing_required_headers = sorted(
+        header for header in ATTACKER_REQUIRED_SIM_HEADERS if header not in lowered_headers
+    )
+    if missing_required_headers:
+        raise SimulationError(
+            "attacker_plane_missing_required_sim_headers "
+            f"path={normalized_path} missing={','.join(missing_required_headers)}"
+        )
 
 
 

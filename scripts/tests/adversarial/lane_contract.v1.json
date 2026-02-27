@@ -15,8 +15,11 @@
     ],
     "required_sim_headers": [
       "x-shuma-sim-lane",
+      "x-shuma-sim-nonce",
       "x-shuma-sim-profile",
-      "x-shuma-sim-run-id"
+      "x-shuma-sim-run-id",
+      "x-shuma-sim-signature",
+      "x-shuma-sim-ts"
     ]
   },
   "control": {
