@@ -24,6 +24,7 @@ Promotion triage emits `scripts/tests/adversarial/promotion_candidates_report.js
 Frontier threshold policy emits `scripts/tests/adversarial/frontier_unavailability_policy.json`.
 All manifests and reports are locked to `execution_lane=black_box`; non-black-box lane values are rejected at validation time.
 Lane capability boundaries are versioned in `scripts/tests/adversarial/lane_contract.v1.json` and validated by `make test-adversarial-lane-contract`.
+Full-coverage category obligations are versioned in `scripts/tests/adversarial/coverage_contract.v1.json` and validated by `make test-adversarial-coverage-contract`.
 `make test-adversarial-live` now classifies failures as `transient` or `fatal`, retries transient cycles with capped backoff, and only terminates after `ADVERSARIAL_FATAL_CYCLE_LIMIT` consecutive fatal cycles.
 Container lane emits:
 1. `scripts/tests/adversarial/container_isolation_report.json`
@@ -156,6 +157,7 @@ For every failing run, operators must capture:
 5. Monitoring snapshot (`GET /admin/monitoring?hours=24&limit=10&include_sim=1` in dev runtime) from the same time window.
 6. Commit SHA and environment (`runtime-dev` or `runtime-prod`).
 7. Runner plane-separation evidence (`latest_report.json` -> `plane_contract`).
+8. Coverage contract evidence (`latest_report.json` -> `coverage_contract`) including schema/hash and category obligations.
 
 ## Triage Order
 
@@ -170,6 +172,17 @@ Operators must triage in this order:
 7. Tarpit progression/fallback/escalation counters in Monitoring tab (`Tarpit Progression` section) and `monitoring_after.tarpit.metrics` in report artifacts.
 
 Operators must not tune thresholds before confirming whether failures are scenario mismatches versus gate regressions.
+
+## Coverage Contract Update Protocol
+
+When `full_coverage` obligations must change, update in this order:
+
+1. Update SIM2 plan coverage table in `docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`.
+2. Update canonical contract `scripts/tests/adversarial/coverage_contract.v1.json`.
+3. Update manifest `profiles.full_coverage.gates` parity in both `scenario_manifest.v1.json` and `scenario_manifest.v2.json`.
+4. Run `make test-adversarial-coverage-contract`, `make test-adversarial-manifest`, and `make test-adversarial-coverage`.
+
+`full_coverage` drift is expected to fail fast if any of these artifacts diverge.
 
 ## Scenario Failure Interpretation
 

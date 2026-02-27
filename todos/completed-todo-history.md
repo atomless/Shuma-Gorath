@@ -45,6 +45,17 @@ Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../
 - [x] SIM2-SF1-7 Add/refresh Makefile verification target for lane contract checks and wire into mandatory adversarial fast path.
 - [x] SIM2-SF1-8 Update adversarial operator docs with explicit attacker/control capability boundary semantics.
 
+#### SIM2-SF2: Coverage Contract Governance
+
+- [x] SIM2-SF2-1 Create canonical coverage contract artifact (`coverage_contract.v1`) containing mandatory full-coverage categories and minimum thresholds.
+- [x] SIM2-SF2-2 Add schema/validation rules for canonical contract artifact in manifest validation lane.
+- [x] SIM2-SF2-3 Update `full_coverage` gate evaluation to require exact canonical category coverage (no silent omissions).
+- [x] SIM2-SF2-4 Add drift-check logic comparing canonical contract vs manifest profile requirements.
+- [x] SIM2-SF2-5 Add drift-check logic comparing canonical contract vs SIM2 plan contract rows.
+- [x] SIM2-SF2-6 Extend report output with contract version/hash and explicit missing/extra coverage category diagnostics.
+- [x] SIM2-SF2-7 Wire coverage drift checks into mandatory Makefile and CI gating paths.
+- [x] SIM2-SF2-8 Update adversarial docs/runbooks with contract update protocol and failure triage.
+
 ### P0 Immediate Next-Agent Start (Highest Priority): Adversarial Simulation v2
 
 - [x] SIM-V2-11A Dashboard adversary-sim UI state class and styling contract.

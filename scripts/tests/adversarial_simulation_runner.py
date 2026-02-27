@@ -137,6 +137,7 @@ DRIVER_TO_CLASS = {
     for driver_name in family_handlers.keys()
 }
 SUPPORTED_EXECUTION_LANES = {"black_box"}
+FULL_COVERAGE_PROFILE_NAME = "full_coverage"
 ALLOWED_COVERAGE_REQUIREMENTS = {
     "honeypot_hits",
     "challenge_failures",
@@ -162,6 +163,99 @@ ALLOWED_COVERAGE_REQUIREMENTS = {
     "ban_count",
     "recent_event_count",
 }
+
+COVERAGE_CONTRACT_PATH = Path("scripts/tests/adversarial/coverage_contract.v1.json")
+
+
+def load_coverage_contract(path: Path = COVERAGE_CONTRACT_PATH) -> Dict[str, Any]:
+    if not path.exists():
+        raise RuntimeError(f"coverage contract not found: {path}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise RuntimeError(f"invalid coverage contract JSON: {path}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"coverage contract must be a JSON object: {path}")
+
+    schema_version = str(payload.get("schema_version") or "").strip()
+    if schema_version != "sim-coverage-contract.v1":
+        raise RuntimeError(
+            f"coverage contract schema_version must be sim-coverage-contract.v1 (got {schema_version})"
+        )
+    profile = str(payload.get("profile") or "").strip()
+    if profile != FULL_COVERAGE_PROFILE_NAME:
+        raise RuntimeError(
+            f"coverage contract profile must be {FULL_COVERAGE_PROFILE_NAME} (got {profile})"
+        )
+
+    coverage_requirements = payload.get("coverage_requirements")
+    if not isinstance(coverage_requirements, dict) or not coverage_requirements:
+        raise RuntimeError("coverage contract coverage_requirements must be a non-empty object")
+    for key, minimum in coverage_requirements.items():
+        if key not in ALLOWED_COVERAGE_REQUIREMENTS:
+            raise RuntimeError(f"coverage contract has unsupported coverage requirement key: {key}")
+        if isinstance(minimum, bool) or not isinstance(minimum, int) or minimum < 0:
+            raise RuntimeError(f"coverage contract key {key} must have integer minimum >= 0")
+
+    required_event_reasons = payload.get("required_event_reasons")
+    if not isinstance(required_event_reasons, list) or not required_event_reasons:
+        raise RuntimeError("coverage contract required_event_reasons must be a non-empty array")
+    for raw_reason in required_event_reasons:
+        if not str(raw_reason or "").strip():
+            raise RuntimeError("coverage contract required_event_reasons must not contain empty values")
+
+    required_outcome_categories = payload.get("required_outcome_categories")
+    if required_outcome_categories is not None:
+        if not isinstance(required_outcome_categories, list):
+            raise RuntimeError("coverage contract required_outcome_categories must be an array")
+        for raw_outcome in required_outcome_categories:
+            outcome = str(raw_outcome or "").strip()
+            if outcome not in ALLOWED_OUTCOMES:
+                raise RuntimeError(
+                    f"coverage contract required_outcome_categories has unsupported value: {outcome}"
+                )
+
+    ip_range_required = payload.get("ip_range_suggestion_seed_required")
+    if not isinstance(ip_range_required, bool):
+        raise RuntimeError("coverage contract ip_range_suggestion_seed_required must be boolean")
+
+    plan_rows = payload.get("plan_contract_rows")
+    if not isinstance(plan_rows, list) or not plan_rows:
+        raise RuntimeError("coverage contract plan_contract_rows must be a non-empty array")
+    for row in plan_rows:
+        if not str(row or "").strip():
+            raise RuntimeError("coverage contract plan_contract_rows must not contain empty values")
+
+    return payload
+
+
+COVERAGE_CONTRACT = load_coverage_contract()
+COVERAGE_CONTRACT_SCHEMA_VERSION = str(COVERAGE_CONTRACT.get("schema_version") or "")
+COVERAGE_CONTRACT_REQUIREMENTS = {
+    str(key): int(value)
+    for key, value in dict(COVERAGE_CONTRACT.get("coverage_requirements") or {}).items()
+}
+COVERAGE_CONTRACT_REQUIRED_EVENT_REASONS = [
+    str(item).strip().lower()
+    for item in list(COVERAGE_CONTRACT.get("required_event_reasons") or [])
+    if str(item).strip()
+]
+COVERAGE_CONTRACT_REQUIRED_OUTCOME_CATEGORIES = [
+    str(item).strip()
+    for item in list(COVERAGE_CONTRACT.get("required_outcome_categories") or [])
+    if str(item).strip()
+]
+COVERAGE_CONTRACT_IP_RANGE_SUGGESTION_SEED_REQUIRED = bool(
+    COVERAGE_CONTRACT.get("ip_range_suggestion_seed_required")
+)
+COVERAGE_CONTRACT_PLAN_ROWS = [
+    str(item).strip()
+    for item in list(COVERAGE_CONTRACT.get("plan_contract_rows") or [])
+    if str(item).strip()
+]
+COVERAGE_CONTRACT_SHA256 = hashlib.sha256(
+    json.dumps(COVERAGE_CONTRACT, sort_keys=True, separators=(",", ":")).encode("utf-8")
+).hexdigest()
 SUPPORTED_MANIFEST_SCHEMA_VERSIONS = {"sim-manifest.v1", "sim-manifest.v2"}
 ALLOWED_REQUEST_PLANES = {"attacker", "control"}
 ALLOWED_TRAFFIC_PERSONAS = {
@@ -496,6 +590,7 @@ class Runner:
                     break
 
             monitoring_after = self.monitoring_snapshot()
+            simulation_event_reasons = self.simulation_event_reasons_snapshot(hours=24, limit=500)
             ip_range_post_run = {}
             if self.profile_name == "full_coverage":
                 ip_range_post_run = self.ip_range_suggestions_snapshot(hours=24, limit=20)
@@ -505,6 +600,7 @@ class Runner:
                 monitoring_before,
                 monitoring_after,
                 suite_runtime_ms,
+                simulation_event_reasons=simulation_event_reasons,
                 ip_range_seed_evidence=ip_range_seed_evidence,
                 ip_range_post_run=ip_range_post_run,
             )
@@ -529,6 +625,7 @@ class Runner:
                 "suite_runtime_ms": suite_runtime_ms,
                 "monitoring_before": monitoring_before,
                 "monitoring_after": monitoring_after,
+                "simulation_event_reasons": simulation_event_reasons,
                 "results": [result.__dict__ for result in results],
                 "gates": gate_results,
                 "coverage_gates": gate_results.get("coverage_gates", {}),
@@ -541,6 +638,16 @@ class Runner:
                     "attacker_forbidden_headers": sorted(ATTACKER_FORBIDDEN_HEADERS),
                     "attacker_required_sim_headers": sorted(ATTACKER_REQUIRED_SIM_HEADERS),
                     "enforced": True,
+                },
+                "coverage_contract": {
+                    "schema_version": COVERAGE_CONTRACT_SCHEMA_VERSION,
+                    "contract_path": str(COVERAGE_CONTRACT_PATH),
+                    "contract_sha256": COVERAGE_CONTRACT_SHA256,
+                    "profile": FULL_COVERAGE_PROFILE_NAME,
+                    "coverage_requirement_keys": sorted(COVERAGE_CONTRACT_REQUIREMENTS.keys()),
+                    "required_event_reasons": sorted(COVERAGE_CONTRACT_REQUIRED_EVENT_REASONS),
+                    "required_outcome_categories": list(COVERAGE_CONTRACT_REQUIRED_OUTCOME_CATEGORIES),
+                    "plan_contract_rows": list(COVERAGE_CONTRACT_PLAN_ROWS),
                 },
                 "frontier": frontier_metadata,
                 "attack_plan_path": str(attack_plan_path),
@@ -657,6 +764,30 @@ class Runner:
         data = parse_json_or_raise(result.body, "Failed to parse /admin/monitoring response")
         return extract_monitoring_snapshot(data)
 
+    def simulation_event_reasons_snapshot(self, hours: int = 24, limit: int = 500) -> List[str]:
+        result = self.admin_request("GET", f"/admin/events?hours={hours}&limit={limit}&include_sim=1")
+        if result.status != 200:
+            detail = collapse_whitespace(result.body)[:160]
+            raise SimulationError(
+                f"Failed to read /admin/events: status={result.status} body={detail}"
+            )
+        payload = parse_json_or_raise(result.body, "Failed to parse /admin/events response")
+        recent_events = payload.get("recent_events")
+        if not isinstance(recent_events, list):
+            return []
+
+        reasons = set()
+        for event in recent_events:
+            record = dict_or_empty(event)
+            if not record.get("is_simulation"):
+                continue
+            if str(record.get("sim_run_id") or "").strip() != self.sim_run_id:
+                continue
+            reason = str(record.get("reason") or "").strip().lower()
+            if reason:
+                reasons.add(reason)
+        return sorted(reasons)
+
     def ip_range_suggestions_snapshot(self, hours: int = 24, limit: int = 20) -> Dict[str, Any]:
         result = self.admin_request("GET", f"/admin/ip-range/suggestions?hours={hours}&limit={limit}")
         if result.status != 200:
@@ -708,6 +839,7 @@ class Runner:
         monitoring_before: Dict[str, Any],
         monitoring_after: Dict[str, Any],
         suite_runtime_ms: int,
+        simulation_event_reasons: Optional[List[str]] = None,
         ip_range_seed_evidence: Optional[Dict[str, Any]] = None,
         ip_range_post_run: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -823,19 +955,56 @@ class Runner:
         coverage_after = dict_or_empty(monitoring_after.get("coverage"))
         coverage_deltas = compute_coverage_deltas(coverage_before, coverage_after)
 
-        coverage_requirements = (self.profile.get("gates") or {}).get("coverage_requirements")
+        profile_gates = self.profile.get("gates") or {}
+        coverage_requirements, declared_coverage_requirements = select_coverage_requirements(
+            self.profile_name, profile_gates
+        )
         coverage_checks: List[Dict[str, Any]] = []
-        if isinstance(coverage_requirements, dict) and coverage_requirements:
+        coverage_contract_parity = {
+            "missing_keys": [],
+            "extra_keys": [],
+            "mismatched_values": {},
+            "parity_passed": True,
+        }
+        threshold_prefix = "profile.gates.coverage_requirements"
+        if self.profile_name == FULL_COVERAGE_PROFILE_NAME:
+            coverage_contract_parity = coverage_contract_parity_diagnostics(
+                declared_coverage_requirements
+            )
+            threshold_prefix = (
+                f"{COVERAGE_CONTRACT_SCHEMA_VERSION}.coverage_requirements"
+            )
+            checks.append(
+                {
+                    "name": "coverage_contract_parity",
+                    "passed": bool(coverage_contract_parity["parity_passed"]),
+                    "detail": (
+                        f"missing={coverage_contract_parity['missing_keys']} "
+                        f"extra={coverage_contract_parity['extra_keys']} "
+                        f"mismatched={sorted(coverage_contract_parity['mismatched_values'].keys())}"
+                    ),
+                    "observed": {
+                        "missing": list(coverage_contract_parity["missing_keys"]),
+                        "extra": list(coverage_contract_parity["extra_keys"]),
+                        "mismatched": dict(coverage_contract_parity["mismatched_values"]),
+                    },
+                    "threshold_source": f"{COVERAGE_CONTRACT_PATH}",
+                }
+            )
+
+        if coverage_requirements:
             coverage_checks = build_coverage_checks(coverage_requirements, coverage_deltas)
             coverage_checks = annotate_coverage_checks_with_threshold_source(
-                coverage_requirements, coverage_checks
+                coverage_requirements, coverage_checks, threshold_prefix=threshold_prefix
             )
             checks.extend(coverage_checks)
 
         required_event_reasons = (self.profile.get("gates") or {}).get("required_event_reasons")
         if isinstance(required_event_reasons, list) and required_event_reasons:
             observed_reasons = [
-                str(reason).strip().lower() for reason in monitoring_after.get("recent_event_reasons", [])
+                str(reason).strip().lower()
+                for reason in list(simulation_event_reasons or [])
+                if str(reason).strip()
             ]
             for required in required_event_reasons:
                 required_prefix = str(required or "").strip().lower()
@@ -908,13 +1077,25 @@ class Runner:
             },
             "coverage_gates": {
                 "all_passed": coverage_all_passed,
-                "threshold_source": "profile.gates.coverage_requirements",
+                "threshold_source": threshold_prefix,
                 "checks": coverage_checks,
                 "coverage": {
                     "before": coverage_before,
                     "after": coverage_after,
                     "deltas": coverage_deltas,
                 },
+                "contract": {
+                    "schema_version": COVERAGE_CONTRACT_SCHEMA_VERSION,
+                    "contract_path": str(COVERAGE_CONTRACT_PATH),
+                    "contract_sha256": COVERAGE_CONTRACT_SHA256,
+                    "profile": FULL_COVERAGE_PROFILE_NAME,
+                    "coverage_requirement_keys": sorted(COVERAGE_CONTRACT_REQUIREMENTS.keys()),
+                    "required_event_reasons": sorted(COVERAGE_CONTRACT_REQUIRED_EVENT_REASONS),
+                    "required_outcome_categories": list(COVERAGE_CONTRACT_REQUIRED_OUTCOME_CATEGORIES),
+                },
+                "missing_contract_categories": list(coverage_contract_parity["missing_keys"]),
+                "extra_manifest_categories": list(coverage_contract_parity["extra_keys"]),
+                "mismatched_contract_values": dict(coverage_contract_parity["mismatched_values"]),
             },
             "cohort_metrics": cohort_metrics,
             "ip_range_suggestions": ip_range_suggestions,
@@ -1934,7 +2115,9 @@ def build_coverage_checks(
 
 
 def annotate_coverage_checks_with_threshold_source(
-    coverage_requirements: Dict[str, Any], checks: List[Dict[str, Any]]
+    coverage_requirements: Dict[str, Any],
+    checks: List[Dict[str, Any]],
+    threshold_prefix: str = "profile.gates.coverage_requirements",
 ) -> List[Dict[str, Any]]:
     annotated: List[Dict[str, Any]] = []
     for check in checks:
@@ -1942,9 +2125,9 @@ def annotate_coverage_checks_with_threshold_source(
         name = str(check_copy.get("name") or "")
         requirement_key = name.removeprefix("coverage_")
         if requirement_key in coverage_requirements:
-            check_copy["threshold_source"] = f"profile.gates.coverage_requirements.{requirement_key}"
+            check_copy["threshold_source"] = f"{threshold_prefix}.{requirement_key}"
         else:
-            check_copy["threshold_source"] = "profile.gates.coverage_requirements"
+            check_copy["threshold_source"] = threshold_prefix
         annotated.append(check_copy)
     return annotated
 
@@ -2356,6 +2539,99 @@ def validate_v2_categories(sid: str, key: str, values: Any, allowed_values: set[
             raise SimulationError(f"scenario {sid} {key} includes unsupported value: {value}")
 
 
+def coverage_contract_parity_diagnostics(profile_coverage_requirements: Any) -> Dict[str, Any]:
+    observed = profile_coverage_requirements if isinstance(profile_coverage_requirements, dict) else {}
+    observed_normalized = {str(key): int_or_zero(value) for key, value in observed.items()}
+    expected = dict(COVERAGE_CONTRACT_REQUIREMENTS)
+    expected_keys = set(expected.keys())
+    observed_keys = set(observed_normalized.keys())
+    missing_keys = sorted(expected_keys - observed_keys)
+    extra_keys = sorted(observed_keys - expected_keys)
+
+    mismatched_values: Dict[str, Dict[str, int]] = {}
+    for key in sorted(expected_keys.intersection(observed_keys)):
+        expected_minimum = int_or_zero(expected.get(key))
+        observed_minimum = int_or_zero(observed_normalized.get(key))
+        if observed_minimum != expected_minimum:
+            mismatched_values[key] = {
+                "expected": expected_minimum,
+                "observed": observed_minimum,
+            }
+
+    return {
+        "missing_keys": missing_keys,
+        "extra_keys": extra_keys,
+        "mismatched_values": mismatched_values,
+        "parity_passed": not missing_keys and not extra_keys and not mismatched_values,
+    }
+
+
+def select_coverage_requirements(
+    profile_name: str, profile_gates: Dict[str, Any]
+) -> Tuple[Dict[str, int], Dict[str, Any]]:
+    declared = profile_gates.get("coverage_requirements")
+    if profile_name == FULL_COVERAGE_PROFILE_NAME:
+        return dict(COVERAGE_CONTRACT_REQUIREMENTS), dict(declared or {}) if isinstance(declared, dict) else {}
+    return dict(declared or {}) if isinstance(declared, dict) else {}, dict(declared or {}) if isinstance(declared, dict) else {}
+
+
+def validate_full_coverage_contract_alignment(profile_name: str, gates: Dict[str, Any]) -> None:
+    if profile_name != FULL_COVERAGE_PROFILE_NAME:
+        return
+
+    parity = coverage_contract_parity_diagnostics(gates.get("coverage_requirements"))
+    if not parity["parity_passed"]:
+        details = []
+        if parity["missing_keys"]:
+            details.append(f"missing={','.join(parity['missing_keys'])}")
+        if parity["extra_keys"]:
+            details.append(f"extra={','.join(parity['extra_keys'])}")
+        if parity["mismatched_values"]:
+            mismatches = ",".join(
+                f"{key}:{value['observed']}!=expected:{value['expected']}"
+                for key, value in parity["mismatched_values"].items()
+            )
+            details.append(f"mismatched={mismatches}")
+        raise SimulationError(
+            "profile full_coverage coverage_requirements must exactly match "
+            f"{COVERAGE_CONTRACT_PATH} ({'; '.join(details)})"
+        )
+
+    required_event_reasons = gates.get("required_event_reasons")
+    normalized_required_reasons = sorted(
+        {str(reason or "").strip().lower() for reason in list(required_event_reasons or []) if str(reason or "").strip()}
+    )
+    expected_required_reasons = sorted(set(COVERAGE_CONTRACT_REQUIRED_EVENT_REASONS))
+    if normalized_required_reasons != expected_required_reasons:
+        raise SimulationError(
+            "profile full_coverage required_event_reasons must exactly match "
+            f"{COVERAGE_CONTRACT_PATH}: expected={expected_required_reasons} got={normalized_required_reasons}"
+        )
+
+    ip_range_required = gates.get("ip_range_suggestion_seed_required")
+    if bool(ip_range_required) != COVERAGE_CONTRACT_IP_RANGE_SUGGESTION_SEED_REQUIRED:
+        raise SimulationError(
+            "profile full_coverage ip_range_suggestion_seed_required must match "
+            f"{COVERAGE_CONTRACT_PATH}: expected={COVERAGE_CONTRACT_IP_RANGE_SUGGESTION_SEED_REQUIRED} got={ip_range_required}"
+        )
+
+    ratio_bounds = gates.get("outcome_ratio_bounds")
+    ratio_bounds = ratio_bounds if isinstance(ratio_bounds, dict) else {}
+    for outcome in COVERAGE_CONTRACT_REQUIRED_OUTCOME_CATEGORIES:
+        bounds = ratio_bounds.get(outcome)
+        if not isinstance(bounds, dict):
+            raise SimulationError(
+                "profile full_coverage outcome_ratio_bounds is missing required outcome key "
+                f"{outcome} from {COVERAGE_CONTRACT_PATH}"
+            )
+        minimum = float(bounds.get("min", 0.0))
+        if minimum <= 0.0:
+            raise SimulationError(
+                "profile full_coverage outcome_ratio_bounds "
+                f"{outcome}.min must be > 0 to satisfy {COVERAGE_CONTRACT_PATH}"
+            )
+
+
 def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_name: str) -> None:
     schema_version = str(manifest.get("schema_version") or "").strip()
     if schema_version not in SUPPORTED_MANIFEST_SCHEMA_VERSIONS:
@@ -2556,6 +2832,8 @@ def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_nam
                 raise SimulationError(
                     f"profile {profile_name} coverage requirement {key} cannot be negative"
                 )
+
+    validate_full_coverage_contract_alignment(profile_name, gates)
 
 
 def main() -> int:

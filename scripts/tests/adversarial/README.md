@@ -20,6 +20,8 @@
   - Versioned outbound allowlist contract for frontier payload redaction/minimization.
 - `lane_contract.v1.json`
   - Canonical attacker/control capability boundary contract for black-box simulation lanes.
+- `coverage_contract.v1.json`
+  - Canonical `full_coverage` contract (minimum coverage categories + event/outcome obligations) used for drift checks against manifests and SIM2 plan rows.
 - `../adversarial_container/`
   - Container worker assets for black-box isolation lane:
     - `Dockerfile`
@@ -51,15 +53,16 @@ The runner writes machine-readable artifacts to:
 - `scripts/tests/adversarial/container_isolation_report.json` (from `make test-adversarial-container-isolation`)
 - `scripts/tests/adversarial/container_blackbox_report.json` (from `make test-adversarial-container-blackbox`)
 - `latest_report.json` and `attack_plan.json` include `execution_lane` metadata for auditability.
-- `latest_report.json` includes:
+  - `latest_report.json` includes:
   - quantitative `gates` and `coverage_gates` sections (each check includes `threshold_source`),
   - `cohort_metrics` (persona-level outcome/latency/collateral summaries),
   - `ip_range_suggestions` seed evidence (`seeded_summary`, `seeded_suggestions`, `matched_seed_suggestions`, `near_miss_suggestions`),
-  - `plane_contract` metadata for attacker/control-plane guardrails.
+  - `plane_contract` metadata for attacker/control-plane guardrails,
+  - `coverage_contract` metadata (schema/version/hash and canonical coverage keys).
 
 Notes:
 
-- `abuse_regression` stale-token coverage is simulated in black-box mode by issuing a real short-TTL seed and waiting for natural expiry (no runner-side token re-signing).
+- `abuse_regression` stale-token coverage is simulated in black-box mode by mutating a valid issued seed before submit (no runner-side token re-signing and no signing-secret dependency).
 - `abuse_regression` is fail-fast and now includes replay/stale/ordering plus retry-storm, fingerprint inconsistency, and forwarded-header spoof probes with invariant-oriented diagnostics.
 - `akamai_smoke` uses canned JSON fixtures posted to local `/fingerprint-report`; it does not require a live Akamai edge deployment.
 - Live-loop behavior can be tuned with environment variables:
@@ -80,6 +83,9 @@ Notes:
   - attacker-plane requests are restricted to public paths and reject privileged headers (`Authorization`, health/admin/signing secret headers),
   - orchestrator-only setup/reset/config hooks remain on the control plane via admin-authenticated calls.
   - attacker-plane contract is versioned in `lane_contract.v1.json` and verified by `make test-adversarial-lane-contract`.
+- Coverage contract governance:
+  - canonical `full_coverage` requirements are versioned in `coverage_contract.v1.json`,
+  - drift checks run via `make test-adversarial-coverage-contract` and are wired into `make test-adversarial-manifest`, `make test-adversarial-fast`, and `make test-adversarial-coverage`.
 - Simulation telemetry tagging:
   - deterministic runner and container worker attach `X-Shuma-Sim-Run-Id`, `X-Shuma-Sim-Profile`, and `X-Shuma-Sim-Lane` on attacker-plane traffic,
   - backend event/monitoring read APIs can include tagged rows in dev via `include_sim=1`.

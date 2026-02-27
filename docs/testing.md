@@ -10,6 +10,7 @@ make test-maze-benchmark # Deterministic maze asymmetry benchmark gate
 make test-integration # Integration tests only (waits for existing Spin readiness)
 make integration-test # alias for make test-integration
 make test-adversarial-manifest # Validate adversarial scenario manifest + fixture references
+make test-adversarial-coverage-contract # Validate canonical full_coverage contract parity (plan + manifests + runner)
 make test-adversarial-fast # Mandatory fast adversarial matrix (smoke + abuse + Akamai)
 make test-adversarial-smoke # Mandatory adversarial fast smoke profile (waits for existing Spin readiness)
 make test-adversarial-abuse # Replay/stale/order-cadence abuse regression profile
@@ -143,6 +144,7 @@ Available profiles:
 - `make test-adversarial-soak` - deep soak alias for `full_coverage` (scheduled/manual gate)
 - `make test-adversarial-manifest` - schema/fixture validation without server
 - `make test-adversarial-lane-contract` - black-box attacker/control capability contract parity check across deterministic/container tooling
+- `make test-adversarial-coverage-contract` - canonical `full_coverage` contract parity check across SIM2 plan rows, manifests, and runner enforcement
 - `make test-adversarial-live` - repeated live traffic generator for operator monitoring drills
 - `make test-adversarial-repeatability` - deterministic replay consistency gate across `fast_smoke`, `abuse_regression`, and `full_coverage`
 - `make test-adversarial-promote-candidates` - frontier finding normalization + deterministic replay triage + promotion lineage report
@@ -210,10 +212,12 @@ Live loop controls:
 - `latest_report.json` includes quantitative `gates` and separate `coverage_gates` sections with per-check `threshold_source`.
 - `latest_report.json` also includes `cohort_metrics` (persona-level collateral/latency summaries) and `ip_range_suggestions` seed evidence for `full_coverage`.
 - `latest_report.json` includes `plane_contract` guardrail metadata confirming attacker/control-plane separation checks are enforced.
+- `latest_report.json` includes `coverage_contract` metadata (schema/version/hash + canonical category keys) for coverage-audit traceability.
 
 `make test` runs `test-adversarial-fast` (which executes `test-adversarial-smoke`, `test-adversarial-abuse`, and `test-adversarial-akamai`) in sequence.
 `make test-adversarial-soak` runs `test-adversarial-coverage` (`full_coverage`) for deeper scheduled/manual validation.
-`test-adversarial-fast` and `test-adversarial-coverage` both enforce `test-frontier-governance` after artifact generation.
+`test-adversarial-fast` enforces both `test-adversarial-lane-contract` and `test-adversarial-coverage-contract` before running profile lanes.
+`test-adversarial-coverage` enforces `test-adversarial-coverage-contract` and `test-frontier-governance` after artifact generation.
 `test-adversarial-coverage` forces deterministic cleanup plus per-run scenario-IP rotation (`SHUMA_ADVERSARIAL_PRESERVE_STATE=0`, `SHUMA_ADVERSARIAL_ROTATE_IPS=1`) to avoid stale local cadence/persistence collisions.
 Monitoring tab now includes explicit tarpit progression telemetry (activations, progression outcomes, budget fallbacks, escalation outcomes, and top active bucket) sourced from `/admin/monitoring`.
 Container black-box controls:

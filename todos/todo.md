@@ -58,24 +58,6 @@ Plan bundle:
 4. [`docs/plans/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity-plan.md`](../docs/plans/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity-plan.md)
 5. [`docs/plans/2026-02-27-sim2-orchestration-capability-architecture-plan.md`](../docs/plans/2026-02-27-sim2-orchestration-capability-architecture-plan.md)
 
-### SIM2-SF2: Coverage Contract Governance
-
-- [ ] SIM2-SF2-1 Create canonical coverage contract artifact (`coverage_contract.v1`) containing mandatory full-coverage categories and minimum thresholds.
-- [ ] SIM2-SF2-2 Add schema/validation rules for canonical contract artifact in manifest validation lane.
-- [ ] SIM2-SF2-3 Update `full_coverage` gate evaluation to require exact canonical category coverage (no silent omissions).
-- [ ] SIM2-SF2-4 Add drift-check logic comparing canonical contract vs manifest profile requirements.
-- [ ] SIM2-SF2-5 Add drift-check logic comparing canonical contract vs SIM2 plan contract rows.
-- [ ] SIM2-SF2-6 Extend report output with contract version/hash and explicit missing/extra coverage category diagnostics.
-- [ ] SIM2-SF2-7 Wire coverage drift checks into mandatory Makefile and CI gating paths.
-- [ ] SIM2-SF2-8 Update adversarial docs/runbooks with contract update protocol and failure triage.
-
-Acceptance criteria:
-1. `full_coverage` cannot pass when any canonical category is missing or below threshold.
-2. Coverage gate output identifies missing category keys and threshold source unambiguously.
-3. Plan/manifest/contract drift fails CI before merge.
-4. Contract version/hash is emitted in adversarial reports for auditability.
-5. Coverage governance is automated, not review-checklist dependent.
-
 ### SIM2-SF3: Traffic-Model Execution Realism
 
 - [ ] SIM2-SF3-1 Implement deterministic traffic-execution policy layer that all drivers must pass through.
