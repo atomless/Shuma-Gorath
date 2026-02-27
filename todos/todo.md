@@ -71,15 +71,6 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
 Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
 
-- [ ] SIM-V2-1 Manifest v2 contract (`sim-manifest.v2`) for tiered scenarios, traffic model metadata, and category/cost assertions.
-  - Acceptance criteria:
-    - Manifest schema adds `traffic_model`, `expected_defense_categories`, `coverage_tags`, and `cost_assertions`.
-    - Existing `v1` manifest continues to validate for current mandatory CI targets without compatibility aliases in runtime code.
-    - `make test-adversarial-manifest` validates `v1` and `v2` manifests and fails with actionable field-level errors.
-  - Definition of done:
-    - `scripts/tests/adversarial/scenario_manifest.schema.json` and runner validation logic enforce the v2 contract.
-    - CI output clearly identifies schema/field failures with scenario id and profile name.
-
 - [ ] SIM-V2-2 Unified runner architecture with explicit driver classes (`browser_realistic`, `http_scraper`, `edge_fixture`, `cost_imposition`).
   - Acceptance criteria:
     - Runner supports multiple driver families under one report format and one deterministic seed path.

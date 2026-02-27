@@ -194,6 +194,7 @@ Operator interpretation and tuning workflow is documented in `docs/adversarial-o
 
 Manifest and fixtures live under:
 - `scripts/tests/adversarial/scenario_manifest.v1.json`
+- `scripts/tests/adversarial/scenario_manifest.v2.json`
 - `scripts/tests/adversarial/scenario_manifest.schema.json`
 - `scripts/tests/fixtures/akamai/`
 

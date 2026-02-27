@@ -14,7 +14,10 @@
   "properties": {
     "schema_version": {
       "type": "string",
-      "const": "sim-manifest.v1"
+      "enum": [
+        "sim-manifest.v1",
+        "sim-manifest.v2"
+      ]
     },
     "suite_id": {
       "type": "string",
@@ -39,6 +42,51 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "sim-manifest.v1"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "scenarios": {
+            "items": {
+              "required": [
+                "assertions"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "sim-manifest.v2"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "scenarios": {
+            "items": {
+              "required": [
+                "traffic_model",
+                "expected_defense_categories",
+                "coverage_tags",
+                "cost_assertions"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
   "definitions": {
     "profile": {
       "type": "object",
@@ -186,8 +234,7 @@
         "ip",
         "user_agent",
         "seed",
-        "runtime_budget_ms",
-        "assertions"
+        "runtime_budget_ms"
       ],
       "additionalProperties": false,
       "properties": {
@@ -263,6 +310,98 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 120000
+        },
+        "traffic_model": {
+          "type": "object",
+          "required": [
+            "persona",
+            "think_time_ms_min",
+            "think_time_ms_max",
+            "retry_strategy",
+            "cookie_behavior"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "persona": {
+              "type": "string",
+              "enum": [
+                "human_like",
+                "benign_automation",
+                "suspicious_automation",
+                "adversarial"
+              ]
+            },
+            "think_time_ms_min": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "think_time_ms_max": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "retry_strategy": {
+              "type": "string",
+              "enum": [
+                "single_attempt",
+                "bounded_backoff",
+                "retry_storm"
+              ]
+            },
+            "cookie_behavior": {
+              "type": "string",
+              "enum": [
+                "stateful_cookie_jar",
+                "stateless",
+                "cookie_reset_each_request"
+              ]
+            }
+          }
+        },
+        "expected_defense_categories": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "allowlist",
+              "not_a_bot",
+              "challenge",
+              "pow",
+              "rate_limit",
+              "geo",
+              "maze",
+              "tarpit",
+              "honeypot",
+              "cdp",
+              "fingerprint",
+              "ban_path",
+              "event_stream"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "coverage_tags": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "cost_assertions": {
+          "type": "object",
+          "required": [
+            "max_latency_ms"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "max_latency_ms": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 120000
+            }
+          }
         },
         "assertions": {
           "type": "object",

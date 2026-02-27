@@ -5,7 +5,7 @@ from unittest.mock import patch
 import scripts.tests.adversarial_simulation_runner as runner
 
 
-def minimal_manifest(gates_extra=None):
+def minimal_manifest(gates_extra=None, schema_version="sim-manifest.v1"):
     gates = {
         "latency": {"p95_max_ms": 1000},
         "outcome_ratio_bounds": {"allow": {"min": 0.0, "max": 1.0}},
@@ -16,8 +16,32 @@ def minimal_manifest(gates_extra=None):
     }
     if gates_extra:
         gates.update(gates_extra)
+    scenario = {
+        "id": "scenario_allow",
+        "description": "allow scenario",
+        "tier": "SIM-T0",
+        "driver": "allow_browser_allowlist",
+        "expected_outcome": "allow",
+        "ip": "10.10.10.10",
+        "user_agent": "UnitTest/1.0",
+        "seed": 1,
+        "runtime_budget_ms": 1000,
+        "assertions": {"max_latency_ms": 500},
+    }
+    if schema_version == "sim-manifest.v2":
+        scenario["traffic_model"] = {
+            "persona": "human_like",
+            "think_time_ms_min": 10,
+            "think_time_ms_max": 120,
+            "retry_strategy": "single_attempt",
+            "cookie_behavior": "stateful_cookie_jar",
+        }
+        scenario["expected_defense_categories"] = ["allowlist"]
+        scenario["coverage_tags"] = ["SIM-T0", "allow_browser_allowlist"]
+        scenario["cost_assertions"] = {"max_latency_ms": 500}
+
     return {
-        "schema_version": "sim-manifest.v1",
+        "schema_version": schema_version,
         "suite_id": "unit-tests",
         "description": "Unit test manifest",
         "profiles": {
@@ -28,20 +52,7 @@ def minimal_manifest(gates_extra=None):
                 "gates": gates,
             }
         },
-        "scenarios": [
-            {
-                "id": "scenario_allow",
-                "description": "allow scenario",
-                "tier": "SIM-T0",
-                "driver": "allow_browser_allowlist",
-                "expected_outcome": "allow",
-                "ip": "10.10.10.10",
-                "user_agent": "UnitTest/1.0",
-                "seed": 1,
-                "runtime_budget_ms": 1000,
-                "assertions": {"max_latency_ms": 500},
-            }
-        ],
+        "scenarios": [scenario],
     }
 
 
@@ -242,6 +253,20 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         manifest["scenarios"][0]["driver"] = "pow_success"
         manifest["scenarios"][0]["expected_outcome"] = "allow"
         runner.validate_manifest(Path("scripts/tests/adversarial/scenario_manifest.v1.json"), manifest, "test_profile")
+
+    def test_validate_manifest_accepts_v2_contract_fields(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        runner.validate_manifest(Path("scripts/tests/adversarial/scenario_manifest.v2.json"), manifest, "test_profile")
+
+    def test_validate_manifest_rejects_v2_missing_traffic_model(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        del manifest["scenarios"][0]["traffic_model"]
+        with self.assertRaises(runner.SimulationError):
+            runner.validate_manifest(Path("scripts/tests/adversarial/scenario_manifest.v2.json"), manifest, "test_profile")
+
+    def test_scenario_max_latency_ms_uses_v2_cost_assertions_when_present(self):
+        scenario = {"id": "s1", "assertions": {"max_latency_ms": 700}, "cost_assertions": {"max_latency_ms": 333}}
+        self.assertEqual(runner.scenario_max_latency_ms(scenario), 333)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,8 @@
     - `abuse_regression`
     - `akamai_smoke`
     - `full_coverage`
+- `scenario_manifest.v2.json`
+  - Manifest v2 contract with explicit per-scenario `traffic_model`, `expected_defense_categories`, `coverage_tags`, and `cost_assertions`.
 - `frontier_payload_schema.v1.json`
   - Versioned outbound allowlist contract for frontier payload redaction/minimization.
 
@@ -25,6 +27,7 @@ python3 scripts/tests/adversarial_simulation_runner.py --profile fast_smoke
 python3 scripts/tests/adversarial_simulation_runner.py --profile abuse_regression
 python3 scripts/tests/adversarial_simulation_runner.py --profile akamai_smoke
 python3 scripts/tests/adversarial_simulation_runner.py --profile full_coverage
+python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile fast_smoke --validate-only
 ```
 
 The runner writes machine-readable artifacts to:

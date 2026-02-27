@@ -67,6 +67,30 @@ ALLOWED_COVERAGE_REQUIREMENTS = {
     "ban_count",
     "recent_event_count",
 }
+SUPPORTED_MANIFEST_SCHEMA_VERSIONS = {"sim-manifest.v1", "sim-manifest.v2"}
+ALLOWED_TRAFFIC_PERSONAS = {
+    "human_like",
+    "benign_automation",
+    "suspicious_automation",
+    "adversarial",
+}
+ALLOWED_RETRY_STRATEGIES = {"single_attempt", "bounded_backoff", "retry_storm"}
+ALLOWED_COOKIE_BEHAVIORS = {"stateful_cookie_jar", "stateless", "cookie_reset_each_request"}
+ALLOWED_DEFENSE_CATEGORIES = {
+    "allowlist",
+    "not_a_bot",
+    "challenge",
+    "pow",
+    "rate_limit",
+    "geo",
+    "maze",
+    "tarpit",
+    "honeypot",
+    "cdp",
+    "fingerprint",
+    "ban_path",
+    "event_stream",
+}
 FRONTIER_PROVIDER_SPECS = (
     {
         "provider": "openai",
@@ -589,7 +613,7 @@ class Runner:
                     ),
                 )
 
-            max_latency_ms = int(scenario["assertions"]["max_latency_ms"])
+            max_latency_ms = scenario_max_latency_ms(scenario)
             if latency_ms > max_latency_ms:
                 return ScenarioResult(
                     id=scenario_id,
@@ -1525,6 +1549,15 @@ def build_attack_plan(
 ) -> Dict[str, Any]:
     candidates: List[Dict[str, Any]] = []
     for scenario in scenarios:
+        scenario_traffic_model = scenario.get("traffic_model")
+        if not isinstance(scenario_traffic_model, dict):
+            scenario_traffic_model = {}
+        coverage_tags = scenario.get("coverage_tags")
+        if not isinstance(coverage_tags, list) or not coverage_tags:
+            coverage_tags = [scenario.get("tier"), scenario.get("driver")]
+        expected_categories = scenario.get("expected_defense_categories")
+        if not isinstance(expected_categories, list):
+            expected_categories = []
         raw_payload = {
             "schema_version": "frontier_payload_schema.v1",
             "request_id": f"{profile_name}:{scenario.get('id')}",
@@ -1539,9 +1572,11 @@ def build_attack_plan(
                 "ip": scenario.get("ip"),
             },
             "traffic_model": {
-                "cohort": "adversarial",
+                "cohort": scenario_traffic_model.get("persona", "adversarial"),
                 "driver": scenario.get("driver"),
                 "user_agent": scenario.get("user_agent"),
+                "retry_strategy": scenario_traffic_model.get("retry_strategy", "single_attempt"),
+                "cookie_behavior": scenario_traffic_model.get("cookie_behavior", "stateless"),
             },
             "target": {
                 "base_url": base_url,
@@ -1552,7 +1587,8 @@ def build_attack_plan(
             },
             "attack_metadata": {
                 "expected_outcome": scenario.get("expected_outcome"),
-                "coverage_tags": [scenario.get("tier"), scenario.get("driver")],
+                "coverage_tags": coverage_tags,
+                "expected_defense_categories": expected_categories,
             },
         }
         candidates.append(
@@ -1577,9 +1613,72 @@ def build_attack_plan(
     }
 
 
+def scenario_max_latency_ms(scenario: Dict[str, Any]) -> int:
+    cost_assertions = scenario.get("cost_assertions")
+    if isinstance(cost_assertions, dict) and "max_latency_ms" in cost_assertions:
+        return int(cost_assertions["max_latency_ms"])
+    assertions = scenario.get("assertions")
+    if isinstance(assertions, dict) and "max_latency_ms" in assertions:
+        return int(assertions["max_latency_ms"])
+    raise SimulationError(
+        f"scenario {scenario.get('id')} must define cost_assertions.max_latency_ms (v2) or assertions.max_latency_ms (v1)"
+    )
+
+
+def validate_v2_traffic_model(sid: str, traffic_model: Any) -> None:
+    if not isinstance(traffic_model, dict):
+        raise SimulationError(f"scenario {sid} traffic_model must be an object")
+    required_keys = {
+        "persona",
+        "think_time_ms_min",
+        "think_time_ms_max",
+        "retry_strategy",
+        "cookie_behavior",
+    }
+    for key in required_keys:
+        if key not in traffic_model:
+            raise SimulationError(f"scenario {sid} traffic_model missing key: {key}")
+
+    persona = str(traffic_model.get("persona") or "")
+    if persona not in ALLOWED_TRAFFIC_PERSONAS:
+        raise SimulationError(f"scenario {sid} traffic_model.persona invalid: {persona}")
+
+    retry_strategy = str(traffic_model.get("retry_strategy") or "")
+    if retry_strategy not in ALLOWED_RETRY_STRATEGIES:
+        raise SimulationError(f"scenario {sid} traffic_model.retry_strategy invalid: {retry_strategy}")
+
+    cookie_behavior = str(traffic_model.get("cookie_behavior") or "")
+    if cookie_behavior not in ALLOWED_COOKIE_BEHAVIORS:
+        raise SimulationError(f"scenario {sid} traffic_model.cookie_behavior invalid: {cookie_behavior}")
+
+    think_time_min = traffic_model.get("think_time_ms_min")
+    think_time_max = traffic_model.get("think_time_ms_max")
+    if not isinstance(think_time_min, int) or think_time_min < 0:
+        raise SimulationError(f"scenario {sid} traffic_model.think_time_ms_min must be integer >= 0")
+    if not isinstance(think_time_max, int) or think_time_max < think_time_min:
+        raise SimulationError(
+            f"scenario {sid} traffic_model.think_time_ms_max must be integer >= think_time_ms_min"
+        )
+
+
+def validate_v2_categories(sid: str, key: str, values: Any, allowed_values: set[str]) -> None:
+    if not isinstance(values, list) or not values:
+        raise SimulationError(f"scenario {sid} {key} must be a non-empty array")
+    for raw_value in values:
+        value = str(raw_value or "")
+        if not value:
+            raise SimulationError(f"scenario {sid} {key} must not include empty values")
+        if allowed_values and value not in allowed_values:
+            raise SimulationError(f"scenario {sid} {key} includes unsupported value: {value}")
+
+
 def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_name: str) -> None:
-    if manifest.get("schema_version") != "sim-manifest.v1":
-        raise SimulationError("schema_version must be sim-manifest.v1")
+    schema_version = str(manifest.get("schema_version") or "").strip()
+    if schema_version not in SUPPORTED_MANIFEST_SCHEMA_VERSIONS:
+        raise SimulationError(
+            f"schema_version must be one of {sorted(SUPPORTED_MANIFEST_SCHEMA_VERSIONS)}"
+        )
+    is_v2_manifest = schema_version == "sim-manifest.v2"
 
     profiles = manifest.get("profiles")
     if not isinstance(profiles, dict) or not profiles:
@@ -1605,8 +1704,18 @@ def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_nam
             "user_agent",
             "seed",
             "runtime_budget_ms",
-            "assertions",
         ]
+        if is_v2_manifest:
+            required.extend(
+                [
+                    "traffic_model",
+                    "expected_defense_categories",
+                    "coverage_tags",
+                    "cost_assertions",
+                ]
+            )
+        else:
+            required.append("assertions")
         for key in required:
             if key not in scenario:
                 raise SimulationError(f"scenario missing required key: {key}")
@@ -1624,9 +1733,27 @@ def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_nam
                 f"scenario {sid} has invalid expected_outcome: {scenario['expected_outcome']}"
             )
 
-        assertions = scenario.get("assertions")
-        if not isinstance(assertions, dict) or "max_latency_ms" not in assertions:
-            raise SimulationError(f"scenario {sid} assertions.max_latency_ms is required")
+        if is_v2_manifest:
+            validate_v2_traffic_model(sid, scenario.get("traffic_model"))
+            validate_v2_categories(
+                sid,
+                "expected_defense_categories",
+                scenario.get("expected_defense_categories"),
+                ALLOWED_DEFENSE_CATEGORIES,
+            )
+            validate_v2_categories(sid, "coverage_tags", scenario.get("coverage_tags"), set())
+            cost_assertions = scenario.get("cost_assertions")
+            if not isinstance(cost_assertions, dict) or "max_latency_ms" not in cost_assertions:
+                raise SimulationError(f"scenario {sid} cost_assertions.max_latency_ms is required")
+            max_latency_ms = cost_assertions.get("max_latency_ms")
+            if isinstance(max_latency_ms, bool) or not isinstance(max_latency_ms, int) or max_latency_ms < 1:
+                raise SimulationError(
+                    f"scenario {sid} cost_assertions.max_latency_ms must be an integer >= 1"
+                )
+        else:
+            assertions = scenario.get("assertions")
+            if not isinstance(assertions, dict) or "max_latency_ms" not in assertions:
+                raise SimulationError(f"scenario {sid} assertions.max_latency_ms is required")
 
         payload_fixture = scenario.get("payload_fixture")
         if payload_fixture:
