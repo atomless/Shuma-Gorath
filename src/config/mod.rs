@@ -17,6 +17,8 @@ pub const POW_DIFFICULTY_MIN: u8 = 12;
 pub const POW_DIFFICULTY_MAX: u8 = 20;
 pub const POW_TTL_MIN: u64 = 30;
 pub const POW_TTL_MAX: u64 = 300;
+pub const ADVERSARY_SIM_DURATION_SECONDS_MIN: u64 = 30;
+pub const ADVERSARY_SIM_DURATION_SECONDS_MAX: u64 = 900;
 const MAZE_MICRO_POW_DIFFICULTY_MIN: u8 = 10;
 const MAZE_MICRO_POW_DIFFICULTY_MAX: u8 = 24;
 const CHALLENGE_THRESHOLD_MIN: u8 = 1;
@@ -540,6 +542,8 @@ pub struct Config {
     pub test_mode: bool,
     #[serde(default = "default_adversary_sim_enabled")]
     pub adversary_sim_enabled: bool,
+    #[serde(default = "default_adversary_sim_duration_seconds")]
+    pub adversary_sim_duration_seconds: u64,
     #[serde(default = "default_maze_enabled")]
     pub maze_enabled: bool,
     #[serde(default = "default_tarpit_enabled")]
@@ -1007,6 +1011,7 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
             default_ip_range_suggestions_likely_human_sample_percent(),
         test_mode: defaults_bool("SHUMA_TEST_MODE"),
         adversary_sim_enabled: defaults_bool("SHUMA_ADVERSARY_SIM_ENABLED"),
+        adversary_sim_duration_seconds: default_adversary_sim_duration_seconds(),
         maze_enabled: defaults_bool("SHUMA_MAZE_ENABLED"),
         tarpit_enabled: defaults_bool("SHUMA_TARPIT_ENABLED"),
         tarpit_progress_token_ttl_seconds: defaults_u64("SHUMA_TARPIT_PROGRESS_TOKEN_TTL_SECONDS"),
@@ -1718,6 +1723,13 @@ fn clamp_ip_range_suggestions_likely_human_sample_percent(value: u8) -> u8 {
     )
 }
 
+fn clamp_adversary_sim_duration_seconds(value: u64) -> u64 {
+    value.clamp(
+        ADVERSARY_SIM_DURATION_SECONDS_MIN,
+        ADVERSARY_SIM_DURATION_SECONDS_MAX,
+    )
+}
+
 fn clamp_config_values(cfg: &mut Config) {
     cfg.pow_difficulty = clamp_pow_difficulty(cfg.pow_difficulty);
     cfg.pow_ttl_seconds = clamp_pow_ttl(cfg.pow_ttl_seconds);
@@ -1739,6 +1751,8 @@ fn clamp_config_values(cfg: &mut Config) {
         clamp_not_a_bot_attempt_limit(cfg.not_a_bot_attempt_limit_per_window);
     cfg.not_a_bot_attempt_window_seconds =
         clamp_not_a_bot_attempt_window(cfg.not_a_bot_attempt_window_seconds);
+    cfg.adversary_sim_duration_seconds =
+        clamp_adversary_sim_duration_seconds(cfg.adversary_sim_duration_seconds);
     cfg.tarpit_progress_token_ttl_seconds =
         clamp_tarpit_progress_token_ttl_seconds(cfg.tarpit_progress_token_ttl_seconds);
     cfg.tarpit_progress_replay_ttl_seconds =
@@ -2222,6 +2236,10 @@ fn default_test_mode() -> bool {
 
 fn default_adversary_sim_enabled() -> bool {
     defaults_bool("SHUMA_ADVERSARY_SIM_ENABLED")
+}
+
+fn default_adversary_sim_duration_seconds() -> u64 {
+    clamp_adversary_sim_duration_seconds(defaults_u64("SHUMA_ADVERSARY_SIM_DURATION_SECONDS"))
 }
 
 fn default_maze_enabled() -> bool {

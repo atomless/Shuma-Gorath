@@ -434,6 +434,15 @@ mod admin_config_tests {
         builder.build()
     }
 
+    fn bearer_rw_auth() -> crate::admin::auth::AdminAuthResult {
+        crate::admin::auth::AdminAuthResult {
+            method: Some(crate::admin::auth::AdminAuthMethod::BearerToken),
+            access: Some(crate::admin::auth::AdminAccessLevel::ReadWrite),
+            csrf_token: None,
+            session_id: None,
+        }
+    }
+
     struct TestStore {
         map: Mutex<HashMap<String, Vec<u8>>>,
     }
@@ -659,6 +668,10 @@ mod admin_config_tests {
             env.get("SHUMA_ADVERSARY_SIM_ENABLED"),
             Some(&serde_json::json!("true"))
         );
+        assert_eq!(
+            env.get("SHUMA_ADVERSARY_SIM_DURATION_SECONDS"),
+            Some(&serde_json::json!(cfg.adversary_sim_duration_seconds.to_string()))
+        );
         assert!(env.get("SHUMA_RATE_LIMITER_REDIS_URL").is_none());
         assert!(env.get("SHUMA_BAN_STORE_REDIS_URL").is_none());
         assert_eq!(
@@ -695,6 +708,7 @@ mod admin_config_tests {
         assert!(env_text.contains("SHUMA_RUNTIME_ENV=runtime-dev"));
         assert!(env_text.contains("SHUMA_ADVERSARY_SIM_AVAILABLE=true"));
         assert!(env_text.contains("SHUMA_ADVERSARY_SIM_ENABLED=true"));
+        assert!(env_text.contains("SHUMA_ADVERSARY_SIM_DURATION_SECONDS="));
         assert!(!env_text.contains("SHUMA_RATE_LIMITER_REDIS_URL="));
         assert!(!env_text.contains("SHUMA_BAN_STORE_REDIS_URL="));
         assert!(env_text.contains("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN=fail_open"));
@@ -825,6 +839,7 @@ mod admin_config_tests {
         assert!(body.get("botness_signal_definitions").is_some());
         assert!(body.get("honeypot_enabled").is_some());
         assert!(body.get("adversary_sim_enabled").is_some());
+        assert!(body.get("adversary_sim_duration_seconds").is_some());
         assert!(body.get("runtime_environment").is_some());
         assert!(body.get("adversary_sim_available").is_some());
     }
@@ -900,6 +915,176 @@ mod admin_config_tests {
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
+    }
+
+    #[test]
+    fn admin_config_updates_adversary_sim_duration_seconds() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+
+        let body = br#"{"adversary_sim_duration_seconds":240}"#.to_vec();
+        let req = make_request(Method::Post, "/admin/config", body);
+        let store = TestStore::default();
+        let resp = handle_admin_config(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+        let json: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(
+            json.get("config")
+                .and_then(|v| v.get("adversary_sim_duration_seconds"))
+                .and_then(|v| v.as_u64()),
+            Some(240)
+        );
+
+        let saved_bytes = store.get("config:default").unwrap().unwrap();
+        let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
+        assert_eq!(saved_cfg.adversary_sim_duration_seconds, 240);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
+    fn admin_config_rejects_invalid_adversary_sim_duration_seconds() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+
+        let body = br#"{"adversary_sim_duration_seconds":901}"#.to_vec();
+        let req = make_request(Method::Post, "/admin/config", body);
+        let store = TestStore::default();
+        let resp = handle_admin_config(&req, &store, "default");
+        assert_eq!(*resp.status(), 400u16);
+        assert!(String::from_utf8_lossy(resp.body()).contains("out of range"));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
+    fn adversary_sim_control_start_stop_and_status_round_trip() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let on_req = make_request(
+            Method::Post,
+            "/admin/adversary-sim/control",
+            br#"{"enabled":true}"#.to_vec(),
+        );
+        let on_resp = handle_admin_adversary_sim_control(&on_req, &store, "default", &auth);
+        assert_eq!(*on_resp.status(), 200u16);
+        let on_json: serde_json::Value = serde_json::from_slice(on_resp.body()).unwrap();
+        assert_eq!(
+            on_json
+                .get("status")
+                .and_then(|v| v.get("phase"))
+                .and_then(|v| v.as_str()),
+            Some("running")
+        );
+        assert_eq!(
+            on_json
+                .get("status")
+                .and_then(|v| v.get("active_run_count"))
+                .and_then(|v| v.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            on_json
+                .get("status")
+                .and_then(|v| v.get("active_lane_count"))
+                .and_then(|v| v.as_u64()),
+            Some(2)
+        );
+
+        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
+        assert_eq!(*status_resp.status(), 200u16);
+        let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
+        assert_eq!(
+            status_json.get("phase").and_then(|v| v.as_str()),
+            Some("running")
+        );
+        assert_eq!(
+            status_json
+                .get("guardrails")
+                .and_then(|v| v.get("max_duration_seconds"))
+                .and_then(|v| v.as_u64()),
+            Some(900)
+        );
+
+        let off_req = make_request(
+            Method::Post,
+            "/admin/adversary-sim/control",
+            br#"{"enabled":false}"#.to_vec(),
+        );
+        let off_resp = handle_admin_adversary_sim_control(&off_req, &store, "default", &auth);
+        assert_eq!(*off_resp.status(), 200u16);
+        let off_json: serde_json::Value = serde_json::from_slice(off_resp.body()).unwrap();
+        assert_eq!(
+            off_json
+                .get("status")
+                .and_then(|v| v.get("phase"))
+                .and_then(|v| v.as_str()),
+            Some("off")
+        );
+        assert_eq!(
+            off_json
+                .get("status")
+                .and_then(|v| v.get("adversary_sim_enabled"))
+                .and_then(|v| v.as_bool()),
+            Some(false)
+        );
+
+        let saved_bytes = store.get("config:default").unwrap().unwrap();
+        let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
+        assert!(!saved_cfg.adversary_sim_enabled);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_status_preserves_enabled_when_idle_without_transition() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let enable_req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"adversary_sim_enabled":true}"#.to_vec(),
+        );
+        let enable_resp = handle_admin_config(&enable_req, &store, "default");
+        assert_eq!(*enable_resp.status(), 200u16);
+
+        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
+        assert_eq!(*status_resp.status(), 200u16);
+        let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
+        assert_eq!(
+            status_json
+                .get("adversary_sim_enabled")
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            status_json.get("phase").and_then(|value| value.as_str()),
+            Some("off")
+        );
+
+        let saved_bytes = store.get("config:default").unwrap().unwrap();
+        let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
+        assert!(saved_cfg.adversary_sim_enabled);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
     }
 
     #[test]
@@ -2732,6 +2917,10 @@ mod admin_auth_tests {
             "/admin/config/validate",
             &Method::Post
         ));
+        assert!(request_requires_admin_write(
+            "/admin/adversary-sim/control",
+            &Method::Post
+        ));
         assert!(request_requires_admin_write("/admin/ban", &Method::Post));
         assert!(request_requires_admin_write("/admin/unban", &Method::Post));
         assert!(!request_requires_admin_write(
@@ -2753,6 +2942,14 @@ mod admin_auth_tests {
         assert!(!request_requires_admin_write("/admin/config", &Method::Get));
         assert!(!request_requires_admin_write(
             "/admin/config/validate",
+            &Method::Get
+        ));
+        assert!(!request_requires_admin_write(
+            "/admin/adversary-sim/control",
+            &Method::Get
+        ));
+        assert!(!request_requires_admin_write(
+            "/admin/adversary-sim/status",
             &Method::Get
         ));
         assert!(!request_requires_admin_write(
@@ -2779,6 +2976,8 @@ use spin_sdk::key_value::Store;
 
 const ADMIN_BAN_DURATION_MIN: u64 = 60;
 const ADMIN_BAN_DURATION_MAX: u64 = 31_536_000;
+const ADVERSARY_SIM_DURATION_SECONDS_MIN: u64 = crate::config::ADVERSARY_SIM_DURATION_SECONDS_MIN;
+const ADVERSARY_SIM_DURATION_SECONDS_MAX: u64 = crate::config::ADVERSARY_SIM_DURATION_SECONDS_MAX;
 
 /// Returns true if the path is a valid admin endpoint (prevents path traversal/abuse).
 fn sanitize_path(path: &str) -> bool {
@@ -2795,6 +2994,8 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/config"
             | "/admin/config/validate"
             | "/admin/config/export"
+            | "/admin/adversary-sim/control"
+            | "/admin/adversary-sim/status"
             | "/admin/maze"
             | "/admin/maze/preview"
             | "/admin/tarpit/preview"
@@ -2993,6 +3194,7 @@ fn request_requires_admin_write(path: &str, method: &Method) -> bool {
             | "/admin/unban"
             | "/admin/config"
             | "/admin/config/validate"
+            | "/admin/adversary-sim/control"
             | "/admin/maze/seeds"
             | "/admin/maze/seeds/refresh"
     )
@@ -3152,6 +3354,7 @@ where
     if auth.requires_csrf(req) {
         let expected = auth.csrf_token.as_deref().unwrap_or("");
         if !crate::admin::auth::validate_session_csrf(req, expected) {
+            log_admin_csrf_denied(store, req, "/admin/logout", &auth);
             return Response::new(403, "Forbidden");
         }
     }
@@ -3474,6 +3677,10 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
         (
             "SHUMA_ADVERSARY_SIM_ENABLED".to_string(),
             bool_env(cfg.adversary_sim_enabled).to_string(),
+        ),
+        (
+            "SHUMA_ADVERSARY_SIM_DURATION_SECONDS".to_string(),
+            cfg.adversary_sim_duration_seconds.to_string(),
         ),
         (
             "SHUMA_JS_REQUIRED_ENFORCED".to_string(),
@@ -4550,6 +4757,7 @@ struct AdminProviderBackendsPatch {
 struct AdminConfigPatch {
     test_mode: Option<bool>,
     adversary_sim_enabled: Option<bool>,
+    adversary_sim_duration_seconds: Option<u64>,
     ban_duration: Option<u64>,
     rate_limit: Option<u64>,
     js_required_enforced: Option<bool>,
@@ -4870,6 +5078,26 @@ fn handle_admin_config_internal(
             }
             if cfg.adversary_sim_enabled != adversary_sim_enabled {
                 cfg.adversary_sim_enabled = adversary_sim_enabled;
+                changed = true;
+            }
+        }
+        if let Some(adversary_sim_duration_seconds) = json
+            .get("adversary_sim_duration_seconds")
+            .and_then(|v| v.as_u64())
+        {
+            if !(ADVERSARY_SIM_DURATION_SECONDS_MIN..=ADVERSARY_SIM_DURATION_SECONDS_MAX)
+                .contains(&adversary_sim_duration_seconds)
+            {
+                return Response::new(
+                    400,
+                    format!(
+                        "adversary_sim_duration_seconds out of range ({}-{})",
+                        ADVERSARY_SIM_DURATION_SECONDS_MIN, ADVERSARY_SIM_DURATION_SECONDS_MAX
+                    ),
+                );
+            }
+            if cfg.adversary_sim_duration_seconds != adversary_sim_duration_seconds {
+                cfg.adversary_sim_duration_seconds = adversary_sim_duration_seconds;
                 changed = true;
             }
         }
@@ -7163,6 +7391,273 @@ fn monitoring_prometheus_helper_payload() -> serde_json::Value {
     })
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AdminAdversarySimControlRequest {
+    enabled: bool,
+}
+
+fn log_admin_csrf_denied<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    req: &Request,
+    path: &str,
+    auth: &crate::admin::auth::AdminAuthResult,
+) {
+    let client_ip = crate::extract_client_ip(req);
+    let session = auth.session_id.as_deref().unwrap_or("-");
+    log_event(
+        store,
+        &EventLogEntry {
+            ts: now_ts(),
+            event: EventType::AdminAction,
+            ip: Some(client_ip),
+            reason: Some("admin_csrf_denied".to_string()),
+            outcome: Some(format!(
+                "path={} method={} actor={} session={}",
+                path,
+                req.method(),
+                auth.audit_actor_label(),
+                session
+            )),
+            admin: Some(auth.audit_actor_label().to_string()),
+        },
+    );
+}
+
+fn log_adversary_sim_transition<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    req: &Request,
+    auth: &crate::admin::auth::AdminAuthResult,
+    transition: &crate::admin::adversary_sim::Transition,
+) {
+    let client_ip = crate::extract_client_ip(req);
+    let session = auth.session_id.as_deref().unwrap_or("-");
+    let run_id = transition.run_id.as_deref().unwrap_or("-");
+    log_event(
+        store,
+        &EventLogEntry {
+            ts: now_ts(),
+            event: EventType::AdminAction,
+            ip: Some(client_ip),
+            reason: Some("adversary_sim_transition".to_string()),
+            outcome: Some(format!(
+                "from={} to={} reason={} run_id={} actor={} session={}",
+                transition.from.as_str(),
+                transition.to.as_str(),
+                transition.reason,
+                run_id,
+                auth.audit_actor_label(),
+                session
+            )),
+            admin: Some(auth.audit_actor_label().to_string()),
+        },
+    );
+}
+
+fn save_runtime_config<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    cfg: &crate::config::Config,
+) -> Result<(), ()> {
+    let key = format!("config:{}", site_id);
+    let payload = serde_json::to_vec(cfg).map_err(|_| ())?;
+    store.set(&key, &payload)?;
+    crate::config::invalidate_runtime_cache(site_id);
+    Ok(())
+}
+
+fn adversary_sim_status_payload(
+    cfg: &crate::config::Config,
+    state: &crate::admin::adversary_sim::ControlState,
+    now: u64,
+) -> serde_json::Value {
+    crate::admin::adversary_sim::status_payload(
+        now,
+        crate::config::runtime_environment(),
+        crate::config::adversary_sim_available(),
+        cfg.adversary_sim_enabled,
+        cfg.adversary_sim_duration_seconds,
+        state,
+    )
+}
+
+fn handle_admin_adversary_sim_status(
+    req: &Request,
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+    auth: &crate::admin::auth::AdminAuthResult,
+) -> Response {
+    if *req.method() != Method::Get {
+        return Response::new(405, "Method Not Allowed");
+    }
+
+    let runtime_environment = crate::config::runtime_environment();
+    let env_available = crate::config::adversary_sim_available();
+    if !crate::admin::adversary_sim::control_surface_available(runtime_environment, env_available) {
+        return Response::new(404, "Not Found");
+    }
+
+    let mut cfg = match crate::config::Config::load(store, site_id) {
+        Ok(cfg) => cfg,
+        Err(err) => return Response::new(500, err.user_message()),
+    };
+    let now = now_ts();
+    let loaded_state = crate::admin::adversary_sim::load_state(store, site_id);
+    let (mut next_state, transitions) =
+        crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &loaded_state);
+    let transitioned_to_off = transitions
+        .iter()
+        .any(|transition| transition.to == crate::admin::adversary_sim::ControlPhase::Off);
+
+    let mut cfg_changed = false;
+    if transitioned_to_off && cfg.adversary_sim_enabled {
+        cfg.adversary_sim_enabled = false;
+        cfg_changed = true;
+    }
+
+    if next_state != loaded_state {
+        if crate::admin::adversary_sim::save_state(store, site_id, &next_state).is_err() {
+            return Response::new(500, "Key-value store error");
+        }
+    }
+    if cfg_changed {
+        if save_runtime_config(store, site_id, &cfg).is_err() {
+            return Response::new(500, "Key-value store error");
+        }
+        let (reconciled_state, mut reconciled_transitions) = crate::admin::adversary_sim::reconcile_state(
+            now,
+            cfg.adversary_sim_enabled,
+            &next_state,
+        );
+        next_state = reconciled_state;
+        if !reconciled_transitions.is_empty() {
+            if crate::admin::adversary_sim::save_state(store, site_id, &next_state).is_err() {
+                return Response::new(500, "Key-value store error");
+            }
+        }
+        for transition in reconciled_transitions.drain(..) {
+            log_adversary_sim_transition(store, req, auth, &transition);
+        }
+    }
+    for transition in transitions {
+        log_adversary_sim_transition(store, req, auth, &transition);
+    }
+
+    let body = serde_json::to_string(&adversary_sim_status_payload(&cfg, &next_state, now)).unwrap();
+    Response::new(200, body)
+}
+
+fn handle_admin_adversary_sim_control(
+    req: &Request,
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+    auth: &crate::admin::auth::AdminAuthResult,
+) -> Response {
+    if *req.method() != Method::Post {
+        return Response::new(405, "Method Not Allowed");
+    }
+    if !crate::config::admin_config_write_enabled() {
+        return Response::new(
+            403,
+            "Config updates are disabled when SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false",
+        );
+    }
+
+    let runtime_environment = crate::config::runtime_environment();
+    let env_available = crate::config::adversary_sim_available();
+    if !crate::admin::adversary_sim::control_surface_available(runtime_environment, env_available) {
+        return Response::new(404, "Not Found");
+    }
+
+    let body = match crate::request_validation::parse_json_body(
+        req.body(),
+        crate::request_validation::MAX_ADMIN_JSON_BYTES,
+    ) {
+        Ok(v) => v,
+        Err(err) => return Response::new(400, err),
+    };
+    let payload = match serde_json::from_value::<AdminAdversarySimControlRequest>(body) {
+        Ok(parsed) => parsed,
+        Err(err) => return Response::new(400, format!("Invalid control payload: {}", err)),
+    };
+
+    let mut cfg = match crate::config::Config::load(store, site_id) {
+        Ok(cfg) => cfg,
+        Err(err) => return Response::new(500, err.user_message()),
+    };
+    let now = now_ts();
+    let loaded_state = crate::admin::adversary_sim::load_state(store, site_id);
+    let (mut state, mut transitions) =
+        crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &loaded_state);
+
+    let mut cfg_changed = false;
+    if payload.enabled {
+        if !cfg.adversary_sim_enabled {
+            cfg.adversary_sim_enabled = true;
+            cfg_changed = true;
+        }
+        if state.phase != crate::admin::adversary_sim::ControlPhase::Running {
+            let duration = crate::admin::adversary_sim::clamp_duration_seconds(
+                cfg.adversary_sim_duration_seconds,
+            );
+            match crate::admin::adversary_sim::start_state(now, duration, &state) {
+                Ok((next_state, mut started_transitions)) => {
+                    state = next_state;
+                    transitions.append(&mut started_transitions);
+                }
+                Err(crate::admin::adversary_sim::StartError::QueueFull) => {
+                    return Response::new(
+                        409,
+                        "Adversary simulation queue is full (queue_policy=reject_new)",
+                    );
+                }
+            }
+        }
+    } else {
+        if cfg.adversary_sim_enabled {
+            cfg.adversary_sim_enabled = false;
+            cfg_changed = true;
+        }
+        let (stopping_state, mut stop_transitions) =
+            crate::admin::adversary_sim::stop_state(now, "manual_off", &state);
+        state = stopping_state;
+        transitions.append(&mut stop_transitions);
+    }
+
+    let (reconciled_state, mut reconciled_transitions) =
+        crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
+    state = reconciled_state;
+    transitions.append(&mut reconciled_transitions);
+
+    if state.phase == crate::admin::adversary_sim::ControlPhase::Off && cfg.adversary_sim_enabled {
+        cfg.adversary_sim_enabled = false;
+        cfg_changed = true;
+    }
+    if cfg_changed {
+        if save_runtime_config(store, site_id, &cfg).is_err() {
+            return Response::new(500, "Key-value store error");
+        }
+    }
+    if crate::admin::adversary_sim::save_state(store, site_id, &state).is_err() {
+        return Response::new(500, "Key-value store error");
+    }
+    for transition in &transitions {
+        log_adversary_sim_transition(store, req, auth, transition);
+    }
+
+    let response = json!({
+        "requested_enabled": payload.enabled,
+        "status": adversary_sim_status_payload(&cfg, &state, now),
+        "config": admin_config_payload(
+            &cfg,
+            challenge_threshold_default(),
+            not_a_bot_threshold_default(),
+            maze_threshold_default()
+        ),
+    });
+    Response::new(200, serde_json::to_string(&response).unwrap())
+}
+
 /// Handles all /admin API endpoints.
 /// Supports:
 ///   - POST /admin/login: Exchange API key for short-lived admin session cookie
@@ -7180,6 +7675,8 @@ fn monitoring_prometheus_helper_payload() -> serde_json::Value {
 ///   - POST /admin/config: Update config (e.g., toggle test_mode)
 ///   - POST /admin/config/validate: Validate a config patch without persisting changes
 ///   - GET /admin/config/export: Export non-secret runtime config for immutable deploy handoff
+///   - POST /admin/adversary-sim/control: Start/stop dev adversary simulation orchestration
+///   - GET /admin/adversary-sim/status: Read orchestration state and guardrails
 ///   - GET /admin/maze/preview: Render a non-operational maze preview for operators
 ///   - GET /admin/tarpit/preview: Render a non-operational progressive tarpit preview for operators
 ///   - GET /admin: API help
@@ -7230,6 +7727,22 @@ pub fn handle_admin(req: &Request) -> Response {
     let has_bearer = crate::admin::auth::is_bearer_authorized(req);
     let has_session_cookie = crate::admin::auth::has_admin_session_cookie(req);
     if !has_bearer && !has_session_cookie {
+        if path == "/admin/adversary-sim/control" {
+            if let Ok(store) = Store::open_default() {
+                let client_ip = crate::extract_client_ip(req);
+                log_event(
+                    &store,
+                    &EventLogEntry {
+                        ts: now_ts(),
+                        event: EventType::AdminAction,
+                        ip: Some(client_ip),
+                        reason: Some("adversary_sim_auth_denied".to_string()),
+                        outcome: Some(format!("path={} method={}", path, req.method())),
+                        admin: Some("-".to_string()),
+                    },
+                );
+            }
+        }
         return Response::new(401, "Unauthorized: Invalid or missing API key");
     }
 
@@ -7244,6 +7757,20 @@ pub fn handle_admin(req: &Request) -> Response {
     // Require either a valid bearer token or a valid admin session cookie.
     let auth = crate::admin::auth::authenticate_admin(req, &store);
     if !auth.is_authorized() {
+        if path == "/admin/adversary-sim/control" {
+            let client_ip = crate::extract_client_ip(req);
+            log_event(
+                &store,
+                &EventLogEntry {
+                    ts: now_ts(),
+                    event: EventType::AdminAction,
+                    ip: Some(client_ip),
+                    reason: Some("adversary_sim_auth_denied".to_string()),
+                    outcome: Some(format!("path={} method={}", path, req.method())),
+                    admin: Some(auth.audit_actor_label().to_string()),
+                },
+            );
+        }
         if register_admin_auth_failure_with_selected_rate_limiter(
             &store,
             req,
@@ -7257,6 +7784,7 @@ pub fn handle_admin(req: &Request) -> Response {
     if auth.requires_csrf(req) {
         let expected = auth.csrf_token.as_deref().unwrap_or("");
         if !crate::admin::auth::validate_session_csrf(req, expected) {
+            log_admin_csrf_denied(&store, req, path, &auth);
             return Response::new(403, "Forbidden");
         }
     }
@@ -7535,6 +8063,12 @@ pub fn handle_admin(req: &Request) -> Response {
         "/admin/config/export" => {
             return handle_admin_config_export(req, &store, site_id);
         }
+        "/admin/adversary-sim/control" => {
+            return handle_admin_adversary_sim_control(req, &store, site_id, &auth);
+        }
+        "/admin/adversary-sim/status" => {
+            return handle_admin_adversary_sim_status(req, &store, site_id, &auth);
+        }
         "/admin/maze/preview" => {
             return handle_admin_maze_preview(req, &store, site_id);
         }
@@ -7560,7 +8094,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/ip-range/suggestions, /admin/config, /admin/config/validate, /admin/config/export, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/ip-range/suggestions, /admin/config, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics

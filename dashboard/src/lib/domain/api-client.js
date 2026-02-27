@@ -289,6 +289,47 @@ export const adaptConfig = (payload) => asRecord(payload);
 
 /**
  * @param {unknown} payload
+ */
+export const adaptAdversarySimStatus = (payload) => {
+  const source = asRecord(payload);
+  const guardrails = asRecord(source.guardrails);
+  const lanes = asRecord(source.lanes);
+  return {
+    runtime_environment: String(source.runtime_environment || ''),
+    adversary_sim_available: source.adversary_sim_available === true,
+    adversary_sim_enabled: source.adversary_sim_enabled === true,
+    phase: String(source.phase || 'off'),
+    run_id: typeof source.run_id === 'string' ? source.run_id : '',
+    started_at: Number(source.started_at || 0),
+    ends_at: Number(source.ends_at || 0),
+    duration_seconds: Number(source.duration_seconds || 0),
+    remaining_seconds: Number(source.remaining_seconds || 0),
+    active_run_count: Number(source.active_run_count || 0),
+    active_lane_count: Number(source.active_lane_count || 0),
+    lanes: {
+      deterministic: String(lanes.deterministic || 'off'),
+      containerized: String(lanes.containerized || 'off')
+    },
+    queue_policy: String(source.queue_policy || ''),
+    guardrails: {
+      max_duration_seconds: Number(guardrails.max_duration_seconds || 0),
+      max_concurrent_runs: Number(guardrails.max_concurrent_runs || 0),
+      cpu_cap_millicores: Number(guardrails.cpu_cap_millicores || 0),
+      memory_cap_mib: Number(guardrails.memory_cap_mib || 0),
+      queue_policy: String(guardrails.queue_policy || '')
+    },
+    last_transition_reason:
+      typeof source.last_transition_reason === 'string' ? source.last_transition_reason : '',
+    last_terminal_failure_reason:
+      typeof source.last_terminal_failure_reason === 'string'
+        ? source.last_terminal_failure_reason
+        : '',
+    last_run_id: typeof source.last_run_id === 'string' ? source.last_run_id : ''
+  };
+};
+
+/**
+ * @param {unknown} payload
  * @returns {{ valid: boolean, issues: Array<Record<string, unknown>> }}
  */
 export const adaptConfigValidation = (payload) => {
@@ -509,6 +550,12 @@ export const create = (options = {}) => {
     adaptConfig(await request('/admin/config', requestOptions));
 
   /**
+   * @param {RequestOptions} [requestOptions]
+   */
+  const getAdversarySimStatus = async (requestOptions = {}) =>
+    adaptAdversarySimStatus(await request('/admin/adversary-sim/status', requestOptions));
+
+  /**
    * @param {{hours?: number, limit?: number}} [options]
    * @param {RequestOptions} [requestOptions]
    */
@@ -578,6 +625,23 @@ export const create = (options = {}) => {
     );
 
   /**
+   * @param {boolean} enabled
+   */
+  const controlAdversarySim = async (enabled) => {
+    const payload = asRecord(
+      await request('/admin/adversary-sim/control', {
+        method: 'POST',
+        json: { enabled: enabled === true }
+      })
+    );
+    return {
+      requested_enabled: payload.requested_enabled === true,
+      status: adaptAdversarySimStatus(payload.status),
+      config: adaptConfig(payload.config)
+    };
+  };
+
+  /**
    * @param {string} ip
    * @param {number} duration
    * @param {string} [reason]
@@ -611,9 +675,11 @@ export const create = (options = {}) => {
     getMonitoring,
     getIpRangeSuggestions,
     getConfig,
+    getAdversarySimStatus,
     getRobotsPreview,
     updateConfig,
     validateConfigPatch,
+    controlAdversarySim,
     banIp,
     unbanIp
   };

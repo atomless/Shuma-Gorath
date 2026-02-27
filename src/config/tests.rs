@@ -643,6 +643,33 @@ fn adversary_sim_available_defaults_false_and_parses_bool_values() {
 }
 
 #[test]
+fn adversary_sim_duration_defaults_to_180_and_clamps_loaded_values() {
+    let store = CountingStore::default();
+    let mut cfg = defaults().clone();
+    assert_eq!(cfg.adversary_sim_duration_seconds, 180);
+
+    cfg.adversary_sim_duration_seconds = 5;
+    store
+        .set("config:default", &serde_json::to_vec(&cfg).unwrap())
+        .unwrap();
+    let loaded_low = Config::load(&store, "default").unwrap();
+    assert_eq!(
+        loaded_low.adversary_sim_duration_seconds,
+        ADVERSARY_SIM_DURATION_SECONDS_MIN
+    );
+
+    cfg.adversary_sim_duration_seconds = 9_999;
+    store
+        .set("config:default", &serde_json::to_vec(&cfg).unwrap())
+        .unwrap();
+    let loaded_high = Config::load(&store, "default").unwrap();
+    assert_eq!(
+        loaded_high.adversary_sim_duration_seconds,
+        ADVERSARY_SIM_DURATION_SECONDS_MAX
+    );
+}
+
+#[test]
 fn validate_env_rejects_invalid_optional_runtime_environment() {
     let _lock = crate::test_support::lock_env();
     clear_env(&[

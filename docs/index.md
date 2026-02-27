@@ -34,4 +34,5 @@ Use the Makefile as the official workflow. These docs are the source of truth fo
 - [`plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md) - Deployment-track and adversarial-traffic simulation execution plan
 - [`plans/2026-02-25-adversarial-simulation-fast-smoke-design.md`](plans/2026-02-25-adversarial-simulation-fast-smoke-design.md) - Initial executable manifest + runner + mandatory fast-smoke gate design
 - [`research/2026-02-25-llm-adversarial-testing-research-synthesis.md`](research/2026-02-25-llm-adversarial-testing-research-synthesis.md) - LLM-driven adversarial testing research and Shuma implications
+- [`adversarial-operator-guide.md`](adversarial-operator-guide.md) - Operator triage/tuning guidance for adversarial simulation failures and dashboard orchestration lifecycle
 - [`../todos/security-review.md`](../todos/security-review.md) - Security audit notes / backlog

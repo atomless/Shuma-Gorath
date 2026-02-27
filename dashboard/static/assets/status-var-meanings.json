@@ -1,6 +1,7 @@
 {
   "test_mode": "Logs detections/actions without enforcing blocks.",
   "adversary_sim_enabled": "Enables/disables dev-only adversary simulation orchestration in runtime configuration.",
+  "adversary_sim_duration_seconds": "Dashboard orchestration run-window duration in seconds (bounded by hard-coded dev guardrails).",
   "ban_duration": "Legacy fallback ban duration (seconds) when no specific trigger duration applies.",
   "ban_durations.honeypot": "Ban duration (seconds) for honeypot/instaban trigger.",
   "ban_durations.rate_limit": "Ban duration (seconds) for rate-limit enforcement.",

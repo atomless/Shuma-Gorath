@@ -401,6 +401,10 @@ h1 {
   opacity: 0.7;
 }
 
+.dashboard-adversary-sim-control {
+  top: 60px;
+}
+
 .subtitle {
   font-size: var(--text-lg);
   margin: -18px 0 2rem 0;
@@ -1134,6 +1138,25 @@ a:focus-visible {
   display: none;
 }
 
+.adversary-sim-progress-line {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: transparent;
+  z-index: 100000001;
+  pointer-events: none;
+}
+
+.adversary-sim-progress-line__fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--color-bright-pink);
+  transition: width 0.2s linear;
+}
+
 .hidden {
   display: none;
 }
@@ -1249,6 +1272,26 @@ input:checked + .toggle-slider:before {
   .config-save-bar .btn {
     width: 100%;
     min-width: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-global-control {
+    top: 16px;
+    left: 16px;
+  }
+
+  .dashboard-adversary-sim-control {
+    top: 44px;
+  }
+
+  .dashboard-logout {
+    top: 16px;
+    right: 16px;
+  }
+
+  header {
+    padding-top: 72px;
   }
 }
 

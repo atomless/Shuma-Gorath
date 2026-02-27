@@ -144,6 +144,8 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `POST /admin/config` - Update configuration (partial <abbr title="JavaScript Object Notation">JSON</abbr>, disabled when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`)
 - `POST /admin/config/validate` - Validate a config patch without persisting changes (returns `{ valid, issues[] }` with field/expected/received hints when invalid)
 - `GET /admin/config/export` - Export non-secret runtime config as deploy-ready env key/value output
+- `POST /admin/adversary-sim/control` - Explicit dev-only adversary-sim lifecycle control (`{"enabled":true|false}`), admin-auth + CSRF protected
+- `GET /admin/adversary-sim/status` - Read current adversary-sim lifecycle phase, active counts, and hard-coded guardrails
 - `GET /admin/maze` - maze stats
 - `GET /admin/maze/preview?path=<maze_entry_path>...` - Non-operational maze preview (admin-auth only; no live traversal token issuance)
 - `GET /admin/maze/seeds` - Maze operator-seed source list and cached corpus snapshot
@@ -323,6 +325,8 @@ Core enforcement fields:
 - `js_required_enforced` - enable/disable <abbr title="JavaScript">JS</abbr>-required enforcement
 - `rate_limit` - per-minute request limit used for hard rate limiting and rate-pressure scoring, applied per source IP bucket (IPv4 /24, IPv6 /64)
 - `honeypot_enabled` - enable/disable honeypot trap handling for configured trap paths
+- `adversary_sim_enabled` - enables/disables dev-only adversary-sim orchestration gate
+- `adversary_sim_duration_seconds` - dashboard orchestration run-window duration (bounded `30..900`)
 - `challenge_puzzle_enabled` - enable/disable challenge serving at challenge-tier routes (when disabled, challenge tier falls back to maze or block)
 - `defence_modes.rate` / `defence_modes.geo` / `defence_modes.js` - per-module composability mode (`off`, `signal`, `enforce`, `both`)
 

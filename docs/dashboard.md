@@ -75,6 +75,8 @@ Notes:
 - `GET /admin/config`
 - `POST /admin/config`
 - `POST /admin/config/validate`
+- `POST /admin/adversary-sim/control`
+- `GET /admin/adversary-sim/status`
 - `GET /admin/robots`
 - `POST /admin/robots/preview`
 
@@ -102,4 +104,3 @@ Rollback method:
 2. Run `make test`.
 3. Run `make build`.
 4. Redeploy.
-

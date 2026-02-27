@@ -826,6 +826,58 @@ test('dashboard body class runtime keeps exactly one environment class and adver
   });
 });
 
+test('dashboard adversary-sim runtime normalizes orchestration status and progress windows', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const adversaryModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-adversary-sim.js');
+    const normalized = adversaryModule.normalizeAdversarySimStatus({
+      runtime_environment: 'runtime-dev',
+      adversary_sim_available: true,
+      adversary_sim_enabled: true,
+      phase: 'running',
+      run_id: 'simrun-123',
+      started_at: 1000,
+      ends_at: 1180,
+      duration_seconds: 180,
+      remaining_seconds: 120,
+      active_run_count: 1,
+      active_lane_count: 2
+    });
+
+    assert.equal(normalized.runtimeEnvironment, 'runtime-dev');
+    assert.equal(normalized.available, true);
+    assert.equal(normalized.enabled, true);
+    assert.equal(normalized.phase, 'running');
+    assert.equal(normalized.runId, 'simrun-123');
+    assert.equal(normalized.activeRunCount, 1);
+    assert.equal(normalized.activeLaneCount, 2);
+
+    const renormalized = adversaryModule.normalizeAdversarySimStatus(normalized);
+    assert.equal(renormalized.enabled, true);
+    assert.equal(renormalized.available, true);
+    assert.equal(renormalized.startedAt, 1000);
+    assert.equal(renormalized.endsAt, 1180);
+    assert.equal(renormalized.durationSeconds, 180);
+    assert.equal(renormalized.remainingSeconds, 120);
+
+    const progress = adversaryModule.deriveAdversarySimProgress({
+      phase: 'running',
+      started_at: 1000,
+      ends_at: 1180,
+      duration_seconds: 180
+    }, 1090 * 1000);
+    assert.equal(progress.visible, true);
+    assert.equal(Math.round(progress.widthPercent), 50);
+    assert.equal(progress.remainingSeconds, 90);
+    assert.equal(progress.complete, false);
+
+    const hidden = adversaryModule.deriveAdversarySimProgress({
+      phase: 'off'
+    }, 1090 * 1000);
+    assert.equal(hidden.visible, false);
+    assert.equal(hidden.widthPercent, 0);
+  });
+});
+
 test('config form utils and JSON object helpers preserve parser contracts', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const formUtils = await importBrowserModule('dashboard/src/lib/domain/config-form-utils.js');
@@ -951,6 +1003,7 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
     assert.equal(json.resolveJsonFieldLine('missing_field', fieldLineMap), null);
     assert.equal(Array.isArray(schema.advancedConfigTemplatePaths), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('test_mode'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('adversary_sim_duration_seconds'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('browser_policy_enabled'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('bypass_allowlists_enabled'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('geo_edge_headers_enabled'), true);
@@ -1400,6 +1453,7 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /import\('\$lib\/components\/dashboard\/TuningTab\.svelte'\)/);
   assert.match(source, /\$lib\/runtime\/dashboard-route-controller\.js/);
   assert.match(source, /\$lib\/runtime\/dashboard-body-classes\.js/);
+  assert.match(source, /\$lib\/runtime\/dashboard-adversary-sim\.js/);
   assert.match(source, /deriveDashboardBodyClassState\(configSnapshot\)/);
   assert.match(source, /syncDashboardBodyClasses\(document, bodyClassState\)/);
   assert.match(source, /clearDashboardBodyClasses\(document\)/);
@@ -1425,8 +1479,11 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /ipRangeSuggestionsSnapshot=\{snapshots\.ipRangeSuggestions\}/);
   assert.match(source, /cdpSnapshot=\{snapshots\.cdp\}/);
   assert.match(source, /id="global-test-mode-toggle"/);
+  assert.match(source, /id="global-adversary-sim-toggle"/);
   assert.match(source, /onGlobalTestModeToggleChange/);
+  assert.match(source, /onGlobalAdversarySimToggleChange/);
   assert.match(source, /dashboard-global-control-label/);
+  assert.match(source, /id="adversary-sim-progress-line"/);
   assert.match(source, /id="admin-msg"/);
 });
 

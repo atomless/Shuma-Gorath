@@ -58,6 +58,43 @@ When `passed=false`, use `driver`, `expected_outcome`, `observed_outcome`, and `
 
 `gates.checks` includes quantitative assertions.
 
+## Dashboard Toggle Orchestration (SIM-V2-9A)
+
+The dashboard `Adversary Sim` global toggle is the only supported UI control path for dev orchestration lifecycle.
+
+Control-plane endpoints:
+
+1. `POST /admin/adversary-sim/control` for explicit ON/OFF transitions.
+2. `GET /admin/adversary-sim/status` for phase + guardrail visibility.
+
+Guardrail constants (hard-coded, not operator-configurable):
+
+1. `max_duration_seconds=900` (runtime key `adversary_sim_duration_seconds` is bounded to `30..900`, default `180`).
+2. `max_concurrent_runs=1`.
+3. `cpu_cap_millicores=1000`.
+4. `memory_cap_mib=512`.
+5. `queue_policy=reject_new`.
+
+Lifecycle state diagram:
+
+```mermaid
+stateDiagram-v2
+  [*] --> Off
+  Off --> Running: "toggle ON (control endpoint)"
+  Running --> Stopping: "toggle OFF (manual_off)"
+  Running --> Stopping: "window expiry (auto_window_expired)"
+  Running --> Stopping: "config disabled / unavailable"
+  Stopping --> Off: "active counts == 0"
+  Stopping --> Off: "stop timeout -> forced_kill_timeout"
+```
+
+Failure-handling rules:
+
+1. Unauthenticated, unauthorized, and CSRF-invalid control attempts must be rejected and written to admin event log.
+2. If stop does not converge to zero-active state before stop timeout, orchestrator must force-kill and return to safe `off` state.
+3. If runtime is not `runtime-dev` or `SHUMA_ADVERSARY_SIM_AVAILABLE=false`, control/status endpoints must fail closed (`404`).
+4. Status polling and top progress-line rendering are presentation only; defense behavior remains server-authoritative.
+
 ### `latency_p95` Failure
 
 - Operators must verify runtime saturation before relaxing latency limits.

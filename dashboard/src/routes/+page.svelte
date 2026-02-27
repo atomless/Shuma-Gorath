@@ -12,11 +12,17 @@
     deriveDashboardBodyClassState,
     syncDashboardBodyClasses
   } from '$lib/runtime/dashboard-body-classes.js';
+  import {
+    deriveAdversarySimProgress,
+    normalizeAdversarySimStatus
+  } from '$lib/runtime/dashboard-adversary-sim.js';
   import { createDashboardRouteController } from '$lib/runtime/dashboard-route-controller.js';
   import {
     banDashboardIp,
+    controlDashboardAdversarySim,
     getDashboardEvents,
     getDashboardRobotsPreview,
+    getDashboardAdversarySimStatus,
     getDashboardSessionState,
     logoutDashboardSession,
     mountDashboardApp,
@@ -73,9 +79,14 @@
   let runtimeError = '';
   let loggingOut = false;
   let savingGlobalTestMode = false;
+  let savingGlobalAdversarySim = false;
   let autoRefreshEnabled = false;
   let adminMessageText = '';
   let adminMessageKind = 'info';
+  let adversarySimStatus = {};
+  let adversarySimStatusPollTimer = null;
+  let adversarySimProgressTickTimer = null;
+  let adversarySimProgressNowMs = Date.now();
   let IpBansTabComponent = null;
   let StatusTabComponent = null;
   let VerificationTabComponent = null;
@@ -115,12 +126,25 @@
   $: if (typeof document !== 'undefined') {
     syncDashboardBodyClasses(document, bodyClassState);
   }
+  $: normalizedAdversarySimStatus = normalizeAdversarySimStatus(adversarySimStatus);
+  $: adversarySimToggleEnabled = normalizedAdversarySimStatus.enabled;
+  $: adversarySimControlAvailable =
+    String(configSnapshot.runtime_environment || '') === 'runtime-dev' &&
+    configSnapshot.adversary_sim_available === true;
+  $: adversarySimProgress = deriveAdversarySimProgress(normalizedAdversarySimStatus, adversarySimProgressNowMs);
   $: globalTestModeToggleDisabled =
     !runtimeReady ||
     loggingOut ||
     savingGlobalTestMode ||
     dashboardState?.session?.authenticated !== true ||
     configSnapshot.admin_config_write_enabled !== true;
+  $: globalAdversarySimToggleDisabled =
+    !runtimeReady ||
+    loggingOut ||
+    savingGlobalAdversarySim ||
+    dashboardState?.session?.authenticated !== true ||
+    configSnapshot.admin_config_write_enabled !== true ||
+    !adversarySimControlAvailable;
 
   function registerTabLink(node, tab) {
     let key = normalizeTab(tab);
@@ -262,6 +286,9 @@
         basePath: dashboardBasePath
       });
       runtimeReady = bootstrapped === true;
+      if (runtimeReady) {
+        await refreshAdversarySimStatus('bootstrap');
+      }
     } catch (error) {
       runtimeError = error && error.message ? error.message : 'Dashboard bootstrap failed.';
     }
@@ -272,6 +299,8 @@
     routeController.dispose();
     storeUnsubscribe();
     telemetryUnsubscribe();
+    clearAdversarySimStatusPollTimer();
+    clearAdversarySimProgressTickTimer();
     if (typeof document !== 'undefined') {
       clearDashboardBodyClasses(document);
     }
@@ -358,6 +387,113 @@
     }
   }
 
+  function clearAdversarySimStatusPollTimer() {
+    if (adversarySimStatusPollTimer) {
+      clearInterval(adversarySimStatusPollTimer);
+      adversarySimStatusPollTimer = null;
+    }
+  }
+
+  function clearAdversarySimProgressTickTimer() {
+    if (adversarySimProgressTickTimer) {
+      clearInterval(adversarySimProgressTickTimer);
+      adversarySimProgressTickTimer = null;
+    }
+  }
+
+  function syncAdversarySimTimers() {
+    const shouldPollStatus =
+      routeController.getRuntimeMounted() &&
+      runtimeReady &&
+      (normalizedAdversarySimStatus.enabled === true ||
+        normalizedAdversarySimStatus.phase === 'running' ||
+        normalizedAdversarySimStatus.phase === 'stopping');
+
+    if (shouldPollStatus) {
+      if (!adversarySimStatusPollTimer) {
+        adversarySimStatusPollTimer = setInterval(() => {
+          void refreshAdversarySimStatus('poll');
+        }, 1000);
+      }
+    } else {
+      clearAdversarySimStatusPollTimer();
+    }
+
+    if (adversarySimProgress.visible) {
+      if (!adversarySimProgressTickTimer) {
+        adversarySimProgressTickTimer = setInterval(() => {
+          adversarySimProgressNowMs = Date.now();
+        }, 250);
+      }
+    } else {
+      clearAdversarySimProgressTickTimer();
+    }
+  }
+
+  async function refreshAdversarySimStatus(_reason = 'manual') {
+    if (!routeController.getRuntimeMounted() || !runtimeReady) return;
+    if (!adversarySimControlAvailable && configSnapshot.adversary_sim_enabled !== true) {
+      adversarySimStatus = {
+        runtime_environment: configSnapshot.runtime_environment,
+        adversary_sim_available: configSnapshot.adversary_sim_available,
+        adversary_sim_enabled: configSnapshot.adversary_sim_enabled
+      };
+      syncAdversarySimTimers();
+      return;
+    }
+    try {
+      const status = await getDashboardAdversarySimStatus();
+      adversarySimStatus = status && typeof status === 'object' ? status : {};
+    } catch (error) {
+      if (error && Number(error.status) === 404) {
+        adversarySimStatus = {
+          runtime_environment: configSnapshot.runtime_environment,
+          adversary_sim_available: false,
+          adversary_sim_enabled: false
+        };
+      }
+    }
+    adversarySimProgressNowMs = Date.now();
+    syncAdversarySimTimers();
+  }
+
+  async function onGlobalAdversarySimToggleChange(event) {
+    const target = event && event.currentTarget ? event.currentTarget : null;
+    const nextValue = target && target.checked === true;
+    const previousValue = normalizedAdversarySimStatus.enabled === true;
+    if (globalAdversarySimToggleDisabled) {
+      if (target) target.checked = previousValue;
+      return;
+    }
+    if (nextValue === previousValue) return;
+
+    savingGlobalAdversarySim = true;
+    try {
+      const result = await controlDashboardAdversarySim(nextValue);
+      const status = result && result.status ? result.status : {};
+      const normalizedStatus = normalizeAdversarySimStatus(status);
+      adversarySimStatus = status && typeof status === 'object' ? status : {};
+      if (target) target.checked = normalizedStatus.enabled;
+      setAdminMessage(
+        nextValue
+          ? 'Adversary simulation run started.'
+          : 'Adversary simulation run stopped.',
+        'success'
+      );
+      await routeController.refreshTab(activeTabKey, 'adversary-sim-toggle');
+    } catch (error) {
+      if (target) target.checked = previousValue;
+      const message = formatActionError(error, 'Failed to toggle adversary simulation.');
+      setAdminMessage(`Error: ${message}`, 'error');
+    } finally {
+      adversarySimProgressNowMs = Date.now();
+      savingGlobalAdversarySim = false;
+      try {
+        await refreshAdversarySimStatus('toggle');
+      } catch (_error) {}
+    }
+  }
+
   function formatActionError(error, fallback = 'Action failed.') {
     if (error && typeof error.message === 'string' && error.message.trim()) {
       return error.message.trim();
@@ -435,6 +571,8 @@
     loggingOut = true;
     try {
       routeController.abortInFlightRefresh();
+      clearAdversarySimStatusPollTimer();
+      clearAdversarySimProgressTickTimer();
       await logoutDashboardSession();
       dashboardStore.setSession({ authenticated: false, csrfToken: '' });
       routeController.clearPolling();
@@ -449,6 +587,22 @@
 </svelte:head>
 <svelte:window on:hashchange={onWindowHashChange} />
 <svelte:document on:visibilitychange={onDocumentVisibilityChange} />
+{#if adversarySimProgress.visible}
+  <div
+    id="adversary-sim-progress-line"
+    class="adversary-sim-progress-line"
+    role="progressbar"
+    aria-label={`Adversary simulation window (${adversarySimProgress.remainingSeconds}s remaining)`}
+    aria-valuemin="0"
+    aria-valuemax="100"
+    aria-valuenow={Math.round(adversarySimProgress.widthPercent)}
+  >
+    <span
+      class="adversary-sim-progress-line__fill"
+      style={`width:${adversarySimProgress.widthPercent}%`}
+    ></span>
+  </div>
+{/if}
 <div class="container panel panel-border" data-dashboard-runtime-mode="native">
   <div id="test-mode-banner" class="test-mode-banner" class:hidden={!testModeEnabled}>
     TEST MODE ACTIVE - Logging only, no active defences
@@ -466,6 +620,20 @@
       <span class="toggle-slider"></span>
     </label>
     <span class="dashboard-global-control-label" class:dashboard-global-control-label--disabled={globalTestModeToggleDisabled}>Test Mode</span>
+  </div>
+  <div class="dashboard-global-control dashboard-adversary-sim-control">
+    <label class="toggle-switch" for="global-adversary-sim-toggle">
+      <input
+        id="global-adversary-sim-toggle"
+        type="checkbox"
+        aria-label="Enable adversary simulation"
+        checked={adversarySimToggleEnabled}
+        disabled={globalAdversarySimToggleDisabled}
+        on:change={onGlobalAdversarySimToggleChange}
+      >
+      <span class="toggle-slider"></span>
+    </label>
+    <span class="dashboard-global-control-label" class:dashboard-global-control-label--disabled={globalAdversarySimToggleDisabled}>Adversary Sim</span>
   </div>
   <button
     id="logout-btn"

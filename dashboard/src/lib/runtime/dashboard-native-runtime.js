@@ -185,6 +185,27 @@ function invalidateAfterConfigSave(nextConfig = null) {
   dashboardState.invalidate('ip-bans');
 }
 
+function applyAdversarySimStatusSnapshot(status = null) {
+  if (!dashboardState || !isObject(status)) return;
+  const existing = dashboardState.getSnapshot('config');
+  const base = isObject(existing) ? existing : {};
+  const next = { ...base };
+  if (typeof status.runtime_environment === 'string' && status.runtime_environment.trim()) {
+    next.runtime_environment = status.runtime_environment.trim();
+  }
+  if (typeof status.adversary_sim_available === 'boolean') {
+    next.adversary_sim_available = status.adversary_sim_available;
+  }
+  if (typeof status.adversary_sim_enabled === 'boolean') {
+    next.adversary_sim_enabled = status.adversary_sim_enabled;
+  }
+  const durationSeconds = Number(status.duration_seconds);
+  if (Number.isFinite(durationSeconds) && durationSeconds > 0) {
+    next.adversary_sim_duration_seconds = Math.floor(durationSeconds);
+  }
+  dashboardState.setSnapshot('config', next);
+}
+
 function invalidateAfterBanMutation() {
   if (!dashboardState) return;
   dashboardState.invalidate('ip-bans');
@@ -290,6 +311,29 @@ export async function updateDashboardConfig(patch) {
 export async function validateDashboardConfigPatch(patch) {
   const apiClient = requireApiClient();
   return apiClient.validateConfigPatch(patch || {});
+}
+
+export async function getDashboardAdversarySimStatus() {
+  const apiClient = requireApiClient();
+  const status = await apiClient.getAdversarySimStatus();
+  applyAdversarySimStatusSnapshot(status);
+  return status;
+}
+
+export async function controlDashboardAdversarySim(enabled) {
+  const apiClient = requireApiClient();
+  const response = await apiClient.controlAdversarySim(enabled === true);
+  const status = isObject(response.status) ? response.status : {};
+  const nextConfig = isObject(response.config) ? response.config : null;
+  if (nextConfig) {
+    invalidateAfterConfigSave(nextConfig);
+  }
+  applyAdversarySimStatusSnapshot(status);
+  return {
+    requested_enabled: response.requested_enabled === true,
+    status,
+    config: nextConfig
+  };
 }
 
 export async function banDashboardIp(ip, duration, reason = 'manual_ban') {

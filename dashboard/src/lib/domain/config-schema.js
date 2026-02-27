@@ -3,6 +3,7 @@
 export const advancedConfigTemplatePaths = Object.freeze([
     'test_mode',
     'adversary_sim_enabled',
+    'adversary_sim_duration_seconds',
     'ban_duration',
     'ban_durations.honeypot',
     'ban_durations.rate_limit',

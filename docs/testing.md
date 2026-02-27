@@ -141,6 +141,12 @@ Dashboard body-class contract for dev-only affordances:
 - `<body>` must include `adversary-sim` only when `adversary_sim_enabled=true`.
 - These classes are presentational hooks only and must not alter defence/auth behavior directly.
 
+Dashboard adversary-sim orchestration control contract:
+- `POST /admin/adversary-sim/control` is the explicit admin-authenticated + CSRF-protected control path for ON/OFF transitions.
+- `GET /admin/adversary-sim/status` returns the current lifecycle phase plus fixed guardrail constants for UI/ops visibility.
+- Toggle-driven runs use `adversary_sim_duration_seconds` (default `180`, hard-bounded `30..900`), and dashboard shows a fixed top progress line while phase is `running`.
+- Runtime guardrails are hard-coded: `max_concurrent_runs=1`, `cpu_cap_millicores=1000`, `memory_cap_mib=512`, `queue_policy=reject_new`.
+
 Live loop examples:
 
 ```bash

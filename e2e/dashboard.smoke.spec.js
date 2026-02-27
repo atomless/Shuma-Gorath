@@ -185,6 +185,19 @@ async function dashboardBodyClassState(page) {
   });
 }
 
+async function adversarySimProgressPercent(page) {
+  return page.evaluate(() => {
+    const fill = document.querySelector(
+      "#adversary-sim-progress-line .adversary-sim-progress-line__fill"
+    );
+    if (!fill) return 0;
+    const raw = String(fill.style.width || "0").replace("%", "");
+    const numeric = Number.parseFloat(raw);
+    if (!Number.isFinite(numeric)) return 0;
+    return Math.max(0, Math.min(100, numeric));
+  });
+}
+
 async function bootstrapDashboardSession(page, targetUrl) {
   const nextPath = dashboardRelativePath(targetUrl);
   const loginUrl = `${BASE_URL}/dashboard/login.html?next=${encodeURIComponent(nextPath)}`;
@@ -1224,6 +1237,50 @@ test("dashboard body class contract tracks runtime and adversary-sim state", asy
   expect(bodyState.runtimeClassCount).toBe(1);
   expect(bodyState.hasRuntimeDev).toBeTruthy();
   expect(bodyState.hasRuntimeProd).toBeFalsy();
+  expect(bodyState.hasAdversarySim).toBeFalsy();
+});
+
+test("adversary sim global toggle drives orchestration control and top progress line", async ({ page, request }) => {
+  await updateAdminConfig(request, { adversary_sim_enabled: false, adversary_sim_duration_seconds: 180 });
+  await openDashboard(page);
+
+  const toggle = page.locator("#global-adversary-sim-toggle");
+  const toggleSwitch = page.locator("label.toggle-switch[for='global-adversary-sim-toggle']");
+  await expect(toggle).toBeEnabled();
+  await expect(toggle).not.toBeChecked();
+
+  const [onResponse] = await Promise.all([
+    page.waitForResponse((resp) => (
+      resp.url().includes("/admin/adversary-sim/control") &&
+      resp.request().method() === "POST" &&
+      resp.ok()
+    )),
+    toggleSwitch.click()
+  ]);
+  const onBody = await onResponse.json();
+  expect(onBody?.requested_enabled).toBe(true);
+  await expect(toggle).toBeChecked();
+  await expect(page.locator("#adversary-sim-progress-line")).toBeVisible();
+
+  const firstProgress = await adversarySimProgressPercent(page);
+  await page.waitForTimeout(1200);
+  const secondProgress = await adversarySimProgressPercent(page);
+  expect(secondProgress).toBeGreaterThanOrEqual(firstProgress);
+
+  const [offResponse] = await Promise.all([
+    page.waitForResponse((resp) => (
+      resp.url().includes("/admin/adversary-sim/control") &&
+      resp.request().method() === "POST" &&
+      resp.ok()
+    )),
+    toggleSwitch.click()
+  ]);
+  const offBody = await offResponse.json();
+  expect(offBody?.requested_enabled).toBe(false);
+  await expect(toggle).not.toBeChecked();
+  await expect(page.locator("#adversary-sim-progress-line")).toBeHidden();
+
+  const bodyState = await dashboardBodyClassState(page);
   expect(bodyState.hasAdversarySim).toBeFalsy();
 });
 
