@@ -18,6 +18,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+from http.cookies import SimpleCookie
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -264,6 +265,7 @@ ALLOWED_TRAFFIC_PERSONAS = {
     "suspicious_automation",
     "adversarial",
 }
+ALLOWED_PERSONA_SCHEDULERS = {"round_robin"}
 ALLOWED_RETRY_STRATEGIES = {"single_attempt", "bounded_backoff", "retry_storm"}
 ALLOWED_COOKIE_BEHAVIORS = {"stateful_cookie_jar", "stateless", "cookie_reset_each_request"}
 ALLOWED_DEFENSE_CATEGORIES = {
@@ -360,6 +362,25 @@ BAD_ORDERING_NOT_A_BOT_TELEMETRY = {
 }
 
 
+def retry_strategy_max_attempts(retry_strategy: str) -> int:
+    if retry_strategy == "bounded_backoff":
+        return 2
+    if retry_strategy == "retry_storm":
+        return 3
+    return 1
+
+
+def state_mode_bucket(state_mode: str) -> str:
+    if state_mode == "stateful_cookie_jar":
+        return "stateful"
+    if state_mode == "cookie_reset_each_request":
+        return "reset_each_request"
+    if state_mode == "stateless":
+        return "stateless"
+    normalized = re.sub(r"[^a-z0-9_]+", "_", str(state_mode or "").strip().lower())
+    return normalized or "unknown"
+
+
 class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
@@ -384,6 +405,7 @@ class ScenarioResult:
     latency_ms: int
     runtime_budget_ms: int
     detail: str
+    realism: Optional[Dict[str, Any]] = None
 
 
 class SimulationError(Exception):
@@ -412,13 +434,12 @@ class AttackerPlaneClient:
         form_body: Optional[Dict[str, str]] = None,
         count_request: bool = False,
     ) -> HttpResult:
-        return self.owner.request(
+        return self.owner.attacker_request(
             method,
             path,
             headers=headers,
             json_body=json_body,
             form_body=form_body,
-            plane="attacker",
             count_request=count_request,
         )
 
@@ -499,6 +520,9 @@ class Runner:
         self.rotate_ips = truthy_env("SHUMA_ADVERSARIAL_ROTATE_IPS")
         self.ip_range_seed_prefix = "10.222.77."
         self.ip_range_seed_ips = [f"{self.ip_range_seed_prefix}{octet}" for octet in range(10, 60)]
+        self._active_execution_state: Optional[Dict[str, Any]] = None
+        realism_gates = dict_or_empty((self.profile.get("gates") or {}).get("realism"))
+        self.realism_policy_enabled = bool(realism_gates.get("enabled", True))
 
         if not self.api_key:
             raise SimulationError(
@@ -514,7 +538,8 @@ class Runner:
             )
 
         self.scenarios = scenario_map(self.manifest)
-        self.selected_scenarios = [self.scenarios[sid] for sid in self.profile["scenario_ids"]]
+        selected = [self.scenarios[sid] for sid in self.profile["scenario_ids"]]
+        self.selected_scenarios = self.apply_persona_scheduler(selected)
         self.scenario_ips = self.build_scenario_ip_map()
 
     def build_scenario_ip_map(self) -> Dict[str, str]:
@@ -536,6 +561,33 @@ class Runner:
     def scenario_ip(self, scenario: Dict[str, Any]) -> str:
         scenario_id = str(scenario.get("id") or "")
         return self.scenario_ips.get(scenario_id, str(scenario.get("ip") or "").strip())
+
+    def apply_persona_scheduler(self, scenarios: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        scheduler = str(((self.profile.get("gates") or {}).get("persona_scheduler") or "")).strip().lower()
+        if scheduler != "round_robin":
+            return list(scenarios)
+
+        persona_order: List[str] = []
+        buckets: Dict[str, List[Dict[str, Any]]] = {}
+        for scenario in scenarios:
+            persona = scenario_persona(scenario)
+            if persona not in buckets:
+                buckets[persona] = []
+                persona_order.append(persona)
+            buckets[persona].append(scenario)
+
+        scheduled: List[Dict[str, Any]] = []
+        while True:
+            progressed = False
+            for persona in persona_order:
+                queue = buckets.get(persona, [])
+                if not queue:
+                    continue
+                scheduled.append(queue.pop(0))
+                progressed = True
+            if not progressed:
+                break
+        return scheduled
 
     def run(self) -> int:
         self.wait_ready(timeout_seconds=30)
@@ -630,6 +682,8 @@ class Runner:
                 "gates": gate_results,
                 "coverage_gates": gate_results.get("coverage_gates", {}),
                 "cohort_metrics": gate_results.get("cohort_metrics", {}),
+                "realism_metrics": gate_results.get("realism", {}),
+                "realism_gates": gate_results.get("realism_gates", {}),
                 "ip_range_suggestions": gate_results.get("ip_range_suggestions", {}),
                 "plane_contract": {
                     "schema_version": str(LANE_CONTRACT.get("schema_version") or ""),
@@ -844,6 +898,7 @@ class Runner:
         ip_range_post_run: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         checks: List[Dict[str, Any]] = []
+        profile_gates = self.profile.get("gates") or {}
 
         latency_values = [result.latency_ms for result in results if result.passed and result.latency_ms > 0]
         p95 = percentile(latency_values, 95)
@@ -865,7 +920,7 @@ class Runner:
             outcome_counts[result.observed_outcome] = outcome_counts.get(result.observed_outcome, 0) + 1
 
         total_successful = len(successful_results)
-        ratio_bounds = self.profile["gates"]["outcome_ratio_bounds"]
+        ratio_bounds = profile_gates["outcome_ratio_bounds"]
         for outcome, bounds in ratio_bounds.items():
             ratio = (outcome_counts.get(outcome, 0) / total_successful) if total_successful else 0.0
             minimum = float(bounds["min"])
@@ -886,9 +941,7 @@ class Runner:
             )
 
         cohort_metrics = compute_cohort_metrics(self.selected_scenarios, results)
-        human_like_collateral_limit = (self.profile.get("gates") or {}).get(
-            "human_like_collateral_max_ratio"
-        )
+        human_like_collateral_limit = profile_gates.get("human_like_collateral_max_ratio")
         if human_like_collateral_limit is not None:
             limit = float(human_like_collateral_limit)
             human_like = dict_or_empty(cohort_metrics.get("human_like"))
@@ -907,6 +960,15 @@ class Runner:
                     "threshold_source": "profile.gates.human_like_collateral_max_ratio",
                 }
             )
+
+        persona_scheduler = str(profile_gates.get("persona_scheduler") or "").strip().lower()
+        realism_metrics = compute_realism_metrics(
+            self.selected_scenarios, results, persona_scheduler=persona_scheduler
+        )
+        realism_checks = build_realism_checks(
+            self.profile_name, profile_gates, realism_metrics
+        )
+        checks.extend(realism_checks)
 
         fp_delta = max(0, monitoring_after["fingerprint_events"] - monitoring_before["fingerprint_events"])
         monitoring_delta = max(0, monitoring_after["monitoring_total"] - monitoring_before["monitoring_total"])
@@ -955,7 +1017,6 @@ class Runner:
         coverage_after = dict_or_empty(monitoring_after.get("coverage"))
         coverage_deltas = compute_coverage_deltas(coverage_before, coverage_after)
 
-        profile_gates = self.profile.get("gates") or {}
         coverage_requirements, declared_coverage_requirements = select_coverage_requirements(
             self.profile_name, profile_gates
         )
@@ -999,7 +1060,7 @@ class Runner:
             )
             checks.extend(coverage_checks)
 
-        required_event_reasons = (self.profile.get("gates") or {}).get("required_event_reasons")
+        required_event_reasons = profile_gates.get("required_event_reasons")
         if isinstance(required_event_reasons, list) and required_event_reasons:
             observed_reasons = [
                 str(reason).strip().lower()
@@ -1024,9 +1085,7 @@ class Runner:
                     }
                 )
 
-        suggestion_seed_required = bool(
-            (self.profile.get("gates") or {}).get("ip_range_suggestion_seed_required")
-        )
+        suggestion_seed_required = bool(profile_gates.get("ip_range_suggestion_seed_required"))
         ip_range_suggestions = {
             "seed_evidence": dict_or_empty(ip_range_seed_evidence),
             "post_run": dict_or_empty(ip_range_post_run),
@@ -1065,6 +1124,7 @@ class Runner:
 
         all_passed = all(check["passed"] for check in checks)
         coverage_all_passed = all(check["passed"] for check in coverage_checks) if coverage_checks else True
+        realism_all_passed = all(check["passed"] for check in realism_checks) if realism_checks else True
         return {
             "all_passed": all_passed,
             "checks": checks,
@@ -1098,6 +1158,12 @@ class Runner:
                 "mismatched_contract_values": dict(coverage_contract_parity["mismatched_values"]),
             },
             "cohort_metrics": cohort_metrics,
+            "realism": realism_metrics,
+            "realism_gates": {
+                "all_passed": realism_all_passed,
+                "checks": realism_checks,
+                "persona_scheduler": persona_scheduler,
+            },
             "ip_range_suggestions": ip_range_suggestions,
         }
 
@@ -1105,13 +1171,18 @@ class Runner:
         scenario_id = scenario["id"]
         start = time.monotonic()
         observed_outcome: Optional[str] = None
+        realism: Optional[Dict[str, Any]] = None
 
         try:
             if not self.preserve_state:
                 self.admin_unban("unknown")
             self.reset_baseline_config()
 
-            observed_outcome = self.execute_scenario_driver(scenario)
+            self.begin_scenario_execution(scenario)
+            try:
+                observed_outcome = self.execute_scenario_driver(scenario)
+            finally:
+                realism = self.end_scenario_execution()
 
             latency_ms = int((time.monotonic() - start) * 1000)
 
@@ -1129,6 +1200,7 @@ class Runner:
                         f"Outcome mismatch: expected={scenario['expected_outcome']} "
                         f"observed={observed_outcome}"
                     ),
+                    realism=realism,
                 )
 
             max_latency_ms = scenario_max_latency_ms(scenario)
@@ -1143,6 +1215,7 @@ class Runner:
                     latency_ms=latency_ms,
                     runtime_budget_ms=scenario["runtime_budget_ms"],
                     detail=f"Scenario latency exceeded: {latency_ms}ms > {max_latency_ms}ms",
+                    realism=realism,
                 )
 
             if latency_ms > int(scenario["runtime_budget_ms"]):
@@ -1159,6 +1232,7 @@ class Runner:
                         f"Scenario runtime budget exceeded: {latency_ms}ms "
                         f"> {scenario['runtime_budget_ms']}ms"
                     ),
+                    realism=realism,
                 )
 
             return ScenarioResult(
@@ -1171,9 +1245,12 @@ class Runner:
                 latency_ms=latency_ms,
                 runtime_budget_ms=scenario["runtime_budget_ms"],
                 detail="ok",
+                realism=realism,
             )
         except Exception as exc:
             latency_ms = int((time.monotonic() - start) * 1000)
+            if realism is None:
+                realism = self.end_scenario_execution()
             return ScenarioResult(
                 id=scenario_id,
                 tier=scenario["tier"],
@@ -1184,6 +1261,7 @@ class Runner:
                 latency_ms=latency_ms,
                 runtime_budget_ms=scenario["runtime_budget_ms"],
                 detail=f"exception: {exc}",
+                realism=realism,
             )
 
     def execute_scenario_driver(self, scenario: Dict[str, Any]) -> str:
@@ -1798,6 +1876,252 @@ class Runner:
     ) -> Dict[str, str]:
         return self.attacker_client.headers(ip, user_agent=user_agent)
 
+    def begin_scenario_execution(self, scenario: Dict[str, Any]) -> None:
+        traffic_model = scenario.get("traffic_model")
+        traffic_model = traffic_model if isinstance(traffic_model, dict) else {}
+        policy = {
+            "scenario_id": str(scenario.get("id") or ""),
+            "seed": int_or_zero(scenario.get("seed")),
+            "persona": scenario_persona(scenario),
+            "think_time_ms_min": int_or_zero(traffic_model.get("think_time_ms_min")),
+            "think_time_ms_max": int_or_zero(traffic_model.get("think_time_ms_max")),
+            "retry_strategy": str(traffic_model.get("retry_strategy") or "single_attempt"),
+            "cookie_behavior": str(traffic_model.get("cookie_behavior") or "stateless"),
+        }
+        if policy["retry_strategy"] not in ALLOWED_RETRY_STRATEGIES:
+            policy["retry_strategy"] = "single_attempt"
+        if policy["cookie_behavior"] not in ALLOWED_COOKIE_BEHAVIORS:
+            policy["cookie_behavior"] = "stateless"
+        if policy["think_time_ms_max"] < policy["think_time_ms_min"]:
+            policy["think_time_ms_max"] = policy["think_time_ms_min"]
+
+        evidence = {
+            "request_sequence": 0,
+            "attempts_total": 0,
+            "retry_attempts": 0,
+            "retry_backoff_ms_total": 0,
+            "think_time_events": 0,
+            "think_time_ms_total": 0,
+            "cookie_headers_sent": 0,
+            "set_cookie_observed": 0,
+            "cookie_jar_resets": 0,
+            "cookie_jar_peak_size": 0,
+            "max_attempts_configured": self.max_attempts_for_retry_strategy(policy["retry_strategy"]),
+        }
+        self._active_execution_state = {
+            "policy": policy,
+            "evidence": evidence,
+            "cookie_jar": {},
+        }
+
+    def end_scenario_execution(self) -> Dict[str, Any]:
+        state = self._active_execution_state or {}
+        policy = dict_or_empty(state.get("policy"))
+        evidence = dict_or_empty(state.get("evidence"))
+        think_time_events = max(0, int_or_zero(evidence.get("think_time_events")))
+        think_time_total = max(0, int_or_zero(evidence.get("think_time_ms_total")))
+        attempts_total = max(0, int_or_zero(evidence.get("attempts_total")))
+        request_sequence = max(0, int_or_zero(evidence.get("request_sequence")))
+        realism = {
+            "persona": str(policy.get("persona") or ""),
+            "retry_strategy": str(policy.get("retry_strategy") or ""),
+            "state_mode": str(policy.get("cookie_behavior") or ""),
+            "think_time_ms_min": int_or_zero(policy.get("think_time_ms_min")),
+            "think_time_ms_max": int_or_zero(policy.get("think_time_ms_max")),
+            "think_time_events": think_time_events,
+            "think_time_ms_total": think_time_total,
+            "think_time_ms_avg": int(think_time_total / think_time_events) if think_time_events else 0,
+            "request_sequence_count": request_sequence,
+            "attempts_total": attempts_total,
+            "retry_attempts": max(0, int_or_zero(evidence.get("retry_attempts"))),
+            "retry_backoff_ms_total": max(0, int_or_zero(evidence.get("retry_backoff_ms_total"))),
+            "state_headers_sent": max(0, int_or_zero(evidence.get("cookie_headers_sent"))),
+            "state_token_observed": max(0, int_or_zero(evidence.get("set_cookie_observed"))),
+            "state_store_resets": max(0, int_or_zero(evidence.get("cookie_jar_resets"))),
+            "state_store_peak_size": max(0, int_or_zero(evidence.get("cookie_jar_peak_size"))),
+            "max_attempts_configured": max(1, int_or_zero(evidence.get("max_attempts_configured"))),
+        }
+        self._active_execution_state = None
+        return realism
+
+    def deterministic_execution_value(self, salt: str, modulus: int) -> int:
+        if modulus <= 0:
+            return 0
+        digest = hashlib.sha256(salt.encode("utf-8")).hexdigest()
+        return int(digest[:16], 16) % modulus
+
+    def compute_think_time_ms(self, policy: Dict[str, Any], request_sequence: int) -> int:
+        minimum = max(0, int_or_zero(policy.get("think_time_ms_min")))
+        maximum = max(minimum, int_or_zero(policy.get("think_time_ms_max")))
+        if maximum <= 0:
+            return 0
+        span = (maximum - minimum) + 1
+        salt = (
+            f"{self.session_nonce}:{policy.get('scenario_id')}:{policy.get('seed')}:"
+            f"request:{request_sequence}:think"
+        )
+        return minimum + self.deterministic_execution_value(salt, span)
+
+    def max_attempts_for_retry_strategy(self, retry_strategy: str) -> int:
+        return retry_strategy_max_attempts(retry_strategy)
+
+    def should_retry_status(self, retry_strategy: str, status: int) -> bool:
+        if retry_strategy == "retry_storm":
+            return status in {403, 408, 425, 429, 500, 502, 503, 504}
+        if retry_strategy == "bounded_backoff":
+            return status in {408, 425, 500, 502, 503, 504}
+        return False
+
+    def compute_retry_backoff_ms(
+        self, policy: Dict[str, Any], request_sequence: int, attempt_number: int
+    ) -> int:
+        retry_strategy = str(policy.get("retry_strategy") or "single_attempt")
+        if attempt_number <= 1 or retry_strategy == "single_attempt":
+            return 0
+        if retry_strategy == "retry_storm":
+            base = 5
+            jitter_cap = 15
+        else:
+            base = min(400, 75 * (2 ** (attempt_number - 2)))
+            jitter_cap = 30
+        salt = (
+            f"{self.session_nonce}:{policy.get('scenario_id')}:{policy.get('seed')}:"
+            f"request:{request_sequence}:attempt:{attempt_number}:retry"
+        )
+        jitter = self.deterministic_execution_value(salt, jitter_cap + 1)
+        return base + jitter
+
+    def parse_set_cookie_header(self, header_value: str) -> Dict[str, str]:
+        raw = str(header_value or "").strip()
+        if not raw:
+            return {}
+        cookie = SimpleCookie()
+        try:
+            cookie.load(raw)
+        except Exception:
+            return {}
+        parsed: Dict[str, str] = {}
+        for key, morsel in cookie.items():
+            parsed[key] = morsel.value
+        return parsed
+
+    def apply_cookie_policy_to_headers(
+        self,
+        policy: Dict[str, Any],
+        evidence: Dict[str, Any],
+        cookie_jar: Dict[str, str],
+        request_headers: Dict[str, str],
+    ) -> None:
+        behavior = str(policy.get("cookie_behavior") or "stateless")
+        if behavior == "cookie_reset_each_request":
+            cookie_jar.clear()
+            evidence["cookie_jar_resets"] = int_or_zero(evidence.get("cookie_jar_resets")) + 1
+        if behavior != "stateful_cookie_jar":
+            return
+
+        has_cookie_header = any(str(key).strip().lower() == "cookie" for key in request_headers.keys())
+        if has_cookie_header or not cookie_jar:
+            return
+        request_headers["Cookie"] = "; ".join(
+            f"{key}={value}" for key, value in sorted(cookie_jar.items())
+        )
+        evidence["cookie_headers_sent"] = int_or_zero(evidence.get("cookie_headers_sent")) + 1
+
+    def update_cookie_jar_from_response(
+        self,
+        policy: Dict[str, Any],
+        evidence: Dict[str, Any],
+        cookie_jar: Dict[str, str],
+        result: HttpResult,
+    ) -> None:
+        behavior = str(policy.get("cookie_behavior") or "stateless")
+        if behavior == "stateless":
+            return
+
+        set_cookie = str(result.headers.get("set-cookie") or "")
+        parsed = self.parse_set_cookie_header(set_cookie)
+        if not parsed:
+            return
+
+        evidence["set_cookie_observed"] = int_or_zero(evidence.get("set_cookie_observed")) + len(parsed)
+        cookie_jar.update(parsed)
+        evidence["cookie_jar_peak_size"] = max(
+            int_or_zero(evidence.get("cookie_jar_peak_size")),
+            len(cookie_jar),
+        )
+
+    def attacker_request(
+        self,
+        method: str,
+        path: str,
+        headers: Optional[Dict[str, str]] = None,
+        json_body: Optional[Dict[str, Any]] = None,
+        form_body: Optional[Dict[str, str]] = None,
+        count_request: bool = False,
+    ) -> HttpResult:
+        state = self._active_execution_state
+        if not self.realism_policy_enabled or not state:
+            return self.request(
+                method,
+                path,
+                headers=headers,
+                json_body=json_body,
+                form_body=form_body,
+                plane="attacker",
+                count_request=count_request,
+            )
+
+        policy = dict_or_empty(state.get("policy"))
+        evidence = dict_or_empty(state.get("evidence"))
+        cookie_jar = state.get("cookie_jar")
+        if not isinstance(cookie_jar, dict):
+            cookie_jar = {}
+            state["cookie_jar"] = cookie_jar
+
+        request_headers = dict(headers or {})
+        request_sequence = int_or_zero(evidence.get("request_sequence"))
+        if request_sequence > 0:
+            think_time_ms = self.compute_think_time_ms(policy, request_sequence)
+            if think_time_ms > 0:
+                time.sleep(think_time_ms / 1000.0)
+                evidence["think_time_events"] = int_or_zero(evidence.get("think_time_events")) + 1
+                evidence["think_time_ms_total"] = int_or_zero(evidence.get("think_time_ms_total")) + think_time_ms
+
+        self.apply_cookie_policy_to_headers(policy, evidence, cookie_jar, request_headers)
+
+        retry_strategy = str(policy.get("retry_strategy") or "single_attempt")
+        max_attempts = self.max_attempts_for_retry_strategy(retry_strategy)
+        evidence["max_attempts_configured"] = max_attempts
+        attempts_used = 0
+        result: Optional[HttpResult] = None
+        for attempt in range(1, max_attempts + 1):
+            attempts_used = attempt
+            if attempt > 1:
+                backoff_ms = self.compute_retry_backoff_ms(policy, request_sequence, attempt)
+                if backoff_ms > 0:
+                    time.sleep(backoff_ms / 1000.0)
+                    evidence["retry_backoff_ms_total"] = (
+                        int_or_zero(evidence.get("retry_backoff_ms_total")) + backoff_ms
+                    )
+                evidence["retry_attempts"] = int_or_zero(evidence.get("retry_attempts")) + 1
+
+            result = self.request(
+                method,
+                path,
+                headers=request_headers,
+                json_body=json_body,
+                form_body=form_body,
+                plane="attacker",
+                count_request=count_request,
+            )
+            self.update_cookie_jar_from_response(policy, evidence, cookie_jar, result)
+            if not self.should_retry_status(retry_strategy, result.status):
+                break
+
+        evidence["request_sequence"] = request_sequence + 1
+        evidence["attempts_total"] = int_or_zero(evidence.get("attempts_total")) + attempts_used
+        return result if result is not None else HttpResult(0, "", {}, 0)
+
     def request(
         self,
         method: str,
@@ -1980,6 +2304,406 @@ def compute_cohort_metrics(
             "collateral_ratio": (collateral_count / total) if total else 0.0,
         }
     return metrics
+
+
+def round_robin_sequence_violations(sequence: List[str]) -> List[int]:
+    remaining: Dict[str, int] = {}
+    for persona in sequence:
+        remaining[persona] = int_or_zero(remaining.get(persona)) + 1
+
+    violations: List[int] = []
+    for index in range(len(sequence) - 1):
+        current = sequence[index]
+        following = sequence[index + 1]
+        remaining[current] = max(0, int_or_zero(remaining.get(current)) - 1)
+        if current != following:
+            continue
+        other_persona_pending = any(
+            int_or_zero(count) > 0
+            for persona, count in remaining.items()
+            if persona != current
+        )
+        if other_persona_pending:
+            violations.append(index + 1)
+    return violations
+
+
+def compute_realism_metrics(
+    selected_scenarios: List[Dict[str, Any]],
+    results: List[ScenarioResult],
+    persona_scheduler: str,
+) -> Dict[str, Any]:
+    scenario_by_id = {str(scenario.get("id") or ""): scenario for scenario in selected_scenarios}
+    persona_metrics: Dict[str, Dict[str, Any]] = {}
+    retry_strategy_metrics: Dict[str, Dict[str, Any]] = {}
+    state_mode_metrics: Dict[str, Dict[str, Any]] = {}
+    persona_sequence: List[str] = []
+    missing_result_ids: List[str] = []
+
+    for result in results:
+        scenario = scenario_by_id.get(result.id, {})
+        realism = dict_or_empty(result.realism)
+        if not realism:
+            missing_result_ids.append(result.id)
+            continue
+
+        persona = str(realism.get("persona") or scenario_persona(scenario) or "adversarial")
+        retry_strategy = str(realism.get("retry_strategy") or "single_attempt")
+        state_mode = str(realism.get("state_mode") or "stateless")
+        think_time_min = max(0, int_or_zero(realism.get("think_time_ms_min")))
+        think_time_max = max(think_time_min, int_or_zero(realism.get("think_time_ms_max")))
+        think_time_events = max(0, int_or_zero(realism.get("think_time_events")))
+        think_time_ms_total = max(0, int_or_zero(realism.get("think_time_ms_total")))
+        request_sequence_count = max(0, int_or_zero(realism.get("request_sequence_count")))
+        attempts_total = max(0, int_or_zero(realism.get("attempts_total")))
+        retry_attempts = max(0, int_or_zero(realism.get("retry_attempts")))
+        retry_backoff_ms_total = max(0, int_or_zero(realism.get("retry_backoff_ms_total")))
+        state_headers_sent = max(0, int_or_zero(realism.get("state_headers_sent")))
+        state_token_observed = max(0, int_or_zero(realism.get("state_token_observed")))
+        state_store_resets = max(0, int_or_zero(realism.get("state_store_resets")))
+        state_store_peak_size = max(0, int_or_zero(realism.get("state_store_peak_size")))
+        max_attempts_configured = max(1, int_or_zero(realism.get("max_attempts_configured")))
+
+        persona_sequence.append(persona)
+
+        persona_metric = persona_metrics.setdefault(
+            persona,
+            {
+                "scenario_count": 0,
+                "request_sequence_total": 0,
+                "attempts_total": 0,
+                "retry_attempts": 0,
+                "retry_backoff_ms_total": 0,
+                "think_time_events": 0,
+                "think_time_ms_total": 0,
+                "expected_think_time_min_total": 0,
+                "expected_think_time_max_total": 0,
+                "state_headers_sent": 0,
+                "state_token_observed": 0,
+                "state_store_resets": 0,
+                "state_store_peak_size_max": 0,
+            },
+        )
+        persona_metric["scenario_count"] = int_or_zero(persona_metric.get("scenario_count")) + 1
+        persona_metric["request_sequence_total"] = (
+            int_or_zero(persona_metric.get("request_sequence_total")) + request_sequence_count
+        )
+        persona_metric["attempts_total"] = int_or_zero(persona_metric.get("attempts_total")) + attempts_total
+        persona_metric["retry_attempts"] = int_or_zero(persona_metric.get("retry_attempts")) + retry_attempts
+        persona_metric["retry_backoff_ms_total"] = (
+            int_or_zero(persona_metric.get("retry_backoff_ms_total")) + retry_backoff_ms_total
+        )
+        persona_metric["think_time_events"] = int_or_zero(persona_metric.get("think_time_events")) + think_time_events
+        persona_metric["think_time_ms_total"] = (
+            int_or_zero(persona_metric.get("think_time_ms_total")) + think_time_ms_total
+        )
+        persona_metric["expected_think_time_min_total"] = (
+            int_or_zero(persona_metric.get("expected_think_time_min_total"))
+            + (think_time_events * think_time_min)
+        )
+        persona_metric["expected_think_time_max_total"] = (
+            int_or_zero(persona_metric.get("expected_think_time_max_total"))
+            + (think_time_events * think_time_max)
+        )
+        persona_metric["state_headers_sent"] = (
+            int_or_zero(persona_metric.get("state_headers_sent")) + state_headers_sent
+        )
+        persona_metric["state_token_observed"] = (
+            int_or_zero(persona_metric.get("state_token_observed")) + state_token_observed
+        )
+        persona_metric["state_store_resets"] = (
+            int_or_zero(persona_metric.get("state_store_resets")) + state_store_resets
+        )
+        persona_metric["state_store_peak_size_max"] = max(
+            int_or_zero(persona_metric.get("state_store_peak_size_max")),
+            state_store_peak_size,
+        )
+
+        retry_metric = retry_strategy_metrics.setdefault(
+            retry_strategy,
+            {
+                "scenario_count": 0,
+                "request_sequence_total": 0,
+                "attempts_total": 0,
+                "retry_attempts": 0,
+                "retry_backoff_ms_total": 0,
+                "max_attempts_configured_max": 0,
+            },
+        )
+        retry_metric["scenario_count"] = int_or_zero(retry_metric.get("scenario_count")) + 1
+        retry_metric["request_sequence_total"] = (
+            int_or_zero(retry_metric.get("request_sequence_total")) + request_sequence_count
+        )
+        retry_metric["attempts_total"] = int_or_zero(retry_metric.get("attempts_total")) + attempts_total
+        retry_metric["retry_attempts"] = int_or_zero(retry_metric.get("retry_attempts")) + retry_attempts
+        retry_metric["retry_backoff_ms_total"] = (
+            int_or_zero(retry_metric.get("retry_backoff_ms_total")) + retry_backoff_ms_total
+        )
+        retry_metric["max_attempts_configured_max"] = max(
+            int_or_zero(retry_metric.get("max_attempts_configured_max")),
+            max_attempts_configured,
+        )
+
+        state_bucket = state_mode_bucket(state_mode)
+        state_metric = state_mode_metrics.setdefault(
+            state_bucket,
+            {
+                "state_mode": state_mode,
+                "scenario_count": 0,
+                "request_sequence_total": 0,
+                "state_headers_sent": 0,
+                "state_token_observed": 0,
+                "state_store_resets": 0,
+                "state_store_peak_size_max": 0,
+            },
+        )
+        state_metric["scenario_count"] = int_or_zero(state_metric.get("scenario_count")) + 1
+        state_metric["request_sequence_total"] = (
+            int_or_zero(state_metric.get("request_sequence_total")) + request_sequence_count
+        )
+        state_metric["state_headers_sent"] = (
+            int_or_zero(state_metric.get("state_headers_sent")) + state_headers_sent
+        )
+        state_metric["state_token_observed"] = (
+            int_or_zero(state_metric.get("state_token_observed")) + state_token_observed
+        )
+        state_metric["state_store_resets"] = int_or_zero(state_metric.get("state_store_resets")) + state_store_resets
+        state_metric["state_store_peak_size_max"] = max(
+            int_or_zero(state_metric.get("state_store_peak_size_max")),
+            state_store_peak_size,
+        )
+
+    for persona_metric in persona_metrics.values():
+        events = int_or_zero(persona_metric.get("think_time_events"))
+        total = int_or_zero(persona_metric.get("think_time_ms_total"))
+        persona_metric["think_time_ms_avg"] = int(total / events) if events else 0
+
+    return {
+        "persona_scheduler": persona_scheduler,
+        "persona_sequence": persona_sequence,
+        "missing_result_ids": missing_result_ids,
+        "persona_metrics": persona_metrics,
+        "retry_strategy_metrics": retry_strategy_metrics,
+        "state_mode_metrics": state_mode_metrics,
+        "totals": {
+            "scenario_results": len(results),
+            "missing_result_count": len(missing_result_ids),
+            "think_time_events_total": sum(
+                int_or_zero(metric.get("think_time_events")) for metric in persona_metrics.values()
+            ),
+            "retry_attempts_total": sum(
+                int_or_zero(metric.get("retry_attempts")) for metric in retry_strategy_metrics.values()
+            ),
+        },
+    }
+
+
+def build_realism_checks(
+    profile_name: str, profile_gates: Dict[str, Any], realism_metrics: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    checks: List[Dict[str, Any]] = []
+    realism_gate = dict_or_empty(profile_gates.get("realism"))
+    realism_enabled = bool(realism_gate.get("enabled", True))
+    if not realism_enabled:
+        return checks
+
+    missing_result_ids = list_or_empty(realism_metrics.get("missing_result_ids"))
+    checks.append(
+        {
+            "name": "realism_evidence_attached",
+            "passed": len(missing_result_ids) == 0,
+            "detail": (
+                f"missing_result_ids={missing_result_ids}"
+                if missing_result_ids
+                else "all scenario results include realism evidence"
+            ),
+            "observed": len(missing_result_ids),
+            "threshold_source": "profile.gates.realism.enabled",
+        }
+    )
+
+    persona_scheduler = str(realism_metrics.get("persona_scheduler") or "").strip().lower()
+    persona_sequence = [
+        str(persona).strip()
+        for persona in list_or_empty(realism_metrics.get("persona_sequence"))
+        if str(persona).strip()
+    ]
+    if persona_scheduler == "round_robin":
+        violations = round_robin_sequence_violations(persona_sequence)
+        checks.append(
+            {
+                "name": "realism_persona_scheduler_round_robin",
+                "passed": len(violations) == 0,
+                "detail": (
+                    f"sequence={persona_sequence}"
+                    if not violations
+                    else f"violations={violations} sequence={persona_sequence}"
+                ),
+                "observed": len(violations),
+                "threshold_source": "profile.gates.persona_scheduler",
+            }
+        )
+
+    totals = dict_or_empty(realism_metrics.get("totals"))
+    think_time_events_total = int_or_zero(totals.get("think_time_events_total"))
+    checks.append(
+        {
+            "name": "realism_think_time_events_total",
+            "passed": think_time_events_total > 0,
+            "detail": f"think_time_events_total={think_time_events_total}",
+            "observed": think_time_events_total,
+            "threshold_source": "profile.gates.realism.enabled",
+        }
+    )
+
+    persona_metrics = dict_or_empty(realism_metrics.get("persona_metrics"))
+    for persona in sorted(persona_metrics.keys()):
+        metric = dict_or_empty(persona_metrics.get(persona))
+        events = int_or_zero(metric.get("think_time_events"))
+        if events <= 0:
+            continue
+        observed_total = int_or_zero(metric.get("think_time_ms_total"))
+        minimum_total = int_or_zero(metric.get("expected_think_time_min_total"))
+        maximum_total = int_or_zero(metric.get("expected_think_time_max_total"))
+        checks.append(
+            {
+                "name": f"realism_persona_think_time_envelope_{persona}",
+                "passed": minimum_total <= observed_total <= maximum_total,
+                "detail": (
+                    f"observed_total={observed_total}ms "
+                    f"expected=[{minimum_total},{maximum_total}]ms events={events}"
+                ),
+                "observed": observed_total,
+                "min": minimum_total,
+                "max": maximum_total,
+                "threshold_source": "scenario.traffic_model.think_time_ms_*",
+            }
+        )
+
+    retry_strategy_metrics = dict_or_empty(realism_metrics.get("retry_strategy_metrics"))
+    for strategy in sorted(retry_strategy_metrics.keys()):
+        metric = dict_or_empty(retry_strategy_metrics.get(strategy))
+        request_sequence_total = int_or_zero(metric.get("request_sequence_total"))
+        attempts_total = int_or_zero(metric.get("attempts_total"))
+        retry_attempts = int_or_zero(metric.get("retry_attempts"))
+        max_attempts = retry_strategy_max_attempts(strategy)
+        minimum_attempts = request_sequence_total
+        maximum_attempts = request_sequence_total * max_attempts
+        checks.append(
+            {
+                "name": f"realism_retry_envelope_{strategy}",
+                "passed": minimum_attempts <= attempts_total <= maximum_attempts,
+                "detail": (
+                    f"attempts_total={attempts_total} expected=[{minimum_attempts},{maximum_attempts}] "
+                    f"request_sequence_total={request_sequence_total}"
+                ),
+                "observed": attempts_total,
+                "min": minimum_attempts,
+                "max": maximum_attempts,
+                "threshold_source": "scenario.traffic_model.retry_strategy",
+            }
+        )
+        if strategy == "single_attempt":
+            checks.append(
+                {
+                    "name": "realism_retry_single_attempt_no_retries",
+                    "passed": retry_attempts == 0,
+                    "detail": f"retry_attempts={retry_attempts}",
+                    "observed": retry_attempts,
+                    "threshold_source": "scenario.traffic_model.retry_strategy",
+                }
+            )
+
+    required_retry_attempts = dict_or_empty(realism_gate.get("required_retry_attempts"))
+    for strategy in sorted(required_retry_attempts.keys()):
+        minimum = int_or_zero(required_retry_attempts.get(strategy))
+        observed = int_or_zero(
+            dict_or_empty(retry_strategy_metrics.get(strategy)).get("retry_attempts")
+        )
+        checks.append(
+            {
+                "name": f"realism_required_retry_attempts_{strategy}",
+                "passed": observed >= minimum,
+                "detail": f"retry_attempts={observed} minimum={minimum}",
+                "observed": observed,
+                "minimum": minimum,
+                "threshold_source": f"profile.gates.realism.required_retry_attempts.{strategy}",
+            }
+        )
+
+    state_mode_metrics = dict_or_empty(realism_metrics.get("state_mode_metrics"))
+    for behavior_bucket in sorted(state_mode_metrics.keys()):
+        metric = dict_or_empty(state_mode_metrics.get(behavior_bucket))
+        behavior = str(metric.get("state_mode") or behavior_bucket)
+        request_sequence_total = int_or_zero(metric.get("request_sequence_total"))
+        state_headers_sent = int_or_zero(metric.get("state_headers_sent"))
+        state_token_observed = int_or_zero(metric.get("state_token_observed"))
+        state_store_resets = int_or_zero(metric.get("state_store_resets"))
+        state_store_peak_size_max = int_or_zero(metric.get("state_store_peak_size_max"))
+
+        if behavior == "stateless":
+            passed = (
+                state_headers_sent == 0
+                and state_store_resets == 0
+                and state_store_peak_size_max == 0
+            )
+            checks.append(
+                {
+                    "name": f"realism_state_mode_{behavior_bucket}_envelope",
+                    "passed": passed,
+                    "detail": (
+                        f"state_headers_sent={state_headers_sent} "
+                        f"state_store_resets={state_store_resets} "
+                        f"state_store_peak_size_max={state_store_peak_size_max}"
+                    ),
+                    "observed": {
+                        "state_headers_sent": state_headers_sent,
+                        "state_store_resets": state_store_resets,
+                        "state_store_peak_size_max": state_store_peak_size_max,
+                    },
+                    "threshold_source": "scenario.traffic_model.cookie_behavior",
+                }
+            )
+            continue
+
+        if behavior == "cookie_reset_each_request":
+            checks.append(
+                {
+                    "name": f"realism_state_mode_{behavior_bucket}_envelope",
+                    "passed": state_store_resets >= request_sequence_total,
+                    "detail": (
+                        f"state_store_resets={state_store_resets} "
+                        f"request_sequence_total={request_sequence_total}"
+                    ),
+                    "observed": state_store_resets,
+                    "minimum": request_sequence_total,
+                    "threshold_source": "scenario.traffic_model.cookie_behavior",
+                }
+            )
+            continue
+
+        if behavior == "stateful_cookie_jar":
+            checks.append(
+                {
+                    "name": f"realism_state_mode_{behavior_bucket}_envelope",
+                    "passed": state_store_resets == 0 and state_headers_sent <= request_sequence_total,
+                    "detail": (
+                        f"state_headers_sent={state_headers_sent} "
+                        f"request_sequence_total={request_sequence_total} "
+                        f"state_store_resets={state_store_resets} "
+                        f"state_token_observed={state_token_observed}"
+                    ),
+                    "observed": {
+                        "state_headers_sent": state_headers_sent,
+                        "request_sequence_total": request_sequence_total,
+                        "state_store_resets": state_store_resets,
+                        "state_token_observed": state_token_observed,
+                    },
+                    "threshold_source": "scenario.traffic_model.cookie_behavior",
+                }
+            )
+
+    return checks
 
 
 def has_leading_zero_bits(digest: bytes, bits: int) -> bool:
@@ -2781,8 +3505,42 @@ def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_nam
         raise SimulationError(f"profile {profile_name} must include telemetry_amplification")
     if "max_fingerprint_events_per_request" not in telemetry or "max_monitoring_events_per_request" not in telemetry:
         raise SimulationError(
-            f"profile {profile_name} telemetry_amplification must include fingerprint and monitoring limits"
-        )
+                f"profile {profile_name} telemetry_amplification must include fingerprint and monitoring limits"
+            )
+
+    persona_scheduler = gates.get("persona_scheduler")
+    if persona_scheduler is not None:
+        scheduler = str(persona_scheduler).strip().lower()
+        if scheduler not in ALLOWED_PERSONA_SCHEDULERS:
+            raise SimulationError(
+                f"profile {profile_name} persona_scheduler must be one of {sorted(ALLOWED_PERSONA_SCHEDULERS)}"
+            )
+
+    realism = gates.get("realism")
+    if realism is not None:
+        if not isinstance(realism, dict):
+            raise SimulationError(
+                f"profile {profile_name} realism must be an object when provided"
+            )
+        enabled = realism.get("enabled")
+        if enabled is not None and not isinstance(enabled, bool):
+            raise SimulationError(f"profile {profile_name} realism.enabled must be boolean when provided")
+        required_retry_attempts = realism.get("required_retry_attempts")
+        if required_retry_attempts is not None:
+            if not isinstance(required_retry_attempts, dict) or not required_retry_attempts:
+                raise SimulationError(
+                    f"profile {profile_name} realism.required_retry_attempts must be a non-empty object when provided"
+                )
+            for strategy, minimum in required_retry_attempts.items():
+                normalized_strategy = str(strategy).strip()
+                if normalized_strategy not in ALLOWED_RETRY_STRATEGIES:
+                    raise SimulationError(
+                        f"profile {profile_name} realism.required_retry_attempts has unsupported strategy: {strategy}"
+                    )
+                if isinstance(minimum, bool) or not isinstance(minimum, int) or minimum < 0:
+                    raise SimulationError(
+                        f"profile {profile_name} realism.required_retry_attempts.{normalized_strategy} must be integer >= 0"
+                    )
 
     human_like_collateral_max_ratio = gates.get("human_like_collateral_max_ratio")
     if human_like_collateral_max_ratio is not None:
@@ -2832,6 +3590,23 @@ def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_nam
                 raise SimulationError(
                     f"profile {profile_name} coverage requirement {key} cannot be negative"
                 )
+
+    if profile_name == FULL_COVERAGE_PROFILE_NAME:
+        scheduler = str(gates.get("persona_scheduler") or "").strip().lower()
+        if scheduler != "round_robin":
+            raise SimulationError(
+                f"profile {profile_name} persona_scheduler must be round_robin"
+            )
+        realism = gates.get("realism")
+        if not isinstance(realism, dict) or bool(realism.get("enabled", False)) is not True:
+            raise SimulationError(
+                f"profile {profile_name} realism.enabled must be true"
+            )
+        required_retry_attempts = dict_or_empty(realism.get("required_retry_attempts"))
+        if int_or_zero(required_retry_attempts.get("retry_storm")) < 1:
+            raise SimulationError(
+                f"profile {profile_name} realism.required_retry_attempts.retry_storm must be >= 1"
+            )
 
     validate_full_coverage_contract_alignment(profile_name, gates)
 

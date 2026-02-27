@@ -56,6 +56,7 @@ The runner writes machine-readable artifacts to:
   - `latest_report.json` includes:
   - quantitative `gates` and `coverage_gates` sections (each check includes `threshold_source`),
   - `cohort_metrics` (persona-level outcome/latency/collateral summaries),
+  - `realism_metrics` and `realism_gates` (deterministic traffic-model execution evidence for pacing, retry envelopes, and state-mode semantics),
   - `ip_range_suggestions` seed evidence (`seeded_summary`, `seeded_suggestions`, `matched_seed_suggestions`, `near_miss_suggestions`),
   - `plane_contract` metadata for attacker/control-plane guardrails,
   - `coverage_contract` metadata (schema/version/hash and canonical coverage keys).
@@ -78,7 +79,8 @@ Notes:
 - `full_coverage` also enforces persona and taxonomy gates:
   - `human_like_collateral_max_ratio`,
   - `required_event_reasons`,
-  - `ip_range_suggestion_seed_required` (with deterministic seed traffic + evidence snapshot).
+  - `ip_range_suggestion_seed_required` (with deterministic seed traffic + evidence snapshot),
+  - `persona_scheduler=round_robin` and `realism.required_retry_attempts.retry_storm>=1`.
 - Plane separation contract:
   - attacker-plane requests are restricted to public paths and reject privileged headers (`Authorization`, health/admin/signing secret headers),
   - orchestrator-only setup/reset/config hooks remain on the control plane via admin-authenticated calls.

@@ -420,6 +420,196 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertAlmostEqual(metrics["human_like"]["collateral_ratio"], 0.5, places=3)
         self.assertEqual(metrics["adversarial"]["collateral_count"], 1)
 
+    def test_round_robin_sequence_violations_detect_consecutive_persona_when_others_pending(self):
+        sequence = ["human_like", "human_like", "adversarial", "adversarial"]
+        violations = runner.round_robin_sequence_violations(sequence)
+        self.assertEqual(violations, [1])
+
+    def test_realism_metrics_and_checks_cover_retry_cookie_and_persona_envelopes(self):
+        scenarios = [
+            {"id": "s1", "tier": "SIM-T1", "traffic_model": {"persona": "benign_automation"}},
+            {"id": "s2", "tier": "SIM-T3", "traffic_model": {"persona": "adversarial"}},
+        ]
+        results = [
+            runner.ScenarioResult(
+                id="s1",
+                tier="SIM-T1",
+                driver="not_a_bot_pass",
+                expected_outcome="not-a-bot",
+                observed_outcome="not-a-bot",
+                passed=True,
+                latency_ms=80,
+                runtime_budget_ms=1000,
+                detail="ok",
+                realism={
+                    "persona": "benign_automation",
+                    "retry_strategy": "single_attempt",
+                    "state_mode": "stateful_cookie_jar",
+                    "think_time_ms_min": 50,
+                    "think_time_ms_max": 900,
+                    "think_time_events": 1,
+                    "think_time_ms_total": 200,
+                    "request_sequence_count": 2,
+                    "attempts_total": 2,
+                    "retry_attempts": 0,
+                    "retry_backoff_ms_total": 0,
+                    "state_headers_sent": 1,
+                    "state_token_observed": 1,
+                    "state_store_resets": 0,
+                    "state_store_peak_size": 1,
+                    "max_attempts_configured": 1,
+                },
+            ),
+            runner.ScenarioResult(
+                id="s2",
+                tier="SIM-T3",
+                driver="retry_storm_enforce",
+                expected_outcome="deny_temp",
+                observed_outcome="deny_temp",
+                passed=True,
+                latency_ms=120,
+                runtime_budget_ms=1000,
+                detail="ok",
+                realism={
+                    "persona": "adversarial",
+                    "retry_strategy": "retry_storm",
+                    "state_mode": "stateless",
+                    "think_time_ms_min": 5,
+                    "think_time_ms_max": 200,
+                    "think_time_events": 1,
+                    "think_time_ms_total": 50,
+                    "request_sequence_count": 2,
+                    "attempts_total": 3,
+                    "retry_attempts": 1,
+                    "retry_backoff_ms_total": 10,
+                    "state_headers_sent": 0,
+                    "state_token_observed": 0,
+                    "state_store_resets": 0,
+                    "state_store_peak_size": 0,
+                    "max_attempts_configured": 3,
+                },
+            ),
+        ]
+
+        realism_metrics = runner.compute_realism_metrics(
+            scenarios, results, persona_scheduler="round_robin"
+        )
+        checks = runner.build_realism_checks(
+            "full_coverage",
+            {
+                "persona_scheduler": "round_robin",
+                "realism": {"enabled": True, "required_retry_attempts": {"retry_storm": 1}},
+            },
+            realism_metrics,
+        )
+        failing = [check["name"] for check in checks if not check["passed"]]
+        self.assertEqual(failing, [])
+
+    def test_attacker_request_applies_retry_and_stateful_cookie_policy(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        manifest["scenarios"][0]["traffic_model"] = {
+            "persona": "adversarial",
+            "think_time_ms_min": 0,
+            "think_time_ms_max": 0,
+            "retry_strategy": "retry_storm",
+            "cookie_behavior": "stateful_cookie_jar",
+        }
+
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        captured_headers = []
+        responses = [
+            runner.HttpResult(status=500, body="retry", headers={}, latency_ms=1),
+            runner.HttpResult(status=200, body="ok", headers={"set-cookie": "sid=abc; Path=/"}, latency_ms=1),
+            runner.HttpResult(status=200, body="ok", headers={}, latency_ms=1),
+        ]
+
+        def fake_request(method, path, headers=None, json_body=None, form_body=None, plane="attacker", count_request=False):
+            self.assertEqual(plane, "attacker")
+            captured_headers.append(dict(headers or {}))
+            return responses.pop(0)
+
+        sim_runner.request = fake_request  # type: ignore[assignment]
+        sim_runner.begin_scenario_execution(manifest["scenarios"][0])
+        with patch("scripts.tests.adversarial_simulation_runner.time.sleep", return_value=None):
+            first = sim_runner.attacker_request(
+                "GET",
+                "/",
+                headers={"X-Forwarded-For": "10.0.0.1"},
+                count_request=True,
+            )
+            second = sim_runner.attacker_request(
+                "GET",
+                "/",
+                headers={"X-Forwarded-For": "10.0.0.1"},
+                count_request=True,
+            )
+        realism = sim_runner.end_scenario_execution()
+
+        self.assertEqual(first.status, 200)
+        self.assertEqual(second.status, 200)
+        self.assertEqual(len(captured_headers), 3)
+        self.assertEqual(captured_headers[-1].get("Cookie"), "sid=abc")
+        self.assertEqual(realism["retry_attempts"], 1)
+        self.assertEqual(realism["attempts_total"], 3)
+        self.assertEqual(realism["state_headers_sent"], 1)
+
+    def test_run_scenario_attaches_realism_evidence(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        sim_runner.preserve_state = True
+        sim_runner.reset_baseline_config = lambda: None  # type: ignore[assignment]
+        sim_runner.execute_scenario_driver = lambda scenario: scenario["expected_outcome"]  # type: ignore[assignment]
+        result = sim_runner.run_scenario(manifest["scenarios"][0])
+        self.assertTrue(result.passed)
+        self.assertIsInstance(result.realism, dict)
+        self.assertIn("request_sequence_count", result.realism or {})
+
+    def test_validate_manifest_full_coverage_requires_scheduler_and_realism_retry_contract(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        profile = manifest["profiles"].pop("test_profile")
+        manifest["profiles"]["full_coverage"] = profile
+        manifest["profiles"]["full_coverage"]["gates"]["realism"] = {"enabled": True}
+        with self.assertRaises(runner.SimulationError):
+            runner.validate_manifest(
+                Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest,
+                "full_coverage",
+            )
+
     def test_enforce_attacker_request_contract_rejects_admin_paths(self):
         with self.assertRaises(runner.SimulationError):
             runner.enforce_attacker_request_contract("/admin/config", {})

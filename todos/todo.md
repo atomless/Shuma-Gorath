@@ -58,25 +58,6 @@ Plan bundle:
 4. [`docs/plans/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity-plan.md`](../docs/plans/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity-plan.md)
 5. [`docs/plans/2026-02-27-sim2-orchestration-capability-architecture-plan.md`](../docs/plans/2026-02-27-sim2-orchestration-capability-architecture-plan.md)
 
-### SIM2-SF3: Traffic-Model Execution Realism
-
-- [ ] SIM2-SF3-1 Implement deterministic traffic-execution policy layer that all drivers must pass through.
-- [ ] SIM2-SF3-2 Implement deterministic think-time behavior from `traffic_model` bounds and scenario seeds.
-- [ ] SIM2-SF3-3 Implement retry strategy semantics (`single_attempt`, `bounded_backoff`, `retry_storm`) as execution behavior, not metadata.
-- [ ] SIM2-SF3-4 Implement cookie behavior semantics (`stateful_cookie_jar`, `stateless`, `cookie_reset_each_request`) in request execution.
-- [ ] SIM2-SF3-5 Add profile-level persona/cohort execution scheduler where required by realism profile contract.
-- [ ] SIM2-SF3-6 Extend report schema with runtime realism evidence (effective waits, retries, cookie mode usage).
-- [ ] SIM2-SF3-7 Add quantitative realism gates for persona pacing and retry/cookie envelope conformance.
-- [ ] SIM2-SF3-8 Add unit/integration/adversarial tests proving `traffic_model` settings change runtime behavior deterministically.
-- [ ] SIM2-SF3-9 Update adversarial operator documentation with realism metrics interpretation and tuning guidance.
-
-Acceptance criteria:
-1. `traffic_model` parameters materially affect runtime request behavior in deterministic runs.
-2. Realism evidence appears in reports for each scenario/persona.
-3. Runtime remains bounded by profile budgets after realism execution is enabled.
-4. Deterministic replay reproducibility remains stable for mandatory CI profiles.
-5. Realism regressions fail with actionable diagnostics.
-
 ### SIM2-SF4: Simulation Telemetry Authenticity
 
 - [ ] SIM2-SF4-1 Define signed simulation tag contract (`sim-tag.v1`) including canonical fields, HMAC algorithm, timestamp, and nonce requirements.

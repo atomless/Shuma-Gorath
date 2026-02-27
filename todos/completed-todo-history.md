@@ -34,6 +34,18 @@ Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../
 
 ### P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)
 
+#### SIM2-SF3: Traffic-Model Execution Realism
+
+- [x] SIM2-SF3-1 Implement deterministic traffic-execution policy layer that all drivers must pass through.
+- [x] SIM2-SF3-2 Implement deterministic think-time behavior from `traffic_model` bounds and scenario seeds.
+- [x] SIM2-SF3-3 Implement retry strategy semantics (`single_attempt`, `bounded_backoff`, `retry_storm`) as execution behavior, not metadata.
+- [x] SIM2-SF3-4 Implement cookie behavior semantics (`stateful_cookie_jar`, `stateless`, `cookie_reset_each_request`) in request execution.
+- [x] SIM2-SF3-5 Add profile-level persona/cohort execution scheduler where required by realism profile contract.
+- [x] SIM2-SF3-6 Extend report schema with runtime realism evidence (effective waits, retries, cookie mode usage).
+- [x] SIM2-SF3-7 Add quantitative realism gates for persona pacing and retry/cookie envelope conformance.
+- [x] SIM2-SF3-8 Add unit/integration/adversarial tests proving `traffic_model` settings change runtime behavior deterministically.
+- [x] SIM2-SF3-9 Update adversarial operator documentation with realism metrics interpretation and tuning guidance.
+
 #### SIM2-SF1: Black-Box Lane Capability Enforcement
 
 - [x] SIM2-SF1-1 Add machine-readable lane capability contract artifact (attacker/control allowed paths, headers, and authority surfaces).

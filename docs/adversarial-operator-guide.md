@@ -158,6 +158,7 @@ For every failing run, operators must capture:
 6. Commit SHA and environment (`runtime-dev` or `runtime-prod`).
 7. Runner plane-separation evidence (`latest_report.json` -> `plane_contract`).
 8. Coverage contract evidence (`latest_report.json` -> `coverage_contract`) including schema/hash and category obligations.
+9. Realism evidence (`latest_report.json` -> `realism_metrics` + `realism_gates`) for pacing/retry/state-mode conformance.
 
 ## Triage Order
 
@@ -168,8 +169,9 @@ Operators must triage in this order:
 3. Coverage gate failures in `coverage_gates.checks` where `passed=false`.
 4. Coverage deltas in `coverage_gates.coverage.deltas` (for `full_coverage`/soak).
 5. Persona collateral and cost envelopes in `cohort_metrics`.
-6. Seeded IP-range evidence in `ip_range_suggestions`.
-7. Tarpit progression/fallback/escalation counters in Monitoring tab (`Tarpit Progression` section) and `monitoring_after.tarpit.metrics` in report artifacts.
+6. Realism gate failures in `realism_gates.checks` and persona/runtime evidence in `realism_metrics`.
+7. Seeded IP-range evidence in `ip_range_suggestions`.
+8. Tarpit progression/fallback/escalation counters in Monitoring tab (`Tarpit Progression` section) and `monitoring_after.tarpit.metrics` in report artifacts.
 
 Operators must not tune thresholds before confirming whether failures are scenario mismatches versus gate regressions.
 

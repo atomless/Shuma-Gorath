@@ -170,6 +170,13 @@
           "max_fingerprint_events_per_request": 4.0,
           "max_monitoring_events_per_request": 5.0
         },
+        "persona_scheduler": "round_robin",
+        "realism": {
+          "enabled": true,
+          "required_retry_attempts": {
+            "retry_storm": 1
+          }
+        },
         "coverage_requirements": {
           "honeypot_hits": 1,
           "challenge_failures": 1,
