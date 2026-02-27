@@ -163,6 +163,7 @@ Live loop controls:
 `make test-adversarial-soak` runs `test-adversarial-coverage` (`full_coverage`) for deeper scheduled/manual validation.
 CI policy is tiered: `ci.yml` enforces the fast matrix via `make test`, and `adversarial-soak.yml` runs the deep soak gate on schedule/manual dispatch.
 `test-adversarial-akamai` is fixture-driven (local `/fingerprint-report` with canned payloads) and does not require a live Akamai edge instance.
+Operator interpretation and tuning workflow is documented in `docs/adversarial-operator-guide.md`.
 
 Manifest and fixtures live under:
 - `scripts/tests/adversarial/scenario_manifest.v1.json`
