@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-02-27)
 
+### P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)
+
+#### SIM2-ARCH: Functional Orchestration and Capability-by-Construction Uplift
+
+- [x] SIM2-ARCH-1 Publish ADR for functional-core/imperative-shell orchestration and explicit capability model (trust boundaries, migration order, rollback).
+- [x] SIM2-ARCH-2 Add characterization test harness capturing current request-path decision outcomes for representative policy matrix.
+- [x] SIM2-ARCH-3 Extract side-effect-free `RequestFacts` builders from request/config/provider inputs.
+- [x] SIM2-ARCH-4 Extract first policy tranche into pure `PolicyDecisionGraph` stages (IP-range, honeypot, rate, existing-ban) with typed outputs.
+- [x] SIM2-ARCH-5 Extract second policy tranche into pure stages (GEO, botness, JS/challenge routing) with typed outputs.
+- [x] SIM2-ARCH-6 Introduce explicit effect-intent executor for bans, metrics, monitoring, and event logging side effects.
+- [x] SIM2-ARCH-7 Replace convention-based privileged operations with explicit capability objects/tokens at trust boundaries.
+- [x] SIM2-ARCH-8 Reduce `src/lib.rs` to thin orchestration shell (`facts -> decisions -> effects -> response`) while preserving behavior.
+- [x] SIM2-ARCH-9 Add policy-graph unit coverage and parity tests to prove no behavior regressions across migration slices.
+- [x] SIM2-ARCH-10 Update module-boundary docs and operator/developer architecture docs to reflect new orchestration model.
+- [x] SIM2-ARCH-11 Ensure all verification remains Makefile-driven (`make test`, `make build`) with no lane bypass.
+
 ### P0 Adversarial Traffic Simulation Program
 
 Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)  

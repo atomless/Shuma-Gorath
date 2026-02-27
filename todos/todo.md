@@ -60,17 +60,7 @@ Plan bundle:
 
 ### SIM2-ARCH: Functional Orchestration and Capability-by-Construction Uplift
 
-- [ ] SIM2-ARCH-1 Publish ADR for functional-core/imperative-shell orchestration and explicit capability model (trust boundaries, migration order, rollback).
-- [ ] SIM2-ARCH-2 Add characterization test harness capturing current request-path decision outcomes for representative policy matrix.
-- [ ] SIM2-ARCH-3 Extract side-effect-free `RequestFacts` builders from request/config/provider inputs.
-- [ ] SIM2-ARCH-4 Extract first policy tranche into pure `PolicyDecisionGraph` stages (IP-range, honeypot, rate, existing-ban) with typed outputs.
-- [ ] SIM2-ARCH-5 Extract second policy tranche into pure stages (GEO, botness, JS/challenge routing) with typed outputs.
-- [ ] SIM2-ARCH-6 Introduce explicit effect-intent executor for bans, metrics, monitoring, and event logging side effects.
-- [ ] SIM2-ARCH-7 Replace convention-based privileged operations with explicit capability objects/tokens at trust boundaries.
-- [ ] SIM2-ARCH-8 Reduce `src/lib.rs` to thin orchestration shell (`facts -> decisions -> effects -> response`) while preserving behavior.
-- [ ] SIM2-ARCH-9 Add policy-graph unit coverage and parity tests to prove no behavior regressions across migration slices.
-- [ ] SIM2-ARCH-10 Update module-boundary docs and operator/developer architecture docs to reflect new orchestration model.
-- [ ] SIM2-ARCH-11 Ensure all verification remains Makefile-driven (`make test`, `make build`) with no lane bypass.
+Status: Execution complete on 2026-02-27. See `todos/completed-todo-history.md` for `SIM2-ARCH-*` closure details.
 
 Acceptance criteria:
 1. Core policy decisions become predominantly pure and testable without side effects.
