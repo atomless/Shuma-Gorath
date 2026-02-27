@@ -77,6 +77,9 @@ Notes:
 - Plane separation contract:
   - attacker-plane requests are restricted to public paths and reject privileged headers (`Authorization`, health/admin/signing secret headers),
   - orchestrator-only setup/reset/config hooks remain on the control plane via admin-authenticated calls.
+- Simulation telemetry tagging:
+  - deterministic runner and container worker attach `X-Shuma-Sim-Run-Id`, `X-Shuma-Sim-Profile`, and `X-Shuma-Sim-Lane` on attacker-plane traffic,
+  - backend event/monitoring read APIs can include tagged rows in dev via `include_sim=1`.
 - `monitoring_after` snapshot includes nested tarpit metrics so live-loop output can report activation/progression/fallback/escalation coverage without manual JSON digging.
 - Protected-lane frontier probe output (`frontier_lane_status.json`) is advisory only; deterministic coverage/replay gates remain blocking.
 - Repeatability lane (`make test-adversarial-repeatability`) executes deterministic profiles three times with fixed reset/seed posture and fails on scenario/gate/coverage drift.

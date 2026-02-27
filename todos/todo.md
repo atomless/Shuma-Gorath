@@ -7,7 +7,7 @@ This is the active work queue.
 Completed items are archived in `todos/completed-todo-history.md`.
 
 ## P0 Immediate Next-Agent Start (Highest Priority): Adversarial Simulation v2
-Status: Approved direction, implementation in progress. Start here before other backlog items.
+Status: Execution complete on 2026-02-27. See `todos/completed-todo-history.md` for `SIM-V2-*` closure details.
 
 ### Required background (read first)
 1. [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
@@ -27,11 +27,7 @@ Status: Approved direction, implementation in progress. Start here before other 
 10. Sim events must be telemetry-tagged and dev/prod data planes must remain separated.
 
 ### First implementation sequence (next agent execution order)
-1. `SIM-V2-9A`: complete dev UI/orchestration contract (runtime availability + body-class prerequisites from `SIM-V2-6`, `SIM-V2-11A`, and `SIM-V2-11B` are done).
-2. `SIM-V2-10`, `SIM-V2-19`: frontier config UX + key hygiene + outbound data governance.
-3. `SIM-V2-11`: containerized black-box runner + isolation conformance target.
-4. `SIM-V2-5`, `SIM-V2-16`: deterministic coverage seeding + repeatability pipeline.
-5. `SIM-V2-20`: tagging + store separation.
+1. `SIM-V2-*` execution order has completed for this phase; use completed history for implementation references and acceptance coverage evidence.
 
 ### Critical files likely touched (for rapid orientation)
 1. `Makefile` (dev defaults, new make targets, CI/release invocation wiring)
@@ -70,19 +66,6 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 ## P0 Adversarial Traffic Simulation Program
 Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
 Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
-
-- [ ] SIM-V2-20 Simulation event tagging and environment data-plane separation.
-  - Acceptance criteria:
-    - All adversary-generated events are tagged in telemetry/logging with simulation metadata (`sim_run_id`, `sim_profile`, `sim_lane`) for audit/filtering.
-    - Dev and prod data planes are explicitly separated; simulation traffic cannot pollute production stores.
-    - Separation is enforced by storage namespace/backend boundary (distinct DB file/prefix/table space or equivalent) and runtime-mode guardrails, without requiring separate operator admin API keys for dev vs prod.
-    - Runtime-prod fails closed for adversary-sim control/start requests even if stale config or UI state attempts to enable it.
-    - Startup/runtime validation fails fast if environment/store separation contract is misconfigured.
-    - UI distinction of sim events remains optional; backend tagging and API-level filtering must exist regardless of UI presentation choices.
-  - Definition of done:
-    - Monitoring/event APIs expose simulation tags and support server-side filtering.
-    - Monitoring/event APIs expose server-side `include_sim` filtering and default-safe behavior for non-dev contexts.
-    - Deployment/docs include guardrails proving production store isolation from dev simulation runs and explicitly document that admin auth keys may be shared while data stores remain isolated.
 
 ## P1 Dashboard IA: Promote Rate Limiting and GEO to Top-Level Tabs
 - [ ] DSH-RG-1 Define dashboard information architecture update and tab order for new top-level `Rate Limiting` and `GEO` tabs (including hash-route mapping and back/forward behavior).

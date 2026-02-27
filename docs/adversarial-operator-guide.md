@@ -60,6 +60,20 @@ Keep-both-vs-replace decision record:
 2. Required migration checklist template: [`docs/adr/adversarial-lane-parity-signoff-checklist.md`](adr/adversarial-lane-parity-signoff-checklist.md).
 3. Deterministic-lane demotion is forbidden without owner approval plus completed parity sign-off evidence.
 
+## Simulation Metadata Tagging and Filtering (SIM-V2-20)
+
+Adversary-generated traffic is tagged at request time with:
+
+1. `sim_run_id`
+2. `sim_profile`
+3. `sim_lane`
+
+Storage and read-path policy:
+
+1. Simulation telemetry uses dedicated namespaces (`eventlog:v2:sim:*`, `monitoring:v1:sim:*`).
+2. Admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`) support `include_sim=1` in dev runtime.
+3. Non-dev runtime remains default-safe: simulation rows/counters are excluded even if `include_sim=1` is requested.
+
 ## Frontier Architecture Modes
 
 Frontier attack-candidate generation must run in one of two explicit modes:
@@ -138,7 +152,7 @@ For every failing run, operators must capture:
 2. Report artifact (`scripts/tests/adversarial/latest_report.json`).
 3. Attack plan artifact (`scripts/tests/adversarial/attack_plan.json`).
 4. Runtime config snapshot (`GET /admin/config`) from the failing environment.
-5. Monitoring snapshot (`GET /admin/monitoring`) from the same time window.
+5. Monitoring snapshot (`GET /admin/monitoring?hours=24&limit=10&include_sim=1` in dev runtime) from the same time window.
 6. Commit SHA and environment (`runtime-dev` or `runtime-prod`).
 7. Runner plane-separation evidence (`latest_report.json` -> `plane_contract`).
 

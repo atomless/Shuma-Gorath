@@ -768,6 +768,57 @@ fn validate_env_rejects_invalid_optional_runtime_environment() {
 }
 
 #[test]
+fn validate_env_rejects_sim_available_in_runtime_prod() {
+    let _lock = crate::test_support::lock_env();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
+        "SHUMA_ADVERSARY_SIM_AVAILABLE",
+    ]);
+
+    std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
+    std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+    std::env::set_var("SHUMA_JS_SECRET", "test-js-secret");
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+    std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "168");
+    std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "false");
+    std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
+    std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
+    std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
+    std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
+    std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+    let result = validate_env_only_once();
+    assert!(result.is_err());
+    assert!(result
+        .err()
+        .unwrap()
+        .contains("SHUMA_ADVERSARY_SIM_AVAILABLE must be false"));
+
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
+        "SHUMA_ADVERSARY_SIM_AVAILABLE",
+    ]);
+}
+
+#[test]
 fn validate_env_rejects_frontier_model_id_with_whitespace() {
     let _lock = crate::test_support::lock_env();
     clear_env(&[

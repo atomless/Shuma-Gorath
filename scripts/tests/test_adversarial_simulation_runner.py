@@ -1,4 +1,5 @@
 import unittest
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -59,6 +60,30 @@ def minimal_manifest(gates_extra=None, schema_version="sim-manifest.v1"):
 
 
 class AdversarialRunnerUnitTests(unittest.TestCase):
+    def test_forwarded_headers_include_simulation_metadata(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+            headers = sim_runner.forwarded_headers("10.0.0.11", user_agent="UnitTest/1.0")
+            self.assertIn("X-Shuma-Sim-Run-Id", headers)
+            self.assertEqual(headers.get("X-Shuma-Sim-Profile"), "test_profile")
+            self.assertEqual(headers.get("X-Shuma-Sim-Lane"), "deterministic_black_box")
+
     def test_build_frontier_metadata_reports_disabled_single_and_multi_modes(self):
         with patch("scripts.tests.adversarial_simulation_runner.read_env_local_value", return_value=""):
             with patch.dict("os.environ", {}, clear=True):

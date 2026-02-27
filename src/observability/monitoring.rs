@@ -7,6 +7,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Mutex;
 
 const MONITORING_PREFIX: &str = "monitoring:v1";
+const MONITORING_SIM_PREFIX: &str = "monitoring:v1:sim";
 const MAX_WINDOW_HOURS: u64 = 24 * 30;
 const MAX_TOP_LIMIT: usize = 50;
 #[cfg(not(test))]
@@ -150,6 +151,14 @@ fn normalize_top_limit(limit: usize) -> usize {
 
 fn event_log_retention_hours() -> u64 {
     crate::config::event_log_retention_hours()
+}
+
+fn monitoring_prefix_for_active_context() -> &'static str {
+    if crate::runtime::sim_telemetry::is_simulation_context_active() {
+        MONITORING_SIM_PREFIX
+    } else {
+        MONITORING_PREFIX
+    }
 }
 
 fn encode_dim(value: &str) -> String {
@@ -406,27 +415,46 @@ fn increment_counter<S: crate::challenge::KeyValueStore>(store: &S, key: &str) {
     maybe_flush_pending_counter_buffer(store, false);
 }
 
-pub(crate) fn flush_pending_counters<S: crate::challenge::KeyValueStore>(store: &S) {
+pub(crate) fn flush_pending_counters<S: crate::challenge::KeyValueStore>(_store: &S) {
     #[cfg(not(test))]
-    maybe_flush_pending_counter_buffer(store, true);
+    maybe_flush_pending_counter_buffer(_store, true);
 }
 
-fn monitoring_key(section: &str, metric: &str, dimension: Option<&str>, hour: u64) -> String {
+fn monitoring_key_with_prefix(
+    prefix: &str,
+    section: &str,
+    metric: &str,
+    dimension: Option<&str>,
+    hour: u64,
+) -> String {
     if let Some(value) = dimension {
         return format!(
             "{}:{}:{}:{}:{}",
-            MONITORING_PREFIX,
+            prefix,
             section,
             metric,
             encode_dim(value),
             hour
         );
     }
-    format!("{}:{}:{}:{}", MONITORING_PREFIX, section, metric, hour)
+    format!("{}:{}:{}:{}", prefix, section, metric, hour)
 }
 
-fn parse_monitoring_key(key: &str) -> Option<(String, String, Option<String>, u64)> {
-    let stripped = key.strip_prefix(format!("{}:", MONITORING_PREFIX).as_str())?;
+fn monitoring_key(section: &str, metric: &str, dimension: Option<&str>, hour: u64) -> String {
+    monitoring_key_with_prefix(
+        monitoring_prefix_for_active_context(),
+        section,
+        metric,
+        dimension,
+        hour,
+    )
+}
+
+fn parse_monitoring_key_with_prefix(
+    key: &str,
+    prefix: &str,
+) -> Option<(String, String, Option<String>, u64)> {
+    let stripped = key.strip_prefix(prefix)?.strip_prefix(':')?;
     let parts: Vec<&str> = stripped.split(':').collect();
     match parts.as_slice() {
         [section, metric, hour] => Some((
@@ -445,13 +473,23 @@ fn parse_monitoring_key(key: &str) -> Option<(String, String, Option<String>, u6
     }
 }
 
+fn matching_monitoring_prefix<'a>(key: &str, prefixes: &'a [&str]) -> Option<&'a str> {
+    prefixes
+        .iter()
+        .copied()
+        .filter(|prefix| key == *prefix || key.starts_with(format!("{}:", prefix).as_str()))
+        .max_by_key(|prefix| prefix.len())
+}
+
 fn cleanup_monitoring_keys<S: crate::challenge::KeyValueStore>(store: &S, cutoff: u64) {
+    let prefixes = [MONITORING_PREFIX, MONITORING_SIM_PREFIX];
     if let Ok(keys) = store.get_keys() {
         for key in keys {
-            if !key.starts_with(MONITORING_PREFIX) {
+            let Some(prefix) = matching_monitoring_prefix(key.as_str(), &prefixes) else {
                 continue;
-            }
-            let Some((_, _, _, hour)) = parse_monitoring_key(key.as_str()) else {
+            };
+            let Some((_, _, _, hour)) = parse_monitoring_key_with_prefix(key.as_str(), prefix)
+            else {
                 continue;
             };
             if hour < cutoff {
@@ -689,10 +727,11 @@ fn build_trend(
     trend
 }
 
-pub(crate) fn summarize_with_store<S: crate::challenge::KeyValueStore>(
+fn summarize_with_store_prefixes<S: crate::challenge::KeyValueStore>(
     store: &S,
     hours: u64,
     limit: usize,
+    prefixes: &[&str],
 ) -> MonitoringSummary {
     let now = now_ts();
     #[cfg(not(test))]
@@ -735,10 +774,12 @@ pub(crate) fn summarize_with_store<S: crate::challenge::KeyValueStore>(
 
     if let Ok(keys) = store.get_keys() {
         for key in keys {
-            if !key.starts_with(MONITORING_PREFIX) {
+            let Some(prefix) = matching_monitoring_prefix(key.as_str(), prefixes) else {
                 continue;
-            }
-            let Some((section, metric, dimension, hour)) = parse_monitoring_key(key.as_str()) else {
+            };
+            let Some((section, metric, dimension, hour)) =
+                parse_monitoring_key_with_prefix(key.as_str(), prefix)
+            else {
                 continue;
             };
             if hour < start_hour || hour > end_hour {
@@ -995,6 +1036,27 @@ pub(crate) fn summarize_with_store<S: crate::challenge::KeyValueStore>(
             actions: geo_action_map,
             top_countries: top_entries(&geo_countries, top_limit),
         },
+    }
+}
+
+pub(crate) fn summarize_with_store<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    hours: u64,
+    limit: usize,
+) -> MonitoringSummary {
+    summarize_with_store_prefixes(store, hours, limit, &[MONITORING_PREFIX])
+}
+
+pub(crate) fn summarize_with_store_for_api<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    hours: u64,
+    limit: usize,
+    include_sim: bool,
+) -> MonitoringSummary {
+    if include_sim {
+        summarize_with_store_prefixes(store, hours, limit, &[MONITORING_PREFIX, MONITORING_SIM_PREFIX])
+    } else {
+        summarize_with_store_prefixes(store, hours, limit, &[MONITORING_PREFIX])
     }
 }
 

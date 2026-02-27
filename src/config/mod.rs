@@ -1190,7 +1190,19 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_optional_redis_url_var("SHUMA_BAN_STORE_REDIS_URL")?;
     validate_optional_rate_limiter_outage_mode_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN")?;
     validate_optional_rate_limiter_outage_mode_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH")?;
+    validate_runtime_env_adversary_sim_guardrail()?;
 
+    Ok(())
+}
+
+fn validate_runtime_env_adversary_sim_guardrail() -> Result<(), String> {
+    let runtime_env = runtime_environment();
+    if runtime_env.is_prod() && adversary_sim_available() {
+        return Err(
+            "Invalid env posture: SHUMA_ADVERSARY_SIM_AVAILABLE must be false when SHUMA_RUNTIME_ENV=runtime-prod"
+                .to_string(),
+        );
+    }
     Ok(())
 }
 

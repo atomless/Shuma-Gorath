@@ -278,6 +278,9 @@ class Runner:
         self.api_key = env_or_local("SHUMA_API_KEY")
         self.challenge_secret = env_or_local("SHUMA_CHALLENGE_SECRET") or env_or_local("SHUMA_JS_SECRET")
         self.session_nonce = f"{int(time.time())}-{os.getpid()}"
+        self.sim_run_id = f"deterministic-{self.session_nonce}"
+        self.sim_profile = profile_name
+        self.sim_lane = f"deterministic_{self.execution_lane}"
         self.honeypot_path = "/instaban"
         self.preserve_state = truthy_env("SHUMA_ADVERSARIAL_PRESERVE_STATE")
         self.rotate_ips = truthy_env("SHUMA_ADVERSARIAL_ROTATE_IPS")
@@ -1526,6 +1529,9 @@ class Runner:
             headers["X-Shuma-Forwarded-Secret"] = self.forwarded_secret
         if include_health_secret and self.health_secret:
             headers["X-Shuma-Health-Secret"] = self.health_secret
+        headers["X-Shuma-Sim-Run-Id"] = self.sim_run_id
+        headers["X-Shuma-Sim-Profile"] = self.sim_profile
+        headers["X-Shuma-Sim-Lane"] = self.sim_lane
         return headers
 
     def request(

@@ -136,9 +136,9 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `POST /admin/ban` - Ban an <abbr title="Internet Protocol">IP</abbr> (<abbr title="JavaScript Object Notation">JSON</abbr> body: `{"ip":"x.x.x.x","duration":3600}`; reason is always `manual_ban`)
 - `POST /admin/unban?ip=x.x.x.x` - Unban an <abbr title="Internet Protocol">IP</abbr>
 - `GET /admin/analytics` - Ban/event statistics
-- `GET /admin/events?hours=N` - Recent events + summary stats
-- `GET /admin/cdp/events?hours=N&limit=M` - <abbr title="Chrome DevTools Protocol">CDP</abbr>-only detections/auto-bans (time-windowed, limit configurable)
-- `GET /admin/monitoring?hours=N&limit=M` - Consolidated monitoring summaries plus dashboard-native detail payload for Monitoring tab refreshes
+- `GET /admin/events?hours=N&include_sim=0|1` - Recent events + summary stats (`include_sim` honored only in `runtime-dev`)
+- `GET /admin/cdp/events?hours=N&limit=M&include_sim=0|1` - <abbr title="Chrome DevTools Protocol">CDP</abbr>-only detections/auto-bans (time-windowed, limit configurable; `include_sim` honored only in `runtime-dev`)
+- `GET /admin/monitoring?hours=N&limit=M&include_sim=0|1` - Consolidated monitoring summaries plus dashboard-native detail payload for Monitoring tab refreshes (`include_sim` honored only in `runtime-dev`)
 - `GET /admin/ip-range/suggestions?hours=N&limit=M` - Suggested IP-range candidates with collateral-risk scoring
 - `GET /admin/config` - Read configuration
 - `POST /admin/config` - Update configuration (partial <abbr title="JavaScript Object Notation">JSON</abbr>, disabled when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`)
@@ -159,6 +159,10 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 
 Expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/ip-range/suggestions`, `/admin/ban` `GET`) are rate-limited to reduce <abbr title="Key-Value">KV</abbr>/<abbr title="Central Processing Unit">CPU</abbr> abuse amplification (`429` with `Retry-After: 60` when limited).
 
+Simulation-event visibility is server-filtered:
+- `include_sim=1` is honored only when `SHUMA_RUNTIME_ENV=runtime-dev`.
+- In non-dev runtime contexts, simulation events are excluded regardless of query input.
+
 `GET /admin/maze/preview` is intentionally non-operational:
 - links recurse only into `/admin/maze/preview`,
 - live `mt` traversal tokens are not emitted,
@@ -174,25 +178,33 @@ Expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/mo
 
 ### 🐙 Admin Events Response
 
-`GET /admin/events?hours=24` returns:
+`GET /admin/events?hours=24&include_sim=0` returns:
 - `recent_events` (up to 100 events)
 - `event_counts` (counts per event type)
 - `top_ips` (top 10 IPs by event count)
 - `unique_ips` (distinct <abbr title="Internet Protocol">IP</abbr> count)
+- `include_sim` (effective include-sim mode applied server-side)
+
+Each event row includes the canonical event fields plus simulation metadata when available:
+- `sim_run_id` (optional)
+- `sim_profile` (optional)
+- `sim_lane` (optional)
+- `is_simulation` (`true` for simulation-tagged rows)
 
 For <abbr title="Chrome DevTools Protocol">CDP</abbr>-only operational views without the 100-row mixed-event cap, use:
 
-`GET /admin/cdp/events?hours=24&limit=500` returns:
+`GET /admin/cdp/events?hours=24&limit=500&include_sim=0` returns:
 - `events` (<abbr title="Chrome DevTools Protocol">CDP</abbr> detection and <abbr title="Chrome DevTools Protocol">CDP</abbr> auto-ban events only, up to `limit`)
 - `hours` (effective query window)
 - `limit` (effective result cap)
 - `total_matches` (number of matched <abbr title="Chrome DevTools Protocol">CDP</abbr> events before truncation)
 - `counts.detections` (<abbr title="Chrome DevTools Protocol">CDP</abbr> detection event count in the window)
 - `counts.auto_bans` (<abbr title="Chrome DevTools Protocol">CDP</abbr> auto-ban event count in the window)
+- `include_sim` (effective include-sim mode applied server-side)
 
 ### 🐙 Admin Monitoring Summary Response
 
-`GET /admin/monitoring?hours=24&limit=10` returns:
+`GET /admin/monitoring?hours=24&limit=10&include_sim=0` returns:
 - `summary.generated_at`
 - `summary.hours`
 - `summary.honeypot`:
@@ -208,6 +220,7 @@ For <abbr title="Chrome DevTools Protocol">CDP</abbr>-only operational views wit
 - `total_violations`, `actions`, `top_countries`
 - `prometheus`:
 - `endpoint` (`/metrics`), helper notes, and scrape examples for external platforms
+- `include_sim` (effective include-sim mode applied server-side)
 - `details` (dashboard Monitoring-tab refresh contract):
 - `analytics`: `ban_count`, `test_mode`, `fail_mode`
 - `events`: `recent_events`, `event_counts`, `top_ips`, `unique_ips`

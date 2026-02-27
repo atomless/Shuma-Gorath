@@ -199,6 +199,11 @@ Live loop controls:
 - Runner also emits `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
 - Promotion lane emits `scripts/tests/adversarial/promotion_candidates_report.json` with candidate -> replay -> promotion lineage and owner-review requirements.
 - Frontier threshold lane emits `scripts/tests/adversarial/frontier_unavailability_policy.json` and can auto-open/assign model-refresh action when protected-lane degradation thresholds are exceeded.
+- Deterministic and container black-box runners now stamp attacker-plane traffic with simulation headers:
+  - `X-Shuma-Sim-Run-Id`
+  - `X-Shuma-Sim-Profile`
+  - `X-Shuma-Sim-Lane`
+  Runtime tagging is accepted only when `SHUMA_RUNTIME_ENV=runtime-dev` and `SHUMA_ADVERSARY_SIM_AVAILABLE=true`.
 - `latest_report.json` includes quantitative `gates` and separate `coverage_gates` sections with per-check `threshold_source`.
 - `latest_report.json` also includes `cohort_metrics` (persona-level collateral/latency summaries) and `ip_range_suggestions` seed evidence for `full_coverage`.
 - `latest_report.json` includes `plane_contract` guardrail metadata confirming attacker/control-plane separation checks are enforced.
@@ -234,6 +239,9 @@ Frontier lane policy:
 - Protected-lane frontier attempt is mandatory to run (attempt status is always emitted), but degraded frontier status is advisory and does not override deterministic blocking gates.
 - Deterministic replay/coverage remains the release-blocking oracle; stochastic one-off frontier anomalies do not block until deterministic replay confirms them.
 - Degraded-threshold tracker (`make test-frontier-unavailability-policy`) opens/updates a refresh action when protected lanes remain degraded for 10 consecutive runs or 7 days.
+Simulation telemetry filtering policy:
+- `/admin/events`, `/admin/cdp/events`, and `/admin/monitoring` support `include_sim=1` in `runtime-dev`.
+- Non-dev runtime contexts are default-safe and exclude simulation telemetry regardless of query input.
 `test-adversarial-akamai` is fixture-driven (local `/fingerprint-report` with canned payloads) and does not require a live Akamai edge instance.
 Operator interpretation and tuning workflow is documented in `docs/adversarial-operator-guide.md`.
 

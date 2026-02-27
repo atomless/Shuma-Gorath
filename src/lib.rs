@@ -935,6 +935,12 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         Ok(cfg) => cfg,
         Err(resp) => return resp,
     };
+    let sim_metadata = runtime::sim_telemetry::metadata_from_request(
+        req,
+        config::runtime_environment(),
+        config::adversary_sim_available(),
+    );
+    let _sim_context_guard = runtime::sim_telemetry::enter(sim_metadata);
     let provider_registry = providers::registry::ProviderRegistry::from_config(&cfg);
     observability::metrics::record_provider_backend_visibility(store, &provider_registry);
     observability::metrics::record_policy_signal(
