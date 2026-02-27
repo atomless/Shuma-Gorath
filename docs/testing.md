@@ -3,17 +3,19 @@
 ## 🐙 Quick Commands (Official)
 
 ```bash
-make test             # Full umbrella suite: unit + maze benchmark + Spin integration + adversarial profiles + dashboard e2e
+make test             # Full umbrella suite: unit + maze benchmark + Spin integration + mandatory fast adversarial matrix + dashboard e2e
 make test-unit        # Unit tests only (native Rust)
 make unit-test        # alias for make test-unit
 make test-maze-benchmark # Deterministic maze asymmetry benchmark gate
 make test-integration # Integration tests only (waits for existing Spin readiness)
 make integration-test # alias for make test-integration
 make test-adversarial-manifest # Validate adversarial scenario manifest + fixture references
+make test-adversarial-fast # Mandatory fast adversarial matrix (smoke + abuse + Akamai)
 make test-adversarial-smoke # Mandatory adversarial fast smoke profile (waits for existing Spin readiness)
 make test-adversarial-abuse # Replay/stale/order-cadence abuse regression profile
 make test-adversarial-akamai # Akamai fixture-driven simulation profile
 make test-adversarial-coverage # Expanded adversarial coverage profile (pre-release gate)
+make test-adversarial-soak # Deep adversarial soak gate alias for full_coverage
 make test-adversarial-live # Loop adversarial profile for live monitoring demos (Ctrl+C to stop)
 make test-ip-range-suggestions # Focused IP-range suggestion regression gate (runtime + dashboard)
 make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
@@ -29,7 +31,8 @@ Notes:
 - Use Makefile commands only (avoid running scripts directly)
 - Integration tests require a running Spin server (`make dev`); test targets do not start Spin.
 - `make test`, `make test-integration`, and `make test-dashboard-e2e` wait for `/health` readiness before failing.
-- `make test` includes maze asymmetry benchmark gating, all adversarial profiles (fast smoke + abuse + Akamai + coverage), plus Playwright dashboard e2e and fails if any stage cannot run.
+- `make test` includes maze asymmetry benchmark gating, the mandatory fast adversarial matrix (`smoke + abuse + Akamai`), plus Playwright dashboard e2e and fails if any stage cannot run.
+- Deep adversarial soak coverage (`full_coverage`) is run via `make test-adversarial-soak` and is intended for scheduled/manual gates rather than every `make test` execution.
 - `make test-dashboard-e2e` now verifies the running Spin instance is serving the current `dist/dashboard/index.html` before Playwright runs; restart Spin after `make dashboard-build` if this check fails.
 - `make test` now reseeds dashboard sample data at the end, so charts/tables stay populated for local inspection after the run.
 
@@ -123,10 +126,12 @@ make test-adversarial-smoke
 ```
 
 Available profiles:
+- `make test-adversarial-fast` - mandatory fast matrix (`smoke + abuse + Akamai`)
 - `make test-adversarial-smoke` - mandatory fast smoke gate (`SIM-T0`..`SIM-T4`)
 - `make test-adversarial-abuse` - mandatory replay/stale/order-cadence abuse regressions
 - `make test-adversarial-akamai` - mandatory Akamai signal fixture coverage
 - `make test-adversarial-coverage` - expanded coverage contract profile (`full_coverage`) including PoW success/failure, rate-limit enforcement, and GEO block coverage
+- `make test-adversarial-soak` - deep soak alias for `full_coverage` (scheduled/manual gate)
 - `make test-adversarial-manifest` - schema/fixture validation without server
 - `make test-adversarial-live` - repeated live traffic generator for operator monitoring drills
 
@@ -154,7 +159,9 @@ Live loop controls:
 - `ADVERSARIAL_PAUSE_SECONDS` (default `2`) controls delay between cycles.
 - `ADVERSARIAL_REPORT_PATH` (default `scripts/tests/adversarial/latest_report.json`) controls report output file.
 
-`make test` runs `test-adversarial-smoke`, `test-adversarial-abuse`, `test-adversarial-akamai`, and `test-adversarial-coverage` in sequence.
+`make test` runs `test-adversarial-fast` (which executes `test-adversarial-smoke`, `test-adversarial-abuse`, and `test-adversarial-akamai`) in sequence.
+`make test-adversarial-soak` runs `test-adversarial-coverage` (`full_coverage`) for deeper scheduled/manual validation.
+CI policy is tiered: `ci.yml` enforces the fast matrix via `make test`, and `adversarial-soak.yml` runs the deep soak gate on schedule/manual dispatch.
 `test-adversarial-akamai` is fixture-driven (local `/fingerprint-report` with canned payloads) and does not require a live Akamai edge instance.
 
 Manifest and fixtures live under:

@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-live test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -302,7 +302,7 @@ spin-wait-ready: ## Wait for the existing local Spin server to pass /health
 smoke-single-host: ## Run post-deploy single-host smoke checks (health/admin auth/metrics/challenge route)
 	@./scripts/tests/smoke_single_host.sh
 
-test: ## Run ALL tests in series: unit, maze benchmark, integration, adversarial profiles, and dashboard e2e (waits for existing server readiness)
+test: ## Run umbrella tests in series: unit, maze benchmark, integration, mandatory fast adversarial matrix, and dashboard e2e
 	@echo "$(CYAN)============================================$(NC)"
 	@echo "$(CYAN)  RUNNING ALL TESTS$(NC)"
 	@echo "$(CYAN)============================================$(NC)"
@@ -315,16 +315,16 @@ test: ## Run ALL tests in series: unit, maze benchmark, integration, adversarial
 	fi
 	@echo "$(GREEN)✅ Preflight: Spin server is ready; integration, adversarial, and dashboard e2e tests will be executed.$(NC)"
 	@echo ""
-	@echo "$(CYAN)Step 1/8: Rust Unit Tests$(NC)"
+	@echo "$(CYAN)Step 1/6: Rust Unit Tests$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 2/8: Maze Asymmetry Benchmark Gate$(NC)"
+	@echo "$(CYAN)Step 2/6: Maze Asymmetry Benchmark Gate$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@$(MAKE) --no-print-directory test-maze-benchmark || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 3/8: Integration Tests (Spin HTTP scenarios)$(NC)"
+	@echo "$(CYAN)Step 3/6: Integration Tests (Spin HTTP scenarios)$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" ./scripts/tests/integration.sh || exit 1; \
@@ -332,30 +332,18 @@ test: ## Run ALL tests in series: unit, maze benchmark, integration, adversarial
 		echo "$(RED)❌ Error: Spin server not ready. Integration tests must run and may not be skipped.$(NC)"; \
 		echo "$(YELLOW)   Start server first: make dev$(NC)"; \
 		echo "$(YELLOW)   Then run tests:     make test$(NC)"; \
-		exit 1; \
-	fi
+			exit 1; \
+		fi
 	@echo ""
-	@echo "$(CYAN)Step 4/8: Adversarial Fast Smoke (SIM-T0..SIM-T4)$(NC)"
+	@echo "$(CYAN)Step 4/6: Adversarial Fast Matrix (smoke + abuse + Akamai)$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
-	@$(MAKE) --no-print-directory test-adversarial-smoke || exit 1
+	@$(MAKE) --no-print-directory test-adversarial-fast || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 5/8: Adversarial Abuse Regression$(NC)"
-	@echo "$(CYAN)--------------------------------------------$(NC)"
-	@$(MAKE) --no-print-directory test-adversarial-abuse || exit 1
-	@echo ""
-	@echo "$(CYAN)Step 6/8: Adversarial Akamai Fixture Profile$(NC)"
-	@echo "$(CYAN)--------------------------------------------$(NC)"
-	@$(MAKE) --no-print-directory test-adversarial-akamai || exit 1
-	@echo ""
-	@echo "$(CYAN)Step 7/9: Adversarial Coverage Profile$(NC)"
-	@echo "$(CYAN)--------------------------------------------$(NC)"
-	@$(MAKE) --no-print-directory test-adversarial-coverage || exit 1
-	@echo ""
-	@echo "$(CYAN)Step 8/9: Dashboard E2E Smoke Tests$(NC)"
+	@echo "$(CYAN)Step 5/6: Dashboard E2E Smoke Tests$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@$(MAKE) --no-print-directory test-dashboard-e2e || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 9/9: Dashboard Seed Snapshot$(NC)"
+	@echo "$(CYAN)Step 6/6: Dashboard Seed Snapshot$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@$(MAKE) --no-print-directory seed-dashboard-data || exit 1
 	@echo ""
@@ -403,6 +391,12 @@ test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtu
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile akamai_smoke --validate-only
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile full_coverage --validate-only
 
+test-adversarial-fast: ## Run mandatory fast adversarial matrix (smoke + abuse + Akamai profiles)
+	@echo "$(CYAN)🧪 Running mandatory fast adversarial matrix...$(NC)"
+	@$(MAKE) --no-print-directory test-adversarial-smoke || exit 1
+	@$(MAKE) --no-print-directory test-adversarial-abuse || exit 1
+	@$(MAKE) --no-print-directory test-adversarial-akamai || exit 1
+
 test-adversarial-smoke: ## Run adversarial fast smoke simulation profile (requires running server)
 	@echo "$(CYAN)🧪 Running adversarial fast smoke simulation...$(NC)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
@@ -440,8 +434,12 @@ test-adversarial-coverage: ## Run expanded adversarial coverage profile (require
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
-		exit 1; \
-	fi
+			exit 1; \
+		fi
+
+test-adversarial-soak: ## Run deep adversarial soak gate (full_coverage profile; intended for scheduled/manual CI)
+	@echo "$(CYAN)🧪 Running deep adversarial soak profile...$(NC)"
+	@$(MAKE) --no-print-directory test-adversarial-coverage
 
 test-adversarial-live: ## Continuously run adversarial simulation profile for live operator monitoring (requires running server)
 	@echo "$(CYAN)🧪 Running adversarial live simulation loop...$(NC)"
