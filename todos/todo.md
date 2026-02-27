@@ -104,16 +104,6 @@ Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../
     - CI workflow and Make help text reflect deterministic mandatory gates plus separate containerized/scheduled runs.
     - ADR/checklist template exists for future parity sign-off and requires explicit owner approval before any deterministic-lane demotion.
 
-- [ ] SIM-V2-16 Deterministic repeatability gate for adversarial profiles.
-  - Acceptance criteria:
-    - Repeatability check runs selected deterministic profiles (`smoke`, `abuse`, and seeded `coverage`) `N=3` times with identical seed/config/reset baseline.
-    - Scenario pass/fail vector and observed outcome classes are identical across repeats.
-    - Quantitative gate values remain within explicit tolerance bands (latency tolerance bounded; categorical/taxonomy values exact).
-    - Any frontier-discovered candidate must pass repeatable deterministic replay before it can be promoted to blocking regression status.
-  - Definition of done:
-    - Make target exists (`make test-adversarial-repeatability`) and fails with concise diff output when run-to-run drift is detected.
-    - CI policy runs repeatability on PR-to-main and release-gate paths (not on every push).
-
 - [ ] SIM-V2-17 Release-gate enforcement wiring for coverage + frontier-redteam + deterministic oracle policy.
   - Acceptance criteria:
     - Release cut/deploy workflow has explicit hard dependency on successful `test-adversarial-coverage`; frontier-lane attempt status is required telemetry with degraded advisory when unavailable.

@@ -18,6 +18,7 @@ make test-adversarial-coverage # Expanded adversarial coverage profile (pre-rele
 make test-adversarial-sim-selftest # Minimal deterministic simulator mechanics self-test (no Spin server required)
 make test-adversarial-soak # Deep adversarial soak gate alias for full_coverage
 make test-adversarial-live # Loop adversarial profile for live monitoring demos (Ctrl+C to stop)
+make test-adversarial-repeatability # Deterministic drift gate across smoke/abuse/coverage (N=3)
 make test-adversarial-container-isolation # Validate black-box container isolation contract (Docker required)
 make test-adversarial-container-blackbox # Run containerized black-box adversary worker (Docker required)
 make test-adversarial-frontier-attempt # Protected-lane frontier provider attempt probe (advisory/non-blocking)
@@ -140,6 +141,7 @@ Available profiles:
 - `make test-adversarial-soak` - deep soak alias for `full_coverage` (scheduled/manual gate)
 - `make test-adversarial-manifest` - schema/fixture validation without server
 - `make test-adversarial-live` - repeated live traffic generator for operator monitoring drills
+- `make test-adversarial-repeatability` - deterministic replay consistency gate across `fast_smoke`, `abuse_regression`, and `full_coverage`
 - `make test-adversarial-container-isolation` - container self-check gate for mount/env/identity/tooling hardening contract
 - `make test-adversarial-container-blackbox` - containerized black-box worker run (separate complementary lane)
 - `make test-adversarial-frontier-attempt` - protected-lane frontier provider probe attempt (advisory, non-blocking)
@@ -205,6 +207,11 @@ Container black-box controls:
 - runtime guardrails: dropped capabilities + `no-new-privileges` + bounded CPU/memory/pids + tmpfs `/tmp`
 - isolation report: `scripts/tests/adversarial/container_isolation_report.json`
 - black-box run report: `scripts/tests/adversarial/container_blackbox_report.json`
+Repeatability controls:
+- default repeats: `ADVERSARIAL_REPEATABILITY_REPEATS=3`
+- default profile set: `ADVERSARIAL_REPEATABILITY_PROFILES=fast_smoke,abuse_regression,full_coverage`
+- summary report: `scripts/tests/adversarial/repeatability_report.json`
+- drift policy: scenario pass/outcome vectors must match exactly; latency variance is bounded by `ADVERSARIAL_REPEATABILITY_LATENCY_TOLERANCE_MS` (default `250`).
 CI policy is tiered:
 - Push to `main`: `ci.yml` runs `make test` (includes mandatory fast adversarial matrix).
 - PR to `main`: `ci.yml` additionally runs `make test-adversarial-coverage` and `make test-adversarial-frontier-attempt`.

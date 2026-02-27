@@ -12,6 +12,7 @@ Use this guide for:
 - `make test-adversarial-fast`
 - `make test-adversarial-soak`
 - `make test-adversarial-live`
+- `make test-adversarial-repeatability`
 - `make test-adversarial-container-isolation`
 - `make test-adversarial-container-blackbox`
 
