@@ -19,6 +19,10 @@ pub const POW_TTL_MIN: u64 = 30;
 pub const POW_TTL_MAX: u64 = 300;
 pub const ADVERSARY_SIM_DURATION_SECONDS_MIN: u64 = 30;
 pub const ADVERSARY_SIM_DURATION_SECONDS_MAX: u64 = 900;
+const FRONTIER_OPENAI_MODEL_DEFAULT: &str = "gpt-5-mini";
+const FRONTIER_ANTHROPIC_MODEL_DEFAULT: &str = "claude-3-5-haiku-latest";
+const FRONTIER_GOOGLE_MODEL_DEFAULT: &str = "gemini-2.0-flash-lite";
+const FRONTIER_XAI_MODEL_DEFAULT: &str = "grok-3-mini";
 const MAZE_MICRO_POW_DIFFICULTY_MIN: u8 = 10;
 const MAZE_MICRO_POW_DIFFICULTY_MAX: u8 = 24;
 const CHALLENGE_THRESHOLD_MIN: u8 = 1;
@@ -1176,6 +1180,10 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_bool_like_var("SHUMA_DEBUG_HEADERS")?;
     validate_optional_runtime_environment_var("SHUMA_RUNTIME_ENV")?;
     validate_optional_bool_like_var("SHUMA_ADVERSARY_SIM_AVAILABLE")?;
+    validate_optional_model_id_var("SHUMA_FRONTIER_OPENAI_MODEL")?;
+    validate_optional_model_id_var("SHUMA_FRONTIER_ANTHROPIC_MODEL")?;
+    validate_optional_model_id_var("SHUMA_FRONTIER_GOOGLE_MODEL")?;
+    validate_optional_model_id_var("SHUMA_FRONTIER_XAI_MODEL")?;
     validate_optional_bool_like_var("SHUMA_ENTERPRISE_MULTI_INSTANCE")?;
     validate_optional_bool_like_var("SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED")?;
     validate_optional_redis_url_var("SHUMA_RATE_LIMITER_REDIS_URL")?;
@@ -1270,12 +1278,45 @@ fn validate_optional_rate_limiter_outage_mode_var(name: &str) -> Result<(), Stri
     Ok(())
 }
 
+fn validate_optional_model_id_var(name: &str) -> Result<(), String> {
+    let Some(value) = env::var(name).ok() else {
+        return Ok(());
+    };
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Ok(());
+    }
+    if trimmed.chars().any(char::is_whitespace) {
+        return Err(format!(
+            "Invalid model id env var {}={} (model ids must not contain whitespace)",
+            name, value
+        ));
+    }
+    Ok(())
+}
+
 fn validate_u64_var(name: &str) -> Result<(), String> {
     let value = env::var(name).map_err(|_| format!("Missing required env var {}", name))?;
     if value.trim().parse::<u64>().is_err() {
         return Err(format!("Invalid integer env var {}={}", name, value));
     }
     Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct FrontierProviderSummary {
+    pub provider: String,
+    pub model_id: String,
+    pub configured: bool,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct FrontierSummary {
+    pub mode: String,
+    pub diversity_confidence: String,
+    pub provider_count: u8,
+    pub reduced_diversity_warning: bool,
+    pub providers: Vec<FrontierProviderSummary>,
 }
 
 #[cfg(test)]
@@ -1313,6 +1354,21 @@ fn env_bool_optional(name: &str, default: bool) -> bool {
         .unwrap_or(default)
 }
 
+fn env_trimmed_optional(name: &str) -> Option<String> {
+    env::var(name)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn frontier_provider_model(name: &str, default_value: &str) -> String {
+    env_trimmed_optional(name).unwrap_or_else(|| default_value.to_string())
+}
+
+fn frontier_provider_configured(name: &str) -> bool {
+    env_trimmed_optional(name).is_some()
+}
+
 pub fn enterprise_multi_instance_enabled() -> bool {
     env_bool_optional("SHUMA_ENTERPRISE_MULTI_INSTANCE", false)
 }
@@ -1330,6 +1386,61 @@ pub fn runtime_environment() -> RuntimeEnvironment {
 
 pub fn adversary_sim_available() -> bool {
     env_bool_optional("SHUMA_ADVERSARY_SIM_AVAILABLE", false)
+}
+
+pub fn frontier_summary() -> FrontierSummary {
+    let providers = vec![
+        FrontierProviderSummary {
+            provider: "openai".to_string(),
+            model_id: frontier_provider_model("SHUMA_FRONTIER_OPENAI_MODEL", FRONTIER_OPENAI_MODEL_DEFAULT),
+            configured: frontier_provider_configured("SHUMA_FRONTIER_OPENAI_API_KEY"),
+        },
+        FrontierProviderSummary {
+            provider: "anthropic".to_string(),
+            model_id: frontier_provider_model(
+                "SHUMA_FRONTIER_ANTHROPIC_MODEL",
+                FRONTIER_ANTHROPIC_MODEL_DEFAULT,
+            ),
+            configured: frontier_provider_configured("SHUMA_FRONTIER_ANTHROPIC_API_KEY"),
+        },
+        FrontierProviderSummary {
+            provider: "google".to_string(),
+            model_id: frontier_provider_model("SHUMA_FRONTIER_GOOGLE_MODEL", FRONTIER_GOOGLE_MODEL_DEFAULT),
+            configured: frontier_provider_configured("SHUMA_FRONTIER_GOOGLE_API_KEY"),
+        },
+        FrontierProviderSummary {
+            provider: "xai".to_string(),
+            model_id: frontier_provider_model("SHUMA_FRONTIER_XAI_MODEL", FRONTIER_XAI_MODEL_DEFAULT),
+            configured: frontier_provider_configured("SHUMA_FRONTIER_XAI_API_KEY"),
+        },
+    ];
+
+    let provider_count = providers
+        .iter()
+        .filter(|provider| provider.configured)
+        .count() as u8;
+    let mode = if provider_count == 0 {
+        "disabled"
+    } else if provider_count == 1 {
+        "single_provider_self_play"
+    } else {
+        "multi_provider_playoff"
+    };
+    let diversity_confidence = if provider_count >= 2 {
+        "higher"
+    } else if provider_count == 1 {
+        "low"
+    } else {
+        "none"
+    };
+
+    FrontierSummary {
+        mode: mode.to_string(),
+        diversity_confidence: diversity_confidence.to_string(),
+        provider_count,
+        reduced_diversity_warning: provider_count == 1,
+        providers,
+    }
 }
 
 pub fn rate_limiter_redis_url() -> Option<String> {

@@ -83,7 +83,7 @@ const IP_RANGE_MAX_CIDRS_PER_RULE: usize = 512;
 const IP_RANGE_MAX_EMERGENCY_ALLOWLIST: usize = 1024;
 const IP_RANGE_CUSTOM_MESSAGE_MAX_CHARS: usize = 280;
 const IP_RANGE_REDIRECT_URL_MAX_CHARS: usize = 512;
-const CONFIG_EXPORT_SECRET_KEYS: [&str; 10] = [
+const CONFIG_EXPORT_SECRET_KEYS: [&str; 14] = [
     "SHUMA_API_KEY",
     "SHUMA_ADMIN_READONLY_API_KEY",
     "SHUMA_JS_SECRET",
@@ -92,6 +92,10 @@ const CONFIG_EXPORT_SECRET_KEYS: [&str; 10] = [
     "SHUMA_MAZE_PREVIEW_SECRET",
     "SHUMA_FORWARDED_IP_SECRET",
     "SHUMA_HEALTH_SECRET",
+    "SHUMA_FRONTIER_OPENAI_API_KEY",
+    "SHUMA_FRONTIER_ANTHROPIC_API_KEY",
+    "SHUMA_FRONTIER_GOOGLE_API_KEY",
+    "SHUMA_FRONTIER_XAI_API_KEY",
     "SHUMA_RATE_LIMITER_REDIS_URL",
     "SHUMA_BAN_STORE_REDIS_URL",
 ];
@@ -511,6 +515,10 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_DEBUG_HEADERS", "true");
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
         std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_FRONTIER_OPENAI_MODEL", "gpt-5-mini");
+        std::env::set_var("SHUMA_FRONTIER_ANTHROPIC_MODEL", "claude-3-5-haiku-latest");
+        std::env::set_var("SHUMA_FRONTIER_GOOGLE_MODEL", "gemini-2.0-flash-lite");
+        std::env::set_var("SHUMA_FRONTIER_XAI_MODEL", "grok-3-mini");
         std::env::set_var("SHUMA_RATE_LIMITER_REDIS_URL", "redis://redis:6379");
         std::env::set_var("SHUMA_BAN_STORE_REDIS_URL", "redis://redis:6379");
         std::env::set_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN", "fail_open");
@@ -665,6 +673,23 @@ mod admin_config_tests {
             Some(&serde_json::json!("true"))
         );
         assert_eq!(
+            env.get("SHUMA_FRONTIER_OPENAI_MODEL"),
+            Some(&serde_json::json!("gpt-5-mini"))
+        );
+        assert_eq!(
+            env.get("SHUMA_FRONTIER_ANTHROPIC_MODEL"),
+            Some(&serde_json::json!("claude-3-5-haiku-latest"))
+        );
+        assert_eq!(
+            env.get("SHUMA_FRONTIER_GOOGLE_MODEL"),
+            Some(&serde_json::json!("gemini-2.0-flash-lite"))
+        );
+        assert_eq!(
+            env.get("SHUMA_FRONTIER_XAI_MODEL"),
+            Some(&serde_json::json!("grok-3-mini"))
+        );
+        assert!(env.get("SHUMA_FRONTIER_OPENAI_API_KEY").is_none());
+        assert_eq!(
             env.get("SHUMA_ADVERSARY_SIM_ENABLED"),
             Some(&serde_json::json!("true"))
         );
@@ -707,6 +732,11 @@ mod admin_config_tests {
         assert!(env_text.contains("SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE=17"));
         assert!(env_text.contains("SHUMA_RUNTIME_ENV=runtime-dev"));
         assert!(env_text.contains("SHUMA_ADVERSARY_SIM_AVAILABLE=true"));
+        assert!(env_text.contains("SHUMA_FRONTIER_OPENAI_MODEL=gpt-5-mini"));
+        assert!(env_text.contains("SHUMA_FRONTIER_ANTHROPIC_MODEL=claude-3-5-haiku-latest"));
+        assert!(env_text.contains("SHUMA_FRONTIER_GOOGLE_MODEL=gemini-2.0-flash-lite"));
+        assert!(env_text.contains("SHUMA_FRONTIER_XAI_MODEL=grok-3-mini"));
+        assert!(!env_text.contains("SHUMA_FRONTIER_OPENAI_API_KEY="));
         assert!(env_text.contains("SHUMA_ADVERSARY_SIM_ENABLED=true"));
         assert!(env_text.contains("SHUMA_ADVERSARY_SIM_DURATION_SECONDS="));
         assert!(!env_text.contains("SHUMA_RATE_LIMITER_REDIS_URL="));
@@ -724,6 +754,10 @@ mod admin_config_tests {
             "SHUMA_DEBUG_HEADERS",
             "SHUMA_RUNTIME_ENV",
             "SHUMA_ADVERSARY_SIM_AVAILABLE",
+            "SHUMA_FRONTIER_OPENAI_MODEL",
+            "SHUMA_FRONTIER_ANTHROPIC_MODEL",
+            "SHUMA_FRONTIER_GOOGLE_MODEL",
+            "SHUMA_FRONTIER_XAI_MODEL",
             "SHUMA_RATE_LIMITER_REDIS_URL",
             "SHUMA_BAN_STORE_REDIS_URL",
             "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
@@ -740,6 +774,10 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_CHALLENGE_SECRET", "challenge-secret");
         std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "forwarded-secret");
         std::env::set_var("SHUMA_HEALTH_SECRET", "health-secret");
+        std::env::set_var("SHUMA_FRONTIER_OPENAI_API_KEY", "frontier-openai-secret");
+        std::env::set_var("SHUMA_FRONTIER_ANTHROPIC_API_KEY", "frontier-anthropic-secret");
+        std::env::set_var("SHUMA_FRONTIER_GOOGLE_API_KEY", "frontier-google-secret");
+        std::env::set_var("SHUMA_FRONTIER_XAI_API_KEY", "frontier-xai-secret");
         std::env::set_var("SHUMA_RATE_LIMITER_REDIS_URL", "redis://secret@redis:6379");
         std::env::set_var("SHUMA_BAN_STORE_REDIS_URL", "redis://secret@redis:6379");
 
@@ -776,6 +814,10 @@ mod admin_config_tests {
             "SHUMA_CHALLENGE_SECRET",
             "SHUMA_FORWARDED_IP_SECRET",
             "SHUMA_HEALTH_SECRET",
+            "SHUMA_FRONTIER_OPENAI_API_KEY",
+            "SHUMA_FRONTIER_ANTHROPIC_API_KEY",
+            "SHUMA_FRONTIER_GOOGLE_API_KEY",
+            "SHUMA_FRONTIER_XAI_API_KEY",
             "SHUMA_RATE_LIMITER_REDIS_URL",
             "SHUMA_BAN_STORE_REDIS_URL",
         ]);
@@ -871,6 +913,54 @@ mod admin_config_tests {
 
         std::env::remove_var("SHUMA_RUNTIME_ENV");
         std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn admin_config_includes_frontier_summary_without_exposing_keys() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_FRONTIER_OPENAI_API_KEY", "sk-openai-test");
+        std::env::set_var("SHUMA_FRONTIER_OPENAI_MODEL", "gpt-5-mini");
+
+        let req = make_request(Method::Get, "/admin/config", Vec::new());
+        let store = TestStore::default();
+        let resp = handle_admin_config(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+        let body_raw = String::from_utf8_lossy(resp.body()).to_string();
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+
+        assert_eq!(
+            body.get("frontier_mode").and_then(|value| value.as_str()),
+            Some("single_provider_self_play")
+        );
+        assert_eq!(
+            body.get("frontier_provider_count")
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            body.get("frontier_diversity_confidence")
+                .and_then(|value| value.as_str()),
+            Some("low")
+        );
+        assert_eq!(
+            body.get("frontier_reduced_diversity_warning")
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        let providers = body
+            .get("frontier_providers")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(providers.len(), 4);
+        assert!(providers.iter().any(|entry| {
+            entry.get("provider").and_then(|value| value.as_str()) == Some("openai")
+                && entry.get("configured").and_then(|value| value.as_bool()) == Some(true)
+        }));
+        assert!(!body_raw.contains("sk-openai-test"));
+
+        std::env::remove_var("SHUMA_FRONTIER_OPENAI_API_KEY");
+        std::env::remove_var("SHUMA_FRONTIER_OPENAI_MODEL");
     }
 
     #[test]
@@ -3621,6 +3711,16 @@ fn json_env<T: Serialize>(value: &T) -> String {
 }
 
 fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String)> {
+    let frontier = crate::config::frontier_summary();
+    let frontier_model = |provider_name: &str| -> String {
+        frontier
+            .providers
+            .iter()
+            .find(|provider| provider.provider == provider_name)
+            .map(|provider| provider.model_id.clone())
+            .unwrap_or_default()
+    };
+
     vec![
         (
             "SHUMA_ADMIN_IP_ALLOWLIST".to_string(),
@@ -3657,6 +3757,22 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
         (
             "SHUMA_ADVERSARY_SIM_AVAILABLE".to_string(),
             bool_env(crate::config::adversary_sim_available()).to_string(),
+        ),
+        (
+            "SHUMA_FRONTIER_OPENAI_MODEL".to_string(),
+            frontier_model("openai"),
+        ),
+        (
+            "SHUMA_FRONTIER_ANTHROPIC_MODEL".to_string(),
+            frontier_model("anthropic"),
+        ),
+        (
+            "SHUMA_FRONTIER_GOOGLE_MODEL".to_string(),
+            frontier_model("google"),
+        ),
+        (
+            "SHUMA_FRONTIER_XAI_MODEL".to_string(),
+            frontier_model("xai"),
         ),
         (
             "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN".to_string(),
@@ -4671,6 +4787,27 @@ fn admin_config_payload(
     obj.insert(
         "adversary_sim_available".to_string(),
         serde_json::Value::Bool(crate::config::adversary_sim_available()),
+    );
+    let frontier = crate::config::frontier_summary();
+    obj.insert(
+        "frontier_mode".to_string(),
+        serde_json::Value::String(frontier.mode.clone()),
+    );
+    obj.insert(
+        "frontier_provider_count".to_string(),
+        serde_json::Value::Number((frontier.provider_count as u64).into()),
+    );
+    obj.insert(
+        "frontier_diversity_confidence".to_string(),
+        serde_json::Value::String(frontier.diversity_confidence.clone()),
+    );
+    obj.insert(
+        "frontier_reduced_diversity_warning".to_string(),
+        serde_json::Value::Bool(frontier.reduced_diversity_warning),
+    );
+    obj.insert(
+        "frontier_providers".to_string(),
+        serde_json::to_value(frontier.providers).unwrap_or_else(|_| json!([])),
     );
     obj.insert(
         "challenge_puzzle_risk_threshold_default".to_string(),

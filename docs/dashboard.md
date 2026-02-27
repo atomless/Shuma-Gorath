@@ -61,6 +61,9 @@ Notes:
 - Login page: `/dashboard/login.html`
 - Admin session uses same-origin cookie + CSRF header for state-changing calls.
 - Config panes are editable only when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`.
+- Adversary Sim OFF -> ON toggles show a frontier-key warning when no frontier provider keys are configured:
+  - continue without frontier calls, or
+  - cancel and run `make setup` to configure providers.
 
 ## 🐙 Admin API Endpoints Used by Dashboard
 

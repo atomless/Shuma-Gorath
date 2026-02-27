@@ -1,0 +1,27 @@
+{
+  "schema_version": "frontier_payload_schema.v1",
+  "allowed_top_level_keys": [
+    "schema_version",
+    "request_id",
+    "profile",
+    "scenario",
+    "traffic_model",
+    "target",
+    "public_crawl_content",
+    "attack_metadata"
+  ],
+  "forbidden_field_examples": [
+    "api_key",
+    "authorization",
+    "cookie",
+    "session_token",
+    "password",
+    "secret",
+    "raw_ip"
+  ],
+  "retention_policy": {
+    "raw_payload_persistence_default": "disabled",
+    "dev_debug_payload_max_ttl_hours": 24,
+    "normalized_finding_retention_days": 30
+  }
+}

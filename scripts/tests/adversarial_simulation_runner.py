@@ -67,6 +67,47 @@ ALLOWED_COVERAGE_REQUIREMENTS = {
     "ban_count",
     "recent_event_count",
 }
+FRONTIER_PROVIDER_SPECS = (
+    {
+        "provider": "openai",
+        "api_key_env": "SHUMA_FRONTIER_OPENAI_API_KEY",
+        "model_env": "SHUMA_FRONTIER_OPENAI_MODEL",
+        "default_model": "gpt-5-mini",
+    },
+    {
+        "provider": "anthropic",
+        "api_key_env": "SHUMA_FRONTIER_ANTHROPIC_API_KEY",
+        "model_env": "SHUMA_FRONTIER_ANTHROPIC_MODEL",
+        "default_model": "claude-3-5-haiku-latest",
+    },
+    {
+        "provider": "google",
+        "api_key_env": "SHUMA_FRONTIER_GOOGLE_API_KEY",
+        "model_env": "SHUMA_FRONTIER_GOOGLE_MODEL",
+        "default_model": "gemini-2.0-flash-lite",
+    },
+    {
+        "provider": "xai",
+        "api_key_env": "SHUMA_FRONTIER_XAI_API_KEY",
+        "model_env": "SHUMA_FRONTIER_XAI_MODEL",
+        "default_model": "grok-3-mini",
+    },
+)
+FRONTIER_PAYLOAD_SCHEMA_PATH = Path("scripts/tests/adversarial/frontier_payload_schema.v1.json")
+FRONTIER_FORBIDDEN_FIELD_SUBSTRINGS = (
+    "secret",
+    "api_key",
+    "apikey",
+    "authorization",
+    "cookie",
+    "session",
+    "token",
+    "password",
+)
+FRONTIER_QUASI_IDENTIFIER_SUBSTRINGS = ("ip", "email", "phone", "user_id", "userid")
+FRONTIER_IP_ADDRESS_PATTERN = re.compile(
+    r"^(?:\d{1,3}\.){3}\d{1,3}$|^(?:[0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4}$"
+)
 
 GOOD_NOT_A_BOT_TELEMETRY = {
     "has_pointer": True,
@@ -216,6 +257,7 @@ class Runner:
             self.cleanup_ips(cleanup_candidate_ips)
 
         try:
+            frontier_metadata = build_frontier_metadata()
             monitoring_before = self.monitoring_snapshot()
             suite_start = time.monotonic()
             results: List[ScenarioResult] = []
@@ -247,6 +289,15 @@ class Runner:
             monitoring_after = self.monitoring_snapshot()
             suite_runtime_ms = int((time.monotonic() - suite_start) * 1000)
             gate_results = self.evaluate_gates(results, monitoring_before, monitoring_after, suite_runtime_ms)
+            generated_at_unix = int(time.time())
+            attack_plan_path = self.report_path.with_name("attack_plan.json")
+            attack_plan = build_attack_plan(
+                profile_name=self.profile_name,
+                base_url=self.base_url,
+                scenarios=self.selected_scenarios,
+                frontier_metadata=frontier_metadata,
+                generated_at_unix=generated_at_unix,
+            )
 
             report = {
                 "schema_version": "sim-report.v1",
@@ -259,11 +310,14 @@ class Runner:
                 "monitoring_after": monitoring_after,
                 "results": [result.__dict__ for result in results],
                 "gates": gate_results,
+                "frontier": frontier_metadata,
+                "attack_plan_path": str(attack_plan_path),
                 "passed": all(result.passed for result in results) and gate_results["all_passed"],
-                "generated_at_unix": int(time.time()),
+                "generated_at_unix": generated_at_unix,
             }
 
             self.report_path.parent.mkdir(parents=True, exist_ok=True)
+            attack_plan_path.write_text(json.dumps(attack_plan, indent=2), encoding="utf-8")
             self.report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
             print(f"[adversarial] report: {self.report_path}")
@@ -1284,6 +1338,243 @@ def read_fixture_json(path: Path) -> Dict[str, Any]:
     if not isinstance(parsed, dict):
         raise SimulationError(f"Fixture JSON must be object: {path}")
     return parsed
+
+
+def build_frontier_metadata() -> Dict[str, Any]:
+    providers: List[Dict[str, Any]] = []
+    for spec in FRONTIER_PROVIDER_SPECS:
+        model_id = env_or_local(spec["model_env"]) or str(spec["default_model"])
+        configured = bool(env_or_local(spec["api_key_env"]))
+        providers.append(
+            {
+                "provider": str(spec["provider"]),
+                "model_id": model_id,
+                "configured": configured,
+            }
+        )
+
+    provider_count = len([provider for provider in providers if provider["configured"]])
+    if provider_count == 0:
+        mode = "disabled"
+        diversity_confidence = "none"
+    elif provider_count == 1:
+        mode = "single_provider_self_play"
+        diversity_confidence = "low"
+    else:
+        mode = "multi_provider_playoff"
+        diversity_confidence = "higher"
+
+    advisory = ""
+    if provider_count == 0:
+        advisory = "No frontier provider keys are configured; run continues without frontier calls."
+    elif provider_count == 1:
+        advisory = (
+            "Only one frontier provider key is configured; run uses reduced-diversity self-play mode."
+        )
+
+    return {
+        "frontier_mode": mode,
+        "provider_count": provider_count,
+        "providers": providers,
+        "diversity_confidence": diversity_confidence,
+        "reduced_diversity_warning": provider_count == 1,
+        "advisory": advisory,
+    }
+
+
+def canonicalize_frontier_payload(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): canonicalize_frontier_payload(value[key])
+            for key in sorted(value.keys(), key=lambda item: str(item))
+        }
+    if isinstance(value, list):
+        return [canonicalize_frontier_payload(item) for item in value]
+    if isinstance(value, str):
+        return value.strip()
+    return value
+
+
+def classify_frontier_field(name: str) -> str:
+    normalized = str(name or "").strip().lower()
+    if not normalized:
+        return "allowed"
+    if any(token in normalized for token in FRONTIER_FORBIDDEN_FIELD_SUBSTRINGS):
+        return "forbidden"
+    if any(token in normalized for token in FRONTIER_QUASI_IDENTIFIER_SUBSTRINGS):
+        return "quasi_identifier"
+    return "allowed"
+
+
+def drop_forbidden_frontier_fields(value: Any) -> Any:
+    if isinstance(value, dict):
+        filtered: Dict[str, Any] = {}
+        for key in sorted(value.keys(), key=lambda item: str(item)):
+            if classify_frontier_field(str(key)) == "forbidden":
+                continue
+            filtered[str(key)] = drop_forbidden_frontier_fields(value[key])
+        return filtered
+    if isinstance(value, list):
+        return [drop_forbidden_frontier_fields(item) for item in value]
+    return value
+
+
+def mask_frontier_quasi_identifiers(value: Any, key_hint: str = "") -> Any:
+    if isinstance(value, dict):
+        masked: Dict[str, Any] = {}
+        for key in sorted(value.keys(), key=lambda item: str(item)):
+            key_name = str(key)
+            classification = classify_frontier_field(key_name)
+            nested = mask_frontier_quasi_identifiers(value[key], key_name)
+            if classification == "quasi_identifier":
+                if isinstance(nested, list):
+                    masked[key_name] = ["[masked]"] * len(nested)
+                elif isinstance(nested, dict):
+                    masked[key_name] = "[masked]"
+                else:
+                    masked[key_name] = "[masked]"
+            else:
+                masked[key_name] = nested
+        return masked
+    if isinstance(value, list):
+        return [mask_frontier_quasi_identifiers(item, key_hint) for item in value]
+    if isinstance(value, str):
+        if classify_frontier_field(key_hint) == "quasi_identifier":
+            return "[masked]"
+        if FRONTIER_IP_ADDRESS_PATTERN.match(value.strip()):
+            return "[masked_ip]"
+        return value
+    return value
+
+
+def load_frontier_payload_schema() -> Dict[str, Any]:
+    if not FRONTIER_PAYLOAD_SCHEMA_PATH.exists():
+        raise SimulationError(f"Missing frontier payload schema: {FRONTIER_PAYLOAD_SCHEMA_PATH}")
+    try:
+        parsed = json.loads(FRONTIER_PAYLOAD_SCHEMA_PATH.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise SimulationError(
+            f"Invalid frontier payload schema JSON: {FRONTIER_PAYLOAD_SCHEMA_PATH}"
+        ) from exc
+    if not isinstance(parsed, dict):
+        raise SimulationError(
+            f"Frontier payload schema must be a JSON object: {FRONTIER_PAYLOAD_SCHEMA_PATH}"
+        )
+    return parsed
+
+
+def has_raw_ip_string(value: Any) -> bool:
+    if isinstance(value, dict):
+        return any(has_raw_ip_string(item) for item in value.values())
+    if isinstance(value, list):
+        return any(has_raw_ip_string(item) for item in value)
+    if isinstance(value, str):
+        return bool(FRONTIER_IP_ADDRESS_PATTERN.match(value.strip()))
+    return False
+
+
+def validate_frontier_payload_schema(payload: Dict[str, Any]) -> None:
+    schema = load_frontier_payload_schema()
+    schema_version = str(schema.get("schema_version") or "").strip()
+    allowed_top_level = schema.get("allowed_top_level_keys")
+    if not isinstance(allowed_top_level, list) or not allowed_top_level:
+        raise SimulationError(
+            "Frontier payload schema is missing allowed_top_level_keys."
+        )
+    allowed_keys = {str(key) for key in allowed_top_level}
+    if payload.get("schema_version") != schema_version:
+        raise SimulationError(
+            f"Frontier payload schema_version mismatch: expected={schema_version} got={payload.get('schema_version')}"
+        )
+    unknown_keys = sorted(
+        [str(key) for key in payload.keys() if str(key) not in allowed_keys]
+    )
+    if unknown_keys:
+        raise SimulationError(
+            f"Frontier payload contains unknown top-level keys: {', '.join(unknown_keys)}"
+        )
+    forbidden_keys = sorted(
+        [str(key) for key in payload.keys() if classify_frontier_field(str(key)) == "forbidden"]
+    )
+    if forbidden_keys:
+        raise SimulationError(
+            f"Frontier payload contains forbidden top-level keys: {', '.join(forbidden_keys)}"
+        )
+    if has_raw_ip_string(payload):
+        raise SimulationError("Frontier payload contains raw IP-like values after redaction.")
+
+
+def sanitize_frontier_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+    canonical = canonicalize_frontier_payload(payload)
+    if not isinstance(canonical, dict):
+        raise SimulationError("Frontier payload must be a JSON object before sanitization.")
+    dropped = drop_forbidden_frontier_fields(canonical)
+    masked = mask_frontier_quasi_identifiers(dropped)
+    if not isinstance(masked, dict):
+        raise SimulationError("Frontier payload sanitization produced a non-object payload.")
+    validate_frontier_payload_schema(masked)
+    return masked
+
+
+def build_attack_plan(
+    profile_name: str,
+    base_url: str,
+    scenarios: List[Dict[str, Any]],
+    frontier_metadata: Dict[str, Any],
+    generated_at_unix: int,
+) -> Dict[str, Any]:
+    candidates: List[Dict[str, Any]] = []
+    for scenario in scenarios:
+        raw_payload = {
+            "schema_version": "frontier_payload_schema.v1",
+            "request_id": f"{profile_name}:{scenario.get('id')}",
+            "profile": profile_name,
+            "scenario": {
+                "id": scenario.get("id"),
+                "tier": scenario.get("tier"),
+                "driver": scenario.get("driver"),
+                "expected_outcome": scenario.get("expected_outcome"),
+                "runtime_budget_ms": scenario.get("runtime_budget_ms"),
+                "seed": scenario.get("seed"),
+                "ip": scenario.get("ip"),
+            },
+            "traffic_model": {
+                "cohort": "adversarial",
+                "driver": scenario.get("driver"),
+                "user_agent": scenario.get("user_agent"),
+            },
+            "target": {
+                "base_url": base_url,
+                "path_hint": "/",
+            },
+            "public_crawl_content": {
+                "scenario_description": scenario.get("description"),
+            },
+            "attack_metadata": {
+                "expected_outcome": scenario.get("expected_outcome"),
+                "coverage_tags": [scenario.get("tier"), scenario.get("driver")],
+            },
+        }
+        candidates.append(
+            {
+                "scenario_id": scenario.get("id"),
+                "tier": scenario.get("tier"),
+                "driver": scenario.get("driver"),
+                "payload": sanitize_frontier_payload(raw_payload),
+            }
+        )
+
+    return {
+        "schema_version": "attack-plan.v1",
+        "generated_at_unix": generated_at_unix,
+        "profile": profile_name,
+        "target_base_url": base_url,
+        "frontier_mode": frontier_metadata.get("frontier_mode", "disabled"),
+        "provider_count": frontier_metadata.get("provider_count", 0),
+        "providers": frontier_metadata.get("providers", []),
+        "diversity_confidence": frontier_metadata.get("diversity_confidence", "none"),
+        "candidates": candidates,
+    }
 
 
 def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_name: str) -> None:

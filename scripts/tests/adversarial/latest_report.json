@@ -4,29 +4,79 @@
   "profile": "akamai_smoke",
   "base_url": "http://127.0.0.1:3000",
   "request_count": 4,
-  "suite_runtime_ms": 171,
+  "suite_runtime_ms": 151,
   "monitoring_before": {
-    "fingerprint_events": 7848,
-    "monitoring_total": 815,
+    "fingerprint_events": 8134,
+    "monitoring_total": 986,
     "components": {
-      "honeypot_hits": 113,
-      "challenge_failures": 4,
-      "not_a_bot_submitted": 352,
-      "pow_attempts": 8,
-      "rate_violations": 115,
-      "geo_violations": 223
+      "honeypot_hits": 125,
+      "challenge_failures": 12,
+      "not_a_bot_submitted": 451,
+      "pow_attempts": 24,
+      "rate_violations": 131,
+      "geo_violations": 243
+    },
+    "coverage": {
+      "honeypot_hits": 125,
+      "challenge_failures": 12,
+      "not_a_bot_pass": 248,
+      "not_a_bot_fail": 73,
+      "not_a_bot_replay": 128,
+      "not_a_bot_escalate": 0,
+      "pow_attempts": 24,
+      "pow_successes": 6,
+      "pow_failures": 18,
+      "rate_violations": 131,
+      "rate_limited": 0,
+      "rate_banned": 131,
+      "geo_violations": 243,
+      "geo_challenge": 118,
+      "geo_maze": 119,
+      "geo_block": 6,
+      "maze_hits": 1136,
+      "tarpit_activations_progressive": 0,
+      "tarpit_progress_advanced": 0,
+      "cdp_detections": 1629,
+      "fingerprint_events": 8134,
+      "ban_count": 38,
+      "recent_event_count": 100
     }
   },
   "monitoring_after": {
-    "fingerprint_events": 7849,
-    "monitoring_total": 815,
+    "fingerprint_events": 8135,
+    "monitoring_total": 986,
     "components": {
-      "honeypot_hits": 113,
-      "challenge_failures": 4,
-      "not_a_bot_submitted": 352,
-      "pow_attempts": 8,
-      "rate_violations": 115,
-      "geo_violations": 223
+      "honeypot_hits": 125,
+      "challenge_failures": 12,
+      "not_a_bot_submitted": 451,
+      "pow_attempts": 24,
+      "rate_violations": 131,
+      "geo_violations": 243
+    },
+    "coverage": {
+      "honeypot_hits": 125,
+      "challenge_failures": 12,
+      "not_a_bot_pass": 248,
+      "not_a_bot_fail": 73,
+      "not_a_bot_replay": 128,
+      "not_a_bot_escalate": 0,
+      "pow_attempts": 24,
+      "pow_successes": 6,
+      "pow_failures": 18,
+      "rate_violations": 131,
+      "rate_limited": 0,
+      "rate_banned": 131,
+      "geo_violations": 243,
+      "geo_challenge": 118,
+      "geo_maze": 119,
+      "geo_block": 6,
+      "maze_hits": 1136,
+      "tarpit_activations_progressive": 0,
+      "tarpit_progress_advanced": 0,
+      "cdp_detections": 1629,
+      "fingerprint_events": 8135,
+      "ban_count": 39,
+      "recent_event_count": 100
     }
   },
   "results": [
@@ -37,7 +87,7 @@
       "expected_outcome": "monitor",
       "observed_outcome": "monitor",
       "passed": true,
-      "latency_ms": 11,
+      "latency_ms": 10,
       "runtime_budget_ms": 9000,
       "detail": "ok"
     },
@@ -48,7 +98,7 @@
       "expected_outcome": "deny_temp",
       "observed_outcome": "deny_temp",
       "passed": true,
-      "latency_ms": 8,
+      "latency_ms": 9,
       "runtime_budget_ms": 9000,
       "detail": "ok"
     }
@@ -59,8 +109,8 @@
       {
         "name": "latency_p95",
         "passed": true,
-        "detail": "p95=11ms limit=2000ms",
-        "observed": 11,
+        "detail": "p95=10ms limit=2000ms",
+        "observed": 10,
         "limit": 2000
       },
       {
@@ -96,8 +146,8 @@
       {
         "name": "suite_runtime_budget",
         "passed": true,
-        "detail": "runtime=171ms limit=45000ms",
-        "observed": 171,
+        "detail": "runtime=151ms limit=45000ms",
+        "observed": 151,
         "limit": 45000
       }
     ],
@@ -105,8 +155,115 @@
       "monitor": 1,
       "deny_temp": 1
     },
-    "request_count": 4
+    "request_count": 4,
+    "coverage": {
+      "before": {
+        "honeypot_hits": 125,
+        "challenge_failures": 12,
+        "not_a_bot_pass": 248,
+        "not_a_bot_fail": 73,
+        "not_a_bot_replay": 128,
+        "not_a_bot_escalate": 0,
+        "pow_attempts": 24,
+        "pow_successes": 6,
+        "pow_failures": 18,
+        "rate_violations": 131,
+        "rate_limited": 0,
+        "rate_banned": 131,
+        "geo_violations": 243,
+        "geo_challenge": 118,
+        "geo_maze": 119,
+        "geo_block": 6,
+        "maze_hits": 1136,
+        "tarpit_activations_progressive": 0,
+        "tarpit_progress_advanced": 0,
+        "cdp_detections": 1629,
+        "fingerprint_events": 8134,
+        "ban_count": 38,
+        "recent_event_count": 100
+      },
+      "after": {
+        "honeypot_hits": 125,
+        "challenge_failures": 12,
+        "not_a_bot_pass": 248,
+        "not_a_bot_fail": 73,
+        "not_a_bot_replay": 128,
+        "not_a_bot_escalate": 0,
+        "pow_attempts": 24,
+        "pow_successes": 6,
+        "pow_failures": 18,
+        "rate_violations": 131,
+        "rate_limited": 0,
+        "rate_banned": 131,
+        "geo_violations": 243,
+        "geo_challenge": 118,
+        "geo_maze": 119,
+        "geo_block": 6,
+        "maze_hits": 1136,
+        "tarpit_activations_progressive": 0,
+        "tarpit_progress_advanced": 0,
+        "cdp_detections": 1629,
+        "fingerprint_events": 8135,
+        "ban_count": 39,
+        "recent_event_count": 100
+      },
+      "deltas": {
+        "ban_count": 1,
+        "cdp_detections": 0,
+        "challenge_failures": 0,
+        "fingerprint_events": 1,
+        "geo_block": 0,
+        "geo_challenge": 0,
+        "geo_maze": 0,
+        "geo_violations": 0,
+        "honeypot_hits": 0,
+        "maze_hits": 0,
+        "not_a_bot_escalate": 0,
+        "not_a_bot_fail": 0,
+        "not_a_bot_pass": 0,
+        "not_a_bot_replay": 0,
+        "pow_attempts": 0,
+        "pow_failures": 0,
+        "pow_successes": 0,
+        "rate_banned": 0,
+        "rate_limited": 0,
+        "rate_violations": 0,
+        "recent_event_count": 0,
+        "tarpit_activations_progressive": 0,
+        "tarpit_progress_advanced": 0
+      }
+    }
   },
+  "frontier": {
+    "frontier_mode": "disabled",
+    "provider_count": 0,
+    "providers": [
+      {
+        "provider": "openai",
+        "model_id": "gpt-5-mini",
+        "configured": false
+      },
+      {
+        "provider": "anthropic",
+        "model_id": "claude-3-5-haiku-latest",
+        "configured": false
+      },
+      {
+        "provider": "google",
+        "model_id": "gemini-2.0-flash-lite",
+        "configured": false
+      },
+      {
+        "provider": "xai",
+        "model_id": "grok-3-mini",
+        "configured": false
+      }
+    ],
+    "diversity_confidence": "none",
+    "reduced_diversity_warning": false,
+    "advisory": "No frontier provider keys are configured; run continues without frontier calls."
+  },
+  "attack_plan_path": "scripts/tests/adversarial/attack_plan.json",
   "passed": true,
-  "generated_at_unix": 1772138968
+  "generated_at_unix": 1772202088
 }

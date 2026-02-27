@@ -123,6 +123,14 @@ SHUMA_ENFORCE_HTTPS=${SHUMA_ENFORCE_HTTPS:-}
 SHUMA_DEBUG_HEADERS=${SHUMA_DEBUG_HEADERS:-}
 SHUMA_RUNTIME_ENV=${SHUMA_RUNTIME_ENV:-}
 SHUMA_ADVERSARY_SIM_AVAILABLE=${SHUMA_ADVERSARY_SIM_AVAILABLE:-}
+SHUMA_FRONTIER_OPENAI_API_KEY=${SHUMA_FRONTIER_OPENAI_API_KEY:-}
+SHUMA_FRONTIER_ANTHROPIC_API_KEY=${SHUMA_FRONTIER_ANTHROPIC_API_KEY:-}
+SHUMA_FRONTIER_GOOGLE_API_KEY=${SHUMA_FRONTIER_GOOGLE_API_KEY:-}
+SHUMA_FRONTIER_XAI_API_KEY=${SHUMA_FRONTIER_XAI_API_KEY:-}
+SHUMA_FRONTIER_OPENAI_MODEL=${SHUMA_FRONTIER_OPENAI_MODEL:-}
+SHUMA_FRONTIER_ANTHROPIC_MODEL=${SHUMA_FRONTIER_ANTHROPIC_MODEL:-}
+SHUMA_FRONTIER_GOOGLE_MODEL=${SHUMA_FRONTIER_GOOGLE_MODEL:-}
+SHUMA_FRONTIER_XAI_MODEL=${SHUMA_FRONTIER_XAI_MODEL:-}
 SHUMA_ENTERPRISE_MULTI_INSTANCE=${SHUMA_ENTERPRISE_MULTI_INSTANCE:-}
 SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=${SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED:-}
 SHUMA_RATE_LIMITER_REDIS_URL=${SHUMA_RATE_LIMITER_REDIS_URL:-}
@@ -179,6 +187,251 @@ ensure_env_local_default_from_defaults() {
     default_value="${!key:-}"
     if [[ -z "$current_value" ]]; then
         upsert_env_local_value "$key" "$default_value"
+    fi
+}
+
+is_interactive_terminal() {
+    [[ -t 0 && -t 1 ]]
+}
+
+frontier_provider_label() {
+    local provider="$1"
+    case "$provider" in
+        openai) echo "OpenAI" ;;
+        anthropic) echo "Anthropic" ;;
+        google) echo "Google" ;;
+        xai) echo "xAI" ;;
+        *) echo "$provider" ;;
+    esac
+}
+
+frontier_provider_model_env_key() {
+    local provider="$1"
+    case "$provider" in
+        openai) echo "SHUMA_FRONTIER_OPENAI_MODEL" ;;
+        anthropic) echo "SHUMA_FRONTIER_ANTHROPIC_MODEL" ;;
+        google) echo "SHUMA_FRONTIER_GOOGLE_MODEL" ;;
+        xai) echo "SHUMA_FRONTIER_XAI_MODEL" ;;
+        *) echo "" ;;
+    esac
+}
+
+frontier_provider_api_key_env_key() {
+    local provider="$1"
+    case "$provider" in
+        openai) echo "SHUMA_FRONTIER_OPENAI_API_KEY" ;;
+        anthropic) echo "SHUMA_FRONTIER_ANTHROPIC_API_KEY" ;;
+        google) echo "SHUMA_FRONTIER_GOOGLE_API_KEY" ;;
+        xai) echo "SHUMA_FRONTIER_XAI_API_KEY" ;;
+        *) echo "" ;;
+    esac
+}
+
+frontier_provider_default_model() {
+    local provider="$1"
+    case "$provider" in
+        openai) echo "${SHUMA_FRONTIER_OPENAI_MODEL:-gpt-5-mini}" ;;
+        anthropic) echo "${SHUMA_FRONTIER_ANTHROPIC_MODEL:-claude-3-5-haiku-latest}" ;;
+        google) echo "${SHUMA_FRONTIER_GOOGLE_MODEL:-gemini-2.0-flash-lite}" ;;
+        xai) echo "${SHUMA_FRONTIER_XAI_MODEL:-grok-3-mini}" ;;
+        *) echo "" ;;
+    esac
+}
+
+validate_frontier_provider_key() {
+    local provider="$1"
+    local api_key="$2"
+    local timeout_seconds="${3:-8}"
+    local response_file
+    response_file="$(mktemp)"
+    local curl_exit=0
+    local http_code=""
+
+    case "$provider" in
+        openai)
+            http_code="$(curl -sS -m "$timeout_seconds" -o "$response_file" -w "%{http_code}" \
+                -H "Authorization: Bearer ${api_key}" \
+                "https://api.openai.com/v1/models?limit=1")" || curl_exit=$?
+            ;;
+        anthropic)
+            http_code="$(curl -sS -m "$timeout_seconds" -o "$response_file" -w "%{http_code}" \
+                -H "x-api-key: ${api_key}" \
+                -H "anthropic-version: 2023-06-01" \
+                "https://api.anthropic.com/v1/models")" || curl_exit=$?
+            ;;
+        google)
+            http_code="$(curl -sS -m "$timeout_seconds" -o "$response_file" -w "%{http_code}" \
+                "https://generativelanguage.googleapis.com/v1beta/models?key=${api_key}")" || curl_exit=$?
+            ;;
+        xai)
+            http_code="$(curl -sS -m "$timeout_seconds" -o "$response_file" -w "%{http_code}" \
+                -H "Authorization: Bearer ${api_key}" \
+                "https://api.x.ai/v1/models?limit=1")" || curl_exit=$?
+            ;;
+        *)
+            rm -f "$response_file"
+            echo "unsupported_provider"
+            return 0
+            ;;
+    esac
+
+    rm -f "$response_file"
+
+    if [[ "$curl_exit" -ne 0 ]]; then
+        if [[ "$curl_exit" -eq 28 ]]; then
+            echo "timeout"
+        else
+            echo "network_error"
+        fi
+        return 0
+    fi
+
+    if [[ "$http_code" =~ ^2[0-9][0-9]$ ]]; then
+        echo "ok"
+        return 0
+    fi
+    if [[ "$http_code" == "401" || "$http_code" == "403" ]]; then
+        echo "auth_error"
+        return 0
+    fi
+    echo "http_${http_code}"
+}
+
+configure_frontier_providers_optional() {
+    if ! is_interactive_terminal; then
+        info "Skipping optional frontier provider setup (non-interactive shell)."
+        return 0
+    fi
+
+    local configure_choice=""
+    printf "Configure frontier adversary providers now? [y/N]: "
+    read -r configure_choice || true
+    case "$(printf '%s' "$configure_choice" | tr '[:upper:]' '[:lower:]')" in
+        y|yes) ;;
+        *)
+            info "Skipping optional frontier provider setup."
+            return 0
+            ;;
+    esac
+
+    if ! command -v curl >/dev/null 2>&1; then
+        warn "curl is required for live frontier key validation; skipping optional frontier setup."
+        return 0
+    fi
+
+    echo ""
+    echo "Select frontier providers (comma-separated):"
+    echo "  1) OpenAI"
+    echo "  2) Anthropic"
+    echo "  3) Google"
+    echo "  4) xAI"
+    local provider_selection=""
+    printf "Provider selection [blank to skip]: "
+    read -r provider_selection || true
+    if [[ -z "$provider_selection" ]]; then
+        warn "No frontier providers selected; continuing setup without frontier keys."
+        return 0
+    fi
+
+    local selected_providers=()
+    local token provider
+    IFS=',' read -r -a provider_tokens <<< "$provider_selection"
+    for token in "${provider_tokens[@]}"; do
+        token="${token//[[:space:]]/}"
+        provider=""
+        case "$(printf '%s' "$token" | tr '[:upper:]' '[:lower:]')" in
+            1|openai) provider="openai" ;;
+            2|anthropic) provider="anthropic" ;;
+            3|google) provider="google" ;;
+            4|xai) provider="xai" ;;
+        esac
+        if [[ -n "$provider" ]]; then
+            if [[ " ${selected_providers[*]} " != *" ${provider} "* ]]; then
+                selected_providers+=("$provider")
+            fi
+        fi
+    done
+
+    if [[ "${#selected_providers[@]}" -eq 0 ]]; then
+        warn "No valid provider selection was parsed; continuing without frontier keys."
+        return 0
+    fi
+
+    local valid_provider_count=0
+    local model_env_key api_env_key label
+    local model_default model_input model_value
+    local api_key_input validation_result retry_choice saved_for_provider
+
+    for provider in "${selected_providers[@]}"; do
+        label="$(frontier_provider_label "$provider")"
+        model_env_key="$(frontier_provider_model_env_key "$provider")"
+        api_env_key="$(frontier_provider_api_key_env_key "$provider")"
+        model_default="$(read_env_local_value "$model_env_key")"
+        if [[ -z "$model_default" ]]; then
+            model_default="$(frontier_provider_default_model "$provider")"
+        fi
+
+        printf "%s model id [%s]: " "$label" "$model_default"
+        read -r model_input || true
+        model_value="$model_input"
+        if [[ -z "$model_value" ]]; then
+            model_value="$model_default"
+        fi
+        if [[ -n "$model_value" ]]; then
+            upsert_env_local_value "$model_env_key" "$model_value"
+        fi
+
+        saved_for_provider=0
+        while true; do
+            printf "%s API key (hidden; leave blank to skip): " "$label"
+            read -rs api_key_input || true
+            echo ""
+            if [[ -z "$api_key_input" ]]; then
+                warn "$label key skipped."
+                break
+            fi
+
+            info "Validating $label key with a bounded live provider probe..."
+            validation_result="$(validate_frontier_provider_key "$provider" "$api_key_input" "8")"
+            case "$validation_result" in
+                ok)
+                    upsert_env_local_value "$api_env_key" "$api_key_input"
+                    success "$label key validated and saved to $ENV_LOCAL_FILE"
+                    valid_provider_count=$((valid_provider_count + 1))
+                    saved_for_provider=1
+                    break
+                    ;;
+                auth_error)
+                    warn "$label key was rejected by the provider (authentication failed)."
+                    ;;
+                timeout)
+                    warn "$label key probe timed out (network/provider latency)."
+                    ;;
+                network_error)
+                    warn "$label key probe failed due to a network error."
+                    ;;
+                *)
+                    warn "$label key probe returned HTTP status ${validation_result#http_}."
+                    ;;
+            esac
+
+            printf "Re-enter %s key? [y/N]: " "$label"
+            read -r retry_choice || true
+            case "$(printf '%s' "$retry_choice" | tr '[:upper:]' '[:lower:]')" in
+                y|yes) ;;
+                *) break ;;
+            esac
+        done
+
+        if [[ "$saved_for_provider" -eq 0 ]]; then
+            warn "$label is not configured for frontier calls."
+        fi
+    done
+
+    if [[ "$valid_provider_count" -eq 0 ]]; then
+        warn "No valid frontier provider keys were saved. Runs can continue without frontier calls."
+    else
+        success "Frontier provider setup complete with $valid_provider_count valid provider key(s)."
     fi
 }
 
@@ -422,12 +675,21 @@ ensure_env_local_default_from_defaults "SHUMA_ENFORCE_HTTPS"
 ensure_env_local_default_from_defaults "SHUMA_DEBUG_HEADERS"
 ensure_env_local_default_from_defaults "SHUMA_RUNTIME_ENV"
 ensure_env_local_default_from_defaults "SHUMA_ADVERSARY_SIM_AVAILABLE"
+ensure_env_local_default_from_defaults "SHUMA_FRONTIER_OPENAI_API_KEY"
+ensure_env_local_default_from_defaults "SHUMA_FRONTIER_ANTHROPIC_API_KEY"
+ensure_env_local_default_from_defaults "SHUMA_FRONTIER_GOOGLE_API_KEY"
+ensure_env_local_default_from_defaults "SHUMA_FRONTIER_XAI_API_KEY"
+ensure_env_local_default_from_defaults "SHUMA_FRONTIER_OPENAI_MODEL"
+ensure_env_local_default_from_defaults "SHUMA_FRONTIER_ANTHROPIC_MODEL"
+ensure_env_local_default_from_defaults "SHUMA_FRONTIER_GOOGLE_MODEL"
+ensure_env_local_default_from_defaults "SHUMA_FRONTIER_XAI_MODEL"
 ensure_env_local_default_from_defaults "SHUMA_ENTERPRISE_MULTI_INSTANCE"
 ensure_env_local_default_from_defaults "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED"
 ensure_env_local_default_from_defaults "SHUMA_RATE_LIMITER_REDIS_URL"
 ensure_env_local_default_from_defaults "SHUMA_BAN_STORE_REDIS_URL"
 ensure_env_local_default_from_defaults "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN"
 ensure_env_local_default_from_defaults "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH"
+configure_frontier_providers_optional
 normalize_env_local_unquoted_style
 success "Local dev secrets are ready in $ENV_LOCAL_FILE"
 

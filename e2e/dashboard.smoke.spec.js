@@ -1249,12 +1249,17 @@ test("adversary sim global toggle drives orchestration control and top progress 
   await expect(toggle).toBeEnabled();
   await expect(toggle).not.toBeChecked();
 
+  const onDialogHandledPromise = page.waitForEvent("dialog").then(async (onDialog) => {
+    expect(onDialog.message()).toContain("No frontier model provider keys are configured");
+    await onDialog.accept();
+  });
   const [onResponse] = await Promise.all([
     page.waitForResponse((resp) => (
       resp.url().includes("/admin/adversary-sim/control") &&
       resp.request().method() === "POST" &&
       resp.ok()
     )),
+    onDialogHandledPromise,
     toggleSwitch.click()
   ]);
   const onBody = await onResponse.json();
@@ -1282,6 +1287,40 @@ test("adversary sim global toggle drives orchestration control and top progress 
 
   const bodyState = await dashboardBodyClassState(page);
   expect(bodyState.hasAdversarySim).toBeFalsy();
+});
+
+test("adversary sim toggle cancel path avoids orchestration request when frontier keys are missing", async ({ page, request }) => {
+  await updateAdminConfig(request, { adversary_sim_enabled: false, adversary_sim_duration_seconds: 180 });
+  await openDashboard(page);
+
+  const toggle = page.locator("#global-adversary-sim-toggle");
+  const toggleSwitch = page.locator("label.toggle-switch[for='global-adversary-sim-toggle']");
+  await expect(toggle).toBeEnabled();
+  await expect(toggle).not.toBeChecked();
+
+  let controlRequestCount = 0;
+  page.on("request", (req) => {
+    if (
+      req.url().includes("/admin/adversary-sim/control") &&
+      req.method() === "POST"
+    ) {
+      controlRequestCount += 1;
+    }
+  });
+
+  const dialogHandledPromise = page.waitForEvent("dialog").then(async (dialog) => {
+    expect(dialog.message()).toContain("No frontier model provider keys are configured");
+    await dialog.dismiss();
+  });
+  await Promise.all([
+    dialogHandledPromise,
+    toggleSwitch.click()
+  ]);
+
+  await expect(toggle).not.toBeChecked();
+  await expect(page.locator("#admin-msg")).toContainText("Run make setup");
+  await page.waitForTimeout(250);
+  expect(controlRequestCount).toBe(0);
 });
 
 test("auto refresh defaults off and is only available on monitoring/ip-bans tabs", async ({ page }) => {

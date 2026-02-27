@@ -145,6 +145,9 @@ Dashboard adversary-sim orchestration control contract:
 - `POST /admin/adversary-sim/control` is the explicit admin-authenticated + CSRF-protected control path for ON/OFF transitions.
 - `GET /admin/adversary-sim/status` returns the current lifecycle phase plus fixed guardrail constants for UI/ops visibility.
 - Toggle-driven runs use `adversary_sim_duration_seconds` (default `180`, hard-bounded `30..900`), and dashboard shows a fixed top progress line while phase is `running`.
+- If no frontier provider keys are configured, OFF -> ON toggle attempts must show a warning dialog with two outcomes:
+  - continue without frontier calls, or
+  - cancel and run `make setup` to configure frontier provider keys.
 - Runtime guardrails are hard-coded: `max_concurrent_runs=1`, `cpu_cap_millicores=1000`, `memory_cap_mib=512`, `queue_policy=reject_new`.
 
 Live loop examples:
@@ -168,6 +171,7 @@ Live loop controls:
 - `ADVERSARIAL_RUNS` (default `0`) controls cycle count; `0` means run until interrupted.
 - `ADVERSARIAL_PAUSE_SECONDS` (default `2`) controls delay between cycles.
 - `ADVERSARIAL_REPORT_PATH` (default `scripts/tests/adversarial/latest_report.json`) controls report output file.
+- Runner also emits `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
 
 `make test` runs `test-adversarial-fast` (which executes `test-adversarial-smoke`, `test-adversarial-abuse`, and `test-adversarial-akamai`) in sequence.
 `make test-adversarial-soak` runs `test-adversarial-coverage` (`full_coverage`) for deeper scheduled/manual validation.

@@ -1,5 +1,6 @@
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import scripts.tests.adversarial_simulation_runner as runner
 
@@ -45,6 +46,113 @@ def minimal_manifest(gates_extra=None):
 
 
 class AdversarialRunnerUnitTests(unittest.TestCase):
+    def test_build_frontier_metadata_reports_disabled_single_and_multi_modes(self):
+        with patch("scripts.tests.adversarial_simulation_runner.read_env_local_value", return_value=""):
+            with patch.dict("os.environ", {}, clear=True):
+                disabled = runner.build_frontier_metadata()
+                self.assertEqual(disabled["frontier_mode"], "disabled")
+                self.assertEqual(disabled["provider_count"], 0)
+                self.assertEqual(disabled["diversity_confidence"], "none")
+                self.assertFalse(disabled["reduced_diversity_warning"])
+
+            with patch.dict(
+                "os.environ",
+                {"SHUMA_FRONTIER_OPENAI_API_KEY": "sk-openai", "SHUMA_FRONTIER_OPENAI_MODEL": "gpt-5-mini"},
+                clear=True,
+            ):
+                single = runner.build_frontier_metadata()
+                self.assertEqual(single["frontier_mode"], "single_provider_self_play")
+                self.assertEqual(single["provider_count"], 1)
+                self.assertEqual(single["diversity_confidence"], "low")
+                self.assertTrue(single["reduced_diversity_warning"])
+
+            with patch.dict(
+                "os.environ",
+                {
+                    "SHUMA_FRONTIER_OPENAI_API_KEY": "sk-openai",
+                    "SHUMA_FRONTIER_ANTHROPIC_API_KEY": "sk-anthropic",
+                },
+                clear=True,
+            ):
+                multi = runner.build_frontier_metadata()
+                self.assertEqual(multi["frontier_mode"], "multi_provider_playoff")
+                self.assertEqual(multi["provider_count"], 2)
+                self.assertEqual(multi["diversity_confidence"], "higher")
+                self.assertFalse(multi["reduced_diversity_warning"])
+
+    def test_frontier_payload_sanitization_drops_forbidden_and_masks_quasi_identifiers(self):
+        payload = {
+            "schema_version": "frontier_payload_schema.v1",
+            "request_id": "req-1",
+            "profile": "fast_smoke",
+            "scenario": {
+                "id": "scenario_allow",
+                "ip": "203.0.113.10",
+                "api_key": "must-not-leak",
+            },
+            "traffic_model": {"cohort": "adversarial", "session_token": "must-drop"},
+            "target": {"base_url": "http://127.0.0.1:3000", "authorization": "Bearer leaked"},
+            "public_crawl_content": {"snippet": "public text"},
+            "attack_metadata": {"cookie": "session=abc123"},
+        }
+
+        sanitized = runner.sanitize_frontier_payload(payload)
+        serialized = str(sanitized)
+        self.assertNotIn("must-not-leak", serialized)
+        self.assertNotIn("session=abc123", serialized)
+        self.assertNotIn("Bearer leaked", serialized)
+        self.assertEqual(sanitized["scenario"]["ip"], "[masked]")
+
+    def test_frontier_payload_schema_rejects_unknown_top_level_keys(self):
+        invalid_payload = {
+            "schema_version": "frontier_payload_schema.v1",
+            "request_id": "req-1",
+            "profile": "fast_smoke",
+            "scenario": {"id": "scenario_allow"},
+            "traffic_model": {"cohort": "adversarial"},
+            "target": {"base_url": "http://127.0.0.1:3000"},
+            "public_crawl_content": {"snippet": "public text"},
+            "attack_metadata": {"note": "ok"},
+            "forbidden_top_level": {"api_key": "secret"},
+        }
+        with self.assertRaises(runner.SimulationError):
+            runner.validate_frontier_payload_schema(invalid_payload)
+
+    def test_build_attack_plan_emits_sanitized_candidates(self):
+        frontier = {
+            "frontier_mode": "disabled",
+            "provider_count": 0,
+            "providers": [],
+            "diversity_confidence": "none",
+        }
+        scenarios = [
+            {
+                "id": "scenario_allow",
+                "tier": "SIM-T0",
+                "driver": "allow_browser_allowlist",
+                "expected_outcome": "allow",
+                "runtime_budget_ms": 1000,
+                "seed": 1,
+                "ip": "198.51.100.10",
+                "user_agent": "UnitTest/1.0",
+                "description": "allow scenario",
+            }
+        ]
+        attack_plan = runner.build_attack_plan(
+            profile_name="fast_smoke",
+            base_url="http://127.0.0.1:3000",
+            scenarios=scenarios,
+            frontier_metadata=frontier,
+            generated_at_unix=1234,
+        )
+
+        self.assertEqual(attack_plan["schema_version"], "attack-plan.v1")
+        self.assertEqual(attack_plan["frontier_mode"], "disabled")
+        self.assertEqual(len(attack_plan["candidates"]), 1)
+        candidate_payload = attack_plan["candidates"][0]["payload"]
+        self.assertEqual(candidate_payload["schema_version"], "frontier_payload_schema.v1")
+        self.assertEqual(candidate_payload["scenario"]["ip"], "[masked]")
+
     def test_has_leading_zero_bits_accepts_full_and_partial_prefixes(self):
         self.assertTrue(runner.has_leading_zero_bits(bytes.fromhex("00ff"), 8))
         self.assertTrue(runner.has_leading_zero_bits(bytes.fromhex("0fff"), 4))

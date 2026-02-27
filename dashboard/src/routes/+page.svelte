@@ -131,6 +131,9 @@
   $: adversarySimControlAvailable =
     String(configSnapshot.runtime_environment || '') === 'runtime-dev' &&
     configSnapshot.adversary_sim_available === true;
+  $: frontierProviderCount = Number.isFinite(Number(configSnapshot.frontier_provider_count))
+    ? Math.max(0, Math.floor(Number(configSnapshot.frontier_provider_count)))
+    : 0;
   $: adversarySimProgress = deriveAdversarySimProgress(normalizedAdversarySimStatus, adversarySimProgressNowMs);
   $: globalTestModeToggleDisabled =
     !runtimeReady ||
@@ -466,6 +469,25 @@
       return;
     }
     if (nextValue === previousValue) return;
+    if (nextValue && frontierProviderCount === 0) {
+      const continueWithoutFrontier = typeof window !== 'undefined'
+        ? window.confirm(
+          'No frontier model provider keys are configured. Press OK to continue without frontier calls, or Cancel to run make setup first.'
+        )
+        : false;
+      if (!continueWithoutFrontier) {
+        if (target) target.checked = previousValue;
+        setAdminMessage(
+          'Frontier provider keys are missing. Run make setup to configure keys, or toggle again and choose continue.',
+          'warning'
+        );
+        return;
+      }
+      setAdminMessage(
+        'Continuing without frontier provider calls for this run.',
+        'warning'
+      );
+    }
 
     savingGlobalAdversarySim = true;
     try {

@@ -643,6 +643,59 @@ fn adversary_sim_available_defaults_false_and_parses_bool_values() {
 }
 
 #[test]
+fn frontier_summary_defaults_to_disabled_without_provider_keys() {
+    let _lock = crate::test_support::lock_env();
+    std::env::remove_var("SHUMA_FRONTIER_OPENAI_API_KEY");
+    std::env::remove_var("SHUMA_FRONTIER_ANTHROPIC_API_KEY");
+    std::env::remove_var("SHUMA_FRONTIER_GOOGLE_API_KEY");
+    std::env::remove_var("SHUMA_FRONTIER_XAI_API_KEY");
+    std::env::remove_var("SHUMA_FRONTIER_OPENAI_MODEL");
+    std::env::remove_var("SHUMA_FRONTIER_ANTHROPIC_MODEL");
+    std::env::remove_var("SHUMA_FRONTIER_GOOGLE_MODEL");
+    std::env::remove_var("SHUMA_FRONTIER_XAI_MODEL");
+
+    let summary = frontier_summary();
+    assert_eq!(summary.mode, "disabled");
+    assert_eq!(summary.provider_count, 0);
+    assert_eq!(summary.diversity_confidence, "none");
+    assert!(!summary.reduced_diversity_warning);
+    assert_eq!(summary.providers.len(), 4);
+    assert_eq!(summary.providers[0].provider, "openai");
+    assert_eq!(summary.providers[0].model_id, "gpt-5-mini");
+    assert!(!summary.providers[0].configured);
+}
+
+#[test]
+fn frontier_summary_tracks_single_vs_multi_provider_modes() {
+    let _lock = crate::test_support::lock_env();
+    std::env::remove_var("SHUMA_FRONTIER_OPENAI_API_KEY");
+    std::env::remove_var("SHUMA_FRONTIER_ANTHROPIC_API_KEY");
+    std::env::remove_var("SHUMA_FRONTIER_GOOGLE_API_KEY");
+    std::env::remove_var("SHUMA_FRONTIER_XAI_API_KEY");
+    std::env::set_var("SHUMA_FRONTIER_OPENAI_API_KEY", "test-openai-key");
+    std::env::set_var("SHUMA_FRONTIER_OPENAI_MODEL", "gpt-custom-fast");
+
+    let single = frontier_summary();
+    assert_eq!(single.mode, "single_provider_self_play");
+    assert_eq!(single.provider_count, 1);
+    assert_eq!(single.diversity_confidence, "low");
+    assert!(single.reduced_diversity_warning);
+    assert_eq!(single.providers[0].model_id, "gpt-custom-fast");
+    assert!(single.providers[0].configured);
+
+    std::env::set_var("SHUMA_FRONTIER_ANTHROPIC_API_KEY", "test-anthropic-key");
+    let multi = frontier_summary();
+    assert_eq!(multi.mode, "multi_provider_playoff");
+    assert_eq!(multi.provider_count, 2);
+    assert_eq!(multi.diversity_confidence, "higher");
+    assert!(!multi.reduced_diversity_warning);
+
+    std::env::remove_var("SHUMA_FRONTIER_OPENAI_API_KEY");
+    std::env::remove_var("SHUMA_FRONTIER_ANTHROPIC_API_KEY");
+    std::env::remove_var("SHUMA_FRONTIER_OPENAI_MODEL");
+}
+
+#[test]
 fn adversary_sim_duration_defaults_to_180_and_clamps_loaded_values() {
     let store = CountingStore::default();
     let mut cfg = defaults().clone();
@@ -711,6 +764,51 @@ fn validate_env_rejects_invalid_optional_runtime_environment() {
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
         "SHUMA_RUNTIME_ENV",
+    ]);
+}
+
+#[test]
+fn validate_env_rejects_frontier_model_id_with_whitespace() {
+    let _lock = crate::test_support::lock_env();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_FRONTIER_OPENAI_MODEL",
+    ]);
+
+    std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
+    std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+    std::env::set_var("SHUMA_JS_SECRET", "test-js-secret");
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+    std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "168");
+    std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "false");
+    std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
+    std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
+    std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
+    std::env::set_var("SHUMA_FRONTIER_OPENAI_MODEL", "gpt 5 mini");
+
+    let result = validate_env_only_once();
+    assert!(result.is_err());
+    assert!(result.err().unwrap().contains("SHUMA_FRONTIER_OPENAI_MODEL"));
+
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_FRONTIER_OPENAI_MODEL",
     ]);
 }
 

@@ -14,6 +14,7 @@ Use this guide for:
 - `make test-adversarial-live`
 
 All profiles write a report to `scripts/tests/adversarial/latest_report.json` unless `ADVERSARIAL_REPORT_PATH` overrides it.
+All runs also emit `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
 
 ## Inputs You Must Capture
 
@@ -21,9 +22,10 @@ For every failing run, operators must capture:
 
 1. Exact command used (`make` target + env overrides).
 2. Report artifact (`scripts/tests/adversarial/latest_report.json`).
-3. Runtime config snapshot (`GET /admin/config`) from the failing environment.
-4. Monitoring snapshot (`GET /admin/monitoring`) from the same time window.
-5. Commit SHA and environment (`runtime-dev` or `runtime-prod`).
+3. Attack plan artifact (`scripts/tests/adversarial/attack_plan.json`).
+4. Runtime config snapshot (`GET /admin/config`) from the failing environment.
+5. Monitoring snapshot (`GET /admin/monitoring`) from the same time window.
+6. Commit SHA and environment (`runtime-dev` or `runtime-prod`).
 
 ## Triage Order
 

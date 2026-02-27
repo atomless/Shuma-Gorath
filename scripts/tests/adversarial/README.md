@@ -10,6 +10,8 @@
     - `abuse_regression`
     - `akamai_smoke`
     - `full_coverage`
+- `frontier_payload_schema.v1.json`
+  - Versioned outbound allowlist contract for frontier payload redaction/minimization.
 
 ## Runner
 
@@ -25,7 +27,9 @@ python3 scripts/tests/adversarial_simulation_runner.py --profile akamai_smoke
 python3 scripts/tests/adversarial_simulation_runner.py --profile full_coverage
 ```
 
-The runner writes a machine-readable report to `scripts/tests/adversarial/latest_report.json` by default.
+The runner writes machine-readable artifacts to:
+- `scripts/tests/adversarial/latest_report.json`
+- `scripts/tests/adversarial/attack_plan.json`
 
 Notes:
 

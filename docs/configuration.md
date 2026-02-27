@@ -74,12 +74,27 @@ These are read from process env at runtime (not from <abbr title="Key-Value">KV<
 | `SHUMA_DEBUG_HEADERS` | Yes | `false` | Enables internal debug headers (for example health diagnostics). Keep `false` in production. |
 | `SHUMA_RUNTIME_ENV` | No | `runtime-prod` | Trusted runtime environment class (`runtime-dev` or `runtime-prod`) used for fail-closed dev-only orchestration guards. |
 | `SHUMA_ADVERSARY_SIM_AVAILABLE` | No | `false` | Env-only availability gate for adversary simulation surfaces; dev workflows override to `true`, production should remain `false`. |
+| `SHUMA_FRONTIER_OPENAI_API_KEY` | No | empty | Optional OpenAI API key for frontier adversary planner/attacker/critic roles. |
+| `SHUMA_FRONTIER_ANTHROPIC_API_KEY` | No | empty | Optional Anthropic API key for frontier adversary provider rotation. |
+| `SHUMA_FRONTIER_GOOGLE_API_KEY` | No | empty | Optional Google API key for frontier adversary provider rotation. |
+| `SHUMA_FRONTIER_XAI_API_KEY` | No | empty | Optional xAI API key for frontier adversary provider rotation. |
+| `SHUMA_FRONTIER_OPENAI_MODEL` | No | `gpt-5-mini` | Default OpenAI model ID used by frontier adversary orchestration. |
+| `SHUMA_FRONTIER_ANTHROPIC_MODEL` | No | `claude-3-5-haiku-latest` | Default Anthropic model ID used by frontier adversary orchestration. |
+| `SHUMA_FRONTIER_GOOGLE_MODEL` | No | `gemini-2.0-flash-lite` | Default Google model ID used by frontier adversary orchestration. |
+| `SHUMA_FRONTIER_XAI_MODEL` | No | `grok-3-mini` | Default xAI model ID used by frontier adversary orchestration. |
 | `SHUMA_ENTERPRISE_MULTI_INSTANCE` | No | `false` | Marks deployment as enterprise multi-instance for runtime/deploy state guardrails. |
 | `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED` | No | `false` | Explicit temporary attestation for additive/off operation when enterprise multi-instance still uses local-only rate/ban state. |
 | `SHUMA_RATE_LIMITER_REDIS_URL` | No | empty | Redis endpoint for external distributed rate limiter mode (`redis://...` or `rediss://...`). |
 | `SHUMA_BAN_STORE_REDIS_URL` | No | empty | Redis endpoint for external distributed ban store mode (`redis://...` or `rediss://...`). |
 | `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` | No | `fallback_internal` | Outage posture for external rate-limiter degradation on main traffic (`fallback_internal`, `fail_open`, `fail_closed`). |
 | `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH` | No | `fail_closed` | Outage posture for external rate-limiter degradation on admin-auth routes (`fallback_internal`, `fail_open`, `fail_closed`). |
+
+`make setup` includes an optional interactive frontier-provider step in terminal sessions:
+1. choose providers,
+2. choose provider model IDs,
+3. enter hidden API keys,
+4. run bounded live key probes before persisting valid keys to `.env.local`.
+In non-interactive shells this step is skipped automatically.
 
 Use `make env-help` for the supported env-only override list.
 

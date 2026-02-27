@@ -359,6 +359,12 @@ Mutability:
 Effective-mode visibility:
 - `defence_modes_effective` reports runtime-effective signal/action booleans per module.
 - `defence_mode_warnings` reports mode conflicts (for example <abbr title="JavaScript">JS</abbr> mode overridden by `js_required_enforced=false`).
+- Frontier readiness (read-only, env-derived):
+  - `frontier_mode` (`disabled`, `single_provider_self_play`, `multi_provider_playoff`)
+  - `frontier_provider_count`
+  - `frontier_diversity_confidence` (`none`, `low`, `higher`)
+  - `frontier_reduced_diversity_warning`
+  - `frontier_providers` (provider/model/configured summary; no API keys)
 - Enterprise state posture visibility:
   - `enterprise_multi_instance`
   - `enterprise_unsynced_state_exception_confirmed`
