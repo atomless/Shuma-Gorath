@@ -31,6 +31,7 @@ python3 scripts/tests/adversarial_simulation_runner.py --profile abuse_regressio
 python3 scripts/tests/adversarial_simulation_runner.py --profile akamai_smoke
 python3 scripts/tests/adversarial_simulation_runner.py --profile full_coverage
 python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile fast_smoke --validate-only
+python3 scripts/tests/adversarial_sim_selftest.py
 ```
 
 The runner writes machine-readable artifacts to:
@@ -51,3 +52,4 @@ Notes:
 - `full_coverage` adds profile-level coverage gates (`gates.coverage_requirements`) using monitoring deltas captured over the run.
 - `full_coverage` now includes explicit PoW success/failure, rate-limit enforcement, and GEO block scenarios in addition to existing challenge/maze/honeypot/Akamai families.
 - Protected-lane frontier probe output (`frontier_lane_status.json`) is advisory only; deterministic coverage/replay gates remain blocking.
+- `adversarial_sim_selftest.py` is intentionally tiny and non-circular: it validates simulator mechanics against fixed stub routes without asserting product defense efficacy.

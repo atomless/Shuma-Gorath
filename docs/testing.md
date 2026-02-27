@@ -15,6 +15,7 @@ make test-adversarial-smoke # Mandatory adversarial fast smoke profile (waits fo
 make test-adversarial-abuse # Replay/stale/order-cadence abuse regression profile
 make test-adversarial-akamai # Akamai fixture-driven simulation profile
 make test-adversarial-coverage # Expanded adversarial coverage profile (pre-release gate)
+make test-adversarial-sim-selftest # Minimal deterministic simulator mechanics self-test (no Spin server required)
 make test-adversarial-soak # Deep adversarial soak gate alias for full_coverage
 make test-adversarial-live # Loop adversarial profile for live monitoring demos (Ctrl+C to stop)
 make test-adversarial-frontier-attempt # Protected-lane frontier provider attempt probe (advisory/non-blocking)
@@ -133,6 +134,7 @@ Available profiles:
 - `make test-adversarial-abuse` - mandatory replay/stale/order-cadence abuse regressions
 - `make test-adversarial-akamai` - mandatory Akamai signal fixture coverage
 - `make test-adversarial-coverage` - expanded coverage contract profile (`full_coverage`) including PoW success/failure, rate-limit enforcement, and GEO block coverage
+- `make test-adversarial-sim-selftest` - minimal deterministic simulator mechanics harness (seed/order/budget/retry/gate math/teardown), intentionally non-circular
 - `make test-adversarial-soak` - deep soak alias for `full_coverage` (scheduled/manual gate)
 - `make test-adversarial-manifest` - schema/fixture validation without server
 - `make test-adversarial-live` - repeated live traffic generator for operator monitoring drills

@@ -223,16 +223,6 @@ Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../
     - Monitoring/event APIs expose server-side `include_sim` filtering and default-safe behavior for non-dev contexts.
     - Deployment/docs include guardrails proving production store isolation from dev simulation runs and explicitly document that admin auth keys may be shared while data stores remain isolated.
 
-- [ ] SIM-V2-21 Minimal simulator self-test harness (non-circular runner correctness anchor).
-  - Acceptance criteria:
-    - Add a tiny deterministic stub target for simulator validation only (not a full fixture app), with fixed-response routes covering allow/challenge/deny-style outcomes and controlled timing.
-    - Self-test scope is strictly simulator mechanics, not defense efficacy: seed reproducibility, scenario ordering, runtime budget enforcement, retry/backoff classification, quantitative gate computation, and hard-stop teardown behavior.
-    - Expected outputs are spec-defined invariants, not generated from simulator-produced artifacts.
-    - Harness is explicitly non-blocking for product behavior semantics and does not duplicate full adversarial coverage profiles.
-  - Definition of done:
-    - Make target exists (`make test-adversarial-sim-selftest`) and is deterministic under fixed seed.
-    - CI includes the self-test in adversarial validation lanes where simulator regressions would otherwise go undetected.
-    - Docs explain why this is intentionally minimal (anti-circular) and what classes of bugs it is designed to catch.
 ## P1 Dashboard IA: Promote Rate Limiting and GEO to Top-Level Tabs
 - [ ] DSH-RG-1 Define dashboard information architecture update and tab order for new top-level `Rate Limiting` and `GEO` tabs (including hash-route mapping and back/forward behavior).
 - [ ] DSH-RG-2 Move Rate Limiting controls from Config into a dedicated top-level `Rate Limiting` tab while preserving existing design language, save behavior, and validation rules.
