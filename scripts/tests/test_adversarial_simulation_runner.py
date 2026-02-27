@@ -29,6 +29,7 @@ def minimal_manifest(gates_extra=None, schema_version="sim-manifest.v1"):
         "assertions": {"max_latency_ms": 500},
     }
     if schema_version == "sim-manifest.v2":
+        scenario["driver_class"] = "browser_realistic"
         scenario["traffic_model"] = {
             "persona": "human_like",
             "think_time_ms_min": 10,
@@ -264,9 +265,19 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         with self.assertRaises(runner.SimulationError):
             runner.validate_manifest(Path("scripts/tests/adversarial/scenario_manifest.v2.json"), manifest, "test_profile")
 
+    def test_validate_manifest_rejects_v2_driver_class_mismatch(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        manifest["scenarios"][0]["driver_class"] = "http_scraper"
+        with self.assertRaises(runner.SimulationError):
+            runner.validate_manifest(Path("scripts/tests/adversarial/scenario_manifest.v2.json"), manifest, "test_profile")
+
     def test_scenario_max_latency_ms_uses_v2_cost_assertions_when_present(self):
         scenario = {"id": "s1", "assertions": {"max_latency_ms": 700}, "cost_assertions": {"max_latency_ms": 333}}
         self.assertEqual(runner.scenario_max_latency_ms(scenario), 333)
+
+    def test_scenario_driver_class_uses_mapping_when_manifest_does_not_set_class(self):
+        scenario = {"driver": "pow_success"}
+        self.assertEqual(runner.scenario_driver_class(scenario), "cost_imposition")
 
 
 if __name__ == "__main__":

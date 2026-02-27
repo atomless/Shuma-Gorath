@@ -71,15 +71,6 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
 Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
 
-- [ ] SIM-V2-2 Unified runner architecture with explicit driver classes (`browser_realistic`, `http_scraper`, `edge_fixture`, `cost_imposition`).
-  - Acceptance criteria:
-    - Runner supports multiple driver families under one report format and one deterministic seed path.
-    - Driver selection is manifest-driven, not hard-coded per profile branch.
-    - Runtime remains bounded by per-scenario budget and profile max runtime guard.
-  - Definition of done:
-    - `scripts/tests/adversarial_simulation_runner.py` executes mixed driver profiles successfully.
-    - `make test-adversarial-smoke` runtime budget remains within target envelope.
-
 - [ ] SIM-V2-3 Abuse/evasion regression suite parity (`replay`, `stale`, `ordering`, `cadence`, `retry-storm`).
   - Acceptance criteria:
     - Abuse paths are first-class scenarios with expected outcomes and latency budgets.

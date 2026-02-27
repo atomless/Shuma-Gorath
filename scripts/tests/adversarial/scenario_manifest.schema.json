@@ -76,6 +76,7 @@
           "scenarios": {
             "items": {
               "required": [
+                "driver_class",
                 "traffic_model",
                 "expected_defense_categories",
                 "coverage_tags",
@@ -273,6 +274,15 @@
               "not_a_bot_ordering_cadence_abuse",
               "akamai_additive_report",
             "akamai_authoritative_deny"
+          ]
+        },
+        "driver_class": {
+          "type": "string",
+          "enum": [
+            "browser_realistic",
+            "http_scraper",
+            "edge_fixture",
+            "cost_imposition"
           ]
         },
         "expected_outcome": {

@@ -11,7 +11,8 @@
     - `akamai_smoke`
     - `full_coverage`
 - `scenario_manifest.v2.json`
-  - Manifest v2 contract with explicit per-scenario `traffic_model`, `expected_defense_categories`, `coverage_tags`, and `cost_assertions`.
+  - Manifest v2 contract with explicit per-scenario `driver_class`, `traffic_model`, `expected_defense_categories`, `coverage_tags`, and `cost_assertions`.
+  - Driver families are manifest-driven: `browser_realistic`, `http_scraper`, `edge_fixture`, `cost_imposition`.
 - `frontier_payload_schema.v1.json`
   - Versioned outbound allowlist contract for frontier payload redaction/minimization.
 

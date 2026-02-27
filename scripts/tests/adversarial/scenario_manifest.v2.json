@@ -200,7 +200,8 @@
       ],
       "cost_assertions": {
         "max_latency_ms": 1200
-      }
+      },
+      "driver_class": "browser_realistic"
     },
     {
       "id": "sim_t1_not_a_bot_pass",
@@ -231,7 +232,8 @@
       ],
       "cost_assertions": {
         "max_latency_ms": 1600
-      }
+      },
+      "driver_class": "browser_realistic"
     },
     {
       "id": "sim_t2_geo_challenge",
@@ -264,7 +266,8 @@
       "cost_assertions": {
         "max_latency_ms": 1200
       },
-      "geo_country": "BR"
+      "geo_country": "BR",
+      "driver_class": "browser_realistic"
     },
     {
       "id": "sim_t3_geo_maze",
@@ -297,7 +300,8 @@
       "cost_assertions": {
         "max_latency_ms": 1200
       },
-      "geo_country": "RU"
+      "geo_country": "RU",
+      "driver_class": "browser_realistic"
     },
     {
       "id": "sim_t4_honeypot_deny_temp",
@@ -329,7 +333,8 @@
       ],
       "cost_assertions": {
         "max_latency_ms": 1200
-      }
+      },
+      "driver_class": "browser_realistic"
     },
     {
       "id": "sim_t3_replay_abuse",
@@ -362,7 +367,8 @@
       ],
       "cost_assertions": {
         "max_latency_ms": 2000
-      }
+      },
+      "driver_class": "http_scraper"
     },
     {
       "id": "sim_t3_stale_token_abuse",
@@ -395,7 +401,8 @@
       ],
       "cost_assertions": {
         "max_latency_ms": 2200
-      }
+      },
+      "driver_class": "http_scraper"
     },
     {
       "id": "sim_t4_ordering_cadence_abuse",
@@ -428,7 +435,8 @@
       ],
       "cost_assertions": {
         "max_latency_ms": 2200
-      }
+      },
+      "driver_class": "http_scraper"
     },
     {
       "id": "sim_t1_pow_success",
@@ -459,7 +467,8 @@
       ],
       "cost_assertions": {
         "max_latency_ms": 4000
-      }
+      },
+      "driver_class": "cost_imposition"
     },
     {
       "id": "sim_t3_pow_invalid_proof",
@@ -490,7 +499,8 @@
       ],
       "cost_assertions": {
         "max_latency_ms": 4000
-      }
+      },
+      "driver_class": "cost_imposition"
     },
     {
       "id": "sim_t3_rate_limit_enforce",
@@ -522,7 +532,8 @@
       ],
       "cost_assertions": {
         "max_latency_ms": 2600
-      }
+      },
+      "driver_class": "http_scraper"
     },
     {
       "id": "sim_t3_geo_block",
@@ -555,7 +566,8 @@
       "cost_assertions": {
         "max_latency_ms": 1200
       },
-      "geo_country": "KP"
+      "geo_country": "KP",
+      "driver_class": "browser_realistic"
     },
     {
       "id": "sim_t2_akamai_additive_monitor",
@@ -589,7 +601,8 @@
       "cost_assertions": {
         "max_latency_ms": 1800
       },
-      "payload_fixture": "scripts/tests/fixtures/akamai/fingerprint_additive_deny_signal.json"
+      "payload_fixture": "scripts/tests/fixtures/akamai/fingerprint_additive_deny_signal.json",
+      "driver_class": "edge_fixture"
     },
     {
       "id": "sim_t4_akamai_authoritative_deny",
@@ -623,7 +636,8 @@
       "cost_assertions": {
         "max_latency_ms": 1800
       },
-      "payload_fixture": "scripts/tests/fixtures/akamai/fingerprint_authoritative_deny_signal.json"
+      "payload_fixture": "scripts/tests/fixtures/akamai/fingerprint_authoritative_deny_signal.json",
+      "driver_class": "edge_fixture"
     }
   ]
 }

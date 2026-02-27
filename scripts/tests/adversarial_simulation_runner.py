@@ -42,6 +42,36 @@ ALLOWED_DRIVERS = {
     "akamai_additive_report",
     "akamai_authoritative_deny",
 }
+DRIVER_CLASS_HANDLERS = {
+    "browser_realistic": {
+        "allow_browser_allowlist": "driver_allow_browser_allowlist",
+        "not_a_bot_pass": "driver_not_a_bot_pass",
+        "geo_challenge": "driver_geo_challenge",
+        "geo_maze": "driver_geo_maze",
+        "geo_block": "driver_geo_block",
+        "honeypot_deny_temp": "driver_honeypot_deny_temp",
+    },
+    "http_scraper": {
+        "rate_limit_enforce": "driver_rate_limit_enforce",
+        "not_a_bot_replay_abuse": "driver_not_a_bot_replay_abuse",
+        "not_a_bot_stale_token_abuse": "driver_not_a_bot_stale_token_abuse",
+        "not_a_bot_ordering_cadence_abuse": "driver_not_a_bot_ordering_cadence_abuse",
+    },
+    "edge_fixture": {
+        "akamai_additive_report": "driver_akamai_additive_report",
+        "akamai_authoritative_deny": "driver_akamai_authoritative_deny",
+    },
+    "cost_imposition": {
+        "pow_success": "driver_pow_success",
+        "pow_invalid_proof": "driver_pow_invalid_proof",
+    },
+}
+ALLOWED_DRIVER_CLASSES = set(DRIVER_CLASS_HANDLERS.keys())
+DRIVER_TO_CLASS = {
+    driver_name: driver_class
+    for driver_class, family_handlers in DRIVER_CLASS_HANDLERS.items()
+    for driver_name in family_handlers.keys()
+}
 ALLOWED_COVERAGE_REQUIREMENTS = {
     "honeypot_hits",
     "challenge_failures",
@@ -563,37 +593,7 @@ class Runner:
         try:
             self.reset_baseline_config()
 
-            driver = scenario["driver"]
-            if driver == "allow_browser_allowlist":
-                observed_outcome = self.driver_allow_browser_allowlist(scenario)
-            elif driver == "not_a_bot_pass":
-                observed_outcome = self.driver_not_a_bot_pass(scenario)
-            elif driver == "pow_success":
-                observed_outcome = self.driver_pow_success(scenario)
-            elif driver == "pow_invalid_proof":
-                observed_outcome = self.driver_pow_invalid_proof(scenario)
-            elif driver == "rate_limit_enforce":
-                observed_outcome = self.driver_rate_limit_enforce(scenario)
-            elif driver == "geo_challenge":
-                observed_outcome = self.driver_geo_challenge(scenario)
-            elif driver == "geo_maze":
-                observed_outcome = self.driver_geo_maze(scenario)
-            elif driver == "geo_block":
-                observed_outcome = self.driver_geo_block(scenario)
-            elif driver == "honeypot_deny_temp":
-                observed_outcome = self.driver_honeypot_deny_temp(scenario)
-            elif driver == "not_a_bot_replay_abuse":
-                observed_outcome = self.driver_not_a_bot_replay_abuse(scenario)
-            elif driver == "not_a_bot_stale_token_abuse":
-                observed_outcome = self.driver_not_a_bot_stale_token_abuse(scenario)
-            elif driver == "not_a_bot_ordering_cadence_abuse":
-                observed_outcome = self.driver_not_a_bot_ordering_cadence_abuse(scenario)
-            elif driver == "akamai_additive_report":
-                observed_outcome = self.driver_akamai_additive_report(scenario)
-            elif driver == "akamai_authoritative_deny":
-                observed_outcome = self.driver_akamai_authoritative_deny(scenario)
-            else:
-                raise SimulationError(f"Unsupported scenario driver: {driver}")
+            observed_outcome = self.execute_scenario_driver(scenario)
 
             latency_ms = int((time.monotonic() - start) * 1000)
 
@@ -667,6 +667,26 @@ class Runner:
                 runtime_budget_ms=scenario["runtime_budget_ms"],
                 detail=f"exception: {exc}",
             )
+
+    def execute_scenario_driver(self, scenario: Dict[str, Any]) -> str:
+        driver_name = str(scenario.get("driver") or "")
+        driver_class = scenario_driver_class(scenario)
+        if driver_class not in ALLOWED_DRIVER_CLASSES:
+            raise SimulationError(
+                f"scenario {scenario.get('id')} has unsupported driver_class={driver_class}"
+            )
+        family_handlers = DRIVER_CLASS_HANDLERS.get(driver_class, {})
+        handler_name = family_handlers.get(driver_name)
+        if not handler_name:
+            raise SimulationError(
+                f"scenario {scenario.get('id')} driver={driver_name} is not supported in driver_class={driver_class}"
+            )
+        handler = getattr(self, handler_name, None)
+        if handler is None:
+            raise SimulationError(
+                f"scenario {scenario.get('id')} driver handler missing for {driver_class}.{driver_name}"
+            )
+        return str(handler(scenario))
 
     def driver_allow_browser_allowlist(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch(
@@ -1565,6 +1585,7 @@ def build_attack_plan(
             "scenario": {
                 "id": scenario.get("id"),
                 "tier": scenario.get("tier"),
+                "driver_class": scenario_driver_class(scenario),
                 "driver": scenario.get("driver"),
                 "expected_outcome": scenario.get("expected_outcome"),
                 "runtime_budget_ms": scenario.get("runtime_budget_ms"),
@@ -1573,6 +1594,7 @@ def build_attack_plan(
             },
             "traffic_model": {
                 "cohort": scenario_traffic_model.get("persona", "adversarial"),
+                "driver_class": scenario_driver_class(scenario),
                 "driver": scenario.get("driver"),
                 "user_agent": scenario.get("user_agent"),
                 "retry_strategy": scenario_traffic_model.get("retry_strategy", "single_attempt"),
@@ -1587,6 +1609,7 @@ def build_attack_plan(
             },
             "attack_metadata": {
                 "expected_outcome": scenario.get("expected_outcome"),
+                "driver_class": scenario_driver_class(scenario),
                 "coverage_tags": coverage_tags,
                 "expected_defense_categories": expected_categories,
             },
@@ -1611,6 +1634,14 @@ def build_attack_plan(
         "diversity_confidence": frontier_metadata.get("diversity_confidence", "none"),
         "candidates": candidates,
     }
+
+
+def scenario_driver_class(scenario: Dict[str, Any]) -> str:
+    explicit = scenario.get("driver_class")
+    if isinstance(explicit, str) and explicit.strip():
+        return explicit.strip()
+    driver_name = str(scenario.get("driver") or "")
+    return DRIVER_TO_CLASS.get(driver_name, "")
 
 
 def scenario_max_latency_ms(scenario: Dict[str, Any]) -> int:
@@ -1708,6 +1739,7 @@ def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_nam
         if is_v2_manifest:
             required.extend(
                 [
+                    "driver_class",
                     "traffic_model",
                     "expected_defense_categories",
                     "coverage_tags",
@@ -1731,6 +1763,19 @@ def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_nam
         if scenario["expected_outcome"] not in ALLOWED_OUTCOMES:
             raise SimulationError(
                 f"scenario {sid} has invalid expected_outcome: {scenario['expected_outcome']}"
+            )
+
+        expected_driver_class = DRIVER_TO_CLASS.get(scenario["driver"], "")
+        if not expected_driver_class:
+            raise SimulationError(f"scenario {sid} has no mapped driver_class for driver={scenario['driver']}")
+        resolved_driver_class = scenario_driver_class(scenario)
+        if resolved_driver_class not in ALLOWED_DRIVER_CLASSES:
+            raise SimulationError(
+                f"scenario {sid} driver_class must be one of {sorted(ALLOWED_DRIVER_CLASSES)}"
+            )
+        if resolved_driver_class != expected_driver_class:
+            raise SimulationError(
+                f"scenario {sid} driver_class mismatch: expected={expected_driver_class} got={resolved_driver_class}"
             )
 
         if is_v2_manifest:
