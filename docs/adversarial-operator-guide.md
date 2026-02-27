@@ -28,6 +28,38 @@ Container lane emits:
 1. `scripts/tests/adversarial/container_isolation_report.json`
 2. `scripts/tests/adversarial/container_blackbox_report.json`
 
+## Deterministic + Containerized Coexistence Contract (SIM-V2-15)
+
+Current policy is explicit coexistence, not replacement:
+
+1. Deterministic lanes are the canonical protected-lane and release blockers:
+   - `make test-adversarial-smoke`
+   - `make test-adversarial-abuse`
+   - `make test-adversarial-akamai`
+   - `make test-adversarial-coverage`
+2. Containerized black-box lanes are complementary and scheduled/manual in this phase:
+   - `make test-adversarial-container-isolation`
+   - `make test-adversarial-container-blackbox`
+3. Frontier lane remains adaptive discovery input; deterministic replay confirmation remains the blocking regression oracle.
+
+Capability mapping (must stay explicit):
+
+| Requirement family | Deterministic lane (mandatory) | Containerized lane (complementary) |
+|---|---|---|
+| Merge/release blocking regression oracle | Primary and required | Not used as release blocker in this phase |
+| Full category gate contract (`full_coverage`) | Primary and required | Observational/complementary |
+| Replay/order/stale deterministic abuse regressions | Primary and required | Complementary realism signal |
+| Akamai fixture policy behavior | Primary and required | Not primary coverage contract |
+| Isolation boundary and runtime-hardening checks | Not primary | Primary (`container_isolation`) |
+| Alternative runtime traffic realism signal | Secondary | Primary (`container_blackbox`) |
+| Frontier candidate promotion confirmation | Primary (`promote-candidates` replay gate) | Not primary |
+
+Keep-both-vs-replace decision record:
+
+1. ADR: [`docs/adr/0005-adversarial-lane-coexistence-policy.md`](adr/0005-adversarial-lane-coexistence-policy.md).
+2. Required migration checklist template: [`docs/adr/adversarial-lane-parity-signoff-checklist.md`](adr/adversarial-lane-parity-signoff-checklist.md).
+3. Deterministic-lane demotion is forbidden without owner approval plus completed parity sign-off evidence.
+
 ## Frontier Architecture Modes
 
 Frontier attack-candidate generation must run in one of two explicit modes:

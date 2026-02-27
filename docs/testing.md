@@ -223,6 +223,12 @@ CI policy is tiered:
 - PR to `main`: `ci.yml` additionally runs `make test-adversarial-coverage`, `make test-adversarial-frontier-attempt`, and `make test-adversarial-promote-candidates`.
 - Release gate (`release-gate.yml`): blocks on `make test-adversarial-coverage` and deterministic confirmed-regression triage (`make test-adversarial-promote-candidates`), records `make test-adversarial-frontier-attempt` as advisory status.
 - Scheduled/manual deep soak: `adversarial-soak.yml` runs `make test-adversarial-soak`, `make test-adversarial-container-isolation`, and `make test-adversarial-container-blackbox`.
+Deterministic/container coexistence contract:
+- Deterministic lanes remain canonical mandatory blockers until explicit parity sign-off is approved (`SIM-V2-15` policy).
+- Containerized lanes remain complementary scheduled/manual coverage in this phase and must not silently replace deterministic protected-lane gates.
+- Parity-signoff governance is tracked via ADR + checklist template:
+  - `docs/adr/0005-adversarial-lane-coexistence-policy.md`
+  - `docs/adr/adversarial-lane-parity-signoff-checklist.md`
 Frontier lane policy:
 - Local setup is optional (`make setup` can skip provider key entry).
 - Protected-lane frontier attempt is mandatory to run (attempt status is always emitted), but degraded frontier status is advisory and does not override deterministic blocking gates.

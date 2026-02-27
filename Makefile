@@ -450,7 +450,7 @@ test-adversarial-akamai: ## Run Akamai signal fixture smoke profile (requires ru
 		exit 1; \
 	fi
 
-test-adversarial-coverage: ## Run expanded adversarial coverage profile (requires running server)
+test-adversarial-coverage: ## Run deterministic full-coverage oracle profile (protected-lane/release blocker; requires running server)
 	@echo "$(CYAN)🧪 Running adversarial coverage profile...$(NC)"
 	@$(MAKE) --no-print-directory test-adversarial-sim-selftest || exit 1
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
@@ -553,11 +553,11 @@ test-adversarial-promote-candidates: ## Run frontier candidate triage + determin
 		exit 1; \
 	fi
 
-test-adversarial-container-isolation: ## Validate container black-box isolation contract (Docker required)
+test-adversarial-container-isolation: ## Validate complementary container black-box isolation contract (scheduled/manual lane; Docker required)
 	@echo "$(CYAN)🧪 Running adversarial container isolation conformance...$(NC)"
 	@python3 scripts/tests/adversarial_container_runner.py --mode isolation --report scripts/tests/adversarial/container_isolation_report.json
 
-test-adversarial-container-blackbox: ## Run containerized black-box adversary worker against running server (Docker required)
+test-adversarial-container-blackbox: ## Run complementary containerized black-box adversary lane (scheduled/manual; non-blocking for release)
 	@echo "$(CYAN)🧪 Running adversarial container black-box worker...$(NC)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" \

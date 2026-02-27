@@ -31,7 +31,7 @@ Status: Approved direction, implementation in progress. Start here before other 
 2. `SIM-V2-10`, `SIM-V2-19`: frontier config UX + key hygiene + outbound data governance.
 3. `SIM-V2-11`: containerized black-box runner + isolation conformance target.
 4. `SIM-V2-5`, `SIM-V2-16`: deterministic coverage seeding + repeatability pipeline.
-5. `SIM-V2-15`, `SIM-V2-20`: coexistence contract + tagging + store separation.
+5. `SIM-V2-20`: tagging + store separation.
 
 ### Critical files likely touched (for rapid orientation)
 1. `Makefile` (dev defaults, new make targets, CI/release invocation wiring)
@@ -70,23 +70,6 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 ## P0 Adversarial Traffic Simulation Program
 Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
 Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
-
-- [ ] SIM-V2-15 Deterministic harness and containerized adversary coexistence contract.
-  - Acceptance criteria:
-    - Existing deterministic adversarial runner (`scripts/tests/adversarial_simulation_runner.py`) and current Make targets (`test-adversarial-smoke`, `test-adversarial-abuse`, `test-adversarial-akamai`, `test-adversarial-coverage`) remain canonical mandatory gates until explicit parity sign-off is approved.
-    - Containerized black-box adversary is added as a separate complementary system; it does not replace deterministic mandatory CI paths in this phase.
-    - A capability mapping documents which requirements are validated by deterministic profiles vs containerized black-box runs.
-    - Capability mapping explicitly states role split: frontier lane generates adaptive attack candidates; deterministic lane validates reproducibility and enforces merge/release blocking.
-    - Parity-signoff gate is explicit and measurable before any replacement discussion:
-      1. category parity: `100%` of mandatory defense categories/gates are covered by the candidate lane set;
-      2. reproducibility parity: promoted regressions from frontier findings achieve deterministic replay confirmation rate `>= 95%` over a rolling window of 20 findings;
-      3. stability parity: candidate lane set passes 10 consecutive protected-lane runs without flaky nondeterministic failures;
-      4. cost parity: protected-lane runtime increase remains within agreed budget (`<= 20%` vs deterministic-only baseline unless explicitly approved).
-    - Any future migration/removal of deterministic targets requires explicit TODO/ADR update and acceptance criteria for parity and runtime-cost impact.
-  - Definition of done:
-    - Docs include a clear "keep both vs replace" decision record with current policy set to coexistence.
-    - CI workflow and Make help text reflect deterministic mandatory gates plus separate containerized/scheduled runs.
-    - ADR/checklist template exists for future parity sign-off and requires explicit owner approval before any deterministic-lane demotion.
 
 - [ ] SIM-V2-20 Simulation event tagging and environment data-plane separation.
   - Acceptance criteria:
