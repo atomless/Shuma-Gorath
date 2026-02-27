@@ -309,6 +309,31 @@ impl RateLimiterOutageMode {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeEnvironment {
+    RuntimeDev,
+    RuntimeProd,
+}
+
+impl RuntimeEnvironment {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            RuntimeEnvironment::RuntimeDev => "runtime-dev",
+            RuntimeEnvironment::RuntimeProd => "runtime-prod",
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn is_dev(self) -> bool {
+        matches!(self, RuntimeEnvironment::RuntimeDev)
+    }
+
+    pub fn is_prod(self) -> bool {
+        matches!(self, RuntimeEnvironment::RuntimeProd)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum IpRangePolicyMode {
     Off,
@@ -513,6 +538,8 @@ pub struct Config {
     pub ip_range_suggestions_likely_human_sample_percent: u8,
     #[serde(default = "default_test_mode")]
     pub test_mode: bool,
+    #[serde(default = "default_adversary_sim_enabled")]
+    pub adversary_sim_enabled: bool,
     #[serde(default = "default_maze_enabled")]
     pub maze_enabled: bool,
     #[serde(default = "default_tarpit_enabled")]
@@ -979,6 +1006,7 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         ip_range_suggestions_likely_human_sample_percent:
             default_ip_range_suggestions_likely_human_sample_percent(),
         test_mode: defaults_bool("SHUMA_TEST_MODE"),
+        adversary_sim_enabled: defaults_bool("SHUMA_ADVERSARY_SIM_ENABLED"),
         maze_enabled: defaults_bool("SHUMA_MAZE_ENABLED"),
         tarpit_enabled: defaults_bool("SHUMA_TARPIT_ENABLED"),
         tarpit_progress_token_ttl_seconds: defaults_u64("SHUMA_TARPIT_PROGRESS_TOKEN_TTL_SECONDS"),
@@ -1141,6 +1169,8 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_bool_like_var("SHUMA_KV_STORE_FAIL_OPEN")?;
     validate_bool_like_var("SHUMA_ENFORCE_HTTPS")?;
     validate_bool_like_var("SHUMA_DEBUG_HEADERS")?;
+    validate_optional_runtime_environment_var("SHUMA_RUNTIME_ENV")?;
+    validate_optional_bool_like_var("SHUMA_ADVERSARY_SIM_AVAILABLE")?;
     validate_optional_bool_like_var("SHUMA_ENTERPRISE_MULTI_INSTANCE")?;
     validate_optional_bool_like_var("SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED")?;
     validate_optional_redis_url_var("SHUMA_RATE_LIMITER_REDIS_URL")?;
@@ -1183,6 +1213,22 @@ fn validate_optional_bool_like_var(name: &str) -> Result<(), String> {
     };
     if parse_bool_like(&value).is_none() {
         return Err(format!("Invalid boolean env var {}={}", name, value));
+    }
+    Ok(())
+}
+
+fn validate_optional_runtime_environment_var(name: &str) -> Result<(), String> {
+    let Some(value) = env::var(name).ok() else {
+        return Ok(());
+    };
+    if value.trim().is_empty() {
+        return Ok(());
+    }
+    if parse_runtime_environment(&value).is_none() {
+        return Err(format!(
+            "Invalid runtime environment env var {}={} (expected runtime-dev or runtime-prod)",
+            name, value
+        ));
     }
     Ok(())
 }
@@ -1268,6 +1314,17 @@ pub fn enterprise_multi_instance_enabled() -> bool {
 
 pub fn enterprise_unsynced_state_exception_confirmed() -> bool {
     env_bool_optional("SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED", false)
+}
+
+pub fn runtime_environment() -> RuntimeEnvironment {
+    env::var("SHUMA_RUNTIME_ENV")
+        .ok()
+        .and_then(|value| parse_runtime_environment(value.as_str()))
+        .unwrap_or(RuntimeEnvironment::RuntimeProd)
+}
+
+pub fn adversary_sim_available() -> bool {
+    env_bool_optional("SHUMA_ADVERSARY_SIM_AVAILABLE", false)
 }
 
 pub fn rate_limiter_redis_url() -> Option<String> {
@@ -1416,6 +1473,14 @@ pub(crate) fn parse_rate_limiter_outage_mode(value: &str) -> Option<RateLimiterO
         "fallback_internal" => Some(RateLimiterOutageMode::FallbackInternal),
         "fail_open" => Some(RateLimiterOutageMode::FailOpen),
         "fail_closed" => Some(RateLimiterOutageMode::FailClosed),
+        _ => None,
+    }
+}
+
+pub(crate) fn parse_runtime_environment(value: &str) -> Option<RuntimeEnvironment> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "runtime-dev" => Some(RuntimeEnvironment::RuntimeDev),
+        "runtime-prod" => Some(RuntimeEnvironment::RuntimeProd),
         _ => None,
     }
 }
@@ -2153,6 +2218,10 @@ fn default_ip_range_suggestions_likely_human_sample_percent() -> u8 {
 
 fn default_test_mode() -> bool {
     defaults_bool("SHUMA_TEST_MODE")
+}
+
+fn default_adversary_sim_enabled() -> bool {
+    defaults_bool("SHUMA_ADVERSARY_SIM_ENABLED")
 }
 
 fn default_maze_enabled() -> bool {

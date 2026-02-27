@@ -500,6 +500,8 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "false");
         std::env::set_var("SHUMA_ENFORCE_HTTPS", "true");
         std::env::set_var("SHUMA_DEBUG_HEADERS", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
         std::env::set_var("SHUMA_RATE_LIMITER_REDIS_URL", "redis://redis:6379");
         std::env::set_var("SHUMA_BAN_STORE_REDIS_URL", "redis://redis:6379");
         std::env::set_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN", "fail_open");
@@ -512,6 +514,7 @@ mod admin_config_tests {
         cfg.browser_policy_enabled = false;
         cfg.bypass_allowlists_enabled = false;
         cfg.path_allowlist_enabled = false;
+        cfg.adversary_sim_enabled = true;
         cfg.tarpit_enabled = false;
         cfg.tarpit_progress_token_ttl_seconds = 140;
         cfg.tarpit_progress_replay_ttl_seconds = 360;
@@ -644,6 +647,18 @@ mod admin_config_tests {
             env.get("SHUMA_DEBUG_HEADERS"),
             Some(&serde_json::json!("true"))
         );
+        assert_eq!(
+            env.get("SHUMA_RUNTIME_ENV"),
+            Some(&serde_json::json!("runtime-dev"))
+        );
+        assert_eq!(
+            env.get("SHUMA_ADVERSARY_SIM_AVAILABLE"),
+            Some(&serde_json::json!("true"))
+        );
+        assert_eq!(
+            env.get("SHUMA_ADVERSARY_SIM_ENABLED"),
+            Some(&serde_json::json!("true"))
+        );
         assert!(env.get("SHUMA_RATE_LIMITER_REDIS_URL").is_none());
         assert!(env.get("SHUMA_BAN_STORE_REDIS_URL").is_none());
         assert_eq!(
@@ -677,6 +692,9 @@ mod admin_config_tests {
         assert!(env_text.contains("SHUMA_CHALLENGE_PUZZLE_ATTEMPT_LIMIT_PER_WINDOW="));
         assert!(env_text.contains("SHUMA_CHALLENGE_PUZZLE_ATTEMPT_WINDOW_SECONDS="));
         assert!(env_text.contains("SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE=17"));
+        assert!(env_text.contains("SHUMA_RUNTIME_ENV=runtime-dev"));
+        assert!(env_text.contains("SHUMA_ADVERSARY_SIM_AVAILABLE=true"));
+        assert!(env_text.contains("SHUMA_ADVERSARY_SIM_ENABLED=true"));
         assert!(!env_text.contains("SHUMA_RATE_LIMITER_REDIS_URL="));
         assert!(!env_text.contains("SHUMA_BAN_STORE_REDIS_URL="));
         assert!(env_text.contains("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN=fail_open"));
@@ -690,6 +708,8 @@ mod admin_config_tests {
             "SHUMA_KV_STORE_FAIL_OPEN",
             "SHUMA_ENFORCE_HTTPS",
             "SHUMA_DEBUG_HEADERS",
+            "SHUMA_RUNTIME_ENV",
+            "SHUMA_ADVERSARY_SIM_AVAILABLE",
             "SHUMA_RATE_LIMITER_REDIS_URL",
             "SHUMA_BAN_STORE_REDIS_URL",
             "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
@@ -804,6 +824,82 @@ mod admin_config_tests {
         assert!(body.get("enterprise_state_guardrail_error").is_some());
         assert!(body.get("botness_signal_definitions").is_some());
         assert!(body.get("honeypot_enabled").is_some());
+        assert!(body.get("adversary_sim_enabled").is_some());
+        assert!(body.get("runtime_environment").is_some());
+        assert!(body.get("adversary_sim_available").is_some());
+    }
+
+    #[test]
+    fn admin_config_includes_runtime_environment_and_adversary_sim_state() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let req = make_request(Method::Get, "/admin/config", Vec::new());
+        let store = TestStore::default();
+        let resp = handle_admin_config(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+
+        assert_eq!(
+            body.get("runtime_environment").and_then(|v| v.as_str()),
+            Some("runtime-dev")
+        );
+        assert_eq!(
+            body.get("adversary_sim_available").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            body.get("adversary_sim_enabled").and_then(|v| v.as_bool()),
+            Some(false)
+        );
+
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn admin_config_rejects_enabling_adversary_sim_in_runtime_prod() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
+
+        let body = br#"{"adversary_sim_enabled":true}"#.to_vec();
+        let req = make_request(Method::Post, "/admin/config", body);
+        let store = TestStore::default();
+        let resp = handle_admin_config(&req, &store, "default");
+        assert_eq!(*resp.status(), 400u16);
+        assert!(String::from_utf8_lossy(resp.body()).contains("runtime-prod"));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+    }
+
+    #[test]
+    fn admin_config_allows_enabling_adversary_sim_in_runtime_dev() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+
+        let body = br#"{"adversary_sim_enabled":true}"#.to_vec();
+        let req = make_request(Method::Post, "/admin/config", body);
+        let store = TestStore::default();
+        let resp = handle_admin_config(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+        let json: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(
+            json.get("config")
+                .and_then(|v| v.get("adversary_sim_enabled"))
+                .and_then(|v| v.as_bool()),
+            Some(true)
+        );
+
+        let saved_bytes = store.get("config:default").unwrap().unwrap();
+        let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
+        assert!(saved_cfg.adversary_sim_enabled);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
     }
 
     #[test]
@@ -3352,6 +3448,14 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
             bool_env(crate::config::debug_headers_enabled()).to_string(),
         ),
         (
+            "SHUMA_RUNTIME_ENV".to_string(),
+            crate::config::runtime_environment().as_str().to_string(),
+        ),
+        (
+            "SHUMA_ADVERSARY_SIM_AVAILABLE".to_string(),
+            bool_env(crate::config::adversary_sim_available()).to_string(),
+        ),
+        (
             "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN".to_string(),
             crate::config::rate_limiter_outage_mode_main()
                 .as_str()
@@ -3366,6 +3470,10 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
         (
             "SHUMA_TEST_MODE".to_string(),
             bool_env(cfg.test_mode).to_string(),
+        ),
+        (
+            "SHUMA_ADVERSARY_SIM_ENABLED".to_string(),
+            bool_env(cfg.adversary_sim_enabled).to_string(),
         ),
         (
             "SHUMA_JS_REQUIRED_ENFORCED".to_string(),
@@ -4350,6 +4458,14 @@ fn admin_config_payload(
         serde_json::Value::Bool(crate::config::forwarded_header_trust_configured()),
     );
     obj.insert(
+        "runtime_environment".to_string(),
+        serde_json::Value::String(crate::config::runtime_environment().as_str().to_string()),
+    );
+    obj.insert(
+        "adversary_sim_available".to_string(),
+        serde_json::Value::Bool(crate::config::adversary_sim_available()),
+    );
+    obj.insert(
         "challenge_puzzle_risk_threshold_default".to_string(),
         serde_json::Value::Number(challenge_default.into()),
     );
@@ -4433,6 +4549,7 @@ struct AdminProviderBackendsPatch {
 #[serde(default, deny_unknown_fields)]
 struct AdminConfigPatch {
     test_mode: Option<bool>,
+    adversary_sim_enabled: Option<bool>,
     ban_duration: Option<u64>,
     rate_limit: Option<u64>,
     js_required_enforced: Option<bool>,
@@ -4740,6 +4857,20 @@ fn handle_admin_config_internal(
                         },
                     );
                 }
+            }
+        }
+        if let Some(adversary_sim_enabled) =
+            json.get("adversary_sim_enabled").and_then(|v| v.as_bool())
+        {
+            if adversary_sim_enabled && crate::config::runtime_environment().is_prod() {
+                return Response::new(
+                    400,
+                    "adversary_sim_enabled cannot be set to true when SHUMA_RUNTIME_ENV=runtime-prod",
+                );
+            }
+            if cfg.adversary_sim_enabled != adversary_sim_enabled {
+                cfg.adversary_sim_enabled = adversary_sim_enabled;
+                changed = true;
             }
         }
 

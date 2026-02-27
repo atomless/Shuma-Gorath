@@ -106,6 +106,7 @@ cat > "${tmp_json}" <<EOF
   "ip_range_suggestions_ipv6_min_prefix_len": ${SHUMA_IP_RANGE_SUGGESTIONS_IPV6_MIN_PREFIX_LEN},
   "ip_range_suggestions_likely_human_sample_percent": ${SHUMA_IP_RANGE_SUGGESTIONS_LIKELY_HUMAN_SAMPLE_PERCENT},
   "test_mode": $(bool_norm "${SHUMA_TEST_MODE}"),
+  "adversary_sim_enabled": $(bool_norm "${SHUMA_ADVERSARY_SIM_ENABLED}"),
   "maze_enabled": $(bool_norm "${SHUMA_MAZE_ENABLED}"),
   "tarpit_enabled": $(bool_norm "${SHUMA_TARPIT_ENABLED}"),
   "tarpit_progress_token_ttl_seconds": ${SHUMA_TARPIT_PROGRESS_TOKEN_TTL_SECONDS},

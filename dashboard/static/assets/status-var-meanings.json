@@ -1,5 +1,6 @@
 {
   "test_mode": "Logs detections/actions without enforcing blocks.",
+  "adversary_sim_enabled": "Enables/disables dev-only adversary simulation orchestration in runtime configuration.",
   "ban_duration": "Legacy fallback ban duration (seconds) when no specific trigger duration applies.",
   "ban_durations.honeypot": "Ban duration (seconds) for honeypot/instaban trigger.",
   "ban_durations.rate_limit": "Ban duration (seconds) for rate-limit enforcement.",
@@ -148,6 +149,8 @@
   "provider_backends.fingerprint_signal": "Selected provider backend for fingerprint signals. External currently maps to the Akamai adapter.",
   "edge_integration_mode": "How Akamai outcomes affect local routing: off, additive, authoritative.",
   "admin_config_write_enabled": "Enables/disables admin API config writes.",
+  "runtime_environment": "Trusted runtime environment class reported by server (`runtime-dev` or `runtime-prod`).",
+  "adversary_sim_available": "Env-only availability gate for exposing adversary simulation surfaces in this runtime.",
   "kv_store_fail_open": "KV outage posture. true=fail-open, false=fail-closed.",
   "https_enforced": "Reject non-HTTPS requests when enabled.",
   "forwarded_header_trust_configured": "Indicates forwarded header trust secret is configured.",
