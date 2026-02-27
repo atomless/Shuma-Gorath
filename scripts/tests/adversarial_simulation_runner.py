@@ -38,6 +38,31 @@ ALLOWED_DRIVERS = {
     "akamai_additive_report",
     "akamai_authoritative_deny",
 }
+ALLOWED_COVERAGE_REQUIREMENTS = {
+    "honeypot_hits",
+    "challenge_failures",
+    "not_a_bot_pass",
+    "not_a_bot_fail",
+    "not_a_bot_replay",
+    "not_a_bot_escalate",
+    "pow_attempts",
+    "pow_successes",
+    "pow_failures",
+    "rate_violations",
+    "rate_limited",
+    "rate_banned",
+    "geo_violations",
+    "geo_challenge",
+    "geo_maze",
+    "geo_block",
+    "maze_hits",
+    "tarpit_activations_progressive",
+    "tarpit_progress_advanced",
+    "cdp_detections",
+    "fingerprint_events",
+    "ban_count",
+    "recent_event_count",
+}
 
 GOOD_NOT_A_BOT_TELEMETRY = {
     "has_pointer": True,
@@ -307,37 +332,7 @@ class Runner:
     def monitoring_snapshot(self) -> Dict[str, Any]:
         result = self.admin_request("GET", "/admin/monitoring?hours=24&limit=5")
         data = parse_json_or_raise(result.body, "Failed to parse /admin/monitoring response")
-        summary = data.get("summary") or {}
-        details = data.get("details") or {}
-        cdp = details.get("cdp") or {}
-        fingerprint_stats = cdp.get("fingerprint_stats") or {}
-
-        honeypot_hits = int_or_zero((summary.get("honeypot") or {}).get("total_hits"))
-        challenge_failures = int_or_zero((summary.get("challenge") or {}).get("total_failures"))
-        not_a_bot_submitted = int_or_zero((summary.get("not_a_bot") or {}).get("submitted"))
-        pow_attempts = int_or_zero((summary.get("pow") or {}).get("total_attempts"))
-        rate_violations = int_or_zero((summary.get("rate") or {}).get("total_violations"))
-        geo_violations = int_or_zero((summary.get("geo") or {}).get("total_violations"))
-
-        return {
-            "fingerprint_events": int_or_zero(fingerprint_stats.get("events")),
-            "monitoring_total": (
-                honeypot_hits
-                + challenge_failures
-                + not_a_bot_submitted
-                + pow_attempts
-                + rate_violations
-                + geo_violations
-            ),
-            "components": {
-                "honeypot_hits": honeypot_hits,
-                "challenge_failures": challenge_failures,
-                "not_a_bot_submitted": not_a_bot_submitted,
-                "pow_attempts": pow_attempts,
-                "rate_violations": rate_violations,
-                "geo_violations": geo_violations,
-            },
-        }
+        return extract_monitoring_snapshot(data)
 
     def evaluate_gates(
         self,
@@ -426,12 +421,25 @@ class Runner:
             }
         )
 
+        coverage_before = dict_or_empty(monitoring_before.get("coverage"))
+        coverage_after = dict_or_empty(monitoring_after.get("coverage"))
+        coverage_deltas = compute_coverage_deltas(coverage_before, coverage_after)
+
+        coverage_requirements = (self.profile.get("gates") or {}).get("coverage_requirements")
+        if isinstance(coverage_requirements, dict) and coverage_requirements:
+            checks.extend(build_coverage_checks(coverage_requirements, coverage_deltas))
+
         all_passed = all(check["passed"] for check in checks)
         return {
             "all_passed": all_passed,
             "checks": checks,
             "outcome_counts": outcome_counts,
             "request_count": self.request_count,
+            "coverage": {
+                "before": coverage_before,
+                "after": coverage_after,
+                "deltas": coverage_deltas,
+            },
         }
 
     def run_scenario(self, scenario: Dict[str, Any]) -> ScenarioResult:
@@ -922,6 +930,19 @@ def collapse_whitespace(raw: str) -> str:
     return re.sub(r"\s+", " ", raw).strip()
 
 
+def dict_or_empty(value: Any) -> Dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def nested_dict_value(data: Dict[str, Any], path: Tuple[str, ...]) -> Any:
+    current: Any = data
+    for segment in path:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(segment)
+    return current
+
+
 def int_or_zero(value: Any) -> int:
     try:
         if value is None:
@@ -929,6 +950,90 @@ def int_or_zero(value: Any) -> int:
         return int(value)
     except Exception:
         return 0
+
+
+def extract_monitoring_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
+    summary = dict_or_empty(payload.get("summary"))
+    details = dict_or_empty(payload.get("details"))
+    recent_events = nested_dict_value(details, ("events", "recent_events"))
+    recent_event_count = len(recent_events) if isinstance(recent_events, list) else 0
+
+    coverage = {
+        "honeypot_hits": int_or_zero(nested_dict_value(summary, ("honeypot", "total_hits"))),
+        "challenge_failures": int_or_zero(nested_dict_value(summary, ("challenge", "total_failures"))),
+        "not_a_bot_pass": int_or_zero(nested_dict_value(summary, ("not_a_bot", "pass"))),
+        "not_a_bot_fail": int_or_zero(nested_dict_value(summary, ("not_a_bot", "fail"))),
+        "not_a_bot_replay": int_or_zero(nested_dict_value(summary, ("not_a_bot", "replay"))),
+        "not_a_bot_escalate": int_or_zero(nested_dict_value(summary, ("not_a_bot", "escalate"))),
+        "pow_attempts": int_or_zero(nested_dict_value(summary, ("pow", "total_attempts"))),
+        "pow_successes": int_or_zero(nested_dict_value(summary, ("pow", "total_successes"))),
+        "pow_failures": int_or_zero(nested_dict_value(summary, ("pow", "total_failures"))),
+        "rate_violations": int_or_zero(nested_dict_value(summary, ("rate", "total_violations"))),
+        "rate_limited": int_or_zero(nested_dict_value(summary, ("rate", "outcomes", "limited"))),
+        "rate_banned": int_or_zero(nested_dict_value(summary, ("rate", "outcomes", "banned"))),
+        "geo_violations": int_or_zero(nested_dict_value(summary, ("geo", "total_violations"))),
+        "geo_challenge": int_or_zero(nested_dict_value(summary, ("geo", "actions", "challenge"))),
+        "geo_maze": int_or_zero(nested_dict_value(summary, ("geo", "actions", "maze"))),
+        "geo_block": int_or_zero(nested_dict_value(summary, ("geo", "actions", "block"))),
+        "maze_hits": int_or_zero(nested_dict_value(details, ("maze", "total_hits"))),
+        "tarpit_activations_progressive": int_or_zero(
+            nested_dict_value(details, ("tarpit", "metrics", "activations", "progressive"))
+        ),
+        "tarpit_progress_advanced": int_or_zero(
+            nested_dict_value(details, ("tarpit", "metrics", "progress_outcomes", "advanced"))
+        ),
+        "cdp_detections": int_or_zero(nested_dict_value(details, ("cdp", "stats", "total_detections"))),
+        "fingerprint_events": int_or_zero(
+            nested_dict_value(details, ("cdp", "fingerprint_stats", "events"))
+        ),
+        "ban_count": int_or_zero(nested_dict_value(details, ("analytics", "ban_count"))),
+        "recent_event_count": recent_event_count,
+    }
+
+    components = {
+        "honeypot_hits": coverage["honeypot_hits"],
+        "challenge_failures": coverage["challenge_failures"],
+        "not_a_bot_submitted": int_or_zero(nested_dict_value(summary, ("not_a_bot", "submitted"))),
+        "pow_attempts": coverage["pow_attempts"],
+        "rate_violations": coverage["rate_violations"],
+        "geo_violations": coverage["geo_violations"],
+    }
+
+    return {
+        "fingerprint_events": coverage["fingerprint_events"],
+        "monitoring_total": sum(components.values()),
+        "components": components,
+        "coverage": coverage,
+    }
+
+
+def compute_coverage_deltas(before: Dict[str, Any], after: Dict[str, Any]) -> Dict[str, int]:
+    keys = set(before.keys()).union(after.keys())
+    deltas: Dict[str, int] = {}
+    for key in sorted(keys):
+        before_count = int_or_zero(before.get(key))
+        after_count = int_or_zero(after.get(key))
+        deltas[key] = max(0, after_count - before_count)
+    return deltas
+
+
+def build_coverage_checks(
+    coverage_requirements: Dict[str, Any], coverage_deltas: Dict[str, int]
+) -> List[Dict[str, Any]]:
+    checks: List[Dict[str, Any]] = []
+    for key in sorted(coverage_requirements.keys()):
+        minimum = int_or_zero(coverage_requirements.get(key))
+        observed = int_or_zero(coverage_deltas.get(key))
+        checks.append(
+            {
+                "name": f"coverage_{key}",
+                "passed": observed >= minimum,
+                "detail": f"delta={observed} minimum={minimum}",
+                "observed": observed,
+                "minimum": minimum,
+            }
+        )
+    return checks
 
 
 def percentile(values: List[int], pct: int) -> int:
@@ -1087,6 +1192,26 @@ def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_nam
         raise SimulationError(
             f"profile {profile_name} telemetry_amplification must include fingerprint and monitoring limits"
         )
+
+    coverage_requirements = gates.get("coverage_requirements")
+    if coverage_requirements is not None:
+        if not isinstance(coverage_requirements, dict) or not coverage_requirements:
+            raise SimulationError(
+                f"profile {profile_name} coverage_requirements must be a non-empty object when provided"
+            )
+        for key, minimum in coverage_requirements.items():
+            if key not in ALLOWED_COVERAGE_REQUIREMENTS:
+                raise SimulationError(
+                    f"profile {profile_name} has unsupported coverage requirement key: {key}"
+                )
+            if isinstance(minimum, bool) or not isinstance(minimum, int):
+                raise SimulationError(
+                    f"profile {profile_name} coverage requirement {key} must be an integer >= 0"
+                )
+            if minimum < 0:
+                raise SimulationError(
+                    f"profile {profile_name} coverage requirement {key} cannot be negative"
+                )
 
 
 def main() -> int:

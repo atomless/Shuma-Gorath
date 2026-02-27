@@ -96,6 +96,69 @@
           "max_monitoring_events_per_request": 3.0
         }
       }
+    },
+    "full_coverage": {
+      "description": "Expanded pre-release coverage profile across all currently implemented scenario families.",
+      "max_runtime_seconds": 180,
+      "scenario_ids": [
+        "sim_t0_allow_browser_allowlist",
+        "sim_t1_not_a_bot_pass",
+        "sim_t2_geo_challenge",
+        "sim_t3_geo_maze",
+        "sim_t4_honeypot_deny_temp",
+        "sim_t3_replay_abuse",
+        "sim_t3_stale_token_abuse",
+        "sim_t4_ordering_cadence_abuse",
+        "sim_t2_akamai_additive_monitor",
+        "sim_t4_akamai_authoritative_deny"
+      ],
+      "gates": {
+        "latency": {
+          "p95_max_ms": 2500
+        },
+        "outcome_ratio_bounds": {
+          "allow": {
+            "min": 0.05,
+            "max": 0.25
+          },
+          "monitor": {
+            "min": 0.05,
+            "max": 0.25
+          },
+          "not-a-bot": {
+            "min": 0.05,
+            "max": 0.25
+          },
+          "challenge": {
+            "min": 0.05,
+            "max": 0.25
+          },
+          "maze": {
+            "min": 0.20,
+            "max": 0.60
+          },
+          "deny_temp": {
+            "min": 0.10,
+            "max": 0.35
+          }
+        },
+        "telemetry_amplification": {
+          "max_fingerprint_events_per_request": 4.0,
+          "max_monitoring_events_per_request": 5.0
+        },
+        "coverage_requirements": {
+          "honeypot_hits": 1,
+          "not_a_bot_pass": 1,
+          "not_a_bot_fail": 1,
+          "not_a_bot_replay": 1,
+          "geo_challenge": 1,
+          "geo_maze": 1,
+          "maze_hits": 1,
+          "fingerprint_events": 1,
+          "ban_count": 1,
+          "recent_event_count": 1
+        }
+      }
     }
   },
   "scenarios": [
