@@ -69,11 +69,18 @@ They are larger, multi-step flows with dedicated adapters/contracts and are like
 - Barrier modules consume policy outcomes; they do not silently mutate botness scoring internals.
 - Hybrid modules MUST provide explicit split APIs for signal contribution and enforcement action.
 - Runtime orchestration (`src/runtime/policy_pipeline.rs`) remains the ordering authority.
+- Runtime policy orchestration follows functional-core / imperative-shell layering:
+  - `src/runtime/request_facts.rs` (side-effect-free normalization),
+  - `src/runtime/policy_graph.rs` (pure ordered policy decisions),
+  - `src/runtime/effect_intents.rs` (centralized effect execution),
+  - `src/runtime/capabilities.rs` (explicit capability tokens for privileged writes).
 - Runtime observability MUST publish both per-signal availability state (`active`/`disabled`/`unavailable`) and effective mode state (`configured`, `signal_enabled`, `action_enabled`) so tuning outcomes are explainable.
 
 ## Rules For New Work
 
 - Keep `src/lib.rs` focused on orchestration and call domains via boundary adapters.
+- Keep request-path orchestration in the sequence `facts -> decisions -> effects -> response`; policy stages must remain pure and side effects must run through effect-intent execution.
+- Privileged request-path writes (ban store, metrics, monitoring, event logging) must require explicit capability tokens from `src/runtime/capabilities.rs`; do not rely on convention-only access.
 - Add new cross-domain behavior by extending a boundary contract first.
 - Avoid adding direct `crate::<domain>` calls in `src/lib.rs` when a boundary exists.
 - When internal feature work touches a provider-managed capability, route behavior through `src/providers/contracts.rs` and `src/providers/registry.rs` rather than adding direct module calls in orchestration paths.

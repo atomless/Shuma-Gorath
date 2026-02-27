@@ -134,6 +134,8 @@ thread_local! {
 
 static NONCE_REPLAY_WINDOW: Lazy<Mutex<NonceReplayWindow>> =
     Lazy::new(|| Mutex::new(NonceReplayWindow::default()));
+#[cfg(test)]
+static TEST_SERIAL_GUARD: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 fn now_unix_seconds() -> u64 {
     SystemTime::now()
@@ -510,6 +512,13 @@ fn reset_nonce_replay_window_for_tests() {
 }
 
 #[cfg(test)]
+fn lock_test_serial() -> std::sync::MutexGuard<'static, ()> {
+    TEST_SERIAL_GUARD
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use spin_sdk::http::Method;
@@ -546,6 +555,7 @@ mod tests {
 
     #[test]
     fn metadata_requires_dev_env_and_valid_signature() {
+        let _serial = lock_test_serial();
         let _lock = crate::test_support::lock_env();
         reset_nonce_replay_window_for_tests();
         set_last_validation_failure(None);
@@ -577,6 +587,7 @@ mod tests {
 
     #[test]
     fn metadata_rejects_missing_secret() {
+        let _serial = lock_test_serial();
         reset_nonce_replay_window_for_tests();
         set_last_validation_failure(None);
 
@@ -600,6 +611,7 @@ mod tests {
 
     #[test]
     fn metadata_rejects_signature_mismatch() {
+        let _serial = lock_test_serial();
         reset_nonce_replay_window_for_tests();
         set_last_validation_failure(None);
 
@@ -626,6 +638,7 @@ mod tests {
 
     #[test]
     fn metadata_rejects_stale_timestamp() {
+        let _serial = lock_test_serial();
         reset_nonce_replay_window_for_tests();
         set_last_validation_failure(None);
 
@@ -648,6 +661,7 @@ mod tests {
 
     #[test]
     fn metadata_rejects_replay_nonce() {
+        let _serial = lock_test_serial();
         reset_nonce_replay_window_for_tests();
         set_last_validation_failure(None);
 
@@ -674,6 +688,7 @@ mod tests {
 
     #[test]
     fn metadata_ignores_requests_without_sim_headers() {
+        let _serial = lock_test_serial();
         reset_nonce_replay_window_for_tests();
         set_last_validation_failure(None);
 

@@ -1078,7 +1078,7 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
     ) {
         return response;
     }
-    if let Some(response) = runtime::policy_pipeline::maybe_handle_ip_range_policy(
+    if let Some(response) = runtime::policy_pipeline::maybe_handle_policy_graph_first_tranche(
         req,
         store,
         &cfg,
@@ -1086,33 +1086,10 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         site_id,
         &ip,
         path,
+        ua,
+        &geo_assessment,
         &ip_range_evaluation,
     ) {
-        return response;
-    }
-    if let Some(response) = runtime::policy_pipeline::maybe_handle_honeypot(
-        store,
-        &cfg,
-        &provider_registry,
-        site_id,
-        &ip,
-        path,
-    ) {
-        return response;
-    }
-    if let Some(response) = runtime::policy_pipeline::maybe_handle_rate_limit(
-        store,
-        &cfg,
-        &provider_registry,
-        site_id,
-        &ip,
-        path,
-    ) {
-        return response;
-    }
-    if let Some(response) =
-        runtime::policy_pipeline::maybe_handle_existing_ban(store, &provider_registry, site_id, &ip)
-    {
         return response;
     }
     // PoW endpoints (public, before JS verification)
@@ -1135,43 +1112,20 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
             .challenge_engine_provider()
             .handle_pow_verify(req, &ip, cfg.pow_enabled);
     }
-    if let Some(response) = runtime::policy_pipeline::maybe_handle_geo_policy(
-        req,
-        store,
-        &cfg,
-        &provider_registry,
-        &ip,
-        &geo_assessment,
-    ) {
-        return response;
-    }
-
-    let needs_js = runtime::policy_pipeline::compute_needs_js(req, store, &cfg, site_id, path, &ip);
-
-    if let Some(response) = runtime::policy_pipeline::maybe_handle_botness(
+    if let Some(response) = runtime::policy_pipeline::maybe_handle_policy_graph_second_tranche(
         req,
         store,
         &cfg,
         &provider_registry,
         site_id,
         &ip,
-        needs_js,
-        &geo_assessment,
-    ) {
-        return response;
-    }
-
-    if let Some(response) = runtime::policy_pipeline::maybe_handle_js(
-        store,
-        &cfg,
-        &provider_registry,
-        &ip,
+        path,
         ua,
-        needs_js,
+        &geo_assessment,
+        &ip_range_evaluation,
     ) {
         return response;
     }
-
     let record_allow_clean = || {
         let policy_match = runtime::policy_taxonomy::resolve_policy_match(
             runtime::policy_taxonomy::PolicyTransition::AllowClean,
