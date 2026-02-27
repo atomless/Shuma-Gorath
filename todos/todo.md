@@ -376,7 +376,6 @@ Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../
     - Make target exists (`make test-adversarial-sim-selftest`) and is deterministic under fixed seed.
     - CI includes the self-test in adversarial validation lanes where simulator regressions would otherwise go undetected.
     - Docs explain why this is intentionally minimal (anti-circular) and what classes of bugs it is designed to catch.
-
 ## P1 Dashboard IA: Promote Rate Limiting and GEO to Top-Level Tabs
 - [ ] DSH-RG-1 Define dashboard information architecture update and tab order for new top-level `Rate Limiting` and `GEO` tabs (including hash-route mapping and back/forward behavior).
 - [ ] DSH-RG-2 Move Rate Limiting controls from Config into a dedicated top-level `Rate Limiting` tab while preserving existing design language, save behavior, and validation rules.

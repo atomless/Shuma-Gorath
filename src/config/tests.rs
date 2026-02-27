@@ -609,6 +609,85 @@ fn parse_admin_config_write_defaults_to_disabled() {
 }
 
 #[test]
+fn runtime_environment_defaults_to_runtime_prod_and_parses_runtime_dev() {
+    let _lock = crate::test_support::lock_env();
+    std::env::remove_var("SHUMA_RUNTIME_ENV");
+    assert_eq!(runtime_environment(), RuntimeEnvironment::RuntimeProd);
+    assert!(runtime_environment().is_prod());
+    assert!(!runtime_environment().is_dev());
+
+    std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+    assert_eq!(runtime_environment(), RuntimeEnvironment::RuntimeDev);
+    assert!(runtime_environment().is_dev());
+    assert!(!runtime_environment().is_prod());
+
+    std::env::remove_var("SHUMA_RUNTIME_ENV");
+}
+
+#[test]
+fn adversary_sim_available_defaults_false_and_parses_bool_values() {
+    let _lock = crate::test_support::lock_env();
+    std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    assert!(!adversary_sim_available());
+
+    std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+    assert!(adversary_sim_available());
+
+    std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "false");
+    assert!(!adversary_sim_available());
+
+    std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "invalid");
+    assert!(!adversary_sim_available());
+
+    std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+}
+
+#[test]
+fn validate_env_rejects_invalid_optional_runtime_environment() {
+    let _lock = crate::test_support::lock_env();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
+    ]);
+
+    std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
+    std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+    std::env::set_var("SHUMA_JS_SECRET", "test-js-secret");
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+    std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "168");
+    std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "false");
+    std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
+    std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
+    std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
+    std::env::set_var("SHUMA_RUNTIME_ENV", "invalid-runtime");
+
+    let result = validate_env_only_once();
+    assert!(result.is_err());
+    assert!(result.err().unwrap().contains("SHUMA_RUNTIME_ENV"));
+
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
+    ]);
+}
+
+#[test]
 fn validate_env_rejects_invalid_optional_enterprise_bool() {
     let _lock = crate::test_support::lock_env();
     clear_env(&[

@@ -115,6 +115,41 @@
                   "minimum": 0
                 }
               }
+            },
+            "coverage_requirements": {
+              "type": "object",
+              "minProperties": 1,
+              "propertyNames": {
+                "enum": [
+                  "honeypot_hits",
+                  "challenge_failures",
+                  "not_a_bot_pass",
+                  "not_a_bot_fail",
+                  "not_a_bot_replay",
+                  "not_a_bot_escalate",
+                  "pow_attempts",
+                  "pow_successes",
+                  "pow_failures",
+                  "rate_violations",
+                  "rate_limited",
+                  "rate_banned",
+                  "geo_violations",
+                  "geo_challenge",
+                  "geo_maze",
+                  "geo_block",
+                  "maze_hits",
+                  "tarpit_activations_progressive",
+                  "tarpit_progress_advanced",
+                  "cdp_detections",
+                  "fingerprint_events",
+                  "ban_count",
+                  "recent_event_count"
+                ]
+              },
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
             }
           }
         }
@@ -175,17 +210,21 @@
           ]
         },
         "driver": {
-          "type": "string",
-          "enum": [
-            "allow_browser_allowlist",
-            "not_a_bot_pass",
-            "geo_challenge",
-            "geo_maze",
-            "honeypot_deny_temp",
-            "not_a_bot_replay_abuse",
-            "not_a_bot_stale_token_abuse",
-            "not_a_bot_ordering_cadence_abuse",
-            "akamai_additive_report",
+            "type": "string",
+            "enum": [
+              "allow_browser_allowlist",
+              "not_a_bot_pass",
+              "pow_success",
+              "pow_invalid_proof",
+              "rate_limit_enforce",
+              "geo_challenge",
+              "geo_maze",
+              "geo_block",
+              "honeypot_deny_temp",
+              "not_a_bot_replay_abuse",
+              "not_a_bot_stale_token_abuse",
+              "not_a_bot_ordering_cadence_abuse",
+              "akamai_additive_report",
             "akamai_authoritative_deny"
           ]
         },

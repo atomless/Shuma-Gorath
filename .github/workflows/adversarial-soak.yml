@@ -1,0 +1,96 @@
+name: Adversarial Soak (Scheduled)
+
+on:
+  schedule:
+    - cron: "15 5 * * 1"
+  workflow_dispatch:
+
+jobs:
+  adversarial-soak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      RUST_BACKTRACE: full
+      SHUMA_KV_STORE_FAIL_OPEN: "true"
+      SHUMA_API_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      SHUMA_JS_SECRET: 9a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef
+      SHUMA_FORWARDED_IP_SECRET: changeme-dev-only-ip-secret
+      SHUMA_EVENT_LOG_RETENTION_HOURS: "168"
+      SHUMA_ADMIN_CONFIG_WRITE_ENABLED: "true"
+      SHUMA_ENFORCE_HTTPS: "false"
+      SHUMA_POW_CONFIG_MUTABLE: "true"
+      SHUMA_CHALLENGE_CONFIG_MUTABLE: "true"
+      SHUMA_BOTNESS_CONFIG_MUTABLE: "true"
+      DEV_ADMIN_PAGE_CONFIG: "true"
+      SHUMA_DEBUG_HEADERS: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install Rust toolchain and target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y curl ca-certificates jq sqlite3
+
+      - name: Install Spin CLI
+        run: |
+          SPIN_TAG="$(curl -fsSL https://api.github.com/repos/fermyon/spin/releases/latest | jq -r .tag_name)"
+          SPIN_ASSET="spin-${SPIN_TAG}-linux-amd64.tar.gz"
+          curl -fsSL "https://github.com/fermyon/spin/releases/download/${SPIN_TAG}/${SPIN_ASSET}" -o /tmp/spin.tar.gz
+          tar -xzf /tmp/spin.tar.gz -C /tmp
+          sudo mv /tmp/spin /usr/local/bin/spin
+          spin --version
+
+      - name: Build wasm release
+        run: |
+          ./scripts/set_crate_type.sh cdylib
+          cargo build --target wasm32-wasip1 --release
+          mkdir -p dist/wasm
+          cp target/wasm32-wasip1/release/shuma_gorath.wasm dist/wasm/shuma_gorath.wasm
+          ./scripts/set_crate_type.sh rlib
+
+      - name: Seed KV tunable config
+        run: make config-seed
+
+      - name: Start Spin server (background)
+        run: |
+          nohup make run-prebuilt > /tmp/spin.log 2>&1 &
+          for i in {1..180}; do
+            if curl -sf -H "X-Forwarded-For: 127.0.0.1" -H "X-Shuma-Forwarded-Secret: ${SHUMA_FORWARDED_IP_SECRET}" http://127.0.0.1:3000/health > /dev/null 2>&1; then
+              echo "spin ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "spin did not become ready"
+          tail -n 200 /tmp/spin.log || true
+          exit 1
+
+      - name: Run adversarial soak gate
+        run: make test-adversarial-soak
+
+      - name: Upload adversarial soak report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: adversarial-soak-report
+          path: scripts/tests/adversarial/latest_report.json
+
+      - name: Upload Spin logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: adversarial-soak-spin-log
+          path: /tmp/spin.log

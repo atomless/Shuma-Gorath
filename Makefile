@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-live test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -41,8 +41,12 @@ SHUMA_ADMIN_CONFIG_WRITE_ENABLED := $(call strip_wrapping_quotes,$(SHUMA_ADMIN_C
 SHUMA_KV_STORE_FAIL_OPEN := $(call strip_wrapping_quotes,$(SHUMA_KV_STORE_FAIL_OPEN))
 SHUMA_ENFORCE_HTTPS := $(call strip_wrapping_quotes,$(SHUMA_ENFORCE_HTTPS))
 SHUMA_DEBUG_HEADERS := $(call strip_wrapping_quotes,$(SHUMA_DEBUG_HEADERS))
+SHUMA_RUNTIME_ENV := $(call strip_wrapping_quotes,$(SHUMA_RUNTIME_ENV))
+SHUMA_ADVERSARY_SIM_AVAILABLE := $(call strip_wrapping_quotes,$(SHUMA_ADVERSARY_SIM_AVAILABLE))
 SHUMA_ENTERPRISE_MULTI_INSTANCE := $(call strip_wrapping_quotes,$(SHUMA_ENTERPRISE_MULTI_INSTANCE))
 SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED := $(call strip_wrapping_quotes,$(SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED))
+SHUMA_RUNTIME_ENV := $(if $(strip $(SHUMA_RUNTIME_ENV)),$(SHUMA_RUNTIME_ENV),runtime-prod)
+SHUMA_ADVERSARY_SIM_AVAILABLE := $(if $(strip $(SHUMA_ADVERSARY_SIM_AVAILABLE)),$(SHUMA_ADVERSARY_SIM_AVAILABLE),false)
 SHUMA_ENTERPRISE_MULTI_INSTANCE := $(if $(strip $(SHUMA_ENTERPRISE_MULTI_INSTANCE)),$(SHUMA_ENTERPRISE_MULTI_INSTANCE),false)
 SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED := $(if $(strip $(SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED)),$(SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED),false)
 SHUMA_RATE_LIMITER_REDIS_URL := $(call strip_wrapping_quotes,$(SHUMA_RATE_LIMITER_REDIS_URL))
@@ -52,7 +56,7 @@ SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH := $(call strip_wrapping_quotes,$(SHUM
 
 # Inject env-only runtime keys into Spin from .env.local / shell env.
 # This list is the operator-facing copy surface for deploy-time env overrides.
-SPIN_ENV_ONLY_BASE := --env SHUMA_API_KEY=$(SHUMA_API_KEY) --env SHUMA_ADMIN_READONLY_API_KEY=$(SHUMA_ADMIN_READONLY_API_KEY) --env SHUMA_JS_SECRET=$(SHUMA_JS_SECRET) --env SHUMA_POW_SECRET=$(SHUMA_POW_SECRET) --env SHUMA_CHALLENGE_SECRET=$(SHUMA_CHALLENGE_SECRET) --env SHUMA_MAZE_PREVIEW_SECRET=$(SHUMA_MAZE_PREVIEW_SECRET) --env SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) --env SHUMA_HEALTH_SECRET=$(SHUMA_HEALTH_SECRET) --env SHUMA_ADMIN_IP_ALLOWLIST=$(SHUMA_ADMIN_IP_ALLOWLIST) --env SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE=$(SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE) --env SHUMA_EVENT_LOG_RETENTION_HOURS=$(SHUMA_EVENT_LOG_RETENTION_HOURS) --env SHUMA_KV_STORE_FAIL_OPEN=$(SHUMA_KV_STORE_FAIL_OPEN) --env SHUMA_ENFORCE_HTTPS=$(SHUMA_ENFORCE_HTTPS) --env SHUMA_ENTERPRISE_MULTI_INSTANCE=$(SHUMA_ENTERPRISE_MULTI_INSTANCE) --env SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=$(SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED) --env SHUMA_RATE_LIMITER_REDIS_URL=$(SHUMA_RATE_LIMITER_REDIS_URL) --env SHUMA_BAN_STORE_REDIS_URL=$(SHUMA_BAN_STORE_REDIS_URL) --env SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN=$(SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN) --env SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH=$(SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH)
+SPIN_ENV_ONLY_BASE := --env SHUMA_API_KEY=$(SHUMA_API_KEY) --env SHUMA_ADMIN_READONLY_API_KEY=$(SHUMA_ADMIN_READONLY_API_KEY) --env SHUMA_JS_SECRET=$(SHUMA_JS_SECRET) --env SHUMA_POW_SECRET=$(SHUMA_POW_SECRET) --env SHUMA_CHALLENGE_SECRET=$(SHUMA_CHALLENGE_SECRET) --env SHUMA_MAZE_PREVIEW_SECRET=$(SHUMA_MAZE_PREVIEW_SECRET) --env SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) --env SHUMA_HEALTH_SECRET=$(SHUMA_HEALTH_SECRET) --env SHUMA_ADMIN_IP_ALLOWLIST=$(SHUMA_ADMIN_IP_ALLOWLIST) --env SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE=$(SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE) --env SHUMA_EVENT_LOG_RETENTION_HOURS=$(SHUMA_EVENT_LOG_RETENTION_HOURS) --env SHUMA_KV_STORE_FAIL_OPEN=$(SHUMA_KV_STORE_FAIL_OPEN) --env SHUMA_ENFORCE_HTTPS=$(SHUMA_ENFORCE_HTTPS) --env SHUMA_RUNTIME_ENV=$(SHUMA_RUNTIME_ENV) --env SHUMA_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE) --env SHUMA_ENTERPRISE_MULTI_INSTANCE=$(SHUMA_ENTERPRISE_MULTI_INSTANCE) --env SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=$(SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED) --env SHUMA_RATE_LIMITER_REDIS_URL=$(SHUMA_RATE_LIMITER_REDIS_URL) --env SHUMA_BAN_STORE_REDIS_URL=$(SHUMA_BAN_STORE_REDIS_URL) --env SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN=$(SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN) --env SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH=$(SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH)
 SPIN_RUNTIME_CONTROL_ENV := --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_DEBUG_HEADERS=$(SHUMA_DEBUG_HEADERS)
 SPIN_ENV_ONLY := $(SPIN_ENV_ONLY_BASE) $(SPIN_RUNTIME_CONTROL_ENV)
 
@@ -63,8 +67,10 @@ HEALTH_SECRET_HEADER := $(if $(SHUMA_HEALTH_SECRET),-H "X-Shuma-Health-Secret: $
 DEV_ADMIN_CONFIG_WRITE_ENABLED ?= true
 DEV_DEBUG_HEADERS ?= true
 DEV_ADMIN_IP_ALLOWLIST ?=
-SPIN_DEV_OVERRIDES := --env SHUMA_DEBUG_HEADERS=$(DEV_DEBUG_HEADERS) --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_ADMIN_IP_ALLOWLIST=$(DEV_ADMIN_IP_ALLOWLIST)
-SPIN_PROD_OVERRIDES := --env SHUMA_DEBUG_HEADERS=false --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false
+DEV_RUNTIME_ENV ?= runtime-dev
+DEV_ADVERSARY_SIM_AVAILABLE ?= true
+SPIN_DEV_OVERRIDES := --env SHUMA_DEBUG_HEADERS=$(DEV_DEBUG_HEADERS) --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_ADMIN_IP_ALLOWLIST=$(DEV_ADMIN_IP_ALLOWLIST) --env SHUMA_RUNTIME_ENV=$(DEV_RUNTIME_ENV) --env SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE)
+SPIN_PROD_OVERRIDES := --env SHUMA_DEBUG_HEADERS=false --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false --env SHUMA_RUNTIME_ENV=runtime-prod --env SHUMA_ADVERSARY_SIM_AVAILABLE=false
 SPIN_READY_TIMEOUT_SECONDS ?= 90
 SHUMA_DASHBOARD_BUNDLE_MAX_TOTAL_BYTES ?= 352000
 SHUMA_DASHBOARD_BUNDLE_MAX_JS_BYTES ?= 330000
@@ -72,6 +78,7 @@ SHUMA_DASHBOARD_BUNDLE_MAX_CSS_BYTES ?= 40000
 SHUMA_DASHBOARD_BUNDLE_MAX_JS_CHUNK_BYTES ?= 150000
 SHUMA_DASHBOARD_BUNDLE_MAX_CSS_ASSET_BYTES ?= 30000
 SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE ?= 0
+DEV_WATCH_IGNORES := -i '*.wasm' -i 'dist/wasm/shuma_gorath.wasm' -i '.spin/**' -i 'dashboard/.svelte-kit' -i 'dashboard/.svelte-kit/**' -i 'dashboard/.vite' -i 'dashboard/.vite/**'
 
 #--------------------------
 # Setup (first-time)
@@ -144,7 +151,7 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	else \
 		echo "Rust/WASM artifacts unchanged; skipping initial release build."; \
 	fi
-	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'dist/wasm/shuma_gorath.wasm' -i '.spin/**' \
+	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml $(DEV_WATCH_IGNORES) \
 		-s 'if [ ! -f $(WASM_BUILD_OUTPUT) ] || find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && mkdir -p $(dir $(WASM_ARTIFACT)) && cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT) && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
 		-s '$(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; pkill -x spin 2>/dev/null || true; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --listen 127.0.0.1:3000'
 
@@ -184,7 +191,7 @@ dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=fal
 	else \
 		echo "Rust/WASM artifacts unchanged; skipping initial release build."; \
 	fi
-	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml -i '*.wasm' -i 'dist/wasm/shuma_gorath.wasm' -i '.spin/**' \
+	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml $(DEV_WATCH_IGNORES) \
 		-s 'if [ ! -f $(WASM_BUILD_OUTPUT) ] || find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && mkdir -p $(dir $(WASM_ARTIFACT)) && cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT) && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
 		-s '$(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; pkill -x spin 2>/dev/null || true; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env SHUMA_KV_STORE_FAIL_OPEN=false --listen 127.0.0.1:3000'
 
@@ -296,7 +303,7 @@ spin-wait-ready: ## Wait for the existing local Spin server to pass /health
 smoke-single-host: ## Run post-deploy single-host smoke checks (health/admin auth/metrics/challenge route)
 	@./scripts/tests/smoke_single_host.sh
 
-test: ## Run ALL tests in series: unit, maze benchmark, integration, adversarial profiles, and dashboard e2e (waits for existing server readiness)
+test: ## Run umbrella tests in series: unit, maze benchmark, integration, mandatory fast adversarial matrix, and dashboard e2e
 	@echo "$(CYAN)============================================$(NC)"
 	@echo "$(CYAN)  RUNNING ALL TESTS$(NC)"
 	@echo "$(CYAN)============================================$(NC)"
@@ -309,16 +316,16 @@ test: ## Run ALL tests in series: unit, maze benchmark, integration, adversarial
 	fi
 	@echo "$(GREEN)✅ Preflight: Spin server is ready; integration, adversarial, and dashboard e2e tests will be executed.$(NC)"
 	@echo ""
-	@echo "$(CYAN)Step 1/8: Rust Unit Tests$(NC)"
+	@echo "$(CYAN)Step 1/6: Rust Unit Tests$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 2/8: Maze Asymmetry Benchmark Gate$(NC)"
+	@echo "$(CYAN)Step 2/6: Maze Asymmetry Benchmark Gate$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@$(MAKE) --no-print-directory test-maze-benchmark || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 3/8: Integration Tests (Spin HTTP scenarios)$(NC)"
+	@echo "$(CYAN)Step 3/6: Integration Tests (Spin HTTP scenarios)$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" ./scripts/tests/integration.sh || exit 1; \
@@ -326,26 +333,18 @@ test: ## Run ALL tests in series: unit, maze benchmark, integration, adversarial
 		echo "$(RED)❌ Error: Spin server not ready. Integration tests must run and may not be skipped.$(NC)"; \
 		echo "$(YELLOW)   Start server first: make dev$(NC)"; \
 		echo "$(YELLOW)   Then run tests:     make test$(NC)"; \
-		exit 1; \
-	fi
+			exit 1; \
+		fi
 	@echo ""
-	@echo "$(CYAN)Step 4/8: Adversarial Fast Smoke (SIM-T0..SIM-T4)$(NC)"
+	@echo "$(CYAN)Step 4/6: Adversarial Fast Matrix (smoke + abuse + Akamai)$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
-	@$(MAKE) --no-print-directory test-adversarial-smoke || exit 1
+	@$(MAKE) --no-print-directory test-adversarial-fast || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 5/8: Adversarial Abuse Regression$(NC)"
-	@echo "$(CYAN)--------------------------------------------$(NC)"
-	@$(MAKE) --no-print-directory test-adversarial-abuse || exit 1
-	@echo ""
-	@echo "$(CYAN)Step 6/8: Adversarial Akamai Fixture Profile$(NC)"
-	@echo "$(CYAN)--------------------------------------------$(NC)"
-	@$(MAKE) --no-print-directory test-adversarial-akamai || exit 1
-	@echo ""
-	@echo "$(CYAN)Step 7/8: Dashboard E2E Smoke Tests$(NC)"
+	@echo "$(CYAN)Step 5/6: Dashboard E2E Smoke Tests$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@$(MAKE) --no-print-directory test-dashboard-e2e || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 8/8: Dashboard Seed Snapshot$(NC)"
+	@echo "$(CYAN)Step 6/6: Dashboard Seed Snapshot$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@$(MAKE) --no-print-directory seed-dashboard-data || exit 1
 	@echo ""
@@ -387,9 +386,17 @@ integration-test: test-integration ## Alias for Spin integration tests
 test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtures (no server required)
 	@echo "$(CYAN)🧪 Validating adversarial simulation manifest...$(NC)"
 	@python3 -m py_compile scripts/tests/adversarial_simulation_runner.py
+	@python3 -m unittest scripts/tests/test_adversarial_simulation_runner.py
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile fast_smoke --validate-only
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile abuse_regression --validate-only
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile akamai_smoke --validate-only
+	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile full_coverage --validate-only
+
+test-adversarial-fast: ## Run mandatory fast adversarial matrix (smoke + abuse + Akamai profiles)
+	@echo "$(CYAN)🧪 Running mandatory fast adversarial matrix...$(NC)"
+	@$(MAKE) --no-print-directory test-adversarial-smoke || exit 1
+	@$(MAKE) --no-print-directory test-adversarial-abuse || exit 1
+	@$(MAKE) --no-print-directory test-adversarial-akamai || exit 1
 
 test-adversarial-smoke: ## Run adversarial fast smoke simulation profile (requires running server)
 	@echo "$(CYAN)🧪 Running adversarial fast smoke simulation...$(NC)"
@@ -421,6 +428,20 @@ test-adversarial-akamai: ## Run Akamai signal fixture smoke profile (requires ru
 		exit 1; \
 	fi
 
+test-adversarial-coverage: ## Run expanded adversarial coverage profile (requires running server)
+	@echo "$(CYAN)🧪 Running adversarial coverage profile...$(NC)"
+	@if $(MAKE) --no-print-directory spin-wait-ready; then \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile full_coverage; \
+	else \
+		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
+		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
+			exit 1; \
+		fi
+
+test-adversarial-soak: ## Run deep adversarial soak gate (full_coverage profile; intended for scheduled/manual CI)
+	@echo "$(CYAN)🧪 Running deep adversarial soak profile...$(NC)"
+	@$(MAKE) --no-print-directory test-adversarial-coverage
+
 test-adversarial-live: ## Continuously run adversarial simulation profile for live operator monitoring (requires running server)
 	@echo "$(CYAN)🧪 Running adversarial live simulation loop...$(NC)"
 	@PROFILE="$${ADVERSARIAL_PROFILE:-fast_smoke}"; \
@@ -439,7 +460,7 @@ test-adversarial-live: ## Continuously run adversarial simulation profile for li
 	esac; \
 	if ! python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile "$$PROFILE" --validate-only >/dev/null 2>&1; then \
 		echo "$(RED)❌ Unknown ADVERSARIAL_PROFILE='$$PROFILE'.$(NC)"; \
-		echo "$(YELLOW)   Supported profiles: fast_smoke, abuse_regression, akamai_smoke$(NC)"; \
+		echo "$(YELLOW)   Supported profiles: fast_smoke, abuse_regression, akamai_smoke, full_coverage$(NC)"; \
 		exit 1; \
 	fi; \
 	echo "$(YELLOW)   profile=$$PROFILE runs=$$RUNS pause_seconds=$$PAUSE preserve_state=$$PRESERVE rotate_ips=$$ROTATE_IPS report=$$REPORT_PATH$(NC)"; \
@@ -629,6 +650,8 @@ env-help: ## Show supported env-only runtime overrides
 	@echo "  SHUMA_KV_STORE_FAIL_OPEN"
 	@echo "  SHUMA_ENFORCE_HTTPS"
 	@echo "  SHUMA_DEBUG_HEADERS"
+	@echo "  SHUMA_RUNTIME_ENV"
+	@echo "  SHUMA_ADVERSARY_SIM_AVAILABLE"
 	@echo "  SHUMA_ENTERPRISE_MULTI_INSTANCE"
 	@echo "  SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED"
 	@echo "  SHUMA_RATE_LIMITER_REDIS_URL"

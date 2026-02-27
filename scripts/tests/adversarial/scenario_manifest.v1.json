@@ -96,6 +96,78 @@
           "max_monitoring_events_per_request": 3.0
         }
       }
+    },
+    "full_coverage": {
+      "description": "Expanded pre-release coverage profile across all currently implemented scenario families.",
+      "max_runtime_seconds": 180,
+      "scenario_ids": [
+        "sim_t0_allow_browser_allowlist",
+        "sim_t1_not_a_bot_pass",
+        "sim_t2_geo_challenge",
+        "sim_t3_geo_maze",
+        "sim_t4_honeypot_deny_temp",
+        "sim_t3_replay_abuse",
+        "sim_t3_stale_token_abuse",
+        "sim_t4_ordering_cadence_abuse",
+        "sim_t1_pow_success",
+        "sim_t3_pow_invalid_proof",
+        "sim_t3_rate_limit_enforce",
+        "sim_t3_geo_block",
+        "sim_t2_akamai_additive_monitor",
+        "sim_t4_akamai_authoritative_deny"
+      ],
+      "gates": {
+        "latency": {
+          "p95_max_ms": 2500
+        },
+        "outcome_ratio_bounds": {
+          "allow": {
+            "min": 0.05,
+            "max": 0.25
+          },
+          "monitor": {
+            "min": 0.05,
+            "max": 0.25
+          },
+          "not-a-bot": {
+            "min": 0.05,
+            "max": 0.25
+          },
+          "challenge": {
+            "min": 0.05,
+            "max": 0.25
+          },
+          "maze": {
+            "min": 0.20,
+            "max": 0.60
+          },
+          "deny_temp": {
+            "min": 0.10,
+            "max": 0.35
+          }
+        },
+        "telemetry_amplification": {
+          "max_fingerprint_events_per_request": 4.0,
+          "max_monitoring_events_per_request": 5.0
+        },
+        "coverage_requirements": {
+          "honeypot_hits": 1,
+          "not_a_bot_pass": 1,
+          "not_a_bot_fail": 1,
+          "not_a_bot_replay": 1,
+          "pow_attempts": 2,
+          "pow_successes": 1,
+          "pow_failures": 1,
+          "rate_violations": 1,
+          "geo_challenge": 1,
+          "geo_maze": 1,
+          "geo_block": 1,
+          "maze_hits": 1,
+          "fingerprint_events": 1,
+          "ban_count": 1,
+          "recent_event_count": 1
+        }
+      }
     }
   },
   "scenarios": [
@@ -211,6 +283,63 @@
       "runtime_budget_ms": 12000,
       "assertions": {
         "max_latency_ms": 2200
+      }
+    },
+    {
+      "id": "sim_t1_pow_success",
+      "description": "PoW challenge solve/verify succeeds and sets JS verification marker.",
+      "tier": "SIM-T1",
+      "driver": "pow_success",
+      "expected_outcome": "allow",
+      "ip": "10.2.0.50",
+      "user_agent": "ShumaAdversarial/1.0 pow-success",
+      "seed": 12050,
+      "runtime_budget_ms": 18000,
+      "assertions": {
+        "max_latency_ms": 4000
+      }
+    },
+    {
+      "id": "sim_t3_pow_invalid_proof",
+      "description": "PoW verify rejects an invalid nonce and records a proof failure.",
+      "tier": "SIM-T3",
+      "driver": "pow_invalid_proof",
+      "expected_outcome": "monitor",
+      "ip": "10.2.0.51",
+      "user_agent": "ShumaAdversarial/1.0 pow-invalid-proof",
+      "seed": 12051,
+      "runtime_budget_ms": 18000,
+      "assertions": {
+        "max_latency_ms": 4000
+      }
+    },
+    {
+      "id": "sim_t3_rate_limit_enforce",
+      "description": "Sustained request burst triggers rate-limiter enforcement and temporary deny behavior.",
+      "tier": "SIM-T3",
+      "driver": "rate_limit_enforce",
+      "expected_outcome": "deny_temp",
+      "ip": "10.2.0.52",
+      "user_agent": "ShumaAdversarial/1.0 rate-limit-enforce",
+      "seed": 12052,
+      "runtime_budget_ms": 12000,
+      "assertions": {
+        "max_latency_ms": 2600
+      }
+    },
+    {
+      "id": "sim_t3_geo_block",
+      "description": "Geo policy block list country returns block response with deny semantics.",
+      "tier": "SIM-T3",
+      "driver": "geo_block",
+      "expected_outcome": "deny_temp",
+      "ip": "10.2.0.53",
+      "user_agent": "ShumaAdversarial/1.0 geo-block",
+      "geo_country": "KP",
+      "seed": 12053,
+      "runtime_budget_ms": 7000,
+      "assertions": {
+        "max_latency_ms": 1200
       }
     },
     {

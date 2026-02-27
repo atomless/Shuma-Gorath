@@ -82,13 +82,15 @@ New targets:
   - executes explicit abuse profile
 - `make test-adversarial-akamai`
   - executes Akamai fixture profile
+- `make test-adversarial-fast`
+  - executes the mandatory fast matrix (`smoke + abuse + akamai`)
+- `make test-adversarial-soak`
+  - executes deep soak coverage (`full_coverage`) for scheduled/manual gates
 
 Umbrella integration:
 
-- `make test` now includes all three adversarial profiles as mandatory steps before dashboard e2e:
-  - `make test-adversarial-smoke`
-  - `make test-adversarial-abuse`
-  - `make test-adversarial-akamai`
+- `make test` includes `make test-adversarial-fast` as the mandatory adversarial gate before dashboard e2e.
+- `make test-adversarial-soak` is used by scheduled/manual CI for deep adversarial coverage.
 
 ## Quantitative Gate Contract (initial)
 
@@ -134,5 +136,5 @@ Threshold tuning applied from this baseline:
    - Mitigation: keep budgets explicit and tune from measured baselines.
 2. Abuse-path strictness: some branches are mode-dependent.
    - Mitigation: deterministic baseline config reset before every scenario.
-3. Coverage breadth: this is a first smoke slice, not full soak.
-   - Follow-up: add long-run profiles and CI schedule policy from `SIM-5`.
+3. Coverage breadth:
+   - Mitigation: deep soak profile (`full_coverage`) is available via `make test-adversarial-soak` and intended for scheduled/manual CI execution.

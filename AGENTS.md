@@ -36,6 +36,7 @@ This file provides instructions for coding agents working in this repository.
 5. Add/update tests for behavior changes.
 6. Update docs for behavior/config/ops changes.
 7. Run verification through `Makefile` targets only:
+   - for any newly created development branch/worktree, run `make setup` before `make dev`/`make test` so `.env.local`, local tooling, and seeded config are initialized for that workspace,
    - `make test` as the umbrella verification path (unit + integration + dashboard e2e),
    - `make test-unit`, `make test-integration`, and `make test-dashboard-e2e` for focused reruns,
    - `make build` for release build verification,
@@ -44,6 +45,7 @@ This file provides instructions for coding agents working in this repository.
    Direct ad-hoc tool invocations (for example `cargo test`, `cargo build`, `corepack pnpm run ...`, `playwright test`, `node e2e/...`, `spin up`) are not the canonical path for normal contributor/agent workflow.
    If a required workflow is missing from `Makefile`, add/update the target first, then run it via `make` (do not bypass and "fix later").
    Keep docs/PR notes/user guidance aligned to `make` commands so contributors follow one documented path.
+   Keep `make dev` watch inputs scoped to source-of-truth files and explicitly exclude generated dashboard artifacts (for example `dashboard/.svelte-kit/**` and `dashboard/.vite/**`) to avoid self-triggered restart loops while preserving live reload for `dashboard/src/**`, `dashboard/static/**`, and `dashboard/style.css` edits.
    For `make test`, integration and dashboard e2e tests are mandatory and must not be skipped: start Spin first with `make dev` (separate terminal/session), then run `make test`.
    Exception: if a change is documentation-only (`*.md` and no behavior/config/runtime code changes), do not run tests; document that verification was intentionally skipped because the slice is docs-only.
 8. Before reporting completion, confirm relevant CI status (or state explicitly that CI is pending/unverified).
