@@ -32,6 +32,19 @@ Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../
 - [x] SIM-V2-10 Frontier-model adversary configuration and protected-lane enablement (fast/low-cost defaults).
 - [x] SIM-V2-19 Frontier data-governance and outbound content minimization policy.
 
+### P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)
+
+#### SIM2-SF1: Black-Box Lane Capability Enforcement
+
+- [x] SIM2-SF1-1 Add machine-readable lane capability contract artifact (attacker/control allowed paths, headers, and authority surfaces).
+- [x] SIM2-SF1-2 Refactor deterministic runner request surface into explicit plane-typed clients so attacker and control capabilities are non-overlapping.
+- [x] SIM2-SF1-3 Remove forwarded-secret propagation from attacker-plane headers and hard-fail attacker contract when privileged headers are present.
+- [x] SIM2-SF1-4 Replace stale-token white-box re-signing path with black-box stale simulation flow that does not require signing secrets.
+- [x] SIM2-SF1-5 Align container black-box worker contract assertions with deterministic lane capability contract for parity.
+- [x] SIM2-SF1-6 Add focused tests for lane privilege isolation and stale-token black-box behavior.
+- [x] SIM2-SF1-7 Add/refresh Makefile verification target for lane contract checks and wire into mandatory adversarial fast path.
+- [x] SIM2-SF1-8 Update adversarial operator docs with explicit attacker/control capability boundary semantics.
+
 ### P0 Immediate Next-Agent Start (Highest Priority): Adversarial Simulation v2
 
 - [x] SIM-V2-11A Dashboard adversary-sim UI state class and styling contract.

@@ -83,6 +83,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             self.assertIn("X-Shuma-Sim-Run-Id", headers)
             self.assertEqual(headers.get("X-Shuma-Sim-Profile"), "test_profile")
             self.assertEqual(headers.get("X-Shuma-Sim-Lane"), "deterministic_black_box")
+            self.assertNotIn("X-Shuma-Forwarded-Secret", headers)
 
     def test_build_frontier_metadata_reports_disabled_single_and_multi_modes(self):
         with patch("scripts.tests.adversarial_simulation_runner.read_env_local_value", return_value=""):

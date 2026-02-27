@@ -142,6 +142,7 @@ Available profiles:
 - `make test-adversarial-sim-selftest` - minimal deterministic simulator mechanics harness (seed/order/budget/retry/gate math/teardown), intentionally non-circular
 - `make test-adversarial-soak` - deep soak alias for `full_coverage` (scheduled/manual gate)
 - `make test-adversarial-manifest` - schema/fixture validation without server
+- `make test-adversarial-lane-contract` - black-box attacker/control capability contract parity check across deterministic/container tooling
 - `make test-adversarial-live` - repeated live traffic generator for operator monitoring drills
 - `make test-adversarial-repeatability` - deterministic replay consistency gate across `fast_smoke`, `abuse_regression`, and `full_coverage`
 - `make test-adversarial-promote-candidates` - frontier finding normalization + deterministic replay triage + promotion lineage report
@@ -203,6 +204,8 @@ Live loop controls:
   - `X-Shuma-Sim-Run-Id`
   - `X-Shuma-Sim-Profile`
   - `X-Shuma-Sim-Lane`
+  The canonical lane contract is versioned in `scripts/tests/adversarial/lane_contract.v1.json`.
+  Attacker-plane requests must not include privileged headers (including `X-Shuma-Forwarded-Secret`).
   Runtime tagging is accepted only when `SHUMA_RUNTIME_ENV=runtime-dev` and `SHUMA_ADVERSARY_SIM_AVAILABLE=true`.
 - `latest_report.json` includes quantitative `gates` and separate `coverage_gates` sections with per-check `threshold_source`.
 - `latest_report.json` also includes `cohort_metrics` (persona-level collateral/latency summaries) and `ip_range_suggestions` seed evidence for `full_coverage`.

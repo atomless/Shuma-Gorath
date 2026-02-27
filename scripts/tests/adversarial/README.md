@@ -18,6 +18,8 @@
   - Makefile simulation targets execute `scenario_manifest.v2.json`; `v1` remains as a compatibility-validation contract.
 - `frontier_payload_schema.v1.json`
   - Versioned outbound allowlist contract for frontier payload redaction/minimization.
+- `lane_contract.v1.json`
+  - Canonical attacker/control capability boundary contract for black-box simulation lanes.
 - `../adversarial_container/`
   - Container worker assets for black-box isolation lane:
     - `Dockerfile`
@@ -57,7 +59,7 @@ The runner writes machine-readable artifacts to:
 
 Notes:
 
-- `abuse_regression` stale-token coverage is simulated with a signed expired Not-a-Bot seed so the test remains fast and deterministic.
+- `abuse_regression` stale-token coverage is simulated in black-box mode by issuing a real short-TTL seed and waiting for natural expiry (no runner-side token re-signing).
 - `abuse_regression` is fail-fast and now includes replay/stale/ordering plus retry-storm, fingerprint inconsistency, and forwarded-header spoof probes with invariant-oriented diagnostics.
 - `akamai_smoke` uses canned JSON fixtures posted to local `/fingerprint-report`; it does not require a live Akamai edge deployment.
 - Live-loop behavior can be tuned with environment variables:
@@ -77,6 +79,7 @@ Notes:
 - Plane separation contract:
   - attacker-plane requests are restricted to public paths and reject privileged headers (`Authorization`, health/admin/signing secret headers),
   - orchestrator-only setup/reset/config hooks remain on the control plane via admin-authenticated calls.
+  - attacker-plane contract is versioned in `lane_contract.v1.json` and verified by `make test-adversarial-lane-contract`.
 - Simulation telemetry tagging:
   - deterministic runner and container worker attach `X-Shuma-Sim-Run-Id`, `X-Shuma-Sim-Profile`, and `X-Shuma-Sim-Lane` on attacker-plane traffic,
   - backend event/monitoring read APIs can include tagged rows in dev via `include_sim=1`.

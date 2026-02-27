@@ -567,6 +567,28 @@ mod tests {
         assert!(is_cdp_event_reason("cdp_automation"));
         assert!(!is_cdp_event_reason("maze_crawler"));
     }
+
+    #[test]
+    fn parse_unban_identity_allows_unknown_bucket() {
+        assert_eq!(
+            parse_unban_identity("unknown"),
+            Some("unknown".to_string())
+        );
+        assert_eq!(
+            parse_unban_identity(" UnKnOwN "),
+            Some("unknown".to_string())
+        );
+        assert_eq!(
+            parse_unban_identity("198.51.100.7"),
+            Some("198.51.100.7".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_unban_identity_rejects_invalid_values() {
+        assert_eq!(parse_unban_identity(""), None);
+        assert_eq!(parse_unban_identity("not-an-ip"), None);
+    }
 }
 
 #[cfg(test)]
@@ -3539,6 +3561,14 @@ fn request_requires_admin_write(path: &str, method: &Method) -> bool {
             | "/admin/maze/seeds"
             | "/admin/maze/seeds/refresh"
     )
+}
+
+fn parse_unban_identity(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.eq_ignore_ascii_case("unknown") {
+        return Some("unknown".to_string());
+    }
+    crate::request_validation::parse_ip_addr(trimmed)
 }
 
 fn log_admin_write_denied<S: crate::challenge::KeyValueStore>(
@@ -8457,7 +8487,7 @@ pub fn handle_admin(req: &Request) -> Response {
                 Some(v) => v,
                 None => return Response::new(400, "Missing ip param"),
             };
-            let ip = match crate::request_validation::parse_ip_addr(&ip_raw) {
+            let ip = match parse_unban_identity(&ip_raw) {
                 Some(v) => v,
                 None => return Response::new(400, "Invalid IP address"),
             };

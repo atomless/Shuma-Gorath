@@ -58,24 +58,6 @@ Plan bundle:
 4. [`docs/plans/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity-plan.md`](../docs/plans/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity-plan.md)
 5. [`docs/plans/2026-02-27-sim2-orchestration-capability-architecture-plan.md`](../docs/plans/2026-02-27-sim2-orchestration-capability-architecture-plan.md)
 
-### SIM2-SF1: Black-Box Lane Capability Enforcement
-
-- [ ] SIM2-SF1-1 Add machine-readable lane capability contract artifact (attacker/control allowed paths, headers, and authority surfaces).
-- [ ] SIM2-SF1-2 Refactor deterministic runner request surface into explicit plane-typed clients so attacker and control capabilities are non-overlapping.
-- [ ] SIM2-SF1-3 Remove forwarded-secret propagation from attacker-plane headers and hard-fail attacker contract when privileged headers are present.
-- [ ] SIM2-SF1-4 Replace stale-token white-box re-signing path with black-box stale simulation flow that does not require signing secrets.
-- [ ] SIM2-SF1-5 Align container black-box worker contract assertions with deterministic lane capability contract for parity.
-- [ ] SIM2-SF1-6 Add focused tests for lane privilege isolation and stale-token black-box behavior.
-- [ ] SIM2-SF1-7 Add/refresh Makefile verification target for lane contract checks and wire into mandatory adversarial fast path.
-- [ ] SIM2-SF1-8 Update adversarial operator docs with explicit attacker/control capability boundary semantics.
-
-Acceptance criteria:
-1. Attacker lane executes without admin credentials/signing-secret dependencies.
-2. Any attacker request carrying privileged headers fails with deterministic diagnostics.
-3. Stale-token abuse scenario passes without using `SHUMA_CHALLENGE_SECRET`/`SHUMA_JS_SECRET`.
-4. Deterministic and containerized black-box lanes enforce the same privilege boundary.
-5. `make test-adversarial-fast` and `make test-adversarial-coverage` pass with lane contract checks enabled.
-
 ### SIM2-SF2: Coverage Contract Governance
 
 - [ ] SIM2-SF2-1 Create canonical coverage contract artifact (`coverage_contract.v1`) containing mandatory full-coverage categories and minimum thresholds.

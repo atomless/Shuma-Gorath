@@ -8,9 +8,7 @@ with bounded runtime and quantitative gate assertions.
 from __future__ import annotations
 
 import argparse
-import base64
 import hashlib
-import hmac
 import json
 import os
 import re
@@ -22,6 +20,60 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+
+LANE_CONTRACT_PATH = Path("scripts/tests/adversarial/lane_contract.v1.json")
+
+
+def load_lane_contract(path: Path = LANE_CONTRACT_PATH) -> Dict[str, Any]:
+    if not path.exists():
+        raise RuntimeError(f"lane contract not found: {path}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise RuntimeError(f"invalid lane contract JSON: {path}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"lane contract must be a JSON object: {path}")
+    schema_version = str(payload.get("schema_version") or "").strip()
+    if schema_version != "sim-lane-contract.v1":
+        raise RuntimeError(
+            f"lane contract schema_version must be sim-lane-contract.v1 (got {schema_version})"
+        )
+    execution_lane = str(payload.get("execution_lane") or "").strip()
+    if execution_lane != "black_box":
+        raise RuntimeError(f"lane contract execution_lane must be black_box (got {execution_lane})")
+    attacker = payload.get("attacker")
+    if not isinstance(attacker, dict):
+        raise RuntimeError("lane contract attacker section must be an object")
+    forbidden_headers = attacker.get("forbidden_headers")
+    if not isinstance(forbidden_headers, list) or not forbidden_headers:
+        raise RuntimeError("lane contract attacker.forbidden_headers must be a non-empty array")
+    forbidden_path_prefixes = attacker.get("forbidden_path_prefixes")
+    if not isinstance(forbidden_path_prefixes, list) or not forbidden_path_prefixes:
+        raise RuntimeError("lane contract attacker.forbidden_path_prefixes must be a non-empty array")
+    required_sim_headers = attacker.get("required_sim_headers")
+    if not isinstance(required_sim_headers, list) or not required_sim_headers:
+        raise RuntimeError("lane contract attacker.required_sim_headers must be a non-empty array")
+    return payload
+
+
+LANE_CONTRACT = load_lane_contract()
+ATTACKER_CONTRACT = dict(LANE_CONTRACT.get("attacker") or {})
+ATTACKER_FORBIDDEN_PATH_PREFIXES = tuple(
+    str(item).strip()
+    for item in ATTACKER_CONTRACT.get("forbidden_path_prefixes", [])
+    if str(item).strip()
+)
+ATTACKER_FORBIDDEN_HEADERS = {
+    str(item).strip().lower()
+    for item in ATTACKER_CONTRACT.get("forbidden_headers", [])
+    if str(item).strip()
+}
+ATTACKER_REQUIRED_SIM_HEADERS = {
+    str(item).strip().lower()
+    for item in ATTACKER_CONTRACT.get("required_sim_headers", [])
+    if str(item).strip()
+}
 
 
 ALLOWED_OUTCOMES = {"allow", "monitor", "not-a-bot", "challenge", "maze", "tarpit", "deny_temp"}
@@ -112,14 +164,6 @@ ALLOWED_COVERAGE_REQUIREMENTS = {
 }
 SUPPORTED_MANIFEST_SCHEMA_VERSIONS = {"sim-manifest.v1", "sim-manifest.v2"}
 ALLOWED_REQUEST_PLANES = {"attacker", "control"}
-ATTACKER_FORBIDDEN_PATH_PREFIXES = ("/admin/",)
-ATTACKER_FORBIDDEN_HEADERS = {
-    "authorization",
-    "x-shuma-health-secret",
-    "x-shuma-js-secret",
-    "x-shuma-challenge-secret",
-    "x-shuma-api-key",
-}
 ALLOWED_TRAFFIC_PERSONAS = {
     "human_like",
     "benign_automation",
@@ -252,6 +296,80 @@ class SimulationError(Exception):
     pass
 
 
+class AttackerPlaneClient:
+    def __init__(self, owner: "Runner"):
+        self.owner = owner
+
+    def headers(self, ip: str, user_agent: Optional[str] = None) -> Dict[str, str]:
+        headers = {"X-Forwarded-For": ip}
+        if user_agent:
+            headers["User-Agent"] = user_agent
+        headers["X-Shuma-Sim-Run-Id"] = self.owner.sim_run_id
+        headers["X-Shuma-Sim-Profile"] = self.owner.sim_profile
+        headers["X-Shuma-Sim-Lane"] = self.owner.sim_lane
+        return headers
+
+    def request(
+        self,
+        method: str,
+        path: str,
+        headers: Optional[Dict[str, str]] = None,
+        json_body: Optional[Dict[str, Any]] = None,
+        form_body: Optional[Dict[str, str]] = None,
+        count_request: bool = False,
+    ) -> HttpResult:
+        return self.owner.request(
+            method,
+            path,
+            headers=headers,
+            json_body=json_body,
+            form_body=form_body,
+            plane="attacker",
+            count_request=count_request,
+        )
+
+
+class ControlPlaneClient:
+    def __init__(self, owner: "Runner"):
+        self.owner = owner
+
+    def admin_headers(self) -> Dict[str, str]:
+        headers = {
+            "Authorization": f"Bearer {self.owner.api_key}",
+            "X-Forwarded-For": "127.0.0.1",
+        }
+        if self.owner.forwarded_secret:
+            headers["X-Shuma-Forwarded-Secret"] = self.owner.forwarded_secret
+        return headers
+
+    def health_headers(self) -> Dict[str, str]:
+        headers = {"X-Forwarded-For": "127.0.0.1"}
+        if self.owner.forwarded_secret:
+            headers["X-Shuma-Forwarded-Secret"] = self.owner.forwarded_secret
+        if self.owner.health_secret:
+            headers["X-Shuma-Health-Secret"] = self.owner.health_secret
+        return headers
+
+    def request(
+        self,
+        method: str,
+        path: str,
+        headers: Optional[Dict[str, str]] = None,
+        json_body: Optional[Dict[str, Any]] = None,
+    ) -> HttpResult:
+        merged_headers = self.admin_headers()
+        if headers:
+            merged_headers.update(headers)
+        return self.owner.request(
+            method,
+            path,
+            headers=merged_headers,
+            plane="control",
+            json_body=json_body,
+            count_request=False,
+        )
+
+
 class Runner:
     def __init__(
         self,
@@ -276,11 +394,12 @@ class Runner:
         self.forwarded_secret = env_or_local("SHUMA_FORWARDED_IP_SECRET")
         self.health_secret = env_or_local("SHUMA_HEALTH_SECRET")
         self.api_key = env_or_local("SHUMA_API_KEY")
-        self.challenge_secret = env_or_local("SHUMA_CHALLENGE_SECRET") or env_or_local("SHUMA_JS_SECRET")
         self.session_nonce = f"{int(time.time())}-{os.getpid()}"
         self.sim_run_id = f"deterministic-{self.session_nonce}"
         self.sim_profile = profile_name
         self.sim_lane = f"deterministic_{self.execution_lane}"
+        self.attacker_client = AttackerPlaneClient(self)
+        self.control_client = ControlPlaneClient(self)
         self.honeypot_path = "/instaban"
         self.preserve_state = truthy_env("SHUMA_ADVERSARIAL_PRESERVE_STATE")
         self.rotate_ips = truthy_env("SHUMA_ADVERSARIAL_ROTATE_IPS")
@@ -335,6 +454,9 @@ class Runner:
         if self.profile_name == "full_coverage":
             cleanup_candidate_ips.extend(self.ip_range_seed_ips)
             cleanup_candidate_ips = sorted(set(cleanup_candidate_ips))
+        if not self.preserve_state:
+            # Untrusted forwarded-header probes resolve to this shared identity bucket.
+            cleanup_candidate_ips = sorted(set(cleanup_candidate_ips + ["unknown"]))
         if not self.preserve_state:
             self.cleanup_ips(cleanup_candidate_ips)
 
@@ -413,8 +535,11 @@ class Runner:
                 "cohort_metrics": gate_results.get("cohort_metrics", {}),
                 "ip_range_suggestions": gate_results.get("ip_range_suggestions", {}),
                 "plane_contract": {
+                    "schema_version": str(LANE_CONTRACT.get("schema_version") or ""),
+                    "contract_path": str(LANE_CONTRACT_PATH),
                     "attacker_forbidden_path_prefixes": list(ATTACKER_FORBIDDEN_PATH_PREFIXES),
                     "attacker_forbidden_headers": sorted(ATTACKER_FORBIDDEN_HEADERS),
+                    "attacker_required_sim_headers": sorted(ATTACKER_REQUIRED_SIM_HEADERS),
                     "enforced": True,
                 },
                 "frontier": frontier_metadata,
@@ -468,7 +593,7 @@ class Runner:
                 result = self.request(
                     "GET",
                     "/health",
-                    headers=self.forwarded_headers("127.0.0.1", include_health_secret=True),
+                    headers=self.control_client.health_headers(),
                     plane="control",
                     count_request=False,
                 )
@@ -528,7 +653,7 @@ class Runner:
             self.admin_unban(ip)
 
     def monitoring_snapshot(self) -> Dict[str, Any]:
-        result = self.admin_request("GET", "/admin/monitoring?hours=24&limit=5")
+        result = self.admin_request("GET", "/admin/monitoring?hours=24&limit=5&include_sim=1")
         data = parse_json_or_raise(result.body, "Failed to parse /admin/monitoring response")
         return extract_monitoring_snapshot(data)
 
@@ -551,13 +676,13 @@ class Runner:
         )
         for ip in self.ip_range_seed_ips:
             self.admin_unban(ip)
-            self.request(
+            self.attacker_client.request(
                 "GET",
                 self.honeypot_path,
                 headers=self.forwarded_headers(ip, user_agent=f"ShumaAdversarial/1.0 ip-range-seed {ip}"),
                 count_request=True,
             )
-            self.request(
+            self.attacker_client.request(
                 "GET",
                 "/",
                 headers=self.forwarded_headers(ip, user_agent=f"ShumaAdversarial/1.0 ip-range-seed {ip}"),
@@ -801,6 +926,8 @@ class Runner:
         observed_outcome: Optional[str] = None
 
         try:
+            if not self.preserve_state:
+                self.admin_unban("unknown")
             self.reset_baseline_config()
 
             observed_outcome = self.execute_scenario_driver(scenario)
@@ -906,7 +1033,7 @@ class Runner:
                 "browser_allowlist": [["Chrome", 120]],
             }
         )
-        result = self.request(
+        result = self.attacker_client.request(
             "GET",
             "/",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
@@ -1004,7 +1131,7 @@ class Runner:
             self.scenario_ip(scenario), user_agent=self.scenario_user_agent(scenario)
         )
         for _ in range(20):
-            result = self.request("GET", "/", headers=headers, count_request=True)
+            result = self.attacker_client.request("GET", "/", headers=headers, count_request=True)
             if result.status in {403, 429} or "Rate Limit Exceeded" in result.body or "Access Blocked" in result.body:
                 return "deny_temp"
         raise SimulationError("Expected rate limiter enforcement, but requests were not blocked")
@@ -1024,7 +1151,7 @@ class Runner:
         headers = self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"])
         deny_seen = 0
         for _ in range(40):
-            result = self.request("GET", "/", headers=headers, count_request=True)
+            result = self.attacker_client.request("GET", "/", headers=headers, count_request=True)
             if result.status in {403, 429} or "Rate Limit Exceeded" in result.body or "Access Blocked" in result.body:
                 deny_seen += 1
                 if deny_seen >= 2:
@@ -1045,7 +1172,7 @@ class Runner:
         )
         headers = self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"])
         headers["X-Geo-Country"] = scenario["geo_country"]
-        result = self.request("GET", "/", headers=headers, count_request=True)
+        result = self.attacker_client.request("GET", "/", headers=headers, count_request=True)
         if result.status == 200 and ("Puzzle" in result.body or "I am not a bot" in result.body):
             return "challenge"
         raise SimulationError(f"Expected challenge body, got status={result.status}")
@@ -1066,7 +1193,7 @@ class Runner:
         )
         headers = self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"])
         headers["X-Geo-Country"] = scenario["geo_country"]
-        result = self.request("GET", "/", headers=headers, count_request=True)
+        result = self.attacker_client.request("GET", "/", headers=headers, count_request=True)
         if result.status == 200 and 'data-link-kind="maze"' in result.body:
             return "maze"
         raise SimulationError(f"Expected maze response, got status={result.status}")
@@ -1087,7 +1214,7 @@ class Runner:
             self.scenario_ip(scenario), user_agent=self.scenario_user_agent(scenario)
         )
         headers["X-Geo-Country"] = scenario["geo_country"]
-        result = self.request("GET", "/", headers=headers, count_request=True)
+        result = self.attacker_client.request("GET", "/", headers=headers, count_request=True)
         if result.status == 403 and ("Access Blocked" in result.body or "Access Restricted" in result.body):
             return "deny_temp"
         raise SimulationError(f"Expected geo block response, got status={result.status}")
@@ -1095,13 +1222,13 @@ class Runner:
     def driver_honeypot_deny_temp(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch({"test_mode": False, "honeypot_enabled": True})
 
-        self.request(
+        self.attacker_client.request(
             "GET",
             self.honeypot_path,
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
             count_request=True,
         )
-        result = self.request(
+        result = self.attacker_client.request(
             "GET",
             "/",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
@@ -1131,10 +1258,12 @@ class Runner:
         )
 
     def driver_not_a_bot_stale_token_abuse(self, scenario: Dict[str, Any]) -> str:
+        # Keep stale-token simulation black-box: mutate a real issued seed token
+        # instead of re-signing with server secrets.
         self.admin_patch({"test_mode": True, "maze_enabled": True, "not_a_bot_nonce_ttl_seconds": 300})
         seed, _ = self.fetch_not_a_bot_seed(scenario)
-        expired_seed = self.make_expired_seed(seed)
-        expired_submit = self.submit_not_a_bot(expired_seed, scenario, GOOD_NOT_A_BOT_TELEMETRY)
+        stale_like_seed = mutate_token(seed)
+        expired_submit = self.submit_not_a_bot(stale_like_seed, scenario, GOOD_NOT_A_BOT_TELEMETRY)
         if expired_submit.status == 200 and 'data-link-kind="maze"' in expired_submit.body:
             return "maze"
         raise SimulationError(
@@ -1203,7 +1332,7 @@ class Runner:
             }
         )
         payload = read_fixture_json(Path(scenario["payload_fixture"]))
-        result = self.request(
+        result = self.attacker_client.request(
             "POST",
             "/fingerprint-report",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
@@ -1230,12 +1359,14 @@ class Runner:
                 "browser_policy_enabled": False,
             }
         )
+        # Intentionally omit simulation metadata headers so this probe models
+        # generic untrusted geo-header spoofing traffic.
         headers = {
             "X-Forwarded-For": self.scenario_ip(scenario),
             "X-Geo-Country": str(scenario.get("geo_country") or "RU"),
             "User-Agent": str(scenario.get("user_agent") or "ShumaAdversarial/1.0"),
         }
-        result = self.request("GET", "/", headers=headers, count_request=True)
+        result = self.attacker_client.request("GET", "/", headers=headers, count_request=True)
         if result.status in {403, 429} or "Access Blocked" in result.body or "Access Restricted" in result.body:
             raise SimulationError("invariant_forwarded_header_spoofing_expected_untrusted_rejection_path")
         return "monitor"
@@ -1250,7 +1381,7 @@ class Runner:
                 "cdp_auto_ban": True,
             }
         )
-        report = self.request(
+        report = self.attacker_client.request(
             "POST",
             "/cdp-report",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
@@ -1259,7 +1390,7 @@ class Runner:
         )
         if report.status != 200:
             raise SimulationError(f"invariant_cdp_report_expected_200 got status={report.status}")
-        followup = self.request(
+        followup = self.attacker_client.request(
             "GET",
             "/",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
@@ -1286,7 +1417,7 @@ class Runner:
             }
         )
         payload = read_fixture_json(Path(scenario["payload_fixture"]))
-        report = self.request(
+        report = self.attacker_client.request(
             "POST",
             "/fingerprint-report",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
@@ -1298,7 +1429,7 @@ class Runner:
                 f"Expected additive fingerprint acknowledgement, got status={report.status} body={report.body[:120]}"
             )
 
-        followup = self.request(
+        followup = self.attacker_client.request(
             "GET",
             "/",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
@@ -1319,7 +1450,7 @@ class Runner:
             }
         )
         payload = read_fixture_json(Path(scenario["payload_fixture"]))
-        report = self.request(
+        report = self.attacker_client.request(
             "POST",
             "/fingerprint-report",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
@@ -1331,7 +1462,7 @@ class Runner:
                 f"Expected authoritative ban acknowledgement, got status={report.status} body={report.body[:120]}"
             )
 
-        followup = self.request(
+        followup = self.attacker_client.request(
             "GET",
             "/",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
@@ -1346,7 +1477,7 @@ class Runner:
         raise SimulationError(f"Expected blocked follow-up after authoritative signal, got {followup.status}")
 
     def fetch_not_a_bot_seed(self, scenario: Dict[str, Any]) -> Tuple[str, HttpResult]:
-        page = self.request(
+        page = self.attacker_client.request(
             "GET",
             "/challenge/not-a-bot-checkbox",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=self.not_a_bot_user_agent(scenario)),
@@ -1360,7 +1491,7 @@ class Runner:
         return match.group(1), page
 
     def fetch_challenge_puzzle_seed_and_output(self, scenario: Dict[str, Any]) -> Tuple[str, str]:
-        page = self.request(
+        page = self.attacker_client.request(
             "GET",
             "/challenge/puzzle",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=self.not_a_bot_user_agent(scenario)),
@@ -1380,7 +1511,7 @@ class Runner:
             "checked": "on",
             "telemetry": json.dumps(telemetry, separators=(",", ":")),
         }
-        return self.request(
+        return self.attacker_client.request(
             "POST",
             "/challenge/not-a-bot-checkbox",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=self.not_a_bot_user_agent(scenario)),
@@ -1390,7 +1521,7 @@ class Runner:
 
     def submit_challenge_puzzle(self, seed: str, output: str, scenario: Dict[str, Any]) -> HttpResult:
         form_body = {"seed": seed, "output": output}
-        return self.request(
+        return self.attacker_client.request(
             "POST",
             "/challenge/puzzle",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=self.not_a_bot_user_agent(scenario)),
@@ -1399,7 +1530,7 @@ class Runner:
         )
 
     def fetch_pow_seed(self, scenario: Dict[str, Any]) -> Tuple[str, int]:
-        challenge = self.request(
+        challenge = self.attacker_client.request(
             "GET",
             "/pow",
             headers=self.forwarded_headers(
@@ -1418,7 +1549,7 @@ class Runner:
 
     def submit_pow_verify(self, seed: str, nonce: str, scenario: Dict[str, Any]) -> HttpResult:
         payload = {"seed": seed, "nonce": nonce}
-        return self.request(
+        return self.attacker_client.request(
             "POST",
             "/pow/verify",
             headers=self.forwarded_headers(
@@ -1443,28 +1574,6 @@ class Runner:
     def pow_user_agent(self, scenario: Dict[str, Any]) -> str:
         # Isolate PoW cadence buckets per run to avoid stale local history triggering false TooRegular.
         return self.scenario_user_agent(scenario, isolate_cadence=True)
-
-    def make_expired_seed(self, seed_token: str) -> str:
-        if not self.challenge_secret:
-            raise SimulationError(
-                "Missing SHUMA_CHALLENGE_SECRET/SHUMA_JS_SECRET required for stale-token simulation"
-            )
-
-        payload = parse_seed_payload(seed_token)
-        now = int(time.time())
-        payload["issued_at"] = max(1, now - 120)
-        payload["expires_at"] = max(2, now - 30)
-        if payload["issued_at"] >= payload["expires_at"]:
-            payload["issued_at"] = max(1, payload["expires_at"] - 1)
-        payload_json = json.dumps(payload, separators=(",", ":"))
-        signature = hmac.new(
-            self.challenge_secret.encode("utf-8"),
-            payload_json.encode("utf-8"),
-            hashlib.sha256,
-        ).digest()
-        payload_b64 = base64.b64encode(payload_json.encode("utf-8")).decode("ascii")
-        sig_b64 = base64.b64encode(signature).decode("ascii")
-        return f"{payload_b64}.{sig_b64}"
 
     def admin_get_config(self) -> Dict[str, Any]:
         result = self.admin_request("GET", "/admin/config")
@@ -1496,43 +1605,17 @@ class Runner:
         path: str,
         json_body: Optional[Dict[str, Any]] = None,
     ) -> HttpResult:
-        return self.request(
-            method,
-            path,
-            headers=self.admin_headers(),
-            plane="control",
-            json_body=json_body,
-            count_request=False,
-        )
+        return self.control_client.request(method, path, json_body=json_body)
 
     def admin_headers(self) -> Dict[str, str]:
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "X-Forwarded-For": "127.0.0.1",
-        }
-        if self.forwarded_secret:
-            headers["X-Shuma-Forwarded-Secret"] = self.forwarded_secret
-        return headers
+        return self.control_client.admin_headers()
 
     def forwarded_headers(
         self,
         ip: str,
         user_agent: Optional[str] = None,
-        include_health_secret: bool = False,
     ) -> Dict[str, str]:
-        headers = {
-            "X-Forwarded-For": ip,
-        }
-        if user_agent:
-            headers["User-Agent"] = user_agent
-        if self.forwarded_secret:
-            headers["X-Shuma-Forwarded-Secret"] = self.forwarded_secret
-        if include_health_secret and self.health_secret:
-            headers["X-Shuma-Health-Secret"] = self.health_secret
-        headers["X-Shuma-Sim-Run-Id"] = self.sim_run_id
-        headers["X-Shuma-Sim-Profile"] = self.sim_profile
-        headers["X-Shuma-Sim-Lane"] = self.sim_lane
-        return headers
+        return self.attacker_client.headers(ip, user_agent=user_agent)
 
     def request(
         self,
@@ -1594,19 +1677,6 @@ def parse_json_or_raise(raw: str, error_message: str) -> Dict[str, Any]:
     return parsed
 
 
-def parse_seed_payload(seed_token: str) -> Dict[str, Any]:
-    payload_b64 = seed_token.split(".", 1)[0]
-    padded = payload_b64 + "=" * (-len(payload_b64) % 4)
-    try:
-        payload_json = base64.b64decode(padded.encode("ascii")).decode("utf-8")
-        parsed = json.loads(payload_json)
-    except Exception as exc:
-        raise SimulationError("Failed to decode not-a-bot seed payload") from exc
-    if not isinstance(parsed, dict):
-        raise SimulationError("Failed to decode not-a-bot seed payload")
-    return parsed
-
-
 def collapse_whitespace(raw: str) -> str:
     return re.sub(r"\s+", " ", raw).strip()
 
@@ -1643,6 +1713,7 @@ def enforce_attacker_request_contract(path: str, headers: Dict[str, str]) -> Non
             raise SimulationError(
                 f"attacker_plane_forbidden_header header={forbidden_header} path={normalized_path}"
             )
+
 
 
 def nested_dict_value(data: Dict[str, Any], path: Tuple[str, ...]) -> Any:
@@ -1924,6 +1995,14 @@ def scenario_map(manifest: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
 
 def lower_headers(headers: Dict[str, str]) -> Dict[str, str]:
     return {key.lower(): value for key, value in headers.items()}
+
+
+def mutate_token(token: str) -> str:
+    if not token:
+        return token
+    last = token[-1]
+    replacement = "A" if last != "A" else "B"
+    return token[:-1] + replacement
 
 
 def read_fixture_json(path: Path) -> Dict[str, Any]:

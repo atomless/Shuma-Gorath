@@ -1,0 +1,32 @@
+{
+  "schema_version": "sim-lane-contract.v1",
+  "execution_lane": "black_box",
+  "attacker": {
+    "forbidden_path_prefixes": [
+      "/admin/"
+    ],
+    "forbidden_headers": [
+      "authorization",
+      "x-shuma-api-key",
+      "x-shuma-challenge-secret",
+      "x-shuma-forwarded-secret",
+      "x-shuma-health-secret",
+      "x-shuma-js-secret"
+    ],
+    "required_sim_headers": [
+      "x-shuma-sim-lane",
+      "x-shuma-sim-profile",
+      "x-shuma-sim-run-id"
+    ]
+  },
+  "control": {
+    "admin_required_headers": [
+      "authorization",
+      "x-forwarded-for"
+    ],
+    "trusted_optional_headers": [
+      "x-shuma-forwarded-secret",
+      "x-shuma-health-secret"
+    ]
+  }
+}

@@ -9,6 +9,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 from typing import Any, Dict, List
 
 
@@ -29,6 +30,7 @@ DEFAULT_ENDPOINTS = (
     "/sim/public/contact",
     "/sim/public/search?q=adversarial+simulation",
 )
+LANE_CONTRACT_PATH = Path("scripts/tests/adversarial/lane_contract.v1.json")
 
 
 def bool_env(name: str, default: bool = False) -> bool:
@@ -56,6 +58,35 @@ def has_forbidden_env(observed_keys: List[str]) -> bool:
     return False
 
 
+def load_lane_contract(path: Path = LANE_CONTRACT_PATH) -> Dict[str, Any]:
+    if not path.exists():
+        raise RuntimeError(f"lane contract not found: {path}")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise RuntimeError("lane contract must be a JSON object")
+    return payload
+
+
+def lane_required_sim_headers(lane_contract: Dict[str, Any]) -> List[str]:
+    attacker = lane_contract.get("attacker")
+    if not isinstance(attacker, dict):
+        return []
+    headers = attacker.get("required_sim_headers")
+    if not isinstance(headers, list):
+        return []
+    return [str(item).strip().lower() for item in headers if str(item).strip()]
+
+
+def lane_forbidden_headers(lane_contract: Dict[str, Any]) -> List[str]:
+    attacker = lane_contract.get("attacker")
+    if not isinstance(attacker, dict):
+        return []
+    headers = attacker.get("forbidden_headers")
+    if not isinstance(headers, list):
+        return []
+    return [str(item).strip().lower() for item in headers if str(item).strip()]
+
+
 def workspace_mount_absent() -> bool:
     try:
         mounts = open("/proc/mounts", "r", encoding="utf-8", errors="replace").read().lower()
@@ -71,12 +102,13 @@ def enforce_allowlist(url: str, allowed_origins: List[str]) -> bool:
     return origin in allowed_origins
 
 
-def make_request(url: str, run_id: str, mode: str, timeout_seconds: float = 10.0) -> Dict[str, Any]:
+def make_request(
+    url: str, sim_headers: Dict[str, str], timeout_seconds: float = 10.0
+) -> Dict[str, Any]:
     request = urllib.request.Request(url, method="GET")
     request.add_header("User-Agent", "ShumaContainerBlackBox/1.0")
-    request.add_header("X-Shuma-Sim-Run-Id", run_id)
-    request.add_header("X-Shuma-Sim-Profile", mode)
-    request.add_header("X-Shuma-Sim-Lane", "container_blackbox")
+    for key, value in sim_headers.items():
+        request.add_header(key, value)
     start = time.monotonic()
     try:
         with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
@@ -115,6 +147,12 @@ def main() -> int:
     request_budget = parse_positive_int("BLACKBOX_REQUEST_BUDGET", 24)
     time_budget_seconds = parse_positive_int("BLACKBOX_TIME_BUDGET_SECONDS", 120)
     start = time.monotonic()
+    lane_contract_error = ""
+    lane_contract: Dict[str, Any] = {}
+    try:
+        lane_contract = load_lane_contract()
+    except Exception as exc:
+        lane_contract_error = str(exc)
 
     observed_env_keys = sorted(list(os.environ.keys()))
     forbidden_env_present = has_forbidden_env(observed_env_keys)
@@ -129,6 +167,8 @@ def main() -> int:
         "schema_version": "adversarial-container-worker.v1",
         "mode": mode,
         "run_id": run_id,
+        "lane_contract_schema_version": str(lane_contract.get("schema_version") or ""),
+        "lane_contract_error": lane_contract_error,
         "runtime_hardening_non_root": non_root,
         "workspace_mount_absent": no_workspace_mount,
         "admin_credentials_absent": admin_credentials_absent,
@@ -149,6 +189,7 @@ def main() -> int:
         and tooling_limited
         and egress_allowlist_enforced
         and ephemeral_run_identity
+        and not lane_contract_error
     )
 
     if mode == "isolation":
@@ -172,8 +213,25 @@ def main() -> int:
 
     statuses: List[int] = []
     errors: List[str] = []
+    sim_headers = {
+        "X-Shuma-Sim-Run-Id": run_id,
+        "X-Shuma-Sim-Profile": mode,
+        "X-Shuma-Sim-Lane": "container_blackbox",
+    }
+    sim_header_names = {key.strip().lower() for key in sim_headers.keys()}
+    required_sim_headers = set(lane_required_sim_headers(lane_contract))
+    missing_sim_headers = sorted([header for header in required_sim_headers if header not in sim_header_names])
+    if missing_sim_headers:
+        errors.append("missing_sim_headers:" + ",".join(missing_sim_headers))
+    forbidden_sim_headers = set(lane_forbidden_headers(lane_contract))
+    forbidden_present = sorted([header for header in sim_header_names if header in forbidden_sim_headers])
+    if forbidden_present:
+        errors.append("forbidden_sim_headers:" + ",".join(forbidden_present))
+
     requests_sent = 0
     for endpoint in DEFAULT_ENDPOINTS:
+        if errors:
+            break
         if requests_sent >= request_budget:
             break
         if (time.monotonic() - start) >= time_budget_seconds:
@@ -183,7 +241,7 @@ def main() -> int:
         if not enforce_allowlist(url, allowed_origins):
             errors.append(f"egress_disallowed:{url}")
             break
-        result = make_request(url, run_id, mode)
+        result = make_request(url, sim_headers)
         payload["traffic"].append(result)
         requests_sent += 1
         statuses.append(int(result.get("status", 0)))

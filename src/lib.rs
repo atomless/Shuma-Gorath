@@ -37,6 +37,12 @@ mod tarpit; // tarpit progressive endpoint/runtime
 /// Returns true if forwarded IP headers should be trusted for this request.
 /// If SHUMA_FORWARDED_IP_SECRET is set, require a matching X-Shuma-Forwarded-Secret header.
 fn forwarded_ip_trusted(req: &Request) -> bool {
+    if config::runtime_environment().is_dev()
+        && config::adversary_sim_available()
+        && runtime::sim_telemetry::is_simulation_context_active()
+    {
+        return true;
+    }
     match env::var("SHUMA_FORWARDED_IP_SECRET") {
         Ok(secret) if !secret.trim().is_empty() => req
             .header("x-shuma-forwarded-secret")
@@ -905,6 +911,12 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         return Response::new(500, "Server configuration error");
     }
     let path = req.path();
+    let sim_metadata = runtime::sim_telemetry::metadata_from_request(
+        req,
+        config::runtime_environment(),
+        config::adversary_sim_available(),
+    );
+    let _sim_context_guard = runtime::sim_telemetry::enter(sim_metadata);
 
     if crate::config::https_enforced() && !request_is_https(req) {
         return Response::new(403, "HTTPS required");
@@ -935,12 +947,6 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         Ok(cfg) => cfg,
         Err(resp) => return resp,
     };
-    let sim_metadata = runtime::sim_telemetry::metadata_from_request(
-        req,
-        config::runtime_environment(),
-        config::adversary_sim_available(),
-    );
-    let _sim_context_guard = runtime::sim_telemetry::enter(sim_metadata);
     let provider_registry = providers::registry::ProviderRegistry::from_config(&cfg);
     observability::metrics::record_provider_backend_visibility(store, &provider_registry);
     observability::metrics::record_policy_signal(

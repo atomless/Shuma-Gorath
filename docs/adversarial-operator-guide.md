@@ -23,6 +23,7 @@ All runs also emit `scripts/tests/adversarial/attack_plan.json` with frontier mo
 Promotion triage emits `scripts/tests/adversarial/promotion_candidates_report.json` with candidate -> replay -> promotion lineage records.
 Frontier threshold policy emits `scripts/tests/adversarial/frontier_unavailability_policy.json`.
 All manifests and reports are locked to `execution_lane=black_box`; non-black-box lane values are rejected at validation time.
+Lane capability boundaries are versioned in `scripts/tests/adversarial/lane_contract.v1.json` and validated by `make test-adversarial-lane-contract`.
 `make test-adversarial-live` now classifies failures as `transient` or `fatal`, retries transient cycles with capped backoff, and only terminates after `ADVERSARIAL_FATAL_CYCLE_LIMIT` consecutive fatal cycles.
 Container lane emits:
 1. `scripts/tests/adversarial/container_isolation_report.json`
