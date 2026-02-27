@@ -21,6 +21,20 @@ For the canonical explanation of these two configuration classes, see:
 
 If <abbr title="Key-Value">KV</abbr> config is missing/invalid at runtime, config-dependent request handling fails with `500 Configuration unavailable`.
 
+## 🐙 Release Gate Contract
+
+Release cut/deploy lanes must enforce the same adversarial policy as protected CI lanes:
+
+1. Blocking deterministic oracle:
+   - `make test-adversarial-coverage`
+   - `make test-adversarial-promote-candidates` (blocks only when deterministic replay confirms regression candidates)
+2. Advisory frontier telemetry:
+   - `make test-adversarial-frontier-attempt`
+3. Frontier unavailability threshold policy:
+   - `make test-frontier-unavailability-policy` (with `FRONTIER_POLICY_ENABLE_GITHUB=1` in CI) updates degraded streak tracking and opens/assigns refresh action when threshold is crossed.
+
+Stochastic single-run frontier anomalies must not block release directly; only deterministic confirmed regressions are release blockers.
+
 ## 🐙 Setup Path Selection
 
 Pick one setup flow and stick to it for that machine:

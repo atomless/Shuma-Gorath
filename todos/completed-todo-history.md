@@ -10,6 +10,8 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
 
 - [x] SIM-V2-7 Strict attacker/control-plane separation.
+- [x] SIM-V2-12 CI policy tiers and scheduling.
+- [x] SIM-V2-17 Release-gate enforcement wiring for coverage + frontier-redteam + deterministic oracle policy.
 - [x] SIM-V2-11 Containerized black-box adversary worker (bounded scope, strict isolation).
 - [x] SIM-V2-16 Deterministic repeatability gate for adversarial profiles.
 - [x] SIM-V2-18 Frontier finding triage and deterministic promotion pipeline.

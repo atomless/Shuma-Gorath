@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import scripts.tests.check_frontier_payload_artifacts as frontier_governance
 import scripts.tests.frontier_lane_attempt as frontier_lane
+import scripts.tests.frontier_unavailability_policy as frontier_policy
 
 
 class FrontierLaneAttemptUnitTests(unittest.TestCase):
@@ -138,6 +139,87 @@ class FrontierGovernanceUnitTests(unittest.TestCase):
             frontier_secret_values=["sk-frontier-secret"],
         )
         self.assertTrue(any("literal frontier secret value" in error for error in errors))
+
+
+class FrontierUnavailabilityPolicyUnitTests(unittest.TestCase):
+    def test_update_tracker_state_accumulates_and_resets_consecutive_runs(self):
+        first = frontier_policy.update_tracker_state(
+            previous={},
+            lane_status="degraded_provider_unavailable",
+            now_unix=100,
+        )
+        self.assertEqual(first["consecutive_degraded_runs"], 1)
+        self.assertEqual(first["first_degraded_at_unix"], 100)
+
+        second = frontier_policy.update_tracker_state(
+            previous=first,
+            lane_status="degraded_provider_unavailable",
+            now_unix=200,
+        )
+        self.assertEqual(second["consecutive_degraded_runs"], 2)
+        self.assertEqual(second["first_degraded_at_unix"], 100)
+
+        healthy = frontier_policy.update_tracker_state(
+            previous=second,
+            lane_status="ok",
+            now_unix=300,
+        )
+        self.assertEqual(healthy["consecutive_degraded_runs"], 0)
+        self.assertEqual(healthy["first_degraded_at_unix"], 0)
+
+    def test_threshold_reached_by_count_or_elapsed_days(self):
+        by_count = {
+            "consecutive_degraded_runs": 10,
+            "first_degraded_at_unix": 1_000,
+        }
+        self.assertTrue(
+            frontier_policy.threshold_reached(
+                by_count,
+                max_consecutive_runs=10,
+                max_degraded_days=7,
+                now_unix=1_001,
+            )
+        )
+
+        by_days = {
+            "consecutive_degraded_runs": 1,
+            "first_degraded_at_unix": 1_000,
+        }
+        self.assertTrue(
+            frontier_policy.threshold_reached(
+                by_days,
+                max_consecutive_runs=10,
+                max_degraded_days=7,
+                now_unix=1_000 + (7 * 86_400),
+            )
+        )
+
+        healthy = {
+            "consecutive_degraded_runs": 0,
+            "first_degraded_at_unix": 0,
+        }
+        self.assertFalse(
+            frontier_policy.threshold_reached(
+                healthy,
+                max_consecutive_runs=10,
+                max_degraded_days=7,
+                now_unix=1_000 + (30 * 86_400),
+            )
+        )
+
+    def test_tracker_state_round_trip_body_parser(self):
+        state = {
+            "consecutive_degraded_runs": 4,
+            "first_degraded_at_unix": 1234,
+            "last_observed_status": "degraded_partial_provider_failure",
+            "last_checked_unix": 5678,
+        }
+        body = frontier_policy.render_tracker_body(state)
+        parsed = frontier_policy.parse_tracker_state_from_body(body)
+        self.assertEqual(parsed["consecutive_degraded_runs"], 4)
+        self.assertEqual(parsed["first_degraded_at_unix"], 1234)
+        self.assertEqual(parsed["last_observed_status"], "degraded_partial_provider_failure")
+        self.assertEqual(parsed["last_checked_unix"], 5678)
 
 
 if __name__ == "__main__":

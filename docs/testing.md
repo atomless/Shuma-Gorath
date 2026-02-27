@@ -24,6 +24,7 @@ make test-adversarial-container-isolation # Validate black-box container isolati
 make test-adversarial-container-blackbox # Run containerized black-box adversary worker (Docker required)
 make test-adversarial-frontier-attempt # Protected-lane frontier provider attempt probe (advisory/non-blocking)
 make test-frontier-governance # Frontier artifact guard (forbidden keys + secret leak checks)
+make test-frontier-unavailability-policy # Frontier degraded-threshold policy tracker + actionability artifact
 make test-ip-range-suggestions # Focused IP-range suggestion regression gate (runtime + dashboard)
 make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)
@@ -148,6 +149,7 @@ Available profiles:
 - `make test-adversarial-container-blackbox` - containerized black-box worker run (separate complementary lane)
 - `make test-adversarial-frontier-attempt` - protected-lane frontier provider probe attempt (advisory, non-blocking)
 - `make test-frontier-governance` - fail-fast guard for forbidden frontier artifact fields and secret leaks
+- `make test-frontier-unavailability-policy` - degraded-threshold policy evaluation and refresh-action artifact
 
 Dev/test simulation realism pages are available at `/sim/public/landing`, `/sim/public/docs`, `/sim/public/pricing`, `/sim/public/contact`, and `/sim/public/search?q=...` only when all three gates are true: `SHUMA_RUNTIME_ENV=runtime-dev`, `SHUMA_ADVERSARY_SIM_AVAILABLE=true`, and KV `adversary_sim_enabled=true`.
 Dashboard body-class contract for dev-only affordances:
@@ -196,6 +198,7 @@ Live loop controls:
 - Live loop enforces event-quality checks; admin-only noise is treated as a fatal cycle and logs a clear reason.
 - Runner also emits `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
 - Promotion lane emits `scripts/tests/adversarial/promotion_candidates_report.json` with candidate -> replay -> promotion lineage and owner-review requirements.
+- Frontier threshold lane emits `scripts/tests/adversarial/frontier_unavailability_policy.json` and can auto-open/assign model-refresh action when protected-lane degradation thresholds are exceeded.
 - `latest_report.json` includes quantitative `gates` and separate `coverage_gates` sections with per-check `threshold_source`.
 - `latest_report.json` also includes `cohort_metrics` (persona-level collateral/latency summaries) and `ip_range_suggestions` seed evidence for `full_coverage`.
 - `latest_report.json` includes `plane_contract` guardrail metadata confirming attacker/control-plane separation checks are enforced.
@@ -219,11 +222,12 @@ CI policy is tiered:
 - Push to `main`: `ci.yml` runs `make test` (includes mandatory fast adversarial matrix).
 - PR to `main`: `ci.yml` additionally runs `make test-adversarial-coverage`, `make test-adversarial-frontier-attempt`, and `make test-adversarial-promote-candidates`.
 - Release gate (`release-gate.yml`): blocks on `make test-adversarial-coverage` and deterministic confirmed-regression triage (`make test-adversarial-promote-candidates`), records `make test-adversarial-frontier-attempt` as advisory status.
-- Scheduled/manual deep soak: `adversarial-soak.yml` runs `make test-adversarial-soak`.
+- Scheduled/manual deep soak: `adversarial-soak.yml` runs `make test-adversarial-soak`, `make test-adversarial-container-isolation`, and `make test-adversarial-container-blackbox`.
 Frontier lane policy:
 - Local setup is optional (`make setup` can skip provider key entry).
 - Protected-lane frontier attempt is mandatory to run (attempt status is always emitted), but degraded frontier status is advisory and does not override deterministic blocking gates.
 - Deterministic replay/coverage remains the release-blocking oracle; stochastic one-off frontier anomalies do not block until deterministic replay confirms them.
+- Degraded-threshold tracker (`make test-frontier-unavailability-policy`) opens/updates a refresh action when protected lanes remain degraded for 10 consecutive runs or 7 days.
 `test-adversarial-akamai` is fixture-driven (local `/fingerprint-report` with canned payloads) and does not require a live Akamai edge instance.
 Operator interpretation and tuning workflow is documented in `docs/adversarial-operator-guide.md`.
 

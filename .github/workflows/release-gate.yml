@@ -6,6 +6,10 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   release-gate:
     runs-on: ubuntu-latest
@@ -93,6 +97,16 @@ jobs:
       - name: Attempt protected-lane frontier provider probes (advisory)
         run: make test-adversarial-frontier-attempt
 
+      - name: Run deterministic frontier finding promotion triage
+        run: make test-adversarial-promote-candidates
+
+      - name: Evaluate frontier unavailability threshold policy
+        env:
+          FRONTIER_MODEL_REFRESH_OWNER: ${{ vars.SHUMA_FRONTIER_MODEL_REFRESH_OWNER }}
+          GITHUB_TOKEN: ${{ github.token }}
+          FRONTIER_POLICY_ENABLE_GITHUB: "1"
+        run: make test-frontier-unavailability-policy
+
       - name: Publish deterministic/frontier release-gate summary
         run: |
           {
@@ -100,6 +114,7 @@ jobs:
             echo ""
             echo "- Deterministic oracle gate: \`make test-adversarial-coverage\` (blocking)"
             echo "- Frontier protected-lane probe: \`make test-adversarial-frontier-attempt\` (advisory)"
+            echo "- Deterministic promotion triage: \`make test-adversarial-promote-candidates\` (blocking only on reproducible confirmed regressions)"
             echo "- Policy: stochastic frontier findings are discovery input; deterministic replay remains the release blocker."
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -112,6 +127,8 @@ jobs:
             scripts/tests/adversarial/latest_report.json
             scripts/tests/adversarial/attack_plan.json
             scripts/tests/adversarial/frontier_lane_status.json
+            scripts/tests/adversarial/promotion_candidates_report.json
+            scripts/tests/adversarial/frontier_unavailability_policy.json
 
       - name: Upload Spin logs (on failure)
         if: failure()

@@ -31,7 +31,7 @@ Status: Approved direction, implementation in progress. Start here before other 
 2. `SIM-V2-10`, `SIM-V2-19`: frontier config UX + key hygiene + outbound data governance.
 3. `SIM-V2-11`: containerized black-box runner + isolation conformance target.
 4. `SIM-V2-5`, `SIM-V2-16`: deterministic coverage seeding + repeatability pipeline.
-5. `SIM-V2-12`, `SIM-V2-17`, `SIM-V2-20`: CI/release policy wiring + tagging + store separation.
+5. `SIM-V2-15`, `SIM-V2-20`: coexistence contract + tagging + store separation.
 
 ### Critical files likely touched (for rapid orientation)
 1. `Makefile` (dev defaults, new make targets, CI/release invocation wiring)
@@ -71,22 +71,6 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
 Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
 
-- [ ] SIM-V2-12 CI policy tiers and scheduling.
-  - Acceptance criteria:
-    - On push: run `test-adversarial-smoke`, `test-adversarial-abuse`, and `test-adversarial-akamai`.
-    - On PR to `main`: run `test-adversarial-coverage` and attempt frontier adversary lane.
-    - Release gate: `test-adversarial-coverage` must pass before cut/deploy; frontier lane attempts must be recorded and surfaced.
-    - Scheduled/manual only: `test-adversarial-soak` and heavier containerized adversary runs.
-    - Mandatory adversarial CI gates remain black-box only; no white-box lane is allowed in release-confidence checks.
-    - Raw stochastic frontier findings do not directly become release blockers until reproducibly confirmed via deterministic replay/promotion workflow.
-    - Frontier lane provider outage is advisory (non-blocking) but must produce explicit degraded status and operator-visible warning on PR/release.
-    - Persistent frontier unavailability policy is explicit: if frontier lane remains degraded for 10 consecutive protected-lane runs or 7 days (whichever occurs first), automatically create/assign supported-model refresh action and update supported model list/documentation.
-  - Definition of done:
-    - CI workflow documents mandatory vs scheduled tiers explicitly.
-    - CI workflow documents deterministic-oracle policy explicitly: frontier is the adaptive discovery engine, deterministic replay is the blocking regression oracle.
-    - Failures route to actionable logs (no silent skip modes for mandatory adversarial checks).
-    - CI docs define who owns model-list refresh and what threshold triggers it.
-
 - [ ] SIM-V2-15 Deterministic harness and containerized adversary coexistence contract.
   - Acceptance criteria:
     - Existing deterministic adversarial runner (`scripts/tests/adversarial_simulation_runner.py`) and current Make targets (`test-adversarial-smoke`, `test-adversarial-abuse`, `test-adversarial-akamai`, `test-adversarial-coverage`) remain canonical mandatory gates until explicit parity sign-off is approved.
@@ -103,17 +87,6 @@ Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../
     - Docs include a clear "keep both vs replace" decision record with current policy set to coexistence.
     - CI workflow and Make help text reflect deterministic mandatory gates plus separate containerized/scheduled runs.
     - ADR/checklist template exists for future parity sign-off and requires explicit owner approval before any deterministic-lane demotion.
-
-- [ ] SIM-V2-17 Release-gate enforcement wiring for coverage + frontier-redteam + deterministic oracle policy.
-  - Acceptance criteria:
-    - Release cut/deploy workflow has explicit hard dependency on successful `test-adversarial-coverage`; frontier-lane attempt status is required telemetry with degraded advisory when unavailable.
-    - Release gate policy blocks only on reproducible confirmed failures (deterministic replay/promotion), not unconfirmed single-run stochastic frontier anomalies.
-    - Failure of coverage or reproducible confirmed deterministic gate blocks release action with actionable status output.
-    - Branch protection/check policy documents this dependency unambiguously.
-  - Definition of done:
-    - CI/release workflow files and deployment docs both state and enforce the same release-gate contract.
-    - Dry-run validation proves release is blocked when coverage gate fails.
-    - Dry-run validation proves release is blocked when deterministic replay confirms a frontier-discovered high-severity regression.
 
 - [ ] SIM-V2-20 Simulation event tagging and environment data-plane separation.
   - Acceptance criteria:

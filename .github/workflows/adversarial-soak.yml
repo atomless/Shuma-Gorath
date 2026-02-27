@@ -81,12 +81,21 @@ jobs:
       - name: Run adversarial soak gate
         run: make test-adversarial-soak
 
+      - name: Run container isolation conformance gate
+        run: make test-adversarial-container-isolation
+
+      - name: Run containerized black-box adversary lane
+        run: make test-adversarial-container-blackbox
+
       - name: Upload adversarial soak report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: adversarial-soak-report
-          path: scripts/tests/adversarial/latest_report.json
+          path: |
+            scripts/tests/adversarial/latest_report.json
+            scripts/tests/adversarial/container_isolation_report.json
+            scripts/tests/adversarial/container_blackbox_report.json
 
       - name: Upload Spin logs (on failure)
         if: failure()
