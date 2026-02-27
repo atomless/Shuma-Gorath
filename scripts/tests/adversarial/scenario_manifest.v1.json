@@ -49,11 +49,14 @@
     },
     "abuse_regression": {
       "description": "Focused replay/stale-token/ordering-cadence abuse paths as first-class regressions.",
-      "max_runtime_seconds": 80,
+      "max_runtime_seconds": 120,
       "scenario_ids": [
         "sim_t3_replay_abuse",
         "sim_t3_stale_token_abuse",
-        "sim_t4_ordering_cadence_abuse"
+        "sim_t4_ordering_cadence_abuse",
+        "sim_t3_fingerprint_inconsistency_abuse",
+        "sim_t3_header_spoofing_abuse",
+        "sim_t4_retry_storm_abuse"
       ],
       "gates": {
         "latency": {
@@ -61,15 +64,24 @@
         },
         "outcome_ratio_bounds": {
           "maze": {
-            "min": 0.80,
-            "max": 1.00
+            "min": 0.3,
+            "max": 0.7
+          },
+          "monitor": {
+            "min": 0.15,
+            "max": 0.45
+          },
+          "deny_temp": {
+            "min": 0.1,
+            "max": 0.4
           }
         },
         "telemetry_amplification": {
           "max_fingerprint_events_per_request": 2.5,
           "max_monitoring_events_per_request": 4.0
         }
-      }
+      },
+      "fail_fast": true
     },
     "akamai_smoke": {
       "description": "Akamai signal-ingestion smoke matrix using canned edge payload fixtures.",
@@ -84,12 +96,12 @@
         },
         "outcome_ratio_bounds": {
           "monitor": {
-            "min": 0.40,
-            "max": 0.60
+            "min": 0.4,
+            "max": 0.6
           },
           "deny_temp": {
-            "min": 0.40,
-            "max": 0.60
+            "min": 0.4,
+            "max": 0.6
           }
         },
         "telemetry_amplification": {
@@ -100,7 +112,7 @@
     },
     "full_coverage": {
       "description": "Expanded pre-release coverage profile across all currently implemented scenario families.",
-      "max_runtime_seconds": 180,
+      "max_runtime_seconds": 240,
       "scenario_ids": [
         "sim_t0_allow_browser_allowlist",
         "sim_t1_not_a_bot_pass",
@@ -115,7 +127,10 @@
         "sim_t3_rate_limit_enforce",
         "sim_t3_geo_block",
         "sim_t2_akamai_additive_monitor",
-        "sim_t4_akamai_authoritative_deny"
+        "sim_t4_akamai_authoritative_deny",
+        "sim_t2_challenge_puzzle_failure",
+        "sim_t4_tarpit_replay_abuse",
+        "sim_t4_cdp_detection_deny"
       ],
       "gates": {
         "latency": {
@@ -123,28 +138,32 @@
         },
         "outcome_ratio_bounds": {
           "allow": {
-            "min": 0.05,
-            "max": 0.25
+            "min": 0.04,
+            "max": 0.22
           },
           "monitor": {
-            "min": 0.05,
-            "max": 0.25
+            "min": 0.04,
+            "max": 0.22
           },
           "not-a-bot": {
-            "min": 0.05,
-            "max": 0.25
+            "min": 0.04,
+            "max": 0.22
           },
           "challenge": {
-            "min": 0.05,
-            "max": 0.25
+            "min": 0.04,
+            "max": 0.22
           },
           "maze": {
-            "min": 0.20,
-            "max": 0.60
+            "min": 0.15,
+            "max": 0.55
+          },
+          "tarpit": {
+            "min": 0.02,
+            "max": 0.2
           },
           "deny_temp": {
-            "min": 0.10,
-            "max": 0.35
+            "min": 0.1,
+            "max": 0.4
           }
         },
         "telemetry_amplification": {
@@ -153,6 +172,7 @@
         },
         "coverage_requirements": {
           "honeypot_hits": 1,
+          "challenge_failures": 1,
           "not_a_bot_pass": 1,
           "not_a_bot_fail": 1,
           "not_a_bot_replay": 1,
@@ -164,10 +184,16 @@
           "geo_maze": 1,
           "geo_block": 1,
           "maze_hits": 1,
+          "cdp_detections": 1,
           "fingerprint_events": 1,
-          "ban_count": 1,
-          "recent_event_count": 1
-        }
+          "ban_count": 1
+        },
+        "human_like_collateral_max_ratio": 0.2,
+        "required_event_reasons": [
+          "cdp_detected",
+          "honeypot"
+        ],
+        "ip_range_suggestion_seed_required": true
       }
     }
   },
@@ -371,6 +397,92 @@
       "runtime_budget_ms": 9000,
       "assertions": {
         "max_latency_ms": 1800
+      }
+    },
+    {
+      "id": "sim_t2_challenge_puzzle_failure",
+      "description": "Puzzle challenge incorrect output must route to maze fallback and challenge failure telemetry.",
+      "tier": "SIM-T2",
+      "driver": "challenge_puzzle_fail_maze",
+      "expected_outcome": "maze",
+      "ip": "10.2.0.54",
+      "user_agent": "ShumaAdversarial/1.0 challenge-puzzle-failure",
+      "seed": 12054,
+      "runtime_budget_ms": 12000,
+      "assertions": {
+        "max_latency_ms": 2500
+      }
+    },
+    {
+      "id": "sim_t4_tarpit_replay_abuse",
+      "description": "Replay abuse with test mode disabled must route into tarpit progressive bootstrap.",
+      "tier": "SIM-T4",
+      "driver": "not_a_bot_replay_tarpit_abuse",
+      "expected_outcome": "tarpit",
+      "ip": "10.2.0.55",
+      "user_agent": "ShumaAdversarial/1.0 tarpit-replay-abuse",
+      "seed": 12055,
+      "runtime_budget_ms": 16000,
+      "assertions": {
+        "max_latency_ms": 3500
+      }
+    },
+    {
+      "id": "sim_t4_cdp_detection_deny",
+      "description": "High-confidence CDP detection report must trigger ban-path deny on follow-up request.",
+      "tier": "SIM-T4",
+      "driver": "cdp_high_confidence_deny",
+      "expected_outcome": "deny_temp",
+      "ip": "10.2.0.56",
+      "user_agent": "ShumaAdversarial/1.0 cdp-high-confidence-deny",
+      "seed": 12056,
+      "runtime_budget_ms": 9000,
+      "assertions": {
+        "max_latency_ms": 2200
+      }
+    },
+    {
+      "id": "sim_t3_fingerprint_inconsistency_abuse",
+      "description": "Invalid external fingerprint payload (out-of-range score) is rejected as inconsistency abuse.",
+      "tier": "SIM-T3",
+      "driver": "fingerprint_inconsistent_payload",
+      "expected_outcome": "monitor",
+      "ip": "10.2.0.57",
+      "user_agent": "ShumaAdversarial/1.0 fingerprint-inconsistency",
+      "payload_fixture": "scripts/tests/fixtures/akamai/fingerprint_invalid_score_signal.json",
+      "seed": 12057,
+      "runtime_budget_ms": 9000,
+      "assertions": {
+        "max_latency_ms": 2200
+      }
+    },
+    {
+      "id": "sim_t3_header_spoofing_abuse",
+      "description": "Untrusted forwarded/header spoofing attempts must not trigger privileged geo-block behavior.",
+      "tier": "SIM-T3",
+      "driver": "header_spoofing_probe",
+      "expected_outcome": "monitor",
+      "ip": "10.2.0.58",
+      "user_agent": "ShumaAdversarial/1.0 header-spoofing",
+      "geo_country": "RU",
+      "seed": 12058,
+      "runtime_budget_ms": 9000,
+      "assertions": {
+        "max_latency_ms": 1800
+      }
+    },
+    {
+      "id": "sim_t4_retry_storm_abuse",
+      "description": "Burst retry storm traffic must deterministically trigger rate deny-path enforcement.",
+      "tier": "SIM-T4",
+      "driver": "retry_storm_enforce",
+      "expected_outcome": "deny_temp",
+      "ip": "10.2.0.59",
+      "user_agent": "ShumaAdversarial/1.0 retry-storm",
+      "seed": 12059,
+      "runtime_budget_ms": 14000,
+      "assertions": {
+        "max_latency_ms": 2600
       }
     }
   ]

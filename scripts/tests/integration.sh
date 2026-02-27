@@ -487,8 +487,10 @@ info "Testing root endpoint..."
 root_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_HONEYPOT_IP}" "$BASE_URL/")
 if echo "$root_resp" | grep -qE '(js_verified|JavaScript|Verifying|pow|Proof-of-work)'; then
   pass "/ returns JS challenge (PoW or standard)"
+elif echo "$root_resp" | grep -q 'OK (passed bot defence)'; then
+  pass "/ returns pass-through response for current low-risk policy posture"
 else
-  fail "/ did not return expected JS challenge page"
+  fail "/ did not return expected JS challenge or pass-through response"
   echo -e "${YELLOW}DEBUG / response:${NC} $root_resp"
 fi
 

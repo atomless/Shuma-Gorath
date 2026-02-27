@@ -205,6 +205,23 @@
                 "type": "integer",
                 "minimum": 0
               }
+            },
+            "human_like_collateral_max_ratio": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "required_event_reasons": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "ip_range_suggestion_seed_required": {
+              "type": "boolean"
             }
           }
         }
@@ -268,9 +285,11 @@
             "enum": [
               "allow_browser_allowlist",
               "not_a_bot_pass",
+              "challenge_puzzle_fail_maze",
               "pow_success",
               "pow_invalid_proof",
               "rate_limit_enforce",
+              "retry_storm_enforce",
               "geo_challenge",
               "geo_maze",
               "geo_block",
@@ -278,9 +297,13 @@
               "not_a_bot_replay_abuse",
               "not_a_bot_stale_token_abuse",
               "not_a_bot_ordering_cadence_abuse",
+              "not_a_bot_replay_tarpit_abuse",
+              "fingerprint_inconsistent_payload",
+              "header_spoofing_probe",
+              "cdp_high_confidence_deny",
               "akamai_additive_report",
-            "akamai_authoritative_deny"
-          ]
+              "akamai_authoritative_deny"
+            ]
         },
         "driver_class": {
           "type": "string",
@@ -299,6 +322,7 @@
             "not-a-bot",
             "challenge",
             "maze",
+            "tarpit",
             "deny_temp"
           ]
         },

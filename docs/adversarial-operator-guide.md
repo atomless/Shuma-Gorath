@@ -74,6 +74,8 @@ Operators must triage in this order:
 2. Gate failures in `gates.checks` where `passed=false`.
 3. Coverage gate failures in `coverage_gates.checks` where `passed=false`.
 4. Coverage deltas in `coverage_gates.coverage.deltas` (for `full_coverage`/soak).
+5. Persona collateral and cost envelopes in `cohort_metrics`.
+6. Seeded IP-range evidence in `ip_range_suggestions`.
 
 Operators must not tune thresholds before confirming whether failures are scenario mismatches versus gate regressions.
 
@@ -88,17 +90,34 @@ When `passed=false`, use `driver`, `expected_outcome`, `observed_outcome`, and `
 | `allow_browser_allowlist` | `allow` | browser allowlist and policy mode | Correct allowlist entries; avoid broad wildcarding |
 | `not_a_bot_pass` | `not-a-bot` | Not-a-Bot token flow and pass scoring | Adjust pass/fail scores in small increments |
 | `not_a_bot_replay_abuse` / `not_a_bot_stale_token_abuse` / `not_a_bot_ordering_cadence_abuse` | `maze` | replay/order/timing protections | Keep abuse escalation strict; fix sequence checks if downgraded |
+| `not_a_bot_replay_tarpit_abuse` | `tarpit` | replay abuse escalation through tarpit entry path | Keep tarpit enabled + budgeted; investigate fallback/escalation if downgraded to block |
+| `challenge_puzzle_fail_maze` | `maze` | puzzle failure routing and sequence envelope checks | Preserve incorrect-answer fallback semantics and sequence validation |
 | `pow_success` | `allow` | `/pow` issue + `/pow/verify` success | Validate PoW difficulty/TTL and sequence timing envelope |
 | `pow_invalid_proof` | `monitor` | PoW invalid proof rejection path | Ensure invalid proof remains rejected; do not downgrade to allow |
-| `rate_limit_enforce` | `deny_temp` | limiter thresholds and enforcement mode | Verify `rate_limit`, provider mode, and outage posture |
+| `rate_limit_enforce` / `retry_storm_enforce` | `deny_temp` | limiter thresholds and enforcement mode under burst traffic | Verify `rate_limit`, provider mode, retry-storm posture, and outage posture |
 | `geo_challenge` / `geo_maze` / `geo_block` | `challenge` / `maze` / `deny_temp` | GEO lists and trusted header gating | Confirm country list routing and trusted header behavior |
+| `header_spoofing_probe` | `monitor` | untrusted forwarded/header spoof rejection semantics | Ensure spoofed headers do not trigger privileged GEO enforcement |
 | `honeypot_deny_temp` | `deny_temp` | honeypot path and ban enforcement | Verify honeypot remains active and banning works |
+| `fingerprint_inconsistent_payload` | `monitor` | malformed external fingerprint ingestion handling | Keep invalid payload rejection deterministic (`400`) without bypassing telemetry |
+| `cdp_high_confidence_deny` | `deny_temp` | CDP ingest + auto-ban deny path | Confirm follow-up request is denied and event taxonomy is present |
 | `akamai_additive_report` | `monitor` | additive edge signal ingest | Keep additive mode non-authoritative |
 | `akamai_authoritative_deny` | `deny_temp` | authoritative edge deny path | Verify deny only in authoritative mode |
 
 ## Gate Failure Interpretation
 
 `gates.checks` includes quantitative assertions.
+
+Common SIM-v2 checks and expected operator response:
+
+- `human_like_collateral_ratio`
+  - Investigate `cohort_metrics.human_like.collateral_ratio` first.
+  - Tune challenge/maze/tarpit escalation thresholds before editing ratio bounds.
+- `event_reason_prefix_*`
+  - Confirm required event taxonomy is still emitted and prefixed consistently.
+  - Fix route/reason wiring before relaxing required prefixes.
+- `ip_range_suggestion_seed_match`
+  - Inspect `ip_range_suggestions.seed_evidence`, `matched_seed_suggestions`, and `near_miss_suggestions`.
+  - Do not suppress this gate; fix seeding prerequisites or suggestion aggregation drift.
 
 ## Dashboard Toggle Orchestration (SIM-V2-9A)
 

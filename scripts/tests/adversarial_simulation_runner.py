@@ -24,14 +24,16 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 
-ALLOWED_OUTCOMES = {"allow", "monitor", "not-a-bot", "challenge", "maze", "deny_temp"}
+ALLOWED_OUTCOMES = {"allow", "monitor", "not-a-bot", "challenge", "maze", "tarpit", "deny_temp"}
 ALLOWED_TIERS = {"SIM-T0", "SIM-T1", "SIM-T2", "SIM-T3", "SIM-T4"}
 ALLOWED_DRIVERS = {
     "allow_browser_allowlist",
     "not_a_bot_pass",
+    "challenge_puzzle_fail_maze",
     "pow_success",
     "pow_invalid_proof",
     "rate_limit_enforce",
+    "retry_storm_enforce",
     "geo_challenge",
     "geo_maze",
     "geo_block",
@@ -39,6 +41,10 @@ ALLOWED_DRIVERS = {
     "not_a_bot_replay_abuse",
     "not_a_bot_stale_token_abuse",
     "not_a_bot_ordering_cadence_abuse",
+    "not_a_bot_replay_tarpit_abuse",
+    "fingerprint_inconsistent_payload",
+    "header_spoofing_probe",
+    "cdp_high_confidence_deny",
     "akamai_additive_report",
     "akamai_authoritative_deny",
 }
@@ -46,16 +52,22 @@ DRIVER_CLASS_HANDLERS = {
     "browser_realistic": {
         "allow_browser_allowlist": "driver_allow_browser_allowlist",
         "not_a_bot_pass": "driver_not_a_bot_pass",
+        "challenge_puzzle_fail_maze": "driver_challenge_puzzle_fail_maze",
         "geo_challenge": "driver_geo_challenge",
         "geo_maze": "driver_geo_maze",
         "geo_block": "driver_geo_block",
         "honeypot_deny_temp": "driver_honeypot_deny_temp",
+        "header_spoofing_probe": "driver_header_spoofing_probe",
     },
     "http_scraper": {
         "rate_limit_enforce": "driver_rate_limit_enforce",
+        "retry_storm_enforce": "driver_retry_storm_enforce",
         "not_a_bot_replay_abuse": "driver_not_a_bot_replay_abuse",
         "not_a_bot_stale_token_abuse": "driver_not_a_bot_stale_token_abuse",
         "not_a_bot_ordering_cadence_abuse": "driver_not_a_bot_ordering_cadence_abuse",
+        "not_a_bot_replay_tarpit_abuse": "driver_not_a_bot_replay_tarpit_abuse",
+        "fingerprint_inconsistent_payload": "driver_fingerprint_inconsistent_payload",
+        "cdp_high_confidence_deny": "driver_cdp_high_confidence_deny",
     },
     "edge_fixture": {
         "akamai_additive_report": "driver_akamai_additive_report",
@@ -260,6 +272,8 @@ class Runner:
         self.honeypot_path = "/instaban"
         self.preserve_state = truthy_env("SHUMA_ADVERSARIAL_PRESERVE_STATE")
         self.rotate_ips = truthy_env("SHUMA_ADVERSARIAL_ROTATE_IPS")
+        self.ip_range_seed_prefix = "10.222.77."
+        self.ip_range_seed_ips = [f"{self.ip_range_seed_prefix}{octet}" for octet in range(10, 60)]
 
         if not self.api_key:
             raise SimulationError(
@@ -304,17 +318,19 @@ class Runner:
         self.honeypot_path = self.resolve_honeypot_path()
 
         cleanup_candidate_ips = sorted(
-            [
-                self.scenario_ip(scenario)
-                for scenario in self.selected_scenarios
-                if scenario.get("expected_outcome") == "deny_temp"
-            ]
+            [self.scenario_ip(scenario) for scenario in self.selected_scenarios if self.scenario_ip(scenario)]
         )
+        if self.profile_name == "full_coverage":
+            cleanup_candidate_ips.extend(self.ip_range_seed_ips)
+            cleanup_candidate_ips = sorted(set(cleanup_candidate_ips))
         if not self.preserve_state:
             self.cleanup_ips(cleanup_candidate_ips)
 
         try:
             frontier_metadata = build_frontier_metadata()
+            ip_range_seed_evidence: Dict[str, Any] = {}
+            if self.profile_name == "full_coverage":
+                ip_range_seed_evidence = self.seed_ip_range_suggestion_prerequisites()
             monitoring_before = self.monitoring_snapshot()
             suite_start = time.monotonic()
             results: List[ScenarioResult] = []
@@ -342,10 +358,22 @@ class Runner:
 
                 result = self.run_scenario(scenario)
                 results.append(result)
+                if bool(self.profile.get("fail_fast")) and not result.passed:
+                    break
 
             monitoring_after = self.monitoring_snapshot()
+            ip_range_post_run = {}
+            if self.profile_name == "full_coverage":
+                ip_range_post_run = self.ip_range_suggestions_snapshot(hours=24, limit=20)
             suite_runtime_ms = int((time.monotonic() - suite_start) * 1000)
-            gate_results = self.evaluate_gates(results, monitoring_before, monitoring_after, suite_runtime_ms)
+            gate_results = self.evaluate_gates(
+                results,
+                monitoring_before,
+                monitoring_after,
+                suite_runtime_ms,
+                ip_range_seed_evidence=ip_range_seed_evidence,
+                ip_range_post_run=ip_range_post_run,
+            )
             generated_at_unix = int(time.time())
             attack_plan_path = self.report_path.with_name("attack_plan.json")
             attack_plan = build_attack_plan(
@@ -370,6 +398,8 @@ class Runner:
                 "results": [result.__dict__ for result in results],
                 "gates": gate_results,
                 "coverage_gates": gate_results.get("coverage_gates", {}),
+                "cohort_metrics": gate_results.get("cohort_metrics", {}),
+                "ip_range_suggestions": gate_results.get("ip_range_suggestions", {}),
                 "frontier": frontier_metadata,
                 "attack_plan_path": str(attack_plan_path),
                 "passed": all(result.passed for result in results) and gate_results["all_passed"],
@@ -449,6 +479,7 @@ class Runner:
                 "maze_auto_ban": False,
                 "not_a_bot_enabled": True,
                 "challenge_puzzle_enabled": True,
+                "rate_limit": 100,
                 "not_a_bot_nonce_ttl_seconds": 300,
                 "not_a_bot_pass_score": 6,
                 "not_a_bot_fail_score": 3,
@@ -483,12 +514,59 @@ class Runner:
         data = parse_json_or_raise(result.body, "Failed to parse /admin/monitoring response")
         return extract_monitoring_snapshot(data)
 
+    def ip_range_suggestions_snapshot(self, hours: int = 24, limit: int = 20) -> Dict[str, Any]:
+        result = self.admin_request("GET", f"/admin/ip-range/suggestions?hours={hours}&limit={limit}")
+        if result.status != 200:
+            detail = collapse_whitespace(result.body)[:160]
+            raise SimulationError(
+                f"Failed to read /admin/ip-range/suggestions: status={result.status} body={detail}"
+            )
+        return parse_json_or_raise(result.body, "Failed to parse /admin/ip-range/suggestions response")
+
+    def seed_ip_range_suggestion_prerequisites(self) -> Dict[str, Any]:
+        self.admin_patch(
+            {
+                "ip_range_policy_mode": "off",
+                "ip_range_emergency_allowlist": [],
+                "ip_range_custom_rules": [],
+            }
+        )
+        for ip in self.ip_range_seed_ips:
+            self.admin_unban(ip)
+            self.request(
+                "GET",
+                self.honeypot_path,
+                headers=self.forwarded_headers(ip, user_agent=f"ShumaAdversarial/1.0 ip-range-seed {ip}"),
+                count_request=True,
+            )
+            self.request(
+                "GET",
+                "/",
+                headers=self.forwarded_headers(ip, user_agent=f"ShumaAdversarial/1.0 ip-range-seed {ip}"),
+                count_request=True,
+            )
+        seeded_snapshot = self.ip_range_suggestions_snapshot(hours=1, limit=20)
+        seeded_suggestions = [
+            suggestion
+            for suggestion in seeded_snapshot.get("suggestions", [])
+            if str(dict_or_empty(suggestion).get("cidr") or "").startswith("10.222.77.")
+        ]
+        return {
+            "seed_prefix": "10.222.77.0/24",
+            "seeded_ips": list(self.ip_range_seed_ips),
+            "seeded_summary": dict_or_empty(seeded_snapshot.get("summary")),
+            "seeded_suggestions": seeded_suggestions,
+            "seed_match": bool(seeded_suggestions),
+        }
+
     def evaluate_gates(
         self,
         results: List[ScenarioResult],
         monitoring_before: Dict[str, Any],
         monitoring_after: Dict[str, Any],
         suite_runtime_ms: int,
+        ip_range_seed_evidence: Optional[Dict[str, Any]] = None,
+        ip_range_post_run: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         checks: List[Dict[str, Any]] = []
 
@@ -529,6 +607,29 @@ class Runner:
                     "min": minimum,
                     "max": maximum,
                     "threshold_source": f"profile.gates.outcome_ratio_bounds.{outcome}",
+                }
+            )
+
+        cohort_metrics = compute_cohort_metrics(self.selected_scenarios, results)
+        human_like_collateral_limit = (self.profile.get("gates") or {}).get(
+            "human_like_collateral_max_ratio"
+        )
+        if human_like_collateral_limit is not None:
+            limit = float(human_like_collateral_limit)
+            human_like = dict_or_empty(cohort_metrics.get("human_like"))
+            observed_ratio = float(human_like.get("collateral_ratio") or 0.0)
+            checks.append(
+                {
+                    "name": "human_like_collateral_ratio",
+                    "passed": observed_ratio <= limit,
+                    "detail": (
+                        f"ratio={observed_ratio:.3f} limit={limit:.3f} "
+                        f"collateral={int_or_zero(human_like.get('collateral_count'))} "
+                        f"total={int_or_zero(human_like.get('total'))}"
+                    ),
+                    "observed": observed_ratio,
+                    "limit": limit,
+                    "threshold_source": "profile.gates.human_like_collateral_max_ratio",
                 }
             )
 
@@ -588,6 +689,68 @@ class Runner:
             )
             checks.extend(coverage_checks)
 
+        required_event_reasons = (self.profile.get("gates") or {}).get("required_event_reasons")
+        if isinstance(required_event_reasons, list) and required_event_reasons:
+            observed_reasons = [
+                str(reason).strip().lower() for reason in monitoring_after.get("recent_event_reasons", [])
+            ]
+            for required in required_event_reasons:
+                required_prefix = str(required or "").strip().lower()
+                if not required_prefix:
+                    continue
+                matched = [reason for reason in observed_reasons if reason.startswith(required_prefix)]
+                checks.append(
+                    {
+                        "name": f"event_reason_prefix_{required_prefix}",
+                        "passed": bool(matched),
+                        "detail": (
+                            f"required_prefix={required_prefix} "
+                            f"matched={matched[0] if matched else 'none'}"
+                        ),
+                        "observed": matched[0] if matched else "",
+                        "threshold_source": f"profile.gates.required_event_reasons[{required_prefix}]",
+                    }
+                )
+
+        suggestion_seed_required = bool(
+            (self.profile.get("gates") or {}).get("ip_range_suggestion_seed_required")
+        )
+        ip_range_suggestions = {
+            "seed_evidence": dict_or_empty(ip_range_seed_evidence),
+            "post_run": dict_or_empty(ip_range_post_run),
+            "matched_seed_suggestions": [],
+            "near_miss_suggestions": [],
+        }
+        post_run_suggestions = list_or_empty(dict_or_empty(ip_range_post_run).get("suggestions"))
+        seed_prefix = str(dict_or_empty(ip_range_seed_evidence).get("seed_prefix") or "").split("/", 1)[0]
+        if seed_prefix:
+            ip_range_suggestions["matched_seed_suggestions"] = [
+                suggestion
+                for suggestion in post_run_suggestions
+                if str(dict_or_empty(suggestion).get("cidr") or "").startswith(seed_prefix)
+            ]
+            ip_range_suggestions["near_miss_suggestions"] = [
+                suggestion
+                for suggestion in post_run_suggestions
+                if seed_prefix in ",".join(list_or_empty(dict_or_empty(suggestion).get("safer_alternatives")))
+            ]
+        if suggestion_seed_required:
+            seed_match = bool(dict_or_empty(ip_range_seed_evidence).get("seed_match"))
+            if not seed_match and ip_range_suggestions["matched_seed_suggestions"]:
+                seed_match = True
+            checks.append(
+                {
+                    "name": "ip_range_suggestion_seed_match",
+                    "passed": seed_match,
+                    "detail": (
+                        f"seed_prefix={dict_or_empty(ip_range_seed_evidence).get('seed_prefix')} "
+                        f"matches={len(ip_range_suggestions['matched_seed_suggestions'])}"
+                    ),
+                    "observed": len(ip_range_suggestions["matched_seed_suggestions"]),
+                    "threshold_source": "profile.gates.ip_range_suggestion_seed_required",
+                }
+            )
+
         all_passed = all(check["passed"] for check in checks)
         coverage_all_passed = all(check["passed"] for check in coverage_checks) if coverage_checks else True
         return {
@@ -610,6 +773,8 @@ class Runner:
                     "deltas": coverage_deltas,
                 },
             },
+            "cohort_metrics": cohort_metrics,
+            "ip_range_suggestions": ip_range_suggestions,
         }
 
     def run_scenario(self, scenario: Dict[str, Any]) -> ScenarioResult:
@@ -757,6 +922,23 @@ class Runner:
             return "not-a-bot"
         raise SimulationError(f"Expected 303 + marker cookie, got status={submit.status}")
 
+    def driver_challenge_puzzle_fail_maze(self, scenario: Dict[str, Any]) -> str:
+        self.admin_patch({"test_mode": True, "maze_enabled": True, "challenge_puzzle_enabled": True})
+        seed, output = self.fetch_challenge_puzzle_seed_and_output(scenario)
+        if not output:
+            raise SimulationError("invariant_challenge_output_missing")
+        wrong_output = ("1" if output[0] != "1" else "0") + output[1:]
+        # Sequence timing guardrail avoids fast-path sequence rejections.
+        time.sleep(2)
+        incorrect = self.submit_challenge_puzzle(seed, wrong_output, scenario)
+        if incorrect.status == 200 and 'data-link-kind="maze"' in incorrect.body:
+            return "maze"
+        detail = collapse_whitespace(incorrect.body)[:160]
+        raise SimulationError(
+            "invariant_challenge_failure_to_maze expected maze fallback "
+            f"status={incorrect.status} body={detail}"
+        )
+
     def driver_pow_success(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch({"test_mode": False, "pow_enabled": True, "pow_difficulty": 12, "pow_ttl_seconds": 120})
         seed, difficulty = self.fetch_pow_seed(scenario)
@@ -800,12 +982,36 @@ class Runner:
                 "browser_policy_enabled": False,
             }
         )
-        headers = self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"])
+        headers = self.forwarded_headers(
+            self.scenario_ip(scenario), user_agent=self.scenario_user_agent(scenario)
+        )
         for _ in range(20):
             result = self.request("GET", "/", headers=headers, count_request=True)
             if result.status in {403, 429} or "Rate Limit Exceeded" in result.body or "Access Blocked" in result.body:
                 return "deny_temp"
         raise SimulationError("Expected rate limiter enforcement, but requests were not blocked")
+
+    def driver_retry_storm_enforce(self, scenario: Dict[str, Any]) -> str:
+        self.admin_patch(
+            {
+                "test_mode": False,
+                "rate_limit": 2,
+                "js_required_enforced": False,
+                "defence_modes": {"rate": "both"},
+                "provider_backends": {"rate_limiter": "internal"},
+                "edge_integration_mode": "off",
+                "browser_policy_enabled": False,
+            }
+        )
+        headers = self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"])
+        deny_seen = 0
+        for _ in range(40):
+            result = self.request("GET", "/", headers=headers, count_request=True)
+            if result.status in {403, 429} or "Rate Limit Exceeded" in result.body or "Access Blocked" in result.body:
+                deny_seen += 1
+                if deny_seen >= 2:
+                    return "deny_temp"
+        raise SimulationError("invariant_retry_storm_expected_rate_enforcement missing deny response")
 
     def driver_geo_challenge(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch(
@@ -859,7 +1065,9 @@ class Runner:
                 "geo_block": [scenario["geo_country"]],
             }
         )
-        headers = self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"])
+        headers = self.forwarded_headers(
+            self.scenario_ip(scenario), user_agent=self.scenario_user_agent(scenario)
+        )
         headers["X-Geo-Country"] = scenario["geo_country"]
         result = self.request("GET", "/", headers=headers, count_request=True)
         if result.status == 403 and ("Access Blocked" in result.body or "Access Restricted" in result.body):
@@ -894,12 +1102,15 @@ class Runner:
         if first_submit.status != 303:
             detail = collapse_whitespace(first_submit.body)[:160]
             raise SimulationError(
-                f"Unable to prime not-a-bot replay scenario: first submit status={first_submit.status} body={detail}"
+                "invariant_not_a_bot_prime_failed "
+                f"status={first_submit.status} body={detail}"
             )
         replay_submit = self.submit_not_a_bot(seed, scenario, GOOD_NOT_A_BOT_TELEMETRY)
         if replay_submit.status == 200 and 'data-link-kind="maze"' in replay_submit.body:
             return "maze"
-        raise SimulationError(f"Expected maze replay response, got status={replay_submit.status}")
+        raise SimulationError(
+            f"invariant_nonce_replay_expected_maze got status={replay_submit.status}"
+        )
 
     def driver_not_a_bot_stale_token_abuse(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch({"test_mode": True, "maze_enabled": True, "not_a_bot_nonce_ttl_seconds": 300})
@@ -908,7 +1119,9 @@ class Runner:
         expired_submit = self.submit_not_a_bot(expired_seed, scenario, GOOD_NOT_A_BOT_TELEMETRY)
         if expired_submit.status == 200 and 'data-link-kind="maze"' in expired_submit.body:
             return "maze"
-        raise SimulationError(f"Expected stale-token maze response, got status={expired_submit.status}")
+        raise SimulationError(
+            f"invariant_stale_token_expected_maze got status={expired_submit.status}"
+        )
 
     def driver_not_a_bot_ordering_cadence_abuse(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch({"test_mode": True, "maze_enabled": True})
@@ -916,7 +1129,133 @@ class Runner:
         abuse_submit = self.submit_not_a_bot(seed, scenario, BAD_ORDERING_NOT_A_BOT_TELEMETRY)
         if abuse_submit.status == 200 and 'data-link-kind="maze"' in abuse_submit.body:
             return "maze"
-        raise SimulationError(f"Expected ordering/cadence maze response, got status={abuse_submit.status}")
+        raise SimulationError(
+            f"invariant_ordering_cadence_expected_maze got status={abuse_submit.status}"
+        )
+
+    def driver_not_a_bot_replay_tarpit_abuse(self, scenario: Dict[str, Any]) -> str:
+        self.admin_patch(
+            {
+                "test_mode": True,
+                "maze_enabled": True,
+                "tarpit_enabled": True,
+                "tarpit_progress_token_ttl_seconds": 120,
+                "tarpit_progress_replay_ttl_seconds": 300,
+                "tarpit_hashcash_min_difficulty": 8,
+                "tarpit_hashcash_max_difficulty": 16,
+                "tarpit_hashcash_base_difficulty": 10,
+                "tarpit_hashcash_adaptive": True,
+                "tarpit_step_chunk_base_bytes": 4096,
+                "tarpit_step_chunk_max_bytes": 12288,
+                "tarpit_step_jitter_percent": 15,
+                "tarpit_shard_rotation_enabled": True,
+                "tarpit_egress_window_seconds": 60,
+                "tarpit_egress_global_bytes_per_window": 8388608,
+                "tarpit_egress_per_ip_bucket_bytes_per_window": 1048576,
+                "tarpit_egress_per_flow_max_bytes": 524288,
+                "tarpit_egress_per_flow_max_duration_seconds": 120,
+                "tarpit_max_concurrent_global": 10000,
+                "tarpit_max_concurrent_per_ip_bucket": 256,
+                "tarpit_fallback_action": "maze",
+            }
+        )
+        seed, _ = self.fetch_not_a_bot_seed(scenario)
+        first_submit = self.submit_not_a_bot(seed, scenario, GOOD_NOT_A_BOT_TELEMETRY)
+        if first_submit.status != 303:
+            raise SimulationError(
+                f"invariant_not_a_bot_prime_failed status={first_submit.status}"
+            )
+        self.admin_patch({"test_mode": False, "maze_enabled": True, "tarpit_enabled": True, "tarpit_fallback_action": "maze"})
+        replay_submit = self.submit_not_a_bot(seed, scenario, GOOD_NOT_A_BOT_TELEMETRY)
+        if replay_submit.status == 200 and "window.__shumaTarpit=" in replay_submit.body:
+            return "tarpit"
+        detail = collapse_whitespace(replay_submit.body)[:160]
+        raise SimulationError(
+            f"invariant_nonce_replay_expected_tarpit status={replay_submit.status} body={detail}"
+        )
+
+    def driver_fingerprint_inconsistent_payload(self, scenario: Dict[str, Any]) -> str:
+        self.admin_patch(
+            {
+                "test_mode": False,
+                "provider_backends": {"fingerprint_signal": "external"},
+                "edge_integration_mode": "additive",
+                "cdp_detection_enabled": True,
+                "cdp_auto_ban": True,
+            }
+        )
+        payload = read_fixture_json(Path(scenario["payload_fixture"]))
+        result = self.request(
+            "POST",
+            "/fingerprint-report",
+            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
+            json_body=payload,
+            count_request=True,
+        )
+        if result.status == 400:
+            return "monitor"
+        detail = collapse_whitespace(result.body)[:160]
+        raise SimulationError(
+            f"invariant_fingerprint_inconsistency_expected_400 status={result.status} body={detail}"
+        )
+
+    def driver_header_spoofing_probe(self, scenario: Dict[str, Any]) -> str:
+        self.admin_patch(
+            {
+                "test_mode": False,
+                "geo_edge_headers_enabled": True,
+                "geo_risk": [],
+                "geo_allow": [],
+                "geo_challenge": [],
+                "geo_maze": [],
+                "geo_block": [str(scenario.get("geo_country") or "RU")],
+                "browser_policy_enabled": False,
+            }
+        )
+        headers = {
+            "X-Forwarded-For": self.scenario_ip(scenario),
+            "X-Geo-Country": str(scenario.get("geo_country") or "RU"),
+            "User-Agent": str(scenario.get("user_agent") or "ShumaAdversarial/1.0"),
+        }
+        result = self.request("GET", "/", headers=headers, count_request=True)
+        if result.status in {403, 429} or "Access Blocked" in result.body or "Access Restricted" in result.body:
+            raise SimulationError("invariant_forwarded_header_spoofing_expected_untrusted_rejection_path")
+        return "monitor"
+
+    def driver_cdp_high_confidence_deny(self, scenario: Dict[str, Any]) -> str:
+        self.admin_patch(
+            {
+                "test_mode": False,
+                "provider_backends": {"fingerprint_signal": "internal"},
+                "edge_integration_mode": "off",
+                "cdp_detection_enabled": True,
+                "cdp_auto_ban": True,
+            }
+        )
+        report = self.request(
+            "POST",
+            "/cdp-report",
+            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
+            json_body={"cdp_detected": True, "score": 0.95, "checks": ["webdriver", "automation_props", "cdp_timing"]},
+            count_request=True,
+        )
+        if report.status != 200:
+            raise SimulationError(f"invariant_cdp_report_expected_200 got status={report.status}")
+        followup = self.request(
+            "GET",
+            "/",
+            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
+            count_request=True,
+        )
+        if followup.status == 429:
+            return "deny_temp"
+        if followup.status == 403 and (
+            "Access Blocked" in followup.body or "Access Restricted" in followup.body
+        ):
+            return "deny_temp"
+        raise SimulationError(
+            f"invariant_cdp_high_confidence_expected_deny got status={followup.status}"
+        )
 
     def driver_akamai_additive_report(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch(
@@ -980,7 +1319,9 @@ class Runner:
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
             count_request=True,
         )
-        if followup.status in {403, 429} and (
+        if followup.status == 429:
+            return "deny_temp"
+        if followup.status == 403 and (
             "Access Blocked" in followup.body or "Access Restricted" in followup.body
         ):
             return "deny_temp"
@@ -1000,6 +1341,21 @@ class Runner:
             raise SimulationError("Unable to parse not-a-bot seed")
         return match.group(1), page
 
+    def fetch_challenge_puzzle_seed_and_output(self, scenario: Dict[str, Any]) -> Tuple[str, str]:
+        page = self.request(
+            "GET",
+            "/challenge/puzzle",
+            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=self.not_a_bot_user_agent(scenario)),
+            count_request=True,
+        )
+        if page.status != 200 or "Puzzle" not in page.body:
+            raise SimulationError(f"Challenge puzzle page unavailable (status={page.status})")
+        seed_match = re.search(r'name="seed" value="([^"]+)"', page.body)
+        output_match = re.search(r'name="output"[^>]*value="([^"]+)"', page.body)
+        if not seed_match or not output_match:
+            raise SimulationError("Unable to parse challenge puzzle seed/output")
+        return seed_match.group(1), output_match.group(1)
+
     def submit_not_a_bot(self, seed: str, scenario: Dict[str, Any], telemetry: Dict[str, Any]) -> HttpResult:
         form_body = {
             "seed": seed,
@@ -1014,11 +1370,23 @@ class Runner:
             count_request=True,
         )
 
+    def submit_challenge_puzzle(self, seed: str, output: str, scenario: Dict[str, Any]) -> HttpResult:
+        form_body = {"seed": seed, "output": output}
+        return self.request(
+            "POST",
+            "/challenge/puzzle",
+            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=self.not_a_bot_user_agent(scenario)),
+            form_body=form_body,
+            count_request=True,
+        )
+
     def fetch_pow_seed(self, scenario: Dict[str, Any]) -> Tuple[str, int]:
         challenge = self.request(
             "GET",
             "/pow",
-            headers=self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"]),
+            headers=self.forwarded_headers(
+                self.scenario_ip(scenario), user_agent=self.pow_user_agent(scenario)
+            ),
             count_request=True,
         )
         if challenge.status != 200:
@@ -1035,17 +1403,28 @@ class Runner:
         return self.request(
             "POST",
             "/pow/verify",
-            headers=self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"]),
+            headers=self.forwarded_headers(
+                self.scenario_ip(scenario), user_agent=self.pow_user_agent(scenario)
+            ),
             json_body=payload,
             count_request=True,
         )
 
-    def not_a_bot_user_agent(self, scenario: Dict[str, Any]) -> str:
+    def scenario_user_agent(self, scenario: Dict[str, Any], isolate_cadence: bool = False) -> str:
         base = str(scenario.get("user_agent") or "ShumaAdversarial/1.0").strip()
         if not base:
             base = "ShumaAdversarial/1.0"
+        if isolate_cadence:
+            return f"{base} sim-run/{self.session_nonce}"
+        return base
+
+    def not_a_bot_user_agent(self, scenario: Dict[str, Any]) -> str:
         # Isolate cadence buckets per run so repeated local executions do not poison replay tests.
-        return f"{base} sim-run/{self.session_nonce}"
+        return self.scenario_user_agent(scenario, isolate_cadence=True)
+
+    def pow_user_agent(self, scenario: Dict[str, Any]) -> str:
+        # Isolate PoW cadence buckets per run to avoid stale local history triggering false TooRegular.
+        return self.scenario_user_agent(scenario, isolate_cadence=True)
 
     def make_expired_seed(self, seed_token: str) -> str:
         if not self.challenge_secret:
@@ -1209,6 +1588,10 @@ def dict_or_empty(value: Any) -> Dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def list_or_empty(value: Any) -> List[Any]:
+    return value if isinstance(value, list) else []
+
+
 def nested_dict_value(data: Dict[str, Any], path: Tuple[str, ...]) -> Any:
     current: Any = data
     for segment in path:
@@ -1225,6 +1608,73 @@ def int_or_zero(value: Any) -> int:
         return int(value)
     except Exception:
         return 0
+
+
+def scenario_persona(scenario: Dict[str, Any]) -> str:
+    traffic_model = scenario.get("traffic_model")
+    if isinstance(traffic_model, dict):
+        persona = str(traffic_model.get("persona") or "").strip()
+        if persona in ALLOWED_TRAFFIC_PERSONAS:
+            return persona
+    tier = str(scenario.get("tier") or "").strip()
+    if tier == "SIM-T0":
+        return "human_like"
+    if tier == "SIM-T1":
+        return "benign_automation"
+    if tier == "SIM-T2":
+        return "suspicious_automation"
+    return "adversarial"
+
+
+def compute_cohort_metrics(
+    selected_scenarios: List[Dict[str, Any]], results: List[ScenarioResult]
+) -> Dict[str, Dict[str, Any]]:
+    scenario_by_id = {str(scenario.get("id") or ""): scenario for scenario in selected_scenarios}
+    collateral_outcomes = {"challenge", "maze", "tarpit", "deny_temp"}
+    raw: Dict[str, Dict[str, Any]] = {}
+    for result in results:
+        scenario = scenario_by_id.get(result.id, {})
+        persona = scenario_persona(scenario)
+        cohort = raw.setdefault(
+            persona,
+            {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "latency_values": [],
+                "outcome_counts": {},
+                "collateral_count": 0,
+            },
+        )
+        cohort["total"] += 1
+        if result.passed:
+            cohort["passed"] += 1
+            if result.latency_ms > 0:
+                cohort["latency_values"].append(result.latency_ms)
+            observed = str(result.observed_outcome or "")
+            if observed:
+                outcome_counts = cohort["outcome_counts"]
+                outcome_counts[observed] = int_or_zero(outcome_counts.get(observed)) + 1
+                if observed in collateral_outcomes:
+                    cohort["collateral_count"] += 1
+        else:
+            cohort["failed"] += 1
+
+    metrics: Dict[str, Dict[str, Any]] = {}
+    for persona, cohort in raw.items():
+        latency_values = list_or_empty(cohort.get("latency_values"))
+        total = int_or_zero(cohort.get("total"))
+        collateral_count = int_or_zero(cohort.get("collateral_count"))
+        metrics[persona] = {
+            "total": total,
+            "passed": int_or_zero(cohort.get("passed")),
+            "failed": int_or_zero(cohort.get("failed")),
+            "latency_p95_ms": percentile([int_or_zero(value) for value in latency_values], 95),
+            "outcome_counts": dict_or_empty(cohort.get("outcome_counts")),
+            "collateral_count": collateral_count,
+            "collateral_ratio": (collateral_count / total) if total else 0.0,
+        }
+    return metrics
 
 
 def has_leading_zero_bits(digest: bytes, bits: int) -> bool:
@@ -1271,6 +1721,12 @@ def extract_monitoring_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
     details = dict_or_empty(payload.get("details"))
     recent_events = nested_dict_value(details, ("events", "recent_events"))
     recent_event_count = len(recent_events) if isinstance(recent_events, list) else 0
+    recent_event_reasons = []
+    if isinstance(recent_events, list):
+        for event in recent_events:
+            reason = str(dict_or_empty(event).get("reason") or "").strip().lower()
+            if reason:
+                recent_event_reasons.append(reason)
 
     coverage = {
         "honeypot_hits": int_or_zero(nested_dict_value(summary, ("honeypot", "total_hits"))),
@@ -1318,6 +1774,7 @@ def extract_monitoring_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
         "monitoring_total": sum(components.values()),
         "components": components,
         "coverage": coverage,
+        "recent_event_reasons": sorted(set(recent_event_reasons)),
     }
 
 
@@ -1877,6 +2334,8 @@ def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_nam
     for key in profile_required:
         if key not in profile:
             raise SimulationError(f"profile {profile_name} missing key: {key}")
+    if "fail_fast" in profile and not isinstance(profile.get("fail_fast"), bool):
+        raise SimulationError(f"profile {profile_name} fail_fast must be a boolean when provided")
 
     if not isinstance(profile["scenario_ids"], list) or not profile["scenario_ids"]:
         raise SimulationError(f"profile {profile_name} scenario_ids must be non-empty array")
@@ -1913,6 +2372,35 @@ def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_nam
     if "max_fingerprint_events_per_request" not in telemetry or "max_monitoring_events_per_request" not in telemetry:
         raise SimulationError(
             f"profile {profile_name} telemetry_amplification must include fingerprint and monitoring limits"
+        )
+
+    human_like_collateral_max_ratio = gates.get("human_like_collateral_max_ratio")
+    if human_like_collateral_max_ratio is not None:
+        ratio = float(human_like_collateral_max_ratio)
+        if ratio < 0.0 or ratio > 1.0:
+            raise SimulationError(
+                f"profile {profile_name} human_like_collateral_max_ratio must be within [0,1]"
+            )
+
+    required_event_reasons = gates.get("required_event_reasons")
+    if required_event_reasons is not None:
+        if not isinstance(required_event_reasons, list) or not required_event_reasons:
+            raise SimulationError(
+                f"profile {profile_name} required_event_reasons must be a non-empty array when provided"
+            )
+        for raw_reason in required_event_reasons:
+            reason = str(raw_reason or "").strip()
+            if not reason:
+                raise SimulationError(
+                    f"profile {profile_name} required_event_reasons must not contain empty values"
+                )
+
+    ip_range_suggestion_seed_required = gates.get("ip_range_suggestion_seed_required")
+    if ip_range_suggestion_seed_required is not None and not isinstance(
+        ip_range_suggestion_seed_required, bool
+    ):
+        raise SimulationError(
+            f"profile {profile_name} ip_range_suggestion_seed_required must be a boolean when provided"
         )
 
     coverage_requirements = gates.get("coverage_requirements")

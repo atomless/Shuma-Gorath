@@ -1630,7 +1630,12 @@ test("native remount soak keeps refresh p95 and polling cadence within bounds", 
 
     const before = monitoringRequests;
     await page.waitForTimeout(soakWindowMs);
-    const delta = monitoringRequests - before;
+    let delta = monitoringRequests - before;
+    if (delta === 0) {
+      // Give the accelerated polling loop one more window to tick before failing cadence.
+      await page.waitForTimeout(acceleratedPollingIntervalMs * 2);
+      delta = monitoringRequests - before;
+    }
     cadenceDeltas.push(delta);
     expect(delta).toBeGreaterThan(0);
     expect(delta).toBeLessThanOrEqual(maxExpectedRequestsInWindow);

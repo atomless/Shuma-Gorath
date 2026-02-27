@@ -133,7 +133,7 @@ Available profiles:
 - `make test-adversarial-smoke` - mandatory fast smoke gate (`SIM-T0`..`SIM-T4`)
 - `make test-adversarial-abuse` - mandatory replay/stale/order-cadence abuse regressions
 - `make test-adversarial-akamai` - mandatory Akamai signal fixture coverage
-- `make test-adversarial-coverage` - expanded coverage contract profile (`full_coverage`) including PoW success/failure, rate-limit enforcement, and GEO block coverage
+- `make test-adversarial-coverage` - expanded coverage contract profile (`full_coverage`) including PoW success/failure, puzzle-failure fallback, replay-to-tarpit abuse, CDP deny path, rate-limit enforcement, and GEO block coverage
 - `make test-adversarial-sim-selftest` - minimal deterministic simulator mechanics harness (seed/order/budget/retry/gate math/teardown), intentionally non-circular
 - `make test-adversarial-soak` - deep soak alias for `full_coverage` (scheduled/manual gate)
 - `make test-adversarial-manifest` - schema/fixture validation without server
@@ -179,10 +179,12 @@ Live loop controls:
 - `ADVERSARIAL_REPORT_PATH` (default `scripts/tests/adversarial/latest_report.json`) controls report output file.
 - Runner also emits `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
 - `latest_report.json` includes quantitative `gates` and separate `coverage_gates` sections with per-check `threshold_source`.
+- `latest_report.json` also includes `cohort_metrics` (persona-level collateral/latency summaries) and `ip_range_suggestions` seed evidence for `full_coverage`.
 
 `make test` runs `test-adversarial-fast` (which executes `test-adversarial-smoke`, `test-adversarial-abuse`, and `test-adversarial-akamai`) in sequence.
 `make test-adversarial-soak` runs `test-adversarial-coverage` (`full_coverage`) for deeper scheduled/manual validation.
 `test-adversarial-fast` and `test-adversarial-coverage` both enforce `test-frontier-governance` after artifact generation.
+`test-adversarial-coverage` forces deterministic cleanup plus per-run scenario-IP rotation (`SHUMA_ADVERSARIAL_PRESERVE_STATE=0`, `SHUMA_ADVERSARIAL_ROTATE_IPS=1`) to avoid stale local cadence/persistence collisions.
 CI policy is tiered:
 - Push to `main`: `ci.yml` runs `make test` (includes mandatory fast adversarial matrix).
 - PR to `main`: `ci.yml` additionally runs `make test-adversarial-coverage` and `make test-adversarial-frontier-attempt`.
@@ -202,6 +204,7 @@ Manifest and fixtures live under:
 - `scripts/tests/fixtures/akamai/`
 
 Both manifests enforce `execution_lane=black_box`; unsupported lane values fail validation before runs start.
+Makefile simulation targets execute `scenario_manifest.v2.json`; `make test-adversarial-manifest` validates both `v1` and `v2`.
 
 ## 🐙 Dashboard <abbr title="End-to-End">E2E</abbr> Smoke Tests (Playwright)
 

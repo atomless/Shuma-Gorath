@@ -221,6 +221,25 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(snapshot["coverage"]["recent_event_count"], 3)
         self.assertEqual(snapshot["components"]["not_a_bot_submitted"], 4)
 
+    def test_extract_monitoring_snapshot_collects_recent_event_reasons(self):
+        payload = {
+            "summary": {},
+            "details": {
+                "events": {
+                    "recent_events": [
+                        {"reason": "not_a_bot_replay"},
+                        {"reason": "cdp_detected:tier=high"},
+                        {"reason": "not_a_bot_replay"},
+                    ]
+                }
+            },
+        }
+        snapshot = runner.extract_monitoring_snapshot(payload)
+        self.assertEqual(
+            snapshot["recent_event_reasons"],
+            ["cdp_detected:tier=high", "not_a_bot_replay"],
+        )
+
     def test_compute_coverage_deltas_clamps_negative_values(self):
         before = {"honeypot_hits": 5, "geo_maze": 3}
         after = {"honeypot_hits": 3, "geo_maze": 7}
@@ -260,10 +279,36 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
                 "test_profile",
             )
 
+    def test_validate_manifest_accepts_collateral_and_event_reason_gates(self):
+        manifest = minimal_manifest(
+            {
+                "human_like_collateral_max_ratio": 0.25,
+                "required_event_reasons": ["not_a_bot_replay", "cdp_detected"],
+                "ip_range_suggestion_seed_required": True,
+            }
+        )
+        runner.validate_manifest(Path("scripts/tests/adversarial/scenario_manifest.v1.json"), manifest, "test_profile")
+
+    def test_validate_manifest_rejects_invalid_human_like_collateral_ratio(self):
+        manifest = minimal_manifest({"human_like_collateral_max_ratio": 1.2})
+        with self.assertRaises(runner.SimulationError):
+            runner.validate_manifest(Path("scripts/tests/adversarial/scenario_manifest.v1.json"), manifest, "test_profile")
+
+    def test_validate_manifest_rejects_empty_required_event_reasons(self):
+        manifest = minimal_manifest({"required_event_reasons": []})
+        with self.assertRaises(runner.SimulationError):
+            runner.validate_manifest(Path("scripts/tests/adversarial/scenario_manifest.v1.json"), manifest, "test_profile")
+
     def test_validate_manifest_accepts_new_driver_enum_values(self):
         manifest = minimal_manifest()
         manifest["scenarios"][0]["driver"] = "pow_success"
         manifest["scenarios"][0]["expected_outcome"] = "allow"
+        runner.validate_manifest(Path("scripts/tests/adversarial/scenario_manifest.v1.json"), manifest, "test_profile")
+
+    def test_validate_manifest_accepts_tarpit_outcome(self):
+        manifest = minimal_manifest()
+        manifest["scenarios"][0]["driver"] = "not_a_bot_replay_tarpit_abuse"
+        manifest["scenarios"][0]["expected_outcome"] = "tarpit"
         runner.validate_manifest(Path("scripts/tests/adversarial/scenario_manifest.v1.json"), manifest, "test_profile")
 
     def test_validate_manifest_accepts_v2_contract_fields(self):
@@ -295,6 +340,52 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
     def test_scenario_driver_class_uses_mapping_when_manifest_does_not_set_class(self):
         scenario = {"driver": "pow_success"}
         self.assertEqual(runner.scenario_driver_class(scenario), "cost_imposition")
+
+    def test_compute_cohort_metrics_reports_human_collateral_ratio(self):
+        scenarios = [
+            {"id": "s1", "tier": "SIM-T0"},
+            {"id": "s2", "tier": "SIM-T0"},
+            {"id": "s3", "tier": "SIM-T3"},
+        ]
+        results = [
+            runner.ScenarioResult(
+                id="s1",
+                tier="SIM-T0",
+                driver="allow_browser_allowlist",
+                expected_outcome="allow",
+                observed_outcome="allow",
+                passed=True,
+                latency_ms=100,
+                runtime_budget_ms=1000,
+                detail="ok",
+            ),
+            runner.ScenarioResult(
+                id="s2",
+                tier="SIM-T0",
+                driver="geo_challenge",
+                expected_outcome="challenge",
+                observed_outcome="challenge",
+                passed=True,
+                latency_ms=120,
+                runtime_budget_ms=1000,
+                detail="ok",
+            ),
+            runner.ScenarioResult(
+                id="s3",
+                tier="SIM-T3",
+                driver="rate_limit_enforce",
+                expected_outcome="deny_temp",
+                observed_outcome="deny_temp",
+                passed=True,
+                latency_ms=140,
+                runtime_budget_ms=1000,
+                detail="ok",
+            ),
+        ]
+
+        metrics = runner.compute_cohort_metrics(scenarios, results)
+        self.assertAlmostEqual(metrics["human_like"]["collateral_ratio"], 0.5, places=3)
+        self.assertEqual(metrics["adversarial"]["collateral_count"], 1)
 
 
 if __name__ == "__main__":

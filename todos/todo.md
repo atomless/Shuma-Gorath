@@ -71,27 +71,6 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
 Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
 
-- [ ] SIM-V2-3 Abuse/evasion regression suite parity (`replay`, `stale`, `ordering`, `cadence`, `retry-storm`).
-  - Acceptance criteria:
-    - Abuse paths are first-class scenarios with expected outcomes and latency budgets.
-    - Evasion family coverage explicitly includes replay, stale token, ordering/cadence abuse, fingerprint inconsistency, header spoofing, and retry storms.
-    - Each abuse case has deterministic pass/fail behavior under fixed seed.
-    - Failures identify violated invariant (for example nonce replay, token expiry, ordering invalid, cadence anomaly).
-  - Definition of done:
-    - `make test-adversarial-abuse` fails fast with explicit per-case diagnostics.
-    - Abuse scenarios are covered in manifest and runner report output.
-
-- [ ] SIM-V2-5 Full category coverage profile (`full_coverage`) as pre-release mandatory gate.
-  - Acceptance criteria:
-    - One profile triggers non-zero evidence for: honeypot, challenge, not-a-bot, PoW, rate, GEO, maze, tarpit, CDP/fingerprint, ban path, and event-stream families.
-    - Coverage assertions check `/admin/monitoring` category counters and required event taxonomy presence.
-    - Coverage run includes deterministic prerequisite seeding for IP-range suggestion conditions (fixed synthetic traffic and fixed thresholds) so suggestion-related evidence is reproducible and non-flaky.
-    - Missing category evidence fails profile with category-specific diagnostics.
-  - Definition of done:
-    - `make test-adversarial-coverage` exists and enforces the full coverage contract.
-    - Coverage report includes explicit evidence section for seeded IP-range suggestion prerequisites and resulting suggestion/near-miss outputs.
-    - CI policy marks coverage profile mandatory while project remains pre-launch.
-
 - [ ] SIM-V2-7 Strict attacker/control-plane separation.
   - Acceptance criteria:
     - Attacker agents cannot read/use `SHUMA_API_KEY`, admin bearer keys, or signing secrets.
@@ -100,15 +79,6 @@ Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../
   - Definition of done:
     - Code boundaries are documented and verified by integration tests.
     - Mandatory adversarial profiles run with attacker plane using only public endpoints.
-
-- [ ] SIM-V2-8 Realistic mixed persona traffic model.
-  - Acceptance criteria:
-    - Profiles include cohorts: human-like, tolerated automation, suspicious automation, and active adversarial.
-    - Cohorts include session-aware pacing, retries, think-time variance, and cookie behavior.
-    - Human-like cohort collateral envelope is measured and bounded by profile gate.
-  - Definition of done:
-    - Reports include cohort-level outcome and cost metrics.
-    - `full_coverage` enforces collateral thresholds for human-like traffic.
 
 - [ ] SIM-V2-9 Adversarial live loop observability quality and tarpit monitoring completeness.
   - Acceptance criteria:
