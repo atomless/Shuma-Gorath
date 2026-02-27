@@ -7,6 +7,11 @@
     normalizeDashboardBasePath,
     resolveDashboardAssetPath
   } from '$lib/runtime/dashboard-paths.js';
+  import {
+    clearDashboardBodyClasses,
+    deriveDashboardBodyClassState,
+    syncDashboardBodyClasses
+  } from '$lib/runtime/dashboard-body-classes.js';
   import { createDashboardRouteController } from '$lib/runtime/dashboard-route-controller.js';
   import {
     banDashboardIp,
@@ -106,6 +111,10 @@
     ? configSnapshot.test_mode === true
     : analyticsSnapshot.test_mode === true;
   $: testModeEnabled = currentTestModeValue;
+  $: bodyClassState = deriveDashboardBodyClassState(configSnapshot);
+  $: if (typeof document !== 'undefined') {
+    syncDashboardBodyClasses(document, bodyClassState);
+  }
   $: globalTestModeToggleDisabled =
     !runtimeReady ||
     loggingOut ||
@@ -263,6 +272,9 @@
     routeController.dispose();
     storeUnsubscribe();
     telemetryUnsubscribe();
+    if (typeof document !== 'undefined') {
+      clearDashboardBodyClasses(document);
+    }
     if (runtimeWasMounted) {
       unmountDashboardApp();
     }

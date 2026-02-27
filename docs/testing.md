@@ -136,6 +136,10 @@ Available profiles:
 - `make test-adversarial-live` - repeated live traffic generator for operator monitoring drills
 
 Dev/test simulation realism pages are available at `/sim/public/landing`, `/sim/public/docs`, `/sim/public/pricing`, `/sim/public/contact`, and `/sim/public/search?q=...` only when all three gates are true: `SHUMA_RUNTIME_ENV=runtime-dev`, `SHUMA_ADVERSARY_SIM_AVAILABLE=true`, and KV `adversary_sim_enabled=true`.
+Dashboard body-class contract for dev-only affordances:
+- `<body>` must include exactly one runtime environment class: `runtime-dev` or `runtime-prod` (derived from trusted runtime config).
+- `<body>` must include `adversary-sim` only when `adversary_sim_enabled=true`.
+- These classes are presentational hooks only and must not alter defence/auth behavior directly.
 
 Live loop examples:
 

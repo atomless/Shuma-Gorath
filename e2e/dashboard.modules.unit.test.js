@@ -103,6 +103,47 @@ function toPlain(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function createMutableClassList(initial = []) {
+  const classes = new Set(Array.isArray(initial) ? initial : []);
+  return {
+    add(...tokens) {
+      tokens.forEach((token) => {
+        const normalized = String(token || '').trim();
+        if (normalized) classes.add(normalized);
+      });
+    },
+    remove(...tokens) {
+      tokens.forEach((token) => {
+        classes.delete(String(token || '').trim());
+      });
+    },
+    toggle(token, force = undefined) {
+      const normalized = String(token || '').trim();
+      if (!normalized) return false;
+      if (force === undefined) {
+        if (classes.has(normalized)) {
+          classes.delete(normalized);
+          return false;
+        }
+        classes.add(normalized);
+        return true;
+      }
+      if (force) {
+        classes.add(normalized);
+        return true;
+      }
+      classes.delete(normalized);
+      return false;
+    },
+    contains(token) {
+      return classes.has(String(token || '').trim());
+    },
+    values() {
+      return [...classes.values()];
+    }
+  };
+}
+
 function listJsFilesRecursively(rootDir) {
   const entries = fs.readdirSync(rootDir, { withFileTypes: true });
   const files = [];
@@ -736,6 +777,55 @@ test('monitoring view model and status module remain pure snapshot transforms', 
   });
 });
 
+test('dashboard body class runtime keeps exactly one environment class and adversary-sim state', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const bodyClassModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-body-classes.js');
+
+    const defaultState = bodyClassModule.deriveDashboardBodyClassState({});
+    assert.deepEqual(toPlain(defaultState), {
+      runtimeClass: 'runtime-prod',
+      adversarySimEnabled: false
+    });
+
+    const explicitDevState = bodyClassModule.deriveDashboardBodyClassState({
+      runtime_environment: 'runtime-dev',
+      adversary_sim_enabled: true
+    });
+    assert.deepEqual(toPlain(explicitDevState), {
+      runtimeClass: 'runtime-dev',
+      adversarySimEnabled: true
+    });
+
+    const classList = createMutableClassList(['runtime-prod', 'adversary-sim']);
+    const doc = {
+      body: {
+        classList
+      }
+    };
+
+    bodyClassModule.syncDashboardBodyClasses(doc, {
+      runtimeClass: explicitDevState.runtimeClass,
+      adversarySimEnabled: explicitDevState.adversarySimEnabled
+    });
+    assert.equal(classList.contains('runtime-dev'), true);
+    assert.equal(classList.contains('runtime-prod'), false);
+    assert.equal(classList.contains('adversary-sim'), true);
+
+    bodyClassModule.syncDashboardBodyClasses(doc, {
+      runtimeClass: 'runtime-prod',
+      adversarySimEnabled: false
+    });
+    assert.equal(classList.contains('runtime-dev'), false);
+    assert.equal(classList.contains('runtime-prod'), true);
+    assert.equal(classList.contains('adversary-sim'), false);
+
+    bodyClassModule.clearDashboardBodyClasses(doc);
+    assert.equal(classList.contains('runtime-dev'), false);
+    assert.equal(classList.contains('runtime-prod'), false);
+    assert.equal(classList.contains('adversary-sim'), false);
+  });
+});
+
 test('config form utils and JSON object helpers preserve parser contracts', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const formUtils = await importBrowserModule('dashboard/src/lib/domain/config-form-utils.js');
@@ -1309,6 +1399,10 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /import\('\$lib\/components\/dashboard\/RobotsTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/TuningTab\.svelte'\)/);
   assert.match(source, /\$lib\/runtime\/dashboard-route-controller\.js/);
+  assert.match(source, /\$lib\/runtime\/dashboard-body-classes\.js/);
+  assert.match(source, /deriveDashboardBodyClassState\(configSnapshot\)/);
+  assert.match(source, /syncDashboardBodyClasses\(document, bodyClassState\)/);
+  assert.match(source, /clearDashboardBodyClasses\(document\)/);
   assert.match(source, /<svelte:window on:hashchange=\{onWindowHashChange\} \/>/);
   assert.match(source, /<svelte:document on:visibilitychange=\{onDocumentVisibilityChange\} \/>/);
   assert.match(source, /use:registerTabLink=\{tab\}/);

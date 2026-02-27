@@ -27,7 +27,7 @@ Status: Approved direction, implementation in progress. Start here before other 
 10. Sim events must be telemetry-tagged and dev/prod data planes must remain separated.
 
 ### First implementation sequence (next agent execution order)
-1. `SIM-V2-6`, `SIM-V2-9A`, `SIM-V2-11A`, `SIM-V2-11B`: runtime availability + UI/orchestration contracts.
+1. `SIM-V2-9A`: complete dev UI/orchestration contract (runtime availability + body-class prerequisites from `SIM-V2-6`, `SIM-V2-11A`, and `SIM-V2-11B` are done).
 2. `SIM-V2-10`, `SIM-V2-19`: frontier config UX + key hygiene + outbound data governance.
 3. `SIM-V2-11`: containerized black-box runner + isolation conformance target.
 4. `SIM-V2-5`, `SIM-V2-16`, `SIM-V2-18`: deterministic coverage seeding + repeatability + promotion pipeline.
@@ -231,24 +231,6 @@ Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../
     - Dedicated conformance target exists (`make test-adversarial-container-isolation`) and validates mount/env/egress/tooling isolation policy before black-box runs.
     - Container startup performs an isolation self-check and fails fast if any isolation-contract rule is violated (privileged env vars, forbidden mounts, egress/tooling policy violations, non-ephemeral state).
     - Security review confirms attacker worker path has no privileged credential or source/docs exposure.
-
-- [ ] SIM-V2-11A Dashboard adversary-sim UI state class and styling contract.
-  - Acceptance criteria:
-    - When adversary sim is enabled, dashboard `<body>` includes class `adversary-sim`; when disabled, class is removed.
-    - Class lifecycle remains correct across initial load, config refresh, toggle transitions, and page navigation within dashboard.
-    - Class is purely presentational/state-signaling and does not alter defense semantics directly.
-  - Definition of done:
-    - Dashboard tests assert class add/remove behavior on all relevant state transitions.
-    - UI docs mention `body.adversary-sim` as the canonical hook for dev-only adversary-sim affordances.
-
-- [ ] SIM-V2-11B Dashboard runtime environment body-class contract (`dev` vs `prod`).
-  - Acceptance criteria:
-    - Dashboard `<body>` includes exactly one runtime environment class: `runtime-dev` or `runtime-prod`, derived from trusted server/runtime config.
-    - Class lifecycle remains correct across initial load, config refresh, and in-app navigation.
-    - Environment class is informational/presentational only and must not change defense or auth behavior.
-  - Definition of done:
-    - Dashboard tests assert mutually exclusive class behavior (`runtime-dev` xor `runtime-prod`).
-    - UI docs describe the runtime environment class contract and intended usage for operator affordances.
 
 - [ ] SIM-V2-12 CI policy tiers and scheduling.
   - Acceptance criteria:

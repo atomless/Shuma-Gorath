@@ -170,6 +170,21 @@ function dashboardRelativePath(url) {
   }
 }
 
+async function dashboardBodyClassState(page) {
+  return page.evaluate(() => {
+    const classes = Array.from(document?.body?.classList || []);
+    const hasRuntimeDev = classes.includes("runtime-dev");
+    const hasRuntimeProd = classes.includes("runtime-prod");
+    return {
+      classes,
+      hasRuntimeDev,
+      hasRuntimeProd,
+      runtimeClassCount: (hasRuntimeDev ? 1 : 0) + (hasRuntimeProd ? 1 : 0),
+      hasAdversarySim: classes.includes("adversary-sim")
+    };
+  });
+}
+
 async function bootstrapDashboardSession(page, targetUrl) {
   const nextPath = dashboardRelativePath(targetUrl);
   const loginUrl = `${BASE_URL}/dashboard/login.html?next=${encodeURIComponent(nextPath)}`;
@@ -1167,6 +1182,49 @@ test("session survives reload and time-range controls refresh chart data", async
     page.click('.time-btn[data-range="month"]')
   ]);
   await expect(page.locator('.time-btn[data-range="month"]')).toHaveClass(/active/);
+});
+
+test("dashboard body class contract tracks runtime and adversary-sim state", async ({ page, request }) => {
+  await updateAdminConfig(request, { adversary_sim_enabled: false });
+  await openDashboard(page);
+
+  let bodyState = await dashboardBodyClassState(page);
+  expect(bodyState.runtimeClassCount).toBe(1);
+  expect(bodyState.hasRuntimeDev).toBeTruthy();
+  expect(bodyState.hasRuntimeProd).toBeFalsy();
+  expect(bodyState.hasAdversarySim).toBeFalsy();
+
+  await openTab(page, "status");
+  bodyState = await dashboardBodyClassState(page);
+  expect(bodyState.runtimeClassCount).toBe(1);
+  expect(bodyState.hasRuntimeDev).toBeTruthy();
+  expect(bodyState.hasRuntimeProd).toBeFalsy();
+  expect(bodyState.hasAdversarySim).toBeFalsy();
+
+  await updateAdminConfig(request, { adversary_sim_enabled: true });
+  await page.reload();
+  await openDashboard(page);
+  bodyState = await dashboardBodyClassState(page);
+  expect(bodyState.runtimeClassCount).toBe(1);
+  expect(bodyState.hasRuntimeDev).toBeTruthy();
+  expect(bodyState.hasRuntimeProd).toBeFalsy();
+  expect(bodyState.hasAdversarySim).toBeTruthy();
+
+  await openTab(page, "verification");
+  bodyState = await dashboardBodyClassState(page);
+  expect(bodyState.runtimeClassCount).toBe(1);
+  expect(bodyState.hasRuntimeDev).toBeTruthy();
+  expect(bodyState.hasRuntimeProd).toBeFalsy();
+  expect(bodyState.hasAdversarySim).toBeTruthy();
+
+  await updateAdminConfig(request, { adversary_sim_enabled: false });
+  await page.reload();
+  await openDashboard(page);
+  bodyState = await dashboardBodyClassState(page);
+  expect(bodyState.runtimeClassCount).toBe(1);
+  expect(bodyState.hasRuntimeDev).toBeTruthy();
+  expect(bodyState.hasRuntimeProd).toBeFalsy();
+  expect(bodyState.hasAdversarySim).toBeFalsy();
 });
 
 test("auto refresh defaults off and is only available on monitoring/ip-bans tabs", async ({ page }) => {

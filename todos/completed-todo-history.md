@@ -4,6 +4,11 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-02-27)
 
+### P0 Immediate Next-Agent Start (Highest Priority): Adversarial Simulation v2
+
+- [x] SIM-V2-11A Dashboard adversary-sim UI state class and styling contract.
+- [x] SIM-V2-11B Dashboard runtime environment body-class contract (`dev` vs `prod`).
+
 ### P0 Adversarial Traffic Simulation Program
 
 Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
