@@ -701,7 +701,7 @@
 
 <section
   id="dashboard-panel-ip-bans"
-  class="admin-group admin-group--status"
+  class="admin-group"
   data-dashboard-tab-panel="ip-bans"
   aria-labelledby="dashboard-tab-ip-bans"
   hidden={managed ? !isActive : false}
@@ -1036,9 +1036,6 @@
     <p class="control-desc text-muted">Define trusted IP/CIDR bypass entries. Use one entry per line.</p>
     <p class="control-desc text-muted">
       If a legitimate visitor is blocked by IP range policy, their specific IP will not be in the IP Ban list so unbanning it will not help. If they still match the same range rule, they will be blocked again on the next request. You will need to add their known-to-be-safe IP or CIDR to the IP/CIDR Allowlist below, or change the matching IP range rule to avoid their IP.
-    </p>
-    <p class="control-desc text-muted">
-      Path-based bypass rules are configured in the Tuning tab under <strong>Path Allowlist</strong>.
     </p>
     <div class="admin-controls">
       <TextareaField id="network-allowlist" label='<abbr title="Internet Protocol">IP</abbr>/<abbr title="Classless Inter-Domain Routing">CIDR</abbr> Allowlist' rows="3" ariaLabel="Internet Protocol and Classless Inter-Domain Routing allowlist" spellcheck={false} disabled={!writable} bind:value={networkAllowlist} />

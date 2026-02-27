@@ -32,7 +32,7 @@
 
 <section
   id="dashboard-panel-status"
-  class="admin-group admin-group--status"
+  class="admin-group"
   data-dashboard-tab-panel="status"
   aria-labelledby="dashboard-tab-status"
   hidden={managed ? !isActive : false}

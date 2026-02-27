@@ -131,6 +131,8 @@ class Runner:
         self.challenge_secret = env_or_local("SHUMA_CHALLENGE_SECRET") or env_or_local("SHUMA_JS_SECRET")
         self.session_nonce = f"{int(time.time())}-{os.getpid()}"
         self.honeypot_path = "/instaban"
+        self.preserve_state = truthy_env("SHUMA_ADVERSARIAL_PRESERVE_STATE")
+        self.rotate_ips = truthy_env("SHUMA_ADVERSARIAL_ROTATE_IPS")
 
         if not self.api_key:
             raise SimulationError(
@@ -147,14 +149,42 @@ class Runner:
 
         self.scenarios = scenario_map(self.manifest)
         self.selected_scenarios = [self.scenarios[sid] for sid in self.profile["scenario_ids"]]
+        self.scenario_ips = self.build_scenario_ip_map()
+
+    def build_scenario_ip_map(self) -> Dict[str, str]:
+        mapping: Dict[str, str] = {}
+        if not self.rotate_ips:
+            for scenario in self.selected_scenarios:
+                mapping[scenario["id"]] = str(scenario.get("ip") or "").strip()
+            return mapping
+
+        # Assign scenario-specific subnets with per-run rotated host octets.
+        # This avoids cross-scenario ban collisions in preserve-state live mode.
+        salt = int(hashlib.sha256(self.session_nonce.encode("utf-8")).hexdigest()[:8], 16)
+        for index, scenario in enumerate(self.selected_scenarios):
+            third_octet = ((index + 17) % 254) + 1
+            last_octet = ((salt + index * 29) % 254) + 1
+            mapping[scenario["id"]] = f"10.240.{third_octet}.{last_octet}"
+        return mapping
+
+    def scenario_ip(self, scenario: Dict[str, Any]) -> str:
+        scenario_id = str(scenario.get("id") or "")
+        return self.scenario_ips.get(scenario_id, str(scenario.get("ip") or "").strip())
 
     def run(self) -> int:
         self.wait_ready(timeout_seconds=30)
         self.reset_baseline_config()
         self.honeypot_path = self.resolve_honeypot_path()
 
-        all_ips = sorted({scenario["ip"] for scenario in self.selected_scenarios})
-        self.cleanup_ips(all_ips)
+        cleanup_candidate_ips = sorted(
+            [
+                self.scenario_ip(scenario)
+                for scenario in self.selected_scenarios
+                if scenario.get("expected_outcome") == "deny_temp"
+            ]
+        )
+        if not self.preserve_state:
+            self.cleanup_ips(cleanup_candidate_ips)
 
         try:
             monitoring_before = self.monitoring_snapshot()
@@ -231,14 +261,15 @@ class Runner:
             print("[adversarial] profile FAIL")
             return 1
         finally:
-            try:
-                self.reset_baseline_config()
-            except Exception as exc:
-                print(f"[adversarial] warning: failed to restore baseline config: {exc}")
-            try:
-                self.cleanup_ips(all_ips)
-            except Exception as exc:
-                print(f"[adversarial] warning: failed to cleanup scenario IPs: {exc}")
+            if not self.preserve_state:
+                try:
+                    self.reset_baseline_config()
+                except Exception as exc:
+                    print(f"[adversarial] warning: failed to restore baseline config: {exc}")
+                try:
+                    self.cleanup_ips(cleanup_candidate_ips)
+                except Exception as exc:
+                    print(f"[adversarial] warning: failed to cleanup scenario IPs: {exc}")
 
     def wait_ready(self, timeout_seconds: int) -> None:
         deadline = time.monotonic() + timeout_seconds
@@ -441,7 +472,6 @@ class Runner:
 
         try:
             self.reset_baseline_config()
-            self.admin_unban(scenario["ip"])
 
             driver = scenario["driver"]
             if driver == "allow_browser_allowlist":
@@ -551,12 +581,27 @@ class Runner:
         result = self.request(
             "GET",
             "/",
-            headers=self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"]),
+            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
             count_request=True,
         )
-        if result.status == 200 and "OK (passed bot defence)" in result.body:
-            return "allow"
-        raise SimulationError(f"Expected allow response, got status={result.status}")
+        if result.status != 200:
+            detail = collapse_whitespace(result.body)[:160]
+            raise SimulationError(f"Expected allow response, got status={result.status} body={detail}")
+        body = (result.body or "").lower()
+        friction_markers = (
+            "access blocked",
+            "access restricted",
+            "rate limit exceeded",
+            'data-link-kind="maze"',
+            "i am not a bot",
+            "puzzle",
+        )
+        if any(marker in body for marker in friction_markers):
+            detail = collapse_whitespace(result.body)[:160]
+            raise SimulationError(
+                f"Expected allow response without challenge/deny markers, got body={detail}"
+            )
+        return "allow"
 
     def driver_not_a_bot_pass(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch({"test_mode": True, "not_a_bot_enabled": True, "challenge_puzzle_enabled": True})
@@ -579,7 +624,7 @@ class Runner:
                 "geo_block": [],
             }
         )
-        headers = self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"])
+        headers = self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"])
         headers["X-Geo-Country"] = scenario["geo_country"]
         result = self.request("GET", "/", headers=headers, count_request=True)
         if result.status == 200 and ("Puzzle" in result.body or "I am not a bot" in result.body):
@@ -600,7 +645,7 @@ class Runner:
                 "geo_block": [],
             }
         )
-        headers = self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"])
+        headers = self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"])
         headers["X-Geo-Country"] = scenario["geo_country"]
         result = self.request("GET", "/", headers=headers, count_request=True)
         if result.status == 200 and 'data-link-kind="maze"' in result.body:
@@ -613,19 +658,18 @@ class Runner:
         self.request(
             "GET",
             self.honeypot_path,
-            headers=self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"]),
+            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
             count_request=True,
         )
         result = self.request(
             "GET",
             "/",
-            headers=self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"]),
+            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
             count_request=True,
         )
         if result.status in {403, 429} and (
             "Access Blocked" in result.body or "Access Restricted" in result.body
         ):
-            self.admin_unban(scenario["ip"])
             return "deny_temp"
         raise SimulationError(f"Expected deny response, got status={result.status}")
 
@@ -674,7 +718,7 @@ class Runner:
         report = self.request(
             "POST",
             "/fingerprint-report",
-            headers=self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"]),
+            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
             json_body=payload,
             count_request=True,
         )
@@ -686,7 +730,7 @@ class Runner:
         followup = self.request(
             "GET",
             "/",
-            headers=self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"]),
+            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
             count_request=True,
         )
         if "Access Blocked" in followup.body or "Access Restricted" in followup.body:
@@ -707,7 +751,7 @@ class Runner:
         report = self.request(
             "POST",
             "/fingerprint-report",
-            headers=self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"]),
+            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
             json_body=payload,
             count_request=True,
         )
@@ -719,13 +763,12 @@ class Runner:
         followup = self.request(
             "GET",
             "/",
-            headers=self.forwarded_headers(scenario["ip"], user_agent=scenario["user_agent"]),
+            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
             count_request=True,
         )
         if followup.status in {403, 429} and (
             "Access Blocked" in followup.body or "Access Restricted" in followup.body
         ):
-            self.admin_unban(scenario["ip"])
             return "deny_temp"
         raise SimulationError(f"Expected blocked follow-up after authoritative signal, got {followup.status}")
 
@@ -733,7 +776,7 @@ class Runner:
         page = self.request(
             "GET",
             "/challenge/not-a-bot-checkbox",
-            headers=self.forwarded_headers(scenario["ip"], user_agent=self.not_a_bot_user_agent(scenario)),
+            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=self.not_a_bot_user_agent(scenario)),
             count_request=True,
         )
         if page.status != 200 or "I am not a bot" not in page.body:
@@ -752,7 +795,7 @@ class Runner:
         return self.request(
             "POST",
             "/challenge/not-a-bot-checkbox",
-            headers=self.forwarded_headers(scenario["ip"], user_agent=self.not_a_bot_user_agent(scenario)),
+            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=self.not_a_bot_user_agent(scenario)),
             form_body=form_body,
             count_request=True,
         )
@@ -945,6 +988,13 @@ def env_or_local(key: str) -> str:
     if value is not None and value.strip():
         return value.strip()
     return read_env_local_value(key)
+
+
+def truthy_env(key: str) -> bool:
+    value = os.environ.get(key)
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def read_env_local_value(key: str) -> str:

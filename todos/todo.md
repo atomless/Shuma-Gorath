@@ -1,10 +1,50 @@
 # TODO Roadmap
 
-Last updated: 2026-02-26
+Last updated: 2026-02-27
 
 This is the active work queue.
 `todos/security-review.md` tracks security finding validity and closure status.
 Completed items are archived in `todos/completed-todo-history.md`.
+
+## P0 Immediate Next-Agent Start (Highest Priority): Adversarial Simulation v2
+Status: Approved direction, implementation in progress. Start here before other backlog items.
+
+### Required background (read first)
+1. [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
+2. [`docs/research/2026-02-25-llm-adversarial-testing-research-synthesis.md`](../docs/research/2026-02-25-llm-adversarial-testing-research-synthesis.md)
+3. This TODO section `SIM-V2-*` below (authoritative task contract)
+
+### Non-negotiable policy decisions (already agreed)
+1. Frontier LLM adversary is central for adaptive discovery, but deterministic replay remains the blocking regression oracle.
+2. Black-box-only adversary posture: no white-box adversary lane.
+3. `SHUMA_ADVERSARY_SIM_AVAILABLE` is env-only, defaults to `true` in `make dev`, defaults to `false` in production.
+4. Production must fail closed for adversary sim (no sim control/start path in prod).
+5. Dev UI Adversary Sim toggle must be placed directly under the `test_mode` toggle and must start/stop full orchestration (no second toggle, no extra terminal command after `make dev`), with admin auth, CSRF protection, and audit logging.
+6. Missing frontier keys in dev toggle-on flow must show warning with explicit continue-without-frontier option.
+7. Toggle-on run must be resource-guarded (default 3-minute window + top progress line + auto-off teardown), with hard-coded max duration/concurrency/cpu-memory/queue guardrails.
+8. Mandatory CI/release blockers remain deterministic; frontier outage is advisory degraded status, not a hard release blocker, but persistent unavailability must trigger supported-model-list refresh under an explicit threshold policy.
+9. Frontier data governance is required (strict outbound allowlist + redaction/minimization + retention rules).
+10. Sim events must be telemetry-tagged and dev/prod data planes must remain separated.
+
+### First implementation sequence (next agent execution order)
+1. `SIM-V2-6`, `SIM-V2-9A`, `SIM-V2-11A`, `SIM-V2-11B`: runtime availability + UI/orchestration contracts.
+2. `SIM-V2-10`, `SIM-V2-19`: frontier config UX + key hygiene + outbound data governance.
+3. `SIM-V2-11`: containerized black-box runner + isolation conformance target.
+4. `SIM-V2-5`, `SIM-V2-16`, `SIM-V2-18`: deterministic coverage seeding + repeatability + promotion pipeline.
+5. `SIM-V2-12`, `SIM-V2-17`, `SIM-V2-20`: CI/release policy wiring + tagging + store separation.
+
+### Critical files likely touched (for rapid orientation)
+1. `Makefile` (dev defaults, new make targets, CI/release invocation wiring)
+2. `config/defaults.env` (new env-only defaults)
+3. `scripts/bootstrap/setup.sh`, `scripts/bootstrap/setup-runtime.sh`, `docs/configuration.md` (setup/config docs lifecycle)
+4. `src/config/mod.rs`, `src/admin/api.rs`, `src/lib.rs` (runtime config + endpoint behavior)
+5. `dashboard/src/routes/+page.svelte`, `dashboard/src/lib/domain/config-schema.js` (toggle UX + body classes + warnings)
+6. `scripts/tests/adversarial_simulation_runner.py`, `scripts/tests/adversarial/*` (manifest/runner/report/promotion flow)
+7. CI workflow files under `.github/workflows/*` (PR/release policy enforcement)
+
+### Definition of successful handoff
+1. Next agent can start implementation immediately from `SIM-V2-*` without re-deriving policy decisions.
+2. No ambiguity remains on frontier-vs-deterministic responsibilities or dev-vs-prod availability semantics.
 
 ## P0 CI + E2E Stability (Top Priority)
 - [ ] CI-E2E-1 Resume point for next Codex session: start from `scripts/tests/run_dashboard_e2e.sh`, `scripts/tests/verify_playwright_launch.mjs`, `playwright.config.mjs`, `Makefile` (`test-dashboard-e2e`), and `e2e/run_dashboard_e2e.unit.test.js`; run `make dev` (terminal 1) plus `make test-dashboard-e2e` (terminal 2) and capture per-stage timings (unit, bundle budget, seed, preflight, Playwright) to prove there is no loop/stall; then run `DEBUG=pw:browser corepack pnpm exec node scripts/tests/verify_playwright_launch.mjs` to diagnose Chromium launch path and fix root cause so browser e2e runs without `PLAYWRIGHT_SANDBOX_ALLOW_SKIP`; finally, harden CI behavior so skip mode is never silently used in mandatory checks, retries are bounded and deterministic, and acceptance criteria are met: full `make test` completes in bounded time, Chromium e2e actually executes, and every failing step returns actionable diagnostics rather than hanging.
@@ -29,13 +69,313 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 
 ## P0 Adversarial Traffic Simulation Program
 Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
+Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
 
-- [ ] SIM-1 Define canonical scenario manifest for botness/threat tiers (`SIM-T0`..`SIM-T4`) and expected outcomes (`allow`, `monitor`, `not-a-bot`, `challenge`, `maze`, `deny_temp`).
-- [ ] SIM-2 Build a unified simulation harness in `scripts/tests/` that combines browser-realistic, scraper, crawler, and load-generator traffic profiles with deterministic seeds.
-- [ ] SIM-3 Add replay/sequence-evasion simulation paths (token replay, stale token, order violation, cadence anomalies) to close current threat-coverage gaps.
-- [ ] SIM-4 Add simulation assertions for effectiveness and cost (`challenge/ban` ratios, false-positive envelope, monitoring write/read amplification guardrails).
-- [ ] SIM-5 Add tiered Make targets and CI policy (fast mandatory adversarial smoke + scheduled/deep soak profiles).
-- [ ] SIM-6 Document operator interpretation workflow for simulation failures and tuning actions.
+- [ ] SIM-V2-1 Manifest v2 contract (`sim-manifest.v2`) for tiered scenarios, traffic model metadata, and category/cost assertions.
+  - Acceptance criteria:
+    - Manifest schema adds `traffic_model`, `expected_defense_categories`, `coverage_tags`, and `cost_assertions`.
+    - Existing `v1` manifest continues to validate for current mandatory CI targets without compatibility aliases in runtime code.
+    - `make test-adversarial-manifest` validates `v1` and `v2` manifests and fails with actionable field-level errors.
+  - Definition of done:
+    - `scripts/tests/adversarial/scenario_manifest.schema.json` and runner validation logic enforce the v2 contract.
+    - CI output clearly identifies schema/field failures with scenario id and profile name.
+
+- [ ] SIM-V2-2 Unified runner architecture with explicit driver classes (`browser_realistic`, `http_scraper`, `edge_fixture`, `cost_imposition`).
+  - Acceptance criteria:
+    - Runner supports multiple driver families under one report format and one deterministic seed path.
+    - Driver selection is manifest-driven, not hard-coded per profile branch.
+    - Runtime remains bounded by per-scenario budget and profile max runtime guard.
+  - Definition of done:
+    - `scripts/tests/adversarial_simulation_runner.py` executes mixed driver profiles successfully.
+    - `make test-adversarial-smoke` runtime budget remains within target envelope.
+
+- [ ] SIM-V2-3 Abuse/evasion regression suite parity (`replay`, `stale`, `ordering`, `cadence`, `retry-storm`).
+  - Acceptance criteria:
+    - Abuse paths are first-class scenarios with expected outcomes and latency budgets.
+    - Evasion family coverage explicitly includes replay, stale token, ordering/cadence abuse, fingerprint inconsistency, header spoofing, and retry storms.
+    - Each abuse case has deterministic pass/fail behavior under fixed seed.
+    - Failures identify violated invariant (for example nonce replay, token expiry, ordering invalid, cadence anomaly).
+  - Definition of done:
+    - `make test-adversarial-abuse` fails fast with explicit per-case diagnostics.
+    - Abuse scenarios are covered in manifest and runner report output.
+
+- [ ] SIM-V2-4 Quantitative gates for defense effectiveness and collateral/cost control.
+  - Acceptance criteria:
+    - Profile gates include latency bands, outcome ratio bounds, and telemetry amplification ceilings.
+    - Gates are enforced independent of route-pass assertions.
+    - Gate failures print observed vs expected values and threshold source.
+  - Definition of done:
+    - Runner report includes `gates` and `coverage_gates` sections with machine-readable values.
+    - `make test-adversarial-smoke` and `make test-adversarial-abuse` fail on gate breach even when route outcomes pass.
+
+- [ ] SIM-V2-5 Full category coverage profile (`full_coverage`) as pre-release mandatory gate.
+  - Acceptance criteria:
+    - One profile triggers non-zero evidence for: honeypot, challenge, not-a-bot, PoW, rate, GEO, maze, tarpit, CDP/fingerprint, ban path, and event-stream families.
+    - Coverage assertions check `/admin/monitoring` category counters and required event taxonomy presence.
+    - Coverage run includes deterministic prerequisite seeding for IP-range suggestion conditions (fixed synthetic traffic and fixed thresholds) so suggestion-related evidence is reproducible and non-flaky.
+    - Missing category evidence fails profile with category-specific diagnostics.
+  - Definition of done:
+    - `make test-adversarial-coverage` exists and enforces the full coverage contract.
+    - Coverage report includes explicit evidence section for seeded IP-range suggestion prerequisites and resulting suggestion/near-miss outputs.
+    - CI policy marks coverage profile mandatory while project remains pre-launch.
+
+- [ ] SIM-V2-6 Dev/test crawl surface and toggle (`/sim/public/...`) with strict production exclusion.
+  - Acceptance criteria:
+    - Minimal crawl graph pages exist at `/sim/public/landing`, `/sim/public/docs`, `/sim/public/pricing`, `/sim/public/contact`, and `/sim/public/search`.
+    - `SHUMA_ADVERSARY_SIM_AVAILABLE` is env-only (not admin-writable), defaults to `true` in `make dev`, and defaults to `false` in production paths.
+    - Surface is enabled only when `SHUMA_ADVERSARY_SIM_AVAILABLE=true` and runtime `adversary_sim_enabled=true`.
+    - Production paths fail closed for adversary sim: toggle/control endpoints are not exposed, and orchestration cannot be started when runtime is `runtime-prod`.
+    - Pages flow through normal defense pipeline and do not bypass policy enforcement paths.
+  - Definition of done:
+    - Requests to `/sim/public/...` return `404` when unavailable/disabled.
+    - Dashboard exposes a dedicated adversary-sim toggle directly under the `test_mode` toggle (not alongside it).
+    - Config docs and env-help clearly describe availability vs enablement semantics.
+    - Integration checks prove adversary-sim start attempts are rejected in production mode even if a stale UI/config state exists.
+
+- [ ] SIM-V2-7 Strict attacker/control-plane separation.
+  - Acceptance criteria:
+    - Attacker agents cannot read/use `SHUMA_API_KEY`, admin bearer keys, or signing secrets.
+    - Orchestrator-only setup/reset hooks are isolated and auditable in code path separation.
+    - Runner enforces separation contract and fails if attacker path attempts privileged operations.
+  - Definition of done:
+    - Code boundaries are documented and verified by integration tests.
+    - Mandatory adversarial profiles run with attacker plane using only public endpoints.
+
+- [ ] SIM-V2-8 Realistic mixed persona traffic model.
+  - Acceptance criteria:
+    - Profiles include cohorts: human-like, tolerated automation, suspicious automation, and active adversarial.
+    - Cohorts include session-aware pacing, retries, think-time variance, and cookie behavior.
+    - Human-like cohort collateral envelope is measured and bounded by profile gate.
+  - Definition of done:
+    - Reports include cohort-level outcome and cost metrics.
+    - `full_coverage` enforces collateral thresholds for human-like traffic.
+
+- [ ] SIM-V2-9 Adversarial live loop observability quality and tarpit monitoring completeness.
+  - Acceptance criteria:
+    - `make test-adversarial-live` generates meaningful defense events across monitored categories instead of admin-only noise.
+    - Live loop avoids destructive end-of-cycle cleanup by default and supports explicit cleanup mode.
+    - Live loop implements bounded resilience policy for transient endpoint failures (`429`, `5xx`, timeout): classify transient vs fatal, retry with capped backoff, and fail only after configured consecutive fatal cycles.
+    - Tarpit activations/progression/fallback/escalation are visible in monitoring summary/details and dashboard.
+  - Definition of done:
+    - Dashboard monitoring surfaces show expected live simulation events without manual database inspection.
+    - Live run logs include error classification, retry count, and terminal failure reason when loop exits.
+    - Runner docs clearly state live profile behavior and cleanup/preserve controls.
+
+- [ ] SIM-V2-9A Dev UI toggle orchestration for full adversary run lifecycle.
+  - Acceptance criteria:
+    - In dev mode, toggling `adversary_sim_enabled` ON starts full adversary orchestration without requiring a second toggle or terminal command.
+    - ON state launches both deterministic lane execution and containerized black-box lane execution under agreed policy split.
+    - OFF state triggers hard-stop teardown for all adversary processes/containers and prevents new run cycles from starting.
+    - Hard-stop guarantee: after OFF transition, active-run count must converge to zero within bounded timeout; if not, orchestrator performs forced kill path (process-group/container-label cleanup), records terminal failure event, and still returns to a safe OFF state with zero active runs.
+    - Toggle ON/OFF control path requires authenticated admin session, CSRF token validation, and writes auditable control-plane events (actor/session/ip/run_id/state transition).
+    - Toggle-driven run uses default duration `180s` (3 minutes), with run duration tunable via Advanced JSON key `adversary_sim_duration_seconds`.
+    - `adversary_sim_duration_seconds` is capped by hard-coded maximum duration constant (not operator-configurable).
+    - Hard-coded resource guardrails are enforced for toggle-driven runs: max concurrent runs, CPU cap, memory cap, and queue policy (all constants, not operator-configurable).
+    - Dashboard shows a thin fixed top progress line indicating remaining run-window time; reaching full width triggers automatic OFF transition and clean teardown.
+    - Orchestration trigger path is explicit and auditable (dashboard action -> trusted dev orchestrator -> runner/container lanes), not implicit runtime side effects inside request handlers.
+  - Definition of done:
+    - UI toggle behavior is documented end-to-end with state diagram and failure handling.
+    - Integration tests prove ON starts runs, manual OFF hard-stops all runs to zero-active state, and time-window expiry auto-stops runs deterministically in dev.
+    - Integration/security tests prove unauthenticated, unauthorized, or CSRF-invalid toggle attempts are rejected and audited.
+    - Docs publish the hard-coded guardrail constants (max duration, max concurrent runs, CPU cap, memory cap, queue policy) and explain the Advanced JSON bounded duration behavior.
+
+- [ ] SIM-V2-10 Frontier-model adversary configuration and protected-lane enablement (fast/low-cost defaults).
+  - Acceptance criteria:
+    - `make setup` offers an explicit optional interactive step with this prompt sequence:
+      1. ask whether to configure frontier adversary providers now;
+      2. choose one or more providers (OpenAI, Anthropic, Google, xAI);
+      3. choose model id per selected provider (recommended fast/low-cost default + custom override option);
+      4. enter API key per selected provider with hidden input;
+      5. perform live provider key validation at entry time (bounded timeout, hidden input, no key echo), then persist valid values to `.env.local`.
+    - Minimum provider requirement for saved setup is one valid provider key.
+    - Frontier execution architecture must support two explicit modes:
+      1. `single_provider_self_play` (bootstrap mode, one provider key): planner/attacker/critic roles run as isolated sessions with deterministic seed control and role-specific prompts.
+      2. `multi_provider_playoff` (recommended mode, two or more providers): cross-provider role assignment (for example planner=A, critic=B, optional mutator=C) to increase adversarial diversity.
+    - Reports must include `frontier_mode`, participating providers/models, and a `diversity_confidence` label (`low` for single-provider self-play, `higher` for multi-provider playoff).
+    - When only one provider key is configured, UI and report show explicit reduced-diversity advisory warning; run still proceeds.
+    - If the user opts out of frontier setup at step (1), setup continues without saving frontier provider config.
+    - Once provider keys are entered, setup persists them to `.env.local` (no "entered but not saved" branch).
+    - Invalid frontier keys are rejected at setup-time live validation with clear re-entry prompt; invalid keys are never persisted.
+    - Live key validation must use a minimal provider probe endpoint (for example model-list/cheap capability call) and treat network timeout vs auth failure as distinct user-facing errors.
+    - Setup remains non-blocking and deterministic in non-interactive environments (CI/headless shells skip the prompt safely).
+    - Default model preference order favors fast/low-cost models and remains editable by operator.
+    - Frontier adversary lane is required to attempt on protected lanes (`PR -> main` and release gate), with CI secret wiring for provider keys/model ids.
+    - Provider outage/missing-key on protected lanes emits advisory degraded status with actionable diagnostics; deterministic oracle gates remain authoritative blockers.
+    - Frontier lane output is structured and machine-readable (`attack_plan.json` + run metadata with provider/model/version), so findings can be determinized.
+    - Frontier provider key hygiene is enforced: setup prompts never echo secrets, logs/reports redact provider keys, and `.env.local` file permissions remain strict.
+    - In dev toggle-driven runs, missing frontier keys show a warning alert on transition OFF -> ON with two explicit outcomes: dismiss and continue without frontier calls, or run setup to add keys.
+  - Definition of done:
+    - Setup/bootstrap docs explain prompt flow, required/optional inputs, and override mechanism.
+    - Automated checks verify no frontier provider secrets are serialized in adversarial reports or CI logs.
+    - CI docs clearly distinguish: local setup optional, protected-lane frontier execution mandatory.
+    - Docs include explicit architecture section for `single_provider_self_play` vs `multi_provider_playoff`, with expected strengths/limitations and recommended minimum provider count for higher-confidence discovery.
+    - Adversary tooling reads configured provider/model preferences from canonical env keys.
+    - Warning-alert flow is covered by dashboard unit/e2e tests and does not block deterministic/local observation mode.
+
+- [ ] SIM-V2-11 Containerized black-box adversary worker (bounded scope, strict isolation).
+  - Acceptance criteria:
+    - Isolation contract is explicit and enforced; all of the following MUST hold for black-box runs:
+      1. The attacker runs in an isolated worker/container process boundary.
+      2. No workspace mount is present (no repository code/docs/directories available in-container).
+      3. No `SHUMA_*` secrets are present in container env.
+      4. No admin credentials are present in container env (`SHUMA_API_KEY`, read-only admin key, bearer/session tokens, signing secrets).
+      5. Network egress is restricted to allowlisted target app origin(s) only for black-box execution.
+      6. Exposed tooling is limited to browser and HTTP client capabilities required for adversarial traffic generation.
+      7. Run identity is ephemeral per execution (fresh run id/session/cookie jar) with no cross-run reuse.
+      8. Target state reset is performed each run by trusted orchestrator hooks outside attacker container.
+    - Hosted-model API calls are not made from the black-box attacker container; any LLM-assisted plan generation occurs outside the black-box worker and only execution traffic hits the target origin.
+    - Container runtime is hardened (non-root user, dropped Linux capabilities, `no-new-privileges`, read-only rootfs where feasible).
+    - Worker execution is bounded by request budgets, time budgets, and explicit allowlisted target base URLs.
+  - Definition of done:
+    - Make target exists (`make test-adversarial-container-blackbox`) and emits structured report artifacts.
+    - Dedicated conformance target exists (`make test-adversarial-container-isolation`) and validates mount/env/egress/tooling isolation policy before black-box runs.
+    - Container startup performs an isolation self-check and fails fast if any isolation-contract rule is violated (privileged env vars, forbidden mounts, egress/tooling policy violations, non-ephemeral state).
+    - Security review confirms attacker worker path has no privileged credential or source/docs exposure.
+
+- [ ] SIM-V2-11A Dashboard adversary-sim UI state class and styling contract.
+  - Acceptance criteria:
+    - When adversary sim is enabled, dashboard `<body>` includes class `adversary-sim`; when disabled, class is removed.
+    - Class lifecycle remains correct across initial load, config refresh, toggle transitions, and page navigation within dashboard.
+    - Class is purely presentational/state-signaling and does not alter defense semantics directly.
+  - Definition of done:
+    - Dashboard tests assert class add/remove behavior on all relevant state transitions.
+    - UI docs mention `body.adversary-sim` as the canonical hook for dev-only adversary-sim affordances.
+
+- [ ] SIM-V2-11B Dashboard runtime environment body-class contract (`dev` vs `prod`).
+  - Acceptance criteria:
+    - Dashboard `<body>` includes exactly one runtime environment class: `runtime-dev` or `runtime-prod`, derived from trusted server/runtime config.
+    - Class lifecycle remains correct across initial load, config refresh, and in-app navigation.
+    - Environment class is informational/presentational only and must not change defense or auth behavior.
+  - Definition of done:
+    - Dashboard tests assert mutually exclusive class behavior (`runtime-dev` xor `runtime-prod`).
+    - UI docs describe the runtime environment class contract and intended usage for operator affordances.
+
+- [ ] SIM-V2-12 CI policy tiers and scheduling.
+  - Acceptance criteria:
+    - On push: run `test-adversarial-smoke`, `test-adversarial-abuse`, and `test-adversarial-akamai`.
+    - On PR to `main`: run `test-adversarial-coverage` and attempt frontier adversary lane.
+    - Release gate: `test-adversarial-coverage` must pass before cut/deploy; frontier lane attempts must be recorded and surfaced.
+    - Scheduled/manual only: `test-adversarial-soak` and heavier containerized adversary runs.
+    - Mandatory adversarial CI gates remain black-box only; no white-box lane is allowed in release-confidence checks.
+    - Raw stochastic frontier findings do not directly become release blockers until reproducibly confirmed via deterministic replay/promotion workflow.
+    - Frontier lane provider outage is advisory (non-blocking) but must produce explicit degraded status and operator-visible warning on PR/release.
+    - Persistent frontier unavailability policy is explicit: if frontier lane remains degraded for 10 consecutive protected-lane runs or 7 days (whichever occurs first), automatically create/assign supported-model refresh action and update supported model list/documentation.
+  - Definition of done:
+    - CI workflow documents mandatory vs scheduled tiers explicitly.
+    - CI workflow documents deterministic-oracle policy explicitly: frontier is the adaptive discovery engine, deterministic replay is the blocking regression oracle.
+    - Failures route to actionable logs (no silent skip modes for mandatory adversarial checks).
+    - CI docs define who owns model-list refresh and what threshold triggers it.
+
+- [ ] SIM-V2-13 Operator interpretation and tuning playbook.
+  - Acceptance criteria:
+    - Docs map each failed category/gate to likely root causes and recommended tuning actions.
+    - Playbook includes rollback guidance for high-collateral outcomes and false-positive spikes.
+    - Guidance distinguishes dev-live simulation signals from release-gate profile signals.
+  - Definition of done:
+    - `docs/` includes a single canonical adversarial operations guide linked from README/config docs.
+    - On-call workflow can classify and triage a failed adversarial report without code spelunking.
+
+- [ ] SIM-V2-14 Black-box-only adversary governance and policy lock.
+  - Acceptance criteria:
+    - Adversary simulation program is explicitly black-box only for this project phase; no white-box adversary lane is implemented.
+    - Runner/report includes required `execution_lane=black_box` metadata and rejects unsupported lane values.
+    - Docs and CI policy state that repo-context adversary execution is out of scope for release-confidence simulation.
+  - Definition of done:
+    - `make` targets, CI workflow, and docs are aligned to black-box-only posture.
+    - Any attempt to run unsupported non-black-box lane fails with actionable guidance.
+
+- [ ] SIM-V2-15 Deterministic harness and containerized adversary coexistence contract.
+  - Acceptance criteria:
+    - Existing deterministic adversarial runner (`scripts/tests/adversarial_simulation_runner.py`) and current Make targets (`test-adversarial-smoke`, `test-adversarial-abuse`, `test-adversarial-akamai`, `test-adversarial-coverage`) remain canonical mandatory gates until explicit parity sign-off is approved.
+    - Containerized black-box adversary is added as a separate complementary system; it does not replace deterministic mandatory CI paths in this phase.
+    - A capability mapping documents which requirements are validated by deterministic profiles vs containerized black-box runs.
+    - Capability mapping explicitly states role split: frontier lane generates adaptive attack candidates; deterministic lane validates reproducibility and enforces merge/release blocking.
+    - Parity-signoff gate is explicit and measurable before any replacement discussion:
+      1. category parity: `100%` of mandatory defense categories/gates are covered by the candidate lane set;
+      2. reproducibility parity: promoted regressions from frontier findings achieve deterministic replay confirmation rate `>= 95%` over a rolling window of 20 findings;
+      3. stability parity: candidate lane set passes 10 consecutive protected-lane runs without flaky nondeterministic failures;
+      4. cost parity: protected-lane runtime increase remains within agreed budget (`<= 20%` vs deterministic-only baseline unless explicitly approved).
+    - Any future migration/removal of deterministic targets requires explicit TODO/ADR update and acceptance criteria for parity and runtime-cost impact.
+  - Definition of done:
+    - Docs include a clear "keep both vs replace" decision record with current policy set to coexistence.
+    - CI workflow and Make help text reflect deterministic mandatory gates plus separate containerized/scheduled runs.
+    - ADR/checklist template exists for future parity sign-off and requires explicit owner approval before any deterministic-lane demotion.
+
+- [ ] SIM-V2-16 Deterministic repeatability gate for adversarial profiles.
+  - Acceptance criteria:
+    - Repeatability check runs selected deterministic profiles (`smoke`, `abuse`, and seeded `coverage`) `N=3` times with identical seed/config/reset baseline.
+    - Scenario pass/fail vector and observed outcome classes are identical across repeats.
+    - Quantitative gate values remain within explicit tolerance bands (latency tolerance bounded; categorical/taxonomy values exact).
+    - Any frontier-discovered candidate must pass repeatable deterministic replay before it can be promoted to blocking regression status.
+  - Definition of done:
+    - Make target exists (`make test-adversarial-repeatability`) and fails with concise diff output when run-to-run drift is detected.
+    - CI policy runs repeatability on PR-to-main and release-gate paths (not on every push).
+
+- [ ] SIM-V2-17 Release-gate enforcement wiring for coverage + frontier-redteam + deterministic oracle policy.
+  - Acceptance criteria:
+    - Release cut/deploy workflow has explicit hard dependency on successful `test-adversarial-coverage`; frontier-lane attempt status is required telemetry with degraded advisory when unavailable.
+    - Release gate policy blocks only on reproducible confirmed failures (deterministic replay/promotion), not unconfirmed single-run stochastic frontier anomalies.
+    - Failure of coverage or reproducible confirmed deterministic gate blocks release action with actionable status output.
+    - Branch protection/check policy documents this dependency unambiguously.
+  - Definition of done:
+    - CI/release workflow files and deployment docs both state and enforce the same release-gate contract.
+    - Dry-run validation proves release is blocked when coverage gate fails.
+    - Dry-run validation proves release is blocked when deterministic replay confirms a frontier-discovered high-severity regression.
+
+- [ ] SIM-V2-18 Frontier finding triage and deterministic promotion pipeline.
+  - Acceptance criteria:
+    - Frontier lane produces normalized finding artifacts with stable identifiers (scenario family, path, headers, cadence pattern, observed outcome, confidence/severity).
+    - Finding artifacts include frontier diversity metadata (`frontier_mode`, provider_count, providers/models, diversity_confidence).
+    - Automated triage attempts deterministic replay for each candidate and classifies outcomes: `confirmed_reproducible`, `not_reproducible`, `needs_manual_review`.
+    - `confirmed_reproducible` findings can be promoted into manifest scenarios with expected outcome and quantitative assertions.
+    - Promotion policy accounts for diversity confidence:
+      - `single_provider_self_play` findings are eligible for promotion only after deterministic confirmation plus owner review.
+      - `multi_provider_playoff` findings receive higher initial confidence but still require deterministic confirmation before becoming blocking regressions.
+    - Promotion workflow includes explicit owner review and severity/risk metadata before becoming a blocking regression case.
+  - Definition of done:
+    - Make target exists (`make test-adversarial-promote-candidates`) to run triage/promotion checks.
+    - Docs define SLA and decision flow for unresolved high-severity frontier findings on PR/release paths.
+    - Runner/report surfaces candidate -> replay -> promotion lineage for auditability.
+
+- [ ] SIM-V2-19 Frontier data-governance and outbound content minimization policy.
+  - Acceptance criteria:
+    - Define and enforce a versioned outbound schema allowlist (`frontier_payload_schema.v1`) of data permitted in frontier prompts (public crawl content + synthetic attack metadata only).
+    - Explicitly forbid outbound transmission of secrets, auth/session tokens, raw admin payloads, direct user identifiers, and raw IP addresses.
+    - Add deterministic redaction/minimization step before any frontier request and verify via automated tests with positive and negative fixtures.
+    - Redaction pipeline is explicit and ordered: canonicalize -> classify fields -> drop forbidden fields -> mask quasi-identifiers -> schema validate -> send.
+    - Define retention TTL and deletion policy:
+      1. raw frontier request/response payload persistence is disabled by default;
+      2. optional dev-only debug payload persistence (if enabled) has max TTL `24h`;
+      3. normalized finding artifacts and replay metadata retain for `30d` then purge.
+    - CI conformance check fails if any forbidden field appears in outbound payload artifacts.
+  - Definition of done:
+    - Docs include a concise data-governance matrix for frontier lanes (allowed, forbidden, retention, redaction rules).
+    - CI checks fail if forbidden fields are detected in frontier payload artifacts.
+    - Data-governance doc includes explicit "allowed examples" and "forbidden examples" tables used by tests.
+
+- [ ] SIM-V2-20 Simulation event tagging and environment data-plane separation.
+  - Acceptance criteria:
+    - All adversary-generated events are tagged in telemetry/logging with simulation metadata (`sim_run_id`, `sim_profile`, `sim_lane`) for audit/filtering.
+    - Dev and prod data planes are explicitly separated; simulation traffic cannot pollute production stores.
+    - Separation is enforced by storage namespace/backend boundary (distinct DB file/prefix/table space or equivalent) and runtime-mode guardrails, without requiring separate operator admin API keys for dev vs prod.
+    - Runtime-prod fails closed for adversary-sim control/start requests even if stale config or UI state attempts to enable it.
+    - Startup/runtime validation fails fast if environment/store separation contract is misconfigured.
+    - UI distinction of sim events remains optional; backend tagging and API-level filtering must exist regardless of UI presentation choices.
+  - Definition of done:
+    - Monitoring/event APIs expose simulation tags and support server-side filtering.
+    - Monitoring/event APIs expose server-side `include_sim` filtering and default-safe behavior for non-dev contexts.
+    - Deployment/docs include guardrails proving production store isolation from dev simulation runs and explicitly document that admin auth keys may be shared while data stores remain isolated.
+
+- [ ] SIM-V2-21 Minimal simulator self-test harness (non-circular runner correctness anchor).
+  - Acceptance criteria:
+    - Add a tiny deterministic stub target for simulator validation only (not a full fixture app), with fixed-response routes covering allow/challenge/deny-style outcomes and controlled timing.
+    - Self-test scope is strictly simulator mechanics, not defense efficacy: seed reproducibility, scenario ordering, runtime budget enforcement, retry/backoff classification, quantitative gate computation, and hard-stop teardown behavior.
+    - Expected outputs are spec-defined invariants, not generated from simulator-produced artifacts.
+    - Harness is explicitly non-blocking for product behavior semantics and does not duplicate full adversarial coverage profiles.
+  - Definition of done:
+    - Make target exists (`make test-adversarial-sim-selftest`) and is deterministic under fixed seed.
+    - CI includes the self-test in adversarial validation lanes where simulator regressions would otherwise go undetected.
+    - Docs explain why this is intentionally minimal (anti-circular) and what classes of bugs it is designed to catch.
 
 ## P1 Dashboard IA: Promote Rate Limiting and GEO to Top-Level Tabs
 - [ ] DSH-RG-1 Define dashboard information architecture update and tab order for new top-level `Rate Limiting` and `GEO` tabs (including hash-route mapping and back/forward behavior).

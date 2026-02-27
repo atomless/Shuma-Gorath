@@ -406,6 +406,11 @@ fn increment_counter<S: crate::challenge::KeyValueStore>(store: &S, key: &str) {
     maybe_flush_pending_counter_buffer(store, false);
 }
 
+pub(crate) fn flush_pending_counters<S: crate::challenge::KeyValueStore>(store: &S) {
+    #[cfg(not(test))]
+    maybe_flush_pending_counter_buffer(store, true);
+}
+
 fn monitoring_key(section: &str, metric: &str, dimension: Option<&str>, hour: u64) -> String {
     if let Some(value) = dimension {
         return format!(

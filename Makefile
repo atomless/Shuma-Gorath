@@ -394,7 +394,7 @@ test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtu
 test-adversarial-smoke: ## Run adversarial fast smoke simulation profile (requires running server)
 	@echo "$(CYAN)🧪 Running adversarial fast smoke simulation...$(NC)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
-		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile fast_smoke; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" SHUMA_ADVERSARIAL_PRESERVE_STATE=0 SHUMA_ADVERSARIAL_ROTATE_IPS=0 python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile fast_smoke; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
@@ -404,7 +404,7 @@ test-adversarial-smoke: ## Run adversarial fast smoke simulation profile (requir
 test-adversarial-abuse: ## Run replay/stale/ordering abuse regression profile (requires running server)
 	@echo "$(CYAN)🧪 Running adversarial abuse regression profile...$(NC)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
-		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile abuse_regression; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" SHUMA_ADVERSARIAL_PRESERVE_STATE=0 SHUMA_ADVERSARIAL_ROTATE_IPS=0 python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile abuse_regression; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
@@ -414,7 +414,7 @@ test-adversarial-abuse: ## Run replay/stale/ordering abuse regression profile (r
 test-adversarial-akamai: ## Run Akamai signal fixture smoke profile (requires running server)
 	@echo "$(CYAN)🧪 Running adversarial Akamai fixture profile...$(NC)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
-		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile akamai_smoke; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" SHUMA_ADVERSARIAL_PRESERVE_STATE=0 SHUMA_ADVERSARIAL_ROTATE_IPS=0 python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile akamai_smoke; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
@@ -427,6 +427,8 @@ test-adversarial-live: ## Continuously run adversarial simulation profile for li
 	RUNS="$${ADVERSARIAL_RUNS:-0}"; \
 	PAUSE="$${ADVERSARIAL_PAUSE_SECONDS:-2}"; \
 	REPORT_PATH="$${ADVERSARIAL_REPORT_PATH:-scripts/tests/adversarial/latest_report.json}"; \
+	PRESERVE="$${ADVERSARIAL_PRESERVE_STATE:-1}"; \
+	ROTATE_IPS="$${ADVERSARIAL_ROTATE_IPS:-1}"; \
 	case "$$RUNS" in ''|*[!0-9]*) \
 		echo "$(RED)❌ ADVERSARIAL_RUNS must be an integer (0 means run until Ctrl+C).$(NC)"; \
 		exit 1 ;; \
@@ -440,13 +442,13 @@ test-adversarial-live: ## Continuously run adversarial simulation profile for li
 		echo "$(YELLOW)   Supported profiles: fast_smoke, abuse_regression, akamai_smoke$(NC)"; \
 		exit 1; \
 	fi; \
-	echo "$(YELLOW)   profile=$$PROFILE runs=$$RUNS pause_seconds=$$PAUSE report=$$REPORT_PATH$(NC)"; \
+	echo "$(YELLOW)   profile=$$PROFILE runs=$$RUNS pause_seconds=$$PAUSE preserve_state=$$PRESERVE rotate_ips=$$ROTATE_IPS report=$$REPORT_PATH$(NC)"; \
 	echo "$(YELLOW)   Press Ctrl+C to stop.$(NC)"; \
 	if $(MAKE) --no-print-directory spin-wait-ready; then \
 		ITER=1; \
 		while true; do \
 			echo "$(CYAN)[adversarial-live] cycle $$ITER$(NC)"; \
-			SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" \
+			SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" SHUMA_ADVERSARIAL_PRESERVE_STATE="$$PRESERVE" SHUMA_ADVERSARIAL_ROTATE_IPS="$$ROTATE_IPS" \
 				python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile "$$PROFILE" --report "$$REPORT_PATH" || exit 1; \
 			if [ "$$RUNS" -gt 0 ] && [ "$$ITER" -ge "$$RUNS" ]; then \
 				echo "$(GREEN)✅ adversarial live loop completed $$ITER cycle(s).$(NC)"; \

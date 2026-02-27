@@ -1146,6 +1146,24 @@ else
   echo -e "${YELLOW}DEBUG /admin/monitoring:${NC} $monitoring_resp"
 fi
 
+monitoring_activity_ok=$(python3 -c 'import json,sys
+try:
+    data=json.loads(sys.stdin.read())
+except Exception:
+    print("0")
+    raise SystemExit(0)
+summary=data.get("summary") or {}
+honeypot=int((summary.get("honeypot") or {}).get("total_hits") or 0)
+not_a_bot=int((summary.get("not_a_bot") or {}).get("submitted") or 0)
+geo=int((summary.get("geo") or {}).get("total_violations") or 0)
+print("1" if (honeypot >= 1 and not_a_bot >= 1 and geo >= 1) else "0")' <<< "$monitoring_resp")
+if [[ "$monitoring_activity_ok" == "1" ]]; then
+  pass "/admin/monitoring records non-zero telemetry after integration abuse flows"
+else
+  fail "/admin/monitoring counters remained zero after integration abuse flows"
+  echo -e "${YELLOW}DEBUG /admin/monitoring:${NC} $monitoring_resp"
+fi
+
 monitoring_metrics_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" "$BASE_URL/metrics")
 monitoring_metrics_parity_ok=$(MONITORING_JSON="$monitoring_resp" METRICS_TEXT="$monitoring_metrics_resp" python3 - <<'PY'
 import json

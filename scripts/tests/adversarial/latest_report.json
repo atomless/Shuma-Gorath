@@ -4,29 +4,29 @@
   "profile": "akamai_smoke",
   "base_url": "http://127.0.0.1:3000",
   "request_count": 4,
-  "suite_runtime_ms": 140,
+  "suite_runtime_ms": 171,
   "monitoring_before": {
-    "fingerprint_events": 7540,
-    "monitoring_total": 0,
+    "fingerprint_events": 7848,
+    "monitoring_total": 815,
     "components": {
-      "honeypot_hits": 0,
-      "challenge_failures": 0,
-      "not_a_bot_submitted": 0,
-      "pow_attempts": 0,
-      "rate_violations": 0,
-      "geo_violations": 0
+      "honeypot_hits": 113,
+      "challenge_failures": 4,
+      "not_a_bot_submitted": 352,
+      "pow_attempts": 8,
+      "rate_violations": 115,
+      "geo_violations": 223
     }
   },
   "monitoring_after": {
-    "fingerprint_events": 7541,
-    "monitoring_total": 0,
+    "fingerprint_events": 7849,
+    "monitoring_total": 815,
     "components": {
-      "honeypot_hits": 0,
-      "challenge_failures": 0,
-      "not_a_bot_submitted": 0,
-      "pow_attempts": 0,
-      "rate_violations": 0,
-      "geo_violations": 0
+      "honeypot_hits": 113,
+      "challenge_failures": 4,
+      "not_a_bot_submitted": 352,
+      "pow_attempts": 8,
+      "rate_violations": 115,
+      "geo_violations": 223
     }
   },
   "results": [
@@ -37,7 +37,7 @@
       "expected_outcome": "monitor",
       "observed_outcome": "monitor",
       "passed": true,
-      "latency_ms": 12,
+      "latency_ms": 11,
       "runtime_budget_ms": 9000,
       "detail": "ok"
     },
@@ -48,7 +48,7 @@
       "expected_outcome": "deny_temp",
       "observed_outcome": "deny_temp",
       "passed": true,
-      "latency_ms": 12,
+      "latency_ms": 8,
       "runtime_budget_ms": 9000,
       "detail": "ok"
     }
@@ -59,8 +59,8 @@
       {
         "name": "latency_p95",
         "passed": true,
-        "detail": "p95=12ms limit=2000ms",
-        "observed": 12,
+        "detail": "p95=11ms limit=2000ms",
+        "observed": 11,
         "limit": 2000
       },
       {
@@ -96,8 +96,8 @@
       {
         "name": "suite_runtime_budget",
         "passed": true,
-        "detail": "runtime=140ms limit=45000ms",
-        "observed": 140,
+        "detail": "runtime=171ms limit=45000ms",
+        "observed": 171,
         "limit": 45000
       }
     ],
@@ -108,5 +108,5 @@
     "request_count": 4
   },
   "passed": true,
-  "generated_at_unix": 1772128786
+  "generated_at_unix": 1772138968
 }

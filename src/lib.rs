@@ -1166,5 +1166,9 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
 
 #[http_component]
 pub fn spin_entrypoint(req: Request) -> Response {
-    handle_bot_defence_impl(&req)
+    let response = handle_bot_defence_impl(&req);
+    if let Ok(store) = Store::open_default() {
+        observability::monitoring::flush_pending_counters(&store);
+    }
+    response
 }

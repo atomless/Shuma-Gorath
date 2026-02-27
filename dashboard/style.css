@@ -136,6 +136,11 @@
   background: var(--color-50);
 }
 
+#dashboard-panel-ip-bans > .panel-soft {
+  margin-bottom: -12px;
+  border-bottom: var(--border-hairline);
+}
+
 .panel-muted {
   background: var(--color-100);
 }
