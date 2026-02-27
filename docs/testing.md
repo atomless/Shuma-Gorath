@@ -18,6 +18,8 @@ make test-adversarial-coverage # Expanded adversarial coverage profile (pre-rele
 make test-adversarial-sim-selftest # Minimal deterministic simulator mechanics self-test (no Spin server required)
 make test-adversarial-soak # Deep adversarial soak gate alias for full_coverage
 make test-adversarial-live # Loop adversarial profile for live monitoring demos (Ctrl+C to stop)
+make test-adversarial-container-isolation # Validate black-box container isolation contract (Docker required)
+make test-adversarial-container-blackbox # Run containerized black-box adversary worker (Docker required)
 make test-adversarial-frontier-attempt # Protected-lane frontier provider attempt probe (advisory/non-blocking)
 make test-frontier-governance # Frontier artifact guard (forbidden keys + secret leak checks)
 make test-ip-range-suggestions # Focused IP-range suggestion regression gate (runtime + dashboard)
@@ -138,6 +140,8 @@ Available profiles:
 - `make test-adversarial-soak` - deep soak alias for `full_coverage` (scheduled/manual gate)
 - `make test-adversarial-manifest` - schema/fixture validation without server
 - `make test-adversarial-live` - repeated live traffic generator for operator monitoring drills
+- `make test-adversarial-container-isolation` - container self-check gate for mount/env/identity/tooling hardening contract
+- `make test-adversarial-container-blackbox` - containerized black-box worker run (separate complementary lane)
 - `make test-adversarial-frontier-attempt` - protected-lane frontier provider probe attempt (advisory, non-blocking)
 - `make test-frontier-governance` - fail-fast guard for forbidden frontier artifact fields and secret leaks
 
@@ -196,6 +200,11 @@ Live loop controls:
 `test-adversarial-fast` and `test-adversarial-coverage` both enforce `test-frontier-governance` after artifact generation.
 `test-adversarial-coverage` forces deterministic cleanup plus per-run scenario-IP rotation (`SHUMA_ADVERSARIAL_PRESERVE_STATE=0`, `SHUMA_ADVERSARIAL_ROTATE_IPS=1`) to avoid stale local cadence/persistence collisions.
 Monitoring tab now includes explicit tarpit progression telemetry (activations, progression outcomes, budget fallbacks, escalation outcomes, and top active bucket) sourced from `/admin/monitoring`.
+Container black-box controls:
+- worker image path: `scripts/tests/adversarial_container/Dockerfile` (non-root user, no workspace mount, read-only rootfs at runtime)
+- runtime guardrails: dropped capabilities + `no-new-privileges` + bounded CPU/memory/pids + tmpfs `/tmp`
+- isolation report: `scripts/tests/adversarial/container_isolation_report.json`
+- black-box run report: `scripts/tests/adversarial/container_blackbox_report.json`
 CI policy is tiered:
 - Push to `main`: `ci.yml` runs `make test` (includes mandatory fast adversarial matrix).
 - PR to `main`: `ci.yml` additionally runs `make test-adversarial-coverage` and `make test-adversarial-frontier-attempt`.

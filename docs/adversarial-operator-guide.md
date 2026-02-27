@@ -12,11 +12,16 @@ Use this guide for:
 - `make test-adversarial-fast`
 - `make test-adversarial-soak`
 - `make test-adversarial-live`
+- `make test-adversarial-container-isolation`
+- `make test-adversarial-container-blackbox`
 
 All profiles write a report to `scripts/tests/adversarial/latest_report.json` unless `ADVERSARIAL_REPORT_PATH` overrides it.
 All runs also emit `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
 All manifests and reports are locked to `execution_lane=black_box`; non-black-box lane values are rejected at validation time.
 `make test-adversarial-live` now classifies failures as `transient` or `fatal`, retries transient cycles with capped backoff, and only terminates after `ADVERSARIAL_FATAL_CYCLE_LIMIT` consecutive fatal cycles.
+Container lane emits:
+1. `scripts/tests/adversarial/container_isolation_report.json`
+2. `scripts/tests/adversarial/container_blackbox_report.json`
 
 ## Frontier Architecture Modes
 

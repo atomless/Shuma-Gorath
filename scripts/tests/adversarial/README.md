@@ -18,6 +18,10 @@
   - Makefile simulation targets execute `scenario_manifest.v2.json`; `v1` remains as a compatibility-validation contract.
 - `frontier_payload_schema.v1.json`
   - Versioned outbound allowlist contract for frontier payload redaction/minimization.
+- `../adversarial_container/`
+  - Container worker assets for black-box isolation lane:
+    - `Dockerfile`
+    - `worker.py`
 
 ## Runner
 
@@ -39,6 +43,8 @@ The runner writes machine-readable artifacts to:
 - `scripts/tests/adversarial/latest_report.json`
 - `scripts/tests/adversarial/attack_plan.json`
 - `scripts/tests/adversarial/frontier_lane_status.json` (from `make test-adversarial-frontier-attempt`)
+- `scripts/tests/adversarial/container_isolation_report.json` (from `make test-adversarial-container-isolation`)
+- `scripts/tests/adversarial/container_blackbox_report.json` (from `make test-adversarial-container-blackbox`)
 - `latest_report.json` and `attack_plan.json` include `execution_lane` metadata for auditability.
 - `latest_report.json` includes:
   - quantitative `gates` and `coverage_gates` sections (each check includes `threshold_source`),
@@ -70,4 +76,7 @@ Notes:
   - orchestrator-only setup/reset/config hooks remain on the control plane via admin-authenticated calls.
 - `monitoring_after` snapshot includes nested tarpit metrics so live-loop output can report activation/progression/fallback/escalation coverage without manual JSON digging.
 - Protected-lane frontier probe output (`frontier_lane_status.json`) is advisory only; deterministic coverage/replay gates remain blocking.
+- Container lane is complementary and non-replacing in this phase:
+  - run `make test-adversarial-container-isolation` to validate isolation contract first,
+  - then run `make test-adversarial-container-blackbox` for bounded black-box traffic execution.
 - `adversarial_sim_selftest.py` is intentionally tiny and non-circular: it validates simulator mechanics against fixed stub routes without asserting product defense efficacy.

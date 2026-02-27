@@ -71,26 +71,6 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
 Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
 
-- [ ] SIM-V2-11 Containerized black-box adversary worker (bounded scope, strict isolation).
-  - Acceptance criteria:
-    - Isolation contract is explicit and enforced; all of the following MUST hold for black-box runs:
-      1. The attacker runs in an isolated worker/container process boundary.
-      2. No workspace mount is present (no repository code/docs/directories available in-container).
-      3. No `SHUMA_*` secrets are present in container env.
-      4. No admin credentials are present in container env (`SHUMA_API_KEY`, read-only admin key, bearer/session tokens, signing secrets).
-      5. Network egress is restricted to allowlisted target app origin(s) only for black-box execution.
-      6. Exposed tooling is limited to browser and HTTP client capabilities required for adversarial traffic generation.
-      7. Run identity is ephemeral per execution (fresh run id/session/cookie jar) with no cross-run reuse.
-      8. Target state reset is performed each run by trusted orchestrator hooks outside attacker container.
-    - Hosted-model API calls are not made from the black-box attacker container; any LLM-assisted plan generation occurs outside the black-box worker and only execution traffic hits the target origin.
-    - Container runtime is hardened (non-root user, dropped Linux capabilities, `no-new-privileges`, read-only rootfs where feasible).
-    - Worker execution is bounded by request budgets, time budgets, and explicit allowlisted target base URLs.
-  - Definition of done:
-    - Make target exists (`make test-adversarial-container-blackbox`) and emits structured report artifacts.
-    - Dedicated conformance target exists (`make test-adversarial-container-isolation`) and validates mount/env/egress/tooling isolation policy before black-box runs.
-    - Container startup performs an isolation self-check and fails fast if any isolation-contract rule is violated (privileged env vars, forbidden mounts, egress/tooling policy violations, non-ephemeral state).
-    - Security review confirms attacker worker path has no privileged credential or source/docs exposure.
-
 - [ ] SIM-V2-12 CI policy tiers and scheduling.
   - Acceptance criteria:
     - On push: run `test-adversarial-smoke`, `test-adversarial-abuse`, and `test-adversarial-akamai`.
