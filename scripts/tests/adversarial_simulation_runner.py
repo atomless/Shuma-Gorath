@@ -1766,6 +1766,7 @@ def find_invalid_pow_nonce(seed: str, difficulty: int, max_iter: int = 5_000_000
 def extract_monitoring_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
     summary = dict_or_empty(payload.get("summary"))
     details = dict_or_empty(payload.get("details"))
+    tarpit_details = dict_or_empty(nested_dict_value(details, ("tarpit",)))
     recent_events = nested_dict_value(details, ("events", "recent_events"))
     recent_event_count = len(recent_events) if isinstance(recent_events, list) else 0
     recent_event_reasons = []
@@ -1821,6 +1822,7 @@ def extract_monitoring_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
         "monitoring_total": sum(components.values()),
         "components": components,
         "coverage": coverage,
+        "tarpit": tarpit_details,
         "recent_event_reasons": sorted(set(recent_event_reasons)),
     }
 

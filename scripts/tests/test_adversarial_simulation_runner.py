@@ -203,7 +203,13 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
                 "analytics": {"ban_count": 9},
                 "events": {"recent_events": [{}, {}, {}]},
                 "maze": {"total_hits": 8},
-                "tarpit": {"metrics": {"activations": {"progressive": 2}, "progress_outcomes": {"advanced": 1}}},
+                "tarpit": {
+                    "metrics": {
+                        "activations": {"progressive": 2},
+                        "progress_outcomes": {"advanced": 1},
+                        "budget_outcomes": {"fallback_maze": 3},
+                    }
+                },
                 "cdp": {
                     "stats": {"total_detections": 4},
                     "fingerprint_stats": {"events": 11},
@@ -220,6 +226,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(snapshot["coverage"]["tarpit_activations_progressive"], 2)
         self.assertEqual(snapshot["coverage"]["recent_event_count"], 3)
         self.assertEqual(snapshot["components"]["not_a_bot_submitted"], 4)
+        self.assertEqual(snapshot["tarpit"]["metrics"]["budget_outcomes"]["fallback_maze"], 3)
 
     def test_extract_monitoring_snapshot_collects_recent_event_reasons(self):
         payload = {

@@ -232,6 +232,7 @@ export const adaptMonitoring = (payload) => {
     events: adaptEvents(detailsSource.events),
     bans: adaptBans(detailsSource.bans),
     maze: adaptMaze(detailsSource.maze),
+    tarpit: asRecord(detailsSource.tarpit),
     cdp: adaptCdp(detailsSource.cdp),
     cdp_events: adaptCdpEvents(detailsSource.cdp_events || detailsSource.cdpEvents)
   };

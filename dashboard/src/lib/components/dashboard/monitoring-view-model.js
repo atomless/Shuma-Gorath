@@ -243,6 +243,48 @@ export const deriveMazeStatsViewModel = (data = {}) => {
   };
 };
 
+export const deriveTarpitViewModel = (data = {}) => {
+  const source = data && typeof data === 'object' ? data : {};
+  const metrics = source.metrics && typeof source.metrics === 'object' ? source.metrics : {};
+  const activations = metrics.activations && typeof metrics.activations === 'object'
+    ? metrics.activations
+    : {};
+  const progressOutcomes = metrics.progress_outcomes && typeof metrics.progress_outcomes === 'object'
+    ? metrics.progress_outcomes
+    : {};
+  const budgetOutcomes = metrics.budget_outcomes && typeof metrics.budget_outcomes === 'object'
+    ? metrics.budget_outcomes
+    : {};
+  const escalationOutcomes =
+    metrics.escalation_outcomes && typeof metrics.escalation_outcomes === 'object'
+      ? metrics.escalation_outcomes
+      : {};
+  const active = source.active && typeof source.active === 'object' ? source.active : {};
+  const topBucket =
+    Array.isArray(active.top_buckets) && active.top_buckets.length > 0
+      ? active.top_buckets[0]
+      : null;
+
+  return {
+    enabled: source.enabled === true,
+    activationsProgressive: formatCompactNumber(activations.progressive, '0'),
+    progressAdvanced: formatCompactNumber(progressOutcomes.advanced, '0'),
+    fallbackMaze: formatCompactNumber(budgetOutcomes.fallback_maze, '0'),
+    fallbackBlock: formatCompactNumber(budgetOutcomes.fallback_block, '0'),
+    escalationShortBan: formatCompactNumber(escalationOutcomes.short_ban, '0'),
+    escalationBlock: formatCompactNumber(escalationOutcomes.block, '0'),
+    topActiveBucket: deriveTopOffenderViewModel(
+      topBucket?.bucket,
+      topBucket?.active,
+      'active stream',
+      'active streams'
+    ),
+    progressOutcomes: sortCountEntries(progressOutcomes),
+    budgetOutcomes: sortCountEntries(budgetOutcomes),
+    escalationOutcomes: sortCountEntries(escalationOutcomes)
+  };
+};
+
 export const deriveMonitoringSummaryViewModel = (summary = {}) => {
   const honeypot = summary.honeypot || {};
   const challenge = summary.challenge || {};

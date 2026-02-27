@@ -16,6 +16,7 @@ Use this guide for:
 All profiles write a report to `scripts/tests/adversarial/latest_report.json` unless `ADVERSARIAL_REPORT_PATH` overrides it.
 All runs also emit `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
 All manifests and reports are locked to `execution_lane=black_box`; non-black-box lane values are rejected at validation time.
+`make test-adversarial-live` now classifies failures as `transient` or `fatal`, retries transient cycles with capped backoff, and only terminates after `ADVERSARIAL_FATAL_CYCLE_LIMIT` consecutive fatal cycles.
 
 ## Frontier Architecture Modes
 
@@ -55,6 +56,15 @@ Rules:
 3. Frontier attempt output (`scripts/tests/adversarial/frontier_lane_status.json`) must be archived for PR/release auditing.
 4. If frontier status remains degraded for 10 consecutive protected-lane runs or 7 days (whichever comes first), operators must open and assign a supported-model refresh action and update frontier model documentation.
 
+## Live Loop Guardrails (SIM-V2-9)
+
+Live-loop defaults are operator-observability-first:
+
+1. `ADVERSARIAL_CLEANUP_MODE=0` (default) preserves state between cycles.
+2. `ADVERSARIAL_CLEANUP_MODE=1` enables explicit cleanup-per-cycle mode.
+3. Cycles that emit only admin/config noise (no meaningful defense event reasons) are classified as fatal-quality failures.
+4. Loop logs include cycle classification, retry count, backoff seconds, and terminal failure reason.
+
 ## Inputs You Must Capture
 
 For every failing run, operators must capture:
@@ -77,6 +87,7 @@ Operators must triage in this order:
 4. Coverage deltas in `coverage_gates.coverage.deltas` (for `full_coverage`/soak).
 5. Persona collateral and cost envelopes in `cohort_metrics`.
 6. Seeded IP-range evidence in `ip_range_suggestions`.
+7. Tarpit progression/fallback/escalation counters in Monitoring tab (`Tarpit Progression` section) and `monitoring_after.tarpit.metrics` in report artifacts.
 
 Operators must not tune thresholds before confirming whether failures are scenario mismatches versus gate regressions.
 

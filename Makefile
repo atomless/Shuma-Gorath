@@ -397,8 +397,8 @@ integration-test: test-integration ## Alias for Spin integration tests
 
 test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtures (no server required)
 	@echo "$(CYAN)🧪 Validating adversarial simulation manifest...$(NC)"
-	@python3 -m py_compile scripts/tests/adversarial_simulation_runner.py scripts/tests/frontier_lane_attempt.py scripts/tests/check_frontier_payload_artifacts.py
-	@python3 -m unittest scripts/tests/test_adversarial_simulation_runner.py scripts/tests/test_frontier_lane_and_governance.py
+	@python3 -m py_compile scripts/tests/adversarial_simulation_runner.py scripts/tests/adversarial_live_loop.py scripts/tests/frontier_lane_attempt.py scripts/tests/check_frontier_payload_artifacts.py
+	@python3 -m unittest scripts/tests/test_adversarial_simulation_runner.py scripts/tests/test_adversarial_live_loop.py scripts/tests/test_frontier_lane_and_governance.py
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile fast_smoke --validate-only
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile abuse_regression --validate-only
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile akamai_smoke --validate-only
@@ -480,8 +480,7 @@ test-adversarial-live: ## Continuously run adversarial simulation profile for li
 	RUNS="$${ADVERSARIAL_RUNS:-0}"; \
 	PAUSE="$${ADVERSARIAL_PAUSE_SECONDS:-2}"; \
 	REPORT_PATH="$${ADVERSARIAL_REPORT_PATH:-scripts/tests/adversarial/latest_report.json}"; \
-	PRESERVE="$${ADVERSARIAL_PRESERVE_STATE:-1}"; \
-	ROTATE_IPS="$${ADVERSARIAL_ROTATE_IPS:-1}"; \
+	CLEANUP_MODE="$${ADVERSARIAL_CLEANUP_MODE:-0}"; \
 	case "$$RUNS" in ''|*[!0-9]*) \
 		echo "$(RED)❌ ADVERSARIAL_RUNS must be an integer (0 means run until Ctrl+C).$(NC)"; \
 		exit 1 ;; \
@@ -490,28 +489,28 @@ test-adversarial-live: ## Continuously run adversarial simulation profile for li
 		echo "$(RED)❌ ADVERSARIAL_PAUSE_SECONDS must be an integer >= 0.$(NC)"; \
 		exit 1 ;; \
 	esac; \
-	if ! python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile "$$PROFILE" --validate-only >/dev/null 2>&1; then \
-		echo "$(RED)❌ Unknown ADVERSARIAL_PROFILE='$$PROFILE'.$(NC)"; \
-		echo "$(YELLOW)   Supported profiles: fast_smoke, abuse_regression, akamai_smoke, full_coverage$(NC)"; \
-		exit 1; \
-	fi; \
-	echo "$(YELLOW)   profile=$$PROFILE runs=$$RUNS pause_seconds=$$PAUSE preserve_state=$$PRESERVE rotate_ips=$$ROTATE_IPS report=$$REPORT_PATH$(NC)"; \
+	case "$$CLEANUP_MODE" in 0|1) ;; \
+	*) \
+		echo "$(RED)❌ ADVERSARIAL_CLEANUP_MODE must be 0 (preserve state) or 1 (cleanup each cycle).$(NC)"; \
+		exit 1 ;; \
+	esac; \
+	echo "$(YELLOW)   profile=$$PROFILE runs=$$RUNS pause_seconds=$$PAUSE cleanup_mode=$$CLEANUP_MODE report=$$REPORT_PATH$(NC)"; \
 	echo "$(YELLOW)   Press Ctrl+C to stop.$(NC)"; \
 	if $(MAKE) --no-print-directory spin-wait-ready; then \
-		ITER=1; \
-		while true; do \
-			echo "$(CYAN)[adversarial-live] cycle $$ITER$(NC)"; \
-			SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" SHUMA_ADVERSARIAL_PRESERVE_STATE="$$PRESERVE" SHUMA_ADVERSARIAL_ROTATE_IPS="$$ROTATE_IPS" \
-				python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile "$$PROFILE" --report "$$REPORT_PATH" || exit 1; \
-			if [ "$$RUNS" -gt 0 ] && [ "$$ITER" -ge "$$RUNS" ]; then \
-				echo "$(GREEN)✅ adversarial live loop completed $$ITER cycle(s).$(NC)"; \
-				break; \
-			fi; \
-			ITER=$$((ITER + 1)); \
-			if [ "$$PAUSE" -gt 0 ]; then \
-				sleep "$$PAUSE"; \
-			fi; \
-		done; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" \
+			python3 scripts/tests/adversarial_live_loop.py \
+				--manifest scripts/tests/adversarial/scenario_manifest.v2.json \
+				--profile "$$PROFILE" \
+				--runs "$$RUNS" \
+				--pause-seconds "$$PAUSE" \
+				--report "$$REPORT_PATH" \
+				--cleanup-mode "$$CLEANUP_MODE" \
+				--fatal-cycle-limit "$${ADVERSARIAL_FATAL_CYCLE_LIMIT:-3}" \
+				--transient-retry-limit "$${ADVERSARIAL_TRANSIENT_RETRY_LIMIT:-4}" \
+				--backoff-base-seconds "$${ADVERSARIAL_BACKOFF_BASE_SECONDS:-2}" \
+				--backoff-max-seconds "$${ADVERSARIAL_BACKOFF_MAX_SECONDS:-30}" \
+				--preserve-state "$${ADVERSARIAL_PRESERVE_STATE:-1}" \
+				--rotate-ips "$${ADVERSARIAL_ROTATE_IPS:-1}" || exit 1; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \

@@ -13,6 +13,7 @@
     deriveIpRangeMonitoringViewModel,
     deriveMazeStatsViewModel,
     deriveMonitoringSummaryViewModel,
+    deriveTarpitViewModel,
     derivePrometheusHelperViewModel
   } from './monitoring-view-model.js';
   import {
@@ -37,6 +38,7 @@
   import RecentEventsTable from './monitoring/RecentEventsTable.svelte';
   import CdpSection from './monitoring/CdpSection.svelte';
   import MazeSection from './monitoring/MazeSection.svelte';
+  import TarpitSection from './monitoring/TarpitSection.svelte';
   import HoneypotSection from './monitoring/HoneypotSection.svelte';
   import ChallengeSection from './monitoring/ChallengeSection.svelte';
   import PowSection from './monitoring/PowSection.svelte';
@@ -112,6 +114,7 @@
 
   const defaultMonitoringSummary = deriveMonitoringSummaryViewModel({});
   const defaultMazeStats = deriveMazeStatsViewModel({});
+  const defaultTarpitSummary = deriveTarpitViewModel({});
   const defaultPrometheusHelper = derivePrometheusHelperViewModel({}, '');
 
   const clearTimer = (timerId) => {
@@ -489,6 +492,7 @@
   $: cdpFingerprintFlowViolations = Number(cdp?.fingerprint_stats?.flow_violation || 0);
 
   $: mazeStats = deriveMazeStatsViewModel(maze || {}) || defaultMazeStats;
+  $: tarpitSummary = deriveTarpitViewModel(monitoring?.details?.tarpit || {}) || defaultTarpitSummary;
   $: monitoringSummary =
     deriveMonitoringSummaryViewModel(monitoring.summary || {}) || defaultMonitoringSummary;
   $: prometheusHelper = derivePrometheusHelperViewModel(
@@ -710,6 +714,11 @@
   <MazeSection
     loading={tabStatus?.loading === true}
     {mazeStats}
+  />
+
+  <TarpitSection
+    loading={tabStatus?.loading === true}
+    {tarpitSummary}
   />
 
   <HoneypotSection

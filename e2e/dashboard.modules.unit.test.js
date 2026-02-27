@@ -319,6 +319,23 @@ test('dashboard API adapters normalize sparse payloads safely', { concurrency: f
       { field: 'rate_limit', message: 'out of range' }
     ]);
 
+    const monitoring = api.adaptMonitoring({
+      summary: {},
+      details: {
+        tarpit: {
+          enabled: true,
+          metrics: {
+            activations: { progressive: 2 }
+          }
+        }
+      }
+    });
+    assert.equal(monitoring.details.tarpit.enabled, true);
+    assert.equal(
+      Number(monitoring.details.tarpit.metrics.activations.progressive || 0),
+      2
+    );
+
     const suggestions = api.adaptIpRangeSuggestions({
       generated_at: 1700000000,
       hours: 24,
@@ -663,6 +680,26 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(summary.pow.successRate, '50.0%');
     assert.equal(
       summary.pow.outcomes.some((row) => row[0] === 'success' && Number(row[1]) === 5),
+      true
+    );
+    const tarpitSummary = monitoringModelModule.deriveTarpitViewModel({
+      enabled: true,
+      active: {
+        top_buckets: [{ bucket: '198.51.100.0/24', active: 6 }]
+      },
+      metrics: {
+        activations: { progressive: 11 },
+        progress_outcomes: { advanced: 7 },
+        budget_outcomes: { fallback_maze: 2, fallback_block: 1 },
+        escalation_outcomes: { short_ban: 3, block: 1 }
+      }
+    });
+    assert.equal(tarpitSummary.enabled, true);
+    assert.equal(tarpitSummary.activationsProgressive, '11');
+    assert.equal(tarpitSummary.progressAdvanced, '7');
+    assert.equal(tarpitSummary.topActiveBucket.value, '198.51.100.0/24');
+    assert.equal(
+      tarpitSummary.budgetOutcomes.some((row) => row[0] === 'fallback_maze' && Number(row[1]) === 2),
       true
     );
     const helper = monitoringModelModule.derivePrometheusHelperViewModel({

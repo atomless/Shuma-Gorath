@@ -71,17 +71,6 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
 Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
 
-- [ ] SIM-V2-9 Adversarial live loop observability quality and tarpit monitoring completeness.
-  - Acceptance criteria:
-    - `make test-adversarial-live` generates meaningful defense events across monitored categories instead of admin-only noise.
-    - Live loop avoids destructive end-of-cycle cleanup by default and supports explicit cleanup mode.
-    - Live loop implements bounded resilience policy for transient endpoint failures (`429`, `5xx`, timeout): classify transient vs fatal, retry with capped backoff, and fail only after configured consecutive fatal cycles.
-    - Tarpit activations/progression/fallback/escalation are visible in monitoring summary/details and dashboard.
-  - Definition of done:
-    - Dashboard monitoring surfaces show expected live simulation events without manual database inspection.
-    - Live run logs include error classification, retry count, and terminal failure reason when loop exits.
-    - Runner docs clearly state live profile behavior and cleanup/preserve controls.
-
 - [ ] SIM-V2-11 Containerized black-box adversary worker (bounded scope, strict isolation).
   - Acceptance criteria:
     - Isolation contract is explicit and enforced; all of the following MUST hold for black-box runs:

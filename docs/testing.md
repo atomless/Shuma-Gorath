@@ -177,6 +177,15 @@ Live loop controls:
 - `ADVERSARIAL_RUNS` (default `0`) controls cycle count; `0` means run until interrupted.
 - `ADVERSARIAL_PAUSE_SECONDS` (default `2`) controls delay between cycles.
 - `ADVERSARIAL_REPORT_PATH` (default `scripts/tests/adversarial/latest_report.json`) controls report output file.
+- `ADVERSARIAL_CLEANUP_MODE` (default `0`) toggles preserve-vs-cleanup behavior per cycle:
+  - `0`: preserve state by default for live observability loops.
+  - `1`: force deterministic cleanup after each cycle.
+- Resilience controls:
+  - `ADVERSARIAL_FATAL_CYCLE_LIMIT` (default `3`) stops the loop only after N consecutive fatal cycles.
+  - `ADVERSARIAL_TRANSIENT_RETRY_LIMIT` (default `4`) retries transient failures before converting to one fatal cycle.
+  - `ADVERSARIAL_BACKOFF_BASE_SECONDS` / `ADVERSARIAL_BACKOFF_MAX_SECONDS` bound transient retry backoff.
+- Live loop logs now include per-cycle failure classification (`transient` vs `fatal`), retry count, backoff, and terminal failure reason when exiting.
+- Live loop enforces event-quality checks; admin-only noise is treated as a fatal cycle and logs a clear reason.
 - Runner also emits `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
 - `latest_report.json` includes quantitative `gates` and separate `coverage_gates` sections with per-check `threshold_source`.
 - `latest_report.json` also includes `cohort_metrics` (persona-level collateral/latency summaries) and `ip_range_suggestions` seed evidence for `full_coverage`.
@@ -186,6 +195,7 @@ Live loop controls:
 `make test-adversarial-soak` runs `test-adversarial-coverage` (`full_coverage`) for deeper scheduled/manual validation.
 `test-adversarial-fast` and `test-adversarial-coverage` both enforce `test-frontier-governance` after artifact generation.
 `test-adversarial-coverage` forces deterministic cleanup plus per-run scenario-IP rotation (`SHUMA_ADVERSARIAL_PRESERVE_STATE=0`, `SHUMA_ADVERSARIAL_ROTATE_IPS=1`) to avoid stale local cadence/persistence collisions.
+Monitoring tab now includes explicit tarpit progression telemetry (activations, progression outcomes, budget fallbacks, escalation outcomes, and top active bucket) sourced from `/admin/monitoring`.
 CI policy is tiered:
 - Push to `main`: `ci.yml` runs `make test` (includes mandatory fast adversarial matrix).
 - PR to `main`: `ci.yml` additionally runs `make test-adversarial-coverage` and `make test-adversarial-frontier-attempt`.
