@@ -44,6 +44,7 @@ The runner writes machine-readable artifacts to:
 - `scripts/tests/adversarial/attack_plan.json`
 - `scripts/tests/adversarial/frontier_lane_status.json` (from `make test-adversarial-frontier-attempt`)
 - `scripts/tests/adversarial/repeatability_report.json` (from `make test-adversarial-repeatability`)
+- `scripts/tests/adversarial/promotion_candidates_report.json` (from `make test-adversarial-promote-candidates`)
 - `scripts/tests/adversarial/container_isolation_report.json` (from `make test-adversarial-container-isolation`)
 - `scripts/tests/adversarial/container_blackbox_report.json` (from `make test-adversarial-container-blackbox`)
 - `latest_report.json` and `attack_plan.json` include `execution_lane` metadata for auditability.
@@ -78,6 +79,7 @@ Notes:
 - `monitoring_after` snapshot includes nested tarpit metrics so live-loop output can report activation/progression/fallback/escalation coverage without manual JSON digging.
 - Protected-lane frontier probe output (`frontier_lane_status.json`) is advisory only; deterministic coverage/replay gates remain blocking.
 - Repeatability lane (`make test-adversarial-repeatability`) executes deterministic profiles three times with fixed reset/seed posture and fails on scenario/gate/coverage drift.
+- Promotion lane (`make test-adversarial-promote-candidates`) normalizes frontier findings, attempts deterministic replay for regression candidates, and emits candidate -> replay -> promotion lineage with owner-review requirements.
 - Container lane is complementary and non-replacing in this phase:
   - run `make test-adversarial-container-isolation` to validate isolation contract first,
   - then run `make test-adversarial-container-blackbox` for bounded black-box traffic execution.

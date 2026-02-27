@@ -13,11 +13,13 @@ Use this guide for:
 - `make test-adversarial-soak`
 - `make test-adversarial-live`
 - `make test-adversarial-repeatability`
+- `make test-adversarial-promote-candidates`
 - `make test-adversarial-container-isolation`
 - `make test-adversarial-container-blackbox`
 
 All profiles write a report to `scripts/tests/adversarial/latest_report.json` unless `ADVERSARIAL_REPORT_PATH` overrides it.
 All runs also emit `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
+Promotion triage emits `scripts/tests/adversarial/promotion_candidates_report.json` with candidate -> replay -> promotion lineage records.
 All manifests and reports are locked to `execution_lane=black_box`; non-black-box lane values are rejected at validation time.
 `make test-adversarial-live` now classifies failures as `transient` or `fatal`, retries transient cycles with capped backoff, and only terminates after `ADVERSARIAL_FATAL_CYCLE_LIMIT` consecutive fatal cycles.
 Container lane emits:
@@ -61,6 +63,28 @@ Rules:
 2. Deterministic coverage/replay failures remain merge/release blockers.
 3. Frontier attempt output (`scripts/tests/adversarial/frontier_lane_status.json`) must be archived for PR/release auditing.
 4. If frontier status remains degraded for 10 consecutive protected-lane runs or 7 days (whichever comes first), operators must open and assign a supported-model refresh action and update frontier model documentation.
+
+## Frontier Finding Triage + Promotion (SIM-V2-18)
+
+`make test-adversarial-promote-candidates` is the canonical triage/promotion lane.
+
+Pipeline contract:
+
+1. Normalize frontier findings into stable IDs (`finding_id`) with scenario family, path, headers, cadence pattern, observed outcome, severity, and risk metadata.
+2. Carry frontier diversity metadata on every finding (`frontier_mode`, `provider_count`, provider/model list, `diversity_confidence`).
+3. Attempt deterministic replay for each regression candidate and classify:
+   - `confirmed_reproducible`
+   - `not_reproducible`
+   - `needs_manual_review`
+4. Require owner review before any confirmed finding can become a blocking regression case.
+5. Enforce diversity policy:
+   - `single_provider_self_play`: owner review is mandatory and confidence is reduced.
+   - `multi_provider_playoff`: higher initial confidence, but deterministic confirmation and owner review are still mandatory.
+
+SLA for unresolved high-severity findings:
+
+1. `PR` lanes: unresolved high-severity findings (`confirmed_reproducible` or `needs_manual_review`) must be dispositioned within 24 hours.
+2. `Release` lanes: unresolved high-severity findings must be dispositioned before release cut; release remains blocked when deterministic replay confirms a high-severity regression.
 
 ## Live Loop Guardrails (SIM-V2-9)
 

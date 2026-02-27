@@ -19,6 +19,7 @@ make test-adversarial-sim-selftest # Minimal deterministic simulator mechanics s
 make test-adversarial-soak # Deep adversarial soak gate alias for full_coverage
 make test-adversarial-live # Loop adversarial profile for live monitoring demos (Ctrl+C to stop)
 make test-adversarial-repeatability # Deterministic drift gate across smoke/abuse/coverage (N=3)
+make test-adversarial-promote-candidates # Frontier finding triage + deterministic replay/promotion checks
 make test-adversarial-container-isolation # Validate black-box container isolation contract (Docker required)
 make test-adversarial-container-blackbox # Run containerized black-box adversary worker (Docker required)
 make test-adversarial-frontier-attempt # Protected-lane frontier provider attempt probe (advisory/non-blocking)
@@ -142,6 +143,7 @@ Available profiles:
 - `make test-adversarial-manifest` - schema/fixture validation without server
 - `make test-adversarial-live` - repeated live traffic generator for operator monitoring drills
 - `make test-adversarial-repeatability` - deterministic replay consistency gate across `fast_smoke`, `abuse_regression`, and `full_coverage`
+- `make test-adversarial-promote-candidates` - frontier finding normalization + deterministic replay triage + promotion lineage report
 - `make test-adversarial-container-isolation` - container self-check gate for mount/env/identity/tooling hardening contract
 - `make test-adversarial-container-blackbox` - containerized black-box worker run (separate complementary lane)
 - `make test-adversarial-frontier-attempt` - protected-lane frontier provider probe attempt (advisory, non-blocking)
@@ -193,6 +195,7 @@ Live loop controls:
 - Live loop logs now include per-cycle failure classification (`transient` vs `fatal`), retry count, backoff, and terminal failure reason when exiting.
 - Live loop enforces event-quality checks; admin-only noise is treated as a fatal cycle and logs a clear reason.
 - Runner also emits `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
+- Promotion lane emits `scripts/tests/adversarial/promotion_candidates_report.json` with candidate -> replay -> promotion lineage and owner-review requirements.
 - `latest_report.json` includes quantitative `gates` and separate `coverage_gates` sections with per-check `threshold_source`.
 - `latest_report.json` also includes `cohort_metrics` (persona-level collateral/latency summaries) and `ip_range_suggestions` seed evidence for `full_coverage`.
 - `latest_report.json` includes `plane_contract` guardrail metadata confirming attacker/control-plane separation checks are enforced.
@@ -214,13 +217,13 @@ Repeatability controls:
 - drift policy: scenario pass/outcome vectors must match exactly; latency variance is bounded by `ADVERSARIAL_REPEATABILITY_LATENCY_TOLERANCE_MS` (default `250`).
 CI policy is tiered:
 - Push to `main`: `ci.yml` runs `make test` (includes mandatory fast adversarial matrix).
-- PR to `main`: `ci.yml` additionally runs `make test-adversarial-coverage` and `make test-adversarial-frontier-attempt`.
-- Release gate (`release-gate.yml`): blocks on `make test-adversarial-coverage`, records `make test-adversarial-frontier-attempt` as advisory status.
+- PR to `main`: `ci.yml` additionally runs `make test-adversarial-coverage`, `make test-adversarial-frontier-attempt`, and `make test-adversarial-promote-candidates`.
+- Release gate (`release-gate.yml`): blocks on `make test-adversarial-coverage` and deterministic confirmed-regression triage (`make test-adversarial-promote-candidates`), records `make test-adversarial-frontier-attempt` as advisory status.
 - Scheduled/manual deep soak: `adversarial-soak.yml` runs `make test-adversarial-soak`.
 Frontier lane policy:
 - Local setup is optional (`make setup` can skip provider key entry).
 - Protected-lane frontier attempt is mandatory to run (attempt status is always emitted), but degraded frontier status is advisory and does not override deterministic blocking gates.
-- Deterministic replay/coverage remains the release-blocking oracle.
+- Deterministic replay/coverage remains the release-blocking oracle; stochastic one-off frontier anomalies do not block until deterministic replay confirms them.
 `test-adversarial-akamai` is fixture-driven (local `/fingerprint-report` with canned payloads) and does not require a live Akamai edge instance.
 Operator interpretation and tuning workflow is documented in `docs/adversarial-operator-guide.md`.
 

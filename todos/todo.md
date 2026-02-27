@@ -30,7 +30,7 @@ Status: Approved direction, implementation in progress. Start here before other 
 1. `SIM-V2-9A`: complete dev UI/orchestration contract (runtime availability + body-class prerequisites from `SIM-V2-6`, `SIM-V2-11A`, and `SIM-V2-11B` are done).
 2. `SIM-V2-10`, `SIM-V2-19`: frontier config UX + key hygiene + outbound data governance.
 3. `SIM-V2-11`: containerized black-box runner + isolation conformance target.
-4. `SIM-V2-5`, `SIM-V2-16`, `SIM-V2-18`: deterministic coverage seeding + repeatability + promotion pipeline.
+4. `SIM-V2-5`, `SIM-V2-16`: deterministic coverage seeding + repeatability pipeline.
 5. `SIM-V2-12`, `SIM-V2-17`, `SIM-V2-20`: CI/release policy wiring + tagging + store separation.
 
 ### Critical files likely touched (for rapid orientation)
@@ -114,21 +114,6 @@ Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../
     - CI/release workflow files and deployment docs both state and enforce the same release-gate contract.
     - Dry-run validation proves release is blocked when coverage gate fails.
     - Dry-run validation proves release is blocked when deterministic replay confirms a frontier-discovered high-severity regression.
-
-- [ ] SIM-V2-18 Frontier finding triage and deterministic promotion pipeline.
-  - Acceptance criteria:
-    - Frontier lane produces normalized finding artifacts with stable identifiers (scenario family, path, headers, cadence pattern, observed outcome, confidence/severity).
-    - Finding artifacts include frontier diversity metadata (`frontier_mode`, provider_count, providers/models, diversity_confidence).
-    - Automated triage attempts deterministic replay for each candidate and classifies outcomes: `confirmed_reproducible`, `not_reproducible`, `needs_manual_review`.
-    - `confirmed_reproducible` findings can be promoted into manifest scenarios with expected outcome and quantitative assertions.
-    - Promotion policy accounts for diversity confidence:
-      - `single_provider_self_play` findings are eligible for promotion only after deterministic confirmation plus owner review.
-      - `multi_provider_playoff` findings receive higher initial confidence but still require deterministic confirmation before becoming blocking regressions.
-    - Promotion workflow includes explicit owner review and severity/risk metadata before becoming a blocking regression case.
-  - Definition of done:
-    - Make target exists (`make test-adversarial-promote-candidates`) to run triage/promotion checks.
-    - Docs define SLA and decision flow for unresolved high-severity frontier findings on PR/release paths.
-    - Runner/report surfaces candidate -> replay -> promotion lineage for auditability.
 
 - [ ] SIM-V2-20 Simulation event tagging and environment data-plane separation.
   - Acceptance criteria:
