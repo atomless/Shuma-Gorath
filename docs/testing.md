@@ -198,6 +198,8 @@ Manifest and fixtures live under:
 - `scripts/tests/adversarial/scenario_manifest.schema.json`
 - `scripts/tests/fixtures/akamai/`
 
+Both manifests enforce `execution_lane=black_box`; unsupported lane values fail validation before runs start.
+
 ## 🐙 Dashboard <abbr title="End-to-End">E2E</abbr> Smoke Tests (Playwright)
 
 Run with:

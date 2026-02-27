@@ -188,15 +188,6 @@ Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../
     - `docs/` includes a single canonical adversarial operations guide linked from README/config docs.
     - On-call workflow can classify and triage a failed adversarial report without code spelunking.
 
-- [ ] SIM-V2-14 Black-box-only adversary governance and policy lock.
-  - Acceptance criteria:
-    - Adversary simulation program is explicitly black-box only for this project phase; no white-box adversary lane is implemented.
-    - Runner/report includes required `execution_lane=black_box` metadata and rejects unsupported lane values.
-    - Docs and CI policy state that repo-context adversary execution is out of scope for release-confidence simulation.
-  - Definition of done:
-    - `make` targets, CI workflow, and docs are aligned to black-box-only posture.
-    - Any attempt to run unsupported non-black-box lane fails with actionable guidance.
-
 - [ ] SIM-V2-15 Deterministic harness and containerized adversary coexistence contract.
   - Acceptance criteria:
     - Existing deterministic adversarial runner (`scripts/tests/adversarial_simulation_runner.py`) and current Make targets (`test-adversarial-smoke`, `test-adversarial-abuse`, `test-adversarial-akamai`, `test-adversarial-coverage`) remain canonical mandatory gates until explicit parity sign-off is approved.

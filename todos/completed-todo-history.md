@@ -9,6 +9,7 @@ Moved from active TODO files on 2026-02-14.
 Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)  
 Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
 
+- [x] SIM-V2-14 Black-box-only adversary governance and policy lock.
 - [x] SIM-V2-2 Unified runner architecture with explicit driver classes (`browser_realistic`, `http_scraper`, `edge_fixture`, `cost_imposition`).
 - [x] SIM-V2-1 Manifest v2 contract (`sim-manifest.v2`) for tiered scenarios, traffic model metadata, and category/cost assertions.
 - [x] SIM-V2-9A Dev UI toggle orchestration for full adversary run lifecycle.

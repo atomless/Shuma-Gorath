@@ -45,6 +45,7 @@ def minimal_manifest(gates_extra=None, schema_version="sim-manifest.v1"):
         "schema_version": schema_version,
         "suite_id": "unit-tests",
         "description": "Unit test manifest",
+        "execution_lane": "black_box",
         "profiles": {
             "test_profile": {
                 "description": "test profile",
@@ -152,6 +153,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         ]
         attack_plan = runner.build_attack_plan(
             profile_name="fast_smoke",
+            execution_lane="black_box",
             base_url="http://127.0.0.1:3000",
             scenarios=scenarios,
             frontier_metadata=frontier,
@@ -159,6 +161,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         )
 
         self.assertEqual(attack_plan["schema_version"], "attack-plan.v1")
+        self.assertEqual(attack_plan["execution_lane"], "black_box")
         self.assertEqual(attack_plan["frontier_mode"], "disabled")
         self.assertEqual(len(attack_plan["candidates"]), 1)
         candidate_payload = attack_plan["candidates"][0]["payload"]
@@ -270,6 +273,12 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         manifest["scenarios"][0]["driver_class"] = "http_scraper"
         with self.assertRaises(runner.SimulationError):
             runner.validate_manifest(Path("scripts/tests/adversarial/scenario_manifest.v2.json"), manifest, "test_profile")
+
+    def test_validate_manifest_rejects_unsupported_execution_lane(self):
+        manifest = minimal_manifest()
+        manifest["execution_lane"] = "white_box"
+        with self.assertRaises(runner.SimulationError):
+            runner.validate_manifest(Path("scripts/tests/adversarial/scenario_manifest.v1.json"), manifest, "test_profile")
 
     def test_scenario_max_latency_ms_uses_v2_cost_assertions_when_present(self):
         scenario = {"id": "s1", "assertions": {"max_latency_ms": 700}, "cost_assertions": {"max_latency_ms": 333}}

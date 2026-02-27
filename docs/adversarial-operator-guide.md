@@ -15,6 +15,7 @@ Use this guide for:
 
 All profiles write a report to `scripts/tests/adversarial/latest_report.json` unless `ADVERSARIAL_REPORT_PATH` overrides it.
 All runs also emit `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
+All manifests and reports are locked to `execution_lane=black_box`; non-black-box lane values are rejected at validation time.
 
 ## Frontier Architecture Modes
 

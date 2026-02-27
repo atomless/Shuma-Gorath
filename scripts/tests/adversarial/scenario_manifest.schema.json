@@ -27,6 +27,12 @@
       "type": "string",
       "minLength": 10
     },
+    "execution_lane": {
+      "type": "string",
+      "enum": [
+        "black_box"
+      ]
+    },
     "profiles": {
       "type": "object",
       "minProperties": 1,

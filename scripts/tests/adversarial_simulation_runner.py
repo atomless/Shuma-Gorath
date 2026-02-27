@@ -72,6 +72,7 @@ DRIVER_TO_CLASS = {
     for driver_class, family_handlers in DRIVER_CLASS_HANDLERS.items()
     for driver_name in family_handlers.keys()
 }
+SUPPORTED_EXECUTION_LANES = {"black_box"}
 ALLOWED_COVERAGE_REQUIREMENTS = {
     "honeypot_hits",
     "challenge_failures",
@@ -236,6 +237,7 @@ class Runner:
         manifest_path: Path,
         manifest: Dict[str, Any],
         profile_name: str,
+        execution_lane: str,
         base_url: str,
         request_timeout_seconds: float,
         report_path: Path,
@@ -243,6 +245,7 @@ class Runner:
         self.manifest_path = manifest_path
         self.manifest = manifest
         self.profile_name = profile_name
+        self.execution_lane = validate_execution_lane(execution_lane)
         self.profile = manifest["profiles"][profile_name]
         self.base_url = base_url.rstrip("/")
         self.request_timeout_seconds = request_timeout_seconds
@@ -347,6 +350,7 @@ class Runner:
             attack_plan_path = self.report_path.with_name("attack_plan.json")
             attack_plan = build_attack_plan(
                 profile_name=self.profile_name,
+                execution_lane=self.execution_lane,
                 base_url=self.base_url,
                 scenarios=self.selected_scenarios,
                 frontier_metadata=frontier_metadata,
@@ -357,6 +361,7 @@ class Runner:
                 "schema_version": "sim-report.v1",
                 "suite_id": self.manifest["suite_id"],
                 "profile": self.profile_name,
+                "execution_lane": self.execution_lane,
                 "base_url": self.base_url,
                 "request_count": self.request_count,
                 "suite_runtime_ms": suite_runtime_ms,
@@ -1562,6 +1567,7 @@ def sanitize_frontier_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 def build_attack_plan(
     profile_name: str,
+    execution_lane: str,
     base_url: str,
     scenarios: List[Dict[str, Any]],
     frontier_metadata: Dict[str, Any],
@@ -1609,6 +1615,7 @@ def build_attack_plan(
             },
             "attack_metadata": {
                 "expected_outcome": scenario.get("expected_outcome"),
+                "execution_lane": execution_lane,
                 "driver_class": scenario_driver_class(scenario),
                 "coverage_tags": coverage_tags,
                 "expected_defense_categories": expected_categories,
@@ -1627,6 +1634,7 @@ def build_attack_plan(
         "schema_version": "attack-plan.v1",
         "generated_at_unix": generated_at_unix,
         "profile": profile_name,
+        "execution_lane": execution_lane,
         "target_base_url": base_url,
         "frontier_mode": frontier_metadata.get("frontier_mode", "disabled"),
         "provider_count": frontier_metadata.get("provider_count", 0),
@@ -1642,6 +1650,22 @@ def scenario_driver_class(scenario: Dict[str, Any]) -> str:
         return explicit.strip()
     driver_name = str(scenario.get("driver") or "")
     return DRIVER_TO_CLASS.get(driver_name, "")
+
+
+def normalize_execution_lane(raw_value: Any) -> str:
+    lane = str(raw_value or "").strip().lower()
+    if not lane:
+        return "black_box"
+    return lane
+
+
+def validate_execution_lane(lane: str) -> str:
+    normalized = normalize_execution_lane(lane)
+    if normalized not in SUPPORTED_EXECUTION_LANES:
+        raise SimulationError(
+            f"execution_lane must be one of {sorted(SUPPORTED_EXECUTION_LANES)} (got {normalized})"
+        )
+    return normalized
 
 
 def scenario_max_latency_ms(scenario: Dict[str, Any]) -> int:
@@ -1709,6 +1733,7 @@ def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_nam
         raise SimulationError(
             f"schema_version must be one of {sorted(SUPPORTED_MANIFEST_SCHEMA_VERSIONS)}"
         )
+    validate_execution_lane(manifest.get("execution_lane"))
     is_v2_manifest = schema_version == "sim-manifest.v2"
 
     profiles = manifest.get("profiles")
@@ -1886,6 +1911,11 @@ def main() -> int:
         help="Profile name from manifest profiles object",
     )
     parser.add_argument(
+        "--execution-lane",
+        default=os.environ.get("ADVERSARIAL_EXECUTION_LANE", ""),
+        help="Execution lane contract (must remain black_box in this project phase)",
+    )
+    parser.add_argument(
         "--base-url",
         default=os.environ.get("SHUMA_BASE_URL", "http://127.0.0.1:3000"),
         help="Base URL for Shuma server",
@@ -1926,10 +1956,28 @@ def main() -> int:
         print(f"Manifest validation failed: {exc}", file=sys.stderr)
         return 2
 
+    manifest_lane = normalize_execution_lane(manifest.get("execution_lane"))
+    requested_lane = manifest_lane
+    if str(args.execution_lane).strip():
+        requested_lane = normalize_execution_lane(args.execution_lane)
+        if requested_lane != manifest_lane:
+            print(
+                f"execution_lane override mismatch: manifest={manifest_lane} cli={requested_lane}",
+                file=sys.stderr,
+            )
+            return 2
+
+    try:
+        execution_lane = validate_execution_lane(requested_lane)
+    except Exception as exc:
+        print(f"Execution lane validation failed: {exc}", file=sys.stderr)
+        return 2
+
     if args.validate_only:
         scenario_count = len(manifest["profiles"][args.profile]["scenario_ids"])
         print(
-            f"Manifest validation PASS: profile={args.profile} scenarios={scenario_count} file={manifest_path}"
+            "Manifest validation PASS: "
+            f"profile={args.profile} lane={execution_lane} scenarios={scenario_count} file={manifest_path}"
         )
         return 0
 
@@ -1938,6 +1986,7 @@ def main() -> int:
             manifest_path=manifest_path,
             manifest=manifest,
             profile_name=args.profile,
+            execution_lane=execution_lane,
             base_url=args.base_url,
             request_timeout_seconds=args.request_timeout_seconds,
             report_path=Path(args.report),

@@ -2,6 +2,7 @@
   "schema_version": "sim-manifest.v1",
   "suite_id": "shuma-adversarial-scenarios",
   "description": "Canonical threat-tier simulation matrix for deterministic adversarial regression with bounded runtime and quantitative gates.",
+  "execution_lane": "black_box",
   "profiles": {
     "fast_smoke": {
       "description": "Mandatory CI smoke slice for release-to-release threat-tier routing and cost guardrails.",

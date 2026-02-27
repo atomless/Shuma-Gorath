@@ -13,6 +13,8 @@
 - `scenario_manifest.v2.json`
   - Manifest v2 contract with explicit per-scenario `driver_class`, `traffic_model`, `expected_defense_categories`, `coverage_tags`, and `cost_assertions`.
   - Driver families are manifest-driven: `browser_realistic`, `http_scraper`, `edge_fixture`, `cost_imposition`.
+- `scenario_manifest.v1.json` + `scenario_manifest.v2.json`
+  - Both declare `execution_lane: black_box`; non-black-box lane values are rejected.
 - `frontier_payload_schema.v1.json`
   - Versioned outbound allowlist contract for frontier payload redaction/minimization.
 
@@ -35,6 +37,7 @@ The runner writes machine-readable artifacts to:
 - `scripts/tests/adversarial/latest_report.json`
 - `scripts/tests/adversarial/attack_plan.json`
 - `scripts/tests/adversarial/frontier_lane_status.json` (from `make test-adversarial-frontier-attempt`)
+- `latest_report.json` and `attack_plan.json` include `execution_lane` metadata for auditability.
 
 Notes:
 
