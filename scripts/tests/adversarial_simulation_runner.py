@@ -369,6 +369,7 @@ class Runner:
                 "monitoring_after": monitoring_after,
                 "results": [result.__dict__ for result in results],
                 "gates": gate_results,
+                "coverage_gates": gate_results.get("coverage_gates", {}),
                 "frontier": frontier_metadata,
                 "attack_plan_path": str(attack_plan_path),
                 "passed": all(result.passed for result in results) and gate_results["all_passed"],
@@ -501,6 +502,7 @@ class Runner:
                 "detail": f"p95={p95}ms limit={p95_limit}ms",
                 "observed": p95,
                 "limit": p95_limit,
+                "threshold_source": "profile.gates.latency.p95_max_ms",
             }
         )
 
@@ -526,6 +528,7 @@ class Runner:
                     "observed": ratio,
                     "min": minimum,
                     "max": maximum,
+                    "threshold_source": f"profile.gates.outcome_ratio_bounds.{outcome}",
                 }
             )
 
@@ -546,6 +549,7 @@ class Runner:
                 "detail": f"amp={fp_amp:.3f} limit={fp_limit:.3f} delta={fp_delta} requests={req_count}",
                 "observed": fp_amp,
                 "limit": fp_limit,
+                "threshold_source": "profile.gates.telemetry_amplification.max_fingerprint_events_per_request",
             }
         )
         checks.append(
@@ -555,6 +559,7 @@ class Runner:
                 "detail": f"amp={mon_amp:.3f} limit={mon_limit:.3f} delta={monitoring_delta} requests={req_count}",
                 "observed": mon_amp,
                 "limit": mon_limit,
+                "threshold_source": "profile.gates.telemetry_amplification.max_monitoring_events_per_request",
             }
         )
 
@@ -566,6 +571,7 @@ class Runner:
                 "detail": f"runtime={suite_runtime_ms}ms limit={runtime_limit_ms}ms",
                 "observed": suite_runtime_ms,
                 "limit": runtime_limit_ms,
+                "threshold_source": "profile.max_runtime_seconds",
             }
         )
 
@@ -574,10 +580,16 @@ class Runner:
         coverage_deltas = compute_coverage_deltas(coverage_before, coverage_after)
 
         coverage_requirements = (self.profile.get("gates") or {}).get("coverage_requirements")
+        coverage_checks: List[Dict[str, Any]] = []
         if isinstance(coverage_requirements, dict) and coverage_requirements:
-            checks.extend(build_coverage_checks(coverage_requirements, coverage_deltas))
+            coverage_checks = build_coverage_checks(coverage_requirements, coverage_deltas)
+            coverage_checks = annotate_coverage_checks_with_threshold_source(
+                coverage_requirements, coverage_checks
+            )
+            checks.extend(coverage_checks)
 
         all_passed = all(check["passed"] for check in checks)
+        coverage_all_passed = all(check["passed"] for check in coverage_checks) if coverage_checks else True
         return {
             "all_passed": all_passed,
             "checks": checks,
@@ -587,6 +599,16 @@ class Runner:
                 "before": coverage_before,
                 "after": coverage_after,
                 "deltas": coverage_deltas,
+            },
+            "coverage_gates": {
+                "all_passed": coverage_all_passed,
+                "threshold_source": "profile.gates.coverage_requirements",
+                "checks": coverage_checks,
+                "coverage": {
+                    "before": coverage_before,
+                    "after": coverage_after,
+                    "deltas": coverage_deltas,
+                },
             },
         }
 
@@ -1326,6 +1348,22 @@ def build_coverage_checks(
             }
         )
     return checks
+
+
+def annotate_coverage_checks_with_threshold_source(
+    coverage_requirements: Dict[str, Any], checks: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    annotated: List[Dict[str, Any]] = []
+    for check in checks:
+        check_copy = dict(check)
+        name = str(check_copy.get("name") or "")
+        requirement_key = name.removeprefix("coverage_")
+        if requirement_key in coverage_requirements:
+            check_copy["threshold_source"] = f"profile.gates.coverage_requirements.{requirement_key}"
+        else:
+            check_copy["threshold_source"] = "profile.gates.coverage_requirements"
+        annotated.append(check_copy)
+    return annotated
 
 
 def percentile(values: List[int], pct: int) -> int:

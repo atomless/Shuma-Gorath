@@ -237,6 +237,14 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertTrue(checks_by_name["coverage_honeypot_hits"]["passed"])
         self.assertFalse(checks_by_name["coverage_geo_block"]["passed"])
 
+    def test_annotate_coverage_checks_with_threshold_sources(self):
+        checks = runner.build_coverage_checks({"honeypot_hits": 1}, {"honeypot_hits": 2})
+        annotated = runner.annotate_coverage_checks_with_threshold_source({"honeypot_hits": 1}, checks)
+        self.assertEqual(
+            annotated[0]["threshold_source"],
+            "profile.gates.coverage_requirements.honeypot_hits",
+        )
+
     def test_validate_manifest_accepts_supported_coverage_requirements(self):
         manifest = minimal_manifest(
             {"coverage_requirements": {"honeypot_hits": 1, "geo_maze": 1}}

@@ -72,7 +72,8 @@ Operators must triage in this order:
 
 1. Scenario failures in `results` where `passed=false`.
 2. Gate failures in `gates.checks` where `passed=false`.
-3. Coverage deltas in `gates.coverage.deltas` (for `full_coverage`/soak).
+3. Coverage gate failures in `coverage_gates.checks` where `passed=false`.
+4. Coverage deltas in `coverage_gates.coverage.deltas` (for `full_coverage`/soak).
 
 Operators must not tune thresholds before confirming whether failures are scenario mismatches versus gate regressions.
 

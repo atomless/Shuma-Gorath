@@ -81,15 +81,6 @@ Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../
     - `make test-adversarial-abuse` fails fast with explicit per-case diagnostics.
     - Abuse scenarios are covered in manifest and runner report output.
 
-- [ ] SIM-V2-4 Quantitative gates for defense effectiveness and collateral/cost control.
-  - Acceptance criteria:
-    - Profile gates include latency bands, outcome ratio bounds, and telemetry amplification ceilings.
-    - Gates are enforced independent of route-pass assertions.
-    - Gate failures print observed vs expected values and threshold source.
-  - Definition of done:
-    - Runner report includes `gates` and `coverage_gates` sections with machine-readable values.
-    - `make test-adversarial-smoke` and `make test-adversarial-abuse` fail on gate breach even when route outcomes pass.
-
 - [ ] SIM-V2-5 Full category coverage profile (`full_coverage`) as pre-release mandatory gate.
   - Acceptance criteria:
     - One profile triggers non-zero evidence for: honeypot, challenge, not-a-bot, PoW, rate, GEO, maze, tarpit, CDP/fingerprint, ban path, and event-stream families.

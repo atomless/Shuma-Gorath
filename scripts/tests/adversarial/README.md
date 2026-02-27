@@ -38,6 +38,7 @@ The runner writes machine-readable artifacts to:
 - `scripts/tests/adversarial/attack_plan.json`
 - `scripts/tests/adversarial/frontier_lane_status.json` (from `make test-adversarial-frontier-attempt`)
 - `latest_report.json` and `attack_plan.json` include `execution_lane` metadata for auditability.
+- `latest_report.json` includes `gates` and `coverage_gates` sections; each check includes `threshold_source`.
 
 Notes:
 

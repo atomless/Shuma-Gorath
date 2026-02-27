@@ -176,6 +176,7 @@ Live loop controls:
 - `ADVERSARIAL_PAUSE_SECONDS` (default `2`) controls delay between cycles.
 - `ADVERSARIAL_REPORT_PATH` (default `scripts/tests/adversarial/latest_report.json`) controls report output file.
 - Runner also emits `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
+- `latest_report.json` includes quantitative `gates` and separate `coverage_gates` sections with per-check `threshold_source`.
 
 `make test` runs `test-adversarial-fast` (which executes `test-adversarial-smoke`, `test-adversarial-abuse`, and `test-adversarial-akamai`) in sequence.
 `make test-adversarial-soak` runs `test-adversarial-coverage` (`full_coverage`) for deeper scheduled/manual validation.
