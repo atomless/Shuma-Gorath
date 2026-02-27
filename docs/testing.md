@@ -17,6 +17,8 @@ make test-adversarial-akamai # Akamai fixture-driven simulation profile
 make test-adversarial-coverage # Expanded adversarial coverage profile (pre-release gate)
 make test-adversarial-soak # Deep adversarial soak gate alias for full_coverage
 make test-adversarial-live # Loop adversarial profile for live monitoring demos (Ctrl+C to stop)
+make test-adversarial-frontier-attempt # Protected-lane frontier provider attempt probe (advisory/non-blocking)
+make test-frontier-governance # Frontier artifact guard (forbidden keys + secret leak checks)
 make test-ip-range-suggestions # Focused IP-range suggestion regression gate (runtime + dashboard)
 make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)
@@ -134,6 +136,8 @@ Available profiles:
 - `make test-adversarial-soak` - deep soak alias for `full_coverage` (scheduled/manual gate)
 - `make test-adversarial-manifest` - schema/fixture validation without server
 - `make test-adversarial-live` - repeated live traffic generator for operator monitoring drills
+- `make test-adversarial-frontier-attempt` - protected-lane frontier provider probe attempt (advisory, non-blocking)
+- `make test-frontier-governance` - fail-fast guard for forbidden frontier artifact fields and secret leaks
 
 Dev/test simulation realism pages are available at `/sim/public/landing`, `/sim/public/docs`, `/sim/public/pricing`, `/sim/public/contact`, and `/sim/public/search?q=...` only when all three gates are true: `SHUMA_RUNTIME_ENV=runtime-dev`, `SHUMA_ADVERSARY_SIM_AVAILABLE=true`, and KV `adversary_sim_enabled=true`.
 Dashboard body-class contract for dev-only affordances:
@@ -175,7 +179,16 @@ Live loop controls:
 
 `make test` runs `test-adversarial-fast` (which executes `test-adversarial-smoke`, `test-adversarial-abuse`, and `test-adversarial-akamai`) in sequence.
 `make test-adversarial-soak` runs `test-adversarial-coverage` (`full_coverage`) for deeper scheduled/manual validation.
-CI policy is tiered: `ci.yml` enforces the fast matrix via `make test`, and `adversarial-soak.yml` runs the deep soak gate on schedule/manual dispatch.
+`test-adversarial-fast` and `test-adversarial-coverage` both enforce `test-frontier-governance` after artifact generation.
+CI policy is tiered:
+- Push to `main`: `ci.yml` runs `make test` (includes mandatory fast adversarial matrix).
+- PR to `main`: `ci.yml` additionally runs `make test-adversarial-coverage` and `make test-adversarial-frontier-attempt`.
+- Release gate (`release-gate.yml`): blocks on `make test-adversarial-coverage`, records `make test-adversarial-frontier-attempt` as advisory status.
+- Scheduled/manual deep soak: `adversarial-soak.yml` runs `make test-adversarial-soak`.
+Frontier lane policy:
+- Local setup is optional (`make setup` can skip provider key entry).
+- Protected-lane frontier attempt is mandatory to run (attempt status is always emitted), but degraded frontier status is advisory and does not override deterministic blocking gates.
+- Deterministic replay/coverage remains the release-blocking oracle.
 `test-adversarial-akamai` is fixture-driven (local `/fingerprint-report` with canned payloads) and does not require a live Akamai edge instance.
 Operator interpretation and tuning workflow is documented in `docs/adversarial-operator-guide.md`.
 

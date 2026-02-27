@@ -17,6 +17,7 @@ dist/dashboard/
 .svelte-kit/
 dashboard/.svelte-kit/
 scripts/tests/adversarial/attack_plan.json
+scripts/tests/adversarial/frontier_lane_status.json
 .vscode/
 .claude/
 # Spin runtime data

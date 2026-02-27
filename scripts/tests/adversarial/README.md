@@ -30,6 +30,7 @@ python3 scripts/tests/adversarial_simulation_runner.py --profile full_coverage
 The runner writes machine-readable artifacts to:
 - `scripts/tests/adversarial/latest_report.json`
 - `scripts/tests/adversarial/attack_plan.json`
+- `scripts/tests/adversarial/frontier_lane_status.json` (from `make test-adversarial-frontier-attempt`)
 
 Notes:
 
@@ -41,3 +42,4 @@ Notes:
   - `make test-adversarial-live` defaults to preserve + rotate (`1/1`) for operator monitoring; CI-focused profile targets force deterministic cleanup + static IPs (`0/0`).
 - `full_coverage` adds profile-level coverage gates (`gates.coverage_requirements`) using monitoring deltas captured over the run.
 - `full_coverage` now includes explicit PoW success/failure, rate-limit enforcement, and GEO block scenarios in addition to existing challenge/maze/honeypot/Akamai families.
+- Protected-lane frontier probe output (`frontier_lane_status.json`) is advisory only; deterministic coverage/replay gates remain blocking.

@@ -4,6 +4,15 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-02-27)
 
+### P0 Adversarial Traffic Simulation Program
+
+Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)  
+Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
+
+- [x] SIM-V2-9A Dev UI toggle orchestration for full adversary run lifecycle.
+- [x] SIM-V2-10 Frontier-model adversary configuration and protected-lane enablement (fast/low-cost defaults).
+- [x] SIM-V2-19 Frontier data-governance and outbound content minimization policy.
+
 ### P0 Immediate Next-Agent Start (Highest Priority): Adversarial Simulation v2
 
 - [x] SIM-V2-11A Dashboard adversary-sim UI state class and styling contract.

@@ -1,14 +1,15 @@
-name: CI
+name: Release Gate (Deterministic + Frontier Advisory)
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    tags:
+      - "v*"
 
 jobs:
-  test:
+  release-gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       RUST_BACKTRACE: full
       SHUMA_KV_STORE_FAIL_OPEN: "true"
@@ -34,14 +35,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Verify governance docs exist
-        run: |
-          test -f docs/project-principles.md
-          test -f docs/adr/README.md
-          test -f docs/adr/0000-template.md
-          test -f CONTRIBUTING.md
-          test -f .github/pull_request_template.md
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -94,22 +87,27 @@ jobs:
           tail -n 200 /tmp/spin.log || true
           exit 1
 
-      - name: Run full test suite
-        run: make test
-
-      - name: Run protected-lane adversarial coverage gate
-        if: github.event_name == 'pull_request'
+      - name: Enforce deterministic adversarial coverage release gate
         run: make test-adversarial-coverage
 
       - name: Attempt protected-lane frontier provider probes (advisory)
-        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
         run: make test-adversarial-frontier-attempt
 
-      - name: Upload adversarial artifacts (always)
+      - name: Publish deterministic/frontier release-gate summary
+        run: |
+          {
+            echo "## Release Gate Summary"
+            echo ""
+            echo "- Deterministic oracle gate: \`make test-adversarial-coverage\` (blocking)"
+            echo "- Frontier protected-lane probe: \`make test-adversarial-frontier-attempt\` (advisory)"
+            echo "- Policy: stochastic frontier findings are discovery input; deterministic replay remains the release blocker."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload release-gate adversarial artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: adversarial-artifacts
+          name: release-gate-adversarial-artifacts
           path: |
             scripts/tests/adversarial/latest_report.json
             scripts/tests/adversarial/attack_plan.json
@@ -119,5 +117,5 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: spin-log
+          name: release-gate-spin-log
           path: /tmp/spin.log

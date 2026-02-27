@@ -16,6 +16,44 @@ Use this guide for:
 All profiles write a report to `scripts/tests/adversarial/latest_report.json` unless `ADVERSARIAL_REPORT_PATH` overrides it.
 All runs also emit `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
 
+## Frontier Architecture Modes
+
+Frontier attack-candidate generation must run in one of two explicit modes:
+
+1. `single_provider_self_play`
+2. `multi_provider_playoff`
+
+Mode semantics:
+
+1. `single_provider_self_play`
+   - One configured provider key.
+   - Planner/attacker/critic roles remain isolated but share one model family.
+   - Discovery confidence is lower because role diversity is reduced.
+2. `multi_provider_playoff`
+   - Two or more configured provider keys.
+   - Cross-provider role assignment increases adversarial diversity.
+   - Discovery confidence is higher and this is the recommended protected-lane posture.
+
+Operator guidance:
+
+1. `provider_count=0`: run remains deterministic-only; frontier lane is degraded advisory mode.
+2. `provider_count=1`: run remains valid but reduced-diversity warning must be treated as a confidence downgrade.
+3. `provider_count>=2`: preferred minimum for higher-confidence discovery.
+
+## Protected-Lane Policy (Deterministic Oracle + Frontier Advisory)
+
+Protected lanes must run both:
+
+1. Deterministic coverage oracle (`make test-adversarial-coverage`) as a blocking gate.
+2. Frontier lane attempt (`make test-adversarial-frontier-attempt`) as advisory telemetry.
+
+Rules:
+
+1. Frontier degraded status (missing key, auth error, timeout, provider outage) is non-blocking.
+2. Deterministic coverage/replay failures remain merge/release blockers.
+3. Frontier attempt output (`scripts/tests/adversarial/frontier_lane_status.json`) must be archived for PR/release auditing.
+4. If frontier status remains degraded for 10 consecutive protected-lane runs or 7 days (whichever comes first), operators must open and assign a supported-model refresh action and update frontier model documentation.
+
 ## Inputs You Must Capture
 
 For every failing run, operators must capture:
