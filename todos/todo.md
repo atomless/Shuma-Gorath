@@ -42,6 +42,116 @@ Status: Execution complete on 2026-02-27. See `todos/completed-todo-history.md` 
 1. Next agent can start implementation immediately from `SIM-V2-*` without re-deriving policy decisions.
 2. No ambiguity remains on frontier-vs-deterministic responsibilities or dev-vs-prod availability semantics.
 
+## P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)
+
+Research bundle:
+1. [`docs/research/2026-02-27-sim2-shortfall-1-black-box-capability-enforcement.md`](../docs/research/2026-02-27-sim2-shortfall-1-black-box-capability-enforcement.md)
+2. [`docs/research/2026-02-27-sim2-shortfall-2-coverage-contract-governance.md`](../docs/research/2026-02-27-sim2-shortfall-2-coverage-contract-governance.md)
+3. [`docs/research/2026-02-27-sim2-shortfall-3-traffic-model-execution-realism.md`](../docs/research/2026-02-27-sim2-shortfall-3-traffic-model-execution-realism.md)
+4. [`docs/research/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity.md`](../docs/research/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity.md)
+5. [`docs/research/2026-02-27-sim2-architecture-shortfall-orchestration-capability.md`](../docs/research/2026-02-27-sim2-architecture-shortfall-orchestration-capability.md)
+
+Plan bundle:
+1. [`docs/plans/2026-02-27-sim2-shortfall-1-black-box-capability-enforcement-plan.md`](../docs/plans/2026-02-27-sim2-shortfall-1-black-box-capability-enforcement-plan.md)
+2. [`docs/plans/2026-02-27-sim2-shortfall-2-coverage-contract-governance-plan.md`](../docs/plans/2026-02-27-sim2-shortfall-2-coverage-contract-governance-plan.md)
+3. [`docs/plans/2026-02-27-sim2-shortfall-3-traffic-model-execution-realism-plan.md`](../docs/plans/2026-02-27-sim2-shortfall-3-traffic-model-execution-realism-plan.md)
+4. [`docs/plans/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity-plan.md`](../docs/plans/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity-plan.md)
+5. [`docs/plans/2026-02-27-sim2-orchestration-capability-architecture-plan.md`](../docs/plans/2026-02-27-sim2-orchestration-capability-architecture-plan.md)
+
+### SIM2-SF1: Black-Box Lane Capability Enforcement
+
+- [ ] SIM2-SF1-1 Add machine-readable lane capability contract artifact (attacker/control allowed paths, headers, and authority surfaces).
+- [ ] SIM2-SF1-2 Refactor deterministic runner request surface into explicit plane-typed clients so attacker and control capabilities are non-overlapping.
+- [ ] SIM2-SF1-3 Remove forwarded-secret propagation from attacker-plane headers and hard-fail attacker contract when privileged headers are present.
+- [ ] SIM2-SF1-4 Replace stale-token white-box re-signing path with black-box stale simulation flow that does not require signing secrets.
+- [ ] SIM2-SF1-5 Align container black-box worker contract assertions with deterministic lane capability contract for parity.
+- [ ] SIM2-SF1-6 Add focused tests for lane privilege isolation and stale-token black-box behavior.
+- [ ] SIM2-SF1-7 Add/refresh Makefile verification target for lane contract checks and wire into mandatory adversarial fast path.
+- [ ] SIM2-SF1-8 Update adversarial operator docs with explicit attacker/control capability boundary semantics.
+
+Acceptance criteria:
+1. Attacker lane executes without admin credentials/signing-secret dependencies.
+2. Any attacker request carrying privileged headers fails with deterministic diagnostics.
+3. Stale-token abuse scenario passes without using `SHUMA_CHALLENGE_SECRET`/`SHUMA_JS_SECRET`.
+4. Deterministic and containerized black-box lanes enforce the same privilege boundary.
+5. `make test-adversarial-fast` and `make test-adversarial-coverage` pass with lane contract checks enabled.
+
+### SIM2-SF2: Coverage Contract Governance
+
+- [ ] SIM2-SF2-1 Create canonical coverage contract artifact (`coverage_contract.v1`) containing mandatory full-coverage categories and minimum thresholds.
+- [ ] SIM2-SF2-2 Add schema/validation rules for canonical contract artifact in manifest validation lane.
+- [ ] SIM2-SF2-3 Update `full_coverage` gate evaluation to require exact canonical category coverage (no silent omissions).
+- [ ] SIM2-SF2-4 Add drift-check logic comparing canonical contract vs manifest profile requirements.
+- [ ] SIM2-SF2-5 Add drift-check logic comparing canonical contract vs SIM2 plan contract rows.
+- [ ] SIM2-SF2-6 Extend report output with contract version/hash and explicit missing/extra coverage category diagnostics.
+- [ ] SIM2-SF2-7 Wire coverage drift checks into mandatory Makefile and CI gating paths.
+- [ ] SIM2-SF2-8 Update adversarial docs/runbooks with contract update protocol and failure triage.
+
+Acceptance criteria:
+1. `full_coverage` cannot pass when any canonical category is missing or below threshold.
+2. Coverage gate output identifies missing category keys and threshold source unambiguously.
+3. Plan/manifest/contract drift fails CI before merge.
+4. Contract version/hash is emitted in adversarial reports for auditability.
+5. Coverage governance is automated, not review-checklist dependent.
+
+### SIM2-SF3: Traffic-Model Execution Realism
+
+- [ ] SIM2-SF3-1 Implement deterministic traffic-execution policy layer that all drivers must pass through.
+- [ ] SIM2-SF3-2 Implement deterministic think-time behavior from `traffic_model` bounds and scenario seeds.
+- [ ] SIM2-SF3-3 Implement retry strategy semantics (`single_attempt`, `bounded_backoff`, `retry_storm`) as execution behavior, not metadata.
+- [ ] SIM2-SF3-4 Implement cookie behavior semantics (`stateful_cookie_jar`, `stateless`, `cookie_reset_each_request`) in request execution.
+- [ ] SIM2-SF3-5 Add profile-level persona/cohort execution scheduler where required by realism profile contract.
+- [ ] SIM2-SF3-6 Extend report schema with runtime realism evidence (effective waits, retries, cookie mode usage).
+- [ ] SIM2-SF3-7 Add quantitative realism gates for persona pacing and retry/cookie envelope conformance.
+- [ ] SIM2-SF3-8 Add unit/integration/adversarial tests proving `traffic_model` settings change runtime behavior deterministically.
+- [ ] SIM2-SF3-9 Update adversarial operator documentation with realism metrics interpretation and tuning guidance.
+
+Acceptance criteria:
+1. `traffic_model` parameters materially affect runtime request behavior in deterministic runs.
+2. Realism evidence appears in reports for each scenario/persona.
+3. Runtime remains bounded by profile budgets after realism execution is enabled.
+4. Deterministic replay reproducibility remains stable for mandatory CI profiles.
+5. Realism regressions fail with actionable diagnostics.
+
+### SIM2-SF4: Simulation Telemetry Authenticity
+
+- [ ] SIM2-SF4-1 Define signed simulation tag contract (`sim-tag.v1`) including canonical fields, HMAC algorithm, timestamp, and nonce requirements.
+- [ ] SIM2-SF4-2 Add env-only signing secret lifecycle wiring (defaults/bootstrap/setup/docs) for dev/test simulation environments.
+- [ ] SIM2-SF4-3 Implement runtime signature/timestamp/nonce validation in `sim_telemetry` before activating simulation context.
+- [ ] SIM2-SF4-4 Add nonce replay-window enforcement and bounded state handling for simulation tag verification.
+- [ ] SIM2-SF4-5 Update deterministic runner and container worker to emit valid signed simulation metadata.
+- [ ] SIM2-SF4-6 Add observability and event taxonomy for invalid simulation tag attempts and verification failures.
+- [ ] SIM2-SF4-7 Add unit/integration/adversarial tests for valid/invalid/stale/replay simulation-tag paths.
+- [ ] SIM2-SF4-8 Update operator docs for simulation-signing setup, key rotation, and failure troubleshooting.
+
+Acceptance criteria:
+1. Unsigned or invalid simulation-tag headers never activate simulation context.
+2. Replay/stale/forged simulation tags are rejected and observable.
+3. Valid signed simulation requests continue to route into simulation telemetry partition in runtime-dev only.
+4. Production behavior remains fail-closed (no simulation context activation path).
+5. Adversarial make-target suite remains green under signed metadata enforcement.
+
+### SIM2-ARCH: Functional Orchestration and Capability-by-Construction Uplift
+
+- [ ] SIM2-ARCH-1 Publish ADR for functional-core/imperative-shell orchestration and explicit capability model (trust boundaries, migration order, rollback).
+- [ ] SIM2-ARCH-2 Add characterization test harness capturing current request-path decision outcomes for representative policy matrix.
+- [ ] SIM2-ARCH-3 Extract side-effect-free `RequestFacts` builders from request/config/provider inputs.
+- [ ] SIM2-ARCH-4 Extract first policy tranche into pure `PolicyDecisionGraph` stages (IP-range, honeypot, rate, existing-ban) with typed outputs.
+- [ ] SIM2-ARCH-5 Extract second policy tranche into pure stages (GEO, botness, JS/challenge routing) with typed outputs.
+- [ ] SIM2-ARCH-6 Introduce explicit effect-intent executor for bans, metrics, monitoring, and event logging side effects.
+- [ ] SIM2-ARCH-7 Replace convention-based privileged operations with explicit capability objects/tokens at trust boundaries.
+- [ ] SIM2-ARCH-8 Reduce `src/lib.rs` to thin orchestration shell (`facts -> decisions -> effects -> response`) while preserving behavior.
+- [ ] SIM2-ARCH-9 Add policy-graph unit coverage and parity tests to prove no behavior regressions across migration slices.
+- [ ] SIM2-ARCH-10 Update module-boundary docs and operator/developer architecture docs to reflect new orchestration model.
+- [ ] SIM2-ARCH-11 Ensure all verification remains Makefile-driven (`make test`, `make build`) with no lane bypass.
+
+Acceptance criteria:
+1. Core policy decisions become predominantly pure and testable without side effects.
+2. Privileged operations are blocked unless explicit capability objects are present.
+3. Characterization parity tests prove behavior stability across extraction slices.
+4. `src/lib.rs` orchestration complexity is materially reduced and role-focused.
+5. Full required verification (`make test`, `make build`) remains green throughout migration.
+
 ## P0 CI + E2E Stability (Top Priority)
 - [ ] CI-E2E-1 Resume point for next Codex session: start from `scripts/tests/run_dashboard_e2e.sh`, `scripts/tests/verify_playwright_launch.mjs`, `playwright.config.mjs`, `Makefile` (`test-dashboard-e2e`), and `e2e/run_dashboard_e2e.unit.test.js`; run `make dev` (terminal 1) plus `make test-dashboard-e2e` (terminal 2) and capture per-stage timings (unit, bundle budget, seed, preflight, Playwright) to prove there is no loop/stall; then run `DEBUG=pw:browser corepack pnpm exec node scripts/tests/verify_playwright_launch.mjs` to diagnose Chromium launch path and fix root cause so browser e2e runs without `PLAYWRIGHT_SANDBOX_ALLOW_SKIP`; finally, harden CI behavior so skip mode is never silently used in mandatory checks, retries are bounded and deterministic, and acceptance criteria are met: full `make test` completes in bounded time, Chromium e2e actually executes, and every failing step returns actionable diagnostics rather than hanging.
 

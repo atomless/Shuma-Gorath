@@ -33,9 +33,19 @@ Use the Makefile as the official workflow. These docs are the source of truth fo
 - [`plans/2026-02-13-provider-externalization-design.md`](plans/2026-02-13-provider-externalization-design.md) - Provider externalization strategy (self-hosted-first, Akamai-integrated)
 - [`plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md) - Deployment-track and adversarial-traffic simulation execution plan
 - [`plans/2026-02-25-adversarial-simulation-fast-smoke-design.md`](plans/2026-02-25-adversarial-simulation-fast-smoke-design.md) - Initial executable manifest + runner + mandatory fast-smoke gate design
+- [`plans/2026-02-27-sim2-shortfall-1-black-box-capability-enforcement-plan.md`](plans/2026-02-27-sim2-shortfall-1-black-box-capability-enforcement-plan.md) - SIM2 black-box capability hardening plan
+- [`plans/2026-02-27-sim2-shortfall-2-coverage-contract-governance-plan.md`](plans/2026-02-27-sim2-shortfall-2-coverage-contract-governance-plan.md) - SIM2 coverage-contract governance plan
+- [`plans/2026-02-27-sim2-shortfall-3-traffic-model-execution-realism-plan.md`](plans/2026-02-27-sim2-shortfall-3-traffic-model-execution-realism-plan.md) - SIM2 traffic-model realism execution plan
+- [`plans/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity-plan.md`](plans/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity-plan.md) - SIM2 simulation telemetry authenticity hardening plan
+- [`plans/2026-02-27-sim2-orchestration-capability-architecture-plan.md`](plans/2026-02-27-sim2-orchestration-capability-architecture-plan.md) - SIM2 architecture uplift plan for functional orchestration and capability boundaries
 - [`adr/0005-adversarial-lane-coexistence-policy.md`](adr/0005-adversarial-lane-coexistence-policy.md) - Deterministic vs containerized adversarial lane coexistence contract
 - [`adr/adversarial-lane-parity-signoff-checklist.md`](adr/adversarial-lane-parity-signoff-checklist.md) - Required checklist template before any deterministic-lane demotion/replacement
 - [`research/2026-02-25-llm-adversarial-testing-research-synthesis.md`](research/2026-02-25-llm-adversarial-testing-research-synthesis.md) - LLM-driven adversarial testing research and Shuma implications
+- [`research/2026-02-27-sim2-shortfall-1-black-box-capability-enforcement.md`](research/2026-02-27-sim2-shortfall-1-black-box-capability-enforcement.md) - Research for black-box capability enforcement
+- [`research/2026-02-27-sim2-shortfall-2-coverage-contract-governance.md`](research/2026-02-27-sim2-shortfall-2-coverage-contract-governance.md) - Research for coverage-contract governance hardening
+- [`research/2026-02-27-sim2-shortfall-3-traffic-model-execution-realism.md`](research/2026-02-27-sim2-shortfall-3-traffic-model-execution-realism.md) - Research for execution-effective traffic realism
+- [`research/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity.md`](research/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity.md) - Research for simulation telemetry authenticity controls
+- [`research/2026-02-27-sim2-architecture-shortfall-orchestration-capability.md`](research/2026-02-27-sim2-architecture-shortfall-orchestration-capability.md) - Research for orchestration/capability architecture uplift
 - [`adversarial-operator-guide.md`](adversarial-operator-guide.md) - Operator triage/tuning guidance for adversarial simulation failures and dashboard orchestration lifecycle
 - [`frontier-data-governance.md`](frontier-data-governance.md) - Frontier payload allowlist, redaction pipeline, and retention matrix
 - [`../todos/security-review.md`](../todos/security-review.md) - Security audit notes / backlog
