@@ -90,7 +90,7 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `SHUMA_TEST_MODE` | `false` | Enables test-mode behavior for controlled local testing. |
-| `SHUMA_ADVERSARY_SIM_ENABLED` | `false` | Enables dev-only adversary simulation orchestration when env availability/runtime guards also allow it. |
+| `SHUMA_ADVERSARY_SIM_ENABLED` | `false` | Enables dev-only adversary simulation orchestration (including `/sim/public/*` crawl-surface pages) when env availability/runtime guards also allow it. |
 | `SHUMA_JS_REQUIRED_ENFORCED` | `true` | Enforces <abbr title="JavaScript">JS</abbr> verification (`js_verified` cookie gate). |
 | `SHUMA_MODE_RATE` | `both` | Rate module mode: `off`, `signal`, `enforce`, `both`. |
 | `SHUMA_MODE_GEO` | `both` | <abbr title="Geolocation">GEO</abbr> module mode: `off`, `signal`, `enforce`, `both`. |

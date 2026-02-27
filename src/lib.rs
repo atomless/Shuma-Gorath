@@ -168,6 +168,9 @@ pub(crate) fn should_bypass_expensive_bot_checks_for_static(req: &Request, path:
     if path.starts_with("/admin") {
         return false;
     }
+    if path == "/sim/public" || path.starts_with("/sim/public/") {
+        return false;
+    }
     is_obvious_static_asset_path(path)
 }
 
@@ -1150,16 +1153,27 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         return response;
     }
 
-    let policy_match = runtime::policy_taxonomy::resolve_policy_match(
-        runtime::policy_taxonomy::PolicyTransition::AllowClean,
-    );
-    observability::metrics::record_policy_match(store, &policy_match);
-    observability::monitoring::maybe_record_ip_range_likely_human_sample(
-        store,
-        ip.as_str(),
-        cfg.ip_range_suggestions_likely_human_sample_percent,
-        path,
-    );
+    let record_allow_clean = || {
+        let policy_match = runtime::policy_taxonomy::resolve_policy_match(
+            runtime::policy_taxonomy::PolicyTransition::AllowClean,
+        );
+        observability::metrics::record_policy_match(store, &policy_match);
+        observability::monitoring::maybe_record_ip_range_likely_human_sample(
+            store,
+            ip.as_str(),
+            cfg.ip_range_suggestions_likely_human_sample_percent,
+            path,
+        );
+    };
+
+    if let Some(response) = runtime::sim_public::maybe_handle(req, path, &cfg) {
+        if *response.status() == 200u16 {
+            record_allow_clean();
+        }
+        return response;
+    }
+
+    record_allow_clean();
 
     Response::new(200, "OK (passed bot defence)")
 }
