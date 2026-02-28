@@ -121,5 +121,6 @@ Notes:
 - Container lane is complementary and non-replacing in this phase:
   - run `make test-adversarial-container-isolation` to validate isolation contract first,
   - then run `make test-adversarial-container-blackbox` for bounded black-box traffic execution.
+  - black-box mode converts `attack_plan.json` candidates into executable action DSL steps by default, then validates and executes them under `frontier_action_contract.v1.json`.
   - container black-box actions must pass `frontier_action_contract.v1.json` reject-by-default validation before execution.
 - `adversarial_sim_selftest.py` is intentionally tiny and non-circular: it validates simulator mechanics against fixed stub routes without asserting product defense efficacy.

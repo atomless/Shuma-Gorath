@@ -58,6 +58,7 @@ Browser-lane execution proof is enforced via `latest_report.json -> gates.browse
 Container lane emits:
 1. `scripts/tests/adversarial/container_isolation_report.json`
 2. `scripts/tests/adversarial/container_blackbox_report.json`
+3. `container_blackbox_report.json` includes `frontier_action_source` and `frontier_action_lineage` to trace attack-plan candidates to executed requests.
 
 ## Deterministic + Containerized Coexistence Contract (SIM-V2-15)
 

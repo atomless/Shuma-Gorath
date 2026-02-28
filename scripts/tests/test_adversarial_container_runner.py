@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 import scripts.tests.adversarial_container_runner as container_runner
 
@@ -49,6 +52,46 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         self.assertIn("--add-host=host.docker.internal:host-gateway", joined)
         self.assertIn("BLACKBOX_SIM_TAG_ENVELOPES=", joined)
         self.assertIn("BLACKBOX_ACTIONS=", joined)
+
+    def test_extract_frontier_actions_from_attack_plan_uses_candidate_path_hints(self):
+        attack_plan = {
+            "schema_version": "attack-plan.v1",
+            "candidates": [
+                {
+                    "scenario_id": "scenario_a",
+                    "payload": {
+                        "request_id": "req-a",
+                        "target": {"path_hint": "/sim/public/docs"},
+                    },
+                },
+                {
+                    "scenario_id": "scenario_b",
+                    "payload": {
+                        "request_id": "req-b",
+                        "target": {"path_hint": "/challenge/not-a-bot-checkbox"},
+                    },
+                },
+            ],
+        }
+        actions, lineage = container_runner.extract_frontier_actions_from_attack_plan(
+            attack_plan,
+            request_budget=2,
+        )
+        self.assertEqual(len(actions), 2)
+        self.assertEqual(actions[0]["path"], "/sim/public/docs")
+        self.assertEqual(actions[1]["path"], "/challenge/not-a-bot-checkbox")
+        self.assertEqual(lineage[0]["scenario_id"], "scenario_a")
+        self.assertEqual(lineage[1]["request_id"], "req-b")
+
+    def test_load_attack_plan_requires_schema_and_candidates(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            attack_plan_path = Path(temp_dir) / "attack_plan.json"
+            attack_plan_path.write_text(
+                json.dumps({"schema_version": "attack-plan.v1", "candidates": []}),
+                encoding="utf-8",
+            )
+            with self.assertRaises(RuntimeError):
+                container_runner.load_attack_plan(attack_plan_path)
 
 
 if __name__ == "__main__":

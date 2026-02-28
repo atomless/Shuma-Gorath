@@ -10,6 +10,7 @@ Moved from active TODO files on 2026-02-14.
 
 - [x] SIM2-GC-8-1 Define frontier action contract (`allowed tools`, `network constraints`, `time/resource budgets`, `forbidden data access`).
 - [x] SIM2-GC-8-2 Define reject-by-default action grammar/DSL and validation engine so only explicitly permitted action types are executable.
+- [x] SIM2-GC-8-3 Implement container execution path that converts model output to validated actionable steps, then executes against target endpoints.
 
 #### SIM2-GC-7: Upgrade Browser-Adversary Lane to True Browser Execution
 

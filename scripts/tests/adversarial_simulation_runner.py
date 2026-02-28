@@ -4082,6 +4082,20 @@ def sanitize_frontier_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     return masked
 
 
+def frontier_path_hint_for_scenario(scenario: Dict[str, Any]) -> str:
+    # Frontier payloads expose only public-path hints; execution validators enforce final policy.
+    mapping = {
+        "allow_browser_allowlist": "/sim/public/landing",
+        "not_a_bot_pass": "/sim/public/docs",
+        "challenge_puzzle_fail_maze": "/sim/public/pricing",
+        "rate_limit_enforce": "/sim/public/search",
+        "retry_storm_enforce": "/sim/public/search",
+        "honeypot_deny_temp": "/sim/public/contact",
+    }
+    driver_name = str(scenario.get("driver") or "").strip()
+    return mapping.get(driver_name, "/")
+
+
 def build_attack_plan(
     profile_name: str,
     execution_lane: str,
@@ -4125,7 +4139,7 @@ def build_attack_plan(
             },
             "target": {
                 "base_url": base_url,
-                "path_hint": "/",
+                "path_hint": frontier_path_hint_for_scenario(scenario),
             },
             "public_crawl_content": {
                 "scenario_description": scenario.get("description"),

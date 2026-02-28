@@ -30,6 +30,7 @@ DEFAULT_WORKER_PATH = "scripts/tests/adversarial_container/worker.py"
 DEFAULT_DOCKERFILE_PATH = "scripts/tests/adversarial_container/Dockerfile"
 DEFAULT_BLACKBOX_REPORT = "scripts/tests/adversarial/container_blackbox_report.json"
 DEFAULT_ISOLATION_REPORT = "scripts/tests/adversarial/container_isolation_report.json"
+DEFAULT_ATTACK_PLAN_PATH = "scripts/tests/adversarial/attack_plan.json"
 SIM_TAG_CONTRACT_PATH = "scripts/tests/adversarial/sim_tag_contract.v1.json"
 DEFAULT_FRONTIER_ACTION_CONTRACT_PATH = "scripts/tests/adversarial/frontier_action_contract.v1.json"
 FRONTIER_ACTIONS_ENV = "SHUMA_BLACKBOX_ACTIONS"
@@ -260,6 +261,64 @@ def parse_worker_json(stdout_text: str) -> Dict[str, Any]:
     raise RuntimeError("container worker did not emit JSON payload")
 
 
+def load_attack_plan(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        raise RuntimeError(f"attack plan not found: {path}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise RuntimeError(f"attack plan JSON invalid: {path}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError("attack plan must be a JSON object")
+    if str(payload.get("schema_version") or "").strip() != "attack-plan.v1":
+        raise RuntimeError("attack plan schema_version must be attack-plan.v1")
+    candidates = payload.get("candidates")
+    if not isinstance(candidates, list) or not candidates:
+        raise RuntimeError("attack plan candidates must be a non-empty array")
+    return payload
+
+
+def extract_frontier_actions_from_attack_plan(
+    attack_plan: Dict[str, Any], request_budget: int
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    request_budget = max(1, int(request_budget))
+    candidates = attack_plan.get("candidates")
+    if not isinstance(candidates, list):
+        raise RuntimeError("attack plan candidates must be a list")
+
+    actions: List[Dict[str, Any]] = []
+    lineage: List[Dict[str, Any]] = []
+    for index, candidate in enumerate(candidates):
+        if len(actions) >= request_budget:
+            break
+        entry = dict(candidate or {})
+        payload = dict(entry.get("payload") or {})
+        target = dict(payload.get("target") or {})
+        request_id = str(payload.get("request_id") or "").strip()
+        scenario_id = str(entry.get("scenario_id") or "").strip()
+        path_hint = str(target.get("path_hint") or "").strip() or "/"
+        path_hint = path_hint.split("?", 1)[0].split("#", 1)[0] or "/"
+
+        action = {
+            "action_type": "http_get",
+            "path": path_hint,
+            "label": scenario_id or f"candidate-{index + 1}",
+        }
+        actions.append(action)
+        lineage.append(
+            {
+                "candidate_index": index + 1,
+                "scenario_id": scenario_id,
+                "request_id": request_id,
+                "proposed_action": action,
+            }
+        )
+
+    if not actions:
+        raise RuntimeError("attack plan did not yield any executable candidate actions")
+    return actions, lineage
+
+
 def container_command(
     image_tag: str,
     mode: str,
@@ -365,6 +424,11 @@ def main() -> int:
         help="Maximum worker runtime",
     )
     parser.add_argument(
+        "--attack-plan",
+        default=DEFAULT_ATTACK_PLAN_PATH,
+        help="Attack plan artifact path used for model-suggestion -> executable action conversion",
+    )
+    parser.add_argument(
         "--frontier-action-contract",
         default=DEFAULT_FRONTIER_ACTION_CONTRACT_PATH,
         help="Frontier action contract path",
@@ -413,9 +477,30 @@ def main() -> int:
     request_budget = max(1, min(request_budget, contract_max_actions))
     time_budget_seconds = max(10, min(time_budget_seconds, contract_max_runtime))
 
+    frontier_actions_source = "explicit_input"
+    frontier_action_source_error = ""
+    frontier_action_lineage: List[Dict[str, Any]] = []
+    frontier_actions_raw = str(args.frontier_actions or "").strip()
+    if not frontier_actions_raw and args.mode == "blackbox":
+        frontier_actions_source = "attack_plan_candidates"
+        try:
+            attack_plan_payload = load_attack_plan(Path(args.attack_plan))
+            attack_plan_actions, attack_plan_lineage = extract_frontier_actions_from_attack_plan(
+                attack_plan_payload,
+                request_budget=request_budget,
+            )
+            frontier_actions_raw = json.dumps(attack_plan_actions, separators=(",", ":"))
+            frontier_action_lineage = attack_plan_lineage
+        except Exception as exc:
+            frontier_actions_source = "contract_default_fallback"
+            frontier_action_source_error = str(exc)
+            frontier_actions_raw = ""
+    elif not frontier_actions_raw:
+        frontier_actions_source = "contract_default_fallback"
+
     try:
         frontier_actions = resolve_frontier_actions(
-            str(args.frontier_actions),
+            frontier_actions_raw,
             contract=frontier_action_contract,
             base_url=container_base_url,
             allowed_origins=[allowed_origin],
@@ -518,7 +603,11 @@ def main() -> int:
             "max_actions_per_run": contract_max_actions,
             "max_time_budget_seconds": contract_max_runtime,
         },
+        "attack_plan_path": str(args.attack_plan),
         "frontier_actions": frontier_actions,
+        "frontier_action_source": frontier_actions_source,
+        "frontier_action_source_error": frontier_action_source_error,
+        "frontier_action_lineage": frontier_action_lineage,
         "isolation_contract": isolation_contract,
         "orchestrator_hook": orchestrator_hook,
         "worker_result": {

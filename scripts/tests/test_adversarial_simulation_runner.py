@@ -232,6 +232,17 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         candidate_payload = attack_plan["candidates"][0]["payload"]
         self.assertEqual(candidate_payload["schema_version"], "frontier_payload_schema.v1")
         self.assertEqual(candidate_payload["scenario"]["ip"], "[masked]")
+        self.assertEqual(candidate_payload["target"]["path_hint"], "/sim/public/landing")
+
+    def test_frontier_path_hint_for_scenario_defaults_for_unknown_driver(self):
+        self.assertEqual(
+            runner.frontier_path_hint_for_scenario({"driver": "allow_browser_allowlist"}),
+            "/sim/public/landing",
+        )
+        self.assertEqual(
+            runner.frontier_path_hint_for_scenario({"driver": "not_mapped"}),
+            "/",
+        )
 
     def test_has_leading_zero_bits_accepts_full_and_partial_prefixes(self):
         self.assertTrue(runner.has_leading_zero_bits(bytes.fromhex("00ff"), 8))
