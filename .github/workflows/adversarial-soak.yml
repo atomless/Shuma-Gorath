@@ -107,6 +107,7 @@ jobs:
             scripts/tests/adversarial/sim2_realtime_bench_summary.md
             scripts/tests/adversarial/sim2_adr_conformance_report.json
             scripts/tests/adversarial/sim2_ci_diagnostics.json
+            scripts/tests/adversarial/sim2_verification_matrix_report.json
 
       - name: Upload Spin logs (on failure)
         if: failure()

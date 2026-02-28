@@ -16,6 +16,10 @@ Moved from active TODO files on 2026-02-14.
 
 #### SIM2-GC-11: Verification Suite Expansion for End-to-End Truthfulness (partial)
 
+- [x] SIM2-GC-11-1 Define and publish mandatory verification matrix mapping each defense category to required scenarios, lanes, and evidence assertions.
+- [x] SIM2-GC-11-2 Add e2e test suite that executes matrix-required crawler/scraper/browser/frontier scenarios and asserts monitoring/IP-ban updates.
+- [x] SIM2-GC-11-3 Add contract tests for telemetry lineage integrity and monotonic event ordering across refresh cycles.
+- [x] SIM2-GC-11-8 Require failure diagnostics to name missing matrix row(s), missing evidence type(s), and failing telemetry lineage segment.
 - [x] SIM2-GC-11-9 Add control-plane race/idempotency tests for repeated UI toggle submissions, duplicate command replay, and multi-controller lease contention.
 - [x] SIM2-GC-11-10 Add trust-boundary negative-path tests for adversary control endpoint (`csrf missing/invalid`, `origin mismatch`, `fetch-metadata cross-site`, `stale session`) and assert fail-closed behavior.
 - [x] SIM2-GC-11-11 Add idempotency misuse tests proving key reuse with payload mismatch is rejected and exact retries map to stable `operation_id`.

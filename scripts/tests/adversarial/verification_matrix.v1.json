@@ -1,0 +1,119 @@
+{
+  "schema_version": "sim2-verification-matrix.v1",
+  "manifest_path": "scripts/tests/adversarial/scenario_manifest.v2.json",
+  "report_path": "scripts/tests/adversarial/latest_report.json",
+  "rows": [
+    {
+      "row_id": "allowlist_browser",
+      "defense_category": "allowlist",
+      "required_scenarios": ["sim_t0_allow_browser_allowlist"],
+      "required_lanes": ["black_box"],
+      "required_evidence_types": ["runtime_telemetry", "coverage_delta", "lineage"],
+      "lineage_segment": "request_id_lineage"
+    },
+    {
+      "row_id": "not_a_bot_browser",
+      "defense_category": "not_a_bot",
+      "required_scenarios": ["sim_t1_not_a_bot_pass", "sim_t3_replay_abuse"],
+      "required_lanes": ["black_box"],
+      "required_evidence_types": ["runtime_telemetry", "coverage_delta", "lineage"],
+      "lineage_segment": "request_id_lineage"
+    },
+    {
+      "row_id": "geo_escalation",
+      "defense_category": "geo",
+      "required_scenarios": ["sim_t2_geo_challenge", "sim_t3_geo_block"],
+      "required_lanes": ["black_box"],
+      "required_evidence_types": ["runtime_telemetry", "coverage_delta", "lineage"],
+      "lineage_segment": "request_id_lineage"
+    },
+    {
+      "row_id": "challenge_paths",
+      "defense_category": "challenge",
+      "required_scenarios": ["sim_t2_geo_challenge", "sim_t2_challenge_puzzle_failure"],
+      "required_lanes": ["black_box"],
+      "required_evidence_types": ["runtime_telemetry", "monitoring_delta", "coverage_delta", "lineage"],
+      "lineage_segment": "request_id_lineage"
+    },
+    {
+      "row_id": "maze_progression",
+      "defense_category": "maze",
+      "required_scenarios": ["sim_t3_geo_maze"],
+      "required_lanes": ["black_box"],
+      "required_evidence_types": ["runtime_telemetry", "monitoring_delta", "coverage_delta", "lineage"],
+      "lineage_segment": "request_id_lineage"
+    },
+    {
+      "row_id": "pow_success_and_failure",
+      "defense_category": "pow",
+      "required_scenarios": ["sim_t1_pow_success", "sim_t3_pow_invalid_proof"],
+      "required_lanes": ["black_box"],
+      "required_evidence_types": ["runtime_telemetry", "monitoring_delta", "coverage_delta", "lineage"],
+      "lineage_segment": "request_id_lineage"
+    },
+    {
+      "row_id": "honeypot_and_ban",
+      "defense_category": "honeypot",
+      "required_scenarios": ["sim_t4_honeypot_deny_temp"],
+      "required_lanes": ["black_box"],
+      "required_evidence_types": ["runtime_telemetry", "monitoring_delta", "coverage_delta", "ip_ban_update", "lineage"],
+      "lineage_segment": "request_id_lineage"
+    },
+    {
+      "row_id": "ban_path_assertions",
+      "defense_category": "ban_path",
+      "required_scenarios": ["sim_t4_honeypot_deny_temp", "sim_t3_rate_limit_enforce"],
+      "required_lanes": ["black_box"],
+      "required_evidence_types": ["runtime_telemetry", "monitoring_delta", "coverage_delta", "ip_ban_update", "lineage"],
+      "lineage_segment": "request_id_lineage"
+    },
+    {
+      "row_id": "rate_limit_enforcement",
+      "defense_category": "rate_limit",
+      "required_scenarios": ["sim_t3_rate_limit_enforce"],
+      "required_lanes": ["black_box"],
+      "required_evidence_types": ["runtime_telemetry", "monitoring_delta", "coverage_delta", "lineage"],
+      "lineage_segment": "request_id_lineage"
+    },
+    {
+      "row_id": "cdp_high_confidence",
+      "defense_category": "cdp",
+      "required_scenarios": ["sim_t4_cdp_detection_deny"],
+      "required_lanes": ["black_box"],
+      "required_evidence_types": ["runtime_telemetry", "coverage_delta", "lineage"],
+      "lineage_segment": "request_id_lineage"
+    },
+    {
+      "row_id": "tarpit_progression",
+      "defense_category": "tarpit",
+      "required_scenarios": ["sim_t4_tarpit_replay_abuse"],
+      "required_lanes": ["black_box"],
+      "required_evidence_types": ["runtime_telemetry", "monitoring_delta", "coverage_delta", "lineage"],
+      "lineage_segment": "request_id_lineage"
+    },
+    {
+      "row_id": "event_stream_integrity",
+      "defense_category": "event_stream",
+      "required_scenarios": ["sim_t3_replay_abuse", "sim_t4_ordering_cadence_abuse"],
+      "required_lanes": ["black_box"],
+      "required_evidence_types": ["runtime_telemetry", "monitoring_delta", "coverage_delta", "lineage"],
+      "lineage_segment": "scenario_execution"
+    },
+    {
+      "row_id": "fingerprint_consistency",
+      "defense_category": "fingerprint",
+      "required_scenarios": ["sim_t3_stale_token_abuse", "sim_t4_ordering_cadence_abuse"],
+      "required_lanes": ["black_box"],
+      "required_evidence_types": ["runtime_telemetry", "monitoring_delta", "coverage_delta", "lineage"],
+      "lineage_segment": "scenario_execution"
+    },
+    {
+      "row_id": "frontier_container_execution",
+      "defense_category": "frontier_runtime",
+      "required_scenarios": [],
+      "required_lanes": ["container_blackbox"],
+      "required_evidence_types": ["container_passed", "frontier_lineage_complete", "policy_violation_zero"],
+      "lineage_segment": "frontier_lineage"
+    }
+  ]
+}
