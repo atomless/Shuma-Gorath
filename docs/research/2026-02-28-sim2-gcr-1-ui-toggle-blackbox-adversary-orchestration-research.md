@@ -21,7 +21,7 @@ Current model is functional, but it blends command submission and reconciliation
 1. Asynchronous operations should use explicit accepted/processing semantics and separate status observation from submission semantics.  
    Source: [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)
 2. Idempotency keys are the preferred way to make retried state-changing requests safe against duplicate side effects.  
-   Source: [RFC 9333](https://www.rfc-editor.org/rfc/rfc9333)
+   Source: [IETF Idempotency-Key HTTP Header (Internet-Draft)](https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-idempotency-key-header)
 3. Reconciliation loops based on desired vs actual state are a proven controller pattern for reliable lifecycle convergence.  
    Source: [Kubernetes Controller Pattern](https://kubernetes.io/docs/concepts/architecture/controller/)
 4. Admin state-change endpoints must enforce strong CSRF and session defenses.  
@@ -100,4 +100,3 @@ This preserves dev-only simplicity while giving production-grade control semanti
    1. Add operation-idempotency and desired-vs-actual contract details under `SIM2-GC-2`.
    2. Add command-operation lineage requirements under `SIM2-GC-1` and `SIM2-GC-11`.
    3. Add lease/fencing and race/regression verification requirements under `SIM2-GC-2` and `SIM2-GC-11`.
-

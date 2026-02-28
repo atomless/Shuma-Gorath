@@ -49,3 +49,5 @@ Completed archive index:
    Architecture research for reducing centralized imperative orchestration and moving toward capability-by-construction.
 6. [`2026-02-28-sim2-gcr-1-ui-toggle-blackbox-adversary-orchestration-research.md`](2026-02-28-sim2-gcr-1-ui-toggle-blackbox-adversary-orchestration-research.md)  
    Research synthesis for safe UI-toggle control-plane architecture for black-box LLM adversary lifecycle orchestration.
+7. [`2026-02-28-sim2-gcr-3-ui-toggle-trust-boundary-controls-research.md`](2026-02-28-sim2-gcr-3-ui-toggle-trust-boundary-controls-research.md)  
+   Research synthesis for endpoint trust boundaries on adversary toggle control (session/CSRF/replay/throttling/audit controls).
