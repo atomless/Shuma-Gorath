@@ -263,7 +263,7 @@ Execution order (must be followed):
 4. `SIM2-GCR-4` Rust realtime monitoring architecture candidates (completed 2026-02-28).
 5. `SIM2-GCR-9` Rust prototype/benchmark comparison for realtime candidates (completed 2026-02-28).
 6. `SIM2-GCR-5` telemetry retention/storage lifecycle best practices (completed 2026-02-28).
-7. `SIM2-GCR-6` monitoring cost-efficiency patterns.
+7. `SIM2-GCR-6` monitoring cost-efficiency patterns (completed 2026-02-28).
 8. `SIM2-GCR-7` telemetry/adversary-artifact security and privacy controls.
 9. `SIM2-GCR-10` ADR-backed architecture decision capture.
 10. `SIM2-GCR-8` synthesize outcomes into implementation plans and TODO updates.
@@ -274,7 +274,6 @@ Per-track workflow (must be followed before marking each track complete):
 3. Update `todos/todo.md` to reflect plan-derived changes (tightened acceptance criteria, reordered execution where needed, and any new required todos).
 4. Only then mark that `SIM2-GCR-*` track complete and move to the next ordered track.
 
-- [ ] SIM2-GCR-6 Research cost-efficiency patterns for monitoring pipelines (aggregation windows, cardinality controls, event sampling restrictions, compression/serialization tradeoffs, query budget controls).
 - [ ] SIM2-GCR-7 Research security/privacy best practices for telemetry and adversary artifacts (secret-exposure prevention, data minimization, pseudonymization options, artifact retention risk controls, incident-response hooks).
 - [ ] SIM2-GCR-8 Produce research synthesis docs and implementation plans for `GC-6`, `GC-8`, `GC-11`, and `GC-14`, then update todos with quantitative thresholds derived from research outcomes.
 - [ ] SIM2-GCR-10 Convert selected research outcomes into ADR-backed architecture decisions for: (a) UI-toggle-driven black-box adversary orchestration, (b) monitoring realtime data architecture, and (c) retention/cost/security lifecycle policies.
@@ -514,6 +513,7 @@ Scope: enforce non-regression with tests that prove real traffic -> real defense
 - [ ] SIM2-GC-11-17 Add SSE-path tests for event-id ordering, `Last-Event-ID` reconnect behavior, and fallback-to-polling continuity when stream drops.
 - [ ] SIM2-GC-11-18 Add reproducible realtime benchmark verification target (`make test-sim2-realtime-bench`) and CI artifact outputs for latency percentiles, overflow/drop counts, and request-budget metrics.
 - [ ] SIM2-GC-11-19 Add retention lifecycle regression tests for bucket cutoff correctness, purge-watermark progression, purge-lag threshold, and no read-path full-keyspace cleanup scans.
+- [ ] SIM2-GC-11-20 Add cost-governance regression tests for cardinality caps, overflow-bucket accounting, unsampleable-event protection, payload-size budget, and compression effectiveness thresholds.
 
 Acceptance criteria:
 1. Mandatory verification fails if any matrix-required defense/lane evidence is missing.
@@ -527,6 +527,7 @@ Acceptance criteria:
 9. Realtime cursor/stream ordering and resume regressions fail deterministically in CI with explicit failure taxonomy.
 10. Benchmark-threshold regressions (`p95`, `p99`, overflow/drop, request-budget) fail deterministically in CI with scenario-specific diagnostics.
 11. Retention-lifecycle regressions (purge lag, bucket cutoff drift, read-path scan fallback) fail deterministically in CI with explicit failure taxonomy.
+12. Cost-governance regressions (cardinality/payload/sampling/compression/query-budget) fail deterministically in CI with explicit failure taxonomy.
 
 ### SIM2-GC-12: Program Governance for Continuous Defense Evolution
 
@@ -605,6 +606,28 @@ Acceptance criteria:
 4. Bucket cutoff semantics are deterministic and test-backed across repeated purge cycles.
 5. Purge worker remains bounded (`<=500ms` budget per cadence tick) and failure-retry behavior is idempotent.
 6. Retention health telemetry is visible in dashboard/admin surfaces and included in CI diagnostics artifacts.
+
+### SIM2-GC-16: Monitoring Cost Governance and Resource Efficiency Envelope
+
+Scope: enforce layered cost controls across telemetry ingest, storage, query, and transport while preserving security-critical evidence integrity.
+
+- [ ] SIM2-GC-16-1 Define formal monitoring cost envelope (`ingest events/sec`, `query calls/sec`, `payload bytes`, `cardinality budget`, `compression ratio`) for dev/prod verification profiles.
+- [ ] SIM2-GC-16-2 Enforce guarded-dimension cardinality caps (`<=1000` distinct values/hour per guarded dimension) with deterministic `other` overflow bucket behavior.
+- [ ] SIM2-GC-16-3 Implement rollup windows (`1m`, `5m`, `1h`) for dashboard-default queries and preserve raw-event drill-down lineage.
+- [ ] SIM2-GC-16-4 Define unsampleable security-event class list and enforce `0` sampling/drop for those classes.
+- [ ] SIM2-GC-16-5 Add deterministic low-risk telemetry sampling policy for eligible high-volume classes with explicit sampled/unsampled counters.
+- [ ] SIM2-GC-16-6 Add payload budget controls (`p95 <= 512KB` default monitoring response) via pagination/cursor windowing and response shaping.
+- [ ] SIM2-GC-16-7 Add compression negotiation/reporting for monitoring payloads and enforce `>=30%` transfer reduction target for payloads `>64KB`.
+- [ ] SIM2-GC-16-8 Extend admin query budgets to cost-class aware controls and degraded-state signaling when budgets are exceeded.
+- [ ] SIM2-GC-16-9 Add operator-facing cost health telemetry (`cardinality_pressure`, `payload_budget_status`, `sampling_status`, `query_budget_status`) and runbook guidance.
+
+Acceptance criteria:
+1. Monitoring pipeline remains within declared cost envelope under realtime benchmark scenarios.
+2. Guarded dimensions respect cardinality caps with explicit overflow accounting and no unbounded growth.
+3. Unsampleable defense-event classes are never sampled or dropped.
+4. Default monitoring payloads meet size budget and expose pagination/window continuation when capped.
+5. Compression and query-budget controls provide measurable transport/query cost savings without freshness regressions.
+6. Cost health status is operator-visible and CI-enforced with threshold diagnostics.
 
 ## P0 CI + E2E Stability (Top Priority)
 - [ ] CI-E2E-1 Resume point for next Codex session: start from `scripts/tests/run_dashboard_e2e.sh`, `scripts/tests/verify_playwright_launch.mjs`, `playwright.config.mjs`, `Makefile` (`test-dashboard-e2e`), and `e2e/run_dashboard_e2e.unit.test.js`; run `make dev` (terminal 1) plus `make test-dashboard-e2e` (terminal 2) and capture per-stage timings (unit, bundle budget, seed, preflight, Playwright) to prove there is no loop/stall; then run `DEBUG=pw:browser corepack pnpm exec node scripts/tests/verify_playwright_launch.mjs` to diagnose Chromium launch path and fix root cause so browser e2e runs without `PLAYWRIGHT_SANDBOX_ALLOW_SKIP`; finally, harden CI behavior so skip mode is never silently used in mandatory checks, retries are bounded and deterministic, and acceptance criteria are met: full `make test` completes in bounded time, Chromium e2e actually executes, and every failing step returns actionable diagnostics rather than hanging.

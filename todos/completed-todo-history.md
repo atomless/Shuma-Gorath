@@ -8,6 +8,7 @@ Moved from active TODO files on 2026-02-14.
 
 #### SIM2-GCR: Mandatory Research Program for Gap-Closure Execution
 
+- [x] SIM2-GCR-6 Research cost-efficiency patterns for monitoring pipelines (aggregation windows, cardinality controls, event sampling restrictions, compression/serialization tradeoffs, query budget controls).
 - [x] SIM2-GCR-5 Research Rust storage/retention best practices for high-volume monitoring/event telemetry (TTL strategy, partitioning/indexing, cleanup cadence, deterministic purge semantics, operator-visible retention health).
 - [x] SIM2-GCR-9 Run Rust-focused prototype/benchmark comparisons for realtime monitoring delivery candidates (at minimum cursor polling vs streaming candidate) and record latency/cpu/memory/query-cost tradeoffs.
 - [x] SIM2-GCR-4 Research Rust-first realtime monitoring architectures for dashboard freshness (polling with cursoring vs SSE/WebSocket-style streams, backpressure patterns, ordering guarantees, bounded memory/cpu cost).

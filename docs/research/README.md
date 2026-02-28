@@ -59,3 +59,5 @@ Completed archive index:
    Benchmark evidence comparing cursor polling and streaming candidate behavior under steady and burst envelopes, with quantitative threshold recommendations.
 11. [`2026-02-28-sim2-gcr-5-telemetry-retention-storage-lifecycle-research.md`](2026-02-28-sim2-gcr-5-telemetry-retention-storage-lifecycle-research.md)  
    Retention-lifecycle research for deterministic purge, bucketed storage, and operator-visible retention health semantics.
+12. [`2026-02-28-sim2-gcr-6-monitoring-cost-efficiency-patterns-research.md`](2026-02-28-sim2-gcr-6-monitoring-cost-efficiency-patterns-research.md)  
+   Cost-governance research for monitoring pipelines (cardinality, rollups, sampling restrictions, payload/compression budgets, query controls).
