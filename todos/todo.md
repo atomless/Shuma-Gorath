@@ -333,19 +333,21 @@ Acceptance criteria:
 
 ### SIM2-GC-6: Deliver Realtime Monitoring Refresh Semantics and Backpressure Safety
 
-Scope: ensure monitoring and IP-ban views reflect new adversary activity quickly without destabilizing runtime.
+Scope: ensure monitoring and IP-ban views reflect new activity quickly in both dev and production (simulated and real traffic) without destabilizing runtime.
 
-- [ ] SIM2-GC-6-1 Define freshness SLO for dashboard refresh and manual refresh behavior (target latency bounds from event emit to visible UI update).
+- [ ] SIM2-GC-6-1 Define freshness SLO for dashboard refresh/manual refresh behavior across runtime-dev and runtime-prod (target latency bounds from event emit to visible UI update).
 - [ ] SIM2-GC-6-2 Implement incremental/polling query model with deterministic cursoring and bounded payloads.
 - [ ] SIM2-GC-6-3 Add cache invalidation rules so high-signal events (new bans, challenge failures, maze escalations) invalidate stale views immediately.
 - [ ] SIM2-GC-6-4 Add backend and UI rate-limit/backpressure controls to avoid self-induced load from aggressive refresh loops.
 - [ ] SIM2-GC-6-5 Add tests for freshness, monotonic ordering, deduplication, and behavior under bursty adversary runs.
+- [ ] SIM2-GC-6-6 Replace run-active-only cache-bypass assumptions with a global freshness policy that preserves near-realtime visibility for real production attacker traffic.
 
 Acceptance criteria:
-1. Monitoring and IP-ban views show recent SIM events within declared freshness bounds.
+1. Monitoring and IP-ban views show recent traffic and defense events (real and simulated) within declared freshness bounds.
 2. Refresh behavior is deterministic and does not lose/duplicate critical events.
 3. Backpressure controls protect runtime while preserving operator visibility.
 4. Freshness regressions are caught by automated tests.
+5. Production monitoring is not dependent on adversary-sim active state to achieve near-realtime behavior.
 
 ### SIM2-GC-7: Upgrade Browser-Adversary Lane to True Browser Execution
 
@@ -442,6 +444,42 @@ Acceptance criteria:
 2. New adversary discoveries have clear promotion and mitigation pathways.
 3. KPIs demonstrate whether defenses are improving without unacceptable collateral.
 4. Governance enforces architectural excellence and prevents drift back to imperative/convention-only controls.
+
+### SIM2-GC-13: Remove Adversary Sim Progress Bar and Eliminate Dead UI Runtime Paths
+
+Scope: remove the top progress bar UX that implies choreographed sequence progression and keep only clear ON/OFF + lifecycle state semantics.
+
+- [ ] SIM2-GC-13-1 Remove progress-line markup (`#adversary-sim-progress-line`) and related style hooks from dashboard route/templates.
+- [ ] SIM2-GC-13-2 Remove progress-timer state (`adversarySimProgressNowMs`, tick interval) and associated scheduling/cleanup logic.
+- [ ] SIM2-GC-13-3 Delete `deriveAdversarySimProgress` runtime helper and remove any no-longer-used status fields from UI-only normalization contracts.
+- [ ] SIM2-GC-13-4 Keep lifecycle semantics explicit in UI copy/status (`off`, `running`, `stopping`) without representing run as procedural progress.
+- [ ] SIM2-GC-13-5 Update unit/e2e tests to assert control behavior and lifecycle state visibility without any progress-width assertions.
+- [ ] SIM2-GC-13-6 Update docs to remove “top progress line” references and describe auto-off as a guardrail window, not scenario progression.
+- [ ] SIM2-GC-13-7 Run dead-code sweep for dashboard/runtime modules to remove imports, helpers, and selectors no longer referenced after progress-line removal.
+
+Acceptance criteria:
+1. Dashboard no longer renders or references a top adversary-sim progress bar.
+2. No progress-timer/tick code remains in dashboard route/runtime modules.
+3. Tests verify ON/OFF + lifecycle behavior only and pass without progress assumptions.
+4. Operator docs describe sim as enabled/disabled attacker activity bounded by guardrail duration, not choreographed progression.
+5. Removal leaves no dead selectors, helper exports, or stale tests.
+
+### SIM2-GC-14: Formalize Hybrid Adversary Model (Deterministic Oracle + Emergent Exploration)
+
+Scope: resolve ambiguity between choreographed simulation and emergent adversary behavior by defining and enforcing a two-lane architecture with explicit promotion bridge.
+
+- [ ] SIM2-GC-14-1 Write architecture contract distinguishing `deterministic conformance lane` (blocking) and `emergent exploration lane` (non-blocking discovery).
+- [ ] SIM2-GC-14-2 Define what remains intentionally choreographed (seed scenarios, invariant assertions, resource guardrails) vs what must be emergent (crawl strategy, attack sequencing, adaptation).
+- [ ] SIM2-GC-14-3 Add lane metadata and report lineage fields so operators can see whether evidence came from deterministic or emergent execution.
+- [ ] SIM2-GC-14-4 Define promotion pipeline from emergent finding -> deterministic replay case -> blocking regression with explicit acceptance contract.
+- [ ] SIM2-GC-14-5 Add governance tests that fail if release-blocking decisions depend on stochastic-only emergent outcomes without deterministic confirmation.
+- [ ] SIM2-GC-14-6 Update operator docs/runbooks so monitoring expectations reflect “real attacker behavior while enabled,” with deterministic replay used for release confidence.
+
+Acceptance criteria:
+1. Deterministic and emergent lanes are explicit, testable, and operationally visible.
+2. Blocking gates depend only on deterministic confirmation, never stochastic one-off outcomes.
+3. Emergent lane drives realistic crawl/scrape/attack exploration without privileged control-plane access.
+4. Operator documentation and UI terminology no longer conflate guardrail duration with procedural adversary progress.
 
 ## P0 CI + E2E Stability (Top Priority)
 - [ ] CI-E2E-1 Resume point for next Codex session: start from `scripts/tests/run_dashboard_e2e.sh`, `scripts/tests/verify_playwright_launch.mjs`, `playwright.config.mjs`, `Makefile` (`test-dashboard-e2e`), and `e2e/run_dashboard_e2e.unit.test.js`; run `make dev` (terminal 1) plus `make test-dashboard-e2e` (terminal 2) and capture per-stage timings (unit, bundle budget, seed, preflight, Playwright) to prove there is no loop/stall; then run `DEBUG=pw:browser corepack pnpm exec node scripts/tests/verify_playwright_launch.mjs` to diagnose Chromium launch path and fix root cause so browser e2e runs without `PLAYWRIGHT_SANDBOX_ALLOW_SKIP`; finally, harden CI behavior so skip mode is never silently used in mandatory checks, retries are bounded and deterministic, and acceptance criteria are met: full `make test` completes in bounded time, Chromium e2e actually executes, and every failing step returns actionable diagnostics rather than hanging.
