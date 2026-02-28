@@ -582,6 +582,12 @@ def main() -> int:
         "action_grammar_reject_by_default": bool(worker_payload.get("action_validation_passed"))
         if args.mode == "blackbox"
         else True,
+        "policy_violation_execution_rate_zero": int(
+            worker_payload.get("policy_violation_count") or 0
+        )
+        == 0
+        if args.mode == "blackbox"
+        else True,
     }
     contract_pass = all(isolation_contract.values())
 
@@ -616,6 +622,11 @@ def main() -> int:
             "stderr_tail": worker_result.stderr.splitlines()[-20:],
         },
         "worker_payload": worker_payload,
+        "policy_audit": {
+            "violation_count": int(worker_payload.get("policy_violation_count") or 0),
+            "blocking": bool(worker_payload.get("policy_violation_blocking")),
+            "events": list(worker_payload.get("policy_audit") or []),
+        },
         "runtime_flags": {
             "docker_command": command,
         },

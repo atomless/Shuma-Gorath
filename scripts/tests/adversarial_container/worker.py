@@ -201,6 +201,29 @@ def make_request(
         }
 
 
+def append_policy_audit_event(
+    events: List[Dict[str, Any]],
+    *,
+    stage: str,
+    decision: str,
+    code: str,
+    detail: str = "",
+    action: Dict[str, Any] | None = None,
+) -> None:
+    entry: Dict[str, Any] = {
+        "stage": str(stage).strip(),
+        "decision": str(decision).strip(),
+        "code": str(code).strip(),
+        "detail": str(detail).strip(),
+        "ts_unix": int(time.time()),
+    }
+    if isinstance(action, dict):
+        entry["action_index"] = int(action.get("action_index") or 0)
+        entry["action_type"] = str(action.get("action_type") or "")
+        entry["path"] = str(action.get("path") or "")
+    events.append(entry)
+
+
 def main() -> int:
     mode = str(os.environ.get("BLACKBOX_MODE", "blackbox")).strip().lower()
     base_url = str(os.environ.get("BLACKBOX_BASE_URL", "")).strip().rstrip("/")
@@ -251,6 +274,9 @@ def main() -> int:
         "action_validation_passed": False,
         "resolved_action_count": 0,
         "resolved_actions": [],
+        "policy_audit": [],
+        "policy_violation_count": 0,
+        "policy_violation_blocking": False,
         "observed_env_keys": [key for key in observed_env_keys if key.startswith("BLACKBOX_")],
         "request_budget": request_budget,
         "time_budget_seconds": time_budget_seconds,
@@ -290,9 +316,16 @@ def main() -> int:
 
     statuses: List[int] = []
     errors: List[str] = []
+    policy_audit = payload["policy_audit"]
     sim_tag_envelopes = parse_sim_tag_envelopes(os.environ.get(SIM_TAG_ENVELOPE_ENV, ""))
     if not sim_tag_envelopes:
         errors.append("missing_or_invalid_sim_tag_envelopes")
+        append_policy_audit_event(
+            policy_audit,
+            stage="validation",
+            decision="deny",
+            code="missing_or_invalid_sim_tag_envelopes",
+        )
     sim_headers = {
         SIM_TAG_HEADER_RUN_ID: run_id,
         SIM_TAG_HEADER_PROFILE: mode,
@@ -310,10 +343,24 @@ def main() -> int:
     missing_sim_headers = sorted([header for header in required_sim_headers if header not in sim_header_names])
     if missing_sim_headers:
         errors.append("missing_sim_headers:" + ",".join(missing_sim_headers))
+        append_policy_audit_event(
+            policy_audit,
+            stage="validation",
+            decision="deny",
+            code="missing_sim_headers",
+            detail=",".join(missing_sim_headers),
+        )
     forbidden_sim_headers = set(lane_forbidden_headers(lane_contract))
     forbidden_present = sorted([header for header in sim_header_names if header in forbidden_sim_headers])
     if forbidden_present:
         errors.append("forbidden_sim_headers:" + ",".join(forbidden_present))
+        append_policy_audit_event(
+            policy_audit,
+            stage="validation",
+            decision="deny",
+            code="forbidden_sim_headers",
+            detail=",".join(forbidden_present),
+        )
     resolved_actions: List[Dict[str, Any]] = []
     if not errors:
         try:
@@ -337,6 +384,13 @@ def main() -> int:
             ]
         except FrontierActionValidationError as exc:
             errors.append(f"action_validation_failed:{exc}")
+            append_policy_audit_event(
+                policy_audit,
+                stage="validation",
+                decision="deny",
+                code="action_validation_failed",
+                detail=str(exc),
+            )
 
     requests_sent = 0
     for action in resolved_actions:
@@ -346,9 +400,23 @@ def main() -> int:
             break
         if requests_sent >= len(sim_tag_envelopes):
             errors.append("sim_tag_envelopes_exhausted")
+            append_policy_audit_event(
+                policy_audit,
+                stage="execution",
+                decision="deny",
+                code="sim_tag_envelopes_exhausted",
+                action=action,
+            )
             break
         if (time.monotonic() - start) >= time_budget_seconds:
             errors.append("time_budget_exhausted")
+            append_policy_audit_event(
+                policy_audit,
+                stage="execution",
+                decision="deny",
+                code="time_budget_exhausted",
+                action=action,
+            )
             break
         envelope = sim_tag_envelopes[requests_sent]
         request_headers = dict(sim_headers)
@@ -358,6 +426,14 @@ def main() -> int:
         url = str(action.get("url") or "")
         if not enforce_allowlist(url, allowed_origins):
             errors.append(f"egress_disallowed:{url}")
+            append_policy_audit_event(
+                policy_audit,
+                stage="execution",
+                decision="deny",
+                code="egress_disallowed",
+                detail=url,
+                action=action,
+            )
             break
         result = make_request(url, request_headers)
         result["action_index"] = action.get("action_index")
@@ -370,9 +446,19 @@ def main() -> int:
         statuses.append(int(result.get("status", 0)))
         if result.get("status", 0) == 0:
             errors.append(str(result.get("error") or "request_failed"))
+            append_policy_audit_event(
+                policy_audit,
+                stage="execution",
+                decision="deny",
+                code="request_failed",
+                detail=str(result.get("error") or "request_failed"),
+                action=action,
+            )
 
     payload["requests_sent"] = requests_sent
     payload["errors"] = errors
+    payload["policy_violation_count"] = len(policy_audit)
+    payload["policy_violation_blocking"] = bool(policy_audit)
     payload["allowed_statuses"] = [200, 302, 303, 403, 404, 429]
 
     status_ok = all(status in payload["allowed_statuses"] for status in statuses if status != 0)
