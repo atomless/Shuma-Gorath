@@ -6,6 +6,14 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 SIM2 Gap-Closure Program: Real Execution + Realtime Monitoring
 
+#### SIM2-GC-3: Fix Runtime Toggle/Session Lifecycle So Traffic Persists Beyond Auto-Off
+
+- [x] SIM2-GC-3-1 Split lifecycle semantics into `generation active` vs `historical data visible`.
+- [x] SIM2-GC-3-2 Ensure toggle auto-off only stops producers and does not delete or hide prior records from monitoring queries.
+- [x] SIM2-GC-3-3 Add explicit retention controls for dev telemetry history with safe defaults and cleanup commands.
+- [x] SIM2-GC-3-4 Add regression tests for “run -> auto-off -> refresh monitoring” showing historical adversary traffic remains visible.
+- [x] SIM2-GC-3-5 Update UI copy to communicate active-state vs retained-history semantics.
+
 #### SIM2-GC-13: Remove Adversary Sim Progress Bar and Eliminate Dead UI Runtime Paths
 
 - [x] SIM2-GC-13-1 Remove progress-line markup (`#adversary-sim-progress-line`) and related style hooks from dashboard route/templates.

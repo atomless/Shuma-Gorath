@@ -316,11 +316,7 @@ Acceptance criteria:
 
 Scope: ensure auto-off terminates generation only, not observability of already-generated traffic.
 
-- [ ] SIM2-GC-3-1 Split lifecycle semantics into `generation active` vs `historical data visible`.
-- [ ] SIM2-GC-3-2 Ensure toggle auto-off only stops producers and does not delete or hide prior records from monitoring queries.
-- [ ] SIM2-GC-3-3 Add explicit retention controls for dev telemetry history with safe defaults and cleanup commands.
-- [ ] SIM2-GC-3-4 Add regression tests for “run -> auto-off -> refresh monitoring” showing historical adversary traffic remains visible.
-- [ ] SIM2-GC-3-5 Update UI copy to communicate active-state vs retained-history semantics.
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-3-*` closure details.
 
 Acceptance criteria:
 1. Operators can inspect SIM-generated defense events after auto-off without rerunning simulation.
