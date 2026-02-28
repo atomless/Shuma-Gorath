@@ -4,6 +4,12 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-02-28)
 
+### P0 SIM2 Excellence Remediation Wave 2 (Architecture + Adversary Evolution)
+
+#### SIM2-EX1: Complete Functional-Core Migration and Decompose Imperative Hot Paths (partial)
+
+- [x] SIM2-EX1-1 Produce an architecture inventory of all remaining direct side-effect callsites in request handling (`metrics`, `monitoring`, `event log`, `ban writes`) and classify each as `retain`, `migrate`, or `delete`. (Artifact: `docs/plans/2026-02-28-sim2-ex1-1-request-side-effect-inventory.md`)
+
 ### P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)
 
 #### SIM2-EX7: Harden Simulation-Telemetry Secret Ergonomics Without Weakening Security
