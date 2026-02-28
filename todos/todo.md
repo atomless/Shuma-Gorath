@@ -256,6 +256,24 @@ Non-negotiable delivery rules for every `SIM2-GC-*` slice:
 
 Scope: run rigorous research before implementing high-risk SIM2 gap-closure slices so architecture choices are evidence-backed, especially for UI-triggered black-box LLM adversary control, Rust realtime monitoring, and telemetry retention/cost/security posture.
 
+Execution order (must be followed):
+1. `SIM2-GCR-1` UI toggle orchestration architecture.
+2. `SIM2-GCR-3` UI-toggle trust-boundary controls.
+3. `SIM2-GCR-2` containerized black-box capability orchestration.
+4. `SIM2-GCR-4` Rust realtime monitoring architecture candidates.
+5. `SIM2-GCR-9` Rust prototype/benchmark comparison for realtime candidates.
+6. `SIM2-GCR-5` telemetry retention/storage lifecycle best practices.
+7. `SIM2-GCR-6` monitoring cost-efficiency patterns.
+8. `SIM2-GCR-7` telemetry/adversary-artifact security and privacy controls.
+9. `SIM2-GCR-10` ADR-backed architecture decision capture.
+10. `SIM2-GCR-8` synthesize outcomes into implementation plans and TODO updates.
+
+Per-track workflow (must be followed before marking each track complete):
+1. Publish a dated research doc in `docs/research/` with sources, options considered, and decision matrix.
+2. Publish a dated implementation plan in `docs/plans/` derived from that research.
+3. Update `todos/todo.md` to reflect plan-derived changes (tightened acceptance criteria, reordered execution where needed, and any new required todos).
+4. Only then mark that `SIM2-GCR-*` track complete and move to the next ordered track.
+
 - [ ] SIM2-GCR-1 Research architecture patterns for triggering/stopping a black-box LLM adversary from a dev-only admin UI toggle (control-plane API contract, lifecycle state model, idempotency, race handling, kill-switch behavior).
 - [ ] SIM2-GCR-2 Research capability-safe black-box runner orchestration patterns for containerized frontier actors (least-authority token handoff, envelope signing, bounded execution, one-way command channels, fail-closed teardown).
 - [ ] SIM2-GCR-3 Research trust-boundary controls specific to toggle-driven orchestration in a dev server admin interface (auth/CSRF/session boundaries, replay protection, abuse throttling, auditability requirements).
@@ -275,6 +293,7 @@ Acceptance criteria:
 5. Research outputs explicitly justify why chosen approaches are preferred over rejected alternatives.
 6. Realtime monitoring architecture decision is backed by benchmark evidence from `SIM2-GCR-9`, not only qualitative preference.
 7. Final selected approaches are codified in ADR artifacts before high-risk implementation slices begin.
+8. Each completed research track has linked artifacts in all three layers: research doc, plan doc, and TODO updates.
 
 ### SIM2-GC-1: Define End-to-End Contract for “Real Adversary Traffic”
 
