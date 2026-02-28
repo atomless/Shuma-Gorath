@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import json
+import os
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -214,6 +216,39 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         )
         self.assertFalse(healthy["degraded"])
         self.assertEqual(healthy["status"], "ok")
+
+    def test_cleanup_frontier_artifacts_deletes_only_stale_reports(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir)
+            stale = artifacts_dir / "container_blackbox_report.old.json"
+            fresh = artifacts_dir / "container_blackbox_report.new.json"
+            stale.write_text("{}", encoding="utf-8")
+            fresh.write_text("{}", encoding="utf-8")
+
+            old_unix = time.time() - (8 * 3600)
+            os.utime(stale, (old_unix, old_unix))
+
+            result = container_runner.cleanup_frontier_artifacts(
+                artifacts_dir,
+                ttl_hours=1,
+                max_delete=10,
+            )
+            self.assertEqual(result["deleted_count"], 0)
+            # Only files matching container_*_report.json are subject to cleanup.
+            stale_eligible = artifacts_dir / "container_stale_report.json"
+            fresh_eligible = artifacts_dir / "container_fresh_report.json"
+            stale_eligible.write_text("{}", encoding="utf-8")
+            fresh_eligible.write_text("{}", encoding="utf-8")
+            os.utime(stale_eligible, (old_unix, old_unix))
+
+            result = container_runner.cleanup_frontier_artifacts(
+                artifacts_dir,
+                ttl_hours=1,
+                max_delete=10,
+            )
+            self.assertEqual(result["deleted_count"], 1)
+            self.assertFalse(stale_eligible.exists())
+            self.assertTrue(fresh_eligible.exists())
 
 
 if __name__ == "__main__":

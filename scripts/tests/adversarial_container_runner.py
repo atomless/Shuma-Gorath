@@ -40,6 +40,8 @@ DEFAULT_CONTAINER_RUNTIME_PROFILE_PATH = "scripts/tests/adversarial/container_ru
 FRONTIER_ACTIONS_ENV = "SHUMA_BLACKBOX_ACTIONS"
 CAPABILITY_ENVELOPES_ENV = "BLACKBOX_ACTION_ENVELOPES"
 CAPABILITY_VERIFY_KEY_ENV = "BLACKBOX_CAPABILITY_VERIFY_KEY"
+DEFAULT_CLEANUP_TTL_HOURS = 72
+DEFAULT_CLEANUP_MAX_DELETE = 32
 FRONTIER_FORBIDDEN_FIELD_SUBSTRINGS = (
     "secret",
     "api_key",
@@ -629,6 +631,49 @@ def build_frontier_runtime_state(
     }
 
 
+def cleanup_frontier_artifacts(
+    artifacts_dir: Path,
+    *,
+    ttl_hours: int,
+    max_delete: int,
+) -> Dict[str, Any]:
+    ttl_hours = max(1, int(ttl_hours))
+    max_delete = max(1, int(max_delete))
+    cutoff_unix = time.time() - float(ttl_hours * 3600)
+    deleted: List[str] = []
+    failed: List[Dict[str, str]] = []
+    scanned = 0
+
+    candidates = sorted(artifacts_dir.glob("container_*_report.json"), key=lambda path: path.name)
+    for candidate in candidates:
+        scanned += 1
+        if len(deleted) >= max_delete:
+            break
+        try:
+            stat = candidate.stat()
+        except Exception as exc:
+            failed.append({"path": str(candidate), "error": str(exc)})
+            continue
+        if stat.st_mtime >= cutoff_unix:
+            continue
+        try:
+            candidate.unlink()
+            deleted.append(str(candidate))
+        except Exception as exc:
+            failed.append({"path": str(candidate), "error": str(exc)})
+
+    return {
+        "ttl_hours": ttl_hours,
+        "cutoff_unix": int(cutoff_unix),
+        "max_delete": max_delete,
+        "scanned": scanned,
+        "deleted_count": len(deleted),
+        "deleted": deleted,
+        "failed": failed,
+        "failed_count": len(failed),
+    }
+
+
 def container_command(
     image_tag: str,
     mode: str,
@@ -767,10 +812,22 @@ def main() -> int:
         default=os.environ.get(FRONTIER_ACTIONS_ENV, ""),
         help="Optional frontier action JSON list (defaults to contract default_actions)",
     )
+    parser.add_argument(
+        "--cleanup-ttl-hours",
+        default=os.environ.get("SHUMA_FRONTIER_ARTIFACT_TTL_HOURS", str(DEFAULT_CLEANUP_TTL_HOURS)),
+        help="Retention TTL for frontier container report artifacts",
+    )
+    parser.add_argument(
+        "--cleanup-max-delete",
+        default=os.environ.get("SHUMA_FRONTIER_ARTIFACT_CLEANUP_MAX_DELETE", str(DEFAULT_CLEANUP_MAX_DELETE)),
+        help="Maximum number of stale frontier report artifacts to delete per run",
+    )
     args = parser.parse_args()
 
     request_budget = int(str(args.request_budget).strip())
     time_budget_seconds = int(str(args.time_budget_seconds).strip())
+    cleanup_ttl_hours = int(str(args.cleanup_ttl_hours).strip())
+    cleanup_max_delete = int(str(args.cleanup_max_delete).strip())
     if request_budget < 1:
         print("request budget must be >= 1", file=sys.stderr)
         return 2
@@ -1076,6 +1133,12 @@ def main() -> int:
     }
 
     report_path = report_path_for_mode(args.mode, args.report)
+    cleanup_policy = cleanup_frontier_artifacts(
+        report_path.parent,
+        ttl_hours=cleanup_ttl_hours,
+        max_delete=cleanup_max_delete,
+    )
+    report["cleanup_policy"] = cleanup_policy
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(f"[adversarial-container] report={report_path}")

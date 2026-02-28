@@ -136,5 +136,6 @@ Notes:
   - degraded execution state is explicit in `container_blackbox_report.json -> frontier_runtime_state` and marks fallback/outage conditions as non-passing.
   - runtime launch is blocked when `container_runtime_profile.v1.json` hardening requirements are violated.
   - each executable action must include a signed capability envelope; signature/expiry/replay/scope violations are fail-closed before request execution.
+  - artifact lifecycle cleanup runs each container lane invocation with bounded TTL-based deletion and diagnostics in `container_*_report.json -> cleanup_policy`.
   - negative-path regression tests cover secret canary leakage, out-of-scope URL/path attempts, privileged header injection attempts, and replay envelope misuse.
 - `adversarial_sim_selftest.py` is intentionally tiny and non-circular: it validates simulator mechanics against fixed stub routes without asserting product defense efficacy.
