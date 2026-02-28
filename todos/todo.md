@@ -443,7 +443,6 @@ Scope: make monitoring UI operationally useful for defense evolution loops.
 - [ ] SIM2-GC-10-3 Add fast filters for `origin`, `scenario`, `lane`, `defense`, and `outcome` without introducing new visual language.
 - [ ] SIM2-GC-10-4 Add explicit empty/error/degraded states so missing data is never mistaken for “no attacks.”
 - [ ] SIM2-GC-10-5 Add operator workflow docs for triage, replay, tuning, and validation loops from the dashboard.
-- [ ] SIM2-GC-10-6 Add explicit monitoring freshness indicators (`last event at`, `current lag`, `state: fresh/degraded/stale`) on monitoring and IP-ban tabs.
 
 Acceptance criteria:
 1. Operators can directly correlate adversary runs with defense responses from the UI.
@@ -471,8 +470,6 @@ Scope: enforce non-regression with tests that prove real traffic -> real defense
 - [ ] SIM2-GC-11-13 Add container isolation regression tests for frontier lane (reject privileged mode, daemon-socket mount, disallowed host mount, and missing runtime hardening flags).
 - [ ] SIM2-GC-11-14 Add signed-envelope negative tests (`invalid signature`, `nonce replay`, `expiry exceeded`, `scope mismatch`) proving worker execution is blocked.
 - [ ] SIM2-GC-11-15 Add teardown determinism tests (`deadline exceeded`, `heartbeat loss`, forced-kill path) and assert terminal failure taxonomy plus cleanup completion.
-- [ ] SIM2-GC-11-16 Add cursor-contract tests for monotonic ordering, resume-after-cursor correctness, overflow signaling, and deduped replay windows.
-- [ ] SIM2-GC-11-17 Add SSE-path tests for event-id ordering, `Last-Event-ID` reconnect behavior, and fallback-to-polling continuity when stream drops.
 - [ ] SIM2-GC-11-18 Add reproducible realtime benchmark verification target (`make test-sim2-realtime-bench`) and CI artifact outputs for latency percentiles, overflow/drop counts, and request-budget metrics.
 - [ ] SIM2-GC-11-19 Add retention lifecycle regression tests for bucket cutoff correctness, purge-watermark progression, purge-lag threshold, and no read-path full-keyspace cleanup scans.
 - [ ] SIM2-GC-11-20 Add cost-governance regression tests for cardinality caps, overflow-bucket accounting, unsampleable-event protection, payload-size budget, and compression effectiveness thresholds.

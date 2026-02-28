@@ -538,6 +538,63 @@ mod tests {
     }
 
     #[test]
+    fn handle_admin_monitoring_stream_orders_event_ids_across_reconnects() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let hour = now / 3600;
+        let first_key = format!("eventlog:v2:{}:{}-first-order", hour, now);
+        let second_ts = now.saturating_add(1);
+        let second_key = format!("eventlog:v2:{}:{}-second-order", hour, second_ts);
+
+        let first_event = EventLogEntry {
+            ts: now,
+            event: EventType::Challenge,
+            ip: Some("198.51.100.2".to_string()),
+            reason: Some("challenge_served".to_string()),
+            outcome: Some("ok".to_string()),
+            admin: Some("ops".to_string()),
+        };
+        let second_event = EventLogEntry {
+            ts: second_ts,
+            event: EventType::Block,
+            ip: Some("198.51.100.3".to_string()),
+            reason: Some("blocked".to_string()),
+            outcome: Some("blocked".to_string()),
+            admin: Some("ops".to_string()),
+        };
+        store
+            .set(&first_key, serde_json::to_vec(&first_event).unwrap().as_slice())
+            .unwrap();
+        store
+            .set(&second_key, serde_json::to_vec(&second_event).unwrap().as_slice())
+            .unwrap();
+
+        let first_cursor = build_event_cursor(now, first_key.as_str());
+        let second_cursor = build_event_cursor(second_ts, second_key.as_str());
+
+        let mut first_builder = Request::builder();
+        first_builder
+            .method(Method::Get)
+            .uri("/admin/monitoring/stream?hours=1&limit=1");
+        let first_req = first_builder.build();
+        let first_resp = handle_admin_monitoring_stream(&first_req, &store);
+        assert_eq!(*first_resp.status(), 200u16);
+        let first_body = String::from_utf8_lossy(first_resp.body()).to_string();
+        assert!(first_body.contains(format!("id: {}", first_cursor).as_str()));
+
+        let mut second_builder = Request::builder();
+        second_builder
+            .method(Method::Get)
+            .uri("/admin/monitoring/stream?hours=1&limit=1")
+            .header("Last-Event-ID", first_cursor.as_str());
+        let second_req = second_builder.build();
+        let second_resp = handle_admin_monitoring_stream(&second_req, &store);
+        assert_eq!(*second_resp.status(), 200u16);
+        let second_body = String::from_utf8_lossy(second_resp.body()).to_string();
+        assert!(second_body.contains(format!("id: {}", second_cursor).as_str()));
+    }
+
+    #[test]
     fn handle_admin_ip_bans_delta_filters_to_ban_and_unban_events() {
         let store = MockStore::new();
         let now = now_ts();
