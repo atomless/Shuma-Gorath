@@ -3,7 +3,7 @@ use spin_sdk::key_value::Store;
 
 use crate::runtime::capabilities::{
     BanWriteCapability, EventLogCapability, MetricsCapability, MonitoringCapability,
-    RuntimeCapabilities,
+    PolicyExecutionCapabilities, PostResponseFlushCapabilities, RequestBootstrapCapabilities,
 };
 
 use super::intent_types::{DecisionPlan, EffectExecutionContext, EffectIntent};
@@ -132,7 +132,7 @@ pub(crate) fn execute_plan(
     plan: DecisionPlan,
     facts: &crate::runtime::request_facts::RequestFacts,
     context: &EffectExecutionContext<'_>,
-    capabilities: &RuntimeCapabilities,
+    capabilities: &PolicyExecutionCapabilities,
 ) -> Option<Response> {
     execute_effect_intents(plan.intents, context, capabilities);
     execute_response_intent(plan.response, facts, context, capabilities)
@@ -141,7 +141,7 @@ pub(crate) fn execute_plan(
 pub(crate) fn execute_effect_intents(
     intents: Vec<EffectIntent>,
     context: &EffectExecutionContext<'_>,
-    capabilities: &RuntimeCapabilities,
+    capabilities: &PolicyExecutionCapabilities,
 ) {
     for intent in intents {
         let Some(intent) = apply_metric_intent(capabilities.metrics(), context.store, intent) else {
@@ -171,7 +171,7 @@ pub(crate) fn execute_effect_intents(
 pub(crate) fn execute_metric_intents(
     intents: Vec<EffectIntent>,
     store: &Store,
-    capabilities: &RuntimeCapabilities,
+    capabilities: &RequestBootstrapCapabilities,
 ) {
     for intent in intents {
         let Some(unhandled) = apply_metric_intent(capabilities.metrics(), store, intent) else {
@@ -184,7 +184,7 @@ pub(crate) fn execute_metric_intents(
 pub(crate) fn execute_monitoring_store_intents(
     intents: Vec<EffectIntent>,
     store: &Store,
-    capabilities: &RuntimeCapabilities,
+    capabilities: &PostResponseFlushCapabilities,
 ) {
     for intent in intents {
         let Some(unhandled) = apply_monitoring_intent(capabilities.monitoring(), store, "", intent)

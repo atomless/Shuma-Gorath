@@ -38,12 +38,15 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         Err(response) => return response,
     };
     let store = &store;
-    let request_capabilities = crate::runtime::capabilities::RuntimeCapabilities::for_request_path();
+    let bootstrap_capabilities =
+        crate::runtime::capabilities::RuntimeCapabilities::for_request_bootstrap_phase();
+    let request_capabilities =
+        crate::runtime::capabilities::RuntimeCapabilities::for_policy_execution_phase();
     if let Some(sim_tag_failure) = crate::runtime::sim_telemetry::take_last_validation_failure() {
         crate::runtime::effect_intents::execute_metric_intents(
             vec![crate::policy_signal_intent(sim_tag_failure.signal_id())],
             store,
-            &request_capabilities,
+            &bootstrap_capabilities,
         );
         crate::log_line(&format!(
             "[SIM TAG] rejected reason={}",
@@ -203,6 +206,7 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         ua,
         &geo_assessment,
         &ip_range_evaluation,
+        &request_capabilities,
     ) {
         return response;
     }
@@ -237,6 +241,7 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         ua,
         &geo_assessment,
         &ip_range_evaluation,
+        &request_capabilities,
     ) {
         return response;
     }

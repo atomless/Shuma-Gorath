@@ -42,7 +42,7 @@ fn execute_decision_sequence(
     decisions: Vec<crate::runtime::policy_graph::PolicyDecision>,
     facts: &crate::runtime::request_facts::RequestFacts,
     context: &crate::runtime::effect_intents::EffectExecutionContext<'_>,
-    capabilities: &crate::runtime::capabilities::RuntimeCapabilities,
+    capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
 ) -> Option<Response> {
     for decision in decisions {
         let plan = crate::runtime::effect_intents::plan_for_decision(&decision, facts, context.cfg);
@@ -66,8 +66,8 @@ pub(crate) fn maybe_handle_policy_graph_first_tranche(
     ua: &str,
     geo_assessment: &crate::GeoAssessment,
     ip_range_evaluation: &crate::signals::ip_range_policy::Evaluation,
+    capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
 ) -> Option<Response> {
-    let capabilities = crate::runtime::capabilities::RuntimeCapabilities::for_request_path();
     let context = crate::runtime::effect_intents::EffectExecutionContext {
         req,
         store,
@@ -130,8 +130,8 @@ pub(crate) fn maybe_handle_policy_graph_second_tranche(
     ua: &str,
     geo_assessment: &crate::GeoAssessment,
     ip_range_evaluation: &crate::signals::ip_range_policy::Evaluation,
+    capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
 ) -> Option<Response> {
-    let capabilities = crate::runtime::capabilities::RuntimeCapabilities::for_request_path();
     let context = crate::runtime::effect_intents::EffectExecutionContext {
         req,
         store,

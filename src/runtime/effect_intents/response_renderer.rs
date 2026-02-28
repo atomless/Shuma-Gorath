@@ -1,6 +1,6 @@
 use spin_sdk::http::Response;
 
-use crate::runtime::capabilities::RuntimeCapabilities;
+use crate::runtime::capabilities::PolicyExecutionCapabilities;
 
 use super::intent_executor::{apply_ban_intent, apply_event_log_intent, apply_metric_intent};
 use super::intent_types::{EffectExecutionContext, EffectIntent, ResponseIntent};
@@ -9,8 +9,9 @@ pub(super) fn execute_response_intent(
     response_intent: ResponseIntent,
     facts: &crate::runtime::request_facts::RequestFacts,
     context: &EffectExecutionContext<'_>,
-    capabilities: &RuntimeCapabilities,
+    capabilities: &PolicyExecutionCapabilities,
 ) -> Option<Response> {
+    let _response_privileged = capabilities.response_privileged();
     match response_intent {
         ResponseIntent::Continue => None,
         ResponseIntent::OkBody(body) => Some(Response::new(200, body)),

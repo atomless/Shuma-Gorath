@@ -696,7 +696,7 @@ pub(crate) fn serve_maze_with_tracking(
     botness_hint: Option<u8>,
 ) -> Response {
     let provider_registry = crate::providers::registry::ProviderRegistry::from_config(cfg);
-    let capabilities = runtime::capabilities::RuntimeCapabilities::for_request_path();
+    let capabilities = runtime::capabilities::RuntimeCapabilities::for_policy_execution_phase();
     let context = runtime::effect_intents::EffectExecutionContext {
         req,
         store,
@@ -998,7 +998,7 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
 pub fn spin_entrypoint(req: Request) -> Response {
     let response = handle_bot_defence_impl(&req);
     if let Ok(store) = Store::open_default() {
-        let capabilities = runtime::capabilities::RuntimeCapabilities::for_request_path();
+        let capabilities = runtime::capabilities::RuntimeCapabilities::for_post_response_flush_phase();
         runtime::effect_intents::execute_monitoring_store_intents(
             vec![runtime::effect_intents::EffectIntent::FlushPendingMonitoringCounters],
             &store,

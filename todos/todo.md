@@ -102,8 +102,6 @@ Acceptance criteria:
 
 Scope: replace coarse capability minting with explicit least-authority capability sets and ensure privileged operations are impossible without capability possession.
 
-- [ ] SIM2-EX2-1 Define capability lattice by operation class (`metrics_write`, `monitoring_write`, `event_log_write`, `ban_write`, optional `response_privileged`) and by orchestration phase.
-- [ ] SIM2-EX2-2 Replace single coarse `RuntimeCapabilities::for_request_path()` minting with phase-specific capability construction and explicit capability passing per execution step.
 - [ ] SIM2-EX2-3 Eliminate direct privileged helper calls that bypass capability checks; route every write path through capability-gated executor APIs.
 - [ ] SIM2-EX2-4 Add compile-time sealing for capability constructors so capabilities can only be minted at trust-boundary entrypoints.
 - [ ] SIM2-EX2-5 Add negative-path tests proving privileged effects fail/are impossible when capability is absent.

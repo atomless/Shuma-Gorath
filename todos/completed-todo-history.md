@@ -17,6 +17,11 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-EX1-7 Reduce `src/lib.rs` orchestration surface to route setup, trust-boundary setup, and tranche wiring only; move policy behavior decisions out of entrypoint logic. (Artifacts: `src/lib.rs`, `src/runtime/mod.rs`, `src/runtime/request_flow.rs`)
 - [x] SIM2-EX1-8 Document final orchestration ownership map in `docs/module-boundaries.md` and update ADR references where boundaries changed. (Artifacts: `docs/module-boundaries.md`, `docs/adr/0006-functional-core-policy-orchestration.md`)
 
+#### SIM2-EX2: Enforce Least-Authority Capability-by-Construction Across Privileged Effects (partial)
+
+- [x] SIM2-EX2-1 Define capability lattice by operation class (`metrics_write`, `monitoring_write`, `event_log_write`, `ban_write`, optional `response_privileged`) and by orchestration phase. (Artifact: `src/runtime/capabilities.rs`)
+- [x] SIM2-EX2-2 Replace single coarse `RuntimeCapabilities::for_request_path()` minting with phase-specific capability construction and explicit capability passing per execution step. (Artifacts: `src/runtime/capabilities.rs`, `src/runtime/request_flow.rs`, `src/runtime/policy_pipeline.rs`, `src/runtime/effect_intents/intent_executor.rs`, `src/runtime/effect_intents/response_renderer.rs`, `src/lib.rs`)
+
 ### P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)
 
 #### SIM2-EX7: Harden Simulation-Telemetry Secret Ergonomics Without Weakening Security
