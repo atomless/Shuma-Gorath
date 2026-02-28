@@ -19,7 +19,9 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-GC-11-1 Define and publish mandatory verification matrix mapping each defense category to required scenarios, lanes, and evidence assertions.
 - [x] SIM2-GC-11-2 Add e2e test suite that executes matrix-required crawler/scraper/browser/frontier scenarios and asserts monitoring/IP-ban updates.
 - [x] SIM2-GC-11-3 Add contract tests for telemetry lineage integrity and monotonic event ordering across refresh cycles.
+- [x] SIM2-GC-11-4 Add failure-injection tests (telemetry store delay, partial write failure, refresh race) with expected operator-visible outcomes.
 - [x] SIM2-GC-11-8 Require failure diagnostics to name missing matrix row(s), missing evidence type(s), and failing telemetry lineage segment.
+- [x] SIM2-GC-11-7 Add explicit prod-mode monitoring checks using non-sim traffic profiles to verify near-realtime visibility without adversary-sim toggle dependence.
 - [x] SIM2-GC-11-9 Add control-plane race/idempotency tests for repeated UI toggle submissions, duplicate command replay, and multi-controller lease contention.
 - [x] SIM2-GC-11-10 Add trust-boundary negative-path tests for adversary control endpoint (`csrf missing/invalid`, `origin mismatch`, `fetch-metadata cross-site`, `stale session`) and assert fail-closed behavior.
 - [x] SIM2-GC-11-11 Add idempotency misuse tests proving key reuse with payload mismatch is rejected and exact retries map to stable `operation_id`.
@@ -30,6 +32,9 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-GC-11-5 Add Makefile targets for focused SIM2 realtime verification and wire them into `make test` gating policy.
 - [x] SIM2-GC-11-6 Add CI diagnostics artifacts (timeline snapshots, event counts, refresh traces) for fast triage.
 - [x] SIM2-GC-11-18 Add reproducible realtime benchmark verification target (`make test-sim2-realtime-bench`) and CI artifact outputs for latency percentiles, overflow/drop counts, and request-budget metrics.
+- [x] SIM2-GC-11-19 Add retention lifecycle regression tests for bucket cutoff correctness, purge-watermark progression, purge-lag threshold, and no read-path full-keyspace cleanup scans.
+- [x] SIM2-GC-11-20 Add cost-governance regression tests for cardinality caps, overflow-bucket accounting, unsampleable-event protection, payload-size budget, and compression effectiveness thresholds.
+- [x] SIM2-GC-11-21 Add security/privacy regression suite for telemetry/artifacts (field-classification enforcement, secret-canary leak checks, pseudonymization default coverage, retention-tier policy, incident-hook emission).
 - [x] SIM2-GC-11-22 Add ADR conformance verification checks ensuring implementation slices align with ADR `0007`, `0008`, and `0009` (or provide explicit supersession plan).
 - [x] SIM2-GC-11-23 Add hybrid-governance threshold tests ensuring emergent promotion requires `>=95%` deterministic confirmation, `<=20%` false-discovery rate, and owner disposition SLA `<=48h`.
 

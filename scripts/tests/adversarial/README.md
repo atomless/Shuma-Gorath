@@ -77,6 +77,7 @@ The runner writes machine-readable artifacts to:
 - `scripts/tests/adversarial/sim2_adr_conformance_report.json` (from `make test-sim2-adr-conformance`)
 - `scripts/tests/adversarial/sim2_ci_diagnostics.json` (from `make test-sim2-ci-diagnostics`)
 - `scripts/tests/adversarial/sim2_verification_matrix_report.json` (from `make test-sim2-verification-matrix` / `make test-sim2-verification-e2e`)
+- `scripts/tests/adversarial/sim2_operational_regressions_report.json` (from `make test-sim2-operational-regressions`)
 - `latest_report.json` and `attack_plan.json` include `execution_lane` metadata for auditability.
   - `latest_report.json` includes:
   - quantitative `gates` and `coverage_gates` sections (each check includes `threshold_source`),
@@ -141,6 +142,9 @@ Notes:
   - `verification_matrix.v1.json` maps defense categories to required scenarios, lanes, and evidence assertions.
   - `make test-sim2-verification-matrix` validates matrix structure and report evidence diagnostics.
   - `make test-sim2-verification-e2e` executes matrix-required deterministic + frontier lanes and fails on missing row/evidence/lineage diagnostics.
+- Operational regressions governance:
+  - `make test-sim2-operational-regressions` enforces failure-injection, prod non-sim freshness, retention, cost, and security/privacy regression thresholds.
+  - Failures emit explicit taxonomy labels for threshold and policy drifts.
 - Frontier threshold lane (`make test-frontier-unavailability-policy`) tracks protected-lane degraded streaks and emits actionability state for model-refresh ownership workflows.
 - Container lane is complementary and non-replacing in this phase:
   - run `make test-adversarial-container-isolation` to validate isolation contract first,
