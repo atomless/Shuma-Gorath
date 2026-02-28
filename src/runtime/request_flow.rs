@@ -192,6 +192,13 @@ pub(crate) fn handle_request(req: &Request) -> Response {
                 None,
             )])
         },
+        |event, reason, outcome| {
+            execute_request_intents(vec![crate::runtime::effect_intents::EffectIntent::LogEvent {
+                event,
+                reason: reason.to_string(),
+                outcome: outcome.to_string(),
+            }])
+        },
     ) {
         return response;
     }

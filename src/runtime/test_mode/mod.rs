@@ -1,28 +1,17 @@
 use spin_sdk::http::Response;
 
-fn log_test_mode_event<S: crate::challenge::KeyValueStore>(
-    store: &S,
+fn log_test_mode_event(
     event: crate::admin::EventType,
-    ip: &str,
     reason: &str,
     outcome: &str,
     record_test_mode_action: &impl Fn(),
+    record_test_mode_event: &impl Fn(crate::admin::EventType, &str, &str),
 ) {
     record_test_mode_action();
-    crate::admin::log_event(
-        store,
-        &crate::admin::EventLogEntry {
-            ts: crate::admin::now_ts(),
-            event,
-            ip: Some(ip.to_string()),
-            reason: Some(reason.to_string()),
-            outcome: Some(outcome.to_string()),
-            admin: None,
-        },
-    );
+    record_test_mode_event(event, reason, outcome);
 }
 
-pub(crate) fn maybe_handle_test_mode<S, F, G>(
+pub(crate) fn maybe_handle_test_mode<S, F, G, H>(
     store: &S,
     cfg: &crate::config::Config,
     site_id: &str,
@@ -32,11 +21,13 @@ pub(crate) fn maybe_handle_test_mode<S, F, G>(
     geo_route: crate::signals::geo::GeoPolicyRoute,
     needs_js_verification: F,
     record_test_mode_action: G,
+    record_test_mode_event: H,
 ) -> Option<Response>
 where
     S: crate::challenge::KeyValueStore,
     F: Fn() -> bool,
     G: Fn(),
+    H: Fn(crate::admin::EventType, &str, &str),
 {
     if !cfg.test_mode {
         return None;
@@ -53,12 +44,11 @@ where
                 "[TEST MODE] Would allow IP {ip} via IP range emergency allowlist ({matched_cidr})"
             ));
             log_test_mode_event(
-                store,
                 crate::admin::EventType::AdminAction,
-                ip,
                 "ip_range_emergency_allowlist [TEST MODE]",
                 format!("would_allow matched_cidr={}", matched_cidr).as_str(),
                 &record_test_mode_action,
+                &record_test_mode_event,
             );
             return Some(Response::new(
                 200,
@@ -88,9 +78,7 @@ where
                 | crate::config::IpRangePolicyAction::Honeypot => crate::admin::EventType::Block,
             };
             log_test_mode_event(
-                store,
                 event_type,
-                ip,
                 "ip_range_policy [TEST MODE]",
                 format!(
                     "would_apply source={} source_id={} action={} cidr={}",
@@ -101,6 +89,7 @@ where
                 )
                 .as_str(),
                 &record_test_mode_action,
+                &record_test_mode_event,
             );
             return Some(Response::new(
                 200,
@@ -116,12 +105,11 @@ where
     if cfg.honeypot_enabled && crate::enforcement::honeypot::is_honeypot(path, &cfg.honeypots) {
         crate::log_line(&format!("[TEST MODE] Would ban IP {ip} for honeypot"));
         log_test_mode_event(
-            store,
             crate::admin::EventType::Block,
-            ip,
             "honeypot [TEST MODE]",
             "would_block",
             &record_test_mode_action,
+            &record_test_mode_event,
         );
         return Some(Response::new(200, "TEST MODE: Would block (honeypot)"));
     }
@@ -129,12 +117,11 @@ where
     if !crate::enforcement::rate::check_rate_limit(store, site_id, ip, cfg.rate_limit) {
         crate::log_line(&format!("[TEST MODE] Would ban IP {ip} for rate limit"));
         log_test_mode_event(
-            store,
             crate::admin::EventType::Block,
-            ip,
             "rate_limit [TEST MODE]",
             "would_block",
             &record_test_mode_action,
+            &record_test_mode_event,
         );
         return Some(Response::new(200, "TEST MODE: Would block (rate limit)"));
     }
@@ -144,12 +131,11 @@ where
             "[TEST MODE] Would serve challenge to banned IP {ip}"
         ));
         log_test_mode_event(
-            store,
             crate::admin::EventType::Block,
-            ip,
             "banned [TEST MODE]",
             "would_serve_challenge",
             &record_test_mode_action,
+            &record_test_mode_event,
         );
         return Some(Response::new(200, "TEST MODE: Would serve challenge"));
     }
@@ -159,12 +145,11 @@ where
             "[TEST MODE] Would inject JS challenge for IP {ip}"
         ));
         log_test_mode_event(
-            store,
             crate::admin::EventType::Challenge,
-            ip,
             "js_verification [TEST MODE]",
             "would_challenge",
             &record_test_mode_action,
+            &record_test_mode_event,
         );
         return Some(Response::new(200, "TEST MODE: Would inject JS challenge"));
     }
@@ -173,12 +158,11 @@ where
         crate::signals::geo::GeoPolicyRoute::Block => {
             crate::log_line(&format!("[TEST MODE] Would block IP {ip} for GEO policy"));
             log_test_mode_event(
-                store,
                 crate::admin::EventType::Block,
-                ip,
                 "geo_policy_block [TEST MODE]",
                 "would_block",
                 &record_test_mode_action,
+                &record_test_mode_event,
             );
             return Some(Response::new(200, "TEST MODE: Would block (geo policy)"));
         }
@@ -188,12 +172,11 @@ where
                     "[TEST MODE] Would route IP {ip} to maze for GEO policy"
                 ));
                 log_test_mode_event(
-                    store,
                     crate::admin::EventType::Challenge,
-                    ip,
                     "geo_policy_maze [TEST MODE]",
                     "would_route_maze",
                     &record_test_mode_action,
+                    &record_test_mode_event,
                 );
                 return Some(Response::new(
                     200,
@@ -205,12 +188,11 @@ where
                     "[TEST MODE] Would challenge IP {ip} for GEO maze fallback"
                 ));
                 log_test_mode_event(
-                    store,
                     crate::admin::EventType::Challenge,
-                    ip,
                     "geo_policy_challenge_fallback [TEST MODE]",
                     "would_challenge",
                     &record_test_mode_action,
+                    &record_test_mode_event,
                 );
                 return Some(Response::new(
                     200,
@@ -221,12 +203,11 @@ where
                 "[TEST MODE] Would block IP {ip} for GEO maze fallback with challenge disabled"
             ));
             log_test_mode_event(
-                store,
                 crate::admin::EventType::Block,
-                ip,
                 "geo_policy_challenge_disabled_fallback_block [TEST MODE]",
                 "would_block",
                 &record_test_mode_action,
+                &record_test_mode_event,
             );
             return Some(Response::new(
                 200,
@@ -239,12 +220,11 @@ where
                     "[TEST MODE] Would challenge IP {ip} for GEO policy"
                 ));
                 log_test_mode_event(
-                    store,
                     crate::admin::EventType::Challenge,
-                    ip,
                     "geo_policy_challenge [TEST MODE]",
                     "would_challenge",
                     &record_test_mode_action,
+                    &record_test_mode_event,
                 );
                 return Some(Response::new(
                     200,
@@ -256,12 +236,11 @@ where
                     "[TEST MODE] Would route IP {ip} to maze for GEO challenge fallback"
                 ));
                 log_test_mode_event(
-                    store,
                     crate::admin::EventType::Challenge,
-                    ip,
                     "geo_policy_challenge_fallback_maze [TEST MODE]",
                     "would_route_maze",
                     &record_test_mode_action,
+                    &record_test_mode_event,
                 );
                 return Some(Response::new(
                     200,
@@ -272,12 +251,11 @@ where
                 "[TEST MODE] Would block IP {ip} for GEO challenge fallback with challenge disabled"
             ));
             log_test_mode_event(
-                store,
                 crate::admin::EventType::Block,
-                ip,
                 "geo_policy_challenge_disabled_fallback_block [TEST MODE]",
                 "would_block",
                 &record_test_mode_action,
+                &record_test_mode_event,
             );
             return Some(Response::new(
                 200,

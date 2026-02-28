@@ -4,6 +4,34 @@ use spin_sdk::key_value::Store;
 const SITE_ID_DEFAULT: &str = "default";
 const CHALLENGE_ABUSE_SHORT_BAN_SECONDS: u64 = 600;
 
+fn request_user_agent(req: &Request) -> &str {
+    req.header("user-agent")
+        .and_then(|value| value.as_str())
+        .unwrap_or("")
+}
+
+fn execute_capability_gated_intents(
+    req: &Request,
+    store: &Store,
+    cfg: &crate::config::Config,
+    provider_registry: &crate::providers::registry::ProviderRegistry,
+    ip: &str,
+    ua: &str,
+    intents: Vec<crate::runtime::effect_intents::EffectIntent>,
+) {
+    let capabilities = crate::runtime::capabilities::RuntimeCapabilities::for_policy_execution_phase();
+    let context = crate::runtime::effect_intents::EffectExecutionContext {
+        req,
+        store,
+        cfg,
+        provider_registry,
+        site_id: SITE_ID_DEFAULT,
+        ip,
+        ua,
+    };
+    crate::runtime::effect_intents::execute_effect_intents(intents, &context, &capabilities);
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ChallengeFailureEnforcement {
     MazeFallback,
@@ -115,38 +143,37 @@ fn enforce_tarpit_or_short_ban(
         return tarpit_response;
     }
 
-    provider_registry.ban_store_provider().ban_ip_with_fingerprint(
+    execute_capability_gated_intents(
+        req,
         store,
-        SITE_ID_DEFAULT,
+        cfg,
+        provider_registry,
         ip,
-        ban_reason,
-        CHALLENGE_ABUSE_SHORT_BAN_SECONDS,
-        Some(crate::enforcement::ban::BanFingerprint {
-            score: None,
-            signals: signals.iter().map(|value| (*value).to_string()).collect(),
-            summary: Some(summary.to_string()),
-        }),
-    );
-    crate::observability::metrics::increment(
-        store,
-        crate::observability::metrics::MetricName::BansTotal,
-        Some(ban_reason),
-    );
-    crate::observability::metrics::increment(
-        store,
-        crate::observability::metrics::MetricName::BlocksTotal,
-        None,
-    );
-    crate::admin::log_event(
-        store,
-        &crate::admin::EventLogEntry {
-            ts: crate::admin::now_ts(),
-            event: crate::admin::EventType::Ban,
-            ip: Some(ip.to_string()),
-            reason: Some(ban_reason.to_string()),
-            outcome: Some(format!("short_ban_{}s", CHALLENGE_ABUSE_SHORT_BAN_SECONDS)),
-            admin: None,
-        },
+        request_user_agent(req),
+        vec![
+            crate::runtime::effect_intents::EffectIntent::Ban(
+                crate::runtime::effect_intents::BanIntent {
+                    reason: ban_reason.to_string(),
+                    duration_seconds: CHALLENGE_ABUSE_SHORT_BAN_SECONDS,
+                    score: None,
+                    signals: signals.iter().map(|value| (*value).to_string()).collect(),
+                    summary: Some(summary.to_string()),
+                },
+            ),
+            crate::runtime::effect_intents::EffectIntent::IncrementMetric {
+                metric: crate::observability::metrics::MetricName::BansTotal,
+                label: Some(ban_reason.to_string()),
+            },
+            crate::runtime::effect_intents::EffectIntent::IncrementMetric {
+                metric: crate::observability::metrics::MetricName::BlocksTotal,
+                label: None,
+            },
+            crate::runtime::effect_intents::EffectIntent::LogEvent {
+                event: crate::admin::EventType::Ban,
+                reason: ban_reason.to_string(),
+                outcome: format!("short_ban_{}s", CHALLENGE_ABUSE_SHORT_BAN_SECONDS),
+            },
+        ],
     );
 
     Response::new(
@@ -157,25 +184,18 @@ fn enforce_tarpit_or_short_ban(
     )
 }
 
-fn record_sequence_violation_for_challenge_submit(
-    store: &Store,
-    req: &Request,
+fn sequence_violation_intents_for_challenge_submit(
     transition: crate::runtime::policy_taxonomy::PolicyTransition,
     reason: &str,
-) {
-    let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(transition);
-    crate::observability::metrics::record_policy_match(store, &policy_match);
-    crate::admin::log_event(
-        store,
-        &crate::admin::EventLogEntry {
-            ts: crate::admin::now_ts(),
+) -> Vec<crate::runtime::effect_intents::EffectIntent> {
+    vec![
+        crate::runtime::effect_intents::EffectIntent::RecordPolicyMatch(transition),
+        crate::runtime::effect_intents::EffectIntent::LogEvent {
             event: crate::admin::EventType::Challenge,
-            ip: Some(crate::extract_client_ip(req)),
-            reason: Some(reason.to_string()),
-            outcome: Some(policy_match.annotate_outcome("challenge_submit_rejected")),
-            admin: None,
+            reason: reason.to_string(),
+            outcome: "challenge_submit_rejected".to_string(),
         },
-    );
+    ]
 }
 
 fn handle_not_a_bot_submit(
@@ -196,33 +216,43 @@ fn handle_not_a_bot_submit(
         crate::challenge::NotABotSubmitOutcome::Replay => "replay",
         _ => "fail",
     };
-    crate::observability::monitoring::record_not_a_bot_submit(
+    execute_capability_gated_intents(
+        req,
         store,
-        monitoring_outcome,
-        submit_result.solve_ms,
+        cfg,
+        &provider_registry,
+        ip.as_str(),
+        ua,
+        vec![crate::runtime::effect_intents::EffectIntent::RecordNotABotSubmit {
+            outcome: monitoring_outcome.to_string(),
+            solve_ms: submit_result.solve_ms,
+        }],
     );
 
     match submit_result.decision {
         crate::challenge::NotABotDecision::Pass => {
-            crate::observability::metrics::increment(
+            execute_capability_gated_intents(
+                req,
                 store,
-                crate::observability::metrics::MetricName::NotABotPassTotal,
-                None,
-            );
-            crate::admin::log_event(
-                store,
-                &crate::admin::EventLogEntry {
-                    ts: crate::admin::now_ts(),
-                    event: crate::admin::EventType::Challenge,
-                    ip: Some(ip.clone()),
-                    reason: Some("not_a_bot_pass".to_string()),
-                    outcome: Some(format!(
-                        "return_to={} solve_ms={}",
-                        submit_result.return_to,
-                        submit_result.solve_ms.unwrap_or_default()
-                    )),
-                    admin: None,
-                },
+                cfg,
+                &provider_registry,
+                ip.as_str(),
+                ua,
+                vec![
+                    crate::runtime::effect_intents::EffectIntent::IncrementMetric {
+                        metric: crate::observability::metrics::MetricName::NotABotPassTotal,
+                        label: None,
+                    },
+                    crate::runtime::effect_intents::EffectIntent::LogEvent {
+                        event: crate::admin::EventType::Challenge,
+                        reason: "not_a_bot_pass".to_string(),
+                        outcome: format!(
+                            "return_to={} solve_ms={}",
+                            submit_result.return_to,
+                            submit_result.solve_ms.unwrap_or_default()
+                        ),
+                    },
+                ],
             );
             let mut builder = Response::builder();
             builder.status(303);
@@ -234,32 +264,43 @@ fn handle_not_a_bot_submit(
             builder.body(Vec::new()).build()
         }
         crate::challenge::NotABotDecision::EscalatePuzzle => {
-            crate::observability::metrics::increment(
+            execute_capability_gated_intents(
+                req,
                 store,
-                crate::observability::metrics::MetricName::NotABotEscalateTotal,
-                None,
-            );
-            crate::admin::log_event(
-                store,
-                &crate::admin::EventLogEntry {
-                    ts: crate::admin::now_ts(),
-                    event: crate::admin::EventType::Challenge,
-                    ip: Some(ip.clone()),
-                    reason: Some("not_a_bot_escalate_puzzle".to_string()),
-                    outcome: Some(format!("{:?}", submit_result.outcome)),
-                    admin: None,
-                },
+                cfg,
+                &provider_registry,
+                ip.as_str(),
+                ua,
+                vec![
+                    crate::runtime::effect_intents::EffectIntent::IncrementMetric {
+                        metric: crate::observability::metrics::MetricName::NotABotEscalateTotal,
+                        label: None,
+                    },
+                    crate::runtime::effect_intents::EffectIntent::LogEvent {
+                        event: crate::admin::EventType::Challenge,
+                        reason: "not_a_bot_escalate_puzzle".to_string(),
+                        outcome: format!("{:?}", submit_result.outcome),
+                    },
+                ],
             );
             if cfg.challenge_puzzle_enabled {
-                crate::observability::metrics::increment(
+                execute_capability_gated_intents(
+                    req,
                     store,
-                    crate::observability::metrics::MetricName::ChallengesTotal,
-                    None,
-                );
-                crate::observability::metrics::increment(
-                    store,
-                    crate::observability::metrics::MetricName::ChallengeServedTotal,
-                    None,
+                    cfg,
+                    &provider_registry,
+                    ip.as_str(),
+                    ua,
+                    vec![
+                        crate::runtime::effect_intents::EffectIntent::IncrementMetric {
+                            metric: crate::observability::metrics::MetricName::ChallengesTotal,
+                            label: None,
+                        },
+                        crate::runtime::effect_intents::EffectIntent::IncrementMetric {
+                            metric: crate::observability::metrics::MetricName::ChallengeServedTotal,
+                            label: None,
+                        },
+                    ],
                 );
                 return provider_registry
                     .challenge_engine_provider()
@@ -292,29 +333,24 @@ fn handle_not_a_bot_submit(
             )
         }
         crate::challenge::NotABotDecision::MazeOrBlock => {
-            crate::observability::metrics::increment(
-                store,
-                crate::observability::metrics::MetricName::NotABotFailTotal,
-                None,
-            );
-            if submit_result.outcome == crate::challenge::NotABotSubmitOutcome::Replay {
-                crate::observability::metrics::increment(
-                    store,
-                    crate::observability::metrics::MetricName::NotABotReplayTotal,
-                    None,
-                );
-            }
-            crate::admin::log_event(
-                store,
-                &crate::admin::EventLogEntry {
-                    ts: crate::admin::now_ts(),
-                    event: crate::admin::EventType::Challenge,
-                    ip: Some(ip.clone()),
-                    reason: Some("not_a_bot_fail".to_string()),
-                    outcome: Some(format!("{:?}", submit_result.outcome)),
-                    admin: None,
+            let mut intents = vec![
+                crate::runtime::effect_intents::EffectIntent::IncrementMetric {
+                    metric: crate::observability::metrics::MetricName::NotABotFailTotal,
+                    label: None,
                 },
-            );
+            ];
+            if submit_result.outcome == crate::challenge::NotABotSubmitOutcome::Replay {
+                intents.push(crate::runtime::effect_intents::EffectIntent::IncrementMetric {
+                    metric: crate::observability::metrics::MetricName::NotABotReplayTotal,
+                    label: None,
+                });
+            }
+            intents.push(crate::runtime::effect_intents::EffectIntent::LogEvent {
+                event: crate::admin::EventType::Challenge,
+                reason: "not_a_bot_fail".to_string(),
+                outcome: format!("{:?}", submit_result.outcome),
+            });
+            execute_capability_gated_intents(req, store, cfg, &provider_registry, ip.as_str(), ua, intents);
             match classify_not_a_bot_failure_enforcement(submit_result.outcome) {
                 ChallengeFailureEnforcement::MazeFallback => {
                     let event_outcome = format!("{:?}", submit_result.outcome);
@@ -443,14 +479,26 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                 Ok(cfg) => cfg,
                 Err(resp) => return Some(resp),
             };
+            let provider_registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
+            let ip = crate::extract_client_ip(req);
+            let ua = request_user_agent(req);
             let response = crate::boundaries::serve_not_a_bot_page(req, cfg.test_mode, &cfg);
             if *response.status() == 200 {
-                crate::observability::metrics::increment(
+                execute_capability_gated_intents(
+                    req,
                     &store,
-                    crate::observability::metrics::MetricName::NotABotServedTotal,
-                    None,
+                    &cfg,
+                    &provider_registry,
+                    ip.as_str(),
+                    ua,
+                    vec![
+                        crate::runtime::effect_intents::EffectIntent::IncrementMetric {
+                            metric: crate::observability::metrics::MetricName::NotABotServedTotal,
+                            label: None,
+                        },
+                        crate::runtime::effect_intents::EffectIntent::RecordNotABotServed,
+                    ],
                 );
-                crate::observability::monitoring::record_not_a_bot_served(&store);
             }
             return Some(response);
         }
@@ -473,212 +521,186 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                     cfg.challenge_puzzle_attempt_limit_per_window,
                 );
             let challenge_ip = crate::extract_client_ip(req);
-            let challenge_ua = req
-                .header("user-agent")
-                .and_then(|value| value.as_str())
-                .unwrap_or("");
-            match outcome {
-                crate::boundaries::ChallengeSubmitOutcome::Solved => {
-                    crate::observability::metrics::increment(
-                        &store,
-                        crate::observability::metrics::MetricName::ChallengeSolvedTotal,
-                        None,
-                    );
-                    crate::observability::monitoring::record_ip_range_challenge_solved(
-                        &store,
-                        challenge_ip.as_str(),
-                    );
-                    crate::admin::log_event(
-                        &store,
-                        &crate::admin::EventLogEntry {
-                            ts: crate::admin::now_ts(),
-                            event: crate::admin::EventType::Challenge,
-                            ip: Some(challenge_ip.clone()),
-                            reason: Some("challenge_puzzle_pass".to_string()),
-                            outcome: Some("Solved".to_string()),
-                            admin: None,
-                        },
-                    );
-                }
-                crate::boundaries::ChallengeSubmitOutcome::Incorrect => {
-                    crate::observability::metrics::increment(
-                        &store,
-                        crate::observability::metrics::MetricName::ChallengeIncorrectTotal,
-                        None,
-                    );
-                    crate::observability::monitoring::record_challenge_failure(
-                        &store,
-                        challenge_ip.as_str(),
-                        "incorrect",
-                    );
-                }
-                crate::boundaries::ChallengeSubmitOutcome::AttemptLimitExceeded => {
-                    crate::observability::monitoring::record_challenge_failure(
-                        &store,
-                        challenge_ip.as_str(),
-                        "attempt_limit",
-                    );
-                }
+            let challenge_ua = request_user_agent(req);
+            let outcome_intents = match outcome {
+                crate::boundaries::ChallengeSubmitOutcome::Solved => vec![
+                    crate::runtime::effect_intents::EffectIntent::IncrementMetric {
+                        metric: crate::observability::metrics::MetricName::ChallengeSolvedTotal,
+                        label: None,
+                    },
+                    crate::runtime::effect_intents::EffectIntent::RecordIpRangeChallengeSolved,
+                    crate::runtime::effect_intents::EffectIntent::LogEvent {
+                        event: crate::admin::EventType::Challenge,
+                        reason: "challenge_puzzle_pass".to_string(),
+                        outcome: "Solved".to_string(),
+                    },
+                ],
+                crate::boundaries::ChallengeSubmitOutcome::Incorrect => vec![
+                    crate::runtime::effect_intents::EffectIntent::IncrementMetric {
+                        metric: crate::observability::metrics::MetricName::ChallengeIncorrectTotal,
+                        label: None,
+                    },
+                    crate::runtime::effect_intents::EffectIntent::RecordChallengeFailure {
+                        outcome: "incorrect".to_string(),
+                    },
+                ],
+                crate::boundaries::ChallengeSubmitOutcome::AttemptLimitExceeded => vec![
+                    crate::runtime::effect_intents::EffectIntent::RecordChallengeFailure {
+                        outcome: "attempt_limit".to_string(),
+                    },
+                ],
                 crate::boundaries::ChallengeSubmitOutcome::SequenceOpMissing => {
-                    crate::observability::monitoring::record_challenge_failure(
-                        &store,
-                        challenge_ip.as_str(),
-                        "sequence_violation",
-                    );
-                    record_sequence_violation_for_challenge_submit(
-                        &store,
-                        req,
+                    let mut intents = vec![
+                        crate::runtime::effect_intents::EffectIntent::RecordChallengeFailure {
+                            outcome: "sequence_violation".to_string(),
+                        },
+                    ];
+                    intents.extend(sequence_violation_intents_for_challenge_submit(
                         crate::runtime::policy_taxonomy::PolicyTransition::SeqOpMissing,
                         "challenge_submit_missing_operation_id",
-                    );
+                    ));
+                    intents
                 }
                 crate::boundaries::ChallengeSubmitOutcome::SequenceOpInvalid => {
-                    crate::observability::monitoring::record_challenge_failure(
-                        &store,
-                        challenge_ip.as_str(),
-                        "sequence_violation",
-                    );
-                    record_sequence_violation_for_challenge_submit(
-                        &store,
-                        req,
+                    let mut intents = vec![
+                        crate::runtime::effect_intents::EffectIntent::RecordChallengeFailure {
+                            outcome: "sequence_violation".to_string(),
+                        },
+                    ];
+                    intents.extend(sequence_violation_intents_for_challenge_submit(
                         crate::runtime::policy_taxonomy::PolicyTransition::SeqOpInvalid,
                         "challenge_submit_invalid_operation_envelope",
-                    );
+                    ));
+                    intents
                 }
                 crate::boundaries::ChallengeSubmitOutcome::SequenceOpExpired => {
-                    crate::observability::metrics::increment(
-                        &store,
-                        crate::observability::metrics::MetricName::ChallengeExpiredReplayTotal,
-                        None,
-                    );
-                    crate::observability::monitoring::record_challenge_failure(
-                        &store,
-                        challenge_ip.as_str(),
-                        "expired_replay",
-                    );
-                    record_sequence_violation_for_challenge_submit(
-                        &store,
-                        req,
+                    let mut intents = vec![
+                        crate::runtime::effect_intents::EffectIntent::IncrementMetric {
+                            metric: crate::observability::metrics::MetricName::ChallengeExpiredReplayTotal,
+                            label: None,
+                        },
+                        crate::runtime::effect_intents::EffectIntent::RecordChallengeFailure {
+                            outcome: "expired_replay".to_string(),
+                        },
+                    ];
+                    intents.extend(sequence_violation_intents_for_challenge_submit(
                         crate::runtime::policy_taxonomy::PolicyTransition::SeqOpExpired,
                         "challenge_submit_expired_operation",
-                    );
+                    ));
+                    intents
                 }
                 crate::boundaries::ChallengeSubmitOutcome::SequenceOpReplay => {
-                    crate::observability::metrics::increment(
-                        &store,
-                        crate::observability::metrics::MetricName::ChallengeExpiredReplayTotal,
-                        None,
-                    );
-                    crate::observability::monitoring::record_challenge_failure(
-                        &store,
-                        challenge_ip.as_str(),
-                        "expired_replay",
-                    );
-                    record_sequence_violation_for_challenge_submit(
-                        &store,
-                        req,
+                    let mut intents = vec![
+                        crate::runtime::effect_intents::EffectIntent::IncrementMetric {
+                            metric: crate::observability::metrics::MetricName::ChallengeExpiredReplayTotal,
+                            label: None,
+                        },
+                        crate::runtime::effect_intents::EffectIntent::RecordChallengeFailure {
+                            outcome: "expired_replay".to_string(),
+                        },
+                    ];
+                    intents.extend(sequence_violation_intents_for_challenge_submit(
                         crate::runtime::policy_taxonomy::PolicyTransition::SeqOpReplay,
                         "challenge_submit_operation_replay",
-                    );
+                    ));
+                    intents
                 }
                 crate::boundaries::ChallengeSubmitOutcome::SequenceWindowExceeded => {
-                    crate::observability::metrics::increment(
-                        &store,
-                        crate::observability::metrics::MetricName::ChallengeExpiredReplayTotal,
-                        None,
-                    );
-                    crate::observability::monitoring::record_challenge_failure(
-                        &store,
-                        challenge_ip.as_str(),
-                        "expired_replay",
-                    );
-                    record_sequence_violation_for_challenge_submit(
-                        &store,
-                        req,
+                    let mut intents = vec![
+                        crate::runtime::effect_intents::EffectIntent::IncrementMetric {
+                            metric: crate::observability::metrics::MetricName::ChallengeExpiredReplayTotal,
+                            label: None,
+                        },
+                        crate::runtime::effect_intents::EffectIntent::RecordChallengeFailure {
+                            outcome: "expired_replay".to_string(),
+                        },
+                    ];
+                    intents.extend(sequence_violation_intents_for_challenge_submit(
                         crate::runtime::policy_taxonomy::PolicyTransition::SeqWindowExceeded,
                         "challenge_submit_sequence_window_exceeded",
-                    );
+                    ));
+                    intents
                 }
                 crate::boundaries::ChallengeSubmitOutcome::SequenceOrderViolation => {
-                    crate::observability::monitoring::record_challenge_failure(
-                        &store,
-                        challenge_ip.as_str(),
-                        "sequence_violation",
-                    );
-                    record_sequence_violation_for_challenge_submit(
-                        &store,
-                        req,
+                    let mut intents = vec![
+                        crate::runtime::effect_intents::EffectIntent::RecordChallengeFailure {
+                            outcome: "sequence_violation".to_string(),
+                        },
+                    ];
+                    intents.extend(sequence_violation_intents_for_challenge_submit(
                         crate::runtime::policy_taxonomy::PolicyTransition::SeqOrderViolation,
                         "challenge_submit_order_violation",
-                    );
+                    ));
+                    intents
                 }
                 crate::boundaries::ChallengeSubmitOutcome::SequenceBindingMismatch => {
-                    crate::observability::monitoring::record_challenge_failure(
-                        &store,
-                        challenge_ip.as_str(),
-                        "sequence_violation",
-                    );
-                    record_sequence_violation_for_challenge_submit(
-                        &store,
-                        req,
+                    let mut intents = vec![
+                        crate::runtime::effect_intents::EffectIntent::RecordChallengeFailure {
+                            outcome: "sequence_violation".to_string(),
+                        },
+                    ];
+                    intents.extend(sequence_violation_intents_for_challenge_submit(
                         crate::runtime::policy_taxonomy::PolicyTransition::SeqBindingMismatch,
                         "challenge_submit_binding_mismatch",
-                    );
+                    ));
+                    intents
                 }
                 crate::boundaries::ChallengeSubmitOutcome::SequenceTimingTooFast => {
-                    crate::observability::monitoring::record_challenge_failure(
-                        &store,
-                        challenge_ip.as_str(),
-                        "sequence_violation",
-                    );
-                    record_sequence_violation_for_challenge_submit(
-                        &store,
-                        req,
+                    let mut intents = vec![
+                        crate::runtime::effect_intents::EffectIntent::RecordChallengeFailure {
+                            outcome: "sequence_violation".to_string(),
+                        },
+                    ];
+                    intents.extend(sequence_violation_intents_for_challenge_submit(
                         crate::runtime::policy_taxonomy::PolicyTransition::SeqTimingTooFast,
                         "challenge_submit_timing_too_fast",
-                    );
+                    ));
+                    intents
                 }
                 crate::boundaries::ChallengeSubmitOutcome::SequenceTimingTooRegular => {
-                    crate::observability::monitoring::record_challenge_failure(
-                        &store,
-                        challenge_ip.as_str(),
-                        "sequence_violation",
-                    );
-                    record_sequence_violation_for_challenge_submit(
-                        &store,
-                        req,
+                    let mut intents = vec![
+                        crate::runtime::effect_intents::EffectIntent::RecordChallengeFailure {
+                            outcome: "sequence_violation".to_string(),
+                        },
+                    ];
+                    intents.extend(sequence_violation_intents_for_challenge_submit(
                         crate::runtime::policy_taxonomy::PolicyTransition::SeqTimingTooRegular,
                         "challenge_submit_timing_too_regular",
-                    );
+                    ));
+                    intents
                 }
                 crate::boundaries::ChallengeSubmitOutcome::SequenceTimingTooSlow => {
-                    crate::observability::monitoring::record_challenge_failure(
-                        &store,
-                        challenge_ip.as_str(),
-                        "sequence_violation",
-                    );
-                    record_sequence_violation_for_challenge_submit(
-                        &store,
-                        req,
+                    let mut intents = vec![
+                        crate::runtime::effect_intents::EffectIntent::RecordChallengeFailure {
+                            outcome: "sequence_violation".to_string(),
+                        },
+                    ];
+                    intents.extend(sequence_violation_intents_for_challenge_submit(
                         crate::runtime::policy_taxonomy::PolicyTransition::SeqTimingTooSlow,
                         "challenge_submit_timing_too_slow",
-                    );
+                    ));
+                    intents
                 }
-                crate::boundaries::ChallengeSubmitOutcome::Forbidden => {
-                    crate::observability::monitoring::record_challenge_failure(
-                        &store,
-                        challenge_ip.as_str(),
-                        "forbidden",
-                    );
-                }
-                crate::boundaries::ChallengeSubmitOutcome::InvalidOutput => {
-                    crate::observability::monitoring::record_challenge_failure(
-                        &store,
-                        challenge_ip.as_str(),
-                        "invalid_output",
-                    );
-                }
-            }
+                crate::boundaries::ChallengeSubmitOutcome::Forbidden => vec![
+                    crate::runtime::effect_intents::EffectIntent::RecordChallengeFailure {
+                        outcome: "forbidden".to_string(),
+                    },
+                ],
+                crate::boundaries::ChallengeSubmitOutcome::InvalidOutput => vec![
+                    crate::runtime::effect_intents::EffectIntent::RecordChallengeFailure {
+                        outcome: "invalid_output".to_string(),
+                    },
+                ],
+            };
+            execute_capability_gated_intents(
+                req,
+                &store,
+                &cfg,
+                &provider_registry,
+                challenge_ip.as_str(),
+                challenge_ua,
+                outcome_intents,
+            );
             if let Some(enforcement) = classify_challenge_failure_enforcement(outcome) {
                 match enforcement {
                     ChallengeFailureEnforcement::MazeFallback => {
@@ -734,6 +756,9 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                 Ok(cfg) => cfg,
                 Err(resp) => return Some(resp),
             };
+            let provider_registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
+            let ip = crate::extract_client_ip(req);
+            let ua = request_user_agent(req);
             let response = crate::boundaries::serve_challenge_page(
                 req,
                 cfg.test_mode,
@@ -741,10 +766,17 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                 cfg.challenge_puzzle_seed_ttl_seconds,
             );
             if *response.status() == 200 {
-                crate::observability::metrics::increment(
+                execute_capability_gated_intents(
+                    req,
                     &store,
-                    crate::observability::metrics::MetricName::ChallengeServedTotal,
-                    None,
+                    &cfg,
+                    &provider_registry,
+                    ip.as_str(),
+                    ua,
+                    vec![crate::runtime::effect_intents::EffectIntent::IncrementMetric {
+                        metric: crate::observability::metrics::MetricName::ChallengeServedTotal,
+                        label: None,
+                    }],
                 );
             }
             return Some(response);
@@ -768,10 +800,19 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                 Err(resp) => return Some(resp),
             };
             if cfg.robots_enabled {
-                crate::observability::metrics::increment(
+                let provider_registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
+                let ip = crate::extract_client_ip(req);
+                execute_capability_gated_intents(
+                    req,
                     &store,
-                    crate::observability::metrics::MetricName::RequestsTotal,
-                    Some("robots_txt"),
+                    &cfg,
+                    &provider_registry,
+                    ip.as_str(),
+                    request_user_agent(req),
+                    vec![crate::runtime::effect_intents::EffectIntent::IncrementMetric {
+                        metric: crate::observability::metrics::MetricName::RequestsTotal,
+                        label: Some("robots_txt".to_string()),
+                    }],
                 );
                 let content = crate::crawler_policy::robots::generate_robots_txt(&cfg);
                 let content_signal = crate::crawler_policy::robots::get_content_signal_header(&cfg);

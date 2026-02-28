@@ -16,6 +16,7 @@ fn maybe_handle_test_mode_returns_none_when_disabled() {
         crate::signals::geo::GeoPolicyRoute::None,
         || false,
         || {},
+        |_, _, _| {},
     );
 
     assert!(resp.is_none());
@@ -37,6 +38,7 @@ fn maybe_handle_test_mode_pow_path_bypasses() {
         crate::signals::geo::GeoPolicyRoute::None,
         || false,
         || {},
+        |_, _, _| {},
     )
     .unwrap();
 
@@ -64,6 +66,7 @@ fn maybe_handle_test_mode_honeypot_blocks_without_calling_js_check() {
         crate::signals::geo::GeoPolicyRoute::None,
         || panic!("js check should not run for honeypot branch"),
         || {},
+        |_, _, _| {},
     )
     .unwrap();
 
@@ -92,6 +95,7 @@ fn maybe_handle_test_mode_honeypot_disabled_does_not_block() {
         crate::signals::geo::GeoPolicyRoute::Allow,
         || false,
         || {},
+        |_, _, _| {},
     )
     .unwrap();
 
@@ -121,6 +125,7 @@ fn maybe_handle_test_mode_allows_when_no_checks_trigger() {
         crate::signals::geo::GeoPolicyRoute::Allow,
         || false,
         || {},
+        |_, _, _| {},
     )
     .unwrap();
 
@@ -149,6 +154,7 @@ fn maybe_handle_test_mode_does_not_directly_block_for_browser_policy_match() {
         crate::signals::geo::GeoPolicyRoute::Allow,
         || false,
         || {},
+        |_, _, _| {},
     )
     .unwrap();
 
@@ -177,6 +183,7 @@ fn maybe_handle_test_mode_geo_challenge_falls_back_to_maze_when_challenge_disabl
         crate::signals::geo::GeoPolicyRoute::Challenge,
         || false,
         || {},
+        |_, _, _| {},
     )
     .unwrap();
 
@@ -205,6 +212,7 @@ fn maybe_handle_test_mode_geo_challenge_falls_back_to_block_when_disabled() {
         crate::signals::geo::GeoPolicyRoute::Challenge,
         || false,
         || {},
+        |_, _, _| {},
     )
     .unwrap();
 
@@ -242,6 +250,7 @@ fn maybe_handle_test_mode_reports_ip_range_actions() {
         crate::signals::geo::GeoPolicyRoute::Allow,
         || false,
         || {},
+        |_, _, _| {},
     )
     .unwrap();
 

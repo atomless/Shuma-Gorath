@@ -12,6 +12,7 @@ use super::response_renderer::execute_response_intent;
 pub(super) fn apply_metric_intent(
     _capability: &MetricsCapability,
     store: &Store,
+    cfg: Option<&crate::config::Config>,
     intent: EffectIntent,
 ) -> Option<EffectIntent> {
     match intent {
@@ -22,6 +23,12 @@ pub(super) fn apply_metric_intent(
         }
         EffectIntent::IncrementMetric { metric, label } => {
             crate::observability::metrics::increment(store, metric, label.as_deref());
+            None
+        }
+        EffectIntent::RecordBotnessVisibility { assessment } => {
+            if let Some(cfg) = cfg {
+                crate::observability::metrics::record_botness_visibility(store, cfg, &assessment);
+            }
             None
         }
         other => Some(other),
@@ -54,6 +61,22 @@ fn apply_monitoring_intent(
         }
         EffectIntent::RecordNotABotServed => {
             crate::observability::monitoring::record_not_a_bot_served(store);
+            None
+        }
+        EffectIntent::RecordNotABotSubmit { outcome, solve_ms } => {
+            crate::observability::monitoring::record_not_a_bot_submit(
+                store,
+                outcome.as_str(),
+                solve_ms,
+            );
+            None
+        }
+        EffectIntent::RecordChallengeFailure { outcome } => {
+            crate::observability::monitoring::record_challenge_failure(store, ip, outcome.as_str());
+            None
+        }
+        EffectIntent::RecordIpRangeChallengeSolved => {
+            crate::observability::monitoring::record_ip_range_challenge_solved(store, ip);
             None
         }
         EffectIntent::RecordLikelyHumanSample {
@@ -144,7 +167,9 @@ pub(crate) fn execute_effect_intents(
     capabilities: &PolicyExecutionCapabilities,
 ) {
     for intent in intents {
-        let Some(intent) = apply_metric_intent(capabilities.metrics(), context.store, intent) else {
+        let Some(intent) =
+            apply_metric_intent(capabilities.metrics(), context.store, Some(context.cfg), intent)
+        else {
             continue;
         };
         let Some(intent) =
@@ -174,7 +199,7 @@ pub(crate) fn execute_metric_intents(
     capabilities: &RequestBootstrapCapabilities,
 ) {
     for intent in intents {
-        let Some(unhandled) = apply_metric_intent(capabilities.metrics(), store, intent) else {
+        let Some(unhandled) = apply_metric_intent(capabilities.metrics(), store, None, intent) else {
             continue;
         };
         let _ = unhandled;

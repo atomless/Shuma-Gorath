@@ -171,7 +171,12 @@ pub(super) fn execute_response_intent(
                 metric: crate::observability::metrics::MetricName::BlocksTotal,
                 label: None,
             };
-            if let Some(intent) = apply_metric_intent(capabilities.metrics(), context.store, block_intent)
+            if let Some(intent) = apply_metric_intent(
+                capabilities.metrics(),
+                context.store,
+                Some(context.cfg),
+                block_intent,
+            )
             {
                 let _ = intent;
             }

@@ -171,7 +171,13 @@ pub(crate) fn maybe_handle_policy_graph_second_tranche(
         },
         cfg,
     );
-    crate::observability::metrics::record_botness_visibility(store, cfg, &botness);
+    crate::runtime::effect_intents::execute_effect_intents(
+        vec![crate::runtime::effect_intents::EffectIntent::RecordBotnessVisibility {
+            assessment: botness.clone(),
+        }],
+        &context,
+        capabilities,
+    );
 
     let facts = crate::runtime::request_facts::build_request_facts(
         req,

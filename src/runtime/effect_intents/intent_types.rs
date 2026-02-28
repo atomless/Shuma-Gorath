@@ -27,6 +27,17 @@ pub(crate) enum EffectIntent {
         path: String,
     },
     RecordNotABotServed,
+    RecordNotABotSubmit {
+        outcome: String,
+        solve_ms: Option<u64>,
+    },
+    RecordChallengeFailure {
+        outcome: String,
+    },
+    RecordIpRangeChallengeSolved,
+    RecordBotnessVisibility {
+        assessment: crate::BotnessAssessment,
+    },
     RecordLikelyHumanSample {
         sample_percent: u8,
         sample_hint: String,
