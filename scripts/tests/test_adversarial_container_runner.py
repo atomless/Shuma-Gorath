@@ -132,6 +132,38 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         )
         self.assertIn("literal_secret_value_detected", reasons)
 
+    def test_build_frontier_lineage_summary_links_model_execution_and_runtime_events(self):
+        summary = container_runner.build_frontier_lineage_summary(
+            frontier_action_lineage=[
+                {
+                    "candidate_index": 1,
+                    "scenario_id": "scenario_a",
+                    "request_id": "req-a",
+                    "proposed_action": {
+                        "action_index": 1,
+                        "action_type": "http_get",
+                        "path": "/sim/public/docs",
+                    },
+                }
+            ],
+            worker_payload={
+                "traffic": [
+                    {
+                        "action_index": 1,
+                        "status": 200,
+                        "path": "/sim/public/docs",
+                    }
+                ]
+            },
+            runtime_events=[{"reason": "not_a_bot_pass"}],
+            monitoring_events=[{"reason": "not_a_bot_pass"}],
+        )
+        self.assertTrue(summary["lineage_complete"])
+        self.assertEqual(summary["model_suggestion_count"], 1)
+        self.assertEqual(summary["executed_action_count"], 1)
+        self.assertEqual(summary["runtime_event_count"], 1)
+        self.assertEqual(summary["monitoring_event_count"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

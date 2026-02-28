@@ -326,6 +326,7 @@ def extract_frontier_actions_from_attack_plan(
         path_hint = str(target.get("path_hint") or "").strip() or "/"
         path_hint = path_hint.split("?", 1)[0].split("#", 1)[0] or "/"
 
+        next_action_index = len(actions) + 1
         action = {
             "action_type": "http_get",
             "path": path_hint,
@@ -337,7 +338,12 @@ def extract_frontier_actions_from_attack_plan(
                 "candidate_index": index + 1,
                 "scenario_id": scenario_id,
                 "request_id": request_id,
-                "proposed_action": action,
+                "proposed_action": {
+                    "action_index": next_action_index,
+                    "action_type": action["action_type"],
+                    "path": action["path"],
+                    "label": action["label"],
+                },
             }
         )
 
@@ -398,6 +404,110 @@ def validate_attack_plan_candidate_payload(
     if path_hint.startswith("/admin/"):
         reasons.append("target_path_hint_forbidden_prefix")
     return reasons
+
+
+def admin_read_json(
+    base_url: str,
+    api_key: str,
+    forwarded_secret: str,
+    path: str,
+) -> Dict[str, Any]:
+    if not api_key:
+        raise RuntimeError("missing_api_key")
+    url = base_url.rstrip("/") + path
+    request = urllib.request.Request(url, method="GET")
+    request.add_header("Authorization", f"Bearer {api_key}")
+    if forwarded_secret:
+        request.add_header("X-Shuma-Forwarded-Secret", forwarded_secret)
+    with urllib.request.urlopen(request, timeout=10.0) as response:
+        payload = json.loads(response.read().decode("utf-8", errors="replace"))
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"admin read {path} did not return JSON object")
+    return payload
+
+
+def collect_run_events_from_payload(payload: Dict[str, Any], run_id: str) -> List[Dict[str, Any]]:
+    recent_events = payload.get("recent_events")
+    if not isinstance(recent_events, list):
+        return []
+    matching: List[Dict[str, Any]] = []
+    for event in recent_events:
+        record = dict(event or {})
+        if str(record.get("sim_run_id") or "").strip() != run_id:
+            continue
+        matching.append(record)
+    return matching
+
+
+def build_frontier_lineage_summary(
+    frontier_action_lineage: List[Dict[str, Any]],
+    worker_payload: Dict[str, Any],
+    runtime_events: List[Dict[str, Any]],
+    monitoring_events: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    traffic = list(worker_payload.get("traffic") or [])
+    executed_by_index: Dict[int, Dict[str, Any]] = {}
+    for entry in traffic:
+        record = dict(entry or {})
+        action_index = int(record.get("action_index") or 0)
+        if action_index <= 0:
+            continue
+        executed_by_index[action_index] = record
+
+    rows: List[Dict[str, Any]] = []
+    missing_indices: List[int] = []
+    for entry in frontier_action_lineage:
+        lineage = dict(entry or {})
+        proposed = dict(lineage.get("proposed_action") or {})
+        action_index = int(proposed.get("action_index") or 0)
+        executed = dict(executed_by_index.get(action_index) or {})
+        if not executed:
+            missing_indices.append(action_index)
+        rows.append(
+            {
+                "candidate_index": int(lineage.get("candidate_index") or 0),
+                "scenario_id": str(lineage.get("scenario_id") or ""),
+                "request_id": str(lineage.get("request_id") or ""),
+                "proposed_action": proposed,
+                "executed": bool(executed),
+                "executed_status": int(executed.get("status") or 0),
+                "executed_error": str(executed.get("error") or ""),
+            }
+        )
+
+    runtime_reasons = sorted(
+        {
+            str(dict(event).get("reason") or "").strip()
+            for event in runtime_events
+            if str(dict(event).get("reason") or "").strip()
+        }
+    )
+    monitoring_reasons = sorted(
+        {
+            str(dict(event).get("reason") or "").strip()
+            for event in monitoring_events
+            if str(dict(event).get("reason") or "").strip()
+        }
+    )
+    model_count = len(frontier_action_lineage)
+    executed_count = len([row for row in rows if row.get("executed")])
+    lineage_complete = (
+        model_count > 0
+        and executed_count == model_count
+        and len(runtime_events) > 0
+        and len(monitoring_events) > 0
+    )
+    return {
+        "model_suggestion_count": model_count,
+        "executed_action_count": executed_count,
+        "runtime_event_count": len(runtime_events),
+        "monitoring_event_count": len(monitoring_events),
+        "missing_action_indices": sorted([index for index in missing_indices if index > 0]),
+        "runtime_event_reasons": runtime_reasons,
+        "monitoring_event_reasons": monitoring_reasons,
+        "lineage_complete": lineage_complete,
+        "rows": rows,
+    }
 
 
 def container_command(
@@ -626,6 +736,11 @@ def main() -> int:
     sim_tag_secret = os.environ.get("SHUMA_SIM_TELEMETRY_SECRET", "").strip()
     sim_tag_envelopes: List[Dict[str, str]] = []
     orchestrator_hook = {"hook": "orchestrator_reset", "performed": False, "reason": "not_applicable"}
+    frontier_lineage: Dict[str, Any] = {
+        "lineage_complete": False,
+        "summary": {},
+        "detail": "lineage_not_collected",
+    }
 
     if args.mode == "blackbox":
         if not sim_tag_secret:
@@ -666,6 +781,44 @@ def main() -> int:
     except Exception as exc:
         print(f"[adversarial-container] worker execution failed: {exc}", file=sys.stderr)
         return 1
+
+    if args.mode == "blackbox":
+        try:
+            events_payload = admin_read_json(
+                host_base_url,
+                api_key,
+                forwarded_secret,
+                "/admin/events?hours=24&limit=1000",
+            )
+            runtime_events = collect_run_events_from_payload(events_payload, run_id)
+            monitoring_payload = admin_read_json(
+                host_base_url,
+                api_key,
+                forwarded_secret,
+                "/admin/monitoring?hours=24&limit=25",
+            )
+            monitoring_details = dict(monitoring_payload.get("details") or {})
+            monitoring_events = collect_run_events_from_payload(
+                dict(monitoring_details.get("events") or {}),
+                run_id,
+            )
+            frontier_lineage_summary = build_frontier_lineage_summary(
+                frontier_action_lineage,
+                worker_payload,
+                runtime_events,
+                monitoring_events,
+            )
+            frontier_lineage = {
+                "lineage_complete": bool(frontier_lineage_summary.get("lineage_complete")),
+                "summary": frontier_lineage_summary,
+                "detail": "ok",
+            }
+        except Exception as exc:
+            frontier_lineage = {
+                "lineage_complete": False,
+                "summary": {},
+                "detail": f"lineage_collection_error:{exc}",
+            }
 
     has_forbidden_env = not bool(worker_payload.get("admin_credentials_absent"))
     isolation_contract = {
@@ -719,6 +872,7 @@ def main() -> int:
         "frontier_action_source_error": frontier_action_source_error,
         "frontier_action_lineage": frontier_action_lineage,
         "frontier_candidate_rejections": frontier_candidate_rejections,
+        "frontier_lineage": frontier_lineage,
         "isolation_contract": isolation_contract,
         "orchestrator_hook": orchestrator_hook,
         "worker_result": {
