@@ -249,6 +249,52 @@ SLA for unresolved high-severity findings:
 1. `PR` lanes: unresolved high-severity findings (`confirmed_reproducible` or `needs_manual_review`) must be dispositioned within 24 hours.
 2. `Release` lanes: unresolved high-severity findings must be dispositioned before release cut; release remains blocked when deterministic replay confirms a high-severity regression.
 
+## Run-to-Run Diff + Backlog Automation (SIM2-EX8-2 / SIM2-EX8-3)
+
+Run `make test-adversarial-report-diff` after each protected-lane run pair where both baseline and candidate reports are available.
+
+Diff artifact expectations (`scripts/tests/adversarial/adversarial_report_diff.json`):
+
+1. Scenario transitions:
+   - `new_passes`,
+   - `new_regressions`,
+   - `new_scenarios`,
+   - `resolved_scenarios`.
+2. Cost-shift deltas:
+   - `latency_p95_delta_ms`,
+   - `suite_runtime_delta_ms`,
+   - request-count delta.
+3. Collateral-shift deltas:
+   - `human_like_collateral_ratio_delta`.
+4. Defense-delta movement:
+   - increased/decreased coverage telemetry deltas by metric.
+
+Backlog conversion rules (mandatory):
+
+1. Every `new_regression` must create or update a TODO item within one cycle:
+   - include `scenario_id`,
+   - owner role,
+   - disposition SLA (`<=48h` default).
+2. Priority mapping:
+   - high-severity confirmed regressions: `P0`,
+   - medium confirmed regressions: `P1`,
+   - unconfirmed/non-reproducible findings: advisory tracking only.
+3. TODO entries must include deterministic confirmation status and promotion lineage link.
+4. If no `new_regressions` are present, record explicit “no actionable regressions” evidence in cycle notes.
+
+## Promotion Hygiene and Scenario Corpus Maintenance (SIM2-EX8-4)
+
+Promotion hygiene is mandatory for keeping deterministic manifests high-signal:
+
+1. Merge duplicate scenarios when newly promoted behavior is already covered by an existing deterministic case.
+2. Retire stale scenarios when:
+   - no longer mapped to active defenses,
+   - superseded by stronger deterministic replay cases,
+   - consistently non-actionable over a full review window.
+3. Reclassify scenarios (tier/driver/category) when observed behavior changes while relevance remains valid.
+4. Every merge/retire/reclassify action must include written rationale and owner attribution in cycle notes.
+5. Stale-scenario review must run at least monthly alongside architecture review.
+
 ## Continuous Defender-Adversary Evolution Cadence (SIM2-GC-12)
 
 This cadence is mandatory and must run every week:
@@ -280,6 +326,8 @@ KPI reporting (must be reviewed weekly):
 4. `mitigation_lead_time`
 5. `time to regression confirmation`
 6. `time to mitigation`
+7. `collateral_ceiling` (human-like collateral ratio and breach windows)
+8. `cost_asymmetry_trend`
 
 Rollback playbook for over-trigger on legitimate traffic:
 

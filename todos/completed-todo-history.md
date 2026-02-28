@@ -69,6 +69,15 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-EX6-6 Wire v2 governance into mandatory Makefile and CI coverage gates with fail-fast messaging. (Artifacts: `scripts/tests/check_adversarial_coverage_contract.py`, `scripts/tests/adversarial_simulation_runner.py`)
 - [x] SIM2-EX6-7 Update docs/runbooks with contract evolution protocol and backwards-compatibility removal date. (Artifacts: `docs/adversarial-operator-guide.md`, `scripts/tests/adversarial/README.md`)
 
+#### SIM2-EX8: Establish Continuous Defender-Adversary Evolution Loop as First-Class Program
+
+- [x] SIM2-EX8-1 Define canonical cycle contract: `run adversary -> analyze failures -> tune defenses -> replay -> promote scenarios -> repeat`. (Artifacts: `docs/adversarial-operator-guide.md`, `scripts/tests/adversarial/hybrid_lane_contract.v1.json`)
+- [x] SIM2-EX8-2 Add report diff tooling that highlights defense deltas between runs (new passes, new regressions, cost shifts, collateral changes). (Artifacts: `scripts/tests/adversarial_report_diff.py`, `scripts/tests/test_adversarial_report_diff.py`, `Makefile`)
+- [x] SIM2-EX8-3 Add backlog automation guidance for converting confirmed novel regressions into prioritized implementation todos with ownership and SLA. (Artifacts: `docs/adversarial-operator-guide.md`, `scripts/tests/adversarial_report_diff.py`)
+- [x] SIM2-EX8-4 Add promotion hygiene rules so stale scenarios are retired, merged, or reclassified with explicit rationale. (Artifact: `docs/adversarial-operator-guide.md`)
+- [x] SIM2-EX8-5 Define excellence KPIs for the loop (`time to regression confirmation`, `time to mitigation`, `collateral ceiling`, `cost asymmetry trend`) and expose them in operator docs. (Artifacts: `docs/adversarial-operator-guide.md`, `scripts/tests/adversarial/hybrid_lane_contract.v1.json`, `scripts/tests/check_sim2_governance_contract.py`)
+- [x] SIM2-EX8-6 Add governance checkpoint requiring periodic architecture review against this cycle contract and documented outcomes. (Artifacts: `scripts/tests/adversarial/hybrid_lane_contract.v1.json`, `scripts/tests/check_sim2_governance_contract.py`)
+
 ### P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)
 
 #### SIM2-EX7: Harden Simulation-Telemetry Secret Ergonomics Without Weakening Security

@@ -250,6 +250,10 @@ def evaluate_contract(contract: Dict[str, Any]) -> Dict[str, Any]:
             "human_friction_impact",
             "detection_latency",
             "mitigation_lead_time",
+            "time_to_regression_confirmation",
+            "time_to_mitigation",
+            "collateral_ceiling",
+            "cost_asymmetry_trend",
         }.issubset(kpis),
         detail=f"kpis={sorted(kpis)}",
         failure_code="governance_kpis_missing",
@@ -273,7 +277,8 @@ def evaluate_contract(contract: Dict[str, Any]) -> Dict[str, Any]:
         failures,
         check_id="architecture_review_checkpoint",
         passed=str(architecture_review.get("frequency") or "").strip().lower()
-        in {"monthly", "every_month"},
+        in {"monthly", "every_month"}
+        and bool(architecture_review.get("documented_outcomes_required")),
         detail=f"architecture_review={architecture_review}",
         failure_code="governance_architecture_review_missing",
     )
@@ -300,12 +305,16 @@ def evaluate_markers(promotion_script: str, operator_guide: str) -> Dict[str, An
         )
 
     guide_markers = [
+        "## Run-to-Run Diff + Backlog Automation (SIM2-EX8-2 / SIM2-EX8-3)",
+        "## Promotion Hygiene and Scenario Corpus Maintenance (SIM2-EX8-4)",
         "## Continuous Defender-Adversary Evolution Cadence (SIM2-GC-12)",
         "## Hybrid Adversary Lane Contract (SIM2-GC-14)",
         "<=180s",
         "<=500 actions",
         "time to regression confirmation",
         "time to mitigation",
+        "collateral_ceiling",
+        "cost_asymmetry_trend",
     ]
     for marker in guide_markers:
         add_check(

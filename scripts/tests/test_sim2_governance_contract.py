@@ -71,6 +71,10 @@ def sample_contract():
                 "human_friction_impact",
                 "detection_latency",
                 "mitigation_lead_time",
+                "time_to_regression_confirmation",
+                "time_to_mitigation",
+                "collateral_ceiling",
+                "cost_asymmetry_trend",
             ],
             "rollback_playbook": {
                 "required_actions": [
@@ -78,7 +82,10 @@ def sample_contract():
                     "validate_with_adversarial_fast",
                 ]
             },
-            "architecture_review": {"frequency": "monthly"},
+            "architecture_review": {
+                "frequency": "monthly",
+                "documented_outcomes_required": True,
+            },
         },
     }
 
@@ -98,10 +105,14 @@ def sample_operator_guide():
     return "\n".join(
         [
             "## Continuous Defender-Adversary Evolution Cadence (SIM2-GC-12)",
+            "## Run-to-Run Diff + Backlog Automation (SIM2-EX8-2 / SIM2-EX8-3)",
+            "## Promotion Hygiene and Scenario Corpus Maintenance (SIM2-EX8-4)",
             "## Hybrid Adversary Lane Contract (SIM2-GC-14)",
             "<=180s and <=500 actions",
             "time to regression confirmation",
             "time to mitigation",
+            "collateral_ceiling",
+            "cost_asymmetry_trend",
         ]
     )
 

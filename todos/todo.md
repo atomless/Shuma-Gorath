@@ -181,12 +181,7 @@ Acceptance criteria:
 
 Scope: operationalize SIM2 so defense tuning and adversary evolution become an explicit closed-loop engineering process.
 
-- [ ] SIM2-EX8-1 Define canonical cycle contract: `run adversary -> analyze failures -> tune defenses -> replay -> promote scenarios -> repeat`.
-- [ ] SIM2-EX8-2 Add report diff tooling that highlights defense deltas between runs (new passes, new regressions, cost shifts, collateral changes).
-- [ ] SIM2-EX8-3 Add backlog automation guidance for converting confirmed novel regressions into prioritized implementation todos with ownership and SLA.
-- [ ] SIM2-EX8-4 Add promotion hygiene rules so stale scenarios are retired, merged, or reclassified with explicit rationale.
-- [ ] SIM2-EX8-5 Define excellence KPIs for the loop (`time to regression confirmation`, `time to mitigation`, `collateral ceiling`, `cost asymmetry trend`) and expose them in operator docs.
-- [ ] SIM2-EX8-6 Add governance checkpoint requiring periodic architecture review against this cycle contract and documented outcomes.
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-EX8-*` closure details.
 
 Acceptance criteria:
 1. Shuma has a documented and testable closed-loop process for adversary-driven defense evolution.
@@ -400,6 +395,7 @@ Acceptance criteria:
 
 Scope: enforce non-regression with tests that prove real traffic -> real defenses -> real monitoring visibility.
 
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-11-*` closure details.
 
 Acceptance criteria:
 1. Mandatory verification fails if any matrix-required defense/lane evidence is missing.
@@ -421,6 +417,7 @@ Acceptance criteria:
 
 Scope: operationalize a repeatable closed-loop process using SIM2 as real adversary pressure.
 
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-12-*` closure details.
 
 Acceptance criteria:
 1. SIM2 is operated as an ongoing engineering system, not a one-off test feature.
@@ -445,6 +442,7 @@ Acceptance criteria:
 
 Scope: resolve ambiguity between choreographed simulation and emergent adversary behavior by defining and enforcing a two-lane architecture with explicit promotion bridge.
 
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-14-*` closure details.
 
 Acceptance criteria:
 1. Deterministic and emergent lanes are explicit, testable, and operationally visible.

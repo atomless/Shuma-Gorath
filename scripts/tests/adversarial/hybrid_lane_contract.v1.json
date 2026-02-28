@@ -101,7 +101,11 @@
       "attacker_cost_shift",
       "human_friction_impact",
       "detection_latency",
-      "mitigation_lead_time"
+      "mitigation_lead_time",
+      "time_to_regression_confirmation",
+      "time_to_mitigation",
+      "collateral_ceiling",
+      "cost_asymmetry_trend"
     ],
     "rollback_playbook": {
       "trigger": "defense_over_triggers_legitimate_traffic",
@@ -114,6 +118,7 @@
     },
     "architecture_review": {
       "frequency": "monthly",
+      "documented_outcomes_required": true,
       "required_focus": [
         "decentralized_orchestration",
         "capability_safety",

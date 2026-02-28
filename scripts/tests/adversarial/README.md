@@ -86,6 +86,7 @@ The runner writes machine-readable artifacts to:
 - `scripts/tests/adversarial/sim2_verification_matrix_report.json` (from `make test-sim2-verification-matrix` / `make test-sim2-verification-e2e`)
 - `scripts/tests/adversarial/sim2_operational_regressions_report.json` (from `make test-sim2-operational-regressions`)
 - `scripts/tests/adversarial/sim2_governance_contract_report.json` (from `make test-sim2-governance-contract`)
+- `scripts/tests/adversarial/adversarial_report_diff.json` (from `make test-adversarial-report-diff`)
 - `scripts/tests/adversarial/preflight_report.json` (from `make test-adversarial-preflight`)
 - `latest_report.json` and `attack_plan.json` include `execution_lane` metadata for auditability.
   - `latest_report.json` includes:
@@ -167,6 +168,12 @@ Notes:
 - Promotion lane ingests generated candidates directly and emits explicit lineage:
   - `generated_candidate -> deterministic_confirmation -> promotion`.
 - Promotion lane now emits hybrid-governance thresholds (`>=95%` deterministic confirmation, `<=20%` false discovery, owner disposition SLA `<=48h`) and marks blocking-required state when thresholds drift.
+- Report-diff tooling (`make test-adversarial-report-diff`) emits run-over-run defender delta summaries:
+  - `new passes`,
+  - `new regressions`,
+  - `cost shift` (`latency p95`, `suite runtime`, request count),
+  - `collateral shift` (`human_like_collateral_ratio`),
+  - backlog candidate stubs for newly regressed scenarios.
 - Verification matrix governance:
   - `verification_matrix.v1.json` maps defense categories to required scenarios, lanes, and evidence assertions.
   - `make test-sim2-verification-matrix` validates matrix structure and report evidence diagnostics.
