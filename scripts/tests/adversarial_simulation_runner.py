@@ -1260,6 +1260,9 @@ class Runner:
                 "cost_governance": build_cost_governance_report(
                     dict_or_empty(monitoring_after.get("cost_governance"))
                 ),
+                "security_privacy": build_security_privacy_report(
+                    dict_or_empty(monitoring_after.get("security_privacy"))
+                ),
                 "results": [result.__dict__ for result in results],
                 "gates": gate_results,
                 "coverage_gates": gate_results.get("coverage_gates", {}),
@@ -3801,6 +3804,9 @@ def extract_monitoring_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
     if not retention_health:
         retention_health = dict_or_empty(nested_dict_value(details, ("retention_health",)))
     cost_governance = dict_or_empty(nested_dict_value(details, ("cost_governance",)))
+    security_privacy = dict_or_empty(payload.get("security_privacy"))
+    if not security_privacy:
+        security_privacy = dict_or_empty(nested_dict_value(details, ("security_privacy",)))
     tarpit_details = dict_or_empty(nested_dict_value(details, ("tarpit",)))
     recent_events = nested_dict_value(details, ("events", "recent_events"))
     recent_event_count = len(recent_events) if isinstance(recent_events, list) else 0
@@ -3860,6 +3866,7 @@ def extract_monitoring_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
         "tarpit": tarpit_details,
         "retention_health": retention_health,
         "cost_governance": cost_governance,
+        "security_privacy": security_privacy,
         "recent_event_reasons": sorted(set(recent_event_reasons)),
     }
 
@@ -3942,6 +3949,36 @@ def build_cost_governance_report(cost_governance: Any) -> Dict[str, Any]:
         "sampling_status": str(section.get("sampling_status") or ""),
         "query_budget_status": str(section.get("query_budget_status") or ""),
         "degraded_state": str(section.get("degraded_state") or ""),
+    }
+
+
+def build_security_privacy_report(security_privacy: Any) -> Dict[str, Any]:
+    section = dict_or_empty(security_privacy)
+    classification = dict_or_empty(section.get("classification"))
+    sanitization = dict_or_empty(section.get("sanitization"))
+    access_control = dict_or_empty(section.get("access_control"))
+    retention_tiers = dict_or_empty(section.get("retention_tiers"))
+    incident_response = dict_or_empty(section.get("incident_response"))
+    return {
+        "field_classification_enforced": bool(classification.get("field_classification_enforced", True)),
+        "secret_canary_leak_count": max(0, int_or_zero(sanitization.get("secret_canary_leak_count"))),
+        "pseudonymization_coverage_percent": max(
+            0.0, float(access_control.get("pseudonymization_coverage_percent") or 100.0)
+        ),
+        "pseudonymization_required_percent": max(
+            0.0, float(access_control.get("pseudonymization_required_percent") or 100.0)
+        ),
+        "high_risk_retention_hours": max(
+            0.0, float(retention_tiers.get("high_risk_raw_artifacts_hours") or 0.0)
+        ),
+        "high_risk_retention_max_hours": max(
+            0.0, float(retention_tiers.get("high_risk_raw_artifacts_max_hours") or 72.0)
+        ),
+        "incident_hook_emitted": bool(incident_response.get("incident_hook_emitted", True)),
+        "incident_hook_emitted_total": max(
+            0, int_or_zero(incident_response.get("incident_hook_emitted_total"))
+        ),
+        "security_mode": str(access_control.get("view_mode") or ""),
     }
 
 

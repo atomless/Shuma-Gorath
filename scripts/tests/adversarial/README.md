@@ -93,6 +93,7 @@ The runner writes machine-readable artifacts to:
   - `real_traffic_contract` metadata (schema/version/hash and prohibited-pattern contract keys),
   - `retention_lifecycle` synthesized from runtime `retention_health` fields (`retention_hours`, `oldest_retained_ts`, `purge_lag_hours`, `pending_expired_buckets`, `last_error`, `state`, `guidance`),
   - `cost_governance` synthesized from runtime `details.cost_governance` fields (`cardinality_pressure`, `payload_budget_status`, `sampling_status`, `query_budget_status`, query/payload/compression thresholds),
+  - `security_privacy` synthesized from runtime `security_privacy` fields (`field_classification_enforced`, `secret_canary_leak_count`, pseudonymization coverage, high-risk retention ceiling, incident-hook visibility),
   - `evidence` (`sim-run-evidence.v1`) with request-lineage, per-scenario runtime telemetry evidence rows, and control-plane lineage fields.
 
 Notes:

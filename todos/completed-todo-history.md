@@ -18,6 +18,17 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 SIM2 Gap-Closure Program: Real Execution + Realtime Monitoring
 
+#### SIM2-GC-17: Telemetry and Adversary-Artifact Security/Privacy-by-Construction
+
+- [x] SIM2-GC-17-1 Define canonical field-classification schema for telemetry/artifact fields (`public`, `internal`, `sensitive`, `secret-prohibited`) and persistence policy matrix.
+- [x] SIM2-GC-17-2 Enforce classification at ingest/persist boundaries; reject prohibited classes and emit structured violation events.
+- [x] SIM2-GC-17-3 Add deterministic secret scrubber for high-risk fields (`reason`, `outcome`, artifact payload fragments) with explicit redaction markers.
+- [x] SIM2-GC-17-4 Add secret-canary detection for frontier/adversary artifacts and fail-closed persistence behavior on canary match.
+- [x] SIM2-GC-17-5 Expand pseudonymization coverage to non-forensic monitoring/event views for sensitive identifiers, with explicit audited forensic break-glass mode.
+- [x] SIM2-GC-17-6 Define and enforce sensitivity-tiered artifact retention windows (high-risk raw artifacts `<=72h` default; redacted summaries longer-lived).
+- [x] SIM2-GC-17-7 Add incident-response hooks for leak/policy violations (`detect`, `contain`, `quarantine`, `operator action required`) with operation/run correlation IDs.
+- [x] SIM2-GC-17-8 Update docs/runbooks for privacy posture, incident triage, forensic access controls, and retention override governance.
+
 #### SIM2-GC-16: Monitoring Cost Governance and Resource Efficiency Envelope
 
 - [x] SIM2-GC-16-1 Define formal monitoring cost envelope (`ingest events/sec`, `query calls/sec`, `payload bytes`, `cardinality budget`, `compression ratio`) for dev/prod verification profiles.

@@ -127,9 +127,44 @@ const CONFIG_EXPORT_SECRET_KEYS: [&str; 15] = [
     "SHUMA_RATE_LIMITER_REDIS_URL",
     "SHUMA_BAN_STORE_REDIS_URL",
 ];
+const SECURITY_PRIVACY_PREFIX: &str = "security_privacy:v1";
+const SECURITY_PRIVACY_CLASSIFICATION_VERSION: &str = "telemetry-security-classification.v1";
+const SECURITY_FORENSIC_ACK_VALUE: &str = "I_UNDERSTAND_FORENSIC";
+const SECURITY_HIGH_RISK_RETENTION_MAX_HOURS: u64 = 72;
+const SECRET_LIKE_SUBSTRINGS: [&str; 8] = [
+    "sk-",
+    "api_key",
+    "authorization: bearer",
+    "bearer ",
+    "x-api-key",
+    "x-shuma-sim-telemetry-secret",
+    "private key",
+    "-----begin",
+];
+const SECRET_CANARY_MARKERS: [&str; 3] = [
+    "shuma_canary_secret",
+    "frontier_secret_canary",
+    "sim_secret_canary",
+];
 
 fn event_log_retention_hours() -> u64 {
+    crate::observability::retention::event_log_high_risk_retention_hours()
+}
+
+fn configured_event_log_retention_hours() -> u64 {
     crate::config::event_log_retention_hours()
+}
+
+fn event_log_retention_override_requested() -> bool {
+    configured_event_log_retention_hours() > SECURITY_HIGH_RISK_RETENTION_MAX_HOURS
+}
+
+fn effective_event_log_query_hours(requested_hours: u64) -> u64 {
+    let retention = event_log_retention_hours();
+    if retention == 0 {
+        return requested_hours.clamp(1, 720);
+    }
+    requested_hours.clamp(1, retention.clamp(1, 720))
 }
 
 fn make_v2_event_key(hour: u64, ts: u64) -> String {
@@ -144,6 +179,305 @@ fn parse_v2_event_key(key: &str) -> Option<u64> {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+struct EventSecuritySanitizationResult {
+    scrubbed_fields: u64,
+    canary_detected: bool,
+}
+
+fn security_privacy_counter_key(metric: &str, hour: u64) -> String {
+    format!("{SECURITY_PRIVACY_PREFIX}:{metric}:{hour}")
+}
+
+fn increment_security_privacy_counter<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    metric: &str,
+    ts: u64,
+) {
+    let hour = ts / 3600;
+    let key = security_privacy_counter_key(metric, hour);
+    let next = read_u64_counter(store, key.as_str()).saturating_add(1);
+    if store.set(key.as_str(), next.to_string().as_bytes()).is_err() {
+        return;
+    }
+    if next == 1 {
+        crate::observability::retention::register_monitoring_key(store, hour, key.as_str());
+    }
+}
+
+fn read_security_privacy_counter_window<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    metric: &str,
+    now: u64,
+    hours: u64,
+) -> u64 {
+    let now_hour = now / 3600;
+    let window_hours = hours.clamp(1, 720);
+    let start_hour = now_hour.saturating_sub(window_hours.saturating_sub(1));
+    let mut total = 0u64;
+    for hour in start_hour..=now_hour {
+        let key = security_privacy_counter_key(metric, hour);
+        total = total.saturating_add(read_u64_counter(store, key.as_str()));
+    }
+    total
+}
+
+fn set_security_privacy_state<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    key_suffix: &str,
+    payload: serde_json::Value,
+) {
+    let storage_key = format!("{SECURITY_PRIVACY_PREFIX}:{key_suffix}");
+    if let Ok(bytes) = serde_json::to_vec(&payload) {
+        let _ = store.set(storage_key.as_str(), bytes.as_slice());
+    }
+}
+
+fn load_security_privacy_state<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    key_suffix: &str,
+) -> serde_json::Value {
+    let storage_key = format!("{SECURITY_PRIVACY_PREFIX}:{key_suffix}");
+    store
+        .get(storage_key.as_str())
+        .ok()
+        .flatten()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(bytes.as_slice()).ok())
+        .unwrap_or_else(|| json!({}))
+}
+
+fn contains_secret_canary(raw: &str) -> bool {
+    let lowered = raw.to_ascii_lowercase();
+    SECRET_CANARY_MARKERS
+        .iter()
+        .any(|marker| lowered.contains(marker))
+}
+
+fn scrub_secret_like_text(raw: &str) -> (String, bool, bool) {
+    let lowered = raw.to_ascii_lowercase();
+    if contains_secret_canary(raw) {
+        return ("[redacted:secret_canary]".to_string(), true, true);
+    }
+    if SECRET_LIKE_SUBSTRINGS
+        .iter()
+        .any(|token| lowered.contains(token))
+    {
+        return ("[redacted:secret]".to_string(), true, false);
+    }
+    (raw.to_string(), false, false)
+}
+
+fn sanitize_event_record_for_persistence(record: &mut EventLogRecord) -> EventSecuritySanitizationResult {
+    let mut result = EventSecuritySanitizationResult::default();
+
+    if let Some(reason) = record.entry.reason.clone() {
+        let (next, scrubbed, canary) = scrub_secret_like_text(reason.as_str());
+        record.entry.reason = Some(next);
+        if scrubbed {
+            result.scrubbed_fields = result.scrubbed_fields.saturating_add(1);
+        }
+        if canary {
+            result.canary_detected = true;
+        }
+    }
+    if let Some(outcome) = record.entry.outcome.clone() {
+        let (next, scrubbed, canary) = scrub_secret_like_text(outcome.as_str());
+        record.entry.outcome = Some(next);
+        if scrubbed {
+            result.scrubbed_fields = result.scrubbed_fields.saturating_add(1);
+        }
+        if canary {
+            result.canary_detected = true;
+        }
+    }
+    if let Some(admin) = record.entry.admin.clone() {
+        let (next, scrubbed, canary) = scrub_secret_like_text(admin.as_str());
+        record.entry.admin = Some(next);
+        if scrubbed {
+            result.scrubbed_fields = result.scrubbed_fields.saturating_add(1);
+        }
+        if canary {
+            result.canary_detected = true;
+        }
+    }
+    if let Some(ip) = record.entry.ip.clone() {
+        if contains_secret_canary(ip.as_str()) {
+            record.entry.ip = Some("[redacted:secret_canary]".to_string());
+            result.scrubbed_fields = result.scrubbed_fields.saturating_add(1);
+            result.canary_detected = true;
+        }
+    }
+
+    result
+}
+
+fn forensic_access_mode(query: &str) -> bool {
+    let forensic_requested = crate::request_validation::query_param(query, "forensic")
+        .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    let forensic_ack = crate::request_validation::query_param(query, "forensic_ack")
+        .unwrap_or_default();
+    forensic_requested && forensic_ack == SECURITY_FORENSIC_ACK_VALUE
+}
+
+fn pseudonymize_ip_identifier(ip: &str) -> String {
+    crate::signals::ip_identity::bucket_ip(ip)
+}
+
+fn pseudonymize_event_record(record: &EventLogRecord) -> EventLogRecord {
+    let mut next = record.clone();
+    if let Some(ip) = record.entry.ip.as_ref() {
+        next.entry.ip = Some(pseudonymize_ip_identifier(ip.as_str()));
+    }
+    if next.entry.admin.is_some() {
+        next.entry.admin = Some("[masked]".to_string());
+    }
+    next
+}
+
+fn telemetry_field_classification_schema() -> serde_json::Value {
+    json!([
+        {
+            "field": "event.ts",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.event",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.ip",
+            "class": "sensitive",
+            "persistence": "allow_pseudonymized_default"
+        },
+        {
+            "field": "event.reason",
+            "class": "internal",
+            "persistence": "allow_with_secret_scrub"
+        },
+        {
+            "field": "event.outcome",
+            "class": "internal",
+            "persistence": "allow_with_secret_scrub"
+        },
+        {
+            "field": "event.admin",
+            "class": "sensitive",
+            "persistence": "allow_masked_default"
+        },
+        {
+            "field": "artifact.raw_secret_like_value",
+            "class": "secret-prohibited",
+            "persistence": "deny_fail_closed"
+        }
+    ])
+}
+
+fn security_view_mode_label(forensic_mode: bool) -> &'static str {
+    if forensic_mode {
+        "forensic_raw"
+    } else {
+        "pseudonymized_default"
+    }
+}
+
+fn present_event_record(record: &EventLogRecord, forensic_mode: bool) -> EventLogRecord {
+    if forensic_mode {
+        return record.clone();
+    }
+    pseudonymize_event_record(record)
+}
+
+fn present_event_records(records: &[EventLogRecord], forensic_mode: bool) -> Vec<EventLogRecord> {
+    records
+        .iter()
+        .map(|record| present_event_record(record, forensic_mode))
+        .collect()
+}
+
+fn security_privacy_payload<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    now: u64,
+    hours: u64,
+    forensic_mode: bool,
+) -> serde_json::Value {
+    let effective_hours = hours.clamp(1, 720);
+    let classification_enforced_total = read_security_privacy_counter_window(
+        store,
+        "field_classification_enforced_total",
+        now,
+        effective_hours,
+    );
+    let secret_scrub_actions_total =
+        read_security_privacy_counter_window(store, "secret_scrub_actions_total", now, effective_hours);
+    let secret_canary_detected_total = read_security_privacy_counter_window(
+        store,
+        "secret_canary_detected_total",
+        now,
+        effective_hours,
+    );
+    let incident_hook_emitted_total = read_security_privacy_counter_window(
+        store,
+        "incident_hook_emitted_total",
+        now,
+        effective_hours,
+    );
+    let retention_override_requested = event_log_retention_override_requested();
+    let last_violation = load_security_privacy_state(store, "last_violation");
+    let last_incident = load_security_privacy_state(store, "last_incident");
+    let retention_override_audit = load_security_privacy_state(store, "retention_override_audit");
+    let operator_action_required = secret_canary_detected_total > 0
+        || last_incident
+            .get("incident_id")
+            .and_then(|value| value.as_str())
+            .map(|value| !value.is_empty())
+            .unwrap_or(false);
+
+    json!({
+        "classification": {
+            "version": SECURITY_PRIVACY_CLASSIFICATION_VERSION,
+            "field_classes": ["public", "internal", "sensitive", "secret-prohibited"],
+            "schema": telemetry_field_classification_schema(),
+            "field_classification_enforced": true,
+            "field_classification_enforced_total": classification_enforced_total
+        },
+        "sanitization": {
+            "secret_scrub_actions_total": secret_scrub_actions_total,
+            "secret_canary_leak_count": 0,
+            "secret_canary_detected_total": secret_canary_detected_total
+        },
+        "access_control": {
+            "view_mode": security_view_mode_label(forensic_mode),
+            "pseudonymization_required_percent": 100.0,
+            "pseudonymization_coverage_percent": if forensic_mode { 0.0 } else { 100.0 },
+            "forensic_break_glass": {
+                "active": forensic_mode,
+                "acknowledgement_required_query_param": "forensic_ack",
+                "acknowledgement_value_hint": SECURITY_FORENSIC_ACK_VALUE,
+                "audit_state": if forensic_mode { "acknowledged" } else { "inactive" }
+            }
+        },
+        "retention_tiers": {
+            "high_risk_raw_artifacts_hours": event_log_retention_hours(),
+            "high_risk_raw_artifacts_max_hours": SECURITY_HIGH_RISK_RETENTION_MAX_HOURS,
+            "redacted_summary_hours": configured_event_log_retention_hours(),
+            "override_requested": retention_override_requested,
+            "override_policy": "requires_explicit_audit_entry",
+            "override_audit_entry": retention_override_audit
+        },
+        "incident_response": {
+            "incident_hook_emitted": true,
+            "incident_hook_emitted_total": incident_hook_emitted_total,
+            "state": if operator_action_required { "operator_action_required" } else { "healthy" },
+            "workflow": ["detect", "contain", "quarantine", "operator_action_required"],
+            "last_violation": last_violation,
+            "last_incident": last_incident
+        }
+    })
+}
+
 pub fn log_event<S: crate::challenge::KeyValueStore>(store: &S, entry: &EventLogEntry) {
     // Write each event to a distinct immutable key to avoid read-modify-write races.
     let mut record = EventLogRecord::from_entry(entry.clone());
@@ -156,6 +490,76 @@ pub fn log_event<S: crate::challenge::KeyValueStore>(store: &S, entry: &EventLog
 
     let hour = record.entry.ts / 3600;
     let key = make_v2_event_key(hour, record.entry.ts);
+    increment_security_privacy_counter(store, "field_classification_enforced_total", record.entry.ts);
+    if event_log_retention_override_requested() {
+        set_security_privacy_state(
+            store,
+            "retention_override_audit",
+            json!({
+                "ts": record.entry.ts,
+                "policy": "high_risk_retention_cap_enforced",
+                "override_requested_hours": configured_event_log_retention_hours(),
+                "enforced_hours": event_log_retention_hours(),
+                "operation_id": key,
+                "requires_operator_action": true
+            }),
+        );
+    }
+    let sanitization = sanitize_event_record_for_persistence(&mut record);
+    if sanitization.scrubbed_fields > 0 {
+        increment_security_privacy_counter(store, "secret_scrub_actions_total", record.entry.ts);
+        set_security_privacy_state(
+            store,
+            "last_violation",
+            json!({
+                "ts": record.entry.ts,
+                "type": "secret_scrub_applied",
+                "classification": "internal",
+                "action": "scrubbed_allow",
+                "scrubbed_fields": sanitization.scrubbed_fields,
+                "operation_id": key,
+                "sim_run_id": record.sim_run_id
+            }),
+        );
+    }
+    if sanitization.canary_detected {
+        increment_security_privacy_counter(store, "secret_canary_detected_total", record.entry.ts);
+        increment_security_privacy_counter(store, "policy_violation_total", record.entry.ts);
+        increment_security_privacy_counter(store, "incident_hook_emitted_total", record.entry.ts);
+        let incident_id = format!("secinc-{}-{:08x}", record.entry.ts, random::<u32>());
+        set_security_privacy_state(
+            store,
+            "last_violation",
+            json!({
+                "ts": record.entry.ts,
+                "type": "secret_canary_detected",
+                "classification": "secret-prohibited",
+                "action": "quarantine_drop",
+                "operation_id": key,
+                "sim_run_id": record.sim_run_id
+            }),
+        );
+        set_security_privacy_state(
+            store,
+            "last_incident",
+            json!({
+                "incident_id": incident_id,
+                "ts": record.entry.ts,
+                "type": "secret_canary_detected",
+                "action": "quarantine_drop",
+                "workflow": ["detect", "contain", "quarantine", "operator_action_required"],
+                "state": "operator_action_required",
+                "operation_id": key,
+                "sim_run_id": record.sim_run_id
+            }),
+        );
+        eprintln!(
+            "[log_event] dropped event due to secret canary detection operation_id={}",
+            key
+        );
+        return;
+    }
+
     match serde_json::to_vec(&record) {
         Ok(payload) => {
             if store.set(&key, &payload).is_err() {
@@ -284,6 +688,123 @@ mod tests {
             payload.get("is_simulation").and_then(|v| v.as_bool()),
             Some(true)
         );
+    }
+
+    #[test]
+    fn log_event_scrubs_secret_like_fields_before_persistence() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let entry = EventLogEntry {
+            ts: now,
+            event: EventType::AdminAction,
+            ip: Some("198.51.100.10".to_string()),
+            reason: Some("authorization: bearer abc123".to_string()),
+            outcome: Some("api_key=secret".to_string()),
+            admin: Some("x-api-key: abc".to_string()),
+        };
+        log_event(&store, &entry);
+
+        let hour = now / 3600;
+        let prefix = format!("eventlog:v2:{}:", hour);
+        let records: Vec<Vec<u8>> = store
+            .map
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(key, _)| key.starts_with(&prefix))
+            .map(|(_, value)| value.clone())
+            .collect();
+        assert_eq!(records.len(), 1);
+
+        let payload: EventLogRecord = serde_json::from_slice(records[0].as_slice()).unwrap();
+        assert_eq!(payload.entry.reason.as_deref(), Some("[redacted:secret]"));
+        assert_eq!(payload.entry.outcome.as_deref(), Some("[redacted:secret]"));
+        assert_eq!(payload.entry.admin.as_deref(), Some("[redacted:secret]"));
+
+        let scrub_counter_key = security_privacy_counter_key("secret_scrub_actions_total", hour);
+        assert_eq!(read_u64_counter(&store, scrub_counter_key.as_str()), 1);
+    }
+
+    #[test]
+    fn log_event_drops_secret_canary_and_emits_incident_state() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let entry = EventLogEntry {
+            ts: now,
+            event: EventType::AdminAction,
+            ip: Some("198.51.100.20".to_string()),
+            reason: Some("frontier_secret_canary".to_string()),
+            outcome: Some("should_drop".to_string()),
+            admin: Some("ops".to_string()),
+        };
+        log_event(&store, &entry);
+
+        let hour = now / 3600;
+        let prefix = format!("eventlog:v2:{}:", hour);
+        let persisted = store
+            .map
+            .lock()
+            .unwrap()
+            .keys()
+            .any(|key| key.starts_with(&prefix));
+        assert!(!persisted);
+
+        let canary_counter_key = security_privacy_counter_key("secret_canary_detected_total", hour);
+        let incident_counter_key = security_privacy_counter_key("incident_hook_emitted_total", hour);
+        assert_eq!(read_u64_counter(&store, canary_counter_key.as_str()), 1);
+        assert_eq!(read_u64_counter(&store, incident_counter_key.as_str()), 1);
+
+        let incident = load_security_privacy_state(&store, "last_incident");
+        assert_eq!(
+            incident.get("action").and_then(|value| value.as_str()),
+            Some("quarantine_drop")
+        );
+        assert_eq!(
+            incident.get("state").and_then(|value| value.as_str()),
+            Some("operator_action_required")
+        );
+    }
+
+    #[test]
+    fn security_privacy_payload_enforces_high_risk_retention_cap() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "240");
+        let store = MockStore::new();
+        let now = now_ts();
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now,
+                event: EventType::AdminAction,
+                ip: Some("198.51.100.30".to_string()),
+                reason: Some("ok".to_string()),
+                outcome: Some("ok".to_string()),
+                admin: Some("ops".to_string()),
+            },
+        );
+        let payload = security_privacy_payload(&store, now, 24, false);
+        assert_eq!(
+            payload
+                .get("retention_tiers")
+                .and_then(|value| value.get("high_risk_raw_artifacts_hours"))
+                .and_then(|value| value.as_u64()),
+            Some(72)
+        );
+        assert_eq!(
+            payload
+                .get("retention_tiers")
+                .and_then(|value| value.get("redacted_summary_hours"))
+                .and_then(|value| value.as_u64()),
+            Some(240)
+        );
+        assert_eq!(
+            payload
+                .get("retention_tiers")
+                .and_then(|value| value.get("override_requested"))
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        std::env::remove_var("SHUMA_EVENT_LOG_RETENTION_HOURS");
     }
 
     #[test]
@@ -2764,6 +3285,165 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn admin_monitoring_defaults_to_pseudonymized_view_and_supports_forensic_mode() {
+        let store = TestStore::default();
+        let now = now_ts();
+        let raw_ip = "203.0.113.55";
+        let pseudo_ip = pseudonymize_ip_identifier(raw_ip);
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now,
+                event: EventType::AdminAction,
+                ip: Some(raw_ip.to_string()),
+                reason: Some("security_mode_probe".to_string()),
+                outcome: Some("ok".to_string()),
+                admin: Some("operator@example.com".to_string()),
+            },
+        );
+
+        let req_default = make_request(Method::Get, "/admin/monitoring?hours=24&limit=5", Vec::new());
+        let resp_default = handle_admin_monitoring(&req_default, &store);
+        assert_eq!(*resp_default.status(), 200u16);
+        assert_eq!(
+            resp_default
+                .header("x-shuma-monitoring-security-mode")
+                .and_then(|value| value.as_str()),
+            Some("pseudonymized_default")
+        );
+        let body_default: serde_json::Value = serde_json::from_slice(resp_default.body()).unwrap();
+        let event_default = body_default
+            .get("details")
+            .and_then(|value| value.get("events"))
+            .and_then(|value| value.get("recent_events"))
+            .and_then(|value| value.as_array())
+            .and_then(|rows| {
+                rows.iter().find(|row| {
+                    row.get("reason").and_then(|value| value.as_str())
+                        == Some("security_mode_probe")
+                })
+            })
+            .cloned()
+            .expect("expected monitoring event row");
+        assert_eq!(
+            event_default.get("ip").and_then(|value| value.as_str()),
+            Some(pseudo_ip.as_str())
+        );
+        assert_eq!(
+            event_default.get("admin").and_then(|value| value.as_str()),
+            Some("[masked]")
+        );
+        assert_eq!(
+            body_default
+                .get("security_privacy")
+                .and_then(|value| value.get("access_control"))
+                .and_then(|value| value.get("view_mode"))
+                .and_then(|value| value.as_str()),
+            Some("pseudonymized_default")
+        );
+
+        let req_forensic = make_request(
+            Method::Get,
+            format!(
+                "/admin/monitoring?hours=24&limit=5&forensic=1&forensic_ack={}",
+                SECURITY_FORENSIC_ACK_VALUE
+            )
+            .as_str(),
+            Vec::new(),
+        );
+        let resp_forensic = handle_admin_monitoring(&req_forensic, &store);
+        assert_eq!(*resp_forensic.status(), 200u16);
+        assert_eq!(
+            resp_forensic
+                .header("x-shuma-monitoring-security-mode")
+                .and_then(|value| value.as_str()),
+            Some("forensic_raw")
+        );
+        let body_forensic: serde_json::Value = serde_json::from_slice(resp_forensic.body()).unwrap();
+        let event_forensic = body_forensic
+            .get("details")
+            .and_then(|value| value.get("events"))
+            .and_then(|value| value.get("recent_events"))
+            .and_then(|value| value.as_array())
+            .and_then(|rows| {
+                rows.iter().find(|row| {
+                    row.get("reason").and_then(|value| value.as_str())
+                        == Some("security_mode_probe")
+                })
+            })
+            .cloned()
+            .expect("expected forensic monitoring event row");
+        assert_eq!(
+            event_forensic.get("ip").and_then(|value| value.as_str()),
+            Some(raw_ip)
+        );
+        assert_eq!(
+            event_forensic.get("admin").and_then(|value| value.as_str()),
+            Some("operator@example.com")
+        );
+    }
+
+    #[test]
+    fn admin_monitoring_delta_pseudonymizes_without_forensic_ack() {
+        let store = TestStore::default();
+        let now = now_ts();
+        let raw_ip = "198.51.100.66";
+        let pseudo_ip = pseudonymize_ip_identifier(raw_ip);
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now,
+                event: EventType::AdminAction,
+                ip: Some(raw_ip.to_string()),
+                reason: Some("delta_security_mode_probe".to_string()),
+                outcome: Some("ok".to_string()),
+                admin: Some("ops".to_string()),
+            },
+        );
+
+        let req_default = make_request(
+            Method::Get,
+            "/admin/monitoring/delta?hours=24&limit=10",
+            Vec::new(),
+        );
+        let resp_default = handle_admin_monitoring_delta(&req_default, &store);
+        assert_eq!(*resp_default.status(), 200u16);
+        let payload_default: serde_json::Value = serde_json::from_slice(resp_default.body()).unwrap();
+        let events_default = payload_default
+            .get("events")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        assert!(events_default.iter().any(|row| {
+            row.get("reason").and_then(|value| value.as_str()) == Some("delta_security_mode_probe")
+                && row.get("ip").and_then(|value| value.as_str())
+                    == Some(pseudo_ip.as_str())
+        }));
+
+        let req_forensic = make_request(
+            Method::Get,
+            format!(
+                "/admin/monitoring/delta?hours=24&limit=10&forensic=1&forensic_ack={}",
+                SECURITY_FORENSIC_ACK_VALUE
+            )
+            .as_str(),
+            Vec::new(),
+        );
+        let resp_forensic = handle_admin_monitoring_delta(&req_forensic, &store);
+        assert_eq!(*resp_forensic.status(), 200u16);
+        let payload_forensic: serde_json::Value = serde_json::from_slice(resp_forensic.body()).unwrap();
+        let events_forensic = payload_forensic
+            .get("events")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        assert!(events_forensic.iter().any(|row| {
+            row.get("reason").and_then(|value| value.as_str()) == Some("delta_security_mode_probe")
+                && row.get("ip").and_then(|value| value.as_str()) == Some(raw_ip)
+        }));
+    }
+
+    #[test]
     fn admin_monitoring_cost_governance_surfaces_query_budget_degraded_state() {
         let _lock = crate::test_support::lock_env();
         let store = TestStore::default();
@@ -2969,7 +3649,7 @@ mod admin_config_tests {
             .set("tarpit:budget:active:bucket:other-site:bucket-z", b"7")
             .unwrap();
 
-        let details = monitoring_details_payload(&store, "default", 24, 10);
+        let details = monitoring_details_payload(&store, "default", 24, 10, false);
         let tarpit = details.get("tarpit").unwrap();
         assert_eq!(
             tarpit
@@ -5465,6 +6145,7 @@ fn load_recent_event_records_with_keys<S: crate::challenge::KeyValueStore>(
     now: u64,
     hours: u64,
 ) -> Vec<StoredEventLogRecord> {
+    let hours = effective_event_log_query_hours(hours);
     let now_hour = now / 3600;
     let mut events: Vec<StoredEventLogRecord> = Vec::new();
     let window_start = now.saturating_sub(hours.saturating_mul(3600));
@@ -9087,15 +9768,21 @@ where
 {
     let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
     let limit = query_u64_param(req.query(), "limit", 10).clamp(1, 50) as usize;
+    let forensic_mode = forensic_access_mode(req.query());
     let query_budget = monitoring_query_budget(hours, limit);
     let summary = crate::observability::monitoring::summarize_with_store(store, hours, limit);
-    let details = monitoring_details_payload(store, "default", hours, limit);
+    let details = monitoring_details_payload(store, "default", hours, limit, forensic_mode);
     let retention_health = crate::observability::retention::retention_health(store);
+    let security_privacy = details
+        .get("security_privacy")
+        .cloned()
+        .unwrap_or_else(|| security_privacy_payload(store, now_ts(), hours, forensic_mode));
     let mut payload = json!({
         "summary": summary,
         "prometheus": monitoring_prometheus_helper_payload(),
         "details": details,
-        "retention_health": retention_health
+        "retention_health": retention_health,
+        "security_privacy": security_privacy
     });
 
     let supports_gzip = request_accepts_gzip(req);
@@ -9138,6 +9825,7 @@ where
         .header("Content-Type", "application/json")
         .header("Cache-Control", "no-store")
         .header("X-Shuma-Monitoring-Cost-State", cost_state)
+        .header("X-Shuma-Monitoring-Security-Mode", security_view_mode_label(forensic_mode))
         .header("X-Shuma-Monitoring-Query-Budget", query_budget.status);
     if final_compression.negotiated {
         builder
@@ -9154,6 +9842,7 @@ where
     let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
     let limit = query_u64_param(req.query(), "limit", 100)
         .clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS as u64) as usize;
+    let forensic_mode = forensic_access_mode(req.query());
     let after_cursor = resolve_after_cursor(req);
     if let Err(msg) = validate_after_cursor(after_cursor.as_str()) {
         return Response::new(400, msg);
@@ -9164,7 +9853,7 @@ where
         .into_iter()
         .map(|stored| CursorEventRecord {
             cursor: build_event_cursor(stored.record.entry.ts, stored.storage_key.as_str()),
-            record: stored.record,
+            record: present_event_record(&stored.record, forensic_mode),
         })
         .collect();
     let window_end_cursor = rows
@@ -9200,6 +9889,8 @@ where
             "cursor_source": "eventlog:v2 key ordering",
             "overflow_taxonomy": ["none", "limit_exceeded"]
         },
+        "security_mode": security_view_mode_label(forensic_mode),
+        "security_privacy": security_privacy_payload(store, now, hours, forensic_mode),
         "freshness_slo": freshness_slo_payload(),
         "load_envelope": load_envelope_payload(),
         "hours": hours,
@@ -9220,6 +9911,7 @@ where
         .header("Content-Type", "application/json")
         .header("Cache-Control", "no-store")
         .header("ETag", etag.as_str())
+        .header("X-Shuma-Monitoring-Security-Mode", security_view_mode_label(forensic_mode))
         .body(body)
         .build()
 }
@@ -9234,6 +9926,7 @@ where
     let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
     let limit = query_u64_param(req.query(), "limit", 100)
         .clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS as u64) as usize;
+    let forensic_mode = forensic_access_mode(req.query());
     let after_cursor = resolve_after_cursor(req);
     if let Err(msg) = validate_after_cursor(after_cursor.as_str()) {
         return Response::new(400, msg);
@@ -9244,7 +9937,7 @@ where
         .into_iter()
         .map(|stored| CursorEventRecord {
             cursor: build_event_cursor(stored.record.entry.ts, stored.storage_key.as_str()),
-            record: stored.record,
+            record: present_event_record(&stored.record, forensic_mode),
         })
         .collect();
     let window_end_cursor = rows
@@ -9269,6 +9962,8 @@ where
             "cursor_source": "eventlog:v2 key ordering",
             "overflow_taxonomy": ["none", "limit_exceeded"]
         },
+        "security_mode": security_view_mode_label(forensic_mode),
+        "security_privacy": security_privacy_payload(store, now, hours, forensic_mode),
         "freshness_slo": freshness_slo_payload(),
         "load_envelope": load_envelope_payload(),
         "stream_contract": stream_contract_payload(),
@@ -9297,6 +9992,7 @@ where
     let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
     let limit = query_u64_param(req.query(), "limit", 100)
         .clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS as u64) as usize;
+    let forensic_mode = forensic_access_mode(req.query());
     let after_cursor = resolve_after_cursor(req);
     if let Err(msg) = validate_after_cursor(after_cursor.as_str()) {
         return Response::new(400, msg);
@@ -9308,7 +10004,7 @@ where
         .filter(|stored| matches!(stored.record.entry.event, EventType::Ban | EventType::Unban))
         .map(|stored| CursorEventRecord {
             cursor: build_event_cursor(stored.record.entry.ts, stored.storage_key.as_str()),
-            record: stored.record,
+            record: present_event_record(&stored.record, forensic_mode),
         })
         .collect();
     let window_end_cursor = rows
@@ -9327,8 +10023,13 @@ where
     let active_bans_payload: Vec<serde_json::Value> = active_bans
         .into_iter()
         .map(|(ip, ban)| {
+            let display_ip = if forensic_mode {
+                ip
+            } else {
+                pseudonymize_ip_identifier(ip.as_str())
+            };
             json!({
-                "ip": ip,
+                "ip": display_ip,
                 "reason": ban.reason,
                 "expires": ban.expires,
                 "banned_at": ban.banned_at,
@@ -9372,6 +10073,8 @@ where
             "cursor_source": "eventlog:v2 key ordering",
             "overflow_taxonomy": ["none", "limit_exceeded"]
         },
+        "security_mode": security_view_mode_label(forensic_mode),
+        "security_privacy": security_privacy_payload(store, now, hours, forensic_mode),
         "freshness_slo": freshness_slo_payload(),
         "load_envelope": load_envelope_payload(),
         "hours": hours,
@@ -9393,6 +10096,7 @@ where
         .header("Content-Type", "application/json")
         .header("Cache-Control", "no-store")
         .header("ETag", etag.as_str())
+        .header("X-Shuma-Monitoring-Security-Mode", security_view_mode_label(forensic_mode))
         .body(body)
         .build()
 }
@@ -9407,6 +10111,7 @@ where
     let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
     let limit = query_u64_param(req.query(), "limit", 100)
         .clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS as u64) as usize;
+    let forensic_mode = forensic_access_mode(req.query());
     let after_cursor = resolve_after_cursor(req);
     if let Err(msg) = validate_after_cursor(after_cursor.as_str()) {
         return Response::new(400, msg);
@@ -9418,7 +10123,7 @@ where
         .filter(|stored| matches!(stored.record.entry.event, EventType::Ban | EventType::Unban))
         .map(|stored| CursorEventRecord {
             cursor: build_event_cursor(stored.record.entry.ts, stored.storage_key.as_str()),
-            record: stored.record,
+            record: present_event_record(&stored.record, forensic_mode),
         })
         .collect();
     let window_end_cursor = rows
@@ -9437,8 +10142,13 @@ where
     let active_bans_payload: Vec<serde_json::Value> = active_bans
         .into_iter()
         .map(|(ip, ban)| {
+            let display_ip = if forensic_mode {
+                ip
+            } else {
+                pseudonymize_ip_identifier(ip.as_str())
+            };
             json!({
-                "ip": ip,
+                "ip": display_ip,
                 "reason": ban.reason,
                 "expires": ban.expires,
                 "banned_at": ban.banned_at,
@@ -9465,6 +10175,8 @@ where
             "cursor_source": "eventlog:v2 key ordering",
             "overflow_taxonomy": ["none", "limit_exceeded"]
         },
+        "security_mode": security_view_mode_label(forensic_mode),
+        "security_privacy": security_privacy_payload(store, now, hours, forensic_mode),
         "freshness_slo": freshness_slo_payload(),
         "load_envelope": load_envelope_payload(),
         "stream_contract": stream_contract_payload(),
@@ -9602,6 +10314,7 @@ fn monitoring_details_payload<S>(
     site_id: &str,
     hours: u64,
     limit: usize,
+    forensic_mode: bool,
 ) -> serde_json::Value
 where
     S: crate::challenge::KeyValueStore,
@@ -9614,7 +10327,12 @@ where
 
     for entry in &events {
         if let Some(ip) = &entry.entry.ip {
-            *ip_counts.entry(ip.clone()).or_insert(0u32) += 1;
+            let key = if forensic_mode {
+                ip.clone()
+            } else {
+                pseudonymize_ip_identifier(ip.as_str())
+            };
+            *ip_counts.entry(key).or_insert(0u32) += 1;
         }
         *event_counts
             .entry(format!("{:?}", entry.entry.event))
@@ -9631,7 +10349,8 @@ where
         (limit.saturating_mul(10)).clamp(20, 100)
     };
     let total_recent_events_in_window = events.len();
-    let recent_events: Vec<_> = events.iter().take(recent_event_cap).cloned().collect();
+    let recent_events_raw: Vec<_> = events.iter().take(recent_event_cap).cloned().collect();
+    let recent_events = present_event_records(recent_events_raw.as_slice(), forensic_mode);
     let recent_events_has_more = total_recent_events_in_window > recent_events.len();
 
     let cdp_events_limit = 500usize;
@@ -9672,13 +10391,19 @@ where
         })
         .count();
     cdp_events.truncate(cdp_events_limit);
+    let cdp_events = present_event_records(cdp_events.as_slice(), forensic_mode);
 
     let active_bans = crate::enforcement::ban::list_active_bans(store, site_id);
     let bans: Vec<_> = active_bans
         .iter()
         .map(|(ip, ban)| {
+            let display_ip = if forensic_mode {
+                ip.clone()
+            } else {
+                pseudonymize_ip_identifier(ip.as_str())
+            };
             json!({
-                "ip": ip,
+                "ip": display_ip,
                 "reason": ban.reason,
                 "expires": ban.expires,
                 "banned_at": ban.banned_at,
@@ -9708,11 +10433,25 @@ where
     maze_ips.sort_by(|a, b| b.1.cmp(&a.1));
     let deepest = maze_ips
         .first()
-        .map(|(ip, hits)| json!({"ip": ip, "hits": hits}));
+        .map(|(ip, hits)| {
+            let display_ip = if forensic_mode {
+                ip.clone()
+            } else {
+                pseudonymize_ip_identifier(ip.as_str())
+            };
+            json!({"ip": display_ip, "hits": hits})
+        });
     let top_crawlers: Vec<_> = maze_ips
         .iter()
         .take(10)
-        .map(|(ip, hits)| json!({"ip": ip, "hits": hits}))
+        .map(|(ip, hits)| {
+            let display_ip = if forensic_mode {
+                ip.clone()
+            } else {
+                pseudonymize_ip_identifier(ip.as_str())
+            };
+            json!({"ip": display_ip, "hits": hits})
+        })
         .collect();
     let maze_bans = active_bans
         .iter()
@@ -9752,10 +10491,12 @@ where
     let retention_health = crate::observability::retention::retention_health(store);
     let cost_governance =
         monitoring_cost_governance_payload(store, events.as_slice(), now, &query_budget);
+    let security_privacy = security_privacy_payload(store, now, hours, forensic_mode);
 
     json!({
         "retention_health": retention_health,
         "cost_governance": cost_governance,
+        "security_privacy": security_privacy,
         "analytics": {
             "ban_count": active_bans.len(),
             "test_mode": cfg.as_ref().map(|v| v.test_mode).unwrap_or(false),
@@ -9763,6 +10504,7 @@ where
         },
         "events": {
             "recent_events": recent_events,
+            "security_mode": security_view_mode_label(forensic_mode),
             "event_counts": event_counts,
             "top_ips": top_ips,
             "unique_ips": unique_ips,
@@ -11034,6 +11776,7 @@ pub fn handle_admin(req: &Request) -> Response {
             // Query event log for recent events, top IPs, and event statistics
             // Query params: ?hours=N (default 24, max 720)
             let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
+            let forensic_mode = forensic_access_mode(req.query());
             let now = now_ts();
             let mut events = load_recent_event_records(&store, now, hours);
             let mut ip_counts = std::collections::HashMap::new();
@@ -11041,7 +11784,12 @@ pub fn handle_admin(req: &Request) -> Response {
 
             for e in &events {
                 if let Some(ip) = &e.entry.ip {
-                    *ip_counts.entry(ip.clone()).or_insert(0u32) += 1;
+                    let key = if forensic_mode {
+                        ip.clone()
+                    } else {
+                        pseudonymize_ip_identifier(ip.as_str())
+                    };
+                    *ip_counts.entry(key).or_insert(0u32) += 1;
                 }
                 *event_counts
                     .entry(format!("{:?}", e.entry.event))
@@ -11055,11 +11803,15 @@ pub fn handle_admin(req: &Request) -> Response {
             let mut top_ips: Vec<_> = ip_counts.into_iter().collect();
             top_ips.sort_by(|a, b| b.1.cmp(&a.1));
             let top_ips: Vec<_> = top_ips.into_iter().take(10).collect();
+            let recent_events_raw: Vec<_> = events.iter().take(100).cloned().collect();
+            let recent_events = present_event_records(recent_events_raw.as_slice(), forensic_mode);
             let body = serde_json::to_string(&json!({
-                "recent_events": events.iter().take(100).collect::<Vec<_>>(),
+                "recent_events": recent_events,
                 "event_counts": event_counts,
                 "top_ips": top_ips,
-                "unique_ips": unique_ips
+                "unique_ips": unique_ips,
+                "security_mode": security_view_mode_label(forensic_mode),
+                "security_privacy": security_privacy_payload(&store, now, hours, forensic_mode)
             }))
             .unwrap();
             Response::new(200, body)
@@ -11072,6 +11824,7 @@ pub fn handle_admin(req: &Request) -> Response {
             // hours default 24 (max 720), limit default 500 (max 5000)
             let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
             let limit = query_u64_param(req.query(), "limit", 500).clamp(1, 5000) as usize;
+            let forensic_mode = forensic_access_mode(req.query());
             let now = now_ts();
             let mut cdp_events: Vec<EventLogRecord> =
                 load_recent_event_records(&store, now, hours)
@@ -11113,12 +11866,15 @@ pub fn handle_admin(req: &Request) -> Response {
                 .count();
 
             cdp_events.truncate(limit);
+            let cdp_events = present_event_records(cdp_events.as_slice(), forensic_mode);
 
             let body = serde_json::to_string(&json!({
                 "events": cdp_events,
                 "hours": hours,
                 "limit": limit,
                 "total_matches": total_matches,
+                "security_mode": security_view_mode_label(forensic_mode),
+                "security_privacy": security_privacy_payload(&store, now, hours, forensic_mode),
                 "counts": {
                     "detections": detections,
                     "auto_bans": auto_bans

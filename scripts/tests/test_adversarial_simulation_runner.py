@@ -326,6 +326,23 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
     def test_extract_monitoring_snapshot_includes_retention_health(self):
         payload = {
             "summary": {},
+            "security_privacy": {
+                "classification": {"field_classification_enforced": True},
+                "sanitization": {"secret_canary_leak_count": 0},
+                "access_control": {
+                    "view_mode": "pseudonymized_default",
+                    "pseudonymization_coverage_percent": 100.0,
+                    "pseudonymization_required_percent": 100.0,
+                },
+                "retention_tiers": {
+                    "high_risk_raw_artifacts_hours": 72,
+                    "high_risk_raw_artifacts_max_hours": 72,
+                },
+                "incident_response": {
+                    "incident_hook_emitted": True,
+                    "incident_hook_emitted_total": 0,
+                },
+            },
             "details": {
                 "retention_health": {
                     "retention_hours": 168,
@@ -342,6 +359,10 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(snapshot["retention_health"]["retention_hours"], 168)
         self.assertEqual(snapshot["retention_health"]["pending_expired_buckets"], 0)
         self.assertEqual(snapshot["cost_governance"]["observed_guarded_dimension_cardinality_max"], 42)
+        self.assertEqual(
+            snapshot["security_privacy"]["retention_tiers"]["high_risk_raw_artifacts_hours"],
+            72,
+        )
 
     def test_compute_coverage_deltas_clamps_negative_values(self):
         before = {"honeypot_hits": 5, "geo_maze": 3}
@@ -405,6 +426,34 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertAlmostEqual(section["query_budget_max_req_per_sec_client"], 1.0, places=2)
         self.assertEqual(section["cardinality_pressure"], "normal")
         self.assertEqual(section["degraded_state"], "normal")
+
+    def test_build_security_privacy_report_maps_runtime_fields(self):
+        section = runner.build_security_privacy_report(
+            {
+                "classification": {"field_classification_enforced": True},
+                "sanitization": {"secret_canary_leak_count": 0},
+                "access_control": {
+                    "view_mode": "pseudonymized_default",
+                    "pseudonymization_coverage_percent": 100.0,
+                    "pseudonymization_required_percent": 100.0,
+                },
+                "retention_tiers": {
+                    "high_risk_raw_artifacts_hours": 72,
+                    "high_risk_raw_artifacts_max_hours": 72,
+                },
+                "incident_response": {
+                    "incident_hook_emitted": True,
+                    "incident_hook_emitted_total": 2,
+                },
+            }
+        )
+        self.assertTrue(section["field_classification_enforced"])
+        self.assertEqual(section["secret_canary_leak_count"], 0)
+        self.assertAlmostEqual(section["pseudonymization_coverage_percent"], 100.0, places=2)
+        self.assertAlmostEqual(section["high_risk_retention_hours"], 72.0, places=2)
+        self.assertTrue(section["incident_hook_emitted"])
+        self.assertEqual(section["incident_hook_emitted_total"], 2)
+        self.assertEqual(section["security_mode"], "pseudonymized_default")
 
     def test_build_sim_tag_diagnostics_reports_healthy_when_no_sim_tag_failures(self):
         diagnostics = runner.build_sim_tag_diagnostics(

@@ -136,13 +136,13 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `POST /admin/ban` - Ban an <abbr title="Internet Protocol">IP</abbr> (<abbr title="JavaScript Object Notation">JSON</abbr> body: `{"ip":"x.x.x.x","duration":3600}`; reason is always `manual_ban`)
 - `POST /admin/unban?ip=x.x.x.x` - Unban an <abbr title="Internet Protocol">IP</abbr>
 - `GET /admin/analytics` - Ban/event statistics
-- `GET /admin/events?hours=N` - Recent events + summary stats (simulation rows are included when present and tagged per row)
-- `GET /admin/cdp/events?hours=N&limit=M` - <abbr title="Chrome DevTools Protocol">CDP</abbr>-only detections/auto-bans (time-windowed, limit configurable)
-- `GET /admin/monitoring?hours=N&limit=M` - Consolidated monitoring summaries plus dashboard-native detail payload for Monitoring tab refreshes
-- `GET /admin/monitoring/delta?after_cursor=...&limit=N&hours=M` - Cursor-ordered monitoring event deltas (`next_cursor`, `has_more`, `overflow`) with `ETag`/`If-None-Match` support and freshness/load-envelope metadata
-- `GET /admin/monitoring/stream?after_cursor=...&limit=N&hours=M` - One-shot <abbr title="Server-Sent Events">SSE</abbr> monitoring delta (`text/event-stream`) with `Last-Event-ID` resume using the same cursor namespace
-- `GET /admin/ip-bans/delta?after_cursor=...&limit=N&hours=M` - Cursor-ordered ban/unban deltas plus active-ban snapshot (`active_bans`) with `ETag`/`If-None-Match` support and freshness/load-envelope metadata
-- `GET /admin/ip-bans/stream?after_cursor=...&limit=N&hours=M` - One-shot <abbr title="Server-Sent Events">SSE</abbr> IP-ban delta (`text/event-stream`) with `Last-Event-ID` resume using the same cursor namespace
+- `GET /admin/events?hours=N` - Recent events + summary stats (simulation rows are included when present and tagged per row). Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
+- `GET /admin/cdp/events?hours=N&limit=M` - <abbr title="Chrome DevTools Protocol">CDP</abbr>-only detections/auto-bans (time-windowed, limit configurable). Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
+- `GET /admin/monitoring?hours=N&limit=M` - Consolidated monitoring summaries plus dashboard-native detail payload for Monitoring tab refreshes. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
+- `GET /admin/monitoring/delta?after_cursor=...&limit=N&hours=M` - Cursor-ordered monitoring event deltas (`next_cursor`, `has_more`, `overflow`) with `ETag`/`If-None-Match` support and freshness/load-envelope metadata. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
+- `GET /admin/monitoring/stream?after_cursor=...&limit=N&hours=M` - One-shot <abbr title="Server-Sent Events">SSE</abbr> monitoring delta (`text/event-stream`) with `Last-Event-ID` resume using the same cursor namespace. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
+- `GET /admin/ip-bans/delta?after_cursor=...&limit=N&hours=M` - Cursor-ordered ban/unban deltas plus active-ban snapshot (`active_bans`) with `ETag`/`If-None-Match` support and freshness/load-envelope metadata. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
+- `GET /admin/ip-bans/stream?after_cursor=...&limit=N&hours=M` - One-shot <abbr title="Server-Sent Events">SSE</abbr> IP-ban delta (`text/event-stream`) with `Last-Event-ID` resume using the same cursor namespace. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
 - `GET /admin/ip-range/suggestions?hours=N&limit=M` - Suggested IP-range candidates with collateral-risk scoring
 - `GET /admin/config` - Read configuration
 - `POST /admin/config` - Update configuration (partial <abbr title="JavaScript Object Notation">JSON</abbr>, disabled when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`)
@@ -166,6 +166,11 @@ Expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/mo
 
 Simulation telemetry uses per-row metadata tags (`sim_run_id`, `sim_profile`, `sim_lane`, `is_simulation`) rather than read-time query toggles.
 Deprecated simulation-namespace config keys are rejected on write (`sim_telemetry_namespace` and related unknown namespace-era fields).
+Security/privacy controls are enforced by default:
+- persistence classification contract (`public|internal|sensitive|secret-prohibited`) is applied before write,
+- secret-like fields are scrubbed with explicit redaction markers,
+- secret-canary matches are fail-closed (event is dropped, incident state emitted),
+- non-forensic admin views pseudonymize sensitive identifiers by default.
 
 Adversary-sim command contract (`adversary-sim-control.v1`) highlights:
 
@@ -214,6 +219,8 @@ Adversary-sim command contract (`adversary-sim-control.v1`) highlights:
 - `event_counts` (counts per event type)
 - `top_ips` (top 10 IPs by event count)
 - `unique_ips` (distinct <abbr title="Internet Protocol">IP</abbr> count)
+- `security_mode` (`pseudonymized_default|forensic_raw`)
+- `security_privacy` (classification/scrub/incidence/retention-tier state)
 
 Each event row includes the canonical event fields plus simulation metadata when available:
 - `sim_run_id` (optional)
@@ -261,11 +268,18 @@ For <abbr title="Chrome DevTools Protocol">CDP</abbr>-only operational views wit
 - `compression` (`status`, `negotiated`, `algorithm`, `input_bytes`, `output_bytes`, `reduction_percent`, `min_percent`)
 - `query_budget` (`cost_units`, `cost_class`, `avg_req_per_sec_client_target`, `max_req_per_sec_client`, `status`) and `query_budget_status`
 - `degraded_state` (`normal|degraded`) and `degraded_reasons`
+- `security_privacy`:
+- `classification` (`version`, `field_classification_enforced`, schema mapping)
+- `sanitization` (`secret_scrub_actions_total`, `secret_canary_leak_count`, `secret_canary_detected_total`)
+- `access_control` (`view_mode`, pseudonymization coverage/required percent, forensic break-glass state)
+- `retention_tiers` (`high_risk_raw_artifacts_hours`, `high_risk_raw_artifacts_max_hours`, `redacted_summary_hours`, `override_requested`, `override_audit_entry`)
+- `incident_response` (`incident_hook_emitted`, `incident_hook_emitted_total`, workflow stage state, last violation/incident payload)
 
 When payload size is greater than `64KB` and the client sends `Accept-Encoding: gzip`, the endpoint may return compressed JSON (`Content-Encoding: gzip`) with `Vary: Accept-Encoding`.
 Cost-state response headers are also emitted:
 - `X-Shuma-Monitoring-Cost-State`
 - `X-Shuma-Monitoring-Query-Budget`
+- `X-Shuma-Monitoring-Security-Mode` (`pseudonymized_default|forensic_raw`)
 
 `GET /admin/monitoring/delta?after_cursor=<cursor>&limit=100&hours=24` returns:
 - `cursor_contract` (version + ordering + overflow taxonomy)

@@ -10,6 +10,7 @@ const RETENTION_WORKER_STATE_KEY: &str = "telemetry:retention:v1:worker_state";
 const RETENTION_WORKER_CADENCE_SECONDS: u64 = 30;
 const RETENTION_WORKER_BATCH_BUCKET_BUDGET: usize = 8;
 const RETENTION_LAG_DEGRADED_THRESHOLD_HOURS: f64 = 1.0;
+const EVENT_LOG_HIGH_RISK_RETENTION_MAX_HOURS: u64 = 72;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct TelemetryBucketIndex {
@@ -60,6 +61,9 @@ impl Default for RetentionWorkerState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct RetentionHealth {
     pub retention_hours: u64,
+    pub high_risk_retention_hours: u64,
+    pub high_risk_retention_max_hours: u64,
+    pub redacted_summary_retention_hours: u64,
     pub oldest_retained_ts: u64,
     pub purge_lag_hours: f64,
     pub pending_expired_buckets: u64,
@@ -72,8 +76,23 @@ pub(crate) struct RetentionHealth {
     pub bucket_schema: Vec<String>,
 }
 
-fn retention_hours() -> u64 {
+pub(crate) fn monitoring_retention_hours() -> u64 {
     crate::config::event_log_retention_hours()
+}
+
+pub(crate) fn event_log_high_risk_retention_hours() -> u64 {
+    monitoring_retention_hours().min(EVENT_LOG_HIGH_RISK_RETENTION_MAX_HOURS)
+}
+
+fn retention_hours_for_domain(domain: &str) -> u64 {
+    match domain {
+        RETENTION_DOMAIN_EVENTLOG => event_log_high_risk_retention_hours(),
+        _ => monitoring_retention_hours(),
+    }
+}
+
+fn cutoff_hour_for_domain(now_hour: u64, domain: &str) -> u64 {
+    now_hour.saturating_sub(retention_hours_for_domain(domain))
 }
 
 fn bucket_id(domain: &str, hour: u64) -> String {
@@ -248,24 +267,11 @@ fn catalog_oldest_retained_hour(catalogs: &[TelemetryBucketCatalog]) -> Option<u
         .min()
 }
 
-fn catalog_oldest_expired_hour(
-    catalogs: &[TelemetryBucketCatalog],
-    cutoff_hour: u64,
-) -> Option<u64> {
-    catalogs
-        .iter()
-        .flat_map(|catalog| catalog.hours.iter().copied())
-        .filter(|hour| *hour < cutoff_hour)
-        .min()
-}
-
-fn catalog_pending_expired_buckets(
-    catalogs: &[TelemetryBucketCatalog],
-    cutoff_hour: u64,
-) -> u64 {
+fn catalog_pending_expired_buckets(catalogs: &[TelemetryBucketCatalog], now_hour: u64) -> u64 {
     catalogs
         .iter()
         .map(|catalog| {
+            let cutoff_hour = cutoff_hour_for_domain(now_hour, catalog.domain.as_str());
             catalog
                 .hours
                 .iter()
@@ -278,21 +284,32 @@ fn catalog_pending_expired_buckets(
 fn compute_health(
     store: &impl crate::challenge::KeyValueStore,
     now: u64,
-    retention_hours: u64,
 ) -> RetentionHealth {
     let state = load_worker_state(store);
     let now_hour = now / 3600;
-    let cutoff_hour = now_hour.saturating_sub(retention_hours);
+    let retention_hours = monitoring_retention_hours();
+    let high_risk_retention_hours = event_log_high_risk_retention_hours();
     let catalogs = vec![
         load_bucket_catalog(store, RETENTION_DOMAIN_MONITORING),
         load_bucket_catalog(store, RETENTION_DOMAIN_EVENTLOG),
     ];
-    let pending_expired_buckets = catalog_pending_expired_buckets(&catalogs, cutoff_hour);
+    let pending_expired_buckets = catalog_pending_expired_buckets(&catalogs, now_hour);
     let oldest_retained_hour = catalog_oldest_retained_hour(&catalogs).unwrap_or(0);
-    let oldest_expired_hour = catalog_oldest_expired_hour(&catalogs, cutoff_hour);
-    let purge_lag_hours = oldest_expired_hour
-        .map(|hour| cutoff_hour.saturating_sub(hour) as f64)
-        .unwrap_or(0.0);
+    let purge_lag_hours = catalogs
+        .iter()
+        .map(|catalog| {
+            let cutoff_hour = cutoff_hour_for_domain(now_hour, catalog.domain.as_str());
+            let domain_oldest_expired = catalog
+                .hours
+                .iter()
+                .copied()
+                .filter(|hour| *hour < cutoff_hour)
+                .min();
+            domain_oldest_expired
+                .map(|hour| cutoff_hour.saturating_sub(hour) as f64)
+                .unwrap_or(0.0)
+        })
+        .fold(0.0f64, f64::max);
     let oldest_retained_ts = if oldest_retained_hour == 0 {
         state.oldest_retained_ts
     } else {
@@ -316,6 +333,9 @@ fn compute_health(
 
     RetentionHealth {
         retention_hours,
+        high_risk_retention_hours,
+        high_risk_retention_max_hours: EVENT_LOG_HIGH_RISK_RETENTION_MAX_HOURS,
+        redacted_summary_retention_hours: retention_hours,
         oldest_retained_ts,
         purge_lag_hours,
         pending_expired_buckets,
@@ -336,7 +356,7 @@ fn compute_health(
 }
 
 fn run_worker_if_due_at(store: &impl crate::challenge::KeyValueStore, now: u64) {
-    let retention_hours = retention_hours();
+    let retention_hours = monitoring_retention_hours();
     if retention_hours == 0 {
         return;
     }
@@ -349,7 +369,6 @@ fn run_worker_if_due_at(store: &impl crate::challenge::KeyValueStore, now: u64) 
     state.last_error_code = None;
 
     let now_hour = now / 3600;
-    let cutoff_hour = now_hour.saturating_sub(retention_hours);
     let mut catalogs = vec![
         load_bucket_catalog(store, RETENTION_DOMAIN_MONITORING),
         load_bucket_catalog(store, RETENTION_DOMAIN_EVENTLOG),
@@ -358,6 +377,7 @@ fn run_worker_if_due_at(store: &impl crate::challenge::KeyValueStore, now: u64) 
     let mut processed = 0usize;
     for catalog in catalogs.iter_mut() {
         let domain = catalog.domain.clone();
+        let cutoff_hour = cutoff_hour_for_domain(now_hour, domain.as_str());
         let expired_hours: Vec<u64> = catalog
             .hours
             .iter()
@@ -403,7 +423,7 @@ fn run_worker_if_due_at(store: &impl crate::challenge::KeyValueStore, now: u64) 
         state.last_success_ts = now;
     }
 
-    state.pending_expired_buckets = catalog_pending_expired_buckets(&catalogs, cutoff_hour);
+    state.pending_expired_buckets = catalog_pending_expired_buckets(&catalogs, now_hour);
     state.oldest_retained_ts = catalog_oldest_retained_hour(&catalogs)
         .map(|hour| hour.saturating_mul(3600))
         .unwrap_or(0);
@@ -420,7 +440,7 @@ pub(crate) fn run_worker_if_due(store: &impl crate::challenge::KeyValueStore) {
 }
 
 pub(crate) fn retention_health(store: &impl crate::challenge::KeyValueStore) -> RetentionHealth {
-    compute_health(store, crate::admin::now_ts(), retention_hours())
+    compute_health(store, crate::admin::now_ts())
 }
 
 #[cfg(test)]
@@ -500,6 +520,51 @@ mod tests {
     }
 
     #[test]
+    fn eventlog_retention_is_capped_while_monitoring_retention_tracks_config() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "240");
+        assert_eq!(monitoring_retention_hours(), 240);
+        assert_eq!(event_log_high_risk_retention_hours(), 72);
+        assert_eq!(
+            retention_hours_for_domain(RETENTION_DOMAIN_MONITORING),
+            240
+        );
+        assert_eq!(retention_hours_for_domain(RETENTION_DOMAIN_EVENTLOG), 72);
+        std::env::remove_var("SHUMA_EVENT_LOG_RETENTION_HOURS");
+    }
+
+    #[test]
+    fn worker_applies_domain_specific_retention_windows() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "240");
+
+        let store = MockStore::new();
+        let now_hour = 10_000u64;
+        let stale_hour = now_hour.saturating_sub(100);
+
+        let eventlog_key = format!("eventlog:v2:{}:1-stale", stale_hour);
+        let monitoring_key = format!("monitoring:v1:{}:stale", stale_hour);
+        store
+            .set(eventlog_key.as_str(), br#"{"eventlog":true}"#)
+            .expect("set eventlog stale");
+        store
+            .set(monitoring_key.as_str(), br#"{"monitoring":true}"#)
+            .expect("set monitoring stale");
+        register_event_log_key(&store, stale_hour, eventlog_key.as_str());
+        register_monitoring_key(&store, stale_hour, monitoring_key.as_str());
+
+        run_worker_if_due_at(&store, now_hour * 3600);
+
+        assert!(store.get(eventlog_key.as_str()).expect("get eventlog").is_none());
+        assert!(store
+            .get(monitoring_key.as_str())
+            .expect("get monitoring")
+            .is_some());
+
+        std::env::remove_var("SHUMA_EVENT_LOG_RETENTION_HOURS");
+    }
+
+    #[test]
     fn worker_purges_expired_bucket_and_updates_watermark() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "2");
@@ -572,7 +637,7 @@ mod tests {
             .expect("set stale");
         register_event_log_key(&store, stale_hour, stale_key.as_str());
 
-        let health = compute_health(&store, now_hour * 3600, 1);
+        let health = compute_health(&store, now_hour * 3600);
         assert_eq!(health.state, "degraded");
         assert!(health.pending_expired_buckets > 0);
         assert!(health.purge_lag_hours > 0.0);

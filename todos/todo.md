@@ -528,14 +528,7 @@ Acceptance criteria:
 Scope: enforce classification, minimization, pseudonymization, and incident-response controls so telemetry/artifacts cannot leak secrets or over-retain sensitive data by default.
 ADR reference: [`docs/adr/0009-telemetry-lifecycle-retention-cost-security.md`](../docs/adr/0009-telemetry-lifecycle-retention-cost-security.md)
 
-- [ ] SIM2-GC-17-1 Define canonical field-classification schema for telemetry/artifact fields (`public`, `internal`, `sensitive`, `secret-prohibited`) and persistence policy matrix.
-- [ ] SIM2-GC-17-2 Enforce classification at ingest/persist boundaries; reject prohibited classes and emit structured violation events.
-- [ ] SIM2-GC-17-3 Add deterministic secret scrubber for high-risk fields (`reason`, `outcome`, artifact payload fragments) with explicit redaction markers.
-- [ ] SIM2-GC-17-4 Add secret-canary detection for frontier/adversary artifacts and fail-closed persistence behavior on canary match.
-- [ ] SIM2-GC-17-5 Expand pseudonymization coverage to non-forensic monitoring/event views for sensitive identifiers, with explicit audited forensic break-glass mode.
-- [ ] SIM2-GC-17-6 Define and enforce sensitivity-tiered artifact retention windows (high-risk raw artifacts `<=72h` default; redacted summaries longer-lived).
-- [ ] SIM2-GC-17-7 Add incident-response hooks for leak/policy violations (`detect`, `contain`, `quarantine`, `operator action required`) with operation/run correlation IDs.
-- [ ] SIM2-GC-17-8 Update docs/runbooks for privacy posture, incident triage, forensic access controls, and retention override governance.
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-17-*` closure details.
 
 Acceptance criteria:
 1. Secret-prohibited data classes are blocked from persistence by construction and verified by tests.

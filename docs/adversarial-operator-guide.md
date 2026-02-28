@@ -119,7 +119,7 @@ Adversary-generated traffic is tagged at request time with:
 Storage and read-path policy:
 
 1. Simulation telemetry writes to canonical event/monitoring stores and is identified by metadata fields (`sim_run_id`, `sim_profile`, `sim_lane`, `is_simulation`).
-2. Admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/monitoring/delta`, `/admin/monitoring/stream`, `/admin/ip-bans/delta`, `/admin/ip-bans/stream`) include tagged simulation rows in runtime-dev by default.
+2. Admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/monitoring/delta`, `/admin/monitoring/stream`, `/admin/ip-bans/delta`, `/admin/ip-bans/stream`) include tagged simulation rows in runtime-dev by default, with pseudonymized sensitive identifiers unless explicit forensic break-glass is acknowledged (`forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`).
 3. Non-dev runtime remains default-safe because adversary simulation control surfaces are unavailable.
 4. Unsigned/invalid/stale/replayed simulation tags must not activate simulation context; requests stay in normal telemetry partition.
 5. Invalid simulation-tag attempts emit explicit policy-signal telemetry:
@@ -530,6 +530,15 @@ Cost-governance troubleshooting and rollback:
 5. If `compression.status=not_negotiated`, clients must send `Accept-Encoding: gzip` for payloads above `64KB`.
 6. If `compression.status=below_target|compression_error`, operators must capture `compression.input_bytes`, `compression.output_bytes`, and `compression.reduction_percent` in incident notes, then prioritize payload-shaping fixes.
 7. Rollback must not disable unsampleable protections; if a cost-control rollback is required, revert query/payload/compression controls first while keeping unsampleable policy and cardinality caps active.
+
+Security/privacy troubleshooting and incident response:
+
+1. Check `/admin/monitoring` `security_privacy.classification` first and confirm `field_classification_enforced=true`.
+2. Check `security_privacy.sanitization.secret_canary_leak_count`; it must remain `0`.
+3. Check `security_privacy.access_control.view_mode`; default must be `pseudonymized_default`.
+4. For forensic investigations, operators must explicitly acknowledge break-glass (`forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`) and record the reason in incident notes.
+5. If `security_privacy.incident_response.state=operator_action_required`, operators must execute containment workflow in order: `detect -> contain -> quarantine -> operator_action_required`.
+6. If retention override is requested (`security_privacy.retention_tiers.override_requested=true`), operators must record `override_audit_entry` before any policy change.
 
 ### `latency_p95` Failure
 
