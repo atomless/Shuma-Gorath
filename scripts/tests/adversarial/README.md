@@ -138,5 +138,6 @@ Notes:
   - each executable action must include a signed capability envelope; signature/expiry/replay/scope violations are fail-closed before request execution.
   - artifact lifecycle cleanup runs each container lane invocation with bounded TTL-based deletion and diagnostics in `container_*_report.json -> cleanup_policy`.
   - command channel semantics are explicit and bounded (`host -> worker`, queue-capacity enforced, overflow fail-closed) with evidence-channel append-only expectations in report metadata.
+  - emergency stop and teardown are fail-closed: kill-switch, heartbeat-timeout, and hard-deadline paths force termination and emit terminal diagnostics in `execution_control`/`worker_failure_detail`.
   - negative-path regression tests cover secret canary leakage, out-of-scope URL/path attempts, privileged header injection attempts, and replay envelope misuse.
 - `adversarial_sim_selftest.py` is intentionally tiny and non-circular: it validates simulator mechanics against fixed stub routes without asserting product defense efficacy.

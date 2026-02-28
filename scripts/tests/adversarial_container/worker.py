@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 import urllib.error
 import urllib.parse
@@ -234,6 +235,16 @@ def append_policy_audit_event(
     events.append(entry)
 
 
+def emit_heartbeat(run_id: str, stage: str, action_index: int = 0) -> None:
+    print(
+        "[frontier-heartbeat] "
+        f"run_id={str(run_id).strip()} stage={str(stage).strip()} "
+        f"action_index={int(action_index)} ts={int(time.time())}",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
 def main() -> int:
     mode = str(os.environ.get("BLACKBOX_MODE", "blackbox")).strip().lower()
     base_url = str(os.environ.get("BLACKBOX_BASE_URL", "")).strip().rstrip("/")
@@ -310,6 +321,7 @@ def main() -> int:
         and not lane_contract_error
         and not frontier_action_contract_error
     )
+    emit_heartbeat(run_id, "worker_started", action_index=0)
 
     if mode == "isolation":
         payload["passed"] = contract_pass
@@ -479,6 +491,7 @@ def main() -> int:
                 action=action,
             )
             break
+        emit_heartbeat(run_id, "before_action", action_index=requests_sent + 1)
         result = make_request(url, request_headers)
         result["action_index"] = action.get("action_index")
         result["action_type"] = action.get("action_type")
@@ -488,6 +501,7 @@ def main() -> int:
         payload["traffic"].append(result)
         requests_sent += 1
         statuses.append(int(result.get("status", 0)))
+        emit_heartbeat(run_id, "after_action", action_index=requests_sent)
         if result.get("status", 0) == 0:
             errors.append(str(result.get("error") or "request_failed"))
             append_policy_audit_event(
@@ -507,6 +521,7 @@ def main() -> int:
 
     status_ok = all(status in payload["allowed_statuses"] for status in statuses if status != 0)
     payload["passed"] = contract_pass and requests_sent > 0 and status_ok and not errors
+    emit_heartbeat(run_id, "worker_completed", action_index=requests_sent)
     print(json.dumps(payload, separators=(",", ":")))
     return 0 if payload["passed"] else 1
 

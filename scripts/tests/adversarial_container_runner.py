@@ -8,6 +8,7 @@ import hashlib
 import hmac
 import json
 import os
+import selectors
 import subprocess
 import sys
 import time
@@ -43,6 +44,10 @@ CAPABILITY_VERIFY_KEY_ENV = "BLACKBOX_CAPABILITY_VERIFY_KEY"
 DEFAULT_CLEANUP_TTL_HOURS = 72
 DEFAULT_CLEANUP_MAX_DELETE = 32
 DEFAULT_COMMAND_QUEUE_CAPACITY = 24
+DEFAULT_WORKER_HEARTBEAT_TIMEOUT_SECONDS = 20
+DEFAULT_WORKER_HARD_DEADLINE_BUFFER_SECONDS = 15
+DEFAULT_KILL_SWITCH_FILE = "scripts/tests/adversarial/frontier_kill_switch.flag"
+KILL_SWITCH_STOP_TIMEOUT_SECONDS = 10
 FRONTIER_FORBIDDEN_FIELD_SUBSTRINGS = (
     "secret",
     "api_key",
@@ -759,7 +764,10 @@ def run_container_worker(
     capability_envelopes_json: str,
     capability_verify_key: str,
     runtime_profile: Dict[str, Any],
-) -> Tuple[Dict[str, Any], subprocess.CompletedProcess[str], List[str], List[str]]:
+    kill_switch_file: str,
+    heartbeat_timeout_seconds: int,
+    hard_deadline_buffer_seconds: int,
+) -> Tuple[Dict[str, Any], subprocess.CompletedProcess[str], List[str], List[str], Dict[str, Any]]:
     command = container_command(
         image_tag=image_tag,
         mode=mode,
@@ -776,9 +784,100 @@ def run_container_worker(
     violations = evaluate_container_command_against_profile(command, runtime_profile)
     if violations:
         raise RuntimeError("runtime_profile_violation:" + ";".join(violations))
-    result = run_cmd(command)
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+    )
+    if process.stdout is None or process.stderr is None:
+        process.kill()
+        raise RuntimeError("worker_stream_initialization_failed")
+
+    selector = selectors.DefaultSelector()
+    selector.register(process.stdout, selectors.EVENT_READ, data="stdout")
+    selector.register(process.stderr, selectors.EVENT_READ, data="stderr")
+
+    started_monotonic = time.monotonic()
+    last_heartbeat_monotonic = started_monotonic
+    hard_deadline_seconds = max(10, int(time_budget_seconds) + max(0, int(hard_deadline_buffer_seconds)))
+    heartbeat_timeout_seconds = max(5, int(heartbeat_timeout_seconds))
+    kill_switch_path = Path(kill_switch_file) if str(kill_switch_file or "").strip() else None
+
+    stdout_lines: List[str] = []
+    stderr_lines: List[str] = []
+    termination_reason = ""
+    stop_latency_ms = 0
+
+    while True:
+        events = selector.select(timeout=0.2)
+        for key, _ in events:
+            stream = key.fileobj
+            line = stream.readline()
+            if not line:
+                continue
+            text = line.rstrip("\n")
+            if key.data == "stdout":
+                stdout_lines.append(text)
+            else:
+                stderr_lines.append(text)
+            if "[frontier-heartbeat]" in text:
+                last_heartbeat_monotonic = time.monotonic()
+
+        if process.poll() is not None:
+            break
+
+        now = time.monotonic()
+        if kill_switch_path and kill_switch_path.exists():
+            termination_reason = "kill_switch_triggered"
+        elif (now - started_monotonic) > hard_deadline_seconds:
+            termination_reason = "hard_deadline_exceeded"
+        elif (now - last_heartbeat_monotonic) > heartbeat_timeout_seconds:
+            termination_reason = "heartbeat_timeout"
+
+        if not termination_reason:
+            continue
+
+        stop_started = time.monotonic()
+        process.terminate()
+        try:
+            process.wait(timeout=KILL_SWITCH_STOP_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
+        stop_latency_ms = int(max(0.0, (time.monotonic() - stop_started) * 1000.0))
+        break
+
+    try:
+        remaining_stdout, remaining_stderr = process.communicate(timeout=2)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        remaining_stdout, remaining_stderr = process.communicate()
+    if remaining_stdout:
+        stdout_lines.extend([line for line in remaining_stdout.splitlines() if line])
+    if remaining_stderr:
+        stderr_lines.extend([line for line in remaining_stderr.splitlines() if line])
+
+    control = {
+        "kill_switch_file": str(kill_switch_path) if kill_switch_path else "",
+        "heartbeat_timeout_seconds": heartbeat_timeout_seconds,
+        "hard_deadline_seconds": hard_deadline_seconds,
+        "termination_reason": termination_reason,
+        "stop_latency_ms": stop_latency_ms,
+    }
+    result = subprocess.CompletedProcess(
+        args=command,
+        returncode=int(process.returncode or 0),
+        stdout="\n".join(stdout_lines),
+        stderr="\n".join(stderr_lines),
+    )
+    if termination_reason:
+        raise RuntimeError(
+            f"{termination_reason}:stop_latency_ms={stop_latency_ms}:hard_deadline_seconds={hard_deadline_seconds}"
+        )
     parsed = parse_worker_json(result.stdout)
-    return parsed, result, command, violations
+    return parsed, result, command, violations, control
 
 
 def report_path_for_mode(mode: str, custom_report: str) -> Path:
@@ -848,6 +947,27 @@ def main() -> int:
         default=os.environ.get("SHUMA_FRONTIER_COMMAND_QUEUE_CAPACITY", str(DEFAULT_COMMAND_QUEUE_CAPACITY)),
         help="Maximum queued frontier actions sent host->worker per run",
     )
+    parser.add_argument(
+        "--kill-switch-file",
+        default=os.environ.get("SHUMA_FRONTIER_KILL_SWITCH_FILE", DEFAULT_KILL_SWITCH_FILE),
+        help="Path to kill-switch sentinel file checked during worker execution",
+    )
+    parser.add_argument(
+        "--heartbeat-timeout-seconds",
+        default=os.environ.get(
+            "SHUMA_FRONTIER_HEARTBEAT_TIMEOUT_SECONDS",
+            str(DEFAULT_WORKER_HEARTBEAT_TIMEOUT_SECONDS),
+        ),
+        help="Maximum worker heartbeat silence before fail-closed termination",
+    )
+    parser.add_argument(
+        "--hard-deadline-buffer-seconds",
+        default=os.environ.get(
+            "SHUMA_FRONTIER_HARD_DEADLINE_BUFFER_SECONDS",
+            str(DEFAULT_WORKER_HARD_DEADLINE_BUFFER_SECONDS),
+        ),
+        help="Extra seconds added to configured time budget before forced termination",
+    )
     args = parser.parse_args()
 
     request_budget = int(str(args.request_budget).strip())
@@ -855,6 +975,8 @@ def main() -> int:
     cleanup_ttl_hours = int(str(args.cleanup_ttl_hours).strip())
     cleanup_max_delete = int(str(args.cleanup_max_delete).strip())
     command_queue_capacity = int(str(args.command_queue_capacity).strip())
+    heartbeat_timeout_seconds = int(str(args.heartbeat_timeout_seconds).strip())
+    hard_deadline_buffer_seconds = int(str(args.hard_deadline_buffer_seconds).strip())
     if request_budget < 1:
         print("request budget must be >= 1", file=sys.stderr)
         return 2
@@ -1016,8 +1138,15 @@ def main() -> int:
         )
     capability_envelopes_json = json.dumps(capability_envelopes, separators=(",", ":"))
 
+    worker_failure_detail = ""
     try:
-        worker_payload, worker_result, command, runtime_profile_violations = run_container_worker(
+        (
+            worker_payload,
+            worker_result,
+            command,
+            runtime_profile_violations,
+            execution_control,
+        ) = run_container_worker(
             image_tag=args.image_tag,
             mode=args.mode,
             base_url=container_base_url,
@@ -1030,10 +1159,36 @@ def main() -> int:
             capability_envelopes_json=capability_envelopes_json,
             capability_verify_key=capability_verify_key,
             runtime_profile=runtime_profile,
+            kill_switch_file=str(args.kill_switch_file),
+            heartbeat_timeout_seconds=heartbeat_timeout_seconds,
+            hard_deadline_buffer_seconds=hard_deadline_buffer_seconds,
         )
     except Exception as exc:
-        print(f"[adversarial-container] worker execution failed: {exc}", file=sys.stderr)
-        return 1
+        worker_failure_detail = str(exc)
+        worker_payload = {
+            "passed": False,
+            "errors": [worker_failure_detail],
+            "policy_audit": [],
+            "policy_violation_count": 0,
+            "policy_violation_blocking": True,
+            "capability_validation_passed": False,
+        }
+        worker_result = subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stdout="",
+            stderr=worker_failure_detail,
+        )
+        command = []
+        runtime_profile_violations = []
+        execution_control = {
+            "kill_switch_file": str(args.kill_switch_file),
+            "heartbeat_timeout_seconds": heartbeat_timeout_seconds,
+            "hard_deadline_seconds": max(10, time_budget_seconds + hard_deadline_buffer_seconds),
+            "termination_reason": worker_failure_detail,
+            "stop_latency_ms": 0,
+        }
+        print(f"[adversarial-container] worker execution failed: {worker_failure_detail}", file=sys.stderr)
 
     if args.mode == "blackbox":
         try:
@@ -1183,6 +1338,8 @@ def main() -> int:
         "runtime_flags": {
             "docker_command": command,
         },
+        "execution_control": execution_control,
+        "worker_failure_detail": worker_failure_detail,
         "generated_at_unix": int(time.time()),
     }
 
