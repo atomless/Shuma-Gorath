@@ -332,7 +332,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         with self.assertRaises(runner.SimulationError):
             runner.validate_frontier_payload_schema(invalid_payload)
 
-    def test_build_attack_plan_emits_sanitized_candidates(self):
+    def test_build_attack_plan_emits_seed_and_generated_candidates(self):
         frontier = {
             "frontier_mode": "disabled",
             "provider_count": 0,
@@ -364,11 +364,85 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(attack_plan["schema_version"], "attack-plan.v1")
         self.assertEqual(attack_plan["execution_lane"], "black_box")
         self.assertEqual(attack_plan["frontier_mode"], "disabled")
-        self.assertEqual(len(attack_plan["candidates"]), 1)
-        candidate_payload = attack_plan["candidates"][0]["payload"]
+        self.assertGreaterEqual(len(attack_plan["candidates"]), 2)
+
+        seed_candidates = [
+            candidate
+            for candidate in attack_plan["candidates"]
+            if str(candidate.get("generation_kind") or "") == "seed"
+        ]
+        generated_candidates = [
+            candidate
+            for candidate in attack_plan["candidates"]
+            if str(candidate.get("generation_kind") or "") == "mutation"
+        ]
+        self.assertEqual(len(seed_candidates), 1)
+        self.assertGreaterEqual(len(generated_candidates), 1)
+
+        candidate_payload = seed_candidates[0]["payload"]
         self.assertEqual(candidate_payload["schema_version"], "frontier_payload_schema.v1")
         self.assertEqual(candidate_payload["scenario"]["ip"], "[masked]")
         self.assertEqual(candidate_payload["target"]["path_hint"], "/sim/public/landing")
+        self.assertEqual(
+            attack_plan["attack_generation_contract"]["schema_version"],
+            "frontier-attack-generation-contract.v1",
+        )
+        self.assertGreaterEqual(
+            int(attack_plan["generation_summary"]["generated_candidate_count"]),
+            1,
+        )
+        self.assertIn("diversity_scoring", attack_plan)
+        self.assertIn("discovery_quality_metrics", attack_plan)
+
+    def test_build_attack_plan_records_rejected_generated_candidates(self):
+        frontier = {
+            "frontier_mode": "single_provider_self_play",
+            "provider_count": 1,
+            "providers": [{"provider": "openai", "model_id": "gpt-5-mini", "configured": True}],
+            "diversity_confidence": "low",
+        }
+        scenarios = [
+            {
+                "id": "scenario_allow",
+                "tier": "SIM-T0",
+                "driver": "allow_browser_allowlist",
+                "expected_outcome": "allow",
+                "runtime_budget_ms": 1000,
+                "seed": 1,
+                "ip": "198.51.100.10",
+                "user_agent": "UnitTest/1.0",
+                "description": "allow scenario",
+            }
+        ]
+
+        call_counter = {"count": 0}
+
+        def flaky_sanitize(payload):
+            call_counter["count"] += 1
+            if call_counter["count"] == 2:
+                raise runner.SimulationError("synthetic sanitization failure")
+            return payload
+
+        with patch(
+            "scripts.tests.adversarial_simulation_runner.sanitize_frontier_payload",
+            side_effect=flaky_sanitize,
+        ):
+            attack_plan = runner.build_attack_plan(
+                profile_name="fast_smoke",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                scenarios=scenarios,
+                frontier_metadata=frontier,
+                generated_at_unix=1234,
+            )
+
+        self.assertGreaterEqual(
+            int(attack_plan["generation_summary"]["rejected_candidate_count"]),
+            1,
+        )
+        rejections = list(attack_plan.get("rejected_candidates") or [])
+        self.assertTrue(rejections)
+        self.assertIn("sanitization_error", str(rejections[0].get("reason_code") or ""))
 
     def test_frontier_path_hint_for_scenario_defaults_for_unknown_driver(self):
         self.assertEqual(

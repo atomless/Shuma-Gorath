@@ -212,14 +212,37 @@ Pipeline contract:
 
 1. Normalize frontier findings into stable IDs (`finding_id`) with scenario family, path, headers, cadence pattern, observed outcome, severity, and risk metadata.
 2. Carry frontier diversity metadata on every finding (`frontier_mode`, `provider_count`, provider/model list, `diversity_confidence`).
-3. Attempt deterministic replay for each regression candidate and classify:
+3. Carry generated-candidate lineage metadata on every finding (`candidate_id`, `source_scenario_id`, `generation_kind`, `mutation_class`, `behavioral_class`, `novelty_score`).
+4. Attempt deterministic replay for each regression candidate and classify:
    - `confirmed_reproducible`
    - `not_reproducible`
    - `needs_manual_review`
-4. Require owner review before any confirmed finding can become a blocking regression case.
-5. Enforce diversity policy:
+5. Require owner review before any confirmed finding can become a blocking regression case.
+6. Enforce diversity policy:
    - `single_provider_self_play`: owner review is mandatory and confidence is reduced.
    - `multi_provider_playoff`: higher initial confidence, but deterministic confirmation and owner review are still mandatory.
+
+Generated-candidate governance must be explicit before replay:
+
+1. `attack_plan.json` must include `attack_generation_contract` metadata (path, schema version, hash).
+2. `generation_summary` must report `seed/generated/accepted/rejected` candidate counts.
+3. Candidate-level governance fields (`governance_passed`, novelty score, mutation metadata) must be present and valid.
+4. Candidates that fail sanitization/policy checks must be recorded under `rejected_candidates` and must not enter replay/promotion.
+
+Operator curation workflow for promoting generated candidates into canonical manifests:
+
+1. Sort `promotion_candidates_report.json` by:
+   - `severity` (high first),
+   - `replayability` (`confirmed_reproducible` first),
+   - then `novelty_score`.
+2. For each `confirmed_reproducible` mutation candidate, create or update a deterministic manifest scenario:
+   - include `source_scenario_id`,
+   - preserve `mutation_class` and `behavioral_class` in scenario description or tags,
+   - attach owner and disposition target (`<=48h`).
+3. Reject or merge duplicate low-value variants:
+   - merge when candidate behavior is already covered by an existing deterministic scenario,
+   - reject when collateral risk is not acceptable or replay confidence is insufficient.
+4. Archive decision rationale in the promotion artifact (`owner_disposition`, review notes) so lineage remains auditable.
 
 SLA for unresolved high-severity findings:
 

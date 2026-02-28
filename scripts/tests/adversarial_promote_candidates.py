@@ -20,6 +20,7 @@ DEFAULT_REPORT_PATH = Path("scripts/tests/adversarial/latest_report.json")
 DEFAULT_ATTACK_PLAN_PATH = Path("scripts/tests/adversarial/attack_plan.json")
 DEFAULT_MANIFEST_PATH = Path("scripts/tests/adversarial/scenario_manifest.v2.json")
 DEFAULT_OUTPUT_PATH = Path("scripts/tests/adversarial/promotion_candidates_report.json")
+DEFAULT_FRONTIER_STATUS_PATH = Path("scripts/tests/adversarial/frontier_lane_status.json")
 DEFAULT_HYBRID_LANE_CONTRACT_PATH = Path(
     "scripts/tests/adversarial/hybrid_lane_contract.v1.json"
 )
@@ -43,6 +44,12 @@ def load_json(path: Path) -> Dict[str, Any]:
     return data
 
 
+def load_optional_json(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {}
+    return load_json(path)
+
+
 def save_json(path: Path, payload: Dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -58,6 +65,7 @@ def list_or_empty(value: Any) -> List[Any]:
 
 def stable_finding_id(record: Dict[str, Any]) -> str:
     canonical_basis = {
+        "candidate_id": str(record.get("candidate_id") or ""),
         "scenario_family": str(record.get("scenario_family") or ""),
         "path": str(record.get("path") or "/"),
         "headers": dict_or_empty(record.get("headers")),
@@ -114,9 +122,18 @@ def normalize_findings(attack_plan: Dict[str, Any], report: Dict[str, Any]) -> L
     for candidate in list_or_empty(attack_plan.get("candidates")):
         if not isinstance(candidate, dict):
             continue
+        governance_passed = bool(candidate.get("governance_passed", False))
+        if not governance_passed:
+            continue
+        candidate_id = str(candidate.get("candidate_id") or "").strip()
         scenario_id = str(candidate.get("scenario_id") or "").strip()
         if not scenario_id:
             continue
+        source_scenario_id = str(candidate.get("source_scenario_id") or scenario_id).strip()
+        generation_kind = str(candidate.get("generation_kind") or "seed").strip()
+        mutation_class = str(candidate.get("mutation_class") or generation_kind).strip()
+        behavioral_class = str(candidate.get("behavioral_class") or "baseline").strip()
+        novelty_score = float(candidate.get("novelty_score") or 0.0)
         result = dict_or_empty(result_map.get(scenario_id))
         payload = dict_or_empty(candidate.get("payload"))
         traffic = dict_or_empty(payload.get("traffic_model"))
@@ -146,6 +163,13 @@ def normalize_findings(attack_plan: Dict[str, Any], report: Dict[str, Any]) -> L
             "runtime_budget_ms": int(result.get("runtime_budget_ms") or 0),
             "latency_ms": int(result.get("latency_ms") or 0),
             "finding_kind": finding_kind,
+            "candidate_id": candidate_id,
+            "source_scenario_id": source_scenario_id,
+            "generation_kind": generation_kind,
+            "mutation_class": mutation_class,
+            "behavioral_class": behavioral_class,
+            "novelty_score": max(0.0, min(1.0, novelty_score)),
+            "governance_passed": governance_passed,
             "frontier_mode": frontier_mode,
             "provider_count": int(attack_plan.get("provider_count") or 0),
             "providers": providers,
@@ -312,6 +336,54 @@ def evaluate_hybrid_governance(lineage: List[Dict[str, Any]], *, now_unix: int) 
     }
 
 
+def evaluate_discovery_quality_metrics(
+    findings: List[Dict[str, Any]],
+    lineage: List[Dict[str, Any]],
+    attack_plan: Dict[str, Any],
+    hybrid_governance: Dict[str, Any],
+    frontier_status: Dict[str, Any],
+) -> Dict[str, Any]:
+    generated_findings = [
+        row
+        for row in findings
+        if str(row.get("generation_kind") or "").strip() == "mutation"
+    ]
+    confirmed_rows = [
+        row
+        for row in lineage
+        if str(row.get("classification") or "").strip() == "confirmed_reproducible"
+    ]
+    novel_confirmed_regressions = len(
+        [
+            row
+            for row in confirmed_rows
+            if str(dict_or_empty(row).get("generated_candidate", {}).get("generation_kind") or "")
+            == "mutation"
+        ]
+    )
+    configured = max(0, int(frontier_status.get("provider_count_configured") or 0))
+    healthy = max(0, int(frontier_status.get("provider_count_healthy") or 0))
+    provider_outage_impact_percent = (
+        0.0
+        if configured == 0
+        else ((configured - healthy) * 100.0) / float(max(1, configured))
+    )
+    return {
+        "candidate_count": len(findings),
+        "generated_candidate_count": len(generated_findings),
+        "novel_confirmed_regressions": novel_confirmed_regressions,
+        "false_discovery_rate_percent": float(
+            dict_or_empty(hybrid_governance.get("observed")).get(
+                "false_discovery_rate_percent", 0.0
+            )
+        ),
+        "provider_outage_impact_percent": round(max(0.0, provider_outage_impact_percent), 2),
+        "provider_outage_status": str(frontier_status.get("status") or "unknown"),
+        "deterministic_blocking_policy": "no stochastic frontier output can block release without deterministic confirmation",
+        "blocking_requires_deterministic_confirmation": True,
+    }
+
+
 def create_replay_manifest(base_manifest: Dict[str, Any], scenario_id: str) -> Dict[str, Any]:
     scenarios = [
         scenario
@@ -443,6 +515,11 @@ def parse_args() -> argparse.Namespace:
         help="Path to canonical scenario manifest",
     )
     parser.add_argument(
+        "--frontier-status",
+        default=str(DEFAULT_FRONTIER_STATUS_PATH),
+        help="Path to frontier lane status JSON for outage-impact metrics",
+    )
+    parser.add_argument(
         "--output",
         default=str(DEFAULT_OUTPUT_PATH),
         help="Path for promotion triage report output",
@@ -466,10 +543,12 @@ def main() -> int:
     report_path = Path(args.report)
     attack_plan_path = Path(args.attack_plan)
     manifest_path = Path(args.manifest)
+    frontier_status_path = Path(args.frontier_status)
     output_path = Path(args.output)
 
     report = load_json(report_path)
     attack_plan = load_json(attack_plan_path)
+    frontier_status = load_optional_json(frontier_status_path)
 
     now_unix = int(time.time())
     findings = normalize_findings(attack_plan=attack_plan, report=report)
@@ -513,11 +592,25 @@ def main() -> int:
         lineage.append(
             {
                 "finding_id": finding.get("finding_id"),
+                "candidate_id": finding.get("candidate_id"),
                 "scenario_id": scenario_id,
                 "classification": classification,
                 "source_lane": EMERGENT_EXPLORATION_LANE,
                 "deterministic_replay_lane": DETERMINISTIC_CONFORMANCE_LANE,
                 "release_blocking_authority": classification == "confirmed_reproducible",
+                "generated_candidate": {
+                    "candidate_id": finding.get("candidate_id"),
+                    "source_scenario_id": finding.get("source_scenario_id"),
+                    "generation_kind": finding.get("generation_kind"),
+                    "mutation_class": finding.get("mutation_class"),
+                    "behavioral_class": finding.get("behavioral_class"),
+                    "novelty_score": finding.get("novelty_score"),
+                },
+                "deterministic_confirmation": {
+                    "lane": DETERMINISTIC_CONFORMANCE_LANE,
+                    "classification": classification,
+                    "replay_status": replay_result.get("status"),
+                },
                 "candidate": {
                     "scenario_family": finding.get("scenario_family"),
                     "path": finding.get("path"),
@@ -535,6 +628,13 @@ def main() -> int:
         )
 
     hybrid_governance = evaluate_hybrid_governance(lineage, now_unix=now_unix)
+    discovery_quality_metrics = evaluate_discovery_quality_metrics(
+        findings=findings,
+        lineage=lineage,
+        attack_plan=attack_plan,
+        hybrid_governance=hybrid_governance,
+        frontier_status=frontier_status,
+    )
 
     classification_counts: Dict[str, int] = {
         "confirmed_reproducible": 0,
@@ -553,12 +653,17 @@ def main() -> int:
             "report_path": str(report_path),
             "attack_plan_path": str(attack_plan_path),
             "manifest_path": str(manifest_path),
+            "frontier_status_path": str(frontier_status_path),
         },
         "frontier": {
             "frontier_mode": attack_plan.get("frontier_mode", "disabled"),
             "provider_count": int(attack_plan.get("provider_count") or 0),
             "providers": list_or_empty(attack_plan.get("providers")),
             "diversity_confidence": attack_plan.get("diversity_confidence", "none"),
+            "attack_generation_contract": dict_or_empty(
+                attack_plan.get("attack_generation_contract")
+            ),
+            "generation_summary": dict_or_empty(attack_plan.get("generation_summary")),
         },
         "lane_metadata": {
             "contract_path": str(DEFAULT_HYBRID_LANE_CONTRACT_PATH),
@@ -589,6 +694,7 @@ def main() -> int:
             "blocking_requires_deterministic_confirmation": True,
         },
         "hybrid_governance": hybrid_governance,
+        "discovery_quality_metrics": discovery_quality_metrics,
         "findings": findings,
         "lineage": lineage,
         "summary": {
@@ -596,6 +702,15 @@ def main() -> int:
             "replay_candidates": len(replay_candidates),
             "classification_counts": classification_counts,
             "confirmed_regression_count": confirmed_regressions,
+            "novel_confirmed_regression_count": int(
+                discovery_quality_metrics.get("novel_confirmed_regressions") or 0
+            ),
+            "false_discovery_rate_percent": float(
+                discovery_quality_metrics.get("false_discovery_rate_percent") or 0.0
+            ),
+            "provider_outage_impact_percent": float(
+                discovery_quality_metrics.get("provider_outage_impact_percent") or 0.0
+            ),
             "blocking_required": confirmed_regressions > 0
             or not bool(hybrid_governance.get("thresholds_passed")),
         },

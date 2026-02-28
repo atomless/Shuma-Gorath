@@ -24,6 +24,12 @@
     - egress and forbidden path constraints,
     - runtime/request/query budgets,
     - reject-by-default DSL keys.
+- `frontier_attack_generation_contract.v1.json`
+  - Versioned adaptive frontier candidate-generation contract:
+    - objective/constraint envelope for generated candidates,
+    - allowed mutation catalog and retry/path boundaries,
+    - forbidden data/governance policy and resource budgets,
+    - deterministic diversity scoring weights and novelty expectations.
 - `lane_contract.v1.json`
   - Canonical attacker/control capability boundary contract for black-box simulation lanes.
 - `coverage_contract.v1.json`
@@ -151,6 +157,13 @@ Notes:
 - Protected-lane frontier probe output (`frontier_lane_status.json`) is advisory only; deterministic coverage/replay gates remain blocking.
 - Repeatability lane (`make test-adversarial-repeatability`) executes deterministic profiles three times with fixed reset/seed posture and fails on scenario/gate/coverage drift.
 - Promotion lane (`make test-adversarial-promote-candidates`) normalizes frontier findings, attempts deterministic replay for regression candidates, and emits candidate -> replay -> promotion lineage with owner-review requirements.
+- Attack-generation lane emits adaptive candidates (seed + mutation) with explicit governance metadata:
+  - `attack_generation_contract` reference + hash,
+  - `generation_summary` (`seed/generated/accepted/rejected` counts),
+  - `diversity_scoring` (`cross_provider_agreement`, `novelty_average`, `behavioral_class_coverage`, normalized score),
+  - `discovery_quality_metrics` (`candidate_count`, `novel candidate count`, `provider outage impact`, `false discovery` placeholder until replay).
+- Promotion lane ingests generated candidates directly and emits explicit lineage:
+  - `generated_candidate -> deterministic_confirmation -> promotion`.
 - Promotion lane now emits hybrid-governance thresholds (`>=95%` deterministic confirmation, `<=20%` false discovery, owner disposition SLA `<=48h`) and marks blocking-required state when thresholds drift.
 - Verification matrix governance:
   - `verification_matrix.v1.json` maps defense categories to required scenarios, lanes, and evidence assertions.

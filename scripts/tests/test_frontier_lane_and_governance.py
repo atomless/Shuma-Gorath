@@ -79,8 +79,25 @@ class FrontierGovernanceUnitTests(unittest.TestCase):
     def sample_attack_plan(self):
         return {
             "schema_version": "attack-plan.v1",
+            "attack_generation_contract": {
+                "schema_version": "frontier-attack-generation-contract.v1",
+                "contract_path": "scripts/tests/adversarial/frontier_attack_generation_contract.v1.json",
+            },
+            "generation_summary": {
+                "seed_candidate_count": 1,
+                "generated_candidate_count": 1,
+                "accepted_candidate_count": 2,
+                "rejected_candidate_count": 0,
+            },
             "candidates": [
                 {
+                    "candidate_id": "cand-seed-scenario_1",
+                    "source_scenario_id": "scenario_1",
+                    "generation_kind": "seed",
+                    "mutation_class": "seed",
+                    "behavioral_class": "baseline",
+                    "novelty_score": 0.0,
+                    "governance_passed": True,
                     "scenario_id": "scenario_1",
                     "payload": {
                         "schema_version": "frontier_payload_schema.v1",
@@ -139,6 +156,28 @@ class FrontierGovernanceUnitTests(unittest.TestCase):
             frontier_secret_values=["sk-frontier-secret"],
         )
         self.assertTrue(any("literal frontier secret value" in error for error in errors))
+
+    def test_validate_artifacts_rejects_missing_generation_contract_metadata(self):
+        attack_plan = self.sample_attack_plan()
+        del attack_plan["attack_generation_contract"]
+        errors = frontier_governance.validate_artifacts(
+            report=self.sample_report(),
+            attack_plan=attack_plan,
+            schema=self.sample_schema(),
+            frontier_secret_values=[],
+        )
+        self.assertTrue(any("attack_generation_contract" in error for error in errors))
+
+    def test_validate_artifacts_rejects_candidate_missing_generation_fields(self):
+        attack_plan = self.sample_attack_plan()
+        del attack_plan["candidates"][0]["candidate_id"]
+        errors = frontier_governance.validate_artifacts(
+            report=self.sample_report(),
+            attack_plan=attack_plan,
+            schema=self.sample_schema(),
+            frontier_secret_values=[],
+        )
+        self.assertTrue(any("candidate_id" in error for error in errors))
 
 
 class FrontierUnavailabilityPolicyUnitTests(unittest.TestCase):

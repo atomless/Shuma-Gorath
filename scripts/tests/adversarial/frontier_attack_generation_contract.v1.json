@@ -1,0 +1,92 @@
+{
+  "schema_version": "frontier-attack-generation-contract.v1",
+  "objective": {
+    "summary": "Generate adaptive frontier attack candidates with deterministic governance before replay or promotion.",
+    "blocking_authority": "deterministic_replay_only"
+  },
+  "constraints": {
+    "allowed_execution_lanes": [
+      "black_box"
+    ],
+    "deterministic_seed_required": true,
+    "max_candidates_per_seed_default": 2
+  },
+  "allowed_actions": {
+    "allowed_retry_strategies": [
+      "single_attempt",
+      "bounded_backoff",
+      "retry_storm"
+    ],
+    "allowed_path_prefixes": [
+      "/",
+      "/sim/public/"
+    ],
+    "mutation_catalog": [
+      {
+        "id": "timing-retry-storm",
+        "class": "retry_strategy",
+        "behavioral_class": "timing_variation",
+        "retry_strategy": "retry_storm",
+        "user_agent_suffix": "mut-retry-storm",
+        "novelty_weight": 0.72
+      },
+      {
+        "id": "path-search-probe",
+        "class": "path_selection",
+        "behavioral_class": "path_variation",
+        "path_hint": "/sim/public/search",
+        "query_hint": {
+          "q": "adaptive frontier probe"
+        },
+        "novelty_weight": 0.68
+      },
+      {
+        "id": "path-docs-revisit",
+        "class": "path_selection",
+        "behavioral_class": "crawl_variation",
+        "path_hint": "/sim/public/docs",
+        "user_agent_suffix": "mut-docs-revisit",
+        "novelty_weight": 0.55
+      }
+    ]
+  },
+  "forbidden_data": {
+    "forbidden_field_substrings": [
+      "secret",
+      "api_key",
+      "authorization",
+      "cookie",
+      "session",
+      "token",
+      "password"
+    ],
+    "forbidden_headers": [
+      "authorization",
+      "x-shuma-api-key",
+      "x-shuma-health-secret",
+      "x-shuma-forwarded-secret"
+    ]
+  },
+  "resource_budgets": {
+    "max_generated_candidates_per_seed": 2,
+    "max_generated_candidates_per_run": 48,
+    "runtime_budget_seconds_max": 180,
+    "action_budget_max": 500
+  },
+  "novelty_expectations": {
+    "minimum_unique_behavioral_classes": 2,
+    "minimum_novelty_score": 0.5
+  },
+  "diversity_scoring": {
+    "weights": {
+      "cross_provider_agreement": 0.4,
+      "novelty": 0.35,
+      "behavioral_class_coverage": 0.25
+    },
+    "provider_agreement_baseline": {
+      "disabled": 0.0,
+      "single_provider_self_play": 0.35,
+      "multi_provider_playoff": 0.85
+    }
+  }
+}

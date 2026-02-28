@@ -48,6 +48,17 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-EX4-6 Add CI-safe fallback semantics only for unsupported environments, with explicit lane status reporting and no silent pass-through. (Artifacts: `scripts/tests/adversarial_simulation_runner.py`, `scripts/tests/test_adversarial_simulation_runner.py`)
 - [x] SIM2-EX4-7 Expand E2E/adversarial tests to validate that browser-only defenses are exercised by real browser lanes. (Artifacts: `scripts/tests/test_adversarial_simulation_runner.py`, `scripts/tests/test_sim2_verification_matrix.py`, `scripts/tests/adversarial/scenario_intent_matrix.v1.json`)
 
+#### SIM2-EX5: Upgrade Frontier Discovery from Advisory Probe to Adaptive Attack Generation Program
+
+- [x] SIM2-EX5-1 Define attack-generation contract for frontier lane (`objective`, `constraints`, `allowed actions`, `forbidden data`, `resource budgets`, `novelty expectations`). (Artifact: `scripts/tests/adversarial/frontier_attack_generation_contract.v1.json`)
+- [x] SIM2-EX5-2 Implement candidate generation pipeline that proposes new attack variants/mutations instead of only rewrapping existing deterministic scenarios. (Artifact: `scripts/tests/adversarial_simulation_runner.py`)
+- [x] SIM2-EX5-3 Add diversity scoring (`cross-provider agreement`, `novelty`, `behavioral class coverage`) with deterministic normalization for triage. (Artifact: `scripts/tests/adversarial_simulation_runner.py`)
+- [x] SIM2-EX5-4 Add automatic sanitization and governance checks for generated payloads before any replay/promotion path. (Artifacts: `scripts/tests/adversarial_simulation_runner.py`, `scripts/tests/check_frontier_payload_artifacts.py`)
+- [x] SIM2-EX5-5 Upgrade promotion pipeline to ingest generated candidates, replay them deterministically, and produce lineage from `generated candidate -> deterministic confirmation -> promoted scenario`. (Artifacts: `scripts/tests/adversarial_promote_candidates.py`, `scripts/tests/test_adversarial_promote_candidates.py`)
+- [x] SIM2-EX5-6 Add protected-lane metrics for discovery quality (`candidate count`, `novel confirmed regressions`, `false discovery rate`, `provider outage impact`). (Artifacts: `scripts/tests/adversarial_simulation_runner.py`, `scripts/tests/adversarial_promote_candidates.py`)
+- [x] SIM2-EX5-7 Keep blocking policy deterministic: no stochastic frontier output can block release without deterministic confirmation. (Artifacts: `scripts/tests/adversarial_promote_candidates.py`, `scripts/tests/adversarial/frontier_attack_generation_contract.v1.json`)
+- [x] SIM2-EX5-8 Publish operator workflow for evaluating and curating generated candidates into canonical manifests. (Artifacts: `docs/adversarial-operator-guide.md`, `scripts/tests/adversarial/README.md`)
+
 ### P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)
 
 #### SIM2-EX7: Harden Simulation-Telemetry Secret Ergonomics Without Weakening Security

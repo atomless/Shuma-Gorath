@@ -142,14 +142,7 @@ Acceptance criteria:
 
 Scope: evolve frontier lane from provider-health probing and scenario metadata packaging into a structured adaptive discovery loop that still defers blocking authority to deterministic replay.
 
-- [ ] SIM2-EX5-1 Define attack-generation contract for frontier lane (`objective`, `constraints`, `allowed actions`, `forbidden data`, `resource budgets`, `novelty expectations`).
-- [ ] SIM2-EX5-2 Implement candidate generation pipeline that proposes new attack variants/mutations instead of only rewrapping existing deterministic scenarios.
-- [ ] SIM2-EX5-3 Add diversity scoring (`cross-provider agreement`, `novelty`, `behavioral class coverage`) with deterministic normalization for triage.
-- [ ] SIM2-EX5-4 Add automatic sanitization and governance checks for generated payloads before any replay/promotion path.
-- [ ] SIM2-EX5-5 Upgrade promotion pipeline to ingest generated candidates, replay them deterministically, and produce lineage from `generated candidate -> deterministic confirmation -> promoted scenario`.
-- [ ] SIM2-EX5-6 Add protected-lane metrics for discovery quality (`candidate count`, `novel confirmed regressions`, `false discovery rate`, `provider outage impact`).
-- [ ] SIM2-EX5-7 Keep blocking policy deterministic: no stochastic frontier output can block release without deterministic confirmation.
-- [ ] SIM2-EX5-8 Publish operator workflow for evaluating and curating generated candidates into canonical manifests.
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-EX5-*` closure details.
 
 Acceptance criteria:
 1. Frontier lane produces novel candidate attacks beyond existing deterministic scenario catalog.

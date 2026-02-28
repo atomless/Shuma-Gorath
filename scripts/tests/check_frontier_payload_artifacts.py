@@ -83,6 +83,29 @@ def validate_attack_plan_payloads(
     attack_plan: Dict[str, Any], allowed_top_level_keys: List[str]
 ) -> List[str]:
     errors: List[str] = []
+    attack_generation_contract = dict(attack_plan.get("attack_generation_contract") or {})
+    if (
+        str(attack_generation_contract.get("schema_version") or "").strip()
+        != "frontier-attack-generation-contract.v1"
+    ):
+        errors.append(
+            "attack_plan.attack_generation_contract.schema_version must be "
+            "frontier-attack-generation-contract.v1"
+        )
+    if not str(attack_generation_contract.get("contract_path") or "").strip():
+        errors.append("attack_plan.attack_generation_contract.contract_path must be non-empty")
+
+    generation_summary = dict(attack_plan.get("generation_summary") or {})
+    for key in (
+        "seed_candidate_count",
+        "generated_candidate_count",
+        "accepted_candidate_count",
+        "rejected_candidate_count",
+    ):
+        value = generation_summary.get(key)
+        if isinstance(value, bool) or not isinstance(value, int) or int(value) < 0:
+            errors.append(f"attack_plan.generation_summary.{key} must be integer >= 0")
+
     candidates = attack_plan.get("candidates")
     if not isinstance(candidates, list):
         return ["attack_plan.candidates must be an array"]
@@ -91,6 +114,41 @@ def validate_attack_plan_payloads(
         if not isinstance(candidate, dict):
             errors.append(f"attack_plan.candidates[{index}] must be an object")
             continue
+        required_candidate_keys = (
+            "candidate_id",
+            "source_scenario_id",
+            "generation_kind",
+            "mutation_class",
+            "behavioral_class",
+            "novelty_score",
+            "governance_passed",
+        )
+        for key in required_candidate_keys:
+            if key not in candidate:
+                errors.append(f"attack_plan.candidates[{index}].{key} is required")
+        candidate_id = str(candidate.get("candidate_id") or "").strip()
+        if not candidate_id:
+            errors.append(f"attack_plan.candidates[{index}].candidate_id must be non-empty")
+        generation_kind = str(candidate.get("generation_kind") or "").strip()
+        if generation_kind not in {"seed", "mutation"}:
+            errors.append(
+                f"attack_plan.candidates[{index}].generation_kind must be seed|mutation"
+            )
+        novelty_score = candidate.get("novelty_score")
+        if isinstance(novelty_score, bool) or not isinstance(
+            novelty_score, (int, float)
+        ):
+            errors.append(
+                f"attack_plan.candidates[{index}].novelty_score must be numeric within [0,1]"
+            )
+        elif float(novelty_score) < 0.0 or float(novelty_score) > 1.0:
+            errors.append(
+                f"attack_plan.candidates[{index}].novelty_score must be numeric within [0,1]"
+            )
+        if not isinstance(candidate.get("governance_passed"), bool):
+            errors.append(
+                f"attack_plan.candidates[{index}].governance_passed must be boolean"
+            )
         payload = candidate.get("payload")
         if not isinstance(payload, dict):
             errors.append(f"attack_plan.candidates[{index}].payload must be an object")

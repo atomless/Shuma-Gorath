@@ -14,8 +14,27 @@ def sample_attack_plan(frontier_mode="single_provider_self_play", diversity_conf
             {"provider": "anthropic", "model_id": "claude-3-5-haiku-latest", "configured": True},
         ],
         "diversity_confidence": diversity_confidence,
+        "generation_summary": {
+            "seed_candidate_count": 1,
+            "generated_candidate_count": 1,
+            "accepted_candidate_count": 2,
+            "rejected_candidate_count": 0,
+        },
+        "discovery_quality_metrics": {
+            "candidate_count": 2,
+            "generated_candidate_count": 1,
+            "novel_candidate_count": 1,
+            "provider_outage_impact_percent": 0.0,
+        },
         "candidates": [
             {
+                "candidate_id": "cand-seed-sim_t4_cdp_detection_deny",
+                "source_scenario_id": "sim_t4_cdp_detection_deny",
+                "generation_kind": "seed",
+                "mutation_class": "seed",
+                "behavioral_class": "baseline",
+                "novelty_score": 0.0,
+                "governance_passed": True,
                 "scenario_id": "sim_t4_cdp_detection_deny",
                 "tier": "SIM-T4",
                 "driver": "cdp_high_confidence_deny",
@@ -26,7 +45,26 @@ def sample_attack_plan(frontier_mode="single_provider_self_play", diversity_conf
                         "retry_strategy": "bounded_backoff",
                     },
                 },
-            }
+            },
+            {
+                "candidate_id": "cand-mut-sim_t4_cdp_detection_deny-retry",
+                "source_scenario_id": "sim_t4_cdp_detection_deny",
+                "generation_kind": "mutation",
+                "mutation_class": "retry_strategy",
+                "behavioral_class": "timing_variation",
+                "novelty_score": 0.72,
+                "governance_passed": True,
+                "scenario_id": "sim_t4_cdp_detection_deny",
+                "tier": "SIM-T4",
+                "driver": "cdp_high_confidence_deny",
+                "payload": {
+                    "target": {"path_hint": "/sim/public/search"},
+                    "traffic_model": {
+                        "user_agent": "ShumaAdversarial/1.0 mutated",
+                        "retry_strategy": "retry_storm",
+                    },
+                },
+            },
         ],
     }
 
@@ -77,12 +115,26 @@ class PromotionPipelineUnitTests(unittest.TestCase):
             ),
             report=sample_report(),
         )
-        self.assertEqual(len(findings), 1)
+        self.assertEqual(len(findings), 2)
         finding = findings[0]
         self.assertEqual(finding["frontier_mode"], "multi_provider_playoff")
         self.assertEqual(finding["diversity_confidence"], "higher")
         self.assertEqual(finding["scenario_family"], "cdp_high_confidence_deny")
         self.assertEqual(finding["observed_outcome"], "deny_temp")
+        self.assertTrue(str(finding.get("candidate_id") or "").startswith("cand-"))
+        self.assertIn(str(finding.get("generation_kind") or ""), {"seed", "mutation"})
+
+    def test_normalize_findings_carries_generated_candidate_lineage_fields(self):
+        findings = promote.normalize_findings(
+            attack_plan=sample_attack_plan(),
+            report=sample_report(),
+        )
+        mutation = [row for row in findings if str(row.get("generation_kind")) == "mutation"][0]
+        self.assertEqual(mutation["candidate_id"], "cand-mut-sim_t4_cdp_detection_deny-retry")
+        self.assertEqual(mutation["source_scenario_id"], "sim_t4_cdp_detection_deny")
+        self.assertEqual(mutation["mutation_class"], "retry_strategy")
+        self.assertEqual(mutation["behavioral_class"], "timing_variation")
+        self.assertGreater(float(mutation["novelty_score"]), 0.0)
 
     def test_classify_replay_outcome_reports_confirmed_and_not_reproducible(self):
         finding = promote.normalize_findings(sample_attack_plan(), sample_report())[0]
@@ -184,6 +236,37 @@ class PromotionPipelineUnitTests(unittest.TestCase):
         self.assertIn("deterministic_confirmation_rate_below_min", joined)
         self.assertIn("false_discovery_rate_above_max", joined)
         self.assertIn("owner_disposition_sla_exceeded", joined)
+
+    def test_discovery_quality_metrics_track_novel_confirmed_and_provider_outage(self):
+        findings = promote.normalize_findings(sample_attack_plan(), sample_report())
+        lineage = [
+            {
+                "classification": "confirmed_reproducible",
+                "generated_candidate": {"generation_kind": "mutation"},
+            },
+            {
+                "classification": "not_reproducible",
+                "generated_candidate": {"generation_kind": "seed"},
+            },
+        ]
+        hybrid = {"observed": {"false_discovery_rate_percent": 50.0}}
+        frontier_status = {
+            "status": "degraded_partial_provider_failure",
+            "provider_count_configured": 2,
+            "provider_count_healthy": 1,
+        }
+        metrics = promote.evaluate_discovery_quality_metrics(
+            findings=findings,
+            lineage=lineage,
+            attack_plan=sample_attack_plan(),
+            hybrid_governance=hybrid,
+            frontier_status=frontier_status,
+        )
+        self.assertEqual(metrics["candidate_count"], 2)
+        self.assertEqual(metrics["generated_candidate_count"], 1)
+        self.assertEqual(metrics["novel_confirmed_regressions"], 1)
+        self.assertEqual(metrics["provider_outage_impact_percent"], 50.0)
+        self.assertEqual(metrics["false_discovery_rate_percent"], 50.0)
 
 
 if __name__ == "__main__":
