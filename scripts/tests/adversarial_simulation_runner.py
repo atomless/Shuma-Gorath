@@ -263,25 +263,111 @@ DEFENSE_NOOP_COVERAGE_KEYS: Dict[str, Tuple[str, ...]] = {
     "geo": ("geo_violations", "geo_challenge", "geo_maze", "geo_block"),
 }
 
-COVERAGE_CONTRACT_PATH = Path("scripts/tests/adversarial/coverage_contract.v1.json")
+COVERAGE_CONTRACT_CANDIDATE_PATHS = (
+    Path("scripts/tests/adversarial/coverage_contract.v2.json"),
+    Path("scripts/tests/adversarial/coverage_contract.v1.json"),
+)
 REAL_TRAFFIC_CONTRACT_PATH = Path("scripts/tests/adversarial/real_traffic_contract.v1.json")
 SCENARIO_INTENT_MATRIX_PATH = Path("scripts/tests/adversarial/scenario_intent_matrix.v1.json")
 
 
-def load_coverage_contract(path: Path = COVERAGE_CONTRACT_PATH) -> Dict[str, Any]:
-    if not path.exists():
-        raise RuntimeError(f"coverage contract not found: {path}")
+def resolve_coverage_contract_path() -> Path:
+    for candidate in COVERAGE_CONTRACT_CANDIDATE_PATHS:
+        if candidate.exists():
+            return candidate
+    raise RuntimeError(
+        "coverage contract not found: expected one of "
+        + ", ".join(str(path) for path in COVERAGE_CONTRACT_CANDIDATE_PATHS)
+    )
+
+
+def validate_coverage_depth_requirements(
+    payload: Dict[str, Any], *, path: Path, schema_version: str
+) -> Dict[str, Dict[str, Any]]:
+    if schema_version != "sim-coverage-contract.v2":
+        return {}
+    depth_requirements = payload.get("coverage_depth_requirements")
+    if not isinstance(depth_requirements, dict) or not depth_requirements:
+        raise RuntimeError(
+            "coverage contract v2 coverage_depth_requirements must be a non-empty object"
+        )
+    normalized: Dict[str, Dict[str, Any]] = {}
+    for row_id, row_payload in depth_requirements.items():
+        row_name = str(row_id or "").strip()
+        if not row_name:
+            raise RuntimeError("coverage contract v2 coverage_depth_requirements contains empty row id")
+        row = row_payload if isinstance(row_payload, dict) else {}
+        required_metrics = row.get("required_metrics")
+        if not isinstance(required_metrics, dict) or not required_metrics:
+            raise RuntimeError(
+                f"coverage contract v2 row {row_name} required_metrics must be a non-empty object"
+            )
+        for metric_key, minimum in required_metrics.items():
+            key = str(metric_key or "").strip()
+            if key not in ALLOWED_COVERAGE_REQUIREMENTS:
+                raise RuntimeError(
+                    f"coverage contract v2 row {row_name} has unsupported metric key: {key}"
+                )
+            if isinstance(minimum, bool) or not isinstance(minimum, int) or int(minimum) < 0:
+                raise RuntimeError(
+                    f"coverage contract v2 row {row_name} metric {key} minimum must be integer >= 0"
+                )
+        required_scenarios = row.get("required_scenarios")
+        if not isinstance(required_scenarios, list) or not required_scenarios:
+            raise RuntimeError(
+                f"coverage contract v2 row {row_name} required_scenarios must be a non-empty array"
+            )
+        for scenario_id in required_scenarios:
+            if not str(scenario_id or "").strip():
+                raise RuntimeError(
+                    f"coverage contract v2 row {row_name} required_scenarios must not contain empty values"
+                )
+        verification_row_id = str(row.get("verification_matrix_row_id") or "").strip()
+        if not verification_row_id:
+            raise RuntimeError(
+                f"coverage contract v2 row {row_name} missing verification_matrix_row_id"
+            )
+        normalized[row_name] = {
+            "plan_row": str(row.get("plan_row") or "").strip(),
+            "verification_matrix_row_id": verification_row_id,
+            "required_scenarios": [
+                str(item).strip()
+                for item in required_scenarios
+                if str(item).strip()
+            ],
+            "required_metrics": {
+                str(metric): int(value)
+                for metric, value in required_metrics.items()
+            },
+            "required_evidence_types": [
+                str(item).strip()
+                for item in (
+                    row.get("required_evidence_types")
+                    if isinstance(row.get("required_evidence_types"), list)
+                    else []
+                )
+                if str(item).strip()
+            ],
+        }
+    return normalized
+
+
+def load_coverage_contract(path: Optional[Path] = None) -> Tuple[Path, Dict[str, Any]]:
+    contract_path = path or resolve_coverage_contract_path()
+    if not contract_path.exists():
+        raise RuntimeError(f"coverage contract not found: {contract_path}")
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(contract_path.read_text(encoding="utf-8"))
     except Exception as exc:
-        raise RuntimeError(f"invalid coverage contract JSON: {path}") from exc
+        raise RuntimeError(f"invalid coverage contract JSON: {contract_path}") from exc
     if not isinstance(payload, dict):
-        raise RuntimeError(f"coverage contract must be a JSON object: {path}")
+        raise RuntimeError(f"coverage contract must be a JSON object: {contract_path}")
 
     schema_version = str(payload.get("schema_version") or "").strip()
-    if schema_version != "sim-coverage-contract.v1":
+    if schema_version not in {"sim-coverage-contract.v1", "sim-coverage-contract.v2"}:
         raise RuntimeError(
-            f"coverage contract schema_version must be sim-coverage-contract.v1 (got {schema_version})"
+            "coverage contract schema_version must be sim-coverage-contract.v1 or "
+            f"sim-coverage-contract.v2 (got {schema_version})"
         )
     profile = str(payload.get("profile") or "").strip()
     if profile != FULL_COVERAGE_PROFILE_NAME:
@@ -327,14 +413,23 @@ def load_coverage_contract(path: Path = COVERAGE_CONTRACT_PATH) -> Dict[str, Any
         if not str(row or "").strip():
             raise RuntimeError("coverage contract plan_contract_rows must not contain empty values")
 
-    return payload
+    payload["coverage_depth_requirements"] = validate_coverage_depth_requirements(
+        payload, path=contract_path, schema_version=schema_version
+    )
+    if schema_version == "sim-coverage-contract.v1":
+        payload["coverage_depth_requirements"] = {}
+    return contract_path, payload
 
 
-COVERAGE_CONTRACT = load_coverage_contract()
+COVERAGE_CONTRACT_PATH, COVERAGE_CONTRACT = load_coverage_contract()
 COVERAGE_CONTRACT_SCHEMA_VERSION = str(COVERAGE_CONTRACT.get("schema_version") or "")
 COVERAGE_CONTRACT_REQUIREMENTS = {
     str(key): int(value)
     for key, value in dict(COVERAGE_CONTRACT.get("coverage_requirements") or {}).items()
+}
+COVERAGE_CONTRACT_DEPTH_REQUIREMENTS = {
+    str(row_id): (row if isinstance(row, dict) else {})
+    for row_id, row in dict(COVERAGE_CONTRACT.get("coverage_depth_requirements") or {}).items()
 }
 COVERAGE_CONTRACT_REQUIRED_EVENT_REASONS = [
     str(item).strip().lower()
@@ -1370,9 +1465,13 @@ class Runner:
                     "contract_sha256": COVERAGE_CONTRACT_SHA256,
                     "profile": FULL_COVERAGE_PROFILE_NAME,
                     "coverage_requirement_keys": sorted(COVERAGE_CONTRACT_REQUIREMENTS.keys()),
+                    "coverage_depth_requirement_rows": sorted(
+                        COVERAGE_CONTRACT_DEPTH_REQUIREMENTS.keys()
+                    ),
                     "required_event_reasons": sorted(COVERAGE_CONTRACT_REQUIRED_EVENT_REASONS),
                     "required_outcome_categories": list(COVERAGE_CONTRACT_REQUIRED_OUTCOME_CATEGORIES),
                     "plan_contract_rows": list(COVERAGE_CONTRACT_PLAN_ROWS),
+                    "compatibility": dict_or_empty(COVERAGE_CONTRACT.get("compatibility")),
                 },
                 "real_traffic_contract": {
                     "schema_version": REAL_TRAFFIC_CONTRACT_SCHEMA_VERSION,
@@ -1790,20 +1889,38 @@ class Runner:
         coverage_requirements, declared_coverage_requirements = select_coverage_requirements(
             self.profile_name, profile_gates
         )
+        coverage_depth_requirements, declared_coverage_depth_requirements = (
+            select_coverage_depth_requirements(self.profile_name, profile_gates)
+        )
         coverage_checks: List[Dict[str, Any]] = []
+        coverage_depth_checks: List[Dict[str, Any]] = []
+        coverage_depth_row_diagnostics: List[Dict[str, Any]] = []
         coverage_contract_parity = {
             "missing_keys": [],
             "extra_keys": [],
             "mismatched_values": {},
             "parity_passed": True,
         }
+        coverage_depth_contract_parity = {
+            "missing_keys": [],
+            "extra_keys": [],
+            "mismatched_values": {},
+            "parity_passed": True,
+        }
         threshold_prefix = "profile.gates.coverage_requirements"
+        depth_threshold_prefix = "profile.gates.coverage_depth_requirements"
         if self.profile_name == FULL_COVERAGE_PROFILE_NAME:
             coverage_contract_parity = coverage_contract_parity_diagnostics(
                 declared_coverage_requirements
             )
             threshold_prefix = (
                 f"{COVERAGE_CONTRACT_SCHEMA_VERSION}.coverage_requirements"
+            )
+            coverage_depth_contract_parity = coverage_depth_contract_parity_diagnostics(
+                declared_coverage_depth_requirements
+            )
+            depth_threshold_prefix = (
+                f"{COVERAGE_CONTRACT_SCHEMA_VERSION}.coverage_depth_requirements"
             )
             checks.append(
                 {
@@ -1822,6 +1939,24 @@ class Runner:
                     "threshold_source": f"{COVERAGE_CONTRACT_PATH}",
                 }
             )
+            checks.append(
+                {
+                    "name": "coverage_depth_contract_parity",
+                    "passed": bool(coverage_depth_contract_parity["parity_passed"]),
+                    "detail": (
+                        f"missing={coverage_depth_contract_parity['missing_keys']} "
+                        f"extra={coverage_depth_contract_parity['extra_keys']} "
+                        "mismatched="
+                        f"{sorted(coverage_depth_contract_parity['mismatched_values'].keys())}"
+                    ),
+                    "observed": {
+                        "missing": list(coverage_depth_contract_parity["missing_keys"]),
+                        "extra": list(coverage_depth_contract_parity["extra_keys"]),
+                        "mismatched": dict(coverage_depth_contract_parity["mismatched_values"]),
+                    },
+                    "threshold_source": f"{COVERAGE_CONTRACT_PATH}",
+                }
+            )
 
         if coverage_requirements:
             coverage_checks = build_coverage_checks(coverage_requirements, coverage_deltas)
@@ -1829,6 +1964,17 @@ class Runner:
                 coverage_requirements, coverage_checks, threshold_prefix=threshold_prefix
             )
             checks.extend(coverage_checks)
+        if coverage_depth_requirements:
+            coverage_depth_checks, coverage_depth_row_diagnostics = build_coverage_depth_checks(
+                coverage_depth_requirements,
+                coverage_deltas=coverage_deltas,
+                scenario_execution_evidence=scenario_execution_evidence,
+            )
+            for check in coverage_depth_checks:
+                check_name = str(check.get("name") or "")
+                row_id = check_name.removeprefix("coverage_depth_")
+                check["threshold_source"] = f"{depth_threshold_prefix}.{row_id}"
+            checks.extend(coverage_depth_checks)
 
         defense_noop_checks: List[Dict[str, Any]] = []
         if self.profile_name == FULL_COVERAGE_PROFILE_NAME:
@@ -1921,7 +2067,10 @@ class Runner:
         checks.extend(scenario_intent_checks)
 
         all_passed = all(check["passed"] for check in checks)
-        coverage_all_passed = all(check["passed"] for check in coverage_checks) if coverage_checks else True
+        coverage_all_passed = (
+            (all(check["passed"] for check in coverage_checks) if coverage_checks else True)
+            and (all(check["passed"] for check in coverage_depth_checks) if coverage_depth_checks else True)
+        )
         realism_all_passed = all(check["passed"] for check in realism_checks) if realism_checks else True
         browser_execution_all_passed = (
             all(check["passed"] for check in browser_execution_checks)
@@ -1946,7 +2095,10 @@ class Runner:
             "coverage_gates": {
                 "all_passed": coverage_all_passed,
                 "threshold_source": threshold_prefix,
+                "depth_threshold_source": depth_threshold_prefix,
                 "checks": coverage_checks,
+                "depth_checks": coverage_depth_checks,
+                "depth_row_diagnostics": coverage_depth_row_diagnostics,
                 "defense_noop_checks": defense_noop_checks,
                 "coverage": {
                     "before": coverage_before,
@@ -1959,12 +2111,24 @@ class Runner:
                     "contract_sha256": COVERAGE_CONTRACT_SHA256,
                     "profile": FULL_COVERAGE_PROFILE_NAME,
                     "coverage_requirement_keys": sorted(COVERAGE_CONTRACT_REQUIREMENTS.keys()),
+                    "coverage_depth_requirement_rows": sorted(
+                        COVERAGE_CONTRACT_DEPTH_REQUIREMENTS.keys()
+                    ),
                     "required_event_reasons": sorted(COVERAGE_CONTRACT_REQUIRED_EVENT_REASONS),
                     "required_outcome_categories": list(COVERAGE_CONTRACT_REQUIRED_OUTCOME_CATEGORIES),
                 },
                 "missing_contract_categories": list(coverage_contract_parity["missing_keys"]),
                 "extra_manifest_categories": list(coverage_contract_parity["extra_keys"]),
                 "mismatched_contract_values": dict(coverage_contract_parity["mismatched_values"]),
+                "missing_contract_depth_rows": list(
+                    coverage_depth_contract_parity["missing_keys"]
+                ),
+                "extra_manifest_depth_rows": list(
+                    coverage_depth_contract_parity["extra_keys"]
+                ),
+                "mismatched_depth_rows": dict(
+                    coverage_depth_contract_parity["mismatched_values"]
+                ),
             },
             "cohort_metrics": cohort_metrics,
             "realism": realism_metrics,
@@ -4743,6 +4907,87 @@ def build_coverage_checks(
     return checks
 
 
+def build_coverage_depth_checks(
+    coverage_depth_requirements: Dict[str, Dict[str, Any]],
+    *,
+    coverage_deltas: Dict[str, int],
+    scenario_execution_evidence: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    checks: List[Dict[str, Any]] = []
+    row_diagnostics: List[Dict[str, Any]] = []
+    scenario_execution_evidence = (
+        scenario_execution_evidence if isinstance(scenario_execution_evidence, dict) else {}
+    )
+    for row_id in sorted(coverage_depth_requirements.keys()):
+        row = dict_or_empty(coverage_depth_requirements.get(row_id))
+        required_metrics = {
+            str(metric): int_or_zero(value)
+            for metric, value in dict_or_empty(row.get("required_metrics")).items()
+        }
+        required_scenarios = [
+            str(item).strip()
+            for item in list_or_empty(row.get("required_scenarios"))
+            if str(item).strip()
+        ]
+        observed_metrics = {
+            metric: int_or_zero(coverage_deltas.get(metric))
+            for metric in sorted(required_metrics.keys())
+        }
+        missing_metrics = [
+            metric
+            for metric in sorted(required_metrics.keys())
+            if int_or_zero(observed_metrics.get(metric))
+            < int_or_zero(required_metrics.get(metric))
+        ]
+        missing_scenarios = [
+            scenario_id
+            for scenario_id in required_scenarios
+            if scenario_id not in scenario_execution_evidence
+        ]
+        scenario_contributions: Dict[str, Dict[str, int]] = {}
+        for scenario_id in required_scenarios:
+            evidence_row = dict_or_empty(scenario_execution_evidence.get(scenario_id))
+            coverage_map = dict_or_empty(evidence_row.get("coverage_deltas"))
+            scenario_contributions[scenario_id] = {
+                metric: int_or_zero(coverage_map.get(metric))
+                for metric in sorted(required_metrics.keys())
+            }
+
+        passed = not missing_metrics and not missing_scenarios
+        detail = (
+            f"required={required_metrics} observed={observed_metrics} "
+            f"missing_evidence={missing_metrics} missing_scenarios={missing_scenarios}"
+        )
+        check_payload = {
+            "name": f"coverage_depth_{row_id}",
+            "passed": passed,
+            "detail": detail,
+            "observed": {
+                "required": required_metrics,
+                "observed": observed_metrics,
+                "missing_evidence": missing_metrics,
+                "missing_scenarios": missing_scenarios,
+                "scenario_contributions": scenario_contributions,
+                "verification_matrix_row_id": str(row.get("verification_matrix_row_id") or ""),
+            },
+        }
+        checks.append(check_payload)
+        row_diagnostics.append(
+            {
+                "row_id": row_id,
+                "plan_row": str(row.get("plan_row") or ""),
+                "verification_matrix_row_id": str(row.get("verification_matrix_row_id") or ""),
+                "required": required_metrics,
+                "observed": observed_metrics,
+                "missing_evidence": missing_metrics,
+                "missing_scenarios": missing_scenarios,
+                "scenario_contributions": scenario_contributions,
+                "passed": passed,
+            }
+        )
+    return checks, row_diagnostics
+
+
 def annotate_coverage_checks_with_threshold_source(
     coverage_requirements: Dict[str, Any],
     checks: List[Dict[str, Any]],
@@ -5698,6 +5943,67 @@ def coverage_contract_parity_diagnostics(profile_coverage_requirements: Any) -> 
     }
 
 
+def normalize_coverage_depth_requirements(
+    raw_depth_requirements: Any,
+) -> Dict[str, Dict[str, Any]]:
+    if not isinstance(raw_depth_requirements, dict):
+        return {}
+    normalized: Dict[str, Dict[str, Any]] = {}
+    for row_id, row_payload in raw_depth_requirements.items():
+        row_name = str(row_id or "").strip()
+        if not row_name:
+            continue
+        row = row_payload if isinstance(row_payload, dict) else {}
+        required_metrics = dict(row.get("required_metrics") or {})
+        normalized[row_name] = {
+            "plan_row": str(row.get("plan_row") or "").strip(),
+            "verification_matrix_row_id": str(row.get("verification_matrix_row_id") or "").strip(),
+            "required_scenarios": sorted(
+                [
+                    str(item).strip()
+                    for item in list_or_empty(row.get("required_scenarios"))
+                    if str(item).strip()
+                ]
+            ),
+            "required_metrics": {
+                str(metric): int_or_zero(value)
+                for metric, value in required_metrics.items()
+            },
+            "required_evidence_types": sorted(
+                [
+                    str(item).strip()
+                    for item in list_or_empty(row.get("required_evidence_types"))
+                    if str(item).strip()
+                ]
+            ),
+        }
+    return normalized
+
+
+def coverage_depth_contract_parity_diagnostics(profile_depth_requirements: Any) -> Dict[str, Any]:
+    expected = normalize_coverage_depth_requirements(COVERAGE_CONTRACT_DEPTH_REQUIREMENTS)
+    observed = normalize_coverage_depth_requirements(profile_depth_requirements)
+    expected_keys = set(expected.keys())
+    observed_keys = set(observed.keys())
+    missing_keys = sorted(expected_keys - observed_keys)
+    extra_keys = sorted(observed_keys - expected_keys)
+    mismatched_values: Dict[str, Dict[str, Any]] = {}
+    for row_id in sorted(expected_keys.intersection(observed_keys)):
+        expected_row = dict_or_empty(expected.get(row_id))
+        observed_row = dict_or_empty(observed.get(row_id))
+        if expected_row != observed_row:
+            mismatched_values[row_id] = {
+                "expected": expected_row,
+                "observed": observed_row,
+            }
+    return {
+        "missing_keys": missing_keys,
+        "extra_keys": extra_keys,
+        "mismatched_values": mismatched_values,
+        "parity_passed": not missing_keys and not extra_keys and not mismatched_values,
+    }
+
+
 def select_coverage_requirements(
     profile_name: str, profile_gates: Dict[str, Any]
 ) -> Tuple[Dict[str, int], Dict[str, Any]]:
@@ -5705,6 +6011,18 @@ def select_coverage_requirements(
     if profile_name == FULL_COVERAGE_PROFILE_NAME:
         return dict(COVERAGE_CONTRACT_REQUIREMENTS), dict(declared or {}) if isinstance(declared, dict) else {}
     return dict(declared or {}) if isinstance(declared, dict) else {}, dict(declared or {}) if isinstance(declared, dict) else {}
+
+
+def select_coverage_depth_requirements(
+    profile_name: str, profile_gates: Dict[str, Any]
+) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Any]]:
+    declared = profile_gates.get("coverage_depth_requirements")
+    if profile_name == FULL_COVERAGE_PROFILE_NAME:
+        return (
+            normalize_coverage_depth_requirements(COVERAGE_CONTRACT_DEPTH_REQUIREMENTS),
+            normalize_coverage_depth_requirements(declared),
+        )
+    return normalize_coverage_depth_requirements(declared), normalize_coverage_depth_requirements(declared)
 
 
 def validate_full_coverage_contract_alignment(profile_name: str, gates: Dict[str, Any]) -> None:
@@ -5726,6 +6044,25 @@ def validate_full_coverage_contract_alignment(profile_name: str, gates: Dict[str
             details.append(f"mismatched={mismatches}")
         raise SimulationError(
             "profile full_coverage coverage_requirements must exactly match "
+            f"{COVERAGE_CONTRACT_PATH} ({'; '.join(details)})"
+        )
+
+    depth_parity = coverage_depth_contract_parity_diagnostics(
+        gates.get("coverage_depth_requirements")
+    )
+    if not depth_parity["parity_passed"]:
+        details = []
+        if depth_parity["missing_keys"]:
+            details.append(f"missing_rows={','.join(depth_parity['missing_keys'])}")
+        if depth_parity["extra_keys"]:
+            details.append(f"extra_rows={','.join(depth_parity['extra_keys'])}")
+        if depth_parity["mismatched_values"]:
+            details.append(
+                "mismatched_rows="
+                + ",".join(sorted(depth_parity["mismatched_values"].keys()))
+            )
+        raise SimulationError(
+            "profile full_coverage coverage_depth_requirements must exactly match "
             f"{COVERAGE_CONTRACT_PATH} ({'; '.join(details)})"
         )
 
@@ -6009,6 +6346,54 @@ def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_nam
                 raise SimulationError(
                     f"profile {profile_name} coverage requirement {key} cannot be negative"
                 )
+
+    coverage_depth_requirements = gates.get("coverage_depth_requirements")
+    if coverage_depth_requirements is not None:
+        if (
+            not isinstance(coverage_depth_requirements, dict)
+            or not coverage_depth_requirements
+        ):
+            raise SimulationError(
+                f"profile {profile_name} coverage_depth_requirements must be a non-empty object when provided"
+            )
+        for row_id, row_payload in coverage_depth_requirements.items():
+            row_name = str(row_id or "").strip()
+            if not row_name:
+                raise SimulationError(
+                    f"profile {profile_name} coverage_depth_requirements contains empty row id"
+                )
+            row = row_payload if isinstance(row_payload, dict) else {}
+            required_metrics = row.get("required_metrics")
+            if not isinstance(required_metrics, dict) or not required_metrics:
+                raise SimulationError(
+                    "profile "
+                    f"{profile_name} coverage_depth_requirements.{row_name}.required_metrics "
+                    "must be a non-empty object"
+                )
+            for metric_key, minimum in required_metrics.items():
+                metric = str(metric_key or "").strip()
+                if metric not in ALLOWED_COVERAGE_REQUIREMENTS:
+                    raise SimulationError(
+                        f"profile {profile_name} coverage_depth row {row_name} has unsupported metric: {metric}"
+                    )
+                if isinstance(minimum, bool) or not isinstance(minimum, int) or minimum < 0:
+                    raise SimulationError(
+                        f"profile {profile_name} coverage_depth row {row_name} metric {metric} must be integer >= 0"
+                    )
+            required_scenarios = row.get("required_scenarios")
+            if not isinstance(required_scenarios, list) or not required_scenarios:
+                raise SimulationError(
+                    "profile "
+                    f"{profile_name} coverage_depth_requirements.{row_name}.required_scenarios "
+                    "must be a non-empty array"
+                )
+            for scenario_id in required_scenarios:
+                if str(scenario_id or "") not in scenario_ids:
+                    raise SimulationError(
+                        "profile "
+                        f"{profile_name} coverage_depth row {row_name} references unknown scenario "
+                        f"{scenario_id}"
+                    )
 
     if profile_name == FULL_COVERAGE_PROFILE_NAME:
         scheduler = str(gates.get("persona_scheduler") or "").strip().lower()

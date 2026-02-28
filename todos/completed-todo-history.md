@@ -59,6 +59,16 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-EX5-7 Keep blocking policy deterministic: no stochastic frontier output can block release without deterministic confirmation. (Artifacts: `scripts/tests/adversarial_promote_candidates.py`, `scripts/tests/adversarial/frontier_attack_generation_contract.v1.json`)
 - [x] SIM2-EX5-8 Publish operator workflow for evaluating and curating generated candidates into canonical manifests. (Artifacts: `docs/adversarial-operator-guide.md`, `scripts/tests/adversarial/README.md`)
 
+#### SIM2-EX6: Deepen Coverage Contract Governance to Enforce Full Plan Intent
+
+- [x] SIM2-EX6-1 Define `coverage_contract.v2` with explicit minima for currently under-specified plan intents (including tarpit progression and event-stream health depth metrics). (Artifacts: `scripts/tests/adversarial/coverage_contract.v2.json`, `scripts/tests/adversarial/scenario_manifest.v1.json`, `scripts/tests/adversarial/scenario_manifest.v2.json`)
+- [x] SIM2-EX6-2 Add schema migration and compatibility handling for contract v1/v2 while pre-launch migration completes. (Artifacts: `scripts/tests/adversarial_simulation_runner.py`, `scripts/tests/check_adversarial_coverage_contract.py`)
+- [x] SIM2-EX6-3 Add strict drift checks among plan rows, manifest expectations, runner extracted metrics, and contract requirements. (Artifacts: `scripts/tests/check_adversarial_coverage_contract.py`, `scripts/tests/adversarial/verification_matrix.v1.json`, `scripts/tests/adversarial/scenario_manifest.v1.json`, `scripts/tests/adversarial/scenario_manifest.v2.json`)
+- [x] SIM2-EX6-4 Extend gate diagnostics with row-level failure output showing `required`, `observed`, `missing evidence`, and scenario contribution mapping. (Artifact: `scripts/tests/adversarial_simulation_runner.py`)
+- [x] SIM2-EX6-5 Add focused tests for each new v2 coverage key and threshold boundary behavior. (Artifacts: `scripts/tests/test_adversarial_simulation_runner.py`, `scripts/tests/test_adversarial_coverage_contract.py`)
+- [x] SIM2-EX6-6 Wire v2 governance into mandatory Makefile and CI coverage gates with fail-fast messaging. (Artifacts: `scripts/tests/check_adversarial_coverage_contract.py`, `scripts/tests/adversarial_simulation_runner.py`)
+- [x] SIM2-EX6-7 Update docs/runbooks with contract evolution protocol and backwards-compatibility removal date. (Artifacts: `docs/adversarial-operator-guide.md`, `scripts/tests/adversarial/README.md`)
+
 ### P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)
 
 #### SIM2-EX7: Harden Simulation-Telemetry Secret Ergonomics Without Weakening Security

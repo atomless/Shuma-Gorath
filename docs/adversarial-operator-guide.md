@@ -52,7 +52,7 @@ Frontier threshold policy emits `scripts/tests/adversarial/frontier_unavailabili
 All manifests and reports are locked to `execution_lane=black_box`; non-black-box lane values are rejected at validation time.
 Lane capability boundaries are versioned in `scripts/tests/adversarial/lane_contract.v1.json` and validated by `make test-adversarial-lane-contract`.
 Simulation-tag signing contract is versioned in `scripts/tests/adversarial/sim_tag_contract.v1.json` and validated by `make test-adversarial-sim-tag-contract`.
-Full-coverage category obligations are versioned in `scripts/tests/adversarial/coverage_contract.v1.json` and validated by `make test-adversarial-coverage-contract`.
+Full-coverage category obligations are versioned in `scripts/tests/adversarial/coverage_contract.v2.json` (with temporary v1 compatibility) and validated by `make test-adversarial-coverage-contract`.
 Container frontier action grammar contract is versioned in `scripts/tests/adversarial/frontier_action_contract.v1.json` and enforced as reject-by-default by host and worker validators.
 Container runtime hardening profile is versioned in `scripts/tests/adversarial/container_runtime_profile.v1.json` and must pass before worker launch.
 Signed capability envelopes for executable worker actions are enforced via `scripts/tests/frontier_capability_envelope.py` host/worker validation.
@@ -433,11 +433,15 @@ Operators must not tune thresholds before confirming whether failures are scenar
 When `full_coverage` obligations must change, update in this order:
 
 1. Update SIM2 plan coverage table in `docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`.
-2. Update canonical contract `scripts/tests/adversarial/coverage_contract.v1.json`.
-3. Update manifest `profiles.full_coverage.gates` parity in both `scenario_manifest.v1.json` and `scenario_manifest.v2.json`.
-4. Run `make test-adversarial-coverage-contract`, `make test-adversarial-manifest`, and `make test-adversarial-coverage`.
+2. Update canonical contract `scripts/tests/adversarial/coverage_contract.v2.json`.
+3. Update manifest `profiles.full_coverage.gates` parity in both `scenario_manifest.v1.json` and `scenario_manifest.v2.json`:
+   - `coverage_requirements`,
+   - `coverage_depth_requirements` (row-level depth metrics + scenario bindings).
+4. Update `scripts/tests/adversarial/verification_matrix.v1.json` row bindings when depth rows change.
+5. Run `make test-adversarial-coverage-contract`, `make test-adversarial-manifest`, and `make test-adversarial-coverage`.
 
 `full_coverage` drift is expected to fail fast if any of these artifacts diverge.
+`coverage_contract.v1.json` compatibility is temporary and must be removed after `2026-04-30`.
 
 ## Scenario Failure Interpretation
 

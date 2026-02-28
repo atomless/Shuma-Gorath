@@ -581,6 +581,64 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(deltas["honeypot_hits"], 0)
         self.assertEqual(deltas["geo_maze"], 4)
 
+    def test_build_coverage_depth_checks_reports_row_level_diagnostics(self):
+        depth_requirements = {
+            "tarpit_progression_depth": {
+                "required_metrics": {
+                    "tarpit_activations_progressive": 1,
+                    "tarpit_progress_advanced": 1,
+                },
+                "required_scenarios": ["sim_t4_tarpit_replay_abuse"],
+                "verification_matrix_row_id": "tarpit_progression",
+            }
+        }
+        coverage_deltas = {
+            "tarpit_activations_progressive": 2,
+            "tarpit_progress_advanced": 1,
+        }
+        scenario_execution = {
+            "sim_t4_tarpit_replay_abuse": {
+                "coverage_deltas": {
+                    "tarpit_activations_progressive": 2,
+                    "tarpit_progress_advanced": 1,
+                }
+            }
+        }
+        checks, diagnostics = runner.build_coverage_depth_checks(
+            depth_requirements,
+            coverage_deltas=coverage_deltas,
+            scenario_execution_evidence=scenario_execution,
+        )
+        self.assertEqual(len(checks), 1)
+        self.assertTrue(checks[0]["passed"])
+        self.assertEqual(len(diagnostics), 1)
+        self.assertEqual(diagnostics[0]["missing_evidence"], [])
+        self.assertEqual(diagnostics[0]["missing_scenarios"], [])
+
+    def test_build_coverage_depth_checks_fails_when_metrics_or_scenarios_missing(self):
+        depth_requirements = {
+            "event_stream_health_depth": {
+                "required_metrics": {"recent_event_count": 2},
+                "required_scenarios": [
+                    "sim_t3_replay_abuse",
+                    "sim_t4_ordering_cadence_abuse",
+                ],
+                "verification_matrix_row_id": "event_stream_integrity",
+            }
+        }
+        checks, diagnostics = runner.build_coverage_depth_checks(
+            depth_requirements,
+            coverage_deltas={"recent_event_count": 1},
+            scenario_execution_evidence={"sim_t3_replay_abuse": {"coverage_deltas": {}}},
+        )
+        self.assertEqual(len(checks), 1)
+        self.assertFalse(checks[0]["passed"])
+        self.assertIn("recent_event_count", checks[0]["observed"]["missing_evidence"])
+        self.assertEqual(
+            diagnostics[0]["missing_scenarios"],
+            ["sim_t4_ordering_cadence_abuse"],
+        )
+
     def test_build_retention_lifecycle_report_maps_health_fields(self):
         section = runner.build_retention_lifecycle_report(
             {

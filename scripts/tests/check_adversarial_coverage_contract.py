@@ -15,8 +15,12 @@ if str(REPO_ROOT) not in sys.path:
 import scripts.tests.adversarial_simulation_runner as sim_runner
 
 
-COVERAGE_CONTRACT_PATH = Path("scripts/tests/adversarial/coverage_contract.v1.json")
+COVERAGE_CONTRACT_PATHS = (
+    Path("scripts/tests/adversarial/coverage_contract.v2.json"),
+    Path("scripts/tests/adversarial/coverage_contract.v1.json"),
+)
 SIM2_PLAN_PATH = Path("docs/plans/2026-02-26-adversarial-simulation-v2-plan.md")
+VERIFICATION_MATRIX_PATH = Path("scripts/tests/adversarial/verification_matrix.v1.json")
 FULL_COVERAGE_PROFILE = "full_coverage"
 MANIFEST_PATHS = [
     Path("scripts/tests/adversarial/scenario_manifest.v1.json"),
@@ -38,6 +42,16 @@ def load_json_object(path: Path) -> Dict[str, Any]:
     if not isinstance(payload, dict):
         raise CoverageContractError(f"expected JSON object: {path}")
     return payload
+
+
+def resolve_contract_path() -> Path:
+    for path in COVERAGE_CONTRACT_PATHS:
+        if path.exists():
+            return path
+    raise CoverageContractError(
+        "coverage contract not found: expected one of "
+        + ", ".join(str(path) for path in COVERAGE_CONTRACT_PATHS)
+    )
 
 
 def parse_plan_contract_rows(path: Path = SIM2_PLAN_PATH) -> List[str]:
@@ -94,14 +108,50 @@ def compare_maps(
             )
 
 
+def normalize_depth_requirements(raw: Any) -> Dict[str, Dict[str, Any]]:
+    if not isinstance(raw, dict):
+        return {}
+    normalized: Dict[str, Dict[str, Any]] = {}
+    for row_id, row_payload in raw.items():
+        row_name = str(row_id or "").strip()
+        if not row_name:
+            continue
+        row = dict(row_payload or {})
+        normalized[row_name] = {
+            "plan_row": str(row.get("plan_row") or "").strip(),
+            "verification_matrix_row_id": str(row.get("verification_matrix_row_id") or "").strip(),
+            "required_scenarios": sorted(
+                [
+                    str(item).strip()
+                    for item in list(row.get("required_scenarios") or [])
+                    if str(item).strip()
+                ]
+            ),
+            "required_metrics": {
+                str(metric): int(value)
+                for metric, value in dict(row.get("required_metrics") or {}).items()
+            },
+            "required_evidence_types": sorted(
+                [
+                    str(item).strip()
+                    for item in list(row.get("required_evidence_types") or [])
+                    if str(item).strip()
+                ]
+            ),
+        }
+    return normalized
+
+
 def validate_coverage_contract() -> List[str]:
     errors: List[str] = []
-    contract = load_json_object(COVERAGE_CONTRACT_PATH)
+    contract_path = resolve_contract_path()
+    contract = load_json_object(contract_path)
 
     schema_version = str(contract.get("schema_version") or "").strip()
-    if schema_version != "sim-coverage-contract.v1":
+    if schema_version not in {"sim-coverage-contract.v1", "sim-coverage-contract.v2"}:
         errors.append(
-            f"coverage contract schema_version must be sim-coverage-contract.v1 (got {schema_version})"
+            "coverage contract schema_version must be sim-coverage-contract.v1 or "
+            f"sim-coverage-contract.v2 (got {schema_version})"
         )
 
     profile = str(contract.get("profile") or "").strip()
@@ -163,7 +213,74 @@ def validate_coverage_contract() -> List[str]:
             f"({SIM2_PLAN_PATH}) expected={parsed_plan_rows} got={normalized_plan_rows}"
         )
 
+    expected_depth_requirements = normalize_depth_requirements(
+        contract.get("coverage_depth_requirements")
+    )
+    if schema_version == "sim-coverage-contract.v2" and not expected_depth_requirements:
+        errors.append("coverage contract v2 coverage_depth_requirements must be a non-empty object")
+    for row_id, row in expected_depth_requirements.items():
+        required_metrics = dict(row.get("required_metrics") or {})
+        if not required_metrics:
+            errors.append(f"coverage_depth_requirements.{row_id}.required_metrics must be non-empty")
+        for metric_key, minimum in required_metrics.items():
+            if metric_key not in sim_runner.ALLOWED_COVERAGE_REQUIREMENTS:
+                errors.append(
+                    f"coverage_depth_requirements.{row_id} has unsupported metric key: {metric_key}"
+                )
+            if minimum < 0:
+                errors.append(
+                    f"coverage_depth_requirements.{row_id}.{metric_key} minimum must be >= 0"
+                )
+        if not row.get("required_scenarios"):
+            errors.append(
+                f"coverage_depth_requirements.{row_id}.required_scenarios must be non-empty"
+            )
+        if not row.get("verification_matrix_row_id"):
+            errors.append(
+                f"coverage_depth_requirements.{row_id}.verification_matrix_row_id must be non-empty"
+            )
+
     expected_coverage_requirements = {str(key): int(value) for key, value in coverage_requirements.items()}
+    verification_matrix = load_json_object(VERIFICATION_MATRIX_PATH)
+    matrix_rows = {
+        str(dict(row or {}).get("row_id") or "").strip(): dict(row or {})
+        for row in list(verification_matrix.get("rows") or [])
+        if str(dict(row or {}).get("row_id") or "").strip()
+    }
+    for row_id, row in expected_depth_requirements.items():
+        matrix_row_id = str(row.get("verification_matrix_row_id") or "")
+        matrix_row = dict(matrix_rows.get(matrix_row_id) or {})
+        if not matrix_row:
+            errors.append(
+                f"verification_matrix drift: missing row_id for depth requirement {row_id} -> {matrix_row_id}"
+            )
+            continue
+        matrix_required_scenarios = sorted(
+            [
+                str(item).strip()
+                for item in list(matrix_row.get("required_scenarios") or [])
+                if str(item).strip()
+            ]
+        )
+        if matrix_required_scenarios != list(row.get("required_scenarios") or []):
+            errors.append(
+                "verification_matrix drift: required_scenarios mismatch for "
+                f"{row_id} expected={row.get('required_scenarios')} "
+                f"got={matrix_required_scenarios}"
+            )
+        matrix_evidence = sorted(
+            [
+                str(item).strip()
+                for item in list(matrix_row.get("required_evidence_types") or [])
+                if str(item).strip()
+            ]
+        )
+        if matrix_evidence != list(row.get("required_evidence_types") or []):
+            errors.append(
+                "verification_matrix drift: required_evidence_types mismatch for "
+                f"{row_id} expected={row.get('required_evidence_types')} "
+                f"got={matrix_evidence}"
+            )
     for manifest_path in MANIFEST_PATHS:
         manifest = load_json_object(manifest_path)
         profiles = manifest.get("profiles")
@@ -190,6 +307,16 @@ def validate_coverage_contract() -> List[str]:
             manifest_requirements,
             errors,
         )
+
+        manifest_depth_requirements = normalize_depth_requirements(
+            gates.get("coverage_depth_requirements")
+        )
+        if expected_depth_requirements:
+            if manifest_depth_requirements != expected_depth_requirements:
+                errors.append(
+                    f"{manifest_path}: coverage_depth_requirements drift "
+                    f"expected={expected_depth_requirements} got={manifest_depth_requirements}"
+                )
 
         manifest_required_reasons = gates.get("required_event_reasons")
         manifest_normalized_reasons = sorted(

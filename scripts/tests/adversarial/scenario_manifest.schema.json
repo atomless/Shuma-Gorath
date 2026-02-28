@@ -206,6 +206,82 @@
                 "minimum": 0
               }
             },
+            "coverage_depth_requirements": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "plan_row",
+                  "verification_matrix_row_id",
+                  "required_scenarios",
+                  "required_metrics",
+                  "required_evidence_types"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "plan_row": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "verification_matrix_row_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "required_scenarios": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required_metrics": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "propertyNames": {
+                      "enum": [
+                        "honeypot_hits",
+                        "challenge_failures",
+                        "not_a_bot_pass",
+                        "not_a_bot_fail",
+                        "not_a_bot_replay",
+                        "not_a_bot_escalate",
+                        "pow_attempts",
+                        "pow_successes",
+                        "pow_failures",
+                        "rate_violations",
+                        "rate_limited",
+                        "rate_banned",
+                        "geo_violations",
+                        "geo_challenge",
+                        "geo_maze",
+                        "geo_block",
+                        "maze_hits",
+                        "tarpit_activations_progressive",
+                        "tarpit_progress_advanced",
+                        "cdp_detections",
+                        "fingerprint_events",
+                        "ban_count",
+                        "recent_event_count"
+                      ]
+                    },
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required_evidence_types": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
             "human_like_collateral_max_ratio": {
               "type": "number",
               "minimum": 0,

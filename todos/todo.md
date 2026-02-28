@@ -155,13 +155,7 @@ Acceptance criteria:
 
 Scope: close contract-depth gaps so full coverage reflects true plan-row enforcement, including tarpit progression depth and event-stream health quality.
 
-- [ ] SIM2-EX6-1 Define `coverage_contract.v2` with explicit minima for currently under-specified plan intents (including tarpit progression and event-stream health depth metrics).
-- [ ] SIM2-EX6-2 Add schema migration and compatibility handling for contract v1/v2 while pre-launch migration completes.
-- [ ] SIM2-EX6-3 Add strict drift checks among plan rows, manifest expectations, runner extracted metrics, and contract requirements.
-- [ ] SIM2-EX6-4 Extend gate diagnostics with row-level failure output showing `required`, `observed`, `missing evidence`, and scenario contribution mapping.
-- [ ] SIM2-EX6-5 Add focused tests for each new v2 coverage key and threshold boundary behavior.
-- [ ] SIM2-EX6-6 Wire v2 governance into mandatory Makefile and CI coverage gates with fail-fast messaging.
-- [ ] SIM2-EX6-7 Update docs/runbooks with contract evolution protocol and backwards-compatibility removal date.
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-EX6-*` closure details.
 
 Acceptance criteria:
 1. Canonical coverage contract enforces every required plan-row intent with explicit measurable thresholds.

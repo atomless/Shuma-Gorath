@@ -32,8 +32,9 @@
     - deterministic diversity scoring weights and novelty expectations.
 - `lane_contract.v1.json`
   - Canonical attacker/control capability boundary contract for black-box simulation lanes.
-- `coverage_contract.v1.json`
-  - Canonical `full_coverage` contract (minimum coverage categories + event/outcome obligations) used for drift checks against manifests and SIM2 plan rows.
+- `coverage_contract.v2.json` (+ temporary `coverage_contract.v1.json` compatibility)
+  - Canonical `full_coverage` contract (minimum coverage categories + event/outcome obligations + depth-row minima) used for drift checks across plan rows, manifests, runner metrics, and verification matrix bindings.
+  - Compatibility policy: v1 fallback is temporary and must be removed by `2026-04-30`.
 - `scenario_intent_matrix.v1.json`
   - Canonical per-scenario intent matrix mapping each scenario to required defense categories, accepted evidence signals, minimum runtime evidence thresholds, and progression realism requirements.
   - Includes review-governance metadata (`cadence_days`, `stale_after_days`, row-level `last_reviewed_on`) used by periodic scenario quality checks.
@@ -94,7 +95,7 @@ The runner writes machine-readable artifacts to:
   - `realism_metrics` and `realism_gates` (deterministic traffic-model execution evidence for pacing, retry envelopes, and state-mode semantics),
   - `ip_range_suggestions` seed evidence (`seeded_summary`, `seeded_suggestions`, `matched_seed_suggestions`, `near_miss_suggestions`),
   - `plane_contract` metadata for attacker/control-plane guardrails,
-  - `coverage_contract` metadata (schema/version/hash and canonical coverage keys).
+  - `coverage_contract` metadata (schema/version/hash, canonical coverage keys, and depth-row bindings).
   - `scenario_intent_gates` checks proving each passed scenario emitted intent-mapped defense evidence and matched progression constraints.
   - `real_traffic_contract` metadata (schema/version/hash and prohibited-pattern contract keys),
   - `retention_lifecycle` synthesized from runtime `retention_health` fields (`retention_hours`, `oldest_retained_ts`, `purge_lag_hours`, `pending_expired_buckets`, `last_error`, `state`, `guidance`),
@@ -137,7 +138,8 @@ Notes:
   - Realism constraints must ensure expected defenses are triggered by attacker traffic progression rather than mid-attack control-plane reconfiguration.
   - Scenario setup presets must be applied before attacker execution begins for each scenario contract slice; driver code must treat control-plane mutation as forbidden during attacker execution.
 - Coverage contract governance:
-  - canonical `full_coverage` requirements are versioned in `coverage_contract.v1.json`,
+  - canonical `full_coverage` requirements are versioned in `coverage_contract.v2.json` with temporary v1 compatibility,
+  - v1 compatibility removal date is `2026-04-30`,
   - drift checks run via `make test-adversarial-coverage-contract` and are wired into `make test-adversarial-manifest`, `make test-adversarial-fast`, and `make test-adversarial-coverage`.
 - Scenario intent governance:
   - canonical per-scenario intent mappings are versioned in `scenario_intent_matrix.v1.json`,

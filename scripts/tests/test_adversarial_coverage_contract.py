@@ -25,6 +25,19 @@ class AdversarialCoverageContractUnitTests(unittest.TestCase):
         with self.assertRaises(sim_runner.SimulationError):
             sim_runner.validate_manifest(manifest_path, modified, "full_coverage")
 
+    def test_full_coverage_manifest_requires_exact_depth_requirement_rows(self):
+        manifest_path = Path("scripts/tests/adversarial/scenario_manifest.v2.json")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        modified = copy.deepcopy(manifest)
+        depth_requirements = modified["profiles"]["full_coverage"]["gates"][
+            "coverage_depth_requirements"
+        ]
+        removed_key = next(iter(depth_requirements.keys()))
+        del depth_requirements[removed_key]
+
+        with self.assertRaises(sim_runner.SimulationError):
+            sim_runner.validate_manifest(manifest_path, modified, "full_coverage")
+
 
 if __name__ == "__main__":
     unittest.main()

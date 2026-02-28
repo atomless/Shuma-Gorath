@@ -1,0 +1,88 @@
+{
+  "schema_version": "sim-coverage-contract.v2",
+  "profile": "full_coverage",
+  "plan_source": "docs/plans/2026-02-26-adversarial-simulation-v2-plan.md",
+  "compatibility": {
+    "accept_previous_schema_versions": [
+      "sim-coverage-contract.v1"
+    ],
+    "v1_removal_date": "2026-04-30"
+  },
+  "coverage_requirements": {
+    "honeypot_hits": 1,
+    "challenge_failures": 1,
+    "not_a_bot_pass": 1,
+    "not_a_bot_fail": 1,
+    "not_a_bot_replay": 1,
+    "pow_attempts": 2,
+    "pow_successes": 1,
+    "pow_failures": 1,
+    "rate_violations": 1,
+    "geo_challenge": 1,
+    "geo_maze": 1,
+    "geo_block": 1,
+    "maze_hits": 1,
+    "cdp_detections": 1,
+    "fingerprint_events": 1,
+    "ban_count": 1
+  },
+  "coverage_depth_requirements": {
+    "tarpit_progression_depth": {
+      "plan_row": "Tarpit",
+      "verification_matrix_row_id": "tarpit_progression",
+      "required_scenarios": [
+        "sim_t4_tarpit_replay_abuse"
+      ],
+      "required_metrics": {
+        "tarpit_activations_progressive": 1,
+        "tarpit_progress_advanced": 1
+      },
+      "required_evidence_types": [
+        "runtime_telemetry",
+        "monitoring_delta",
+        "coverage_delta",
+        "lineage"
+      ]
+    },
+    "event_stream_health_depth": {
+      "plan_row": "Event stream health",
+      "verification_matrix_row_id": "event_stream_integrity",
+      "required_scenarios": [
+        "sim_t3_replay_abuse",
+        "sim_t4_ordering_cadence_abuse"
+      ],
+      "required_metrics": {
+        "recent_event_count": 2
+      },
+      "required_evidence_types": [
+        "runtime_telemetry",
+        "monitoring_delta",
+        "coverage_delta",
+        "lineage"
+      ]
+    }
+  },
+  "required_event_reasons": [
+    "cdp_detected",
+    "honeypot"
+  ],
+  "required_outcome_categories": [
+    "tarpit"
+  ],
+  "ip_range_suggestion_seed_required": true,
+  "plan_contract_rows": [
+    "Honeypot",
+    "Challenge failures",
+    "Not-a-Bot outcomes",
+    "PoW",
+    "Rate limiting",
+    "GEO routing",
+    "Maze",
+    "Tarpit",
+    "CDP",
+    "Fingerprint ingestion",
+    "Ban path",
+    "Event stream health",
+    "IP range suggestions"
+  ]
+}
