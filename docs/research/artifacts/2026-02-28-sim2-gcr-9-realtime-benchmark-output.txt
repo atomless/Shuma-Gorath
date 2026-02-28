@@ -1,0 +1,9 @@
+=== steady_200eps_120s ===
+poll_default: delivered=120000 overflow_or_drop=0 calls_or_conns=605 p50=496 p95=946 p99=986 mean=498.50 cpu_ms=2 peak=600 memB=768000
+poll_fast: delivered=120000 overflow_or_drop=0 calls_or_conns=2405 p50=121 p95=236 p99=246 mean=123.50 cpu_ms=1 peak=400 memB=512000
+sse: delivered=120000 overflow_or_drop=0 calls_or_conns=5 p50=121 p95=236 p99=246 mean=123.50 cpu_ms=2 peak=50 memB=1310720
+
+=== burst_1000eps_30s ===
+poll_default: delivered=90005 overflow_or_drop=929995 calls_or_conns=155 p50=6499 p95=11899 p99=12419 mean=6499.14 cpu_ms=1 peak=600 memB=768000
+poll_fast: delivered=150000 overflow_or_drop=0 calls_or_conns=605 p50=124 p95=237 p99=247 mean=124.50 cpu_ms=0 peak=400 memB=512000
+sse: delivered=150000 overflow_or_drop=0 calls_or_conns=5 p50=124 p95=237 p99=247 mean=124.50 cpu_ms=1 peak=250 memB=1310720

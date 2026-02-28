@@ -55,3 +55,5 @@ Completed archive index:
    Research synthesis for capability-safe containerized frontier orchestration (runtime hardening, signed envelopes, bounded channels, fail-closed teardown).
 9. [`2026-02-28-sim2-gcr-4-rust-realtime-monitoring-architecture-candidates.md`](2026-02-28-sim2-gcr-4-rust-realtime-monitoring-architecture-candidates.md)  
    Research synthesis for realtime monitoring delivery candidates in Rust/Spin (cursor polling vs SSE, ordering, backpressure, bounded cost).
+10. [`2026-02-28-sim2-gcr-9-rust-realtime-benchmark-comparison.md`](2026-02-28-sim2-gcr-9-rust-realtime-benchmark-comparison.md)  
+   Benchmark evidence comparing cursor polling and streaming candidate behavior under steady and burst envelopes, with quantitative threshold recommendations.

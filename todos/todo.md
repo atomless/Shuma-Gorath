@@ -261,7 +261,7 @@ Execution order (must be followed):
 2. `SIM2-GCR-3` UI-toggle trust-boundary controls (completed 2026-02-28).
 3. `SIM2-GCR-2` containerized black-box capability orchestration (completed 2026-02-28).
 4. `SIM2-GCR-4` Rust realtime monitoring architecture candidates (completed 2026-02-28).
-5. `SIM2-GCR-9` Rust prototype/benchmark comparison for realtime candidates.
+5. `SIM2-GCR-9` Rust prototype/benchmark comparison for realtime candidates (completed 2026-02-28).
 6. `SIM2-GCR-5` telemetry retention/storage lifecycle best practices.
 7. `SIM2-GCR-6` monitoring cost-efficiency patterns.
 8. `SIM2-GCR-7` telemetry/adversary-artifact security and privacy controls.
@@ -278,7 +278,6 @@ Per-track workflow (must be followed before marking each track complete):
 - [ ] SIM2-GCR-6 Research cost-efficiency patterns for monitoring pipelines (aggregation windows, cardinality controls, event sampling restrictions, compression/serialization tradeoffs, query budget controls).
 - [ ] SIM2-GCR-7 Research security/privacy best practices for telemetry and adversary artifacts (secret-exposure prevention, data minimization, pseudonymization options, artifact retention risk controls, incident-response hooks).
 - [ ] SIM2-GCR-8 Produce research synthesis docs and implementation plans for `GC-6`, `GC-8`, `GC-11`, and `GC-14`, then update todos with quantitative thresholds derived from research outcomes.
-- [ ] SIM2-GCR-9 Run Rust-focused prototype/benchmark comparisons for realtime monitoring delivery candidates (at minimum cursor polling vs streaming candidate) and record latency/cpu/memory/query-cost tradeoffs.
 - [ ] SIM2-GCR-10 Convert selected research outcomes into ADR-backed architecture decisions for: (a) UI-toggle-driven black-box adversary orchestration, (b) monitoring realtime data architecture, and (c) retention/cost/security lifecycle policies.
 
 Acceptance criteria:
@@ -400,14 +399,15 @@ Scope: ensure monitoring and IP-ban views reflect new activity quickly in both d
 - [ ] SIM2-GC-6-14 Update dashboard refresh runtime to prefer cursor path (and SSE when available) with deterministic fallback to polling on stream failure.
 
 Acceptance criteria:
-1. Monitoring and IP-ban views meet documented quantitative freshness SLOs in both runtime-dev and runtime-prod envelopes.
-2. Refresh behavior is deterministic (monotonic, no silent loss, no duplicate replay beyond documented window rules).
-3. Backpressure and cache behavior are bounded and benchmarked under expected burst load.
-4. Freshness regressions fail automated tests with actionable diagnostics.
-5. Production monitoring freshness is independent of adversary-sim active state.
-6. Operators can see explicit freshness health and lag state at all times.
-7. Cursor-resume semantics are deterministic across manual refresh, auto-refresh, and reconnect flows.
-8. Realtime delivery paths remain bounded under burst load with explicit lag/overflow diagnostics instead of silent staleness.
+1. Under declared load envelope (`>=1000 events/s`, `>=5 active operator clients`), active live path achieves `p95 <= 300ms` and `p99 <= 500ms` freshness in runtime-dev and runtime-prod verification profiles.
+2. Non-degraded active path has zero overflow/drop for monitored events within declared bounded buffer window.
+3. Refresh behavior is deterministic (monotonic cursor progression, no silent loss, no duplicate replay beyond documented replay window rules).
+4. Backpressure and cache behavior are bounded and benchmarked under expected burst load.
+5. Freshness regressions fail automated tests with actionable diagnostics naming violated percentile/budget threshold.
+6. Production monitoring freshness is independent of adversary-sim active state.
+7. Operators can see explicit freshness health and lag state at all times.
+8. Cursor-resume semantics are deterministic across manual refresh, auto-refresh, and reconnect flows.
+9. When streaming path is available, active live updates stay within query budget `<=1 request/sec/client` average (excluding initial bootstrap requests); degraded fallback polling above that budget must surface explicit degraded state.
 
 ### SIM2-GC-7: Upgrade Browser-Adversary Lane to True Browser Execution
 
@@ -513,6 +513,7 @@ Scope: enforce non-regression with tests that prove real traffic -> real defense
 - [ ] SIM2-GC-11-15 Add teardown determinism tests (`deadline exceeded`, `heartbeat loss`, forced-kill path) and assert terminal failure taxonomy plus cleanup completion.
 - [ ] SIM2-GC-11-16 Add cursor-contract tests for monotonic ordering, resume-after-cursor correctness, overflow signaling, and deduped replay windows.
 - [ ] SIM2-GC-11-17 Add SSE-path tests for event-id ordering, `Last-Event-ID` reconnect behavior, and fallback-to-polling continuity when stream drops.
+- [ ] SIM2-GC-11-18 Add reproducible realtime benchmark verification target (`make test-sim2-realtime-bench`) and CI artifact outputs for latency percentiles, overflow/drop counts, and request-budget metrics.
 
 Acceptance criteria:
 1. Mandatory verification fails if any matrix-required defense/lane evidence is missing.
@@ -524,6 +525,7 @@ Acceptance criteria:
 7. Trust-boundary regressions (CSRF/origin/session/replay/throttle/audit) fail deterministically in CI with explicit failure taxonomy.
 8. Frontier isolation/envelope/teardown regressions fail deterministically in CI with explicit failure taxonomy.
 9. Realtime cursor/stream ordering and resume regressions fail deterministically in CI with explicit failure taxonomy.
+10. Benchmark-threshold regressions (`p95`, `p99`, overflow/drop, request-budget) fail deterministically in CI with scenario-specific diagnostics.
 
 ### SIM2-GC-12: Program Governance for Continuous Defense Evolution
 
