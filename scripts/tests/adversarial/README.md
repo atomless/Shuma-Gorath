@@ -126,5 +126,6 @@ Notes:
   - unsafe candidate payloads are rejected before execution, with reasons emitted in `container_blackbox_report.json -> frontier_candidate_rejections`.
   - policy violations emit structured deny/audit events in `container_blackbox_report.json -> policy_audit.events`.
   - lineage evidence is emitted in `container_blackbox_report.json -> frontier_lineage` linking model suggestion -> executed action -> runtime/admin event surfaces.
+  - degraded execution state is explicit in `container_blackbox_report.json -> frontier_runtime_state` and marks fallback/outage conditions as non-passing.
   - negative-path regression tests cover secret canary leakage, out-of-scope URL/path attempts, privileged header injection attempts, and replay envelope misuse.
 - `adversarial_sim_selftest.py` is intentionally tiny and non-circular: it validates simulator mechanics against fixed stub routes without asserting product defense efficacy.

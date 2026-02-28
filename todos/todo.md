@@ -388,7 +388,7 @@ Scope: ensure frontier-model-driven adversary lane produces concrete HTTP/browse
 - [x] SIM2-GC-8-5 Add strict sanitization/validation so unsafe or out-of-policy model outputs are rejected before execution.
 - [x] SIM2-GC-8-6 Add negative-path security tests (secret-exfiltration canaries, out-of-scope URL attempts, privileged header injection attempts, replay envelope misuse).
 - [x] SIM2-GC-8-7 Add trace lineage from model suggestion -> executed action -> runtime telemetry -> monitoring view.
-- [ ] SIM2-GC-8-8 Add degraded-mode behavior for key outages that remains explicit, does not fake execution success, and surfaces degraded state within one monitoring refresh/stream cycle.
+- [x] SIM2-GC-8-8 Add degraded-mode behavior for key outages that remains explicit, does not fake execution success, and surfaces degraded state within one monitoring refresh/stream cycle.
 - [ ] SIM2-GC-8-9 Add operator kill-switch and deterministic emergency stop flow for active frontier runs with `p95 <= 10s` stop-latency target.
 - [ ] SIM2-GC-8-10 Enforce hardened container runtime profile for frontier workers (`non-root/rootless`, `no_new_privileges`, capability allowlist only, read-only rootfs with explicit scratch mounts, no privileged mode/host namespace joins).
 - [ ] SIM2-GC-8-11 Block sensitive host-control surfaces by policy (forbid daemon-socket mounts and disallowed host bind mounts; fail launch when isolation profile is violated).

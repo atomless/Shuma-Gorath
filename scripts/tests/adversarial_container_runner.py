@@ -510,6 +510,43 @@ def build_frontier_lineage_summary(
     }
 
 
+def build_frontier_runtime_state(
+    mode: str,
+    frontier_actions_source: str,
+    frontier_action_source_error: str,
+    frontier_lineage: Dict[str, Any],
+) -> Dict[str, Any]:
+    if mode != "blackbox":
+        return {
+            "status": "ok",
+            "degraded": False,
+            "reasons": [],
+            "detail": "not_applicable",
+        }
+
+    reasons: List[str] = []
+    if frontier_actions_source == "contract_default_fallback":
+        reasons.append("attack_plan_unavailable_or_invalid")
+    if frontier_action_source_error:
+        reasons.append(frontier_action_source_error)
+    lineage_detail = str(frontier_lineage.get("detail") or "").strip()
+    if lineage_detail and lineage_detail != "ok":
+        reasons.append(lineage_detail)
+
+    deduped = []
+    for reason in reasons:
+        text = str(reason).strip()
+        if not text or text in deduped:
+            continue
+        deduped.append(text)
+    return {
+        "status": "degraded" if deduped else "ok",
+        "degraded": bool(deduped),
+        "reasons": deduped,
+        "detail": "frontier_runtime_degraded" if deduped else "ok",
+    }
+
+
 def container_command(
     image_tag: str,
     mode: str,
@@ -820,6 +857,13 @@ def main() -> int:
                 "detail": f"lineage_collection_error:{exc}",
             }
 
+    frontier_runtime_state = build_frontier_runtime_state(
+        mode=args.mode,
+        frontier_actions_source=frontier_actions_source,
+        frontier_action_source_error=frontier_action_source_error,
+        frontier_lineage=frontier_lineage,
+    )
+
     has_forbidden_env = not bool(worker_payload.get("admin_credentials_absent"))
     isolation_contract = {
         "container_process_boundary": True,
@@ -848,7 +892,12 @@ def main() -> int:
     }
     contract_pass = all(isolation_contract.values())
 
-    passed = bool(worker_payload.get("passed")) and worker_result.returncode == 0 and contract_pass
+    passed = (
+        bool(worker_payload.get("passed"))
+        and worker_result.returncode == 0
+        and contract_pass
+        and not bool(frontier_runtime_state.get("degraded"))
+    )
     report = {
         "schema_version": "adversarial-container-report.v1",
         "mode": args.mode,
@@ -873,6 +922,7 @@ def main() -> int:
         "frontier_action_lineage": frontier_action_lineage,
         "frontier_candidate_rejections": frontier_candidate_rejections,
         "frontier_lineage": frontier_lineage,
+        "frontier_runtime_state": frontier_runtime_state,
         "isolation_contract": isolation_contract,
         "orchestrator_hook": orchestrator_hook,
         "worker_result": {

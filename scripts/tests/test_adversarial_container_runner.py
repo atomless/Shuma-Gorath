@@ -164,6 +164,26 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         self.assertEqual(summary["runtime_event_count"], 1)
         self.assertEqual(summary["monitoring_event_count"], 1)
 
+    def test_build_frontier_runtime_state_marks_degraded_fallback_paths(self):
+        degraded = container_runner.build_frontier_runtime_state(
+            mode="blackbox",
+            frontier_actions_source="contract_default_fallback",
+            frontier_action_source_error="attack plan not found",
+            frontier_lineage={"detail": "lineage_collection_error:missing_api_key"},
+        )
+        self.assertTrue(degraded["degraded"])
+        self.assertEqual(degraded["status"], "degraded")
+        self.assertIn("attack_plan_unavailable_or_invalid", degraded["reasons"])
+
+        healthy = container_runner.build_frontier_runtime_state(
+            mode="blackbox",
+            frontier_actions_source="attack_plan_candidates",
+            frontier_action_source_error="",
+            frontier_lineage={"detail": "ok"},
+        )
+        self.assertFalse(healthy["degraded"])
+        self.assertEqual(healthy["status"], "ok")
+
 
 if __name__ == "__main__":
     unittest.main()
