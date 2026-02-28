@@ -360,9 +360,6 @@ ADR reference: [`docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md`](../doc
 - [ ] SIM2-GC-6-6 Add tests for freshness, monotonic ordering, deduplication, and behavior under bursty adversary runs.
 - [ ] SIM2-GC-6-7 Add explicit freshness-health telemetry and UI state (`fresh`, `degraded`, `stale`) with operator-facing lag indicators.
 - [ ] SIM2-GC-6-8 Replace run-active-only cache-bypass assumptions with a global freshness policy that preserves near-realtime visibility for real production attacker traffic.
-- [ ] SIM2-GC-6-9 Define canonical monitoring event cursor contract (strict monotonic sequence id, resume semantics, and overflow taxonomy shared by polling and stream paths).
-- [ ] SIM2-GC-6-10 Implement cursor-delta endpoint(s) for monitoring/IP-bans (`after_cursor`, bounded `limit`, `next_cursor`, `has_more`, `overflow`) with deterministic ordering.
-- [ ] SIM2-GC-6-11 Add conditional polling optimization (`If-None-Match`/`304`) on cursor-delta reads where unchanged windows can be proven safely.
 - [ ] SIM2-GC-6-12 Implement optional SSE delivery path (`text/event-stream`) that reuses the same cursor namespace and supports `Last-Event-ID` resume.
 - [ ] SIM2-GC-6-13 Add bounded server-side fan-out buffers/queues and explicit slow-consumer lag signaling (no unbounded memory growth).
 - [ ] SIM2-GC-6-14 Update dashboard refresh runtime to prefer cursor path (and SSE when available) with deterministic fallback to polling on stream failure.

@@ -6,6 +6,12 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 SIM2 Gap-Closure Program: Real Execution + Realtime Monitoring
 
+#### SIM2-GC-6: Deliver Realtime Monitoring Refresh Semantics and Backpressure Safety (partial)
+
+- [x] SIM2-GC-6-9 Define canonical monitoring event cursor contract (strict monotonic sequence id, resume semantics, and overflow taxonomy shared by polling and stream paths).
+- [x] SIM2-GC-6-10 Implement cursor-delta endpoint(s) for monitoring/IP-bans (`after_cursor`, bounded `limit`, `next_cursor`, `has_more`, `overflow`) with deterministic ordering.
+- [x] SIM2-GC-6-11 Add conditional polling optimization (`If-None-Match`/`304`) on cursor-delta reads where unchanged windows can be proven safely.
+
 #### SIM2-GC-5: Remove Simulation Telemetry Namespace Architecture Completely
 
 - [x] SIM2-GC-5-1 Remove simulation namespace config flags, query paths, schema branches, and UI toggles.
