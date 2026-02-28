@@ -39,8 +39,6 @@ const RATE_OUTCOME_KEYS: [&str; 4] = ["limited", "banned", "fallback_allow", "fa
 const GEO_ACTION_KEYS: [&str; 3] = ["block", "challenge", "maze"];
 
 #[cfg(not(test))]
-static LAST_MONITORING_CLEANUP_HOUR: Lazy<Mutex<u64>> = Lazy::new(|| Mutex::new(0));
-#[cfg(not(test))]
 static PENDING_COUNTER_BUFFER: Lazy<Mutex<PendingCounterBuffer>> =
     Lazy::new(|| Mutex::new(PendingCounterBuffer::default()));
 
@@ -352,6 +350,7 @@ fn flush_counter_deltas<S: crate::challenge::KeyValueStore>(
     store: &S,
     deltas: HashMap<String, u64>,
 ) {
+    let mut wrote_any = false;
     for (key, delta) in deltas {
         if delta == 0 {
             continue;
@@ -360,7 +359,19 @@ fn flush_counter_deltas<S: crate::challenge::KeyValueStore>(
         let next = current.saturating_add(delta);
         if let Err(err) = store.set(key.as_str(), next.to_string().as_bytes()) {
             eprintln!("[monitoring] failed writing {}: {:?}", key, err);
+            continue;
         }
+        wrote_any = true;
+        if current == 0 {
+            if let Some((_, _, _, hour)) =
+                parse_monitoring_key_with_prefix(key.as_str(), MONITORING_PREFIX)
+            {
+                crate::observability::retention::register_monitoring_key(store, hour, key.as_str());
+            }
+        }
+    }
+    if wrote_any {
+        crate::observability::retention::run_worker_if_due(store);
     }
 }
 
@@ -393,7 +404,14 @@ fn increment_counter<S: crate::challenge::KeyValueStore>(store: &S, key: &str) {
     let next = current.saturating_add(1);
     if let Err(err) = store.set(key, next.to_string().as_bytes()) {
         eprintln!("[monitoring] failed writing {}: {:?}", key, err);
+        return;
     }
+    if current == 0 {
+        if let Some((_, _, _, hour)) = parse_monitoring_key_with_prefix(key, MONITORING_PREFIX) {
+            crate::observability::retention::register_monitoring_key(store, hour, key);
+        }
+    }
+    crate::observability::retention::run_worker_if_due(store);
 }
 
 #[cfg(not(test))]
@@ -474,52 +492,6 @@ fn matching_monitoring_prefix<'a>(key: &str, prefixes: &'a [&str]) -> Option<&'a
         .copied()
         .filter(|prefix| key == *prefix || key.starts_with(format!("{}:", prefix).as_str()))
         .max_by_key(|prefix| prefix.len())
-}
-
-fn cleanup_monitoring_keys<S: crate::challenge::KeyValueStore>(store: &S, cutoff: u64) {
-    let prefixes = [MONITORING_PREFIX];
-    if let Ok(keys) = store.get_keys() {
-        for key in keys {
-            let Some(prefix) = matching_monitoring_prefix(key.as_str(), &prefixes) else {
-                continue;
-            };
-            let Some((_, _, _, hour)) = parse_monitoring_key_with_prefix(key.as_str(), prefix)
-            else {
-                continue;
-            };
-            if hour < cutoff {
-                if let Err(err) = store.delete(key.as_str()) {
-                    eprintln!("[monitoring] failed deleting expired key {}: {:?}", key, err);
-                }
-            }
-        }
-    }
-}
-
-#[cfg(not(test))]
-fn maybe_cleanup_monitoring<S: crate::challenge::KeyValueStore>(store: &S, current_hour: u64) {
-    let retention = event_log_retention_hours();
-    if retention == 0 {
-        return;
-    }
-    let mut last = LAST_MONITORING_CLEANUP_HOUR.lock().unwrap();
-    if *last == current_hour {
-        return;
-    }
-    *last = current_hour;
-
-    let cutoff = current_hour.saturating_sub(retention);
-    cleanup_monitoring_keys(store, cutoff);
-}
-
-#[cfg(test)]
-fn maybe_cleanup_monitoring<S: crate::challenge::KeyValueStore>(store: &S, current_hour: u64) {
-    let retention = event_log_retention_hours();
-    if retention == 0 {
-        return;
-    }
-    let cutoff = current_hour.saturating_sub(retention);
-    cleanup_monitoring_keys(store, cutoff);
 }
 
 fn record_with_dimension<S: crate::challenge::KeyValueStore>(
@@ -731,7 +703,6 @@ fn summarize_with_store_prefixes<S: crate::challenge::KeyValueStore>(
     let now = now_ts();
     #[cfg(not(test))]
     maybe_flush_pending_counter_buffer(store, true);
-    maybe_cleanup_monitoring(store, now / 3600);
     let hours = normalize_window_hours(hours);
     let top_limit = normalize_top_limit(limit);
     let end_hour = now / 3600;
@@ -1500,7 +1471,7 @@ mod tests {
     }
 
     #[test]
-    fn record_cleanup_respects_retention_window() {
+    fn summarize_read_path_does_not_delete_expired_monitoring_keys() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "1");
         let store = MockStore::default();
@@ -1516,7 +1487,7 @@ mod tests {
             store
                 .get(expired_key.as_str())
                 .expect("counter read should succeed")
-                .is_none()
+                .is_some()
         );
         std::env::remove_var("SHUMA_EVENT_LOG_RETENTION_HOURS");
     }

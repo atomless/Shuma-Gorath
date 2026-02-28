@@ -323,12 +323,53 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             ["cdp_detected:tier=high", "not_a_bot_replay"],
         )
 
+    def test_extract_monitoring_snapshot_includes_retention_health(self):
+        payload = {
+            "summary": {},
+            "details": {
+                "retention_health": {
+                    "retention_hours": 168,
+                    "pending_expired_buckets": 0,
+                    "purge_lag_hours": 0,
+                }
+            },
+        }
+        snapshot = runner.extract_monitoring_snapshot(payload)
+        self.assertEqual(snapshot["retention_health"]["retention_hours"], 168)
+        self.assertEqual(snapshot["retention_health"]["pending_expired_buckets"], 0)
+
     def test_compute_coverage_deltas_clamps_negative_values(self):
         before = {"honeypot_hits": 5, "geo_maze": 3}
         after = {"honeypot_hits": 3, "geo_maze": 7}
         deltas = runner.compute_coverage_deltas(before, after)
         self.assertEqual(deltas["honeypot_hits"], 0)
         self.assertEqual(deltas["geo_maze"], 4)
+
+    def test_build_retention_lifecycle_report_maps_health_fields(self):
+        section = runner.build_retention_lifecycle_report(
+            {
+                "retention_hours": 168,
+                "oldest_retained_ts": 1_700_000_000,
+                "pending_expired_buckets": 2,
+                "purge_lag_hours": 2.5,
+                "last_purged_bucket": "eventlog:100",
+                "last_error": "",
+                "state": "degraded",
+                "guidance": "investigate",
+                "bucket_schema": [
+                    "bucket_id",
+                    "window_start",
+                    "window_end",
+                    "record_count",
+                    "state",
+                ],
+            }
+        )
+        self.assertTrue(section["bucket_cutoff_correct"])
+        self.assertTrue(section["purge_watermark_progression"])
+        self.assertEqual(section["retention_hours"], 168)
+        self.assertEqual(section["pending_expired_buckets"], 2)
+        self.assertAlmostEqual(section["purge_lag_hours"], 2.5, places=2)
 
     def test_build_sim_tag_diagnostics_reports_healthy_when_no_sim_tag_failures(self):
         diagnostics = runner.build_sim_tag_diagnostics(

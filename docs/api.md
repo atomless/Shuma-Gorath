@@ -178,6 +178,10 @@ Adversary-sim command contract (`adversary-sim-control.v1`) highlights:
   - `generation_active` (`true|false`; producer lifecycle only)
   - `historical_data_visible` (`true` when retained telemetry remains queryable regardless of producer state)
   - `history_retention.retention_hours`
+  - `history_retention.retention_health.state`
+  - `history_retention.retention_health.purge_lag_hours`
+  - `history_retention.retention_health.pending_expired_buckets`
+  - `history_retention.retention_health.last_error`
   - `history_retention.cleanup_endpoint`
   - `history_retention.cleanup_command`
   - `controller_reconciliation_required` (`true|false`)
@@ -243,6 +247,10 @@ For <abbr title="Chrome DevTools Protocol">CDP</abbr>-only operational views wit
 - `total_violations`, `unique_offenders`, `top_offenders`, `top_paths`, `outcomes`
 - `summary.geo`:
 - `total_violations`, `actions`, `top_countries`
+- `retention_health`:
+- `retention_hours`, `oldest_retained_ts`, `purge_lag_hours`, `pending_expired_buckets`
+- `last_purge_success_ts`, `last_attempt_ts`, `last_purged_bucket`, `last_error`
+- `state` (`healthy|degraded|stalled`), `guidance`, `bucket_schema`
 
 `GET /admin/monitoring/delta?after_cursor=<cursor>&limit=100&hours=24` returns:
 - `cursor_contract` (version + ordering + overflow taxonomy)
@@ -271,6 +279,7 @@ The stream path is intentionally one-shot in this phase; the browser reconnect l
 - `prometheus`:
 - `endpoint` (`/metrics`), helper notes, and scrape examples for external platforms
 - `details` (dashboard Monitoring-tab refresh contract):
+- `retention_health`: same lifecycle contract as top-level (`state/guidance/lag/pending/error`)
 - `analytics`: `ban_count`, `test_mode`, `fail_mode`
 - `events`: `recent_events`, `event_counts`, `top_ips`, `unique_ips`
 - `bans`: `bans`

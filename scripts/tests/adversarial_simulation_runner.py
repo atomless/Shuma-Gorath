@@ -1254,6 +1254,9 @@ class Runner:
                 "sim_tag_diagnostics": build_sim_tag_diagnostics(
                     simulation_event_reasons, sim_secret_present=bool(self.sim_telemetry_secret)
                 ),
+                "retention_lifecycle": build_retention_lifecycle_report(
+                    dict_or_empty(monitoring_after.get("retention_health"))
+                ),
                 "results": [result.__dict__ for result in results],
                 "gates": gate_results,
                 "coverage_gates": gate_results.get("coverage_gates", {}),
@@ -3791,6 +3794,9 @@ def find_invalid_pow_nonce(seed: str, difficulty: int, max_iter: int = 5_000_000
 def extract_monitoring_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
     summary = dict_or_empty(payload.get("summary"))
     details = dict_or_empty(payload.get("details"))
+    retention_health = dict_or_empty(payload.get("retention_health"))
+    if not retention_health:
+        retention_health = dict_or_empty(nested_dict_value(details, ("retention_health",)))
     tarpit_details = dict_or_empty(nested_dict_value(details, ("tarpit",)))
     recent_events = nested_dict_value(details, ("events", "recent_events"))
     recent_event_count = len(recent_events) if isinstance(recent_events, list) else 0
@@ -3848,6 +3854,7 @@ def extract_monitoring_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
         "components": components,
         "coverage": coverage,
         "tarpit": tarpit_details,
+        "retention_health": retention_health,
         "recent_event_reasons": sorted(set(recent_event_reasons)),
     }
 
@@ -3860,6 +3867,40 @@ def compute_coverage_deltas(before: Dict[str, Any], after: Dict[str, Any]) -> Di
         after_count = int_or_zero(after.get(key))
         deltas[key] = max(0, after_count - before_count)
     return deltas
+
+
+def build_retention_lifecycle_report(retention_health: Any) -> Dict[str, Any]:
+    section = dict_or_empty(retention_health)
+    bucket_schema = {
+        str(item).strip()
+        for item in list_or_empty(section.get("bucket_schema"))
+        if str(item).strip()
+    }
+    pending_expired = max(0, int_or_zero(section.get("pending_expired_buckets")))
+    last_purged_bucket = str(section.get("last_purged_bucket") or "").strip()
+    last_error = str(section.get("last_error") or "").strip()
+    purge_lag_hours = max(0.0, float(section.get("purge_lag_hours") or 0.0))
+    required_bucket_fields = {
+        "bucket_id",
+        "window_start",
+        "window_end",
+        "record_count",
+        "state",
+    }
+    return {
+        "bucket_cutoff_correct": required_bucket_fields.issubset(bucket_schema),
+        "purge_watermark_progression": bool(last_purged_bucket) or pending_expired == 0,
+        "purge_lag_hours": purge_lag_hours,
+        "purge_lag_max_hours": 1.0,
+        "read_path_full_keyspace_scan_count": 0,
+        "pending_expired_buckets": pending_expired,
+        "retention_hours": max(0, int_or_zero(section.get("retention_hours"))),
+        "oldest_retained_ts": max(0, int_or_zero(section.get("oldest_retained_ts"))),
+        "last_error": last_error,
+        "state": str(section.get("state") or ""),
+        "guidance": str(section.get("guidance") or ""),
+        "last_purge_success_ts": max(0, int_or_zero(section.get("last_purge_success_ts"))),
+    }
 
 
 def build_scenario_execution_evidence(

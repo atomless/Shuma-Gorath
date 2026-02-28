@@ -18,6 +18,17 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 SIM2 Gap-Closure Program: Real Execution + Realtime Monitoring
 
+#### SIM2-GC-15: Telemetry Retention Lifecycle Determinism and Health Visibility
+
+- [x] SIM2-GC-15-1 Define canonical telemetry bucket/index schema for monitoring/event retention operations (`bucket_id`, `window_start`, `window_end`, `record_count`, `state`).
+- [x] SIM2-GC-15-2 Migrate telemetry writes to update bucket/index metadata so expired windows are purge-addressable without full keyspace scans.
+- [x] SIM2-GC-15-3 Implement background purge worker cadence with bounded batch budget and persisted purge watermark (`last_purged_bucket`, `last_attempt_ts`, `last_success_ts`).
+- [x] SIM2-GC-15-4 Remove opportunistic retention cleanup from monitoring/admin read paths and replace with worker-triggered retention lifecycle.
+- [x] SIM2-GC-15-5 Add retention health surface in admin/monitoring payloads (`retention_hours`, `oldest_retained_ts`, `purge_lag_hours`, `pending_expired_buckets`, `last_error`).
+- [x] SIM2-GC-15-6 Add degraded-state signaling and operator guidance when retention drift exceeds thresholds.
+- [x] SIM2-GC-15-7 Add deterministic failure-recovery behavior for purge partial failures (retry safety, idempotent bucket cleanup, explicit failure taxonomy).
+- [x] SIM2-GC-15-8 Add docs/runbook updates for retention tuning, purge troubleshooting, and operational rollback.
+
 #### SIM2-GC-10: Dashboard UX for Arms-Race Operations (Evidence-First)
 
 - [x] SIM2-GC-10-1 Add “recent adversary run” panel linking run ids to observed defense deltas in monitoring and IP-ban surfaces.

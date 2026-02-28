@@ -91,6 +91,7 @@ The runner writes machine-readable artifacts to:
   - `coverage_contract` metadata (schema/version/hash and canonical coverage keys).
   - `scenario_intent_gates` checks proving each passed scenario emitted intent-mapped defense evidence and matched progression constraints.
   - `real_traffic_contract` metadata (schema/version/hash and prohibited-pattern contract keys),
+  - `retention_lifecycle` synthesized from runtime `retention_health` fields (`retention_hours`, `oldest_retained_ts`, `purge_lag_hours`, `pending_expired_buckets`, `last_error`, `state`, `guidance`),
   - `evidence` (`sim-run-evidence.v1`) with request-lineage, per-scenario runtime telemetry evidence rows, and control-plane lineage fields.
 
 Notes:

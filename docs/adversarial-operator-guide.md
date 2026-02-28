@@ -470,7 +470,11 @@ Lifecycle semantics:
 
 1. `generation_active` describes whether adversary traffic producers are currently running.
 2. `historical_data_visible` remains `true` after auto-off; retained telemetry stays queryable until retention expiry or explicit cleanup.
-3. `history_retention` status fields expose retention window and cleanup command.
+3. `history_retention` status fields expose retention window, cleanup command, and `retention_health` lifecycle state.
+4. `retention_health.state` must be interpreted as:
+   - `healthy`: no expired telemetry buckets pending purge and no worker error.
+   - `degraded`: purge lag or pending expired buckets detected; operator intervention required.
+   - `stalled`: purge worker encountered deterministic failure (`last_error` populated); treat retention guarantees as at risk until cleared.
 
 Guardrail constants (hard-coded, not operator-configurable):
 
@@ -500,6 +504,17 @@ Failure-handling rules:
 3. If runtime is not `runtime-dev` or `SHUMA_ADVERSARY_SIM_AVAILABLE=false`, control/status endpoints must fail closed (`404`).
 4. Status polling and lifecycle-state rendering are presentation only; defense behavior remains server-authoritative.
 5. Use `make adversary-sim-history-clean` only when explicit history reset is required; auto-off must not be treated as data deletion.
+6. If `retention_health.state=degraded|stalled`, operators must capture `retention_health.last_error`, `purge_lag_hours`, and `pending_expired_buckets` in incident notes before remediation.
+
+Retention troubleshooting and rollback:
+
+1. Check `/admin/monitoring` `retention_health` first:
+   - confirm `retention_hours`,
+   - inspect `purge_lag_hours` and `pending_expired_buckets`,
+   - capture `last_error` and `last_purged_bucket`.
+2. If `state=degraded`, keep lanes running but prioritize root-cause and verify `pending_expired_buckets` returns to `0`.
+3. If `state=stalled`, treat retention worker as failed and investigate `last_error` before relying on retention expiry for sensitive data.
+4. After remediation, rerun deterministic checks and confirm `state=healthy` before closing incident.
 
 ### `latency_p95` Failure
 

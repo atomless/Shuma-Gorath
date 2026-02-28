@@ -1,8 +1,6 @@
-use once_cell::sync::Lazy;
 use rand::random;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
-use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 /// Event types for activity logging
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -127,38 +125,8 @@ const CONFIG_EXPORT_SECRET_KEYS: [&str; 15] = [
     "SHUMA_BAN_STORE_REDIS_URL",
 ];
 
-static LAST_EVENTLOG_CLEANUP_HOUR: Lazy<Mutex<u64>> = Lazy::new(|| Mutex::new(0));
-
 fn event_log_retention_hours() -> u64 {
     crate::config::event_log_retention_hours()
-}
-
-#[cfg(test)]
-fn maybe_cleanup_event_logs<S: crate::challenge::KeyValueStore>(store: &S, current_hour: u64) {
-    let retention = event_log_retention_hours();
-    if retention == 0 {
-        return;
-    }
-    let mut last = LAST_EVENTLOG_CLEANUP_HOUR.lock().unwrap();
-    if *last == current_hour {
-        return;
-    }
-    *last = current_hour;
-
-    let cutoff_hour = current_hour.saturating_sub(retention);
-    // v2 cleanup.
-    if let Ok(keys) = store.get_keys() {
-        for key in keys {
-            let Some(event_hour) = parse_v2_event_key(&key) else {
-                continue;
-            };
-            if event_hour < cutoff_hour {
-                if let Err(err) = store.delete(&key) {
-                    eprintln!("[eventlog] failed deleting expired key {}: {:?}", key, err);
-                }
-            }
-        }
-    }
 }
 
 fn make_v2_event_key(hour: u64, ts: u64) -> String {
@@ -189,7 +157,10 @@ pub fn log_event<S: crate::challenge::KeyValueStore>(store: &S, entry: &EventLog
         Ok(payload) => {
             if store.set(&key, &payload).is_err() {
                 eprintln!("[log_event] KV error writing {}", key);
+                return;
             }
+            crate::observability::retention::register_event_log_key(store, hour, key.as_str());
+            crate::observability::retention::run_worker_if_due(store);
         }
         Err(_) => eprintln!(
             "[log_event] serialization error; dropping event for key {}",
@@ -685,12 +656,12 @@ mod tests {
     }
 
     #[test]
-    fn event_log_cleanup_deletes_all_buckets_older_than_retention() {
+    fn retention_worker_deletes_eventlog_buckets_older_than_retention() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "2");
 
         let store = MockStore::new();
-        let current_hour = 10_000u64;
+        let current_hour = now_ts() / 3600;
         let stale_hours = [
             current_hour.saturating_sub(6),
             current_hour.saturating_sub(4),
@@ -701,6 +672,7 @@ mod tests {
         for hour in stale_hours {
             let key = format!("eventlog:v2:{}:{}-stale", hour, hour.saturating_mul(3600));
             store.set(&key, br#"{"stale":true}"#).unwrap();
+            crate::observability::retention::register_event_log_key(&store, hour, key.as_str());
         }
         let retained_key = format!(
             "eventlog:v2:{}:{}-retained",
@@ -708,9 +680,12 @@ mod tests {
             retained_hour.saturating_mul(3600)
         );
         store.set(&retained_key, br#"{"retained":true}"#).unwrap();
-
-        *LAST_EVENTLOG_CLEANUP_HOUR.lock().unwrap() = 0;
-        maybe_cleanup_event_logs(&store, current_hour);
+        crate::observability::retention::register_event_log_key(
+            &store,
+            retained_hour,
+            retained_key.as_str(),
+        );
+        crate::observability::retention::run_worker_if_due(&store);
 
         for hour in stale_hours {
             let key = format!("eventlog:v2:{}:{}-stale", hour, hour.saturating_mul(3600));
@@ -5086,20 +5061,6 @@ fn load_recent_event_records_with_keys<S: crate::challenge::KeyValueStore>(
     hours: u64,
 ) -> Vec<StoredEventLogRecord> {
     let now_hour = now / 3600;
-    let retention_hours = event_log_retention_hours();
-    let should_cleanup = if retention_hours == 0 {
-        false
-    } else {
-        let mut last = LAST_EVENTLOG_CLEANUP_HOUR.lock().unwrap();
-        if *last == now_hour {
-            false
-        } else {
-            *last = now_hour;
-            true
-        }
-    };
-    let retention_cutoff_hour = now_hour.saturating_sub(retention_hours);
-
     let mut events: Vec<StoredEventLogRecord> = Vec::new();
     let window_start = now.saturating_sub(hours.saturating_mul(3600));
     let window_start_hour = window_start / 3600;
@@ -5109,12 +5070,6 @@ fn load_recent_event_records_with_keys<S: crate::challenge::KeyValueStore>(
             let Some(event_hour) = parse_v2_event_key(&key) else {
                 continue;
             };
-            if should_cleanup && event_hour < retention_cutoff_hour {
-                if let Err(err) = store.delete(&key) {
-                    eprintln!("[eventlog] failed deleting expired key {}: {:?}", key, err);
-                }
-                continue;
-            }
             if event_hour < window_start_hour || event_hour > now_hour {
                 continue;
             }
@@ -8729,11 +8684,13 @@ where
     let limit = query_u64_param(req.query(), "limit", 10).clamp(1, 50) as usize;
     let summary = crate::observability::monitoring::summarize_with_store(store, hours, limit);
     let details = monitoring_details_payload(store, "default", hours);
+    let retention_health = crate::observability::retention::retention_health(store);
 
     let body = serde_json::to_string(&json!({
         "summary": summary,
         "prometheus": monitoring_prometheus_helper_payload(),
-        "details": details
+        "details": details,
+        "retention_health": retention_health
     }))
     .unwrap();
     Response::new(200, body)
@@ -9332,8 +9289,10 @@ where
     } else {
         "closed"
     };
+    let retention_health = crate::observability::retention::retention_health(store);
 
     json!({
+        "retention_health": retention_health,
         "analytics": {
             "ban_count": active_bans.len(),
             "test_mode": cfg.as_ref().map(|v| v.test_mode).unwrap_or(false),
@@ -9674,6 +9633,7 @@ fn adversary_sim_status_payload(
             "history_retention".to_string(),
             json!({
                 "retention_hours": event_log_retention_hours(),
+                "retention_health": crate::observability::retention::retention_health(store),
                 "cleanup_supported": crate::config::admin_config_write_enabled(),
                 "cleanup_endpoint": "/admin/adversary-sim/history/cleanup",
                 "cleanup_command": "make adversary-sim-history-clean"
