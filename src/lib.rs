@@ -7,7 +7,7 @@ mod test_support;
 // src/lib.rs
 // Entry point for the WASM Stealth Bot Defence Spin app
 
-use crate::enforcement::{ban, block_page};
+use crate::enforcement::block_page;
 use crate::signals::{allowlist, geo, js_verification as js};
 use serde::Serialize;
 use spin_sdk::http::{Method, Request, Response};
@@ -641,6 +641,49 @@ fn log_line(msg: &str) {
     write_log_line(&mut out, msg);
 }
 
+fn increment_metric_intent(
+    metric: observability::metrics::MetricName,
+    label: Option<String>,
+) -> runtime::effect_intents::EffectIntent {
+    runtime::effect_intents::EffectIntent::IncrementMetric { metric, label }
+}
+
+fn policy_signal_intent(
+    signal_id: runtime::policy_taxonomy::SignalId,
+) -> runtime::effect_intents::EffectIntent {
+    increment_metric_intent(
+        observability::metrics::MetricName::PolicySignals,
+        Some(signal_id.as_str().to_string()),
+    )
+}
+
+fn provider_backend_visibility_intents(
+    provider_registry: &providers::registry::ProviderRegistry,
+) -> Vec<runtime::effect_intents::EffectIntent> {
+    [
+        providers::registry::ProviderCapability::RateLimiter,
+        providers::registry::ProviderCapability::BanStore,
+        providers::registry::ProviderCapability::ChallengeEngine,
+        providers::registry::ProviderCapability::MazeTarpit,
+        providers::registry::ProviderCapability::FingerprintSignal,
+    ]
+    .iter()
+    .map(|capability| {
+        let backend = provider_registry.backend_for(*capability);
+        let implementation = provider_registry.implementation_for(*capability);
+        increment_metric_intent(
+            observability::metrics::MetricName::ProviderImplementationEffective,
+            Some(format!(
+                "{}:{}:{}",
+                capability.as_str(),
+                backend.as_str(),
+                implementation
+            )),
+        )
+    })
+    .collect()
+}
+
 pub(crate) fn serve_maze_with_tracking(
     req: &Request,
     store: &Store,
@@ -652,6 +695,20 @@ pub(crate) fn serve_maze_with_tracking(
     event_outcome: &str,
     botness_hint: Option<u8>,
 ) -> Response {
+    let provider_registry = crate::providers::registry::ProviderRegistry::from_config(cfg);
+    let capabilities = runtime::capabilities::RuntimeCapabilities::for_request_path();
+    let context = runtime::effect_intents::EffectExecutionContext {
+        req,
+        store,
+        cfg,
+        provider_registry: &provider_registry,
+        site_id: "default",
+        ip,
+        ua: user_agent,
+    };
+    let execute_intents = |intents: Vec<runtime::effect_intents::EffectIntent>| {
+        runtime::effect_intents::execute_effect_intents(intents, &context, &capabilities);
+    };
     let maze_decision =
         crate::maze::runtime::serve(store, cfg, req, ip, user_agent, path, botness_hint);
     let served = match maze_decision {
@@ -696,22 +753,65 @@ pub(crate) fn serve_maze_with_tracking(
                 crate::maze::runtime::MazeFallbackReason::CheckpointMissing => "checkpoint_missing",
                 crate::maze::runtime::MazeFallbackReason::MicroPowFailed => "micro_pow_failed",
             };
-            observability::metrics::record_maze_token_outcome(store, token_outcome);
+            let mut fallback_intents = vec![increment_metric_intent(
+                observability::metrics::MetricName::MazeTokenOutcomes,
+                Some(token_outcome.to_string()),
+            )];
             match reason {
                 crate::maze::runtime::MazeFallbackReason::BudgetExceeded => {
-                    observability::metrics::record_maze_budget_outcome(store, "saturated");
+                    fallback_intents.push(increment_metric_intent(
+                        observability::metrics::MetricName::MazeBudgetOutcomes,
+                        Some("saturated".to_string()),
+                    ));
                 }
                 crate::maze::runtime::MazeFallbackReason::MicroPowFailed => {
-                    observability::metrics::record_maze_proof_outcome(store, "required");
-                    observability::metrics::record_maze_proof_outcome(store, "failed");
+                    fallback_intents.push(increment_metric_intent(
+                        observability::metrics::MetricName::MazeProofOutcomes,
+                        Some("required".to_string()),
+                    ));
+                    fallback_intents.push(increment_metric_intent(
+                        observability::metrics::MetricName::MazeProofOutcomes,
+                        Some("failed".to_string()),
+                    ));
                 }
                 crate::maze::runtime::MazeFallbackReason::CheckpointMissing => {
-                    observability::metrics::record_maze_checkpoint_outcome(store, "invalid");
+                    fallback_intents.push(increment_metric_intent(
+                        observability::metrics::MetricName::MazeCheckpointOutcomes,
+                        Some("invalid".to_string()),
+                    ));
                 }
                 _ => {}
             }
+            fallback_intents.push(runtime::effect_intents::EffectIntent::RecordPolicyMatch(
+                match reason {
+                    crate::maze::runtime::MazeFallbackReason::TokenInvalid => {
+                        runtime::policy_taxonomy::PolicyTransition::MazeTokenInvalid
+                    }
+                    crate::maze::runtime::MazeFallbackReason::TokenExpired => {
+                        runtime::policy_taxonomy::PolicyTransition::MazeTokenExpired
+                    }
+                    crate::maze::runtime::MazeFallbackReason::TokenReplay => {
+                        runtime::policy_taxonomy::PolicyTransition::MazeTokenReplay
+                    }
+                    crate::maze::runtime::MazeFallbackReason::TokenBindingMismatch => {
+                        runtime::policy_taxonomy::PolicyTransition::MazeTokenBindingMismatch
+                    }
+                    crate::maze::runtime::MazeFallbackReason::TokenDepthExceeded => {
+                        runtime::policy_taxonomy::PolicyTransition::MazeDepthExceeded
+                    }
+                    crate::maze::runtime::MazeFallbackReason::BudgetExceeded => {
+                        runtime::policy_taxonomy::PolicyTransition::MazeBudgetExceeded
+                    }
+                    crate::maze::runtime::MazeFallbackReason::CheckpointMissing => {
+                        runtime::policy_taxonomy::PolicyTransition::MazeCheckpointMissing
+                    }
+                    crate::maze::runtime::MazeFallbackReason::MicroPowFailed => {
+                        runtime::policy_taxonomy::PolicyTransition::MazeMicroPowFailed
+                    }
+                },
+            ));
+            execute_intents(fallback_intents);
             let policy_match = runtime::policy_taxonomy::resolve_policy_match(transition);
-            observability::metrics::record_policy_match(store, &policy_match);
             let outcome = format!(
                 "{} action={}",
                 policy_match.annotate_outcome(reason.detection_label()),
@@ -719,52 +819,37 @@ pub(crate) fn serve_maze_with_tracking(
             );
             match fallback.action {
                 crate::maze::runtime::MazeFallbackAction::Block => {
-                    crate::admin::log_event(
-                        store,
-                        &crate::admin::EventLogEntry {
-                            ts: crate::admin::now_ts(),
+                    execute_intents(vec![
+                        runtime::effect_intents::EffectIntent::LogEvent {
                             event: crate::admin::EventType::Block,
-                            ip: Some(ip.to_string()),
-                            reason: Some("maze_runtime_fallback".to_string()),
-                            outcome: Some(outcome),
-                            admin: None,
+                            reason: "maze_runtime_fallback".to_string(),
+                            outcome,
                         },
-                    );
-                    observability::metrics::increment(
-                        store,
-                        observability::metrics::MetricName::BlocksTotal,
-                        None,
-                    );
+                        increment_metric_intent(observability::metrics::MetricName::BlocksTotal, None),
+                    ]);
                     return Response::new(
                         403,
                         block_page::render_block_page(block_page::BlockReason::Honeypot),
                     );
                 }
                 crate::maze::runtime::MazeFallbackAction::Challenge => {
-                    crate::admin::log_event(
-                        store,
-                        &crate::admin::EventLogEntry {
-                            ts: crate::admin::now_ts(),
+                    execute_intents(vec![
+                        runtime::effect_intents::EffectIntent::LogEvent {
                             event: crate::admin::EventType::Challenge,
-                            ip: Some(ip.to_string()),
-                            reason: Some("maze_runtime_fallback".to_string()),
-                            outcome: Some(outcome),
-                            admin: None,
+                            reason: "maze_runtime_fallback".to_string(),
+                            outcome,
                         },
-                    );
-                    observability::metrics::increment(
-                        store,
-                        observability::metrics::MetricName::ChallengeServedTotal,
-                        None,
-                    );
-                    observability::metrics::increment(
-                        store,
-                        observability::metrics::MetricName::ChallengesTotal,
-                        None,
-                    );
-                    let report_endpoint = crate::providers::registry::ProviderRegistry::from_config(cfg)
-                        .fingerprint_signal_provider()
-                        .report_path();
+                        increment_metric_intent(
+                            observability::metrics::MetricName::ChallengeServedTotal,
+                            None,
+                        ),
+                        increment_metric_intent(
+                            observability::metrics::MetricName::ChallengesTotal,
+                            None,
+                        ),
+                    ]);
+                    let report_endpoint =
+                        provider_registry.fingerprint_signal_provider().report_path();
                     return crate::signals::js_verification::inject_js_challenge(
                         ip,
                         user_agent,
@@ -780,25 +865,42 @@ pub(crate) fn serve_maze_with_tracking(
         }
     };
 
-    observability::metrics::increment(store, observability::metrics::MetricName::MazeHits, None);
-    observability::metrics::record_maze_token_outcome(
-        store,
-        if served.token_validated {
-            "validated"
-        } else {
-            "entry"
-        },
-    );
-    observability::metrics::record_maze_budget_outcome(store, "acquired");
+    let mut served_intents = vec![
+        increment_metric_intent(observability::metrics::MetricName::MazeHits, None),
+        increment_metric_intent(
+            observability::metrics::MetricName::MazeTokenOutcomes,
+            Some(
+                if served.token_validated {
+                    "validated"
+                } else {
+                    "entry"
+                }
+                .to_string(),
+            ),
+        ),
+        increment_metric_intent(
+            observability::metrics::MetricName::MazeBudgetOutcomes,
+            Some("acquired".to_string()),
+        ),
+    ];
     if served.response_cap_exceeded {
-        observability::metrics::record_maze_budget_outcome(store, "response_cap_exceeded");
+        served_intents.push(increment_metric_intent(
+            observability::metrics::MetricName::MazeBudgetOutcomes,
+            Some("response_cap_exceeded".to_string()),
+        ));
     }
     if cfg.maze_micro_pow_enabled
         && served.depth >= cfg.maze_micro_pow_depth_start
         && served.token_validated
     {
-        observability::metrics::record_maze_proof_outcome(store, "required");
-        observability::metrics::record_maze_proof_outcome(store, "passed");
+        served_intents.push(increment_metric_intent(
+            observability::metrics::MetricName::MazeProofOutcomes,
+            Some("required".to_string()),
+        ));
+        served_intents.push(increment_metric_intent(
+            observability::metrics::MetricName::MazeProofOutcomes,
+            Some("passed".to_string()),
+        ));
     }
     let variant_family = served
         .variant_id
@@ -806,41 +908,32 @@ pub(crate) fn serve_maze_with_tracking(
         .take(2)
         .collect::<Vec<_>>()
         .join("-");
-    observability::metrics::record_maze_entropy_variant(
-        store,
-        variant_family.as_str(),
-        served.seed_provider.as_str(),
-        served.seed_metadata_only,
-    );
-    observability::metrics::record_policy_signal(
-        store,
+    served_intents.push(increment_metric_intent(
+        observability::metrics::MetricName::MazeEntropyVariants,
+        Some(format!(
+            "{}:{}:{}",
+            variant_family,
+            served.seed_provider,
+            served.seed_metadata_only as u8
+        )),
+    ));
+    served_intents.push(policy_signal_intent(
         runtime::policy_taxonomy::SignalId::MazeTraversal,
-    );
+    ));
     if crate::request_validation::query_param(req.query(), "dc").is_some() {
-        observability::metrics::record_policy_signal(
-            store,
+        served_intents.push(policy_signal_intent(
             runtime::policy_taxonomy::SignalId::DecoyInteraction,
-        );
+        ));
     }
-    crate::admin::log_event(
-        store,
-        &crate::admin::EventLogEntry {
-            ts: crate::admin::now_ts(),
-            event: crate::admin::EventType::Challenge,
-            ip: Some(ip.to_string()),
-            reason: Some(event_reason.to_string()),
-            outcome: Some(format!(
-                "{} variant={} depth={} flow={} bytes={} render_ms={}",
-                event_outcome,
-                served.variant_id,
-                served.depth,
-                served.flow_id,
-                served.bytes,
-                served.render_ms
-            )),
-            admin: None,
-        },
-    );
+    served_intents.push(runtime::effect_intents::EffectIntent::LogEvent {
+        event: crate::admin::EventType::Challenge,
+        reason: event_reason.to_string(),
+        outcome: format!(
+            "{} variant={} depth={} flow={} bytes={} render_ms={}",
+            event_outcome, served.variant_id, served.depth, served.flow_id, served.bytes, served.render_ms
+        ),
+    });
+    execute_intents(served_intents);
 
     // Bucket the IP to reduce KV cardinality and avoid per-IP explosion.
     let maze_bucket = crate::signals::ip_identity::bucket_ip(ip);
@@ -864,14 +957,13 @@ pub(crate) fn serve_maze_with_tracking(
         let policy_match = runtime::policy_taxonomy::resolve_policy_match(
             runtime::policy_taxonomy::PolicyTransition::MazeThresholdBan,
         );
-        observability::metrics::record_policy_match(store, &policy_match);
-        ban::ban_ip_with_fingerprint(
-            store,
-            "default",
-            ip,
-            "maze_crawler",
-            cfg.get_ban_duration("honeypot"),
-            Some(crate::enforcement::ban::BanFingerprint {
+        execute_intents(vec![
+            runtime::effect_intents::EffectIntent::RecordPolicyMatch(
+                runtime::policy_taxonomy::PolicyTransition::MazeThresholdBan,
+            ),
+            runtime::effect_intents::EffectIntent::Ban(runtime::effect_intents::BanIntent {
+                reason: "maze_crawler".to_string(),
+                duration_seconds: cfg.get_ban_duration("honeypot"),
                 score: None,
                 signals: vec!["maze_crawler_threshold".to_string()],
                 summary: Some(format!(
@@ -880,25 +972,18 @@ pub(crate) fn serve_maze_with_tracking(
                     cfg.maze_auto_ban_threshold
                 )),
             }),
-        );
-        observability::metrics::increment(
-            store,
-            observability::metrics::MetricName::BansTotal,
-            Some("maze_crawler"),
-        );
-        crate::admin::log_event(
-            store,
-            &crate::admin::EventLogEntry {
-                ts: crate::admin::now_ts(),
+            increment_metric_intent(
+                observability::metrics::MetricName::BansTotal,
+                Some("maze_crawler".to_string()),
+            ),
+            runtime::effect_intents::EffectIntent::LogEvent {
                 event: crate::admin::EventType::Ban,
-                ip: Some(ip.to_string()),
-                reason: Some("maze_crawler".to_string()),
-                outcome: Some(policy_match.annotate_outcome(
+                reason: "maze_crawler".to_string(),
+                outcome: policy_match.annotate_outcome(
                     format!("banned_after_{}_maze_pages", cfg.maze_auto_ban_threshold).as_str(),
-                )),
-                admin: None,
+                ),
             },
-        );
+        ]);
     }
 
     maze_response(served)
@@ -942,8 +1027,13 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         Err(response) => return response,
     };
     let store = &store;
+    let request_capabilities = runtime::capabilities::RuntimeCapabilities::for_request_path();
     if let Some(sim_tag_failure) = runtime::sim_telemetry::take_last_validation_failure() {
-        observability::metrics::record_policy_signal(store, sim_tag_failure.signal_id());
+        runtime::effect_intents::execute_metric_intents(
+            vec![policy_signal_intent(sim_tag_failure.signal_id())],
+            store,
+            &request_capabilities,
+        );
         log_line(&format!(
             "[SIM TAG] rejected reason={}",
             sim_tag_failure.as_str()
@@ -955,22 +1045,35 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         Err(resp) => return resp,
     };
     let provider_registry = providers::registry::ProviderRegistry::from_config(&cfg);
-    observability::metrics::record_provider_backend_visibility(store, &provider_registry);
-    observability::metrics::record_policy_signal(
+    let request_effect_context = runtime::effect_intents::EffectExecutionContext {
+        req,
         store,
-        runtime::policy_taxonomy::SignalId::CtxPathClass,
-    );
-    if forwarded_ip_trusted(req) {
-        observability::metrics::record_policy_signal(
-            store,
-            runtime::policy_taxonomy::SignalId::CtxIpTrusted,
+        cfg: &cfg,
+        provider_registry: &provider_registry,
+        site_id,
+        ip: &ip,
+        ua,
+    };
+    let execute_request_intents = |intents: Vec<runtime::effect_intents::EffectIntent>| {
+        runtime::effect_intents::execute_effect_intents(
+            intents,
+            &request_effect_context,
+            &request_capabilities,
         );
+    };
+    execute_request_intents(provider_backend_visibility_intents(&provider_registry));
+    execute_request_intents(vec![policy_signal_intent(
+        runtime::policy_taxonomy::SignalId::CtxPathClass,
+    )]);
+    if forwarded_ip_trusted(req) {
+        execute_request_intents(vec![policy_signal_intent(
+            runtime::policy_taxonomy::SignalId::CtxIpTrusted,
+        )]);
     }
     if !ua.is_empty() {
-        observability::metrics::record_policy_signal(
-            store,
+        execute_request_intents(vec![policy_signal_intent(
             runtime::policy_taxonomy::SignalId::CtxUa,
-        );
+        )]);
     }
     let geo_assessment = assess_geo_request(req, &cfg);
 
@@ -994,7 +1097,10 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
             403 => "binding_mismatch",
             _ => "invalid",
         };
-        observability::metrics::record_maze_checkpoint_outcome(store, checkpoint_outcome);
+        execute_request_intents(vec![increment_metric_intent(
+            observability::metrics::MetricName::MazeCheckpointOutcomes,
+            Some(checkpoint_outcome.to_string()),
+        )]);
         return response;
     }
 
@@ -1016,7 +1122,9 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         let policy_match = runtime::policy_taxonomy::resolve_policy_match(
             runtime::policy_taxonomy::PolicyTransition::MazeTraversal,
         );
-        observability::metrics::record_policy_match(store, &policy_match);
+        execute_request_intents(vec![runtime::effect_intents::EffectIntent::RecordPolicyMatch(
+            runtime::policy_taxonomy::PolicyTransition::MazeTraversal,
+        )]);
         let event_outcome = policy_match.annotate_outcome("maze_page_served");
         return provider_registry
             .maze_tarpit_provider()
@@ -1034,28 +1142,25 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
     }
 
     // Increment request counter
-    observability::metrics::increment(
-        store,
+    execute_request_intents(vec![increment_metric_intent(
         observability::metrics::MetricName::RequestsTotal,
         None,
-    );
+    )]);
 
     // Path-based allowlist (for webhooks/integrations)
     if cfg.path_allowlist_enabled && allowlist::is_path_allowlisted(path, &cfg.path_allowlist) {
-        observability::metrics::increment(
-            store,
+        execute_request_intents(vec![increment_metric_intent(
             observability::metrics::MetricName::AllowlistedTotal,
             None,
-        );
+        )]);
         return Response::new(200, "OK (path allowlisted)");
     }
     // IP/CIDR allowlist
     if cfg.bypass_allowlists_enabled && allowlist::is_allowlisted(&ip, &cfg.allowlist) {
-        observability::metrics::increment(
-            store,
+        execute_request_intents(vec![increment_metric_intent(
             observability::metrics::MetricName::AllowlistedTotal,
             None,
-        );
+        )]);
         return Response::new(200, "OK (allowlisted)");
     }
     let ip_range_evaluation = crate::signals::ip_range_policy::evaluate(&cfg, &ip);
@@ -1069,11 +1174,10 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         geo_assessment.route,
         || js::needs_js_verification(req, store, site_id, &ip),
         || {
-            observability::metrics::increment(
-                store,
+            execute_request_intents(vec![increment_metric_intent(
                 observability::metrics::MetricName::TestModeActions,
                 None,
-            )
+            )])
         },
     ) {
         return response;
@@ -1127,16 +1231,15 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
         return response;
     }
     let record_allow_clean = || {
-        let policy_match = runtime::policy_taxonomy::resolve_policy_match(
-            runtime::policy_taxonomy::PolicyTransition::AllowClean,
-        );
-        observability::metrics::record_policy_match(store, &policy_match);
-        observability::monitoring::maybe_record_ip_range_likely_human_sample(
-            store,
-            ip.as_str(),
-            cfg.ip_range_suggestions_likely_human_sample_percent,
-            path,
-        );
+        execute_request_intents(vec![
+            runtime::effect_intents::EffectIntent::RecordPolicyMatch(
+                runtime::policy_taxonomy::PolicyTransition::AllowClean,
+            ),
+            runtime::effect_intents::EffectIntent::RecordLikelyHumanSample {
+                sample_percent: cfg.ip_range_suggestions_likely_human_sample_percent,
+                sample_hint: path.to_string(),
+            },
+        ]);
     };
 
     if let Some(response) = runtime::sim_public::maybe_handle(req, path, &cfg) {
@@ -1155,7 +1258,12 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
 pub fn spin_entrypoint(req: Request) -> Response {
     let response = handle_bot_defence_impl(&req);
     if let Ok(store) = Store::open_default() {
-        observability::monitoring::flush_pending_counters(&store);
+        let capabilities = runtime::capabilities::RuntimeCapabilities::for_request_path();
+        runtime::effect_intents::execute_monitoring_store_intents(
+            vec![runtime::effect_intents::EffectIntent::FlushPendingMonitoringCounters],
+            &store,
+            &capabilities,
+        );
     }
     response
 }

@@ -329,39 +329,6 @@ pub fn record_botness_visibility(
     );
 }
 
-pub fn record_provider_backend_visibility(
-    store: &Store,
-    registry: &crate::providers::registry::ProviderRegistry,
-) {
-    let capabilities = [
-        crate::providers::registry::ProviderCapability::RateLimiter,
-        crate::providers::registry::ProviderCapability::BanStore,
-        crate::providers::registry::ProviderCapability::ChallengeEngine,
-        crate::providers::registry::ProviderCapability::MazeTarpit,
-        crate::providers::registry::ProviderCapability::FingerprintSignal,
-    ];
-
-    for capability in capabilities {
-        let backend = registry.backend_for(capability);
-        let implementation = registry.implementation_for(capability);
-        let label = format!(
-            "{}:{}:{}",
-            capability.as_str(),
-            backend.as_str(),
-            implementation
-        );
-        increment(
-            store,
-            MetricName::ProviderImplementationEffective,
-            Some(label.as_str()),
-        );
-    }
-}
-
-pub fn record_policy_signal(store: &Store, signal_id: crate::runtime::policy_taxonomy::SignalId) {
-    increment(store, MetricName::PolicySignals, Some(signal_id.as_str()));
-}
-
 pub fn record_policy_match(
     store: &Store,
     policy_match: &crate::runtime::policy_taxonomy::PolicyMatch,
@@ -376,32 +343,6 @@ pub fn record_policy_match(
     for signal in policy_match.signal_ids() {
         increment(store, MetricName::PolicySignals, Some(signal));
     }
-}
-
-pub fn record_maze_token_outcome(store: &Store, outcome: &str) {
-    increment(store, MetricName::MazeTokenOutcomes, Some(outcome));
-}
-
-pub fn record_maze_checkpoint_outcome(store: &Store, outcome: &str) {
-    increment(store, MetricName::MazeCheckpointOutcomes, Some(outcome));
-}
-
-pub fn record_maze_budget_outcome(store: &Store, outcome: &str) {
-    increment(store, MetricName::MazeBudgetOutcomes, Some(outcome));
-}
-
-pub fn record_maze_proof_outcome(store: &Store, outcome: &str) {
-    increment(store, MetricName::MazeProofOutcomes, Some(outcome));
-}
-
-pub fn record_maze_entropy_variant(
-    store: &Store,
-    variant_family: &str,
-    provider: &str,
-    metadata_only: bool,
-) {
-    let label = format!("{}:{}:{}", variant_family, provider, metadata_only as u8);
-    increment(store, MetricName::MazeEntropyVariants, Some(label.as_str()));
 }
 
 pub fn record_tarpit_activation(store: &Store, mode: &str) {

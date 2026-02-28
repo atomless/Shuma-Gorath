@@ -33,6 +33,11 @@ pub(crate) enum EffectIntent {
         path: String,
     },
     RecordNotABotServed,
+    RecordLikelyHumanSample {
+        sample_percent: u8,
+        sample_hint: String,
+    },
+    FlushPendingMonitoringCounters,
     LogEvent {
         event: crate::admin::EventType,
         reason: String,
@@ -130,6 +135,22 @@ fn apply_monitoring_intent(
         }
         EffectIntent::RecordNotABotServed => {
             crate::observability::monitoring::record_not_a_bot_served(store);
+            None
+        }
+        EffectIntent::RecordLikelyHumanSample {
+            sample_percent,
+            sample_hint,
+        } => {
+            crate::observability::monitoring::maybe_record_ip_range_likely_human_sample(
+                store,
+                ip,
+                sample_percent,
+                sample_hint.as_str(),
+            );
+            None
+        }
+        EffectIntent::FlushPendingMonitoringCounters => {
+            crate::observability::monitoring::flush_pending_counters(store);
             None
         }
         other => Some(other),
@@ -966,7 +987,16 @@ pub(crate) fn execute_plan(
     context: &EffectExecutionContext<'_>,
     capabilities: &RuntimeCapabilities,
 ) -> Option<Response> {
-    for intent in plan.intents {
+    execute_effect_intents(plan.intents, context, capabilities);
+    execute_response_intent(plan.response, facts, context, capabilities)
+}
+
+pub(crate) fn execute_effect_intents(
+    intents: Vec<EffectIntent>,
+    context: &EffectExecutionContext<'_>,
+    capabilities: &RuntimeCapabilities,
+) {
+    for intent in intents {
         let Some(intent) = apply_metric_intent(capabilities.metrics(), context.store, intent) else {
             continue;
         };
@@ -989,8 +1019,33 @@ pub(crate) fn execute_plan(
             intent,
         );
     }
+}
 
-    execute_response_intent(plan.response, facts, context, capabilities)
+pub(crate) fn execute_metric_intents(
+    intents: Vec<EffectIntent>,
+    store: &Store,
+    capabilities: &RuntimeCapabilities,
+) {
+    for intent in intents {
+        let Some(unhandled) = apply_metric_intent(capabilities.metrics(), store, intent) else {
+            continue;
+        };
+        let _ = unhandled;
+    }
+}
+
+pub(crate) fn execute_monitoring_store_intents(
+    intents: Vec<EffectIntent>,
+    store: &Store,
+    capabilities: &RuntimeCapabilities,
+) {
+    for intent in intents {
+        let Some(unhandled) = apply_monitoring_intent(capabilities.monitoring(), store, "", intent)
+        else {
+            continue;
+        };
+        let _ = unhandled;
+    }
 }
 
 fn execute_response_intent(
