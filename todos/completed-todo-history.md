@@ -13,6 +13,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-EX1-3 Split `src/runtime/effect_intents.rs` into responsibility-focused modules (`intent_types`, `plan_builder`, `intent_executor`, `response_renderer`) with explicit dependency direction. (Artifacts: `src/runtime/effect_intents.rs`, `src/runtime/effect_intents/intent_types.rs`, `src/runtime/effect_intents/plan_builder.rs`, `src/runtime/effect_intents/intent_executor.rs`, `src/runtime/effect_intents/response_renderer.rs`)
 - [x] SIM2-EX1-4 Remove or fully migrate legacy `#[allow(dead_code)]` policy handlers in `src/runtime/policy_pipeline.rs`; keep no dead-code rollback seam in active request path. (Artifact: `src/runtime/policy_pipeline.rs`)
 - [x] SIM2-EX1-5 Introduce architectural guard tests/lints that fail if pure decision modules depend on `Store`, provider side effects, event logging, or mutable global state. (Artifacts: `src/runtime/architecture_guards.rs`, `src/runtime/mod.rs`)
+- [x] SIM2-EX1-6 Add characterization parity tests around migrated seams and require parity snapshots before and after each extraction slice. (Artifacts: `src/runtime/effect_intents/plan_builder.rs`, `src/runtime/effect_intents/plan_builder_characterization_snapshot.txt`)
 
 ### P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)
 

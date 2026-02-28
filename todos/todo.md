@@ -87,7 +87,6 @@ Non-negotiable implementation demands for every `SIM2-EX*` item:
 
 Scope: remove remaining centralized imperative seams from request orchestration and finish migration to explicit `facts -> decisions -> effects -> response` flow.
 
-- [ ] SIM2-EX1-6 Add characterization parity tests around migrated seams and require parity snapshots before and after each extraction slice.
 - [ ] SIM2-EX1-7 Reduce `src/lib.rs` orchestration surface to route setup, trust-boundary setup, and tranche wiring only; move policy behavior decisions out of entrypoint logic.
 - [ ] SIM2-EX1-8 Document final orchestration ownership map in `docs/module-boundaries.md` and update ADR references where boundaries changed.
 

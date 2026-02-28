@@ -770,3 +770,210 @@ pub(crate) fn plan_for_decision(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cfg() -> crate::config::Config {
+        crate::config::defaults().clone()
+    }
+
+    fn facts() -> crate::runtime::request_facts::RequestFacts {
+        crate::runtime::request_facts::build_request_facts(
+            &spin_sdk::http::Request::builder()
+                .method(spin_sdk::http::Method::Get)
+                .uri("/characterization")
+                .build(),
+            crate::runtime::request_facts::RequestFactInputs {
+                site_id: "default".to_string(),
+                ip: "203.0.113.9".to_string(),
+                user_agent: "ua".to_string(),
+                ip_range_evaluation: crate::signals::ip_range_policy::Evaluation::NoMatch,
+                honeypot_hit: false,
+                rate_limit_exceeded: false,
+                existing_ban: false,
+                geo_route: crate::signals::geo::GeoPolicyRoute::None,
+                geo_country: None,
+                needs_js: false,
+                botness_score: 0,
+                botness_signal_ids: vec![],
+                botness_summary: "none".to_string(),
+                botness_state_summary: "none".to_string(),
+                runtime_metadata_summary: "meta".to_string(),
+                provider_summary: "providers".to_string(),
+                not_a_bot_marker_valid: false,
+            },
+        )
+    }
+
+    fn intent_label(intent: &EffectIntent) -> &'static str {
+        match intent {
+            EffectIntent::RecordPolicyMatch(_) => "record_policy_match",
+            EffectIntent::IncrementMetric { .. } => "increment_metric",
+            EffectIntent::RecordRateViolation { .. } => "record_rate_violation",
+            EffectIntent::RecordGeoViolation { .. } => "record_geo_violation",
+            EffectIntent::RecordHoneypotHit { .. } => "record_honeypot_hit",
+            EffectIntent::RecordNotABotServed => "record_not_a_bot_served",
+            EffectIntent::RecordLikelyHumanSample { .. } => "record_likely_human_sample",
+            EffectIntent::FlushPendingMonitoringCounters => "flush_pending_monitoring_counters",
+            EffectIntent::LogEvent { .. } => "log_event",
+            EffectIntent::Ban(_) => "ban",
+        }
+    }
+
+    fn response_label(response: &ResponseIntent) -> &'static str {
+        match response {
+            ResponseIntent::Continue => "continue",
+            ResponseIntent::OkBody(_) => "ok_body",
+            ResponseIntent::BlockPage { .. } => "block_page",
+            ResponseIntent::PlainTextBlock { .. } => "plain_text_block",
+            ResponseIntent::DropConnection => "drop_connection",
+            ResponseIntent::Redirect { .. } => "redirect",
+            ResponseIntent::Maze { .. } => "maze",
+            ResponseIntent::Challenge => "challenge",
+            ResponseIntent::NotABot => "not_a_bot",
+            ResponseIntent::JsChallenge => "js_challenge",
+            ResponseIntent::IpRangeTarpit { .. } => "ip_range_tarpit",
+        }
+    }
+
+    fn render_snapshot_line(
+        case_name: &str,
+        decision: &crate::runtime::policy_graph::PolicyDecision,
+        plan: &DecisionPlan,
+    ) -> String {
+        let intents = plan
+            .intents
+            .iter()
+            .map(intent_label)
+            .collect::<Vec<_>>()
+            .join(",");
+        format!(
+            "{}|{}|{}|{}",
+            case_name,
+            decision.label(),
+            intents,
+            response_label(&plan.response)
+        )
+    }
+
+    #[test]
+    fn characterization_snapshot_captures_plan_parity_for_migrated_seams() {
+        struct Case {
+            name: &'static str,
+            facts: crate::runtime::request_facts::RequestFacts,
+            configure: fn(&mut crate::config::Config),
+        }
+
+        let cases = [
+            Case {
+                name: "ip-range-forbidden",
+                facts: {
+                    let mut f = facts();
+                    f.ip_range_evaluation = crate::signals::ip_range_policy::Evaluation::Matched(
+                        crate::signals::ip_range_policy::MatchDetails {
+                            source: crate::signals::ip_range_policy::MatchSource::CustomRule,
+                            source_id: "r1".to_string(),
+                            action: crate::config::IpRangePolicyAction::Forbidden403,
+                            matched_cidr: "198.51.100.0/24".to_string(),
+                            redirect_url: None,
+                            custom_message: None,
+                        },
+                    );
+                    f
+                },
+                configure: |cfg| cfg.ip_range_policy_mode = crate::config::IpRangePolicyMode::Enforce,
+            },
+            Case {
+                name: "honeypot-hit",
+                facts: {
+                    let mut f = facts();
+                    f.honeypot_hit = true;
+                    f
+                },
+                configure: |_| {},
+            },
+            Case {
+                name: "existing-ban",
+                facts: {
+                    let mut f = facts();
+                    f.existing_ban = true;
+                    f
+                },
+                configure: |_| {},
+            },
+            Case {
+                name: "geo-maze",
+                facts: {
+                    let mut f = facts();
+                    f.geo_route = crate::signals::geo::GeoPolicyRoute::Maze;
+                    f
+                },
+                configure: |cfg| {
+                    cfg.defence_modes.geo = crate::config::ComposabilityMode::Enforce;
+                    cfg.maze_enabled = true;
+                    cfg.challenge_puzzle_enabled = true;
+                },
+            },
+            Case {
+                name: "botness-challenge",
+                facts: {
+                    let mut f = facts();
+                    f.botness_score = 8;
+                    f
+                },
+                configure: |cfg| {
+                    cfg.challenge_puzzle_enabled = true;
+                    cfg.challenge_puzzle_risk_threshold = 7;
+                    cfg.botness_maze_threshold = 9;
+                },
+            },
+            Case {
+                name: "botness-not-a-bot",
+                facts: {
+                    let mut f = facts();
+                    f.botness_score = 4;
+                    f.needs_js = true;
+                    f
+                },
+                configure: |cfg| {
+                    cfg.not_a_bot_enabled = true;
+                    cfg.challenge_puzzle_enabled = true;
+                    cfg.not_a_bot_risk_threshold = 3;
+                    cfg.challenge_puzzle_risk_threshold = 7;
+                },
+            },
+            Case {
+                name: "js-required",
+                facts: {
+                    let mut f = facts();
+                    f.needs_js = true;
+                    f
+                },
+                configure: |cfg| {
+                    cfg.defence_modes.js = crate::config::ComposabilityMode::Enforce;
+                    cfg.js_required_enforced = true;
+                },
+            },
+        ];
+
+        let mut lines = Vec::new();
+        for case in cases {
+            let mut cfg = cfg();
+            (case.configure)(&mut cfg);
+            let mut decisions = crate::runtime::policy_graph::evaluate_first_tranche(&case.facts, &cfg);
+            if decisions.is_empty() {
+                decisions = crate::runtime::policy_graph::evaluate_second_tranche(&case.facts, &cfg);
+            }
+            for decision in decisions {
+                let plan = plan_for_decision(&decision, &case.facts, &cfg);
+                lines.push(render_snapshot_line(case.name, &decision, &plan));
+            }
+        }
+
+        let observed = lines.join("\n");
+        let expected = include_str!("plan_builder_characterization_snapshot.txt").trim();
+        assert_eq!(observed, expected);
+    }
+}

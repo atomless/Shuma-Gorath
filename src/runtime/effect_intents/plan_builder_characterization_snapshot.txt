@@ -1,0 +1,7 @@
+ip-range-forbidden|ip_range_forbidden|record_policy_match,increment_metric,log_event|block_page
+honeypot-hit|honeypot_hit|record_policy_match,ban,record_honeypot_hit,record_rate_violation,increment_metric,increment_metric,log_event|block_page
+existing-ban|existing_ban|record_policy_match,increment_metric,log_event|block_page
+geo-maze|geo_maze|record_geo_violation,record_policy_match|maze
+botness-challenge|botness_challenge|record_policy_match,increment_metric,increment_metric,log_event|challenge
+botness-not-a-bot|botness_not_a_bot|record_policy_match,increment_metric,increment_metric,record_not_a_bot_served,log_event|not_a_bot
+js-required|js_challenge_required|record_policy_match,increment_metric,log_event|js_challenge
