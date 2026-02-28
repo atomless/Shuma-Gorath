@@ -47,3 +47,5 @@ Completed archive index:
    Trust-boundary research for capability-authenticated simulation telemetry tagging in runtime-dev.
 5. [`2026-02-27-sim2-architecture-shortfall-orchestration-capability.md`](2026-02-27-sim2-architecture-shortfall-orchestration-capability.md)  
    Architecture research for reducing centralized imperative orchestration and moving toward capability-by-construction.
+6. [`2026-02-28-sim2-gcr-1-ui-toggle-blackbox-adversary-orchestration-research.md`](2026-02-28-sim2-gcr-1-ui-toggle-blackbox-adversary-orchestration-research.md)  
+   Research synthesis for safe UI-toggle control-plane architecture for black-box LLM adversary lifecycle orchestration.

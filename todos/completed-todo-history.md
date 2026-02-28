@@ -2,6 +2,14 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-02-28)
+
+### P0 SIM2 Gap-Closure Program: Real Execution + Realtime Monitoring
+
+#### SIM2-GCR: Mandatory Research Program for Gap-Closure Execution
+
+- [x] SIM2-GCR-1 Research architecture patterns for triggering/stopping a black-box LLM adversary from a dev-only admin UI toggle (control-plane API contract, lifecycle state model, idempotency, race handling, kill-switch behavior).
+
 ## Additional completions (2026-02-27)
 
 ### P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)

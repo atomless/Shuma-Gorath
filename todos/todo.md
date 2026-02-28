@@ -257,7 +257,7 @@ Non-negotiable delivery rules for every `SIM2-GC-*` slice:
 Scope: run rigorous research before implementing high-risk SIM2 gap-closure slices so architecture choices are evidence-backed, especially for UI-triggered black-box LLM adversary control, Rust realtime monitoring, and telemetry retention/cost/security posture.
 
 Execution order (must be followed):
-1. `SIM2-GCR-1` UI toggle orchestration architecture.
+1. `SIM2-GCR-1` UI toggle orchestration architecture (completed 2026-02-28).
 2. `SIM2-GCR-3` UI-toggle trust-boundary controls.
 3. `SIM2-GCR-2` containerized black-box capability orchestration.
 4. `SIM2-GCR-4` Rust realtime monitoring architecture candidates.
@@ -274,7 +274,6 @@ Per-track workflow (must be followed before marking each track complete):
 3. Update `todos/todo.md` to reflect plan-derived changes (tightened acceptance criteria, reordered execution where needed, and any new required todos).
 4. Only then mark that `SIM2-GCR-*` track complete and move to the next ordered track.
 
-- [ ] SIM2-GCR-1 Research architecture patterns for triggering/stopping a black-box LLM adversary from a dev-only admin UI toggle (control-plane API contract, lifecycle state model, idempotency, race handling, kill-switch behavior).
 - [ ] SIM2-GCR-2 Research capability-safe black-box runner orchestration patterns for containerized frontier actors (least-authority token handoff, envelope signing, bounded execution, one-way command channels, fail-closed teardown).
 - [ ] SIM2-GCR-3 Research trust-boundary controls specific to toggle-driven orchestration in a dev server admin interface (auth/CSRF/session boundaries, replay protection, abuse throttling, auditability requirements).
 - [ ] SIM2-GCR-4 Research Rust-first realtime monitoring architectures for dashboard freshness (polling with cursoring vs SSE/WebSocket-style streams, backpressure patterns, ordering guarantees, bounded memory/cpu cost).
@@ -304,6 +303,7 @@ Scope: codify exactly what qualifies as real simulated adversary execution and w
 - [ ] SIM2-GC-1-3 Define evidence schema for each run (`request id lineage`, `scenario id`, `lane`, `defenses touched`, `decision outcomes`, `latency/cost`).
 - [ ] SIM2-GC-1-4 Add contract tests that fail if runner marks scenario success without corresponding runtime telemetry evidence.
 - [ ] SIM2-GC-1-5 Publish operator-facing definition of done for SIM runs (what must appear in Monitoring and IP Ban views).
+- [ ] SIM2-GC-1-6 Extend evidence schema with control-plane lineage fields (`control_operation_id`, `requested_state`, `desired_state`, `actual_state`, `actor/session`) for toggle-driven orchestration traceability.
 
 Acceptance criteria:
 1. Contract exists in docs and is referenced by runner, runtime, and dashboard modules.
@@ -320,6 +320,9 @@ Scope: remove remaining centralized imperative orchestration seams that let traf
 - [ ] SIM2-GC-2-3 Move phase decision logic into pure functions with typed inputs/outputs and side effects only in executor boundary.
 - [ ] SIM2-GC-2-4 Add characterization tests proving behavior parity before/after extraction and proving no telemetry side path bypasses runtime flow.
 - [ ] SIM2-GC-2-5 Update module-boundary docs with explicit dependency direction and trust-boundary ownership.
+- [ ] SIM2-GC-2-6 Introduce explicit command contract for adversary toggle control (`operation_id`, idempotency key semantics, requested/accepted state model).
+- [ ] SIM2-GC-2-7 Separate desired lifecycle state from actual lifecycle state and move reconciliation authority out of read-path status handlers.
+- [ ] SIM2-GC-2-8 Add controller lease/fencing ownership model so only one reconciler can mutate adversary lifecycle state at a time.
 
 Acceptance criteria:
 1. Orchestration no longer has hidden write paths that can fabricate monitoring outcomes.
@@ -480,6 +483,7 @@ Scope: enforce non-regression with tests that prove real traffic -> real defense
 - [ ] SIM2-GC-11-6 Add CI diagnostics artifacts (timeline snapshots, event counts, refresh traces) for fast triage.
 - [ ] SIM2-GC-11-7 Add explicit prod-mode monitoring checks using non-sim traffic profiles to verify near-realtime visibility without adversary-sim toggle dependence.
 - [ ] SIM2-GC-11-8 Require failure diagnostics to name missing matrix row(s), missing evidence type(s), and failing telemetry lineage segment.
+- [ ] SIM2-GC-11-9 Add control-plane race/idempotency tests for repeated UI toggle submissions, duplicate command replay, and multi-controller lease contention.
 
 Acceptance criteria:
 1. Mandatory verification fails if any matrix-required defense/lane evidence is missing.
@@ -487,6 +491,7 @@ Acceptance criteria:
 3. CI artifacts make telemetry-visibility failures actionable at defense-row granularity.
 4. `make test` remains canonical and sufficient for contributor verification.
 5. Release gates cannot pass with partial coverage hidden by aggregate pass/fail summaries.
+6. Toggle control regressions (duplicate starts, lease split-brain, missing operation lineage) fail deterministically in CI.
 
 ### SIM2-GC-12: Program Governance for Continuous Defense Evolution
 
