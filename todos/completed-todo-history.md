@@ -8,6 +8,7 @@ Moved from active TODO files on 2026-02-14.
 
 #### SIM2-GCR: Mandatory Research Program for Gap-Closure Execution
 
+- [x] SIM2-GCR-4 Research Rust-first realtime monitoring architectures for dashboard freshness (polling with cursoring vs SSE/WebSocket-style streams, backpressure patterns, ordering guarantees, bounded memory/cpu cost).
 - [x] SIM2-GCR-2 Research capability-safe black-box runner orchestration patterns for containerized frontier actors (least-authority token handoff, envelope signing, bounded execution, one-way command channels, fail-closed teardown).
 - [x] SIM2-GCR-3 Research trust-boundary controls specific to toggle-driven orchestration in a dev server admin interface (auth/CSRF/session boundaries, replay protection, abuse throttling, auditability requirements).
 - [x] SIM2-GCR-1 Research architecture patterns for triggering/stopping a black-box LLM adversary from a dev-only admin UI toggle (control-plane API contract, lifecycle state model, idempotency, race handling, kill-switch behavior).

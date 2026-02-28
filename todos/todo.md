@@ -260,7 +260,7 @@ Execution order (must be followed):
 1. `SIM2-GCR-1` UI toggle orchestration architecture (completed 2026-02-28).
 2. `SIM2-GCR-3` UI-toggle trust-boundary controls (completed 2026-02-28).
 3. `SIM2-GCR-2` containerized black-box capability orchestration (completed 2026-02-28).
-4. `SIM2-GCR-4` Rust realtime monitoring architecture candidates.
+4. `SIM2-GCR-4` Rust realtime monitoring architecture candidates (completed 2026-02-28).
 5. `SIM2-GCR-9` Rust prototype/benchmark comparison for realtime candidates.
 6. `SIM2-GCR-5` telemetry retention/storage lifecycle best practices.
 7. `SIM2-GCR-6` monitoring cost-efficiency patterns.
@@ -274,7 +274,6 @@ Per-track workflow (must be followed before marking each track complete):
 3. Update `todos/todo.md` to reflect plan-derived changes (tightened acceptance criteria, reordered execution where needed, and any new required todos).
 4. Only then mark that `SIM2-GCR-*` track complete and move to the next ordered track.
 
-- [ ] SIM2-GCR-4 Research Rust-first realtime monitoring architectures for dashboard freshness (polling with cursoring vs SSE/WebSocket-style streams, backpressure patterns, ordering guarantees, bounded memory/cpu cost).
 - [ ] SIM2-GCR-5 Research Rust storage/retention best practices for high-volume monitoring/event telemetry (TTL strategy, partitioning/indexing, cleanup cadence, deterministic purge semantics, operator-visible retention health).
 - [ ] SIM2-GCR-6 Research cost-efficiency patterns for monitoring pipelines (aggregation windows, cardinality controls, event sampling restrictions, compression/serialization tradeoffs, query budget controls).
 - [ ] SIM2-GCR-7 Research security/privacy best practices for telemetry and adversary artifacts (secret-exposure prevention, data minimization, pseudonymization options, artifact retention risk controls, incident-response hooks).
@@ -393,6 +392,12 @@ Scope: ensure monitoring and IP-ban views reflect new activity quickly in both d
 - [ ] SIM2-GC-6-6 Add tests for freshness, monotonic ordering, deduplication, and behavior under bursty adversary runs.
 - [ ] SIM2-GC-6-7 Add explicit freshness-health telemetry and UI state (`fresh`, `degraded`, `stale`) with operator-facing lag indicators.
 - [ ] SIM2-GC-6-8 Replace run-active-only cache-bypass assumptions with a global freshness policy that preserves near-realtime visibility for real production attacker traffic.
+- [ ] SIM2-GC-6-9 Define canonical monitoring event cursor contract (strict monotonic sequence id, resume semantics, and overflow taxonomy shared by polling and stream paths).
+- [ ] SIM2-GC-6-10 Implement cursor-delta endpoint(s) for monitoring/IP-bans (`after_cursor`, bounded `limit`, `next_cursor`, `has_more`, `overflow`) with deterministic ordering.
+- [ ] SIM2-GC-6-11 Add conditional polling optimization (`If-None-Match`/`304`) on cursor-delta reads where unchanged windows can be proven safely.
+- [ ] SIM2-GC-6-12 Implement optional SSE delivery path (`text/event-stream`) that reuses the same cursor namespace and supports `Last-Event-ID` resume.
+- [ ] SIM2-GC-6-13 Add bounded server-side fan-out buffers/queues and explicit slow-consumer lag signaling (no unbounded memory growth).
+- [ ] SIM2-GC-6-14 Update dashboard refresh runtime to prefer cursor path (and SSE when available) with deterministic fallback to polling on stream failure.
 
 Acceptance criteria:
 1. Monitoring and IP-ban views meet documented quantitative freshness SLOs in both runtime-dev and runtime-prod envelopes.
@@ -401,6 +406,8 @@ Acceptance criteria:
 4. Freshness regressions fail automated tests with actionable diagnostics.
 5. Production monitoring freshness is independent of adversary-sim active state.
 6. Operators can see explicit freshness health and lag state at all times.
+7. Cursor-resume semantics are deterministic across manual refresh, auto-refresh, and reconnect flows.
+8. Realtime delivery paths remain bounded under burst load with explicit lag/overflow diagnostics instead of silent staleness.
 
 ### SIM2-GC-7: Upgrade Browser-Adversary Lane to True Browser Execution
 
@@ -504,6 +511,8 @@ Scope: enforce non-regression with tests that prove real traffic -> real defense
 - [ ] SIM2-GC-11-13 Add container isolation regression tests for frontier lane (reject privileged mode, daemon-socket mount, disallowed host mount, and missing runtime hardening flags).
 - [ ] SIM2-GC-11-14 Add signed-envelope negative tests (`invalid signature`, `nonce replay`, `expiry exceeded`, `scope mismatch`) proving worker execution is blocked.
 - [ ] SIM2-GC-11-15 Add teardown determinism tests (`deadline exceeded`, `heartbeat loss`, forced-kill path) and assert terminal failure taxonomy plus cleanup completion.
+- [ ] SIM2-GC-11-16 Add cursor-contract tests for monotonic ordering, resume-after-cursor correctness, overflow signaling, and deduped replay windows.
+- [ ] SIM2-GC-11-17 Add SSE-path tests for event-id ordering, `Last-Event-ID` reconnect behavior, and fallback-to-polling continuity when stream drops.
 
 Acceptance criteria:
 1. Mandatory verification fails if any matrix-required defense/lane evidence is missing.
@@ -514,6 +523,7 @@ Acceptance criteria:
 6. Toggle control regressions (duplicate starts, lease split-brain, missing operation lineage) fail deterministically in CI.
 7. Trust-boundary regressions (CSRF/origin/session/replay/throttle/audit) fail deterministically in CI with explicit failure taxonomy.
 8. Frontier isolation/envelope/teardown regressions fail deterministically in CI with explicit failure taxonomy.
+9. Realtime cursor/stream ordering and resume regressions fail deterministically in CI with explicit failure taxonomy.
 
 ### SIM2-GC-12: Program Governance for Continuous Defense Evolution
 

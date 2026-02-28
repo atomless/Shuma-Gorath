@@ -53,3 +53,5 @@ Completed archive index:
    Research synthesis for endpoint trust boundaries on adversary toggle control (session/CSRF/replay/throttling/audit controls).
 8. [`2026-02-28-sim2-gcr-2-containerized-black-box-capability-orchestration-research.md`](2026-02-28-sim2-gcr-2-containerized-black-box-capability-orchestration-research.md)  
    Research synthesis for capability-safe containerized frontier orchestration (runtime hardening, signed envelopes, bounded channels, fail-closed teardown).
+9. [`2026-02-28-sim2-gcr-4-rust-realtime-monitoring-architecture-candidates.md`](2026-02-28-sim2-gcr-4-rust-realtime-monitoring-architecture-candidates.md)  
+   Research synthesis for realtime monitoring delivery candidates in Rust/Spin (cursor polling vs SSE, ordering, backpressure, bounded cost).
