@@ -87,7 +87,7 @@ Non-negotiable implementation demands for every `SIM2-EX*` item:
 
 Scope: remove remaining centralized imperative seams from request orchestration and finish migration to explicit `facts -> decisions -> effects -> response` flow.
 
-- [ ] SIM2-EX1-8 Document final orchestration ownership map in `docs/module-boundaries.md` and update ADR references where boundaries changed.
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-EX1-*` closure details.
 
 Acceptance criteria:
 1. No request-path privileged side effects are emitted directly from `src/lib.rs`; all flow through intent executor boundaries.

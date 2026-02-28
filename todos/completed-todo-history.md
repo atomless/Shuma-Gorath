@@ -6,7 +6,7 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 SIM2 Excellence Remediation Wave 2 (Architecture + Adversary Evolution)
 
-#### SIM2-EX1: Complete Functional-Core Migration and Decompose Imperative Hot Paths (partial)
+#### SIM2-EX1: Complete Functional-Core Migration and Decompose Imperative Hot Paths
 
 - [x] SIM2-EX1-1 Produce an architecture inventory of all remaining direct side-effect callsites in request handling (`metrics`, `monitoring`, `event log`, `ban writes`) and classify each as `retain`, `migrate`, or `delete`. (Artifact: `docs/plans/2026-02-28-sim2-ex1-1-request-side-effect-inventory.md`)
 - [x] SIM2-EX1-2 Move all remaining request-path side effects still executed directly from `src/lib.rs` into effect-intent execution paths behind typed intents. (Artifacts: `src/lib.rs`, `src/runtime/effect_intents.rs`, `src/observability/metrics.rs`)
@@ -15,6 +15,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-EX1-5 Introduce architectural guard tests/lints that fail if pure decision modules depend on `Store`, provider side effects, event logging, or mutable global state. (Artifacts: `src/runtime/architecture_guards.rs`, `src/runtime/mod.rs`)
 - [x] SIM2-EX1-6 Add characterization parity tests around migrated seams and require parity snapshots before and after each extraction slice. (Artifacts: `src/runtime/effect_intents/plan_builder.rs`, `src/runtime/effect_intents/plan_builder_characterization_snapshot.txt`)
 - [x] SIM2-EX1-7 Reduce `src/lib.rs` orchestration surface to route setup, trust-boundary setup, and tranche wiring only; move policy behavior decisions out of entrypoint logic. (Artifacts: `src/lib.rs`, `src/runtime/mod.rs`, `src/runtime/request_flow.rs`)
+- [x] SIM2-EX1-8 Document final orchestration ownership map in `docs/module-boundaries.md` and update ADR references where boundaries changed. (Artifacts: `docs/module-boundaries.md`, `docs/adr/0006-functional-core-policy-orchestration.md`)
 
 ### P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)
 

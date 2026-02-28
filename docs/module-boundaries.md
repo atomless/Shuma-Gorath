@@ -20,7 +20,7 @@ This document defines the in-repo boundaries used to prepare future repo splits.
 
 ## Target Split Direction
 
-- Core policy/orchestration: `src/lib.rs` and `src/runtime/` helpers (`request_router`, `kv_gate`, `policy_pipeline`)
+- Core policy/orchestration: `src/lib.rs` trust-boundary shell and `src/runtime/` orchestration modules (`request_flow`, `request_router`, `kv_gate`, `policy_pipeline`, `request_facts`, `policy_graph`, `effect_intents`, `capabilities`)
 - Admin adapter domain: `src/admin/` (`api.rs` endpoint surface, `auth.rs` auth/session concerns, and `adversary_sim_control.rs` command-policy + idempotency/lease contracts)
 - Config domain: `src/config/mod.rs` (+ `src/config/tests.rs`)
 - Signal domain: `src/signals/` (browser/<abbr title="Chrome DevTools Protocol">CDP</abbr>/<abbr title="Geolocation">GEO</abbr>/<abbr title="Internet Protocol">IP</abbr>/<abbr title="JavaScript">JS</abbr>/allowlist)
@@ -30,6 +30,21 @@ This document defines the in-repo boundaries used to prepare future repo splits.
 - Challenge domain: `src/challenge/` (`puzzle` and future `not_a_bot` challenge modes)
 - Observability domain: `src/observability/` (`metrics` and monitoring surfaces)
 - Dashboard adapter: `dashboard/src/lib/domain/` <abbr title="Application Programming Interface">API</abbr>/session/config adapters
+
+## Request Orchestration Ownership Map (SIM2-EX1)
+
+Reference decisions: [`docs/adr/0006-functional-core-policy-orchestration.md`](adr/0006-functional-core-policy-orchestration.md)
+
+| Module Path | Ownership |
+| --- | --- |
+| `src/lib.rs` | Request trust-boundary entrypoint only: component binding, final delegation to runtime flow, and post-response monitoring flush. |
+| `src/runtime/request_flow.rs` | Main request orchestration owner for `facts -> decisions -> effects -> response` flow, endpoint order, and terminal response selection. |
+| `src/runtime/request_router.rs` | Early-route short-circuit handling and route-specific helper policy decisions. |
+| `src/runtime/policy_pipeline.rs` | Tranche wiring between facts/graph outputs and effect-intent planning for first/second policy tranches. |
+| `src/runtime/request_facts.rs` | Side-effect-free normalization of request/config/runtime inputs. |
+| `src/runtime/policy_graph.rs` | Pure policy stage ordering and typed decision outcomes. |
+| `src/runtime/effect_intents/` | Typed effect-plan construction and all privileged side-effect execution (`intent_types`, `plan_builder`, `intent_executor`, `response_renderer`). |
+| `src/runtime/capabilities.rs` | Capability tokens for least-authority gating of privileged request-path writes. |
 
 ## Defence Taxonomy (H3.6.1)
 
@@ -68,17 +83,17 @@ They are larger, multi-step flows with dedicated adapters/contracts and are like
 - Signal modules write evidence; they do not decide final blocking outcomes.
 - Barrier modules consume policy outcomes; they do not silently mutate botness scoring internals.
 - Hybrid modules MUST provide explicit split APIs for signal contribution and enforcement action.
-- Runtime orchestration (`src/runtime/policy_pipeline.rs`) remains the ordering authority.
+- Runtime orchestration ordering is owned by `src/runtime/request_flow.rs` and tranche-specific execution in `src/runtime/policy_pipeline.rs`.
 - Runtime policy orchestration follows functional-core / imperative-shell layering:
   - `src/runtime/request_facts.rs` (side-effect-free normalization),
   - `src/runtime/policy_graph.rs` (pure ordered policy decisions),
-  - `src/runtime/effect_intents.rs` (centralized effect execution),
+  - `src/runtime/effect_intents/` (centralized effect planning + execution),
   - `src/runtime/capabilities.rs` (explicit capability tokens for privileged writes).
 - Runtime observability MUST publish both per-signal availability state (`active`/`disabled`/`unavailable`) and effective mode state (`configured`, `signal_enabled`, `action_enabled`) so tuning outcomes are explainable.
 
 ## Rules For New Work
 
-- Keep `src/lib.rs` focused on orchestration and call domains via boundary adapters.
+- Keep `src/lib.rs` as a thin trust-boundary shell and delegate behavioral orchestration to `src/runtime/request_flow.rs`.
 - Keep request-path orchestration in the sequence `facts -> decisions -> effects -> response`; policy stages must remain pure and side effects must run through effect-intent execution.
 - Privileged request-path writes (ban store, metrics, monitoring, event logging) must require explicit capability tokens from `src/runtime/capabilities.rs`; do not rely on convention-only access.
 - Adversary-sim control command policy (`trust`, `throttle`, `idempotency` plan decisions) must stay in `src/admin/adversary_sim_control.rs` pure planning functions; endpoint handlers execute effects only after typed decision output.
