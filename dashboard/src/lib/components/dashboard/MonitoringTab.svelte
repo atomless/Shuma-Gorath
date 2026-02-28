@@ -10,6 +10,10 @@
     NOT_A_BOT_LATENCY_LABELS,
     POW_REASON_LABELS,
     RATE_OUTCOME_LABELS,
+    deriveAdversaryRunRows,
+    deriveDefenseTrendRows,
+    deriveRecentEventFilterOptions,
+    filterRecentEvents,
     deriveIpRangeMonitoringViewModel,
     deriveMazeStatsViewModel,
     deriveMonitoringSummaryViewModel,
@@ -35,6 +39,8 @@
   import TabStateMessage from './primitives/TabStateMessage.svelte';
   import OverviewStats from './monitoring/OverviewStats.svelte';
   import PrimaryCharts from './monitoring/PrimaryCharts.svelte';
+  import AdversaryRunPanel from './monitoring/AdversaryRunPanel.svelte';
+  import DefenseTrendBlocks from './monitoring/DefenseTrendBlocks.svelte';
   import RecentEventsTable from './monitoring/RecentEventsTable.svelte';
   import CdpSection from './monitoring/CdpSection.svelte';
   import MazeSection from './monitoring/MazeSection.svelte';
@@ -98,6 +104,13 @@
   let powTrendChart = null;
 
   let selectedTimeRange = 'hour';
+  let eventFilters = {
+    origin: 'all',
+    scenario: 'all',
+    lane: 'all',
+    defense: 'all',
+    outcome: 'all'
+  };
   let rangeEventsSnapshot = { range: '', recent_events: [] };
   let rangeEventsAbortController = null;
   let lastRequestedRange = '';
@@ -413,6 +426,15 @@
     lastRequestedRange = '';
   }
 
+  function onEventFilterChange(key, value) {
+    const normalizedKey = String(key || '').trim();
+    if (!normalizedKey || !Object.prototype.hasOwnProperty.call(eventFilters, normalizedKey)) return;
+    eventFilters = {
+      ...eventFilters,
+      [normalizedKey]: String(value || 'all').trim() || 'all'
+    };
+  }
+
   function abortRangeEventsFetch() {
     if (!rangeEventsAbortController) return;
     rangeEventsAbortController.abort();
@@ -488,14 +510,21 @@
   $: freshnessSlowConsumerState = String(freshness.slow_consumer_lag_state || 'normal');
   $: freshnessOverflow = String(freshness.overflow || 'none');
 
-  $: recentEvents = Array.isArray(events.recent_events)
+  $: rawRecentEvents = Array.isArray(events.recent_events)
     ? events.recent_events.slice(0, EVENT_ROW_RENDER_LIMIT)
     : [];
+  $: eventFilterOptions = deriveRecentEventFilterOptions(rawRecentEvents);
+  $: recentEvents = filterRecentEvents(rawRecentEvents, eventFilters);
   $: recentCdpEvents = Array.isArray(cdpEventsData.events)
     ? cdpEventsData.events.slice(0, CDP_ROW_RENDER_LIMIT)
     : [];
+  $: defenseTrendRows = deriveDefenseTrendRows(rawRecentEvents);
+  $: adversaryRunSummary = deriveAdversaryRunRows(rawRecentEvents, bans);
+  $: adversaryRunRows = Array.isArray(adversaryRunSummary?.runRows)
+    ? adversaryRunSummary.runRows.slice(0, 8)
+    : [];
 
-  $: eventCount = recentEvents.length;
+  $: eventCount = rawRecentEvents.length;
   $: totalBans = Number.isFinite(Number(analytics.ban_count))
     ? Number(analytics.ban_count)
     : bans.length;
@@ -538,7 +567,7 @@
   $: powOutcomeRows = normalizePairRows(monitoringSummary.pow.outcomes, POW_OUTCOME_LABELS);
   $: rateOutcomeRows = normalizePairRows(monitoringSummary.rate.outcomes, RATE_OUTCOME_LABELS);
   $: geoTopCountries = normalizeTopCountries(monitoringSummary.geo.topCountries);
-  $: ipRangeSummary = deriveIpRangeMonitoringViewModel(recentEvents, config);
+  $: ipRangeSummary = deriveIpRangeMonitoringViewModel(rawRecentEvents, config);
   $: ipRangeReasonRows = normalizeDimensionRows(
     ipRangeSummary.reasons,
     (key) => formatIpRangeReasonLabel(key)
@@ -555,6 +584,31 @@
     IP_RANGE_FALLBACK_LABELS
   );
   $: ipRangeTrendRows = normalizeTrendRows(ipRangeSummary.trend);
+
+  $: monitoringEventEmptyState = (() => {
+    if (tabStatus?.error) {
+      return {
+        kind: 'error',
+        message: `Monitoring refresh error: ${String(tabStatus.error)}`
+      };
+    }
+    if (rawRecentEvents.length === 0 && (freshnessStateKey === 'degraded' || freshnessStateKey === 'stale')) {
+      return {
+        kind: 'degraded',
+        message: 'No events loaded while freshness is degraded/stale. Data may be delayed.'
+      };
+    }
+    if (rawRecentEvents.length > 0 && recentEvents.length === 0) {
+      return {
+        kind: 'filtered-empty',
+        message: 'No events match the current filter combination.'
+      };
+    }
+    return {
+      kind: 'empty',
+      message: 'No recent events'
+    };
+  })();
 
   $: challengeTrendSeries = normalizeTrendSeries(monitoringSummary.challenge.trend);
   $: powTrendSeries = normalizeTrendSeries(monitoringSummary.pow.trend);
@@ -723,8 +777,25 @@
     bind:timeSeriesCanvas
   />
 
+  <AdversaryRunPanel
+    loading={tabStatus?.loading === true}
+    runRows={adversaryRunRows}
+    activeBanCount={adversaryRunSummary?.activeBanCount || activeBans}
+    {freshnessStateKey}
+    {formatTime}
+  />
+
+  <DefenseTrendBlocks
+    loading={tabStatus?.loading === true}
+    trendRows={defenseTrendRows}
+  />
+
   <RecentEventsTable
     {recentEvents}
+    filterOptions={eventFilterOptions}
+    filters={eventFilters}
+    onFilterChange={onEventFilterChange}
+    emptyState={monitoringEventEmptyState}
     {formatTime}
     {eventBadgeClass}
   />

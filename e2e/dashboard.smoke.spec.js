@@ -664,7 +664,9 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
 
   await openDashboard(page);
   await expect(page.locator("#total-events")).toHaveText("0");
-  await expect(page.locator("#events tbody")).toContainText("No recent events");
+  await expect(page.locator("#monitoring-events tbody")).toContainText(
+    /No (recent events|events loaded while freshness is degraded\/stale)/i
+  );
   await expect(page.locator("#cdp-events tbody")).toContainText(
     "No CDP detections or auto-bans in the selected window"
   );
@@ -825,8 +827,8 @@ test("dashboard loads and shows seeded operational data", async ({ page }) => {
   await expect(page.locator("#last-updated")).toContainText("updated:");
 
   await expect(page.locator("#total-events")).not.toHaveText("-");
-  await expect(page.locator("#events tbody tr").first()).toBeVisible();
-  await expect(page.locator("#events tbody")).not.toContainText("undefined");
+  await expect(page.locator("#monitoring-events tbody tr").first()).toBeVisible();
+  await expect(page.locator("#monitoring-events tbody")).not.toContainText("undefined");
 
   await expect(page.locator("#cdp-events tbody tr").first()).toBeVisible();
   await expect(page.locator("#cdp-total-detections")).not.toHaveText("-");
@@ -1496,7 +1498,7 @@ test("monitoring auto-refresh avoids placeholder flicker and bounds table churn"
   await expect(page.locator("#honeypot-total-hits")).not.toHaveText("...");
 
   await page.evaluate(() => {
-    const tbody = document.querySelector("#events tbody");
+    const tbody = document.querySelector("#monitoring-events tbody");
     window.__shumaEventRowMutations = 0;
     if (!tbody) return;
     const observer = new MutationObserver((records) => {
@@ -1674,7 +1676,7 @@ test("dashboard tables keep sticky headers", async ({ page }) => {
   await openTab(page, "monitoring");
 
   const eventsHeaderPosition = await page
-    .locator("#events thead th")
+    .locator("#monitoring-events thead th")
     .first()
     .evaluate((el) => getComputedStyle(el).position);
   const cdpHeaderPosition = await page

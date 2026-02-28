@@ -6,6 +6,14 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 SIM2 Gap-Closure Program: Real Execution + Realtime Monitoring
 
+#### SIM2-GC-10: Dashboard UX for Arms-Race Operations (Evidence-First)
+
+- [x] SIM2-GC-10-1 Add “recent adversary run” panel linking run ids to observed defense deltas in monitoring and IP-ban surfaces.
+- [x] SIM2-GC-10-2 Add per-defense trend blocks (trigger count, pass/fail ratio, escalations, ban outcomes) keyed by source labels.
+- [x] SIM2-GC-10-3 Add fast filters for `origin`, `scenario`, `lane`, `defense`, and `outcome` without introducing new visual language.
+- [x] SIM2-GC-10-4 Add explicit empty/error/degraded states so missing data is never mistaken for “no attacks.”
+- [x] SIM2-GC-10-5 Add operator workflow docs for triage, replay, tuning, and validation loops from the dashboard.
+
 #### SIM2-GC-9: Scenario Design Realism and Defense Exercise Guarantees
 
 - [x] SIM2-GC-9-1 Add scenario intent matrix mapping each scenario to required defense signals and minimum evidence thresholds.

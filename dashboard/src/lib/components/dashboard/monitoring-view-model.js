@@ -123,6 +123,272 @@ const deriveTrendSeries = (trend = []) => {
   };
 };
 
+const normalizeToken = (value) => String(value || '').trim().toLowerCase();
+
+const EVENT_ORIGIN_LABELS = Object.freeze({
+  sim: 'Simulation',
+  manual: 'Manual',
+  other: 'Other'
+});
+
+const DEFENSE_LABELS = Object.freeze({
+  challenge: 'Challenge',
+  not_a_bot: 'Not-a-Bot',
+  pow: 'Proof of Work',
+  rate_limit: 'Rate Limiting',
+  geo: 'GEO',
+  maze: 'Maze',
+  tarpit: 'Tarpit',
+  honeypot: 'Honeypot',
+  cdp: 'CDP',
+  fingerprint: 'Fingerprint',
+  ban_path: 'Ban Path',
+  event_stream: 'Event Stream',
+  other: 'Other'
+});
+
+const OUTCOME_BUCKET_LABELS = Object.freeze({
+  pass: 'Pass',
+  fail: 'Fail',
+  escalate: 'Escalate',
+  unknown: 'Unknown'
+});
+
+const classifyEventOrigin = (event) => {
+  const row = event && typeof event === 'object' ? event : {};
+  if (row.is_simulation === true || String(row.sim_run_id || '').trim().length > 0) {
+    return 'sim';
+  }
+  if (String(row.admin || '').trim().length > 0) {
+    return 'manual';
+  }
+  return 'other';
+};
+
+const classifyEventLane = (event) => {
+  const lane = normalizeToken(event?.sim_lane);
+  return lane || 'none';
+};
+
+const classifyEventScenario = (event) => {
+  const fromField = String(event?.scenario_id || '').trim();
+  if (fromField) return fromField;
+  const reason = String(event?.reason || '');
+  const scenarioMatch = /(?:scenario_id|scenario)=([a-zA-Z0-9_.:-]+)/i.exec(reason);
+  if (scenarioMatch && scenarioMatch[1]) {
+    return scenarioMatch[1];
+  }
+  const profile = String(event?.sim_profile || '').trim();
+  if (profile) {
+    return profile;
+  }
+  return 'unknown';
+};
+
+const classifyDefense = (event) => {
+  const eventType = normalizeToken(event?.event);
+  const reason = normalizeToken(event?.reason);
+  const outcome = normalizeToken(event?.outcome);
+  const combined = `${eventType} ${reason} ${outcome}`;
+  if (combined.includes('honeypot')) return 'honeypot';
+  if (combined.includes('tarpit')) return 'tarpit';
+  if (combined.includes('maze')) return 'maze';
+  if (combined.includes('not_a_bot') || combined.includes('not-a-bot')) return 'not_a_bot';
+  if (combined.includes('pow') || combined.includes('proof')) return 'pow';
+  if (combined.includes('rate')) return 'rate_limit';
+  if (combined.includes('geo')) return 'geo';
+  if (combined.includes('cdp')) return 'cdp';
+  if (combined.includes('fingerprint')) return 'fingerprint';
+  if (combined.includes('challenge')) return 'challenge';
+  if (combined.includes('ban') || combined.includes('deny_temp') || combined.includes('block')) return 'ban_path';
+  if (String(event?.sim_run_id || '').trim().length > 0) return 'event_stream';
+  return 'other';
+};
+
+const classifyOutcomeBucket = (outcomeRaw) => {
+  const outcome = normalizeToken(outcomeRaw);
+  if (outcome.includes('allow') || outcome.includes('monitor') || outcome.includes('not-a-bot') || outcome === 'pass') {
+    return 'pass';
+  }
+  if (outcome.includes('challenge') || outcome.includes('maze') || outcome.includes('tarpit') || outcome.includes('escalate')) {
+    return 'escalate';
+  }
+  if (outcome.includes('deny') || outcome.includes('block') || outcome.includes('fail') || outcome.includes('ban')) {
+    return 'fail';
+  }
+  return 'unknown';
+};
+
+const isBanOutcomeEvent = (event) => {
+  const eventType = normalizeToken(event?.event);
+  if (eventType === 'ban') return true;
+  const outcome = normalizeToken(event?.outcome);
+  const reason = normalizeToken(event?.reason);
+  return (
+    outcome.includes('deny')
+    || outcome.includes('block')
+    || outcome.includes('banned')
+    || reason.includes('ban')
+  );
+};
+
+const toOptionRows = (values, labels = null) => values
+  .filter((value) => String(value || '').trim().length > 0)
+  .sort((left, right) => String(left).localeCompare(String(right)))
+  .map((value) => {
+    const normalized = String(value);
+    return {
+      value: normalized,
+      label: labels && labels[normalized]
+        ? labels[normalized]
+        : normalized
+    };
+  });
+
+export const deriveRecentEventFilterOptions = (events = []) => {
+  const rows = Array.isArray(events) ? events : [];
+  const origins = new Set();
+  const scenarios = new Set();
+  const lanes = new Set();
+  const defenses = new Set();
+  const outcomes = new Set();
+  rows.forEach((event) => {
+    origins.add(classifyEventOrigin(event));
+    scenarios.add(classifyEventScenario(event));
+    lanes.add(classifyEventLane(event));
+    defenses.add(classifyDefense(event));
+    outcomes.add(normalizeToken(event?.outcome) || 'unknown');
+  });
+  return {
+    origins: toOptionRows(Array.from(origins), EVENT_ORIGIN_LABELS),
+    scenarios: toOptionRows(Array.from(scenarios)),
+    lanes: toOptionRows(Array.from(lanes)),
+    defenses: toOptionRows(Array.from(defenses), DEFENSE_LABELS),
+    outcomes: toOptionRows(Array.from(outcomes))
+  };
+};
+
+export const filterRecentEvents = (events = [], filters = {}) => {
+  const rows = Array.isArray(events) ? events : [];
+  const sourceFilter = normalizeToken(filters.origin);
+  const scenarioFilter = normalizeToken(filters.scenario);
+  const laneFilter = normalizeToken(filters.lane);
+  const defenseFilter = normalizeToken(filters.defense);
+  const outcomeFilter = normalizeToken(filters.outcome);
+  return rows.filter((event) => {
+    if (sourceFilter && sourceFilter !== 'all' && classifyEventOrigin(event) !== sourceFilter) return false;
+    if (scenarioFilter && scenarioFilter !== 'all' && normalizeToken(classifyEventScenario(event)) !== scenarioFilter) return false;
+    if (laneFilter && laneFilter !== 'all' && classifyEventLane(event) !== laneFilter) return false;
+    if (defenseFilter && defenseFilter !== 'all' && classifyDefense(event) !== defenseFilter) return false;
+    if (outcomeFilter && outcomeFilter !== 'all' && (normalizeToken(event?.outcome) || 'unknown') !== outcomeFilter) return false;
+    return true;
+  });
+};
+
+export const deriveDefenseTrendRows = (events = []) => {
+  const rows = Array.isArray(events) ? events : [];
+  /** @type {Map<string, {defense: string, triggerCount: number, passCount: number, failCount: number, escalationCount: number, banOutcomeCount: number, sourceCounts: Record<string, number>}>} */
+  const grouped = new Map();
+  rows.forEach((event) => {
+    const defense = classifyDefense(event);
+    const source = classifyEventOrigin(event);
+    const existing = grouped.get(defense) || {
+      defense,
+      triggerCount: 0,
+      passCount: 0,
+      failCount: 0,
+      escalationCount: 0,
+      banOutcomeCount: 0,
+      sourceCounts: {}
+    };
+    existing.triggerCount += 1;
+    const outcomeBucket = classifyOutcomeBucket(event?.outcome);
+    if (outcomeBucket === 'pass') existing.passCount += 1;
+    if (outcomeBucket === 'fail') existing.failCount += 1;
+    if (outcomeBucket === 'escalate') existing.escalationCount += 1;
+    if (isBanOutcomeEvent(event)) existing.banOutcomeCount += 1;
+    existing.sourceCounts[source] = Number(existing.sourceCounts[source] || 0) + 1;
+    grouped.set(defense, existing);
+  });
+  return Array.from(grouped.values())
+    .sort((left, right) => right.triggerCount - left.triggerCount)
+    .map((row) => ({
+      defense: row.defense,
+      label: DEFENSE_LABELS[row.defense] || row.defense,
+      triggerCount: row.triggerCount,
+      passCount: row.passCount,
+      failCount: row.failCount,
+      escalationCount: row.escalationCount,
+      banOutcomeCount: row.banOutcomeCount,
+      sourceRows: toOptionRows(Object.keys(row.sourceCounts), EVENT_ORIGIN_LABELS).map((entry) => ({
+        source: entry.value,
+        label: entry.label,
+        count: row.sourceCounts[entry.value] || 0
+      }))
+    }));
+};
+
+export const deriveAdversaryRunRows = (events = [], bans = []) => {
+  const rows = Array.isArray(events) ? events : [];
+  const activeBans = Array.isArray(bans) ? bans : [];
+  /** @type {Map<string, {runId: string, lane: string, profile: string, firstTs: number, lastTs: number, monitoringEventCount: number, defenseCounts: Record<string, number>, banOutcomeCount: number}>} */
+  const grouped = new Map();
+  rows.forEach((event) => {
+    const runId = String(event?.sim_run_id || '').trim();
+    if (!runId) return;
+    const lane = classifyEventLane(event);
+    const profile = String(event?.sim_profile || '').trim() || 'unknown';
+    const ts = Number(event?.ts || 0);
+    const defense = classifyDefense(event);
+    const existing = grouped.get(runId) || {
+      runId,
+      lane,
+      profile,
+      firstTs: Number.isFinite(ts) ? ts : 0,
+      lastTs: Number.isFinite(ts) ? ts : 0,
+      monitoringEventCount: 0,
+      defenseCounts: {},
+      banOutcomeCount: 0
+    };
+    existing.monitoringEventCount += 1;
+    if (Number.isFinite(ts) && ts > 0) {
+      existing.firstTs = existing.firstTs === 0 ? ts : Math.min(existing.firstTs, ts);
+      existing.lastTs = Math.max(existing.lastTs, ts);
+    }
+    existing.defenseCounts[defense] = Number(existing.defenseCounts[defense] || 0) + 1;
+    if (isBanOutcomeEvent(event)) {
+      existing.banOutcomeCount += 1;
+    }
+    grouped.set(runId, existing);
+  });
+  const runRows = Array.from(grouped.values())
+    .sort((left, right) => right.lastTs - left.lastTs)
+    .map((row) => ({
+      runId: row.runId,
+      lane: row.lane,
+      profile: row.profile,
+      firstTs: row.firstTs,
+      lastTs: row.lastTs,
+      monitoringEventCount: row.monitoringEventCount,
+      defenseDeltaCount: Object.keys(row.defenseCounts).length,
+      defenseRows: Object.entries(row.defenseCounts)
+        .sort((left, right) => Number(right[1]) - Number(left[1]))
+        .map(([defense, count]) => ({
+          defense,
+          label: DEFENSE_LABELS[defense] || defense,
+          count: Number(count || 0)
+        })),
+      banOutcomeCount: row.banOutcomeCount,
+      monitoringHref: '#monitoring',
+      ipBansHref: '#ip-bans'
+    }));
+  return {
+    runRows,
+    totalSimulationEvents: runRows.reduce((total, row) => total + row.monitoringEventCount, 0),
+    activeBanCount: activeBans.length
+  };
+};
+
 const incrementCount = (target, key, amount = 1) => {
   const normalizedKey = String(key || '').trim() || 'unknown';
   target[normalizedKey] = Number(target[normalizedKey] || 0) + Number(amount || 0);

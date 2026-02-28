@@ -829,6 +829,84 @@ test('monitoring view model and status module remain pure snapshot transforms', 
       true
     );
     assert.equal(ipRangeSummary.catalog.customRuleCount, 1);
+
+    const gc10Events = [
+      {
+        ts: 1710000000,
+        event: 'challenge',
+        ip: '198.51.100.10',
+        reason: 'challenge_required',
+        outcome: 'challenge',
+        scenario_id: 'challenge_puzzle_fail_maze',
+        sim_run_id: 'run-1',
+        sim_lane: 'browser_realistic',
+        sim_profile: 'full_coverage',
+        is_simulation: true
+      },
+      {
+        ts: 1710000010,
+        event: 'ban',
+        ip: '198.51.100.10',
+        reason: 'tarpit escalation',
+        outcome: 'deny_temp',
+        sim_run_id: 'run-1',
+        sim_lane: 'browser_realistic',
+        sim_profile: 'full_coverage',
+        is_simulation: true
+      },
+      {
+        ts: 1710000020,
+        event: 'pow',
+        ip: '203.0.113.77',
+        reason: 'scenario=pow_invalid_proof',
+        outcome: 'failure',
+        sim_run_id: 'run-2',
+        sim_lane: 'crawler',
+        sim_profile: 'fast_smoke',
+        is_simulation: true
+      },
+      {
+        ts: 1710000030,
+        event: 'config_patch',
+        ip: '127.0.0.1',
+        reason: 'manual_threshold_update',
+        outcome: 'allow',
+        admin: 'ops'
+      }
+    ];
+    const gc10FilterOptions = monitoringModelModule.deriveRecentEventFilterOptions(gc10Events);
+    assert.equal(gc10FilterOptions.origins.some((row) => row.value === 'sim'), true);
+    assert.equal(gc10FilterOptions.origins.some((row) => row.value === 'manual'), true);
+    assert.equal(gc10FilterOptions.lanes.some((row) => row.value === 'browser_realistic'), true);
+    assert.equal(gc10FilterOptions.lanes.some((row) => row.value === 'crawler'), true);
+    assert.equal(gc10FilterOptions.scenarios.some((row) => row.value === 'challenge_puzzle_fail_maze'), true);
+
+    const gc10FilteredRows = monitoringModelModule.filterRecentEvents(gc10Events, {
+      origin: 'sim',
+      lane: 'browser_realistic',
+      defense: 'challenge',
+      outcome: 'challenge'
+    });
+    assert.equal(gc10FilteredRows.length, 1);
+    assert.equal(gc10FilteredRows[0].sim_run_id, 'run-1');
+
+    const defenseTrendRows = monitoringModelModule.deriveDefenseTrendRows(gc10Events);
+    const challengeTrend = defenseTrendRows.find((row) => row.defense === 'challenge');
+    assert.equal(Boolean(challengeTrend), true);
+    assert.equal(challengeTrend?.triggerCount, 1);
+    assert.equal(challengeTrend?.escalationCount, 1);
+    assert.equal(challengeTrend?.sourceRows.some((row) => row.source === 'sim' && row.count === 1), true);
+
+    const runSummary = monitoringModelModule.deriveAdversaryRunRows(gc10Events, [
+      { ip: '198.51.100.200' },
+      { ip: '203.0.113.200' }
+    ]);
+    const runOne = runSummary.runRows.find((row) => row.runId === 'run-1');
+    assert.equal(Boolean(runOne), true);
+    assert.equal(runOne?.monitoringEventCount, 2);
+    assert.equal(runOne?.banOutcomeCount, 1);
+    assert.equal(runSummary.activeBanCount, 2);
+
     assert.equal(monitoringNormalizers.shouldFetchRange('week'), true);
     assert.equal(monitoringNormalizers.shouldFetchRange('day'), false);
     assert.equal(monitoringNormalizers.hoursForRange('month'), 720);
@@ -1628,15 +1706,21 @@ test('monitoring tab is decomposed into focused subsection components', () => {
 
   assert.match(source, /import OverviewStats from '\.\/monitoring\/OverviewStats\.svelte';/);
   assert.match(source, /import PrimaryCharts from '\.\/monitoring\/PrimaryCharts\.svelte';/);
+  assert.match(source, /import AdversaryRunPanel from '\.\/monitoring\/AdversaryRunPanel\.svelte';/);
+  assert.match(source, /import DefenseTrendBlocks from '\.\/monitoring\/DefenseTrendBlocks\.svelte';/);
   assert.match(source, /import RecentEventsTable from '\.\/monitoring\/RecentEventsTable\.svelte';/);
   assert.match(source, /import ExternalMonitoringSection from '\.\/monitoring\/ExternalMonitoringSection\.svelte';/);
   assert.match(source, /import IpRangeSection from '\.\/monitoring\/IpRangeSection\.svelte';/);
   assert.match(source, /<OverviewStats/);
   assert.match(source, /<PrimaryCharts/);
+  assert.match(source, /<AdversaryRunPanel/);
+  assert.match(source, /<DefenseTrendBlocks/);
   assert.match(source, /<ChallengeSection/);
   assert.match(source, /<PowSection/);
   assert.match(source, /<IpRangeSection/);
   assert.match(source, /<ExternalMonitoringSection/);
+  assert.match(source, /filterOptions=\{eventFilterOptions\}/);
+  assert.match(source, /onFilterChange=\{onEventFilterChange\}/);
 });
 
 test('dashboard runtime is slim and free of legacy DOM-id wiring layers', () => {

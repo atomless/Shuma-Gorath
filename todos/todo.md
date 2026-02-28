@@ -432,11 +432,7 @@ Acceptance criteria:
 
 Scope: make monitoring UI operationally useful for defense evolution loops.
 
-- [ ] SIM2-GC-10-1 Add “recent adversary run” panel linking run ids to observed defense deltas in monitoring and IP-ban surfaces.
-- [ ] SIM2-GC-10-2 Add per-defense trend blocks (trigger count, pass/fail ratio, escalations, ban outcomes) keyed by source labels.
-- [ ] SIM2-GC-10-3 Add fast filters for `origin`, `scenario`, `lane`, `defense`, and `outcome` without introducing new visual language.
-- [ ] SIM2-GC-10-4 Add explicit empty/error/degraded states so missing data is never mistaken for “no attacks.”
-- [ ] SIM2-GC-10-5 Add operator workflow docs for triage, replay, tuning, and validation loops from the dashboard.
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-10-*` closure details.
 
 Acceptance criteria:
 1. Operators can directly correlate adversary runs with defense responses from the UI.

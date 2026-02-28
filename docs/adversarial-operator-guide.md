@@ -253,6 +253,24 @@ Operators must triage in this order:
 9. Seeded IP-range evidence in `ip_range_suggestions`.
 10. Tarpit progression/fallback/escalation counters in Monitoring tab (`Tarpit Progression` section) and `monitoring_after.tarpit.metrics` in report artifacts.
 
+## Dashboard Triage/Replay/Tuning/Validation Loop (SIM2-GC-10)
+
+When triaging adversary activity from `#monitoring`, operators must use this loop:
+
+1. Triage:
+   - You must start in `Recent Adversary Runs` and pick the latest `run_id` with unexpected ban outcomes or defense deltas.
+   - You must cross-check the same run in `#ip-bans` before concluding no enforcement occurred.
+2. Replay candidate isolation:
+   - You must set `Recent Events` filters in this order: `origin=Simulation`, matching `scenario`, matching `lane`, then optional `defense`/`outcome`.
+   - You must not classify a run as "clean" when Monitoring freshness is `degraded` or `stale`; rerun after freshness returns to `fresh` or capture degraded evidence explicitly.
+3. Defense tuning:
+   - You must use `Defense Trends` to identify drifted defenses (high triggers with low pass ratio or rising escalations).
+   - You must tune one defense area at a time and record the exact config delta with the affected run id(s).
+4. Validation:
+   - You must rerun `make test-adversarial-fast` after each tuning slice.
+   - You must rerun `make test-adversarial-soak` before promotion for threshold/policy changes that impact challenge, PoW, rate-limit, GEO, tarpit, or IP-range pathways.
+   - You must verify replay evidence reappears in monitoring (`run_id`, scenario/lane rows, and defense-category outcomes) before marking the issue resolved.
+
 ## Scenario Intent Review Process (SIM2-GC-9)
 
 Operators must run `make test-adversarial-scenario-review` at least weekly and before release cuts.
