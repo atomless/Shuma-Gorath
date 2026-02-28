@@ -6,6 +6,20 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 SIM2 Gap-Closure Program: Real Execution + Realtime Monitoring
 
+#### SIM2-GC-6: Deliver Realtime Monitoring Refresh Semantics and Backpressure Safety
+
+- [x] SIM2-GC-6-1 Define quantitative freshness SLOs for runtime-dev and runtime-prod (`p50/p95/p99 visibility delay`, `manual refresh staleness bound`, `max allowed lag before degraded state`).
+- [x] SIM2-GC-6-2 Define and enforce a load envelope for freshness SLO compliance (event ingest rate, operator refresh concurrency, query cost ceiling) with benchmark methodology.
+- [x] SIM2-GC-6-3 Implement selected realtime delivery model (from `SIM2-GCR-4`) with deterministic ordering, cursor semantics, and bounded payload windows.
+- [x] SIM2-GC-6-4 Add cache invalidation rules so high-signal events (new bans, challenge failures, maze escalations) invalidate stale views immediately without cache stampede behavior.
+- [x] SIM2-GC-6-5 Add backend and UI rate-limit/backpressure controls to avoid self-induced load from aggressive refresh loops.
+- [x] SIM2-GC-6-6 Add tests for freshness, monotonic ordering, deduplication, and behavior under bursty adversary runs.
+- [x] SIM2-GC-6-7 Add explicit freshness-health telemetry and UI state (`fresh`, `degraded`, `stale`) with operator-facing lag indicators.
+- [x] SIM2-GC-6-8 Replace run-active-only cache-bypass assumptions with a global freshness policy that preserves near-realtime visibility for real production attacker traffic.
+- [x] SIM2-GC-6-12 Implement optional SSE delivery path (`text/event-stream`) that reuses the same cursor namespace and supports `Last-Event-ID` resume.
+- [x] SIM2-GC-6-13 Add bounded server-side fan-out buffers/queues and explicit slow-consumer lag signaling (no unbounded memory growth).
+- [x] SIM2-GC-6-14 Update dashboard refresh runtime to prefer cursor path (and SSE when available) with deterministic fallback to polling on stream failure.
+
 #### SIM2-GC-6: Deliver Realtime Monitoring Refresh Semantics and Backpressure Safety (partial)
 
 - [x] SIM2-GC-6-9 Define canonical monitoring event cursor contract (strict monotonic sequence id, resume semantics, and overflow taxonomy shared by polling and stream paths).

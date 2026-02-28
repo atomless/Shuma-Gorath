@@ -6,6 +6,30 @@ export function createDashboardRefreshRuntime(options = {}) {
   const MONITORING_CACHE_MAX_CDP_EVENTS = 50;
   const MONITORING_CACHE_MAX_BANS = 100;
   const IP_BANS_CACHE_MAX_SUGGESTIONS = 50;
+  const MONITORING_DELTA_LIMIT = 120;
+  const IP_BANS_DELTA_LIMIT = 120;
+  const LIVE_HOURS_WINDOW = 24;
+  const DELTA_RECENT_EVENTS_LIMIT = 200;
+  const STREAMABLE_TABS = Object.freeze(new Set(['monitoring', 'ip-bans']));
+  const DEFAULT_FRESHNESS_SNAPSHOT = Object.freeze({
+    state: 'stale',
+    lag_ms: null,
+    last_event_ts: null,
+    slow_consumer_lag_state: 'normal',
+    overflow: 'none',
+    transport: 'polling',
+    query_budget_requests_per_second_per_client: 1,
+    refreshed_at: ''
+  });
+  const cursorState = {
+    monitoring: '',
+    ipBans: ''
+  };
+  const streamState = {
+    monitoring: null,
+    ipBans: null
+  };
+  let activeRealtimeTab = '';
   const normalizeTab =
     typeof options.normalizeTab === 'function' ? options.normalizeTab : (value) => String(value || '');
   const getApiClient =
@@ -29,6 +53,79 @@ export function createDashboardRefreshRuntime(options = {}) {
     !config || typeof config !== 'object' || Object.keys(config).length === 0;
   const hasConfigSnapshot = (config) => !isConfigSnapshotEmpty(config);
   const toArray = (value) => (Array.isArray(value) ? value : []);
+  const toTabCursorKey = (tab) => (tab === 'ip-bans' ? 'ipBans' : 'monitoring');
+  const freshnessSnapshotKey = (tab) =>
+    (tab === 'ip-bans' ? 'ipBansFreshness' : 'monitoringFreshness');
+
+  const normalizeFreshnessSnapshot = (value = {}, fallbackTransport = 'polling') => {
+    const source = value && typeof value === 'object' ? value : {};
+    const lagValue = Number(source.lag_ms);
+    const lastEventValue = Number(source.last_event_ts);
+    const queryBudgetValue = Number(source.query_budget_requests_per_second_per_client);
+    return {
+      state: String(source.state || DEFAULT_FRESHNESS_SNAPSHOT.state),
+      lag_ms: Number.isFinite(lagValue) && lagValue >= 0 ? lagValue : null,
+      last_event_ts: Number.isFinite(lastEventValue) && lastEventValue > 0 ? lastEventValue : null,
+      slow_consumer_lag_state: String(
+        source.slow_consumer_lag_state || DEFAULT_FRESHNESS_SNAPSHOT.slow_consumer_lag_state
+      ),
+      overflow: String(source.overflow || DEFAULT_FRESHNESS_SNAPSHOT.overflow),
+      transport: String(source.transport || fallbackTransport || DEFAULT_FRESHNESS_SNAPSHOT.transport),
+      query_budget_requests_per_second_per_client:
+        Number.isFinite(queryBudgetValue) && queryBudgetValue > 0
+          ? queryBudgetValue
+          : DEFAULT_FRESHNESS_SNAPSHOT.query_budget_requests_per_second_per_client,
+      refreshed_at: new Date().toISOString()
+    };
+  };
+
+  const updateFreshnessSnapshot = (tab, payload = {}, fallbackTransport = 'polling') => {
+    const key = freshnessSnapshotKey(tab);
+    const next = normalizeFreshnessSnapshot(payload, fallbackTransport);
+    applySnapshots({ [key]: next });
+    return next;
+  };
+
+  const eventCursorKey = (event = {}) => {
+    const source = event && typeof event === 'object' ? event : {};
+    if (typeof source.cursor === 'string' && source.cursor.trim()) {
+      return source.cursor.trim();
+    }
+    const ts = Number(source.ts || 0);
+    const eventName = String(source.event || '');
+    const ip = String(source.ip || '');
+    const reason = String(source.reason || '');
+    const outcome = String(source.outcome || '');
+    return `${ts}|${eventName}|${ip}|${reason}|${outcome}`;
+  };
+
+  const mergeRecentEvents = (existing = [], incoming = []) => {
+    const mergedByKey = new Map();
+    toArray(existing).forEach((event) => {
+      mergedByKey.set(eventCursorKey(event), event);
+    });
+    toArray(incoming).forEach((event) => {
+      mergedByKey.set(eventCursorKey(event), event);
+    });
+    return Array.from(mergedByKey.values())
+      .sort((left, right) => Number(right?.ts || 0) - Number(left?.ts || 0))
+      .slice(0, DELTA_RECENT_EVENTS_LIMIT);
+  };
+
+  const closeStream = (tab) => {
+    const key = toTabCursorKey(tab);
+    const stream = streamState[key];
+    if (!stream || typeof stream.close !== 'function') return;
+    try {
+      stream.close();
+    } catch (_error) {}
+    streamState[key] = null;
+  };
+
+  const closeAllStreams = () => {
+    closeStream('monitoring');
+    closeStream('ip-bans');
+  };
 
   function compactBansSnapshot(bansData = {}) {
     const source = bansData && typeof bansData === 'object' ? bansData : {};
@@ -149,6 +246,14 @@ export function createDashboardRefreshRuntime(options = {}) {
   function clearAllCaches() {
     clearCache(MONITORING_CACHE_KEY);
     clearCache(IP_BANS_CACHE_KEY);
+    closeAllStreams();
+    cursorState.monitoring = '';
+    cursorState.ipBans = '';
+    activeRealtimeTab = '';
+    applySnapshots({
+      monitoringFreshness: normalizeFreshnessSnapshot({}, 'polling'),
+      ipBansFreshness: normalizeFreshnessSnapshot({}, 'polling')
+    });
   }
 
   function toRequestOptions(runtimeOptions = {}) {
@@ -196,6 +301,166 @@ export function createDashboardRefreshRuntime(options = {}) {
     dashboardState.setTabLoading(tab, false, '');
     dashboardState.setTabEmpty(tab, false, '');
     dashboardState.clearTabError(tab);
+  }
+
+  function shouldUseCursorDelta(reason = 'manual') {
+    return !(
+      reason === 'config-save' ||
+      reason === 'ban-save' ||
+      reason === 'unban-save'
+    );
+  }
+
+  function syncCursorFromDelta(tab, delta = {}) {
+    const key = toTabCursorKey(tab);
+    const nextCursor = typeof delta.next_cursor === 'string' ? delta.next_cursor : '';
+    const windowEndCursor =
+      typeof delta.window_end_cursor === 'string' ? delta.window_end_cursor : '';
+    if (nextCursor.trim()) {
+      cursorState[key] = nextCursor;
+      return;
+    }
+    if (windowEndCursor.trim()) {
+      cursorState[key] = windowEndCursor;
+    }
+  }
+
+  async function seedCursorToWindowEnd(tab, requestOptions = {}) {
+    const dashboardApiClient = getApiClient();
+    if (!dashboardApiClient) return '';
+    const isIpBans = tab === 'ip-bans';
+    const delta = isIpBans
+      ? await dashboardApiClient.getIpBansDelta(
+          { hours: LIVE_HOURS_WINDOW, limit: 1 },
+          requestOptions
+        )
+      : await dashboardApiClient.getMonitoringDelta(
+          { hours: LIVE_HOURS_WINDOW, limit: 1 },
+          requestOptions
+        );
+    syncCursorFromDelta(tab, delta);
+    return cursorState[toTabCursorKey(tab)] || '';
+  }
+
+  function applyMonitoringDeltaSnapshots(delta = {}, transport = 'cursor_delta_poll') {
+    const dashboardState = getStateStore();
+    const snapshots = dashboardState ? dashboardState.getState().snapshots || {} : {};
+    const priorEvents = snapshots.events && typeof snapshots.events === 'object'
+      ? snapshots.events
+      : {};
+    const priorMonitoring = snapshots.monitoring && typeof snapshots.monitoring === 'object'
+      ? snapshots.monitoring
+      : {};
+    const priorMonitoringDetails = priorMonitoring.details && typeof priorMonitoring.details === 'object'
+      ? priorMonitoring.details
+      : {};
+    const incomingEvents = toArray(delta.events);
+    const mergedRecentEvents = mergeRecentEvents(priorEvents.recent_events, incomingEvents);
+    const nextEvents = {
+      ...priorEvents,
+      recent_events: mergedRecentEvents
+    };
+    const nextMonitoring = {
+      ...priorMonitoring,
+      details: {
+        ...priorMonitoringDetails,
+        events: nextEvents
+      }
+    };
+    applySnapshots({
+      events: nextEvents,
+      monitoring: nextMonitoring
+    });
+    updateFreshnessSnapshot(
+      'monitoring',
+      {
+        ...(delta.freshness || {}),
+        overflow: delta.overflow || 'none',
+        transport
+      },
+      transport
+    );
+    const compactMonitoring = compactMonitoringSnapshot(nextMonitoring);
+    writeCache(MONITORING_CACHE_KEY, { monitoring: compactMonitoring });
+  }
+
+  function applyIpBansDeltaSnapshots(delta = {}, transport = 'cursor_delta_poll') {
+    const dashboardState = getStateStore();
+    const snapshots = dashboardState ? dashboardState.getState().snapshots || {} : {};
+    const priorBans = snapshots.bans && typeof snapshots.bans === 'object' ? snapshots.bans : {};
+    const nextBans = {
+      ...priorBans,
+      bans: toArray(delta.active_bans)
+    };
+    applySnapshots({ bans: nextBans });
+    updateFreshnessSnapshot(
+      'ip-bans',
+      {
+        ...(delta.freshness || {}),
+        overflow: delta.overflow || 'none',
+        transport
+      },
+      transport
+    );
+    const existingCache = readCache(IP_BANS_CACHE_KEY) || {};
+    writeCache(IP_BANS_CACHE_KEY, {
+      ...existingCache,
+      bans: compactBansSnapshot(nextBans)
+    });
+  }
+
+  function startRealtimeStream(tab) {
+    const normalized = normalizeTab(tab);
+    if (!STREAMABLE_TABS.has(normalized)) return;
+    if (typeof EventSource !== 'function') return;
+    const dashboardApiClient = getApiClient();
+    if (!dashboardApiClient) return;
+    const key = toTabCursorKey(normalized);
+    if (streamState[key]) return;
+    const streamUrlFactory = normalized === 'monitoring'
+      ? dashboardApiClient.getMonitoringStreamUrl
+      : dashboardApiClient.getIpBansStreamUrl;
+    if (typeof streamUrlFactory !== 'function') return;
+    let streamUrl = '';
+    try {
+      streamUrl = streamUrlFactory({
+        hours: LIVE_HOURS_WINDOW,
+        limit: normalized === 'monitoring' ? MONITORING_DELTA_LIMIT : IP_BANS_DELTA_LIMIT,
+        after_cursor: cursorState[key]
+      });
+    } catch (_error) {
+      return;
+    }
+    if (!streamUrl) return;
+    const source = new EventSource(streamUrl, { withCredentials: true });
+    source.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(String(event.data || '{}'));
+        syncCursorFromDelta(normalized, payload);
+        if (normalized === 'monitoring') {
+          applyMonitoringDeltaSnapshots(payload, 'sse');
+        } else {
+          applyIpBansDeltaSnapshots(payload, 'sse');
+        }
+        const dashboardState = getStateStore();
+        if (dashboardState) {
+          dashboardState.markTabUpdated(normalized);
+        }
+      } catch (_error) {}
+    };
+    source.onerror = () => {
+      updateFreshnessSnapshot(
+        normalized,
+        {
+          state: 'degraded',
+          overflow: 'none',
+          slow_consumer_lag_state: 'normal',
+          transport: 'polling_fallback'
+        },
+        'polling_fallback'
+      );
+    };
+    streamState[key] = source;
   }
 
   async function refreshSharedConfig(reason = 'manual', runtimeOptions = {}) {
@@ -247,20 +512,47 @@ export function createDashboardRefreshRuntime(options = {}) {
     }
 
     const requestOptions = toRequestOptions(runtimeOptions);
-    const monitoringData = await dashboardApiClient.getMonitoring({ hours: 24, limit: 10 }, requestOptions);
-    const configSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
-    const monitoringSnapshots = buildMonitoringSnapshots(monitoringData, configSnapshot);
-    const compactMonitoring = compactMonitoringSnapshot(monitoringData);
-    const compactBans = compactBansSnapshot(monitoringSnapshots.bans);
-    if (dashboardState) {
+    const fetchFullMonitoring = async () => {
+      const monitoringData = await dashboardApiClient.getMonitoring({ hours: 24, limit: 10 }, requestOptions);
+      const configSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
+      const monitoringSnapshots = buildMonitoringSnapshots(monitoringData, configSnapshot);
+      const compactMonitoring = compactMonitoringSnapshot(monitoringData);
+      const compactBans = compactBansSnapshot(monitoringSnapshots.bans);
       applySnapshots(monitoringSnapshots);
       writeCache(MONITORING_CACHE_KEY, { monitoring: compactMonitoring });
       const existingIpBansCache = readCache(IP_BANS_CACHE_KEY) || {};
       writeCache(IP_BANS_CACHE_KEY, { ...existingIpBansCache, bans: compactBans });
+      updateFreshnessSnapshot('monitoring', { state: 'fresh', transport: 'snapshot_poll' }, 'snapshot_poll');
+      try {
+        await seedCursorToWindowEnd('monitoring', requestOptions);
+      } catch (_error) {}
+    };
+
+    const canUseDelta =
+      shouldUseCursorDelta(reason) && typeof dashboardApiClient.getMonitoringDelta === 'function';
+    if (canUseDelta) {
+      try {
+        if (!cursorState.monitoring.trim()) {
+          await seedCursorToWindowEnd('monitoring', requestOptions);
+        }
+        const delta = await dashboardApiClient.getMonitoringDelta(
+          {
+            hours: LIVE_HOURS_WINDOW,
+            limit: MONITORING_DELTA_LIMIT,
+            after_cursor: cursorState.monitoring
+          },
+          requestOptions
+        );
+        syncCursorFromDelta('monitoring', delta);
+        applyMonitoringDeltaSnapshots(delta, 'cursor_delta_poll');
+        if (delta.overflow === 'limit_exceeded') {
+          await fetchFullMonitoring();
+        }
+      } catch (_error) {
+        await fetchFullMonitoring();
+      }
     } else {
-      writeCache(MONITORING_CACHE_KEY, { monitoring: compactMonitoring });
-      const existingIpBansCache = readCache(IP_BANS_CACHE_KEY) || {};
-      writeCache(IP_BANS_CACHE_KEY, { ...existingIpBansCache, bans: compactBans });
+      await fetchFullMonitoring();
     }
 
     if (dashboardState && dashboardState.getDerivedState().monitoringEmpty) {
@@ -288,14 +580,14 @@ export function createDashboardRefreshRuntime(options = {}) {
     }
 
     const requestOptions = toRequestOptions(runtimeOptions);
-    const [bansData, ipRangeSuggestions, configSnapshot] = await Promise.all([
-      dashboardApiClient.getBans(requestOptions),
-      dashboardApiClient.getIpRangeSuggestions({ hours: 24, limit: 20 }, requestOptions),
-      includeConfigRefresh ? refreshSharedConfig(reason, runtimeOptions) : Promise.resolve(null)
-    ]);
-    const compactBans = compactBansSnapshot(bansData);
-    const compactSuggestions = compactIpRangeSuggestionsSnapshot(ipRangeSuggestions);
-    if (dashboardState) {
+    const fetchFullIpBans = async () => {
+      const [bansData, ipRangeSuggestions, configSnapshot] = await Promise.all([
+        dashboardApiClient.getBans(requestOptions),
+        dashboardApiClient.getIpRangeSuggestions({ hours: 24, limit: 20 }, requestOptions),
+        includeConfigRefresh ? refreshSharedConfig(reason, runtimeOptions) : Promise.resolve(null)
+      ]);
+      const compactBans = compactBansSnapshot(bansData);
+      const compactSuggestions = compactIpRangeSuggestionsSnapshot(ipRangeSuggestions);
       applySnapshots({
         bans: bansData,
         ipRangeSuggestions
@@ -307,11 +599,42 @@ export function createDashboardRefreshRuntime(options = {}) {
         bans: compactBans,
         ipRangeSuggestions: compactSuggestions
       });
+      updateFreshnessSnapshot('ip-bans', { state: 'fresh', transport: 'snapshot_poll' }, 'snapshot_poll');
+      try {
+        await seedCursorToWindowEnd('ip-bans', requestOptions);
+      } catch (_error) {}
+    };
+
+    const canUseDelta =
+      shouldUseCursorDelta(reason) && typeof dashboardApiClient.getIpBansDelta === 'function';
+    if (canUseDelta) {
+      try {
+        if (!cursorState.ipBans.trim()) {
+          await seedCursorToWindowEnd('ip-bans', requestOptions);
+        }
+        const delta = await dashboardApiClient.getIpBansDelta(
+          {
+            hours: LIVE_HOURS_WINDOW,
+            limit: IP_BANS_DELTA_LIMIT,
+            after_cursor: cursorState.ipBans
+          },
+          requestOptions
+        );
+        syncCursorFromDelta('ip-bans', delta);
+        applyIpBansDeltaSnapshots(delta, 'cursor_delta_poll');
+        if (delta.overflow === 'limit_exceeded') {
+          await fetchFullIpBans();
+        } else if (includeConfigRefresh) {
+          const configSnapshot = await refreshSharedConfig(reason, runtimeOptions);
+          if (hasConfigSnapshot(configSnapshot)) {
+            applySnapshots({ config: configSnapshot });
+          }
+        }
+      } catch (_error) {
+        await fetchFullIpBans();
+      }
     } else {
-      writeCache(IP_BANS_CACHE_KEY, {
-        bans: compactBans,
-        ipRangeSuggestions: compactSuggestions
-      });
+      await fetchFullIpBans();
     }
 
     if (reason === 'ban-save' || reason === 'unban-save') {
@@ -454,6 +777,14 @@ export function createDashboardRefreshRuntime(options = {}) {
 
   async function refreshDashboardForTab(tab, reason = 'manual', runtimeOptions = {}) {
     const activeTab = normalizeTab(tab);
+    if (activeRealtimeTab && activeRealtimeTab !== activeTab) {
+      closeStream(activeRealtimeTab);
+      activeRealtimeTab = '';
+    }
+    if (!STREAMABLE_TABS.has(activeTab)) {
+      closeAllStreams();
+      activeRealtimeTab = '';
+    }
     try {
       const handler = TAB_REFRESH_HANDLERS[activeTab] || TAB_REFRESH_HANDLERS.monitoring;
       await handler(reason, runtimeOptions);
@@ -461,12 +792,28 @@ export function createDashboardRefreshRuntime(options = {}) {
       if (dashboardState) {
         dashboardState.markTabUpdated(activeTab);
       }
+      if (STREAMABLE_TABS.has(activeTab)) {
+        activeRealtimeTab = activeTab;
+        startRealtimeStream(activeTab);
+      }
     } catch (error) {
       if (error && error.name === 'AbortError') {
         return;
       }
       const message = error && error.message ? error.message : 'Refresh failed';
       console.error(`Dashboard refresh error (${activeTab}):`, error);
+      if (STREAMABLE_TABS.has(activeTab)) {
+        updateFreshnessSnapshot(
+          activeTab,
+          {
+            state: 'degraded',
+            overflow: 'none',
+            slow_consumer_lag_state: 'normal',
+            transport: 'polling_fallback'
+          },
+          'polling_fallback'
+        );
+      }
       showTabError(activeTab, message);
     }
   }

@@ -81,6 +81,7 @@
   export let cdpSnapshot = null;
   export let cdpEventsSnapshot = null;
   export let monitoringSnapshot = null;
+  export let monitoringFreshnessSnapshot = null;
   export let configSnapshot = null;
   export let onFetchEventsRange = null;
   export let autoRefreshEnabled = false;
@@ -116,6 +117,11 @@
   const defaultMazeStats = deriveMazeStatsViewModel({});
   const defaultTarpitSummary = deriveTarpitViewModel({});
   const defaultPrometheusHelper = derivePrometheusHelperViewModel({}, '');
+  const FRESHNESS_STATE_LABELS = Object.freeze({
+    fresh: 'Fresh',
+    degraded: 'Degraded',
+    stale: 'Stale'
+  });
 
   const clearTimer = (timerId) => {
     if (timerId === null) return null;
@@ -466,6 +472,21 @@
   $: monitoring = monitoringSnapshot && typeof monitoringSnapshot === 'object'
     ? monitoringSnapshot
     : {};
+  $: freshness = monitoringFreshnessSnapshot && typeof monitoringFreshnessSnapshot === 'object'
+    ? monitoringFreshnessSnapshot
+    : {};
+  $: freshnessStateKey = normalizeLowerTrimmed(freshness.state || 'stale');
+  $: freshnessStateLabel = FRESHNESS_STATE_LABELS[freshnessStateKey] || FRESHNESS_STATE_LABELS.stale;
+  $: freshnessLagMs = Number(freshness.lag_ms);
+  $: freshnessLagText = Number.isFinite(freshnessLagMs) && freshnessLagMs >= 0
+    ? `${Math.round(freshnessLagMs)} ms`
+    : 'n/a';
+  $: freshnessLastEventText = Number.isFinite(Number(freshness.last_event_ts)) && Number(freshness.last_event_ts) > 0
+    ? formatTime(freshness.last_event_ts)
+    : 'n/a';
+  $: freshnessTransport = String(freshness.transport || 'polling');
+  $: freshnessSlowConsumerState = String(freshness.slow_consumer_lag_state || 'normal');
+  $: freshnessOverflow = String(freshness.overflow || 'none');
 
   $: recentEvents = Array.isArray(events.recent_events)
     ? events.recent_events.slice(0, EVENT_ROW_RENDER_LIMIT)
@@ -677,6 +698,14 @@
   tabindex="-1"
 >
   <TabStateMessage tab="monitoring" status={tabStatus} />
+  <div class="control-group panel-soft pad-sm">
+    <p id="monitoring-freshness-state" class="control-desc text-muted">
+      Freshness: <strong>{freshnessStateLabel}</strong> | lag: {freshnessLagText} | last event: {freshnessLastEventText}
+    </p>
+    <p id="monitoring-freshness-meta" class="control-desc text-muted">
+      transport: <code>{freshnessTransport}</code> | slow consumer: <code>{freshnessSlowConsumerState}</code> | overflow: <code>{freshnessOverflow}</code>
+    </p>
+  </div>
 
   <OverviewStats
     loading={tabStatus?.loading === true}

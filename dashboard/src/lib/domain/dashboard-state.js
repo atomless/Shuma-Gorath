@@ -11,6 +11,8 @@ const SNAPSHOT_KEYS = Object.freeze([
   'cdp',
   'cdpEvents',
   'monitoring',
+  'monitoringFreshness',
+  'ipBansFreshness',
   'ipRangeSuggestions',
   'config'
 ]);
@@ -83,6 +85,8 @@ export const createInitialState = (initialTab = DEFAULT_TAB) => ({
     cdp: null,
     cdpEvents: null,
     monitoring: null,
+    monitoringFreshness: null,
+    ipBansFreshness: null,
     ipRangeSuggestions: null,
     config: null
   },

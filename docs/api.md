@@ -139,8 +139,10 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `GET /admin/events?hours=N` - Recent events + summary stats (simulation rows are included when present and tagged per row)
 - `GET /admin/cdp/events?hours=N&limit=M` - <abbr title="Chrome DevTools Protocol">CDP</abbr>-only detections/auto-bans (time-windowed, limit configurable)
 - `GET /admin/monitoring?hours=N&limit=M` - Consolidated monitoring summaries plus dashboard-native detail payload for Monitoring tab refreshes
-- `GET /admin/monitoring/delta?after_cursor=...&limit=N&hours=M` - Cursor-ordered monitoring event deltas (`next_cursor`, `has_more`, `overflow`) with `ETag`/`If-None-Match` support
-- `GET /admin/ip-bans/delta?after_cursor=...&limit=N&hours=M` - Cursor-ordered ban/unban deltas plus active-ban snapshot (`active_bans`) with `ETag`/`If-None-Match` support
+- `GET /admin/monitoring/delta?after_cursor=...&limit=N&hours=M` - Cursor-ordered monitoring event deltas (`next_cursor`, `has_more`, `overflow`) with `ETag`/`If-None-Match` support and freshness/load-envelope metadata
+- `GET /admin/monitoring/stream?after_cursor=...&limit=N&hours=M` - One-shot <abbr title="Server-Sent Events">SSE</abbr> monitoring delta (`text/event-stream`) with `Last-Event-ID` resume using the same cursor namespace
+- `GET /admin/ip-bans/delta?after_cursor=...&limit=N&hours=M` - Cursor-ordered ban/unban deltas plus active-ban snapshot (`active_bans`) with `ETag`/`If-None-Match` support and freshness/load-envelope metadata
+- `GET /admin/ip-bans/stream?after_cursor=...&limit=N&hours=M` - One-shot <abbr title="Server-Sent Events">SSE</abbr> IP-ban delta (`text/event-stream`) with `Last-Event-ID` resume using the same cursor namespace
 - `GET /admin/ip-range/suggestions?hours=N&limit=M` - Suggested IP-range candidates with collateral-risk scoring
 - `GET /admin/config` - Read configuration
 - `POST /admin/config` - Update configuration (partial <abbr title="JavaScript Object Notation">JSON</abbr>, disabled when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`)
@@ -160,7 +162,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 
 `GET /admin/session` includes `access` as `read_only`, `read_write`, or `none`.
 
-Expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/monitoring/delta`, `/admin/ip-bans/delta`, `/admin/ip-range/suggestions`, `/admin/ban` `GET`) are rate-limited to reduce <abbr title="Key-Value">KV</abbr>/<abbr title="Central Processing Unit">CPU</abbr> abuse amplification (`429` with `Retry-After: 60` when limited).
+Expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/monitoring/delta`, `/admin/monitoring/stream`, `/admin/ip-bans/delta`, `/admin/ip-bans/stream`, `/admin/ip-range/suggestions`, `/admin/ban` `GET`) are rate-limited to reduce <abbr title="Key-Value">KV</abbr>/<abbr title="Central Processing Unit">CPU</abbr> abuse amplification (`429` with `Retry-After: 60` when limited).
 
 Simulation telemetry uses per-row metadata tags (`sim_run_id`, `sim_profile`, `sim_lane`, `is_simulation`) rather than read-time query toggles.
 Deprecated simulation-namespace config keys are rejected on write (`sim_telemetry_namespace` and related unknown namespace-era fields).
@@ -244,16 +246,28 @@ For <abbr title="Chrome DevTools Protocol">CDP</abbr>-only operational views wit
 
 `GET /admin/monitoring/delta?after_cursor=<cursor>&limit=100&hours=24` returns:
 - `cursor_contract` (version + ordering + overflow taxonomy)
+- `freshness_slo` (`p50/p95/p99` visibility-delay targets plus lag/degraded thresholds)
+- `load_envelope` (declared ingest/client/query budget envelope for realtime contract)
 - `after_cursor` (echo)
+- `window_end_cursor` (latest cursor currently visible in window; use to initialize tail-following)
 - `next_cursor` (resume token)
 - `has_more` (`true|false`)
 - `overflow` (`none|limit_exceeded`)
 - `events` (event rows with per-row `cursor`)
+- `freshness` (`state=fresh|degraded|stale`, `lag_ms`, `last_event_ts`, slow-consumer lag taxonomy, transport)
+- `stream_supported` and `stream_endpoint`
 
 `GET /admin/ip-bans/delta?after_cursor=<cursor>&limit=100&hours=24` returns:
 - same cursor fields as monitoring delta
 - `events` filtered to `Ban` and `Unban`
 - `active_bans` snapshot for current ban state reconciliation
+
+`GET /admin/monitoring/stream?after_cursor=<cursor>&limit=100&hours=24` and `GET /admin/ip-bans/stream?...` return one <abbr title="Server-Sent Events">SSE</abbr> frame per request with:
+- `event: monitoring_delta` or `event: ip_bans_delta`
+- `id: <next_cursor>` (resume token for `Last-Event-ID`)
+- `data: <JSON payload>` (same cursor/freshness contract as delta, plus `stream_contract`)
+
+The stream path is intentionally one-shot in this phase; the browser reconnect loop provides bounded fan-out/backpressure while preserving deterministic cursor ordering.
 - `prometheus`:
 - `endpoint` (`/metrics`), helper notes, and scrape examples for external platforms
 - `details` (dashboard Monitoring-tab refresh contract):

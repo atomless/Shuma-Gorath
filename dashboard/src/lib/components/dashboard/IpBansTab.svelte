@@ -27,6 +27,7 @@
   export let isActive = false;
   export let tabStatus = null;
   export let bansSnapshot = null;
+  export let ipBansFreshnessSnapshot = null;
   export let ipRangeSuggestionsSnapshot = null;
   export let configSnapshot = null;
   export let configVersion = 0;
@@ -47,6 +48,11 @@
     'tarpit'
   ]);
   const EMPTY_JSON_ARRAY = Object.freeze([]);
+  const FRESHNESS_STATE_LABELS = Object.freeze({
+    fresh: 'Fresh',
+    degraded: 'Degraded',
+    stale: 'Stale'
+  });
 
   let expandedRows = {};
   let banIp = '';
@@ -672,6 +678,21 @@
   );
   $: canBan = isValidIp(banIp) && banDurationSeconds > 0 && !banning;
   $: canUnban = isValidIp(unbanIp) && !unbanning;
+  $: freshness = ipBansFreshnessSnapshot && typeof ipBansFreshnessSnapshot === 'object'
+    ? ipBansFreshnessSnapshot
+    : {};
+  $: freshnessStateKey = String(freshness.state || 'stale').trim().toLowerCase();
+  $: freshnessStateLabel = FRESHNESS_STATE_LABELS[freshnessStateKey] || FRESHNESS_STATE_LABELS.stale;
+  $: freshnessLagMs = Number(freshness.lag_ms);
+  $: freshnessLagText = Number.isFinite(freshnessLagMs) && freshnessLagMs >= 0
+    ? `${Math.round(freshnessLagMs)} ms`
+    : 'n/a';
+  $: freshnessLastEventText = Number.isFinite(Number(freshness.last_event_ts)) && Number(freshness.last_event_ts) > 0
+    ? formatTimestamp(freshness.last_event_ts)
+    : 'n/a';
+  $: freshnessTransport = String(freshness.transport || 'polling');
+  $: freshnessSlowConsumerState = String(freshness.slow_consumer_lag_state || 'normal');
+  $: freshnessOverflow = String(freshness.overflow || 'none');
 
   $: {
     const nextSuggestionsVersion = Number(ipRangeSuggestionsVersion || 0);
@@ -709,6 +730,14 @@
   tabindex="-1"
 >
   <TabStateMessage tab="ip-bans" status={tabStatus} />
+  <div class="control-group panel-soft pad-sm">
+    <p id="ip-bans-freshness-state" class="control-desc text-muted">
+      Freshness: <strong>{freshnessStateLabel}</strong> | lag: {freshnessLagText} | last event: {freshnessLastEventText}
+    </p>
+    <p id="ip-bans-freshness-meta" class="control-desc text-muted">
+      transport: <code>{freshnessTransport}</code> | slow consumer: <code>{freshnessSlowConsumerState}</code> | overflow: <code>{freshnessOverflow}</code>
+    </p>
+  </div>
   <div class="control-group panel-soft pad-sm">
     <div class="input-row">
       <label class="control-label control-label--wide" for="ip-ban-filter">Ban View</label>

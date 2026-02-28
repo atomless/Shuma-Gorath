@@ -98,7 +98,7 @@ Adversary-generated traffic is tagged at request time with:
 Storage and read-path policy:
 
 1. Simulation telemetry writes to canonical event/monitoring stores and is identified by metadata fields (`sim_run_id`, `sim_profile`, `sim_lane`, `is_simulation`).
-2. Admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`) include tagged simulation rows in runtime-dev by default.
+2. Admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/monitoring/delta`, `/admin/monitoring/stream`, `/admin/ip-bans/delta`, `/admin/ip-bans/stream`) include tagged simulation rows in runtime-dev by default.
 3. Non-dev runtime remains default-safe because adversary simulation control surfaces are unavailable.
 4. Unsigned/invalid/stale/replayed simulation tags must not activate simulation context; requests stay in normal telemetry partition.
 5. Invalid simulation-tag attempts emit explicit policy-signal telemetry:

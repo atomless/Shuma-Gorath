@@ -427,6 +427,117 @@ mod tests {
     }
 
     #[test]
+    fn handle_admin_monitoring_delta_includes_freshness_and_load_contracts() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let hour = now / 3600;
+        let key = format!("eventlog:v2:{}:{}-freshness", hour, now);
+        let event = EventLogEntry {
+            ts: now,
+            event: EventType::Challenge,
+            ip: Some("198.51.100.44".to_string()),
+            reason: Some("challenge_served".to_string()),
+            outcome: Some("ok".to_string()),
+            admin: Some("ops".to_string()),
+        };
+        store
+            .set(&key, serde_json::to_vec(&event).unwrap().as_slice())
+            .unwrap();
+
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Get)
+            .uri("/admin/monitoring/delta?hours=1&limit=10");
+        let req = builder.build();
+        let resp = handle_admin_monitoring_delta(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+        let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+
+        assert!(payload.get("freshness_slo").is_some());
+        assert!(payload.get("load_envelope").is_some());
+        assert!(payload.get("freshness").is_some());
+        assert_eq!(
+            payload
+                .get("stream_endpoint")
+                .and_then(|value| value.as_str()),
+            Some("/admin/monitoring/stream")
+        );
+        assert_eq!(
+            payload
+                .get("freshness")
+                .and_then(|value| value.get("state"))
+                .and_then(|value| value.as_str()),
+            Some("fresh")
+        );
+    }
+
+    #[test]
+    fn handle_admin_monitoring_stream_resumes_from_last_event_id() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let hour = now / 3600;
+        let first_key = format!("eventlog:v2:{}:{}-first", hour, now);
+        let second_ts = now.saturating_add(1);
+        let second_key = format!("eventlog:v2:{}:{}-second", hour, second_ts);
+
+        let first_event = EventLogEntry {
+            ts: now,
+            event: EventType::Challenge,
+            ip: Some("203.0.113.1".to_string()),
+            reason: Some("challenge_served".to_string()),
+            outcome: Some("ok".to_string()),
+            admin: Some("ops".to_string()),
+        };
+        let second_event = EventLogEntry {
+            ts: second_ts,
+            event: EventType::Block,
+            ip: Some("203.0.113.2".to_string()),
+            reason: Some("blocked".to_string()),
+            outcome: Some("blocked".to_string()),
+            admin: Some("ops".to_string()),
+        };
+        store
+            .set(&first_key, serde_json::to_vec(&first_event).unwrap().as_slice())
+            .unwrap();
+        store
+            .set(&second_key, serde_json::to_vec(&second_event).unwrap().as_slice())
+            .unwrap();
+
+        let first_cursor = build_event_cursor(now, first_key.as_str());
+        let second_cursor = build_event_cursor(second_ts, second_key.as_str());
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Get)
+            .uri("/admin/monitoring/stream?hours=1&limit=10")
+            .header("Last-Event-ID", first_cursor.as_str());
+        let req = builder.build();
+        let resp = handle_admin_monitoring_stream(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+
+        let body = String::from_utf8_lossy(resp.body()).to_string();
+        assert!(body.contains("event: monitoring_delta"));
+        assert!(body.contains(format!("id: {}", second_cursor).as_str()));
+        let data_line = body
+            .lines()
+            .find(|line| line.starts_with("data: "))
+            .expect("expected data line in SSE payload");
+        let payload: serde_json::Value =
+            serde_json::from_str(data_line.trim_start_matches("data: ")).unwrap();
+        let events = payload
+            .get("events")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(events.len(), 1);
+        assert_eq!(
+            payload
+                .get("after_cursor")
+                .and_then(|value| value.as_str()),
+            Some(first_cursor.as_str())
+        );
+    }
+
+    #[test]
     fn handle_admin_ip_bans_delta_filters_to_ban_and_unban_events() {
         let store = MockStore::new();
         let now = now_ts();
@@ -2044,6 +2155,8 @@ mod admin_config_tests {
         assert!(sanitize_path("/admin/maze/preview"));
         assert!(sanitize_path("/admin/tarpit/preview"));
         assert!(sanitize_path("/admin/ip-range/suggestions"));
+        assert!(sanitize_path("/admin/monitoring/stream"));
+        assert!(sanitize_path("/admin/ip-bans/stream"));
         assert!(sanitize_path("/admin/adversary-sim/history/cleanup"));
     }
 
@@ -3925,7 +4038,9 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/cdp/events"
             | "/admin/monitoring"
             | "/admin/monitoring/delta"
+            | "/admin/monitoring/stream"
             | "/admin/ip-bans/delta"
+            | "/admin/ip-bans/stream"
             | "/admin/ip-range/suggestions"
     )
 }
@@ -3976,6 +4091,19 @@ const ADMIN_DASHBOARD_REFRESH_SESSION_SITE_ID: &str = "admin-dashboard-refresh-s
 const ADMIN_DASHBOARD_REFRESH_SESSION_LIMIT_PER_MINUTE: u32 = 8;
 const ADVERSARY_SIM_CONTROL_SESSION_SITE_ID: &str = "adversary-sim-control-session";
 const ADVERSARY_SIM_CONTROL_IP_SITE_ID: &str = "adversary-sim-control-ip";
+const MONITORING_FRESHNESS_SLO_P50_MS: u64 = 150;
+const MONITORING_FRESHNESS_SLO_P95_MS: u64 = 300;
+const MONITORING_FRESHNESS_SLO_P99_MS: u64 = 500;
+const MONITORING_MANUAL_REFRESH_STALENESS_BOUND_MS: u64 = 60_000;
+const MONITORING_MAX_ALLOWED_LAG_BEFORE_DEGRADED_MS: u64 = 2_000;
+const MONITORING_STALE_LAG_THRESHOLD_MS: u64 = 10_000;
+const MONITORING_LOAD_ENVELOPE_EVENTS_PER_SEC: u64 = 1_000;
+const MONITORING_LOAD_ENVELOPE_OPERATOR_CLIENTS: u64 = 5;
+const MONITORING_LOAD_ENVELOPE_QUERY_COST_CEILING_PER_MINUTE: u32 =
+    ADMIN_DASHBOARD_REFRESH_SESSION_LIMIT_PER_MINUTE;
+const MONITORING_QUERY_BUDGET_REQUESTS_PER_SECOND: u64 = 1;
+const MONITORING_STREAM_RETRY_MS: u64 = 1_000;
+const MONITORING_STREAM_MAX_BUFFER_EVENTS: usize = 250;
 
 fn too_many_admin_read_requests_response() -> Response {
     Response::builder()
@@ -4472,6 +4600,112 @@ fn request_if_none_match(req: &Request) -> Option<String> {
     req.header("if-none-match")
         .and_then(|value| value.as_str())
         .map(|value| value.trim().to_string())
+}
+
+fn request_last_event_id(req: &Request) -> Option<String> {
+    req.header("last-event-id")
+        .and_then(|value| value.as_str())
+        .map(|value| value.trim().to_string())
+}
+
+fn resolve_after_cursor(req: &Request) -> String {
+    let query_cursor =
+        crate::request_validation::query_param(req.query(), "after_cursor").unwrap_or_default();
+    if !query_cursor.trim().is_empty() {
+        return query_cursor;
+    }
+    request_last_event_id(req).unwrap_or_default()
+}
+
+fn latest_event_ts(rows: &[CursorEventRecord]) -> Option<u64> {
+    rows.iter().map(|row| row.record.entry.ts).max()
+}
+
+fn freshness_state_for_lag(lag_ms: Option<u64>) -> &'static str {
+    let Some(lag_ms) = lag_ms else {
+        return "stale";
+    };
+    if lag_ms <= MONITORING_MAX_ALLOWED_LAG_BEFORE_DEGRADED_MS {
+        return "fresh";
+    }
+    if lag_ms <= MONITORING_STALE_LAG_THRESHOLD_MS {
+        return "degraded";
+    }
+    "stale"
+}
+
+fn freshness_health_payload(
+    now_ts: u64,
+    latest_event_ts: Option<u64>,
+    has_more: bool,
+    overflow: &str,
+    transport: &str,
+) -> serde_json::Value {
+    let lag_ms = latest_event_ts.map(|event_ts| now_ts.saturating_sub(event_ts).saturating_mul(1000));
+    let state = freshness_state_for_lag(lag_ms);
+    let slow_consumer_lag_state = if has_more || overflow == "limit_exceeded" {
+        "lagged"
+    } else {
+        "normal"
+    };
+    json!({
+        "state": state,
+        "now_ts": now_ts,
+        "last_event_ts": latest_event_ts,
+        "lag_ms": lag_ms,
+        "manual_refresh_staleness_bound_ms": MONITORING_MANUAL_REFRESH_STALENESS_BOUND_MS,
+        "max_allowed_lag_before_degraded_ms": MONITORING_MAX_ALLOWED_LAG_BEFORE_DEGRADED_MS,
+        "stale_lag_threshold_ms": MONITORING_STALE_LAG_THRESHOLD_MS,
+        "slow_consumer_lag_state": slow_consumer_lag_state,
+        "overflow": overflow,
+        "transport": transport
+    })
+}
+
+fn freshness_slo_payload() -> serde_json::Value {
+    json!({
+        "visibility_delay_ms": {
+            "p50_target": MONITORING_FRESHNESS_SLO_P50_MS,
+            "p95_target": MONITORING_FRESHNESS_SLO_P95_MS,
+            "p99_target": MONITORING_FRESHNESS_SLO_P99_MS
+        },
+        "manual_refresh_staleness_bound_ms": MONITORING_MANUAL_REFRESH_STALENESS_BOUND_MS,
+        "max_allowed_lag_before_degraded_ms": MONITORING_MAX_ALLOWED_LAG_BEFORE_DEGRADED_MS
+    })
+}
+
+fn load_envelope_payload() -> serde_json::Value {
+    json!({
+        "event_ingest_rate_events_per_second": MONITORING_LOAD_ENVELOPE_EVENTS_PER_SEC,
+        "operator_refresh_clients": MONITORING_LOAD_ENVELOPE_OPERATOR_CLIENTS,
+        "query_cost_ceiling_per_minute": MONITORING_LOAD_ENVELOPE_QUERY_COST_CEILING_PER_MINUTE,
+        "query_budget_requests_per_second_per_client": MONITORING_QUERY_BUDGET_REQUESTS_PER_SECOND
+    })
+}
+
+fn stream_contract_payload() -> serde_json::Value {
+    json!({
+        "type": "one_shot_sse",
+        "retry_ms": MONITORING_STREAM_RETRY_MS,
+        "max_buffer_events": MONITORING_STREAM_MAX_BUFFER_EVENTS,
+        "slow_consumer_lag_state_taxonomy": ["normal", "lagged"]
+    })
+}
+
+fn sse_single_event_response(event_name: &str, event_id: &str, payload: &serde_json::Value) -> Response {
+    let event_payload = serde_json::to_string(payload).unwrap_or_else(|_| "{}".to_string());
+    let body = format!(
+        "retry: {}\nevent: {}\nid: {}\ndata: {}\n\n",
+        MONITORING_STREAM_RETRY_MS, event_name, event_id, event_payload
+    );
+    Response::builder()
+        .status(200)
+        .header("Content-Type", "text/event-stream")
+        .header("Cache-Control", "no-store")
+        .header("Connection", "keep-alive")
+        .header("X-Accel-Buffering", "no")
+        .body(body)
+        .build()
 }
 
 fn paginate_cursor_rows(
@@ -8160,25 +8394,37 @@ where
     S: crate::challenge::KeyValueStore,
 {
     let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
-    let limit = query_u64_param(req.query(), "limit", 100).clamp(1, 250) as usize;
-    let after_cursor =
-        crate::request_validation::query_param(req.query(), "after_cursor").unwrap_or_default();
+    let limit = query_u64_param(req.query(), "limit", 100)
+        .clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS as u64) as usize;
+    let after_cursor = resolve_after_cursor(req);
     if let Err(msg) = validate_after_cursor(after_cursor.as_str()) {
         return Response::new(400, msg);
     }
 
     let now = now_ts();
-    let rows = load_recent_event_records_with_keys(store, now, hours)
+    let rows: Vec<CursorEventRecord> = load_recent_event_records_with_keys(store, now, hours)
         .into_iter()
         .map(|stored| CursorEventRecord {
             cursor: build_event_cursor(stored.record.entry.ts, stored.storage_key.as_str()),
             record: stored.record,
         })
         .collect();
+    let window_end_cursor = rows
+        .iter()
+        .map(|row: &CursorEventRecord| row.cursor.clone())
+        .max()
+        .unwrap_or_default();
     let (page_rows, next_cursor, has_more, overflow) =
         paginate_cursor_rows(rows, after_cursor.as_str(), limit);
     let event_rows: Vec<serde_json::Value> = page_rows.iter().map(cursor_event_row_payload).collect();
     let etag = delta_page_etag(next_cursor.as_str(), event_rows.len(), has_more, overflow);
+    let freshness = freshness_health_payload(
+        now,
+        latest_event_ts(page_rows.as_slice()),
+        has_more,
+        overflow,
+        "cursor_delta_poll",
+    );
 
     if request_if_none_match(req).as_deref() == Some(etag.as_str()) {
         return Response::builder()
@@ -8196,13 +8442,19 @@ where
             "cursor_source": "eventlog:v2 key ordering",
             "overflow_taxonomy": ["none", "limit_exceeded"]
         },
+        "freshness_slo": freshness_slo_payload(),
+        "load_envelope": load_envelope_payload(),
         "hours": hours,
         "limit": limit,
         "after_cursor": after_cursor,
+        "window_end_cursor": window_end_cursor,
         "next_cursor": next_cursor,
         "has_more": has_more,
         "overflow": overflow,
-        "events": event_rows
+        "events": event_rows,
+        "freshness": freshness,
+        "stream_supported": true,
+        "stream_endpoint": "/admin/monitoring/stream"
     }))
     .unwrap();
     Response::builder()
@@ -8214,20 +8466,86 @@ where
         .build()
 }
 
-fn handle_admin_ip_bans_delta<S>(req: &Request, store: &S, site_id: &str) -> Response
+fn handle_admin_monitoring_stream<S>(req: &Request, store: &S) -> Response
 where
     S: crate::challenge::KeyValueStore,
 {
+    if *req.method() != Method::Get {
+        return Response::new(405, "Method Not Allowed");
+    }
     let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
-    let limit = query_u64_param(req.query(), "limit", 100).clamp(1, 250) as usize;
-    let after_cursor =
-        crate::request_validation::query_param(req.query(), "after_cursor").unwrap_or_default();
+    let limit = query_u64_param(req.query(), "limit", 100)
+        .clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS as u64) as usize;
+    let after_cursor = resolve_after_cursor(req);
     if let Err(msg) = validate_after_cursor(after_cursor.as_str()) {
         return Response::new(400, msg);
     }
 
     let now = now_ts();
-    let rows = load_recent_event_records_with_keys(store, now, hours)
+    let rows: Vec<CursorEventRecord> = load_recent_event_records_with_keys(store, now, hours)
+        .into_iter()
+        .map(|stored| CursorEventRecord {
+            cursor: build_event_cursor(stored.record.entry.ts, stored.storage_key.as_str()),
+            record: stored.record,
+        })
+        .collect();
+    let window_end_cursor = rows
+        .iter()
+        .map(|row: &CursorEventRecord| row.cursor.clone())
+        .max()
+        .unwrap_or_default();
+    let (page_rows, next_cursor, has_more, overflow) =
+        paginate_cursor_rows(rows, after_cursor.as_str(), limit);
+    let freshness = freshness_health_payload(
+        now,
+        latest_event_ts(page_rows.as_slice()),
+        has_more,
+        overflow,
+        "sse",
+    );
+    let event_rows: Vec<serde_json::Value> = page_rows.iter().map(cursor_event_row_payload).collect();
+    let payload = json!({
+        "cursor_contract": {
+            "version": "monitoring-event-cursor.v1",
+            "ordering": "strict_monotonic_cursor_ascending",
+            "cursor_source": "eventlog:v2 key ordering",
+            "overflow_taxonomy": ["none", "limit_exceeded"]
+        },
+        "freshness_slo": freshness_slo_payload(),
+        "load_envelope": load_envelope_payload(),
+        "stream_contract": stream_contract_payload(),
+        "hours": hours,
+        "limit": limit,
+        "after_cursor": after_cursor,
+        "window_end_cursor": window_end_cursor,
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+        "overflow": overflow,
+        "events": event_rows,
+        "freshness": freshness
+    });
+    let event_id = payload
+        .get("next_cursor")
+        .and_then(|value| value.as_str())
+        .filter(|value| !value.is_empty())
+        .unwrap_or("");
+    sse_single_event_response("monitoring_delta", event_id, &payload)
+}
+
+fn handle_admin_ip_bans_delta<S>(req: &Request, store: &S, site_id: &str) -> Response
+where
+    S: crate::challenge::KeyValueStore,
+{
+    let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
+    let limit = query_u64_param(req.query(), "limit", 100)
+        .clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS as u64) as usize;
+    let after_cursor = resolve_after_cursor(req);
+    if let Err(msg) = validate_after_cursor(after_cursor.as_str()) {
+        return Response::new(400, msg);
+    }
+
+    let now = now_ts();
+    let rows: Vec<CursorEventRecord> = load_recent_event_records_with_keys(store, now, hours)
         .into_iter()
         .filter(|stored| matches!(stored.record.entry.event, EventType::Ban | EventType::Unban))
         .map(|stored| CursorEventRecord {
@@ -8235,6 +8553,11 @@ where
             record: stored.record,
         })
         .collect();
+    let window_end_cursor = rows
+        .iter()
+        .map(|row: &CursorEventRecord| row.cursor.clone())
+        .max()
+        .unwrap_or_default();
     let (page_rows, next_cursor, has_more, overflow) =
         paginate_cursor_rows(rows, after_cursor.as_str(), limit);
     let event_rows: Vec<serde_json::Value> = page_rows.iter().map(cursor_event_row_payload).collect();
@@ -8266,10 +8589,23 @@ where
         return Response::builder()
             .status(304)
             .header("Cache-Control", "no-store")
-            .header("ETag", etag.as_str())
-            .body("")
-            .build();
+        .header("ETag", etag.as_str())
+        .body("")
+        .build();
     }
+
+    let latest_ban_ts = active_bans_payload
+        .iter()
+        .filter_map(|ban| ban.get("banned_at").and_then(|value| value.as_u64()))
+        .max();
+    let latest_delta_ts = latest_event_ts(page_rows.as_slice());
+    let latest_ts = match (latest_delta_ts, latest_ban_ts) {
+        (Some(event_ts), Some(ban_ts)) => Some(event_ts.max(ban_ts)),
+        (Some(event_ts), None) => Some(event_ts),
+        (None, Some(ban_ts)) => Some(ban_ts),
+        (None, None) => None,
+    };
+    let freshness = freshness_health_payload(now, latest_ts, has_more, overflow, "cursor_delta_poll");
 
     let body = serde_json::to_string(&json!({
         "cursor_contract": {
@@ -8278,14 +8614,20 @@ where
             "cursor_source": "eventlog:v2 key ordering",
             "overflow_taxonomy": ["none", "limit_exceeded"]
         },
+        "freshness_slo": freshness_slo_payload(),
+        "load_envelope": load_envelope_payload(),
         "hours": hours,
         "limit": limit,
         "after_cursor": after_cursor,
+        "window_end_cursor": window_end_cursor,
         "next_cursor": next_cursor,
         "has_more": has_more,
         "overflow": overflow,
         "events": event_rows,
-        "active_bans": active_bans_payload
+        "active_bans": active_bans_payload,
+        "freshness": freshness,
+        "stream_supported": true,
+        "stream_endpoint": "/admin/ip-bans/stream"
     }))
     .unwrap();
     Response::builder()
@@ -8295,6 +8637,96 @@ where
         .header("ETag", etag.as_str())
         .body(body)
         .build()
+}
+
+fn handle_admin_ip_bans_stream<S>(req: &Request, store: &S, site_id: &str) -> Response
+where
+    S: crate::challenge::KeyValueStore,
+{
+    if *req.method() != Method::Get {
+        return Response::new(405, "Method Not Allowed");
+    }
+    let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
+    let limit = query_u64_param(req.query(), "limit", 100)
+        .clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS as u64) as usize;
+    let after_cursor = resolve_after_cursor(req);
+    if let Err(msg) = validate_after_cursor(after_cursor.as_str()) {
+        return Response::new(400, msg);
+    }
+
+    let now = now_ts();
+    let rows: Vec<CursorEventRecord> = load_recent_event_records_with_keys(store, now, hours)
+        .into_iter()
+        .filter(|stored| matches!(stored.record.entry.event, EventType::Ban | EventType::Unban))
+        .map(|stored| CursorEventRecord {
+            cursor: build_event_cursor(stored.record.entry.ts, stored.storage_key.as_str()),
+            record: stored.record,
+        })
+        .collect();
+    let window_end_cursor = rows
+        .iter()
+        .map(|row: &CursorEventRecord| row.cursor.clone())
+        .max()
+        .unwrap_or_default();
+    let (page_rows, next_cursor, has_more, overflow) =
+        paginate_cursor_rows(rows, after_cursor.as_str(), limit);
+    let event_rows: Vec<serde_json::Value> = page_rows.iter().map(cursor_event_row_payload).collect();
+
+    let mut active_bans: Vec<_> = crate::enforcement::ban::list_active_bans(store, site_id)
+        .into_iter()
+        .collect();
+    active_bans.sort_by(|a, b| a.0.cmp(&b.0));
+    let active_bans_payload: Vec<serde_json::Value> = active_bans
+        .into_iter()
+        .map(|(ip, ban)| {
+            json!({
+                "ip": ip,
+                "reason": ban.reason,
+                "expires": ban.expires,
+                "banned_at": ban.banned_at,
+                "fingerprint": ban.fingerprint
+            })
+        })
+        .collect();
+    let latest_ban_ts = active_bans_payload
+        .iter()
+        .filter_map(|ban| ban.get("banned_at").and_then(|value| value.as_u64()))
+        .max();
+    let latest_delta_ts = latest_event_ts(page_rows.as_slice());
+    let latest_ts = match (latest_delta_ts, latest_ban_ts) {
+        (Some(event_ts), Some(ban_ts)) => Some(event_ts.max(ban_ts)),
+        (Some(event_ts), None) => Some(event_ts),
+        (None, Some(ban_ts)) => Some(ban_ts),
+        (None, None) => None,
+    };
+    let freshness = freshness_health_payload(now, latest_ts, has_more, overflow, "sse");
+    let payload = json!({
+        "cursor_contract": {
+            "version": "monitoring-event-cursor.v1",
+            "ordering": "strict_monotonic_cursor_ascending",
+            "cursor_source": "eventlog:v2 key ordering",
+            "overflow_taxonomy": ["none", "limit_exceeded"]
+        },
+        "freshness_slo": freshness_slo_payload(),
+        "load_envelope": load_envelope_payload(),
+        "stream_contract": stream_contract_payload(),
+        "hours": hours,
+        "limit": limit,
+        "after_cursor": after_cursor,
+        "window_end_cursor": window_end_cursor,
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+        "overflow": overflow,
+        "events": event_rows,
+        "active_bans": active_bans_payload,
+        "freshness": freshness
+    });
+    let event_id = payload
+        .get("next_cursor")
+        .and_then(|value| value.as_str())
+        .filter(|value| !value.is_empty())
+        .unwrap_or("");
+    sse_single_event_response("ip_bans_delta", event_id, &payload)
 }
 
 fn handle_admin_ip_range_suggestions<S>(req: &Request, store: &S, site_id: &str) -> Response
@@ -9545,7 +9977,9 @@ fn handle_admin_adversary_sim_control(
 ///   - GET /admin/cdp/events: Query CDP-only events
 ///   - GET /admin/monitoring: Query consolidated monitoring telemetry summaries
 ///   - GET /admin/monitoring/delta: Cursor-based monitoring event deltas (`after_cursor`, `limit`, `next_cursor`)
+///   - GET /admin/monitoring/stream: One-shot SSE cursor delta (`Last-Event-ID` resume supported)
 ///   - GET /admin/ip-bans/delta: Cursor-based ban/unban deltas plus active-ban snapshot
+///   - GET /admin/ip-bans/stream: One-shot SSE ban delta (`Last-Event-ID` resume supported)
 ///   - GET /admin/ip-range/suggestions: Query IP range recommendation suggestions
 ///   - GET /admin/config: Get current config including test_mode status
 ///   - POST /admin/config: Update config (e.g., toggle test_mode)
@@ -9795,6 +10229,14 @@ pub fn handle_admin(req: &Request) -> Response {
             }
             handle_admin_monitoring_delta(req, &store)
         }
+        "/admin/monitoring/stream" => {
+            if dashboard_refresh_is_limited(&store, &auth, provider_registry.as_ref())
+                || expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref())
+            {
+                return too_many_admin_read_requests_response();
+            }
+            handle_admin_monitoring_stream(req, &store)
+        }
         "/admin/ip-bans/delta" => {
             if dashboard_refresh_is_limited(&store, &auth, provider_registry.as_ref())
                 || expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref())
@@ -9802,6 +10244,14 @@ pub fn handle_admin(req: &Request) -> Response {
                 return too_many_admin_read_requests_response();
             }
             handle_admin_ip_bans_delta(req, &store, site_id)
+        }
+        "/admin/ip-bans/stream" => {
+            if dashboard_refresh_is_limited(&store, &auth, provider_registry.as_ref())
+                || expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref())
+            {
+                return too_many_admin_read_requests_response();
+            }
+            handle_admin_ip_bans_stream(req, &store, site_id)
         }
         "/admin/ip-range/suggestions" => {
             if dashboard_refresh_is_limited(&store, &auth, provider_registry.as_ref())
@@ -10002,7 +10452,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/monitoring/delta, /admin/ip-bans/delta, /admin/ip-range/suggestions, /admin/config, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics

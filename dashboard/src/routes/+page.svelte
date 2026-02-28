@@ -718,6 +718,7 @@
     cdpSnapshot={snapshots.cdp}
     cdpEventsSnapshot={snapshots.cdpEvents}
     monitoringSnapshot={snapshots.monitoring}
+    monitoringFreshnessSnapshot={snapshots.monitoringFreshness}
     configSnapshot={snapshots.config}
     onFetchEventsRange={onFetchEventsRange}
   />
@@ -736,6 +737,7 @@
           isActive={activeTabKey === 'ip-bans'}
           tabStatus={tabStatus['ip-bans'] || {}}
           bansSnapshot={snapshots.bans}
+          ipBansFreshnessSnapshot={snapshots.ipBansFreshness}
           ipRangeSuggestionsSnapshot={snapshots.ipRangeSuggestions}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}

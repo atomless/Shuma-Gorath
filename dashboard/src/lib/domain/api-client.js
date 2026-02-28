@@ -254,6 +254,31 @@ export const adaptMonitoring = (payload) => {
 /**
  * @param {unknown} payload
  */
+export const adaptCursorDelta = (payload) => {
+  const source = asRecord(payload);
+  return {
+    cursor_contract: asRecord(source.cursor_contract),
+    freshness_slo: asRecord(source.freshness_slo),
+    load_envelope: asRecord(source.load_envelope),
+    stream_contract: asRecord(source.stream_contract),
+    hours: Number(source.hours || 24),
+    limit: Number(source.limit || 100),
+    after_cursor: String(source.after_cursor || ''),
+    window_end_cursor: String(source.window_end_cursor || ''),
+    next_cursor: String(source.next_cursor || ''),
+    has_more: source.has_more === true,
+    overflow: String(source.overflow || 'none'),
+    events: asObjectArray(source.events),
+    active_bans: asObjectArray(source.active_bans),
+    freshness: asRecord(source.freshness),
+    stream_supported: source.stream_supported === true,
+    stream_endpoint: String(source.stream_endpoint || '')
+  };
+};
+
+/**
+ * @param {unknown} payload
+ */
 export const adaptIpRangeSuggestions = (payload) => {
   const source = asRecord(payload);
   const summarySource = asRecord(source.summary);
@@ -519,6 +544,40 @@ export const create = (options = {}) => {
   };
 
   /**
+   * @param {string} path
+   * @param {{hours?: number, limit?: number, after_cursor?: string}} [options]
+   */
+  const buildCursorPath = (path, options = {}) => {
+    const hours = Number.isFinite(options.hours) ? Number(options.hours) : 24;
+    const limit = Number.isFinite(options.limit) ? Number(options.limit) : 100;
+    const afterCursor = typeof options.after_cursor === 'string'
+      ? options.after_cursor
+      : '';
+    const params = new URLSearchParams();
+    params.set('hours', String(hours));
+    params.set('limit', String(limit));
+    if (afterCursor.trim()) {
+      params.set('after_cursor', afterCursor);
+    }
+    return `${path}?${params.toString()}`;
+  };
+
+  /**
+   * @param {string} path
+   * @param {{hours?: number, limit?: number, after_cursor?: string}} [options]
+   */
+  const buildEventStreamUrl = (path, options = {}) => {
+    if (!getAdminContext) {
+      throw new DashboardApiError('API client is not configured', 0, path, 'GET');
+    }
+    const context = getAdminContext(null);
+    if (!context || typeof context.endpoint !== 'string' || !context.endpoint.trim()) {
+      throw new DashboardApiError('Login required. Go to /dashboard/login.html.', 0, path, 'GET');
+    }
+    return `${context.endpoint}${buildCursorPath(path, options)}`;
+  };
+
+  /**
    * @param {RequestOptions} [requestOptions]
    */
   const getAnalytics = async (requestOptions = {}) =>
@@ -587,6 +646,42 @@ export const create = (options = {}) => {
       )
     );
   };
+
+  /**
+   * @param {{hours?: number, limit?: number, after_cursor?: string}} [options]
+   * @param {RequestOptions} [requestOptions]
+   */
+  const getMonitoringDelta = async (options = {}, requestOptions = {}) =>
+    adaptCursorDelta(
+      await request(
+        buildCursorPath('/admin/monitoring/delta', options),
+        requestOptions
+      )
+    );
+
+  /**
+   * @param {{hours?: number, limit?: number, after_cursor?: string}} [options]
+   * @param {RequestOptions} [requestOptions]
+   */
+  const getIpBansDelta = async (options = {}, requestOptions = {}) =>
+    adaptCursorDelta(
+      await request(
+        buildCursorPath('/admin/ip-bans/delta', options),
+        requestOptions
+      )
+    );
+
+  /**
+   * @param {{hours?: number, limit?: number, after_cursor?: string}} [options]
+   */
+  const getMonitoringStreamUrl = (options = {}) =>
+    buildEventStreamUrl('/admin/monitoring/stream', options);
+
+  /**
+   * @param {{hours?: number, limit?: number, after_cursor?: string}} [options]
+   */
+  const getIpBansStreamUrl = (options = {}) =>
+    buildEventStreamUrl('/admin/ip-bans/stream', options);
 
   /**
    * @param {{hours?: number, limit?: number}} [options]
@@ -698,6 +793,10 @@ export const create = (options = {}) => {
     getCdp,
     getCdpEvents,
     getMonitoring,
+    getMonitoringDelta,
+    getIpBansDelta,
+    getMonitoringStreamUrl,
+    getIpBansStreamUrl,
     getIpRangeSuggestions,
     getConfig,
     getAdversarySimStatus,

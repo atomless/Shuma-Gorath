@@ -308,6 +308,7 @@ Behavior:
    - only one dashboard tab panel is visible at a time (panel exclusivity)
    - auto-refresh defaults OFF and is only exposed on Monitoring/<abbr title="Internet Protocol">IP</abbr> Bans
    - polling cadence assertions explicitly enable auto-refresh toggle (60s production cadence)
+   - monitoring and <abbr title="Internet Protocol">IP</abbr>-bans tabs use cursor-delta refresh by default, prefer <abbr title="Server-Sent Events">SSE</abbr> when available, and surface explicit freshness state (`fresh`/`degraded`/`stale`)
    - native Monitoring polling request fan-out stays within bounded per-cycle budget during remount/steady-state loops
    - seeded events/tables are visible
    - clean-state <abbr title="Application Programming Interface">API</abbr> payloads render explicit empty placeholders (no crash/blank <abbr title="User Interface">UI</abbr>)

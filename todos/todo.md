@@ -352,17 +352,7 @@ Acceptance criteria:
 Scope: ensure monitoring and IP-ban views reflect new activity quickly in both dev and production (simulated and real traffic) without destabilizing runtime.
 ADR reference: [`docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md`](../docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md)
 
-- [ ] SIM2-GC-6-1 Define quantitative freshness SLOs for runtime-dev and runtime-prod (`p50/p95/p99 visibility delay`, `manual refresh staleness bound`, `max allowed lag before degraded state`).
-- [ ] SIM2-GC-6-2 Define and enforce a load envelope for freshness SLO compliance (event ingest rate, operator refresh concurrency, query cost ceiling) with benchmark methodology.
-- [ ] SIM2-GC-6-3 Implement selected realtime delivery model (from `SIM2-GCR-4`) with deterministic ordering, cursor semantics, and bounded payload windows.
-- [ ] SIM2-GC-6-4 Add cache invalidation rules so high-signal events (new bans, challenge failures, maze escalations) invalidate stale views immediately without cache stampede behavior.
-- [ ] SIM2-GC-6-5 Add backend and UI rate-limit/backpressure controls to avoid self-induced load from aggressive refresh loops.
-- [ ] SIM2-GC-6-6 Add tests for freshness, monotonic ordering, deduplication, and behavior under bursty adversary runs.
-- [ ] SIM2-GC-6-7 Add explicit freshness-health telemetry and UI state (`fresh`, `degraded`, `stale`) with operator-facing lag indicators.
-- [ ] SIM2-GC-6-8 Replace run-active-only cache-bypass assumptions with a global freshness policy that preserves near-realtime visibility for real production attacker traffic.
-- [ ] SIM2-GC-6-12 Implement optional SSE delivery path (`text/event-stream`) that reuses the same cursor namespace and supports `Last-Event-ID` resume.
-- [ ] SIM2-GC-6-13 Add bounded server-side fan-out buffers/queues and explicit slow-consumer lag signaling (no unbounded memory growth).
-- [ ] SIM2-GC-6-14 Update dashboard refresh runtime to prefer cursor path (and SSE when available) with deterministic fallback to polling on stream failure.
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-6-*` closure details.
 
 Acceptance criteria:
 1. Under declared load envelope (`>=1000 events/s`, `>=5 active operator clients`), active live path achieves `p95 <= 300ms` and `p99 <= 500ms` freshness in runtime-dev and runtime-prod verification profiles.

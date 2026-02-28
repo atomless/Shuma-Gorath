@@ -358,6 +358,21 @@ test('dashboard API adapters normalize sparse payloads safely', { concurrency: f
     assert.equal(suggestions.summary.suggestions_total, 1);
     assert.equal(suggestions.suggestions.length, 1);
     assert.equal(suggestions.suggestions[0].recommended_action, 'deny_temp');
+
+    const delta = api.adaptCursorDelta({
+      after_cursor: 'c1',
+      window_end_cursor: 'c9',
+      next_cursor: 'c3',
+      has_more: false,
+      overflow: 'none',
+      events: [{ cursor: 'c3', event: 'Challenge', ts: 1700000000 }],
+      freshness: { state: 'fresh', lag_ms: 120, transport: 'sse' }
+    });
+    assert.equal(delta.after_cursor, 'c1');
+    assert.equal(delta.window_end_cursor, 'c9');
+    assert.equal(delta.next_cursor, 'c3');
+    assert.equal(delta.events.length, 1);
+    assert.equal(delta.freshness.state, 'fresh');
   });
 });
 
@@ -434,6 +449,77 @@ test('dashboard API client adds CSRF + same-origin for session-auth writes and s
     assert.match(String(calls[1].url), /\/admin\/config\/validate$/);
     assert.equal(calls[1].init.headers.get('x-shuma-csrf'), 'csrf-token');
     assert.equal(calls[1].init.credentials, 'same-origin');
+  });
+});
+
+test('dashboard API client exposes cursor-delta and stream URL helpers for realtime tabs', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
+    const calls = [];
+    const client = apiModule.create({
+      getAdminContext: () => ({
+        endpoint: 'https://edge.local',
+        apikey: '',
+        sessionAuth: true,
+        csrfToken: 'csrf-token'
+      }),
+      request: async (url, init = {}) => {
+        calls.push({ url, init });
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({
+            after_cursor: 'c1',
+            window_end_cursor: 'c9',
+            next_cursor: 'c2',
+            has_more: false,
+            overflow: 'none',
+            events: [],
+            active_bans: [],
+            freshness: { state: 'fresh', lag_ms: 42 }
+          }),
+          text: async () =>
+            '{"after_cursor":"c1","window_end_cursor":"c9","next_cursor":"c2","has_more":false,"overflow":"none","events":[],"active_bans":[],"freshness":{"state":"fresh","lag_ms":42}}'
+        };
+      }
+    });
+
+    const monitoringDelta = await client.getMonitoringDelta({
+      hours: 6,
+      limit: 99,
+      after_cursor: 'cursor-123'
+    });
+    const ipBansDelta = await client.getIpBansDelta({
+      hours: 3,
+      limit: 77,
+      after_cursor: 'cursor-abc'
+    });
+    assert.equal(monitoringDelta.next_cursor, 'c2');
+    assert.equal(ipBansDelta.freshness.state, 'fresh');
+    assert.match(String(calls[0].url), /\/admin\/monitoring\/delta\?/);
+    assert.match(String(calls[0].url), /hours=6/);
+    assert.match(String(calls[0].url), /limit=99/);
+    assert.match(String(calls[0].url), /after_cursor=cursor-123/);
+    assert.match(String(calls[1].url), /\/admin\/ip-bans\/delta\?/);
+    assert.match(String(calls[1].url), /after_cursor=cursor-abc/);
+
+    const monitoringStreamUrl = client.getMonitoringStreamUrl({
+      hours: 4,
+      limit: 55,
+      after_cursor: 'resume-token'
+    });
+    const ipBansStreamUrl = client.getIpBansStreamUrl({
+      hours: 2,
+      limit: 44,
+      after_cursor: 'resume-ban'
+    });
+    assert.match(monitoringStreamUrl, /^https:\/\/edge\.local\/admin\/monitoring\/stream\?/);
+    assert.match(monitoringStreamUrl, /hours=4/);
+    assert.match(monitoringStreamUrl, /limit=55/);
+    assert.match(monitoringStreamUrl, /after_cursor=resume-token/);
+    assert.match(ipBansStreamUrl, /^https:\/\/edge\.local\/admin\/ip-bans\/stream\?/);
+    assert.match(ipBansStreamUrl, /after_cursor=resume-ban/);
   });
 });
 
@@ -1572,7 +1658,7 @@ test('dashboard runtime is slim and free of legacy DOM-id wiring layers', () => 
   assert.match(source, /dashboardRefreshRuntime\.clearAllCaches/);
 });
 
-test('dashboard refresh runtime remains snapshot-only and excludes legacy config UI glue', () => {
+test('dashboard refresh runtime enforces cursor-delta + SSE helpers and excludes legacy config UI glue', () => {
   const source = fs.readFileSync(DASHBOARD_REFRESH_RUNTIME_PATH, 'utf8');
 
   assert.equal(source.includes('updateConfigModeUi'), false);
@@ -1587,7 +1673,21 @@ test('dashboard refresh runtime remains snapshot-only and excludes legacy config
   assert.match(source, /const MONITORING_CACHE_MAX_CDP_EVENTS = 50;/);
   assert.match(source, /const MONITORING_CACHE_MAX_BANS = 100;/);
   assert.match(source, /const IP_BANS_CACHE_MAX_SUGGESTIONS = 50;/);
+  assert.match(source, /const MONITORING_DELTA_LIMIT = 120;/);
+  assert.match(source, /const IP_BANS_DELTA_LIMIT = 120;/);
+  assert.match(source, /const STREAMABLE_TABS = Object\.freeze\(new Set\(\['monitoring', 'ip-bans'\]\)\);/);
   assert.match(source, /function clearAllCaches\(\) \{/);
+  assert.match(source, /closeAllStreams\(\);/);
+  assert.match(source, /monitoringFreshness/);
+  assert.match(source, /ipBansFreshness/);
+  assert.match(source, /dashboardApiClient\.getMonitoringDelta\(/);
+  assert.match(source, /dashboardApiClient\.getIpBansDelta\(/);
+  assert.match(source, /function startRealtimeStream\(tab\) \{/);
+  assert.match(source, /typeof EventSource !== 'function'/);
+  assert.match(source, /new EventSource\(streamUrl, \{ withCredentials: true \}\)/);
+  assert.match(source, /applyMonitoringDeltaSnapshots\(payload, 'sse'\)/);
+  assert.match(source, /applyIpBansDeltaSnapshots\(payload, 'sse'\)/);
+  assert.match(source, /updateFreshnessSnapshot\(/);
   assert.match(source, /writeCache\(MONITORING_CACHE_KEY, \{ monitoring: compactMonitoring \}\);/);
   assert.match(source, /if \(hasConfigSnapshot\(existingConfig\)\) \{/);
   assert.equal(source.includes("? { monitoring: monitoringData }"), false);
