@@ -31,6 +31,15 @@ mod runtime; // request-time orchestration helpers
 mod signals; // Risk and identity signals (browser/CDP/GEO/IP/JS/allowlist)
 mod tarpit; // tarpit progressive endpoint/runtime
 
+#[derive(Clone, Copy)]
+pub(crate) struct LibCapabilityToken(());
+
+impl LibCapabilityToken {
+    fn new() -> Self {
+        Self(())
+    }
+}
+
 /// Main HTTP handler for the bot defence. This function is invoked for every HTTP request.
 /// It applies a series of anti-bot checks in order of cost and effectiveness, returning early on block/allow.
 
@@ -696,7 +705,9 @@ pub(crate) fn serve_maze_with_tracking(
     botness_hint: Option<u8>,
 ) -> Response {
     let provider_registry = crate::providers::registry::ProviderRegistry::from_config(cfg);
-    let capabilities = runtime::capabilities::RuntimeCapabilities::for_policy_execution_phase();
+    let capabilities = runtime::capabilities::RuntimeCapabilities::for_policy_execution_phase(
+        LibCapabilityToken::new(),
+    );
     let context = runtime::effect_intents::EffectExecutionContext {
         req,
         store,
@@ -998,7 +1009,9 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
 pub fn spin_entrypoint(req: Request) -> Response {
     let response = handle_bot_defence_impl(&req);
     if let Ok(store) = Store::open_default() {
-        let capabilities = runtime::capabilities::RuntimeCapabilities::for_post_response_flush_phase();
+        let capabilities = runtime::capabilities::RuntimeCapabilities::for_post_response_flush_phase(
+            LibCapabilityToken::new(),
+        );
         runtime::effect_intents::execute_monitoring_store_intents(
             vec![runtime::effect_intents::EffectIntent::FlushPendingMonitoringCounters],
             &store,

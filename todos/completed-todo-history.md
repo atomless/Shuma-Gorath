@@ -22,6 +22,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-EX2-1 Define capability lattice by operation class (`metrics_write`, `monitoring_write`, `event_log_write`, `ban_write`, optional `response_privileged`) and by orchestration phase. (Artifact: `src/runtime/capabilities.rs`)
 - [x] SIM2-EX2-2 Replace single coarse `RuntimeCapabilities::for_request_path()` minting with phase-specific capability construction and explicit capability passing per execution step. (Artifacts: `src/runtime/capabilities.rs`, `src/runtime/request_flow.rs`, `src/runtime/policy_pipeline.rs`, `src/runtime/effect_intents/intent_executor.rs`, `src/runtime/effect_intents/response_renderer.rs`, `src/lib.rs`)
 - [x] SIM2-EX2-3 Eliminate direct privileged helper calls that bypass capability checks; route every write path through capability-gated executor APIs. (Artifacts: `src/runtime/request_router.rs`, `src/runtime/test_mode/mod.rs`, `src/runtime/request_flow.rs`, `src/runtime/policy_pipeline.rs`, `src/runtime/effect_intents/intent_types.rs`, `src/runtime/effect_intents/intent_executor.rs`, `src/runtime/effect_intents/plan_builder.rs`)
+- [x] SIM2-EX2-4 Add compile-time sealing for capability constructors so capabilities can only be minted at trust-boundary entrypoints. (Artifacts: `src/runtime/capabilities.rs`, `src/runtime/request_flow.rs`, `src/lib.rs`, `src/runtime/request_router.rs`, `src/runtime/request_router/tests.rs`)
 
 ### P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)
 

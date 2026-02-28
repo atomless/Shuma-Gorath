@@ -1,5 +1,14 @@
 use spin_sdk::http::{Request, Response};
 
+#[derive(Clone, Copy)]
+pub(crate) struct RequestFlowCapabilityToken(());
+
+impl RequestFlowCapabilityToken {
+    fn new() -> Self {
+        Self(())
+    }
+}
+
 /// Main handler logic, testable as a plain Rust function.
 pub(crate) fn handle_request(req: &Request) -> Response {
     if let Err(err) = crate::config::validate_env_only_once() {
@@ -13,12 +22,17 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         crate::config::adversary_sim_available(),
     );
     let _sim_context_guard = crate::runtime::sim_telemetry::enter(sim_metadata);
+    let capability_token = RequestFlowCapabilityToken::new();
+    let request_capabilities =
+        crate::runtime::capabilities::RuntimeCapabilities::for_policy_execution_phase(capability_token);
 
     if crate::config::https_enforced() && !crate::request_is_https(req) {
         return Response::new(403, "HTTPS required");
     }
 
-    if let Some(response) = crate::runtime::request_router::maybe_handle_early_route(req, path) {
+    if let Some(response) =
+        crate::runtime::request_router::maybe_handle_early_route(req, path, &request_capabilities)
+    {
         return response;
     }
 
@@ -39,9 +53,7 @@ pub(crate) fn handle_request(req: &Request) -> Response {
     };
     let store = &store;
     let bootstrap_capabilities =
-        crate::runtime::capabilities::RuntimeCapabilities::for_request_bootstrap_phase();
-    let request_capabilities =
-        crate::runtime::capabilities::RuntimeCapabilities::for_policy_execution_phase();
+        crate::runtime::capabilities::RuntimeCapabilities::for_request_bootstrap_phase(capability_token);
     if let Some(sim_tag_failure) = crate::runtime::sim_telemetry::take_last_validation_failure() {
         crate::runtime::effect_intents::execute_metric_intents(
             vec![crate::policy_signal_intent(sim_tag_failure.signal_id())],

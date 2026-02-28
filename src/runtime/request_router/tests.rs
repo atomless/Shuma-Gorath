@@ -7,10 +7,15 @@ fn request(method: Method, path: &str) -> Request {
     builder.build()
 }
 
+fn capabilities() -> crate::runtime::capabilities::PolicyExecutionCapabilities {
+    crate::runtime::capabilities::RuntimeCapabilities::for_test_policy_execution_phase()
+}
+
 #[test]
 fn early_router_short_circuits_health_path() {
     let req = request(Method::Get, "/health");
-    let resp = maybe_handle_early_route(&req, "/health");
+    let caps = capabilities();
+    let resp = maybe_handle_early_route(&req, "/health", &caps);
     assert!(resp.is_some());
     assert_eq!(*resp.unwrap().status(), 403u16);
 }
@@ -18,7 +23,8 @@ fn early_router_short_circuits_health_path() {
 #[test]
 fn early_router_short_circuits_admin_options() {
     let req = request(Method::Options, "/admin/config");
-    let resp = maybe_handle_early_route(&req, "/admin/config");
+    let caps = capabilities();
+    let resp = maybe_handle_early_route(&req, "/admin/config", &caps);
     assert!(resp.is_some());
     assert_eq!(*resp.unwrap().status(), 403u16);
 }
@@ -26,14 +32,16 @@ fn early_router_short_circuits_admin_options() {
 #[test]
 fn early_router_does_not_consume_cdp_report_path() {
     let req = request(Method::Post, "/cdp-report");
-    let resp = maybe_handle_early_route(&req, "/cdp-report");
+    let caps = capabilities();
+    let resp = maybe_handle_early_route(&req, "/cdp-report", &caps);
     assert!(resp.is_none());
 }
 
 #[test]
 fn early_router_does_not_consume_unrelated_paths() {
     let req = request(Method::Get, "/totally-unrelated");
-    let resp = maybe_handle_early_route(&req, "/totally-unrelated");
+    let caps = capabilities();
+    let resp = maybe_handle_early_route(&req, "/totally-unrelated", &caps);
     assert!(resp.is_none());
 }
 
@@ -41,7 +49,8 @@ fn early_router_does_not_consume_unrelated_paths() {
 fn early_router_short_circuits_maze_asset_paths() {
     let path = crate::maze::assets::maze_script_path();
     let req = request(Method::Get, path);
-    let resp = maybe_handle_early_route(&req, path);
+    let caps = capabilities();
+    let resp = maybe_handle_early_route(&req, path, &caps);
     assert!(resp.is_some());
     assert_eq!(*resp.unwrap().status(), 200u16);
 }
@@ -49,7 +58,8 @@ fn early_router_short_circuits_maze_asset_paths() {
 #[test]
 fn early_router_redirects_dashboard_root_to_index_html() {
     let req = request(Method::Get, "/dashboard");
-    let resp = maybe_handle_early_route(&req, "/dashboard");
+    let caps = capabilities();
+    let resp = maybe_handle_early_route(&req, "/dashboard", &caps);
     assert!(resp.is_some());
     let resp = resp.unwrap();
     assert_eq!(*resp.status(), 308u16);

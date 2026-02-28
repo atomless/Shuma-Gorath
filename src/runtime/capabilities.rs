@@ -83,8 +83,17 @@ pub(crate) struct ResponsePrivilegedCapability {
     _sealed: (),
 }
 
+mod sealed {
+    pub(crate) trait PolicyExecutionMintAuthority {}
+
+    impl PolicyExecutionMintAuthority for crate::runtime::request_flow::RequestFlowCapabilityToken {}
+    impl PolicyExecutionMintAuthority for crate::LibCapabilityToken {}
+}
+
 impl RuntimeCapabilities {
-    pub(crate) fn for_request_bootstrap_phase() -> RequestBootstrapCapabilities {
+    pub(crate) fn for_request_bootstrap_phase(
+        _token: crate::runtime::request_flow::RequestFlowCapabilityToken,
+    ) -> RequestBootstrapCapabilities {
         debug_assert!(phase_allows(
             CapabilityPhase::RequestBootstrap,
             CapabilityClass::MetricsWrite
@@ -96,7 +105,9 @@ impl RuntimeCapabilities {
 
     /// Policy execution capabilities are minted at the request trust boundary
     /// and passed explicitly through orchestration and effect executors.
-    pub(crate) fn for_policy_execution_phase() -> PolicyExecutionCapabilities {
+    pub(crate) fn for_policy_execution_phase(
+        _token: impl sealed::PolicyExecutionMintAuthority,
+    ) -> PolicyExecutionCapabilities {
         debug_assert!(phase_allows(
             CapabilityPhase::PolicyExecution,
             CapabilityClass::MetricsWrite
@@ -126,7 +137,20 @@ impl RuntimeCapabilities {
         }
     }
 
-    pub(crate) fn for_post_response_flush_phase() -> PostResponseFlushCapabilities {
+    #[cfg(test)]
+    pub(crate) fn for_test_policy_execution_phase() -> PolicyExecutionCapabilities {
+        PolicyExecutionCapabilities {
+            metrics: MetricsCapability { _sealed: () },
+            monitoring: MonitoringCapability { _sealed: () },
+            event_log: EventLogCapability { _sealed: () },
+            ban_write: BanWriteCapability { _sealed: () },
+            response_privileged: ResponsePrivilegedCapability { _sealed: () },
+        }
+    }
+
+    pub(crate) fn for_post_response_flush_phase(
+        _token: crate::LibCapabilityToken,
+    ) -> PostResponseFlushCapabilities {
         debug_assert!(phase_allows(
             CapabilityPhase::PostResponseFlush,
             CapabilityClass::MonitoringWrite
@@ -173,9 +197,7 @@ impl PostResponseFlushCapabilities {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        capability_lattice_for_phase, CapabilityClass, CapabilityPhase, RuntimeCapabilities,
-    };
+    use super::{capability_lattice_for_phase, CapabilityClass, CapabilityPhase};
 
     #[test]
     fn request_bootstrap_lattice_is_metrics_only() {
@@ -207,25 +229,4 @@ mod tests {
         );
     }
 
-    #[test]
-    fn request_bootstrap_capabilities_expose_only_metrics() {
-        let bootstrap = RuntimeCapabilities::for_request_bootstrap_phase();
-        let _ = bootstrap.metrics();
-    }
-
-    #[test]
-    fn policy_execution_capabilities_expose_full_privileged_set() {
-        let execution = RuntimeCapabilities::for_policy_execution_phase();
-        let _ = execution.metrics();
-        let _ = execution.monitoring();
-        let _ = execution.event_log();
-        let _ = execution.ban_write();
-        let _ = execution.response_privileged();
-    }
-
-    #[test]
-    fn post_response_flush_capabilities_expose_only_monitoring() {
-        let flush = RuntimeCapabilities::for_post_response_flush_phase();
-        let _ = flush.monitoring();
-    }
 }

@@ -17,9 +17,9 @@ fn execute_capability_gated_intents(
     provider_registry: &crate::providers::registry::ProviderRegistry,
     ip: &str,
     ua: &str,
+    capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
     intents: Vec<crate::runtime::effect_intents::EffectIntent>,
 ) {
-    let capabilities = crate::runtime::capabilities::RuntimeCapabilities::for_policy_execution_phase();
     let context = crate::runtime::effect_intents::EffectExecutionContext {
         req,
         store,
@@ -129,6 +129,7 @@ fn enforce_tarpit_or_short_ban(
     cfg: &crate::config::Config,
     provider_registry: &crate::providers::registry::ProviderRegistry,
     ip: &str,
+    capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
     ban_reason: &str,
     summary: &str,
     signals: &[&str],
@@ -150,6 +151,7 @@ fn enforce_tarpit_or_short_ban(
         provider_registry,
         ip,
         request_user_agent(req),
+        capabilities,
         vec![
             crate::runtime::effect_intents::EffectIntent::Ban(
                 crate::runtime::effect_intents::BanIntent {
@@ -202,6 +204,7 @@ fn handle_not_a_bot_submit(
     store: &Store,
     req: &Request,
     cfg: &crate::config::Config,
+    capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
 ) -> Response {
     let submit_result = crate::boundaries::handle_not_a_bot_submit_with_outcome(store, req, cfg);
     let provider_registry = crate::providers::registry::ProviderRegistry::from_config(cfg);
@@ -223,6 +226,7 @@ fn handle_not_a_bot_submit(
         &provider_registry,
         ip.as_str(),
         ua,
+        capabilities,
         vec![crate::runtime::effect_intents::EffectIntent::RecordNotABotSubmit {
             outcome: monitoring_outcome.to_string(),
             solve_ms: submit_result.solve_ms,
@@ -238,6 +242,7 @@ fn handle_not_a_bot_submit(
                 &provider_registry,
                 ip.as_str(),
                 ua,
+                capabilities,
                 vec![
                     crate::runtime::effect_intents::EffectIntent::IncrementMetric {
                         metric: crate::observability::metrics::MetricName::NotABotPassTotal,
@@ -271,6 +276,7 @@ fn handle_not_a_bot_submit(
                 &provider_registry,
                 ip.as_str(),
                 ua,
+                capabilities,
                 vec![
                     crate::runtime::effect_intents::EffectIntent::IncrementMetric {
                         metric: crate::observability::metrics::MetricName::NotABotEscalateTotal,
@@ -291,6 +297,7 @@ fn handle_not_a_bot_submit(
                     &provider_registry,
                     ip.as_str(),
                     ua,
+                    capabilities,
                     vec![
                         crate::runtime::effect_intents::EffectIntent::IncrementMetric {
                             metric: crate::observability::metrics::MetricName::ChallengesTotal,
@@ -350,7 +357,16 @@ fn handle_not_a_bot_submit(
                 reason: "not_a_bot_fail".to_string(),
                 outcome: format!("{:?}", submit_result.outcome),
             });
-            execute_capability_gated_intents(req, store, cfg, &provider_registry, ip.as_str(), ua, intents);
+            execute_capability_gated_intents(
+                req,
+                store,
+                cfg,
+                &provider_registry,
+                ip.as_str(),
+                ua,
+                capabilities,
+                intents,
+            );
             match classify_not_a_bot_failure_enforcement(submit_result.outcome) {
                 ChallengeFailureEnforcement::MazeFallback => {
                     let event_outcome = format!("{:?}", submit_result.outcome);
@@ -388,6 +404,7 @@ fn handle_not_a_bot_submit(
                         cfg,
                         &provider_registry,
                         ip.as_str(),
+                        capabilities,
                         "not_a_bot_abuse",
                         summary.as_str(),
                         &["not_a_bot_abuse"],
@@ -398,7 +415,11 @@ fn handle_not_a_bot_submit(
     }
 }
 
-pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Response> {
+pub(crate) fn maybe_handle_early_route(
+    req: &Request,
+    path: &str,
+    capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
+) -> Option<Response> {
     if let Some(response) = crate::maze::assets::maybe_handle_asset(path, req.method()) {
         return Some(response);
     }
@@ -468,7 +489,7 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                 Ok(cfg) => cfg,
                 Err(resp) => return Some(resp),
             };
-            return Some(handle_not_a_bot_submit(&store, req, &cfg));
+            return Some(handle_not_a_bot_submit(&store, req, &cfg, capabilities));
         }
         return Some(Response::new(500, "Key-value store error"));
     }
@@ -491,6 +512,7 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                     &provider_registry,
                     ip.as_str(),
                     ua,
+                    capabilities,
                     vec![
                         crate::runtime::effect_intents::EffectIntent::IncrementMetric {
                             metric: crate::observability::metrics::MetricName::NotABotServedTotal,
@@ -699,6 +721,7 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                 &provider_registry,
                 challenge_ip.as_str(),
                 challenge_ua,
+                capabilities,
                 outcome_intents,
             );
             if let Some(enforcement) = classify_challenge_failure_enforcement(outcome) {
@@ -739,6 +762,7 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                             &cfg,
                             &provider_registry,
                             challenge_ip.as_str(),
+                            capabilities,
                             "challenge_puzzle_abuse",
                             summary.as_str(),
                             &["challenge_puzzle_abuse"],
@@ -773,6 +797,7 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                     &provider_registry,
                     ip.as_str(),
                     ua,
+                    capabilities,
                     vec![crate::runtime::effect_intents::EffectIntent::IncrementMetric {
                         metric: crate::observability::metrics::MetricName::ChallengeServedTotal,
                         label: None,
@@ -809,6 +834,7 @@ pub(crate) fn maybe_handle_early_route(req: &Request, path: &str) -> Option<Resp
                     &provider_registry,
                     ip.as_str(),
                     request_user_agent(req),
+                    capabilities,
                     vec![crate::runtime::effect_intents::EffectIntent::IncrementMetric {
                         metric: crate::observability::metrics::MetricName::RequestsTotal,
                         label: Some("robots_txt".to_string()),

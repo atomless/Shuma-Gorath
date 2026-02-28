@@ -102,7 +102,6 @@ Acceptance criteria:
 
 Scope: replace coarse capability minting with explicit least-authority capability sets and ensure privileged operations are impossible without capability possession.
 
-- [ ] SIM2-EX2-4 Add compile-time sealing for capability constructors so capabilities can only be minted at trust-boundary entrypoints.
 - [ ] SIM2-EX2-5 Add negative-path tests proving privileged effects fail/are impossible when capability is absent.
 - [ ] SIM2-EX2-6 Add regression tests ensuring no fallback path silently executes privileged writes outside capability-guarded APIs.
 - [ ] SIM2-EX2-7 Add architecture assertions (search-based CI guard or compile checks) preventing direct calls to privileged write APIs from disallowed modules.
