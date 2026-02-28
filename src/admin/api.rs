@@ -883,7 +883,27 @@ mod admin_config_tests {
         }
     }
 
-    fn make_control_request(enabled: bool, idempotency_key: &str) -> Request {
+    fn session_rw_auth(
+        session_id: &str,
+        csrf_token: &str,
+        session_expires_at: u64,
+    ) -> crate::admin::auth::AdminAuthResult {
+        crate::admin::auth::AdminAuthResult {
+            method: Some(crate::admin::auth::AdminAuthMethod::SessionCookie),
+            access: Some(crate::admin::auth::AdminAccessLevel::ReadWrite),
+            csrf_token: Some(csrf_token.to_string()),
+            session_id: Some(session_id.to_string()),
+            session_expires_at: Some(session_expires_at),
+        }
+    }
+
+    fn make_control_request_with_trust_headers(
+        enabled: bool,
+        idempotency_key: &str,
+        origin: Option<&str>,
+        fetch_site: Option<&str>,
+        csrf_token: Option<&str>,
+    ) -> Request {
         let body = if enabled {
             br#"{"enabled":true}"#.to_vec()
         } else {
@@ -895,11 +915,52 @@ mod admin_config_tests {
             .uri("/admin/adversary-sim/control")
             .header("host", "localhost:3000")
             .header("authorization", "Bearer changeme-dev-only-api-key")
-            .header("origin", "http://localhost:3000")
-            .header("sec-fetch-site", "same-origin")
-            .header("idempotency-key", idempotency_key)
-            .body(body);
+            .header("idempotency-key", idempotency_key);
+        if let Some(value) = origin {
+            builder.header("origin", value);
+        }
+        if let Some(value) = fetch_site {
+            builder.header("sec-fetch-site", value);
+        }
+        if let Some(value) = csrf_token {
+            builder.header("x-shuma-csrf", value);
+        }
+        builder.body(body);
         builder.build()
+    }
+
+    fn make_control_request(enabled: bool, idempotency_key: &str) -> Request {
+        make_control_request_with_trust_headers(
+            enabled,
+            idempotency_key,
+            Some("http://localhost:3000"),
+            Some("same-origin"),
+            None,
+        )
+    }
+
+    fn collect_control_audit_decisions(store: &TestStore) -> Vec<String> {
+        let map = store.map.lock().unwrap();
+        map.values()
+            .filter_map(|value| serde_json::from_slice::<serde_json::Value>(value).ok())
+            .filter(|row| {
+                row.get("reason")
+                    .and_then(|value| value.as_str())
+                    .unwrap_or("")
+                    == "adversary_sim_control_audit"
+            })
+            .filter_map(|row| {
+                let outcome = row
+                    .get("outcome")
+                    .and_then(|value| value.as_str())
+                    .unwrap_or("{}");
+                let details = serde_json::from_str::<serde_json::Value>(outcome).ok()?;
+                details
+                    .get("decision")
+                    .and_then(|value| value.as_str())
+                    .map(|value| value.to_string())
+            })
+            .collect()
     }
 
     struct TestStore {
@@ -1993,6 +2054,173 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn adversary_sim_control_rejects_origin_mismatch() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        let req = make_control_request_with_trust_headers(
+            true,
+            "origin-mismatch-key",
+            Some("https://malicious.example"),
+            Some("same-origin"),
+            None,
+        );
+
+        let resp = handle_admin_adversary_sim_control(&req, &store, "default", &auth);
+        assert_eq!(*resp.status(), 403u16);
+        assert!(String::from_utf8_lossy(resp.body()).contains("trust boundary"));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_control_rejects_cross_site_fetch_metadata() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        let req = make_control_request_with_trust_headers(
+            true,
+            "cross-site-key",
+            Some("http://localhost:3000"),
+            Some("cross-site"),
+            None,
+        );
+
+        let resp = handle_admin_adversary_sim_control(&req, &store, "default", &auth);
+        assert_eq!(*resp.status(), 403u16);
+        assert!(String::from_utf8_lossy(resp.body()).contains("trust boundary"));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_control_rejects_stale_session() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let now = now_ts();
+        let auth = session_rw_auth("session-stale", "csrf-stale", now.saturating_add(300));
+        let req = make_control_request_with_trust_headers(
+            true,
+            "stale-session-key",
+            Some("http://localhost:3000"),
+            Some("same-origin"),
+            Some("csrf-stale"),
+        );
+
+        let resp = handle_admin_adversary_sim_control(&req, &store, "default", &auth);
+        assert_eq!(*resp.status(), 403u16);
+        assert!(String::from_utf8_lossy(resp.body()).contains("trust boundary"));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_control_rejects_missing_or_invalid_session_csrf() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let now = now_ts();
+        let auth = session_rw_auth(
+            "session-csrf",
+            "csrf-expected",
+            now.saturating_add(crate::admin::auth::admin_session_ttl_seconds()),
+        );
+        let missing_csrf = make_control_request_with_trust_headers(
+            true,
+            "missing-csrf-key",
+            Some("http://localhost:3000"),
+            Some("same-origin"),
+            None,
+        );
+        let missing_resp = handle_admin_adversary_sim_control(&missing_csrf, &store, "default", &auth);
+        assert_eq!(*missing_resp.status(), 403u16);
+        assert!(String::from_utf8_lossy(missing_resp.body()).contains("trust boundary"));
+
+        let invalid_csrf = make_control_request_with_trust_headers(
+            true,
+            "invalid-csrf-key",
+            Some("http://localhost:3000"),
+            Some("same-origin"),
+            Some("csrf-wrong"),
+        );
+        let invalid_resp = handle_admin_adversary_sim_control(&invalid_csrf, &store, "default", &auth);
+        assert_eq!(*invalid_resp.status(), 403u16);
+        assert!(String::from_utf8_lossy(invalid_resp.body()).contains("trust boundary"));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_control_rejects_multi_controller_lease_contention() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let now = now_ts();
+        let session_expires = now.saturating_add(crate::admin::auth::admin_session_ttl_seconds());
+        let auth_a = session_rw_auth("session-owner-a", "csrf-a", session_expires);
+        let auth_b = session_rw_auth("session-owner-b", "csrf-b", session_expires);
+
+        let first = handle_admin_adversary_sim_control(
+            &make_control_request_with_trust_headers(
+                true,
+                "lease-key-1",
+                Some("http://localhost:3000"),
+                Some("same-origin"),
+                Some("csrf-a"),
+            ),
+            &store,
+            "default",
+            &auth_a,
+        );
+        assert_eq!(*first.status(), 200u16);
+
+        let second = handle_admin_adversary_sim_control(
+            &make_control_request_with_trust_headers(
+                false,
+                "lease-key-2",
+                Some("http://localhost:3000"),
+                Some("same-origin"),
+                Some("csrf-b"),
+            ),
+            &store,
+            "default",
+            &auth_b,
+        );
+        assert_eq!(*second.status(), 409u16);
+        assert!(String::from_utf8_lossy(second.body()).contains("lease is currently held"));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
     fn adversary_sim_control_throttles_rapid_same_state_repeats() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
@@ -2017,6 +2245,71 @@ mod admin_config_tests {
             &auth,
         );
         assert_eq!(*rapid_repeat.status(), 429u16);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_control_emits_audit_for_accept_reject_and_throttle() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let now = now_ts();
+        let session_expires = now.saturating_add(crate::admin::auth::admin_session_ttl_seconds());
+        let auth_session = session_rw_auth("session-audit", "csrf-audit", session_expires);
+        let auth_bearer = bearer_rw_auth();
+
+        let accepted = handle_admin_adversary_sim_control(
+            &make_control_request_with_trust_headers(
+                true,
+                "audit-accept-key",
+                Some("http://localhost:3000"),
+                Some("same-origin"),
+                Some("csrf-audit"),
+            ),
+            &store,
+            "default",
+            &auth_session,
+        );
+        assert_eq!(*accepted.status(), 200u16);
+
+        let throttled = handle_admin_adversary_sim_control(
+            &make_control_request_with_trust_headers(
+                true,
+                "audit-throttle-key",
+                Some("http://localhost:3000"),
+                Some("same-origin"),
+                Some("csrf-audit"),
+            ),
+            &store,
+            "default",
+            &auth_session,
+        );
+        assert_eq!(*throttled.status(), 429u16);
+
+        let rejected = handle_admin_adversary_sim_control(
+            &make_control_request_with_trust_headers(
+                true,
+                "audit-reject-key",
+                Some("https://evil.invalid"),
+                Some("same-origin"),
+                None,
+            ),
+            &store,
+            "default",
+            &auth_bearer,
+        );
+        assert_eq!(*rejected.status(), 403u16);
+
+        let decisions = collect_control_audit_decisions(&store);
+        assert!(decisions.contains(&"accepted".to_string()));
+        assert!(decisions.contains(&"throttled".to_string()));
+        assert!(decisions.contains(&"rejected".to_string()));
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -9510,6 +9803,14 @@ fn handle_admin_adversary_sim_control(
     let env_available = crate::config::adversary_sim_available();
     if !crate::admin::adversary_sim::control_surface_available(runtime_environment, env_available) {
         return Response::new(404, "Not Found");
+    }
+
+    if auth.requires_csrf(req) {
+        let expected = auth.csrf_token.as_deref().unwrap_or("");
+        if !crate::admin::auth::validate_session_csrf(req, expected) {
+            log_admin_csrf_denied(store, req, "/admin/adversary-sim/control", auth);
+            return Response::new(403, "Forbidden: control trust boundary violation");
+        }
     }
 
     let body = match crate::request_validation::parse_json_body(
