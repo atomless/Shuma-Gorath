@@ -327,11 +327,7 @@ Acceptance criteria:
 
 Scope: make runtime telemetry emission mandatory and uniform for SIM and non-SIM traffic in dev environment.
 
-- [ ] SIM2-GC-4-1 Audit all monitoring emitters and remove SIM-specific alternative emit paths that bypass request processing.
-- [ ] SIM2-GC-4-2 Ensure adversary requests traverse the same defense middleware/pipeline used for ordinary traffic.
-- [ ] SIM2-GC-4-3 Add per-defense telemetry assertions for PoW, challenge, maze, honeypot, CDP, rate-limit, and GEO decisions.
-- [ ] SIM2-GC-4-4 Add integration tests that run SIM traffic and assert monitoring counters/events increase through standard endpoints.
-- [ ] SIM2-GC-4-5 Add “no-op defense” detector tests that fail if a configured defense never emits events under targeted scenario load.
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-4-*` closure details.
 
 Acceptance criteria:
 1. SIM traffic hits the same runtime defense stack as real traffic.

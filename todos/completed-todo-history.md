@@ -6,6 +6,14 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 SIM2 Gap-Closure Program: Real Execution + Realtime Monitoring
 
+#### SIM2-GC-4: Guarantee Monitoring Ingest Uses Real Request Pipeline by Default
+
+- [x] SIM2-GC-4-1 Audit all monitoring emitters and remove SIM-specific alternative emit paths that bypass request processing.
+- [x] SIM2-GC-4-2 Ensure adversary requests traverse the same defense middleware/pipeline used for ordinary traffic.
+- [x] SIM2-GC-4-3 Add per-defense telemetry assertions for PoW, challenge, maze, honeypot, CDP, rate-limit, and GEO decisions.
+- [x] SIM2-GC-4-4 Add integration tests that run SIM traffic and assert monitoring counters/events increase through standard endpoints.
+- [x] SIM2-GC-4-5 Add “no-op defense” detector tests that fail if a configured defense never emits events under targeted scenario load.
+
 #### SIM2-GC-3: Fix Runtime Toggle/Session Lifecycle So Traffic Persists Beyond Auto-Off
 
 - [x] SIM2-GC-3-1 Split lifecycle semantics into `generation active` vs `historical data visible`.

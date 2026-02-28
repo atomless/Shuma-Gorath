@@ -79,6 +79,7 @@ Notes:
   - Live-loop logs include failure classification, retry/backoff counters, and terminal failure reason on exit.
   - Live-loop quality gate rejects admin-only event noise; cycles must emit meaningful defense event reasons.
 - `full_coverage` adds profile-level coverage gates (`gates.coverage_requirements`) using monitoring deltas captured over the run.
+- `full_coverage` now emits `coverage_gates.defense_noop_checks` for `pow`, `challenge`, `maze`, `honeypot`, `cdp`, `rate_limit`, and `geo`; any targeted defense with zero telemetry delta fails the run.
 - `full_coverage` now includes explicit PoW success/failure, challenge puzzle-failure fallback, replay-to-tarpit abuse, CDP deny path, rate-limit enforcement, and GEO block scenarios in addition to existing challenge/maze/honeypot/Akamai families.
 - `full_coverage` also enforces persona and taxonomy gates:
   - `human_like_collateral_max_ratio`,

@@ -140,6 +140,7 @@ Available profiles:
 - `make test-adversarial-abuse` - mandatory replay/stale/order-cadence abuse regressions
 - `make test-adversarial-akamai` - mandatory Akamai signal fixture coverage
 - `make test-adversarial-coverage` - expanded coverage contract profile (`full_coverage`) including PoW success/failure, puzzle-failure fallback, replay-to-tarpit abuse, CDP deny path, rate-limit enforcement, and GEO block coverage
+  - includes defense no-op detector checks (`coverage_gates.defense_noop_checks`) that fail when targeted defenses emit zero telemetry deltas
 - `make test-adversarial-sim-selftest` - minimal deterministic simulator mechanics harness (seed/order/budget/retry/gate math/teardown), intentionally non-circular
 - `make test-adversarial-soak` - deep soak alias for `full_coverage` (scheduled/manual gate)
 - `make test-adversarial-manifest` - schema/fixture validation without server
@@ -221,6 +222,7 @@ Live loop controls:
   Runtime tagging is accepted only when `SHUMA_RUNTIME_ENV=runtime-dev`, `SHUMA_ADVERSARY_SIM_AVAILABLE=true`, and signature/timestamp/nonce verification succeeds under `SHUMA_SIM_TELEMETRY_SECRET`.
   Container black-box workers receive bounded pre-signed sim-tag envelopes from the host runner (no runtime signing secret is injected into the container).
 - `latest_report.json` includes quantitative `gates` and separate `coverage_gates` sections with per-check `threshold_source`.
+- `latest_report.json` `coverage_gates` section includes `defense_noop_checks` for defense-level telemetry presence validation in `full_coverage`.
 - `latest_report.json` also includes `cohort_metrics` (persona-level collateral/latency summaries) and `ip_range_suggestions` seed evidence for `full_coverage`.
 - `latest_report.json` includes `realism_metrics` and `realism_gates` proving runtime execution behavior for traffic-model pacing, retry envelopes, and state-mode handling (`stateless`, `stateful_cookie_jar`, `cookie_reset_each_request`).
 - `latest_report.json` includes `plane_contract` guardrail metadata confirming attacker/control-plane separation checks are enforced.

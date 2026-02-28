@@ -111,10 +111,16 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             )
 
             admin_headers = sim_runner.control_client.admin_headers()
+            admin_headers_2 = sim_runner.control_client.admin_headers()
             health_headers = sim_runner.control_client.health_headers()
 
             self.assertEqual(health_headers.get("X-Forwarded-For"), "127.0.0.1")
             self.assertRegex(str(admin_headers.get("X-Forwarded-For")), r"^127\.0\.\d+\.\d+$")
+            self.assertRegex(str(admin_headers_2.get("X-Forwarded-For")), r"^127\.0\.\d+\.\d+$")
+            self.assertNotEqual(
+                admin_headers.get("X-Forwarded-For"),
+                admin_headers_2.get("X-Forwarded-For"),
+            )
 
     def test_build_frontier_metadata_reports_disabled_single_and_multi_modes(self):
         with patch("scripts.tests.adversarial_simulation_runner.read_env_local_value", return_value=""):
@@ -319,6 +325,32 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         checks_by_name = {check["name"]: check for check in checks}
         self.assertTrue(checks_by_name["coverage_honeypot_hits"]["passed"])
         self.assertFalse(checks_by_name["coverage_geo_block"]["passed"])
+
+    def test_profile_expected_defense_categories_filters_to_supported_defense_signals(self):
+        selected_scenarios = [
+            {"expected_defense_categories": ["pow", "maze", "event_stream"]},
+            {"expected_defense_categories": ["geo", "cdp", "not_a_bot"]},
+            {"expected_defense_categories": ["pow", "challenge", "rate_limit"]},
+        ]
+        categories = runner.profile_expected_defense_categories(selected_scenarios)
+        self.assertEqual(categories, ["cdp", "challenge", "geo", "maze", "pow", "rate_limit"])
+
+    def test_build_defense_noop_checks_reports_missing_signal_as_failure(self):
+        checks = runner.build_defense_noop_checks(
+            defense_categories=["pow", "challenge", "maze"],
+            coverage_deltas={
+                "pow_attempts": 2,
+                "pow_successes": 1,
+                "pow_failures": 1,
+                "challenge_failures": 0,
+                "maze_hits": 3,
+            },
+        )
+        checks_by_name = {check["name"]: check for check in checks}
+        self.assertTrue(checks_by_name["defense_noop_detector_pow"]["passed"])
+        self.assertFalse(checks_by_name["defense_noop_detector_challenge"]["passed"])
+        self.assertTrue(checks_by_name["defense_noop_detector_maze"]["passed"])
+        self.assertIn("telemetry_delta_total=0", checks_by_name["defense_noop_detector_challenge"]["detail"])
 
     def test_build_scenario_execution_evidence_marks_runtime_telemetry_presence(self):
         evidence = runner.build_scenario_execution_evidence(

@@ -242,6 +242,15 @@ ALLOWED_COVERAGE_REQUIREMENTS = {
     "ban_count",
     "recent_event_count",
 }
+DEFENSE_NOOP_COVERAGE_KEYS: Dict[str, Tuple[str, ...]] = {
+    "pow": ("pow_attempts", "pow_successes", "pow_failures"),
+    "challenge": ("challenge_failures",),
+    "maze": ("maze_hits",),
+    "honeypot": ("honeypot_hits",),
+    "cdp": ("cdp_detections",),
+    "rate_limit": ("rate_violations", "rate_limited", "rate_banned"),
+    "geo": ("geo_violations", "geo_challenge", "geo_maze", "geo_block"),
+}
 
 COVERAGE_CONTRACT_PATH = Path("scripts/tests/adversarial/coverage_contract.v1.json")
 REAL_TRAFFIC_CONTRACT_PATH = Path("scripts/tests/adversarial/real_traffic_contract.v1.json")
@@ -661,7 +670,7 @@ class ControlPlaneClient:
     def admin_headers(self) -> Dict[str, str]:
         headers = {
             "Authorization": f"Bearer {self.owner.api_key}",
-            "X-Forwarded-For": self.owner.control_plane_ip,
+            "X-Forwarded-For": self.owner.next_control_plane_ip(),
         }
         if self.owner.forwarded_secret:
             headers["X-Shuma-Forwarded-Secret"] = self.owner.forwarded_secret
@@ -723,9 +732,12 @@ class Runner:
         self.sim_telemetry_secret = env_or_local("SHUMA_SIM_TELEMETRY_SECRET")
         self.session_nonce = f"{int(time.time())}-{os.getpid()}"
         control_ip_hash = hashlib.sha256(self.session_nonce.encode("utf-8")).hexdigest()
-        control_ip_third_octet = (int(control_ip_hash[:2], 16) % 254) + 1
-        control_ip_fourth_octet = (int(control_ip_hash[2:4], 16) % 254) + 1
-        self.control_plane_ip = f"127.0.{control_ip_third_octet}.{control_ip_fourth_octet}"
+        self.control_plane_ip_seed_third_octet = (int(control_ip_hash[:2], 16) % 254) + 1
+        self.control_plane_ip_seed_fourth_octet = (int(control_ip_hash[2:4], 16) % 254) + 1
+        self.control_plane_request_counter = 0
+        self.control_plane_ip = (
+            f"127.0.{self.control_plane_ip_seed_third_octet}.{self.control_plane_ip_seed_fourth_octet}"
+        )
         self.sim_run_id = f"deterministic-{self.session_nonce}"
         self.sim_profile = profile_name
         self.sim_lane = f"deterministic_{self.execution_lane}"
@@ -762,6 +774,13 @@ class Runner:
         selected = [self.scenarios[sid] for sid in self.profile["scenario_ids"]]
         self.selected_scenarios = self.apply_persona_scheduler(selected)
         self.scenario_ips = self.build_scenario_ip_map()
+
+    def next_control_plane_ip(self) -> str:
+        self.control_plane_request_counter += 1
+        next_third_octet = (
+            (self.control_plane_ip_seed_third_octet + self.control_plane_request_counter - 1) % 254
+        ) + 1
+        return f"127.0.{next_third_octet}.{self.control_plane_ip_seed_fourth_octet}"
 
     def build_scenario_ip_map(self) -> Dict[str, str]:
         mapping: Dict[str, str] = {}
@@ -1376,6 +1395,14 @@ class Runner:
             )
             checks.extend(coverage_checks)
 
+        defense_noop_checks: List[Dict[str, Any]] = []
+        if self.profile_name == FULL_COVERAGE_PROFILE_NAME:
+            defense_noop_checks = build_defense_noop_checks(
+                defense_categories=profile_expected_defense_categories(self.selected_scenarios),
+                coverage_deltas=coverage_deltas,
+            )
+            checks.extend(defense_noop_checks)
+
         required_event_reasons = profile_gates.get("required_event_reasons")
         if isinstance(required_event_reasons, list) and required_event_reasons:
             observed_reasons = [
@@ -1462,6 +1489,7 @@ class Runner:
                 "all_passed": coverage_all_passed,
                 "threshold_source": threshold_prefix,
                 "checks": coverage_checks,
+                "defense_noop_checks": defense_noop_checks,
                 "coverage": {
                     "before": coverage_before,
                     "after": coverage_after,
@@ -3323,6 +3351,43 @@ def build_runtime_telemetry_evidence_checks(
             "threshold_source": str(REAL_TRAFFIC_CONTRACT_PATH),
         }
     )
+    return checks
+
+
+def profile_expected_defense_categories(selected_scenarios: List[Dict[str, Any]]) -> List[str]:
+    categories = set()
+    for scenario in selected_scenarios:
+        for category in list_or_empty(scenario.get("expected_defense_categories")):
+            normalized = str(category).strip()
+            if normalized in DEFENSE_NOOP_COVERAGE_KEYS:
+                categories.add(normalized)
+    return sorted(categories)
+
+
+def build_defense_noop_checks(
+    defense_categories: List[str],
+    coverage_deltas: Dict[str, int],
+    threshold_source_prefix: str = "scenario.expected_defense_categories",
+) -> List[Dict[str, Any]]:
+    checks: List[Dict[str, Any]] = []
+    for defense in sorted(set(defense_categories)):
+        signal_keys = DEFENSE_NOOP_COVERAGE_KEYS.get(defense)
+        if not signal_keys:
+            continue
+        observed = sum(max(0, int_or_zero(coverage_deltas.get(key))) for key in signal_keys)
+        checks.append(
+            {
+                "name": f"defense_noop_detector_{defense}",
+                "passed": observed >= 1,
+                "detail": (
+                    f"defense={defense} telemetry_delta_total={observed} "
+                    f"signal_keys={list(signal_keys)}"
+                ),
+                "observed": observed,
+                "minimum": 1,
+                "threshold_source": f"{threshold_source_prefix}.{defense}",
+            }
+        )
     return checks
 
 
