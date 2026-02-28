@@ -256,6 +256,7 @@ DEFENSE_NOOP_COVERAGE_KEYS: Dict[str, Tuple[str, ...]] = {
 
 COVERAGE_CONTRACT_PATH = Path("scripts/tests/adversarial/coverage_contract.v1.json")
 REAL_TRAFFIC_CONTRACT_PATH = Path("scripts/tests/adversarial/real_traffic_contract.v1.json")
+SCENARIO_INTENT_MATRIX_PATH = Path("scripts/tests/adversarial/scenario_intent_matrix.v1.json")
 
 
 def load_coverage_contract(path: Path = COVERAGE_CONTRACT_PATH) -> Dict[str, Any]:
@@ -346,6 +347,243 @@ COVERAGE_CONTRACT_PLAN_ROWS = [
 ]
 COVERAGE_CONTRACT_SHA256 = hashlib.sha256(
     json.dumps(COVERAGE_CONTRACT, sort_keys=True, separators=(",", ":")).encode("utf-8")
+).hexdigest()
+
+SCENARIO_INTENT_SIGNAL_TYPES = {
+    "coverage_delta",
+    "outcome_equals",
+    "simulation_event_count_delta",
+    "simulation_event_reason_prefix",
+    "realism_metric_min",
+}
+SCENARIO_INTENT_REALISM_METRICS = {
+    "request_sequence_count",
+    "retry_attempts",
+    "think_time_events",
+    "attempts_total",
+}
+SCENARIO_INTENT_PROGRESS_INT_KEYS = {
+    "min_request_sequence_count",
+    "min_retry_attempts",
+    "min_think_time_events",
+    "min_attempts_total",
+}
+SCENARIO_INTENT_PROGRESS_STR_KEYS = {
+    "required_driver_class",
+    "required_persona",
+    "required_retry_strategy",
+}
+
+
+def load_scenario_intent_matrix(path: Path = SCENARIO_INTENT_MATRIX_PATH) -> Dict[str, Any]:
+    if not path.exists():
+        raise RuntimeError(f"scenario intent matrix not found: {path}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise RuntimeError(f"invalid scenario intent matrix JSON: {path}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"scenario intent matrix must be a JSON object: {path}")
+
+    schema_version = str(payload.get("schema_version") or "").strip()
+    if schema_version != "sim-scenario-intent-matrix.v1":
+        raise RuntimeError(
+            "scenario intent matrix schema_version must be sim-scenario-intent-matrix.v1 "
+            f"(got {schema_version})"
+        )
+    manifest_schema_version = str(payload.get("manifest_schema_version") or "").strip()
+    if manifest_schema_version != "sim-manifest.v2":
+        raise RuntimeError(
+            "scenario intent matrix manifest_schema_version must be sim-manifest.v2 "
+            f"(got {manifest_schema_version})"
+        )
+    suite_id = str(payload.get("suite_id") or "").strip()
+    if not suite_id:
+        raise RuntimeError("scenario intent matrix suite_id must be non-empty")
+
+    review_governance = payload.get("review_governance")
+    if not isinstance(review_governance, dict):
+        raise RuntimeError("scenario intent matrix review_governance must be an object")
+    cadence_days = review_governance.get("cadence_days")
+    stale_after_days = review_governance.get("stale_after_days")
+    if isinstance(cadence_days, bool) or not isinstance(cadence_days, int) or cadence_days < 1:
+        raise RuntimeError("scenario intent matrix review_governance.cadence_days must be integer >= 1")
+    if (
+        isinstance(stale_after_days, bool)
+        or not isinstance(stale_after_days, int)
+        or stale_after_days < cadence_days
+    ):
+        raise RuntimeError(
+            "scenario intent matrix review_governance.stale_after_days must be integer >= cadence_days"
+        )
+    if not str(review_governance.get("owner") or "").strip():
+        raise RuntimeError("scenario intent matrix review_governance.owner must be non-empty")
+
+    rows = payload.get("rows")
+    if not isinstance(rows, list) or not rows:
+        raise RuntimeError("scenario intent matrix rows must be a non-empty array")
+
+    seen_ids = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            raise RuntimeError("scenario intent matrix rows must contain objects")
+        scenario_id = str(row.get("scenario_id") or "").strip()
+        if not scenario_id:
+            raise RuntimeError("scenario intent matrix row missing scenario_id")
+        if scenario_id in seen_ids:
+            raise RuntimeError(f"scenario intent matrix duplicate scenario_id: {scenario_id}")
+        seen_ids.add(scenario_id)
+
+        minimum_runtime_requests = row.get("minimum_runtime_requests")
+        if (
+            isinstance(minimum_runtime_requests, bool)
+            or not isinstance(minimum_runtime_requests, int)
+            or minimum_runtime_requests < 1
+        ):
+            raise RuntimeError(
+                f"scenario intent matrix row {scenario_id} minimum_runtime_requests must be integer >= 1"
+            )
+
+        categories = row.get("required_defense_categories")
+        if not isinstance(categories, list) or not categories:
+            raise RuntimeError(
+                f"scenario intent matrix row {scenario_id} required_defense_categories must be non-empty array"
+            )
+        normalized_categories = []
+        for category in categories:
+            normalized = str(category or "").strip()
+            if not normalized:
+                raise RuntimeError(
+                    f"scenario intent matrix row {scenario_id} has empty required_defense_categories entry"
+                )
+            normalized_categories.append(normalized)
+        if len(set(normalized_categories)) != len(normalized_categories):
+            raise RuntimeError(
+                f"scenario intent matrix row {scenario_id} required_defense_categories must be unique"
+            )
+
+        defense_signals = row.get("defense_signals")
+        if not isinstance(defense_signals, dict) or not defense_signals:
+            raise RuntimeError(
+                f"scenario intent matrix row {scenario_id} defense_signals must be a non-empty object"
+            )
+        for category in normalized_categories:
+            if category not in defense_signals:
+                raise RuntimeError(
+                    f"scenario intent matrix row {scenario_id} missing defense_signals entry for category={category}"
+                )
+        for category, signal_rules in defense_signals.items():
+            normalized_category = str(category or "").strip()
+            if normalized_category not in normalized_categories:
+                raise RuntimeError(
+                    "scenario intent matrix row "
+                    f"{scenario_id} defense_signals contains category not declared in required_defense_categories: "
+                    f"{normalized_category}"
+                )
+            if not isinstance(signal_rules, list) or not signal_rules:
+                raise RuntimeError(
+                    f"scenario intent matrix row {scenario_id} category={normalized_category} signals must be non-empty array"
+                )
+            for signal in signal_rules:
+                if not isinstance(signal, dict):
+                    raise RuntimeError(
+                        "scenario intent matrix row "
+                        f"{scenario_id} category={normalized_category} signal entries must be objects"
+                    )
+                signal_type = str(signal.get("type") or "").strip()
+                if signal_type not in SCENARIO_INTENT_SIGNAL_TYPES:
+                    raise RuntimeError(
+                        f"scenario intent matrix row {scenario_id} category={normalized_category} "
+                        f"has unsupported signal type: {signal_type}"
+                    )
+                minimum = signal.get("minimum", 1)
+                if isinstance(minimum, bool) or not isinstance(minimum, int) or minimum < 1:
+                    raise RuntimeError(
+                        "scenario intent matrix row "
+                        f"{scenario_id} category={normalized_category} signal minimum must be integer >= 1"
+                    )
+                if signal_type == "coverage_delta":
+                    key = str(signal.get("key") or "").strip()
+                    if key not in ALLOWED_COVERAGE_REQUIREMENTS:
+                        raise RuntimeError(
+                            f"scenario intent matrix row {scenario_id} category={normalized_category} "
+                            f"coverage signal key unsupported: {key}"
+                        )
+                if signal_type == "outcome_equals":
+                    value = str(signal.get("value") or "").strip()
+                    if value not in ALLOWED_OUTCOMES:
+                        raise RuntimeError(
+                            f"scenario intent matrix row {scenario_id} category={normalized_category} "
+                            f"outcome_equals value unsupported: {value}"
+                        )
+                if signal_type == "simulation_event_reason_prefix":
+                    prefix = str(signal.get("prefix") or "").strip().lower()
+                    if not prefix:
+                        raise RuntimeError(
+                            "scenario intent matrix row "
+                            f"{scenario_id} category={normalized_category} event reason prefix must be non-empty"
+                        )
+                if signal_type == "realism_metric_min":
+                    metric = str(signal.get("key") or "").strip()
+                    if metric not in SCENARIO_INTENT_REALISM_METRICS:
+                        raise RuntimeError(
+                            f"scenario intent matrix row {scenario_id} category={normalized_category} "
+                            f"realism metric unsupported: {metric}"
+                        )
+
+        progression = row.get("progression_requirements")
+        if progression is not None:
+            if not isinstance(progression, dict):
+                raise RuntimeError(
+                    f"scenario intent matrix row {scenario_id} progression_requirements must be object when provided"
+                )
+            for key, value in progression.items():
+                if key in SCENARIO_INTENT_PROGRESS_INT_KEYS:
+                    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                        raise RuntimeError(
+                            f"scenario intent matrix row {scenario_id} progression_requirements.{key} "
+                            "must be integer >= 0"
+                        )
+                    continue
+                if key in SCENARIO_INTENT_PROGRESS_STR_KEYS:
+                    if not str(value or "").strip():
+                        raise RuntimeError(
+                            f"scenario intent matrix row {scenario_id} progression_requirements.{key} "
+                            "must be non-empty string"
+                        )
+                    continue
+                raise RuntimeError(
+                    f"scenario intent matrix row {scenario_id} progression_requirements has unsupported key: {key}"
+                )
+
+        review = row.get("review")
+        if not isinstance(review, dict):
+            raise RuntimeError(f"scenario intent matrix row {scenario_id} review must be an object")
+        for key in ("status", "owner", "last_reviewed_on"):
+            if not str(review.get(key) or "").strip():
+                raise RuntimeError(
+                    f"scenario intent matrix row {scenario_id} review.{key} must be non-empty"
+                )
+
+    return payload
+
+
+SCENARIO_INTENT_MATRIX = load_scenario_intent_matrix()
+SCENARIO_INTENT_MATRIX_SCHEMA_VERSION = str(SCENARIO_INTENT_MATRIX.get("schema_version") or "")
+SCENARIO_INTENT_MATRIX_SUITE_ID = str(SCENARIO_INTENT_MATRIX.get("suite_id") or "").strip()
+SCENARIO_INTENT_MATRIX_MANIFEST_PATH = Path(
+    str(SCENARIO_INTENT_MATRIX.get("manifest_path") or "scripts/tests/adversarial/scenario_manifest.v2.json")
+)
+SCENARIO_INTENT_MATRIX_ROWS = [
+    row for row in SCENARIO_INTENT_MATRIX.get("rows", []) if isinstance(row, dict)
+]
+SCENARIO_INTENT_MATRIX_ROWS_BY_ID = {
+    str(row.get("scenario_id") or "").strip(): row
+    for row in SCENARIO_INTENT_MATRIX_ROWS
+    if str(row.get("scenario_id") or "").strip()
+}
+SCENARIO_INTENT_MATRIX_SHA256 = hashlib.sha256(
+    json.dumps(SCENARIO_INTENT_MATRIX, sort_keys=True, separators=(",", ":")).encode("utf-8")
 ).hexdigest()
 
 
@@ -943,6 +1181,8 @@ class Runner:
                     monitoring_after=scenario_monitoring_after,
                     simulation_event_count_before=int_or_zero(scenario_events_before.get("count")),
                     simulation_event_count_after=int_or_zero(scenario_events_after.get("count")),
+                    simulation_event_reasons_before=list_or_empty(scenario_events_before.get("reasons")),
+                    simulation_event_reasons_after=list_or_empty(scenario_events_after.get("reasons")),
                     driver_class=scenario_driver_class(scenario),
                     browser_realism=result.realism,
                 )
@@ -1016,6 +1256,7 @@ class Runner:
                 "cohort_metrics": gate_results.get("cohort_metrics", {}),
                 "realism_metrics": gate_results.get("realism", {}),
                 "realism_gates": gate_results.get("realism_gates", {}),
+                "scenario_intent_gates": gate_results.get("scenario_intent_gates", {}),
                 "ip_range_suggestions": gate_results.get("ip_range_suggestions", {}),
                 "plane_contract": {
                     "schema_version": str(LANE_CONTRACT.get("schema_version") or ""),
@@ -1531,6 +1772,13 @@ class Runner:
             scenario_execution_evidence=dict_or_empty(scenario_execution_evidence),
         )
         checks.extend(browser_execution_checks)
+        scenario_intent_checks = build_scenario_intent_checks(
+            selected_scenarios=self.selected_scenarios,
+            results=results,
+            scenario_execution_evidence=dict_or_empty(scenario_execution_evidence),
+            intent_rows_by_id=SCENARIO_INTENT_MATRIX_ROWS_BY_ID,
+        )
+        checks.extend(scenario_intent_checks)
 
         all_passed = all(check["passed"] for check in checks)
         coverage_all_passed = all(check["passed"] for check in coverage_checks) if coverage_checks else True
@@ -1538,6 +1786,11 @@ class Runner:
         browser_execution_all_passed = (
             all(check["passed"] for check in browser_execution_checks)
             if browser_execution_checks
+            else True
+        )
+        scenario_intent_all_passed = (
+            all(check["passed"] for check in scenario_intent_checks)
+            if scenario_intent_checks
             else True
         )
         return {
@@ -1583,6 +1836,15 @@ class Runner:
             "browser_execution_gates": {
                 "all_passed": browser_execution_all_passed,
                 "checks": browser_execution_checks,
+            },
+            "scenario_intent_gates": {
+                "all_passed": scenario_intent_all_passed,
+                "checks": scenario_intent_checks,
+                "contract": {
+                    "schema_version": SCENARIO_INTENT_MATRIX_SCHEMA_VERSION,
+                    "contract_path": str(SCENARIO_INTENT_MATRIX_PATH),
+                    "contract_sha256": SCENARIO_INTENT_MATRIX_SHA256,
+                },
             },
             "ip_range_suggestions": ip_range_suggestions,
         }
@@ -3488,6 +3750,8 @@ def build_scenario_execution_evidence(
     monitoring_after: Dict[str, Any],
     simulation_event_count_before: int,
     simulation_event_count_after: int,
+    simulation_event_reasons_before: Optional[List[str]] = None,
+    simulation_event_reasons_after: Optional[List[str]] = None,
     driver_class: str = "",
     browser_realism: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
@@ -3505,6 +3769,17 @@ def build_scenario_execution_evidence(
         0,
         int_or_zero(simulation_event_count_after) - int_or_zero(simulation_event_count_before),
     )
+    reasons_before = {
+        str(reason).strip().lower()
+        for reason in list_or_empty(simulation_event_reasons_before)
+        if str(reason).strip()
+    }
+    reasons_after = {
+        str(reason).strip().lower()
+        for reason in list_or_empty(simulation_event_reasons_after)
+        if str(reason).strip()
+    }
+    simulation_event_reasons_delta = sorted(reasons_after - reasons_before)
     browser_realism = dict_or_empty(browser_realism)
     browser_js_executed = bool(browser_realism.get("browser_js_executed"))
     browser_dom_events = max(0, int_or_zero(browser_realism.get("browser_dom_events")))
@@ -3542,7 +3817,9 @@ def build_scenario_execution_evidence(
         "runtime_request_count": runtime_request_count,
         "monitoring_total_delta": monitoring_total_delta,
         "coverage_delta_total": coverage_delta_total,
+        "coverage_deltas": coverage_deltas,
         "simulation_event_count_delta": simulation_event_count_delta,
+        "simulation_event_reasons_delta": simulation_event_reasons_delta,
         "has_runtime_telemetry_evidence": has_runtime_telemetry_evidence,
         "browser_driver_runtime": browser_driver_runtime,
         "browser_js_executed": browser_js_executed,
@@ -3760,6 +4037,227 @@ def build_browser_execution_evidence_checks(
             "threshold_source": "SIM2-GC-7-5 monitoring correlation lineage",
         }
     )
+    return checks
+
+
+def evaluate_scenario_intent_signal(
+    signal: Dict[str, Any],
+    result: ScenarioResult,
+    evidence: Dict[str, Any],
+) -> Dict[str, Any]:
+    signal_type = str(signal.get("type") or "").strip()
+    minimum = max(1, int_or_zero(signal.get("minimum")) or 1)
+    observed = 0
+    source = ""
+
+    if signal_type == "coverage_delta":
+        key = str(signal.get("key") or "").strip()
+        observed = max(0, int_or_zero(dict_or_empty(evidence.get("coverage_deltas")).get(key)))
+        source = f"coverage_deltas.{key}"
+    elif signal_type == "outcome_equals":
+        value = str(signal.get("value") or "").strip()
+        observed = 1 if str(result.observed_outcome or "").strip() == value else 0
+        source = f"result.observed_outcome=={value}"
+    elif signal_type == "simulation_event_count_delta":
+        observed = max(0, int_or_zero(evidence.get("simulation_event_count_delta")))
+        source = "simulation_event_count_delta"
+    elif signal_type == "simulation_event_reason_prefix":
+        prefix = str(signal.get("prefix") or "").strip().lower()
+        reasons = [
+            str(reason).strip().lower()
+            for reason in list_or_empty(evidence.get("simulation_event_reasons_delta"))
+            if str(reason).strip()
+        ]
+        observed = len([reason for reason in reasons if reason.startswith(prefix)])
+        source = f"simulation_event_reasons_delta prefix={prefix}"
+    elif signal_type == "realism_metric_min":
+        key = str(signal.get("key") or "").strip()
+        observed = max(0, int_or_zero(dict_or_empty(result.realism).get(key)))
+        source = f"result.realism.{key}"
+    else:
+        source = f"unsupported_signal_type={signal_type}"
+
+    return {
+        "signal_type": signal_type,
+        "minimum": minimum,
+        "observed": observed,
+        "passed": observed >= minimum,
+        "source": source,
+    }
+
+
+def build_scenario_intent_checks(
+    selected_scenarios: List[Dict[str, Any]],
+    results: List[ScenarioResult],
+    scenario_execution_evidence: Dict[str, Dict[str, Any]],
+    intent_rows_by_id: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> List[Dict[str, Any]]:
+    checks: List[Dict[str, Any]] = []
+    scenario_by_id = {str(scenario.get("id") or ""): scenario for scenario in selected_scenarios}
+    intent_rows = intent_rows_by_id or SCENARIO_INTENT_MATRIX_ROWS_BY_ID
+
+    passed_results = [result for result in results if result.passed]
+    if not passed_results:
+        checks.append(
+            {
+                "name": "scenario_intent_rows_for_passed_scenarios_present",
+                "passed": True,
+                "detail": "no passed scenarios in run; scenario intent checks vacuously satisfied",
+                "observed": 0,
+                "threshold_source": str(SCENARIO_INTENT_MATRIX_PATH),
+            }
+        )
+        return checks
+
+    missing_rows: List[str] = []
+    for result in passed_results:
+        if str(result.id) not in intent_rows:
+            missing_rows.append(str(result.id))
+    checks.append(
+        {
+            "name": "scenario_intent_rows_for_passed_scenarios_present",
+            "passed": not missing_rows,
+            "detail": (
+                "all passed scenarios have scenario intent matrix rows"
+                if not missing_rows
+                else f"missing_rows={sorted(missing_rows)}"
+            ),
+            "observed": len(passed_results) - len(missing_rows),
+            "minimum": len(passed_results),
+            "threshold_source": str(SCENARIO_INTENT_MATRIX_PATH),
+        }
+    )
+
+    for result in passed_results:
+        scenario_id = str(result.id)
+        row = dict_or_empty(intent_rows.get(scenario_id))
+        if not row:
+            continue
+        evidence = dict_or_empty(scenario_execution_evidence.get(scenario_id))
+        minimum_runtime_requests = max(1, int_or_zero(row.get("minimum_runtime_requests")) or 1)
+        runtime_request_count = max(0, int_or_zero(evidence.get("runtime_request_count")))
+        checks.append(
+            {
+                "name": f"scenario_intent_runtime_requests_{scenario_id}",
+                "passed": runtime_request_count >= minimum_runtime_requests,
+                "detail": (
+                    f"runtime_request_count={runtime_request_count} "
+                    f"minimum={minimum_runtime_requests}"
+                ),
+                "observed": runtime_request_count,
+                "minimum": minimum_runtime_requests,
+                "threshold_source": f"{SCENARIO_INTENT_MATRIX_PATH}:{scenario_id}.minimum_runtime_requests",
+            }
+        )
+
+        defense_signals = dict_or_empty(row.get("defense_signals"))
+        required_categories = [
+            str(category).strip()
+            for category in list_or_empty(row.get("required_defense_categories"))
+            if str(category).strip()
+        ]
+        for category in required_categories:
+            signal_rules = [
+                dict_or_empty(signal)
+                for signal in list_or_empty(defense_signals.get(category))
+                if isinstance(signal, dict)
+            ]
+            signal_checks = [
+                evaluate_scenario_intent_signal(signal_rule, result, evidence)
+                for signal_rule in signal_rules
+            ]
+            passed_signals = [signal_check for signal_check in signal_checks if signal_check["passed"]]
+            checks.append(
+                {
+                    "name": f"scenario_intent_{scenario_id}_{category}",
+                    "passed": bool(passed_signals),
+                    "detail": (
+                        f"category={category} "
+                        f"passed_signals={len(passed_signals)}/{len(signal_checks)} "
+                        f"signals={signal_checks}"
+                    ),
+                    "observed": len(passed_signals),
+                    "minimum": 1,
+                    "threshold_source": (
+                        f"{SCENARIO_INTENT_MATRIX_PATH}:{scenario_id}.defense_signals.{category}"
+                    ),
+                }
+            )
+
+        progression = dict_or_empty(row.get("progression_requirements"))
+        realism = dict_or_empty(result.realism)
+        selected_scenario = dict_or_empty(scenario_by_id.get(scenario_id))
+        observed_driver_class = str(
+            evidence.get("driver_class") or scenario_driver_class(selected_scenario)
+        ).strip()
+
+        expected_driver_class = str(progression.get("required_driver_class") or "").strip()
+        if expected_driver_class:
+            checks.append(
+                {
+                    "name": f"scenario_intent_progression_driver_class_{scenario_id}",
+                    "passed": observed_driver_class == expected_driver_class,
+                    "detail": (
+                        f"driver_class={observed_driver_class or 'none'} "
+                        f"required={expected_driver_class}"
+                    ),
+                    "observed": observed_driver_class,
+                    "threshold_source": (
+                        f"{SCENARIO_INTENT_MATRIX_PATH}:{scenario_id}.progression_requirements.required_driver_class"
+                    ),
+                }
+            )
+
+        expected_persona = str(progression.get("required_persona") or "").strip()
+        if expected_persona:
+            observed_persona = str(realism.get("persona") or "").strip()
+            checks.append(
+                {
+                    "name": f"scenario_intent_progression_persona_{scenario_id}",
+                    "passed": observed_persona == expected_persona,
+                    "detail": f"persona={observed_persona or 'none'} required={expected_persona}",
+                    "observed": observed_persona,
+                    "threshold_source": (
+                        f"{SCENARIO_INTENT_MATRIX_PATH}:{scenario_id}.progression_requirements.required_persona"
+                    ),
+                }
+            )
+
+        expected_retry_strategy = str(progression.get("required_retry_strategy") or "").strip()
+        if expected_retry_strategy:
+            observed_retry_strategy = str(realism.get("retry_strategy") or "").strip()
+            checks.append(
+                {
+                    "name": f"scenario_intent_progression_retry_strategy_{scenario_id}",
+                    "passed": observed_retry_strategy == expected_retry_strategy,
+                    "detail": (
+                        f"retry_strategy={observed_retry_strategy or 'none'} "
+                        f"required={expected_retry_strategy}"
+                    ),
+                    "observed": observed_retry_strategy,
+                    "threshold_source": (
+                        f"{SCENARIO_INTENT_MATRIX_PATH}:{scenario_id}.progression_requirements.required_retry_strategy"
+                    ),
+                }
+            )
+
+        for key in sorted(SCENARIO_INTENT_PROGRESS_INT_KEYS):
+            if key not in progression:
+                continue
+            minimum = max(0, int_or_zero(progression.get(key)))
+            realism_key = key.removeprefix("min_")
+            observed = max(0, int_or_zero(realism.get(realism_key)))
+            checks.append(
+                {
+                    "name": f"scenario_intent_progression_{key}_{scenario_id}",
+                    "passed": observed >= minimum,
+                    "detail": f"{realism_key}={observed} minimum={minimum}",
+                    "observed": observed,
+                    "minimum": minimum,
+                    "threshold_source": f"{SCENARIO_INTENT_MATRIX_PATH}:{scenario_id}.progression_requirements.{key}",
+                }
+            )
+
     return checks
 
 
@@ -4258,6 +4756,47 @@ def validate_v2_categories(sid: str, key: str, values: Any, allowed_values: set[
             raise SimulationError(f"scenario {sid} {key} includes unsupported value: {value}")
 
 
+def is_canonical_intent_matrix_manifest(manifest_path: Path) -> bool:
+    try:
+        return manifest_path.resolve() == SCENARIO_INTENT_MATRIX_MANIFEST_PATH.resolve()
+    except Exception:
+        return str(manifest_path) == str(SCENARIO_INTENT_MATRIX_MANIFEST_PATH)
+
+
+def validate_scenario_intent_matrix_row_alignment(sid: str, scenario: Dict[str, Any]) -> None:
+    row = dict_or_empty(SCENARIO_INTENT_MATRIX_ROWS_BY_ID.get(sid))
+    if not row:
+        raise SimulationError(f"scenario {sid} missing scenario intent matrix row in {SCENARIO_INTENT_MATRIX_PATH}")
+    expected_categories = sorted(
+        {
+            str(item).strip()
+            for item in list_or_empty(scenario.get("expected_defense_categories"))
+            if str(item).strip()
+        }
+    )
+    row_categories = sorted(
+        {
+            str(item).strip()
+            for item in list_or_empty(row.get("required_defense_categories"))
+            if str(item).strip()
+        }
+    )
+    if row_categories != expected_categories:
+        raise SimulationError(
+            "scenario intent matrix category mismatch for "
+            f"{sid}: manifest={expected_categories} matrix={row_categories}"
+        )
+
+    defense_signals = dict_or_empty(row.get("defense_signals"))
+    for category in row_categories:
+        signal_rules = list_or_empty(defense_signals.get(category))
+        if not signal_rules:
+            raise SimulationError(
+                "scenario intent matrix row "
+                f"{sid} missing defense_signals entry for category={category}"
+            )
+
+
 def coverage_contract_parity_diagnostics(profile_coverage_requirements: Any) -> Dict[str, Any]:
     observed = profile_coverage_requirements if isinstance(profile_coverage_requirements, dict) else {}
     observed_normalized = {str(key): int_or_zero(value) for key, value in observed.items()}
@@ -4359,6 +4898,11 @@ def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_nam
         )
     validate_execution_lane(manifest.get("execution_lane"))
     is_v2_manifest = schema_version == "sim-manifest.v2"
+    enforce_intent_matrix = (
+        is_v2_manifest
+        and is_canonical_intent_matrix_manifest(manifest_path)
+        and str(manifest.get("suite_id") or "").strip() == SCENARIO_INTENT_MATRIX_SUITE_ID
+    )
 
     profiles = manifest.get("profiles")
     if not isinstance(profiles, dict) or not profiles:
@@ -4444,6 +4988,8 @@ def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_nam
                 raise SimulationError(
                     f"scenario {sid} cost_assertions.max_latency_ms must be an integer >= 1"
                 )
+            if enforce_intent_matrix:
+                validate_scenario_intent_matrix_row_alignment(sid, scenario)
         else:
             assertions = scenario.get("assertions")
             if not isinstance(assertions, dict) or "max_latency_ms" not in assertions:
@@ -4471,6 +5017,10 @@ def validate_manifest(manifest_path: Path, manifest: Dict[str, Any], profile_nam
     for sid in profile["scenario_ids"]:
         if sid not in scenario_ids:
             raise SimulationError(f"profile {profile_name} references unknown scenario: {sid}")
+        if enforce_intent_matrix and sid not in SCENARIO_INTENT_MATRIX_ROWS_BY_ID:
+            raise SimulationError(
+                f"profile {profile_name} scenario {sid} missing scenario intent matrix row in {SCENARIO_INTENT_MATRIX_PATH}"
+            )
 
     gates = profile.get("gates")
     if not isinstance(gates, dict):

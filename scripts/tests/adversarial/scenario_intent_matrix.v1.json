@@ -1,0 +1,1166 @@
+{
+  "schema_version": "sim-scenario-intent-matrix.v1",
+  "suite_id": "shuma-adversarial-scenarios",
+  "manifest_path": "scripts/tests/adversarial/scenario_manifest.v2.json",
+  "manifest_schema_version": "sim-manifest.v2",
+  "review_governance": {
+    "cadence_days": 14,
+    "stale_after_days": 21,
+    "owner": "defense-sim",
+    "process": "Run make test-adversarial-scenario-review at least weekly and before release cuts. Update stale or unrealistic rows before merge."
+  },
+  "rows": [
+    {
+      "scenario_id": "sim_t0_allow_browser_allowlist",
+      "required_defense_categories": [
+        "allowlist"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "allowlist": [
+          {
+            "type": "outcome_equals",
+            "value": "allow",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "browser_realistic",
+        "required_persona": "human_like",
+        "required_retry_strategy": "bounded_backoff",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t1_not_a_bot_pass",
+      "required_defense_categories": [
+        "not_a_bot"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "not_a_bot": [
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_pass",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_fail",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_replay",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_escalate",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "browser_realistic",
+        "required_persona": "benign_automation",
+        "required_retry_strategy": "bounded_backoff",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t2_geo_challenge",
+      "required_defense_categories": [
+        "geo",
+        "challenge"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "geo": [
+          {
+            "type": "coverage_delta",
+            "key": "geo_violations",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "geo_challenge",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "geo_maze",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "geo_block",
+            "minimum": 1
+          }
+        ],
+        "challenge": [
+          {
+            "type": "outcome_equals",
+            "value": "challenge",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "challenge_failures",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "geo_challenge",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "browser_realistic",
+        "required_persona": "suspicious_automation",
+        "required_retry_strategy": "bounded_backoff",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t3_geo_maze",
+      "required_defense_categories": [
+        "geo",
+        "maze"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "geo": [
+          {
+            "type": "coverage_delta",
+            "key": "geo_violations",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "geo_challenge",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "geo_maze",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "geo_block",
+            "minimum": 1
+          }
+        ],
+        "maze": [
+          {
+            "type": "outcome_equals",
+            "value": "maze",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "maze_hits",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "browser_realistic",
+        "required_persona": "adversarial",
+        "required_retry_strategy": "single_attempt",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t4_honeypot_deny_temp",
+      "required_defense_categories": [
+        "honeypot",
+        "ban_path"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "honeypot": [
+          {
+            "type": "coverage_delta",
+            "key": "honeypot_hits",
+            "minimum": 1
+          }
+        ],
+        "ban_path": [
+          {
+            "type": "coverage_delta",
+            "key": "ban_count",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "rate_banned",
+            "minimum": 1
+          },
+          {
+            "type": "outcome_equals",
+            "value": "deny_temp",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "browser_realistic",
+        "required_persona": "adversarial",
+        "required_retry_strategy": "single_attempt",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t3_replay_abuse",
+      "required_defense_categories": [
+        "not_a_bot",
+        "maze",
+        "event_stream"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "not_a_bot": [
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_pass",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_fail",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_replay",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_escalate",
+            "minimum": 1
+          }
+        ],
+        "maze": [
+          {
+            "type": "outcome_equals",
+            "value": "maze",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "maze_hits",
+            "minimum": 1
+          }
+        ],
+        "event_stream": [
+          {
+            "type": "simulation_event_count_delta",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "recent_event_count",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "http_scraper",
+        "required_persona": "adversarial",
+        "required_retry_strategy": "single_attempt",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t3_stale_token_abuse",
+      "required_defense_categories": [
+        "not_a_bot",
+        "maze",
+        "event_stream"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "not_a_bot": [
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_pass",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_fail",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_replay",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_escalate",
+            "minimum": 1
+          }
+        ],
+        "maze": [
+          {
+            "type": "outcome_equals",
+            "value": "maze",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "maze_hits",
+            "minimum": 1
+          }
+        ],
+        "event_stream": [
+          {
+            "type": "simulation_event_count_delta",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "recent_event_count",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "http_scraper",
+        "required_persona": "adversarial",
+        "required_retry_strategy": "single_attempt",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t4_ordering_cadence_abuse",
+      "required_defense_categories": [
+        "not_a_bot",
+        "maze",
+        "event_stream"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "not_a_bot": [
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_pass",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_fail",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_replay",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_escalate",
+            "minimum": 1
+          }
+        ],
+        "maze": [
+          {
+            "type": "outcome_equals",
+            "value": "maze",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "maze_hits",
+            "minimum": 1
+          }
+        ],
+        "event_stream": [
+          {
+            "type": "simulation_event_count_delta",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "recent_event_count",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "http_scraper",
+        "required_persona": "adversarial",
+        "required_retry_strategy": "single_attempt",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t1_pow_success",
+      "required_defense_categories": [
+        "pow"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "pow": [
+          {
+            "type": "coverage_delta",
+            "key": "pow_attempts",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "pow_successes",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "pow_failures",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "cost_imposition",
+        "required_persona": "benign_automation",
+        "required_retry_strategy": "bounded_backoff",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t3_pow_invalid_proof",
+      "required_defense_categories": [
+        "pow"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "pow": [
+          {
+            "type": "coverage_delta",
+            "key": "pow_attempts",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "pow_successes",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "pow_failures",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "cost_imposition",
+        "required_persona": "adversarial",
+        "required_retry_strategy": "single_attempt",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t3_rate_limit_enforce",
+      "required_defense_categories": [
+        "rate_limit",
+        "ban_path"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "rate_limit": [
+          {
+            "type": "coverage_delta",
+            "key": "rate_violations",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "rate_limited",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "rate_banned",
+            "minimum": 1
+          }
+        ],
+        "ban_path": [
+          {
+            "type": "coverage_delta",
+            "key": "ban_count",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "rate_banned",
+            "minimum": 1
+          },
+          {
+            "type": "outcome_equals",
+            "value": "deny_temp",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "http_scraper",
+        "required_persona": "adversarial",
+        "required_retry_strategy": "retry_storm",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1,
+        "min_retry_attempts": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t3_geo_block",
+      "required_defense_categories": [
+        "geo",
+        "ban_path"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "geo": [
+          {
+            "type": "coverage_delta",
+            "key": "geo_violations",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "geo_challenge",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "geo_maze",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "geo_block",
+            "minimum": 1
+          }
+        ],
+        "ban_path": [
+          {
+            "type": "coverage_delta",
+            "key": "ban_count",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "rate_banned",
+            "minimum": 1
+          },
+          {
+            "type": "outcome_equals",
+            "value": "deny_temp",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "browser_realistic",
+        "required_persona": "adversarial",
+        "required_retry_strategy": "single_attempt",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t2_akamai_additive_monitor",
+      "required_defense_categories": [
+        "cdp",
+        "fingerprint",
+        "event_stream"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "cdp": [
+          {
+            "type": "coverage_delta",
+            "key": "cdp_detections",
+            "minimum": 1
+          },
+          {
+            "type": "simulation_event_reason_prefix",
+            "prefix": "cdp_detected",
+            "minimum": 1
+          }
+        ],
+        "fingerprint": [
+          {
+            "type": "coverage_delta",
+            "key": "fingerprint_events",
+            "minimum": 1
+          }
+        ],
+        "event_stream": [
+          {
+            "type": "simulation_event_count_delta",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "recent_event_count",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "edge_fixture",
+        "required_persona": "suspicious_automation",
+        "required_retry_strategy": "bounded_backoff",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t4_akamai_authoritative_deny",
+      "required_defense_categories": [
+        "cdp",
+        "fingerprint",
+        "ban_path"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "cdp": [
+          {
+            "type": "coverage_delta",
+            "key": "cdp_detections",
+            "minimum": 1
+          },
+          {
+            "type": "simulation_event_reason_prefix",
+            "prefix": "cdp_detected",
+            "minimum": 1
+          }
+        ],
+        "fingerprint": [
+          {
+            "type": "coverage_delta",
+            "key": "fingerprint_events",
+            "minimum": 1
+          }
+        ],
+        "ban_path": [
+          {
+            "type": "coverage_delta",
+            "key": "ban_count",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "rate_banned",
+            "minimum": 1
+          },
+          {
+            "type": "outcome_equals",
+            "value": "deny_temp",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "edge_fixture",
+        "required_persona": "adversarial",
+        "required_retry_strategy": "single_attempt",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t2_challenge_puzzle_failure",
+      "required_defense_categories": [
+        "challenge",
+        "maze",
+        "event_stream"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "challenge": [
+          {
+            "type": "outcome_equals",
+            "value": "challenge",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "challenge_failures",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "geo_challenge",
+            "minimum": 1
+          }
+        ],
+        "maze": [
+          {
+            "type": "outcome_equals",
+            "value": "maze",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "maze_hits",
+            "minimum": 1
+          }
+        ],
+        "event_stream": [
+          {
+            "type": "simulation_event_count_delta",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "recent_event_count",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "browser_realistic",
+        "required_persona": "suspicious_automation",
+        "required_retry_strategy": "bounded_backoff",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t4_tarpit_replay_abuse",
+      "required_defense_categories": [
+        "not_a_bot",
+        "tarpit",
+        "ban_path",
+        "event_stream"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "not_a_bot": [
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_pass",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_fail",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_replay",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "not_a_bot_escalate",
+            "minimum": 1
+          }
+        ],
+        "tarpit": [
+          {
+            "type": "outcome_equals",
+            "value": "tarpit",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "tarpit_activations_progressive",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "tarpit_progress_advanced",
+            "minimum": 1
+          }
+        ],
+        "ban_path": [
+          {
+            "type": "coverage_delta",
+            "key": "ban_count",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "rate_banned",
+            "minimum": 1
+          },
+          {
+            "type": "outcome_equals",
+            "value": "deny_temp",
+            "minimum": 1
+          }
+        ],
+        "event_stream": [
+          {
+            "type": "simulation_event_count_delta",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "recent_event_count",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "http_scraper",
+        "required_persona": "adversarial",
+        "required_retry_strategy": "retry_storm",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1,
+        "min_retry_attempts": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t4_cdp_detection_deny",
+      "required_defense_categories": [
+        "cdp",
+        "fingerprint",
+        "ban_path",
+        "event_stream"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "cdp": [
+          {
+            "type": "coverage_delta",
+            "key": "cdp_detections",
+            "minimum": 1
+          },
+          {
+            "type": "simulation_event_reason_prefix",
+            "prefix": "cdp_detected",
+            "minimum": 1
+          }
+        ],
+        "fingerprint": [
+          {
+            "type": "coverage_delta",
+            "key": "fingerprint_events",
+            "minimum": 1
+          }
+        ],
+        "ban_path": [
+          {
+            "type": "coverage_delta",
+            "key": "ban_count",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "rate_banned",
+            "minimum": 1
+          },
+          {
+            "type": "outcome_equals",
+            "value": "deny_temp",
+            "minimum": 1
+          }
+        ],
+        "event_stream": [
+          {
+            "type": "simulation_event_count_delta",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "recent_event_count",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "http_scraper",
+        "required_persona": "suspicious_automation",
+        "required_retry_strategy": "bounded_backoff",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t3_fingerprint_inconsistency_abuse",
+      "required_defense_categories": [
+        "fingerprint",
+        "event_stream"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "fingerprint": [
+          {
+            "type": "coverage_delta",
+            "key": "fingerprint_events",
+            "minimum": 1
+          }
+        ],
+        "event_stream": [
+          {
+            "type": "simulation_event_count_delta",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "recent_event_count",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "http_scraper",
+        "required_persona": "suspicious_automation",
+        "required_retry_strategy": "bounded_backoff",
+        "min_request_sequence_count": 1,
+        "min_think_time_events": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t3_header_spoofing_abuse",
+      "required_defense_categories": [
+        "geo",
+        "event_stream"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "geo": [
+          {
+            "type": "coverage_delta",
+            "key": "geo_violations",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "geo_challenge",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "geo_maze",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "geo_block",
+            "minimum": 1
+          }
+        ],
+        "event_stream": [
+          {
+            "type": "simulation_event_count_delta",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "recent_event_count",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "browser_realistic",
+        "required_persona": "adversarial",
+        "required_retry_strategy": "single_attempt",
+        "min_request_sequence_count": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    },
+    {
+      "scenario_id": "sim_t4_retry_storm_abuse",
+      "required_defense_categories": [
+        "rate_limit",
+        "ban_path",
+        "event_stream"
+      ],
+      "minimum_runtime_requests": 1,
+      "defense_signals": {
+        "rate_limit": [
+          {
+            "type": "coverage_delta",
+            "key": "rate_violations",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "rate_limited",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "rate_banned",
+            "minimum": 1
+          }
+        ],
+        "ban_path": [
+          {
+            "type": "coverage_delta",
+            "key": "ban_count",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "rate_banned",
+            "minimum": 1
+          },
+          {
+            "type": "outcome_equals",
+            "value": "deny_temp",
+            "minimum": 1
+          }
+        ],
+        "event_stream": [
+          {
+            "type": "simulation_event_count_delta",
+            "minimum": 1
+          },
+          {
+            "type": "coverage_delta",
+            "key": "recent_event_count",
+            "minimum": 1
+          }
+        ]
+      },
+      "progression_requirements": {
+        "required_driver_class": "http_scraper",
+        "required_persona": "adversarial",
+        "required_retry_strategy": "retry_storm",
+        "min_request_sequence_count": 1,
+        "min_retry_attempts": 1
+      },
+      "review": {
+        "status": "active",
+        "owner": "defense-sim",
+        "last_reviewed_on": "2026-02-28",
+        "notes": "Aligned with scenario_manifest.v2 expected_defense_categories and traffic_model realism constraints."
+      }
+    }
+  ]
+}

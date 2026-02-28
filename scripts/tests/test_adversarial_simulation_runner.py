@@ -374,12 +374,16 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             monitoring_after={"monitoring_total": 5, "coverage": {"honeypot_hits": 2}},
             simulation_event_count_before=2,
             simulation_event_count_after=3,
+            simulation_event_reasons_before=["honeypot"],
+            simulation_event_reasons_after=["honeypot", "cdp_detected:tier=high"],
         )
         self.assertEqual(evidence["scenario_id"], "scenario_a")
         self.assertEqual(evidence["runtime_request_count"], 3)
         self.assertEqual(evidence["monitoring_total_delta"], 2)
         self.assertEqual(evidence["coverage_delta_total"], 1)
+        self.assertEqual(evidence["coverage_deltas"]["honeypot_hits"], 1)
         self.assertEqual(evidence["simulation_event_count_delta"], 1)
+        self.assertEqual(evidence["simulation_event_reasons_delta"], ["cdp_detected:tier=high"])
         self.assertTrue(evidence["has_runtime_telemetry_evidence"])
 
     def test_build_scenario_execution_evidence_includes_browser_fields_for_browser_realistic_driver(self):
@@ -521,6 +525,99 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertFalse(checks_by_name["browser_execution_dom_paths"]["passed"])
         self.assertFalse(checks_by_name["browser_execution_correlation_ids"]["passed"])
 
+    def test_build_scenario_intent_checks_fail_when_required_defense_signal_missing(self):
+        selected_scenarios = [
+            {
+                "id": "sim_t2_geo_challenge",
+                "driver": "geo_challenge",
+                "driver_class": "browser_realistic",
+            }
+        ]
+        results = [
+            runner.ScenarioResult(
+                id="sim_t2_geo_challenge",
+                tier="SIM-T2",
+                driver="geo_challenge",
+                expected_outcome="challenge",
+                observed_outcome="challenge",
+                passed=True,
+                latency_ms=120,
+                runtime_budget_ms=9000,
+                detail="ok",
+                realism={
+                    "persona": "suspicious_automation",
+                    "retry_strategy": "bounded_backoff",
+                    "request_sequence_count": 1,
+                    "think_time_events": 1,
+                    "retry_attempts": 0,
+                    "attempts_total": 1,
+                },
+            )
+        ]
+        checks = runner.build_scenario_intent_checks(
+            selected_scenarios=selected_scenarios,
+            results=results,
+            scenario_execution_evidence={
+                "sim_t2_geo_challenge": {
+                    "scenario_id": "sim_t2_geo_challenge",
+                    "driver_class": "browser_realistic",
+                    "runtime_request_count": 1,
+                    "coverage_deltas": {"geo_violations": 0, "geo_challenge": 0},
+                    "simulation_event_count_delta": 0,
+                    "simulation_event_reasons_delta": [],
+                }
+            },
+        )
+        checks_by_name = {check["name"]: check for check in checks}
+        self.assertFalse(checks_by_name["scenario_intent_sim_t2_geo_challenge_geo"]["passed"])
+        self.assertTrue(checks_by_name["scenario_intent_sim_t2_geo_challenge_challenge"]["passed"])
+
+    def test_build_scenario_intent_checks_pass_when_signals_and_progression_match(self):
+        selected_scenarios = [
+            {
+                "id": "sim_t2_geo_challenge",
+                "driver": "geo_challenge",
+                "driver_class": "browser_realistic",
+            }
+        ]
+        results = [
+            runner.ScenarioResult(
+                id="sim_t2_geo_challenge",
+                tier="SIM-T2",
+                driver="geo_challenge",
+                expected_outcome="challenge",
+                observed_outcome="challenge",
+                passed=True,
+                latency_ms=120,
+                runtime_budget_ms=9000,
+                detail="ok",
+                realism={
+                    "persona": "suspicious_automation",
+                    "retry_strategy": "bounded_backoff",
+                    "request_sequence_count": 1,
+                    "think_time_events": 1,
+                    "retry_attempts": 0,
+                    "attempts_total": 1,
+                },
+            )
+        ]
+        checks = runner.build_scenario_intent_checks(
+            selected_scenarios=selected_scenarios,
+            results=results,
+            scenario_execution_evidence={
+                "sim_t2_geo_challenge": {
+                    "scenario_id": "sim_t2_geo_challenge",
+                    "driver_class": "browser_realistic",
+                    "runtime_request_count": 2,
+                    "coverage_deltas": {"geo_violations": 1, "geo_challenge": 1, "challenge_failures": 0},
+                    "simulation_event_count_delta": 1,
+                    "simulation_event_reasons_delta": ["geo:challenge"],
+                }
+            },
+        )
+        failing = [check["name"] for check in checks if not check["passed"]]
+        self.assertEqual(failing, [])
+
     def test_annotate_coverage_checks_with_threshold_sources(self):
         checks = runner.build_coverage_checks({"honeypot_hits": 1}, {"honeypot_hits": 2})
         annotated = runner.annotate_coverage_checks_with_threshold_source({"honeypot_hits": 1}, checks)
@@ -591,6 +688,13 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         manifest["scenarios"][0]["driver_class"] = "http_scraper"
         with self.assertRaises(runner.SimulationError):
             runner.validate_manifest(Path("scripts/tests/adversarial/scenario_manifest.v2.json"), manifest, "test_profile")
+
+    def test_validate_manifest_rejects_canonical_intent_matrix_category_drift(self):
+        manifest_path = Path("scripts/tests/adversarial/scenario_manifest.v2.json")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["scenarios"][0]["expected_defense_categories"] = ["maze"]
+        with self.assertRaises(runner.SimulationError):
+            runner.validate_manifest(manifest_path, manifest, "fast_smoke")
 
     def test_validate_manifest_rejects_unsupported_execution_lane(self):
         manifest = minimal_manifest()

@@ -420,11 +420,7 @@ Acceptance criteria:
 
 Scope: ensure scenario catalog consistently drives targeted defenses under realistic attacker progression.
 
-- [ ] SIM2-GC-9-1 Add scenario intent matrix mapping each scenario to required defense signals and minimum evidence thresholds.
-- [ ] SIM2-GC-9-2 Remove scenario success criteria that can pass without exercising intended defenses.
-- [ ] SIM2-GC-9-3 Add progression logic for crawler/scraper/browser cohorts that models realistic retries, pacing, and evasion attempts.
-- [ ] SIM2-GC-9-4 Add contract tests that fail if scenarios labeled for a defense category do not generate corresponding events.
-- [ ] SIM2-GC-9-5 Add periodic coverage review process for stale, redundant, or non-realistic scenarios.
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-9-*` closure details.
 
 Acceptance criteria:
 1. Each scenario has explicit, test-backed defense exercise expectations.

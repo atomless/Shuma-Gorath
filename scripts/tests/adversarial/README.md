@@ -28,6 +28,9 @@
   - Canonical attacker/control capability boundary contract for black-box simulation lanes.
 - `coverage_contract.v1.json`
   - Canonical `full_coverage` contract (minimum coverage categories + event/outcome obligations) used for drift checks against manifests and SIM2 plan rows.
+- `scenario_intent_matrix.v1.json`
+  - Canonical per-scenario intent matrix mapping each scenario to required defense categories, accepted evidence signals, minimum runtime evidence thresholds, and progression realism requirements.
+  - Includes review-governance metadata (`cadence_days`, `stale_after_days`, row-level `last_reviewed_on`) used by periodic scenario quality checks.
 - `real_traffic_contract.v1.json`
   - Canonical real-traffic evidence contract (required invariants, prohibited synthetic-success patterns, per-scenario runtime evidence fields, and control-plane lineage fields).
 - `container_runtime_profile.v1.json`
@@ -79,6 +82,7 @@ The runner writes machine-readable artifacts to:
   - `ip_range_suggestions` seed evidence (`seeded_summary`, `seeded_suggestions`, `matched_seed_suggestions`, `near_miss_suggestions`),
   - `plane_contract` metadata for attacker/control-plane guardrails,
   - `coverage_contract` metadata (schema/version/hash and canonical coverage keys).
+  - `scenario_intent_gates` checks proving each passed scenario emitted intent-mapped defense evidence and matched progression constraints.
   - `real_traffic_contract` metadata (schema/version/hash and prohibited-pattern contract keys),
   - `evidence` (`sim-run-evidence.v1`) with request-lineage, per-scenario runtime telemetry evidence rows, and control-plane lineage fields.
 
@@ -110,6 +114,10 @@ Notes:
 - Coverage contract governance:
   - canonical `full_coverage` requirements are versioned in `coverage_contract.v1.json`,
   - drift checks run via `make test-adversarial-coverage-contract` and are wired into `make test-adversarial-manifest`, `make test-adversarial-fast`, and `make test-adversarial-coverage`.
+- Scenario intent governance:
+  - canonical per-scenario intent mappings are versioned in `scenario_intent_matrix.v1.json`,
+  - parity/freshness checks run via `make test-adversarial-scenario-review` and are wired into `make test-adversarial-manifest`, `make test-adversarial-fast`, and `make test-adversarial-coverage`.
+  - runs now fail when a scenario is marked passed but its intent-mapped defense categories lack qualifying evidence signals.
 - Real-traffic evidence governance:
   - canonical invariants and prohibited synthetic-success patterns are versioned in `real_traffic_contract.v1.json`,
   - passed scenarios must include runtime telemetry evidence (`runtime_request_count > 0` and telemetry deltas) or the run fails.

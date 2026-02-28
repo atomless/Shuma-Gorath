@@ -6,6 +6,14 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 SIM2 Gap-Closure Program: Real Execution + Realtime Monitoring
 
+#### SIM2-GC-9: Scenario Design Realism and Defense Exercise Guarantees
+
+- [x] SIM2-GC-9-1 Add scenario intent matrix mapping each scenario to required defense signals and minimum evidence thresholds.
+- [x] SIM2-GC-9-2 Remove scenario success criteria that can pass without exercising intended defenses.
+- [x] SIM2-GC-9-3 Add progression logic for crawler/scraper/browser cohorts that models realistic retries, pacing, and evasion attempts.
+- [x] SIM2-GC-9-4 Add contract tests that fail if scenarios labeled for a defense category do not generate corresponding events.
+- [x] SIM2-GC-9-5 Add periodic coverage review process for stale, redundant, or non-realistic scenarios.
+
 #### SIM2-GC-8: Containerized Frontier Integration as Real Actor (Not Metadata Generator) (partial)
 
 - [x] SIM2-GC-8-1 Define frontier action contract (`allowed tools`, `network constraints`, `time/resource budgets`, `forbidden data access`).

@@ -14,6 +14,7 @@ Use this guide for:
 - `make test-adversarial-live`
 - `make test-adversarial-repeatability`
 - `make test-adversarial-promote-candidates`
+- `make test-adversarial-scenario-review`
 - `make test-adversarial-sim-tag-contract`
 - `make test-frontier-unavailability-policy`
 - `make test-adversarial-container-isolation`
@@ -235,6 +236,7 @@ For every failing run, operators must capture:
 7. Runner plane-separation evidence (`latest_report.json` -> `plane_contract`).
 8. Coverage contract evidence (`latest_report.json` -> `coverage_contract`) including schema/hash and category obligations.
 9. Realism evidence (`latest_report.json` -> `realism_metrics` + `realism_gates`) for pacing/retry/state-mode conformance.
+10. Scenario intent evidence (`latest_report.json` -> `scenario_intent_gates`) to confirm each passed scenario emitted required defense-category signals.
 
 ## Triage Order
 
@@ -247,8 +249,25 @@ Operators must triage in this order:
 5. Coverage deltas in `coverage_gates.coverage.deltas` (for `full_coverage`/soak).
 6. Persona collateral and cost envelopes in `cohort_metrics`.
 7. Realism gate failures in `realism_gates.checks` and persona/runtime evidence in `realism_metrics`.
-8. Seeded IP-range evidence in `ip_range_suggestions`.
-9. Tarpit progression/fallback/escalation counters in Monitoring tab (`Tarpit Progression` section) and `monitoring_after.tarpit.metrics` in report artifacts.
+8. Scenario intent gate failures in `scenario_intent_gates.checks` where per-scenario category evidence or progression constraints failed.
+9. Seeded IP-range evidence in `ip_range_suggestions`.
+10. Tarpit progression/fallback/escalation counters in Monitoring tab (`Tarpit Progression` section) and `monitoring_after.tarpit.metrics` in report artifacts.
+
+## Scenario Intent Review Process (SIM2-GC-9)
+
+Operators must run `make test-adversarial-scenario-review` at least weekly and before release cuts.
+
+Review process requirements:
+
+1. Confirm each scenario row in `scripts/tests/adversarial/scenario_intent_matrix.v1.json` matches `scenario_manifest.v2.json` for:
+   - `expected_defense_categories`,
+   - `driver_class`,
+   - `traffic_model.persona`,
+   - `traffic_model.retry_strategy`.
+2. Confirm each category has at least one practical evidence signal mapping and no dead signal rules.
+3. Confirm row review metadata is fresh (`last_reviewed_on` within `stale_after_days` governance budget).
+4. Remove or refactor rows flagged redundant by signature drift checks before adding new scenarios.
+5. Update row notes when scenario realism constraints change (retry, pacing, evasion, or driver-class behavior).
 
 Operators must not tune thresholds before confirming whether failures are scenario mismatches versus gate regressions.
 
