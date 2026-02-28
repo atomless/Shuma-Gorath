@@ -167,7 +167,7 @@ Dashboard adversary-sim orchestration control contract:
 - Toggle-driven runs use `adversary_sim_duration_seconds` (default `180`, hard-bounded `30..900`), and dashboard shows a fixed top progress line while phase is `running`.
 - If no frontier provider keys are configured, OFF -> ON toggle attempts must show a warning dialog with two outcomes:
   - continue without frontier calls, or
-  - cancel and run `make setup` to configure frontier provider keys.
+  - cancel, add `SHUMA_FRONTIER_*_API_KEY` values to `.env.local`, restart `make dev`, then toggle on again.
 - Runtime guardrails are hard-coded: `max_concurrent_runs=1`, `cpu_cap_millicores=1000`, `memory_cap_mib=512`, `queue_policy=reject_new`.
 
 Live loop examples:

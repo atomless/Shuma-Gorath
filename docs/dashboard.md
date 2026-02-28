@@ -63,7 +63,7 @@ Notes:
 - Config panes are editable only when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`.
 - Adversary Sim OFF -> ON toggles show a frontier-key warning when no frontier provider keys are configured:
   - continue without frontier calls, or
-  - cancel and run `make setup` to configure providers.
+  - cancel, add `SHUMA_FRONTIER_*_API_KEY` values to `.env.local`, restart `make dev`, then toggle on again.
 
 ## 🐙 Admin API Endpoints Used by Dashboard
 

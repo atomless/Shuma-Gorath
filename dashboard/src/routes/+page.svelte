@@ -472,13 +472,13 @@
     if (nextValue && frontierProviderCount === 0) {
       const continueWithoutFrontier = typeof window !== 'undefined'
         ? window.confirm(
-          'No frontier model provider keys are configured. Press OK to continue without frontier calls, or Cancel to run make setup first.'
+          'No frontier model provider keys are configured. Press OK to continue without frontier calls, or Cancel to add keys to .env.local and restart make dev.'
         )
         : false;
       if (!continueWithoutFrontier) {
         if (target) target.checked = previousValue;
         setAdminMessage(
-          'Frontier provider keys are missing. Run make setup to configure keys, or toggle again and choose continue.',
+          'Frontier provider keys are missing. Add SHUMA_FRONTIER_*_API_KEY values to .env.local, restart make dev, then toggle again (or continue without frontier calls).',
           'warning'
         );
         return;
