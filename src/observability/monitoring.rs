@@ -7,7 +7,6 @@ use std::hash::{Hash, Hasher};
 use std::sync::Mutex;
 
 const MONITORING_PREFIX: &str = "monitoring:v1";
-const MONITORING_SIM_PREFIX: &str = "monitoring:v1:sim";
 const MAX_WINDOW_HOURS: u64 = 24 * 30;
 const MAX_TOP_LIMIT: usize = 50;
 #[cfg(not(test))]
@@ -154,11 +153,7 @@ fn event_log_retention_hours() -> u64 {
 }
 
 fn monitoring_prefix_for_active_context() -> &'static str {
-    if crate::runtime::sim_telemetry::is_simulation_context_active() {
-        MONITORING_SIM_PREFIX
-    } else {
-        MONITORING_PREFIX
-    }
+    MONITORING_PREFIX
 }
 
 fn encode_dim(value: &str) -> String {
@@ -482,7 +477,7 @@ fn matching_monitoring_prefix<'a>(key: &str, prefixes: &'a [&str]) -> Option<&'a
 }
 
 fn cleanup_monitoring_keys<S: crate::challenge::KeyValueStore>(store: &S, cutoff: u64) {
-    let prefixes = [MONITORING_PREFIX, MONITORING_SIM_PREFIX];
+    let prefixes = [MONITORING_PREFIX];
     if let Ok(keys) = store.get_keys() {
         for key in keys {
             let Some(prefix) = matching_monitoring_prefix(key.as_str(), &prefixes) else {
@@ -1045,19 +1040,6 @@ pub(crate) fn summarize_with_store<S: crate::challenge::KeyValueStore>(
     limit: usize,
 ) -> MonitoringSummary {
     summarize_with_store_prefixes(store, hours, limit, &[MONITORING_PREFIX])
-}
-
-pub(crate) fn summarize_with_store_for_api<S: crate::challenge::KeyValueStore>(
-    store: &S,
-    hours: u64,
-    limit: usize,
-    include_sim: bool,
-) -> MonitoringSummary {
-    if include_sim {
-        summarize_with_store_prefixes(store, hours, limit, &[MONITORING_PREFIX, MONITORING_SIM_PREFIX])
-    } else {
-        summarize_with_store_prefixes(store, hours, limit, &[MONITORING_PREFIX])
-    }
 }
 
 pub(crate) fn summarize_metrics_window<S: crate::challenge::KeyValueStore>(

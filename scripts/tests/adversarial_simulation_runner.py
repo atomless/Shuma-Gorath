@@ -930,12 +930,12 @@ class Runner:
             self.admin_unban(ip)
 
     def monitoring_snapshot(self) -> Dict[str, Any]:
-        result = self.admin_request("GET", "/admin/monitoring?hours=24&limit=5&include_sim=1")
+        result = self.admin_request("GET", "/admin/monitoring?hours=24&limit=5")
         data = parse_json_or_raise(result.body, "Failed to parse /admin/monitoring response")
         return extract_monitoring_snapshot(data)
 
     def simulation_event_reasons_snapshot(self, hours: int = 24, limit: int = 500) -> List[str]:
-        result = self.admin_request("GET", f"/admin/events?hours={hours}&limit={limit}&include_sim=1")
+        result = self.admin_request("GET", f"/admin/events?hours={hours}&limit={limit}")
         if result.status != 200:
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(

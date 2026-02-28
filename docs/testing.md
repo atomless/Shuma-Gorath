@@ -253,9 +253,9 @@ Frontier lane policy:
 - Protected-lane frontier attempt is mandatory to run (attempt status is always emitted), but degraded frontier status is advisory and does not override deterministic blocking gates.
 - Deterministic replay/coverage remains the release-blocking oracle; stochastic one-off frontier anomalies do not block until deterministic replay confirms them.
 - Degraded-threshold tracker (`make test-frontier-unavailability-policy`) opens/updates a refresh action when protected lanes remain degraded for 10 consecutive runs or 7 days.
-Simulation telemetry filtering policy:
-- `/admin/events`, `/admin/cdp/events`, and `/admin/monitoring` support `include_sim=1` in `runtime-dev`.
-- Non-dev runtime contexts are default-safe and exclude simulation telemetry regardless of query input.
+Simulation telemetry read policy:
+- `/admin/events`, `/admin/cdp/events`, and `/admin/monitoring` include simulation-tagged rows in `runtime-dev` by default.
+- Tagged rows remain identifiable via `sim_run_id`, `sim_profile`, `sim_lane`, and `is_simulation`.
 `test-adversarial-akamai` is fixture-driven (local `/fingerprint-report` with canned payloads) and does not require a live Akamai edge instance.
 Operator interpretation and tuning workflow is documented in `docs/adversarial-operator-guide.md`.
 

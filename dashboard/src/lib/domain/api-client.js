@@ -557,17 +557,15 @@ export const create = (options = {}) => {
     adaptAdversarySimStatus(await request('/admin/adversary-sim/status', requestOptions));
 
   /**
-   * @param {{hours?: number, limit?: number, includeSim?: boolean}} [options]
+   * @param {{hours?: number, limit?: number}} [options]
    * @param {RequestOptions} [requestOptions]
    */
   const getMonitoring = async (options = {}, requestOptions = {}) => {
     const hours = Number.isFinite(options.hours) ? Number(options.hours) : 24;
     const limit = Number.isFinite(options.limit) ? Number(options.limit) : 10;
-    const includeSim = options.includeSim === true;
-    const includeSimParam = includeSim ? '&include_sim=1' : '';
     return adaptMonitoring(
       await request(
-        `/admin/monitoring?hours=${encodeURIComponent(String(hours))}&limit=${encodeURIComponent(String(limit))}${includeSimParam}`,
+        `/admin/monitoring?hours=${encodeURIComponent(String(hours))}&limit=${encodeURIComponent(String(limit))}`,
         requestOptions
       )
     );

@@ -54,7 +54,6 @@ impl EventLogRecord {
 /// Event log storage notes:
 /// - v2 format stores immutable records per event: eventlog:v2:<hour>:<ts>-<nonce>
 const EVENTLOG_V2_PREFIX: &str = "eventlog:v2";
-const EVENTLOG_V2_SIM_PREFIX: &str = "eventlog:v2:sim";
 const POW_DIFFICULTY_MIN: u8 = crate::config::POW_DIFFICULTY_MIN;
 const POW_DIFFICULTY_MAX: u8 = crate::config::POW_DIFFICULTY_MAX;
 const POW_TTL_MIN: u64 = crate::config::POW_TTL_MIN;
@@ -150,7 +149,7 @@ fn maybe_cleanup_event_logs<S: crate::challenge::KeyValueStore>(store: &S, curre
     // v2 cleanup.
     if let Ok(keys) = store.get_keys() {
         for key in keys {
-            let Some((event_hour, _is_simulation)) = parse_v2_event_key(&key) else {
+            let Some(event_hour) = parse_v2_event_key(&key) else {
                 continue;
             };
             if event_hour < cutoff_hour {
@@ -162,24 +161,14 @@ fn maybe_cleanup_event_logs<S: crate::challenge::KeyValueStore>(store: &S, curre
     }
 }
 
-fn make_v2_event_key(hour: u64, ts: u64, is_simulation: bool) -> String {
-    let prefix = if is_simulation {
-        EVENTLOG_V2_SIM_PREFIX
-    } else {
-        EVENTLOG_V2_PREFIX
-    };
-    format!("{}:{}:{}-{:016x}", prefix, hour, ts, random::<u64>())
+fn make_v2_event_key(hour: u64, ts: u64) -> String {
+    format!("{}:{}:{}-{:016x}", EVENTLOG_V2_PREFIX, hour, ts, random::<u64>())
 }
 
-fn parse_v2_event_key(key: &str) -> Option<(u64, bool)> {
+fn parse_v2_event_key(key: &str) -> Option<u64> {
     let mut parts = key.splitn(5, ':');
     match (parts.next(), parts.next(), parts.next(), parts.next()) {
-        (Some("eventlog"), Some("v2"), Some("sim"), Some(hour)) => {
-            Some((hour.parse::<u64>().ok()?, true))
-        }
-        (Some("eventlog"), Some("v2"), Some(hour), Some(_tail)) => {
-            Some((hour.parse::<u64>().ok()?, false))
-        }
+        (Some("eventlog"), Some("v2"), Some(hour), Some(_tail)) => Some(hour.parse::<u64>().ok()?),
         _ => None,
     }
 }
@@ -195,7 +184,7 @@ pub fn log_event<S: crate::challenge::KeyValueStore>(store: &S, entry: &EventLog
     }
 
     let hour = record.entry.ts / 3600;
-    let key = make_v2_event_key(hour, record.entry.ts, record.is_simulation);
+    let key = make_v2_event_key(hour, record.entry.ts);
     match serde_json::to_vec(&record) {
         Ok(payload) => {
             if store.set(&key, &payload).is_err() {
@@ -279,7 +268,7 @@ mod tests {
     }
 
     #[test]
-    fn log_event_writes_sim_namespace_and_metadata_when_context_active() {
+    fn log_event_writes_sim_metadata_when_context_active() {
         let store = MockStore::new();
         let now = now_ts();
         let entry = EventLogEntry {
@@ -300,7 +289,7 @@ mod tests {
         log_event(&store, &entry);
 
         let hour = now / 3600;
-        let prefix = format!("eventlog:v2:sim:{}:", hour);
+        let prefix = format!("eventlog:v2:{}:", hour);
         let records: Vec<(String, Vec<u8>)> = store
             .map
             .lock()
@@ -347,7 +336,7 @@ mod tests {
     }
 
     #[test]
-    fn load_recent_event_records_filters_simulation_records_by_flag() {
+    fn load_recent_event_records_keeps_simulation_metadata() {
         let store = MockStore::new();
         let now = now_ts();
         let hour = now / 3600;
@@ -376,7 +365,7 @@ mod tests {
         };
 
         let non_sim_key = format!("eventlog:v2:{}:{}-non-sim", hour, now);
-        let sim_key = format!("eventlog:v2:sim:{}:{}-sim", hour, now);
+        let sim_key = format!("eventlog:v2:{}:{}-sim", hour, now);
         store
             .set(&non_sim_key, serde_json::to_vec(&non_sim).unwrap().as_slice())
             .unwrap();
@@ -384,13 +373,10 @@ mod tests {
             .set(&sim_key, serde_json::to_vec(&sim).unwrap().as_slice())
             .unwrap();
 
-        let filtered = load_recent_event_records(&store, now, 1, false);
-        assert_eq!(filtered.len(), 1);
-        assert!(!filtered[0].is_simulation);
-
-        let included = load_recent_event_records(&store, now, 1, true);
-        assert_eq!(included.len(), 2);
-        assert!(included.iter().any(|record| record.is_simulation));
+        let records = load_recent_event_records(&store, now, 1);
+        assert_eq!(records.len(), 2);
+        assert!(records.iter().any(|record| record.is_simulation));
+        assert!(records.iter().any(|record| !record.is_simulation));
     }
 
     #[test]
@@ -414,24 +400,6 @@ mod tests {
 
         let events = load_recent_events(&store, now, 1);
         assert!(events.is_empty());
-    }
-
-    #[test]
-    fn include_sim_query_is_disabled_outside_runtime_dev() {
-        let _lock = crate::test_support::lock_env();
-        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
-        let mut builder = spin_sdk::http::Request::builder();
-        builder.method(Method::Get).uri("/admin/events?include_sim=1");
-        let req_prod = builder.build();
-        assert!(!include_sim_for_request(&req_prod));
-
-        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
-        let mut builder = spin_sdk::http::Request::builder();
-        builder.method(Method::Get).uri("/admin/events?include_sim=true");
-        let req_dev = builder.build();
-        assert!(include_sim_for_request(&req_dev));
-
-        std::env::remove_var("SHUMA_RUNTIME_ENV");
     }
 
     #[test]
@@ -1693,9 +1661,7 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn admin_monitoring_include_sim_query_controls_summary_and_event_visibility() {
-        let _lock = crate::test_support::lock_env();
-        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+    fn admin_monitoring_includes_simulation_and_baseline_events() {
         let store = TestStore::default();
         let now = now_ts();
 
@@ -1752,35 +1718,9 @@ mod admin_config_tests {
                 .and_then(|summary| summary.get("challenge"))
                 .and_then(|challenge| challenge.get("total_failures"))
                 .and_then(|value| value.as_u64()),
-            Some(1)
-        );
-        assert_eq!(
-            body_default
-                .get("details")
-                .and_then(|details| details.get("events"))
-                .and_then(|events| events.get("recent_events"))
-                .and_then(|events| events.as_array())
-                .map(|events| events.len()),
-            Some(1)
-        );
-
-        let req_include = make_request(
-            Method::Get,
-            "/admin/monitoring?hours=24&limit=5&include_sim=1",
-            Vec::new(),
-        );
-        let resp_include = handle_admin_monitoring(&req_include, &store);
-        assert_eq!(*resp_include.status(), 200u16);
-        let body_include: serde_json::Value = serde_json::from_slice(resp_include.body()).unwrap();
-        assert_eq!(
-            body_include
-                .get("summary")
-                .and_then(|summary| summary.get("challenge"))
-                .and_then(|challenge| challenge.get("total_failures"))
-                .and_then(|value| value.as_u64()),
             Some(2)
         );
-        let include_events = body_include
+        let include_events = body_default
             .get("details")
             .and_then(|details| details.get("events"))
             .and_then(|events| events.get("recent_events"))
@@ -1790,8 +1730,6 @@ mod admin_config_tests {
         assert!(include_events
             .iter()
             .any(|entry| entry.get("is_simulation").and_then(|value| value.as_bool()) == Some(true)));
-
-        std::env::remove_var("SHUMA_RUNTIME_ENV");
     }
 
     #[test]
@@ -1878,7 +1816,7 @@ mod admin_config_tests {
             .set("tarpit:budget:active:bucket:other-site:bucket-z", b"7")
             .unwrap();
 
-        let details = monitoring_details_payload(&store, "default", 24, false);
+        let details = monitoring_details_payload(&store, "default", 24);
         let tarpit = details.get("tarpit").unwrap();
         assert_eq!(
             tarpit
@@ -3844,7 +3782,7 @@ fn load_recent_events<S: crate::challenge::KeyValueStore>(
     now: u64,
     hours: u64,
 ) -> Vec<EventLogEntry> {
-    load_recent_event_records(store, now, hours, true)
+    load_recent_event_records(store, now, hours)
         .into_iter()
         .map(|record| record.entry)
         .collect()
@@ -3854,7 +3792,6 @@ fn load_recent_event_records<S: crate::challenge::KeyValueStore>(
     store: &S,
     now: u64,
     hours: u64,
-    include_sim: bool,
 ) -> Vec<EventLogRecord> {
     let now_hour = now / 3600;
     let retention_hours = event_log_retention_hours();
@@ -3878,7 +3815,7 @@ fn load_recent_event_records<S: crate::challenge::KeyValueStore>(
     // v2 immutable records.
     if let Ok(keys) = store.get_keys() {
         for key in keys {
-            let Some((event_hour, is_simulation_key)) = parse_v2_event_key(&key) else {
+            let Some(event_hour) = parse_v2_event_key(&key) else {
                 continue;
             };
             if should_cleanup && event_hour < retention_cutoff_hour {
@@ -3898,16 +3835,10 @@ fn load_recent_event_records<S: crate::challenge::KeyValueStore>(
                             .ok()
                             .map(EventLogRecord::from_entry)
                     });
-                let Some(mut record) = parsed_record else {
+                let Some(record) = parsed_record else {
                     continue;
                 };
-                if is_simulation_key {
-                    record.is_simulation = true;
-                }
                 if record.entry.ts < window_start {
-                    continue;
-                }
-                if !include_sim && record.is_simulation {
                     continue;
                 }
                 events.push(record);
@@ -3916,23 +3847,6 @@ fn load_recent_event_records<S: crate::challenge::KeyValueStore>(
     }
 
     events
-}
-
-fn parse_query_bool(value: &str) -> bool {
-    matches!(
-        value.trim().to_ascii_lowercase().as_str(),
-        "1" | "true" | "yes" | "on"
-    )
-}
-
-fn include_sim_for_request(req: &Request) -> bool {
-    if !crate::config::runtime_environment().is_dev() {
-        return false;
-    }
-    let Some(raw) = crate::request_validation::query_param(req.query(), "include_sim") else {
-        return false;
-    };
-    parse_query_bool(raw.as_str())
 }
 
 fn is_cdp_event_reason(reason: &str) -> bool {
@@ -7508,16 +7422,13 @@ where
 {
     let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
     let limit = query_u64_param(req.query(), "limit", 10).clamp(1, 50) as usize;
-    let include_sim = include_sim_for_request(req);
-    let summary =
-        crate::observability::monitoring::summarize_with_store_for_api(store, hours, limit, include_sim);
-    let details = monitoring_details_payload(store, "default", hours, include_sim);
+    let summary = crate::observability::monitoring::summarize_with_store(store, hours, limit);
+    let details = monitoring_details_payload(store, "default", hours);
 
     let body = serde_json::to_string(&json!({
         "summary": summary,
         "prometheus": monitoring_prometheus_helper_payload(),
-        "details": details,
-        "include_sim": include_sim
+        "details": details
     }))
     .unwrap();
     Response::new(200, body)
@@ -7569,13 +7480,12 @@ fn monitoring_details_payload<S>(
     store: &S,
     site_id: &str,
     hours: u64,
-    include_sim: bool,
 ) -> serde_json::Value
 where
     S: crate::challenge::KeyValueStore,
 {
     let now = now_ts();
-    let mut events = load_recent_event_records(store, now, hours, include_sim);
+    let mut events = load_recent_event_records(store, now, hours);
     let mut ip_counts = std::collections::HashMap::new();
     let mut event_counts = std::collections::HashMap::new();
 
@@ -8279,9 +8189,8 @@ pub fn handle_admin(req: &Request) -> Response {
             // Query event log for recent events, top IPs, and event statistics
             // Query params: ?hours=N (default 24, max 720)
             let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
-            let include_sim = include_sim_for_request(req);
             let now = now_ts();
-            let mut events = load_recent_event_records(&store, now, hours, include_sim);
+            let mut events = load_recent_event_records(&store, now, hours);
             let mut ip_counts = std::collections::HashMap::new();
             let mut event_counts = std::collections::HashMap::new();
 
@@ -8305,8 +8214,7 @@ pub fn handle_admin(req: &Request) -> Response {
                 "recent_events": events.iter().take(100).collect::<Vec<_>>(),
                 "event_counts": event_counts,
                 "top_ips": top_ips,
-                "unique_ips": unique_ips,
-                "include_sim": include_sim,
+                "unique_ips": unique_ips
             }))
             .unwrap();
             Response::new(200, body)
@@ -8319,10 +8227,9 @@ pub fn handle_admin(req: &Request) -> Response {
             // hours default 24 (max 720), limit default 500 (max 5000)
             let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
             let limit = query_u64_param(req.query(), "limit", 500).clamp(1, 5000) as usize;
-            let include_sim = include_sim_for_request(req);
             let now = now_ts();
             let mut cdp_events: Vec<EventLogRecord> =
-                load_recent_event_records(&store, now, hours, include_sim)
+                load_recent_event_records(&store, now, hours)
                 .into_iter()
                 .filter(|entry| {
                     entry
@@ -8370,8 +8277,7 @@ pub fn handle_admin(req: &Request) -> Response {
                 "counts": {
                     "detections": detections,
                     "auto_bans": auto_bans
-                },
-                "include_sim": include_sim
+                }
             }))
             .unwrap();
             Response::new(200, body)

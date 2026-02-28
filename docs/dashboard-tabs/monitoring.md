@@ -21,7 +21,7 @@ Refresh behavior:
 - Supports manual refresh and optional auto-refresh.
 - Auto-refresh is only available on this tab and `IP Bans`.
 - Uses consolidated `/admin/monitoring` snapshot refresh and bounded local cache.
-- When adversary simulation is enabled in runtime-dev, dashboard requests include `include_sim=1` so attacker-plane telemetry is visible in monitoring summaries/details.
+- Simulation-tagged events are included in monitoring data by default in runtime-dev and remain distinguishable via per-event simulation metadata fields.
 
 Writes:
 

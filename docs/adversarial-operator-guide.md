@@ -77,9 +77,9 @@ Adversary-generated traffic is tagged at request time with:
 
 Storage and read-path policy:
 
-1. Simulation telemetry uses dedicated namespaces (`eventlog:v2:sim:*`, `monitoring:v1:sim:*`).
-2. Admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`) support `include_sim=1` in dev runtime.
-3. Non-dev runtime remains default-safe: simulation rows/counters are excluded even if `include_sim=1` is requested.
+1. Simulation telemetry writes to canonical event/monitoring stores and is identified by metadata fields (`sim_run_id`, `sim_profile`, `sim_lane`, `is_simulation`).
+2. Admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`) include tagged simulation rows in runtime-dev by default.
+3. Non-dev runtime remains default-safe because adversary simulation control surfaces are unavailable.
 4. Unsigned/invalid/stale/replayed simulation tags must not activate simulation context; requests stay in normal telemetry partition.
 5. Invalid simulation-tag attempts emit explicit policy-signal telemetry:
    - `S_SIM_TAG_MISSING_SECRET`
@@ -190,7 +190,7 @@ For every failing run, operators must capture:
 2. Report artifact (`scripts/tests/adversarial/latest_report.json`).
 3. Attack plan artifact (`scripts/tests/adversarial/attack_plan.json`).
 4. Runtime config snapshot (`GET /admin/config`) from the failing environment.
-5. Monitoring snapshot (`GET /admin/monitoring?hours=24&limit=10&include_sim=1` in dev runtime) from the same time window.
+5. Monitoring snapshot (`GET /admin/monitoring?hours=24&limit=10` in dev runtime) from the same time window.
 6. Commit SHA and environment (`runtime-dev` or `runtime-prod`).
 7. Runner plane-separation evidence (`latest_report.json` -> `plane_contract`).
 8. Coverage contract evidence (`latest_report.json` -> `coverage_contract`) including schema/hash and category obligations.

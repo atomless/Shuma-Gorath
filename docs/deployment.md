@@ -37,21 +37,16 @@ Stochastic single-run frontier anomalies must not block release directly; only d
 
 ## 🐙 Simulation Data-Plane Separation Contract
 
-Adversary simulation telemetry is isolated from baseline operational telemetry by storage namespace and runtime guardrails:
+Adversary simulation telemetry is isolated from production by runtime guardrails and environment separation:
 
-1. Simulation-tagged request telemetry writes to dedicated namespaces:
-   - event log: `eventlog:v2:sim:*`
-   - monitoring counters: `monitoring:v1:sim:*`
-2. Baseline operational telemetry writes to:
+1. Simulation-tagged request telemetry writes to canonical event/monitoring stores:
    - event log: `eventlog:v2:*`
    - monitoring counters: `monitoring:v1:*`
-3. Admin read APIs (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`) are default-safe:
-   - non-dev runtime excludes simulation telemetry regardless of query input,
-   - dev runtime may opt in with `include_sim=1`.
-4. Runtime-prod fail-fast guardrail:
+2. Simulation rows remain identifiable via metadata (`sim_run_id`, `sim_profile`, `sim_lane`, `is_simulation`).
+3. Runtime-prod fail-fast guardrail:
    - `SHUMA_RUNTIME_ENV=runtime-prod` with `SHUMA_ADVERSARY_SIM_AVAILABLE=true` is rejected during env validation.
 
-This separation does not require different admin API keys between dev/prod; isolation is enforced by namespace and runtime-mode policy.
+This separation does not require different admin API keys between dev/prod; isolation is enforced by runtime-mode policy and deployment environment boundaries.
 
 ## 🐙 Setup Path Selection
 
