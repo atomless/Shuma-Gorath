@@ -49,6 +49,7 @@ pub struct AdminAuthResult {
     pub access: Option<AdminAccessLevel>,
     pub csrf_token: Option<String>,
     pub session_id: Option<String>,
+    pub session_expires_at: Option<u64>,
 }
 
 impl AdminAuthResult {
@@ -58,6 +59,7 @@ impl AdminAuthResult {
             access: None,
             csrf_token: None,
             session_id: None,
+            session_expires_at: None,
         }
     }
 
@@ -263,6 +265,7 @@ pub fn authenticate_admin<S: KeyValueStore>(req: &Request, store: &S) -> AdminAu
             access: Some(access),
             csrf_token: None,
             session_id: None,
+            session_expires_at: None,
         };
     }
 
@@ -277,6 +280,7 @@ pub fn authenticate_admin<S: KeyValueStore>(req: &Request, store: &S) -> AdminAu
         access: Some(AdminAccessLevel::ReadWrite),
         csrf_token: Some(record.csrf_token),
         session_id: Some(session_id),
+        session_expires_at: Some(record.expires_at),
     }
 }
 

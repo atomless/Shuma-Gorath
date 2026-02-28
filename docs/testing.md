@@ -163,12 +163,14 @@ Dashboard body-class contract for dev-only affordances:
 
 Dashboard adversary-sim orchestration control contract:
 - `POST /admin/adversary-sim/control` is the explicit admin-authenticated + CSRF-protected control path for ON/OFF transitions.
-- `GET /admin/adversary-sim/status` returns the current lifecycle phase plus fixed guardrail constants for UI/ops visibility.
-- Toggle-driven runs use `adversary_sim_duration_seconds` (default `180`, hard-bounded `30..900`), and dashboard shows a fixed top progress line while phase is `running`.
+- Control submissions must include `Idempotency-Key`, pass strict origin/referer + fetch-metadata trust checks, and return `operation_id` + `decision`.
+- `GET /admin/adversary-sim/status` is read-only and returns lifecycle phase, fixed guardrails, desired/actual state, and controller reconciliation/lease metadata.
+- Toggle-driven runs use `adversary_sim_duration_seconds` (default `180`, hard-bounded `30..900`), and dashboard surfaces lifecycle state only (`off`, `running`, `stopping`) without procedural progress rendering.
 - If no frontier provider keys are configured, OFF -> ON toggle attempts must show a warning dialog with two outcomes:
   - continue without frontier calls, or
   - cancel, add `SHUMA_FRONTIER_*_API_KEY` values to `.env.local`, restart `make dev`, then toggle on again.
 - Runtime guardrails are hard-coded: `max_concurrent_runs=1`, `cpu_cap_millicores=1000`, `memory_cap_mib=512`, `queue_policy=reject_new`.
+- Lifecycle split is explicit: `generation_active` controls producer state, while retained telemetry visibility is independent (`historical_data_visible=true` until retention expiry or explicit cleanup).
 
 Live loop examples:
 
@@ -184,6 +186,9 @@ ADVERSARIAL_PROFILE=akamai_smoke ADVERSARIAL_REPORT_PATH=scripts/tests/adversari
 
 # Full coverage profile loop (bounded runtime is defined in manifest)
 ADVERSARIAL_PROFILE=full_coverage ADVERSARIAL_RUNS=1 make test-adversarial-live
+
+# Explicitly clear retained runtime-dev telemetry history
+make adversary-sim-history-clean
 ```
 
 Live loop controls:
@@ -256,6 +261,7 @@ Frontier lane policy:
 Simulation telemetry read policy:
 - `/admin/events`, `/admin/cdp/events`, and `/admin/monitoring` include simulation-tagged rows in `runtime-dev` by default.
 - Tagged rows remain identifiable via `sim_run_id`, `sim_profile`, `sim_lane`, and `is_simulation`.
+- `POST /admin/adversary-sim/history/cleanup` is the explicit cleanup control path; auto-off is not a retention cleanup action.
 `test-adversarial-akamai` is fixture-driven (local `/fingerprint-report` with canned payloads) and does not require a live Akamai edge instance.
 Operator interpretation and tuning workflow is documented in `docs/adversarial-operator-guide.md`.
 

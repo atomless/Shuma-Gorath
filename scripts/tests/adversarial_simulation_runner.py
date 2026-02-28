@@ -244,6 +244,7 @@ ALLOWED_COVERAGE_REQUIREMENTS = {
 }
 
 COVERAGE_CONTRACT_PATH = Path("scripts/tests/adversarial/coverage_contract.v1.json")
+REAL_TRAFFIC_CONTRACT_PATH = Path("scripts/tests/adversarial/real_traffic_contract.v1.json")
 
 
 def load_coverage_contract(path: Path = COVERAGE_CONTRACT_PATH) -> Dict[str, Any]:
@@ -334,6 +335,104 @@ COVERAGE_CONTRACT_PLAN_ROWS = [
 ]
 COVERAGE_CONTRACT_SHA256 = hashlib.sha256(
     json.dumps(COVERAGE_CONTRACT, sort_keys=True, separators=(",", ":")).encode("utf-8")
+).hexdigest()
+
+
+def load_real_traffic_contract(path: Path = REAL_TRAFFIC_CONTRACT_PATH) -> Dict[str, Any]:
+    if not path.exists():
+        raise RuntimeError(f"real traffic contract not found: {path}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise RuntimeError(f"invalid real traffic contract JSON: {path}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"real traffic contract must be a JSON object: {path}")
+
+    schema_version = str(payload.get("schema_version") or "").strip()
+    if schema_version != "sim-real-traffic-contract.v1":
+        raise RuntimeError(
+            "real traffic contract schema_version must be sim-real-traffic-contract.v1 "
+            f"(got {schema_version})"
+        )
+
+    profile = str(payload.get("profile") or "").strip()
+    if profile != FULL_COVERAGE_PROFILE_NAME:
+        raise RuntimeError(
+            f"real traffic contract profile must be {FULL_COVERAGE_PROFILE_NAME} (got {profile})"
+        )
+
+    required_invariants = payload.get("required_invariants")
+    if not isinstance(required_invariants, list) or not required_invariants:
+        raise RuntimeError("real traffic contract required_invariants must be a non-empty array")
+    for invariant in required_invariants:
+        if not str(invariant or "").strip():
+            raise RuntimeError("real traffic contract required_invariants must not contain empty values")
+
+    prohibited_patterns = payload.get("prohibited_patterns")
+    if not isinstance(prohibited_patterns, list) or not prohibited_patterns:
+        raise RuntimeError("real traffic contract prohibited_patterns must be a non-empty array")
+    for pattern in prohibited_patterns:
+        if not str(pattern or "").strip():
+            raise RuntimeError("real traffic contract prohibited_patterns must not contain empty values")
+
+    evidence_schema = payload.get("evidence_schema")
+    if not isinstance(evidence_schema, dict):
+        raise RuntimeError("real traffic contract evidence_schema must be an object")
+
+    scenario_required_fields = evidence_schema.get("scenario_required_fields")
+    if not isinstance(scenario_required_fields, list) or not scenario_required_fields:
+        raise RuntimeError(
+            "real traffic contract evidence_schema.scenario_required_fields must be a non-empty array"
+        )
+    for field in scenario_required_fields:
+        if not str(field or "").strip():
+            raise RuntimeError(
+                "real traffic contract evidence_schema.scenario_required_fields must not contain empty values"
+            )
+
+    control_lineage_required_fields = evidence_schema.get("control_lineage_required_fields")
+    if not isinstance(control_lineage_required_fields, list) or not control_lineage_required_fields:
+        raise RuntimeError(
+            "real traffic contract evidence_schema.control_lineage_required_fields must be a non-empty array"
+        )
+    for field in control_lineage_required_fields:
+        if not str(field or "").strip():
+            raise RuntimeError(
+                "real traffic contract evidence_schema.control_lineage_required_fields must not contain empty values"
+            )
+
+    return payload
+
+
+REAL_TRAFFIC_CONTRACT = load_real_traffic_contract()
+REAL_TRAFFIC_CONTRACT_SCHEMA_VERSION = str(REAL_TRAFFIC_CONTRACT.get("schema_version") or "")
+REAL_TRAFFIC_CONTRACT_REQUIRED_INVARIANTS = [
+    str(item).strip()
+    for item in list(REAL_TRAFFIC_CONTRACT.get("required_invariants") or [])
+    if str(item).strip()
+]
+REAL_TRAFFIC_CONTRACT_PROHIBITED_PATTERNS = [
+    str(item).strip()
+    for item in list(REAL_TRAFFIC_CONTRACT.get("prohibited_patterns") or [])
+    if str(item).strip()
+]
+REAL_TRAFFIC_CONTRACT_REQUIRED_SCENARIO_FIELDS = [
+    str(item).strip()
+    for item in list(
+        dict(REAL_TRAFFIC_CONTRACT.get("evidence_schema") or {}).get("scenario_required_fields") or []
+    )
+    if str(item).strip()
+]
+REAL_TRAFFIC_CONTRACT_REQUIRED_CONTROL_LINEAGE_FIELDS = [
+    str(item).strip()
+    for item in list(
+        dict(REAL_TRAFFIC_CONTRACT.get("evidence_schema") or {}).get("control_lineage_required_fields")
+        or []
+    )
+    if str(item).strip()
+]
+REAL_TRAFFIC_CONTRACT_SHA256 = hashlib.sha256(
+    json.dumps(REAL_TRAFFIC_CONTRACT, sort_keys=True, separators=(",", ":")).encode("utf-8")
 ).hexdigest()
 SUPPORTED_MANIFEST_SCHEMA_VERSIONS = {"sim-manifest.v1", "sim-manifest.v2"}
 ALLOWED_REQUEST_PLANES = {"attacker", "control"}
@@ -515,6 +614,7 @@ class ScenarioResult:
     runtime_budget_ms: int
     detail: str
     realism: Optional[Dict[str, Any]] = None
+    execution_evidence: Optional[Dict[str, Any]] = None
 
 
 class SimulationError(Exception):
@@ -561,13 +661,14 @@ class ControlPlaneClient:
     def admin_headers(self) -> Dict[str, str]:
         headers = {
             "Authorization": f"Bearer {self.owner.api_key}",
-            "X-Forwarded-For": "127.0.0.1",
+            "X-Forwarded-For": self.owner.control_plane_ip,
         }
         if self.owner.forwarded_secret:
             headers["X-Shuma-Forwarded-Secret"] = self.owner.forwarded_secret
         return headers
 
     def health_headers(self) -> Dict[str, str]:
+        # /health trust-boundary checks only allow exact loopback identities.
         headers = {"X-Forwarded-For": "127.0.0.1"}
         if self.owner.forwarded_secret:
             headers["X-Shuma-Forwarded-Secret"] = self.owner.forwarded_secret
@@ -621,6 +722,10 @@ class Runner:
         self.api_key = env_or_local("SHUMA_API_KEY")
         self.sim_telemetry_secret = env_or_local("SHUMA_SIM_TELEMETRY_SECRET")
         self.session_nonce = f"{int(time.time())}-{os.getpid()}"
+        control_ip_hash = hashlib.sha256(self.session_nonce.encode("utf-8")).hexdigest()
+        control_ip_third_octet = (int(control_ip_hash[:2], 16) % 254) + 1
+        control_ip_fourth_octet = (int(control_ip_hash[2:4], 16) % 254) + 1
+        self.control_plane_ip = f"127.0.{control_ip_third_octet}.{control_ip_fourth_octet}"
         self.sim_run_id = f"deterministic-{self.session_nonce}"
         self.sim_profile = profile_name
         self.sim_lane = f"deterministic_{self.execution_lane}"
@@ -730,6 +835,7 @@ class Runner:
             monitoring_before = self.monitoring_snapshot()
             suite_start = time.monotonic()
             results: List[ScenarioResult] = []
+            scenario_execution_evidence: Dict[str, Dict[str, Any]] = {}
 
             for scenario in self.selected_scenarios:
                 elapsed = time.monotonic() - suite_start
@@ -752,7 +858,23 @@ class Runner:
                     )
                     break
 
+                scenario_request_count_before = self.request_count
+                scenario_monitoring_before = self.monitoring_snapshot()
+                scenario_events_before = self.simulation_event_snapshot(hours=24, limit=1000)
                 result = self.run_scenario(scenario)
+                scenario_monitoring_after = self.monitoring_snapshot()
+                scenario_events_after = self.simulation_event_snapshot(hours=24, limit=1000)
+                scenario_evidence = build_scenario_execution_evidence(
+                    scenario_id=scenario["id"],
+                    request_count_before=scenario_request_count_before,
+                    request_count_after=self.request_count,
+                    monitoring_before=scenario_monitoring_before,
+                    monitoring_after=scenario_monitoring_after,
+                    simulation_event_count_before=int_or_zero(scenario_events_before.get("count")),
+                    simulation_event_count_after=int_or_zero(scenario_events_after.get("count")),
+                )
+                result.execution_evidence = scenario_evidence
+                scenario_execution_evidence[result.id] = scenario_evidence
                 results.append(result)
                 if bool(self.profile.get("fail_fast")) and not result.passed:
                     break
@@ -768,6 +890,7 @@ class Runner:
                 monitoring_before,
                 monitoring_after,
                 suite_runtime_ms,
+                scenario_execution_evidence=scenario_execution_evidence,
                 simulation_event_reasons=simulation_event_reasons,
                 ip_range_seed_evidence=ip_range_seed_evidence,
                 ip_range_post_run=ip_range_post_run,
@@ -782,6 +905,26 @@ class Runner:
                 frontier_metadata=frontier_metadata,
                 generated_at_unix=generated_at_unix,
             )
+            control_plane_lineage = self.build_control_plane_lineage(generated_at_unix)
+            coverage_deltas = dict_or_empty(dict_or_empty(gate_results.get("coverage_gates")).get("coverage")).get(
+                "deltas",
+            )
+            touched_defenses = [
+                str(key).strip()
+                for key, value in dict_or_empty(coverage_deltas).items()
+                if int_or_zero(value) > 0
+            ]
+            latency_p95 = 0
+            for check in list_or_empty(gate_results.get("checks")):
+                if str(dict_or_empty(check).get("name") or "").strip() != "latency_p95":
+                    continue
+                latency_p95 = int_or_zero(dict_or_empty(check).get("observed"))
+                break
+            scenario_evidence_rows = [
+                dict_or_empty(scenario_execution_evidence.get(result.id))
+                for result in results
+                if isinstance(scenario_execution_evidence.get(result.id), dict)
+            ]
 
             report = {
                 "schema_version": "sim-report.v1",
@@ -818,6 +961,39 @@ class Runner:
                     "required_event_reasons": sorted(COVERAGE_CONTRACT_REQUIRED_EVENT_REASONS),
                     "required_outcome_categories": list(COVERAGE_CONTRACT_REQUIRED_OUTCOME_CATEGORIES),
                     "plan_contract_rows": list(COVERAGE_CONTRACT_PLAN_ROWS),
+                },
+                "real_traffic_contract": {
+                    "schema_version": REAL_TRAFFIC_CONTRACT_SCHEMA_VERSION,
+                    "contract_path": str(REAL_TRAFFIC_CONTRACT_PATH),
+                    "contract_sha256": REAL_TRAFFIC_CONTRACT_SHA256,
+                    "required_invariants": list(REAL_TRAFFIC_CONTRACT_REQUIRED_INVARIANTS),
+                    "prohibited_patterns": list(REAL_TRAFFIC_CONTRACT_PROHIBITED_PATTERNS),
+                    "required_scenario_evidence_fields": list(
+                        REAL_TRAFFIC_CONTRACT_REQUIRED_SCENARIO_FIELDS
+                    ),
+                    "required_control_lineage_fields": list(
+                        REAL_TRAFFIC_CONTRACT_REQUIRED_CONTROL_LINEAGE_FIELDS
+                    ),
+                },
+                "evidence": {
+                    "schema_version": "sim-run-evidence.v1",
+                    "run": {
+                        "request_id_lineage": {
+                            "sim_run_id": self.sim_run_id,
+                            "sim_profile": self.sim_profile,
+                            "sim_lane": self.sim_lane,
+                        },
+                        "scenario_ids": [str(scenario.get("id") or "") for scenario in self.selected_scenarios],
+                        "lane": self.execution_lane,
+                        "defenses_touched": sorted(touched_defenses),
+                        "decision_outcomes": dict_or_empty(gate_results.get("outcome_counts")),
+                        "latency_ms": {
+                            "suite_runtime_ms": suite_runtime_ms,
+                            "p95_ms": latency_p95,
+                        },
+                    },
+                    "scenario_execution": scenario_evidence_rows,
+                    "control_plane_lineage": control_plane_lineage,
                 },
                 "frontier": frontier_metadata,
                 "attack_plan_path": str(attack_plan_path),
@@ -930,12 +1106,12 @@ class Runner:
             self.admin_unban(ip)
 
     def monitoring_snapshot(self) -> Dict[str, Any]:
-        result = self.admin_request("GET", "/admin/monitoring?hours=24&limit=5")
+        result = self.admin_read_request("GET", "/admin/monitoring?hours=24&limit=5")
         data = parse_json_or_raise(result.body, "Failed to parse /admin/monitoring response")
         return extract_monitoring_snapshot(data)
 
-    def simulation_event_reasons_snapshot(self, hours: int = 24, limit: int = 500) -> List[str]:
-        result = self.admin_request("GET", f"/admin/events?hours={hours}&limit={limit}")
+    def simulation_event_snapshot(self, hours: int = 24, limit: int = 500) -> Dict[str, Any]:
+        result = self.admin_read_request("GET", f"/admin/events?hours={hours}&limit={limit}")
         if result.status != 200:
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(
@@ -944,19 +1120,32 @@ class Runner:
         payload = parse_json_or_raise(result.body, "Failed to parse /admin/events response")
         recent_events = payload.get("recent_events")
         if not isinstance(recent_events, list):
-            return []
+            return {"count": 0, "reasons": []}
 
         reasons = set()
+        event_count = 0
         for event in recent_events:
             record = dict_or_empty(event)
             if not record.get("is_simulation"):
                 continue
             if str(record.get("sim_run_id") or "").strip() != self.sim_run_id:
                 continue
+            event_count += 1
             reason = str(record.get("reason") or "").strip().lower()
             if reason:
                 reasons.add(reason)
-        return sorted(reasons)
+        return {
+            "count": event_count,
+            "reasons": sorted(reasons),
+        }
+
+    def simulation_event_reasons_snapshot(self, hours: int = 24, limit: int = 500) -> List[str]:
+        snapshot = self.simulation_event_snapshot(hours=hours, limit=limit)
+        return [
+            str(reason).strip()
+            for reason in list_or_empty(snapshot.get("reasons"))
+            if str(reason).strip()
+        ]
 
     def ip_range_suggestions_snapshot(self, hours: int = 24, limit: int = 20) -> Dict[str, Any]:
         result = self.admin_request("GET", f"/admin/ip-range/suggestions?hours={hours}&limit={limit}")
@@ -966,6 +1155,16 @@ class Runner:
                 f"Failed to read /admin/ip-range/suggestions: status={result.status} body={detail}"
             )
         return parse_json_or_raise(result.body, "Failed to parse /admin/ip-range/suggestions response")
+
+    def build_control_plane_lineage(self, generated_at_unix: int) -> Dict[str, Any]:
+        return {
+            "control_operation_id": f"deterministic-control-{self.session_nonce}",
+            "requested_state": "running",
+            "desired_state": "running",
+            "actual_state": "completed",
+            "actor_session": "deterministic_runner",
+            "generated_at_unix": int(generated_at_unix),
+        }
 
     def seed_ip_range_suggestion_prerequisites(self) -> Dict[str, Any]:
         self.admin_patch(
@@ -1009,6 +1208,7 @@ class Runner:
         monitoring_before: Dict[str, Any],
         monitoring_after: Dict[str, Any],
         suite_runtime_ms: int,
+        scenario_execution_evidence: Optional[Dict[str, Dict[str, Any]]] = None,
         simulation_event_reasons: Optional[List[str]] = None,
         ip_range_seed_evidence: Optional[Dict[str, Any]] = None,
         ip_range_post_run: Optional[Dict[str, Any]] = None,
@@ -1237,6 +1437,13 @@ class Runner:
                     "threshold_source": "profile.gates.ip_range_suggestion_seed_required",
                 }
             )
+
+        runtime_evidence_checks = build_runtime_telemetry_evidence_checks(
+            results=results,
+            scenario_execution_evidence=dict_or_empty(scenario_execution_evidence),
+            required_fields=REAL_TRAFFIC_CONTRACT_REQUIRED_SCENARIO_FIELDS,
+        )
+        checks.extend(runtime_evidence_checks)
 
         all_passed = all(check["passed"] for check in checks)
         coverage_all_passed = all(check["passed"] for check in coverage_checks) if coverage_checks else True
@@ -1988,6 +2195,30 @@ class Runner:
         json_body: Optional[Dict[str, Any]] = None,
     ) -> HttpResult:
         return self.control_client.request(method, path, json_body=json_body)
+
+    def admin_read_request(
+        self,
+        method: str,
+        path: str,
+        json_body: Optional[Dict[str, Any]] = None,
+        max_attempts: int = 4,
+    ) -> HttpResult:
+        attempts = max(1, int(max_attempts))
+        last = self.admin_request(method, path, json_body=json_body)
+        if last.status != 429:
+            return last
+
+        for attempt in range(2, attempts + 1):
+            retry_after_seconds = int_or_zero((last.headers or {}).get("retry-after"))
+            if retry_after_seconds > 0:
+                sleep_seconds = min(2.0, float(retry_after_seconds))
+            else:
+                sleep_seconds = min(1.0, 0.2 * float(attempt))
+            time.sleep(max(0.1, sleep_seconds))
+            last = self.admin_request(method, path, json_body=json_body)
+            if last.status != 429:
+                return last
+        return last
 
     def admin_headers(self) -> Dict[str, str]:
         return self.control_client.admin_headers()
@@ -2974,6 +3205,125 @@ def compute_coverage_deltas(before: Dict[str, Any], after: Dict[str, Any]) -> Di
         after_count = int_or_zero(after.get(key))
         deltas[key] = max(0, after_count - before_count)
     return deltas
+
+
+def build_scenario_execution_evidence(
+    scenario_id: str,
+    request_count_before: int,
+    request_count_after: int,
+    monitoring_before: Dict[str, Any],
+    monitoring_after: Dict[str, Any],
+    simulation_event_count_before: int,
+    simulation_event_count_after: int,
+) -> Dict[str, Any]:
+    runtime_request_count = max(0, int_or_zero(request_count_after) - int_or_zero(request_count_before))
+    monitoring_total_delta = max(
+        0,
+        int_or_zero(monitoring_after.get("monitoring_total")) - int_or_zero(monitoring_before.get("monitoring_total")),
+    )
+    coverage_deltas = compute_coverage_deltas(
+        dict_or_empty(monitoring_before.get("coverage")),
+        dict_or_empty(monitoring_after.get("coverage")),
+    )
+    coverage_delta_total = sum(max(0, int_or_zero(value)) for value in coverage_deltas.values())
+    simulation_event_count_delta = max(
+        0,
+        int_or_zero(simulation_event_count_after) - int_or_zero(simulation_event_count_before),
+    )
+    has_runtime_telemetry_evidence = runtime_request_count > 0 and (
+        monitoring_total_delta > 0 or coverage_delta_total > 0 or simulation_event_count_delta > 0
+    )
+
+    return {
+        "scenario_id": str(scenario_id),
+        "runtime_request_count": runtime_request_count,
+        "monitoring_total_delta": monitoring_total_delta,
+        "coverage_delta_total": coverage_delta_total,
+        "simulation_event_count_delta": simulation_event_count_delta,
+        "has_runtime_telemetry_evidence": has_runtime_telemetry_evidence,
+    }
+
+
+def build_runtime_telemetry_evidence_checks(
+    results: List[ScenarioResult],
+    scenario_execution_evidence: Dict[str, Dict[str, Any]],
+    required_fields: List[str],
+) -> List[Dict[str, Any]]:
+    checks: List[Dict[str, Any]] = []
+    passed_result_ids = [result.id for result in results if result.passed]
+    if not passed_result_ids:
+        checks.append(
+            {
+                "name": "runtime_evidence_passed_scenarios_present",
+                "passed": True,
+                "detail": "no passed scenarios in run; runtime evidence requirement vacuously satisfied",
+                "observed": 0,
+                "threshold_source": str(REAL_TRAFFIC_CONTRACT_PATH),
+            }
+        )
+        return checks
+
+    missing_evidence_ids: List[str] = []
+    missing_required_fields: Dict[str, List[str]] = {}
+    missing_runtime_telemetry_ids: List[str] = []
+
+    for scenario_id in passed_result_ids:
+        evidence = dict_or_empty(scenario_execution_evidence.get(scenario_id))
+        if not evidence:
+            missing_evidence_ids.append(scenario_id)
+            continue
+        missing_fields_for_scenario = [
+            field for field in required_fields if field not in evidence
+        ]
+        if missing_fields_for_scenario:
+            missing_required_fields[scenario_id] = missing_fields_for_scenario
+            continue
+        if not bool(evidence.get("has_runtime_telemetry_evidence")):
+            missing_runtime_telemetry_ids.append(scenario_id)
+
+    checks.append(
+        {
+            "name": "runtime_evidence_rows_for_passed_scenarios",
+            "passed": not missing_evidence_ids,
+            "detail": (
+                "all passed scenarios include execution evidence"
+                if not missing_evidence_ids
+                else f"missing_evidence_ids={missing_evidence_ids}"
+            ),
+            "observed": len(passed_result_ids) - len(missing_evidence_ids),
+            "minimum": len(passed_result_ids),
+            "threshold_source": str(REAL_TRAFFIC_CONTRACT_PATH),
+        }
+    )
+    checks.append(
+        {
+            "name": "runtime_evidence_required_fields_present",
+            "passed": not missing_required_fields,
+            "detail": (
+                "all evidence rows include required fields"
+                if not missing_required_fields
+                else f"missing_required_fields={missing_required_fields}"
+            ),
+            "observed": len(passed_result_ids) - len(missing_required_fields),
+            "minimum": len(passed_result_ids),
+            "threshold_source": str(REAL_TRAFFIC_CONTRACT_PATH),
+        }
+    )
+    checks.append(
+        {
+            "name": "runtime_evidence_telemetry_for_passed_scenarios",
+            "passed": not missing_runtime_telemetry_ids,
+            "detail": (
+                "all passed scenarios have runtime telemetry evidence"
+                if not missing_runtime_telemetry_ids
+                else f"missing_runtime_telemetry_ids={missing_runtime_telemetry_ids}"
+            ),
+            "observed": len(passed_result_ids) - len(missing_runtime_telemetry_ids),
+            "minimum": len(passed_result_ids),
+            "threshold_source": str(REAL_TRAFFIC_CONTRACT_PATH),
+        }
+    )
+    return checks
 
 
 def build_coverage_checks(

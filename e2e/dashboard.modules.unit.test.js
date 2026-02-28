@@ -863,13 +863,20 @@ test('dashboard body class runtime keeps exactly one environment class and adver
   });
 });
 
-test('dashboard adversary-sim runtime normalizes orchestration status and progress windows', { concurrency: false }, async () => {
+test('dashboard adversary-sim runtime normalizes orchestration status', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const adversaryModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-adversary-sim.js');
     const normalized = adversaryModule.normalizeAdversarySimStatus({
       runtime_environment: 'runtime-dev',
       adversary_sim_available: true,
       adversary_sim_enabled: true,
+      generation_active: true,
+      historical_data_visible: true,
+      history_retention: {
+        retention_hours: 168,
+        cleanup_supported: true,
+        cleanup_command: 'make adversary-sim-history-clean'
+      },
       phase: 'running',
       run_id: 'simrun-123',
       started_at: 1000,
@@ -883,6 +890,11 @@ test('dashboard adversary-sim runtime normalizes orchestration status and progre
     assert.equal(normalized.runtimeEnvironment, 'runtime-dev');
     assert.equal(normalized.available, true);
     assert.equal(normalized.enabled, true);
+    assert.equal(normalized.generationActive, true);
+    assert.equal(normalized.historicalDataVisible, true);
+    assert.equal(normalized.historyRetentionHours, 168);
+    assert.equal(normalized.historyCleanupSupported, true);
+    assert.equal(normalized.historyCleanupCommand, 'make adversary-sim-history-clean');
     assert.equal(normalized.phase, 'running');
     assert.equal(normalized.runId, 'simrun-123');
     assert.equal(normalized.activeRunCount, 1);
@@ -891,27 +903,7 @@ test('dashboard adversary-sim runtime normalizes orchestration status and progre
     const renormalized = adversaryModule.normalizeAdversarySimStatus(normalized);
     assert.equal(renormalized.enabled, true);
     assert.equal(renormalized.available, true);
-    assert.equal(renormalized.startedAt, 1000);
-    assert.equal(renormalized.endsAt, 1180);
     assert.equal(renormalized.durationSeconds, 180);
-    assert.equal(renormalized.remainingSeconds, 120);
-
-    const progress = adversaryModule.deriveAdversarySimProgress({
-      phase: 'running',
-      started_at: 1000,
-      ends_at: 1180,
-      duration_seconds: 180
-    }, 1090 * 1000);
-    assert.equal(progress.visible, true);
-    assert.equal(Math.round(progress.widthPercent), 50);
-    assert.equal(progress.remainingSeconds, 90);
-    assert.equal(progress.complete, false);
-
-    const hidden = adversaryModule.deriveAdversarySimProgress({
-      phase: 'off'
-    }, 1090 * 1000);
-    assert.equal(hidden.visible, false);
-    assert.equal(hidden.widthPercent, 0);
   });
 });
 
@@ -1517,10 +1509,11 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /cdpSnapshot=\{snapshots\.cdp\}/);
   assert.match(source, /id="global-test-mode-toggle"/);
   assert.match(source, /id="global-adversary-sim-toggle"/);
+  assert.match(source, /id="adversary-sim-lifecycle-copy"/);
   assert.match(source, /onGlobalTestModeToggleChange/);
   assert.match(source, /onGlobalAdversarySimToggleChange/);
   assert.match(source, /dashboard-global-control-label/);
-  assert.match(source, /id="adversary-sim-progress-line"/);
+  assert.equal(source.includes('adversary-sim-progress-line'), false);
   assert.match(source, /id="admin-msg"/);
 });
 

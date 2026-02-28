@@ -483,6 +483,7 @@ mod tests {
             access: Some(crate::admin::auth::AdminAccessLevel::ReadWrite),
             csrf_token: Some("csrf-token".to_string()),
             session_id: Some("session-abc".to_string()),
+            session_expires_at: Some(now_ts().saturating_add(3600)),
         };
 
         let session_scope = dashboard_refresh_session_scope(&auth).expect("session scope");
@@ -518,6 +519,7 @@ mod tests {
             access: Some(crate::admin::auth::AdminAccessLevel::ReadOnly),
             csrf_token: None,
             session_id: None,
+            session_expires_at: None,
         };
         assert!(dashboard_refresh_session_scope(&auth).is_none());
     }
@@ -566,14 +568,25 @@ mod admin_config_tests {
     use crate::challenge::KeyValueStore;
     use spin_sdk::http::{Method, Request};
     use std::collections::HashMap;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::sync::Mutex;
 
+    static IDEMPOTENCY_COUNTER: AtomicU64 = AtomicU64::new(1);
+
     fn make_request(method: Method, path: &str, body: Vec<u8>) -> Request {
+        let idempotency = format!(
+            "test-idempotency-key-{}",
+            IDEMPOTENCY_COUNTER.fetch_add(1, Ordering::Relaxed)
+        );
         let mut builder = Request::builder();
         builder
             .method(method)
             .uri(path)
+            .header("host", "localhost:3000")
             .header("authorization", "Bearer changeme-dev-only-api-key")
+            .header("origin", "http://localhost:3000")
+            .header("sec-fetch-site", "same-origin")
+            .header("idempotency-key", idempotency.as_str())
             .body(body);
         builder.build()
     }
@@ -584,7 +597,27 @@ mod admin_config_tests {
             access: Some(crate::admin::auth::AdminAccessLevel::ReadWrite),
             csrf_token: None,
             session_id: None,
+            session_expires_at: None,
         }
+    }
+
+    fn make_control_request(enabled: bool, idempotency_key: &str) -> Request {
+        let body = if enabled {
+            br#"{"enabled":true}"#.to_vec()
+        } else {
+            br#"{"enabled":false}"#.to_vec()
+        };
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Post)
+            .uri("/admin/adversary-sim/control")
+            .header("host", "localhost:3000")
+            .header("authorization", "Bearer changeme-dev-only-api-key")
+            .header("origin", "http://localhost:3000")
+            .header("sec-fetch-site", "same-origin")
+            .header("idempotency-key", idempotency_key)
+            .body(body);
+        builder.build()
     }
 
     struct TestStore {
@@ -1267,10 +1300,264 @@ mod admin_config_tests {
                 .and_then(|v| v.as_bool()),
             Some(false)
         );
+        assert_eq!(
+            off_json
+                .get("status")
+                .and_then(|v| v.get("generation_active"))
+                .and_then(|v| v.as_bool()),
+            Some(false)
+        );
+        assert_eq!(
+            off_json
+                .get("status")
+                .and_then(|v| v.get("historical_data_visible"))
+                .and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            off_json
+                .get("status")
+                .and_then(|v| v.get("history_retention"))
+                .and_then(|v| v.get("cleanup_command"))
+                .and_then(|v| v.as_str()),
+            Some("make adversary-sim-history-clean")
+        );
 
         let saved_bytes = store.get("config:default").unwrap().unwrap();
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
         assert!(!saved_cfg.adversary_sim_enabled);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_auto_off_preserves_historical_monitoring_visibility() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        let now = now_ts();
+
+        let on_resp = handle_admin_adversary_sim_control(
+            &make_control_request(true, "history-preserve-start"),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*on_resp.status(), 200u16);
+
+        {
+            let _guard = crate::runtime::sim_telemetry::enter(Some(
+                crate::runtime::sim_telemetry::SimulationRequestMetadata {
+                    sim_run_id: "run_history_001".to_string(),
+                    sim_profile: "fast_smoke".to_string(),
+                    sim_lane: "deterministic_black_box".to_string(),
+                },
+            ));
+            crate::observability::monitoring::record_challenge_failure(
+                &store,
+                "198.51.100.77",
+                "incorrect",
+            );
+            log_event(
+                &store,
+                &EventLogEntry {
+                    ts: now,
+                    event: EventType::AdminAction,
+                    ip: Some("198.51.100.77".to_string()),
+                    reason: Some("sim_history_visibility_probe".to_string()),
+                    outcome: Some("ok".to_string()),
+                    admin: Some("me".to_string()),
+                },
+            );
+        }
+
+        let off_resp = handle_admin_adversary_sim_control(
+            &make_control_request(false, "history-preserve-stop"),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*off_resp.status(), 200u16);
+        let off_json: serde_json::Value = serde_json::from_slice(off_resp.body()).unwrap();
+        assert_eq!(
+            off_json
+                .get("status")
+                .and_then(|v| v.get("phase"))
+                .and_then(|v| v.as_str()),
+            Some("off")
+        );
+        assert_eq!(
+            off_json
+                .get("status")
+                .and_then(|v| v.get("generation_active"))
+                .and_then(|v| v.as_bool()),
+            Some(false)
+        );
+        assert_eq!(
+            off_json
+                .get("status")
+                .and_then(|v| v.get("historical_data_visible"))
+                .and_then(|v| v.as_bool()),
+            Some(true)
+        );
+
+        let monitoring_req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=10", Vec::new());
+        let monitoring_resp = handle_admin_monitoring(&monitoring_req, &store);
+        assert_eq!(*monitoring_resp.status(), 200u16);
+        let monitoring_json: serde_json::Value =
+            serde_json::from_slice(monitoring_resp.body()).unwrap();
+        assert!(
+            monitoring_json
+                .get("summary")
+                .and_then(|v| v.get("challenge"))
+                .and_then(|v| v.get("total_failures"))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0)
+                >= 1
+        );
+        assert!(
+            monitoring_json
+                .get("details")
+                .and_then(|v| v.get("events"))
+                .and_then(|v| v.get("recent_events"))
+                .and_then(|v| v.as_array())
+                .map(|events| {
+                    events.iter().any(|event| {
+                        event
+                            .get("is_simulation")
+                            .and_then(|value| value.as_bool())
+                            == Some(true)
+                    })
+                })
+                .unwrap_or(false)
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_history_cleanup_endpoint_clears_retained_dev_telemetry() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        let now = now_ts();
+
+        {
+            let _guard = crate::runtime::sim_telemetry::enter(Some(
+                crate::runtime::sim_telemetry::SimulationRequestMetadata {
+                    sim_run_id: "run_cleanup_001".to_string(),
+                    sim_profile: "fast_smoke".to_string(),
+                    sim_lane: "deterministic_black_box".to_string(),
+                },
+            ));
+            crate::observability::monitoring::record_challenge_failure(
+                &store,
+                "198.51.100.88",
+                "incorrect",
+            );
+            log_event(
+                &store,
+                &EventLogEntry {
+                    ts: now,
+                    event: EventType::AdminAction,
+                    ip: Some("198.51.100.88".to_string()),
+                    reason: Some("sim_history_cleanup_probe".to_string()),
+                    outcome: Some("ok".to_string()),
+                    admin: Some("me".to_string()),
+                },
+            );
+        }
+
+        let cleanup_req = make_request(
+            Method::Post,
+            "/admin/adversary-sim/history/cleanup",
+            Vec::new(),
+        );
+        let cleanup_resp =
+            handle_admin_adversary_sim_history_cleanup(&cleanup_req, &store, "default", &auth);
+        assert_eq!(*cleanup_resp.status(), 200u16);
+        let cleanup_json: serde_json::Value = serde_json::from_slice(cleanup_resp.body()).unwrap();
+        assert_eq!(
+            cleanup_json
+                .get("cleaned")
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert!(
+            cleanup_json
+                .get("deleted_keys")
+                .and_then(|value| value.as_u64())
+                .unwrap_or(0)
+                >= 1
+        );
+
+        let monitoring_req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=10", Vec::new());
+        let monitoring_resp = handle_admin_monitoring(&monitoring_req, &store);
+        assert_eq!(*monitoring_resp.status(), 200u16);
+        let monitoring_json: serde_json::Value =
+            serde_json::from_slice(monitoring_resp.body()).unwrap();
+        assert_eq!(
+            monitoring_json
+                .get("summary")
+                .and_then(|v| v.get("challenge"))
+                .and_then(|v| v.get("total_failures"))
+                .and_then(|v| v.as_u64()),
+            Some(0)
+        );
+        let recent_events = monitoring_json
+            .get("details")
+            .and_then(|v| v.get("events"))
+            .and_then(|v| v.get("recent_events"))
+            .and_then(|v| v.as_array())
+            .expect("recent_events");
+        assert_eq!(recent_events.len(), 1);
+        assert_eq!(
+            recent_events[0]
+                .get("reason")
+                .and_then(|value| value.as_str()),
+            Some("adversary_sim_history_cleanup")
+        );
+        assert_eq!(
+            recent_events[0]
+                .get("is_simulation")
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_history_cleanup_fails_closed_outside_dev_surface() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "false");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        let cleanup_req = make_request(
+            Method::Post,
+            "/admin/adversary-sim/history/cleanup",
+            Vec::new(),
+        );
+        let cleanup_resp =
+            handle_admin_adversary_sim_history_cleanup(&cleanup_req, &store, "default", &auth);
+        assert_eq!(*cleanup_resp.status(), 404u16);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -1313,6 +1600,192 @@ mod admin_config_tests {
         let saved_bytes = store.get("config:default").unwrap().unwrap();
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
         assert!(saved_cfg.adversary_sim_enabled);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_control_exact_replay_returns_stable_operation_id() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let req = make_control_request(true, "replay-key-1");
+        let first = handle_admin_adversary_sim_control(&req, &store, "default", &auth);
+        assert_eq!(*first.status(), 200u16);
+        let first_json: serde_json::Value = serde_json::from_slice(first.body()).unwrap();
+        let first_operation_id = first_json
+            .get("operation_id")
+            .and_then(|value| value.as_str())
+            .expect("operation id");
+        assert_eq!(
+            first_json.get("decision").and_then(|value| value.as_str()),
+            Some("accepted")
+        );
+
+        let replay = handle_admin_adversary_sim_control(&req, &store, "default", &auth);
+        assert_eq!(*replay.status(), 200u16);
+        let replay_json: serde_json::Value = serde_json::from_slice(replay.body()).unwrap();
+        assert_eq!(
+            replay_json
+                .get("operation_id")
+                .and_then(|value| value.as_str()),
+            Some(first_operation_id)
+        );
+        assert_eq!(
+            replay_json.get("decision").and_then(|value| value.as_str()),
+            Some("replayed")
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_control_rejects_idempotency_payload_mismatch() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let on_req = make_control_request(true, "mismatch-key-1");
+        let on_resp = handle_admin_adversary_sim_control(&on_req, &store, "default", &auth);
+        assert_eq!(*on_resp.status(), 200u16);
+
+        let off_req = make_control_request(false, "mismatch-key-1");
+        let off_resp = handle_admin_adversary_sim_control(&off_req, &store, "default", &auth);
+        assert_eq!(*off_resp.status(), 409u16);
+        assert!(String::from_utf8_lossy(off_resp.body()).contains("payload mismatch"));
+
+        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
+        assert_eq!(*status_resp.status(), 200u16);
+        let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
+        assert_eq!(
+            status_json.get("phase").and_then(|value| value.as_str()),
+            Some("running")
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_control_rejects_missing_origin_header() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Post)
+            .uri("/admin/adversary-sim/control")
+            .header("host", "localhost:3000")
+            .header("authorization", "Bearer changeme-dev-only-api-key")
+            .header("sec-fetch-site", "same-origin")
+            .header("idempotency-key", "missing-origin-key")
+            .body(br#"{"enabled":true}"#.to_vec());
+        let req = builder.build();
+
+        let resp = handle_admin_adversary_sim_control(&req, &store, "default", &auth);
+        assert_eq!(*resp.status(), 403u16);
+        assert!(String::from_utf8_lossy(resp.body()).contains("trust boundary"));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_control_throttles_rapid_same_state_repeats() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let first = handle_admin_adversary_sim_control(
+            &make_control_request(true, "throttle-key-1"),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*first.status(), 200u16);
+
+        let rapid_repeat = handle_admin_adversary_sim_control(
+            &make_control_request(true, "throttle-key-2"),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*rapid_repeat.status(), 429u16);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_status_read_path_is_non_mutating() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        let now = now_ts();
+
+        let mut cfg = crate::config::defaults().clone();
+        cfg.adversary_sim_enabled = true;
+        store
+            .set("config:default", &serde_json::to_vec(&cfg).unwrap())
+            .unwrap();
+
+        let stale_running_state = crate::admin::adversary_sim::ControlState {
+            phase: crate::admin::adversary_sim::ControlPhase::Running,
+            run_id: Some("run-stale".to_string()),
+            started_at: Some(now.saturating_sub(180)),
+            ends_at: Some(now.saturating_sub(1)),
+            stop_deadline: None,
+            active_run_count: 1,
+            active_lane_count: 2,
+            last_transition_reason: Some("manual_on".to_string()),
+            last_terminal_failure_reason: None,
+            last_run_id: None,
+            updated_at: now.saturating_sub(180),
+        };
+        crate::admin::adversary_sim::save_state(&store, "default", &stale_running_state).unwrap();
+
+        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
+        assert_eq!(*status_resp.status(), 200u16);
+        let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
+        assert_eq!(
+            status_json
+                .get("controller_reconciliation_required")
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+
+        let persisted = crate::admin::adversary_sim::load_state(&store, "default");
+        assert_eq!(persisted, stale_running_state);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -1457,6 +1930,7 @@ mod admin_config_tests {
         assert!(sanitize_path("/admin/maze/preview"));
         assert!(sanitize_path("/admin/tarpit/preview"));
         assert!(sanitize_path("/admin/ip-range/suggestions"));
+        assert!(sanitize_path("/admin/adversary-sim/history/cleanup"));
     }
 
     #[test]
@@ -3225,6 +3699,10 @@ mod admin_auth_tests {
             "/admin/adversary-sim/control",
             &Method::Post
         ));
+        assert!(request_requires_admin_write(
+            "/admin/adversary-sim/history/cleanup",
+            &Method::Post
+        ));
         assert!(request_requires_admin_write("/admin/ban", &Method::Post));
         assert!(request_requires_admin_write("/admin/unban", &Method::Post));
         assert!(!request_requires_admin_write(
@@ -3254,6 +3732,10 @@ mod admin_auth_tests {
         ));
         assert!(!request_requires_admin_write(
             "/admin/adversary-sim/status",
+            &Method::Get
+        ));
+        assert!(!request_requires_admin_write(
+            "/admin/adversary-sim/history/cleanup",
             &Method::Get
         ));
         assert!(!request_requires_admin_write(
@@ -3300,6 +3782,7 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/config/export"
             | "/admin/adversary-sim/control"
             | "/admin/adversary-sim/status"
+            | "/admin/adversary-sim/history/cleanup"
             | "/admin/maze"
             | "/admin/maze/preview"
             | "/admin/tarpit/preview"
@@ -3358,6 +3841,8 @@ const ADMIN_EXPENSIVE_READ_SESSION_SITE_ID: &str = "admin-read-expensive-session
 const ADMIN_EXPENSIVE_READ_SESSION_LIMIT_PER_MINUTE: u32 = 45;
 const ADMIN_DASHBOARD_REFRESH_SESSION_SITE_ID: &str = "admin-dashboard-refresh-session";
 const ADMIN_DASHBOARD_REFRESH_SESSION_LIMIT_PER_MINUTE: u32 = 8;
+const ADVERSARY_SIM_CONTROL_SESSION_SITE_ID: &str = "adversary-sim-control-session";
+const ADVERSARY_SIM_CONTROL_IP_SITE_ID: &str = "adversary-sim-control-ip";
 
 fn too_many_admin_read_requests_response() -> Response {
     Response::builder()
@@ -3485,6 +3970,24 @@ fn expensive_admin_read_limit_check_internal_with_identity<S: crate::challenge::
     )
 }
 
+fn adversary_sim_control_submission_is_limited<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    session_scope: &str,
+    client_ip: &str,
+) -> bool {
+    expensive_admin_read_limit_check_internal_with_identity(
+        store,
+        session_scope,
+        ADVERSARY_SIM_CONTROL_SESSION_SITE_ID,
+        crate::admin::adversary_sim_control::CONTROL_SESSION_LIMIT_PER_MINUTE,
+    ) || expensive_admin_read_limit_check_internal_with_identity(
+        store,
+        client_ip,
+        ADVERSARY_SIM_CONTROL_IP_SITE_ID,
+        crate::admin::adversary_sim_control::CONTROL_IP_LIMIT_PER_MINUTE,
+    )
+}
+
 fn request_requires_admin_write(path: &str, method: &Method) -> bool {
     if !matches!(
         method,
@@ -3499,6 +4002,7 @@ fn request_requires_admin_write(path: &str, method: &Method) -> bool {
             | "/admin/config"
             | "/admin/config/validate"
             | "/admin/adversary-sim/control"
+            | "/admin/adversary-sim/history/cleanup"
             | "/admin/maze/seeds"
             | "/admin/maze/seeds/refresh"
     )
@@ -7476,6 +7980,74 @@ where
         .unwrap_or(0)
 }
 
+#[derive(Debug, Default, Serialize)]
+struct TelemetryHistoryCleanupResult {
+    deleted_keys: u64,
+    deleted_by_family: BTreeMap<String, u64>,
+}
+
+fn classify_dev_telemetry_history_key(
+    key: &str,
+    tarpit_global_key: &str,
+    tarpit_bucket_prefix: &str,
+) -> Option<&'static str> {
+    if key.starts_with("eventlog:v2:") {
+        return Some("eventlog");
+    }
+    if key.starts_with("monitoring:v1:") {
+        return Some("monitoring");
+    }
+    if key.starts_with("metrics:") {
+        return Some("metrics");
+    }
+    if key.starts_with("cdp:") {
+        return Some("cdp");
+    }
+    if key.starts_with("fingerprint:") {
+        return Some("fingerprint");
+    }
+    if key.starts_with("maze_hits:") {
+        return Some("maze_hits");
+    }
+    if key == tarpit_global_key || key.starts_with(tarpit_bucket_prefix) {
+        return Some("tarpit_active");
+    }
+    None
+}
+
+fn clear_dev_telemetry_history<S>(store: &S, site_id: &str) -> TelemetryHistoryCleanupResult
+where
+    S: crate::challenge::KeyValueStore,
+{
+    let tarpit_global_key = crate::providers::internal::tarpit_budget_global_active_key(site_id);
+    let tarpit_bucket_prefix = format!(
+        "{}:",
+        crate::providers::internal::tarpit_budget_bucket_active_prefix(site_id)
+    );
+    let mut result = TelemetryHistoryCleanupResult::default();
+    if let Ok(keys) = store.get_keys() {
+        for key in keys {
+            let Some(family) = classify_dev_telemetry_history_key(
+                key.as_str(),
+                tarpit_global_key.as_str(),
+                tarpit_bucket_prefix.as_str(),
+            ) else {
+                continue;
+            };
+            if store.delete(key.as_str()).is_err() {
+                continue;
+            }
+            result.deleted_keys = result.deleted_keys.saturating_add(1);
+            let entry = result
+                .deleted_by_family
+                .entry(family.to_string())
+                .or_insert(0);
+            *entry = entry.saturating_add(1);
+        }
+    }
+    result
+}
+
 fn monitoring_details_payload<S>(
     store: &S,
     site_id: &str,
@@ -7781,6 +8353,8 @@ fn monitoring_prometheus_helper_payload() -> serde_json::Value {
 #[serde(deny_unknown_fields)]
 struct AdminAdversarySimControlRequest {
     enabled: bool,
+    #[serde(default)]
+    reason: Option<String>,
 }
 
 fn log_admin_csrf_denied<S: crate::challenge::KeyValueStore>(
@@ -7815,10 +8389,12 @@ fn log_adversary_sim_transition<S: crate::challenge::KeyValueStore>(
     req: &Request,
     auth: &crate::admin::auth::AdminAuthResult,
     transition: &crate::admin::adversary_sim::Transition,
+    operation_id: Option<&str>,
 ) {
     let client_ip = crate::extract_client_ip(req);
     let session = auth.session_id.as_deref().unwrap_or("-");
     let run_id = transition.run_id.as_deref().unwrap_or("-");
+    let operation = operation_id.unwrap_or("-");
     log_event(
         store,
         &EventLogEntry {
@@ -7827,14 +8403,49 @@ fn log_adversary_sim_transition<S: crate::challenge::KeyValueStore>(
             ip: Some(client_ip),
             reason: Some("adversary_sim_transition".to_string()),
             outcome: Some(format!(
-                "from={} to={} reason={} run_id={} actor={} session={}",
+                "from={} to={} reason={} run_id={} operation_id={} actor={} session={}",
                 transition.from.as_str(),
                 transition.to.as_str(),
                 transition.reason,
                 run_id,
+                operation,
                 auth.audit_actor_label(),
                 session
             )),
+            admin: Some(auth.audit_actor_label().to_string()),
+        },
+    );
+}
+
+fn log_adversary_sim_control_audit<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    req: &Request,
+    auth: &crate::admin::auth::AdminAuthResult,
+    audit: &crate::admin::adversary_sim_control::ControlAuditRecord,
+    _capability: &crate::admin::adversary_sim_control::AuditWriteCapability,
+) {
+    let client_ip = crate::extract_client_ip(req);
+    let payload = json!({
+        "operation_id": audit.operation_id.clone(),
+        "actor_scope": audit.actor_scope.clone(),
+        "session_scope_hash": crate::admin::adversary_sim_control::hash_hex(audit.session_scope.as_str()),
+        "decision": audit.decision,
+        "reason": audit.reason.clone(),
+        "origin_verdict": audit.origin_verdict.clone(),
+        "idempotency_key_hash": audit.idempotency_key_hash.clone(),
+        "request_origin": audit.request_origin.clone(),
+        "requested_state": audit.requested_state.clone(),
+        "desired_state": audit.desired_state.clone(),
+        "actual_state": audit.actual_state.clone()
+    });
+    log_event(
+        store,
+        &EventLogEntry {
+            ts: now_ts(),
+            event: EventType::AdminAction,
+            ip: Some(client_ip),
+            reason: Some("adversary_sim_control_audit".to_string()),
+            outcome: Some(payload.to_string()),
             admin: Some(auth.audit_actor_label().to_string()),
         },
     );
@@ -7852,26 +8463,112 @@ fn save_runtime_config<S: crate::challenge::KeyValueStore>(
     Ok(())
 }
 
+fn save_runtime_config_with_capability<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    cfg: &crate::config::Config,
+    _capability: &crate::admin::adversary_sim_control::ConfigWriteCapability,
+) -> Result<(), ()> {
+    save_runtime_config(store, site_id, cfg)
+}
+
+fn save_adversary_sim_state_with_capability<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    state: &crate::admin::adversary_sim::ControlState,
+    _capability: &crate::admin::adversary_sim_control::StateWriteCapability,
+) -> Result<(), ()> {
+    crate::admin::adversary_sim::save_state(store, site_id, state)
+}
+
 fn adversary_sim_status_payload(
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
     cfg: &crate::config::Config,
     state: &crate::admin::adversary_sim::ControlState,
     now: u64,
 ) -> serde_json::Value {
-    crate::admin::adversary_sim::status_payload(
+    let mut payload = crate::admin::adversary_sim::status_payload(
         now,
         crate::config::runtime_environment(),
         crate::config::adversary_sim_available(),
         cfg.adversary_sim_enabled,
         cfg.adversary_sim_duration_seconds,
         state,
-    )
+    );
+    let reconciliation_required = crate::admin::adversary_sim_control::status_reconciliation_needed(
+        now,
+        cfg.adversary_sim_enabled,
+        state,
+    );
+    let lease = crate::admin::adversary_sim_control::load_controller_lease(store, site_id);
+    if let Some(object) = payload.as_object_mut() {
+        object.insert(
+            "desired_state".to_string(),
+            serde_json::Value::String(if cfg.adversary_sim_enabled {
+                "running".to_string()
+            } else {
+                "off".to_string()
+            }),
+        );
+        object.insert(
+            "actual_state".to_string(),
+            serde_json::Value::String(
+                crate::admin::adversary_sim_control::actual_phase_label(state.phase).to_string(),
+            ),
+        );
+        object.insert(
+            "controller_reconciliation_required".to_string(),
+            serde_json::Value::Bool(reconciliation_required),
+        );
+        object.insert(
+            "generation_active".to_string(),
+            serde_json::Value::Bool(state.phase == crate::admin::adversary_sim::ControlPhase::Running),
+        );
+        object.insert(
+            "historical_data_visible".to_string(),
+            serde_json::Value::Bool(true),
+        );
+        object.insert(
+            "history_retention".to_string(),
+            json!({
+                "retention_hours": event_log_retention_hours(),
+                "cleanup_supported": crate::config::admin_config_write_enabled(),
+                "cleanup_endpoint": "/admin/adversary-sim/history/cleanup",
+                "cleanup_command": "make adversary-sim-history-clean"
+            }),
+        );
+        object.insert(
+            "control_contract".to_string(),
+            json!({
+                "contract": "adversary-sim-control.v1",
+                "idempotency_ttl_seconds": crate::admin::adversary_sim_control::IDEMPOTENCY_TTL_SECONDS,
+                "lease_ttl_seconds": crate::admin::adversary_sim_control::LEASE_TTL_SECONDS,
+                "requires_idempotency_key": true
+            }),
+        );
+        object.insert(
+            "controller_lease".to_string(),
+            match lease {
+                Some(current_lease) => json!({
+                    "owner": current_lease.owner,
+                    "fencing_token": current_lease.fencing_token,
+                    "acquired_at": current_lease.acquired_at,
+                    "expires_at": current_lease.expires_at,
+                    "operation_id": current_lease.operation_id
+                }),
+                None => serde_json::Value::Null,
+            },
+        );
+    }
+    payload
 }
 
 fn handle_admin_adversary_sim_status(
     req: &Request,
     store: &impl crate::challenge::KeyValueStore,
     site_id: &str,
-    auth: &crate::admin::auth::AdminAuthResult,
+    _auth: &crate::admin::auth::AdminAuthResult,
 ) -> Response {
     if *req.method() != Method::Get {
         return Response::new(405, "Method Not Allowed");
@@ -7883,53 +8580,65 @@ fn handle_admin_adversary_sim_status(
         return Response::new(404, "Not Found");
     }
 
-    let mut cfg = match crate::config::Config::load(store, site_id) {
+    let cfg = match crate::config::Config::load(store, site_id) {
         Ok(cfg) => cfg,
         Err(err) => return Response::new(500, err.user_message()),
     };
     let now = now_ts();
-    let loaded_state = crate::admin::adversary_sim::load_state(store, site_id);
-    let (mut next_state, transitions) =
-        crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &loaded_state);
-    let transitioned_to_off = transitions
-        .iter()
-        .any(|transition| transition.to == crate::admin::adversary_sim::ControlPhase::Off);
+    let state = crate::admin::adversary_sim::load_state(store, site_id);
 
-    let mut cfg_changed = false;
-    if transitioned_to_off && cfg.adversary_sim_enabled {
-        cfg.adversary_sim_enabled = false;
-        cfg_changed = true;
-    }
+    let body = serde_json::to_string(&adversary_sim_status_payload(store, site_id, &cfg, &state, now))
+        .unwrap();
+    Response::new(200, body)
+}
 
-    if next_state != loaded_state {
-        if crate::admin::adversary_sim::save_state(store, site_id, &next_state).is_err() {
-            return Response::new(500, "Key-value store error");
-        }
+fn handle_admin_adversary_sim_history_cleanup(
+    req: &Request,
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+    _auth: &crate::admin::auth::AdminAuthResult,
+) -> Response {
+    if *req.method() != Method::Post {
+        return Response::new(405, "Method Not Allowed");
     }
-    if cfg_changed {
-        if save_runtime_config(store, site_id, &cfg).is_err() {
-            return Response::new(500, "Key-value store error");
-        }
-        let (reconciled_state, mut reconciled_transitions) = crate::admin::adversary_sim::reconcile_state(
-            now,
-            cfg.adversary_sim_enabled,
-            &next_state,
+    if !crate::config::admin_config_write_enabled() {
+        return Response::new(
+            403,
+            "Config updates are disabled when SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false",
         );
-        next_state = reconciled_state;
-        if !reconciled_transitions.is_empty() {
-            if crate::admin::adversary_sim::save_state(store, site_id, &next_state).is_err() {
-                return Response::new(500, "Key-value store error");
-            }
-        }
-        for transition in reconciled_transitions.drain(..) {
-            log_adversary_sim_transition(store, req, auth, &transition);
-        }
-    }
-    for transition in transitions {
-        log_adversary_sim_transition(store, req, auth, &transition);
     }
 
-    let body = serde_json::to_string(&adversary_sim_status_payload(&cfg, &next_state, now)).unwrap();
+    let runtime_environment = crate::config::runtime_environment();
+    let env_available = crate::config::adversary_sim_available();
+    if !crate::admin::adversary_sim::control_surface_available(runtime_environment, env_available) {
+        return Response::new(404, "Not Found");
+    }
+
+    let cleanup_result = clear_dev_telemetry_history(store, site_id);
+    log_event(
+        store,
+        &EventLogEntry {
+            ts: now_ts(),
+            event: EventType::AdminAction,
+            ip: Some(crate::extract_client_ip(req)),
+            reason: Some("adversary_sim_history_cleanup".to_string()),
+            outcome: Some(format!(
+                "deleted_keys={} families={}",
+                cleanup_result.deleted_keys,
+                cleanup_result.deleted_by_family.len()
+            )),
+            admin: Some(crate::admin::auth::get_admin_id(req)),
+        },
+    );
+
+    let body = serde_json::to_string(&json!({
+        "cleaned": true,
+        "deleted_keys": cleanup_result.deleted_keys,
+        "deleted_by_family": cleanup_result.deleted_by_family,
+        "retention_hours": event_log_retention_hours(),
+        "cleanup_command": "make adversary-sim-history-clean"
+    }))
+    .unwrap();
     Response::new(200, body)
 }
 
@@ -7967,21 +8676,343 @@ fn handle_admin_adversary_sim_control(
         Err(err) => return Response::new(400, format!("Invalid control payload: {}", err)),
     };
 
+    let now = now_ts();
+    let requested_reason = crate::admin::adversary_sim_control::canonical_reason(payload.reason.as_deref());
+    let Some(idempotency_key) = req
+        .header("idempotency-key")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
+        return Response::new(428, "Idempotency-Key header is required");
+    };
+    let idempotency_key_hash = crate::admin::adversary_sim_control::hash_hex(idempotency_key);
+    let payload_hash = crate::admin::adversary_sim_control::canonical_payload_hash(
+        payload.enabled,
+        requested_reason.as_str(),
+    );
+
+    let session_scope = crate::admin::adversary_sim_control::idempotency_scope(auth);
+    let actor_scope = crate::admin::adversary_sim_control::actor_scope(auth);
+    let client_ip = crate::extract_client_ip(req);
+
+    let origin_validation = crate::admin::adversary_sim_control::validate_origin_and_fetch_metadata(req);
+    let origin_verdict = origin_validation
+        .as_ref()
+        .map(|value| value.verdict.clone())
+        .unwrap_or_else(|_| "origin_denied".to_string());
+    let request_origin = origin_validation
+        .as_ref()
+        .ok()
+        .and_then(|value| value.request_origin.clone());
+    let trust_reason = if !crate::admin::adversary_sim_control::session_is_fresh(now, auth) {
+        "session_stale_reauth_required".to_string()
+    } else if let Err(reason) = origin_validation.as_ref() {
+        reason.to_string()
+    } else {
+        "trust_boundary_ok".to_string()
+    };
+    let trust_decision = if trust_reason == "trust_boundary_ok" {
+        crate::admin::adversary_sim_control::TrustDecision::Allow
+    } else {
+        crate::admin::adversary_sim_control::TrustDecision::Reject
+    };
+
+    let idempotency_store_key = crate::admin::adversary_sim_control::control_idempotency_key(
+        site_id,
+        session_scope.as_str(),
+        idempotency_key_hash.as_str(),
+    );
+    let mut existing_idempotency =
+        crate::admin::adversary_sim_control::load_idempotency_record(store, &idempotency_store_key);
+    if existing_idempotency
+        .as_ref()
+        .map(|record| record.expires_at <= now)
+        .unwrap_or(false)
+    {
+        existing_idempotency = None;
+    }
+    let idempotency_plan = match existing_idempotency.as_ref() {
+        Some(record) if record.payload_hash == payload_hash => {
+            crate::admin::adversary_sim_control::IdempotencyPlan::Replay
+        }
+        Some(_) => crate::admin::adversary_sim_control::IdempotencyPlan::PayloadMismatch,
+        None => crate::admin::adversary_sim_control::IdempotencyPlan::NewSubmission,
+    };
+
     let mut cfg = match crate::config::Config::load(store, site_id) {
         Ok(cfg) => cfg,
         Err(err) => return Response::new(500, err.user_message()),
     };
-    let now = now_ts();
-    let loaded_state = crate::admin::adversary_sim::load_state(store, site_id);
-    let (mut state, mut transitions) =
-        crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &loaded_state);
+    let mut state = crate::admin::adversary_sim::load_state(store, site_id);
 
-    let mut cfg_changed = false;
-    if payload.enabled {
-        if !cfg.adversary_sim_enabled {
-            cfg.adversary_sim_enabled = true;
-            cfg_changed = true;
+    let debounce_key =
+        crate::admin::adversary_sim_control::control_debounce_key(site_id, session_scope.as_str());
+    let last_submission_at = store
+        .get(&debounce_key)
+        .ok()
+        .flatten()
+        .as_deref()
+        .and_then(crate::admin::adversary_sim_control::parse_debounce_timestamp);
+    let debounce_throttled = crate::admin::adversary_sim_control::should_throttle_for_debounce(
+        now,
+        last_submission_at,
+        crate::admin::adversary_sim_control::CONTROL_DEBOUNCE_SECONDS,
+    ) && cfg.adversary_sim_enabled == payload.enabled;
+    let rate_limited = adversary_sim_control_submission_is_limited(
+        store,
+        session_scope.as_str(),
+        client_ip.as_str(),
+    );
+    let throttle_decision = if rate_limited || debounce_throttled {
+        crate::admin::adversary_sim_control::ThrottleDecision::Throttle
+    } else {
+        crate::admin::adversary_sim_control::ThrottleDecision::Allow
+    };
+    let throttle_reason = if throttle_decision == crate::admin::adversary_sim_control::ThrottleDecision::Throttle {
+        if debounce_throttled {
+            "debounce_window"
+        } else {
+            "toggle_rate_limited"
         }
+    } else {
+        "throttle_ok"
+    };
+
+    let plan = crate::admin::adversary_sim_control::plan_submission(
+        &crate::admin::adversary_sim_control::SubmissionPlanInput {
+            trust: trust_decision,
+            throttle: throttle_decision,
+            idempotency: idempotency_plan,
+        },
+    );
+    let capabilities = crate::admin::adversary_sim_control::ControlCapabilities::mint_for_trust_boundary();
+
+    let current_actual_state = state.phase.as_str().to_string();
+    match plan.decision {
+        crate::admin::adversary_sim_control::SubmissionPlanDecision::RejectTrustBoundary => {
+            log_adversary_sim_control_audit(
+                store,
+                req,
+                auth,
+                &crate::admin::adversary_sim_control::ControlAuditRecord {
+                    operation_id: None,
+                    actor_scope,
+                    session_scope,
+                    decision: crate::admin::adversary_sim_control::ControlDecision::Rejected,
+                    reason: trust_reason,
+                    origin_verdict,
+                    idempotency_key_hash: Some(idempotency_key_hash),
+                    request_origin,
+                    requested_state: Some(if payload.enabled {
+                        "running".to_string()
+                    } else {
+                        "off".to_string()
+                    }),
+                    desired_state: Some(if cfg.adversary_sim_enabled {
+                        "running".to_string()
+                    } else {
+                        "off".to_string()
+                    }),
+                    actual_state: current_actual_state,
+                },
+                capabilities.audit_write(),
+            );
+            return Response::new(403, "Forbidden: control trust boundary violation");
+        }
+        crate::admin::adversary_sim_control::SubmissionPlanDecision::RejectThrottled => {
+            log_adversary_sim_control_audit(
+                store,
+                req,
+                auth,
+                &crate::admin::adversary_sim_control::ControlAuditRecord {
+                    operation_id: None,
+                    actor_scope,
+                    session_scope,
+                    decision: crate::admin::adversary_sim_control::ControlDecision::Throttled,
+                    reason: throttle_reason.to_string(),
+                    origin_verdict,
+                    idempotency_key_hash: Some(idempotency_key_hash),
+                    request_origin,
+                    requested_state: Some(if payload.enabled {
+                        "running".to_string()
+                    } else {
+                        "off".to_string()
+                    }),
+                    desired_state: Some(if cfg.adversary_sim_enabled {
+                        "running".to_string()
+                    } else {
+                        "off".to_string()
+                    }),
+                    actual_state: current_actual_state,
+                },
+                capabilities.audit_write(),
+            );
+            return Response::builder()
+                .status(429)
+                .header("Retry-After", "60")
+                .body("Too Many Requests: adversary control throttled")
+                .build();
+        }
+        crate::admin::adversary_sim_control::SubmissionPlanDecision::RejectPayloadMismatch => {
+            let replayed_operation_id = existing_idempotency
+                .as_ref()
+                .map(|record| record.operation_id.clone());
+            log_adversary_sim_control_audit(
+                store,
+                req,
+                auth,
+                &crate::admin::adversary_sim_control::ControlAuditRecord {
+                    operation_id: replayed_operation_id,
+                    actor_scope,
+                    session_scope,
+                    decision: crate::admin::adversary_sim_control::ControlDecision::Rejected,
+                    reason: "idempotency_payload_mismatch".to_string(),
+                    origin_verdict,
+                    idempotency_key_hash: Some(idempotency_key_hash),
+                    request_origin,
+                    requested_state: Some(if payload.enabled {
+                        "running".to_string()
+                    } else {
+                        "off".to_string()
+                    }),
+                    desired_state: Some(if cfg.adversary_sim_enabled {
+                        "running".to_string()
+                    } else {
+                        "off".to_string()
+                    }),
+                    actual_state: current_actual_state,
+                },
+                capabilities.audit_write(),
+            );
+            return Response::new(
+                409,
+                "Idempotency-Key replay rejected: payload mismatch for existing key",
+            );
+        }
+        crate::admin::adversary_sim_control::SubmissionPlanDecision::ReturnReplay => {
+            let Some(idempotency_record) = existing_idempotency.as_ref() else {
+                return Response::new(500, "Idempotency state unavailable");
+            };
+            let operation_key = crate::admin::adversary_sim_control::control_operation_key(
+                site_id,
+                idempotency_record.operation_id.as_str(),
+            );
+            let operation = crate::admin::adversary_sim_control::load_operation_record(store, &operation_key);
+            log_adversary_sim_control_audit(
+                store,
+                req,
+                auth,
+                &crate::admin::adversary_sim_control::ControlAuditRecord {
+                    operation_id: Some(idempotency_record.operation_id.clone()),
+                    actor_scope,
+                    session_scope,
+                    decision: crate::admin::adversary_sim_control::ControlDecision::Replayed,
+                    reason: "idempotency_exact_replay".to_string(),
+                    origin_verdict,
+                    idempotency_key_hash: Some(idempotency_key_hash.clone()),
+                    request_origin,
+                    requested_state: Some(if payload.enabled {
+                        "running".to_string()
+                    } else {
+                        "off".to_string()
+                    }),
+                    desired_state: Some(if cfg.adversary_sim_enabled {
+                        "running".to_string()
+                    } else {
+                        "off".to_string()
+                    }),
+                    actual_state: state.phase.as_str().to_string(),
+                },
+                capabilities.audit_write(),
+            );
+            let response = json!({
+                "operation_id": idempotency_record.operation_id,
+                "decision": "replayed",
+                "requested_enabled": payload.enabled,
+                "phase_trace": ["plan", "execute", "collect_evidence", "publish_report"],
+                "requested_state": {
+                    "enabled": payload.enabled,
+                    "reason": requested_reason
+                },
+                "accepted_state": {
+                    "desired_enabled": cfg.adversary_sim_enabled,
+                    "actual_phase": state.phase.as_str()
+                },
+                "idempotency": {
+                    "key_hash": idempotency_key_hash,
+                    "replayed": true,
+                    "ttl_seconds": crate::admin::adversary_sim_control::IDEMPOTENCY_TTL_SECONDS
+                },
+                "operation": operation,
+                "status": adversary_sim_status_payload(store, site_id, &cfg, &state, now),
+                "config": admin_config_payload(
+                    &cfg,
+                    challenge_threshold_default(),
+                    not_a_bot_threshold_default(),
+                    maze_threshold_default()
+                )
+            });
+            return Response::new(200, serde_json::to_string(&response).unwrap());
+        }
+        crate::admin::adversary_sim_control::SubmissionPlanDecision::AcceptNew => {}
+    }
+
+    let operation_id = crate::admin::adversary_sim_control::operation_id(now);
+    let current_lease = crate::admin::adversary_sim_control::load_controller_lease(store, site_id);
+    let lease = match crate::admin::adversary_sim_control::acquire_controller_lease(
+        now,
+        session_scope.as_str(),
+        Some(operation_id.as_str()),
+        current_lease.as_ref(),
+    ) {
+        Ok(lease) => lease,
+        Err(reason) => {
+            log_adversary_sim_control_audit(
+                store,
+                req,
+                auth,
+                &crate::admin::adversary_sim_control::ControlAuditRecord {
+                    operation_id: Some(operation_id),
+                    actor_scope,
+                    session_scope,
+                    decision: crate::admin::adversary_sim_control::ControlDecision::Throttled,
+                    reason: reason.to_string(),
+                    origin_verdict,
+                    idempotency_key_hash: Some(idempotency_key_hash),
+                    request_origin,
+                    requested_state: Some(if payload.enabled {
+                        "running".to_string()
+                    } else {
+                        "off".to_string()
+                    }),
+                    desired_state: Some(if cfg.adversary_sim_enabled {
+                        "running".to_string()
+                    } else {
+                        "off".to_string()
+                    }),
+                    actual_state: state.phase.as_str().to_string(),
+                },
+                capabilities.audit_write(),
+            );
+            return Response::new(409, "Adversary simulation controller lease is currently held");
+        }
+    };
+    if crate::admin::adversary_sim_control::save_controller_lease(
+        store,
+        site_id,
+        &lease,
+        capabilities.state_write(),
+    )
+    .is_err()
+    {
+        return Response::new(500, "Key-value store error");
+    }
+
+    let mut transitions = Vec::new();
+    cfg.adversary_sim_enabled = payload.enabled;
+
+    if payload.enabled {
         if state.phase != crate::admin::adversary_sim::ControlPhase::Running {
             let duration = crate::admin::adversary_sim::clamp_duration_seconds(
                 cfg.adversary_sim_duration_seconds,
@@ -8000,10 +9031,6 @@ fn handle_admin_adversary_sim_control(
             }
         }
     } else {
-        if cfg.adversary_sim_enabled {
-            cfg.adversary_sim_enabled = false;
-            cfg_changed = true;
-        }
         let (stopping_state, mut stop_transitions) =
             crate::admin::adversary_sim::stop_state(now, "manual_off", &state);
         state = stopping_state;
@@ -8017,23 +9044,125 @@ fn handle_admin_adversary_sim_control(
 
     if state.phase == crate::admin::adversary_sim::ControlPhase::Off && cfg.adversary_sim_enabled {
         cfg.adversary_sim_enabled = false;
-        cfg_changed = true;
     }
-    if cfg_changed {
-        if save_runtime_config(store, site_id, &cfg).is_err() {
-            return Response::new(500, "Key-value store error");
-        }
+    if save_runtime_config_with_capability(store, site_id, &cfg, capabilities.config_write()).is_err() {
+        return Response::new(500, "Key-value store error");
     }
-    if crate::admin::adversary_sim::save_state(store, site_id, &state).is_err() {
+    if save_adversary_sim_state_with_capability(store, site_id, &state, capabilities.state_write())
+        .is_err()
+    {
         return Response::new(500, "Key-value store error");
     }
     for transition in &transitions {
-        log_adversary_sim_transition(store, req, auth, transition);
+        log_adversary_sim_transition(store, req, auth, transition, Some(operation_id.as_str()));
     }
 
+    let operation_record = crate::admin::adversary_sim_control::ControlOperationRecord {
+        operation_id: operation_id.clone(),
+        requested_enabled: payload.enabled,
+        requested_reason: requested_reason.clone(),
+        desired_enabled: cfg.adversary_sim_enabled,
+        actual_phase: state.phase.as_str().to_string(),
+        actor_scope: actor_scope.clone(),
+        session_scope: session_scope.clone(),
+        idempotency_key_hash: idempotency_key_hash.clone(),
+        payload_hash: payload_hash.clone(),
+        created_at: now,
+        completed_at: now,
+        decision: crate::admin::adversary_sim_control::ControlDecision::Accepted,
+        decision_reason: "accepted".to_string(),
+        origin_verdict: origin_verdict.clone(),
+        lease_fencing_token: Some(lease.fencing_token),
+    };
+    let operation_key =
+        crate::admin::adversary_sim_control::control_operation_key(site_id, operation_id.as_str());
+    if crate::admin::adversary_sim_control::save_operation_record(
+        store,
+        &operation_key,
+        &operation_record,
+        capabilities.state_write(),
+    )
+    .is_err()
+    {
+        return Response::new(500, "Key-value store error");
+    }
+
+    let idempotency_record = crate::admin::adversary_sim_control::IdempotencyRecord {
+        operation_id: operation_id.clone(),
+        payload_hash,
+        actor_scope: actor_scope.clone(),
+        session_scope: session_scope.clone(),
+        created_at: now,
+        expires_at: now.saturating_add(crate::admin::adversary_sim_control::IDEMPOTENCY_TTL_SECONDS),
+    };
+    if crate::admin::adversary_sim_control::save_idempotency_record(
+        store,
+        &idempotency_store_key,
+        &idempotency_record,
+        capabilities.state_write(),
+    )
+    .is_err()
+    {
+        return Response::new(500, "Key-value store error");
+    }
+    if crate::admin::adversary_sim_control::save_debounce_timestamp(
+        store,
+        &debounce_key,
+        now,
+        capabilities.state_write(),
+    )
+    .is_err()
+    {
+        return Response::new(500, "Key-value store error");
+    }
+
+    log_adversary_sim_control_audit(
+        store,
+        req,
+        auth,
+        &crate::admin::adversary_sim_control::ControlAuditRecord {
+            operation_id: Some(operation_id.clone()),
+            actor_scope,
+            session_scope,
+            decision: crate::admin::adversary_sim_control::ControlDecision::Accepted,
+            reason: "accepted".to_string(),
+            origin_verdict,
+            idempotency_key_hash: Some(idempotency_key_hash.clone()),
+            request_origin,
+            requested_state: Some(if payload.enabled {
+                "running".to_string()
+            } else {
+                "off".to_string()
+            }),
+            desired_state: Some(if cfg.adversary_sim_enabled {
+                "running".to_string()
+            } else {
+                "off".to_string()
+            }),
+            actual_state: state.phase.as_str().to_string(),
+        },
+        capabilities.audit_write(),
+    );
+
     let response = json!({
+        "operation_id": operation_id,
+        "decision": "accepted",
         "requested_enabled": payload.enabled,
-        "status": adversary_sim_status_payload(&cfg, &state, now),
+        "phase_trace": ["plan", "execute", "collect_evidence", "publish_report"],
+        "requested_state": {
+            "enabled": payload.enabled,
+            "reason": requested_reason
+        },
+        "accepted_state": {
+            "desired_enabled": cfg.adversary_sim_enabled,
+            "actual_phase": state.phase.as_str()
+        },
+        "idempotency": {
+            "key_hash": idempotency_key_hash,
+            "replayed": false,
+            "ttl_seconds": crate::admin::adversary_sim_control::IDEMPOTENCY_TTL_SECONDS
+        },
+        "status": adversary_sim_status_payload(store, site_id, &cfg, &state, now),
         "config": admin_config_payload(
             &cfg,
             challenge_threshold_default(),
@@ -8063,6 +9192,7 @@ fn handle_admin_adversary_sim_control(
 ///   - GET /admin/config/export: Export non-secret runtime config for immutable deploy handoff
 ///   - POST /admin/adversary-sim/control: Start/stop dev adversary simulation orchestration
 ///   - GET /admin/adversary-sim/status: Read orchestration state and guardrails
+///   - POST /admin/adversary-sim/history/cleanup: Explicitly clear retained dev telemetry history
 ///   - GET /admin/maze/preview: Render a non-operational maze preview for operators
 ///   - GET /admin/tarpit/preview: Render a non-operational progressive tarpit preview for operators
 ///   - GET /admin: API help
@@ -8113,7 +9243,10 @@ pub fn handle_admin(req: &Request) -> Response {
     let has_bearer = crate::admin::auth::is_bearer_authorized(req);
     let has_session_cookie = crate::admin::auth::has_admin_session_cookie(req);
     if !has_bearer && !has_session_cookie {
-        if path == "/admin/adversary-sim/control" {
+        if matches!(
+            path,
+            "/admin/adversary-sim/control" | "/admin/adversary-sim/history/cleanup"
+        ) {
             if let Ok(store) = Store::open_default() {
                 let client_ip = crate::extract_client_ip(req);
                 log_event(
@@ -8143,7 +9276,10 @@ pub fn handle_admin(req: &Request) -> Response {
     // Require either a valid bearer token or a valid admin session cookie.
     let auth = crate::admin::auth::authenticate_admin(req, &store);
     if !auth.is_authorized() {
-        if path == "/admin/adversary-sim/control" {
+        if matches!(
+            path,
+            "/admin/adversary-sim/control" | "/admin/adversary-sim/history/cleanup"
+        ) {
             let client_ip = crate::extract_client_ip(req);
             log_event(
                 &store,
@@ -8461,6 +9597,9 @@ pub fn handle_admin(req: &Request) -> Response {
         "/admin/adversary-sim/status" => {
             return handle_admin_adversary_sim_status(req, &store, site_id, &auth);
         }
+        "/admin/adversary-sim/history/cleanup" => {
+            return handle_admin_adversary_sim_history_cleanup(req, &store, site_id, &auth);
+        }
         "/admin/maze/preview" => {
             return handle_admin_maze_preview(req, &store, site_id);
         }
@@ -8486,7 +9625,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/ip-range/suggestions, /admin/config, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/ip-range/suggestions, /admin/config, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics

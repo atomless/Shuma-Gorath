@@ -1,0 +1,32 @@
+{
+  "schema_version": "sim-real-traffic-contract.v1",
+  "profile": "full_coverage",
+  "required_invariants": [
+    "attacker_execution_must_emit_runtime_requests",
+    "passed_scenarios_must_have_runtime_telemetry_evidence",
+    "run_evidence_must_include_request_lineage",
+    "run_evidence_must_include_control_plane_lineage"
+  ],
+  "prohibited_patterns": [
+    "synthetic_monitoring_injection",
+    "out_of_band_metrics_writes",
+    "control_plane_only_success_signals"
+  ],
+  "evidence_schema": {
+    "scenario_required_fields": [
+      "scenario_id",
+      "runtime_request_count",
+      "monitoring_total_delta",
+      "coverage_delta_total",
+      "simulation_event_count_delta",
+      "has_runtime_telemetry_evidence"
+    ],
+    "control_lineage_required_fields": [
+      "control_operation_id",
+      "requested_state",
+      "desired_state",
+      "actual_state",
+      "actor_session"
+    ]
+  }
+}

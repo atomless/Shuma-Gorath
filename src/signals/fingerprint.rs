@@ -296,6 +296,11 @@ pub(crate) fn record_akamai_edge_signal<S: crate::challenge::KeyValueStore>(
     store_external_edge_signal_state(store, identity.as_str(), &state);
 }
 
+pub(crate) fn record_external_payload_rejection<S: crate::challenge::KeyValueStore>(store: &S) {
+    increment_counter(store, "fingerprint:events");
+    increment_counter(store, "fingerprint:external_invalid_payload");
+}
+
 fn load_state<S: crate::challenge::KeyValueStore>(
     store: &S,
     identity: &str,
@@ -692,9 +697,10 @@ mod tests {
     use crate::challenge::KeyValueStore;
     use super::{
         collect_bot_signals, flow_identity, now_ts, record_akamai_edge_signal,
-        FingerprintState, FP_AKAMAI_EDGE_ADDITIVE_KEY, FP_FLOW_VIOLATION_KEY,
-        FP_KEY_PREFIX_STATE, FP_TEMPORAL_TRANSITION_KEY, FP_UA_CH_MISMATCH_KEY,
-        FP_UA_TRANSPORT_MISMATCH_KEY, FP_UNTRUSTED_TRANSPORT_HEADER_KEY,
+        record_external_payload_rejection, FingerprintState, FP_AKAMAI_EDGE_ADDITIVE_KEY,
+        FP_FLOW_VIOLATION_KEY, FP_KEY_PREFIX_STATE, FP_TEMPORAL_TRANSITION_KEY,
+        FP_UA_CH_MISMATCH_KEY, FP_UA_TRANSPORT_MISMATCH_KEY,
+        FP_UNTRUSTED_TRANSPORT_HEADER_KEY,
     };
     use spin_sdk::http::Request;
     use std::collections::HashMap;
@@ -906,5 +912,26 @@ mod tests {
             crate::signals::botness::SignalAvailability::Disabled
         );
         assert_eq!(additive.contribution, 0);
+    }
+
+    #[test]
+    fn external_payload_rejection_increments_fingerprint_counters() {
+        let store = MockStore::default();
+        record_external_payload_rejection(&store);
+
+        let events = store
+            .get("fingerprint:events")
+            .unwrap()
+            .and_then(|raw| String::from_utf8(raw).ok())
+            .and_then(|raw| raw.parse::<u64>().ok())
+            .unwrap_or(0);
+        let invalid_payload = store
+            .get("fingerprint:external_invalid_payload")
+            .unwrap()
+            .and_then(|raw| String::from_utf8(raw).ok())
+            .and_then(|raw| raw.parse::<u64>().ok())
+            .unwrap_or(0);
+        assert_eq!(events, 1);
+        assert_eq!(invalid_payload, 1);
     }
 }

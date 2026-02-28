@@ -26,6 +26,14 @@ const isWriteMethod = (method) => {
   return upper === 'POST' || upper === 'PUT' || upper === 'PATCH' || upper === 'DELETE';
 };
 
+const newIdempotencyKey = () => {
+  if (typeof crypto !== 'undefined' && crypto && typeof crypto.randomUUID === 'function') {
+    return `dash-${crypto.randomUUID()}`;
+  }
+  const randomPart = Math.floor(Math.random() * 0x1_0000_0000).toString(16).padStart(8, '0');
+  return `dash-${Date.now().toString(16)}-${randomPart}`;
+};
+
 /**
  * @param {string} message
  * @param {number} status
@@ -295,10 +303,13 @@ export const adaptAdversarySimStatus = (payload) => {
   const source = asRecord(payload);
   const guardrails = asRecord(source.guardrails);
   const lanes = asRecord(source.lanes);
+  const historyRetention = asRecord(source.history_retention);
   return {
     runtime_environment: String(source.runtime_environment || ''),
     adversary_sim_available: source.adversary_sim_available === true,
     adversary_sim_enabled: source.adversary_sim_enabled === true,
+    generation_active: source.generation_active === true,
+    historical_data_visible: source.historical_data_visible !== false,
     phase: String(source.phase || 'off'),
     run_id: typeof source.run_id === 'string' ? source.run_id : '',
     started_at: Number(source.started_at || 0),
@@ -325,7 +336,13 @@ export const adaptAdversarySimStatus = (payload) => {
       typeof source.last_terminal_failure_reason === 'string'
         ? source.last_terminal_failure_reason
         : '',
-    last_run_id: typeof source.last_run_id === 'string' ? source.last_run_id : ''
+    last_run_id: typeof source.last_run_id === 'string' ? source.last_run_id : '',
+    history_retention: {
+      retention_hours: Number(historyRetention.retention_hours || 0),
+      cleanup_supported: historyRetention.cleanup_supported === true,
+      cleanup_endpoint: String(historyRetention.cleanup_endpoint || ''),
+      cleanup_command: String(historyRetention.cleanup_command || '')
+    }
   };
 };
 
@@ -629,14 +646,21 @@ export const create = (options = {}) => {
    * @param {boolean} enabled
    */
   const controlAdversarySim = async (enabled) => {
+    const idempotencyKey = newIdempotencyKey();
     const payload = asRecord(
       await request('/admin/adversary-sim/control', {
         method: 'POST',
+        headers: {
+          'Idempotency-Key': idempotencyKey
+        },
         json: { enabled: enabled === true }
       })
     );
     return {
-      requested_enabled: payload.requested_enabled === true,
+      requested_enabled:
+        payload.requested_enabled === true ||
+        (payload.requested_state && payload.requested_state.enabled === true),
+      operation_id: typeof payload.operation_id === 'string' ? payload.operation_id : '',
       status: adaptAdversarySimStatus(payload.status),
       config: adaptConfig(payload.config)
     };

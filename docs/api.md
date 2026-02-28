@@ -144,8 +144,9 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `POST /admin/config` - Update configuration (partial <abbr title="JavaScript Object Notation">JSON</abbr>, disabled when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`)
 - `POST /admin/config/validate` - Validate a config patch without persisting changes (returns `{ valid, issues[] }` with field/expected/received hints when invalid)
 - `GET /admin/config/export` - Export non-secret runtime config as deploy-ready env key/value output
-- `POST /admin/adversary-sim/control` - Explicit dev-only adversary-sim lifecycle control (`{"enabled":true|false}`), admin-auth + CSRF protected
-- `GET /admin/adversary-sim/status` - Read current adversary-sim lifecycle phase, active counts, and hard-coded guardrails
+- `POST /admin/adversary-sim/control` - Explicit dev-only adversary-sim lifecycle command submission (`{"enabled":true|false,"reason":"optional"}`), admin-auth + CSRF protected, strict same-origin/fetch-metadata checks, and required `Idempotency-Key` header
+- `GET /admin/adversary-sim/status` - Read-only adversary-sim lifecycle status (no reconcile-on-read mutation), including desired vs actual state, reconciliation-needed signal, and controller lease metadata
+- `POST /admin/adversary-sim/history/cleanup` - Explicitly clear retained runtime-dev telemetry history (`eventlog:v2:*`, `monitoring:v1:*`, and derived monitoring detail counters) without changing adversary-sim control state
 - `GET /admin/maze` - maze stats
 - `GET /admin/maze/preview?path=<maze_entry_path>...` - Non-operational maze preview (admin-auth only; no live traversal token issuance)
 - `GET /admin/maze/seeds` - Maze operator-seed source list and cached corpus snapshot
@@ -160,6 +161,29 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 Expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/ip-range/suggestions`, `/admin/ban` `GET`) are rate-limited to reduce <abbr title="Key-Value">KV</abbr>/<abbr title="Central Processing Unit">CPU</abbr> abuse amplification (`429` with `Retry-After: 60` when limited).
 
 Simulation telemetry uses per-row metadata tags (`sim_run_id`, `sim_profile`, `sim_lane`, `is_simulation`) rather than read-time query toggles.
+
+Adversary-sim command contract (`adversary-sim-control.v1`) highlights:
+
+- `POST /admin/adversary-sim/control` always returns an `operation_id` and `decision` (`accepted` or `replayed` on `200`).
+- Exact idempotent retries (`Idempotency-Key` + same canonical payload) replay the original operation and keep `operation_id` stable.
+- Reusing an idempotency key with a different payload returns `409`.
+- Status responses include:
+  - `desired_state` (`running|off`)
+  - `actual_state` (`running|stopping|off`)
+  - `generation_active` (`true|false`; producer lifecycle only)
+  - `historical_data_visible` (`true` when retained telemetry remains queryable regardless of producer state)
+  - `history_retention.retention_hours`
+  - `history_retention.cleanup_endpoint`
+  - `history_retention.cleanup_command`
+  - `controller_reconciliation_required` (`true|false`)
+  - `controller_lease` (owner/fencing metadata when held)
+
+`POST /admin/adversary-sim/history/cleanup` response includes:
+- `cleaned`
+- `deleted_keys`
+- `deleted_by_family`
+- `retention_hours`
+- `cleanup_command`
 
 `GET /admin/maze/preview` is intentionally non-operational:
 - links recurse only into `/admin/maze/preview`,

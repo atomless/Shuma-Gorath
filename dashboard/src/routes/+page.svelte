@@ -13,7 +13,6 @@
     syncDashboardBodyClasses
   } from '$lib/runtime/dashboard-body-classes.js';
   import {
-    deriveAdversarySimProgress,
     normalizeAdversarySimStatus
   } from '$lib/runtime/dashboard-adversary-sim.js';
   import { createDashboardRouteController } from '$lib/runtime/dashboard-route-controller.js';
@@ -85,8 +84,6 @@
   let adminMessageKind = 'info';
   let adversarySimStatus = {};
   let adversarySimStatusPollTimer = null;
-  let adversarySimProgressTickTimer = null;
-  let adversarySimProgressNowMs = Date.now();
   let IpBansTabComponent = null;
   let StatusTabComponent = null;
   let VerificationTabComponent = null;
@@ -134,7 +131,6 @@
   $: frontierProviderCount = Number.isFinite(Number(configSnapshot.frontier_provider_count))
     ? Math.max(0, Math.floor(Number(configSnapshot.frontier_provider_count)))
     : 0;
-  $: adversarySimProgress = deriveAdversarySimProgress(normalizedAdversarySimStatus, adversarySimProgressNowMs);
   $: globalTestModeToggleDisabled =
     !runtimeReady ||
     loggingOut ||
@@ -148,6 +144,14 @@
     dashboardState?.session?.authenticated !== true ||
     configSnapshot.admin_config_write_enabled !== true ||
     !adversarySimControlAvailable;
+  $: adversarySimRetentionHours = Math.max(0, Number(normalizedAdversarySimStatus.historyRetentionHours || 0));
+  $: adversarySimCleanupCommand =
+    String(normalizedAdversarySimStatus.historyCleanupCommand || '').trim() || 'make adversary-sim-history-clean';
+  $: adversarySimLifecycleCopy = normalizedAdversarySimStatus.generationActive
+    ? 'Generation active. Auto-off stops new simulation traffic only; retained telemetry stays visible.'
+    : normalizedAdversarySimStatus.historicalDataVisible
+      ? `Generation inactive. Retained telemetry remains visible for ${adversarySimRetentionHours}h or until ${adversarySimCleanupCommand} is run.`
+      : 'Generation inactive.';
 
   function registerTabLink(node, tab) {
     let key = normalizeTab(tab);
@@ -303,7 +307,6 @@
     storeUnsubscribe();
     telemetryUnsubscribe();
     clearAdversarySimStatusPollTimer();
-    clearAdversarySimProgressTickTimer();
     if (typeof document !== 'undefined') {
       clearDashboardBodyClasses(document);
     }
@@ -397,13 +400,6 @@
     }
   }
 
-  function clearAdversarySimProgressTickTimer() {
-    if (adversarySimProgressTickTimer) {
-      clearInterval(adversarySimProgressTickTimer);
-      adversarySimProgressTickTimer = null;
-    }
-  }
-
   function syncAdversarySimTimers() {
     const shouldPollStatus =
       routeController.getRuntimeMounted() &&
@@ -420,16 +416,6 @@
       }
     } else {
       clearAdversarySimStatusPollTimer();
-    }
-
-    if (adversarySimProgress.visible) {
-      if (!adversarySimProgressTickTimer) {
-        adversarySimProgressTickTimer = setInterval(() => {
-          adversarySimProgressNowMs = Date.now();
-        }, 250);
-      }
-    } else {
-      clearAdversarySimProgressTickTimer();
     }
   }
 
@@ -456,7 +442,6 @@
         };
       }
     }
-    adversarySimProgressNowMs = Date.now();
     syncAdversarySimTimers();
   }
 
@@ -508,7 +493,6 @@
       const message = formatActionError(error, 'Failed to toggle adversary simulation.');
       setAdminMessage(`Error: ${message}`, 'error');
     } finally {
-      adversarySimProgressNowMs = Date.now();
       savingGlobalAdversarySim = false;
       try {
         await refreshAdversarySimStatus('toggle');
@@ -594,7 +578,6 @@
     try {
       routeController.abortInFlightRefresh();
       clearAdversarySimStatusPollTimer();
-      clearAdversarySimProgressTickTimer();
       await logoutDashboardSession();
       dashboardStore.setSession({ authenticated: false, csrfToken: '' });
       routeController.clearPolling();
@@ -609,22 +592,6 @@
 </svelte:head>
 <svelte:window on:hashchange={onWindowHashChange} />
 <svelte:document on:visibilitychange={onDocumentVisibilityChange} />
-{#if adversarySimProgress.visible}
-  <div
-    id="adversary-sim-progress-line"
-    class="adversary-sim-progress-line"
-    role="progressbar"
-    aria-label={`Adversary simulation window (${adversarySimProgress.remainingSeconds}s remaining)`}
-    aria-valuemin="0"
-    aria-valuemax="100"
-    aria-valuenow={Math.round(adversarySimProgress.widthPercent)}
-  >
-    <span
-      class="adversary-sim-progress-line__fill"
-      style={`width:${adversarySimProgress.widthPercent}%`}
-    ></span>
-  </div>
-{/if}
 <div class="container panel panel-border" data-dashboard-runtime-mode="native">
   <div id="test-mode-banner" class="test-mode-banner" class:hidden={!testModeEnabled}>
     TEST MODE ACTIVE - Logging only, no active defences
@@ -656,6 +623,9 @@
       <span class="toggle-slider"></span>
     </label>
     <span class="dashboard-global-control-label" class:dashboard-global-control-label--disabled={globalAdversarySimToggleDisabled}>Adversary Sim</span>
+  </div>
+  <div id="adversary-sim-lifecycle-copy" class="dashboard-adversary-sim-hint text-muted">
+    {adversarySimLifecycleCopy}
   </div>
   <button
     id="logout-btn"

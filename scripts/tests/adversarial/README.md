@@ -22,6 +22,8 @@
   - Canonical attacker/control capability boundary contract for black-box simulation lanes.
 - `coverage_contract.v1.json`
   - Canonical `full_coverage` contract (minimum coverage categories + event/outcome obligations) used for drift checks against manifests and SIM2 plan rows.
+- `real_traffic_contract.v1.json`
+  - Canonical real-traffic evidence contract (required invariants, prohibited synthetic-success patterns, per-scenario runtime evidence fields, and control-plane lineage fields).
 - `../adversarial_container/`
   - Container worker assets for black-box isolation lane:
     - `Dockerfile`
@@ -60,6 +62,8 @@ The runner writes machine-readable artifacts to:
   - `ip_range_suggestions` seed evidence (`seeded_summary`, `seeded_suggestions`, `matched_seed_suggestions`, `near_miss_suggestions`),
   - `plane_contract` metadata for attacker/control-plane guardrails,
   - `coverage_contract` metadata (schema/version/hash and canonical coverage keys).
+  - `real_traffic_contract` metadata (schema/version/hash and prohibited-pattern contract keys),
+  - `evidence` (`sim-run-evidence.v1`) with request-lineage, per-scenario runtime telemetry evidence rows, and control-plane lineage fields.
 
 Notes:
 
@@ -88,6 +92,9 @@ Notes:
 - Coverage contract governance:
   - canonical `full_coverage` requirements are versioned in `coverage_contract.v1.json`,
   - drift checks run via `make test-adversarial-coverage-contract` and are wired into `make test-adversarial-manifest`, `make test-adversarial-fast`, and `make test-adversarial-coverage`.
+- Real-traffic evidence governance:
+  - canonical invariants and prohibited synthetic-success patterns are versioned in `real_traffic_contract.v1.json`,
+  - passed scenarios must include runtime telemetry evidence (`runtime_request_count > 0` and telemetry deltas) or the run fails.
 - Simulation telemetry tagging:
   - deterministic runner and container worker attach `X-Shuma-Sim-Run-Id`, `X-Shuma-Sim-Profile`, and `X-Shuma-Sim-Lane` on attacker-plane traffic,
   - backend event/monitoring read APIs include tagged rows in runtime-dev by default.

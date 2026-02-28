@@ -1090,7 +1090,22 @@ impl FingerprintSignalProvider for ExternalFingerprintSignalProvider {
 
         let normalized = match normalize_akamai_edge_outcome(parsed) {
             Ok(outcome) => outcome,
-            Err(err) => return Response::new(400, err),
+            Err(err) => {
+                let ip = crate::extract_client_ip(req);
+                crate::signals::fingerprint::record_external_payload_rejection(store);
+                crate::admin::log_event(
+                    store,
+                    &crate::admin::EventLogEntry {
+                        ts: crate::admin::now_ts(),
+                        event: crate::admin::EventType::Challenge,
+                        ip: Some(ip),
+                        reason: Some("external_fingerprint_invalid_payload".to_string()),
+                        outcome: Some(err.to_string()),
+                        admin: None,
+                    },
+                );
+                return Response::new(400, err);
+            }
         };
         let cdp_report = map_normalized_fingerprint_to_cdp_report(&normalized);
         let cdp_tier =

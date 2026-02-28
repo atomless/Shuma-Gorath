@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live adversary-sim-history-clean test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -546,6 +546,26 @@ test-adversarial-live: ## Continuously run adversarial simulation profile for li
 		exit 1; \
 	fi
 
+adversary-sim-history-clean: ## Clear retained runtime-dev telemetry history from admin monitoring/event surfaces (requires running server)
+	@echo "$(CYAN)🧹 Clearing retained adversary simulation telemetry history...$(NC)"
+	@if $(MAKE) --no-print-directory spin-wait-ready; then \
+		RESPONSE="$$(curl -fsS -X POST \
+			-H "Authorization: Bearer $(SHUMA_API_KEY)" \
+			-H "X-Forwarded-For: 127.0.0.1" \
+			$(FORWARDED_SECRET_HEADER) \
+			http://127.0.0.1:3000/admin/adversary-sim/history/cleanup)" || { \
+			echo "$(RED)❌ Failed to clear retained adversary simulation telemetry history.$(NC)"; \
+			echo "$(YELLOW)   Ensure SHUMA_API_KEY is configured and runtime guards allow the endpoint (runtime-dev + SHUMA_ADVERSARY_SIM_AVAILABLE=true).$(NC)"; \
+			exit 1; \
+		}; \
+		echo "$(GREEN)✅ Retained adversary simulation telemetry history cleared.$(NC)"; \
+		echo "$$RESPONSE"; \
+	else \
+		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
+		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
+		exit 1; \
+	fi
+
 test-adversarial-repeatability: ## Run deterministic repeatability gate across smoke/abuse/coverage profiles (N=3)
 	@echo "$(CYAN)🧪 Running adversarial repeatability gate...$(NC)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
@@ -954,4 +974,4 @@ help: ## Show this help message
 	@grep -h -E '^(test.*|smoke-single-host):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Utilities:$(NC)"
-	@grep -h -E '^(stop|status|clean|logs|env-help|api-key-generate|gen-admin-api-key|api-key-show|api-key-rotate|api-key-validate|deploy-env-validate|help):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
+	@grep -h -E '^(stop|status|clean|logs|env-help|adversary-sim-history-clean|api-key-generate|gen-admin-api-key|api-key-show|api-key-rotate|api-key-validate|deploy-env-validate|help):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'

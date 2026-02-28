@@ -6,6 +6,31 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 SIM2 Gap-Closure Program: Real Execution + Realtime Monitoring
 
+#### SIM2-GC-13: Remove Adversary Sim Progress Bar and Eliminate Dead UI Runtime Paths
+
+- [x] SIM2-GC-13-1 Remove progress-line markup (`#adversary-sim-progress-line`) and related style hooks from dashboard route/templates.
+- [x] SIM2-GC-13-2 Remove progress-timer state (`adversarySimProgressNowMs`, tick interval) and associated scheduling/cleanup logic.
+- [x] SIM2-GC-13-3 Delete `deriveAdversarySimProgress` runtime helper and remove any no-longer-used status fields from UI-only normalization contracts.
+- [x] SIM2-GC-13-4 Keep lifecycle semantics explicit in UI copy/status (`off`, `running`, `stopping`) without representing run as procedural progress.
+- [x] SIM2-GC-13-5 Update unit/e2e tests to assert control behavior and lifecycle state visibility without any progress-width assertions.
+- [x] SIM2-GC-13-6 Update docs to remove “top progress line” references and describe auto-off as a guardrail window, not scenario progression.
+- [x] SIM2-GC-13-7 Run dead-code sweep for dashboard/runtime modules to remove imports, helpers, and selectors no longer referenced after progress-line removal.
+
+#### SIM2-GC-2: Re-architect Host Orchestration into Capability-Gated Functional Flow
+
+- [x] SIM2-GC-2-1 Refactor host orchestration into explicit phases: `plan`, `execute`, `collect evidence`, `publish report`.
+- [x] SIM2-GC-2-2 Require capability tokens for privileged operations (config mutation, telemetry writes, admin APIs) and forbid implicit fallbacks.
+- [x] SIM2-GC-2-3 Move phase decision logic into pure functions with typed inputs/outputs and side effects only in executor boundary.
+- [x] SIM2-GC-2-4 Add characterization tests proving behavior parity before/after extraction and proving no telemetry side path bypasses runtime flow.
+- [x] SIM2-GC-2-5 Update module-boundary docs with explicit dependency direction and trust-boundary ownership.
+- [x] SIM2-GC-2-6 Introduce explicit command contract for adversary toggle control (`operation_id`, idempotency key semantics, requested/accepted state model).
+- [x] SIM2-GC-2-7 Separate desired lifecycle state from actual lifecycle state and move reconciliation authority out of read-path status handlers.
+- [x] SIM2-GC-2-8 Add controller lease/fencing ownership model so only one reconciler can mutate adversary lifecycle state at a time.
+- [x] SIM2-GC-2-9 Add endpoint-specific trust-boundary gate for adversary control submissions (`admin auth`, `csrf token`, strict `origin/referer`, and fetch-metadata policy for unsafe methods).
+- [x] SIM2-GC-2-10 Implement payload-bound idempotency replay policy (`Idempotency-Key` required, actor/session scoping, canonical payload hash binding, deterministic TTL expiry behavior).
+- [x] SIM2-GC-2-11 Add control-plane abuse throttling envelope (per-session and per-IP ceilings, bounded debounce/queue semantics, explicit throttled outcomes).
+- [x] SIM2-GC-2-12 Add structured control-operation security audit schema (`operation_id`, actor/session, decision, reason, origin verdict, idempotency-hash) with sensitive-field redaction rules.
+
 #### SIM2-GCR: Mandatory Research Program for Gap-Closure Execution
 
 - [x] SIM2-GCR-8 Produce research synthesis docs and implementation plans for `GC-6`, `GC-8`, `GC-11`, and `GC-14`, then update todos with quantitative thresholds derived from research outcomes.
@@ -18,6 +43,15 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-GCR-2 Research capability-safe black-box runner orchestration patterns for containerized frontier actors (least-authority token handoff, envelope signing, bounded execution, one-way command channels, fail-closed teardown).
 - [x] SIM2-GCR-3 Research trust-boundary controls specific to toggle-driven orchestration in a dev server admin interface (auth/CSRF/session boundaries, replay protection, abuse throttling, auditability requirements).
 - [x] SIM2-GCR-1 Research architecture patterns for triggering/stopping a black-box LLM adversary from a dev-only admin UI toggle (control-plane API contract, lifecycle state model, idempotency, race handling, kill-switch behavior).
+
+#### SIM2-GC-1: Define End-to-End Contract for “Real Adversary Traffic”
+
+- [x] SIM2-GC-1-1 Write architecture contract doc that defines required invariants for `traffic source`, `execution lane`, `defense path`, `telemetry emission`, and `monitoring visibility`.
+- [x] SIM2-GC-1-2 Define explicit prohibited patterns (mock telemetry injection, out-of-band metrics writes, control-plane-only “success” signals).
+- [x] SIM2-GC-1-3 Define evidence schema for each run (`request id lineage`, `scenario id`, `lane`, `defenses touched`, `decision outcomes`, `latency/cost`).
+- [x] SIM2-GC-1-4 Add contract tests that fail if runner marks scenario success without corresponding runtime telemetry evidence.
+- [x] SIM2-GC-1-5 Publish operator-facing definition of done for SIM runs (what must appear in Monitoring and IP Ban views).
+- [x] SIM2-GC-1-6 Extend evidence schema with control-plane lineage fields (`control_operation_id`, `requested_state`, `desired_state`, `actual_state`, `actor/session`) for toggle-driven orchestration traceability.
 
 ## Additional completions (2026-02-27)
 

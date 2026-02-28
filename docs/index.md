@@ -47,5 +47,6 @@ Use the Makefile as the official workflow. These docs are the source of truth fo
 - [`research/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity.md`](research/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity.md) - Research for simulation telemetry authenticity controls
 - [`research/2026-02-27-sim2-architecture-shortfall-orchestration-capability.md`](research/2026-02-27-sim2-architecture-shortfall-orchestration-capability.md) - Research for orchestration/capability architecture uplift
 - [`adversarial-operator-guide.md`](adversarial-operator-guide.md) - Operator triage/tuning guidance for adversarial simulation failures and dashboard orchestration lifecycle
+- [`sim2-real-adversary-traffic-contract.md`](sim2-real-adversary-traffic-contract.md) - Architecture contract and evidence schema for valid real-traffic adversarial runs
 - [`frontier-data-governance.md`](frontier-data-governance.md) - Frontier payload allowlist, redaction pipeline, and retention matrix
 - [`../todos/security-review.md`](../todos/security-review.md) - Security audit notes / backlog

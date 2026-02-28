@@ -185,19 +185,6 @@ async function dashboardBodyClassState(page) {
   });
 }
 
-async function adversarySimProgressPercent(page) {
-  return page.evaluate(() => {
-    const fill = document.querySelector(
-      "#adversary-sim-progress-line .adversary-sim-progress-line__fill"
-    );
-    if (!fill) return 0;
-    const raw = String(fill.style.width || "0").replace("%", "");
-    const numeric = Number.parseFloat(raw);
-    if (!Number.isFinite(numeric)) return 0;
-    return Math.max(0, Math.min(100, numeric));
-  });
-}
-
 async function bootstrapDashboardSession(page, targetUrl) {
   const nextPath = dashboardRelativePath(targetUrl);
   const loginUrl = `${BASE_URL}/dashboard/login.html?next=${encodeURIComponent(nextPath)}`;
@@ -1240,14 +1227,16 @@ test("dashboard body class contract tracks runtime and adversary-sim state", asy
   expect(bodyState.hasAdversarySim).toBeFalsy();
 });
 
-test("adversary sim global toggle drives orchestration control and top progress line", async ({ page, request }) => {
+test("adversary sim global toggle drives orchestration control lifecycle state", async ({ page, request }) => {
   await updateAdminConfig(request, { adversary_sim_enabled: false, adversary_sim_duration_seconds: 180 });
   await openDashboard(page);
 
   const toggle = page.locator("#global-adversary-sim-toggle");
   const toggleSwitch = page.locator("label.toggle-switch[for='global-adversary-sim-toggle']");
+  const lifecycleCopy = page.locator("#adversary-sim-lifecycle-copy");
   await expect(toggle).toBeEnabled();
   await expect(toggle).not.toBeChecked();
+  await expect(lifecycleCopy).toContainText("Generation inactive");
 
   const onDialogHandledPromise = page.waitForEvent("dialog").then(async (onDialog) => {
     expect(onDialog.message()).toContain("No frontier model provider keys are configured");
@@ -1265,12 +1254,9 @@ test("adversary sim global toggle drives orchestration control and top progress 
   const onBody = await onResponse.json();
   expect(onBody?.requested_enabled).toBe(true);
   await expect(toggle).toBeChecked();
-  await expect(page.locator("#adversary-sim-progress-line")).toBeVisible();
-
-  const firstProgress = await adversarySimProgressPercent(page);
-  await page.waitForTimeout(1200);
-  const secondProgress = await adversarySimProgressPercent(page);
-  expect(secondProgress).toBeGreaterThanOrEqual(firstProgress);
+  await expect(lifecycleCopy).toContainText("Generation active");
+  let bodyState = await dashboardBodyClassState(page);
+  expect(bodyState.hasAdversarySim).toBeTruthy();
 
   const [offResponse] = await Promise.all([
     page.waitForResponse((resp) => (
@@ -1283,9 +1269,9 @@ test("adversary sim global toggle drives orchestration control and top progress 
   const offBody = await offResponse.json();
   expect(offBody?.requested_enabled).toBe(false);
   await expect(toggle).not.toBeChecked();
-  await expect(page.locator("#adversary-sim-progress-line")).toBeHidden();
-
-  const bodyState = await dashboardBodyClassState(page);
+  await expect(lifecycleCopy).toContainText("Generation inactive");
+  await expect(lifecycleCopy).toContainText("Retained telemetry remains visible");
+  bodyState = await dashboardBodyClassState(page);
   expect(bodyState.hasAdversarySim).toBeFalsy();
 });
 
@@ -1318,7 +1304,7 @@ test("adversary sim toggle cancel path avoids orchestration request when frontie
   ]);
 
   await expect(toggle).not.toBeChecked();
-  await expect(page.locator("#admin-msg")).toContainText("Run make setup");
+  await expect(page.locator("#admin-msg")).toContainText("Add SHUMA_FRONTIER_*_API_KEY");
   await page.waitForTimeout(250);
   expect(controlRequestCount).toBe(0);
 });

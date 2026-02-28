@@ -19,6 +19,26 @@ Use this guide for:
 - `make test-adversarial-container-isolation`
 - `make test-adversarial-container-blackbox`
 
+## SIM Run Definition Of Done (`SIM2-GC-1`)
+
+A run must be treated as complete only when all rules below are true:
+
+1. `latest_report.json` has `passed=true`.
+2. `latest_report.json` includes `real_traffic_contract` and `evidence` sections.
+3. Every passed scenario includes runtime telemetry evidence in `evidence.scenario_execution`:
+   - `runtime_request_count > 0`
+   - plus at least one runtime telemetry delta (`monitoring_total_delta`, `coverage_delta_total`, or `simulation_event_count_delta`) above zero.
+4. `evidence.control_plane_lineage` is present with:
+   - `control_operation_id`, `requested_state`, `desired_state`, `actual_state`, `actor_session`.
+5. No synthetic-success pattern is used:
+   - no synthetic monitoring injection,
+   - no out-of-band metrics writes,
+   - no control-plane-only success signaling.
+
+Canonical contract reference:
+
+- [`sim2-real-adversary-traffic-contract.md`](sim2-real-adversary-traffic-contract.md)
+
 All profiles write a report to `scripts/tests/adversarial/latest_report.json` unless `ADVERSARIAL_REPORT_PATH` overrides it.
 All runs also emit `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
 Promotion triage emits `scripts/tests/adversarial/promotion_candidates_report.json` with candidate -> replay -> promotion lineage records.
@@ -270,6 +290,13 @@ Control-plane endpoints:
 
 1. `POST /admin/adversary-sim/control` for explicit ON/OFF transitions.
 2. `GET /admin/adversary-sim/status` for phase + guardrail visibility.
+3. `POST /admin/adversary-sim/history/cleanup` for explicit retained-telemetry cleanup.
+
+Lifecycle semantics:
+
+1. `generation_active` describes whether adversary traffic producers are currently running.
+2. `historical_data_visible` remains `true` after auto-off; retained telemetry stays queryable until retention expiry or explicit cleanup.
+3. `history_retention` status fields expose retention window and cleanup command.
 
 Guardrail constants (hard-coded, not operator-configurable):
 
@@ -297,7 +324,8 @@ Failure-handling rules:
 1. Unauthenticated, unauthorized, and CSRF-invalid control attempts must be rejected and written to admin event log.
 2. If stop does not converge to zero-active state before stop timeout, orchestrator must force-kill and return to safe `off` state.
 3. If runtime is not `runtime-dev` or `SHUMA_ADVERSARY_SIM_AVAILABLE=false`, control/status endpoints must fail closed (`404`).
-4. Status polling and top progress-line rendering are presentation only; defense behavior remains server-authoritative.
+4. Status polling and lifecycle-state rendering are presentation only; defense behavior remains server-authoritative.
+5. Use `make adversary-sim-history-clean` only when explicit history reset is required; auto-off must not be treated as data deletion.
 
 ### `latency_p95` Failure
 

@@ -1,4 +1,5 @@
 pub(crate) mod adversary_sim;
+pub(crate) mod adversary_sim_control;
 mod api;
 pub(crate) mod auth;
 

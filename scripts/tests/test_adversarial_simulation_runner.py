@@ -89,6 +89,33 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             self.assertIn(runner.SIM_TAG_HEADER_SIGNATURE, headers)
             self.assertNotIn("X-Shuma-Forwarded-Secret", headers)
 
+    def test_control_plane_headers_split_health_loopback_and_admin_isolation(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+            admin_headers = sim_runner.control_client.admin_headers()
+            health_headers = sim_runner.control_client.health_headers()
+
+            self.assertEqual(health_headers.get("X-Forwarded-For"), "127.0.0.1")
+            self.assertRegex(str(admin_headers.get("X-Forwarded-For")), r"^127\.0\.\d+\.\d+$")
+
     def test_build_frontier_metadata_reports_disabled_single_and_multi_modes(self):
         with patch("scripts.tests.adversarial_simulation_runner.read_env_local_value", return_value=""):
             with patch.dict("os.environ", {}, clear=True):
@@ -292,6 +319,80 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         checks_by_name = {check["name"]: check for check in checks}
         self.assertTrue(checks_by_name["coverage_honeypot_hits"]["passed"])
         self.assertFalse(checks_by_name["coverage_geo_block"]["passed"])
+
+    def test_build_scenario_execution_evidence_marks_runtime_telemetry_presence(self):
+        evidence = runner.build_scenario_execution_evidence(
+            scenario_id="scenario_a",
+            request_count_before=4,
+            request_count_after=7,
+            monitoring_before={"monitoring_total": 3, "coverage": {"honeypot_hits": 1}},
+            monitoring_after={"monitoring_total": 5, "coverage": {"honeypot_hits": 2}},
+            simulation_event_count_before=2,
+            simulation_event_count_after=3,
+        )
+        self.assertEqual(evidence["scenario_id"], "scenario_a")
+        self.assertEqual(evidence["runtime_request_count"], 3)
+        self.assertEqual(evidence["monitoring_total_delta"], 2)
+        self.assertEqual(evidence["coverage_delta_total"], 1)
+        self.assertEqual(evidence["simulation_event_count_delta"], 1)
+        self.assertTrue(evidence["has_runtime_telemetry_evidence"])
+
+    def test_build_runtime_telemetry_evidence_checks_fail_when_passed_scenario_missing_telemetry(self):
+        results = [
+            runner.ScenarioResult(
+                id="scenario_a",
+                tier="SIM-T1",
+                driver="pow_success",
+                expected_outcome="allow",
+                observed_outcome="allow",
+                passed=True,
+                latency_ms=100,
+                runtime_budget_ms=1000,
+                detail="ok",
+            ),
+            runner.ScenarioResult(
+                id="scenario_b",
+                tier="SIM-T3",
+                driver="rate_limit_enforce",
+                expected_outcome="deny_temp",
+                observed_outcome="deny_temp",
+                passed=True,
+                latency_ms=150,
+                runtime_budget_ms=1000,
+                detail="ok",
+            ),
+        ]
+        scenario_execution_evidence = {
+            "scenario_a": {
+                "scenario_id": "scenario_a",
+                "runtime_request_count": 3,
+                "monitoring_total_delta": 2,
+                "coverage_delta_total": 1,
+                "simulation_event_count_delta": 1,
+                "has_runtime_telemetry_evidence": True,
+            },
+            "scenario_b": {
+                "scenario_id": "scenario_b",
+                "runtime_request_count": 1,
+                "monitoring_total_delta": 0,
+                "coverage_delta_total": 0,
+                "simulation_event_count_delta": 0,
+                "has_runtime_telemetry_evidence": False,
+            },
+        }
+        checks = runner.build_runtime_telemetry_evidence_checks(
+            results=results,
+            scenario_execution_evidence=scenario_execution_evidence,
+            required_fields=runner.REAL_TRAFFIC_CONTRACT_REQUIRED_SCENARIO_FIELDS,
+        )
+        checks_by_name = {check["name"]: check for check in checks}
+        self.assertTrue(checks_by_name["runtime_evidence_rows_for_passed_scenarios"]["passed"])
+        self.assertTrue(checks_by_name["runtime_evidence_required_fields_present"]["passed"])
+        self.assertFalse(checks_by_name["runtime_evidence_telemetry_for_passed_scenarios"]["passed"])
+        self.assertIn(
+            "scenario_b",
+            checks_by_name["runtime_evidence_telemetry_for_passed_scenarios"]["detail"],
+        )
 
     def test_annotate_coverage_checks_with_threshold_sources(self):
         checks = runner.build_coverage_checks({"honeypot_hits": 1}, {"honeypot_hits": 2})
@@ -574,6 +675,69 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(realism["retry_attempts"], 1)
         self.assertEqual(realism["attempts_total"], 3)
         self.assertEqual(realism["state_headers_sent"], 1)
+
+    def test_admin_read_request_retries_throttled_reads(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        responses = [
+            runner.HttpResult(status=429, body="Too Many Requests", headers={"retry-after": "1"}, latency_ms=1),
+            runner.HttpResult(status=200, body="{}", headers={}, latency_ms=1),
+        ]
+        sim_runner.admin_request = lambda method, path, json_body=None: responses.pop(0)  # type: ignore[assignment]
+
+        with patch("scripts.tests.adversarial_simulation_runner.time.sleep", return_value=None) as sleep_mock:
+            result = sim_runner.admin_read_request("GET", "/admin/events")
+        self.assertEqual(result.status, 200)
+        sleep_mock.assert_called_once()
+
+    def test_admin_read_request_returns_last_throttled_response_after_budget(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        responses = [
+            runner.HttpResult(status=429, body="Too Many Requests", headers={"retry-after": "1"}, latency_ms=1),
+            runner.HttpResult(status=429, body="Too Many Requests", headers={"retry-after": "1"}, latency_ms=1),
+        ]
+        sim_runner.admin_request = lambda method, path, json_body=None: responses.pop(0)  # type: ignore[assignment]
+
+        with patch("scripts.tests.adversarial_simulation_runner.time.sleep", return_value=None):
+            result = sim_runner.admin_read_request("GET", "/admin/events", max_attempts=2)
+        self.assertEqual(result.status, 429)
 
     def test_run_scenario_attaches_realism_evidence(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")

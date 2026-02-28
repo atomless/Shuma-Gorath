@@ -405,6 +405,16 @@ h1 {
   top: 60px;
 }
 
+.dashboard-adversary-sim-hint {
+  position: absolute;
+  top: 90px;
+  left: 30px;
+  max-width: 380px;
+  font-size: var(--text-xs);
+  line-height: 1.3;
+  z-index: 20;
+}
+
 .subtitle {
   font-size: var(--text-lg);
   margin: -18px 0 2rem 0;
@@ -1138,25 +1148,6 @@ a:focus-visible {
   display: none;
 }
 
-.adversary-sim-progress-line {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  background: transparent;
-  z-index: 100000001;
-  pointer-events: none;
-}
-
-.adversary-sim-progress-line__fill {
-  display: block;
-  width: 0;
-  height: 100%;
-  background: var(--color-bright-pink);
-  transition: width 0.2s linear;
-}
-
 .hidden {
   display: none;
 }
@@ -1283,6 +1274,12 @@ input:checked + .toggle-slider:before {
 
   .dashboard-adversary-sim-control {
     top: 44px;
+  }
+
+  .dashboard-adversary-sim-hint {
+    top: 70px;
+    left: 16px;
+    max-width: min(70vw, 320px);
   }
 
   .dashboard-logout {
