@@ -8,7 +8,7 @@ mod test_support;
 // Entry point for the WASM Stealth Bot Defence Spin app
 
 use crate::enforcement::block_page;
-use crate::signals::{allowlist, geo, js_verification as js};
+use crate::signals::{geo, js_verification as js};
 use serde::Serialize;
 use spin_sdk::http::{Method, Request, Response};
 use spin_sdk::http_component;
@@ -36,7 +36,7 @@ mod tarpit; // tarpit progressive endpoint/runtime
 
 /// Returns true if forwarded IP headers should be trusted for this request.
 /// If SHUMA_FORWARDED_IP_SECRET is set, require a matching X-Shuma-Forwarded-Secret header.
-fn forwarded_ip_trusted(req: &Request) -> bool {
+pub(crate) fn forwarded_ip_trusted(req: &Request) -> bool {
     if config::runtime_environment().is_dev()
         && config::adversary_sim_available()
         && runtime::sim_telemetry::is_simulation_context_active()
@@ -84,7 +84,7 @@ fn forwarded_proto_is_https(req: &Request) -> bool {
     false
 }
 
-fn request_is_https(req: &Request) -> bool {
+pub(crate) fn request_is_https(req: &Request) -> bool {
     if req.uri().trim_start().starts_with("https://") {
         return true;
     }
@@ -331,7 +331,7 @@ fn config_error_response(err: config::ConfigLoadError, path: &str) -> Response {
     Response::new(500, "Configuration unavailable")
 }
 
-fn load_runtime_config(
+pub(crate) fn load_runtime_config(
     store: &Store,
     site_id: &str,
     path: &str,
@@ -636,19 +636,19 @@ pub(crate) fn write_log_line(out: &mut impl Write, msg: &str) {
     let _ = writeln!(out, "{}", msg);
 }
 
-fn log_line(msg: &str) {
+pub(crate) fn log_line(msg: &str) {
     let mut out = std::io::stdout();
     write_log_line(&mut out, msg);
 }
 
-fn increment_metric_intent(
+pub(crate) fn increment_metric_intent(
     metric: observability::metrics::MetricName,
     label: Option<String>,
 ) -> runtime::effect_intents::EffectIntent {
     runtime::effect_intents::EffectIntent::IncrementMetric { metric, label }
 }
 
-fn policy_signal_intent(
+pub(crate) fn policy_signal_intent(
     signal_id: runtime::policy_taxonomy::SignalId,
 ) -> runtime::effect_intents::EffectIntent {
     increment_metric_intent(
@@ -657,7 +657,7 @@ fn policy_signal_intent(
     )
 }
 
-fn provider_backend_visibility_intents(
+pub(crate) fn provider_backend_visibility_intents(
     provider_registry: &providers::registry::ProviderRegistry,
 ) -> Vec<runtime::effect_intents::EffectIntent> {
     [
@@ -991,267 +991,7 @@ pub(crate) fn serve_maze_with_tracking(
 
 /// Main handler logic, testable as a plain Rust function.
 pub fn handle_bot_defence_impl(req: &Request) -> Response {
-    if let Err(err) = config::validate_env_only_once() {
-        log_line(&format!("[ENV ERROR] {}", err));
-        return Response::new(500, "Server configuration error");
-    }
-    let path = req.path();
-    let sim_metadata = runtime::sim_telemetry::metadata_from_request(
-        req,
-        config::runtime_environment(),
-        config::adversary_sim_available(),
-    );
-    let _sim_context_guard = runtime::sim_telemetry::enter(sim_metadata);
-
-    if crate::config::https_enforced() && !request_is_https(req) {
-        return Response::new(403, "HTTPS required");
-    }
-
-    if let Some(response) = runtime::request_router::maybe_handle_early_route(req, path) {
-        return response;
-    }
-
-    if should_bypass_expensive_bot_checks_for_static(req, path) {
-        return Response::new(200, "OK (passed bot defence)");
-    }
-
-    let site_id = "default";
-    let ip = extract_client_ip(req);
-    let ua = req
-        .header("user-agent")
-        .map(|v| v.as_str().unwrap_or(""))
-        .unwrap_or("");
-
-    let store = match runtime::kv_gate::open_store_or_fail_mode_response() {
-        Ok(store) => store,
-        Err(response) => return response,
-    };
-    let store = &store;
-    let request_capabilities = runtime::capabilities::RuntimeCapabilities::for_request_path();
-    if let Some(sim_tag_failure) = runtime::sim_telemetry::take_last_validation_failure() {
-        runtime::effect_intents::execute_metric_intents(
-            vec![policy_signal_intent(sim_tag_failure.signal_id())],
-            store,
-            &request_capabilities,
-        );
-        log_line(&format!(
-            "[SIM TAG] rejected reason={}",
-            sim_tag_failure.as_str()
-        ));
-    }
-
-    let cfg = match load_runtime_config(store, site_id, path) {
-        Ok(cfg) => cfg,
-        Err(resp) => return resp,
-    };
-    let provider_registry = providers::registry::ProviderRegistry::from_config(&cfg);
-    let request_effect_context = runtime::effect_intents::EffectExecutionContext {
-        req,
-        store,
-        cfg: &cfg,
-        provider_registry: &provider_registry,
-        site_id,
-        ip: &ip,
-        ua,
-    };
-    let execute_request_intents = |intents: Vec<runtime::effect_intents::EffectIntent>| {
-        runtime::effect_intents::execute_effect_intents(
-            intents,
-            &request_effect_context,
-            &request_capabilities,
-        );
-    };
-    execute_request_intents(provider_backend_visibility_intents(&provider_registry));
-    execute_request_intents(vec![policy_signal_intent(
-        runtime::policy_taxonomy::SignalId::CtxPathClass,
-    )]);
-    if forwarded_ip_trusted(req) {
-        execute_request_intents(vec![policy_signal_intent(
-            runtime::policy_taxonomy::SignalId::CtxIpTrusted,
-        )]);
-    }
-    if !ua.is_empty() {
-        execute_request_intents(vec![policy_signal_intent(
-            runtime::policy_taxonomy::SignalId::CtxUa,
-        )]);
-    }
-    let geo_assessment = assess_geo_request(req, &cfg);
-
-    // CDP Report endpoint - receives automation detection reports from client-side JS
-    if path
-        == provider_registry
-            .fingerprint_signal_provider()
-            .report_path()
-        && *req.method() == spin_sdk::http::Method::Post
-    {
-        return provider_registry
-            .fingerprint_signal_provider()
-            .handle_report(store, req);
-    }
-
-    if path == crate::maze::checkpoint_path() {
-        let response = crate::maze::runtime::handle_checkpoint(store, &cfg, req, &ip, ua);
-        let checkpoint_outcome = match *response.status() {
-            204 => "accepted",
-            405 => "method_not_allowed",
-            403 => "binding_mismatch",
-            _ => "invalid",
-        };
-        execute_request_intents(vec![increment_metric_intent(
-            observability::metrics::MetricName::MazeCheckpointOutcomes,
-            Some(checkpoint_outcome.to_string()),
-        )]);
-        return response;
-    }
-
-    if path == crate::maze::issue_links_path() {
-        return crate::maze::runtime::handle_issue_links(store, &cfg, req, &ip, ua);
-    }
-
-    if path == crate::tarpit::progress_path() {
-        return provider_registry
-            .maze_tarpit_provider()
-            .handle_tarpit_progress(req, store, &cfg, site_id, &ip, ua);
-    }
-
-    // Maze - route suspicious crawlers into deception space (only if enabled)
-    if provider_registry.maze_tarpit_provider().is_maze_path(path) {
-        if !cfg.maze_enabled {
-            return Response::new(404, "Not Found");
-        }
-        let policy_match = runtime::policy_taxonomy::resolve_policy_match(
-            runtime::policy_taxonomy::PolicyTransition::MazeTraversal,
-        );
-        execute_request_intents(vec![runtime::effect_intents::EffectIntent::RecordPolicyMatch(
-            runtime::policy_taxonomy::PolicyTransition::MazeTraversal,
-        )]);
-        let event_outcome = policy_match.annotate_outcome("maze_page_served");
-        return provider_registry
-            .maze_tarpit_provider()
-            .serve_maze_with_tracking(
-                req,
-                store,
-                &cfg,
-                &ip,
-                ua,
-                path,
-                "maze_trap",
-                event_outcome.as_str(),
-                None,
-            );
-    }
-
-    // Increment request counter
-    execute_request_intents(vec![increment_metric_intent(
-        observability::metrics::MetricName::RequestsTotal,
-        None,
-    )]);
-
-    // Path-based allowlist (for webhooks/integrations)
-    if cfg.path_allowlist_enabled && allowlist::is_path_allowlisted(path, &cfg.path_allowlist) {
-        execute_request_intents(vec![increment_metric_intent(
-            observability::metrics::MetricName::AllowlistedTotal,
-            None,
-        )]);
-        return Response::new(200, "OK (path allowlisted)");
-    }
-    // IP/CIDR allowlist
-    if cfg.bypass_allowlists_enabled && allowlist::is_allowlisted(&ip, &cfg.allowlist) {
-        execute_request_intents(vec![increment_metric_intent(
-            observability::metrics::MetricName::AllowlistedTotal,
-            None,
-        )]);
-        return Response::new(200, "OK (allowlisted)");
-    }
-    let ip_range_evaluation = crate::signals::ip_range_policy::evaluate(&cfg, &ip);
-    if let Some(response) = runtime::test_mode::maybe_handle_test_mode(
-        store,
-        &cfg,
-        site_id,
-        &ip,
-        path,
-        &ip_range_evaluation,
-        geo_assessment.route,
-        || js::needs_js_verification(req, store, site_id, &ip),
-        || {
-            execute_request_intents(vec![increment_metric_intent(
-                observability::metrics::MetricName::TestModeActions,
-                None,
-            )])
-        },
-    ) {
-        return response;
-    }
-    if let Some(response) = runtime::policy_pipeline::maybe_handle_policy_graph_first_tranche(
-        req,
-        store,
-        &cfg,
-        &provider_registry,
-        site_id,
-        &ip,
-        path,
-        ua,
-        &geo_assessment,
-        &ip_range_evaluation,
-    ) {
-        return response;
-    }
-    // PoW endpoints (public, before JS verification)
-    if path == "/pow" {
-        if *req.method() != spin_sdk::http::Method::Get {
-            return Response::new(405, "Method Not Allowed");
-        }
-        return provider_registry
-            .challenge_engine_provider()
-            .handle_pow_challenge(
-                &ip,
-                ua,
-                cfg.pow_enabled,
-                cfg.pow_difficulty,
-                cfg.pow_ttl_seconds,
-            );
-    }
-    if path == "/pow/verify" {
-        return provider_registry
-            .challenge_engine_provider()
-            .handle_pow_verify(req, &ip, cfg.pow_enabled);
-    }
-    if let Some(response) = runtime::policy_pipeline::maybe_handle_policy_graph_second_tranche(
-        req,
-        store,
-        &cfg,
-        &provider_registry,
-        site_id,
-        &ip,
-        path,
-        ua,
-        &geo_assessment,
-        &ip_range_evaluation,
-    ) {
-        return response;
-    }
-    let record_allow_clean = || {
-        execute_request_intents(vec![
-            runtime::effect_intents::EffectIntent::RecordPolicyMatch(
-                runtime::policy_taxonomy::PolicyTransition::AllowClean,
-            ),
-            runtime::effect_intents::EffectIntent::RecordLikelyHumanSample {
-                sample_percent: cfg.ip_range_suggestions_likely_human_sample_percent,
-                sample_hint: path.to_string(),
-            },
-        ]);
-    };
-
-    if let Some(response) = runtime::sim_public::maybe_handle(req, path, &cfg) {
-        if *response.status() == 200u16 {
-            record_allow_clean();
-        }
-        return response;
-    }
-
-    record_allow_clean();
-
-    Response::new(200, "OK (passed bot defence)")
+    runtime::request_flow::handle_request(req)
 }
 
 #[http_component]
