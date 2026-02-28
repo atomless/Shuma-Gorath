@@ -259,7 +259,7 @@ Scope: run rigorous research before implementing high-risk SIM2 gap-closure slic
 Execution order (must be followed):
 1. `SIM2-GCR-1` UI toggle orchestration architecture (completed 2026-02-28).
 2. `SIM2-GCR-3` UI-toggle trust-boundary controls (completed 2026-02-28).
-3. `SIM2-GCR-2` containerized black-box capability orchestration.
+3. `SIM2-GCR-2` containerized black-box capability orchestration (completed 2026-02-28).
 4. `SIM2-GCR-4` Rust realtime monitoring architecture candidates.
 5. `SIM2-GCR-9` Rust prototype/benchmark comparison for realtime candidates.
 6. `SIM2-GCR-5` telemetry retention/storage lifecycle best practices.
@@ -274,7 +274,6 @@ Per-track workflow (must be followed before marking each track complete):
 3. Update `todos/todo.md` to reflect plan-derived changes (tightened acceptance criteria, reordered execution where needed, and any new required todos).
 4. Only then mark that `SIM2-GCR-*` track complete and move to the next ordered track.
 
-- [ ] SIM2-GCR-2 Research capability-safe black-box runner orchestration patterns for containerized frontier actors (least-authority token handoff, envelope signing, bounded execution, one-way command channels, fail-closed teardown).
 - [ ] SIM2-GCR-4 Research Rust-first realtime monitoring architectures for dashboard freshness (polling with cursoring vs SSE/WebSocket-style streams, backpressure patterns, ordering guarantees, bounded memory/cpu cost).
 - [ ] SIM2-GCR-5 Research Rust storage/retention best practices for high-volume monitoring/event telemetry (TTL strategy, partitioning/indexing, cleanup cadence, deterministic purge semantics, operator-visible retention health).
 - [ ] SIM2-GCR-6 Research cost-efficiency patterns for monitoring pipelines (aggregation windows, cardinality controls, event sampling restrictions, compression/serialization tradeoffs, query budget controls).
@@ -432,6 +431,12 @@ Scope: ensure frontier-model-driven adversary lane produces concrete HTTP/browse
 - [ ] SIM2-GC-8-7 Add trace lineage from model suggestion -> executed action -> runtime telemetry -> monitoring view.
 - [ ] SIM2-GC-8-8 Add degraded-mode behavior for key outages that remains explicit and does not fake execution success.
 - [ ] SIM2-GC-8-9 Add operator kill-switch and deterministic emergency stop flow for active frontier runs.
+- [ ] SIM2-GC-8-10 Enforce hardened container runtime profile for frontier workers (`non-root/rootless`, `no_new_privileges`, capability allowlist only, read-only rootfs with explicit scratch mounts, no privileged mode/host namespace joins).
+- [ ] SIM2-GC-8-11 Block sensitive host-control surfaces by policy (forbid daemon-socket mounts and disallowed host bind mounts; fail launch when isolation profile is violated).
+- [ ] SIM2-GC-8-12 Implement signed host-issued capability envelopes for executable worker actions (`run_id`, `step_id`, action scope, nonce, `issued_at`, `expires_at`, `key_id`) with strict signature/expiry/replay validation.
+- [ ] SIM2-GC-8-13 Implement bounded one-way command channel semantics (host -> worker command queue with backpressure; worker output restricted to append-only evidence/events without control-plane mutation rights).
+- [ ] SIM2-GC-8-14 Implement deterministic fail-closed teardown contract (hard runtime deadline, heartbeat timeout, forced process-tree kill, and terminal run-failed semantics on teardown failure).
+- [ ] SIM2-GC-8-15 Add lifecycle cleanup policy for frontier run artifacts/resources (TTL-driven cleanup, bounded retention, and explicit cleanup failure diagnostics).
 
 Acceptance criteria:
 1. Frontier lane emits real traffic actions, not report-only suggestions.
@@ -441,6 +446,10 @@ Acceptance criteria:
 5. Security abuse-path tests fail closed for exfiltration, privilege escalation, and envelope misuse attempts.
 6. Key outage mode is visible, bounded, and non-deceptive.
 7. Operators can force-stop frontier execution with deterministic teardown behavior.
+8. Frontier workers cannot launch unless hardened runtime isolation profile is satisfied.
+9. Signed capability envelopes are mandatory for execution and replay/signature/expiry failures are rejected deterministically.
+10. Command/evidence channel semantics preserve one-way authority boundaries and bounded backpressure behavior.
+11. Timeout/crash/heartbeat-loss paths fail closed with deterministic teardown and terminal diagnostics.
 
 ### SIM2-GC-9: Scenario Design Realism and Defense Exercise Guarantees
 
@@ -492,6 +501,9 @@ Scope: enforce non-regression with tests that prove real traffic -> real defense
 - [ ] SIM2-GC-11-10 Add trust-boundary negative-path tests for adversary control endpoint (`csrf missing/invalid`, `origin mismatch`, `fetch-metadata cross-site`, `stale session`) and assert fail-closed behavior.
 - [ ] SIM2-GC-11-11 Add idempotency misuse tests proving key reuse with payload mismatch is rejected and exact retries map to stable `operation_id`.
 - [ ] SIM2-GC-11-12 Add throttling + audit tests proving rapid toggle storms are bounded and every accept/reject/throttle decision emits structured audit evidence.
+- [ ] SIM2-GC-11-13 Add container isolation regression tests for frontier lane (reject privileged mode, daemon-socket mount, disallowed host mount, and missing runtime hardening flags).
+- [ ] SIM2-GC-11-14 Add signed-envelope negative tests (`invalid signature`, `nonce replay`, `expiry exceeded`, `scope mismatch`) proving worker execution is blocked.
+- [ ] SIM2-GC-11-15 Add teardown determinism tests (`deadline exceeded`, `heartbeat loss`, forced-kill path) and assert terminal failure taxonomy plus cleanup completion.
 
 Acceptance criteria:
 1. Mandatory verification fails if any matrix-required defense/lane evidence is missing.
@@ -501,6 +513,7 @@ Acceptance criteria:
 5. Release gates cannot pass with partial coverage hidden by aggregate pass/fail summaries.
 6. Toggle control regressions (duplicate starts, lease split-brain, missing operation lineage) fail deterministically in CI.
 7. Trust-boundary regressions (CSRF/origin/session/replay/throttle/audit) fail deterministically in CI with explicit failure taxonomy.
+8. Frontier isolation/envelope/teardown regressions fail deterministically in CI with explicit failure taxonomy.
 
 ### SIM2-GC-12: Program Governance for Continuous Defense Evolution
 

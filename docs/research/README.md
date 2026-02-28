@@ -51,3 +51,5 @@ Completed archive index:
    Research synthesis for safe UI-toggle control-plane architecture for black-box LLM adversary lifecycle orchestration.
 7. [`2026-02-28-sim2-gcr-3-ui-toggle-trust-boundary-controls-research.md`](2026-02-28-sim2-gcr-3-ui-toggle-trust-boundary-controls-research.md)  
    Research synthesis for endpoint trust boundaries on adversary toggle control (session/CSRF/replay/throttling/audit controls).
+8. [`2026-02-28-sim2-gcr-2-containerized-black-box-capability-orchestration-research.md`](2026-02-28-sim2-gcr-2-containerized-black-box-capability-orchestration-research.md)  
+   Research synthesis for capability-safe containerized frontier orchestration (runtime hardening, signed envelopes, bounded channels, fail-closed teardown).
