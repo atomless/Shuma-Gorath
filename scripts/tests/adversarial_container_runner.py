@@ -23,6 +23,9 @@ from scripts.tests.frontier_action_contract import (
     load_frontier_action_contract,
     resolve_frontier_actions,
 )
+from scripts.tests.frontier_capability_envelope import (
+    build_action_capability_envelopes,
+)
 
 
 DEFAULT_IMAGE_TAG = "shuma-adversary-blackbox:local"
@@ -35,6 +38,8 @@ SIM_TAG_CONTRACT_PATH = "scripts/tests/adversarial/sim_tag_contract.v1.json"
 DEFAULT_FRONTIER_ACTION_CONTRACT_PATH = "scripts/tests/adversarial/frontier_action_contract.v1.json"
 DEFAULT_CONTAINER_RUNTIME_PROFILE_PATH = "scripts/tests/adversarial/container_runtime_profile.v1.json"
 FRONTIER_ACTIONS_ENV = "SHUMA_BLACKBOX_ACTIONS"
+CAPABILITY_ENVELOPES_ENV = "BLACKBOX_ACTION_ENVELOPES"
+CAPABILITY_VERIFY_KEY_ENV = "BLACKBOX_CAPABILITY_VERIFY_KEY"
 FRONTIER_FORBIDDEN_FIELD_SUBSTRINGS = (
     "secret",
     "api_key",
@@ -634,6 +639,8 @@ def container_command(
     time_budget_seconds: int,
     sim_tag_envelopes_json: str,
     frontier_actions_json: str,
+    capability_envelopes_json: str,
+    capability_verify_key: str,
 ) -> List[str]:
     command = [
         "docker",
@@ -664,6 +671,10 @@ def container_command(
         f"BLACKBOX_SIM_TAG_ENVELOPES={sim_tag_envelopes_json}",
         "-e",
         f"BLACKBOX_ACTIONS={frontier_actions_json}",
+        "-e",
+        f"{CAPABILITY_ENVELOPES_ENV}={capability_envelopes_json}",
+        "-e",
+        f"{CAPABILITY_VERIFY_KEY_ENV}={capability_verify_key}",
         image_tag,
     ]
     return command
@@ -679,6 +690,8 @@ def run_container_worker(
     time_budget_seconds: int,
     sim_tag_envelopes_json: str,
     frontier_actions_json: str,
+    capability_envelopes_json: str,
+    capability_verify_key: str,
     runtime_profile: Dict[str, Any],
 ) -> Tuple[Dict[str, Any], subprocess.CompletedProcess[str], List[str], List[str]]:
     command = container_command(
@@ -691,6 +704,8 @@ def run_container_worker(
         time_budget_seconds=time_budget_seconds,
         sim_tag_envelopes_json=sim_tag_envelopes_json,
         frontier_actions_json=frontier_actions_json,
+        capability_envelopes_json=capability_envelopes_json,
+        capability_verify_key=capability_verify_key,
     )
     violations = evaluate_container_command_against_profile(command, runtime_profile)
     if violations:
@@ -869,6 +884,8 @@ def main() -> int:
         "summary": {},
         "detail": "lineage_not_collected",
     }
+    capability_verify_key = ""
+    capability_envelopes: List[Dict[str, Any]] = []
 
     if args.mode == "blackbox":
         if not sim_tag_secret:
@@ -893,6 +910,15 @@ def main() -> int:
 
     sim_tag_envelopes_json = json.dumps(sim_tag_envelopes, separators=(",", ":"))
     frontier_actions_json = json.dumps(frontier_actions, separators=(",", ":"))
+    if args.mode == "blackbox":
+        capability_verify_key, capability_envelopes = build_action_capability_envelopes(
+            sim_tag_secret,
+            run_id,
+            frontier_actions,
+            ttl_seconds=min(300, max(30, time_budget_seconds)),
+            key_id="sim-tag-derived-v1",
+        )
+    capability_envelopes_json = json.dumps(capability_envelopes, separators=(",", ":"))
 
     try:
         worker_payload, worker_result, command, runtime_profile_violations = run_container_worker(
@@ -905,6 +931,8 @@ def main() -> int:
             time_budget_seconds=time_budget_seconds,
             sim_tag_envelopes_json=sim_tag_envelopes_json,
             frontier_actions_json=frontier_actions_json,
+            capability_envelopes_json=capability_envelopes_json,
+            capability_verify_key=capability_verify_key,
             runtime_profile=runtime_profile,
         )
     except Exception as exc:
@@ -1014,6 +1042,11 @@ def main() -> int:
             "required_user_mode": str(runtime_profile.get("required_user_mode") or ""),
             "violations": runtime_profile_violations,
             "passed": not bool(runtime_profile_violations),
+        },
+        "capability_envelopes": {
+            "count": len(capability_envelopes),
+            "key_id": "sim-tag-derived-v1" if capability_envelopes else "",
+            "verify_key_present": bool(capability_verify_key),
         },
         "attack_plan_path": str(args.attack_plan),
         "frontier_actions": frontier_actions,

@@ -43,6 +43,8 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
             time_budget_seconds=90,
             sim_tag_envelopes_json='[{"ts":"1","nonce":"n","signature":"s"}]',
             frontier_actions_json='[{"action_type":"http_get","path":"/"}]',
+            capability_envelopes_json='[{"run_id":"r","step_id":1,"action_type":"http_get","path":"/","nonce":"n","issued_at":1,"expires_at":2,"key_id":"k","signature":"s"}]',
+            capability_verify_key="verify-key",
         )
         joined = " ".join(command)
         self.assertIn("--read-only", joined)
@@ -52,6 +54,8 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         self.assertIn("--add-host=host.docker.internal:host-gateway", joined)
         self.assertIn("BLACKBOX_SIM_TAG_ENVELOPES=", joined)
         self.assertIn("BLACKBOX_ACTIONS=", joined)
+        self.assertIn("BLACKBOX_ACTION_ENVELOPES=", joined)
+        self.assertIn("BLACKBOX_CAPABILITY_VERIFY_KEY=", joined)
 
     def test_extract_frontier_actions_from_attack_plan_uses_candidate_path_hints(self):
         attack_plan = {

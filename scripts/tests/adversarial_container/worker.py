@@ -18,6 +18,10 @@ from scripts.tests.frontier_action_contract import (
     load_frontier_action_contract,
     resolve_frontier_actions,
 )
+from scripts.tests.frontier_capability_envelope import (
+    parse_action_capability_envelopes,
+    validate_action_capability_envelopes,
+)
 
 
 FORBIDDEN_ENV_PREFIXES = ("SHUMA_",)
@@ -35,6 +39,8 @@ LANE_CONTRACT_PATH = DEFAULT_CONTRACT_DIR / "lane_contract.v1.json"
 SIM_TAG_CONTRACT_PATH = DEFAULT_CONTRACT_DIR / "sim_tag_contract.v1.json"
 FRONTIER_ACTION_CONTRACT_PATH = DEFAULT_CONTRACT_DIR / "frontier_action_contract.v1.json"
 FRONTIER_ACTIONS_ENV = "BLACKBOX_ACTIONS"
+CAPABILITY_ENVELOPES_ENV = "BLACKBOX_ACTION_ENVELOPES"
+CAPABILITY_VERIFY_KEY_ENV = "BLACKBOX_CAPABILITY_VERIFY_KEY"
 
 
 def bool_env(name: str, default: bool = False) -> bool:
@@ -281,6 +287,9 @@ def main() -> int:
         "policy_audit": [],
         "policy_violation_count": 0,
         "policy_violation_blocking": False,
+        "capability_validation_passed": False,
+        "capability_envelope_count": 0,
+        "capability_validation_errors": [],
         "observed_env_keys": [key for key in observed_env_keys if key.startswith("BLACKBOX_")],
         "request_budget": request_budget,
         "time_budget_seconds": time_budget_seconds,
@@ -366,6 +375,7 @@ def main() -> int:
             detail=",".join(forbidden_present),
         )
     resolved_actions: List[Dict[str, Any]] = []
+    capability_validation_errors: List[str] = []
     if not errors:
         try:
             resolved_actions = resolve_frontier_actions(
@@ -395,6 +405,33 @@ def main() -> int:
                 code="action_validation_failed",
                 detail=str(exc),
             )
+    if not errors:
+        capability_envelopes = parse_action_capability_envelopes(
+            os.environ.get(CAPABILITY_ENVELOPES_ENV, "")
+        )
+        capability_verify_key = str(os.environ.get(CAPABILITY_VERIFY_KEY_ENV, "")).strip()
+        payload["capability_envelope_count"] = len(capability_envelopes)
+        if not capability_verify_key:
+            capability_validation_errors = ["missing_capability_verify_key"]
+        else:
+            capability_validation_errors = validate_action_capability_envelopes(
+                capability_envelopes,
+                verify_key=capability_verify_key,
+                run_id=run_id,
+                actions=resolved_actions,
+            )
+        payload["capability_validation_errors"] = capability_validation_errors
+        if capability_validation_errors:
+            errors.append("capability_validation_failed")
+            append_policy_audit_event(
+                policy_audit,
+                stage="validation",
+                decision="deny",
+                code="capability_validation_failed",
+                detail=";".join(capability_validation_errors),
+            )
+        else:
+            payload["capability_validation_passed"] = True
 
     requests_sent = 0
     for action in resolved_actions:
