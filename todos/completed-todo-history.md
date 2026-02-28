@@ -8,6 +8,8 @@ Moved from active TODO files on 2026-02-14.
 
 #### SIM2-GCR: Mandatory Research Program for Gap-Closure Execution
 
+- [x] SIM2-GCR-8 Produce research synthesis docs and implementation plans for `GC-6`, `GC-8`, `GC-11`, and `GC-14`, then update todos with quantitative thresholds derived from research outcomes.
+- [x] SIM2-GCR-10 Convert selected research outcomes into ADR-backed architecture decisions for: (a) UI-toggle-driven black-box adversary orchestration, (b) monitoring realtime data architecture, and (c) retention/cost/security lifecycle policies.
 - [x] SIM2-GCR-7 Research security/privacy best practices for telemetry and adversary artifacts (secret-exposure prevention, data minimization, pseudonymization options, artifact retention risk controls, incident-response hooks).
 - [x] SIM2-GCR-6 Research cost-efficiency patterns for monitoring pipelines (aggregation windows, cardinality controls, event sampling restrictions, compression/serialization tradeoffs, query budget controls).
 - [x] SIM2-GCR-5 Research Rust storage/retention best practices for high-volume monitoring/event telemetry (TTL strategy, partitioning/indexing, cleanup cadence, deterministic purge semantics, operator-visible retention health).

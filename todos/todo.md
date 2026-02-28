@@ -265,8 +265,8 @@ Execution order (must be followed):
 6. `SIM2-GCR-5` telemetry retention/storage lifecycle best practices (completed 2026-02-28).
 7. `SIM2-GCR-6` monitoring cost-efficiency patterns (completed 2026-02-28).
 8. `SIM2-GCR-7` telemetry/adversary-artifact security and privacy controls (completed 2026-02-28).
-9. `SIM2-GCR-10` ADR-backed architecture decision capture.
-10. `SIM2-GCR-8` synthesize outcomes into implementation plans and TODO updates.
+9. `SIM2-GCR-10` ADR-backed architecture decision capture (completed 2026-02-28).
+10. `SIM2-GCR-8` synthesize outcomes into implementation plans and TODO updates (completed 2026-02-28).
 
 Per-track workflow (must be followed before marking each track complete):
 1. Publish a dated research doc in `docs/research/` with sources, options considered, and decision matrix.
@@ -274,8 +274,6 @@ Per-track workflow (must be followed before marking each track complete):
 3. Update `todos/todo.md` to reflect plan-derived changes (tightened acceptance criteria, reordered execution where needed, and any new required todos).
 4. Only then mark that `SIM2-GCR-*` track complete and move to the next ordered track.
 
-- [ ] SIM2-GCR-8 Produce research synthesis docs and implementation plans for `GC-6`, `GC-8`, `GC-11`, and `GC-14`, then update todos with quantitative thresholds derived from research outcomes.
-- [ ] SIM2-GCR-10 Convert selected research outcomes into ADR-backed architecture decisions for: (a) UI-toggle-driven black-box adversary orchestration, (b) monitoring realtime data architecture, and (c) retention/cost/security lifecycle policies.
 
 Acceptance criteria:
 1. Each `SIM2-GCR-*` track produces a dated research doc in `docs/research/` with source-backed recommendations.
@@ -307,6 +305,7 @@ Acceptance criteria:
 ### SIM2-GC-2: Re-architect Host Orchestration into Capability-Gated Functional Flow
 
 Scope: remove remaining centralized imperative orchestration seams that let traffic/reporting drift apart.
+ADR reference: [`docs/adr/0007-adversary-sim-toggle-command-controller.md`](../docs/adr/0007-adversary-sim-toggle-command-controller.md)
 
 - [ ] SIM2-GC-2-1 Refactor host orchestration into explicit phases: `plan`, `execute`, `collect evidence`, `publish report`.
 - [ ] SIM2-GC-2-2 Require capability tokens for privileged operations (config mutation, telemetry writes, admin APIs) and forbid implicit fallbacks.
@@ -379,6 +378,7 @@ Acceptance criteria:
 ### SIM2-GC-6: Deliver Realtime Monitoring Refresh Semantics and Backpressure Safety
 
 Scope: ensure monitoring and IP-ban views reflect new activity quickly in both dev and production (simulated and real traffic) without destabilizing runtime.
+ADR reference: [`docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md`](../docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md)
 
 - [ ] SIM2-GC-6-1 Define quantitative freshness SLOs for runtime-dev and runtime-prod (`p50/p95/p99 visibility delay`, `manual refresh staleness bound`, `max allowed lag before degraded state`).
 - [ ] SIM2-GC-6-2 Define and enforce a load envelope for freshness SLO compliance (event ingest rate, operator refresh concurrency, query cost ceiling) with benchmark methodology.
@@ -433,8 +433,8 @@ Scope: ensure frontier-model-driven adversary lane produces concrete HTTP/browse
 - [ ] SIM2-GC-8-5 Add strict sanitization/validation so unsafe or out-of-policy model outputs are rejected before execution.
 - [ ] SIM2-GC-8-6 Add negative-path security tests (secret-exfiltration canaries, out-of-scope URL attempts, privileged header injection attempts, replay envelope misuse).
 - [ ] SIM2-GC-8-7 Add trace lineage from model suggestion -> executed action -> runtime telemetry -> monitoring view.
-- [ ] SIM2-GC-8-8 Add degraded-mode behavior for key outages that remains explicit and does not fake execution success.
-- [ ] SIM2-GC-8-9 Add operator kill-switch and deterministic emergency stop flow for active frontier runs.
+- [ ] SIM2-GC-8-8 Add degraded-mode behavior for key outages that remains explicit, does not fake execution success, and surfaces degraded state within one monitoring refresh/stream cycle.
+- [ ] SIM2-GC-8-9 Add operator kill-switch and deterministic emergency stop flow for active frontier runs with `p95 <= 10s` stop-latency target.
 - [ ] SIM2-GC-8-10 Enforce hardened container runtime profile for frontier workers (`non-root/rootless`, `no_new_privileges`, capability allowlist only, read-only rootfs with explicit scratch mounts, no privileged mode/host namespace joins).
 - [ ] SIM2-GC-8-11 Block sensitive host-control surfaces by policy (forbid daemon-socket mounts and disallowed host bind mounts; fail launch when isolation profile is violated).
 - [ ] SIM2-GC-8-12 Implement signed host-issued capability envelopes for executable worker actions (`run_id`, `step_id`, action scope, nonce, `issued_at`, `expires_at`, `key_id`) with strict signature/expiry/replay validation.
@@ -454,6 +454,10 @@ Acceptance criteria:
 9. Signed capability envelopes are mandatory for execution and replay/signature/expiry failures are rejected deterministically.
 10. Command/evidence channel semantics preserve one-way authority boundaries and bounded backpressure behavior.
 11. Timeout/crash/heartbeat-loss paths fail closed with deterministic teardown and terminal diagnostics.
+12. Executed frontier-action lineage completeness is `100%` (`model suggestion -> validated action -> runtime request -> monitoring evidence`).
+13. Policy-violation execution rate is `0` in mandatory regression suites.
+14. Kill-switch stop latency meets `p95 <= 10s` in benchmarked verification profiles.
+15. Outage/degraded state transition is visible within one monitoring refresh/stream cycle.
 
 ### SIM2-GC-9: Scenario Design Realism and Defense Exercise Guarantees
 
@@ -514,6 +518,8 @@ Scope: enforce non-regression with tests that prove real traffic -> real defense
 - [ ] SIM2-GC-11-19 Add retention lifecycle regression tests for bucket cutoff correctness, purge-watermark progression, purge-lag threshold, and no read-path full-keyspace cleanup scans.
 - [ ] SIM2-GC-11-20 Add cost-governance regression tests for cardinality caps, overflow-bucket accounting, unsampleable-event protection, payload-size budget, and compression effectiveness thresholds.
 - [ ] SIM2-GC-11-21 Add security/privacy regression suite for telemetry/artifacts (field-classification enforcement, secret-canary leak checks, pseudonymization default coverage, retention-tier policy, incident-hook emission).
+- [ ] SIM2-GC-11-22 Add ADR conformance verification checks ensuring implementation slices align with ADR `0007`, `0008`, and `0009` (or provide explicit supersession plan).
+- [ ] SIM2-GC-11-23 Add hybrid-governance threshold tests ensuring emergent promotion requires `>=95%` deterministic confirmation, `<=20%` false-discovery rate, and owner disposition SLA `<=48h`.
 
 Acceptance criteria:
 1. Mandatory verification fails if any matrix-required defense/lane evidence is missing.
@@ -529,6 +535,7 @@ Acceptance criteria:
 11. Retention-lifecycle regressions (purge lag, bucket cutoff drift, read-path scan fallback) fail deterministically in CI with explicit failure taxonomy.
 12. Cost-governance regressions (cardinality/payload/sampling/compression/query-budget) fail deterministically in CI with explicit failure taxonomy.
 13. Security/privacy regressions (classification/leak/pseudonymization/retention/incident hooks) fail deterministically in CI with explicit failure taxonomy.
+14. ADR conformance drift for SIM2 core domains fails deterministically in CI unless an explicit supersession path is declared.
 
 ### SIM2-GC-12: Program Governance for Continuous Defense Evolution
 
@@ -571,25 +578,26 @@ Scope: resolve ambiguity between choreographed simulation and emergent adversary
 
 - [ ] SIM2-GC-14-1 Write architecture contract distinguishing `deterministic conformance lane` (blocking) and `emergent exploration lane` (non-blocking discovery).
 - [ ] SIM2-GC-14-2 Define what remains intentionally choreographed (seed scenarios, invariant assertions, resource guardrails) vs what must be emergent (crawl strategy, attack sequencing, adaptation).
-- [ ] SIM2-GC-14-3 Define emergent-lane objective model (target assets, success functions, allowed adaptation space, stop conditions) with bounded runtime budgets.
+- [ ] SIM2-GC-14-3 Define emergent-lane objective model (target assets, success functions, allowed adaptation space, stop conditions) with bounded runtime budgets (`<=180s` and `<=500 actions` default envelope).
 - [ ] SIM2-GC-14-4 Define novelty scoring and triage policy (`novelty`, `severity`, `confidence`, `replayability`) for emergent findings.
 - [ ] SIM2-GC-14-5 Add lane metadata and report lineage fields so operators can see whether evidence came from deterministic or emergent execution.
 - [ ] SIM2-GC-14-6 Define promotion pipeline from emergent finding -> deterministic replay case -> blocking regression with explicit acceptance contract.
 - [ ] SIM2-GC-14-7 Add governance tests that fail if release-blocking decisions depend on stochastic-only emergent outcomes without deterministic confirmation.
-- [ ] SIM2-GC-14-8 Set and enforce quantitative promotion thresholds (`minimum deterministic confirmation rate`, `maximum tolerated false-discovery rate`, `owner-review requirements`).
+- [ ] SIM2-GC-14-8 Set and enforce quantitative promotion thresholds (`minimum deterministic confirmation rate >=95%`, `maximum tolerated false-discovery rate <=20%`, `owner-review disposition SLA <=48h`).
 - [ ] SIM2-GC-14-9 Update operator docs/runbooks so monitoring expectations reflect “real attacker behavior while enabled,” with deterministic replay used for release confidence.
 
 Acceptance criteria:
 1. Deterministic and emergent lanes are explicit, testable, and operationally visible.
 2. Blocking gates depend only on deterministic confirmation, never stochastic one-off outcomes.
-3. Emergent lane drives realistic crawl/scrape/attack exploration without privileged control-plane access and within bounded budgets.
-4. Promotion decisions use quantitative thresholds and are auditable from lineage artifacts.
-5. False-discovery behavior is measured and kept within declared limits.
+3. Emergent lane drives realistic crawl/scrape/attack exploration without privileged control-plane access and within bounded budgets (`<=180s`, `<=500 actions` default envelope).
+4. Promotion decisions enforce quantitative thresholds (`>=95%` deterministic confirmation, `<=20%` false-discovery rate, `<=48h` owner disposition SLA) and remain auditable from lineage artifacts.
+5. False-discovery behavior is measured and kept within declared limit (`<=20%` rolling window target).
 6. Operator documentation and UI terminology no longer conflate guardrail duration with procedural adversary progress.
 
 ### SIM2-GC-15: Telemetry Retention Lifecycle Determinism and Health Visibility
 
 Scope: enforce deterministic retention/purge semantics for monitoring/event telemetry without read-path scan amplification.
+ADR reference: [`docs/adr/0009-telemetry-lifecycle-retention-cost-security.md`](../docs/adr/0009-telemetry-lifecycle-retention-cost-security.md)
 
 - [ ] SIM2-GC-15-1 Define canonical telemetry bucket/index schema for monitoring/event retention operations (`bucket_id`, `window_start`, `window_end`, `record_count`, `state`).
 - [ ] SIM2-GC-15-2 Migrate telemetry writes to update bucket/index metadata so expired windows are purge-addressable without full keyspace scans.
@@ -611,6 +619,7 @@ Acceptance criteria:
 ### SIM2-GC-16: Monitoring Cost Governance and Resource Efficiency Envelope
 
 Scope: enforce layered cost controls across telemetry ingest, storage, query, and transport while preserving security-critical evidence integrity.
+ADR reference: [`docs/adr/0009-telemetry-lifecycle-retention-cost-security.md`](../docs/adr/0009-telemetry-lifecycle-retention-cost-security.md)
 
 - [ ] SIM2-GC-16-1 Define formal monitoring cost envelope (`ingest events/sec`, `query calls/sec`, `payload bytes`, `cardinality budget`, `compression ratio`) for dev/prod verification profiles.
 - [ ] SIM2-GC-16-2 Enforce guarded-dimension cardinality caps (`<=1000` distinct values/hour per guarded dimension) with deterministic `other` overflow bucket behavior.
@@ -633,6 +642,7 @@ Acceptance criteria:
 ### SIM2-GC-17: Telemetry and Adversary-Artifact Security/Privacy-by-Construction
 
 Scope: enforce classification, minimization, pseudonymization, and incident-response controls so telemetry/artifacts cannot leak secrets or over-retain sensitive data by default.
+ADR reference: [`docs/adr/0009-telemetry-lifecycle-retention-cost-security.md`](../docs/adr/0009-telemetry-lifecycle-retention-cost-security.md)
 
 - [ ] SIM2-GC-17-1 Define canonical field-classification schema for telemetry/artifact fields (`public`, `internal`, `sensitive`, `secret-prohibited`) and persistence policy matrix.
 - [ ] SIM2-GC-17-2 Enforce classification at ingest/persist boundaries; reject prohibited classes and emit structured violation events.

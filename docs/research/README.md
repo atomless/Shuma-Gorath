@@ -63,3 +63,7 @@ Completed archive index:
    Cost-governance research for monitoring pipelines (cardinality, rollups, sampling restrictions, payload/compression budgets, query controls).
 13. [`2026-02-28-sim2-gcr-7-telemetry-artifact-security-privacy-controls-research.md`](2026-02-28-sim2-gcr-7-telemetry-artifact-security-privacy-controls-research.md)  
    Security/privacy control research for telemetry and adversary artifacts (classification, secret scrubbing, pseudonymization, retention tiers, incident hooks).
+14. [`2026-02-28-sim2-gcr-10-adr-decision-capture-research.md`](2026-02-28-sim2-gcr-10-adr-decision-capture-research.md)  
+   ADR-capture synthesis that formalizes selected SIM2 architecture decisions in ADRs `0007`/`0008`/`0009`.
+15. [`2026-02-28-sim2-gcr-8-gc6-gc8-gc11-gc14-synthesis.md`](2026-02-28-sim2-gcr-8-gc6-gc8-gc11-gc14-synthesis.md)  
+   Cross-track synthesis for `GC-6`/`GC-8`/`GC-11`/`GC-14` with unified quantitative thresholds and implementation sequencing.

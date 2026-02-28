@@ -35,3 +35,15 @@ If superseded, link the replacing ADR.
 - Include alternatives considered.
 - Include security, operational, and resource implications.
 - Link to relevant PRs/issues.
+
+## Current ADRs
+
+1. [`0001-profile-gated-state-plane.md`](0001-profile-gated-state-plane.md)
+2. [`0002-dashboard-sveltekit-cutover.md`](0002-dashboard-sveltekit-cutover.md)
+3. [`0003-dashboard-runtime-policy.md`](0003-dashboard-runtime-policy.md)
+4. [`0004-tarpit-v2-progression-contract.md`](0004-tarpit-v2-progression-contract.md)
+5. [`0005-adversarial-lane-coexistence-policy.md`](0005-adversarial-lane-coexistence-policy.md)
+6. [`0006-functional-core-policy-orchestration.md`](0006-functional-core-policy-orchestration.md)
+7. [`0007-adversary-sim-toggle-command-controller.md`](0007-adversary-sim-toggle-command-controller.md)
+8. [`0008-realtime-monitoring-cursor-sse-hybrid.md`](0008-realtime-monitoring-cursor-sse-hybrid.md)
+9. [`0009-telemetry-lifecycle-retention-cost-security.md`](0009-telemetry-lifecycle-retention-cost-security.md)
