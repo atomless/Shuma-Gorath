@@ -330,6 +330,36 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(deltas["honeypot_hits"], 0)
         self.assertEqual(deltas["geo_maze"], 4)
 
+    def test_build_sim_tag_diagnostics_reports_healthy_when_no_sim_tag_failures(self):
+        diagnostics = runner.build_sim_tag_diagnostics(
+            simulation_event_reasons=["geo:challenge", "not_a_bot_replay"],
+            sim_secret_present=True,
+        )
+        self.assertEqual(diagnostics["schema_version"], "sim-tag-diagnostics.v1")
+        self.assertEqual(diagnostics["status"], "healthy")
+        self.assertEqual(diagnostics["sim_tag_reason_count"], 0)
+        self.assertEqual(diagnostics["dominant_failure"], "none")
+        self.assertIn("No sim-tag validation failures observed", diagnostics["guidance"][0])
+
+    def test_build_sim_tag_diagnostics_classifies_signature_and_replay_failures(self):
+        diagnostics = runner.build_sim_tag_diagnostics(
+            simulation_event_reasons=[
+                "S_SIM_TAG_SIGNATURE_MISMATCH",
+                "sim_tag_nonce_replay",
+                "sim_tag_signature_mismatch",
+                "geo:block",
+            ],
+            sim_secret_present=True,
+        )
+        self.assertEqual(diagnostics["status"], "validation_failures_detected")
+        self.assertEqual(diagnostics["sim_tag_reason_count"], 3)
+        self.assertEqual(diagnostics["failure_counts"]["signature_mismatch"], 2)
+        self.assertEqual(diagnostics["failure_counts"]["nonce_replay"], 1)
+        self.assertEqual(diagnostics["dominant_failure"], "signature_mismatch")
+        joined_guidance = " ".join(diagnostics["guidance"])
+        self.assertIn("Rotate SHUMA_SIM_TELEMETRY_SECRET", joined_guidance)
+        self.assertIn("nonce replay", joined_guidance.lower())
+
     def test_build_coverage_checks_reports_pass_and_fail(self):
         checks = runner.build_coverage_checks(
             {"honeypot_hits": 1, "geo_block": 2},

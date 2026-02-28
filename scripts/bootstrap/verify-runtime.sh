@@ -105,6 +105,17 @@ else
   pass ".env.local has SHUMA_FORWARDED_IP_SECRET"
 fi
 
+sim_secret_value="$(read_env_local_value SHUMA_SIM_TELEMETRY_SECRET || true)"
+if [[ -z "${sim_secret_value}" ]]; then
+  fail "SHUMA_SIM_TELEMETRY_SECRET is empty in .env.local"
+elif [[ "${sim_secret_value}" == "changeme-dev-only-sim-telemetry-secret" ]]; then
+  fail "SHUMA_SIM_TELEMETRY_SECRET still uses placeholder value in .env.local"
+elif [[ ! "${sim_secret_value}" =~ ^[0-9a-fA-F]{64,}$ ]]; then
+  fail "SHUMA_SIM_TELEMETRY_SECRET must be hex and at least 64 characters in .env.local"
+else
+  pass ".env.local has a valid SHUMA_SIM_TELEMETRY_SECRET"
+fi
+
 info "Running config seed verification via Makefile target..."
 if make --no-print-directory config-seed >/dev/null; then
   pass "make config-seed succeeded"

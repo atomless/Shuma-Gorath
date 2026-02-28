@@ -79,6 +79,7 @@ The runner writes machine-readable artifacts to:
 - `scripts/tests/adversarial/sim2_verification_matrix_report.json` (from `make test-sim2-verification-matrix` / `make test-sim2-verification-e2e`)
 - `scripts/tests/adversarial/sim2_operational_regressions_report.json` (from `make test-sim2-operational-regressions`)
 - `scripts/tests/adversarial/sim2_governance_contract_report.json` (from `make test-sim2-governance-contract`)
+- `scripts/tests/adversarial/preflight_report.json` (from `make test-adversarial-preflight`)
 - `latest_report.json` and `attack_plan.json` include `execution_lane` metadata for auditability.
   - `latest_report.json` includes:
   - quantitative `gates` and `coverage_gates` sections (each check includes `threshold_source`),
@@ -150,6 +151,9 @@ Notes:
   - `hybrid_lane_contract.v1.json` defines deterministic vs emergent lane boundaries, promotion thresholds, cadence ownership, and KPI/rollback governance.
   - `make test-sim2-governance-contract` validates contract structure and required operator/promotion policy markers.
 - Frontier threshold lane (`make test-frontier-unavailability-policy`) tracks protected-lane degraded streaks and emits actionability state for model-refresh ownership workflows.
+- Secret/setup preflight:
+  - `make test-adversarial-preflight` fails early on missing placeholder or malformed `SHUMA_API_KEY`/`SHUMA_SIM_TELEMETRY_SECRET`.
+  - Use preflight before smoke/coverage/promote/container black-box lanes to keep failures actionable.
 - Container lane is complementary and non-replacing in this phase:
   - run `make test-adversarial-container-isolation` to validate isolation contract first,
   - then run `make test-adversarial-container-blackbox` for bounded black-box traffic execution.

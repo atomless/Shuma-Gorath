@@ -1048,7 +1048,8 @@ class Runner:
             )
         if not self.sim_telemetry_secret:
             raise SimulationError(
-                "Missing SHUMA_SIM_TELEMETRY_SECRET. Run make setup (or export SHUMA_SIM_TELEMETRY_SECRET) before adversarial tests."
+                "[sim-preflight][missing_secret] SHUMA_SIM_TELEMETRY_SECRET is missing. "
+                "Run make test-adversarial-preflight (or make setup) before adversarial tests."
             )
 
         self.scenarios = scenario_map(self.manifest)
@@ -1250,6 +1251,9 @@ class Runner:
                 "monitoring_before": monitoring_before,
                 "monitoring_after": monitoring_after,
                 "simulation_event_reasons": simulation_event_reasons,
+                "sim_tag_diagnostics": build_sim_tag_diagnostics(
+                    simulation_event_reasons, sim_secret_present=bool(self.sim_telemetry_secret)
+                ),
                 "results": [result.__dict__ for result in results],
                 "gates": gate_results,
                 "coverage_gates": gate_results.get("coverage_gates", {}),
@@ -3091,6 +3095,122 @@ def dict_or_empty(value: Any) -> Dict[str, Any]:
 
 def list_or_empty(value: Any) -> List[Any]:
     return value if isinstance(value, list) else []
+
+
+def build_sim_tag_diagnostics(
+    simulation_event_reasons: Optional[List[str]],
+    sim_secret_present: bool,
+) -> Dict[str, Any]:
+    normalized_reasons = [
+        str(reason).strip().lower()
+        for reason in list_or_empty(simulation_event_reasons)
+        if str(reason).strip()
+    ]
+    sim_tag_reasons = [
+        reason for reason in normalized_reasons if "sim_tag_" in reason
+    ]
+    failure_counts = {
+        "missing_secret": 0,
+        "missing_required_headers": 0,
+        "invalid_header_value": 0,
+        "invalid_timestamp": 0,
+        "timestamp_skew": 0,
+        "signature_mismatch": 0,
+        "nonce_replay": 0,
+        "other": 0,
+    }
+    failure_markers = {
+        "missing_secret": "sim_tag_missing_secret",
+        "missing_required_headers": "sim_tag_missing_required_headers",
+        "invalid_header_value": "sim_tag_invalid_header_value",
+        "invalid_timestamp": "sim_tag_invalid_timestamp",
+        "timestamp_skew": "sim_tag_timestamp_skew",
+        "signature_mismatch": "sim_tag_signature_mismatch",
+        "nonce_replay": "sim_tag_nonce_replay",
+    }
+    for reason in sim_tag_reasons:
+        matched = False
+        for failure_name, marker in failure_markers.items():
+            if marker in reason:
+                failure_counts[failure_name] += 1
+                matched = True
+                break
+        if not matched:
+            failure_counts["other"] += 1
+
+    dominant_failure = "none"
+    dominant_count = 0
+    for failure_name in (
+        "missing_secret",
+        "signature_mismatch",
+        "nonce_replay",
+        "timestamp_skew",
+        "invalid_timestamp",
+        "missing_required_headers",
+        "invalid_header_value",
+        "other",
+    ):
+        count = int_or_zero(failure_counts.get(failure_name))
+        if count > dominant_count:
+            dominant_failure = failure_name
+            dominant_count = count
+
+    guidance: List[str] = []
+    if not sim_secret_present:
+        guidance.append(
+            "Missing SHUMA_SIM_TELEMETRY_SECRET in runner context. Run make test-adversarial-preflight (or make setup) before running adversarial profiles."
+        )
+    if int_or_zero(failure_counts.get("missing_secret")) > 0:
+        guidance.append(
+            "Runtime observed sim-tag missing-secret failures. Ensure runtime process has SHUMA_SIM_TELEMETRY_SECRET and restart runtime before rerun."
+        )
+    if int_or_zero(failure_counts.get("signature_mismatch")) > 0:
+        guidance.append(
+            "Sim-tag signature mismatches detected. Rotate SHUMA_SIM_TELEMETRY_SECRET, keep runner/runtime in sync, and restart runtime before replay."
+        )
+    if int_or_zero(failure_counts.get("nonce_replay")) > 0:
+        guidance.append(
+            "Sim-tag nonce replay detected. Reset runtime-dev state and rerun with fresh envelopes to avoid stale nonce reuse."
+        )
+    if (
+        int_or_zero(failure_counts.get("timestamp_skew")) > 0
+        or int_or_zero(failure_counts.get("invalid_timestamp")) > 0
+    ):
+        guidance.append(
+            "Sim-tag timestamp validation failures detected. Verify runner/runtime clock sync and signed timestamp format."
+        )
+    if (
+        int_or_zero(failure_counts.get("missing_required_headers")) > 0
+        or int_or_zero(failure_counts.get("invalid_header_value")) > 0
+    ):
+        guidance.append(
+            "Sim-tag header validation failures detected. Re-run make test-adversarial-sim-tag-contract and confirm required headers are present."
+        )
+    if int_or_zero(failure_counts.get("other")) > 0:
+        guidance.append(
+            "Unexpected sim-tag validation failures detected. Inspect simulation_event_reasons and policy-signal metrics for new failure variants."
+        )
+    if not guidance:
+        guidance.append(
+            "No sim-tag validation failures observed in the run window."
+        )
+
+    status = "healthy"
+    if not sim_secret_present:
+        status = "runner_secret_missing"
+    elif sim_tag_reasons:
+        status = "validation_failures_detected"
+
+    return {
+        "schema_version": "sim-tag-diagnostics.v1",
+        "status": status,
+        "sim_secret_present": bool(sim_secret_present),
+        "sim_tag_reason_count": len(sim_tag_reasons),
+        "dominant_failure": dominant_failure,
+        "failure_counts": failure_counts,
+        "reasons": sorted(set(sim_tag_reasons)),
+        "guidance": guidance,
+    }
 
 
 def normalize_request_path(raw_path: str) -> str:

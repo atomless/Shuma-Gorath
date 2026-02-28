@@ -144,14 +144,26 @@ Rotation policy:
 1. Rotate `SHUMA_SIM_TELEMETRY_SECRET` whenever adversarial runner hosts are reprovisioned or when simulation-tag validation anomalies are detected.
 2. Rotate by updating the secret in `.env.local`/deploy environment, restarting runtime-dev, and re-running `make test-adversarial-fast`.
 3. Do not share this secret with containerized attacker lanes; only deterministic host-side signers should hold it.
+4. Local dev cadence must rotate at least every 30 days when adversarial lanes are used regularly.
+5. CI lanes must use centrally managed secret storage and must not commit raw secret values to repository files.
+6. CI secret cadence must rotate at least every 14 days or immediately on suspected compromise.
+
+Compromise-response workflow:
+
+1. Detect: identify leak signal (`S_SIM_TAG_SIGNATURE_MISMATCH` spikes, unexpected nonce replay, or secret exposure evidence).
+2. Contain: disable adversarial protected lanes temporarily and rotate `SHUMA_SIM_TELEMETRY_SECRET` in all affected environments.
+3. Recover: restart runtime-dev/CI runners, run `make test-adversarial-preflight`, then run `make test-adversarial-fast`.
+4. Verify: confirm signature and replay failures return to baseline, then re-enable normal adversarial schedules.
+5. Record: capture incident notes with rotation timestamp and impacted environments.
 
 Troubleshooting sequence for failed sim tagging:
 
 1. Confirm runtime guards: `SHUMA_RUNTIME_ENV=runtime-dev` and `SHUMA_ADVERSARY_SIM_AVAILABLE=true`.
 2. Confirm secret presence on host runner and runtime process: `SHUMA_SIM_TELEMETRY_SECRET` is non-empty.
-3. Run `make test-adversarial-sim-tag-contract` to verify contract parity.
-4. Inspect `/metrics` for `bot_defence_policy_signals_total{signal=\"S_SIM_TAG_*\"}` counters and identify dominant failure reason.
-5. If failures persist, restart `make dev` to clear stale process env and rerun `make test-adversarial-fast`.
+3. Run `make test-adversarial-preflight` to verify required secret posture (`missing` vs `placeholder` vs `invalid format`).
+4. Run `make test-adversarial-sim-tag-contract` to verify contract parity.
+5. Inspect `/metrics` for `bot_defence_policy_signals_total{signal=\"S_SIM_TAG_*\"}` counters and identify dominant failure reason.
+6. If failures persist, restart `make dev` to clear stale process env and rerun `make test-adversarial-fast`.
 
 ## Frontier Architecture Modes
 

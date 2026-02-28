@@ -4,6 +4,18 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-02-28)
 
+### P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)
+
+#### SIM2-EX7: Harden Simulation-Telemetry Secret Ergonomics Without Weakening Security
+
+- [x] SIM2-EX7-1 Add `make setup` and `make verify` checks that guarantee `SHUMA_SIM_TELEMETRY_SECRET` is created, non-placeholder, and surfaced clearly to operators.
+- [x] SIM2-EX7-2 Add explicit adversarial preflight command/target that validates all required secrets and prints actionable remediation before runner execution.
+- [x] SIM2-EX7-3 Add CI workflow explicit env wiring for `SHUMA_SIM_TELEMETRY_SECRET` in lanes that run adversarial coverage/promote jobs.
+- [x] SIM2-EX7-4 Improve runner failure diagnostics with structured, copy-paste-safe setup guidance and clear distinction between missing secret vs invalid signature vs replay failure.
+- [x] SIM2-EX7-5 Add docs for local rotation and CI secret lifecycle, including cadence and compromise-response workflow.
+- [x] SIM2-EX7-6 Add automated tests for setup/preflight behavior ensuring missing/placeholder secret states fail early with deterministic guidance.
+- [x] SIM2-EX7-7 Confirm security posture remains fail-closed: no unsigned sim metadata acceptance path is introduced.
+
 ### P0 SIM2 Gap-Closure Program: Real Execution + Realtime Monitoring
 
 #### SIM2-GC-10: Dashboard UX for Arms-Race Operations (Evidence-First)

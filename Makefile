@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live adversary-sim-history-clean test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-operational-regressions test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live adversary-sim-history-clean test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-operational-regressions test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -407,9 +407,10 @@ integration-test: test-integration ## Alias for Spin integration tests
 
 test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtures (no server required)
 	@echo "$(CYAN)🧪 Validating adversarial simulation manifest...$(NC)"
-	@python3 -m py_compile scripts/tests/adversarial_simulation_runner.py scripts/tests/adversarial_live_loop.py scripts/tests/adversarial_repeatability.py scripts/tests/adversarial_promote_candidates.py scripts/tests/adversarial_container_runner.py scripts/tests/adversarial_container/worker.py scripts/tests/frontier_action_contract.py scripts/tests/frontier_capability_envelope.py scripts/tests/frontier_lane_attempt.py scripts/tests/frontier_unavailability_policy.py scripts/tests/check_frontier_payload_artifacts.py scripts/tests/check_adversarial_lane_contract.py scripts/tests/check_adversarial_sim_tag_contract.py scripts/tests/check_adversarial_coverage_contract.py scripts/tests/check_adversarial_scenario_intent_matrix.py scripts/tests/sim2_realtime_bench.py scripts/tests/check_sim2_adr_conformance.py scripts/tests/render_sim2_ci_diagnostics.py scripts/tests/check_sim2_verification_matrix.py scripts/tests/check_sim2_operational_regressions.py scripts/tests/check_sim2_governance_contract.py
+	@python3 -m py_compile scripts/tests/adversarial_simulation_runner.py scripts/tests/adversarial_preflight.py scripts/tests/adversarial_live_loop.py scripts/tests/adversarial_repeatability.py scripts/tests/adversarial_promote_candidates.py scripts/tests/adversarial_container_runner.py scripts/tests/adversarial_container/worker.py scripts/tests/frontier_action_contract.py scripts/tests/frontier_capability_envelope.py scripts/tests/frontier_lane_attempt.py scripts/tests/frontier_unavailability_policy.py scripts/tests/check_frontier_payload_artifacts.py scripts/tests/check_adversarial_lane_contract.py scripts/tests/check_adversarial_sim_tag_contract.py scripts/tests/check_adversarial_coverage_contract.py scripts/tests/check_adversarial_scenario_intent_matrix.py scripts/tests/sim2_realtime_bench.py scripts/tests/check_sim2_adr_conformance.py scripts/tests/render_sim2_ci_diagnostics.py scripts/tests/check_sim2_verification_matrix.py scripts/tests/check_sim2_operational_regressions.py scripts/tests/check_sim2_governance_contract.py
 	@node --check scripts/tests/adversarial_browser_driver.mjs
-	@python3 -m unittest scripts/tests/test_adversarial_simulation_runner.py scripts/tests/test_adversarial_live_loop.py scripts/tests/test_adversarial_repeatability.py scripts/tests/test_adversarial_promote_candidates.py scripts/tests/test_adversarial_container_runner.py scripts/tests/test_adversarial_container_worker.py scripts/tests/test_frontier_action_contract.py scripts/tests/test_frontier_capability_envelope.py scripts/tests/test_frontier_lane_and_governance.py scripts/tests/test_adversarial_lane_contract.py scripts/tests/test_adversarial_sim_tag_contract.py scripts/tests/test_adversarial_coverage_contract.py scripts/tests/test_adversarial_scenario_intent_matrix.py scripts/tests/test_sim2_realtime_bench.py scripts/tests/test_sim2_adr_conformance.py scripts/tests/test_sim2_ci_diagnostics.py scripts/tests/test_sim2_verification_matrix.py scripts/tests/test_sim2_operational_regressions.py scripts/tests/test_sim2_governance_contract.py
+	@python3 -m unittest scripts/tests/test_adversarial_simulation_runner.py scripts/tests/test_adversarial_preflight.py scripts/tests/test_adversarial_live_loop.py scripts/tests/test_adversarial_repeatability.py scripts/tests/test_adversarial_promote_candidates.py scripts/tests/test_adversarial_container_runner.py scripts/tests/test_adversarial_container_worker.py scripts/tests/test_frontier_action_contract.py scripts/tests/test_frontier_capability_envelope.py scripts/tests/test_frontier_lane_and_governance.py scripts/tests/test_adversarial_lane_contract.py scripts/tests/test_adversarial_sim_tag_contract.py scripts/tests/test_adversarial_coverage_contract.py scripts/tests/test_adversarial_scenario_intent_matrix.py scripts/tests/test_sim2_realtime_bench.py scripts/tests/test_sim2_adr_conformance.py scripts/tests/test_sim2_ci_diagnostics.py scripts/tests/test_sim2_verification_matrix.py scripts/tests/test_sim2_operational_regressions.py scripts/tests/test_sim2_governance_contract.py
+	@$(MAKE) --no-print-directory test-adversarial-preflight
 	@$(MAKE) --no-print-directory test-adversarial-lane-contract
 	@$(MAKE) --no-print-directory test-adversarial-sim-tag-contract
 	@$(MAKE) --no-print-directory test-adversarial-coverage-contract
@@ -428,6 +429,10 @@ test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtu
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile abuse_regression --validate-only
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile akamai_smoke --validate-only
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile full_coverage --validate-only
+
+test-adversarial-preflight: ## Validate adversarial required secrets and setup posture before runner execution
+	@echo "$(CYAN)🧪 Running adversarial preflight checks...$(NC)"
+	@python3 scripts/tests/adversarial_preflight.py --output scripts/tests/adversarial/preflight_report.json
 
 test-adversarial-lane-contract: ## Validate black-box lane capability contract parity across deterministic/container tooling
 	@echo "$(CYAN)🧪 Validating adversarial lane capability contract...$(NC)"
@@ -451,6 +456,7 @@ test-adversarial-sim-selftest: ## Run minimal deterministic simulator self-test 
 
 test-adversarial-fast: ## Run mandatory fast adversarial matrix (smoke + abuse + Akamai profiles)
 	@echo "$(CYAN)🧪 Running mandatory fast adversarial matrix...$(NC)"
+	@$(MAKE) --no-print-directory test-adversarial-preflight || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-lane-contract || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-sim-tag-contract || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-coverage-contract || exit 1
@@ -493,6 +499,7 @@ test-adversarial-akamai: ## Run Akamai signal fixture smoke profile (requires ru
 
 test-adversarial-coverage: ## Run deterministic full-coverage oracle profile (protected-lane/release blocker; requires running server)
 	@echo "$(CYAN)🧪 Running adversarial coverage profile...$(NC)"
+	@$(MAKE) --no-print-directory test-adversarial-preflight || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-sim-tag-contract || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-coverage-contract || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-scenario-review || exit 1
@@ -564,6 +571,7 @@ test-adversarial-soak: ## Run deep adversarial soak gate (full_coverage profile;
 
 test-adversarial-live: ## Continuously run adversarial simulation profile for live operator monitoring (requires running server)
 	@echo "$(CYAN)🧪 Running adversarial live simulation loop...$(NC)"
+	@$(MAKE) --no-print-directory test-adversarial-preflight || exit 1
 	@PROFILE="$${ADVERSARIAL_PROFILE:-fast_smoke}"; \
 	RUNS="$${ADVERSARIAL_RUNS:-0}"; \
 	PAUSE="$${ADVERSARIAL_PAUSE_SECONDS:-2}"; \
@@ -627,6 +635,7 @@ adversary-sim-history-clean: ## Clear retained runtime-dev telemetry history fro
 
 test-adversarial-repeatability: ## Run deterministic repeatability gate across smoke/abuse/coverage profiles (N=3)
 	@echo "$(CYAN)🧪 Running adversarial repeatability gate...$(NC)"
+	@$(MAKE) --no-print-directory test-adversarial-preflight || exit 1
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" \
 			python3 scripts/tests/adversarial_repeatability.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --repeats "$${ADVERSARIAL_REPEATABILITY_REPEATS:-3}" --profiles "$${ADVERSARIAL_REPEATABILITY_PROFILES:-fast_smoke,abuse_regression,full_coverage}" --report scripts/tests/adversarial/repeatability_report.json; \
@@ -638,6 +647,7 @@ test-adversarial-repeatability: ## Run deterministic repeatability gate across s
 
 test-adversarial-promote-candidates: ## Run frontier candidate triage + deterministic replay promotion checks (requires running server)
 	@echo "$(CYAN)🧪 Running adversarial candidate triage and promotion checks...$(NC)"
+	@$(MAKE) --no-print-directory test-adversarial-preflight || exit 1
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		REPORT_PATH="scripts/tests/adversarial/latest_report.json"; \
 		ATTACK_PLAN_PATH="scripts/tests/adversarial/attack_plan.json"; \
@@ -659,6 +669,7 @@ test-adversarial-container-isolation: ## Validate complementary container black-
 
 test-adversarial-container-blackbox: ## Run complementary containerized black-box adversary lane (scheduled/manual; non-blocking for release)
 	@echo "$(CYAN)🧪 Running adversarial container black-box worker...$(NC)"
+	@$(MAKE) --no-print-directory test-adversarial-preflight || exit 1
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" \
 			python3 scripts/tests/adversarial_container_runner.py --mode blackbox --report scripts/tests/adversarial/container_blackbox_report.json; \

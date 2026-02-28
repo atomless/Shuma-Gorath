@@ -19,6 +19,24 @@ warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 
 FAILED=0
 
+read_env_local_value() {
+  local key="$1"
+  if [[ ! -f ".env.local" ]]; then
+    return 1
+  fi
+  local line
+  line=$(grep -E "^${key}=" .env.local | tail -1 || true)
+  if [[ -z "$line" ]]; then
+    return 1
+  fi
+  local value="${line#*=}"
+  value="${value%\"}"
+  value="${value#\"}"
+  value="${value%\'}"
+  value="${value#\'}"
+  printf '%s' "$value"
+}
+
 echo -e "${CYAN}"
 echo "╔═══════════════════════════════════════════════════╗"
 echo "║     WASM Bot Defence - Setup Verification            ║"
@@ -60,6 +78,21 @@ if command -v rustup &> /dev/null; then
     fi
 else
     fail "rustup not found (needed for WASM target)"
+fi
+
+if [[ -f ".env.local" ]]; then
+    sim_secret_value="$(read_env_local_value SHUMA_SIM_TELEMETRY_SECRET || true)"
+    if [[ -z "${sim_secret_value}" ]]; then
+        fail ".env.local missing SHUMA_SIM_TELEMETRY_SECRET (run: make setup)"
+    elif [[ "${sim_secret_value}" == "changeme-dev-only-sim-telemetry-secret" ]]; then
+        fail "SHUMA_SIM_TELEMETRY_SECRET is placeholder in .env.local (run: make setup)"
+    elif [[ ! "${sim_secret_value}" =~ ^[0-9a-fA-F]{64,}$ ]]; then
+        fail "SHUMA_SIM_TELEMETRY_SECRET must be hex and at least 64 chars in .env.local"
+    else
+        pass ".env.local has valid SHUMA_SIM_TELEMETRY_SECRET"
+    fi
+else
+    fail ".env.local missing (run: make setup)"
 fi
 
 # 5. Check Spin

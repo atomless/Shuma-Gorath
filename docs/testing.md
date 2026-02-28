@@ -12,6 +12,7 @@ make integration-test # alias for make test-integration
 make test-adversarial-manifest # Validate adversarial scenario manifest + fixture references
 make test-adversarial-coverage-contract # Validate canonical full_coverage contract parity (plan + manifests + runner)
 make test-adversarial-fast # Mandatory fast adversarial matrix (smoke + abuse + Akamai)
+make test-adversarial-preflight # Validate required adversarial secrets/setup before runner execution
 make test-adversarial-smoke # Mandatory adversarial fast smoke profile (waits for existing Spin readiness)
 make test-adversarial-abuse # Replay/stale/order-cadence abuse regression profile
 make test-adversarial-akamai # Akamai fixture-driven simulation profile

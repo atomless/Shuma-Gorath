@@ -325,7 +325,18 @@ ensure_env_local_default_from_defaults "SHUMA_BAN_STORE_REDIS_URL"
 ensure_env_local_default_from_defaults "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN"
 ensure_env_local_default_from_defaults "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH"
 normalize_env_local_unquoted_style
+sim_secret_value="$(read_env_local_value "SHUMA_SIM_TELEMETRY_SECRET")"
+if [[ -z "$sim_secret_value" ]]; then
+    error "SHUMA_SIM_TELEMETRY_SECRET is empty after setup-runtime. Re-run make setup-runtime."
+fi
+if [[ "$sim_secret_value" == "changeme-dev-only-sim-telemetry-secret" ]]; then
+    error "SHUMA_SIM_TELEMETRY_SECRET is still a placeholder after setup-runtime."
+fi
+if [[ ! "$sim_secret_value" =~ ^[0-9a-fA-F]{64,}$ ]]; then
+    error "SHUMA_SIM_TELEMETRY_SECRET must be hex and at least 64 chars after setup-runtime."
+fi
 success "Runtime env overrides are ready in $ENV_LOCAL_FILE"
+success "Adversarial sim telemetry secret is configured and non-placeholder."
 
 info "Seeding/backfilling KV tunables from config/defaults.env..."
 make --no-print-directory config-seed

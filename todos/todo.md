@@ -207,13 +207,7 @@ Acceptance criteria:
 
 Scope: preserve fail-closed sim-tag authenticity while removing setup sharp edges for local development and CI reliability.
 
-- [ ] SIM2-EX7-1 Add `make setup` and `make verify` checks that guarantee `SHUMA_SIM_TELEMETRY_SECRET` is created, non-placeholder, and surfaced clearly to operators.
-- [ ] SIM2-EX7-2 Add explicit adversarial preflight command/target that validates all required secrets and prints actionable remediation before runner execution.
-- [ ] SIM2-EX7-3 Add CI workflow explicit env wiring for `SHUMA_SIM_TELEMETRY_SECRET` in lanes that run adversarial coverage/promote jobs.
-- [ ] SIM2-EX7-4 Improve runner failure diagnostics with structured, copy-paste-safe setup guidance and clear distinction between missing secret vs invalid signature vs replay failure.
-- [ ] SIM2-EX7-5 Add docs for local rotation and CI secret lifecycle, including cadence and compromise-response workflow.
-- [ ] SIM2-EX7-6 Add automated tests for setup/preflight behavior ensuring missing/placeholder secret states fail early with deterministic guidance.
-- [ ] SIM2-EX7-7 Confirm security posture remains fail-closed: no unsigned sim metadata acceptance path is introduced.
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-EX7-*` closure details.
 
 Acceptance criteria:
 1. Local `make setup` leaves adversarial runs ready by default with valid sim telemetry secret material.
