@@ -6,6 +6,11 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 SIM2 Gap-Closure Program: Real Execution + Realtime Monitoring
 
+#### SIM2-GC-8: Containerized Frontier Integration as Real Actor (Not Metadata Generator) (partial)
+
+- [x] SIM2-GC-8-1 Define frontier action contract (`allowed tools`, `network constraints`, `time/resource budgets`, `forbidden data access`).
+- [x] SIM2-GC-8-2 Define reject-by-default action grammar/DSL and validation engine so only explicitly permitted action types are executable.
+
 #### SIM2-GC-7: Upgrade Browser-Adversary Lane to True Browser Execution
 
 - [x] SIM2-GC-7-1 Replace HTTP-emulated browser lane with deterministic real-browser driver path.

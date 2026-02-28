@@ -52,6 +52,7 @@ All manifests and reports are locked to `execution_lane=black_box`; non-black-bo
 Lane capability boundaries are versioned in `scripts/tests/adversarial/lane_contract.v1.json` and validated by `make test-adversarial-lane-contract`.
 Simulation-tag signing contract is versioned in `scripts/tests/adversarial/sim_tag_contract.v1.json` and validated by `make test-adversarial-sim-tag-contract`.
 Full-coverage category obligations are versioned in `scripts/tests/adversarial/coverage_contract.v1.json` and validated by `make test-adversarial-coverage-contract`.
+Container frontier action grammar contract is versioned in `scripts/tests/adversarial/frontier_action_contract.v1.json` and enforced as reject-by-default by host and worker validators.
 Browser-lane execution proof is enforced via `latest_report.json -> gates.browser_execution_gates`.
 `make test-adversarial-live` now classifies failures as `transient` or `fatal`, retries transient cycles with capped backoff, and only terminates after `ADVERSARIAL_FATAL_CYCLE_LIMIT` consecutive fatal cycles.
 Container lane emits:
@@ -70,6 +71,7 @@ Current policy is explicit coexistence, not replacement:
 2. Containerized black-box lanes are complementary and scheduled/manual in this phase:
    - `make test-adversarial-container-isolation`
    - `make test-adversarial-container-blackbox`
+   - container executions must pass frontier action DSL validation before any request is emitted.
 3. Frontier lane remains adaptive discovery input; deterministic replay confirmation remains the blocking regression oracle.
 
 Capability mapping (must stay explicit):

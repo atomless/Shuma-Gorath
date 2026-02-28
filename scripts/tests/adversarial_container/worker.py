@@ -12,6 +12,13 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Dict, List
 
+from scripts.tests.frontier_action_contract import (
+    FrontierActionContractError,
+    FrontierActionValidationError,
+    load_frontier_action_contract,
+    resolve_frontier_actions,
+)
+
 
 FORBIDDEN_ENV_PREFIXES = ("SHUMA_",)
 FORBIDDEN_ENV_KEYS = {
@@ -23,16 +30,11 @@ FORBIDDEN_ENV_KEYS = {
     "SHUMA_FORWARDED_IP_SECRET",
     "SHUMA_SIM_TELEMETRY_SECRET",
 }
-DEFAULT_ENDPOINTS = (
-    "/",
-    "/sim/public/landing",
-    "/sim/public/docs",
-    "/sim/public/pricing",
-    "/sim/public/contact",
-    "/sim/public/search?q=adversarial+simulation",
-)
-LANE_CONTRACT_PATH = Path("scripts/tests/adversarial/lane_contract.v1.json")
-SIM_TAG_CONTRACT_PATH = Path("scripts/tests/adversarial/sim_tag_contract.v1.json")
+DEFAULT_CONTRACT_DIR = Path(os.environ.get("BLACKBOX_CONTRACT_DIR", "scripts/tests/adversarial"))
+LANE_CONTRACT_PATH = DEFAULT_CONTRACT_DIR / "lane_contract.v1.json"
+SIM_TAG_CONTRACT_PATH = DEFAULT_CONTRACT_DIR / "sim_tag_contract.v1.json"
+FRONTIER_ACTION_CONTRACT_PATH = DEFAULT_CONTRACT_DIR / "frontier_action_contract.v1.json"
+FRONTIER_ACTIONS_ENV = "BLACKBOX_ACTIONS"
 
 
 def bool_env(name: str, default: bool = False) -> bool:
@@ -214,6 +216,12 @@ def main() -> int:
         lane_contract = load_lane_contract()
     except Exception as exc:
         lane_contract_error = str(exc)
+    frontier_action_contract_error = ""
+    frontier_action_contract: Dict[str, Any] = {}
+    try:
+        frontier_action_contract = load_frontier_action_contract(FRONTIER_ACTION_CONTRACT_PATH)
+    except FrontierActionContractError as exc:
+        frontier_action_contract_error = str(exc)
 
     observed_env_keys = sorted(list(os.environ.keys()))
     forbidden_env_present = has_forbidden_env(observed_env_keys)
@@ -230,12 +238,19 @@ def main() -> int:
         "run_id": run_id,
         "lane_contract_schema_version": str(lane_contract.get("schema_version") or ""),
         "lane_contract_error": lane_contract_error,
+        "frontier_action_contract_schema_version": str(
+            frontier_action_contract.get("schema_version") or ""
+        ),
+        "frontier_action_contract_error": frontier_action_contract_error,
         "runtime_hardening_non_root": non_root,
         "workspace_mount_absent": no_workspace_mount,
         "admin_credentials_absent": admin_credentials_absent,
         "tooling_limited": tooling_limited,
         "egress_allowlist_enforced": egress_allowlist_enforced,
         "ephemeral_run_identity": ephemeral_run_identity,
+        "action_validation_passed": False,
+        "resolved_action_count": 0,
+        "resolved_actions": [],
         "observed_env_keys": [key for key in observed_env_keys if key.startswith("BLACKBOX_")],
         "request_budget": request_budget,
         "time_budget_seconds": time_budget_seconds,
@@ -251,6 +266,7 @@ def main() -> int:
         and egress_allowlist_enforced
         and ephemeral_run_identity
         and not lane_contract_error
+        and not frontier_action_contract_error
     )
 
     if mode == "isolation":
@@ -298,9 +314,32 @@ def main() -> int:
     forbidden_present = sorted([header for header in sim_header_names if header in forbidden_sim_headers])
     if forbidden_present:
         errors.append("forbidden_sim_headers:" + ",".join(forbidden_present))
+    resolved_actions: List[Dict[str, Any]] = []
+    if not errors:
+        try:
+            resolved_actions = resolve_frontier_actions(
+                os.environ.get(FRONTIER_ACTIONS_ENV, ""),
+                contract=frontier_action_contract,
+                base_url=base_url,
+                allowed_origins=allowed_origins,
+                request_budget=request_budget,
+            )
+            payload["action_validation_passed"] = True
+            payload["resolved_action_count"] = len(resolved_actions)
+            payload["resolved_actions"] = [
+                {
+                    "action_index": action.get("action_index"),
+                    "action_type": action.get("action_type"),
+                    "path": action.get("path"),
+                    "label": action.get("label"),
+                }
+                for action in resolved_actions
+            ]
+        except FrontierActionValidationError as exc:
+            errors.append(f"action_validation_failed:{exc}")
 
     requests_sent = 0
-    for endpoint in DEFAULT_ENDPOINTS:
+    for action in resolved_actions:
         if errors:
             break
         if requests_sent >= request_budget:
@@ -316,11 +355,16 @@ def main() -> int:
         request_headers[SIM_TAG_HEADER_TIMESTAMP] = envelope["ts"]
         request_headers[SIM_TAG_HEADER_NONCE] = envelope["nonce"]
         request_headers[SIM_TAG_HEADER_SIGNATURE] = envelope["signature"]
-        url = f"{base_url}{endpoint}"
+        url = str(action.get("url") or "")
         if not enforce_allowlist(url, allowed_origins):
             errors.append(f"egress_disallowed:{url}")
             break
         result = make_request(url, request_headers)
+        result["action_index"] = action.get("action_index")
+        result["action_type"] = action.get("action_type")
+        result["path"] = action.get("path")
+        if str(action.get("label") or "").strip():
+            result["label"] = str(action.get("label")).strip()
         payload["traffic"].append(result)
         requests_sent += 1
         statuses.append(int(result.get("status", 0)))

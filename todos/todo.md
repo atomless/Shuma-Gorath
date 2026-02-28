@@ -381,8 +381,8 @@ Acceptance criteria:
 
 Scope: ensure frontier-model-driven adversary lane produces concrete HTTP/browser actions through constrained containerized actors.
 
-- [ ] SIM2-GC-8-1 Define frontier action contract (`allowed tools`, `network constraints`, `time/resource budgets`, `forbidden data access`).
-- [ ] SIM2-GC-8-2 Define reject-by-default action grammar/DSL and validation engine so only explicitly permitted action types are executable.
+- [x] SIM2-GC-8-1 Define frontier action contract (`allowed tools`, `network constraints`, `time/resource budgets`, `forbidden data access`).
+- [x] SIM2-GC-8-2 Define reject-by-default action grammar/DSL and validation engine so only explicitly permitted action types are executable.
 - [ ] SIM2-GC-8-3 Implement container execution path that converts model output to validated actionable steps, then executes against target endpoints.
 - [ ] SIM2-GC-8-4 Enforce egress allowlist and capability boundaries at runtime with explicit deny/audit paths for policy violations.
 - [ ] SIM2-GC-8-5 Add strict sanitization/validation so unsafe or out-of-policy model outputs are rejected before execution.

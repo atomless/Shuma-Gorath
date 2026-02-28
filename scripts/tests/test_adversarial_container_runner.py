@@ -39,6 +39,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
             request_budget=12,
             time_budget_seconds=90,
             sim_tag_envelopes_json='[{"ts":"1","nonce":"n","signature":"s"}]',
+            frontier_actions_json='[{"action_type":"http_get","path":"/"}]',
         )
         joined = " ".join(command)
         self.assertIn("--read-only", joined)
@@ -47,6 +48,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         self.assertIn("--tmpfs=/tmp:rw,nosuid,nodev,size=64m", joined)
         self.assertIn("--add-host=host.docker.internal:host-gateway", joined)
         self.assertIn("BLACKBOX_SIM_TAG_ENVELOPES=", joined)
+        self.assertIn("BLACKBOX_ACTIONS=", joined)
 
 
 if __name__ == "__main__":

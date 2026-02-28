@@ -17,6 +17,13 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+from scripts.tests.frontier_action_contract import (
+    FrontierActionContractError,
+    FrontierActionValidationError,
+    load_frontier_action_contract,
+    resolve_frontier_actions,
+)
+
 
 DEFAULT_IMAGE_TAG = "shuma-adversary-blackbox:local"
 DEFAULT_WORKER_PATH = "scripts/tests/adversarial_container/worker.py"
@@ -24,6 +31,8 @@ DEFAULT_DOCKERFILE_PATH = "scripts/tests/adversarial_container/Dockerfile"
 DEFAULT_BLACKBOX_REPORT = "scripts/tests/adversarial/container_blackbox_report.json"
 DEFAULT_ISOLATION_REPORT = "scripts/tests/adversarial/container_isolation_report.json"
 SIM_TAG_CONTRACT_PATH = "scripts/tests/adversarial/sim_tag_contract.v1.json"
+DEFAULT_FRONTIER_ACTION_CONTRACT_PATH = "scripts/tests/adversarial/frontier_action_contract.v1.json"
+FRONTIER_ACTIONS_ENV = "SHUMA_BLACKBOX_ACTIONS"
 FORBIDDEN_ENV_PREFIXES = ("SHUMA_",)
 FORBIDDEN_ENV_KEYS = {
     "SHUMA_API_KEY",
@@ -260,6 +269,7 @@ def container_command(
     request_budget: int,
     time_budget_seconds: int,
     sim_tag_envelopes_json: str,
+    frontier_actions_json: str,
 ) -> List[str]:
     command = [
         "docker",
@@ -288,6 +298,8 @@ def container_command(
         f"BLACKBOX_TIME_BUDGET_SECONDS={time_budget_seconds}",
         "-e",
         f"BLACKBOX_SIM_TAG_ENVELOPES={sim_tag_envelopes_json}",
+        "-e",
+        f"BLACKBOX_ACTIONS={frontier_actions_json}",
         image_tag,
     ]
     return command
@@ -302,6 +314,7 @@ def run_container_worker(
     request_budget: int,
     time_budget_seconds: int,
     sim_tag_envelopes_json: str,
+    frontier_actions_json: str,
 ) -> Tuple[Dict[str, Any], subprocess.CompletedProcess[str], List[str]]:
     command = container_command(
         image_tag=image_tag,
@@ -312,6 +325,7 @@ def run_container_worker(
         request_budget=request_budget,
         time_budget_seconds=time_budget_seconds,
         sim_tag_envelopes_json=sim_tag_envelopes_json,
+        frontier_actions_json=frontier_actions_json,
     )
     result = run_cmd(command)
     parsed = parse_worker_json(result.stdout)
@@ -350,6 +364,16 @@ def main() -> int:
         default=os.environ.get("SHUMA_BLACKBOX_TIME_BUDGET_SECONDS", "120"),
         help="Maximum worker runtime",
     )
+    parser.add_argument(
+        "--frontier-action-contract",
+        default=DEFAULT_FRONTIER_ACTION_CONTRACT_PATH,
+        help="Frontier action contract path",
+    )
+    parser.add_argument(
+        "--frontier-actions",
+        default=os.environ.get(FRONTIER_ACTIONS_ENV, ""),
+        help="Optional frontier action JSON list (defaults to contract default_actions)",
+    )
     args = parser.parse_args()
 
     request_budget = int(str(args.request_budget).strip())
@@ -375,6 +399,31 @@ def main() -> int:
     container_base_url = normalize_container_base_url(host_base_url)
     allowed_origin = target_origin(container_base_url)
     run_id = f"container-{int(time.time())}"
+    try:
+        frontier_action_contract = load_frontier_action_contract(
+            Path(args.frontier_action_contract)
+        )
+    except FrontierActionContractError as exc:
+        print(f"[adversarial-container] {exc}", file=sys.stderr)
+        return 2
+
+    contract_budgets = dict(frontier_action_contract.get("budgets") or {})
+    contract_max_actions = int(contract_budgets.get("max_actions_per_run") or request_budget)
+    contract_max_runtime = int(contract_budgets.get("max_time_budget_seconds") or time_budget_seconds)
+    request_budget = max(1, min(request_budget, contract_max_actions))
+    time_budget_seconds = max(10, min(time_budget_seconds, contract_max_runtime))
+
+    try:
+        frontier_actions = resolve_frontier_actions(
+            str(args.frontier_actions),
+            contract=frontier_action_contract,
+            base_url=container_base_url,
+            allowed_origins=[allowed_origin],
+            request_budget=request_budget,
+        )
+    except FrontierActionValidationError as exc:
+        print(f"[adversarial-container] frontier action validation failed: {exc}", file=sys.stderr)
+        return 1
 
     try:
         ensure_image_built(args.image_tag, args.dockerfile)
@@ -411,6 +460,7 @@ def main() -> int:
         )
 
     sim_tag_envelopes_json = json.dumps(sim_tag_envelopes, separators=(",", ":"))
+    frontier_actions_json = json.dumps(frontier_actions, separators=(",", ":"))
 
     try:
         worker_payload, worker_result, command = run_container_worker(
@@ -422,6 +472,7 @@ def main() -> int:
             request_budget=request_budget,
             time_budget_seconds=time_budget_seconds,
             sim_tag_envelopes_json=sim_tag_envelopes_json,
+            frontier_actions_json=frontier_actions_json,
         )
     except Exception as exc:
         print(f"[adversarial-container] worker execution failed: {exc}", file=sys.stderr)
@@ -443,6 +494,9 @@ def main() -> int:
         "runtime_hardening_no_new_privileges": True,
         "runtime_hardening_cap_drop_all": True,
         "runtime_hardening_read_only_rootfs": True,
+        "action_grammar_reject_by_default": bool(worker_payload.get("action_validation_passed"))
+        if args.mode == "blackbox"
+        else True,
     }
     contract_pass = all(isolation_contract.values())
 
@@ -457,6 +511,14 @@ def main() -> int:
         "allowed_origin": allowed_origin,
         "request_budget": request_budget,
         "time_budget_seconds": time_budget_seconds,
+        "frontier_action_contract": {
+            "path": str(args.frontier_action_contract),
+            "schema_version": str(frontier_action_contract.get("schema_version") or ""),
+            "allowed_tools": list(frontier_action_contract.get("allowed_tools") or []),
+            "max_actions_per_run": contract_max_actions,
+            "max_time_budget_seconds": contract_max_runtime,
+        },
+        "frontier_actions": frontier_actions,
         "isolation_contract": isolation_contract,
         "orchestrator_hook": orchestrator_hook,
         "worker_result": {

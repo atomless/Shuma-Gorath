@@ -1,0 +1,101 @@
+{
+  "schema_version": "frontier-action-contract.v1",
+  "allowed_tools": [
+    "http_get"
+  ],
+  "network_constraints": {
+    "allowed_schemes": [
+      "http",
+      "https"
+    ],
+    "enforce_single_origin_from_allowlist": true,
+    "forbidden_hostnames": [
+      "169.254.169.254",
+      "metadata.google.internal",
+      "metadata.aws.internal",
+      "metadata"
+    ]
+  },
+  "budgets": {
+    "max_actions_per_run": 24,
+    "max_time_budget_seconds": 120,
+    "max_query_pairs_per_action": 6
+  },
+  "forbidden_data_access": {
+    "forbidden_env_prefixes": [
+      "SHUMA_"
+    ],
+    "forbidden_env_keys": [
+      "SHUMA_API_KEY",
+      "SHUMA_ADMIN_READONLY_API_KEY",
+      "SHUMA_JS_SECRET",
+      "SHUMA_CHALLENGE_SECRET",
+      "SHUMA_HEALTH_SECRET",
+      "SHUMA_FORWARDED_IP_SECRET",
+      "SHUMA_SIM_TELEMETRY_SECRET"
+    ],
+    "forbidden_headers": [
+      "authorization",
+      "x-shuma-api-key",
+      "x-shuma-challenge-secret",
+      "x-shuma-forwarded-secret",
+      "x-shuma-health-secret",
+      "x-shuma-js-secret"
+    ],
+    "forbidden_path_prefixes": [
+      "/admin/"
+    ]
+  },
+  "dsl": {
+    "schema_version": "frontier-action-dsl.v1",
+    "allowed_action_types": [
+      "http_get"
+    ],
+    "required_action_keys": [
+      "action_type",
+      "path"
+    ],
+    "optional_action_keys": [
+      "query",
+      "label"
+    ],
+    "max_path_length": 256,
+    "max_query_length": 512,
+    "max_label_length": 80
+  },
+  "default_actions": [
+    {
+      "action_type": "http_get",
+      "path": "/",
+      "label": "root"
+    },
+    {
+      "action_type": "http_get",
+      "path": "/sim/public/landing",
+      "label": "landing"
+    },
+    {
+      "action_type": "http_get",
+      "path": "/sim/public/docs",
+      "label": "docs"
+    },
+    {
+      "action_type": "http_get",
+      "path": "/sim/public/pricing",
+      "label": "pricing"
+    },
+    {
+      "action_type": "http_get",
+      "path": "/sim/public/contact",
+      "label": "contact"
+    },
+    {
+      "action_type": "http_get",
+      "path": "/sim/public/search",
+      "query": {
+        "q": "adversarial simulation"
+      },
+      "label": "search"
+    }
+  ]
+}

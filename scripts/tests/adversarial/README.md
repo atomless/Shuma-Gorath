@@ -18,6 +18,12 @@
   - Makefile simulation targets execute `scenario_manifest.v2.json`; `v1` remains as a compatibility-validation contract.
 - `frontier_payload_schema.v1.json`
   - Versioned outbound allowlist contract for frontier payload redaction/minimization.
+- `frontier_action_contract.v1.json`
+  - Versioned frontier execution contract for containerized black-box actions:
+    - allowed tools/action types,
+    - egress and forbidden path constraints,
+    - runtime/request/query budgets,
+    - reject-by-default DSL keys.
 - `lane_contract.v1.json`
   - Canonical attacker/control capability boundary contract for black-box simulation lanes.
 - `coverage_contract.v1.json`
@@ -115,4 +121,5 @@ Notes:
 - Container lane is complementary and non-replacing in this phase:
   - run `make test-adversarial-container-isolation` to validate isolation contract first,
   - then run `make test-adversarial-container-blackbox` for bounded black-box traffic execution.
+  - container black-box actions must pass `frontier_action_contract.v1.json` reject-by-default validation before execution.
 - `adversarial_sim_selftest.py` is intentionally tiny and non-circular: it validates simulator mechanics against fixed stub routes without asserting product defense efficacy.
