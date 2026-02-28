@@ -42,6 +42,7 @@ CAPABILITY_ENVELOPES_ENV = "BLACKBOX_ACTION_ENVELOPES"
 CAPABILITY_VERIFY_KEY_ENV = "BLACKBOX_CAPABILITY_VERIFY_KEY"
 DEFAULT_CLEANUP_TTL_HOURS = 72
 DEFAULT_CLEANUP_MAX_DELETE = 32
+DEFAULT_COMMAND_QUEUE_CAPACITY = 24
 FRONTIER_FORBIDDEN_FIELD_SUBSTRINGS = (
     "secret",
     "api_key",
@@ -674,6 +675,26 @@ def cleanup_frontier_artifacts(
     }
 
 
+def prepare_command_channel(
+    actions: List[Dict[str, Any]],
+    *,
+    queue_capacity: int,
+) -> Dict[str, Any]:
+    queue_capacity = max(1, int(queue_capacity))
+    queued_actions = list(actions[:queue_capacity])
+    overflow_count = max(0, len(actions) - len(queued_actions))
+    return {
+        "direction": "host_to_worker_one_way",
+        "queue_capacity": queue_capacity,
+        "queued_action_count": len(queued_actions),
+        "overflow_count": overflow_count,
+        "backpressure_applied": overflow_count > 0,
+        "queued_actions": queued_actions,
+        "evidence_channel_append_only_expected": True,
+        "control_plane_mutation_allowed": False,
+    }
+
+
 def container_command(
     image_tag: str,
     mode: str,
@@ -822,12 +843,18 @@ def main() -> int:
         default=os.environ.get("SHUMA_FRONTIER_ARTIFACT_CLEANUP_MAX_DELETE", str(DEFAULT_CLEANUP_MAX_DELETE)),
         help="Maximum number of stale frontier report artifacts to delete per run",
     )
+    parser.add_argument(
+        "--command-queue-capacity",
+        default=os.environ.get("SHUMA_FRONTIER_COMMAND_QUEUE_CAPACITY", str(DEFAULT_COMMAND_QUEUE_CAPACITY)),
+        help="Maximum queued frontier actions sent host->worker per run",
+    )
     args = parser.parse_args()
 
     request_budget = int(str(args.request_budget).strip())
     time_budget_seconds = int(str(args.time_budget_seconds).strip())
     cleanup_ttl_hours = int(str(args.cleanup_ttl_hours).strip())
     cleanup_max_delete = int(str(args.cleanup_max_delete).strip())
+    command_queue_capacity = int(str(args.command_queue_capacity).strip())
     if request_budget < 1:
         print("request budget must be >= 1", file=sys.stderr)
         return 2
@@ -923,6 +950,18 @@ def main() -> int:
     except FrontierActionValidationError as exc:
         print(f"[adversarial-container] frontier action validation failed: {exc}", file=sys.stderr)
         return 1
+    command_channel = prepare_command_channel(
+        frontier_actions,
+        queue_capacity=command_queue_capacity,
+    )
+    if command_channel["overflow_count"] > 0:
+        print(
+            "[adversarial-container] command channel overflow: "
+            f"queued={command_channel['queued_action_count']} overflow={command_channel['overflow_count']}",
+            file=sys.stderr,
+        )
+        return 1
+    frontier_actions = list(command_channel["queued_actions"])
 
     try:
         ensure_image_built(args.image_tag, args.dockerfile)
@@ -1058,6 +1097,8 @@ def main() -> int:
         "runtime_hardening_cap_drop_all": True,
         "runtime_hardening_read_only_rootfs": True,
         "runtime_profile_passed": not bool(runtime_profile_violations),
+        "command_channel_one_way": str(command_channel.get("direction") or "") == "host_to_worker_one_way",
+        "command_channel_backpressure_passed": not bool(command_channel.get("overflow_count")),
         "action_grammar_reject_by_default": bool(worker_payload.get("action_validation_passed"))
         if args.mode == "blackbox"
         else True,
@@ -1104,6 +1145,19 @@ def main() -> int:
             "count": len(capability_envelopes),
             "key_id": "sim-tag-derived-v1" if capability_envelopes else "",
             "verify_key_present": bool(capability_verify_key),
+        },
+        "command_channel": {
+            "direction": str(command_channel.get("direction") or ""),
+            "queue_capacity": int(command_channel.get("queue_capacity") or 0),
+            "queued_action_count": int(command_channel.get("queued_action_count") or 0),
+            "overflow_count": int(command_channel.get("overflow_count") or 0),
+            "backpressure_applied": bool(command_channel.get("backpressure_applied")),
+            "evidence_channel_append_only_expected": bool(
+                command_channel.get("evidence_channel_append_only_expected")
+            ),
+            "control_plane_mutation_allowed": bool(
+                command_channel.get("control_plane_mutation_allowed")
+            ),
         },
         "attack_plan_path": str(args.attack_plan),
         "frontier_actions": frontier_actions,

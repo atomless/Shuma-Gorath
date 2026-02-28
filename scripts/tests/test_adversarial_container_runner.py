@@ -165,6 +165,19 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         self.assertTrue(any("forbidden_flag:--privileged" == item for item in violations))
         self.assertTrue(any("forbidden_flag:--network=host" == item for item in violations))
 
+    def test_prepare_command_channel_reports_backpressure_overflow(self):
+        channel = container_runner.prepare_command_channel(
+            actions=[
+                {"action_type": "http_get", "path": "/a"},
+                {"action_type": "http_get", "path": "/b"},
+                {"action_type": "http_get", "path": "/c"},
+            ],
+            queue_capacity=2,
+        )
+        self.assertEqual(channel["queued_action_count"], 2)
+        self.assertEqual(channel["overflow_count"], 1)
+        self.assertTrue(channel["backpressure_applied"])
+
     def test_build_frontier_lineage_summary_links_model_execution_and_runtime_events(self):
         summary = container_runner.build_frontier_lineage_summary(
             frontier_action_lineage=[

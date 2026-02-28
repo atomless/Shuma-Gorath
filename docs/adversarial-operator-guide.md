@@ -68,6 +68,7 @@ Container lane emits:
 8. `container_blackbox_report.json -> runtime_profile` reports required hardening profile compliance and any launch-blocking violations.
 9. `container_blackbox_report.json -> capability_envelopes` reports capability-envelope enforcement posture for executable actions.
 10. `container_blackbox_report.json -> cleanup_policy` reports TTL cleanup execution (`deleted_count`, `failed_count`, and per-path diagnostics).
+11. `container_blackbox_report.json -> command_channel` reports one-way bounded queue semantics (`queue_capacity`, `overflow_count`, and append-only evidence expectations).
 
 ## Deterministic + Containerized Coexistence Contract (SIM-V2-15)
 
