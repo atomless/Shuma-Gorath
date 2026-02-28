@@ -331,12 +331,17 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
                     "retention_hours": 168,
                     "pending_expired_buckets": 0,
                     "purge_lag_hours": 0,
-                }
+                },
+                "cost_governance": {
+                    "guarded_dimension_cardinality_cap_per_hour": 1000,
+                    "observed_guarded_dimension_cardinality_max": 42,
+                },
             },
         }
         snapshot = runner.extract_monitoring_snapshot(payload)
         self.assertEqual(snapshot["retention_health"]["retention_hours"], 168)
         self.assertEqual(snapshot["retention_health"]["pending_expired_buckets"], 0)
+        self.assertEqual(snapshot["cost_governance"]["observed_guarded_dimension_cardinality_max"], 42)
 
     def test_compute_coverage_deltas_clamps_negative_values(self):
         before = {"honeypot_hits": 5, "geo_maze": 3}
@@ -370,6 +375,36 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(section["retention_hours"], 168)
         self.assertEqual(section["pending_expired_buckets"], 2)
         self.assertAlmostEqual(section["purge_lag_hours"], 2.5, places=2)
+
+    def test_build_cost_governance_report_maps_runtime_fields(self):
+        section = runner.build_cost_governance_report(
+            {
+                "guarded_dimension_cardinality_cap_per_hour": 1000,
+                "observed_guarded_dimension_cardinality_max": 640,
+                "overflow_bucket_accounted": True,
+                "overflow_bucket_count": 1,
+                "unsampleable_event_drop_count": 0,
+                "payload_budget": {"p95_max_kb": 512, "estimated_current_payload_kb": 128},
+                "compression": {"reduction_percent": 35.0, "min_percent": 30.0},
+                "query_budget": {
+                    "avg_req_per_sec_client_target": 0.5,
+                    "max_req_per_sec_client": 1.0,
+                },
+                "cardinality_pressure": "normal",
+                "payload_budget_status": "within_budget",
+                "sampling_status": "compliant",
+                "query_budget_status": "within_budget",
+                "degraded_state": "normal",
+            }
+        )
+        self.assertEqual(section["guarded_dimension_cardinality_cap_per_hour"], 1000)
+        self.assertEqual(section["observed_guarded_dimension_cardinality_max"], 640)
+        self.assertEqual(section["overflow_bucket_count"], 1)
+        self.assertAlmostEqual(section["payload_p95_kb"], 128.0, places=2)
+        self.assertAlmostEqual(section["compression_reduction_percent"], 35.0, places=2)
+        self.assertAlmostEqual(section["query_budget_max_req_per_sec_client"], 1.0, places=2)
+        self.assertEqual(section["cardinality_pressure"], "normal")
+        self.assertEqual(section["degraded_state"], "normal")
 
     def test_build_sim_tag_diagnostics_reports_healthy_when_no_sim_tag_failures(self):
         diagnostics = runner.build_sim_tag_diagnostics(

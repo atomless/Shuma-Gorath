@@ -37,6 +37,34 @@ const NOT_A_BOT_OUTCOME_KEYS: [&str; 4] = ["pass", "escalate", "fail", "replay"]
 const NOT_A_BOT_SOLVE_MS_BUCKET_KEYS: [&str; 4] = ["lt_1s", "1_3s", "3_10s", "10s_plus"];
 const RATE_OUTCOME_KEYS: [&str; 4] = ["limited", "banned", "fallback_allow", "fallback_deny"];
 const GEO_ACTION_KEYS: [&str; 3] = ["block", "challenge", "maze"];
+const GUARDED_DIMENSION_CARDINALITY_CAP_PER_HOUR: u64 = 1000;
+const GUARDED_DIMENSION_OVERFLOW_VALUE: &str = "other";
+const UNSAMPLEABLE_SECURITY_EVENT_CLASSES: [&str; 8] = [
+    "honeypot",
+    "challenge",
+    "pow",
+    "rate",
+    "geo",
+    "not_a_bot",
+    "cdp",
+    "ban",
+];
+const GUARDED_DIMENSION_PAIRS: [(&str, &str); 6] = [
+    ("honeypot", "ip"),
+    ("honeypot", "path"),
+    ("challenge", "ip"),
+    ("pow", "ip"),
+    ("rate", "ip"),
+    ("rate", "path"),
+];
+
+pub(crate) fn guarded_dimension_cardinality_cap_per_hour() -> u64 {
+    GUARDED_DIMENSION_CARDINALITY_CAP_PER_HOUR
+}
+
+pub(crate) fn unsampleable_security_event_classes() -> &'static [&'static str] {
+    &UNSAMPLEABLE_SECURITY_EVENT_CLASSES
+}
 
 #[cfg(not(test))]
 static PENDING_COUNTER_BUFFER: Lazy<Mutex<PendingCounterBuffer>> =
@@ -494,6 +522,99 @@ fn matching_monitoring_prefix<'a>(key: &str, prefixes: &'a [&str]) -> Option<&'a
         .max_by_key(|prefix| prefix.len())
 }
 
+fn is_guarded_dimension(section: &str, metric: &str) -> bool {
+    GUARDED_DIMENSION_PAIRS
+        .iter()
+        .any(|(guarded_section, guarded_metric)| {
+            section == *guarded_section && metric == *guarded_metric
+        })
+}
+
+fn cardinality_guard_marker_key(section: &str, metric: &str, value: &str, hour: u64) -> String {
+    monitoring_key(
+        "cardinality_guard",
+        format!("{section}|{metric}").as_str(),
+        Some(value),
+        hour,
+    )
+}
+
+fn cardinality_guard_count_key(section: &str, metric: &str, hour: u64) -> String {
+    monitoring_key(
+        "cardinality_guard_count",
+        format!("{section}|{metric}").as_str(),
+        None,
+        hour,
+    )
+}
+
+fn cardinality_guard_overflow_key(section: &str, metric: &str, hour: u64) -> String {
+    monitoring_key(
+        "cardinality_guard_overflow",
+        format!("{section}|{metric}").as_str(),
+        None,
+        hour,
+    )
+}
+
+fn apply_guarded_dimension_cardinality<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    section: &str,
+    metric: &str,
+    value: &str,
+    hour: u64,
+) -> String {
+    if !is_guarded_dimension(section, metric) {
+        return value.to_string();
+    }
+    let marker_key = cardinality_guard_marker_key(section, metric, value, hour);
+    if store
+        .get(marker_key.as_str())
+        .ok()
+        .flatten()
+        .is_some()
+    {
+        return value.to_string();
+    }
+
+    let count_key = cardinality_guard_count_key(section, metric, hour);
+    let distinct_count = read_counter(store, count_key.as_str());
+    if distinct_count < GUARDED_DIMENSION_CARDINALITY_CAP_PER_HOUR {
+        if let Err(err) = store.set(marker_key.as_str(), b"1") {
+            eprintln!(
+                "[monitoring] failed writing cardinality marker {}: {:?}",
+                marker_key, err
+            );
+            return value.to_string();
+        }
+        crate::observability::retention::register_monitoring_key(store, hour, marker_key.as_str());
+        let next = distinct_count.saturating_add(1);
+        if let Err(err) = store.set(count_key.as_str(), next.to_string().as_bytes()) {
+            eprintln!(
+                "[monitoring] failed writing cardinality count {}: {:?}",
+                count_key, err
+            );
+            return value.to_string();
+        }
+        if distinct_count == 0 {
+            crate::observability::retention::register_monitoring_key(store, hour, count_key.as_str());
+        }
+        return value.to_string();
+    }
+
+    let overflow_key = cardinality_guard_overflow_key(section, metric, hour);
+    let overflow_next = read_counter(store, overflow_key.as_str()).saturating_add(1);
+    if let Err(err) = store.set(overflow_key.as_str(), overflow_next.to_string().as_bytes()) {
+        eprintln!(
+            "[monitoring] failed writing cardinality overflow {}: {:?}",
+            overflow_key, err
+        );
+    } else if overflow_next == 1 {
+        crate::observability::retention::register_monitoring_key(store, hour, overflow_key.as_str());
+    }
+    GUARDED_DIMENSION_OVERFLOW_VALUE.to_string()
+}
+
 fn record_with_dimension<S: crate::challenge::KeyValueStore>(
     store: &S,
     section: &str,
@@ -501,7 +622,9 @@ fn record_with_dimension<S: crate::challenge::KeyValueStore>(
     dimension: Option<&str>,
 ) {
     let hour = now_ts() / 3600;
-    let key = monitoring_key(section, metric, dimension, hour);
+    let dimension_value =
+        dimension.map(|value| apply_guarded_dimension_cardinality(store, section, metric, value, hour));
+    let key = monitoring_key(section, metric, dimension_value.as_deref(), hour);
     increment_counter(store, key.as_str());
 }
 
@@ -632,8 +755,10 @@ pub(crate) fn maybe_record_ip_range_likely_human_sample<S: crate::challenge::Key
 ) {
     let minute_bucket = now_ts() / 60;
     if !should_sample_likely_human(ip, sample_hint, sample_percent, minute_bucket) {
+        record_with_dimension(store, "ip_range_suggestions", "likely_human_unsampled", None);
         return;
     }
+    record_with_dimension(store, "ip_range_suggestions", "likely_human_sampled", None);
     record_ip_range_human_signal(store, ip, "likely_human_sample");
 }
 
@@ -1445,9 +1570,37 @@ mod tests {
     #[test]
     fn likely_human_sampling_respects_disabled_percent() {
         let store = MockStore::default();
+        let hour = now_ts() / 3600;
         maybe_record_ip_range_likely_human_sample(&store, "198.51.100.10", 0, "/");
-        let keys = store.get_keys().expect("keys should load");
-        assert!(keys.is_empty());
+        let sampled_key = monitoring_key("ip_range_suggestions", "likely_human_sampled", None, hour);
+        let unsampled_key = monitoring_key("ip_range_suggestions", "likely_human_unsampled", None, hour);
+        assert_eq!(read_counter(&store, sampled_key.as_str()), 0);
+        assert_eq!(read_counter(&store, unsampled_key.as_str()), 1);
+    }
+
+    #[test]
+    fn guarded_dimension_cardinality_caps_to_other_bucket() {
+        let store = MockStore::default();
+        let hour = now_ts() / 3600;
+
+        for idx in 0..(GUARDED_DIMENSION_CARDINALITY_CAP_PER_HOUR + 2) {
+            // Use path as the guarded high-cardinality dimension under test.
+            record_honeypot_hit(
+                &store,
+                "198.51.100.42",
+                format!("/overflow-check/p{}", idx).as_str(),
+            );
+        }
+
+        let overflow_dimension_key = monitoring_key("honeypot", "path", Some("other"), hour);
+        let guard_count_key = cardinality_guard_count_key("honeypot", "path", hour);
+        let overflow_count_key = cardinality_guard_overflow_key("honeypot", "path", hour);
+        assert_eq!(
+            read_counter(&store, guard_count_key.as_str()),
+            GUARDED_DIMENSION_CARDINALITY_CAP_PER_HOUR
+        );
+        assert_eq!(read_counter(&store, overflow_dimension_key.as_str()), 2);
+        assert_eq!(read_counter(&store, overflow_count_key.as_str()), 2);
     }
 
     #[test]

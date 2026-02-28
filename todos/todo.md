@@ -513,15 +513,7 @@ Acceptance criteria:
 Scope: enforce layered cost controls across telemetry ingest, storage, query, and transport while preserving security-critical evidence integrity.
 ADR reference: [`docs/adr/0009-telemetry-lifecycle-retention-cost-security.md`](../docs/adr/0009-telemetry-lifecycle-retention-cost-security.md)
 
-- [ ] SIM2-GC-16-1 Define formal monitoring cost envelope (`ingest events/sec`, `query calls/sec`, `payload bytes`, `cardinality budget`, `compression ratio`) for dev/prod verification profiles.
-- [ ] SIM2-GC-16-2 Enforce guarded-dimension cardinality caps (`<=1000` distinct values/hour per guarded dimension) with deterministic `other` overflow bucket behavior.
-- [ ] SIM2-GC-16-3 Implement rollup windows (`1m`, `5m`, `1h`) for dashboard-default queries and preserve raw-event drill-down lineage.
-- [ ] SIM2-GC-16-4 Define unsampleable security-event class list and enforce `0` sampling/drop for those classes.
-- [ ] SIM2-GC-16-5 Add deterministic low-risk telemetry sampling policy for eligible high-volume classes with explicit sampled/unsampled counters.
-- [ ] SIM2-GC-16-6 Add payload budget controls (`p95 <= 512KB` default monitoring response) via pagination/cursor windowing and response shaping.
-- [ ] SIM2-GC-16-7 Add compression negotiation/reporting for monitoring payloads and enforce `>=30%` transfer reduction target for payloads `>64KB`.
-- [ ] SIM2-GC-16-8 Extend admin query budgets to cost-class aware controls and degraded-state signaling when budgets are exceeded.
-- [ ] SIM2-GC-16-9 Add operator-facing cost health telemetry (`cardinality_pressure`, `payload_budget_status`, `sampling_status`, `query_budget_status`) and runbook guidance.
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-16-*` closure details.
 
 Acceptance criteria:
 1. Monitoring pipeline remains within declared cost envelope under realtime benchmark scenarios.

@@ -516,6 +516,21 @@ Retention troubleshooting and rollback:
 3. If `state=stalled`, treat retention worker as failed and investigate `last_error` before relying on retention expiry for sensitive data.
 4. After remediation, rerun deterministic checks and confirm `state=healthy` before closing incident.
 
+Cost-governance troubleshooting and rollback:
+
+1. Check `/admin/monitoring` `details.cost_governance` first:
+   - `cardinality_pressure`,
+   - `payload_budget_status`,
+   - `sampling_status`,
+   - `query_budget_status`,
+   - `degraded_state` and `degraded_reasons`.
+2. Operators must treat `unsampleable_event_drop_count` as a hard safety signal: it must remain `0`.
+3. If `query_budget_status=exceeded`, operators must reduce dashboard query cost immediately by lowering `hours` and/or `limit` before changing thresholds.
+4. If `payload_budget_status=exceeded`, operators must use cursor endpoints (`/admin/monitoring/delta` or `/admin/monitoring/stream`) for drill-down instead of increasing base payload limits.
+5. If `compression.status=not_negotiated`, clients must send `Accept-Encoding: gzip` for payloads above `64KB`.
+6. If `compression.status=below_target|compression_error`, operators must capture `compression.input_bytes`, `compression.output_bytes`, and `compression.reduction_percent` in incident notes, then prioritize payload-shaping fixes.
+7. Rollback must not disable unsampleable protections; if a cost-control rollback is required, revert query/payload/compression controls first while keeping unsampleable policy and cardinality caps active.
+
 ### `latency_p95` Failure
 
 - Operators must verify runtime saturation before relaxing latency limits.

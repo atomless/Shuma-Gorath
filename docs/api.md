@@ -251,6 +251,21 @@ For <abbr title="Chrome DevTools Protocol">CDP</abbr>-only operational views wit
 - `retention_hours`, `oldest_retained_ts`, `purge_lag_hours`, `pending_expired_buckets`
 - `last_purge_success_ts`, `last_attempt_ts`, `last_purged_bucket`, `last_error`
 - `state` (`healthy|degraded|stalled`), `guidance`, `bucket_schema`
+- `details.cost_governance`:
+- `cost_envelope_profiles.runtime_dev|runtime_prod` (`ingest_events_per_second`, `query_calls_per_second_per_client`, `payload_p95_kb`, `guarded_dimension_cardinality_cap_per_hour`, `compression_min_percent_for_payloads_over_64kb`)
+- `guarded_dimension_cardinality_cap_per_hour`, `observed_guarded_dimension_cardinality_max`, `overflow_bucket_accounted`, `overflow_bucket_count`, `cardinality_pressure`
+- `rollups` (`1m`, `5m`, `1h`, `raw_event_lineage_source`)
+- `unsampleable_event_classes`, `unsampleable_event_drop_count`, `sampling_status`
+- `sampling` (`eligible_low_risk_classes`, `sampled_count`, `unsampled_count`)
+- `payload_budget` (`p95_max_kb`, `estimated_current_payload_kb`, `status`) and `payload_budget_status`
+- `compression` (`status`, `negotiated`, `algorithm`, `input_bytes`, `output_bytes`, `reduction_percent`, `min_percent`)
+- `query_budget` (`cost_units`, `cost_class`, `avg_req_per_sec_client_target`, `max_req_per_sec_client`, `status`) and `query_budget_status`
+- `degraded_state` (`normal|degraded`) and `degraded_reasons`
+
+When payload size is greater than `64KB` and the client sends `Accept-Encoding: gzip`, the endpoint may return compressed JSON (`Content-Encoding: gzip`) with `Vary: Accept-Encoding`.
+Cost-state response headers are also emitted:
+- `X-Shuma-Monitoring-Cost-State`
+- `X-Shuma-Monitoring-Query-Budget`
 
 `GET /admin/monitoring/delta?after_cursor=<cursor>&limit=100&hours=24` returns:
 - `cursor_contract` (version + ordering + overflow taxonomy)
@@ -281,7 +296,8 @@ The stream path is intentionally one-shot in this phase; the browser reconnect l
 - `details` (dashboard Monitoring-tab refresh contract):
 - `retention_health`: same lifecycle contract as top-level (`state/guidance/lag/pending/error`)
 - `analytics`: `ban_count`, `test_mode`, `fail_mode`
-- `events`: `recent_events`, `event_counts`, `top_ips`, `unique_ips`
+- `events`: `recent_events`, `event_counts`, `top_ips`, `unique_ips`, `recent_events_window` (`hours`, `requested_limit`, `applied_recent_event_cap`, `total_events_in_window`, `returned_events`, `has_more`, `continue_via`, `response_shaping_reason`)
+- `cost_governance`: same contract described above
 - `bans`: `bans`
 - `maze`: `total_hits`, `unique_crawlers`, `maze_auto_bans`, `deepest_crawler`, `top_crawlers`
 - `cdp`: `config`, `stats`, `fingerprint_stats`

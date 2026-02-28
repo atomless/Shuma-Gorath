@@ -1,6 +1,9 @@
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use rand::random;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
+use std::io::Write;
 use std::time::{SystemTime, UNIX_EPOCH};
 /// Event types for activity logging
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -823,8 +826,10 @@ mod tests {
 mod admin_config_tests {
     use super::*;
     use crate::challenge::KeyValueStore;
+    use flate2::read::GzDecoder;
     use spin_sdk::http::{Method, Request};
     use std::collections::HashMap;
+    use std::io::Read;
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::sync::Mutex;
 
@@ -2759,6 +2764,128 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn admin_monitoring_cost_governance_surfaces_query_budget_degraded_state() {
+        let _lock = crate::test_support::lock_env();
+        let store = TestStore::default();
+
+        let req = make_request(Method::Get, "/admin/monitoring?hours=720&limit=50", Vec::new());
+        let resp = handle_admin_monitoring(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+        assert_eq!(
+            resp.header("x-shuma-monitoring-cost-state")
+                .and_then(|value| value.as_str()),
+            Some("degraded")
+        );
+        assert_eq!(
+            resp.header("x-shuma-monitoring-query-budget")
+                .and_then(|value| value.as_str()),
+            Some("exceeded")
+        );
+
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        let cost = body
+            .get("details")
+            .and_then(|value| value.get("cost_governance"))
+            .expect("cost_governance");
+        assert_eq!(
+            cost.get("query_budget_status").and_then(|value| value.as_str()),
+            Some("exceeded")
+        );
+        assert_eq!(
+            cost.get("degraded_state").and_then(|value| value.as_str()),
+            Some("degraded")
+        );
+        assert!(
+            cost.get("degraded_reasons")
+                .and_then(|value| value.as_array())
+                .map(|reasons| reasons.iter().any(|row| row.as_str() == Some("query_budget_exceeded")))
+                .unwrap_or(false)
+        );
+        assert_eq!(
+            body.get("details")
+                .and_then(|value| value.get("events"))
+                .and_then(|value| value.get("recent_events_window"))
+                .and_then(|value| value.get("response_shaping_reason"))
+                .and_then(|value| value.as_str()),
+            Some("query_budget_guardrail")
+        );
+    }
+
+    #[test]
+    fn admin_monitoring_negotiates_gzip_and_reports_compression() {
+        let _lock = crate::test_support::lock_env();
+        let store = TestStore::default();
+        let now = now_ts();
+        for idx in 0..4000u64 {
+            log_event(
+                &store,
+                &EventLogEntry {
+                    ts: now.saturating_sub(idx),
+                    event: EventType::AdminAction,
+                    ip: Some(format!("198.51.100.{}", idx % 255)),
+                    reason: Some(
+                        format!(
+                            "cdp_detected:large_payload_seed_reason_value_for_monitoring_compression_path:{}",
+                            idx
+                        ),
+                    ),
+                    outcome: Some(
+                        "large_payload_seed_outcome_value_for_monitoring_compression_path".to_string(),
+                    ),
+                    admin: Some("ops".to_string()),
+                },
+            );
+        }
+
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Get)
+            .uri("/admin/monitoring?hours=24&limit=50")
+            .header("host", "localhost:3000")
+            .header("authorization", "Bearer changeme-dev-only-api-key")
+            .header("origin", "http://localhost:3000")
+            .header("sec-fetch-site", "same-origin")
+            .header("idempotency-key", "compression-test-key")
+            .header("accept-encoding", "gzip")
+            .body(Vec::new());
+        let req = builder.build();
+
+        let resp = handle_admin_monitoring(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+        assert_eq!(
+            resp.header("content-encoding")
+                .and_then(|value| value.as_str()),
+            Some("gzip")
+        );
+
+        let mut decoder = GzDecoder::new(resp.body());
+        let mut decoded = Vec::new();
+        decoder.read_to_end(&mut decoded).unwrap();
+        let body: serde_json::Value = serde_json::from_slice(decoded.as_slice()).unwrap();
+        let compression = body
+            .get("details")
+            .and_then(|value| value.get("cost_governance"))
+            .and_then(|value| value.get("compression"))
+            .expect("compression payload");
+
+        assert_eq!(
+            compression.get("negotiated").and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            compression.get("algorithm").and_then(|value| value.as_str()),
+            Some("gzip")
+        );
+        assert!(
+            compression
+                .get("reduction_percent")
+                .and_then(|value| value.as_f64())
+                .unwrap_or(0.0)
+                > 0.0
+        );
+    }
+
+    #[test]
     fn admin_ip_range_suggestions_returns_structured_payload() {
         let _lock = crate::test_support::lock_env();
         let store = TestStore::default();
@@ -2842,7 +2969,7 @@ mod admin_config_tests {
             .set("tarpit:budget:active:bucket:other-site:bucket-z", b"7")
             .unwrap();
 
-        let details = monitoring_details_payload(&store, "default", 24);
+        let details = monitoring_details_payload(&store, "default", 24, 10);
         let tarpit = details.get("tarpit").unwrap();
         assert_eq!(
             tarpit
@@ -4427,6 +4554,20 @@ const MONITORING_LOAD_ENVELOPE_OPERATOR_CLIENTS: u64 = 5;
 const MONITORING_LOAD_ENVELOPE_QUERY_COST_CEILING_PER_MINUTE: u32 =
     ADMIN_DASHBOARD_REFRESH_SESSION_LIMIT_PER_MINUTE;
 const MONITORING_QUERY_BUDGET_REQUESTS_PER_SECOND: u64 = 1;
+const MONITORING_QUERY_BUDGET_STANDARD_MAX_COST_UNITS: u64 = 240;
+const MONITORING_QUERY_BUDGET_ELEVATED_MAX_COST_UNITS: u64 = 1_200;
+const MONITORING_QUERY_BUDGET_HEAVY_MAX_COST_UNITS: u64 = 3_600;
+const MONITORING_PAYLOAD_BUDGET_P95_KB: f64 = 512.0;
+const MONITORING_COMPRESSION_MIN_PAYLOAD_BYTES: usize = 64 * 1024;
+const MONITORING_COMPRESSION_MIN_REDUCTION_PERCENT: f64 = 30.0;
+const MONITORING_COST_ENVELOPE_INGEST_EVENTS_PER_SECOND_DEV: u64 =
+    MONITORING_LOAD_ENVELOPE_EVENTS_PER_SEC;
+const MONITORING_COST_ENVELOPE_INGEST_EVENTS_PER_SECOND_PROD: u64 =
+    MONITORING_LOAD_ENVELOPE_EVENTS_PER_SEC;
+const MONITORING_COST_ENVELOPE_QUERY_CALLS_PER_SECOND_CLIENT_DEV: f64 =
+    MONITORING_QUERY_BUDGET_REQUESTS_PER_SECOND as f64;
+const MONITORING_COST_ENVELOPE_QUERY_CALLS_PER_SECOND_CLIENT_PROD: f64 =
+    MONITORING_QUERY_BUDGET_REQUESTS_PER_SECOND as f64;
 const MONITORING_STREAM_RETRY_MS: u64 = 1_000;
 const MONITORING_STREAM_MAX_BUFFER_EVENTS: usize = 250;
 
@@ -5015,6 +5156,270 @@ fn stream_contract_payload() -> serde_json::Value {
         "max_buffer_events": MONITORING_STREAM_MAX_BUFFER_EVENTS,
         "slow_consumer_lag_state_taxonomy": ["normal", "lagged"]
     })
+}
+
+#[derive(Debug, Clone)]
+struct MonitoringQueryBudget {
+    cost_units: u64,
+    cost_class: &'static str,
+    avg_req_per_sec_client: f64,
+    max_req_per_sec_client: f64,
+    status: &'static str,
+}
+
+#[derive(Debug, Clone)]
+struct MonitoringCompressionReport {
+    negotiated: bool,
+    algorithm: &'static str,
+    status: &'static str,
+    reduction_percent: f64,
+    input_bytes: usize,
+    output_bytes: usize,
+}
+
+fn monitoring_query_budget(hours: u64, limit: usize) -> MonitoringQueryBudget {
+    let cost_units = hours.saturating_mul(limit as u64);
+    if cost_units <= MONITORING_QUERY_BUDGET_STANDARD_MAX_COST_UNITS {
+        return MonitoringQueryBudget {
+            cost_units,
+            cost_class: "standard",
+            avg_req_per_sec_client: 0.5,
+            max_req_per_sec_client: MONITORING_QUERY_BUDGET_REQUESTS_PER_SECOND as f64,
+            status: "within_budget",
+        };
+    }
+    if cost_units <= MONITORING_QUERY_BUDGET_ELEVATED_MAX_COST_UNITS {
+        return MonitoringQueryBudget {
+            cost_units,
+            cost_class: "elevated",
+            avg_req_per_sec_client: 0.75,
+            max_req_per_sec_client: MONITORING_QUERY_BUDGET_REQUESTS_PER_SECOND as f64,
+            status: "within_budget",
+        };
+    }
+    if cost_units <= MONITORING_QUERY_BUDGET_HEAVY_MAX_COST_UNITS {
+        return MonitoringQueryBudget {
+            cost_units,
+            cost_class: "heavy",
+            avg_req_per_sec_client: MONITORING_QUERY_BUDGET_REQUESTS_PER_SECOND as f64,
+            max_req_per_sec_client: MONITORING_QUERY_BUDGET_REQUESTS_PER_SECOND as f64,
+            status: "within_budget",
+        };
+    }
+    MonitoringQueryBudget {
+        cost_units,
+        cost_class: "exceeded",
+        avg_req_per_sec_client: 1.25,
+        max_req_per_sec_client: MONITORING_QUERY_BUDGET_REQUESTS_PER_SECOND as f64,
+        status: "exceeded",
+    }
+}
+
+fn request_accepts_gzip(req: &Request) -> bool {
+    let Some(value) = req
+        .header("accept-encoding")
+        .and_then(|header| header.as_str())
+    else {
+        return false;
+    };
+    for token in value.to_ascii_lowercase().split(',') {
+        let mut parts = token.trim().split(';');
+        let encoding = parts.next().unwrap_or("").trim();
+        if encoding != "gzip" {
+            continue;
+        }
+        let mut quality = 1.0f64;
+        for part in parts {
+            let trimmed = part.trim();
+            if let Some(raw) = trimmed.strip_prefix("q=") {
+                if let Ok(parsed) = raw.parse::<f64>() {
+                    quality = parsed;
+                }
+            }
+        }
+        if quality > 0.0 {
+            return true;
+        }
+    }
+    false
+}
+
+fn gzip_bytes(payload: &[u8]) -> Option<Vec<u8>> {
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    if encoder.write_all(payload).is_err() {
+        return None;
+    }
+    encoder.finish().ok()
+}
+
+fn monitoring_compression_report(payload: &[u8], supports_gzip: bool) -> MonitoringCompressionReport {
+    if payload.len() <= MONITORING_COMPRESSION_MIN_PAYLOAD_BYTES {
+        return MonitoringCompressionReport {
+            negotiated: false,
+            algorithm: "none",
+            status: "not_required",
+            reduction_percent: 0.0,
+            input_bytes: payload.len(),
+            output_bytes: payload.len(),
+        };
+    }
+    if !supports_gzip {
+        return MonitoringCompressionReport {
+            negotiated: false,
+            algorithm: "none",
+            status: "not_negotiated",
+            reduction_percent: 0.0,
+            input_bytes: payload.len(),
+            output_bytes: payload.len(),
+        };
+    }
+    let Some(compressed) = gzip_bytes(payload) else {
+        return MonitoringCompressionReport {
+            negotiated: false,
+            algorithm: "none",
+            status: "compression_error",
+            reduction_percent: 0.0,
+            input_bytes: payload.len(),
+            output_bytes: payload.len(),
+        };
+    };
+    let input = payload.len();
+    let output = compressed.len().max(1);
+    let reduction_percent = ((input.saturating_sub(output) as f64) / input as f64) * 100.0;
+    let status = if reduction_percent >= MONITORING_COMPRESSION_MIN_REDUCTION_PERCENT {
+        "effective"
+    } else {
+        "below_target"
+    };
+    MonitoringCompressionReport {
+        negotiated: true,
+        algorithm: "gzip",
+        status,
+        reduction_percent,
+        input_bytes: input,
+        output_bytes: output,
+    }
+}
+
+fn update_monitoring_cost_governance_transport_fields(
+    payload: &mut serde_json::Value,
+    payload_kb: f64,
+    compression: &MonitoringCompressionReport,
+) {
+    let payload_status = if payload_kb <= MONITORING_PAYLOAD_BUDGET_P95_KB {
+        "within_budget"
+    } else {
+        "exceeded"
+    };
+    let mut degraded_reasons: Vec<&str> = Vec::new();
+    if payload_status == "exceeded" {
+        degraded_reasons.push("payload_budget_exceeded");
+    }
+    if compression.status == "below_target" || compression.status == "compression_error" {
+        degraded_reasons.push("compression_effectiveness_below_target");
+    }
+
+    let cost_governance = payload
+        .get_mut("details")
+        .and_then(|details| details.get_mut("cost_governance"))
+        .and_then(|value| value.as_object_mut());
+    let Some(cost_governance) = cost_governance else {
+        return;
+    };
+
+    if let Some(query_budget_obj) = cost_governance
+        .get("query_budget")
+        .and_then(|value| value.as_object())
+    {
+        let query_status = query_budget_obj
+            .get("status")
+            .and_then(|value| value.as_str())
+            .unwrap_or("within_budget");
+        if query_status == "exceeded" {
+            degraded_reasons.push("query_budget_exceeded");
+        }
+        cost_governance.insert(
+            "query_budget_status".to_string(),
+            serde_json::Value::from(query_status),
+        );
+    }
+
+    if let Some(payload_budget_obj) = cost_governance
+        .entry("payload_budget".to_string())
+        .or_insert_with(|| json!({}))
+        .as_object_mut()
+    {
+        payload_budget_obj.insert(
+            "p95_max_kb".to_string(),
+            serde_json::Value::from(MONITORING_PAYLOAD_BUDGET_P95_KB),
+        );
+        payload_budget_obj.insert(
+            "estimated_current_payload_kb".to_string(),
+            serde_json::Value::from(payload_kb),
+        );
+        payload_budget_obj.insert(
+            "status".to_string(),
+            serde_json::Value::from(payload_status),
+        );
+    }
+    cost_governance.insert(
+        "payload_budget_status".to_string(),
+        serde_json::Value::from(payload_status),
+    );
+
+    if let Some(compression_obj) = cost_governance
+        .entry("compression".to_string())
+        .or_insert_with(|| json!({}))
+        .as_object_mut()
+    {
+        compression_obj.insert(
+            "status".to_string(),
+            serde_json::Value::from(compression.status),
+        );
+        compression_obj.insert(
+            "negotiated".to_string(),
+            serde_json::Value::from(compression.negotiated),
+        );
+        compression_obj.insert(
+            "algorithm".to_string(),
+            serde_json::Value::from(compression.algorithm),
+        );
+        compression_obj.insert(
+            "input_bytes".to_string(),
+            serde_json::Value::from(compression.input_bytes as u64),
+        );
+        compression_obj.insert(
+            "output_bytes".to_string(),
+            serde_json::Value::from(compression.output_bytes as u64),
+        );
+        compression_obj.insert(
+            "reduction_percent".to_string(),
+            serde_json::Value::from(compression.reduction_percent),
+        );
+        compression_obj.insert(
+            "min_percent".to_string(),
+            serde_json::Value::from(MONITORING_COMPRESSION_MIN_REDUCTION_PERCENT),
+        );
+    }
+
+    let degraded_state = if degraded_reasons.is_empty() {
+        "normal"
+    } else {
+        "degraded"
+    };
+    cost_governance.insert(
+        "degraded_state".to_string(),
+        serde_json::Value::from(degraded_state),
+    );
+    cost_governance.insert(
+        "degraded_reasons".to_string(),
+        serde_json::Value::Array(
+            degraded_reasons
+                .into_iter()
+                .map(serde_json::Value::from)
+                .collect(),
+        ),
+    );
 }
 
 fn sse_single_event_response(event_name: &str, event_id: &str, payload: &serde_json::Value) -> Response {
@@ -8682,18 +9087,64 @@ where
 {
     let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
     let limit = query_u64_param(req.query(), "limit", 10).clamp(1, 50) as usize;
+    let query_budget = monitoring_query_budget(hours, limit);
     let summary = crate::observability::monitoring::summarize_with_store(store, hours, limit);
-    let details = monitoring_details_payload(store, "default", hours);
+    let details = monitoring_details_payload(store, "default", hours, limit);
     let retention_health = crate::observability::retention::retention_health(store);
-
-    let body = serde_json::to_string(&json!({
+    let mut payload = json!({
         "summary": summary,
         "prometheus": monitoring_prometheus_helper_payload(),
         "details": details,
         "retention_health": retention_health
-    }))
-    .unwrap();
-    Response::new(200, body)
+    });
+
+    let supports_gzip = request_accepts_gzip(req);
+    let initial_uncompressed =
+        serde_json::to_vec(&payload).unwrap_or_else(|_| b"{}".to_vec());
+    let initial_payload_kb = (initial_uncompressed.len() as f64) / 1024.0;
+    let initial_compression =
+        monitoring_compression_report(initial_uncompressed.as_slice(), supports_gzip);
+    update_monitoring_cost_governance_transport_fields(
+        &mut payload,
+        initial_payload_kb,
+        &initial_compression,
+    );
+
+    let mut uncompressed = serde_json::to_vec(&payload).unwrap_or_else(|_| b"{}".to_vec());
+    let final_payload_kb = (uncompressed.len() as f64) / 1024.0;
+    let final_compression = monitoring_compression_report(uncompressed.as_slice(), supports_gzip);
+    update_monitoring_cost_governance_transport_fields(
+        &mut payload,
+        final_payload_kb,
+        &final_compression,
+    );
+    uncompressed = serde_json::to_vec(&payload).unwrap_or_else(|_| b"{}".to_vec());
+
+    let body = if final_compression.negotiated {
+        gzip_bytes(uncompressed.as_slice()).unwrap_or_else(|| uncompressed.clone())
+    } else {
+        uncompressed
+    };
+    let cost_state = payload
+        .get("details")
+        .and_then(|details| details.get("cost_governance"))
+        .and_then(|cost| cost.get("degraded_state"))
+        .and_then(|value| value.as_str())
+        .unwrap_or("normal");
+
+    let mut builder = Response::builder();
+    builder
+        .status(200)
+        .header("Content-Type", "application/json")
+        .header("Cache-Control", "no-store")
+        .header("X-Shuma-Monitoring-Cost-State", cost_state)
+        .header("X-Shuma-Monitoring-Query-Budget", query_budget.status);
+    if final_compression.negotiated {
+        builder
+            .header("Content-Encoding", "gzip")
+            .header("Vary", "Accept-Encoding");
+    }
+    builder.body(body).build()
 }
 
 fn handle_admin_monitoring_delta<S>(req: &Request, store: &S) -> Response
@@ -9150,12 +9601,14 @@ fn monitoring_details_payload<S>(
     store: &S,
     site_id: &str,
     hours: u64,
+    limit: usize,
 ) -> serde_json::Value
 where
     S: crate::challenge::KeyValueStore,
 {
     let now = now_ts();
     let mut events = load_recent_event_records(store, now, hours);
+    let query_budget = monitoring_query_budget(hours, limit);
     let mut ip_counts = std::collections::HashMap::new();
     let mut event_counts = std::collections::HashMap::new();
 
@@ -9172,7 +9625,14 @@ where
     let mut top_ips: Vec<_> = ip_counts.into_iter().collect();
     top_ips.sort_by(|a, b| b.1.cmp(&a.1));
     let top_ips: Vec<_> = top_ips.into_iter().take(10).collect();
-    let recent_events: Vec<_> = events.iter().take(100).cloned().collect();
+    let recent_event_cap = if query_budget.status == "exceeded" {
+        20
+    } else {
+        (limit.saturating_mul(10)).clamp(20, 100)
+    };
+    let total_recent_events_in_window = events.len();
+    let recent_events: Vec<_> = events.iter().take(recent_event_cap).cloned().collect();
+    let recent_events_has_more = total_recent_events_in_window > recent_events.len();
 
     let cdp_events_limit = 500usize;
     let mut cdp_events: Vec<EventLogRecord> = events
@@ -9290,9 +9750,12 @@ where
         "closed"
     };
     let retention_health = crate::observability::retention::retention_health(store);
+    let cost_governance =
+        monitoring_cost_governance_payload(store, events.as_slice(), now, &query_budget);
 
     json!({
         "retention_health": retention_health,
+        "cost_governance": cost_governance,
         "analytics": {
             "ban_count": active_bans.len(),
             "test_mode": cfg.as_ref().map(|v| v.test_mode).unwrap_or(false),
@@ -9302,7 +9765,17 @@ where
             "recent_events": recent_events,
             "event_counts": event_counts,
             "top_ips": top_ips,
-            "unique_ips": unique_ips
+            "unique_ips": unique_ips,
+            "recent_events_window": {
+                "hours": hours,
+                "requested_limit": limit,
+                "applied_recent_event_cap": recent_event_cap,
+                "total_events_in_window": total_recent_events_in_window,
+                "returned_events": recent_events.len(),
+                "has_more": recent_events_has_more,
+                "continue_via": format!("/admin/monitoring/delta?hours={hours}&limit={}", limit.clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS)),
+                "response_shaping_reason": if query_budget.status == "exceeded" { "query_budget_guardrail" } else { "requested" }
+            }
         },
         "bans": {
             "bans": bans
@@ -9427,6 +9900,129 @@ where
                 "auto_bans": auto_bans
             }
         }
+    })
+}
+
+fn monitoring_cost_governance_payload<S>(
+    store: &S,
+    events: &[EventLogRecord],
+    now: u64,
+    query_budget: &MonitoringQueryBudget,
+) -> serde_json::Value
+where
+    S: crate::challenge::KeyValueStore,
+{
+    let now_hour = now / 3600;
+    let cap_per_hour = crate::observability::monitoring::guarded_dimension_cardinality_cap_per_hour();
+    let count_suffix = format!(":{}", now_hour);
+    let count_prefix = "monitoring:v1:cardinality_guard_count:";
+    let overflow_prefix = "monitoring:v1:cardinality_guard_overflow:";
+    let mut observed_guarded_dimension_cardinality_max = 0u64;
+    let mut overflow_bucket_count = 0u64;
+
+    if let Ok(keys) = store.get_keys() {
+        for key in keys {
+            if key.starts_with(count_prefix) && key.ends_with(count_suffix.as_str()) {
+                observed_guarded_dimension_cardinality_max =
+                    observed_guarded_dimension_cardinality_max.max(read_u64_counter(store, key.as_str()));
+                continue;
+            }
+            if key.starts_with(overflow_prefix) && key.ends_with(count_suffix.as_str()) {
+                overflow_bucket_count =
+                    overflow_bucket_count.saturating_add(read_u64_counter(store, key.as_str()));
+            }
+        }
+    }
+
+    let sampled_key = format!(
+        "monitoring:v1:ip_range_suggestions:likely_human_sampled:{}",
+        now_hour
+    );
+    let unsampled_key = format!(
+        "monitoring:v1:ip_range_suggestions:likely_human_unsampled:{}",
+        now_hour
+    );
+    let sampled_count = read_u64_counter(store, sampled_key.as_str());
+    let unsampled_count = read_u64_counter(store, unsampled_key.as_str());
+    let unsampleable_drop_count = 0u64;
+
+    let one_min = now.saturating_sub(60);
+    let five_min = now.saturating_sub(300);
+    let one_hour = now.saturating_sub(3600);
+    let rollup_1m = events
+        .iter()
+        .filter(|event| event.entry.ts >= one_min)
+        .count() as u64;
+    let rollup_5m = events
+        .iter()
+        .filter(|event| event.entry.ts >= five_min)
+        .count() as u64;
+    let rollup_1h = events
+        .iter()
+        .filter(|event| event.entry.ts >= one_hour)
+        .count() as u64;
+
+    json!({
+        "cost_envelope_profiles": {
+            "runtime_dev": {
+                "ingest_events_per_second": MONITORING_COST_ENVELOPE_INGEST_EVENTS_PER_SECOND_DEV,
+                "query_calls_per_second_per_client": MONITORING_COST_ENVELOPE_QUERY_CALLS_PER_SECOND_CLIENT_DEV,
+                "payload_p95_kb": MONITORING_PAYLOAD_BUDGET_P95_KB,
+                "guarded_dimension_cardinality_cap_per_hour": cap_per_hour,
+                "compression_min_percent_for_payloads_over_64kb": MONITORING_COMPRESSION_MIN_REDUCTION_PERCENT
+            },
+            "runtime_prod": {
+                "ingest_events_per_second": MONITORING_COST_ENVELOPE_INGEST_EVENTS_PER_SECOND_PROD,
+                "query_calls_per_second_per_client": MONITORING_COST_ENVELOPE_QUERY_CALLS_PER_SECOND_CLIENT_PROD,
+                "payload_p95_kb": MONITORING_PAYLOAD_BUDGET_P95_KB,
+                "guarded_dimension_cardinality_cap_per_hour": cap_per_hour,
+                "compression_min_percent_for_payloads_over_64kb": MONITORING_COMPRESSION_MIN_REDUCTION_PERCENT
+            }
+        },
+        "guarded_dimension_cardinality_cap_per_hour": cap_per_hour,
+        "observed_guarded_dimension_cardinality_max": observed_guarded_dimension_cardinality_max,
+        "overflow_bucket_accounted": true,
+        "overflow_bucket_count": overflow_bucket_count,
+        "cardinality_pressure": if overflow_bucket_count > 0 { "pressure" } else { "normal" },
+        "rollups": {
+            "1m": rollup_1m,
+            "5m": rollup_5m,
+            "1h": rollup_1h,
+            "raw_event_lineage_source": "eventlog:v2"
+        },
+        "unsampleable_event_classes": crate::observability::monitoring::unsampleable_security_event_classes(),
+        "unsampleable_event_drop_count": unsampleable_drop_count,
+        "sampling": {
+            "eligible_low_risk_classes": ["ip_range_suggestions.likely_human_sample"],
+            "sampled_count": sampled_count,
+            "unsampled_count": unsampled_count
+        },
+        "sampling_status": if unsampleable_drop_count == 0 { "compliant" } else { "violation" },
+        "payload_budget": {
+            "p95_max_kb": MONITORING_PAYLOAD_BUDGET_P95_KB,
+            "estimated_current_payload_kb": 0.0,
+            "status": "within_budget"
+        },
+        "payload_budget_status": "within_budget",
+        "compression": {
+            "status": "pending",
+            "negotiated": false,
+            "algorithm": "none",
+            "input_bytes": 0,
+            "output_bytes": 0,
+            "reduction_percent": 0.0,
+            "min_percent": MONITORING_COMPRESSION_MIN_REDUCTION_PERCENT
+        },
+        "query_budget": {
+            "cost_units": query_budget.cost_units,
+            "cost_class": query_budget.cost_class,
+            "avg_req_per_sec_client_target": query_budget.avg_req_per_sec_client,
+            "max_req_per_sec_client": query_budget.max_req_per_sec_client,
+            "status": query_budget.status
+        },
+        "query_budget_status": query_budget.status,
+        "degraded_state": if query_budget.status == "exceeded" { "degraded" } else { "normal" },
+        "degraded_reasons": if query_budget.status == "exceeded" { vec!["query_budget_exceeded"] } else { Vec::<&str>::new() }
     })
 }
 

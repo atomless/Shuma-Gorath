@@ -1257,6 +1257,9 @@ class Runner:
                 "retention_lifecycle": build_retention_lifecycle_report(
                     dict_or_empty(monitoring_after.get("retention_health"))
                 ),
+                "cost_governance": build_cost_governance_report(
+                    dict_or_empty(monitoring_after.get("cost_governance"))
+                ),
                 "results": [result.__dict__ for result in results],
                 "gates": gate_results,
                 "coverage_gates": gate_results.get("coverage_gates", {}),
@@ -3797,6 +3800,7 @@ def extract_monitoring_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
     retention_health = dict_or_empty(payload.get("retention_health"))
     if not retention_health:
         retention_health = dict_or_empty(nested_dict_value(details, ("retention_health",)))
+    cost_governance = dict_or_empty(nested_dict_value(details, ("cost_governance",)))
     tarpit_details = dict_or_empty(nested_dict_value(details, ("tarpit",)))
     recent_events = nested_dict_value(details, ("events", "recent_events"))
     recent_event_count = len(recent_events) if isinstance(recent_events, list) else 0
@@ -3855,6 +3859,7 @@ def extract_monitoring_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
         "coverage": coverage,
         "tarpit": tarpit_details,
         "retention_health": retention_health,
+        "cost_governance": cost_governance,
         "recent_event_reasons": sorted(set(recent_event_reasons)),
     }
 
@@ -3900,6 +3905,43 @@ def build_retention_lifecycle_report(retention_health: Any) -> Dict[str, Any]:
         "state": str(section.get("state") or ""),
         "guidance": str(section.get("guidance") or ""),
         "last_purge_success_ts": max(0, int_or_zero(section.get("last_purge_success_ts"))),
+    }
+
+
+def build_cost_governance_report(cost_governance: Any) -> Dict[str, Any]:
+    section = dict_or_empty(cost_governance)
+    payload = dict_or_empty(section.get("payload_budget"))
+    compression = dict_or_empty(section.get("compression"))
+    query_budget = dict_or_empty(section.get("query_budget"))
+    payload_p95_kb = max(0.0, float(payload.get("estimated_current_payload_kb") or 0.0))
+    return {
+        "guarded_dimension_cardinality_cap_per_hour": max(
+            1, int_or_zero(section.get("guarded_dimension_cardinality_cap_per_hour") or 1000)
+        ),
+        "observed_guarded_dimension_cardinality_max": max(
+            0, int_or_zero(section.get("observed_guarded_dimension_cardinality_max"))
+        ),
+        "overflow_bucket_accounted": bool(section.get("overflow_bucket_accounted")),
+        "overflow_bucket_count": max(0, int_or_zero(section.get("overflow_bucket_count"))),
+        "unsampleable_event_drop_count": max(0, int_or_zero(section.get("unsampleable_event_drop_count"))),
+        "payload_p95_kb": payload_p95_kb,
+        "payload_p95_max_kb": max(1.0, float(payload.get("p95_max_kb") or 512.0)),
+        "large_payload_sample_count": 1 if payload_p95_kb > 64.0 else 0,
+        "compression_reduction_percent": max(
+            0.0, float(compression.get("reduction_percent") or 0.0)
+        ),
+        "compression_min_percent": max(0.0, float(compression.get("min_percent") or 30.0)),
+        "query_budget_avg_req_per_sec_client": max(
+            0.0, float(query_budget.get("avg_req_per_sec_client_target") or 0.0)
+        ),
+        "query_budget_max_req_per_sec_client": max(
+            0.0, float(query_budget.get("max_req_per_sec_client") or 1.0)
+        ),
+        "cardinality_pressure": str(section.get("cardinality_pressure") or ""),
+        "payload_budget_status": str(section.get("payload_budget_status") or ""),
+        "sampling_status": str(section.get("sampling_status") or ""),
+        "query_budget_status": str(section.get("query_budget_status") or ""),
+        "degraded_state": str(section.get("degraded_state") or ""),
     }
 
 
