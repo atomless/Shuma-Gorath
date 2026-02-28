@@ -88,11 +88,14 @@ jobs:
       - name: Run containerized black-box adversary lane
         run: make test-adversarial-container-blackbox
 
-      - name: Run SIM2 realtime benchmark and ADR conformance diagnostics
+      - name: Run SIM2 realtime/contract/governance diagnostics
         run: |
           make test-sim2-realtime-bench
           make test-sim2-adr-conformance
           make test-sim2-ci-diagnostics
+          make test-sim2-verification-matrix
+          make test-sim2-operational-regressions
+          make test-sim2-governance-contract
 
       - name: Upload adversarial soak report
         if: always()
@@ -109,6 +112,7 @@ jobs:
             scripts/tests/adversarial/sim2_ci_diagnostics.json
             scripts/tests/adversarial/sim2_verification_matrix_report.json
             scripts/tests/adversarial/sim2_operational_regressions_report.json
+            scripts/tests/adversarial/sim2_governance_contract_report.json
 
       - name: Upload Spin logs (on failure)
         if: failure()

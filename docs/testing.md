@@ -26,6 +26,8 @@ make test-adversarial-container-blackbox # Run containerized black-box adversary
 make test-adversarial-frontier-attempt # Protected-lane frontier provider attempt probe (advisory/non-blocking)
 make test-frontier-governance # Frontier artifact guard (forbidden keys + secret leak checks)
 make test-frontier-unavailability-policy # Frontier degraded-threshold policy tracker + actionability artifact
+make test-sim2-operational-regressions # SIM2 failure/prod/retention/cost/security regression diagnostics
+make test-sim2-governance-contract # SIM2 hybrid lane + governance contract conformance diagnostics
 make test-ip-range-suggestions # Focused IP-range suggestion regression gate (runtime + dashboard)
 make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)

@@ -38,6 +38,26 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-GC-11-22 Add ADR conformance verification checks ensuring implementation slices align with ADR `0007`, `0008`, and `0009` (or provide explicit supersession plan).
 - [x] SIM2-GC-11-23 Add hybrid-governance threshold tests ensuring emergent promotion requires `>=95%` deterministic confirmation, `<=20%` false-discovery rate, and owner disposition SLA `<=48h`.
 
+#### SIM2-GC-12: Program Governance for Continuous Defense Evolution
+
+- [x] SIM2-GC-12-1 Define weekly/iteration cadence for `run -> review -> tune -> replay -> promote` cycle with ownership and SLA.
+- [x] SIM2-GC-12-2 Define promotion rubric for new adversary techniques (severity, reproducibility, collateral risk, mitigation readiness).
+- [x] SIM2-GC-12-3 Add KPI dashboard/reporting for attacker cost shift, human-friction impact, detection latency, and mitigation lead time.
+- [x] SIM2-GC-12-4 Add explicit rollback playbooks for defensive changes that over-trigger on legitimate traffic.
+- [x] SIM2-GC-12-5 Add periodic architecture review checkpoint to ensure orchestration remains decentralized, capability-safe, and evidence-driven.
+
+#### SIM2-GC-14: Formalize Hybrid Adversary Model (Deterministic Oracle + Emergent Exploration)
+
+- [x] SIM2-GC-14-1 Write architecture contract distinguishing `deterministic conformance lane` (blocking) and `emergent exploration lane` (non-blocking discovery).
+- [x] SIM2-GC-14-2 Define what remains intentionally choreographed (seed scenarios, invariant assertions, resource guardrails) vs what must be emergent (crawl strategy, attack sequencing, adaptation).
+- [x] SIM2-GC-14-3 Define emergent-lane objective model (target assets, success functions, allowed adaptation space, stop conditions) with bounded runtime budgets (`<=180s` and `<=500 actions` default envelope).
+- [x] SIM2-GC-14-4 Define novelty scoring and triage policy (`novelty`, `severity`, `confidence`, `replayability`) for emergent findings.
+- [x] SIM2-GC-14-5 Add lane metadata and report lineage fields so operators can see whether evidence came from deterministic or emergent execution.
+- [x] SIM2-GC-14-6 Define promotion pipeline from emergent finding -> deterministic replay case -> blocking regression with explicit acceptance contract.
+- [x] SIM2-GC-14-7 Add governance tests that fail if release-blocking decisions depend on stochastic-only emergent outcomes without deterministic confirmation.
+- [x] SIM2-GC-14-8 Set and enforce quantitative promotion thresholds (`minimum deterministic confirmation rate >=95%`, `maximum tolerated false-discovery rate <=20%`, `owner-review disposition SLA <=48h`).
+- [x] SIM2-GC-14-9 Update operator docs/runbooks so monitoring expectations reflect “real attacker behavior while enabled,” with deterministic replay used for release confidence.
+
 #### SIM2-GC-9: Scenario Design Realism and Defense Exercise Guarantees
 
 - [x] SIM2-GC-9-1 Add scenario intent matrix mapping each scenario to required defense signals and minimum evidence thresholds.

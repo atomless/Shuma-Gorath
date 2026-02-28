@@ -1,0 +1,124 @@
+{
+  "schema_version": "sim2-hybrid-lane-contract.v1",
+  "deterministic_conformance_lane": {
+    "lane_id": "deterministic_conformance",
+    "release_blocking": true,
+    "evidence_authority": "deterministic_replay",
+    "description": "Deterministic conformance oracle used for release/merge blocking decisions."
+  },
+  "emergent_exploration_lane": {
+    "lane_id": "emergent_exploration",
+    "release_blocking": false,
+    "description": "Adaptive frontier exploration lane for discovery only; never release-blocking without deterministic confirmation.",
+    "runtime_budget_seconds_max": 180,
+    "action_budget_max": 500
+  },
+  "choreography_boundary": {
+    "intentionally_choreographed": [
+      "seed_scenarios",
+      "invariant_assertions",
+      "resource_guardrails"
+    ],
+    "must_be_emergent": [
+      "crawl_strategy",
+      "attack_sequencing",
+      "adaptation"
+    ]
+  },
+  "objective_model": {
+    "target_assets": [
+      "public_http_surface"
+    ],
+    "success_functions": [
+      "unexpected_allow_outcome",
+      "unexpected_monitor_outcome",
+      "defense_bypass_evidence"
+    ],
+    "allowed_adaptation_space": [
+      "path_selection",
+      "request_order",
+      "request_pacing",
+      "retry_shape"
+    ],
+    "stop_conditions": [
+      "runtime_budget_exhausted",
+      "action_budget_exhausted",
+      "kill_switch_triggered"
+    ]
+  },
+  "novelty_scoring": {
+    "dimensions": [
+      "novelty",
+      "severity",
+      "confidence",
+      "replayability"
+    ],
+    "normalization": "deterministic",
+    "triage_priority_order": [
+      "severity",
+      "replayability",
+      "confidence",
+      "novelty"
+    ]
+  },
+  "promotion_pipeline": {
+    "steps": [
+      "generated_candidate",
+      "deterministic_replay_confirmation",
+      "owner_review_disposition",
+      "promoted_blocking_scenario"
+    ],
+    "blocking_requires_deterministic_confirmation": true
+  },
+  "promotion_thresholds": {
+    "deterministic_confirmation_min_percent": 95,
+    "false_discovery_max_percent": 20,
+    "owner_disposition_sla_hours": 48
+  },
+  "program_governance": {
+    "cadence": {
+      "cycle": "run -> review -> tune -> replay -> promote",
+      "frequency": "weekly",
+      "review_day_utc": "Friday"
+    },
+    "ownership": {
+      "adversary_owner_role": "security_engineering",
+      "defense_owner_role": "runtime_engineering",
+      "operations_owner_role": "platform_operations"
+    },
+    "sla_hours": {
+      "regression_confirmation": 24,
+      "mitigation_plan": 48,
+      "owner_disposition": 48
+    },
+    "promotion_rubric_dimensions": [
+      "severity",
+      "reproducibility",
+      "collateral_risk",
+      "mitigation_readiness"
+    ],
+    "kpis": [
+      "attacker_cost_shift",
+      "human_friction_impact",
+      "detection_latency",
+      "mitigation_lead_time"
+    ],
+    "rollback_playbook": {
+      "trigger": "defense_over_triggers_legitimate_traffic",
+      "required_actions": [
+        "contain",
+        "rollback_to_last_known_good",
+        "validate_with_adversarial_fast",
+        "schedule_replay_and_retune"
+      ]
+    },
+    "architecture_review": {
+      "frequency": "monthly",
+      "required_focus": [
+        "decentralized_orchestration",
+        "capability_safety",
+        "evidence_integrity"
+      ]
+    }
+  }
+}

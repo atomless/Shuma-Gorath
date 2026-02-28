@@ -214,6 +214,110 @@ SLA for unresolved high-severity findings:
 1. `PR` lanes: unresolved high-severity findings (`confirmed_reproducible` or `needs_manual_review`) must be dispositioned within 24 hours.
 2. `Release` lanes: unresolved high-severity findings must be dispositioned before release cut; release remains blocked when deterministic replay confirms a high-severity regression.
 
+## Continuous Defender-Adversary Evolution Cadence (SIM2-GC-12)
+
+This cadence is mandatory and must run every week:
+
+1. `run adversary -> review evidence -> tune defenses -> deterministic replay -> promote or reject`.
+2. Owners must be explicit per cycle:
+   - `security_engineering` owns adversary discovery quality and triage.
+   - `runtime_engineering` owns mitigation changes and replay confirmation.
+   - `platform_operations` owns rollout, rollback, and monitoring-health verification.
+3. SLAs must be enforced:
+   - regression confirmation: `<=24h`,
+   - mitigation plan: `<=48h`,
+   - owner disposition for promoted findings: `<=48h`.
+
+Promotion rubric (must be recorded for every candidate):
+
+| Dimension | Rule |
+| --- | --- |
+| `severity` | Must classify expected impact on abuse resistance and operator risk (`low/medium/high`). |
+| `reproducibility` | Must prove deterministic replay status (`confirmed_reproducible` vs `not_reproducible`). |
+| `collateral_risk` | Must estimate legitimate-user risk (`low/medium/high`) before promotion. |
+| `mitigation_readiness` | Must identify mitigation owner and validation plan before blocking promotion. |
+
+KPI reporting (must be reviewed weekly):
+
+1. `attacker_cost_shift`
+2. `human_friction_impact`
+3. `detection_latency`
+4. `mitigation_lead_time`
+5. `time to regression confirmation`
+6. `time to mitigation`
+
+Rollback playbook for over-trigger on legitimate traffic:
+
+1. Trigger: defense tuning over-triggers legitimate traffic.
+2. Required sequence:
+   - contain impact,
+   - rollback to last known good policy bundle,
+   - run `make test-adversarial-fast`,
+   - run deterministic replay for affected scenarios,
+   - retune with reduced blast radius and revalidate.
+3. Operators must not keep an over-triggering policy active while triage is pending.
+
+Architecture review checkpoint:
+
+1. Frequency: monthly.
+2. Review focus must include:
+   - decentralized orchestration posture,
+   - capability-safety boundaries,
+   - evidence integrity and lineage completeness.
+3. Outcomes must be documented and linked from cycle notes.
+
+## Hybrid Adversary Lane Contract (SIM2-GC-14)
+
+Shuma uses a strict two-lane model:
+
+1. `deterministic_conformance` lane:
+   - release-blocking authority,
+   - deterministic replay oracle,
+   - canonical source for merge/release gating.
+2. `emergent_exploration` lane:
+   - non-blocking discovery lane,
+   - adaptive attack exploration input,
+   - may not block release without deterministic confirmation.
+
+Choreography boundary:
+
+1. Intentionally choreographed: `seed_scenarios`, `invariant_assertions`, `resource_guardrails`.
+2. Must remain emergent: `crawl_strategy`, `attack_sequencing`, `adaptation`.
+
+Emergent objective model:
+
+1. Target assets: public HTTP surface.
+2. Success functions: unexpected allow/monitor outcomes and bypass evidence.
+3. Stop conditions: runtime budget exhausted, action budget exhausted, or kill switch.
+4. Default emergent envelope must remain bounded to `<=180s` and `<=500 actions`.
+
+Novelty and triage policy:
+
+1. Every emergent finding must include deterministic normalization for:
+   - `novelty`,
+   - `severity`,
+   - `confidence`,
+   - `replayability`.
+2. Triage ordering must prioritize severity and replayability before novelty.
+
+Promotion bridge (mandatory sequence):
+
+1. `generated_candidate -> deterministic_replay_confirmation -> owner_review_disposition -> promoted_blocking_scenario`.
+2. Release-blocking decisions must not depend on stochastic-only emergent outputs.
+3. Promotion thresholds are mandatory:
+   - deterministic confirmation `>=95%`,
+   - false discovery `<=20%`,
+   - owner disposition SLA `<=48h`.
+
+Lane metadata and lineage requirements:
+
+1. Promotion artifact must include lane metadata and authority model.
+2. Each lineage row must include:
+   - `source_lane=emergent_exploration`,
+   - `deterministic_replay_lane=deterministic_conformance`,
+   - explicit `release_blocking_authority`.
+3. Operator language must describe enabled adversary behavior as real attacker activity with deterministic replay used for release confidence.
+
 ## Live Loop Guardrails (SIM-V2-9)
 
 Live-loop defaults are operator-observability-first:

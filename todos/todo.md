@@ -466,11 +466,6 @@ Acceptance criteria:
 
 Scope: operationalize a repeatable closed-loop process using SIM2 as real adversary pressure.
 
-- [ ] SIM2-GC-12-1 Define weekly/iteration cadence for `run -> review -> tune -> replay -> promote` cycle with ownership and SLA.
-- [ ] SIM2-GC-12-2 Define promotion rubric for new adversary techniques (severity, reproducibility, collateral risk, mitigation readiness).
-- [ ] SIM2-GC-12-3 Add KPI dashboard/reporting for attacker cost shift, human-friction impact, detection latency, and mitigation lead time.
-- [ ] SIM2-GC-12-4 Add explicit rollback playbooks for defensive changes that over-trigger on legitimate traffic.
-- [ ] SIM2-GC-12-5 Add periodic architecture review checkpoint to ensure orchestration remains decentralized, capability-safe, and evidence-driven.
 
 Acceptance criteria:
 1. SIM2 is operated as an ongoing engineering system, not a one-off test feature.
@@ -495,15 +490,6 @@ Acceptance criteria:
 
 Scope: resolve ambiguity between choreographed simulation and emergent adversary behavior by defining and enforcing a two-lane architecture with explicit promotion bridge.
 
-- [ ] SIM2-GC-14-1 Write architecture contract distinguishing `deterministic conformance lane` (blocking) and `emergent exploration lane` (non-blocking discovery).
-- [ ] SIM2-GC-14-2 Define what remains intentionally choreographed (seed scenarios, invariant assertions, resource guardrails) vs what must be emergent (crawl strategy, attack sequencing, adaptation).
-- [ ] SIM2-GC-14-3 Define emergent-lane objective model (target assets, success functions, allowed adaptation space, stop conditions) with bounded runtime budgets (`<=180s` and `<=500 actions` default envelope).
-- [ ] SIM2-GC-14-4 Define novelty scoring and triage policy (`novelty`, `severity`, `confidence`, `replayability`) for emergent findings.
-- [ ] SIM2-GC-14-5 Add lane metadata and report lineage fields so operators can see whether evidence came from deterministic or emergent execution.
-- [ ] SIM2-GC-14-6 Define promotion pipeline from emergent finding -> deterministic replay case -> blocking regression with explicit acceptance contract.
-- [ ] SIM2-GC-14-7 Add governance tests that fail if release-blocking decisions depend on stochastic-only emergent outcomes without deterministic confirmation.
-- [ ] SIM2-GC-14-8 Set and enforce quantitative promotion thresholds (`minimum deterministic confirmation rate >=95%`, `maximum tolerated false-discovery rate <=20%`, `owner-review disposition SLA <=48h`).
-- [ ] SIM2-GC-14-9 Update operator docs/runbooks so monitoring expectations reflect “real attacker behavior while enabled,” with deterministic replay used for release confidence.
 
 Acceptance criteria:
 1. Deterministic and emergent lanes are explicit, testable, and operationally visible.

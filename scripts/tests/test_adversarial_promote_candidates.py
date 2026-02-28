@@ -50,6 +50,14 @@ def sample_report():
 
 
 class PromotionPipelineUnitTests(unittest.TestCase):
+    def test_hybrid_lane_constants_are_stable(self):
+        self.assertEqual(promote.DETERMINISTIC_CONFORMANCE_LANE, "deterministic_conformance")
+        self.assertEqual(promote.EMERGENT_EXPLORATION_LANE, "emergent_exploration")
+        self.assertEqual(
+            str(promote.DEFAULT_HYBRID_LANE_CONTRACT_PATH),
+            "scripts/tests/adversarial/hybrid_lane_contract.v1.json",
+        )
+
     def test_stable_finding_id_is_deterministic(self):
         record = {
             "scenario_family": "cdp_high_confidence_deny",

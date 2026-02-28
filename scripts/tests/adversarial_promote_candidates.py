@@ -20,10 +20,15 @@ DEFAULT_REPORT_PATH = Path("scripts/tests/adversarial/latest_report.json")
 DEFAULT_ATTACK_PLAN_PATH = Path("scripts/tests/adversarial/attack_plan.json")
 DEFAULT_MANIFEST_PATH = Path("scripts/tests/adversarial/scenario_manifest.v2.json")
 DEFAULT_OUTPUT_PATH = Path("scripts/tests/adversarial/promotion_candidates_report.json")
+DEFAULT_HYBRID_LANE_CONTRACT_PATH = Path(
+    "scripts/tests/adversarial/hybrid_lane_contract.v1.json"
+)
 RUNNER_PATH = "scripts/tests/adversarial_simulation_runner.py"
 HYBRID_CONFIRMATION_MIN_PERCENT = 95.0
 HYBRID_FALSE_DISCOVERY_MAX_PERCENT = 20.0
 HYBRID_OWNER_DISPOSITION_SLA_HOURS = 48
+DETERMINISTIC_CONFORMANCE_LANE = "deterministic_conformance"
+EMERGENT_EXPLORATION_LANE = "emergent_exploration"
 
 
 def load_json(path: Path) -> Dict[str, Any]:
@@ -510,6 +515,9 @@ def main() -> int:
                 "finding_id": finding.get("finding_id"),
                 "scenario_id": scenario_id,
                 "classification": classification,
+                "source_lane": EMERGENT_EXPLORATION_LANE,
+                "deterministic_replay_lane": DETERMINISTIC_CONFORMANCE_LANE,
+                "release_blocking_authority": classification == "confirmed_reproducible",
                 "candidate": {
                     "scenario_family": finding.get("scenario_family"),
                     "path": finding.get("path"),
@@ -519,6 +527,7 @@ def main() -> int:
                     "risk": finding.get("risk"),
                     "frontier_mode": finding.get("frontier_mode"),
                     "diversity_confidence": finding.get("diversity_confidence"),
+                    "lane": EMERGENT_EXPLORATION_LANE,
                 },
                 "replay": replay_result,
                 "promotion": promotion,
@@ -550,6 +559,28 @@ def main() -> int:
             "provider_count": int(attack_plan.get("provider_count") or 0),
             "providers": list_or_empty(attack_plan.get("providers")),
             "diversity_confidence": attack_plan.get("diversity_confidence", "none"),
+        },
+        "lane_metadata": {
+            "contract_path": str(DEFAULT_HYBRID_LANE_CONTRACT_PATH),
+            "deterministic_conformance_lane": {
+                "lane_id": DETERMINISTIC_CONFORMANCE_LANE,
+                "release_blocking": True,
+                "authority": "deterministic_replay_confirmation",
+            },
+            "emergent_exploration_lane": {
+                "lane_id": EMERGENT_EXPLORATION_LANE,
+                "release_blocking": False,
+                "authority": "discovery_only",
+            },
+        },
+        "promotion_pipeline": {
+            "steps": [
+                "generated_candidate",
+                "deterministic_replay_confirmation",
+                "owner_review_disposition",
+                "promoted_blocking_scenario",
+            ],
+            "blocking_requires_deterministic_confirmation": True,
         },
         "policy": {
             "deterministic_oracle_authoritative": True,
