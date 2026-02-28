@@ -28,6 +28,9 @@
   - Container worker assets for black-box isolation lane:
     - `Dockerfile`
     - `worker.py`
+- `../adversarial_browser_driver.mjs`
+  - Deterministic Playwright-backed browser driver for `browser_realistic` scenarios.
+  - Reads JSON payload on stdin and returns structured outcome + browser evidence JSON on stdout.
 
 ## Runner
 
@@ -57,6 +60,7 @@ The runner writes machine-readable artifacts to:
 - `latest_report.json` and `attack_plan.json` include `execution_lane` metadata for auditability.
   - `latest_report.json` includes:
   - quantitative `gates` and `coverage_gates` sections (each check includes `threshold_source`),
+  - `browser_execution_gates` checks proving browser-lane execution evidence (`js_executed`, DOM interactions, lineage/correlation),
   - `cohort_metrics` (persona-level outcome/latency/collateral summaries),
   - `realism_metrics` and `realism_gates` (deterministic traffic-model execution evidence for pacing, retry envelopes, and state-mode semantics),
   - `ip_range_suggestions` seed evidence (`seeded_summary`, `seeded_suggestions`, `matched_seed_suggestions`, `near_miss_suggestions`),
@@ -96,6 +100,10 @@ Notes:
 - Real-traffic evidence governance:
   - canonical invariants and prohibited synthetic-success patterns are versioned in `real_traffic_contract.v1.json`,
   - passed scenarios must include runtime telemetry evidence (`runtime_request_count > 0` and telemetry deltas) or the run fails.
+- Browser-realistic execution governance:
+  - browser-realistic drivers execute via Playwright (`scripts/tests/adversarial_browser_driver.mjs`) instead of HTTP emulation,
+  - each browser-realistic passed scenario must emit browser evidence fields (`browser_js_executed`, `browser_dom_events`, `browser_storage_mode`, `browser_challenge_dom_path`, and request-lineage correlation IDs),
+  - transient browser-driver failures retry deterministically (`SHUMA_ADVERSARIAL_BROWSER_RETRIES`, default `2`) and fail with explicit diagnostics (`error_code`, attempt/exit metadata).
 - Simulation telemetry tagging:
   - deterministic runner and container worker attach `X-Shuma-Sim-Run-Id`, `X-Shuma-Sim-Profile`, and `X-Shuma-Sim-Lane` on attacker-plane traffic,
   - backend event/monitoring read APIs include tagged rows in runtime-dev by default.

@@ -13,6 +13,7 @@ import hmac
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 import urllib.error
@@ -26,6 +27,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 LANE_CONTRACT_PATH = Path("scripts/tests/adversarial/lane_contract.v1.json")
 SIM_TAG_CONTRACT_PATH = Path("scripts/tests/adversarial/sim_tag_contract.v1.json")
+BROWSER_DRIVER_SCRIPT_PATH = Path("scripts/tests/adversarial_browser_driver.mjs")
 
 
 def load_lane_contract(path: Path = LANE_CONTRACT_PATH) -> Dict[str, Any]:
@@ -752,6 +754,47 @@ class Runner:
         self._active_execution_state: Optional[Dict[str, Any]] = None
         realism_gates = dict_or_empty((self.profile.get("gates") or {}).get("realism"))
         self.realism_policy_enabled = bool(realism_gates.get("enabled", True))
+        browser_driver_enabled_raw = os.environ.get("SHUMA_ADVERSARIAL_BROWSER_DRIVER_ENABLED")
+        if browser_driver_enabled_raw is None:
+            self.browser_driver_enabled = True
+        else:
+            self.browser_driver_enabled = browser_driver_enabled_raw.strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+        self.browser_driver_script_path = BROWSER_DRIVER_SCRIPT_PATH
+        self.browser_driver_command = [
+            "corepack",
+            "pnpm",
+            "exec",
+            "node",
+            str(self.browser_driver_script_path),
+        ]
+        self.browser_driver_max_attempts = clamp_int_env(
+            "SHUMA_ADVERSARIAL_BROWSER_RETRIES",
+            minimum=1,
+            maximum=3,
+            fallback=2,
+        )
+        self.browser_driver_timeout_ms = clamp_int_env(
+            "SHUMA_ADVERSARIAL_BROWSER_TIMEOUT_MS",
+            minimum=2000,
+            maximum=60000,
+            fallback=15000,
+        )
+        self.browser_driver_settle_ms = clamp_int_env(
+            "SHUMA_ADVERSARIAL_BROWSER_SETTLE_MS",
+            minimum=0,
+            maximum=5000,
+            fallback=200,
+        )
+        self.browser_driver_retryable_error_codes = {
+            "timeout",
+            "network_failure",
+            "sandbox_launch_failure",
+        }
 
         if not self.api_key:
             raise SimulationError(
@@ -774,6 +817,15 @@ class Runner:
         selected = [self.scenarios[sid] for sid in self.profile["scenario_ids"]]
         self.selected_scenarios = self.apply_persona_scheduler(selected)
         self.scenario_ips = self.build_scenario_ip_map()
+        profile_has_browser_realistic = any(
+            scenario_driver_class(scenario) == "browser_realistic"
+            for scenario in self.selected_scenarios
+        )
+        if profile_has_browser_realistic and not self.browser_driver_script_path.exists():
+            raise SimulationError(
+                "browser-realistic profile requires browser driver script "
+                f"{self.browser_driver_script_path}, but it was not found."
+            )
 
     def next_control_plane_ip(self) -> str:
         self.control_plane_request_counter += 1
@@ -891,6 +943,8 @@ class Runner:
                     monitoring_after=scenario_monitoring_after,
                     simulation_event_count_before=int_or_zero(scenario_events_before.get("count")),
                     simulation_event_count_after=int_or_zero(scenario_events_after.get("count")),
+                    driver_class=scenario_driver_class(scenario),
+                    browser_realism=result.realism,
                 )
                 result.execution_evidence = scenario_evidence
                 scenario_execution_evidence[result.id] = scenario_evidence
@@ -1471,10 +1525,21 @@ class Runner:
             required_fields=REAL_TRAFFIC_CONTRACT_REQUIRED_SCENARIO_FIELDS,
         )
         checks.extend(runtime_evidence_checks)
+        browser_execution_checks = build_browser_execution_evidence_checks(
+            selected_scenarios=self.selected_scenarios,
+            results=results,
+            scenario_execution_evidence=dict_or_empty(scenario_execution_evidence),
+        )
+        checks.extend(browser_execution_checks)
 
         all_passed = all(check["passed"] for check in checks)
         coverage_all_passed = all(check["passed"] for check in coverage_checks) if coverage_checks else True
         realism_all_passed = all(check["passed"] for check in realism_checks) if realism_checks else True
+        browser_execution_all_passed = (
+            all(check["passed"] for check in browser_execution_checks)
+            if browser_execution_checks
+            else True
+        )
         return {
             "all_passed": all_passed,
             "checks": checks,
@@ -1514,6 +1579,10 @@ class Runner:
                 "all_passed": realism_all_passed,
                 "checks": realism_checks,
                 "persona_scheduler": persona_scheduler,
+            },
+            "browser_execution_gates": {
+                "all_passed": browser_execution_all_passed,
+                "checks": browser_execution_checks,
             },
             "ip_range_suggestions": ip_range_suggestions,
         }
@@ -1635,6 +1704,153 @@ class Runner:
             )
         return str(handler(scenario))
 
+    def record_browser_driver_evidence(
+        self,
+        browser_evidence: Dict[str, Any],
+        error_code: str = "",
+    ) -> None:
+        state = self._active_execution_state
+        if not state:
+            return
+        evidence = dict_or_empty(state.get("evidence"))
+        if not evidence:
+            return
+        evidence["browser_driver_runtime"] = str(
+            browser_evidence.get("driver_runtime") or "playwright_chromium"
+        )
+        evidence["browser_js_executed"] = bool(browser_evidence.get("js_executed"))
+        evidence["browser_dom_events"] = max(0, int_or_zero(browser_evidence.get("dom_events")))
+        evidence["browser_storage_mode"] = str(
+            browser_evidence.get("storage_mode") or evidence.get("browser_storage_mode") or ""
+        )
+        evidence["browser_challenge_dom_path"] = [
+            str(item).strip()
+            for item in list_or_empty(browser_evidence.get("challenge_dom_path"))
+            if str(item).strip()
+        ]
+        evidence["browser_correlation_ids"] = [
+            str(item).strip()
+            for item in list_or_empty(browser_evidence.get("correlation_ids"))
+            if str(item).strip()
+        ]
+        evidence["browser_request_lineage_count"] = len(
+            list_or_empty(browser_evidence.get("request_lineage"))
+        )
+        evidence["browser_error_code"] = str(error_code or "")
+
+    def execute_browser_realistic_driver(
+        self,
+        scenario: Dict[str, Any],
+        action: str,
+        headers: Optional[Dict[str, str]] = None,
+        user_agent: Optional[str] = None,
+    ) -> str:
+        if not self.browser_driver_enabled:
+            raise SimulationError(
+                "browser-realistic driver is disabled by SHUMA_ADVERSARIAL_BROWSER_DRIVER_ENABLED=false"
+            )
+        if not self.browser_driver_script_path.exists():
+            raise SimulationError(
+                f"browser-realistic driver script missing: {self.browser_driver_script_path}"
+            )
+
+        scenario_headers = dict(headers or self.forwarded_headers(self.scenario_ip(scenario)))
+        scenario_headers = {
+            key: value
+            for key, value in scenario_headers.items()
+            if str(key).strip().lower() != "user-agent"
+        }
+        traffic_model = dict_or_empty(scenario.get("traffic_model"))
+        storage_mode = str(traffic_model.get("cookie_behavior") or "stateful_cookie_jar")
+        if storage_mode not in ALLOWED_COOKIE_BEHAVIORS:
+            storage_mode = "stateful_cookie_jar"
+
+        timeout_ms = max(2000, min(60000, int_or_zero(scenario.get("runtime_budget_ms")) + 4000))
+        timeout_ms = min(timeout_ms, self.browser_driver_timeout_ms)
+        payload = {
+            "action": action,
+            "base_url": self.base_url,
+            "scenario_id": str(scenario.get("id") or ""),
+            "headers": scenario_headers,
+            "user_agent": str(user_agent or self.scenario_user_agent(scenario)),
+            "timeout_ms": timeout_ms,
+            "settle_ms": self.browser_driver_settle_ms,
+            "storage_mode": storage_mode,
+            "honeypot_path": self.honeypot_path,
+        }
+
+        last_error = "browser_driver_failed"
+        max_attempts = max(1, int(self.browser_driver_max_attempts))
+        command_timeout = max(
+            self.request_timeout_seconds + 5.0,
+            (timeout_ms / 1000.0) + 5.0,
+        )
+
+        for attempt in range(1, max_attempts + 1):
+            payload["attempt"] = attempt
+            try:
+                proc = subprocess.run(
+                    self.browser_driver_command,
+                    input=json.dumps(payload, separators=(",", ":")),
+                    text=True,
+                    capture_output=True,
+                    timeout=command_timeout,
+                    check=False,
+                )
+            except subprocess.TimeoutExpired:
+                last_error = (
+                    "browser driver timed out "
+                    f"(attempt={attempt}/{max_attempts} timeout={command_timeout:.1f}s)"
+                )
+                self.record_browser_driver_evidence({}, error_code="timeout")
+                if attempt < max_attempts:
+                    continue
+                break
+            except Exception as exc:
+                last_error = f"browser driver launch failed: {exc}"
+                self.record_browser_driver_evidence({}, error_code="runtime_failure")
+                if attempt < max_attempts:
+                    continue
+                break
+
+            raw_stdout = str(proc.stdout or "").strip()
+            raw_stderr = str(proc.stderr or "").strip()
+            parsed: Dict[str, Any] = {}
+            if raw_stdout:
+                try:
+                    parsed = json.loads(raw_stdout)
+                except Exception:
+                    parsed = {}
+
+            browser_evidence = dict_or_empty(parsed.get("browser_evidence"))
+            diagnostics = dict_or_empty(parsed.get("diagnostics"))
+            error_code = str(diagnostics.get("error_code") or "")
+            self.record_browser_driver_evidence(browser_evidence, error_code=error_code)
+            self.request_count += len(list_or_empty(browser_evidence.get("request_lineage")))
+
+            if proc.returncode == 0 and bool(parsed.get("ok")):
+                observed_outcome = str(parsed.get("observed_outcome") or "").strip()
+                if not observed_outcome:
+                    last_error = "browser driver returned success without observed_outcome"
+                    if attempt < max_attempts:
+                        continue
+                    break
+                return observed_outcome
+
+            detail = str(parsed.get("detail") or "").strip()
+            if not detail:
+                detail = collapse_whitespace(raw_stderr or raw_stdout)[:240] or "browser driver failure"
+            last_error = (
+                f"{detail} (attempt={attempt}/{max_attempts} exit={proc.returncode} "
+                f"error_code={error_code or 'none'})"
+            )
+            retryable = error_code in self.browser_driver_retryable_error_codes
+            if attempt < max_attempts and retryable:
+                continue
+            break
+
+        raise SimulationError(f"browser_realistic_driver_failed action={action} detail={last_error}")
+
     def driver_allow_browser_allowlist(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch(
             {
@@ -1643,55 +1859,38 @@ class Runner:
                 "browser_allowlist": [["Chrome", 120]],
             }
         )
-        result = self.attacker_client.request(
-            "GET",
-            "/",
-            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
-            count_request=True,
+        return self.execute_browser_realistic_driver(
+            scenario,
+            action="allow_browser_allowlist",
+            headers=self.forwarded_headers(
+                self.scenario_ip(scenario),
+                user_agent=self.scenario_user_agent(scenario),
+            ),
+            user_agent=self.scenario_user_agent(scenario),
         )
-        if result.status != 200:
-            detail = collapse_whitespace(result.body)[:160]
-            raise SimulationError(f"Expected allow response, got status={result.status} body={detail}")
-        body = (result.body or "").lower()
-        friction_markers = (
-            "access blocked",
-            "access restricted",
-            "rate limit exceeded",
-            'data-link-kind="maze"',
-            "i am not a bot",
-            "puzzle",
-        )
-        if any(marker in body for marker in friction_markers):
-            detail = collapse_whitespace(result.body)[:160]
-            raise SimulationError(
-                f"Expected allow response without challenge/deny markers, got body={detail}"
-            )
-        return "allow"
 
     def driver_not_a_bot_pass(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch({"test_mode": True, "not_a_bot_enabled": True, "challenge_puzzle_enabled": True})
-        seed, _ = self.fetch_not_a_bot_seed(scenario)
-        submit = self.submit_not_a_bot(seed, scenario, GOOD_NOT_A_BOT_TELEMETRY)
-        headers_lower = lower_headers(submit.headers)
-        if submit.status == 303 and "shuma_not_a_bot=" in headers_lower.get("set-cookie", ""):
-            return "not-a-bot"
-        raise SimulationError(f"Expected 303 + marker cookie, got status={submit.status}")
+        return self.execute_browser_realistic_driver(
+            scenario,
+            action="not_a_bot_pass",
+            headers=self.forwarded_headers(
+                self.scenario_ip(scenario),
+                user_agent=self.not_a_bot_user_agent(scenario),
+            ),
+            user_agent=self.not_a_bot_user_agent(scenario),
+        )
 
     def driver_challenge_puzzle_fail_maze(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch({"test_mode": True, "maze_enabled": True, "challenge_puzzle_enabled": True})
-        seed, output = self.fetch_challenge_puzzle_seed_and_output(scenario)
-        if not output:
-            raise SimulationError("invariant_challenge_output_missing")
-        wrong_output = ("1" if output[0] != "1" else "0") + output[1:]
-        # Sequence timing guardrail avoids fast-path sequence rejections.
-        time.sleep(2)
-        incorrect = self.submit_challenge_puzzle(seed, wrong_output, scenario)
-        if incorrect.status == 200 and 'data-link-kind="maze"' in incorrect.body:
-            return "maze"
-        detail = collapse_whitespace(incorrect.body)[:160]
-        raise SimulationError(
-            "invariant_challenge_failure_to_maze expected maze fallback "
-            f"status={incorrect.status} body={detail}"
+        return self.execute_browser_realistic_driver(
+            scenario,
+            action="challenge_puzzle_fail_maze",
+            headers=self.forwarded_headers(
+                self.scenario_ip(scenario),
+                user_agent=self.not_a_bot_user_agent(scenario),
+            ),
+            user_agent=self.not_a_bot_user_agent(scenario),
         )
 
     def driver_pow_success(self, scenario: Dict[str, Any]) -> str:
@@ -1780,12 +1979,16 @@ class Runner:
                 "geo_block": [],
             }
         )
-        headers = self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"])
+        headers = self.forwarded_headers(
+            self.scenario_ip(scenario), user_agent=self.scenario_user_agent(scenario)
+        )
         headers["X-Geo-Country"] = scenario["geo_country"]
-        result = self.attacker_client.request("GET", "/", headers=headers, count_request=True)
-        if result.status == 200 and ("Puzzle" in result.body or "I am not a bot" in result.body):
-            return "challenge"
-        raise SimulationError(f"Expected challenge body, got status={result.status}")
+        return self.execute_browser_realistic_driver(
+            scenario,
+            action="geo_challenge",
+            headers=headers,
+            user_agent=self.scenario_user_agent(scenario),
+        )
 
     def driver_geo_maze(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch(
@@ -1801,12 +2004,16 @@ class Runner:
                 "geo_block": [],
             }
         )
-        headers = self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"])
+        headers = self.forwarded_headers(
+            self.scenario_ip(scenario), user_agent=self.scenario_user_agent(scenario)
+        )
         headers["X-Geo-Country"] = scenario["geo_country"]
-        result = self.attacker_client.request("GET", "/", headers=headers, count_request=True)
-        if result.status == 200 and 'data-link-kind="maze"' in result.body:
-            return "maze"
-        raise SimulationError(f"Expected maze response, got status={result.status}")
+        return self.execute_browser_realistic_driver(
+            scenario,
+            action="geo_maze",
+            headers=headers,
+            user_agent=self.scenario_user_agent(scenario),
+        )
 
     def driver_geo_block(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch(
@@ -1824,31 +2031,24 @@ class Runner:
             self.scenario_ip(scenario), user_agent=self.scenario_user_agent(scenario)
         )
         headers["X-Geo-Country"] = scenario["geo_country"]
-        result = self.attacker_client.request("GET", "/", headers=headers, count_request=True)
-        if result.status == 403 and ("Access Blocked" in result.body or "Access Restricted" in result.body):
-            return "deny_temp"
-        raise SimulationError(f"Expected geo block response, got status={result.status}")
+        return self.execute_browser_realistic_driver(
+            scenario,
+            action="geo_block",
+            headers=headers,
+            user_agent=self.scenario_user_agent(scenario),
+        )
 
     def driver_honeypot_deny_temp(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch({"test_mode": False, "honeypot_enabled": True})
-
-        self.attacker_client.request(
-            "GET",
-            self.honeypot_path,
-            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
-            count_request=True,
+        return self.execute_browser_realistic_driver(
+            scenario,
+            action="honeypot_deny_temp",
+            headers=self.forwarded_headers(
+                self.scenario_ip(scenario),
+                user_agent=self.scenario_user_agent(scenario),
+            ),
+            user_agent=self.scenario_user_agent(scenario),
         )
-        result = self.attacker_client.request(
-            "GET",
-            "/",
-            headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
-            count_request=True,
-        )
-        if result.status in {403, 429} and (
-            "Access Blocked" in result.body or "Access Restricted" in result.body
-        ):
-            return "deny_temp"
-        raise SimulationError(f"Expected deny response, got status={result.status}")
 
     def driver_not_a_bot_replay_abuse(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch({"test_mode": True, "maze_enabled": True, "not_a_bot_nonce_ttl_seconds": 300})
@@ -1983,10 +2183,12 @@ class Runner:
             SIM_TAG_HEADER_NONCE: "spoofed-nonce",
             SIM_TAG_HEADER_SIGNATURE: "0" * 64,
         }
-        result = self.attacker_client.request("GET", "/", headers=headers, count_request=True)
-        if result.status in {403, 429} or "Access Blocked" in result.body or "Access Restricted" in result.body:
-            raise SimulationError("invariant_forwarded_header_spoofing_expected_untrusted_rejection_path")
-        return "monitor"
+        return self.execute_browser_realistic_driver(
+            scenario,
+            action="header_spoofing_probe",
+            headers=headers,
+            user_agent=str(scenario.get("user_agent") or "ShumaAdversarial/1.0"),
+        )
 
     def driver_cdp_high_confidence_deny(self, scenario: Dict[str, Any]) -> str:
         self.admin_patch(
@@ -2314,6 +2516,14 @@ class Runner:
             "cookie_jar_resets": 0,
             "cookie_jar_peak_size": 0,
             "max_attempts_configured": self.max_attempts_for_retry_strategy(policy["retry_strategy"]),
+            "browser_driver_runtime": "",
+            "browser_js_executed": False,
+            "browser_dom_events": 0,
+            "browser_storage_mode": str(policy["cookie_behavior"]),
+            "browser_challenge_dom_path": [],
+            "browser_correlation_ids": [],
+            "browser_request_lineage_count": 0,
+            "browser_error_code": "",
         }
         self._active_execution_state = {
             "policy": policy,
@@ -2347,6 +2557,26 @@ class Runner:
             "state_store_resets": max(0, int_or_zero(evidence.get("cookie_jar_resets"))),
             "state_store_peak_size": max(0, int_or_zero(evidence.get("cookie_jar_peak_size"))),
             "max_attempts_configured": max(1, int_or_zero(evidence.get("max_attempts_configured"))),
+            "browser_driver_runtime": str(evidence.get("browser_driver_runtime") or ""),
+            "browser_js_executed": bool(evidence.get("browser_js_executed")),
+            "browser_dom_events": max(0, int_or_zero(evidence.get("browser_dom_events"))),
+            "browser_storage_mode": str(
+                evidence.get("browser_storage_mode") or policy.get("cookie_behavior") or ""
+            ),
+            "browser_challenge_dom_path": [
+                str(item).strip()
+                for item in list_or_empty(evidence.get("browser_challenge_dom_path"))
+                if str(item).strip()
+            ],
+            "browser_correlation_ids": [
+                str(item).strip()
+                for item in list_or_empty(evidence.get("browser_correlation_ids"))
+                if str(item).strip()
+            ],
+            "browser_request_lineage_count": max(
+                0, int_or_zero(evidence.get("browser_request_lineage_count"))
+            ),
+            "browser_error_code": str(evidence.get("browser_error_code") or ""),
         }
         self._active_execution_state = None
         return realism
@@ -2653,6 +2883,21 @@ def int_or_zero(value: Any) -> int:
         return int(value)
     except Exception:
         return 0
+
+
+def clamp_int_env(key: str, minimum: int, maximum: int, fallback: int) -> int:
+    raw = os.environ.get(key)
+    if raw is None:
+        return fallback
+    try:
+        parsed = int(str(raw).strip())
+    except Exception:
+        return fallback
+    if parsed < minimum:
+        return minimum
+    if parsed > maximum:
+        return maximum
+    return parsed
 
 
 def scenario_persona(scenario: Dict[str, Any]) -> str:
@@ -3243,6 +3488,8 @@ def build_scenario_execution_evidence(
     monitoring_after: Dict[str, Any],
     simulation_event_count_before: int,
     simulation_event_count_after: int,
+    driver_class: str = "",
+    browser_realism: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     runtime_request_count = max(0, int_or_zero(request_count_after) - int_or_zero(request_count_before))
     monitoring_total_delta = max(
@@ -3258,17 +3505,53 @@ def build_scenario_execution_evidence(
         0,
         int_or_zero(simulation_event_count_after) - int_or_zero(simulation_event_count_before),
     )
+    browser_realism = dict_or_empty(browser_realism)
+    browser_js_executed = bool(browser_realism.get("browser_js_executed"))
+    browser_dom_events = max(0, int_or_zero(browser_realism.get("browser_dom_events")))
+    browser_storage_mode = str(browser_realism.get("browser_storage_mode") or "")
+    browser_challenge_dom_path = [
+        str(item).strip()
+        for item in list_or_empty(browser_realism.get("browser_challenge_dom_path"))
+        if str(item).strip()
+    ]
+    browser_correlation_ids = [
+        str(item).strip()
+        for item in list_or_empty(browser_realism.get("browser_correlation_ids"))
+        if str(item).strip()
+    ]
+    browser_request_lineage_count = max(
+        0,
+        int_or_zero(browser_realism.get("browser_request_lineage_count")),
+    )
+    browser_driver_runtime = str(browser_realism.get("browser_driver_runtime") or "")
+    has_browser_execution_evidence = (
+        str(driver_class).strip() != "browser_realistic"
+        or (
+            browser_js_executed
+            and browser_dom_events > 0
+            and bool(browser_challenge_dom_path)
+        )
+    )
     has_runtime_telemetry_evidence = runtime_request_count > 0 and (
         monitoring_total_delta > 0 or coverage_delta_total > 0 or simulation_event_count_delta > 0
     )
 
     return {
         "scenario_id": str(scenario_id),
+        "driver_class": str(driver_class).strip(),
         "runtime_request_count": runtime_request_count,
         "monitoring_total_delta": monitoring_total_delta,
         "coverage_delta_total": coverage_delta_total,
         "simulation_event_count_delta": simulation_event_count_delta,
         "has_runtime_telemetry_evidence": has_runtime_telemetry_evidence,
+        "browser_driver_runtime": browser_driver_runtime,
+        "browser_js_executed": browser_js_executed,
+        "browser_dom_events": browser_dom_events,
+        "browser_storage_mode": browser_storage_mode,
+        "browser_challenge_dom_path": browser_challenge_dom_path,
+        "browser_correlation_ids": browser_correlation_ids,
+        "browser_request_lineage_count": browser_request_lineage_count,
+        "has_browser_execution_evidence": has_browser_execution_evidence,
     }
 
 
@@ -3349,6 +3632,132 @@ def build_runtime_telemetry_evidence_checks(
             "observed": len(passed_result_ids) - len(missing_runtime_telemetry_ids),
             "minimum": len(passed_result_ids),
             "threshold_source": str(REAL_TRAFFIC_CONTRACT_PATH),
+        }
+    )
+    return checks
+
+
+def build_browser_execution_evidence_checks(
+    selected_scenarios: List[Dict[str, Any]],
+    results: List[ScenarioResult],
+    scenario_execution_evidence: Dict[str, Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    checks: List[Dict[str, Any]] = []
+    scenario_by_id = {str(scenario.get("id") or ""): scenario for scenario in selected_scenarios}
+    browser_result_ids = [
+        result.id
+        for result in results
+        if result.passed
+        and scenario_driver_class(dict_or_empty(scenario_by_id.get(result.id)))
+        == "browser_realistic"
+    ]
+    if not browser_result_ids:
+        checks.append(
+            {
+                "name": "browser_execution_required_rows_present",
+                "passed": True,
+                "detail": "no passed browser_realistic scenarios in run; browser evidence checks vacuously satisfied",
+                "observed": 0,
+                "threshold_source": "SIM2-GC-7 browser execution contract",
+            }
+        )
+        return checks
+
+    missing_rows: List[str] = []
+    missing_js: List[str] = []
+    missing_dom_events: List[str] = []
+    missing_dom_path: List[str] = []
+    missing_correlation: List[str] = []
+    missing_lineage: List[str] = []
+
+    for scenario_id in browser_result_ids:
+        evidence = dict_or_empty(scenario_execution_evidence.get(scenario_id))
+        if not evidence:
+            missing_rows.append(scenario_id)
+            continue
+        if not bool(evidence.get("has_browser_execution_evidence")):
+            missing_rows.append(scenario_id)
+        if not bool(evidence.get("browser_js_executed")):
+            missing_js.append(scenario_id)
+        if int_or_zero(evidence.get("browser_dom_events")) <= 0:
+            missing_dom_events.append(scenario_id)
+        if not list_or_empty(evidence.get("browser_challenge_dom_path")):
+            missing_dom_path.append(scenario_id)
+        if not list_or_empty(evidence.get("browser_correlation_ids")):
+            missing_correlation.append(scenario_id)
+        if int_or_zero(evidence.get("browser_request_lineage_count")) <= 0:
+            missing_lineage.append(scenario_id)
+
+    checks.append(
+        {
+            "name": "browser_execution_required_rows_present",
+            "passed": not missing_rows,
+            "detail": (
+                "all passed browser_realistic scenarios include browser evidence rows"
+                if not missing_rows
+                else f"missing_rows={missing_rows}"
+            ),
+            "observed": len(browser_result_ids) - len(missing_rows),
+            "minimum": len(browser_result_ids),
+            "threshold_source": "SIM2-GC-7-5 browser evidence fields",
+        }
+    )
+    checks.append(
+        {
+            "name": "browser_execution_js_executed",
+            "passed": not missing_js,
+            "detail": "all browser scenarios executed JS" if not missing_js else f"missing_js={missing_js}",
+            "observed": len(browser_result_ids) - len(missing_js),
+            "minimum": len(browser_result_ids),
+            "threshold_source": "SIM2-GC-7-3 browser JS/runtime checks",
+        }
+    )
+    checks.append(
+        {
+            "name": "browser_execution_dom_events",
+            "passed": not missing_dom_events,
+            "detail": (
+                "all browser scenarios produced DOM events"
+                if not missing_dom_events
+                else f"missing_dom_events={missing_dom_events}"
+            ),
+            "observed": len(browser_result_ids) - len(missing_dom_events),
+            "minimum": len(browser_result_ids),
+            "threshold_source": "SIM2-GC-7-2 challenge DOM interaction primitives",
+        }
+    )
+    checks.append(
+        {
+            "name": "browser_execution_dom_paths",
+            "passed": not missing_dom_path,
+            "detail": (
+                "all browser scenarios produced challenge DOM path evidence"
+                if not missing_dom_path
+                else f"missing_dom_path={missing_dom_path}"
+            ),
+            "observed": len(browser_result_ids) - len(missing_dom_path),
+            "minimum": len(browser_result_ids),
+            "threshold_source": "SIM2-GC-7-5 challenge_dom_path evidence",
+        }
+    )
+    checks.append(
+        {
+            "name": "browser_execution_correlation_ids",
+            "passed": not missing_correlation and not missing_lineage,
+            "detail": (
+                "all browser scenarios produced request lineage and correlation ids"
+                if not missing_correlation and not missing_lineage
+                else (
+                    f"missing_correlation={missing_correlation} "
+                    f"missing_lineage={missing_lineage}"
+                )
+            ),
+            "observed": len(browser_result_ids) - max(
+                len(set(missing_correlation)),
+                len(set(missing_lineage)),
+            ),
+            "minimum": len(browser_result_ids),
+            "threshold_source": "SIM2-GC-7-5 monitoring correlation lineage",
         }
     )
     return checks

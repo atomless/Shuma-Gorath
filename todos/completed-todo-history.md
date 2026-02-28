@@ -6,6 +6,14 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 SIM2 Gap-Closure Program: Real Execution + Realtime Monitoring
 
+#### SIM2-GC-7: Upgrade Browser-Adversary Lane to True Browser Execution
+
+- [x] SIM2-GC-7-1 Replace HTTP-emulated browser lane with deterministic real-browser driver path.
+- [x] SIM2-GC-7-2 Add challenge interaction primitives (DOM read/write, click/submit flows, storage/session behavior) with strict capability limits.
+- [x] SIM2-GC-7-3 Ensure browser-only defenses (client runtime checks/CDP detections/challenge scripts) emit evidence when exercised.
+- [x] SIM2-GC-7-4 Add anti-flake constraints, retries, and diagnostics that preserve CI reliability while proving real execution occurred.
+- [x] SIM2-GC-7-5 Include per-run browser evidence fields in reports and monitoring correlation IDs.
+
 #### SIM2-GC-10 + SIM2-GC-11: Realtime UX/Test Follow-through
 
 - [x] SIM2-GC-10-6 Add explicit monitoring freshness indicators (`last event at`, `current lag`, `state: fresh/degraded/stale`) on monitoring and IP-ban tabs.

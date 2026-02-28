@@ -1,5 +1,7 @@
 import unittest
 import os
+import json
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -369,6 +371,36 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(evidence["simulation_event_count_delta"], 1)
         self.assertTrue(evidence["has_runtime_telemetry_evidence"])
 
+    def test_build_scenario_execution_evidence_includes_browser_fields_for_browser_realistic_driver(self):
+        evidence = runner.build_scenario_execution_evidence(
+            scenario_id="scenario_browser",
+            request_count_before=10,
+            request_count_after=14,
+            monitoring_before={"monitoring_total": 2, "coverage": {"geo_maze": 0}},
+            monitoring_after={"monitoring_total": 4, "coverage": {"geo_maze": 1}},
+            simulation_event_count_before=5,
+            simulation_event_count_after=7,
+            driver_class="browser_realistic",
+            browser_realism={
+                "browser_driver_runtime": "playwright_chromium",
+                "browser_js_executed": True,
+                "browser_dom_events": 3,
+                "browser_storage_mode": "stateful_cookie_jar",
+                "browser_challenge_dom_path": ["click:#not-a-bot-checkbox"],
+                "browser_correlation_ids": ["nonce-a"],
+                "browser_request_lineage_count": 4,
+            },
+        )
+        self.assertEqual(evidence["driver_class"], "browser_realistic")
+        self.assertEqual(evidence["browser_driver_runtime"], "playwright_chromium")
+        self.assertTrue(evidence["browser_js_executed"])
+        self.assertEqual(evidence["browser_dom_events"], 3)
+        self.assertEqual(evidence["browser_storage_mode"], "stateful_cookie_jar")
+        self.assertEqual(evidence["browser_challenge_dom_path"], ["click:#not-a-bot-checkbox"])
+        self.assertEqual(evidence["browser_correlation_ids"], ["nonce-a"])
+        self.assertEqual(evidence["browser_request_lineage_count"], 4)
+        self.assertTrue(evidence["has_browser_execution_evidence"])
+
     def test_build_runtime_telemetry_evidence_checks_fail_when_passed_scenario_missing_telemetry(self):
         results = [
             runner.ScenarioResult(
@@ -425,6 +457,58 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             "scenario_b",
             checks_by_name["runtime_evidence_telemetry_for_passed_scenarios"]["detail"],
         )
+
+    def test_build_browser_execution_evidence_checks_fail_on_missing_browser_proof_fields(self):
+        selected_scenarios = [
+            {"id": "scenario_browser", "driver": "allow_browser_allowlist", "driver_class": "browser_realistic"},
+            {"id": "scenario_http", "driver": "rate_limit_enforce", "driver_class": "http_scraper"},
+        ]
+        results = [
+            runner.ScenarioResult(
+                id="scenario_browser",
+                tier="SIM-T0",
+                driver="allow_browser_allowlist",
+                expected_outcome="allow",
+                observed_outcome="allow",
+                passed=True,
+                latency_ms=100,
+                runtime_budget_ms=1000,
+                detail="ok",
+            ),
+            runner.ScenarioResult(
+                id="scenario_http",
+                tier="SIM-T3",
+                driver="rate_limit_enforce",
+                expected_outcome="deny_temp",
+                observed_outcome="deny_temp",
+                passed=True,
+                latency_ms=100,
+                runtime_budget_ms=1000,
+                detail="ok",
+            ),
+        ]
+        checks = runner.build_browser_execution_evidence_checks(
+            selected_scenarios=selected_scenarios,
+            results=results,
+            scenario_execution_evidence={
+                "scenario_browser": {
+                    "scenario_id": "scenario_browser",
+                    "driver_class": "browser_realistic",
+                    "has_browser_execution_evidence": False,
+                    "browser_js_executed": False,
+                    "browser_dom_events": 0,
+                    "browser_challenge_dom_path": [],
+                    "browser_correlation_ids": [],
+                    "browser_request_lineage_count": 0,
+                }
+            },
+        )
+        checks_by_name = {check["name"]: check for check in checks}
+        self.assertFalse(checks_by_name["browser_execution_required_rows_present"]["passed"])
+        self.assertFalse(checks_by_name["browser_execution_js_executed"]["passed"])
+        self.assertFalse(checks_by_name["browser_execution_dom_events"]["passed"])
+        self.assertFalse(checks_by_name["browser_execution_dom_paths"]["passed"])
+        self.assertFalse(checks_by_name["browser_execution_correlation_ids"]["passed"])
 
     def test_annotate_coverage_checks_with_threshold_sources(self):
         checks = runner.build_coverage_checks({"honeypot_hits": 1}, {"honeypot_hits": 2})
@@ -707,6 +791,80 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(realism["retry_attempts"], 1)
         self.assertEqual(realism["attempts_total"], 3)
         self.assertEqual(realism["state_headers_sent"], 1)
+
+    def test_execute_browser_realistic_driver_invokes_node_and_records_browser_evidence(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        scenario = manifest["scenarios"][0]
+        scenario["driver"] = "allow_browser_allowlist"
+        scenario["expected_outcome"] = "allow"
+        scenario["driver_class"] = "browser_realistic"
+        scenario["traffic_model"]["cookie_behavior"] = "stateful_cookie_jar"
+
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        sim_runner.begin_scenario_execution(scenario)
+        mocked_stdout = {
+            "ok": True,
+            "observed_outcome": "allow",
+            "detail": "ok",
+            "browser_evidence": {
+                "driver_runtime": "playwright_chromium",
+                "js_executed": True,
+                "dom_events": 4,
+                "storage_mode": "stateful_cookie_jar",
+                "challenge_dom_path": ["read:body"],
+                "correlation_ids": ["nonce-1"],
+                "request_lineage": [
+                    {"method": "GET", "path": "/", "sim_nonce": "nonce-1"},
+                    {"method": "GET", "path": "/favicon.ico", "sim_nonce": "nonce-1"},
+                ],
+            },
+            "diagnostics": {},
+        }
+
+        with patch(
+            "scripts.tests.adversarial_simulation_runner.subprocess.run",
+            return_value=subprocess.CompletedProcess(
+                args=["corepack", "pnpm", "exec", "node"],
+                returncode=0,
+                stdout=json.dumps(mocked_stdout),
+                stderr="",
+            ),
+        ) as run_mock:
+            observed = sim_runner.execute_browser_realistic_driver(
+                scenario,
+                action="allow_browser_allowlist",
+                headers=sim_runner.forwarded_headers("10.10.10.10", user_agent="UnitTest/1.0"),
+                user_agent="UnitTest/1.0",
+            )
+            self.assertEqual(observed, "allow")
+            self.assertEqual(sim_runner.request_count, 2)
+            self.assertEqual(run_mock.call_count, 1)
+
+        realism = sim_runner.end_scenario_execution()
+        self.assertEqual(realism["browser_driver_runtime"], "playwright_chromium")
+        self.assertTrue(realism["browser_js_executed"])
+        self.assertEqual(realism["browser_dom_events"], 4)
+        self.assertEqual(realism["browser_challenge_dom_path"], ["read:body"])
+        self.assertEqual(realism["browser_correlation_ids"], ["nonce-1"])
+        self.assertEqual(realism["browser_request_lineage_count"], 2)
 
     def test_admin_read_request_retries_throttled_reads(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")

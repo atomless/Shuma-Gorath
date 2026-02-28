@@ -209,6 +209,13 @@ Live loop controls:
 - Runner also emits `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
 - Promotion lane emits `scripts/tests/adversarial/promotion_candidates_report.json` with candidate -> replay -> promotion lineage and owner-review requirements.
 - Frontier threshold lane emits `scripts/tests/adversarial/frontier_unavailability_policy.json` and can auto-open/assign model-refresh action when protected-lane degradation thresholds are exceeded.
+- Browser-realistic lane executes through Playwright (`scripts/tests/adversarial_browser_driver.mjs`) instead of HTTP emulation.
+  - Browser runner controls:
+  - `SHUMA_ADVERSARIAL_BROWSER_DRIVER_ENABLED` (default `true`) toggles browser-driver execution.
+  - `SHUMA_ADVERSARIAL_BROWSER_RETRIES` (default `2`, clamped `1..3`) controls retry attempts for transient browser launch/network failures.
+  - `SHUMA_ADVERSARIAL_BROWSER_TIMEOUT_MS` (default `15000`) bounds per-scenario browser execution timeout.
+  - `SHUMA_ADVERSARIAL_BROWSER_SETTLE_MS` (default `200`) controls post-navigation settle delay.
+  - Browser evidence is attached per scenario (`browser_js_executed`, `browser_dom_events`, `browser_storage_mode`, `browser_challenge_dom_path`, request-lineage correlation IDs) and enforced via `browser_execution_gates`.
 - Deterministic and container black-box runners now stamp attacker-plane traffic with signed simulation headers:
   - `X-Shuma-Sim-Run-Id`
   - `X-Shuma-Sim-Profile`

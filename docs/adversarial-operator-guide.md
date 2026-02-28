@@ -34,6 +34,11 @@ A run must be treated as complete only when all rules below are true:
    - no synthetic monitoring injection,
    - no out-of-band metrics writes,
    - no control-plane-only success signaling.
+6. Every passed `browser_realistic` scenario includes browser execution evidence:
+   - `browser_js_executed=true`,
+   - `browser_dom_events > 0`,
+   - non-empty `browser_challenge_dom_path`,
+   - non-empty request-lineage correlation IDs.
 
 Canonical contract reference:
 
@@ -47,6 +52,7 @@ All manifests and reports are locked to `execution_lane=black_box`; non-black-bo
 Lane capability boundaries are versioned in `scripts/tests/adversarial/lane_contract.v1.json` and validated by `make test-adversarial-lane-contract`.
 Simulation-tag signing contract is versioned in `scripts/tests/adversarial/sim_tag_contract.v1.json` and validated by `make test-adversarial-sim-tag-contract`.
 Full-coverage category obligations are versioned in `scripts/tests/adversarial/coverage_contract.v1.json` and validated by `make test-adversarial-coverage-contract`.
+Browser-lane execution proof is enforced via `latest_report.json -> gates.browser_execution_gates`.
 `make test-adversarial-live` now classifies failures as `transient` or `fatal`, retries transient cycles with capped backoff, and only terminates after `ADVERSARIAL_FATAL_CYCLE_LIMIT` consecutive fatal cycles.
 Container lane emits:
 1. `scripts/tests/adversarial/container_isolation_report.json`
