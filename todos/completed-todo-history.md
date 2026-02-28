@@ -28,7 +28,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-EX2-7 Add architecture assertions (search-based CI guard or compile checks) preventing direct calls to privileged write APIs from disallowed modules. (Artifact: `src/runtime/architecture_guards.rs`)
 - [x] SIM2-EX2-8 Update architecture docs and ADR notes with final capability model and enforcement guarantees. (Artifacts: `docs/module-boundaries.md`, `docs/adr/0006-functional-core-policy-orchestration.md`)
 
-#### SIM2-EX3: Increase Black-Box Realism by Removing Per-Scenario Control-Plane Preconditioning (partial)
+#### SIM2-EX3: Increase Black-Box Realism by Removing Per-Scenario Control-Plane Preconditioning
 
 - [x] SIM2-EX3-1 Define runner execution contract separating `suite_setup`, `attacker_execution`, and `suite_teardown`; forbid control-plane config writes during `attacker_execution`. (Artifacts: `scripts/tests/adversarial_simulation_runner.py`, `scripts/tests/test_adversarial_simulation_runner.py`)
 - [x] SIM2-EX3-2 Replace per-scenario `admin_patch` choreography with baseline profile presets loaded before attacker execution starts. (Artifact: `scripts/tests/adversarial_simulation_runner.py`)
@@ -36,6 +36,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-EX3-4 Rework scenarios so expected defenses are triggered by attacker behavior and traffic progression, not repeated runtime reconfiguration. (Artifact: `scripts/tests/adversarial_simulation_runner.py`)
 - [x] SIM2-EX3-5 Extend report schema with control-plane mutation audit trail (`count`, `phase`, `reason`) and fail criteria when mutation policy is violated. (Artifact: `scripts/tests/adversarial_simulation_runner.py`)
 - [x] SIM2-EX3-6 Add deterministic tests for mutation-contract compliance in smoke/coverage profiles. (Artifacts: `scripts/tests/adversarial_simulation_runner.py`, `scripts/tests/test_adversarial_simulation_runner.py`)
+- [x] SIM2-EX3-7 Update operator docs to distinguish deterministic reproducibility controls from attacker realism constraints. (Artifact: `scripts/tests/adversarial/README.md`)
 
 ### P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)
 

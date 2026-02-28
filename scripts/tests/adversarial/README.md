@@ -121,6 +121,15 @@ Notes:
   - attacker-plane requests are restricted to public paths and reject privileged headers (`Authorization`, health/admin/signing secret headers),
   - orchestrator-only setup/reset/config hooks remain on the control plane via admin-authenticated calls.
   - attacker-plane contract is versioned in `lane_contract.v1.json` and verified by `make test-adversarial-lane-contract`.
+- Execution-phase contract for realism-safe control-plane behavior:
+  - `suite_setup` must own baseline preset application and any required reset/unban preparation before attacker traffic starts.
+  - `attacker_execution` must not perform control-plane mutations; mutation attempts fail the run via `control_plane_mutation_policy`.
+  - `suite_teardown` may run bounded reset/cleanup hooks (for example baseline restore + unban cleanup) after attacker execution ends.
+  - reports now include `control_plane_mutation_audit` (`count`, `count_by_phase`, per-entry `phase` + `reason`) and `evidence.control_plane_lineage.phase_transitions` for operator review.
+- Deterministic reproducibility controls vs attacker realism constraints:
+  - Reproducibility controls (for example `SHUMA_ADVERSARIAL_PRESERVE_STATE`, `SHUMA_ADVERSARIAL_ROTATE_IPS`, manifest seeds, and runtime budgets) must only tune repeatability and operational stability.
+  - Realism constraints must ensure expected defenses are triggered by attacker traffic progression rather than mid-attack control-plane reconfiguration.
+  - Scenario setup presets must be applied before attacker execution begins for each scenario contract slice; driver code must treat control-plane mutation as forbidden during attacker execution.
 - Coverage contract governance:
   - canonical `full_coverage` requirements are versioned in `coverage_contract.v1.json`,
   - drift checks run via `make test-adversarial-coverage-contract` and are wired into `make test-adversarial-manifest`, `make test-adversarial-fast`, and `make test-adversarial-coverage`.

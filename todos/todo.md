@@ -116,7 +116,7 @@ Acceptance criteria:
 
 Scope: keep deterministic reproducibility while reducing artificial scenario-by-scenario config patching that weakens “real attacker” fidelity.
 
-- [ ] SIM2-EX3-7 Update operator docs to distinguish deterministic reproducibility controls from attacker realism constraints.
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-EX3-*` closure details.
 
 Acceptance criteria:
 1. During attacker phase, control-plane config mutation count is zero by policy and verified by tests.
