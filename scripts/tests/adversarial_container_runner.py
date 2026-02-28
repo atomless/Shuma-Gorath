@@ -34,6 +34,16 @@ DEFAULT_ATTACK_PLAN_PATH = "scripts/tests/adversarial/attack_plan.json"
 SIM_TAG_CONTRACT_PATH = "scripts/tests/adversarial/sim_tag_contract.v1.json"
 DEFAULT_FRONTIER_ACTION_CONTRACT_PATH = "scripts/tests/adversarial/frontier_action_contract.v1.json"
 FRONTIER_ACTIONS_ENV = "SHUMA_BLACKBOX_ACTIONS"
+FRONTIER_FORBIDDEN_FIELD_SUBSTRINGS = (
+    "secret",
+    "api_key",
+    "apikey",
+    "authorization",
+    "cookie",
+    "session",
+    "token",
+    "password",
+)
 FORBIDDEN_ENV_PREFIXES = ("SHUMA_",)
 FORBIDDEN_ENV_KEYS = {
     "SHUMA_API_KEY",
@@ -279,8 +289,10 @@ def load_attack_plan(path: Path) -> Dict[str, Any]:
 
 
 def extract_frontier_actions_from_attack_plan(
-    attack_plan: Dict[str, Any], request_budget: int
-) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    attack_plan: Dict[str, Any],
+    request_budget: int,
+    forbidden_secret_values: List[str],
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
     request_budget = max(1, int(request_budget))
     candidates = attack_plan.get("candidates")
     if not isinstance(candidates, list):
@@ -288,14 +300,29 @@ def extract_frontier_actions_from_attack_plan(
 
     actions: List[Dict[str, Any]] = []
     lineage: List[Dict[str, Any]] = []
+    rejected: List[Dict[str, Any]] = []
     for index, candidate in enumerate(candidates):
         if len(actions) >= request_budget:
             break
         entry = dict(candidate or {})
         payload = dict(entry.get("payload") or {})
-        target = dict(payload.get("target") or {})
-        request_id = str(payload.get("request_id") or "").strip()
         scenario_id = str(entry.get("scenario_id") or "").strip()
+        request_id = str(payload.get("request_id") or "").strip()
+        rejection_reasons = validate_attack_plan_candidate_payload(
+            payload,
+            forbidden_secret_values=forbidden_secret_values,
+        )
+        if rejection_reasons:
+            rejected.append(
+                {
+                    "candidate_index": index + 1,
+                    "scenario_id": scenario_id,
+                    "request_id": request_id,
+                    "reasons": rejection_reasons,
+                }
+            )
+            continue
+        target = dict(payload.get("target") or {})
         path_hint = str(target.get("path_hint") or "").strip() or "/"
         path_hint = path_hint.split("?", 1)[0].split("#", 1)[0] or "/"
 
@@ -315,8 +342,62 @@ def extract_frontier_actions_from_attack_plan(
         )
 
     if not actions:
-        raise RuntimeError("attack plan did not yield any executable candidate actions")
-    return actions, lineage
+        raise RuntimeError(
+            "attack plan did not yield any executable candidate actions after sanitization"
+        )
+    return actions, lineage, rejected
+
+
+def collect_candidate_paths(value: Any, path: str = "") -> List[str]:
+    findings: List[str] = []
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            key_text = str(key).strip()
+            path_name = f"{path}.{key_text}" if path else key_text
+            lowered = key_text.lower()
+            if any(token in lowered for token in FRONTIER_FORBIDDEN_FIELD_SUBSTRINGS):
+                findings.append(f"forbidden_key:{path_name}")
+            findings.extend(collect_candidate_paths(nested, path_name))
+        return findings
+    if isinstance(value, list):
+        for index, nested in enumerate(value):
+            path_name = f"{path}[{index}]"
+            findings.extend(collect_candidate_paths(nested, path_name))
+        return findings
+    return findings
+
+
+def payload_contains_secret_literal(value: Any, secret_values: List[str]) -> bool:
+    if isinstance(value, dict):
+        return any(payload_contains_secret_literal(item, secret_values) for item in value.values())
+    if isinstance(value, list):
+        return any(payload_contains_secret_literal(item, secret_values) for item in value)
+    if isinstance(value, str):
+        text = value.strip()
+        return any(secret and secret in text for secret in secret_values)
+    return False
+
+
+def validate_attack_plan_candidate_payload(
+    payload: Dict[str, Any],
+    forbidden_secret_values: List[str],
+) -> List[str]:
+    reasons: List[str] = []
+    schema_version = str(payload.get("schema_version") or "").strip()
+    if schema_version != "frontier_payload_schema.v1":
+        reasons.append(
+            f"payload_schema_mismatch:expected=frontier_payload_schema.v1 got={schema_version}"
+        )
+    reasons.extend(collect_candidate_paths(payload))
+    if payload_contains_secret_literal(payload, forbidden_secret_values):
+        reasons.append("literal_secret_value_detected")
+    target = dict(payload.get("target") or {})
+    path_hint = str(target.get("path_hint") or "").strip()
+    if not path_hint.startswith("/"):
+        reasons.append("target_path_hint_must_start_with_slash")
+    if path_hint.startswith("/admin/"):
+        reasons.append("target_path_hint_forbidden_prefix")
+    return reasons
 
 
 def container_command(
@@ -480,17 +561,40 @@ def main() -> int:
     frontier_actions_source = "explicit_input"
     frontier_action_source_error = ""
     frontier_action_lineage: List[Dict[str, Any]] = []
+    frontier_candidate_rejections: List[Dict[str, Any]] = []
+    forbidden_secret_values = [
+        str(os.environ.get(env_key) or "").strip()
+        for env_key in sorted(FORBIDDEN_ENV_KEYS)
+        if str(os.environ.get(env_key) or "").strip()
+    ]
+    forbidden_secret_values.extend(
+        [
+            str(os.environ.get("SHUMA_FRONTIER_OPENAI_API_KEY") or "").strip(),
+            str(os.environ.get("SHUMA_FRONTIER_ANTHROPIC_API_KEY") or "").strip(),
+            str(os.environ.get("SHUMA_FRONTIER_GOOGLE_API_KEY") or "").strip(),
+            str(os.environ.get("SHUMA_FRONTIER_XAI_API_KEY") or "").strip(),
+        ]
+    )
+    forbidden_secret_values = sorted(
+        {value for value in forbidden_secret_values if value}
+    )
     frontier_actions_raw = str(args.frontier_actions or "").strip()
     if not frontier_actions_raw and args.mode == "blackbox":
         frontier_actions_source = "attack_plan_candidates"
         try:
             attack_plan_payload = load_attack_plan(Path(args.attack_plan))
-            attack_plan_actions, attack_plan_lineage = extract_frontier_actions_from_attack_plan(
+            (
+                attack_plan_actions,
+                attack_plan_lineage,
+                attack_plan_rejections,
+            ) = extract_frontier_actions_from_attack_plan(
                 attack_plan_payload,
                 request_budget=request_budget,
+                forbidden_secret_values=forbidden_secret_values,
             )
             frontier_actions_raw = json.dumps(attack_plan_actions, separators=(",", ":"))
             frontier_action_lineage = attack_plan_lineage
+            frontier_candidate_rejections = attack_plan_rejections
         except Exception as exc:
             frontier_actions_source = "contract_default_fallback"
             frontier_action_source_error = str(exc)
@@ -614,6 +718,7 @@ def main() -> int:
         "frontier_action_source": frontier_actions_source,
         "frontier_action_source_error": frontier_action_source_error,
         "frontier_action_lineage": frontier_action_lineage,
+        "frontier_candidate_rejections": frontier_candidate_rejections,
         "isolation_contract": isolation_contract,
         "orchestrator_hook": orchestrator_hook,
         "worker_result": {

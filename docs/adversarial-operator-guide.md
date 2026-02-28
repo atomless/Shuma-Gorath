@@ -60,6 +60,7 @@ Container lane emits:
 2. `scripts/tests/adversarial/container_blackbox_report.json`
 3. `container_blackbox_report.json` includes `frontier_action_source` and `frontier_action_lineage` to trace attack-plan candidates to executed requests.
 4. `container_blackbox_report.json -> policy_audit` records explicit deny/allow boundary decisions for action validation and egress-policy enforcement.
+5. `container_blackbox_report.json -> frontier_candidate_rejections` lists sanitized model outputs that were blocked before execution.
 
 ## Deterministic + Containerized Coexistence Contract (SIM-V2-15)
 

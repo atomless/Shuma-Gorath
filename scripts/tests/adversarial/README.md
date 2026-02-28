@@ -123,5 +123,6 @@ Notes:
   - then run `make test-adversarial-container-blackbox` for bounded black-box traffic execution.
   - black-box mode converts `attack_plan.json` candidates into executable action DSL steps by default, then validates and executes them under `frontier_action_contract.v1.json`.
   - container black-box actions must pass `frontier_action_contract.v1.json` reject-by-default validation before execution.
+  - unsafe candidate payloads are rejected before execution, with reasons emitted in `container_blackbox_report.json -> frontier_candidate_rejections`.
   - policy violations emit structured deny/audit events in `container_blackbox_report.json -> policy_audit.events`.
 - `adversarial_sim_selftest.py` is intentionally tiny and non-circular: it validates simulator mechanics against fixed stub routes without asserting product defense efficacy.

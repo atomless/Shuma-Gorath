@@ -60,6 +60,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
                 {
                     "scenario_id": "scenario_a",
                     "payload": {
+                        "schema_version": "frontier_payload_schema.v1",
                         "request_id": "req-a",
                         "target": {"path_hint": "/sim/public/docs"},
                     },
@@ -67,21 +68,46 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
                 {
                     "scenario_id": "scenario_b",
                     "payload": {
+                        "schema_version": "frontier_payload_schema.v1",
                         "request_id": "req-b",
                         "target": {"path_hint": "/challenge/not-a-bot-checkbox"},
                     },
                 },
             ],
         }
-        actions, lineage = container_runner.extract_frontier_actions_from_attack_plan(
+        actions, lineage, rejected = container_runner.extract_frontier_actions_from_attack_plan(
             attack_plan,
             request_budget=2,
+            forbidden_secret_values=[],
         )
         self.assertEqual(len(actions), 2)
         self.assertEqual(actions[0]["path"], "/sim/public/docs")
         self.assertEqual(actions[1]["path"], "/challenge/not-a-bot-checkbox")
         self.assertEqual(lineage[0]["scenario_id"], "scenario_a")
         self.assertEqual(lineage[1]["request_id"], "req-b")
+        self.assertEqual(rejected, [])
+
+    def test_extract_frontier_actions_from_attack_plan_rejects_unsafe_candidate_payload(self):
+        attack_plan = {
+            "schema_version": "attack-plan.v1",
+            "candidates": [
+                {
+                    "scenario_id": "scenario_bad",
+                    "payload": {
+                        "schema_version": "frontier_payload_schema.v1",
+                        "request_id": "req-bad",
+                        "api_key_hint": "must-not-pass",
+                        "target": {"path_hint": "/sim/public/docs"},
+                    },
+                }
+            ],
+        }
+        with self.assertRaises(RuntimeError):
+            container_runner.extract_frontier_actions_from_attack_plan(
+                attack_plan,
+                request_budget=1,
+                forbidden_secret_values=[],
+            )
 
     def test_load_attack_plan_requires_schema_and_candidates(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -92,6 +118,19 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
             )
             with self.assertRaises(RuntimeError):
                 container_runner.load_attack_plan(attack_plan_path)
+
+    def test_validate_attack_plan_candidate_payload_detects_secret_literal(self):
+        payload = {
+            "schema_version": "frontier_payload_schema.v1",
+            "request_id": "req-1",
+            "target": {"path_hint": "/sim/public/docs"},
+            "attack_metadata": {"note": "sk-secret-value"},
+        }
+        reasons = container_runner.validate_attack_plan_candidate_payload(
+            payload,
+            forbidden_secret_values=["sk-secret-value"],
+        )
+        self.assertIn("literal_secret_value_detected", reasons)
 
 
 if __name__ == "__main__":
