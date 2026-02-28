@@ -57,3 +57,5 @@ Completed archive index:
    Research synthesis for realtime monitoring delivery candidates in Rust/Spin (cursor polling vs SSE, ordering, backpressure, bounded cost).
 10. [`2026-02-28-sim2-gcr-9-rust-realtime-benchmark-comparison.md`](2026-02-28-sim2-gcr-9-rust-realtime-benchmark-comparison.md)  
    Benchmark evidence comparing cursor polling and streaming candidate behavior under steady and burst envelopes, with quantitative threshold recommendations.
+11. [`2026-02-28-sim2-gcr-5-telemetry-retention-storage-lifecycle-research.md`](2026-02-28-sim2-gcr-5-telemetry-retention-storage-lifecycle-research.md)  
+   Retention-lifecycle research for deterministic purge, bucketed storage, and operator-visible retention health semantics.

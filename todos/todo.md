@@ -262,7 +262,7 @@ Execution order (must be followed):
 3. `SIM2-GCR-2` containerized black-box capability orchestration (completed 2026-02-28).
 4. `SIM2-GCR-4` Rust realtime monitoring architecture candidates (completed 2026-02-28).
 5. `SIM2-GCR-9` Rust prototype/benchmark comparison for realtime candidates (completed 2026-02-28).
-6. `SIM2-GCR-5` telemetry retention/storage lifecycle best practices.
+6. `SIM2-GCR-5` telemetry retention/storage lifecycle best practices (completed 2026-02-28).
 7. `SIM2-GCR-6` monitoring cost-efficiency patterns.
 8. `SIM2-GCR-7` telemetry/adversary-artifact security and privacy controls.
 9. `SIM2-GCR-10` ADR-backed architecture decision capture.
@@ -274,7 +274,6 @@ Per-track workflow (must be followed before marking each track complete):
 3. Update `todos/todo.md` to reflect plan-derived changes (tightened acceptance criteria, reordered execution where needed, and any new required todos).
 4. Only then mark that `SIM2-GCR-*` track complete and move to the next ordered track.
 
-- [ ] SIM2-GCR-5 Research Rust storage/retention best practices for high-volume monitoring/event telemetry (TTL strategy, partitioning/indexing, cleanup cadence, deterministic purge semantics, operator-visible retention health).
 - [ ] SIM2-GCR-6 Research cost-efficiency patterns for monitoring pipelines (aggregation windows, cardinality controls, event sampling restrictions, compression/serialization tradeoffs, query budget controls).
 - [ ] SIM2-GCR-7 Research security/privacy best practices for telemetry and adversary artifacts (secret-exposure prevention, data minimization, pseudonymization options, artifact retention risk controls, incident-response hooks).
 - [ ] SIM2-GCR-8 Produce research synthesis docs and implementation plans for `GC-6`, `GC-8`, `GC-11`, and `GC-14`, then update todos with quantitative thresholds derived from research outcomes.
@@ -514,6 +513,7 @@ Scope: enforce non-regression with tests that prove real traffic -> real defense
 - [ ] SIM2-GC-11-16 Add cursor-contract tests for monotonic ordering, resume-after-cursor correctness, overflow signaling, and deduped replay windows.
 - [ ] SIM2-GC-11-17 Add SSE-path tests for event-id ordering, `Last-Event-ID` reconnect behavior, and fallback-to-polling continuity when stream drops.
 - [ ] SIM2-GC-11-18 Add reproducible realtime benchmark verification target (`make test-sim2-realtime-bench`) and CI artifact outputs for latency percentiles, overflow/drop counts, and request-budget metrics.
+- [ ] SIM2-GC-11-19 Add retention lifecycle regression tests for bucket cutoff correctness, purge-watermark progression, purge-lag threshold, and no read-path full-keyspace cleanup scans.
 
 Acceptance criteria:
 1. Mandatory verification fails if any matrix-required defense/lane evidence is missing.
@@ -526,6 +526,7 @@ Acceptance criteria:
 8. Frontier isolation/envelope/teardown regressions fail deterministically in CI with explicit failure taxonomy.
 9. Realtime cursor/stream ordering and resume regressions fail deterministically in CI with explicit failure taxonomy.
 10. Benchmark-threshold regressions (`p95`, `p99`, overflow/drop, request-budget) fail deterministically in CI with scenario-specific diagnostics.
+11. Retention-lifecycle regressions (purge lag, bucket cutoff drift, read-path scan fallback) fail deterministically in CI with explicit failure taxonomy.
 
 ### SIM2-GC-12: Program Governance for Continuous Defense Evolution
 
@@ -583,6 +584,27 @@ Acceptance criteria:
 4. Promotion decisions use quantitative thresholds and are auditable from lineage artifacts.
 5. False-discovery behavior is measured and kept within declared limits.
 6. Operator documentation and UI terminology no longer conflate guardrail duration with procedural adversary progress.
+
+### SIM2-GC-15: Telemetry Retention Lifecycle Determinism and Health Visibility
+
+Scope: enforce deterministic retention/purge semantics for monitoring/event telemetry without read-path scan amplification.
+
+- [ ] SIM2-GC-15-1 Define canonical telemetry bucket/index schema for monitoring/event retention operations (`bucket_id`, `window_start`, `window_end`, `record_count`, `state`).
+- [ ] SIM2-GC-15-2 Migrate telemetry writes to update bucket/index metadata so expired windows are purge-addressable without full keyspace scans.
+- [ ] SIM2-GC-15-3 Implement background purge worker cadence with bounded batch budget and persisted purge watermark (`last_purged_bucket`, `last_attempt_ts`, `last_success_ts`).
+- [ ] SIM2-GC-15-4 Remove opportunistic retention cleanup from monitoring/admin read paths and replace with worker-triggered retention lifecycle.
+- [ ] SIM2-GC-15-5 Add retention health surface in admin/monitoring payloads (`retention_hours`, `oldest_retained_ts`, `purge_lag_hours`, `pending_expired_buckets`, `last_error`).
+- [ ] SIM2-GC-15-6 Add degraded-state signaling and operator guidance when retention drift exceeds thresholds.
+- [ ] SIM2-GC-15-7 Add deterministic failure-recovery behavior for purge partial failures (retry safety, idempotent bucket cleanup, explicit failure taxonomy).
+- [ ] SIM2-GC-15-8 Add docs/runbook updates for retention tuning, purge troubleshooting, and operational rollback.
+
+Acceptance criteria:
+1. Retention enforcement no longer relies on monitoring refresh read paths performing keyspace-wide cleanup work.
+2. Purge lag remains `<=1 hour` beyond configured retention window under declared normal envelope.
+3. Healthy state reports `pending_expired_buckets == 0`; non-zero state is operator-visible with degraded status.
+4. Bucket cutoff semantics are deterministic and test-backed across repeated purge cycles.
+5. Purge worker remains bounded (`<=500ms` budget per cadence tick) and failure-retry behavior is idempotent.
+6. Retention health telemetry is visible in dashboard/admin surfaces and included in CI diagnostics artifacts.
 
 ## P0 CI + E2E Stability (Top Priority)
 - [ ] CI-E2E-1 Resume point for next Codex session: start from `scripts/tests/run_dashboard_e2e.sh`, `scripts/tests/verify_playwright_launch.mjs`, `playwright.config.mjs`, `Makefile` (`test-dashboard-e2e`), and `e2e/run_dashboard_e2e.unit.test.js`; run `make dev` (terminal 1) plus `make test-dashboard-e2e` (terminal 2) and capture per-stage timings (unit, bundle budget, seed, preflight, Playwright) to prove there is no loop/stall; then run `DEBUG=pw:browser corepack pnpm exec node scripts/tests/verify_playwright_launch.mjs` to diagnose Chromium launch path and fix root cause so browser e2e runs without `PLAYWRIGHT_SANDBOX_ALLOW_SKIP`; finally, harden CI behavior so skip mode is never silently used in mandatory checks, retries are bounded and deterministic, and acceptance criteria are met: full `make test` completes in bounded time, Chromium e2e actually executes, and every failing step returns actionable diagnostics rather than hanging.
