@@ -35,6 +35,13 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
         self.assertTrue(worker.enforce_allowlist("http://host.docker.internal:3000/", allowed))
         self.assertFalse(worker.enforce_allowlist("http://evil.invalid/", allowed))
 
+    def test_parse_sim_tag_envelopes_rejects_nonce_replay(self):
+        replay_payload = (
+            '[{"ts":"1700000000","nonce":"nonce-1","signature":"sig-a"},'
+            '{"ts":"1700000001","nonce":"nonce-1","signature":"sig-b"}]'
+        )
+        self.assertEqual(worker.parse_sim_tag_envelopes(replay_payload), [])
+
 
 if __name__ == "__main__":
     unittest.main()

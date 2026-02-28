@@ -13,6 +13,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-GC-8-3 Implement container execution path that converts model output to validated actionable steps, then executes against target endpoints.
 - [x] SIM2-GC-8-4 Enforce egress allowlist and capability boundaries at runtime with explicit deny/audit paths for policy violations.
 - [x] SIM2-GC-8-5 Add strict sanitization/validation so unsafe or out-of-policy model outputs are rejected before execution.
+- [x] SIM2-GC-8-6 Add negative-path security tests (secret-exfiltration canaries, out-of-scope URL attempts, privileged header injection attempts, replay envelope misuse).
 
 #### SIM2-GC-7: Upgrade Browser-Adversary Lane to True Browser Execution
 

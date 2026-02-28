@@ -138,6 +138,7 @@ def parse_sim_tag_envelopes(raw_value: str) -> List[Dict[str, str]]:
         return []
 
     envelopes: List[Dict[str, str]] = []
+    seen_nonces = set()
     for item in payload:
         if not isinstance(item, dict):
             return []
@@ -146,6 +147,9 @@ def parse_sim_tag_envelopes(raw_value: str) -> List[Dict[str, str]]:
         signature = str(item.get("signature") or "").strip()
         if not timestamp or not nonce or not signature:
             return []
+        if nonce in seen_nonces:
+            return []
+        seen_nonces.add(nonce)
         envelopes.append({"ts": timestamp, "nonce": nonce, "signature": signature})
     return envelopes
 

@@ -51,6 +51,17 @@ class FrontierActionContractUnitTests(unittest.TestCase):
                 request_budget=24,
             )
 
+    def test_resolve_frontier_actions_rejects_out_of_scope_absolute_url_attempt(self):
+        raw_actions = '[{"action_type":"http_get","path":"http://evil.invalid/"}]'
+        with self.assertRaises(frontier_contract.FrontierActionValidationError):
+            frontier_contract.resolve_frontier_actions(
+                raw_actions,
+                contract=self.contract,
+                base_url="http://host.docker.internal:3000",
+                allowed_origins=["http://host.docker.internal:3000"],
+                request_budget=24,
+            )
+
     def test_resolve_frontier_actions_rejects_action_count_above_budget(self):
         raw_actions = (
             '[{"action_type":"http_get","path":"/a"},'
