@@ -2584,6 +2584,23 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn admin_config_rejects_deprecated_simulation_namespace_key() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+        let post_req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"sim_telemetry_namespace":"legacy-sim-plane"}"#.to_vec(),
+        );
+        let post_resp = handle_admin_config(&post_req, &store, "default");
+        assert_eq!(*post_resp.status(), 400u16);
+        let msg = String::from_utf8_lossy(post_resp.body());
+        assert!(msg.contains("unknown field `sim_telemetry_namespace`"));
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
     fn admin_config_rejects_typed_field_type_mismatch() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");

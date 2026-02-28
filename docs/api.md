@@ -161,6 +161,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 Expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/ip-range/suggestions`, `/admin/ban` `GET`) are rate-limited to reduce <abbr title="Key-Value">KV</abbr>/<abbr title="Central Processing Unit">CPU</abbr> abuse amplification (`429` with `Retry-After: 60` when limited).
 
 Simulation telemetry uses per-row metadata tags (`sim_run_id`, `sim_profile`, `sim_lane`, `is_simulation`) rather than read-time query toggles.
+Deprecated simulation-namespace config keys are rejected on write (`sim_telemetry_namespace` and related unknown namespace-era fields).
 
 Adversary-sim command contract (`adversary-sim-control.v1`) highlights:
 

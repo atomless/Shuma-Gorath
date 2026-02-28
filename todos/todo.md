@@ -339,11 +339,7 @@ Acceptance criteria:
 
 Scope: simplify data model to dev/prod separation only, with no separate SIM namespace semantics.
 
-- [ ] SIM2-GC-5-1 Remove simulation namespace config flags, query paths, schema branches, and UI toggles.
-- [ ] SIM2-GC-5-2 Consolidate dev telemetry queries so SIM and manual dev traffic coexist in same dev plane with source labels.
-- [ ] SIM2-GC-5-3 Preserve source attribution fields (`origin=sim|manual|other`) for filtering without namespace-level partitioning.
-- [ ] SIM2-GC-5-4 Add migration/compat tests to ensure old namespace settings are rejected or ignored safely in pre-launch mode.
-- [ ] SIM2-GC-5-5 Update docs and runbooks to remove all namespace-era instructions and diagrams.
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-5-*` closure details.
 
 Acceptance criteria:
 1. No runtime, dashboard, or docs references remain to simulation telemetry namespace.

@@ -6,6 +6,14 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 SIM2 Gap-Closure Program: Real Execution + Realtime Monitoring
 
+#### SIM2-GC-5: Remove Simulation Telemetry Namespace Architecture Completely
+
+- [x] SIM2-GC-5-1 Remove simulation namespace config flags, query paths, schema branches, and UI toggles.
+- [x] SIM2-GC-5-2 Consolidate dev telemetry queries so SIM and manual dev traffic coexist in same dev plane with source labels.
+- [x] SIM2-GC-5-3 Preserve source attribution fields (`origin=sim|manual|other`) for filtering without namespace-level partitioning.
+- [x] SIM2-GC-5-4 Add migration/compat tests to ensure old namespace settings are rejected or ignored safely in pre-launch mode.
+- [x] SIM2-GC-5-5 Update docs and runbooks to remove all namespace-era instructions and diagrams.
+
 #### SIM2-GC-4: Guarantee Monitoring Ingest Uses Real Request Pipeline by Default
 
 - [x] SIM2-GC-4-1 Audit all monitoring emitters and remove SIM-specific alternative emit paths that bypass request processing.
