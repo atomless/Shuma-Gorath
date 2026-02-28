@@ -28,13 +28,23 @@ Adopt a functional-core / imperative-shell request policy model for main request
    - Explicit plans for metrics, monitoring, event logs, bans, and response rendering.
 4. Capability-gated privileged side effects
    - `src/runtime/capabilities.rs`
-   - Request-path effect execution requires explicit capability tokens minted at the orchestration trust boundary.
+   - Request-path effect execution requires explicit phase-specific capability tokens minted at the orchestration trust boundary:
+     - `RequestBootstrapCapabilities` for bootstrap metrics writes,
+     - `PolicyExecutionCapabilities` for active privileged effect execution,
+     - `PostResponseFlushCapabilities` for post-response monitoring flushes.
 
 `src/lib.rs` remains a thin trust-boundary shell, delegating policy routing to `src/runtime/request_flow.rs` (`facts -> decisions -> effects -> response`) while preserving pipeline order and endpoint semantics (including `/pow` ordering).
 
 ## Trust-boundary model
 
 Privileged writes (ban store, metrics, monitoring, event log) are executed only through the effect executor with typed capability tokens. Tokens are minted in request orchestration and are not implicitly available through raw request/context convention.
+
+Enforcement guarantees:
+
+1. Capability constructor access is compile-time sealed to trust-boundary tokens (`RequestFlowCapabilityToken` and `LibCapabilityToken`).
+2. Privileged effect executors require phase-specific capability argument types, so wrong-phase execution is impossible without a type error.
+3. Architecture-guard tests fail CI if direct privileged-write helpers appear outside effect-intent executor modules.
+4. Architecture-guard tests fail CI if capability mint callsites appear outside approved trust-boundary entrypoints.
 
 ## Migration sequence
 

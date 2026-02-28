@@ -102,7 +102,7 @@ Acceptance criteria:
 
 Scope: replace coarse capability minting with explicit least-authority capability sets and ensure privileged operations are impossible without capability possession.
 
-- [ ] SIM2-EX2-8 Update architecture docs and ADR notes with final capability model and enforcement guarantees.
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-EX2-*` closure details.
 
 Acceptance criteria:
 1. Privileged side effects are capability-gated everywhere in request path, without convention-only exceptions.

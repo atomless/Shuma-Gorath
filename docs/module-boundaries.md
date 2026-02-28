@@ -31,7 +31,7 @@ This document defines the in-repo boundaries used to prepare future repo splits.
 - Observability domain: `src/observability/` (`metrics` and monitoring surfaces)
 - Dashboard adapter: `dashboard/src/lib/domain/` <abbr title="Application Programming Interface">API</abbr>/session/config adapters
 
-## Request Orchestration Ownership Map (SIM2-EX1)
+## Request Orchestration Ownership Map (SIM2-EX1/EX2)
 
 Reference decisions: [`docs/adr/0006-functional-core-policy-orchestration.md`](adr/0006-functional-core-policy-orchestration.md)
 
@@ -45,6 +45,21 @@ Reference decisions: [`docs/adr/0006-functional-core-policy-orchestration.md`](a
 | `src/runtime/policy_graph.rs` | Pure policy stage ordering and typed decision outcomes. |
 | `src/runtime/effect_intents/` | Typed effect-plan construction and all privileged side-effect execution (`intent_types`, `plan_builder`, `intent_executor`, `response_renderer`). |
 | `src/runtime/capabilities.rs` | Capability tokens for least-authority gating of privileged request-path writes. |
+
+### Least-Authority Capability Model (SIM2-EX2)
+
+| Capability Phase | Mint Entry Points | Allowed Privileged Effect Classes | Disallowed By Construction |
+| --- | --- | --- | --- |
+| Request bootstrap | `src/runtime/request_flow.rs` via `RuntimeCapabilities::for_request_bootstrap_phase` | `metrics_write` | monitoring/event-log/ban/response-privileged writes |
+| Policy execution | `src/runtime/request_flow.rs` and `src/lib.rs` via `RuntimeCapabilities::for_policy_execution_phase` | `metrics_write`, `monitoring_write`, `event_log_write`, `ban_write`, `response_privileged` | none (full privileged set for active policy execution only) |
+| Post-response flush | `src/lib.rs` via `RuntimeCapabilities::for_post_response_flush_phase` | `monitoring_write` | metrics/event-log/ban/response-privileged writes |
+
+### Capability Enforcement Guarantees (SIM2-EX2)
+
+- Privileged writes must be routed through `src/runtime/effect_intents/`; direct calls in other runtime modules are CI-failing regressions.
+- Capability minting must remain confined to trust-boundary entrypoints; new mint callsites outside allowed entrypoints are CI-failing regressions.
+- Effect executors must require phase-specific capability types (`RequestBootstrapCapabilities`, `PolicyExecutionCapabilities`, `PostResponseFlushCapabilities`), making wrong-phase execution impossible at compile time.
+- `src/runtime/architecture_guards.rs` is the mandatory enforcement surface for the above invariants (`privileged_write_helpers_are_confined_to_effect_intent_executor_modules`, `capability_minting_is_confined_to_trust_boundary_entrypoints`, `privileged_effect_executors_require_phase_specific_capability_types`).
 
 ## Defence Taxonomy (H3.6.1)
 
