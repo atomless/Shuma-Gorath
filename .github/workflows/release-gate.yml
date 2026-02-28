@@ -28,6 +28,7 @@ jobs:
       SHUMA_BOTNESS_CONFIG_MUTABLE: "true"
       DEV_ADMIN_PAGE_CONFIG: "true"
       SHUMA_DEBUG_HEADERS: "true"
+      SHUMA_SIM_TELEMETRY_SECRET: 11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff
       SHUMA_FRONTIER_OPENAI_API_KEY: ${{ secrets.SHUMA_FRONTIER_OPENAI_API_KEY }}
       SHUMA_FRONTIER_ANTHROPIC_API_KEY: ${{ secrets.SHUMA_FRONTIER_ANTHROPIC_API_KEY }}
       SHUMA_FRONTIER_GOOGLE_API_KEY: ${{ secrets.SHUMA_FRONTIER_GOOGLE_API_KEY }}
@@ -100,6 +101,12 @@ jobs:
       - name: Run deterministic frontier finding promotion triage
         run: make test-adversarial-promote-candidates
 
+      - name: Run SIM2 realtime benchmark and ADR conformance gates
+        run: |
+          make test-sim2-realtime-bench
+          make test-sim2-adr-conformance
+          make test-sim2-ci-diagnostics
+
       - name: Evaluate frontier unavailability threshold policy
         env:
           FRONTIER_MODEL_REFRESH_OWNER: ${{ vars.SHUMA_FRONTIER_MODEL_REFRESH_OWNER }}
@@ -129,6 +136,10 @@ jobs:
             scripts/tests/adversarial/frontier_lane_status.json
             scripts/tests/adversarial/promotion_candidates_report.json
             scripts/tests/adversarial/frontier_unavailability_policy.json
+            scripts/tests/adversarial/sim2_realtime_bench_report.json
+            scripts/tests/adversarial/sim2_realtime_bench_summary.md
+            scripts/tests/adversarial/sim2_adr_conformance_report.json
+            scripts/tests/adversarial/sim2_ci_diagnostics.json
 
       - name: Upload Spin logs (on failure)
         if: failure()

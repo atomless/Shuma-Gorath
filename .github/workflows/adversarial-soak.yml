@@ -23,6 +23,7 @@ jobs:
       SHUMA_BOTNESS_CONFIG_MUTABLE: "true"
       DEV_ADMIN_PAGE_CONFIG: "true"
       SHUMA_DEBUG_HEADERS: "true"
+      SHUMA_SIM_TELEMETRY_SECRET: 11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -87,6 +88,12 @@ jobs:
       - name: Run containerized black-box adversary lane
         run: make test-adversarial-container-blackbox
 
+      - name: Run SIM2 realtime benchmark and ADR conformance diagnostics
+        run: |
+          make test-sim2-realtime-bench
+          make test-sim2-adr-conformance
+          make test-sim2-ci-diagnostics
+
       - name: Upload adversarial soak report
         if: always()
         uses: actions/upload-artifact@v4
@@ -96,6 +103,10 @@ jobs:
             scripts/tests/adversarial/latest_report.json
             scripts/tests/adversarial/container_isolation_report.json
             scripts/tests/adversarial/container_blackbox_report.json
+            scripts/tests/adversarial/sim2_realtime_bench_report.json
+            scripts/tests/adversarial/sim2_realtime_bench_summary.md
+            scripts/tests/adversarial/sim2_adr_conformance_report.json
+            scripts/tests/adversarial/sim2_ci_diagnostics.json
 
       - name: Upload Spin logs (on failure)
         if: failure()

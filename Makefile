@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live adversary-sim-history-clean test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live adversary-sim-history-clean test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -316,7 +316,7 @@ spin-wait-ready: ## Wait for the existing local Spin server to pass /health
 smoke-single-host: ## Run post-deploy single-host smoke checks (health/admin auth/metrics/challenge route)
 	@./scripts/tests/smoke_single_host.sh
 
-test: ## Run umbrella tests in series: unit, maze benchmark, integration, mandatory fast adversarial matrix, and dashboard e2e
+test: ## Run umbrella tests in series: unit, maze benchmark, integration, adversarial matrix, SIM2 realtime gates, and dashboard e2e
 	@echo "$(CYAN)============================================$(NC)"
 	@echo "$(CYAN)  RUNNING ALL TESTS$(NC)"
 	@echo "$(CYAN)============================================$(NC)"
@@ -353,11 +353,17 @@ test: ## Run umbrella tests in series: unit, maze benchmark, integration, mandat
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@$(MAKE) --no-print-directory test-adversarial-fast || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 5/6: Dashboard E2E Smoke Tests$(NC)"
+	@echo "$(CYAN)Step 5/7: SIM2 Realtime Verification Gates$(NC)"
+	@echo "$(CYAN)--------------------------------------------$(NC)"
+	@$(MAKE) --no-print-directory test-sim2-realtime-bench || exit 1
+	@$(MAKE) --no-print-directory test-sim2-adr-conformance || exit 1
+	@$(MAKE) --no-print-directory test-sim2-ci-diagnostics || exit 1
+	@echo ""
+	@echo "$(CYAN)Step 6/7: Dashboard E2E Smoke Tests$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@$(MAKE) --no-print-directory test-dashboard-e2e || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 6/6: Dashboard Seed Snapshot$(NC)"
+	@echo "$(CYAN)Step 7/7: Dashboard Seed Snapshot$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@$(MAKE) --no-print-directory seed-dashboard-data || exit 1
 	@echo ""
@@ -398,13 +404,16 @@ integration-test: test-integration ## Alias for Spin integration tests
 
 test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtures (no server required)
 	@echo "$(CYAN)🧪 Validating adversarial simulation manifest...$(NC)"
-	@python3 -m py_compile scripts/tests/adversarial_simulation_runner.py scripts/tests/adversarial_live_loop.py scripts/tests/adversarial_repeatability.py scripts/tests/adversarial_promote_candidates.py scripts/tests/adversarial_container_runner.py scripts/tests/adversarial_container/worker.py scripts/tests/frontier_action_contract.py scripts/tests/frontier_capability_envelope.py scripts/tests/frontier_lane_attempt.py scripts/tests/frontier_unavailability_policy.py scripts/tests/check_frontier_payload_artifacts.py scripts/tests/check_adversarial_lane_contract.py scripts/tests/check_adversarial_sim_tag_contract.py scripts/tests/check_adversarial_coverage_contract.py scripts/tests/check_adversarial_scenario_intent_matrix.py
+	@python3 -m py_compile scripts/tests/adversarial_simulation_runner.py scripts/tests/adversarial_live_loop.py scripts/tests/adversarial_repeatability.py scripts/tests/adversarial_promote_candidates.py scripts/tests/adversarial_container_runner.py scripts/tests/adversarial_container/worker.py scripts/tests/frontier_action_contract.py scripts/tests/frontier_capability_envelope.py scripts/tests/frontier_lane_attempt.py scripts/tests/frontier_unavailability_policy.py scripts/tests/check_frontier_payload_artifacts.py scripts/tests/check_adversarial_lane_contract.py scripts/tests/check_adversarial_sim_tag_contract.py scripts/tests/check_adversarial_coverage_contract.py scripts/tests/check_adversarial_scenario_intent_matrix.py scripts/tests/sim2_realtime_bench.py scripts/tests/check_sim2_adr_conformance.py scripts/tests/render_sim2_ci_diagnostics.py
 	@node --check scripts/tests/adversarial_browser_driver.mjs
-	@python3 -m unittest scripts/tests/test_adversarial_simulation_runner.py scripts/tests/test_adversarial_live_loop.py scripts/tests/test_adversarial_repeatability.py scripts/tests/test_adversarial_promote_candidates.py scripts/tests/test_adversarial_container_runner.py scripts/tests/test_adversarial_container_worker.py scripts/tests/test_frontier_action_contract.py scripts/tests/test_frontier_capability_envelope.py scripts/tests/test_frontier_lane_and_governance.py scripts/tests/test_adversarial_lane_contract.py scripts/tests/test_adversarial_sim_tag_contract.py scripts/tests/test_adversarial_coverage_contract.py scripts/tests/test_adversarial_scenario_intent_matrix.py
+	@python3 -m unittest scripts/tests/test_adversarial_simulation_runner.py scripts/tests/test_adversarial_live_loop.py scripts/tests/test_adversarial_repeatability.py scripts/tests/test_adversarial_promote_candidates.py scripts/tests/test_adversarial_container_runner.py scripts/tests/test_adversarial_container_worker.py scripts/tests/test_frontier_action_contract.py scripts/tests/test_frontier_capability_envelope.py scripts/tests/test_frontier_lane_and_governance.py scripts/tests/test_adversarial_lane_contract.py scripts/tests/test_adversarial_sim_tag_contract.py scripts/tests/test_adversarial_coverage_contract.py scripts/tests/test_adversarial_scenario_intent_matrix.py scripts/tests/test_sim2_realtime_bench.py scripts/tests/test_sim2_adr_conformance.py scripts/tests/test_sim2_ci_diagnostics.py
 	@$(MAKE) --no-print-directory test-adversarial-lane-contract
 	@$(MAKE) --no-print-directory test-adversarial-sim-tag-contract
 	@$(MAKE) --no-print-directory test-adversarial-coverage-contract
 	@$(MAKE) --no-print-directory test-adversarial-scenario-review
+	@$(MAKE) --no-print-directory test-sim2-realtime-bench
+	@$(MAKE) --no-print-directory test-sim2-adr-conformance
+	@$(MAKE) --no-print-directory test-sim2-ci-diagnostics
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile fast_smoke --validate-only
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile abuse_regression --validate-only
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile akamai_smoke --validate-only
@@ -502,10 +511,22 @@ test-frontier-governance: ## Fail when forbidden frontier fields or secret value
 test-frontier-unavailability-policy: ## Evaluate frontier degraded-threshold policy and emit actionability artifact
 	@echo "$(CYAN)🧪 Evaluating frontier unavailability policy thresholds...$(NC)"
 	@ARGS=""; \
-	if [ "$${FRONTIER_POLICY_ENABLE_GITHUB:-0}" = "1" ]; then \
-		ARGS="--enable-github"; \
-	fi; \
-	python3 scripts/tests/frontier_unavailability_policy.py --status scripts/tests/adversarial/frontier_lane_status.json --output scripts/tests/adversarial/frontier_unavailability_policy.json $$ARGS
+		if [ "$${FRONTIER_POLICY_ENABLE_GITHUB:-0}" = "1" ]; then \
+			ARGS="--enable-github"; \
+		fi; \
+		python3 scripts/tests/frontier_unavailability_policy.py --status scripts/tests/adversarial/frontier_lane_status.json --output scripts/tests/adversarial/frontier_unavailability_policy.json $$ARGS
+
+test-sim2-realtime-bench: ## Run deterministic SIM2 realtime benchmark gate and emit latency/overflow/request-budget artifacts
+	@echo "$(CYAN)🧪 Running SIM2 realtime benchmark gate...$(NC)"
+	@python3 scripts/tests/sim2_realtime_bench.py --output scripts/tests/adversarial/sim2_realtime_bench_report.json --summary scripts/tests/adversarial/sim2_realtime_bench_summary.md
+
+test-sim2-adr-conformance: ## Verify SIM2 ADR conformance markers for ADR 0007/0008/0009 domains
+	@echo "$(CYAN)🧪 Running SIM2 ADR conformance checks...$(NC)"
+	@python3 scripts/tests/check_sim2_adr_conformance.py --output scripts/tests/adversarial/sim2_adr_conformance_report.json
+
+test-sim2-ci-diagnostics: ## Render SIM2 CI diagnostics artifact (timeline snapshots, event counts, refresh traces)
+	@echo "$(CYAN)🧪 Rendering SIM2 CI diagnostics artifact...$(NC)"
+	@python3 scripts/tests/render_sim2_ci_diagnostics.py --report scripts/tests/adversarial/latest_report.json --output scripts/tests/adversarial/sim2_ci_diagnostics.json
 
 test-adversarial-soak: ## Run deep adversarial soak gate (full_coverage profile; intended for scheduled/manual CI)
 	@echo "$(CYAN)🧪 Running deep adversarial soak profile...$(NC)"

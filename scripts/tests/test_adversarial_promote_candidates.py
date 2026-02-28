@@ -131,6 +131,52 @@ class PromotionPipelineUnitTests(unittest.TestCase):
         self.assertTrue(multi_decision["owner_review_required"])
         self.assertIn("higher initial confidence", " ".join(multi_decision["review_notes"]))
 
+    def test_hybrid_governance_thresholds_pass_when_rates_are_within_bounds(self):
+        now_unix = 1_700_000_000
+        lineage = []
+        for index in range(20):
+            classification = "confirmed_reproducible" if index < 19 else "not_reproducible"
+            lineage.append(
+                {
+                    "classification": classification,
+                    "promotion": {
+                        "owner_review_required": True,
+                        "owner_disposition": "pending",
+                        "owner_disposition_due_at_unix": now_unix + 3600,
+                    },
+                }
+            )
+        governance = promote.evaluate_hybrid_governance(lineage, now_unix=now_unix)
+        self.assertTrue(governance["thresholds_passed"])
+        self.assertEqual(governance["failures"], [])
+        self.assertEqual(
+            governance["observed"]["deterministic_confirmation_rate_percent"],
+            95.0,
+        )
+        self.assertEqual(governance["observed"]["false_discovery_rate_percent"], 5.0)
+
+    def test_hybrid_governance_thresholds_fail_on_low_confirmation_high_false_discovery_and_sla(self):
+        now_unix = 1_700_000_000
+        lineage = []
+        for index in range(10):
+            classification = "confirmed_reproducible" if index < 7 else "not_reproducible"
+            lineage.append(
+                {
+                    "classification": classification,
+                    "promotion": {
+                        "owner_review_required": True,
+                        "owner_disposition": "pending",
+                        "owner_disposition_due_at_unix": now_unix - 3600,
+                    },
+                }
+            )
+        governance = promote.evaluate_hybrid_governance(lineage, now_unix=now_unix)
+        self.assertFalse(governance["thresholds_passed"])
+        joined = " ".join(governance["failures"])
+        self.assertIn("deterministic_confirmation_rate_below_min", joined)
+        self.assertIn("false_discovery_rate_above_max", joined)
+        self.assertIn("owner_disposition_sla_exceeded", joined)
+
 
 if __name__ == "__main__":
     unittest.main()

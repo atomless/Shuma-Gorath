@@ -21,6 +21,9 @@ DEFAULT_ATTACK_PLAN_PATH = Path("scripts/tests/adversarial/attack_plan.json")
 DEFAULT_MANIFEST_PATH = Path("scripts/tests/adversarial/scenario_manifest.v2.json")
 DEFAULT_OUTPUT_PATH = Path("scripts/tests/adversarial/promotion_candidates_report.json")
 RUNNER_PATH = "scripts/tests/adversarial_simulation_runner.py"
+HYBRID_CONFIRMATION_MIN_PERCENT = 95.0
+HYBRID_FALSE_DISCOVERY_MAX_PERCENT = 20.0
+HYBRID_OWNER_DISPOSITION_SLA_HOURS = 48
 
 
 def load_json(path: Path) -> Dict[str, Any]:
@@ -222,8 +225,85 @@ def build_promotion_decision(
         "classification": classification,
         "owner_review_required": owner_review_required,
         "blocking_regression": False,
+        "owner_disposition": "pending" if owner_review_required else "not_required",
+        "owner_disposition_due_at_unix": 0,
         "review_notes": review_notes,
         "promoted_scenario": promoted_scenario,
+    }
+
+
+def evaluate_hybrid_governance(lineage: List[Dict[str, Any]], *, now_unix: int) -> Dict[str, Any]:
+    replay_candidates = len(lineage)
+    confirmed_count = len(
+        [
+            row
+            for row in lineage
+            if str(dict_or_empty(row).get("classification") or "") == "confirmed_reproducible"
+        ]
+    )
+    not_reproducible_count = len(
+        [
+            row
+            for row in lineage
+            if str(dict_or_empty(row).get("classification") or "") == "not_reproducible"
+        ]
+    )
+    confirmation_rate = (
+        100.0
+        if replay_candidates == 0
+        else (confirmed_count * 100.0) / float(replay_candidates)
+    )
+    false_discovery_rate = (
+        0.0
+        if replay_candidates == 0
+        else (not_reproducible_count * 100.0) / float(replay_candidates)
+    )
+
+    overdue_owner_reviews = 0
+    for row in lineage:
+        promotion = dict_or_empty(dict_or_empty(row).get("promotion"))
+        if not bool(promotion.get("owner_review_required")):
+            continue
+        disposition = str(promotion.get("owner_disposition") or "pending").strip().lower()
+        if disposition in {"accepted", "rejected", "dismissed"}:
+            continue
+        due_at = int(promotion.get("owner_disposition_due_at_unix") or 0)
+        if due_at > 0 and now_unix > due_at:
+            overdue_owner_reviews += 1
+
+    failures: List[str] = []
+    if confirmation_rate < HYBRID_CONFIRMATION_MIN_PERCENT:
+        failures.append(
+            "deterministic_confirmation_rate_below_min"
+            f":required={HYBRID_CONFIRMATION_MIN_PERCENT} observed={confirmation_rate:.2f}"
+        )
+    if false_discovery_rate > HYBRID_FALSE_DISCOVERY_MAX_PERCENT:
+        failures.append(
+            "false_discovery_rate_above_max"
+            f":required<={HYBRID_FALSE_DISCOVERY_MAX_PERCENT} observed={false_discovery_rate:.2f}"
+        )
+    if overdue_owner_reviews > 0:
+        failures.append(
+            "owner_disposition_sla_exceeded"
+            f":required<={HYBRID_OWNER_DISPOSITION_SLA_HOURS}h observed_overdue={overdue_owner_reviews}"
+        )
+
+    return {
+        "thresholds": {
+            "deterministic_confirmation_min_percent": HYBRID_CONFIRMATION_MIN_PERCENT,
+            "false_discovery_max_percent": HYBRID_FALSE_DISCOVERY_MAX_PERCENT,
+            "owner_disposition_sla_hours": HYBRID_OWNER_DISPOSITION_SLA_HOURS,
+        },
+        "observed": {
+            "replay_candidates": replay_candidates,
+            "confirmed_reproducible_count": confirmed_count,
+            "not_reproducible_count": not_reproducible_count,
+            "deterministic_confirmation_rate_percent": round(confirmation_rate, 2),
+            "false_discovery_rate_percent": round(false_discovery_rate, 2),
+            "overdue_owner_review_count": overdue_owner_reviews,
+        },
+        "thresholds_passed": len(failures) == 0,
+        "failures": failures,
     }
 
 
@@ -386,6 +466,7 @@ def main() -> int:
     report = load_json(report_path)
     attack_plan = load_json(attack_plan_path)
 
+    now_unix = int(time.time())
     findings = normalize_findings(attack_plan=attack_plan, report=report)
     # Candidate set is intentionally narrowed to potential regressions; this keeps
     # protected-lane runtime bounded while still triaging blocking-risk findings.
@@ -414,6 +495,10 @@ def main() -> int:
             replay_result=replay_result,
             classification=classification,
         )
+        if bool(promotion.get("owner_review_required")):
+            promotion["owner_disposition_due_at_unix"] = (
+                now_unix + (HYBRID_OWNER_DISPOSITION_SLA_HOURS * 3600)
+            )
         if classification == "confirmed_reproducible":
             confirmed_regressions += 1
             promotion["blocking_regression"] = True
@@ -439,6 +524,8 @@ def main() -> int:
                 "promotion": promotion,
             }
         )
+
+    hybrid_governance = evaluate_hybrid_governance(lineage, now_unix=now_unix)
 
     classification_counts: Dict[str, int] = {
         "confirmed_reproducible": 0,
@@ -470,6 +557,7 @@ def main() -> int:
             "multi_provider_playoff_requires_owner_review": True,
             "blocking_requires_deterministic_confirmation": True,
         },
+        "hybrid_governance": hybrid_governance,
         "findings": findings,
         "lineage": lineage,
         "summary": {
@@ -477,7 +565,8 @@ def main() -> int:
             "replay_candidates": len(replay_candidates),
             "classification_counts": classification_counts,
             "confirmed_regression_count": confirmed_regressions,
-            "blocking_required": confirmed_regressions > 0,
+            "blocking_required": confirmed_regressions > 0
+            or not bool(hybrid_governance.get("thresholds_passed")),
         },
     }
     save_json(output_path, payload)
@@ -489,9 +578,9 @@ def main() -> int:
         )
     )
 
-    if args.fail_on_confirmed_regressions and confirmed_regressions > 0:
+    if args.fail_on_confirmed_regressions and bool(payload["summary"]["blocking_required"]):
         print(
-            "[adversarial-promotion] FAIL deterministic replay confirmed reproducible regression candidates."
+            "[adversarial-promotion] FAIL deterministic replay/hybrid governance requires blocking action."
         )
         return 1
 

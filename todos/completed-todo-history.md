@@ -23,6 +23,11 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-GC-11-13 Add container isolation regression tests for frontier lane (reject privileged mode, daemon-socket mount, disallowed host mount, and missing runtime hardening flags).
 - [x] SIM2-GC-11-14 Add signed-envelope negative tests (`invalid signature`, `nonce replay`, `expiry exceeded`, `scope mismatch`) proving worker execution is blocked.
 - [x] SIM2-GC-11-15 Add teardown determinism tests (`deadline exceeded`, `heartbeat loss`, forced-kill path) and assert terminal failure taxonomy plus cleanup completion.
+- [x] SIM2-GC-11-5 Add Makefile targets for focused SIM2 realtime verification and wire them into `make test` gating policy.
+- [x] SIM2-GC-11-6 Add CI diagnostics artifacts (timeline snapshots, event counts, refresh traces) for fast triage.
+- [x] SIM2-GC-11-18 Add reproducible realtime benchmark verification target (`make test-sim2-realtime-bench`) and CI artifact outputs for latency percentiles, overflow/drop counts, and request-budget metrics.
+- [x] SIM2-GC-11-22 Add ADR conformance verification checks ensuring implementation slices align with ADR `0007`, `0008`, and `0009` (or provide explicit supersession plan).
+- [x] SIM2-GC-11-23 Add hybrid-governance threshold tests ensuring emergent promotion requires `>=95%` deterministic confirmation, `<=20%` false-discovery rate, and owner disposition SLA `<=48h`.
 
 #### SIM2-GC-9: Scenario Design Realism and Defense Exercise Guarantees
 
