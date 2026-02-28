@@ -129,13 +129,7 @@ Acceptance criteria:
 
 Scope: replace HTTP emulation for browser-realistic cohorts with actual browser execution semantics.
 
-- [ ] SIM2-EX4-1 Define browser-driver architecture (`playwright`/equivalent) with deterministic seed control, bounded runtime, and resource budgets.
-- [ ] SIM2-EX4-2 Implement real browser execution path for `browser_realistic` class (navigation, DOM, JS execution, storage/cookie behavior, challenge interaction hooks).
-- [ ] SIM2-EX4-3 Keep non-browser drivers for scraper/load cohorts; enforce driver-class-specific capability boundaries and telemetry labels.
-- [ ] SIM2-EX4-4 Add browser-lane observability fields (`js_executed`, `dom_events`, `storage_mode`, `challenge_dom_path`) to report evidence.
-- [ ] SIM2-EX4-5 Add deterministic replay harness for browser scenarios including strict timeout, retry policy, and anti-flake constraints.
-- [ ] SIM2-EX4-6 Add CI-safe fallback semantics only for unsupported environments, with explicit lane status reporting and no silent pass-through.
-- [ ] SIM2-EX4-7 Expand E2E/adversarial tests to validate that browser-only defenses are exercised by real browser lanes.
+Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-EX4-*` closure details.
 
 Acceptance criteria:
 1. `browser_realistic` scenarios are executed by a real browser runtime, not raw HTTP request emulation.

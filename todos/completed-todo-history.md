@@ -38,6 +38,16 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-EX3-6 Add deterministic tests for mutation-contract compliance in smoke/coverage profiles. (Artifacts: `scripts/tests/adversarial_simulation_runner.py`, `scripts/tests/test_adversarial_simulation_runner.py`)
 - [x] SIM2-EX3-7 Update operator docs to distinguish deterministic reproducibility controls from attacker realism constraints. (Artifact: `scripts/tests/adversarial/README.md`)
 
+#### SIM2-EX4: Deliver True Browser-Executed “Browser Realistic” Drivers
+
+- [x] SIM2-EX4-1 Define browser-driver architecture (`playwright`/equivalent) with deterministic seed control, bounded runtime, and resource budgets. (Artifacts: `scripts/tests/adversarial_browser_driver.mjs`, `scripts/tests/adversarial_simulation_runner.py`, `scripts/tests/adversarial/README.md`)
+- [x] SIM2-EX4-2 Implement real browser execution path for `browser_realistic` class (navigation, DOM, JS execution, storage/cookie behavior, challenge interaction hooks). (Artifacts: `scripts/tests/adversarial_browser_driver.mjs`, `scripts/tests/adversarial_simulation_runner.py`)
+- [x] SIM2-EX4-3 Keep non-browser drivers for scraper/load cohorts; enforce driver-class-specific capability boundaries and telemetry labels. (Artifacts: `scripts/tests/adversarial_simulation_runner.py`, `scripts/tests/adversarial/scenario_manifest.v2.json`)
+- [x] SIM2-EX4-4 Add browser-lane observability fields (`js_executed`, `dom_events`, `storage_mode`, `challenge_dom_path`) to report evidence. (Artifacts: `scripts/tests/adversarial_browser_driver.mjs`, `scripts/tests/adversarial_simulation_runner.py`)
+- [x] SIM2-EX4-5 Add deterministic replay harness for browser scenarios including strict timeout, retry policy, and anti-flake constraints. (Artifacts: `scripts/tests/adversarial_browser_driver.mjs`, `scripts/tests/adversarial_simulation_runner.py`)
+- [x] SIM2-EX4-6 Add CI-safe fallback semantics only for unsupported environments, with explicit lane status reporting and no silent pass-through. (Artifacts: `scripts/tests/adversarial_simulation_runner.py`, `scripts/tests/test_adversarial_simulation_runner.py`)
+- [x] SIM2-EX4-7 Expand E2E/adversarial tests to validate that browser-only defenses are exercised by real browser lanes. (Artifacts: `scripts/tests/test_adversarial_simulation_runner.py`, `scripts/tests/test_sim2_verification_matrix.py`, `scripts/tests/adversarial/scenario_intent_matrix.v1.json`)
+
 ### P0 SIM2 Post-Implementation Shortfall Remediation (Execution Priority)
 
 #### SIM2-EX7: Harden Simulation-Telemetry Secret Ergonomics Without Weakening Security
