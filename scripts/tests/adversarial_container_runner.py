@@ -33,6 +33,7 @@ DEFAULT_ISOLATION_REPORT = "scripts/tests/adversarial/container_isolation_report
 DEFAULT_ATTACK_PLAN_PATH = "scripts/tests/adversarial/attack_plan.json"
 SIM_TAG_CONTRACT_PATH = "scripts/tests/adversarial/sim_tag_contract.v1.json"
 DEFAULT_FRONTIER_ACTION_CONTRACT_PATH = "scripts/tests/adversarial/frontier_action_contract.v1.json"
+DEFAULT_CONTAINER_RUNTIME_PROFILE_PATH = "scripts/tests/adversarial/container_runtime_profile.v1.json"
 FRONTIER_ACTIONS_ENV = "SHUMA_BLACKBOX_ACTIONS"
 FRONTIER_FORBIDDEN_FIELD_SUBSTRINGS = (
     "secret",
@@ -286,6 +287,82 @@ def load_attack_plan(path: Path) -> Dict[str, Any]:
     if not isinstance(candidates, list) or not candidates:
         raise RuntimeError("attack plan candidates must be a non-empty array")
     return payload
+
+
+def load_container_runtime_profile(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        raise RuntimeError(f"container runtime profile not found: {path}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise RuntimeError(f"container runtime profile JSON invalid: {path}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError("container runtime profile must be a JSON object")
+    if str(payload.get("schema_version") or "").strip() != "container-runtime-profile.v1":
+        raise RuntimeError("container runtime profile schema_version must be container-runtime-profile.v1")
+    for key in ("required_flags", "forbidden_flag_prefixes", "forbidden_mount_substrings"):
+        values = payload.get(key)
+        if not isinstance(values, list):
+            raise RuntimeError(f"container runtime profile {key} must be an array")
+    required_user_mode = str(payload.get("required_user_mode") or "").strip()
+    if required_user_mode != "non_root_image_user":
+        raise RuntimeError(
+            "container runtime profile required_user_mode must be non_root_image_user"
+        )
+    return payload
+
+
+def evaluate_container_command_against_profile(
+    command: List[str],
+    runtime_profile: Dict[str, Any],
+) -> List[str]:
+    violations: List[str] = []
+    tokens = [str(token) for token in command]
+    required_flags = [
+        str(item).strip()
+        for item in list(runtime_profile.get("required_flags") or [])
+        if str(item).strip()
+    ]
+    for required in required_flags:
+        if required not in tokens:
+            violations.append(f"missing_required_flag:{required}")
+
+    forbidden_prefixes = [
+        str(item).strip()
+        for item in list(runtime_profile.get("forbidden_flag_prefixes") or [])
+        if str(item).strip()
+    ]
+    for token in tokens:
+        for prefix in forbidden_prefixes:
+            if token.startswith(prefix):
+                violations.append(f"forbidden_flag:{token}")
+
+    forbidden_mount_substrings = [
+        str(item).strip()
+        for item in list(runtime_profile.get("forbidden_mount_substrings") or [])
+        if str(item).strip()
+    ]
+    for token in tokens:
+        lowered = token.lower()
+        for fragment in forbidden_mount_substrings:
+            if fragment.lower() in lowered:
+                violations.append(f"forbidden_mount_fragment:{token}")
+
+    for index, token in enumerate(tokens):
+        if token in {"-u", "--user"}:
+            next_value = tokens[index + 1] if index + 1 < len(tokens) else ""
+            if str(next_value).strip() in {"0", "root", "0:0", "root:root"}:
+                violations.append("forbidden_user_override:root")
+        if token.startswith("--user="):
+            value = token.split("=", 1)[1].strip()
+            if value in {"0", "root", "0:0", "root:root"}:
+                violations.append("forbidden_user_override:root")
+
+    deduped: List[str] = []
+    for item in violations:
+        if item not in deduped:
+            deduped.append(item)
+    return deduped
 
 
 def extract_frontier_actions_from_attack_plan(
@@ -602,7 +679,8 @@ def run_container_worker(
     time_budget_seconds: int,
     sim_tag_envelopes_json: str,
     frontier_actions_json: str,
-) -> Tuple[Dict[str, Any], subprocess.CompletedProcess[str], List[str]]:
+    runtime_profile: Dict[str, Any],
+) -> Tuple[Dict[str, Any], subprocess.CompletedProcess[str], List[str], List[str]]:
     command = container_command(
         image_tag=image_tag,
         mode=mode,
@@ -614,9 +692,12 @@ def run_container_worker(
         sim_tag_envelopes_json=sim_tag_envelopes_json,
         frontier_actions_json=frontier_actions_json,
     )
+    violations = evaluate_container_command_against_profile(command, runtime_profile)
+    if violations:
+        raise RuntimeError("runtime_profile_violation:" + ";".join(violations))
     result = run_cmd(command)
     parsed = parse_worker_json(result.stdout)
-    return parsed, result, command
+    return parsed, result, command, violations
 
 
 def report_path_for_mode(mode: str, custom_report: str) -> Path:
@@ -662,6 +743,11 @@ def main() -> int:
         help="Frontier action contract path",
     )
     parser.add_argument(
+        "--runtime-profile",
+        default=DEFAULT_CONTAINER_RUNTIME_PROFILE_PATH,
+        help="Container runtime hardening profile path",
+    )
+    parser.add_argument(
         "--frontier-actions",
         default=os.environ.get(FRONTIER_ACTIONS_ENV, ""),
         help="Optional frontier action JSON list (defaults to contract default_actions)",
@@ -696,6 +782,11 @@ def main() -> int:
             Path(args.frontier_action_contract)
         )
     except FrontierActionContractError as exc:
+        print(f"[adversarial-container] {exc}", file=sys.stderr)
+        return 2
+    try:
+        runtime_profile = load_container_runtime_profile(Path(args.runtime_profile))
+    except Exception as exc:
         print(f"[adversarial-container] {exc}", file=sys.stderr)
         return 2
 
@@ -804,7 +895,7 @@ def main() -> int:
     frontier_actions_json = json.dumps(frontier_actions, separators=(",", ":"))
 
     try:
-        worker_payload, worker_result, command = run_container_worker(
+        worker_payload, worker_result, command, runtime_profile_violations = run_container_worker(
             image_tag=args.image_tag,
             mode=args.mode,
             base_url=container_base_url,
@@ -814,6 +905,7 @@ def main() -> int:
             time_budget_seconds=time_budget_seconds,
             sim_tag_envelopes_json=sim_tag_envelopes_json,
             frontier_actions_json=frontier_actions_json,
+            runtime_profile=runtime_profile,
         )
     except Exception as exc:
         print(f"[adversarial-container] worker execution failed: {exc}", file=sys.stderr)
@@ -880,6 +972,7 @@ def main() -> int:
         "runtime_hardening_no_new_privileges": True,
         "runtime_hardening_cap_drop_all": True,
         "runtime_hardening_read_only_rootfs": True,
+        "runtime_profile_passed": not bool(runtime_profile_violations),
         "action_grammar_reject_by_default": bool(worker_payload.get("action_validation_passed"))
         if args.mode == "blackbox"
         else True,
@@ -914,6 +1007,13 @@ def main() -> int:
             "allowed_tools": list(frontier_action_contract.get("allowed_tools") or []),
             "max_actions_per_run": contract_max_actions,
             "max_time_budget_seconds": contract_max_runtime,
+        },
+        "runtime_profile": {
+            "path": str(args.runtime_profile),
+            "schema_version": str(runtime_profile.get("schema_version") or ""),
+            "required_user_mode": str(runtime_profile.get("required_user_mode") or ""),
+            "violations": runtime_profile_violations,
+            "passed": not bool(runtime_profile_violations),
         },
         "attack_plan_path": str(args.attack_plan),
         "frontier_actions": frontier_actions,

@@ -119,6 +119,13 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 container_runner.load_attack_plan(attack_plan_path)
 
+    def test_load_container_runtime_profile_accepts_repo_profile(self):
+        profile = container_runner.load_container_runtime_profile(
+            Path("scripts/tests/adversarial/container_runtime_profile.v1.json")
+        )
+        self.assertEqual(profile["schema_version"], "container-runtime-profile.v1")
+        self.assertIn("--read-only", profile["required_flags"])
+
     def test_validate_attack_plan_candidate_payload_detects_secret_literal(self):
         payload = {
             "schema_version": "frontier_payload_schema.v1",
@@ -131,6 +138,26 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
             forbidden_secret_values=["sk-secret-value"],
         )
         self.assertIn("literal_secret_value_detected", reasons)
+
+    def test_evaluate_container_command_against_profile_detects_privileged_flags(self):
+        profile = container_runner.load_container_runtime_profile(
+            Path("scripts/tests/adversarial/container_runtime_profile.v1.json")
+        )
+        command = [
+            "docker",
+            "run",
+            "--rm",
+            "--privileged",
+            "--network=host",
+            "--read-only",
+            "test:image",
+        ]
+        violations = container_runner.evaluate_container_command_against_profile(
+            command,
+            profile,
+        )
+        self.assertTrue(any("forbidden_flag:--privileged" == item for item in violations))
+        self.assertTrue(any("forbidden_flag:--network=host" == item for item in violations))
 
     def test_build_frontier_lineage_summary_links_model_execution_and_runtime_events(self):
         summary = container_runner.build_frontier_lineage_summary(

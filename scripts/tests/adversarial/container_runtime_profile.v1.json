@@ -1,0 +1,30 @@
+{
+  "schema_version": "container-runtime-profile.v1",
+  "required_flags": [
+    "--rm",
+    "--read-only",
+    "--cap-drop=ALL",
+    "--security-opt=no-new-privileges",
+    "--pids-limit=128",
+    "--memory=256m",
+    "--cpus=1.0",
+    "--tmpfs=/tmp:rw,nosuid,nodev,size=64m",
+    "--network=bridge"
+  ],
+  "forbidden_flag_prefixes": [
+    "--privileged",
+    "--pid=host",
+    "--ipc=host",
+    "--network=host",
+    "--uts=host",
+    "--userns=host"
+  ],
+  "forbidden_mount_substrings": [
+    "/var/run/docker.sock",
+    "/run/containerd/containerd.sock",
+    "/:/",
+    "/proc:/",
+    "/sys:/"
+  ],
+  "required_user_mode": "non_root_image_user"
+}

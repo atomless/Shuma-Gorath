@@ -30,6 +30,11 @@
   - Canonical `full_coverage` contract (minimum coverage categories + event/outcome obligations) used for drift checks against manifests and SIM2 plan rows.
 - `real_traffic_contract.v1.json`
   - Canonical real-traffic evidence contract (required invariants, prohibited synthetic-success patterns, per-scenario runtime evidence fields, and control-plane lineage fields).
+- `container_runtime_profile.v1.json`
+  - Canonical hardened container runtime profile for frontier workers:
+    - required hardening flags,
+    - forbidden privileged/host-namespace flags,
+    - forbidden host-control mount fragments.
 - `../adversarial_container/`
   - Container worker assets for black-box isolation lane:
     - `Dockerfile`
@@ -127,5 +132,6 @@ Notes:
   - policy violations emit structured deny/audit events in `container_blackbox_report.json -> policy_audit.events`.
   - lineage evidence is emitted in `container_blackbox_report.json -> frontier_lineage` linking model suggestion -> executed action -> runtime/admin event surfaces.
   - degraded execution state is explicit in `container_blackbox_report.json -> frontier_runtime_state` and marks fallback/outage conditions as non-passing.
+  - runtime launch is blocked when `container_runtime_profile.v1.json` hardening requirements are violated.
   - negative-path regression tests cover secret canary leakage, out-of-scope URL/path attempts, privileged header injection attempts, and replay envelope misuse.
 - `adversarial_sim_selftest.py` is intentionally tiny and non-circular: it validates simulator mechanics against fixed stub routes without asserting product defense efficacy.
