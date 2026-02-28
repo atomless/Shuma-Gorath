@@ -219,6 +219,14 @@ DRIVER_TO_CLASS = {
 }
 SUPPORTED_EXECUTION_LANES = {"black_box"}
 FULL_COVERAGE_PROFILE_NAME = "full_coverage"
+SUITE_PHASE_SETUP = "suite_setup"
+SUITE_PHASE_ATTACKER_EXECUTION = "attacker_execution"
+SUITE_PHASE_TEARDOWN = "suite_teardown"
+ALLOWED_SUITE_PHASES = {
+    SUITE_PHASE_SETUP,
+    SUITE_PHASE_ATTACKER_EXECUTION,
+    SUITE_PHASE_TEARDOWN,
+}
 ALLOWED_COVERAGE_REQUIREMENTS = {
     "honeypot_hits",
     "challenge_failures",
@@ -990,6 +998,17 @@ class Runner:
         self.ip_range_seed_prefix = "10.222.77."
         self.ip_range_seed_ips = [f"{self.ip_range_seed_prefix}{octet}" for octet in range(10, 60)]
         self._active_execution_state: Optional[Dict[str, Any]] = None
+        self.execution_phase = SUITE_PHASE_SETUP
+        self.execution_phase_trace: List[Dict[str, Any]] = [
+            {
+                "phase": SUITE_PHASE_SETUP,
+                "reason": "runner_start",
+                "at_unix": int(time.time()),
+            }
+        ]
+        self.control_plane_mutations: List[Dict[str, Any]] = []
+        self._scenario_attacker_phase_started = False
+        self._scenario_setup_context: Dict[str, Dict[str, Any]] = {}
         realism_gates = dict_or_empty((self.profile.get("gates") or {}).get("realism"))
         self.realism_policy_enabled = bool(realism_gates.get("enabled", True))
         browser_driver_enabled_raw = os.environ.get("SHUMA_ADVERSARIAL_BROWSER_DRIVER_ENABLED")
@@ -1120,7 +1139,68 @@ class Runner:
                 break
         return scheduled
 
+    def set_execution_phase(self, phase: str, reason: str) -> None:
+        normalized = str(phase or "").strip().lower()
+        if normalized not in ALLOWED_SUITE_PHASES:
+            raise SimulationError(f"unsupported execution phase: {phase}")
+        transition_reason = str(reason or "").strip() or "unspecified"
+        if self.execution_phase == normalized:
+            return
+        self.execution_phase = normalized
+        if normalized == SUITE_PHASE_ATTACKER_EXECUTION:
+            self._scenario_attacker_phase_started = True
+        self.execution_phase_trace.append(
+            {
+                "phase": normalized,
+                "reason": transition_reason,
+                "at_unix": int(time.time()),
+            }
+        )
+
+    def record_control_plane_mutation(
+        self, action: str, reason: str, details: Optional[Dict[str, Any]] = None
+    ) -> None:
+        entry = {
+            "action": str(action or "").strip(),
+            "phase": self.execution_phase,
+            "reason": str(reason or "").strip() or "unspecified",
+            "at_unix": int(time.time()),
+        }
+        if details:
+            entry["details"] = details
+        self.control_plane_mutations.append(entry)
+
+    def assert_control_plane_mutation_allowed(self, action: str, reason: str) -> None:
+        if self.execution_phase == SUITE_PHASE_ATTACKER_EXECUTION:
+            raise SimulationError(
+                "control-plane mutation forbidden during attacker_execution "
+                f"(action={action} reason={reason})"
+            )
+        if (
+            self.execution_phase == SUITE_PHASE_SETUP
+            and self._scenario_attacker_phase_started
+        ):
+            raise SimulationError(
+                "control-plane mutation forbidden after attacker_execution has started "
+                f"(action={action} reason={reason})"
+            )
+
+    def summarize_control_plane_mutations(self) -> Dict[str, Any]:
+        by_phase: Dict[str, int] = {}
+        for mutation in self.control_plane_mutations:
+            phase = str(dict_or_empty(mutation).get("phase") or "").strip().lower()
+            if not phase:
+                continue
+            by_phase[phase] = by_phase.get(phase, 0) + 1
+        return {
+            "count": len(self.control_plane_mutations),
+            "phases": sorted(by_phase.keys()),
+            "count_by_phase": by_phase,
+            "entries": list(self.control_plane_mutations),
+        }
+
     def run(self) -> int:
+        self.set_execution_phase(SUITE_PHASE_SETUP, "suite_setup_start")
         self.wait_ready(timeout_seconds=30)
         self.reset_baseline_config()
         self.honeypot_path = self.resolve_honeypot_path()
@@ -1279,6 +1359,7 @@ class Runner:
                     "attacker_required_sim_headers": sorted(ATTACKER_REQUIRED_SIM_HEADERS),
                     "enforced": True,
                 },
+                "control_plane_mutation_audit": self.summarize_control_plane_mutations(),
                 "coverage_contract": {
                     "schema_version": COVERAGE_CONTRACT_SCHEMA_VERSION,
                     "contract_path": str(COVERAGE_CONTRACT_PATH),
@@ -1356,6 +1437,7 @@ class Runner:
             print("[adversarial] profile FAIL")
             return 1
         finally:
+            self.set_execution_phase(SUITE_PHASE_TEARDOWN, "suite_teardown_start")
             if not self.preserve_state:
                 try:
                     self.reset_baseline_config()
@@ -1425,12 +1507,13 @@ class Runner:
                 "edge_integration_mode": "off",
                 "cdp_detection_enabled": True,
                 "cdp_auto_ban": True,
-            }
+            },
+            reason="reset_baseline_config",
         )
 
     def cleanup_ips(self, ips: List[str]) -> None:
         for ip in ips:
-            self.admin_unban(ip)
+            self.admin_unban(ip, reason="cleanup_ips")
 
     def monitoring_snapshot(self) -> Dict[str, Any]:
         result = self.admin_read_request("GET", "/admin/monitoring?hours=24&limit=5")
@@ -1484,6 +1567,7 @@ class Runner:
         return parse_json_or_raise(result.body, "Failed to parse /admin/ip-range/suggestions response")
 
     def build_control_plane_lineage(self, generated_at_unix: int) -> Dict[str, Any]:
+        mutation_audit = self.summarize_control_plane_mutations()
         return {
             "control_operation_id": f"deterministic-control-{self.session_nonce}",
             "requested_state": "running",
@@ -1491,6 +1575,13 @@ class Runner:
             "actual_state": "completed",
             "actor_session": "deterministic_runner",
             "generated_at_unix": int(generated_at_unix),
+            "phase_trace": [
+                str(dict_or_empty(entry).get("phase") or "").strip()
+                for entry in self.execution_phase_trace
+                if str(dict_or_empty(entry).get("phase") or "").strip()
+            ],
+            "phase_transitions": list(self.execution_phase_trace),
+            "mutation_audit": mutation_audit,
         }
 
     def seed_ip_range_suggestion_prerequisites(self) -> Dict[str, Any]:
@@ -1499,10 +1590,11 @@ class Runner:
                 "ip_range_policy_mode": "off",
                 "ip_range_emergency_allowlist": [],
                 "ip_range_custom_rules": [],
-            }
+            },
+            reason="seed_ip_range_suggestion_prerequisites",
         )
         for ip in self.ip_range_seed_ips:
-            self.admin_unban(ip)
+            self.admin_unban(ip, reason="seed_ip_range_suggestion_prerequisites")
             self.attacker_client.request(
                 "GET",
                 self.honeypot_path,
@@ -1542,6 +1634,37 @@ class Runner:
     ) -> Dict[str, Any]:
         checks: List[Dict[str, Any]] = []
         profile_gates = self.profile.get("gates") or {}
+        mutation_audit = self.summarize_control_plane_mutations()
+        mutation_entries = list_or_empty(mutation_audit.get("entries"))
+        forbidden_mutations = [
+            mutation
+            for mutation in mutation_entries
+            if str(dict_or_empty(mutation).get("phase") or "").strip().lower()
+            == SUITE_PHASE_ATTACKER_EXECUTION
+        ]
+        checks.append(
+            {
+                "name": "control_plane_mutation_policy",
+                "passed": not forbidden_mutations,
+                "detail": (
+                    "no control-plane mutations observed during attacker execution"
+                    if not forbidden_mutations
+                    else f"forbidden_mutations={len(forbidden_mutations)}"
+                ),
+                "observed": {
+                    "mutation_count": int_or_zero(mutation_audit.get("count")),
+                    "forbidden_count": len(forbidden_mutations),
+                    "forbidden_reasons": sorted(
+                        {
+                            str(dict_or_empty(entry).get("reason") or "").strip()
+                            for entry in forbidden_mutations
+                            if str(dict_or_empty(entry).get("reason") or "").strip()
+                        }
+                    ),
+                },
+                "threshold_source": "suite_phase_contract.attacker_execution_mutation_forbidden",
+            }
+        )
 
         latency_values = [result.latency_ms for result in results if result.passed and result.latency_ms > 0]
         p95 = percentile(latency_values, 95)
@@ -1862,6 +1985,187 @@ class Runner:
             "ip_range_suggestions": ip_range_suggestions,
         }
 
+    def scenario_setup_patch(self, scenario: Dict[str, Any]) -> Dict[str, Any]:
+        driver_name = str(scenario.get("driver") or "").strip()
+        geo_country = str(scenario.get("geo_country") or "").strip()
+
+        if driver_name == "allow_browser_allowlist":
+            return {
+                "test_mode": False,
+                "browser_policy_enabled": False,
+                "browser_allowlist": [["Chrome", 120]],
+            }
+        if driver_name == "not_a_bot_pass":
+            return {"test_mode": True, "not_a_bot_enabled": True, "challenge_puzzle_enabled": True}
+        if driver_name == "challenge_puzzle_fail_maze":
+            return {"test_mode": True, "maze_enabled": True, "challenge_puzzle_enabled": True}
+        if driver_name in {"pow_success", "pow_invalid_proof"}:
+            return {
+                "test_mode": False,
+                "pow_enabled": True,
+                "pow_difficulty": 12,
+                "pow_ttl_seconds": 120,
+            }
+        if driver_name in {"rate_limit_enforce", "retry_storm_enforce"}:
+            return {
+                "test_mode": False,
+                "rate_limit": 2,
+                "js_required_enforced": False,
+                "defence_modes": {"rate": "both"},
+                "provider_backends": {"rate_limiter": "internal"},
+                "edge_integration_mode": "off",
+                "browser_policy_enabled": False,
+            }
+        if driver_name == "geo_challenge":
+            return {
+                "test_mode": False,
+                "geo_edge_headers_enabled": True,
+                "geo_risk": [],
+                "geo_allow": [],
+                "geo_challenge": [geo_country] if geo_country else [],
+                "geo_maze": [],
+                "geo_block": [],
+            }
+        if driver_name == "geo_maze":
+            return {
+                "test_mode": False,
+                "maze_enabled": True,
+                "maze_auto_ban": False,
+                "geo_edge_headers_enabled": True,
+                "geo_risk": [],
+                "geo_allow": [],
+                "geo_challenge": [],
+                "geo_maze": [geo_country] if geo_country else [],
+                "geo_block": [],
+            }
+        if driver_name == "geo_block":
+            return {
+                "test_mode": False,
+                "geo_edge_headers_enabled": True,
+                "geo_risk": [],
+                "geo_allow": [],
+                "geo_challenge": [],
+                "geo_maze": [],
+                "geo_block": [geo_country] if geo_country else [],
+            }
+        if driver_name == "honeypot_deny_temp":
+            return {"test_mode": False, "honeypot_enabled": True}
+        if driver_name in {
+            "not_a_bot_replay_abuse",
+            "not_a_bot_stale_token_abuse",
+            "not_a_bot_ordering_cadence_abuse",
+        }:
+            return {
+                "test_mode": True,
+                "maze_enabled": True,
+                "not_a_bot_nonce_ttl_seconds": 300,
+            }
+        if driver_name == "not_a_bot_replay_tarpit_abuse":
+            return {
+                "test_mode": True,
+                "maze_enabled": True,
+                "tarpit_enabled": True,
+                "tarpit_progress_token_ttl_seconds": 120,
+                "tarpit_progress_replay_ttl_seconds": 300,
+                "tarpit_hashcash_min_difficulty": 8,
+                "tarpit_hashcash_max_difficulty": 16,
+                "tarpit_hashcash_base_difficulty": 10,
+                "tarpit_hashcash_adaptive": True,
+                "tarpit_step_chunk_base_bytes": 4096,
+                "tarpit_step_chunk_max_bytes": 12288,
+                "tarpit_step_jitter_percent": 15,
+                "tarpit_shard_rotation_enabled": True,
+                "tarpit_egress_window_seconds": 60,
+                "tarpit_egress_global_bytes_per_window": 8388608,
+                "tarpit_egress_per_ip_bucket_bytes_per_window": 1048576,
+                "tarpit_egress_per_flow_max_bytes": 524288,
+                "tarpit_egress_per_flow_max_duration_seconds": 120,
+                "tarpit_max_concurrent_global": 10000,
+                "tarpit_max_concurrent_per_ip_bucket": 256,
+                "tarpit_fallback_action": "maze",
+            }
+        if driver_name == "fingerprint_inconsistent_payload":
+            return {
+                "test_mode": False,
+                "provider_backends": {"fingerprint_signal": "external"},
+                "edge_integration_mode": "additive",
+                "cdp_detection_enabled": True,
+                "cdp_auto_ban": True,
+            }
+        if driver_name == "header_spoofing_probe":
+            return {
+                "test_mode": False,
+                "geo_edge_headers_enabled": True,
+                "geo_risk": [],
+                "geo_allow": [],
+                "geo_challenge": [],
+                "geo_maze": [],
+                "geo_block": [geo_country or "RU"],
+                "browser_policy_enabled": False,
+            }
+        if driver_name == "cdp_high_confidence_deny":
+            return {
+                "test_mode": False,
+                "provider_backends": {"fingerprint_signal": "internal"},
+                "edge_integration_mode": "off",
+                "cdp_detection_enabled": True,
+                "cdp_auto_ban": True,
+            }
+        if driver_name == "akamai_additive_report":
+            return {
+                "test_mode": False,
+                "provider_backends": {"fingerprint_signal": "external"},
+                "edge_integration_mode": "additive",
+                "cdp_detection_enabled": True,
+                "cdp_auto_ban": True,
+            }
+        if driver_name == "akamai_authoritative_deny":
+            return {
+                "test_mode": False,
+                "provider_backends": {"fingerprint_signal": "external"},
+                "edge_integration_mode": "authoritative",
+                "cdp_detection_enabled": True,
+                "cdp_auto_ban": True,
+            }
+        return {}
+
+    def apply_scenario_setup_preset(self, scenario: Dict[str, Any]) -> None:
+        patch = self.scenario_setup_patch(scenario)
+        if not patch:
+            return
+        scenario_id = str(scenario.get("id") or "").strip()
+        driver_name = str(scenario.get("driver") or "").strip()
+        self.admin_patch(
+            patch,
+            reason=f"scenario_setup_preset:{scenario_id}:{driver_name}",
+        )
+
+    def prepare_scenario_setup_state(self, scenario: Dict[str, Any]) -> None:
+        scenario_id = str(scenario.get("id") or "").strip()
+        driver_name = str(scenario.get("driver") or "").strip()
+        self._scenario_setup_context[scenario_id] = {}
+
+        if driver_name != "not_a_bot_replay_tarpit_abuse":
+            return
+
+        seed, _ = self.fetch_not_a_bot_seed(scenario)
+        first_submit = self.submit_not_a_bot(seed, scenario, GOOD_NOT_A_BOT_TELEMETRY)
+        if first_submit.status != 303:
+            raise SimulationError(
+                f"invariant_not_a_bot_prime_failed status={first_submit.status}"
+            )
+
+        self._scenario_setup_context[scenario_id]["tarpit_replay_seed"] = seed
+        self.admin_patch(
+            {
+                "test_mode": False,
+                "maze_enabled": True,
+                "tarpit_enabled": True,
+                "tarpit_fallback_action": "maze",
+            },
+            reason=f"scenario_setup_preset:{scenario_id}:tarpit_replay_finalize",
+        )
+
     def run_scenario(self, scenario: Dict[str, Any]) -> ScenarioResult:
         scenario_id = scenario["id"]
         start = time.monotonic()
@@ -1869,9 +2173,17 @@ class Runner:
         realism: Optional[Dict[str, Any]] = None
 
         try:
+            self._scenario_attacker_phase_started = False
+            self.set_execution_phase(SUITE_PHASE_SETUP, f"scenario_setup:{scenario_id}")
             if not self.preserve_state:
-                self.admin_unban("unknown")
+                self.admin_unban("unknown", reason=f"scenario_setup:{scenario_id}:reset_unknown_identity")
             self.reset_baseline_config()
+            self.apply_scenario_setup_preset(scenario)
+            self.prepare_scenario_setup_state(scenario)
+            self.set_execution_phase(
+                SUITE_PHASE_ATTACKER_EXECUTION,
+                f"scenario_attacker_execution:{scenario_id}",
+            )
 
             self.begin_scenario_execution(scenario)
             try:
@@ -2127,13 +2439,6 @@ class Runner:
         raise SimulationError(f"browser_realistic_driver_failed action={action} detail={last_error}")
 
     def driver_allow_browser_allowlist(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch(
-            {
-                "test_mode": False,
-                "browser_policy_enabled": False,
-                "browser_allowlist": [["Chrome", 120]],
-            }
-        )
         return self.execute_browser_realistic_driver(
             scenario,
             action="allow_browser_allowlist",
@@ -2145,7 +2450,6 @@ class Runner:
         )
 
     def driver_not_a_bot_pass(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch({"test_mode": True, "not_a_bot_enabled": True, "challenge_puzzle_enabled": True})
         return self.execute_browser_realistic_driver(
             scenario,
             action="not_a_bot_pass",
@@ -2157,7 +2461,6 @@ class Runner:
         )
 
     def driver_challenge_puzzle_fail_maze(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch({"test_mode": True, "maze_enabled": True, "challenge_puzzle_enabled": True})
         return self.execute_browser_realistic_driver(
             scenario,
             action="challenge_puzzle_fail_maze",
@@ -2169,7 +2472,6 @@ class Runner:
         )
 
     def driver_pow_success(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch({"test_mode": False, "pow_enabled": True, "pow_difficulty": 12, "pow_ttl_seconds": 120})
         seed, difficulty = self.fetch_pow_seed(scenario)
         nonce = solve_pow_nonce(seed, difficulty)
         if nonce < 0:
@@ -2185,7 +2487,6 @@ class Runner:
         )
 
     def driver_pow_invalid_proof(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch({"test_mode": False, "pow_enabled": True, "pow_difficulty": 12, "pow_ttl_seconds": 120})
         seed, difficulty = self.fetch_pow_seed(scenario)
         bad_nonce = find_invalid_pow_nonce(seed, difficulty)
         if bad_nonce < 0:
@@ -2200,17 +2501,6 @@ class Runner:
         )
 
     def driver_rate_limit_enforce(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch(
-            {
-                "test_mode": False,
-                "rate_limit": 2,
-                "js_required_enforced": False,
-                "defence_modes": {"rate": "both"},
-                "provider_backends": {"rate_limiter": "internal"},
-                "edge_integration_mode": "off",
-                "browser_policy_enabled": False,
-            }
-        )
         headers = self.forwarded_headers(
             self.scenario_ip(scenario), user_agent=self.scenario_user_agent(scenario)
         )
@@ -2221,17 +2511,6 @@ class Runner:
         raise SimulationError("Expected rate limiter enforcement, but requests were not blocked")
 
     def driver_retry_storm_enforce(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch(
-            {
-                "test_mode": False,
-                "rate_limit": 2,
-                "js_required_enforced": False,
-                "defence_modes": {"rate": "both"},
-                "provider_backends": {"rate_limiter": "internal"},
-                "edge_integration_mode": "off",
-                "browser_policy_enabled": False,
-            }
-        )
         headers = self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"])
         deny_seen = 0
         for _ in range(40):
@@ -2243,17 +2522,6 @@ class Runner:
         raise SimulationError("invariant_retry_storm_expected_rate_enforcement missing deny response")
 
     def driver_geo_challenge(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch(
-            {
-                "test_mode": False,
-                "geo_edge_headers_enabled": True,
-                "geo_risk": [],
-                "geo_allow": [],
-                "geo_challenge": [scenario["geo_country"]],
-                "geo_maze": [],
-                "geo_block": [],
-            }
-        )
         headers = self.forwarded_headers(
             self.scenario_ip(scenario), user_agent=self.scenario_user_agent(scenario)
         )
@@ -2266,19 +2534,6 @@ class Runner:
         )
 
     def driver_geo_maze(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch(
-            {
-                "test_mode": False,
-                "maze_enabled": True,
-                "maze_auto_ban": False,
-                "geo_edge_headers_enabled": True,
-                "geo_risk": [],
-                "geo_allow": [],
-                "geo_challenge": [],
-                "geo_maze": [scenario["geo_country"]],
-                "geo_block": [],
-            }
-        )
         headers = self.forwarded_headers(
             self.scenario_ip(scenario), user_agent=self.scenario_user_agent(scenario)
         )
@@ -2291,17 +2546,6 @@ class Runner:
         )
 
     def driver_geo_block(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch(
-            {
-                "test_mode": False,
-                "geo_edge_headers_enabled": True,
-                "geo_risk": [],
-                "geo_allow": [],
-                "geo_challenge": [],
-                "geo_maze": [],
-                "geo_block": [scenario["geo_country"]],
-            }
-        )
         headers = self.forwarded_headers(
             self.scenario_ip(scenario), user_agent=self.scenario_user_agent(scenario)
         )
@@ -2314,7 +2558,6 @@ class Runner:
         )
 
     def driver_honeypot_deny_temp(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch({"test_mode": False, "honeypot_enabled": True})
         return self.execute_browser_realistic_driver(
             scenario,
             action="honeypot_deny_temp",
@@ -2326,7 +2569,6 @@ class Runner:
         )
 
     def driver_not_a_bot_replay_abuse(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch({"test_mode": True, "maze_enabled": True, "not_a_bot_nonce_ttl_seconds": 300})
         seed, _ = self.fetch_not_a_bot_seed(scenario)
         first_submit = self.submit_not_a_bot(seed, scenario, GOOD_NOT_A_BOT_TELEMETRY)
         if first_submit.status != 303:
@@ -2345,7 +2587,6 @@ class Runner:
     def driver_not_a_bot_stale_token_abuse(self, scenario: Dict[str, Any]) -> str:
         # Keep stale-token simulation black-box: mutate a real issued seed token
         # instead of re-signing with server secrets.
-        self.admin_patch({"test_mode": True, "maze_enabled": True, "not_a_bot_nonce_ttl_seconds": 300})
         seed, _ = self.fetch_not_a_bot_seed(scenario)
         stale_like_seed = mutate_token(seed)
         expired_submit = self.submit_not_a_bot(stale_like_seed, scenario, GOOD_NOT_A_BOT_TELEMETRY)
@@ -2356,7 +2597,6 @@ class Runner:
         )
 
     def driver_not_a_bot_ordering_cadence_abuse(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch({"test_mode": True, "maze_enabled": True})
         seed, _ = self.fetch_not_a_bot_seed(scenario)
         abuse_submit = self.submit_not_a_bot(seed, scenario, BAD_ORDERING_NOT_A_BOT_TELEMETRY)
         if abuse_submit.status == 200 and 'data-link-kind="maze"' in abuse_submit.body:
@@ -2366,38 +2606,13 @@ class Runner:
         )
 
     def driver_not_a_bot_replay_tarpit_abuse(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch(
-            {
-                "test_mode": True,
-                "maze_enabled": True,
-                "tarpit_enabled": True,
-                "tarpit_progress_token_ttl_seconds": 120,
-                "tarpit_progress_replay_ttl_seconds": 300,
-                "tarpit_hashcash_min_difficulty": 8,
-                "tarpit_hashcash_max_difficulty": 16,
-                "tarpit_hashcash_base_difficulty": 10,
-                "tarpit_hashcash_adaptive": True,
-                "tarpit_step_chunk_base_bytes": 4096,
-                "tarpit_step_chunk_max_bytes": 12288,
-                "tarpit_step_jitter_percent": 15,
-                "tarpit_shard_rotation_enabled": True,
-                "tarpit_egress_window_seconds": 60,
-                "tarpit_egress_global_bytes_per_window": 8388608,
-                "tarpit_egress_per_ip_bucket_bytes_per_window": 1048576,
-                "tarpit_egress_per_flow_max_bytes": 524288,
-                "tarpit_egress_per_flow_max_duration_seconds": 120,
-                "tarpit_max_concurrent_global": 10000,
-                "tarpit_max_concurrent_per_ip_bucket": 256,
-                "tarpit_fallback_action": "maze",
-            }
-        )
-        seed, _ = self.fetch_not_a_bot_seed(scenario)
-        first_submit = self.submit_not_a_bot(seed, scenario, GOOD_NOT_A_BOT_TELEMETRY)
-        if first_submit.status != 303:
+        scenario_id = str(scenario.get("id") or "").strip()
+        setup_context = dict_or_empty(self._scenario_setup_context.get(scenario_id))
+        seed = str(setup_context.get("tarpit_replay_seed") or "").strip()
+        if not seed:
             raise SimulationError(
-                f"invariant_not_a_bot_prime_failed status={first_submit.status}"
+                f"invariant_tarpit_replay_setup_missing_seed scenario_id={scenario_id}"
             )
-        self.admin_patch({"test_mode": False, "maze_enabled": True, "tarpit_enabled": True, "tarpit_fallback_action": "maze"})
         replay_submit = self.submit_not_a_bot(seed, scenario, GOOD_NOT_A_BOT_TELEMETRY)
         if replay_submit.status == 200 and "window.__shumaTarpit=" in replay_submit.body:
             return "tarpit"
@@ -2407,15 +2622,6 @@ class Runner:
         )
 
     def driver_fingerprint_inconsistent_payload(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch(
-            {
-                "test_mode": False,
-                "provider_backends": {"fingerprint_signal": "external"},
-                "edge_integration_mode": "additive",
-                "cdp_detection_enabled": True,
-                "cdp_auto_ban": True,
-            }
-        )
         payload = read_fixture_json(Path(scenario["payload_fixture"]))
         result = self.attacker_client.request(
             "POST",
@@ -2432,18 +2638,6 @@ class Runner:
         )
 
     def driver_header_spoofing_probe(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch(
-            {
-                "test_mode": False,
-                "geo_edge_headers_enabled": True,
-                "geo_risk": [],
-                "geo_allow": [],
-                "geo_challenge": [],
-                "geo_maze": [],
-                "geo_block": [str(scenario.get("geo_country") or "RU")],
-                "browser_policy_enabled": False,
-            }
-        )
         # Intentionally use forged simulation metadata so runtime keeps this
         # traffic untrusted while still exercising required attacker-lane
         # header presence constraints.
@@ -2466,15 +2660,6 @@ class Runner:
         )
 
     def driver_cdp_high_confidence_deny(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch(
-            {
-                "test_mode": False,
-                "provider_backends": {"fingerprint_signal": "internal"},
-                "edge_integration_mode": "off",
-                "cdp_detection_enabled": True,
-                "cdp_auto_ban": True,
-            }
-        )
         report = self.attacker_client.request(
             "POST",
             "/cdp-report",
@@ -2501,15 +2686,6 @@ class Runner:
         )
 
     def driver_akamai_additive_report(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch(
-            {
-                "test_mode": False,
-                "provider_backends": {"fingerprint_signal": "external"},
-                "edge_integration_mode": "additive",
-                "cdp_detection_enabled": True,
-                "cdp_auto_ban": True,
-            }
-        )
         payload = read_fixture_json(Path(scenario["payload_fixture"]))
         report = self.attacker_client.request(
             "POST",
@@ -2534,15 +2710,6 @@ class Runner:
         return "monitor"
 
     def driver_akamai_authoritative_deny(self, scenario: Dict[str, Any]) -> str:
-        self.admin_patch(
-            {
-                "test_mode": False,
-                "provider_backends": {"fingerprint_signal": "external"},
-                "edge_integration_mode": "authoritative",
-                "cdp_detection_enabled": True,
-                "cdp_auto_ban": True,
-            }
-        )
         payload = read_fixture_json(Path(scenario["payload_fixture"]))
         report = self.attacker_client.request(
             "POST",
@@ -2677,7 +2844,16 @@ class Runner:
         data = parse_json_or_raise(result.body, "Failed to parse /admin/config response")
         return data.get("config") if isinstance(data.get("config"), dict) else data
 
-    def admin_patch(self, payload: Dict[str, Any]) -> None:
+    def admin_patch(self, payload: Dict[str, Any], reason: str = "admin_config_patch") -> None:
+        self.assert_control_plane_mutation_allowed("admin_config_patch", reason)
+        self.record_control_plane_mutation(
+            action="admin_config_patch",
+            reason=reason,
+            details={
+                "key_count": len(dict_or_empty(payload).keys()),
+                "keys": sorted(str(key) for key in dict_or_empty(payload).keys()),
+            },
+        )
         result = self.admin_request("POST", "/admin/config", json_body=payload)
         if result.status != 200:
             detail = collapse_whitespace(result.body)[:160]
@@ -2689,7 +2865,13 @@ class Runner:
                 f"Failed to apply /admin/config patch: expected status=updated body={detail}"
             )
 
-    def admin_unban(self, ip: str) -> None:
+    def admin_unban(self, ip: str, reason: str = "admin_unban") -> None:
+        self.assert_control_plane_mutation_allowed("admin_unban", reason)
+        self.record_control_plane_mutation(
+            action="admin_unban",
+            reason=reason,
+            details={"ip": str(ip or "")},
+        )
         query = urllib.parse.urlencode({"ip": ip})
         self.admin_request("POST", f"/admin/unban?{query}")
 

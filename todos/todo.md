@@ -116,12 +116,6 @@ Acceptance criteria:
 
 Scope: keep deterministic reproducibility while reducing artificial scenario-by-scenario config patching that weakens “real attacker” fidelity.
 
-- [ ] SIM2-EX3-1 Define runner execution contract separating `suite_setup`, `attacker_execution`, and `suite_teardown`; forbid control-plane config writes during `attacker_execution`.
-- [ ] SIM2-EX3-2 Replace per-scenario `admin_patch` choreography with baseline profile presets loaded before attacker execution starts.
-- [ ] SIM2-EX3-3 Add explicit runner guardrail that fails the run if control-plane mutation occurs after attacker phase begins (except approved teardown/reset hooks).
-- [ ] SIM2-EX3-4 Rework scenarios so expected defenses are triggered by attacker behavior and traffic progression, not repeated runtime reconfiguration.
-- [ ] SIM2-EX3-5 Extend report schema with control-plane mutation audit trail (`count`, `phase`, `reason`) and fail criteria when mutation policy is violated.
-- [ ] SIM2-EX3-6 Add deterministic tests for mutation-contract compliance in smoke/coverage profiles.
 - [ ] SIM2-EX3-7 Update operator docs to distinguish deterministic reproducibility controls from attacker realism constraints.
 
 Acceptance criteria:

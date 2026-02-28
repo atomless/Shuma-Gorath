@@ -124,6 +124,142 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
                 admin_headers_2.get("X-Forwarded-For"),
             )
 
+    def test_execution_phase_transitions_record_suite_contract(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        self.assertEqual(sim_runner.execution_phase, runner.SUITE_PHASE_SETUP)
+        sim_runner.set_execution_phase(
+            runner.SUITE_PHASE_ATTACKER_EXECUTION, "unit_test_attacker_start"
+        )
+        sim_runner.set_execution_phase(runner.SUITE_PHASE_TEARDOWN, "unit_test_teardown")
+
+        observed_phases = [entry.get("phase") for entry in sim_runner.execution_phase_trace]
+        self.assertEqual(
+            observed_phases,
+            [
+                runner.SUITE_PHASE_SETUP,
+                runner.SUITE_PHASE_ATTACKER_EXECUTION,
+                runner.SUITE_PHASE_TEARDOWN,
+            ],
+        )
+
+    def test_admin_patch_records_control_plane_mutation_audit(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        sim_runner.admin_request = (  # type: ignore[assignment]
+            lambda method, path, json_body=None: runner.HttpResult(
+                status=200,
+                body=json.dumps({"status": "updated"}),
+                headers={},
+                latency_ms=1,
+            )
+        )
+        sim_runner.set_execution_phase(runner.SUITE_PHASE_SETUP, "unit_test_setup_phase")
+        sim_runner.admin_patch({"test_mode": True}, reason="unit_test_patch")
+
+        self.assertEqual(len(sim_runner.control_plane_mutations), 1)
+        mutation = sim_runner.control_plane_mutations[0]
+        self.assertEqual(mutation.get("action"), "admin_config_patch")
+        self.assertEqual(mutation.get("phase"), runner.SUITE_PHASE_SETUP)
+        self.assertEqual(mutation.get("reason"), "unit_test_patch")
+        self.assertEqual(
+            runner.dict_or_empty(mutation.get("details")).get("keys"),
+            ["test_mode"],
+        )
+
+    def test_admin_patch_rejects_control_plane_mutation_during_attacker_phase(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        sim_runner.set_execution_phase(
+            runner.SUITE_PHASE_ATTACKER_EXECUTION, "unit_test_attack_phase"
+        )
+        with self.assertRaises(runner.SimulationError):
+            sim_runner.admin_patch({"test_mode": True}, reason="unit_test_forbidden_patch")
+
+    def test_admin_patch_rejects_setup_mutation_after_attacker_phase_started(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        sim_runner.set_execution_phase(
+            runner.SUITE_PHASE_ATTACKER_EXECUTION, "unit_test_attack_phase"
+        )
+        sim_runner.set_execution_phase(
+            runner.SUITE_PHASE_SETUP, "unit_test_illegal_setup_after_attack"
+        )
+        with self.assertRaises(runner.SimulationError):
+            sim_runner.admin_patch({"test_mode": False}, reason="unit_test_late_setup_patch")
+
     def test_build_frontier_metadata_reports_disabled_single_and_multi_modes(self):
         with patch("scripts.tests.adversarial_simulation_runner.read_env_local_value", return_value=""):
             with patch.dict("os.environ", {}, clear=True):
@@ -1199,6 +1335,48 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             result = sim_runner.admin_read_request("GET", "/admin/events", max_attempts=2)
         self.assertEqual(result.status, 429)
 
+    def test_run_scenario_applies_setup_phase_before_attacker_execution(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        sim_runner.preserve_state = True
+        observed_reset_phase = {}
+
+        def fake_reset():
+            observed_reset_phase["phase"] = sim_runner.execution_phase
+
+        sim_runner.reset_baseline_config = fake_reset  # type: ignore[assignment]
+        sim_runner.apply_scenario_setup_preset = lambda scenario: None  # type: ignore[assignment]
+        sim_runner.execute_scenario_driver = lambda scenario: scenario["expected_outcome"]  # type: ignore[assignment]
+
+        result = sim_runner.run_scenario(manifest["scenarios"][0])
+        self.assertTrue(result.passed)
+        self.assertEqual(
+            observed_reset_phase.get("phase"),
+            runner.SUITE_PHASE_SETUP,
+        )
+        self.assertEqual(sim_runner.execution_phase, runner.SUITE_PHASE_ATTACKER_EXECUTION)
+        observed_phases = [entry.get("phase") for entry in sim_runner.execution_phase_trace]
+        self.assertIn(runner.SUITE_PHASE_SETUP, observed_phases)
+        self.assertIn(runner.SUITE_PHASE_ATTACKER_EXECUTION, observed_phases)
+
     def test_run_scenario_attaches_realism_evidence(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")
         with patch.dict(
@@ -1222,6 +1400,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
 
         sim_runner.preserve_state = True
         sim_runner.reset_baseline_config = lambda: None  # type: ignore[assignment]
+        sim_runner.apply_scenario_setup_preset = lambda scenario: None  # type: ignore[assignment]
         sim_runner.execute_scenario_driver = lambda scenario: scenario["expected_outcome"]  # type: ignore[assignment]
         result = sim_runner.run_scenario(manifest["scenarios"][0])
         self.assertTrue(result.passed)
