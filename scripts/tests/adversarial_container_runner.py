@@ -809,6 +809,7 @@ def run_container_worker(
     stderr_lines: List[str] = []
     termination_reason = ""
     stop_latency_ms = 0
+    forced_kill = False
 
     while True:
         events = selector.select(timeout=0.2)
@@ -844,6 +845,7 @@ def run_container_worker(
         try:
             process.wait(timeout=KILL_SWITCH_STOP_TIMEOUT_SECONDS)
         except subprocess.TimeoutExpired:
+            forced_kill = True
             process.kill()
             process.wait(timeout=5)
         stop_latency_ms = int(max(0.0, (time.monotonic() - stop_started) * 1000.0))
@@ -865,6 +867,7 @@ def run_container_worker(
         "hard_deadline_seconds": hard_deadline_seconds,
         "termination_reason": termination_reason,
         "stop_latency_ms": stop_latency_ms,
+        "forced_kill": forced_kill,
     }
     result = subprocess.CompletedProcess(
         args=command,
@@ -874,10 +877,64 @@ def run_container_worker(
     )
     if termination_reason:
         raise RuntimeError(
-            f"{termination_reason}:stop_latency_ms={stop_latency_ms}:hard_deadline_seconds={hard_deadline_seconds}"
+            f"{termination_reason}:stop_latency_ms={stop_latency_ms}:hard_deadline_seconds={hard_deadline_seconds}:forced_kill={str(forced_kill).lower()}"
         )
     parsed = parse_worker_json(result.stdout)
     return parsed, result, command, violations, control
+
+
+def parse_worker_failure_taxonomy(detail: str) -> Dict[str, Any]:
+    text = str(detail or "").strip()
+    if not text:
+        return {
+            "reason": "none",
+            "terminal_failure": "none",
+            "forced_kill": False,
+            "stop_latency_ms": 0,
+            "hard_deadline_seconds": 0,
+            "raw": "",
+        }
+
+    parts = [part.strip() for part in text.split(":") if part.strip()]
+    reason = parts[0] if parts else "worker_execution_failure"
+    stop_latency_ms = 0
+    hard_deadline_seconds = 0
+    forced_kill = False
+    for part in parts[1:]:
+        if "=" not in part:
+            continue
+        key, value = part.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if key == "stop_latency_ms":
+            try:
+                stop_latency_ms = max(0, int(value))
+            except Exception:
+                stop_latency_ms = 0
+        elif key == "hard_deadline_seconds":
+            try:
+                hard_deadline_seconds = max(0, int(value))
+            except Exception:
+                hard_deadline_seconds = 0
+        elif key == "forced_kill":
+            forced_kill = value.lower() in {"1", "true", "yes", "on"}
+
+    taxonomy_map = {
+        "hard_deadline_exceeded": "deadline_exceeded",
+        "heartbeat_timeout": "heartbeat_loss",
+        "kill_switch_triggered": "forced_kill_path",
+    }
+    terminal_failure = taxonomy_map.get(reason, "worker_execution_failure")
+    if forced_kill:
+        terminal_failure = "forced_kill_path"
+    return {
+        "reason": reason,
+        "terminal_failure": terminal_failure,
+        "forced_kill": forced_kill,
+        "stop_latency_ms": stop_latency_ms,
+        "hard_deadline_seconds": hard_deadline_seconds,
+        "raw": text,
+    }
 
 
 def report_path_for_mode(mode: str, custom_report: str) -> Path:
@@ -1187,8 +1244,15 @@ def main() -> int:
             "hard_deadline_seconds": max(10, time_budget_seconds + hard_deadline_buffer_seconds),
             "termination_reason": worker_failure_detail,
             "stop_latency_ms": 0,
+            "forced_kill": False,
         }
         print(f"[adversarial-container] worker execution failed: {worker_failure_detail}", file=sys.stderr)
+
+    terminal_failure = parse_worker_failure_taxonomy(
+        worker_failure_detail
+        if worker_failure_detail
+        else str(execution_control.get("termination_reason") or "")
+    )
 
     if args.mode == "blackbox":
         try:
@@ -1339,6 +1403,7 @@ def main() -> int:
             "docker_command": command,
         },
         "execution_control": execution_control,
+        "terminal_failure": terminal_failure,
         "worker_failure_detail": worker_failure_detail,
         "generated_at_unix": int(time.time()),
     }

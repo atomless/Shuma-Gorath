@@ -68,6 +68,43 @@ class FrontierCapabilityEnvelopeUnitTests(unittest.TestCase):
         )
         self.assertTrue(any("nonce_replay" in error for error in errors))
 
+    def test_validate_action_capability_envelopes_rejects_expired_envelope(self):
+        actions = [{"action_type": "http_get", "path": "/sim/public/docs"}]
+        verify_key, envelopes = capability.build_action_capability_envelopes(
+            root_secret="sim-secret",
+            run_id="run-123",
+            actions=actions,
+            ttl_seconds=30,
+            now_unix=1_700_000_000,
+        )
+        errors = capability.validate_action_capability_envelopes(
+            envelopes,
+            verify_key=verify_key,
+            run_id="run-123",
+            actions=actions,
+            now_unix=1_700_000_100,
+        )
+        self.assertTrue(any("envelope_expired" in error for error in errors))
+
+    def test_validate_action_capability_envelopes_rejects_scope_mismatch(self):
+        actions = [{"action_type": "http_get", "path": "/sim/public/docs"}]
+        verify_key, envelopes = capability.build_action_capability_envelopes(
+            root_secret="sim-secret",
+            run_id="run-123",
+            actions=actions,
+            ttl_seconds=120,
+            now_unix=1_700_000_000,
+        )
+        errors = capability.validate_action_capability_envelopes(
+            envelopes,
+            verify_key=verify_key,
+            run_id="run-123",
+            actions=[{"action_type": "http_post", "path": "/admin/config"}],
+            now_unix=1_700_000_010,
+        )
+        self.assertTrue(any("action_type_scope_mismatch" in error for error in errors))
+        self.assertTrue(any("path_scope_mismatch" in error for error in errors))
+
 
 if __name__ == "__main__":
     unittest.main()

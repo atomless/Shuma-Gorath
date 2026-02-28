@@ -165,6 +165,51 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         self.assertTrue(any("forbidden_flag:--privileged" == item for item in violations))
         self.assertTrue(any("forbidden_flag:--network=host" == item for item in violations))
 
+    def test_evaluate_container_command_against_profile_detects_missing_hardening_flags(self):
+        profile = container_runner.load_container_runtime_profile(
+            Path("scripts/tests/adversarial/container_runtime_profile.v1.json")
+        )
+        command = ["docker", "run", "--rm", "test:image"]
+        violations = container_runner.evaluate_container_command_against_profile(
+            command,
+            profile,
+        )
+        self.assertTrue(any(item == "missing_required_flag:--read-only" for item in violations))
+        self.assertTrue(any(item == "missing_required_flag:--cap-drop=ALL" for item in violations))
+        self.assertTrue(
+            any(item == "missing_required_flag:--security-opt=no-new-privileges" for item in violations)
+        )
+
+    def test_evaluate_container_command_against_profile_detects_forbidden_host_mounts(self):
+        profile = container_runner.load_container_runtime_profile(
+            Path("scripts/tests/adversarial/container_runtime_profile.v1.json")
+        )
+        command = [
+            "docker",
+            "run",
+            "--rm",
+            "--read-only",
+            "--cap-drop=ALL",
+            "--security-opt=no-new-privileges",
+            "--network=bridge",
+            "-v",
+            "/var/run/docker.sock:/var/run/docker.sock",
+            "-v",
+            "/:/host-root:ro",
+            "test:image",
+        ]
+        violations = container_runner.evaluate_container_command_against_profile(
+            command,
+            profile,
+        )
+        self.assertTrue(
+            any(
+                item == "forbidden_mount_fragment:/var/run/docker.sock:/var/run/docker.sock"
+                for item in violations
+            )
+        )
+        self.assertTrue(any(item == "forbidden_mount_fragment:/:/host-root:ro" for item in violations))
+
     def test_prepare_command_channel_reports_backpressure_overflow(self):
         channel = container_runner.prepare_command_channel(
             actions=[
@@ -262,6 +307,32 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
             self.assertEqual(result["deleted_count"], 1)
             self.assertFalse(stale_eligible.exists())
             self.assertTrue(fresh_eligible.exists())
+            self.assertEqual(result["failed_count"], 0)
+
+    def test_parse_worker_failure_taxonomy_maps_deadline_and_heartbeat_failures(self):
+        deadline = container_runner.parse_worker_failure_taxonomy(
+            "hard_deadline_exceeded:stop_latency_ms=120:hard_deadline_seconds=45:forced_kill=false"
+        )
+        self.assertEqual(deadline["terminal_failure"], "deadline_exceeded")
+        self.assertEqual(deadline["reason"], "hard_deadline_exceeded")
+        self.assertEqual(deadline["stop_latency_ms"], 120)
+        self.assertEqual(deadline["hard_deadline_seconds"], 45)
+        self.assertFalse(deadline["forced_kill"])
+
+        heartbeat = container_runner.parse_worker_failure_taxonomy(
+            "heartbeat_timeout:stop_latency_ms=22:hard_deadline_seconds=120:forced_kill=false"
+        )
+        self.assertEqual(heartbeat["terminal_failure"], "heartbeat_loss")
+        self.assertEqual(heartbeat["reason"], "heartbeat_timeout")
+        self.assertFalse(heartbeat["forced_kill"])
+
+    def test_parse_worker_failure_taxonomy_marks_forced_kill_path(self):
+        forced = container_runner.parse_worker_failure_taxonomy(
+            "kill_switch_triggered:stop_latency_ms=9999:hard_deadline_seconds=90:forced_kill=true"
+        )
+        self.assertEqual(forced["terminal_failure"], "forced_kill_path")
+        self.assertEqual(forced["reason"], "kill_switch_triggered")
+        self.assertTrue(forced["forced_kill"])
 
 
 if __name__ == "__main__":

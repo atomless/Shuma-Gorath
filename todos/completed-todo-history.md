@@ -20,6 +20,9 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-GC-11-10 Add trust-boundary negative-path tests for adversary control endpoint (`csrf missing/invalid`, `origin mismatch`, `fetch-metadata cross-site`, `stale session`) and assert fail-closed behavior.
 - [x] SIM2-GC-11-11 Add idempotency misuse tests proving key reuse with payload mismatch is rejected and exact retries map to stable `operation_id`.
 - [x] SIM2-GC-11-12 Add throttling + audit tests proving rapid toggle storms are bounded and every accept/reject/throttle decision emits structured audit evidence.
+- [x] SIM2-GC-11-13 Add container isolation regression tests for frontier lane (reject privileged mode, daemon-socket mount, disallowed host mount, and missing runtime hardening flags).
+- [x] SIM2-GC-11-14 Add signed-envelope negative tests (`invalid signature`, `nonce replay`, `expiry exceeded`, `scope mismatch`) proving worker execution is blocked.
+- [x] SIM2-GC-11-15 Add teardown determinism tests (`deadline exceeded`, `heartbeat loss`, forced-kill path) and assert terminal failure taxonomy plus cleanup completion.
 
 #### SIM2-GC-9: Scenario Design Realism and Defense Exercise Guarantees
 
