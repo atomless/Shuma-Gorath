@@ -264,7 +264,7 @@ Execution order (must be followed):
 5. `SIM2-GCR-9` Rust prototype/benchmark comparison for realtime candidates (completed 2026-02-28).
 6. `SIM2-GCR-5` telemetry retention/storage lifecycle best practices (completed 2026-02-28).
 7. `SIM2-GCR-6` monitoring cost-efficiency patterns (completed 2026-02-28).
-8. `SIM2-GCR-7` telemetry/adversary-artifact security and privacy controls.
+8. `SIM2-GCR-7` telemetry/adversary-artifact security and privacy controls (completed 2026-02-28).
 9. `SIM2-GCR-10` ADR-backed architecture decision capture.
 10. `SIM2-GCR-8` synthesize outcomes into implementation plans and TODO updates.
 
@@ -274,7 +274,6 @@ Per-track workflow (must be followed before marking each track complete):
 3. Update `todos/todo.md` to reflect plan-derived changes (tightened acceptance criteria, reordered execution where needed, and any new required todos).
 4. Only then mark that `SIM2-GCR-*` track complete and move to the next ordered track.
 
-- [ ] SIM2-GCR-7 Research security/privacy best practices for telemetry and adversary artifacts (secret-exposure prevention, data minimization, pseudonymization options, artifact retention risk controls, incident-response hooks).
 - [ ] SIM2-GCR-8 Produce research synthesis docs and implementation plans for `GC-6`, `GC-8`, `GC-11`, and `GC-14`, then update todos with quantitative thresholds derived from research outcomes.
 - [ ] SIM2-GCR-10 Convert selected research outcomes into ADR-backed architecture decisions for: (a) UI-toggle-driven black-box adversary orchestration, (b) monitoring realtime data architecture, and (c) retention/cost/security lifecycle policies.
 
@@ -514,6 +513,7 @@ Scope: enforce non-regression with tests that prove real traffic -> real defense
 - [ ] SIM2-GC-11-18 Add reproducible realtime benchmark verification target (`make test-sim2-realtime-bench`) and CI artifact outputs for latency percentiles, overflow/drop counts, and request-budget metrics.
 - [ ] SIM2-GC-11-19 Add retention lifecycle regression tests for bucket cutoff correctness, purge-watermark progression, purge-lag threshold, and no read-path full-keyspace cleanup scans.
 - [ ] SIM2-GC-11-20 Add cost-governance regression tests for cardinality caps, overflow-bucket accounting, unsampleable-event protection, payload-size budget, and compression effectiveness thresholds.
+- [ ] SIM2-GC-11-21 Add security/privacy regression suite for telemetry/artifacts (field-classification enforcement, secret-canary leak checks, pseudonymization default coverage, retention-tier policy, incident-hook emission).
 
 Acceptance criteria:
 1. Mandatory verification fails if any matrix-required defense/lane evidence is missing.
@@ -528,6 +528,7 @@ Acceptance criteria:
 10. Benchmark-threshold regressions (`p95`, `p99`, overflow/drop, request-budget) fail deterministically in CI with scenario-specific diagnostics.
 11. Retention-lifecycle regressions (purge lag, bucket cutoff drift, read-path scan fallback) fail deterministically in CI with explicit failure taxonomy.
 12. Cost-governance regressions (cardinality/payload/sampling/compression/query-budget) fail deterministically in CI with explicit failure taxonomy.
+13. Security/privacy regressions (classification/leak/pseudonymization/retention/incident hooks) fail deterministically in CI with explicit failure taxonomy.
 
 ### SIM2-GC-12: Program Governance for Continuous Defense Evolution
 
@@ -628,6 +629,27 @@ Acceptance criteria:
 4. Default monitoring payloads meet size budget and expose pagination/window continuation when capped.
 5. Compression and query-budget controls provide measurable transport/query cost savings without freshness regressions.
 6. Cost health status is operator-visible and CI-enforced with threshold diagnostics.
+
+### SIM2-GC-17: Telemetry and Adversary-Artifact Security/Privacy-by-Construction
+
+Scope: enforce classification, minimization, pseudonymization, and incident-response controls so telemetry/artifacts cannot leak secrets or over-retain sensitive data by default.
+
+- [ ] SIM2-GC-17-1 Define canonical field-classification schema for telemetry/artifact fields (`public`, `internal`, `sensitive`, `secret-prohibited`) and persistence policy matrix.
+- [ ] SIM2-GC-17-2 Enforce classification at ingest/persist boundaries; reject prohibited classes and emit structured violation events.
+- [ ] SIM2-GC-17-3 Add deterministic secret scrubber for high-risk fields (`reason`, `outcome`, artifact payload fragments) with explicit redaction markers.
+- [ ] SIM2-GC-17-4 Add secret-canary detection for frontier/adversary artifacts and fail-closed persistence behavior on canary match.
+- [ ] SIM2-GC-17-5 Expand pseudonymization coverage to non-forensic monitoring/event views for sensitive identifiers, with explicit audited forensic break-glass mode.
+- [ ] SIM2-GC-17-6 Define and enforce sensitivity-tiered artifact retention windows (high-risk raw artifacts `<=72h` default; redacted summaries longer-lived).
+- [ ] SIM2-GC-17-7 Add incident-response hooks for leak/policy violations (`detect`, `contain`, `quarantine`, `operator action required`) with operation/run correlation IDs.
+- [ ] SIM2-GC-17-8 Update docs/runbooks for privacy posture, incident triage, forensic access controls, and retention override governance.
+
+Acceptance criteria:
+1. Secret-prohibited data classes are blocked from persistence by construction and verified by tests.
+2. Secret canary leakage to persisted telemetry/artifacts is zero in mandatory regression lanes.
+3. Pseudonymization is default-on for sensitive identifiers in non-forensic views, with audited break-glass workflow for raw access.
+4. High-risk raw artifact retention defaults to `<=72h` and overrides require explicit audit entries.
+5. Incident hooks emit deterministic, actionable events for containment workflow without delaying core defense execution.
+6. Security/privacy posture is operator-visible and CI-enforced with explicit threshold diagnostics.
 
 ## P0 CI + E2E Stability (Top Priority)
 - [ ] CI-E2E-1 Resume point for next Codex session: start from `scripts/tests/run_dashboard_e2e.sh`, `scripts/tests/verify_playwright_launch.mjs`, `playwright.config.mjs`, `Makefile` (`test-dashboard-e2e`), and `e2e/run_dashboard_e2e.unit.test.js`; run `make dev` (terminal 1) plus `make test-dashboard-e2e` (terminal 2) and capture per-stage timings (unit, bundle budget, seed, preflight, Playwright) to prove there is no loop/stall; then run `DEBUG=pw:browser corepack pnpm exec node scripts/tests/verify_playwright_launch.mjs` to diagnose Chromium launch path and fix root cause so browser e2e runs without `PLAYWRIGHT_SANDBOX_ALLOW_SKIP`; finally, harden CI behavior so skip mode is never silently used in mandatory checks, retries are bounded and deterministic, and acceptance criteria are met: full `make test` completes in bounded time, Chromium e2e actually executes, and every failing step returns actionable diagnostics rather than hanging.

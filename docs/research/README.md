@@ -61,3 +61,5 @@ Completed archive index:
    Retention-lifecycle research for deterministic purge, bucketed storage, and operator-visible retention health semantics.
 12. [`2026-02-28-sim2-gcr-6-monitoring-cost-efficiency-patterns-research.md`](2026-02-28-sim2-gcr-6-monitoring-cost-efficiency-patterns-research.md)  
    Cost-governance research for monitoring pipelines (cardinality, rollups, sampling restrictions, payload/compression budgets, query controls).
+13. [`2026-02-28-sim2-gcr-7-telemetry-artifact-security-privacy-controls-research.md`](2026-02-28-sim2-gcr-7-telemetry-artifact-security-privacy-controls-research.md)  
+   Security/privacy control research for telemetry and adversary artifacts (classification, secret scrubbing, pseudonymization, retention tiers, incident hooks).
