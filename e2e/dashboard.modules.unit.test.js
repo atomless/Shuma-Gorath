@@ -1938,6 +1938,8 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /id="adversary-sim-lifecycle-copy"/);
   assert.match(source, /onGlobalTestModeToggleChange/);
   assert.match(source, /onGlobalAdversarySimToggleChange/);
+  assert.match(source, /Number\(error\?\.status \|\| 0\) === 401/);
+  assert.match(source, /Adversary simulation control session expired\. Redirecting to login\.\.\./);
   assert.match(source, /dashboard-global-control-label/);
   assert.equal(source.includes("await routeController.refreshTab(activeTabKey, 'auto-refresh');"), false);
   assert.equal(source.includes('adversary-sim-progress-line'), false);

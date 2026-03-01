@@ -529,6 +529,14 @@
       await routeController.refreshTab(activeTabKey, 'adversary-sim-toggle');
     } catch (error) {
       if (target) target.checked = previousValue;
+      if (Number(error?.status || 0) === 401) {
+        setAdminMessage(
+          'Adversary simulation control session expired. Redirecting to login...',
+          'warning'
+        );
+        redirectToLogin();
+        return;
+      }
       const message = formatActionError(error, 'Failed to toggle adversary simulation.');
       setAdminMessage(`Error: ${message}`, 'error');
     } finally {

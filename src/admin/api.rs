@@ -2863,8 +2863,8 @@ mod admin_config_tests {
         );
 
         let resp = handle_admin_adversary_sim_control(&req, &store, "default", &auth);
-        assert_eq!(*resp.status(), 403u16);
-        assert!(String::from_utf8_lossy(resp.body()).contains("trust boundary"));
+        assert_eq!(*resp.status(), 401u16);
+        assert!(String::from_utf8_lossy(resp.body()).contains("session is stale"));
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -11573,6 +11573,15 @@ fn handle_admin_adversary_sim_control(
     let current_actual_state = state.phase.as_str().to_string();
     match plan.decision {
         crate::admin::adversary_sim_control::SubmissionPlanDecision::RejectTrustBoundary => {
+            let trust_reason = trust_reason.clone();
+            let (status, message) = if trust_reason == "session_stale_reauth_required" {
+                (
+                    401,
+                    "Unauthorized: adversary simulation control session is stale; reauthenticate via /dashboard/login.html",
+                )
+            } else {
+                (403, "Forbidden: control trust boundary violation")
+            };
             log_adversary_sim_control_audit(
                 store,
                 req,
@@ -11600,7 +11609,7 @@ fn handle_admin_adversary_sim_control(
                 },
                 capabilities.audit_write(),
             );
-            return Response::new(403, "Forbidden: control trust boundary violation");
+            return Response::new(status, message);
         }
         crate::admin::adversary_sim_control::SubmissionPlanDecision::RejectThrottled => {
             log_adversary_sim_control_audit(
