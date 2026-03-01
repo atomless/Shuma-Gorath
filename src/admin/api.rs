@@ -1008,6 +1008,11 @@ mod tests {
         let req = builder.build();
         let resp = handle_admin_monitoring_stream(&req, &store);
         assert_eq!(*resp.status(), 200u16);
+        assert!(
+            resp.header("connection")
+                .and_then(|value| value.as_str())
+                .is_none()
+        );
 
         let body = String::from_utf8_lossy(resp.body()).to_string();
         assert!(body.contains("event: monitoring_delta"));
@@ -6277,7 +6282,6 @@ fn sse_single_event_response(event_name: &str, event_id: &str, payload: &serde_j
         .status(200)
         .header("Content-Type", "text/event-stream")
         .header("Cache-Control", "no-store")
-        .header("Connection", "keep-alive")
         .header("X-Accel-Buffering", "no")
         .body(body)
         .build()

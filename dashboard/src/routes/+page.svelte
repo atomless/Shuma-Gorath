@@ -450,9 +450,6 @@
       if (result && result.status && typeof result.status === 'object') {
         adversarySimStatus = result.status;
       }
-      if (activeTabKey === 'monitoring' || activeTabKey === 'ip-bans') {
-        await routeController.refreshTab(activeTabKey, 'auto-refresh');
-      }
     } catch (_error) {
       // Status polling + diagnostics surface generation issues; avoid noisy UI spam here.
     } finally {

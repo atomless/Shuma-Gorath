@@ -29,7 +29,6 @@ pub(super) fn execute_response_intent(
         ResponseIntent::DropConnection => Some(
             Response::builder()
                 .status(444)
-                .header("Connection", "close")
                 .body("")
                 .build(),
         ),

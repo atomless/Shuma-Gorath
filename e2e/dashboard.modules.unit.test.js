@@ -1835,6 +1835,7 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /onGlobalTestModeToggleChange/);
   assert.match(source, /onGlobalAdversarySimToggleChange/);
   assert.match(source, /dashboard-global-control-label/);
+  assert.equal(source.includes("await routeController.refreshTab(activeTabKey, 'auto-refresh');"), false);
   assert.equal(source.includes('adversary-sim-progress-line'), false);
   assert.match(source, /id="admin-msg"/);
 });
