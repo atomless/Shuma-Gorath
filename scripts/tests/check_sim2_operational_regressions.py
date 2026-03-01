@@ -14,6 +14,40 @@ DEFAULT_OUTPUT_PATH = Path(
     "scripts/tests/adversarial/sim2_operational_regressions_report.json"
 )
 
+REQUIRED_RETENTION_FIELDS = (
+    "bucket_cutoff_correct",
+    "purge_watermark_progression",
+    "purge_lag_hours",
+    "purge_lag_max_hours",
+    "read_path_full_keyspace_scan_count",
+    "pending_expired_buckets",
+)
+
+REQUIRED_COST_FIELDS = (
+    "guarded_dimension_cardinality_cap_per_hour",
+    "observed_guarded_dimension_cardinality_max",
+    "overflow_bucket_accounted",
+    "overflow_bucket_count",
+    "unsampleable_event_drop_count",
+    "payload_p95_kb",
+    "payload_p95_max_kb",
+    "large_payload_sample_count",
+    "compression_reduction_percent",
+    "compression_min_percent",
+    "query_budget_avg_req_per_sec_client",
+    "query_budget_max_req_per_sec_client",
+)
+
+REQUIRED_SECURITY_FIELDS = (
+    "field_classification_enforced",
+    "secret_canary_leak_count",
+    "pseudonymization_coverage_percent",
+    "pseudonymization_required_percent",
+    "high_risk_retention_hours",
+    "high_risk_retention_max_hours",
+    "incident_hook_emitted",
+)
+
 
 def load_json_object(path: Path) -> Dict[str, Any]:
     if not path.exists():
@@ -55,141 +89,37 @@ def add_check(
         failures.append(f"{failure_code}:{detail}")
 
 
-def gate_check_index(report: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
-    index: Dict[str, Dict[str, Any]] = {}
-    for row in list(dict(report.get("gates") or {}).get("checks") or []):
-        entry = dict(row or {})
-        name = str(entry.get("name") or "").strip()
-        if name:
-            index[name] = entry
-    return index
+def missing_required_fields(section: Dict[str, Any], fields: tuple[str, ...]) -> List[str]:
+    missing: List[str] = []
+    for field in fields:
+        if field not in section or section.get(field) is None:
+            missing.append(field)
+    return missing
 
 
-def default_failure_injection_section(report: Dict[str, Any]) -> Dict[str, Any]:
-    checks = gate_check_index(report)
-    runtime_rows_passed = bool(
-        dict(checks.get("runtime_evidence_rows_for_passed_scenarios") or {}).get("passed", True)
+def require_domain_section(
+    report: Dict[str, Any],
+    domain_key: str,
+    checks: List[Dict[str, Any]],
+    failures: List[str],
+) -> Dict[str, Any] | None:
+    section = report.get(domain_key)
+    if isinstance(section, dict) and section:
+        return dict(section)
+    add_check(
+        checks,
+        failures,
+        check_id=f"{domain_key}_domain_present",
+        passed=False,
+        detail="section missing",
+        failure_code=f"domain_missing:{domain_key}",
     )
-    required_fields_passed = bool(
-        dict(checks.get("runtime_evidence_required_fields_present") or {}).get("passed", True)
-    )
-    telemetry_passed = bool(
-        dict(checks.get("runtime_evidence_telemetry_for_passed_scenarios") or {}).get("passed", True)
-    )
-    return {
-        "cases": [
-            {
-                "id": "telemetry_store_delay",
-                "passed": telemetry_passed,
-                "expected_operator_outcome": "degraded_state_visible",
-                "operator_visible_outcome": (
-                    "degraded_state_visible" if telemetry_passed else "degraded_state_missing"
-                ),
-            },
-            {
-                "id": "partial_write_failure",
-                "passed": required_fields_passed,
-                "expected_operator_outcome": "partial_write_taxonomy_visible",
-                "operator_visible_outcome": (
-                    "partial_write_taxonomy_visible"
-                    if required_fields_passed
-                    else "partial_write_taxonomy_missing"
-                ),
-            },
-            {
-                "id": "refresh_race",
-                "passed": runtime_rows_passed,
-                "expected_operator_outcome": "race_recovery_visible",
-                "operator_visible_outcome": (
-                    "race_recovery_visible" if runtime_rows_passed else "race_recovery_missing"
-                ),
-            },
-        ]
-    }
-
-
-def default_prod_mode_section(report: Dict[str, Any]) -> Dict[str, Any]:
-    checks = gate_check_index(report)
-    latency_row = dict(checks.get("latency_p95") or {})
-    observed_latency = max(0, to_int(latency_row.get("observed")))
-    p95_visibility = observed_latency if observed_latency > 0 else 180
-    return {
-        "p95_visibility_max_ms": max(300, p95_visibility),
-        "profiles": [
-            {
-                "id": "derived_non_sim_profile",
-                "traffic_origin": "non_sim",
-                "p95_visibility_ms": p95_visibility,
-                "near_realtime_visible": bool(
-                    dict(checks.get("runtime_evidence_telemetry_for_passed_scenarios") or {}).get(
-                        "passed", True
-                    )
-                ),
-                "requires_adversary_sim_toggle": False,
-            }
-        ],
-    }
-
-
-def default_retention_section(report: Dict[str, Any]) -> Dict[str, Any]:
-    checks = gate_check_index(report)
-    runtime_fields = bool(
-        dict(checks.get("runtime_evidence_required_fields_present") or {}).get("passed", True)
-    )
-    runtime_rows = bool(
-        dict(checks.get("runtime_evidence_rows_for_passed_scenarios") or {}).get("passed", True)
-    )
-    return {
-        "bucket_cutoff_correct": runtime_fields,
-        "purge_watermark_progression": runtime_rows,
-        "purge_lag_hours": 0.0,
-        "purge_lag_max_hours": 1.0,
-        "read_path_full_keyspace_scan_count": 0,
-        "pending_expired_buckets": 0,
-    }
-
-
-def default_cost_section(report: Dict[str, Any]) -> Dict[str, Any]:
-    checks = gate_check_index(report)
-    latency_row = dict(checks.get("latency_p95") or {})
-    observed_latency = max(0, to_int(latency_row.get("observed")))
-    payload_estimate_kb = max(128, min(480, int(observed_latency / 2) if observed_latency else 256))
-    return {
-        "guarded_dimension_cardinality_cap_per_hour": 1000,
-        "observed_guarded_dimension_cardinality_max": 640,
-        "overflow_bucket_accounted": True,
-        "overflow_bucket_count": 0,
-        "unsampleable_event_drop_count": 0,
-        "payload_p95_kb": payload_estimate_kb,
-        "payload_p95_max_kb": 512,
-        "large_payload_sample_count": 1 if payload_estimate_kb > 64 else 0,
-        "compression_reduction_percent": 35.0,
-        "compression_min_percent": 30.0,
-        "query_budget_avg_req_per_sec_client": 0.5,
-        "query_budget_max_req_per_sec_client": 1.0,
-    }
-
-
-def default_security_section(report: Dict[str, Any]) -> Dict[str, Any]:
-    frontier = dict(report.get("frontier") or {})
-    provider_count = max(0, to_int(frontier.get("provider_count")))
-    return {
-        "field_classification_enforced": True,
-        "secret_canary_leak_count": 0,
-        "pseudonymization_coverage_percent": 100.0,
-        "pseudonymization_required_percent": 100.0,
-        "high_risk_retention_hours": 48.0,
-        "high_risk_retention_max_hours": 72.0,
-        "incident_hook_emitted": provider_count >= 0,
-    }
+    return None
 
 
 def evaluate_failure_injection(
-    report: Dict[str, Any], checks: List[Dict[str, Any]], failures: List[str]
+    section: Dict[str, Any], checks: List[Dict[str, Any]], failures: List[str]
 ) -> None:
-    section = dict(report.get("failure_injection") or {})
-    if not section:
-        section = default_failure_injection_section(report)
     cases = list(section.get("cases") or [])
     by_id = {
         str(dict(item or {}).get("id") or "").strip(): dict(item or {})
@@ -231,11 +161,8 @@ def evaluate_failure_injection(
 
 
 def evaluate_prod_mode(
-    report: Dict[str, Any], checks: List[Dict[str, Any]], failures: List[str]
+    section: Dict[str, Any], checks: List[Dict[str, Any]], failures: List[str]
 ) -> None:
-    section = dict(report.get("prod_mode_monitoring") or {})
-    if not section:
-        section = default_prod_mode_section(report)
     profiles = list(section.get("profiles") or [])
     threshold_ms = max(1, to_int(section.get("p95_visibility_max_ms") or 300))
     non_sim_profiles = [
@@ -272,11 +199,24 @@ def evaluate_prod_mode(
 
 
 def evaluate_retention(
-    report: Dict[str, Any], checks: List[Dict[str, Any]], failures: List[str]
+    section: Dict[str, Any], checks: List[Dict[str, Any]], failures: List[str]
 ) -> None:
-    section = dict(report.get("retention_lifecycle") or {})
-    if not section:
-        section = default_retention_section(report)
+    missing = missing_required_fields(section, REQUIRED_RETENTION_FIELDS)
+    add_check(
+        checks,
+        failures,
+        check_id="retention_required_metrics_present",
+        passed=len(missing) == 0,
+        detail=(
+            "all required metrics present"
+            if not missing
+            else "missing_metrics=" + ",".join(missing)
+        ),
+        failure_code="domain_missing_metric:retention_lifecycle",
+    )
+    if missing:
+        return
+
     lag_hours = to_float(section.get("purge_lag_hours"))
     lag_max = max(0.0, to_float(section.get("purge_lag_max_hours") or 1.0))
     read_path_scans = to_int(section.get("read_path_full_keyspace_scan_count"))
@@ -324,11 +264,24 @@ def evaluate_retention(
 
 
 def evaluate_cost(
-    report: Dict[str, Any], checks: List[Dict[str, Any]], failures: List[str]
+    section: Dict[str, Any], checks: List[Dict[str, Any]], failures: List[str]
 ) -> None:
-    section = dict(report.get("cost_governance") or {})
-    if not section:
-        section = default_cost_section(report)
+    missing = missing_required_fields(section, REQUIRED_COST_FIELDS)
+    add_check(
+        checks,
+        failures,
+        check_id="cost_required_metrics_present",
+        passed=len(missing) == 0,
+        detail=(
+            "all required metrics present"
+            if not missing
+            else "missing_metrics=" + ",".join(missing)
+        ),
+        failure_code="domain_missing_metric:cost_governance",
+    )
+    if missing:
+        return
+
     cap = max(1, to_int(section.get("guarded_dimension_cardinality_cap_per_hour") or 1000))
     observed_cardinality = max(
         0, to_int(section.get("observed_guarded_dimension_cardinality_max"))
@@ -409,11 +362,24 @@ def evaluate_cost(
 
 
 def evaluate_security(
-    report: Dict[str, Any], checks: List[Dict[str, Any]], failures: List[str]
+    section: Dict[str, Any], checks: List[Dict[str, Any]], failures: List[str]
 ) -> None:
-    section = dict(report.get("security_privacy") or {})
-    if not section:
-        section = default_security_section(report)
+    missing = missing_required_fields(section, REQUIRED_SECURITY_FIELDS)
+    add_check(
+        checks,
+        failures,
+        check_id="security_required_metrics_present",
+        passed=len(missing) == 0,
+        detail=(
+            "all required metrics present"
+            if not missing
+            else "missing_metrics=" + ",".join(missing)
+        ),
+        failure_code="domain_missing_metric:security_privacy",
+    )
+    if missing:
+        return
+
     canary_leak_count = max(0, to_int(section.get("secret_canary_leak_count")))
     pseudo_observed = max(0.0, to_float(section.get("pseudonymization_coverage_percent")))
     pseudo_required = max(
@@ -472,11 +438,26 @@ def evaluate_security(
 def evaluate_report(report: Dict[str, Any]) -> Dict[str, Any]:
     checks: List[Dict[str, Any]] = []
     failures: List[str] = []
-    evaluate_failure_injection(report, checks, failures)
-    evaluate_prod_mode(report, checks, failures)
-    evaluate_retention(report, checks, failures)
-    evaluate_cost(report, checks, failures)
-    evaluate_security(report, checks, failures)
+
+    failure_injection = require_domain_section(
+        report, "failure_injection", checks, failures
+    )
+    prod_mode = require_domain_section(report, "prod_mode_monitoring", checks, failures)
+    retention = require_domain_section(report, "retention_lifecycle", checks, failures)
+    cost = require_domain_section(report, "cost_governance", checks, failures)
+    security = require_domain_section(report, "security_privacy", checks, failures)
+
+    if failure_injection is not None:
+        evaluate_failure_injection(failure_injection, checks, failures)
+    if prod_mode is not None:
+        evaluate_prod_mode(prod_mode, checks, failures)
+    if retention is not None:
+        evaluate_retention(retention, checks, failures)
+    if cost is not None:
+        evaluate_cost(cost, checks, failures)
+    if security is not None:
+        evaluate_security(security, checks, failures)
+
     return {
         "schema_version": "sim2-operational-regressions.v1",
         "status": {

@@ -116,30 +116,31 @@ class Sim2OperationalRegressionUnitTests(unittest.TestCase):
         self.assertIn("security_secret_canary_leak_detected:", joined)
         self.assertIn("security_incident_hook_missing:", joined)
 
-    def test_evaluate_report_uses_fallbacks_when_domain_sections_are_missing(self):
-        minimal = {
-            "gates": {
-                "checks": [
-                    {"name": "latency_p95", "passed": True, "observed": 220},
-                    {
-                        "name": "runtime_evidence_rows_for_passed_scenarios",
-                        "passed": True,
-                    },
-                    {
-                        "name": "runtime_evidence_required_fields_present",
-                        "passed": True,
-                    },
-                    {
-                        "name": "runtime_evidence_telemetry_for_passed_scenarios",
-                        "passed": True,
-                    },
-                ]
-            },
-            "frontier": {"provider_count": 0},
-        }
-        payload = regressions.evaluate_report(minimal)
-        self.assertTrue(payload["status"]["passed"])
-        self.assertGreaterEqual(len(payload["checks"]), 1)
+    def test_evaluate_report_fails_when_required_domain_sections_are_missing(self):
+        payload = regressions.evaluate_report({})
+        self.assertFalse(payload["status"]["passed"])
+        joined = " ".join(payload["status"]["failures"])
+        self.assertIn("domain_missing:failure_injection:", joined)
+        self.assertIn("domain_missing:prod_mode_monitoring:", joined)
+        self.assertIn("domain_missing:retention_lifecycle:", joined)
+        self.assertIn("domain_missing:cost_governance:", joined)
+        self.assertIn("domain_missing:security_privacy:", joined)
+
+    def test_evaluate_report_fails_when_required_retention_cost_security_metrics_are_missing(self):
+        report = sample_report()
+        del report["retention_lifecycle"]["purge_lag_hours"]
+        del report["cost_governance"]["payload_p95_kb"]
+        del report["security_privacy"]["secret_canary_leak_count"]
+
+        payload = regressions.evaluate_report(report)
+        self.assertFalse(payload["status"]["passed"])
+        joined = " ".join(payload["status"]["failures"])
+        self.assertIn("domain_missing_metric:retention_lifecycle:", joined)
+        self.assertIn("missing_metrics=purge_lag_hours", joined)
+        self.assertIn("domain_missing_metric:cost_governance:", joined)
+        self.assertIn("missing_metrics=payload_p95_kb", joined)
+        self.assertIn("domain_missing_metric:security_privacy:", joined)
+        self.assertIn("missing_metrics=secret_canary_leak_count", joined)
 
 
 if __name__ == "__main__":

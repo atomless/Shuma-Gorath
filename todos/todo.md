@@ -291,15 +291,6 @@ Reference plan/ADR bundle:
 4. [`docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md`](../docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md)
 5. [`docs/adr/0009-telemetry-lifecycle-retention-cost-security.md`](../docs/adr/0009-telemetry-lifecycle-retention-cost-security.md)
 
-### SIM2-W3-3: Remove Synthetic-Pass Fallbacks from Operational Regression Gate
-- [ ] SIM2-W3-3 remove generated default sections that can produce pass results when required operational domains are missing from report artifacts.
-
-Acceptance criteria:
-1. Missing `failure_injection`, `prod_mode_monitoring`, `retention_lifecycle`, `cost_governance`, or `security_privacy` sections causes deterministic gate failure.
-2. Failure taxonomy distinguishes `domain_missing` from `threshold_regression`.
-3. Unit tests assert missing-domain failures and reject fallback-pass behavior.
-4. No hardcoded positive defaults remain that can mask absent evidence.
-
 ### SIM2-W3-4: Strengthen ADR/Governance Conformance from Marker Checks to Evidence Checks
 - [ ] SIM2-W3-4 replace marker-presence-only conformance checks with assertions tied to measurable contract evidence and implementation behavior.
 
@@ -308,15 +299,6 @@ Acceptance criteria:
 2. Governance contract checks validate quantitative promotion thresholds and deterministic-blocking semantics from contract/report fields.
 3. Missing evidence or threshold drift fails deterministically with explicit domain-specific diagnostics.
 4. Updated unit tests cover positive and negative evidence-driven conformance paths.
-
-### SIM2-W3-5: Eliminate Pass-Oriented Synthetic Defaults in Retention/Cost/Security Diagnostics
-- [ ] SIM2-W3-5 ensure retention/cost/security diagnostics derive from measured report values or fail/degraded states; no optimistic synthetic values are permitted.
-
-Acceptance criteria:
-1. Retention diagnostics require real metric fields (`purge_lag_hours`, `pending_expired_buckets`, scan counters) and fail when absent.
-2. Cost diagnostics require real cardinality/payload/compression/query-budget fields and fail when absent.
-3. Security diagnostics require real classification/canary/pseudonymization/retention/incident-hook fields and fail when absent.
-4. CI artifacts remain actionable and include exact missing metric names for each failed domain.
 
 ## P0 CI + E2E Stability (Top Priority)
 - [ ] CI-E2E-1 Resume point for next Codex session: start from `scripts/tests/run_dashboard_e2e.sh`, `scripts/tests/verify_playwright_launch.mjs`, `playwright.config.mjs`, `Makefile` (`test-dashboard-e2e`), and `e2e/run_dashboard_e2e.unit.test.js`; run `make dev` (terminal 1) plus `make test-dashboard-e2e` (terminal 2) and capture per-stage timings (unit, bundle budget, seed, preflight, Playwright) to prove there is no loop/stall; then run `DEBUG=pw:browser corepack pnpm exec node scripts/tests/verify_playwright_launch.mjs` to diagnose Chromium launch path and fix root cause so browser e2e runs without `PLAYWRIGHT_SANDBOX_ALLOW_SKIP`; finally, harden CI behavior so skip mode is never silently used in mandatory checks, retries are bounded and deterministic, and acceptance criteria are met: full `make test` completes in bounded time, Chromium e2e actually executes, and every failing step returns actionable diagnostics rather than hanging.

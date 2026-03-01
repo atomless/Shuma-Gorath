@@ -32,6 +32,31 @@ Acceptance criteria (archived):
 3. Threshold failures include percentile/budget diagnostics naming violated metric and required bound.
 4. `make test-sim2-realtime-bench` remains deterministic and test-covered.
 
+#### SIM2-W3-3: Remove Synthetic-Pass Fallbacks from Operational Regression Gate
+
+- [x] SIM2-W3-3 remove generated default sections that can produce pass results when required operational domains are missing from report artifacts.
+- [x] Reworked `scripts/tests/check_sim2_operational_regressions.py` to require explicit domain sections and fail deterministically with `domain_missing:<domain>` taxonomy.
+- [x] Removed synthetic fallback section generation from operational regression checks so missing evidence cannot silently pass.
+- [x] Updated unit tests to assert missing-domain failure behavior and taxonomy (`scripts/tests/test_sim2_operational_regressions.py`).
+
+Acceptance criteria (archived):
+1. Missing `failure_injection`, `prod_mode_monitoring`, `retention_lifecycle`, `cost_governance`, or `security_privacy` sections causes deterministic gate failure.
+2. Failure taxonomy distinguishes `domain_missing` from `threshold_regression`.
+3. Unit tests assert missing-domain failures and reject fallback-pass behavior.
+4. No hardcoded positive defaults remain that can mask absent evidence.
+
+#### SIM2-W3-5: Eliminate Pass-Oriented Synthetic Defaults in Retention/Cost/Security Diagnostics
+
+- [x] SIM2-W3-5 ensure retention/cost/security diagnostics derive from measured report values or fail/degraded states; no optimistic synthetic values are permitted.
+- [x] Added required-metric validation for retention/cost/security domains in `scripts/tests/check_sim2_operational_regressions.py` with deterministic `domain_missing_metric:<domain>` taxonomy.
+- [x] Added missing-metric unit coverage for retention/cost/security checks (`scripts/tests/test_sim2_operational_regressions.py`).
+
+Acceptance criteria (archived):
+1. Retention diagnostics require real metric fields (`purge_lag_hours`, `pending_expired_buckets`, scan counters) and fail when absent.
+2. Cost diagnostics require real cardinality/payload/compression/query-budget fields and fail when absent.
+3. Security diagnostics require real classification/canary/pseudonymization/retention/incident-hook fields and fail when absent.
+4. CI artifacts remain actionable and include exact missing metric names for each failed domain.
+
 ## Additional completions (2026-02-28)
 
 ### P0 SIM2 Excellence Remediation Wave 2 (Architecture + Adversary Evolution)
