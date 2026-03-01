@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live adversary-sim-history-clean test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-operational-regressions test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live adversary-sim-history-clean test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -358,6 +358,7 @@ test: ## Run umbrella tests in series: unit, maze benchmark, integration, advers
 	@$(MAKE) --no-print-directory test-sim2-realtime-bench || exit 1
 	@$(MAKE) --no-print-directory test-sim2-adr-conformance || exit 1
 	@$(MAKE) --no-print-directory test-sim2-ci-diagnostics || exit 1
+	@$(MAKE) --no-print-directory test-adversarial-container-blackbox || exit 1
 	@$(MAKE) --no-print-directory test-sim2-verification-matrix || exit 1
 	@$(MAKE) --no-print-directory test-sim2-operational-regressions || exit 1
 	@$(MAKE) --no-print-directory test-sim2-governance-contract || exit 1
@@ -418,7 +419,7 @@ test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtu
 	@$(MAKE) --no-print-directory test-sim2-realtime-bench
 	@$(MAKE) --no-print-directory test-sim2-adr-conformance
 	@$(MAKE) --no-print-directory test-sim2-ci-diagnostics
-	@$(MAKE) --no-print-directory test-sim2-verification-matrix
+	@$(MAKE) --no-print-directory test-sim2-verification-matrix-advisory
 	@$(MAKE) --no-print-directory test-sim2-operational-regressions
 	@$(MAKE) --no-print-directory test-sim2-governance-contract
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v1.json --profile fast_smoke --validate-only
@@ -543,6 +544,10 @@ test-sim2-ci-diagnostics: ## Render SIM2 CI diagnostics artifact (timeline snaps
 
 test-sim2-verification-matrix: ## Validate SIM2 verification matrix rows and evidence diagnostics
 	@echo "$(CYAN)🧪 Validating SIM2 verification matrix...$(NC)"
+	@python3 scripts/tests/check_sim2_verification_matrix.py --matrix scripts/tests/adversarial/verification_matrix.v1.json --manifest scripts/tests/adversarial/scenario_manifest.v2.json --report scripts/tests/adversarial/latest_report.json --container-report scripts/tests/adversarial/container_blackbox_report.json --output scripts/tests/adversarial/sim2_verification_matrix_report.json
+
+test-sim2-verification-matrix-advisory: ## Validate SIM2 verification matrix rows (advisory mode allows missing container report for local manifest checks)
+	@echo "$(CYAN)🧪 Validating SIM2 verification matrix (advisory)...$(NC)"
 	@python3 scripts/tests/check_sim2_verification_matrix.py --matrix scripts/tests/adversarial/verification_matrix.v1.json --manifest scripts/tests/adversarial/scenario_manifest.v2.json --report scripts/tests/adversarial/latest_report.json --container-report scripts/tests/adversarial/container_blackbox_report.json --output scripts/tests/adversarial/sim2_verification_matrix_report.json --allow-missing-container-report
 
 test-sim2-operational-regressions: ## Validate SIM2 failure-injection/prod/retention/cost/security regression diagnostics

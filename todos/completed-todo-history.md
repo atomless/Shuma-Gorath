@@ -2,6 +2,23 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-01)
+
+### P0 SIM2 Verification Hardening Wave 3 (Plan-Closure Priority)
+
+#### SIM2-W3-1: Make Container-Blackbox Evidence Mandatory in Blocking Gates
+
+- [x] SIM2-W3-1 remove permissive matrix behavior (`--allow-missing-container-report`) from blocking SIM2 gate paths and ensure strict failure when container evidence is absent.
+- [x] Enforced strict SIM2 matrix invocation in `Makefile` (`test-sim2-verification-matrix`) and wired advisory mode only for manifest-only local checks (`test-sim2-verification-matrix-advisory`).
+- [x] Added blocking container-lane execution in umbrella/release paths (`make test` and `.github/workflows/release-gate.yml`) and artifact upload wiring (`.github/workflows/ci.yml`, `.github/workflows/release-gate.yml`).
+- [x] Added SIM2 verification-matrix unit coverage for strict missing-container failure and positive container-evidence pass paths (`scripts/tests/test_sim2_verification_matrix.py`).
+
+Acceptance criteria (archived):
+1. `make test-sim2-verification-matrix` fails when `scripts/tests/adversarial/container_blackbox_report.json` is missing.
+2. Blocking CI/release workflows execute `make test-adversarial-container-blackbox` before matrix validation.
+3. Verification-matrix report no longer emits pass/skipped status for missing container lane in blocking paths.
+4. Unit tests cover missing-container failure behavior and strict lane evidence expectations.
+
 ## Additional completions (2026-02-28)
 
 ### P0 SIM2 Excellence Remediation Wave 2 (Architecture + Adversary Evolution)

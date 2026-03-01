@@ -291,15 +291,6 @@ Reference plan/ADR bundle:
 4. [`docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md`](../docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md)
 5. [`docs/adr/0009-telemetry-lifecycle-retention-cost-security.md`](../docs/adr/0009-telemetry-lifecycle-retention-cost-security.md)
 
-### SIM2-W3-1: Make Container-Blackbox Evidence Mandatory in Blocking Gates
-- [ ] SIM2-W3-1 remove permissive matrix behavior (`--allow-missing-container-report`) from blocking SIM2 gate paths and ensure strict failure when container evidence is absent.
-
-Acceptance criteria:
-1. `make test-sim2-verification-matrix` fails when `scripts/tests/adversarial/container_blackbox_report.json` is missing.
-2. Blocking CI/release workflows execute `make test-adversarial-container-blackbox` before matrix validation.
-3. Verification-matrix report no longer emits pass/skipped status for missing container lane in blocking paths.
-4. Unit tests cover missing-container failure behavior and strict lane evidence expectations.
-
 ### SIM2-W3-2: Align Realtime Bench Contract to ADR `0008` Envelope and Profile Semantics
 - [ ] SIM2-W3-2 enforce declared benchmark envelope for blocking baseline profile and make profile metadata truthful for runtime-dev/runtime-prod verification semantics.
 

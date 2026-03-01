@@ -44,6 +44,14 @@ def sample_report():
     }
 
 
+def sample_container_report():
+    return {
+        "passed": True,
+        "frontier_lineage": {"lineage_complete": True},
+        "policy_audit": {"violation_count": 0},
+    }
+
+
 class Sim2VerificationMatrixUnitTests(unittest.TestCase):
     def test_validate_matrix_passes_with_expected_evidence(self):
         matrix = {
@@ -102,6 +110,80 @@ class Sim2VerificationMatrixUnitTests(unittest.TestCase):
         self.assertIn("missing_matrix_row:", joined)
         self.assertIn("missing_evidence_type:", joined)
         self.assertIn("failing_telemetry_lineage_segment:", joined)
+
+    def test_validate_matrix_fails_when_container_lane_evidence_is_missing_in_strict_mode(self):
+        matrix = {
+            "rows": [
+                {
+                    "row_id": "allow_row",
+                    "defense_category": "allowlist",
+                    "required_scenarios": ["scenario_allow"],
+                    "required_lanes": ["black_box"],
+                    "required_evidence_types": ["runtime_telemetry"],
+                    "lineage_segment": "request_id_lineage",
+                },
+                {
+                    "row_id": "container_lane_row",
+                    "defense_category": "frontier_container",
+                    "required_scenarios": [],
+                    "required_lanes": ["container_blackbox"],
+                    "required_evidence_types": [
+                        "container_passed",
+                        "frontier_lineage_complete",
+                        "policy_violation_zero",
+                    ],
+                    "lineage_segment": "frontier_lineage",
+                }
+            ]
+        }
+        payload = matrix_check.validate_matrix(
+            matrix,
+            sample_manifest(),
+            sample_report(),
+            container_report=None,
+            allow_missing_container_report=False,
+        )
+        self.assertFalse(payload["status"]["passed"])
+        joined = " ".join(payload["status"]["failures"])
+        self.assertIn(
+            "missing_matrix_row:row=container_lane_row:container_report_missing",
+            joined,
+        )
+
+    def test_validate_matrix_passes_when_container_lane_evidence_is_present(self):
+        matrix = {
+            "rows": [
+                {
+                    "row_id": "allow_row",
+                    "defense_category": "allowlist",
+                    "required_scenarios": ["scenario_allow"],
+                    "required_lanes": ["black_box"],
+                    "required_evidence_types": ["runtime_telemetry"],
+                    "lineage_segment": "request_id_lineage",
+                },
+                {
+                    "row_id": "container_lane_row",
+                    "defense_category": "frontier_container",
+                    "required_scenarios": [],
+                    "required_lanes": ["container_blackbox"],
+                    "required_evidence_types": [
+                        "container_passed",
+                        "frontier_lineage_complete",
+                        "policy_violation_zero",
+                    ],
+                    "lineage_segment": "frontier_lineage",
+                }
+            ]
+        }
+        payload = matrix_check.validate_matrix(
+            matrix,
+            sample_manifest(),
+            sample_report(),
+            container_report=sample_container_report(),
+            allow_missing_container_report=False,
+        )
+        self.assertTrue(payload["status"]["passed"])
+        self.assertEqual(payload["status"]["failure_count"], 0)
 
 
 if __name__ == "__main__":

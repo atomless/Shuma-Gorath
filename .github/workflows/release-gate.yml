@@ -101,6 +101,9 @@ jobs:
       - name: Run deterministic frontier finding promotion triage
         run: make test-adversarial-promote-candidates
 
+      - name: Run containerized black-box adversary lane (blocking)
+        run: make test-adversarial-container-blackbox
+
       - name: Run SIM2 realtime/contract/governance diagnostics gates
         run: |
           make test-sim2-realtime-bench
@@ -125,6 +128,7 @@ jobs:
             echo "- Deterministic oracle gate: \`make test-adversarial-coverage\` (blocking)"
             echo "- Frontier protected-lane probe: \`make test-adversarial-frontier-attempt\` (advisory)"
             echo "- Deterministic promotion triage: \`make test-adversarial-promote-candidates\` (blocking only on reproducible confirmed regressions)"
+            echo "- Container black-box lane: \`make test-adversarial-container-blackbox\` (blocking evidence source for SIM2 matrix)"
             echo "- Policy: stochastic frontier findings are discovery input; deterministic replay remains the release blocker."
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -139,6 +143,7 @@ jobs:
             scripts/tests/adversarial/frontier_lane_status.json
             scripts/tests/adversarial/promotion_candidates_report.json
             scripts/tests/adversarial/frontier_unavailability_policy.json
+            scripts/tests/adversarial/container_blackbox_report.json
             scripts/tests/adversarial/sim2_realtime_bench_report.json
             scripts/tests/adversarial/sim2_realtime_bench_summary.md
             scripts/tests/adversarial/sim2_adr_conformance_report.json

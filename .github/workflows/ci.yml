@@ -133,6 +133,7 @@ jobs:
             scripts/tests/adversarial/frontier_lane_status.json
             scripts/tests/adversarial/promotion_candidates_report.json
             scripts/tests/adversarial/frontier_unavailability_policy.json
+            scripts/tests/adversarial/container_blackbox_report.json
             scripts/tests/adversarial/sim2_realtime_bench_report.json
             scripts/tests/adversarial/sim2_realtime_bench_summary.md
             scripts/tests/adversarial/sim2_adr_conformance_report.json
