@@ -379,6 +379,23 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 ## P0 Adversarial Traffic Simulation Program
 Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
 Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
+Heartbeat decoupling plan: [`docs/plans/2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md`](../docs/plans/2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md)
+
+Ongoing objectives for this tranche:
+1. Keep deterministic lane as regression oracle; LLM lane as discovery/promotable corpus.
+2. Keep strict control-plane and attacker-plane separation.
+3. Keep resource caps and explicit degraded states so frontier outages do not fake success.
+4. Ensure all simulation traffic is indistinguishable in enforcement and telemetry paths from external traffic.
+5. Simplify freshness ownership to one source of truth (backend), with the UI acting as renderer only.
+6. Treat adversary simulation as potential core production value, enabling operators to red-team defenses immediately after deployment rather than waiting for external attackers.
+7. Enforce strict off-state inertness: when adversary simulation is toggled off, no simulator heartbeat loop runs, no generator/supervisor process remains active, and no simulation traffic is emitted.
+8. Use spawn-on-enable/teardown-on-disable lifecycle for simulator execution so runtime resource usage attributable to adversary simulation is effectively zero while off.
+
+- [ ] SIM-DEPLOY-1 Re-evaluate current dev-only adversary-sim availability posture and deployment-path split (`runtime-dev` vs production) against product ambition; define decision criteria, abuse safeguards, tenant/isolation controls, explicit operator consent model, cost controls, and rollback strategy for possible production enablement.
+- [ ] SIM-DEPLOY-2 If production availability is approved, design and implement production-safe adversary-sim operating modes (explicit opt-in, spawn-on-enable execution lifecycle, strict rate/resource envelopes, kill switch, auditability, and no-impact guarantees for normal user traffic).
+
+- [ ] SIM-LLM-1 Realize full LLM-orchestrated, instruction-driven, containerized adversary lane as first-class runtime actor (not advisory metadata): run capability-constrained action plans against public HTTP surface, emit normal request-pipeline telemetry, preserve deterministic replay bridge, and surface explicit degraded-state diagnostics when frontier execution is unavailable.
+- [ ] SIM-DET-1 After autonomous heartbeat decoupling is complete (sim tick cadence fully backend-owned and independent of dashboard refresh tick), run a deterministic-lane coverage audit and confirm generated traffic exercises every Shuma detection and defence surface (including challenge variants, JS verification, PoW, GEO, maze/tarpit, rate limiting, fingerprint/bot-signal thresholds, and ban paths); document any uncovered surfaces and open remediation TODOs immediately.
 
 ## P1 Dashboard IA: Promote Rate Limiting and GEO to Top-Level Tabs
 - [ ] DSH-RG-1 Define dashboard information architecture update and tab order for new top-level `Rate Limiting` and `GEO` tabs (including hash-route mapping and back/forward behavior).

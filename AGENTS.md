@@ -50,6 +50,11 @@ This file provides instructions for coding agents working in this repository.
    Keep `make dev` watch inputs scoped to source-of-truth files and explicitly exclude generated dashboard artifacts (for example `dashboard/.svelte-kit/**` and `dashboard/.vite/**`) to avoid self-triggered restart loops while preserving live reload for `dashboard/src/**`, `dashboard/static/**`, and `dashboard/style.css` edits.
    For `make test`, integration and dashboard e2e tests are mandatory and must not be skipped: start Spin first with `make dev` (separate terminal/session), then run `make test`.
    Exception: if a change is documentation-only (`*.md` and no behavior/config/runtime code changes), do not run tests; document that verification was intentionally skipped because the slice is docs-only.
+   Non-negotiable anti-churn directive:
+   - after every successful full-suite run (`make test`), agents MUST record a local verification receipt at `.spin/last-full-test-pass.json` with, at minimum, UTC timestamp, command, `git rev-parse HEAD`, and `git status --porcelain` output fingerprint;
+   - before re-running full-suite verification, agents MUST compare the current `HEAD` and worktree fingerprint to the latest receipt;
+   - if both match (no code/config/test changes since the last full pass), agents MUST NOT rerun `make test`; they MUST reuse the existing passing receipt and proceed with commit/push;
+   - when state differs from the latest receipt, agents MUST run the minimum relevant verification first, then refresh `.spin/last-full-test-pass.json` only after a new successful `make test`.
 8. Before reporting completion, confirm relevant CI status (or state explicitly that CI is pending/unverified).
 9. Commit/push in atomic slices by default:
    - one logical change per commit,

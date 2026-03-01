@@ -47,3 +47,4 @@ If superseded, link the replacing ADR.
 7. [`0007-adversary-sim-toggle-command-controller.md`](0007-adversary-sim-toggle-command-controller.md)
 8. [`0008-realtime-monitoring-cursor-sse-hybrid.md`](0008-realtime-monitoring-cursor-sse-hybrid.md)
 9. [`0009-telemetry-lifecycle-retention-cost-security.md`](0009-telemetry-lifecycle-retention-cost-security.md)
+10. [`0010-adversary-sim-autonomous-heartbeat.md`](0010-adversary-sim-autonomous-heartbeat.md)
