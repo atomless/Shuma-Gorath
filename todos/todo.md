@@ -62,13 +62,6 @@ Plan bundle:
 
 Status: Execution complete on 2026-02-27. See `todos/completed-todo-history.md` for `SIM2-ARCH-*` closure details.
 
-Acceptance criteria:
-1. Core policy decisions become predominantly pure and testable without side effects.
-2. Privileged operations are blocked unless explicit capability objects are present.
-3. Characterization parity tests prove behavior stability across extraction slices.
-4. `src/lib.rs` orchestration complexity is materially reduced and role-focused.
-5. Full required verification (`make test`, `make build`) remains green throughout migration.
-
 ## P0 SIM2 Excellence Remediation Wave 2 (Architecture + Adversary Evolution)
 
 Objective: close all remaining SIM2 excellence gaps so Shuma behaves as a real adversary-vs-defender evolution system, not only a deterministic conformance suite.
@@ -89,28 +82,11 @@ Scope: remove remaining centralized imperative seams from request orchestration 
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-EX1-*` closure details.
 
-Acceptance criteria:
-1. No request-path privileged side effects are emitted directly from `src/lib.rs`; all flow through intent executor boundaries.
-2. `src/runtime/policy_pipeline.rs` contains only active graph orchestration paths; legacy dead-code handlers are removed or isolated outside runtime path.
-3. Pure decision modules compile and test without KV/provider dependencies.
-4. Characterization parity suite shows no unintended behavior drift across extracted slices.
-5. `src/lib.rs` becomes a thin orchestration shell with materially reduced complexity and clearly documented responsibilities.
-6. `make test-unit`, `make test-integration`, `make test-dashboard-e2e`, `make test`, and `make build` pass after migration slices.
-7. Updated docs make dependency direction and side-effect boundaries unambiguous to next contributors.
-
 ### SIM2-EX2: Enforce Least-Authority Capability-by-Construction Across Privileged Effects
 
 Scope: replace coarse capability minting with explicit least-authority capability sets and ensure privileged operations are impossible without capability possession.
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-EX2-*` closure details.
-
-Acceptance criteria:
-1. Privileged side effects are capability-gated everywhere in request path, without convention-only exceptions.
-2. Capability minting occurs only at explicit trust boundaries.
-3. Least-authority capability scope is demonstrated by tests for each effect class.
-4. Missing-capability scenarios fail deterministically and observably.
-5. No privileged write API is reachable from pure decision modules.
-6. CI guardrails fail fast on capability-bypass regressions.
 
 ### SIM2-EX3: Increase Black-Box Realism by Removing Per-Scenario Control-Plane Preconditioning
 
@@ -118,25 +94,11 @@ Scope: keep deterministic reproducibility while reducing artificial scenario-by-
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-EX3-*` closure details.
 
-Acceptance criteria:
-1. During attacker phase, control-plane config mutation count is zero by policy and verified by tests.
-2. Coverage profile still passes without per-scenario config patching.
-3. Gate failures clearly identify realism-contract violations vs defense regressions.
-4. Deterministic reproducibility remains stable across repeated runs with fixed seeds.
-5. Black-box realism improves without granting attacker plane privileged controls.
-
 ### SIM2-EX4: Deliver True Browser-Executed “Browser Realistic” Drivers
 
 Scope: replace HTTP emulation for browser-realistic cohorts with actual browser execution semantics.
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-EX4-*` closure details.
-
-Acceptance criteria:
-1. `browser_realistic` scenarios are executed by a real browser runtime, not raw HTTP request emulation.
-2. Browser-only defense surfaces (JS verification/CDP/client-runtime checks) are exercised with explicit evidence in reports.
-3. Browser lane remains deterministic enough for CI gating within bounded flake tolerance and declared retry policy.
-4. Fallback behavior is explicit and cannot silently mask missing browser execution.
-5. Required Makefile gates remain bounded and pass on supported CI lanes.
 
 ### SIM2-EX5: Upgrade Frontier Discovery from Advisory Probe to Adaptive Attack Generation Program
 
@@ -144,25 +106,11 @@ Scope: evolve frontier lane from provider-health probing and scenario metadata p
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-EX5-*` closure details.
 
-Acceptance criteria:
-1. Frontier lane produces novel candidate attacks beyond existing deterministic scenario catalog.
-2. All promoted regressions show deterministic confirmation lineage.
-3. Governance/redaction checks remain enforced and audited before replay.
-4. Release-blocking semantics remain deterministic and policy-stable.
-5. Operators can track discovery efficacy with explicit quality metrics, not only provider-health status.
-
 ### SIM2-EX6: Deepen Coverage Contract Governance to Enforce Full Plan Intent
 
 Scope: close contract-depth gaps so full coverage reflects true plan-row enforcement, including tarpit progression depth and event-stream health quality.
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-EX6-*` closure details.
-
-Acceptance criteria:
-1. Canonical coverage contract enforces every required plan-row intent with explicit measurable thresholds.
-2. Tarpit progression and event-stream health rows cannot pass with shallow/partial evidence.
-3. Drift across plan/manifest/runner/contract fails deterministically with actionable output.
-4. Coverage contract versioning and migration are documented and test-backed.
-5. Mandatory coverage gates continue to run via canonical Makefile paths.
 
 ### SIM2-EX7: Harden Simulation-Telemetry Secret Ergonomics Without Weakening Security
 
@@ -170,25 +118,11 @@ Scope: preserve fail-closed sim-tag authenticity while removing setup sharp edge
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-EX7-*` closure details.
 
-Acceptance criteria:
-1. Local `make setup` leaves adversarial runs ready by default with valid sim telemetry secret material.
-2. CI adversarial lanes explicitly provision required secret env and do not rely on implicit setup state.
-3. Missing/invalid secret states fail before scenario execution with clear remediation output.
-4. No change weakens sim-tag authenticity enforcement or introduces permissive bypass.
-5. Operator docs clearly define setup, rotation, and incident-response steps.
-
 ### SIM2-EX8: Establish Continuous Defender-Adversary Evolution Loop as First-Class Program
 
 Scope: operationalize SIM2 so defense tuning and adversary evolution become an explicit closed-loop engineering process.
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-EX8-*` closure details.
-
-Acceptance criteria:
-1. Shuma has a documented and testable closed-loop process for adversary-driven defense evolution.
-2. Novel regressions move from discovery to deterministic confirmation to TODO execution without manual ambiguity.
-3. Scenario corpus quality is maintained through promotion and retirement rules.
-4. Excellence KPIs are measurable, reported, and used for release readiness decisions.
-5. The loop preserves core project principles: low human friction, rising attacker cost, bounded defender resource cost.
 
 ## P0 SIM2 Gap-Closure Program: Real Execution + Realtime Monitoring
 
@@ -225,27 +159,11 @@ Per-track workflow (must be followed before marking each track complete):
 4. Only then mark that `SIM2-GCR-*` track complete and move to the next ordered track.
 
 
-Acceptance criteria:
-1. Each `SIM2-GCR-*` track produces a dated research doc in `docs/research/` with source-backed recommendations.
-2. Every research doc includes a decision matrix (`option`, `benefits`, `risks`, `resource cost`, `security impact`, `rollback complexity`).
-3. Each track produces an implementation plan in `docs/plans/` mapped to specific `SIM2-GC-*` todos.
-4. `GC-6`, `GC-8`, `GC-11`, and `GC-14` acceptance criteria are upgraded with explicit quantitative thresholds before implementation begins.
-5. Research outputs explicitly justify why chosen approaches are preferred over rejected alternatives.
-6. Realtime monitoring architecture decision is backed by benchmark evidence from `SIM2-GCR-9`, not only qualitative preference.
-7. Final selected approaches are codified in ADR artifacts before high-risk implementation slices begin.
-8. Each completed research track has linked artifacts in all three layers: research doc, plan doc, and TODO updates.
-
 ### SIM2-GC-1: Define End-to-End Contract for “Real Adversary Traffic”
 
 Scope: codify exactly what qualifies as real simulated adversary execution and what telemetry must exist when it runs.
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-1-*` closure details.
-
-Acceptance criteria:
-1. Contract exists in docs and is referenced by runner, runtime, and dashboard modules.
-2. Any run lacking required telemetry evidence is marked invalid/failed.
-3. Architecture docs clearly separate “executed traffic” from “report-only metadata.”
-4. Contributors can no longer pass SIM coverage with synthetic-only monitoring artifacts.
 
 ### SIM2-GC-2: Re-architect Host Orchestration into Capability-Gated Functional Flow
 
@@ -254,24 +172,11 @@ ADR reference: [`docs/adr/0007-adversary-sim-toggle-command-controller.md`](../d
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-2-*` closure details.
 
-Acceptance criteria:
-1. Orchestration no longer has hidden write paths that can fabricate monitoring outcomes.
-2. Privileged effects are impossible without capability possession.
-3. Pure-policy modules have no direct dependency on storage/providers.
-4. Control submissions fail closed on trust-boundary violations (auth/CSRF/origin/replay abuse) with explicit reason taxonomy.
-5. Control operations are audit-complete and incident-reconstructable without exposing sensitive material.
-6. Tests prove evidence publication is coupled to actual execution outputs.
-
 ### SIM2-GC-3: Fix Runtime Toggle/Session Lifecycle So Traffic Persists Beyond Auto-Off
 
 Scope: ensure auto-off terminates generation only, not observability of already-generated traffic.
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-3-*` closure details.
-
-Acceptance criteria:
-1. Operators can inspect SIM-generated defense events after auto-off without rerunning simulation.
-2. No monitoring view silently filters out prior SIM traffic solely because session ended.
-3. Retention behavior is deterministic, documented, and tested.
 
 ### SIM2-GC-4: Guarantee Monitoring Ingest Uses Real Request Pipeline by Default
 
@@ -279,23 +184,11 @@ Scope: make runtime telemetry emission mandatory and uniform for SIM and non-SIM
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-4-*` closure details.
 
-Acceptance criteria:
-1. SIM traffic hits the same runtime defense stack as real traffic.
-2. Monitoring data for SIM runs comes from normal runtime telemetry, not synthetic ingestion.
-3. Missing per-defense signals under expected attack scenarios fails tests.
-4. Operators can refresh monitoring and immediately observe defense activity deltas.
-
 ### SIM2-GC-5: Remove Simulation Telemetry Namespace Architecture Completely
 
 Scope: simplify data model to dev/prod separation only, with no separate SIM namespace semantics.
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-5-*` closure details.
-
-Acceptance criteria:
-1. No runtime, dashboard, or docs references remain to simulation telemetry namespace.
-2. Dev/prod split is the only data-plane separation model.
-3. Source filtering remains possible without schema or storage partition complexity.
-4. Cleanup leaves no dead config/code remnants.
 
 ### SIM2-GC-6: Deliver Realtime Monitoring Refresh Semantics and Backpressure Safety
 
@@ -304,28 +197,11 @@ ADR reference: [`docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md`](../doc
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-6-*` closure details.
 
-Acceptance criteria:
-1. Under declared load envelope (`>=1000 events/s`, `>=5 active operator clients`), active live path achieves `p95 <= 300ms` and `p99 <= 500ms` freshness in runtime-dev and runtime-prod verification profiles.
-2. Non-degraded active path has zero overflow/drop for monitored events within declared bounded buffer window.
-3. Refresh behavior is deterministic (monotonic cursor progression, no silent loss, no duplicate replay beyond documented replay window rules).
-4. Backpressure and cache behavior are bounded and benchmarked under expected burst load.
-5. Freshness regressions fail automated tests with actionable diagnostics naming violated percentile/budget threshold.
-6. Production monitoring freshness is independent of adversary-sim active state.
-7. Operators can see explicit freshness health and lag state at all times.
-8. Cursor-resume semantics are deterministic across manual refresh, auto-refresh, and reconnect flows.
-9. When streaming path is available, active live updates stay within query budget `<=1 request/sec/client` average (excluding initial bootstrap requests); degraded fallback polling above that budget must surface explicit degraded state.
-
 ### SIM2-GC-7: Upgrade Browser-Adversary Lane to True Browser Execution
 
 Scope: ensure “browser realistic” scenarios are executed by real browser runtime and can trigger browser-only defenses.
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-7-*` closure details.
-
-Acceptance criteria:
-1. Browser lane traffic is generated by actual browser runtime, not request emulation.
-2. Browser-only defenses register events under targeted scenarios.
-3. Evidence ties browser actions to monitoring events and outcomes.
-4. CI remains deterministic enough for gated verification.
 
 ### SIM2-GC-8: Containerized Frontier Integration as Real Actor (Not Metadata Generator)
 
@@ -349,34 +225,11 @@ Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` 
 - [x] SIM2-GC-8-14 Implement deterministic fail-closed teardown contract (hard runtime deadline, heartbeat timeout, forced process-tree kill, and terminal run-failed semantics on teardown failure).
 - [x] SIM2-GC-8-15 Add lifecycle cleanup policy for frontier run artifacts/resources (TTL-driven cleanup, bounded retention, and explicit cleanup failure diagnostics).
 
-Acceptance criteria:
-1. Frontier lane emits real traffic actions, not report-only suggestions.
-2. Every executed frontier action has full lineage and monitoring evidence.
-3. Out-of-policy model outputs are blocked deterministically by reject-by-default validation.
-4. Egress allowlist and capability restrictions are enforced and test-covered.
-5. Security abuse-path tests fail closed for exfiltration, privilege escalation, and envelope misuse attempts.
-6. Key outage mode is visible, bounded, and non-deceptive.
-7. Operators can force-stop frontier execution with deterministic teardown behavior.
-8. Frontier workers cannot launch unless hardened runtime isolation profile is satisfied.
-9. Signed capability envelopes are mandatory for execution and replay/signature/expiry failures are rejected deterministically.
-10. Command/evidence channel semantics preserve one-way authority boundaries and bounded backpressure behavior.
-11. Timeout/crash/heartbeat-loss paths fail closed with deterministic teardown and terminal diagnostics.
-12. Executed frontier-action lineage completeness is `100%` (`model suggestion -> validated action -> runtime request -> monitoring evidence`).
-13. Policy-violation execution rate is `0` in mandatory regression suites.
-14. Kill-switch stop latency meets `p95 <= 10s` in benchmarked verification profiles.
-15. Outage/degraded state transition is visible within one monitoring refresh/stream cycle.
-
 ### SIM2-GC-9: Scenario Design Realism and Defense Exercise Guarantees
 
 Scope: ensure scenario catalog consistently drives targeted defenses under realistic attacker progression.
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-9-*` closure details.
-
-Acceptance criteria:
-1. Each scenario has explicit, test-backed defense exercise expectations.
-2. Scenario passes without required defense evidence are impossible.
-3. Coverage includes realistic multi-step adversary behavior, not single-request probes only.
-4. Catalog quality is actively governed and measurable.
 
 ### SIM2-GC-10: Dashboard UX for Arms-Race Operations (Evidence-First)
 
@@ -384,34 +237,11 @@ Scope: make monitoring UI operationally useful for defense evolution loops.
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-10-*` closure details.
 
-Acceptance criteria:
-1. Operators can directly correlate adversary runs with defense responses from the UI.
-2. Missing/late telemetry is explicit and actionable.
-3. Filtering and trends support fast tuning decisions without data ambiguity.
-4. UI remains consistent with existing dashboard design system.
-5. Operators can distinguish “no attacks observed” from “data is stale/degraded” without ambiguity.
-
 ### SIM2-GC-11: Verification Suite Expansion for End-to-End Truthfulness
 
 Scope: enforce non-regression with tests that prove real traffic -> real defenses -> real monitoring visibility.
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-11-*` closure details.
-
-Acceptance criteria:
-1. Mandatory verification fails if any matrix-required defense/lane evidence is missing.
-2. Tests cover happy path, degraded path, race path, and prod-mode non-sim freshness path.
-3. CI artifacts make telemetry-visibility failures actionable at defense-row granularity.
-4. `make test` remains canonical and sufficient for contributor verification.
-5. Release gates cannot pass with partial coverage hidden by aggregate pass/fail summaries.
-6. Toggle control regressions (duplicate starts, lease split-brain, missing operation lineage) fail deterministically in CI.
-7. Trust-boundary regressions (CSRF/origin/session/replay/throttle/audit) fail deterministically in CI with explicit failure taxonomy.
-8. Frontier isolation/envelope/teardown regressions fail deterministically in CI with explicit failure taxonomy.
-9. Realtime cursor/stream ordering and resume regressions fail deterministically in CI with explicit failure taxonomy.
-10. Benchmark-threshold regressions (`p95`, `p99`, overflow/drop, request-budget) fail deterministically in CI with scenario-specific diagnostics.
-11. Retention-lifecycle regressions (purge lag, bucket cutoff drift, read-path scan fallback) fail deterministically in CI with explicit failure taxonomy.
-12. Cost-governance regressions (cardinality/payload/sampling/compression/query-budget) fail deterministically in CI with explicit failure taxonomy.
-13. Security/privacy regressions (classification/leak/pseudonymization/retention/incident hooks) fail deterministically in CI with explicit failure taxonomy.
-14. ADR conformance drift for SIM2 core domains fails deterministically in CI unless an explicit supersession path is declared.
 
 ### SIM2-GC-12: Program Governance for Continuous Defense Evolution
 
@@ -419,38 +249,17 @@ Scope: operationalize a repeatable closed-loop process using SIM2 as real advers
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-12-*` closure details.
 
-Acceptance criteria:
-1. SIM2 is operated as an ongoing engineering system, not a one-off test feature.
-2. New adversary discoveries have clear promotion and mitigation pathways.
-3. KPIs demonstrate whether defenses are improving without unacceptable collateral.
-4. Governance enforces architectural excellence and prevents drift back to imperative/convention-only controls.
-
 ### SIM2-GC-13: Remove Adversary Sim Progress Bar and Eliminate Dead UI Runtime Paths
 
 Scope: remove the top progress bar UX that implies choreographed sequence progression and keep only clear ON/OFF + lifecycle state semantics.
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-13-*` closure details.
 
-Acceptance criteria:
-1. Dashboard no longer renders or references a top adversary-sim progress bar.
-2. No progress-timer/tick code remains in dashboard route/runtime modules.
-3. Tests verify ON/OFF + lifecycle behavior only and pass without progress assumptions.
-4. Operator docs describe sim as enabled/disabled attacker activity bounded by guardrail duration, not choreographed progression.
-5. Removal leaves no dead selectors, helper exports, or stale tests.
-
 ### SIM2-GC-14: Formalize Hybrid Adversary Model (Deterministic Oracle + Emergent Exploration)
 
 Scope: resolve ambiguity between choreographed simulation and emergent adversary behavior by defining and enforcing a two-lane architecture with explicit promotion bridge.
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-14-*` closure details.
-
-Acceptance criteria:
-1. Deterministic and emergent lanes are explicit, testable, and operationally visible.
-2. Blocking gates depend only on deterministic confirmation, never stochastic one-off outcomes.
-3. Emergent lane drives realistic crawl/scrape/attack exploration without privileged control-plane access and within bounded budgets (`<=180s`, `<=500 actions` default envelope).
-4. Promotion decisions enforce quantitative thresholds (`>=95%` deterministic confirmation, `<=20%` false-discovery rate, `<=48h` owner disposition SLA) and remain auditable from lineage artifacts.
-5. False-discovery behavior is measured and kept within declared limit (`<=20%` rolling window target).
-6. Operator documentation and UI terminology no longer conflate guardrail duration with procedural adversary progress.
 
 ### SIM2-GC-15: Telemetry Retention Lifecycle Determinism and Health Visibility
 
@@ -459,28 +268,12 @@ ADR reference: [`docs/adr/0009-telemetry-lifecycle-retention-cost-security.md`](
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-15-*` closure details.
 
-Acceptance criteria:
-1. Retention enforcement no longer relies on monitoring refresh read paths performing keyspace-wide cleanup work.
-2. Purge lag remains `<=1 hour` beyond configured retention window under declared normal envelope.
-3. Healthy state reports `pending_expired_buckets == 0`; non-zero state is operator-visible with degraded status.
-4. Bucket cutoff semantics are deterministic and test-backed across repeated purge cycles.
-5. Purge worker remains bounded (`<=500ms` budget per cadence tick) and failure-retry behavior is idempotent.
-6. Retention health telemetry is visible in dashboard/admin surfaces and included in CI diagnostics artifacts.
-
 ### SIM2-GC-16: Monitoring Cost Governance and Resource Efficiency Envelope
 
 Scope: enforce layered cost controls across telemetry ingest, storage, query, and transport while preserving security-critical evidence integrity.
 ADR reference: [`docs/adr/0009-telemetry-lifecycle-retention-cost-security.md`](../docs/adr/0009-telemetry-lifecycle-retention-cost-security.md)
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-16-*` closure details.
-
-Acceptance criteria:
-1. Monitoring pipeline remains within declared cost envelope under realtime benchmark scenarios.
-2. Guarded dimensions respect cardinality caps with explicit overflow accounting and no unbounded growth.
-3. Unsampleable defense-event classes are never sampled or dropped.
-4. Default monitoring payloads meet size budget and expose pagination/window continuation when capped.
-5. Compression and query-budget controls provide measurable transport/query cost savings without freshness regressions.
-6. Cost health status is operator-visible and CI-enforced with threshold diagnostics.
 
 ### SIM2-GC-17: Telemetry and Adversary-Artifact Security/Privacy-by-Construction
 
@@ -489,13 +282,59 @@ ADR reference: [`docs/adr/0009-telemetry-lifecycle-retention-cost-security.md`](
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-17-*` closure details.
 
+## P0 SIM2 Verification Hardening Wave 3 (Plan-Closure Priority)
+
+Reference plan/ADR bundle:
+1. [`docs/plans/2026-02-28-sim2-gcr-8-gc6-gc8-gc11-gc14-implementation-plan.md`](../docs/plans/2026-02-28-sim2-gcr-8-gc6-gc8-gc11-gc14-implementation-plan.md)
+2. [`docs/plans/2026-02-28-rust-edge-sync-telemetry-validation-plan.md`](../docs/plans/2026-02-28-rust-edge-sync-telemetry-validation-plan.md)
+3. [`docs/adr/0007-adversary-sim-toggle-command-controller.md`](../docs/adr/0007-adversary-sim-toggle-command-controller.md)
+4. [`docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md`](../docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md)
+5. [`docs/adr/0009-telemetry-lifecycle-retention-cost-security.md`](../docs/adr/0009-telemetry-lifecycle-retention-cost-security.md)
+
+### SIM2-W3-1: Make Container-Blackbox Evidence Mandatory in Blocking Gates
+- [ ] SIM2-W3-1 remove permissive matrix behavior (`--allow-missing-container-report`) from blocking SIM2 gate paths and ensure strict failure when container evidence is absent.
+
 Acceptance criteria:
-1. Secret-prohibited data classes are blocked from persistence by construction and verified by tests.
-2. Secret canary leakage to persisted telemetry/artifacts is zero in mandatory regression lanes.
-3. Pseudonymization is default-on for sensitive identifiers in non-forensic views, with audited break-glass workflow for raw access.
-4. High-risk raw artifact retention defaults to `<=72h` and overrides require explicit audit entries.
-5. Incident hooks emit deterministic, actionable events for containment workflow without delaying core defense execution.
-6. Security/privacy posture is operator-visible and CI-enforced with explicit threshold diagnostics.
+1. `make test-sim2-verification-matrix` fails when `scripts/tests/adversarial/container_blackbox_report.json` is missing.
+2. Blocking CI/release workflows execute `make test-adversarial-container-blackbox` before matrix validation.
+3. Verification-matrix report no longer emits pass/skipped status for missing container lane in blocking paths.
+4. Unit tests cover missing-container failure behavior and strict lane evidence expectations.
+
+### SIM2-W3-2: Align Realtime Bench Contract to ADR `0008` Envelope and Profile Semantics
+- [ ] SIM2-W3-2 enforce declared benchmark envelope for blocking baseline profile and make profile metadata truthful for runtime-dev/runtime-prod verification semantics.
+
+Acceptance criteria:
+1. Blocking baseline benchmark workload is `>=1000 events/sec` and `>=5 active operator clients`.
+2. Benchmark artifacts include explicit profile metadata and do not claim runtime-prod verification when only synthetic/single-lane simulation is executed.
+3. Threshold failures include percentile/budget diagnostics naming violated metric and required bound.
+4. `make test-sim2-realtime-bench` remains deterministic and test-covered.
+
+### SIM2-W3-3: Remove Synthetic-Pass Fallbacks from Operational Regression Gate
+- [ ] SIM2-W3-3 remove generated default sections that can produce pass results when required operational domains are missing from report artifacts.
+
+Acceptance criteria:
+1. Missing `failure_injection`, `prod_mode_monitoring`, `retention_lifecycle`, `cost_governance`, or `security_privacy` sections causes deterministic gate failure.
+2. Failure taxonomy distinguishes `domain_missing` from `threshold_regression`.
+3. Unit tests assert missing-domain failures and reject fallback-pass behavior.
+4. No hardcoded positive defaults remain that can mask absent evidence.
+
+### SIM2-W3-4: Strengthen ADR/Governance Conformance from Marker Checks to Evidence Checks
+- [ ] SIM2-W3-4 replace marker-presence-only conformance checks with assertions tied to measurable contract evidence and implementation behavior.
+
+Acceptance criteria:
+1. ADR conformance checks validate artifact/report evidence for `0007`/`0008`/`0009` domains, not only string markers in source files.
+2. Governance contract checks validate quantitative promotion thresholds and deterministic-blocking semantics from contract/report fields.
+3. Missing evidence or threshold drift fails deterministically with explicit domain-specific diagnostics.
+4. Updated unit tests cover positive and negative evidence-driven conformance paths.
+
+### SIM2-W3-5: Eliminate Pass-Oriented Synthetic Defaults in Retention/Cost/Security Diagnostics
+- [ ] SIM2-W3-5 ensure retention/cost/security diagnostics derive from measured report values or fail/degraded states; no optimistic synthetic values are permitted.
+
+Acceptance criteria:
+1. Retention diagnostics require real metric fields (`purge_lag_hours`, `pending_expired_buckets`, scan counters) and fail when absent.
+2. Cost diagnostics require real cardinality/payload/compression/query-budget fields and fail when absent.
+3. Security diagnostics require real classification/canary/pseudonymization/retention/incident-hook fields and fail when absent.
+4. CI artifacts remain actionable and include exact missing metric names for each failed domain.
 
 ## P0 CI + E2E Stability (Top Priority)
 - [ ] CI-E2E-1 Resume point for next Codex session: start from `scripts/tests/run_dashboard_e2e.sh`, `scripts/tests/verify_playwright_launch.mjs`, `playwright.config.mjs`, `Makefile` (`test-dashboard-e2e`), and `e2e/run_dashboard_e2e.unit.test.js`; run `make dev` (terminal 1) plus `make test-dashboard-e2e` (terminal 2) and capture per-stage timings (unit, bundle budget, seed, preflight, Playwright) to prove there is no loop/stall; then run `DEBUG=pw:browser corepack pnpm exec node scripts/tests/verify_playwright_launch.mjs` to diagnose Chromium launch path and fix root cause so browser e2e runs without `PLAYWRIGHT_SANDBOX_ALLOW_SKIP`; finally, harden CI behavior so skip mode is never silently used in mandatory checks, retries are bounded and deterministic, and acceptance criteria are met: full `make test` completes in bounded time, Chromium e2e actually executes, and every failing step returns actionable diagnostics rather than hanging.
