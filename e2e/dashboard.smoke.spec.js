@@ -1511,6 +1511,16 @@ test("manual refresh button appends new monitoring delta events when auto-refres
   expect(deltaRequestCount).toBeGreaterThan(beforeRefreshDeltaCalls);
 });
 
+test("monitoring recent-event filters use canonical shared control classes", async ({ page }) => {
+  await openDashboard(page);
+  await openTab(page, "monitoring");
+
+  await expect(page.locator("#monitoring-event-filters .input-row")).toHaveCount(5);
+  await expect(page.locator("#monitoring-event-filters .field-row")).toHaveCount(0);
+  await expect(page.locator("#monitoring-event-filters .control-label.control-label--wide")).toHaveCount(5);
+  await expect(page.locator("#monitoring-event-filters select.input-field")).toHaveCount(5);
+});
+
 test("route remount preserves keyboard navigation, ban/unban, verification save, and polling", async ({ page }) => {
   await page.addInitScript(() => {
     const nativeSetTimeout = window.setTimeout.bind(window);

@@ -1862,6 +1862,21 @@ test('monitoring tab is decomposed into focused subsection components', () => {
   assert.match(source, /onFilterChange=\{onEventFilterChange\}/);
 });
 
+test('monitoring recent-events filters reuse canonical input-row and input-field styles', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/RecentEventsTable.svelte'),
+    'utf8'
+  );
+
+  const inputRowMatches = source.match(/class="input-row"/g) || [];
+  const selectMatches = source.match(/<select\s+[^>]*class="input-field"/g) || [];
+
+  assert.equal(source.includes('field-row'), false);
+  assert.equal(inputRowMatches.length, 5);
+  assert.equal(selectMatches.length, 5);
+  assert.match(source, /class="control-label control-label--wide"/);
+});
+
 test('dashboard runtime is slim and free of legacy DOM-id wiring layers', () => {
   const source = fs.readFileSync(DASHBOARD_NATIVE_RUNTIME_PATH, 'utf8');
 

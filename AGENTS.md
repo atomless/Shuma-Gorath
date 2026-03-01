@@ -24,6 +24,7 @@ This file provides instructions for coding agents working in this repository.
 - Treat this repository as pre-launch by default: do not add backward-compatibility aliases/shims/migration layers unless the user explicitly requests them for the specific change.
 - UI design language is controlled and must remain consistent: do not invent, introduce, or experiment with new visual language (new border styles, spacing systems, color semantics, component idioms, interaction patterns, or typography shifts) unless the user explicitly asks for a design change. Default behavior is strict reuse of the existing canonical dashboard styles/components.
 - UI element implementation mandate (strict): whenever adding or modifying dashboard UI fields/inputs/selects/buttons/tables, agents MUST reuse existing shared components, classes, and design tokens. Agents MUST NOT add one-off styling or duplicate near-equivalent CSS where canonical styles already exist. If a required pattern is missing, agents must first extend the shared style/component surface in its canonical location and then consume that shared pattern from feature code.
+- Enforcement command: treat shared-style reuse as a release-blocking requirement. Any UI change that bypasses canonical components/classes without an explicit user-approved design exception is non-compliant and must be revised before merge.
 
 ## Required workflow for non-trivial changes
 

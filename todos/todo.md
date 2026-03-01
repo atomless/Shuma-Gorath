@@ -356,9 +356,6 @@ Definition of done:
 - Completion notes include security impact, operational impact, resource impact, and rollback steps.
 
 ### SIM2-R4-5: Enforce Monitoring-Page UI Control Style Parity with Canonical Dashboard Design System
-- [ ] SIM2-R4-5-1 Replace monitoring recent-events field/select controls that diverge from shared styling with canonical reusable controls/classes.
-- [ ] SIM2-R4-5-2 Remove duplicated/ad-hoc local CSS rules for those controls; reuse existing design tokens/patterns from shared dashboard style surfaces.
-- [ ] SIM2-R4-5-3 Add dashboard regression coverage (unit/visual/e2e as appropriate) that detects style/structure drift for monitoring form controls.
 
 Acceptance criteria:
 - Monitoring recent-events controls visually and behaviorally match canonical dashboard form controls.

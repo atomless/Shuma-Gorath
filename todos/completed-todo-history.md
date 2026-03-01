@@ -12,6 +12,12 @@ Moved from active TODO files on 2026-02-14.
 - [x] SIM2-R4-1-2 Fix auto-refresh toggle semantics so enabling/disabling refresh actually starts/stops polling and updates view state deterministically.
 - [x] SIM2-R4-1-3 Fix manual refresh semantics so button clicks trigger immediate reload when auto-refresh is off and do not no-op.
 
+#### SIM2-R4-5: Enforce Monitoring-Page UI Control Style Parity with Canonical Dashboard Design System
+
+- [x] SIM2-R4-5-1 Replace monitoring recent-events field/select controls that diverge from shared styling with canonical reusable controls/classes.
+- [x] SIM2-R4-5-2 Remove duplicated/ad-hoc local CSS rules for those controls; reuse existing design tokens/patterns from shared dashboard style surfaces.
+- [x] SIM2-R4-5-3 Add dashboard regression coverage (unit/visual/e2e as appropriate) that detects style/structure drift for monitoring form controls.
+
 ### P0 SIM2 Verification Hardening Wave 3 (Plan-Closure Priority)
 
 #### SIM2-W3-1: Make Container-Blackbox Evidence Mandatory in Blocking Gates

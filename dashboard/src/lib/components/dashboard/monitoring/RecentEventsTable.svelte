@@ -32,9 +32,10 @@
   description="Last 100 recorded events with adversary-source filters."
 >
   <div id="monitoring-event-filters" class="control-group panel-soft pad-sm">
-    <div class="field-row">
-      <label for="monitoring-filter-origin">Origin</label>
+    <div class="input-row">
+      <label class="control-label control-label--wide" for="monitoring-filter-origin">Origin</label>
       <select
+        class="input-field"
         id="monitoring-filter-origin"
         value={filters.origin}
         on:change={(event) => onFilterChange('origin', event?.currentTarget?.value || 'all')}
@@ -45,9 +46,10 @@
         {/each}
       </select>
     </div>
-    <div class="field-row">
-      <label for="monitoring-filter-scenario">Scenario</label>
+    <div class="input-row">
+      <label class="control-label control-label--wide" for="monitoring-filter-scenario">Scenario</label>
       <select
+        class="input-field"
         id="monitoring-filter-scenario"
         value={filters.scenario}
         on:change={(event) => onFilterChange('scenario', event?.currentTarget?.value || 'all')}
@@ -58,9 +60,10 @@
         {/each}
       </select>
     </div>
-    <div class="field-row">
-      <label for="monitoring-filter-lane">Lane</label>
+    <div class="input-row">
+      <label class="control-label control-label--wide" for="monitoring-filter-lane">Lane</label>
       <select
+        class="input-field"
         id="monitoring-filter-lane"
         value={filters.lane}
         on:change={(event) => onFilterChange('lane', event?.currentTarget?.value || 'all')}
@@ -71,9 +74,10 @@
         {/each}
       </select>
     </div>
-    <div class="field-row">
-      <label for="monitoring-filter-defense">Defense</label>
+    <div class="input-row">
+      <label class="control-label control-label--wide" for="monitoring-filter-defense">Defense</label>
       <select
+        class="input-field"
         id="monitoring-filter-defense"
         value={filters.defense}
         on:change={(event) => onFilterChange('defense', event?.currentTarget?.value || 'all')}
@@ -84,9 +88,10 @@
         {/each}
       </select>
     </div>
-    <div class="field-row">
-      <label for="monitoring-filter-outcome">Outcome</label>
+    <div class="input-row">
+      <label class="control-label control-label--wide" for="monitoring-filter-outcome">Outcome</label>
       <select
+        class="input-field"
         id="monitoring-filter-outcome"
         value={filters.outcome}
         on:change={(event) => onFilterChange('outcome', event?.currentTarget?.value || 'all')}
