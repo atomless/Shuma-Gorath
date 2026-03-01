@@ -465,7 +465,7 @@ pub fn run_internal_generation_tick(
     };
     #[cfg(not(test))]
     {
-        let mut dispatch_request = |request: Request<Vec<u8>>| {
+        let mut dispatch_request = |request: Request| {
             let _guard = crate::runtime::sim_telemetry::enter(Some(metadata.clone()));
             let response = crate::handle_bot_defence_impl(&request);
             let status = *response.status();
