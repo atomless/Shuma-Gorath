@@ -559,7 +559,14 @@ export function createDashboardRefreshRuntime(options = {}) {
       writeCache(MONITORING_CACHE_KEY, { monitoring: compactMonitoring });
       const existingIpBansCache = readCache(IP_BANS_CACHE_KEY) || {};
       writeCache(IP_BANS_CACHE_KEY, { ...existingIpBansCache, bans: compactBans });
-      updateFreshnessSnapshot('monitoring', { transport: 'snapshot_poll' }, 'snapshot_poll');
+      updateFreshnessSnapshot(
+        'monitoring',
+        {
+          ...(monitoringData.freshness || {}),
+          transport: 'snapshot_poll'
+        },
+        'snapshot_poll'
+      );
       try {
         await seedCursorToWindowEnd('monitoring', requestOptions);
       } catch (_error) {}

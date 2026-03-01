@@ -4,6 +4,15 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-01)
 
+### P0 Adversarial Traffic Simulation Program
+
+#### SIM-DET-1: Deterministic Lane Coverage Audit After Autonomous Heartbeat Decoupling
+
+- [x] SIM-DET-1 Run deterministic-lane coverage audit after heartbeat decoupling and document request-surface coverage across challenge variants, JS pressure, PoW, GEO stimulation, maze/tarpit, rate pressure, fingerprint/CDP signals, and ban paths.
+- [x] Expanded deterministic runtime-toggle request mix in `src/admin/adversary_sim.rs` to include explicit PoW verify abuse, tarpit progress abuse, fingerprint mismatch probe, challenge submit abuse, CDP probe, and same-IP rate bursts.
+- [x] Added deterministic request-mix contract tests in `src/admin/adversary_sim.rs` and archived audit findings in `docs/research/2026-03-01-sim-deterministic-lane-coverage-audit.md`.
+- [x] Opened immediate remediation follow-ups for config-dependent category emission guarantees (`SIM-DET-2`, `SIM-DET-3`) in `todos/todo.md`.
+
 ### P0 SIM2 Round 4 Stabilization: Monitoring Truthfulness + UX Consistency
 
 #### SIM2-R4-3: Prove Adversary-Simulation Traffic Is Real, Generated, and Observable End-to-End

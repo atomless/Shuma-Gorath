@@ -967,6 +967,52 @@ mod tests {
     }
 
     #[test]
+    fn handle_admin_monitoring_snapshot_includes_freshness_and_load_contracts() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let hour = now / 3600;
+        let key = format!("eventlog:v2:{}:{}-snapshot-freshness", hour, now);
+        let event = EventLogEntry {
+            ts: now,
+            event: EventType::Challenge,
+            ip: Some("198.51.100.61".to_string()),
+            reason: Some("challenge_served".to_string()),
+            outcome: Some("ok".to_string()),
+            admin: Some("ops".to_string()),
+        };
+        store
+            .set(&key, serde_json::to_vec(&event).unwrap().as_slice())
+            .unwrap();
+
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Get)
+            .uri("/admin/monitoring?hours=1&limit=10");
+        let req = builder.build();
+        let resp = handle_admin_monitoring(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+        let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+
+        assert!(payload.get("freshness_slo").is_some());
+        assert!(payload.get("load_envelope").is_some());
+        assert!(payload.get("freshness").is_some());
+        assert_eq!(
+            payload
+                .get("freshness")
+                .and_then(|value| value.get("state"))
+                .and_then(|value| value.as_str()),
+            Some("fresh")
+        );
+        assert_eq!(
+            payload
+                .get("freshness")
+                .and_then(|value| value.get("transport"))
+                .and_then(|value| value.as_str()),
+            Some("snapshot_poll")
+        );
+    }
+
+    #[test]
     fn handle_admin_monitoring_delta_keeps_freshness_anchor_when_page_is_empty() {
         let store = MockStore::new();
         let now = now_ts();
@@ -3492,6 +3538,9 @@ mod admin_config_tests {
         assert!(details.get("tarpit").is_some());
         assert!(details.get("cdp").is_some());
         assert!(details.get("cdp_events").is_some());
+        assert!(body.get("freshness_slo").is_some());
+        assert!(body.get("load_envelope").is_some());
+        assert!(body.get("freshness").is_some());
         assert_eq!(
             body.get("prometheus")
                 .and_then(|v| v.get("endpoint"))
@@ -6147,6 +6196,33 @@ fn resolve_after_cursor(req: &Request) -> String {
 
 fn latest_event_ts(rows: &[CursorEventRecord]) -> Option<u64> {
     rows.iter().map(|row| row.record.entry.ts).max()
+}
+
+fn latest_monitoring_snapshot_ts(details: &serde_json::Value) -> Option<u64> {
+    let event_ts = details
+        .get("events")
+        .and_then(|value| value.get("recent_events"))
+        .and_then(|value| value.as_array())
+        .and_then(|rows| {
+            rows.iter()
+                .filter_map(|row| row.get("ts").and_then(|value| value.as_u64()))
+                .max()
+        });
+    let ban_ts = details
+        .get("bans")
+        .and_then(|value| value.get("bans"))
+        .and_then(|value| value.as_array())
+        .and_then(|rows| {
+            rows.iter()
+                .filter_map(|row| row.get("banned_at").and_then(|value| value.as_u64()))
+                .max()
+        });
+    match (event_ts, ban_ts) {
+        (Some(event_ts), Some(ban_ts)) => Some(event_ts.max(ban_ts)),
+        (Some(event_ts), None) => Some(event_ts),
+        (None, Some(ban_ts)) => Some(ban_ts),
+        (None, None) => None,
+    }
 }
 
 fn freshness_state_for_lag(lag_ms: Option<u64>) -> &'static str {
@@ -10150,18 +10226,24 @@ where
     let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
     let limit = query_u64_param(req.query(), "limit", 10).clamp(1, 50) as usize;
     let forensic_mode = forensic_access_mode(req.query());
+    let now = now_ts();
     let query_budget = monitoring_query_budget(hours, limit);
     let summary = crate::observability::monitoring::summarize_with_store(store, hours, limit);
     let details = monitoring_details_payload(store, "default", hours, limit, forensic_mode);
+    let snapshot_latest_ts = latest_monitoring_snapshot_ts(&details);
+    let freshness = freshness_health_payload(now, snapshot_latest_ts, false, "none", "snapshot_poll");
     let retention_health = crate::observability::retention::retention_health(store);
     let security_privacy = details
         .get("security_privacy")
         .cloned()
-        .unwrap_or_else(|| security_privacy_payload(store, now_ts(), hours, forensic_mode));
+        .unwrap_or_else(|| security_privacy_payload(store, now, hours, forensic_mode));
     let mut payload = json!({
         "summary": summary,
         "prometheus": monitoring_prometheus_helper_payload(),
         "details": details,
+        "freshness_slo": freshness_slo_payload(),
+        "load_envelope": load_envelope_payload(),
+        "freshness": freshness,
         "retention_health": retention_health,
         "security_privacy": security_privacy
     });

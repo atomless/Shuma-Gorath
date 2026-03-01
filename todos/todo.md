@@ -395,7 +395,8 @@ Ongoing objectives for this tranche:
 - [ ] SIM-DEPLOY-2 If production availability is approved, design and implement production-safe adversary-sim operating modes (explicit opt-in, spawn-on-enable execution lifecycle, strict rate/resource envelopes, kill switch, auditability, and no-impact guarantees for normal user traffic).
 
 - [ ] SIM-LLM-1 Realize full LLM-orchestrated, instruction-driven, containerized adversary lane as first-class runtime actor (not advisory metadata): run capability-constrained action plans against public HTTP surface, emit normal request-pipeline telemetry, preserve deterministic replay bridge, and surface explicit degraded-state diagnostics when frontier execution is unavailable.
-- [ ] SIM-DET-1 After autonomous heartbeat decoupling is complete (sim tick cadence fully backend-owned and independent of dashboard refresh tick), run a deterministic-lane coverage audit and confirm generated traffic exercises every Shuma detection and defence surface (including challenge variants, JS verification, PoW, GEO, maze/tarpit, rate limiting, fingerprint/bot-signal thresholds, and ban paths); document any uncovered surfaces and open remediation TODOs immediately.
+- [ ] SIM-DET-2 Add deterministic config-profiled coverage pass for config-dependent surfaces (GEO and optional IP-range actions) so category-level event emission is guaranteed in automated verification.
+- [ ] SIM-DET-3 Add runtime-toggle integration assertions that fail when required deterministic surface categories (challenge, JS, PoW, maze/tarpit, rate, fingerprint/CDP, ban, GEO-configured) are missing from observed event telemetry.
 
 ## P1 Dashboard IA: Promote Rate Limiting and GEO to Top-Level Tabs
 - [ ] DSH-RG-1 Define dashboard information architecture update and tab order for new top-level `Rate Limiting` and `GEO` tabs (including hash-route mapping and back/forward behavior).

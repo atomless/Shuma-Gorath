@@ -247,6 +247,9 @@ export const adaptMonitoring = (payload) => {
   return {
     summary: asRecord(source.summary),
     prometheus: asRecord(source.prometheus),
+    freshness_slo: asRecord(source.freshness_slo),
+    load_envelope: asRecord(source.load_envelope),
+    freshness: asRecord(source.freshness),
     details
   };
 };

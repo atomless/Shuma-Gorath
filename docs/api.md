@@ -254,6 +254,9 @@ For <abbr title="Chrome DevTools Protocol">CDP</abbr>-only operational views wit
 - `total_violations`, `unique_offenders`, `top_offenders`, `top_paths`, `outcomes`
 - `summary.geo`:
 - `total_violations`, `actions`, `top_countries`
+- `freshness_slo` (`p50/p95/p99` visibility-delay targets plus lag/degraded thresholds)
+- `load_envelope` (declared ingest/client/query budget envelope for realtime contract)
+- `freshness` (`state=fresh|degraded|stale`, `lag_ms`, `last_event_ts`, slow-consumer lag taxonomy, transport)
 - `retention_health`:
 - `retention_hours`, `oldest_retained_ts`, `purge_lag_hours`, `pending_expired_buckets`
 - `last_purge_success_ts`, `last_attempt_ts`, `last_purged_bucket`, `last_error`

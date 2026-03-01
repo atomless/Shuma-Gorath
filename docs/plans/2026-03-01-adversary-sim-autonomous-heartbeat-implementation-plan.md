@@ -1,7 +1,7 @@
 # Adversary Sim Autonomous Heartbeat Implementation Plan
 
 Date: 2026-03-01  
-Status: Proposed (implementation-ready)
+Status: Implemented (2026-03-01 tranche complete; follow-up coverage hardening tracked via `SIM-DET-2`/`SIM-DET-3`)
 
 Related:
 - [`docs/adr/0010-adversary-sim-autonomous-heartbeat.md`](../adr/0010-adversary-sim-autonomous-heartbeat.md)

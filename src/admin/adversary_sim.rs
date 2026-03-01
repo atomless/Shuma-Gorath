@@ -14,12 +14,24 @@ pub const STOP_TIMEOUT_SECONDS: u64 = 10;
 pub const AUTONOMOUS_HEARTBEAT_INTERVAL_SECONDS: u64 = 1;
 pub const AUTONOMOUS_HEARTBEAT_MAX_CATCHUP_TICKS_PER_INVOCATION: u64 = 8;
 const ACTIVE_LANE_COUNT: u32 = 2;
-const INTERNAL_GENERATION_BATCH_SIZE: u64 = 12;
-const INTERNAL_RATE_BURST_REQUESTS: usize = 10;
+const INTERNAL_PRIMARY_REQUEST_COUNT: u64 = 9;
+const INTERNAL_SUPPLEMENTAL_REQUEST_COUNT: u64 = 6;
+const INTERNAL_RATE_BURST_REQUESTS: u64 = 10;
 const INTERNAL_RATE_BURST_EVERY_N_TICKS: u64 = 1;
+const INTERNAL_GENERATION_BATCH_SIZE: u64 =
+    INTERNAL_PRIMARY_REQUEST_COUNT + INTERNAL_SUPPLEMENTAL_REQUEST_COUNT + INTERNAL_RATE_BURST_REQUESTS;
+#[cfg(not(test))]
 const INTERNAL_RATE_BURST_IP: &str = "198.51.254.10";
+#[cfg(not(test))]
 const INTERNAL_CDP_REPORT_IP: &str = "198.51.254.20";
+#[cfg(not(test))]
 const INTERNAL_CHALLENGE_ABUSE_IP: &str = "198.51.254.30";
+#[cfg(not(test))]
+const INTERNAL_POW_ABUSE_IP: &str = "198.51.254.40";
+#[cfg(not(test))]
+const INTERNAL_TARPIT_ABUSE_IP: &str = "198.51.254.50";
+#[cfg(not(test))]
+const INTERNAL_FINGERPRINT_PROBE_IP: &str = "198.51.254.60";
 const GENERATION_DIAGNOSTIC_GRACE_SECONDS: u64 = 5;
 const STATE_KEY_PREFIX: &str = "adversary_sim:control:";
 
@@ -364,7 +376,6 @@ pub fn status_payload(
     })
 }
 
-#[cfg(not(test))]
 fn simulated_request_paths(run_id: &str, tick_count: u64) -> [String; 9] {
     let run_suffix = run_id
         .chars()
@@ -395,6 +406,15 @@ fn simulated_request_ip(tick_count: u64, index: usize) -> String {
     let third = ((offset / 254) % 254) + 1;
     let fourth = (offset % 254) + 1;
     format!("198.51.{}.{}", third, fourth)
+}
+
+#[cfg(test)]
+fn deterministic_generated_request_target_for_tick(tick_count: u64) -> u64 {
+    let mut total = INTERNAL_PRIMARY_REQUEST_COUNT + INTERNAL_SUPPLEMENTAL_REQUEST_COUNT;
+    if tick_count % INTERNAL_RATE_BURST_EVERY_N_TICKS == 0 {
+        total = total.saturating_add(INTERNAL_RATE_BURST_REQUESTS);
+    }
+    total
 }
 
 pub fn generation_diagnostics(
@@ -606,6 +626,46 @@ pub fn run_internal_generation_tick(
             .header("user-agent", "ShumaAdversarySim/1.0 not-a-bot-submit");
         dispatch_request(not_a_bot_submit.body(not_a_bot_abuse_body).build());
 
+        let pow_verify_body = br#"{"seed":"invalid-seed","nonce":"invalid-nonce"}"#.to_vec();
+        let mut pow_verify = Request::builder();
+        pow_verify
+            .method(Method::Post)
+            .uri("/pow/verify")
+            .header("x-forwarded-for", INTERNAL_POW_ABUSE_IP)
+            .header("x-forwarded-proto", "https")
+            .header("content-type", "application/json")
+            .header("user-agent", "ShumaAdversarySim/1.0 pow-verify-submit");
+        dispatch_request(pow_verify.body(pow_verify_body).build());
+
+        let tarpit_progress_body = br#"{"token":"invalid","operation_id":"invalid","proof_nonce":"invalid"}"#.to_vec();
+        let mut tarpit_progress = Request::builder();
+        tarpit_progress
+            .method(Method::Post)
+            .uri(crate::tarpit::progress_path())
+            .header("x-forwarded-for", INTERNAL_TARPIT_ABUSE_IP)
+            .header("x-forwarded-proto", "https")
+            .header("content-type", "application/json")
+            .header("user-agent", "ShumaAdversarySim/1.0 tarpit-progress-submit");
+        dispatch_request(tarpit_progress.body(tarpit_progress_body).build());
+
+        let mut fingerprint_probe = Request::builder();
+        fingerprint_probe
+            .method(Method::Get)
+            .uri("/sim/public/search?q=fingerprint-mismatch")
+            .header("x-forwarded-for", INTERNAL_FINGERPRINT_PROBE_IP)
+            .header("x-forwarded-proto", "https")
+            .header(
+                "user-agent",
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148",
+            )
+            .header(
+                "sec-ch-ua",
+                "\"Chromium\";v=\"120\", \"Not_A Brand\";v=\"99\"",
+            )
+            .header("sec-ch-ua-platform", "\"Windows\"")
+            .header("sec-ch-ua-mobile", "?0");
+        dispatch_request(fingerprint_probe.body(Vec::new()).build());
+
         let cdp_probe_body = serde_json::to_vec(&json!({
             "cdp_detected": true,
             "score": 4.8,
@@ -645,7 +705,7 @@ pub fn run_internal_generation_tick(
     {
         let _ = store;
         let _ = metadata;
-        result.generated_requests = INTERNAL_GENERATION_BATCH_SIZE;
+        result.generated_requests = deterministic_generated_request_target_for_tick(state.generated_tick_count);
         result.last_response_status = Some(200);
     }
 
@@ -825,5 +885,25 @@ mod tests {
                 .and_then(|value| value.as_bool()),
             Some(true)
         );
+    }
+
+    #[test]
+    fn deterministic_request_targets_cover_key_defense_surfaces() {
+        let paths = simulated_request_paths("run-coverage", 1);
+        assert!(paths.iter().any(|path| path == "/pow"));
+        assert!(paths.iter().any(|path| path == "/challenge/not-a-bot-checkbox"));
+        assert!(paths.iter().any(|path| path == "/instaban"));
+        assert!(paths.iter().any(|path| path.starts_with("/sim/public/search")));
+        assert!(paths
+            .iter()
+            .any(|path| path.starts_with(crate::maze::entry_path("").as_str())));
+    }
+
+    #[test]
+    fn deterministic_generated_request_target_matches_batch_contract() {
+        let expected = INTERNAL_PRIMARY_REQUEST_COUNT
+            + INTERNAL_SUPPLEMENTAL_REQUEST_COUNT
+            + INTERNAL_RATE_BURST_REQUESTS;
+        assert_eq!(deterministic_generated_request_target_for_tick(0), expected);
     }
 }

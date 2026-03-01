@@ -321,6 +321,9 @@ test('dashboard API adapters normalize sparse payloads safely', { concurrency: f
 
     const monitoring = api.adaptMonitoring({
       summary: {},
+      freshness_slo: { visibility_delay_ms: { p95_target: 300 } },
+      load_envelope: { query_budget_requests_per_second_per_client: 1 },
+      freshness: { state: 'fresh', lag_ms: 125, last_event_ts: 1700000000, transport: 'snapshot_poll' },
       details: {
         tarpit: {
           enabled: true,
@@ -335,6 +338,8 @@ test('dashboard API adapters normalize sparse payloads safely', { concurrency: f
       Number(monitoring.details.tarpit.metrics.activations.progressive || 0),
       2
     );
+    assert.equal(monitoring.freshness.state, 'fresh');
+    assert.equal(monitoring.freshness.last_event_ts, 1700000000);
 
     const suggestions = api.adaptIpRangeSuggestions({
       generated_at: 1700000000,
@@ -728,6 +733,12 @@ test('refresh runtime bootstraps monitoring baseline before cursor deltas and ke
     let fullFetchCount = 0;
     const deltaCalls = [];
     const buildMonitoringPayload = (reason) => ({
+      freshness: {
+        state: 'fresh',
+        lag_ms: 0,
+        last_event_ts: now,
+        transport: 'snapshot_poll'
+      },
       summary: {
         honeypot: { total_hits: 1, unique_crawlers: 1, top_crawlers: [], top_paths: [] },
         challenge: { total_failures: 0, unique_offenders: 0, top_offenders: [], reasons: {}, trend: [] },
@@ -829,6 +840,9 @@ test('refresh runtime bootstraps monitoring baseline before cursor deltas and ke
       baselineEvents.some((entry) => String(entry.reason || '') === 'historical-baseline'),
       true
     );
+    const baselineFreshness = store.getSnapshot('monitoringFreshness') || {};
+    assert.equal(baselineFreshness.state, 'fresh');
+    assert.equal(Number(baselineFreshness.last_event_ts || 0), now);
 
     await runtime.refreshMonitoringTab('manual-refresh');
     assert.equal(fullFetchCount, 1);
