@@ -1333,6 +1333,184 @@ test("auto refresh defaults off and is only available on monitoring/ip-bans tabs
   await expect(page.locator("#refresh-now-btn")).toBeVisible();
 });
 
+test("monitoring initial load hydrates from full snapshot even when first delta page is empty", async ({ page }) => {
+  const now = Math.floor(Date.now() / 1000);
+  const buildMonitoringPayload = (reason) => ({
+    summary: {
+      honeypot: { total_hits: 2, unique_crawlers: 1, top_crawlers: [], top_paths: [] },
+      challenge: { total_failures: 0, unique_offenders: 0, top_offenders: [], reasons: {}, trend: [] },
+      pow: {
+        total_failures: 0,
+        total_successes: 0,
+        total_attempts: 0,
+        success_ratio: 0,
+        unique_offenders: 0,
+        top_offenders: [],
+        reasons: {},
+        outcomes: {},
+        trend: []
+      },
+      rate: { total_violations: 0, unique_offenders: 0, top_offenders: [], outcomes: {} },
+      geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
+    },
+    prometheus: { endpoint: "/metrics", notes: [] },
+    details: {
+      analytics: { ban_count: 0, test_mode: false, fail_mode: "open" },
+      events: {
+        recent_events: [{
+          ts: now,
+          event: "Challenge",
+          ip: "198.51.100.42",
+          reason,
+          outcome: "served",
+          admin: "ops"
+        }],
+        event_counts: { Challenge: 1 },
+        top_ips: [["198.51.100.42", 1]],
+        unique_ips: 1
+      },
+      bans: { bans: [] },
+      maze: { total_hits: 0, unique_crawlers: 0, maze_auto_bans: 0, top_crawlers: [] },
+      cdp: { stats: { total_detections: 0, auto_bans: 0 }, config: {}, fingerprint_stats: {} },
+      cdp_events: { events: [] }
+    }
+  });
+
+  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(buildMonitoringPayload("historical-baseline-visible"))
+    });
+  });
+  await page.route("**/admin/monitoring/delta?hours=*&limit=*", async (route) => {
+    const url = new URL(route.request().url());
+    const afterCursor = (url.searchParams.get("after_cursor") || "").trim();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        after_cursor: afterCursor,
+        window_end_cursor: "cursor-1",
+        next_cursor: "cursor-1",
+        has_more: false,
+        overflow: "none",
+        events: [],
+        freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
+      })
+    });
+  });
+
+  await openDashboard(page);
+  await expect(page.locator("#monitoring-events tbody")).toContainText("historical-baseline-visible");
+});
+
+test("manual refresh button appends new monitoring delta events when auto-refresh is off", async ({ page }) => {
+  const now = Math.floor(Date.now() / 1000);
+  const buildMonitoringPayload = () => ({
+    summary: {
+      honeypot: { total_hits: 2, unique_crawlers: 1, top_crawlers: [], top_paths: [] },
+      challenge: { total_failures: 0, unique_offenders: 0, top_offenders: [], reasons: {}, trend: [] },
+      pow: {
+        total_failures: 0,
+        total_successes: 0,
+        total_attempts: 0,
+        success_ratio: 0,
+        unique_offenders: 0,
+        top_offenders: [],
+        reasons: {},
+        outcomes: {},
+        trend: []
+      },
+      rate: { total_violations: 0, unique_offenders: 0, top_offenders: [], outcomes: {} },
+      geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
+    },
+    prometheus: { endpoint: "/metrics", notes: [] },
+    details: {
+      analytics: { ban_count: 0, test_mode: false, fail_mode: "open" },
+      events: {
+        recent_events: [{
+          ts: now,
+          event: "Challenge",
+          ip: "198.51.100.77",
+          reason: "historical-baseline",
+          outcome: "served",
+          admin: "ops"
+        }],
+        event_counts: { Challenge: 1 },
+        top_ips: [["198.51.100.77", 1]],
+        unique_ips: 1
+      },
+      bans: { bans: [] },
+      maze: { total_hits: 0, unique_crawlers: 0, maze_auto_bans: 0, top_crawlers: [] },
+      cdp: { stats: { total_detections: 0, auto_bans: 0 }, config: {}, fingerprint_stats: {} },
+      cdp_events: { events: [] }
+    }
+  });
+
+  let deltaRequestCount = 0;
+  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(buildMonitoringPayload())
+    });
+  });
+  await page.route("**/admin/monitoring/delta?hours=*&limit=*", async (route) => {
+    deltaRequestCount += 1;
+    const url = new URL(route.request().url());
+    const limit = Number.parseInt(url.searchParams.get("limit") || "0", 10);
+    const afterCursor = (url.searchParams.get("after_cursor") || "").trim();
+    if (limit === 1 || !afterCursor) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          after_cursor: "",
+          window_end_cursor: "cursor-1",
+          next_cursor: "cursor-1",
+          has_more: false,
+          overflow: "none",
+          events: [],
+          freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
+        })
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        after_cursor: afterCursor,
+        window_end_cursor: "cursor-2",
+        next_cursor: "cursor-2",
+        has_more: false,
+        overflow: "none",
+        events: [{
+          cursor: "cursor-2",
+          ts: now + 1,
+          event: "Challenge",
+          ip: "198.51.100.88",
+          reason: "manual-refresh-delta-event",
+          outcome: "served",
+          admin: "ops"
+        }],
+        freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
+      })
+    });
+  });
+
+  await openDashboard(page);
+  await expect(page.locator("#auto-refresh-toggle")).not.toBeChecked();
+  await expect(page.locator("#refresh-now-btn")).toBeVisible();
+  await expect(page.locator("#monitoring-events tbody")).not.toContainText("manual-refresh-delta-event");
+
+  const beforeRefreshDeltaCalls = deltaRequestCount;
+  await page.click("#refresh-now-btn");
+  await expect(page.locator("#monitoring-events tbody")).toContainText("manual-refresh-delta-event");
+  expect(deltaRequestCount).toBeGreaterThan(beforeRefreshDeltaCalls);
+});
+
 test("route remount preserves keyboard navigation, ban/unban, verification save, and polling", async ({ page }) => {
   await page.addInitScript(() => {
     const nativeSetTimeout = window.setTimeout.bind(window);
@@ -1444,10 +1622,11 @@ test("monitoring auto-refresh avoids placeholder flicker and bounds table churn"
     };
   });
 
-  let monitoringRequests = 0;
+  let monitoringSnapshotRequests = 0;
+  let monitoringDeltaRequests = 0;
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
-    monitoringRequests += 1;
-    const sample = monitoringRequests;
+    monitoringSnapshotRequests += 1;
+    const sample = monitoringSnapshotRequests;
     await new Promise((resolve) => setTimeout(resolve, 120));
     await route.fulfill({
       status: 200,
@@ -1491,6 +1670,41 @@ test("monitoring auto-refresh avoids placeholder flicker and bounds table churn"
       })
     });
   });
+  await page.route("**/admin/monitoring/delta?hours=*&limit=*", async (route) => {
+    monitoringDeltaRequests += 1;
+    const url = new URL(route.request().url());
+    const limit = Number.parseInt(url.searchParams.get("limit") || "0", 10);
+    const afterCursor = (url.searchParams.get("after_cursor") || "").trim();
+    if (limit === 1 || !afterCursor) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          after_cursor: "",
+          window_end_cursor: "cursor-baseline",
+          next_cursor: "cursor-baseline",
+          has_more: false,
+          overflow: "none",
+          events: [],
+          freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
+        })
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        after_cursor: afterCursor,
+        window_end_cursor: afterCursor,
+        next_cursor: afterCursor,
+        has_more: false,
+        overflow: "none",
+        events: [],
+        freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
+      })
+    });
+  });
 
   await openDashboard(page);
   await openTab(page, "monitoring");
@@ -1513,7 +1727,8 @@ test("monitoring auto-refresh avoids placeholder flicker and bounds table churn"
   });
 
   await page.waitForTimeout(420);
-  expect(monitoringRequests).toBeGreaterThan(2);
+  expect(monitoringSnapshotRequests).toBeGreaterThanOrEqual(1);
+  expect(monitoringDeltaRequests).toBeGreaterThan(2);
 
   const honeypotSamples = await page.evaluate(() => {
     const samples = [];

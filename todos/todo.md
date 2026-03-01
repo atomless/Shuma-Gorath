@@ -294,9 +294,6 @@ Non-negotiable delivery rules for every `SIM2-R4-*` slice:
 5. Config-seeding lifecycle decisions must be explicit, documented, and consistent across setup/dev/prod paths.
 
 ### SIM2-R4-1: Restore Monitoring Initial Load and Refresh Control Correctness
-- [ ] SIM2-R4-1-1 Fix monitoring page bootstrap so charts/recent events initialize populated from the latest available snapshot on first load (without requiring adversary sim toggle-on).
-- [ ] SIM2-R4-1-2 Fix auto-refresh toggle semantics so enabling/disabling refresh actually starts/stops polling and updates view state deterministically.
-- [ ] SIM2-R4-1-3 Fix manual refresh semantics so button clicks trigger immediate reload when auto-refresh is off and do not no-op.
 - [ ] SIM2-R4-1-4 Ensure loading/empty/error states are explicit and recoverable (no stuck disabled/unpopulated state after transient failures).
 
 Acceptance criteria:

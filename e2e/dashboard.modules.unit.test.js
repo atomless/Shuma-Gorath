@@ -700,6 +700,145 @@ test('dashboard state and store contracts remain immutable and bounded', { concu
   });
 });
 
+test('refresh runtime bootstraps monitoring baseline before cursor deltas and keeps manual refresh effective', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const storageState = new Map();
+    const storage = {
+      getItem(key) {
+        return storageState.has(key) ? storageState.get(key) : null;
+      },
+      setItem(key, value) {
+        storageState.set(key, String(value));
+      },
+      removeItem(key) {
+        storageState.delete(key);
+      }
+    };
+
+    const now = 1_700_000_000;
+    const callOrder = [];
+    let fullFetchCount = 0;
+    const deltaCalls = [];
+    const buildMonitoringPayload = (reason) => ({
+      summary: {
+        honeypot: { total_hits: 1, unique_crawlers: 1, top_crawlers: [], top_paths: [] },
+        challenge: { total_failures: 0, unique_offenders: 0, top_offenders: [], reasons: {}, trend: [] },
+        pow: {
+          total_failures: 0,
+          total_successes: 0,
+          total_attempts: 0,
+          success_ratio: 0,
+          unique_offenders: 0,
+          top_offenders: [],
+          reasons: {},
+          outcomes: {},
+          trend: []
+        },
+        rate: { total_violations: 0, unique_offenders: 0, top_offenders: [], outcomes: {} },
+        geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
+      },
+      details: {
+        analytics: { ban_count: 0, test_mode: false, fail_mode: 'open' },
+        events: {
+          recent_events: [{
+            ts: now,
+            event: 'Challenge',
+            ip: '198.51.100.1',
+            reason,
+            outcome: 'served',
+            admin: 'ops'
+          }],
+          event_counts: { Challenge: 1 },
+          top_ips: [['198.51.100.1', 1]],
+          unique_ips: 1
+        },
+        bans: { bans: [] },
+        maze: { total_hits: 0, unique_crawlers: 0, maze_auto_bans: 0, top_crawlers: [] },
+        cdp: { stats: { total_detections: 0, auto_bans: 0 }, config: {}, fingerprint_stats: {} },
+        cdp_events: { events: [] }
+      }
+    });
+
+    const apiClient = {
+      async getMonitoring() {
+        callOrder.push('monitoring_full');
+        fullFetchCount += 1;
+        return buildMonitoringPayload('historical-baseline');
+      },
+      async getMonitoringDelta(params = {}) {
+        callOrder.push('monitoring_delta');
+        deltaCalls.push({
+          limit: Number(params.limit || 0),
+          after_cursor: String(params.after_cursor || '')
+        });
+        if (Number(params.limit || 0) === 1) {
+          return {
+            after_cursor: '',
+            window_end_cursor: 'cursor-1',
+            next_cursor: 'cursor-1',
+            has_more: false,
+            overflow: 'none',
+            events: [],
+            freshness: { state: 'fresh' }
+          };
+        }
+        return {
+          after_cursor: String(params.after_cursor || ''),
+          window_end_cursor: 'cursor-2',
+          next_cursor: 'cursor-2',
+          has_more: false,
+          overflow: 'none',
+          events: [{
+            cursor: 'cursor-2',
+            ts: now + 1,
+            event: 'Challenge',
+            ip: '198.51.100.2',
+            reason: 'manual-refresh-delta',
+            outcome: 'served',
+            admin: 'ops'
+          }],
+          freshness: { state: 'fresh' }
+        };
+      }
+    };
+
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => apiClient,
+      getStateStore: () => store,
+      deriveMonitoringAnalytics: () => ({ ban_count: 0, test_mode: false, fail_mode: 'open' }),
+      storage
+    });
+
+    await runtime.refreshMonitoringTab('manual');
+    assert.equal(fullFetchCount, 1);
+    assert.deepEqual(callOrder.slice(0, 2), ['monitoring_full', 'monitoring_delta']);
+    assert.equal(deltaCalls.length, 1);
+    assert.equal(deltaCalls[0].limit, 1);
+
+    const baselineEvents = (store.getSnapshot('events') || {}).recent_events || [];
+    assert.equal(
+      baselineEvents.some((entry) => String(entry.reason || '') === 'historical-baseline'),
+      true
+    );
+
+    await runtime.refreshMonitoringTab('manual-refresh');
+    assert.equal(fullFetchCount, 1);
+    assert.equal(deltaCalls.length, 2);
+    assert.equal(deltaCalls[1].after_cursor, 'cursor-1');
+
+    const updatedEvents = (store.getSnapshot('events') || {}).recent_events || [];
+    assert.equal(
+      updatedEvents.some((entry) => String(entry.reason || '') === 'manual-refresh-delta'),
+      true
+    );
+  });
+});
+
 test('monitoring view model and status module remain pure snapshot transforms', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const monitoringModelModule = await importBrowserModule('dashboard/src/lib/components/dashboard/monitoring-view-model.js');

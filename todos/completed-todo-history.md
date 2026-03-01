@@ -4,6 +4,14 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-01)
 
+### P0 SIM2 Round 4 Stabilization: Monitoring Truthfulness + UX Consistency
+
+#### SIM2-R4-1: Restore Monitoring Initial Load and Refresh Control Correctness (partial)
+
+- [x] SIM2-R4-1-1 Fix monitoring page bootstrap so charts/recent events initialize populated from the latest available snapshot on first load (without requiring adversary sim toggle-on).
+- [x] SIM2-R4-1-2 Fix auto-refresh toggle semantics so enabling/disabling refresh actually starts/stops polling and updates view state deterministically.
+- [x] SIM2-R4-1-3 Fix manual refresh semantics so button clicks trigger immediate reload when auto-refresh is off and do not no-op.
+
 ### P0 SIM2 Verification Hardening Wave 3 (Plan-Closure Priority)
 
 #### SIM2-W3-1: Make Container-Blackbox Evidence Mandatory in Blocking Gates

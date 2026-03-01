@@ -29,6 +29,10 @@ export function createDashboardRefreshRuntime(options = {}) {
     monitoring: null,
     ipBans: null
   };
+  const baselineState = {
+    monitoring: false,
+    ipBans: false
+  };
   let activeRealtimeTab = '';
   const normalizeTab =
     typeof options.normalizeTab === 'function' ? options.normalizeTab : (value) => String(value || '');
@@ -249,6 +253,8 @@ export function createDashboardRefreshRuntime(options = {}) {
     closeAllStreams();
     cursorState.monitoring = '';
     cursorState.ipBans = '';
+    baselineState.monitoring = false;
+    baselineState.ipBans = false;
     activeRealtimeTab = '';
     applySnapshots({
       monitoringFreshness: normalizeFreshnessSnapshot({}, 'polling'),
@@ -502,6 +508,7 @@ export function createDashboardRefreshRuntime(options = {}) {
               ? cachedMonitoring
               : {});
         applySnapshots(buildMonitoringSnapshots(monitoringData, configSnapshot));
+        baselineState.monitoring = true;
         if (dashboardState && dashboardState.getDerivedState().monitoringEmpty) {
           showTabEmpty('monitoring', 'No operational events yet. Monitoring will populate as traffic arrives.');
         } else {
@@ -519,6 +526,7 @@ export function createDashboardRefreshRuntime(options = {}) {
       const compactMonitoring = compactMonitoringSnapshot(monitoringData);
       const compactBans = compactBansSnapshot(monitoringSnapshots.bans);
       applySnapshots(monitoringSnapshots);
+      baselineState.monitoring = true;
       writeCache(MONITORING_CACHE_KEY, { monitoring: compactMonitoring });
       const existingIpBansCache = readCache(IP_BANS_CACHE_KEY) || {};
       writeCache(IP_BANS_CACHE_KEY, { ...existingIpBansCache, bans: compactBans });
@@ -529,7 +537,9 @@ export function createDashboardRefreshRuntime(options = {}) {
     };
 
     const canUseDelta =
-      shouldUseCursorDelta(reason) && typeof dashboardApiClient.getMonitoringDelta === 'function';
+      baselineState.monitoring &&
+      shouldUseCursorDelta(reason) &&
+      typeof dashboardApiClient.getMonitoringDelta === 'function';
     if (canUseDelta) {
       try {
         if (!cursorState.monitoring.trim()) {
@@ -574,6 +584,7 @@ export function createDashboardRefreshRuntime(options = {}) {
       const cachedIpBans = readCache(IP_BANS_CACHE_KEY);
       if (cachedIpBans) {
         applySnapshots(cachedIpBans);
+        baselineState.ipBans = true;
         clearTabStateMessage('ip-bans');
         return;
       }
@@ -592,6 +603,7 @@ export function createDashboardRefreshRuntime(options = {}) {
         bans: bansData,
         ipRangeSuggestions
       });
+      baselineState.ipBans = true;
       if (hasConfigSnapshot(configSnapshot)) {
         applySnapshots({ config: configSnapshot });
       }
@@ -606,7 +618,9 @@ export function createDashboardRefreshRuntime(options = {}) {
     };
 
     const canUseDelta =
-      shouldUseCursorDelta(reason) && typeof dashboardApiClient.getIpBansDelta === 'function';
+      baselineState.ipBans &&
+      shouldUseCursorDelta(reason) &&
+      typeof dashboardApiClient.getIpBansDelta === 'function';
     if (canUseDelta) {
       try {
         if (!cursorState.ipBans.trim()) {
