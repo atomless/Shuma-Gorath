@@ -106,6 +106,13 @@
   };
 
   const formatTimestamp = (rawTs) => formatUnixSecondsLocal(rawTs, '-');
+  const toFiniteNumberOrNaN = (value) => {
+    if (value === null || value === undefined || value === '') {
+      return Number.NaN;
+    }
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : Number.NaN;
+  };
 
   const handleBeforeUnload = (event) => {
     if (!warnOnUnload) return;
@@ -683,11 +690,12 @@
     : {};
   $: freshnessStateKey = String(freshness.state || 'stale').trim().toLowerCase();
   $: freshnessStateLabel = FRESHNESS_STATE_LABELS[freshnessStateKey] || FRESHNESS_STATE_LABELS.stale;
-  $: freshnessLagMs = Number(freshness.lag_ms);
+  $: freshnessLagMs = toFiniteNumberOrNaN(freshness.lag_ms);
   $: freshnessLagText = Number.isFinite(freshnessLagMs) && freshnessLagMs >= 0
     ? `${Math.round(freshnessLagMs)} ms`
     : 'n/a';
-  $: freshnessLastEventText = Number.isFinite(Number(freshness.last_event_ts)) && Number(freshness.last_event_ts) > 0
+  $: freshnessLastEventTs = toFiniteNumberOrNaN(freshness.last_event_ts);
+  $: freshnessLastEventText = Number.isFinite(freshnessLastEventTs) && freshnessLastEventTs > 0
     ? formatTimestamp(freshness.last_event_ts)
     : 'n/a';
   $: freshnessTransport = String(freshness.transport || 'polling');

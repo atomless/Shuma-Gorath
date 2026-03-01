@@ -60,15 +60,22 @@ export function createDashboardRefreshRuntime(options = {}) {
   const toTabCursorKey = (tab) => (tab === 'ip-bans' ? 'ipBans' : 'monitoring');
   const freshnessSnapshotKey = (tab) =>
     (tab === 'ip-bans' ? 'ipBansFreshness' : 'monitoringFreshness');
+  const hasOwn = (value, key) =>
+    Object.prototype.hasOwnProperty.call(value && typeof value === 'object' ? value : {}, key);
+  const parseNonNegativeOrNull = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && numeric >= 0 ? numeric : null;
+  };
 
   const normalizeFreshnessSnapshot = (value = {}, fallbackTransport = 'polling') => {
     const source = value && typeof value === 'object' ? value : {};
-    const lagValue = Number(source.lag_ms);
+    const lagValue = parseNonNegativeOrNull(source.lag_ms);
     const lastEventValue = Number(source.last_event_ts);
     const queryBudgetValue = Number(source.query_budget_requests_per_second_per_client);
     return {
       state: String(source.state || DEFAULT_FRESHNESS_SNAPSHOT.state),
-      lag_ms: Number.isFinite(lagValue) && lagValue >= 0 ? lagValue : null,
+      lag_ms: lagValue,
       last_event_ts: Number.isFinite(lastEventValue) && lastEventValue > 0 ? lastEventValue : null,
       slow_consumer_lag_state: String(
         source.slow_consumer_lag_state || DEFAULT_FRESHNESS_SNAPSHOT.slow_consumer_lag_state
@@ -85,7 +92,31 @@ export function createDashboardRefreshRuntime(options = {}) {
 
   const updateFreshnessSnapshot = (tab, payload = {}, fallbackTransport = 'polling') => {
     const key = freshnessSnapshotKey(tab);
-    const next = normalizeFreshnessSnapshot(payload, fallbackTransport);
+    const dashboardState = getStateStore();
+    const previous = dashboardState ? dashboardState.getSnapshot(key) : null;
+    const previousSnapshot = previous && typeof previous === 'object' ? previous : {};
+    const sourcePayload = payload && typeof payload === 'object' ? payload : {};
+    const mergedPayload = {
+      ...previousSnapshot,
+      ...sourcePayload
+    };
+    // Treat absent/null lag/last-event in partial updates as "no change" so fallback
+    // transport transitions do not erase known freshness anchors.
+    if (
+      (!hasOwn(sourcePayload, 'lag_ms') || sourcePayload.lag_ms === null) &&
+      previousSnapshot.lag_ms !== null &&
+      previousSnapshot.lag_ms !== undefined
+    ) {
+      mergedPayload.lag_ms = previousSnapshot.lag_ms;
+    }
+    if (
+      (!hasOwn(sourcePayload, 'last_event_ts') || sourcePayload.last_event_ts === null) &&
+      previousSnapshot.last_event_ts !== null &&
+      previousSnapshot.last_event_ts !== undefined
+    ) {
+      mergedPayload.last_event_ts = previousSnapshot.last_event_ts;
+    }
+    const next = normalizeFreshnessSnapshot(mergedPayload, fallbackTransport);
     applySnapshots({ [key]: next });
     return next;
   };
@@ -468,12 +499,15 @@ export function createDashboardRefreshRuntime(options = {}) {
       } catch (_error) {}
     };
     source.onerror = () => {
+      if (streamState[key] === source) {
+        try {
+          source.close();
+        } catch (_error) {}
+        streamState[key] = null;
+      }
       updateFreshnessSnapshot(
         normalized,
         {
-          state: 'degraded',
-          overflow: 'none',
-          slow_consumer_lag_state: 'normal',
           transport: 'polling_fallback'
         },
         'polling_fallback'
@@ -543,7 +577,7 @@ export function createDashboardRefreshRuntime(options = {}) {
       writeCache(MONITORING_CACHE_KEY, { monitoring: compactMonitoring });
       const existingIpBansCache = readCache(IP_BANS_CACHE_KEY) || {};
       writeCache(IP_BANS_CACHE_KEY, { ...existingIpBansCache, bans: compactBans });
-      updateFreshnessSnapshot('monitoring', { state: 'fresh', transport: 'snapshot_poll' }, 'snapshot_poll');
+      updateFreshnessSnapshot('monitoring', { transport: 'snapshot_poll' }, 'snapshot_poll');
       try {
         await seedCursorToWindowEnd('monitoring', requestOptions);
       } catch (_error) {}
@@ -624,7 +658,7 @@ export function createDashboardRefreshRuntime(options = {}) {
         bans: compactBans,
         ipRangeSuggestions: compactSuggestions
       });
-      updateFreshnessSnapshot('ip-bans', { state: 'fresh', transport: 'snapshot_poll' }, 'snapshot_poll');
+      updateFreshnessSnapshot('ip-bans', { transport: 'snapshot_poll' }, 'snapshot_poll');
       try {
         await seedCursorToWindowEnd('ip-bans', requestOptions);
       } catch (_error) {}

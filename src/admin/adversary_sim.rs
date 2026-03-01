@@ -12,7 +12,11 @@ pub const MAX_MEMORY_MIB: u32 = 512;
 pub const QUEUE_POLICY: &str = "reject_new";
 pub const STOP_TIMEOUT_SECONDS: u64 = 10;
 const ACTIVE_LANE_COUNT: u32 = 2;
-const INTERNAL_GENERATION_BATCH_SIZE: u64 = 4;
+const INTERNAL_GENERATION_BATCH_SIZE: u64 = 6;
+const INTERNAL_RATE_BURST_REQUESTS: usize = 6;
+const INTERNAL_RATE_BURST_EVERY_N_TICKS: u64 = 2;
+const INTERNAL_RATE_BURST_IP: &str = "198.51.254.10";
+const INTERNAL_CDP_REPORT_IP: &str = "198.51.254.20";
 const GENERATION_DIAGNOSTIC_GRACE_SECONDS: u64 = 5;
 const STATE_KEY_PREFIX: &str = "adversary_sim:control:";
 
@@ -461,6 +465,17 @@ pub fn run_internal_generation_tick(
     };
     #[cfg(not(test))]
     {
+        let mut dispatch_request = |request: Request<Vec<u8>>| {
+            let _guard = crate::runtime::sim_telemetry::enter(Some(metadata.clone()));
+            let response = crate::handle_bot_defence_impl(&request);
+            let status = *response.status();
+            result.generated_requests = result.generated_requests.saturating_add(1);
+            result.last_response_status = Some(status);
+            if status >= 500 {
+                result.failed_requests = result.failed_requests.saturating_add(1);
+            }
+        };
+
         let paths = simulated_request_paths(run_id.as_str(), state.generated_tick_count);
         for (index, path) in paths.iter().enumerate() {
             let user_agent = format!("ShumaAdversarySim/1.0 slot={} path={}", index, path);
@@ -471,14 +486,40 @@ pub fn run_internal_generation_tick(
                 .header("x-forwarded-for", simulated_request_ip(state.generated_tick_count, index))
                 .header("x-forwarded-proto", "https")
                 .header("user-agent", user_agent.as_str());
-            let req = builder.body(Vec::new()).build();
-            let _guard = crate::runtime::sim_telemetry::enter(Some(metadata.clone()));
-            let response = crate::handle_bot_defence_impl(&req);
-            let status = *response.status();
-            result.generated_requests = result.generated_requests.saturating_add(1);
-            result.last_response_status = Some(status);
-            if status >= 500 {
-                result.failed_requests = result.failed_requests.saturating_add(1);
+            dispatch_request(builder.body(Vec::new()).build());
+        }
+
+        let cdp_probe_body = serde_json::to_vec(&json!({
+            "cdp_detected": true,
+            "score": 4.8,
+            "checks": ["webdriver", "automation_props", "cdp_timing", "micro_timing"]
+        }))
+        .unwrap_or_else(|_| b"{\"cdp_detected\":true,\"score\":4.8,\"checks\":[\"webdriver\"]}".to_vec());
+        let mut cdp_builder = Request::builder();
+        cdp_builder
+            .method(Method::Post)
+            .uri("/cdp-report")
+            .header("x-forwarded-for", INTERNAL_CDP_REPORT_IP)
+            .header("x-forwarded-proto", "https")
+            .header("content-type", "application/json")
+            .header("user-agent", "ShumaAdversarySim/1.0 cdp-probe");
+        dispatch_request(cdp_builder.body(cdp_probe_body).build());
+
+        if state.generated_tick_count % INTERNAL_RATE_BURST_EVERY_N_TICKS == 0 {
+            for burst_index in 0..INTERNAL_RATE_BURST_REQUESTS {
+                let mut burst_builder = Request::builder();
+                let burst_path = format!(
+                    "/sim/public/search?q=rate-burst-{}-{}",
+                    state.generated_tick_count, burst_index
+                );
+                let user_agent = format!("ShumaAdversarySim/1.0 rate-burst {}", burst_index);
+                burst_builder
+                    .method(Method::Get)
+                    .uri(burst_path.as_str())
+                    .header("x-forwarded-for", INTERNAL_RATE_BURST_IP)
+                    .header("x-forwarded-proto", "https")
+                    .header("user-agent", user_agent.as_str());
+                dispatch_request(burst_builder.body(Vec::new()).build());
             }
         }
         crate::observability::monitoring::flush_pending_counters(store);

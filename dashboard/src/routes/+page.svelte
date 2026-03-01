@@ -55,7 +55,8 @@
     tuning: 'Loading tuning values...'
   });
   const AUTO_REFRESH_INTERVAL_MS = 1000;
-  const ADVERSARY_SIM_TICK_MIN_INTERVAL_MS = 1500;
+  const ADVERSARY_SIM_TICK_MIN_INTERVAL_MS = 900;
+  const ADVERSARY_SIM_TICK_INTERVAL_MS = 1000;
   const AUTO_REFRESH_TABS = new Set(['monitoring', 'ip-bans']);
   const AUTO_REFRESH_PREF_KEY = 'shuma_dashboard_auto_refresh_v1';
 
@@ -86,6 +87,7 @@
   let adminMessageKind = 'info';
   let adversarySimStatus = {};
   let adversarySimStatusPollTimer = null;
+  let adversarySimTrafficTickTimer = null;
   let adversarySimTickInFlight = false;
   let adversarySimLastTickAtMs = 0;
   let IpBansTabComponent = null;
@@ -317,6 +319,7 @@
     storeUnsubscribe();
     telemetryUnsubscribe();
     clearAdversarySimStatusPollTimer();
+    clearAdversarySimTrafficTickTimer();
     if (typeof document !== 'undefined') {
       clearDashboardBodyClasses(document);
     }
@@ -410,6 +413,13 @@
     }
   }
 
+  function clearAdversarySimTrafficTickTimer() {
+    if (adversarySimTrafficTickTimer) {
+      clearInterval(adversarySimTrafficTickTimer);
+      adversarySimTrafficTickTimer = null;
+    }
+  }
+
   function syncAdversarySimTimers() {
     const shouldPollStatus =
       routeController.getRuntimeMounted() &&
@@ -424,8 +434,14 @@
           void refreshAdversarySimStatus('poll');
         }, 1000);
       }
+      if (!adversarySimTrafficTickTimer) {
+        adversarySimTrafficTickTimer = setInterval(() => {
+          void maybeTickAdversarySimTraffic();
+        }, ADVERSARY_SIM_TICK_INTERVAL_MS);
+      }
     } else {
       clearAdversarySimStatusPollTimer();
+      clearAdversarySimTrafficTickTimer();
     }
   }
 
@@ -635,6 +651,7 @@
     try {
       routeController.abortInFlightRefresh();
       clearAdversarySimStatusPollTimer();
+      clearAdversarySimTrafficTickTimer();
       await logoutDashboardSession();
       dashboardStore.setSession({ authenticated: false, csrfToken: '' });
       routeController.clearPolling();
