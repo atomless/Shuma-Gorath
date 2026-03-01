@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-02-28
+Last updated: 2026-03-01
 
 This is the active work queue.
 `todos/security-review.md` tracks security finding validity and closure status.
@@ -281,6 +281,69 @@ Scope: enforce classification, minimization, pseudonymization, and incident-resp
 ADR reference: [`docs/adr/0009-telemetry-lifecycle-retention-cost-security.md`](../docs/adr/0009-telemetry-lifecycle-retention-cost-security.md)
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-17-*` closure details.
+
+## P0 SIM2 Round 4 Stabilization: Monitoring Truthfulness + UX Consistency
+
+Objective: fix post-SIM2 regressions where monitoring appears disabled/unpopulated, refresh controls do not function, adversary simulation traffic is not visible in monitoring, and monitoring filter controls drift from shared dashboard design conventions.
+
+Non-negotiable delivery rules for every `SIM2-R4-*` slice:
+1. Monitoring must represent real request-pipeline telemetry and must not rely on synthetic chart/event entries.
+2. Monitoring data fetch/render behavior must not depend on whether adversary simulation is enabled.
+3. Historical data must remain visible while new live activity appends in near real time.
+4. Dashboard UI controls must reuse canonical shared styles/components; one-off styling is not acceptable.
+5. Config-seeding lifecycle decisions must be explicit, documented, and consistent across setup/dev/prod paths.
+
+### SIM2-R4-1: Restore Monitoring Initial Load and Refresh Control Correctness
+- [ ] SIM2-R4-1-1 Fix monitoring page bootstrap so charts/recent events initialize populated from the latest available snapshot on first load (without requiring adversary sim toggle-on).
+- [ ] SIM2-R4-1-2 Fix auto-refresh toggle semantics so enabling/disabling refresh actually starts/stops polling and updates view state deterministically.
+- [ ] SIM2-R4-1-3 Fix manual refresh semantics so button clicks trigger immediate reload when auto-refresh is off and do not no-op.
+- [ ] SIM2-R4-1-4 Ensure loading/empty/error states are explicit and recoverable (no stuck disabled/unpopulated state after transient failures).
+
+Acceptance criteria:
+- Monitoring page renders usable initial data and controls on first entry in dev and prod mode with adversary sim disabled.
+- Auto-refresh and manual refresh both execute the same validated fetch/update path and visibly update last-refresh state.
+- Dashboard unit + e2e coverage proves refresh controls are behaviorally effective and non-no-op.
+
+### SIM2-R4-2: Decouple Monitoring Render Pipeline from Adversary-Sim Toggle State
+- [ ] SIM2-R4-2-1 Remove any runtime/dashboard gating that suppresses monitoring fetch/render unless adversary sim is enabled.
+- [ ] SIM2-R4-2-2 Preserve historical telemetry visibility while appending newly ingested telemetry points without wiping history.
+- [ ] SIM2-R4-2-3 Validate cursor/SSE/polling interplay so real-time updates continue without requiring toggle transitions.
+
+Acceptance criteria:
+- Monitoring charts and recent events update from real incoming traffic regardless of adversary-sim toggle state.
+- Historical baseline remains visible and new points/events append in-order with no duplicate or dropped-window regressions.
+- Integration tests prove monitoring updates under normal traffic generation with adversary sim both OFF and ON.
+
+### SIM2-R4-3: Prove Adversary-Simulation Traffic Is Real, Generated, and Observable End-to-End
+- [ ] SIM2-R4-3-1 Verify adversary-sim execution path emits real HTTP/browser requests through the same request pipeline used for organic traffic.
+- [ ] SIM2-R4-3-2 Ensure emitted telemetry from adversary-sim traffic reaches monitoring ingest, chart aggregation, and recent-events feeds.
+- [ ] SIM2-R4-3-3 Add diagnostics path for “sim enabled but no traffic generated” so operators receive explicit cause/reason instead of silent success.
+
+Acceptance criteria:
+- Enabling adversary sim produces measurable request/event deltas visible in monitoring within one refresh interval/SSE cycle.
+- Recent events and chart series show adversary-sim-attributed activity alongside non-sim traffic without synthetic-only artifacts.
+- End-to-end verification (`make test` path + focused SIM2 monitoring checks) fails if sim run does not produce observable telemetry.
+
+### SIM2-R4-4: Reassess and Correct KV Config-Seed Lifecycle Boundaries (`setup` vs `dev`/`run`)
+- [ ] SIM2-R4-4-1 Decide and document intended lifecycle: which entry points may seed/backfill defaults, and which must be read-only.
+- [ ] SIM2-R4-4-2 Ensure `make dev`/watch restarts avoid unnecessary reseed/update churn when KV config is already present and schema-complete.
+- [ ] SIM2-R4-4-3 Ensure production-oriented start paths do not silently mutate persistent config unless explicitly requested by operator workflow.
+- [ ] SIM2-R4-4-4 Align `Makefile` help text, setup docs, and operational runbooks with the final lifecycle semantics.
+
+Acceptance criteria:
+- Startup logs and behavior match documented lifecycle policy for `make setup`, `make dev`, `make run`, and production entrypoints.
+- KV seed/backfill runs are idempotent, bounded, and only occur on the intended commands/conditions.
+- Regression tests cover both missing-KV bootstrap path and existing-KV no-op path.
+
+### SIM2-R4-5: Enforce Monitoring-Page UI Control Style Parity with Canonical Dashboard Design System
+- [ ] SIM2-R4-5-1 Replace monitoring recent-events field/select controls that diverge from shared styling with canonical reusable controls/classes.
+- [ ] SIM2-R4-5-2 Remove duplicated/ad-hoc local CSS rules for those controls; reuse existing design tokens/patterns from shared dashboard style surfaces.
+- [ ] SIM2-R4-5-3 Add dashboard regression coverage (unit/visual/e2e as appropriate) that detects style/structure drift for monitoring form controls.
+
+Acceptance criteria:
+- Monitoring recent-events controls visually and behaviorally match canonical dashboard form controls.
+- No new one-off control style rules are introduced where an existing shared style/component already exists.
+- Documentation/policy references updated so future agents/operators understand the style-reuse requirement.
 
 ## P0 CI + E2E Stability (Top Priority)
 - [ ] CI-E2E-1 Resume point for next Codex session: start from `scripts/tests/run_dashboard_e2e.sh`, `scripts/tests/verify_playwright_launch.mjs`, `playwright.config.mjs`, `Makefile` (`test-dashboard-e2e`), and `e2e/run_dashboard_e2e.unit.test.js`; run `make dev` (terminal 1) plus `make test-dashboard-e2e` (terminal 2) and capture per-stage timings (unit, bundle budget, seed, preflight, Playwright) to prove there is no loop/stall; then run `DEBUG=pw:browser corepack pnpm exec node scripts/tests/verify_playwright_launch.mjs` to diagnose Chromium launch path and fix root cause so browser e2e runs without `PLAYWRIGHT_SANDBOX_ALLOW_SKIP`; finally, harden CI behavior so skip mode is never silently used in mandatory checks, retries are bounded and deterministic, and acceptance criteria are met: full `make test` completes in bounded time, Chromium e2e actually executes, and every failing step returns actionable diagnostics rather than hanging.
