@@ -1916,7 +1916,7 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /<svelte:document on:visibilitychange=\{onDocumentVisibilityChange\} \/>/);
   assert.match(source, /use:registerTabLink=\{tab\}/);
   assert.match(source, /buildDashboardLoginPath/);
-  assert.match(source, /const AUTO_REFRESH_INTERVAL_MS = 60000;/);
+  assert.match(source, /const AUTO_REFRESH_INTERVAL_MS = 1000;/);
   assert.match(source, /isAutoRefreshEnabled: \(\) => autoRefreshEnabled === true/);
   assert.match(source, /shouldRefreshOnActivate: \(\{ tab, store \}\) =>/);
   assert.equal(source.includes('requestNextFrame,'), false);
@@ -1959,6 +1959,9 @@ test('monitoring tab applies bounded sanitization and redraw guards', () => {
   assert.match(source, /abortRangeEventsFetch\(\);/);
   assert.match(source, /normalizeReasonRows\(/);
   assert.match(source, /buildTimeSeries\(selectedRangeEvents, selectedTimeRange,/);
+  assert.match(source, /for \(let index = events\.length - 1; index >= 0; index -= 1\)/);
+  assert.match(source, /if \(rawTelemetryFeed\.length > 0\) \{\s*rawTelemetryFeed = \[\];\s*rawTelemetryFeedKeys = new Set\(\);/);
+  assert.match(source, /\? monitoring\.details\.events\.recent_events\.slice\(0, RAW_FEED_MAX_LINES\)/);
 });
 
 test('monitoring tab is decomposed into focused subsection components', () => {
@@ -1967,6 +1970,7 @@ test('monitoring tab is decomposed into focused subsection components', () => {
     'utf8'
   );
 
+  assert.match(source, /import RawTelemetryFeed from '\.\/monitoring\/RawTelemetryFeed\.svelte';/);
   assert.match(source, /import OverviewStats from '\.\/monitoring\/OverviewStats\.svelte';/);
   assert.match(source, /import PrimaryCharts from '\.\/monitoring\/PrimaryCharts\.svelte';/);
   assert.match(source, /import AdversaryRunPanel from '\.\/monitoring\/AdversaryRunPanel\.svelte';/);
@@ -1975,6 +1979,7 @@ test('monitoring tab is decomposed into focused subsection components', () => {
   assert.match(source, /import ExternalMonitoringSection from '\.\/monitoring\/ExternalMonitoringSection\.svelte';/);
   assert.match(source, /import IpRangeSection from '\.\/monitoring\/IpRangeSection\.svelte';/);
   assert.match(source, /<OverviewStats/);
+  assert.match(source, /<RawTelemetryFeed/);
   assert.match(source, /<PrimaryCharts/);
   assert.match(source, /<AdversaryRunPanel/);
   assert.match(source, /<DefenseTrendBlocks/);
@@ -1984,6 +1989,7 @@ test('monitoring tab is decomposed into focused subsection components', () => {
   assert.match(source, /<ExternalMonitoringSection/);
   assert.match(source, /filterOptions=\{eventFilterOptions\}/);
   assert.match(source, /onFilterChange=\{onEventFilterChange\}/);
+  assert.match(source, /RAW_FEED_MAX_LINES = 200/);
 });
 
 test('monitoring recent-events filters reuse canonical input-row and input-field styles', () => {

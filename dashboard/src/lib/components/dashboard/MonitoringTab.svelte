@@ -39,6 +39,7 @@
   import TabStateMessage from './primitives/TabStateMessage.svelte';
   import OverviewStats from './monitoring/OverviewStats.svelte';
   import PrimaryCharts from './monitoring/PrimaryCharts.svelte';
+  import RawTelemetryFeed from './monitoring/RawTelemetryFeed.svelte';
   import AdversaryRunPanel from './monitoring/AdversaryRunPanel.svelte';
   import DefenseTrendBlocks from './monitoring/DefenseTrendBlocks.svelte';
   import RecentEventsTable from './monitoring/RecentEventsTable.svelte';
@@ -54,6 +55,7 @@
   import ExternalMonitoringSection from './monitoring/ExternalMonitoringSection.svelte';
 
   const EVENT_ROW_RENDER_LIMIT = 100;
+  const RAW_FEED_MAX_LINES = 200;
   const CDP_ROW_RENDER_LIMIT = 500;
   const RANGE_EVENTS_FETCH_LIMIT = 5000;
   const RANGE_EVENTS_REQUEST_TIMEOUT_MS = 10000;
@@ -116,6 +118,9 @@
   let lastRequestedRange = '';
   let rangeEventsLastFetchedAtMs = 0;
   let lastRangeTabUpdateAnchor = '';
+  let rawFeedSourceEvents = [];
+  let rawTelemetryFeed = [];
+  let rawTelemetryFeedKeys = new Set();
 
   let copyButtonLabel = 'Copy JavaScript Example';
   let copyCurlButtonLabel = 'Copy Curl Example';
@@ -191,6 +196,82 @@
   };
 
   const formatTime = (rawTs) => formatUnixSecondsLocal(rawTs, '-');
+
+  const rawFeedKey = (event = {}) => {
+    const source = event && typeof event === 'object' ? event : {};
+    const operationId = String(source.operation_id || '').trim();
+    if (operationId) return operationId;
+    const ts = Number(source.ts || 0);
+    const eventName = String(source.event || '').trim();
+    const ip = String(source.ip || '').trim();
+    const reason = String(source.reason || '').trim();
+    const outcome = String(source.outcome || '').trim();
+    const admin = String(source.admin || '').trim();
+    const simRunId = String(source.sim_run_id || '').trim();
+    const simProfile = String(source.sim_profile || '').trim();
+    const simLane = String(source.sim_lane || '').trim();
+    return [
+      ts,
+      eventName,
+      ip,
+      reason,
+      outcome,
+      admin,
+      simRunId,
+      simProfile,
+      simLane
+    ].join('|');
+  };
+
+  const rawFeedPayload = (event = {}) => {
+    const source = event && typeof event === 'object' ? event : {};
+    const payload = {};
+    Object.keys(source)
+      .sort()
+      .forEach((key) => {
+        if (source[key] === undefined) return;
+        payload[key] = source[key];
+      });
+    return payload;
+  };
+
+  const buildRawFeedLine = (event = {}) => {
+    const ts = formatTime(event?.ts);
+    return `[${ts}] ${JSON.stringify(rawFeedPayload(event))}`;
+  };
+
+  function ingestRawTelemetryEvents(events = []) {
+    if (!Array.isArray(events) || events.length === 0) {
+      if (rawTelemetryFeed.length > 0) {
+        rawTelemetryFeed = [];
+        rawTelemetryFeedKeys = new Set();
+      }
+      return;
+    }
+    let changed = false;
+    for (let index = events.length - 1; index >= 0; index -= 1) {
+      const event = events[index];
+      const key = rawFeedKey(event);
+      if (!key || rawTelemetryFeedKeys.has(key)) continue;
+      rawTelemetryFeed.unshift({
+        key,
+        line: buildRawFeedLine(event)
+      });
+      rawTelemetryFeedKeys.add(key);
+      changed = true;
+    }
+    if (!changed) return;
+    if (rawTelemetryFeed.length > RAW_FEED_MAX_LINES) {
+      const overflow = rawTelemetryFeed.slice(RAW_FEED_MAX_LINES);
+      rawTelemetryFeed = rawTelemetryFeed.slice(0, RAW_FEED_MAX_LINES);
+      overflow.forEach((entry) => {
+        if (!entry || typeof entry !== 'object') return;
+        rawTelemetryFeedKeys.delete(String(entry.key || ''));
+      });
+    } else {
+      rawTelemetryFeed = rawTelemetryFeed.slice();
+    }
+  }
 
   const readCdpField = (text, key) => {
     const match = new RegExp(`${key}=([^\\s]+)`, 'i').exec(String(text || ''));
@@ -513,6 +594,12 @@
   $: rawRecentEvents = Array.isArray(events.recent_events)
     ? events.recent_events.slice(0, EVENT_ROW_RENDER_LIMIT)
     : [];
+  $: rawFeedSourceEvents = Array.isArray(monitoring?.details?.events?.recent_events)
+    ? monitoring.details.events.recent_events.slice(0, RAW_FEED_MAX_LINES)
+    : (Array.isArray(events.recent_events)
+      ? events.recent_events.slice(0, RAW_FEED_MAX_LINES)
+      : []);
+  $: ingestRawTelemetryEvents(rawFeedSourceEvents);
   $: eventFilterOptions = deriveRecentEventFilterOptions(rawRecentEvents);
   $: recentEvents = filterRecentEvents(rawRecentEvents, eventFilters);
   $: recentCdpEvents = Array.isArray(cdpEventsData.events)
@@ -760,6 +847,11 @@
       transport: <code>{freshnessTransport}</code> | slow consumer: <code>{freshnessSlowConsumerState}</code> | overflow: <code>{freshnessOverflow}</code>
     </p>
   </div>
+
+  <RawTelemetryFeed
+    lines={rawTelemetryFeed}
+    maxLines={RAW_FEED_MAX_LINES}
+  />
 
   <OverviewStats
     loading={tabStatus?.loading === true}

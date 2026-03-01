@@ -54,7 +54,7 @@
     robots: 'Loading robots policy...',
     tuning: 'Loading tuning values...'
   });
-  const AUTO_REFRESH_INTERVAL_MS = 60000;
+  const AUTO_REFRESH_INTERVAL_MS = 1000;
   const ADVERSARY_SIM_TICK_MIN_INTERVAL_MS = 1500;
   const AUTO_REFRESH_TABS = new Set(['monitoring', 'ip-bans']);
   const AUTO_REFRESH_PREF_KEY = 'shuma_dashboard_auto_refresh_v1';
