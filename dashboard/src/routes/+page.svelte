@@ -22,6 +22,7 @@
     getDashboardEvents,
     getDashboardRobotsPreview,
     getDashboardAdversarySimStatus,
+    tickDashboardAdversarySim,
     getDashboardSessionState,
     logoutDashboardSession,
     mountDashboardApp,
@@ -54,6 +55,7 @@
     tuning: 'Loading tuning values...'
   });
   const AUTO_REFRESH_INTERVAL_MS = 60000;
+  const ADVERSARY_SIM_TICK_MIN_INTERVAL_MS = 1500;
   const AUTO_REFRESH_TABS = new Set(['monitoring', 'ip-bans']);
   const AUTO_REFRESH_PREF_KEY = 'shuma_dashboard_auto_refresh_v1';
 
@@ -84,6 +86,8 @@
   let adminMessageKind = 'info';
   let adversarySimStatus = {};
   let adversarySimStatusPollTimer = null;
+  let adversarySimTickInFlight = false;
+  let adversarySimLastTickAtMs = 0;
   let IpBansTabComponent = null;
   let StatusTabComponent = null;
   let VerificationTabComponent = null;
@@ -147,8 +151,14 @@
   $: adversarySimRetentionHours = Math.max(0, Number(normalizedAdversarySimStatus.historyRetentionHours || 0));
   $: adversarySimCleanupCommand =
     String(normalizedAdversarySimStatus.historyCleanupCommand || '').trim() || 'make adversary-sim-history-clean';
+  $: adversarySimGenerationDiagnostics = normalizedAdversarySimStatus.generationDiagnostics || {};
   $: adversarySimLifecycleCopy = normalizedAdversarySimStatus.generationActive
-    ? 'Generation active. Auto-off stops new simulation traffic only; retained telemetry stays visible.'
+    ? (
+      String(adversarySimGenerationDiagnostics.health || '') === 'ok'
+        ? 'Generation active. Auto-off stops new simulation traffic only; retained telemetry stays visible.'
+        : String(adversarySimGenerationDiagnostics.recommendedAction || '').trim() ||
+          'Generation active, but no observable traffic yet. Keep the dashboard open to drive tick generation.'
+    )
     : normalizedAdversarySimStatus.historicalDataVisible
       ? `Generation inactive. Retained telemetry remains visible for ${adversarySimRetentionHours}h or until ${adversarySimCleanupCommand} is run.`
       : 'Generation inactive.';
@@ -419,6 +429,37 @@
     }
   }
 
+  async function maybeTickAdversarySimTraffic() {
+    if (!routeController.getRuntimeMounted() || !runtimeReady) return;
+    if (adversarySimTickInFlight) return;
+    if (
+      normalizedAdversarySimStatus.enabled !== true ||
+      normalizedAdversarySimStatus.phase !== 'running'
+    ) {
+      return;
+    }
+    const now = Date.now();
+    if (now - adversarySimLastTickAtMs < ADVERSARY_SIM_TICK_MIN_INTERVAL_MS) {
+      return;
+    }
+
+    adversarySimTickInFlight = true;
+    try {
+      const result = await tickDashboardAdversarySim();
+      adversarySimLastTickAtMs = Date.now();
+      if (result && result.status && typeof result.status === 'object') {
+        adversarySimStatus = result.status;
+      }
+      if (activeTabKey === 'monitoring' || activeTabKey === 'ip-bans') {
+        await routeController.refreshTab(activeTabKey, 'auto-refresh');
+      }
+    } catch (_error) {
+      // Status polling + diagnostics surface generation issues; avoid noisy UI spam here.
+    } finally {
+      adversarySimTickInFlight = false;
+    }
+  }
+
   async function refreshAdversarySimStatus(_reason = 'manual') {
     if (!routeController.getRuntimeMounted() || !runtimeReady) return;
     if (!adversarySimControlAvailable && configSnapshot.adversary_sim_enabled !== true) {
@@ -433,6 +474,7 @@
     try {
       const status = await getDashboardAdversarySimStatus();
       adversarySimStatus = status && typeof status === 'object' ? status : {};
+      void maybeTickAdversarySimTraffic();
     } catch (error) {
       if (error && Number(error.status) === 404) {
         adversarySimStatus = {

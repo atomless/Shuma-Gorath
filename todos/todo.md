@@ -312,14 +312,7 @@ Acceptance criteria:
 - Integration tests prove monitoring updates under normal traffic generation with adversary sim both OFF and ON.
 
 ### SIM2-R4-3: Prove Adversary-Simulation Traffic Is Real, Generated, and Observable End-to-End
-- [ ] SIM2-R4-3-1 Verify adversary-sim execution path emits real HTTP/browser requests through the same request pipeline used for organic traffic.
-- [ ] SIM2-R4-3-2 Ensure emitted telemetry from adversary-sim traffic reaches monitoring ingest, chart aggregation, and recent-events feeds.
-- [ ] SIM2-R4-3-3 Add diagnostics path for “sim enabled but no traffic generated” so operators receive explicit cause/reason instead of silent success.
-
-Acceptance criteria:
-- Enabling adversary sim produces measurable request/event deltas visible in monitoring within one refresh interval/SSE cycle.
-- Recent events and chart series show adversary-sim-attributed activity alongside non-sim traffic without synthetic-only artifacts.
-- End-to-end verification (`make test` path + focused SIM2 monitoring checks) fails if sim run does not produce observable telemetry.
+Status: Execution complete on 2026-03-01. See `todos/completed-todo-history.md` for `SIM2-R4-3-*` closure details.
 
 ### SIM2-R4-4: Re-Architect Config Seeding Lifecycle and Test-Mode Persistence Semantics
 - [ ] SIM2-R4-4-1 Establish and document a strict lifecycle policy:

@@ -1,6 +1,8 @@
 use rand::random;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+#[cfg(not(test))]
+use spin_sdk::http::{Method, Request};
 
 use crate::challenge::KeyValueStore;
 
@@ -10,6 +12,8 @@ pub const MAX_MEMORY_MIB: u32 = 512;
 pub const QUEUE_POLICY: &str = "reject_new";
 pub const STOP_TIMEOUT_SECONDS: u64 = 10;
 const ACTIVE_LANE_COUNT: u32 = 2;
+const INTERNAL_GENERATION_BATCH_SIZE: u64 = 4;
+const GENERATION_DIAGNOSTIC_GRACE_SECONDS: u64 = 5;
 const STATE_KEY_PREFIX: &str = "adversary_sim:control:";
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -54,6 +58,14 @@ pub struct ControlState {
     #[serde(default)]
     pub last_run_id: Option<String>,
     #[serde(default)]
+    pub generated_tick_count: u64,
+    #[serde(default)]
+    pub generated_request_count: u64,
+    #[serde(default)]
+    pub last_generated_at: Option<u64>,
+    #[serde(default)]
+    pub last_generation_error: Option<String>,
+    #[serde(default)]
     pub updated_at: u64,
 }
 
@@ -70,9 +82,31 @@ impl Default for ControlState {
             last_transition_reason: None,
             last_terminal_failure_reason: None,
             last_run_id: None,
+            generated_tick_count: 0,
+            generated_request_count: 0,
+            last_generated_at: None,
+            last_generation_error: None,
             updated_at: 0,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GenerationDiagnostics {
+    pub health: String,
+    pub reason: String,
+    pub recommended_action: String,
+    pub generated_tick_count: u64,
+    pub generated_request_count: u64,
+    pub last_generated_at: Option<u64>,
+    pub last_generation_error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GenerationTickResult {
+    pub generated_requests: u64,
+    pub failed_requests: u64,
+    pub last_response_status: Option<u16>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -146,6 +180,10 @@ pub fn start_state(
         last_transition_reason: Some("manual_on".to_string()),
         last_terminal_failure_reason: None,
         last_run_id: current.last_run_id.clone(),
+        generated_tick_count: 0,
+        generated_request_count: 0,
+        last_generated_at: None,
+        last_generation_error: None,
         updated_at: now,
     };
     Ok((next, vec![transition]))
@@ -300,8 +338,173 @@ pub fn status_payload(
         "queue_policy": QUEUE_POLICY,
         "last_transition_reason": state.last_transition_reason.clone(),
         "last_terminal_failure_reason": state.last_terminal_failure_reason.clone(),
-        "last_run_id": state.last_run_id.clone()
+        "last_run_id": state.last_run_id.clone(),
+        "generation": {
+            "tick_count": state.generated_tick_count,
+            "request_count": state.generated_request_count,
+            "last_generated_at": state.last_generated_at,
+            "last_generation_error": state.last_generation_error.clone()
+        }
     })
+}
+
+#[cfg(not(test))]
+fn simulated_request_paths(run_id: &str, tick_count: u64) -> [String; 4] {
+    let run_suffix = run_id
+        .chars()
+        .rev()
+        .take(8)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>();
+    [
+        "/sim/public/landing".to_string(),
+        "/sim/public/docs".to_string(),
+        format!("/sim/public/search?q=run-{}-tick-{}", run_suffix, tick_count),
+        "/instaban".to_string(),
+    ]
+}
+
+#[cfg(not(test))]
+fn simulated_request_ip(tick_count: u64, index: usize) -> String {
+    let offset = tick_count
+        .saturating_mul(INTERNAL_GENERATION_BATCH_SIZE)
+        .saturating_add(index as u64);
+    let third = ((offset / 254) % 254) + 1;
+    let fourth = (offset % 254) + 1;
+    format!("198.51.{}.{}", third, fourth)
+}
+
+pub fn generation_diagnostics(
+    now: u64,
+    cfg_enabled: bool,
+    state: &ControlState,
+) -> GenerationDiagnostics {
+    let mut health = "inactive".to_string();
+    let mut reason = "simulation_off".to_string();
+    let mut recommended_action = "Enable adversary simulation to generate telemetry.".to_string();
+    if state.phase == ControlPhase::Running && cfg_enabled {
+        let has_error = state
+            .last_generation_error
+            .as_deref()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false);
+        let started_at = state.started_at.unwrap_or(now);
+        let idle_window_elapsed = now
+            >= started_at.saturating_add(GENERATION_DIAGNOSTIC_GRACE_SECONDS);
+        if has_error {
+            health = "error".to_string();
+            reason = "tick_execution_failed".to_string();
+            recommended_action = "Inspect generation_diagnostics.last_generation_error and restart the run if needed.".to_string();
+        } else if state.generated_request_count == 0 && idle_window_elapsed {
+            health = "no_traffic".to_string();
+            reason = "tick_endpoint_not_invoked".to_string();
+            recommended_action = "Keep the monitoring dashboard open (or call POST /admin/adversary-sim/tick) while the run is enabled.".to_string();
+        } else if let Some(last_generated_at) = state.last_generated_at {
+            if now >= last_generated_at.saturating_add(GENERATION_DIAGNOSTIC_GRACE_SECONDS) {
+                health = "stalled".to_string();
+                reason = "generation_tick_stalled".to_string();
+                recommended_action = "Resume dashboard tick traffic generation or run make test-adversarial-live.".to_string();
+            } else {
+                health = "ok".to_string();
+                reason = "traffic_observed".to_string();
+                recommended_action =
+                    "No action required; simulation traffic is being generated.".to_string();
+            }
+        } else {
+            health = "warming".to_string();
+            reason = "waiting_for_first_tick".to_string();
+            recommended_action = "Allow one refresh interval for first generated traffic.".to_string();
+        }
+    } else if cfg_enabled {
+        health = "degraded".to_string();
+        reason = "controller_not_running".to_string();
+        recommended_action =
+            "Toggle adversary simulation off then on to reconcile desired/actual state.".to_string();
+    }
+    GenerationDiagnostics {
+        health,
+        reason,
+        recommended_action,
+        generated_tick_count: state.generated_tick_count,
+        generated_request_count: state.generated_request_count,
+        last_generated_at: state.last_generated_at,
+        last_generation_error: state.last_generation_error.clone(),
+    }
+}
+
+pub fn run_internal_generation_tick(
+    store: &impl KeyValueStore,
+    state: &mut ControlState,
+    now: u64,
+) -> GenerationTickResult {
+    let mut result = GenerationTickResult {
+        generated_requests: 0,
+        failed_requests: 0,
+        last_response_status: None,
+    };
+    if state.phase != ControlPhase::Running {
+        state.last_generation_error = Some("simulation_not_running".to_string());
+        return result;
+    }
+
+    let run_id = state
+        .run_id
+        .clone()
+        .or_else(|| state.last_run_id.clone())
+        .unwrap_or_else(|| "simrun-runtime".to_string());
+    let metadata = crate::runtime::sim_telemetry::SimulationRequestMetadata {
+        sim_run_id: run_id.clone(),
+        sim_profile: "runtime_toggle".to_string(),
+        sim_lane: "deterministic_black_box".to_string(),
+    };
+    #[cfg(not(test))]
+    {
+        let paths = simulated_request_paths(run_id.as_str(), state.generated_tick_count);
+        for (index, path) in paths.iter().enumerate() {
+            let user_agent = format!("ShumaAdversarySim/1.0 slot={} path={}", index, path);
+            let mut builder = Request::builder();
+            builder
+                .method(Method::Get)
+                .uri(path.as_str())
+                .header("x-forwarded-for", simulated_request_ip(state.generated_tick_count, index))
+                .header("x-forwarded-proto", "https")
+                .header("user-agent", user_agent.as_str());
+            let req = builder.body(Vec::new()).build();
+            let _guard = crate::runtime::sim_telemetry::enter(Some(metadata.clone()));
+            let response = crate::handle_bot_defence_impl(&req);
+            let status = *response.status();
+            result.generated_requests = result.generated_requests.saturating_add(1);
+            result.last_response_status = Some(status);
+            if status >= 500 {
+                result.failed_requests = result.failed_requests.saturating_add(1);
+            }
+        }
+        crate::observability::monitoring::flush_pending_counters(store);
+    }
+    #[cfg(test)]
+    {
+        let _ = store;
+        let _ = metadata;
+        result.generated_requests = INTERNAL_GENERATION_BATCH_SIZE;
+        result.last_response_status = Some(200);
+    }
+
+    state.generated_tick_count = state.generated_tick_count.saturating_add(1);
+    state.generated_request_count = state
+        .generated_request_count
+        .saturating_add(result.generated_requests);
+    state.last_generated_at = Some(now);
+    if result.failed_requests > 0 {
+        state.last_generation_error = Some(format!(
+            "request_pipeline_errors={} of {}",
+            result.failed_requests, result.generated_requests
+        ));
+    } else {
+        state.last_generation_error = None;
+    }
+    result
 }
 
 #[cfg(test)]
@@ -344,9 +547,8 @@ mod tests {
             active_run_count: 1,
             active_lane_count: 2,
             last_transition_reason: Some("manual_on".to_string()),
-            last_terminal_failure_reason: None,
-            last_run_id: None,
             updated_at: 100,
+            ..ControlState::default()
         };
 
         let (next, transitions) = reconcile_state(121, true, &state);
@@ -369,9 +571,8 @@ mod tests {
             active_run_count: 1,
             active_lane_count: 1,
             last_transition_reason: Some("manual_off".to_string()),
-            last_terminal_failure_reason: None,
-            last_run_id: None,
             updated_at: 130,
+            ..ControlState::default()
         };
 
         let (next, transitions) = reconcile_state(141, false, &state);
@@ -397,9 +598,8 @@ mod tests {
             active_run_count: MAX_CONCURRENT_RUNS,
             active_lane_count: ACTIVE_LANE_COUNT,
             last_transition_reason: Some("manual_on".to_string()),
-            last_terminal_failure_reason: None,
-            last_run_id: None,
             updated_at: 100,
+            ..ControlState::default()
         };
 
         let result = start_state(150, 180, &state);

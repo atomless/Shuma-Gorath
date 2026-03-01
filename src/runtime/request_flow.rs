@@ -21,7 +21,13 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         crate::config::runtime_environment(),
         crate::config::adversary_sim_available(),
     );
-    let _sim_context_guard = crate::runtime::sim_telemetry::enter(sim_metadata);
+    let inherited_sim_metadata = if sim_metadata.is_none() {
+        crate::runtime::sim_telemetry::current_metadata()
+    } else {
+        None
+    };
+    let _sim_context_guard =
+        crate::runtime::sim_telemetry::enter(sim_metadata.or(inherited_sim_metadata));
     let capability_token = RequestFlowCapabilityToken::new();
     let request_capabilities =
         crate::runtime::capabilities::RuntimeCapabilities::for_policy_execution_phase(capability_token);

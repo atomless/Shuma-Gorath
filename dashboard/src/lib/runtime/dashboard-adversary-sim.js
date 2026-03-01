@@ -57,7 +57,17 @@ function normalizePhase(value) {
  *   durationSeconds: number,
  *   activeRunCount: number,
  *   activeLaneCount: number,
- *   queuePolicy: string
+ *   queuePolicy: string,
+ *   generationDiagnostics: {
+ *     health: string,
+ *     reason: string,
+ *     recommendedAction: string,
+ *     generatedTickCount: number,
+ *     generatedRequestCount: number,
+ *     lastGeneratedAt: number,
+ *     lastGenerationError: string,
+ *     tickEndpoint: string
+ *   }
  * }}
  */
 export function normalizeAdversarySimStatus(payload) {
@@ -67,6 +77,10 @@ export function normalizeAdversarySimStatus(payload) {
   const historyRetentionRaw = pick(source, 'history_retention', 'historyRetention', {});
   const historyRetention = historyRetentionRaw && typeof historyRetentionRaw === 'object'
     ? /** @type {Record<string, unknown>} */ (historyRetentionRaw)
+    : {};
+  const generationDiagnosticsRaw = pick(source, 'generation_diagnostics', 'generationDiagnostics', {});
+  const generationDiagnostics = generationDiagnosticsRaw && typeof generationDiagnosticsRaw === 'object'
+    ? /** @type {Record<string, unknown>} */ (generationDiagnosticsRaw)
     : {};
   const phase = normalizePhase(pick(source, 'phase', 'phase', 'off'));
   const durationSeconds = Math.max(
@@ -100,6 +114,31 @@ export function normalizeAdversarySimStatus(payload) {
       0,
       Math.floor(toSafeNumber(pick(source, 'active_lane_count', 'activeLaneCount', 0), 0))
     ),
-    queuePolicy: String(pick(source, 'queue_policy', 'queuePolicy', '') || '')
+    queuePolicy: String(pick(source, 'queue_policy', 'queuePolicy', '') || ''),
+    generationDiagnostics: {
+      health: String(pick(generationDiagnostics, 'health', 'health', '') || ''),
+      reason: String(pick(generationDiagnostics, 'reason', 'reason', '') || ''),
+      recommendedAction: String(
+        pick(generationDiagnostics, 'recommended_action', 'recommendedAction', '') || ''
+      ),
+      generatedTickCount: Math.max(
+        0,
+        Math.floor(toSafeNumber(pick(generationDiagnostics, 'generated_tick_count', 'generatedTickCount', 0), 0))
+      ),
+      generatedRequestCount: Math.max(
+        0,
+        Math.floor(toSafeNumber(pick(generationDiagnostics, 'generated_request_count', 'generatedRequestCount', 0), 0))
+      ),
+      lastGeneratedAt: Math.max(
+        0,
+        Math.floor(toSafeNumber(pick(generationDiagnostics, 'last_generated_at', 'lastGeneratedAt', 0), 0))
+      ),
+      lastGenerationError: String(
+        pick(generationDiagnostics, 'last_generation_error', 'lastGenerationError', '') || ''
+      ),
+      tickEndpoint: String(
+        pick(generationDiagnostics, 'tick_endpoint', 'tickEndpoint', '/admin/adversary-sim/tick') || '/admin/adversary-sim/tick'
+      )
+    }
   };
 }

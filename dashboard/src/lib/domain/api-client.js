@@ -329,6 +329,7 @@ export const adaptAdversarySimStatus = (payload) => {
   const guardrails = asRecord(source.guardrails);
   const lanes = asRecord(source.lanes);
   const historyRetention = asRecord(source.history_retention);
+  const generationDiagnostics = asRecord(source.generation_diagnostics);
   return {
     runtime_environment: String(source.runtime_environment || ''),
     adversary_sim_available: source.adversary_sim_available === true,
@@ -367,6 +368,16 @@ export const adaptAdversarySimStatus = (payload) => {
       cleanup_supported: historyRetention.cleanup_supported === true,
       cleanup_endpoint: String(historyRetention.cleanup_endpoint || ''),
       cleanup_command: String(historyRetention.cleanup_command || '')
+    },
+    generation_diagnostics: {
+      health: String(generationDiagnostics.health || ''),
+      reason: String(generationDiagnostics.reason || ''),
+      recommended_action: String(generationDiagnostics.recommended_action || ''),
+      generated_tick_count: Number(generationDiagnostics.generated_tick_count || 0),
+      generated_request_count: Number(generationDiagnostics.generated_request_count || 0),
+      last_generated_at: Number(generationDiagnostics.last_generated_at || 0),
+      last_generation_error: String(generationDiagnostics.last_generation_error || ''),
+      tick_endpoint: String(generationDiagnostics.tick_endpoint || '')
     }
   };
 };
@@ -633,6 +644,25 @@ export const create = (options = {}) => {
     adaptAdversarySimStatus(await request('/admin/adversary-sim/status', requestOptions));
 
   /**
+   * @param {RequestOptions} [requestOptions]
+   */
+  const tickAdversarySim = async (requestOptions = {}) => {
+    const payload = asRecord(
+      await request('/admin/adversary-sim/tick', {
+        ...requestOptions,
+        method: 'POST'
+      })
+    );
+    return {
+      ticked: payload.ticked === true,
+      generated_requests: Number(payload.generated_requests || 0),
+      failed_requests: Number(payload.failed_requests || 0),
+      last_response_status: Number(payload.last_response_status || 0),
+      status: adaptAdversarySimStatus(payload.status)
+    };
+  };
+
+  /**
    * @param {{hours?: number, limit?: number}} [options]
    * @param {RequestOptions} [requestOptions]
    */
@@ -800,6 +830,7 @@ export const create = (options = {}) => {
     getIpRangeSuggestions,
     getConfig,
     getAdversarySimStatus,
+    tickAdversarySim,
     getRobotsPreview,
     updateConfig,
     validateConfigPatch,

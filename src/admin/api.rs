@@ -1157,6 +1157,66 @@ mod tests {
     }
 
     #[test]
+    fn handle_admin_ip_bans_delta_preserves_simulation_metadata() {
+        let store = MockStore::new();
+        let now = now_ts();
+
+        {
+            let _guard = crate::runtime::sim_telemetry::enter(Some(
+                crate::runtime::sim_telemetry::SimulationRequestMetadata {
+                    sim_run_id: "run-ipbans-sim".to_string(),
+                    sim_profile: "fast_smoke".to_string(),
+                    sim_lane: "deterministic_black_box".to_string(),
+                },
+            ));
+            log_event(
+                &store,
+                &EventLogEntry {
+                    ts: now,
+                    event: EventType::Ban,
+                    ip: Some("203.0.113.44".to_string()),
+                    reason: Some("sim_ban".to_string()),
+                    outcome: Some("ok".to_string()),
+                    admin: Some("ops".to_string()),
+                },
+            );
+        }
+
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now.saturating_add(1),
+                event: EventType::Ban,
+                ip: Some("203.0.113.45".to_string()),
+                reason: Some("baseline_ban".to_string()),
+                outcome: Some("ok".to_string()),
+                admin: Some("ops".to_string()),
+            },
+        );
+
+        let mut builder = Request::builder();
+        builder.method(Method::Get).uri("/admin/ip-bans/delta?hours=1&limit=10");
+        let req = builder.build();
+        let resp = handle_admin_ip_bans_delta(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+        let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        let events = payload
+            .get("events")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        assert!(events.len() >= 2);
+        assert!(events.iter().any(|row| {
+            row.get("is_simulation").and_then(|value| value.as_bool()) == Some(true)
+                && row.get("sim_run_id").and_then(|value| value.as_str()) == Some("run-ipbans-sim")
+        }));
+        assert!(events.iter().any(|row| {
+            row.get("is_simulation").and_then(|value| value.as_bool()) == Some(false)
+                && row.get("reason").and_then(|value| value.as_str()) == Some("baseline_ban")
+        }));
+    }
+
+    #[test]
     fn load_recent_events_ignores_legacy_v1_pages() {
         let store = MockStore::new();
         let now = now_ts();
@@ -2177,6 +2237,101 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn adversary_sim_tick_updates_generation_diagnostics_contract() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let on_resp = handle_admin_adversary_sim_control(
+            &make_control_request(true, "tick-start"),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*on_resp.status(), 200u16);
+
+        let tick_req = make_request(Method::Post, "/admin/adversary-sim/tick", Vec::new());
+        let tick_resp = handle_admin_adversary_sim_tick(&tick_req, &store, "default", &auth);
+        assert_eq!(*tick_resp.status(), 200u16);
+        let tick_json: serde_json::Value = serde_json::from_slice(tick_resp.body()).unwrap();
+        assert_eq!(tick_json.get("ticked").and_then(|v| v.as_bool()), Some(true));
+        assert!(
+            tick_json
+                .get("generated_requests")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0)
+                > 0
+        );
+        assert_eq!(
+            tick_json
+                .get("status")
+                .and_then(|v| v.get("generation_diagnostics"))
+                .and_then(|v| v.get("health"))
+                .and_then(|v| v.as_str()),
+            Some("ok")
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_status_reports_no_traffic_diagnostics_when_running_without_ticks() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let on_resp = handle_admin_adversary_sim_control(
+            &make_control_request(true, "diag-start"),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*on_resp.status(), 200u16);
+
+        let mut state = crate::admin::adversary_sim::load_state(&store, "default");
+        let now = now_ts();
+        state.started_at = Some(now.saturating_sub(10));
+        state.generated_tick_count = 0;
+        state.generated_request_count = 0;
+        state.last_generated_at = None;
+        state.last_generation_error = None;
+        crate::admin::adversary_sim::save_state(&store, "default", &state).unwrap();
+
+        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
+        assert_eq!(*status_resp.status(), 200u16);
+        let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
+        assert_eq!(
+            status_json
+                .get("generation_diagnostics")
+                .and_then(|v| v.get("health"))
+                .and_then(|v| v.as_str()),
+            Some("no_traffic")
+        );
+        assert_eq!(
+            status_json
+                .get("generation_diagnostics")
+                .and_then(|v| v.get("reason"))
+                .and_then(|v| v.as_str()),
+            Some("tick_endpoint_not_invoked")
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
     fn adversary_sim_auto_off_preserves_historical_monitoring_visibility() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
@@ -2843,9 +2998,8 @@ mod admin_config_tests {
             active_run_count: 1,
             active_lane_count: 2,
             last_transition_reason: Some("manual_on".to_string()),
-            last_terminal_failure_reason: None,
-            last_run_id: None,
             updated_at: now.saturating_sub(180),
+            ..crate::admin::adversary_sim::ControlState::default()
         };
         crate::admin::adversary_sim::save_state(&store, "default", &stale_running_state).unwrap();
 
@@ -3008,6 +3162,7 @@ mod admin_config_tests {
         assert!(sanitize_path("/admin/ip-range/suggestions"));
         assert!(sanitize_path("/admin/monitoring/stream"));
         assert!(sanitize_path("/admin/ip-bans/stream"));
+        assert!(sanitize_path("/admin/adversary-sim/tick"));
         assert!(sanitize_path("/admin/adversary-sim/history/cleanup"));
     }
 
@@ -5076,6 +5231,10 @@ mod admin_auth_tests {
             &Method::Post
         ));
         assert!(request_requires_admin_write(
+            "/admin/adversary-sim/tick",
+            &Method::Post
+        ));
+        assert!(request_requires_admin_write(
             "/admin/adversary-sim/history/cleanup",
             &Method::Post
         ));
@@ -5108,6 +5267,10 @@ mod admin_auth_tests {
         ));
         assert!(!request_requires_admin_write(
             "/admin/adversary-sim/status",
+            &Method::Get
+        ));
+        assert!(!request_requires_admin_write(
+            "/admin/adversary-sim/tick",
             &Method::Get
         ));
         assert!(!request_requires_admin_write(
@@ -5158,6 +5321,7 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/config/export"
             | "/admin/adversary-sim/control"
             | "/admin/adversary-sim/status"
+            | "/admin/adversary-sim/tick"
             | "/admin/adversary-sim/history/cleanup"
             | "/admin/maze"
             | "/admin/maze/preview"
@@ -5409,6 +5573,7 @@ fn request_requires_admin_write(path: &str, method: &Method) -> bool {
             | "/admin/config"
             | "/admin/config/validate"
             | "/admin/adversary-sim/control"
+            | "/admin/adversary-sim/tick"
             | "/admin/adversary-sim/history/cleanup"
             | "/admin/maze/seeds"
             | "/admin/maze/seeds/refresh"
@@ -10939,6 +11104,8 @@ fn adversary_sim_status_payload(
         cfg.adversary_sim_enabled,
         state,
     );
+    let generation_diagnostics =
+        crate::admin::adversary_sim::generation_diagnostics(now, cfg.adversary_sim_enabled, state);
     let lease = crate::admin::adversary_sim_control::load_controller_lease(store, site_id);
     if let Some(object) = payload.as_object_mut() {
         object.insert(
@@ -10975,6 +11142,19 @@ fn adversary_sim_status_payload(
                 "cleanup_supported": crate::config::admin_config_write_enabled(),
                 "cleanup_endpoint": "/admin/adversary-sim/history/cleanup",
                 "cleanup_command": "make adversary-sim-history-clean"
+            }),
+        );
+        object.insert(
+            "generation_diagnostics".to_string(),
+            json!({
+                "health": generation_diagnostics.health,
+                "reason": generation_diagnostics.reason,
+                "recommended_action": generation_diagnostics.recommended_action,
+                "generated_tick_count": generation_diagnostics.generated_tick_count,
+                "generated_request_count": generation_diagnostics.generated_request_count,
+                "last_generated_at": generation_diagnostics.last_generated_at,
+                "last_generation_error": generation_diagnostics.last_generation_error,
+                "tick_endpoint": "/admin/adversary-sim/tick"
             }),
         );
         object.insert(
@@ -11079,6 +11259,79 @@ fn handle_admin_adversary_sim_history_cleanup(
     }))
     .unwrap();
     Response::new(200, body)
+}
+
+fn handle_admin_adversary_sim_tick(
+    req: &Request,
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+    auth: &crate::admin::auth::AdminAuthResult,
+) -> Response {
+    if *req.method() != Method::Post {
+        return Response::new(405, "Method Not Allowed");
+    }
+    if !crate::config::admin_config_write_enabled() {
+        return Response::new(
+            403,
+            "Config updates are disabled when SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false",
+        );
+    }
+
+    let runtime_environment = crate::config::runtime_environment();
+    let env_available = crate::config::adversary_sim_available();
+    if !crate::admin::adversary_sim::control_surface_available(runtime_environment, env_available) {
+        return Response::new(404, "Not Found");
+    }
+
+    if auth.requires_csrf(req) {
+        let expected = auth.csrf_token.as_deref().unwrap_or("");
+        if !crate::admin::auth::validate_session_csrf(req, expected) {
+            log_admin_csrf_denied(store, req, "/admin/adversary-sim/tick", auth);
+            return Response::new(403, "Forbidden: control trust boundary violation");
+        }
+    }
+
+    let cfg = match crate::config::Config::load(store, site_id) {
+        Ok(cfg) => cfg,
+        Err(err) => return Response::new(500, err.user_message()),
+    };
+    let mut state = crate::admin::adversary_sim::load_state(store, site_id);
+    let now = now_ts();
+
+    if !cfg.adversary_sim_enabled || state.phase != crate::admin::adversary_sim::ControlPhase::Running {
+        let status = adversary_sim_status_payload(store, site_id, &cfg, &state, now);
+        let body = serde_json::to_string(&json!({
+            "ticked": false,
+            "reason": "simulation_not_running",
+            "status": status
+        }))
+        .unwrap();
+        return Response::builder()
+            .status(409)
+            .header("Cache-Control", "no-store")
+            .body(body)
+            .build();
+    }
+
+    let tick_result = crate::admin::adversary_sim::run_internal_generation_tick(store, &mut state, now);
+    if crate::admin::adversary_sim::save_state(store, site_id, &state).is_err() {
+        return Response::new(500, "Key-value store error");
+    }
+
+    let status = adversary_sim_status_payload(store, site_id, &cfg, &state, now);
+    let body = serde_json::to_string(&json!({
+        "ticked": true,
+        "generated_requests": tick_result.generated_requests,
+        "failed_requests": tick_result.failed_requests,
+        "last_response_status": tick_result.last_response_status,
+        "status": status
+    }))
+    .unwrap();
+    Response::builder()
+        .status(200)
+        .header("Cache-Control", "no-store")
+        .body(body)
+        .build()
 }
 
 fn handle_admin_adversary_sim_control(
@@ -11643,6 +11896,7 @@ fn handle_admin_adversary_sim_control(
 ///   - GET /admin/config/export: Export non-secret runtime config for immutable deploy handoff
 ///   - POST /admin/adversary-sim/control: Start/stop dev adversary simulation orchestration
 ///   - GET /admin/adversary-sim/status: Read orchestration state and guardrails
+///   - POST /admin/adversary-sim/tick: Generate one bounded real-traffic simulation tick for dev monitoring
 ///   - POST /admin/adversary-sim/history/cleanup: Explicitly clear retained dev telemetry history
 ///   - GET /admin/maze/preview: Render a non-operational maze preview for operators
 ///   - GET /admin/tarpit/preview: Render a non-operational progressive tarpit preview for operators
@@ -11696,7 +11950,9 @@ pub fn handle_admin(req: &Request) -> Response {
     if !has_bearer && !has_session_cookie {
         if matches!(
             path,
-            "/admin/adversary-sim/control" | "/admin/adversary-sim/history/cleanup"
+            "/admin/adversary-sim/control"
+                | "/admin/adversary-sim/tick"
+                | "/admin/adversary-sim/history/cleanup"
         ) {
             if let Ok(store) = Store::open_default() {
                 let client_ip = crate::extract_client_ip(req);
@@ -11729,7 +11985,9 @@ pub fn handle_admin(req: &Request) -> Response {
     if !auth.is_authorized() {
         if matches!(
             path,
-            "/admin/adversary-sim/control" | "/admin/adversary-sim/history/cleanup"
+            "/admin/adversary-sim/control"
+                | "/admin/adversary-sim/tick"
+                | "/admin/adversary-sim/history/cleanup"
         ) {
             let client_ip = crate::extract_client_ip(req);
             log_event(
@@ -12094,6 +12352,9 @@ pub fn handle_admin(req: &Request) -> Response {
         "/admin/adversary-sim/status" => {
             return handle_admin_adversary_sim_status(req, &store, site_id, &auth);
         }
+        "/admin/adversary-sim/tick" => {
+            return handle_admin_adversary_sim_tick(req, &store, site_id, &auth);
+        }
         "/admin/adversary-sim/history/cleanup" => {
             return handle_admin_adversary_sim_history_cleanup(req, &store, site_id, &auth);
         }
@@ -12122,7 +12383,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/tick, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics

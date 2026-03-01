@@ -320,6 +320,20 @@ export async function getDashboardAdversarySimStatus() {
   return status;
 }
 
+export async function tickDashboardAdversarySim() {
+  const apiClient = requireApiClient();
+  const result = await apiClient.tickAdversarySim();
+  const status = isObject(result?.status) ? result.status : {};
+  applyAdversarySimStatusSnapshot(status);
+  return {
+    ticked: result?.ticked === true,
+    generated_requests: Number(result?.generated_requests || 0),
+    failed_requests: Number(result?.failed_requests || 0),
+    last_response_status: Number(result?.last_response_status || 0),
+    status
+  };
+}
+
 export async function controlDashboardAdversarySim(enabled) {
   const apiClient = requireApiClient();
   const response = await apiClient.controlAdversarySim(enabled === true);

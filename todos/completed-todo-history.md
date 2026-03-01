@@ -6,6 +6,17 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 SIM2 Round 4 Stabilization: Monitoring Truthfulness + UX Consistency
 
+#### SIM2-R4-3: Prove Adversary-Simulation Traffic Is Real, Generated, and Observable End-to-End
+
+- [x] SIM2-R4-3-1 Verify adversary-sim execution path emits real HTTP/browser requests through the same request pipeline used for organic traffic.
+- [x] SIM2-R4-3-2 Ensure emitted telemetry from adversary-sim traffic reaches monitoring ingest, chart aggregation, and recent-events feeds.
+- [x] SIM2-R4-3-3 Add diagnostics path for “sim enabled but no traffic generated” so operators receive explicit cause/reason instead of silent success.
+
+Acceptance criteria (archived):
+1. Enabling adversary sim produces measurable request/event deltas visible in monitoring within one refresh interval/SSE cycle.
+2. Recent events and chart series show adversary-sim-attributed activity alongside non-sim traffic without synthetic-only artifacts.
+3. End-to-end verification (`make test` path + focused SIM2 monitoring checks) fails if sim run does not produce observable telemetry.
+
 #### SIM2-R4-1: Restore Monitoring Initial Load and Refresh Control Correctness (partial)
 
 - [x] SIM2-R4-1-1 Fix monitoring page bootstrap so charts/recent events initialize populated from the latest available snapshot on first load (without requiring adversary sim toggle-on).
