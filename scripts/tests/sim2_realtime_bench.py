@@ -18,6 +18,8 @@ SSE_P95_MAX_MS = 300
 SSE_P99_MAX_MS = 500
 SSE_OVERFLOW_OR_DROP_MAX = 0
 SSE_REQUEST_BUDGET_MAX_REQ_PER_SEC_CLIENT = 1.0
+BASELINE_EVENTS_PER_SEC = 1000
+BASELINE_OPERATOR_CLIENTS = 5
 
 
 def percentile(values: List[int], pct: float) -> int:
@@ -199,26 +201,26 @@ def evaluate_thresholds(results: Dict[str, Dict[str, Any]]) -> List[str]:
 
 def run_benchmark(now_unix: int) -> Dict[str, Any]:
     duration_ms = 120_000
-    events = generate_constant_events(duration_ms, events_per_sec=200)
+    events = generate_constant_events(duration_ms, events_per_sec=BASELINE_EVENTS_PER_SEC)
     results = {
         "cursor_polling_default": simulate_cursor_polling(
             events,
             duration_ms=duration_ms,
-            clients=5,
+            clients=BASELINE_OPERATOR_CLIENTS,
             poll_interval_ms=1000,
             delta_limit=600,
         ),
         "cursor_polling_fast": simulate_cursor_polling(
             events,
             duration_ms=duration_ms,
-            clients=5,
+            clients=BASELINE_OPERATOR_CLIENTS,
             poll_interval_ms=250,
             delta_limit=400,
         ),
         "sse": simulate_sse(
             events,
             duration_ms=duration_ms,
-            clients=5,
+            clients=BASELINE_OPERATOR_CLIENTS,
             consume_interval_ms=200,
             queue_capacity=1024,
         ),
@@ -230,8 +232,16 @@ def run_benchmark(now_unix: int) -> Dict[str, Any]:
         "workload": {
             "profile": "baseline",
             "duration_ms": duration_ms,
-            "events_per_sec": 200,
-            "operator_clients": 5,
+            "events_per_sec": BASELINE_EVENTS_PER_SEC,
+            "operator_clients": BASELINE_OPERATOR_CLIENTS,
+        },
+        "verification_scope": {
+            "harness_type": "synthetic_benchmark",
+            "runtime_profile_claims": {
+                "runtime_dev": "synthetic_contract_check_only",
+                "runtime_prod": "not_verified_by_this_harness",
+            },
+            "claims_runtime_prod_verification": False,
         },
         "thresholds": {
             "sse_latency_p95_max_ms": SSE_P95_MAX_MS,
@@ -286,6 +296,16 @@ def render_summary(payload: Dict[str, Any]) -> str:
     lines.append("")
     lines.append(
         "- status: {}".format("PASS" if bool(status.get("passed")) else "FAIL")
+    )
+    scope = dict(payload.get("verification_scope") or {})
+    runtime_claims = dict(scope.get("runtime_profile_claims") or {})
+    lines.append(
+        "- verification scope: harness_type={} runtime_dev={} runtime_prod={} claims_runtime_prod_verification={}".format(
+            scope.get("harness_type", "unknown"),
+            runtime_claims.get("runtime_dev", "unknown"),
+            runtime_claims.get("runtime_prod", "unknown"),
+            bool(scope.get("claims_runtime_prod_verification")),
+        )
     )
     failures = list(status.get("failures") or [])
     if failures:

@@ -291,15 +291,6 @@ Reference plan/ADR bundle:
 4. [`docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md`](../docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md)
 5. [`docs/adr/0009-telemetry-lifecycle-retention-cost-security.md`](../docs/adr/0009-telemetry-lifecycle-retention-cost-security.md)
 
-### SIM2-W3-2: Align Realtime Bench Contract to ADR `0008` Envelope and Profile Semantics
-- [ ] SIM2-W3-2 enforce declared benchmark envelope for blocking baseline profile and make profile metadata truthful for runtime-dev/runtime-prod verification semantics.
-
-Acceptance criteria:
-1. Blocking baseline benchmark workload is `>=1000 events/sec` and `>=5 active operator clients`.
-2. Benchmark artifacts include explicit profile metadata and do not claim runtime-prod verification when only synthetic/single-lane simulation is executed.
-3. Threshold failures include percentile/budget diagnostics naming violated metric and required bound.
-4. `make test-sim2-realtime-bench` remains deterministic and test-covered.
-
 ### SIM2-W3-3: Remove Synthetic-Pass Fallbacks from Operational Regression Gate
 - [ ] SIM2-W3-3 remove generated default sections that can produce pass results when required operational domains are missing from report artifacts.
 

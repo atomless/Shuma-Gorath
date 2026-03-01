@@ -19,6 +19,19 @@ Acceptance criteria (archived):
 3. Verification-matrix report no longer emits pass/skipped status for missing container lane in blocking paths.
 4. Unit tests cover missing-container failure behavior and strict lane evidence expectations.
 
+#### SIM2-W3-2: Align Realtime Bench Contract to ADR `0008` Envelope and Profile Semantics
+
+- [x] SIM2-W3-2 enforce declared benchmark envelope for blocking baseline profile and make profile metadata truthful for runtime-dev/runtime-prod verification semantics.
+- [x] Raised baseline workload in `scripts/tests/sim2_realtime_bench.py` to `events_per_sec=1000` and `operator_clients=5` for blocking benchmark profile.
+- [x] Added explicit verification scope metadata (`harness_type`, runtime-profile claims, and `claims_runtime_prod_verification=false`) to report and summary artifacts.
+- [x] Extended realtime-benchmark unit tests to lock the workload envelope and runtime-profile claim semantics (`scripts/tests/test_sim2_realtime_bench.py`).
+
+Acceptance criteria (archived):
+1. Blocking baseline benchmark workload is `>=1000 events/sec` and `>=5 active operator clients`.
+2. Benchmark artifacts include explicit profile metadata and do not claim runtime-prod verification when only synthetic/single-lane simulation is executed.
+3. Threshold failures include percentile/budget diagnostics naming violated metric and required bound.
+4. `make test-sim2-realtime-bench` remains deterministic and test-covered.
+
 ## Additional completions (2026-02-28)
 
 ### P0 SIM2 Excellence Remediation Wave 2 (Architecture + Adversary Evolution)

@@ -13,6 +13,9 @@ class Sim2RealtimeBenchUnitTests(unittest.TestCase):
         self.assertEqual(first["schema_version"], "sim2-realtime-bench.v1")
         self.assertEqual(first["generated_at_unix"], 1_700_000_000)
         self.assertIn("sse", first["results"])
+        self.assertGreaterEqual(first["workload"]["events_per_sec"], 1000)
+        self.assertGreaterEqual(first["workload"]["operator_clients"], 5)
+        self.assertFalse(first["verification_scope"]["claims_runtime_prod_verification"])
 
     def test_evaluate_thresholds_emits_named_failure_diagnostics(self):
         failures = bench.evaluate_thresholds(
@@ -37,6 +40,8 @@ class Sim2RealtimeBenchUnitTests(unittest.TestCase):
         self.assertIn("latency percentiles", summary)
         self.assertIn("overflow/drop counts", summary)
         self.assertIn("request budget metrics", summary)
+        self.assertIn("verification scope", summary)
+        self.assertIn("claims_runtime_prod_verification=False", summary)
 
 
 if __name__ == "__main__":
