@@ -282,24 +282,6 @@ ADR reference: [`docs/adr/0009-telemetry-lifecycle-retention-cost-security.md`](
 
 Status: Execution complete on 2026-02-28. See `todos/completed-todo-history.md` for `SIM2-GC-17-*` closure details.
 
-## P0 SIM2 Verification Hardening Wave 3 (Plan-Closure Priority)
-
-Reference plan/ADR bundle:
-1. [`docs/plans/2026-02-28-sim2-gcr-8-gc6-gc8-gc11-gc14-implementation-plan.md`](../docs/plans/2026-02-28-sim2-gcr-8-gc6-gc8-gc11-gc14-implementation-plan.md)
-2. [`docs/plans/2026-02-28-rust-edge-sync-telemetry-validation-plan.md`](../docs/plans/2026-02-28-rust-edge-sync-telemetry-validation-plan.md)
-3. [`docs/adr/0007-adversary-sim-toggle-command-controller.md`](../docs/adr/0007-adversary-sim-toggle-command-controller.md)
-4. [`docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md`](../docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md)
-5. [`docs/adr/0009-telemetry-lifecycle-retention-cost-security.md`](../docs/adr/0009-telemetry-lifecycle-retention-cost-security.md)
-
-### SIM2-W3-4: Strengthen ADR/Governance Conformance from Marker Checks to Evidence Checks
-- [ ] SIM2-W3-4 replace marker-presence-only conformance checks with assertions tied to measurable contract evidence and implementation behavior.
-
-Acceptance criteria:
-1. ADR conformance checks validate artifact/report evidence for `0007`/`0008`/`0009` domains, not only string markers in source files.
-2. Governance contract checks validate quantitative promotion thresholds and deterministic-blocking semantics from contract/report fields.
-3. Missing evidence or threshold drift fails deterministically with explicit domain-specific diagnostics.
-4. Updated unit tests cover positive and negative evidence-driven conformance paths.
-
 ## P0 CI + E2E Stability (Top Priority)
 - [ ] CI-E2E-1 Resume point for next Codex session: start from `scripts/tests/run_dashboard_e2e.sh`, `scripts/tests/verify_playwright_launch.mjs`, `playwright.config.mjs`, `Makefile` (`test-dashboard-e2e`), and `e2e/run_dashboard_e2e.unit.test.js`; run `make dev` (terminal 1) plus `make test-dashboard-e2e` (terminal 2) and capture per-stage timings (unit, bundle budget, seed, preflight, Playwright) to prove there is no loop/stall; then run `DEBUG=pw:browser corepack pnpm exec node scripts/tests/verify_playwright_launch.mjs` to diagnose Chromium launch path and fix root cause so browser e2e runs without `PLAYWRIGHT_SANDBOX_ALLOW_SKIP`; finally, harden CI behavior so skip mode is never silently used in mandatory checks, retries are bounded and deterministic, and acceptance criteria are met: full `make test` completes in bounded time, Chromium e2e actually executes, and every failing step returns actionable diagnostics rather than hanging.
 

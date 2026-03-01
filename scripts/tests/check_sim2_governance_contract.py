@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -12,6 +13,15 @@ from typing import Any, Dict, List
 DEFAULT_CONTRACT_PATH = Path("scripts/tests/adversarial/hybrid_lane_contract.v1.json")
 DEFAULT_PROMOTION_SCRIPT_PATH = Path("scripts/tests/adversarial_promote_candidates.py")
 DEFAULT_OPERATOR_GUIDE_PATH = Path("docs/adversarial-operator-guide.md")
+DEFAULT_OPERATIONAL_REPORT_PATH = Path(
+    "scripts/tests/adversarial/sim2_operational_regressions_report.json"
+)
+DEFAULT_REALTIME_REPORT_PATH = Path(
+    "scripts/tests/adversarial/sim2_realtime_bench_report.json"
+)
+DEFAULT_MATRIX_REPORT_PATH = Path(
+    "scripts/tests/adversarial/sim2_verification_matrix_report.json"
+)
 DEFAULT_OUTPUT_PATH = Path("scripts/tests/adversarial/sim2_governance_contract_report.json")
 
 
@@ -52,6 +62,29 @@ def add_check(
     checks.append({"id": check_id, "passed": passed, "detail": detail})
     if not passed:
         failures.append(f"{failure_code}:{detail}")
+
+
+def parse_promotion_constant(text: str, constant_name: str) -> float | None:
+    pattern = rf"^{constant_name}\s*=\s*([0-9]+(?:\.[0-9]+)?)\s*$"
+    match = re.search(pattern, text, flags=re.MULTILINE)
+    if not match:
+        return None
+    try:
+        return float(match.group(1))
+    except Exception:
+        return None
+
+
+def parse_promotion_bool(text: str, variable_name: str) -> bool | None:
+    pattern = rf"^{variable_name}\s*=\s*(True|False)\s*$"
+    match = re.search(pattern, text, flags=re.MULTILINE)
+    if match:
+        return match.group(1) == "True"
+    dict_key_pattern = rf"\"{variable_name}\"\s*:\s*(True|False)"
+    dict_match = re.search(dict_key_pattern, text)
+    if not dict_match:
+        return None
+    return dict_match.group(1) == "True"
 
 
 def evaluate_contract(contract: Dict[str, Any]) -> Dict[str, Any]:
@@ -285,24 +318,84 @@ def evaluate_contract(contract: Dict[str, Any]) -> Dict[str, Any]:
     return {"checks": checks, "failures": failures}
 
 
-def evaluate_markers(promotion_script: str, operator_guide: str) -> Dict[str, Any]:
+def evaluate_promotion_script_alignment(
+    contract: Dict[str, Any], promotion_script: str
+) -> Dict[str, Any]:
     checks: List[Dict[str, Any]] = []
     failures: List[str] = []
-    promotion_markers = [
-        "HYBRID_CONFIRMATION_MIN_PERCENT",
-        "HYBRID_FALSE_DISCOVERY_MAX_PERCENT",
-        "HYBRID_OWNER_DISPOSITION_SLA_HOURS",
-        "blocking_requires_deterministic_confirmation",
-    ]
-    for marker in promotion_markers:
-        add_check(
-            checks,
-            failures,
-            check_id=f"promotion_marker_{marker}",
-            passed=marker in promotion_script,
-            detail=f"marker={marker}",
-            failure_code="governance_promotion_marker_missing",
-        )
+    thresholds = dict(contract.get("promotion_thresholds") or {})
+    required_confirmation = float(
+        thresholds.get("deterministic_confirmation_min_percent") or 95.0
+    )
+    max_false_discovery = float(thresholds.get("false_discovery_max_percent") or 20.0)
+    max_owner_sla_hours = float(thresholds.get("owner_disposition_sla_hours") or 48.0)
+
+    observed_confirmation = parse_promotion_constant(
+        promotion_script, "HYBRID_CONFIRMATION_MIN_PERCENT"
+    )
+    observed_false_discovery = parse_promotion_constant(
+        promotion_script, "HYBRID_FALSE_DISCOVERY_MAX_PERCENT"
+    )
+    observed_owner_sla = parse_promotion_constant(
+        promotion_script, "HYBRID_OWNER_DISPOSITION_SLA_HOURS"
+    )
+    observed_blocking_flag = parse_promotion_bool(
+        promotion_script, "blocking_requires_deterministic_confirmation"
+    )
+
+    add_check(
+        checks,
+        failures,
+        check_id="promotion_script_confirmation_threshold",
+        passed=observed_confirmation is not None
+        and observed_confirmation >= required_confirmation,
+        detail=(
+            f"required_min={required_confirmation:.2f} "
+            f"observed={observed_confirmation if observed_confirmation is not None else 'missing'}"
+        ),
+        failure_code="governance_promotion_threshold_mismatch",
+    )
+    add_check(
+        checks,
+        failures,
+        check_id="promotion_script_false_discovery_threshold",
+        passed=observed_false_discovery is not None
+        and observed_false_discovery <= max_false_discovery,
+        detail=(
+            f"required_max={max_false_discovery:.2f} "
+            f"observed={observed_false_discovery if observed_false_discovery is not None else 'missing'}"
+        ),
+        failure_code="governance_promotion_threshold_mismatch",
+    )
+    add_check(
+        checks,
+        failures,
+        check_id="promotion_script_owner_sla_threshold",
+        passed=observed_owner_sla is not None
+        and observed_owner_sla <= max_owner_sla_hours,
+        detail=(
+            f"required_max_hours={max_owner_sla_hours:.2f} "
+            f"observed={observed_owner_sla if observed_owner_sla is not None else 'missing'}"
+        ),
+        failure_code="governance_promotion_threshold_mismatch",
+    )
+    add_check(
+        checks,
+        failures,
+        check_id="promotion_script_deterministic_blocking_flag",
+        passed=observed_blocking_flag is True,
+        detail=(
+            "blocking_requires_deterministic_confirmation="
+            f"{observed_blocking_flag if observed_blocking_flag is not None else 'missing'}"
+        ),
+        failure_code="governance_promotion_blocking_flag_invalid",
+    )
+    return {"checks": checks, "failures": failures}
+
+
+def evaluate_operator_guide_markers(operator_guide: str) -> Dict[str, Any]:
+    checks: List[Dict[str, Any]] = []
+    failures: List[str] = []
 
     guide_markers = [
         "## Run-to-Run Diff + Backlog Automation (SIM2-EX8-2 / SIM2-EX8-3)",
@@ -329,11 +422,73 @@ def evaluate_markers(promotion_script: str, operator_guide: str) -> Dict[str, An
     return {"checks": checks, "failures": failures}
 
 
-def evaluate(contract: Dict[str, Any], promotion_script: str, operator_guide: str) -> Dict[str, Any]:
+def evaluate_gate_artifacts(
+    operational_report: Dict[str, Any],
+    realtime_report: Dict[str, Any],
+    matrix_report: Dict[str, Any],
+) -> Dict[str, Any]:
+    checks: List[Dict[str, Any]] = []
+    failures: List[str] = []
+
+    operational_status = dict(operational_report.get("status") or {})
+    add_check(
+        checks,
+        failures,
+        check_id="operational_report_status_passed",
+        passed=bool(operational_status.get("passed")),
+        detail=f"operational_status_passed={bool(operational_status.get('passed'))}",
+        failure_code="governance_operational_artifact_failed",
+    )
+
+    realtime_status = dict(realtime_report.get("status") or {})
+    add_check(
+        checks,
+        failures,
+        check_id="realtime_report_status_passed",
+        passed=bool(realtime_status.get("passed")),
+        detail=f"realtime_status_passed={bool(realtime_status.get('passed'))}",
+        failure_code="governance_realtime_artifact_failed",
+    )
+
+    matrix_status = dict(matrix_report.get("status") or {})
+    add_check(
+        checks,
+        failures,
+        check_id="verification_matrix_status_passed",
+        passed=bool(matrix_status.get("passed")),
+        detail=f"matrix_status_passed={bool(matrix_status.get('passed'))}",
+        failure_code="governance_matrix_artifact_failed",
+    )
+
+    return {"checks": checks, "failures": failures}
+
+
+def evaluate(
+    contract: Dict[str, Any],
+    promotion_script: str,
+    operator_guide: str,
+    operational_report: Dict[str, Any],
+    realtime_report: Dict[str, Any],
+    matrix_report: Dict[str, Any],
+) -> Dict[str, Any]:
     contract_result = evaluate_contract(contract)
-    marker_result = evaluate_markers(promotion_script, operator_guide)
-    checks = list(contract_result["checks"]) + list(marker_result["checks"])
-    failures = list(contract_result["failures"]) + list(marker_result["failures"])
+    promotion_result = evaluate_promotion_script_alignment(contract, promotion_script)
+    guide_result = evaluate_operator_guide_markers(operator_guide)
+    artifact_result = evaluate_gate_artifacts(
+        operational_report, realtime_report, matrix_report
+    )
+    checks = (
+        list(contract_result["checks"])
+        + list(promotion_result["checks"])
+        + list(guide_result["checks"])
+        + list(artifact_result["checks"])
+    )
+    failures = (
+        list(contract_result["failures"])
+        + list(promotion_result["failures"])
+        + list(guide_result["failures"])
+        + list(artifact_result["failures"])
+    )
     return {
         "schema_version": "sim2-governance-contract-report.v1",
         "status": {
@@ -352,6 +507,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--contract", default=str(DEFAULT_CONTRACT_PATH))
     parser.add_argument("--promotion-script", default=str(DEFAULT_PROMOTION_SCRIPT_PATH))
     parser.add_argument("--operator-guide", default=str(DEFAULT_OPERATOR_GUIDE_PATH))
+    parser.add_argument("--operational-report", default=str(DEFAULT_OPERATIONAL_REPORT_PATH))
+    parser.add_argument("--realtime-report", default=str(DEFAULT_REALTIME_REPORT_PATH))
+    parser.add_argument("--matrix-report", default=str(DEFAULT_MATRIX_REPORT_PATH))
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT_PATH))
     return parser.parse_args()
 
@@ -361,7 +519,17 @@ def main() -> int:
     contract = load_json_object(Path(args.contract))
     promotion_script = load_text(Path(args.promotion_script))
     operator_guide = load_text(Path(args.operator_guide))
-    payload = evaluate(contract, promotion_script, operator_guide)
+    operational_report = load_json_object(Path(args.operational_report))
+    realtime_report = load_json_object(Path(args.realtime_report))
+    matrix_report = load_json_object(Path(args.matrix_report))
+    payload = evaluate(
+        contract,
+        promotion_script,
+        operator_guide,
+        operational_report,
+        realtime_report,
+        matrix_report,
+    )
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")

@@ -117,10 +117,27 @@ def sample_operator_guide():
     )
 
 
+def sample_operational_report():
+    return {"status": {"passed": True}}
+
+
+def sample_realtime_report():
+    return {"status": {"passed": True}}
+
+
+def sample_matrix_report():
+    return {"status": {"passed": True}}
+
+
 class Sim2GovernanceContractTests(unittest.TestCase):
     def test_evaluate_passes_for_valid_contract_and_markers(self):
         payload = governance_check.evaluate(
-            sample_contract(), sample_promotion_script(), sample_operator_guide()
+            sample_contract(),
+            sample_promotion_script(),
+            sample_operator_guide(),
+            sample_operational_report(),
+            sample_realtime_report(),
+            sample_matrix_report(),
         )
         self.assertTrue(payload["status"]["passed"])
         self.assertEqual(payload["status"]["failure_count"], 0)
@@ -129,13 +146,22 @@ class Sim2GovernanceContractTests(unittest.TestCase):
         broken = copy.deepcopy(sample_contract())
         broken["emergent_exploration_lane"]["runtime_budget_seconds_max"] = 600
         broken["promotion_thresholds"]["deterministic_confirmation_min_percent"] = 60
-        payload = governance_check.evaluate(broken, "no markers", "no headings")
+        bad_operational_report = {"status": {"passed": False}}
+        payload = governance_check.evaluate(
+            broken,
+            "no markers",
+            "no headings",
+            bad_operational_report,
+            sample_realtime_report(),
+            sample_matrix_report(),
+        )
         self.assertFalse(payload["status"]["passed"])
         joined = " ".join(payload["status"]["failures"])
         self.assertIn("hybrid_lane_budget_envelope_invalid:", joined)
         self.assertIn("hybrid_lane_thresholds_invalid:", joined)
-        self.assertIn("governance_promotion_marker_missing:", joined)
+        self.assertIn("governance_promotion_threshold_mismatch:", joined)
         self.assertIn("governance_operator_guide_marker_missing:", joined)
+        self.assertIn("governance_operational_artifact_failed:", joined)
 
 
 if __name__ == "__main__":

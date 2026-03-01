@@ -57,6 +57,19 @@ Acceptance criteria (archived):
 3. Security diagnostics require real classification/canary/pseudonymization/retention/incident-hook fields and fail when absent.
 4. CI artifacts remain actionable and include exact missing metric names for each failed domain.
 
+#### SIM2-W3-4: Strengthen ADR/Governance Conformance from Marker Checks to Evidence Checks
+
+- [x] SIM2-W3-4 replace marker-presence-only conformance checks with assertions tied to measurable contract evidence and implementation behavior.
+- [x] Upgraded ADR conformance checker to validate evidence artifacts from `latest_report.json` and `sim2_realtime_bench_report.json` (envelope + runtime-claim scope + retention/cost/security required fields) in addition to marker checks (`scripts/tests/check_sim2_adr_conformance.py`).
+- [x] Upgraded governance checker to validate promotion-threshold alignment from parsed promotion constants, plus deterministic gate artifact status (`sim2_operational_regressions_report.json`, `sim2_realtime_bench_report.json`, `sim2_verification_matrix_report.json`) (`scripts/tests/check_sim2_governance_contract.py`).
+- [x] Updated ADR/governance unit coverage for evidence-driven positive/negative paths (`scripts/tests/test_sim2_adr_conformance.py`, `scripts/tests/test_sim2_governance_contract.py`).
+
+Acceptance criteria (archived):
+1. ADR conformance checks validate artifact/report evidence for `0007`/`0008`/`0009` domains, not only string markers in source files.
+2. Governance contract checks validate quantitative promotion thresholds and deterministic-blocking semantics from contract/report fields.
+3. Missing evidence or threshold drift fails deterministically with explicit domain-specific diagnostics.
+4. Updated unit tests cover positive and negative evidence-driven conformance paths.
+
 ## Additional completions (2026-02-28)
 
 ### P0 SIM2 Excellence Remediation Wave 2 (Architecture + Adversary Evolution)
