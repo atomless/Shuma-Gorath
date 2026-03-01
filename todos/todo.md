@@ -324,16 +324,39 @@ Acceptance criteria:
 - Recent events and chart series show adversary-sim-attributed activity alongside non-sim traffic without synthetic-only artifacts.
 - End-to-end verification (`make test` path + focused SIM2 monitoring checks) fails if sim run does not produce observable telemetry.
 
-### SIM2-R4-4: Reassess and Correct KV Config-Seed Lifecycle Boundaries (`setup` vs `dev`/`run`)
-- [ ] SIM2-R4-4-1 Decide and document intended lifecycle: which entry points may seed/backfill defaults, and which must be read-only.
-- [ ] SIM2-R4-4-2 Ensure `make dev`/watch restarts avoid unnecessary reseed/update churn when KV config is already present and schema-complete.
-- [ ] SIM2-R4-4-3 Ensure production-oriented start paths do not silently mutate persistent config unless explicitly requested by operator workflow.
-- [ ] SIM2-R4-4-4 Align `Makefile` help text, setup docs, and operational runbooks with the final lifecycle semantics.
+### SIM2-R4-4: Re-Architect Config Seeding Lifecycle and Test-Mode Persistence Semantics
+- [ ] SIM2-R4-4-1 Establish and document a strict lifecycle policy:
+  - `make setup` and `make setup-runtime` may initialize/backfill KV defaults.
+  - `make config-seed` is the explicit operator/developer migration/backfill command.
+  - Runtime start commands (`make dev`, `make dev-closed`, `make run`, `make run-prebuilt`, `make prod`) are read-only by default and must not mutate persisted KV config.
+- [ ] SIM2-R4-4-2 Remove implicit seed/backfill calls from runtime start and watch-restart paths; add explicit diagnostics that distinguish “config present”, “config missing”, and “migration required”.
+- [ ] SIM2-R4-4-3 Add an explicit low-surprise recovery path for local workflows when config is missing (clear command guidance and optional explicit `config-ensure` helper if required), without silent mutation during normal runtime start.
+- [ ] SIM2-R4-4-4 Guarantee production start paths never silently write config unless an operator explicitly invokes seeding/migration commands.
+- [ ] SIM2-R4-4-5 Introduce deterministic migration tests for defaults evolution:
+  - missing `config:default` bootstrap path,
+  - existing config backfill of newly introduced keys,
+  - no-op behavior when config is already schema-complete,
+  - failure-path diagnostics for invalid existing config JSON.
+- [ ] SIM2-R4-4-6 Resolve `test_mode` persistence contract explicitly and implement the chosen model end-to-end (default target for this round: non-persisted ephemeral runtime/session state so it cannot linger across runs).
+- [ ] SIM2-R4-4-7 If `test_mode` becomes ephemeral, remove its persistence coupling from KV/default seeding and align all control paths (`/admin/config` contract, dashboard behavior, runtime toggles, export payloads, docs, tests) to the new semantics.
+- [ ] SIM2-R4-4-8 Publish an operator-facing architecture note (or ADR if scope widens) that records the final lifecycle + test-mode semantics, rationale, rollback plan, and risk tradeoffs.
 
 Acceptance criteria:
-- Startup logs and behavior match documented lifecycle policy for `make setup`, `make dev`, `make run`, and production entrypoints.
-- KV seed/backfill runs are idempotent, bounded, and only occur on the intended commands/conditions.
-- Regression tests cover both missing-KV bootstrap path and existing-KV no-op path.
+- Running `make dev`, `make dev-closed`, `make run`, `make run-prebuilt`, and `make prod` performs zero implicit KV config writes under normal operation.
+- Only explicit setup/migration commands mutate seeded KV defaults, and those mutations are idempotent and bounded.
+- Command/output messaging clearly tells operators what happened and what to run next when config is absent or stale; no silent repair during runtime start.
+- Runtime behavior and docs are consistent for every entrypoint: `make setup`, `make setup-runtime`, `make config-seed`, dev starts, and prod starts.
+- Regression coverage proves both migration correctness and read-only start semantics, including watch-restart paths.
+- `test_mode` semantics are unambiguous, documented, and test-enforced:
+  - if ephemeral: toggling test mode does not persist across process restart and cannot be reintroduced by seed/backfill;
+  - if persisted (only by explicit exception): persistence scope, reset policy, and safety guardrails are fully documented and tested.
+- Dashboard/admin API contracts match the chosen `test_mode` model and reject/flag invalid legacy assumptions.
+
+Definition of done:
+- Makefile target matrix reflects final policy with no contradictory seed invocations in runtime start targets.
+- Bootstrap, runtime, and deployment docs all reflect the same lifecycle and `test_mode` contract.
+- Required Makefile verification passes for the slice, including unit/integration/dashboard coverage that exercises lifecycle and `test_mode` behavior.
+- Completion notes include security impact, operational impact, resource impact, and rollback steps.
 
 ### SIM2-R4-5: Enforce Monitoring-Page UI Control Style Parity with Canonical Dashboard Design System
 - [ ] SIM2-R4-5-1 Replace monitoring recent-events field/select controls that diverge from shared styling with canonical reusable controls/classes.
