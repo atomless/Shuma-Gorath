@@ -2286,6 +2286,84 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn adversary_sim_control_enable_recovers_from_stale_expired_running_state() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        let now = now_ts();
+
+        let stale_state = crate::admin::adversary_sim::ControlState {
+            phase: crate::admin::adversary_sim::ControlPhase::Running,
+            run_id: Some("simrun-stale".to_string()),
+            started_at: Some(now.saturating_sub(600)),
+            ends_at: Some(now.saturating_sub(300)),
+            stop_deadline: None,
+            active_run_count: 1,
+            active_lane_count: 2,
+            last_transition_reason: Some("manual_on".to_string()),
+            last_terminal_failure_reason: None,
+            last_run_id: Some("simrun-stale".to_string()),
+            generated_tick_count: 0,
+            generated_request_count: 0,
+            last_generated_at: None,
+            last_generation_error: None,
+            updated_at: now.saturating_sub(300),
+        };
+        crate::admin::adversary_sim::save_state(&store, "default", &stale_state).unwrap();
+        let mut stale_cfg = crate::config::defaults().clone();
+        stale_cfg.adversary_sim_enabled = false;
+        store
+            .set("config:default", serde_json::to_vec(&stale_cfg).unwrap().as_slice())
+            .unwrap();
+
+        let on_resp = handle_admin_adversary_sim_control(
+            &make_control_request(true, "recover-stale-running-enable"),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*on_resp.status(), 200u16);
+        let on_json: serde_json::Value = serde_json::from_slice(on_resp.body()).unwrap();
+        assert_eq!(
+            on_json
+                .get("status")
+                .and_then(|value| value.get("adversary_sim_enabled"))
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            on_json
+                .get("status")
+                .and_then(|value| value.get("phase"))
+                .and_then(|value| value.as_str()),
+            Some("running")
+        );
+        assert_eq!(
+            on_json
+                .get("status")
+                .and_then(|value| value.get("active_run_count"))
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+
+        let persisted_cfg: crate::config::Config =
+            serde_json::from_slice(&store.get("config:default").unwrap().unwrap()).unwrap();
+        assert!(persisted_cfg.adversary_sim_enabled);
+        let persisted_state = crate::admin::adversary_sim::load_state(&store, "default");
+        assert_eq!(persisted_state.phase, crate::admin::adversary_sim::ControlPhase::Running);
+        assert_eq!(persisted_state.active_run_count, 1);
+        assert_eq!(persisted_state.active_lane_count, 2);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
     fn adversary_sim_status_reports_no_traffic_diagnostics_when_running_without_ticks() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
@@ -11714,6 +11792,10 @@ fn handle_admin_adversary_sim_control(
     }
 
     let mut transitions = Vec::new();
+    let (preflight_state, mut preflight_transitions) =
+        crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
+    state = preflight_state;
+    transitions.append(&mut preflight_transitions);
     cfg.adversary_sim_enabled = payload.enabled;
 
     if payload.enabled {

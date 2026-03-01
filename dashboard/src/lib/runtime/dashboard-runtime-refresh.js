@@ -188,7 +188,10 @@ export function createDashboardRefreshRuntime(options = {}) {
     const cdpData = monitoringDetails.cdp || {};
     const cdpEventsData = monitoringDetails.cdp_events || { events: [] };
     const analytics = deriveMonitoringAnalytics(configSnapshot, analyticsResponse);
-    if (Array.isArray(bansData.bans)) {
+    if (
+      !Number.isFinite(Number(analytics.ban_count)) &&
+      Array.isArray(bansData.bans)
+    ) {
       analytics.ban_count = bansData.bans.length;
     }
     return {
@@ -207,6 +210,7 @@ export function createDashboardRefreshRuntime(options = {}) {
       reason === 'auto-refresh' ||
       reason === 'manual-refresh' ||
       reason === 'config-save' ||
+      reason === 'adversary-sim-toggle' ||
       reason === 'ban-save' ||
       reason === 'unban-save'
     );

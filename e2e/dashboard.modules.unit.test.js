@@ -843,6 +843,110 @@ test('refresh runtime bootstraps monitoring baseline before cursor deltas and ke
   });
 });
 
+test('adversary-sim-toggle refresh bypasses cached monitoring and preserves analytics ban_count', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const storageState = new Map();
+    const storage = {
+      getItem(key) {
+        return storageState.has(key) ? storageState.get(key) : null;
+      },
+      setItem(key, value) {
+        storageState.set(key, String(value));
+      },
+      removeItem(key) {
+        storageState.delete(key);
+      }
+    };
+
+    const now = 1_700_000_500;
+    const compactedBans = Array.from({ length: 100 }, (_, index) => ({
+      ip: `198.51.100.${index}`,
+      reason: 'honeypot',
+      banned_at: now - index,
+      expires: now + 3600
+    }));
+    storage.setItem(
+      'shuma_dashboard_cache_monitoring_v1',
+      JSON.stringify({
+        monitoring: {
+          summary: {},
+          details: {
+            analytics: { ban_count: 100, test_mode: false, fail_mode: 'open' },
+            events: { recent_events: [] },
+            bans: { bans: compactedBans },
+            maze: {},
+            cdp: {},
+            cdp_events: { events: [] }
+          }
+        }
+      })
+    );
+
+    let fullFetchCount = 0;
+    const apiClient = {
+      async getMonitoring() {
+        fullFetchCount += 1;
+        return {
+          summary: {},
+          details: {
+            analytics: { ban_count: 164, test_mode: false, fail_mode: 'open' },
+            events: { recent_events: [] },
+            bans: { bans: compactedBans },
+            maze: {},
+            cdp: {},
+            cdp_events: { events: [] }
+          }
+        };
+      },
+      async getMonitoringDelta(params = {}) {
+        if (Number(params.limit || 0) === 1) {
+          return {
+            after_cursor: '',
+            window_end_cursor: 'cursor-1',
+            next_cursor: 'cursor-1',
+            has_more: false,
+            overflow: 'none',
+            events: [],
+            freshness: { state: 'fresh' }
+          };
+        }
+        return {
+          after_cursor: String(params.after_cursor || ''),
+          window_end_cursor: 'cursor-1',
+          next_cursor: 'cursor-1',
+          has_more: false,
+          overflow: 'none',
+          events: [],
+          freshness: { state: 'fresh' }
+        };
+      }
+    };
+
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => apiClient,
+      getStateStore: () => store,
+      deriveMonitoringAnalytics: (_configSnapshot, analyticsResponse = {}) => ({
+        ban_count: Number(analyticsResponse.ban_count || 0),
+        test_mode: analyticsResponse.test_mode === true,
+        fail_mode: String(analyticsResponse.fail_mode || 'open')
+      }),
+      storage
+    });
+
+    await runtime.refreshMonitoringTab('adversary-sim-toggle');
+    assert.equal(fullFetchCount, 1);
+    assert.equal(
+      Number((store.getSnapshot('analytics') || {}).ban_count || 0),
+      164
+    );
+  });
+});
+
 test('monitoring view model and status module remain pure snapshot transforms', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const monitoringModelModule = await importBrowserModule('dashboard/src/lib/components/dashboard/monitoring-view-model.js');
@@ -1958,6 +2062,7 @@ test('dashboard refresh runtime enforces cursor-delta + SSE helpers and excludes
     /writeCache\(IP_BANS_CACHE_KEY, \{\s*bans: compactBans,\s*ipRangeSuggestions: compactSuggestions\s*\}\);/m
   );
   assert.match(source, /const includeConfigRefresh = reason !== 'auto-refresh';/);
+  assert.match(source, /reason === 'adversary-sim-toggle'/);
   assert.match(
     source,
     /includeConfigRefresh \? refreshSharedConfig\(reason, runtimeOptions\) : Promise\.resolve\(null\)/
