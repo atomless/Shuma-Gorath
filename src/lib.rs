@@ -1005,10 +1005,55 @@ pub fn handle_bot_defence_impl(req: &Request) -> Response {
     runtime::request_flow::handle_request(req)
 }
 
+fn maybe_run_autonomous_adversary_supervisor(store: &Store, req: &Request) {
+    if runtime::sim_telemetry::is_simulation_context_active() {
+        return;
+    }
+    let runtime_environment = config::runtime_environment();
+    let env_available = config::adversary_sim_available();
+    if !admin::adversary_sim::control_surface_available(runtime_environment, env_available) {
+        return;
+    }
+    if req.path() == "/admin/adversary-sim/tick" {
+        return;
+    }
+    let site_id = "default";
+    let cfg = match config::Config::load(store, site_id) {
+        Ok(cfg) => cfg,
+        Err(err) => {
+            log_line(&format!(
+                "[adversary-sim-supervisor] skipping tick due to config load error: {}",
+                err.user_message()
+            ));
+            return;
+        }
+    };
+    let now = admin::now_ts();
+    let mut state = admin::adversary_sim::load_state(store, site_id);
+    let previous_state = state.clone();
+    let (reconciled_state, _) = admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
+    state = reconciled_state;
+    let summary = admin::adversary_sim::run_autonomous_supervisor_ticks(store, &mut state, now);
+    if state == previous_state {
+        return;
+    }
+    if admin::adversary_sim::save_state(store, site_id, &state).is_err() {
+        log_line("[adversary-sim-supervisor] failed to persist updated state");
+        return;
+    }
+    if summary.executed_ticks > 0 {
+        log_line(&format!(
+            "[adversary-sim-supervisor] executed_ticks={} generated_requests={} failed_requests={}",
+            summary.executed_ticks, summary.generated_requests, summary.failed_requests
+        ));
+    }
+}
+
 #[http_component]
 pub fn spin_entrypoint(req: Request) -> Response {
     let response = handle_bot_defence_impl(&req);
     if let Ok(store) = Store::open_default() {
+        maybe_run_autonomous_adversary_supervisor(&store, &req);
         let capabilities = runtime::capabilities::RuntimeCapabilities::for_post_response_flush_phase(
             LibCapabilityToken::new(),
         );

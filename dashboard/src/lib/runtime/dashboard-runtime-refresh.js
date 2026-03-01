@@ -60,8 +60,6 @@ export function createDashboardRefreshRuntime(options = {}) {
   const toTabCursorKey = (tab) => (tab === 'ip-bans' ? 'ipBans' : 'monitoring');
   const freshnessSnapshotKey = (tab) =>
     (tab === 'ip-bans' ? 'ipBansFreshness' : 'monitoringFreshness');
-  const hasOwn = (value, key) =>
-    Object.prototype.hasOwnProperty.call(value && typeof value === 'object' ? value : {}, key);
   const parseNonNegativeOrNull = (value) => {
     if (value === null || value === undefined || value === '') return null;
     const numeric = Number(value);
@@ -100,22 +98,6 @@ export function createDashboardRefreshRuntime(options = {}) {
       ...previousSnapshot,
       ...sourcePayload
     };
-    // Treat absent/null lag/last-event in partial updates as "no change" so fallback
-    // transport transitions do not erase known freshness anchors.
-    if (
-      (!hasOwn(sourcePayload, 'lag_ms') || sourcePayload.lag_ms === null) &&
-      previousSnapshot.lag_ms !== null &&
-      previousSnapshot.lag_ms !== undefined
-    ) {
-      mergedPayload.lag_ms = previousSnapshot.lag_ms;
-    }
-    if (
-      (!hasOwn(sourcePayload, 'last_event_ts') || sourcePayload.last_event_ts === null) &&
-      previousSnapshot.last_event_ts !== null &&
-      previousSnapshot.last_event_ts !== undefined
-    ) {
-      mergedPayload.last_event_ts = previousSnapshot.last_event_ts;
-    }
     const next = normalizeFreshnessSnapshot(mergedPayload, fallbackTransport);
     applySnapshots({ [key]: next });
     return next;

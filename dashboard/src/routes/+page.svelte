@@ -22,7 +22,6 @@
     getDashboardEvents,
     getDashboardRobotsPreview,
     getDashboardAdversarySimStatus,
-    tickDashboardAdversarySim,
     getDashboardSessionState,
     logoutDashboardSession,
     mountDashboardApp,
@@ -55,8 +54,6 @@
     tuning: 'Loading tuning values...'
   });
   const AUTO_REFRESH_INTERVAL_MS = 1000;
-  const ADVERSARY_SIM_TICK_MIN_INTERVAL_MS = 900;
-  const ADVERSARY_SIM_TICK_INTERVAL_MS = 1000;
   const AUTO_REFRESH_TABS = new Set(['monitoring', 'ip-bans']);
   const AUTO_REFRESH_PREF_KEY = 'shuma_dashboard_auto_refresh_v1';
 
@@ -87,9 +84,6 @@
   let adminMessageKind = 'info';
   let adversarySimStatus = {};
   let adversarySimStatusPollTimer = null;
-  let adversarySimTrafficTickTimer = null;
-  let adversarySimTickInFlight = false;
-  let adversarySimLastTickAtMs = 0;
   let IpBansTabComponent = null;
   let StatusTabComponent = null;
   let VerificationTabComponent = null;
@@ -155,12 +149,12 @@
     String(normalizedAdversarySimStatus.historyCleanupCommand || '').trim() || 'make adversary-sim-history-clean';
   $: adversarySimGenerationDiagnostics = normalizedAdversarySimStatus.generationDiagnostics || {};
   $: adversarySimLifecycleCopy = normalizedAdversarySimStatus.generationActive
-    ? (
-      String(adversarySimGenerationDiagnostics.health || '') === 'ok'
-        ? 'Generation active. Auto-off stops new simulation traffic only; retained telemetry stays visible.'
-        : String(adversarySimGenerationDiagnostics.recommendedAction || '').trim() ||
-          'Generation active, but no observable traffic yet. Keep the dashboard open to drive tick generation.'
-    )
+        ? (
+          String(adversarySimGenerationDiagnostics.health || '') === 'ok'
+            ? 'Generation active. Auto-off stops new simulation traffic only; retained telemetry stays visible.'
+            : String(adversarySimGenerationDiagnostics.recommendedAction || '').trim() ||
+              'Generation active, but no observable traffic yet. Check supervisor diagnostics for stalled heartbeat state.'
+        )
     : normalizedAdversarySimStatus.historicalDataVisible
       ? `Generation inactive. Retained telemetry remains visible for ${adversarySimRetentionHours}h or until ${adversarySimCleanupCommand} is run.`
       : 'Generation inactive.';
@@ -319,7 +313,6 @@
     storeUnsubscribe();
     telemetryUnsubscribe();
     clearAdversarySimStatusPollTimer();
-    clearAdversarySimTrafficTickTimer();
     if (typeof document !== 'undefined') {
       clearDashboardBodyClasses(document);
     }
@@ -413,13 +406,6 @@
     }
   }
 
-  function clearAdversarySimTrafficTickTimer() {
-    if (adversarySimTrafficTickTimer) {
-      clearInterval(adversarySimTrafficTickTimer);
-      adversarySimTrafficTickTimer = null;
-    }
-  }
-
   function syncAdversarySimTimers() {
     const shouldPollStatus =
       routeController.getRuntimeMounted() &&
@@ -434,42 +420,8 @@
           void refreshAdversarySimStatus('poll');
         }, 1000);
       }
-      if (!adversarySimTrafficTickTimer) {
-        adversarySimTrafficTickTimer = setInterval(() => {
-          void maybeTickAdversarySimTraffic();
-        }, ADVERSARY_SIM_TICK_INTERVAL_MS);
-      }
     } else {
       clearAdversarySimStatusPollTimer();
-      clearAdversarySimTrafficTickTimer();
-    }
-  }
-
-  async function maybeTickAdversarySimTraffic() {
-    if (!routeController.getRuntimeMounted() || !runtimeReady) return;
-    if (adversarySimTickInFlight) return;
-    if (
-      normalizedAdversarySimStatus.enabled !== true ||
-      normalizedAdversarySimStatus.phase !== 'running'
-    ) {
-      return;
-    }
-    const now = Date.now();
-    if (now - adversarySimLastTickAtMs < ADVERSARY_SIM_TICK_MIN_INTERVAL_MS) {
-      return;
-    }
-
-    adversarySimTickInFlight = true;
-    try {
-      const result = await tickDashboardAdversarySim();
-      adversarySimLastTickAtMs = Date.now();
-      if (result && result.status && typeof result.status === 'object') {
-        adversarySimStatus = result.status;
-      }
-    } catch (_error) {
-      // Status polling + diagnostics surface generation issues; avoid noisy UI spam here.
-    } finally {
-      adversarySimTickInFlight = false;
     }
   }
 
@@ -487,7 +439,6 @@
     try {
       const status = await getDashboardAdversarySimStatus();
       adversarySimStatus = status && typeof status === 'object' ? status : {};
-      void maybeTickAdversarySimTraffic();
     } catch (error) {
       if (error && Number(error.status) === 404) {
         adversarySimStatus = {
@@ -533,11 +484,6 @@
       adversarySimStatus && typeof adversarySimStatus === 'object'
         ? { ...adversarySimStatus }
         : {};
-    adversarySimStatus = {
-      ...previousStatusSnapshot,
-      adversary_sim_enabled: nextValue,
-      desired_state: nextValue ? 'running' : 'off'
-    };
     savingGlobalAdversarySim = true;
     try {
       const result = await controlDashboardAdversarySim(nextValue);
@@ -651,7 +597,6 @@
     try {
       routeController.abortInFlightRefresh();
       clearAdversarySimStatusPollTimer();
-      clearAdversarySimTrafficTickTimer();
       await logoutDashboardSession();
       dashboardStore.setSession({ authenticated: false, csrfToken: '' });
       routeController.clearPolling();

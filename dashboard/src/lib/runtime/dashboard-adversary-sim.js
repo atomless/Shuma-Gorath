@@ -58,6 +58,17 @@ function normalizePhase(value) {
  *   activeRunCount: number,
  *   activeLaneCount: number,
  *   queuePolicy: string,
+ *   supervisor: {
+ *     owner: string,
+ *     cadenceSeconds: number,
+ *     maxCatchupTicksPerInvocation: number,
+ *     heartbeatActive: boolean,
+ *     workerActive: boolean,
+ *     lastHeartbeatAt: number,
+ *     idleSeconds: number,
+ *     offStateInert: boolean,
+ *     triggerSurface: string
+ *   },
  *   generationDiagnostics: {
  *     health: string,
  *     reason: string,
@@ -65,8 +76,7 @@ function normalizePhase(value) {
  *     generatedTickCount: number,
  *     generatedRequestCount: number,
  *     lastGeneratedAt: number,
- *     lastGenerationError: string,
- *     tickEndpoint: string
+ *     lastGenerationError: string
  *   }
  * }}
  */
@@ -81,6 +91,10 @@ export function normalizeAdversarySimStatus(payload) {
   const generationDiagnosticsRaw = pick(source, 'generation_diagnostics', 'generationDiagnostics', {});
   const generationDiagnostics = generationDiagnosticsRaw && typeof generationDiagnosticsRaw === 'object'
     ? /** @type {Record<string, unknown>} */ (generationDiagnosticsRaw)
+    : {};
+  const supervisorRaw = pick(source, 'supervisor', 'supervisor', {});
+  const supervisor = supervisorRaw && typeof supervisorRaw === 'object'
+    ? /** @type {Record<string, unknown>} */ (supervisorRaw)
     : {};
   const phase = normalizePhase(pick(source, 'phase', 'phase', 'off'));
   const durationSeconds = Math.max(
@@ -115,6 +129,39 @@ export function normalizeAdversarySimStatus(payload) {
       Math.floor(toSafeNumber(pick(source, 'active_lane_count', 'activeLaneCount', 0), 0))
     ),
     queuePolicy: String(pick(source, 'queue_policy', 'queuePolicy', '') || ''),
+    supervisor: {
+      owner: String(pick(supervisor, 'owner', 'owner', '') || ''),
+      cadenceSeconds: Math.max(
+        1,
+        Math.floor(toSafeNumber(pick(supervisor, 'cadence_seconds', 'cadenceSeconds', 1), 1))
+      ),
+      maxCatchupTicksPerInvocation: Math.max(
+        1,
+        Math.floor(
+          toSafeNumber(
+            pick(
+              supervisor,
+              'max_catchup_ticks_per_invocation',
+              'maxCatchupTicksPerInvocation',
+              1
+            ),
+            1
+          )
+        )
+      ),
+      heartbeatActive: pick(supervisor, 'heartbeat_active', 'heartbeatActive', phase === 'running') === true,
+      workerActive: pick(supervisor, 'worker_active', 'workerActive', phase === 'running') === true,
+      lastHeartbeatAt: Math.max(
+        0,
+        Math.floor(toSafeNumber(pick(supervisor, 'last_heartbeat_at', 'lastHeartbeatAt', 0), 0))
+      ),
+      idleSeconds: Math.max(
+        0,
+        Math.floor(toSafeNumber(pick(supervisor, 'idle_seconds', 'idleSeconds', 0), 0))
+      ),
+      offStateInert: pick(supervisor, 'off_state_inert', 'offStateInert', false) === true,
+      triggerSurface: String(pick(supervisor, 'trigger_surface', 'triggerSurface', '') || '')
+    },
     generationDiagnostics: {
       health: String(pick(generationDiagnostics, 'health', 'health', '') || ''),
       reason: String(pick(generationDiagnostics, 'reason', 'reason', '') || ''),
@@ -135,9 +182,6 @@ export function normalizeAdversarySimStatus(payload) {
       ),
       lastGenerationError: String(
         pick(generationDiagnostics, 'last_generation_error', 'lastGenerationError', '') || ''
-      ),
-      tickEndpoint: String(
-        pick(generationDiagnostics, 'tick_endpoint', 'tickEndpoint', '/admin/adversary-sim/tick') || '/admin/adversary-sim/tick'
       )
     }
   };

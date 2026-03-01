@@ -1375,6 +1375,17 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
       remaining_seconds: 120,
       active_run_count: 1,
       active_lane_count: 2,
+      supervisor: {
+        owner: 'backend_autonomous_supervisor',
+        cadence_seconds: 1,
+        max_catchup_ticks_per_invocation: 8,
+        heartbeat_active: true,
+        worker_active: true,
+        last_heartbeat_at: 1100,
+        idle_seconds: 0,
+        off_state_inert: false,
+        trigger_surface: 'runtime_request_loop'
+      },
       generation_diagnostics: {
         health: 'ok',
         reason: 'traffic_observed',
@@ -1382,8 +1393,7 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
         generated_tick_count: 3,
         generated_request_count: 12,
         last_generated_at: 1100,
-        last_generation_error: '',
-        tick_endpoint: '/admin/adversary-sim/tick'
+        last_generation_error: ''
       }
     });
 
@@ -1399,10 +1409,12 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
     assert.equal(normalized.runId, 'simrun-123');
     assert.equal(normalized.activeRunCount, 1);
     assert.equal(normalized.activeLaneCount, 2);
+    assert.equal(normalized.supervisor.owner, 'backend_autonomous_supervisor');
+    assert.equal(normalized.supervisor.cadenceSeconds, 1);
+    assert.equal(normalized.supervisor.heartbeatActive, true);
     assert.equal(normalized.generationDiagnostics.health, 'ok');
     assert.equal(normalized.generationDiagnostics.generatedTickCount, 3);
     assert.equal(normalized.generationDiagnostics.generatedRequestCount, 12);
-    assert.equal(normalized.generationDiagnostics.tickEndpoint, '/admin/adversary-sim/tick');
 
     const renormalized = adversaryModule.normalizeAdversarySimStatus(normalized);
     assert.equal(renormalized.enabled, true);

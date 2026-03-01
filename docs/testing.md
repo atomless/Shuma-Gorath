@@ -169,7 +169,7 @@ Dashboard adversary-sim orchestration control contract:
 - `POST /admin/adversary-sim/control` is the explicit admin-authenticated + CSRF-protected control path for ON/OFF transitions.
 - Control submissions must include `Idempotency-Key`, pass strict origin/referer + fetch-metadata trust checks, and return `operation_id` + `decision`.
 - `GET /admin/adversary-sim/status` is read-only and returns lifecycle phase, fixed guardrails, desired/actual state, and controller reconciliation/lease metadata.
-- Toggle-driven runs use `adversary_sim_duration_seconds` (default `180`, hard-bounded `30..900`), and dashboard surfaces lifecycle state only (`off`, `running`, `stopping`) without procedural progress rendering.
+- Toggle-driven runs use `adversary_sim_duration_seconds` (default `180`, hard-bounded `30..900`) under backend autonomous heartbeat generation, and dashboard surfaces lifecycle state only (`off`, `running`, `stopping`) without procedural progress rendering.
 - If no frontier provider keys are configured, OFF -> ON toggle attempts must show a warning dialog with two outcomes:
   - continue without frontier calls, or
   - cancel, add `SHUMA_FRONTIER_*_API_KEY` values to `.env.local`, restart `make dev`, then toggle on again.

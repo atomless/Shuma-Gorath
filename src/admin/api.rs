@@ -2343,6 +2343,14 @@ mod admin_config_tests {
                 .and_then(|v| v.as_str()),
             Some("ok")
         );
+        assert_eq!(
+            tick_json
+                .get("status")
+                .and_then(|v| v.get("supervisor"))
+                .and_then(|v| v.get("owner"))
+                .and_then(|v| v.as_str()),
+            Some("backend_autonomous_supervisor")
+        );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -2470,7 +2478,7 @@ mod admin_config_tests {
                 .get("generation_diagnostics")
                 .and_then(|v| v.get("reason"))
                 .and_then(|v| v.as_str()),
-            Some("tick_endpoint_not_invoked")
+            Some("supervisor_no_traffic_yet")
         );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
@@ -11316,6 +11324,11 @@ fn adversary_sim_status_payload(
     );
     let generation_diagnostics =
         crate::admin::adversary_sim::generation_diagnostics(now, cfg.adversary_sim_enabled, state);
+    let supervisor = crate::admin::adversary_sim::supervisor_status_payload(
+        now,
+        cfg.adversary_sim_enabled,
+        state,
+    );
     let lease = crate::admin::adversary_sim_control::load_controller_lease(store, site_id);
     if let Some(object) = payload.as_object_mut() {
         object.insert(
@@ -11366,10 +11379,10 @@ fn adversary_sim_status_payload(
                 "generated_tick_count": generation_diagnostics.generated_tick_count,
                 "generated_request_count": generation_diagnostics.generated_request_count,
                 "last_generated_at": generation_diagnostics.last_generated_at,
-                "last_generation_error": generation_diagnostics.last_generation_error,
-                "tick_endpoint": "/admin/adversary-sim/tick"
+                "last_generation_error": generation_diagnostics.last_generation_error
             }),
         );
+        object.insert("supervisor".to_string(), supervisor);
         object.insert(
             "control_contract".to_string(),
             json!({
@@ -11978,6 +11991,18 @@ fn handle_admin_adversary_sim_control(
         .is_err()
     {
         return Response::new(500, "Key-value store error");
+    }
+    if cfg.adversary_sim_enabled
+        && state.phase == crate::admin::adversary_sim::ControlPhase::Running
+    {
+        let tick_summary =
+            crate::admin::adversary_sim::run_autonomous_supervisor_ticks(store, &mut state, now);
+        if tick_summary.executed_ticks > 0
+            && save_adversary_sim_state_with_capability(store, site_id, &state, capabilities.state_write())
+                .is_err()
+        {
+            return Response::new(500, "Key-value store error");
+        }
     }
     for transition in &transitions {
         log_adversary_sim_transition(store, req, auth, transition, Some(operation_id.as_str()));

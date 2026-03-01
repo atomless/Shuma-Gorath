@@ -330,6 +330,7 @@ export const adaptAdversarySimStatus = (payload) => {
   const lanes = asRecord(source.lanes);
   const historyRetention = asRecord(source.history_retention);
   const generationDiagnostics = asRecord(source.generation_diagnostics);
+  const supervisor = asRecord(source.supervisor);
   return {
     runtime_environment: String(source.runtime_environment || ''),
     adversary_sim_available: source.adversary_sim_available === true,
@@ -369,6 +370,17 @@ export const adaptAdversarySimStatus = (payload) => {
       cleanup_endpoint: String(historyRetention.cleanup_endpoint || ''),
       cleanup_command: String(historyRetention.cleanup_command || '')
     },
+    supervisor: {
+      owner: String(supervisor.owner || ''),
+      cadence_seconds: Number(supervisor.cadence_seconds || 0),
+      max_catchup_ticks_per_invocation: Number(supervisor.max_catchup_ticks_per_invocation || 0),
+      heartbeat_active: supervisor.heartbeat_active === true,
+      worker_active: supervisor.worker_active === true,
+      last_heartbeat_at: Number(supervisor.last_heartbeat_at || 0),
+      idle_seconds: Number(supervisor.idle_seconds || 0),
+      off_state_inert: supervisor.off_state_inert === true,
+      trigger_surface: String(supervisor.trigger_surface || '')
+    },
     generation_diagnostics: {
       health: String(generationDiagnostics.health || ''),
       reason: String(generationDiagnostics.reason || ''),
@@ -376,8 +388,7 @@ export const adaptAdversarySimStatus = (payload) => {
       generated_tick_count: Number(generationDiagnostics.generated_tick_count || 0),
       generated_request_count: Number(generationDiagnostics.generated_request_count || 0),
       last_generated_at: Number(generationDiagnostics.last_generated_at || 0),
-      last_generation_error: String(generationDiagnostics.last_generation_error || ''),
-      tick_endpoint: String(generationDiagnostics.tick_endpoint || '')
+      last_generation_error: String(generationDiagnostics.last_generation_error || '')
     }
   };
 };

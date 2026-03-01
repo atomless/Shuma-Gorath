@@ -427,7 +427,7 @@ Core enforcement fields:
 - `rate_limit` - per-minute request limit used for hard rate limiting and rate-pressure scoring, applied per source IP bucket (IPv4 /24, IPv6 /64)
 - `honeypot_enabled` - enable/disable honeypot trap handling for configured trap paths
 - `adversary_sim_enabled` - enables/disables dev-only adversary-sim orchestration gate
-- `adversary_sim_duration_seconds` - dashboard orchestration run-window duration (bounded `30..900`)
+- `adversary_sim_duration_seconds` - adversary-sim run-window duration for backend autonomous supervisor generation (bounded `30..900`)
 - `challenge_puzzle_enabled` - enable/disable challenge serving at challenge-tier routes (when disabled, challenge tier falls back to maze or block)
 - `defence_modes.rate` / `defence_modes.geo` / `defence_modes.js` - per-module composability mode (`off`, `signal`, `enforce`, `both`)
 
