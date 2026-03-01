@@ -339,6 +339,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     const dashboardApiClient = getApiClient();
     if (!dashboardApiClient) return '';
     const isIpBans = tab === 'ip-bans';
+    const key = toTabCursorKey(tab);
     const delta = isIpBans
       ? await dashboardApiClient.getIpBansDelta(
           { hours: LIVE_HOURS_WINDOW, limit: 1 },
@@ -348,8 +349,16 @@ export function createDashboardRefreshRuntime(options = {}) {
           { hours: LIVE_HOURS_WINDOW, limit: 1 },
           requestOptions
         );
-    syncCursorFromDelta(tab, delta);
-    return cursorState[toTabCursorKey(tab)] || '';
+    const windowEndCursor =
+      typeof delta.window_end_cursor === 'string' ? delta.window_end_cursor.trim() : '';
+    const nextCursor =
+      typeof delta.next_cursor === 'string' ? delta.next_cursor.trim() : '';
+    if (windowEndCursor) {
+      cursorState[key] = windowEndCursor;
+    } else if (nextCursor) {
+      cursorState[key] = nextCursor;
+    }
+    return cursorState[key] || '';
   }
 
   function applyMonitoringDeltaSnapshots(delta = {}, transport = 'cursor_delta_poll') {

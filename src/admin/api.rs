@@ -967,6 +967,70 @@ mod tests {
     }
 
     #[test]
+    fn handle_admin_monitoring_delta_keeps_freshness_anchor_when_page_is_empty() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let hour = now / 3600;
+        let key = format!("eventlog:v2:{}:{}-cursor-anchor", hour, now);
+        let event = EventLogEntry {
+            ts: now,
+            event: EventType::Challenge,
+            ip: Some("198.51.100.50".to_string()),
+            reason: Some("challenge_served".to_string()),
+            outcome: Some("ok".to_string()),
+            admin: Some("ops".to_string()),
+        };
+        store
+            .set(&key, serde_json::to_vec(&event).unwrap().as_slice())
+            .unwrap();
+
+        let mut baseline_builder = Request::builder();
+        baseline_builder
+            .method(Method::Get)
+            .uri("/admin/monitoring/delta?hours=1&limit=10");
+        let baseline_req = baseline_builder.build();
+        let baseline_resp = handle_admin_monitoring_delta(&baseline_req, &store);
+        assert_eq!(*baseline_resp.status(), 200u16);
+        let baseline_payload: serde_json::Value =
+            serde_json::from_slice(baseline_resp.body()).unwrap();
+        let anchor_cursor = baseline_payload
+            .get("window_end_cursor")
+            .and_then(|value| value.as_str())
+            .unwrap_or("")
+            .to_string();
+        assert!(!anchor_cursor.is_empty());
+
+        let mut delta_builder = Request::builder();
+        delta_builder
+            .method(Method::Get)
+            .uri(format!("/admin/monitoring/delta?hours=1&limit=10&after_cursor={}", anchor_cursor).as_str());
+        let delta_req = delta_builder.build();
+        let delta_resp = handle_admin_monitoring_delta(&delta_req, &store);
+        assert_eq!(*delta_resp.status(), 200u16);
+        let delta_payload: serde_json::Value = serde_json::from_slice(delta_resp.body()).unwrap();
+        let events = delta_payload
+            .get("events")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        assert!(events.is_empty());
+        assert_eq!(
+            delta_payload
+                .get("freshness")
+                .and_then(|value| value.get("last_event_ts"))
+                .and_then(|value| value.as_u64()),
+            Some(now)
+        );
+        assert_eq!(
+            delta_payload
+                .get("freshness")
+                .and_then(|value| value.get("state"))
+                .and_then(|value| value.as_str()),
+            Some("fresh")
+        );
+    }
+
+    #[test]
     fn handle_admin_monitoring_stream_resumes_from_last_event_id() {
         let store = MockStore::new();
         let now = now_ts();
@@ -2682,6 +2746,68 @@ mod admin_config_tests {
         let saved_bytes = store.get("config:default").unwrap().unwrap();
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
         assert!(saved_cfg.adversary_sim_enabled);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_status_reports_generation_inactive_when_config_disabled_but_state_running() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        let now = now_ts();
+
+        let stale_running_state = crate::admin::adversary_sim::ControlState {
+            phase: crate::admin::adversary_sim::ControlPhase::Running,
+            run_id: Some("simrun-stale-running".to_string()),
+            started_at: Some(now.saturating_sub(30)),
+            ends_at: Some(now.saturating_add(120)),
+            stop_deadline: None,
+            active_run_count: 1,
+            active_lane_count: 2,
+            last_transition_reason: Some("manual_on".to_string()),
+            last_terminal_failure_reason: None,
+            last_run_id: Some("simrun-stale-running".to_string()),
+            generated_tick_count: 0,
+            generated_request_count: 0,
+            last_generated_at: None,
+            last_generation_error: None,
+            updated_at: now.saturating_sub(10),
+        };
+        crate::admin::adversary_sim::save_state(&store, "default", &stale_running_state).unwrap();
+
+        let mut cfg = crate::config::defaults().clone();
+        cfg.adversary_sim_enabled = false;
+        store
+            .set("config:default", serde_json::to_vec(&cfg).unwrap().as_slice())
+            .unwrap();
+
+        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
+        assert_eq!(*status_resp.status(), 200u16);
+        let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
+        assert_eq!(
+            status_json
+                .get("adversary_sim_enabled")
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
+        assert_eq!(
+            status_json.get("phase").and_then(|value| value.as_str()),
+            Some("running")
+        );
+        assert_eq!(
+            status_json
+                .get("generation_active")
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -10103,6 +10229,7 @@ where
             record: present_event_record(&stored.record, forensic_mode),
         })
         .collect();
+    let latest_window_ts = latest_event_ts(rows.as_slice());
     let window_end_cursor = rows
         .iter()
         .map(|row: &CursorEventRecord| row.cursor.clone())
@@ -10114,7 +10241,7 @@ where
     let etag = delta_page_etag(next_cursor.as_str(), event_rows.len(), has_more, overflow);
     let freshness = freshness_health_payload(
         now,
-        latest_event_ts(page_rows.as_slice()),
+        latest_window_ts,
         has_more,
         overflow,
         "cursor_delta_poll",
@@ -10187,6 +10314,7 @@ where
             record: present_event_record(&stored.record, forensic_mode),
         })
         .collect();
+    let latest_window_ts = latest_event_ts(rows.as_slice());
     let window_end_cursor = rows
         .iter()
         .map(|row: &CursorEventRecord| row.cursor.clone())
@@ -10196,7 +10324,7 @@ where
         paginate_cursor_rows(rows, after_cursor.as_str(), limit);
     let freshness = freshness_health_payload(
         now,
-        latest_event_ts(page_rows.as_slice()),
+        latest_window_ts,
         has_more,
         overflow,
         "sse",
@@ -10254,6 +10382,7 @@ where
             record: present_event_record(&stored.record, forensic_mode),
         })
         .collect();
+    let latest_window_ts = latest_event_ts(rows.as_slice());
     let window_end_cursor = rows
         .iter()
         .map(|row: &CursorEventRecord| row.cursor.clone())
@@ -10304,8 +10433,7 @@ where
         .iter()
         .filter_map(|ban| ban.get("banned_at").and_then(|value| value.as_u64()))
         .max();
-    let latest_delta_ts = latest_event_ts(page_rows.as_slice());
-    let latest_ts = match (latest_delta_ts, latest_ban_ts) {
+    let latest_ts = match (latest_window_ts, latest_ban_ts) {
         (Some(event_ts), Some(ban_ts)) => Some(event_ts.max(ban_ts)),
         (Some(event_ts), None) => Some(event_ts),
         (None, Some(ban_ts)) => Some(ban_ts),
@@ -10373,6 +10501,7 @@ where
             record: present_event_record(&stored.record, forensic_mode),
         })
         .collect();
+    let latest_window_ts = latest_event_ts(rows.as_slice());
     let window_end_cursor = rows
         .iter()
         .map(|row: &CursorEventRecord| row.cursor.clone())
@@ -10407,8 +10536,7 @@ where
         .iter()
         .filter_map(|ban| ban.get("banned_at").and_then(|value| value.as_u64()))
         .max();
-    let latest_delta_ts = latest_event_ts(page_rows.as_slice());
-    let latest_ts = match (latest_delta_ts, latest_ban_ts) {
+    let latest_ts = match (latest_window_ts, latest_ban_ts) {
         (Some(event_ts), Some(ban_ts)) => Some(event_ts.max(ban_ts)),
         (Some(event_ts), None) => Some(event_ts),
         (None, Some(ban_ts)) => Some(ban_ts),
@@ -11210,7 +11338,10 @@ fn adversary_sim_status_payload(
         );
         object.insert(
             "generation_active".to_string(),
-            serde_json::Value::Bool(state.phase == crate::admin::adversary_sim::ControlPhase::Running),
+            serde_json::Value::Bool(
+                cfg.adversary_sim_enabled
+                    && state.phase == crate::admin::adversary_sim::ControlPhase::Running,
+            ),
         );
         object.insert(
             "historical_data_visible".to_string(),

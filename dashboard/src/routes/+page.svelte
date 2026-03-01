@@ -513,6 +513,15 @@
       );
     }
 
+    const previousStatusSnapshot =
+      adversarySimStatus && typeof adversarySimStatus === 'object'
+        ? { ...adversarySimStatus }
+        : {};
+    adversarySimStatus = {
+      ...previousStatusSnapshot,
+      adversary_sim_enabled: nextValue,
+      desired_state: nextValue ? 'running' : 'off'
+    };
     savingGlobalAdversarySim = true;
     try {
       const result = await controlDashboardAdversarySim(nextValue);
@@ -528,6 +537,7 @@
       );
       await routeController.refreshTab(activeTabKey, 'adversary-sim-toggle');
     } catch (error) {
+      adversarySimStatus = previousStatusSnapshot;
       if (target) target.checked = previousValue;
       if (Number(error?.status || 0) === 401) {
         setAdminMessage(

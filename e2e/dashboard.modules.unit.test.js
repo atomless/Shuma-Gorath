@@ -843,6 +843,85 @@ test('refresh runtime bootstraps monitoring baseline before cursor deltas and ke
   });
 });
 
+test('refresh runtime seeds monitoring cursor from window end instead of replaying oldest page cursor', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const storageState = new Map();
+    const storage = {
+      getItem(key) {
+        return storageState.has(key) ? storageState.get(key) : null;
+      },
+      setItem(key, value) {
+        storageState.set(key, String(value));
+      },
+      removeItem(key) {
+        storageState.delete(key);
+      }
+    };
+
+    const deltaCalls = [];
+    const apiClient = {
+      async getMonitoring() {
+        return {
+          summary: {},
+          details: {
+            analytics: { ban_count: 0, test_mode: false, fail_mode: 'open' },
+            events: { recent_events: [] },
+            bans: { bans: [] },
+            maze: {},
+            cdp: {},
+            cdp_events: { events: [] }
+          }
+        };
+      },
+      async getMonitoringDelta(params = {}) {
+        deltaCalls.push({
+          limit: Number(params.limit || 0),
+          after_cursor: String(params.after_cursor || '')
+        });
+        if (Number(params.limit || 0) === 1) {
+          return {
+            after_cursor: '',
+            window_end_cursor: 'cursor-window-end',
+            next_cursor: 'cursor-oldest-page',
+            has_more: true,
+            overflow: 'limit_exceeded',
+            events: [],
+            freshness: { state: 'fresh' }
+          };
+        }
+        return {
+          after_cursor: String(params.after_cursor || ''),
+          window_end_cursor: 'cursor-window-end',
+          next_cursor: 'cursor-window-end',
+          has_more: false,
+          overflow: 'none',
+          events: [],
+          freshness: { state: 'fresh' }
+        };
+      }
+    };
+
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => apiClient,
+      getStateStore: () => store,
+      deriveMonitoringAnalytics: () => ({ ban_count: 0, test_mode: false, fail_mode: 'open' }),
+      storage
+    });
+
+    await runtime.refreshMonitoringTab('manual');
+    await runtime.refreshMonitoringTab('manual-refresh');
+
+    assert.equal(deltaCalls.length, 2);
+    assert.equal(deltaCalls[0].limit, 1);
+    assert.equal(deltaCalls[1].after_cursor, 'cursor-window-end');
+  });
+});
+
 test('adversary-sim-toggle refresh bypasses cached monitoring and preserves analytics ban_count', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
