@@ -1,6 +1,7 @@
 use rand::random;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use once_cell::sync::Lazy;
 #[cfg(not(test))]
 use base64::{engine::general_purpose, Engine as _};
 #[cfg(not(test))]
@@ -47,6 +48,13 @@ const INTERNAL_NOT_A_BOT_FAIL_IP_OCTET: u8 = 246;
 const INTERNAL_NOT_A_BOT_ESCALATE_IP_OCTET: u8 = 247;
 const GENERATION_DIAGNOSTIC_GRACE_SECONDS: u64 = 5;
 const STATE_KEY_PREFIX: &str = "adversary_sim:control:";
+static PROCESS_INSTANCE_ID: Lazy<String> = Lazy::new(|| {
+    std::env::var("RUNTIME_INSTANCE_ID")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "runtime-instance-unknown".to_string())
+});
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
@@ -73,6 +81,8 @@ pub struct ControlState {
     pub phase: ControlPhase,
     #[serde(default)]
     pub desired_enabled: bool,
+    #[serde(default)]
+    pub owner_instance_id: Option<String>,
     #[serde(default)]
     pub run_id: Option<String>,
     #[serde(default)]
@@ -108,6 +118,7 @@ impl Default for ControlState {
         Self {
             phase: ControlPhase::Off,
             desired_enabled: false,
+            owner_instance_id: None,
             run_id: None,
             started_at: None,
             ends_at: None,
@@ -173,6 +184,10 @@ pub fn control_surface_available(
     runtime_environment.is_dev() && env_available
 }
 
+pub fn process_instance_id() -> &'static str {
+    PROCESS_INSTANCE_ID.as_str()
+}
+
 pub fn state_key(site_id: &str) -> String {
     format!("{}{}", STATE_KEY_PREFIX, site_id)
 }
@@ -216,6 +231,7 @@ pub fn start_state(
     let next = ControlState {
         phase: ControlPhase::Running,
         desired_enabled: true,
+        owner_instance_id: Some(process_instance_id().to_string()),
         run_id: Some(run_id),
         started_at: Some(now),
         ends_at: Some(now.saturating_add(clamp_duration_seconds(duration_seconds))),
@@ -244,6 +260,7 @@ pub fn stop_state(now: u64, reason: &str, current: &ControlState) -> (ControlSta
 
     let mut next = current.clone();
     next.desired_enabled = false;
+    next.owner_instance_id = Some(process_instance_id().to_string());
     next.phase = ControlPhase::Stopping;
     next.stop_deadline = Some(now.saturating_add(STOP_TIMEOUT_SECONDS));
     next.last_transition_reason = Some(reason.to_string());
@@ -269,6 +286,14 @@ pub fn reconcile_state(
     let mut next = current.clone();
     next.desired_enabled = cfg_enabled;
     let mut transitions: Vec<Transition> = Vec::new();
+
+    if next.phase != ControlPhase::Off
+        && next.owner_instance_id.as_deref() != Some(process_instance_id())
+    {
+        let (stopping, mut phase_transitions) = stop_state(now, "process_restart", &next);
+        next = stopping;
+        transitions.append(&mut phase_transitions);
+    }
 
     if next.phase == ControlPhase::Running {
         let should_stop_for_disabled = !cfg_enabled;
@@ -1031,6 +1056,7 @@ mod tests {
     fn reconcile_expired_window_stops_and_turns_off() {
         let state = ControlState {
             phase: ControlPhase::Running,
+            owner_instance_id: Some(process_instance_id().to_string()),
             run_id: Some("run-expired".to_string()),
             started_at: Some(100),
             ends_at: Some(120),
@@ -1055,6 +1081,7 @@ mod tests {
     fn forced_kill_timeout_transitions_to_safe_off_state() {
         let state = ControlState {
             phase: ControlPhase::Stopping,
+            owner_instance_id: Some(process_instance_id().to_string()),
             run_id: Some("run-stuck".to_string()),
             started_at: Some(100),
             ends_at: Some(120),
@@ -1082,6 +1109,7 @@ mod tests {
     fn start_rejects_queue_full_when_run_is_active() {
         let state = ControlState {
             phase: ControlPhase::Running,
+            owner_instance_id: Some(process_instance_id().to_string()),
             run_id: Some("run-active".to_string()),
             started_at: Some(100),
             ends_at: Some(400),
@@ -1102,6 +1130,7 @@ mod tests {
         let store = InMemoryStore::default();
         let mut state = ControlState {
             phase: ControlPhase::Running,
+            owner_instance_id: Some(process_instance_id().to_string()),
             run_id: Some("run-supervisor".to_string()),
             started_at: Some(100),
             ends_at: Some(400),
@@ -1125,6 +1154,7 @@ mod tests {
         let store = InMemoryStore::default();
         let mut state = ControlState {
             phase: ControlPhase::Running,
+            owner_instance_id: Some(process_instance_id().to_string()),
             run_id: Some("run-catchup".to_string()),
             started_at: Some(10),
             ends_at: Some(1000),

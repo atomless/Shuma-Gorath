@@ -2479,6 +2479,7 @@ mod admin_config_tests {
         let stale_state = crate::admin::adversary_sim::ControlState {
             phase: crate::admin::adversary_sim::ControlPhase::Running,
             desired_enabled: false,
+            owner_instance_id: Some("simproc-stale".to_string()),
             run_id: Some("simrun-stale".to_string()),
             started_at: Some(now.saturating_sub(600)),
             ends_at: Some(now.saturating_sub(300)),
@@ -2885,6 +2886,7 @@ mod admin_config_tests {
         let stale_running_state = crate::admin::adversary_sim::ControlState {
             phase: crate::admin::adversary_sim::ControlPhase::Running,
             desired_enabled: false,
+            owner_instance_id: Some("simproc-stale".to_string()),
             run_id: Some("simrun-stale-running".to_string()),
             started_at: Some(now.saturating_sub(30)),
             ends_at: Some(now.saturating_add(120)),
@@ -2928,6 +2930,62 @@ mod admin_config_tests {
                 .and_then(|value| value.as_bool()),
             Some(false)
         );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_status_forces_off_when_run_owned_by_previous_process_instance() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        let now = now_ts();
+
+        let stale_running_state = crate::admin::adversary_sim::ControlState {
+            phase: crate::admin::adversary_sim::ControlPhase::Running,
+            desired_enabled: true,
+            owner_instance_id: Some("simproc-previous".to_string()),
+            run_id: Some("simrun-prev-process".to_string()),
+            started_at: Some(now.saturating_sub(5)),
+            ends_at: Some(now.saturating_add(120)),
+            active_run_count: 1,
+            active_lane_count: 2,
+            last_transition_reason: Some("manual_on".to_string()),
+            updated_at: now.saturating_sub(5),
+            ..crate::admin::adversary_sim::ControlState::default()
+        };
+        crate::admin::adversary_sim::save_state(&store, "default", &stale_running_state).unwrap();
+
+        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
+        assert_eq!(*status_resp.status(), 200u16);
+        let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
+        assert_eq!(
+            status_json.get("phase").and_then(|value| value.as_str()),
+            Some("off")
+        );
+        assert_eq!(
+            status_json
+                .get("adversary_sim_enabled")
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
+        assert_eq!(
+            status_json
+                .get("last_transition_reason")
+                .and_then(|value| value.as_str()),
+            Some("process_restart")
+        );
+
+        let persisted = crate::admin::adversary_sim::load_state(&store, "default");
+        assert_eq!(persisted.phase, crate::admin::adversary_sim::ControlPhase::Off);
+        assert!(!persisted.desired_enabled);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -3410,6 +3468,7 @@ mod admin_config_tests {
         let stale_running_state = crate::admin::adversary_sim::ControlState {
             phase: crate::admin::adversary_sim::ControlPhase::Running,
             desired_enabled: false,
+            owner_instance_id: Some("simproc-stale".to_string()),
             run_id: Some("run-stale".to_string()),
             started_at: Some(now.saturating_sub(180)),
             ends_at: Some(now.saturating_sub(1)),
