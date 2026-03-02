@@ -744,6 +744,12 @@ struct CachedConfig {
     config: Config,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+struct RuntimeEphemeralFlags {
+    test_mode_override: Option<bool>,
+    adversary_sim_enabled_override: Option<bool>,
+}
+
 impl Config {
     /// Loads config for a site from KV only.
     pub fn load(store: &impl KeyValueStore, site_id: &str) -> Result<Self, ConfigLoadError> {
@@ -896,6 +902,69 @@ impl Config {
 
 static RUNTIME_CONFIG_CACHE: Lazy<Mutex<HashMap<String, CachedConfig>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
+static RUNTIME_EPHEMERAL_FLAGS: Lazy<Mutex<HashMap<String, RuntimeEphemeralFlags>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+fn runtime_ephemeral_flags(site_id: &str) -> RuntimeEphemeralFlags {
+    let cache = RUNTIME_EPHEMERAL_FLAGS.lock().unwrap();
+    cache.get(site_id).copied().unwrap_or_default()
+}
+
+fn runtime_env_test_mode_override() -> Option<bool> {
+    env::var("SHUMA_TEST_MODE")
+        .ok()
+        .and_then(|value| parse_bool_like(value.as_str()))
+}
+
+fn runtime_env_adversary_sim_enabled_override() -> Option<bool> {
+    env::var("SHUMA_ADVERSARY_SIM_ENABLED")
+        .ok()
+        .and_then(|value| parse_bool_like(value.as_str()))
+}
+
+pub fn runtime_test_mode_for_site(site_id: &str) -> bool {
+    let overrides = runtime_ephemeral_flags(site_id);
+    overrides
+        .test_mode_override
+        .or_else(runtime_env_test_mode_override)
+        .unwrap_or_else(|| defaults_bool("SHUMA_TEST_MODE"))
+}
+
+pub fn runtime_adversary_sim_enabled_for_site(site_id: &str) -> bool {
+    let overrides = runtime_ephemeral_flags(site_id);
+    overrides
+        .adversary_sim_enabled_override
+        .or_else(runtime_env_adversary_sim_enabled_override)
+        .unwrap_or_else(|| defaults_bool("SHUMA_ADVERSARY_SIM_ENABLED"))
+}
+
+pub fn set_runtime_test_mode_override(site_id: &str, enabled: bool) {
+    let mut cache = RUNTIME_EPHEMERAL_FLAGS.lock().unwrap();
+    let entry = cache.entry(site_id.to_string()).or_default();
+    entry.test_mode_override = Some(enabled);
+}
+
+pub fn set_runtime_adversary_sim_enabled_override(site_id: &str, enabled: bool) {
+    let mut cache = RUNTIME_EPHEMERAL_FLAGS.lock().unwrap();
+    let entry = cache.entry(site_id.to_string()).or_default();
+    entry.adversary_sim_enabled_override = Some(enabled);
+}
+
+pub fn apply_runtime_ephemeral_overrides(site_id: &str, cfg: &mut Config) {
+    let overrides = runtime_ephemeral_flags(site_id);
+    if let Some(value) = overrides
+        .test_mode_override
+        .or_else(runtime_env_test_mode_override)
+    {
+        cfg.test_mode = value;
+    }
+    if let Some(value) = overrides
+        .adversary_sim_enabled_override
+        .or_else(runtime_env_adversary_sim_enabled_override)
+    {
+        cfg.adversary_sim_enabled = value;
+    }
+}
 
 #[cfg(not(test))]
 fn now_ts() -> u64 {
@@ -916,7 +985,9 @@ fn load_cached_with_now(
         if let Some(entry) = cache.get(site_id) {
             let age = now.saturating_sub(entry.loaded_at);
             if age <= ttl_seconds {
-                return Ok(entry.config.clone());
+                let mut effective = entry.config.clone();
+                apply_runtime_ephemeral_overrides(site_id, &mut effective);
+                return Ok(effective);
             }
         }
     }
@@ -930,7 +1001,9 @@ fn load_cached_with_now(
             config: config.clone(),
         },
     );
-    Ok(config)
+    let mut effective = config;
+    apply_runtime_ephemeral_overrides(site_id, &mut effective);
+    Ok(effective)
 }
 
 pub fn load_runtime_cached(
@@ -939,7 +1012,9 @@ pub fn load_runtime_cached(
 ) -> Result<Config, ConfigLoadError> {
     #[cfg(test)]
     {
-        return Config::load(store, site_id);
+        let mut cfg = Config::load(store, site_id)?;
+        apply_runtime_ephemeral_overrides(site_id, &mut cfg);
+        return Ok(cfg);
     }
     #[cfg(not(test))]
     {
@@ -956,6 +1031,8 @@ pub fn invalidate_runtime_cache(site_id: &str) {
 pub(crate) fn clear_runtime_cache_for_tests() {
     let mut cache = RUNTIME_CONFIG_CACHE.lock().unwrap();
     cache.clear();
+    let mut ephemeral = RUNTIME_EPHEMERAL_FLAGS.lock().unwrap();
+    ephemeral.clear();
 }
 
 #[cfg(test)]

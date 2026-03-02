@@ -2,6 +2,12 @@ use rand::random;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 #[cfg(not(test))]
+use base64::{engine::general_purpose, Engine as _};
+#[cfg(not(test))]
+use hmac::{Hmac, Mac};
+#[cfg(not(test))]
+use sha2::Sha256;
+#[cfg(not(test))]
 use spin_sdk::http::{Method, Request};
 
 use crate::challenge::KeyValueStore;
@@ -12,26 +18,33 @@ pub const MAX_MEMORY_MIB: u32 = 512;
 pub const QUEUE_POLICY: &str = "reject_new";
 pub const STOP_TIMEOUT_SECONDS: u64 = 10;
 pub const AUTONOMOUS_HEARTBEAT_INTERVAL_SECONDS: u64 = 1;
-pub const AUTONOMOUS_HEARTBEAT_MAX_CATCHUP_TICKS_PER_INVOCATION: u64 = 8;
+pub const AUTONOMOUS_HEARTBEAT_MAX_CATCHUP_TICKS_PER_INVOCATION: u64 = 2;
 const ACTIVE_LANE_COUNT: u32 = 2;
 const INTERNAL_PRIMARY_REQUEST_COUNT: u64 = 9;
-const INTERNAL_SUPPLEMENTAL_REQUEST_COUNT: u64 = 6;
-const INTERNAL_RATE_BURST_REQUESTS: u64 = 10;
-const INTERNAL_RATE_BURST_EVERY_N_TICKS: u64 = 1;
-const INTERNAL_GENERATION_BATCH_SIZE: u64 =
-    INTERNAL_PRIMARY_REQUEST_COUNT + INTERNAL_SUPPLEMENTAL_REQUEST_COUNT + INTERNAL_RATE_BURST_REQUESTS;
+const INTERNAL_SUPPLEMENTAL_REQUEST_COUNT: u64 = 7;
+const INTERNAL_RATE_BURST_REQUESTS_LOW: u64 = 8;
+const INTERNAL_RATE_BURST_REQUESTS_MEDIUM: u64 = 16;
+const INTERNAL_RATE_BURST_REQUESTS_HIGH: u64 = 24;
 #[cfg(not(test))]
-const INTERNAL_RATE_BURST_IP: &str = "198.51.254.10";
+const INTERNAL_GENERATION_BATCH_SIZE_MAX: u64 = INTERNAL_PRIMARY_REQUEST_COUNT
+    + INTERNAL_SUPPLEMENTAL_REQUEST_COUNT
+    + INTERNAL_RATE_BURST_REQUESTS_HIGH;
 #[cfg(not(test))]
-const INTERNAL_CDP_REPORT_IP: &str = "198.51.254.20";
+const INTERNAL_RATE_BURST_IP_OCTET: u8 = 248;
 #[cfg(not(test))]
-const INTERNAL_CHALLENGE_ABUSE_IP: &str = "198.51.254.30";
+const INTERNAL_CDP_REPORT_IP_OCTET: u8 = 253;
 #[cfg(not(test))]
-const INTERNAL_POW_ABUSE_IP: &str = "198.51.254.40";
+const INTERNAL_CHALLENGE_ABUSE_IP_OCTET: u8 = 250;
 #[cfg(not(test))]
-const INTERNAL_TARPIT_ABUSE_IP: &str = "198.51.254.50";
+const INTERNAL_POW_ABUSE_IP_OCTET: u8 = 251;
 #[cfg(not(test))]
-const INTERNAL_FINGERPRINT_PROBE_IP: &str = "198.51.254.60";
+const INTERNAL_TARPIT_ABUSE_IP_OCTET: u8 = 252;
+#[cfg(not(test))]
+const INTERNAL_FINGERPRINT_PROBE_IP_OCTET: u8 = 249;
+#[cfg(not(test))]
+const INTERNAL_NOT_A_BOT_FAIL_IP_OCTET: u8 = 246;
+#[cfg(not(test))]
+const INTERNAL_NOT_A_BOT_ESCALATE_IP_OCTET: u8 = 247;
 const GENERATION_DIAGNOSTIC_GRACE_SECONDS: u64 = 5;
 const STATE_KEY_PREFIX: &str = "adversary_sim:control:";
 
@@ -385,36 +398,188 @@ fn simulated_request_paths(run_id: &str, tick_count: u64) -> [String; 9] {
         .chars()
         .rev()
         .collect::<String>();
-    [
-        "/sim/public/landing".to_string(),
-        "/sim/public/docs".to_string(),
-        "/sim/public/pricing".to_string(),
-        "/sim/public/contact".to_string(),
-        format!("/sim/public/search?q=run-{}-tick-{}", run_suffix, tick_count),
+    let public_paths = [
+        "/sim/public/landing",
+        "/sim/public/docs",
+        "/sim/public/pricing",
+        "/sim/public/contact",
+        "/sim/public/changelog",
+        "/sim/public/faq",
+    ];
+    let pick = |slot: u64| -> String {
+        let index = (deterministic_lane_entropy(run_id, tick_count, slot) % public_paths.len() as u64) as usize;
+        public_paths[index].to_string()
+    };
+    let mut paths = vec![
+        pick(0),
+        pick(1),
+        pick(2),
+        pick(3),
+        format!(
+            "/sim/public/search?q=run-{}-tick-{}-probe-{}",
+            run_suffix,
+            tick_count,
+            deterministic_lane_entropy(run_id, tick_count, 8) % 10_000
+        ),
         "/pow".to_string(),
         "/challenge/not-a-bot-checkbox".to_string(),
         crate::maze::entry_path(format!("sim-probe-{}-{}", run_suffix, tick_count).as_str()),
-        "/instaban".to_string(),
-    ]
+        if should_emit_honeypot_probe(tick_count) {
+            "/instaban".to_string()
+        } else {
+            format!(
+                "/sim/public/search?q=deep-crawl-{}-{}",
+                run_suffix,
+                deterministic_lane_entropy(run_id, tick_count, 9) % 10_000
+            )
+        },
+    ];
+    let rotation = (deterministic_lane_entropy(run_id, tick_count, 10) % paths.len() as u64) as usize;
+    paths.rotate_left(rotation);
+    paths
+        .try_into()
+        .unwrap_or_else(|_| unreachable!("primary request paths are fixed-size"))
+}
+
+fn deterministic_lane_entropy(run_id: &str, tick_count: u64, slot: u64) -> u64 {
+    let mut hash = 0xcbf29ce484222325u64 ^ tick_count ^ slot.rotate_left(17);
+    for byte in run_id.as_bytes() {
+        hash ^= *byte as u64;
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    hash ^ tick_count.rotate_left((slot % 31) as u32)
+}
+
+fn should_emit_honeypot_probe(tick_count: u64) -> bool {
+    tick_count % 5 == 0 || tick_count % 7 == 0
+}
+
+fn rate_burst_requests_for_tick(tick_count: u64) -> u64 {
+    if tick_count % 9 == 0 {
+        INTERNAL_RATE_BURST_REQUESTS_HIGH
+    } else if tick_count % 3 == 0 {
+        INTERNAL_RATE_BURST_REQUESTS_MEDIUM
+    } else {
+        INTERNAL_RATE_BURST_REQUESTS_LOW
+    }
 }
 
 #[cfg(not(test))]
 fn simulated_request_ip(tick_count: u64, index: usize) -> String {
     let offset = tick_count
-        .saturating_mul(INTERNAL_GENERATION_BATCH_SIZE)
+        .saturating_mul(INTERNAL_GENERATION_BATCH_SIZE_MAX)
         .saturating_add(index as u64);
     let third = ((offset / 254) % 254) + 1;
     let fourth = (offset % 254) + 1;
     format!("198.51.{}.{}", third, fourth)
 }
 
+#[cfg(not(test))]
+fn lane_actor_ip(third_octet: u8, tick_count: u64, rotate_every_ticks: u64, lane_salt: u64) -> String {
+    let rotate_every_ticks = rotate_every_ticks.max(1);
+    let bucket = ((tick_count / rotate_every_ticks).wrapping_add(lane_salt) % 254) + 1;
+    format!("198.51.{}.{}", third_octet, bucket)
+}
+
+#[cfg(not(test))]
+fn challenge_signing_secret() -> Option<String> {
+    std::env::var("SHUMA_CHALLENGE_SECRET")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            std::env::var("SHUMA_JS_SECRET")
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+        })
+}
+
+#[cfg(not(test))]
+fn build_signed_not_a_bot_seed_token(
+    now: u64,
+    ip: &str,
+    user_agent: &str,
+    return_to: &str,
+    entropy: u64,
+    latency_seconds: u64,
+) -> Option<String> {
+    let signing_secret = challenge_signing_secret()?;
+    let issued_at = now.saturating_sub(latency_seconds.min(30));
+    let expires_at = now.saturating_add(120);
+    let payload_json = json!({
+        "operation_id": format!("{:016x}{:016x}", entropy, entropy.rotate_left(29)),
+        "flow_id": crate::challenge::operation_envelope::FLOW_NOT_A_BOT,
+        "step_id": crate::challenge::operation_envelope::STEP_NOT_A_BOT_SUBMIT,
+        "step_index": crate::challenge::operation_envelope::STEP_INDEX_NOT_A_BOT_SUBMIT,
+        "issued_at": issued_at,
+        "expires_at": expires_at,
+        "token_version": crate::challenge::operation_envelope::TOKEN_VERSION_V1,
+        "ip_bucket": crate::signals::ip_identity::bucket_ip(ip),
+        "ua_bucket": crate::challenge::operation_envelope::user_agent_bucket(user_agent),
+        "path_class": crate::challenge::operation_envelope::PATH_CLASS_NOT_A_BOT_SUBMIT,
+        "return_to": return_to
+    })
+    .to_string();
+    let mut mac = Hmac::<Sha256>::new_from_slice(signing_secret.as_bytes()).ok()?;
+    mac.update(payload_json.as_bytes());
+    let signature = mac.finalize().into_bytes();
+    Some(format!(
+        "{}.{}",
+        general_purpose::STANDARD.encode(payload_json.as_bytes()),
+        general_purpose::STANDARD.encode(signature)
+    ))
+}
+
+#[cfg(not(test))]
+#[derive(Clone, Copy)]
+enum NotABotSubmissionProfile {
+    Fail,
+    EscalatePuzzle,
+}
+
+#[cfg(not(test))]
+fn build_not_a_bot_submit_body(seed_token: &str, profile: NotABotSubmissionProfile) -> Vec<u8> {
+    let telemetry = match profile {
+        NotABotSubmissionProfile::Fail => json!({
+            "has_pointer": false,
+            "pointer_move_count": 0,
+            "pointer_path_length": 0.0,
+            "pointer_direction_changes": 0,
+            "down_up_ms": 50,
+            "focus_changes": 5,
+            "visibility_changes": 2,
+            "interaction_elapsed_ms": 600,
+            "keyboard_used": true,
+            "touch_used": false,
+            "activation_method": "unknown",
+            "activation_trusted": false,
+            "activation_count": 1,
+            "control_focused": false
+        }),
+        NotABotSubmissionProfile::EscalatePuzzle => json!({
+            "has_pointer": false,
+            "pointer_move_count": 0,
+            "pointer_path_length": 0.0,
+            "pointer_direction_changes": 0,
+            "down_up_ms": 90,
+            "focus_changes": 5,
+            "visibility_changes": 2,
+            "interaction_elapsed_ms": 900,
+            "keyboard_used": false,
+            "touch_used": false,
+            "activation_method": "unknown",
+            "activation_trusted": false,
+            "activation_count": 1,
+            "control_focused": false
+        }),
+    };
+    format!("seed={seed_token}&checked=1&telemetry={telemetry}").into_bytes()
+}
+
 #[cfg(test)]
 fn deterministic_generated_request_target_for_tick(tick_count: u64) -> u64 {
-    let mut total = INTERNAL_PRIMARY_REQUEST_COUNT + INTERNAL_SUPPLEMENTAL_REQUEST_COUNT;
-    if tick_count % INTERNAL_RATE_BURST_EVERY_N_TICKS == 0 {
-        total = total.saturating_add(INTERNAL_RATE_BURST_REQUESTS);
-    }
-    total
+    INTERNAL_PRIMARY_REQUEST_COUNT
+        + INTERNAL_SUPPLEMENTAL_REQUEST_COUNT
+        + rate_burst_requests_for_tick(tick_count)
 }
 
 pub fn generation_diagnostics(
@@ -601,37 +766,126 @@ pub fn run_internal_generation_tick(
             if index % 3 == 0 {
                 builder.header("x-geo-country", "RU");
             }
+            if (state.generated_tick_count + index as u64) % 4 == 0 {
+                builder
+                    .header(
+                        "user-agent",
+                        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148",
+                    )
+                    .header(
+                        "sec-ch-ua",
+                        "\"Chromium\";v=\"120\", \"Not_A Brand\";v=\"99\"",
+                    )
+                    .header("sec-ch-ua-platform", "\"Windows\"")
+                    .header("sec-ch-ua-mobile", "?0")
+                    .header(
+                        "x-shuma-edge-ja3",
+                        format!(
+                            "sim-ja3-{}-{}",
+                            state.generated_tick_count,
+                            index
+                        )
+                        .as_str(),
+                    );
+            }
             dispatch_request(builder.body(Vec::new()).build());
         }
+
+        let challenge_abuse_ip = lane_actor_ip(
+            INTERNAL_CHALLENGE_ABUSE_IP_OCTET,
+            state.generated_tick_count,
+            1,
+            17,
+        );
+        let pow_abuse_ip =
+            lane_actor_ip(INTERNAL_POW_ABUSE_IP_OCTET, state.generated_tick_count, 1, 29);
+        let tarpit_abuse_ip =
+            lane_actor_ip(INTERNAL_TARPIT_ABUSE_IP_OCTET, state.generated_tick_count, 1, 41);
+        let fingerprint_probe_ip = lane_actor_ip(
+            INTERNAL_FINGERPRINT_PROBE_IP_OCTET,
+            state.generated_tick_count,
+            2,
+            53,
+        );
+        let cdp_report_ip =
+            lane_actor_ip(INTERNAL_CDP_REPORT_IP_OCTET, state.generated_tick_count, 2, 67);
+        let rate_burst_ip = lane_actor_ip(
+            INTERNAL_RATE_BURST_IP_OCTET,
+            state.generated_tick_count,
+            24,
+            79,
+        );
+        let not_a_bot_fail_ip = lane_actor_ip(
+            INTERNAL_NOT_A_BOT_FAIL_IP_OCTET,
+            state.generated_tick_count,
+            2,
+            97,
+        );
+        let not_a_bot_escalate_ip = lane_actor_ip(
+            INTERNAL_NOT_A_BOT_ESCALATE_IP_OCTET,
+            state.generated_tick_count,
+            2,
+            113,
+        );
 
         let challenge_abuse_body = b"answer=bad&seed=invalid&return_to=%2Fsim%2Fpublic%2Flanding".to_vec();
         let mut challenge_submit = Request::builder();
         challenge_submit
             .method(Method::Post)
             .uri("/challenge/puzzle")
-            .header("x-forwarded-for", INTERNAL_CHALLENGE_ABUSE_IP)
+            .header("x-forwarded-for", challenge_abuse_ip.as_str())
             .header("x-forwarded-proto", "https")
             .header("content-type", "application/x-www-form-urlencoded")
             .header("user-agent", "ShumaAdversarySim/1.0 challenge-submit");
         dispatch_request(challenge_submit.body(challenge_abuse_body).build());
 
-        let not_a_bot_abuse_body = b"token=invalid&return_to=%2Fsim%2Fpublic%2Fdocs".to_vec();
-        let mut not_a_bot_submit = Request::builder();
-        not_a_bot_submit
-            .method(Method::Post)
-            .uri("/challenge/not-a-bot-checkbox")
-            .header("x-forwarded-for", INTERNAL_CHALLENGE_ABUSE_IP)
-            .header("x-forwarded-proto", "https")
-            .header("content-type", "application/x-www-form-urlencoded")
-            .header("user-agent", "ShumaAdversarySim/1.0 not-a-bot-submit");
-        dispatch_request(not_a_bot_submit.body(not_a_bot_abuse_body).build());
+        if let Some(fail_seed) = build_signed_not_a_bot_seed_token(
+            now,
+            not_a_bot_fail_ip.as_str(),
+            "ShumaAdversarySim/1.0 not-a-bot-fail",
+            "/sim/public/docs",
+            deterministic_lane_entropy(run_id.as_str(), state.generated_tick_count, 101),
+            1 + (state.generated_tick_count % 5),
+        ) {
+            let fail_body = build_not_a_bot_submit_body(&fail_seed, NotABotSubmissionProfile::Fail);
+            let mut not_a_bot_fail_submit = Request::builder();
+            not_a_bot_fail_submit
+                .method(Method::Post)
+                .uri("/challenge/not-a-bot-checkbox")
+                .header("x-forwarded-for", not_a_bot_fail_ip.as_str())
+                .header("x-forwarded-proto", "https")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .header("user-agent", "ShumaAdversarySim/1.0 not-a-bot-fail");
+            dispatch_request(not_a_bot_fail_submit.body(fail_body).build());
+        }
+
+        if let Some(escalate_seed) = build_signed_not_a_bot_seed_token(
+            now,
+            not_a_bot_escalate_ip.as_str(),
+            "ShumaAdversarySim/1.0 not-a-bot-escalate",
+            "/sim/public/pricing",
+            deterministic_lane_entropy(run_id.as_str(), state.generated_tick_count, 102),
+            2 + (state.generated_tick_count.wrapping_mul(3) % 7),
+        ) {
+            let escalate_body =
+                build_not_a_bot_submit_body(&escalate_seed, NotABotSubmissionProfile::EscalatePuzzle);
+            let mut not_a_bot_escalate_submit = Request::builder();
+            not_a_bot_escalate_submit
+                .method(Method::Post)
+                .uri("/challenge/not-a-bot-checkbox")
+                .header("x-forwarded-for", not_a_bot_escalate_ip.as_str())
+                .header("x-forwarded-proto", "https")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .header("user-agent", "ShumaAdversarySim/1.0 not-a-bot-escalate");
+            dispatch_request(not_a_bot_escalate_submit.body(escalate_body).build());
+        }
 
         let pow_verify_body = br#"{"seed":"invalid-seed","nonce":"invalid-nonce"}"#.to_vec();
         let mut pow_verify = Request::builder();
         pow_verify
             .method(Method::Post)
             .uri("/pow/verify")
-            .header("x-forwarded-for", INTERNAL_POW_ABUSE_IP)
+            .header("x-forwarded-for", pow_abuse_ip.as_str())
             .header("x-forwarded-proto", "https")
             .header("content-type", "application/json")
             .header("user-agent", "ShumaAdversarySim/1.0 pow-verify-submit");
@@ -642,7 +896,7 @@ pub fn run_internal_generation_tick(
         tarpit_progress
             .method(Method::Post)
             .uri(crate::tarpit::progress_path())
-            .header("x-forwarded-for", INTERNAL_TARPIT_ABUSE_IP)
+            .header("x-forwarded-for", tarpit_abuse_ip.as_str())
             .header("x-forwarded-proto", "https")
             .header("content-type", "application/json")
             .header("user-agent", "ShumaAdversarySim/1.0 tarpit-progress-submit");
@@ -652,7 +906,7 @@ pub fn run_internal_generation_tick(
         fingerprint_probe
             .method(Method::Get)
             .uri("/sim/public/search?q=fingerprint-mismatch")
-            .header("x-forwarded-for", INTERNAL_FINGERPRINT_PROBE_IP)
+            .header("x-forwarded-for", fingerprint_probe_ip.as_str())
             .header("x-forwarded-proto", "https")
             .header(
                 "user-agent",
@@ -676,28 +930,40 @@ pub fn run_internal_generation_tick(
         cdp_builder
             .method(Method::Post)
             .uri("/cdp-report")
-            .header("x-forwarded-for", INTERNAL_CDP_REPORT_IP)
+            .header("x-forwarded-for", cdp_report_ip.as_str())
             .header("x-forwarded-proto", "https")
             .header("content-type", "application/json")
             .header("user-agent", "ShumaAdversarySim/1.0 cdp-probe");
         dispatch_request(cdp_builder.body(cdp_probe_body).build());
 
-        if state.generated_tick_count % INTERNAL_RATE_BURST_EVERY_N_TICKS == 0 {
-            for burst_index in 0..INTERNAL_RATE_BURST_REQUESTS {
-                let mut burst_builder = Request::builder();
-                let burst_path = format!(
-                    "/sim/public/search?q=rate-burst-{}-{}",
-                    state.generated_tick_count, burst_index
-                );
-                let user_agent = format!("ShumaAdversarySim/1.0 rate-burst {}", burst_index);
+        let rate_burst_requests = rate_burst_requests_for_tick(state.generated_tick_count);
+        for burst_index in 0..rate_burst_requests {
+            let mut burst_builder = Request::builder();
+            let burst_path = format!(
+                "/sim/public/search?q=rate-burst-{}-{}-{}",
+                state.generated_tick_count,
+                burst_index,
+                deterministic_lane_entropy(run_id.as_str(), state.generated_tick_count, 120 + burst_index)
+                    % 10_000
+            );
+            let user_agent = format!("ShumaAdversarySim/1.0 rate-burst {}", burst_index);
+            burst_builder
+                .method(Method::Get)
+                .uri(burst_path.as_str())
+                .header("x-forwarded-for", rate_burst_ip.as_str())
+                .header("x-forwarded-proto", "https")
+                .header("user-agent", user_agent.as_str());
+            if burst_index % 8 == 0 {
                 burst_builder
-                    .method(Method::Get)
-                    .uri(burst_path.as_str())
-                    .header("x-forwarded-for", INTERNAL_RATE_BURST_IP)
-                    .header("x-forwarded-proto", "https")
-                    .header("user-agent", user_agent.as_str());
-                dispatch_request(burst_builder.body(Vec::new()).build());
+                    .header("sec-ch-ua", "\"Not_A Brand\";v=\"99\", \"Chromium\";v=\"120\"")
+                    .header("sec-ch-ua-platform", "\"Windows\"")
+                    .header("sec-ch-ua-mobile", "?0")
+                    .header(
+                        "x-shuma-edge-browser-family",
+                        "chrome",
+                    );
             }
+            dispatch_request(burst_builder.body(Vec::new()).build());
         }
         crate::observability::monitoring::flush_pending_counters(store);
     }
@@ -841,7 +1107,10 @@ mod tests {
         assert_eq!(summary.due_ticks, 1);
         assert_eq!(summary.executed_ticks, 1);
         assert_eq!(state.generated_tick_count, 1);
-        assert_eq!(state.generated_request_count, INTERNAL_GENERATION_BATCH_SIZE);
+        assert_eq!(
+            state.generated_request_count,
+            deterministic_generated_request_target_for_tick(0)
+        );
         assert_eq!(state.last_generated_at, Some(110));
     }
 
@@ -889,21 +1158,42 @@ mod tests {
 
     #[test]
     fn deterministic_request_targets_cover_key_defense_surfaces() {
-        let paths = simulated_request_paths("run-coverage", 1);
-        assert!(paths.iter().any(|path| path == "/pow"));
-        assert!(paths.iter().any(|path| path == "/challenge/not-a-bot-checkbox"));
-        assert!(paths.iter().any(|path| path == "/instaban"));
-        assert!(paths.iter().any(|path| path.starts_with("/sim/public/search")));
-        assert!(paths
+        let without_honeypot = simulated_request_paths("run-coverage", 1);
+        assert!(without_honeypot.iter().any(|path| path == "/pow"));
+        assert!(without_honeypot
+            .iter()
+            .any(|path| path == "/challenge/not-a-bot-checkbox"));
+        assert!(!without_honeypot.iter().any(|path| path == "/instaban"));
+        assert!(without_honeypot
+            .iter()
+            .any(|path| path.starts_with("/sim/public/search")));
+        assert!(without_honeypot
             .iter()
             .any(|path| path.starts_with(crate::maze::entry_path("").as_str())));
+
+        let with_honeypot = simulated_request_paths("run-coverage", 5);
+        assert!(with_honeypot.iter().any(|path| path == "/instaban"));
     }
 
     #[test]
     fn deterministic_generated_request_target_matches_batch_contract() {
-        let expected = INTERNAL_PRIMARY_REQUEST_COUNT
-            + INTERNAL_SUPPLEMENTAL_REQUEST_COUNT
-            + INTERNAL_RATE_BURST_REQUESTS;
-        assert_eq!(deterministic_generated_request_target_for_tick(0), expected);
+        assert_eq!(
+            deterministic_generated_request_target_for_tick(0),
+            INTERNAL_PRIMARY_REQUEST_COUNT
+                + INTERNAL_SUPPLEMENTAL_REQUEST_COUNT
+                + INTERNAL_RATE_BURST_REQUESTS_HIGH
+        );
+        assert_eq!(
+            deterministic_generated_request_target_for_tick(1),
+            INTERNAL_PRIMARY_REQUEST_COUNT
+                + INTERNAL_SUPPLEMENTAL_REQUEST_COUNT
+                + INTERNAL_RATE_BURST_REQUESTS_LOW
+        );
+        assert_eq!(
+            deterministic_generated_request_target_for_tick(3),
+            INTERNAL_PRIMARY_REQUEST_COUNT
+                + INTERNAL_SUPPLEMENTAL_REQUEST_COUNT
+                + INTERNAL_RATE_BURST_REQUESTS_MEDIUM
+        );
     }
 }

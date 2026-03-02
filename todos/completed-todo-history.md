@@ -15,6 +15,19 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 SIM2 Round 4 Stabilization: Monitoring Truthfulness + UX Consistency
 
+#### SIM2-R4-2: Decouple Monitoring Render Pipeline from Adversary-Sim Toggle State
+
+- [x] SIM2-R4-2-1 Remove any runtime/dashboard gating that suppresses monitoring fetch/render unless adversary sim is enabled.
+- [x] SIM2-R4-2-2 Preserve historical telemetry visibility while appending newly ingested telemetry points without wiping history.
+- [x] SIM2-R4-2-3 Validate cursor/SSE/polling interplay so real-time updates continue without requiring toggle transitions.
+
+#### SIM2-R4-1: Restore Monitoring Initial Load and Refresh Control Correctness
+
+- [x] SIM2-R4-1-1 Fix monitoring page bootstrap so charts/recent events initialize populated from the latest available snapshot on first load (without requiring adversary sim toggle-on).
+- [x] SIM2-R4-1-2 Fix auto-refresh toggle semantics so enabling/disabling refresh actually starts/stops polling and updates view state deterministically.
+- [x] SIM2-R4-1-3 Fix manual refresh semantics so button clicks trigger immediate reload when auto-refresh is off and do not no-op.
+- [x] SIM2-R4-1-4 Ensure loading/empty/error states are explicit and recoverable (no stuck disabled/unpopulated state after transient failures).
+
 #### SIM2-R4-3: Prove Adversary-Simulation Traffic Is Real, Generated, and Observable End-to-End
 
 - [x] SIM2-R4-3-1 Verify adversary-sim execution path emits real HTTP/browser requests through the same request pipeline used for organic traffic.
@@ -25,12 +38,6 @@ Acceptance criteria (archived):
 1. Enabling adversary sim produces measurable request/event deltas visible in monitoring within one refresh interval/SSE cycle.
 2. Recent events and chart series show adversary-sim-attributed activity alongside non-sim traffic without synthetic-only artifacts.
 3. End-to-end verification (`make test` path + focused SIM2 monitoring checks) fails if sim run does not produce observable telemetry.
-
-#### SIM2-R4-1: Restore Monitoring Initial Load and Refresh Control Correctness (partial)
-
-- [x] SIM2-R4-1-1 Fix monitoring page bootstrap so charts/recent events initialize populated from the latest available snapshot on first load (without requiring adversary sim toggle-on).
-- [x] SIM2-R4-1-2 Fix auto-refresh toggle semantics so enabling/disabling refresh actually starts/stops polling and updates view state deterministically.
-- [x] SIM2-R4-1-3 Fix manual refresh semantics so button clicks trigger immediate reload when auto-refresh is off and do not no-op.
 
 #### SIM2-R4-5: Enforce Monitoring-Page UI Control Style Parity with Canonical Dashboard Design System
 

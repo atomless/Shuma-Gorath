@@ -1018,7 +1018,7 @@ fn maybe_run_autonomous_adversary_supervisor(store: &Store, req: &Request) {
         return;
     }
     let site_id = "default";
-    let cfg = match config::Config::load(store, site_id) {
+    let cfg = match config::load_runtime_cached(store, site_id) {
         Ok(cfg) => cfg,
         Err(err) => {
             log_line(&format!(

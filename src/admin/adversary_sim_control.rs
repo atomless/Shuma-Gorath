@@ -16,7 +16,6 @@ pub const LEASE_TTL_SECONDS: u64 = 15;
 pub const CONTROL_SESSION_LIMIT_PER_MINUTE: u32 = 6;
 pub const CONTROL_IP_LIMIT_PER_MINUTE: u32 = 16;
 pub const CONTROL_DEBOUNCE_SECONDS: u64 = 2;
-pub const CONTROL_SESSION_FRESHNESS_SECONDS: u64 = 900;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IdempotencyRecord {
@@ -127,11 +126,6 @@ pub struct OriginValidation {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ConfigWriteCapability {
-    _private: (),
-}
-
-#[derive(Debug, Clone, Copy)]
 pub struct StateWriteCapability {
     _private: (),
 }
@@ -143,7 +137,6 @@ pub struct AuditWriteCapability {
 
 #[derive(Debug, Clone, Copy)]
 pub struct ControlCapabilities {
-    config_write: ConfigWriteCapability,
     state_write: StateWriteCapability,
     audit_write: AuditWriteCapability,
 }
@@ -151,14 +144,9 @@ pub struct ControlCapabilities {
 impl ControlCapabilities {
     pub fn mint_for_trust_boundary() -> Self {
         Self {
-            config_write: ConfigWriteCapability { _private: () },
             state_write: StateWriteCapability { _private: () },
             audit_write: AuditWriteCapability { _private: () },
         }
-    }
-
-    pub fn config_write(&self) -> &ConfigWriteCapability {
-        &self.config_write
     }
 
     pub fn state_write(&self) -> &StateWriteCapability {
@@ -330,17 +318,6 @@ pub fn acquire_controller_lease(
     }
 }
 
-pub fn session_is_fresh(now: u64, auth: &crate::admin::auth::AdminAuthResult) -> bool {
-    if auth.method != Some(crate::admin::auth::AdminAuthMethod::SessionCookie) {
-        return true;
-    }
-    let Some(expires_at) = auth.session_expires_at else {
-        return false;
-    };
-    let issued_at = expires_at.saturating_sub(crate::admin::auth::admin_session_ttl_seconds());
-    now.saturating_sub(issued_at) <= CONTROL_SESSION_FRESHNESS_SECONDS
-}
-
 pub fn validate_origin_and_fetch_metadata(req: &Request) -> Result<OriginValidation, &'static str> {
     if !matches!(
         req.method(),
@@ -352,18 +329,17 @@ pub fn validate_origin_and_fetch_metadata(req: &Request) -> Result<OriginValidat
         });
     }
 
-    let Some(fetch_site) = req
+    let fetch_site = req
         .header("sec-fetch-site")
         .and_then(|value| value.as_str())
         .map(|value| value.trim().to_ascii_lowercase())
-        .filter(|value| !value.is_empty())
-    else {
-        return Err("fetch_metadata_missing");
-    };
-
-    if !matches!(fetch_site.as_str(), "same-origin" | "same-site" | "none") {
-        return Err("fetch_metadata_cross_site");
+        .filter(|value| !value.is_empty());
+    if let Some(fetch_site) = fetch_site.as_deref() {
+        if !matches!(fetch_site, "same-origin" | "same-site" | "none") {
+            return Err("fetch_metadata_cross_site");
+        }
     }
+    let fetch_metadata_missing = fetch_site.is_none();
 
     let expected_origin = expected_origin(req);
 
@@ -380,7 +356,11 @@ pub fn validate_origin_and_fetch_metadata(req: &Request) -> Result<OriginValidat
         {
             return Ok(OriginValidation {
                 request_origin: Some(origin.to_string()),
-                verdict: "origin_match".to_string(),
+                verdict: if fetch_metadata_missing {
+                    "origin_match_fetch_metadata_missing".to_string()
+                } else {
+                    "origin_match".to_string()
+                },
             });
         }
         if expected_origin.is_some() {
@@ -405,7 +385,11 @@ pub fn validate_origin_and_fetch_metadata(req: &Request) -> Result<OriginValidat
         {
             return Ok(OriginValidation {
                 request_origin: expected_origin,
-                verdict: "referer_match".to_string(),
+                verdict: if fetch_metadata_missing {
+                    "referer_match_fetch_metadata_missing".to_string()
+                } else {
+                    "referer_match".to_string()
+                },
             });
         }
         if expected_origin.is_some() {
@@ -426,12 +410,27 @@ pub fn validate_origin_and_fetch_metadata(req: &Request) -> Result<OriginValidat
     if expected_origin.is_none() && csrf_present {
         return Ok(OriginValidation {
             request_origin: None,
-            verdict: "csrf_fetch_metadata_fallback".to_string(),
+            verdict: if fetch_metadata_missing {
+                "csrf_origin_fallback".to_string()
+            } else {
+                "csrf_fetch_metadata_fallback".to_string()
+            },
         });
     }
 
     if expected_origin.is_none() {
         return Err("origin_host_missing");
+    }
+
+    if csrf_present && fetch_metadata_missing {
+        return Ok(OriginValidation {
+            request_origin: expected_origin,
+            verdict: "csrf_origin_fallback".to_string(),
+        });
+    }
+
+    if fetch_metadata_missing {
+        return Err("fetch_metadata_missing");
     }
 
     Err("origin_missing")
@@ -610,6 +609,17 @@ mod tests {
     }
 
     #[test]
+    fn validate_origin_and_fetch_metadata_accepts_matching_origin_without_fetch_metadata() {
+        let req = request_with_headers(
+            "/admin/adversary-sim/control",
+            &[("host", "localhost:3000"), ("origin", "http://localhost:3000")],
+        );
+
+        let verdict = validate_origin_and_fetch_metadata(&req).expect("origin validation");
+        assert_eq!(verdict.verdict, "origin_match_fetch_metadata_missing");
+    }
+
+    #[test]
     fn validate_origin_and_fetch_metadata_allows_host_missing_with_csrf_fallback() {
         let req = request_with_headers(
             "/admin/adversary-sim/control",
@@ -627,6 +637,12 @@ mod tests {
             &[("sec-fetch-site", "same-origin")],
         );
         assert_eq!(validate_origin_and_fetch_metadata(&req), Err("origin_host_missing"));
+    }
+
+    #[test]
+    fn validate_origin_and_fetch_metadata_rejects_missing_fetch_metadata_without_origin_or_csrf() {
+        let req = request_with_headers("/admin/adversary-sim/control", &[("host", "localhost:3000")]);
+        assert_eq!(validate_origin_and_fetch_metadata(&req), Err("fetch_metadata_missing"));
     }
 
     #[test]

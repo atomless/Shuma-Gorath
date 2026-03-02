@@ -118,9 +118,10 @@
   let lastRequestedRange = '';
   let rangeEventsLastFetchedAtMs = 0;
   let lastRangeTabUpdateAnchor = '';
-  let rawFeedSourceEvents = [];
+  let rawRecentEvents = [];
+  let filteredRecentEvents = [];
   let rawTelemetryFeed = [];
-  let rawTelemetryFeedKeys = new Set();
+  let defenseTrendRows = [];
 
   let copyButtonLabel = 'Copy JavaScript Example';
   let copyCurlButtonLabel = 'Copy Curl Example';
@@ -139,6 +140,9 @@
     fresh: 'Fresh',
     degraded: 'Degraded',
     stale: 'Stale'
+  });
+  const RATE_REASON_LABELS = Object.freeze({
+    rate: 'rate limit violation'
   });
 
   const clearTimer = (timerId) => {
@@ -206,6 +210,8 @@
 
   const rawFeedKey = (event = {}) => {
     const source = event && typeof event === 'object' ? event : {};
+    const cursor = String(source.cursor || source.event_cursor || source.event_id || '').trim();
+    if (cursor) return cursor;
     const operationId = String(source.operation_id || '').trim();
     if (operationId) return operationId;
     const ts = Number(source.ts || 0);
@@ -232,14 +238,44 @@
 
   const rawFeedPayload = (event = {}) => {
     const source = event && typeof event === 'object' ? event : {};
+    const normalizedSource = normalizeEventForDisplay(source);
     const payload = {};
-    Object.keys(source)
+    Object.keys(normalizedSource)
       .sort()
       .forEach((key) => {
-        if (source[key] === undefined) return;
-        payload[key] = source[key];
+        if (normalizedSource[key] === undefined) return;
+        payload[key] = normalizedSource[key];
       });
     return payload;
+  };
+
+  const classifyChallengeDisplayLabel = (event = {}) => {
+    const reason = normalizeLowerTrimmed(event?.reason || '');
+    const outcome = normalizeLowerTrimmed(event?.outcome || '');
+    const combined = `${reason} ${outcome}`;
+    if (combined.includes('not_a_bot') || combined.includes('not-a-bot')) {
+      return 'not-a-bot';
+    }
+    return 'puzzle';
+  };
+
+  const normalizeReasonForDisplay = (reasonRaw = '') => {
+    const normalized = normalizeLowerTrimmed(reasonRaw);
+    if (Object.prototype.hasOwnProperty.call(RATE_REASON_LABELS, normalized)) {
+      return RATE_REASON_LABELS[normalized];
+    }
+    return String(reasonRaw || '');
+  };
+
+  const normalizeEventForDisplay = (event = {}) => {
+    const source = event && typeof event === 'object' ? event : {};
+    const normalized = { ...source };
+    const eventType = normalizeLowerTrimmed(source.event || '');
+    if (eventType === 'challenge') {
+      normalized.event = classifyChallengeDisplayLabel(source);
+    }
+    normalized.reason = normalizeReasonForDisplay(source.reason);
+    return normalized;
   };
 
   const buildRawFeedLine = (event = {}) => {
@@ -247,38 +283,13 @@
     return `[${ts}] ${JSON.stringify(rawFeedPayload(event))}`;
   };
 
-  function ingestRawTelemetryEvents(events = []) {
-    if (!Array.isArray(events) || events.length === 0) {
-      if (rawTelemetryFeed.length > 0) {
-        rawTelemetryFeed = [];
-        rawTelemetryFeedKeys = new Set();
-      }
-      return;
-    }
-    let changed = false;
-    for (let index = events.length - 1; index >= 0; index -= 1) {
-      const event = events[index];
-      const key = rawFeedKey(event);
-      if (!key || rawTelemetryFeedKeys.has(key)) continue;
-      rawTelemetryFeed.unshift({
-        key,
+  const buildRawTelemetryFeed = (events = []) =>
+    (Array.isArray(events) ? events : [])
+      .slice(0, RAW_FEED_MAX_LINES)
+      .map((event, index) => ({
+        key: `${rawFeedKey(event)}|${index}`,
         line: buildRawFeedLine(event)
-      });
-      rawTelemetryFeedKeys.add(key);
-      changed = true;
-    }
-    if (!changed) return;
-    if (rawTelemetryFeed.length > RAW_FEED_MAX_LINES) {
-      const overflow = rawTelemetryFeed.slice(RAW_FEED_MAX_LINES);
-      rawTelemetryFeed = rawTelemetryFeed.slice(0, RAW_FEED_MAX_LINES);
-      overflow.forEach((entry) => {
-        if (!entry || typeof entry !== 'object') return;
-        rawTelemetryFeedKeys.delete(String(entry.key || ''));
-      });
-    } else {
-      rawTelemetryFeed = rawTelemetryFeed.slice();
-    }
-  }
+      }));
 
   const readCdpField = (text, key) => {
     const match = new RegExp(`${key}=([^\\s]+)`, 'i').exec(String(text || ''));
@@ -600,20 +611,16 @@
   $: freshnessOverflow = String(freshness.overflow || 'none');
 
   $: rawRecentEvents = Array.isArray(events.recent_events)
-    ? events.recent_events.slice(0, EVENT_ROW_RENDER_LIMIT)
+    ? events.recent_events.slice(0, RAW_FEED_MAX_LINES)
     : [];
-  $: rawFeedSourceEvents = Array.isArray(monitoring?.details?.events?.recent_events)
-    ? monitoring.details.events.recent_events.slice(0, RAW_FEED_MAX_LINES)
-    : (Array.isArray(events.recent_events)
-      ? events.recent_events.slice(0, RAW_FEED_MAX_LINES)
-      : []);
-  $: ingestRawTelemetryEvents(rawFeedSourceEvents);
+  $: rawTelemetryFeed = buildRawTelemetryFeed(rawRecentEvents);
+  $: defenseTrendRows = deriveDefenseTrendRows(rawRecentEvents);
   $: eventFilterOptions = deriveRecentEventFilterOptions(rawRecentEvents);
-  $: recentEvents = filterRecentEvents(rawRecentEvents, eventFilters);
+  $: filteredRecentEvents = filterRecentEvents(rawRecentEvents.slice(0, EVENT_ROW_RENDER_LIMIT), eventFilters);
+  $: recentEvents = filteredRecentEvents.map((event) => normalizeEventForDisplay(event));
   $: recentCdpEvents = Array.isArray(cdpEventsData.events)
     ? cdpEventsData.events.slice(0, CDP_ROW_RENDER_LIMIT)
     : [];
-  $: defenseTrendRows = deriveDefenseTrendRows(rawRecentEvents);
   $: adversaryRunSummary = deriveAdversaryRunRows(rawRecentEvents, bans);
   $: adversaryRunRows = Array.isArray(adversaryRunSummary?.runRows)
     ? adversaryRunSummary.runRows.slice(0, 8)
@@ -770,7 +777,7 @@
     challengeTrendChart = updateTrendChart(
       challengeTrendChart,
       challengeTrendCanvas,
-      'Challenge Outcomes',
+      'Puzzle Outcomes',
       CHALLENGE_TREND_COLOR,
       challengeTrendSeries,
       chartRefreshNonce

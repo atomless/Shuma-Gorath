@@ -264,6 +264,10 @@ else:
         if merged.get("test_mode") != default_test_mode:
             merged["test_mode"] = default_test_mode
             changed = True
+        default_adversary_sim_enabled = bool(defaults.get("adversary_sim_enabled", False))
+        if merged.get("adversary_sim_enabled") != default_adversary_sim_enabled:
+            merged["adversary_sim_enabled"] = default_adversary_sim_enabled
+            changed = True
 
 with open(merged_path, "w", encoding="utf-8") as handle:
     json.dump(merged, handle, separators=(",", ":"))

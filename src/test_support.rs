@@ -39,9 +39,11 @@ impl crate::challenge::KeyValueStore for InMemoryStore {
 static ENV_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 pub(crate) fn lock_env() -> MutexGuard<'static, ()> {
-    ENV_MUTEX
+    let guard = ENV_MUTEX
         .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    crate::config::clear_runtime_cache_for_tests();
+    guard
 }
 
 pub(crate) fn request_with_headers(path: &str, headers: &[(&str, &str)]) -> Request {

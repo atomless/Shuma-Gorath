@@ -138,6 +138,7 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	@echo "$(YELLOW)🔐 Local admin allowlist override: DEV_ADMIN_IP_ALLOWLIST='$(DEV_ADMIN_IP_ALLOWLIST)' (empty by default)$(NC)"
 	@echo "$(YELLOW)⚡ Startup rebuild override: DEV_FORCE_REBUILD=$${DEV_FORCE_REBUILD:-0}$(NC)"
 	@echo "$(CYAN)👀 Watching src/*.rs, dashboard/*, and spin.toml for changes... (Ctrl+C to stop)$(NC)"
+	@pkill -x spin 2>/dev/null || true
 	@$(MAKE) --no-print-directory config-seed >/dev/null
 	@DASHBOARD_STAMP="dist/dashboard/_app/version.json"; \
 	if [ "$${DEV_FORCE_REBUILD:-0}" = "1" ] || [ ! -f "$$DASHBOARD_STAMP" ] || \
@@ -151,7 +152,6 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	else \
 		echo "Dashboard assets unchanged; skipping dashboard-build."; \
 	fi
-	@pkill -x spin 2>/dev/null || true
 	@if [ "$${DEV_FORCE_REBUILD:-0}" = "1" ] || [ ! -f $(WASM_BUILD_OUTPUT) ] || [ ! -f $(WASM_ARTIFACT) ] || \
 	   [ Cargo.toml -nt $(WASM_BUILD_OUTPUT) ] || [ Cargo.lock -nt $(WASM_BUILD_OUTPUT) ] || \
 	   { [ -f build.rs ] && [ build.rs -nt $(WASM_BUILD_OUTPUT) ]; } || \
@@ -166,7 +166,7 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	fi
 	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml $(DEV_WATCH_IGNORES) \
 		-s 'if [ ! -f $(WASM_BUILD_OUTPUT) ] || find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && mkdir -p $(dir $(WASM_ARTIFACT)) && cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT) && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
-		-s '$(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; pkill -x spin 2>/dev/null || true; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --listen 127.0.0.1:3000'
+		-s 'pkill -x spin 2>/dev/null || true; $(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --listen 127.0.0.1:3000'
 
 dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=false (fail-closed)
 	@echo "$(CYAN)🚨 Starting development server with SHUMA_KV_STORE_FAIL_OPEN=false (fail-closed)...$(NC)"
@@ -178,6 +178,7 @@ dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=fal
 	@echo "$(YELLOW)🔐 Local admin allowlist override: DEV_ADMIN_IP_ALLOWLIST='$(DEV_ADMIN_IP_ALLOWLIST)' (empty by default)$(NC)"
 	@echo "$(YELLOW)⚡ Startup rebuild override: DEV_FORCE_REBUILD=$${DEV_FORCE_REBUILD:-0}$(NC)"
 	@echo "$(CYAN)👀 Watching src/*.rs, dashboard/*, and spin.toml for changes... (Ctrl+C to stop)$(NC)"
+	@pkill -x spin 2>/dev/null || true
 	@$(MAKE) --no-print-directory config-seed >/dev/null
 	@DASHBOARD_STAMP="dist/dashboard/_app/version.json"; \
 	if [ "$${DEV_FORCE_REBUILD:-0}" = "1" ] || [ ! -f "$$DASHBOARD_STAMP" ] || \
@@ -191,7 +192,6 @@ dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=fal
 	else \
 		echo "Dashboard assets unchanged; skipping dashboard-build."; \
 	fi
-	@pkill -x spin 2>/dev/null || true
 	@if [ "$${DEV_FORCE_REBUILD:-0}" = "1" ] || [ ! -f $(WASM_BUILD_OUTPUT) ] || [ ! -f $(WASM_ARTIFACT) ] || \
 	   [ Cargo.toml -nt $(WASM_BUILD_OUTPUT) ] || [ Cargo.lock -nt $(WASM_BUILD_OUTPUT) ] || \
 	   { [ -f build.rs ] && [ build.rs -nt $(WASM_BUILD_OUTPUT) ]; } || \
@@ -206,7 +206,7 @@ dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=fal
 	fi
 	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml $(DEV_WATCH_IGNORES) \
 		-s 'if [ ! -f $(WASM_BUILD_OUTPUT) ] || find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && mkdir -p $(dir $(WASM_ARTIFACT)) && cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT) && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
-		-s '$(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; pkill -x spin 2>/dev/null || true; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env SHUMA_KV_STORE_FAIL_OPEN=false --listen 127.0.0.1:3000'
+		-s 'pkill -x spin 2>/dev/null || true; $(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env SHUMA_KV_STORE_FAIL_OPEN=false --listen 127.0.0.1:3000'
 
 local: dev ## Alias for dev
 
@@ -214,9 +214,9 @@ run: ## Build once and run (no file watching)
 	@echo "$(CYAN)🚀 Starting development server...$(NC)"
 	@echo "$(YELLOW)⚙️  Effective dev flags: WRITE=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) DEBUG_HEADERS=$(DEV_DEBUG_HEADERS)$(NC)"
 	@echo "$(YELLOW)🔐 Local admin allowlist override: DEV_ADMIN_IP_ALLOWLIST='$(DEV_ADMIN_IP_ALLOWLIST)' (empty by default)$(NC)"
+	@pkill -x spin 2>/dev/null || true
 	@$(MAKE) --no-print-directory config-seed >/dev/null
 	@$(MAKE) --no-print-directory dashboard-build >/dev/null
-	@pkill -x spin 2>/dev/null || true
 	@sleep 1
 	@./scripts/set_crate_type.sh cdylib
 	@cargo build --target wasm32-wasip1 --release
@@ -800,6 +800,8 @@ seed-dashboard-data: ## Seed dashboard sample records for local monitoring UI va
 
 stop: ## Stop running Spin server
 	@echo "$(CYAN)🛑 Stopping Spin server...$(NC)"
+	@pkill -f "scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml" 2>/dev/null || true
+	@pkill -f "cargo watch --poll -w src -w dashboard -w spin.toml" 2>/dev/null || true
 	@pkill -f "cargo-watch watch --poll -w src -w dashboard -w spin.toml" 2>/dev/null || true
 	@rm -rf .spin/dev-watch.lock
 	@pkill -x spin 2>/dev/null && echo "$(GREEN)✅ Stopped$(NC)" || echo "$(YELLOW)No server running$(NC)"

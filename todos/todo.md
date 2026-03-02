@@ -294,22 +294,10 @@ Non-negotiable delivery rules for every `SIM2-R4-*` slice:
 5. Config-seeding lifecycle decisions must be explicit, documented, and consistent across setup/dev/prod paths.
 
 ### SIM2-R4-1: Restore Monitoring Initial Load and Refresh Control Correctness
-- [ ] SIM2-R4-1-4 Ensure loading/empty/error states are explicit and recoverable (no stuck disabled/unpopulated state after transient failures).
-
-Acceptance criteria:
-- Monitoring page renders usable initial data and controls on first entry in dev and prod mode with adversary sim disabled.
-- Auto-refresh and manual refresh both execute the same validated fetch/update path and visibly update last-refresh state.
-- Dashboard unit + e2e coverage proves refresh controls are behaviorally effective and non-no-op.
+Status: Execution complete on 2026-03-01. See `todos/completed-todo-history.md` for `SIM2-R4-1-*` closure details.
 
 ### SIM2-R4-2: Decouple Monitoring Render Pipeline from Adversary-Sim Toggle State
-- [ ] SIM2-R4-2-1 Remove any runtime/dashboard gating that suppresses monitoring fetch/render unless adversary sim is enabled.
-- [ ] SIM2-R4-2-2 Preserve historical telemetry visibility while appending newly ingested telemetry points without wiping history.
-- [ ] SIM2-R4-2-3 Validate cursor/SSE/polling interplay so real-time updates continue without requiring toggle transitions.
-
-Acceptance criteria:
-- Monitoring charts and recent events update from real incoming traffic regardless of adversary-sim toggle state.
-- Historical baseline remains visible and new points/events append in-order with no duplicate or dropped-window regressions.
-- Integration tests prove monitoring updates under normal traffic generation with adversary sim both OFF and ON.
+Status: Execution complete on 2026-03-01. See `todos/completed-todo-history.md` for `SIM2-R4-2-*` closure details.
 
 ### SIM2-R4-3: Prove Adversary-Simulation Traffic Is Real, Generated, and Observable End-to-End
 Status: Execution complete on 2026-03-01. See `todos/completed-todo-history.md` for `SIM2-R4-3-*` closure details.
@@ -327,7 +315,7 @@ Status: Execution complete on 2026-03-01. See `todos/completed-todo-history.md` 
   - existing config backfill of newly introduced keys,
   - no-op behavior when config is already schema-complete,
   - failure-path diagnostics for invalid existing config JSON.
-- [ ] SIM2-R4-4-6 Resolve `test_mode` persistence contract explicitly and implement the chosen model end-to-end (default target for this round: non-persisted ephemeral runtime/session state so it cannot linger across runs).
+- [ ] SIM2-R4-4-6 Resolve `test_mode` persistence contract explicitly and implement the chosen model end-to-end (default target for this round: non-persisted ephemeral runtime/session state so it cannot linger across runs), while preserving explicit startup override via `SHUMA_TEST_MODE=true` in both `runtime-dev` and `runtime-prod` entrypoints.
 - [ ] SIM2-R4-4-7 If `test_mode` becomes ephemeral, remove its persistence coupling from KV/default seeding and align all control paths (`/admin/config` contract, dashboard behavior, runtime toggles, export payloads, docs, tests) to the new semantics.
 - [ ] SIM2-R4-4-8 Publish an operator-facing architecture note (or ADR if scope widens) that records the final lifecycle + test-mode semantics, rationale, rollback plan, and risk tradeoffs.
 
@@ -339,6 +327,7 @@ Acceptance criteria:
 - Regression coverage proves both migration correctness and read-only start semantics, including watch-restart paths.
 - `test_mode` semantics are unambiguous, documented, and test-enforced:
   - if ephemeral: toggling test mode does not persist across process restart and cannot be reintroduced by seed/backfill;
+  - if ephemeral: explicit environment startup override (`SHUMA_TEST_MODE=true`) remains supported for both `make dev` and `make prod` flows, applies only to current runtime/session posture, and must not be written into persisted KV config by runtime or dashboard control paths;
   - if persisted (only by explicit exception): persistence scope, reset policy, and safety guardrails are fully documented and tested.
 - Dashboard/admin API contracts match the chosen `test_mode` model and reject/flag invalid legacy assumptions.
 

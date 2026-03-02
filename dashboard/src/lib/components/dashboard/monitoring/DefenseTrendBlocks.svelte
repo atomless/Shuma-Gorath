@@ -21,9 +21,13 @@
           <h3>{row.label}</h3>
           <ul class="metric-list">
             <li><strong>Triggers:</strong> {formatCompactNumber(row.triggerCount, '0')}</li>
-            <li><strong>Pass:</strong> {formatCompactNumber(row.passCount, '0')}</li>
-            <li><strong>Fail:</strong> {formatCompactNumber(row.failCount, '0')}</li>
-            <li><strong>Escalate:</strong> {formatCompactNumber(row.escalationCount, '0')}</li>
+            {#if row.hasOutcomeBreakdown}
+              <li><strong>Pass:</strong> {formatCompactNumber(row.passCount, '0')}</li>
+              <li><strong>Fail:</strong> {formatCompactNumber(row.failCount, '0')}</li>
+              <li><strong>Escalate:</strong> {formatCompactNumber(row.escalationCount, '0')}</li>
+            {:else}
+              <li><strong>Outcome Breakdown:</strong> n/a</li>
+            {/if}
             <li><strong>Ban Outcomes:</strong> {formatCompactNumber(row.banOutcomeCount, '0')}</li>
             <li>
               <strong>Sources:</strong>

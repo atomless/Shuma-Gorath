@@ -80,6 +80,8 @@
   let savingGlobalTestMode = false;
   let savingGlobalAdversarySim = false;
   let autoRefreshEnabled = false;
+  let authExpiryTimer = null;
+  let authExpiryAtSeconds = 0;
   let adminMessageText = '';
   let adminMessageKind = 'info';
   let adversarySimStatus = {};
@@ -125,9 +127,14 @@
   }
   $: normalizedAdversarySimStatus = normalizeAdversarySimStatus(adversarySimStatus);
   $: adversarySimToggleEnabled = normalizedAdversarySimStatus.enabled;
-  $: adversarySimControlAvailable =
-    String(configSnapshot.runtime_environment || '') === 'runtime-dev' &&
+  $: adversarySimRuntimeEnvironment = String(
+    normalizedAdversarySimStatus.runtimeEnvironment || configSnapshot.runtime_environment || ''
+  );
+  $: adversarySimSurfaceAvailable =
+    normalizedAdversarySimStatus.available === true ||
     configSnapshot.adversary_sim_available === true;
+  $: adversarySimControlAvailable =
+    adversarySimRuntimeEnvironment === 'runtime-dev' && adversarySimSurfaceAvailable;
   $: frontierProviderCount = Number.isFinite(Number(configSnapshot.frontier_provider_count))
     ? Math.max(0, Math.floor(Number(configSnapshot.frontier_provider_count)))
     : 0;
@@ -217,6 +224,32 @@
     window.location.replace(resolveLoginRedirectPath());
   }
 
+  function clearAuthExpiryTimer() {
+    if (authExpiryTimer) {
+      clearTimeout(authExpiryTimer);
+      authExpiryTimer = null;
+    }
+    authExpiryAtSeconds = 0;
+  }
+
+  function scheduleAuthExpiryRedirect(session = null) {
+    clearAuthExpiryTimer();
+    const snapshot = session && typeof session === 'object'
+      ? session
+      : getDashboardSessionState();
+    if (!snapshot || snapshot.authenticated !== true) return;
+    const expiresAtSeconds = Number(snapshot.expiresAt || 0);
+    if (!Number.isFinite(expiresAtSeconds) || expiresAtSeconds <= 0) return;
+    if (authExpiryTimer && authExpiryAtSeconds === Math.floor(expiresAtSeconds)) return;
+    const delayMs = Math.max(0, (Math.floor(expiresAtSeconds) * 1000) - Date.now());
+    authExpiryAtSeconds = Math.floor(expiresAtSeconds);
+    authExpiryTimer = setTimeout(() => {
+      authExpiryTimer = null;
+      authExpiryAtSeconds = 0;
+      redirectToLogin();
+    }, delayMs);
+  }
+
   const routeController = createDashboardRouteController({
     tabs: DASHBOARD_TABS,
     normalizeTab,
@@ -236,6 +269,9 @@
       dashboardStore.recordPollingResume(reason, tab, intervalMs),
     recordRefreshMetrics: (metrics) => dashboardStore.recordRefreshMetrics(metrics),
     isAuthenticated: () => dashboardStore.getState().session.authenticated === true,
+    onBootstrapSession: (session) => {
+      scheduleAuthExpiryRedirect(session);
+    },
     isAutoRefreshEnabled: () => autoRefreshEnabled === true,
     isAutoRefreshTab: (tab) => AUTO_REFRESH_TABS.has(normalizeTab(tab)),
     shouldRefreshOnActivate: ({ tab, store }) => {
@@ -313,6 +349,7 @@
     storeUnsubscribe();
     telemetryUnsubscribe();
     clearAdversarySimStatusPollTimer();
+    clearAuthExpiryTimer();
     if (typeof document !== 'undefined') {
       clearDashboardBodyClasses(document);
     }
@@ -339,6 +376,16 @@
   function onWindowHashChange() {
     if (!routeController.getRuntimeMounted()) return;
     routeController.syncFromHash('hashchange');
+  }
+
+  $: if (runtimeReady && routeController.getRuntimeMounted()) {
+    const isAuthenticated = dashboardState?.session?.authenticated === true;
+    if (isAuthenticated) {
+      scheduleAuthExpiryRedirect();
+    } else if (!loggingOut) {
+      clearAuthExpiryTimer();
+      redirectToLogin();
+    }
   }
 
   function onDocumentVisibilityChange() {
@@ -427,15 +474,6 @@
 
   async function refreshAdversarySimStatus(_reason = 'manual') {
     if (!routeController.getRuntimeMounted() || !runtimeReady) return;
-    if (!adversarySimControlAvailable && configSnapshot.adversary_sim_enabled !== true) {
-      adversarySimStatus = {
-        runtime_environment: configSnapshot.runtime_environment,
-        adversary_sim_available: configSnapshot.adversary_sim_available,
-        adversary_sim_enabled: configSnapshot.adversary_sim_enabled
-      };
-      syncAdversarySimTimers();
-      return;
-    }
     try {
       const status = await getDashboardAdversarySimStatus();
       adversarySimStatus = status && typeof status === 'object' ? status : {};
@@ -497,7 +535,6 @@
           : 'Adversary simulation run stopped.',
         'success'
       );
-      await routeController.refreshTab(activeTabKey, 'adversary-sim-toggle');
     } catch (error) {
       adversarySimStatus = previousStatusSnapshot;
       if (target) target.checked = previousValue;

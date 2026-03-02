@@ -715,17 +715,12 @@ test('refresh runtime bootstraps monitoring baseline before cursor deltas and ke
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
     const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
-    const storageState = new Map();
     const storage = {
-      getItem(key) {
-        return storageState.has(key) ? storageState.get(key) : null;
+      getItem() {
+        return null;
       },
-      setItem(key, value) {
-        storageState.set(key, String(value));
-      },
-      removeItem(key) {
-        storageState.delete(key);
-      }
+      setItem() {},
+      removeItem() {}
     };
 
     const now = 1_700_000_000;
@@ -781,8 +776,9 @@ test('refresh runtime bootstraps monitoring baseline before cursor deltas and ke
     const apiClient = {
       async getMonitoring() {
         callOrder.push('monitoring_full');
+        const reason = fullFetchCount === 0 ? 'historical-baseline' : 'manual-refresh-full';
         fullFetchCount += 1;
-        return buildMonitoringPayload('historical-baseline');
+        return buildMonitoringPayload(reason);
       },
       async getMonitoringDelta(params = {}) {
         callOrder.push('monitoring_delta');
@@ -845,15 +841,189 @@ test('refresh runtime bootstraps monitoring baseline before cursor deltas and ke
     assert.equal(Number(baselineFreshness.last_event_ts || 0), now);
 
     await runtime.refreshMonitoringTab('manual-refresh');
-    assert.equal(fullFetchCount, 1);
-    assert.equal(deltaCalls.length, 2);
-    assert.equal(deltaCalls[1].after_cursor, 'cursor-1');
+    assert.equal(fullFetchCount, 2);
+    assert.equal(deltaCalls.length, 1);
 
     const updatedEvents = (store.getSnapshot('events') || {}).recent_events || [];
     assert.equal(
-      updatedEvents.some((entry) => String(entry.reason || '') === 'manual-refresh-delta'),
+      updatedEvents.some((entry) => String(entry.reason || '') === 'manual-refresh-full'),
       true
     );
+  });
+});
+
+test('monitoring auto-refresh refreshes monitoring snapshots without extra ip-bans side reads', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const storage = {
+      getItem() {
+        return null;
+      },
+      setItem() {},
+      removeItem() {}
+    };
+
+    const now = 1_700_000_200;
+    let monitoringCalls = 0;
+    let bansCalls = 0;
+    let suggestionsCalls = 0;
+    let ipBansSeedCalls = 0;
+    const apiClient = {
+      async getMonitoring(params = {}) {
+        monitoringCalls += 1;
+        assert.equal(Number(params.limit || 0), 200);
+        return {
+          freshness: {
+            state: 'fresh',
+            lag_ms: 0,
+            last_event_ts: now,
+            transport: 'snapshot_poll'
+          },
+          summary: {
+            honeypot: { total_hits: 0, unique_crawlers: 0, top_crawlers: [], top_paths: [] },
+            challenge: { total_failures: 0, unique_offenders: 0, top_offenders: [], reasons: {}, trend: [] },
+            pow: {
+              total_failures: 0,
+              total_successes: 0,
+              total_attempts: 0,
+              success_ratio: 0,
+              unique_offenders: 0,
+              top_offenders: [],
+              reasons: {},
+              outcomes: {},
+              trend: []
+            },
+            rate: { total_violations: 0, unique_offenders: 0, top_offenders: [], outcomes: {} },
+            geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
+          },
+          details: {
+            analytics: { ban_count: 1, test_mode: false, fail_mode: 'open' },
+            events: {
+              recent_events: [{
+                ts: now,
+                event: 'Challenge',
+                ip: '198.51.100.1',
+                reason: 'rate',
+                outcome: 'challenge',
+                admin: null
+              }],
+              event_counts: { Challenge: 1 },
+              top_ips: [['198.51.100.1', 1]],
+              unique_ips: 1
+            },
+            bans: {
+              bans: [{
+                ip: '198.51.100.55',
+                reason: 'rate',
+                banned_at: now,
+                expires: now + 300
+              }]
+            },
+            maze: { total_hits: 0, unique_crawlers: 0, maze_auto_bans: 0, top_crawlers: [] },
+            cdp: { stats: { total_detections: 0, auto_bans: 0 }, config: {}, fingerprint_stats: {} },
+            cdp_events: { events: [] }
+          }
+        };
+      },
+      async getMonitoringDelta(params = {}) {
+        if (Number(params.limit || 0) === 1) {
+          return {
+            after_cursor: '',
+            window_end_cursor: 'monitoring-window-end',
+            next_cursor: 'monitoring-window-end',
+            has_more: false,
+            overflow: 'none',
+            events: [],
+            freshness: { state: 'fresh', lag_ms: 0 }
+          };
+        }
+        return {
+          after_cursor: String(params.after_cursor || ''),
+          window_end_cursor: 'monitoring-window-end',
+          next_cursor: 'monitoring-window-end',
+          has_more: false,
+          overflow: 'none',
+          events: [],
+          freshness: { state: 'fresh', lag_ms: 0 }
+        };
+      },
+      async getBans() {
+        bansCalls += 1;
+        return {
+          bans: [{
+            ip: '198.51.100.55',
+            reason: 'rate',
+            banned_at: now,
+            expires: now + 300
+          }]
+        };
+      },
+      async getIpRangeSuggestions() {
+        suggestionsCalls += 1;
+        return {
+          summary: {
+            suggestions_total: 1,
+            low_risk: 1,
+            medium_risk: 0,
+            high_risk: 0
+          },
+          suggestions: [{
+            cidr: '198.51.100.0/24',
+            ip_family: 'ipv4',
+            bot_evidence_score: 18.1,
+            human_evidence_score: 0,
+            collateral_risk: 0.05,
+            confidence: 0.91,
+            risk_band: 'low',
+            recommended_action: 'deny_temp',
+            recommended_mode: 'enforce',
+            evidence_counts: { honeypot: 12 },
+            safer_alternatives: [],
+            guardrail_notes: []
+          }]
+        };
+      },
+      async getIpBansDelta(params = {}) {
+        if (Number(params.limit || 0) === 1) {
+          ipBansSeedCalls += 1;
+        }
+        return {
+          after_cursor: String(params.after_cursor || ''),
+          window_end_cursor: 'ip-bans-window-end',
+          next_cursor: 'ip-bans-window-end',
+          has_more: false,
+          overflow: 'none',
+          active_bans: [],
+          freshness: {
+            state: 'fresh',
+            lag_ms: 0,
+            last_event_ts: now,
+            transport: 'cursor_delta_poll'
+          }
+        };
+      }
+    };
+
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => apiClient,
+      getStateStore: () => store,
+      deriveMonitoringAnalytics: () => ({ ban_count: 1, test_mode: false, fail_mode: 'open' }),
+      storage
+    });
+
+    await runtime.refreshDashboardForTab('monitoring', 'auto-refresh');
+
+    assert.equal(monitoringCalls, 1);
+    assert.equal(bansCalls, 0);
+    assert.equal(suggestionsCalls, 0);
+    assert.equal(ipBansSeedCalls, 0);
+    const bansSnapshot = store.getSnapshot('bans') || {};
+    assert.equal(Array.isArray(bansSnapshot.bans), true);
+    assert.equal(bansSnapshot.bans.length, 1);
   });
 });
 
@@ -863,17 +1033,12 @@ test('refresh runtime seeds monitoring cursor from window end instead of replayi
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
     const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
-    const storageState = new Map();
     const storage = {
-      getItem(key) {
-        return storageState.has(key) ? storageState.get(key) : null;
+      getItem() {
+        return null;
       },
-      setItem(key, value) {
-        storageState.set(key, String(value));
-      },
-      removeItem(key) {
-        storageState.delete(key);
-      }
+      setItem() {},
+      removeItem() {}
     };
 
     const deltaCalls = [];
@@ -928,7 +1093,7 @@ test('refresh runtime seeds monitoring cursor from window end instead of replayi
     });
 
     await runtime.refreshMonitoringTab('manual');
-    await runtime.refreshMonitoringTab('manual-refresh');
+    await runtime.refreshMonitoringTab('manual');
 
     assert.equal(deltaCalls.length, 2);
     assert.equal(deltaCalls[0].limit, 1);
@@ -936,7 +1101,7 @@ test('refresh runtime seeds monitoring cursor from window end instead of replayi
   });
 });
 
-test('adversary-sim-toggle refresh bypasses cached monitoring and preserves analytics ban_count', { concurrency: false }, async () => {
+test('manual refresh bypasses monitoring cache while passive reasons honor cached baseline', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
@@ -965,15 +1130,18 @@ test('adversary-sim-toggle refresh bypasses cached monitoring and preserves anal
     storage.setItem(
       'shuma_dashboard_cache_monitoring_v1',
       JSON.stringify({
-        monitoring: {
-          summary: {},
-          details: {
-            analytics: { ban_count: 100, test_mode: false, fail_mode: 'open' },
-            events: { recent_events: [] },
-            bans: { bans: compactedBans },
-            maze: {},
-            cdp: {},
-            cdp_events: { events: [] }
+        cachedAt: Date.now(),
+        payload: {
+          monitoring: {
+            summary: {},
+            details: {
+              analytics: { ban_count: 100, test_mode: false, fail_mode: 'open' },
+              events: { recent_events: [] },
+              bans: { bans: compactedBans },
+              maze: {},
+              cdp: {},
+              cdp_events: { events: [] }
+            }
           }
         }
       })
@@ -1012,7 +1180,7 @@ test('adversary-sim-toggle refresh bypasses cached monitoring and preserves anal
           window_end_cursor: 'cursor-1',
           next_cursor: 'cursor-1',
           has_more: false,
-          overflow: 'none',
+          overflow: 'limit_exceeded',
           events: [],
           freshness: { state: 'fresh' }
         };
@@ -1031,11 +1199,168 @@ test('adversary-sim-toggle refresh bypasses cached monitoring and preserves anal
       storage
     });
 
-    await runtime.refreshMonitoringTab('adversary-sim-toggle');
+    await runtime.refreshMonitoringTab('session-restored');
+    assert.equal(fullFetchCount, 0);
+    assert.equal(
+      Number((store.getSnapshot('analytics') || {}).ban_count || 0),
+      100
+    );
+
+    await runtime.refreshMonitoringTab('manual-refresh');
     assert.equal(fullFetchCount, 1);
     assert.equal(
       Number((store.getSnapshot('analytics') || {}).ban_count || 0),
       164
+    );
+  });
+});
+
+test('monitoring refresh recovers cleanly after transient failure without synthetic freshness overwrite', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    store.setSnapshot('monitoringFreshness', {
+      state: 'stale',
+      lag_ms: 212000,
+      last_event_ts: 1_700_000_000,
+      slow_consumer_lag_state: 'normal',
+      overflow: 'none',
+      transport: 'snapshot_poll'
+    });
+
+    const storageState = new Map();
+    const storage = {
+      getItem(key) {
+        return storageState.has(key) ? storageState.get(key) : null;
+      },
+      setItem(key, value) {
+        storageState.set(key, String(value));
+      },
+      removeItem(key) {
+        storageState.delete(key);
+      }
+    };
+
+    let shouldFail = true;
+    const apiClient = {
+      async getConfig() {
+        return {};
+      },
+      async getBans() {
+        return { bans: [] };
+      },
+      async getIpRangeSuggestions() {
+        return {
+          summary: {
+            suggestions_total: 0,
+            low_risk: 0,
+            medium_risk: 0,
+            high_risk: 0
+          },
+          suggestions: []
+        };
+      },
+      async getMonitoring() {
+        if (shouldFail) {
+          shouldFail = false;
+          throw new Error('transient monitoring read failure');
+        }
+        return {
+          freshness: {
+            state: 'fresh',
+            lag_ms: 0,
+            last_event_ts: 1_700_000_050,
+            slow_consumer_lag_state: 'normal',
+            overflow: 'none',
+            transport: 'snapshot_poll'
+          },
+          summary: {},
+          details: {
+            analytics: { ban_count: 0, test_mode: false, fail_mode: 'open' },
+            events: {
+              recent_events: [{
+                ts: 1_700_000_050,
+                event: 'Challenge',
+                ip: '198.51.100.9',
+                reason: 'recovered-refresh',
+                outcome: 'served'
+              }]
+            },
+            bans: { bans: [] },
+            maze: {},
+            cdp: {},
+            cdp_events: { events: [] }
+          }
+        };
+      },
+      async getMonitoringDelta(params = {}) {
+        return {
+          after_cursor: String(params.after_cursor || ''),
+          window_end_cursor: 'cursor-after-recovery',
+          next_cursor: 'cursor-after-recovery',
+          has_more: false,
+          overflow: 'none',
+          events: [],
+          freshness: {
+            state: 'fresh',
+            lag_ms: 0,
+            last_event_ts: 1_700_000_050,
+            slow_consumer_lag_state: 'normal',
+            overflow: 'none',
+            transport: 'cursor_delta_poll'
+          }
+        };
+      },
+      async getIpBansDelta(params = {}) {
+        return {
+          after_cursor: String(params.after_cursor || ''),
+          window_end_cursor: 'ip-bans-cursor-after-recovery',
+          next_cursor: 'ip-bans-cursor-after-recovery',
+          has_more: false,
+          overflow: 'none',
+          active_bans: [],
+          freshness: {
+            state: 'fresh',
+            lag_ms: 0,
+            last_event_ts: 1_700_000_050,
+            slow_consumer_lag_state: 'normal',
+            overflow: 'none',
+            transport: 'cursor_delta_poll'
+          }
+        };
+      }
+    };
+
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => apiClient,
+      getStateStore: () => store,
+      deriveMonitoringAnalytics: () => ({ ban_count: 0, test_mode: false, fail_mode: 'open' }),
+      storage
+    });
+
+    await runtime.refreshDashboardForTab('monitoring', 'manual-refresh');
+    const failedStatus = store.getState().tabStatus.monitoring;
+    assert.equal(failedStatus.loading, false);
+    assert.equal(Boolean(String(failedStatus.error || '').trim()), true);
+    assert.equal(
+      Number((store.getSnapshot('monitoringFreshness') || {}).last_event_ts || 0),
+      1_700_000_000
+    );
+
+    await runtime.refreshDashboardForTab('monitoring', 'manual-refresh');
+    const recoveredStatus = store.getState().tabStatus.monitoring;
+    assert.equal(recoveredStatus.loading, false);
+    assert.equal(String(recoveredStatus.error || ''), '');
+    assert.equal(
+      Number((store.getSnapshot('monitoringFreshness') || {}).last_event_ts || 0),
+      1_700_000_050
+    );
+    assert.equal(
+      ((store.getSnapshot('events') || {}).recent_events || []).some((row) => row.reason === 'recovered-refresh'),
+      true
     );
   });
 });
@@ -1232,10 +1557,33 @@ test('monitoring view model and status module remain pure snapshot transforms', 
 
     const defenseTrendRows = monitoringModelModule.deriveDefenseTrendRows(gc10Events);
     const challengeTrend = defenseTrendRows.find((row) => row.defense === 'challenge');
+    const tarpitTrend = defenseTrendRows.find((row) => row.defense === 'tarpit');
     assert.equal(Boolean(challengeTrend), true);
     assert.equal(challengeTrend?.triggerCount, 1);
+    assert.equal(challengeTrend?.label, 'Puzzle');
     assert.equal(challengeTrend?.escalationCount, 1);
+    assert.equal(challengeTrend?.hasOutcomeBreakdown, true);
     assert.equal(challengeTrend?.sourceRows.some((row) => row.source === 'sim' && row.count === 1), true);
+    assert.equal(Boolean(tarpitTrend), true);
+    assert.equal(tarpitTrend?.triggerCount, 1);
+    assert.equal(tarpitTrend?.hasOutcomeBreakdown, false);
+    assert.equal(tarpitTrend?.passCount, 0);
+    assert.equal(tarpitTrend?.failCount, 0);
+    assert.equal(tarpitTrend?.escalationCount, 0);
+    const defenseTrendAccumulator = monitoringModelModule.createDefenseTrendAccumulator();
+    monitoringModelModule.appendDefenseTrendEvent(defenseTrendAccumulator, gc10Events[0]);
+    monitoringModelModule.appendDefenseTrendEvent(defenseTrendAccumulator, gc10Events[1]);
+    let accumulatedDefenseRows =
+      monitoringModelModule.deriveDefenseTrendRowsFromAccumulator(defenseTrendAccumulator);
+    let accumulatedChallenge = accumulatedDefenseRows.find((row) => row.defense === 'challenge');
+    assert.equal(accumulatedChallenge?.triggerCount, 1);
+    monitoringModelModule.appendDefenseTrendEvent(defenseTrendAccumulator, gc10Events[2]);
+    accumulatedDefenseRows =
+      monitoringModelModule.deriveDefenseTrendRowsFromAccumulator(defenseTrendAccumulator);
+    accumulatedChallenge = accumulatedDefenseRows.find((row) => row.defense === 'challenge');
+    const accumulatedPow = accumulatedDefenseRows.find((row) => row.defense === 'pow');
+    assert.equal(accumulatedChallenge?.triggerCount, 1);
+    assert.equal(accumulatedPow?.triggerCount, 1);
 
     const runSummary = monitoringModelModule.deriveAdversaryRunRows(gc10Events, [
       { ip: '198.51.100.200' },
@@ -2066,9 +2414,16 @@ test('monitoring tab applies bounded sanitization and redraw guards', () => {
   assert.match(source, /abortRangeEventsFetch\(\);/);
   assert.match(source, /normalizeReasonRows\(/);
   assert.match(source, /buildTimeSeries\(selectedRangeEvents, selectedTimeRange,/);
-  assert.match(source, /for \(let index = events\.length - 1; index >= 0; index -= 1\)/);
-  assert.match(source, /if \(rawTelemetryFeed\.length > 0\) \{\s*rawTelemetryFeed = \[\];\s*rawTelemetryFeedKeys = new Set\(\);/);
-  assert.match(source, /\? monitoring\.details\.events\.recent_events\.slice\(0, RAW_FEED_MAX_LINES\)/);
+  assert.match(source, /const RATE_REASON_LABELS = Object\.freeze\(\{/);
+  assert.match(source, /const classifyChallengeDisplayLabel = \(event = \{\}\) =>/);
+  assert.match(source, /const normalizeEventForDisplay = \(event = \{\}\) =>/);
+  assert.match(source, /const buildRawTelemetryFeed = \(events = \[\]\) =>/);
+  assert.match(source, /rate: 'rate limit violation'/);
+  assert.match(source, /return 'not-a-bot';/);
+  assert.match(source, /return 'puzzle';/);
+  assert.match(source, /'Puzzle Outcomes'/);
+  assert.match(source, /\$: rawRecentEvents = Array\.isArray\(events\.recent_events\)/);
+  assert.match(source, /\$: rawTelemetryFeed = buildRawTelemetryFeed\(rawRecentEvents\);/);
 });
 
 test('monitoring tab is decomposed into focused subsection components', () => {
@@ -2150,6 +2505,9 @@ test('dashboard refresh runtime enforces cursor-delta + SSE helpers and excludes
   assert.match(source, /const IP_BANS_CACHE_MAX_SUGGESTIONS = 50;/);
   assert.match(source, /const MONITORING_DELTA_LIMIT = 120;/);
   assert.match(source, /const IP_BANS_DELTA_LIMIT = 120;/);
+  assert.match(source, /const MONITORING_FULL_RECENT_EVENTS_LIMIT = 200;/);
+  assert.match(source, /const IP_RANGE_SUGGESTIONS_HOURS = 24;/);
+  assert.match(source, /const IP_RANGE_SUGGESTIONS_LIMIT = 20;/);
   assert.match(source, /const STREAMABLE_TABS = Object\.freeze\(new Set\(\['monitoring', 'ip-bans'\]\)\);/);
   assert.match(source, /function clearAllCaches\(\) \{/);
   assert.match(source, /closeAllStreams\(\);/);
@@ -2169,17 +2527,21 @@ test('dashboard refresh runtime enforces cursor-delta + SSE helpers and excludes
   assert.match(source, /const refreshVerificationTab = \(reason = 'manual'/);
   assert.match(source, /async function refreshFingerprintingTab\(reason = 'manual'/);
   assert.match(source, /dashboardApiClient\.getCdp\(requestOptions\)/);
-  assert.match(source, /dashboardApiClient\.getIpRangeSuggestions\(\{ hours: 24, limit: 20 \}, requestOptions\)/);
+  assert.match(
+    source,
+    /dashboardApiClient\.getIpRangeSuggestions\(\s*\{ hours: IP_RANGE_SUGGESTIONS_HOURS, limit: IP_RANGE_SUGGESTIONS_LIMIT \},\s*requestOptions\s*\)/
+  );
   assert.match(
     source,
     /writeCache\(IP_BANS_CACHE_KEY, \{\s*bans: compactBans,\s*ipRangeSuggestions: compactSuggestions\s*\}\);/m
   );
   assert.match(source, /const includeConfigRefresh = reason !== 'auto-refresh';/);
-  assert.match(source, /reason === 'adversary-sim-toggle'/);
+  assert.equal(source.includes("reason === 'adversary-sim-toggle'"), false);
   assert.match(
     source,
     /includeConfigRefresh \? refreshSharedConfig\(reason, runtimeOptions\) : Promise\.resolve\(null\)/
   );
+  assert.equal(source.includes("refreshIpBansTab('auto-refresh', runtimeOptions)"), false);
 });
 
 test('dashboard route imports native runtime actions directly', () => {
@@ -2195,6 +2557,7 @@ test('dashboard route imports native runtime actions directly', () => {
   assert.match(source, /banDashboardIp/);
   assert.match(source, /unbanDashboardIp/);
   assert.match(source, /getDashboardRobotsPreview/);
+  assert.equal(source.includes("routeController.refreshTab(activeTabKey, 'adversary-sim-toggle')"), false);
 });
 
 test('dashboard route controller gates polling to auto-enabled eligible tabs', () => {

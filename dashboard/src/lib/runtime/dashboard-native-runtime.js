@@ -105,12 +105,18 @@ let dashboardRefreshRuntime = null;
 
 const sessionState = {
   authenticated: false,
-  csrfToken: ''
+  csrfToken: '',
+  expiresAt: 0
 };
 
-function setSessionState(authenticated, csrfToken = '') {
+function setSessionState(authenticated, csrfToken = '', expiresAt = 0) {
+  const parsedExpiry = Number(expiresAt);
   sessionState.authenticated = authenticated === true;
   sessionState.csrfToken = sessionState.authenticated ? String(csrfToken || '') : '';
+  sessionState.expiresAt =
+    sessionState.authenticated && Number.isFinite(parsedExpiry) && parsedExpiry > 0
+      ? Math.floor(parsedExpiry)
+      : 0;
   if (dashboardState) {
     dashboardState.setSession({
       authenticated: sessionState.authenticated,
@@ -167,7 +173,8 @@ async function restoreSessionFromServer() {
     const payload = await response.json().catch(() => ({}));
     const authenticated = payload && payload.authenticated === true;
     const csrfToken = authenticated ? String(payload.csrf_token || '') : '';
-    setSessionState(authenticated, csrfToken);
+    const expiresAtRaw = payload && payload.expires_at !== undefined ? payload.expires_at : 0;
+    setSessionState(authenticated, csrfToken, expiresAtRaw);
     return authenticated;
   } catch (_error) {
     setSessionState(false, '');
@@ -272,7 +279,8 @@ export async function restoreDashboardSession() {
 export function getDashboardSessionState() {
   return {
     authenticated: sessionState.authenticated === true,
-    csrfToken: String(sessionState.csrfToken || '')
+    csrfToken: String(sessionState.csrfToken || ''),
+    expiresAt: Number(sessionState.expiresAt || 0)
   };
 }
 

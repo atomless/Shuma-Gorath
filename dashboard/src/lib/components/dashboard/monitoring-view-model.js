@@ -63,7 +63,7 @@ const IP_RANGE_ACTION_LABELS = Object.freeze({
 
 const IP_RANGE_FALLBACK_LABELS = Object.freeze({
   none: 'Direct',
-  challenge: 'Fallback Challenge',
+  challenge: 'Fallback Puzzle',
   maze: 'Fallback Maze',
   block: 'Fallback Block',
   block_missing_redirect: 'Block (Missing Redirect URL)'
@@ -132,7 +132,7 @@ const EVENT_ORIGIN_LABELS = Object.freeze({
 });
 
 const DEFENSE_LABELS = Object.freeze({
-  challenge: 'Challenge',
+  challenge: 'Puzzle',
   not_a_bot: 'Not-a-Bot',
   pow: 'Proof of Work',
   rate_limit: 'Rate Limiting',
@@ -153,6 +153,14 @@ const OUTCOME_BUCKET_LABELS = Object.freeze({
   escalate: 'Escalate',
   unknown: 'Unknown'
 });
+
+const OUTCOME_BUCKET_SUPPORTED_DEFENSES = new Set([
+  'challenge',
+  'not_a_bot',
+  'pow',
+  'rate_limit',
+  'geo'
+]);
 
 const classifyEventOrigin = (event) => {
   const row = event && typeof event === 'object' ? event : {};
@@ -207,6 +215,9 @@ const classifyDefense = (event) => {
 
 const classifyOutcomeBucket = (outcomeRaw) => {
   const outcome = normalizeToken(outcomeRaw);
+  if (outcome.includes('success')) return 'pass';
+  if (outcome.includes('failure')) return 'fail';
+  if (outcome.includes('replay')) return 'fail';
   if (outcome.includes('allow') || outcome.includes('monitor') || outcome.includes('not-a-bot') || outcome === 'pass') {
     return 'pass';
   }
@@ -217,6 +228,59 @@ const classifyOutcomeBucket = (outcomeRaw) => {
     return 'fail';
   }
   return 'unknown';
+};
+
+const defenseSupportsOutcomeBuckets = (defense) =>
+  OUTCOME_BUCKET_SUPPORTED_DEFENSES.has(String(defense || '').trim());
+
+const classifyOutcomeBucketForDefense = (defense, event) => {
+  if (!defenseSupportsOutcomeBuckets(defense)) {
+    return 'unknown';
+  }
+  const outcome = normalizeToken(event?.outcome);
+  const reason = normalizeToken(event?.reason);
+  const combined = `${outcome} ${reason}`;
+  if (defense === 'challenge') {
+    if (
+      combined.includes('incorrect')
+      || combined.includes('expired')
+      || combined.includes('forbidden')
+      || combined.includes('invalid')
+      || combined.includes('fail')
+    ) {
+      return 'fail';
+    }
+    if (combined.includes('solved') || combined.includes('pass')) {
+      return 'pass';
+    }
+    if (combined.includes('challenge') || combined.includes('maze') || combined.includes('tarpit')) {
+      return 'escalate';
+    }
+    return 'unknown';
+  }
+  if (defense === 'not_a_bot') {
+    if (combined.includes('pass')) return 'pass';
+    if (combined.includes('escalate')) return 'escalate';
+    if (combined.includes('fail') || combined.includes('replay')) return 'fail';
+    return 'unknown';
+  }
+  if (defense === 'rate_limit') {
+    if (combined.includes('fallback_allow') || combined.includes('allow')) return 'pass';
+    if (combined.includes('limited') || combined.includes('challenge') || combined.includes('maze')) {
+      return 'escalate';
+    }
+    if (combined.includes('banned') || combined.includes('deny') || combined.includes('block')) {
+      return 'fail';
+    }
+    return 'unknown';
+  }
+  if (defense === 'geo') {
+    if (combined.includes('challenge') || combined.includes('maze')) return 'escalate';
+    if (combined.includes('block') || combined.includes('deny') || combined.includes('ban')) return 'fail';
+    if (combined.includes('allow') || combined.includes('monitor')) return 'pass';
+    return 'unknown';
+  }
+  return classifyOutcomeBucket(combined);
 };
 
 const isBanOutcomeEvent = (event) => {
@@ -287,34 +351,48 @@ export const filterRecentEvents = (events = [], filters = {}) => {
 
 export const deriveDefenseTrendRows = (events = []) => {
   const rows = Array.isArray(events) ? events : [];
-  /** @type {Map<string, {defense: string, triggerCount: number, passCount: number, failCount: number, escalationCount: number, banOutcomeCount: number, sourceCounts: Record<string, number>}>} */
-  const grouped = new Map();
+  const grouped = createDefenseTrendAccumulator();
   rows.forEach((event) => {
-    const defense = classifyDefense(event);
-    const source = classifyEventOrigin(event);
-    const existing = grouped.get(defense) || {
-      defense,
-      triggerCount: 0,
-      passCount: 0,
-      failCount: 0,
-      escalationCount: 0,
-      banOutcomeCount: 0,
-      sourceCounts: {}
-    };
-    existing.triggerCount += 1;
-    const outcomeBucket = classifyOutcomeBucket(event?.outcome);
-    if (outcomeBucket === 'pass') existing.passCount += 1;
-    if (outcomeBucket === 'fail') existing.failCount += 1;
-    if (outcomeBucket === 'escalate') existing.escalationCount += 1;
-    if (isBanOutcomeEvent(event)) existing.banOutcomeCount += 1;
-    existing.sourceCounts[source] = Number(existing.sourceCounts[source] || 0) + 1;
-    grouped.set(defense, existing);
+    appendDefenseTrendEvent(grouped, event);
   });
+  return deriveDefenseTrendRowsFromAccumulator(grouped);
+};
+
+export const createDefenseTrendAccumulator = () =>
+  new Map();
+
+export const appendDefenseTrendEvent = (accumulator, event) => {
+  const grouped = accumulator instanceof Map ? accumulator : createDefenseTrendAccumulator();
+  const defense = classifyDefense(event);
+  const source = classifyEventOrigin(event);
+  const existing = grouped.get(defense) || {
+    defense,
+    triggerCount: 0,
+    passCount: 0,
+    failCount: 0,
+    escalationCount: 0,
+    banOutcomeCount: 0,
+    sourceCounts: {}
+  };
+  existing.triggerCount += 1;
+  const outcomeBucket = classifyOutcomeBucketForDefense(defense, event);
+  if (outcomeBucket === 'pass') existing.passCount += 1;
+  if (outcomeBucket === 'fail') existing.failCount += 1;
+  if (outcomeBucket === 'escalate') existing.escalationCount += 1;
+  if (isBanOutcomeEvent(event)) existing.banOutcomeCount += 1;
+  existing.sourceCounts[source] = Number(existing.sourceCounts[source] || 0) + 1;
+  grouped.set(defense, existing);
+  return grouped;
+};
+
+export const deriveDefenseTrendRowsFromAccumulator = (accumulator) => {
+  const grouped = accumulator instanceof Map ? accumulator : createDefenseTrendAccumulator();
   return Array.from(grouped.values())
     .sort((left, right) => right.triggerCount - left.triggerCount)
     .map((row) => ({
       defense: row.defense,
       label: DEFENSE_LABELS[row.defense] || row.defense,
+      hasOutcomeBreakdown: defenseSupportsOutcomeBuckets(row.defense),
       triggerCount: row.triggerCount,
       passCount: row.passCount,
       failCount: row.failCount,
