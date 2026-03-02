@@ -72,6 +72,8 @@ pub struct ControlState {
     #[serde(default)]
     pub phase: ControlPhase,
     #[serde(default)]
+    pub desired_enabled: bool,
+    #[serde(default)]
     pub run_id: Option<String>,
     #[serde(default)]
     pub started_at: Option<u64>,
@@ -105,6 +107,7 @@ impl Default for ControlState {
     fn default() -> Self {
         Self {
             phase: ControlPhase::Off,
+            desired_enabled: false,
             run_id: None,
             started_at: None,
             ends_at: None,
@@ -212,6 +215,7 @@ pub fn start_state(
     };
     let next = ControlState {
         phase: ControlPhase::Running,
+        desired_enabled: true,
         run_id: Some(run_id),
         started_at: Some(now),
         ends_at: Some(now.saturating_add(clamp_duration_seconds(duration_seconds))),
@@ -239,6 +243,7 @@ pub fn stop_state(now: u64, reason: &str, current: &ControlState) -> (ControlSta
     }
 
     let mut next = current.clone();
+    next.desired_enabled = false;
     next.phase = ControlPhase::Stopping;
     next.stop_deadline = Some(now.saturating_add(STOP_TIMEOUT_SECONDS));
     next.last_transition_reason = Some(reason.to_string());
@@ -262,6 +267,7 @@ pub fn reconcile_state(
     current: &ControlState,
 ) -> (ControlState, Vec<Transition>) {
     let mut next = current.clone();
+    next.desired_enabled = cfg_enabled;
     let mut transitions: Vec<Transition> = Vec::new();
 
     if next.phase == ControlPhase::Running {

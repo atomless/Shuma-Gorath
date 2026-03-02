@@ -1031,8 +1031,10 @@ fn maybe_run_autonomous_adversary_supervisor(store: &Store, req: &Request) {
     let now = admin::now_ts();
     let mut state = admin::adversary_sim::load_state(store, site_id);
     let previous_state = state.clone();
+    cfg.adversary_sim_enabled = cfg.adversary_sim_enabled || state.desired_enabled;
     let (reconciled_state, _) = admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
     state = reconciled_state;
+    cfg.adversary_sim_enabled = cfg.adversary_sim_enabled || state.desired_enabled;
     if cfg.adversary_sim_enabled && state.phase == admin::adversary_sim::ControlPhase::Off {
         config::set_runtime_adversary_sim_enabled_override(site_id, false);
         cfg.adversary_sim_enabled = false;

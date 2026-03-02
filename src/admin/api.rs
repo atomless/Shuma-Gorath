@@ -2325,11 +2325,19 @@ mod admin_config_tests {
                 .and_then(|v| v.as_u64()),
             Some(2)
         );
+        // Simulate a new runtime instance where in-memory ephemeral overrides are not retained.
+        crate::config::clear_runtime_cache_for_tests();
 
         let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
         let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
         assert_eq!(*status_resp.status(), 200u16);
         let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
+        assert_eq!(
+            status_json
+                .get("adversary_sim_enabled")
+                .and_then(|v| v.as_bool()),
+            Some(true)
+        );
         assert_eq!(
             status_json.get("phase").and_then(|v| v.as_str()),
             Some("running")
@@ -2470,6 +2478,7 @@ mod admin_config_tests {
 
         let stale_state = crate::admin::adversary_sim::ControlState {
             phase: crate::admin::adversary_sim::ControlPhase::Running,
+            desired_enabled: false,
             run_id: Some("simrun-stale".to_string()),
             started_at: Some(now.saturating_sub(600)),
             ends_at: Some(now.saturating_sub(300)),
@@ -2875,6 +2884,7 @@ mod admin_config_tests {
 
         let stale_running_state = crate::admin::adversary_sim::ControlState {
             phase: crate::admin::adversary_sim::ControlPhase::Running,
+            desired_enabled: false,
             run_id: Some("simrun-stale-running".to_string()),
             started_at: Some(now.saturating_sub(30)),
             ends_at: Some(now.saturating_add(120)),
@@ -3399,6 +3409,7 @@ mod admin_config_tests {
 
         let stale_running_state = crate::admin::adversary_sim::ControlState {
             phase: crate::admin::adversary_sim::ControlPhase::Running,
+            desired_enabled: false,
             run_id: Some("run-stale".to_string()),
             started_at: Some(now.saturating_sub(180)),
             ends_at: Some(now.saturating_sub(1)),
@@ -11645,6 +11656,13 @@ fn reconcile_adversary_sim_enabled_runtime_override(
     }
 }
 
+fn effective_adversary_sim_enabled(
+    cfg: &crate::config::Config,
+    state: &crate::admin::adversary_sim::ControlState,
+) -> bool {
+    cfg.adversary_sim_enabled || state.desired_enabled
+}
+
 fn handle_admin_adversary_sim_status(
     req: &Request,
     store: &impl crate::challenge::KeyValueStore,
@@ -11667,6 +11685,7 @@ fn handle_admin_adversary_sim_status(
     };
     let now = now_ts();
     let mut state = crate::admin::adversary_sim::load_state(store, site_id);
+    cfg.adversary_sim_enabled = effective_adversary_sim_enabled(&cfg, &state);
     let (reconciled_state, _) =
         crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
     if reconciled_state != state {
@@ -11675,6 +11694,7 @@ fn handle_admin_adversary_sim_status(
             return Response::new(500, "Key-value store error");
         }
     }
+    cfg.adversary_sim_enabled = effective_adversary_sim_enabled(&cfg, &state);
     reconcile_adversary_sim_enabled_runtime_override(site_id, &mut cfg, &state);
 
     let body = serde_json::to_string(&adversary_sim_status_payload(store, site_id, &cfg, &state, now))
@@ -11768,6 +11788,7 @@ fn handle_admin_adversary_sim_tick(
     };
     let mut state = crate::admin::adversary_sim::load_state(store, site_id);
     let now = now_ts();
+    cfg.adversary_sim_enabled = effective_adversary_sim_enabled(&cfg, &state);
     let (reconciled_state, _) =
         crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
     if reconciled_state != state {
@@ -11776,6 +11797,7 @@ fn handle_admin_adversary_sim_tick(
             return Response::new(500, "Key-value store error");
         }
     }
+    cfg.adversary_sim_enabled = effective_adversary_sim_enabled(&cfg, &state);
     reconcile_adversary_sim_enabled_runtime_override(site_id, &mut cfg, &state);
 
     if !cfg.adversary_sim_enabled || state.phase != crate::admin::adversary_sim::ControlPhase::Running {
@@ -11933,6 +11955,7 @@ fn handle_admin_adversary_sim_control(
         Err(err) => return Response::new(500, err.user_message()),
     };
     let mut state = crate::admin::adversary_sim::load_state(store, site_id);
+    cfg.adversary_sim_enabled = effective_adversary_sim_enabled(&cfg, &state);
     let (reconciled_state, _) =
         crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
     if reconciled_state != state {
@@ -11941,6 +11964,7 @@ fn handle_admin_adversary_sim_control(
             return Response::new(500, "Key-value store error");
         }
     }
+    cfg.adversary_sim_enabled = effective_adversary_sim_enabled(&cfg, &state);
     reconcile_adversary_sim_enabled_runtime_override(site_id, &mut cfg, &state);
 
     let debounce_key =
