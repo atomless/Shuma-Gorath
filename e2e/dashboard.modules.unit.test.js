@@ -2,10 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
 const { pathToFileURL } = require('node:url');
 
-const CHART_LITE_PATH = 'dashboard/static/assets/vendor/chart-lite-1.0.0.min.js';
 const DASHBOARD_ROOT = path.resolve(__dirname, '..', 'dashboard');
 const DASHBOARD_NATIVE_RUNTIME_PATH = path.join(
   DASHBOARD_ROOT,
@@ -222,71 +220,6 @@ function detectCycles(adjacency) {
 
   Array.from(adjacency.keys()).forEach((node) => visit(node));
   return cycles;
-}
-
-function createMockCanvasContext() {
-  const calls = {
-    fillText: [],
-    moveTo: [],
-    lineTo: [],
-    fillStyle: []
-  };
-  const gradient = { addColorStop: () => {} };
-  const canvas = { clientWidth: 320, clientHeight: 180, width: 320, height: 180 };
-  const ctx = {
-    canvas,
-    save: () => {},
-    restore: () => {},
-    clearRect: () => {},
-    setTransform: () => {},
-    beginPath: () => {},
-    moveTo: (x, y) => calls.moveTo.push([x, y]),
-    lineTo: (x, y) => calls.lineTo.push([x, y]),
-    arc: () => {},
-    closePath: () => {},
-    fill: () => {},
-    stroke: () => {},
-    fillRect: () => {},
-    createLinearGradient: () => gradient,
-    fillText: (text) => calls.fillText.push(String(text))
-  };
-  let fillStyleValue = '';
-  Object.defineProperty(ctx, 'fillStyle', {
-    get() {
-      return fillStyleValue;
-    },
-    set(value) {
-      fillStyleValue = String(value);
-      calls.fillStyle.push(fillStyleValue);
-    }
-  });
-  return { ctx, calls };
-}
-
-function loadClassicBrowserScript(relativePath, overrides = {}) {
-  const absolutePath = path.resolve(__dirname, '..', relativePath);
-  const source = fs.readFileSync(absolutePath, 'utf8');
-  const sandbox = {
-    window: {
-      ...overrides
-    },
-    document: overrides.document,
-    location: overrides.location,
-    navigator: overrides.navigator,
-    fetch: overrides.fetch || (typeof fetch === 'undefined' ? undefined : fetch),
-    console,
-    URL,
-    Headers: typeof Headers === 'undefined' ? function HeadersShim() {} : Headers,
-    Request: typeof Request === 'undefined' ? function RequestShim() {} : Request,
-    Response: typeof Response === 'undefined' ? function ResponseShim() {} : Response
-  };
-  if (sandbox.document && !sandbox.window.document) sandbox.window.document = sandbox.document;
-  if (sandbox.location && !sandbox.window.location) sandbox.window.location = sandbox.location;
-  if (sandbox.navigator && !sandbox.window.navigator) sandbox.window.navigator = sandbox.navigator;
-  sandbox.globalThis = sandbox.window;
-  vm.createContext(sandbox);
-  vm.runInContext(source, sandbox, { filename: absolutePath });
-  return sandbox.window;
 }
 
 test('dashboard API adapters normalize sparse payloads safely', { concurrency: false }, async () => {
@@ -606,82 +539,67 @@ test('dashboard API client times out stalled requests with DashboardApiError', {
   });
 });
 
-test('chart-lite renders doughnut legend labels and dark center fill', () => {
-  const script = loadClassicBrowserScript(CHART_LITE_PATH, {});
-  const Chart = script.Chart;
-  const { ctx, calls } = createMockCanvasContext();
-
-  new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: ['Allow', 'Challenge', 'Block'],
-      datasets: [{ data: [10, 4, 1] }]
-    },
-    options: { theme: 'dark' }
-  });
-
-  assert.equal(calls.fillText.includes('Allow'), true);
-  assert.equal(calls.fillStyle.length > 0, true);
-  assert.equal(calls.fillStyle.every((entry) => String(entry).toLowerCase() === '#ffffff'), false);
-});
-
 test('chart runtime adapter lazily loads once and tears down on final release', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const adapter = await importBrowserModule('dashboard/src/lib/domain/services/chart-runtime-adapter.js');
     const win = { location: { pathname: '/dashboard/index.html' }, Chart: undefined };
-
-    const appendedScripts = [];
-    const scriptNode = {
-      dataset: {},
-      attributes: {},
-      parentNode: null,
-      setAttribute(name, value) {
-        this.attributes[name] = value;
-      },
-      getAttribute(name) {
-        return this.attributes[name] || '';
-      },
-      addEventListener(event, handler) {
-        if (event === 'load') {
-          this._onload = handler;
-        }
-      },
-      removeEventListener() {}
+    let loaderCalls = 0;
+    const ChartMock = function ChartMock() {};
+    const loader = async () => {
+      loaderCalls += 1;
+      return { Chart: ChartMock };
     };
 
-    const doc = {
-      head: {
-        appendChild(node) {
-          appendedScripts.push(node);
-          node.parentNode = this;
-          win.Chart = function ChartMock() {};
-          if (typeof node._onload === 'function') node._onload();
-        },
-        removeChild(node) {
-          node.parentNode = null;
-        }
-      },
-      body: null,
-      createElement() {
-        return { ...scriptNode, dataset: {}, attributes: {} };
-      },
-      querySelectorAll() {
-        return [];
-      }
-    };
-
-    const one = await adapter.acquireChartRuntime({ window: win, document: doc, src: '/dashboard/assets/chart-lite.js' });
-    const two = await adapter.acquireChartRuntime({ window: win, document: doc, src: '/dashboard/assets/chart-lite.js' });
+    const one = await adapter.acquireChartRuntime({ window: win, loader });
+    const two = await adapter.acquireChartRuntime({ window: win, loader });
 
     assert.equal(typeof one, 'function');
     assert.equal(one, two);
-    assert.equal(appendedScripts.length, 1);
+    assert.equal(one, ChartMock);
+    assert.equal(loaderCalls, 1);
 
-    adapter.releaseChartRuntime({ window: win, document: doc });
+    adapter.releaseChartRuntime({ window: win });
     assert.equal(typeof win.Chart, 'function');
-    adapter.releaseChartRuntime({ window: win, document: doc });
+    adapter.releaseChartRuntime({ window: win });
     assert.equal(win.Chart, undefined);
   });
+});
+
+test('monitoring chart presets enforce shared palette and stable x-axis layout', { concurrency: false }, async () => {
+  const presets = await importBrowserModule('dashboard/src/lib/domain/monitoring-chart-presets.js');
+  assert.equal(Array.isArray(presets.MONITORING_CHART_PALETTE), true);
+  assert.equal(presets.MONITORING_CHART_PALETTE.length >= 3, true);
+  assert.equal(presets.MONITORING_TIME_SERIES_FILL.events, presets.MONITORING_CHART_PALETTE[0]);
+  assert.equal(presets.MONITORING_TIME_SERIES_FILL.challenge, presets.MONITORING_CHART_PALETTE[1]);
+  assert.equal(presets.MONITORING_TIME_SERIES_FILL.pow, presets.MONITORING_CHART_PALETTE[2]);
+
+  const xAxis = presets.buildMonitoringTimeSeriesXAxis();
+  assert.equal(xAxis.ticks.autoSkip, true);
+  assert.equal(xAxis.ticks.maxTicksLimit, presets.MONITORING_TIME_SERIES_TICK_MAX);
+  assert.equal(xAxis.ticks.minRotation, 0);
+  assert.equal(xAxis.ticks.maxRotation, 0);
+  assert.equal(xAxis.ticks.autoSkipPadding, presets.MONITORING_TIME_SERIES_TICK_PADDING);
+  assert.equal(presets.MONITORING_TIME_SERIES_OMIT_FINAL_TICK_LABEL, true);
+
+  const tickLabel = xAxis.ticks.callback.call(
+    { getLabelForValue: () => 'September 29 13:45' },
+    0,
+    0,
+    [{ value: 0 }, { value: 1 }]
+  );
+  assert.equal(typeof tickLabel, 'string');
+  assert.equal(tickLabel.length <= (presets.MONITORING_TIME_SERIES_TICK_MAX_CHARS + 3), true);
+  const finalTickLabel = xAxis.ticks.callback.call(
+    { getLabelForValue: () => 'September 29 14:00' },
+    1,
+    1,
+    [{ value: 0 }, { value: 1 }]
+  );
+  assert.equal(finalTickLabel, '');
+
+  const scale = { height: 999 };
+  xAxis.afterFit(scale);
+  assert.equal(scale.height, presets.MONITORING_TIME_SERIES_AXIS_HEIGHT_PX);
 });
 
 test('dashboard state and store contracts remain immutable and bounded', { concurrency: false }, async () => {
@@ -868,6 +786,8 @@ test('monitoring auto-refresh refreshes monitoring snapshots without extra ip-ba
 
     const now = 1_700_000_200;
     let monitoringCalls = 0;
+    let monitoringDeltaSeedCalls = 0;
+    let monitoringDeltaCalls = 0;
     let bansCalls = 0;
     let suggestionsCalls = 0;
     let ipBansSeedCalls = 0;
@@ -930,6 +850,7 @@ test('monitoring auto-refresh refreshes monitoring snapshots without extra ip-ba
       },
       async getMonitoringDelta(params = {}) {
         if (Number(params.limit || 0) === 1) {
+          monitoringDeltaSeedCalls += 1;
           return {
             after_cursor: '',
             window_end_cursor: 'monitoring-window-end',
@@ -940,6 +861,7 @@ test('monitoring auto-refresh refreshes monitoring snapshots without extra ip-ba
             freshness: { state: 'fresh', lag_ms: 0 }
           };
         }
+        monitoringDeltaCalls += 1;
         return {
           after_cursor: String(params.after_cursor || ''),
           window_end_cursor: 'monitoring-window-end',
@@ -1018,6 +940,11 @@ test('monitoring auto-refresh refreshes monitoring snapshots without extra ip-ba
     await runtime.refreshDashboardForTab('monitoring', 'auto-refresh');
 
     assert.equal(monitoringCalls, 1);
+    assert.equal(monitoringDeltaSeedCalls, 1);
+    assert.equal(monitoringDeltaCalls, 0);
+    await runtime.refreshDashboardForTab('monitoring', 'auto-refresh');
+    assert.equal(monitoringCalls, 1);
+    assert.equal(monitoringDeltaCalls, 1);
     assert.equal(bansCalls, 0);
     assert.equal(suggestionsCalls, 0);
     assert.equal(ipBansSeedCalls, 0);
@@ -1618,6 +1545,10 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(Array.isArray(series.data), true);
     assert.equal(series.labels.length > 0, true);
     assert.equal(series.data.length, series.labels.length);
+    const bucketTs = 1710000000 * 1000;
+    const hourLabel = monitoringNormalizers.formatBucketLabel('hour', bucketTs);
+    const dayLabel = monitoringNormalizers.formatBucketLabel('day', bucketTs);
+    assert.equal(dayLabel, hourLabel);
 
     const configSnapshot = {
       kv_store_fail_open: true,
@@ -2163,8 +2094,12 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(ipBansSource, /export let ipRangeSuggestionsSnapshot = null;/);
   assert.match(ipBansSource, /let banFilter = 'all';/);
   assert.match(ipBansSource, /id="ip-ban-filter"/);
+  assert.match(ipBansSource, /class="chart-canvas-shell chart-canvas-shell--ip-bans"/);
   assert.match(ipBansSource, /id="ip-ban-reasons-chart"/);
   assert.match(ipBansSource, /type: 'doughnut'/);
+  assert.match(ipBansSource, /animation: false,/);
+  assert.match(ipBansSource, /maintainAspectRatio: false,/);
+  assert.match(ipBansSource, /canvasHasRenderableSize\(canvas\)/);
   assert.match(ipBansSource, /window\.addEventListener\('resize', onResize, \{ passive: true \}\);/);
   assert.match(ipBansSource, /if \(browser && nextActive && !wasActive\)/);
   assert.match(ipBansSource, /id="ip-range-suggestions-table"/);
@@ -2413,6 +2348,11 @@ test('monitoring tab applies bounded sanitization and redraw guards', () => {
   assert.match(source, /const RANGE_EVENTS_FETCH_LIMIT = 5000;/);
   assert.match(source, /const RANGE_EVENTS_REQUEST_TIMEOUT_MS = 10000;/);
   assert.match(source, /const RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS = 180000;/);
+  assert.match(source, /from '\.\.\/\.\.\/domain\/monitoring-chart-presets\.js';/);
+  assert.match(source, /x: buildMonitoringTimeSeriesXAxis\(\),/);
+  assert.match(source, /MONITORING_TIME_SERIES_FILL\.challenge/);
+  assert.match(source, /MONITORING_TIME_SERIES_FILL\.pow/);
+  assert.match(source, /MONITORING_TIME_SERIES_FILL\.events/);
   assert.match(source, /export let autoRefreshEnabled = false;/);
   assert.match(source, /sameSeries\(chart, trendSeries\.labels, trendSeries\.data\)/);
   assert.match(source, /abortRangeEventsFetch\(\);/);

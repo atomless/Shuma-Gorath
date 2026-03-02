@@ -226,10 +226,15 @@ export function createDashboardRouteController(options = {}) {
     }
   }
 
-  function schedulePolling(resumeReason = 'schedule') {
+  function schedulePolling(resumeReason = 'schedule', delayOverrideMs = null) {
     clearPolling();
     const activeTab = normalizeTab(store ? store.getState().activeTab : tabs[0]);
     const intervalMs = normalizeRefreshInterval(selectRefreshInterval(activeTab));
+    const delayMs = (() => {
+      const numeric = Number(delayOverrideMs);
+      if (!Number.isFinite(numeric) || numeric < 0) return intervalMs;
+      return Math.max(0, Math.floor(numeric));
+    })();
     setPollingContext(activeTab, intervalMs);
 
     if (!mounted) {
@@ -289,9 +294,12 @@ export function createDashboardRouteController(options = {}) {
         schedulePolling('condition-recheck');
         return;
       }
+      const cycleStartedAt = nowMs();
       await refreshTab(currentTab, 'auto-refresh');
-      schedulePolling('cycle');
-    }, intervalMs);
+      const cycleElapsedMs = Math.max(0, nowMs() - cycleStartedAt);
+      const nextDelayMs = Math.max(0, currentInterval - cycleElapsedMs);
+      schedulePolling('cycle', nextDelayMs);
+    }, delayMs);
   }
 
   async function applyActiveTab(tab, options = {}) {

@@ -10,10 +10,6 @@ export function load({ url }) {
 
   return {
     dashboardBasePath,
-    chartRuntimeSrc: resolveDashboardAssetPath(
-      dashboardBasePath,
-      'assets/vendor/chart-lite-1.0.0.min.js'
-    ),
     shumaImageSrc: resolveDashboardAssetPath(
       dashboardBasePath,
       'assets/shuma-gorath-pencil.png'

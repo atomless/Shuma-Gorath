@@ -94,7 +94,7 @@
       </table>
     </TableWrapper>
   </div>
-  <div class="chart-container panel-soft panel-border pad-md-trb">
+  <div class="chart-container panel-soft panel-border pad-md">
     <canvas id="challengeFailuresTrendChart" bind:this={challengeTrendCanvas}></canvas>
   </div>
   <div class="panel panel-border">

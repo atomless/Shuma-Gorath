@@ -32,6 +32,11 @@
     normalizeTrendSeries,
     shouldFetchRange
   } from '../../domain/monitoring-normalizers.js';
+  import {
+    MONITORING_CHART_PALETTE,
+    MONITORING_TIME_SERIES_FILL,
+    buildMonitoringTimeSeriesXAxis
+  } from '../../domain/monitoring-chart-presets.js';
   import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
   import { arraysEqualShallow } from '../../domain/core/format.js';
   import { normalizeLowerTrimmed } from '../../domain/core/strings.js';
@@ -61,23 +66,12 @@
   const RANGE_EVENTS_REQUEST_TIMEOUT_MS = 10000;
   const RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS = 180000;
   const CHART_RESIZE_REDRAW_DEBOUNCE_MS = 180;
-  const CHALLENGE_TREND_COLOR = 'rgba(122, 114, 255, 0.35)';
-  const POW_TREND_COLOR = 'rgba(255, 130, 92, 0.35)';
   const POW_OUTCOME_LABELS = Object.freeze({
     success: 'Success',
     failure: 'Failure'
   });
-  const CHART_PALETTE = [
-    'rgb(255,205,235)',
-    'rgb(225,175,205)',
-    'rgb(205, 155, 185)',
-    'rgb(190, 140, 170)',
-    'rgb(175, 125, 155)',
-    'rgb(160, 110, 140)',
-    'rgb(147, 97, 127)',
-    'rgb(135, 85, 115)'
-  ];
   const TIME_RANGES = Object.freeze(['hour', 'day', 'week', 'month']);
+  const RANGE_CACHEABLE_WINDOWS = Object.freeze(['week', 'month']);
 
   export let managed = false;
   export let isActive = true;
@@ -113,10 +107,12 @@
     defense: 'all',
     outcome: 'all'
   };
-  let rangeEventsSnapshot = { range: '', recent_events: [] };
+  let rangeEventsByWindow = {
+    week: { recent_events: [], fetchedAtMs: 0, loading: false },
+    month: { recent_events: [], fetchedAtMs: 0, loading: false }
+  };
   let rangeEventsAbortController = null;
   let lastRequestedRange = '';
-  let rangeEventsLastFetchedAtMs = 0;
   let lastRangeTabUpdateAnchor = '';
   let rawRecentEvents = [];
   let filteredRecentEvents = [];
@@ -311,6 +307,13 @@
     return chart;
   };
 
+  const resizeChartIfNeeded = (chart, needsRefresh) => {
+    if (!needsRefresh) return;
+    if (chart && typeof chart.resize === 'function') {
+      chart.resize();
+    }
+  };
+
   const requestChartRefresh = () => {
     chartRefreshNonce += 1;
   };
@@ -375,6 +378,7 @@
           maintainAspectRatio: true,
           plugins: { legend: { display: false } },
           scales: {
+            x: buildMonitoringTimeSeriesXAxis(),
             y: {
               beginAtZero: true,
               ticks: { stepSize: 1 }
@@ -384,12 +388,15 @@
       }), refreshNonce);
     }
 
-    if (!chartNeedsRefresh(chart, refreshNonce) && sameSeries(chart, trendSeries.labels, trendSeries.data)) {
+    const needsRefresh = chartNeedsRefresh(chart, refreshNonce);
+    const hasSameSeries = sameSeries(chart, trendSeries.labels, trendSeries.data);
+    if (!needsRefresh && hasSameSeries) {
       return chart;
     }
+    resizeChartIfNeeded(chart, needsRefresh);
     chart.data.labels = trendSeries.labels;
     chart.data.datasets[0].data = trendSeries.data;
-    chart.update();
+    chart.update('none');
     return stampChartRefresh(chart, refreshNonce);
   };
 
@@ -400,31 +407,43 @@
     if (!ctx) return chart;
     const labels = Object.keys(counts || {});
     const data = Object.values(counts || {});
-    const colors = data.map((_, index) => CHART_PALETTE[index % CHART_PALETTE.length]);
+    const colors = data.map((_, index) => MONITORING_CHART_PALETTE[index % MONITORING_CHART_PALETTE.length]);
 
     if (!chart) {
       return stampChartRefresh(new chartCtor(ctx, {
         type: 'doughnut',
         data: {
           labels,
-          datasets: [{ data, backgroundColor: colors, borderColor: colors }]
+          datasets: [{
+            data,
+            backgroundColor: colors,
+            borderColor: 'rgba(0, 0, 0, 0)',
+            borderWidth: 0,
+            hoverBorderWidth: 0
+          }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: true,
+          aspectRatio: 2.2,
           plugins: { legend: { position: 'bottom' } }
         }
       }), refreshNonce);
     }
 
-    if (!chartNeedsRefresh(chart, refreshNonce) && sameSeries(chart, labels, data)) {
+    const needsRefresh = chartNeedsRefresh(chart, refreshNonce);
+    const hasSameSeries = sameSeries(chart, labels, data);
+    if (!needsRefresh && hasSameSeries) {
       return chart;
     }
+    resizeChartIfNeeded(chart, needsRefresh);
     chart.data.labels = labels;
     chart.data.datasets[0].data = data;
     chart.data.datasets[0].backgroundColor = colors;
-    chart.data.datasets[0].borderColor = colors;
-    chart.update();
+    chart.data.datasets[0].borderColor = 'rgba(0, 0, 0, 0)';
+    chart.data.datasets[0].borderWidth = 0;
+    chart.data.datasets[0].hoverBorderWidth = 0;
+    chart.update('none');
     return stampChartRefresh(chart, refreshNonce);
   };
 
@@ -436,18 +455,25 @@
     const pairs = Array.isArray(topIps) ? topIps : [];
     const labels = pairs.map(([ip]) => String(ip || '-'));
     const data = pairs.map(([, count]) => Number(count || 0));
-    const colors = data.map((_, index) => CHART_PALETTE[index % CHART_PALETTE.length]);
+    const colors = data.map((_, index) => MONITORING_CHART_PALETTE[index % MONITORING_CHART_PALETTE.length]);
 
     if (!chart) {
       return stampChartRefresh(new chartCtor(ctx, {
         type: 'bar',
         data: {
           labels,
-          datasets: [{ label: 'Events', data, backgroundColor: colors, borderColor: colors }]
+          datasets: [{
+            label: 'Events',
+            data,
+            backgroundColor: colors,
+            borderColor: 'rgba(0, 0, 0, 0)',
+            borderWidth: 0
+          }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: true,
+          aspectRatio: 2.2,
           scales: {
             y: {
               beginAtZero: true,
@@ -459,14 +485,18 @@
       }), refreshNonce);
     }
 
-    if (!chartNeedsRefresh(chart, refreshNonce) && sameSeries(chart, labels, data)) {
+    const needsRefresh = chartNeedsRefresh(chart, refreshNonce);
+    const hasSameSeries = sameSeries(chart, labels, data);
+    if (!needsRefresh && hasSameSeries) {
       return chart;
     }
+    resizeChartIfNeeded(chart, needsRefresh);
     chart.data.labels = labels;
     chart.data.datasets[0].data = data;
     chart.data.datasets[0].backgroundColor = colors;
-    chart.data.datasets[0].borderColor = colors;
-    chart.update();
+    chart.data.datasets[0].borderColor = 'rgba(0, 0, 0, 0)';
+    chart.data.datasets[0].borderWidth = 0;
+    chart.update('none');
     return stampChartRefresh(chart, refreshNonce);
   };
 
@@ -490,13 +520,14 @@
             pointRadius: 0,
             pointHoverRadius: 0,
             borderColor: 'rgba(0, 0, 0, 0)',
-            backgroundColor: CHART_PALETTE[0]
+            backgroundColor: MONITORING_TIME_SERIES_FILL.events
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: true,
           scales: {
+            x: buildMonitoringTimeSeriesXAxis(),
             y: {
               beginAtZero: true,
               ticks: { stepSize: 1 }
@@ -507,12 +538,15 @@
       }), refreshNonce);
     }
 
-    if (!chartNeedsRefresh(chart, refreshNonce) && sameSeries(chart, series.labels, series.data)) {
+    const needsRefresh = chartNeedsRefresh(chart, refreshNonce);
+    const hasSameSeries = sameSeries(chart, series.labels, series.data);
+    if (!needsRefresh && hasSameSeries) {
       return chart;
     }
+    resizeChartIfNeeded(chart, needsRefresh);
     chart.data.labels = series.labels;
     chart.data.datasets[0].data = series.data;
-    chart.update();
+    chart.update('none');
     return stampChartRefresh(chart, refreshNonce);
   };
 
@@ -540,16 +574,59 @@
     rangeEventsAbortController = null;
   }
 
+  function normalizeRangeWindowKey(range) {
+    const value = String(range || '').trim();
+    return RANGE_CACHEABLE_WINDOWS.includes(value) ? value : '';
+  }
+
+  function readRangeWindowState(range) {
+    const key = normalizeRangeWindowKey(range);
+    if (!key) return { recent_events: [], fetchedAtMs: 0, loading: false };
+    const snapshot = rangeEventsByWindow[key] || {};
+    return {
+      recent_events: Array.isArray(snapshot.recent_events) ? snapshot.recent_events : [],
+      fetchedAtMs: Number(snapshot.fetchedAtMs || 0),
+      loading: snapshot.loading === true
+    };
+  }
+
+  function writeRangeWindowState(range, nextState = {}) {
+    const key = normalizeRangeWindowKey(range);
+    if (!key) return;
+    const previous = readRangeWindowState(key);
+    rangeEventsByWindow = {
+      ...rangeEventsByWindow,
+      [key]: {
+        ...previous,
+        ...nextState,
+        recent_events: Array.isArray(nextState.recent_events)
+          ? nextState.recent_events
+          : previous.recent_events,
+        fetchedAtMs: Number.isFinite(Number(nextState.fetchedAtMs))
+          ? Number(nextState.fetchedAtMs)
+          : previous.fetchedAtMs,
+        loading: nextState.loading === true
+      }
+    };
+  }
+
   async function fetchRangeEvents(range) {
     if (!browser || !shouldFetchRange(range)) return;
+    const targetRange = normalizeRangeWindowKey(range);
+    if (!targetRange) return;
     const hours = hoursForRange(range);
     if (!Number.isFinite(hours)) return;
     if (typeof onFetchEventsRange !== 'function') {
-      rangeEventsSnapshot = { range, recent_events: [] };
+      writeRangeWindowState(targetRange, {
+        recent_events: [],
+        fetchedAtMs: Date.now(),
+        loading: false
+      });
       return;
     }
     abortRangeEventsFetch();
     const abortController = new AbortController();
+    writeRangeWindowState(targetRange, { loading: true });
     const timeoutId = setTimeout(() => {
       abortController.abort();
     }, RANGE_EVENTS_REQUEST_TIMEOUT_MS);
@@ -559,22 +636,22 @@
         signal: abortController.signal
       });
       if (rangeEventsAbortController !== abortController) return;
-      rangeEventsSnapshot = {
-        range,
+      writeRangeWindowState(targetRange, {
         recent_events: Array.isArray(payload?.recent_events)
           ? payload.recent_events.slice(0, RANGE_EVENTS_FETCH_LIMIT)
-          : []
-      };
-      rangeEventsLastFetchedAtMs = Date.now();
+          : [],
+        fetchedAtMs: Date.now(),
+        loading: false
+      });
     } catch (error) {
       if (error && error.name === 'AbortError') return;
       if (rangeEventsAbortController !== abortController) return;
-      rangeEventsSnapshot = { range, recent_events: [] };
-      rangeEventsLastFetchedAtMs = Date.now();
+      writeRangeWindowState(targetRange, { loading: false });
     } finally {
       clearTimeout(timeoutId);
       if (rangeEventsAbortController === abortController) {
         rangeEventsAbortController = null;
+        writeRangeWindowState(targetRange, { loading: false });
       }
     }
   }
@@ -718,8 +795,15 @@
   $: defaultRangeEvents = Array.isArray(events.recent_events)
     ? events.recent_events.slice(0, RANGE_EVENTS_FETCH_LIMIT)
     : [];
+  $: selectedRangeWindowState = shouldFetchRange(selectedTimeRange)
+    ? readRangeWindowState(selectedTimeRange)
+    : { recent_events: [], fetchedAtMs: 0, loading: false };
   $: selectedRangeEvents = shouldFetchRange(selectedTimeRange)
-    ? (rangeEventsSnapshot.range === selectedTimeRange ? rangeEventsSnapshot.recent_events : [])
+    ? (
+      selectedRangeWindowState.recent_events.length > 0 || selectedRangeWindowState.fetchedAtMs > 0
+        ? selectedRangeWindowState.recent_events
+        : defaultRangeEvents
+    )
     : defaultRangeEvents;
   $: timeSeries = buildTimeSeries(selectedRangeEvents, selectedTimeRange, {
     maxEvents: RANGE_EVENTS_FETCH_LIMIT
@@ -737,15 +821,21 @@
     const currentUpdatedAt = String(tabStatus?.updatedAt || '');
     if (currentUpdatedAt && currentUpdatedAt !== lastRangeTabUpdateAnchor) {
       lastRangeTabUpdateAnchor = currentUpdatedAt;
-      if ((Date.now() - rangeEventsLastFetchedAtMs) >= RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS) {
+      const selectedFetchedAtMs = Number(selectedRangeWindowState.fetchedAtMs || 0);
+      if ((Date.now() - selectedFetchedAtMs) >= RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS) {
         lastRequestedRange = '';
       }
     }
   }
 
   $: if (browser && isActive && shouldFetchRange(selectedTimeRange) && lastRequestedRange !== selectedTimeRange) {
-    lastRequestedRange = selectedTimeRange;
-    void fetchRangeEvents(selectedTimeRange);
+    const selectedFetchedAtMs = Number(selectedRangeWindowState.fetchedAtMs || 0);
+    if (selectedFetchedAtMs > 0 && (Date.now() - selectedFetchedAtMs) < RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS) {
+      lastRequestedRange = selectedTimeRange;
+    } else {
+      lastRequestedRange = selectedTimeRange;
+      void fetchRangeEvents(selectedTimeRange);
+    }
   }
 
   $: if (browser) {
@@ -778,7 +868,7 @@
       challengeTrendChart,
       challengeTrendCanvas,
       'Puzzle Outcomes',
-      CHALLENGE_TREND_COLOR,
+      MONITORING_TIME_SERIES_FILL.challenge,
       challengeTrendSeries,
       chartRefreshNonce
     );
@@ -789,7 +879,7 @@
       powTrendChart,
       powTrendCanvas,
       'Proof of Work Failures',
-      POW_TREND_COLOR,
+      MONITORING_TIME_SERIES_FILL.pow,
       powTrendSeries,
       chartRefreshNonce
     );

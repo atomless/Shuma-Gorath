@@ -336,7 +336,7 @@ export function createDashboardRefreshRuntime(options = {}) {
   }
 
   function shouldForceFullMonitoringSnapshot(reason = 'manual') {
-    return reason === 'auto-refresh' || reason === 'manual-refresh';
+    return reason === 'manual-refresh';
   }
 
   function syncCursorFromDelta(tab, delta = {}) {

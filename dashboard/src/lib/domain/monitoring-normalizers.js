@@ -58,16 +58,12 @@ export const bucketSizeForRange = (range) =>
  */
 export const formatBucketLabel = (range, epochMs) => {
   const date = new Date(epochMs);
+  const timeOnly = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   if (range === 'hour') {
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    return timeOnly;
   }
   if (range === 'day') {
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    });
+    return timeOnly;
   }
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };

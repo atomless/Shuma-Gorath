@@ -61,9 +61,6 @@
   const dashboardBasePath = typeof data?.dashboardBasePath === 'string'
     ? data.dashboardBasePath
     : fallbackBasePath;
-  const chartRuntimeSrc = typeof data?.chartRuntimeSrc === 'string'
-    ? data.chartRuntimeSrc
-    : resolveDashboardAssetPath(dashboardBasePath, 'assets/vendor/chart-lite-1.0.0.min.js');
   const shumaImageSrc = typeof data?.shumaImageSrc === 'string'
     ? data.shumaImageSrc
     : resolveDashboardAssetPath(dashboardBasePath, 'assets/shuma-gorath-pencil.png');
@@ -331,7 +328,6 @@
 
       const bootstrapped = await routeController.bootstrapRuntime({
         initialTab: normalizeTab(data?.initialHashTab || ''),
-        chartRuntimeSrc,
         basePath: dashboardBasePath
       });
       runtimeReady = bootstrapped === true;

@@ -129,6 +129,14 @@
     clearTimeout(timerId);
     return null;
   };
+  const scheduleChartRefresh = (delayMs = 0) => {
+    resizeRedrawTimer = clearTimer(resizeRedrawTimer);
+    resizeRedrawTimer = setTimeout(() => {
+      resizeRedrawTimer = null;
+      if (!isActive) return;
+      chartRefreshNonce += 1;
+    }, Math.max(0, Number(delayMs) || 0));
+  };
   const toFiniteNumberOrNaN = (value) => {
     if (value === null || value === undefined || value === '') {
       return Number.NaN;
@@ -146,12 +154,7 @@
   onMount(() => {
     if (typeof window === 'undefined') return undefined;
     const onResize = () => {
-      resizeRedrawTimer = clearTimer(resizeRedrawTimer);
-      resizeRedrawTimer = setTimeout(() => {
-        resizeRedrawTimer = null;
-        if (!isActive) return;
-        chartRefreshNonce += 1;
-      }, CHART_RESIZE_REDRAW_DEBOUNCE_MS);
+      scheduleChartRefresh(CHART_RESIZE_REDRAW_DEBOUNCE_MS);
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('resize', onResize, { passive: true });
@@ -185,6 +188,13 @@
     return chart;
   };
 
+  const resizeChartIfNeeded = (chart, needsRefresh) => {
+    if (!needsRefresh) return;
+    if (chart && typeof chart.resize === 'function') {
+      chart.resize();
+    }
+  };
+
   const sameSeries = (chart, nextLabels, nextData) => {
     if (!chart || !chart.data || !Array.isArray(chart.data.datasets) || chart.data.datasets.length === 0) {
       return false;
@@ -204,9 +214,18 @@
     return normalized || 'unknown';
   };
 
+  const canvasHasRenderableSize = (canvas) => {
+    if (!canvas || typeof canvas.getBoundingClientRect !== 'function') return false;
+    const rect = canvas.getBoundingClientRect();
+    return Number.isFinite(rect.width) && Number.isFinite(rect.height) && rect.width > 0 && rect.height > 0;
+  };
+
   const updateBanReasonChart = (chart, canvas, entries, refreshNonce = 0) => {
     const chartCtor = getChartConstructor();
     if (!chartCtor || !canvas || !Array.isArray(entries) || entries.length === 0) {
+      return chart;
+    }
+    if (!canvasHasRenderableSize(canvas)) {
       return chart;
     }
     const labels = entries.map((entry) => entry.label);
@@ -221,12 +240,17 @@
           labels,
           datasets: [{
             data: values,
-            backgroundColor: colors
+            backgroundColor: colors,
+            borderColor: 'rgba(0, 0, 0, 0)',
+            borderWidth: 0,
+            hoverBorderWidth: 0
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          resizeDelay: 0,
+          animation: false,
           plugins: {
             legend: {
               position: 'bottom',
@@ -238,11 +262,17 @@
         }
       }), refreshNonce);
     }
-    if (chartNeedsRefresh(chart, refreshNonce) || !sameSeries(chart, labels, values)) {
+    const needsRefresh = chartNeedsRefresh(chart, refreshNonce);
+    const hasSameSeries = sameSeries(chart, labels, values);
+    if (needsRefresh || !hasSameSeries) {
+      resizeChartIfNeeded(chart, needsRefresh);
       chart.data.labels = labels;
       chart.data.datasets[0].data = values;
       chart.data.datasets[0].backgroundColor = colors;
-      chart.update();
+      chart.data.datasets[0].borderColor = 'rgba(0, 0, 0, 0)';
+      chart.data.datasets[0].borderWidth = 0;
+      chart.data.datasets[0].hoverBorderWidth = 0;
+      chart.update('none');
     }
     return stampChartRefresh(chart, refreshNonce);
   };
@@ -841,11 +871,14 @@
     wasActive = nextActive;
   }
   $: {
-    if (!banReasonCanvas || banReasonEntries.length === 0) {
+    if (!banReasonCanvas || banReasonEntries.length === 0 || !isActive) {
       if (banReasonChart && typeof banReasonChart.destroy === 'function') {
         banReasonChart.destroy();
       }
       banReasonChart = null;
+    } else if (!canvasHasRenderableSize(banReasonCanvas)) {
+      // Defer first render until layout is stable when tab visibility flips.
+      scheduleChartRefresh(0);
     } else {
       banReasonChart = updateBanReasonChart(
         banReasonChart,
@@ -908,7 +941,9 @@
     {#if banReasonEntries.length === 0}
       <p class="control-desc text-muted">No active ban reasons in this view.</p>
     {:else}
-      <canvas id="ip-ban-reasons-chart" bind:this={banReasonCanvas} aria-label="IP ban reason spread chart"></canvas>
+      <div class="chart-canvas-shell chart-canvas-shell--ip-bans">
+        <canvas id="ip-ban-reasons-chart" bind:this={banReasonCanvas} aria-label="IP ban reason spread chart"></canvas>
+      </div>
     {/if}
   </div>
   <div class="control-group panel-soft pad-sm">

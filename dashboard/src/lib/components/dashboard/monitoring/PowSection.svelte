@@ -35,7 +35,7 @@
       value={powSummary.topOffender.value}
     />
   </div>
-  <div class="chart-container panel-soft panel-border pad-md-trb">
+  <div class="chart-container panel-soft panel-border pad-md">
     <canvas id="powFailuresTrendChart" bind:this={powTrendCanvas}></canvas>
   </div>
   <div class="panel panel-border">

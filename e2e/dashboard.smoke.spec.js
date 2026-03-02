@@ -419,8 +419,8 @@ test("sveltekit assets resolve under /dashboard/_app and /dashboard/assets base 
   expect(assets.modulePreloads.some((path) => path.startsWith("/dashboard/_app/"))).toBe(true);
   expect(assets.styles.some((path) => path.startsWith("/dashboard/_app/"))).toBe(true);
   expect(
-    assets.scripts.some((path) => path.startsWith("/dashboard/assets/vendor/chart-lite-1.0.0.min.js"))
-  ).toBe(true);
+    assets.scripts.some((path) => path.includes("/assets/vendor/chart-lite"))
+  ).toBe(false);
   expect(assets.shumaImagePath).toBe("/dashboard/assets/shuma-gorath-pencil.png");
   expect(assets.shumaImageComplete).toBe(true);
   expect(assets.shumaImageNaturalWidth).toBeGreaterThan(0);

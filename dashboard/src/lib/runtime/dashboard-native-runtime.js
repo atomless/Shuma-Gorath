@@ -81,16 +81,11 @@ function deriveMonitoringAnalytics(configSnapshot = {}, analyticsSnapshot = {}) 
 
 function normalizeRuntimeMountOptions(options = {}) {
   const source = options || {};
-  const chartRuntimeSrc =
-    typeof source.chartRuntimeSrc === 'string'
-      ? source.chartRuntimeSrc.trim()
-      : '';
   const locationLike = typeof window !== 'undefined' ? window.location : null;
   const basePath = normalizeDashboardBasePath(
     source.basePath || resolveDashboardBasePathFromLocation(locationLike)
   );
   return {
-    chartRuntimeSrc,
     basePath,
     initialTab: normalizeTab(source.initialTab || 'monitoring')
   };
@@ -228,9 +223,7 @@ export async function mountDashboardApp(options = {}) {
   resolveAdminApiEndpoint = adminEndpointModule.createAdminEndpointResolver({ window });
 
   await acquireChartRuntime({
-    window,
-    document,
-    src: runtimeMountOptions.chartRuntimeSrc || undefined
+    window
   });
 
   dashboardApiClient = dashboardApiClientModule.create({

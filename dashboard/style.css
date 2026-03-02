@@ -635,6 +635,21 @@ h1 {
   max-height: none;
 }
 
+.chart-canvas-shell {
+  position: relative;
+  width: 100%;
+}
+
+.chart-canvas-shell--ip-bans {
+  height: clamp(220px, 28vh, 320px);
+}
+
+.chart-canvas-shell--ip-bans canvas {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100%;
+}
+
 /* ===========================================
    Sections
    =========================================== */

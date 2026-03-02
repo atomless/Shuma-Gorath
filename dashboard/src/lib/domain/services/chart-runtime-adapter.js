@@ -1,124 +1,56 @@
 // @ts-check
 
-const DEFAULT_CHART_RUNTIME_SRC = '/dashboard/assets/vendor/chart-lite-1.0.0.min.js';
-
 let loadPromise = null;
 let refCount = 0;
-let adapterOwnedScript = null;
 let adapterOwnedGlobal = false;
-let runtimeScriptSrc = DEFAULT_CHART_RUNTIME_SRC;
-
-const resolveDashboardBasePath = (win) => {
-  const pathname = String(win && win.location && win.location.pathname ? win.location.pathname : '').trim();
-  if (!pathname) return '/dashboard';
-  const markerIndex = pathname.indexOf('/dashboard');
-  if (markerIndex === -1) return '/dashboard';
-  const candidate = pathname.slice(0, markerIndex + '/dashboard'.length);
-  return candidate.endsWith('/') ? candidate.slice(0, -1) : candidate;
-};
-
-const normalizeRuntimeSrc = (value, win) => {
-  const source = String(value || '').trim();
-  if (source) return source;
-  return `${resolveDashboardBasePath(win)}/assets/vendor/chart-lite-1.0.0.min.js`;
-};
+let runtimeWindowRef = null;
 
 const chartConstructorFrom = (win) =>
   win && typeof win.Chart === 'function' ? win.Chart : null;
 
-const markScriptReady = (script) => {
-  if (!script || !script.dataset) return;
-  script.dataset.shumaRuntimeReady = 'true';
+const resolveChartCtor = async (loader) => {
+  const loaded = await loader();
+  const ctor =
+    (loaded && typeof loaded.Chart === 'function' ? loaded.Chart : null) ||
+    (loaded && typeof loaded.default === 'function' ? loaded.default : null) ||
+    (typeof loaded === 'function' ? loaded : null);
+  if (typeof ctor === 'function') {
+    return ctor;
+  }
+  throw new Error('Chart runtime loaded but Chart constructor is unavailable.');
 };
 
-const findRuntimeScript = (doc, src) => {
-  if (!doc || typeof doc.querySelectorAll !== 'function') return null;
-  const scripts = Array.from(doc.querySelectorAll('script[src]'));
-  const target = String(src || '').trim();
-  return scripts.find((entry) => {
-    const declared = String(entry.getAttribute('data-shuma-runtime-script') || '').trim();
-    const source = String(entry.getAttribute('src') || '').trim();
-    return declared === target || source === target;
-  }) || null;
-};
-
-const loadRuntimeScript = (doc, win, src) =>
-  new Promise((resolve, reject) => {
-    const existingChart = chartConstructorFrom(win);
-    if (existingChart) {
-      resolve(existingChart);
-      return;
-    }
-
-    const done = () => {
-      const chart = chartConstructorFrom(win);
-      if (chart) {
-        resolve(chart);
-        return;
-      }
-      reject(new Error('Chart runtime loaded but window.Chart is unavailable.'));
-    };
-
-    const onError = () => {
-      reject(new Error(`Failed to load chart runtime script: ${src}`));
-    };
-    const onLoad = (script) => {
-      markScriptReady(script);
-      done();
-    };
-
-    let script = findRuntimeScript(doc, src);
-    if (!script) {
-      if (!doc || typeof doc.createElement !== 'function') {
-        reject(new Error('Chart runtime requires a browser document context.'));
-        return;
-      }
-      script = doc.createElement('script');
-      script.setAttribute('src', src);
-      script.setAttribute('data-shuma-runtime-script', src);
-      script.async = true;
-      script.addEventListener('load', () => onLoad(script), { once: true });
-      script.addEventListener('error', onError, { once: true });
-      adapterOwnedScript = script;
-      adapterOwnedGlobal = true;
-      const target = doc.head || doc.body;
-      if (!target || typeof target.appendChild !== 'function') {
-        reject(new Error('Chart runtime could not find a script insertion target.'));
-        return;
-      }
-      target.appendChild(script);
-      const chartAfterAppend = chartConstructorFrom(win);
-      if (chartAfterAppend) {
-        markScriptReady(script);
-        resolve(chartAfterAppend);
-      }
-      return;
-    }
-
-    if (script.dataset && script.dataset.shumaRuntimeReady === 'true') {
-      done();
-      return;
-    }
-
-    script.addEventListener('load', () => onLoad(script), { once: true });
-    script.addEventListener('error', onError, { once: true });
-  });
+const defaultLoader = () => import('chart.js/auto');
 
 export async function acquireChartRuntime(options = {}) {
-  const doc = options.document || (typeof document !== 'undefined' ? document : null);
   const win = options.window || (typeof window !== 'undefined' ? window : null);
-  const src = normalizeRuntimeSrc(options.src, win);
-  if (!doc || !win) {
-    throw new Error('Chart runtime requires browser window/document context.');
+  if (!win) {
+    throw new Error('Chart runtime requires browser window context.');
   }
-  runtimeScriptSrc = src;
+  runtimeWindowRef = win;
+
+  const existing = chartConstructorFrom(win);
+  if (existing) {
+    refCount += 1;
+    return existing;
+  }
 
   if (!loadPromise) {
-    loadPromise = loadRuntimeScript(doc, win, src);
+    const loader = typeof options.loader === 'function' ? options.loader : defaultLoader;
+    loadPromise = resolveChartCtor(loader).then((ctor) => {
+      if (typeof win.Chart !== 'function') {
+        win.Chart = ctor;
+        adapterOwnedGlobal = true;
+      }
+      return chartConstructorFrom(win);
+    });
   }
 
   try {
     const chart = await loadPromise;
+    if (typeof chart !== 'function') {
+      throw new Error('Chart runtime loaded but window.Chart is unavailable.');
+    }
     refCount += 1;
     return chart;
   } catch (error) {
@@ -138,14 +70,11 @@ export function releaseChartRuntime(options = {}) {
   }
   if (refCount > 0) return;
 
-  const win = options.window || (typeof window !== 'undefined' ? window : null);
-  const doc = options.document || (typeof document !== 'undefined' ? document : null);
   loadPromise = null;
-
-  if (adapterOwnedScript && adapterOwnedScript.parentNode) {
-    adapterOwnedScript.parentNode.removeChild(adapterOwnedScript);
-  }
-  adapterOwnedScript = null;
+  const win =
+    options.window ||
+    runtimeWindowRef ||
+    (typeof window !== 'undefined' ? window : null);
 
   if (adapterOwnedGlobal && win && Object.prototype.hasOwnProperty.call(win, 'Chart')) {
     try {
@@ -154,12 +83,7 @@ export function releaseChartRuntime(options = {}) {
       win.Chart = undefined;
     }
   }
-  adapterOwnedGlobal = false;
 
-  if (doc) {
-    const orphan = findRuntimeScript(doc, runtimeScriptSrc);
-    if (orphan && orphan.dataset) {
-      delete orphan.dataset.shumaRuntimeReady;
-    }
-  }
+  adapterOwnedGlobal = false;
+  runtimeWindowRef = null;
 }

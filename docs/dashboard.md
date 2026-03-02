@@ -89,13 +89,13 @@ Preview links surfaced in tab UI:
 - `GET /admin/tarpit/preview`
 - `GET /robots.txt`
 
-## 🐙 Local Asset Provenance
+## 🐙 Chart Runtime Provenance
 
-Chart runtime is vendored locally:
+Dashboard charts use upstream Chart.js via the workspace package manager:
 
-- Asset: `dashboard/static/assets/vendor/chart-lite-1.0.0.min.js`
-- Version: `chart-lite-1.0.0`
-- SHA-256: `5eec3d4b98e9ddc1fb88c44e0953b8bded137779a4d930c6ab2647a431308388`
+- Package: `chart.js`
+- Version: `4.5.1` (pinned in `package.json` and lockfile)
+- Loading model: ESM dependency loaded through `dashboard/src/lib/domain/services/chart-runtime-adapter.js`
 
 ## 🐙 Rollback
 
