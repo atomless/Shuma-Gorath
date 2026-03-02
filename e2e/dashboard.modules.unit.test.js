@@ -2368,6 +2368,10 @@ test('monitoring tab applies bounded sanitization and redraw guards', () => {
   assert.match(source, /'Puzzle Outcomes'/);
   assert.match(source, /\$: rawRecentEvents = Array\.isArray\(events\.recent_events\)/);
   assert.match(source, /\$: rawTelemetryFeed = buildRawTelemetryFeed\(rawRecentEvents\);/);
+  assert.match(source, /\$: eventWindowTotal = toNonNegativeIntOrNull\(events\?\.recent_events_window\?\.total_events_in_window\);/);
+  assert.match(source, /\$: totalBans = \(\(\) => \{/);
+  assert.match(source, /const byEventType = getEventCountByName\(eventCounts, 'Ban'\);/);
+  assert.match(source, /\$: activeBans = bans\.length;/);
 });
 
 test('monitoring tab is decomposed into focused subsection components', () => {
@@ -2411,6 +2415,16 @@ test('monitoring recent-events filters reuse canonical input-row and input-field
   assert.equal(inputRowMatches.length, 5);
   assert.equal(selectMatches.length, 5);
   assert.match(source, /class="control-label control-label--wide"/);
+});
+
+test('monitoring overview stats labels retain explicit window semantics', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/OverviewStats.svelte'),
+    'utf8'
+  );
+  assert.match(source, /title="Bans \(24h\)"/);
+  assert.match(source, /title="Active Bans"/);
+  assert.match(source, /title="Events \(24h\)"/);
 });
 
 test('dashboard runtime is slim and free of legacy DOM-id wiring layers', () => {

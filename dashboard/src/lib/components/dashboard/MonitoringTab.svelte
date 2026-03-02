@@ -203,6 +203,29 @@
     const numeric = Number(value);
     return Number.isFinite(numeric) ? numeric : Number.NaN;
   };
+  const toNonNegativeIntOrNull = (value) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric < 0) return null;
+    return Math.floor(numeric);
+  };
+  const normalizeEventCounts = (value) =>
+    value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const sumEventCounts = (eventCounts = {}) =>
+    Object.values(eventCounts).reduce((total, value) => {
+      const next = toNonNegativeIntOrNull(value);
+      return next === null ? total : total + next;
+    }, 0);
+  const getEventCountByName = (eventCounts = {}, eventName = '') => {
+    const target = normalizeLowerTrimmed(eventName);
+    if (!target) return null;
+    const direct = toNonNegativeIntOrNull(eventCounts[eventName]);
+    if (direct !== null) return direct;
+    const matchedKey = Object.keys(eventCounts).find(
+      (key) => normalizeLowerTrimmed(key) === target
+    );
+    if (!matchedKey) return null;
+    return toNonNegativeIntOrNull(eventCounts[matchedKey]);
+  };
 
   const rawFeedKey = (event = {}) => {
     const source = event && typeof event === 'object' ? event : {};
@@ -703,10 +726,21 @@
     ? adversaryRunSummary.runRows.slice(0, 8)
     : [];
 
-  $: eventCount = rawRecentEvents.length;
-  $: totalBans = Number.isFinite(Number(analytics.ban_count))
-    ? Number(analytics.ban_count)
-    : bans.length;
+  $: eventCounts = normalizeEventCounts(events.event_counts);
+  $: eventWindowTotal = toNonNegativeIntOrNull(events?.recent_events_window?.total_events_in_window);
+  $: eventCount = eventWindowTotal !== null
+    ? eventWindowTotal
+    : (() => {
+      const summed = sumEventCounts(eventCounts);
+      return summed > 0 ? summed : rawRecentEvents.length;
+    })();
+  $: totalBans = (() => {
+    const byEventType = getEventCountByName(eventCounts, 'Ban');
+    if (byEventType !== null) return byEventType;
+    const analyticsBanCount = toNonNegativeIntOrNull(analytics.ban_count);
+    if (analyticsBanCount !== null) return analyticsBanCount;
+    return bans.length;
+  })();
   $: activeBans = bans.length;
   $: uniqueIps = Number.isFinite(Number(events.unique_ips))
     ? Number(events.unique_ips)

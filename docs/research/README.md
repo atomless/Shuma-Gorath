@@ -34,6 +34,8 @@ Completed archive index:
 
 1. [`2026-02-25-llm-adversarial-testing-research-synthesis.md`](2026-02-25-llm-adversarial-testing-research-synthesis.md)  
    LLM-driven adversarial testing methods, benchmark lessons, and direct mapping to `SIM-1`..`SIM-4` simulation design.
+2. [`2026-03-02-sim-runtime-architecture-overview-and-gap-report.md`](2026-03-02-sim-runtime-architecture-overview-and-gap-report.md)  
+   Runtime architecture inventory and gap analysis for dashboard-toggle lane vs deterministic/containerized test lanes; required pre-read for open `SIM-*` execution.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

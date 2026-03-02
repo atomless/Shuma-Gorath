@@ -270,11 +270,14 @@
 
 html {
   font-size: 14px;
+  overflow-y: scroll;
 }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   background: var(--striped-bg);
+  background-attachment: fixed;
+  background-position: top left;
   color: var(--page-fg);
   padding: 20px;
   min-height: 100vh;
@@ -641,7 +644,7 @@ h1 {
 }
 
 .chart-canvas-shell--ip-bans {
-  height: clamp(220px, 28vh, 320px);
+  height: clamp(220px, 50vh, 520px);
 }
 
 .chart-canvas-shell--ip-bans canvas {

@@ -81,6 +81,12 @@ This file provides instructions for coding agents working in this repository.
    - every KV-editable key accepted by `POST /admin/config` must appear in `dashboard/src/lib/domain/config-schema.js` Advanced JSON paths,
    - env-only keys remain excluded,
    - maintain/update parity tests so drift fails fast.
+14. Non-negotiable whole-system evidence rule for usage/coverage claims:
+   - agents MUST NOT claim that code/endpoint/functionality is "unused", "dead", "not exercised", or "only used by X" from partial inspection;
+   - before making any such claim, agents MUST trace and verify the full execution surface end-to-end: runtime call sites, dashboard/client call paths, test suites (unit/integration/e2e/adversarial), `Makefile` target wiring, package scripts, and CI workflow execution paths;
+   - agents MUST cite concrete evidence (`file:line` references and the exact verification commands/targets used) for every usage/non-usage assertion;
+   - if full-path verification is incomplete, agents MUST explicitly state uncertainty and continue investigation instead of making definitive claims;
+   - treat shallow usage assessments as release-blocking process failure.
 
 ## Security and abuse posture
 

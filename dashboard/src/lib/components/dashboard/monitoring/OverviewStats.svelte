@@ -10,7 +10,7 @@
 </script>
 
 <div class="stats-cards">
-  <MetricStatCard title="Total Bans" valueId="total-bans" {loading} value={formatCompactNumber(totalBans, '0')} />
+  <MetricStatCard title="Bans (24h)" valueId="total-bans" {loading} value={formatCompactNumber(totalBans, '0')} />
   <MetricStatCard title="Active Bans" valueId="active-bans" {loading} value={formatCompactNumber(activeBans, '0')} />
   <MetricStatCard title="Events (24h)" valueId="total-events" {loading} value={formatCompactNumber(eventCount, '0')} />
   <MetricStatCard title='Unique <abbr title="Internet Protocol">IP</abbr>s' valueId="unique-ips" {loading} value={formatCompactNumber(uniqueIps, '0')} />
