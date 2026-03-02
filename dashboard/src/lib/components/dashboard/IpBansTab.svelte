@@ -38,6 +38,7 @@
   export let onUnban = null;
 
   const MANUAL_BAN_FALLBACK_SECONDS = 21600;
+  const CHART_RESIZE_REDRAW_DEBOUNCE_MS = 180;
   const VALID_IP_RANGE_ACTIONS = new Set([
     'forbidden_403',
     'custom_message',
@@ -81,6 +82,9 @@
   let lastAppliedSuggestionsVersion = -1;
   let banReasonCanvas = null;
   let banReasonChart = null;
+  let chartRefreshNonce = 0;
+  let resizeRedrawTimer = null;
+  let wasActive = false;
 
   let bypassAllowlistsEnabled = true;
   let networkAllowlist = '';
@@ -120,6 +124,11 @@
   let banReasonEntries = [];
 
   const formatTimestamp = (rawTs) => formatUnixSecondsLocal(rawTs, '-');
+  const clearTimer = (timerId) => {
+    if (timerId === null) return null;
+    clearTimeout(timerId);
+    return null;
+  };
   const toFiniteNumberOrNaN = (value) => {
     if (value === null || value === undefined || value === '') {
       return Number.NaN;
@@ -136,13 +145,25 @@
 
   onMount(() => {
     if (typeof window === 'undefined') return undefined;
+    const onResize = () => {
+      resizeRedrawTimer = clearTimer(resizeRedrawTimer);
+      resizeRedrawTimer = setTimeout(() => {
+        resizeRedrawTimer = null;
+        if (!isActive) return;
+        chartRefreshNonce += 1;
+      }, CHART_RESIZE_REDRAW_DEBOUNCE_MS);
+    };
     window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('resize', onResize, { passive: true });
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('resize', onResize);
+      resizeRedrawTimer = clearTimer(resizeRedrawTimer);
     };
   });
 
   onDestroy(() => {
+    resizeRedrawTimer = clearTimer(resizeRedrawTimer);
     if (banReasonChart && typeof banReasonChart.destroy === 'function') {
       banReasonChart.destroy();
     }
@@ -152,6 +173,16 @@
   const getChartConstructor = () => {
     if (!browser || !window || typeof window.Chart !== 'function') return null;
     return window.Chart;
+  };
+
+  const chartNeedsRefresh = (chart, refreshNonce) =>
+    Number(chart?.__shumaRefreshNonce || 0) !== Number(refreshNonce || 0);
+
+  const stampChartRefresh = (chart, refreshNonce) => {
+    if (chart && typeof chart === 'object') {
+      chart.__shumaRefreshNonce = Number(refreshNonce || 0);
+    }
+    return chart;
   };
 
   const sameSeries = (chart, nextLabels, nextData) => {
@@ -173,7 +204,7 @@
     return normalized || 'unknown';
   };
 
-  const updateBanReasonChart = (chart, canvas, entries) => {
+  const updateBanReasonChart = (chart, canvas, entries, refreshNonce = 0) => {
     const chartCtor = getChartConstructor();
     if (!chartCtor || !canvas || !Array.isArray(entries) || entries.length === 0) {
       return chart;
@@ -184,7 +215,7 @@
     const ctx = canvas.getContext('2d');
     if (!ctx) return chart;
     if (!chart) {
-      return new chartCtor(ctx, {
+      return stampChartRefresh(new chartCtor(ctx, {
         type: 'doughnut',
         data: {
           labels,
@@ -205,15 +236,15 @@
             }
           }
         }
-      });
+      }), refreshNonce);
     }
-    if (!sameSeries(chart, labels, values)) {
+    if (chartNeedsRefresh(chart, refreshNonce) || !sameSeries(chart, labels, values)) {
       chart.data.labels = labels;
       chart.data.datasets[0].data = values;
       chart.data.datasets[0].backgroundColor = colors;
-      chart.update('none');
+      chart.update();
     }
-    return chart;
+    return stampChartRefresh(chart, refreshNonce);
   };
 
   const isValidIpv4 = (value) => {
@@ -803,13 +834,25 @@
   $: freshnessSlowConsumerState = String(freshness.slow_consumer_lag_state || 'normal');
   $: freshnessOverflow = String(freshness.overflow || 'none');
   $: {
+    const nextActive = isActive === true;
+    if (browser && nextActive && !wasActive) {
+      chartRefreshNonce += 1;
+    }
+    wasActive = nextActive;
+  }
+  $: {
     if (!banReasonCanvas || banReasonEntries.length === 0) {
       if (banReasonChart && typeof banReasonChart.destroy === 'function') {
         banReasonChart.destroy();
       }
       banReasonChart = null;
     } else {
-      banReasonChart = updateBanReasonChart(banReasonChart, banReasonCanvas, banReasonEntries);
+      banReasonChart = updateBanReasonChart(
+        banReasonChart,
+        banReasonCanvas,
+        banReasonEntries,
+        chartRefreshNonce
+      );
     }
   }
 

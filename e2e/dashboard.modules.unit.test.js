@@ -2165,6 +2165,8 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(ipBansSource, /id="ip-ban-filter"/);
   assert.match(ipBansSource, /id="ip-ban-reasons-chart"/);
   assert.match(ipBansSource, /type: 'doughnut'/);
+  assert.match(ipBansSource, /window\.addEventListener\('resize', onResize, \{ passive: true \}\);/);
+  assert.match(ipBansSource, /if \(browser && nextActive && !wasActive\)/);
   assert.match(ipBansSource, /id="ip-range-suggestions-table"/);
   assert.match(ipBansSource, /id="bypass-allowlists-toggle"/);
   assert.match(ipBansSource, /id="network-allowlist"/);

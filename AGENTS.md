@@ -19,6 +19,9 @@ This file provides instructions for coding agents working in this repository.
 - Prefer asymmetric designs where attacker cost rises faster than defender cost.
 - Prioritize resource efficiency (bandwidth, CPU, memory, energy).
 - Keep architecture modular and platform-agnostic.
+- Implementation pattern mandate (strict, repo-wide): when adding or modifying behavior in an area that already has similar implementations, agents MUST first identify and follow the dominant existing project pattern (module boundaries, control flow, naming, error handling, telemetry shape, and test style). Introducing a new local pattern is allowed only when the current pattern is demonstrably insufficient and the user explicitly approves that deviation.
+- Reuse-first mandate (strict, repo-wide): agents MUST prefer extending shared modules/components/utilities over duplicating near-equivalent logic. If similar code exists, factor to a shared helper/component in the canonical location and consume it from feature code instead of copy/paste variants.
+- Enforcement command: treat avoidable duplication, one-off abstractions, and unapproved pattern drift as release-blocking non-compliance that must be revised before merge.
 - For user-facing help text and documentation, prefer clear and helpful explanations over brevity.
 - For user-facing validation/help text, write constraints as explicit rules using “must”/“must not” phrasing and concrete examples; avoid compressed slash notation (for example, avoid phrasing like `no spaces/query/fragment`).
 - Treat this repository as pre-launch by default: do not add backward-compatibility aliases/shims/migration layers unless the user explicitly requests them for the specific change.
