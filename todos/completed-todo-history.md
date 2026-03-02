@@ -2,6 +2,19 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-02)
+
+### P0 Adversarial Traffic Simulation Program
+
+#### Shared deterministic corpus convergence (`SIM-ARCH-1` to `SIM-ARCH-4`)
+
+- [x] SIM-ARCH-1 Define a canonical deterministic attack corpus contract (versioned artifact + runtime-safe and CI-oracle profiles) consumed by both runtime and CI executors.
+- [x] SIM-ARCH-2 Refactor runtime deterministic generator to consume the shared corpus instead of hardcoded request batches, while preserving guardrails and bounded generation envelopes.
+- [x] SIM-ARCH-3 Refactor CI Python oracle to consume the same shared corpus for attacker-plane action definitions while retaining its existing setup/gates/repeatability/report responsibilities.
+- [x] SIM-ARCH-4 Add drift guards that fail when runtime and CI oracle execute different corpus revisions or taxonomy mappings for the deterministic lane.
+- [x] Added canonical corpus artifact: `scripts/tests/adversarial/deterministic_attack_corpus.v1.json` and wired runtime/CI metadata exposure (`src/admin/adversary_sim.rs`, `scripts/tests/adversarial_simulation_runner.py`).
+- [x] Added deterministic corpus parity gate and Makefile wiring: `scripts/tests/check_adversarial_deterministic_corpus.py`, `make test-adversarial-deterministic-corpus`.
+
 ## Additional completions (2026-03-01)
 
 ### P0 Adversarial Traffic Simulation Program

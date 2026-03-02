@@ -2,6 +2,7 @@ use rand::random;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use once_cell::sync::Lazy;
+use std::collections::BTreeMap;
 #[cfg(not(test))]
 use base64::{engine::general_purpose, Engine as _};
 #[cfg(not(test))]
@@ -20,32 +21,9 @@ pub const QUEUE_POLICY: &str = "reject_new";
 pub const STOP_TIMEOUT_SECONDS: u64 = 10;
 pub const AUTONOMOUS_HEARTBEAT_INTERVAL_SECONDS: u64 = 1;
 pub const AUTONOMOUS_HEARTBEAT_MAX_CATCHUP_TICKS_PER_INVOCATION: u64 = 2;
-const ACTIVE_LANE_COUNT: u32 = 2;
-const INTERNAL_PRIMARY_REQUEST_COUNT: u64 = 9;
-const INTERNAL_SUPPLEMENTAL_REQUEST_COUNT: u64 = 7;
-const INTERNAL_RATE_BURST_REQUESTS_LOW: u64 = 8;
-const INTERNAL_RATE_BURST_REQUESTS_MEDIUM: u64 = 16;
-const INTERNAL_RATE_BURST_REQUESTS_HIGH: u64 = 24;
-#[cfg(not(test))]
-const INTERNAL_GENERATION_BATCH_SIZE_MAX: u64 = INTERNAL_PRIMARY_REQUEST_COUNT
-    + INTERNAL_SUPPLEMENTAL_REQUEST_COUNT
-    + INTERNAL_RATE_BURST_REQUESTS_HIGH;
-#[cfg(not(test))]
-const INTERNAL_RATE_BURST_IP_OCTET: u8 = 248;
-#[cfg(not(test))]
-const INTERNAL_CDP_REPORT_IP_OCTET: u8 = 253;
-#[cfg(not(test))]
-const INTERNAL_CHALLENGE_ABUSE_IP_OCTET: u8 = 250;
-#[cfg(not(test))]
-const INTERNAL_POW_ABUSE_IP_OCTET: u8 = 251;
-#[cfg(not(test))]
-const INTERNAL_TARPIT_ABUSE_IP_OCTET: u8 = 252;
-#[cfg(not(test))]
-const INTERNAL_FINGERPRINT_PROBE_IP_OCTET: u8 = 249;
-#[cfg(not(test))]
-const INTERNAL_NOT_A_BOT_FAIL_IP_OCTET: u8 = 246;
-#[cfg(not(test))]
-const INTERNAL_NOT_A_BOT_ESCALATE_IP_OCTET: u8 = 247;
+const DETERMINISTIC_ATTACK_CORPUS_SCHEMA_VERSION: &str = "sim-deterministic-attack-corpus.v1";
+const DETERMINISTIC_ATTACK_CORPUS_PATH: &str =
+    "scripts/tests/adversarial/deterministic_attack_corpus.v1.json";
 const GENERATION_DIAGNOSTIC_GRACE_SECONDS: u64 = 5;
 const STATE_KEY_PREFIX: &str = "adversary_sim:control:";
 static PROCESS_INSTANCE_ID: Lazy<String> = Lazy::new(|| {
@@ -55,6 +33,334 @@ static PROCESS_INSTANCE_ID: Lazy<String> = Lazy::new(|| {
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| "runtime-instance-unknown".to_string())
 });
+static DETERMINISTIC_ATTACK_CORPUS: Lazy<DeterministicAttackCorpus> =
+    Lazy::new(load_deterministic_attack_corpus);
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+struct DeterministicAttackCorpus {
+    schema_version: String,
+    corpus_revision: String,
+    taxonomy_version: String,
+    runtime_profile: String,
+    ci_profile: String,
+    runtime_toggle: RuntimeDeterministicProfile,
+    ci_oracle: CiOracleDeterministicProfile,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+struct RuntimeDeterministicProfile {
+    active_lane_count: u32,
+    primary_request_count: u64,
+    supplemental_request_count: u64,
+    primary_public_paths: Vec<String>,
+    honeypot_probe_moduli: Vec<u64>,
+    rate_burst: RateBurstProfile,
+    lane_ip_octets: LaneIpOctets,
+    lane_ip_rotation_ticks: LaneIpRotationTicks,
+    lane_ip_entropy_salts: LaneIpEntropySalts,
+    metadata: RuntimeMetadataProfile,
+    paths: RuntimePathProfile,
+    taxonomy: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+struct RateBurstProfile {
+    low: u64,
+    medium: u64,
+    high: u64,
+    high_modulus: u64,
+    medium_modulus: u64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+struct LaneIpOctets {
+    rate_burst: u8,
+    fingerprint_probe: u8,
+    challenge_abuse: u8,
+    pow_abuse: u8,
+    tarpit_abuse: u8,
+    cdp_report: u8,
+    not_a_bot_fail: u8,
+    not_a_bot_escalate: u8,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+struct LaneIpRotationTicks {
+    rate_burst: u64,
+    fingerprint_probe: u64,
+    challenge_abuse: u64,
+    pow_abuse: u64,
+    tarpit_abuse: u64,
+    cdp_report: u64,
+    not_a_bot_fail: u64,
+    not_a_bot_escalate: u64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+struct LaneIpEntropySalts {
+    rate_burst: u64,
+    fingerprint_probe: u64,
+    challenge_abuse: u64,
+    pow_abuse: u64,
+    tarpit_abuse: u64,
+    cdp_report: u64,
+    not_a_bot_fail: u64,
+    not_a_bot_escalate: u64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+struct RuntimeMetadataProfile {
+    sim_profile: String,
+    sim_lane: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+struct RuntimePathProfile {
+    public_search: String,
+    pow: String,
+    not_a_bot_checkbox: String,
+    honeypot: String,
+    challenge_submit: String,
+    pow_verify: String,
+    cdp_report: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+struct CiOracleDeterministicProfile {
+    drivers: BTreeMap<String, CiDriverDefinition>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+struct CiDriverDefinition {
+    driver_class: String,
+    path_hint: String,
+    taxonomy_category: String,
+}
+
+fn default_deterministic_attack_corpus() -> DeterministicAttackCorpus {
+    let mut ci_drivers = BTreeMap::new();
+    for (driver, driver_class, path_hint, taxonomy_category) in [
+        (
+            "allow_browser_allowlist",
+            "browser_realistic",
+            "/sim/public/landing",
+            "allowlist",
+        ),
+        (
+            "not_a_bot_pass",
+            "browser_realistic",
+            "/challenge/not-a-bot-checkbox",
+            "not_a_bot",
+        ),
+        (
+            "challenge_puzzle_fail_maze",
+            "browser_realistic",
+            "/challenge/puzzle",
+            "challenge",
+        ),
+        ("pow_success", "cost_imposition", "/pow", "pow"),
+        ("pow_invalid_proof", "cost_imposition", "/pow/verify", "pow"),
+        (
+            "rate_limit_enforce",
+            "http_scraper",
+            "/sim/public/search",
+            "rate",
+        ),
+        (
+            "retry_storm_enforce",
+            "http_scraper",
+            "/sim/public/search",
+            "rate",
+        ),
+        ("geo_challenge", "browser_realistic", "/sim/public/docs", "geo"),
+        ("geo_maze", "browser_realistic", "/sim/public/pricing", "geo"),
+        ("geo_block", "browser_realistic", "/sim/public/contact", "geo"),
+        ("honeypot_deny_temp", "browser_realistic", "/instaban", "honeypot"),
+        (
+            "not_a_bot_replay_abuse",
+            "http_scraper",
+            "/challenge/not-a-bot-checkbox",
+            "not_a_bot",
+        ),
+        (
+            "not_a_bot_stale_token_abuse",
+            "http_scraper",
+            "/challenge/not-a-bot-checkbox",
+            "not_a_bot",
+        ),
+        (
+            "not_a_bot_ordering_cadence_abuse",
+            "http_scraper",
+            "/challenge/not-a-bot-checkbox",
+            "not_a_bot",
+        ),
+        (
+            "not_a_bot_replay_tarpit_abuse",
+            "http_scraper",
+            "/challenge/not-a-bot-checkbox",
+            "tarpit",
+        ),
+        (
+            "fingerprint_inconsistent_payload",
+            "http_scraper",
+            "/fingerprint-report",
+            "fingerprint",
+        ),
+        (
+            "header_spoofing_probe",
+            "browser_realistic",
+            "/sim/public/search",
+            "headers",
+        ),
+        ("cdp_high_confidence_deny", "http_scraper", "/cdp-report", "cdp"),
+        (
+            "akamai_additive_report",
+            "edge_fixture",
+            "/fingerprint-report",
+            "akamai",
+        ),
+        (
+            "akamai_authoritative_deny",
+            "edge_fixture",
+            "/fingerprint-report",
+            "akamai",
+        ),
+    ] {
+        ci_drivers.insert(
+            driver.to_string(),
+            CiDriverDefinition {
+                driver_class: driver_class.to_string(),
+                path_hint: path_hint.to_string(),
+                taxonomy_category: taxonomy_category.to_string(),
+            },
+        );
+    }
+
+    let taxonomy = BTreeMap::from([
+        ("public_probe".to_string(), "crawl_probe".to_string()),
+        ("challenge_submit".to_string(), "challenge_abuse".to_string()),
+        ("not_a_bot_fail".to_string(), "not_a_bot_fail".to_string()),
+        (
+            "not_a_bot_escalate".to_string(),
+            "not_a_bot_escalate".to_string(),
+        ),
+        ("pow_verify".to_string(), "pow_abuse".to_string()),
+        ("tarpit_progress".to_string(), "tarpit_abuse".to_string()),
+        ("fingerprint_probe".to_string(), "fingerprint_probe".to_string()),
+        ("cdp_report".to_string(), "cdp_probe".to_string()),
+        ("rate_burst".to_string(), "rate_burst".to_string()),
+    ]);
+
+    DeterministicAttackCorpus {
+        schema_version: DETERMINISTIC_ATTACK_CORPUS_SCHEMA_VERSION.to_string(),
+        corpus_revision: "default-fallback".to_string(),
+        taxonomy_version: "sim-policy-taxonomy.v1".to_string(),
+        runtime_profile: "runtime_toggle".to_string(),
+        ci_profile: "ci_oracle".to_string(),
+        runtime_toggle: RuntimeDeterministicProfile {
+            active_lane_count: 2,
+            primary_request_count: 9,
+            supplemental_request_count: 7,
+            primary_public_paths: vec![
+                "/sim/public/landing".to_string(),
+                "/sim/public/docs".to_string(),
+                "/sim/public/pricing".to_string(),
+                "/sim/public/contact".to_string(),
+                "/sim/public/changelog".to_string(),
+                "/sim/public/faq".to_string(),
+            ],
+            honeypot_probe_moduli: vec![5, 7],
+            rate_burst: RateBurstProfile {
+                low: 8,
+                medium: 16,
+                high: 24,
+                high_modulus: 9,
+                medium_modulus: 3,
+            },
+            lane_ip_octets: LaneIpOctets {
+                rate_burst: 248,
+                fingerprint_probe: 249,
+                challenge_abuse: 250,
+                pow_abuse: 251,
+                tarpit_abuse: 252,
+                cdp_report: 253,
+                not_a_bot_fail: 246,
+                not_a_bot_escalate: 247,
+            },
+            lane_ip_rotation_ticks: LaneIpRotationTicks {
+                rate_burst: 24,
+                fingerprint_probe: 2,
+                challenge_abuse: 1,
+                pow_abuse: 1,
+                tarpit_abuse: 1,
+                cdp_report: 2,
+                not_a_bot_fail: 2,
+                not_a_bot_escalate: 2,
+            },
+            lane_ip_entropy_salts: LaneIpEntropySalts {
+                rate_burst: 79,
+                fingerprint_probe: 53,
+                challenge_abuse: 17,
+                pow_abuse: 29,
+                tarpit_abuse: 41,
+                cdp_report: 67,
+                not_a_bot_fail: 97,
+                not_a_bot_escalate: 113,
+            },
+            metadata: RuntimeMetadataProfile {
+                sim_profile: "runtime_toggle".to_string(),
+                sim_lane: "deterministic_black_box".to_string(),
+            },
+            paths: RuntimePathProfile {
+                public_search: "/sim/public/search".to_string(),
+                pow: "/pow".to_string(),
+                not_a_bot_checkbox: "/challenge/not-a-bot-checkbox".to_string(),
+                honeypot: "/instaban".to_string(),
+                challenge_submit: "/challenge/puzzle".to_string(),
+                pow_verify: "/pow/verify".to_string(),
+                cdp_report: "/cdp-report".to_string(),
+            },
+            taxonomy,
+        },
+        ci_oracle: CiOracleDeterministicProfile { drivers: ci_drivers },
+    }
+}
+
+fn load_deterministic_attack_corpus() -> DeterministicAttackCorpus {
+    let raw = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/scripts/tests/adversarial/deterministic_attack_corpus.v1.json"
+    ));
+    let parsed = serde_json::from_str::<DeterministicAttackCorpus>(raw)
+        .ok()
+        .filter(|corpus| corpus.schema_version == DETERMINISTIC_ATTACK_CORPUS_SCHEMA_VERSION)
+        .filter(|corpus| !corpus.corpus_revision.trim().is_empty())
+        .filter(|corpus| !corpus.taxonomy_version.trim().is_empty())
+        .filter(|corpus| !corpus.runtime_toggle.primary_public_paths.is_empty())
+        .filter(|corpus| {
+            corpus.runtime_toggle.primary_request_count
+                == corpus.runtime_toggle.primary_public_paths.len() as u64 + 3
+        })
+        .filter(|corpus| !corpus.runtime_toggle.honeypot_probe_moduli.is_empty())
+        .filter(|corpus| !corpus.ci_oracle.drivers.is_empty());
+    parsed.unwrap_or_else(default_deterministic_attack_corpus)
+}
+
+fn deterministic_runtime_profile() -> &'static RuntimeDeterministicProfile {
+    &DETERMINISTIC_ATTACK_CORPUS.runtime_toggle
+}
+
+fn deterministic_corpus_metadata_payload() -> serde_json::Value {
+    json!({
+        "schema_version": DETERMINISTIC_ATTACK_CORPUS.schema_version.clone(),
+        "corpus_revision": DETERMINISTIC_ATTACK_CORPUS.corpus_revision.clone(),
+        "taxonomy_version": DETERMINISTIC_ATTACK_CORPUS.taxonomy_version.clone(),
+        "contract_path": DETERMINISTIC_ATTACK_CORPUS_PATH,
+        "runtime_profile": DETERMINISTIC_ATTACK_CORPUS.runtime_profile.clone(),
+        "ci_profile": DETERMINISTIC_ATTACK_CORPUS.ci_profile.clone(),
+        "ci_driver_count": DETERMINISTIC_ATTACK_CORPUS.ci_oracle.drivers.len()
+    })
+}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
@@ -237,7 +543,7 @@ pub fn start_state(
         ends_at: Some(now.saturating_add(clamp_duration_seconds(duration_seconds))),
         stop_deadline: None,
         active_run_count: 1,
-        active_lane_count: ACTIVE_LANE_COUNT,
+        active_lane_count: deterministic_runtime_profile().active_lane_count,
         last_transition_reason: Some("manual_on".to_string()),
         last_terminal_failure_reason: None,
         last_run_id: current.last_run_id.clone(),
@@ -408,6 +714,7 @@ pub fn status_payload(
             "queue_policy": QUEUE_POLICY
         },
         "queue_policy": QUEUE_POLICY,
+        "deterministic_attack_corpus": deterministic_corpus_metadata_payload(),
         "last_transition_reason": state.last_transition_reason.clone(),
         "last_terminal_failure_reason": state.last_terminal_failure_reason.clone(),
         "last_run_id": state.last_run_id.clone(),
@@ -421,6 +728,7 @@ pub fn status_payload(
 }
 
 fn simulated_request_paths(run_id: &str, tick_count: u64) -> [String; 9] {
+    let runtime_profile = deterministic_runtime_profile();
     let run_suffix = run_id
         .chars()
         .rev()
@@ -429,14 +737,7 @@ fn simulated_request_paths(run_id: &str, tick_count: u64) -> [String; 9] {
         .chars()
         .rev()
         .collect::<String>();
-    let public_paths = [
-        "/sim/public/landing",
-        "/sim/public/docs",
-        "/sim/public/pricing",
-        "/sim/public/contact",
-        "/sim/public/changelog",
-        "/sim/public/faq",
-    ];
+    let public_paths = runtime_profile.primary_public_paths.as_slice();
     let pick = |slot: u64| -> String {
         let index = (deterministic_lane_entropy(run_id, tick_count, slot) % public_paths.len() as u64) as usize;
         public_paths[index].to_string()
@@ -447,19 +748,21 @@ fn simulated_request_paths(run_id: &str, tick_count: u64) -> [String; 9] {
         pick(2),
         pick(3),
         format!(
-            "/sim/public/search?q=run-{}-tick-{}-probe-{}",
+            "{}?q=run-{}-tick-{}-probe-{}",
+            runtime_profile.paths.public_search,
             run_suffix,
             tick_count,
             deterministic_lane_entropy(run_id, tick_count, 8) % 10_000
         ),
-        "/pow".to_string(),
-        "/challenge/not-a-bot-checkbox".to_string(),
+        runtime_profile.paths.pow.clone(),
+        runtime_profile.paths.not_a_bot_checkbox.clone(),
         crate::maze::entry_path(format!("sim-probe-{}-{}", run_suffix, tick_count).as_str()),
         if should_emit_honeypot_probe(tick_count) {
-            "/instaban".to_string()
+            runtime_profile.paths.honeypot.clone()
         } else {
             format!(
-                "/sim/public/search?q=deep-crawl-{}-{}",
+                "{}?q=deep-crawl-{}-{}",
+                runtime_profile.paths.public_search,
                 run_suffix,
                 deterministic_lane_entropy(run_id, tick_count, 9) % 10_000
             )
@@ -482,23 +785,33 @@ fn deterministic_lane_entropy(run_id: &str, tick_count: u64, slot: u64) -> u64 {
 }
 
 fn should_emit_honeypot_probe(tick_count: u64) -> bool {
-    tick_count % 5 == 0 || tick_count % 7 == 0
+    deterministic_runtime_profile()
+        .honeypot_probe_moduli
+        .iter()
+        .filter(|modulus| **modulus > 0)
+        .any(|modulus| tick_count % *modulus == 0)
 }
 
 fn rate_burst_requests_for_tick(tick_count: u64) -> u64 {
-    if tick_count % 9 == 0 {
-        INTERNAL_RATE_BURST_REQUESTS_HIGH
-    } else if tick_count % 3 == 0 {
-        INTERNAL_RATE_BURST_REQUESTS_MEDIUM
+    let burst = &deterministic_runtime_profile().rate_burst;
+    if burst.high_modulus > 0 && tick_count % burst.high_modulus == 0 {
+        burst.high
+    } else if burst.medium_modulus > 0 && tick_count % burst.medium_modulus == 0 {
+        burst.medium
     } else {
-        INTERNAL_RATE_BURST_REQUESTS_LOW
+        burst.low
     }
 }
 
 #[cfg(not(test))]
 fn simulated_request_ip(tick_count: u64, index: usize) -> String {
+    let runtime_profile = deterministic_runtime_profile();
+    let generation_batch_size_max = runtime_profile
+        .primary_request_count
+        .saturating_add(runtime_profile.supplemental_request_count)
+        .saturating_add(runtime_profile.rate_burst.high);
     let offset = tick_count
-        .saturating_mul(INTERNAL_GENERATION_BATCH_SIZE_MAX)
+        .saturating_mul(generation_batch_size_max)
         .saturating_add(index as u64);
     let third = ((offset / 254) % 254) + 1;
     let fourth = (offset % 254) + 1;
@@ -608,8 +921,8 @@ fn build_not_a_bot_submit_body(seed_token: &str, profile: NotABotSubmissionProfi
 
 #[cfg(test)]
 fn deterministic_generated_request_target_for_tick(tick_count: u64) -> u64 {
-    INTERNAL_PRIMARY_REQUEST_COUNT
-        + INTERNAL_SUPPLEMENTAL_REQUEST_COUNT
+    deterministic_runtime_profile().primary_request_count
+        + deterministic_runtime_profile().supplemental_request_count
         + rate_burst_requests_for_tick(tick_count)
 }
 
@@ -695,7 +1008,8 @@ pub fn supervisor_status_payload(
         "last_heartbeat_at": state.last_generated_at,
         "idle_seconds": idle_seconds,
         "off_state_inert": off_state_inert,
-        "trigger_surface": "runtime_request_loop"
+        "trigger_surface": "runtime_request_loop",
+        "deterministic_attack_corpus": deterministic_corpus_metadata_payload()
     })
 }
 
@@ -765,10 +1079,11 @@ pub fn run_internal_generation_tick(
         .clone()
         .or_else(|| state.last_run_id.clone())
         .unwrap_or_else(|| "simrun-runtime".to_string());
+    let runtime_profile = deterministic_runtime_profile();
     let metadata = crate::runtime::sim_telemetry::SimulationRequestMetadata {
         sim_run_id: run_id.clone(),
-        sim_profile: "runtime_toggle".to_string(),
-        sim_lane: "deterministic_black_box".to_string(),
+        sim_profile: runtime_profile.metadata.sim_profile.clone(),
+        sim_lane: runtime_profile.metadata.sim_lane.clone(),
     };
     #[cfg(not(test))]
     {
@@ -823,47 +1138,59 @@ pub fn run_internal_generation_tick(
         }
 
         let challenge_abuse_ip = lane_actor_ip(
-            INTERNAL_CHALLENGE_ABUSE_IP_OCTET,
+            runtime_profile.lane_ip_octets.challenge_abuse,
             state.generated_tick_count,
-            1,
-            17,
+            runtime_profile.lane_ip_rotation_ticks.challenge_abuse,
+            runtime_profile.lane_ip_entropy_salts.challenge_abuse,
         );
-        let pow_abuse_ip =
-            lane_actor_ip(INTERNAL_POW_ABUSE_IP_OCTET, state.generated_tick_count, 1, 29);
-        let tarpit_abuse_ip =
-            lane_actor_ip(INTERNAL_TARPIT_ABUSE_IP_OCTET, state.generated_tick_count, 1, 41);
+        let pow_abuse_ip = lane_actor_ip(
+            runtime_profile.lane_ip_octets.pow_abuse,
+            state.generated_tick_count,
+            runtime_profile.lane_ip_rotation_ticks.pow_abuse,
+            runtime_profile.lane_ip_entropy_salts.pow_abuse,
+        );
+        let tarpit_abuse_ip = lane_actor_ip(
+            runtime_profile.lane_ip_octets.tarpit_abuse,
+            state.generated_tick_count,
+            runtime_profile.lane_ip_rotation_ticks.tarpit_abuse,
+            runtime_profile.lane_ip_entropy_salts.tarpit_abuse,
+        );
         let fingerprint_probe_ip = lane_actor_ip(
-            INTERNAL_FINGERPRINT_PROBE_IP_OCTET,
+            runtime_profile.lane_ip_octets.fingerprint_probe,
             state.generated_tick_count,
-            2,
-            53,
+            runtime_profile.lane_ip_rotation_ticks.fingerprint_probe,
+            runtime_profile.lane_ip_entropy_salts.fingerprint_probe,
         );
-        let cdp_report_ip =
-            lane_actor_ip(INTERNAL_CDP_REPORT_IP_OCTET, state.generated_tick_count, 2, 67);
-        let rate_burst_ip = lane_actor_ip(
-            INTERNAL_RATE_BURST_IP_OCTET,
+        let cdp_report_ip = lane_actor_ip(
+            runtime_profile.lane_ip_octets.cdp_report,
             state.generated_tick_count,
-            24,
-            79,
+            runtime_profile.lane_ip_rotation_ticks.cdp_report,
+            runtime_profile.lane_ip_entropy_salts.cdp_report,
+        );
+        let rate_burst_ip = lane_actor_ip(
+            runtime_profile.lane_ip_octets.rate_burst,
+            state.generated_tick_count,
+            runtime_profile.lane_ip_rotation_ticks.rate_burst,
+            runtime_profile.lane_ip_entropy_salts.rate_burst,
         );
         let not_a_bot_fail_ip = lane_actor_ip(
-            INTERNAL_NOT_A_BOT_FAIL_IP_OCTET,
+            runtime_profile.lane_ip_octets.not_a_bot_fail,
             state.generated_tick_count,
-            2,
-            97,
+            runtime_profile.lane_ip_rotation_ticks.not_a_bot_fail,
+            runtime_profile.lane_ip_entropy_salts.not_a_bot_fail,
         );
         let not_a_bot_escalate_ip = lane_actor_ip(
-            INTERNAL_NOT_A_BOT_ESCALATE_IP_OCTET,
+            runtime_profile.lane_ip_octets.not_a_bot_escalate,
             state.generated_tick_count,
-            2,
-            113,
+            runtime_profile.lane_ip_rotation_ticks.not_a_bot_escalate,
+            runtime_profile.lane_ip_entropy_salts.not_a_bot_escalate,
         );
 
         let challenge_abuse_body = b"answer=bad&seed=invalid&return_to=%2Fsim%2Fpublic%2Flanding".to_vec();
         let mut challenge_submit = Request::builder();
         challenge_submit
             .method(Method::Post)
-            .uri("/challenge/puzzle")
+            .uri(runtime_profile.paths.challenge_submit.as_str())
             .header("x-forwarded-for", challenge_abuse_ip.as_str())
             .header("x-forwarded-proto", "https")
             .header("content-type", "application/x-www-form-urlencoded")
@@ -882,7 +1209,7 @@ pub fn run_internal_generation_tick(
             let mut not_a_bot_fail_submit = Request::builder();
             not_a_bot_fail_submit
                 .method(Method::Post)
-                .uri("/challenge/not-a-bot-checkbox")
+                .uri(runtime_profile.paths.not_a_bot_checkbox.as_str())
                 .header("x-forwarded-for", not_a_bot_fail_ip.as_str())
                 .header("x-forwarded-proto", "https")
                 .header("content-type", "application/x-www-form-urlencoded")
@@ -903,7 +1230,7 @@ pub fn run_internal_generation_tick(
             let mut not_a_bot_escalate_submit = Request::builder();
             not_a_bot_escalate_submit
                 .method(Method::Post)
-                .uri("/challenge/not-a-bot-checkbox")
+                .uri(runtime_profile.paths.not_a_bot_checkbox.as_str())
                 .header("x-forwarded-for", not_a_bot_escalate_ip.as_str())
                 .header("x-forwarded-proto", "https")
                 .header("content-type", "application/x-www-form-urlencoded")
@@ -915,7 +1242,7 @@ pub fn run_internal_generation_tick(
         let mut pow_verify = Request::builder();
         pow_verify
             .method(Method::Post)
-            .uri("/pow/verify")
+            .uri(runtime_profile.paths.pow_verify.as_str())
             .header("x-forwarded-for", pow_abuse_ip.as_str())
             .header("x-forwarded-proto", "https")
             .header("content-type", "application/json")
@@ -933,10 +1260,12 @@ pub fn run_internal_generation_tick(
             .header("user-agent", "ShumaAdversarySim/1.0 tarpit-progress-submit");
         dispatch_request(tarpit_progress.body(tarpit_progress_body).build());
 
+        let fingerprint_probe_path =
+            format!("{}?q=fingerprint-mismatch", runtime_profile.paths.public_search);
         let mut fingerprint_probe = Request::builder();
         fingerprint_probe
             .method(Method::Get)
-            .uri("/sim/public/search?q=fingerprint-mismatch")
+            .uri(fingerprint_probe_path.as_str())
             .header("x-forwarded-for", fingerprint_probe_ip.as_str())
             .header("x-forwarded-proto", "https")
             .header(
@@ -960,7 +1289,7 @@ pub fn run_internal_generation_tick(
         let mut cdp_builder = Request::builder();
         cdp_builder
             .method(Method::Post)
-            .uri("/cdp-report")
+            .uri(runtime_profile.paths.cdp_report.as_str())
             .header("x-forwarded-for", cdp_report_ip.as_str())
             .header("x-forwarded-proto", "https")
             .header("content-type", "application/json")
@@ -971,7 +1300,8 @@ pub fn run_internal_generation_tick(
         for burst_index in 0..rate_burst_requests {
             let mut burst_builder = Request::builder();
             let burst_path = format!(
-                "/sim/public/search?q=rate-burst-{}-{}-{}",
+                "{}?q=rate-burst-{}-{}-{}",
+                runtime_profile.paths.public_search,
                 state.generated_tick_count,
                 burst_index,
                 deterministic_lane_entropy(run_id.as_str(), state.generated_tick_count, 120 + burst_index)
@@ -1026,6 +1356,21 @@ pub fn run_internal_generation_tick(
 mod tests {
     use super::*;
     use crate::test_support::InMemoryStore;
+
+    #[test]
+    fn deterministic_attack_corpus_is_loaded_with_required_metadata() {
+        let runtime = deterministic_runtime_profile();
+        assert_eq!(
+            DETERMINISTIC_ATTACK_CORPUS.schema_version,
+            DETERMINISTIC_ATTACK_CORPUS_SCHEMA_VERSION
+        );
+        assert!(!DETERMINISTIC_ATTACK_CORPUS.corpus_revision.trim().is_empty());
+        assert!(!DETERMINISTIC_ATTACK_CORPUS.taxonomy_version.trim().is_empty());
+        assert!(runtime.active_lane_count >= 1);
+        assert!(!runtime.primary_public_paths.is_empty());
+        assert!(runtime.rate_burst.low > 0);
+        assert!(!DETERMINISTIC_ATTACK_CORPUS.ci_oracle.drivers.is_empty());
+    }
 
     #[test]
     fn start_and_stop_transitions_reach_off_state() {
@@ -1115,7 +1460,7 @@ mod tests {
             ends_at: Some(400),
             stop_deadline: None,
             active_run_count: MAX_CONCURRENT_RUNS,
-            active_lane_count: ACTIVE_LANE_COUNT,
+            active_lane_count: deterministic_runtime_profile().active_lane_count,
             last_transition_reason: Some("manual_on".to_string()),
             updated_at: 100,
             ..ControlState::default()
@@ -1135,7 +1480,7 @@ mod tests {
             started_at: Some(100),
             ends_at: Some(400),
             active_run_count: 1,
-            active_lane_count: ACTIVE_LANE_COUNT,
+            active_lane_count: deterministic_runtime_profile().active_lane_count,
             ..ControlState::default()
         };
         let summary = run_autonomous_supervisor_ticks(&store, &mut state, 110);
@@ -1159,7 +1504,7 @@ mod tests {
             started_at: Some(10),
             ends_at: Some(1000),
             active_run_count: 1,
-            active_lane_count: ACTIVE_LANE_COUNT,
+            active_lane_count: deterministic_runtime_profile().active_lane_count,
             last_generated_at: Some(10),
             ..ControlState::default()
         };
@@ -1190,46 +1535,64 @@ mod tests {
                 .and_then(|value| value.as_bool()),
             Some(true)
         );
+        assert_eq!(
+            payload
+                .get("deterministic_attack_corpus")
+                .and_then(|value| value.get("schema_version"))
+                .and_then(|value| value.as_str()),
+            Some(DETERMINISTIC_ATTACK_CORPUS_SCHEMA_VERSION)
+        );
     }
 
     #[test]
     fn deterministic_request_targets_cover_key_defense_surfaces() {
+        let runtime_profile = deterministic_runtime_profile();
         let without_honeypot = simulated_request_paths("run-coverage", 1);
-        assert!(without_honeypot.iter().any(|path| path == "/pow"));
+        assert!(
+            without_honeypot
+                .iter()
+                .any(|path| path == runtime_profile.paths.pow.as_str())
+        );
         assert!(without_honeypot
             .iter()
-            .any(|path| path == "/challenge/not-a-bot-checkbox"));
-        assert!(!without_honeypot.iter().any(|path| path == "/instaban"));
+            .any(|path| path == runtime_profile.paths.not_a_bot_checkbox.as_str()));
+        assert!(!without_honeypot
+            .iter()
+            .any(|path| path == runtime_profile.paths.honeypot.as_str()));
         assert!(without_honeypot
             .iter()
-            .any(|path| path.starts_with("/sim/public/search")));
+            .any(|path| path.starts_with(runtime_profile.paths.public_search.as_str())));
         assert!(without_honeypot
             .iter()
             .any(|path| path.starts_with(crate::maze::entry_path("").as_str())));
 
         let with_honeypot = simulated_request_paths("run-coverage", 5);
-        assert!(with_honeypot.iter().any(|path| path == "/instaban"));
+        assert!(with_honeypot
+            .iter()
+            .any(|path| path == runtime_profile.paths.honeypot.as_str()));
     }
 
     #[test]
     fn deterministic_generated_request_target_matches_batch_contract() {
+        let runtime_profile = deterministic_runtime_profile();
+        let burst = &runtime_profile.rate_burst;
         assert_eq!(
             deterministic_generated_request_target_for_tick(0),
-            INTERNAL_PRIMARY_REQUEST_COUNT
-                + INTERNAL_SUPPLEMENTAL_REQUEST_COUNT
-                + INTERNAL_RATE_BURST_REQUESTS_HIGH
+            runtime_profile.primary_request_count
+                + runtime_profile.supplemental_request_count
+                + burst.high
         );
         assert_eq!(
             deterministic_generated_request_target_for_tick(1),
-            INTERNAL_PRIMARY_REQUEST_COUNT
-                + INTERNAL_SUPPLEMENTAL_REQUEST_COUNT
-                + INTERNAL_RATE_BURST_REQUESTS_LOW
+            runtime_profile.primary_request_count
+                + runtime_profile.supplemental_request_count
+                + burst.low
         );
         assert_eq!(
             deterministic_generated_request_target_for_tick(3),
-            INTERNAL_PRIMARY_REQUEST_COUNT
-                + INTERNAL_SUPPLEMENTAL_REQUEST_COUNT
-                + INTERNAL_RATE_BURST_REQUESTS_MEDIUM
+            runtime_profile.primary_request_count
+                + runtime_profile.supplemental_request_count
+                + burst.medium
         );
     }
 }

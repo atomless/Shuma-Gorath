@@ -13,6 +13,11 @@
 - `scenario_manifest.v2.json`
   - Manifest v2 contract with explicit per-scenario `driver_class`, `traffic_model`, `expected_defense_categories`, `coverage_tags`, and `cost_assertions`.
   - Driver families are manifest-driven: `browser_realistic`, `http_scraper`, `edge_fixture`, `cost_imposition`.
+- `deterministic_attack_corpus.v1.json`
+  - Shared deterministic attack corpus contract consumed by both:
+    - runtime toggle lane (`src/admin/adversary_sim.rs`),
+    - CI oracle lane (`scripts/tests/adversarial_simulation_runner.py`).
+  - Declares runtime deterministic request-mix parameters plus CI driver-action mappings (`driver_class`, `path_hint`, `taxonomy_category`) and corpus revision/taxonomy metadata used for drift guards.
 - `scenario_manifest.v1.json` + `scenario_manifest.v2.json`
   - Both declare `execution_lane: black_box`; non-black-box lane values are rejected.
   - Makefile simulation targets execute `scenario_manifest.v2.json`; `v1` remains as a compatibility-validation contract.

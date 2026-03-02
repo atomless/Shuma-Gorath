@@ -28,6 +28,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 LANE_CONTRACT_PATH = Path("scripts/tests/adversarial/lane_contract.v1.json")
 SIM_TAG_CONTRACT_PATH = Path("scripts/tests/adversarial/sim_tag_contract.v1.json")
+DETERMINISTIC_ATTACK_CORPUS_PATH = Path(
+    "scripts/tests/adversarial/deterministic_attack_corpus.v1.json"
+)
 BROWSER_DRIVER_SCRIPT_PATH = Path("scripts/tests/adversarial_browser_driver.mjs")
 
 
@@ -158,6 +161,124 @@ SIM_TAG_NONCE_TTL_SECONDS = int(SIM_TAG_CONTRACT.get("nonce_ttl_seconds") or 600
 SIM_TAG_NONCE_MAX_ENTRIES = int(SIM_TAG_CONTRACT.get("nonce_max_entries") or 4096)
 
 
+def load_deterministic_attack_corpus(
+    path: Path = DETERMINISTIC_ATTACK_CORPUS_PATH,
+) -> Dict[str, Any]:
+    if not path.exists():
+        raise RuntimeError(f"deterministic attack corpus not found: {path}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise RuntimeError(f"invalid deterministic attack corpus JSON: {path}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"deterministic attack corpus must be a JSON object: {path}")
+    schema_version = str(payload.get("schema_version") or "").strip()
+    if schema_version != "sim-deterministic-attack-corpus.v1":
+        raise RuntimeError(
+            "deterministic attack corpus schema_version must be "
+            f"sim-deterministic-attack-corpus.v1 (got {schema_version})"
+        )
+    corpus_revision = str(payload.get("corpus_revision") or "").strip()
+    if not corpus_revision:
+        raise RuntimeError("deterministic attack corpus corpus_revision must be non-empty")
+    taxonomy_version = str(payload.get("taxonomy_version") or "").strip()
+    if not taxonomy_version:
+        raise RuntimeError("deterministic attack corpus taxonomy_version must be non-empty")
+
+    runtime_profile_name = str(payload.get("runtime_profile") or "").strip()
+    if runtime_profile_name != "runtime_toggle":
+        raise RuntimeError(
+            "deterministic attack corpus runtime_profile must be runtime_toggle "
+            f"(got {runtime_profile_name})"
+        )
+    runtime_profile = payload.get(runtime_profile_name)
+    if not isinstance(runtime_profile, dict):
+        raise RuntimeError(
+            f"deterministic attack corpus runtime profile missing object: {runtime_profile_name}"
+        )
+    primary_public_paths = runtime_profile.get("primary_public_paths")
+    if not isinstance(primary_public_paths, list) or not primary_public_paths:
+        raise RuntimeError(
+            "deterministic attack corpus runtime_toggle.primary_public_paths must be a non-empty array"
+        )
+
+    ci_profile_name = str(payload.get("ci_profile") or "").strip()
+    if ci_profile_name != "ci_oracle":
+        raise RuntimeError(
+            "deterministic attack corpus ci_profile must be ci_oracle "
+            f"(got {ci_profile_name})"
+        )
+    ci_profile = payload.get(ci_profile_name)
+    if not isinstance(ci_profile, dict):
+        raise RuntimeError(
+            f"deterministic attack corpus CI profile missing object: {ci_profile_name}"
+        )
+    drivers = ci_profile.get("drivers")
+    if not isinstance(drivers, dict) or not drivers:
+        raise RuntimeError("deterministic attack corpus ci_oracle.drivers must be a non-empty object")
+    for driver_name, driver_payload in drivers.items():
+        normalized_driver_name = str(driver_name or "").strip()
+        if not normalized_driver_name:
+            raise RuntimeError("deterministic attack corpus ci_oracle.drivers contains empty key")
+        if not isinstance(driver_payload, dict):
+            raise RuntimeError(
+                f"deterministic attack corpus driver row must be an object: {normalized_driver_name}"
+            )
+        driver_class = str(driver_payload.get("driver_class") or "").strip()
+        if not driver_class:
+            raise RuntimeError(
+                "deterministic attack corpus driver row missing driver_class: "
+                f"{normalized_driver_name}"
+            )
+        path_hint = str(driver_payload.get("path_hint") or "").strip()
+        if not path_hint.startswith("/"):
+            raise RuntimeError(
+                "deterministic attack corpus driver row path_hint must be absolute-path like /...: "
+                f"{normalized_driver_name}"
+            )
+        taxonomy_category = str(driver_payload.get("taxonomy_category") or "").strip()
+        if not taxonomy_category:
+            raise RuntimeError(
+                "deterministic attack corpus driver row missing taxonomy_category: "
+                f"{normalized_driver_name}"
+            )
+    return payload
+
+
+DETERMINISTIC_ATTACK_CORPUS = load_deterministic_attack_corpus()
+DETERMINISTIC_ATTACK_CORPUS_REVISION = str(
+    DETERMINISTIC_ATTACK_CORPUS.get("corpus_revision") or ""
+).strip()
+DETERMINISTIC_ATTACK_CORPUS_TAXONOMY_VERSION = str(
+    DETERMINISTIC_ATTACK_CORPUS.get("taxonomy_version") or ""
+).strip()
+DETERMINISTIC_ATTACK_CORPUS_RUNTIME_PROFILE = dict(
+    DETERMINISTIC_ATTACK_CORPUS.get(
+        str(DETERMINISTIC_ATTACK_CORPUS.get("runtime_profile") or "runtime_toggle")
+    )
+    or {}
+)
+DETERMINISTIC_ATTACK_CORPUS_CI_PROFILE = dict(
+    DETERMINISTIC_ATTACK_CORPUS.get(
+        str(DETERMINISTIC_ATTACK_CORPUS.get("ci_profile") or "ci_oracle")
+    )
+    or {}
+)
+DETERMINISTIC_DRIVER_DEFINITIONS = {
+    str(driver_name).strip(): dict(driver_payload or {})
+    for driver_name, driver_payload in dict(DETERMINISTIC_ATTACK_CORPUS_CI_PROFILE.get("drivers") or {}).items()
+    if str(driver_name).strip()
+}
+DETERMINISTIC_DRIVER_CLASS_MAP = {
+    str(driver_name): str(driver_payload.get("driver_class") or "").strip()
+    for driver_name, driver_payload in DETERMINISTIC_DRIVER_DEFINITIONS.items()
+}
+DETERMINISTIC_DRIVER_PATH_HINTS = {
+    str(driver_name): str(driver_payload.get("path_hint") or "/").strip() or "/"
+    for driver_name, driver_payload in DETERMINISTIC_DRIVER_DEFINITIONS.items()
+}
+
+
 ALLOWED_OUTCOMES = {"allow", "monitor", "not-a-bot", "challenge", "maze", "tarpit", "deny_temp"}
 ALLOWED_TIERS = {"SIM-T0", "SIM-T1", "SIM-T2", "SIM-T3", "SIM-T4"}
 ALLOWED_DRIVERS = {
@@ -218,6 +339,30 @@ DRIVER_TO_CLASS = {
     for driver_class, family_handlers in DRIVER_CLASS_HANDLERS.items()
     for driver_name in family_handlers.keys()
 }
+
+missing_driver_contract_rows = sorted(ALLOWED_DRIVERS - set(DETERMINISTIC_DRIVER_DEFINITIONS.keys()))
+if missing_driver_contract_rows:
+    raise RuntimeError(
+        "deterministic attack corpus missing ci_oracle driver rows: "
+        + ", ".join(missing_driver_contract_rows)
+    )
+extra_driver_contract_rows = sorted(set(DETERMINISTIC_DRIVER_DEFINITIONS.keys()) - ALLOWED_DRIVERS)
+if extra_driver_contract_rows:
+    raise RuntimeError(
+        "deterministic attack corpus has unknown ci_oracle driver rows: "
+        + ", ".join(extra_driver_contract_rows)
+    )
+driver_class_drift_rows = sorted(
+    driver_name
+    for driver_name in ALLOWED_DRIVERS
+    if str(DRIVER_TO_CLASS.get(driver_name) or "").strip()
+    != str(DETERMINISTIC_DRIVER_CLASS_MAP.get(driver_name) or "").strip()
+)
+if driver_class_drift_rows:
+    raise RuntimeError(
+        "deterministic attack corpus driver_class drift from runner handlers for: "
+        + ", ".join(driver_class_drift_rows)
+    )
 SUPPORTED_EXECUTION_LANES = {"black_box"}
 FULL_COVERAGE_PROFILE_NAME = "full_coverage"
 SUITE_PHASE_SETUP = "suite_setup"
@@ -1457,6 +1602,15 @@ class Runner:
                     "attacker_forbidden_headers": sorted(ATTACKER_FORBIDDEN_HEADERS),
                     "attacker_required_sim_headers": sorted(ATTACKER_REQUIRED_SIM_HEADERS),
                     "enforced": True,
+                },
+                "deterministic_attack_corpus": {
+                    "schema_version": str(DETERMINISTIC_ATTACK_CORPUS.get("schema_version") or ""),
+                    "corpus_revision": DETERMINISTIC_ATTACK_CORPUS_REVISION,
+                    "taxonomy_version": DETERMINISTIC_ATTACK_CORPUS_TAXONOMY_VERSION,
+                    "contract_path": str(DETERMINISTIC_ATTACK_CORPUS_PATH),
+                    "runtime_profile": str(DETERMINISTIC_ATTACK_CORPUS.get("runtime_profile") or ""),
+                    "ci_profile": str(DETERMINISTIC_ATTACK_CORPUS.get("ci_profile") or ""),
+                    "ci_driver_count": len(DETERMINISTIC_DRIVER_DEFINITIONS),
                 },
                 "control_plane_mutation_audit": self.summarize_control_plane_mutations(),
                 "coverage_contract": {
@@ -5348,17 +5502,9 @@ def sanitize_frontier_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def frontier_path_hint_for_scenario(scenario: Dict[str, Any]) -> str:
-    # Frontier payloads expose only public-path hints; execution validators enforce final policy.
-    mapping = {
-        "allow_browser_allowlist": "/sim/public/landing",
-        "not_a_bot_pass": "/sim/public/docs",
-        "challenge_puzzle_fail_maze": "/sim/public/pricing",
-        "rate_limit_enforce": "/sim/public/search",
-        "retry_storm_enforce": "/sim/public/search",
-        "honeypot_deny_temp": "/sim/public/contact",
-    }
     driver_name = str(scenario.get("driver") or "").strip()
-    return mapping.get(driver_name, "/")
+    # Path hints are sourced from the shared deterministic corpus contract.
+    return DETERMINISTIC_DRIVER_PATH_HINTS.get(driver_name, "/")
 
 
 def clamp_score(value: Any) -> float:
@@ -5779,6 +5925,12 @@ def build_attack_plan(
             "schema_version": str(contract.get("schema_version") or ""),
             "sha256": FRONTIER_ATTACK_GENERATION_CONTRACT_SHA256,
         },
+        "deterministic_attack_corpus": {
+            "contract_path": str(DETERMINISTIC_ATTACK_CORPUS_PATH),
+            "schema_version": str(DETERMINISTIC_ATTACK_CORPUS.get("schema_version") or ""),
+            "corpus_revision": DETERMINISTIC_ATTACK_CORPUS_REVISION,
+            "taxonomy_version": DETERMINISTIC_ATTACK_CORPUS_TAXONOMY_VERSION,
+        },
         "generation_summary": {
             "seed_candidate_count": seed_candidate_count,
             "generated_candidate_count": mutation_candidate_count,
@@ -5797,6 +5949,9 @@ def scenario_driver_class(scenario: Dict[str, Any]) -> str:
     if isinstance(explicit, str) and explicit.strip():
         return explicit.strip()
     driver_name = str(scenario.get("driver") or "")
+    class_from_corpus = str(DETERMINISTIC_DRIVER_CLASS_MAP.get(driver_name) or "").strip()
+    if class_from_corpus:
+        return class_from_corpus
     return DRIVER_TO_CLASS.get(driver_name, "")
 
 

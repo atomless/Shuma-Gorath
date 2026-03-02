@@ -1,0 +1,189 @@
+{
+  "schema_version": "sim-deterministic-attack-corpus.v1",
+  "corpus_revision": "2026-03-02.1",
+  "taxonomy_version": "sim-policy-taxonomy.v1",
+  "runtime_profile": "runtime_toggle",
+  "ci_profile": "ci_oracle",
+  "runtime_toggle": {
+    "active_lane_count": 2,
+    "primary_request_count": 9,
+    "supplemental_request_count": 7,
+    "primary_public_paths": [
+      "/sim/public/landing",
+      "/sim/public/docs",
+      "/sim/public/pricing",
+      "/sim/public/contact",
+      "/sim/public/changelog",
+      "/sim/public/faq"
+    ],
+    "honeypot_probe_moduli": [
+      5,
+      7
+    ],
+    "rate_burst": {
+      "low": 8,
+      "medium": 16,
+      "high": 24,
+      "high_modulus": 9,
+      "medium_modulus": 3
+    },
+    "lane_ip_octets": {
+      "rate_burst": 248,
+      "fingerprint_probe": 249,
+      "challenge_abuse": 250,
+      "pow_abuse": 251,
+      "tarpit_abuse": 252,
+      "cdp_report": 253,
+      "not_a_bot_fail": 246,
+      "not_a_bot_escalate": 247
+    },
+    "lane_ip_rotation_ticks": {
+      "rate_burst": 24,
+      "fingerprint_probe": 2,
+      "challenge_abuse": 1,
+      "pow_abuse": 1,
+      "tarpit_abuse": 1,
+      "cdp_report": 2,
+      "not_a_bot_fail": 2,
+      "not_a_bot_escalate": 2
+    },
+    "lane_ip_entropy_salts": {
+      "rate_burst": 79,
+      "fingerprint_probe": 53,
+      "challenge_abuse": 17,
+      "pow_abuse": 29,
+      "tarpit_abuse": 41,
+      "cdp_report": 67,
+      "not_a_bot_fail": 97,
+      "not_a_bot_escalate": 113
+    },
+    "metadata": {
+      "sim_profile": "runtime_toggle",
+      "sim_lane": "deterministic_black_box"
+    },
+    "paths": {
+      "public_search": "/sim/public/search",
+      "pow": "/pow",
+      "not_a_bot_checkbox": "/challenge/not-a-bot-checkbox",
+      "honeypot": "/instaban",
+      "challenge_submit": "/challenge/puzzle",
+      "pow_verify": "/pow/verify",
+      "cdp_report": "/cdp-report"
+    },
+    "taxonomy": {
+      "public_probe": "crawl_probe",
+      "challenge_submit": "challenge_abuse",
+      "not_a_bot_fail": "not_a_bot_fail",
+      "not_a_bot_escalate": "not_a_bot_escalate",
+      "pow_verify": "pow_abuse",
+      "tarpit_progress": "tarpit_abuse",
+      "fingerprint_probe": "fingerprint_probe",
+      "cdp_report": "cdp_probe",
+      "rate_burst": "rate_burst"
+    }
+  },
+  "ci_oracle": {
+    "drivers": {
+      "allow_browser_allowlist": {
+        "driver_class": "browser_realistic",
+        "path_hint": "/sim/public/landing",
+        "taxonomy_category": "allowlist"
+      },
+      "not_a_bot_pass": {
+        "driver_class": "browser_realistic",
+        "path_hint": "/challenge/not-a-bot-checkbox",
+        "taxonomy_category": "not_a_bot"
+      },
+      "challenge_puzzle_fail_maze": {
+        "driver_class": "browser_realistic",
+        "path_hint": "/challenge/puzzle",
+        "taxonomy_category": "challenge"
+      },
+      "pow_success": {
+        "driver_class": "cost_imposition",
+        "path_hint": "/pow",
+        "taxonomy_category": "pow"
+      },
+      "pow_invalid_proof": {
+        "driver_class": "cost_imposition",
+        "path_hint": "/pow/verify",
+        "taxonomy_category": "pow"
+      },
+      "rate_limit_enforce": {
+        "driver_class": "http_scraper",
+        "path_hint": "/sim/public/search",
+        "taxonomy_category": "rate"
+      },
+      "retry_storm_enforce": {
+        "driver_class": "http_scraper",
+        "path_hint": "/sim/public/search",
+        "taxonomy_category": "rate"
+      },
+      "geo_challenge": {
+        "driver_class": "browser_realistic",
+        "path_hint": "/sim/public/docs",
+        "taxonomy_category": "geo"
+      },
+      "geo_maze": {
+        "driver_class": "browser_realistic",
+        "path_hint": "/sim/public/pricing",
+        "taxonomy_category": "geo"
+      },
+      "geo_block": {
+        "driver_class": "browser_realistic",
+        "path_hint": "/sim/public/contact",
+        "taxonomy_category": "geo"
+      },
+      "honeypot_deny_temp": {
+        "driver_class": "browser_realistic",
+        "path_hint": "/instaban",
+        "taxonomy_category": "honeypot"
+      },
+      "not_a_bot_replay_abuse": {
+        "driver_class": "http_scraper",
+        "path_hint": "/challenge/not-a-bot-checkbox",
+        "taxonomy_category": "not_a_bot"
+      },
+      "not_a_bot_stale_token_abuse": {
+        "driver_class": "http_scraper",
+        "path_hint": "/challenge/not-a-bot-checkbox",
+        "taxonomy_category": "not_a_bot"
+      },
+      "not_a_bot_ordering_cadence_abuse": {
+        "driver_class": "http_scraper",
+        "path_hint": "/challenge/not-a-bot-checkbox",
+        "taxonomy_category": "not_a_bot"
+      },
+      "not_a_bot_replay_tarpit_abuse": {
+        "driver_class": "http_scraper",
+        "path_hint": "/challenge/not-a-bot-checkbox",
+        "taxonomy_category": "tarpit"
+      },
+      "fingerprint_inconsistent_payload": {
+        "driver_class": "http_scraper",
+        "path_hint": "/fingerprint-report",
+        "taxonomy_category": "fingerprint"
+      },
+      "header_spoofing_probe": {
+        "driver_class": "browser_realistic",
+        "path_hint": "/sim/public/search",
+        "taxonomy_category": "headers"
+      },
+      "cdp_high_confidence_deny": {
+        "driver_class": "http_scraper",
+        "path_hint": "/cdp-report",
+        "taxonomy_category": "cdp"
+      },
+      "akamai_additive_report": {
+        "driver_class": "edge_fixture",
+        "path_hint": "/fingerprint-report",
+        "taxonomy_category": "akamai"
+      },
+      "akamai_authoritative_deny": {
+        "driver_class": "edge_fixture",
+        "path_hint": "/fingerprint-report",
+        "taxonomy_category": "akamai"
+      }
+    }
+  }
+}

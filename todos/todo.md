@@ -93,10 +93,6 @@ Ongoing objectives for this tranche:
 - [ ] SIM-DEPLOY-1 Re-evaluate current dev-only adversary-sim availability posture and deployment-path split (`runtime-dev` vs production) against product ambition; define decision criteria, abuse safeguards, tenant/isolation controls, explicit operator consent model, cost controls, and rollback strategy for possible production enablement.
 - [ ] SIM-DEPLOY-2 If production availability is approved, design and implement production-safe adversary-sim operating modes (explicit opt-in, spawn-on-enable execution lifecycle, strict rate/resource envelopes, kill switch, auditability, and no-impact guarantees for normal user traffic).
 
-- [ ] SIM-ARCH-1 Define a canonical deterministic attack corpus contract (versioned artifact + runtime-safe and CI-oracle profiles) consumed by both runtime and CI executors.
-- [ ] SIM-ARCH-2 Refactor runtime deterministic generator to consume the shared corpus instead of hardcoded request batches, while preserving guardrails and bounded generation envelopes.
-- [ ] SIM-ARCH-3 Refactor CI Python oracle to consume the same shared corpus for attacker-plane action definitions while retaining its existing setup/gates/repeatability/report responsibilities.
-- [ ] SIM-ARCH-4 Add drift guards that fail when runtime and CI oracle execute different corpus revisions or taxonomy mappings for the deterministic lane.
 - [ ] SIM-CLEAN-1 After `SIM-ARCH-2`/`SIM-ARCH-3`, run a rigorous runtime+CI dead-code sweep and remove superseded deterministic-generation code paths (obsolete hardcoded batch builders, duplicate action definitions, and unused helper utilities) introduced before shared-corpus convergence.
 - [ ] SIM-HB-OOP-1 Introduce a dedicated internal adversary beat endpoint and move generation execution out of `/admin/adversary-sim/control` response path.
 - [ ] SIM-HB-OOP-2 Remove request-lifecycle-driven heartbeat execution from runtime entrypoint and make status diagnostics report explicit out-of-process heartbeat ownership.

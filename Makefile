@@ -439,6 +439,10 @@ test-adversarial-lane-contract: ## Validate black-box lane capability contract p
 	@echo "$(CYAN)🧪 Validating adversarial lane capability contract...$(NC)"
 	@python3 scripts/tests/check_adversarial_lane_contract.py
 
+test-adversarial-deterministic-corpus: ## Validate shared deterministic attack corpus parity across runtime and CI oracle lanes
+	@echo "$(CYAN)🧪 Validating shared deterministic attack corpus parity...$(NC)"
+	@python3 scripts/tests/check_adversarial_deterministic_corpus.py
+
 test-adversarial-sim-tag-contract: ## Validate simulation tag signing contract parity across runtime/tooling
 	@echo "$(CYAN)🧪 Validating adversarial sim-tag contract...$(NC)"
 	@python3 scripts/tests/check_adversarial_sim_tag_contract.py
@@ -459,6 +463,7 @@ test-adversarial-fast: ## Run mandatory fast adversarial matrix (smoke + abuse +
 	@echo "$(CYAN)🧪 Running mandatory fast adversarial matrix...$(NC)"
 	@$(MAKE) --no-print-directory test-adversarial-preflight || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-lane-contract || exit 1
+	@$(MAKE) --no-print-directory test-adversarial-deterministic-corpus || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-sim-tag-contract || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-coverage-contract || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-scenario-review || exit 1
@@ -501,6 +506,7 @@ test-adversarial-akamai: ## Run Akamai signal fixture smoke profile (requires ru
 test-adversarial-coverage: ## Run deterministic full-coverage oracle profile (protected-lane/release blocker; requires running server)
 	@echo "$(CYAN)🧪 Running adversarial coverage profile...$(NC)"
 	@$(MAKE) --no-print-directory test-adversarial-preflight || exit 1
+	@$(MAKE) --no-print-directory test-adversarial-deterministic-corpus || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-sim-tag-contract || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-coverage-contract || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-scenario-review || exit 1
