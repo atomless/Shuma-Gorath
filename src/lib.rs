@@ -1018,7 +1018,7 @@ fn maybe_run_autonomous_adversary_supervisor(store: &Store, req: &Request) {
         return;
     }
     let site_id = "default";
-    let cfg = match config::load_runtime_cached(store, site_id) {
+    let mut cfg = match config::load_runtime_cached(store, site_id) {
         Ok(cfg) => cfg,
         Err(err) => {
             log_line(&format!(
@@ -1033,6 +1033,10 @@ fn maybe_run_autonomous_adversary_supervisor(store: &Store, req: &Request) {
     let previous_state = state.clone();
     let (reconciled_state, _) = admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
     state = reconciled_state;
+    if cfg.adversary_sim_enabled && state.phase == admin::adversary_sim::ControlPhase::Off {
+        config::set_runtime_adversary_sim_enabled_override(site_id, false);
+        cfg.adversary_sim_enabled = false;
+    }
     let summary = admin::adversary_sim::run_autonomous_supervisor_ticks(store, &mut state, now);
     if state == previous_state {
         return;

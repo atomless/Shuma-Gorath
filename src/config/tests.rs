@@ -1326,3 +1326,26 @@ fn runtime_ephemeral_defaults_honor_env_startup_overrides() {
     std::env::remove_var("SHUMA_ADVERSARY_SIM_ENABLED");
     clear_runtime_cache_for_tests();
 }
+
+#[test]
+fn runtime_adversary_sim_enablement_ignores_persisted_kv_state() {
+    let _lock = crate::test_support::lock_env();
+    clear_runtime_cache_for_tests();
+    clear_env(&["SHUMA_ADVERSARY_SIM_ENABLED"]);
+
+    let store = crate::test_support::InMemoryStore::default();
+    let mut persisted = defaults().clone();
+    persisted.adversary_sim_enabled = true;
+    store
+        .set("config:default", &serde_json::to_vec(&persisted).unwrap())
+        .unwrap();
+
+    let effective = load_runtime_cached_for_tests(&store, "default", 100, 2).unwrap();
+    assert!(!effective.adversary_sim_enabled);
+
+    std::env::set_var("SHUMA_ADVERSARY_SIM_ENABLED", "true");
+    let env_effective = load_runtime_cached_for_tests(&store, "default", 101, 2).unwrap();
+    assert!(env_effective.adversary_sim_enabled);
+    std::env::remove_var("SHUMA_ADVERSARY_SIM_ENABLED");
+    clear_runtime_cache_for_tests();
+}

@@ -1899,7 +1899,7 @@ mod admin_config_tests {
         assert!(env.get("SHUMA_FRONTIER_OPENAI_API_KEY").is_none());
         assert_eq!(
             env.get("SHUMA_ADVERSARY_SIM_ENABLED"),
-            Some(&serde_json::json!("true"))
+            Some(&serde_json::json!("false"))
         );
         assert_eq!(
             env.get("SHUMA_ADVERSARY_SIM_DURATION_SECONDS"),
@@ -1945,7 +1945,7 @@ mod admin_config_tests {
         assert!(env_text.contains("SHUMA_FRONTIER_GOOGLE_MODEL=gemini-2.0-flash-lite"));
         assert!(env_text.contains("SHUMA_FRONTIER_XAI_MODEL=grok-3-mini"));
         assert!(!env_text.contains("SHUMA_FRONTIER_OPENAI_API_KEY="));
-        assert!(env_text.contains("SHUMA_ADVERSARY_SIM_ENABLED=true"));
+        assert!(env_text.contains("SHUMA_ADVERSARY_SIM_ENABLED=false"));
         assert!(env_text.contains("SHUMA_ADVERSARY_SIM_DURATION_SECONDS="));
         assert!(!env_text.contains("SHUMA_RATE_LIMITER_REDIS_URL="));
         assert!(!env_text.contains("SHUMA_BAN_STORE_REDIS_URL="));
@@ -2211,7 +2211,7 @@ mod admin_config_tests {
 
         let saved_bytes = store.get("config:default").unwrap().unwrap();
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
-        assert!(saved_cfg.adversary_sim_enabled);
+        assert!(!saved_cfg.adversary_sim_enabled);
         let effective_cfg = crate::config::load_runtime_cached(&store, "default").unwrap();
         assert!(effective_cfg.adversary_sim_enabled);
 
@@ -2524,7 +2524,7 @@ mod admin_config_tests {
 
         let persisted_cfg: crate::config::Config =
             serde_json::from_slice(&store.get("config:default").unwrap().unwrap()).unwrap();
-        assert!(persisted_cfg.adversary_sim_enabled);
+        assert!(!persisted_cfg.adversary_sim_enabled);
         let effective_cfg = crate::config::load_runtime_cached(&store, "default").unwrap();
         assert!(effective_cfg.adversary_sim_enabled);
         let persisted_state = crate::admin::adversary_sim::load_state(&store, "default");
@@ -2821,7 +2821,7 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn adversary_sim_status_preserves_enabled_when_idle_without_transition() {
+    fn adversary_sim_status_reconciles_idle_enabled_state_to_off() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
@@ -2846,7 +2846,7 @@ mod admin_config_tests {
             status_json
                 .get("adversary_sim_enabled")
                 .and_then(|value| value.as_bool()),
-            Some(true)
+            Some(false)
         );
         assert_eq!(
             status_json.get("phase").and_then(|value| value.as_str()),
@@ -2855,7 +2855,7 @@ mod admin_config_tests {
 
         let saved_bytes = store.get("config:default").unwrap().unwrap();
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
-        assert!(saved_cfg.adversary_sim_enabled);
+        assert!(!saved_cfg.adversary_sim_enabled);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -2918,6 +2918,56 @@ mod admin_config_tests {
                 .and_then(|value| value.as_bool()),
             Some(false)
         );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_status_auto_window_expiry_clears_runtime_enabled_override() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        let now = now_ts();
+
+        let on_resp = handle_admin_adversary_sim_control(
+            &make_control_request(true, "auto-expiry-enable"),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*on_resp.status(), 200u16);
+
+        let mut state = crate::admin::adversary_sim::load_state(&store, "default");
+        state.phase = crate::admin::adversary_sim::ControlPhase::Running;
+        state.ends_at = Some(now.saturating_sub(1));
+        state.active_run_count = 1;
+        state.active_lane_count = 2;
+        crate::admin::adversary_sim::save_state(&store, "default", &state).unwrap();
+
+        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
+        assert_eq!(*status_resp.status(), 200u16);
+        let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
+        assert_eq!(
+            status_json.get("phase").and_then(|value| value.as_str()),
+            Some("off")
+        );
+        assert_eq!(
+            status_json
+                .get("adversary_sim_enabled")
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
+        let effective_cfg = crate::config::load_runtime_cached(&store, "default").unwrap();
+        assert!(!effective_cfg.adversary_sim_enabled);
+        let persisted_cfg = crate::config::Config::load(&store, "default").unwrap();
+        assert!(!persisted_cfg.adversary_sim_enabled);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -8335,6 +8385,8 @@ fn handle_admin_config_internal(
             Err(err) => return Response::new(500, err.user_message()),
         };
         let mut changed = false;
+        let mut effective_adversary_sim_enabled =
+            crate::config::runtime_adversary_sim_enabled_for_site(site_id);
 
         // Update test_mode if provided.
         if let Some(test_mode) = json.get("test_mode").and_then(|v| v.as_bool()) {
@@ -8367,10 +8419,13 @@ fn handle_admin_config_internal(
                     "adversary_sim_enabled cannot be set to true when SHUMA_RUNTIME_ENV=runtime-prod",
                 );
             }
-            if cfg.adversary_sim_enabled != adversary_sim_enabled {
-                cfg.adversary_sim_enabled = adversary_sim_enabled;
-                changed = true;
+            if !validate_only {
+                crate::config::set_runtime_adversary_sim_enabled_override(
+                    site_id,
+                    adversary_sim_enabled,
+                );
             }
+            effective_adversary_sim_enabled = adversary_sim_enabled;
         }
         if let Some(adversary_sim_duration_seconds) = json
             .get("adversary_sim_duration_seconds")
@@ -9994,6 +10049,7 @@ fn handle_admin_config_internal(
 
         let mut effective_cfg = cfg.clone();
         crate::config::apply_runtime_ephemeral_overrides(site_id, &mut effective_cfg);
+        effective_cfg.adversary_sim_enabled = effective_adversary_sim_enabled;
         let body = serde_json::to_string(&json!({
             "status": "updated",
             "config": admin_config_payload(&effective_cfg, challenge_default, not_a_bot_default, maze_default)
@@ -11578,6 +11634,17 @@ fn adversary_sim_status_payload(
     payload
 }
 
+fn reconcile_adversary_sim_enabled_runtime_override(
+    site_id: &str,
+    cfg: &mut crate::config::Config,
+    state: &crate::admin::adversary_sim::ControlState,
+) {
+    if cfg.adversary_sim_enabled && state.phase == crate::admin::adversary_sim::ControlPhase::Off {
+        crate::config::set_runtime_adversary_sim_enabled_override(site_id, false);
+        cfg.adversary_sim_enabled = false;
+    }
+}
+
 fn handle_admin_adversary_sim_status(
     req: &Request,
     store: &impl crate::challenge::KeyValueStore,
@@ -11594,7 +11661,7 @@ fn handle_admin_adversary_sim_status(
         return Response::new(404, "Not Found");
     }
 
-    let cfg = match crate::config::load_runtime_cached(store, site_id) {
+    let mut cfg = match crate::config::load_runtime_cached(store, site_id) {
         Ok(cfg) => cfg,
         Err(err) => return Response::new(500, err.user_message()),
     };
@@ -11608,6 +11675,7 @@ fn handle_admin_adversary_sim_status(
             return Response::new(500, "Key-value store error");
         }
     }
+    reconcile_adversary_sim_enabled_runtime_override(site_id, &mut cfg, &state);
 
     let body = serde_json::to_string(&adversary_sim_status_payload(store, site_id, &cfg, &state, now))
         .unwrap();
@@ -11694,12 +11762,21 @@ fn handle_admin_adversary_sim_tick(
         }
     }
 
-    let cfg = match crate::config::load_runtime_cached(store, site_id) {
+    let mut cfg = match crate::config::load_runtime_cached(store, site_id) {
         Ok(cfg) => cfg,
         Err(err) => return Response::new(500, err.user_message()),
     };
     let mut state = crate::admin::adversary_sim::load_state(store, site_id);
     let now = now_ts();
+    let (reconciled_state, _) =
+        crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
+    if reconciled_state != state {
+        state = reconciled_state;
+        if crate::admin::adversary_sim::save_state(store, site_id, &state).is_err() {
+            return Response::new(500, "Key-value store error");
+        }
+    }
+    reconcile_adversary_sim_enabled_runtime_override(site_id, &mut cfg, &state);
 
     if !cfg.adversary_sim_enabled || state.phase != crate::admin::adversary_sim::ControlPhase::Running {
         let status = adversary_sim_status_payload(store, site_id, &cfg, &state, now);
@@ -11856,6 +11933,15 @@ fn handle_admin_adversary_sim_control(
         Err(err) => return Response::new(500, err.user_message()),
     };
     let mut state = crate::admin::adversary_sim::load_state(store, site_id);
+    let (reconciled_state, _) =
+        crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
+    if reconciled_state != state {
+        state = reconciled_state;
+        if crate::admin::adversary_sim::save_state(store, site_id, &state).is_err() {
+            return Response::new(500, "Key-value store error");
+        }
+    }
+    reconcile_adversary_sim_enabled_runtime_override(site_id, &mut cfg, &state);
 
     let debounce_key =
         crate::admin::adversary_sim_control::control_debounce_key(site_id, session_scope.as_str());
@@ -12126,7 +12212,7 @@ fn handle_admin_adversary_sim_control(
         crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
     state = preflight_state;
     transitions.append(&mut preflight_transitions);
-    cfg.adversary_sim_enabled = payload.enabled;
+    let mut desired_enabled = payload.enabled;
 
     if payload.enabled {
         if state.phase != crate::admin::adversary_sim::ControlPhase::Running {
@@ -12154,27 +12240,20 @@ fn handle_admin_adversary_sim_control(
     }
 
     let (reconciled_state, mut reconciled_transitions) =
-        crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
+        crate::admin::adversary_sim::reconcile_state(now, desired_enabled, &state);
     state = reconciled_state;
     transitions.append(&mut reconciled_transitions);
 
-    if state.phase == crate::admin::adversary_sim::ControlPhase::Off && cfg.adversary_sim_enabled {
-        cfg.adversary_sim_enabled = false;
+    if state.phase == crate::admin::adversary_sim::ControlPhase::Off && desired_enabled {
+        desired_enabled = false;
     }
     if save_adversary_sim_state_with_capability(store, site_id, &state, capabilities.state_write())
         .is_err()
     {
         return Response::new(500, "Key-value store error");
     }
-    let mut persisted_cfg = match crate::config::Config::load(store, site_id) {
-        Ok(value) => value,
-        Err(_) => cfg.clone(),
-    };
-    persisted_cfg.adversary_sim_enabled = cfg.adversary_sim_enabled;
-    persisted_cfg.adversary_sim_duration_seconds = cfg.adversary_sim_duration_seconds;
-    if persist_site_config(store, site_id, &persisted_cfg).is_err() {
-        return Response::new(500, "Key-value store error");
-    }
+    crate::config::set_runtime_adversary_sim_enabled_override(site_id, desired_enabled);
+    cfg.adversary_sim_enabled = desired_enabled;
     for transition in &transitions {
         log_adversary_sim_transition(store, req, auth, transition, Some(operation_id.as_str()));
     }
@@ -12183,7 +12262,7 @@ fn handle_admin_adversary_sim_control(
         operation_id: operation_id.clone(),
         requested_enabled: payload.enabled,
         requested_reason: requested_reason.clone(),
-        desired_enabled: cfg.adversary_sim_enabled,
+        desired_enabled,
         actual_phase: state.phase.as_str().to_string(),
         actor_scope: actor_scope.clone(),
         session_scope: session_scope.clone(),
@@ -12276,7 +12355,7 @@ fn handle_admin_adversary_sim_control(
             "reason": requested_reason
         },
         "accepted_state": {
-            "desired_enabled": cfg.adversary_sim_enabled,
+            "desired_enabled": desired_enabled,
             "actual_phase": state.phase.as_str()
         },
         "idempotency": {

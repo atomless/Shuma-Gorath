@@ -922,14 +922,6 @@ fn runtime_env_adversary_sim_enabled_override() -> Option<bool> {
         .and_then(|value| parse_bool_like(value.as_str()))
 }
 
-pub fn runtime_test_mode_for_site(site_id: &str) -> bool {
-    let overrides = runtime_ephemeral_flags(site_id);
-    overrides
-        .test_mode_override
-        .or_else(runtime_env_test_mode_override)
-        .unwrap_or_else(|| defaults_bool("SHUMA_TEST_MODE"))
-}
-
 pub fn runtime_adversary_sim_enabled_for_site(site_id: &str) -> bool {
     let overrides = runtime_ephemeral_flags(site_id);
     overrides
@@ -938,6 +930,7 @@ pub fn runtime_adversary_sim_enabled_for_site(site_id: &str) -> bool {
         .unwrap_or_else(|| defaults_bool("SHUMA_ADVERSARY_SIM_ENABLED"))
 }
 
+#[cfg(test)]
 pub fn set_runtime_test_mode_override(site_id: &str, enabled: bool) {
     let mut cache = RUNTIME_EPHEMERAL_FLAGS.lock().unwrap();
     let entry = cache.entry(site_id.to_string()).or_default();
@@ -958,12 +951,9 @@ pub fn apply_runtime_ephemeral_overrides(site_id: &str, cfg: &mut Config) {
     {
         cfg.test_mode = value;
     }
-    if let Some(value) = overrides
-        .adversary_sim_enabled_override
-        .or_else(runtime_env_adversary_sim_enabled_override)
-    {
-        cfg.adversary_sim_enabled = value;
-    }
+    // Adversary simulation enablement is runtime-ephemeral by design.
+    // Durable KV config must not retain an "on" control-plane state.
+    cfg.adversary_sim_enabled = runtime_adversary_sim_enabled_for_site(site_id);
 }
 
 #[cfg(not(test))]
