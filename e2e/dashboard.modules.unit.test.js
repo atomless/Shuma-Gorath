@@ -2163,6 +2163,8 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(ipBansSource, /export let ipRangeSuggestionsSnapshot = null;/);
   assert.match(ipBansSource, /let banFilter = 'all';/);
   assert.match(ipBansSource, /id="ip-ban-filter"/);
+  assert.match(ipBansSource, /id="ip-ban-reasons-chart"/);
+  assert.match(ipBansSource, /type: 'doughnut'/);
   assert.match(ipBansSource, /id="ip-range-suggestions-table"/);
   assert.match(ipBansSource, /id="bypass-allowlists-toggle"/);
   assert.match(ipBansSource, /id="network-allowlist"/);

@@ -124,7 +124,7 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | `SHUMA_CHALLENGE_PUZZLE_ENABLED` | `true` | Enables challenge puzzle routing at the challenge escalation step. |
 | `SHUMA_CHALLENGE_PUZZLE_TRANSFORM_COUNT` | `6` | Number of transform options shown in the puzzle challenge (4-8). |
 | `SHUMA_CHALLENGE_PUZZLE_SEED_TTL_SECONDS` | `300` | Puzzle signed seed lifetime in seconds (30-300). |
-| `SHUMA_CHALLENGE_PUZZLE_ATTEMPT_LIMIT_PER_WINDOW` | `6` | Puzzle per-bucket submit cap in each attempt window (1-100). |
+| `SHUMA_CHALLENGE_PUZZLE_ATTEMPT_LIMIT_PER_WINDOW` | `4` | Puzzle per-bucket submit cap in each attempt window (1-100). |
 | `SHUMA_CHALLENGE_PUZZLE_ATTEMPT_WINDOW_SECONDS` | `300` | Puzzle attempt window duration in seconds (30-3600). |
 | `SHUMA_CHALLENGE_PUZZLE_RISK_THRESHOLD` | `3` | Botness score threshold for serving challenge step-up. |
 | `SHUMA_NOT_A_BOT_ENABLED` | `true` | Enables not-a-bot checkbox routing at medium botness certainty. |
@@ -133,7 +133,7 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | `SHUMA_NOT_A_BOT_FAIL_SCORE` | `4` | Minimum not-a-bot score for puzzle escalation (must be <= pass threshold). |
 | `SHUMA_NOT_A_BOT_NONCE_TTL_SECONDS` | `120` | Verification Token Lifetime (seconds): how long the signed Not-a-Bot token remains valid after page load. If it expires before submit, verification fails (30-300). |
 | `SHUMA_NOT_A_BOT_MARKER_TTL_SECONDS` | `600` | Pass Marker Lifetime (seconds): how long a successful Not-a-Bot pass is remembered for the same IP/UA bucket, so repeat requests can skip this step (60-3600). |
-| `SHUMA_NOT_A_BOT_ATTEMPT_LIMIT_PER_WINDOW` | `6` | Not-a-bot per-bucket submit cap in each attempt window (1-100). |
+| `SHUMA_NOT_A_BOT_ATTEMPT_LIMIT_PER_WINDOW` | `3` | Not-a-bot per-bucket submit cap in each attempt window (1-100). |
 | `SHUMA_NOT_A_BOT_ATTEMPT_WINDOW_SECONDS` | `300` | Not-a-bot attempt window duration in seconds (30-3600). |
 | `SHUMA_BOTNESS_MAZE_THRESHOLD` | `6` | Botness score threshold for routing to maze. |
 | `SHUMA_BOTNESS_WEIGHT_JS_REQUIRED` | `1` | Score weight for missing <abbr title="JavaScript">JS</abbr> verification signal. |

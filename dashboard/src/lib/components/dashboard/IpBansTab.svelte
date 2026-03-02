@@ -1,5 +1,6 @@
 <script>
-  import { onMount } from 'svelte';
+  import { browser } from '$app/environment';
+  import { onDestroy, onMount } from 'svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TableEmptyRow from './primitives/TableEmptyRow.svelte';
   import TableWrapper from './primitives/TableWrapper.svelte';
@@ -53,6 +54,16 @@
     degraded: 'Degraded',
     stale: 'Stale'
   });
+  const CHART_COLORS = Object.freeze([
+    'rgb(255,205,235)',
+    'rgb(225,175,205)',
+    'rgb(205,155,185)',
+    'rgb(190,140,170)',
+    'rgb(175,125,155)',
+    'rgb(160,110,140)',
+    'rgb(147,97,127)',
+    'rgb(135,85,115)'
+  ]);
 
   let expandedRows = {};
   let banIp = '';
@@ -68,6 +79,8 @@
   let warnOnUnload = false;
   let lastAppliedConfigVersion = -1;
   let lastAppliedSuggestionsVersion = -1;
+  let banReasonCanvas = null;
+  let banReasonChart = null;
 
   let bypassAllowlistsEnabled = true;
   let networkAllowlist = '';
@@ -104,6 +117,7 @@
     normalized: '',
     error: ''
   };
+  let banReasonEntries = [];
 
   const formatTimestamp = (rawTs) => formatUnixSecondsLocal(rawTs, '-');
   const toFiniteNumberOrNaN = (value) => {
@@ -127,6 +141,80 @@
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   });
+
+  onDestroy(() => {
+    if (banReasonChart && typeof banReasonChart.destroy === 'function') {
+      banReasonChart.destroy();
+    }
+    banReasonChart = null;
+  });
+
+  const getChartConstructor = () => {
+    if (!browser || !window || typeof window.Chart !== 'function') return null;
+    return window.Chart;
+  };
+
+  const sameSeries = (chart, nextLabels, nextData) => {
+    if (!chart || !chart.data || !Array.isArray(chart.data.datasets) || chart.data.datasets.length === 0) {
+      return false;
+    }
+    const currentLabels = Array.isArray(chart.data.labels) ? chart.data.labels : [];
+    const currentData = Array.isArray(chart.data.datasets[0].data) ? chart.data.datasets[0].data : [];
+    return (
+      currentLabels.length === nextLabels.length &&
+      currentData.length === nextData.length &&
+      currentLabels.every((label, index) => String(label) === String(nextLabels[index])) &&
+      currentData.every((value, index) => Number(value) === Number(nextData[index]))
+    );
+  };
+
+  const normalizeBanReasonLabel = (reason) => {
+    const normalized = String(reason || '').trim();
+    return normalized || 'unknown';
+  };
+
+  const updateBanReasonChart = (chart, canvas, entries) => {
+    const chartCtor = getChartConstructor();
+    if (!chartCtor || !canvas || !Array.isArray(entries) || entries.length === 0) {
+      return chart;
+    }
+    const labels = entries.map((entry) => entry.label);
+    const values = entries.map((entry) => entry.value);
+    const colors = labels.map((_, index) => CHART_COLORS[index % CHART_COLORS.length]);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return chart;
+    if (!chart) {
+      return new chartCtor(ctx, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data: values,
+            backgroundColor: colors
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                color: '#594555'
+              }
+            }
+          }
+        }
+      });
+    }
+    if (!sameSeries(chart, labels, values)) {
+      chart.data.labels = labels;
+      chart.data.datasets[0].data = values;
+      chart.data.datasets[0].backgroundColor = colors;
+      chart.update('none');
+    }
+    return chart;
+  };
 
   const isValidIpv4 = (value) => {
     const segments = String(value || '').split('.');
@@ -678,6 +766,19 @@
   $: filteredBanRows = banFilter === 'ip-range'
     ? banRows.filter((row) => row.meta.isIpRange)
     : banRows;
+  $: {
+    const reasonCounts = new Map();
+    filteredBanRows.forEach((row) => {
+      const reason = normalizeBanReasonLabel(row?.ban?.reason);
+      reasonCounts.set(reason, Number(reasonCounts.get(reason) || 0) + 1);
+    });
+    banReasonEntries = Array.from(reasonCounts.entries())
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => {
+        if (b.value !== a.value) return b.value - a.value;
+        return a.label.localeCompare(b.label);
+      });
+  }
   $: banDurationSeconds = (
     (Number(banDurationDays) * 24 * 60 * 60) +
     (Number(banDurationHours) * 60 * 60) +
@@ -701,6 +802,16 @@
   $: freshnessTransport = String(freshness.transport || 'polling');
   $: freshnessSlowConsumerState = String(freshness.slow_consumer_lag_state || 'normal');
   $: freshnessOverflow = String(freshness.overflow || 'none');
+  $: {
+    if (!banReasonCanvas || banReasonEntries.length === 0) {
+      if (banReasonChart && typeof banReasonChart.destroy === 'function') {
+        banReasonChart.destroy();
+      }
+      banReasonChart = null;
+    } else {
+      banReasonChart = updateBanReasonChart(banReasonChart, banReasonCanvas, banReasonEntries);
+    }
+  }
 
   $: {
     const nextSuggestionsVersion = Number(ipRangeSuggestionsVersion || 0);
@@ -745,6 +856,17 @@
     <p id="ip-bans-freshness-meta" class="control-desc text-muted">
       transport: <code>{freshnessTransport}</code> | slow consumer: <code>{freshnessSlowConsumerState}</code> | overflow: <code>{freshnessOverflow}</code>
     </p>
+  </div>
+  <div class="chart-container panel-soft panel-border pad-md">
+    <h2>Ban Reason Spread</h2>
+    <p class="control-desc text-muted">
+      Distribution by reason for the current ban view.
+    </p>
+    {#if banReasonEntries.length === 0}
+      <p class="control-desc text-muted">No active ban reasons in this view.</p>
+    {:else}
+      <canvas id="ip-ban-reasons-chart" bind:this={banReasonCanvas} aria-label="IP ban reason spread chart"></canvas>
+    {/if}
   </div>
   <div class="control-group panel-soft pad-sm">
     <div class="input-row">

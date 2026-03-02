@@ -288,8 +288,10 @@ fn defaults_enable_both_signal_and_action_paths() {
     assert!(cfg.path_allowlist_enabled);
     assert!(cfg.challenge_puzzle_enabled);
     assert_eq!(cfg.challenge_puzzle_seed_ttl_seconds, 300);
-    assert_eq!(cfg.challenge_puzzle_attempt_limit_per_window, 6);
+    assert_eq!(cfg.challenge_puzzle_attempt_limit_per_window, 4);
     assert_eq!(cfg.challenge_puzzle_attempt_window_seconds, 300);
+    assert_eq!(cfg.not_a_bot_attempt_limit_per_window, 3);
+    assert_eq!(cfg.not_a_bot_attempt_window_seconds, 300);
     assert_eq!(cfg.defence_modes.js, ComposabilityMode::Both);
     assert_eq!(cfg.defence_modes.geo, ComposabilityMode::Both);
     assert_eq!(cfg.defence_modes.rate, ComposabilityMode::Both);
