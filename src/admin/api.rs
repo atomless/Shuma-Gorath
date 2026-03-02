@@ -2459,6 +2459,34 @@ mod admin_config_tests {
                 .and_then(|v| v.as_str()),
             Some("backend_autonomous_supervisor")
         );
+        assert_eq!(
+            tick_json
+                .get("status")
+                .and_then(|v| v.get("lifecycle_diagnostics"))
+                .and_then(|v| v.get("control"))
+                .and_then(|v| v.get("desired_enabled"))
+                .and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            tick_json
+                .get("status")
+                .and_then(|v| v.get("lifecycle_diagnostics"))
+                .and_then(|v| v.get("supervisor"))
+                .and_then(|v| v.get("heartbeat_expected"))
+                .and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        assert!(
+            tick_json
+                .get("status")
+                .and_then(|v| v.get("lifecycle_diagnostics"))
+                .and_then(|v| v.get("supervisor"))
+                .and_then(|v| v.get("last_successful_beat_at"))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0)
+                > 0
+        );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -11625,6 +11653,13 @@ fn adversary_sim_status_payload(
         state,
     );
     let lease = crate::admin::adversary_sim_control::load_controller_lease(store, site_id);
+    let lease_operation_id = lease.as_ref().map(|value| value.operation_id.clone());
+    let lease_expires_at = lease.as_ref().map(|value| value.expires_at);
+    let seconds_since_last_successful_beat = state
+        .last_generated_at
+        .map(|last_generated_at| now.saturating_sub(last_generated_at));
+    let generation_active =
+        cfg.adversary_sim_enabled && state.phase == crate::admin::adversary_sim::ControlPhase::Running;
     if let Some(object) = payload.as_object_mut() {
         object.insert(
             "desired_state".to_string(),
@@ -11646,10 +11681,7 @@ fn adversary_sim_status_payload(
         );
         object.insert(
             "generation_active".to_string(),
-            serde_json::Value::Bool(
-                cfg.adversary_sim_enabled
-                    && state.phase == crate::admin::adversary_sim::ControlPhase::Running,
-            ),
+            serde_json::Value::Bool(generation_active),
         );
         object.insert(
             "historical_data_visible".to_string(),
@@ -11685,6 +11717,30 @@ fn adversary_sim_status_payload(
                 "idempotency_ttl_seconds": crate::admin::adversary_sim_control::IDEMPOTENCY_TTL_SECONDS,
                 "lease_ttl_seconds": crate::admin::adversary_sim_control::LEASE_TTL_SECONDS,
                 "requires_idempotency_key": true
+            }),
+        );
+        object.insert(
+            "lifecycle_diagnostics".to_string(),
+            json!({
+                "control": {
+                    "desired_enabled": cfg.adversary_sim_enabled,
+                    "actual_phase": state.phase.as_str(),
+                    "controller_reconciliation_required": reconciliation_required,
+                    "runtime_instance_id": crate::admin::adversary_sim::process_instance_id(),
+                    "owner_instance_id": state.owner_instance_id.clone(),
+                    "last_transition_reason": state.last_transition_reason.clone(),
+                    "last_terminal_failure_reason": state.last_terminal_failure_reason.clone(),
+                    "last_control_operation_id": lease_operation_id,
+                    "lease_expires_at": lease_expires_at
+                },
+                "supervisor": {
+                    "heartbeat_expected": generation_active,
+                    "generated_tick_count": state.generated_tick_count,
+                    "generated_request_count": state.generated_request_count,
+                    "last_successful_beat_at": state.last_generated_at,
+                    "seconds_since_last_successful_beat": seconds_since_last_successful_beat,
+                    "last_generation_error": state.last_generation_error.clone()
+                }
             }),
         );
         object.insert(

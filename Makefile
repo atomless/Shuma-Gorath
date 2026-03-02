@@ -443,6 +443,14 @@ test-adversarial-deterministic-corpus: ## Validate shared deterministic attack c
 	@echo "$(CYAN)🧪 Validating shared deterministic attack corpus parity...$(NC)"
 	@python3 scripts/tests/check_adversarial_deterministic_corpus.py
 
+test-adversary-sim-lifecycle: ## Fast runtime-dev adversary-sim lifecycle regression gate (toggle/state/heartbeat contracts)
+	@echo "$(CYAN)🧪 Running adversary-sim lifecycle regression gate...$(NC)"
+	@cargo test adversary_sim_control_start_stop_and_status_round_trip -- --nocapture
+	@cargo test adversary_sim_status_reconciles_idle_enabled_state_to_off -- --nocapture
+	@cargo test adversary_sim_status_forces_off_when_run_owned_by_previous_process_instance -- --nocapture
+	@cargo test adversary_sim_tick_updates_generation_diagnostics_contract -- --nocapture
+	@$(MAKE) --no-print-directory test-adversarial-deterministic-corpus
+
 test-adversarial-sim-tag-contract: ## Validate simulation tag signing contract parity across runtime/tooling
 	@echo "$(CYAN)🧪 Validating adversarial sim-tag contract...$(NC)"
 	@python3 scripts/tests/check_adversarial_sim_tag_contract.py

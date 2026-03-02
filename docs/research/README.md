@@ -36,6 +36,10 @@ Completed archive index:
    LLM-driven adversarial testing methods, benchmark lessons, and direct mapping to `SIM-1`..`SIM-4` simulation design.
 2. [`2026-03-02-sim-runtime-architecture-overview-and-gap-report.md`](2026-03-02-sim-runtime-architecture-overview-and-gap-report.md)  
    Runtime architecture inventory and gap analysis for dashboard-toggle lane vs deterministic/containerized test lanes; required pre-read for open `SIM-*` execution.
+3. [`2026-03-02-sim-prime-directive-shared-corpus-and-out-of-process-heartbeat.md`](2026-03-02-sim-prime-directive-shared-corpus-and-out-of-process-heartbeat.md)  
+   Prime directive for one shared deterministic corpus plus out-of-process runtime heartbeat ownership.
+4. [`2026-03-02-adversary-toggle-incident-report-and-lifecycle-invariants.md`](2026-03-02-adversary-toggle-incident-report-and-lifecycle-invariants.md)  
+   Incident capture and non-negotiable lifecycle invariants for toggle/restart/off-state behavior, with required fast regression gate.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

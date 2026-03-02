@@ -6,6 +6,16 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 Adversarial Traffic Simulation Program
 
+#### Toggle lifecycle hardening (`SIM-LEARN-1` to `SIM-LEARN-4`)
+
+- [x] SIM-LEARN-1 Capture a concise adversary-toggle incident report and lifecycle invariants doc (what previously broke, why, and non-negotiable state semantics for toggle-on/off, auto-window expiry, server stop, and restart) and link it from SIM operator docs.
+- [x] SIM-LEARN-2 Add targeted regression tests for the exact failure modes previously seen: toggle no-op, on->off bounce, stale enabled state after server restart, control/status disagreement, and supervisor-not-running while UI claims enabled.
+- [x] SIM-LEARN-3 Add a fast deterministic verification target (single command) that validates toggle lifecycle end-to-end in runtime-dev before any SIM tranche merge.
+- [x] SIM-LEARN-4 Add explicit structured diagnostics for toggle lifecycle troubleshooting (control decision, state transitions, supervisor heartbeat, last successful beat) so failures can be triaged without deep code spelunking.
+- [x] Added incident/invariants report: `docs/research/2026-03-02-adversary-toggle-incident-report-and-lifecycle-invariants.md`.
+- [x] Added lifecycle regression gate: `make test-adversary-sim-lifecycle`.
+- [x] Extended status diagnostics contract with structured `lifecycle_diagnostics` in `/admin/adversary-sim/status`.
+
 #### Shared deterministic corpus convergence (`SIM-ARCH-1` to `SIM-ARCH-4`)
 
 - [x] SIM-ARCH-1 Define a canonical deterministic attack corpus contract (versioned artifact + runtime-safe and CI-oracle profiles) consumed by both runtime and CI executors.

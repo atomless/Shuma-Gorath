@@ -541,6 +541,11 @@ Control-plane endpoints:
 2. `GET /admin/adversary-sim/status` for phase + guardrail visibility.
 3. `POST /admin/adversary-sim/history/cleanup` for explicit retained-telemetry cleanup.
 
+Mandatory lifecycle incident reference:
+
+1. [`docs/research/2026-03-02-adversary-toggle-incident-report-and-lifecycle-invariants.md`](./research/2026-03-02-adversary-toggle-incident-report-and-lifecycle-invariants.md)
+2. Before merging SIM tranche changes, run `make test-adversary-sim-lifecycle`.
+
 Lifecycle semantics:
 
 1. `generation_active` describes whether adversary traffic producers are currently running.
@@ -550,6 +555,9 @@ Lifecycle semantics:
    - `healthy`: no expired telemetry buckets pending purge and no worker error.
    - `degraded`: purge lag or pending expired buckets detected; operator intervention required.
    - `stalled`: purge worker encountered deterministic failure (`last_error` populated); treat retention guarantees as at risk until cleared.
+5. `lifecycle_diagnostics` is the primary triage contract:
+   - `control` reports desired/actual state, ownership, reconciliation requirement, last transition/failure reason, and control lease operation metadata.
+   - `supervisor` reports heartbeat expectation, generated ticks/requests, beat recency, and last generation error.
 
 Guardrail constants (hard-coded, not operator-configurable):
 
