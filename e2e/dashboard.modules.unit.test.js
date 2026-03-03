@@ -433,18 +433,14 @@ test('dashboard API client exposes cursor-delta and stream URL helpers for realt
       limit: 77,
       after_cursor: 'cursor-abc'
     });
-    const tickResult = await client.tickAdversarySim();
     assert.equal(monitoringDelta.next_cursor, 'c2');
     assert.equal(ipBansDelta.freshness.state, 'fresh');
-    assert.equal(tickResult.ticked, false);
     assert.match(String(calls[0].url), /\/admin\/monitoring\/delta\?/);
     assert.match(String(calls[0].url), /hours=6/);
     assert.match(String(calls[0].url), /limit=99/);
     assert.match(String(calls[0].url), /after_cursor=cursor-123/);
     assert.match(String(calls[1].url), /\/admin\/ip-bans\/delta\?/);
     assert.match(String(calls[1].url), /after_cursor=cursor-abc/);
-    assert.match(String(calls[2].url), /\/admin\/adversary-sim\/tick$/);
-    assert.equal(String(calls[2].init.method).toUpperCase(), 'POST');
 
     const monitoringStreamUrl = client.getMonitoringStreamUrl({
       hours: 4,
@@ -1677,7 +1673,7 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
         last_heartbeat_at: 1100,
         idle_seconds: 0,
         off_state_inert: false,
-        trigger_surface: 'runtime_request_loop'
+        trigger_surface: 'internal_beat_endpoint'
       },
       generation_diagnostics: {
         health: 'ok',

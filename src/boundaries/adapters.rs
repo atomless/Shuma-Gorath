@@ -87,6 +87,10 @@ impl AdminBoundary for DefaultAdminBoundary {
     fn handle_admin(&self, req: &Request) -> Response {
         crate::admin::handle_admin(req)
     }
+
+    fn handle_internal(&self, req: &Request) -> Response {
+        crate::admin::handle_internal(req)
+    }
 }
 
 const CHALLENGE: DefaultChallengeBoundary = DefaultChallengeBoundary;
@@ -158,4 +162,8 @@ pub(crate) fn is_maze_path(path: &str) -> bool {
 
 pub(crate) fn handle_admin(req: &Request) -> Response {
     ADMIN.handle_admin(req)
+}
+
+pub(crate) fn handle_internal(req: &Request) -> Response {
+    ADMIN.handle_internal(req)
 }

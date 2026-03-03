@@ -288,7 +288,7 @@ fn geo_headers_are_used_when_forwarding_is_trusted() {
 }
 
 #[test]
-fn geo_headers_are_used_for_active_simulation_context_in_dev() {
+fn geo_headers_are_ignored_for_active_simulation_context_without_forwarded_secret() {
     let _lock = crate::test_support::lock_env();
     std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
     std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
@@ -307,12 +307,51 @@ fn geo_headers_are_used_for_active_simulation_context_in_dev() {
     let _guard = crate::runtime::sim_telemetry::enter(Some(sim_metadata));
 
     let assessment = crate::assess_geo_request(&req, &cfg);
-    assert!(assessment.headers_trusted);
-    assert_eq!(assessment.country.as_deref(), Some("US"));
-    assert!(assessment.scored_risk);
+    assert!(!assessment.headers_trusted);
+    assert_eq!(assessment.country, None);
+    assert!(!assessment.scored_risk);
 
     std::env::remove_var("SHUMA_RUNTIME_ENV");
     std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+}
+
+#[test]
+fn geo_headers_trust_parity_holds_for_simulation_and_external_requests() {
+    let _lock = crate::test_support::lock_env();
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+    std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+    std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+    let req = crate::test_support::request_with_headers(
+        "/health",
+        &[
+            ("x-geo-country", "US"),
+            ("x-shuma-forwarded-secret", "test-forwarded-secret"),
+        ],
+    );
+
+    let mut cfg = crate::config::defaults().clone();
+    cfg.geo_risk = vec!["US".to_string()];
+    cfg.geo_edge_headers_enabled = true;
+    let baseline = crate::assess_geo_request(&req, &cfg);
+
+    let sim_metadata = crate::runtime::sim_telemetry::SimulationRequestMetadata {
+        sim_run_id: "run-geo".to_string(),
+        sim_profile: "fast_smoke".to_string(),
+        sim_lane: "deterministic_black_box".to_string(),
+    };
+    let _guard = crate::runtime::sim_telemetry::enter(Some(sim_metadata));
+    let simulated = crate::assess_geo_request(&req, &cfg);
+
+    assert_eq!(baseline.headers_trusted, simulated.headers_trusted);
+    assert_eq!(baseline.country, simulated.country);
+    assert_eq!(baseline.scored_risk, simulated.scored_risk);
+    assert!(simulated.headers_trusted);
+    assert_eq!(simulated.country.as_deref(), Some("US"));
+    assert!(simulated.scored_risk);
+
+    std::env::remove_var("SHUMA_RUNTIME_ENV");
+    std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
 }
 
 #[test]

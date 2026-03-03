@@ -20,6 +20,15 @@ Use this guide for:
 - `make test-adversarial-container-isolation`
 - `make test-adversarial-container-blackbox`
 
+## Runtime Heartbeat Ownership
+
+Runtime-toggle adversary generation is owned by a host-side supervisor heartbeat, not by dashboard polling:
+
+1. Dashboard uses control/status endpoints only (`/admin/adversary-sim/control`, `/admin/adversary-sim/status`).
+2. Host-side supervisors call the internal beat endpoint (`POST /internal/adversary-sim/beat`) on cadence.
+3. Local make targets (`make dev`, `make run`, `make run-prebuilt`, `make prod`) wrap Spin with `scripts/run_with_adversary_sim_supervisor.sh`.
+4. Equivalent worker deployment adapters are supported for single-host service managers, container sidecars, and external edge supervisor services.
+
 ## SIM Run Definition Of Done (`SIM2-GC-1`)
 
 A run must be treated as complete only when all rules below are true:

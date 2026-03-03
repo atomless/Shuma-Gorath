@@ -260,6 +260,77 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         with self.assertRaises(runner.SimulationError):
             sim_runner.admin_patch({"test_mode": False}, reason="unit_test_late_setup_patch")
 
+    def test_cleanup_simulation_telemetry_history_records_mutation_audit(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        sim_runner.admin_request = (  # type: ignore[assignment]
+            lambda method, path, json_body=None: runner.HttpResult(
+                status=200,
+                body=json.dumps({"status": "cleared"}),
+                headers={},
+                latency_ms=1,
+            )
+        )
+        sim_runner.set_execution_phase(runner.SUITE_PHASE_SETUP, "unit_test_cleanup_phase")
+        sim_runner.cleanup_simulation_telemetry_history()
+
+        self.assertEqual(len(sim_runner.control_plane_mutations), 1)
+        mutation = sim_runner.control_plane_mutations[0]
+        self.assertEqual(mutation.get("action"), "adversary_sim_history_cleanup")
+        self.assertEqual(mutation.get("phase"), runner.SUITE_PHASE_SETUP)
+        self.assertEqual(mutation.get("reason"), "adversarial_ephemeral_cleanup")
+
+    def test_cleanup_simulation_telemetry_history_fails_on_non_200_response(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        sim_runner.admin_request = (  # type: ignore[assignment]
+            lambda method, path, json_body=None: runner.HttpResult(
+                status=404,
+                body="Not Found",
+                headers={},
+                latency_ms=1,
+            )
+        )
+
+        with self.assertRaises(runner.SimulationError):
+            sim_runner.cleanup_simulation_telemetry_history()
+
     def test_build_frontier_metadata_reports_disabled_single_and_multi_modes(self):
         with patch("scripts.tests.adversarial_simulation_runner.read_env_local_value", return_value=""):
             with patch.dict("os.environ", {}, clear=True):

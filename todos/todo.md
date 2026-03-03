@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-02
+Last updated: 2026-03-03
 
 This is the active work queue.
 `todos/security-review.md` tracks security finding validity and closure status.
@@ -75,6 +75,7 @@ Refinement plan: [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../
 Heartbeat decoupling plan: [`docs/plans/2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md`](../docs/plans/2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md)
 Mandatory pre-read architecture report for all open SIM work: [`docs/research/2026-03-02-sim-runtime-architecture-overview-and-gap-report.md`](../docs/research/2026-03-02-sim-runtime-architecture-overview-and-gap-report.md)
 Prime directive report (shared corpus + out-of-process heartbeat): [`docs/research/2026-03-02-sim-prime-directive-shared-corpus-and-out-of-process-heartbeat.md`](../docs/research/2026-03-02-sim-prime-directive-shared-corpus-and-out-of-process-heartbeat.md)
+Production-availability decision criteria (`SIM-DEPLOY-1`): [`docs/research/2026-03-03-adversary-sim-production-availability-decision-criteria.md`](../docs/research/2026-03-03-adversary-sim-production-availability-decision-criteria.md)
 Execution gate: no open `SIM-*` TODO in this section may move forward until both reports above have been read and the implementation slice is explicitly checked against runtime/test-lane boundary findings and prime-directive constraints.
 
 Ongoing objectives for this tranche:
@@ -90,25 +91,9 @@ Ongoing objectives for this tranche:
 10. Simplify freshness ownership to one source of truth (backend), with the UI acting as renderer only.
 11. Treat adversary simulation as potential core production value, enabling operators to red-team defenses immediately after deployment rather than waiting for external attackers.
 
-- [ ] SIM-DEPLOY-1 Re-evaluate current dev-only adversary-sim availability posture and deployment-path split (`runtime-dev` vs production) against product ambition; define decision criteria, abuse safeguards, tenant/isolation controls, explicit operator consent model, cost controls, and rollback strategy for possible production enablement.
 - [ ] SIM-DEPLOY-2 If production availability is approved, design and implement production-safe adversary-sim operating modes (explicit opt-in, spawn-on-enable execution lifecycle, strict rate/resource envelopes, kill switch, auditability, and no-impact guarantees for normal user traffic).
-
-- [ ] SIM-CLEAN-1 After `SIM-ARCH-2`/`SIM-ARCH-3`, run a rigorous runtime+CI dead-code sweep and remove superseded deterministic-generation code paths (obsolete hardcoded batch builders, duplicate action definitions, and unused helper utilities) introduced before shared-corpus convergence.
-- [ ] SIM-HB-OOP-1 Introduce a dedicated internal adversary beat endpoint and move generation execution out of `/admin/adversary-sim/control` response path.
-- [ ] SIM-HB-OOP-2 Remove request-lifecycle-driven heartbeat execution from runtime entrypoint and make status diagnostics report explicit out-of-process heartbeat ownership.
-- [ ] SIM-HB-OOP-3 Implement transient Rust supervisor worker (`spawn-on-enable`, 1s cadence default, bounded retries/backoff) that exits on toggle-off, run-window expiry, or server unreachability.
-- [ ] SIM-HB-OOP-4 Add host launch adapters and operator docs for supervisor execution across target environments (local `make dev`, systemd/single-host, container sidecar, and external edge supervisor service).
-- [ ] SIM-HB-OOP-5 Enforce strict shutdown/off reconciliation and ephemeral toggle semantics across stop/restart paths: after server stop, state reconciles to `off`, no generator activity remains, and next start defaults to off.
-- [ ] SIM-HB-OOP-6 Deprecate and remove dashboard/runtime reliance on `POST /admin/adversary-sim/tick` once out-of-process beat ownership is live.
-- [ ] SIM-CLEAN-2 After `SIM-HB-OOP-6`, run a rigorous dead-code sweep for heartbeat migration fallout: remove request-loop supervisor remnants, deprecated tick endpoint wiring, stale dashboard runtime adapters, and superseded diagnostics fields/contracts.
 - [ ] SIM-LLM-1 Realize full LLM-orchestrated, instruction-driven, containerized adversary lane as first-class runtime actor on top of the same runtime heartbeat ownership model: run capability-constrained action plans against public HTTP surface, emit normal request-pipeline telemetry, preserve deterministic replay bridge, and surface explicit degraded-state diagnostics when frontier execution is unavailable.
-- [ ] SIM-DET-2 Add deterministic config-profiled coverage pass for config-dependent surfaces (GEO and optional IP-range actions) in automated verification only (CI/test harness), so category-level event emission is guaranteed without mutating operator runtime simulation configuration.
-- [ ] SIM-DET-3 Add runtime-toggle integration assertions that fail when required deterministic surface categories (challenge, JS, PoW, maze/tarpit, rate, fingerprint/CDP, ban, GEO-configured) are missing from observed event telemetry.
-- [ ] SIM-DET-7 Ensure automated verification telemetry remains ephemeral: CI/test adversarial traffic must not pollute operator runtime telemetry history (ephemeral stores and/or mandatory teardown cleanup).
-- [ ] SIM-TRUST-1 Remove simulation-context forwarded-IP trust bypass and require simulation requests to satisfy the same trust-boundary conditions as external traffic.
-- [ ] SIM-TRUST-2 Add enforcement/telemetry parity tests proving simulated and external-equivalent requests follow identical policy decisions and event accounting (differing only by simulation metadata tags).
 - [ ] SIM-DET-L1 (Low priority) Add optional deterministic seed input for runtime-toggle runs to support exact tune-confirm-repeat replay when desired; keep default behavior non-seeded.
-- [ ] SIM-CLEAN-3 End-of-tranche final code hygiene pass for all SIM surfaces (runtime, dashboard, CI harness, docs/tests): remove dead modules/branches/contracts, collapse temporary compatibility shims, and fail verification if any open TODO references code paths already removed or renamed.
 
 ## P1 Akamai Integration Controls Expansion (Rate Limiting + GEO)
 - [ ] AK-RG-1 Write a concise architecture note (or ADR if scope broadens) that defines exact semantics for Akamai controls on Rate Limiting and GEO (`off`, `additive`, `authoritative` behavior, precedence, fallback, and trust boundaries).

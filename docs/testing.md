@@ -139,6 +139,7 @@ make test-adversarial-smoke
 
 Available profiles:
 - `make test-adversarial-fast` - mandatory fast matrix (`smoke + abuse + Akamai`)
+- `make test-adversary-sim-runtime-surface` - runtime-toggle integration gate that verifies required deterministic defense-surface telemetry categories (challenge/JS/PoW/rate/GEO/maze-tarpit/fingerprint-CDP/ban) on a running server
 - `make test-adversarial-smoke` - mandatory fast smoke gate (`SIM-T0`..`SIM-T4`)
 - `make test-adversarial-abuse` - mandatory replay/stale/order-cadence abuse regressions
 - `make test-adversarial-akamai` - mandatory Akamai signal fixture coverage
@@ -169,12 +170,23 @@ Dashboard adversary-sim orchestration control contract:
 - `POST /admin/adversary-sim/control` is the explicit admin-authenticated + CSRF-protected control path for ON/OFF transitions.
 - Control submissions must include `Idempotency-Key`, pass strict origin/referer + fetch-metadata trust checks, and return `operation_id` + `decision`.
 - `GET /admin/adversary-sim/status` is read-only and returns lifecycle phase, fixed guardrails, desired/actual state, and controller reconciliation/lease metadata.
+- `POST /internal/adversary-sim/beat` is an internal-only endpoint used by host-side supervisor workers; dashboard clients never call it directly.
+- Runtime generation cadence ownership is backend/supervisor-only: dashboard refresh cadence must not control traffic generation.
 - Toggle-driven runs use `adversary_sim_duration_seconds` (default `180`, hard-bounded `30..900`) under backend autonomous heartbeat generation, and dashboard surfaces lifecycle state only (`off`, `running`, `stopping`) without procedural progress rendering.
 - If no frontier provider keys are configured, OFF -> ON toggle attempts must show a warning dialog with two outcomes:
   - continue without frontier calls, or
   - cancel, add `SHUMA_FRONTIER_*_API_KEY` values to `.env.local`, restart `make dev`, then toggle on again.
 - Runtime guardrails are hard-coded: `max_concurrent_runs=1`, `cpu_cap_millicores=1000`, `memory_cap_mib=512`, `queue_policy=reject_new`.
 - Lifecycle split is explicit: `generation_active` controls producer state, while retained telemetry visibility is independent (`historical_data_visible=true` until retention expiry or explicit cleanup).
+
+Host-side supervisor launch adapters:
+- Local development (`make dev`, `make run`, `make run-prebuilt`, `make prod`) wraps `spin up` with `scripts/run_with_adversary_sim_supervisor.sh`.
+- Build/run helper targets:
+  - `make adversary-sim-supervisor-build`
+  - `make adversary-sim-supervisor`
+- Single-host/systemd style deployment should run the same binary (`target/tools/adversary_sim_supervisor`) against `POST /internal/adversary-sim/beat` with `SHUMA_API_KEY` injected via service env/secret manager.
+- Containerized deployment can run the same worker as a sidecar process sharing network reachability to the Shuma instance.
+- Edge/no-local-process environments can run an external supervisor service that calls the same internal beat endpoint.
 
 Live loop examples:
 
@@ -203,6 +215,7 @@ Live loop controls:
 - `ADVERSARIAL_CLEANUP_MODE` (default `0`) toggles preserve-vs-cleanup behavior per cycle:
   - `0`: preserve state by default for live observability loops.
   - `1`: force deterministic cleanup after each cycle.
+- When cleanup mode is active (`SHUMA_ADVERSARIAL_PRESERVE_STATE=0`), the runner clears both ban state and retained simulation telemetry history through `POST /admin/adversary-sim/history/cleanup` before and after the run.
 - Resilience controls:
   - `ADVERSARIAL_FATAL_CYCLE_LIMIT` (default `3`) stops the loop only after N consecutive fatal cycles.
   - `ADVERSARIAL_TRANSIENT_RETRY_LIMIT` (default `4`) retries transient failures before converting to one fatal cycle.

@@ -1460,6 +1460,7 @@ class Runner:
             cleanup_candidate_ips = sorted(set(cleanup_candidate_ips + ["unknown"]))
         if not self.preserve_state:
             self.cleanup_ips(cleanup_candidate_ips)
+            self.cleanup_simulation_telemetry_history()
 
         try:
             frontier_metadata = build_frontier_metadata()
@@ -1704,6 +1705,7 @@ class Runner:
                     self.cleanup_ips(cleanup_candidate_ips)
                 except Exception as exc:
                     print(f"[adversarial] warning: failed to cleanup scenario IPs: {exc}")
+                self.cleanup_simulation_telemetry_history()
 
     def wait_ready(self, timeout_seconds: int) -> None:
         deadline = time.monotonic() + timeout_seconds
@@ -1771,6 +1773,33 @@ class Runner:
     def cleanup_ips(self, ips: List[str]) -> None:
         for ip in ips:
             self.admin_unban(ip, reason="cleanup_ips")
+
+    def cleanup_simulation_telemetry_history(self) -> None:
+        reason = "adversarial_ephemeral_cleanup"
+        self.assert_control_plane_mutation_allowed("adversary_sim_history_cleanup", reason)
+        self.record_control_plane_mutation(
+            action="adversary_sim_history_cleanup",
+            reason=reason,
+            details={"endpoint": "/admin/adversary-sim/history/cleanup"},
+        )
+        result = self.admin_request("POST", "/admin/adversary-sim/history/cleanup")
+        if result.status != 200:
+            detail = collapse_whitespace(result.body)[:160]
+            raise SimulationError(
+                "Failed to clear simulation telemetry history via /admin/adversary-sim/history/cleanup: "
+                f"status={result.status} body={detail}"
+            )
+        payload = parse_json_or_raise(
+            result.body,
+            "Failed to parse /admin/adversary-sim/history/cleanup response",
+        )
+        status = str(payload.get("status") or "").strip().lower()
+        if status != "cleared":
+            detail = collapse_whitespace(result.body)[:160]
+            raise SimulationError(
+                "Failed to clear simulation telemetry history via /admin/adversary-sim/history/cleanup: "
+                f"unexpected status={status or 'missing'} body={detail}"
+            )
 
     def monitoring_snapshot(self) -> Dict[str, Any]:
         result = self.admin_read_request("GET", "/admin/monitoring?hours=24&limit=5")

@@ -44,4 +44,5 @@ pub(crate) trait MazeBoundary {
 
 pub(crate) trait AdminBoundary {
     fn handle_admin(&self, req: &Request) -> Response;
+    fn handle_internal(&self, req: &Request) -> Response;
 }

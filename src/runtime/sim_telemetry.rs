@@ -499,10 +499,6 @@ pub(crate) fn current_metadata() -> Option<SimulationRequestMetadata> {
     CURRENT_SIM_METADATA.with(|cell| cell.borrow().clone())
 }
 
-pub(crate) fn is_simulation_context_active() -> bool {
-    current_metadata().is_some()
-}
-
 #[cfg(test)]
 fn reset_nonce_replay_window_for_tests() {
     let mut window = NONCE_REPLAY_WINDOW

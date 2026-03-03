@@ -865,6 +865,14 @@ pub(crate) fn maybe_handle_early_route(
         return Some(crate::boundaries::handle_admin(req));
     }
 
+    // Internal control-plane endpoints (host-side supervisor/ops tooling only)
+    if path.starts_with("/internal/") {
+        if req.method() == &Method::Options {
+            return Some(Response::new(403, "Forbidden"));
+        }
+        return Some(crate::boundaries::handle_internal(req));
+    }
+
     None
 }
 

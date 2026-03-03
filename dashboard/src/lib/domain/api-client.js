@@ -658,25 +658,6 @@ export const create = (options = {}) => {
     adaptAdversarySimStatus(await request('/admin/adversary-sim/status', requestOptions));
 
   /**
-   * @param {RequestOptions} [requestOptions]
-   */
-  const tickAdversarySim = async (requestOptions = {}) => {
-    const payload = asRecord(
-      await request('/admin/adversary-sim/tick', {
-        ...requestOptions,
-        method: 'POST'
-      })
-    );
-    return {
-      ticked: payload.ticked === true,
-      generated_requests: Number(payload.generated_requests || 0),
-      failed_requests: Number(payload.failed_requests || 0),
-      last_response_status: Number(payload.last_response_status || 0),
-      status: adaptAdversarySimStatus(payload.status)
-    };
-  };
-
-  /**
    * @param {{hours?: number, limit?: number}} [options]
    * @param {RequestOptions} [requestOptions]
    */
@@ -844,7 +825,6 @@ export const create = (options = {}) => {
     getIpRangeSuggestions,
     getConfig,
     getAdversarySimStatus,
-    tickAdversarySim,
     getRobotsPreview,
     updateConfig,
     validateConfigPatch,

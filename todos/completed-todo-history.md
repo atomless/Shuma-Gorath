@@ -2,6 +2,31 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-03)
+
+### P0 Adversarial Traffic Simulation Program
+
+#### Runtime heartbeat decoupling, parity hardening, and cleanup closure
+
+- [x] SIM-DEPLOY-1 Re-evaluate current dev-only adversary-sim availability posture and deployment-path split (`runtime-dev` vs production) against product ambition; define decision criteria, abuse safeguards, tenant/isolation controls, explicit operator consent model, cost controls, and rollback strategy for possible production enablement.
+- [x] SIM-CLEAN-1 After `SIM-ARCH-2`/`SIM-ARCH-3`, run a rigorous runtime+CI dead-code sweep and remove superseded deterministic-generation code paths (obsolete hardcoded batch builders, duplicate action definitions, and unused helper utilities) introduced before shared-corpus convergence.
+- [x] SIM-HB-OOP-1 Introduce a dedicated internal adversary beat endpoint and move generation execution out of `/admin/adversary-sim/control` response path.
+- [x] SIM-HB-OOP-2 Remove request-lifecycle-driven heartbeat execution from runtime entrypoint and make status diagnostics report explicit out-of-process heartbeat ownership.
+- [x] SIM-HB-OOP-3 Implement transient Rust supervisor worker (`spawn-on-enable`, 1s cadence default, bounded retries/backoff) that exits on toggle-off, run-window expiry, or server unreachability.
+- [x] SIM-HB-OOP-4 Add host launch adapters and operator docs for supervisor execution across target environments (local `make dev`, systemd/single-host, container sidecar, and external edge supervisor service).
+- [x] SIM-HB-OOP-5 Enforce strict shutdown/off reconciliation and ephemeral toggle semantics across stop/restart paths: after server stop, state reconciles to `off`, no generator activity remains, and next start defaults to off.
+- [x] SIM-HB-OOP-6 Deprecate and remove dashboard/runtime reliance on `POST /admin/adversary-sim/tick` once out-of-process beat ownership is live.
+- [x] SIM-CLEAN-2 After `SIM-HB-OOP-6`, run a rigorous dead-code sweep for heartbeat migration fallout: remove request-loop supervisor remnants, deprecated tick endpoint wiring, stale dashboard runtime adapters, and superseded diagnostics fields/contracts.
+- [x] SIM-DET-2 Add deterministic config-profiled coverage pass for config-dependent surfaces (GEO and optional IP-range actions) in automated verification only (CI/test harness), so category-level event emission is guaranteed without mutating operator runtime simulation configuration.
+- [x] SIM-DET-3 Add runtime-toggle integration assertions that fail when required deterministic surface categories (challenge, JS, PoW, maze/tarpit, rate, fingerprint/CDP, ban, GEO-configured) are missing from observed event telemetry.
+- [x] SIM-DET-7 Ensure automated verification telemetry remains ephemeral: CI/test adversarial traffic must not pollute operator runtime telemetry history (ephemeral stores and/or mandatory teardown cleanup).
+- [x] SIM-TRUST-1 Remove simulation-context forwarded-IP trust bypass and require simulation requests to satisfy the same trust-boundary conditions as external traffic.
+- [x] SIM-TRUST-2 Add enforcement/telemetry parity tests proving simulated and external-equivalent requests follow identical policy decisions and event accounting (differing only by simulation metadata tags).
+- [x] SIM-CLEAN-3 End-of-tranche final code hygiene pass for all SIM surfaces (runtime, dashboard, CI harness, docs/tests): remove dead modules/branches/contracts, collapse temporary compatibility shims, and fail verification if any open TODO references code paths already removed or renamed.
+- [x] Added production decision criteria dossier: `docs/research/2026-03-03-adversary-sim-production-availability-decision-criteria.md`.
+- [x] Added runtime surface-category integration gate: `adversary_sim_runtime_toggle_emits_required_defense_surface_categories` (`src/admin/api.rs`) and wired to `make test-adversary-sim-lifecycle`.
+- [x] Added CI telemetry ephemerality cleanup contract and tests: `scripts/tests/adversarial_simulation_runner.py` and `scripts/tests/test_adversarial_simulation_runner.py`.
+
 ## Additional completions (2026-03-02)
 
 ### P0 Adversarial Traffic Simulation Program

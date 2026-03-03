@@ -1008,7 +1008,8 @@ pub fn supervisor_status_payload(
         "last_heartbeat_at": state.last_generated_at,
         "idle_seconds": idle_seconds,
         "off_state_inert": off_state_inert,
-        "trigger_surface": "runtime_request_loop",
+        "trigger_surface": "internal_beat_endpoint",
+        "beat_endpoint": "/internal/adversary-sim/beat",
         "deterministic_attack_corpus": deterministic_corpus_metadata_payload()
     })
 }
@@ -1087,6 +1088,11 @@ pub fn run_internal_generation_tick(
     };
     #[cfg(not(test))]
     {
+        let forwarded_secret = std::env::var("SHUMA_FORWARDED_IP_SECRET")
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+
         let mut dispatch_request = |request: Request| {
             let _guard = crate::runtime::sim_telemetry::enter(Some(metadata.clone()));
             let response = crate::handle_bot_defence_impl(&request);
@@ -1109,7 +1115,12 @@ pub fn run_internal_generation_tick(
                 .header("x-forwarded-for", simulated_ip.as_str())
                 .header("x-forwarded-proto", "https")
                 .header("user-agent", user_agent.as_str());
-            if index % 3 == 0 {
+            if let Some(secret) = forwarded_secret.as_deref() {
+                builder.header("x-shuma-forwarded-secret", secret);
+            }
+            // GEO probes should target normal public-surface paths so they traverse
+            // the same policy path as real traffic and are not skipped by special endpoints.
+            if path.starts_with("/sim/public/") {
                 builder.header("x-geo-country", "RU");
             }
             if (state.generated_tick_count + index as u64) % 4 == 0 {
@@ -1195,6 +1206,9 @@ pub fn run_internal_generation_tick(
             .header("x-forwarded-proto", "https")
             .header("content-type", "application/x-www-form-urlencoded")
             .header("user-agent", "ShumaAdversarySim/1.0 challenge-submit");
+        if let Some(secret) = forwarded_secret.as_deref() {
+            challenge_submit.header("x-shuma-forwarded-secret", secret);
+        }
         dispatch_request(challenge_submit.body(challenge_abuse_body).build());
 
         if let Some(fail_seed) = build_signed_not_a_bot_seed_token(
@@ -1214,6 +1228,9 @@ pub fn run_internal_generation_tick(
                 .header("x-forwarded-proto", "https")
                 .header("content-type", "application/x-www-form-urlencoded")
                 .header("user-agent", "ShumaAdversarySim/1.0 not-a-bot-fail");
+            if let Some(secret) = forwarded_secret.as_deref() {
+                not_a_bot_fail_submit.header("x-shuma-forwarded-secret", secret);
+            }
             dispatch_request(not_a_bot_fail_submit.body(fail_body).build());
         }
 
@@ -1235,6 +1252,9 @@ pub fn run_internal_generation_tick(
                 .header("x-forwarded-proto", "https")
                 .header("content-type", "application/x-www-form-urlencoded")
                 .header("user-agent", "ShumaAdversarySim/1.0 not-a-bot-escalate");
+            if let Some(secret) = forwarded_secret.as_deref() {
+                not_a_bot_escalate_submit.header("x-shuma-forwarded-secret", secret);
+            }
             dispatch_request(not_a_bot_escalate_submit.body(escalate_body).build());
         }
 
@@ -1247,6 +1267,9 @@ pub fn run_internal_generation_tick(
             .header("x-forwarded-proto", "https")
             .header("content-type", "application/json")
             .header("user-agent", "ShumaAdversarySim/1.0 pow-verify-submit");
+        if let Some(secret) = forwarded_secret.as_deref() {
+            pow_verify.header("x-shuma-forwarded-secret", secret);
+        }
         dispatch_request(pow_verify.body(pow_verify_body).build());
 
         let tarpit_progress_body = br#"{"token":"invalid","operation_id":"invalid","proof_nonce":"invalid"}"#.to_vec();
@@ -1258,6 +1281,9 @@ pub fn run_internal_generation_tick(
             .header("x-forwarded-proto", "https")
             .header("content-type", "application/json")
             .header("user-agent", "ShumaAdversarySim/1.0 tarpit-progress-submit");
+        if let Some(secret) = forwarded_secret.as_deref() {
+            tarpit_progress.header("x-shuma-forwarded-secret", secret);
+        }
         dispatch_request(tarpit_progress.body(tarpit_progress_body).build());
 
         let fingerprint_probe_path =
@@ -1278,6 +1304,9 @@ pub fn run_internal_generation_tick(
             )
             .header("sec-ch-ua-platform", "\"Windows\"")
             .header("sec-ch-ua-mobile", "?0");
+        if let Some(secret) = forwarded_secret.as_deref() {
+            fingerprint_probe.header("x-shuma-forwarded-secret", secret);
+        }
         dispatch_request(fingerprint_probe.body(Vec::new()).build());
 
         let cdp_probe_body = serde_json::to_vec(&json!({
@@ -1294,6 +1323,9 @@ pub fn run_internal_generation_tick(
             .header("x-forwarded-proto", "https")
             .header("content-type", "application/json")
             .header("user-agent", "ShumaAdversarySim/1.0 cdp-probe");
+        if let Some(secret) = forwarded_secret.as_deref() {
+            cdp_builder.header("x-shuma-forwarded-secret", secret);
+        }
         dispatch_request(cdp_builder.body(cdp_probe_body).build());
 
         let rate_burst_requests = rate_burst_requests_for_tick(state.generated_tick_count);
@@ -1314,6 +1346,9 @@ pub fn run_internal_generation_tick(
                 .header("x-forwarded-for", rate_burst_ip.as_str())
                 .header("x-forwarded-proto", "https")
                 .header("user-agent", user_agent.as_str());
+            if let Some(secret) = forwarded_secret.as_deref() {
+                burst_builder.header("x-shuma-forwarded-secret", secret);
+            }
             if burst_index % 8 == 0 {
                 burst_builder
                     .header("sec-ch-ua", "\"Not_A Brand\";v=\"99\", \"Chromium\";v=\"120\"")

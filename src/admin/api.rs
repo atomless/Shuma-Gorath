@@ -1631,6 +1631,18 @@ mod admin_config_tests {
         )
     }
 
+    fn make_internal_beat_request(api_key: &str) -> Request {
+        let authorization = format!("Bearer {}", api_key);
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Post)
+            .uri("/internal/adversary-sim/beat")
+            .header("host", "localhost:3000")
+            .header("authorization", authorization.as_str())
+            .body(Vec::new());
+        builder.build()
+    }
+
     fn collect_control_audit_decisions(store: &TestStore) -> Vec<String> {
         let map = store.map.lock().unwrap();
         map.values()
@@ -2405,11 +2417,12 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn adversary_sim_tick_updates_generation_diagnostics_contract() {
+    fn adversary_sim_internal_beat_updates_generation_diagnostics_contract() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
         std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_API_KEY", "sim-internal-beat-test-key");
 
         let store = TestStore::default();
         let auth = bearer_rw_auth();
@@ -2431,20 +2444,27 @@ mod admin_config_tests {
             Some(0)
         );
 
-        let tick_req = make_request(Method::Post, "/admin/adversary-sim/tick", Vec::new());
-        let tick_resp = handle_admin_adversary_sim_tick(&tick_req, &store, "default", &auth);
-        assert_eq!(*tick_resp.status(), 200u16);
-        let tick_json: serde_json::Value = serde_json::from_slice(tick_resp.body()).unwrap();
-        assert_eq!(tick_json.get("ticked").and_then(|v| v.as_bool()), Some(true));
+        let beat_req = make_internal_beat_request("sim-internal-beat-test-key");
+        let beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
+        assert_eq!(*beat_resp.status(), 200u16);
+        let beat_json: serde_json::Value = serde_json::from_slice(beat_resp.body()).unwrap();
+        assert_eq!(beat_json.get("accepted").and_then(|v| v.as_bool()), Some(true));
         assert!(
-            tick_json
+            beat_json
+                .get("executed_ticks")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0)
+                >= 1
+        );
+        assert!(
+            beat_json
                 .get("generated_requests")
                 .and_then(|v| v.as_u64())
                 .unwrap_or(0)
                 > 0
         );
         assert_eq!(
-            tick_json
+            beat_json
                 .get("status")
                 .and_then(|v| v.get("generation_diagnostics"))
                 .and_then(|v| v.get("health"))
@@ -2452,7 +2472,7 @@ mod admin_config_tests {
             Some("ok")
         );
         assert_eq!(
-            tick_json
+            beat_json
                 .get("status")
                 .and_then(|v| v.get("supervisor"))
                 .and_then(|v| v.get("owner"))
@@ -2460,7 +2480,7 @@ mod admin_config_tests {
             Some("backend_autonomous_supervisor")
         );
         assert_eq!(
-            tick_json
+            beat_json
                 .get("status")
                 .and_then(|v| v.get("lifecycle_diagnostics"))
                 .and_then(|v| v.get("control"))
@@ -2469,7 +2489,7 @@ mod admin_config_tests {
             Some(true)
         );
         assert_eq!(
-            tick_json
+            beat_json
                 .get("status")
                 .and_then(|v| v.get("lifecycle_diagnostics"))
                 .and_then(|v| v.get("supervisor"))
@@ -2478,7 +2498,7 @@ mod admin_config_tests {
             Some(true)
         );
         assert!(
-            tick_json
+            beat_json
                 .get("status")
                 .and_then(|v| v.get("lifecycle_diagnostics"))
                 .and_then(|v| v.get("supervisor"))
@@ -2491,6 +2511,7 @@ mod admin_config_tests {
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
         std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_API_KEY");
     }
 
     #[test]
@@ -3668,7 +3689,6 @@ mod admin_config_tests {
         assert!(sanitize_path("/admin/ip-range/suggestions"));
         assert!(sanitize_path("/admin/monitoring/stream"));
         assert!(sanitize_path("/admin/ip-bans/stream"));
-        assert!(sanitize_path("/admin/adversary-sim/tick"));
         assert!(sanitize_path("/admin/adversary-sim/history/cleanup"));
     }
 
@@ -3946,6 +3966,102 @@ mod admin_config_tests {
         assert!(include_events
             .iter()
             .any(|entry| entry.get("is_simulation").and_then(|value| value.as_bool()) == Some(true)));
+    }
+
+    #[test]
+    fn admin_monitoring_keeps_simulation_event_parity_for_equivalent_outcomes() {
+        let store = TestStore::default();
+        let now = now_ts();
+
+        crate::observability::monitoring::record_challenge_failure(
+            &store,
+            "198.51.100.31",
+            "incorrect",
+        );
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now,
+                event: EventType::Challenge,
+                ip: Some("198.51.100.31".to_string()),
+                reason: Some("challenge_submit".to_string()),
+                outcome: Some("challenge_failed".to_string()),
+                admin: Some("ops".to_string()),
+            },
+        );
+
+        {
+            let _guard = crate::runtime::sim_telemetry::enter(Some(
+                crate::runtime::sim_telemetry::SimulationRequestMetadata {
+                    sim_run_id: "run_parity".to_string(),
+                    sim_profile: "runtime_toggle".to_string(),
+                    sim_lane: "deterministic_black_box".to_string(),
+                },
+            ));
+            crate::observability::monitoring::record_challenge_failure(
+                &store,
+                "198.51.100.31",
+                "incorrect",
+            );
+            log_event(
+                &store,
+                &EventLogEntry {
+                    ts: now.saturating_add(1),
+                    event: EventType::Challenge,
+                    ip: Some("198.51.100.31".to_string()),
+                    reason: Some("challenge_submit".to_string()),
+                    outcome: Some("challenge_failed".to_string()),
+                    admin: Some("ops".to_string()),
+                },
+            );
+        }
+
+        let req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=10", Vec::new());
+        let resp = handle_admin_monitoring(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+        let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(
+            payload
+                .get("summary")
+                .and_then(|summary| summary.get("challenge"))
+                .and_then(|challenge| challenge.get("total_failures"))
+                .and_then(|value| value.as_u64()),
+            Some(2)
+        );
+
+        let events = payload
+            .get("details")
+            .and_then(|details| details.get("events"))
+            .and_then(|events| events.get("recent_events"))
+            .and_then(|events| events.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let equivalent = events
+            .iter()
+            .filter(|entry| {
+                entry.get("event").and_then(|value| value.as_str()) == Some("Challenge")
+                    && entry.get("reason").and_then(|value| value.as_str())
+                        == Some("challenge_submit")
+                    && entry.get("outcome").and_then(|value| value.as_str())
+                        == Some("challenge_failed")
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        assert_eq!(equivalent.len(), 2);
+        assert_eq!(
+            equivalent
+                .iter()
+                .filter(|entry| entry.get("is_simulation").and_then(|value| value.as_bool()) == Some(true))
+                .count(),
+            1
+        );
+        assert_eq!(
+            equivalent
+                .iter()
+                .filter(|entry| entry.get("is_simulation").and_then(|value| value.as_bool()) == Some(false))
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -5740,10 +5856,6 @@ mod admin_auth_tests {
             &Method::Post
         ));
         assert!(request_requires_admin_write(
-            "/admin/adversary-sim/tick",
-            &Method::Post
-        ));
-        assert!(request_requires_admin_write(
             "/admin/adversary-sim/history/cleanup",
             &Method::Post
         ));
@@ -5776,10 +5888,6 @@ mod admin_auth_tests {
         ));
         assert!(!request_requires_admin_write(
             "/admin/adversary-sim/status",
-            &Method::Get
-        ));
-        assert!(!request_requires_admin_write(
-            "/admin/adversary-sim/tick",
             &Method::Get
         ));
         assert!(!request_requires_admin_write(
@@ -5830,7 +5938,6 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/config/export"
             | "/admin/adversary-sim/control"
             | "/admin/adversary-sim/status"
-            | "/admin/adversary-sim/tick"
             | "/admin/adversary-sim/history/cleanup"
             | "/admin/maze"
             | "/admin/maze/preview"
@@ -5901,6 +6008,7 @@ const MONITORING_FRESHNESS_SLO_P95_MS: u64 = 300;
 const MONITORING_FRESHNESS_SLO_P99_MS: u64 = 500;
 const MONITORING_MANUAL_REFRESH_STALENESS_BOUND_MS: u64 = 60_000;
 const MONITORING_MAX_ALLOWED_LAG_BEFORE_DEGRADED_MS: u64 = 2_000;
+const INTERNAL_ADVERSARY_SIM_BEAT_PATH: &str = "/internal/adversary-sim/beat";
 const MONITORING_STALE_LAG_THRESHOLD_MS: u64 = 10_000;
 const MONITORING_LOAD_ENVELOPE_EVENTS_PER_SEC: u64 = 1_000;
 const MONITORING_LOAD_ENVELOPE_OPERATOR_CLIENTS: u64 = 5;
@@ -6082,7 +6190,6 @@ fn request_requires_admin_write(path: &str, method: &Method) -> bool {
             | "/admin/config"
             | "/admin/config/validate"
             | "/admin/adversary-sim/control"
-            | "/admin/adversary-sim/tick"
             | "/admin/adversary-sim/history/cleanup"
             | "/admin/maze/seeds"
             | "/admin/maze/seeds/refresh"
@@ -11867,20 +11974,20 @@ fn handle_admin_adversary_sim_history_cleanup(
     Response::new(200, body)
 }
 
-fn handle_admin_adversary_sim_tick(
+fn internal_adversary_supervisor_is_authorized(req: &Request) -> bool {
+    matches!(
+        crate::admin::auth::bearer_access_level(req),
+        Some(crate::admin::auth::AdminAccessLevel::ReadWrite)
+    )
+}
+
+fn handle_internal_adversary_sim_beat(
     req: &Request,
     store: &impl crate::challenge::KeyValueStore,
     site_id: &str,
-    auth: &crate::admin::auth::AdminAuthResult,
 ) -> Response {
     if *req.method() != Method::Post {
         return Response::new(405, "Method Not Allowed");
-    }
-    if !crate::config::admin_config_write_enabled() {
-        return Response::new(
-            403,
-            "Config updates are disabled when SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false",
-        );
     }
 
     let runtime_environment = crate::config::runtime_environment();
@@ -11889,58 +11996,50 @@ fn handle_admin_adversary_sim_tick(
         return Response::new(404, "Not Found");
     }
 
-    if auth.requires_csrf(req) {
-        let expected = auth.csrf_token.as_deref().unwrap_or("");
-        if !crate::admin::auth::validate_session_csrf(req, expected) {
-            log_admin_csrf_denied(store, req, "/admin/adversary-sim/tick", auth);
-            return Response::new(403, "Forbidden: control trust boundary violation");
-        }
+    if !internal_adversary_supervisor_is_authorized(req) {
+        return Response::new(401, "Unauthorized: Internal supervisor authorization required");
     }
 
     let mut cfg = match crate::config::load_runtime_cached(store, site_id) {
         Ok(cfg) => cfg,
         Err(err) => return Response::new(500, err.user_message()),
     };
-    let mut state = crate::admin::adversary_sim::load_state(store, site_id);
     let now = now_ts();
+    let mut state = crate::admin::adversary_sim::load_state(store, site_id);
+    let previous_state = state.clone();
+
     cfg.adversary_sim_enabled = effective_adversary_sim_enabled(&cfg, &state);
     let (reconciled_state, _) =
         crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
-    if reconciled_state != state {
-        state = reconciled_state;
-        if crate::admin::adversary_sim::save_state(store, site_id, &state).is_err() {
-            return Response::new(500, "Key-value store error");
-        }
-    }
+    state = reconciled_state;
     cfg.adversary_sim_enabled = effective_adversary_sim_enabled(&cfg, &state);
     reconcile_adversary_sim_enabled_runtime_override(site_id, &mut cfg, &state);
 
-    if !cfg.adversary_sim_enabled || state.phase != crate::admin::adversary_sim::ControlPhase::Running {
-        let status = adversary_sim_status_payload(store, site_id, &cfg, &state, now);
-        let body = serde_json::to_string(&json!({
-            "ticked": false,
-            "reason": "simulation_not_running",
-            "status": status
-        }))
-        .unwrap();
-        return Response::builder()
-            .status(409)
-            .header("Cache-Control", "no-store")
-            .body(body)
-            .build();
-    }
-
-    let tick_result = crate::admin::adversary_sim::run_internal_generation_tick(store, &mut state, now);
-    if crate::admin::adversary_sim::save_state(store, site_id, &state).is_err() {
+    let summary = crate::admin::adversary_sim::run_autonomous_supervisor_ticks(store, &mut state, now);
+    if state != previous_state && crate::admin::adversary_sim::save_state(store, site_id, &state).is_err() {
         return Response::new(500, "Key-value store error");
     }
 
+    if summary.executed_ticks > 0 {
+        crate::log_line(&format!(
+            "[adversary-sim-supervisor] executed_ticks={} generated_requests={} failed_requests={}",
+            summary.executed_ticks, summary.generated_requests, summary.failed_requests
+        ));
+    }
+
+    let generation_active =
+        cfg.adversary_sim_enabled && state.phase == crate::admin::adversary_sim::ControlPhase::Running;
     let status = adversary_sim_status_payload(store, site_id, &cfg, &state, now);
     let body = serde_json::to_string(&json!({
-        "ticked": true,
-        "generated_requests": tick_result.generated_requests,
-        "failed_requests": tick_result.failed_requests,
-        "last_response_status": tick_result.last_response_status,
+        "accepted": true,
+        "executed_ticks": summary.executed_ticks,
+        "due_ticks": summary.due_ticks,
+        "generated_requests": summary.generated_requests,
+        "failed_requests": summary.failed_requests,
+        "last_response_status": summary.last_response_status,
+        "phase": state.phase.as_str(),
+        "generation_active": generation_active,
+        "should_exit": !generation_active,
         "status": status
     }))
     .unwrap();
@@ -12513,6 +12612,31 @@ fn handle_admin_adversary_sim_control(
     Response::new(200, serde_json::to_string(&response).unwrap())
 }
 
+/// Handles host-side internal control-plane endpoints (no browser/UI callers).
+///
+/// Currently supports:
+///   - POST /internal/adversary-sim/beat: run one bounded autonomous supervisor beat
+pub fn handle_internal(req: &Request) -> Response {
+    if !crate::admin::auth::is_admin_ip_allowed(req) {
+        return Response::new(403, "Forbidden");
+    }
+    if !crate::admin::auth::is_admin_api_key_configured() {
+        return Response::new(503, "Internal API disabled: admin key not configured");
+    }
+
+    let path = req.path();
+    match path {
+        INTERNAL_ADVERSARY_SIM_BEAT_PATH => {
+            let store = match Store::open_default() {
+                Ok(s) => s,
+                Err(_) => return Response::new(500, "Key-value store error"),
+            };
+            handle_internal_adversary_sim_beat(req, &store, "default")
+        }
+        _ => Response::new(404, "Not Found"),
+    }
+}
+
 /// Handles all /admin API endpoints.
 /// Supports:
 ///   - POST /admin/login: Exchange API key for short-lived admin session cookie
@@ -12536,7 +12660,6 @@ fn handle_admin_adversary_sim_control(
 ///   - GET /admin/config/export: Export non-secret runtime config for immutable deploy handoff
 ///   - POST /admin/adversary-sim/control: Start/stop dev adversary simulation orchestration
 ///   - GET /admin/adversary-sim/status: Read orchestration state and guardrails
-///   - POST /admin/adversary-sim/tick: Generate one bounded real-traffic simulation tick for dev monitoring
 ///   - POST /admin/adversary-sim/history/cleanup: Explicitly clear retained dev telemetry history
 ///   - GET /admin/maze/preview: Render a non-operational maze preview for operators
 ///   - GET /admin/tarpit/preview: Render a non-operational progressive tarpit preview for operators
@@ -12591,7 +12714,6 @@ pub fn handle_admin(req: &Request) -> Response {
         if matches!(
             path,
             "/admin/adversary-sim/control"
-                | "/admin/adversary-sim/tick"
                 | "/admin/adversary-sim/history/cleanup"
         ) {
             if let Ok(store) = Store::open_default() {
@@ -12626,7 +12748,6 @@ pub fn handle_admin(req: &Request) -> Response {
         if matches!(
             path,
             "/admin/adversary-sim/control"
-                | "/admin/adversary-sim/tick"
                 | "/admin/adversary-sim/history/cleanup"
         ) {
             let client_ip = crate::extract_client_ip(req);
@@ -12992,9 +13113,6 @@ pub fn handle_admin(req: &Request) -> Response {
         "/admin/adversary-sim/status" => {
             return handle_admin_adversary_sim_status(req, &store, site_id, &auth);
         }
-        "/admin/adversary-sim/tick" => {
-            return handle_admin_adversary_sim_tick(req, &store, site_id, &auth);
-        }
         "/admin/adversary-sim/history/cleanup" => {
             return handle_admin_adversary_sim_history_cleanup(req, &store, site_id, &auth);
         }
@@ -13023,7 +13141,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/tick, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics

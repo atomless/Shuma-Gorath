@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live adversary-sim-history-clean test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live adversary-sim-history-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -92,6 +92,7 @@ SHUMA_DASHBOARD_BUNDLE_MAX_JS_CHUNK_BYTES ?= 150000
 SHUMA_DASHBOARD_BUNDLE_MAX_CSS_ASSET_BYTES ?= 30000
 SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE ?= 0
 DEV_WATCH_IGNORES := -i '*.wasm' -i 'dist/wasm/shuma_gorath.wasm' -i '.spin/**' -i 'dashboard/.svelte-kit' -i 'dashboard/.svelte-kit/**' -i 'dashboard/.vite' -i 'dashboard/.vite/**'
+ADVERSARY_SIM_SUPERVISOR_BASE_URL ?= http://127.0.0.1:3000
 
 #--------------------------
 # Setup (first-time)
@@ -166,7 +167,7 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	fi
 	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml $(DEV_WATCH_IGNORES) \
 		-s 'if [ ! -f $(WASM_BUILD_OUTPUT) ] || find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && mkdir -p $(dir $(WASM_ARTIFACT)) && cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT) && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
-		-s 'pkill -x spin 2>/dev/null || true; $(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; RUNTIME_INSTANCE_ID="$$(uuidgen)"; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000'
+		-s 'pkill -x spin 2>/dev/null || true; $(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; RUNTIME_INSTANCE_ID="$$(uuidgen)"; SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) SPIN_ALWAYS_BUILD=0 ./scripts/run_with_adversary_sim_supervisor.sh spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000'
 
 dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=false (fail-closed)
 	@echo "$(CYAN)🚨 Starting development server with SHUMA_KV_STORE_FAIL_OPEN=false (fail-closed)...$(NC)"
@@ -206,7 +207,7 @@ dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=fal
 	fi
 	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml $(DEV_WATCH_IGNORES) \
 		-s 'if [ ! -f $(WASM_BUILD_OUTPUT) ] || find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && mkdir -p $(dir $(WASM_ARTIFACT)) && cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT) && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
-		-s 'pkill -x spin 2>/dev/null || true; $(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; RUNTIME_INSTANCE_ID="$$(uuidgen)"; SPIN_ALWAYS_BUILD=0 spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env SHUMA_KV_STORE_FAIL_OPEN=false --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000'
+		-s 'pkill -x spin 2>/dev/null || true; $(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; RUNTIME_INSTANCE_ID="$$(uuidgen)"; SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) SPIN_ALWAYS_BUILD=0 ./scripts/run_with_adversary_sim_supervisor.sh spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env SHUMA_KV_STORE_FAIL_OPEN=false --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000'
 
 local: dev ## Alias for dev
 
@@ -228,7 +229,7 @@ run: ## Build once and run (no file watching)
 	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
 	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
 	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/admin/maze/preview (admin auth)$(NC)"
-	@RUNTIME_INSTANCE_ID=$$(uuidgen); spin up $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000
+	@RUNTIME_INSTANCE_ID=$$(uuidgen); SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) ./scripts/run_with_adversary_sim_supervisor.sh spin up $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000
 
 run-prebuilt: ## Run Spin using prebuilt wasm (CI helper)
 	@echo "$(CYAN)🚀 Starting prebuilt server...$(NC)"
@@ -240,7 +241,7 @@ run-prebuilt: ## Run Spin using prebuilt wasm (CI helper)
 	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
 	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
 	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/admin/maze/preview (admin auth)$(NC)"
-	@RUNTIME_INSTANCE_ID=$$(uuidgen); spin up $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000
+	@RUNTIME_INSTANCE_ID=$$(uuidgen); SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) ./scripts/run_with_adversary_sim_supervisor.sh spin up $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000
 
 #--------------------------
 # Production
@@ -265,7 +266,7 @@ prod: build-runtime ## Build for production and start server
 	@echo "$(CYAN)🚀 Starting production server...$(NC)"
 	@$(MAKE) --no-print-directory config-seed >/dev/null
 	@pkill -x spin 2>/dev/null || true
-	@RUNTIME_INSTANCE_ID=$$(uuidgen); spin up $(SPIN_ENV_ONLY_BASE) $(SPIN_PROD_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 0.0.0.0:3000
+	@RUNTIME_INSTANCE_ID=$$(uuidgen); SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=false ./scripts/run_with_adversary_sim_supervisor.sh spin up $(SPIN_ENV_ONLY_BASE) $(SPIN_PROD_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 0.0.0.0:3000
 
 deploy: build-runtime ## Deploy to Fermyon Cloud
 	@$(MAKE) --no-print-directory api-key-validate
@@ -329,16 +330,16 @@ test: ## Run umbrella tests in series: unit, maze benchmark, integration, advers
 	fi
 	@echo "$(GREEN)✅ Preflight: Spin server is ready; integration, adversarial, and dashboard e2e tests will be executed.$(NC)"
 	@echo ""
-	@echo "$(CYAN)Step 1/6: Rust Unit Tests$(NC)"
+	@echo "$(CYAN)Step 1/8: Rust Unit Tests$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 2/6: Maze Asymmetry Benchmark Gate$(NC)"
+	@echo "$(CYAN)Step 2/8: Maze Asymmetry Benchmark Gate$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@$(MAKE) --no-print-directory test-maze-benchmark || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 3/6: Integration Tests (Spin HTTP scenarios)$(NC)"
+	@echo "$(CYAN)Step 3/8: Integration Tests (Spin HTTP scenarios)$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" ./scripts/tests/integration.sh || exit 1; \
@@ -349,11 +350,15 @@ test: ## Run umbrella tests in series: unit, maze benchmark, integration, advers
 			exit 1; \
 		fi
 	@echo ""
-	@echo "$(CYAN)Step 4/6: Adversarial Fast Matrix (smoke + abuse + Akamai)$(NC)"
+	@echo "$(CYAN)Step 4/8: Runtime Toggle Surface Gate$(NC)"
+	@echo "$(CYAN)--------------------------------------------$(NC)"
+	@$(MAKE) --no-print-directory test-adversary-sim-runtime-surface || exit 1
+	@echo ""
+	@echo "$(CYAN)Step 5/8: Adversarial Fast Matrix (smoke + abuse + Akamai)$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@$(MAKE) --no-print-directory test-adversarial-fast || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 5/7: SIM2 Realtime Verification Gates$(NC)"
+	@echo "$(CYAN)Step 6/8: SIM2 Realtime Verification Gates$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@$(MAKE) --no-print-directory test-sim2-realtime-bench || exit 1
 	@$(MAKE) --no-print-directory test-sim2-adr-conformance || exit 1
@@ -363,11 +368,11 @@ test: ## Run umbrella tests in series: unit, maze benchmark, integration, advers
 	@$(MAKE) --no-print-directory test-sim2-operational-regressions || exit 1
 	@$(MAKE) --no-print-directory test-sim2-governance-contract || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 6/7: Dashboard E2E Smoke Tests$(NC)"
+	@echo "$(CYAN)Step 7/8: Dashboard E2E Smoke Tests$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@$(MAKE) --no-print-directory test-dashboard-e2e || exit 1
 	@echo ""
-	@echo "$(CYAN)Step 7/7: Dashboard Seed Snapshot$(NC)"
+	@echo "$(CYAN)Step 8/8: Dashboard Seed Snapshot$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
 	@$(MAKE) --no-print-directory seed-dashboard-data || exit 1
 	@echo ""
@@ -408,9 +413,7 @@ integration-test: test-integration ## Alias for Spin integration tests
 
 test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtures (no server required)
 	@echo "$(CYAN)🧪 Validating adversarial simulation manifest...$(NC)"
-	@python3 -m py_compile scripts/tests/adversarial_simulation_runner.py scripts/tests/adversarial_preflight.py scripts/tests/adversarial_live_loop.py scripts/tests/adversarial_repeatability.py scripts/tests/adversarial_promote_candidates.py scripts/tests/adversarial_report_diff.py scripts/tests/adversarial_container_runner.py scripts/tests/adversarial_container/worker.py scripts/tests/frontier_action_contract.py scripts/tests/frontier_capability_envelope.py scripts/tests/frontier_lane_attempt.py scripts/tests/frontier_unavailability_policy.py scripts/tests/check_frontier_payload_artifacts.py scripts/tests/check_adversarial_lane_contract.py scripts/tests/check_adversarial_sim_tag_contract.py scripts/tests/check_adversarial_coverage_contract.py scripts/tests/check_adversarial_scenario_intent_matrix.py scripts/tests/sim2_realtime_bench.py scripts/tests/check_sim2_adr_conformance.py scripts/tests/render_sim2_ci_diagnostics.py scripts/tests/check_sim2_verification_matrix.py scripts/tests/check_sim2_operational_regressions.py scripts/tests/check_sim2_governance_contract.py
-	@node --check scripts/tests/adversarial_browser_driver.mjs
-	@python3 -m unittest scripts/tests/test_adversarial_simulation_runner.py scripts/tests/test_adversarial_preflight.py scripts/tests/test_adversarial_live_loop.py scripts/tests/test_adversarial_repeatability.py scripts/tests/test_adversarial_promote_candidates.py scripts/tests/test_adversarial_report_diff.py scripts/tests/test_adversarial_container_runner.py scripts/tests/test_adversarial_container_worker.py scripts/tests/test_frontier_action_contract.py scripts/tests/test_frontier_capability_envelope.py scripts/tests/test_frontier_lane_and_governance.py scripts/tests/test_adversarial_lane_contract.py scripts/tests/test_adversarial_sim_tag_contract.py scripts/tests/test_adversarial_coverage_contract.py scripts/tests/test_adversarial_scenario_intent_matrix.py scripts/tests/test_sim2_realtime_bench.py scripts/tests/test_sim2_adr_conformance.py scripts/tests/test_sim2_ci_diagnostics.py scripts/tests/test_sim2_verification_matrix.py scripts/tests/test_sim2_operational_regressions.py scripts/tests/test_sim2_governance_contract.py
+	@$(MAKE) --no-print-directory test-adversarial-python-unit
 	@$(MAKE) --no-print-directory test-adversarial-preflight
 	@$(MAKE) --no-print-directory test-adversarial-lane-contract
 	@$(MAKE) --no-print-directory test-adversarial-sim-tag-contract
@@ -431,6 +434,12 @@ test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtu
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile akamai_smoke --validate-only
 	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile full_coverage --validate-only
 
+test-adversarial-python-unit: ## Run adversarial python/js unit and syntax checks (no server required)
+	@echo "$(CYAN)🧪 Running adversarial python/js unit checks...$(NC)"
+	@python3 -m py_compile scripts/tests/adversarial_simulation_runner.py scripts/tests/adversary_runtime_toggle_surface_gate.py scripts/tests/adversarial_preflight.py scripts/tests/adversarial_live_loop.py scripts/tests/adversarial_repeatability.py scripts/tests/adversarial_promote_candidates.py scripts/tests/adversarial_report_diff.py scripts/tests/adversarial_container_runner.py scripts/tests/adversarial_container/worker.py scripts/tests/frontier_action_contract.py scripts/tests/frontier_capability_envelope.py scripts/tests/frontier_lane_attempt.py scripts/tests/frontier_unavailability_policy.py scripts/tests/check_frontier_payload_artifacts.py scripts/tests/check_adversarial_lane_contract.py scripts/tests/check_adversarial_sim_tag_contract.py scripts/tests/check_adversarial_coverage_contract.py scripts/tests/check_adversarial_scenario_intent_matrix.py scripts/tests/sim2_realtime_bench.py scripts/tests/check_sim2_adr_conformance.py scripts/tests/render_sim2_ci_diagnostics.py scripts/tests/check_sim2_verification_matrix.py scripts/tests/check_sim2_operational_regressions.py scripts/tests/check_sim2_governance_contract.py
+	@node --check scripts/tests/adversarial_browser_driver.mjs
+	@python3 -m unittest scripts/tests/test_adversarial_simulation_runner.py scripts/tests/test_adversarial_preflight.py scripts/tests/test_adversarial_live_loop.py scripts/tests/test_adversarial_repeatability.py scripts/tests/test_adversarial_promote_candidates.py scripts/tests/test_adversarial_report_diff.py scripts/tests/test_adversarial_container_runner.py scripts/tests/test_adversarial_container_worker.py scripts/tests/test_frontier_action_contract.py scripts/tests/test_frontier_capability_envelope.py scripts/tests/test_frontier_lane_and_governance.py scripts/tests/test_adversarial_lane_contract.py scripts/tests/test_adversarial_sim_tag_contract.py scripts/tests/test_adversarial_coverage_contract.py scripts/tests/test_adversarial_scenario_intent_matrix.py scripts/tests/test_sim2_realtime_bench.py scripts/tests/test_sim2_adr_conformance.py scripts/tests/test_sim2_ci_diagnostics.py scripts/tests/test_sim2_verification_matrix.py scripts/tests/test_sim2_operational_regressions.py scripts/tests/test_sim2_governance_contract.py
+
 test-adversarial-preflight: ## Validate adversarial required secrets and setup posture before runner execution
 	@echo "$(CYAN)🧪 Running adversarial preflight checks...$(NC)"
 	@python3 scripts/tests/adversarial_preflight.py --output scripts/tests/adversarial/preflight_report.json
@@ -445,11 +454,30 @@ test-adversarial-deterministic-corpus: ## Validate shared deterministic attack c
 
 test-adversary-sim-lifecycle: ## Fast runtime-dev adversary-sim lifecycle regression gate (toggle/state/heartbeat contracts)
 	@echo "$(CYAN)🧪 Running adversary-sim lifecycle regression gate...$(NC)"
+	@./scripts/set_crate_type.sh rlib
 	@cargo test adversary_sim_control_start_stop_and_status_round_trip -- --nocapture
 	@cargo test adversary_sim_status_reconciles_idle_enabled_state_to_off -- --nocapture
 	@cargo test adversary_sim_status_forces_off_when_run_owned_by_previous_process_instance -- --nocapture
-	@cargo test adversary_sim_tick_updates_generation_diagnostics_contract -- --nocapture
+	@cargo test adversary_sim_internal_beat_updates_generation_diagnostics_contract -- --nocapture
 	@$(MAKE) --no-print-directory test-adversarial-deterministic-corpus
+
+adversary-sim-supervisor-build: ## Build the host-side adversary-sim supervisor worker binary
+	@./scripts/adversary_sim_supervisor_launch.sh --build-only
+
+adversary-sim-supervisor: adversary-sim-supervisor-build ## Run host-side adversary-sim supervisor loop (watch mode)
+	@SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) \
+		./scripts/adversary_sim_supervisor_launch.sh --watch --base-url $(ADVERSARY_SIM_SUPERVISOR_BASE_URL)
+
+test-adversary-sim-runtime-surface: ## Runtime-toggle integration gate for deterministic defense-surface telemetry coverage (requires running server)
+	@echo "$(CYAN)🧪 Running runtime-toggle adversary-sim surface coverage gate...$(NC)"
+	@if $(MAKE) --no-print-directory spin-wait-ready; then \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" \
+			python3 scripts/tests/adversary_runtime_toggle_surface_gate.py; \
+	else \
+		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
+		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
+		exit 1; \
+	fi
 
 test-adversarial-sim-tag-contract: ## Validate simulation tag signing contract parity across runtime/tooling
 	@echo "$(CYAN)🧪 Validating adversarial sim-tag contract...$(NC)"
@@ -817,6 +845,8 @@ stop: ## Stop running Spin server
 	@pkill -f "scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml" 2>/dev/null || true
 	@pkill -f "cargo watch --poll -w src -w dashboard -w spin.toml" 2>/dev/null || true
 	@pkill -f "cargo-watch watch --poll -w src -w dashboard -w spin.toml" 2>/dev/null || true
+	@pkill -f "scripts/run_with_adversary_sim_supervisor.sh spin up" 2>/dev/null || true
+	@pkill -f "target/tools/adversary_sim_supervisor" 2>/dev/null || true
 	@rm -rf .spin/dev-watch.lock
 	@pkill -x spin 2>/dev/null && echo "$(GREEN)✅ Stopped$(NC)" || echo "$(YELLOW)No server running$(NC)"
 
@@ -1071,7 +1101,7 @@ help: ## Show this help message
 	@grep -h -E '^(setup|setup-runtime|verify|verify-runtime|config-seed):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Development:$(NC)"
-	@grep -h -E '^(dev|local|run|build|build-runtime|build-full-dev):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
+	@grep -h -E '^(dev|local|run|build|build-runtime|build-full-dev|adversary-sim-supervisor-build|adversary-sim-supervisor):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Production:$(NC)"
 	@grep -h -E '^(prod|deploy|deploy-profile-baseline|deploy-self-hosted-minimal|deploy-enterprise-akamai):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
@@ -1080,4 +1110,4 @@ help: ## Show this help message
 	@grep -h -E '^(test.*|smoke-single-host):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Utilities:$(NC)"
-	@grep -h -E '^(stop|status|clean|logs|env-help|adversary-sim-history-clean|api-key-generate|gen-admin-api-key|api-key-show|api-key-rotate|api-key-validate|deploy-env-validate|help):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
+	@grep -h -E '^(stop|status|clean|logs|env-help|adversary-sim-history-clean|adversary-sim-supervisor|api-key-generate|gen-admin-api-key|api-key-show|api-key-rotate|api-key-validate|deploy-env-validate|help):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
