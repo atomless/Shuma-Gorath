@@ -3,6 +3,8 @@
 const RUNTIME_DEV_CLASS = 'runtime-dev';
 const RUNTIME_PROD_CLASS = 'runtime-prod';
 const ADVERSARY_SIM_CLASS = 'adversary-sim';
+const CONNECTED_CLASS = 'connected';
+const DISCONNECTED_CLASS = 'disconnected';
 const RUNTIME_CLASSES = Object.freeze([RUNTIME_DEV_CLASS, RUNTIME_PROD_CLASS]);
 
 const asRecord = (value) =>
@@ -37,26 +39,36 @@ const getBodyClassList = (doc) =>
 
 /**
  * @param {unknown} configSnapshot
- * @returns {{ runtimeClass: 'runtime-dev' | 'runtime-prod', adversarySimEnabled: boolean }}
+ * @param {{ backendConnected?: unknown }} [options]
+ * @returns {{ runtimeClass: 'runtime-dev' | 'runtime-prod', adversarySimEnabled: boolean, backendConnected: boolean }}
  */
-export function deriveDashboardBodyClassState(configSnapshot = {}) {
+export function deriveDashboardBodyClassState(configSnapshot = {}, options = {}) {
   const source = asRecord(configSnapshot);
+  const configConnected = source.backend_connected;
+  const optionConnected = options && typeof options === 'object'
+    ? options.backendConnected
+    : undefined;
   return {
     runtimeClass: normalizeRuntimeClass(source.runtime_environment),
-    adversarySimEnabled: parseBoolLike(source.adversary_sim_enabled, false)
+    adversarySimEnabled: parseBoolLike(source.adversary_sim_enabled, false),
+    backendConnected: parseBoolLike(
+      optionConnected !== undefined ? optionConnected : configConnected,
+      false
+    )
   };
 }
 
 /**
  * @param {unknown} doc
- * @param {{ runtimeClass?: unknown, adversarySimEnabled?: unknown }} state
- * @returns {{ runtimeClass: 'runtime-dev' | 'runtime-prod', adversarySimEnabled: boolean }}
+ * @param {{ runtimeClass?: unknown, adversarySimEnabled?: unknown, backendConnected?: unknown }} state
+ * @returns {{ runtimeClass: 'runtime-dev' | 'runtime-prod', adversarySimEnabled: boolean, backendConnected: boolean }}
  */
 export function syncDashboardBodyClasses(doc, state = {}) {
   const classList = getBodyClassList(doc);
   const normalizedState = {
     runtimeClass: normalizeRuntimeClass(state.runtimeClass),
-    adversarySimEnabled: parseBoolLike(state.adversarySimEnabled, false)
+    adversarySimEnabled: parseBoolLike(state.adversarySimEnabled, false),
+    backendConnected: parseBoolLike(state.backendConnected, false)
   };
   if (!classList) return normalizedState;
 
@@ -65,6 +77,8 @@ export function syncDashboardBodyClasses(doc, state = {}) {
   }
   classList.add(normalizedState.runtimeClass);
   classList.toggle(ADVERSARY_SIM_CLASS, normalizedState.adversarySimEnabled);
+  classList.toggle(CONNECTED_CLASS, normalizedState.backendConnected);
+  classList.toggle(DISCONNECTED_CLASS, !normalizedState.backendConnected);
   return normalizedState;
 }
 
@@ -79,4 +93,6 @@ export function clearDashboardBodyClasses(doc) {
     classList.remove(runtimeClass);
   }
   classList.remove(ADVERSARY_SIM_CLASS);
+  classList.remove(CONNECTED_CLASS);
+  classList.remove(DISCONNECTED_CLASS);
 }

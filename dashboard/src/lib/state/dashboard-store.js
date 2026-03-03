@@ -69,6 +69,13 @@ function createRuntimeTelemetryState() {
       fetchLatencyMs: createMetricState(),
       renderTimingMs: createMetricState()
     },
+    connection: {
+      state: 'disconnected',
+      lastTransitionAt: '',
+      lastSuccessAt: '',
+      lastFailureAt: '',
+      lastError: ''
+    },
     polling: {
       skips: 0,
       resumes: 0,
@@ -293,6 +300,36 @@ export function createDashboardStore(options = {}) {
     }));
   };
 
+  const setBackendConnection = (connected, error = '') => {
+    runtimeTelemetryStore.update((telemetry) => {
+      const nowIso = new Date().toISOString();
+      const nextState = connected === true ? 'connected' : 'disconnected';
+      const currentConnection =
+        telemetry && telemetry.connection && typeof telemetry.connection === 'object'
+          ? telemetry.connection
+          : {};
+      const priorState = String(currentConnection.state || 'disconnected');
+      return {
+        ...telemetry,
+        connection: {
+          state: nextState,
+          lastTransitionAt: priorState === nextState
+            ? String(currentConnection.lastTransitionAt || '')
+            : nowIso,
+          lastSuccessAt: nextState === 'connected'
+            ? nowIso
+            : String(currentConnection.lastSuccessAt || ''),
+          lastFailureAt: nextState === 'disconnected'
+            ? nowIso
+            : String(currentConnection.lastFailureAt || ''),
+          lastError: nextState === 'disconnected'
+            ? String(error || '')
+            : ''
+        }
+      };
+    });
+  };
+
   return {
     subscribe: internal.subscribe,
     getState,
@@ -327,6 +364,7 @@ export function createDashboardStore(options = {}) {
     setPollingContext,
     recordRefreshMetrics,
     recordPollingSkip,
-    recordPollingResume
+    recordPollingResume,
+    setBackendConnection
   };
 }

@@ -565,9 +565,40 @@ test('monitoring chart presets enforce shared palette and stable x-axis layout',
   const presets = await importBrowserModule('dashboard/src/lib/domain/monitoring-chart-presets.js');
   assert.equal(Array.isArray(presets.MONITORING_CHART_PALETTE), true);
   assert.equal(presets.MONITORING_CHART_PALETTE.length >= 3, true);
+  assert.equal(presets.MONITORING_CHART_PALETTE.every((color) => /^hsl\(/.test(String(color))), true);
   assert.equal(presets.MONITORING_TIME_SERIES_FILL.events, presets.MONITORING_CHART_PALETTE[0]);
   assert.equal(presets.MONITORING_TIME_SERIES_FILL.challenge, presets.MONITORING_CHART_PALETTE[1]);
   assert.equal(presets.MONITORING_TIME_SERIES_FILL.pow, presets.MONITORING_CHART_PALETTE[2]);
+  assert.equal(presets.MONITORING_RUNTIME_HUES['runtime-dev'], 310);
+  assert.equal(presets.MONITORING_RUNTIME_HUES['runtime-prod'], 210);
+
+  const prodPalette = presets.buildMonitoringChartPalette(210);
+  assert.equal(Array.isArray(prodPalette), true);
+  assert.equal(prodPalette.length, presets.MONITORING_CHART_PALETTE.length);
+  assert.equal(/^hsl\(210,/.test(String(prodPalette[0])), true);
+
+  const classListWithProd = {
+    contains(className) {
+      return className === 'runtime-prod';
+    }
+  };
+  const prodTheme = presets.resolveMonitoringChartTheme({
+    documentRef: { body: { classList: classListWithProd } },
+    windowRef: {
+      getComputedStyle() {
+        return {
+          getPropertyValue(name) {
+            if (name === '--hue') return '';
+            if (name === '--muted-fg') return 'rgb(89, 69, 85)';
+            return '';
+          }
+        };
+      }
+    }
+  });
+  assert.equal(prodTheme.hue, 210);
+  assert.equal(prodTheme.palette[0], prodPalette[0]);
+  assert.equal(prodTheme.legendColor, 'rgb(89, 69, 85)');
 
   const xAxis = presets.buildMonitoringTimeSeriesXAxis();
   assert.equal(xAxis.ticks.autoSkip, true);
@@ -613,6 +644,8 @@ test('dashboard state and store contracts remain immutable and bounded', { concu
     store.recordRefreshMetrics({ tab: 'monitoring', reason: 'manual', fetchLatencyMs: 100, renderTimingMs: 10 });
     store.recordRefreshMetrics({ tab: 'monitoring', reason: 'manual', fetchLatencyMs: 200, renderTimingMs: 20 });
     store.recordRefreshMetrics({ tab: 'status', reason: 'manual', fetchLatencyMs: 999, renderTimingMs: 999 });
+    store.setBackendConnection(false, 'network failure');
+    store.setBackendConnection(true);
 
     const telemetry = store.getRuntimeTelemetry();
     assert.equal(telemetry.refresh.fetchLatencyMs.last, 200);
@@ -620,6 +653,9 @@ test('dashboard state and store contracts remain immutable and bounded', { concu
     assert.equal(telemetry.refresh.lastTab, 'monitoring');
     assert.equal(telemetry.refresh.fetchLatencyMs.totalSamples, 2);
     assert.equal(telemetry.refresh.fetchLatencyMs.window.length > 0, true);
+    assert.equal(telemetry.connection.state, 'connected');
+    assert.equal(telemetry.connection.lastFailureAt.length > 0, true);
+    assert.equal(telemetry.connection.lastSuccessAt.length > 0, true);
   });
 });
 
@@ -1600,19 +1636,23 @@ test('dashboard body class runtime keeps exactly one environment class and adver
     const defaultState = bodyClassModule.deriveDashboardBodyClassState({});
     assert.deepEqual(toPlain(defaultState), {
       runtimeClass: 'runtime-prod',
-      adversarySimEnabled: false
+      adversarySimEnabled: false,
+      backendConnected: false
     });
 
     const explicitDevState = bodyClassModule.deriveDashboardBodyClassState({
       runtime_environment: 'runtime-dev',
       adversary_sim_enabled: true
+    }, {
+      backendConnected: true
     });
     assert.deepEqual(toPlain(explicitDevState), {
       runtimeClass: 'runtime-dev',
-      adversarySimEnabled: true
+      adversarySimEnabled: true,
+      backendConnected: true
     });
 
-    const classList = createMutableClassList(['runtime-prod', 'adversary-sim']);
+    const classList = createMutableClassList(['runtime-prod', 'adversary-sim', 'connected']);
     const doc = {
       body: {
         classList
@@ -1621,24 +1661,32 @@ test('dashboard body class runtime keeps exactly one environment class and adver
 
     bodyClassModule.syncDashboardBodyClasses(doc, {
       runtimeClass: explicitDevState.runtimeClass,
-      adversarySimEnabled: explicitDevState.adversarySimEnabled
+      adversarySimEnabled: explicitDevState.adversarySimEnabled,
+      backendConnected: explicitDevState.backendConnected
     });
     assert.equal(classList.contains('runtime-dev'), true);
     assert.equal(classList.contains('runtime-prod'), false);
     assert.equal(classList.contains('adversary-sim'), true);
+    assert.equal(classList.contains('connected'), true);
+    assert.equal(classList.contains('disconnected'), false);
 
     bodyClassModule.syncDashboardBodyClasses(doc, {
       runtimeClass: 'runtime-prod',
-      adversarySimEnabled: false
+      adversarySimEnabled: false,
+      backendConnected: false
     });
     assert.equal(classList.contains('runtime-dev'), false);
     assert.equal(classList.contains('runtime-prod'), true);
     assert.equal(classList.contains('adversary-sim'), false);
+    assert.equal(classList.contains('connected'), false);
+    assert.equal(classList.contains('disconnected'), true);
 
     bodyClassModule.clearDashboardBodyClasses(doc);
     assert.equal(classList.contains('runtime-dev'), false);
     assert.equal(classList.contains('runtime-prod'), false);
     assert.equal(classList.contains('adversary-sim'), false);
+    assert.equal(classList.contains('connected'), false);
+    assert.equal(classList.contains('disconnected'), false);
   });
 });
 
@@ -2095,6 +2143,8 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(ipBansSource, /type: 'doughnut'/);
   assert.match(ipBansSource, /animation: false,/);
   assert.match(ipBansSource, /maintainAspectRatio: false,/);
+  assert.match(ipBansSource, /resolveMonitoringChartTheme/);
+  assert.equal(ipBansSource.includes('CHART_COLORS'), false);
   assert.match(ipBansSource, /canvasHasRenderableSize\(canvas\)/);
   assert.match(ipBansSource, /window\.addEventListener\('resize', onResize, \{ passive: true \}\);/);
   assert.match(ipBansSource, /if \(browser && nextActive && !wasActive\)/);
@@ -2297,7 +2347,8 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /\$lib\/runtime\/dashboard-route-controller\.js/);
   assert.match(source, /\$lib\/runtime\/dashboard-body-classes\.js/);
   assert.match(source, /\$lib\/runtime\/dashboard-adversary-sim\.js/);
-  assert.match(source, /deriveDashboardBodyClassState\(configSnapshot\)/);
+  assert.match(source, /deriveDashboardBodyClassState\(configSnapshot,\s*\{/);
+  assert.match(source, /backendConnected/);
   assert.match(source, /syncDashboardBodyClasses\(document, bodyClassState\)/);
   assert.match(source, /clearDashboardBodyClasses\(document\)/);
   assert.match(source, /<svelte:window on:hashchange=\{onWindowHashChange\} \/>/);
@@ -2345,10 +2396,11 @@ test('monitoring tab applies bounded sanitization and redraw guards', () => {
   assert.match(source, /const RANGE_EVENTS_REQUEST_TIMEOUT_MS = 10000;/);
   assert.match(source, /const RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS = 180000;/);
   assert.match(source, /from '\.\.\/\.\.\/domain\/monitoring-chart-presets\.js';/);
+  assert.match(source, /resolveMonitoringChartTheme/);
   assert.match(source, /x: buildMonitoringTimeSeriesXAxis\(\),/);
-  assert.match(source, /MONITORING_TIME_SERIES_FILL\.challenge/);
-  assert.match(source, /MONITORING_TIME_SERIES_FILL\.pow/);
-  assert.match(source, /MONITORING_TIME_SERIES_FILL\.events/);
+  assert.match(source, /const fillColor = chartTheme\.timeSeriesFill\.events/);
+  assert.match(source, /'challenge'/);
+  assert.match(source, /'pow'/);
   assert.match(source, /export let autoRefreshEnabled = false;/);
   assert.match(source, /sameSeries\(chart, trendSeries\.labels, trendSeries\.data\)/);
   assert.match(source, /abortRangeEventsFetch\(\);/);

@@ -1,21 +1,106 @@
 // @ts-check
 
-export const MONITORING_CHART_PALETTE = Object.freeze([
-  'rgb(255,205,235)',
-  'rgb(225,175,205)',
-  'rgb(205, 155, 185)',
-  'rgb(190, 140, 170)',
-  'rgb(175, 125, 155)',
-  'rgb(160, 110, 140)',
-  'rgb(147, 97, 127)',
-  'rgb(135, 85, 115)'
+const DEFAULT_RUNTIME_CLASS = 'runtime-dev';
+const DEFAULT_LEGEND_FALLBACK_SATURATION = 20;
+const DEFAULT_LEGEND_FALLBACK_LIGHTNESS = 33;
+
+export const MONITORING_RUNTIME_HUES = Object.freeze({
+  'runtime-dev': 310,
+  'runtime-prod': 210
+});
+
+export const MONITORING_CHART_PALETTE_STOPS = Object.freeze([
+  Object.freeze({ saturation: 100, lightness: 90 }),
+  Object.freeze({ saturation: 45, lightness: 78 }),
+  Object.freeze({ saturation: 33, lightness: 71 }),
+  Object.freeze({ saturation: 28, lightness: 65 }),
+  Object.freeze({ saturation: 24, lightness: 59 }),
+  Object.freeze({ saturation: 21, lightness: 53 }),
+  Object.freeze({ saturation: 20, lightness: 48 }),
+  Object.freeze({ saturation: 23, lightness: 43 })
 ]);
 
-export const MONITORING_TIME_SERIES_FILL = Object.freeze({
-  events: MONITORING_CHART_PALETTE[0],
-  challenge: MONITORING_CHART_PALETTE[1],
-  pow: MONITORING_CHART_PALETTE[2]
-});
+const normalizeHue = (value, fallback) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  const wrapped = Math.round(numeric) % 360;
+  return wrapped < 0 ? wrapped + 360 : wrapped;
+};
+
+const buildTimeSeriesFill = (palette) =>
+  Object.freeze({
+    events: String(palette[0] || ''),
+    challenge: String(palette[1] || ''),
+    pow: String(palette[2] || '')
+  });
+
+const resolveRuntimeHueFromBodyClass = (documentRef) => {
+  const classList = documentRef?.body?.classList;
+  if (!classList || typeof classList.contains !== 'function') return null;
+  if (classList.contains('runtime-prod')) return MONITORING_RUNTIME_HUES['runtime-prod'];
+  if (classList.contains('runtime-dev')) return MONITORING_RUNTIME_HUES['runtime-dev'];
+  return null;
+};
+
+const resolveCssHueOverride = (documentRef, windowRef) => {
+  if (!documentRef?.body || !windowRef || typeof windowRef.getComputedStyle !== 'function') {
+    return null;
+  }
+  const computed = windowRef.getComputedStyle(documentRef.body);
+  const raw = computed && typeof computed.getPropertyValue === 'function'
+    ? computed.getPropertyValue('--hue')
+    : '';
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return null;
+  const numeric = Number(trimmed);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const resolveLegendColor = (documentRef, windowRef, hue) => {
+  if (!documentRef?.body || !windowRef || typeof windowRef.getComputedStyle !== 'function') {
+    return `hsl(${hue}, ${DEFAULT_LEGEND_FALLBACK_SATURATION}%, ${DEFAULT_LEGEND_FALLBACK_LIGHTNESS}%)`;
+  }
+  const computed = windowRef.getComputedStyle(documentRef.body);
+  const color = computed && typeof computed.getPropertyValue === 'function'
+    ? String(computed.getPropertyValue('--muted-fg') || '').trim()
+    : '';
+  if (color) return color;
+  return `hsl(${hue}, ${DEFAULT_LEGEND_FALLBACK_SATURATION}%, ${DEFAULT_LEGEND_FALLBACK_LIGHTNESS}%)`;
+};
+
+export const buildMonitoringChartPalette = (hue = MONITORING_RUNTIME_HUES[DEFAULT_RUNTIME_CLASS]) => {
+  const normalizedHue = normalizeHue(hue, MONITORING_RUNTIME_HUES[DEFAULT_RUNTIME_CLASS]);
+  return Object.freeze(
+    MONITORING_CHART_PALETTE_STOPS.map(
+      (stop) => `hsl(${normalizedHue}, ${stop.saturation}%, ${stop.lightness}%)`
+    )
+  );
+};
+
+export const MONITORING_CHART_PALETTE = buildMonitoringChartPalette(
+  MONITORING_RUNTIME_HUES[DEFAULT_RUNTIME_CLASS]
+);
+
+export const MONITORING_TIME_SERIES_FILL = buildTimeSeriesFill(MONITORING_CHART_PALETTE);
+
+export const resolveMonitoringChartTheme = (options = {}) => {
+  const documentRef = options.documentRef || (typeof document !== 'undefined' ? document : null);
+  const windowRef = options.windowRef || (typeof window !== 'undefined' ? window : null);
+  const runtimeHue = resolveRuntimeHueFromBodyClass(documentRef);
+  const cssHue = resolveCssHueOverride(documentRef, windowRef);
+  const fallbackHue = MONITORING_RUNTIME_HUES[DEFAULT_RUNTIME_CLASS];
+  const hue = normalizeHue(
+    cssHue === null ? (runtimeHue === null ? options.hue : runtimeHue) : cssHue,
+    fallbackHue
+  );
+  const palette = buildMonitoringChartPalette(hue);
+  return Object.freeze({
+    hue,
+    palette,
+    timeSeriesFill: buildTimeSeriesFill(palette),
+    legendColor: resolveLegendColor(documentRef, windowRef, hue)
+  });
+};
 
 export const MONITORING_TIME_SERIES_TICK_MAX = 8;
 export const MONITORING_TIME_SERIES_TICK_PADDING = 10;

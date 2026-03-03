@@ -33,9 +33,8 @@
     shouldFetchRange
   } from '../../domain/monitoring-normalizers.js';
   import {
-    MONITORING_CHART_PALETTE,
-    MONITORING_TIME_SERIES_FILL,
-    buildMonitoringTimeSeriesXAxis
+    buildMonitoringTimeSeriesXAxis,
+    resolveMonitoringChartTheme
   } from '../../domain/monitoring-chart-presets.js';
   import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
   import { arraysEqualShallow } from '../../domain/core/format.js';
@@ -154,6 +153,16 @@
     const currentLabels = Array.isArray(chart.data.labels) ? chart.data.labels : [];
     const currentData = Array.isArray(chart.data.datasets[0].data) ? chart.data.datasets[0].data : [];
     return arraysEqualShallow(currentLabels, nextLabels) && arraysEqualShallow(currentData, nextData);
+  };
+
+  const sameColorSeries = (currentColors, nextColors) => {
+    const current = Array.isArray(currentColors)
+      ? currentColors.map((color) => String(color || ''))
+      : [String(currentColors || '')];
+    const next = Array.isArray(nextColors)
+      ? nextColors.map((color) => String(color || ''))
+      : [String(nextColors || '')];
+    return arraysEqualShallow(current, next);
   };
 
   const scheduleCopyLabelReset = (kind) => {
@@ -374,11 +383,13 @@
     return () => {};
   };
 
-  const updateTrendChart = (chart, canvas, title, color, trendSeries, refreshNonce = 0) => {
+  const updateTrendChart = (chart, canvas, title, fillKey, trendSeries, refreshNonce = 0) => {
     const chartCtor = getChartConstructor();
     if (!canvas || !chartCtor) return chart;
     const ctx = canvas.getContext('2d');
     if (!ctx) return chart;
+    const chartTheme = resolveMonitoringChartTheme();
+    const color = chartTheme.timeSeriesFill[fillKey] || chartTheme.timeSeriesFill.events;
 
     if (!chart) {
       return stampChartRefresh(new chartCtor(ctx, {
@@ -413,12 +424,14 @@
 
     const needsRefresh = chartNeedsRefresh(chart, refreshNonce);
     const hasSameSeries = sameSeries(chart, trendSeries.labels, trendSeries.data);
-    if (!needsRefresh && hasSameSeries) {
+    const hasSameColor = sameColorSeries(chart.data.datasets?.[0]?.backgroundColor, color);
+    if (!needsRefresh && hasSameSeries && hasSameColor) {
       return chart;
     }
     resizeChartIfNeeded(chart, needsRefresh);
     chart.data.labels = trendSeries.labels;
     chart.data.datasets[0].data = trendSeries.data;
+    chart.data.datasets[0].backgroundColor = color;
     chart.update('none');
     return stampChartRefresh(chart, refreshNonce);
   };
@@ -428,9 +441,11 @@
     if (!canvas || !chartCtor) return chart;
     const ctx = canvas.getContext('2d');
     if (!ctx) return chart;
+    const chartTheme = resolveMonitoringChartTheme();
+    const palette = chartTheme.palette;
     const labels = Object.keys(counts || {});
     const data = Object.values(counts || {});
-    const colors = data.map((_, index) => MONITORING_CHART_PALETTE[index % MONITORING_CHART_PALETTE.length]);
+    const colors = data.map((_, index) => palette[index % palette.length]);
 
     if (!chart) {
       return stampChartRefresh(new chartCtor(ctx, {
@@ -449,14 +464,22 @@
           responsive: true,
           maintainAspectRatio: true,
           aspectRatio: 2.2,
-          plugins: { legend: { position: 'bottom' } }
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                color: chartTheme.legendColor
+              }
+            }
+          }
         }
       }), refreshNonce);
     }
 
     const needsRefresh = chartNeedsRefresh(chart, refreshNonce);
     const hasSameSeries = sameSeries(chart, labels, data);
-    if (!needsRefresh && hasSameSeries) {
+    const hasSameColors = sameColorSeries(chart.data.datasets?.[0]?.backgroundColor, colors);
+    if (!needsRefresh && hasSameSeries && hasSameColors) {
       return chart;
     }
     resizeChartIfNeeded(chart, needsRefresh);
@@ -466,6 +489,9 @@
     chart.data.datasets[0].borderColor = 'rgba(0, 0, 0, 0)';
     chart.data.datasets[0].borderWidth = 0;
     chart.data.datasets[0].hoverBorderWidth = 0;
+    if (chart.options?.plugins?.legend?.labels) {
+      chart.options.plugins.legend.labels.color = chartTheme.legendColor;
+    }
     chart.update('none');
     return stampChartRefresh(chart, refreshNonce);
   };
@@ -475,10 +501,12 @@
     if (!canvas || !chartCtor) return chart;
     const ctx = canvas.getContext('2d');
     if (!ctx) return chart;
+    const chartTheme = resolveMonitoringChartTheme();
+    const palette = chartTheme.palette;
     const pairs = Array.isArray(topIps) ? topIps : [];
     const labels = pairs.map(([ip]) => String(ip || '-'));
     const data = pairs.map(([, count]) => Number(count || 0));
-    const colors = data.map((_, index) => MONITORING_CHART_PALETTE[index % MONITORING_CHART_PALETTE.length]);
+    const colors = data.map((_, index) => palette[index % palette.length]);
 
     if (!chart) {
       return stampChartRefresh(new chartCtor(ctx, {
@@ -510,7 +538,8 @@
 
     const needsRefresh = chartNeedsRefresh(chart, refreshNonce);
     const hasSameSeries = sameSeries(chart, labels, data);
-    if (!needsRefresh && hasSameSeries) {
+    const hasSameColors = sameColorSeries(chart.data.datasets?.[0]?.backgroundColor, colors);
+    if (!needsRefresh && hasSameSeries && hasSameColors) {
       return chart;
     }
     resizeChartIfNeeded(chart, needsRefresh);
@@ -528,6 +557,8 @@
     if (!canvas || !chartCtor) return chart;
     const ctx = canvas.getContext('2d');
     if (!ctx) return chart;
+    const chartTheme = resolveMonitoringChartTheme();
+    const fillColor = chartTheme.timeSeriesFill.events;
 
     if (!chart) {
       return stampChartRefresh(new chartCtor(ctx, {
@@ -543,7 +574,7 @@
             pointRadius: 0,
             pointHoverRadius: 0,
             borderColor: 'rgba(0, 0, 0, 0)',
-            backgroundColor: MONITORING_TIME_SERIES_FILL.events
+            backgroundColor: fillColor
           }]
         },
         options: {
@@ -563,12 +594,14 @@
 
     const needsRefresh = chartNeedsRefresh(chart, refreshNonce);
     const hasSameSeries = sameSeries(chart, series.labels, series.data);
-    if (!needsRefresh && hasSameSeries) {
+    const hasSameColor = sameColorSeries(chart.data.datasets?.[0]?.backgroundColor, fillColor);
+    if (!needsRefresh && hasSameSeries && hasSameColor) {
       return chart;
     }
     resizeChartIfNeeded(chart, needsRefresh);
     chart.data.labels = series.labels;
     chart.data.datasets[0].data = series.data;
+    chart.data.datasets[0].backgroundColor = fillColor;
     chart.update('none');
     return stampChartRefresh(chart, refreshNonce);
   };
@@ -902,7 +935,7 @@
       challengeTrendChart,
       challengeTrendCanvas,
       'Puzzle Outcomes',
-      MONITORING_TIME_SERIES_FILL.challenge,
+      'challenge',
       challengeTrendSeries,
       chartRefreshNonce
     );
@@ -913,7 +946,7 @@
       powTrendChart,
       powTrendCanvas,
       'Proof of Work Failures',
-      MONITORING_TIME_SERIES_FILL.pow,
+      'pow',
       powTrendSeries,
       chartRefreshNonce
     );

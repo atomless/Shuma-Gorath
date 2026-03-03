@@ -118,7 +118,12 @@
     ? configSnapshot.test_mode === true
     : analyticsSnapshot.test_mode === true;
   $: testModeEnabled = currentTestModeValue;
-  $: bodyClassState = deriveDashboardBodyClassState(configSnapshot);
+  $: backendConnected =
+    runtimeReady &&
+    String(runtimeTelemetry?.connection?.state || '').trim().toLowerCase() === 'connected';
+  $: bodyClassState = deriveDashboardBodyClassState(configSnapshot, {
+    backendConnected
+  });
   $: if (typeof document !== 'undefined') {
     syncDashboardBodyClasses(document, bodyClassState);
   }
@@ -573,6 +578,11 @@
       setAdminMessage(successMessage, 'success');
       return nextConfig;
     } catch (error) {
+      if (Number(error?.status || 0) === 401) {
+        setAdminMessage('Configuration save session expired. Redirecting to login...', 'warning');
+        redirectToLogin();
+        throw error;
+      }
       const message = formatActionError(error, 'Failed to save configuration.');
       setAdminMessage(`Error: ${message}`, 'error');
       throw error;

@@ -120,6 +120,11 @@ function setSessionState(authenticated, csrfToken = '', expiresAt = 0) {
   }
 }
 
+function setBackendConnectionState(connected, error = '') {
+  if (!dashboardState || typeof dashboardState.setBackendConnection !== 'function') return;
+  dashboardState.setBackendConnection(connected === true, String(error || ''));
+}
+
 function resolveEndpoint() {
   const resolved = resolveAdminApiEndpoint();
   if (!resolved || typeof resolved.endpoint !== 'string') return '';
@@ -219,6 +224,7 @@ export async function mountDashboardApp(options = {}) {
 
   runtimeMountOptions = normalizeRuntimeMountOptions(options);
   dashboardState = resolveDashboardStateStore(options);
+  setBackendConnectionState(false, '');
 
   resolveAdminApiEndpoint = adminEndpointModule.createAdminEndpointResolver({ window });
 
@@ -233,6 +239,17 @@ export async function mountDashboardApp(options = {}) {
         dashboardRefreshRuntime.clearAllCaches();
       }
       setSessionState(false, '');
+      setBackendConnectionState(true, '');
+    },
+    onBackendConnected: () => {
+      setBackendConnectionState(true, '');
+    },
+    onBackendDisconnected: (error) => {
+      const message =
+        error && typeof error.message === 'string'
+          ? error.message
+          : 'Backend request failed';
+      setBackendConnectionState(false, message);
     }
   });
 
@@ -364,6 +381,7 @@ export async function getDashboardEvents(hours = 24, options = {}) {
 export function unmountDashboardApp() {
   if (!runtimeMounted) return;
   runtimeMounted = false;
+  setBackendConnectionState(false, '');
   runtimeMountOptions = normalizeRuntimeMountOptions({});
   dashboardApiClient = null;
   dashboardState = null;

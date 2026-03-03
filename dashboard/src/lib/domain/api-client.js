@@ -430,6 +430,10 @@ export const create = (options = {}) => {
   const onUnauthorized =
     typeof options.onUnauthorized === 'function' ? options.onUnauthorized : null;
   const onApiError = typeof options.onApiError === 'function' ? options.onApiError : null;
+  const onBackendConnected =
+    typeof options.onBackendConnected === 'function' ? options.onBackendConnected : null;
+  const onBackendDisconnected =
+    typeof options.onBackendDisconnected === 'function' ? options.onBackendDisconnected : null;
   const requestImpl =
     typeof options.request === 'function'
       ? options.request
@@ -532,12 +536,26 @@ export const create = (options = {}) => {
           path,
           method
         );
+        if (onBackendDisconnected) onBackendDisconnected(timeoutError);
         if (onApiError) onApiError(timeoutError);
         throw timeoutError;
+      }
+      if (onBackendDisconnected) {
+        const transportError = error instanceof Error
+          ? error
+          : new DashboardApiError('Network request failed', 0, path, method);
+        onBackendDisconnected(transportError);
       }
       throw error;
     } finally {
       requestSignal.cleanup();
+    }
+    if (onBackendConnected) {
+      onBackendConnected({
+        status: Number(response.status || 0),
+        path,
+        method
+      });
     }
 
     const payload = await parseResponsePayload(response);

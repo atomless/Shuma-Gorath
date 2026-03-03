@@ -2,7 +2,7 @@
    CSS Custom Properties (Color Palette)
    High-contrast monochrome with accent
    =========================================== */
-:root {
+body {
   --hue: 310;
   /* Monochrome scale */
   --color-back: hsl(var(--hue), 100%, 99%);
@@ -39,8 +39,10 @@
   /* Borders */
   --border-hairline: 0.5px solid var(--color-300);
   --striped-bg: repeating-linear-gradient(-45deg, hsl(var(--hue), 100%, 99%), hsl(var(--hue), 100%, 99%) 10px, hsl(var(--hue), 44%, 96%) 10px, hsl(var(--hue), 44%, 96%) 20px);
-  --striped-bright-bg: repeating-linear-gradient(-45deg, hsla(324, 100%, 99%, 0.5), hsla(324, 100%, 99%, 0.5) 10px, hsl(var(--hue), 97%, 72%) 10px, hsl(var(--hue), 97%, 72%) 20px);
-  --striped-testmode-bg: repeating-linear-gradient(-45deg, rgba(155, 197, 135, 0.85), rgba(155, 197, 135, 0.85) 10px, rgb(105, 186, 64) 10px, rgb(105, 186, 64) 20px);
+  --striped-bright-bg: repeating-linear-gradient(-45deg, hsla(var(--hue), 100%, 99%, 0.5), hsla(var(--hue), 100%, 99%, 0.5) 10px, hsl(var(--hue), 97%, 72%) 10px, hsl(var(--hue), 97%, 72%) 20px);
+  /* --striped-testmode-bg: repeating-linear-gradient(-45deg, hsla(130, 35%, 65%, 0.85), hsla(130, 35%, 65%, 0.85) 10px, hsl(130, 49%, 49%) 10px, hsl(130, 49%, 49%) 20px); */
+  --striped-testmode-bg: repeating-linear-gradient(-45deg, hsla(var(--hue), 35%, 65%, 0.85), hsla(var(--hue), 35%, 65%, 0.85) 10px, hsl(var(--hue), 49%, 49%) 10px, hsl(var(--hue), 49%, 49%) 20px);
+  
   /* Semantic panel colors that follow the page theme. */
   --page-bg: var(--color-back);
   --page-fg: var(--color-900);
@@ -63,7 +65,7 @@
   --inline-link-fg: hsl(var(--hue), 73%, 37%);
   --inline-link-hover-fg: hsl(var(--hue), 100%, 59%);
   --inline-link-visited-fg: hsl(var(--hue), 83%, 30%);
-  --inline-link-focus-ring: hsla(303, 82%, 33%, 0.35);
+  --inline-link-focus-ring: hsla(var(--hue), 82%, 33%, 0.35);
 
   /* Typography scale */
   --text-xs: 0.8571rem;
@@ -80,10 +82,8 @@
 
 }
 
-
-
 @media (prefers-color-scheme: dark) {
-  :root {
+  body {
     color-scheme: dark;
 
     /* Reverse the light-theme brightness scale for dark mode */
@@ -116,17 +116,32 @@
 
     --border-hairline: 0.5px solid var(--color-100);
     --striped-bg: repeating-linear-gradient(-45deg, hsl(var(--hue), 33%, 3%), hsl(var(--hue), 33%, 3%) 10px, hsl(var(--hue), 12%, 10%) 10px, hsl(var(--hue), 12%, 10%) 20px);
-    --striped-bright-bg: repeating-linear-gradient(-45deg, hsla(312, 33%, 3%, 0.502), hsla(312, 33%, 3%, 0.5) 10px, hsl(var(--hue), 97%, 72%) 10px, hsl(var(--hue), 97%, 72%) 20px);
+    --striped-bright-bg: repeating-linear-gradient(-45deg, hsla(var(--hue), 33%, 3%, 0.502), hsla(var(--hue), 33%, 3%, 0.5) 10px, hsl(var(--hue), 97%, 72%) 10px, hsl(var(--hue), 97%, 72%) 20px);
 
     --btn-contrast-fg: var(--color-back);
 
     --inline-link-fg: hsl(var(--hue), 100%, 79%);
     --inline-link-hover-fg: hsl(var(--hue), 100%, 91%);
     --inline-link-visited-fg: hsl(var(--hue), 83%, 80%);
-    --inline-link-focus-ring: hsla(310, 100%, 79%, 0.45);
+    --inline-link-focus-ring: hsla(var(--hue), 100%, 79%, 0.45);
   }
 }
 
+body.runtime-prod {
+  --hue: 210;
+  --striped-testmode-bg: repeating-linear-gradient(-45deg, hsla(320, 35%, 65%, 0.85), hsla(320, 35%, 65%, 0.85) 10px, hsl(320, 59%, 69%) 10px, hsl(320, 59%, 69%) 20px);
+}
+
+body.disconnected {
+  filter: saturate(0);
+  --striped-bg: repeating-linear-gradient(-45deg, hsl(var(--hue), 0%, 99%), hsl(var(--hue), 0%, 99%) 10px, hsl(var(--hue), 0%, 96%) 10px, hsl(var(--hue), 0%, 96%) 20px);
+}
+
+@media (prefers-color-scheme: dark) {
+  body.disconnected {
+    --striped-bg: repeating-linear-gradient(-45deg, hsl(var(--hue), 0%, 3%), hsl(var(--hue), 0%, 3%) 10px, hsl(var(--hue), 0%, 10%) 10px, hsl(var(--hue), 0%, 10%) 20px);
+  }
+}
 /* ===========================================
    Shared Utility Classes
    =========================================== */
@@ -300,8 +315,12 @@ body {
   display: block;
   margin: 0 auto;
   margin-top: -26px;
-  /* filter: sepia(1) hue-rotate(276deg) saturate(2) brightness(1); */
+  filter: none;
   pointer-events: none;
+}
+
+body.runtime-prod .shuma-gorath-img {
+  filter: sepia(1) hue-rotate(180deg) saturate(1.3) brightness(1);
 }
 
 /* ===========================================
@@ -497,7 +516,7 @@ h1 {
 }
 
 .tab-state--error {
-  border-color: hsla(312, 72%, 51%, 0.45);
+  border-color: hsla(var(--hue), 72%, 51%, 0.45);
   background: hsl(var(--hue), 100%, 93%);
   color: hsl(var(--hue), 79%, 31%);
 }

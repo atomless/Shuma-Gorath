@@ -23,6 +23,7 @@
     isIpRangeReason,
     parseIpRangeOutcome
   } from '../../domain/ip-range-policy.js';
+  import { resolveMonitoringChartTheme } from '../../domain/monitoring-chart-presets.js';
 
   export let managed = false;
   export let isActive = false;
@@ -55,16 +56,6 @@
     degraded: 'Degraded',
     stale: 'Stale'
   });
-  const CHART_COLORS = Object.freeze([
-    'rgb(255,205,235)',
-    'rgb(225,175,205)',
-    'rgb(205,155,185)',
-    'rgb(190,140,170)',
-    'rgb(175,125,155)',
-    'rgb(160,110,140)',
-    'rgb(147,97,127)',
-    'rgb(135,85,115)'
-  ]);
 
   let expandedRows = {};
   let banIp = '';
@@ -209,6 +200,19 @@
     );
   };
 
+  const sameColorSeries = (currentColors, nextColors) => {
+    const current = Array.isArray(currentColors)
+      ? currentColors.map((color) => String(color || ''))
+      : [String(currentColors || '')];
+    const next = Array.isArray(nextColors)
+      ? nextColors.map((color) => String(color || ''))
+      : [String(nextColors || '')];
+    return (
+      current.length === next.length &&
+      current.every((value, index) => value === next[index])
+    );
+  };
+
   const normalizeBanReasonLabel = (reason) => {
     const normalized = String(reason || '').trim();
     return normalized || 'unknown';
@@ -228,9 +232,10 @@
     if (!canvasHasRenderableSize(canvas)) {
       return chart;
     }
+    const chartTheme = resolveMonitoringChartTheme();
     const labels = entries.map((entry) => entry.label);
     const values = entries.map((entry) => entry.value);
-    const colors = labels.map((_, index) => CHART_COLORS[index % CHART_COLORS.length]);
+    const colors = labels.map((_, index) => chartTheme.palette[index % chartTheme.palette.length]);
     const ctx = canvas.getContext('2d');
     if (!ctx) return chart;
     if (!chart) {
@@ -255,7 +260,7 @@
             legend: {
               position: 'bottom',
               labels: {
-                color: '#594555'
+                color: chartTheme.legendColor
               }
             }
           }
@@ -264,7 +269,8 @@
     }
     const needsRefresh = chartNeedsRefresh(chart, refreshNonce);
     const hasSameSeries = sameSeries(chart, labels, values);
-    if (needsRefresh || !hasSameSeries) {
+    const hasSameColors = sameColorSeries(chart.data.datasets?.[0]?.backgroundColor, colors);
+    if (needsRefresh || !hasSameSeries || !hasSameColors) {
       resizeChartIfNeeded(chart, needsRefresh);
       chart.data.labels = labels;
       chart.data.datasets[0].data = values;
@@ -272,6 +278,9 @@
       chart.data.datasets[0].borderColor = 'rgba(0, 0, 0, 0)';
       chart.data.datasets[0].borderWidth = 0;
       chart.data.datasets[0].hoverBorderWidth = 0;
+      if (chart.options?.plugins?.legend?.labels) {
+        chart.options.plugins.legend.labels.color = chartTheme.legendColor;
+      }
       chart.update('none');
     }
     return stampChartRefresh(chart, refreshNonce);
