@@ -150,7 +150,7 @@
     !adversarySimControlAvailable;
   $: adversarySimRetentionHours = Math.max(0, Number(normalizedAdversarySimStatus.historyRetentionHours || 0));
   $: adversarySimCleanupCommand =
-    String(normalizedAdversarySimStatus.historyCleanupCommand || '').trim() || 'make adversary-sim-history-clean';
+    String(normalizedAdversarySimStatus.historyCleanupCommand || '').trim() || 'make telemetry-clean';
   $: adversarySimGenerationDiagnostics = normalizedAdversarySimStatus.generationDiagnostics || {};
   $: adversarySimLifecycleCopy = normalizedAdversarySimStatus.generationActive
         ? (

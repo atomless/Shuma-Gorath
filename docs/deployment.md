@@ -430,3 +430,4 @@ make api-key-show
 ```
 
 `make dev` enables local dashboard operation with local-write defaults (`WRITE=true`). Use `DEV_ADMIN_CONFIG_WRITE_ENABLED=false` to simulate production-style read-only admin config.
+Use `make dev-prod` to keep local watch-mode ergonomics while forcing production runtime posture (`runtime-prod`, `DEBUG_HEADERS=false`, adversary simulation unavailable) with admin writes still enabled for local config tuning and persistence checks.

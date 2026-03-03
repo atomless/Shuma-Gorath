@@ -294,7 +294,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
 
         self.assertEqual(len(sim_runner.control_plane_mutations), 1)
         mutation = sim_runner.control_plane_mutations[0]
-        self.assertEqual(mutation.get("action"), "adversary_sim_history_cleanup")
+        self.assertEqual(mutation.get("action"), "telemetry_history_cleanup")
         self.assertEqual(mutation.get("phase"), runner.SUITE_PHASE_SETUP)
         self.assertEqual(mutation.get("reason"), "adversarial_ephemeral_cleanup")
 

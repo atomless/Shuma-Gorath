@@ -15,6 +15,7 @@ make verify         # Verify dependencies are installed
 ### 🐙 Build & Run
 ```bash
 make dev            # Build and run with file watching (auto-rebuild)
+make dev-prod       # Build/run with watching in runtime-prod posture (admin writes enabled)
 make run            # Build once and run (no watching)
 make build-runtime  # Build runtime/deploy release artifact (no dashboard budget gate)
 make build-full-dev # Build release artifact with dashboard budget reporting (set SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE=1 for hard-fail)

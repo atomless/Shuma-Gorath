@@ -101,8 +101,10 @@ class RuntimeToggleSurfaceGate:
         if response["status"] != 200:
             raise RuntimeError(f"health check failed: status={response['status']} body={response['raw'][:200]}")
 
-    def configure_geo_probe_profile(self) -> None:
+    def configure_runtime_surface_profile(self) -> None:
         payload = {
+            "defence_modes": {"rate": "both", "geo": "both", "js": "both"},
+            "js_required_enforced": True,
             "geo_edge_headers_enabled": True,
             "geo_challenge": ["RU"],
             "geo_maze": [],
@@ -111,22 +113,28 @@ class RuntimeToggleSurfaceGate:
         response = self.request("POST", "/admin/config", payload)
         if response["status"] != 200:
             raise RuntimeError(
-                f"failed to apply GEO config profile: status={response['status']} body={response['raw'][:200]}"
+                f"failed to apply runtime surface config profile: status={response['status']} body={response['raw'][:200]}"
             )
 
     def toggle(self, enabled: bool, suffix: str) -> None:
-        operation_id = f"runtime-surface-{int(time.time())}-{suffix}"
-        response = self.request(
-            "POST",
-            "/admin/adversary-sim/control",
-            {"enabled": bool(enabled), "reason": "runtime_surface_gate"},
-            extra_headers={
-                "Idempotency-Key": operation_id,
-                "Origin": self.base_url,
-                "Sec-Fetch-Site": "same-origin",
-            },
-        )
-        if response["status"] != 200:
+        max_attempts = 1 if enabled else 10
+        for attempt in range(1, max_attempts + 1):
+            operation_id = f"runtime-surface-{int(time.time())}-{suffix}-a{attempt}"
+            response = self.request(
+                "POST",
+                "/admin/adversary-sim/control",
+                {"enabled": bool(enabled), "reason": "runtime_surface_gate"},
+                extra_headers={
+                    "Idempotency-Key": operation_id,
+                    "Origin": self.base_url,
+                    "Sec-Fetch-Site": "same-origin",
+                },
+            )
+            if response["status"] == 200:
+                return
+            if not enabled and response["status"] == 429 and attempt < max_attempts:
+                time.sleep(1)
+                continue
             raise RuntimeError(
                 f"toggle {enabled} failed: status={response['status']} body={response['raw'][:200]}"
             )
@@ -192,6 +200,8 @@ class RuntimeToggleSurfaceGate:
                 if reason == "js_verification":
                     seen["js_required"] = True
                     seen["challenge"] = True
+                if "s_js_required_missing" in outcome or "js_verification_required:active" in outcome:
+                    seen["js_required"] = True
                 if "pow" in reason or "pow_" in outcome:
                     seen["pow"] = True
                 if "rate" in reason or "rate_" in outcome:
@@ -233,7 +243,7 @@ def main() -> int:
 
     try:
         gate.ensure_health()
-        gate.configure_geo_probe_profile()
+        gate.configure_runtime_surface_profile()
         gate.toggle(True, "on")
         seen = gate.poll_categories()
     except Exception as exc:  # noqa: BLE001

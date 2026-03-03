@@ -130,6 +130,8 @@ const CONFIG_EXPORT_SECRET_KEYS: [&str; 15] = [
 const SECURITY_PRIVACY_PREFIX: &str = "security_privacy:v1";
 const SECURITY_PRIVACY_CLASSIFICATION_VERSION: &str = "telemetry-security-classification.v1";
 const SECURITY_FORENSIC_ACK_VALUE: &str = "I_UNDERSTAND_FORENSIC";
+const TELEMETRY_CLEANUP_ACK_HEADER: &str = "x-shuma-telemetry-cleanup-ack";
+const TELEMETRY_CLEANUP_ACK_VALUE: &str = "I_UNDERSTAND_TELEMETRY_CLEANUP";
 const SECURITY_HIGH_RISK_RETENTION_MAX_HOURS: u64 = 72;
 const SECRET_LIKE_SUBSTRINGS: [&str; 8] = [
     "sk-",
@@ -318,6 +320,13 @@ fn forensic_access_mode(query: &str) -> bool {
     let forensic_ack = crate::request_validation::query_param(query, "forensic_ack")
         .unwrap_or_default();
     forensic_requested && forensic_ack == SECURITY_FORENSIC_ACK_VALUE
+}
+
+fn telemetry_cleanup_acknowledged(req: &Request) -> bool {
+    req.header(TELEMETRY_CLEANUP_ACK_HEADER)
+        .and_then(|value| value.as_str())
+        .map(|value| value.trim() == TELEMETRY_CLEANUP_ACK_VALUE)
+        .unwrap_or(false)
 }
 
 fn pseudonymize_ip_identifier(ip: &str) -> String {
@@ -1565,6 +1574,22 @@ mod admin_config_tests {
         builder.build()
     }
 
+    fn make_history_cleanup_request(ack: Option<&str>) -> Request {
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Post)
+            .uri("/admin/adversary-sim/history/cleanup")
+            .header("host", "localhost:3000")
+            .header("authorization", "Bearer changeme-dev-only-api-key")
+            .header("origin", "http://localhost:3000")
+            .header("sec-fetch-site", "same-origin");
+        if let Some(value) = ack {
+            builder.header("x-shuma-telemetry-cleanup-ack", value);
+        }
+        builder.body(Vec::new());
+        builder.build()
+    }
+
     fn bearer_rw_auth() -> crate::admin::auth::AdminAuthResult {
         crate::admin::auth::AdminAuthResult {
             method: Some(crate::admin::auth::AdminAuthMethod::BearerToken),
@@ -2404,7 +2429,7 @@ mod admin_config_tests {
                 .and_then(|v| v.get("history_retention"))
                 .and_then(|v| v.get("cleanup_command"))
                 .and_then(|v| v.as_str()),
-            Some("make adversary-sim-history-clean")
+            Some("make telemetry-clean")
         );
 
         let saved_bytes = store.get("config:default").unwrap().unwrap();
@@ -2759,7 +2784,7 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn adversary_sim_history_cleanup_endpoint_clears_retained_dev_telemetry() {
+    fn adversary_sim_history_cleanup_endpoint_clears_retained_telemetry() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
@@ -2795,11 +2820,7 @@ mod admin_config_tests {
             );
         }
 
-        let cleanup_req = make_request(
-            Method::Post,
-            "/admin/adversary-sim/history/cleanup",
-            Vec::new(),
-        );
+        let cleanup_req = make_history_cleanup_request(None);
         let cleanup_resp =
             handle_admin_adversary_sim_history_cleanup(&cleanup_req, &store, "default", &auth);
         assert_eq!(*cleanup_resp.status(), 200u16);
@@ -2842,7 +2863,7 @@ mod admin_config_tests {
             recent_events[0]
                 .get("reason")
                 .and_then(|value| value.as_str()),
-            Some("adversary_sim_history_cleanup")
+            Some("telemetry_history_cleanup")
         );
         assert_eq!(
             recent_events[0]
@@ -2857,7 +2878,7 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn adversary_sim_history_cleanup_fails_closed_outside_dev_surface() {
+    fn adversary_sim_history_cleanup_requires_ack_in_runtime_prod() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
@@ -2865,14 +2886,87 @@ mod admin_config_tests {
 
         let store = TestStore::default();
         let auth = bearer_rw_auth();
-        let cleanup_req = make_request(
-            Method::Post,
-            "/admin/adversary-sim/history/cleanup",
-            Vec::new(),
-        );
+        let cleanup_req = make_history_cleanup_request(None);
         let cleanup_resp =
             handle_admin_adversary_sim_history_cleanup(&cleanup_req, &store, "default", &auth);
-        assert_eq!(*cleanup_resp.status(), 404u16);
+        assert_eq!(*cleanup_resp.status(), 403u16);
+        assert!(
+            String::from_utf8_lossy(cleanup_resp.body()).contains("X-Shuma-Telemetry-Cleanup-Ack")
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_history_cleanup_allows_runtime_prod_with_ack_header() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "false");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        let now = now_ts();
+        crate::observability::monitoring::record_challenge_failure(&store, "198.51.100.19", "incorrect");
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now,
+                event: EventType::AdminAction,
+                ip: Some("198.51.100.19".to_string()),
+                reason: Some("prod_history_cleanup_probe".to_string()),
+                outcome: Some("ok".to_string()),
+                admin: Some("me".to_string()),
+            },
+        );
+
+        let cleanup_req = make_history_cleanup_request(Some(TELEMETRY_CLEANUP_ACK_VALUE));
+        let cleanup_resp =
+            handle_admin_adversary_sim_history_cleanup(&cleanup_req, &store, "default", &auth);
+        assert_eq!(*cleanup_resp.status(), 200u16);
+        let cleanup_json: serde_json::Value = serde_json::from_slice(cleanup_resp.body()).unwrap();
+        assert_eq!(
+            cleanup_json
+                .get("cleanup_command")
+                .and_then(|value| value.as_str()),
+            Some("make telemetry-clean")
+        );
+        assert!(
+            cleanup_json
+                .get("deleted_keys")
+                .and_then(|value| value.as_u64())
+                .unwrap_or(0)
+                >= 1
+        );
+
+        let monitoring_req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=10", Vec::new());
+        let monitoring_resp = handle_admin_monitoring(&monitoring_req, &store);
+        assert_eq!(*monitoring_resp.status(), 200u16);
+        let monitoring_json: serde_json::Value =
+            serde_json::from_slice(monitoring_resp.body()).unwrap();
+        assert_eq!(
+            monitoring_json
+                .get("summary")
+                .and_then(|v| v.get("challenge"))
+                .and_then(|v| v.get("total_failures"))
+                .and_then(|v| v.as_u64()),
+            Some(0)
+        );
+        let recent_events = monitoring_json
+            .get("details")
+            .and_then(|v| v.get("events"))
+            .and_then(|v| v.get("recent_events"))
+            .and_then(|v| v.as_array())
+            .expect("recent_events");
+        assert_eq!(recent_events.len(), 1);
+        assert_eq!(
+            recent_events[0]
+                .get("reason")
+                .and_then(|value| value.as_str()),
+            Some("telemetry_history_cleanup")
+        );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -11081,7 +11175,7 @@ struct TelemetryHistoryCleanupResult {
     deleted_by_family: BTreeMap<String, u64>,
 }
 
-fn classify_dev_telemetry_history_key(
+fn classify_telemetry_history_key(
     key: &str,
     tarpit_global_key: &str,
     tarpit_bucket_prefix: &str,
@@ -11110,7 +11204,7 @@ fn classify_dev_telemetry_history_key(
     None
 }
 
-fn clear_dev_telemetry_history<S>(store: &S, site_id: &str) -> TelemetryHistoryCleanupResult
+fn clear_telemetry_history<S>(store: &S, site_id: &str) -> TelemetryHistoryCleanupResult
 where
     S: crate::challenge::KeyValueStore,
 {
@@ -11122,7 +11216,7 @@ where
     let mut result = TelemetryHistoryCleanupResult::default();
     if let Ok(keys) = store.get_keys() {
         for key in keys {
-            let Some(family) = classify_dev_telemetry_history_key(
+            let Some(family) = classify_telemetry_history_key(
                 key.as_str(),
                 tarpit_global_key.as_str(),
                 tarpit_bucket_prefix.as_str(),
@@ -11801,7 +11895,7 @@ fn adversary_sim_status_payload(
                 "retention_health": crate::observability::retention::retention_health(store),
                 "cleanup_supported": crate::config::admin_config_write_enabled(),
                 "cleanup_endpoint": "/admin/adversary-sim/history/cleanup",
-                "cleanup_command": "make adversary-sim-history-clean"
+                "cleanup_command": "make telemetry-clean"
             }),
         );
         object.insert(
@@ -11941,19 +12035,32 @@ fn handle_admin_adversary_sim_history_cleanup(
     }
 
     let runtime_environment = crate::config::runtime_environment();
-    let env_available = crate::config::adversary_sim_available();
-    if !crate::admin::adversary_sim::control_surface_available(runtime_environment, env_available) {
-        return Response::new(404, "Not Found");
+    let cleanup_command = "make telemetry-clean";
+    if runtime_environment.is_prod() {
+        if !telemetry_cleanup_acknowledged(req) {
+            return Response::new(
+                403,
+                format!(
+                    "Forbidden: runtime-prod telemetry cleanup requires header X-Shuma-Telemetry-Cleanup-Ack: {}",
+                    TELEMETRY_CLEANUP_ACK_VALUE
+                ),
+            );
+        }
+    } else {
+        let env_available = crate::config::adversary_sim_available();
+        if !crate::admin::adversary_sim::control_surface_available(runtime_environment, env_available) {
+            return Response::new(404, "Not Found");
+        }
     }
 
-    let cleanup_result = clear_dev_telemetry_history(store, site_id);
+    let cleanup_result = clear_telemetry_history(store, site_id);
     log_event(
         store,
         &EventLogEntry {
             ts: now_ts(),
             event: EventType::AdminAction,
             ip: Some(crate::extract_client_ip(req)),
-            reason: Some("adversary_sim_history_cleanup".to_string()),
+            reason: Some("telemetry_history_cleanup".to_string()),
             outcome: Some(format!(
                 "deleted_keys={} families={}",
                 cleanup_result.deleted_keys,
@@ -11968,7 +12075,7 @@ fn handle_admin_adversary_sim_history_cleanup(
         "deleted_keys": cleanup_result.deleted_keys,
         "deleted_by_family": cleanup_result.deleted_by_family,
         "retention_hours": event_log_retention_hours(),
-        "cleanup_command": "make adversary-sim-history-clean"
+        "cleanup_command": cleanup_command
     }))
     .unwrap();
     Response::new(200, body)
@@ -12660,7 +12767,8 @@ pub fn handle_internal(req: &Request) -> Response {
 ///   - GET /admin/config/export: Export non-secret runtime config for immutable deploy handoff
 ///   - POST /admin/adversary-sim/control: Start/stop dev adversary simulation orchestration
 ///   - GET /admin/adversary-sim/status: Read orchestration state and guardrails
-///   - POST /admin/adversary-sim/history/cleanup: Explicitly clear retained dev telemetry history
+///   - POST /admin/adversary-sim/history/cleanup: Explicitly clear retained telemetry history
+///     (runtime-dev, or runtime-prod with X-Shuma-Telemetry-Cleanup-Ack acknowledgement header)
 ///   - GET /admin/maze/preview: Render a non-operational maze preview for operators
 ///   - GET /admin/tarpit/preview: Render a non-operational progressive tarpit preview for operators
 ///   - GET /admin: API help

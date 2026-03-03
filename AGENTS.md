@@ -87,6 +87,16 @@ This file provides instructions for coding agents working in this repository.
    - agents MUST cite concrete evidence (`file:line` references and the exact verification commands/targets used) for every usage/non-usage assertion;
    - if full-path verification is incomplete, agents MUST explicitly state uncertainty and continue investigation instead of making definitive claims;
    - treat shallow usage assessments as release-blocking process failure.
+15. Non-negotiable completion proof for large tranches/refactors (release-blocking):
+   - for any large feature tranche, cross-cutting refactor, or architecture migration, agents MUST NOT claim "working", "complete", or "done" without end-to-end proof across runtime, CI, and UI surfaces;
+   - Definition of Done for such work MUST include explicit acceptance checks proving expected traffic/data flow and shape at every boundary: generation/emission, persistence/telemetry, API read paths, and dashboard rendering/refresh behavior;
+   - for adversary-simulation work specifically, completion MUST prove (1) traffic is generated, (2) traffic is persisted/observable in monitoring APIs, (3) traffic is rendered in dashboard sections expected by spec, and (4) CI/runtime gates assert those outcomes;
+   - when any required proof is missing or flaky, agents MUST report the slice as incomplete, continue debugging, and must not present status as complete.
+16. Non-negotiable Make target truth-in-naming rule (release-blocking):
+   - agents MUST NOT add, rename, or document any `make` target whose name implies behavior/scope/isolation that the implementation does not actually guarantee;
+   - before claiming a new `make` command is complete, agents MUST verify and document its real blast radius and data scope (for example runtime-specific vs shared keyspace, dev-only vs prod-only, destructive vs non-destructive);
+   - when architecture constraints prevent strict semantics implied by a target name, agents MUST either (a) choose an accurate name, or (b) explicitly call out the limitation in help/docs and completion notes before merge;
+   - ambiguous or misleading command naming/claims are process failures and must be corrected before completion.
 
 ## Security and abuse posture
 

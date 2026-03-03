@@ -36,7 +36,7 @@ At runtime:
 - Admin-editable runtime settings are loaded from <abbr title="Key-Value">KV</abbr>.
 - Env-only keys are loaded from process env.
 - Missing/invalid <abbr title="Key-Value">KV</abbr> config returns `500 Configuration unavailable` for config-dependent requests.
-- `make dev`, `make run`, `make run-prebuilt`, and `make prod` now run `make config-seed` before Spin startup (and `make dev`/`make dev-closed` also backfill on watch-triggered restarts), so newly added admin-editable settings are automatically backfilled after branch switches or `make clean`.
+- `make dev`, `make dev-prod`, `make run`, `make run-prebuilt`, and `make prod` now run `make config-seed` before Spin startup (and `make dev`/`make dev-closed`/`make dev-prod` also backfill on watch-triggered restarts), so newly added admin-editable settings are automatically backfilled after branch switches or `make clean`.
 
 ## 🐙 Runtime Config Cache
 

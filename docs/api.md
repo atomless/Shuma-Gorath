@@ -150,7 +150,9 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `GET /admin/config/export` - Export non-secret runtime config as deploy-ready env key/value output
 - `POST /admin/adversary-sim/control` - Explicit dev-only adversary-sim lifecycle command submission (`{"enabled":true|false,"reason":"optional"}`), admin-auth + CSRF protected, strict same-origin/fetch-metadata checks, and required `Idempotency-Key` header
 - `GET /admin/adversary-sim/status` - Read-only adversary-sim lifecycle status (no reconcile-on-read mutation), including desired vs actual state, reconciliation-needed signal, and controller lease metadata
-- `POST /admin/adversary-sim/history/cleanup` - Explicitly clear retained runtime-dev telemetry history (`eventlog:v2:*`, `monitoring:v1:*`, and derived monitoring detail counters) without changing adversary-sim control state
+- `POST /admin/adversary-sim/history/cleanup` - Explicitly clear retained telemetry history (`eventlog:v2:*`, `monitoring:v1:*`, and derived monitoring detail counters) without changing adversary-sim control state.
+  - In `runtime-dev`: endpoint remains available on the existing dev control surface.
+  - In `runtime-prod`: endpoint requires header `X-Shuma-Telemetry-Cleanup-Ack: I_UNDERSTAND_TELEMETRY_CLEANUP`.
 - `GET /admin/maze` - maze stats
 - `GET /admin/maze/preview?path=<maze_entry_path>...` - Non-operational maze preview (admin-auth only; no live traversal token issuance)
 - `GET /admin/maze/seeds` - Maze operator-seed source list and cached corpus snapshot
@@ -197,7 +199,7 @@ Adversary-sim command contract (`adversary-sim-control.v1`) highlights:
 - `deleted_keys`
 - `deleted_by_family`
 - `retention_hours`
-- `cleanup_command`
+- `cleanup_command` (`make telemetry-clean`)
 
 `GET /admin/maze/preview` is intentionally non-operational:
 - links recurse only into `/admin/maze/preview`,

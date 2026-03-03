@@ -1776,9 +1776,9 @@ class Runner:
 
     def cleanup_simulation_telemetry_history(self) -> None:
         reason = "adversarial_ephemeral_cleanup"
-        self.assert_control_plane_mutation_allowed("adversary_sim_history_cleanup", reason)
+        self.assert_control_plane_mutation_allowed("telemetry_history_cleanup", reason)
         self.record_control_plane_mutation(
-            action="adversary_sim_history_cleanup",
+            action="telemetry_history_cleanup",
             reason=reason,
             details={"endpoint": "/admin/adversary-sim/history/cleanup"},
         )
@@ -1786,7 +1786,7 @@ class Runner:
         if result.status != 200:
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(
-                "Failed to clear simulation telemetry history via /admin/adversary-sim/history/cleanup: "
+                "Failed to clear retained runtime-dev telemetry history via /admin/adversary-sim/history/cleanup: "
                 f"status={result.status} body={detail}"
             )
         payload = parse_json_or_raise(
@@ -1797,7 +1797,7 @@ class Runner:
         if status != "cleared":
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(
-                "Failed to clear simulation telemetry history via /admin/adversary-sim/history/cleanup: "
+                "Failed to clear retained runtime-dev telemetry history via /admin/adversary-sim/history/cleanup: "
                 f"unexpected status={status or 'missing'} body={detail}"
             )
 

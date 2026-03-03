@@ -1654,7 +1654,7 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
       history_retention: {
         retention_hours: 168,
         cleanup_supported: true,
-        cleanup_command: 'make adversary-sim-history-clean'
+        cleanup_command: 'make telemetry-clean'
       },
       phase: 'running',
       run_id: 'simrun-123',
@@ -1693,7 +1693,7 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
     assert.equal(normalized.historicalDataVisible, true);
     assert.equal(normalized.historyRetentionHours, 168);
     assert.equal(normalized.historyCleanupSupported, true);
-    assert.equal(normalized.historyCleanupCommand, 'make adversary-sim-history-clean');
+    assert.equal(normalized.historyCleanupCommand, 'make telemetry-clean');
     assert.equal(normalized.phase, 'running');
     assert.equal(normalized.runId, 'simrun-123');
     assert.equal(normalized.activeRunCount, 1);

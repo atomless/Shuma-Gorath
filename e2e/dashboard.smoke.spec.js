@@ -304,6 +304,60 @@ async function clearDashboardClientCache(page) {
   });
 }
 
+async function clickAdversaryToggleWithRetry(page, desiredEnabled, timeoutMs = 20000) {
+  const toggle = page.locator("#global-adversary-sim-toggle");
+  const toggleSwitch = page.locator("label.toggle-switch[for='global-adversary-sim-toggle']");
+  await expect(toggle).toBeEnabled({ timeout: timeoutMs });
+  const desired = desiredEnabled === true;
+  if ((await toggle.isChecked()) === desired) {
+    return null;
+  }
+
+  const deadline = Date.now() + Math.max(2000, Number(timeoutMs || 0));
+  let lastStatus = 0;
+  while (Date.now() < deadline) {
+    if ((await toggle.isChecked()) === desired) {
+      return null;
+    }
+
+    const maybeDialog = page.waitForEvent("dialog", { timeout: 2500 }).then(async (dialog) => {
+      await dialog.accept();
+      return true;
+    }).catch(() => false);
+
+    const responsePromise = page.waitForResponse((resp) => (
+      resp.url().includes("/admin/adversary-sim/control") &&
+      resp.request().method() === "POST"
+    ), { timeout: 6000 });
+
+    await Promise.all([
+      maybeDialog,
+      toggleSwitch.click()
+    ]);
+
+    const response = await responsePromise;
+    lastStatus = response.status();
+    if (lastStatus === 200) {
+      if (desired) {
+        await expect(toggle).toBeChecked();
+      } else {
+        await expect(toggle).not.toBeChecked();
+      }
+      return response;
+    }
+    if (lastStatus === 429 || lastStatus === 409) {
+      await page.waitForTimeout(1100);
+      continue;
+    }
+    const body = await response.text().catch(() => "");
+    throw new Error(`adversary toggle control request failed with ${lastStatus}: ${body}`);
+  }
+
+  throw new Error(
+    `adversary toggle did not reach desired state=${desired} before timeout; last_status=${lastStatus}`
+  );
+}
+
 function buildAdminAuthHeaders(ip = "127.0.0.1") {
   return {
     Authorization: `Bearer ${API_KEY}`,
@@ -325,6 +379,78 @@ async function updateAdminConfig(request, patch, ip = "127.0.0.1") {
   }
   const payload = await response.json();
   return payload && payload.config ? payload.config : {};
+}
+
+async function fetchMonitoringSnapshot(request, hours = 24, limit = 200, ip = "127.0.0.1") {
+  const response = await request.get(`${BASE_URL}/admin/monitoring?hours=${hours}&limit=${limit}`, {
+    headers: buildAdminAuthHeaders(ip)
+  });
+  if (!response.ok()) {
+    const body = await response.text();
+    throw new Error(`monitoring read should succeed: ${response.status()} ${body}`);
+  }
+  return response.json();
+}
+
+function maxSimulationEventTs(monitoringPayload) {
+  const rows = Array.isArray(monitoringPayload?.details?.events?.recent_events)
+    ? monitoringPayload.details.events.recent_events
+    : [];
+  return rows.reduce((maxTs, row) => {
+    if (!row || row.is_simulation !== true) return maxTs;
+    const ts = Number(row.ts || 0);
+    return Number.isFinite(ts) ? Math.max(maxTs, ts) : maxTs;
+  }, 0);
+}
+
+async function waitForSimulationEventAdvance(request, baselineTs, timeoutMs = 20000) {
+  const deadline = Date.now() + Math.max(1000, Number(timeoutMs || 0));
+  let lastObserved = Number(baselineTs || 0);
+  while (Date.now() < deadline) {
+    const monitoring = await fetchMonitoringSnapshot(request, 24, 200);
+    const observed = maxSimulationEventTs(monitoring);
+    lastObserved = Math.max(lastObserved, observed);
+    if (observed > baselineTs) {
+      return observed;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  throw new Error(
+    `simulation telemetry did not advance within ${timeoutMs}ms (baseline=${baselineTs}, last_observed=${lastObserved})`
+  );
+}
+
+async function setAdversarySimStateViaApi(request, enabled, timeoutMs = 20000, ip = "127.0.0.1") {
+  const deadline = Date.now() + Math.max(2000, Number(timeoutMs || 0));
+  const desired = enabled === true;
+  let lastStatus = 0;
+  let attempt = 0;
+  while (Date.now() < deadline) {
+    attempt += 1;
+    const response = await request.post(`${BASE_URL}/admin/adversary-sim/control`, {
+      headers: {
+        ...buildAdminAuthHeaders(ip),
+        "Content-Type": "application/json",
+        "Idempotency-Key": `dashboard-e2e-${desired ? "on" : "off"}-${Date.now()}-${attempt}`,
+        Origin: BASE_URL,
+        "Sec-Fetch-Site": "same-origin"
+      },
+      data: { enabled: desired, reason: "dashboard_e2e" }
+    });
+    lastStatus = response.status();
+    if (lastStatus === 200) {
+      return response.json();
+    }
+    if (lastStatus === 429 || lastStatus === 409) {
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+      continue;
+    }
+    const body = await response.text();
+    throw new Error(`adversary-sim api control failed with ${lastStatus}: ${body}`);
+  }
+  throw new Error(
+    `adversary-sim api control timed out for enabled=${desired}; last_status=${lastStatus}`
+  );
 }
 
 async function submitConfigSave(page, button = page.locator("#save-verification-all")) {
@@ -1234,25 +1360,15 @@ test("adversary sim global toggle drives orchestration control lifecycle state",
   await openDashboard(page);
 
   const toggle = page.locator("#global-adversary-sim-toggle");
-  const toggleSwitch = page.locator("label.toggle-switch[for='global-adversary-sim-toggle']");
   const lifecycleCopy = page.locator("#adversary-sim-lifecycle-copy");
   await expect(toggle).toBeEnabled();
+  if (await toggle.isChecked()) {
+    await clickAdversaryToggleWithRetry(page, false);
+  }
   await expect(toggle).not.toBeChecked();
   await expect(lifecycleCopy).toContainText("Generation inactive");
 
-  const onDialogHandledPromise = page.waitForEvent("dialog").then(async (onDialog) => {
-    expect(onDialog.message()).toContain("No frontier model provider keys are configured");
-    await onDialog.accept();
-  });
-  const [onResponse] = await Promise.all([
-    page.waitForResponse((resp) => (
-      resp.url().includes("/admin/adversary-sim/control") &&
-      resp.request().method() === "POST" &&
-      resp.ok()
-    )),
-    onDialogHandledPromise,
-    toggleSwitch.click()
-  ]);
+  const onResponse = await clickAdversaryToggleWithRetry(page, true);
   const onBody = await onResponse.json();
   expect(onBody?.requested_enabled).toBe(true);
   await expect(toggle).toBeChecked();
@@ -1260,14 +1376,7 @@ test("adversary sim global toggle drives orchestration control lifecycle state",
   let bodyState = await dashboardBodyClassState(page);
   expect(bodyState.hasAdversarySim).toBeTruthy();
 
-  const [offResponse] = await Promise.all([
-    page.waitForResponse((resp) => (
-      resp.url().includes("/admin/adversary-sim/control") &&
-      resp.request().method() === "POST" &&
-      resp.ok()
-    )),
-    toggleSwitch.click()
-  ]);
+  const offResponse = await clickAdversaryToggleWithRetry(page, false);
   const offBody = await offResponse.json();
   expect(offBody?.requested_enabled).toBe(false);
   await expect(toggle).not.toBeChecked();
@@ -1275,6 +1384,32 @@ test("adversary sim global toggle drives orchestration control lifecycle state",
   await expect(lifecycleCopy).toContainText("Retained telemetry remains visible");
   bodyState = await dashboardBodyClassState(page);
   expect(bodyState.hasAdversarySim).toBeFalsy();
+});
+
+test("adversary sim toggle emits fresh telemetry visible in monitoring raw feed", async ({ page, request }) => {
+  test.setTimeout(60_000);
+  await openDashboard(page);
+  await openTab(page, "monitoring");
+  await setAutoRefresh(page, true);
+
+  const toggle = page.locator("#global-adversary-sim-toggle");
+  await expect(toggle).toBeEnabled({ timeout: 15000 });
+  if (await toggle.isChecked()) {
+    await clickAdversaryToggleWithRetry(page, false);
+  }
+
+  const baselineMonitoring = await fetchMonitoringSnapshot(request, 24, 200);
+  const baselineTs = maxSimulationEventTs(baselineMonitoring);
+
+  await clickAdversaryToggleWithRetry(page, true);
+  await expect(toggle).toBeChecked();
+
+  const advancedTs = await waitForSimulationEventAdvance(request, baselineTs, 20000);
+  await expect(page.locator("#monitoring-raw-feed tbody")).toContainText(`"ts":${advancedTs}`);
+
+  await setAdversarySimStateViaApi(request, false);
+  await page.reload();
+  await expect(toggle).not.toBeChecked();
 });
 
 test("adversary sim toggle cancel path avoids orchestration request when frontier keys are missing", async ({ page, request }) => {

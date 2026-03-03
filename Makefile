@@ -1,4 +1,4 @@
-.PHONY: dev local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live adversary-sim-history-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -135,7 +135,7 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
 	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
 	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/admin/maze/preview (admin auth)$(NC)"
-	@echo "$(YELLOW)⚙️  Effective dev flags: WRITE=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) DEBUG_HEADERS=$(DEV_DEBUG_HEADERS)$(NC)"
+	@echo "$(YELLOW)⚙️  Effective dev flags: WRITE=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) DEBUG_HEADERS=$(DEV_DEBUG_HEADERS) RUNTIME=$(DEV_RUNTIME_ENV) SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE)$(NC)"
 	@echo "$(YELLOW)🔐 Local admin allowlist override: DEV_ADMIN_IP_ALLOWLIST='$(DEV_ADMIN_IP_ALLOWLIST)' (empty by default)$(NC)"
 	@echo "$(YELLOW)⚡ Startup rebuild override: DEV_FORCE_REBUILD=$${DEV_FORCE_REBUILD:-0}$(NC)"
 	@echo "$(CYAN)👀 Watching src/*.rs, dashboard/*, and spin.toml for changes... (Ctrl+C to stop)$(NC)"
@@ -167,7 +167,10 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	fi
 	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml $(DEV_WATCH_IGNORES) \
 		-s 'if [ ! -f $(WASM_BUILD_OUTPUT) ] || find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && mkdir -p $(dir $(WASM_ARTIFACT)) && cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT) && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
-		-s 'pkill -x spin 2>/dev/null || true; $(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; RUNTIME_INSTANCE_ID="$$(uuidgen)"; SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) SPIN_ALWAYS_BUILD=0 ./scripts/run_with_adversary_sim_supervisor.sh spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000'
+		-s 'pkill -x spin 2>/dev/null || true; $(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; RUNTIME_INSTANCE_ID="$$(uuidgen)"; SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) SPIN_ALWAYS_BUILD=0 ./scripts/run_with_adversary_sim_supervisor.sh spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000'
+
+dev-prod: ## Build and run with file watching using runtime-prod posture (admin writes remain enabled for local tuning)
+	@$(MAKE) --no-print-directory dev DEV_RUNTIME_ENV=runtime-prod DEV_ADVERSARY_SIM_AVAILABLE=false DEV_DEBUG_HEADERS=false DEV_ADMIN_CONFIG_WRITE_ENABLED=true
 
 dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=false (fail-closed)
 	@echo "$(CYAN)🚨 Starting development server with SHUMA_KV_STORE_FAIL_OPEN=false (fail-closed)...$(NC)"
@@ -175,7 +178,7 @@ dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=fal
 	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
 	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
 	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/admin/maze/preview (admin auth)$(NC)"
-	@echo "$(YELLOW)⚙️  Effective dev flags: WRITE=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) DEBUG_HEADERS=$(DEV_DEBUG_HEADERS)$(NC)"
+	@echo "$(YELLOW)⚙️  Effective dev flags: WRITE=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) DEBUG_HEADERS=$(DEV_DEBUG_HEADERS) RUNTIME=$(DEV_RUNTIME_ENV) SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE)$(NC)"
 	@echo "$(YELLOW)🔐 Local admin allowlist override: DEV_ADMIN_IP_ALLOWLIST='$(DEV_ADMIN_IP_ALLOWLIST)' (empty by default)$(NC)"
 	@echo "$(YELLOW)⚡ Startup rebuild override: DEV_FORCE_REBUILD=$${DEV_FORCE_REBUILD:-0}$(NC)"
 	@echo "$(CYAN)👀 Watching src/*.rs, dashboard/*, and spin.toml for changes... (Ctrl+C to stop)$(NC)"
@@ -207,13 +210,13 @@ dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=fal
 	fi
 	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml $(DEV_WATCH_IGNORES) \
 		-s 'if [ ! -f $(WASM_BUILD_OUTPUT) ] || find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && mkdir -p $(dir $(WASM_ARTIFACT)) && cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT) && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
-		-s 'pkill -x spin 2>/dev/null || true; $(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; RUNTIME_INSTANCE_ID="$$(uuidgen)"; SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) SPIN_ALWAYS_BUILD=0 ./scripts/run_with_adversary_sim_supervisor.sh spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env SHUMA_KV_STORE_FAIL_OPEN=false --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000'
+		-s 'pkill -x spin 2>/dev/null || true; $(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; RUNTIME_INSTANCE_ID="$$(uuidgen)"; SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) SPIN_ALWAYS_BUILD=0 ./scripts/run_with_adversary_sim_supervisor.sh spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env SHUMA_KV_STORE_FAIL_OPEN=false --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000'
 
 local: dev ## Alias for dev
 
 run: ## Build once and run (no file watching)
 	@echo "$(CYAN)🚀 Starting development server...$(NC)"
-	@echo "$(YELLOW)⚙️  Effective dev flags: WRITE=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) DEBUG_HEADERS=$(DEV_DEBUG_HEADERS)$(NC)"
+	@echo "$(YELLOW)⚙️  Effective dev flags: WRITE=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) DEBUG_HEADERS=$(DEV_DEBUG_HEADERS) RUNTIME=$(DEV_RUNTIME_ENV) SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE)$(NC)"
 	@echo "$(YELLOW)🔐 Local admin allowlist override: DEV_ADMIN_IP_ALLOWLIST='$(DEV_ADMIN_IP_ALLOWLIST)' (empty by default)$(NC)"
 	@pkill -x spin 2>/dev/null || true
 	@$(MAKE) --no-print-directory config-seed >/dev/null
@@ -229,7 +232,7 @@ run: ## Build once and run (no file watching)
 	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
 	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
 	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/admin/maze/preview (admin auth)$(NC)"
-	@RUNTIME_INSTANCE_ID=$$(uuidgen); SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) ./scripts/run_with_adversary_sim_supervisor.sh spin up $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000
+	@RUNTIME_INSTANCE_ID=$$(uuidgen); SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) ./scripts/run_with_adversary_sim_supervisor.sh spin up $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000
 
 run-prebuilt: ## Run Spin using prebuilt wasm (CI helper)
 	@echo "$(CYAN)🚀 Starting prebuilt server...$(NC)"
@@ -241,7 +244,7 @@ run-prebuilt: ## Run Spin using prebuilt wasm (CI helper)
 	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
 	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
 	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/admin/maze/preview (admin auth)$(NC)"
-	@RUNTIME_INSTANCE_ID=$$(uuidgen); SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) ./scripts/run_with_adversary_sim_supervisor.sh spin up $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000
+	@RUNTIME_INSTANCE_ID=$$(uuidgen); SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) ./scripts/run_with_adversary_sim_supervisor.sh spin up $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000
 
 #--------------------------
 # Production
@@ -266,7 +269,7 @@ prod: build-runtime ## Build for production and start server
 	@echo "$(CYAN)🚀 Starting production server...$(NC)"
 	@$(MAKE) --no-print-directory config-seed >/dev/null
 	@pkill -x spin 2>/dev/null || true
-	@RUNTIME_INSTANCE_ID=$$(uuidgen); SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=false ./scripts/run_with_adversary_sim_supervisor.sh spin up $(SPIN_ENV_ONLY_BASE) $(SPIN_PROD_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 0.0.0.0:3000
+	@RUNTIME_INSTANCE_ID=$$(uuidgen); SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=false ./scripts/run_with_adversary_sim_supervisor.sh spin up $(SPIN_ENV_ONLY_BASE) $(SPIN_PROD_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 0.0.0.0:3000
 
 deploy: build-runtime ## Deploy to Fermyon Cloud
 	@$(MAKE) --no-print-directory api-key-validate
@@ -405,7 +408,7 @@ test-integration: ## Run integration tests only (21 scenarios, requires running 
 		SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" ./scripts/tests/integration.sh; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
-		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
+		echo "$(YELLOW)   Start the server first: make dev (or make dev-prod / make prod)$(NC)"; \
 		exit 1; \
 	fi
 
@@ -660,19 +663,20 @@ test-adversarial-live: ## Continuously run adversarial simulation profile for li
 		exit 1; \
 	fi
 
-adversary-sim-history-clean: ## Clear retained runtime-dev telemetry history from admin monitoring/event surfaces (requires running server)
-	@echo "$(CYAN)🧹 Clearing retained adversary simulation telemetry history...$(NC)"
+telemetry-clean: ## Clear retained telemetry history from admin monitoring/event surfaces (shared local keyspace; destructive; requires running server)
+	@echo "$(RED)🚨 Clearing retained telemetry history (shared local keyspace; destructive).$(NC)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		RESPONSE="$$(curl -fsS -X POST \
 			-H "Authorization: Bearer $(SHUMA_API_KEY)" \
+			-H "X-Shuma-Telemetry-Cleanup-Ack: I_UNDERSTAND_TELEMETRY_CLEANUP" \
 			-H "X-Forwarded-For: 127.0.0.1" \
 			$(FORWARDED_SECRET_HEADER) \
 			http://127.0.0.1:3000/admin/adversary-sim/history/cleanup)" || { \
-			echo "$(RED)❌ Failed to clear retained adversary simulation telemetry history.$(NC)"; \
-			echo "$(YELLOW)   Ensure SHUMA_API_KEY is configured and runtime guards allow the endpoint (runtime-dev + SHUMA_ADVERSARY_SIM_AVAILABLE=true).$(NC)"; \
+			echo "$(RED)❌ Failed to clear retained telemetry history.$(NC)"; \
+			echo "$(YELLOW)   Endpoint requires admin write access; in runtime-prod it also requires explicit cleanup acknowledgement (sent by this target).$(NC)"; \
 			exit 1; \
 		}; \
-		echo "$(GREEN)✅ Retained adversary simulation telemetry history cleared.$(NC)"; \
+		echo "$(GREEN)✅ Retained telemetry history cleared.$(NC)"; \
 		echo "$$RESPONSE"; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
@@ -815,6 +819,25 @@ test-dashboard-e2e: ## Run Playwright dashboard smoke tests (waits for existing 
 		./scripts/tests/verify_served_dashboard_assets.sh http://127.0.0.1:3000 || exit 1; \
 		$(MAKE) --no-print-directory seed-dashboard-data || exit 1; \
 		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) corepack pnpm run test:dashboard:e2e; \
+	else \
+		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
+		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
+		exit 1; \
+	fi
+
+test-dashboard-e2e-adversary-sim: ## Run focused Playwright adversary-sim dashboard smoke checks
+	@echo "$(CYAN)🧪 Running focused dashboard adversary-sim e2e checks...$(NC)"
+	@if $(MAKE) --no-print-directory spin-wait-ready; then \
+		if ! command -v corepack >/dev/null 2>&1; then \
+			echo "$(RED)❌ Error: corepack not found (install Node.js 18+).$(NC)"; \
+			exit 1; \
+		fi; \
+		corepack enable > /dev/null 2>&1 || true; \
+		if [ ! -d node_modules/.pnpm ] || [ ! -x node_modules/.bin/vite ] || [ ! -x node_modules/.bin/svelte-check ] || [ ! -d node_modules/svelte ] || [ ! -d node_modules/@sveltejs/kit ] || [ ! -d node_modules/@playwright/test ]; then \
+			corepack pnpm install --offline --frozen-lockfile || corepack pnpm install --frozen-lockfile; \
+		fi; \
+		$(MAKE) --no-print-directory seed-dashboard-data || exit 1; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) ./scripts/tests/run_dashboard_e2e.sh --grep "adversary sim (global toggle drives orchestration control lifecycle state|toggle emits fresh telemetry visible in monitoring raw feed)"; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
@@ -1101,7 +1124,7 @@ help: ## Show this help message
 	@grep -h -E '^(setup|setup-runtime|verify|verify-runtime|config-seed):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Development:$(NC)"
-	@grep -h -E '^(dev|local|run|build|build-runtime|build-full-dev|adversary-sim-supervisor-build|adversary-sim-supervisor):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
+	@grep -h -E '^(dev|dev-prod|local|run|build|build-runtime|build-full-dev|adversary-sim-supervisor-build|adversary-sim-supervisor):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Production:$(NC)"
 	@grep -h -E '^(prod|deploy|deploy-profile-baseline|deploy-self-hosted-minimal|deploy-enterprise-akamai):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
@@ -1110,4 +1133,4 @@ help: ## Show this help message
 	@grep -h -E '^(test.*|smoke-single-host):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Utilities:$(NC)"
-	@grep -h -E '^(stop|status|clean|logs|env-help|adversary-sim-history-clean|adversary-sim-supervisor|api-key-generate|gen-admin-api-key|api-key-show|api-key-rotate|api-key-validate|deploy-env-validate|help):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
+	@grep -h -E '^(stop|status|clean|logs|env-help|telemetry-clean|adversary-sim-supervisor|api-key-generate|gen-admin-api-key|api-key-show|api-key-rotate|api-key-validate|deploy-env-validate|help):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'

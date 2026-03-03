@@ -26,7 +26,7 @@ Runtime-toggle adversary generation is owned by a host-side supervisor heartbeat
 
 1. Dashboard uses control/status endpoints only (`/admin/adversary-sim/control`, `/admin/adversary-sim/status`).
 2. Host-side supervisors call the internal beat endpoint (`POST /internal/adversary-sim/beat`) on cadence.
-3. Local make targets (`make dev`, `make run`, `make run-prebuilt`, `make prod`) wrap Spin with `scripts/run_with_adversary_sim_supervisor.sh`.
+3. Local make targets (`make dev`, `make dev-prod`, `make run`, `make run-prebuilt`, `make prod`) wrap Spin with `scripts/run_with_adversary_sim_supervisor.sh`.
 4. Equivalent worker deployment adapters are supported for single-host service managers, container sidecars, and external edge supervisor services.
 
 ## SIM Run Definition Of Done (`SIM2-GC-1`)
@@ -595,7 +595,8 @@ Failure-handling rules:
 2. If stop does not converge to zero-active state before stop timeout, orchestrator must force-kill and return to safe `off` state.
 3. If runtime is not `runtime-dev` or `SHUMA_ADVERSARY_SIM_AVAILABLE=false`, control/status endpoints must fail closed (`404`).
 4. Status polling and lifecycle-state rendering are presentation only; defense behavior remains server-authoritative.
-5. Use `make adversary-sim-history-clean` only when explicit history reset is required; auto-off must not be treated as data deletion.
+5. Use explicit cleanup only when history reset is required; auto-off must not be treated as data deletion.
+   Use `make telemetry-clean` (shared local keyspace cleanup). In `runtime-prod`, the endpoint requires explicit cleanup acknowledgement header (the Make target sends it).
 6. If `retention_health.state=degraded|stalled`, operators must capture `retention_health.last_error`, `purge_lag_hours`, and `pending_expired_buckets` in incident notes before remediation.
 
 Retention troubleshooting and rollback:

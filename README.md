@@ -62,6 +62,7 @@ Dashboard:
 - Charts use local vendored runtime (`dashboard/static/assets/vendor/chart-lite-1.0.0.min.js`) rather than <abbr title="Content Delivery Network">CDN</abbr> scripts.
 - `make dev` forces local-write defaults (`WRITE=true`) so config controls are usable in local sessions.
 - Override dev defaults with Make variables when needed (example: `make dev DEV_ADMIN_CONFIG_WRITE_ENABLED=false`).
+- `make dev-prod` keeps the full watched local workflow but runs with runtime-prod posture (`runtime-prod`, `DEBUG_HEADERS=false`, adversary sim unavailable) while still allowing admin config writes for local tuning.
 
 Notes:
 - Run setup in an interactive terminal (it may prompt for sudo to install Spin).
@@ -76,6 +77,7 @@ Notes:
 make setup-runtime    # Runtime-only setup (Rust/wasm/Spin + env/bootstrap)
 make verify-runtime   # Runtime-only verification (no Node/pnpm/Playwright)
 make dev              # Start dev server with file watching
+make dev-prod         # Start watched local server in production runtime posture (admin writes enabled)
 make test             # Full suite: unit + integration + dashboard e2e (requires running server)
 make test-unit        # Unit tests only
 make test-integration # Integration tests (requires running server)

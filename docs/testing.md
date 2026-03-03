@@ -41,7 +41,7 @@ make test-dashboard   # Manual dashboard checklist
 
 Notes:
 - Use Makefile commands only (avoid running scripts directly)
-- Integration tests require a running Spin server (`make dev`); test targets do not start Spin.
+- Integration tests require a running Spin server (`make dev` or `make dev-prod`); test targets do not start Spin.
 - `make test`, `make test-integration`, and `make test-dashboard-e2e` wait for `/health` readiness before failing.
 - `make test` includes maze asymmetry benchmark gating, the mandatory fast adversarial matrix (`smoke + abuse + Akamai`), plus Playwright dashboard e2e and fails if any stage cannot run.
 - Deep adversarial soak coverage (`full_coverage`) is run via `make test-adversarial-soak` and is intended for scheduled/manual gates rather than every `make test` execution.
@@ -180,7 +180,7 @@ Dashboard adversary-sim orchestration control contract:
 - Lifecycle split is explicit: `generation_active` controls producer state, while retained telemetry visibility is independent (`historical_data_visible=true` until retention expiry or explicit cleanup).
 
 Host-side supervisor launch adapters:
-- Local development (`make dev`, `make run`, `make run-prebuilt`, `make prod`) wraps `spin up` with `scripts/run_with_adversary_sim_supervisor.sh`.
+- Local development (`make dev`, `make dev-prod`, `make run`, `make run-prebuilt`, `make prod`) wraps `spin up` with `scripts/run_with_adversary_sim_supervisor.sh`.
 - Build/run helper targets:
   - `make adversary-sim-supervisor-build`
   - `make adversary-sim-supervisor`
@@ -203,8 +203,8 @@ ADVERSARIAL_PROFILE=akamai_smoke ADVERSARIAL_REPORT_PATH=scripts/tests/adversari
 # Full coverage profile loop (bounded runtime is defined in manifest)
 ADVERSARIAL_PROFILE=full_coverage ADVERSARIAL_RUNS=1 make test-adversarial-live
 
-# Explicitly clear retained runtime-dev telemetry history
-make adversary-sim-history-clean
+# Explicitly clear retained telemetry history (shared local keyspace; destructive)
+make telemetry-clean
 ```
 
 Live loop controls:
@@ -215,7 +215,7 @@ Live loop controls:
 - `ADVERSARIAL_CLEANUP_MODE` (default `0`) toggles preserve-vs-cleanup behavior per cycle:
   - `0`: preserve state by default for live observability loops.
   - `1`: force deterministic cleanup after each cycle.
-- When cleanup mode is active (`SHUMA_ADVERSARIAL_PRESERVE_STATE=0`), the runner clears both ban state and retained simulation telemetry history through `POST /admin/adversary-sim/history/cleanup` before and after the run.
+- When cleanup mode is active (`SHUMA_ADVERSARIAL_PRESERVE_STATE=0`), the runner clears both ban state and retained telemetry history through `POST /admin/adversary-sim/history/cleanup` before and after the run.
 - Resilience controls:
   - `ADVERSARIAL_FATAL_CYCLE_LIMIT` (default `3`) stops the loop only after N consecutive fatal cycles.
   - `ADVERSARIAL_TRANSIENT_RETRY_LIMIT` (default `4`) retries transient failures before converting to one fatal cycle.
@@ -287,6 +287,7 @@ Simulation telemetry read policy:
 - `/admin/events`, `/admin/cdp/events`, and `/admin/monitoring` include simulation-tagged rows in `runtime-dev` by default.
 - Tagged rows remain identifiable via `sim_run_id`, `sim_profile`, `sim_lane`, and `is_simulation`.
 - `POST /admin/adversary-sim/history/cleanup` is the explicit cleanup control path; auto-off is not a retention cleanup action.
+  In `runtime-prod`, cleanup requires `X-Shuma-Telemetry-Cleanup-Ack: I_UNDERSTAND_TELEMETRY_CLEANUP` (the Make target sends this header).
 `test-adversarial-akamai` is fixture-driven (local `/fingerprint-report` with canned payloads) and does not require a live Akamai edge instance.
 Operator interpretation and tuning workflow is documented in `docs/adversarial-operator-guide.md`.
 
