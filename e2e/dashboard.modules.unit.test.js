@@ -2577,7 +2577,11 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /\$lib\/runtime\/dashboard-body-classes\.js/);
   assert.match(source, /\$lib\/runtime\/dashboard-adversary-sim\.js/);
   assert.match(source, /deriveDashboardBodyClassState\(configSnapshot,\s*\{/);
+  assert.match(source, /const DASHBOARD_LOADED_CLASS = 'dashboard-loaded';/);
   assert.match(source, /backendConnectionState/);
+  assert.match(source, /dashboardLoaded && backendConnectionState === 'disconnected'/);
+  assert.match(source, /classList\.add\(DASHBOARD_LOADED_CLASS\)/);
+  assert.match(source, /classList\.remove\(DASHBOARD_LOADED_CLASS\)/);
   assert.match(source, /syncDashboardBodyClasses\(document, bodyClassState\)/);
   assert.match(source, /clearDashboardBodyClasses\(document\)/);
   assert.match(source, /<svelte:window on:hashchange=\{onWindowHashChange\} \/>/);
@@ -2635,6 +2639,7 @@ test('dashboard stylesheet applies disconnected visual treatment via root class'
   const source = fs.readFileSync(path.join(DASHBOARD_ROOT, 'style.css'), 'utf8');
   assert.match(source, /:root\.disconnected\s*\{/);
   assert.match(source, /filter:\s*saturate\(0\);/);
+  assert.match(source, /:root\.disconnected\.dashboard-loaded #lost-connection\s*\{/);
   assert.match(source, /#connection-status\s*\{/);
   assert.match(source, /#lost-connection\s*\{/);
 });

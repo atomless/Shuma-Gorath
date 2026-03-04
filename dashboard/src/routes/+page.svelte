@@ -56,6 +56,7 @@
   const AUTO_REFRESH_INTERVAL_MS = 1000;
   const AUTO_REFRESH_TABS = new Set(['monitoring', 'ip-bans']);
   const AUTO_REFRESH_PREF_KEY = 'shuma_dashboard_auto_refresh_v1';
+  const DASHBOARD_LOADED_CLASS = 'dashboard-loaded';
 
   const fallbackBasePath = normalizeDashboardBasePath();
   const dashboardBasePath = typeof data?.dashboardBasePath === 'string'
@@ -72,6 +73,7 @@
   let storeUnsubscribe = () => {};
   let telemetryUnsubscribe = () => {};
   let runtimeReady = false;
+  let dashboardLoaded = false;
   let runtimeError = '';
   let loggingOut = false;
   let savingGlobalTestMode = false;
@@ -122,12 +124,28 @@
   $: backendConnectionState = String(runtimeTelemetry?.connection?.state || 'disconnected')
     .trim()
     .toLowerCase();
-  $: lostConnectionVisible = backendConnectionState === 'disconnected';
+  $: backendConnectionTransitionReason = String(runtimeTelemetry?.connection?.lastTransitionReason || '')
+    .trim()
+    .toLowerCase();
+  $: hasConnectionStateSettled = backendConnectionTransitionReason !== 'boot_disconnected';
+  $: lostConnectionVisible = dashboardLoaded && backendConnectionState === 'disconnected';
   $: bodyClassState = deriveDashboardBodyClassState(configSnapshot, {
     backendConnectionState
   });
   $: if (typeof document !== 'undefined') {
     syncDashboardBodyClasses(document, bodyClassState);
+  }
+  $: if (
+    typeof document !== 'undefined' &&
+    dashboardLoaded !== true &&
+    runtimeReady === true &&
+    hasConnectionStateSettled === true
+  ) {
+    const classList = document?.documentElement?.classList;
+    if (classList && typeof classList.add === 'function') {
+      classList.add(DASHBOARD_LOADED_CLASS);
+      dashboardLoaded = true;
+    }
   }
   $: normalizedAdversarySimStatus = normalizeAdversarySimStatus(adversarySimStatus);
   $: adversarySimToggleEnabled = normalizedAdversarySimStatus.enabled;
@@ -291,6 +309,13 @@
   });
 
   onMount(async () => {
+    if (typeof document !== 'undefined') {
+      const classList = document?.documentElement?.classList;
+      dashboardLoaded =
+        !!classList &&
+        typeof classList.contains === 'function' &&
+        classList.contains(DASHBOARD_LOADED_CLASS);
+    }
     autoRefreshEnabled = readAutoRefreshPreference();
     routeController.setMounted(true);
     storeUnsubscribe = dashboardStore.subscribe((value) => {
@@ -356,6 +381,11 @@
     clearAdversarySimStatusPollTimer();
     clearAuthExpiryTimer();
     if (typeof document !== 'undefined') {
+      const classList = document?.documentElement?.classList;
+      if (classList && typeof classList.remove === 'function') {
+        classList.remove(DASHBOARD_LOADED_CLASS);
+      }
+      dashboardLoaded = false;
       clearDashboardBodyClasses(document);
     }
     if (runtimeWasMounted) {
