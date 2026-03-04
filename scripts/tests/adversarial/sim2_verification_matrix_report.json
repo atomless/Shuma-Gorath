@@ -1,0 +1,108 @@
+{
+  "schema_version": "sim2-verification-matrix-report.v1",
+  "status": {
+    "passed": true,
+    "failure_count": 0,
+    "failures": []
+  },
+  "rows": [
+    {
+      "row_id": "allowlist_browser",
+      "passed": true,
+      "skipped": false,
+      "detail": "ok",
+      "failures": []
+    },
+    {
+      "row_id": "not_a_bot_browser",
+      "passed": true,
+      "skipped": false,
+      "detail": "ok",
+      "failures": []
+    },
+    {
+      "row_id": "geo_escalation",
+      "passed": true,
+      "skipped": false,
+      "detail": "ok",
+      "failures": []
+    },
+    {
+      "row_id": "challenge_paths",
+      "passed": true,
+      "skipped": false,
+      "detail": "ok",
+      "failures": []
+    },
+    {
+      "row_id": "maze_progression",
+      "passed": true,
+      "skipped": false,
+      "detail": "ok",
+      "failures": []
+    },
+    {
+      "row_id": "pow_success_and_failure",
+      "passed": true,
+      "skipped": false,
+      "detail": "ok",
+      "failures": []
+    },
+    {
+      "row_id": "honeypot_and_ban",
+      "passed": true,
+      "skipped": false,
+      "detail": "ok",
+      "failures": []
+    },
+    {
+      "row_id": "ban_path_assertions",
+      "passed": true,
+      "skipped": false,
+      "detail": "ok",
+      "failures": []
+    },
+    {
+      "row_id": "rate_limit_enforcement",
+      "passed": true,
+      "skipped": false,
+      "detail": "ok",
+      "failures": []
+    },
+    {
+      "row_id": "cdp_high_confidence",
+      "passed": true,
+      "skipped": false,
+      "detail": "ok",
+      "failures": []
+    },
+    {
+      "row_id": "tarpit_progression",
+      "passed": true,
+      "skipped": false,
+      "detail": "ok",
+      "failures": []
+    },
+    {
+      "row_id": "event_stream_integrity",
+      "passed": true,
+      "skipped": false,
+      "detail": "ok",
+      "failures": []
+    },
+    {
+      "row_id": "fingerprint_consistency",
+      "passed": true,
+      "skipped": false,
+      "detail": "ok",
+      "failures": []
+    },
+    {
+      "row_id": "frontier_container_execution",
+      "passed": true,
+      "skipped": true,
+      "detail": "container_report_missing_but_allowed",
+      "failures": []
+    }
+  ]
+}

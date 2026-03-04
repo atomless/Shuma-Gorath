@@ -83,6 +83,7 @@
   let adminMessageKind = 'info';
   let adversarySimStatus = {};
   let adversarySimStatusPollTimer = null;
+  let adversarySimStatusRequestInFlight = null;
   let IpBansTabComponent = null;
   let StatusTabComponent = null;
   let VerificationTabComponent = null;
@@ -118,11 +119,12 @@
     ? configSnapshot.test_mode === true
     : analyticsSnapshot.test_mode === true;
   $: testModeEnabled = currentTestModeValue;
-  $: backendConnected =
-    runtimeReady &&
-    String(runtimeTelemetry?.connection?.state || '').trim().toLowerCase() === 'connected';
+  $: backendConnectionState = String(runtimeTelemetry?.connection?.state || 'disconnected')
+    .trim()
+    .toLowerCase();
+  $: lostConnectionVisible = backendConnectionState === 'disconnected';
   $: bodyClassState = deriveDashboardBodyClassState(configSnapshot, {
-    backendConnected
+    backendConnectionState
   });
   $: if (typeof document !== 'undefined') {
     syncDashboardBodyClasses(document, bodyClassState);
@@ -161,8 +163,10 @@
         ? (
           String(adversarySimGenerationDiagnostics.health || '') === 'ok'
             ? 'Generation active. Auto-off stops new simulation traffic only; retained telemetry stays visible.'
-            : String(adversarySimGenerationDiagnostics.recommendedAction || '').trim() ||
-              'Generation active, but no observable traffic yet. Check supervisor diagnostics for stalled heartbeat state.'
+            : `Generation active. ${
+              String(adversarySimGenerationDiagnostics.recommendedAction || '').trim() ||
+              'No observable traffic yet. Check supervisor diagnostics for stalled heartbeat state.'
+            }`
         )
     : normalizedAdversarySimStatus.historicalDataVisible
       ? `Generation inactive. Retained telemetry remains visible for ${adversarySimRetentionHours}h or until ${adversarySimCleanupCommand} is run.`
@@ -452,6 +456,7 @@
       clearInterval(adversarySimStatusPollTimer);
       adversarySimStatusPollTimer = null;
     }
+    adversarySimStatusRequestInFlight = null;
   }
 
   function syncAdversarySimTimers() {
@@ -475,19 +480,33 @@
 
   async function refreshAdversarySimStatus(_reason = 'manual') {
     if (!routeController.getRuntimeMounted() || !runtimeReady) return;
-    try {
-      const status = await getDashboardAdversarySimStatus();
-      adversarySimStatus = status && typeof status === 'object' ? status : {};
-    } catch (error) {
-      if (error && Number(error.status) === 404) {
-        adversarySimStatus = {
-          runtime_environment: configSnapshot.runtime_environment,
-          adversary_sim_available: false,
-          adversary_sim_enabled: false
-        };
-      }
+    if (adversarySimStatusRequestInFlight) {
+      return adversarySimStatusRequestInFlight;
     }
-    syncAdversarySimTimers();
+    adversarySimStatusRequestInFlight = (async () => {
+      try {
+        const status = await getDashboardAdversarySimStatus({
+          telemetry: {
+            tab: 'status',
+            reason: _reason,
+            source: 'adversary-sim-status'
+          }
+        });
+        adversarySimStatus = status && typeof status === 'object' ? status : {};
+      } catch (error) {
+        if (error && Number(error.status) === 404) {
+          adversarySimStatus = {
+            runtime_environment: configSnapshot.runtime_environment,
+            adversary_sim_available: false,
+            adversary_sim_enabled: false
+          };
+        }
+      } finally {
+        adversarySimStatusRequestInFlight = null;
+      }
+      syncAdversarySimTimers();
+    })();
+    return adversarySimStatusRequestInFlight;
   }
 
   async function onGlobalAdversarySimToggleChange(event) {
@@ -525,7 +544,15 @@
         : {};
     savingGlobalAdversarySim = true;
     try {
-      const result = await controlDashboardAdversarySim(nextValue);
+      const result = await withRefreshedSessionOnAuthError(
+        () => controlDashboardAdversarySim(nextValue, {
+          telemetry: {
+            tab: 'status',
+            reason: 'adversary-sim-toggle',
+            source: 'adversary-sim-control'
+          }
+        })
+      );
       const status = result && result.status ? result.status : {};
       const normalizedStatus = normalizeAdversarySimStatus(status);
       adversarySimStatus = status && typeof status === 'object' ? status : {};
@@ -539,7 +566,7 @@
     } catch (error) {
       adversarySimStatus = previousStatusSnapshot;
       if (target) target.checked = previousValue;
-      if (Number(error?.status || 0) === 401) {
+      if (isAuthSessionExpiredError(error)) {
         setAdminMessage(
           'Adversary simulation control session expired. Redirecting to login...',
           'warning'
@@ -564,6 +591,34 @@
     return fallback;
   }
 
+  function isAuthSessionExpiredError(error) {
+    const status = Number(error?.status || 0);
+    if (status === 401) return true;
+    if (status !== 403) return false;
+    const message = String(error?.message || '').trim().toLowerCase();
+    if (!message) return false;
+    return (
+      message.includes('csrf') ||
+      message.includes('session') ||
+      message.includes('trust boundary') ||
+      message.includes('unauthorized')
+    );
+  }
+
+  async function withRefreshedSessionOnAuthError(action) {
+    if (typeof action !== 'function') {
+      throw new Error('Action callback is required.');
+    }
+    try {
+      return await action();
+    } catch (error) {
+      if (!isAuthSessionExpiredError(error)) throw error;
+      const restored = await restoreDashboardSession();
+      if (restored !== true) throw error;
+      return action();
+    }
+  }
+
   async function onSaveConfig(patch, options = {}) {
     const successMessage = options && typeof options.successMessage === 'string'
       ? options.successMessage
@@ -571,14 +626,22 @@
     const shouldRefresh = options?.refresh !== false;
     setAdminMessage('Saving configuration...', 'info');
     try {
-      const nextConfig = await updateDashboardConfig(patch || {});
+      const nextConfig = await withRefreshedSessionOnAuthError(
+        () => updateDashboardConfig(patch || {}, {
+          telemetry: {
+            tab: activeTabKey,
+            reason: 'config-save',
+            source: 'config-update'
+          }
+        })
+      );
       if (shouldRefresh) {
         await routeController.refreshTab(activeTabKey, 'config-save');
       }
       setAdminMessage(successMessage, 'success');
       return nextConfig;
     } catch (error) {
-      if (Number(error?.status || 0) === 401) {
+      if (isAuthSessionExpiredError(error)) {
         setAdminMessage('Configuration save session expired. Redirecting to login...', 'warning');
         redirectToLogin();
         throw error;
@@ -590,7 +653,13 @@
   }
 
   async function onValidateConfig(patch) {
-    return validateDashboardConfigPatch(patch || {});
+    return validateDashboardConfigPatch(patch || {}, {
+      telemetry: {
+        tab: activeTabKey,
+        reason: 'config-validate',
+        source: 'config-validation'
+      }
+    });
   }
 
   async function onBan(payload = {}) {
@@ -599,10 +668,23 @@
     if (!ip || !Number.isFinite(duration) || duration <= 0) return;
     setAdminMessage(`Banning ${ip}...`, 'info');
     try {
-      await banDashboardIp(ip, duration, 'manual_ban');
+      await withRefreshedSessionOnAuthError(
+        () => banDashboardIp(ip, duration, 'manual_ban', {
+          telemetry: {
+            tab: 'ip-bans',
+            reason: 'manual-ban',
+            source: 'ban-control'
+          }
+        })
+      );
       await routeController.refreshTab('ip-bans', 'ban-save');
       setAdminMessage(`Banned ${ip} for ${duration}s`, 'success');
     } catch (error) {
+      if (isAuthSessionExpiredError(error)) {
+        setAdminMessage('Ban action session expired. Redirecting to login...', 'warning');
+        redirectToLogin();
+        throw error;
+      }
       const message = formatActionError(error, 'Failed to ban Internet Protocol address.');
       setAdminMessage(`Error: ${message}`, 'error');
       throw error;
@@ -614,10 +696,21 @@
     if (!ip) return;
     setAdminMessage(`Unbanning ${ip}...`, 'info');
     try {
-      await unbanDashboardIp(ip);
+      await withRefreshedSessionOnAuthError(() => unbanDashboardIp(ip, {
+        telemetry: {
+          tab: 'ip-bans',
+          reason: 'manual-unban',
+          source: 'ban-control'
+        }
+      }));
       await routeController.refreshTab('ip-bans', 'unban-save');
       setAdminMessage(`Unbanned ${ip}`, 'success');
     } catch (error) {
+      if (isAuthSessionExpiredError(error)) {
+        setAdminMessage('Unban action session expired. Redirecting to login...', 'warning');
+        redirectToLogin();
+        throw error;
+      }
       const message = formatActionError(error, 'Failed to unban Internet Protocol address.');
       setAdminMessage(`Error: ${message}`, 'error');
       throw error;
@@ -625,11 +718,28 @@
   }
 
   async function onRobotsPreview(patch = null) {
-    return getDashboardRobotsPreview(patch);
+    return getDashboardRobotsPreview(patch, {
+      telemetry: {
+        tab: 'robots',
+        reason: 'preview',
+        source: 'robots-preview'
+      }
+    });
   }
 
   async function onFetchEventsRange(hours, options = {}) {
-    return getDashboardEvents(hours, options || {});
+    const requestOptions = options && typeof options === 'object'
+      ? { ...options }
+      : {};
+    requestOptions.telemetry = {
+      tab: 'monitoring',
+      reason: 'range-fetch',
+      source: 'monitoring-range',
+      ...(requestOptions.telemetry && typeof requestOptions.telemetry === 'object'
+        ? requestOptions.telemetry
+        : {})
+    };
+    return getDashboardEvents(hours, requestOptions);
   }
 
   async function onLogoutClick(event) {
@@ -654,6 +764,9 @@
 </svelte:head>
 <svelte:window on:hashchange={onWindowHashChange} />
 <svelte:document on:visibilitychange={onDocumentVisibilityChange} />
+<div id="lost-connection" aria-live="polite" aria-hidden={lostConnectionVisible ? 'false' : 'true'}>
+  <div id="connection-status">offline!</div>
+</div>
 <div class="container panel panel-border" data-dashboard-runtime-mode="native">
   <div id="test-mode-banner" class="test-mode-banner" class:hidden={!testModeEnabled}>
     TEST MODE ACTIVE - Logging only, no active defences

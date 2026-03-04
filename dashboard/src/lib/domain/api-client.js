@@ -1,5 +1,10 @@
 // @ts-check
 
+import {
+  classifyRequestFailure,
+  REQUEST_FAILURE_CLASSES
+} from './core/request-failure.js';
+
 /**
  * @typedef {Object} AdminContext
  * @property {string} endpoint
@@ -17,6 +22,7 @@
  * @property {AbortSignal} [signal]
  * @property {number} [timeoutMs]
  * @property {HTMLElement | null} [messageTarget]
+ * @property {{ tab?: string, reason?: string, source?: string }} [telemetry]
  */
 
 const JSON_CONTENT_TYPE = 'application/json';
@@ -430,6 +436,8 @@ export const create = (options = {}) => {
   const onUnauthorized =
     typeof options.onUnauthorized === 'function' ? options.onUnauthorized : null;
   const onApiError = typeof options.onApiError === 'function' ? options.onApiError : null;
+  const onRequestTelemetry =
+    typeof options.onRequestTelemetry === 'function' ? options.onRequestTelemetry : null;
   const onBackendConnected =
     typeof options.onBackendConnected === 'function' ? options.onBackendConnected : null;
   const onBackendDisconnected =
@@ -491,6 +499,40 @@ export const create = (options = {}) => {
     }
 
     const method = String(options.method || (options.json ? 'POST' : 'GET')).toUpperCase();
+    const requestId = newIdempotencyKey();
+    const startedAtMs = Date.now();
+    const startedAtIso = new Date(startedAtMs).toISOString();
+    const telemetryContext = asRecord(options.telemetry);
+    const telemetryTab = typeof telemetryContext.tab === 'string'
+      ? telemetryContext.tab
+      : '';
+    const telemetryReason = typeof telemetryContext.reason === 'string'
+      ? telemetryContext.reason
+      : '';
+    const telemetrySource = typeof telemetryContext.source === 'string' && telemetryContext.source.trim()
+      ? telemetryContext.source.trim()
+      : 'api-client';
+    const emitRequestTelemetry = (event = {}) => {
+      if (!onRequestTelemetry) return;
+      const failureClass = typeof event.failureClass === 'string'
+        ? event.failureClass
+        : '';
+      onRequestTelemetry({
+        requestId,
+        path,
+        method,
+        tab: telemetryTab,
+        reason: telemetryReason,
+        source: telemetrySource,
+        startedAt: startedAtIso,
+        durationMs: Math.max(0, Date.now() - startedAtMs),
+        outcome: event.outcome === 'success' ? 'success' : 'failure',
+        failureClass,
+        statusCode: Number(event.statusCode || 0),
+        aborted: event.aborted === true,
+        errorMessage: String(event.errorMessage || '')
+      });
+    };
     const headers = new Headers(options.headers || {});
     if (!headers.has('Accept')) headers.set('Accept', JSON_CONTENT_TYPE);
     if (!headers.has('Authorization') && String(context.apikey || '').trim()) {
@@ -536,15 +578,32 @@ export const create = (options = {}) => {
           path,
           method
         );
+        emitRequestTelemetry({
+          outcome: 'failure',
+          failureClass: classifyRequestFailure(timeoutError, { didTimeout: true }),
+          statusCode: 0,
+          aborted: true,
+          errorMessage: timeoutError.message
+        });
         if (onBackendDisconnected) onBackendDisconnected(timeoutError);
         if (onApiError) onApiError(timeoutError);
         throw timeoutError;
       }
+      const failureClass = classifyRequestFailure(error, { didTimeout: false });
+      emitRequestTelemetry({
+        outcome: 'failure',
+        failureClass,
+        statusCode: Number(error && typeof error === 'object' ? error.status || 0 : 0),
+        aborted: failureClass === REQUEST_FAILURE_CLASSES.cancelled,
+        errorMessage: String(error && typeof error === 'object' ? error.message || '' : '')
+      });
       if (onBackendDisconnected) {
         const transportError = error instanceof Error
           ? error
           : new DashboardApiError('Network request failed', 0, path, method);
-        onBackendDisconnected(transportError);
+        if (failureClass !== REQUEST_FAILURE_CLASSES.cancelled) {
+          onBackendDisconnected(transportError);
+        }
       }
       throw error;
     } finally {
@@ -568,6 +627,13 @@ export const create = (options = {}) => {
         path,
         method
       );
+      emitRequestTelemetry({
+        outcome: 'failure',
+        failureClass: classifyRequestFailure(unauthorizedError, { statusCode: response.status }),
+        statusCode: response.status,
+        aborted: false,
+        errorMessage: unauthorizedError.message
+      });
       if (onApiError) onApiError(unauthorizedError);
       throw unauthorizedError;
     }
@@ -579,10 +645,22 @@ export const create = (options = {}) => {
         path,
         method
       );
+      emitRequestTelemetry({
+        outcome: 'failure',
+        failureClass: classifyRequestFailure(apiError, { statusCode: response.status }),
+        statusCode: response.status,
+        aborted: false,
+        errorMessage: apiError.message
+      });
       if (onApiError) onApiError(apiError);
       throw apiError;
     }
 
+    emitRequestTelemetry({
+      outcome: 'success',
+      statusCode: Number(response.status || 0),
+      aborted: false
+    });
     return payload;
   };
 
@@ -760,10 +838,12 @@ export const create = (options = {}) => {
 
   /**
    * @param {Record<string, unknown>} configPatch
+   * @param {RequestOptions} [requestOptions]
    */
-  const updateConfig = async (configPatch) =>
+  const updateConfig = async (configPatch, requestOptions = {}) =>
     adaptConfig(
       await request('/admin/config', {
+        ...requestOptions,
         method: 'POST',
         json: configPatch
       })
@@ -771,10 +851,12 @@ export const create = (options = {}) => {
 
   /**
    * @param {Record<string, unknown>} configPatch
+   * @param {RequestOptions} [requestOptions]
    */
-  const validateConfigPatch = async (configPatch) =>
+  const validateConfigPatch = async (configPatch, requestOptions = {}) =>
     adaptConfigValidation(
       await request('/admin/config/validate', {
+        ...requestOptions,
         method: 'POST',
         json: configPatch
       })
@@ -782,13 +864,16 @@ export const create = (options = {}) => {
 
   /**
    * @param {boolean} enabled
+   * @param {RequestOptions} [requestOptions]
    */
-  const controlAdversarySim = async (enabled) => {
+  const controlAdversarySim = async (enabled, requestOptions = {}) => {
     const idempotencyKey = newIdempotencyKey();
     const payload = asRecord(
       await request('/admin/adversary-sim/control', {
+        ...requestOptions,
         method: 'POST',
         headers: {
+          ...(requestOptions && requestOptions.headers ? requestOptions.headers : {}),
           'Idempotency-Key': idempotencyKey
         },
         json: { enabled: enabled === true }
@@ -808,9 +893,11 @@ export const create = (options = {}) => {
    * @param {string} ip
    * @param {number} duration
    * @param {string} [reason]
+   * @param {RequestOptions} [requestOptions]
    */
-  const banIp = async (ip, duration, reason = 'manual_ban') =>
+  const banIp = async (ip, duration, reason = 'manual_ban', requestOptions = {}) =>
     request('/admin/ban', {
+      ...requestOptions,
       method: 'POST',
       json: {
         ip: String(ip || ''),
@@ -821,9 +908,11 @@ export const create = (options = {}) => {
 
   /**
    * @param {string} ip
+   * @param {RequestOptions} [requestOptions]
    */
-  const unbanIp = async (ip) =>
+  const unbanIp = async (ip, requestOptions = {}) =>
     request(`/admin/unban?ip=${encodeURIComponent(String(ip || ''))}`, {
+      ...requestOptions,
       method: 'POST'
     });
 

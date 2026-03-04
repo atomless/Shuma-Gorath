@@ -91,6 +91,82 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             self.assertIn(runner.SIM_TAG_HEADER_SIGNATURE, headers)
             self.assertNotIn("X-Shuma-Forwarded-Secret", headers)
 
+    def test_attacker_request_trusted_forwarded_injects_secret_only_on_opt_in(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        captured_header_sets = []
+
+        class _Response:
+            def read(self):
+                return b"ok"
+
+            @property
+            def headers(self):
+                return {}
+
+            def getcode(self):
+                return 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+        class _Opener:
+            def open(self, req, timeout=None):
+                captured_header_sets.append(
+                    {str(key).lower(): str(value) for key, value in req.header_items()}
+                )
+                return _Response()
+
+        sim_runner.opener = _Opener()  # type: ignore[assignment]
+        headers = sim_runner.forwarded_headers("10.0.0.11", user_agent="UnitTest/1.0")
+
+        plain = sim_runner.request(
+            "GET",
+            "/",
+            headers=headers,
+            plane="attacker",
+            count_request=False,
+            trusted_forwarded=False,
+        )
+        trusted = sim_runner.request(
+            "GET",
+            "/",
+            headers=headers,
+            plane="attacker",
+            count_request=False,
+            trusted_forwarded=True,
+        )
+
+        self.assertEqual(plain.status, 200)
+        self.assertEqual(trusted.status, 200)
+        self.assertEqual(len(captured_header_sets), 2)
+        self.assertNotIn("x-shuma-forwarded-secret", captured_header_sets[0])
+        self.assertEqual(
+            captured_header_sets[1].get("x-shuma-forwarded-secret"),
+            "forwarded-secret",
+        )
+
     def test_control_plane_headers_split_health_loopback_and_admin_isolation(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")
         with patch.dict(
@@ -745,7 +821,11 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
                 "overflow_bucket_count": 1,
                 "unsampleable_event_drop_count": 0,
                 "payload_budget": {"p95_max_kb": 512, "estimated_current_payload_kb": 128},
-                "compression": {"reduction_percent": 35.0, "min_percent": 30.0},
+                "compression": {
+                    "reduction_percent": 35.0,
+                    "min_percent": 30.0,
+                    "negotiated": True,
+                },
                 "query_budget": {
                     "avg_req_per_sec_client_target": 0.5,
                     "max_req_per_sec_client": 1.0,
@@ -762,9 +842,19 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(section["overflow_bucket_count"], 1)
         self.assertAlmostEqual(section["payload_p95_kb"], 128.0, places=2)
         self.assertAlmostEqual(section["compression_reduction_percent"], 35.0, places=2)
+        self.assertEqual(section["large_payload_sample_count"], 1)
         self.assertAlmostEqual(section["query_budget_max_req_per_sec_client"], 1.0, places=2)
         self.assertEqual(section["cardinality_pressure"], "normal")
         self.assertEqual(section["degraded_state"], "normal")
+
+    def test_build_cost_governance_report_ignores_large_payload_when_compression_not_negotiated(self):
+        section = runner.build_cost_governance_report(
+            {
+                "payload_budget": {"p95_max_kb": 512, "estimated_current_payload_kb": 128},
+                "compression": {"reduction_percent": 0.0, "min_percent": 30.0, "negotiated": False},
+            }
+        )
+        self.assertEqual(section["large_payload_sample_count"], 0)
 
     def test_build_security_privacy_report_maps_runtime_fields(self):
         section = runner.build_security_privacy_report(
@@ -1371,7 +1461,16 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             runner.HttpResult(status=200, body="ok", headers={}, latency_ms=1),
         ]
 
-        def fake_request(method, path, headers=None, json_body=None, form_body=None, plane="attacker", count_request=False):
+        def fake_request(
+            method,
+            path,
+            headers=None,
+            json_body=None,
+            form_body=None,
+            plane="attacker",
+            count_request=False,
+            trusted_forwarded=False,
+        ):
             self.assertEqual(plane, "attacker")
             captured_headers.append(dict(headers or {}))
             return responses.pop(0)
@@ -1466,6 +1565,9 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             self.assertEqual(observed, "allow")
             self.assertEqual(sim_runner.request_count, 2)
             self.assertEqual(run_mock.call_count, 1)
+            payload = json.loads(str(run_mock.call_args.kwargs.get("input") or "{}"))
+            self.assertEqual(payload.get("trusted_forwarded_secret"), "forwarded-secret")
+            self.assertNotIn("X-Shuma-Forwarded-Secret", dict(payload.get("headers") or {}))
 
         realism = sim_runner.end_scenario_execution()
         self.assertEqual(realism["browser_driver_runtime"], "playwright_chromium")
@@ -1474,6 +1576,9 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(realism["browser_challenge_dom_path"], ["read:body"])
         self.assertEqual(realism["browser_correlation_ids"], ["nonce-1"])
         self.assertEqual(realism["browser_request_lineage_count"], 2)
+        self.assertEqual(realism["browser_action_duration_ms"], 0)
+        self.assertEqual(realism["browser_launch_duration_ms"], 0)
+        self.assertEqual(realism["browser_total_duration_ms"], 0)
 
     def test_admin_read_request_retries_throttled_reads(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")

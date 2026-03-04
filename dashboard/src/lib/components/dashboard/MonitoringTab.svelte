@@ -33,6 +33,7 @@
     shouldFetchRange
   } from '../../domain/monitoring-normalizers.js';
   import {
+    buildMonitoringCountYAxis,
     buildMonitoringTimeSeriesXAxis,
     resolveMonitoringChartTheme
   } from '../../domain/monitoring-chart-presets.js';
@@ -413,10 +414,7 @@
           plugins: { legend: { display: false } },
           scales: {
             x: buildMonitoringTimeSeriesXAxis(),
-            y: {
-              beginAtZero: true,
-              ticks: { stepSize: 1 }
-            }
+            y: buildMonitoringCountYAxis(trendSeries.data)
           }
         }
       }), refreshNonce);
@@ -432,6 +430,9 @@
     chart.data.labels = trendSeries.labels;
     chart.data.datasets[0].data = trendSeries.data;
     chart.data.datasets[0].backgroundColor = color;
+    if (chart.options?.scales) {
+      chart.options.scales.y = buildMonitoringCountYAxis(trendSeries.data);
+    }
     chart.update('none');
     return stampChartRefresh(chart, refreshNonce);
   };
@@ -526,10 +527,7 @@
           maintainAspectRatio: true,
           aspectRatio: 2.2,
           scales: {
-            y: {
-              beginAtZero: true,
-              ticks: { stepSize: 1 }
-            }
+            y: buildMonitoringCountYAxis(data)
           },
           plugins: { legend: { display: false } }
         }
@@ -548,6 +546,9 @@
     chart.data.datasets[0].backgroundColor = colors;
     chart.data.datasets[0].borderColor = 'rgba(0, 0, 0, 0)';
     chart.data.datasets[0].borderWidth = 0;
+    if (chart.options?.scales) {
+      chart.options.scales.y = buildMonitoringCountYAxis(data);
+    }
     chart.update('none');
     return stampChartRefresh(chart, refreshNonce);
   };
@@ -582,10 +583,7 @@
           maintainAspectRatio: true,
           scales: {
             x: buildMonitoringTimeSeriesXAxis(),
-            y: {
-              beginAtZero: true,
-              ticks: { stepSize: 1 }
-            }
+            y: buildMonitoringCountYAxis(series.data)
           },
           plugins: { legend: { display: false } }
         }
@@ -602,6 +600,9 @@
     chart.data.labels = series.labels;
     chart.data.datasets[0].data = series.data;
     chart.data.datasets[0].backgroundColor = fillColor;
+    if (chart.options?.scales) {
+      chart.options.scales.y = buildMonitoringCountYAxis(series.data);
+    }
     chart.update('none');
     return stampChartRefresh(chart, refreshNonce);
   };
@@ -611,7 +612,6 @@
     if (selectedTimeRange === range) return;
     selectedTimeRange = range;
     if (!shouldFetchRange(range)) return;
-    if (rangeEventsSnapshot.range === range) return;
     lastRequestedRange = '';
   }
 
@@ -889,7 +889,11 @@
     if (currentUpdatedAt && currentUpdatedAt !== lastRangeTabUpdateAnchor) {
       lastRangeTabUpdateAnchor = currentUpdatedAt;
       const selectedFetchedAtMs = Number(selectedRangeWindowState.fetchedAtMs || 0);
-      if ((Date.now() - selectedFetchedAtMs) >= RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS) {
+      const isRangeFetchInFlight = selectedRangeWindowState.loading === true;
+      if (
+        !isRangeFetchInFlight &&
+        (Date.now() - selectedFetchedAtMs) >= RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS
+      ) {
         lastRequestedRange = '';
       }
     }

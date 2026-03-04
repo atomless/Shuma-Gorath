@@ -314,6 +314,38 @@ test('dashboard API adapters normalize sparse payloads safely', { concurrency: f
   });
 });
 
+test('request failure classifier distinguishes timeout/cancelled/transport/http failures', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const failureModule = await importBrowserModule('dashboard/src/lib/domain/core/request-failure.js');
+
+    const timeoutError = new Error('timed out');
+    assert.equal(
+      failureModule.classifyRequestFailure(timeoutError, { didTimeout: true }),
+      failureModule.REQUEST_FAILURE_CLASSES.timeout
+    );
+
+    const abortError = new Error('Request aborted');
+    abortError.name = 'AbortError';
+    assert.equal(
+      failureModule.classifyRequestFailure(abortError),
+      failureModule.REQUEST_FAILURE_CLASSES.cancelled
+    );
+
+    const httpError = new Error('Service unavailable');
+    httpError.status = 503;
+    assert.equal(
+      failureModule.classifyRequestFailure(httpError),
+      failureModule.REQUEST_FAILURE_CLASSES.http
+    );
+
+    const transportError = new Error('Network down');
+    assert.equal(
+      failureModule.classifyRequestFailure(transportError),
+      failureModule.REQUEST_FAILURE_CLASSES.transport
+    );
+  });
+});
+
 test('dashboard API client parses JSON payloads when content-type is missing', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
@@ -505,10 +537,18 @@ test('dashboard API client times out stalled requests with DashboardApiError', {
   await withBrowserGlobals({}, async () => {
     const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
     const errors = [];
+    const telemetryEvents = [];
+    const disconnectEvents = [];
     const client = apiModule.create({
       getAdminContext: () => ({ endpoint: 'https://edge.local', apikey: '', sessionAuth: false }),
       onApiError: (error) => {
         errors.push(error);
+      },
+      onBackendDisconnected: (error) => {
+        disconnectEvents.push(error);
+      },
+      onRequestTelemetry: (event) => {
+        telemetryEvents.push(event);
       },
       request: async (_url, init = {}) =>
         new Promise((_resolve, reject) => {
@@ -532,6 +572,56 @@ test('dashboard API client times out stalled requests with DashboardApiError', {
     );
     assert.equal(errors.length, 1);
     assert.equal(errors[0].name, 'DashboardApiError');
+    assert.equal(disconnectEvents.length, 1);
+    assert.equal(telemetryEvents.length, 1);
+    assert.equal(telemetryEvents[0].failureClass, 'timeout');
+    assert.equal(telemetryEvents[0].source, 'api-client');
+    assert.equal(String(telemetryEvents[0].path || '').includes('/admin/events'), true);
+  });
+});
+
+test('dashboard API client classifies AbortError as cancelled and does not emit backend disconnect callback', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
+    const telemetryEvents = [];
+    const disconnectEvents = [];
+    const controller = new AbortController();
+    const client = apiModule.create({
+      getAdminContext: () => ({ endpoint: 'https://edge.local', apikey: '', sessionAuth: false }),
+      onBackendDisconnected: (error) => {
+        disconnectEvents.push(error);
+      },
+      onRequestTelemetry: (event) => {
+        telemetryEvents.push(event);
+      },
+      request: async (_url, init = {}) =>
+        new Promise((_resolve, reject) => {
+          if (init.signal && typeof init.signal.addEventListener === 'function') {
+            init.signal.addEventListener('abort', () => {
+              const abortError = new Error('Request aborted by caller');
+              abortError.name = 'AbortError';
+              reject(abortError);
+            }, { once: true });
+          }
+        })
+    });
+
+    const requestPromise = client.getEvents(24, {
+      signal: controller.signal,
+      telemetry: {
+        tab: 'monitoring',
+        reason: 'auto-refresh',
+        source: 'tab-refresh'
+      }
+    });
+    controller.abort();
+    await assert.rejects(() => requestPromise);
+    assert.equal(disconnectEvents.length, 0);
+    assert.equal(telemetryEvents.length, 1);
+    assert.equal(telemetryEvents[0].failureClass, 'cancelled');
+    assert.equal(telemetryEvents[0].tab, 'monitoring');
+    assert.equal(telemetryEvents[0].reason, 'auto-refresh');
+    assert.equal(telemetryEvents[0].source, 'tab-refresh');
   });
 });
 
@@ -583,7 +673,10 @@ test('monitoring chart presets enforce shared palette and stable x-axis layout',
     }
   };
   const prodTheme = presets.resolveMonitoringChartTheme({
-    documentRef: { body: { classList: classListWithProd } },
+    documentRef: {
+      documentElement: { classList: classListWithProd },
+      body: {}
+    },
     windowRef: {
       getComputedStyle() {
         return {
@@ -627,9 +720,20 @@ test('monitoring chart presets enforce shared palette and stable x-axis layout',
   const scale = { height: 999 };
   xAxis.afterFit(scale);
   assert.equal(scale.height, presets.MONITORING_TIME_SERIES_AXIS_HEIGHT_PX);
+
+  const countAxisSmall = presets.buildMonitoringCountYAxis([0, 1, 2, 3]);
+  assert.equal(countAxisSmall.beginAtZero, true);
+  assert.equal(countAxisSmall.ticks.stepSize, 1);
+  assert.equal(countAxisSmall.ticks.maxTicksLimit, presets.MONITORING_COUNT_AXIS_TICK_MAX);
+  assert.equal(countAxisSmall.ticks.precision, 0);
+
+  const countAxisLarge = presets.buildMonitoringCountYAxis([9233]);
+  assert.equal(countAxisLarge.ticks.stepSize > 1, true);
+  const estimatedLargeTickCount = Math.floor(9233 / countAxisLarge.ticks.stepSize) + 1;
+  assert.equal(estimatedLargeTickCount <= countAxisLarge.ticks.maxTicksLimit, true);
 });
 
-test('dashboard state and store contracts remain immutable and bounded', { concurrency: false }, async () => {
+test('dashboard state and store contracts remain immutable and bounded with heartbeat-owned connection telemetry', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const stateModule = await importBrowserModule('dashboard/src/lib/domain/dashboard-state.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
@@ -644,8 +748,37 @@ test('dashboard state and store contracts remain immutable and bounded', { concu
     store.recordRefreshMetrics({ tab: 'monitoring', reason: 'manual', fetchLatencyMs: 100, renderTimingMs: 10 });
     store.recordRefreshMetrics({ tab: 'monitoring', reason: 'manual', fetchLatencyMs: 200, renderTimingMs: 20 });
     store.recordRefreshMetrics({ tab: 'status', reason: 'manual', fetchLatencyMs: 999, renderTimingMs: 999 });
-    store.setBackendConnection(false, 'network failure');
-    store.setBackendConnection(true);
+    store.recordRequestTelemetry({
+      requestId: 'req-failure-1',
+      path: '/admin/events?hours=24',
+      method: 'GET',
+      tab: 'monitoring',
+      reason: 'auto-refresh',
+      source: 'tab-refresh',
+      outcome: 'failure',
+      failureClass: 'cancelled',
+      statusCode: 0,
+      aborted: true
+    });
+    store.recordHeartbeatAttemptStarted({
+      requestId: 'hb-1',
+      path: '/admin/session',
+      method: 'GET',
+      reason: 'interval'
+    });
+    store.recordHeartbeatFailure({
+      requestId: 'hb-1',
+      path: '/admin/session',
+      method: 'GET',
+      failureClass: 'timeout',
+      error: 'Request timed out after 2500ms'
+    });
+    store.recordHeartbeatSuccess({
+      requestId: 'hb-2',
+      path: '/admin/session',
+      method: 'GET',
+      statusCode: 200
+    });
 
     const telemetry = store.getRuntimeTelemetry();
     assert.equal(telemetry.refresh.fetchLatencyMs.last, 200);
@@ -654,8 +787,70 @@ test('dashboard state and store contracts remain immutable and bounded', { concu
     assert.equal(telemetry.refresh.fetchLatencyMs.totalSamples, 2);
     assert.equal(telemetry.refresh.fetchLatencyMs.window.length > 0, true);
     assert.equal(telemetry.connection.state, 'connected');
+    assert.equal(telemetry.connection.disconnectThreshold, 3);
+    assert.equal(telemetry.connection.lastTransitionReason, 'heartbeat_ok');
     assert.equal(telemetry.connection.lastFailureAt.length > 0, true);
     assert.equal(telemetry.connection.lastSuccessAt.length > 0, true);
+    assert.equal(telemetry.heartbeat.lastFailureClass, '');
+    assert.equal(telemetry.heartbeat.ignoredCancelledCount, 1);
+    assert.equal(telemetry.heartbeat.ignoredNonHeartbeatFailureCount, 1);
+    assert.equal(Array.isArray(telemetry.heartbeat.breadcrumbs), true);
+    assert.equal(telemetry.heartbeat.breadcrumbs.length >= 2, true);
+    assert.equal(telemetry.requests.total >= 1, true);
+    assert.equal(telemetry.requests.cancelledCount, 1);
+  });
+});
+
+test('dashboard store heartbeat failure hysteresis transitions connected -> degraded -> disconnected and ignores cancelled failures', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+
+    store.recordHeartbeatSuccess({ requestId: 'hb-start', path: '/admin/session', method: 'GET' });
+    assert.equal(store.getRuntimeTelemetry().connection.state, 'connected');
+
+    store.recordHeartbeatFailure({
+      requestId: 'hb-fail-1',
+      path: '/admin/session',
+      method: 'GET',
+      failureClass: 'transport',
+      error: 'network unreachable'
+    });
+    assert.equal(store.getRuntimeTelemetry().connection.state, 'degraded');
+
+    store.recordHeartbeatFailure({
+      requestId: 'hb-cancelled',
+      path: '/admin/session',
+      method: 'GET',
+      failureClass: 'cancelled',
+      error: 'aborted'
+    });
+    const afterCancelled = store.getRuntimeTelemetry();
+    assert.equal(afterCancelled.connection.state, 'degraded');
+    assert.equal(afterCancelled.connection.consecutiveFailures, 1);
+    assert.equal(afterCancelled.heartbeat.ignoredCancelledCount >= 1, true);
+
+    store.recordHeartbeatFailure({
+      requestId: 'hb-fail-2',
+      path: '/admin/session',
+      method: 'GET',
+      failureClass: 'timeout',
+      error: 'Request timed out'
+    });
+    assert.equal(store.getRuntimeTelemetry().connection.state, 'degraded');
+    assert.equal(store.getRuntimeTelemetry().connection.consecutiveFailures, 2);
+
+    store.recordHeartbeatFailure({
+      requestId: 'hb-fail-3',
+      path: '/admin/session',
+      method: 'GET',
+      failureClass: 'http',
+      statusCode: 503,
+      error: 'status 503'
+    });
+    const disconnectedTelemetry = store.getRuntimeTelemetry();
+    assert.equal(disconnectedTelemetry.connection.state, 'disconnected');
+    assert.equal(disconnectedTelemetry.connection.consecutiveFailures, 3);
   });
 });
 
@@ -791,12 +986,12 @@ test('refresh runtime bootstraps monitoring baseline before cursor deltas and ke
     assert.equal(Number(baselineFreshness.last_event_ts || 0), now);
 
     await runtime.refreshMonitoringTab('manual-refresh');
-    assert.equal(fullFetchCount, 2);
-    assert.equal(deltaCalls.length, 1);
+    assert.equal(fullFetchCount, 1);
+    assert.equal(deltaCalls.length, 2);
 
     const updatedEvents = (store.getSnapshot('events') || {}).recent_events || [];
     assert.equal(
-      updatedEvents.some((entry) => String(entry.reason || '') === 'manual-refresh-full'),
+      updatedEvents.some((entry) => String(entry.reason || '') === 'manual-refresh-delta'),
       true
     );
   });
@@ -1629,7 +1824,7 @@ test('monitoring view model and status module remain pure snapshot transforms', 
   });
 });
 
-test('dashboard body class runtime keeps exactly one environment class and adversary-sim state', { concurrency: false }, async () => {
+test('dashboard class runtime keeps exactly one environment class on html and adversary-sim state on body', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const bodyClassModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-body-classes.js');
 
@@ -1637,56 +1832,90 @@ test('dashboard body class runtime keeps exactly one environment class and adver
     assert.deepEqual(toPlain(defaultState), {
       runtimeClass: 'runtime-prod',
       adversarySimEnabled: false,
-      backendConnected: false
+      connectionState: 'disconnected'
     });
 
     const explicitDevState = bodyClassModule.deriveDashboardBodyClassState({
       runtime_environment: 'runtime-dev',
       adversary_sim_enabled: true
     }, {
-      backendConnected: true
+      backendConnectionState: 'connected'
     });
     assert.deepEqual(toPlain(explicitDevState), {
       runtimeClass: 'runtime-dev',
       adversarySimEnabled: true,
-      backendConnected: true
+      connectionState: 'connected'
     });
 
     const classList = createMutableClassList(['runtime-prod', 'adversary-sim', 'connected']);
+    const rootClassList = createMutableClassList(['runtime-prod', 'adversary-sim', 'connected']);
     const doc = {
       body: {
         classList
+      },
+      documentElement: {
+        classList: rootClassList
       }
     };
 
     bodyClassModule.syncDashboardBodyClasses(doc, {
       runtimeClass: explicitDevState.runtimeClass,
       adversarySimEnabled: explicitDevState.adversarySimEnabled,
-      backendConnected: explicitDevState.backendConnected
+      connectionState: explicitDevState.connectionState
     });
-    assert.equal(classList.contains('runtime-dev'), true);
+    assert.equal(classList.contains('runtime-dev'), false);
     assert.equal(classList.contains('runtime-prod'), false);
     assert.equal(classList.contains('adversary-sim'), true);
-    assert.equal(classList.contains('connected'), true);
+    assert.equal(classList.contains('connected'), false);
+    assert.equal(classList.contains('degraded'), false);
     assert.equal(classList.contains('disconnected'), false);
+    assert.equal(rootClassList.contains('runtime-dev'), true);
+    assert.equal(rootClassList.contains('runtime-prod'), false);
+    assert.equal(rootClassList.contains('adversary-sim'), false);
+    assert.equal(rootClassList.contains('connected'), true);
+    assert.equal(rootClassList.contains('degraded'), false);
+    assert.equal(rootClassList.contains('disconnected'), false);
+
+    bodyClassModule.syncDashboardBodyClasses(doc, {
+      runtimeClass: 'runtime-dev',
+      adversarySimEnabled: false,
+      connectionState: 'degraded'
+    });
+    assert.equal(rootClassList.contains('connected'), false);
+    assert.equal(rootClassList.contains('degraded'), true);
+    assert.equal(rootClassList.contains('disconnected'), false);
 
     bodyClassModule.syncDashboardBodyClasses(doc, {
       runtimeClass: 'runtime-prod',
       adversarySimEnabled: false,
-      backendConnected: false
+      connectionState: 'disconnected'
     });
     assert.equal(classList.contains('runtime-dev'), false);
-    assert.equal(classList.contains('runtime-prod'), true);
+    assert.equal(classList.contains('runtime-prod'), false);
     assert.equal(classList.contains('adversary-sim'), false);
     assert.equal(classList.contains('connected'), false);
-    assert.equal(classList.contains('disconnected'), true);
+    assert.equal(classList.contains('degraded'), false);
+    assert.equal(classList.contains('disconnected'), false);
+    assert.equal(rootClassList.contains('runtime-dev'), false);
+    assert.equal(rootClassList.contains('runtime-prod'), true);
+    assert.equal(rootClassList.contains('adversary-sim'), false);
+    assert.equal(rootClassList.contains('connected'), false);
+    assert.equal(rootClassList.contains('degraded'), false);
+    assert.equal(rootClassList.contains('disconnected'), true);
 
     bodyClassModule.clearDashboardBodyClasses(doc);
     assert.equal(classList.contains('runtime-dev'), false);
     assert.equal(classList.contains('runtime-prod'), false);
     assert.equal(classList.contains('adversary-sim'), false);
     assert.equal(classList.contains('connected'), false);
+    assert.equal(classList.contains('degraded'), false);
     assert.equal(classList.contains('disconnected'), false);
+    assert.equal(rootClassList.contains('runtime-dev'), false);
+    assert.equal(rootClassList.contains('runtime-prod'), false);
+    assert.equal(rootClassList.contains('adversary-sim'), false);
+    assert.equal(rootClassList.contains('connected'), false);
+    assert.equal(rootClassList.contains('degraded'), false);
+    assert.equal(rootClassList.contains('disconnected'), false);
   });
 });
 
@@ -2348,7 +2577,7 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /\$lib\/runtime\/dashboard-body-classes\.js/);
   assert.match(source, /\$lib\/runtime\/dashboard-adversary-sim\.js/);
   assert.match(source, /deriveDashboardBodyClassState\(configSnapshot,\s*\{/);
-  assert.match(source, /backendConnected/);
+  assert.match(source, /backendConnectionState/);
   assert.match(source, /syncDashboardBodyClasses\(document, bodyClassState\)/);
   assert.match(source, /clearDashboardBodyClasses\(document\)/);
   assert.match(source, /<svelte:window on:hashchange=\{onWindowHashChange\} \/>/);
@@ -2375,14 +2604,39 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /id="global-test-mode-toggle"/);
   assert.match(source, /id="global-adversary-sim-toggle"/);
   assert.match(source, /id="adversary-sim-lifecycle-copy"/);
+  assert.match(source, /id="connection-status"/);
+  assert.match(source, /id="lost-connection"/);
+  assert.match(source, /let adversarySimStatusRequestInFlight = null;/);
+  assert.match(source, /if \(adversarySimStatusRequestInFlight\) \{/);
+  assert.match(source, /return adversarySimStatusRequestInFlight;/);
   assert.match(source, /onGlobalTestModeToggleChange/);
   assert.match(source, /onGlobalAdversarySimToggleChange/);
-  assert.match(source, /Number\(error\?\.status \|\| 0\) === 401/);
+  assert.match(source, /function isAuthSessionExpiredError\(error\)/);
+  assert.match(source, /function withRefreshedSessionOnAuthError\(action\)/);
+  assert.match(source, /const restored = await restoreDashboardSession\(\);/);
+  assert.match(source, /if \(restored !== true\) throw error;/);
+  assert.match(source, /await withRefreshedSessionOnAuthError\(/);
+  assert.match(source, /controlDashboardAdversarySim\(nextValue,\s*\{/);
+  assert.match(source, /updateDashboardConfig\(patch \|\| \{\},\s*\{/);
+  assert.match(source, /banDashboardIp\(ip, duration, 'manual_ban',\s*\{/);
+  assert.match(source, /unbanDashboardIp\(ip,\s*\{/);
+  assert.match(source, /status === 401/);
+  assert.match(source, /status !== 403/);
+  assert.match(source, /csrf/);
+  assert.match(source, /trust boundary/);
   assert.match(source, /Adversary simulation control session expired\. Redirecting to login\.\.\./);
   assert.match(source, /dashboard-global-control-label/);
   assert.equal(source.includes("await routeController.refreshTab(activeTabKey, 'auto-refresh');"), false);
   assert.equal(source.includes('adversary-sim-progress-line'), false);
   assert.match(source, /id="admin-msg"/);
+});
+
+test('dashboard stylesheet applies disconnected visual treatment via root class', () => {
+  const source = fs.readFileSync(path.join(DASHBOARD_ROOT, 'style.css'), 'utf8');
+  assert.match(source, /:root\.disconnected\s*\{/);
+  assert.match(source, /filter:\s*saturate\(0\);/);
+  assert.match(source, /#connection-status\s*\{/);
+  assert.match(source, /#lost-connection\s*\{/);
 });
 
 test('monitoring tab applies bounded sanitization and redraw guards', () => {
@@ -2404,12 +2658,14 @@ test('monitoring tab applies bounded sanitization and redraw guards', () => {
   assert.match(source, /export let autoRefreshEnabled = false;/);
   assert.match(source, /sameSeries\(chart, trendSeries\.labels, trendSeries\.data\)/);
   assert.match(source, /abortRangeEventsFetch\(\);/);
+  assert.match(source, /const isRangeFetchInFlight = selectedRangeWindowState\.loading === true;/);
   assert.match(source, /normalizeReasonRows\(/);
   assert.match(source, /buildTimeSeries\(selectedRangeEvents, selectedTimeRange,/);
   assert.match(source, /const RATE_REASON_LABELS = Object\.freeze\(\{/);
   assert.match(source, /const classifyChallengeDisplayLabel = \(event = \{\}\) =>/);
   assert.match(source, /const normalizeEventForDisplay = \(event = \{\}\) =>/);
   assert.match(source, /const buildRawTelemetryFeed = \(events = \[\]\) =>/);
+  assert.equal(source.includes('rangeEventsSnapshot.range'), false);
   assert.match(source, /rate: 'rate limit violation'/);
   assert.match(source, /return 'not-a-bot';/);
   assert.match(source, /return 'puzzle';/);
@@ -2487,6 +2743,14 @@ test('dashboard runtime is slim and free of legacy DOM-id wiring layers', () => 
   assert.equal(source.includes('createDashboardTabRuntime'), false);
   assert.match(source, /createDashboardRefreshRuntime/);
   assert.equal(source.includes('createDashboardTabStateRuntime'), false);
+  assert.match(source, /const CONNECTION_HEARTBEAT_PATH = '\/admin\/session';/);
+  assert.match(source, /function runConnectionHeartbeat\(reason = 'manual'\)/);
+  assert.match(source, /recordHeartbeatAttemptStarted/);
+  assert.match(source, /recordHeartbeatSuccess/);
+  assert.match(source, /recordHeartbeatFailure/);
+  assert.equal(source.includes('next.adversary_sim_enabled = status.adversary_sim_enabled;'), false);
+  assert.equal(source.includes('onBackendConnected'), false);
+  assert.equal(source.includes('onBackendDisconnected'), false);
   assert.match(source, /export async function updateDashboardConfig/);
   assert.match(source, /export async function validateDashboardConfigPatch/);
   assert.match(source, /export async function banDashboardIp/);

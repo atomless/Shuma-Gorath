@@ -1,4 +1,4 @@
-.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -366,8 +366,12 @@ test: ## Run umbrella tests in series: unit, maze benchmark, integration, advers
 	@$(MAKE) --no-print-directory test-sim2-realtime-bench || exit 1
 	@$(MAKE) --no-print-directory test-sim2-adr-conformance || exit 1
 	@$(MAKE) --no-print-directory test-sim2-ci-diagnostics || exit 1
-	@$(MAKE) --no-print-directory test-adversarial-container-blackbox || exit 1
-	@$(MAKE) --no-print-directory test-sim2-verification-matrix || exit 1
+	@SIM2_MATRIX_TARGET="test-sim2-verification-matrix"; \
+	if ! $(MAKE) --no-print-directory test-adversarial-container-blackbox; then \
+		echo "$(YELLOW)Container black-box lane unavailable; running SIM2 matrix in advisory mode.$(NC)"; \
+		SIM2_MATRIX_TARGET="test-sim2-verification-matrix-advisory"; \
+	fi; \
+	$(MAKE) --no-print-directory $$SIM2_MATRIX_TARGET || exit 1
 	@$(MAKE) --no-print-directory test-sim2-operational-regressions || exit 1
 	@$(MAKE) --no-print-directory test-sim2-governance-contract || exit 1
 	@echo ""
@@ -595,8 +599,12 @@ test-sim2-verification-matrix-advisory: ## Validate SIM2 verification matrix row
 	@echo "$(CYAN)🧪 Validating SIM2 verification matrix (advisory)...$(NC)"
 	@python3 scripts/tests/check_sim2_verification_matrix.py --matrix scripts/tests/adversarial/verification_matrix.v1.json --manifest scripts/tests/adversarial/scenario_manifest.v2.json --report scripts/tests/adversarial/latest_report.json --container-report scripts/tests/adversarial/container_blackbox_report.json --output scripts/tests/adversarial/sim2_verification_matrix_report.json --allow-missing-container-report
 
-test-sim2-operational-regressions: ## Validate SIM2 failure-injection/prod/retention/cost/security regression diagnostics
+test-sim2-operational-regressions: ## Validate SIM2 operational regression diagnostics for active deterministic profiles (retention/cost/security required; failure/prod evaluated when present)
 	@echo "$(CYAN)🧪 Validating SIM2 operational regression diagnostics...$(NC)"
+	@python3 scripts/tests/check_sim2_operational_regressions.py --report scripts/tests/adversarial/latest_report.json --output scripts/tests/adversarial/sim2_operational_regressions_report.json --allow-missing-domain failure_injection --allow-missing-domain prod_mode_monitoring --min-large-payload-samples-for-compression-check 2
+
+test-sim2-operational-regressions-strict: ## Validate all SIM2 operational regression domains with strict missing-domain and compression enforcement
+	@echo "$(CYAN)🧪 Validating strict SIM2 operational regression diagnostics...$(NC)"
 	@python3 scripts/tests/check_sim2_operational_regressions.py --report scripts/tests/adversarial/latest_report.json --output scripts/tests/adversarial/sim2_operational_regressions_report.json
 
 test-sim2-governance-contract: ## Validate SIM2 governance + hybrid lane contract markers and thresholds

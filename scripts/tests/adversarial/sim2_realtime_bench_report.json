@@ -1,0 +1,113 @@
+{
+  "schema_version": "sim2-realtime-bench.v1",
+  "generated_at_unix": 1772625182,
+  "workload": {
+    "profile": "baseline",
+    "duration_ms": 120000,
+    "events_per_sec": 1000,
+    "operator_clients": 5
+  },
+  "verification_scope": {
+    "harness_type": "synthetic_benchmark",
+    "runtime_profile_claims": {
+      "runtime_dev": "synthetic_contract_check_only",
+      "runtime_prod": "not_verified_by_this_harness"
+    },
+    "claims_runtime_prod_verification": false
+  },
+  "thresholds": {
+    "sse_latency_p95_max_ms": 300,
+    "sse_latency_p99_max_ms": 500,
+    "sse_overflow_or_drop_max": 0,
+    "sse_request_budget_max_req_per_sec_client": 1.0
+  },
+  "results": {
+    "cursor_polling_default": {
+      "delivery_mode": "cursor_polling",
+      "poll_interval_ms": 1000,
+      "delta_limit": 600,
+      "clients": 5,
+      "poll_ticks": 121,
+      "delivered_events": 360005,
+      "overflow_or_drop_count": 14519995,
+      "requests_or_connections": 605,
+      "avg_requests_per_sec_client": 1.008,
+      "latency": {
+        "p50_ms": 24499.0,
+        "p95_ms": 46099.0,
+        "p99_ms": 48039.0,
+        "mean_ms": 24499.16
+      }
+    },
+    "cursor_polling_fast": {
+      "delivery_mode": "cursor_polling",
+      "poll_interval_ms": 250,
+      "delta_limit": 400,
+      "clients": 5,
+      "poll_ticks": 481,
+      "delivered_events": 600000,
+      "overflow_or_drop_count": 0,
+      "requests_or_connections": 2405,
+      "avg_requests_per_sec_client": 4.008,
+      "latency": {
+        "p50_ms": 124.0,
+        "p95_ms": 237.0,
+        "p99_ms": 247.0,
+        "mean_ms": 124.5
+      }
+    },
+    "sse": {
+      "delivery_mode": "sse",
+      "consume_interval_ms": 200,
+      "queue_capacity": 1024,
+      "clients": 5,
+      "delivered_events": 600000,
+      "overflow_or_drop_count": 0,
+      "requests_or_connections": 5,
+      "avg_requests_per_sec_client": 0.008,
+      "peak_queue_depth": 200,
+      "latency": {
+        "p50_ms": 99.0,
+        "p95_ms": 189.0,
+        "p99_ms": 197.0,
+        "mean_ms": 99.5
+      }
+    }
+  },
+  "status": {
+    "passed": true,
+    "failures": []
+  },
+  "diagnostics": {
+    "latency_percentiles": {
+      "cursor_polling_default": {
+        "p50_ms": 24499.0,
+        "p95_ms": 46099.0,
+        "p99_ms": 48039.0,
+        "mean_ms": 24499.16
+      },
+      "cursor_polling_fast": {
+        "p50_ms": 124.0,
+        "p95_ms": 237.0,
+        "p99_ms": 247.0,
+        "mean_ms": 124.5
+      },
+      "sse": {
+        "p50_ms": 99.0,
+        "p95_ms": 189.0,
+        "p99_ms": 197.0,
+        "mean_ms": 99.5
+      }
+    },
+    "overflow_or_drop_counts": {
+      "cursor_polling_default": 14519995,
+      "cursor_polling_fast": 0,
+      "sse": 0
+    },
+    "request_budget_metrics": {
+      "cursor_polling_default_avg_req_per_sec_client": 1.008,
+      "cursor_polling_fast_avg_req_per_sec_client": 4.008,
+      "sse_avg_req_per_sec_client": 0.008
+    }
+  }
+}

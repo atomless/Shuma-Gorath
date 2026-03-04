@@ -280,8 +280,26 @@ export function createDashboardRefreshRuntime(options = {}) {
     });
   }
 
-  function toRequestOptions(runtimeOptions = {}) {
-    return runtimeOptions && runtimeOptions.signal ? { signal: runtimeOptions.signal } : {};
+  function toRequestOptions(runtimeOptions = {}, telemetry = {}) {
+    const next = {};
+    if (runtimeOptions && runtimeOptions.signal) {
+      next.signal = runtimeOptions.signal;
+    }
+    const source = telemetry && typeof telemetry.source === 'string' && telemetry.source.trim()
+      ? telemetry.source.trim()
+      : 'tab-refresh';
+    const reason = telemetry && typeof telemetry.reason === 'string'
+      ? telemetry.reason
+      : '';
+    const tab = telemetry && typeof telemetry.tab === 'string'
+      ? telemetry.tab
+      : '';
+    next.telemetry = {
+      source,
+      reason,
+      tab
+    };
+    return next;
   }
 
   function applySnapshots(updates = {}) {
@@ -336,7 +354,7 @@ export function createDashboardRefreshRuntime(options = {}) {
   }
 
   function shouldForceFullMonitoringSnapshot(reason = 'manual') {
-    return reason === 'manual-refresh';
+    return false;
   }
 
   function syncCursorFromDelta(tab, delta = {}) {
@@ -497,7 +515,11 @@ export function createDashboardRefreshRuntime(options = {}) {
   async function refreshSharedConfig(reason = 'manual', runtimeOptions = {}) {
     const dashboardApiClient = getApiClient();
     const dashboardState = getStateStore();
-    const requestOptions = toRequestOptions(runtimeOptions);
+    const requestOptions = toRequestOptions(runtimeOptions, {
+      tab: 'config',
+      reason,
+      source: 'shared-config-refresh'
+    });
     const existingConfig = dashboardState ? dashboardState.getSnapshot('config') : null;
 
     if (!dashboardApiClient) {
@@ -543,7 +565,11 @@ export function createDashboardRefreshRuntime(options = {}) {
       }
     }
 
-    const requestOptions = toRequestOptions(runtimeOptions);
+    const requestOptions = toRequestOptions(runtimeOptions, {
+      tab: 'monitoring',
+      reason,
+      source: 'tab-refresh'
+    });
     const fetchFullMonitoring = async () => {
       const monitoringData = await dashboardApiClient.getMonitoring(
         { hours: 24, limit: MONITORING_FULL_RECENT_EVENTS_LIMIT },
@@ -629,7 +655,11 @@ export function createDashboardRefreshRuntime(options = {}) {
       }
     }
 
-    const requestOptions = toRequestOptions(runtimeOptions);
+    const requestOptions = toRequestOptions(runtimeOptions, {
+      tab: 'ip-bans',
+      reason,
+      source: 'tab-refresh'
+    });
     const fetchFullIpBans = async () => {
       const [bansData, ipRangeSuggestions, configSnapshot] = await Promise.all([
         dashboardApiClient.getBans(requestOptions),
@@ -790,7 +820,11 @@ export function createDashboardRefreshRuntime(options = {}) {
       showTabLoading('fingerprinting', 'Loading fingerprinting controls...');
     }
 
-    const requestOptions = toRequestOptions(runtimeOptions);
+    const requestOptions = toRequestOptions(runtimeOptions, {
+      tab: 'fingerprinting',
+      reason,
+      source: 'tab-refresh'
+    });
     const [config, cdp] = await Promise.all([
       refreshSharedConfig(reason, runtimeOptions),
       dashboardApiClient.getCdp(requestOptions)

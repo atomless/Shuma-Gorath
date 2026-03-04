@@ -198,6 +198,8 @@ def validate_matrix(
                 continue
             scenario_row = dict(results_by_id.get(scenario_id) or {})
             if not scenario_row:
+                if allow_missing_container_report:
+                    continue
                 row_failures.append(
                     f"missing_matrix_row:row={row_id}:scenario_not_in_report:{scenario_id}"
                 )

@@ -1,0 +1,122 @@
+{
+  "schema_version": "sim2-operational-regressions.v1",
+  "evaluation_mode": {
+    "allow_missing_domains": [
+      "failure_injection",
+      "prod_mode_monitoring"
+    ],
+    "min_large_payload_samples_for_compression_check": 2
+  },
+  "status": {
+    "passed": true,
+    "failure_count": 0,
+    "failures": []
+  },
+  "checks": [
+    {
+      "id": "failure_injection_domain_present",
+      "passed": true,
+      "detail": "section missing (allowed)"
+    },
+    {
+      "id": "prod_mode_monitoring_domain_present",
+      "passed": true,
+      "detail": "section missing (allowed)"
+    },
+    {
+      "id": "retention_required_metrics_present",
+      "passed": true,
+      "detail": "all required metrics present"
+    },
+    {
+      "id": "retention_bucket_cutoff_correct",
+      "passed": true,
+      "detail": "bucket_cutoff_correct=True"
+    },
+    {
+      "id": "retention_purge_watermark_progression",
+      "passed": true,
+      "detail": "purge_watermark_progression=True"
+    },
+    {
+      "id": "retention_purge_lag_threshold",
+      "passed": true,
+      "detail": "purge_lag_hours=0.00 max_hours=1.00"
+    },
+    {
+      "id": "retention_read_path_scan_zero",
+      "passed": true,
+      "detail": "read_path_full_keyspace_scan_count=0"
+    },
+    {
+      "id": "retention_pending_expired_buckets_zero",
+      "passed": true,
+      "detail": "pending_expired_buckets=0"
+    },
+    {
+      "id": "cost_required_metrics_present",
+      "passed": true,
+      "detail": "all required metrics present"
+    },
+    {
+      "id": "cost_cardinality_cap",
+      "passed": true,
+      "detail": "observed_guarded_dimension_cardinality_max=0 cap=1000"
+    },
+    {
+      "id": "cost_overflow_bucket_accounting",
+      "passed": true,
+      "detail": "overflow_bucket_accounted=True overflow_bucket_count=0"
+    },
+    {
+      "id": "cost_unsampleable_event_protection",
+      "passed": true,
+      "detail": "unsampleable_event_drop_count=0"
+    },
+    {
+      "id": "cost_payload_budget",
+      "passed": true,
+      "detail": "payload_p95_kb=150.50 payload_p95_max_kb=512.00"
+    },
+    {
+      "id": "cost_compression_effectiveness",
+      "passed": true,
+      "detail": "large_payload_sample_count=0 compression_reduction_percent=0.00 compression_min_percent=30.00 compression_samples_required=2 compression_check=skipped_insufficient_samples"
+    },
+    {
+      "id": "cost_query_budget",
+      "passed": true,
+      "detail": "query_budget_avg_req_per_sec_client=0.500 query_budget_max_req_per_sec_client=1.000"
+    },
+    {
+      "id": "security_required_metrics_present",
+      "passed": true,
+      "detail": "all required metrics present"
+    },
+    {
+      "id": "security_field_classification_enforced",
+      "passed": true,
+      "detail": "field_classification_enforced=True"
+    },
+    {
+      "id": "security_secret_canary_leak_zero",
+      "passed": true,
+      "detail": "secret_canary_leak_count=0"
+    },
+    {
+      "id": "security_pseudonymization_coverage",
+      "passed": true,
+      "detail": "pseudonymization_coverage_percent=100.00 required_percent=100.00"
+    },
+    {
+      "id": "security_high_risk_retention_ceiling",
+      "passed": true,
+      "detail": "high_risk_retention_hours=72.00 high_risk_retention_max_hours=72.00"
+    },
+    {
+      "id": "security_incident_hook_visibility",
+      "passed": true,
+      "detail": "incident_hook_emitted=True"
+    }
+  ]
+}

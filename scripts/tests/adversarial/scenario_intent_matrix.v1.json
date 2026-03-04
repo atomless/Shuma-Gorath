@@ -657,28 +657,20 @@
     {
       "scenario_id": "sim_t2_akamai_additive_monitor",
       "required_defense_categories": [
-        "cdp",
         "fingerprint",
         "event_stream"
       ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
-        "cdp": [
-          {
-            "type": "coverage_delta",
-            "key": "cdp_detections",
-            "minimum": 1
-          },
-          {
-            "type": "simulation_event_reason_prefix",
-            "prefix": "cdp_detected",
-            "minimum": 1
-          }
-        ],
         "fingerprint": [
           {
             "type": "coverage_delta",
             "key": "fingerprint_events",
+            "minimum": 1
+          },
+          {
+            "type": "simulation_event_reason_prefix",
+            "prefix": "edge_fingerprint",
             "minimum": 1
           }
         ],
@@ -711,28 +703,20 @@
     {
       "scenario_id": "sim_t4_akamai_authoritative_deny",
       "required_defense_categories": [
-        "cdp",
         "fingerprint",
         "ban_path"
       ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
-        "cdp": [
-          {
-            "type": "coverage_delta",
-            "key": "cdp_detections",
-            "minimum": 1
-          },
-          {
-            "type": "simulation_event_reason_prefix",
-            "prefix": "cdp_detected",
-            "minimum": 1
-          }
-        ],
         "fingerprint": [
           {
             "type": "coverage_delta",
             "key": "fingerprint_events",
+            "minimum": 1
+          },
+          {
+            "type": "simulation_event_reason_prefix",
+            "prefix": "edge_fingerprint",
             "minimum": 1
           }
         ],
@@ -1041,33 +1025,10 @@
     {
       "scenario_id": "sim_t3_header_spoofing_abuse",
       "required_defense_categories": [
-        "geo",
         "event_stream"
       ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
-        "geo": [
-          {
-            "type": "coverage_delta",
-            "key": "geo_violations",
-            "minimum": 1
-          },
-          {
-            "type": "coverage_delta",
-            "key": "geo_challenge",
-            "minimum": 1
-          },
-          {
-            "type": "coverage_delta",
-            "key": "geo_maze",
-            "minimum": 1
-          },
-          {
-            "type": "coverage_delta",
-            "key": "geo_block",
-            "minimum": 1
-          }
-        ],
         "event_stream": [
           {
             "type": "simulation_event_count_delta",

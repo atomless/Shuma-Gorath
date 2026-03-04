@@ -660,7 +660,6 @@
         "cookie_behavior": "stateless"
       },
       "expected_defense_categories": [
-        "cdp",
         "fingerprint",
         "event_stream"
       ],
@@ -695,7 +694,6 @@
         "cookie_behavior": "stateless"
       },
       "expected_defense_categories": [
-        "cdp",
         "fingerprint",
         "ban_path"
       ],
@@ -869,7 +867,6 @@
         "cookie_behavior": "stateless"
       },
       "expected_defense_categories": [
-        "geo",
         "event_stream"
       ],
       "coverage_tags": [

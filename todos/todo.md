@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-03
+Last updated: 2026-03-04
 
 This is the active work queue.
 `todos/security-review.md` tracks security finding validity and closure status.
@@ -50,6 +50,96 @@ Definition of done:
 - Bootstrap, runtime, and deployment docs all reflect the same lifecycle and `test_mode` contract.
 - Required Makefile verification passes for the slice, including unit/integration/dashboard coverage that exercises lifecycle and `test_mode` behavior.
 - Completion notes include security impact, operational impact, resource impact, and rollback steps.
+
+### SIM2-R4-5: Dashboard Connection-State Hardening (Instrumentation-First, Heartbeat-Owned)
+
+Objective: eliminate flip-flop/disconnect churn by moving global connection-state authority to one dedicated heartbeat signal path, classifying all request failures, and explicitly forbidding cancelled client-side requests from mutating global connection state.
+
+Non-negotiable delivery rules for every `SIM2-R4-5-*` slice:
+1. Instrumentation and evidence capture must land before any global state-machine rewiring.
+2. Global connection state must be heartbeat-owned only (single writer).
+3. Request failures must be classified as `cancelled`, `timeout`, `transport`, or `http`.
+4. `cancelled` failures (including `AbortError`) must not mutate global connection state.
+5. Connection state model for this tranche is `disconnected -> connected -> degraded -> disconnected` (no `unknown` state).
+6. Initial dashboard connection state must be `disconnected` until the first successful heartbeat confirms backend health.
+7. Hysteresis is mandatory: transition to `disconnected` only after `N` consecutive heartbeat failures (default target `N=3`, configurable only if explicitly justified).
+8. Lost-connection CSS/style behavior is out of scope for this tranche and must not be changed here.
+
+Execution gate:
+1. `SIM2-R4-5-1`, `SIM2-R4-5-2`, and `SIM2-R4-5-3` must be complete and green before `SIM2-R4-5-4+` implementation slices start.
+
+- [ ] SIM2-R4-5-1 Add request-failure instrumentation contract (read-only behavior slice):
+  - Define a shared failure-classification helper in the dashboard runtime domain (`cancelled`, `timeout`, `transport`, `http`).
+  - Emit structured per-request telemetry fields: `request_id`, `path`, `method`, `tab`, `reason`, `started_at`, `duration_ms`, `outcome`, `failure_class`, `status_code`, `aborted`.
+  - Add bounded in-memory ring-buffer diagnostics for recent failures (fixed max length, no unbounded growth).
+  - Expose diagnostics through existing runtime telemetry surfaces used by status/debug views and tests.
+  - Ensure instrumentation is passive only (no behavior/state transition changes in this slice).
+
+- [ ] SIM2-R4-5-2 Add dedicated heartbeat telemetry surface (still no state-machine change):
+  - Add explicit heartbeat diagnostics fields: `last_heartbeat_success_at`, `last_heartbeat_failure_at`, `consecutive_failures`, `last_failure_class`, `last_failure_error`, `last_transition_reason`.
+  - Include event-level breadcrumbs for heartbeat attempts (`attempt_started`, `attempt_succeeded`, `attempt_failed`, `retry_scheduled`).
+  - Ensure heartbeat telemetry and generic request telemetry are clearly separated so failure attribution is unambiguous.
+  - Add explicit guardrail counters for ignored failures (`ignored_cancelled_count`, `ignored_non_heartbeat_failure_count`).
+
+- [ ] SIM2-R4-5-3 Add instrumentation-proof tests before architecture rewiring:
+  - Unit-test failure classifier across representative error shapes (`AbortError`, timeout-generated abort, transport/network exceptions, HTTP non-OK responses).
+  - Unit-test telemetry emission shape and retention window behavior (append, trim, ordering, timestamp population).
+  - Add regression test reproducing auto-refresh abort churn and assert instrumentation captures the specific aborted request path(s).
+  - Add regression test asserting no global connection mutation occurs in instrumentation-only phase.
+  - Require red/green evidence in `make test-dashboard-unit` before moving to `SIM2-R4-5-4`.
+
+- [ ] SIM2-R4-5-4 Define and lock the connection-state state-machine spec (contract slice):
+  - Document exact states and transitions: boot `disconnected`, heartbeat success `connected`, heartbeat failure threshold behavior (`degraded` then `disconnected` after `N` failures).
+  - Define recovery transitions (`degraded -> connected` on success, `disconnected -> connected` on success).
+  - Define transition reasons taxonomy (`heartbeat_ok`, `heartbeat_timeout`, `heartbeat_transport_error`, `heartbeat_http_error`, `heartbeat_cancelled_ignored`, etc.).
+  - Specify hysteresis constants and where they are configured.
+  - Record this as a short architecture note/ADR addendum before implementation changes.
+
+- [ ] SIM2-R4-5-5 Implement heartbeat-owned global connection controller:
+  - Introduce a dedicated module responsible for connection-state transitions and hysteresis accounting.
+  - Remove generic API-client callback ownership of global connection state updates.
+  - Route global-state mutation calls only through the dedicated heartbeat pathway.
+  - Preserve existing route/refresh functionality while re-homing only connection ownership.
+  - Keep state writes idempotent and transition-guarded (no repeated no-op churn writes).
+
+- [ ] SIM2-R4-5-6 Rewire request paths to classification + local handling rules:
+  - Ensure non-heartbeat request failures update only local tab/runtime diagnostics.
+  - Ensure `cancelled` class is treated as expected control-flow, not connectivity failure.
+  - Ensure timeout/transport/http from non-heartbeat paths do not directly flip global state.
+  - Add explicit hooks so heartbeat scheduler can consume classified heartbeat failures for hysteresis accounting.
+
+- [ ] SIM2-R4-5-7 Integrate heartbeat ownership cleanly with monitoring and adversary-sim ticks:
+  - Verify monitoring auto-refresh cadence and adversary-sim status polling can run concurrently without competing state ownership.
+  - Keep existing single-flight guards where they prevent abort churn, but ensure they are subordinate to classification telemetry (no hidden suppression).
+  - Confirm one writer for global connection state even when multiple polling loops are active.
+  - Add explicit assertions for “multiple loops active, one global connection owner” behavior.
+
+- [ ] SIM2-R4-5-8 Expand regression/e2e coverage for state transitions and churn scenarios:
+  - Add deterministic tests for full transition graph (`disconnected -> connected -> degraded -> disconnected -> connected`).
+  - Add tests for hysteresis thresholds (`N-1` failures stays non-disconnected, `N`th failure transitions).
+  - Add tests for steady abort cadence proving connection state remains stable when only cancellations occur.
+  - Add tests for mixed failures showing only heartbeat-classified failures affect global connection state.
+  - Add smoke/e2e assertions that dashboard no longer flip-flops under monitoring auto-refresh churn.
+
+- [ ] SIM2-R4-5-9 Documentation, operator diagnostics, and rollout safeguards:
+  - Update dashboard/runtime docs with new ownership model and failure taxonomy.
+  - Document how to inspect request/heartbeat diagnostics during incidents.
+  - Add rollback guidance (feature flag or narrow rollback steps) for connection-controller changes.
+  - Update testing docs with canonical verification path and expected evidence artifacts.
+
+Acceptance criteria:
+- Reproduced abort cadence shows stable global connection state unless heartbeat failures cross hysteresis threshold.
+- Global connection state has exactly one writer path (dedicated heartbeat controller), validated by tests.
+- `cancelled` failures are visible in diagnostics but never trigger `degraded`/`disconnected`.
+- Initial state is `disconnected`, first successful heartbeat promotes to `connected`, and failures progress through `degraded` before `disconnected`.
+- Monitoring auto-refresh and adversary-sim status polling operate concurrently without global-state contention.
+- No lost-connection CSS changes are included in this slice.
+
+Definition of done:
+- Instrumentation-first slices (`SIM2-R4-5-1..3`) are merged and evidenced before rewiring slices (`SIM2-R4-5-4..9`).
+- Unit/integration/e2e coverage captures transition behavior, failure classification, and churn resilience.
+- `make test-dashboard-unit`, `make test-integration`, `make test-dashboard-e2e`, and `make test` pass for the final integrated slice.
+- Completion notes include resource impact (extra telemetry overhead), operational impact (incident diagnosis), and rollback steps.
 
 ## P0 Launch-Readiness Performance Pass
 - [ ] PERF-LAUNCH-1 Execute a final pre-launch performance and optimization pass (dashboard bundle-size budgets in strict mode, runtime latency/<abbr title="Central Processing Unit">CPU</abbr>/memory envelopes, and high-cost request-path profiling), then lock release thresholds and acceptance criteria.

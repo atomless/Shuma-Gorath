@@ -190,6 +190,7 @@ def validate_artifacts(
     errors: List[str] = []
     forbidden_tokens = normalize_tokens(schema.get("forbidden_field_examples") or [])
     allowed_top_level_keys = [str(value) for value in (schema.get("allowed_top_level_keys") or [])]
+    report_frontier = dict(report.get("frontier") or {})
 
     if not forbidden_tokens:
         errors.append("frontier schema has no forbidden_field_examples tokens")
@@ -199,7 +200,11 @@ def validate_artifacts(
     errors.extend(validate_attack_plan_payloads(attack_plan, allowed_top_level_keys))
     errors.extend(
         f"report forbidden key path: {path}"
-        for path in collect_forbidden_key_paths(report, forbidden_tokens)
+        for path in collect_forbidden_key_paths(
+            report_frontier,
+            forbidden_tokens,
+            prefix="$.frontier",
+        )
     )
     errors.extend(
         f"attack_plan forbidden key path: {path}"

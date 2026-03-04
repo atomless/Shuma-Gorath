@@ -1,0 +1,170 @@
+{
+  "schema_version": "sim2-governance-contract-report.v1",
+  "status": {
+    "passed": true,
+    "failure_count": 0,
+    "failures": []
+  },
+  "checks": [
+    {
+      "id": "contract_schema_version",
+      "passed": true,
+      "detail": "schema_version=sim2-hybrid-lane-contract.v1"
+    },
+    {
+      "id": "deterministic_lane_blocking",
+      "passed": true,
+      "detail": "release_blocking=True"
+    },
+    {
+      "id": "emergent_lane_non_blocking",
+      "passed": true,
+      "detail": "release_blocking=False"
+    },
+    {
+      "id": "emergent_lane_budget_envelope",
+      "passed": true,
+      "detail": "runtime_budget_seconds_max=180 action_budget_max=500"
+    },
+    {
+      "id": "choreography_boundary_defined",
+      "passed": true,
+      "detail": "choreographed=['invariant_assertions', 'resource_guardrails', 'seed_scenarios'] emergent=['adaptation', 'attack_sequencing', 'crawl_strategy']"
+    },
+    {
+      "id": "objective_model_present",
+      "passed": true,
+      "detail": "objective model keys=target_assets/success_functions/allowed_adaptation_space/stop_conditions"
+    },
+    {
+      "id": "novelty_scoring_dimensions",
+      "passed": true,
+      "detail": "dimensions=['confidence', 'novelty', 'replayability', 'severity']"
+    },
+    {
+      "id": "promotion_pipeline_contract",
+      "passed": true,
+      "detail": "steps=['deterministic_replay_confirmation', 'generated_candidate', 'owner_review_disposition', 'promoted_blocking_scenario'] blocking_requires_deterministic_confirmation=True"
+    },
+    {
+      "id": "promotion_thresholds",
+      "passed": true,
+      "detail": "thresholds=confirmation_min=95 false_discovery_max=20 owner_disposition_sla_hours=48"
+    },
+    {
+      "id": "governance_cadence",
+      "passed": true,
+      "detail": "cadence={'cycle': 'run -> review -> tune -> replay -> promote', 'frequency': 'weekly', 'review_day_utc': 'Friday'}"
+    },
+    {
+      "id": "governance_ownership",
+      "passed": true,
+      "detail": "ownership={'adversary_owner_role': 'security_engineering', 'defense_owner_role': 'runtime_engineering', 'operations_owner_role': 'platform_operations'}"
+    },
+    {
+      "id": "promotion_rubric_dimensions",
+      "passed": true,
+      "detail": "promotion_rubric_dimensions=['collateral_risk', 'mitigation_readiness', 'reproducibility', 'severity']"
+    },
+    {
+      "id": "governance_kpis",
+      "passed": true,
+      "detail": "kpis=['attacker_cost_shift', 'collateral_ceiling', 'cost_asymmetry_trend', 'detection_latency', 'human_friction_impact', 'mitigation_lead_time', 'time_to_mitigation', 'time_to_regression_confirmation']"
+    },
+    {
+      "id": "rollback_playbook",
+      "passed": true,
+      "detail": "rollback_actions=['contain', 'rollback_to_last_known_good', 'schedule_replay_and_retune', 'validate_with_adversarial_fast']"
+    },
+    {
+      "id": "architecture_review_checkpoint",
+      "passed": true,
+      "detail": "architecture_review={'frequency': 'monthly', 'documented_outcomes_required': True, 'required_focus': ['decentralized_orchestration', 'capability_safety', 'evidence_integrity']}"
+    },
+    {
+      "id": "promotion_script_confirmation_threshold",
+      "passed": true,
+      "detail": "required_min=95.00 observed=95.0"
+    },
+    {
+      "id": "promotion_script_false_discovery_threshold",
+      "passed": true,
+      "detail": "required_max=20.00 observed=20.0"
+    },
+    {
+      "id": "promotion_script_owner_sla_threshold",
+      "passed": true,
+      "detail": "required_max_hours=48.00 observed=48.0"
+    },
+    {
+      "id": "promotion_script_deterministic_blocking_flag",
+      "passed": true,
+      "detail": "blocking_requires_deterministic_confirmation=True"
+    },
+    {
+      "id": "operator_guide_marker_## Run-to-Run Diff + Backlog Automation (SIM2-EX8-2 / SIM2-EX8-3)",
+      "passed": true,
+      "detail": "marker=## Run-to-Run Diff + Backlog Automation (SIM2-EX8-2 / SIM2-EX8-3)"
+    },
+    {
+      "id": "operator_guide_marker_## Promotion Hygiene and Scenario Corpus Maintenance (SIM2-EX8-4)",
+      "passed": true,
+      "detail": "marker=## Promotion Hygiene and Scenario Corpus Maintenance (SIM2-EX8-4)"
+    },
+    {
+      "id": "operator_guide_marker_## Continuous Defender-Adversary Evolution Cadence (SIM2-GC-12)",
+      "passed": true,
+      "detail": "marker=## Continuous Defender-Adversary Evolution Cadence (SIM2-GC-12)"
+    },
+    {
+      "id": "operator_guide_marker_## Hybrid Adversary Lane Contract (SIM2-GC-14)",
+      "passed": true,
+      "detail": "marker=## Hybrid Adversary Lane Contract (SIM2-GC-14)"
+    },
+    {
+      "id": "operator_guide_marker_<=180s",
+      "passed": true,
+      "detail": "marker=<=180s"
+    },
+    {
+      "id": "operator_guide_marker_<=500 actions",
+      "passed": true,
+      "detail": "marker=<=500 actions"
+    },
+    {
+      "id": "operator_guide_marker_time to regression confirmation",
+      "passed": true,
+      "detail": "marker=time to regression confirmation"
+    },
+    {
+      "id": "operator_guide_marker_time to mitigation",
+      "passed": true,
+      "detail": "marker=time to mitigation"
+    },
+    {
+      "id": "operator_guide_marker_collateral_ceiling",
+      "passed": true,
+      "detail": "marker=collateral_ceiling"
+    },
+    {
+      "id": "operator_guide_marker_cost_asymmetry_trend",
+      "passed": true,
+      "detail": "marker=cost_asymmetry_trend"
+    },
+    {
+      "id": "operational_report_status_passed",
+      "passed": true,
+      "detail": "operational_status_passed=True"
+    },
+    {
+      "id": "realtime_report_status_passed",
+      "passed": true,
+      "detail": "realtime_status_passed=True"
+    },
+    {
+      "id": "verification_matrix_status_passed",
+      "passed": true,
+      "detail": "matrix_status_passed=True"
+    }
+  ]
+}

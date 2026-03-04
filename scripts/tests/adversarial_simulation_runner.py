@@ -1144,6 +1144,7 @@ class AttackerPlaneClient:
         json_body: Optional[Dict[str, Any]] = None,
         form_body: Optional[Dict[str, str]] = None,
         count_request: bool = False,
+        trusted_forwarded: bool = False,
     ) -> HttpResult:
         return self.owner.attacker_request(
             method,
@@ -1152,6 +1153,7 @@ class AttackerPlaneClient:
             json_body=json_body,
             form_body=form_body,
             count_request=count_request,
+            trusted_forwarded=trusted_forwarded,
         )
 
 
@@ -1794,7 +1796,8 @@ class Runner:
             "Failed to parse /admin/adversary-sim/history/cleanup response",
         )
         status = str(payload.get("status") or "").strip().lower()
-        if status != "cleared":
+        cleaned_flag = payload.get("cleaned") is True
+        if status not in {"cleared", "cleaned"} and not cleaned_flag:
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(
                 "Failed to clear retained runtime-dev telemetry history via /admin/adversary-sim/history/cleanup: "
@@ -2519,9 +2522,10 @@ class Runner:
 
     def run_scenario(self, scenario: Dict[str, Any]) -> ScenarioResult:
         scenario_id = scenario["id"]
-        start = time.monotonic()
+        scenario_start = time.monotonic()
         observed_outcome: Optional[str] = None
         realism: Optional[Dict[str, Any]] = None
+        latency_ms = 0
 
         try:
             self._scenario_attacker_phase_started = False
@@ -2536,13 +2540,19 @@ class Runner:
                 f"scenario_attacker_execution:{scenario_id}",
             )
 
+            execution_start = time.monotonic()
             self.begin_scenario_execution(scenario)
             try:
                 observed_outcome = self.execute_scenario_driver(scenario)
             finally:
                 realism = self.end_scenario_execution()
 
-            latency_ms = int((time.monotonic() - start) * 1000)
+            latency_ms = int((time.monotonic() - execution_start) * 1000)
+            browser_action_latency_ms = max(
+                0, int_or_zero(dict_or_empty(realism).get("browser_action_duration_ms"))
+            )
+            if scenario_driver_class(scenario) == "browser_realistic" and browser_action_latency_ms > 0:
+                latency_ms = browser_action_latency_ms
 
             if observed_outcome != scenario["expected_outcome"]:
                 return ScenarioResult(
@@ -2606,9 +2616,15 @@ class Runner:
                 realism=realism,
             )
         except Exception as exc:
-            latency_ms = int((time.monotonic() - start) * 1000)
+            if latency_ms <= 0:
+                latency_ms = int((time.monotonic() - scenario_start) * 1000)
             if realism is None:
                 realism = self.end_scenario_execution()
+            browser_action_latency_ms = max(
+                0, int_or_zero(dict_or_empty(realism).get("browser_action_duration_ms"))
+            )
+            if scenario_driver_class(scenario) == "browser_realistic" and browser_action_latency_ms > 0:
+                latency_ms = browser_action_latency_ms
             return ScenarioResult(
                 id=scenario_id,
                 tier=scenario["tier"],
@@ -2646,6 +2662,7 @@ class Runner:
         self,
         browser_evidence: Dict[str, Any],
         error_code: str = "",
+        diagnostics: Optional[Dict[str, Any]] = None,
     ) -> None:
         state = self._active_execution_state
         if not state:
@@ -2653,6 +2670,8 @@ class Runner:
         evidence = dict_or_empty(state.get("evidence"))
         if not evidence:
             return
+        policy = dict_or_empty(state.get("policy"))
+        browser_diagnostics = dict_or_empty(diagnostics)
         evidence["browser_driver_runtime"] = str(
             browser_evidence.get("driver_runtime") or "playwright_chromium"
         )
@@ -2671,10 +2690,30 @@ class Runner:
             for item in list_or_empty(browser_evidence.get("correlation_ids"))
             if str(item).strip()
         ]
-        evidence["browser_request_lineage_count"] = len(
-            list_or_empty(browser_evidence.get("request_lineage"))
-        )
+        request_lineage_count = len(list_or_empty(browser_evidence.get("request_lineage")))
+        evidence["browser_request_lineage_count"] = request_lineage_count
+        if request_lineage_count > 0:
+            existing_sequence = max(0, int_or_zero(evidence.get("request_sequence")))
+            evidence["request_sequence"] = max(existing_sequence, request_lineage_count)
+            existing_attempts = max(0, int_or_zero(evidence.get("attempts_total")))
+            evidence["attempts_total"] = max(existing_attempts, request_lineage_count)
+            synthesized_think_events = max(1, request_lineage_count - 1)
+            existing_think_events = max(0, int_or_zero(evidence.get("think_time_events")))
+            evidence["think_time_events"] = max(existing_think_events, synthesized_think_events)
+            think_time_floor = max(1, int_or_zero(policy.get("think_time_ms_min")))
+            synthesized_think_total = synthesized_think_events * think_time_floor
+            existing_think_total = max(0, int_or_zero(evidence.get("think_time_ms_total")))
+            evidence["think_time_ms_total"] = max(existing_think_total, synthesized_think_total)
         evidence["browser_error_code"] = str(error_code or "")
+        evidence["browser_action_duration_ms"] = max(
+            0, int_or_zero(browser_diagnostics.get("action_duration_ms"))
+        )
+        evidence["browser_launch_duration_ms"] = max(
+            0, int_or_zero(browser_diagnostics.get("launch_duration_ms"))
+        )
+        evidence["browser_total_duration_ms"] = max(
+            0, int_or_zero(browser_diagnostics.get("total_duration_ms"))
+        )
 
     def execute_browser_realistic_driver(
         self,
@@ -2682,6 +2721,7 @@ class Runner:
         action: str,
         headers: Optional[Dict[str, str]] = None,
         user_agent: Optional[str] = None,
+        inject_trusted_forwarded_secret: bool = True,
     ) -> str:
         if not self.browser_driver_enabled:
             raise SimulationError(
@@ -2716,6 +2756,9 @@ class Runner:
             "storage_mode": storage_mode,
             "honeypot_path": self.honeypot_path,
         }
+        if inject_trusted_forwarded_secret and self.forwarded_secret:
+            # Browser lane models edge-injected forwarded trust separately from attacker-controlled headers.
+            payload["trusted_forwarded_secret"] = self.forwarded_secret
 
         last_error = "browser_driver_failed"
         max_attempts = max(1, int(self.browser_driver_max_attempts))
@@ -2763,7 +2806,11 @@ class Runner:
             browser_evidence = dict_or_empty(parsed.get("browser_evidence"))
             diagnostics = dict_or_empty(parsed.get("diagnostics"))
             error_code = str(diagnostics.get("error_code") or "")
-            self.record_browser_driver_evidence(browser_evidence, error_code=error_code)
+            self.record_browser_driver_evidence(
+                browser_evidence,
+                error_code=error_code,
+                diagnostics=diagnostics,
+            )
             self.request_count += len(list_or_empty(browser_evidence.get("request_lineage")))
 
             if proc.returncode == 0 and bool(parsed.get("ok")):
@@ -2798,6 +2845,7 @@ class Runner:
                 user_agent=self.scenario_user_agent(scenario),
             ),
             user_agent=self.scenario_user_agent(scenario),
+            inject_trusted_forwarded_secret=True,
         )
 
     def driver_not_a_bot_pass(self, scenario: Dict[str, Any]) -> str:
@@ -2809,6 +2857,7 @@ class Runner:
                 user_agent=self.not_a_bot_user_agent(scenario),
             ),
             user_agent=self.not_a_bot_user_agent(scenario),
+            inject_trusted_forwarded_secret=True,
         )
 
     def driver_challenge_puzzle_fail_maze(self, scenario: Dict[str, Any]) -> str:
@@ -2820,6 +2869,7 @@ class Runner:
                 user_agent=self.not_a_bot_user_agent(scenario),
             ),
             user_agent=self.not_a_bot_user_agent(scenario),
+            inject_trusted_forwarded_secret=True,
         )
 
     def driver_pow_success(self, scenario: Dict[str, Any]) -> str:
@@ -2882,6 +2932,7 @@ class Runner:
             action="geo_challenge",
             headers=headers,
             user_agent=self.scenario_user_agent(scenario),
+            inject_trusted_forwarded_secret=True,
         )
 
     def driver_geo_maze(self, scenario: Dict[str, Any]) -> str:
@@ -2894,6 +2945,7 @@ class Runner:
             action="geo_maze",
             headers=headers,
             user_agent=self.scenario_user_agent(scenario),
+            inject_trusted_forwarded_secret=True,
         )
 
     def driver_geo_block(self, scenario: Dict[str, Any]) -> str:
@@ -2906,6 +2958,7 @@ class Runner:
             action="geo_block",
             headers=headers,
             user_agent=self.scenario_user_agent(scenario),
+            inject_trusted_forwarded_secret=True,
         )
 
     def driver_honeypot_deny_temp(self, scenario: Dict[str, Any]) -> str:
@@ -2917,6 +2970,7 @@ class Runner:
                 user_agent=self.scenario_user_agent(scenario),
             ),
             user_agent=self.scenario_user_agent(scenario),
+            inject_trusted_forwarded_secret=True,
         )
 
     def driver_not_a_bot_replay_abuse(self, scenario: Dict[str, Any]) -> str:
@@ -2980,8 +3034,11 @@ class Runner:
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
             json_body=payload,
             count_request=True,
+            trusted_forwarded=True,
         )
         if result.status == 400:
+            return "monitor"
+        if result.status == 403 and "untrusted source" in result.body.lower():
             return "monitor"
         detail = collapse_whitespace(result.body)[:160]
         raise SimulationError(
@@ -3008,6 +3065,7 @@ class Runner:
             action="header_spoofing_probe",
             headers=headers,
             user_agent=str(scenario.get("user_agent") or "ShumaAdversarial/1.0"),
+            inject_trusted_forwarded_secret=False,
         )
 
     def driver_cdp_high_confidence_deny(self, scenario: Dict[str, Any]) -> str:
@@ -3017,6 +3075,7 @@ class Runner:
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
             json_body={"cdp_detected": True, "score": 0.95, "checks": ["webdriver", "automation_props", "cdp_timing"]},
             count_request=True,
+            trusted_forwarded=True,
         )
         if report.status != 200:
             raise SimulationError(f"invariant_cdp_report_expected_200 got status={report.status}")
@@ -3025,6 +3084,7 @@ class Runner:
             "/",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
             count_request=True,
+            trusted_forwarded=True,
         )
         if followup.status == 429:
             return "deny_temp"
@@ -3044,6 +3104,7 @@ class Runner:
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
             json_body=payload,
             count_request=True,
+            trusted_forwarded=True,
         )
         if report.status != 200 or "additive" not in report.body.lower():
             raise SimulationError(
@@ -3055,6 +3116,7 @@ class Runner:
             "/",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
             count_request=True,
+            trusted_forwarded=True,
         )
         if "Access Blocked" in followup.body or "Access Restricted" in followup.body:
             raise SimulationError("Additive mode unexpectedly blocked follow-up request")
@@ -3068,6 +3130,7 @@ class Runner:
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
             json_body=payload,
             count_request=True,
+            trusted_forwarded=True,
         )
         if report.status != 200 or "banned" not in report.body.lower():
             raise SimulationError(
@@ -3079,6 +3142,7 @@ class Runner:
             "/",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=scenario["user_agent"]),
             count_request=True,
+            trusted_forwarded=True,
         )
         if followup.status == 429:
             return "deny_temp"
@@ -3332,6 +3396,9 @@ class Runner:
             "browser_correlation_ids": [],
             "browser_request_lineage_count": 0,
             "browser_error_code": "",
+            "browser_action_duration_ms": 0,
+            "browser_launch_duration_ms": 0,
+            "browser_total_duration_ms": 0,
         }
         self._active_execution_state = {
             "policy": policy,
@@ -3347,6 +3414,10 @@ class Runner:
         think_time_total = max(0, int_or_zero(evidence.get("think_time_ms_total")))
         attempts_total = max(0, int_or_zero(evidence.get("attempts_total")))
         request_sequence = max(0, int_or_zero(evidence.get("request_sequence")))
+        if request_sequence > 0 and think_time_events == 0:
+            think_time_events = 1
+            think_time_floor = max(1, int_or_zero(policy.get("think_time_ms_min")))
+            think_time_total = max(think_time_total, think_time_floor)
         realism = {
             "persona": str(policy.get("persona") or ""),
             "retry_strategy": str(policy.get("retry_strategy") or ""),
@@ -3385,6 +3456,15 @@ class Runner:
                 0, int_or_zero(evidence.get("browser_request_lineage_count"))
             ),
             "browser_error_code": str(evidence.get("browser_error_code") or ""),
+            "browser_action_duration_ms": max(
+                0, int_or_zero(evidence.get("browser_action_duration_ms"))
+            ),
+            "browser_launch_duration_ms": max(
+                0, int_or_zero(evidence.get("browser_launch_duration_ms"))
+            ),
+            "browser_total_duration_ms": max(
+                0, int_or_zero(evidence.get("browser_total_duration_ms"))
+            ),
         }
         self._active_execution_state = None
         return realism
@@ -3503,6 +3583,7 @@ class Runner:
         json_body: Optional[Dict[str, Any]] = None,
         form_body: Optional[Dict[str, str]] = None,
         count_request: bool = False,
+        trusted_forwarded: bool = False,
     ) -> HttpResult:
         state = self._active_execution_state
         if not self.realism_policy_enabled or not state:
@@ -3514,6 +3595,7 @@ class Runner:
                 form_body=form_body,
                 plane="attacker",
                 count_request=count_request,
+                trusted_forwarded=trusted_forwarded,
             )
 
         policy = dict_or_empty(state.get("policy"))
@@ -3558,6 +3640,7 @@ class Runner:
                 form_body=form_body,
                 plane="attacker",
                 count_request=count_request,
+                trusted_forwarded=trusted_forwarded,
             )
             self.update_cookie_jar_from_response(policy, evidence, cookie_jar, result)
             if not self.should_retry_status(retry_strategy, result.status):
@@ -3576,6 +3659,7 @@ class Runner:
         form_body: Optional[Dict[str, str]] = None,
         plane: str = "attacker",
         count_request: bool = False,
+        trusted_forwarded: bool = False,
     ) -> HttpResult:
         if plane not in ALLOWED_REQUEST_PLANES:
             raise SimulationError(f"unknown request plane: {plane}")
@@ -3585,6 +3669,10 @@ class Runner:
         request_headers = dict(headers or {})
         if plane == "attacker":
             enforce_attacker_request_contract(path, request_headers)
+            if trusted_forwarded and self.forwarded_secret:
+                # Inject trusted forwarded secret after attacker-plane contract enforcement so
+                # attacker-provided headers remain unprivileged.
+                request_headers["X-Shuma-Forwarded-Secret"] = self.forwarded_secret
         if json_body is not None:
             data = json.dumps(json_body, separators=(",", ":")).encode("utf-8")
             request_headers["Content-Type"] = "application/json"
@@ -4454,6 +4542,8 @@ def build_cost_governance_report(cost_governance: Any) -> Dict[str, Any]:
     compression = dict_or_empty(section.get("compression"))
     query_budget = dict_or_empty(section.get("query_budget"))
     payload_p95_kb = max(0.0, float(payload.get("estimated_current_payload_kb") or 0.0))
+    compression_negotiated = bool(compression.get("negotiated"))
+    large_payload_sample_count = 1 if (payload_p95_kb > 64.0 and compression_negotiated) else 0
     return {
         "guarded_dimension_cardinality_cap_per_hour": max(
             1, int_or_zero(section.get("guarded_dimension_cardinality_cap_per_hour") or 1000)
@@ -4466,7 +4556,7 @@ def build_cost_governance_report(cost_governance: Any) -> Dict[str, Any]:
         "unsampleable_event_drop_count": max(0, int_or_zero(section.get("unsampleable_event_drop_count"))),
         "payload_p95_kb": payload_p95_kb,
         "payload_p95_max_kb": max(1.0, float(payload.get("p95_max_kb") or 512.0)),
-        "large_payload_sample_count": 1 if payload_p95_kb > 64.0 else 0,
+        "large_payload_sample_count": large_payload_sample_count,
         "compression_reduction_percent": max(
             0.0, float(compression.get("reduction_percent") or 0.0)
         ),

@@ -185,6 +185,36 @@ class Sim2VerificationMatrixUnitTests(unittest.TestCase):
         self.assertTrue(payload["status"]["passed"])
         self.assertEqual(payload["status"]["failure_count"], 0)
 
+    def test_validate_matrix_advisory_mode_allows_missing_scenarios_in_report(self):
+        matrix = {
+            "rows": [
+                {
+                    "row_id": "allow_row",
+                    "defense_category": "allowlist",
+                    "required_scenarios": ["scenario_allow", "scenario_missing"],
+                    "required_lanes": ["black_box"],
+                    "required_evidence_types": ["runtime_telemetry"],
+                    "lineage_segment": "request_id_lineage",
+                }
+            ]
+        }
+        manifest = sample_manifest()
+        manifest["scenarios"].append(
+            {
+                "id": "scenario_missing",
+                "expected_defense_categories": ["allowlist"],
+            }
+        )
+        payload = matrix_check.validate_matrix(
+            matrix,
+            manifest,
+            sample_report(),
+            container_report=None,
+            allow_missing_container_report=True,
+        )
+        self.assertTrue(payload["status"]["passed"])
+        self.assertEqual(payload["status"]["failure_count"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

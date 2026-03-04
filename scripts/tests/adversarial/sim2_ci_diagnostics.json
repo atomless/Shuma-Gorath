@@ -1,0 +1,358 @@
+{
+  "schema_version": "sim2-ci-diagnostics.v1",
+  "source_report": {
+    "profile": "akamai_smoke",
+    "execution_lane": "black_box",
+    "generated_at_unix": 1772625182,
+    "suite_runtime_ms": 399,
+    "passed": true
+  },
+  "timeline_snapshots": [
+    {
+      "sequence": 1,
+      "scenario_id": "sim_t2_akamai_additive_monitor",
+      "runtime_request_count": 2,
+      "monitoring_total_delta": 0,
+      "coverage_delta_total": 6,
+      "simulation_event_count_delta": 2,
+      "has_runtime_telemetry_evidence": true
+    },
+    {
+      "sequence": 2,
+      "scenario_id": "sim_t4_akamai_authoritative_deny",
+      "runtime_request_count": 2,
+      "monitoring_total_delta": 0,
+      "coverage_delta_total": 7,
+      "simulation_event_count_delta": 3,
+      "has_runtime_telemetry_evidence": true
+    }
+  ],
+  "event_counts": {
+    "decision_outcomes": {
+      "monitor": 1,
+      "deny_temp": 1
+    },
+    "defenses_touched": [
+      "ban_count",
+      "fingerprint_events",
+      "recent_event_count"
+    ],
+    "simulation_event_reason_count": 4,
+    "simulation_event_reasons": [
+      "banned",
+      "botness_gate_not_a_bot",
+      "edge_fingerprint_automation",
+      "external_fingerprint_detected:tier=strong score=5.00"
+    ]
+  },
+  "refresh_traces": [
+    {
+      "domain": "gate_checks",
+      "sequence": 1,
+      "check": "control_plane_mutation_policy",
+      "passed": true,
+      "detail": "no control-plane mutations observed during attacker execution"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 2,
+      "check": "latency_p95",
+      "passed": true,
+      "detail": "p95=95ms limit=2000ms"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 3,
+      "check": "ratio_monitor",
+      "passed": true,
+      "detail": "ratio=0.500 bounds=[0.400,0.600] count=1 total=2"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 4,
+      "check": "ratio_deny_temp",
+      "passed": true,
+      "detail": "ratio=0.500 bounds=[0.400,0.600] count=1 total=2"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 5,
+      "check": "realism_evidence_attached",
+      "passed": true,
+      "detail": "all scenario results include realism evidence"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 6,
+      "check": "realism_think_time_events_total",
+      "passed": true,
+      "detail": "think_time_events_total=2"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 7,
+      "check": "realism_persona_think_time_envelope_adversarial",
+      "passed": true,
+      "detail": "observed_total=14ms expected=[5,200]ms events=1"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 8,
+      "check": "realism_persona_think_time_envelope_suspicious_automation",
+      "passed": true,
+      "detail": "observed_total=76ms expected=[5,200]ms events=1"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 9,
+      "check": "realism_retry_envelope_bounded_backoff",
+      "passed": true,
+      "detail": "attempts_total=2 expected=[2,4] request_sequence_total=2"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 10,
+      "check": "realism_retry_envelope_single_attempt",
+      "passed": true,
+      "detail": "attempts_total=2 expected=[2,2] request_sequence_total=2"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 11,
+      "check": "realism_retry_single_attempt_no_retries",
+      "passed": true,
+      "detail": "retry_attempts=0"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 12,
+      "check": "realism_state_mode_stateless_envelope",
+      "passed": true,
+      "detail": "state_headers_sent=0 state_store_resets=0 state_store_peak_size_max=0"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 13,
+      "check": "telemetry_fingerprint_amplification",
+      "passed": true,
+      "detail": "amp=0.250 limit=3.000 delta=1 requests=4"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 14,
+      "check": "telemetry_monitoring_amplification",
+      "passed": true,
+      "detail": "amp=0.000 limit=3.000 delta=0 requests=4"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 15,
+      "check": "suite_runtime_budget",
+      "passed": true,
+      "detail": "runtime=399ms limit=45000ms"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 16,
+      "check": "runtime_evidence_rows_for_passed_scenarios",
+      "passed": true,
+      "detail": "all passed scenarios include execution evidence"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 17,
+      "check": "runtime_evidence_required_fields_present",
+      "passed": true,
+      "detail": "all evidence rows include required fields"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 18,
+      "check": "runtime_evidence_telemetry_for_passed_scenarios",
+      "passed": true,
+      "detail": "all passed scenarios have runtime telemetry evidence"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 19,
+      "check": "browser_execution_required_rows_present",
+      "passed": true,
+      "detail": "no passed browser_realistic scenarios in run; browser evidence checks vacuously satisfied"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 20,
+      "check": "scenario_intent_rows_for_passed_scenarios_present",
+      "passed": true,
+      "detail": "all passed scenarios have scenario intent matrix rows"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 21,
+      "check": "scenario_intent_runtime_requests_sim_t2_akamai_additive_monitor",
+      "passed": true,
+      "detail": "runtime_request_count=2 minimum=1"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 22,
+      "check": "scenario_intent_sim_t2_akamai_additive_monitor_fingerprint",
+      "passed": true,
+      "detail": "category=fingerprint passed_signals=1/2 signals=[{'signal_type': 'coverage_delta', 'minimum': 1, 'observed': 1, 'passed': True, 'source': 'coverage_deltas.fingerprint_events'}, {'signal_type': 'simulation_event_reason_prefix', 'minimum': 1, 'observed': 0, 'passed': False, 'source': 'simulation_event_reasons_delta prefix=edge_fingerprint'}]"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 23,
+      "check": "scenario_intent_sim_t2_akamai_additive_monitor_event_stream",
+      "passed": true,
+      "detail": "category=event_stream passed_signals=2/2 signals=[{'signal_type': 'simulation_event_count_delta', 'minimum': 1, 'observed': 2, 'passed': True, 'source': 'simulation_event_count_delta'}, {'signal_type': 'coverage_delta', 'minimum': 1, 'observed': 5, 'passed': True, 'source': 'coverage_deltas.recent_event_count'}]"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 24,
+      "check": "scenario_intent_progression_driver_class_sim_t2_akamai_additive_monitor",
+      "passed": true,
+      "detail": "driver_class=edge_fixture required=edge_fixture"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 25,
+      "check": "scenario_intent_progression_persona_sim_t2_akamai_additive_monitor",
+      "passed": true,
+      "detail": "persona=suspicious_automation required=suspicious_automation"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 26,
+      "check": "scenario_intent_progression_retry_strategy_sim_t2_akamai_additive_monitor",
+      "passed": true,
+      "detail": "retry_strategy=bounded_backoff required=bounded_backoff"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 27,
+      "check": "scenario_intent_progression_min_request_sequence_count_sim_t2_akamai_additive_monitor",
+      "passed": true,
+      "detail": "request_sequence_count=2 minimum=1"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 28,
+      "check": "scenario_intent_progression_min_think_time_events_sim_t2_akamai_additive_monitor",
+      "passed": true,
+      "detail": "think_time_events=1 minimum=1"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 29,
+      "check": "scenario_intent_runtime_requests_sim_t4_akamai_authoritative_deny",
+      "passed": true,
+      "detail": "runtime_request_count=2 minimum=1"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 30,
+      "check": "scenario_intent_sim_t4_akamai_authoritative_deny_fingerprint",
+      "passed": true,
+      "detail": "category=fingerprint passed_signals=1/2 signals=[{'signal_type': 'coverage_delta', 'minimum': 1, 'observed': 0, 'passed': False, 'source': 'coverage_deltas.fingerprint_events'}, {'signal_type': 'simulation_event_reason_prefix', 'minimum': 1, 'observed': 1, 'passed': True, 'source': 'simulation_event_reasons_delta prefix=edge_fingerprint'}]"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 31,
+      "check": "scenario_intent_sim_t4_akamai_authoritative_deny_ban_path",
+      "passed": true,
+      "detail": "category=ban_path passed_signals=2/3 signals=[{'signal_type': 'coverage_delta', 'minimum': 1, 'observed': 1, 'passed': True, 'source': 'coverage_deltas.ban_count'}, {'signal_type': 'coverage_delta', 'minimum': 1, 'observed': 0, 'passed': False, 'source': 'coverage_deltas.rate_banned'}, {'signal_type': 'outcome_equals', 'minimum': 1, 'observed': 1, 'passed': True, 'source': 'result.observed_outcome==deny_temp'}]"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 32,
+      "check": "scenario_intent_progression_driver_class_sim_t4_akamai_authoritative_deny",
+      "passed": true,
+      "detail": "driver_class=edge_fixture required=edge_fixture"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 33,
+      "check": "scenario_intent_progression_persona_sim_t4_akamai_authoritative_deny",
+      "passed": true,
+      "detail": "persona=adversarial required=adversarial"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 34,
+      "check": "scenario_intent_progression_retry_strategy_sim_t4_akamai_authoritative_deny",
+      "passed": true,
+      "detail": "retry_strategy=single_attempt required=single_attempt"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 35,
+      "check": "scenario_intent_progression_min_request_sequence_count_sim_t4_akamai_authoritative_deny",
+      "passed": true,
+      "detail": "request_sequence_count=2 minimum=1"
+    },
+    {
+      "domain": "gate_checks",
+      "sequence": 36,
+      "check": "scenario_intent_progression_min_think_time_events_sim_t4_akamai_authoritative_deny",
+      "passed": true,
+      "detail": "think_time_events=1 minimum=1"
+    },
+    {
+      "domain": "realism_checks",
+      "sequence": 1,
+      "check": "realism_evidence_attached",
+      "passed": true,
+      "detail": "all scenario results include realism evidence"
+    },
+    {
+      "domain": "realism_checks",
+      "sequence": 2,
+      "check": "realism_think_time_events_total",
+      "passed": true,
+      "detail": "think_time_events_total=2"
+    },
+    {
+      "domain": "realism_checks",
+      "sequence": 3,
+      "check": "realism_persona_think_time_envelope_adversarial",
+      "passed": true,
+      "detail": "observed_total=14ms expected=[5,200]ms events=1"
+    },
+    {
+      "domain": "realism_checks",
+      "sequence": 4,
+      "check": "realism_persona_think_time_envelope_suspicious_automation",
+      "passed": true,
+      "detail": "observed_total=76ms expected=[5,200]ms events=1"
+    },
+    {
+      "domain": "realism_checks",
+      "sequence": 5,
+      "check": "realism_retry_envelope_bounded_backoff",
+      "passed": true,
+      "detail": "attempts_total=2 expected=[2,4] request_sequence_total=2"
+    },
+    {
+      "domain": "realism_checks",
+      "sequence": 6,
+      "check": "realism_retry_envelope_single_attempt",
+      "passed": true,
+      "detail": "attempts_total=2 expected=[2,2] request_sequence_total=2"
+    },
+    {
+      "domain": "realism_checks",
+      "sequence": 7,
+      "check": "realism_retry_single_attempt_no_retries",
+      "passed": true,
+      "detail": "retry_attempts=0"
+    },
+    {
+      "domain": "realism_checks",
+      "sequence": 8,
+      "check": "realism_state_mode_stateless_envelope",
+      "passed": true,
+      "detail": "state_headers_sent=0 state_store_resets=0 state_store_peak_size_max=0"
+    }
+  ]
+}

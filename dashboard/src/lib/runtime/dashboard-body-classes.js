@@ -4,6 +4,7 @@ const RUNTIME_DEV_CLASS = 'runtime-dev';
 const RUNTIME_PROD_CLASS = 'runtime-prod';
 const ADVERSARY_SIM_CLASS = 'adversary-sim';
 const CONNECTED_CLASS = 'connected';
+const DEGRADED_CLASS = 'degraded';
 const DISCONNECTED_CLASS = 'disconnected';
 const RUNTIME_CLASSES = Object.freeze([RUNTIME_DEV_CLASS, RUNTIME_PROD_CLASS]);
 
@@ -27,58 +28,99 @@ const normalizeRuntimeClass = (value) => {
   return normalized === RUNTIME_DEV_CLASS ? RUNTIME_DEV_CLASS : RUNTIME_PROD_CLASS;
 };
 
-const getBodyClassList = (doc) =>
-  doc &&
-  typeof doc === 'object' &&
-  doc.body &&
-  doc.body.classList &&
-  typeof doc.body.classList.add === 'function' &&
-  typeof doc.body.classList.remove === 'function'
-    ? doc.body.classList
+const normalizeConnectionState = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (
+    normalized === CONNECTED_CLASS ||
+    normalized === DEGRADED_CLASS ||
+    normalized === DISCONNECTED_CLASS
+  ) {
+    return normalized;
+  }
+  return DISCONNECTED_CLASS;
+};
+
+const getClassList = (target) =>
+  target &&
+  typeof target === 'object' &&
+  target.classList &&
+  typeof target.classList.add === 'function' &&
+  typeof target.classList.remove === 'function'
+    ? target.classList
     : null;
+
+const getDashboardClassLists = (doc) => ({
+  bodyClassList: getClassList(doc?.body),
+  rootClassList: getClassList(doc?.documentElement)
+});
 
 /**
  * @param {unknown} configSnapshot
- * @param {{ backendConnected?: unknown }} [options]
- * @returns {{ runtimeClass: 'runtime-dev' | 'runtime-prod', adversarySimEnabled: boolean, backendConnected: boolean }}
+ * @param {{ backendConnected?: unknown, backendConnectionState?: unknown }} [options]
+ * @returns {{ runtimeClass: 'runtime-dev' | 'runtime-prod', adversarySimEnabled: boolean, connectionState: 'connected' | 'degraded' | 'disconnected' }}
  */
 export function deriveDashboardBodyClassState(configSnapshot = {}, options = {}) {
   const source = asRecord(configSnapshot);
-  const configConnected = source.backend_connected;
+  const optionConnectedState = options && typeof options === 'object'
+    ? options.backendConnectionState
+    : undefined;
   const optionConnected = options && typeof options === 'object'
     ? options.backendConnected
     : undefined;
+  const configConnected = source.backend_connected;
+  const connectionState = optionConnectedState !== undefined
+    ? normalizeConnectionState(optionConnectedState)
+    : optionConnected !== undefined
+      ? (parseBoolLike(optionConnected, false) ? CONNECTED_CLASS : DISCONNECTED_CLASS)
+      : configConnected !== undefined
+        ? (parseBoolLike(configConnected, false) ? CONNECTED_CLASS : DISCONNECTED_CLASS)
+        : DISCONNECTED_CLASS;
   return {
     runtimeClass: normalizeRuntimeClass(source.runtime_environment),
     adversarySimEnabled: parseBoolLike(source.adversary_sim_enabled, false),
-    backendConnected: parseBoolLike(
-      optionConnected !== undefined ? optionConnected : configConnected,
-      false
-    )
+    connectionState
   };
 }
 
 /**
  * @param {unknown} doc
- * @param {{ runtimeClass?: unknown, adversarySimEnabled?: unknown, backendConnected?: unknown }} state
- * @returns {{ runtimeClass: 'runtime-dev' | 'runtime-prod', adversarySimEnabled: boolean, backendConnected: boolean }}
+ * @param {{ runtimeClass?: unknown, adversarySimEnabled?: unknown, backendConnected?: unknown, connectionState?: unknown }} state
+ * @returns {{ runtimeClass: 'runtime-dev' | 'runtime-prod', adversarySimEnabled: boolean, connectionState: 'connected' | 'degraded' | 'disconnected' }}
  */
 export function syncDashboardBodyClasses(doc, state = {}) {
-  const classList = getBodyClassList(doc);
+  const { bodyClassList, rootClassList } = getDashboardClassLists(doc);
+  const fallbackConnectionState = state.backendConnected === undefined
+    ? DISCONNECTED_CLASS
+    : (parseBoolLike(state.backendConnected, false) ? CONNECTED_CLASS : DISCONNECTED_CLASS);
   const normalizedState = {
     runtimeClass: normalizeRuntimeClass(state.runtimeClass),
     adversarySimEnabled: parseBoolLike(state.adversarySimEnabled, false),
-    backendConnected: parseBoolLike(state.backendConnected, false)
+    connectionState: normalizeConnectionState(
+      state.connectionState === undefined ? fallbackConnectionState : state.connectionState
+    )
   };
-  if (!classList) return normalizedState;
+  if (!bodyClassList && !rootClassList) return normalizedState;
 
-  for (const runtimeClass of RUNTIME_CLASSES) {
-    classList.remove(runtimeClass);
+  if (rootClassList) {
+    for (const runtimeClass of RUNTIME_CLASSES) {
+      rootClassList.remove(runtimeClass);
+    }
+    rootClassList.add(normalizedState.runtimeClass);
+    rootClassList.toggle(CONNECTED_CLASS, normalizedState.connectionState === CONNECTED_CLASS);
+    rootClassList.toggle(DEGRADED_CLASS, normalizedState.connectionState === DEGRADED_CLASS);
+    rootClassList.toggle(DISCONNECTED_CLASS, normalizedState.connectionState === DISCONNECTED_CLASS);
+    rootClassList.remove(ADVERSARY_SIM_CLASS);
   }
-  classList.add(normalizedState.runtimeClass);
-  classList.toggle(ADVERSARY_SIM_CLASS, normalizedState.adversarySimEnabled);
-  classList.toggle(CONNECTED_CLASS, normalizedState.backendConnected);
-  classList.toggle(DISCONNECTED_CLASS, !normalizedState.backendConnected);
+
+  if (bodyClassList) {
+    for (const runtimeClass of RUNTIME_CLASSES) {
+      bodyClassList.remove(runtimeClass);
+    }
+    bodyClassList.remove(CONNECTED_CLASS);
+    bodyClassList.remove(DEGRADED_CLASS);
+    bodyClassList.remove(DISCONNECTED_CLASS);
+    bodyClassList.toggle(ADVERSARY_SIM_CLASS, normalizedState.adversarySimEnabled);
+  }
   return normalizedState;
 }
 
@@ -86,13 +128,26 @@ export function syncDashboardBodyClasses(doc, state = {}) {
  * @param {unknown} doc
  */
 export function clearDashboardBodyClasses(doc) {
-  const classList = getBodyClassList(doc);
-  if (!classList) return;
+  const { bodyClassList, rootClassList } = getDashboardClassLists(doc);
+  if (!bodyClassList && !rootClassList) return;
 
-  for (const runtimeClass of RUNTIME_CLASSES) {
-    classList.remove(runtimeClass);
+  if (rootClassList) {
+    for (const runtimeClass of RUNTIME_CLASSES) {
+      rootClassList.remove(runtimeClass);
+    }
+    rootClassList.remove(ADVERSARY_SIM_CLASS);
+    rootClassList.remove(CONNECTED_CLASS);
+    rootClassList.remove(DEGRADED_CLASS);
+    rootClassList.remove(DISCONNECTED_CLASS);
   }
-  classList.remove(ADVERSARY_SIM_CLASS);
-  classList.remove(CONNECTED_CLASS);
-  classList.remove(DISCONNECTED_CLASS);
+
+  if (bodyClassList) {
+    for (const runtimeClass of RUNTIME_CLASSES) {
+      bodyClassList.remove(runtimeClass);
+    }
+    bodyClassList.remove(ADVERSARY_SIM_CLASS);
+    bodyClassList.remove(CONNECTED_CLASS);
+    bodyClassList.remove(DEGRADED_CLASS);
+    bodyClassList.remove(DISCONNECTED_CLASS);
+  }
 }

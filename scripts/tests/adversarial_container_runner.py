@@ -18,6 +18,11 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+# Ensure `scripts.tests.*` absolute imports resolve when executed via file path.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from scripts.tests.frontier_action_contract import (
     FrontierActionContractError,
     FrontierActionValidationError,

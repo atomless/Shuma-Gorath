@@ -6,6 +6,7 @@ import {
   reduceState,
   normalizeTab
 } from '../domain/dashboard-state.js';
+import { REQUEST_FAILURE_CLASSES } from '../domain/core/request-failure.js';
 
 export { DASHBOARD_TABS, DEFAULT_TAB, normalizeTab };
 
@@ -23,7 +24,15 @@ export const TAB_REFRESH_INTERVAL_MS = Object.freeze({
   tuning: 60000
 });
 export const RUNTIME_TELEMETRY_ROLLING_WINDOW_SIZE = 20;
+export const CONNECTION_DISCONNECT_THRESHOLD = 3;
+export const REQUEST_DIAGNOSTIC_MAX_ENTRIES = 200;
+export const HEARTBEAT_BREADCRUMB_MAX_ENTRIES = 100;
 const RUNTIME_TELEMETRY_TABS = Object.freeze(new Set(['monitoring', 'ip-bans']));
+const CONNECTION_STATES = Object.freeze({
+  connected: 'connected',
+  degraded: 'degraded',
+  disconnected: 'disconnected'
+});
 
 const clampMetric = (value) => {
   const numeric = Number(value);
@@ -49,6 +58,35 @@ const trimWindow = (values = [], limit = RUNTIME_TELEMETRY_ROLLING_WINDOW_SIZE) 
   if (values.length <= limit) return values;
   return values.slice(values.length - limit);
 };
+const trimEntries = (entries = [], limit = REQUEST_DIAGNOSTIC_MAX_ENTRIES) => {
+  if (!Array.isArray(entries)) return [];
+  if (entries.length <= limit) return entries;
+  return entries.slice(entries.length - limit);
+};
+const toStatusCode = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  return Math.floor(numeric);
+};
+const normalizeFailureClass = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === REQUEST_FAILURE_CLASSES.cancelled) return REQUEST_FAILURE_CLASSES.cancelled;
+  if (normalized === REQUEST_FAILURE_CLASSES.timeout) return REQUEST_FAILURE_CLASSES.timeout;
+  if (normalized === REQUEST_FAILURE_CLASSES.http) return REQUEST_FAILURE_CLASSES.http;
+  return REQUEST_FAILURE_CLASSES.transport;
+};
+const normalizeConnectionState = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === CONNECTION_STATES.connected) return CONNECTION_STATES.connected;
+  if (normalized === CONNECTION_STATES.degraded) return CONNECTION_STATES.degraded;
+  return CONNECTION_STATES.disconnected;
+};
+const heartbeatReasonFromFailureClass = (failureClass) => {
+  if (failureClass === REQUEST_FAILURE_CLASSES.timeout) return 'heartbeat_timeout';
+  if (failureClass === REQUEST_FAILURE_CLASSES.http) return 'heartbeat_http_error';
+  if (failureClass === REQUEST_FAILURE_CLASSES.cancelled) return 'heartbeat_cancelled_ignored';
+  return 'heartbeat_transport_error';
+};
 const createMetricState = () => ({
   last: 0,
   avg: 0,
@@ -70,11 +108,37 @@ function createRuntimeTelemetryState() {
       renderTimingMs: createMetricState()
     },
     connection: {
-      state: 'disconnected',
+      state: CONNECTION_STATES.disconnected,
       lastTransitionAt: '',
       lastSuccessAt: '',
       lastFailureAt: '',
-      lastError: ''
+      lastError: '',
+      consecutiveFailures: 0,
+      disconnectThreshold: CONNECTION_DISCONNECT_THRESHOLD,
+      lastTransitionReason: 'boot_disconnected'
+    },
+    heartbeat: {
+      lastHeartbeatSuccessAt: '',
+      lastHeartbeatFailureAt: '',
+      consecutiveFailures: 0,
+      lastFailureClass: '',
+      lastFailureError: '',
+      lastTransitionReason: 'boot_disconnected',
+      ignoredCancelledCount: 0,
+      ignoredNonHeartbeatFailureCount: 0,
+      breadcrumbs: [],
+      maxBreadcrumbs: HEARTBEAT_BREADCRUMB_MAX_ENTRIES
+    },
+    requests: {
+      maxEntries: REQUEST_DIAGNOSTIC_MAX_ENTRIES,
+      recent: [],
+      total: 0,
+      successCount: 0,
+      failureCount: 0,
+      cancelledCount: 0,
+      timeoutCount: 0,
+      transportCount: 0,
+      httpCount: 0
     },
     polling: {
       skips: 0,
@@ -109,6 +173,21 @@ const updateMetric = (metric = {}, rawValue) => {
     windowSize,
     window: nextWindow
   };
+};
+
+const appendHeartbeatBreadcrumb = (heartbeat = {}, eventType = '', details = {}) => {
+  const maxBreadcrumbs = Number(heartbeat.maxBreadcrumbs || HEARTBEAT_BREADCRUMB_MAX_ENTRIES);
+  const breadcrumb = {
+    eventType: String(eventType || ''),
+    at: new Date().toISOString(),
+    requestId: String(details.requestId || ''),
+    path: String(details.path || ''),
+    method: String(details.method || ''),
+    statusCode: toStatusCode(details.statusCode),
+    failureClass: String(details.failureClass || ''),
+    reason: String(details.reason || '')
+  };
+  return trimEntries([...(Array.isArray(heartbeat.breadcrumbs) ? heartbeat.breadcrumbs : []), breadcrumb], maxBreadcrumbs);
 };
 
 export function createDashboardStore(options = {}) {
@@ -300,34 +379,255 @@ export function createDashboardStore(options = {}) {
     }));
   };
 
-  const setBackendConnection = (connected, error = '') => {
+  const recordRequestTelemetry = (event = {}) => {
     runtimeTelemetryStore.update((telemetry) => {
       const nowIso = new Date().toISOString();
-      const nextState = connected === true ? 'connected' : 'disconnected';
+      const requests =
+        telemetry && telemetry.requests && typeof telemetry.requests === 'object'
+          ? telemetry.requests
+          : {};
+      const heartbeat =
+        telemetry && telemetry.heartbeat && typeof telemetry.heartbeat === 'object'
+          ? telemetry.heartbeat
+          : {};
+      const source = String(event.source || '');
+      const outcome = String(event.outcome || '').trim().toLowerCase() === 'success' ? 'success' : 'failure';
+      const failureClass = outcome === 'failure'
+        ? normalizeFailureClass(event.failureClass)
+        : '';
+      const statusCode = toStatusCode(event.statusCode);
+      const entry = {
+        requestId: String(event.requestId || ''),
+        path: String(event.path || ''),
+        method: String(event.method || 'GET').toUpperCase(),
+        tab: String(event.tab || ''),
+        reason: String(event.reason || ''),
+        source,
+        startedAt: String(event.startedAt || ''),
+        durationMs: clampMetric(event.durationMs),
+        outcome,
+        failureClass,
+        statusCode,
+        aborted: event.aborted === true,
+        recordedAt: nowIso
+      };
+      const maxEntries = Math.max(1, Math.floor(Number(requests.maxEntries || REQUEST_DIAGNOSTIC_MAX_ENTRIES)));
+      const nextRecent = trimEntries([...(Array.isArray(requests.recent) ? requests.recent : []), entry], maxEntries);
+      const nextRequests = {
+        ...requests,
+        maxEntries,
+        recent: nextRecent,
+        total: Number(requests.total || 0) + 1,
+        successCount: Number(requests.successCount || 0) + (outcome === 'success' ? 1 : 0),
+        failureCount: Number(requests.failureCount || 0) + (outcome === 'failure' ? 1 : 0),
+        cancelledCount:
+          Number(requests.cancelledCount || 0) + (failureClass === REQUEST_FAILURE_CLASSES.cancelled ? 1 : 0),
+        timeoutCount:
+          Number(requests.timeoutCount || 0) + (failureClass === REQUEST_FAILURE_CLASSES.timeout ? 1 : 0),
+        transportCount:
+          Number(requests.transportCount || 0) + (failureClass === REQUEST_FAILURE_CLASSES.transport ? 1 : 0),
+        httpCount:
+          Number(requests.httpCount || 0) + (failureClass === REQUEST_FAILURE_CLASSES.http ? 1 : 0)
+      };
+      const shouldIncrementIgnoredCounters = outcome === 'failure' && source !== 'heartbeat';
+      const nextHeartbeat = shouldIncrementIgnoredCounters
+        ? {
+            ...heartbeat,
+            ignoredNonHeartbeatFailureCount:
+              Number(heartbeat.ignoredNonHeartbeatFailureCount || 0) + 1,
+            ignoredCancelledCount:
+              Number(heartbeat.ignoredCancelledCount || 0) +
+              (failureClass === REQUEST_FAILURE_CLASSES.cancelled ? 1 : 0)
+          }
+        : heartbeat;
+      return {
+        ...telemetry,
+        requests: nextRequests,
+        heartbeat: nextHeartbeat
+      };
+    });
+  };
+
+  const recordHeartbeatAttemptStarted = (event = {}) => {
+    runtimeTelemetryStore.update((telemetry) => {
+      const heartbeat =
+        telemetry && telemetry.heartbeat && typeof telemetry.heartbeat === 'object'
+          ? telemetry.heartbeat
+          : {};
+      return {
+        ...telemetry,
+        heartbeat: {
+          ...heartbeat,
+          breadcrumbs: appendHeartbeatBreadcrumb(heartbeat, 'attempt_started', {
+            requestId: event.requestId,
+            path: event.path,
+            method: event.method,
+            reason: event.reason
+          })
+        }
+      };
+    });
+  };
+
+  const recordHeartbeatSuccess = (event = {}) => {
+    runtimeTelemetryStore.update((telemetry) => {
+      const nowIso = new Date().toISOString();
       const currentConnection =
         telemetry && telemetry.connection && typeof telemetry.connection === 'object'
           ? telemetry.connection
           : {};
-      const priorState = String(currentConnection.state || 'disconnected');
+      const heartbeat =
+        telemetry && telemetry.heartbeat && typeof telemetry.heartbeat === 'object'
+          ? telemetry.heartbeat
+          : {};
+      const priorState = normalizeConnectionState(currentConnection.state);
+      const transitionReason = String(event.transitionReason || 'heartbeat_ok');
       return {
         ...telemetry,
         connection: {
+          ...currentConnection,
+          state: CONNECTION_STATES.connected,
+          lastTransitionAt: priorState === CONNECTION_STATES.connected
+            ? String(currentConnection.lastTransitionAt || '')
+            : nowIso,
+          lastSuccessAt: nowIso,
+          lastError: '',
+          consecutiveFailures: 0,
+          disconnectThreshold: Math.max(
+            1,
+            Math.floor(Number(currentConnection.disconnectThreshold || CONNECTION_DISCONNECT_THRESHOLD))
+          ),
+          lastTransitionReason: transitionReason
+        },
+        heartbeat: {
+          ...heartbeat,
+          lastHeartbeatSuccessAt: nowIso,
+          consecutiveFailures: 0,
+          lastFailureClass: '',
+          lastFailureError: '',
+          lastTransitionReason: transitionReason,
+          breadcrumbs: appendHeartbeatBreadcrumb(heartbeat, 'attempt_succeeded', {
+            requestId: event.requestId,
+            path: event.path,
+            method: event.method,
+            statusCode: event.statusCode,
+            reason: transitionReason
+          })
+        }
+      };
+    });
+  };
+
+  const recordHeartbeatFailure = (event = {}) => {
+    runtimeTelemetryStore.update((telemetry) => {
+      const nowIso = new Date().toISOString();
+      const currentConnection =
+        telemetry && telemetry.connection && typeof telemetry.connection === 'object'
+          ? telemetry.connection
+          : {};
+      const heartbeat =
+        telemetry && telemetry.heartbeat && typeof telemetry.heartbeat === 'object'
+          ? telemetry.heartbeat
+          : {};
+      const disconnectThreshold = Math.max(
+        1,
+        Math.floor(Number(currentConnection.disconnectThreshold || CONNECTION_DISCONNECT_THRESHOLD))
+      );
+      const failureClass = normalizeFailureClass(event.failureClass);
+      const failureError = String(event.error || '');
+      const reason = String(event.transitionReason || heartbeatReasonFromFailureClass(failureClass));
+      const nextHeartbeats = appendHeartbeatBreadcrumb(heartbeat, 'attempt_failed', {
+        requestId: event.requestId,
+        path: event.path,
+        method: event.method,
+        statusCode: event.statusCode,
+        failureClass,
+        reason
+      });
+      if (failureClass === REQUEST_FAILURE_CLASSES.cancelled) {
+        const retryBreadcrumbs = trimEntries(
+          [
+            ...nextHeartbeats,
+            {
+              eventType: 'retry_scheduled',
+              at: nowIso,
+              requestId: String(event.requestId || ''),
+              path: String(event.path || ''),
+              method: String(event.method || ''),
+              statusCode: 0,
+              failureClass: REQUEST_FAILURE_CLASSES.cancelled,
+              reason
+            }
+          ],
+          Number(heartbeat.maxBreadcrumbs || HEARTBEAT_BREADCRUMB_MAX_ENTRIES)
+        );
+        return {
+          ...telemetry,
+          heartbeat: {
+            ...heartbeat,
+            ignoredCancelledCount: Number(heartbeat.ignoredCancelledCount || 0) + 1,
+            lastFailureClass: REQUEST_FAILURE_CLASSES.cancelled,
+            lastFailureError: failureError,
+            lastTransitionReason: reason,
+            breadcrumbs: retryBreadcrumbs
+          }
+        };
+      }
+      const nextConsecutiveFailures = Number(currentConnection.consecutiveFailures || 0) + 1;
+      const nextState = nextConsecutiveFailures >= disconnectThreshold
+        ? CONNECTION_STATES.disconnected
+        : CONNECTION_STATES.degraded;
+      const priorState = normalizeConnectionState(currentConnection.state);
+      return {
+        ...telemetry,
+        connection: {
+          ...currentConnection,
           state: nextState,
           lastTransitionAt: priorState === nextState
             ? String(currentConnection.lastTransitionAt || '')
             : nowIso,
-          lastSuccessAt: nextState === 'connected'
-            ? nowIso
-            : String(currentConnection.lastSuccessAt || ''),
-          lastFailureAt: nextState === 'disconnected'
-            ? nowIso
-            : String(currentConnection.lastFailureAt || ''),
-          lastError: nextState === 'disconnected'
-            ? String(error || '')
-            : ''
+          lastFailureAt: nowIso,
+          lastError: failureError,
+          consecutiveFailures: nextConsecutiveFailures,
+          disconnectThreshold,
+          lastTransitionReason: reason
+        },
+        heartbeat: {
+          ...heartbeat,
+          lastHeartbeatFailureAt: nowIso,
+          consecutiveFailures: nextConsecutiveFailures,
+          lastFailureClass: failureClass,
+          lastFailureError: failureError,
+          lastTransitionReason: reason,
+          breadcrumbs: nextHeartbeats
         }
       };
     });
+  };
+
+  const setBackendConnection = (connected, error = '') => {
+    if (connected === true) {
+      recordHeartbeatSuccess({
+        transitionReason: 'legacy_set_connected'
+      });
+      return;
+    }
+    if (connected === false) {
+      recordHeartbeatFailure({
+        failureClass: REQUEST_FAILURE_CLASSES.transport,
+        error: String(error || ''),
+        transitionReason: 'legacy_set_disconnected'
+      });
+      return;
+    }
+    runtimeTelemetryStore.update((telemetry) => ({
+      ...telemetry,
+      connection: {
+        ...telemetry.connection,
+        state: CONNECTION_STATES.disconnected,
+        lastTransitionReason: 'legacy_set_disconnected'
+      }
+    }));
   };
 
   return {
@@ -365,6 +665,10 @@ export function createDashboardStore(options = {}) {
     recordRefreshMetrics,
     recordPollingSkip,
     recordPollingResume,
+    recordRequestTelemetry,
+    recordHeartbeatAttemptStarted,
+    recordHeartbeatSuccess,
+    recordHeartbeatFailure,
     setBackendConnection
   };
 }

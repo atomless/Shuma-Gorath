@@ -27,7 +27,8 @@ make test-adversarial-container-blackbox # Run containerized black-box adversary
 make test-adversarial-frontier-attempt # Protected-lane frontier provider attempt probe (advisory/non-blocking)
 make test-frontier-governance # Frontier artifact guard (forbidden keys + secret leak checks)
 make test-frontier-unavailability-policy # Frontier degraded-threshold policy tracker + actionability artifact
-make test-sim2-operational-regressions # SIM2 failure/prod/retention/cost/security regression diagnostics
+make test-sim2-operational-regressions # SIM2 operational regressions for active deterministic profiles (retention/cost/security required; failure/prod checked when present)
+make test-sim2-operational-regressions-strict # Strict SIM2 operational regressions (all failure/prod/retention/cost/security domains required)
 make test-sim2-governance-contract # SIM2 hybrid lane + governance contract conformance diagnostics
 make test-ip-range-suggestions # Focused IP-range suggestion regression gate (runtime + dashboard)
 make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
@@ -43,7 +44,8 @@ Notes:
 - Use Makefile commands only (avoid running scripts directly)
 - Integration tests require a running Spin server (`make dev` or `make dev-prod`); test targets do not start Spin.
 - `make test`, `make test-integration`, and `make test-dashboard-e2e` wait for `/health` readiness before failing.
-- `make test` includes maze asymmetry benchmark gating, the mandatory fast adversarial matrix (`smoke + abuse + Akamai`), plus Playwright dashboard e2e and fails if any stage cannot run.
+- `make test` includes maze asymmetry benchmark gating, the mandatory fast adversarial matrix (`smoke + abuse + Akamai`), SIM2 realtime gates, and Playwright dashboard e2e. If Docker is unavailable, the container black-box lane degrades to the advisory SIM2 verification matrix path instead of hard-failing the umbrella run.
+- `make test-sim2-operational-regressions` enforces retention/cost/security domains and treats `failure_injection` + `prod_mode_monitoring` as optional when absent from the active deterministic profile artifact. Use `make test-sim2-operational-regressions-strict` when you need full-domain enforcement.
 - Deep adversarial soak coverage (`full_coverage`) is run via `make test-adversarial-soak` and is intended for scheduled/manual gates rather than every `make test` execution.
 - `make test-dashboard-e2e` now verifies the running Spin instance is serving the current `dist/dashboard/index.html` before Playwright runs; restart Spin after `make dashboard-build` if this check fails.
 - `make test` now reseeds dashboard sample data at the end, so charts/tables stay populated for local inspection after the run.
@@ -161,8 +163,9 @@ Available profiles:
 - `make test-frontier-unavailability-policy` - degraded-threshold policy evaluation and refresh-action artifact
 
 Dev/test simulation realism pages are available at `/sim/public/landing`, `/sim/public/docs`, `/sim/public/pricing`, `/sim/public/contact`, and `/sim/public/search?q=...` only when all three gates are true: `SHUMA_RUNTIME_ENV=runtime-dev`, `SHUMA_ADVERSARY_SIM_AVAILABLE=true`, and KV `adversary_sim_enabled=true`.
-Dashboard body-class contract for dev-only affordances:
-- `<body>` must include exactly one runtime environment class: `runtime-dev` or `runtime-prod` (derived from trusted runtime config).
+Dashboard DOM-class contract for dev-only affordances:
+- `<html>` must include exactly one runtime environment class: `runtime-dev` or `runtime-prod` (derived from trusted runtime config).
+- `<html>` connection state classes are heartbeat-owned: runtime boots in `disconnected`, flips to `connected` after successful heartbeat, enters `degraded` on heartbeat failures, and transitions to `disconnected` after configured hysteresis threshold (`N`) of consecutive heartbeat failures.
 - `<body>` must include `adversary-sim` only when `adversary_sim_enabled=true`.
 - These classes are presentational hooks only and must not alter defence/auth behavior directly.
 

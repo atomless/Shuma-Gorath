@@ -125,6 +125,20 @@ function normalizeHeaders(rawHeaders) {
   return headers;
 }
 
+function normalizeTrustedForwardedSecret(rawSecret) {
+  const value = String(rawSecret || "").trim();
+  if (!value) {
+    return "";
+  }
+  if (value.length > 256) {
+    throw new Error("browser_driver_forwarded_secret_too_long");
+  }
+  if (/[\r\n]/.test(value)) {
+    throw new Error("browser_driver_forwarded_secret_invalid");
+  }
+  return value;
+}
+
 function mustUseSafePath(path) {
   const normalized = String(path || "").trim();
   if (!normalized.startsWith("/")) {
@@ -171,6 +185,9 @@ async function runScenario(payload) {
 
   const baseUrl = normalizeBaseUrl(payload.base_url);
   const headers = normalizeHeaders(payload.headers);
+  const trustedForwardedSecret = normalizeTrustedForwardedSecret(
+    payload.trusted_forwarded_secret,
+  );
   const userAgent = String(payload.user_agent || "ShumaAdversarial/1.0 browser-driver");
   const timeoutMs = clampInt(payload.timeout_ms, 1000, 60000, 15000);
   const settleMs = clampInt(payload.settle_ms, 0, 5000, 200);
@@ -199,6 +216,9 @@ async function runScenario(payload) {
 
   const knownCorrelationIds = new Set();
   let browser;
+  const scenarioStartedAt = Date.now();
+  let actionStartedAt = 0;
+  let scriptedDelayMs = 0;
 
   const normalizePath = (targetPath) => mustUseSafePath(String(targetPath || ""));
   const toUrl = (targetPath) => new URL(normalizePath(targetPath), `${baseUrl}/`).toString();
@@ -209,9 +229,14 @@ async function runScenario(payload) {
       headless: true,
       args: ["--disable-crashpad", "--disable-crash-reporter"],
     });
+    const contextHeaders = { ...headers };
+    if (trustedForwardedSecret) {
+      // This header is edge-injected by the harness, not attacker-controlled input.
+      contextHeaders["X-Shuma-Forwarded-Secret"] = trustedForwardedSecret;
+    }
     const context = await browser.newContext({
       userAgent,
-      extraHTTPHeaders: headers,
+      extraHTTPHeaders: contextHeaders,
       ignoreHTTPSErrors: true,
     });
     const page = await context.newPage();
@@ -273,6 +298,7 @@ async function runScenario(payload) {
       });
       if (settleMs > 0) {
         await page.waitForTimeout(settleMs);
+        scriptedDelayMs += settleMs;
       }
       const content = await page.content();
       return { response, content };
@@ -309,6 +335,7 @@ async function runScenario(payload) {
           throw new Error("browser_not_a_bot_checkbox_missing");
         }
         await page.waitForTimeout(1200);
+        scriptedDelayMs += 1200;
 
         const submitRequestPromise = page.waitForRequest(
           (request) =>
@@ -454,7 +481,13 @@ async function runScenario(payload) {
       throw new Error(`browser_driver_unhandled_action:${action}`);
     }
 
+    actionStartedAt = Date.now();
     const actionResult = await executeAction();
+    const finishedAt = Date.now();
+    const rawActionDurationMs = Math.max(0, finishedAt - actionStartedAt);
+    const actionDurationMs = Math.max(0, rawActionDurationMs - scriptedDelayMs);
+    const totalDurationMs = Math.max(0, finishedAt - scenarioStartedAt);
+    const launchDurationMs = Math.max(0, actionStartedAt - scenarioStartedAt);
     const jsProbe = await page.evaluate(() => ({
       has_window: typeof window !== "undefined",
       ready_state: String(document.readyState || ""),
@@ -469,10 +502,24 @@ async function runScenario(payload) {
       browser_evidence: evidence,
       diagnostics: {
         ready_state: String(jsProbe?.ready_state || ""),
+        action_duration_ms: actionDurationMs,
+        action_duration_raw_ms: rawActionDurationMs,
+        scripted_delay_ms: scriptedDelayMs,
+        launch_duration_ms: launchDurationMs,
+        total_duration_ms: totalDurationMs,
       },
     };
   } catch (error) {
     const message = extractErrorMessage(error);
+    const failedAt = Date.now();
+    const rawActionDurationMs = actionStartedAt
+      ? Math.max(0, failedAt - actionStartedAt)
+      : 0;
+    const actionDurationMs = Math.max(0, rawActionDurationMs - scriptedDelayMs);
+    const totalDurationMs = Math.max(0, failedAt - scenarioStartedAt);
+    const launchDurationMs = actionStartedAt
+      ? Math.max(0, actionStartedAt - scenarioStartedAt)
+      : totalDurationMs;
     evidence.correlation_ids = Array.from(knownCorrelationIds).sort();
     return {
       ok: false,
@@ -481,6 +528,11 @@ async function runScenario(payload) {
       browser_evidence: evidence,
       diagnostics: {
         error_code: classifyError(message),
+        action_duration_ms: actionDurationMs,
+        action_duration_raw_ms: rawActionDurationMs,
+        scripted_delay_ms: scriptedDelayMs,
+        launch_duration_ms: launchDurationMs,
+        total_duration_ms: totalDurationMs,
       },
     };
   } finally {
@@ -514,6 +566,11 @@ async function main() {
       },
       diagnostics: {
         error_code: classifyError(message),
+        action_duration_ms: 0,
+        action_duration_raw_ms: 0,
+        scripted_delay_ms: 0,
+        launch_duration_ms: 0,
+        total_duration_ms: 0,
       },
     };
     process.stdout.write(`${JSON.stringify(fallback)}\n`);

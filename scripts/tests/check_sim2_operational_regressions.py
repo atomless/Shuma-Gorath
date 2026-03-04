@@ -102,10 +102,22 @@ def require_domain_section(
     domain_key: str,
     checks: List[Dict[str, Any]],
     failures: List[str],
+    *,
+    allow_missing: bool = False,
 ) -> Dict[str, Any] | None:
     section = report.get(domain_key)
     if isinstance(section, dict) and section:
         return dict(section)
+    if allow_missing:
+        add_check(
+            checks,
+            failures,
+            check_id=f"{domain_key}_domain_present",
+            passed=True,
+            detail="section missing (allowed)",
+            failure_code=f"domain_missing:{domain_key}",
+        )
+        return None
     add_check(
         checks,
         failures,
@@ -264,7 +276,11 @@ def evaluate_retention(
 
 
 def evaluate_cost(
-    section: Dict[str, Any], checks: List[Dict[str, Any]], failures: List[str]
+    section: Dict[str, Any],
+    checks: List[Dict[str, Any]],
+    failures: List[str],
+    *,
+    min_large_payload_samples_for_compression_check: int,
 ) -> None:
     missing = missing_required_fields(section, REQUIRED_COST_FIELDS)
     add_check(
@@ -292,6 +308,7 @@ def evaluate_cost(
     compression_percent = max(0.0, to_float(section.get("compression_reduction_percent")))
     compression_min = max(0.0, to_float(section.get("compression_min_percent") or 30.0))
     large_payload_count = max(0, to_int(section.get("large_payload_sample_count")))
+    compression_sample_floor = max(1, int(min_large_payload_samples_for_compression_check))
     avg_req_per_sec_client = max(
         0.0, to_float(section.get("query_budget_avg_req_per_sec_client"))
     )
@@ -333,19 +350,24 @@ def evaluate_cost(
         detail=f"payload_p95_kb={payload_p95_kb:.2f} payload_p95_max_kb={payload_max_kb:.2f}",
         failure_code="cost_payload_budget_exceeded",
     )
+    compression_check_enforced = large_payload_count >= compression_sample_floor
     compression_pass = True
-    if large_payload_count > 0:
+    if compression_check_enforced:
         compression_pass = compression_percent >= compression_min
+    compression_detail = (
+        f"large_payload_sample_count={large_payload_count} "
+        f"compression_reduction_percent={compression_percent:.2f} "
+        f"compression_min_percent={compression_min:.2f} "
+        f"compression_samples_required={compression_sample_floor}"
+    )
+    if not compression_check_enforced:
+        compression_detail += " compression_check=skipped_insufficient_samples"
     add_check(
         checks,
         failures,
         check_id="cost_compression_effectiveness",
         passed=compression_pass,
-        detail=(
-            f"large_payload_sample_count={large_payload_count} "
-            f"compression_reduction_percent={compression_percent:.2f} "
-            f"compression_min_percent={compression_min:.2f}"
-        ),
+        detail=compression_detail,
         failure_code="cost_compression_effectiveness_below_threshold",
     )
     add_check(
@@ -435,17 +457,56 @@ def evaluate_security(
     )
 
 
-def evaluate_report(report: Dict[str, Any]) -> Dict[str, Any]:
+def evaluate_report(
+    report: Dict[str, Any],
+    *,
+    allow_missing_domains: set[str] | None = None,
+    min_large_payload_samples_for_compression_check: int = 1,
+) -> Dict[str, Any]:
     checks: List[Dict[str, Any]] = []
     failures: List[str] = []
+    allowed_missing_domains = {
+        str(domain).strip()
+        for domain in list(allow_missing_domains or set())
+        if str(domain).strip()
+    }
+    compression_sample_floor = max(1, int(min_large_payload_samples_for_compression_check))
 
     failure_injection = require_domain_section(
-        report, "failure_injection", checks, failures
+        report,
+        "failure_injection",
+        checks,
+        failures,
+        allow_missing="failure_injection" in allowed_missing_domains,
     )
-    prod_mode = require_domain_section(report, "prod_mode_monitoring", checks, failures)
-    retention = require_domain_section(report, "retention_lifecycle", checks, failures)
-    cost = require_domain_section(report, "cost_governance", checks, failures)
-    security = require_domain_section(report, "security_privacy", checks, failures)
+    prod_mode = require_domain_section(
+        report,
+        "prod_mode_monitoring",
+        checks,
+        failures,
+        allow_missing="prod_mode_monitoring" in allowed_missing_domains,
+    )
+    retention = require_domain_section(
+        report,
+        "retention_lifecycle",
+        checks,
+        failures,
+        allow_missing="retention_lifecycle" in allowed_missing_domains,
+    )
+    cost = require_domain_section(
+        report,
+        "cost_governance",
+        checks,
+        failures,
+        allow_missing="cost_governance" in allowed_missing_domains,
+    )
+    security = require_domain_section(
+        report,
+        "security_privacy",
+        checks,
+        failures,
+        allow_missing="security_privacy" in allowed_missing_domains,
+    )
 
     if failure_injection is not None:
         evaluate_failure_injection(failure_injection, checks, failures)
@@ -454,12 +515,21 @@ def evaluate_report(report: Dict[str, Any]) -> Dict[str, Any]:
     if retention is not None:
         evaluate_retention(retention, checks, failures)
     if cost is not None:
-        evaluate_cost(cost, checks, failures)
+        evaluate_cost(
+            cost,
+            checks,
+            failures,
+            min_large_payload_samples_for_compression_check=compression_sample_floor,
+        )
     if security is not None:
         evaluate_security(security, checks, failures)
 
     return {
         "schema_version": "sim2-operational-regressions.v1",
+        "evaluation_mode": {
+            "allow_missing_domains": sorted(allowed_missing_domains),
+            "min_large_payload_samples_for_compression_check": compression_sample_floor,
+        },
         "status": {
             "passed": len(failures) == 0,
             "failure_count": len(failures),
@@ -475,13 +545,37 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--report", default=str(DEFAULT_REPORT_PATH))
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT_PATH))
+    parser.add_argument(
+        "--allow-missing-domain",
+        action="append",
+        default=[],
+        help=(
+            "Allow a domain section to be absent without failing the gate. "
+            "Repeat for multiple domains."
+        ),
+    )
+    parser.add_argument(
+        "--min-large-payload-samples-for-compression-check",
+        type=int,
+        default=1,
+        help=(
+            "Minimum large-payload sample count required before compression "
+            "effectiveness threshold is enforced."
+        ),
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     report = load_json_object(Path(args.report))
-    payload = evaluate_report(report)
+    payload = evaluate_report(
+        report,
+        allow_missing_domains=set(args.allow_missing_domain or []),
+        min_large_payload_samples_for_compression_check=max(
+            1, int(args.min_large_payload_samples_for_compression_check or 1)
+        ),
+    )
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")

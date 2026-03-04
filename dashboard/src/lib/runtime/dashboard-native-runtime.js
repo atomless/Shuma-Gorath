@@ -1,6 +1,10 @@
 // @ts-check
 
 import * as dashboardApiClientModule from '../domain/api-client.js';
+import {
+  classifyRequestFailure,
+  REQUEST_FAILURE_CLASSES
+} from '../domain/core/request-failure.js';
 import * as adminEndpointModule from '../domain/services/admin-endpoint.js';
 import {
   acquireChartRuntime,
@@ -13,6 +17,10 @@ import {
 } from './dashboard-paths.js';
 
 const DASHBOARD_TABS = Object.freeze(['monitoring', 'ip-bans', 'status', 'verification', 'traps', 'rate-limiting', 'geo', 'fingerprinting', 'robots', 'tuning', 'advanced']);
+const CONNECTION_HEARTBEAT_PATH = '/admin/session';
+const CONNECTION_HEARTBEAT_METHOD = 'GET';
+const CONNECTION_HEARTBEAT_INTERVAL_MS = 1000;
+const CONNECTION_HEARTBEAT_TIMEOUT_MS = 2500;
 
 const DASHBOARD_STATE_REQUIRED_METHODS = Object.freeze([
   'getState',
@@ -97,6 +105,9 @@ let resolveAdminApiEndpoint = () => ({ endpoint: '' });
 let dashboardState = null;
 let dashboardApiClient = null;
 let dashboardRefreshRuntime = null;
+let connectionHeartbeatTimer = null;
+let connectionHeartbeatInFlight = null;
+let connectionHeartbeatSequence = 0;
 
 const sessionState = {
   authenticated: false,
@@ -117,12 +128,179 @@ function setSessionState(authenticated, csrfToken = '', expiresAt = 0) {
       authenticated: sessionState.authenticated,
       csrfToken: sessionState.csrfToken
     });
+    if (sessionState.authenticated !== true) {
+      setBackendConnectionState(null, '');
+    }
   }
+  syncConnectionHeartbeatLoop(sessionState.authenticated ? 'session-authenticated' : 'session-cleared');
 }
 
 function setBackendConnectionState(connected, error = '') {
   if (!dashboardState || typeof dashboardState.setBackendConnection !== 'function') return;
-  dashboardState.setBackendConnection(connected === true, String(error || ''));
+  const normalized = connected === true ? true : connected === false ? false : null;
+  dashboardState.setBackendConnection(normalized, String(error || ''));
+}
+
+function clearConnectionHeartbeatTimer() {
+  if (!connectionHeartbeatTimer) return;
+  clearTimeout(connectionHeartbeatTimer);
+  connectionHeartbeatTimer = null;
+}
+
+function shouldRunConnectionHeartbeat() {
+  if (!runtimeMounted) return false;
+  if (!dashboardState) return false;
+  if (sessionState.authenticated !== true) return false;
+  return resolveEndpoint().trim().length > 0;
+}
+
+function scheduleConnectionHeartbeat(delayMs = CONNECTION_HEARTBEAT_INTERVAL_MS) {
+  clearConnectionHeartbeatTimer();
+  if (!shouldRunConnectionHeartbeat()) return;
+  const numericDelay = Number(delayMs);
+  const waitMs = Number.isFinite(numericDelay) && numericDelay >= 0
+    ? Math.floor(numericDelay)
+    : CONNECTION_HEARTBEAT_INTERVAL_MS;
+  connectionHeartbeatTimer = setTimeout(() => {
+    connectionHeartbeatTimer = null;
+    void runConnectionHeartbeat('interval');
+  }, waitMs);
+}
+
+function stopConnectionHeartbeat() {
+  clearConnectionHeartbeatTimer();
+  if (!connectionHeartbeatInFlight) return;
+  const inFlightController = connectionHeartbeatInFlight.controller;
+  if (inFlightController && typeof inFlightController.abort === 'function') {
+    inFlightController.abort();
+  }
+  connectionHeartbeatInFlight = null;
+}
+
+function syncConnectionHeartbeatLoop(_reason = 'sync') {
+  if (shouldRunConnectionHeartbeat()) {
+    scheduleConnectionHeartbeat(0);
+    return;
+  }
+  stopConnectionHeartbeat();
+}
+
+async function runConnectionHeartbeat(reason = 'manual') {
+  if (!shouldRunConnectionHeartbeat()) return;
+  if (connectionHeartbeatInFlight && connectionHeartbeatInFlight.promise) {
+    return connectionHeartbeatInFlight.promise;
+  }
+  const endpoint = resolveEndpoint();
+  if (!endpoint) return;
+  const requestId = `hb-${Date.now().toString(16)}-${(connectionHeartbeatSequence += 1).toString(16)}`;
+  const path = CONNECTION_HEARTBEAT_PATH;
+  const method = CONNECTION_HEARTBEAT_METHOD;
+  const startedAtMs = Date.now();
+  const startedAtIso = new Date(startedAtMs).toISOString();
+  const timeoutMs = CONNECTION_HEARTBEAT_TIMEOUT_MS;
+  let didTimeout = false;
+  let timeoutId = null;
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  if (dashboardState && typeof dashboardState.recordHeartbeatAttemptStarted === 'function') {
+    dashboardState.recordHeartbeatAttemptStarted({
+      requestId,
+      path,
+      method,
+      reason
+    });
+  }
+  const heartbeatPromise = (async () => {
+    try {
+      if (controller) {
+        timeoutId = setTimeout(() => {
+          didTimeout = true;
+          if (!controller.signal.aborted) {
+            controller.abort();
+          }
+        }, timeoutMs);
+      }
+      const response = await fetch(`${endpoint}${path}`, {
+        method,
+        credentials: 'same-origin',
+        signal: controller ? controller.signal : undefined
+      });
+      if (!response.ok) {
+        const httpError = new Error(`Heartbeat request failed with status ${response.status}`);
+        httpError.name = 'DashboardHeartbeatHttpError';
+        /** @type {number} */
+        httpError.status = Number(response.status || 0);
+        throw httpError;
+      }
+      if (dashboardState && typeof dashboardState.recordRequestTelemetry === 'function') {
+        dashboardState.recordRequestTelemetry({
+          requestId,
+          path,
+          method,
+          tab: 'status',
+          reason,
+          source: 'heartbeat',
+          startedAt: startedAtIso,
+          durationMs: Math.max(0, Date.now() - startedAtMs),
+          outcome: 'success',
+          statusCode: Number(response.status || 0),
+          aborted: false
+        });
+      }
+      if (dashboardState && typeof dashboardState.recordHeartbeatSuccess === 'function') {
+        dashboardState.recordHeartbeatSuccess({
+          requestId,
+          path,
+          method,
+          statusCode: Number(response.status || 0),
+          transitionReason: 'heartbeat_ok'
+        });
+      }
+    } catch (error) {
+      const statusCode = Number(error && typeof error === 'object' ? error.status || 0 : 0);
+      const failureClass = classifyRequestFailure(error, { didTimeout, statusCode });
+      const errorMessage = didTimeout
+        ? `Request timed out after ${timeoutMs}ms`
+        : String(error && typeof error === 'object' ? error.message || 'Heartbeat request failed' : 'Heartbeat request failed');
+      if (dashboardState && typeof dashboardState.recordRequestTelemetry === 'function') {
+        dashboardState.recordRequestTelemetry({
+          requestId,
+          path,
+          method,
+          tab: 'status',
+          reason,
+          source: 'heartbeat',
+          startedAt: startedAtIso,
+          durationMs: Math.max(0, Date.now() - startedAtMs),
+          outcome: 'failure',
+          failureClass,
+          statusCode,
+          aborted: failureClass === REQUEST_FAILURE_CLASSES.cancelled || didTimeout === true,
+          errorMessage
+        });
+      }
+      if (dashboardState && typeof dashboardState.recordHeartbeatFailure === 'function') {
+        dashboardState.recordHeartbeatFailure({
+          requestId,
+          path,
+          method,
+          statusCode,
+          failureClass,
+          error: errorMessage
+        });
+      }
+    } finally {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+      connectionHeartbeatInFlight = null;
+      scheduleConnectionHeartbeat(CONNECTION_HEARTBEAT_INTERVAL_MS);
+    }
+  })();
+  connectionHeartbeatInFlight = {
+    promise: heartbeatPromise,
+    controller
+  };
+  return heartbeatPromise;
 }
 
 function resolveEndpoint() {
@@ -195,22 +373,38 @@ function invalidateAfterConfigSave(nextConfig = null) {
 function applyAdversarySimStatusSnapshot(status = null) {
   if (!dashboardState || !isObject(status)) return;
   const existing = dashboardState.getSnapshot('config');
-  const base = isObject(existing) ? existing : {};
+  const base = isObject(existing) ? existing : null;
+  if (!base) return;
+  if (Object.keys(base).length === 0) return;
   const next = { ...base };
-  if (typeof status.runtime_environment === 'string' && status.runtime_environment.trim()) {
+  let changed = false;
+  if (
+    (typeof next.runtime_environment !== 'string' || !next.runtime_environment.trim()) &&
+    typeof status.runtime_environment === 'string' &&
+    status.runtime_environment.trim()
+  ) {
     next.runtime_environment = status.runtime_environment.trim();
+    changed = true;
   }
-  if (typeof status.adversary_sim_available === 'boolean') {
+  if (
+    next.adversary_sim_available === undefined &&
+    typeof status.adversary_sim_available === 'boolean'
+  ) {
     next.adversary_sim_available = status.adversary_sim_available;
-  }
-  if (typeof status.adversary_sim_enabled === 'boolean') {
-    next.adversary_sim_enabled = status.adversary_sim_enabled;
+    changed = true;
   }
   const durationSeconds = Number(status.duration_seconds);
-  if (Number.isFinite(durationSeconds) && durationSeconds > 0) {
+  if (
+    next.adversary_sim_duration_seconds === undefined &&
+    Number.isFinite(durationSeconds) &&
+    durationSeconds > 0
+  ) {
     next.adversary_sim_duration_seconds = Math.floor(durationSeconds);
+    changed = true;
   }
-  dashboardState.setSnapshot('config', next);
+  if (changed) {
+    dashboardState.setSnapshot('config', next);
+  }
 }
 
 function invalidateAfterBanMutation() {
@@ -224,7 +418,7 @@ export async function mountDashboardApp(options = {}) {
 
   runtimeMountOptions = normalizeRuntimeMountOptions(options);
   dashboardState = resolveDashboardStateStore(options);
-  setBackendConnectionState(false, '');
+  setBackendConnectionState(null, '');
 
   resolveAdminApiEndpoint = adminEndpointModule.createAdminEndpointResolver({ window });
 
@@ -239,18 +433,11 @@ export async function mountDashboardApp(options = {}) {
         dashboardRefreshRuntime.clearAllCaches();
       }
       setSessionState(false, '');
-      setBackendConnectionState(true, '');
     },
-    onBackendConnected: () => {
-      setBackendConnectionState(true, '');
+    onRequestTelemetry: (event) => {
+      if (!dashboardState || typeof dashboardState.recordRequestTelemetry !== 'function') return;
+      dashboardState.recordRequestTelemetry(event);
     },
-    onBackendDisconnected: (error) => {
-      const message =
-        error && typeof error.message === 'string'
-          ? error.message
-          : 'Backend request failed';
-      setBackendConnectionState(false, message);
-    }
   });
 
   dashboardRefreshRuntime = createDashboardRefreshRuntime({
@@ -262,6 +449,7 @@ export async function mountDashboardApp(options = {}) {
 
   dashboardState.setActiveTab(runtimeMountOptions.initialTab);
   runtimeMounted = true;
+  syncConnectionHeartbeatLoop('runtime-mounted');
 }
 
 export function getDashboardActiveTab() {
@@ -283,7 +471,9 @@ export async function refreshDashboardTab(tab, reason = 'manual', options = {}) 
 }
 
 export async function restoreDashboardSession() {
-  return restoreSessionFromServer();
+  const restored = await restoreSessionFromServer();
+  syncConnectionHeartbeatLoop(restored ? 'session-restored' : 'session-restore-failed');
+  return restored;
 }
 
 export function getDashboardSessionState() {
@@ -313,11 +503,12 @@ export async function logoutDashboardSession() {
     } catch (_error) {}
   }
   setSessionState(false, '');
+  syncConnectionHeartbeatLoop('logout');
 }
 
-export async function updateDashboardConfig(patch) {
+export async function updateDashboardConfig(patch, requestOptions = {}) {
   const apiClient = requireApiClient();
-  const response = await apiClient.updateConfig(patch || {});
+  const response = await apiClient.updateConfig(patch || {}, requestOptions || {});
   const nextConfig =
     response && typeof response === 'object' && response.config && typeof response.config === 'object'
       ? response.config
@@ -326,21 +517,21 @@ export async function updateDashboardConfig(patch) {
   return nextConfig;
 }
 
-export async function validateDashboardConfigPatch(patch) {
+export async function validateDashboardConfigPatch(patch, requestOptions = {}) {
   const apiClient = requireApiClient();
-  return apiClient.validateConfigPatch(patch || {});
+  return apiClient.validateConfigPatch(patch || {}, requestOptions || {});
 }
 
-export async function getDashboardAdversarySimStatus() {
+export async function getDashboardAdversarySimStatus(requestOptions = {}) {
   const apiClient = requireApiClient();
-  const status = await apiClient.getAdversarySimStatus();
+  const status = await apiClient.getAdversarySimStatus(requestOptions || {});
   applyAdversarySimStatusSnapshot(status);
   return status;
 }
 
-export async function controlDashboardAdversarySim(enabled) {
+export async function controlDashboardAdversarySim(enabled, requestOptions = {}) {
   const apiClient = requireApiClient();
-  const response = await apiClient.controlAdversarySim(enabled === true);
+  const response = await apiClient.controlAdversarySim(enabled === true, requestOptions || {});
   const status = isObject(response.status) ? response.status : {};
   const nextConfig = isObject(response.config) ? response.config : null;
   if (nextConfig) {
@@ -354,23 +545,23 @@ export async function controlDashboardAdversarySim(enabled) {
   };
 }
 
-export async function banDashboardIp(ip, duration, reason = 'manual_ban') {
+export async function banDashboardIp(ip, duration, reason = 'manual_ban', requestOptions = {}) {
   const apiClient = requireApiClient();
-  const response = await apiClient.banIp(ip, duration, reason);
+  const response = await apiClient.banIp(ip, duration, reason, requestOptions || {});
   invalidateAfterBanMutation();
   return response;
 }
 
-export async function unbanDashboardIp(ip) {
+export async function unbanDashboardIp(ip, requestOptions = {}) {
   const apiClient = requireApiClient();
-  const response = await apiClient.unbanIp(ip);
+  const response = await apiClient.unbanIp(ip, requestOptions || {});
   invalidateAfterBanMutation();
   return response;
 }
 
-export async function getDashboardRobotsPreview(patch = null) {
+export async function getDashboardRobotsPreview(patch = null, requestOptions = {}) {
   const apiClient = requireApiClient();
-  return apiClient.getRobotsPreview(patch);
+  return apiClient.getRobotsPreview(patch, requestOptions || {});
 }
 
 export async function getDashboardEvents(hours = 24, options = {}) {
@@ -381,7 +572,8 @@ export async function getDashboardEvents(hours = 24, options = {}) {
 export function unmountDashboardApp() {
   if (!runtimeMounted) return;
   runtimeMounted = false;
-  setBackendConnectionState(false, '');
+  stopConnectionHeartbeat();
+  setBackendConnectionState(null, '');
   runtimeMountOptions = normalizeRuntimeMountOptions({});
   dashboardApiClient = null;
   dashboardState = null;

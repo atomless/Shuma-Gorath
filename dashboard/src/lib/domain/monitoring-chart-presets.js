@@ -34,19 +34,22 @@ const buildTimeSeriesFill = (palette) =>
     pow: String(palette[2] || '')
   });
 
-const resolveRuntimeHueFromBodyClass = (documentRef) => {
-  const classList = documentRef?.body?.classList;
+const resolveRuntimeHueFromRuntimeClass = (documentRef) => {
+  const classList = documentRef?.documentElement?.classList || documentRef?.body?.classList;
   if (!classList || typeof classList.contains !== 'function') return null;
   if (classList.contains('runtime-prod')) return MONITORING_RUNTIME_HUES['runtime-prod'];
   if (classList.contains('runtime-dev')) return MONITORING_RUNTIME_HUES['runtime-dev'];
   return null;
 };
 
+const resolveStyleNode = (documentRef) => documentRef?.body || documentRef?.documentElement || null;
+
 const resolveCssHueOverride = (documentRef, windowRef) => {
-  if (!documentRef?.body || !windowRef || typeof windowRef.getComputedStyle !== 'function') {
+  const styleNode = resolveStyleNode(documentRef);
+  if (!styleNode || !windowRef || typeof windowRef.getComputedStyle !== 'function') {
     return null;
   }
-  const computed = windowRef.getComputedStyle(documentRef.body);
+  const computed = windowRef.getComputedStyle(styleNode);
   const raw = computed && typeof computed.getPropertyValue === 'function'
     ? computed.getPropertyValue('--hue')
     : '';
@@ -57,10 +60,11 @@ const resolveCssHueOverride = (documentRef, windowRef) => {
 };
 
 const resolveLegendColor = (documentRef, windowRef, hue) => {
-  if (!documentRef?.body || !windowRef || typeof windowRef.getComputedStyle !== 'function') {
+  const styleNode = resolveStyleNode(documentRef);
+  if (!styleNode || !windowRef || typeof windowRef.getComputedStyle !== 'function') {
     return `hsl(${hue}, ${DEFAULT_LEGEND_FALLBACK_SATURATION}%, ${DEFAULT_LEGEND_FALLBACK_LIGHTNESS}%)`;
   }
-  const computed = windowRef.getComputedStyle(documentRef.body);
+  const computed = windowRef.getComputedStyle(styleNode);
   const color = computed && typeof computed.getPropertyValue === 'function'
     ? String(computed.getPropertyValue('--muted-fg') || '').trim()
     : '';
@@ -86,7 +90,7 @@ export const MONITORING_TIME_SERIES_FILL = buildTimeSeriesFill(MONITORING_CHART_
 export const resolveMonitoringChartTheme = (options = {}) => {
   const documentRef = options.documentRef || (typeof document !== 'undefined' ? document : null);
   const windowRef = options.windowRef || (typeof window !== 'undefined' ? window : null);
-  const runtimeHue = resolveRuntimeHueFromBodyClass(documentRef);
+  const runtimeHue = resolveRuntimeHueFromRuntimeClass(documentRef);
   const cssHue = resolveCssHueOverride(documentRef, windowRef);
   const fallbackHue = MONITORING_RUNTIME_HUES[DEFAULT_RUNTIME_CLASS];
   const hue = normalizeHue(
@@ -107,6 +111,7 @@ export const MONITORING_TIME_SERIES_TICK_PADDING = 10;
 export const MONITORING_TIME_SERIES_AXIS_HEIGHT_PX = 34;
 export const MONITORING_TIME_SERIES_TICK_MAX_CHARS = 12;
 export const MONITORING_TIME_SERIES_OMIT_FINAL_TICK_LABEL = true;
+export const MONITORING_COUNT_AXIS_TICK_MAX = 10;
 
 const toBoundedInteger = (value, fallback, min, max) => {
   const numeric = Number(value);
@@ -120,6 +125,20 @@ const normalizeTickLabel = (value, maxChars) => {
   if (text.length <= maxChars) return text;
   if (maxChars <= 3) return text.slice(0, maxChars);
   return `${text.slice(0, maxChars - 3)}...`;
+};
+
+const toNonNegativeNumber = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) return 0;
+  return numeric;
+};
+
+const deriveCountAxisStepSize = (values, maxTicksLimit) => {
+  const source = Array.isArray(values) ? values : [values];
+  const maxValue = source.reduce((max, value) => Math.max(max, toNonNegativeNumber(value)), 0);
+  const maxIntervals = Math.max(1, maxTicksLimit - 1);
+  if (maxValue <= maxIntervals) return 1;
+  return Math.max(1, Math.ceil(maxValue / maxIntervals));
 };
 
 export const buildMonitoringTimeSeriesXAxis = (options = {}) => {
@@ -175,6 +194,23 @@ export const buildMonitoringTimeSeriesXAxis = (options = {}) => {
     afterFit(scale) {
       if (!scale) return;
       scale.height = axisHeightPx;
+    }
+  };
+};
+
+export const buildMonitoringCountYAxis = (values, options = {}) => {
+  const maxTicksLimit = toBoundedInteger(
+    options.maxTicksLimit,
+    MONITORING_COUNT_AXIS_TICK_MAX,
+    2,
+    40
+  );
+  return {
+    beginAtZero: true,
+    ticks: {
+      stepSize: deriveCountAxisStepSize(values, maxTicksLimit),
+      maxTicksLimit,
+      precision: 0
     }
   };
 };

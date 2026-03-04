@@ -97,6 +97,18 @@ This file provides instructions for coding agents working in this repository.
    - before claiming a new `make` command is complete, agents MUST verify and document its real blast radius and data scope (for example runtime-specific vs shared keyspace, dev-only vs prod-only, destructive vs non-destructive);
    - when architecture constraints prevent strict semantics implied by a target name, agents MUST either (a) choose an accurate name, or (b) explicitly call out the limitation in help/docs and completion notes before merge;
    - ambiguous or misleading command naming/claims are process failures and must be corrected before completion.
+17. Non-negotiable scope-lock and critical-state change gate (release-blocking):
+   - for local issues (for example chart tick density, label rendering, or component-scoped UI behavior), agents MUST keep the first remediation slice scoped to the local module and MUST NOT modify global runtime/auth/connection/polling state flows in that same slice;
+   - before changing any cross-cutting dashboard state path (connection state derivation, auth/session lifecycle, polling scheduler, route controller cancellation semantics, or global body/root class state), agents MUST present a file:line causal chain proving the local issue originates in that path and MUST receive explicit user signoff;
+   - agents MUST NOT combine a local bugfix and a critical-state architecture change in one patch series without explicit approval for the architecture change;
+   - for connection/auth/polling state changes, agents MUST add targeted regression tests that prove stability under cancellation/retry overlap (for example no connected/disconnected oscillation from client-side abort churn);
+   - if investigation shows uncertainty about root cause, agents MUST instrument and gather evidence first, then propose the smallest change that addresses the proven cause.
+18. Non-negotiable user no-touch and exact-restore contract (release-blocking):
+   - when the user says not to touch specific files/regions/behaviors, agents MUST treat those areas as frozen and MUST NOT edit them for any reason unless the user later gives explicit permission;
+   - if an agent violates a no-touch instruction or is asked to revert, the agent MUST restore the exact prior code (byte-for-byte where feasible) from authoritative evidence (`git` history/reflog/stash/recoverable objects), not an approximation;
+   - agents MUST NEVER ad-lib, synthesize, or "best-guess" replacement code while claiming it is a restoration of prior code;
+   - if exact prior content cannot be proven/recovered, the agent MUST stop, state that clearly, and request the missing source (commit hash/snippet/backup) before making further edits in that area;
+   - completion claims for a revert are invalid unless the response includes concrete evidence of exact restoration (source reference and diff confirmation).
 
 ## Security and abuse posture
 

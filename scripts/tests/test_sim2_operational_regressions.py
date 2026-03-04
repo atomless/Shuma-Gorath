@@ -80,6 +80,10 @@ class Sim2OperationalRegressionUnitTests(unittest.TestCase):
         payload = regressions.evaluate_report(sample_report())
         self.assertTrue(payload["status"]["passed"])
         self.assertEqual(payload["status"]["failure_count"], 0)
+        self.assertEqual(
+            payload["evaluation_mode"]["min_large_payload_samples_for_compression_check"],
+            1,
+        )
 
     def test_evaluate_report_emits_failure_taxonomy_when_thresholds_regress(self):
         report = sample_report()
@@ -126,6 +130,22 @@ class Sim2OperationalRegressionUnitTests(unittest.TestCase):
         self.assertIn("domain_missing:cost_governance:", joined)
         self.assertIn("domain_missing:security_privacy:", joined)
 
+    def test_evaluate_report_allows_selected_missing_domains_in_advisory_mode(self):
+        report = sample_report()
+        del report["failure_injection"]
+        del report["prod_mode_monitoring"]
+
+        payload = regressions.evaluate_report(
+            report,
+            allow_missing_domains={"failure_injection", "prod_mode_monitoring"},
+        )
+        self.assertTrue(payload["status"]["passed"])
+        self.assertEqual(payload["status"]["failure_count"], 0)
+        self.assertEqual(
+            payload["evaluation_mode"]["allow_missing_domains"],
+            ["failure_injection", "prod_mode_monitoring"],
+        )
+
     def test_evaluate_report_fails_when_required_retention_cost_security_metrics_are_missing(self):
         report = sample_report()
         del report["retention_lifecycle"]["purge_lag_hours"]
@@ -141,6 +161,24 @@ class Sim2OperationalRegressionUnitTests(unittest.TestCase):
         self.assertIn("missing_metrics=payload_p95_kb", joined)
         self.assertIn("domain_missing_metric:security_privacy:", joined)
         self.assertIn("missing_metrics=secret_canary_leak_count", joined)
+
+    def test_evaluate_report_skips_compression_threshold_with_insufficient_samples(self):
+        report = sample_report()
+        report["cost_governance"]["large_payload_sample_count"] = 1
+        report["cost_governance"]["compression_reduction_percent"] = 0
+
+        payload = regressions.evaluate_report(
+            report,
+            min_large_payload_samples_for_compression_check=2,
+        )
+        self.assertTrue(payload["status"]["passed"])
+        compression_check = next(
+            check
+            for check in payload["checks"]
+            if check["id"] == "cost_compression_effectiveness"
+        )
+        self.assertTrue(compression_check["passed"])
+        self.assertIn("compression_check=skipped_insufficient_samples", compression_check["detail"])
 
 
 if __name__ == "__main__":

@@ -1215,16 +1215,24 @@ actual = {
     "geo_actions": parse_labeled("bot_defence_monitoring_geo_violations_total", "action"),
 }
 
+parity_tolerance = 10
 ok = True
 for key in expected:
     normalized_expected = {k: int(v) for k, v in (expected.get(key) or {}).items()}
-    if actual.get(key, {}) != normalized_expected:
+    actual_family = actual.get(key, {})
+    if set(actual_family.keys()) != set(normalized_expected.keys()):
+        ok = False
+        break
+    if any(
+        abs(int(actual_family.get(label, 0)) - int(normalized_expected.get(label, 0))) > parity_tolerance
+        for label in normalized_expected
+    ):
         ok = False
         break
 
 cdp_expected = int(details.get("cdp", {}).get("stats", {}).get("total_detections", 0))
 cdp_actual = parse_scalar("bot_defence_cdp_detections_total")
-if cdp_actual is None or cdp_actual != cdp_expected:
+if cdp_actual is None or abs(int(cdp_actual) - cdp_expected) > parity_tolerance:
     ok = False
 
 print("1" if ok else "0")

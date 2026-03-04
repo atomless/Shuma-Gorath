@@ -1,0 +1,106 @@
+{
+  "schema_version": "sim2-adr-conformance.v2",
+  "checks": [
+    {
+      "id": "adr_0007",
+      "passed": true,
+      "detail": "all markers present",
+      "path": "docs/adr/0007-adversary-sim-toggle-command-controller.md",
+      "required_markers": [
+        "Trust-Boundary",
+        "adversary-sim/control",
+        "SIM2-GC-11"
+      ],
+      "missing_markers": []
+    },
+    {
+      "id": "adr_0008",
+      "passed": true,
+      "detail": "all markers present",
+      "path": "docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md",
+      "required_markers": [
+        "cursor",
+        "SSE",
+        "SIM2-GC-11"
+      ],
+      "missing_markers": []
+    },
+    {
+      "id": "adr_0009",
+      "passed": true,
+      "detail": "all markers present",
+      "path": "docs/adr/0009-telemetry-lifecycle-retention-cost-security.md",
+      "required_markers": [
+        "retention",
+        "cost",
+        "security/privacy",
+        "SIM2-GC-11"
+      ],
+      "missing_markers": []
+    },
+    {
+      "id": "api_control_endpoint",
+      "passed": true,
+      "detail": "all markers present",
+      "path": "src/admin/api.rs",
+      "required_markers": [
+        "/admin/adversary-sim/control",
+        "validate_origin_and_fetch_metadata"
+      ],
+      "missing_markers": []
+    },
+    {
+      "id": "api_realtime_endpoints",
+      "passed": true,
+      "detail": "all markers present",
+      "path": "src/admin/api.rs",
+      "required_markers": [
+        "/admin/monitoring/delta",
+        "/admin/monitoring/stream",
+        "strict_monotonic_cursor_ascending"
+      ],
+      "missing_markers": []
+    },
+    {
+      "id": "promotion_hybrid_policy",
+      "passed": true,
+      "detail": "all markers present",
+      "path": "scripts/tests/adversarial_promote_candidates.py",
+      "required_markers": [
+        "HYBRID_CONFIRMATION_MIN_PERCENT",
+        "HYBRID_FALSE_DISCOVERY_MAX_PERCENT",
+        "HYBRID_OWNER_DISPOSITION_SLA_HOURS"
+      ],
+      "missing_markers": []
+    },
+    {
+      "id": "evidence_realtime_envelope",
+      "passed": true,
+      "detail": "events_per_sec=1000 operator_clients=5"
+    },
+    {
+      "id": "evidence_realtime_runtime_prod_claim_scope",
+      "passed": true,
+      "detail": "claims_runtime_prod_verification=False"
+    },
+    {
+      "id": "evidence_retention_required_fields",
+      "passed": true,
+      "detail": "all required fields present"
+    },
+    {
+      "id": "evidence_cost_required_fields",
+      "passed": true,
+      "detail": "all required fields present"
+    },
+    {
+      "id": "evidence_security_required_fields",
+      "passed": true,
+      "detail": "all required fields present"
+    }
+  ],
+  "status": {
+    "passed": true,
+    "failures": []
+  }
+}
