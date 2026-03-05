@@ -43,6 +43,8 @@ cd Shuma-Gorath
 - [`plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md) - Deployment-track and adversarial-traffic simulation execution plan
 - [`plans/2026-03-05-gateway-first-existing-site-deployment-plan.md`](plans/2026-03-05-gateway-first-existing-site-deployment-plan.md) - Gateway-only plan for existing-site adoption with one policy core and secure upstream integration
 - [`research/2026-03-05-gateway-only-spin-architecture-research-synthesis.md`](research/2026-03-05-gateway-only-spin-architecture-research-synthesis.md) - Two-pass gateway architecture synthesis (Spin constraints + codebase impact map)
+- [`research/2026-03-05-gateway-first-tranche-conformance-review.md`](research/2026-03-05-gateway-first-tranche-conformance-review.md) - DEP-GW-1 completion conformance review and evidence matrix
+- [`research/2026-03-05-gateway-first-post-tranche-cleanup-review.md`](research/2026-03-05-gateway-first-post-tranche-cleanup-review.md) - Post-tranche cleanup findings and gateway follow-on architecture work
 - [`plans/2026-02-25-adversarial-simulation-fast-smoke-design.md`](plans/2026-02-25-adversarial-simulation-fast-smoke-design.md) - Initial executable manifest + runner + mandatory fast-smoke gate design
 - [`plans/2026-02-27-sim2-shortfall-1-black-box-capability-enforcement-plan.md`](plans/2026-02-27-sim2-shortfall-1-black-box-capability-enforcement-plan.md) - SIM2 black-box capability hardening plan
 - [`plans/2026-02-27-sim2-shortfall-2-coverage-contract-governance-plan.md`](plans/2026-02-27-sim2-shortfall-2-coverage-contract-governance-plan.md) - SIM2 coverage-contract governance plan

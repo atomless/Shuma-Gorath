@@ -53,7 +53,9 @@ pub(crate) fn plan_for_decision(
                     outcome: format!("matched_cidr={}", matched_cidr),
                 },
             ],
-            response: ResponseIntent::OkBody("OK (ip range emergency allowlisted)".to_string()),
+            response: ResponseIntent::ForwardAllow {
+                reason: "ip_range_emergency_allowlist".to_string(),
+            },
         },
         PolicyDecision::IpRangeAdvisory { details } => {
             let signal_ids = ip_range_signal_ids(&details.source);
@@ -829,7 +831,7 @@ mod tests {
     fn response_label(response: &ResponseIntent) -> &'static str {
         match response {
             ResponseIntent::Continue => "continue",
-            ResponseIntent::OkBody(_) => "ok_body",
+            ResponseIntent::ForwardAllow { .. } => "forward_allow",
             ResponseIntent::BlockPage { .. } => "block_page",
             ResponseIntent::PlainTextBlock { .. } => "plain_text_block",
             ResponseIntent::DropConnection => "drop_connection",
@@ -860,6 +862,31 @@ mod tests {
             intents,
             response_label(&plan.response)
         )
+    }
+
+    #[test]
+    fn ip_range_emergency_allowlist_emits_forward_allow_response_intent() {
+        let facts = {
+            let mut f = facts();
+            f.ip_range_evaluation = crate::signals::ip_range_policy::Evaluation::EmergencyAllowlisted {
+                matched_cidr: "203.0.113.0/24".to_string(),
+            };
+            f
+        };
+        let mut cfg = cfg();
+        cfg.ip_range_policy_mode = crate::config::IpRangePolicyMode::Enforce;
+        let decisions = crate::runtime::policy_graph::evaluate_first_tranche(&facts, &cfg);
+        assert_eq!(decisions.len(), 1);
+        let plan = plan_for_decision(&decisions[0], &facts, &cfg);
+        assert!(
+            matches!(
+                plan.response,
+                ResponseIntent::ForwardAllow { ref reason }
+                if reason == "ip_range_emergency_allowlist"
+            ),
+            "expected ForwardAllow response intent, got {:?}",
+            response_label(&plan.response)
+        );
     }
 
     #[test]

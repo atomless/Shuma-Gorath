@@ -309,6 +309,8 @@ async function runScenario(payload) {
         const { response, content } = await navigate("/");
         const status = Number(response?.status() || 0);
         const bodyLower = String(content || "").toLowerCase();
+        const gatewayForwardingUnavailable =
+          status === 500 && bodyLower.includes("gateway forwarding unavailable");
         const frictionMarkers = [
           "access blocked",
           "access restricted",
@@ -318,13 +320,16 @@ async function runScenario(payload) {
           "puzzle",
         ];
         if (
-          status !== 200 ||
+          (status !== 200 && !gatewayForwardingUnavailable) ||
           frictionMarkers.some((marker) => bodyLower.includes(marker))
         ) {
           throw new Error(`browser_allow_expected_clean_allow status=${status}`);
         }
         appendDomPath(evidence, "read", "body");
-        return { observed_outcome: "allow", detail: "ok" };
+        return {
+          observed_outcome: "allow",
+          detail: gatewayForwardingUnavailable ? "gateway_forwarding_unavailable" : "ok",
+        };
       }
 
       if (action === "not_a_bot_pass") {

@@ -66,6 +66,12 @@ fail() {
 }
 info() { echo -e "${YELLOW}INFO${NC} $1"; }
 
+is_gateway_forward_unavailable() {
+  local status="$1"
+  local body="$2"
+  [[ "$status" == "500" ]] && echo "$body" | grep -q "Gateway forwarding unavailable"
+}
+
 BASE_URL="http://127.0.0.1:3000"
 TEST_CLEANUP_IPS=(
   127.0.0.1
@@ -484,14 +490,19 @@ fi
 # Test 3: Root endpoint (should return JS challenge or OK)
 info "Testing root endpoint..."
 
-root_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_HONEYPOT_IP}" "$BASE_URL/")
-if echo "$root_resp" | grep -qE '(js_verified|JavaScript|Verifying|pow|Proof-of-work)'; then
+root_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_HONEYPOT_IP}" "$BASE_URL/")
+root_body=$(echo "$root_resp" | sed -e 's/HTTPSTATUS:.*//')
+root_status=$(echo "$root_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+if echo "$root_body" | grep -qE '(js_verified|JavaScript|Verifying|pow|Proof-of-work)'; then
   pass "/ returns JS challenge (PoW or standard)"
-elif echo "$root_resp" | grep -q 'OK (passed bot defence)'; then
+elif echo "$root_body" | grep -q 'OK (passed bot defence)'; then
   pass "/ returns pass-through response for current low-risk policy posture"
+elif is_gateway_forward_unavailable "$root_status" "$root_body"; then
+  pass "/ fails closed with gateway forwarding unavailable when upstream is not configured"
 else
   fail "/ did not return expected JS challenge or pass-through response"
-  echo -e "${YELLOW}DEBUG / response:${NC} $root_resp"
+  echo -e "${YELLOW}DEBUG / status:${NC} $root_status"
+  echo -e "${YELLOW}DEBUG / response:${NC} $root_body"
 fi
 
 # Test 3a: Browser allowlist bypass remains active when browser policy is disabled
@@ -501,15 +512,20 @@ curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -d '{"browser_policy_enabled":false,"browser_allowlist":[["Chrome",120]]}' \
   "$BASE_URL/admin/config" > /dev/null || true
 
-js_allowlist_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" \
+js_allowlist_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" \
   -H "X-Forwarded-For: ${TEST_JS_ALLOWLIST_IP}" \
   -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
   "$BASE_URL/")
-if echo "$js_allowlist_resp" | grep -q "OK (passed bot defence)"; then
+js_allowlist_body=$(echo "$js_allowlist_resp" | sed -e 's/HTTPSTATUS:.*//')
+js_allowlist_status=$(echo "$js_allowlist_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+if echo "$js_allowlist_body" | grep -q "OK (passed bot defence)"; then
   pass "JS browser allowlist bypass remains active when browser policy is disabled"
+elif is_gateway_forward_unavailable "$js_allowlist_status" "$js_allowlist_body"; then
+  pass "JS browser allowlist path reaches gateway fail-closed fallback when upstream is unavailable"
 else
   fail "JS browser allowlist bypass did not apply independently of browser policy"
-  echo -e "${YELLOW}DEBUG JS allowlist response:${NC} $js_allowlist_resp"
+  echo -e "${YELLOW}DEBUG JS allowlist status:${NC} $js_allowlist_status"
+  echo -e "${YELLOW}DEBUG JS allowlist response:${NC} $js_allowlist_body"
 fi
 
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
@@ -953,12 +969,16 @@ else
     echo -e "${YELLOW}DEBUG advisory ip-range config:${NC} $advisory_cfg"
   else
     advisory_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.250" "$BASE_URL/")
+    advisory_body=$(echo "$advisory_resp" | sed -e 's/HTTPSTATUS:.*//')
     advisory_status=$(echo "$advisory_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
     if [[ "$advisory_status" == "200" ]]; then
       pass "IP-range advisory mode logs match without blocking"
+    elif is_gateway_forward_unavailable "$advisory_status" "$advisory_body"; then
+      pass "IP-range advisory mode preserves allow semantics; gateway fails closed while upstream is unavailable"
     else
       fail "IP-range advisory mode unexpectedly blocked request"
       echo -e "${YELLOW}DEBUG advisory status:${NC} $advisory_status"
+      echo -e "${YELLOW}DEBUG advisory body:${NC} $advisory_body"
     fi
   fi
 
@@ -991,12 +1011,16 @@ else
     echo -e "${YELLOW}DEBUG allowlist ip-range config:${NC} $allowlist_cfg"
   else
     allowlisted_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.250" "$BASE_URL/")
+    allowlisted_body=$(echo "$allowlisted_resp" | sed -e 's/HTTPSTATUS:.*//')
     allowlisted_status=$(echo "$allowlisted_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
     if [[ "$allowlisted_status" == "200" ]]; then
       pass "IP-range emergency allowlist overrides custom blocking rule"
+    elif is_gateway_forward_unavailable "$allowlisted_status" "$allowlisted_body"; then
+      pass "IP-range emergency allowlist bypasses blocking rule; gateway fails closed while upstream is unavailable"
     else
       fail "IP-range emergency allowlist did not override custom blocking rule"
       echo -e "${YELLOW}DEBUG allowlisted status:${NC} $allowlisted_status"
+      echo -e "${YELLOW}DEBUG allowlisted body:${NC} $allowlisted_body"
     fi
   fi
 

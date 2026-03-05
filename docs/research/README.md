@@ -45,6 +45,10 @@ Completed archive index:
 
 1. [`2026-03-05-gateway-only-spin-architecture-research-synthesis.md`](2026-03-05-gateway-only-spin-architecture-research-synthesis.md)  
    Two-pass synthesis for gateway-only production posture, combining Spin/Fermyon platform constraints, reverse-proxy trust-boundary best practice, and current Shuma codebase impact mapping.
+2. [`2026-03-05-gateway-first-tranche-conformance-review.md`](2026-03-05-gateway-first-tranche-conformance-review.md)  
+   Implementation conformance review against `DEP-GW-1` acceptance criteria with completion evidence.
+3. [`2026-03-05-gateway-first-post-tranche-cleanup-review.md`](2026-03-05-gateway-first-post-tranche-cleanup-review.md)  
+   Post-tranche cleanup and knock-on architecture review, including follow-on hardening opportunities.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

@@ -11,16 +11,24 @@ fn lock_env() -> MutexGuard<'static, ()> {
 }
 
 fn request(method: Method, path: &str, headers: &[(&str, &str)]) -> Request {
+    request_with_body(method, path, headers, &[])
+}
+
+fn request_with_body(method: Method, path: &str, headers: &[(&str, &str)], body: &[u8]) -> Request {
     let mut builder = Request::builder();
     builder.method(method).uri(path);
     for (key, value) in headers {
         builder.header(*key, *value);
     }
-    builder.body(Vec::new());
+    builder.body(body.to_vec());
     builder.build()
 }
 
 fn with_runtime_env<T>(f: impl FnOnce() -> T) -> T {
+    with_runtime_env_overrides(&[], f)
+}
+
+fn with_runtime_env_overrides<T>(overrides: &[(&str, Option<&str>)], f: impl FnOnce() -> T) -> T {
     let _lock = lock_env();
     let vars = [
         ("SHUMA_API_KEY", "test-admin-key"),
@@ -49,13 +57,35 @@ fn with_runtime_env<T>(f: impl FnOnce() -> T) -> T {
             "SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED",
             "true",
         ),
+        ("SHUMA_GATEWAY_NATIVE_TEST_MODE", "echo"),
     ];
     for (key, value) in vars {
         std::env::set_var(key, value);
     }
+    for (key, value) in overrides {
+        match value {
+            Some(v) => std::env::set_var(key, v),
+            None => std::env::remove_var(key),
+        }
+    }
     std::env::remove_var("SHUMA_HEALTH_SECRET");
     std::env::remove_var("SHUMA_ADMIN_IP_ALLOWLIST");
     f()
+}
+
+fn response_body_string(resp: &spin_sdk::http::Response) -> String {
+    String::from_utf8_lossy(resp.body()).to_string()
+}
+
+fn response_json(resp: &spin_sdk::http::Response) -> serde_json::Value {
+    serde_json::from_slice(resp.body()).expect("response body must be json")
+}
+
+fn json_header<'a>(payload: &'a serde_json::Value, key: &str) -> Option<&'a str> {
+    payload
+        .get("headers")
+        .and_then(|headers| headers.get(key))
+        .and_then(|value| value.as_str())
 }
 
 #[test]
@@ -111,10 +141,182 @@ fn static_asset_path_bypasses_expensive_bot_checks() {
         let resp = shuma_gorath::handle_bot_defence_impl(&req);
 
         assert_eq!(*resp.status(), 200u16);
-        assert_eq!(
-            String::from_utf8_lossy(resp.body()),
-            "OK (passed bot defence)"
+        let body = String::from_utf8_lossy(resp.body());
+        assert!(body.contains("\"mode\":\"native_echo\""), "body={}", body);
+        assert!(
+            body.contains("\"x-shuma-forward-reason\":\"static_asset_bypass\""),
+            "body={}",
+            body
         );
+    });
+}
+
+#[test]
+fn allow_path_forwards_fidelity_and_regenerates_trusted_forwarded_headers() {
+    with_runtime_env(|| {
+        let req = request_with_body(
+            Method::Get,
+            "/assets/catalog.json?alpha=1&beta=2",
+            &[
+                ("host", "public.example.com"),
+                ("connection", "keep-alive, x-remove-me"),
+                ("x-remove-me", "remove-this-hop-header"),
+                ("authorization", "Bearer attacker-token"),
+                ("forwarded", r#"for=1.1.1.1;proto=http;host="evil.example""#),
+                ("x-forwarded-for", "198.51.100.77"),
+                ("x-forwarded-host", "evil.example"),
+                ("x-forwarded-proto", "http"),
+                ("x-shuma-forwarded-secret", "test-forwarded-secret"),
+                ("x-shuma-admin-api-key", "leak-attempt"),
+            ],
+            &[],
+        );
+        let resp = shuma_gorath::handle_bot_defence_impl(&req);
+
+        assert_eq!(*resp.status(), 200u16);
+        let payload = response_json(&resp);
+        assert_eq!(payload["mode"], "native_echo");
+        assert!(
+            payload["method"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("GET")
+        );
+        assert_eq!(
+            payload["uri"],
+            "https://origin.example.com/assets/catalog.json?alpha=1&beta=2"
+        );
+        assert_eq!(
+            json_header(&payload, "x-shuma-forward-reason"),
+            Some("static_asset_bypass")
+        );
+        assert_eq!(json_header(&payload, "x-shuma-gateway-hop"), Some("1"));
+        assert_eq!(json_header(&payload, "x-forwarded-for"), Some("198.51.100.77"));
+        assert_eq!(
+            json_header(&payload, "x-forwarded-host"),
+            Some("public.example.com")
+        );
+        assert_eq!(json_header(&payload, "x-forwarded-proto"), Some("http"));
+        assert_eq!(
+            json_header(&payload, "forwarded"),
+            Some(r#"for=198.51.100.77;proto=http;host="public.example.com""#)
+        );
+        assert!(
+            json_header(&payload, "host").is_none(),
+            "proxy must not forward Host header"
+        );
+        assert!(
+            json_header(&payload, "authorization").is_none(),
+            "proxy must strip privileged request auth"
+        );
+        assert!(
+            json_header(&payload, "x-remove-me").is_none(),
+            "proxy must strip connection-token hop header"
+        );
+        assert!(
+            json_header(&payload, "x-shuma-admin-api-key").is_none(),
+            "proxy must strip x-shuma-* privileged headers"
+        );
+        assert_eq!(payload["body_len"], 0);
+    });
+}
+
+#[test]
+fn allow_path_rewrites_redirect_location_and_cookie_domain_from_upstream() {
+    with_runtime_env_overrides(&[("SHUMA_GATEWAY_NATIVE_TEST_MODE", Some("redirect_cookie"))], || {
+        let req = request(
+            Method::Get,
+            "/assets/app.js",
+            &[("host", "public.example.com"), ("x-forwarded-for", "198.51.100.77")],
+        );
+        let resp = shuma_gorath::handle_bot_defence_impl(&req);
+
+        assert_eq!(*resp.status(), 302u16);
+        let location = resp
+            .headers()
+            .find(|(name, _)| name.eq_ignore_ascii_case("location"))
+            .and_then(|(_, value)| value.as_str())
+            .unwrap_or("");
+        assert_eq!(
+            location,
+            "http://public.example.com/redirected/path?from=fixture"
+        );
+        let set_cookie = resp
+            .headers()
+            .find(|(name, _)| name.eq_ignore_ascii_case("set-cookie"))
+            .and_then(|(_, value)| value.as_str())
+            .unwrap_or("");
+        assert!(set_cookie.contains("Domain=public.example.com"));
+        assert!(resp
+            .headers()
+            .all(|(name, _)| !name.eq_ignore_ascii_case("x-shuma-forward-reason")));
+    });
+}
+
+#[test]
+fn enforcement_paths_remain_local_and_do_not_require_upstream() {
+    with_runtime_env_overrides(
+        &[
+            ("SHUMA_RUNTIME_ENV", Some("runtime-dev")),
+            ("SHUMA_GATEWAY_UPSTREAM_ORIGIN", Some("")),
+            ("SHUMA_GATEWAY_NATIVE_TEST_MODE", None),
+        ],
+        || {
+            let req = request(Method::Get, "/health", &[("host", "public.example.com")]);
+            let resp = shuma_gorath::handle_bot_defence_impl(&req);
+            let body = response_body_string(&resp);
+
+            assert_eq!(*resp.status(), 403u16);
+            assert!(
+                !body.contains("\"mode\":\"native_echo\""),
+                "block/challenge paths must remain local and must not depend on upstream forwarding"
+            );
+        },
+    );
+}
+
+#[test]
+fn allow_paths_fail_closed_when_upstream_forwarding_is_unavailable() {
+    with_runtime_env_overrides(&[("SHUMA_GATEWAY_NATIVE_TEST_MODE", None)], || {
+        let req = request(Method::Get, "/assets/app.js", &[("host", "public.example.com")]);
+        let resp = shuma_gorath::handle_bot_defence_impl(&req);
+
+        assert_eq!(*resp.status(), 502u16);
+        assert_eq!(response_body_string(&resp), "Gateway forwarding unavailable");
+    });
+}
+
+#[test]
+fn loop_hop_guard_blocks_allow_path_when_hop_budget_exceeded() {
+    with_runtime_env(|| {
+        let req = request(
+            Method::Get,
+            "/assets/app.js",
+            &[("host", "public.example.com"), ("x-shuma-gateway-hop", "3")],
+        );
+        let resp = shuma_gorath::handle_bot_defence_impl(&req);
+
+        assert_eq!(*resp.status(), 508u16);
+        assert_eq!(response_body_string(&resp), "Gateway forwarding unavailable");
+    });
+}
+
+#[test]
+fn upgrade_requests_are_explicitly_unsupported_in_gateway_v1() {
+    with_runtime_env(|| {
+        let req = request(
+            Method::Get,
+            "/assets/app.js",
+            &[
+                ("host", "public.example.com"),
+                ("connection", "Upgrade"),
+                ("upgrade", "websocket"),
+            ],
+        );
+        let resp = shuma_gorath::handle_bot_defence_impl(&req);
+
+        assert_eq!(*resp.status(), 403u16);
+        assert_eq!(response_body_string(&resp), "Gateway forwarding unavailable");
     });
 }
 

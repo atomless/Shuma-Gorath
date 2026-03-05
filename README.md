@@ -96,6 +96,10 @@ make dev-prod         # Start watched local server in production runtime posture
 make test             # Full suite: unit + integration + dashboard e2e (requires running server)
 make test-unit        # Unit tests only
 make test-integration # Integration tests (requires running server)
+make test-gateway-harness # Gateway harness + guardrail parser checks
+make test-gateway-profile-shared-server # Shared-server gateway verification
+make test-gateway-profile-edge # Edge/Fermyon gateway verification
+make smoke-gateway-mode # Fast gateway smoke checks
 make build-runtime    # Runtime/deploy build path (no dashboard budget gate)
 make build-full-dev   # Full-dev/CI build path with dashboard budget reporting (set SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE=1 for hard-fail)
 make smoke-single-host # Post-deploy smoke checks (health/admin auth/metrics/challenge)

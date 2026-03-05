@@ -34,6 +34,7 @@ make test                  # Full suite: unit + integration + dashboard e2e (wai
 
 # Unit tests only (native Rust, NO Spin required)
 make test-unit             # Run all unit tests
+make test-gateway-harness  # Gateway fixture/failure harness + deploy guardrail parser tests
 
 # Dashboard module unit tests only (NO Spin required)
 make test-dashboard-unit   # Run dashboard JS/module contract tests
@@ -41,6 +42,9 @@ make test-dashboard-unit   # Run dashboard JS/module contract tests
 # Integration tests only (Spin environment required)
 make dev                   # In terminal 1
 make test-integration      # In terminal 2
+make test-gateway-profile-shared-server # Shared-server gateway verification
+make test-gateway-profile-edge          # Edge/Fermyon gateway verification
+make smoke-gateway-mode                 # Fast gateway smoke checks
 
 # Live adversarial detection drill (Spin environment required)
 make dev                   # In terminal 1

@@ -14,6 +14,8 @@ Use the repository-native one-shot deployment path:
 - Clone this repository on the server.
 - Reuse existing runtime workflow (`make setup-runtime`, `make prod`, `make stop`) without introducing a parallel pipeline.
 
+Production posture is gateway-only (`client -> shuma -> existing origin`). This path is for existing-site protection, not in-app front-door hosting.
+
 ## Mandatory Input Gate
 
 Do not provision anything until all required inputs are known and validated.
@@ -22,6 +24,11 @@ Required:
 
 - `LINODE_TOKEN`: Linode API token with Linodes read/write scope.
 - `SHUMA_ADMIN_IP_ALLOWLIST`: trusted admin IP/CIDR list.
+- `SHUMA_GATEWAY_UPSTREAM_ORIGIN`: existing origin in `scheme://host[:port]` form.
+- `SHUMA_GATEWAY_DEPLOYMENT_PROFILE=shared-server`.
+- `SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=true`.
+- `SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=true` after clean preflight.
+- `GATEWAY_SURFACE_CATALOG_PATH`: discovered origin public-surface catalog JSON.
 
 Recommended:
 
@@ -39,6 +46,14 @@ make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--profile medium --region gb-lon
 ```
 
 Use this before first live run and whenever changing region/type/profile.
+
+Gateway preflight is mandatory before cutover:
+
+```bash
+make deploy-env-validate
+```
+
+This enforces gateway contract alignment, reserved-route collision preflight, and production lock attestations.
 
 ## Deployment Profiles
 
@@ -73,6 +88,21 @@ If you do not set `--domain`, deployment exposes Spin directly on `:3000` and se
 5. Installs/starts a `systemd` unit for persistent runtime.
 6. Optionally configures Caddy reverse proxy for domain/TLS.
 7. Enables firewall rules for SSH and serving ports.
+
+## Gateway Cutover and Rollback
+
+Cutover sequence:
+
+1. Run `make deploy-env-validate`.
+2. Run `make test-gateway-profile-shared-server` and `make smoke-gateway-mode`.
+3. Switch edge/DNS path so client traffic reaches Shuma first.
+4. Lock origin ingress so only the Shuma path can reach origin.
+
+Rollback sequence:
+
+1. Restore prior edge/DNS path directly to last known-good origin route.
+2. Revert Shuma runtime/env to the last known-good bundle.
+3. Reconfirm origin ingress lock and admin path protections after rollback.
 
 ## Verification
 

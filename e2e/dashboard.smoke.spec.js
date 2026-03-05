@@ -395,6 +395,19 @@ async function updateAdminConfig(request, patch, ip = "127.0.0.1") {
   return payload && payload.config ? payload.config : {};
 }
 
+async function fetchFrontierProviderCount(request, ip = "127.0.0.1") {
+  const response = await request.get(`${BASE_URL}/admin/config`, {
+    headers: buildAdminAuthHeaders(ip)
+  });
+  if (!response.ok()) {
+    const body = await response.text();
+    throw new Error(`admin config read should succeed: ${response.status()} ${body}`);
+  }
+  const payload = await response.json();
+  const count = Number(payload?.frontier_provider_count || 0);
+  return Number.isFinite(count) ? count : 0;
+}
+
 async function fetchMonitoringSnapshot(request, hours = 24, limit = 200, ip = "127.0.0.1") {
   const response = await request.get(`${BASE_URL}/admin/monitoring?hours=${hours}&limit=${limit}`, {
     headers: buildAdminAuthHeaders(ip)
@@ -1462,7 +1475,6 @@ test("dashboard class contract tracks runtime on html and adversary-sim on body"
 test("adversary sim global toggle drives orchestration control lifecycle state", async ({ page, request }) => {
   test.setTimeout(180_000);
   await updateAdminConfig(request, { adversary_sim_enabled: false, adversary_sim_duration_seconds: 180 });
-  await setAdversarySimStateViaApi(request, false, 60000);
   await openDashboard(page);
 
   const toggle = page.locator("#global-adversary-sim-toggle");
@@ -1521,6 +1533,11 @@ test("adversary sim toggle emits fresh telemetry visible in monitoring raw feed"
 
 test("adversary sim toggle cancel path avoids orchestration request when frontier keys are missing", async ({ page, request }) => {
   await updateAdminConfig(request, { adversary_sim_enabled: false, adversary_sim_duration_seconds: 180 });
+  const frontierProviderCount = await fetchFrontierProviderCount(request);
+  test.skip(
+    frontierProviderCount > 0,
+    "requires frontier provider keys to be absent in runtime env"
+  );
   await openDashboard(page);
 
   const toggle = page.locator("#global-adversary-sim-toggle");

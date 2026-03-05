@@ -102,6 +102,12 @@ jobs:
       - name: Run full test suite
         run: make test
 
+      - name: Run gateway profile and smoke gates
+        run: |
+          make test-gateway-profile-shared-server
+          make test-gateway-profile-edge
+          make smoke-gateway-mode
+
       - name: Run protected-lane adversarial coverage gate
         if: github.event_name == 'pull_request'
         run: make test-adversarial-coverage

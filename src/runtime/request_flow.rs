@@ -41,13 +41,17 @@ pub(crate) fn handle_request(req: &Request) -> Response {
     {
         return response;
     }
-
-    if crate::should_bypass_expensive_bot_checks_for_static(req, path) {
-        return Response::new(200, "OK (passed bot defence)");
+    let static_bypass = crate::should_bypass_expensive_bot_checks_for_static(req, path);
+    let ip = crate::extract_client_ip(req);
+    if static_bypass {
+        return crate::runtime::upstream_proxy::forward_allow_request(
+            crate::runtime::upstream_proxy::ForwardRequestContext { req, ip: &ip },
+            "static_asset_bypass",
+        )
+        .response;
     }
 
     let site_id = "default";
-    let ip = crate::extract_client_ip(req);
     let ua = req
         .header("user-agent")
         .map(|v| v.as_str().unwrap_or(""))
@@ -92,6 +96,20 @@ pub(crate) fn handle_request(req: &Request) -> Response {
             &request_effect_context,
             &request_capabilities,
         );
+    };
+    let forward_allow_response = |reason: &str| {
+        crate::runtime::effect_intents::render_forward_allow_response(&request_effect_context, reason)
+    };
+    let record_allow_clean = || {
+        execute_request_intents(vec![
+            crate::runtime::effect_intents::EffectIntent::RecordPolicyMatch(
+                crate::runtime::policy_taxonomy::PolicyTransition::AllowClean,
+            ),
+            crate::runtime::effect_intents::EffectIntent::RecordLikelyHumanSample {
+                sample_percent: cfg.ip_range_suggestions_likely_human_sample_percent,
+                sample_hint: path.to_string(),
+            },
+        ]);
     };
     execute_request_intents(crate::provider_backend_visibility_intents(&provider_registry));
     execute_request_intents(vec![crate::policy_signal_intent(
@@ -184,7 +202,7 @@ pub(crate) fn handle_request(req: &Request) -> Response {
             crate::observability::metrics::MetricName::AllowlistedTotal,
             None,
         )]);
-        return Response::new(200, "OK (path allowlisted)");
+        return forward_allow_response("path_allowlist");
     }
     // IP/CIDR allowlist
     if cfg.bypass_allowlists_enabled && crate::signals::allowlist::is_allowlisted(&ip, &cfg.allowlist) {
@@ -192,7 +210,7 @@ pub(crate) fn handle_request(req: &Request) -> Response {
             crate::observability::metrics::MetricName::AllowlistedTotal,
             None,
         )]);
-        return Response::new(200, "OK (allowlisted)");
+        return forward_allow_response("ip_allowlist");
     }
     let ip_range_evaluation = crate::signals::ip_range_policy::evaluate(&cfg, &ip);
     if let Some(response) = crate::runtime::test_mode::maybe_handle_test_mode(
@@ -270,17 +288,6 @@ pub(crate) fn handle_request(req: &Request) -> Response {
     ) {
         return response;
     }
-    let record_allow_clean = || {
-        execute_request_intents(vec![
-            crate::runtime::effect_intents::EffectIntent::RecordPolicyMatch(
-                crate::runtime::policy_taxonomy::PolicyTransition::AllowClean,
-            ),
-            crate::runtime::effect_intents::EffectIntent::RecordLikelyHumanSample {
-                sample_percent: cfg.ip_range_suggestions_likely_human_sample_percent,
-                sample_hint: path.to_string(),
-            },
-        ]);
-    };
 
     if let Some(response) = crate::runtime::sim_public::maybe_handle(req, path, &cfg) {
         if *response.status() == 200u16 {
@@ -290,6 +297,5 @@ pub(crate) fn handle_request(req: &Request) -> Response {
     }
 
     record_allow_clean();
-
-    Response::new(200, "OK (passed bot defence)")
+    forward_allow_response("policy_clean_allow")
 }

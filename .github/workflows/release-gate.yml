@@ -92,6 +92,12 @@ jobs:
           tail -n 200 /tmp/spin.log || true
           exit 1
 
+      - name: Run gateway profile and smoke gates
+        run: |
+          make test-gateway-profile-shared-server
+          make test-gateway-profile-edge
+          make smoke-gateway-mode
+
       - name: Enforce deterministic adversarial coverage release gate
         run: make test-adversarial-coverage
 

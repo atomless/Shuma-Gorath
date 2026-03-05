@@ -10,12 +10,26 @@ SHUMA_ADMIN_IP_ALLOWLIST=<ip-or-cidr-list> \
 make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--profile medium --region gb-lon --preflight-only"
 ```
 
+Run gateway contract guardrails before production cutover:
+
+```bash
+make deploy-env-validate
+make test-gateway-profile-shared-server
+make smoke-gateway-mode
+```
+
 The preflight verifies:
 
 - Linode token can query API.
 - Region slug exists.
 - Instance type exists.
 - Image lookup (best-effort first-page validation).
+
+Gateway guardrails additionally verify:
+
+- upstream origin contract (`SHUMA_GATEWAY_UPSTREAM_ORIGIN`, profile, TLS posture),
+- reserved-route collision preflight (`GATEWAY_SURFACE_CATALOG_PATH`),
+- origin-lock attestation (`SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=true`).
 
 ## Common Issues
 
@@ -73,6 +87,19 @@ Potential causes:
 
 - insufficient instance resources for build/start.
 - `.env.local` values need adjustment for your environment.
+- gateway upstream origin contract misalignment.
+
+### Gateway preflight fails
+
+Symptoms:
+
+- `make deploy-env-validate` fails with gateway contract or collision errors.
+
+Fix:
+
+- correct `SHUMA_GATEWAY_*` env values,
+- run reserved-route collision preflight using an updated surface catalog,
+- do not cut over traffic until guardrail checks pass.
 
 ### TLS/Caddy not serving
 
@@ -84,6 +111,20 @@ ssh -i <private-key> shuma@<instance-ip> 'sudo systemctl status caddy --no-pager
 
 - verify DNS A/AAAA points to the Linode public IP.
 - restart Caddy after DNS propagation.
+
+## Cutover and Rollback
+
+Cutover:
+
+1. Confirm `make deploy-env-validate` and gateway tests are green.
+2. Route public traffic to Shuma.
+3. Lock origin ingress to Shuma-only path.
+
+Rollback:
+
+1. Restore previous DNS/edge route.
+2. Revert to last known-good deployment bundle.
+3. Recheck origin lock and admin protections.
 
 ## Cleanup
 

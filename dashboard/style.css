@@ -41,7 +41,7 @@
   --striped-bg: repeating-linear-gradient(-45deg, hsl(var(--hue), 100%, 99%), hsl(var(--hue), 100%, 99%) 10px, hsl(var(--hue), 44%, 96%) 10px, hsl(var(--hue), 44%, 96%) 20px);
   --striped-bright-bg: repeating-linear-gradient(-45deg, hsla(var(--hue), 100%, 99%, 0.5), hsla(var(--hue), 100%, 99%, 0.5) 10px, hsl(var(--hue), 97%, 72%) 10px, hsl(var(--hue), 97%, 72%) 20px);
   --striped-testmode-bg: repeating-linear-gradient(-45deg, hsla(var(--hue), 35%, 65%, 0.85), hsla(var(--hue), 35%, 65%, 0.85) 10px, hsl(var(--hue), 49%, 49%) 10px, hsl(var(--hue), 49%, 49%) 20px);
-  
+
   /* Semantic panel colors that follow the page theme. */
   --page-bg: var(--color-back);
   --page-fg: var(--color-900);
@@ -124,6 +124,7 @@
     --inline-link-visited-fg: hsl(var(--hue), 83%, 80%);
     --inline-link-focus-ring: hsla(var(--hue), 100%, 79%, 0.45);
   }
+
   :root.disconnected #lost-connection {
     filter: brightness(1.5);
   }
@@ -163,7 +164,7 @@
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(7px);
   background-attachment: fixed;
-  background: repeating-ease-in-gradient(-45deg,hsla(var(--hue),0%,50%,.15),hsla(var(--hue),0%,50%,.15) 10px,hsla(var(--hue),0%,3%,.05) 10px,hsla(var(--hue),0%,3%,.05) 20px);
+  background: repeating-ease-in-gradient(-45deg, hsla(var(--hue), 0%, 50%, .15), hsla(var(--hue), 0%, 50%, .15) 10px, hsla(var(--hue), 0%, 3%, .05) 10px, hsla(var(--hue), 0%, 3%, .05) 20px);
 }
 
 :root.connected #lost-connection {
@@ -172,7 +173,7 @@
   transition: opacity .6s ease-out, visibility .6s ease-in;
 }
 
-:root.disconnected.dashboard-loaded #lost-connection  {
+:root.disconnected.dashboard-loaded #lost-connection {
   opacity: 1;
   visibility: visible;
   transition: opacity .6s ease-in, visibility 0s;
@@ -187,7 +188,7 @@
   margin: -30vh 0 0;
   overflow: visible;
 
-  font-family: BlinkMacSystemFont,Arial Black;
+  font-family: BlinkMacSystemFont, Arial Black;
   font-size: 29.75vw;
   font-weight: 900;
   text-align: center;
@@ -199,7 +200,7 @@
   opacity: 0.75;
 }
 
-    
+
 /* ===========================================
    Shared Utility Classes
    =========================================== */
@@ -213,7 +214,7 @@
   background: var(--color-50);
 }
 
-#dashboard-panel-ip-bans > .panel-soft {
+#dashboard-panel-ip-bans>.panel-soft {
   margin-bottom: -12px;
   border-bottom: var(--border-hairline);
 }
@@ -241,7 +242,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   white-space: nowrap;
-  color: var(--inline-link-fg); 
+  color: var(--inline-link-fg);
 }
 
 .pad-sm {
@@ -348,6 +349,7 @@
 html {
   font-size: 14px;
   overflow-y: scroll;
+  overflow-x: hidden
 }
 
 body {
@@ -758,6 +760,7 @@ h1 {
   font-size: var(--text-3xl);
   color: var(--color-front);
 }
+
 .section-desc {
   margin-bottom: 20px;
 }
@@ -766,7 +769,8 @@ h1 {
 .section.admin-section {
   border: none;
   padding: 0;
-  margin-bottom: 20px; /* keep spacing but no panel visuals */
+  margin-bottom: 20px;
+  /* keep spacing but no panel visuals */
 }
 
 /* ===========================================
@@ -810,8 +814,8 @@ td {
   color: var(--muted-fg);
 }
 
-th + th,
-td + td {
+th+th,
+td+td {
   border-left: var(--border-hairline);
 }
 
@@ -1016,9 +1020,11 @@ code.env-var {
   grid-template-columns: repeat(auto-fit, minmax(100%, 1fr));
   gap: 0;
 }
+
 .controls-grid--config .panel-soft {
   border-bottom: var(--border-hairline);
 }
+
 .controls-grid--status .panel {
   background: transparent;
 }
@@ -1027,8 +1033,8 @@ code.env-var {
   border-left: 3px solid var(--color-bright-pink);
 }
 
-.config-edit-pane--dirty > h3::after,
-.config-edit-pane--dirty > .panel-heading-with-control > h3::after {
+.config-edit-pane--dirty>h3::after,
+.config-edit-pane--dirty>.panel-heading-with-control>h3::after {
   content: "Unsaved Changes";
   margin-left: 8px;
   font-size: var(--text-xs);
@@ -1169,7 +1175,7 @@ a {
   transition: color 0.2s ease, text-decoration-color 0.2s ease;
 }
 
- a:visited {
+a:visited {
   color: var(--inline-link-visited-fg);
   text-decoration-color: var(--inline-link-visited-fg);
 }
@@ -1308,11 +1314,11 @@ a:focus-visible {
   border-radius: 8px;
 }
 
-input:checked + .toggle-slider {
+input:checked+.toggle-slider {
   background-color: var(--color-toggle-active);
 }
 
-input:checked + .toggle-slider:before {
+input:checked+.toggle-slider:before {
   transform: translateX(26px);
 }
 
@@ -1452,8 +1458,15 @@ input:checked + .toggle-slider:before {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .no-data {
@@ -1555,6 +1568,7 @@ input:checked + .toggle-slider:before {
   width: 100px;
   justify-self: end;
 }
+
 .input-row select.input-field {
   width: unset;
   max-width: 250px;
@@ -1793,7 +1807,7 @@ input:checked + .toggle-slider:before {
   justify-content: space-between;
   padding: 5px 0;
   border-bottom: 1px solid var(--color-200);
-  color: var(--inline-link-fg); 
+  color: var(--inline-link-fg);
 }
 
 .info-row:last-child {
@@ -1802,7 +1816,7 @@ input:checked + .toggle-slider:before {
 
 .info-label {
   font-size: var(--text-sm);
-  color: var(--inline-link-fg); 
+  color: var(--inline-link-fg);
 }
 
 .info-row span:last-child {
@@ -1823,7 +1837,7 @@ input:checked + .toggle-slider:before {
   margin-top: 8px;
 }
 
-.status-item + .status-item {
+.status-item+.status-item {
   margin-top: 16px;
 }
 

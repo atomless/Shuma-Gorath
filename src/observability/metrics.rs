@@ -259,11 +259,14 @@ pub fn add(store: &Store, metric: MetricName, label: Option<&str>, delta: u64) {
         Some(l) => format!("{}{}:{}", METRICS_PREFIX, metric.as_str(), l),
         None => format!("{}{}", METRICS_PREFIX, metric.as_str()),
     };
+    add_key_delta(store, &key, delta);
+}
 
+fn add_key_delta(store: &Store, key: &str, delta: u64) {
     // Update in-memory buffer
     {
         let mut buf = METRICS_BUFFER.lock().unwrap();
-        let v = buf.entry(key.clone()).or_insert(0);
+        let v = buf.entry(key.to_string()).or_insert(0);
         *v = v.saturating_add(delta);
         // if this key reached threshold, flush
         if *v >= FLUSH_VALUE_THRESHOLD || buf.len() >= FLUSH_KEY_COUNT {
@@ -304,6 +307,51 @@ pub fn add(store: &Store, metric: MetricName, label: Option<&str>, delta: u64) {
 /// Increment a counter metric by 1, optionally with a label.
 pub fn increment(store: &Store, metric: MetricName, label: Option<&str>) {
     add(store, metric, label, 1);
+}
+
+pub fn record_forward_attempt(store: &Store) {
+    add_key_delta(store, &format!("{}forward_attempt_total", METRICS_PREFIX), 1);
+}
+
+pub fn record_forward_success(store: &Store, latency_ms: u64) {
+    add_key_delta(store, &format!("{}forward_success_total", METRICS_PREFIX), 1);
+    add_key_delta(
+        store,
+        &format!("{}forward_latency_ms_total", METRICS_PREFIX),
+        latency_ms,
+    );
+    let bucket = if latency_ms < 10 {
+        "lt_10ms"
+    } else if latency_ms < 50 {
+        "10_50ms"
+    } else if latency_ms < 200 {
+        "50_200ms"
+    } else if latency_ms < 1_000 {
+        "200_1000ms"
+    } else if latency_ms < 5_000 {
+        "1_5s"
+    } else {
+        "5s_plus"
+    };
+    add_key_delta(
+        store,
+        &format!("{}forward_latency_buckets_total:{}", METRICS_PREFIX, bucket),
+        1,
+    );
+}
+
+pub fn record_forward_failure(store: &Store, class: &str) {
+    let normalized = class.trim().to_ascii_lowercase();
+    let label = if FORWARD_FAILURE_CLASSES.contains(&normalized.as_str()) {
+        normalized
+    } else {
+        "transport".to_string()
+    };
+    add_key_delta(
+        store,
+        &format!("{}forward_failure_total:{}", METRICS_PREFIX, label),
+        1,
+    );
 }
 
 fn record_defence_mode_effective(

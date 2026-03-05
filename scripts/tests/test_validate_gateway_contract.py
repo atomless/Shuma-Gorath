@@ -96,6 +96,22 @@ class ValidateGatewayContractTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Variable-templated", result.stderr)
 
+    def test_edge_profile_accepts_explicit_https_origin_and_allowlist_entry(self) -> None:
+        result = run_guardrail(
+            textwrap.dedent(
+                """
+                spin_manifest_version = 2
+                [component.bot-defence]
+                allowed_outbound_hosts = ["https://edge-origin.example.com:443"]
+                """
+            ),
+            {
+                "SHUMA_GATEWAY_DEPLOYMENT_PROFILE": "edge-fermyon",
+                "SHUMA_GATEWAY_UPSTREAM_ORIGIN": "https://edge-origin.example.com",
+            },
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

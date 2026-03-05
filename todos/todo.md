@@ -161,171 +161,19 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 
 ### DEP-GW-1: Gateway-Only Existing-Site Integration (Only Production Mode)
 
-Reference plan: [`docs/plans/2026-03-05-gateway-first-existing-site-deployment-plan.md`](../docs/plans/2026-03-05-gateway-first-existing-site-deployment-plan.md)  
-Reference research: [`docs/research/2026-03-05-gateway-only-spin-architecture-research-synthesis.md`](../docs/research/2026-03-05-gateway-only-spin-architecture-research-synthesis.md)
+Completed on 2026-03-05 and archived in `todos/completed-todo-history.md`.
 
-Objective: make existing-site gateway deployment (`client -> shuma -> existing origin`) the only production mode; remove native/front-door local allow-response behavior pre-launch.
+Completion evidence:
+1. Conformance review: [`docs/research/2026-03-05-gateway-first-tranche-conformance-review.md`](../docs/research/2026-03-05-gateway-first-tranche-conformance-review.md)
+2. Cleanup review: [`docs/research/2026-03-05-gateway-first-post-tranche-cleanup-review.md`](../docs/research/2026-03-05-gateway-first-post-tranche-cleanup-review.md)
 
-Non-negotiable delivery rules for every `DEP-GW-1-*` slice:
-1. One policy engine and one allow transport adapter (`upstream_proxy`) only.
-2. Enforcement outcomes (`block/challenge/maze/tarpit`) remain Shuma-owned and local.
-3. Gateway must fail closed on invalid upstream config, unsafe outbound posture, or transport failure.
-4. Origin-bypass risk is release-blocking; origin-lock verification is mandatory.
-5. Forwarded-header trust boundaries (`X-Shuma-Forwarded-Secret`) remain strict and test-enforced.
-6. Spin constraints are first-class: explicit `allowed_outbound_hosts`, no wildcard production posture, no reliance on manually setting outbound `Host`, and bounded outbound concurrency.
-
-Execution gate:
-1. Evidence/instrumentation + failure harness (`DEP-GW-1-0-*`) must complete before runtime transport rewiring (`DEP-GW-1-2-*`).
-2. Contract/guardrail tranche (`DEP-GW-1-1-*`) must complete before forwarding transport lands.
-3. Targeted verification is mandatory throughout implementation to minimize redundant reruns while preserving rigor:
-  - run the smallest relevant Make target set per slice (`make test-unit`, `make test-integration`, profile-specific gateway targets, or smoke target as appropriate to changed behavior);
-  - avoid full-suite reruns when unchanged: follow the anti-churn receipt rule (`.spin/last-full-test-pass.json`) and reuse a valid pass when `HEAD` and worktree fingerprint match;
-  - for docs-only slices, skip tests and record docs-only verification rationale.
-4. Full-suite rigor remains mandatory at tranche completion:
-  - before final completion sign-off, run `make test` and `make build`, then refresh the full-suite receipt;
-  - do not mark the tranche complete if any mandatory profile/smoke/full-suite gate is not green.
-
-#### DEP-GW-1-0: Evidence and Harness First
+### DEP-GW-POST: Gateway Follow-On Hardening
 
 Completed on 2026-03-05 and archived in `todos/completed-todo-history.md`.
 
-#### DEP-GW-1-1: Contract and Guardrails (Spin-Aligned)
-
-- [ ] DEP-GW-1-1-1 Publish ADR/addendum for gateway-only posture:
-  - one policy core, one allow transport adapter;
-  - explicit removal of native/front-door allow path;
-  - fail-closed invariants and rollback contract.
-- [ ] DEP-GW-1-1-2 Define upstream config contract (single-origin v1):
-  - explicit deployment-profiled target contract:
-  - edge/Fermyon: `https://host[:port]` required;
-  - shared-server: `https://host[:port]` preferred; `http://` allowed only for explicit local/private origin cases with strict bounds:
-  - allow only loopback or private IP-literal targets (no hostname/DNS targets on insecure upstream);
-  - require explicit insecure-local acknowledgement guardrail for `http://` upstream;
-  - explicitly deny insecure upstream targets in special-purpose ranges (`169.254.0.0/16`, `fe80::/10`, multicast, unspecified, and equivalent metadata/link-local classes) unless explicitly allowlisted by guarded config;
-  - reject public-routable insecure upstream targets at startup;
-  - timeout/body/retry/concurrency envelopes;
-  - explicit startup failure when missing/invalid.
-- [ ] DEP-GW-1-1-3 Add env/runtime validation in `src/config/mod.rs` for gateway contract and invalid posture rejection.
-- [ ] DEP-GW-1-1-4 Add deploy guardrail verifying Spin outbound capability alignment:
-  - upstream origin must be present in `component.bot-defence.allowed_outbound_hosts`;
-  - wildcard outbound entries are rejected in production posture.
-  - do not rely on variable-templated `allowed_outbound_hosts` for Fermyon deployment paths.
-- [ ] DEP-GW-1-1-5 Add guardrail docs for Spin outbound limitations:
-  - outbound `Host` header cannot be manually overridden;
-  - upstream must accept canonical authority or forwarded host metadata.
-- [ ] DEP-GW-1-1-6 Add outbound pressure governance defaults and docs:
-  - `runtime-config.toml` `[outbound_http]` guidance for `max_concurrent_requests` and `connection_pooling`.
-- [ ] DEP-GW-1-1-7 Add unit tests for config/guardrail parser and error messages (including unsafe outbound posture and invalid origin schemes).
-- [ ] DEP-GW-1-1-8 Add upstream loop-prevention guardrails:
-  - reject forwarding config whose canonical authority matches Shuma ingress/public authority set;
-  - enforce deterministic loop marker + max-hop guard on forwarded requests;
-  - classify and emit explicit `loop_detected` diagnostics/telemetry.
-- [ ] DEP-GW-1-1-9 Add target-specific origin-lock/auth contract and validation:
-  - shared-server profile: firewall/allowlist-only ingress to origin from Shuma host path;
-  - edge/Fermyon profile: authenticated origin pattern (mTLS or signed-origin header contract) with rotation guidance;
-  - credential injection boundary is proxy-owned only (client-supplied auth/provenance headers must never pass through);
-  - key/cert lifecycle contract includes overlap-safe rotation, max credential age, and fail-closed behavior for stale/invalid origin credentials.
-- [ ] DEP-GW-1-1-11 Add explicit TLS security contract for upstream HTTPS:
-  - strict certificate and hostname verification required;
-  - enforce SNI/authority consistency with platform trust-store (or explicitly configured trusted CA chain);
-  - no insecure TLS skip-verify mode in production posture;
-  - classify TLS validation failures under explicit transport failure classes.
-- [ ] DEP-GW-1-1-10 Add reserved-route collision preflight contract:
-  - compare Shuma-owned routes against discovered origin public surface before cutover;
-  - fail preflight on unresolved collisions and emit deterministic remediation report.
-
-#### DEP-GW-1-2: Runtime Transport Refactor (No Policy Drift)
-
-- [ ] DEP-GW-1-2-1 Introduce `src/runtime/upstream_proxy.rs` as the single forwarding adapter behind capability-aware runtime boundary.
-- [ ] DEP-GW-1-2-2 Add typed allow transport intent in effect-intent system (replace local allow `OkBody` semantics for allow outcomes).
-- [ ] DEP-GW-1-2-3 Remove local allow-response exits from `src/runtime/request_flow.rs`:
-  - static-bypass, allowlist, and terminal allow path must all converge through upstream forwarding.
-- [ ] DEP-GW-1-2-4 Update `plan_builder`/`response_renderer` so allow-ish policy outcomes (for example emergency allowlist) forward upstream instead of returning local success bodies.
-- [ ] DEP-GW-1-2-5 Keep early-route local ownership explicit and unchanged for control-plane/policy-owned paths (`/admin`, `/internal`, `/health`, `/metrics`, challenge/maze/tarpit internals).
-- [ ] DEP-GW-1-2-6 Implement strict request canonicalization before forwarding:
-  - preserve/drop header contract;
-  - block privileged headers (`Authorization`, internal Shuma headers, hop-by-hop headers);
-  - strip client-supplied `Forwarded`, `X-Forwarded-*`, and equivalent provenance headers, then regenerate deterministic `Forwarded`/`X-Forwarded-*` values from trusted runtime context only;
-  - deterministic method/path/query/body forwarding map.
-- [ ] DEP-GW-1-2-7 Implement strict response canonicalization from upstream to client with bounded header/body policy and no privileged leakage.
-- [ ] DEP-GW-1-2-8 Add explicit forward failure taxonomy and fail-closed handling:
-  - transport/proxy failure classes: `timeout`, `transport`, `policy_denied`, `misconfiguration`, `loop_detected`;
-  - upstream origin HTTP status classes are pass-through outcomes (including 4xx/5xx), not proxy transport failures;
-  - no silent permissive local success fallback.
-- [ ] DEP-GW-1-2-9 Remove native/front-door allow-path runtime branches and dead tests/docs once gateway path is green.
-- [ ] DEP-GW-1-2-10 Implement upstream compatibility policy for redirects and cookies:
-  - deterministic handling for absolute/relative `Location` headers in proxy flows;
-  - deterministic `Set-Cookie` pass/rewrite policy for domain/path/secure semantics.
-  - redirect follow policy is fail-closed: never follow redirect targets outside configured upstream scheme/authority, enforce hop cap, emit `redirect_policy_denied` telemetry.
-- [ ] DEP-GW-1-2-11 Publish and enforce gateway v1 protocol support matrix:
-  - explicitly supported in v1 (request/response forwarding, bounded bodies, redirects, cookies);
-  - explicitly unsupported in v1 (for example websocket/upgrade tunneling) with fail-fast diagnostics and operator-facing guidance;
-  - large-body and streaming behavior is bounded and explicitly tested/documented.
-
-#### DEP-GW-1-3: Integration, Security, and Operationalization
-
-- [ ] DEP-GW-1-3-1 Integration tests: allow-path reaches upstream fixture with method/path/query/body/header fidelity.
-- [ ] DEP-GW-1-3-2 Integration tests: enforcement outcomes remain local and never depend on upstream availability.
-- [ ] DEP-GW-1-3-3 Security tests: forwarded-header spoof rejection, deterministic proxy-owned forwarded-header regeneration, privileged-header stripping, and hop-by-hop header rejection.
-- [ ] DEP-GW-1-3-4 Security tests: malformed/ambiguous parser cases are rejected or normalized deterministically.
-- [ ] DEP-GW-1-3-5 Origin-bypass tests: verify direct-origin access is blocked by runbook-enforced controls.
-- [ ] DEP-GW-1-3-6 Add gateway smoke Makefile target that validates:
-  - origin reachability,
-  - allow-path forwarding,
-  - enforcement-local behavior,
-  - fail-closed behavior under upstream outage.
-- [ ] DEP-GW-1-3-7 Update deployment docs and skills (Linode + Akamai/Fermyon) for gateway-only cutover and rollback workflows.
-  - include origin-auth credential lifecycle (injection path, rotation cadence, rollback-safe key rollover, and client-override prevention guarantees).
-- [ ] DEP-GW-1-3-8 Integrate shared-host discovery outputs (`SIM-SH-SURFACE-1`) into gateway onboarding/tuning checklist.
-- [ ] DEP-GW-1-3-9 Add loop-prevention tests:
-  - startup guard rejects self-origin forward config;
-  - runtime request loop signatures are fail-closed with explicit telemetry.
-- [ ] DEP-GW-1-3-10 Add deployment-profile integration coverage:
-  - shared-server profile (local/private upstream) passes contract and forwarding checks;
-  - edge/Fermyon profile (public HTTPS upstream) passes contract and forwarding checks.
-- [ ] DEP-GW-1-3-11 Add redirect/cookie compatibility integration tests for existing-site behavior parity.
-- [ ] DEP-GW-1-3-12 Add explicit profile CI verification gates (Makefile targets first, then CI wiring):
-  - mandatory shared-server target: `make test-gateway-profile-shared-server`;
-  - mandatory edge target: `make test-gateway-profile-edge`;
-  - mandatory smoke target: `make smoke-gateway-mode`.
-- [ ] DEP-GW-1-3-13 Add upstream trust-path integration tests:
-  - TLS: expired/untrusted/hostname-mismatch upstream certs fail closed with explicit transport classification;
-  - origin-auth: stale/invalid/missing mTLS or signed-origin credentials fail closed and are observable in diagnostics.
-
-#### DEP-GW-1-4: Product Cleanup and Positioning Consistency
-
-- [ ] DEP-GW-1-4-1 Remove front-door/native production guidance from deployment docs/help text.
-- [ ] DEP-GW-1-4-2 Ensure all operator journeys present gateway-only production posture.
-- [ ] DEP-GW-1-4-3 Remove stale terminology in Makefile/docs implying dual-mode production support.
-- [ ] DEP-GW-1-4-4 Perform post-implementation conformance review:
-  - compare implemented gateway behavior against this plan and all `DEP-GW-1-*` TODO acceptance criteria;
-  - document every shortfall, partial, and deviation with explicit remediation TODOs.
-- [ ] DEP-GW-1-4-5 Perform codebase cleanup and knock-on architecture review:
-  - identify residual duplication, dead paths, and temporary guardrails introduced during migration;
-  - identify follow-on architectural work required to keep gateway-first boundaries clean and maintainable.
-
-Acceptance criteria:
-- Existing-site gateway deployment is documented and executable as the only production path.
-- No local allow-response path remains in runtime for public allow outcomes.
-- Policy behavior remains equivalent while transport changes from local-response to upstream-forwarding.
-- Spin outbound capability and gateway config must match or startup/deploy fails closed.
-- No permissive bypass exists for invalid config, upstream failure, or direct-origin exposure.
-- Gateway verification is enforced through Makefile targets with deterministic fixture evidence.
-- Shared-server and edge/Fermyon deployment profiles are both validated with explicit contract and test evidence.
-- Forwarding loop prevention is enforced by startup and runtime guardrails.
-- Upstream origin 4xx/5xx responses are passed through deterministically (not reclassified as transport failures).
-- Reserved-route collision preflight reports zero unresolved collisions before gateway enablement.
-- Gateway v1 protocol support boundaries are explicit, tested, and operator-visible.
-- Redirect handling is authority-confined with bounded hops and explicit `redirect_policy_denied` diagnostics on violations.
-- Upstream HTTPS uses strict certificate/hostname verification with no insecure production bypass.
-- Client-supplied forwarded/provenance headers are stripped; upstream forwarded headers are proxy-generated from trusted runtime context only.
-- Origin-auth credentials are proxy-injected with explicit rotation/fail-closed lifecycle guarantees.
-
-Definition of done:
-- `DEP-GW-1-0-*` and `DEP-GW-1-1-*` complete and green before any `DEP-GW-1-2-*` merge.
-- `DEP-GW-1-2-*` and `DEP-GW-1-3-*` complete with unit/integration/e2e evidence.
-- `make test`, `make build`, `make test-gateway-profile-shared-server`, `make test-gateway-profile-edge`, and `make smoke-gateway-mode` pass for final tranche.
-- Completion notes include security, operational, and resource impacts plus rollback instructions.
+Completion evidence:
+1. wasm TLS cert-failure harness: `scripts/tests/gateway_tls_wasm_harness.py` + `make test-gateway-wasm-tls-harness`
+2. optional active origin-bypass probe: `scripts/deploy/probe_gateway_origin_bypass.py` + `make test-gateway-origin-bypass-probe`
 
 ## P0 Adversarial Traffic Simulation Program
 Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)

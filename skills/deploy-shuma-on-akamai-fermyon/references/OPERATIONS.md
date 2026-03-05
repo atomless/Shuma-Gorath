@@ -26,6 +26,9 @@ case "${SHUMA_FERMYON_DEPLOY_MODE:-}" in
 esac
 
 make deploy-enterprise-akamai
+make deploy-env-validate
+make test-gateway-profile-edge
+make smoke-gateway-mode
 ```
 
 This checks enterprise posture and fails fast when guardrails are not satisfied.
@@ -99,6 +102,19 @@ Fix:
 - set `SHUMA_RATE_LIMITER_REDIS_URL` and `SHUMA_BAN_STORE_REDIS_URL`
 - keep authoritative mode disabled until distributed state is proven
 
+### Gateway guardrail failures
+
+Symptoms:
+
+- `make deploy-env-validate` fails with upstream/outbound/collision errors.
+
+Fix:
+
+- verify edge gateway contract values (`SHUMA_GATEWAY_DEPLOYMENT_PROFILE=edge-fermyon`, HTTPS upstream, signed-header origin auth),
+- ensure upstream origin authority exists in `spin.toml` `allowed_outbound_hosts`,
+- run reserved-route preflight with valid `GATEWAY_SURFACE_CATALOG_PATH`,
+- keep `SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=true` only when origin lock is actually enforced.
+
 ### Cloud deploy auth failure
 
 Symptoms:
@@ -138,6 +154,19 @@ Fix:
 - correct Akamai property/config and repeat staging verification.
 - promote only when staging checks are clean.
 
+### Origin-auth credential rotation failure
+
+Symptoms:
+
+- origin rejects requests after rotation or accepts stale credential unexpectedly.
+
+Fix:
+
+1. Re-enable overlap-safe old+new acceptance temporarily at origin.
+2. Verify Shuma injects expected signed header name/value.
+3. Re-run staging verification.
+4. Remove stale credential only after confirming new credential path is stable.
+
 ### No expected edge signal effects
 
 Checks:
@@ -165,3 +194,4 @@ Important:
 - authoritative mode with local-only rate/ban state is blocked by design.
 - temporary unsynced exceptions in enterprise mode should be explicit, time-bounded, and removed once distributed backends are ready.
 - if a production issue is edge-routing/property related, revert Akamai property to last known-good version and re-verify staging before re-promoting.
+- if rollback includes gateway credential rotation issues, revoke temporary/new origin-auth credentials and restore last known-good signed-header key pair before retrying cutover.

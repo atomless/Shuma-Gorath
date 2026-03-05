@@ -5,6 +5,28 @@ use crate::runtime::capabilities::PolicyExecutionCapabilities;
 use super::intent_executor::{apply_ban_intent, apply_event_log_intent, apply_metric_intent};
 use super::intent_types::{EffectExecutionContext, EffectIntent, ResponseIntent};
 
+pub(crate) fn render_forward_allow_response(
+    context: &EffectExecutionContext<'_>,
+    reason: &str,
+) -> Response {
+    let started = std::time::Instant::now();
+    crate::observability::metrics::record_forward_attempt(context.store);
+    let forward = crate::runtime::upstream_proxy::forward_allow_request(
+        crate::runtime::upstream_proxy::ForwardRequestContext {
+            req: context.req,
+            ip: context.ip,
+        },
+        reason,
+    );
+    let latency_ms = started.elapsed().as_millis() as u64;
+    if let Some(class) = forward.failure_class {
+        crate::observability::metrics::record_forward_failure(context.store, class);
+    } else {
+        crate::observability::metrics::record_forward_success(context.store, latency_ms);
+    }
+    forward.response
+}
+
 pub(super) fn execute_response_intent(
     response_intent: ResponseIntent,
     facts: &crate::runtime::request_facts::RequestFacts,
@@ -14,7 +36,9 @@ pub(super) fn execute_response_intent(
     let _response_privileged = capabilities.response_privileged();
     match response_intent {
         ResponseIntent::Continue => None,
-        ResponseIntent::OkBody(body) => Some(Response::new(200, body)),
+        ResponseIntent::ForwardAllow { reason } => {
+            Some(render_forward_allow_response(context, reason.as_str()))
+        }
         ResponseIntent::BlockPage { status, reason } => {
             Some(Response::new(status, crate::enforcement::block_page::render_block_page(reason)))
         }

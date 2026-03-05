@@ -9,6 +9,12 @@ make unit-test        # alias for make test-unit
 make test-maze-benchmark # Deterministic maze asymmetry benchmark gate
 make test-integration # Integration tests only (waits for existing Spin readiness)
 make integration-test # alias for make test-integration
+make test-gateway-harness # Gateway fixture/failure harness + deploy guardrail parser tests
+make test-gateway-wasm-tls-harness # wasm32 TLS cert-failure matrix (expired/self-signed/hostname-mismatch; external egress required)
+make test-gateway-origin-bypass-probe # Optional active direct-origin bypass probe (requires URL args)
+make test-gateway-profile-shared-server # Shared-server gateway contract + forwarding checks
+make test-gateway-profile-edge # Edge/Fermyon gateway contract + signed-header origin-auth checks
+make smoke-gateway-mode # Fast gateway smoke (allow forward, enforcement-local, fail-closed outage)
 make test-adversarial-manifest # Validate adversarial scenario manifest + fixture references
 make test-adversarial-coverage-contract # Validate canonical full_coverage contract parity (plan + manifests + runner)
 make test-adversarial-fast # Mandatory fast adversarial matrix (smoke + abuse + Akamai)
@@ -45,6 +51,14 @@ Notes:
 - Integration tests require a running Spin server (`make dev` or `make dev-prod`); test targets do not start Spin.
 - `make test`, `make test-integration`, and `make test-dashboard-e2e` wait for `/health` readiness before failing.
 - `make test` includes maze asymmetry benchmark gating, the mandatory fast adversarial matrix (`smoke + abuse + Akamai`), SIM2 realtime gates, and Playwright dashboard e2e. If Docker is unavailable, the container black-box lane degrades to the advisory SIM2 verification matrix path instead of hard-failing the umbrella run.
+- Gateway profile gates are explicit and runnable independently:
+  - `make test-gateway-profile-shared-server`
+  - `make test-gateway-profile-edge`
+  - `make smoke-gateway-mode`
+- Gateway follow-on hardening gates:
+  - `make test-gateway-wasm-tls-harness` runs a real wasm outbound TLS-failure matrix and requires external outbound HTTPS reachability.
+  - `make test-gateway-origin-bypass-probe` is optional/operator-run and requires `GATEWAY_PROBE_GATEWAY_URL` + `GATEWAY_PROBE_ORIGIN_URL`.
+    - optional strict mode: set `GATEWAY_PROBE_FAIL_ON_INCONCLUSIVE=1`.
 - `make test-sim2-operational-regressions` enforces retention/cost/security domains and treats `failure_injection` + `prod_mode_monitoring` as optional when absent from the active deterministic profile artifact. Use `make test-sim2-operational-regressions-strict` when you need full-domain enforcement.
 - Deep adversarial soak coverage (`full_coverage`) is run via `make test-adversarial-soak` and is intended for scheduled/manual gates rather than every `make test` execution.
 - `make test-dashboard-e2e` now verifies the running Spin instance is serving the current `dist/dashboard/index.html` before Playwright runs; restart Spin after `make dashboard-build` if this check fails.
@@ -271,9 +285,9 @@ Repeatability controls:
 - summary report: `scripts/tests/adversarial/repeatability_report.json`
 - drift policy: scenario pass/outcome vectors must match exactly; latency variance is bounded by `ADVERSARIAL_REPEATABILITY_LATENCY_TOLERANCE_MS` (default `250`).
 CI policy is tiered:
-- Push to `main`: `ci.yml` runs `make test` (includes mandatory fast adversarial matrix).
+- Push to `main`: `ci.yml` runs `make test` plus gateway profile gates (`make test-gateway-profile-shared-server`, `make test-gateway-profile-edge`, `make smoke-gateway-mode`).
 - PR to `main`: `ci.yml` additionally runs `make test-adversarial-coverage`, `make test-adversarial-frontier-attempt`, and `make test-adversarial-promote-candidates`.
-- Release gate (`release-gate.yml`): blocks on `make test-adversarial-coverage` and deterministic confirmed-regression triage (`make test-adversarial-promote-candidates`), records `make test-adversarial-frontier-attempt` as advisory status.
+- Release gate (`release-gate.yml`): blocks on gateway profile gates, `make test-adversarial-coverage`, and deterministic confirmed-regression triage (`make test-adversarial-promote-candidates`), and records `make test-adversarial-frontier-attempt` as advisory status.
 - Scheduled/manual deep soak: `adversarial-soak.yml` runs `make test-adversarial-soak`, `make test-adversarial-container-isolation`, and `make test-adversarial-container-blackbox`.
 Deterministic/container coexistence contract:
 - Deterministic lanes remain canonical mandatory blockers until explicit parity sign-off is approved (`SIM-V2-15` policy).

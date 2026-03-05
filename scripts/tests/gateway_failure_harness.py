@@ -153,6 +153,26 @@ def run_harness(host: str) -> Dict[str, object]:
                 )
             )
 
+        # TLS transport behavior path (HTTPS request against HTTP fixture).
+        try:
+            run_http_request(f"{base_url.replace('http://', 'https://')}/__fixture/health", timeout=0.5)
+            checks.append(
+                CheckResult(
+                    check_id="tls_transport_classification",
+                    passed=False,
+                    detail="expected TLS transport failure, request unexpectedly succeeded",
+                )
+            )
+        except Exception as exc:  # noqa: BLE001
+            klass = classify_exception(exc)
+            checks.append(
+                CheckResult(
+                    check_id="tls_transport_classification",
+                    passed=klass == "transport",
+                    detail=f"class={klass} error={type(exc).__name__}",
+                )
+            )
+
     passed = all(check.passed for check in checks)
     return {
         "version": "gateway-failure-harness.v1",

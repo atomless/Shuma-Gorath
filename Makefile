@@ -1,4 +1,4 @@
-.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-gateway-harness test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -164,6 +164,10 @@ SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE ?= 0
 DEPLOY_LINODE_ARGS ?=
 DEV_WATCH_IGNORES := -i '*.wasm' -i 'dist/wasm/shuma_gorath.wasm' -i '.spin/**' -i 'dashboard/.svelte-kit' -i 'dashboard/.svelte-kit/**' -i 'dashboard/.vite' -i 'dashboard/.vite/**'
 ADVERSARY_SIM_SUPERVISOR_BASE_URL ?= http://127.0.0.1:3000
+GATEWAY_TLS_WASM_REPORT ?= scripts/tests/adversarial/gateway_tls_wasm_harness_report.json
+GATEWAY_PROBE_PATH ?= /
+GATEWAY_PROBE_FAIL_ON_INCONCLUSIVE ?= 0
+GATEWAY_PROBE_JSON_OUTPUT ?= scripts/tests/adversarial/gateway_origin_bypass_probe_report.json
 
 #--------------------------
 # Setup (first-time)
@@ -495,8 +499,53 @@ integration-test: test-integration ## Alias for Spin integration tests
 test-gateway-harness: ## Run deterministic gateway upstream fixture + failure harness checks (no Spin server required)
 	@echo "$(CYAN)🧪 Running gateway fixture/failure harness checks...$(NC)"
 	@python3 -m unittest scripts/tests/test_validate_gateway_contract.py
+	@python3 -m unittest scripts/tests/test_validate_gateway_route_collisions.py
 	@python3 -m unittest scripts/tests/test_gateway_failure_harness.py
+	@python3 -m unittest scripts/tests/test_gateway_tls_wasm_harness.py
+	@python3 -m unittest scripts/tests/test_probe_gateway_origin_bypass.py
 	@python3 scripts/tests/gateway_failure_harness.py
+
+test-gateway-wasm-tls-harness: ## Run wasm32 gateway TLS failure matrix (expired/self-signed/hostname-mismatch; external egress required)
+	@echo "$(CYAN)🧪 Running wasm32 gateway TLS failure matrix harness...$(NC)"
+	@python3 scripts/tests/gateway_tls_wasm_harness.py --json-output $(GATEWAY_TLS_WASM_REPORT)
+
+test-gateway-origin-bypass-probe: ## Optional active direct-origin bypass probe (requires GATEWAY_PROBE_GATEWAY_URL + GATEWAY_PROBE_ORIGIN_URL)
+	@echo "$(CYAN)🧪 Running optional gateway origin-bypass active probe...$(NC)"
+	@if [ -z "$(GATEWAY_PROBE_GATEWAY_URL)" ] || [ -z "$(GATEWAY_PROBE_ORIGIN_URL)" ]; then \
+		echo "$(RED)❌ Missing required URLs. Set GATEWAY_PROBE_GATEWAY_URL and GATEWAY_PROBE_ORIGIN_URL.$(NC)"; \
+		exit 1; \
+	fi
+	@PROBE_EXTRA_ARGS=""; \
+	if [ "$(GATEWAY_PROBE_FAIL_ON_INCONCLUSIVE)" = "1" ]; then \
+		PROBE_EXTRA_ARGS="--fail-on-inconclusive"; \
+	fi; \
+	python3 scripts/deploy/probe_gateway_origin_bypass.py \
+		--gateway-url "$(GATEWAY_PROBE_GATEWAY_URL)" \
+		--origin-url "$(GATEWAY_PROBE_ORIGIN_URL)" \
+		--probe-path "$(GATEWAY_PROBE_PATH)" \
+		--json-output "$(GATEWAY_PROBE_JSON_OUTPUT)" \
+		$$PROBE_EXTRA_ARGS
+
+test-gateway-profile-shared-server: ## Verify shared-server gateway contract + forwarding behavior
+	@echo "$(CYAN)🧪 Running gateway shared-server profile verification...$(NC)"
+	@python3 -m unittest scripts/tests/test_validate_gateway_contract.py
+	@./scripts/set_crate_type.sh rlib
+	@cargo test --test routing_order_integration -- --nocapture
+
+test-gateway-profile-edge: ## Verify edge/Fermyon gateway contract + signed-header origin-auth behavior
+	@echo "$(CYAN)🧪 Running gateway edge/Fermyon profile verification...$(NC)"
+	@python3 -m unittest scripts/tests/test_validate_gateway_contract.py
+	@./scripts/set_crate_type.sh rlib
+	@cargo test config::tests::validate_env_accepts_edge_profile_with_signed_header_origin_auth_contract -- --nocapture
+	@cargo test config::tests::validate_env_rejects_edge_profile_without_signed_header_origin_auth -- --nocapture
+	@cargo test runtime::upstream_proxy::tests::signed_header_origin_auth_is_proxy_owned_and_overrides_client_value -- --nocapture
+
+smoke-gateway-mode: ## Fast gateway smoke: origin reachability, allow-forwarding, enforcement-local behavior, and fail-closed outage handling
+	@echo "$(CYAN)🧪 Running gateway mode smoke checks...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test --test routing_order_integration allow_path_forwards_fidelity_and_regenerates_trusted_forwarded_headers -- --nocapture
+	@cargo test --test routing_order_integration enforcement_paths_remain_local_and_do_not_require_upstream -- --nocapture
+	@cargo test --test routing_order_integration allow_paths_fail_closed_when_upstream_forwarding_is_unavailable -- --nocapture
 
 test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtures (no server required)
 	@echo "$(CYAN)🧪 Validating adversarial simulation manifest...$(NC)"
@@ -1077,7 +1126,7 @@ api-key-validate: ## Validate SHUMA_API_KEY for deployment (must be 64-char hex 
 	fi; \
 	echo "$(GREEN)✅ SHUMA_API_KEY format is valid for deployment.$(NC)"
 
-deploy-env-validate: ## Fail deployment when unsafe debug flags are enabled, admin allowlist is missing, admin edge limits are unconfirmed, API-key rotation is unconfirmed, enterprise state guardrails fail, or gateway outbound contract is misaligned
+deploy-env-validate: ## Fail deployment when unsafe debug flags are enabled, admin allowlist is missing, admin edge limits are unconfirmed, API-key rotation is unconfirmed, enterprise state guardrails fail, gateway outbound contract is misaligned, or reserved-route preflight is missing/failed
 	@DEBUG_VAL="$${SHUMA_DEBUG_HEADERS:-false}"; \
 	DEBUG_NORM="$$(printf '%s' "$$DEBUG_VAL" | tr '[:upper:]' '[:lower:]')"; \
 	case "$$DEBUG_NORM" in \
@@ -1216,6 +1265,7 @@ deploy-env-validate: ## Fail deployment when unsafe debug flags are enabled, adm
 	esac; \
 	echo "$(GREEN)✅ Deployment env guardrails passed (SHUMA_DEBUG_HEADERS, SHUMA_ADMIN_IP_ALLOWLIST, SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED, SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED, enterprise multi-instance state guardrails).$(NC)"
 	@python3 scripts/deploy/validate_gateway_contract.py
+	@python3 scripts/deploy/validate_gateway_route_collisions.py
 
 #--------------------------
 # Help

@@ -53,7 +53,9 @@ pub(crate) enum EffectIntent {
 
 pub(crate) enum ResponseIntent {
     Continue,
-    OkBody(String),
+    ForwardAllow {
+        reason: String,
+    },
     BlockPage {
         status: u16,
         reason: crate::enforcement::block_page::BlockReason,

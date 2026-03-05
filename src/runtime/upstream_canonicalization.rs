@@ -9,6 +9,8 @@ const HOP_BY_HOP_HEADERS: [&str; 8] = [
     "upgrade",
 ];
 
+const PRIVILEGED_REQUEST_HEADERS: [&str; 2] = ["authorization", "proxy-authorization"];
+
 const FORWARDED_PROVENANCE_HEADERS: [&str; 6] = [
     "forwarded",
     "x-forwarded-for",
@@ -69,6 +71,42 @@ pub(crate) fn should_strip_request_header(name: &str, connection_header: Option<
     false
 }
 
+pub(crate) fn is_privileged_request_header(name: &str) -> bool {
+    let Some(normalized_name) = normalize_header_name(name) else {
+        return true;
+    };
+    if PRIVILEGED_REQUEST_HEADERS.contains(&normalized_name.as_str()) {
+        return true;
+    }
+    normalized_name.starts_with("x-shuma-")
+}
+
+pub(crate) fn should_strip_response_header(name: &str, connection_header: Option<&str>) -> bool {
+    let Some(normalized_name) = normalize_header_name(name) else {
+        return true;
+    };
+    if HOP_BY_HOP_HEADERS.contains(&normalized_name.as_str()) {
+        return true;
+    }
+    if FORWARDED_PROVENANCE_HEADERS.contains(&normalized_name.as_str()) {
+        return true;
+    }
+    if normalized_name.starts_with("x-shuma-") {
+        return true;
+    }
+    if let Some(raw_connection) = connection_header {
+        let connection_tokens = parse_connection_tokens(raw_connection);
+        if connection_tokens
+            .iter()
+            .any(|token| token == normalized_name.as_str())
+        {
+            return true;
+        }
+    }
+    false
+}
+
+#[cfg(test)]
 pub(crate) fn normalize_content_type(raw: &str) -> Option<String> {
     let value = raw
         .split(';')
@@ -111,8 +149,9 @@ pub(crate) fn canonicalize_forward_path(raw: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        canonicalize_forward_path, normalize_content_type, normalize_header_name, parse_connection_tokens,
-        should_strip_request_header,
+        canonicalize_forward_path, is_privileged_request_header, normalize_content_type,
+        normalize_header_name, parse_connection_tokens, should_strip_request_header,
+        should_strip_response_header,
     };
 
     #[test]
@@ -134,6 +173,13 @@ mod tests {
             Some("keep-alive, x-custom-token")
         ));
         assert!(!should_strip_request_header("content-type", Some("keep-alive")));
+    }
+
+    #[test]
+    fn strips_privileged_request_headers() {
+        assert!(is_privileged_request_header("authorization"));
+        assert!(is_privileged_request_header("x-shuma-forwarded-secret"));
+        assert!(!is_privileged_request_header("content-type"));
     }
 
     #[test]
@@ -164,5 +210,17 @@ mod tests {
             "/foo/%2Fbar?x=1&y=2"
         );
         assert_eq!(canonicalize_forward_path(""), "/");
+    }
+
+    #[test]
+    fn strips_hop_by_hop_and_internal_response_headers() {
+        assert!(should_strip_response_header("connection", None));
+        assert!(should_strip_response_header("x-shuma-forward-reason", None));
+        assert!(should_strip_response_header("x-forwarded-for", None));
+        assert!(!should_strip_response_header("set-cookie", Some("keep-alive")));
+        assert!(should_strip_response_header(
+            "x-custom-token",
+            Some("x-custom-token, keep-alive")
+        ));
     }
 }

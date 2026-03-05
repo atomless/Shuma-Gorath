@@ -225,6 +225,54 @@ max_concurrent_requests = 32
 
 Tune these values to match origin capacity and expected concurrency envelope.
 
+Gateway v1 protocol support matrix:
+
+| Capability | Gateway v1 status | Behavior |
+| --- | --- | --- |
+| HTTP request forwarding (`GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`) | Supported | Allow-path requests are forwarded to configured upstream origin. |
+| Control-plane and enforcement-local routes (`/admin`, `/internal`, `/health`, `/metrics`, challenge/maze/tarpit internals) | Supported (local ownership) | Always served locally by Shuma; never proxied upstream. |
+| Forwarded/provenance headers | Supported (proxy-owned) | Client-supplied `Forwarded`/`X-Forwarded-*` is stripped and regenerated from trusted runtime context only. |
+| Redirect handling (`Location`) | Supported with confinement | Relative redirects pass; absolute/scheme-relative redirects must stay in configured upstream authority or are denied fail-closed. |
+| Cookie handling (`Set-Cookie`) | Supported with deterministic rewrite | Upstream-domain cookies are rewritten to public host domain when valid; foreign-domain cookies are dropped. |
+| Request/response body size | Supported with bounds | Request body capped at 1 MiB and response body capped at 2 MiB; overflow is denied fail-closed. |
+| Loop prevention | Supported | Startup authority-collision guard + runtime hop marker budget (`SHUMA_GATEWAY_LOOP_MAX_HOPS`). |
+| Upstream HTTP 4xx/5xx pass-through | Supported | Returned to client as upstream outcomes (not transport failures). |
+| WebSocket/HTTP upgrade/`CONNECT` tunneling | Unsupported (explicit fail-fast) | Denied with `policy_denied` transport class. |
+| Unbounded streaming/trailers/raw tunnel passthrough | Unsupported in v1 | Gateway enforces bounded request/response envelope. |
+
+Gateway onboarding with shared-host discovery outputs:
+
+1. Produce or obtain an origin public-surface catalog artifact from shared-host discovery (`robots.txt`, `sitemap.xml`, bounded crawl outputs).
+2. Run reserved-route collision preflight against that artifact by setting:
+   - `GATEWAY_SURFACE_CATALOG_PATH=<catalog-json-path>`
+   - `SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=true` only after clean preflight.
+3. Fix all collisions before cutover (no exceptions for Shuma/Spin-owned route namespaces).
+4. Use the same catalog during initial gateway tuning:
+   - verify public paths expected by catalog are forwarded,
+   - verify sensitive/admin/internal routes remain local/non-forwarded,
+   - tighten allowlists and origin lock before enabling strict enforcement.
+
+Gateway cutover and rollback (operator runbook summary):
+
+1. Pre-cutover:
+   - validate env guardrails with `make deploy-env-validate`,
+   - run gateway profile checks (`make test-gateway-profile-shared-server` and/or `make test-gateway-profile-edge`),
+   - run `make smoke-gateway-mode`,
+   - run wasm trust-path hardening matrix `make test-gateway-wasm-tls-harness`,
+   - optionally run active direct-origin bypass probe:
+     - `GATEWAY_PROBE_GATEWAY_URL=https://<public-shuma-host>`
+     - `GATEWAY_PROBE_ORIGIN_URL=https://<direct-origin-host>`
+     - `make test-gateway-origin-bypass-probe`
+     - set `GATEWAY_PROBE_FAIL_ON_INCONCLUSIVE=1` when your environment is expected to permit direct-origin probing and you want inconclusive outcomes to fail.
+2. Cutover:
+   - route public traffic to Shuma,
+   - lock origin ingress to Shuma-only path,
+   - if using signed-header origin auth, rotate credentials with overlap-safe rollout and confirm origin rejects stale credentials.
+3. Rollback:
+   - restore previous edge/DNS route to prior origin path,
+   - revert Shuma deployment bundle/env to last known-good release,
+   - rotate/disable temporary origin-auth credentials used during failed cutover.
+
 ## 🐙 Security Baseline
 
 - Keep `SHUMA_DEBUG_HEADERS=false` in production.
@@ -260,6 +308,11 @@ make deploy-env-validate
   - upstream origin must be present in `component.bot-defence.allowed_outbound_hosts` in `spin.toml`,
   - wildcard outbound entries are rejected,
   - `edge-fermyon` profile rejects variable-templated `allowed_outbound_hosts` entries.
+- reserved-route collision preflight guardrail (`runtime-prod`):
+  - `GATEWAY_SURFACE_CATALOG_PATH` must point to the discovered origin surface catalog JSON,
+  - collisions against Shuma/Spin reserved namespaces fail deployment and write a deterministic report (default: `scripts/tests/adversarial/gateway_reserved_route_collision_report.json`),
+  - if overriding report location, set `GATEWAY_ROUTE_COLLISION_REPORT_PATH`,
+  - after a clean run, `SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED` must be `true`.
 
 ### 🐙 Admin Surface Pre-Deploy Checklist
 

@@ -8,3 +8,4 @@ pub(crate) use intent_executor::{
 };
 pub(crate) use intent_types::{BanIntent, EffectExecutionContext, EffectIntent};
 pub(crate) use plan_builder::plan_for_decision;
+pub(crate) use response_renderer::render_forward_allow_response;

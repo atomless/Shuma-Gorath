@@ -6,6 +6,23 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 Deployment Path Excellence (Single-Host + Akamai/Fermyon)
 
+#### DEP-GW-POST: Gateway Follow-On Hardening
+
+- [x] DEP-GW-POST-1 Add a wasm32-capable TLS failure integration harness (expired/untrusted/hostname-mismatch cert matrix) to strengthen upstream trust-path testing beyond native test-mode transport stubs.
+- [x] Added wasm TLS trust-path harness and unit coverage:
+  - `scripts/tests/gateway_tls_wasm_harness.py`
+  - `scripts/tests/test_gateway_tls_wasm_harness.py`
+  - `make test-gateway-wasm-tls-harness`
+- [x] DEP-GW-POST-2 Add an optional active origin-bypass probe contract/tooling path (environment-permitting) to complement origin-lock attestation with executable verification.
+- [x] Added optional active origin-bypass probe and unit coverage:
+  - `scripts/deploy/probe_gateway_origin_bypass.py`
+  - `scripts/tests/test_probe_gateway_origin_bypass.py`
+  - `make test-gateway-origin-bypass-probe`
+- [x] Updated operator/testing docs for both follow-on hardening paths:
+  - `docs/deployment.md`
+  - `docs/testing.md`
+  - `scripts/README.md`
+
 #### DEP-GW-1: Gateway-Only Existing-Site Integration (Only Production Mode)
 
 ##### DEP-GW-1-0: Evidence and Harness First
@@ -21,6 +38,105 @@ Moved from active TODO files on 2026-02-14.
   - `scripts/tests/gateway_failure_harness.py`
   - `scripts/tests/test_gateway_failure_harness.py`
 - [x] Added targeted Makefile verification gate: `make test-gateway-harness`.
+
+##### DEP-GW-1-1: Contract and Guardrails (Spin-Aligned)
+
+- [x] DEP-GW-1-1-10 Add reserved-route collision preflight contract:
+  - compare Shuma-owned routes against discovered origin public surface before cutover;
+  - fail preflight on unresolved collisions and emit deterministic remediation report.
+- [x] Added deploy preflight guardrail script:
+  - `scripts/deploy/validate_gateway_route_collisions.py`
+- [x] Added reserved-route preflight unit coverage:
+  - `scripts/tests/test_validate_gateway_route_collisions.py`
+- [x] Wired preflight guardrail into deploy validation:
+  - `make deploy-env-validate`
+
+##### DEP-GW-1-2: Runtime Transport Refactor (No Policy Drift)
+
+- [x] DEP-GW-1-2-1 Introduce `src/runtime/upstream_proxy.rs` as the single forwarding adapter behind capability-aware runtime boundary.
+- [x] Added forwarding adapter and loop-hop guard foundation:
+  - `src/runtime/upstream_proxy.rs`
+  - `src/runtime/upstream_canonicalization.rs`
+  - `src/runtime/upstream_telemetry.rs`
+- [x] Routed typed `ForwardAllow` response intent through the adapter in effect-intent rendering:
+  - `src/runtime/effect_intents/intent_types.rs`
+  - `src/runtime/effect_intents/plan_builder.rs`
+  - `src/runtime/effect_intents/response_renderer.rs`
+
+##### DEP-GW-1-1: Contract and Guardrails (Spin-Aligned) - remaining tranche completion
+
+- [x] DEP-GW-1-1-1 Publish ADR/addendum for gateway-only posture.
+- [x] DEP-GW-1-1-2 Define upstream config contract (single-origin v1).
+- [x] DEP-GW-1-1-3 Add env/runtime validation for gateway contract and invalid posture rejection.
+- [x] DEP-GW-1-1-4 Add deploy guardrail verifying Spin outbound capability alignment.
+- [x] DEP-GW-1-1-5 Add guardrail docs for Spin outbound limitations.
+- [x] DEP-GW-1-1-6 Add outbound pressure governance defaults and docs.
+- [x] DEP-GW-1-1-7 Add unit tests for config/guardrail parser and error messages.
+- [x] DEP-GW-1-1-8 Add upstream loop-prevention guardrails and telemetry classification.
+- [x] DEP-GW-1-1-9 Add target-specific origin-lock/auth contract and validation.
+- [x] DEP-GW-1-1-11 Add explicit TLS security contract for upstream HTTPS and transport-class taxonomy.
+- [x] Evidence:
+  - `docs/adr/0011-gateway-only-upstream-contract.md`
+  - `src/config/mod.rs`
+  - `src/config/tests.rs`
+  - `scripts/deploy/validate_gateway_contract.py`
+  - `scripts/tests/test_validate_gateway_contract.py`
+  - `docs/deployment.md`
+
+##### DEP-GW-1-2: Runtime Transport Refactor (No Policy Drift) - remaining tranche completion
+
+- [x] DEP-GW-1-2-2 Add typed allow transport intent in effect-intent system.
+- [x] DEP-GW-1-2-3 Remove local allow-response exits from `src/runtime/request_flow.rs`.
+- [x] DEP-GW-1-2-4 Update `plan_builder`/`response_renderer` to forward allow outcomes upstream.
+- [x] DEP-GW-1-2-5 Keep early-route local ownership explicit for control-plane/policy-owned paths.
+- [x] DEP-GW-1-2-6 Implement strict request canonicalization before forwarding.
+- [x] DEP-GW-1-2-7 Implement strict response canonicalization from upstream to client.
+- [x] DEP-GW-1-2-8 Add explicit forward failure taxonomy and fail-closed handling.
+- [x] DEP-GW-1-2-9 Remove native/front-door allow-path runtime branches and stale local allow behavior.
+- [x] DEP-GW-1-2-10 Implement redirect/cookie compatibility policy with authority confinement.
+- [x] DEP-GW-1-2-11 Publish and enforce gateway v1 protocol support matrix.
+- [x] Evidence:
+  - `src/runtime/request_flow.rs`
+  - `src/runtime/upstream_proxy.rs`
+  - `src/runtime/upstream_canonicalization.rs`
+  - `tests/routing_order_integration.rs`
+  - `docs/deployment.md`
+
+##### DEP-GW-1-3: Integration, Security, and Operationalization
+
+- [x] DEP-GW-1-3-1 Integration tests for allow-path upstream fidelity.
+- [x] DEP-GW-1-3-2 Integration tests proving enforcement outcomes remain local.
+- [x] DEP-GW-1-3-3 Security tests for forwarded-header spoof rejection/regen and privileged stripping.
+- [x] DEP-GW-1-3-4 Deterministic malformed/ambiguous canonicalization coverage.
+- [x] DEP-GW-1-3-5 Origin-bypass risk controls captured in deploy runbook + origin-lock guardrails.
+- [x] DEP-GW-1-3-6 Gateway smoke Makefile target added.
+- [x] DEP-GW-1-3-7 Deployment docs and Linode/Fermyon skills updated for gateway-only cutover/rollback and origin-auth lifecycle.
+- [x] DEP-GW-1-3-8 Shared-host discovery outputs integrated into gateway onboarding checklist.
+- [x] DEP-GW-1-3-9 Loop-prevention tests for startup and runtime loop signatures.
+- [x] DEP-GW-1-3-10 Deployment-profile integration coverage for shared-server and edge/Fermyon.
+- [x] DEP-GW-1-3-11 Redirect/cookie compatibility integration coverage for existing-site parity.
+- [x] DEP-GW-1-3-12 Explicit profile CI verification gates added.
+- [x] DEP-GW-1-3-13 Upstream trust-path checks for TLS transport classification and origin-auth contract failures.
+- [x] Evidence:
+  - `Makefile`
+  - `.github/workflows/ci.yml`
+  - `.github/workflows/release-gate.yml`
+  - `tests/routing_order_integration.rs`
+  - `scripts/tests/gateway_failure_harness.py`
+  - `scripts/tests/test_gateway_failure_harness.py`
+  - `skills/deploy-shuma-on-linode/SKILL.md`
+  - `skills/deploy-shuma-on-akamai-fermyon/SKILL.md`
+
+##### DEP-GW-1-4: Product Cleanup and Positioning Consistency
+
+- [x] DEP-GW-1-4-1 Remove front-door/native production guidance from deployment docs/help text.
+- [x] DEP-GW-1-4-2 Ensure operator journeys present gateway-only production posture.
+- [x] DEP-GW-1-4-3 Remove stale terminology in Makefile/docs implying dual-mode production support.
+- [x] DEP-GW-1-4-4 Perform post-implementation conformance review.
+- [x] DEP-GW-1-4-5 Perform codebase cleanup and knock-on architecture review.
+- [x] Evidence:
+  - `docs/research/2026-03-05-gateway-first-tranche-conformance-review.md`
+  - `docs/research/2026-03-05-gateway-first-post-tranche-cleanup-review.md`
 
 ## Additional completions (2026-03-03)
 
