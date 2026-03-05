@@ -228,7 +228,8 @@ export function createDashboardStore(options = {}) {
     const current = getState().session || {};
     return {
       authenticated: current.authenticated === true,
-      csrfToken: String(current.csrfToken || '')
+      csrfToken: String(current.csrfToken || ''),
+      runtimeEnvironment: String(current.runtimeEnvironment || '')
     };
   };
   const getSnapshot = (key) => {
@@ -297,7 +298,8 @@ export function createDashboardStore(options = {}) {
 
   const session = derived(internal, ($state) => ({
     authenticated: $state.session.authenticated === true,
-    csrfToken: String($state.session.csrfToken || '')
+    csrfToken: String($state.session.csrfToken || ''),
+    runtimeEnvironment: String($state.session.runtimeEnvironment || '')
   }));
 
   const activeTab = derived(internal, ($state) => normalizeTab($state.activeTab));

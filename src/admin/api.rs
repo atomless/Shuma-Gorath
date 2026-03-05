@@ -5901,6 +5901,12 @@ mod admin_auth_tests {
         builder.build()
     }
 
+    fn session_request() -> Request {
+        let mut builder = Request::builder();
+        builder.method(Method::Get).uri("/admin/session");
+        builder.build()
+    }
+
     #[test]
     fn login_invalid_api_key_is_rate_limited() {
         let _lock = crate::test_support::lock_env();
@@ -5936,6 +5942,26 @@ mod admin_auth_tests {
         assert_eq!(*second.status(), 429u16);
 
         std::env::remove_var("SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE");
+    }
+
+    #[test]
+    fn session_response_includes_runtime_environment() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        let store = TestStore::default();
+        let req = session_request();
+
+        let resp = handle_admin_session(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+        let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(
+            payload
+                .get("runtime_environment")
+                .and_then(|value| value.as_str()),
+            Some("runtime-dev")
+        );
+
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
     }
 
     #[test]
@@ -6420,7 +6446,8 @@ fn handle_admin_session<S: crate::challenge::KeyValueStore>(req: &Request, store
         "method": method,
         "csrf_token": csrf_token,
         "access": access,
-        "expires_at": expires_at
+        "expires_at": expires_at,
+        "runtime_environment": crate::config::runtime_environment().as_str()
     }))
     .unwrap();
     Response::builder()

@@ -2,6 +2,10 @@
   import { base } from '$app/paths';
   import { onMount } from 'svelte';
   import {
+    deriveDashboardBodyClassState,
+    syncDashboardBodyClasses
+  } from '$lib/runtime/dashboard-body-classes.js';
+  import {
     dashboardIndexPath,
     normalizeDashboardBasePath
   } from '$lib/runtime/dashboard-paths.js';
@@ -10,6 +14,7 @@
   let submitting = false;
   let messageText = '';
   let messageKind = 'info';
+  let runtimeStateAvailable = false;
   const dashboardBasePath = normalizeDashboardBasePath(base);
   const fallbackNextPath = dashboardIndexPath(dashboardBasePath);
   let nextPath = fallbackNextPath;
@@ -48,6 +53,31 @@
     return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
   }
 
+  function inferRuntimeEnvironment(rawValue) {
+    const normalized = String(rawValue || '').trim().toLowerCase();
+    if (normalized === 'runtime-dev' || normalized === 'runtime-prod') {
+      return normalized;
+    }
+    return isLocalDevHost() ? 'runtime-dev' : 'runtime-prod';
+  }
+
+  function normalizeRuntimeEnvironment(rawValue) {
+    const normalized = String(rawValue || '').trim().toLowerCase();
+    if (normalized === 'runtime-dev' || normalized === 'runtime-prod') {
+      return normalized;
+    }
+    return '';
+  }
+
+  function syncLoginRootClasses(runtimeEnvironment = '') {
+    if (typeof document === 'undefined') return;
+    const classState = deriveDashboardBodyClassState(
+      { runtime_environment: inferRuntimeEnvironment(runtimeEnvironment) },
+      { backendConnectionState: 'disconnected' }
+    );
+    syncDashboardBodyClasses(document, classState);
+  }
+
   async function loginErrorMessage(response) {
     if (response.status === 401) {
       return 'Login failed. Check your key.';
@@ -77,6 +107,10 @@
 
   async function submitLogin(event) {
     event.preventDefault();
+    if (!runtimeStateAvailable) {
+      setMessage('Login unavailable while runtime state is unavailable. Refresh and retry.', 'error');
+      return;
+    }
     const normalized = String(apiKey || '').trim();
     if (!normalized) {
       setMessage('Enter your key.', 'error');
@@ -105,9 +139,17 @@
   }
 
   onMount(async () => {
+    syncLoginRootClasses('');
     const params = new URLSearchParams(window.location.search || '');
     nextPath = safeNextPath(params.get('next') || '');
     const session = await getSessionState();
+    const runtimeEnvironment = normalizeRuntimeEnvironment(session?.runtime_environment);
+    runtimeStateAvailable = runtimeEnvironment.length > 0;
+    if (!runtimeStateAvailable) {
+      setMessage('Login unavailable while runtime state is unavailable. Refresh and retry.', 'error');
+      return;
+    }
+    syncLoginRootClasses(runtimeEnvironment);
     if (session && session.authenticated === true && session.method === 'session') {
       window.location.replace(nextPath);
     }
@@ -133,7 +175,12 @@
         aria-label="Application Programming Interface key"
         bind:value={apiKey}
       >
-      <button id="login-submit" class="btn btn-submit" type="submit" disabled={submitting}>
+      <button
+        id="login-submit"
+        class="btn btn-submit"
+        type="submit"
+        disabled={submitting || !runtimeStateAvailable}
+      >
         {submitting ? 'Logging in...' : 'Login'}
       </button>
     </form>

@@ -1847,6 +1847,11 @@ test('dashboard class runtime keeps exactly one environment class on html and ad
       connectionState: 'connected'
     });
 
+    const hintedRuntimeState = bodyClassModule.deriveDashboardBodyClassState({}, {
+      runtimeClassHint: 'runtime-dev'
+    });
+    assert.equal(hintedRuntimeState.runtimeClass, 'runtime-dev');
+
     const classList = createMutableClassList(['runtime-prod', 'adversary-sim', 'connected']);
     const rootClassList = createMutableClassList(['runtime-prod', 'adversary-sim', 'connected']);
     const doc = {
@@ -2577,6 +2582,7 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /\$lib\/runtime\/dashboard-body-classes\.js/);
   assert.match(source, /\$lib\/runtime\/dashboard-adversary-sim\.js/);
   assert.match(source, /deriveDashboardBodyClassState\(configSnapshot,\s*\{/);
+  assert.match(source, /runtimeClassHint/);
   assert.match(source, /const DASHBOARD_LOADED_CLASS = 'dashboard-loaded';/);
   assert.match(source, /backendConnectionState/);
   assert.match(source, /dashboardLoaded && backendConnectionState === 'disconnected'/);
@@ -2642,6 +2648,21 @@ test('dashboard stylesheet applies disconnected visual treatment via root class'
   assert.match(source, /:root\.disconnected\.dashboard-loaded #lost-connection\s*\{/);
   assert.match(source, /#connection-status\s*\{/);
   assert.match(source, /#lost-connection\s*\{/);
+});
+
+test('login route syncs disconnected + runtime classes onto html root and gates submit on runtime state', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/routes/login.html/+page.svelte'),
+    'utf8'
+  );
+  assert.match(source, /deriveDashboardBodyClassState/);
+  assert.match(source, /syncDashboardBodyClasses/);
+  assert.match(source, /let runtimeStateAvailable = false;/);
+  assert.match(source, /normalizeRuntimeEnvironment/);
+  assert.match(source, /if \(!runtimeStateAvailable\) \{/);
+  assert.match(source, /disabled=\{submitting \|\| !runtimeStateAvailable\}/);
+  assert.match(source, /backendConnectionState:\s*'disconnected'/);
+  assert.match(source, /runtime_environment/);
 });
 
 test('monitoring tab applies bounded sanitization and redraw guards', () => {

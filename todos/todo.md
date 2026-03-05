@@ -169,7 +169,7 @@ Production-availability decision criteria (`SIM-DEPLOY-1`): [`docs/research/2026
 Execution gate: no open `SIM-*` TODO in this section may move forward until both reports above have been read and the implementation slice is explicitly checked against runtime/test-lane boundary findings and prime-directive constraints.
 
 Ongoing objectives for this tranche:
-1. Keep deterministic lane as regression oracle; LLM lane as discovery/promotable corpus.
+1. Keep deterministic oracle as regression authority; LLM lane as discovery/promotable corpus.
 2. Share one canonical deterministic attack corpus across runtime and CI oracle executors.
 3. Keep CI Python oracle focused on setup/gates/evidence (separate system), while sharing attacker action definitions with runtime.
 4. Keep strict control-plane and attacker-plane separation.
@@ -180,6 +180,186 @@ Ongoing objectives for this tranche:
 9. Use spawn-on-enable/teardown-on-disable lifecycle for simulator execution so runtime resource usage attributable to adversary simulation is effectively zero while off.
 10. Simplify freshness ownership to one source of truth (backend), with the UI acting as renderer only.
 11. Treat adversary simulation as potential core production value, enabling operators to red-team defenses immediately after deployment rather than waiting for external attackers.
+
+### SIM-SH-SURFACE-1: Shared-Host Public Surface Discovery First (Gate Before Non-Deterministic Lane)
+
+Reference plan: [`docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](../docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
+
+Objective: deliver a production-setting toolchain that discovers Shuma host public surface on a shared single server, with strict execution order (`robots.txt` + `sitemap.xml` first, then bounded Scrapling probe augmentation), and produce real-host evidence artifacts before any non-deterministic Scrapling sim-lane runtime implementation.
+
+Naming note:
+1. This roadmap uses `SIM-SCR-LANE-1` as the canonical runtime lane tranche name.
+2. Earlier shorthand references to `SIM-SCR-6` in draft planning docs map to this same runtime-lane tranche.
+
+Non-negotiable delivery rules for every `SIM-SH-SURFACE-1-*` slice:
+1. Discovery order must be `robots/sitemap ingest -> normalize/scope -> Scrapling probe augmentation`; probe must not run first.
+2. Scope policy must be fail-closed and enforced on every discovered/probed URL.
+3. Scrapling in this milestone is discovery tooling only, not heartbeat-owned sim-lane execution.
+4. Real shared-host execution evidence is mandatory before lane runtime work.
+5. No hidden dashboard-driven scheduling loops; discovery is explicit operator-run workflow.
+
+Execution gate:
+1. `SIM-SCR-LANE-1`, `SIM-LLM-1`, and any non-deterministic lane runtime wiring are blocked until `SIM-SH-SURFACE-1-1..SIM-SH-SURFACE-1-10` are complete and verified.
+
+- [ ] SIM-SH-SURFACE-1-1 Define shared-host target descriptor + scope contract:
+  - canonical host base URL, allowed hosts, allowed path prefixes, denied path prefixes, redirect-hop limits;
+  - explicit rejection taxonomy and fail-closed behavior for missing/invalid policy.
+- [ ] SIM-SH-SURFACE-1-2 Implement `robots.txt` discovery step with tests:
+  - fetch + parse `Allow`/`Disallow` and declared sitemap links;
+  - capture provenance and parse diagnostics.
+- [ ] SIM-SH-SURFACE-1-3 Implement `sitemap.xml` discovery step with tests:
+  - support sitemap indexes, nested maps, compressed sitemap payloads, and deterministic URL extraction;
+  - capture fetch/parse diagnostics and invalid-source reporting.
+- [ ] SIM-SH-SURFACE-1-4 Implement seed inventory merger (robots+sitemaps) with deterministic canonicalization:
+  - URL normalization, dedupe, stable ordering, scope filtering, and structured rejection reasons.
+- [ ] SIM-SH-SURFACE-1-5 Add operator make target for seed-only discovery path:
+  - proposed target: `make adversary-surface-discover-shared-host-seed`;
+  - output artifact under `scripts/tests/adversarial/` with provenance and summary counters.
+- [ ] SIM-SH-SURFACE-1-6 Add bounded Scrapling probe augmentation step (discovery-only):
+  - `allowed_domains` from scope policy,
+  - explicit crawl budgets (requests/depth/bytes/time),
+  - offsite and blocked-request stats surfaced in artifact metadata.
+- [ ] SIM-SH-SURFACE-1-7 Add operator make target for seed+probe combined workflow:
+  - proposed target: `make adversary-surface-discover-shared-host`;
+  - ensure deterministic behavior when seed inputs and crawl seed are fixed.
+- [ ] SIM-SH-SURFACE-1-8 Run the combined discovery workflow against a real shared-host deployment:
+  - produce timestamped evidence artifacts (`inventory`, `summary`, `rejections`, `crawl stats`);
+  - confirm only in-scope public URLs are present.
+- [ ] SIM-SH-SURFACE-1-9 Compile discovered inventory into hosted-surface catalog baseline:
+  - generate catalog hash/version and compile diagnostics;
+  - record inventory-to-catalog lineage in artifact metadata.
+- [ ] SIM-SH-SURFACE-1-10 Document operator runbook + signoff checklist for shared-host discovery:
+  - preflight checks, execution commands, artifact interpretation, safety checks, and rollback steps.
+
+Acceptance criteria:
+- Shared-host discovery works end-to-end in production setting with explicit command path and reproducible artifacts.
+- Discovery artifacts prove execution order and provenance split (`robots`, `sitemap`, `crawl`).
+- Scope policy exclusions are visible, auditable, and enforced for both seed ingest and probe phases.
+- Catalog baseline can be produced directly from shared-host discovery outputs.
+- Non-deterministic Scrapling lane work remains blocked until this milestone is marked complete.
+
+Definition of done:
+- New/updated make targets exist and are documented in operator docs.
+- Required unit/integration verification for discovery toolchain passes via Makefile targets.
+- At least one real shared-host discovery evidence set is archived in the expected artifact location and referenced in completion notes.
+
+### SIM-SCR-LANE-1: Three-Lane Runtime Migration + Scrapling Integration (Post Shared-Host Discovery Gate)
+
+Reference plan: [`docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](../docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
+
+Objective: migrate from the current toggle-only deterministic runtime baseline to a 3-lane runtime selector model, then implement bounded out-of-process Scrapling lane execution driven only by adversary-sim supervisor heartbeat, with strict fail-closed confinement and explicit degraded-state semantics.
+
+Non-negotiable delivery rules for every `SIM-SCR-LANE-1-*` slice:
+1. Current toggle-only control path must continue to work during migration (`POST /admin/adversary-sim/control` with `enabled` only).
+2. Target lane contract is three lanes: `synthetic_traffic`, `scrapling_traffic`, `bot_red_team`.
+3. Exactly one active lane per beat; zero concurrent lane activity.
+4. Monitoring UI remains read-only and must not drive generation cadence.
+5. Global connection-state ownership remains heartbeat-only (aligned with `SIM2-R4-5` contract).
+6. Worker policy is fail-closed: scope violation, egress violation, timeout, or worker crash must not degrade into permissive execution.
+
+Execution gate:
+1. `SIM-SCR-LANE-1-*` is blocked until `SIM-SH-SURFACE-1` milestone is complete and evidenced.
+
+- [ ] SIM-SCR-LANE-1-1 Define and enforce lane-state contract in control/status API:
+  - required fields: `desired_lane`, `active_lane`, `lane_switch_seq`, `last_lane_switch_at`, `last_lane_switch_reason`;
+  - allowed lane enum: `synthetic_traffic | scrapling_traffic | bot_red_team`;
+  - preserve baseline status compatibility fields during migration (`active_lane_count`, existing `lanes.*` payload shape) until dashboard migration cutover.
+- [ ] SIM-SCR-LANE-1-2 Extend control API payload compatibility:
+  - keep existing `enabled` toggle payload behavior;
+  - add optional lane selection field with strict enum validation;
+  - keep idempotency/audit semantics unchanged.
+- [ ] SIM-SCR-LANE-1-3 Implement supervisor lane router semantics:
+  - route exactly one lane per beat;
+  - lane switch applies on next beat and prior lane receives zero subsequent ticks.
+- [ ] SIM-SCR-LANE-1-4 Implement Scrapling worker beat contract:
+  - out-of-process worker invocation with strict `TickBudget` (`max_requests`, `max_depth`, `max_bytes`, `max_ms`);
+  - resumable frontier state persistence between beats.
+- [ ] SIM-SCR-LANE-1-5 Implement strict confinement gate:
+  - `https` only, no IP-literal targets, allowlisted hostnames only;
+  - redirect target must re-pass allowlist/scope gate;
+  - deny privileged/internal path families (`/admin`, `/internal`, `/dashboard`, `/session`, `/auth`, `/login`).
+- [ ] SIM-SCR-LANE-1-6 Implement worker egress isolation:
+  - isolated worker runtime/network namespace/container;
+  - outbound allowlist restricted to approved host `:443` plus DNS.
+- [ ] SIM-SCR-LANE-1-7 Implement request header policy:
+  - block privileged headers (`Authorization`, internal Shuma headers) from worker requests.
+- [ ] SIM-SCR-LANE-1-8 Implement per-request provenance + degraded-state reporting:
+  - mandatory lineage fields: `run_id`, `lane`, `tick_id`, `worker_id`;
+  - explicit statuses for `ok`, `degraded`, `failed_closed` and reason taxonomy.
+- [ ] SIM-SCR-LANE-1-9 Implement failure classification guardrails:
+  - classify failures as `cancelled`, `timeout`, `transport`, `http`;
+  - forbid `cancelled` from mutating global connection state.
+- [ ] SIM-SCR-LANE-1-10 Implement dashboard lane selector migration:
+  - keep top-level Adversary Sim toggle;
+  - add exclusive radio group for `Synthetic Traffic (Internal)`, `Scrapling Crawler/Scraper`, `Bot Red Team (LLM)` (disabled/annotated until ready);
+  - ensure status rendering uses backend truth (no optimistic local lane state).
+- [ ] SIM-SCR-LANE-1-11 Add required verification gates:
+  - unit: URL/path/redirect confinement policy;
+  - integration: worker cannot reach out-of-scope hosts;
+  - integration: lane switch leaves zero concurrent lane activity;
+  - e2e: selected runtime lane traffic (`synthetic_traffic`, `scrapling_traffic`) appears in normal monitoring telemetry;
+  - failure tests: worker crash/timeout and heartbeat loss fail closed.
+- [ ] SIM-SCR-LANE-1-12 Document rollout/rollback + operator diagnostics:
+  - lane contract, worker degraded-state semantics, investigation commands, and rollback switches.
+
+Acceptance criteria:
+- Supervisor heartbeat is sole cadence writer for lane execution.
+- Runtime lane contract is explicit, test-enforced, and constrained to `synthetic_traffic | scrapling_traffic | bot_red_team`.
+- Existing toggle-only control behavior remains valid during migration until final cutover.
+- Scrapling worker is bounded, resumable, and fail-closed under policy/runtime failure.
+- Confinement, egress, header policy, provenance, and degraded-state diagnostics are all observable and test-covered.
+
+Definition of done:
+- All non-negotiable verification gates pass through Makefile targets.
+- Docs include clear operator guidance and rollback for lane runtime failures.
+- Completion evidence shows no UI-timer generation path and no multi-lane beat overlap.
+
+### SIM-BREACH-REPLAY-1: External Breach -> Replayable Attack Pipeline (Planning + Research Required)
+
+Objective: design and then implement a safe, auditable pipeline that turns real external bot-defence breaches into replayable attack artifacts usable by deterministic gates and Scrapling discovery profiles.
+
+Non-negotiable delivery rules for every `SIM-BREACH-REPLAY-1-*` slice:
+1. Planning/research outputs must be completed before implementation begins.
+2. Privacy and security controls are mandatory (no secret/token/body leakage into replay artifacts).
+3. Deterministic replay remains release-blocking authority; generated/emergent artifacts remain advisory until deterministic confirmation.
+4. Artifact lineage must be explicit end-to-end (`raw event -> normalized breach -> replay candidate -> confirmation result -> promotion decision`).
+
+Execution gate:
+1. No runtime implementation for this pipeline may begin until `SIM-BREACH-REPLAY-1-1..SIM-BREACH-REPLAY-1-4` are complete and approved.
+
+- [ ] SIM-BREACH-REPLAY-1-1 Research and document prior art:
+  - survey practical approaches for attack-capture normalization, replay generation, and promotion governance in bot-defence systems;
+  - compare deterministic replay versus crawler-profile replay tradeoffs for false confidence and maintenance cost.
+- [ ] SIM-BREACH-REPLAY-1-2 Write architecture plan for breach-capture and normalization:
+  - define capture contract (`method`, `path`, query, selected headers, payload fingerprint, timing, response/policy outcomes);
+  - define sanitization/redaction policy and retention rules for replay-safe artifacts.
+- [ ] SIM-BREACH-REPLAY-1-3 Write architecture plan for replay generation and confirmation:
+  - deterministic scenario generation path (blocking oracle);
+  - Scrapling seed/profile generation path (emergent stress lane);
+  - reproducibility requirements and confirmation thresholds before promotion.
+- [ ] SIM-BREACH-REPLAY-1-4 Define governance + operator workflow:
+  - owner review/disposition requirements, severity-based SLA, and rollback semantics;
+  - promotion criteria from advisory findings into deterministic blocking corpus.
+- [ ] SIM-BREACH-REPLAY-1-5 Implement normalized breach artifact schema + validators:
+  - schema versioning, required lineage fields, and strict validation failures on missing/unsafe data.
+- [ ] SIM-BREACH-REPLAY-1-6 Implement deterministic replay candidate generator:
+  - map normalized breach artifacts to deterministic scenario entries with stable IDs and compile diagnostics.
+- [ ] SIM-BREACH-REPLAY-1-7 Implement Scrapling replay-profile generator:
+  - map normalized breach artifacts to bounded scope/cadence/session profiles for emergent reruns.
+- [ ] SIM-BREACH-REPLAY-1-8 Add verification and docs:
+  - unit/integration tests for redaction, normalization, replay generation, and governance gates;
+  - operator runbook for triage, replay, confirmation, and promotion decisions.
+
+Acceptance criteria:
+- Planning/research outputs clearly define architecture, governance, and safety posture before implementation.
+- Raw breach evidence can be converted into sanitized, versioned replay artifacts with traceable lineage.
+- Both replay targets are supported: deterministic (blocking authority) and Scrapling profile (advisory stress lane).
+- Promotion to blocking corpus requires explicit deterministic confirmation and owner disposition.
+
+Definition of done:
+- Planning docs are merged and linked from this TODO entry.
+- Implementation slices pass required Makefile verification targets.
+- Operator documentation covers incident-to-replay workflow, review gates, and rollback.
 
 - [ ] SIM-DEPLOY-2 If production availability is approved, design and implement production-safe adversary-sim operating modes (explicit opt-in, spawn-on-enable execution lifecycle, strict rate/resource envelopes, kill switch, auditability, and no-impact guarantees for normal user traffic).
 - [ ] SIM-LLM-1 Realize full LLM-orchestrated, instruction-driven, containerized adversary lane as first-class runtime actor on top of the same runtime heartbeat ownership model: run capability-constrained action plans against public HTTP surface, emit normal request-pipeline telemetry, preserve deterministic replay bridge, and surface explicit degraded-state diagnostics when frontier execution is unavailable.

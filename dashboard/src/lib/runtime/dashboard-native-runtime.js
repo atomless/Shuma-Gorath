@@ -112,10 +112,19 @@ let connectionHeartbeatSequence = 0;
 const sessionState = {
   authenticated: false,
   csrfToken: '',
-  expiresAt: 0
+  expiresAt: 0,
+  runtimeEnvironment: ''
 };
 
-function setSessionState(authenticated, csrfToken = '', expiresAt = 0) {
+function normalizeRuntimeEnvironment(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'runtime-dev' || normalized === 'runtime-prod') {
+    return normalized;
+  }
+  return '';
+}
+
+function setSessionState(authenticated, csrfToken = '', expiresAt = 0, runtimeEnvironment = '') {
   const parsedExpiry = Number(expiresAt);
   sessionState.authenticated = authenticated === true;
   sessionState.csrfToken = sessionState.authenticated ? String(csrfToken || '') : '';
@@ -123,10 +132,14 @@ function setSessionState(authenticated, csrfToken = '', expiresAt = 0) {
     sessionState.authenticated && Number.isFinite(parsedExpiry) && parsedExpiry > 0
       ? Math.floor(parsedExpiry)
       : 0;
+  sessionState.runtimeEnvironment = sessionState.authenticated
+    ? normalizeRuntimeEnvironment(runtimeEnvironment)
+    : '';
   if (dashboardState) {
     dashboardState.setSession({
       authenticated: sessionState.authenticated,
-      csrfToken: sessionState.csrfToken
+      csrfToken: sessionState.csrfToken,
+      runtimeEnvironment: sessionState.runtimeEnvironment
     });
     if (sessionState.authenticated !== true) {
       setBackendConnectionState(null, '');
@@ -352,7 +365,10 @@ async function restoreSessionFromServer() {
     const authenticated = payload && payload.authenticated === true;
     const csrfToken = authenticated ? String(payload.csrf_token || '') : '';
     const expiresAtRaw = payload && payload.expires_at !== undefined ? payload.expires_at : 0;
-    setSessionState(authenticated, csrfToken, expiresAtRaw);
+    const runtimeEnvironmentRaw = payload && payload.runtime_environment !== undefined
+      ? payload.runtime_environment
+      : '';
+    setSessionState(authenticated, csrfToken, expiresAtRaw, runtimeEnvironmentRaw);
     return authenticated;
   } catch (_error) {
     setSessionState(false, '');
@@ -480,7 +496,8 @@ export function getDashboardSessionState() {
   return {
     authenticated: sessionState.authenticated === true,
     csrfToken: String(sessionState.csrfToken || ''),
-    expiresAt: Number(sessionState.expiresAt || 0)
+    expiresAt: Number(sessionState.expiresAt || 0),
+    runtimeEnvironment: String(sessionState.runtimeEnvironment || '')
   };
 }
 

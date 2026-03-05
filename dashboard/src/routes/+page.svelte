@@ -97,6 +97,28 @@
   let RobotsTabComponent = null;
   let TuningTabComponent = null;
   const tabLinks = {};
+  let rootRuntimeClassHint = '';
+
+  function normalizeRuntimeClassHint(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'runtime-dev' || normalized === 'runtime-prod') {
+      return normalized;
+    }
+    return '';
+  }
+
+  function readRootRuntimeClassHint(doc = null) {
+    const targetDocument = doc || (typeof document !== 'undefined' ? document : null);
+    const classList = targetDocument?.documentElement?.classList;
+    if (!classList || typeof classList.contains !== 'function') return '';
+    if (classList.contains('runtime-dev')) return 'runtime-dev';
+    if (classList.contains('runtime-prod')) return 'runtime-prod';
+    return '';
+  }
+
+  if (typeof document !== 'undefined') {
+    rootRuntimeClassHint = readRootRuntimeClassHint(document);
+  }
 
   $: activeTabKey = normalizeTab(dashboardState.activeTab);
   $: tabStatus = dashboardState?.tabStatus || {};
@@ -129,8 +151,11 @@
     .toLowerCase();
   $: hasConnectionStateSettled = backendConnectionTransitionReason !== 'boot_disconnected';
   $: lostConnectionVisible = dashboardLoaded && backendConnectionState === 'disconnected';
+  $: sessionRuntimeClassHint = normalizeRuntimeClassHint(dashboardState?.session?.runtimeEnvironment || '');
+  $: runtimeClassHint = sessionRuntimeClassHint || rootRuntimeClassHint;
   $: bodyClassState = deriveDashboardBodyClassState(configSnapshot, {
-    backendConnectionState
+    backendConnectionState,
+    runtimeClassHint
   });
   $: if (typeof document !== 'undefined') {
     syncDashboardBodyClasses(document, bodyClassState);

@@ -75,7 +75,8 @@ export const createInitialState = (initialTab = DEFAULT_TAB) => ({
   stale: cloneTabFlags(true),
   session: {
     authenticated: false,
-    csrfToken: ''
+    csrfToken: '',
+    runtimeEnvironment: ''
   },
   snapshots: {
     analytics: null,
@@ -122,11 +123,20 @@ export const reduceState = (prevState, event = {}) => {
     case 'set-session': {
       const authenticated = event.session && event.session.authenticated === true;
       const csrfToken = authenticated ? String(event.session.csrfToken || '') : '';
+      const runtimeEnvironmentRaw = authenticated
+        ? String(event.session.runtimeEnvironment || event.session.runtime_environment || '')
+        : '';
+      const runtimeEnvironmentNormalized = runtimeEnvironmentRaw.trim().toLowerCase();
+      const runtimeEnvironment =
+        runtimeEnvironmentNormalized === 'runtime-dev' || runtimeEnvironmentNormalized === 'runtime-prod'
+          ? runtimeEnvironmentNormalized
+          : '';
       return {
         ...prev,
         session: {
           authenticated,
-          csrfToken
+          csrfToken,
+          runtimeEnvironment
         }
       };
     }
@@ -292,7 +302,8 @@ export const selectors = Object.freeze({
   activeTab: (state) => state.activeTab,
   session: (state) => ({
     authenticated: state.session.authenticated,
-    csrfToken: state.session.csrfToken
+    csrfToken: state.session.csrfToken,
+    runtimeEnvironment: String(state.session.runtimeEnvironment || '')
   }),
   snapshot: (state, key) => (Object.prototype.hasOwnProperty.call(state.snapshots, key)
     ? state.snapshots[key]
