@@ -12,4 +12,10 @@ pub(crate) mod sim_public;
 pub(crate) mod test_mode;
 
 #[cfg(test)]
+pub(crate) mod upstream_canonicalization;
+
+#[cfg(test)]
+pub(crate) mod upstream_telemetry;
+
+#[cfg(test)]
 mod architecture_guards;

@@ -7305,6 +7305,70 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
                 .to_string(),
         ),
         (
+            "SHUMA_GATEWAY_UPSTREAM_ORIGIN".to_string(),
+            crate::config::gateway_upstream_origin().unwrap_or_default(),
+        ),
+        (
+            "SHUMA_GATEWAY_DEPLOYMENT_PROFILE".to_string(),
+            crate::config::gateway_deployment_profile()
+                .as_str()
+                .to_string(),
+        ),
+        (
+            "SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL".to_string(),
+            bool_env(crate::config::gateway_allow_insecure_http_local()).to_string(),
+        ),
+        (
+            "SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS".to_string(),
+            bool_env(crate::config::gateway_allow_insecure_http_special_use_ips()).to_string(),
+        ),
+        (
+            "SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST".to_string(),
+            crate::config::gateway_insecure_http_special_use_ip_allowlist(),
+        ),
+        (
+            "SHUMA_GATEWAY_PUBLIC_AUTHORITIES".to_string(),
+            crate::config::gateway_public_authorities(),
+        ),
+        (
+            "SHUMA_GATEWAY_LOOP_MAX_HOPS".to_string(),
+            crate::config::gateway_loop_max_hops().to_string(),
+        ),
+        (
+            "SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED".to_string(),
+            bool_env(crate::config::gateway_origin_lock_confirmed()).to_string(),
+        ),
+        (
+            "SHUMA_GATEWAY_ORIGIN_AUTH_MODE".to_string(),
+            crate::config::gateway_origin_auth_mode()
+                .as_str()
+                .to_string(),
+        ),
+        (
+            "SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME".to_string(),
+            crate::config::gateway_origin_auth_header_name(),
+        ),
+        (
+            "SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE".to_string(),
+            crate::config::gateway_origin_auth_header_value(),
+        ),
+        (
+            "SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS".to_string(),
+            crate::config::gateway_origin_auth_max_age_days().to_string(),
+        ),
+        (
+            "SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS".to_string(),
+            crate::config::gateway_origin_auth_rotation_overlap_days().to_string(),
+        ),
+        (
+            "SHUMA_GATEWAY_TLS_STRICT".to_string(),
+            bool_env(crate::config::gateway_tls_strict()).to_string(),
+        ),
+        (
+            "SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED".to_string(),
+            bool_env(crate::config::gateway_reserved_route_collision_check_passed()).to_string(),
+        ),
+        (
             "SHUMA_TEST_MODE".to_string(),
             bool_env(cfg.test_mode).to_string(),
         ),

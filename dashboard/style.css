@@ -3,7 +3,7 @@
    High-contrast monochrome with accent
    =========================================== */
 :root {
-  --hue: 310;
+  --hue: 317;
   /* Monochrome scale */
   --color-back: hsl(var(--hue), 100%, 99%);
   --color-50: hsl(var(--hue), 44%, 96%);
@@ -40,7 +40,6 @@
   --border-hairline: 0.5px solid var(--color-300);
   --striped-bg: repeating-linear-gradient(-45deg, hsl(var(--hue), 100%, 99%), hsl(var(--hue), 100%, 99%) 10px, hsl(var(--hue), 44%, 96%) 10px, hsl(var(--hue), 44%, 96%) 20px);
   --striped-bright-bg: repeating-linear-gradient(-45deg, hsla(var(--hue), 100%, 99%, 0.5), hsla(var(--hue), 100%, 99%, 0.5) 10px, hsl(var(--hue), 97%, 72%) 10px, hsl(var(--hue), 97%, 72%) 20px);
-  /* --striped-testmode-bg: repeating-linear-gradient(-45deg, hsla(130, 35%, 65%, 0.85), hsla(130, 35%, 65%, 0.85) 10px, hsl(130, 49%, 49%) 10px, hsl(130, 49%, 49%) 20px); */
   --striped-testmode-bg: repeating-linear-gradient(-45deg, hsla(var(--hue), 35%, 65%, 0.85), hsla(var(--hue), 35%, 65%, 0.85) 10px, hsl(var(--hue), 49%, 49%) 10px, hsl(var(--hue), 49%, 49%) 20px);
   
   /* Semantic panel colors that follow the page theme. */
@@ -116,7 +115,7 @@
 
     --border-hairline: 0.5px solid var(--color-100);
     --striped-bg: repeating-linear-gradient(-45deg, hsl(var(--hue), 12%, 10%), hsl(var(--hue), 12%, 10%) 10px, hsl(var(--hue), 33%, 3%) 10px, hsl(var(--hue), 33%, 3%) 20px);
-    --striped-bright-bg: repeating-linear-gradient(-45deg, hsla(var(--hue), 33%, 3%, 0.502), hsla(var(--hue), 33%, 3%, 0.5) 10px, hsl(var(--hue), 97%, 72%) 10px, hsl(var(--hue), 97%, 72%) 20px);
+    --striped-bright-bg: repeating-linear-gradient(-45deg, hsla(var(--hue), 33%, 3%, 0.5), hsla(var(--hue), 33%, 3%, 0.5) 10px, hsl(var(--hue), 97%, 72%) 10px, hsl(var(--hue), 97%, 72%) 20px);
 
     --btn-contrast-fg: var(--color-back);
 
@@ -124,6 +123,9 @@
     --inline-link-hover-fg: hsl(var(--hue), 100%, 91%);
     --inline-link-visited-fg: hsl(var(--hue), 83%, 80%);
     --inline-link-focus-ring: hsla(var(--hue), 100%, 79%, 0.45);
+  }
+  :root.disconnected #lost-connection {
+    filter: brightness(1.5);
   }
 }
 
@@ -138,18 +140,8 @@
 }
 
 :root.disconnected {
-  --striped-bg: repeating-linear-gradient(-45deg, hsl(var(--hue), 0%, 99%), hsl(var(--hue), 0%, 99%) 10px, hsl(var(--hue), 0%, 96%) 10px, hsl(var(--hue), 0%, 96%) 20px);
   filter: saturate(0);
   transition: filter .6s ease-in;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root.disconnected {
-    --striped-bg: repeating-linear-gradient(-45deg, hsl(var(--hue), 0%, 10%) 10px, hsl(var(--hue), 0%, 10%) 10px, hsl(var(--hue), 0%, 3%), hsl(var(--hue), 0%, 3%) 20px);
-  }
-  :root.disconnected #lost-connection {
-    filter: brightness(1.5);
-  }
 }
 
 #lost-connection {
@@ -636,13 +628,14 @@ h1 {
 }
 
 #refresh-now-btn {
-  display: inline;
-  padding: 0;
+  display: inline-block;
+  padding: 0 10px;
+  margin: -4px 0 0 -10px;
   line-height: 1;
   font-size: 22px;
   font-weight: lighter;
   background: none;
-  color: var(--color-600);
+  color: var(--inline-link-fg);
 }
 
 #last-updated {
@@ -1060,18 +1053,20 @@ code.env-var {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 10px 30px;
   margin: 0 auto;
   width: auto;
   max-width: 1400px;
   background: var(--striped-bright-bg);
-  font-size: var(--text-2xl);
+  background-attachment: fixed;
+  font-size: var(--text-lg);
 }
 
 .config-save-bar__meta {
   width: 100%;
   background: var(--color-back);
-  padding: 10px;
+  padding: 10px 20px;
+  line-height: 2;
 }
 
 .config-save-bar__warning {
@@ -1253,6 +1248,7 @@ a:focus-visible {
   left: 0;
   width: 100%;
   background: var(--striped-testmode-bg);
+  background-attachment: fixed;
   color: var(--color-back);
   padding: 12px 20px;
   font-weight: 600;

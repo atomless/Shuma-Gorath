@@ -4,7 +4,12 @@
 
 #[cfg(not(test))]
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{collections::HashMap, env, sync::Mutex};
+use std::{
+    collections::HashMap,
+    env,
+    net::{IpAddr, Ipv4Addr},
+    sync::Mutex,
+};
 
 use once_cell::sync::Lazy;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -89,6 +94,12 @@ const IP_RANGE_SUGGESTIONS_IPV6_MIN_PREFIX_LEN_MIN: u8 = 24;
 const IP_RANGE_SUGGESTIONS_IPV6_MIN_PREFIX_LEN_MAX: u8 = 128;
 const IP_RANGE_SUGGESTIONS_LIKELY_HUMAN_SAMPLE_PERCENT_MIN: u8 = 0;
 const IP_RANGE_SUGGESTIONS_LIKELY_HUMAN_SAMPLE_PERCENT_MAX: u8 = 100;
+const GATEWAY_LOOP_MAX_HOPS_MIN: u8 = 1;
+const GATEWAY_LOOP_MAX_HOPS_MAX: u8 = 10;
+const GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS_MIN: u32 = 1;
+const GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS_MAX: u32 = 365;
+const GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS_MIN: u32 = 1;
+const GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS_MAX: u32 = 120;
 #[cfg(not(test))]
 const CONFIG_CACHE_TTL_SECONDS: u64 = 2;
 
@@ -336,6 +347,60 @@ impl RuntimeEnvironment {
 
     pub fn is_prod(self) -> bool {
         matches!(self, RuntimeEnvironment::RuntimeProd)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum GatewayDeploymentProfile {
+    SharedServer,
+    EdgeFermyon,
+}
+
+impl GatewayDeploymentProfile {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            GatewayDeploymentProfile::SharedServer => "shared-server",
+            GatewayDeploymentProfile::EdgeFermyon => "edge-fermyon",
+        }
+    }
+
+    pub fn is_edge(self) -> bool {
+        matches!(self, GatewayDeploymentProfile::EdgeFermyon)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum GatewayOriginAuthMode {
+    NetworkOnly,
+    SignedHeader,
+}
+
+impl GatewayOriginAuthMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            GatewayOriginAuthMode::NetworkOnly => "network_only",
+            GatewayOriginAuthMode::SignedHeader => "signed_header",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GatewayUpstreamOrigin {
+    scheme: String,
+    host: String,
+    port: u16,
+    host_is_ip_literal: bool,
+}
+
+impl GatewayUpstreamOrigin {
+    fn authority(&self) -> String {
+        if self.host_is_ip_literal && self.host.contains(':') {
+            format!("[{}]:{}", self.host, self.port)
+        } else {
+            format!("{}:{}", self.host, self.port)
+        }
     }
 }
 
@@ -1259,6 +1324,7 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_optional_rate_limiter_outage_mode_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN")?;
     validate_optional_rate_limiter_outage_mode_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH")?;
     validate_runtime_env_adversary_sim_guardrail()?;
+    validate_gateway_contract_env()?;
 
     Ok(())
 }
@@ -1271,6 +1337,306 @@ fn validate_runtime_env_adversary_sim_guardrail() -> Result<(), String> {
                 .to_string(),
         );
     }
+    Ok(())
+}
+
+fn validate_gateway_contract_env() -> Result<(), String> {
+    let profile_raw = env::var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE")
+        .ok()
+        .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_DEPLOYMENT_PROFILE"));
+    let profile = parse_gateway_deployment_profile(profile_raw.as_str()).ok_or_else(|| {
+        format!(
+            "Invalid gateway deployment profile env var SHUMA_GATEWAY_DEPLOYMENT_PROFILE={} (expected shared-server or edge-fermyon)",
+            profile_raw
+        )
+    })?;
+
+    let origin_auth_mode_raw = env::var("SHUMA_GATEWAY_ORIGIN_AUTH_MODE")
+        .ok()
+        .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_ORIGIN_AUTH_MODE"));
+    let origin_auth_mode =
+        parse_gateway_origin_auth_mode(origin_auth_mode_raw.as_str()).ok_or_else(|| {
+            format!(
+                "Invalid gateway origin auth mode env var SHUMA_GATEWAY_ORIGIN_AUTH_MODE={} (expected network_only or signed_header)",
+                origin_auth_mode_raw
+            )
+        })?;
+
+    let allow_insecure_http_local = parse_env_bool_optional(
+        "SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL",
+        defaults_bool("SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL"),
+    )
+    .ok_or_else(|| {
+        invalid_boolean_env(
+            "SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL",
+            defaults_raw("SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL").as_str(),
+        )
+    })?;
+    let allow_insecure_http_special_use_ips = parse_env_bool_optional(
+        "SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS",
+        defaults_bool("SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS"),
+    )
+    .ok_or_else(|| {
+        invalid_boolean_env(
+            "SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS",
+            defaults_raw("SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS").as_str(),
+        )
+    })?;
+    let tls_strict = parse_env_bool_optional(
+        "SHUMA_GATEWAY_TLS_STRICT",
+        defaults_bool("SHUMA_GATEWAY_TLS_STRICT"),
+    )
+    .ok_or_else(|| {
+        invalid_boolean_env(
+            "SHUMA_GATEWAY_TLS_STRICT",
+            defaults_raw("SHUMA_GATEWAY_TLS_STRICT").as_str(),
+        )
+    })?;
+
+    if !tls_strict {
+        return Err(
+            "Invalid gateway TLS posture: SHUMA_GATEWAY_TLS_STRICT must be true; insecure upstream TLS modes are not supported"
+                .to_string(),
+        );
+    }
+
+    let loop_max_hops = env_u8_optional(
+        "SHUMA_GATEWAY_LOOP_MAX_HOPS",
+        defaults_u8("SHUMA_GATEWAY_LOOP_MAX_HOPS"),
+    )
+    .ok_or_else(|| invalid_integer_env("SHUMA_GATEWAY_LOOP_MAX_HOPS"))?;
+    if !(GATEWAY_LOOP_MAX_HOPS_MIN..=GATEWAY_LOOP_MAX_HOPS_MAX).contains(&loop_max_hops) {
+        return Err(format!(
+            "Invalid gateway loop guard env var SHUMA_GATEWAY_LOOP_MAX_HOPS={} (expected {}..={})",
+            loop_max_hops, GATEWAY_LOOP_MAX_HOPS_MIN, GATEWAY_LOOP_MAX_HOPS_MAX
+        ));
+    }
+
+    let origin_auth_max_age_days = env_u32_optional(
+        "SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS",
+        defaults_u32("SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS"),
+    )
+    .ok_or_else(|| invalid_integer_env("SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS"))?;
+    if !(GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS_MIN..=GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS_MAX)
+        .contains(&origin_auth_max_age_days)
+    {
+        return Err(format!(
+            "Invalid gateway origin auth max-age env var SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS={} (expected {}..={})",
+            origin_auth_max_age_days,
+            GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS_MIN,
+            GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS_MAX
+        ));
+    }
+
+    let origin_auth_rotation_overlap_days = env_u32_optional(
+        "SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS",
+        defaults_u32("SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS"),
+    )
+    .ok_or_else(|| invalid_integer_env("SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS"))?;
+    if !(GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS_MIN
+        ..=GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS_MAX)
+        .contains(&origin_auth_rotation_overlap_days)
+    {
+        return Err(format!(
+            "Invalid gateway origin auth overlap env var SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS={} (expected {}..={})",
+            origin_auth_rotation_overlap_days,
+            GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS_MIN,
+            GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS_MAX
+        ));
+    }
+    if origin_auth_rotation_overlap_days >= origin_auth_max_age_days {
+        return Err(
+            "Invalid gateway origin auth lifecycle: SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS must be less than SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS"
+                .to_string(),
+        );
+    }
+
+    let public_authorities_raw = env_trimmed_optional("SHUMA_GATEWAY_PUBLIC_AUTHORITIES")
+        .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_PUBLIC_AUTHORITIES"));
+    let public_authorities = parse_gateway_authority_list(public_authorities_raw.as_str())
+        .map_err(|reason| {
+            format!(
+                "Invalid gateway public authorities env var SHUMA_GATEWAY_PUBLIC_AUTHORITIES={} ({})",
+                public_authorities_raw, reason
+            )
+        })?;
+
+    let special_use_allowlist_raw =
+        env_trimmed_optional("SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST")
+            .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST"));
+    let special_use_allowlist = parse_gateway_ip_allowlist(special_use_allowlist_raw.as_str())
+        .map_err(|reason| {
+            format!(
+                "Invalid gateway special-use allowlist env var SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST={} ({})",
+                special_use_allowlist_raw, reason
+            )
+        })?;
+
+    let runtime_env = runtime_environment();
+    let upstream_origin_raw = env_trimmed_optional("SHUMA_GATEWAY_UPSTREAM_ORIGIN")
+        .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_UPSTREAM_ORIGIN"));
+    if upstream_origin_raw.is_empty() {
+        if runtime_env.is_prod() {
+            return Err(
+                "Invalid gateway posture: SHUMA_GATEWAY_UPSTREAM_ORIGIN must be set when SHUMA_RUNTIME_ENV=runtime-prod"
+                    .to_string(),
+            );
+        }
+        return Ok(());
+    }
+
+    let upstream = parse_gateway_upstream_origin(upstream_origin_raw.as_str()).map_err(|reason| {
+        format!(
+            "Invalid gateway upstream origin env var SHUMA_GATEWAY_UPSTREAM_ORIGIN={} ({})",
+            upstream_origin_raw, reason
+        )
+    })?;
+
+    if profile.is_edge() && upstream.scheme != "https" {
+        return Err(
+            "Invalid gateway posture: SHUMA_GATEWAY_DEPLOYMENT_PROFILE=edge-fermyon requires SHUMA_GATEWAY_UPSTREAM_ORIGIN to use https://"
+                .to_string(),
+        );
+    }
+
+    if upstream.scheme == "http" {
+        if profile.is_edge() {
+            return Err(
+                "Invalid gateway posture: SHUMA_GATEWAY_DEPLOYMENT_PROFILE=edge-fermyon does not allow insecure http:// upstream origins"
+                    .to_string(),
+            );
+        }
+        if !allow_insecure_http_local {
+            return Err(
+                "Invalid gateway posture: insecure http:// upstream requires SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL=true"
+                    .to_string(),
+            );
+        }
+        if !upstream.host_is_ip_literal {
+            return Err(
+                "Invalid gateway posture: insecure http:// upstream must use an IP-literal host (DNS hostnames are not allowed)"
+                    .to_string(),
+            );
+        }
+        let host_ip = upstream
+            .host
+            .parse::<IpAddr>()
+            .map_err(|_| "Invalid gateway posture: insecure http:// upstream host must be a valid IP literal".to_string())?;
+        if is_insecure_special_use_ip(host_ip) {
+            if !(allow_insecure_http_special_use_ips && special_use_allowlist.contains(&host_ip)) {
+                return Err(
+                    "Invalid gateway posture: insecure http:// upstream in special-use range requires SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS=true and explicit SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST entry"
+                        .to_string(),
+                );
+            }
+        } else if !is_private_or_loopback_ip(host_ip) {
+            return Err(
+                "Invalid gateway posture: insecure http:// upstream must be loopback/private IP-literal and must not be public-routable"
+                    .to_string(),
+            );
+        }
+    }
+
+    if public_authorities
+        .iter()
+        .any(|authority| authority == &upstream.authority())
+    {
+        return Err(format!(
+            "Invalid gateway loop posture: SHUMA_GATEWAY_UPSTREAM_ORIGIN authority {} must not match SHUMA_GATEWAY_PUBLIC_AUTHORITIES",
+            upstream.authority()
+        ));
+    }
+
+    let origin_auth_header_name = env_trimmed_optional("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME")
+        .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME"));
+    let origin_auth_header_value = env_trimmed_optional("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE")
+        .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE"));
+
+    if profile.is_edge() && origin_auth_mode != GatewayOriginAuthMode::SignedHeader {
+        return Err(
+            "Invalid gateway origin auth posture: SHUMA_GATEWAY_DEPLOYMENT_PROFILE=edge-fermyon requires SHUMA_GATEWAY_ORIGIN_AUTH_MODE=signed_header"
+                .to_string(),
+        );
+    }
+
+    match origin_auth_mode {
+        GatewayOriginAuthMode::NetworkOnly => {
+            if !origin_auth_header_name.is_empty() || !origin_auth_header_value.is_empty() {
+                return Err(
+                    "Invalid gateway origin auth posture: SHUMA_GATEWAY_ORIGIN_AUTH_MODE=network_only must not set SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME/SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE"
+                        .to_string(),
+                );
+            }
+        }
+        GatewayOriginAuthMode::SignedHeader => {
+            if origin_auth_header_name.is_empty() || origin_auth_header_value.is_empty() {
+                return Err(
+                    "Invalid gateway origin auth posture: SHUMA_GATEWAY_ORIGIN_AUTH_MODE=signed_header requires SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME and SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE"
+                        .to_string(),
+                );
+            }
+            if !valid_header_name(origin_auth_header_name.as_str()) {
+                return Err(
+                    "Invalid gateway origin auth posture: SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME must be a valid HTTP header token"
+                        .to_string(),
+                );
+            }
+            let lowered = origin_auth_header_name.to_ascii_lowercase();
+            if matches!(
+                lowered.as_str(),
+                "authorization"
+                    | "host"
+                    | "forwarded"
+                    | "x-forwarded-for"
+                    | "x-forwarded-host"
+                    | "x-forwarded-proto"
+                    | "x-forwarded-port"
+                    | "x-shuma-forwarded-secret"
+                    | "connection"
+                    | "transfer-encoding"
+            ) {
+                return Err(
+                    "Invalid gateway origin auth posture: SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME must not be a transport/provenance or privileged header"
+                        .to_string(),
+                );
+            }
+        }
+    }
+
+    let origin_lock_confirmed = parse_env_bool_optional(
+        "SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED",
+        defaults_bool("SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED"),
+    )
+    .ok_or_else(|| {
+        invalid_boolean_env(
+            "SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED",
+            defaults_raw("SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED").as_str(),
+        )
+    })?;
+    if runtime_env.is_prod() && !origin_lock_confirmed {
+        return Err(
+            "Invalid gateway posture: SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED must be true when SHUMA_RUNTIME_ENV=runtime-prod"
+                .to_string(),
+        );
+    }
+
+    let route_collision_check_passed = parse_env_bool_optional(
+        "SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED",
+        defaults_bool("SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED"),
+    )
+    .ok_or_else(|| {
+        invalid_boolean_env(
+            "SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED",
+            defaults_raw("SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED").as_str(),
+        )
+    })?;
+    if runtime_env.is_prod() && !route_collision_check_passed {
+        return Err(
+            "Invalid gateway posture: SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED must be true when SHUMA_RUNTIME_ENV=runtime-prod"
+                .to_string(),
+        );
+    }
+
     Ok(())
 }
 
@@ -1400,6 +1766,238 @@ fn validate_u64_var(name: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn parse_env_bool_optional(name: &str, default: bool) -> Option<bool> {
+    let raw = env::var(name)
+        .ok()
+        .unwrap_or_else(|| if default { "true" } else { "false" }.to_string());
+    parse_bool_like(raw.as_str())
+}
+
+fn env_u8_optional(name: &str, default: u8) -> Option<u8> {
+    env::var(name)
+        .ok()
+        .unwrap_or_else(|| default.to_string())
+        .trim()
+        .parse::<u8>()
+        .ok()
+}
+
+fn env_u32_optional(name: &str, default: u32) -> Option<u32> {
+    env::var(name)
+        .ok()
+        .unwrap_or_else(|| default.to_string())
+        .trim()
+        .parse::<u32>()
+        .ok()
+}
+
+fn invalid_boolean_env(name: &str, fallback_raw: &str) -> String {
+    let value = env::var(name)
+        .ok()
+        .unwrap_or_else(|| fallback_raw.to_string());
+    format!("Invalid boolean env var {}={}", name, value)
+}
+
+fn invalid_integer_env(name: &str) -> String {
+    let value = env::var(name).ok().unwrap_or_default();
+    if value.trim().is_empty() {
+        format!("Invalid integer env var {}=<empty>", name)
+    } else {
+        format!("Invalid integer env var {}={}", name, value)
+    }
+}
+
+fn parse_gateway_authority_list(raw: &str) -> Result<Vec<String>, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(Vec::new());
+    }
+    trimmed
+        .split(',')
+        .map(|entry| {
+            let (host, port, is_ip_literal) = parse_gateway_authority(entry, 443)?;
+            Ok(gateway_authority_to_string(
+                host.as_str(),
+                port,
+                is_ip_literal,
+            ))
+        })
+        .collect()
+}
+
+fn parse_gateway_ip_allowlist(raw: &str) -> Result<Vec<IpAddr>, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut allowlist = Vec::new();
+    for entry in trimmed.split(',') {
+        let candidate = entry.trim();
+        if candidate.is_empty() {
+            continue;
+        }
+        let parsed = candidate.parse::<IpAddr>().map_err(|_| {
+            format!(
+                "invalid IP literal {}; expected comma-separated IPv4/IPv6 literals",
+                candidate
+            )
+        })?;
+        allowlist.push(parsed);
+    }
+    Ok(allowlist)
+}
+
+fn parse_gateway_upstream_origin(value: &str) -> Result<GatewayUpstreamOrigin, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err("must not be empty".to_string());
+    }
+    let (scheme_raw, authority_raw) = trimmed
+        .split_once("://")
+        .ok_or_else(|| "must include scheme://authority".to_string())?;
+    let scheme = scheme_raw.trim().to_ascii_lowercase();
+    if !matches!(scheme.as_str(), "http" | "https") {
+        return Err("scheme must be http or https".to_string());
+    }
+    if authority_raw.contains('/') || authority_raw.contains('?') || authority_raw.contains('#') {
+        return Err("must not include path, query, or fragment".to_string());
+    }
+    if authority_raw.contains('@') {
+        return Err("must not include userinfo".to_string());
+    }
+    let default_port = if scheme == "https" { 443 } else { 80 };
+    let (host, port, host_is_ip_literal) = parse_gateway_authority(authority_raw, default_port)?;
+    Ok(GatewayUpstreamOrigin {
+        scheme,
+        host,
+        port,
+        host_is_ip_literal,
+    })
+}
+
+fn parse_gateway_authority(raw: &str, default_port: u16) -> Result<(String, u16, bool), String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err("authority must not be empty".to_string());
+    }
+    if trimmed.contains('/') || trimmed.contains('?') || trimmed.contains('#') || trimmed.contains('@') {
+        return Err("authority must not include path/query/fragment/userinfo".to_string());
+    }
+
+    let (host_raw, port) = if let Some(rest) = trimmed.strip_prefix('[') {
+        let close = rest
+            .find(']')
+            .ok_or_else(|| "IPv6 literals must be closed with ]".to_string())?;
+        let host_part = &rest[..close];
+        let suffix = rest[close + 1..].trim();
+        let port_value = if suffix.is_empty() {
+            default_port
+        } else if let Some(port_raw) = suffix.strip_prefix(':') {
+            parse_port(port_raw)?
+        } else {
+            return Err("unexpected characters after IPv6 literal".to_string());
+        };
+        (host_part.to_string(), port_value)
+    } else {
+        let last_colon = trimmed.rfind(':');
+        let (host_part, port_value) = match last_colon {
+            Some(index) => {
+                let host_part = &trimmed[..index];
+                let port_candidate = &trimmed[index + 1..];
+                if host_part.contains(':') {
+                    return Err("IPv6 literals must be bracketed when specifying a port".to_string());
+                }
+                if port_candidate.is_empty() {
+                    return Err("port must not be empty when ':' is present".to_string());
+                }
+                (host_part.to_string(), parse_port(port_candidate)?)
+            }
+            None => (trimmed.to_string(), default_port),
+        };
+        (host_part, port_value)
+    };
+
+    let host_trimmed = host_raw.trim();
+    if host_trimmed.is_empty() {
+        return Err("host must not be empty".to_string());
+    }
+    let host_is_ip_literal = host_trimmed.parse::<IpAddr>().is_ok();
+    let canonical_host = if host_is_ip_literal {
+        host_trimmed
+            .parse::<IpAddr>()
+            .map_err(|_| "invalid IP literal host".to_string())?
+            .to_string()
+    } else {
+        host_trimmed.to_ascii_lowercase()
+    };
+    Ok((canonical_host, port, host_is_ip_literal))
+}
+
+fn parse_port(raw: &str) -> Result<u16, String> {
+    let parsed = raw
+        .trim()
+        .parse::<u16>()
+        .map_err(|_| "invalid port".to_string())?;
+    if parsed == 0 {
+        return Err("port must be greater than zero".to_string());
+    }
+    Ok(parsed)
+}
+
+fn gateway_authority_to_string(host: &str, port: u16, host_is_ip_literal: bool) -> String {
+    if host_is_ip_literal && host.contains(':') {
+        format!("[{}]:{}", host, port)
+    } else {
+        format!("{}:{}", host, port)
+    }
+}
+
+fn is_private_or_loopback_ip(addr: IpAddr) -> bool {
+    match addr {
+        IpAddr::V4(v4) => v4.is_private() || v4.is_loopback(),
+        IpAddr::V6(v6) => v6.is_unique_local() || v6.is_loopback(),
+    }
+}
+
+fn is_insecure_special_use_ip(addr: IpAddr) -> bool {
+    match addr {
+        IpAddr::V4(v4) => {
+            v4.is_link_local()
+                || v4.is_multicast()
+                || v4.is_unspecified()
+                || v4 == Ipv4Addr::BROADCAST
+                || v4.octets()[0] == 0
+        }
+        IpAddr::V6(v6) => v6.is_unicast_link_local() || v6.is_multicast() || v6.is_unspecified(),
+    }
+}
+
+fn valid_header_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.as_bytes().iter().all(|byte| {
+            matches!(
+                byte,
+                b'!' | b'#'
+                    | b'$'
+                    | b'%'
+                    | b'&'
+                    | b'\''
+                    | b'*'
+                    | b'+'
+                    | b'-'
+                    | b'.'
+                    | b'^'
+                    | b'_'
+                    | b'`'
+                    | b'|'
+                    | b'~'
+                    | b'0'..=b'9'
+                    | b'a'..=b'z'
+                    | b'A'..=b'Z'
+            )
+        })
+}
+
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct FrontierProviderSummary {
     pub provider: String,
@@ -1474,6 +2072,26 @@ pub fn enterprise_unsynced_state_exception_confirmed() -> bool {
     env_bool_optional("SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED", false)
 }
 
+pub fn gateway_deployment_profile() -> GatewayDeploymentProfile {
+    env::var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE")
+        .ok()
+        .and_then(|value| parse_gateway_deployment_profile(value.as_str()))
+        .unwrap_or_else(|| {
+            parse_gateway_deployment_profile(defaults_raw("SHUMA_GATEWAY_DEPLOYMENT_PROFILE").as_str())
+                .unwrap_or(GatewayDeploymentProfile::SharedServer)
+        })
+}
+
+pub fn gateway_origin_auth_mode() -> GatewayOriginAuthMode {
+    env::var("SHUMA_GATEWAY_ORIGIN_AUTH_MODE")
+        .ok()
+        .and_then(|value| parse_gateway_origin_auth_mode(value.as_str()))
+        .unwrap_or_else(|| {
+            parse_gateway_origin_auth_mode(defaults_raw("SHUMA_GATEWAY_ORIGIN_AUTH_MODE").as_str())
+                .unwrap_or(GatewayOriginAuthMode::NetworkOnly)
+        })
+}
+
 pub fn runtime_environment() -> RuntimeEnvironment {
     env::var("SHUMA_RUNTIME_ENV")
         .ok()
@@ -1483,6 +2101,98 @@ pub fn runtime_environment() -> RuntimeEnvironment {
 
 pub fn adversary_sim_available() -> bool {
     env_bool_optional("SHUMA_ADVERSARY_SIM_AVAILABLE", false)
+}
+
+pub fn gateway_upstream_origin() -> Option<String> {
+    env_trimmed_optional("SHUMA_GATEWAY_UPSTREAM_ORIGIN")
+}
+
+pub fn gateway_allow_insecure_http_local() -> bool {
+    env_bool_optional(
+        "SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL",
+        defaults_bool("SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL"),
+    )
+}
+
+pub fn gateway_allow_insecure_http_special_use_ips() -> bool {
+    env_bool_optional(
+        "SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS",
+        defaults_bool("SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS"),
+    )
+}
+
+pub fn gateway_insecure_http_special_use_ip_allowlist() -> String {
+    env::var("SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST")
+        .ok()
+        .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST"))
+        .trim()
+        .to_string()
+}
+
+pub fn gateway_public_authorities() -> String {
+    env::var("SHUMA_GATEWAY_PUBLIC_AUTHORITIES")
+        .ok()
+        .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_PUBLIC_AUTHORITIES"))
+        .trim()
+        .to_string()
+}
+
+pub fn gateway_loop_max_hops() -> u8 {
+    env_u8_optional(
+        "SHUMA_GATEWAY_LOOP_MAX_HOPS",
+        defaults_u8("SHUMA_GATEWAY_LOOP_MAX_HOPS"),
+    )
+    .unwrap_or(3)
+}
+
+pub fn gateway_tls_strict() -> bool {
+    env_bool_optional("SHUMA_GATEWAY_TLS_STRICT", defaults_bool("SHUMA_GATEWAY_TLS_STRICT"))
+}
+
+pub fn gateway_origin_lock_confirmed() -> bool {
+    env_bool_optional(
+        "SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED",
+        defaults_bool("SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED"),
+    )
+}
+
+pub fn gateway_origin_auth_header_name() -> String {
+    env::var("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME")
+        .ok()
+        .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME"))
+        .trim()
+        .to_string()
+}
+
+pub fn gateway_origin_auth_header_value() -> String {
+    env::var("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE")
+        .ok()
+        .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE"))
+        .trim()
+        .to_string()
+}
+
+pub fn gateway_origin_auth_max_age_days() -> u32 {
+    env_u32_optional(
+        "SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS",
+        defaults_u32("SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS"),
+    )
+    .unwrap_or(90)
+}
+
+pub fn gateway_origin_auth_rotation_overlap_days() -> u32 {
+    env_u32_optional(
+        "SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS",
+        defaults_u32("SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS"),
+    )
+    .unwrap_or(7)
+}
+
+pub fn gateway_reserved_route_collision_check_passed() -> bool {
+    env_bool_optional(
+        "SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED",
+        defaults_bool("SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED"),
+    )
 }
 
 pub fn sim_telemetry_secret() -> Option<String> {
@@ -1698,6 +2408,22 @@ pub(crate) fn parse_runtime_environment(value: &str) -> Option<RuntimeEnvironmen
     match value.trim().to_ascii_lowercase().as_str() {
         "runtime-dev" => Some(RuntimeEnvironment::RuntimeDev),
         "runtime-prod" => Some(RuntimeEnvironment::RuntimeProd),
+        _ => None,
+    }
+}
+
+pub(crate) fn parse_gateway_deployment_profile(value: &str) -> Option<GatewayDeploymentProfile> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "shared-server" => Some(GatewayDeploymentProfile::SharedServer),
+        "edge-fermyon" => Some(GatewayDeploymentProfile::EdgeFermyon),
+        _ => None,
+    }
+}
+
+pub(crate) fn parse_gateway_origin_auth_mode(value: &str) -> Option<GatewayOriginAuthMode> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "network_only" => Some(GatewayOriginAuthMode::NetworkOnly),
+        "signed_header" => Some(GatewayOriginAuthMode::SignedHeader),
         _ => None,
     }
 }

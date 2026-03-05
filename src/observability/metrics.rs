@@ -67,6 +67,15 @@ const TARPIT_ESCALATION_OUTCOMES: [&str; 3] = ["none", "short_ban", "block"];
 const TARPIT_DURATION_BUCKETS: [&str; 4] = ["lt_1s", "1_5s", "5_20s", "20s_plus"];
 const TARPIT_BYTES_BUCKETS: [&str; 5] =
     ["lt_8kb", "8_32kb", "32_128kb", "128_512kb", "512kb_plus"];
+const FORWARD_FAILURE_CLASSES: [&str; 5] = [
+    "timeout",
+    "transport",
+    "policy_denied",
+    "misconfiguration",
+    "loop_detected",
+];
+const FORWARD_LATENCY_BUCKETS: [&str; 6] =
+    ["lt_10ms", "10_50ms", "50_200ms", "200_1000ms", "1_5s", "5s_plus"];
 const MONITORING_CHALLENGE_FAILURE_REASON_KEYS: [&str; 5] = [
     "incorrect",
     "expired_replay",
@@ -240,9 +249,12 @@ static METRICS_BUFFER: Lazy<Mutex<HashMap<String, u64>>> = Lazy::new(|| Mutex::n
 const FLUSH_KEY_COUNT: usize = 50;
 const FLUSH_VALUE_THRESHOLD: u64 = 10;
 
-/// Increment a counter metric, optionally with a label.
+/// Add `delta` to a counter metric, optionally with a label.
 /// This updates an in-memory buffer and flushes to KV on thresholds.
-pub fn increment(store: &Store, metric: MetricName, label: Option<&str>) {
+pub fn add(store: &Store, metric: MetricName, label: Option<&str>, delta: u64) {
+    if delta == 0 {
+        return;
+    }
     let key = match label {
         Some(l) => format!("{}{}:{}", METRICS_PREFIX, metric.as_str(), l),
         None => format!("{}{}", METRICS_PREFIX, metric.as_str()),
@@ -252,7 +264,7 @@ pub fn increment(store: &Store, metric: MetricName, label: Option<&str>) {
     {
         let mut buf = METRICS_BUFFER.lock().unwrap();
         let v = buf.entry(key.clone()).or_insert(0);
-        *v = v.saturating_add(1);
+        *v = v.saturating_add(delta);
         // if this key reached threshold, flush
         if *v >= FLUSH_VALUE_THRESHOLD || buf.len() >= FLUSH_KEY_COUNT {
             // drop lock then flush below
@@ -287,6 +299,11 @@ pub fn increment(store: &Store, metric: MetricName, label: Option<&str>) {
             *entry = entry.saturating_add(v);
         }
     }
+}
+
+/// Increment a counter metric by 1, optionally with a label.
+pub fn increment(store: &Store, metric: MetricName, label: Option<&str>) {
+    add(store, metric, label, 1);
 }
 
 fn record_defence_mode_effective(
@@ -885,6 +902,62 @@ pub fn render_metrics(store: &Store) -> String {
         output.push_str(&format!(
             "bot_defence_policy_signals_total{{signal=\"{}\"}} {}\n",
             signal, count
+        ));
+    }
+
+    output.push_str("\n# TYPE bot_defence_forward_attempt_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_forward_attempt_total Total upstream forwarding attempts\n",
+    );
+    let forward_attempt_total = get_counter(store, &format!("{}forward_attempt_total", METRICS_PREFIX));
+    output.push_str(&format!(
+        "bot_defence_forward_attempt_total {}\n",
+        forward_attempt_total
+    ));
+
+    output.push_str("\n# TYPE bot_defence_forward_success_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_forward_success_total Total successful upstream forwards\n",
+    );
+    let forward_success_total = get_counter(store, &format!("{}forward_success_total", METRICS_PREFIX));
+    output.push_str(&format!(
+        "bot_defence_forward_success_total {}\n",
+        forward_success_total
+    ));
+
+    output.push_str("\n# TYPE bot_defence_forward_failure_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_forward_failure_total Total upstream forward failures by class\n",
+    );
+    for class in FORWARD_FAILURE_CLASSES {
+        let key = format!("{}forward_failure_total:{}", METRICS_PREFIX, class);
+        let count = get_counter(store, key.as_str());
+        output.push_str(&format!(
+            "bot_defence_forward_failure_total{{class=\"{}\"}} {}\n",
+            class, count
+        ));
+    }
+
+    output.push_str("\n# TYPE bot_defence_forward_latency_ms_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_forward_latency_ms_total Cumulative upstream forward latency in milliseconds\n",
+    );
+    let forward_latency_ms_total = get_counter(store, &format!("{}forward_latency_ms_total", METRICS_PREFIX));
+    output.push_str(&format!(
+        "bot_defence_forward_latency_ms_total {}\n",
+        forward_latency_ms_total
+    ));
+
+    output.push_str("\n# TYPE bot_defence_forward_latency_buckets_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_forward_latency_buckets_total Upstream forward latency buckets\n",
+    );
+    for bucket in FORWARD_LATENCY_BUCKETS {
+        let key = format!("{}forward_latency_buckets_total:{}", METRICS_PREFIX, bucket);
+        let count = get_counter(store, key.as_str());
+        output.push_str(&format!(
+            "bot_defence_forward_latency_buckets_total{{bucket=\"{}\"}} {}\n",
+            bucket, count
         ));
     }
 

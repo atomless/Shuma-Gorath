@@ -48,3 +48,4 @@ If superseded, link the replacing ADR.
 8. [`0008-realtime-monitoring-cursor-sse-hybrid.md`](0008-realtime-monitoring-cursor-sse-hybrid.md)
 9. [`0009-telemetry-lifecycle-retention-cost-security.md`](0009-telemetry-lifecycle-retention-cost-security.md)
 10. [`0010-adversary-sim-autonomous-heartbeat.md`](0010-adversary-sim-autonomous-heartbeat.md)
+11. [`0011-gateway-only-upstream-contract.md`](0011-gateway-only-upstream-contract.md)

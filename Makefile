@@ -1,4 +1,4 @@
-.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-gateway-harness test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -54,6 +54,21 @@ SHUMA_FRONTIER_GOOGLE_MODEL := $(call strip_wrapping_quotes,$(SHUMA_FRONTIER_GOO
 SHUMA_FRONTIER_XAI_MODEL := $(call strip_wrapping_quotes,$(SHUMA_FRONTIER_XAI_MODEL))
 SHUMA_ENTERPRISE_MULTI_INSTANCE := $(call strip_wrapping_quotes,$(SHUMA_ENTERPRISE_MULTI_INSTANCE))
 SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED := $(call strip_wrapping_quotes,$(SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED))
+SHUMA_GATEWAY_UPSTREAM_ORIGIN := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_UPSTREAM_ORIGIN))
+SHUMA_GATEWAY_DEPLOYMENT_PROFILE := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_DEPLOYMENT_PROFILE))
+SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL))
+SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS))
+SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST))
+SHUMA_GATEWAY_PUBLIC_AUTHORITIES := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_PUBLIC_AUTHORITIES))
+SHUMA_GATEWAY_LOOP_MAX_HOPS := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_LOOP_MAX_HOPS))
+SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED))
+SHUMA_GATEWAY_ORIGIN_AUTH_MODE := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_ORIGIN_AUTH_MODE))
+SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME))
+SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE))
+SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS))
+SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS))
+SHUMA_GATEWAY_TLS_STRICT := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_TLS_STRICT))
+SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED))
 SHUMA_RUNTIME_ENV := $(if $(strip $(SHUMA_RUNTIME_ENV)),$(SHUMA_RUNTIME_ENV),runtime-prod)
 SHUMA_ADVERSARY_SIM_AVAILABLE := $(if $(strip $(SHUMA_ADVERSARY_SIM_AVAILABLE)),$(SHUMA_ADVERSARY_SIM_AVAILABLE),false)
 SHUMA_FRONTIER_OPENAI_MODEL := $(if $(strip $(SHUMA_FRONTIER_OPENAI_MODEL)),$(SHUMA_FRONTIER_OPENAI_MODEL),gpt-5-mini)
@@ -62,6 +77,16 @@ SHUMA_FRONTIER_GOOGLE_MODEL := $(if $(strip $(SHUMA_FRONTIER_GOOGLE_MODEL)),$(SH
 SHUMA_FRONTIER_XAI_MODEL := $(if $(strip $(SHUMA_FRONTIER_XAI_MODEL)),$(SHUMA_FRONTIER_XAI_MODEL),grok-3-mini)
 SHUMA_ENTERPRISE_MULTI_INSTANCE := $(if $(strip $(SHUMA_ENTERPRISE_MULTI_INSTANCE)),$(SHUMA_ENTERPRISE_MULTI_INSTANCE),false)
 SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED := $(if $(strip $(SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED)),$(SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED),false)
+SHUMA_GATEWAY_DEPLOYMENT_PROFILE := $(if $(strip $(SHUMA_GATEWAY_DEPLOYMENT_PROFILE)),$(SHUMA_GATEWAY_DEPLOYMENT_PROFILE),shared-server)
+SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL := $(if $(strip $(SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL)),$(SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL),false)
+SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS := $(if $(strip $(SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS)),$(SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS),false)
+SHUMA_GATEWAY_LOOP_MAX_HOPS := $(if $(strip $(SHUMA_GATEWAY_LOOP_MAX_HOPS)),$(SHUMA_GATEWAY_LOOP_MAX_HOPS),3)
+SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED := $(if $(strip $(SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED)),$(SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED),false)
+SHUMA_GATEWAY_ORIGIN_AUTH_MODE := $(if $(strip $(SHUMA_GATEWAY_ORIGIN_AUTH_MODE)),$(SHUMA_GATEWAY_ORIGIN_AUTH_MODE),network_only)
+SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS := $(if $(strip $(SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS)),$(SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS),90)
+SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS := $(if $(strip $(SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS)),$(SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS),7)
+SHUMA_GATEWAY_TLS_STRICT := $(if $(strip $(SHUMA_GATEWAY_TLS_STRICT)),$(SHUMA_GATEWAY_TLS_STRICT),true)
+SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED := $(if $(strip $(SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED)),$(SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED),false)
 SHUMA_RATE_LIMITER_REDIS_URL := $(call strip_wrapping_quotes,$(SHUMA_RATE_LIMITER_REDIS_URL))
 SHUMA_BAN_STORE_REDIS_URL := $(call strip_wrapping_quotes,$(SHUMA_BAN_STORE_REDIS_URL))
 SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN := $(call strip_wrapping_quotes,$(SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN))
@@ -69,7 +94,52 @@ SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH := $(call strip_wrapping_quotes,$(SHUM
 
 # Inject env-only runtime keys into Spin from .env.local / shell env.
 # This list is the operator-facing copy surface for deploy-time env overrides.
-SPIN_ENV_ONLY_BASE := --env SHUMA_API_KEY=$(SHUMA_API_KEY) --env SHUMA_ADMIN_READONLY_API_KEY=$(SHUMA_ADMIN_READONLY_API_KEY) --env SHUMA_JS_SECRET=$(SHUMA_JS_SECRET) --env SHUMA_POW_SECRET=$(SHUMA_POW_SECRET) --env SHUMA_CHALLENGE_SECRET=$(SHUMA_CHALLENGE_SECRET) --env SHUMA_MAZE_PREVIEW_SECRET=$(SHUMA_MAZE_PREVIEW_SECRET) --env SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) --env SHUMA_HEALTH_SECRET=$(SHUMA_HEALTH_SECRET) --env SHUMA_ADMIN_IP_ALLOWLIST=$(SHUMA_ADMIN_IP_ALLOWLIST) --env SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE=$(SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE) --env SHUMA_EVENT_LOG_RETENTION_HOURS=$(SHUMA_EVENT_LOG_RETENTION_HOURS) --env SHUMA_KV_STORE_FAIL_OPEN=$(SHUMA_KV_STORE_FAIL_OPEN) --env SHUMA_ENFORCE_HTTPS=$(SHUMA_ENFORCE_HTTPS) --env SHUMA_RUNTIME_ENV=$(SHUMA_RUNTIME_ENV) --env SHUMA_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE) --env SHUMA_SIM_TELEMETRY_SECRET=$(SHUMA_SIM_TELEMETRY_SECRET) --env SHUMA_FRONTIER_OPENAI_API_KEY=$(SHUMA_FRONTIER_OPENAI_API_KEY) --env SHUMA_FRONTIER_ANTHROPIC_API_KEY=$(SHUMA_FRONTIER_ANTHROPIC_API_KEY) --env SHUMA_FRONTIER_GOOGLE_API_KEY=$(SHUMA_FRONTIER_GOOGLE_API_KEY) --env SHUMA_FRONTIER_XAI_API_KEY=$(SHUMA_FRONTIER_XAI_API_KEY) --env SHUMA_FRONTIER_OPENAI_MODEL=$(SHUMA_FRONTIER_OPENAI_MODEL) --env SHUMA_FRONTIER_ANTHROPIC_MODEL=$(SHUMA_FRONTIER_ANTHROPIC_MODEL) --env SHUMA_FRONTIER_GOOGLE_MODEL=$(SHUMA_FRONTIER_GOOGLE_MODEL) --env SHUMA_FRONTIER_XAI_MODEL=$(SHUMA_FRONTIER_XAI_MODEL) --env SHUMA_ENTERPRISE_MULTI_INSTANCE=$(SHUMA_ENTERPRISE_MULTI_INSTANCE) --env SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=$(SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED) --env SHUMA_RATE_LIMITER_REDIS_URL=$(SHUMA_RATE_LIMITER_REDIS_URL) --env SHUMA_BAN_STORE_REDIS_URL=$(SHUMA_BAN_STORE_REDIS_URL) --env SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN=$(SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN) --env SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH=$(SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH)
+SPIN_ENV_ONLY_BASE := \
+	--env SHUMA_API_KEY=$(SHUMA_API_KEY) \
+	--env SHUMA_ADMIN_READONLY_API_KEY=$(SHUMA_ADMIN_READONLY_API_KEY) \
+	--env SHUMA_JS_SECRET=$(SHUMA_JS_SECRET) \
+	--env SHUMA_POW_SECRET=$(SHUMA_POW_SECRET) \
+	--env SHUMA_CHALLENGE_SECRET=$(SHUMA_CHALLENGE_SECRET) \
+	--env SHUMA_MAZE_PREVIEW_SECRET=$(SHUMA_MAZE_PREVIEW_SECRET) \
+	--env SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) \
+	--env SHUMA_HEALTH_SECRET=$(SHUMA_HEALTH_SECRET) \
+	--env SHUMA_ADMIN_IP_ALLOWLIST=$(SHUMA_ADMIN_IP_ALLOWLIST) \
+	--env SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE=$(SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE) \
+	--env SHUMA_EVENT_LOG_RETENTION_HOURS=$(SHUMA_EVENT_LOG_RETENTION_HOURS) \
+	--env SHUMA_KV_STORE_FAIL_OPEN=$(SHUMA_KV_STORE_FAIL_OPEN) \
+	--env SHUMA_ENFORCE_HTTPS=$(SHUMA_ENFORCE_HTTPS) \
+	--env SHUMA_RUNTIME_ENV=$(SHUMA_RUNTIME_ENV) \
+	--env SHUMA_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE) \
+	--env SHUMA_SIM_TELEMETRY_SECRET=$(SHUMA_SIM_TELEMETRY_SECRET) \
+	--env SHUMA_FRONTIER_OPENAI_API_KEY=$(SHUMA_FRONTIER_OPENAI_API_KEY) \
+	--env SHUMA_FRONTIER_ANTHROPIC_API_KEY=$(SHUMA_FRONTIER_ANTHROPIC_API_KEY) \
+	--env SHUMA_FRONTIER_GOOGLE_API_KEY=$(SHUMA_FRONTIER_GOOGLE_API_KEY) \
+	--env SHUMA_FRONTIER_XAI_API_KEY=$(SHUMA_FRONTIER_XAI_API_KEY) \
+	--env SHUMA_FRONTIER_OPENAI_MODEL=$(SHUMA_FRONTIER_OPENAI_MODEL) \
+	--env SHUMA_FRONTIER_ANTHROPIC_MODEL=$(SHUMA_FRONTIER_ANTHROPIC_MODEL) \
+	--env SHUMA_FRONTIER_GOOGLE_MODEL=$(SHUMA_FRONTIER_GOOGLE_MODEL) \
+	--env SHUMA_FRONTIER_XAI_MODEL=$(SHUMA_FRONTIER_XAI_MODEL) \
+	--env SHUMA_ENTERPRISE_MULTI_INSTANCE=$(SHUMA_ENTERPRISE_MULTI_INSTANCE) \
+	--env SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=$(SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED) \
+	--env SHUMA_RATE_LIMITER_REDIS_URL=$(SHUMA_RATE_LIMITER_REDIS_URL) \
+	--env SHUMA_BAN_STORE_REDIS_URL=$(SHUMA_BAN_STORE_REDIS_URL) \
+	--env SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN=$(SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN) \
+	--env SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH=$(SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH) \
+	--env SHUMA_GATEWAY_UPSTREAM_ORIGIN=$(SHUMA_GATEWAY_UPSTREAM_ORIGIN) \
+	--env SHUMA_GATEWAY_DEPLOYMENT_PROFILE=$(SHUMA_GATEWAY_DEPLOYMENT_PROFILE) \
+	--env SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL=$(SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL) \
+	--env SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS=$(SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS) \
+	--env SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST=$(SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST) \
+	--env SHUMA_GATEWAY_PUBLIC_AUTHORITIES=$(SHUMA_GATEWAY_PUBLIC_AUTHORITIES) \
+	--env SHUMA_GATEWAY_LOOP_MAX_HOPS=$(SHUMA_GATEWAY_LOOP_MAX_HOPS) \
+	--env SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=$(SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED) \
+	--env SHUMA_GATEWAY_ORIGIN_AUTH_MODE=$(SHUMA_GATEWAY_ORIGIN_AUTH_MODE) \
+	--env SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME=$(SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME) \
+	--env SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE=$(SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE) \
+	--env SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS=$(SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS) \
+	--env SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS=$(SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS) \
+	--env SHUMA_GATEWAY_TLS_STRICT=$(SHUMA_GATEWAY_TLS_STRICT) \
+	--env SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=$(SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED)
 SPIN_RUNTIME_CONTROL_ENV := --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_DEBUG_HEADERS=$(SHUMA_DEBUG_HEADERS)
 SPIN_ENV_ONLY := $(SPIN_ENV_ONLY_BASE) $(SPIN_RUNTIME_CONTROL_ENV)
 
@@ -91,6 +161,7 @@ SHUMA_DASHBOARD_BUNDLE_MAX_CSS_BYTES ?= 40000
 SHUMA_DASHBOARD_BUNDLE_MAX_JS_CHUNK_BYTES ?= 150000
 SHUMA_DASHBOARD_BUNDLE_MAX_CSS_ASSET_BYTES ?= 30000
 SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE ?= 0
+DEPLOY_LINODE_ARGS ?=
 DEV_WATCH_IGNORES := -i '*.wasm' -i 'dist/wasm/shuma_gorath.wasm' -i '.spin/**' -i 'dashboard/.svelte-kit' -i 'dashboard/.svelte-kit/**' -i 'dashboard/.vite' -i 'dashboard/.vite/**'
 ADVERSARY_SIM_SUPERVISOR_BASE_URL ?= http://127.0.0.1:3000
 
@@ -310,6 +381,9 @@ deploy-enterprise-akamai: deploy-profile-baseline ## Profile wrapper: enterprise
 	@$(MAKE) --no-print-directory deploy-env-validate
 	@echo "$(GREEN)✅ enterprise_akamai overlay pre-deploy checks passed.$(NC)"
 
+deploy-linode-one-shot: ## Provision Linode VM + deploy Shuma runtime in one command (requires LINODE_TOKEN and SHUMA_ADMIN_IP_ALLOWLIST)
+	@./scripts/deploy_linode_one_shot.sh $(DEPLOY_LINODE_ARGS)
+
 #--------------------------
 # Testing
 #--------------------------
@@ -417,6 +491,12 @@ test-integration: ## Run integration tests only (21 scenarios, requires running 
 	fi
 
 integration-test: test-integration ## Alias for Spin integration tests
+
+test-gateway-harness: ## Run deterministic gateway upstream fixture + failure harness checks (no Spin server required)
+	@echo "$(CYAN)🧪 Running gateway fixture/failure harness checks...$(NC)"
+	@python3 -m unittest scripts/tests/test_validate_gateway_contract.py
+	@python3 -m unittest scripts/tests/test_gateway_failure_harness.py
+	@python3 scripts/tests/gateway_failure_harness.py
 
 test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtures (no server required)
 	@echo "$(CYAN)🧪 Validating adversarial simulation manifest...$(NC)"
@@ -957,6 +1037,21 @@ env-help: ## Show supported env-only runtime overrides
 	@echo "  SHUMA_BAN_STORE_REDIS_URL"
 	@echo "  SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN"
 	@echo "  SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH"
+	@echo "  SHUMA_GATEWAY_UPSTREAM_ORIGIN"
+	@echo "  SHUMA_GATEWAY_DEPLOYMENT_PROFILE"
+	@echo "  SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL"
+	@echo "  SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS"
+	@echo "  SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST"
+	@echo "  SHUMA_GATEWAY_PUBLIC_AUTHORITIES"
+	@echo "  SHUMA_GATEWAY_LOOP_MAX_HOPS"
+	@echo "  SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED"
+	@echo "  SHUMA_GATEWAY_ORIGIN_AUTH_MODE"
+	@echo "  SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME"
+	@echo "  SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE"
+	@echo "  SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS"
+	@echo "  SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS"
+	@echo "  SHUMA_GATEWAY_TLS_STRICT"
+	@echo "  SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED"
 	@echo ""
 
 api-key-rotate: ## Generate a replacement SHUMA_API_KEY and print rotation guidance
@@ -982,7 +1077,7 @@ api-key-validate: ## Validate SHUMA_API_KEY for deployment (must be 64-char hex 
 	fi; \
 	echo "$(GREEN)✅ SHUMA_API_KEY format is valid for deployment.$(NC)"
 
-deploy-env-validate: ## Fail deployment when unsafe debug flags are enabled, admin allowlist is missing, admin edge limits are unconfirmed, API-key rotation is unconfirmed, or enterprise multi-instance state guardrails are unmet
+deploy-env-validate: ## Fail deployment when unsafe debug flags are enabled, admin allowlist is missing, admin edge limits are unconfirmed, API-key rotation is unconfirmed, enterprise state guardrails fail, or gateway outbound contract is misaligned
 	@DEBUG_VAL="$${SHUMA_DEBUG_HEADERS:-false}"; \
 	DEBUG_NORM="$$(printf '%s' "$$DEBUG_VAL" | tr '[:upper:]' '[:lower:]')"; \
 	case "$$DEBUG_NORM" in \
@@ -1120,6 +1215,7 @@ deploy-env-validate: ## Fail deployment when unsafe debug flags are enabled, adm
 			exit 1 ;; \
 	esac; \
 	echo "$(GREEN)✅ Deployment env guardrails passed (SHUMA_DEBUG_HEADERS, SHUMA_ADMIN_IP_ALLOWLIST, SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED, SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED, enterprise multi-instance state guardrails).$(NC)"
+	@python3 scripts/deploy/validate_gateway_contract.py
 
 #--------------------------
 # Help
@@ -1135,7 +1231,7 @@ help: ## Show this help message
 	@grep -h -E '^(dev|dev-prod|local|run|build|build-runtime|build-full-dev|adversary-sim-supervisor-build|adversary-sim-supervisor):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Production:$(NC)"
-	@grep -h -E '^(prod|deploy|deploy-profile-baseline|deploy-self-hosted-minimal|deploy-enterprise-akamai):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
+	@grep -h -E '^(prod|deploy|deploy-profile-baseline|deploy-self-hosted-minimal|deploy-enterprise-akamai|deploy-linode-one-shot):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Testing:$(NC)"
 	@grep -h -E '^(test.*|smoke-single-host):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'

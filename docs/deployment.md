@@ -61,6 +61,29 @@ Pick one setup flow and stick to it for that machine:
 
 `make setup` remains the full contributor workflow. `make setup-runtime` intentionally skips Node/pnpm/Playwright.
 
+## 🐙 One-Command Linode Provision + Deploy
+
+For a fresh Linode account/host bootstrap, you can provision and deploy from this repository in one command:
+
+```bash
+LINODE_TOKEN=<token> \
+SHUMA_ADMIN_IP_ALLOWLIST=<trusted-ip-or-cidr> \
+make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--domain shuma.example.com --region gb-lon --type g6-standard-1"
+```
+
+Requirements:
+
+- run from a cloned `Shuma-Gorath` repository
+- local SSH keypair available (default public key lookup: `~/.ssh/id_ed25519.pub`, fallback `~/.ssh/id_rsa.pub`)
+- Linode API token with Linodes read/write scope
+
+This workflow provisions the VM, bootstraps runtime dependencies, and starts Shuma using existing Makefile runtime commands (`make setup-runtime`, `make prod`, `make stop`) on the server.
+
+Related repo-local deployment skills:
+
+- [`../skills/deploy-shuma-on-linode/SKILL.md`](../skills/deploy-shuma-on-linode/SKILL.md)
+- [`../skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](../skills/deploy-shuma-on-akamai-fermyon/SKILL.md)
+
 ## 🐙 10-Minute `self_hosted_minimal` Runbook (Start + Health + Rollback)
 
 This is the fastest secure baseline for a single VM/shared host.
@@ -166,9 +189,41 @@ Set these in your deployment secret/config system:
 - `SHUMA_BAN_STORE_REDIS_URL` (optional generally; required when enterprise multi-instance uses `SHUMA_PROVIDER_BAN_STORE=external`)
 - `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` (optional; `fallback_internal|fail_open|fail_closed`)
 - `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH` (optional; `fallback_internal|fail_open|fail_closed`)
+- `SHUMA_GATEWAY_UPSTREAM_ORIGIN` (required for `runtime-prod`; `scheme://host[:port]`)
+- `SHUMA_GATEWAY_DEPLOYMENT_PROFILE` (`shared-server|edge-fermyon`)
+- `SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED` (required `true` for `runtime-prod`)
+- `SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED` (required `true` for `runtime-prod`)
+- `SHUMA_GATEWAY_TLS_STRICT` (must be `true` in production)
 
 For the full env-only list and per-variable behavior, use [`docs/configuration.md`](configuration.md).
 Template source: run `make setup` or `make setup-runtime` and use `.env.local` (gitignored) as your env-only override baseline.
+
+## 🐙 Gateway Outbound Contract (Spin/Fermyon)
+
+Production gateway posture is explicit and fail-closed:
+
+1. `SHUMA_GATEWAY_UPSTREAM_ORIGIN` must use explicit `scheme://host[:port]`.
+2. `component.bot-defence.allowed_outbound_hosts` in [`spin.toml`](../spin.toml) must include that exact upstream origin.
+3. Wildcard outbound hosts are not allowed for `runtime-prod`.
+
+Spin limitation reminder:
+
+- Outbound `Host` header cannot be manually overridden by component code, so upstream authority must be accepted as canonical transport authority.
+- Preserve original public host context through regenerated forwarded/provenance headers rather than outbound `Host` rewrites.
+
+Outbound pressure governance:
+
+Use Spin runtime config to bound gateway-origin pressure in production.
+Add a runtime config file (for example `runtime-config.toml`) with explicit outbound budget values, then start Spin with that file.
+Repository baseline example: [`runtime-config.toml.example`](../runtime-config.toml.example).
+
+```toml
+[outbound_http]
+connection_pooling = true
+max_concurrent_requests = 32
+```
+
+Tune these values to match origin capacity and expected concurrency envelope.
 
 ## 🐙 Security Baseline
 
@@ -200,6 +255,11 @@ make deploy-env-validate
   - require `SHUMA_BAN_STORE_REDIS_URL` (`redis://...` or `rediss://...`) when `SHUMA_PROVIDER_BAN_STORE=external`,
   - block local-only rate/ban state in authoritative mode,
   - require `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=true` for temporary additive/off exceptions when distributed state is not yet enabled.
+- gateway outbound contract guardrail (`runtime-prod`):
+  - `SHUMA_GATEWAY_UPSTREAM_ORIGIN` must be valid and explicit,
+  - upstream origin must be present in `component.bot-defence.allowed_outbound_hosts` in `spin.toml`,
+  - wildcard outbound entries are rejected,
+  - `edge-fermyon` profile rejects variable-templated `allowed_outbound_hosts` entries.
 
 ### 🐙 Admin Surface Pre-Deploy Checklist
 

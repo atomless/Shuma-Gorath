@@ -41,6 +41,11 @@ Completed archive index:
 4. [`2026-03-02-adversary-toggle-incident-report-and-lifecycle-invariants.md`](2026-03-02-adversary-toggle-incident-report-and-lifecycle-invariants.md)  
    Incident capture and non-negotiable lifecycle invariants for toggle/restart/off-state behavior, with required fast regression gate.
 
+## 🐙 Gateway Deployment Research
+
+1. [`2026-03-05-gateway-only-spin-architecture-research-synthesis.md`](2026-03-05-gateway-only-spin-architecture-research-synthesis.md)  
+   Two-pass synthesis for gateway-only production posture, combining Spin/Fermyon platform constraints, reverse-proxy trust-boundary best practice, and current Shuma codebase impact mapping.
+
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 
 1. [`2026-02-27-sim2-shortfall-1-black-box-capability-enforcement.md`](2026-02-27-sim2-shortfall-1-black-box-capability-enforcement.md)  

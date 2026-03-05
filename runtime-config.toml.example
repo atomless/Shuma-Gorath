@@ -1,0 +1,9 @@
+# Example Spin runtime configuration for gateway deployment pressure control.
+# Use with: spin up --runtime-config-file runtime-config.toml
+
+[outbound_http]
+# Keep pooling enabled for upstream origin efficiency.
+connection_pooling = true
+
+# Bound concurrent upstream requests to protect origin capacity.
+max_concurrent_requests = 32

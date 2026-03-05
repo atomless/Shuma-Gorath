@@ -2,6 +2,13 @@
 
 Use the Makefile as the official workflow. These docs are the source of truth for how to build, run, test, and deploy Shuma-Gorath.
 
+Before running any workflow in these docs, clone the repository locally:
+
+```bash
+git clone https://github.com/atomless/Shuma-Gorath.git
+cd Shuma-Gorath
+```
+
 ## 🐙 Core Docs
 
 - [`project-principles.md`](project-principles.md) - Project goals, principles, and decision rubric
@@ -13,6 +20,8 @@ Use the Makefile as the official workflow. These docs are the source of truth fo
 - [`dashboard.md`](dashboard.md) - Dashboard and admin <abbr title="User Interface">UI</abbr>
 - [`dashboard-tabs/README.md`](dashboard-tabs/README.md) - Per-tab dashboard operator docs
 - [`deployment.md`](deployment.md) - Production/deploy configuration
+- [`../skills/deploy-shuma-on-linode/SKILL.md`](../skills/deploy-shuma-on-linode/SKILL.md) - Repo-local agent skill for one-command Linode provisioning + deployment
+- [`../skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](../skills/deploy-shuma-on-akamai-fermyon/SKILL.md) - Repo-local agent skill for staged enterprise Akamai/Fermyon edge deployment
 - [`api.md`](api.md) - <abbr title="Application Programming Interface">API</abbr> usage and endpoint details
 - [`configuration.md`](configuration.md) - Runtime configuration reference
 - [`fingerprinting-terminology.md`](fingerprinting-terminology.md) - Canonical fingerprinting/JS verification terminology map
@@ -32,6 +41,8 @@ Use the Makefile as the official workflow. These docs are the source of truth fo
 - [`module-boundaries.md`](module-boundaries.md) - Domain boundary contracts and split prep
 - [`plans/2026-02-13-provider-externalization-design.md`](plans/2026-02-13-provider-externalization-design.md) - Provider externalization strategy (self-hosted-first, Akamai-integrated)
 - [`plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md) - Deployment-track and adversarial-traffic simulation execution plan
+- [`plans/2026-03-05-gateway-first-existing-site-deployment-plan.md`](plans/2026-03-05-gateway-first-existing-site-deployment-plan.md) - Gateway-only plan for existing-site adoption with one policy core and secure upstream integration
+- [`research/2026-03-05-gateway-only-spin-architecture-research-synthesis.md`](research/2026-03-05-gateway-only-spin-architecture-research-synthesis.md) - Two-pass gateway architecture synthesis (Spin constraints + codebase impact map)
 - [`plans/2026-02-25-adversarial-simulation-fast-smoke-design.md`](plans/2026-02-25-adversarial-simulation-fast-smoke-design.md) - Initial executable manifest + runner + mandatory fast-smoke gate design
 - [`plans/2026-02-27-sim2-shortfall-1-black-box-capability-enforcement-plan.md`](plans/2026-02-27-sim2-shortfall-1-black-box-capability-enforcement-plan.md) - SIM2 black-box capability hardening plan
 - [`plans/2026-02-27-sim2-shortfall-2-coverage-contract-governance-plan.md`](plans/2026-02-27-sim2-shortfall-2-coverage-contract-governance-plan.md) - SIM2 coverage-contract governance plan

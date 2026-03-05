@@ -89,6 +89,21 @@ These are read from process env at runtime (not from <abbr title="Key-Value">KV<
 | `SHUMA_BAN_STORE_REDIS_URL` | No | empty | Redis endpoint for external distributed ban store mode (`redis://...` or `rediss://...`). |
 | `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` | No | `fallback_internal` | Outage posture for external rate-limiter degradation on main traffic (`fallback_internal`, `fail_open`, `fail_closed`). |
 | `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH` | No | `fail_closed` | Outage posture for external rate-limiter degradation on admin-auth routes (`fallback_internal`, `fail_open`, `fail_closed`). |
+| `SHUMA_GATEWAY_UPSTREAM_ORIGIN` | Yes for `runtime-prod` | empty | Gateway upstream origin in `scheme://host[:port]` form. Required in production mode. |
+| `SHUMA_GATEWAY_DEPLOYMENT_PROFILE` | No | `shared-server` | Gateway profile contract (`shared-server` or `edge-fermyon`). |
+| `SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL` | No | `false` | Allows `http://` upstream only for constrained local/private IP-literal targets. |
+| `SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS` | No | `false` | Allows insecure special-use targets only when explicit allowlist entries are also set. |
+| `SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST` | No | empty | Comma-separated special-use IP-literal allowlist for insecure local exceptions. |
+| `SHUMA_GATEWAY_PUBLIC_AUTHORITIES` | No | empty | Comma-separated ingress authorities used for startup loop-prevention checks against upstream authority. |
+| `SHUMA_GATEWAY_LOOP_MAX_HOPS` | No | `3` | Runtime loop-marker hop budget (`1` to `10`). |
+| `SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED` | Yes for `runtime-prod` | `false` | Operator attestation that origin bypass is locked down (firewall/allowlist/private ingress). |
+| `SHUMA_GATEWAY_ORIGIN_AUTH_MODE` | No | `network_only` | Upstream origin-auth contract (`network_only` or `signed_header`). `edge-fermyon` requires `signed_header`. |
+| `SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME` | Conditional | empty | Proxy-injected auth header name when `SHUMA_GATEWAY_ORIGIN_AUTH_MODE=signed_header`. |
+| `SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE` | Conditional | empty | Proxy-injected auth header value when `SHUMA_GATEWAY_ORIGIN_AUTH_MODE=signed_header`. |
+| `SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS` | No | `90` | Maximum credential age for origin auth material. |
+| `SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS` | No | `7` | Required overlap window for origin-auth credential rotation; must be lower than max age. |
+| `SHUMA_GATEWAY_TLS_STRICT` | Yes for `runtime-prod` | `true` | Enforces strict upstream TLS posture (no insecure skip-verify path). |
+| `SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED` | Yes for `runtime-prod` | `false` | Operator attestation that reserved-route collision preflight was executed and passed. |
 
 `make setup` includes an optional interactive frontier-provider step in terminal sessions:
 1. choose providers,

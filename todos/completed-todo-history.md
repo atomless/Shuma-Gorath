@@ -2,6 +2,26 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-05)
+
+### P0 Deployment Path Excellence (Single-Host + Akamai/Fermyon)
+
+#### DEP-GW-1: Gateway-Only Existing-Site Integration (Only Production Mode)
+
+##### DEP-GW-1-0: Evidence and Harness First
+
+- [x] DEP-GW-1-0-1 Add gateway transport telemetry vocabulary and counters before behavior changes:
+  - `forward_attempt_total`, `forward_success_total`, `forward_failure_total{class}`, `forward_latency_ms`;
+  - request-level provenance fields (`transport_class`, `upstream_origin`, `forward_reason`).
+- [x] DEP-GW-1-0-2 Add deterministic upstream fixture for integration tests (echo method/path/query/headers/body signature) and wire via Makefile test targets.
+- [x] DEP-GW-1-0-3 Add failure-injection harness for timeout, connection-reset, TLS/transport error, and upstream non-2xx classification.
+- [x] DEP-GW-1-0-4 Add adversarial canonicalization tests (ambiguous headers/content-type/path encoding) to establish parser-differential regression baseline.
+- [x] Added gateway fixture and harness tooling:
+  - `scripts/tests/gateway_upstream_fixture.py`
+  - `scripts/tests/gateway_failure_harness.py`
+  - `scripts/tests/test_gateway_failure_harness.py`
+- [x] Added targeted Makefile verification gate: `make test-gateway-harness`.
+
 ## Additional completions (2026-03-03)
 
 ### P0 Adversarial Traffic Simulation Program

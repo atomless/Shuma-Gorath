@@ -31,6 +31,24 @@ fn with_runtime_env<T>(f: impl FnOnce() -> T) -> T {
         ("SHUMA_KV_STORE_FAIL_OPEN", "true"),
         ("SHUMA_ENFORCE_HTTPS", "false"),
         ("SHUMA_DEBUG_HEADERS", "false"),
+        ("SHUMA_GATEWAY_UPSTREAM_ORIGIN", "https://origin.example.com"),
+        ("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server"),
+        ("SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL", "false"),
+        ("SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS", "false"),
+        ("SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST", ""),
+        ("SHUMA_GATEWAY_PUBLIC_AUTHORITIES", "shuma.example.com:443"),
+        ("SHUMA_GATEWAY_LOOP_MAX_HOPS", "3"),
+        ("SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED", "true"),
+        ("SHUMA_GATEWAY_ORIGIN_AUTH_MODE", "network_only"),
+        ("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME", ""),
+        ("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE", ""),
+        ("SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS", "90"),
+        ("SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS", "7"),
+        ("SHUMA_GATEWAY_TLS_STRICT", "true"),
+        (
+            "SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED",
+            "true",
+        ),
     ];
     for (key, value) in vars {
         std::env::set_var(key, value);

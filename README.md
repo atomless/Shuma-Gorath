@@ -20,6 +20,13 @@ This is bot defence built by bots and tested by bots.
 
 ## 🐙 Quickstart (Official)
 
+Start by cloning the repository:
+
+```bash
+git clone https://github.com/atomless/Shuma-Gorath.git
+cd Shuma-Gorath
+```
+
 Choose one setup path:
 
 - Runtime-only single-host path (production/minimal): `make setup-runtime && make verify-runtime`
@@ -49,6 +56,14 @@ make verify-runtime
 make deploy-self-hosted-minimal
 make prod
 make smoke-single-host
+```
+
+One-command Linode bootstrap + deploy (from this cloned repo):
+
+```bash
+LINODE_TOKEN=<token> \
+SHUMA_ADMIN_IP_ALLOWLIST=<trusted-ip-or-cidr> \
+make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--domain shuma.example.com --region gb-lon --type g6-standard-1"
 ```
 
 Dashboard:
@@ -86,6 +101,7 @@ make build-full-dev   # Full-dev/CI build path with dashboard budget reporting (
 make smoke-single-host # Post-deploy smoke checks (health/admin auth/metrics/challenge)
 make deploy-self-hosted-minimal # self_hosted_minimal profile wrapper
 make deploy-enterprise-akamai   # enterprise overlay wrapper on shared baseline
+make deploy-linode-one-shot     # Provision Linode VM + deploy runtime in one command
 make stop             # Stop Spin server
 make status           # Check server status
 make api-key-show     # Show local dashboard login key from .env.local
@@ -115,6 +131,8 @@ Deployment policy note: `SHUMA_KV_STORE_FAIL_OPEN` is a critical choice (fail-op
 - [`docs/testing.md`](docs/testing.md) - Testing guide (Makefile-only)
 - [`docs/dashboard.md`](docs/dashboard.md) - Dashboard and admin <abbr title="User Interface">UI</abbr>
 - [`docs/deployment.md`](docs/deployment.md) - Production/deploy configuration
+- [`skills/deploy-shuma-on-linode/SKILL.md`](skills/deploy-shuma-on-linode/SKILL.md) - Agent skill for one-command Linode provisioning + deployment
+- [`skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](skills/deploy-shuma-on-akamai-fermyon/SKILL.md) - Agent skill for staged enterprise Akamai/Fermyon edge deployment
 - [`docs/api.md`](docs/api.md) - <abbr title="Application Programming Interface">API</abbr> usage and endpoint details
 - [`docs/configuration.md`](docs/configuration.md) - Runtime configuration reference
 - [`docs/security-hardening.md`](docs/security-hardening.md) - Deployment security checklist

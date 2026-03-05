@@ -53,6 +53,47 @@ fn clear_env(keys: &[&str]) {
     }
 }
 
+fn clear_gateway_env() {
+    clear_env(&[
+        "SHUMA_GATEWAY_UPSTREAM_ORIGIN",
+        "SHUMA_GATEWAY_DEPLOYMENT_PROFILE",
+        "SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL",
+        "SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS",
+        "SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST",
+        "SHUMA_GATEWAY_PUBLIC_AUTHORITIES",
+        "SHUMA_GATEWAY_LOOP_MAX_HOPS",
+        "SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED",
+        "SHUMA_GATEWAY_ORIGIN_AUTH_MODE",
+        "SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME",
+        "SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE",
+        "SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS",
+        "SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS",
+        "SHUMA_GATEWAY_TLS_STRICT",
+        "SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED",
+    ]);
+}
+
+fn set_gateway_env_baseline() {
+    std::env::set_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN", "https://origin.example.com");
+    std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+    std::env::set_var("SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL", "false");
+    std::env::set_var("SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS", "false");
+    std::env::set_var("SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST", "");
+    std::env::set_var("SHUMA_GATEWAY_PUBLIC_AUTHORITIES", "shuma.example.com:443");
+    std::env::set_var("SHUMA_GATEWAY_LOOP_MAX_HOPS", "3");
+    std::env::set_var("SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED", "true");
+    std::env::set_var("SHUMA_GATEWAY_ORIGIN_AUTH_MODE", "network_only");
+    std::env::set_var("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME", "");
+    std::env::set_var("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE", "");
+    std::env::set_var("SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS", "90");
+    std::env::set_var("SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS", "7");
+    std::env::set_var("SHUMA_GATEWAY_TLS_STRICT", "true");
+    std::env::set_var(
+        "SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED",
+        "true",
+    );
+}
+
 fn store_config_with_rate_limit(store: &CountingStore, rate_limit: u32) {
     let mut cfg = defaults().clone();
     cfg.rate_limit = rate_limit;
@@ -645,6 +686,49 @@ fn adversary_sim_available_defaults_false_and_parses_bool_values() {
 }
 
 #[test]
+fn parse_gateway_deployment_profile_accepts_expected_values() {
+    assert_eq!(
+        parse_gateway_deployment_profile("shared-server"),
+        Some(GatewayDeploymentProfile::SharedServer)
+    );
+    assert_eq!(
+        parse_gateway_deployment_profile("EDGE-FERMYON"),
+        Some(GatewayDeploymentProfile::EdgeFermyon)
+    );
+    assert_eq!(parse_gateway_deployment_profile("invalid"), None);
+}
+
+#[test]
+fn parse_gateway_origin_auth_mode_accepts_expected_values() {
+    assert_eq!(
+        parse_gateway_origin_auth_mode("network_only"),
+        Some(GatewayOriginAuthMode::NetworkOnly)
+    );
+    assert_eq!(
+        parse_gateway_origin_auth_mode("signed_header"),
+        Some(GatewayOriginAuthMode::SignedHeader)
+    );
+    assert_eq!(parse_gateway_origin_auth_mode("invalid"), None);
+}
+
+#[test]
+fn parse_gateway_upstream_origin_enforces_shape_and_canonicalization() {
+    let https = super::parse_gateway_upstream_origin("https://Example.com").unwrap();
+    assert_eq!(https.scheme, "https");
+    assert_eq!(https.host, "example.com");
+    assert_eq!(https.port, 443);
+    assert_eq!(https.authority(), "example.com:443");
+
+    let ipv6 = super::parse_gateway_upstream_origin("http://[::1]:8080").unwrap();
+    assert_eq!(ipv6.host, "::1");
+    assert_eq!(ipv6.port, 8080);
+    assert_eq!(ipv6.authority(), "[::1]:8080");
+
+    assert!(super::parse_gateway_upstream_origin("https://origin.example.com/path").is_err());
+    assert!(super::parse_gateway_upstream_origin("ftp://origin.example.com").is_err());
+}
+
+#[test]
 fn frontier_summary_defaults_to_disabled_without_provider_keys() {
     let _lock = crate::test_support::lock_env();
     std::env::remove_var("SHUMA_FRONTIER_OPENAI_API_KEY");
@@ -727,6 +811,7 @@ fn adversary_sim_duration_defaults_to_180_and_clamps_loaded_values() {
 #[test]
 fn validate_env_rejects_invalid_optional_runtime_environment() {
     let _lock = crate::test_support::lock_env();
+    clear_gateway_env();
     clear_env(&[
         "SHUMA_VALIDATE_ENV_IN_TESTS",
         "SHUMA_API_KEY",
@@ -772,6 +857,7 @@ fn validate_env_rejects_invalid_optional_runtime_environment() {
 #[test]
 fn validate_env_rejects_sim_available_in_runtime_prod() {
     let _lock = crate::test_support::lock_env();
+    clear_gateway_env();
     clear_env(&[
         "SHUMA_VALIDATE_ENV_IN_TESTS",
         "SHUMA_API_KEY",
@@ -823,6 +909,7 @@ fn validate_env_rejects_sim_available_in_runtime_prod() {
 #[test]
 fn validate_env_rejects_frontier_model_id_with_whitespace() {
     let _lock = crate::test_support::lock_env();
+    clear_gateway_env();
     clear_env(&[
         "SHUMA_VALIDATE_ENV_IN_TESTS",
         "SHUMA_API_KEY",
@@ -868,6 +955,7 @@ fn validate_env_rejects_frontier_model_id_with_whitespace() {
 #[test]
 fn validate_env_rejects_invalid_optional_enterprise_bool() {
     let _lock = crate::test_support::lock_env();
+    clear_gateway_env();
     clear_env(&[
         "SHUMA_VALIDATE_ENV_IN_TESTS",
         "SHUMA_API_KEY",
@@ -884,6 +972,7 @@ fn validate_env_rejects_invalid_optional_enterprise_bool() {
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_RUNTIME_ENV",
     ]);
 
     std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
@@ -926,6 +1015,7 @@ fn validate_env_rejects_invalid_optional_enterprise_bool() {
 #[test]
 fn validate_env_rejects_invalid_optional_redis_url() {
     let _lock = crate::test_support::lock_env();
+    clear_gateway_env();
     clear_env(&[
         "SHUMA_VALIDATE_ENV_IN_TESTS",
         "SHUMA_API_KEY",
@@ -984,6 +1074,7 @@ fn validate_env_rejects_invalid_optional_redis_url() {
 #[test]
 fn validate_env_rejects_invalid_optional_ban_store_redis_url() {
     let _lock = crate::test_support::lock_env();
+    clear_gateway_env();
     clear_env(&[
         "SHUMA_VALIDATE_ENV_IN_TESTS",
         "SHUMA_API_KEY",
@@ -1039,6 +1130,7 @@ fn validate_env_rejects_invalid_optional_ban_store_redis_url() {
 #[test]
 fn validate_env_rejects_invalid_optional_rate_limiter_outage_mode() {
     let _lock = crate::test_support::lock_env();
+    clear_gateway_env();
     clear_env(&[
         "SHUMA_VALIDATE_ENV_IN_TESTS",
         "SHUMA_API_KEY",
@@ -1097,6 +1189,7 @@ fn validate_env_rejects_invalid_optional_rate_limiter_outage_mode() {
 #[test]
 fn validate_env_accepts_empty_optional_redis_url() {
     let _lock = crate::test_support::lock_env();
+    clear_gateway_env();
     clear_env(&[
         "SHUMA_VALIDATE_ENV_IN_TESTS",
         "SHUMA_API_KEY",
@@ -1124,6 +1217,7 @@ fn validate_env_accepts_empty_optional_redis_url() {
     std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
     std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
     std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
+    std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
     std::env::set_var("SHUMA_RATE_LIMITER_REDIS_URL", "");
 
     let result = validate_env_only_once();
@@ -1145,6 +1239,206 @@ fn validate_env_accepts_empty_optional_redis_url() {
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_RUNTIME_ENV",
+    ]);
+    clear_gateway_env();
+}
+
+#[test]
+fn validate_env_rejects_missing_gateway_upstream_in_runtime_prod() {
+    let _lock = crate::test_support::lock_env();
+    clear_gateway_env();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
+    ]);
+
+    std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
+    std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+    std::env::set_var("SHUMA_JS_SECRET", "test-js-secret");
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+    std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "168");
+    std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "false");
+    std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
+    std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
+    std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
+    std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
+    set_gateway_env_baseline();
+    std::env::set_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN", "");
+
+    let result = validate_env_only_once();
+    assert!(result.is_err());
+    assert!(result
+        .err()
+        .unwrap()
+        .contains("SHUMA_GATEWAY_UPSTREAM_ORIGIN must be set"));
+
+    clear_gateway_env();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
+    ]);
+}
+
+#[test]
+fn validate_env_rejects_insecure_public_http_upstream() {
+    let _lock = crate::test_support::lock_env();
+    clear_gateway_env();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
+    ]);
+
+    std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
+    std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+    std::env::set_var("SHUMA_JS_SECRET", "test-js-secret");
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+    std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "168");
+    std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "false");
+    std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
+    std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
+    std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
+    std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
+    set_gateway_env_baseline();
+    std::env::set_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN", "http://8.8.8.8:8080");
+    std::env::set_var("SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL", "true");
+
+    let result = validate_env_only_once();
+    assert!(result.is_err());
+    assert!(result.err().unwrap().contains("must be loopback/private"));
+
+    clear_gateway_env();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
+    ]);
+}
+
+#[test]
+fn validate_env_rejects_edge_profile_without_signed_header_origin_auth() {
+    let _lock = crate::test_support::lock_env();
+    clear_gateway_env();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
+    ]);
+
+    std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
+    std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+    std::env::set_var("SHUMA_JS_SECRET", "test-js-secret");
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+    std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "168");
+    std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "false");
+    std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
+    std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
+    std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
+    std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
+    set_gateway_env_baseline();
+    std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+    std::env::set_var("SHUMA_GATEWAY_ORIGIN_AUTH_MODE", "network_only");
+
+    let result = validate_env_only_once();
+    assert!(result.is_err());
+    assert!(result.err().unwrap().contains("requires SHUMA_GATEWAY_ORIGIN_AUTH_MODE=signed_header"));
+
+    clear_gateway_env();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
+    ]);
+}
+
+#[test]
+fn validate_env_accepts_runtime_dev_without_gateway_upstream() {
+    let _lock = crate::test_support::lock_env();
+    clear_gateway_env();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
+    ]);
+
+    std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
+    std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+    std::env::set_var("SHUMA_JS_SECRET", "test-js-secret");
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+    std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "168");
+    std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "false");
+    std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
+    std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
+    std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
+    std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+
+    let result = validate_env_only_once();
+    assert!(result.is_ok());
+
+    clear_gateway_env();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
     ]);
 }
 
