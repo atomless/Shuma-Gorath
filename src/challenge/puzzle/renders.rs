@@ -205,12 +205,8 @@ pub(crate) fn render_challenge_with_seed_ttl(
               outputField.value = output.join('');
             }}
             function applyCellState(cell, value) {{
-              cell.classList.remove('active', 'active-alt');
-              if (value === 1) {{
-                cell.classList.add('active');
-              }} else if (value === 2) {{
-                cell.classList.add('active-alt');
-              }}
+              cell.classList.toggle('active', value === 1);
+              cell.classList.toggle('active-alt', value === 2);
             }}
             function selectedValue(radios) {{
               const current = radios.find((radio) => radio.checked);

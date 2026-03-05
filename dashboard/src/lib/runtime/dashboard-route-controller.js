@@ -372,14 +372,31 @@ export function createDashboardRouteController(options = {}) {
 
     const authenticated = await restoreDashboardSession();
     const runtimeSession = getDashboardSessionState();
+    const runtimeEnvironmentRaw = String(
+      runtimeSession.runtimeEnvironment || runtimeSession.runtime_environment || ''
+    )
+      .trim()
+      .toLowerCase();
+    const runtimeEnvironment =
+      runtimeEnvironmentRaw === 'runtime-dev' || runtimeEnvironmentRaw === 'runtime-prod'
+        ? runtimeEnvironmentRaw
+        : '';
 
     if (store) {
       store.setSession({
         authenticated: runtimeSession.authenticated === true,
-        csrfToken: runtimeSession.csrfToken || ''
+        csrfToken: runtimeSession.csrfToken || '',
+        runtimeEnvironment
       });
     }
     onBootstrapSession(runtimeSession);
+
+    if (authenticated && !runtimeEnvironment) {
+      abortInFlightRefresh();
+      clearPolling();
+      redirectToLogin();
+      return false;
+    }
 
     if (!authenticated) {
       abortInFlightRefresh();

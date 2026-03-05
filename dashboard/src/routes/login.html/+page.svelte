@@ -53,14 +53,6 @@
     return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
   }
 
-  function inferRuntimeEnvironment(rawValue) {
-    const normalized = String(rawValue || '').trim().toLowerCase();
-    if (normalized === 'runtime-dev' || normalized === 'runtime-prod') {
-      return normalized;
-    }
-    return isLocalDevHost() ? 'runtime-dev' : 'runtime-prod';
-  }
-
   function normalizeRuntimeEnvironment(rawValue) {
     const normalized = String(rawValue || '').trim().toLowerCase();
     if (normalized === 'runtime-dev' || normalized === 'runtime-prod') {
@@ -72,7 +64,7 @@
   function syncLoginRootClasses(runtimeEnvironment = '') {
     if (typeof document === 'undefined') return;
     const classState = deriveDashboardBodyClassState(
-      { runtime_environment: inferRuntimeEnvironment(runtimeEnvironment) },
+      { runtime_environment: normalizeRuntimeEnvironment(runtimeEnvironment) },
       { backendConnectionState: 'disconnected' }
     );
     syncDashboardBodyClasses(document, classState);

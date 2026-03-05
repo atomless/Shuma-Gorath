@@ -142,6 +142,72 @@ function createMutableClassList(initial = []) {
   };
 }
 
+function createRecordingClassList(initial = []) {
+  const classes = new Set(Array.isArray(initial) ? initial : []);
+  const operations = [];
+  const record = (op, token) => {
+    operations.push(`${op}:${token}`);
+  };
+  return {
+    add(...tokens) {
+      tokens.forEach((token) => {
+        const normalized = String(token || '').trim();
+        if (!normalized) return;
+        if (!classes.has(normalized)) {
+          classes.add(normalized);
+          record('add', normalized);
+        }
+      });
+    },
+    remove(...tokens) {
+      tokens.forEach((token) => {
+        const normalized = String(token || '').trim();
+        if (!normalized) return;
+        if (classes.delete(normalized)) {
+          record('remove', normalized);
+        }
+      });
+    },
+    toggle(token, force = undefined) {
+      const normalized = String(token || '').trim();
+      if (!normalized) return false;
+      if (force === undefined) {
+        if (classes.has(normalized)) {
+          classes.delete(normalized);
+          record('remove', normalized);
+          return false;
+        }
+        classes.add(normalized);
+        record('add', normalized);
+        return true;
+      }
+      if (force) {
+        if (!classes.has(normalized)) {
+          classes.add(normalized);
+          record('add', normalized);
+        }
+        return true;
+      }
+      if (classes.delete(normalized)) {
+        record('remove', normalized);
+      }
+      return false;
+    },
+    contains(token) {
+      return classes.has(String(token || '').trim());
+    },
+    values() {
+      return [...classes.values()];
+    },
+    operationCount() {
+      return operations.length;
+    },
+    operationSnapshot() {
+      return [...operations];
+    }
+  };
+}
+
 function listJsFilesRecursively(rootDir) {
   const entries = fs.readdirSync(rootDir, { withFileTypes: true });
   const files = [];
@@ -1830,7 +1896,7 @@ test('dashboard class runtime keeps exactly one environment class on html and ad
 
     const defaultState = bodyClassModule.deriveDashboardBodyClassState({});
     assert.deepEqual(toPlain(defaultState), {
-      runtimeClass: 'runtime-prod',
+      runtimeClass: '',
       adversarySimEnabled: false,
       connectionState: 'disconnected'
     });
@@ -1851,6 +1917,10 @@ test('dashboard class runtime keeps exactly one environment class on html and ad
       runtimeClassHint: 'runtime-dev'
     });
     assert.equal(hintedRuntimeState.runtimeClass, 'runtime-dev');
+    const invalidHintedRuntimeState = bodyClassModule.deriveDashboardBodyClassState({}, {
+      runtimeClassHint: 'runtime-unknown'
+    });
+    assert.equal(invalidHintedRuntimeState.runtimeClass, '');
 
     const classList = createMutableClassList(['runtime-prod', 'adversary-sim', 'connected']);
     const rootClassList = createMutableClassList(['runtime-prod', 'adversary-sim', 'connected']);
@@ -1907,6 +1977,16 @@ test('dashboard class runtime keeps exactly one environment class on html and ad
     assert.equal(rootClassList.contains('connected'), false);
     assert.equal(rootClassList.contains('degraded'), false);
     assert.equal(rootClassList.contains('disconnected'), true);
+    bodyClassModule.syncDashboardBodyClasses(doc, {
+      runtimeClass: '',
+      adversarySimEnabled: false,
+      connectionState: 'degraded'
+    });
+    assert.equal(rootClassList.contains('runtime-dev'), false);
+    assert.equal(rootClassList.contains('runtime-prod'), false);
+    assert.equal(rootClassList.contains('degraded'), false);
+    assert.equal(rootClassList.contains('connected'), false);
+    assert.equal(rootClassList.contains('disconnected'), true);
 
     bodyClassModule.clearDashboardBodyClasses(doc);
     assert.equal(classList.contains('runtime-dev'), false);
@@ -1921,6 +2001,44 @@ test('dashboard class runtime keeps exactly one environment class on html and ad
     assert.equal(rootClassList.contains('connected'), false);
     assert.equal(rootClassList.contains('degraded'), false);
     assert.equal(rootClassList.contains('disconnected'), false);
+  });
+});
+
+test('dashboard class sync is mutation-stable when target runtime/connection state is unchanged', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const bodyClassModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-body-classes.js');
+    const rootClassList = createRecordingClassList(['runtime-prod', 'connected']);
+    const bodyClassList = createRecordingClassList([]);
+    const doc = {
+      body: { classList: bodyClassList },
+      documentElement: { classList: rootClassList }
+    };
+
+    bodyClassModule.syncDashboardBodyClasses(doc, {
+      runtimeClass: 'runtime-prod',
+      adversarySimEnabled: false,
+      connectionState: 'connected'
+    });
+    assert.equal(rootClassList.operationCount(), 0);
+    assert.equal(bodyClassList.operationCount(), 0);
+
+    bodyClassModule.syncDashboardBodyClasses(doc, {
+      runtimeClass: 'runtime-prod',
+      adversarySimEnabled: false,
+      connectionState: 'connected'
+    });
+    assert.equal(rootClassList.operationCount(), 0);
+    assert.equal(bodyClassList.operationCount(), 0);
+
+    bodyClassModule.syncDashboardBodyClasses(doc, {
+      runtimeClass: 'runtime-dev',
+      adversarySimEnabled: false,
+      connectionState: 'connected'
+    });
+    assert.equal(rootClassList.contains('runtime-dev'), true);
+    assert.equal(rootClassList.contains('runtime-prod'), false);
+    assert.equal(rootClassList.operationSnapshot().includes('remove:runtime-prod'), true);
+    assert.equal(rootClassList.operationSnapshot().includes('add:runtime-dev'), true);
   });
 });
 
@@ -2659,6 +2777,7 @@ test('login route syncs disconnected + runtime classes onto html root and gates 
   assert.match(source, /syncDashboardBodyClasses/);
   assert.match(source, /let runtimeStateAvailable = false;/);
   assert.match(source, /normalizeRuntimeEnvironment/);
+  assert.equal(source.includes('inferRuntimeEnvironment'), false);
   assert.match(source, /if \(!runtimeStateAvailable\) \{/);
   assert.match(source, /disabled=\{submitting \|\| !runtimeStateAvailable\}/);
   assert.match(source, /backendConnectionState:\s*'disconnected'/);
@@ -2774,6 +2893,8 @@ test('dashboard runtime is slim and free of legacy DOM-id wiring layers', () => 
   assert.match(source, /recordHeartbeatAttemptStarted/);
   assert.match(source, /recordHeartbeatSuccess/);
   assert.match(source, /recordHeartbeatFailure/);
+  assert.match(source, /function hasRuntimeEnvironment\(\)/);
+  assert.match(source, /if \(!hasRuntimeEnvironment\(\)\) return false;/);
   assert.equal(source.includes('next.adversary_sim_enabled = status.adversary_sim_enabled;'), false);
   assert.equal(source.includes('onBackendConnected'), false);
   assert.equal(source.includes('onBackendDisconnected'), false);
@@ -2867,6 +2988,9 @@ test('dashboard route controller gates polling to auto-enabled eligible tabs', (
   assert.match(source, /recordPollingSkip\('auto-refresh-disabled'/);
   assert.match(source, /recordPollingSkip\('tab-not-auto-refreshable'/);
   assert.match(source, /const shouldRefreshOnActivate =/);
+  assert.match(source, /runtimeEnvironmentRaw/);
+  assert.match(source, /runtimeEnvironment/);
+  assert.match(source, /if \(authenticated && !runtimeEnvironment\)/);
 });
 
 test('dashboard module graph is layered with no cycles', () => {

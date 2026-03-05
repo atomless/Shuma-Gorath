@@ -124,6 +124,10 @@ function normalizeRuntimeEnvironment(value = '') {
   return '';
 }
 
+function hasRuntimeEnvironment() {
+  return sessionState.runtimeEnvironment === 'runtime-dev' || sessionState.runtimeEnvironment === 'runtime-prod';
+}
+
 function setSessionState(authenticated, csrfToken = '', expiresAt = 0, runtimeEnvironment = '') {
   const parsedExpiry = Number(expiresAt);
   sessionState.authenticated = authenticated === true;
@@ -164,6 +168,7 @@ function shouldRunConnectionHeartbeat() {
   if (!runtimeMounted) return false;
   if (!dashboardState) return false;
   if (sessionState.authenticated !== true) return false;
+  if (!hasRuntimeEnvironment()) return false;
   return resolveEndpoint().trim().length > 0;
 }
 
