@@ -109,7 +109,7 @@ environment = { SHUMA_API_KEY = "your-secret-key-here", SHUMA_JS_SECRET = "your-
 `SHUMA_POW_TTL_SECONDS` controls <abbr title="Proof of Work">PoW</abbr> seed expiry (default: 90).
 `SHUMA_POW_SECRET` optionally overrides the <abbr title="Proof of Work">PoW</abbr> signing secret (falls back to `SHUMA_JS_SECRET`).
 `SHUMA_MAZE_PREVIEW_SECRET` optionally sets a dedicated secret for `/admin/maze/preview` entropy/signing isolation.
-`SHUMA_ADMIN_CONFIG_WRITE_ENABLED` controls whether admin config updates are allowed (default: false).
+`SHUMA_ADMIN_CONFIG_WRITE_ENABLED` controls whether admin config updates are allowed (default: true; set `false` only when you explicitly want read-only admin config).
 
 ### 🐙 Forwarded <abbr title="Internet Protocol">IP</abbr> Secret (Deployment)
 Local dev (Makefile): `make dev` sets a dev-only default and passes it to Spin. Override as needed:

@@ -142,7 +142,7 @@ make setup-runtime
 make verify-runtime
 ```
 
-2. Set production env-only values in your secret manager or `.env.local` (minimum: `SHUMA_API_KEY`, `SHUMA_JS_SECRET`, `SHUMA_ADMIN_IP_ALLOWLIST`, `SHUMA_HEALTH_SECRET`, `SHUMA_DEBUG_HEADERS=false`, `SHUMA_ENFORCE_HTTPS=true`, `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`, `SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true`, `SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true`).
+2. Set production env-only values in your secret manager or `.env.local` (minimum: `SHUMA_API_KEY`, `SHUMA_JS_SECRET`, `SHUMA_ADMIN_IP_ALLOWLIST`, `SHUMA_HEALTH_SECRET`, `SHUMA_DEBUG_HEADERS=false`, `SHUMA_ENFORCE_HTTPS=true`, `SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true`, `SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true`). `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` now defaults to `true`; set it to `false` only when you explicitly want read-only admin config for that deployment.
 
 3. Build + validate single-host deployment posture:
 
@@ -358,7 +358,7 @@ Gateway cutover and rollback (operator runbook summary):
 
 - Keep `SHUMA_DEBUG_HEADERS=false` in production.
 - Keep `SHUMA_ENFORCE_HTTPS=true` in production.
-- Keep `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false` unless you explicitly need live tuning.
+- Keep `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true` for the normal production posture when you want live operational tuning through the dashboard/admin <abbr title="Application Programming Interface">API</abbr>. Set it to `false` only when you intentionally want read-only admin config.
 - Generate a strong `SHUMA_API_KEY` with `make api-key-generate` (or rotate with `make api-key-rotate`).
 - Set `SHUMA_HEALTH_SECRET` and require `X-Shuma-Health-Secret` for `/health`.
 - Restrict `/admin/*` with `SHUMA_ADMIN_IP_ALLOWLIST` and upstream network controls.
@@ -624,5 +624,5 @@ make dev
 make api-key-show
 ```
 
-`make dev` enables local dashboard operation with local-write defaults (`WRITE=true`). Use `DEV_ADMIN_CONFIG_WRITE_ENABLED=false` to simulate production-style read-only admin config.
+`make dev` enables local dashboard operation with local-write defaults (`WRITE=true`). Use `DEV_ADMIN_CONFIG_WRITE_ENABLED=false` to simulate an operator-disabled read-only admin-config deployment.
 Use `make dev-prod` to keep local watch-mode ergonomics while forcing production runtime posture (`runtime-prod`, `DEBUG_HEADERS=false`, adversary simulation unavailable) with admin writes still enabled for local config tuning and persistence checks.

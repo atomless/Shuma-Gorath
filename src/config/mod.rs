@@ -2016,7 +2016,7 @@ pub struct FrontierSummary {
 
 #[cfg(test)]
 pub(crate) fn parse_admin_config_write_enabled(value: Option<&str>) -> bool {
-    value.and_then(parse_bool_like).unwrap_or(false)
+    value.and_then(parse_bool_like).unwrap_or(true)
 }
 
 pub fn admin_config_write_enabled() -> bool {

@@ -10,6 +10,7 @@ from typing import Dict, Optional
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "deploy_linode_one_shot.sh"
+MAKEFILE = REPO_ROOT / "Makefile"
 
 
 def write_executable(path: Path, body: str) -> None:
@@ -309,6 +310,27 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         script = SCRIPT.read_text(encoding="utf-8")
         self.assertIn('if [[ "${SHUMA_GATEWAY_UPSTREAM_ORIGIN}" == http://* ]]; then', script)
         self.assertIn('SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL=${SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL_VALUE}', script)
+
+    def test_remote_env_defaults_admin_config_writes_on_but_respects_override(self) -> None:
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('SHUMA_ADMIN_CONFIG_WRITE_ENABLED_VALUE="${SHUMA_ADMIN_CONFIG_WRITE_ENABLED:-true}"', script)
+        self.assertIn('SHUMA_ADMIN_CONFIG_WRITE_ENABLED=${SHUMA_ADMIN_CONFIG_WRITE_ENABLED_VALUE}', script)
+        self.assertNotIn('SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false', script)
+
+    def test_makefile_defaults_prod_admin_config_writes_on_but_respects_override(self) -> None:
+        makefile = MAKEFILE.read_text(encoding="utf-8")
+        self.assertIn(
+            "SHUMA_ADMIN_CONFIG_WRITE_ENABLED := $(if $(strip $(SHUMA_ADMIN_CONFIG_WRITE_ENABLED)),$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED),true)",
+            makefile,
+        )
+        self.assertIn(
+            'SHUMA_ADMIN_CONFIG_WRITE_ENABLED="$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED)"',
+            makefile,
+        )
+        self.assertIn(
+            "SPIN_PROD_OVERRIDES := --env SHUMA_DEBUG_HEADERS=false --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_RUNTIME_ENV=runtime-prod --env SHUMA_ADVERSARY_SIM_AVAILABLE=false",
+            makefile,
+        )
 
     def test_caddy_forwards_trusted_https_secret_header(self) -> None:
         script = SCRIPT.read_text(encoding="utf-8")

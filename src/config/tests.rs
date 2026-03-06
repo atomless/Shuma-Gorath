@@ -643,9 +643,9 @@ fn js_effective_mode_is_disabled_when_js_required_enforced_is_false() {
 }
 
 #[test]
-fn parse_admin_config_write_defaults_to_disabled() {
-    assert!(!parse_admin_config_write_enabled(None));
-    assert!(!parse_admin_config_write_enabled(Some("junk")));
+fn parse_admin_config_write_defaults_to_enabled() {
+    assert!(parse_admin_config_write_enabled(None));
+    assert!(parse_admin_config_write_enabled(Some("junk")));
     assert!(parse_admin_config_write_enabled(Some("true")));
     assert!(parse_admin_config_write_enabled(Some("1")));
     assert!(!parse_admin_config_write_enabled(Some("false")));

@@ -68,7 +68,7 @@ These are read from process env at runtime (not from <abbr title="Key-Value">KV<
 | `SHUMA_ADMIN_IP_ALLOWLIST` | No (Yes for production deploys) | empty | <abbr title="Classless Inter-Domain Routing">CIDR</abbr>/<abbr title="Internet Protocol">IP</abbr> allowlist for `/admin/*`; required by deployment guardrails in production workflows. |
 | `SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE` | No | `10` | Per-<abbr title="Internet Protocol">IP</abbr> per-minute limit for failed admin authentication attempts before returning `429`. |
 | `SHUMA_EVENT_LOG_RETENTION_HOURS` | Yes | `168` | Event retention window in hours (`0` disables cleanup). |
-| `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` | Yes | `false` | Enables/disables admin config writes to <abbr title="Key-Value">KV</abbr> (`POST /admin/config`). |
+| `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` | Yes | `true` | Enables/disables admin config writes to <abbr title="Key-Value">KV</abbr> (`POST /admin/config`). Set `false` when an operator explicitly wants read-only admin config in a deployment. |
 | `SHUMA_KV_STORE_FAIL_OPEN` | Yes | `true` | <abbr title="Key-Value">KV</abbr> failure policy (`true` fail-open, `false` fail-closed). |
 | `SHUMA_ENFORCE_HTTPS` | Yes | `false` | Rejects non-<abbr title="Hypertext Transfer Protocol Secure">HTTPS</abbr> requests when `true` (proxy/header trust rules still apply). |
 | `SHUMA_DEBUG_HEADERS` | Yes | `false` | Enables internal debug headers (for example health diagnostics). Keep `false` in production. |
