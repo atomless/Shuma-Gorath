@@ -27,6 +27,7 @@ class SmokeSingleHostTests(unittest.TestCase):
             textwrap.dedent(
                 """\
                 SHUMA_API_KEY=test-admin-key
+                SHUMA_ADMIN_IP_ALLOWLIST=198.51.100.8/32
                 SHUMA_GATEWAY_UPSTREAM_ORIGIN=https://origin.example.com
                 """
             ),
@@ -63,14 +64,19 @@ class SmokeSingleHostTests(unittest.TestCase):
 
                 auth_header = next((value for value in headers if value.lower().startswith("authorization:")), "")
                 forwarded_proto_header = next((value for value in headers if value.lower().startswith("x-forwarded-proto:")), "")
+                forwarded_for_header = next((value for value in headers if value.lower().startswith("x-forwarded-for:")), "")
                 body = ""
                 status = "500"
 
                 require_https_forward_proto = os.environ.get("SHUMA_REQUIRE_HTTPS_FORWARD_PROTO") == "1"
+                required_admin_ip = os.environ.get("SHUMA_TEST_ADMIN_ALLOWLIST_IP", "").strip()
+                forwarded_ip = forwarded_for_header.split(":", 1)[1].strip() if ":" in forwarded_for_header else ""
 
                 gateway_request = url.startswith("http://gateway.example.com")
                 if require_https_forward_proto and gateway_request and forwarded_proto_header.lower() != "x-forwarded-proto: https":
                     body, status = "HTTPS required", "403"
+                elif url.endswith("/admin/config") and required_admin_ip and forwarded_ip != required_admin_ip:
+                    body, status = "Forbidden", "403"
                 elif url.endswith("/health"):
                     body, status = "OK", "200"
                 elif url.endswith("/admin/config") and auth_header:
@@ -138,6 +144,10 @@ class SmokeSingleHostTests(unittest.TestCase):
 
     def test_includes_forwarded_proto_for_https_enforced_loopback_checks(self) -> None:
         result = self.run_smoke({"SHUMA_REQUIRE_HTTPS_FORWARD_PROTO": "1"})
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+
+    def test_uses_allowlisted_ip_for_admin_checks_by_default(self) -> None:
+        result = self.run_smoke({"SHUMA_TEST_ADMIN_ALLOWLIST_IP": "198.51.100.8"})
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
 
 

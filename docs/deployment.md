@@ -103,6 +103,7 @@ Requirements:
 
 This workflow runs local production preflight, builds an exact local git `HEAD` release bundle, provisions the VM, bootstraps runtime dependencies on the server, validates remote single-host posture with `make deploy-self-hosted-minimal`, runs `make smoke-single-host` (including forwarded public-path parity against the configured upstream origin plus reserved-route/admin checks), and installs a `systemd` unit that starts the already-prepared runtime with `make prod-start`.
 For shared-host gateway deployments, the canonical path also renders a deployment-specific Spin manifest from [`spin.toml`](../spin.toml) so the runtime keeps the repo template deny-by-default while the deployed host gets the exact upstream allowlist it needs.
+For admin-route smoke checks, `make smoke-single-host` derives an allowlisted forwarded IP from `SHUMA_ADMIN_IP_ALLOWLIST` by default. Override it with `SHUMA_SMOKE_ADMIN_FORWARDED_IP` when the first allowlist entry is not the right trusted operator IP for the check.
 
 If you already have a prepared Linode instance with a same-host origin listening on a local-only upstream such as `http://127.0.0.1:8080`, attach Shuma without reprovisioning by using `--existing-instance-id`:
 
@@ -160,6 +161,14 @@ If the auto-selected public path is too dynamic for exact body parity, rerun wit
 ```bash
 GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json \
 SHUMA_SMOKE_FORWARD_PATH=/public/stable-page-or-asset \
+make smoke-single-host
+```
+
+If the admin allowlist contains multiple candidate ranges and the first entry is not the operator IP you want to simulate during smoke, override the admin-route forwarded IP explicitly:
+
+```bash
+GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json \
+SHUMA_SMOKE_ADMIN_FORWARDED_IP=203.0.113.8 \
 make smoke-single-host
 ```
 

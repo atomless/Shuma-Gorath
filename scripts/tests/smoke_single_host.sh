@@ -19,6 +19,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 BASE_URL="${SHUMA_BASE_URL:-http://127.0.0.1:3000}"
 FORWARDED_IP="${SHUMA_SMOKE_FORWARDED_IP:-127.0.0.1}"
+ADMIN_FORWARDED_IP="${SHUMA_SMOKE_ADMIN_FORWARDED_IP:-}"
 CHALLENGE_PATH="${SHUMA_SMOKE_CHALLENGE_PATH:-}"
 CHALLENGE_EXPECT="${SHUMA_SMOKE_CHALLENGE_EXPECT:-}"
 FORWARD_PATH="${SHUMA_SMOKE_FORWARD_PATH:-}"
@@ -41,6 +42,7 @@ Usage: smoke_single_host.sh [options]
 Options:
   --base-url URL             Base URL to test (default: SHUMA_BASE_URL or http://127.0.0.1:3000)
   --forwarded-ip IP          Value for X-Forwarded-For (default: SHUMA_SMOKE_FORWARDED_IP or 127.0.0.1)
+  --admin-forwarded-ip IP    Value for admin-route X-Forwarded-For (default: SHUMA_SMOKE_ADMIN_FORWARDED_IP or first SHUMA_ADMIN_IP_ALLOWLIST entry)
   --forward-path PATH        Public path to compare against upstream origin (default: SHUMA_SMOKE_FORWARD_PATH or derived from GATEWAY_SURFACE_CATALOG_PATH)
   --challenge-path PATH      Challenge path to sanity-check (default: auto-detect from /admin/config)
   --challenge-expect REGEX   Regex expected in challenge response body (default: auto by challenge type)
@@ -56,6 +58,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --forwarded-ip)
       FORWARDED_IP="${2:-}"
+      shift 2
+      ;;
+    --admin-forwarded-ip)
+      ADMIN_FORWARDED_IP="${2:-}"
       shift 2
       ;;
     --forward-path)
@@ -161,6 +167,36 @@ select_forward_path_from_catalog() {
   python3 "${REPO_ROOT}/scripts/deploy/select_gateway_smoke_path.py" --catalog "${catalog_path}"
 }
 
+select_admin_forwarded_ip_from_allowlist() {
+  local allowlist="$1"
+  python3 - "$allowlist" <<'PY'
+import ipaddress
+import sys
+
+raw = sys.argv[1]
+for part in [item.strip() for item in raw.split(",") if item.strip()]:
+    try:
+        if "/" in part:
+            network = ipaddress.ip_network(part, strict=False)
+            print(str(next(iter(network.hosts()), network.network_address)))
+        else:
+            print(str(ipaddress.ip_address(part)))
+        raise SystemExit(0)
+    except ValueError:
+        continue
+PY
+}
+
+if [[ -z "${SHUMA_ADMIN_IP_ALLOWLIST:-}" ]]; then
+  SHUMA_ADMIN_IP_ALLOWLIST="$(read_env_local_value SHUMA_ADMIN_IP_ALLOWLIST || true)"
+fi
+if [[ -z "${ADMIN_FORWARDED_IP}" && -n "${SHUMA_ADMIN_IP_ALLOWLIST:-}" ]]; then
+  ADMIN_FORWARDED_IP="$(select_admin_forwarded_ip_from_allowlist "${SHUMA_ADMIN_IP_ALLOWLIST}" || true)"
+fi
+if [[ -z "${ADMIN_FORWARDED_IP}" ]]; then
+  ADMIN_FORWARDED_IP="${FORWARDED_IP}"
+fi
+
 info "Smoke target: ${BASE_URL}"
 
 http_request GET "${BASE_URL}/health" "${HEALTH_HEADERS[@]}"
@@ -170,14 +206,19 @@ else
   fail "/health failed (status=${HTTP_STATUS})"
 fi
 
-http_request GET "${BASE_URL}/admin/config" "${FORWARDED_HEADERS[@]}"
+ADMIN_FORWARDED_HEADERS=(-H "X-Forwarded-For: ${ADMIN_FORWARDED_IP}" -H "X-Forwarded-Proto: https")
+if [[ -n "${SHUMA_FORWARDED_IP_SECRET:-}" ]]; then
+  ADMIN_FORWARDED_HEADERS+=(-H "X-Shuma-Forwarded-Secret: ${SHUMA_FORWARDED_IP_SECRET}")
+fi
+
+http_request GET "${BASE_URL}/admin/config" "${ADMIN_FORWARDED_HEADERS[@]}"
 if [[ "${HTTP_STATUS}" == "401" || "${HTTP_STATUS}" == "403" ]]; then
   pass "/admin/config requires auth"
 else
   fail "/admin/config should reject unauthenticated access (status=${HTTP_STATUS})"
 fi
 
-http_request GET "${BASE_URL}/admin/config" "${FORWARDED_HEADERS[@]}" -H "Authorization: Bearer ${SHUMA_API_KEY}"
+http_request GET "${BASE_URL}/admin/config" "${ADMIN_FORWARDED_HEADERS[@]}" -H "Authorization: Bearer ${SHUMA_API_KEY}"
 if [[ "${HTTP_STATUS}" == "200" ]] && grep -q '"rate_limit"' <<< "${HTTP_BODY}"; then
   pass "/admin/config accepts authenticated access"
 else
