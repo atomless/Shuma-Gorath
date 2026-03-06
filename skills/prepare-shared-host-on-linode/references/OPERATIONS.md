@@ -117,6 +117,18 @@ It does not yet prove:
 
 If the origin is not real yet, stop after setup and do not claim deployment readiness.
 
+Live proof note:
+
+- the `dummy_static_site` same-host proof used this exact boundary successfully,
+- the setup receipt handed off cleanly into `deploy-shuma-on-linode`,
+- the origin itself was staged separately and stayed outside current Shuma setup-skill ownership.
+
+If a future agent wants to repeat the static acid test, reuse the same pattern:
+
+- local docroot -> `make prepare-linode-shared-host`,
+- prepared Linode instance + same-host origin at `127.0.0.1:8080`,
+- final attach through `deploy-shuma-on-linode`.
+
 ## Common Failure Modes
 
 ### Missing token in non-interactive mode

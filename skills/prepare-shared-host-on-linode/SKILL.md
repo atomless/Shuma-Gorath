@@ -24,6 +24,10 @@ The human boundary is intentionally small:
 
 Everything else should be agent work.
 
+Live proof reference:
+
+- [`../../docs/research/2026-03-06-linode-shared-host-live-proof.md`](../../docs/research/2026-03-06-linode-shared-host-live-proof.md)
+
 ## Agent Contract
 
 Run the canonical helper instead of narrating manual steps:
@@ -95,6 +99,12 @@ Only hand off to the deploy skill when all of these are true:
 - the Linode instance is known,
 - the upstream origin contract is real,
 - the final public domain/FQDN is known for canonical Shuma attach.
+
+The live `dummy_static_site` proof confirmed this boundary is correct:
+
+- setup creates the receipt and catalog,
+- deploy attaches to that receipt,
+- origin staging remains a separate site-specific step and must already be complete before Shuma attach.
 
 ## Operations Reference
 

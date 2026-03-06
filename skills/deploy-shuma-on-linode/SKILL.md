@@ -22,6 +22,10 @@ Production posture is gateway-only (`client -> shuma -> existing origin`). This 
 
 If you are starting from a local site plus a Linode account rather than an already-prepared upstream, use [`../prepare-shared-host-on-linode/SKILL.md`](../prepare-shared-host-on-linode/SKILL.md) first. That setup skill is agent-facing: it captures or validates `LINODE_TOKEN`, proposes `SHUMA_ADMIN_IP_ALLOWLIST`, generates `GATEWAY_SURFACE_CATALOG_PATH`, and writes `.spin/linode-shared-host-setup.json`.
 
+Live proof reference:
+
+- [`../../docs/research/2026-03-06-linode-shared-host-live-proof.md`](../../docs/research/2026-03-06-linode-shared-host-live-proof.md)
+
 ## Mandatory Input Gate
 
 Do not provision anything until all required inputs are known and validated.
@@ -51,6 +55,7 @@ Prepared same-host rule:
 
 - if you intend to use a same-host internal origin such as `http://127.0.0.1:8080`, the origin service must already be real before calling this path,
 - once that prepared Linode host exists, use `--existing-instance-id <linode-id>` so Shuma attaches to it without reprovisioning drift.
+- do not pretend the setup skill staged the origin for you; the Shuma attach path starts only once the upstream service is already live.
 
 Recommended:
 
@@ -141,6 +146,19 @@ SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true \
 GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json \
 make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--existing-instance-id 123456 --domain shuma.example.com"
 ```
+
+## Live-Proven Same-Host Pattern
+
+The 2026-03-06 live proof used this pattern successfully:
+
+- build the receipt with `make prepare-linode-shared-host`,
+- make the origin real on the prepared host at `http://127.0.0.1:8080`,
+- attach with `--existing-instance-id`,
+- use a TLS-capable FQDN from the start,
+- let `make smoke-single-host` derive the admin-route forwarded IP from `SHUMA_ADMIN_IP_ALLOWLIST`,
+- let the auto-selected parity probe prefer a static asset path unless `SHUMA_SMOKE_FORWARD_PATH` must be overridden explicitly.
+
+If the origin ever logs paths that start with `/http://...`, the host is running a pre-`05a0376` build and must be redeployed.
 
 ## What The Automation Does
 

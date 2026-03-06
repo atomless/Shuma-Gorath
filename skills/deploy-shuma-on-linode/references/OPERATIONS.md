@@ -78,6 +78,18 @@ If the auto-selected public path is too dynamic, rerun smoke with:
 SHUMA_SMOKE_FORWARD_PATH=/stable/public/path GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json make smoke-single-host
 ```
 
+Live proof reference:
+
+- [`../../../docs/research/2026-03-06-linode-shared-host-live-proof.md`](../../../docs/research/2026-03-06-linode-shared-host-live-proof.md)
+
+## Live-Proven Gotchas
+
+- Admin-route smoke must use an allowlisted forwarded IP. The canonical smoke path now derives that from `SHUMA_ADMIN_IP_ALLOWLIST` by default; override only with `SHUMA_SMOKE_ADMIN_FORWARDED_IP` when the first allowlist entry is not the correct operator IP for the check.
+- Public-path parity smoke should prefer obvious static assets. The auto-selector now does that; if the selected path is still unsuitable, set `SHUMA_SMOKE_FORWARD_PATH` explicitly.
+- If the origin logs requests that begin with `/http://...`, the deployed runtime is too old and must be redeployed. That was a real gateway forwarding bug fixed by commit `05a0376`.
+- Same-host internal origins at `http://127.0.0.1:8080` are supported by the canonical Linode deploy path. If you bypass that path and start the runtime manually, you must preserve the equivalent gateway local-HTTP allowance yourself.
+- The deploy bundle still ships committed `HEAD` only. Dirty worktree warnings are truthful and must be resolved by committing the intended deploy state.
+
 ## Common Issues
 
 ### Linode API auth fails
@@ -151,6 +163,7 @@ Potential causes:
 - gateway upstream origin contract misalignment.
 - rendered runtime manifest missing or stale (`SHUMA_SPIN_MANIFEST=/opt/shuma-gorath/spin.gateway.toml`).
 - auto-selected smoke forward path is too dynamic; rerun with `SHUMA_SMOKE_FORWARD_PATH` set to a stable public asset or page.
+- admin-route smoke is not using an allowlisted IP; rerun with `SHUMA_SMOKE_ADMIN_FORWARDED_IP` if the first allowlist entry is not the correct probe IP.
 
 ### Gateway preflight fails
 

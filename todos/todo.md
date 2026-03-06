@@ -31,26 +31,6 @@ Reference context:
 - [ ] SIM2-R4-CONN-1-5 Add regression and end-to-end coverage for the transition graph, hysteresis thresholds, and concurrent polling loops.
 - [ ] SIM2-R4-CONN-1-6 Update dashboard/operator diagnostics and rollback guidance for connection-state incidents.
 
-## P0 Shared-Host Deployment Readiness
-
-Reference plan:
-- [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
-- [`docs/plans/2026-03-06-linode-shared-host-readiness-implementation-plan.md`](../docs/plans/2026-03-06-linode-shared-host-readiness-implementation-plan.md)
-- [`docs/plans/2026-03-06-linode-shared-host-setup-skill-and-handoff-plan.md`](../docs/plans/2026-03-06-linode-shared-host-setup-skill-and-handoff-plan.md)
-
-Key review inputs:
-- [`docs/research/2026-03-05-gateway-first-tranche-conformance-review.md`](../docs/research/2026-03-05-gateway-first-tranche-conformance-review.md)
-- [`docs/research/2026-03-05-gateway-first-post-tranche-cleanup-review.md`](../docs/research/2026-03-05-gateway-first-post-tranche-cleanup-review.md)
-
-### DEP-SH-SETUP-2: Close Same-Host Linode Handoff Gap
-- [ ] DEP-SH-SETUP-2-2 Prove the same-host handoff using `../dummy_static_site` as the first static HTML acid test and archive timestamped operator evidence.
-- [ ] DEP-SH-SETUP-2-3 Fold the verified same-host happy path and gotchas back into `skills/prepare-shared-host-on-linode/SKILL.md`, `skills/prepare-shared-host-on-linode/references/OPERATIONS.md`, `skills/deploy-shuma-on-linode/SKILL.md`, and `skills/deploy-shuma-on-linode/references/OPERATIONS.md`.
-
-### DEP-SH-3: Capture One Real Shared-Host Deployment Evidence Set
-- [ ] DEP-SH-3-1 Run one end-to-end shared-host deployment on the canonical path and archive preflight, smoke, rollback, and operator notes.
-- [ ] DEP-SH-3-2 Feed any newly discovered blockers back into the active or blocked backlog with precise evidence.
-- [ ] DEP-SH-3-3 Fold the verified successful path and any crucial Linode-specific gotchas back into the relevant Linode setup/deploy skills and operations references so future agents can deploy Shuma on the shortest known-good path without rediscovering failure modes.
-
 ## P1 Shared-Host Discovery Baseline
 
 Reference plan:

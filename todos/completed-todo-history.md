@@ -6,10 +6,30 @@ Moved from active TODO files on 2026-02-14.
 
 ### P0 Shared-Host Deployment Readiness
 
+#### DEP-SH-3: Capture One Real Shared-Host Deployment Evidence Set
+
+- [x] DEP-SH-3-1 Run one end-to-end shared-host deployment on the canonical path and archive preflight, smoke, rollback, and operator notes.
+- [x] DEP-SH-3-2 Feed any newly discovered blockers back into the active or blocked backlog with precise evidence.
+- [x] DEP-SH-3-3 Fold the verified successful path and any crucial Linode-specific gotchas back into the relevant Linode setup/deploy skills and operations references so future agents can deploy Shuma on the shortest known-good path without rediscovering failure modes.
+- [x] Evidence:
+  - `docs/research/2026-03-06-linode-shared-host-live-proof.md`
+  - `skills/prepare-shared-host-on-linode/SKILL.md`
+  - `skills/prepare-shared-host-on-linode/references/OPERATIONS.md`
+  - `skills/deploy-shuma-on-linode/SKILL.md`
+  - `skills/deploy-shuma-on-linode/references/OPERATIONS.md`
+  - `docs/deployment.md`
+  - `scripts/tests/smoke_single_host.sh`
+  - `scripts/deploy/gateway_surface_catalog.py`
+  - `src/runtime/upstream_canonicalization.rs`
+  - `Makefile`
+
 #### DEP-SH-SETUP-2: Close Same-Host Linode Handoff Gap
 
 - [x] DEP-SH-SETUP-2-1 Extend the Linode deployment path so a prepared same-host Linode origin can hand off directly to Shuma without reprovisioning drift or manual out-of-band restaging.
+- [x] DEP-SH-SETUP-2-2 Prove the same-host handoff using `../dummy_static_site` as the first static HTML acid test and archive timestamped operator evidence.
+- [x] DEP-SH-SETUP-2-3 Fold the verified same-host happy path and gotchas back into `skills/prepare-shared-host-on-linode/SKILL.md`, `skills/prepare-shared-host-on-linode/references/OPERATIONS.md`, `skills/deploy-shuma-on-linode/SKILL.md`, and `skills/deploy-shuma-on-linode/references/OPERATIONS.md`.
 - [x] Evidence:
+  - `docs/research/2026-03-06-linode-shared-host-live-proof.md`
   - `scripts/deploy_linode_one_shot.sh`
   - `scripts/tests/test_deploy_linode_one_shot.py`
   - `skills/deploy-shuma-on-linode/SKILL.md`
