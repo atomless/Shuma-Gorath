@@ -708,7 +708,7 @@ else
 fi
 sudo ufw --force enable
 
-curl -fsS -H "X-Shuma-Health-Secret: $(grep '^SHUMA_HEALTH_SECRET=' .env.local | cut -d= -f2-)" http://127.0.0.1:3000/health >/dev/null
+SPIN_READY_TIMEOUT_SECONDS=90 make spin-wait-ready
 GATEWAY_SURFACE_CATALOG_PATH="${GATEWAY_SURFACE_CATALOG_REMOTE_PATH}" make smoke-single-host
 EOF_REMOTE_BOOTSTRAP
 chmod +x "${REMOTE_BOOTSTRAP_SCRIPT}"

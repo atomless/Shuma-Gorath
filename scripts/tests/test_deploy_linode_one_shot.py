@@ -266,6 +266,11 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         self.assertIn('cat "${ENV_FILE_PATH}" >> .env.local', script)
         self.assertNotIn('cp "${ENV_FILE_PATH}" .env.local', script)
 
+    def test_remote_bootstrap_waits_for_spin_readiness_before_smoke(self) -> None:
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('SPIN_READY_TIMEOUT_SECONDS=90 make spin-wait-ready', script)
+        self.assertNotIn('curl -fsS -H "X-Shuma-Health-Secret:', script)
+
 
 if __name__ == "__main__":
     unittest.main()
