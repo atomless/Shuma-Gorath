@@ -62,10 +62,16 @@ class SmokeSingleHostTests(unittest.TestCase):
                     i += 1
 
                 auth_header = next((value for value in headers if value.lower().startswith("authorization:")), "")
+                forwarded_proto_header = next((value for value in headers if value.lower().startswith("x-forwarded-proto:")), "")
                 body = ""
                 status = "500"
 
-                if url.endswith("/health"):
+                require_https_forward_proto = os.environ.get("SHUMA_REQUIRE_HTTPS_FORWARD_PROTO") == "1"
+
+                gateway_request = url.startswith("http://gateway.example.com")
+                if require_https_forward_proto and gateway_request and forwarded_proto_header.lower() != "x-forwarded-proto: https":
+                    body, status = "HTTPS required", "403"
+                elif url.endswith("/health"):
                     body, status = "OK", "200"
                 elif url.endswith("/admin/config") and auth_header:
                     body, status = '{"rate_limit":{}}', "200"
@@ -129,6 +135,11 @@ class SmokeSingleHostTests(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("/public/page", result.stdout + result.stderr)
+
+    def test_includes_forwarded_proto_for_https_enforced_loopback_checks(self) -> None:
+        result = self.run_smoke({"SHUMA_REQUIRE_HTTPS_FORWARD_PROTO": "1"})
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+
 
 
 if __name__ == "__main__":

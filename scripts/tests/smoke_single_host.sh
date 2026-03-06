@@ -115,7 +115,7 @@ if [[ -z "${GATEWAY_UPSTREAM_ORIGIN}" ]]; then
   GATEWAY_UPSTREAM_ORIGIN="$(read_env_local_value SHUMA_GATEWAY_UPSTREAM_ORIGIN || true)"
 fi
 
-FORWARDED_HEADERS=(-H "X-Forwarded-For: ${FORWARDED_IP}")
+FORWARDED_HEADERS=(-H "X-Forwarded-For: ${FORWARDED_IP}" -H "X-Forwarded-Proto: https")
 if [[ -n "${SHUMA_FORWARDED_IP_SECRET:-}" ]]; then
   FORWARDED_HEADERS+=(-H "X-Shuma-Forwarded-Secret: ${SHUMA_FORWARDED_IP_SECRET}")
 fi

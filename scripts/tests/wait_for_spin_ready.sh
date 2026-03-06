@@ -66,7 +66,7 @@ if [[ -z "${SHUMA_HEALTH_SECRET:-}" ]]; then
   SHUMA_HEALTH_SECRET="$(read_env_local_value SHUMA_HEALTH_SECRET || true)"
 fi
 
-headers=(-H "X-Forwarded-For: 127.0.0.1")
+headers=(-H "X-Forwarded-For: 127.0.0.1" -H "X-Forwarded-Proto: https")
 if [[ -n "${SHUMA_FORWARDED_IP_SECRET:-}" ]]; then
   headers+=(-H "X-Shuma-Forwarded-Secret: ${SHUMA_FORWARDED_IP_SECRET}")
 fi

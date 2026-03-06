@@ -598,6 +598,7 @@ test-deploy-linode: ## Validate Linode deploy-path helpers and production input 
 	@python3 -m unittest scripts/tests/test_select_gateway_smoke_path.py
 	@python3 -m unittest scripts/tests/test_setup_runtime_spin_install.py
 	@python3 -m unittest scripts/tests/test_smoke_single_host.py
+	@python3 -m unittest scripts/tests/test_wait_for_spin_ready.py
 
 test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtures (no server required)
 	@echo "$(CYAN)🧪 Validating adversarial simulation manifest...$(NC)"
