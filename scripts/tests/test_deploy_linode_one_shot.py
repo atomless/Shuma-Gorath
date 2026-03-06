@@ -271,6 +271,11 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         self.assertIn('SPIN_READY_TIMEOUT_SECONDS=90 make spin-wait-ready', script)
         self.assertNotIn('curl -fsS -H "X-Shuma-Health-Secret:', script)
 
+    def test_http_upstream_overlay_enables_insecure_local_gateway_flag(self) -> None:
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('if [[ "${SHUMA_GATEWAY_UPSTREAM_ORIGIN}" == http://* ]]; then', script)
+        self.assertIn('SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL=${SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL_VALUE}', script)
+
 
 if __name__ == "__main__":
     unittest.main()
