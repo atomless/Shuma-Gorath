@@ -225,14 +225,6 @@
     dashboardState?.session?.authenticated !== true ||
     configSnapshot.admin_config_write_enabled !== true ||
     !adversarySimControlAvailable;
-  $: dashboardReadOnlyHint = (
-    runtimeReady === true &&
-    dashboardState?.session?.authenticated === true &&
-    hasConfigSnapshot &&
-    configSnapshot.admin_config_write_enabled !== true
-  )
-    ? 'This deployment is read-only. Config changes, Test Mode, and Adversary Sim controls are disabled here.'
-    : '';
   $: globalTestModeToggleDisabledReason = globalTestModeToggleDisabled
     ? describeGlobalControlDisabledState({
       runtimeReady,
@@ -914,9 +906,6 @@
     <span class="dashboard-global-control-label" class:dashboard-global-control-label--disabled={globalAdversarySimToggleDisabled} title={globalAdversarySimToggleDisabledReason}>Adversary Sim</span>
   </div>
   <div id="adversary-sim-lifecycle-copy" class="dashboard-adversary-sim-hint text-muted">
-    {#if dashboardReadOnlyHint}
-      <p id="dashboard-read-only-hint" class="dashboard-global-control-copy-block">{dashboardReadOnlyHint}</p>
-    {/if}
     <p class="dashboard-global-control-copy-block">{adversarySimLifecycleCopy}</p>
   </div>
   <button
