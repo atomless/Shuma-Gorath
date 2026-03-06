@@ -93,6 +93,12 @@ GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json \
 make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--domain shuma.example.com --region gb-lon --type g6-standard-1"
 ```
 
+For an interactive local run where success should end with the hosted dashboard opening on the operator machine, add `--open-dashboard`:
+
+```bash
+make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--domain shuma.example.com --existing-instance-id 123456 --open-dashboard"
+```
+
 Requirements:
 
 - run from a cloned `Shuma-Gorath` repository
@@ -101,7 +107,7 @@ Requirements:
 - domain/TLS is mandatory for the canonical production path
 - local `make deploy-env-validate` must pass before provisioning
 
-This workflow runs local production preflight, builds an exact local git `HEAD` release bundle, provisions the VM, bootstraps runtime dependencies on the server, validates remote single-host posture with `make deploy-self-hosted-minimal`, runs `make smoke-single-host` (including forwarded public-path parity against the configured upstream origin plus reserved-route/admin checks), and installs a `systemd` unit that starts the already-prepared runtime with `make prod-start`.
+This workflow runs local production preflight, builds an exact local git `HEAD` release bundle, provisions the VM, bootstraps runtime dependencies on the server, validates remote single-host posture with `make deploy-self-hosted-minimal`, runs `make smoke-single-host` (including forwarded public-path parity against the configured upstream origin plus reserved-route/admin checks), installs a `systemd` unit that starts the already-prepared runtime with `make prod-start`, and prints the final dashboard URL. When `--open-dashboard` is set, it also opens `/dashboard` locally after success.
 For shared-host gateway deployments, the canonical path also renders a deployment-specific Spin manifest from [`spin.toml`](../spin.toml) so the runtime keeps the repo template deny-by-default while the deployed host gets the exact upstream allowlist it needs.
 For admin-route smoke checks, `make smoke-single-host` derives an allowlisted forwarded IP from `SHUMA_ADMIN_IP_ALLOWLIST` by default. Override it with `SHUMA_SMOKE_ADMIN_FORWARDED_IP` when the first allowlist entry is not the right trusted operator IP for the check.
 

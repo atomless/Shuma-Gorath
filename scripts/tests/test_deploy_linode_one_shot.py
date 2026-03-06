@@ -33,6 +33,7 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         self.stub_dir.mkdir()
         self.make_log = self.temp_dir / "make.log"
         self.curl_log = self.temp_dir / "curl.log"
+        self.open_log = self.temp_dir / "open.log"
         self.captured_manifest = self.temp_dir / "captured-spin.toml"
         self.catalog_path = self.temp_dir / "catalog.json"
         self.catalog_path.write_text('{"inventory":[{"path":"/"}]}\n', encoding="utf-8")
@@ -100,6 +101,26 @@ class DeployLinodeOneShotTests(unittest.TestCase):
                 if [ -n "$SHUMA_SPIN_MANIFEST" ] && [ -f "$SHUMA_SPIN_MANIFEST" ]; then
                   cp "$SHUMA_SPIN_MANIFEST" "{self.captured_manifest}"
                 fi
+                exit 0
+                """
+            ),
+        )
+        write_executable(
+            self.stub_dir / "open",
+            textwrap.dedent(
+                f"""\
+                #!/bin/sh
+                printf '%s\\n' "$@" >> "{self.open_log}"
+                exit 0
+                """
+            ),
+        )
+        write_executable(
+            self.stub_dir / "xdg-open",
+            textwrap.dedent(
+                f"""\
+                #!/bin/sh
+                printf '%s\\n' "$@" >> "{self.open_log}"
                 exit 0
                 """
             ),
@@ -238,6 +259,19 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         curl_log = self.curl_log.read_text(encoding="utf-8")
         self.assertNotIn("POST https://api.linode.com/v4/linode/instances\n", curl_log)
         self.assertIn("Host IP:   198.51.100.24", result.stdout)
+        self.assertIn("Dashboard: https://shuma.example.com/dashboard", result.stdout)
+
+    def test_open_dashboard_flag_launches_local_dashboard_url(self) -> None:
+        result = self.run_script(
+            "--domain",
+            "shuma.example.com",
+            "--existing-instance-id",
+            "123",
+            "--open-dashboard",
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        self.assertTrue(self.open_log.exists())
+        self.assertIn("https://shuma.example.com/dashboard", self.open_log.read_text(encoding="utf-8"))
 
     def test_existing_instance_mode_rejects_profile_override(self) -> None:
         result = self.run_script(

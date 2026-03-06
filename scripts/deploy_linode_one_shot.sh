@@ -56,6 +56,7 @@ Options:
   --ssh-public-key-file <path>         SSH public key for first access (default: ~/.ssh/id_ed25519.pub, fallback ~/.ssh/id_rsa.pub)
   --ssh-private-key-file <path>        SSH private key paired with the public key (default: public key without .pub)
   --domain <fqdn>                      Required canonical public domain; enables Caddy reverse proxy/TLS
+  --open-dashboard                    Open the deployed dashboard URL locally after a successful deploy
   --enable-caddy <auto|true|false>     Caddy mode (default: auto; canonical production path requires true)
   --preflight-only                     Run validations only; do not create infrastructure
   --destroy-on-failure                 Delete created Linode instance if deployment fails
@@ -104,6 +105,27 @@ require_true_env() {
   fi
 }
 
+open_local_url() {
+  local url="$1"
+  local opener=""
+  if command -v open >/dev/null 2>&1; then
+    opener="open"
+  elif command -v xdg-open >/dev/null 2>&1; then
+    opener="xdg-open"
+  fi
+
+  if [[ -z "${opener}" ]]; then
+    warn "No local URL opener found. Open manually: ${url}"
+    return 0
+  fi
+
+  if "${opener}" "${url}" >/dev/null 2>&1; then
+    success "Opened dashboard locally: ${url}"
+  else
+    warn "Failed to open dashboard automatically. Open manually: ${url}"
+  fi
+}
+
 LINODE_API_URL="https://api.linode.com/v4"
 LINODE_LABEL="shuma-$(date -u +%Y%m%d%H%M%S)"
 LINODE_PROFILE="${LINODE_PROFILE:-small}"
@@ -117,6 +139,7 @@ DOMAIN_NAME="${DOMAIN_NAME:-}"
 ENABLE_CADDY="${ENABLE_CADDY:-auto}"
 PREFLIGHT_ONLY=0
 DESTROY_ON_FAILURE=0
+OPEN_DASHBOARD=0
 TYPE_EXPLICIT=0
 LABEL_EXPLICIT=0
 PROFILE_EXPLICIT=0
@@ -176,6 +199,10 @@ while [[ $# -gt 0 ]]; do
     --domain)
       DOMAIN_NAME="${2:-}"
       shift 2
+      ;;
+    --open-dashboard)
+      OPEN_DASHBOARD=1
+      shift
       ;;
     --enable-caddy)
       ENABLE_CADDY="${2:-}"
@@ -733,21 +760,30 @@ ssh -o StrictHostKeyChecking=accept-new -i "${SSH_PRIVATE_KEY_FILE}" "shuma@${IN
 success "Deployment completed"
 
 if [[ "${ENABLE_CADDY_NORM}" == "true" ]]; then
+  BASE_URL="https://${DOMAIN_NAME}"
+else
+  BASE_URL="http://${INSTANCE_IPV4}:3000"
+fi
+DASHBOARD_URL="${BASE_URL}/dashboard"
+
+if [[ "${ENABLE_CADDY_NORM}" == "true" ]]; then
   echo ""
-  echo "URL:      https://${DOMAIN_NAME}"
-  echo "Health:   https://${DOMAIN_NAME}/health (requires X-Shuma-Health-Secret header)"
+  echo "URL:       ${BASE_URL}"
+  echo "Dashboard: ${DASHBOARD_URL}"
+  echo "Health:    ${BASE_URL}/health (requires X-Shuma-Health-Secret header)"
   echo "Note:     If TLS is not yet active, verify DNS A/AAAA for ${DOMAIN_NAME} points to ${INSTANCE_IPV4} and restart Caddy."
 else
   echo ""
-  echo "URL:      http://${INSTANCE_IPV4}:3000"
-  echo "Health:   http://${INSTANCE_IPV4}:3000/health (requires X-Shuma-Health-Secret header)"
+  echo "URL:       ${BASE_URL}"
+  echo "Dashboard: ${DASHBOARD_URL}"
+  echo "Health:    ${BASE_URL}/health (requires X-Shuma-Health-Secret header)"
 fi
 
 echo "Linode ID: ${INSTANCE_ID}"
 echo "Host IP:   ${INSTANCE_IPV4}"
 echo "Commit:    ${RELEASE_COMMIT_SHA}"
 echo ""
-echo "Dashboard login key (SHUMA_API_KEY): ${SHUMA_API_KEY_VALUE}"
+echo "Dashboard login key (SHUMA_API_KEY, reused from local if already set): ${SHUMA_API_KEY_VALUE}"
 echo "Health secret (SHUMA_HEALTH_SECRET): ${SHUMA_HEALTH_SECRET_VALUE}"
 echo ""
 echo "Next commands:"
@@ -757,3 +793,7 @@ echo "  ssh -i ${SSH_PRIVATE_KEY_FILE} shuma@${INSTANCE_IPV4} 'sudo journalctl -
 echo ""
 echo "Cleanup:"
 echo "  curl -X DELETE -H 'Authorization: Bearer <LINODE_TOKEN>' ${LINODE_API_URL}/linode/instances/${INSTANCE_ID}"
+
+if [[ "${OPEN_DASHBOARD}" -eq 1 ]]; then
+  open_local_url "${DASHBOARD_URL}"
+fi

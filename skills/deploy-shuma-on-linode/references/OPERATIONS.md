@@ -36,6 +36,8 @@ GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json \
 make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--existing-instance-id 123456 --domain shuma.example.com --preflight-only"
 ```
 
+For an interactive local attach where success should end with the hosted dashboard opening in a browser tab, add `--open-dashboard` to the final non-preflight deploy command.
+
 Run gateway contract guardrails before production cutover:
 
 ```bash

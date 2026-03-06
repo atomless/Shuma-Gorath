@@ -17,6 +17,7 @@ Use the repository-native one-shot deployment path:
 - Upload the release bundle and bootstrap from that bundle on the server.
 - Reuse existing runtime workflow (`make setup-runtime`, `make deploy-self-hosted-minimal`, `make smoke-single-host`, `make prod-start`, `make stop`) without introducing a parallel pipeline.
   `make smoke-single-host` now includes forwarded public-path parity against the upstream origin plus reserved-route/admin checks.
+- In interactive local runs, treat success as the hosted dashboard loading on the operator machine. Use `--open-dashboard` for that finish line.
 
 Production posture is gateway-only (`client -> shuma -> existing origin`). This path is for existing-site protection, not in-app front-door hosting.
 
@@ -145,6 +146,12 @@ SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true \
 SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true \
 GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json \
 make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--existing-instance-id 123456 --domain shuma.example.com"
+```
+
+Interactive finish line:
+
+```bash
+make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--existing-instance-id 123456 --domain shuma.example.com --open-dashboard"
 ```
 
 ## Live-Proven Same-Host Pattern
