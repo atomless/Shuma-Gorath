@@ -116,6 +116,32 @@
     return '';
   }
 
+  const describeGlobalControlDisabledState = ({
+    runtimeReady,
+    loggingOut,
+    saving,
+    authenticated,
+    adminConfigWritable,
+    unavailableMessage
+  }) => {
+    if (runtimeReady !== true) {
+      return 'Waiting for the dashboard to finish loading.';
+    }
+    if (loggingOut === true) {
+      return 'Logging out. Controls are temporarily disabled.';
+    }
+    if (saving === true) {
+      return 'A change is already in progress. Wait for it to complete.';
+    }
+    if (authenticated !== true) {
+      return 'Log in to use this control.';
+    }
+    if (adminConfigWritable !== true) {
+      return 'Unavailable because config writes are disabled in this deployment.';
+    }
+    return String(unavailableMessage || '').trim();
+  };
+
   if (typeof document !== 'undefined') {
     rootRuntimeClassHint = readRootRuntimeClassHint(document);
   }
@@ -138,6 +164,7 @@
   $: snapshotVersions = dashboardState?.snapshotVersions || {};
   $: analyticsSnapshot = snapshots.analytics || {};
   $: configSnapshot = snapshots.config || {};
+  $: hasConfigSnapshot = Object.keys(configSnapshot).length > 0;
   $: hasConfigTestMode = typeof configSnapshot.test_mode === 'boolean';
   $: currentTestModeValue = hasConfigTestMode
     ? configSnapshot.test_mode === true
@@ -198,6 +225,36 @@
     dashboardState?.session?.authenticated !== true ||
     configSnapshot.admin_config_write_enabled !== true ||
     !adversarySimControlAvailable;
+  $: dashboardReadOnlyHint = (
+    runtimeReady === true &&
+    dashboardState?.session?.authenticated === true &&
+    hasConfigSnapshot &&
+    configSnapshot.admin_config_write_enabled !== true
+  )
+    ? 'This deployment is read-only. Config changes, Test Mode, and Adversary Sim controls are disabled here.'
+    : '';
+  $: globalTestModeToggleDisabledReason = globalTestModeToggleDisabled
+    ? describeGlobalControlDisabledState({
+      runtimeReady,
+      loggingOut,
+      saving: savingGlobalTestMode,
+      authenticated: dashboardState?.session?.authenticated,
+      adminConfigWritable: configSnapshot.admin_config_write_enabled,
+      unavailableMessage: ''
+    })
+    : '';
+  $: globalAdversarySimToggleDisabledReason = globalAdversarySimToggleDisabled
+    ? describeGlobalControlDisabledState({
+      runtimeReady,
+      loggingOut,
+      saving: savingGlobalAdversarySim,
+      authenticated: dashboardState?.session?.authenticated,
+      adminConfigWritable: configSnapshot.admin_config_write_enabled,
+      unavailableMessage: adversarySimControlAvailable
+        ? ''
+        : 'Unavailable because adversary simulation control is only enabled for runtime-dev deployments with the simulation surface active.'
+    })
+    : '';
   $: adversarySimRetentionHours = Math.max(0, Number(normalizedAdversarySimStatus.historyRetentionHours || 0));
   $: adversarySimCleanupCommand =
     String(normalizedAdversarySimStatus.historyCleanupCommand || '').trim() || 'make telemetry-clean';
@@ -827,35 +884,40 @@
     TEST MODE ACTIVE - Logging only, no active defences
   </div>
   <div class="dashboard-global-control dashboard-test-mode-control">
-    <label class="toggle-switch" for="global-test-mode-toggle">
+    <label class="toggle-switch" for="global-test-mode-toggle" title={globalTestModeToggleDisabledReason}>
       <input
         id="global-test-mode-toggle"
         type="checkbox"
         aria-label="Enable test mode"
         checked={currentTestModeValue}
         disabled={globalTestModeToggleDisabled}
+        title={globalTestModeToggleDisabledReason}
         on:change={onGlobalTestModeToggleChange}
       >
       <span class="toggle-slider"></span>
     </label>
-    <span class="dashboard-global-control-label" class:dashboard-global-control-label--disabled={globalTestModeToggleDisabled}>Test Mode</span>
+    <span class="dashboard-global-control-label" class:dashboard-global-control-label--disabled={globalTestModeToggleDisabled} title={globalTestModeToggleDisabledReason}>Test Mode</span>
   </div>
   <div class="dashboard-global-control dashboard-adversary-sim-control">
-    <label class="toggle-switch" for="global-adversary-sim-toggle">
+    <label class="toggle-switch" for="global-adversary-sim-toggle" title={globalAdversarySimToggleDisabledReason}>
       <input
         id="global-adversary-sim-toggle"
         type="checkbox"
         aria-label="Enable adversary simulation"
         checked={adversarySimToggleEnabled}
         disabled={globalAdversarySimToggleDisabled}
+        title={globalAdversarySimToggleDisabledReason}
         on:change={onGlobalAdversarySimToggleChange}
       >
       <span class="toggle-slider"></span>
     </label>
-    <span class="dashboard-global-control-label" class:dashboard-global-control-label--disabled={globalAdversarySimToggleDisabled}>Adversary Sim</span>
+    <span class="dashboard-global-control-label" class:dashboard-global-control-label--disabled={globalAdversarySimToggleDisabled} title={globalAdversarySimToggleDisabledReason}>Adversary Sim</span>
   </div>
   <div id="adversary-sim-lifecycle-copy" class="dashboard-adversary-sim-hint text-muted">
-    {adversarySimLifecycleCopy}
+    {#if dashboardReadOnlyHint}
+      <p id="dashboard-read-only-hint" class="dashboard-global-control-copy-block">{dashboardReadOnlyHint}</p>
+    {/if}
+    <p class="dashboard-global-control-copy-block">{adversarySimLifecycleCopy}</p>
   </div>
   <button
     id="logout-btn"

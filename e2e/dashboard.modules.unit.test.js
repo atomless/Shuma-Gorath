@@ -2685,6 +2685,28 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(tuningSurfaceSource, /id="browser-block-rules"/);
 });
 
+test('read-only deployments keep config panels visible and explain disabled global controls', () => {
+  const configPanelSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/primitives/ConfigPanel.svelte'),
+    'utf8'
+  );
+  const dashboardRouteSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
+    'utf8'
+  );
+
+  assert.equal(configPanelSource.includes('class:hidden={!writable}'), false);
+  assert.match(configPanelSource, /\$: isReadOnly = !writable && variant !== 'export';/);
+  assert.match(configPanelSource, /class:config-panel--read-only=\{isReadOnly\}/);
+  assert.match(configPanelSource, /<fieldset class="config-panel__fieldset" disabled=\{!writable && variant !== 'export'\}>/);
+  assert.match(dashboardRouteSource, /globalTestModeToggleDisabledReason =/);
+  assert.match(dashboardRouteSource, /globalAdversarySimToggleDisabledReason =/);
+  assert.match(dashboardRouteSource, /id="dashboard-read-only-hint"/);
+  assert.match(dashboardRouteSource, /This deployment is read-only\./);
+  assert.match(dashboardRouteSource, /title=\{globalTestModeToggleDisabledReason\}/);
+  assert.match(dashboardRouteSource, /title=\{globalAdversarySimToggleDisabledReason\}/);
+});
+
 test('dashboard route lazily loads heavy tabs and keeps orchestration local', () => {
   const source = fs.readFileSync(path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'), 'utf8');
 

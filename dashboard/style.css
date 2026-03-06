@@ -511,6 +511,14 @@ h1 {
   z-index: 20;
 }
 
+.dashboard-global-control-copy-block {
+  margin: 0;
+}
+
+.dashboard-global-control-copy-block + .dashboard-global-control-copy-block {
+  margin-top: 6px;
+}
+
 .subtitle {
   font-size: var(--text-lg);
   margin: -18px 0 2rem 0;
@@ -1023,6 +1031,28 @@ code.env-var {
 
 .controls-grid--config .panel-soft {
   border-bottom: var(--border-hairline);
+}
+
+.config-panel__fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.config-panel--read-only {
+  position: relative;
+}
+
+.config-panel--read-only::before {
+  content: "READ ONLY";
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-500);
 }
 
 .controls-grid--status .panel {
