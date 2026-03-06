@@ -7,7 +7,12 @@ import os
 import sys
 import ast
 from pathlib import Path
-from urllib.parse import urlsplit
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.deploy.spin_manifest import normalize_origin
 
 try:
     import tomllib  # type: ignore[attr-defined]
@@ -18,22 +23,6 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for Python <3.11
 def fail(message: str) -> int:
     print(f"❌ {message}", file=sys.stderr)
     return 1
-
-
-def normalize_origin(raw: str) -> tuple[str, str]:
-    value = (raw or "").strip()
-    if not value:
-        raise ValueError("origin is empty")
-    parsed = urlsplit(value)
-    if parsed.scheme not in {"http", "https"}:
-        raise ValueError("scheme must be http or https")
-    if not parsed.hostname:
-        raise ValueError("hostname is missing")
-    if parsed.path not in {"", "/"} or parsed.query or parsed.fragment or parsed.username or parsed.password:
-        raise ValueError("must not include path, query, fragment, or userinfo")
-    port = parsed.port or (443 if parsed.scheme == "https" else 80)
-    return f"{parsed.scheme}://{parsed.hostname.lower()}:{port}", parsed.scheme
-
 
 def load_allowed_outbound_hosts(manifest_path: Path) -> list[str]:
     if not manifest_path.exists():

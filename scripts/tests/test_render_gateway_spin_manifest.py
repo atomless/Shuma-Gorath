@@ -1,0 +1,71 @@
+import subprocess
+import tempfile
+import textwrap
+import unittest
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = REPO_ROOT / "scripts" / "deploy" / "render_gateway_spin_manifest.py"
+
+
+def run_render(manifest_text: str, upstream_origin: str) -> tuple[subprocess.CompletedProcess, Path]:
+    temp_dir = Path(tempfile.mkdtemp(prefix="render-gateway-spin-manifest-"))
+    manifest_path = temp_dir / "spin.toml"
+    output_path = temp_dir / "spin.rendered.toml"
+    manifest_path.write_text(manifest_text, encoding="utf-8")
+    result = subprocess.run(
+        [
+            "python3",
+            str(SCRIPT),
+            "--manifest",
+            str(manifest_path),
+            "--output",
+            str(output_path),
+            "--upstream-origin",
+            upstream_origin,
+        ],
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result, output_path
+
+
+class RenderGatewaySpinManifestTests(unittest.TestCase):
+    def test_adds_normalized_upstream_origin_to_allowed_outbound_hosts(self) -> None:
+        result, output_path = run_render(
+            textwrap.dedent(
+                """
+                spin_manifest_version = 2
+                [component.bot-defence]
+                allowed_outbound_hosts = ["https://metrics.example.com:443"]
+                """
+            ),
+            "https://origin.example.com",
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        self.assertTrue(output_path.exists())
+        self.assertIn(
+            'allowed_outbound_hosts = ["https://metrics.example.com:443", "https://origin.example.com:443"]',
+            output_path.read_text(encoding="utf-8"),
+        )
+
+    def test_rejects_invalid_upstream_origin(self) -> None:
+        result, _ = run_render(
+            textwrap.dedent(
+                """
+                spin_manifest_version = 2
+                [component.bot-defence]
+                allowed_outbound_hosts = []
+                """
+            ),
+            "origin.example.com/path",
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Invalid upstream origin", result.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()

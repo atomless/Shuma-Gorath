@@ -63,11 +63,33 @@ Pick one setup flow and stick to it for that machine:
 
 ## 🐙 One-Command Linode Provision + Deploy
 
+If you are starting from a local site plus a Linode account, prepare the shared-host receipt first:
+
+```bash
+make prepare-linode-shared-host PREPARE_LINODE_ARGS="--docroot /abs/path/to/site"
+```
+
+That helper is agent-oriented. It can:
+
+- capture or validate the Linode Personal Access Token and persist it to gitignored `.env.local`,
+- propose and persist `SHUMA_ADMIN_IP_ALLOWLIST`,
+- generate `GATEWAY_SURFACE_CATALOG_PATH`,
+- create or inspect the Linode instance,
+- write `.spin/linode-shared-host-setup.json`.
+
+After that, `make deploy-linode-one-shot` can reuse the persisted `.env.local` state plus the SSH key paths stored in `.spin/linode-shared-host-setup.json` instead of asking the operator for those inputs again.
+
 For a fresh Linode account/host bootstrap, you can provision and deploy from this repository in one command:
 
 ```bash
 LINODE_TOKEN=<token> \
 SHUMA_ADMIN_IP_ALLOWLIST=<trusted-ip-or-cidr> \
+SHUMA_GATEWAY_UPSTREAM_ORIGIN=https://origin.example.com \
+SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=true \
+SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=true \
+SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true \
+SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true \
+GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json \
 make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--domain shuma.example.com --region gb-lon --type g6-standard-1"
 ```
 
@@ -76,11 +98,29 @@ Requirements:
 - run from a cloned `Shuma-Gorath` repository
 - local SSH keypair available (default public key lookup: `~/.ssh/id_ed25519.pub`, fallback `~/.ssh/id_rsa.pub`)
 - Linode API token with Linodes read/write scope
+- domain/TLS is mandatory for the canonical production path
+- local `make deploy-env-validate` must pass before provisioning
 
-This workflow provisions the VM, bootstraps runtime dependencies, and starts Shuma using existing Makefile runtime commands (`make setup-runtime`, `make prod`, `make stop`) on the server.
+This workflow runs local production preflight, builds an exact local git `HEAD` release bundle, provisions the VM, bootstraps runtime dependencies on the server, validates remote single-host posture with `make deploy-self-hosted-minimal`, runs `make smoke-single-host` (including forwarded public-path parity against the configured upstream origin plus reserved-route/admin checks), and installs a `systemd` unit that starts the already-prepared runtime with `make prod-start`.
+For shared-host gateway deployments, the canonical path also renders a deployment-specific Spin manifest from [`spin.toml`](../spin.toml) so the runtime keeps the repo template deny-by-default while the deployed host gets the exact upstream allowlist it needs.
+
+If you already have a prepared Linode instance with a same-host origin listening on a local-only upstream such as `http://127.0.0.1:8080`, attach Shuma without reprovisioning by using `--existing-instance-id`:
+
+```bash
+LINODE_TOKEN=<token> \
+SHUMA_ADMIN_IP_ALLOWLIST=<trusted-ip-or-cidr> \
+SHUMA_GATEWAY_UPSTREAM_ORIGIN=http://127.0.0.1:8080 \
+SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=true \
+SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=true \
+SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true \
+SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true \
+GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json \
+make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--existing-instance-id 123456 --domain shuma.example.com"
+```
 
 Related repo-local deployment skills:
 
+- [`../skills/prepare-shared-host-on-linode/SKILL.md`](../skills/prepare-shared-host-on-linode/SKILL.md)
 - [`../skills/deploy-shuma-on-linode/SKILL.md`](../skills/deploy-shuma-on-linode/SKILL.md)
 - [`../skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](../skills/deploy-shuma-on-akamai-fermyon/SKILL.md)
 
@@ -112,6 +152,14 @@ make prod
 5. Verify service health and baseline functionality:
 
 ```bash
+GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json make smoke-single-host
+```
+
+If the auto-selected public path is too dynamic for exact body parity, rerun with a stable path override:
+
+```bash
+GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json \
+SHUMA_SMOKE_FORWARD_PATH=/public/stable-page-or-asset \
 make smoke-single-host
 ```
 
@@ -124,7 +172,7 @@ make prod
 make smoke-single-host
 ```
 
-For immutable deployments, rollback is: redeploy previous release artifact + previous config export (`GET /admin/config/export` snapshot), then rerun `make smoke-single-host`.
+For immutable deployments, rollback is: redeploy previous release artifact + previous config export (`GET /admin/config/export` snapshot), then rerun `make smoke-single-host` with `GATEWAY_SURFACE_CATALOG_PATH` (and `SHUMA_SMOKE_FORWARD_PATH` when needed).
 
 ## 🐙 Deployment Personas (Provider Scope)
 
@@ -203,7 +251,8 @@ Template source: run `make setup` or `make setup-runtime` and use `.env.local` (
 Production gateway posture is explicit and fail-closed:
 
 1. `SHUMA_GATEWAY_UPSTREAM_ORIGIN` must use explicit `scheme://host[:port]`.
-2. `component.bot-defence.allowed_outbound_hosts` in [`spin.toml`](../spin.toml) must include that exact upstream origin.
+2. The effective Spin manifest used for deployment must include that exact upstream origin in `component.bot-defence.allowed_outbound_hosts`.
+   For the canonical shared-host path, `scripts/deploy/render_gateway_spin_manifest.py` renders a deployment-specific manifest and `SHUMA_SPIN_MANIFEST` points runtime/preflight at that rendered file.
 3. Wildcard outbound hosts are not allowed for `runtime-prod`.
 
 Spin limitation reminder:
@@ -243,6 +292,15 @@ Gateway v1 protocol support matrix:
 Gateway onboarding with shared-host discovery outputs:
 
 1. Produce or obtain an origin public-surface catalog artifact from shared-host discovery (`robots.txt`, `sitemap.xml`, bounded crawl outputs).
+   - If the site already exists locally as a docroot and no sitemap has been authored, generate the initial artifact with:
+     ```bash
+     python3 scripts/build_site_surface_catalog.py \
+       --docroot /abs/path/to/site/docroot \
+       --mode static-html-docroot \
+       --output /abs/path/to/.spin/site.surface-catalog.json
+     ```
+
+   - This helper inventories the docroot first, then merges local sitemap evidence when present. A human-authored sitemap is not required for the initial deterministic artifact.
 2. Run reserved-route collision preflight against that artifact by setting:
    - `GATEWAY_SURFACE_CATALOG_PATH=<catalog-json-path>`
    - `SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=true` only after clean preflight.
@@ -251,6 +309,12 @@ Gateway onboarding with shared-host discovery outputs:
    - verify public paths expected by catalog are forwarded,
    - verify sensitive/admin/internal routes remain local/non-forwarded,
    - tighten allowlists and origin lock before enabling strict enforcement.
+
+Shared-host same-box note:
+
+- `deploy_linode_one_shot.sh` can now either provision a fresh VM or attach to a prepared Linode instance with `--existing-instance-id`,
+- the new setup skill can prepare same-host handoff inputs such as `http://127.0.0.1:8080`,
+- same-host origin staging/host preparation automation remains an explicit follow-on item and must not be implied complete until proven.
 
 Gateway cutover and rollback (operator runbook summary):
 
@@ -305,7 +369,7 @@ make deploy-env-validate
   - require `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=true` for temporary additive/off exceptions when distributed state is not yet enabled.
 - gateway outbound contract guardrail (`runtime-prod`):
   - `SHUMA_GATEWAY_UPSTREAM_ORIGIN` must be valid and explicit,
-  - upstream origin must be present in `component.bot-defence.allowed_outbound_hosts` in `spin.toml`,
+  - upstream origin must be present in `component.bot-defence.allowed_outbound_hosts` in the effective manifest selected by `SHUMA_SPIN_MANIFEST` (or `spin.toml` when `SHUMA_SPIN_MANIFEST` is unset),
   - wildcard outbound entries are rejected,
   - `edge-fermyon` profile rejects variable-templated `allowed_outbound_hosts` entries.
 - reserved-route collision preflight guardrail (`runtime-prod`):
@@ -496,6 +560,7 @@ allowed_outbound_hosts = []
 ```
 
 Only add explicit hosts if a new feature requires outbound calls.
+For the canonical shared-host gateway deployment path, keep [`spin.toml`](../spin.toml) as the deny-by-default template and render a deployment-specific manifest with `scripts/deploy/render_gateway_spin_manifest.py`.
 
 ## 🐙 Fermyon / Spin Cloud
 

@@ -1,6 +1,6 @@
 ---
 name: deploy-shuma-on-linode
-description: Use when deploying this repository to a fresh Linode account or VM and you need one-command provisioning, bootstrap, and first production bring-up.
+description: Use when deploying this repository to either a fresh Linode VM or a prepared Linode instance and you need the canonical Shuma bootstrap and production bring-up path.
 ---
 
 # Deploy Shuma-Gorath On Linode
@@ -9,12 +9,18 @@ description: Use when deploying this repository to a fresh Linode account or VM 
 
 Use the repository-native one-shot deployment path:
 
-- Provision Linode instance via Linode API.
+- Run local production preflight (`make deploy-env-validate`).
+- Render a deployment-specific Spin manifest from the repo template so the live host gets the exact gateway upstream allowlist.
+- Build an exact release bundle from the local checked-out git `HEAD`.
+- Provision a new Linode instance via Linode API or attach to a prepared Linode instance via `--existing-instance-id`.
 - Bootstrap host baseline.
-- Clone this repository on the server.
-- Reuse existing runtime workflow (`make setup-runtime`, `make prod`, `make stop`) without introducing a parallel pipeline.
+- Upload the release bundle and bootstrap from that bundle on the server.
+- Reuse existing runtime workflow (`make setup-runtime`, `make deploy-self-hosted-minimal`, `make smoke-single-host`, `make prod-start`, `make stop`) without introducing a parallel pipeline.
+  `make smoke-single-host` now includes forwarded public-path parity against the upstream origin plus reserved-route/admin checks.
 
 Production posture is gateway-only (`client -> shuma -> existing origin`). This path is for existing-site protection, not in-app front-door hosting.
+
+If you are starting from a local site plus a Linode account rather than an already-prepared upstream, use [`../prepare-shared-host-on-linode/SKILL.md`](../prepare-shared-host-on-linode/SKILL.md) first. That setup skill is agent-facing: it captures or validates `LINODE_TOKEN`, proposes `SHUMA_ADMIN_IP_ALLOWLIST`, generates `GATEWAY_SURFACE_CATALOG_PATH`, and writes `.spin/linode-shared-host-setup.json`.
 
 ## Mandatory Input Gate
 
@@ -28,11 +34,26 @@ Required:
 - `SHUMA_GATEWAY_DEPLOYMENT_PROFILE=shared-server`.
 - `SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=true`.
 - `SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=true` after clean preflight.
+- `SHUMA_GATEWAY_TLS_STRICT=true`.
+- `SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true`.
+- `SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true`.
 - `GATEWAY_SURFACE_CATALOG_PATH`: discovered origin public-surface catalog JSON.
+- `--domain <fqdn>`: canonical production path requires domain/TLS from the start.
+
+These may already be satisfied by the setup helper:
+
+- `LINODE_TOKEN` from `.env.local`
+- `SHUMA_ADMIN_IP_ALLOWLIST` from `.env.local`
+- `GATEWAY_SURFACE_CATALOG_PATH` from `.env.local`
+- `--existing-instance-id <linode-id>` from `.spin/linode-shared-host-setup.json`
+
+Prepared same-host rule:
+
+- if you intend to use a same-host internal origin such as `http://127.0.0.1:8080`, the origin service must already be real before calling this path,
+- once that prepared Linode host exists, use `--existing-instance-id <linode-id>` so Shuma attaches to it without reprovisioning drift.
 
 Recommended:
 
-- `--domain <fqdn>` for TLS via Caddy.
 - `--profile <small|medium|large>` to pick a default host size.
 - `--region`, `--label` to control host placement and naming.
 - `--type` only when overriding profile defaults.
@@ -42,10 +63,32 @@ Preflight-only validation:
 ```bash
 LINODE_TOKEN=<token> \
 SHUMA_ADMIN_IP_ALLOWLIST=<ip-or-cidr-list> \
+SHUMA_GATEWAY_UPSTREAM_ORIGIN=https://origin.example.com \
+SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=true \
+SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=true \
+SHUMA_GATEWAY_TLS_STRICT=true \
+SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true \
+SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true \
+GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json \
 make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--profile medium --region gb-lon --preflight-only"
 ```
 
-Use this before first live run and whenever changing region/type/profile.
+Use this before first live run and whenever changing region/type/profile. If the setup helper already populated `.env.local`, you only need to supply the still-missing upstream/domain/attestation inputs.
+
+Prepared same-host preflight:
+
+```bash
+LINODE_TOKEN=<token> \
+SHUMA_ADMIN_IP_ALLOWLIST=<ip-or-cidr-list> \
+SHUMA_GATEWAY_UPSTREAM_ORIGIN=http://127.0.0.1:8080 \
+SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=true \
+SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=true \
+SHUMA_GATEWAY_TLS_STRICT=true \
+SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true \
+SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true \
+GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json \
+make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--existing-instance-id 123456 --domain shuma.example.com --preflight-only"
+```
 
 Gateway preflight is mandatory before cutover:
 
@@ -74,20 +117,45 @@ Run from repository root:
 ```bash
 LINODE_TOKEN=<token> \
 SHUMA_ADMIN_IP_ALLOWLIST=<ip-or-cidr-list> \
+SHUMA_GATEWAY_UPSTREAM_ORIGIN=https://origin.example.com \
+SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=true \
+SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=true \
+SHUMA_GATEWAY_TLS_STRICT=true \
+SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true \
+SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true \
+GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json \
 make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--domain shuma.example.com --region gb-lon --profile medium"
 ```
 
-If you do not set `--domain`, deployment exposes Spin directly on `:3000` and sets `SHUMA_ENFORCE_HTTPS=false`.
+Prepared same-host handoff:
+
+```bash
+LINODE_TOKEN=<token> \
+SHUMA_ADMIN_IP_ALLOWLIST=<ip-or-cidr-list> \
+SHUMA_GATEWAY_UPSTREAM_ORIGIN=http://127.0.0.1:8080 \
+SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=true \
+SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=true \
+SHUMA_GATEWAY_TLS_STRICT=true \
+SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true \
+SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true \
+GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json \
+make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--existing-instance-id 123456 --domain shuma.example.com"
+```
 
 ## What The Automation Does
 
-1. Creates a new Linode VM (Ubuntu image by default).
-2. Waits for SSH readiness with your provided key.
-3. Uploads generated `.env.local` runtime secrets and hardening values.
-4. Runs server bootstrap using existing Makefile targets.
-5. Installs/starts a `systemd` unit for persistent runtime.
-6. Optionally configures Caddy reverse proxy for domain/TLS.
-7. Enables firewall rules for SSH and serving ports.
+1. Runs local `make deploy-env-validate`.
+   It does this against a rendered Spin manifest rather than mutating the repo `spin.toml`.
+2. Builds a deployment bundle from the exact local git `HEAD`.
+3. Creates a new Linode VM (Ubuntu image by default) or validates the prepared existing instance you named with `--existing-instance-id`.
+4. Waits for SSH readiness with your provided private key.
+5. Uploads generated `.env.local`, the release bundle, the reserved-route surface catalog, and bootstrap scripts.
+6. Runs server bootstrap using existing Makefile targets.
+7. Installs/starts a `systemd` unit for persistent runtime.
+   The runtime uses `SHUMA_SPIN_MANIFEST=/opt/shuma-gorath/spin.gateway.toml`.
+   The smoke run also derives a public forward-probe path from `GATEWAY_SURFACE_CATALOG_PATH`; if that path is too dynamic, rerun with `SHUMA_SMOKE_FORWARD_PATH=/stable/public/path`.
+8. Configures Caddy reverse proxy for domain/TLS.
+9. Enables firewall rules for SSH and serving ports.
 
 ## Gateway Cutover and Rollback
 
@@ -111,6 +179,7 @@ After deployment, run:
 ```bash
 ssh -i <private-key> shuma@<server-ip> 'sudo systemctl status shuma-gorath --no-pager'
 ssh -i <private-key> shuma@<server-ip> 'sudo journalctl -u shuma-gorath -n 200 --no-pager'
+ssh -i <private-key> shuma@<server-ip> 'cat /opt/shuma-gorath/.shuma-release.json'
 ```
 
 If `--domain` was used and TLS is not active yet, confirm DNS points to the new server IP and restart Caddy.

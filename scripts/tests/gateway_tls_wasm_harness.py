@@ -14,11 +14,18 @@ import shutil
 import signal
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 import uuid
 from typing import Dict, Iterable, List, Optional, Sequence
 from urllib import error, parse, request
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.deploy.spin_manifest import build_manifest_with_allowed_outbound_hosts, normalize_origin
 
 FALLBACK_FAILURE_BODY = b"Gateway forwarding unavailable"
 DEFAULT_CASE_MATRIX = (
@@ -57,25 +64,11 @@ class CaseResult:
 
 
 def canonical_origin_authority(origin: str) -> str:
-    parsed = parse.urlsplit(origin.strip())
-    if parsed.scheme not in {"http", "https"}:
-        raise ValueError(f"unsupported origin scheme for case {origin!r}")
-    if not parsed.hostname:
-        raise ValueError(f"missing hostname in case origin {origin!r}")
-    if parsed.path not in {"", "/"} or parsed.query or parsed.fragment or parsed.username or parsed.password:
-        raise ValueError(f"case origin must be scheme://host[:port] with no extra path/query/fragment: {origin!r}")
-    port = parsed.port or (443 if parsed.scheme == "https" else 80)
-    return f"{parsed.scheme}://{parsed.hostname.lower()}:{port}"
-
-
-def build_manifest_with_allowed_outbound_hosts(manifest_text: str, allowed_hosts: Sequence[str]) -> str:
-    serialized_hosts = ", ".join(f'"{host}"' for host in allowed_hosts)
-    replacement = f"allowed_outbound_hosts = [{serialized_hosts}]"
-    pattern = re.compile(r"^\s*allowed_outbound_hosts\s*=\s*\[[^\n]*\]\s*$", re.MULTILINE)
-    rewritten, count = pattern.subn(replacement, manifest_text, count=1)
-    if count != 1:
-        raise ValueError("spin manifest must define component.bot-defence allowed_outbound_hosts")
-    return rewritten
+    try:
+        normalized_origin, _ = normalize_origin(origin)
+    except ValueError as exc:
+        raise ValueError(f"unsupported origin for case {origin!r}: {exc}") from exc
+    return normalized_origin
 
 
 def parse_prometheus_counter(metrics_text: str, klass: str) -> float:

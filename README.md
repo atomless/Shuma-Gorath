@@ -63,8 +63,24 @@ One-command Linode bootstrap + deploy (from this cloned repo):
 ```bash
 LINODE_TOKEN=<token> \
 SHUMA_ADMIN_IP_ALLOWLIST=<trusted-ip-or-cidr> \
+SHUMA_GATEWAY_UPSTREAM_ORIGIN=https://origin.example.com \
+SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=true \
+SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=true \
+SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true \
+SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true \
+GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json \
 make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--domain shuma.example.com --region gb-lon --type g6-standard-1"
 ```
+
+If you are starting from a local site plus a Linode account, first run:
+
+```bash
+make prepare-linode-shared-host PREPARE_LINODE_ARGS="--docroot /abs/path/to/site"
+```
+
+That helper can persist `LINODE_TOKEN`, `SHUMA_ADMIN_IP_ALLOWLIST`, and `GATEWAY_SURFACE_CATALOG_PATH` to gitignored `.env.local` and write `.spin/linode-shared-host-setup.json` with the instance id and public IP.
+
+If the Linode host and same-box origin are already prepared, use `--existing-instance-id <linode-id>` to attach Shuma without reprovisioning.
 
 Dashboard:
 - `http://127.0.0.1:3000/dashboard/index.html`
@@ -102,7 +118,8 @@ make test-gateway-profile-edge # Edge/Fermyon gateway verification
 make smoke-gateway-mode # Fast gateway smoke checks
 make build-runtime    # Runtime/deploy build path (no dashboard budget gate)
 make build-full-dev   # Full-dev/CI build path with dashboard budget reporting (set SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE=1 for hard-fail)
-make smoke-single-host # Post-deploy smoke checks (health/admin auth/metrics/challenge)
+make smoke-single-host # Post-deploy smoke: health/admin/metrics/challenge + forwarded public-path parity when gateway inputs are present
+make prepare-linode-shared-host # Agent-oriented Linode shared-host setup + receipt generation
 make deploy-self-hosted-minimal # self_hosted_minimal profile wrapper
 make deploy-enterprise-akamai   # enterprise overlay wrapper on shared baseline
 make deploy-linode-one-shot     # Provision Linode VM + deploy runtime in one command
@@ -135,6 +152,7 @@ Deployment policy note: `SHUMA_KV_STORE_FAIL_OPEN` is a critical choice (fail-op
 - [`docs/testing.md`](docs/testing.md) - Testing guide (Makefile-only)
 - [`docs/dashboard.md`](docs/dashboard.md) - Dashboard and admin <abbr title="User Interface">UI</abbr>
 - [`docs/deployment.md`](docs/deployment.md) - Production/deploy configuration
+- [`skills/prepare-shared-host-on-linode/SKILL.md`](skills/prepare-shared-host-on-linode/SKILL.md) - Agent skill for preparing a Linode shared host and surface-catalog handoff before Shuma deploy
 - [`skills/deploy-shuma-on-linode/SKILL.md`](skills/deploy-shuma-on-linode/SKILL.md) - Agent skill for one-command Linode provisioning + deployment
 - [`skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](skills/deploy-shuma-on-akamai-fermyon/SKILL.md) - Agent skill for staged enterprise Akamai/Fermyon edge deployment
 - [`docs/api.md`](docs/api.md) - <abbr title="Application Programming Interface">API</abbr> usage and endpoint details

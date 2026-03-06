@@ -21,7 +21,7 @@ make build-runtime  # Build runtime/deploy release artifact (no dashboard budget
 make build-full-dev # Build release artifact with dashboard budget reporting (set SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE=1 for hard-fail)
 make build          # Alias of make build-runtime
 make prod           # Build for production and start server
-make smoke-single-host # Post-deploy smoke checks (health/admin auth/metrics/challenge)
+make smoke-single-host # Post-deploy smoke: health/admin/metrics/challenge + forwarded public-path parity when gateway inputs are present
 make stop           # Stop running Spin server
 make status         # Check if server is running
 make clean          # Clean build artifacts

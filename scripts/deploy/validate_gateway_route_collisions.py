@@ -3,40 +3,16 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
 import sys
-from urllib.parse import urlsplit
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-
-@dataclass(frozen=True)
-class ReservedRoute:
-    kind: str
-    pattern: str
-    owner: str
-
-
-RESERVED_ROUTES: list[ReservedRoute] = [
-    ReservedRoute(kind="exact", pattern="/.well-known/spin", owner="spin_runtime"),
-    ReservedRoute(kind="prefix", pattern="/.well-known/spin/", owner="spin_runtime"),
-    ReservedRoute(kind="exact", pattern="/dashboard", owner="shuma_dashboard"),
-    ReservedRoute(kind="prefix", pattern="/dashboard/", owner="shuma_dashboard"),
-    ReservedRoute(kind="exact", pattern="/health", owner="shuma_control_plane"),
-    ReservedRoute(kind="exact", pattern="/metrics", owner="shuma_control_plane"),
-    ReservedRoute(kind="exact", pattern="/robots.txt", owner="shuma_control_plane"),
-    ReservedRoute(kind="prefix", pattern="/admin", owner="shuma_admin_api"),
-    ReservedRoute(kind="prefix", pattern="/internal/", owner="shuma_internal_api"),
-    ReservedRoute(kind="exact", pattern="/challenge/puzzle", owner="shuma_challenge"),
-    ReservedRoute(kind="exact", pattern="/challenge/not-a-bot-checkbox", owner="shuma_challenge"),
-    ReservedRoute(kind="exact", pattern="/pow", owner="shuma_challenge"),
-    ReservedRoute(kind="exact", pattern="/pow/verify", owner="shuma_challenge"),
-    ReservedRoute(kind="exact", pattern="/tarpit/progress", owner="shuma_tarpit"),
-    ReservedRoute(kind="prefix", pattern="/sim/public", owner="shuma_sim_public"),
-    ReservedRoute(kind="prefix", pattern="/_/", owner="shuma_maze_namespace"),
-]
+from scripts.deploy.gateway_surface_catalog import RESERVED_ROUTES, ReservedRoute, extract_catalog_paths, matches_reserved
 
 
 def fail(message: str) -> int:
@@ -46,70 +22,6 @@ def fail(message: str) -> int:
 
 def parse_bool(raw: str) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def normalize_path(raw: str) -> str:
-    value = str(raw or "").strip()
-    if not value:
-        return ""
-    if "://" in value:
-        parsed = urlsplit(value)
-        path = parsed.path or "/"
-    elif value.startswith("//"):
-        parsed = urlsplit(f"https:{value}")
-        path = parsed.path or "/"
-    else:
-        path = value
-    path = path.split("#", 1)[0].split("?", 1)[0].strip()
-    if not path:
-        return "/"
-    if not path.startswith("/"):
-        return f"/{path}"
-    return path
-
-
-def collect_catalog_entries(value: object, out: list[str]) -> None:
-    if isinstance(value, str):
-        out.append(value)
-        return
-    if isinstance(value, list):
-        for item in value:
-            collect_catalog_entries(item, out)
-        return
-    if isinstance(value, dict):
-        for key in ("paths", "urls", "inventory", "entries", "items", "routes"):
-            if key in value:
-                collect_catalog_entries(value[key], out)
-        for key in ("path", "url", "href", "loc"):
-            entry = value.get(key)
-            if isinstance(entry, str):
-                out.append(entry)
-
-
-def extract_catalog_paths(payload: object) -> list[str]:
-    raw_entries: list[str] = []
-    collect_catalog_entries(payload, raw_entries)
-    normalized = sorted(
-        {
-            candidate
-            for candidate in (normalize_path(entry) for entry in raw_entries)
-            if candidate
-        }
-    )
-    if not normalized:
-        raise ValueError(
-            "surface catalog does not contain any discoverable paths/urls (expected keys like paths, urls, inventory, or path/url/href/loc entries)"
-        )
-    return normalized
-
-
-def matches_reserved(path: str, route: ReservedRoute) -> bool:
-    if route.kind == "exact":
-        return path == route.pattern
-    if route.pattern.endswith("/"):
-        return path.startswith(route.pattern)
-    return path == route.pattern or path.startswith(f"{route.pattern}/")
-
 
 def remediation_hint(route: ReservedRoute) -> str:
     return (

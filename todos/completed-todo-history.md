@@ -2,6 +2,86 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-06)
+
+### P0 Shared-Host Deployment Readiness
+
+#### DEP-SH-SETUP-2: Close Same-Host Linode Handoff Gap
+
+- [x] DEP-SH-SETUP-2-1 Extend the Linode deployment path so a prepared same-host Linode origin can hand off directly to Shuma without reprovisioning drift or manual out-of-band restaging.
+- [x] Evidence:
+  - `scripts/deploy_linode_one_shot.sh`
+  - `scripts/tests/test_deploy_linode_one_shot.py`
+  - `skills/deploy-shuma-on-linode/SKILL.md`
+  - `skills/deploy-shuma-on-linode/references/OPERATIONS.md`
+  - `skills/prepare-shared-host-on-linode/SKILL.md`
+  - `skills/prepare-shared-host-on-linode/references/OPERATIONS.md`
+  - `docs/deployment.md`
+  - `README.md`
+
+#### DEP-SH-SETUP-1: Publish Generic Linode Setup Skill And Local Surface-Catalog Helper
+
+- [x] DEP-SH-SETUP-1-1 Publish a generic shared-host Linode setup skill that gathers operator prerequisites and prepares the Shuma deploy handoff bundle.
+- [x] DEP-SH-SETUP-1-2 Add a deterministic local docroot-to-surface-catalog helper so simple sites do not require a human-authored sitemap before gateway collision preflight and smoke.
+- [x] DEP-SH-SETUP-1-3 Refactor the Linode setup flow from a human-runbook-shaped skill into an agent-executable helper plus receipt contract.
+- [x] Evidence:
+  - `docs/plans/2026-03-06-linode-shared-host-setup-skill-and-handoff-plan.md`
+  - `scripts/build_site_surface_catalog.py`
+  - `scripts/prepare_linode_shared_host.py`
+  - `scripts/deploy/linode_shared_host_setup.py`
+  - `scripts/site_surface_catalog.py`
+  - `scripts/tests/test_build_site_surface_catalog.py`
+  - `scripts/tests/test_prepare_linode_shared_host.py`
+  - `skills/prepare-shared-host-on-linode/SKILL.md`
+  - `skills/prepare-shared-host-on-linode/references/OPERATIONS.md`
+  - `skills/deploy-shuma-on-linode/SKILL.md`
+  - `skills/deploy-shuma-on-linode/references/OPERATIONS.md`
+  - `docs/deployment.md`
+  - `README.md`
+  - `docs/index.md`
+  - `scripts/README.md`
+
+#### DEP-SH-1: Align Shared-Host Deployment Artifacts with the Gateway-First Production Contract
+
+- [x] DEP-SH-1-1 Update Linode/shared-host scripts, skills, and docs so they emit the correct production env/profile and gateway upstream contract.
+- [x] DEP-SH-1-2 Require gateway, origin-lock, and admin-edge confirmations in the shared-host path; remove stale defaults that contradict production validation.
+- [x] DEP-SH-1-3 Keep `spin.toml` outbound requirements, deployment helpers, and runbooks in sync for shared-host deployment personas.
+- [x] Evidence:
+  - `docs/plans/2026-03-06-linode-shared-host-readiness-implementation-plan.md`
+  - `scripts/deploy_linode_one_shot.sh`
+  - `scripts/deploy/render_gateway_spin_manifest.py`
+  - `scripts/deploy/spin_manifest.py`
+  - `scripts/deploy/build_linode_release_bundle.py`
+  - `scripts/tests/test_deploy_linode_one_shot.py`
+  - `scripts/tests/test_build_linode_release_bundle.py`
+  - `scripts/tests/test_render_gateway_spin_manifest.py`
+  - `scripts/tests/test_prod_start_spin_manifest.py`
+  - `docs/deployment.md`
+  - `README.md`
+  - `skills/deploy-shuma-on-linode/SKILL.md`
+  - `skills/deploy-shuma-on-linode/references/OPERATIONS.md`
+  - `scripts/README.md`
+
+#### DEP-SH-2: Make Deployment Validation and Smoke Authoritative
+
+- [x] DEP-SH-2-1 Make `make deploy-env-validate` the canonical shared-host preflight path.
+- [x] DEP-SH-2-2 Add a canonical post-deploy smoke path that proves upstream forwarding, reserved-route ownership, and admin access posture.
+- [x] DEP-SH-2-3 Ensure deployment help and docs use truthful names and describe real blast radius, assumptions, and rollback steps.
+- [x] Evidence:
+  - `Makefile`
+  - `scripts/tests/smoke_single_host.sh`
+  - `scripts/deploy/gateway_surface_catalog.py`
+  - `scripts/deploy/select_gateway_smoke_path.py`
+  - `scripts/tests/test_smoke_single_host.py`
+  - `scripts/tests/test_select_gateway_smoke_path.py`
+  - `scripts/deploy_linode_one_shot.sh`
+  - `scripts/tests/test_deploy_linode_one_shot.py`
+  - `docs/deployment.md`
+  - `docs/quick-reference.md`
+  - `README.md`
+  - `skills/deploy-shuma-on-linode/SKILL.md`
+  - `skills/deploy-shuma-on-linode/references/OPERATIONS.md`
+
 ## Security review closures (2026-03-06)
 
 - [x] Retired stale rate-limiter TOCTOU finding from `todos/security-review.md`: external `rate_limiter` now uses Redis-backed atomic `INCR` + `EXPIRE` enforcement with explicit outage posture handling and drift observability. Remaining enterprise multi-instance strictness work is tracked under `DEP-ENT-1..5` in `todos/todo.md`.

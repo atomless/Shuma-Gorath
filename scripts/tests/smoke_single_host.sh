@@ -5,6 +5,7 @@
 #   - health endpoint
 #   - admin auth enforcement
 #   - metrics endpoint
+#   - forwarded public-path parity against upstream origin
 #   - challenge route sanity
 #
 # Usage:
@@ -13,10 +14,16 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
 BASE_URL="${SHUMA_BASE_URL:-http://127.0.0.1:3000}"
 FORWARDED_IP="${SHUMA_SMOKE_FORWARDED_IP:-127.0.0.1}"
 CHALLENGE_PATH="${SHUMA_SMOKE_CHALLENGE_PATH:-}"
 CHALLENGE_EXPECT="${SHUMA_SMOKE_CHALLENGE_EXPECT:-}"
+FORWARD_PATH="${SHUMA_SMOKE_FORWARD_PATH:-}"
+GATEWAY_UPSTREAM_ORIGIN="${SHUMA_GATEWAY_UPSTREAM_ORIGIN:-}"
+GATEWAY_SURFACE_CATALOG_PATH="${GATEWAY_SURFACE_CATALOG_PATH:-}"
 
 GREEN="\033[0;32m"
 RED="\033[0;31m"
@@ -34,6 +41,7 @@ Usage: smoke_single_host.sh [options]
 Options:
   --base-url URL             Base URL to test (default: SHUMA_BASE_URL or http://127.0.0.1:3000)
   --forwarded-ip IP          Value for X-Forwarded-For (default: SHUMA_SMOKE_FORWARDED_IP or 127.0.0.1)
+  --forward-path PATH        Public path to compare against upstream origin (default: SHUMA_SMOKE_FORWARD_PATH or derived from GATEWAY_SURFACE_CATALOG_PATH)
   --challenge-path PATH      Challenge path to sanity-check (default: auto-detect from /admin/config)
   --challenge-expect REGEX   Regex expected in challenge response body (default: auto by challenge type)
   -h, --help                 Show help
@@ -48,6 +56,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --forwarded-ip)
       FORWARDED_IP="${2:-}"
+      shift 2
+      ;;
+    --forward-path)
+      FORWARD_PATH="${2:-}"
       shift 2
       ;;
     --challenge-path)
@@ -99,6 +111,9 @@ fi
 if [[ -z "${SHUMA_HEALTH_SECRET:-}" ]]; then
   SHUMA_HEALTH_SECRET="$(read_env_local_value SHUMA_HEALTH_SECRET || true)"
 fi
+if [[ -z "${GATEWAY_UPSTREAM_ORIGIN}" ]]; then
+  GATEWAY_UPSTREAM_ORIGIN="$(read_env_local_value SHUMA_GATEWAY_UPSTREAM_ORIGIN || true)"
+fi
 
 FORWARDED_HEADERS=(-H "X-Forwarded-For: ${FORWARDED_IP}")
 if [[ -n "${SHUMA_FORWARDED_IP_SECRET:-}" ]]; then
@@ -126,6 +141,24 @@ body_matches_expect() {
   local pattern="$1"
   local body="$2"
   grep -Eq "$pattern" <<< "$body"
+}
+
+normalize_path() {
+  local value="$1"
+  if [[ -z "${value}" ]]; then
+    printf ''
+    return
+  fi
+  if [[ "${value}" != /* ]]; then
+    printf '/%s' "${value}"
+    return
+  fi
+  printf '%s' "${value}"
+}
+
+select_forward_path_from_catalog() {
+  local catalog_path="$1"
+  python3 "${REPO_ROOT}/scripts/deploy/select_gateway_smoke_path.py" --catalog "${catalog_path}"
 }
 
 info "Smoke target: ${BASE_URL}"
@@ -157,6 +190,34 @@ if [[ "${HTTP_STATUS}" == "200" ]] && grep -q "bot_defence_requests_total" <<< "
   pass "/metrics returns Prometheus families"
 else
   fail "/metrics check failed (status=${HTTP_STATUS})"
+fi
+
+pass "reserved Shuma routes remain local (/health, /metrics, /admin/config)"
+
+if [[ -n "${GATEWAY_UPSTREAM_ORIGIN}" ]]; then
+  if [[ -z "${FORWARD_PATH}" && -n "${GATEWAY_SURFACE_CATALOG_PATH}" && -f "${GATEWAY_SURFACE_CATALOG_PATH}" ]]; then
+    FORWARD_PATH="$(select_forward_path_from_catalog "${GATEWAY_SURFACE_CATALOG_PATH}")"
+  fi
+  if [[ -n "${FORWARD_PATH}" ]]; then
+    FORWARD_PATH="$(normalize_path "${FORWARD_PATH}")"
+    info "Forward parity probe: ${FORWARD_PATH}"
+
+    http_request GET "${BASE_URL}${FORWARD_PATH}" "${FORWARDED_HEADERS[@]}" -H "User-Agent: ShumaSmoke/1.0"
+    FORWARD_GATEWAY_STATUS="${HTTP_STATUS}"
+    FORWARD_GATEWAY_BODY="${HTTP_BODY}"
+
+    http_request GET "${GATEWAY_UPSTREAM_ORIGIN%/}${FORWARD_PATH}" -H "User-Agent: ShumaSmoke/1.0"
+    FORWARD_ORIGIN_STATUS="${HTTP_STATUS}"
+    FORWARD_ORIGIN_BODY="${HTTP_BODY}"
+
+    if [[ "${FORWARD_GATEWAY_STATUS}" == "200" && "${FORWARD_ORIGIN_STATUS}" == "200" && "${FORWARD_GATEWAY_BODY}" == "${FORWARD_ORIGIN_BODY}" ]]; then
+      pass "${FORWARD_PATH} forwarded public path matches direct origin response"
+    else
+      fail "${FORWARD_PATH} forwarding parity failed (gateway_status=${FORWARD_GATEWAY_STATUS} origin_status=${FORWARD_ORIGIN_STATUS}); if this path is dynamic, rerun with SHUMA_SMOKE_FORWARD_PATH set to a stable public asset or page"
+    fi
+  else
+    info "Skipping forwarded public-path parity check: set SHUMA_SMOKE_FORWARD_PATH or provide GATEWAY_SURFACE_CATALOG_PATH."
+  fi
 fi
 
 if [[ -z "${CHALLENGE_PATH}" || -z "${CHALLENGE_EXPECT}" ]]; then

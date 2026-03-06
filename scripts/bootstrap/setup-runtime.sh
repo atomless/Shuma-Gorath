@@ -294,12 +294,18 @@ else
                 error "sudo not available; cannot move spin into $SPIN_INSTALL_DIR"
             fi
 
-            if [[ ! -t 0 ]]; then
-                error "This step needs sudo to move spin into $SPIN_INSTALL_DIR. Re-run make setup-runtime in an interactive terminal."
-            fi
+            if sudo -n true >/dev/null 2>&1; then
+                if ! sudo -n /bin/mv "$TMP_SPIN_DIR/spin" "$SPIN_INSTALL_DIR/spin"; then
+                    error "Failed to move spin into $SPIN_INSTALL_DIR with passwordless sudo."
+                fi
+            else
+                if [[ ! -t 0 ]]; then
+                    error "This step needs sudo to move spin into $SPIN_INSTALL_DIR. Re-run make setup-runtime in an interactive terminal."
+                fi
 
-            if ! sudo /bin/mv "$TMP_SPIN_DIR/spin" "$SPIN_INSTALL_DIR/spin"; then
-                error "Failed to move spin into $SPIN_INSTALL_DIR. Re-run make setup-runtime and authorize sudo."
+                if ! sudo /bin/mv "$TMP_SPIN_DIR/spin" "$SPIN_INSTALL_DIR/spin"; then
+                    error "Failed to move spin into $SPIN_INSTALL_DIR. Re-run make setup-runtime and authorize sudo."
+                fi
             fi
         fi
     )

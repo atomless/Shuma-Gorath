@@ -107,6 +107,7 @@ ensure_env_local_file() {
 # Local development overrides (gitignored)
 # Created by `make setup`. Edit values for local development only.
 SHUMA_API_KEY=${SHUMA_API_KEY:-}
+LINODE_TOKEN=${LINODE_TOKEN:-}
 SHUMA_ADMIN_READONLY_API_KEY=${SHUMA_ADMIN_READONLY_API_KEY:-}
 SHUMA_JS_SECRET=${SHUMA_JS_SECRET:-}
 SHUMA_POW_SECRET=${SHUMA_POW_SECRET:-}
@@ -153,6 +154,7 @@ SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS=${SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS:
 SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS=${SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS:-}
 SHUMA_GATEWAY_TLS_STRICT=${SHUMA_GATEWAY_TLS_STRICT:-}
 SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=${SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED:-}
+GATEWAY_SURFACE_CATALOG_PATH=${GATEWAY_SURFACE_CATALOG_PATH:-}
 EOF
     fi
     chmod 600 "$ENV_LOCAL_FILE" 2>/dev/null || true
@@ -608,12 +610,18 @@ else
                 error "sudo not available; cannot move spin into $SPIN_INSTALL_DIR"
             fi
 
-            if [[ ! -t 0 ]]; then
-                error "This step needs sudo to move spin into $SPIN_INSTALL_DIR. Please run make setup in an interactive terminal where you can authorize sudo."
-            fi
+            if sudo -n true >/dev/null 2>&1; then
+                if ! sudo -n /bin/mv "$TMP_SPIN_DIR/spin" "$SPIN_INSTALL_DIR/spin"; then
+                    error "Failed to move spin into $SPIN_INSTALL_DIR with passwordless sudo."
+                fi
+            else
+                if [[ ! -t 0 ]]; then
+                    error "This step needs sudo to move spin into $SPIN_INSTALL_DIR. Please run make setup in an interactive terminal where you can authorize sudo."
+                fi
 
-            if ! sudo /bin/mv "$TMP_SPIN_DIR/spin" "$SPIN_INSTALL_DIR/spin"; then
-                error "Failed to move spin into $SPIN_INSTALL_DIR. Please re-run make setup in an interactive terminal and authorize sudo."
+                if ! sudo /bin/mv "$TMP_SPIN_DIR/spin" "$SPIN_INSTALL_DIR/spin"; then
+                    error "Failed to move spin into $SPIN_INSTALL_DIR. Please re-run make setup in an interactive terminal and authorize sudo."
+                fi
             fi
         fi
     )

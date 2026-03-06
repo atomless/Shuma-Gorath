@@ -20,6 +20,7 @@ cd Shuma-Gorath
 - [`dashboard.md`](dashboard.md) - Dashboard and admin <abbr title="User Interface">UI</abbr>
 - [`dashboard-tabs/README.md`](dashboard-tabs/README.md) - Per-tab dashboard operator docs
 - [`deployment.md`](deployment.md) - Production/deploy configuration
+- [`../skills/prepare-shared-host-on-linode/SKILL.md`](../skills/prepare-shared-host-on-linode/SKILL.md) - Repo-local agent skill for shared-host Linode setup and deploy handoff preparation
 - [`../skills/deploy-shuma-on-linode/SKILL.md`](../skills/deploy-shuma-on-linode/SKILL.md) - Repo-local agent skill for one-command Linode provisioning + deployment
 - [`../skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](../skills/deploy-shuma-on-akamai-fermyon/SKILL.md) - Repo-local agent skill for staged enterprise Akamai/Fermyon edge deployment
 - [`api.md`](api.md) - <abbr title="Application Programming Interface">API</abbr> usage and endpoint details

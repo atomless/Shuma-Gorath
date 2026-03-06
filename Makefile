@@ -1,4 +1,4 @@
-.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod clean test test-unit unit-test test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean test test-unit unit-test test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -23,10 +23,13 @@ ENV_LOCAL ?= .env.local
 ifneq ("$(wildcard $(ENV_LOCAL))","")
 include $(ENV_LOCAL)
 endif
+LINODE_SETUP_RECEIPT ?= .spin/linode-shared-host-setup.json
 
 # Normalize optional quoted values from .env.local (handles KEY=value and KEY="value")
 strip_wrapping_quotes = $(patsubst "%",%,$(patsubst '%',%,$(strip $(1))))
+json_receipt_value = $(strip $(shell python3 -c 'import json,pathlib,sys; p=pathlib.Path(sys.argv[1]); keys=sys.argv[2].split("."); cur=json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}; [cur := cur.get(key, "") if isinstance(cur, dict) else "" for key in keys]; print(cur if isinstance(cur, str) else "")' "$(LINODE_SETUP_RECEIPT)" "$(1)" 2>/dev/null))
 SHUMA_API_KEY := $(call strip_wrapping_quotes,$(SHUMA_API_KEY))
+LINODE_TOKEN := $(call strip_wrapping_quotes,$(LINODE_TOKEN))
 SHUMA_ADMIN_READONLY_API_KEY := $(call strip_wrapping_quotes,$(SHUMA_ADMIN_READONLY_API_KEY))
 SHUMA_JS_SECRET := $(call strip_wrapping_quotes,$(SHUMA_JS_SECRET))
 SHUMA_POW_SECRET := $(call strip_wrapping_quotes,$(SHUMA_POW_SECRET))
@@ -87,10 +90,37 @@ SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS := $(if $(strip $(SHUMA_GATEWAY_ORIGIN_AU
 SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS := $(if $(strip $(SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS)),$(SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS),7)
 SHUMA_GATEWAY_TLS_STRICT := $(if $(strip $(SHUMA_GATEWAY_TLS_STRICT)),$(SHUMA_GATEWAY_TLS_STRICT),true)
 SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED := $(if $(strip $(SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED)),$(SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED),false)
+SHUMA_SPIN_MANIFEST := $(call strip_wrapping_quotes,$(SHUMA_SPIN_MANIFEST))
+GATEWAY_SURFACE_CATALOG_PATH := $(call strip_wrapping_quotes,$(GATEWAY_SURFACE_CATALOG_PATH))
+SSH_PRIVATE_KEY_FILE := $(call strip_wrapping_quotes,$(SSH_PRIVATE_KEY_FILE))
+SSH_PUBLIC_KEY_FILE := $(call strip_wrapping_quotes,$(SSH_PUBLIC_KEY_FILE))
 SHUMA_RATE_LIMITER_REDIS_URL := $(call strip_wrapping_quotes,$(SHUMA_RATE_LIMITER_REDIS_URL))
 SHUMA_BAN_STORE_REDIS_URL := $(call strip_wrapping_quotes,$(SHUMA_BAN_STORE_REDIS_URL))
 SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN := $(call strip_wrapping_quotes,$(SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN))
 SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH := $(call strip_wrapping_quotes,$(SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH))
+SSH_PRIVATE_KEY_FILE := $(if $(strip $(SSH_PRIVATE_KEY_FILE)),$(SSH_PRIVATE_KEY_FILE),$(call json_receipt_value,ssh.private_key_path))
+SSH_PUBLIC_KEY_FILE := $(if $(strip $(SSH_PUBLIC_KEY_FILE)),$(SSH_PUBLIC_KEY_FILE),$(call json_receipt_value,ssh.public_key_path))
+SPIN_UP_MANIFEST := $(if $(strip $(SHUMA_SPIN_MANIFEST)),$(SHUMA_SPIN_MANIFEST),spin.toml)
+
+DEPLOY_ENV_ONLY := \
+	SHUMA_DEBUG_HEADERS="$(SHUMA_DEBUG_HEADERS)" \
+	SHUMA_ADMIN_IP_ALLOWLIST="$(SHUMA_ADMIN_IP_ALLOWLIST)" \
+	SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED="$(SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED)" \
+	SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED="$(SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED)" \
+	SHUMA_ENTERPRISE_MULTI_INSTANCE="$(SHUMA_ENTERPRISE_MULTI_INSTANCE)" \
+	SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED="$(SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED)" \
+	SHUMA_PROVIDER_RATE_LIMITER="$(SHUMA_PROVIDER_RATE_LIMITER)" \
+	SHUMA_PROVIDER_BAN_STORE="$(SHUMA_PROVIDER_BAN_STORE)" \
+	SHUMA_RATE_LIMITER_REDIS_URL="$(SHUMA_RATE_LIMITER_REDIS_URL)" \
+	SHUMA_BAN_STORE_REDIS_URL="$(SHUMA_BAN_STORE_REDIS_URL)" \
+	SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN="$(SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN)" \
+	SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH="$(SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH)" \
+	SHUMA_GATEWAY_UPSTREAM_ORIGIN="$(SHUMA_GATEWAY_UPSTREAM_ORIGIN)" \
+	SHUMA_GATEWAY_DEPLOYMENT_PROFILE="$(SHUMA_GATEWAY_DEPLOYMENT_PROFILE)" \
+	SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED="$(SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED)" \
+	SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED="$(SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED)" \
+	SHUMA_GATEWAY_TLS_STRICT="$(SHUMA_GATEWAY_TLS_STRICT)" \
+	GATEWAY_SURFACE_CATALOG_PATH="$(GATEWAY_SURFACE_CATALOG_PATH)"
 
 # Inject env-only runtime keys into Spin from .env.local / shell env.
 # This list is the operator-facing copy surface for deploy-time env overrides.
@@ -340,11 +370,14 @@ build-full-dev: ## Build release wasm artifact with dashboard bundle-budget repo
 
 build: build-runtime ## Alias for runtime/deploy release build
 
-prod: build-runtime ## Build for production and start server
+prod-start: ## Start production server using existing build artifacts and env (no build/config-seed)
 	@echo "$(CYAN)🚀 Starting production server...$(NC)"
-	@$(MAKE) --no-print-directory config-seed >/dev/null
 	@pkill -x spin 2>/dev/null || true
-	@RUNTIME_INSTANCE_ID=$$(uuidgen); SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=false ./scripts/run_with_adversary_sim_supervisor.sh spin up $(SPIN_ENV_ONLY_BASE) $(SPIN_PROD_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 0.0.0.0:3000
+	@RUNTIME_INSTANCE_ID=$$(uuidgen); SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=false ./scripts/run_with_adversary_sim_supervisor.sh spin up --from $(SPIN_UP_MANIFEST) $(SPIN_ENV_ONLY_BASE) $(SPIN_PROD_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 0.0.0.0:3000
+
+prod: build-runtime ## Build for production and start server
+	@$(MAKE) --no-print-directory config-seed >/dev/null
+	@$(MAKE) --no-print-directory prod-start
 
 deploy: build-runtime ## Deploy to Fermyon Cloud
 	@$(MAKE) --no-print-directory api-key-validate
@@ -386,7 +419,11 @@ deploy-enterprise-akamai: deploy-profile-baseline ## Profile wrapper: enterprise
 	@echo "$(GREEN)✅ enterprise_akamai overlay pre-deploy checks passed.$(NC)"
 
 deploy-linode-one-shot: ## Provision Linode VM + deploy Shuma runtime in one command (requires LINODE_TOKEN and SHUMA_ADMIN_IP_ALLOWLIST)
-	@./scripts/deploy_linode_one_shot.sh $(DEPLOY_LINODE_ARGS)
+	@LINODE_TOKEN="$(LINODE_TOKEN)" \
+	SSH_PRIVATE_KEY_FILE="$(SSH_PRIVATE_KEY_FILE)" \
+	SSH_PUBLIC_KEY_FILE="$(SSH_PUBLIC_KEY_FILE)" \
+	$(DEPLOY_ENV_ONLY) \
+	./scripts/deploy_linode_one_shot.sh $(DEPLOY_LINODE_ARGS)
 
 #--------------------------
 # Testing
@@ -397,6 +434,9 @@ spin-wait-ready: ## Wait for the existing local Spin server to pass /health
 
 smoke-single-host: ## Run post-deploy single-host smoke checks (health/admin auth/metrics/challenge route)
 	@./scripts/tests/smoke_single_host.sh
+
+prepare-linode-shared-host: ## Agent-oriented Linode shared-host setup (persist token/admin allowlist, create or inspect instance, build catalog, write receipt)
+	@python3 ./scripts/prepare_linode_shared_host.py $(PREPARE_LINODE_ARGS)
 
 test: ## Run umbrella tests in series: unit, maze benchmark, integration, adversarial matrix, SIM2 realtime gates, and dashboard e2e
 	@echo "$(CYAN)============================================$(NC)"
@@ -546,6 +586,18 @@ smoke-gateway-mode: ## Fast gateway smoke: origin reachability, allow-forwarding
 	@cargo test --test routing_order_integration allow_path_forwards_fidelity_and_regenerates_trusted_forwarded_headers -- --nocapture
 	@cargo test --test routing_order_integration enforcement_paths_remain_local_and_do_not_require_upstream -- --nocapture
 	@cargo test --test routing_order_integration allow_paths_fail_closed_when_upstream_forwarding_is_unavailable -- --nocapture
+
+test-deploy-linode: ## Validate Linode deploy-path helpers and production input gates
+	@echo "$(CYAN)🧪 Running Linode deploy-path verification...$(NC)"
+	@python3 -m unittest scripts/tests/test_build_linode_release_bundle.py
+	@python3 -m unittest scripts/tests/test_build_site_surface_catalog.py
+	@python3 -m unittest scripts/tests/test_prepare_linode_shared_host.py
+	@python3 -m unittest scripts/tests/test_render_gateway_spin_manifest.py
+	@python3 -m unittest scripts/tests/test_deploy_linode_one_shot.py
+	@python3 -m unittest scripts/tests/test_prod_start_spin_manifest.py
+	@python3 -m unittest scripts/tests/test_select_gateway_smoke_path.py
+	@python3 -m unittest scripts/tests/test_setup_runtime_spin_install.py
+	@python3 -m unittest scripts/tests/test_smoke_single_host.py
 
 test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtures (no server required)
 	@echo "$(CYAN)🧪 Validating adversarial simulation manifest...$(NC)"
