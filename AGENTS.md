@@ -34,7 +34,7 @@ This file provides instructions for coding agents working in this repository.
 1. Read relevant docs and touched modules before editing.
 2. Check `docs/plans/` for active or recent design docs relevant to the area you are changing, and align implementation with those plans unless the user explicitly overrides them.
 3. When acting on TODO items, achieve full situational awareness before implementation:
-   - scan the full TODO backlog first (`todos/todo.md` and `todos/security-review.md`) to identify intersecting items,
+   - scan the full TODO backlog first (`todos/todo.md`, `todos/blocked-todo.md`, and `todos/security-review.md`) to identify intersecting items,
    - identify and read relevant plan documents in `docs/plans/`,
    - synchronize TODO execution with those plans so work does not duplicate, contradict, or drift from planned architecture.
 4. Make small, reviewable changes.
@@ -68,6 +68,7 @@ This file provides instructions for coding agents working in this repository.
 10. Document security, operational, and resource implications.
 11. TODO housekeeping is immediate, not batched:
    - when any TODO checklist item is completed, move it from `todos/todo.md` to `todos/completed-todo-history.md` at the point of completion,
+   - when a TODO becomes explicitly blocked or contingent rather than execution-ready, move it from `todos/todo.md` to `todos/blocked-todo.md` with a short blocking condition,
    - prepend new completion entries to the top of `todos/completed-todo-history.md`,
    - include the completion date for the moved entries,
    - preserve the original TODO section title(s) as headings in the archive entry.

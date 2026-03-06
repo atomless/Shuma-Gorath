@@ -2,6 +2,11 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Security review closures (2026-03-06)
+
+- [x] Retired stale rate-limiter TOCTOU finding from `todos/security-review.md`: external `rate_limiter` now uses Redis-backed atomic `INCR` + `EXPIRE` enforcement with explicit outage posture handling and drift observability. Remaining enterprise multi-instance strictness work is tracked under `DEP-ENT-1..5` in `todos/todo.md`.
+- [x] Retired stale admin-hardening finding from `todos/security-review.md`: canonical production deployment validation now fails on missing or overbroad `SHUMA_ADMIN_IP_ALLOWLIST` and on missing `SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED`, with deployment docs and runbooks updated to require upstream `/admin/login` and `/admin/*` rate limits.
+
 ## Additional completions (2026-03-05)
 
 ### P0 Deployment Path Excellence (Single-Host + Akamai/Fermyon)
@@ -1040,8 +1045,8 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 
 ### P2 Challenge Roadmap
 
-- [x] NAB-0 Research and policy synthesis: keep [`docs/research/2026-02-19-not-a-bot-challenge-research-synthesis.md`](../docs/research/2026-02-19-not-a-bot-challenge-research-synthesis.md), [`docs/plans/2026-02-13-not-a-bot-excellence-plan.md`](../docs/plans/2026-02-13-not-a-bot-excellence-plan.md), and `todos/not-a-bot-spec.md` aligned as the single implementation source.
-- [x] NAB-1 Implement Not-a-Bot checkbox (`/challenge/not-a-bot-checkbox`) per `todos/not-a-bot-spec.md` with signed short-lived single-use nonce and IP-bucket binding.
+- [x] NAB-0 Research and policy synthesis: keep [`docs/research/2026-02-19-not-a-bot-challenge-research-synthesis.md`](../docs/research/2026-02-19-not-a-bot-challenge-research-synthesis.md) and [`docs/plans/2026-02-13-not-a-bot-excellence-plan.md`](../docs/plans/2026-02-13-not-a-bot-excellence-plan.md) aligned as the implementation source.
+- [x] NAB-1 Implement Not-a-Bot checkbox (`/challenge/not-a-bot-checkbox`) per [`docs/plans/2026-02-13-not-a-bot-excellence-plan.md`](../docs/plans/2026-02-13-not-a-bot-excellence-plan.md) with signed short-lived single-use nonce and IP-bucket binding.
 - [x] NAB-2 Implement Not-a-Bot telemetry capture/validation and deterministic scoring model (`0..10`) with threshold routing (`pass`, `escalate_puzzle`, `maze_or_block`).
 - [x] NAB-3 Add Not-a-Bot verification marker/token issuance after pass and enforce it in routing flow.
 - [x] NAB-4 Add Not-a-Bot routing integration so medium-certainty traffic hits Not-a-Bot before puzzle escalation, with deterministic maze/block fallback.

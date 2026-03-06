@@ -92,6 +92,7 @@ Shuma-Gorath exists to provide layered, practical bot defense that teams can dep
 
 - MUST expose useful metrics and logs for detection, actions, and failures.
 - MUST make operational status inspectable without code changes.
+- MUST ensure operator-facing monitoring and status surfaces reflect real runtime/request-pipeline telemetry and degraded states; they must not rely on synthetic or optimistic placeholder data that can hide missing behavior.
 - SHOULD keep monitoring guidance current with features.
 
 ### P10. Resource Efficiency
@@ -107,6 +108,7 @@ Shuma-Gorath exists to provide layered, practical bot defense that teams can dep
 - MUST treat the product as pre-launch unless explicitly stated otherwise for a task; pre-launch changes should prefer clean breaks over compatibility scaffolding.
 - MUST treat `config/defaults.env` as the canonical source of truth for `SHUMA_*` defaults and update it first when adding/changing variables.
 - MUST keep variable wiring in sync across setup/seed/runtime workflows so `make setup` and `make config-seed` establish a correct baseline without manual repair.
+- MUST keep normal runtime start paths read-only with respect to persisted KV config by default; seed/backfill/migration writes must happen only through explicit setup or migration workflows.
 - MUST keep dashboard Advanced <abbr title="JavaScript Object Notation">JSON</abbr> coverage in strict parity with all non-env-only writable admin config fields (`AdminConfigPatch` in `src/admin/api.rs`).
 - MUST NOT add backward-compatibility aliases/shims/windows in pre-launch work unless explicitly requested by the user for that exact change.
 - MUST preserve environment profile intent:

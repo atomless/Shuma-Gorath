@@ -6,7 +6,8 @@
 - Related:
   - [`0007-adversary-sim-toggle-command-controller.md`](0007-adversary-sim-toggle-command-controller.md)
   - [`0008-realtime-monitoring-cursor-sse-hybrid.md`](0008-realtime-monitoring-cursor-sse-hybrid.md)
-  - [`../../todos/todo.md`](../../todos/todo.md) (`SIM-LLM-1`, `SIM-DEPLOY-1`, `SIM-DEPLOY-2`)
+  - [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md) (`SIM-LLM-1`, `SIM-DEPLOY-2`)
+  - [`../../todos/completed-todo-history.md`](../../todos/completed-todo-history.md) (`SIM-DEPLOY-1`)
 
 ## Context
 
@@ -114,4 +115,4 @@ At the product level, adversary simulation is also being reconsidered as potenti
 
 - Implement supervisor-driven generation path and remove dashboard-owned tick cadence.
 - Remove frontend tick loop and related optimistic state races once backend heartbeat is live.
-- Complete `SIM-DEPLOY-1` decision and, if approved, `SIM-DEPLOY-2` production-safe rollout work.
+- `SIM-DEPLOY-1` decision is complete; if production availability is approved, execute `SIM-DEPLOY-2` production-safe rollout work.

@@ -9,7 +9,7 @@ Related:
 - [`docs/plans/2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md`](2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md)
 - [`scripts/tests/adversarial/hybrid_lane_contract.v1.json`](../../scripts/tests/adversarial/hybrid_lane_contract.v1.json)
 - [`docs/adversarial-operator-guide.md`](../adversarial-operator-guide.md)
-- [`todos/todo.md`](../../todos/todo.md) (`SIM-LLM-1`, `SIM-DEPLOY-2`)
+- [`todos/blocked-todo.md`](../../todos/blocked-todo.md) (`SIM-SCR-LANE-1`, `SIM-LLM-1`, `SIM-DEPLOY-2`, `SIM-BREACH-REPLAY-1`)
 
 ## Objective
 

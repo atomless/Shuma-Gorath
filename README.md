@@ -148,6 +148,8 @@ Deployment policy note: `SHUMA_KV_STORE_FAIL_OPEN` is a critical choice (fail-op
 - [`docs/maze.md`](docs/maze.md) - Maze runtime flow, rollout phases, and cost-asymmetry model
 - [`docs/tarpit.md`](docs/tarpit.md) - Tarpit activation conditions, progression model, and bounded-cost controls
 - [`docs/research/README.md`](docs/research/README.md) - Research index (including tarpit research collection and latest re-review addendum)
+- [`todos/todo.md`](todos/todo.md) - Active execution-ready backlog
+- [`todos/blocked-todo.md`](todos/blocked-todo.md) - Blocked and contingent backlog
 - [`todos/security-review.md`](todos/security-review.md) - Security audit notes / backlog
 
 ## 🐙 Repository Structure (High Level)

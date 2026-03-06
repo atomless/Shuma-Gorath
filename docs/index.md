@@ -62,4 +62,6 @@ cd Shuma-Gorath
 - [`adversarial-operator-guide.md`](adversarial-operator-guide.md) - Operator triage/tuning guidance for adversarial simulation failures and dashboard orchestration lifecycle
 - [`sim2-real-adversary-traffic-contract.md`](sim2-real-adversary-traffic-contract.md) - Architecture contract and evidence schema for valid real-traffic adversarial runs
 - [`frontier-data-governance.md`](frontier-data-governance.md) - Frontier payload allowlist, redaction pipeline, and retention matrix
+- [`../todos/todo.md`](../todos/todo.md) - Active execution-ready backlog
+- [`../todos/blocked-todo.md`](../todos/blocked-todo.md) - Blocked and contingent backlog
 - [`../todos/security-review.md`](../todos/security-review.md) - Security audit notes / backlog

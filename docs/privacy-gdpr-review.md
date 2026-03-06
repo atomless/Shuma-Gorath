@@ -37,7 +37,7 @@ Notes:
 | Event log (`eventlog:v2:*`) | `ts`, `event`, `ip`, `reason`, `outcome`, `admin` | bounded by `SHUMA_EVENT_LOG_RETENTION_HOURS` (default `168`) |
 | Monitoring counters (`monitoring:v1:*`) | aggregated counters by hour; dimensions include <abbr title="Internet Protocol">IP</abbr> bucket, normalized path, reason/outcome/country | bounded by `SHUMA_EVENT_LOG_RETENTION_HOURS` |
 | Ban records (`ban:*`) | <abbr title="Internet Protocol">IP</abbr>, reason, expiry, optional fingerprint summary | per-ban expiry (`ban_duration*`) |
-| Fingerprint state (`fp:*`) | bounded-window mismatch/coherence state; pseudonymized when enabled | logical <abbr title="Time To Live">TTL</abbr> windows; follow-up cleanup hardening recommended |
+| Fingerprint state (`fp:*`) | bounded-window mismatch/coherence state; pseudonymized when enabled | opportunistic read-path expiry plus prior-flow-bucket cleanup; follow-up deterministic sweep hardening recommended |
 | Admin session <abbr title="Key-Value">KV</abbr> (`admin_session:*`) | <abbr title="Cross-Site Request Forgery">CSRF</abbr> token + expiry | session <abbr title="Time To Live">TTL</abbr> (`3600s`) with expiry checks |
 
 ## 🐙 <abbr title="General Data Protection Regulation">GDPR</abbr> Posture Assessment
@@ -48,10 +48,10 @@ Notes:
 - Recommended legal basis for operators: legitimate interests in service security and abuse prevention, with an <abbr title="Legitimate Interests Assessment">LIA</abbr> documented by the deployer.
 - Data minimization posture:
   - good: monitoring uses bucketed IPs and normalized low-cardinality paths.
-  - moderate: event log keeps raw IPs for investigation value.
+  - moderate: event log persists raw IPs for investigation value, although default admin monitoring views are pseudonymized and raw display requires forensic acknowledgement.
 - Retention posture:
   - event/monitoring retention is explicitly configurable and now deterministically cleaned.
-  - fingerprint-state physical cleanup should be tightened to match configured windows.
+  - fingerprint-state cleanup is opportunistic today and should be tightened to deterministic window-aligned sweeping.
 
 ## 🐙 Cookie-Consent Determination by Deployment Context
 
