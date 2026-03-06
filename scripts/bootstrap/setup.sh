@@ -100,6 +100,50 @@ normalize_env_local_unquoted_style() {
     mv "$tmp_file" "$ENV_LOCAL_FILE"
 }
 
+install_sqlite3_with_apt() {
+    if command -v sudo >/dev/null 2>&1; then
+        if sudo -n true >/dev/null 2>&1; then
+            sudo -n apt-get update -y
+            sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y sqlite3
+        else
+            if [[ ! -t 0 ]]; then
+                error "sqlite3 is required for config-seed. Please run make setup in an interactive terminal so sudo can install it."
+            fi
+            sudo apt-get update -y
+            sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y sqlite3
+        fi
+    else
+        apt-get update -y
+        env DEBIAN_FRONTEND=noninteractive apt-get install -y sqlite3
+    fi
+}
+
+sqlite3_is_usable() {
+    command -v sqlite3 >/dev/null 2>&1 && sqlite3 --version >/dev/null 2>&1
+}
+
+ensure_sqlite3_available() {
+    if sqlite3_is_usable; then
+        success "sqlite3 available: $(sqlite3 --version | head -1)"
+        return
+    fi
+
+    if command -v apt-get >/dev/null 2>&1; then
+        info "Installing sqlite3..."
+        install_sqlite3_with_apt
+    elif command -v brew >/dev/null 2>&1; then
+        info "Installing sqlite3 via Homebrew..."
+        brew install sqlite
+    else
+        error "sqlite3 is required for config-seed and no supported installer (apt-get or brew) is available."
+    fi
+
+    if ! sqlite3_is_usable; then
+        error "sqlite3 is still unavailable after install attempt."
+    fi
+    success "sqlite3 available: $(sqlite3 --version | head -1)"
+}
+
 ensure_env_local_file() {
     if [[ ! -f "$ENV_LOCAL_FILE" ]]; then
         info "Creating $ENV_LOCAL_FILE for local development overrides..."
@@ -738,6 +782,7 @@ ensure_env_local_default_from_defaults "SHUMA_GATEWAY_TLS_STRICT"
 ensure_env_local_default_from_defaults "SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED"
 configure_frontier_providers_optional
 normalize_env_local_unquoted_style
+ensure_sqlite3_available
 sim_secret_value="$(read_env_local_value "SHUMA_SIM_TELEMETRY_SECRET")"
 if [[ -z "$sim_secret_value" ]]; then
     error "SHUMA_SIM_TELEMETRY_SECRET is empty after setup. Re-run make setup."

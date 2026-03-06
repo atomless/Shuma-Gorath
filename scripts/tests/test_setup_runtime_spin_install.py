@@ -30,6 +30,7 @@ class SetupRuntimeSpinInstallTests(unittest.TestCase):
         self.home.mkdir()
         self.fake_bin = self.temp_dir / "fake-bin"
         self.fake_bin.mkdir()
+        write_executable(self.fake_bin / "sqlite3", "#!/bin/sh\nexit 127\n")
         self.stub_dir = self.temp_dir / "stubs"
         self.stub_dir.mkdir()
         self.make_log = self.temp_dir / "make.log"
@@ -73,6 +74,7 @@ class SetupRuntimeSpinInstallTests(unittest.TestCase):
                 """
             ),
         )
+        write_executable(self.stub_dir / "apt-get", "#!/bin/sh\nexit 0\n")
         write_executable(
             self.stub_dir / "sudo",
             textwrap.dedent(
@@ -83,6 +85,17 @@ class SetupRuntimeSpinInstallTests(unittest.TestCase):
                 fi
                 if [ "$1" = "-n" ]; then
                   shift
+                fi
+                if [ "$1" = "apt-get" ] && [ "$2" = "update" ] && [ "$3" = "-y" ]; then
+                  exit 0
+                fi
+                if [ "$1" = "env" ] && [ "$2" = "DEBIAN_FRONTEND=noninteractive" ] && [ "$3" = "apt-get" ] && [ "$4" = "install" ] && [ "$5" = "-y" ] && [ "$6" = "sqlite3" ]; then
+                  cat > "{self.fake_bin}/sqlite3" <<'SQLITE'
+#!/bin/sh
+printf '3.45.1\\n'
+SQLITE
+                  chmod +x "{self.fake_bin}/sqlite3"
+                  exit 0
                 fi
                 if [ "$1" = "/bin/mv" ]; then
                   src="$2"
@@ -119,6 +132,7 @@ class SetupRuntimeSpinInstallTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
         self.assertTrue((self.fake_bin / "spin").exists())
+        self.assertTrue((self.fake_bin / "sqlite3").exists())
         self.assertTrue((self.workspace / ".env.local").exists())
         self.assertTrue(self.make_log.exists())
         self.assertIn("config-seed", self.make_log.read_text(encoding="utf-8"))
