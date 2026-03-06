@@ -644,6 +644,9 @@ cd "${REMOTE_APP_DIR}"
 make setup-runtime
 cp "${ENV_FILE_PATH}" .env.local
 chmod 600 .env.local
+set -a
+source .env.local
+set +a
 python3 scripts/deploy/render_gateway_spin_manifest.py \
   --manifest "${REMOTE_APP_DIR}/spin.toml" \
   --output "${REMOTE_APP_DIR}/spin.gateway.toml" \
