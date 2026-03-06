@@ -180,6 +180,11 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
             "\n".join(
                 [
                     "LINODE_TOKEN=stored-token",
+                    "SHUMA_API_KEY=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "SHUMA_JS_SECRET=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                    "SHUMA_FORWARDED_IP_SECRET=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                    "SHUMA_HEALTH_SECRET=dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                    "SHUMA_SIM_TELEMETRY_SECRET=eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
                     "SHUMA_ADMIN_IP_ALLOWLIST=203.0.113.10/32",
                     "SHUMA_GATEWAY_UPSTREAM_ORIGIN=https://origin.example.com",
                     "SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=true",
@@ -210,6 +215,26 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
         self.assertIn('LINODE_TOKEN="stored-token"', result.stdout)
+        self.assertIn(
+            'SHUMA_API_KEY="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"',
+            result.stdout,
+        )
+        self.assertIn(
+            'SHUMA_JS_SECRET="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"',
+            result.stdout,
+        )
+        self.assertIn(
+            'SHUMA_FORWARDED_IP_SECRET="cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"',
+            result.stdout,
+        )
+        self.assertIn(
+            'SHUMA_HEALTH_SECRET="dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"',
+            result.stdout,
+        )
+        self.assertIn(
+            'SHUMA_SIM_TELEMETRY_SECRET="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"',
+            result.stdout,
+        )
         self.assertIn('SHUMA_ADMIN_IP_ALLOWLIST="203.0.113.10/32"', result.stdout)
         self.assertIn(f'GATEWAY_SURFACE_CATALOG_PATH="{self.catalog_path}"', result.stdout)
         self.assertIn("./scripts/deploy_linode_one_shot.sh", result.stdout)
