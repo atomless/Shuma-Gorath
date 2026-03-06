@@ -674,8 +674,46 @@ cp "${RELEASE_METADATA_PATH}" "${REMOTE_APP_DIR}/.shuma-release.json"
 
 cd "${REMOTE_APP_DIR}"
 make setup-runtime
-printf '\n' >> .env.local
-cat "${ENV_FILE_PATH}" >> .env.local
+python3 - "${ENV_FILE_PATH}" ".env.local" <<'PY_ENV_MERGE'
+from pathlib import Path
+import re
+import sys
+
+overlay_path = Path(sys.argv[1])
+env_path = Path(sys.argv[2])
+key_pattern = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+
+existing_lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
+overlay_lines = overlay_path.read_text(encoding="utf-8").splitlines()
+
+overlay_updates = {}
+overlay_order = []
+for raw_line in overlay_lines:
+    if not key_pattern.match(raw_line):
+        continue
+    key, value = raw_line.split("=", 1)
+    if key not in overlay_updates:
+        overlay_order.append(key)
+    overlay_updates[key] = value
+
+merged_lines = []
+seen_overlay_keys = set()
+for raw_line in existing_lines:
+    if key_pattern.match(raw_line):
+        key = raw_line.split("=", 1)[0]
+        if key in overlay_updates:
+            if key not in seen_overlay_keys:
+                merged_lines.append(f"{key}={overlay_updates[key]}")
+                seen_overlay_keys.add(key)
+            continue
+    merged_lines.append(raw_line)
+
+for key in overlay_order:
+    if key not in seen_overlay_keys:
+        merged_lines.append(f"{key}={overlay_updates[key]}")
+
+env_path.write_text("\n".join(merged_lines).rstrip("\n") + "\n", encoding="utf-8")
+PY_ENV_MERGE
 chmod 600 .env.local
 set -a
 source .env.local

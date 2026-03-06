@@ -296,8 +296,8 @@ class DeployLinodeOneShotTests(unittest.TestCase):
 
     def test_remote_bootstrap_merges_env_overlay_into_seeded_env_file(self) -> None:
         script = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn('printf \'\\n\' >> .env.local', script)
-        self.assertIn('cat "${ENV_FILE_PATH}" >> .env.local', script)
+        self.assertIn('make setup-runtime', script)
+        self.assertIn('python3 - "${ENV_FILE_PATH}" ".env.local" <<\'PY_ENV_MERGE\'', script)
         self.assertNotIn('cp "${ENV_FILE_PATH}" .env.local', script)
 
     def test_remote_bootstrap_waits_for_spin_readiness_before_smoke(self) -> None:
@@ -314,6 +314,11 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         script = SCRIPT.read_text(encoding="utf-8")
         self.assertIn('header_up X-Forwarded-Proto https', script)
         self.assertIn('header_up X-Shuma-Forwarded-Secret ${SHUMA_FORWARDED_IP_SECRET}', script)
+
+    def test_remote_bootstrap_merges_env_overlay_without_duplicate_append(self) -> None:
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('python3 - "${ENV_FILE_PATH}" ".env.local" <<\'PY_ENV_MERGE\'', script)
+        self.assertNotIn('cat "${ENV_FILE_PATH}" >> .env.local', script)
 
 
 if __name__ == "__main__":
