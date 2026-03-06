@@ -260,6 +260,12 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         self.assertNotIn('sudo ufw --force allow 443/tcp', script)
         self.assertNotIn('sudo ufw --force allow 3000/tcp', script)
 
+    def test_remote_bootstrap_merges_env_overlay_into_seeded_env_file(self) -> None:
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('printf \'\\n\' >> .env.local', script)
+        self.assertIn('cat "${ENV_FILE_PATH}" >> .env.local', script)
+        self.assertNotIn('cp "${ENV_FILE_PATH}" .env.local', script)
+
 
 if __name__ == "__main__":
     unittest.main()

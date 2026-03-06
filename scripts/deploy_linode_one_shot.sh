@@ -642,7 +642,8 @@ cp "${RELEASE_METADATA_PATH}" "${REMOTE_APP_DIR}/.shuma-release.json"
 
 cd "${REMOTE_APP_DIR}"
 make setup-runtime
-cp "${ENV_FILE_PATH}" .env.local
+printf '\n' >> .env.local
+cat "${ENV_FILE_PATH}" >> .env.local
 chmod 600 .env.local
 set -a
 source .env.local
