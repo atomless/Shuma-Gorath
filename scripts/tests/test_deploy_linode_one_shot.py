@@ -91,6 +91,12 @@ class DeployLinodeOneShotTests(unittest.TestCase):
                 f"""\
                 #!/bin/sh
                 printf '%s\\n' "$@" >> "{self.make_log}"
+                for arg in "$@"; do
+                  if [ "$arg" = "dashboard-build" ]; then
+                    mkdir -p dist/dashboard
+                    printf '<h1>Dashboard</h1>\\n' > dist/dashboard/index.html
+                  fi
+                done
                 if [ -n "$SHUMA_SPIN_MANIFEST" ] && [ -f "$SHUMA_SPIN_MANIFEST" ]; then
                   cp "$SHUMA_SPIN_MANIFEST" "{self.captured_manifest}"
                 fi

@@ -99,6 +99,45 @@ class BuildLinodeReleaseBundleTests(unittest.TestCase):
         metadata = json.loads(metadata_output.read_text(encoding="utf-8"))
         self.assertTrue(metadata["dirty_worktree"])
 
+    def test_shuma_like_repo_builds_dashboard_assets_into_bundle(self) -> None:
+        repo_root = self.create_git_repo()
+        (repo_root / "Makefile").write_text(
+            "dashboard-build:\n\t@mkdir -p dist/dashboard\n\t@printf '<h1>Dashboard</h1>\\n' > dist/dashboard/index.html\n",
+            encoding="utf-8",
+        )
+        (repo_root / "spin.toml").write_text(
+            '[component.dashboard-files]\nfiles = [{ source = "dist/dashboard", destination = "/" }]\n',
+            encoding="utf-8",
+        )
+        (repo_root / "dashboard").mkdir()
+        (repo_root / "package.json").write_text('{"private": true}\n', encoding="utf-8")
+        node_modules_bin = repo_root / "node_modules" / ".bin"
+        node_modules_bin.mkdir(parents=True)
+        subprocess.run(
+            ["git", "add", "Makefile", "spin.toml", "package.json", "dashboard"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "add dashboard build"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+        )
+
+        archive_output = repo_root / "release.tar.gz"
+        metadata_output = repo_root / "release.json"
+        result = run(repo_root, archive_output, metadata_output)
+
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        metadata = json.loads(metadata_output.read_text(encoding="utf-8"))
+        self.assertTrue(metadata["dashboard_built"])
+
+        with tarfile.open(archive_output, "r:gz") as archive:
+            self.assertIn("dist/dashboard/index.html", archive.getnames())
+            self.assertNotIn("node_modules", archive.getnames())
+
 
 if __name__ == "__main__":
     unittest.main()
