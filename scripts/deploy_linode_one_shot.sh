@@ -698,12 +698,12 @@ fi
 
 sudo ufw --force default deny incoming
 sudo ufw --force default allow outgoing
-sudo ufw --force allow OpenSSH
+sudo ufw allow OpenSSH
 if [[ "${ENABLE_CADDY}" == "true" ]]; then
-  sudo ufw --force allow 80/tcp
-  sudo ufw --force allow 443/tcp
+  sudo ufw allow 80/tcp
+  sudo ufw allow 443/tcp
 else
-  sudo ufw --force allow 3000/tcp
+  sudo ufw allow 3000/tcp
 fi
 sudo ufw --force enable
 

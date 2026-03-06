@@ -246,6 +246,14 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("--profile", result.stderr + result.stdout)
 
+    def test_firewall_rules_do_not_use_force_for_allow(self) -> None:
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('sudo ufw allow OpenSSH', script)
+        self.assertNotIn('sudo ufw --force allow OpenSSH', script)
+        self.assertNotIn('sudo ufw --force allow 80/tcp', script)
+        self.assertNotIn('sudo ufw --force allow 443/tcp', script)
+        self.assertNotIn('sudo ufw --force allow 3000/tcp', script)
+
 
 if __name__ == "__main__":
     unittest.main()
