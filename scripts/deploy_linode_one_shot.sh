@@ -719,6 +719,7 @@ ${DOMAIN_NAME} {
   encode zstd gzip
   reverse_proxy 127.0.0.1:3000 {
     header_up X-Forwarded-Proto https
+    header_up X-Shuma-Forwarded-Secret ${SHUMA_FORWARDED_IP_SECRET}
   }
 }
 CADDY_FILE

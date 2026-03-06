@@ -310,6 +310,11 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         self.assertIn('if [[ "${SHUMA_GATEWAY_UPSTREAM_ORIGIN}" == http://* ]]; then', script)
         self.assertIn('SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL=${SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL_VALUE}', script)
 
+    def test_caddy_forwards_trusted_https_secret_header(self) -> None:
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('header_up X-Forwarded-Proto https', script)
+        self.assertIn('header_up X-Shuma-Forwarded-Secret ${SHUMA_FORWARDED_IP_SECRET}', script)
+
 
 if __name__ == "__main__":
     unittest.main()
