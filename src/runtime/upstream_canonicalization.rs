@@ -128,9 +128,30 @@ pub(crate) fn normalize_content_type(raw: &str) -> Option<String> {
 
 pub(crate) fn canonicalize_forward_path(raw: &str) -> String {
     let without_fragment = raw.split('#').next().unwrap_or(raw).trim();
-    let (path_part, query_part) = match without_fragment.split_once('?') {
+    let without_authority = if let Some(rest) = without_fragment.strip_prefix("//") {
+        match rest.find(['/', '?']) {
+            Some(index) => &rest[index..],
+            None => "/",
+        }
+    } else if let Some((scheme, rest)) = without_fragment.split_once("://") {
+        let valid_scheme = !scheme.is_empty()
+            && scheme
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '+' | '-' | '.'));
+        if valid_scheme {
+            match rest.find(['/', '?']) {
+                Some(index) => &rest[index..],
+                None => "/",
+            }
+        } else {
+            without_fragment
+        }
+    } else {
+        without_fragment
+    };
+    let (path_part, query_part) = match without_authority.split_once('?') {
         Some((path, query)) => (path.trim(), Some(query)),
-        None => (without_fragment, None),
+        None => (without_authority, None),
     };
     let mut normalized_path = if path_part.is_empty() {
         "/".to_string()
@@ -210,6 +231,22 @@ mod tests {
             "/foo/%2Fbar?x=1&y=2"
         );
         assert_eq!(canonicalize_forward_path(""), "/");
+    }
+
+    #[test]
+    fn canonicalize_forward_path_strips_absolute_uri_authority() {
+        assert_eq!(
+            canonicalize_forward_path("http://127.0.0.1:3000/css/style.css"),
+            "/css/style.css"
+        );
+        assert_eq!(
+            canonicalize_forward_path("https://public.example.com?x=1"),
+            "/?x=1"
+        );
+        assert_eq!(
+            canonicalize_forward_path("//public.example.com/assets/app.js?x=1"),
+            "/assets/app.js?x=1"
+        );
     }
 
     #[test]

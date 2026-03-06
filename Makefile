@@ -570,6 +570,7 @@ test-gateway-profile-shared-server: ## Verify shared-server gateway contract + f
 	@echo "$(CYAN)🧪 Running gateway shared-server profile verification...$(NC)"
 	@python3 -m unittest scripts/tests/test_validate_gateway_contract.py
 	@./scripts/set_crate_type.sh rlib
+	@cargo test runtime::upstream_canonicalization::tests::canonicalize_forward_path_strips_absolute_uri_authority -- --nocapture
 	@cargo test --test routing_order_integration -- --nocapture
 
 test-gateway-profile-edge: ## Verify edge/Fermyon gateway contract + signed-header origin-auth behavior
