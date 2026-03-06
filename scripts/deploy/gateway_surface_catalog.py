@@ -47,6 +47,46 @@ PREFERRED_TEXT_SUFFIXES = {
     ".xml",
 }
 
+STATIC_BYPASS_PREFIXES = (
+    "/assets/",
+    "/static/",
+    "/images/",
+    "/img/",
+    "/js/",
+    "/css/",
+    "/fonts/",
+    "/_next/static/",
+)
+STATIC_BYPASS_EXACT_PATHS = {
+    "/favicon.ico",
+    "/favicon.svg",
+    "/apple-touch-icon.png",
+    "/manifest.json",
+    "/site.webmanifest",
+    "/sitemap.xml",
+    "/browserconfig.xml",
+}
+STATIC_BYPASS_SUFFIXES = {
+    ".css",
+    ".js",
+    ".mjs",
+    ".map",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".svg",
+    ".ico",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".otf",
+    ".eot",
+    ".webmanifest",
+    ".xml",
+}
+
 
 def normalize_path(raw: str) -> str:
     value = str(raw or "").strip()
@@ -123,11 +163,17 @@ def is_reserved_path(path: str) -> bool:
 
 def _probe_priority(path: str) -> tuple[int, int, str]:
     suffix = PurePosixPath(path).suffix.lower()
-    if suffix in PREFERRED_TEXT_SUFFIXES:
+    if (
+        path in STATIC_BYPASS_EXACT_PATHS
+        or any(path.startswith(prefix) for prefix in STATIC_BYPASS_PREFIXES)
+        or suffix in STATIC_BYPASS_SUFFIXES
+    ):
         return (0, len(path), path)
-    if path != "/":
+    if suffix in PREFERRED_TEXT_SUFFIXES:
         return (1, len(path), path)
-    return (2, len(path), path)
+    if path != "/":
+        return (2, len(path), path)
+    return (3, len(path), path)
 
 
 def select_forward_probe_path(catalog_paths: list[str]) -> str:

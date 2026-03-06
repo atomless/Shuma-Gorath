@@ -29,6 +29,13 @@ class SelectGatewaySmokePathTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
         self.assertEqual(result.stdout.strip(), "/assets/app.js")
 
+    def test_prefers_static_asset_over_html_page(self) -> None:
+        result = run_selector(
+            '{"inventory":[{"path":"/cv.html"},{"path":"/css/style.css"},{"path":"/about.html"}]}\n'
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        self.assertEqual(result.stdout.strip(), "/css/style.css")
+
     def test_fails_when_catalog_only_contains_reserved_paths(self) -> None:
         result = run_selector('{"inventory":[{"path":"/health"},{"path":"/metrics"}]}\n')
         self.assertNotEqual(result.returncode, 0)

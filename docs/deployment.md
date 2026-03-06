@@ -164,6 +164,8 @@ SHUMA_SMOKE_FORWARD_PATH=/public/stable-page-or-asset \
 make smoke-single-host
 ```
 
+The auto-selector prefers obvious static assets before HTML pages so the default shared-host parity probe stays as close as possible to a bypass-safe public path.
+
 If the admin allowlist contains multiple candidate ranges and the first entry is not the operator IP you want to simulate during smoke, override the admin-route forwarded IP explicitly:
 
 ```bash
