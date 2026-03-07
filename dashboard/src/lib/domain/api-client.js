@@ -256,6 +256,7 @@ export const adaptMonitoring = (payload) => {
     freshness_slo: asRecord(source.freshness_slo),
     load_envelope: asRecord(source.load_envelope),
     freshness: asRecord(source.freshness),
+    retention_health: asRecord(source.retention_health),
     details
   };
 };

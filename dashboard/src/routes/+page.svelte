@@ -402,7 +402,24 @@
       if (AUTO_REFRESH_TABS.has(normalized)) return true;
       const state = store && typeof store.getState === 'function' ? store.getState() : null;
       const configSnapshot = state && state.snapshots ? state.snapshots.config : null;
-      return !configSnapshot || Object.keys(configSnapshot).length === 0;
+      if (!configSnapshot || Object.keys(configSnapshot).length === 0) {
+        return true;
+      }
+      if (normalized === 'status') {
+        const monitoringSnapshot = state && state.snapshots ? state.snapshots.monitoring : null;
+        const monitoringFreshness = state && state.snapshots ? state.snapshots.monitoringFreshness : null;
+        const hasRetentionHealth =
+          monitoringSnapshot &&
+          typeof monitoringSnapshot === 'object' &&
+          monitoringSnapshot.retention_health &&
+          typeof monitoringSnapshot.retention_health === 'object';
+        const hasFreshness =
+          monitoringFreshness &&
+          typeof monitoringFreshness === 'object' &&
+          String(monitoringFreshness.state || '').trim().length > 0;
+        return !(hasRetentionHealth && hasFreshness);
+      }
+      return false;
     },
     redirectToLogin
   });
@@ -1091,6 +1108,7 @@
           runtimeTelemetry={runtimeTelemetry}
           tabStatus={tabStatus.status || {}}
           configSnapshot={snapshots.config}
+          monitoringSnapshot={snapshots.monitoring}
         />
       {:else}
         <section

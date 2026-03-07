@@ -2171,6 +2171,8 @@ mod admin_config_tests {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
         std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        std::env::set_var("SHUMA_LOCAL_PROD_DIRECT_MODE", "true");
 
         let req = make_request(Method::Get, "/admin/config", Vec::new());
         let store = TestStore::default();
@@ -2190,9 +2192,19 @@ mod admin_config_tests {
             body.get("adversary_sim_enabled").and_then(|v| v.as_bool()),
             Some(false)
         );
+        assert_eq!(
+            body.get("gateway_deployment_profile").and_then(|v| v.as_str()),
+            Some("shared-server")
+        );
+        assert_eq!(
+            body.get("local_prod_direct_mode").and_then(|v| v.as_bool()),
+            Some(true)
+        );
 
         std::env::remove_var("SHUMA_RUNTIME_ENV");
         std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_LOCAL_PROD_DIRECT_MODE");
     }
 
     #[test]
@@ -8496,6 +8508,18 @@ fn admin_config_payload(
     obj.insert(
         "runtime_environment".to_string(),
         serde_json::Value::String(crate::config::runtime_environment().as_str().to_string()),
+    );
+    obj.insert(
+        "gateway_deployment_profile".to_string(),
+        serde_json::Value::String(
+            crate::config::gateway_deployment_profile()
+                .as_str()
+                .to_string(),
+        ),
+    );
+    obj.insert(
+        "local_prod_direct_mode".to_string(),
+        serde_json::Value::Bool(crate::config::local_prod_direct_mode()),
     );
     obj.insert(
         "adversary_sim_available".to_string(),

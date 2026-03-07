@@ -10,6 +10,10 @@ Purpose:
 What it shows:
 
 - Feature status cards derived from current runtime config snapshot (fail mode, HTTPS, PoW, challenges, CDP, maze, tarpit, JS required, GEO, IP range policy, rate limiting).
+- Appended operational posture cards:
+  - runtime and deployment posture (`runtime_environment`, gateway deployment profile, and local-direct localhost prod mode),
+  - admin config write posture (`admin_config_write_enabled`),
+  - retention and freshness health (monitoring freshness plus retention-worker health sourced from `/admin/monitoring`).
 - Runtime performance telemetry for dashboard refresh behavior:
   - Fetch latency (last, avg, p95).
   - Render timing (last, avg, p95).

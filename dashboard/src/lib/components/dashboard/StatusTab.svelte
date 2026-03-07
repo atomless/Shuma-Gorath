@@ -11,6 +11,7 @@
   export let runtimeTelemetry = null;
   export let tabStatus = null;
   export let configSnapshot = null;
+  export let monitoringSnapshot = null;
 
   const formatMetricMs = (value) => {
     const numeric = Number(value);
@@ -25,7 +26,12 @@
   };
 
   $: statusSnapshot = deriveStatusSnapshot(configSnapshot || {});
-  $: featureStatusItems = buildFeatureStatusItems(statusSnapshot);
+  $: featureStatusItems = buildFeatureStatusItems(statusSnapshot, {
+    statusOperationalSnapshot: {
+      freshness: monitoringSnapshot?.freshness || {},
+      retention_health: monitoringSnapshot?.retention_health || {}
+    }
+  });
   $: refresh = runtimeTelemetry && runtimeTelemetry.refresh ? runtimeTelemetry.refresh : {};
   $: polling = runtimeTelemetry && runtimeTelemetry.polling ? runtimeTelemetry.polling : {};
 </script>

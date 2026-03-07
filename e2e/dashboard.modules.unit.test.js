@@ -323,6 +323,13 @@ test('dashboard API adapters normalize sparse payloads safely', { concurrency: f
       freshness_slo: { visibility_delay_ms: { p95_target: 300 } },
       load_envelope: { query_budget_requests_per_second_per_client: 1 },
       freshness: { state: 'fresh', lag_ms: 125, last_event_ts: 1700000000, transport: 'snapshot_poll' },
+      retention_health: {
+        state: 'degraded',
+        retention_hours: 168,
+        oldest_retained_ts: 1699999000,
+        purge_lag_hours: 2.5,
+        pending_expired_buckets: 3
+      },
       details: {
         tarpit: {
           enabled: true,
@@ -339,6 +346,8 @@ test('dashboard API adapters normalize sparse payloads safely', { concurrency: f
     );
     assert.equal(monitoring.freshness.state, 'fresh');
     assert.equal(monitoring.freshness.last_event_ts, 1700000000);
+    assert.equal(monitoring.retention_health.state, 'degraded');
+    assert.equal(monitoring.retention_health.retention_hours, 168);
 
     const suggestions = api.adaptIpRangeSuggestions({
       generated_at: 1700000000,
@@ -1846,6 +1855,10 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     const configSnapshot = {
       kv_store_fail_open: true,
       test_mode: false,
+      runtime_environment: 'runtime-prod',
+      gateway_deployment_profile: 'shared-server',
+      local_prod_direct_mode: true,
+      admin_config_write_enabled: false,
       pow_enabled: true,
       not_a_bot_enabled: true,
       not_a_bot_risk_threshold: 2,
@@ -1870,23 +1883,116 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(derived.notABotEnabled, true);
     assert.equal(JSON.stringify(configSnapshot), before);
 
-    const statusItems = statusModule.buildFeatureStatusItems(derived);
+    const statusItems = statusModule.buildFeatureStatusItems(derived, {
+      statusOperationalSnapshot: {
+        freshness: {
+          state: 'degraded',
+          lag_ms: 900,
+          last_event_ts: 1700000000
+        },
+        retention_health: {
+          state: 'degraded',
+          retention_hours: 168,
+          oldest_retained_ts: 1699996400,
+          purge_lag_hours: 2.5,
+          pending_expired_buckets: 3,
+          last_purge_success_ts: 1699998200,
+          last_purge_error: ''
+        }
+      }
+    });
     const stripHtml = (value) => String(value || '').replace(/<[^>]+>/g, '');
     const challengePuzzleItem = statusItems.find((item) => stripHtml(item.title) === 'Challenge Puzzle');
     const challengeNotABotItem = statusItems.find((item) => stripHtml(item.title) === 'Challenge Not-A-Bot');
     const tarpitItem = statusItems.find((item) => stripHtml(item.title) === 'Tarpit');
     const ipRangeItem = statusItems.find((item) => stripHtml(item.title) === 'IP Range Policy');
+    const runtimePostureItem = statusItems.find((item) => stripHtml(item.title) === 'Runtime and Deployment Posture');
+    const adminWritePostureItem = statusItems.find((item) => stripHtml(item.title) === 'Admin Config Write Posture');
+    const retentionFreshnessItem = statusItems.find((item) => stripHtml(item.title) === 'Retention and Freshness Health');
     const testModeItem = statusItems.find((item) => stripHtml(item.title) === 'Test Mode');
     assert.equal(Boolean(challengePuzzleItem), true);
     assert.equal(Boolean(challengeNotABotItem), true);
     assert.equal(Boolean(tarpitItem), true);
     assert.equal(Boolean(ipRangeItem), true);
+    assert.equal(Boolean(runtimePostureItem), true);
+    assert.equal(Boolean(adminWritePostureItem), true);
+    assert.equal(Boolean(retentionFreshnessItem), true);
     assert.equal(Boolean(testModeItem), false);
     assert.equal(challengePuzzleItem?.status, 'ENABLED');
     assert.equal(challengeNotABotItem?.status, 'ENABLED');
     assert.equal(tarpitItem?.status, 'ENABLED');
     assert.equal(ipRangeItem?.status, 'LOGGING-ONLY');
+    assert.equal(runtimePostureItem?.status, 'RUNTIME-PROD / LOCAL-DIRECT');
+    assert.equal(adminWritePostureItem?.status, 'DISABLED');
+    assert.equal(retentionFreshnessItem?.status, 'DEGRADED');
     assert.equal(statusItems.some((item) => stripHtml(item.title) === 'Challenge'), false);
+  });
+});
+
+test('status refresh hydrates monitoring retention/freshness snapshot without monitoring-tab bootstrap', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    const store = storeModule.createDashboardStore({ initialTab: 'status' });
+    let configCalls = 0;
+    let monitoringCalls = 0;
+    const apiClient = {
+      async getConfig() {
+        configCalls += 1;
+        return {
+          runtime_environment: 'runtime-prod',
+          gateway_deployment_profile: 'shared-server',
+          local_prod_direct_mode: false,
+          admin_config_write_enabled: true,
+          kv_store_fail_open: true
+        };
+      },
+      async getMonitoring(params = {}) {
+        monitoringCalls += 1;
+        assert.equal(Number(params.limit || 0), 1);
+        return {
+          freshness: {
+            state: 'fresh',
+            lag_ms: 125,
+            last_event_ts: 1_700_000_000,
+            transport: 'snapshot_poll'
+          },
+          retention_health: {
+            state: 'healthy',
+            retention_hours: 168,
+            oldest_retained_ts: 1_699_999_000,
+            purge_lag_hours: 0,
+            pending_expired_buckets: 0,
+            last_purge_success_ts: 1_700_000_000,
+            last_purge_error: ''
+          },
+          summary: {},
+          details: {
+            analytics: { ban_count: 0, test_mode: false, fail_mode: 'open' },
+            events: { recent_events: [] },
+            bans: { bans: [] },
+            maze: {},
+            cdp: {},
+            cdp_events: { events: [] }
+          }
+        };
+      }
+    };
+
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => apiClient,
+      getStateStore: () => store,
+      deriveMonitoringAnalytics: () => ({ ban_count: 0, test_mode: false, fail_mode: 'open' })
+    });
+
+    await runtime.refreshDashboardForTab('status', 'manual-refresh');
+
+    assert.equal(configCalls, 1);
+    assert.equal(monitoringCalls, 1);
+    assert.equal((store.getSnapshot('monitoring') || {}).retention_health?.state, 'healthy');
+    assert.equal((store.getSnapshot('monitoringFreshness') || {}).state, 'fresh');
   });
 });
 

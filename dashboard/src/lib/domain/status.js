@@ -6,6 +6,10 @@ const INITIAL_STATE = Object.freeze({
     failMode: 'unknown',
     httpsEnforced: false,
     forwardedHeaderTrustConfigured: false,
+    runtimeEnvironment: '',
+    gatewayDeploymentProfile: '',
+    localProdDirectMode: false,
+    adminConfigWriteEnabled: false,
     testMode: false,
     powEnabled: false,
     mazeEnabled: false,
@@ -232,6 +236,77 @@ function normalizeIpRangeMode(value) {
     return 'off';
   }
 
+function normalizeRuntimeEnvironment(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'runtime-dev' || normalized === 'runtime-prod') return normalized;
+    return '';
+  }
+
+function normalizeGatewayDeploymentProfile(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'shared-server' || normalized === 'edge-fermyon') return normalized;
+    return '';
+  }
+
+function normalizeFreshnessState(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'fresh' || normalized === 'degraded' || normalized === 'stale') return normalized;
+    return 'unknown';
+  }
+
+function normalizeRetentionHealthState(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'healthy' || normalized === 'degraded' || normalized === 'stalled') return normalized;
+    return 'unknown';
+  }
+
+function formatDeploymentPosture(snapshot) {
+    const runtime = snapshot.runtimeEnvironment ? snapshot.runtimeEnvironment.toUpperCase() : 'UNKNOWN';
+    if (snapshot.localProdDirectMode === true) {
+      return `${runtime} / LOCAL-DIRECT`;
+    }
+    if (snapshot.gatewayDeploymentProfile) {
+      return `${runtime} / ${String(snapshot.gatewayDeploymentProfile || '').toUpperCase()}`;
+    }
+    return runtime;
+  }
+
+function formatRetentionFreshnessStatus(statusOperationalSnapshot = {}) {
+    const source = statusOperationalSnapshot && typeof statusOperationalSnapshot === 'object'
+      ? statusOperationalSnapshot
+      : {};
+    const freshness = source.freshness && typeof source.freshness === 'object' ? source.freshness : {};
+    const retentionHealth =
+      source.retention_health && typeof source.retention_health === 'object'
+        ? source.retention_health
+        : {};
+    const freshnessState = normalizeFreshnessState(freshness.state);
+    const retentionState = normalizeRetentionHealthState(retentionHealth.state);
+
+    if (retentionState === 'stalled' || freshnessState === 'stale') return 'STALLED';
+    if (retentionState === 'degraded' || freshnessState === 'degraded') return 'DEGRADED';
+    if (retentionState === 'healthy' && freshnessState === 'fresh') return 'HEALTHY';
+    return 'UNKNOWN';
+  }
+
+function formatLagHours(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric < 0) return 'n/a';
+    return `${numeric.toFixed(1)}h`;
+  }
+
+function formatLagMs(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric < 0) return 'n/a';
+    return `${Math.round(numeric)} ms`;
+  }
+
+function formatUnixTimestamp(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric <= 0) return 'n/a';
+    return new Date(numeric * 1000).toISOString();
+  }
+
 function formatIpRangeModeLabel(mode) {
     const normalized = normalizeIpRangeMode(mode);
     if (normalized === 'advisory') return 'LOGGING-ONLY';
@@ -249,6 +324,10 @@ export function deriveStatusSnapshot(configSnapshot = {}) {
       failMode: parseBoolLike(config.kv_store_fail_open, true) ? 'open' : 'closed',
       httpsEnforced: parseBoolLike(config.https_enforced, false),
       forwardedHeaderTrustConfigured: parseBoolLike(config.forwarded_header_trust_configured, false),
+      runtimeEnvironment: normalizeRuntimeEnvironment(config.runtime_environment),
+      gatewayDeploymentProfile: normalizeGatewayDeploymentProfile(config.gateway_deployment_profile),
+      localProdDirectMode: parseBoolLike(config.local_prod_direct_mode, false),
+      adminConfigWriteEnabled: parseBoolLike(config.admin_config_write_enabled, false),
       testMode: parseBoolLike(config.test_mode, false),
       powEnabled: parseBoolLike(config.pow_enabled, true),
       mazeEnabled: parseBoolLike(config.maze_enabled, true),
@@ -488,14 +567,63 @@ const STATUS_DEFINITIONS = [
       status: snapshot => boolStatus(
         (snapshot.botnessWeights.rate_medium || 0) > 0 || (snapshot.botnessWeights.rate_high || 0) > 0
       )
+    },
+    {
+      title: 'Runtime and Deployment Posture',
+      description: snapshot => (
+        `Current runtime posture is derived from ${envVar('SHUMA_RUNTIME_ENV')} ` +
+        `(<strong>${escapeHtml(snapshot.runtimeEnvironment || 'unknown')}</strong>). ` +
+        `Deployment profile comes from ${envVar('SHUMA_GATEWAY_DEPLOYMENT_PROFILE')} ` +
+        `(<strong>${escapeHtml(snapshot.gatewayDeploymentProfile || 'unknown')}</strong>). ` +
+        `When ${envVar('SHUMA_LOCAL_PROD_DIRECT_MODE')} is true, localhost prod-like runs are treated as <strong>local-direct</strong> and do not require ${envVar('SHUMA_GATEWAY_UPSTREAM_ORIGIN')}.`
+      ),
+      status: snapshot => formatDeploymentPosture(snapshot)
+    },
+    {
+      title: 'Admin Config Write Posture',
+      description: snapshot => (
+        `${envVar('SHUMA_ADMIN_CONFIG_WRITE_ENABLED')} controls whether dashboard config mutations are accepted at runtime ` +
+        `(<strong>${boolStatus(snapshot.adminConfigWriteEnabled)}</strong>). ` +
+        `When disabled, write-dependent controls across config tabs must stay hidden and operators must treat the dashboard as observation-only for live defense tuning.`
+      ),
+      status: snapshot => boolStatus(snapshot.adminConfigWriteEnabled)
+    },
+    {
+      title: 'Retention and Freshness Health',
+      description: (_snapshot, options = {}) => {
+        const source = options.statusOperationalSnapshot && typeof options.statusOperationalSnapshot === 'object'
+          ? options.statusOperationalSnapshot
+          : {};
+        const freshness = source.freshness && typeof source.freshness === 'object' ? source.freshness : {};
+        const retentionHealth =
+          source.retention_health && typeof source.retention_health === 'object'
+            ? source.retention_health
+            : {};
+        const freshnessState = normalizeFreshnessState(freshness.state);
+        const retentionState = normalizeRetentionHealthState(retentionHealth.state);
+        const retentionHours = Number(retentionHealth.retention_hours);
+        const pendingExpiredBuckets = Number(retentionHealth.pending_expired_buckets || 0);
+        const lastPurgeError = String(retentionHealth.last_purge_error || '').trim();
+        return (
+          `Telemetry retention is governed by ${envVar('SHUMA_EVENT_LOG_RETENTION_HOURS')} ` +
+          `(configured window: <strong>${Number.isFinite(retentionHours) && retentionHours > 0 ? `${Math.floor(retentionHours)}h` : 'n/a'}</strong>). ` +
+          `Current monitoring freshness is <strong>${escapeHtml(freshnessState)}</strong> ` +
+          `(lag: <strong>${escapeHtml(formatLagMs(freshness.lag_ms))}</strong>, last event: <strong>${escapeHtml(formatUnixTimestamp(freshness.last_event_ts))}</strong>). ` +
+          `Retention worker health is <strong>${escapeHtml(retentionState)}</strong> ` +
+          `(purge lag: <strong>${escapeHtml(formatLagHours(retentionHealth.purge_lag_hours))}</strong>, pending expired buckets: <strong>${Number.isFinite(pendingExpiredBuckets) ? pendingExpiredBuckets : 0}</strong>, oldest retained: <strong>${escapeHtml(formatUnixTimestamp(retentionHealth.oldest_retained_ts))}</strong>). ` +
+          `Last purge success: <strong>${escapeHtml(formatUnixTimestamp(retentionHealth.last_purge_success_ts))}</strong>. ` +
+          `${lastPurgeError ? `Last purge error: <code>${escapeHtml(lastPurgeError)}</code>.` : ''}`
+        );
+      },
+      status: (_snapshot, options = {}) => formatRetentionFreshnessStatus(options.statusOperationalSnapshot)
     }
   ];
 
-export function buildFeatureStatusItems(snapshot) {
+export function buildFeatureStatusItems(snapshot, options = {}) {
     return STATUS_DEFINITIONS.map((definition) => ({
       title: withAbbrMarkup(escapeHtml(definition.title)),
-      description: withAbbrMarkup(definition.description(snapshot)),
-      status: definition.status(snapshot)
+      description: withAbbrMarkup(definition.description(snapshot, options)),
+      status: definition.status(snapshot, options)
     }));
   }
 

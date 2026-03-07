@@ -758,14 +758,40 @@ export function createDashboardRefreshRuntime(options = {}) {
     }
   }
 
-  const refreshStatusTab = (reason = 'manual', runtimeOptions = {}) =>
-    refreshConfigBackedTab(
+  async function refreshStatusTab(reason = 'manual', runtimeOptions = {}) {
+    await refreshConfigBackedTab(
       'status',
       reason,
       'Loading status signals...',
       'No status config snapshot available yet.',
       runtimeOptions
     );
+
+    const dashboardApiClient = getApiClient();
+    if (!dashboardApiClient || typeof dashboardApiClient.getMonitoring !== 'function') return;
+
+    const requestOptions = toRequestOptions(runtimeOptions, {
+      tab: 'status',
+      reason,
+      source: 'status-operational-refresh'
+    });
+
+    try {
+      const monitoringData = await dashboardApiClient.getMonitoring(
+        { hours: 24, limit: 1 },
+        requestOptions
+      );
+      const dashboardState = getStateStore();
+      const configSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
+      const monitoringSnapshots = buildMonitoringSnapshots(monitoringData, configSnapshot);
+      applySnapshots(monitoringSnapshots);
+      updateFreshnessSnapshot(
+        'monitoring',
+        monitoringData && typeof monitoringData === 'object' ? monitoringData.freshness || {} : {},
+        'snapshot_poll'
+      );
+    } catch (_error) {}
+  }
 
   const refreshVerificationTab = (reason = 'manual', runtimeOptions = {}) =>
     refreshConfigBackedTab(
