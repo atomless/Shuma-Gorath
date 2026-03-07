@@ -139,6 +139,9 @@
   filter: saturate(1);
   transition: filter .6s ease-in;
 }
+:root.connected.runtime-prod {
+  filter: saturate(2.9);
+}
 
 :root.disconnected {
   filter: saturate(0);
