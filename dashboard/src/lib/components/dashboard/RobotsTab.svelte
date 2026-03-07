@@ -72,9 +72,9 @@
     writable = config.admin_config_write_enabled !== false;
     robotsEnabled = config.robots_enabled !== false;
     robotsCrawlDelay = parseInteger(config.robots_crawl_delay, 2);
-    robotsBlockTraining = (config.ai_policy_block_training ?? config.robots_block_ai_training) !== false;
-    robotsBlockSearch = (config.ai_policy_block_search ?? config.robots_block_ai_search) === true;
-    const aiAllowSearchEngines = config.ai_policy_allow_search_engines ?? config.robots_allow_search_engines;
+    robotsBlockTraining = config.ai_policy_block_training !== false;
+    robotsBlockSearch = config.ai_policy_block_search === true;
+    const aiAllowSearchEngines = config.ai_policy_allow_search_engines;
     restrictSearchEngines = aiAllowSearchEngines === undefined ? false : aiAllowSearchEngines !== true;
     baseline = {
       enabled: robotsEnabled === true,

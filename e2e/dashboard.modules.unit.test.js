@@ -2306,9 +2306,12 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
     assert.equal(schema.advancedConfigTemplatePaths.includes('challenge_puzzle_seed_ttl_seconds'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('challenge_puzzle_attempt_limit_per_window'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('challenge_puzzle_attempt_window_seconds'), true);
-    assert.equal(schema.advancedConfigTemplatePaths.includes('robots_block_ai_training'), true);
-    assert.equal(schema.advancedConfigTemplatePaths.includes('robots_block_ai_search'), true);
-    assert.equal(schema.advancedConfigTemplatePaths.includes('robots_allow_search_engines'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('ai_policy_block_training'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('ai_policy_block_search'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('ai_policy_allow_search_engines'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('robots_block_ai_training'), false);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('robots_block_ai_search'), false);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('robots_allow_search_engines'), false);
   });
 });
 
@@ -2377,6 +2380,16 @@ test('runtime variable inventory meanings match writable and read-only admin con
   });
   expectedReadOnlyPaths.push('botness_signal_definitions.scored_signals');
   expectedReadOnlyPaths.push('botness_signal_definitions.terminal_signals');
+  [
+    'ip_range_suggestions_min_observations',
+    'ip_range_suggestions_min_bot_events',
+    'ip_range_suggestions_min_confidence_percent',
+    'ip_range_suggestions_low_collateral_percent',
+    'ip_range_suggestions_high_collateral_percent',
+    'ip_range_suggestions_ipv4_min_prefix_len',
+    'ip_range_suggestions_ipv6_min_prefix_len',
+    'ip_range_suggestions_likely_human_sample_percent'
+  ].forEach((pathValue) => expectedReadOnlyPaths.push(pathValue));
 
   const expectedInventoryPaths = new Set([
     ...schema.advancedConfigTemplatePaths,
@@ -2393,6 +2406,25 @@ test('runtime variable inventory meanings match writable and read-only admin con
 
   assert.deepEqual(missingMeaningPaths, []);
   assert.deepEqual(staleMeaningPaths, []);
+  [
+    'ip_range_suggestions_min_observations',
+    'ip_range_suggestions_min_bot_events',
+    'ip_range_suggestions_min_confidence_percent',
+    'ip_range_suggestions_low_collateral_percent',
+    'ip_range_suggestions_high_collateral_percent',
+    'ip_range_suggestions_ipv4_min_prefix_len',
+    'ip_range_suggestions_ipv6_min_prefix_len',
+    'ip_range_suggestions_likely_human_sample_percent'
+  ].forEach((pathValue) => {
+    assert.equal(Object.prototype.hasOwnProperty.call(statusVarMeanings, pathValue), true);
+  });
+  [
+    'robots_block_ai_training',
+    'robots_block_ai_search',
+    'robots_allow_search_engines'
+  ].forEach((pathValue) => {
+    assert.equal(Object.prototype.hasOwnProperty.call(statusVarMeanings, pathValue), false);
+  });
 });
 
 test('admin endpoint resolver applies loopback override only for local hostnames', { concurrency: false }, async () => {

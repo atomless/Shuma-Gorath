@@ -11,6 +11,7 @@ Panels:
 
 - `Runtime Variable Inventory`:
   - grouped snapshot of runtime config variables,
+  - includes both admin-writable variables and read-only runtime-visible knobs,
   - rows highlight admin-writable variables,
   - per-variable meaning text from status variable metadata.
 - `Export Config JSON` helper:

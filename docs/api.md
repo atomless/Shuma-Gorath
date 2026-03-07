@@ -513,15 +513,10 @@ Robots serving controls:
 - `robots_enabled`
 - `robots_crawl_delay`
 
-<abbr title="Artificial Intelligence">AI</abbr>-bot policy controls (first-class keys):
+<abbr title="Artificial Intelligence">AI</abbr>-bot policy controls:
 - `ai_policy_block_training`
 - `ai_policy_block_search`
 - `ai_policy_allow_search_engines`
-
-Legacy compatibility mirrors (still returned and accepted):
-- `robots_block_ai_training`
-- `robots_block_ai_search`
-- `robots_allow_search_engines`
 
 ## 🐙 <abbr title="Geolocation">GEO</abbr> Policy Fields (`/admin/config`)
 

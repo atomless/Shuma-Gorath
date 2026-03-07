@@ -2130,6 +2130,19 @@ mod admin_config_tests {
         assert!(body.get("ai_policy_block_training").is_some());
         assert!(body.get("ai_policy_block_search").is_some());
         assert!(body.get("ai_policy_allow_search_engines").is_some());
+        assert!(body.get("robots_block_ai_training").is_none());
+        assert!(body.get("robots_block_ai_search").is_none());
+        assert!(body.get("robots_allow_search_engines").is_none());
+        assert!(body.get("ip_range_suggestions_min_observations").is_some());
+        assert!(body.get("ip_range_suggestions_min_bot_events").is_some());
+        assert!(body.get("ip_range_suggestions_min_confidence_percent").is_some());
+        assert!(body.get("ip_range_suggestions_low_collateral_percent").is_some());
+        assert!(body.get("ip_range_suggestions_high_collateral_percent").is_some());
+        assert!(body.get("ip_range_suggestions_ipv4_min_prefix_len").is_some());
+        assert!(body.get("ip_range_suggestions_ipv6_min_prefix_len").is_some());
+        assert!(body
+            .get("ip_range_suggestions_likely_human_sample_percent")
+            .is_some());
         assert!(body.get("botness_maze_threshold").is_some());
         assert!(body.get("js_required_enforced").is_some());
         assert!(body.get("kv_store_fail_open").is_some());
@@ -4838,18 +4851,9 @@ mod admin_config_tests {
             cfg.get("ai_policy_allow_search_engines"),
             Some(&serde_json::Value::Bool(false))
         );
-        assert_eq!(
-            cfg.get("robots_block_ai_training"),
-            Some(&serde_json::Value::Bool(false))
-        );
-        assert_eq!(
-            cfg.get("robots_block_ai_search"),
-            Some(&serde_json::Value::Bool(true))
-        );
-        assert_eq!(
-            cfg.get("robots_allow_search_engines"),
-            Some(&serde_json::Value::Bool(false))
-        );
+        assert!(cfg.get("robots_block_ai_training").is_none());
+        assert!(cfg.get("robots_block_ai_search").is_none());
+        assert!(cfg.get("robots_allow_search_engines").is_none());
 
         let saved_bytes = store.get("config:default").unwrap().unwrap();
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
@@ -6645,24 +6649,21 @@ fn query_u64_param(query: &str, key: &str, default: u64) -> u64 {
 fn apply_robots_preview_patch(cfg: &mut crate::config::Config, json: &serde_json::Value) {
     let ai_policy_block_training = json
         .get("ai_policy_block_training")
-        .and_then(|v| v.as_bool())
-        .or_else(|| json.get("robots_block_ai_training").and_then(|v| v.as_bool()));
+        .and_then(|v| v.as_bool());
     if let Some(value) = ai_policy_block_training {
         cfg.robots_block_ai_training = value;
     }
 
     let ai_policy_block_search = json
         .get("ai_policy_block_search")
-        .and_then(|v| v.as_bool())
-        .or_else(|| json.get("robots_block_ai_search").and_then(|v| v.as_bool()));
+        .and_then(|v| v.as_bool());
     if let Some(value) = ai_policy_block_search {
         cfg.robots_block_ai_search = value;
     }
 
     let ai_policy_allow_search_engines = json
         .get("ai_policy_allow_search_engines")
-        .and_then(|v| v.as_bool())
-        .or_else(|| json.get("robots_allow_search_engines").and_then(|v| v.as_bool()));
+        .and_then(|v| v.as_bool());
     if let Some(value) = ai_policy_allow_search_engines {
         cfg.robots_allow_search_engines = value;
     }
@@ -6685,9 +6686,6 @@ fn admin_robots_payload(cfg: &crate::config::Config) -> serde_json::Value {
             "ai_policy_block_training": cfg.robots_block_ai_training,
             "ai_policy_block_search": cfg.robots_block_ai_search,
             "ai_policy_allow_search_engines": cfg.robots_allow_search_engines,
-            "block_ai_training": cfg.robots_block_ai_training,
-            "block_ai_search": cfg.robots_block_ai_search,
-            "allow_search_engines": cfg.robots_allow_search_engines,
             "crawl_delay": cfg.robots_crawl_delay
         },
         "content_signal_header": content_signal,
@@ -8450,6 +8448,10 @@ fn admin_config_payload(
         return json!({});
     };
 
+    obj.remove("robots_block_ai_training");
+    obj.remove("robots_block_ai_search");
+    obj.remove("robots_allow_search_engines");
+
     obj.insert(
         "ai_policy_block_training".to_string(),
         serde_json::Value::Bool(cfg.robots_block_ai_training),
@@ -8667,11 +8669,8 @@ struct AdminConfigPatch {
     maze_seed_metadata_only: Option<bool>,
     robots_enabled: Option<bool>,
     ai_policy_block_training: Option<bool>,
-    robots_block_ai_training: Option<bool>,
     ai_policy_block_search: Option<bool>,
-    robots_block_ai_search: Option<bool>,
     ai_policy_allow_search_engines: Option<bool>,
-    robots_allow_search_engines: Option<bool>,
     robots_crawl_delay: Option<u64>,
     cdp_detection_enabled: Option<bool>,
     cdp_auto_ban: Option<bool>,
@@ -9795,30 +9794,21 @@ fn handle_admin_config_internal(
         }
         let ai_policy_block_training = json
             .get("ai_policy_block_training")
-            .and_then(|v| v.as_bool())
-            .or_else(|| {
-                json.get("robots_block_ai_training")
-                    .and_then(|v| v.as_bool())
-            });
+            .and_then(|v| v.as_bool());
         if let Some(robots_block_ai_training) = ai_policy_block_training {
             cfg.robots_block_ai_training = robots_block_ai_training;
             changed = true;
         }
         let ai_policy_block_search = json
             .get("ai_policy_block_search")
-            .and_then(|v| v.as_bool())
-            .or_else(|| json.get("robots_block_ai_search").and_then(|v| v.as_bool()));
+            .and_then(|v| v.as_bool());
         if let Some(robots_block_ai_search) = ai_policy_block_search {
             cfg.robots_block_ai_search = robots_block_ai_search;
             changed = true;
         }
         let ai_policy_allow_search_engines = json
             .get("ai_policy_allow_search_engines")
-            .and_then(|v| v.as_bool())
-            .or_else(|| {
-                json.get("robots_allow_search_engines")
-                    .and_then(|v| v.as_bool())
-            });
+            .and_then(|v| v.as_bool());
         if let Some(robots_allow_search_engines) = ai_policy_allow_search_engines {
             cfg.robots_allow_search_engines = robots_allow_search_engines;
             changed = true;
