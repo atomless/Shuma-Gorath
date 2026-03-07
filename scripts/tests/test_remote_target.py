@@ -295,6 +295,21 @@ class RemoteTargetTests(unittest.TestCase):
         receipt = json.loads(self.receipt_path.read_text(encoding="utf-8"))
         self.assertEqual(receipt["metadata"]["last_deployed_commit"], "abc123")
 
+    def test_run_remote_smoke_uses_allowlisted_forwarded_ip_for_public_remote(self) -> None:
+        self.env_file.write_text("SHUMA_ADMIN_IP_ALLOWLIST=198.51.100.10/32\n", encoding="utf-8")
+        receipt = remote_target.load_remote_receipt(self.receipts_dir, "blog-prod")
+
+        with patch.object(subprocess, "run") as run:
+            run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
+            rc = remote_target.run_remote_smoke(self.env_file, receipt)
+
+        self.assertEqual(rc, 0)
+        env = run.call_args.kwargs["env"]
+        self.assertEqual(env["SHUMA_BASE_URL"], "https://blog.example.com")
+        self.assertEqual(env["SHUMA_SMOKE_FORWARDED_IP"], "198.51.100.10")
+        self.assertEqual(env["SHUMA_SMOKE_ADMIN_FORWARDED_IP"], "198.51.100.10")
+        self.assertEqual(env["GATEWAY_SURFACE_CATALOG_PATH"], str((self.temp_dir / "catalog.json").resolve()))
+
     def test_make_targets_dispatch_to_remote_helper(self) -> None:
         result = subprocess.run(
             [

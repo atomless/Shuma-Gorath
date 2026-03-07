@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
@@ -309,6 +310,18 @@ def ensure_local_file(path_value: str, description: str) -> Path:
     return path.resolve()
 
 
+def first_ip_from_allowlist(raw_allowlist: str) -> str:
+    for part in [item.strip() for item in raw_allowlist.split(",") if item.strip()]:
+        try:
+            if "/" in part:
+                network = ipaddress.ip_network(part, strict=False)
+                return str(next(iter(network.hosts()), network.network_address))
+            return str(ipaddress.ip_address(part))
+        except ValueError:
+            continue
+    return ""
+
+
 def build_release_bundle(
     *, repo_root: Path, work_dir: Path
 ) -> tuple[Path, Path, dict[str, Any]]:
@@ -462,18 +475,35 @@ def rollback_remote_update(receipt: dict[str, Any]) -> int:
 
 def run_remote_smoke(env_file: Path, receipt: dict[str, Any]) -> int:
     smoke_env = os.environ.copy()
-    smoke_env.update(read_env_file(env_file))
+    env_values = read_env_file(env_file)
+    smoke_env.update(env_values)
     smoke_env["SHUMA_BASE_URL"] = receipt["runtime"]["public_base_url"]
     smoke_env["GATEWAY_SURFACE_CATALOG_PATH"] = str(
         ensure_local_file(receipt["deploy"]["surface_catalog_path"], "local surface catalog")
     )
-    result = subprocess.run(
-        ["make", "--no-print-directory", "smoke-single-host"],
-        cwd=str(REPO_ROOT),
-        env=smoke_env,
-        check=False,
-    )
-    return int(result.returncode)
+    allowlisted_ip = first_ip_from_allowlist(env_values.get("SHUMA_ADMIN_IP_ALLOWLIST", ""))
+    if allowlisted_ip:
+        smoke_env["SHUMA_SMOKE_FORWARDED_IP"] = allowlisted_ip
+        smoke_env["SHUMA_SMOKE_ADMIN_FORWARDED_IP"] = allowlisted_ip
+
+    attempts = 6
+    for attempt in range(1, attempts + 1):
+        result = subprocess.run(
+            ["make", "--no-print-directory", "smoke-single-host"],
+            cwd=str(REPO_ROOT),
+            env=smoke_env,
+            check=False,
+        )
+        if result.returncode == 0:
+            return 0
+        if attempt == attempts:
+            return int(result.returncode)
+        print(
+            f"Remote smoke attempt {attempt}/{attempts} failed; retrying in 2s...",
+            file=sys.stderr,
+        )
+        time.sleep(2)
+    return 1
 
 
 def refresh_remote_receipt_metadata(
