@@ -502,6 +502,7 @@ test: ## Run umbrella tests in series: unit, maze benchmark, integration, advers
 	@echo ""
 	@echo "$(CYAN)Step 3/8: Integration Tests (Spin HTTP scenarios)$(NC)"
 	@echo "$(CYAN)--------------------------------------------$(NC)"
+	@$(MAKE) --no-print-directory test-integration-script-unit || exit 1
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" ./scripts/tests/integration.sh || exit 1; \
 	else \
@@ -566,6 +567,7 @@ unit-test: test-unit ## Alias for Rust unit tests
 
 test-integration: ## Run integration tests only (21 scenarios, requires running server)
 	@echo "$(CYAN)🧪 Running integration tests...$(NC)"
+	@$(MAKE) --no-print-directory test-integration-script-unit
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" ./scripts/tests/integration.sh; \
 	else \
@@ -575,6 +577,10 @@ test-integration: ## Run integration tests only (21 scenarios, requires running 
 	fi
 
 integration-test: test-integration ## Alias for Spin integration tests
+
+test-integration-script-unit: ## Verify integration shell cleanup and restore contract (no server required)
+	@echo "$(CYAN)🧪 Running integration shell cleanup contract checks...$(NC)"
+	@python3 -m unittest scripts/tests/test_integration_cleanup.py
 
 test-gateway-harness: ## Run deterministic gateway upstream fixture + failure harness checks (no Spin server required)
 	@echo "$(CYAN)🧪 Running gateway fixture/failure harness checks...$(NC)"

@@ -117,14 +117,13 @@ cleanup_integration_state() {
       -H "Content-Type: application/json" \
       -d "${ORIGINAL_CONFIG_RESTORE_PAYLOAD}" \
       "$BASE_URL/admin/config" > /dev/null || true
+  else
+    # Fallback only when the original snapshot could not be captured.
+    curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
+      -H "Content-Type: application/json" \
+      -d '{"provider_backends":{"rate_limiter":"internal","fingerprint_signal":"internal"},"edge_integration_mode":"off","geo_edge_headers_enabled":false}' \
+      "$BASE_URL/admin/config" > /dev/null || true
   fi
-
-  # Ensure edge/Akamai toggles return to secure defaults even when later
-  # scenarios temporarily switch them to external backends.
-  curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
-    -H "Content-Type: application/json" \
-    -d '{"provider_backends":{"rate_limiter":"internal","fingerprint_signal":"internal"},"edge_integration_mode":"off","geo_edge_headers_enabled":false}' \
-    "$BASE_URL/admin/config" > /dev/null || true
 
   for ip in "${TEST_CLEANUP_IPS[@]}"; do
     curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
@@ -226,6 +225,19 @@ else
   echo -e "${YELLOW}DEBUG /health response:${NC} $health_resp"
 fi
 
+info "Capturing original runtime config snapshot for exact restore..."
+original_config_snapshot=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" "$BASE_URL/admin/config")
+snapshot_restore_payload=$(python3 -c 'import json,sys
+try:
+    data=json.loads(sys.stdin.read())
+except Exception:
+    data={}
+print(json.dumps(data, separators=(",", ":")))' <<< "$original_config_snapshot")
+ORIGINAL_CONFIG_RESTORE_PAYLOAD="$snapshot_restore_payload"
+if [[ -z "${ORIGINAL_CONFIG_RESTORE_PAYLOAD}" ]]; then
+  fail "Could not capture original runtime config snapshot for restore."
+fi
+
 # Preflight: normalize runtime config so tests are deterministic
 info "Resetting test_mode=false before integration scenarios..."
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
@@ -265,19 +277,13 @@ done
 
 info "Resolving configured honeypot path..."
 config_snapshot=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" "$BASE_URL/admin/config")
-snapshot_payload_and_path=$(python3 -c 'import json,sys
+resolved_honeypot=$(python3 -c 'import json,sys
 try:
     data=json.loads(sys.stdin.read())
 except Exception:
     data={}
-print(json.dumps(data, separators=(",", ":")))
 paths=data.get("honeypots") or []
 print(paths[0] if paths else "")' <<< "$config_snapshot")
-ORIGINAL_CONFIG_RESTORE_PAYLOAD="$(printf '%s\n' "$snapshot_payload_and_path" | awk 'NR==1{print; exit}')"
-resolved_honeypot="$(printf '%s\n' "$snapshot_payload_and_path" | awk 'NR==2{print; exit}')"
-if [[ -z "${ORIGINAL_CONFIG_RESTORE_PAYLOAD}" ]]; then
-  fail "Could not capture original runtime config snapshot for restore."
-fi
 if [[ -n "$resolved_honeypot" ]]; then
   HONEYPOT_PATH="$resolved_honeypot"
 fi

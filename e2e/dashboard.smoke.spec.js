@@ -6,6 +6,45 @@ const API_KEY = (process.env.SHUMA_API_KEY || "").trim();
 const FORWARDED_IP_SECRET = (process.env.SHUMA_FORWARDED_IP_SECRET || "").trim();
 const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"]);
 const ADMIN_TABS = Object.freeze(["ip-bans", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"]);
+const VERIFICATION_RESTORE_PATHS = Object.freeze([
+  "js_required_enforced"
+]);
+const GEO_AND_TUNING_RESTORE_PATHS = Object.freeze([
+  "defence_modes.geo",
+  "geo_edge_headers_enabled",
+  "geo_risk",
+  "geo_allow",
+  "geo_challenge",
+  "geo_maze",
+  "geo_block",
+  "not_a_bot_risk_threshold",
+  "challenge_puzzle_risk_threshold",
+  "botness_maze_threshold",
+  "botness_weights.js_required",
+  "botness_weights.geo_risk",
+  "botness_weights.rate_medium",
+  "botness_weights.rate_high",
+  "browser_policy_enabled",
+  "browser_block",
+  "path_allowlist_enabled",
+  "path_allowlist"
+]);
+const RATE_LIMITING_RESTORE_PATHS = Object.freeze([
+  "rate_limit",
+  "defence_modes.rate",
+  "provider_backends.rate_limiter"
+]);
+const FINGERPRINTING_RESTORE_PATHS = Object.freeze([
+  "edge_integration_mode",
+  "provider_backends.fingerprint_signal"
+]);
+const ROBOTS_RESTORE_PATHS = Object.freeze([
+  "robots_enabled",
+  "robots_crawl_delay",
+  "ai_policy_block_training",
+  "ai_policy_block_search",
+  "ai_policy_allow_search_engines"
+]);
 const runtimeGuards = new WeakMap();
 
 function ensureRequiredEnv() {
@@ -204,7 +243,45 @@ async function dashboardDomClassState(page) {
   });
 }
 
-async function fetchRuntimeEnvironment(request, ip = "127.0.0.1") {
+function cloneJsonValue(value) {
+  if (value === undefined) return undefined;
+  return JSON.parse(JSON.stringify(value));
+}
+
+function getConfigPathValue(config, path) {
+  return String(path || "")
+    .split(".")
+    .reduce((cursor, segment) => {
+      if (!cursor || typeof cursor !== "object") return undefined;
+      return cursor[segment];
+    }, config);
+}
+
+function setConfigPathValue(target, path, value) {
+  const segments = String(path || "").split(".").filter(Boolean);
+  if (segments.length === 0) return;
+  let cursor = target;
+  for (let index = 0; index < segments.length - 1; index += 1) {
+    const segment = segments[index];
+    if (!cursor[segment] || typeof cursor[segment] !== "object" || Array.isArray(cursor[segment])) {
+      cursor[segment] = {};
+    }
+    cursor = cursor[segment];
+  }
+  cursor[segments[segments.length - 1]] = cloneJsonValue(value);
+}
+
+function extractConfigPatchFromPaths(config, paths = []) {
+  const patch = {};
+  for (const path of paths) {
+    const value = getConfigPathValue(config, path);
+    if (value === undefined) continue;
+    setConfigPathValue(patch, path, value);
+  }
+  return patch;
+}
+
+async function fetchAdminConfig(request, ip = "127.0.0.1") {
   const response = await request.get(`${BASE_URL}/admin/config`, {
     headers: buildAdminAuthHeaders(ip)
   });
@@ -212,7 +289,23 @@ async function fetchRuntimeEnvironment(request, ip = "127.0.0.1") {
     const body = await response.text();
     throw new Error(`admin config read should succeed: ${response.status()} ${body}`);
   }
-  const payload = await response.json();
+  return response.json();
+}
+
+async function withRestoredAdminConfig(request, paths, callback, ip = "127.0.0.1") {
+  const restorePatch = extractConfigPatchFromPaths(await fetchAdminConfig(request, ip), paths);
+  try {
+    return await callback(restorePatch);
+  } finally {
+    if (Object.keys(restorePatch).length === 0) return;
+    await updateAdminConfig(request, restorePatch, ip);
+    const restoredPatch = extractConfigPatchFromPaths(await fetchAdminConfig(request, ip), paths);
+    expect(restoredPatch).toEqual(restorePatch);
+  }
+}
+
+async function fetchRuntimeEnvironment(request, ip = "127.0.0.1") {
+  const payload = await fetchAdminConfig(request, ip);
   const runtimeEnvironment = String(payload?.runtime_environment || "").trim();
   if (runtimeEnvironment !== "runtime-dev" && runtimeEnvironment !== "runtime-prod") {
     throw new Error(`unexpected runtime_environment from /admin/config: ${runtimeEnvironment || "missing"}`);
@@ -430,14 +523,7 @@ async function updateAdminConfig(request, patch, ip = "127.0.0.1") {
 }
 
 async function fetchFrontierProviderCount(request, ip = "127.0.0.1") {
-  const response = await request.get(`${BASE_URL}/admin/config`, {
-    headers: buildAdminAuthHeaders(ip)
-  });
-  if (!response.ok()) {
-    const body = await response.text();
-    throw new Error(`admin config read should succeed: ${response.status()} ${body}`);
-  }
-  const payload = await response.json();
+  const payload = await fetchAdminConfig(request, ip);
   const count = Number(payload?.frontier_provider_count || 0);
   return Number.isFinite(count) ? count : 0;
 }
@@ -1751,7 +1837,7 @@ test("monitoring recent-event filters use canonical shared control classes", asy
   await expect(page.locator("#monitoring-event-filters select.input-field")).toHaveCount(5);
 });
 
-test("route remount preserves keyboard navigation, ban/unban, verification save, and polling", async ({ page }) => {
+test("route remount preserves keyboard navigation, ban/unban, verification save, and polling", async ({ page, request }) => {
   let monitoringRefreshRequests = 0;
   page.on("request", (request) => {
     if (request.method() !== "GET") {
@@ -1805,26 +1891,11 @@ test("route remount preserves keyboard navigation, ban/unban, verification save,
   ]);
   await expect(page.locator("#admin-msg")).toContainText(`Unbanned ${ip}`);
 
-  await openTab(page, "verification");
-  const jsRequiredToggle = page.locator("#js-required-enforced-toggle");
-  const configSave = page.locator("#save-verification-all");
-  if (await jsRequiredToggle.isVisible() && await jsRequiredToggle.isEnabled()) {
-    const initial = await jsRequiredToggle.isChecked();
-    await jsRequiredToggle.click();
-    await expect(configSave).toBeEnabled();
-
-    await Promise.all([
-      page.waitForResponse((resp) => (
-        resp.url().includes("/admin/config") &&
-        resp.request().method() === "POST" &&
-        resp.status() >= 200 &&
-        resp.status() < 300
-      )),
-      configSave.click()
-    ]);
-    await expect(configSave).toBeHidden();
-
-    if (initial !== await jsRequiredToggle.isChecked()) {
+  await withRestoredAdminConfig(request, VERIFICATION_RESTORE_PATHS, async () => {
+    await openTab(page, "verification");
+    const jsRequiredToggle = page.locator("#js-required-enforced-toggle");
+    const configSave = page.locator("#save-verification-all");
+    if (await jsRequiredToggle.isVisible() && await jsRequiredToggle.isEnabled()) {
       await jsRequiredToggle.click();
       await expect(configSave).toBeEnabled();
       await Promise.all([
@@ -1838,7 +1909,7 @@ test("route remount preserves keyboard navigation, ban/unban, verification save,
       ]);
       await expect(configSave).toBeHidden();
     }
-  }
+  });
 
   await openTab(page, "monitoring");
   await setAutoRefresh(page, true);
@@ -2228,36 +2299,21 @@ test("tab states surface loading and data-ready transitions across all tabs", as
   await expect(page.locator('[data-tab-state="monitoring"]')).toBeHidden();
 });
 
-test("verification save roundtrip clears dirty state after successful write", async ({ page }) => {
-  await openDashboard(page);
-  await openTab(page, "verification");
+test("verification save roundtrip clears dirty state after successful write", async ({ page, request }) => {
+  await withRestoredAdminConfig(request, VERIFICATION_RESTORE_PATHS, async () => {
+    await openDashboard(page);
+    await openTab(page, "verification");
 
-  const jsRequiredToggle = page.locator("#js-required-enforced-toggle");
-  const configSave = page.locator("#save-verification-all");
-  if (!(await jsRequiredToggle.isVisible()) || !(await jsRequiredToggle.isEnabled())) {
-    await expect(configSave).toBeHidden();
-    return;
-  }
+    const jsRequiredToggle = page.locator("#js-required-enforced-toggle");
+    const configSave = page.locator("#save-verification-all");
+    if (!(await jsRequiredToggle.isVisible()) || !(await jsRequiredToggle.isEnabled())) {
+      await expect(configSave).toBeHidden();
+      return;
+    }
 
-  const initial = await jsRequiredToggle.isChecked();
-  await jsRequiredToggle.click();
-  await expect(configSave).toBeEnabled();
-
-  await Promise.all([
-    page.waitForResponse((resp) => (
-      resp.url().includes("/admin/config") &&
-      resp.request().method() === "POST" &&
-      resp.status() >= 200 &&
-      resp.status() < 300
-    )),
-    configSave.click()
-  ]);
-  await expect(page.locator("#admin-msg")).toContainText(/saved/i);
-  await expect(configSave).toBeHidden();
-
-  if (initial !== await jsRequiredToggle.isChecked()) {
     await jsRequiredToggle.click();
     await expect(configSave).toBeEnabled();
+
     await Promise.all([
       page.waitForResponse((resp) => (
         resp.url().includes("/admin/config") &&
@@ -2267,267 +2323,208 @@ test("verification save roundtrip clears dirty state after successful write", as
       )),
       configSave.click()
     ]);
+    await expect(page.locator("#admin-msg")).toContainText(/saved/i);
     await expect(configSave).toBeHidden();
-  }
+  });
 });
 
-test("geo and tuning save flows cover GEO lists, botness controls, and browser policy controls", async ({ page }) => {
-  await openDashboard(page);
-  await openTab(page, "geo");
+test("geo and tuning save flows cover GEO lists, botness controls, and browser policy controls", async ({ page, request }) => {
+  await withRestoredAdminConfig(request, GEO_AND_TUNING_RESTORE_PATHS, async () => {
+    await openDashboard(page);
+    await openTab(page, "geo");
 
-  const geoSave = page.locator("#save-geo-config");
-  await expect(geoSave).toBeHidden();
+    const geoSave = page.locator("#save-geo-config");
+    await expect(geoSave).toBeHidden();
 
-  const geoSignalToggle = page.locator("#geo-akamai-enabled-toggle");
-  const geoSignalSwitch = page.locator("label.toggle-switch[for='geo-akamai-enabled-toggle']");
-  if (await geoSignalSwitch.isVisible() && await geoSignalToggle.isEnabled()) {
-    const initialGeoSignalEnabled = await geoSignalToggle.isChecked();
-    await geoSignalSwitch.click();
-    await submitConfigSave(page, geoSave);
-    if (initialGeoSignalEnabled !== await geoSignalToggle.isChecked()) {
+    const geoSignalToggle = page.locator("#geo-akamai-enabled-toggle");
+    const geoSignalSwitch = page.locator("label.toggle-switch[for='geo-akamai-enabled-toggle']");
+    if (await geoSignalSwitch.isVisible() && await geoSignalToggle.isEnabled()) {
       await geoSignalSwitch.click();
       await submitConfigSave(page, geoSave);
     }
-  }
 
-  const geoScoringToggle = page.locator("#geo-scoring-toggle");
-  const geoScoringSwitch = page.locator("label.toggle-switch[for='geo-scoring-toggle']");
-  if (await geoScoringSwitch.isVisible() && await geoScoringToggle.isEnabled()) {
-    const initialGeoScoringEnabled = await geoScoringToggle.isChecked();
-    await geoScoringSwitch.click();
-    await submitConfigSave(page, geoSave);
-    if (initialGeoScoringEnabled !== await geoScoringToggle.isChecked()) {
+    const geoScoringToggle = page.locator("#geo-scoring-toggle");
+    const geoScoringSwitch = page.locator("label.toggle-switch[for='geo-scoring-toggle']");
+    if (await geoScoringSwitch.isVisible() && await geoScoringToggle.isEnabled()) {
       await geoScoringSwitch.click();
       await submitConfigSave(page, geoSave);
     }
-  }
 
-  const geoRoutingToggle = page.locator("#geo-routing-toggle");
-  const geoRoutingSwitch = page.locator("label.toggle-switch[for='geo-routing-toggle']");
-  if (await geoRoutingSwitch.isVisible() && await geoRoutingToggle.isEnabled()) {
-    const initialGeoRoutingEnabled = await geoRoutingToggle.isChecked();
-    await geoRoutingSwitch.click();
-    await submitConfigSave(page, geoSave);
-    if (initialGeoRoutingEnabled !== await geoRoutingToggle.isChecked()) {
+    const geoRoutingToggle = page.locator("#geo-routing-toggle");
+    const geoRoutingSwitch = page.locator("label.toggle-switch[for='geo-routing-toggle']");
+    if (await geoRoutingSwitch.isVisible() && await geoRoutingToggle.isEnabled()) {
       await geoRoutingSwitch.click();
       await submitConfigSave(page, geoSave);
     }
-  }
 
-  const geoRiskList = page.locator("#geo-risk-list");
-  if (await geoRiskList.isVisible() && await geoRiskList.isEnabled()) {
-    const geoRiskInitial = await geoRiskList.inputValue();
-    const geoRiskNext = geoRiskInitial.includes("CA")
-      ? geoRiskInitial.replace(/\bCA\b,?/g, "").replace(/(^,|,,|,$)/g, "")
-      : (geoRiskInitial ? `${geoRiskInitial},CA` : "CA");
-    await geoRiskList.fill(geoRiskNext);
-    await geoRiskList.dispatchEvent("input");
-    await submitConfigSave(page, geoSave);
-    await geoRiskList.fill(geoRiskInitial);
-    await geoRiskList.dispatchEvent("input");
-    await submitConfigSave(page, geoSave);
-  }
+    const geoRiskList = page.locator("#geo-risk-list");
+    if (await geoRiskList.isVisible() && await geoRiskList.isEnabled()) {
+      const geoRiskInitial = await geoRiskList.inputValue();
+      const geoRiskNext = geoRiskInitial.includes("CA")
+        ? geoRiskInitial.replace(/\bCA\b,?/g, "").replace(/(^,|,,|,$)/g, "")
+        : (geoRiskInitial ? `${geoRiskInitial},CA` : "CA");
+      await geoRiskList.fill(geoRiskNext);
+      await geoRiskList.dispatchEvent("input");
+      await submitConfigSave(page, geoSave);
+    }
 
-  const geoAllowList = page.locator("#geo-allow-list");
-  if (await geoAllowList.isVisible() && await geoAllowList.isEnabled()) {
-    const geoAllowInitial = await geoAllowList.inputValue();
-    const geoAllowNext = geoAllowInitial.includes("GB")
-      ? geoAllowInitial.replace(/\bGB\b,?/g, "").replace(/(^,|,,|,$)/g, "")
-      : (geoAllowInitial ? `${geoAllowInitial},GB` : "GB");
-    await geoAllowList.fill(geoAllowNext);
-    await geoAllowList.dispatchEvent("input");
-    await submitConfigSave(page, geoSave);
-    await geoAllowList.fill(geoAllowInitial);
-    await geoAllowList.dispatchEvent("input");
-    await submitConfigSave(page, geoSave);
-  }
+    const geoAllowList = page.locator("#geo-allow-list");
+    if (await geoAllowList.isVisible() && await geoAllowList.isEnabled()) {
+      const geoAllowInitial = await geoAllowList.inputValue();
+      const geoAllowNext = geoAllowInitial.includes("GB")
+        ? geoAllowInitial.replace(/\bGB\b,?/g, "").replace(/(^,|,,|,$)/g, "")
+        : (geoAllowInitial ? `${geoAllowInitial},GB` : "GB");
+      await geoAllowList.fill(geoAllowNext);
+      await geoAllowList.dispatchEvent("input");
+      await submitConfigSave(page, geoSave);
+    }
 
-  await openTab(page, "tuning");
-  const tuningSave = page.locator("#save-tuning-all");
-  const botnessWeight = page.locator("#weight-js-required");
-  if (await botnessWeight.isVisible() && await botnessWeight.isEnabled()) {
-    const botnessInitial = await botnessWeight.inputValue();
-    const nextWeight = Number(botnessInitial || "1") >= 10
-      ? "9"
-      : String(Number(botnessInitial || "1") + 1);
-    await botnessWeight.fill(nextWeight);
-    await botnessWeight.dispatchEvent("input");
-    await submitConfigSave(page, tuningSave);
-    await botnessWeight.fill(botnessInitial);
-    await botnessWeight.dispatchEvent("input");
-    await submitConfigSave(page, tuningSave);
-  }
+    await openTab(page, "tuning");
+    const tuningSave = page.locator("#save-tuning-all");
+    const botnessWeight = page.locator("#weight-js-required");
+    if (await botnessWeight.isVisible() && await botnessWeight.isEnabled()) {
+      const botnessInitial = await botnessWeight.inputValue();
+      const nextWeight = Number(botnessInitial || "1") >= 10
+        ? "9"
+        : String(Number(botnessInitial || "1") + 1);
+      await botnessWeight.fill(nextWeight);
+      await botnessWeight.dispatchEvent("input");
+      await submitConfigSave(page, tuningSave);
+    }
 
-  const browserPolicyToggle = page.locator("#browser-policy-toggle");
-  const browserPolicySwitch = page.locator("label.toggle-switch[for='browser-policy-toggle']");
-  if (await browserPolicySwitch.isVisible() && await browserPolicyToggle.isEnabled()) {
-    const initialBrowserPolicyEnabled = await browserPolicyToggle.isChecked();
-    await browserPolicySwitch.click();
-    await submitConfigSave(page, tuningSave);
-    if (initialBrowserPolicyEnabled !== await browserPolicyToggle.isChecked()) {
+    const browserPolicyToggle = page.locator("#browser-policy-toggle");
+    const browserPolicySwitch = page.locator("label.toggle-switch[for='browser-policy-toggle']");
+    if (await browserPolicySwitch.isVisible() && await browserPolicyToggle.isEnabled()) {
       await browserPolicySwitch.click();
       await submitConfigSave(page, tuningSave);
     }
-  }
 
-  const browserBlockRules = page.locator("#browser-block-rules");
-  if (await browserBlockRules.isVisible() && await browserBlockRules.isEnabled()) {
-    const initialBrowserRules = await browserBlockRules.inputValue();
-    const candidateRule = "Brave,120";
-    const existingRules = initialBrowserRules
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
-    const nextBrowserRules = existingRules.includes(candidateRule)
-      ? existingRules.filter((line) => line !== candidateRule).join("\n")
-      : [...existingRules, candidateRule].join("\n");
-    await browserBlockRules.fill(nextBrowserRules);
-    await browserBlockRules.dispatchEvent("input");
-    await submitConfigSave(page, tuningSave);
-    await browserBlockRules.fill(initialBrowserRules);
-    await browserBlockRules.dispatchEvent("input");
-    await submitConfigSave(page, tuningSave);
-  }
+    const browserBlockRules = page.locator("#browser-block-rules");
+    if (await browserBlockRules.isVisible() && await browserBlockRules.isEnabled()) {
+      const initialBrowserRules = await browserBlockRules.inputValue();
+      const candidateRule = "Brave,120";
+      const existingRules = initialBrowserRules
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+      const nextBrowserRules = existingRules.includes(candidateRule)
+        ? existingRules.filter((line) => line !== candidateRule).join("\n")
+        : [...existingRules, candidateRule].join("\n");
+      await browserBlockRules.fill(nextBrowserRules);
+      await browserBlockRules.dispatchEvent("input");
+      await submitConfigSave(page, tuningSave);
+    }
 
-  const pathAllowlist = page.locator("#path-allowlist");
-  const pathAllowlistToggle = page.locator("#path-allowlist-enabled-toggle");
-  const pathAllowlistSwitch = page.locator("label.toggle-switch[for='path-allowlist-enabled-toggle']");
-  if (await pathAllowlistSwitch.isVisible() && await pathAllowlistToggle.isEnabled()) {
-    const initialPathAllowlistEnabled = await pathAllowlistToggle.isChecked();
-    await pathAllowlistSwitch.click();
-    await submitConfigSave(page, tuningSave);
-    if (initialPathAllowlistEnabled !== await pathAllowlistToggle.isChecked()) {
+    const pathAllowlist = page.locator("#path-allowlist");
+    const pathAllowlistToggle = page.locator("#path-allowlist-enabled-toggle");
+    const pathAllowlistSwitch = page.locator("label.toggle-switch[for='path-allowlist-enabled-toggle']");
+    if (await pathAllowlist.isVisible() && await pathAllowlist.isEnabled()) {
+      const initialPathAllowlist = await pathAllowlist.inputValue();
+      const candidatePath = "/webhook/stripe";
+      const existingPaths = initialPathAllowlist
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+      const nextPathAllowlist = existingPaths.includes(candidatePath)
+        ? existingPaths.filter((line) => line !== candidatePath).join("\n")
+        : [...existingPaths, candidatePath].join("\n");
+      await pathAllowlist.fill(nextPathAllowlist);
+      await pathAllowlist.dispatchEvent("input");
+      await submitConfigSave(page, tuningSave);
+    }
+    if (await pathAllowlistSwitch.isVisible() && await pathAllowlistToggle.isEnabled()) {
       await pathAllowlistSwitch.click();
       await submitConfigSave(page, tuningSave);
     }
-  }
-  if (await pathAllowlist.isVisible() && await pathAllowlist.isEnabled()) {
-    const initialPathAllowlist = await pathAllowlist.inputValue();
-    const candidatePath = "/webhook/stripe";
-    const existingPaths = initialPathAllowlist
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
-    const nextPathAllowlist = existingPaths.includes(candidatePath)
-      ? existingPaths.filter((line) => line !== candidatePath).join("\n")
-      : [...existingPaths, candidatePath].join("\n");
-    await pathAllowlist.fill(nextPathAllowlist);
-    await pathAllowlist.dispatchEvent("input");
-    await submitConfigSave(page, tuningSave);
-    await pathAllowlist.fill(initialPathAllowlist);
-    await pathAllowlist.dispatchEvent("input");
-    await submitConfigSave(page, tuningSave);
-  }
+  });
 });
 
-test("rate-limiting tab save flows cover local controls and Akamai backend toggle", async ({ page }) => {
-  await openDashboard(page);
-  await openTab(page, "rate-limiting");
+test("rate-limiting tab save flows cover local controls and Akamai backend toggle", async ({ page, request }) => {
+  await withRestoredAdminConfig(request, RATE_LIMITING_RESTORE_PATHS, async () => {
+    await openDashboard(page);
+    await openTab(page, "rate-limiting");
 
-  const saveButton = page.locator("#save-rate-limiting-config");
-  await expect(saveButton).toBeHidden();
+    const saveButton = page.locator("#save-rate-limiting-config");
+    await expect(saveButton).toBeHidden();
 
-  const rateThreshold = page.locator("#rate-limit-threshold");
-  if (await rateThreshold.isVisible() && await rateThreshold.isEnabled()) {
-    const initialRateThreshold = await rateThreshold.inputValue();
-    const nextRateThreshold = String(Math.max(1, Number(initialRateThreshold || "80") + 1));
-    await rateThreshold.fill(nextRateThreshold);
-    await rateThreshold.dispatchEvent("input");
-    await submitConfigSave(page, saveButton);
-    await rateThreshold.fill(initialRateThreshold);
-    await rateThreshold.dispatchEvent("input");
-    await submitConfigSave(page, saveButton);
-  }
+    const rateThreshold = page.locator("#rate-limit-threshold");
+    if (await rateThreshold.isVisible() && await rateThreshold.isEnabled()) {
+      const initialRateThreshold = await rateThreshold.inputValue();
+      const nextRateThreshold = String(Math.max(1, Number(initialRateThreshold || "80") + 1));
+      await rateThreshold.fill(nextRateThreshold);
+      await rateThreshold.dispatchEvent("input");
+      await submitConfigSave(page, saveButton);
+    }
 
-  const rateEnabledToggle = page.locator("#rate-limiting-enabled-toggle");
-  const rateEnabledSwitch = page.locator("label.toggle-switch[for='rate-limiting-enabled-toggle']");
-  if (await rateEnabledSwitch.isVisible() && await rateEnabledToggle.isEnabled()) {
-    const initialEnabled = await rateEnabledToggle.isChecked();
-    await rateEnabledSwitch.click();
-    await submitConfigSave(page, saveButton);
-    if (initialEnabled !== await rateEnabledToggle.isChecked()) {
+    const rateEnabledToggle = page.locator("#rate-limiting-enabled-toggle");
+    const rateEnabledSwitch = page.locator("label.toggle-switch[for='rate-limiting-enabled-toggle']");
+    if (await rateEnabledSwitch.isVisible() && await rateEnabledToggle.isEnabled()) {
       await rateEnabledSwitch.click();
       await submitConfigSave(page, saveButton);
     }
-  }
 
-  const akamaiToggle = page.locator("#rate-akamai-enabled-toggle");
-  const akamaiSwitch = page.locator("label.toggle-switch[for='rate-akamai-enabled-toggle']");
-  if (await akamaiSwitch.isVisible() && await akamaiToggle.isEnabled()) {
-    const initialAkamaiEnabled = await akamaiToggle.isChecked();
-    await akamaiSwitch.click();
-    await submitConfigSave(page, saveButton);
-    if (initialAkamaiEnabled !== await akamaiToggle.isChecked()) {
+    const akamaiToggle = page.locator("#rate-akamai-enabled-toggle");
+    const akamaiSwitch = page.locator("label.toggle-switch[for='rate-akamai-enabled-toggle']");
+    if (await akamaiSwitch.isVisible() && await akamaiToggle.isEnabled()) {
       await akamaiSwitch.click();
       await submitConfigSave(page, saveButton);
     }
-  }
+  });
 });
 
-test("fingerprinting tab save flows cover Akamai toggle and additive/authoritative mode controls", async ({ page }) => {
-  await openDashboard(page);
-  await openTab(page, "fingerprinting");
+test("fingerprinting tab save flows cover Akamai toggle and additive/authoritative mode controls", async ({ page, request }) => {
+  await withRestoredAdminConfig(request, FINGERPRINTING_RESTORE_PATHS, async () => {
+    await openDashboard(page);
+    await openTab(page, "fingerprinting");
 
-  const saveButton = page.locator("#save-fingerprinting-config");
-  await expect(saveButton).toBeHidden();
+    const saveButton = page.locator("#save-fingerprinting-config");
+    await expect(saveButton).toBeHidden();
 
-  const akamaiToggle = page.locator("#fingerprinting-akamai-enabled-toggle");
-  const akamaiToggleSwitch = page.locator("label.toggle-switch[for='fingerprinting-akamai-enabled-toggle']");
-  const edgeModeSelect = page.locator("#fingerprinting-edge-mode-select");
+    const akamaiToggle = page.locator("#fingerprinting-akamai-enabled-toggle");
+    const akamaiToggleSwitch = page.locator("label.toggle-switch[for='fingerprinting-akamai-enabled-toggle']");
+    const edgeModeSelect = page.locator("#fingerprinting-edge-mode-select");
 
-  if (await edgeModeSelect.isVisible() && await edgeModeSelect.isEnabled()) {
-    const edgeModeInitial = await edgeModeSelect.inputValue();
-    const edgeModeNext = edgeModeInitial === "additive" ? "authoritative" : "additive";
-    await edgeModeSelect.selectOption(edgeModeNext);
-    await submitConfigSave(page, saveButton);
-    await edgeModeSelect.selectOption(edgeModeInitial);
-    await submitConfigSave(page, saveButton);
-  }
-
-  if (await akamaiToggleSwitch.isVisible() && await akamaiToggle.isEnabled()) {
-    const initialEnabled = await akamaiToggle.isChecked();
-    await akamaiToggleSwitch.click();
-    await submitConfigSave(page, saveButton);
-    if (initialEnabled !== await akamaiToggle.isChecked()) {
-      await akamaiToggleSwitch.click();
+    if (await edgeModeSelect.isVisible() && await edgeModeSelect.isEnabled()) {
+      const edgeModeInitial = await edgeModeSelect.inputValue();
+      const edgeModeNext = edgeModeInitial === "additive" ? "authoritative" : "additive";
+      await edgeModeSelect.selectOption(edgeModeNext);
+      await submitConfigSave(page, saveButton);
     }
-    await submitConfigSave(page, saveButton);
-  }
+
+    if (await akamaiToggleSwitch.isVisible() && await akamaiToggle.isEnabled()) {
+      await akamaiToggleSwitch.click();
+      await submitConfigSave(page, saveButton);
+    }
+  });
 });
 
-test("robots tab save flows cover robots serving and AI policy controls", async ({ page }) => {
-  await openDashboard(page);
-  await openTab(page, "robots");
+test("robots tab save flows cover robots serving and AI policy controls", async ({ page, request }) => {
+  await withRestoredAdminConfig(request, ROBOTS_RESTORE_PATHS, async () => {
+    await openDashboard(page);
+    await openTab(page, "robots");
 
-  const saveButton = page.locator("#save-robots-config");
-  await expect(saveButton).toBeHidden();
+    const saveButton = page.locator("#save-robots-config");
+    await expect(saveButton).toBeHidden();
 
-  const robotsCrawlDelay = page.locator("#robots-crawl-delay");
-  if (!(await robotsCrawlDelay.isVisible()) || !(await robotsCrawlDelay.isEditable())) {
-    await expect(robotsCrawlDelay).toBeDisabled();
-    return;
-  }
+    const robotsCrawlDelay = page.locator("#robots-crawl-delay");
+    if (!(await robotsCrawlDelay.isVisible()) || !(await robotsCrawlDelay.isEditable())) {
+      await expect(robotsCrawlDelay).toBeDisabled();
+      return;
+    }
 
-  const robotsDelayInitial = await robotsCrawlDelay.inputValue();
-  const robotsDelayNext = String(Math.min(60, Number(robotsDelayInitial || "2") + 1));
-  await robotsCrawlDelay.fill(robotsDelayNext);
-  await robotsCrawlDelay.dispatchEvent("input");
-  await submitConfigSave(page, saveButton);
-  await robotsCrawlDelay.fill(robotsDelayInitial);
-  await robotsCrawlDelay.dispatchEvent("input");
-  await submitConfigSave(page, saveButton);
-
-  const aiToggle = page.locator("#robots-block-training-toggle");
-  const aiToggleSwitch = page.locator("label.toggle-switch[for='robots-block-training-toggle']");
-  if (await aiToggleSwitch.isVisible() && await aiToggle.isEnabled()) {
-    const aiInitial = await aiToggle.isChecked();
-    await aiToggleSwitch.click();
+    const robotsDelayInitial = await robotsCrawlDelay.inputValue();
+    const robotsDelayNext = String(Math.min(60, Number(robotsDelayInitial || "2") + 1));
+    await robotsCrawlDelay.fill(robotsDelayNext);
+    await robotsCrawlDelay.dispatchEvent("input");
     await submitConfigSave(page, saveButton);
-    if (aiInitial !== await aiToggle.isChecked()) {
+
+    const aiToggle = page.locator("#robots-block-training-toggle");
+    const aiToggleSwitch = page.locator("label.toggle-switch[for='robots-block-training-toggle']");
+    if (await aiToggleSwitch.isVisible() && await aiToggle.isEnabled()) {
       await aiToggleSwitch.click();
       await submitConfigSave(page, saveButton);
     }
-  }
+  });
 });
 
 test("tab error state is surfaced when tab-scoped fetch fails", async ({ page }) => {
