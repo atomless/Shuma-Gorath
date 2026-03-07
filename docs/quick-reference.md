@@ -6,15 +6,23 @@ For full documentation, see [`docs/index.md`](index.md).
 
 ### 🐙 Setup
 ```bash
+# Fastest full local contributor path
+make setup          # Installs full toolchain, creates .env.local, and seeds KV config
+make dev            # Starts the local dev server
+
+# Recommended follow-up verification for the full path
+make verify         # Verifies full setup (tooling + build path)
+
+# If you only want the runtime and not the dashboard/e2e toolchain
 make setup-runtime  # Runtime-only setup (Rust/wasm/Spin + env/bootstrap + KV seed)
 make verify-runtime # Runtime-only verification (no Node/pnpm/Playwright)
-make setup          # Install dependencies (Rust, Spin, cargo-watch, Node toolchain, pnpm deps, Playwright Chromium)
-make verify         # Verify dependencies are installed
+
+# Config lifecycle helpers (only when needed)
 make config-verify  # Read-only KV config lifecycle check (missing/stale/invalid)
 make config-seed    # Explicit KV config seed/backfill/repair
 ```
 
-### 🐙 Build & Run
+### 🐙 Build & Run: Local
 ```bash
 make dev            # Build and run with file watching (auto-rebuild)
 make dev-prod       # Build/run with watching in runtime-prod posture (admin writes enabled)
@@ -24,6 +32,13 @@ make build-full-dev # Build release artifact with dashboard budget reporting (se
 make build          # Alias of make build-runtime
 make prod           # Build for production and start server
 make smoke-single-host # Post-deploy smoke: health/admin/metrics/challenge + forwarded public-path parity when gateway inputs are present
+make stop           # Stop running Spin server
+make status         # Check if server is running
+make clean          # Clean build artifacts
+```
+
+### 🐙 Build & Run: Remote
+```bash
 make prepare-linode-shared-host # Agent-oriented Linode shared-host setup + receipt generation
 make deploy-linode-one-shot # Provision Linode VM + deploy runtime in one command
 make remote-update  # Upload exact committed HEAD to the active ssh_systemd remote, restart, smoke, refresh receipt
@@ -32,9 +47,6 @@ make remote-logs    # Show recent journal logs for the active ssh_systemd remote
 make remote-start   # Start the active ssh_systemd remote service
 make remote-stop    # Stop the active ssh_systemd remote service
 make remote-open-dashboard # Open the hosted dashboard for the active ssh_systemd remote
-make stop           # Stop running Spin server
-make status         # Check if server is running
-make clean          # Clean build artifacts
 ```
 
 ### 🐙 Testing
