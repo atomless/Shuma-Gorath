@@ -78,7 +78,8 @@ class SmokeSingleHostTests(unittest.TestCase):
                 elif url.endswith("/admin/config") and required_admin_ip and forwarded_ip != required_admin_ip:
                     body, status = "Forbidden", "403"
                 elif url.endswith("/health"):
-                    body, status = "OK", "200"
+                    health_status = os.environ.get("SHUMA_TEST_HEALTH_STATUS", "200")
+                    body, status = ("OK", "200") if health_status == "200" else ("Forbidden", health_status)
                 elif url.endswith("/admin/config") and auth_header:
                     body, status = '{"rate_limit":{}}', "200"
                 elif url.endswith("/admin/config"):
@@ -149,6 +150,16 @@ class SmokeSingleHostTests(unittest.TestCase):
     def test_uses_allowlisted_ip_for_admin_checks_by_default(self) -> None:
         result = self.run_smoke({"SHUMA_TEST_ADMIN_ALLOWLIST_IP": "198.51.100.8"})
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+
+    def test_skip_health_allows_public_route_smoke_without_public_health_probe(self) -> None:
+        result = self.run_smoke(
+            {
+                "SHUMA_TEST_HEALTH_STATUS": "403",
+                "SHUMA_SMOKE_SKIP_HEALTH": "1",
+            }
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        self.assertIn("Skipping /health check", result.stdout)
 
 
 

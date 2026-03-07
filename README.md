@@ -95,7 +95,7 @@ make remote-stop
 make remote-open-dashboard
 ```
 
-`make remote-update` ships the exact committed local `HEAD`, preserves the remote `.env.local` and `.spin` state, restarts the service, runs smoke, refreshes the receipt metadata, and attempts rollback if smoke fails. If an older host is missing smoke-critical secrets in local `.env.local`, the helper hydrates them from the remote `.env.local` first and persists them locally.
+`make remote-update` ships the exact committed local `HEAD`, preserves the remote `.env.local` and `.spin` state, runs a remote loopback `/health` check plus public-route smoke, refreshes the receipt metadata, and attempts rollback if smoke fails. If an older host is missing smoke-critical secrets in local `.env.local`, the helper hydrates them from the remote `.env.local` first and persists them locally.
 Use `make remote-use REMOTE=<name>` later only when you want to switch the active remote.
 
 Dashboard:

@@ -479,6 +479,55 @@ def rollback_remote_update(receipt: dict[str, Any]) -> int:
     return run_ssh_operation(receipt, remote_command)
 
 
+def run_remote_loopback_health_check(receipt: dict[str, Any]) -> int:
+    runtime = receipt["runtime"]
+    shell_script = f"""
+set -euo pipefail
+cd {shlex.quote(runtime["app_dir"])}
+set -a
+source .env.local
+set +a
+headers=(-H "X-Forwarded-For: 127.0.0.1" -H "X-Forwarded-Proto: https")
+if [[ -n "${{SHUMA_FORWARDED_IP_SECRET:-}}" ]]; then
+  headers+=(-H "X-Shuma-Forwarded-Secret: ${{SHUMA_FORWARDED_IP_SECRET}}")
+fi
+if [[ -n "${{SHUMA_HEALTH_SECRET:-}}" ]]; then
+  headers+=(-H "X-Shuma-Health-Secret: ${{SHUMA_HEALTH_SECRET}}")
+fi
+response="$(curl -s --max-time 8 -w $'\\n__HTTP_STATUS__:%{{http_code}}' http://127.0.0.1:3000/health "${{headers[@]}}" || true)"
+body="${{response%$'\\n'__HTTP_STATUS__:*}}"
+status="${{response##*$'\\n'__HTTP_STATUS__:}}"
+if [[ "${{status}}" == "200" ]] && grep -q "OK" <<< "${{body}}"; then
+  exit 0
+fi
+printf 'status=%s body=%s\\n' "${{status}}" "${{body}}" >&2
+exit 1
+"""
+    remote_command = f"bash -lc {shlex.quote(shell_script)}"
+    attempts = 6
+    for attempt in range(1, attempts + 1):
+        result = subprocess.run(
+            ssh_command_for_operation(receipt, remote_command),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            return 0
+        if attempt == attempts:
+            stderr = (result.stderr or "").strip()
+            stdout = (result.stdout or "").strip()
+            message = stderr or stdout or "remote loopback health check failed"
+            print(f"Remote loopback health failed: {message}", file=sys.stderr)
+            return int(result.returncode)
+        print(
+            f"Remote loopback health attempt {attempt}/{attempts} failed; retrying in 2s...",
+            file=sys.stderr,
+        )
+        time.sleep(2)
+    return 1
+
+
 def fetch_remote_env_values(receipt: dict[str, Any], keys: Sequence[str]) -> dict[str, str]:
     if not keys:
         return {}
@@ -518,6 +567,7 @@ def run_remote_smoke(env_file: Path, receipt: dict[str, Any]) -> int:
     env_values = hydrate_missing_local_operator_env(env_file, receipt, REMOTE_SMOKE_ENV_KEYS)
     smoke_env.update(env_values)
     smoke_env["SHUMA_BASE_URL"] = receipt["runtime"]["public_base_url"]
+    smoke_env["SHUMA_SMOKE_SKIP_HEALTH"] = "1"
     smoke_env["GATEWAY_SURFACE_CATALOG_PATH"] = str(
         ensure_local_file(receipt["deploy"]["surface_catalog_path"], "local surface catalog")
     )
@@ -575,6 +625,11 @@ def perform_remote_update(receipt: dict[str, Any], env_file: Path, receipts_dir:
         copy_file_to_remote(receipt, update_script_path, REMOTE_UPDATE_SCRIPT_PATH)
         if run_remote_update_install(receipt) != 0:
             fail("Remote update install/restart failed; rollback was attempted on the host.")
+        if run_remote_loopback_health_check(receipt) != 0:
+            rollback_result = rollback_remote_update(receipt)
+            if rollback_result == 0:
+                fail("Remote loopback health failed after update; rollback attempted.")
+            fail("Remote loopback health failed after update, and rollback also failed.")
         if run_remote_smoke(env_file, receipt) != 0:
             rollback_result = rollback_remote_update(receipt)
             if rollback_result == 0:

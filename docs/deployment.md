@@ -154,7 +154,7 @@ Rules:
 - `.env.local` keeps only `SHUMA_ACTIVE_REMOTE=<name>` for remote selection, and successful setup/deploy now updates it automatically.
 - structured remote target state lives in `.spin/remotes/<name>.json`.
 - the current generic backend contract is `ssh_systemd` only.
-- `remote-update` now means: ship the exact committed local `HEAD`, preserve remote `.env.local` and `.spin`, validate and restart on the remote host, run smoke against the public base URL, refresh local receipt metadata, and attempt rollback if smoke fails. If an older host is missing smoke-critical secrets in local `.env.local`, the helper hydrates those values from the remote `.env.local` first and persists them locally.
+- `remote-update` now means: ship the exact committed local `HEAD`, preserve remote `.env.local` and `.spin`, validate and restart on the remote host, run a remote loopback `/health` check plus public-route smoke against the public base URL, refresh local receipt metadata, and attempt rollback if smoke fails. If an older host is missing smoke-critical secrets in local `.env.local`, the helper hydrates those values from the remote `.env.local` first and persists them locally.
 - `make remote-use REMOTE=<name>` remains the manual switch command when you want to change the active target later.
 
 ## 🐙 10-Minute `self_hosted_minimal` Runbook (Start + Health + Rollback)

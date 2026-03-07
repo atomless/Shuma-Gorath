@@ -23,6 +23,7 @@ ADMIN_FORWARDED_IP="${SHUMA_SMOKE_ADMIN_FORWARDED_IP:-}"
 CHALLENGE_PATH="${SHUMA_SMOKE_CHALLENGE_PATH:-}"
 CHALLENGE_EXPECT="${SHUMA_SMOKE_CHALLENGE_EXPECT:-}"
 FORWARD_PATH="${SHUMA_SMOKE_FORWARD_PATH:-}"
+SKIP_HEALTH="${SHUMA_SMOKE_SKIP_HEALTH:-}"
 GATEWAY_UPSTREAM_ORIGIN="${SHUMA_GATEWAY_UPSTREAM_ORIGIN:-}"
 GATEWAY_SURFACE_CATALOG_PATH="${GATEWAY_SURFACE_CATALOG_PATH:-}"
 
@@ -46,8 +47,18 @@ Options:
   --forward-path PATH        Public path to compare against upstream origin (default: SHUMA_SMOKE_FORWARD_PATH or derived from GATEWAY_SURFACE_CATALOG_PATH)
   --challenge-path PATH      Challenge path to sanity-check (default: auto-detect from /admin/config)
   --challenge-expect REGEX   Regex expected in challenge response body (default: auto by challenge type)
+  --skip-health              Skip the /health check (use only when another loopback health check already ran)
   -h, --help                 Show help
 EOF
+}
+
+normalize_bool() {
+  local value
+  value="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+  case "${value}" in
+    1|true|yes|on) printf 'true' ;;
+    *) printf 'false' ;;
+  esac
 }
 
 while [[ $# -gt 0 ]]; do
@@ -75,6 +86,10 @@ while [[ $# -gt 0 ]]; do
     --challenge-expect)
       CHALLENGE_EXPECT="${2:-}"
       shift 2
+      ;;
+    --skip-health)
+      SKIP_HEALTH="true"
+      shift
       ;;
     -h|--help)
       usage
@@ -199,11 +214,15 @@ fi
 
 info "Smoke target: ${BASE_URL}"
 
-http_request GET "${BASE_URL}/health" "${HEALTH_HEADERS[@]}"
-if [[ "${HTTP_STATUS}" == "200" ]] && grep -q "OK" <<< "${HTTP_BODY}"; then
-  pass "/health returns 200 + OK"
+if [[ "$(normalize_bool "${SKIP_HEALTH}")" == "true" ]]; then
+  info "Skipping /health check"
 else
-  fail "/health failed (status=${HTTP_STATUS})"
+  http_request GET "${BASE_URL}/health" "${HEALTH_HEADERS[@]}"
+  if [[ "${HTTP_STATUS}" == "200" ]] && grep -q "OK" <<< "${HTTP_BODY}"; then
+    pass "/health returns 200 + OK"
+  else
+    fail "/health failed (status=${HTTP_STATUS})"
+  fi
 fi
 
 ADMIN_FORWARDED_HEADERS=(-H "X-Forwarded-For: ${ADMIN_FORWARDED_IP}" -H "X-Forwarded-Proto: https")
