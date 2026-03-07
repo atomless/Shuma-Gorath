@@ -1,4 +1,4 @@
-.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean test test-unit unit-test test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host remote-use remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean test test-unit unit-test test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-config-lifecycle test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host remote-use remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot logs status stop help setup setup-runtime verify verify-runtime config-seed config-verify dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -226,8 +226,11 @@ verify: ## Verify all dependencies are installed correctly
 verify-runtime: ## Verify runtime-only dependencies and build path (no Node/pnpm/Playwright checks)
 	@./scripts/bootstrap/verify-runtime.sh
 
-config-seed: ## Seed KV tunable config from config/defaults.env (create + backfill missing keys)
+config-seed: ## Seed KV tunable config from config/defaults.env (create + explicit backfill/repair)
 	@./scripts/config_seed.sh
+
+config-verify: ## Verify KV tunable config is present and schema-complete (read-only)
+	@./scripts/config_seed.sh --verify-only
 
 dashboard-build: ## Build SvelteKit dashboard static assets to dist/dashboard
 	@if ! command -v corepack >/dev/null 2>&1; then \
@@ -256,7 +259,7 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	@echo "$(YELLOW)⚡ Startup rebuild override: DEV_FORCE_REBUILD=$${DEV_FORCE_REBUILD:-0}$(NC)"
 	@echo "$(CYAN)👀 Watching src/*.rs, dashboard/*, and spin.toml for changes... (Ctrl+C to stop)$(NC)"
 	@pkill -x spin 2>/dev/null || true
-	@$(MAKE) --no-print-directory config-seed >/dev/null
+	@$(MAKE) --no-print-directory config-verify
 	@DASHBOARD_STAMP="dist/dashboard/_app/version.json"; \
 	if [ "$${DEV_FORCE_REBUILD:-0}" = "1" ] || [ ! -f "$$DASHBOARD_STAMP" ] || \
 	   [ dashboard/style.css -nt "$$DASHBOARD_STAMP" ] || \
@@ -283,7 +286,7 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	fi
 	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml $(DEV_WATCH_IGNORES) \
 		-s 'if [ ! -f $(WASM_BUILD_OUTPUT) ] || find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && mkdir -p $(dir $(WASM_ARTIFACT)) && cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT) && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
-		-s 'pkill -x spin 2>/dev/null || true; $(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; RUNTIME_INSTANCE_ID="$$(uuidgen)"; SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) SPIN_ALWAYS_BUILD=0 ./scripts/run_with_adversary_sim_supervisor.sh spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000'
+		-s 'pkill -x spin 2>/dev/null || true; $(MAKE) --no-print-directory config-verify && $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1 && RUNTIME_INSTANCE_ID="$$(uuidgen)" && SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) SPIN_ALWAYS_BUILD=0 ./scripts/run_with_adversary_sim_supervisor.sh spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000'
 
 dev-prod: ## Build and run with file watching using runtime-prod posture (admin writes remain enabled for local tuning)
 	@$(MAKE) --no-print-directory dev DEV_RUNTIME_ENV=runtime-prod DEV_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE) DEV_DEBUG_HEADERS=false DEV_ADMIN_CONFIG_WRITE_ENABLED=true
@@ -299,7 +302,7 @@ dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=fal
 	@echo "$(YELLOW)⚡ Startup rebuild override: DEV_FORCE_REBUILD=$${DEV_FORCE_REBUILD:-0}$(NC)"
 	@echo "$(CYAN)👀 Watching src/*.rs, dashboard/*, and spin.toml for changes... (Ctrl+C to stop)$(NC)"
 	@pkill -x spin 2>/dev/null || true
-	@$(MAKE) --no-print-directory config-seed >/dev/null
+	@$(MAKE) --no-print-directory config-verify
 	@DASHBOARD_STAMP="dist/dashboard/_app/version.json"; \
 	if [ "$${DEV_FORCE_REBUILD:-0}" = "1" ] || [ ! -f "$$DASHBOARD_STAMP" ] || \
 	   [ dashboard/style.css -nt "$$DASHBOARD_STAMP" ] || \
@@ -326,7 +329,7 @@ dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=fal
 	fi
 	@./scripts/dev_watch_lock.sh cargo watch --poll -w src -w dashboard -w spin.toml $(DEV_WATCH_IGNORES) \
 		-s 'if [ ! -f $(WASM_BUILD_OUTPUT) ] || find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && mkdir -p $(dir $(WASM_ARTIFACT)) && cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT) && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
-		-s 'pkill -x spin 2>/dev/null || true; $(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; RUNTIME_INSTANCE_ID="$$(uuidgen)"; SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) SPIN_ALWAYS_BUILD=0 ./scripts/run_with_adversary_sim_supervisor.sh spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env SHUMA_KV_STORE_FAIL_OPEN=false --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000'
+		-s 'pkill -x spin 2>/dev/null || true; $(MAKE) --no-print-directory config-verify && $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1 && RUNTIME_INSTANCE_ID="$$(uuidgen)" && SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) SPIN_ALWAYS_BUILD=0 ./scripts/run_with_adversary_sim_supervisor.sh spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env SHUMA_KV_STORE_FAIL_OPEN=false --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000'
 
 local: dev ## Alias for dev
 
@@ -335,7 +338,7 @@ run: ## Build once and run (no file watching)
 	@echo "$(YELLOW)⚙️  Effective dev flags: WRITE=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) DEBUG_HEADERS=$(DEV_DEBUG_HEADERS) RUNTIME=$(DEV_RUNTIME_ENV) SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE)$(NC)"
 	@echo "$(YELLOW)🔐 Local admin allowlist override: DEV_ADMIN_IP_ALLOWLIST='$(DEV_ADMIN_IP_ALLOWLIST)' (empty by default)$(NC)"
 	@pkill -x spin 2>/dev/null || true
-	@$(MAKE) --no-print-directory config-seed >/dev/null
+	@$(MAKE) --no-print-directory config-verify
 	@$(MAKE) --no-print-directory dashboard-build >/dev/null
 	@sleep 1
 	@./scripts/set_crate_type.sh cdylib
@@ -353,7 +356,7 @@ run: ## Build once and run (no file watching)
 run-prebuilt: ## Run Spin using prebuilt wasm (CI helper)
 	@echo "$(CYAN)🚀 Starting prebuilt server...$(NC)"
 	@echo "$(YELLOW)🔐 Local admin allowlist override: DEV_ADMIN_IP_ALLOWLIST='$(DEV_ADMIN_IP_ALLOWLIST)' (empty by default)$(NC)"
-	@$(MAKE) --no-print-directory config-seed >/dev/null
+	@$(MAKE) --no-print-directory config-verify
 	@$(MAKE) --no-print-directory dashboard-build >/dev/null
 	@pkill -x spin 2>/dev/null || true
 	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/dashboard/index.html$(NC)"
@@ -381,13 +384,13 @@ build-full-dev: ## Build release wasm artifact with dashboard bundle-budget repo
 
 build: build-runtime ## Alias for runtime/deploy release build
 
-prod-start: ## Start production server using existing build artifacts and env (no build/config-seed)
+prod-start: ## Start production server using existing build artifacts and env (no build/config mutation)
 	@echo "$(CYAN)🚀 Starting production server...$(NC)"
 	@pkill -x spin 2>/dev/null || true
+	@$(MAKE) --no-print-directory config-verify
 	@RUNTIME_INSTANCE_ID=$$(uuidgen); SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE) ./scripts/run_with_adversary_sim_supervisor.sh spin up --from $(SPIN_UP_MANIFEST) $(SPIN_ENV_ONLY_BASE) $(SPIN_PROD_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 0.0.0.0:3000
 
 prod: build-runtime ## Build for production and start server
-	@$(MAKE) --no-print-directory config-seed >/dev/null
 	@$(MAKE) --no-print-directory prod-start
 
 deploy: build-runtime ## Deploy to Fermyon Cloud
@@ -397,9 +400,9 @@ deploy: build-runtime ## Deploy to Fermyon Cloud
 	@spin cloud deploy
 	@echo "$(GREEN)✅ Deployment complete!$(NC)"
 
-deploy-profile-baseline: ## Profile wrapper baseline: seed config + runtime build
+deploy-profile-baseline: ## Profile wrapper baseline: verify seeded config + runtime build
 	@echo "$(CYAN)🔧 Running shared deployment baseline...$(NC)"
-	@$(MAKE) --no-print-directory config-seed
+	@$(MAKE) --no-print-directory config-verify
 	@$(MAKE) --no-print-directory build-runtime
 	@echo "$(GREEN)✅ Shared deployment baseline complete.$(NC)"
 
@@ -632,6 +635,10 @@ test-deploy-linode: ## Validate Linode deploy-path helpers and production input 
 	@python3 -m unittest scripts/tests/test_setup_runtime_spin_install.py
 	@python3 -m unittest scripts/tests/test_smoke_single_host.py
 	@python3 -m unittest scripts/tests/test_wait_for_spin_ready.py
+
+test-config-lifecycle: ## Validate read-only runtime config lifecycle checks and explicit seed/backfill flows
+	@echo "$(CYAN)🧪 Running config lifecycle verification...$(NC)"
+	@python3 -m unittest scripts/tests/test_config_lifecycle.py
 
 test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtures (no server required)
 	@echo "$(CYAN)🧪 Validating adversarial simulation manifest...$(NC)"
@@ -1362,7 +1369,7 @@ help: ## Show this help message
 	@echo "$(CYAN)WASM Bot Defence - Available Commands$(NC)"
 	@echo ""
 	@echo "$(GREEN)First-time Setup:$(NC)"
-	@grep -h -E '^(setup|setup-runtime|verify|verify-runtime|config-seed):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
+	@grep -h -E '^(setup|setup-runtime|verify|verify-runtime|config-seed|config-verify):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Development:$(NC)"
 	@grep -h -E '^(dev|dev-prod|local|run|build|build-runtime|build-full-dev|adversary-sim-supervisor-build|adversary-sim-supervisor):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'

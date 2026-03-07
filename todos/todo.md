@@ -17,9 +17,6 @@ Reference context:
 - [`docs/testing.md`](../docs/testing.md)
 
 ### SIM2-R4-4: Config Seeding Lifecycle and Test-Mode Semantics
-- [ ] SIM2-R4-4-1 Make runtime start paths (`make dev`, `make dev-closed`, `make run`, `make run-prebuilt`, `make prod`) read-only with respect to persisted KV config.
-- [ ] SIM2-R4-4-2 Keep setup/backfill explicit via `make setup`, `make setup-runtime`, and `make config-seed`, with clear diagnostics for missing, stale, and invalid persisted config.
-- [ ] SIM2-R4-4-3 Add deterministic migration coverage for missing config, new-key backfill, schema-complete no-op, and invalid persisted JSON.
 - [ ] SIM2-R4-4-4 Resolve `test_mode` semantics end-to-end, defaulting to ephemeral runtime/session state unless a narrower exception is deliberately approved.
 - [ ] SIM2-R4-4-5 Update operator docs and record the final lifecycle contract in an architecture note or ADR if the scope widens.
 
@@ -59,7 +56,8 @@ Reference context:
 
 Current focus:
 - The low-risk normalized `ssh_systemd` remote day-2 slice is now in place, including automatic selection of the emitted remote receipt after successful setup/deploy.
-- The remaining remote-ops work is `remote-update`, which stays deferred until the config-seeding lifecycle cleanup makes that command truthful.
+- The config-seeding lifecycle preconditions for truthful day-2 updates are now in place.
+- The remaining remote-ops work is `remote-update`, which must preserve explicit config verification and must not reintroduce implicit persisted-config mutation.
 
 ### REMOTE-OPS-1: Generic SSH Remote Target Layer
 - [ ] REMOTE-OPS-1-6 Define `make remote-update` truthfully as: build the exact local committed `HEAD` bundle, upload/install it on the selected `ssh_systemd` remote, restart the service, run smoke, and update receipt metadata; do not imply uncommitted worktree sync.

@@ -12,6 +12,7 @@ For the current deployment-track execution backlog (single-host baseline and ent
 - Admin-editable runtime settings are loaded from <abbr title="Key-Value">KV</abbr> (`config:default`).
 - Environment-only variables are secrets/guardrails and are read from process env.
 - `make setup` and `make setup-runtime` seed <abbr title="Key-Value">KV</abbr>-backed admin-editable settings from `config/defaults.env` using `make config-seed`.
+- Normal runtime/deploy verification paths are read-only with respect to persisted <abbr title="Key-Value">KV</abbr> config and use `make config-verify`; if that check reports missing, stale, or invalid config, run `make config-seed` explicitly before starting or deploying.
 - Runtime config is process-cached for a short <abbr title="Time To Live">TTL</abbr> (2 seconds) to reduce hot-path <abbr title="Key-Value">KV</abbr> reads.
 - `POST /admin/config` invalidates cache on the handling instance; other instances converge on their <abbr title="Time To Live">TTL</abbr> window.
 - `GET /admin/config/export` provides a non-secret `KEY=value` handoff snapshot for immutable redeploy workflows.

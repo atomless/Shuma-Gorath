@@ -10,6 +10,8 @@ make setup-runtime  # Runtime-only setup (Rust/wasm/Spin + env/bootstrap + KV se
 make verify-runtime # Runtime-only verification (no Node/pnpm/Playwright)
 make setup          # Install dependencies (Rust, Spin, cargo-watch, Node toolchain, pnpm deps, Playwright Chromium)
 make verify         # Verify dependencies are installed
+make config-verify  # Read-only KV config lifecycle check (missing/stale/invalid)
+make config-seed    # Explicit KV config seed/backfill/repair
 ```
 
 ### 🐙 Build & Run

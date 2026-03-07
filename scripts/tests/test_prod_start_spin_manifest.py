@@ -22,6 +22,7 @@ class ProdStartSpinManifestTests(unittest.TestCase):
         stub_dir.mkdir()
         spin_log = temp_dir / "spin.log"
         custom_manifest = temp_dir / "spin.gateway.toml"
+        config_db = temp_dir / "sqlite_key_value.db"
         custom_manifest.write_text("spin_manifest_version = 2\n", encoding="utf-8")
 
         write_executable(
@@ -42,6 +43,17 @@ class ProdStartSpinManifestTests(unittest.TestCase):
         env["SHUMA_API_KEY"] = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
         env["SHUMA_FORWARDED_IP_SECRET"] = "forwarded-secret"
         env["SHUMA_SPIN_MANIFEST"] = str(custom_manifest)
+        env["SHUMA_CONFIG_DB_PATH"] = str(config_db)
+
+        seed_result = subprocess.run(
+            ["bash", str(REPO_ROOT / "scripts" / "config_seed.sh")],
+            cwd=str(REPO_ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(seed_result.returncode, 0, msg=seed_result.stderr or seed_result.stdout)
 
         result = subprocess.run(
             ["make", "--no-print-directory", "prod-start"],

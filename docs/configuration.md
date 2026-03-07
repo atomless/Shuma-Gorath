@@ -28,7 +28,7 @@ This section is the canonical operator explanation of configuration classes.
 
 1. Creates `.env.local` from `config/defaults.env` if missing.
 2. Generates local dev secrets in `.env.local` (`SHUMA_API_KEY`, `SHUMA_JS_SECRET`, `SHUMA_FORWARDED_IP_SECRET`, `SHUMA_SIM_TELEMETRY_SECRET`).
-3. Runs `make config-seed`, which creates `config:default` when missing and backfills newly introduced admin-editable keys when the record already exists.
+3. Runs `make config-seed`, which creates `config:default` when missing and explicitly backfills or repairs persisted admin-editable config state when needed.
 4. Normalizes `.env.local` entries to unquoted `KEY=value` style for consistency.
 
 At runtime:
@@ -36,7 +36,14 @@ At runtime:
 - Admin-editable runtime settings are loaded from <abbr title="Key-Value">KV</abbr>.
 - Env-only keys are loaded from process env.
 - Missing/invalid <abbr title="Key-Value">KV</abbr> config returns `500 Configuration unavailable` for config-dependent requests.
-- `make dev`, `make dev-prod`, `make run`, `make run-prebuilt`, and `make prod` now run `make config-seed` before Spin startup (and `make dev`/`make dev-closed`/`make dev-prod` also backfill on watch-triggered restarts), so newly added admin-editable settings are automatically backfilled after branch switches or `make clean`.
+- Normal runtime start paths (`make dev`, `make dev-prod`, `make dev-closed`, `make run`, `make run-prebuilt`, `make prod`, `make prod-start`) now run read-only `make config-verify` before Spin startup and must not mutate persisted <abbr title="Key-Value">KV</abbr> config.
+- If `make config-verify` reports missing, stale, or invalid persisted config, run `make config-seed` explicitly before starting the runtime again.
+
+`make config-verify` is the read-only lifecycle diagnostic:
+
+- missing persisted config: run `make setup`, `make setup-runtime`, or `make config-seed`
+- stale persisted config (missing keys): run `make config-seed`
+- invalid persisted config: run `make config-seed` to repair it explicitly
 
 ## 🐙 Runtime Config Cache
 

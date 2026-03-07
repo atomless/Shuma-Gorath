@@ -112,6 +112,7 @@ Notes:
 - Run setup in an interactive terminal (it may prompt for sudo to install Spin).
 - `make setup` creates `.env.local` (gitignored) and auto-generates local dev secrets.
 - `make setup-runtime` also creates `.env.local` and seeds KV defaults, but intentionally skips Node/pnpm/Playwright.
+- Runtime start paths are now read-only with respect to persisted KV config. If `make dev`, `make run`, or `make prod` reports missing, stale, or invalid KV config, run `make config-seed` explicitly.
 - `make setup` installs Playwright Chromium into repo-local cache `.cache/ms-playwright` for deterministic dashboard e2e runs.
 - Use the Makefile for all build/run/test flows.
 
@@ -120,6 +121,8 @@ Notes:
 ```bash
 make setup-runtime    # Runtime-only setup (Rust/wasm/Spin + env/bootstrap)
 make verify-runtime   # Runtime-only verification (no Node/pnpm/Playwright)
+make config-verify    # Read-only KV config lifecycle check
+make config-seed      # Explicit KV config seed/backfill/repair
 make dev              # Start dev server with file watching
 make dev-prod         # Start watched local server in production runtime posture (admin writes enabled)
 make test             # Full suite: unit + integration + dashboard e2e (requires running server)

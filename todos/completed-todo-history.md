@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-07)
 
+### SIM2-R4-4: Config Seeding Lifecycle and Test-Mode Semantics
+
+- [x] SIM2-R4-4-1 Make runtime start paths (`make dev`, `make dev-closed`, `make run`, `make run-prebuilt`, `make prod`) read-only with respect to persisted KV config.
+- [x] SIM2-R4-4-2 Keep setup/backfill explicit via `make setup`, `make setup-runtime`, and `make config-seed`, with clear diagnostics for missing, stale, and invalid persisted config.
+- [x] SIM2-R4-4-3 Add deterministic migration coverage for missing config, new-key backfill, schema-complete no-op, and invalid persisted JSON.
+- [x] Evidence:
+  - `scripts/config_seed.sh`
+  - `scripts/bootstrap/verify-runtime.sh`
+  - `scripts/tests/test_config_lifecycle.py`
+  - `scripts/tests/test_prod_start_spin_manifest.py`
+  - `Makefile`
+  - `README.md`
+  - `docs/configuration.md`
+  - `docs/deployment.md`
+  - `docs/quick-reference.md`
+
 ### REMOTE-OPS-1: Generic SSH Remote Target Layer
 
 - [x] REMOTE-OPS-1-1 Define the normalized gitignored remote receipt contract at `.spin/remotes/<name>.json` with target identity, SSH transport, runtime contract, deploy contract, and deploy metadata.

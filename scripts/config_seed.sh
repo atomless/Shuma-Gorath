@@ -1,20 +1,59 @@
 #!/bin/bash
-# Seed/backfill local Spin KV config from config/defaults.env.
+# Seed/backfill or verify local Spin KV config from config/defaults.env.
 
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DEFAULTS_FILE="${ROOT_DIR}/config/defaults.env"
-DB_PATH="${ROOT_DIR}/.spin/sqlite_key_value.db"
-STORE_NAME="default"
-CONFIG_KEY="config:default"
+DEFAULTS_FILE="${SHUMA_CONFIG_DEFAULTS_FILE:-${ROOT_DIR}/config/defaults.env}"
+DB_PATH="${SHUMA_CONFIG_DB_PATH:-${ROOT_DIR}/.spin/sqlite_key_value.db}"
+STORE_NAME="${SHUMA_CONFIG_STORE_NAME:-default}"
+CONFIG_KEY="${SHUMA_CONFIG_KEY:-config:default}"
+MODE="seed"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  ./scripts/config_seed.sh [--verify-only]
+
+Modes:
+  default       Seed missing KV config and backfill/repair explicit persisted config state.
+  --verify-only Read-only verification for missing, stale, or invalid persisted KV config.
+
+Environment overrides (primarily for tests):
+  SHUMA_CONFIG_DEFAULTS_FILE
+  SHUMA_CONFIG_DB_PATH
+  SHUMA_CONFIG_STORE_NAME
+  SHUMA_CONFIG_KEY
+USAGE
+}
+
+if [[ $# -gt 1 ]]; then
+  usage >&2
+  exit 1
+fi
+
+if [[ $# -eq 1 ]]; then
+  case "$1" in
+    --verify-only)
+      MODE="verify"
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      usage >&2
+      exit 1
+      ;;
+  esac
+fi
 
 if [[ ! -f "${DEFAULTS_FILE}" ]]; then
   echo "❌ Missing defaults file: ${DEFAULTS_FILE}" >&2
   exit 1
 fi
 
-if ! command -v sqlite3 >/dev/null 2>&1; then
+if [[ "${MODE}" == "seed" ]] && ! command -v sqlite3 >/dev/null 2>&1; then
   echo "❌ sqlite3 is required for config-seed." >&2
   exit 1
 fi
@@ -24,7 +63,9 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 1
 fi
 
-mkdir -p "$(dirname "${DB_PATH}")"
+if [[ "${MODE}" == "seed" ]]; then
+  mkdir -p "$(dirname "${DB_PATH}")"
+fi
 
 # shellcheck disable=SC1090
 set -a
@@ -55,7 +96,8 @@ make_tmp_file() {
   printf '%s' "${tmp}"
 }
 
-sqlite3 "${DB_PATH}" <<'SQL'
+if [[ "${MODE}" == "seed" ]]; then
+  sqlite3 "${DB_PATH}" <<'SQL'
 CREATE TABLE IF NOT EXISTS spin_key_value (
   store TEXT NOT NULL,
   key   TEXT NOT NULL,
@@ -63,11 +105,13 @@ CREATE TABLE IF NOT EXISTS spin_key_value (
   PRIMARY KEY (store, key)
 );
 SQL
+fi
 
 tmp_json="$(make_tmp_file "shuma-config-seed")"
 tmp_merged="$(make_tmp_file "shuma-config-merged")"
 tmp_existing="$(make_tmp_file "shuma-config-existing")"
-trap 'rm -f "${tmp_json}" "${tmp_merged}" "${tmp_existing}"' EXIT
+tmp_report="$(make_tmp_file "shuma-config-report")"
+trap 'rm -f "${tmp_json}" "${tmp_merged}" "${tmp_existing}" "${tmp_report}"' EXIT
 
 cat > "${tmp_json}" <<EOF
 {
@@ -211,74 +255,262 @@ cat > "${tmp_json}" <<EOF
 }
 EOF
 
-existing_json="$(sqlite3 "${DB_PATH}" "SELECT CAST(value AS TEXT) FROM spin_key_value WHERE store='${STORE_NAME}' AND key='${CONFIG_KEY}' LIMIT 1;")"
-
-if [[ -z "${existing_json}" ]]; then
-  sqlite3 "${DB_PATH}" "INSERT INTO spin_key_value(store,key,value) VALUES('${STORE_NAME}','${CONFIG_KEY}',readfile('${tmp_json}'));"
-  echo "✅ Seeded KV config from config/defaults.env into ${CONFIG_KEY}"
-  exit 0
-fi
-
-merged_changed="$(
+if [[ "${MODE}" == "seed" ]]; then
+  existing_json="$(sqlite3 "${DB_PATH}" "SELECT CAST(value AS TEXT) FROM spin_key_value WHERE store='${STORE_NAME}' AND key='${CONFIG_KEY}' LIMIT 1;")"
   printf '%s' "${existing_json}" > "${tmp_existing}"
-  python3 - "${tmp_json}" "${tmp_merged}" "${tmp_existing}" <<'PY'
-import json
+else
+  set +e
+  python3 - "${DB_PATH}" "${STORE_NAME}" "${CONFIG_KEY}" "${tmp_existing}" <<'PY'
+import pathlib
+import sqlite3
 import sys
 
-defaults_path, merged_path, existing_path = sys.argv[1], sys.argv[2], sys.argv[3]
+db_path, store_name, config_key, existing_path = sys.argv[1:5]
+path = pathlib.Path(db_path)
+if not path.exists():
+    sys.exit(10)
+
+try:
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+except sqlite3.Error:
+    sys.exit(10)
+
+try:
+    cursor = conn.execute(
+        "SELECT CAST(value AS TEXT) FROM spin_key_value WHERE store=? AND key=? LIMIT 1",
+        (store_name, config_key),
+    )
+    row = cursor.fetchone()
+except sqlite3.Error:
+    sys.exit(10)
+finally:
+    conn.close()
+
+if row is None or row[0] is None:
+    sys.exit(10)
+
+pathlib.Path(existing_path).write_text(str(row[0]), encoding="utf-8")
+PY
+  status=$?
+  set -e
+  if [[ ${status} -eq 10 ]]; then
+    printf '' > "${tmp_existing}"
+  elif [[ ${status} -ne 0 ]]; then
+    exit "${status}"
+  fi
+fi
+
+python3 - "${MODE}" "${tmp_json}" "${tmp_merged}" "${tmp_existing}" "${tmp_report}" <<'PY'
+import copy
+import json
+import pathlib
+import sys
+
+mode, defaults_path, merged_path, existing_path, report_path = sys.argv[1:6]
 with open(defaults_path, "r", encoding="utf-8") as handle:
     defaults = json.load(handle)
 
-with open(existing_path, "r", encoding="utf-8") as handle:
-    existing_raw = handle.read().strip()
+existing_raw = pathlib.Path(existing_path).read_text(encoding="utf-8").strip()
+
+
+def classify_type(value):
+    if isinstance(value, bool):
+        return "bool"
+    if isinstance(value, int):
+        return "int"
+    if isinstance(value, float):
+        return "float"
+    if isinstance(value, str):
+        return "str"
+    if isinstance(value, list):
+        return "list"
+    if isinstance(value, dict):
+        return "dict"
+    if value is None:
+        return "null"
+    return type(value).__name__
+
+
+def repair_value(existing_value, defaults_value, path):
+    if isinstance(defaults_value, dict):
+        if not isinstance(existing_value, dict):
+            return copy.deepcopy(defaults_value), True, [], [f"{path or '<root>'} expected object"]
+        merged_map = dict(existing_value)
+        changed = False
+        missing = []
+        invalid = []
+        for key, default_child in defaults_value.items():
+            child_path = f"{path}.{key}" if path else key
+            if key not in merged_map:
+                merged_map[key] = copy.deepcopy(default_child)
+                changed = True
+                missing.append(child_path)
+                continue
+            repaired_child, child_changed, child_missing, child_invalid = repair_value(
+                merged_map[key], default_child, child_path
+            )
+            merged_map[key] = repaired_child
+            changed = changed or child_changed
+            missing.extend(child_missing)
+            invalid.extend(child_invalid)
+        return merged_map, changed, missing, invalid
+
+    if isinstance(defaults_value, list):
+        if isinstance(existing_value, list):
+            return existing_value, False, [], []
+        return copy.deepcopy(defaults_value), True, [], [
+            f"{path or '<root>'} expected list, found {classify_type(existing_value)}"
+        ]
+
+    if isinstance(defaults_value, bool):
+        if isinstance(existing_value, bool):
+            return existing_value, False, [], []
+        return defaults_value, True, [], [
+            f"{path or '<root>'} expected bool, found {classify_type(existing_value)}"
+        ]
+
+    if isinstance(defaults_value, int) and not isinstance(defaults_value, bool):
+        if isinstance(existing_value, int) and not isinstance(existing_value, bool):
+            return existing_value, False, [], []
+        return defaults_value, True, [], [
+            f"{path or '<root>'} expected int, found {classify_type(existing_value)}"
+        ]
+
+    if isinstance(defaults_value, float):
+        if isinstance(existing_value, (int, float)) and not isinstance(existing_value, bool):
+            return existing_value, False, [], []
+        return defaults_value, True, [], [
+            f"{path or '<root>'} expected number, found {classify_type(existing_value)}"
+        ]
+
+    if isinstance(defaults_value, str):
+        if isinstance(existing_value, str):
+            return existing_value, False, [], []
+        return defaults_value, True, [], [
+            f"{path or '<root>'} expected string, found {classify_type(existing_value)}"
+        ]
+
+    return copy.deepcopy(defaults_value), existing_value != defaults_value, [], []
+
+
 if not existing_raw:
-    merged = defaults
+    state = "missing"
+    merged = copy.deepcopy(defaults)
     changed = True
+    missing_paths = []
+    invalid_paths = []
 else:
     try:
         existing = json.loads(existing_raw)
     except json.JSONDecodeError as exc:
-        raise SystemExit(f"❌ Existing KV config is not valid JSON: {exc}")
+        state = "invalid"
+        merged = copy.deepcopy(defaults)
+        changed = True
+        missing_paths = []
+        invalid_paths = [f"json parse error: {exc}"]
+    else:
+        merged, changed, missing_paths, invalid_paths = repair_value(existing, defaults, "")
+        if invalid_paths:
+            state = "invalid"
+        elif missing_paths:
+            state = "stale"
+        else:
+            state = "ready"
 
-    def merge_missing(existing_value, defaults_value):
-        if isinstance(existing_value, dict) and isinstance(defaults_value, dict):
-            merged_map = dict(existing_value)
-            changed_local = False
-            for key, default_child in defaults_value.items():
-                if key in merged_map:
-                    merged_child, changed_child = merge_missing(merged_map[key], default_child)
-                    merged_map[key] = merged_child
-                    changed_local = changed_local or changed_child
-                else:
-                    merged_map[key] = default_child
-                    changed_local = True
-            return merged_map, changed_local
-        return existing_value, False
-
-    merged, changed = merge_missing(existing, defaults)
-
-    # Security-first dev default: always reset test_mode to defaults.env value
-    # so local restarts begin with blocking active unless explicitly re-enabled.
-    if isinstance(merged, dict):
-        default_test_mode = bool(defaults.get("test_mode", False))
-        if merged.get("test_mode") != default_test_mode:
-            merged["test_mode"] = default_test_mode
-            changed = True
-        default_adversary_sim_enabled = bool(defaults.get("adversary_sim_enabled", False))
-        if merged.get("adversary_sim_enabled") != default_adversary_sim_enabled:
-            merged["adversary_sim_enabled"] = default_adversary_sim_enabled
-            changed = True
+if mode == "seed" and isinstance(merged, dict):
+    default_test_mode = bool(defaults.get("test_mode", False))
+    if merged.get("test_mode") != default_test_mode:
+        merged["test_mode"] = default_test_mode
+        changed = True
+    default_adversary_sim_enabled = bool(defaults.get("adversary_sim_enabled", False))
+    if merged.get("adversary_sim_enabled") != default_adversary_sim_enabled:
+        merged["adversary_sim_enabled"] = default_adversary_sim_enabled
+        changed = True
 
 with open(merged_path, "w", encoding="utf-8") as handle:
     json.dump(merged, handle, separators=(",", ":"))
 
-sys.stdout.write("1" if changed else "0")
+with open(report_path, "w", encoding="utf-8") as handle:
+    json.dump(
+        {
+            "state": state,
+            "changed": changed,
+            "missing_paths": missing_paths,
+            "invalid_paths": invalid_paths,
+        },
+        handle,
+        separators=(",", ":"),
+    )
 PY
-)"
 
-if [[ "${merged_changed}" == "1" ]]; then
-  sqlite3 "${DB_PATH}" "UPDATE spin_key_value SET value=readfile('${tmp_merged}') WHERE store='${STORE_NAME}' AND key='${CONFIG_KEY}';"
-  echo "✅ Backfilled missing KV config keys from config/defaults.env into ${CONFIG_KEY}"
-else
-  echo "✅ KV config already seeded/backfilled (${CONFIG_KEY}); no missing keys."
+report_field() {
+  local field="$1"
+  python3 - "${tmp_report}" "${field}" <<'PY'
+import json
+import sys
+
+report_path, field = sys.argv[1], sys.argv[2]
+with open(report_path, "r", encoding="utf-8") as handle:
+    report = json.load(handle)
+value = report.get(field)
+if isinstance(value, list):
+    print(", ".join(str(item) for item in value))
+elif isinstance(value, bool):
+    print("true" if value else "false")
+elif value is None:
+    print("")
+else:
+    print(value)
+PY
+}
+
+state="$(report_field state)"
+missing_paths="$(report_field missing_paths)"
+invalid_paths="$(report_field invalid_paths)"
+
+if [[ "${MODE}" == "verify" ]]; then
+  case "${state}" in
+    ready)
+      echo "✅ KV config present and schema-complete (${CONFIG_KEY})."
+      exit 0
+      ;;
+    missing)
+      echo "❌ Found missing KV config at ${CONFIG_KEY}. Run make setup, make setup-runtime, or make config-seed." >&2
+      exit 1
+      ;;
+    stale)
+      echo "❌ Found stale KV config at ${CONFIG_KEY}. Missing keys: ${missing_paths}. Run make config-seed to backfill persisted config explicitly." >&2
+      exit 1
+      ;;
+    invalid)
+      echo "❌ Found invalid KV config at ${CONFIG_KEY}. ${invalid_paths}. Run make config-seed to repair the persisted config explicitly." >&2
+      exit 1
+      ;;
+    *)
+      echo "❌ Unknown config verification state: ${state}" >&2
+      exit 1
+      ;;
+  esac
 fi
+
+case "${state}" in
+  missing)
+    sqlite3 "${DB_PATH}" "INSERT INTO spin_key_value(store,key,value) VALUES('${STORE_NAME}','${CONFIG_KEY}',readfile('${tmp_merged}'));"
+    echo "✅ Seeded KV config from config/defaults.env into ${CONFIG_KEY}"
+    ;;
+  stale)
+    sqlite3 "${DB_PATH}" "UPDATE spin_key_value SET value=readfile('${tmp_merged}') WHERE store='${STORE_NAME}' AND key='${CONFIG_KEY}';"
+    echo "✅ Backfilled missing KV config keys from config/defaults.env into ${CONFIG_KEY}"
+    ;;
+  invalid)
+    sqlite3 "${DB_PATH}" "UPDATE spin_key_value SET value=readfile('${tmp_merged}') WHERE store='${STORE_NAME}' AND key='${CONFIG_KEY}';"
+    echo "✅ Repaired invalid KV config from config/defaults.env into ${CONFIG_KEY}"
+    ;;
+  ready)
+    echo "✅ KV config already seeded/backfilled (${CONFIG_KEY}); no missing keys."
+    ;;
+  *)
+    echo "❌ Unknown config seed state: ${state}" >&2
+    exit 1
+    ;;
+esac

@@ -116,11 +116,11 @@ else
   pass ".env.local has a valid SHUMA_SIM_TELEMETRY_SECRET"
 fi
 
-info "Running config seed verification via Makefile target..."
-if make --no-print-directory config-seed >/dev/null; then
-  pass "make config-seed succeeded"
+info "Running read-only config verification via Makefile target..."
+if make --no-print-directory config-verify >/dev/null; then
+  pass "make config-verify succeeded"
 else
-  fail "make config-seed failed"
+  fail "make config-verify failed"
 fi
 
 info "Running runtime build verification via Makefile target..."
