@@ -357,14 +357,19 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
                 report_path=Path("scripts/tests/adversarial/latest_report.json"),
             )
 
-        sim_runner.admin_request = (  # type: ignore[assignment]
-            lambda method, path, json_body=None: runner.HttpResult(
+        captured_headers = {}
+
+        def _admin_request(method, path, json_body=None, headers=None):
+            captured_headers.clear()
+            captured_headers.update(headers or {})
+            return runner.HttpResult(
                 status=200,
                 body=json.dumps({"status": "cleared"}),
                 headers={},
                 latency_ms=1,
             )
-        )
+
+        sim_runner.admin_request = _admin_request  # type: ignore[assignment]
         sim_runner.set_execution_phase(runner.SUITE_PHASE_SETUP, "unit_test_cleanup_phase")
         sim_runner.cleanup_simulation_telemetry_history()
 
@@ -373,6 +378,10 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(mutation.get("action"), "telemetry_history_cleanup")
         self.assertEqual(mutation.get("phase"), runner.SUITE_PHASE_SETUP)
         self.assertEqual(mutation.get("reason"), "adversarial_ephemeral_cleanup")
+        self.assertEqual(
+            captured_headers.get(runner.TELEMETRY_CLEANUP_ACK_HEADER),
+            runner.TELEMETRY_CLEANUP_ACK_VALUE,
+        )
 
     def test_cleanup_simulation_telemetry_history_fails_on_non_200_response(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")
@@ -396,7 +405,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             )
 
         sim_runner.admin_request = (  # type: ignore[assignment]
-            lambda method, path, json_body=None: runner.HttpResult(
+            lambda method, path, json_body=None, headers=None: runner.HttpResult(
                 status=404,
                 body="Not Found",
                 headers={},

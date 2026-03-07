@@ -112,7 +112,7 @@ Dashboard:
 - Charts use local vendored runtime (`dashboard/static/assets/vendor/chart-lite-1.0.0.min.js`) rather than <abbr title="Content Delivery Network">CDN</abbr> scripts.
 - `make dev` forces local-write defaults (`WRITE=true`) so config controls are usable in local sessions.
 - Override dev defaults with Make variables when needed (example: `make dev DEV_ADMIN_CONFIG_WRITE_ENABLED=false`).
-- `make dev-prod` keeps the full watched local workflow but runs with runtime-prod posture (`runtime-prod`, `DEBUG_HEADERS=false`) while preserving the configured adversary-sim surface and still allowing admin config writes for local tuning.
+- `make dev-prod` keeps the full watched local workflow but runs with runtime-prod local-direct posture (`runtime-prod`, `DEBUG_HEADERS=false`) while preserving the configured adversary-sim surface and still allowing admin config writes for local tuning. It intentionally bypasses the gateway upstream requirement for localhost-only prod-like observation and does not satisfy deployment guardrails.
 
 Notes:
 - Run setup in an interactive terminal (it may prompt for sudo to install Spin).
@@ -130,7 +130,7 @@ make verify-runtime   # Runtime-only verification (no Node/pnpm/Playwright)
 make config-verify    # Read-only KV config lifecycle check
 make config-seed      # Explicit KV config seed/backfill/repair
 make dev              # Start dev server with file watching
-make dev-prod         # Start watched local server in production runtime posture (admin writes enabled)
+make dev-prod         # Start watched local server in runtime-prod local-direct posture (admin writes enabled)
 make test             # Full suite: unit + integration + dashboard e2e (requires running server)
 make test-unit        # Unit tests only
 make test-integration # Integration tests (requires running server)

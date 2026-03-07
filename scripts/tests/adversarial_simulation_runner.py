@@ -32,6 +32,8 @@ DETERMINISTIC_ATTACK_CORPUS_PATH = Path(
     "scripts/tests/adversarial/deterministic_attack_corpus.v1.json"
 )
 BROWSER_DRIVER_SCRIPT_PATH = Path("scripts/tests/adversarial_browser_driver.mjs")
+TELEMETRY_CLEANUP_ACK_HEADER = "X-Shuma-Telemetry-Cleanup-Ack"
+TELEMETRY_CLEANUP_ACK_VALUE = "I_UNDERSTAND_TELEMETRY_CLEANUP"
 
 
 def load_lane_contract(path: Path = LANE_CONTRACT_PATH) -> Dict[str, Any]:
@@ -1784,7 +1786,11 @@ class Runner:
             reason=reason,
             details={"endpoint": "/admin/adversary-sim/history/cleanup"},
         )
-        result = self.admin_request("POST", "/admin/adversary-sim/history/cleanup")
+        result = self.admin_request(
+            "POST",
+            "/admin/adversary-sim/history/cleanup",
+            headers={TELEMETRY_CLEANUP_ACK_HEADER: TELEMETRY_CLEANUP_ACK_VALUE},
+        )
         if result.status != 200:
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(
@@ -3295,8 +3301,9 @@ class Runner:
         method: str,
         path: str,
         json_body: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
     ) -> HttpResult:
-        return self.control_client.request(method, path, json_body=json_body)
+        return self.control_client.request(method, path, headers=headers, json_body=json_body)
 
     def admin_read_request(
         self,

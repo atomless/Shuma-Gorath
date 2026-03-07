@@ -739,6 +739,8 @@ mod tests {
 
     #[test]
     fn response_canonicalization_rewrites_location_cookie_and_strips_internal_headers() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
         let req = build_request(
             "/allow",
             &[
@@ -803,6 +805,7 @@ mod tests {
         assert!(canonical
             .headers()
             .all(|(name, _)| !name.eq_ignore_ascii_case("x-secret-hop")));
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
     }
 
     #[test]

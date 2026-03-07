@@ -651,4 +651,4 @@ make api-key-show
 ```
 
 `make dev` enables local dashboard operation with local-write defaults (`WRITE=true`). Use `DEV_ADMIN_CONFIG_WRITE_ENABLED=false` to simulate an operator-disabled read-only admin-config deployment.
-Use `make dev-prod` to keep local watch-mode ergonomics while forcing production runtime posture (`runtime-prod`, `DEBUG_HEADERS=false`) with adversary-sim availability following `SHUMA_ADVERSARY_SIM_AVAILABLE` and admin writes still enabled for local config tuning and persistence checks.
+Use `make dev-prod` to keep local watch-mode ergonomics while forcing production runtime posture (`runtime-prod`, `DEBUG_HEADERS=false`) with adversary-sim availability following `SHUMA_ADVERSARY_SIM_AVAILABLE` and admin writes still enabled for local config tuning and persistence checks. This target now runs in explicit local-direct mode, which allows localhost-only `runtime-prod` startup without `SHUMA_GATEWAY_UPSTREAM_ORIGIN`; it is for prod-like local observation only and does not satisfy deployment guardrails.

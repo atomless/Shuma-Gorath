@@ -1256,6 +1256,7 @@ fn validate_env_rejects_missing_gateway_upstream_in_runtime_prod() {
         "SHUMA_KV_STORE_FAIL_OPEN",
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
+        "SHUMA_LOCAL_PROD_DIRECT_MODE",
         "SHUMA_RUNTIME_ENV",
     ]);
 
@@ -1290,6 +1291,58 @@ fn validate_env_rejects_missing_gateway_upstream_in_runtime_prod() {
         "SHUMA_KV_STORE_FAIL_OPEN",
         "SHUMA_ENFORCE_HTTPS",
         "SHUMA_DEBUG_HEADERS",
+        "SHUMA_LOCAL_PROD_DIRECT_MODE",
+        "SHUMA_RUNTIME_ENV",
+    ]);
+}
+
+#[test]
+fn validate_env_accepts_runtime_prod_local_direct_mode_without_gateway_upstream() {
+    let _lock = crate::test_support::lock_env();
+    clear_gateway_env();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_LOCAL_PROD_DIRECT_MODE",
+        "SHUMA_RUNTIME_ENV",
+    ]);
+
+    std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
+    std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+    std::env::set_var("SHUMA_JS_SECRET", "test-js-secret");
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+    std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "168");
+    std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+    std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
+    std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
+    std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
+    std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
+    std::env::set_var("SHUMA_LOCAL_PROD_DIRECT_MODE", "true");
+    set_gateway_env_baseline();
+    std::env::set_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN", "");
+
+    let result = validate_env_only_once();
+    assert!(result.is_ok());
+
+    clear_gateway_env();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_LOCAL_PROD_DIRECT_MODE",
         "SHUMA_RUNTIME_ENV",
     ]);
 }

@@ -204,6 +204,28 @@ async function dashboardDomClassState(page) {
   });
 }
 
+async function fetchRuntimeEnvironment(request, ip = "127.0.0.1") {
+  const response = await request.get(`${BASE_URL}/admin/config`, {
+    headers: buildAdminAuthHeaders(ip)
+  });
+  if (!response.ok()) {
+    const body = await response.text();
+    throw new Error(`admin config read should succeed: ${response.status()} ${body}`);
+  }
+  const payload = await response.json();
+  const runtimeEnvironment = String(payload?.runtime_environment || "").trim();
+  if (runtimeEnvironment !== "runtime-dev" && runtimeEnvironment !== "runtime-prod") {
+    throw new Error(`unexpected runtime_environment from /admin/config: ${runtimeEnvironment || "missing"}`);
+  }
+  return runtimeEnvironment;
+}
+
+function expectDashboardRuntimeClass(bodyState, runtimeEnvironment) {
+  expect(bodyState.runtimeClassCount).toBe(1);
+  expect(bodyState.hasRuntimeDev).toBe(runtimeEnvironment === "runtime-dev");
+  expect(bodyState.hasRuntimeProd).toBe(runtimeEnvironment === "runtime-prod");
+}
+
 async function bootstrapDashboardSession(page, targetUrl) {
   const nextPath = dashboardRelativePath(targetUrl);
   const loginUrl = `${BASE_URL}/dashboard/login.html?next=${encodeURIComponent(nextPath)}`;
@@ -360,7 +382,7 @@ async function clickAdversaryToggleWithRetry(page, desiredEnabled, timeoutMs = 6
       return response;
     }
     if (lastStatus === 429 || lastStatus === 409) {
-      await page.waitForTimeout(1100);
+      await page.waitForTimeout(controlRetryDelayMs(response));
       continue;
     }
     const body = await response.text().catch(() => "");
@@ -370,6 +392,18 @@ async function clickAdversaryToggleWithRetry(page, desiredEnabled, timeoutMs = 6
   throw new Error(
     `adversary toggle did not reach desired state=${desired} before timeout; last_status=${lastStatus}`
   );
+}
+
+function controlRetryDelayMs(response, fallbackMs = 1100) {
+  const fallback = Math.max(250, Number(fallbackMs || 0));
+  try {
+    const retryAfterRaw = response?.headers?.()["retry-after"];
+    const retryAfterSeconds = Number.parseInt(String(retryAfterRaw || "").trim(), 10);
+    if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+      return retryAfterSeconds * 1000 + 250;
+    }
+  } catch (_error) {}
+  return fallback;
 }
 
 function buildAdminAuthHeaders(ip = "127.0.0.1") {
@@ -444,78 +478,6 @@ async function waitForSimulationEventAdvance(request, baselineTs, timeoutMs = 20
   }
   throw new Error(
     `simulation telemetry did not advance within ${timeoutMs}ms (baseline=${baselineTs}, last_observed=${lastObserved})`
-  );
-}
-
-async function setAdversarySimStateViaApi(request, enabled, timeoutMs = 60000, ip = "127.0.0.1") {
-  const deadline = Date.now() + Math.max(2000, Number(timeoutMs || 0));
-  const desired = enabled === true;
-  const readStatus = async () => {
-    const response = await request.get(`${BASE_URL}/admin/adversary-sim/status`, {
-      headers: buildAdminAuthHeaders(ip)
-    });
-    if (!response.ok()) {
-      return null;
-    }
-    const payload = await response.json();
-    return payload && typeof payload === "object" ? payload : null;
-  };
-  const hasDesiredState = (statusPayload) => {
-    if (!statusPayload || typeof statusPayload !== "object") return false;
-    const enabledNow = Boolean(statusPayload.adversary_sim_enabled);
-    const phase = String(statusPayload.phase || "").trim().toLowerCase();
-    if (desired) {
-      return enabledNow || phase === "running";
-    }
-    return !enabledNow || phase === "off";
-  };
-
-  const initialStatus = await readStatus();
-  if (hasDesiredState(initialStatus)) return initialStatus;
-  let lastStatus = 0;
-  let attempt = 0;
-  while (Date.now() < deadline) {
-    const currentStatus = await readStatus();
-    if (hasDesiredState(currentStatus)) {
-      return currentStatus;
-    }
-    attempt += 1;
-    const response = await request.post(`${BASE_URL}/admin/adversary-sim/control`, {
-      headers: {
-        ...buildAdminAuthHeaders(ip),
-        "Content-Type": "application/json",
-        "Idempotency-Key": `dashboard-e2e-${desired ? "on" : "off"}-${Date.now()}-${attempt}`,
-        Origin: BASE_URL,
-        "Sec-Fetch-Site": "same-origin"
-      },
-      data: { enabled: desired, reason: "dashboard_e2e" }
-    });
-    lastStatus = response.status();
-    if (lastStatus === 200) {
-      const payload = await response.json().catch(() => ({}));
-      if (hasDesiredState(payload)) {
-        return payload;
-      }
-      const statusPayload = await readStatus();
-      if (hasDesiredState(statusPayload)) {
-        return statusPayload;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 1100));
-      continue;
-    }
-    if (lastStatus === 429 || lastStatus === 409) {
-      const statusPayload = await readStatus();
-      if (hasDesiredState(statusPayload)) {
-        return statusPayload;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 1100));
-      continue;
-    }
-    const body = await response.text();
-    throw new Error(`adversary-sim api control failed with ${lastStatus}: ${body}`);
-  }
-  throw new Error(
-    `adversary-sim api control timed out for enabled=${desired}; last_status=${lastStatus}`
   );
 }
 
@@ -1419,22 +1381,19 @@ test("session survives reload and time-range controls refresh chart data", async
 
 test("dashboard class contract tracks runtime on html and adversary-sim on body", async ({ page, request }) => {
   await updateAdminConfig(request, { adversary_sim_enabled: false, adversary_sim_duration_seconds: 180 });
+  const runtimeEnvironment = await fetchRuntimeEnvironment(request);
   await openDashboard(page);
   const toggle = page.locator("#global-adversary-sim-toggle");
 
   let bodyState = await dashboardDomClassState(page);
-  expect(bodyState.runtimeClassCount).toBe(1);
-  expect(bodyState.hasRuntimeDev).toBeTruthy();
-  expect(bodyState.hasRuntimeProd).toBeFalsy();
+  expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
   expect(bodyState.hasAdversarySim).toBeFalsy();
   expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
   expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
 
   await openTab(page, "status");
   bodyState = await dashboardDomClassState(page);
-  expect(bodyState.runtimeClassCount).toBe(1);
-  expect(bodyState.hasRuntimeDev).toBeTruthy();
-  expect(bodyState.hasRuntimeProd).toBeFalsy();
+  expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
   expect(bodyState.hasAdversarySim).toBeFalsy();
   expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
   expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
@@ -1445,18 +1404,14 @@ test("dashboard class contract tracks runtime on html and adversary-sim on body"
   await clickAdversaryToggleWithRetry(page, true, 60000);
   await expect(toggle).toBeChecked();
   bodyState = await dashboardDomClassState(page);
-  expect(bodyState.runtimeClassCount).toBe(1);
-  expect(bodyState.hasRuntimeDev).toBeTruthy();
-  expect(bodyState.hasRuntimeProd).toBeFalsy();
+  expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
   expect(bodyState.hasAdversarySim).toBeTruthy();
   expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
   expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
 
   await openTab(page, "verification");
   bodyState = await dashboardDomClassState(page);
-  expect(bodyState.runtimeClassCount).toBe(1);
-  expect(bodyState.hasRuntimeDev).toBeTruthy();
-  expect(bodyState.hasRuntimeProd).toBeFalsy();
+  expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
   expect(bodyState.hasAdversarySim).toBeTruthy();
   expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
   expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
@@ -1464,9 +1419,7 @@ test("dashboard class contract tracks runtime on html and adversary-sim on body"
   await clickAdversaryToggleWithRetry(page, false, 60000);
   await expect(toggle).not.toBeChecked();
   bodyState = await dashboardDomClassState(page);
-  expect(bodyState.runtimeClassCount).toBe(1);
-  expect(bodyState.hasRuntimeDev).toBeTruthy();
-  expect(bodyState.hasRuntimeProd).toBeFalsy();
+  expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
   expect(bodyState.hasAdversarySim).toBeFalsy();
   expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
   expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
@@ -1506,13 +1459,16 @@ test("adversary sim global toggle drives orchestration control lifecycle state",
 
 test("adversary sim toggle emits fresh telemetry visible in monitoring raw feed", async ({ page, request }) => {
   test.setTimeout(180_000);
-  await setAdversarySimStateViaApi(request, false, 60000);
+  await updateAdminConfig(request, { adversary_sim_enabled: false, adversary_sim_duration_seconds: 180 });
   await openDashboard(page);
   await openTab(page, "monitoring");
   await setAutoRefresh(page, true);
 
   const toggle = page.locator("#global-adversary-sim-toggle");
   await expect(toggle).toBeEnabled({ timeout: 15000 });
+  if (await toggle.isChecked()) {
+    await clickAdversaryToggleWithRetry(page, false, 90000);
+  }
   await expect(toggle).not.toBeChecked();
 
   const baselineMonitoring = await fetchMonitoringSnapshot(request, 24, 200);
@@ -1525,7 +1481,10 @@ test("adversary sim toggle emits fresh telemetry visible in monitoring raw feed"
     const advancedTs = await waitForSimulationEventAdvance(request, baselineTs, 20000);
     await expect(page.locator("#monitoring-raw-feed tbody")).toContainText(`"ts":${advancedTs}`);
   } finally {
-    await setAdversarySimStateViaApi(request, false, 60000);
+    if (await toggle.isChecked()) {
+      await clickAdversaryToggleWithRetry(page, false, 90000);
+    }
+    await updateAdminConfig(request, { adversary_sim_enabled: false, adversary_sim_duration_seconds: 180 });
   }
   await page.reload();
   await expect(toggle).not.toBeChecked();

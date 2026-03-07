@@ -1330,6 +1330,7 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_bool_like_var("SHUMA_ENFORCE_HTTPS")?;
     validate_bool_like_var("SHUMA_DEBUG_HEADERS")?;
     validate_optional_runtime_environment_var("SHUMA_RUNTIME_ENV")?;
+    validate_optional_bool_like_var("SHUMA_LOCAL_PROD_DIRECT_MODE")?;
     validate_optional_bool_like_var("SHUMA_ADVERSARY_SIM_AVAILABLE")?;
     validate_optional_secret_var("SHUMA_SIM_TELEMETRY_SECRET")?;
     validate_optional_model_id_var("SHUMA_FRONTIER_OPENAI_MODEL")?;
@@ -1480,10 +1481,20 @@ fn validate_gateway_contract_env() -> Result<(), String> {
         })?;
 
     let runtime_env = runtime_environment();
+    let local_prod_direct_mode = local_prod_direct_mode();
     let upstream_origin_raw = env_trimmed_optional("SHUMA_GATEWAY_UPSTREAM_ORIGIN")
         .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_UPSTREAM_ORIGIN"));
     if upstream_origin_raw.is_empty() {
         if runtime_env.is_prod() {
+            if local_prod_direct_mode {
+                if profile.is_edge() {
+                    return Err(
+                        "Invalid gateway posture: SHUMA_LOCAL_PROD_DIRECT_MODE=true only supports SHUMA_GATEWAY_DEPLOYMENT_PROFILE=shared-server"
+                            .to_string(),
+                    );
+                }
+                return Ok(());
+            }
             return Err(
                 "Invalid gateway posture: SHUMA_GATEWAY_UPSTREAM_ORIGIN must be set when SHUMA_RUNTIME_ENV=runtime-prod"
                     .to_string(),
@@ -2104,6 +2115,13 @@ pub fn runtime_environment() -> RuntimeEnvironment {
         .ok()
         .and_then(|value| parse_runtime_environment(value.as_str()))
         .unwrap_or(RuntimeEnvironment::RuntimeProd)
+}
+
+pub fn local_prod_direct_mode() -> bool {
+    env_bool_optional(
+        "SHUMA_LOCAL_PROD_DIRECT_MODE",
+        defaults_bool("SHUMA_LOCAL_PROD_DIRECT_MODE"),
+    )
 }
 
 pub fn adversary_sim_available() -> bool {

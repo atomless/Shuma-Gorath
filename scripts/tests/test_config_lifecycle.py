@@ -147,6 +147,14 @@ class ConfigLifecycleTests(unittest.TestCase):
             'config-verify && $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1 && RUNTIME_INSTANCE_ID="$$(uuidgen)" && SHUMA_API_KEY=',
             makefile,
         )
+        self.assertIn(
+            "SPIN_DEV_OVERRIDES := --env SHUMA_DEBUG_HEADERS=$(DEV_DEBUG_HEADERS) --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_ADMIN_IP_ALLOWLIST=$(DEV_ADMIN_IP_ALLOWLIST) --env SHUMA_RUNTIME_ENV=$(DEV_RUNTIME_ENV) --env SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) --env SHUMA_LOCAL_PROD_DIRECT_MODE=$(DEV_LOCAL_PROD_DIRECT_MODE)",
+            makefile,
+        )
+        self.assertIn(
+            '@$(MAKE) --no-print-directory dev DEV_RUNTIME_ENV=runtime-prod DEV_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE) DEV_DEBUG_HEADERS=false DEV_ADMIN_CONFIG_WRITE_ENABLED=true DEV_LOCAL_PROD_DIRECT_MODE=true',
+            makefile,
+        )
         self.assertIn("make --no-print-directory config-verify", verify_runtime_script)
         self.assertNotIn("make --no-print-directory config-seed", verify_runtime_script)
         self.assertIn("make --no-print-directory config-verify", verify_setup_script)

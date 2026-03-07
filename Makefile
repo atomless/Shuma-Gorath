@@ -46,6 +46,7 @@ SHUMA_KV_STORE_FAIL_OPEN := $(call strip_wrapping_quotes,$(SHUMA_KV_STORE_FAIL_O
 SHUMA_ENFORCE_HTTPS := $(call strip_wrapping_quotes,$(SHUMA_ENFORCE_HTTPS))
 SHUMA_DEBUG_HEADERS := $(call strip_wrapping_quotes,$(SHUMA_DEBUG_HEADERS))
 SHUMA_RUNTIME_ENV := $(call strip_wrapping_quotes,$(SHUMA_RUNTIME_ENV))
+SHUMA_LOCAL_PROD_DIRECT_MODE := $(call strip_wrapping_quotes,$(SHUMA_LOCAL_PROD_DIRECT_MODE))
 SHUMA_ADVERSARY_SIM_AVAILABLE := $(call strip_wrapping_quotes,$(SHUMA_ADVERSARY_SIM_AVAILABLE))
 SHUMA_SIM_TELEMETRY_SECRET := $(call strip_wrapping_quotes,$(SHUMA_SIM_TELEMETRY_SECRET))
 SHUMA_FRONTIER_OPENAI_API_KEY := $(call strip_wrapping_quotes,$(SHUMA_FRONTIER_OPENAI_API_KEY))
@@ -75,6 +76,7 @@ SHUMA_GATEWAY_TLS_STRICT := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_TLS_STR
 SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED))
 SHUMA_ACTIVE_REMOTE := $(call strip_wrapping_quotes,$(SHUMA_ACTIVE_REMOTE))
 SHUMA_RUNTIME_ENV := $(if $(strip $(SHUMA_RUNTIME_ENV)),$(SHUMA_RUNTIME_ENV),runtime-prod)
+SHUMA_LOCAL_PROD_DIRECT_MODE := $(if $(strip $(SHUMA_LOCAL_PROD_DIRECT_MODE)),$(SHUMA_LOCAL_PROD_DIRECT_MODE),false)
 SHUMA_ADVERSARY_SIM_AVAILABLE := $(if $(strip $(SHUMA_ADVERSARY_SIM_AVAILABLE)),$(SHUMA_ADVERSARY_SIM_AVAILABLE),true)
 SHUMA_FRONTIER_OPENAI_MODEL := $(if $(strip $(SHUMA_FRONTIER_OPENAI_MODEL)),$(SHUMA_FRONTIER_OPENAI_MODEL),gpt-5-mini)
 SHUMA_FRONTIER_ANTHROPIC_MODEL := $(if $(strip $(SHUMA_FRONTIER_ANTHROPIC_MODEL)),$(SHUMA_FRONTIER_ANTHROPIC_MODEL),claude-3-5-haiku-latest)
@@ -190,8 +192,9 @@ DEV_ADMIN_CONFIG_WRITE_ENABLED ?= true
 DEV_DEBUG_HEADERS ?= true
 DEV_ADMIN_IP_ALLOWLIST ?=
 DEV_RUNTIME_ENV ?= runtime-dev
+DEV_LOCAL_PROD_DIRECT_MODE ?= $(SHUMA_LOCAL_PROD_DIRECT_MODE)
 DEV_ADVERSARY_SIM_AVAILABLE ?= true
-SPIN_DEV_OVERRIDES := --env SHUMA_DEBUG_HEADERS=$(DEV_DEBUG_HEADERS) --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_ADMIN_IP_ALLOWLIST=$(DEV_ADMIN_IP_ALLOWLIST) --env SHUMA_RUNTIME_ENV=$(DEV_RUNTIME_ENV) --env SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE)
+SPIN_DEV_OVERRIDES := --env SHUMA_DEBUG_HEADERS=$(DEV_DEBUG_HEADERS) --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_ADMIN_IP_ALLOWLIST=$(DEV_ADMIN_IP_ALLOWLIST) --env SHUMA_RUNTIME_ENV=$(DEV_RUNTIME_ENV) --env SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) --env SHUMA_LOCAL_PROD_DIRECT_MODE=$(DEV_LOCAL_PROD_DIRECT_MODE)
 SPIN_PROD_OVERRIDES := --env SHUMA_DEBUG_HEADERS=false --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_RUNTIME_ENV=runtime-prod --env SHUMA_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE)
 SPIN_READY_TIMEOUT_SECONDS ?= 90
 SHUMA_DASHBOARD_BUNDLE_MAX_TOTAL_BYTES ?= 352000
@@ -288,8 +291,8 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 		-s 'if [ ! -f $(WASM_BUILD_OUTPUT) ] || find src -name "*.rs" -newer $(WASM_BUILD_OUTPUT) -print -quit | grep -q .; then ./scripts/set_crate_type.sh cdylib && cargo build --target wasm32-wasip1 --release && mkdir -p $(dir $(WASM_ARTIFACT)) && cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT) && ./scripts/set_crate_type.sh rlib; else echo "No Rust changes detected; skipping WASM rebuild."; fi' \
 		-s 'pkill -x spin 2>/dev/null || true; $(MAKE) --no-print-directory config-verify && $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1 && RUNTIME_INSTANCE_ID="$$(uuidgen)" && SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) SPIN_ALWAYS_BUILD=0 ./scripts/run_with_adversary_sim_supervisor.sh spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000'
 
-dev-prod: ## Build and run with file watching using runtime-prod posture (admin writes remain enabled for local tuning)
-	@$(MAKE) --no-print-directory dev DEV_RUNTIME_ENV=runtime-prod DEV_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE) DEV_DEBUG_HEADERS=false DEV_ADMIN_CONFIG_WRITE_ENABLED=true
+dev-prod: ## Build and run with file watching using runtime-prod local-direct posture (admin writes remain enabled for local tuning)
+	@$(MAKE) --no-print-directory dev DEV_RUNTIME_ENV=runtime-prod DEV_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE) DEV_DEBUG_HEADERS=false DEV_ADMIN_CONFIG_WRITE_ENABLED=true DEV_LOCAL_PROD_DIRECT_MODE=true
 
 dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=false (fail-closed)
 	@echo "$(CYAN)🚨 Starting development server with SHUMA_KV_STORE_FAIL_OPEN=false (fail-closed)...$(NC)"
@@ -1168,6 +1171,7 @@ env-help: ## Show supported env-only runtime overrides
 	@echo "  SHUMA_ENFORCE_HTTPS"
 	@echo "  SHUMA_DEBUG_HEADERS"
 	@echo "  SHUMA_RUNTIME_ENV"
+	@echo "  SHUMA_LOCAL_PROD_DIRECT_MODE"
 	@echo "  SHUMA_ADVERSARY_SIM_AVAILABLE"
 	@echo "  SHUMA_SIM_TELEMETRY_SECRET"
 	@echo "  SHUMA_FRONTIER_OPENAI_API_KEY"
