@@ -382,6 +382,7 @@ These directories are generated locally/<abbr title="Continuous Integration">CI<
 - `dist/wasm/` - built Spin component artifact (`shuma_gorath.wasm`)
 - `target/` - Rust build cache/output
 - `.spin/` - local Spin runtime data/logs
+- `.spin/deploy/` - local deploy receipts and preflight reports
 - `playwright-report/` - Playwright <abbr title="HyperText Markup Language">HTML</abbr> report output
 - `test-results/` - Playwright test result artifacts
 - `.cache/ms-playwright/` - repo-local Playwright browser cache

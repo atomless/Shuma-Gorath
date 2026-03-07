@@ -109,6 +109,12 @@ The runner writes machine-readable artifacts to:
   - `security_privacy` synthesized from runtime `security_privacy` fields (`field_classification_enforced`, `secret_canary_leak_count`, pseudonymization coverage, high-risk retention ceiling, incident-hook visibility),
   - `evidence` (`sim-run-evidence.v1`) with request-lineage, per-scenario runtime telemetry evidence rows, and control-plane lineage fields.
 
+Artifact placement policy:
+
+- Keep repo-resident adversarial runner contracts and operator-facing reports in `scripts/tests/adversarial/`.
+- Keep deploy-local and setup-local receipts under `.spin/` so `make clean` removes them and source directories do not accumulate one-off environment artifacts.
+- Reserved-route collision preflight reports therefore live under `.spin/deploy/` by default, not in this directory.
+
 Notes:
 
 - `abuse_regression` stale-token coverage is simulated in black-box mode by mutating a valid issued seed before submit (no runner-side token re-signing and no signing-secret dependency).

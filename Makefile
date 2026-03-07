@@ -626,6 +626,7 @@ test-deploy-linode: ## Validate Linode deploy-path helpers and production input 
 	@echo "$(CYAN)🧪 Running Linode deploy-path verification...$(NC)"
 	@python3 -m unittest scripts/tests/test_build_linode_release_bundle.py
 	@python3 -m unittest scripts/tests/test_build_site_surface_catalog.py
+	@python3 -m unittest scripts/tests/test_validate_gateway_route_collisions.py
 	@python3 -m unittest scripts/tests/test_prepare_linode_shared_host.py
 	@python3 -m unittest scripts/tests/test_remote_target.py
 	@python3 -m unittest scripts/tests/test_render_gateway_spin_manifest.py

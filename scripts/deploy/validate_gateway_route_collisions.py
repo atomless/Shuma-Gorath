@@ -71,12 +71,10 @@ def main() -> int:
     if not catalog_path.exists():
         return fail(f"Gateway surface catalog not found: {catalog_path}")
 
-    report_path = Path(
-        os.getenv(
-            "GATEWAY_ROUTE_COLLISION_REPORT_PATH",
-            "scripts/tests/adversarial/gateway_reserved_route_collision_report.json",
-        ).strip()
-    )
+    report_path_raw = os.getenv("GATEWAY_ROUTE_COLLISION_REPORT_PATH", "").strip()
+    if not report_path_raw:
+        report_path_raw = ".spin/deploy/gateway_reserved_route_collision_report.json"
+    report_path = Path(report_path_raw)
     if not report_path.is_absolute():
         report_path = Path.cwd() / report_path
 

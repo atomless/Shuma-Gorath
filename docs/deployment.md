@@ -416,7 +416,7 @@ make deploy-env-validate
   - `edge-fermyon` profile rejects variable-templated `allowed_outbound_hosts` entries.
 - reserved-route collision preflight guardrail (`runtime-prod`):
   - `GATEWAY_SURFACE_CATALOG_PATH` must point to the discovered origin surface catalog JSON,
-  - collisions against Shuma/Spin reserved namespaces fail deployment and write a deterministic report (default: `scripts/tests/adversarial/gateway_reserved_route_collision_report.json`),
+  - collisions against Shuma/Spin reserved namespaces fail deployment and write a deterministic local deploy receipt (default: `.spin/deploy/gateway_reserved_route_collision_report.json`),
   - if overriding report location, set `GATEWAY_ROUTE_COLLISION_REPORT_PATH`,
   - after a clean run, `SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED` must be `true`.
 
