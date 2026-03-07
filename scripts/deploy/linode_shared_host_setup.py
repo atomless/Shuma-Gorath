@@ -25,6 +25,7 @@ if str(REPO_ROOT) not in sys.path:
 from scripts.deploy.local_env import ensure_env_file, read_env_value, upsert_env_value
 from scripts.deploy.remote_target import (
     DEFAULT_REMOTE_RECEIPTS_DIR,
+    activate_remote,
     default_public_base_url,
     write_remote_receipt,
 )
@@ -443,9 +444,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             }
         },
     )
+    active_remote = activate_remote(
+        env_file,
+        Path(args.remote_receipts_dir).expanduser().resolve(),
+        remote_name,
+    )
 
     print(f"Receipt written: {receipt_path}")
     print(f"Remote receipt written: {remote_receipt_path}")
+    print(
+        "Active remote set: "
+        f"{active_remote['identity']['name']} -> {active_remote['runtime']['public_base_url']}"
+    )
     print(f"Linode instance id: {receipt['linode']['instance_id']}")
     print(f"Linode public IPv4: {receipt['linode']['public_ipv4']}")
     print(f"Catalog path: {catalog_output}")

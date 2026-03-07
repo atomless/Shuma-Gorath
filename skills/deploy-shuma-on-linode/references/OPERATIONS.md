@@ -88,10 +88,9 @@ Live proof reference:
 
 ## Day-2 Remote Maintenance
 
-Once deploy succeeds, shift to the normalized day-2 remote layer:
+Once deploy succeeds, shift straight to the normalized day-2 remote layer:
 
 ```bash
-make remote-use REMOTE=blog-prod
 make remote-status
 make remote-logs
 make remote-start
@@ -99,7 +98,7 @@ make remote-stop
 make remote-open-dashboard
 ```
 
-Those commands read `.spin/remotes/<name>.json` and work at the generic `ssh_systemd` contract level rather than through Linode-specific provider logic.
+Those commands read `.spin/remotes/<name>.json` and work at the generic `ssh_systemd` contract level rather than through Linode-specific provider logic. Successful deploy now auto-selects the emitted remote in `.env.local`; use `make remote-use REMOTE=<name>` only to switch targets later.
 
 ## Live-Proven Gotchas
 

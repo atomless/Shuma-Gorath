@@ -73,6 +73,8 @@ The normalized remote receipt is the day-2 maintenance artifact for:
 - `make remote-stop`
 - `make remote-open-dashboard`
 
+Successful setup now auto-selects the emitted remote by updating `SHUMA_ACTIVE_REMOTE` in `.env.local`. Use `make remote-use REMOTE=<name>` only when you need to switch targets later.
+
 Expected shape:
 
 - `mode`

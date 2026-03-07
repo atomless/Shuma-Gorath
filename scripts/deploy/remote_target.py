@@ -225,6 +225,13 @@ def resolve_remote_name(explicit_name: str | None, env_file: Path) -> str:
     fail("No remote selected. Pass --name or run make remote-use REMOTE=<name> first.")
 
 
+def activate_remote(env_file: Path, receipts_dir: Path, name: str) -> dict[str, Any]:
+    receipt = load_remote_receipt(receipts_dir, name)
+    ensure_env_file(env_file)
+    upsert_env_value(env_file, "SHUMA_ACTIVE_REMOTE", receipt["identity"]["name"])
+    return receipt
+
+
 def select_remote(explicit_name: str | None, env_file: Path, receipts_dir: Path) -> dict[str, Any]:
     return load_remote_receipt(receipts_dir, resolve_remote_name(explicit_name, env_file))
 
@@ -331,9 +338,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     receipts_dir = Path(args.receipts_dir).expanduser().resolve()
 
     if args.command == "use":
-        receipt = load_remote_receipt(receipts_dir, args.name)
-        ensure_env_file(env_file)
-        upsert_env_value(env_file, "SHUMA_ACTIVE_REMOTE", receipt["identity"]["name"])
+        receipt = activate_remote(env_file, receipts_dir, args.name)
         print(
             f"Active remote set: {receipt['identity']['name']} -> {receipt['runtime']['public_base_url']}"
         )

@@ -35,8 +35,9 @@ This design generalizes the day-2 operations layer without generalizing provider
 3. Structured remote target state lives in gitignored receipts:
    - `.spin/remotes/<name>.json`
 4. Provider-specific setup/deploy writers must emit the same normalized receipt schema, with optional provider extension fields.
-5. Generic maintenance commands must consume the normalized receipt, not provider-specific files.
-6. The canonical day-2 command set is:
+5. Successful provider-specific setup/deploy writers should also auto-activate the emitted receipt locally by updating `SHUMA_ACTIVE_REMOTE`, while preserving `make remote-use REMOTE=<name>` as the explicit switch command.
+6. Generic maintenance commands must consume the normalized receipt, not provider-specific files.
+7. The canonical day-2 command set is:
    - `make remote-use REMOTE=<name>`
    - `make remote-update`
    - `make remote-start`
@@ -44,15 +45,15 @@ This design generalizes the day-2 operations layer without generalizing provider
    - `make remote-status`
    - `make remote-logs`
    - `make remote-open-dashboard`
-7. `make remote-update` must mean:
+8. `make remote-update` must mean:
    - build the exact local committed `HEAD` release bundle,
    - upload/install it on the selected remote,
    - restart the remote service,
    - run smoke against that remote,
    - update receipt metadata.
-8. `remote-update` must not imply syncing arbitrary uncommitted worktree state.
-9. Do not add ambiguous generic names such as `make dev-remote` or `make dev-prod-remote` in this tranche.
-10. Fermyon and other non-SSH backends are explicitly out of scope for the first generic maintenance layer.
+9. `remote-update` must not imply syncing arbitrary uncommitted worktree state.
+10. Do not add ambiguous generic names such as `make dev-remote` or `make dev-prod-remote` in this tranche.
+11. Fermyon and other non-SSH backends are explicitly out of scope for the first generic maintenance layer.
 
 ## Problem Statement
 
@@ -133,6 +134,8 @@ SHUMA_ACTIVE_REMOTE=blog-prod
 4. print the selected target summary.
 
 This keeps operator selection friction low while avoiding structured state drift inside `.env.local`.
+
+Successful provider setup/deploy flows should also call that same activation path once they have written a valid normalized receipt, so the happy path leaves day-2 operations ready with no extra manual step.
 
 ## Generic Command Semantics
 

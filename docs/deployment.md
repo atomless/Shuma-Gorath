@@ -137,10 +137,9 @@ Related repo-local deployment skills:
 
 ## 🐙 Generic SSH Remote Day-2 Operations
 
-Once a shared-host deploy has succeeded and `.spin/remotes/<name>.json` exists, routine operations should move to the provider-agnostic remote layer:
+Once setup or deploy succeeds, the emitted `.spin/remotes/<name>.json` receipt is auto-selected into `.env.local`, so routine operations can move straight to the provider-agnostic remote layer:
 
 ```bash
-make remote-use REMOTE=blog-prod
 make remote-status
 make remote-logs
 make remote-start
@@ -150,10 +149,11 @@ make remote-open-dashboard
 
 Rules:
 
-- `.env.local` keeps only `SHUMA_ACTIVE_REMOTE=<name>` for remote selection.
+- `.env.local` keeps only `SHUMA_ACTIVE_REMOTE=<name>` for remote selection, and successful setup/deploy now updates it automatically.
 - structured remote target state lives in `.spin/remotes/<name>.json`.
 - the current generic backend contract is `ssh_systemd` only.
 - `remote-update` is intentionally deferred until the config-seeding lifecycle cleanup makes that command truthful.
+- `make remote-use REMOTE=<name>` remains the manual switch command when you want to change the active target later.
 
 ## 🐙 10-Minute `self_hosted_minimal` Runbook (Start + Health + Rollback)
 

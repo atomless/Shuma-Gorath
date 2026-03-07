@@ -39,6 +39,7 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         self.captured_manifest = self.temp_dir / "captured-spin.toml"
         self.catalog_path = self.temp_dir / "catalog.json"
         self.remote_receipts_dir = self.temp_dir / ".spin" / "remotes"
+        self.env_file = self.temp_dir / ".env.local"
         self.catalog_path.write_text('{"inventory":[{"path":"/"}]}\n', encoding="utf-8")
 
         write_executable(
@@ -146,6 +147,7 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         env["SHUMA_GATEWAY_TLS_STRICT"] = "true"
         env["GATEWAY_SURFACE_CATALOG_PATH"] = str(self.catalog_path)
         env["REMOTE_RECEIPTS_DIR"] = str(self.remote_receipts_dir)
+        env["ENV_LOCAL"] = str(self.env_file)
         return env
 
     def run_script(
@@ -273,6 +275,10 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         self.assertEqual(remote_receipt["identity"]["name"], "blog-prod")
         self.assertEqual(remote_receipt["runtime"]["public_base_url"], "https://shuma.example.com")
         self.assertTrue(remote_receipt["metadata"]["last_deployed_commit"])
+        self.assertIn(
+            "SHUMA_ACTIVE_REMOTE=blog-prod",
+            self.env_file.read_text(encoding="utf-8"),
+        )
 
     def test_open_dashboard_flag_launches_local_dashboard_url(self) -> None:
         result = self.run_script(

@@ -123,6 +123,7 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
         env_local = self.env_file.read_text(encoding="utf-8")
         self.assertIn("LINODE_TOKEN=linode-secret", env_local)
         self.assertIn("SHUMA_ADMIN_IP_ALLOWLIST=203.0.113.8/32", env_local)
+        self.assertIn("SHUMA_ACTIVE_REMOTE=blog-prod", env_local)
         self.assertIn(
             f"GATEWAY_SURFACE_CATALOG_PATH={self.catalog_path.resolve()}",
             env_local,
@@ -189,6 +190,10 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
         self.assertEqual(receipt["mode"], "existing-instance")
         self.assertEqual(receipt["linode"]["instance_id"], 456)
         self.assertEqual(receipt["admin_allowlist"], "198.51.100.9/32")
+        self.assertIn(
+            "SHUMA_ACTIVE_REMOTE=blog-prod",
+            self.env_file.read_text(encoding="utf-8"),
+        )
         remote_receipt = json.loads(
             (self.remote_receipts_dir / "blog-prod.json").read_text(encoding="utf-8")
         )
@@ -236,6 +241,7 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        self.assertIn(f'ENV_LOCAL="{self.env_file}"', result.stdout)
         self.assertIn('LINODE_TOKEN="stored-token"', result.stdout)
         self.assertIn(
             'SHUMA_API_KEY="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"',

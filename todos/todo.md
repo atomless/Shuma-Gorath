@@ -58,7 +58,7 @@ Reference context:
 - [`skills/deploy-shuma-on-linode/SKILL.md`](../skills/deploy-shuma-on-linode/SKILL.md)
 
 Current focus:
-- The low-risk normalized `ssh_systemd` remote day-2 slice is now in place.
+- The low-risk normalized `ssh_systemd` remote day-2 slice is now in place, including automatic selection of the emitted remote receipt after successful setup/deploy.
 - The remaining remote-ops work is `remote-update`, which stays deferred until the config-seeding lifecycle cleanup makes that command truthful.
 
 ### REMOTE-OPS-1: Generic SSH Remote Target Layer

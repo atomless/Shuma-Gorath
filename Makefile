@@ -430,7 +430,8 @@ deploy-enterprise-akamai: deploy-profile-baseline ## Profile wrapper: enterprise
 	@echo "$(GREEN)✅ enterprise_akamai overlay pre-deploy checks passed.$(NC)"
 
 deploy-linode-one-shot: ## Provision Linode VM + deploy Shuma runtime in one command (requires LINODE_TOKEN and SHUMA_ADMIN_IP_ALLOWLIST)
-	@LINODE_TOKEN="$(LINODE_TOKEN)" \
+	@ENV_LOCAL="$(ENV_LOCAL)" \
+	LINODE_TOKEN="$(LINODE_TOKEN)" \
 	REMOTE_RECEIPTS_DIR="$(REMOTE_RECEIPTS_DIR)" \
 	SSH_PRIVATE_KEY_FILE="$(SSH_PRIVATE_KEY_FILE)" \
 	SSH_PUBLIC_KEY_FILE="$(SSH_PUBLIC_KEY_FILE)" \

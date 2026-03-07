@@ -136,6 +136,7 @@ LINODE_IMAGE="${LINODE_IMAGE:-linode/ubuntu24.04}"
 EXISTING_INSTANCE_ID="${EXISTING_INSTANCE_ID:-}"
 REMOTE_NAME="${REMOTE_NAME:-}"
 REMOTE_RECEIPTS_DIR="${REMOTE_RECEIPTS_DIR:-${REPO_ROOT}/.spin/remotes}"
+ENV_LOCAL="${ENV_LOCAL:-${REPO_ROOT}/.env.local}"
 SSH_PUBLIC_KEY_FILE="${SSH_PUBLIC_KEY_FILE:-}"
 SSH_PRIVATE_KEY_FILE="${SSH_PRIVATE_KEY_FILE:-}"
 DOMAIN_NAME="${DOMAIN_NAME:-}"
@@ -842,6 +843,12 @@ REMOTE_RECEIPT_PATH="$(python3 "${REPO_ROOT}/scripts/manage_remote_target.py" \
   --region "${LINODE_REGION}" \
   --linode-type "${LINODE_TYPE}" \
   --image "${LINODE_IMAGE}")"
+
+python3 "${REPO_ROOT}/scripts/manage_remote_target.py" \
+  --env-file "${ENV_LOCAL}" \
+  --receipts-dir "${REMOTE_RECEIPTS_DIR}" \
+  use \
+  --name "${REMOTE_TARGET_NAME}"
 
 if [[ "${ENABLE_CADDY_NORM}" == "true" ]]; then
   echo ""
