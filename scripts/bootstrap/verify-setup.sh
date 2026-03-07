@@ -163,6 +163,15 @@ echo ""
 echo -e "${CYAN}=== Testing Build ===${NC}"
 echo ""
 
+info "Running read-only config verification via Makefile target..."
+if make --no-print-directory config-verify >/dev/null; then
+    pass "make config-verify succeeded"
+else
+    fail "make config-verify failed"
+fi
+
+echo ""
+
 # 7. Test WASM build
 if command -v cargo &> /dev/null && rustup target list --installed 2>/dev/null | grep -q "wasm32-wasip1"; then
     info "Running test build..."

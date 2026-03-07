@@ -6,7 +6,7 @@ Automation scripts used by the Makefile live here.
 
 - `bootstrap/`
   - `setup.sh`: dependency/bootstrap workflow used by `make setup`
-  - `verify-setup.sh`: setup verification used by `make verify`
+  - `verify-setup.sh`: setup verification used by `make verify` (including the read-only persisted KV config check that `make dev` relies on)
 - `deploy/`
   - `build_linode_release_bundle.py`: builds an exact local `HEAD` release bundle for Linode/shared-host deploy and remote-update flows
   - `local_env.py`: shared helpers for gitignored operator env files such as `.env.local`
@@ -26,7 +26,7 @@ Automation scripts used by the Makefile live here.
 - `tests/`
   - `integration.sh`: HTTP integration scenarios used by `make test` and `make test-integration`
   - `gateway_tls_wasm_harness.py`: wasm32 TLS failure matrix harness (expired/self-signed/hostname-mismatch cert paths) used by `make test-gateway-wasm-tls-harness`
-- `config_seed.sh`: seeds KV tunables from `config/defaults.env`
+- `config_seed.sh`: seeds KV tunables from `config/defaults.env` and, with `--verify-only`, provides the read-only persisted-config lifecycle gate used by `make verify`, `make verify-runtime`, and runtime start paths
 - `set_crate_type.sh`: switches crate type between native-test and WASM build modes
 - `deploy_linode_one_shot.sh`: provisions a new Linode VM or attaches to a prepared Linode instance and deploys Shuma runtime (invoked by `make deploy-linode-one-shot`)
 

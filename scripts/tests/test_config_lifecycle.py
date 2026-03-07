@@ -126,6 +126,9 @@ class ConfigLifecycleTests(unittest.TestCase):
         verify_runtime_script = (
             REPO_ROOT / "scripts" / "bootstrap" / "verify-runtime.sh"
         ).read_text(encoding="utf-8")
+        verify_setup_script = (
+            REPO_ROOT / "scripts" / "bootstrap" / "verify-setup.sh"
+        ).read_text(encoding="utf-8")
         for target in (
             "dev:",
             "dev-closed:",
@@ -146,6 +149,8 @@ class ConfigLifecycleTests(unittest.TestCase):
         )
         self.assertIn("make --no-print-directory config-verify", verify_runtime_script)
         self.assertNotIn("make --no-print-directory config-seed", verify_runtime_script)
+        self.assertIn("make --no-print-directory config-verify", verify_setup_script)
+        self.assertNotIn("make --no-print-directory config-seed", verify_setup_script)
 
 
 if __name__ == "__main__":

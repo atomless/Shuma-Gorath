@@ -11,11 +11,11 @@ make setup          # Installs full toolchain, creates .env.local, and seeds KV 
 make dev            # Starts the local dev server
 
 # Recommended follow-up verification for the full path
-make verify         # Verifies full setup (tooling + build path)
+make verify         # Verifies full setup (tooling + build path + read-only KV config check)
 
 # If you only want the runtime and not the dashboard/e2e toolchain
 make setup-runtime  # Runtime-only setup (Rust/wasm/Spin + env/bootstrap + KV seed)
-make verify-runtime # Runtime-only verification (no Node/pnpm/Playwright)
+make verify-runtime # Runtime-only verification (no Node/pnpm/Playwright, includes read-only KV config check)
 
 # Config lifecycle helpers (only when needed)
 make config-verify  # Read-only KV config lifecycle check (missing/stale/invalid)

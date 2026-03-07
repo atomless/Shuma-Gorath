@@ -31,6 +31,7 @@ Choose one setup path:
 
 - Runtime-only single-host path (production/minimal): `make setup-runtime && make verify-runtime`
 - Full contributor/dev path (dashboard/e2e toolchain): `make setup && make verify`
+  - `make verify` now includes the same read-only persisted KV config check that `make dev` enforces. If it reports missing, stale, or invalid config, run `make config-seed` explicitly.
 
 Full contributor/dev quickstart:
 
@@ -117,7 +118,7 @@ Notes:
 - Run setup in an interactive terminal (it may prompt for sudo to install Spin).
 - `make setup` creates `.env.local` (gitignored) and auto-generates local dev secrets.
 - `make setup-runtime` also creates `.env.local` and seeds KV defaults, but intentionally skips Node/pnpm/Playwright.
-- Runtime start paths are now read-only with respect to persisted KV config. If `make dev`, `make run`, or `make prod` reports missing, stale, or invalid KV config, run `make config-seed` explicitly.
+- Runtime start paths are now read-only with respect to persisted KV config. `make verify` and `make verify-runtime` enforce that same guard before the runtime starts. If any of `make verify`, `make verify-runtime`, `make dev`, `make run`, or `make prod` reports missing, stale, or invalid KV config, run `make config-seed` explicitly.
 - `make setup` installs Playwright Chromium into repo-local cache `.cache/ms-playwright` for deterministic dashboard e2e runs.
 - Use the Makefile for all build/run/test flows.
 
