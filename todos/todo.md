@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-06
+Last updated: 2026-03-07
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -35,10 +35,15 @@ Reference context:
 
 Reference context:
 - [`docs/deployment.md`](../docs/deployment.md)
+- [`docs/research/2026-03-06-linode-shared-host-live-proof.md`](../docs/research/2026-03-06-linode-shared-host-live-proof.md)
 - [`docs/plans/2026-03-07-generic-ssh-remote-maintenance-layer-design.md`](../docs/plans/2026-03-07-generic-ssh-remote-maintenance-layer-design.md)
 - [`docs/plans/2026-03-06-linode-shared-host-readiness-implementation-plan.md`](../docs/plans/2026-03-06-linode-shared-host-readiness-implementation-plan.md)
 - [`skills/prepare-shared-host-on-linode/SKILL.md`](../skills/prepare-shared-host-on-linode/SKILL.md)
 - [`skills/deploy-shuma-on-linode/SKILL.md`](../skills/deploy-shuma-on-linode/SKILL.md)
+
+Current focus:
+- This is the immediate post-Linode-proof day-2 operations tranche.
+- Scope is provider-agnostic maintenance for normalized `ssh_systemd` targets only; provider-specific provisioning/setup remains separate.
 
 ### REMOTE-OPS-1: Generic SSH Remote Target Layer
 - [ ] REMOTE-OPS-1-1 Define the normalized gitignored remote receipt contract at `.spin/remotes/<name>.json` with:
