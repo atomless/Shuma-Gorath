@@ -2786,6 +2786,22 @@ test('dashboard route does not add unapproved read-only chrome to config tabs', 
   assert.equal(dashboardRouteSource.includes('This deployment is read-only.'), false);
 });
 
+test('dashboard route preflights dirty config logout before mutating session state', () => {
+  const dashboardRouteSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
+    'utf8'
+  );
+
+  assert.match(dashboardRouteSource, /function hasVisibleUnsavedConfigChanges\(/);
+  assert.match(dashboardRouteSource, /\.config-save-bar:not\(\.hidden\)/);
+  assert.match(dashboardRouteSource, /window\.confirm\(/);
+  assert.match(dashboardRouteSource, /stopImmediatePropagation\(\)/);
+  assert.match(
+    dashboardRouteSource,
+    /const hasUnsavedConfigChanges = hasVisibleUnsavedConfigChanges\(\);\s+if \(!confirmDiscardUnsavedConfigChanges\(\)\) return;\s+let redirectingToLogin = false;\s+loggingOut = true;\s+try \{\s+suppressBeforeUnloadPrompt = hasUnsavedConfigChanges;\s+routeController\.abortInFlightRefresh\(\);\s+clearAdversarySimStatusPollTimer\(\);\s+await logoutDashboardSession\(\);/s
+  );
+});
+
 test('dashboard route lazily loads heavy tabs and keeps orchestration local', () => {
   const source = fs.readFileSync(path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'), 'utf8');
 

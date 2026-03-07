@@ -58,6 +58,8 @@
   const AUTO_REFRESH_TABS = new Set(['monitoring', 'ip-bans']);
   const AUTO_REFRESH_PREF_KEY = 'shuma_dashboard_auto_refresh_v1';
   const DASHBOARD_LOADED_CLASS = 'dashboard-loaded';
+  const ACTIVE_DIRTY_CONFIG_SAVE_BAR_SELECTOR =
+    '#dashboard-admin-section [data-dashboard-tab-panel][aria-hidden="false"] .config-save-bar:not(.hidden)';
 
   const fallbackBasePath = normalizeDashboardBasePath();
   const dashboardBasePath = typeof data?.dashboardBasePath === 'string'
@@ -77,6 +79,7 @@
   let dashboardLoaded = false;
   let runtimeError = '';
   let loggingOut = false;
+  let suppressBeforeUnloadPrompt = false;
   let savingGlobalTestMode = false;
   let savingGlobalAdversarySim = false;
   let autoRefreshEnabled = false;
@@ -322,6 +325,28 @@
     window.location.replace(resolveLoginRedirectPath());
   }
 
+  function hasVisibleUnsavedConfigChanges(doc = null) {
+    const targetDocument = doc || (typeof document !== 'undefined' ? document : null);
+    if (!targetDocument || typeof targetDocument.querySelector !== 'function') return false;
+    return Boolean(targetDocument.querySelector(ACTIVE_DIRTY_CONFIG_SAVE_BAR_SELECTOR));
+  }
+
+  function confirmDiscardUnsavedConfigChanges(win = null, doc = null) {
+    if (!hasVisibleUnsavedConfigChanges(doc)) return true;
+    const targetWindow = win || (typeof window !== 'undefined' ? window : null);
+    if (!targetWindow || typeof targetWindow.confirm !== 'function') return false;
+    return targetWindow.confirm(
+      'You have unsaved configuration changes. Press OK to discard them and log out, or Cancel to stay on this page.'
+    );
+  }
+
+  function handleConfirmedLogoutBeforeUnload(event) {
+    if (suppressBeforeUnloadPrompt !== true) return;
+    if (event && typeof event.stopImmediatePropagation === 'function') {
+      event.stopImmediatePropagation();
+    }
+  }
+
   function clearAuthExpiryTimer() {
     if (authExpiryTimer) {
       clearTimeout(authExpiryTimer);
@@ -383,6 +408,9 @@
   });
 
   onMount(async () => {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', handleConfirmedLogoutBeforeUnload, true);
+    }
     if (typeof document !== 'undefined') {
       const classList = document?.documentElement?.classList;
       dashboardLoaded =
@@ -458,6 +486,10 @@
     telemetryUnsubscribe();
     clearAdversarySimStatusPollTimer();
     clearAuthExpiryTimer();
+    suppressBeforeUnloadPrompt = false;
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('beforeunload', handleConfirmedLogoutBeforeUnload, true);
+    }
     if (typeof document !== 'undefined') {
       const classList = document?.documentElement?.classList;
       if (classList && typeof classList.remove === 'function') {
@@ -854,15 +886,23 @@
     if (!routeController.getRuntimeMounted()) return;
     event.preventDefault();
     if (loggingOut) return;
+    const hasUnsavedConfigChanges = hasVisibleUnsavedConfigChanges();
+    if (!confirmDiscardUnsavedConfigChanges()) return;
+    let redirectingToLogin = false;
     loggingOut = true;
     try {
+      suppressBeforeUnloadPrompt = hasUnsavedConfigChanges;
       routeController.abortInFlightRefresh();
       clearAdversarySimStatusPollTimer();
       await logoutDashboardSession();
       dashboardStore.setSession({ authenticated: false, csrfToken: '' });
       routeController.clearPolling();
+      redirectingToLogin = true;
       redirectToLogin();
     } finally {
+      if (!redirectingToLogin) {
+        suppressBeforeUnloadPrompt = false;
+      }
       loggingOut = false;
     }
   }

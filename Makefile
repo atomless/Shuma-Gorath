@@ -1056,7 +1056,7 @@ test-dashboard-e2e: ## Run Playwright dashboard smoke tests (waits for existing 
 		SHUMA_DASHBOARD_BUDGET_SKIP_BUILD=1 $(MAKE) --no-print-directory test-dashboard-budgets || exit 1; \
 		./scripts/tests/verify_served_dashboard_assets.sh http://127.0.0.1:3000 || exit 1; \
 		$(MAKE) --no-print-directory seed-dashboard-data || exit 1; \
-		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) corepack pnpm run test:dashboard:e2e; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) ./scripts/tests/run_dashboard_e2e.sh $(PLAYWRIGHT_ARGS); \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \

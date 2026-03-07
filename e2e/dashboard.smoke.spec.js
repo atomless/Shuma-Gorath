@@ -2592,3 +2592,89 @@ test("logout redirects back to login page", async ({ page }) => {
   await page.click("#logout-btn");
   await expect(page).toHaveURL(/\/dashboard\/login\.html\?next=/);
 });
+
+test("logout with unsaved config changes prompts once and cancel preserves the dashboard session", async ({ page }) => {
+  await openDashboard(page);
+  await openTab(page, "verification");
+
+  const jsRequiredToggle = page.locator("#js-required-enforced-toggle");
+  const configSave = page.locator("#save-verification-all");
+  if (!(await jsRequiredToggle.isVisible()) || !(await jsRequiredToggle.isEnabled())) {
+    await expect(configSave).toBeHidden();
+    return;
+  }
+
+  const initialChecked = await jsRequiredToggle.isChecked();
+  await jsRequiredToggle.click();
+  await expect(configSave).toBeVisible();
+  await expect(configSave).toBeEnabled();
+
+  const dialogs = [];
+  const handleDialog = async (dialog) => {
+    dialogs.push({
+      type: dialog.type(),
+      message: dialog.message()
+    });
+    await dialog.dismiss();
+  };
+  page.on("dialog", handleDialog);
+
+  try {
+    await page.click("#logout-btn");
+    await page.waitForTimeout(500);
+  } finally {
+    page.off("dialog", handleDialog);
+  }
+
+  expect(dialogs).toHaveLength(1);
+  expect(dialogs[0].type).toBe("confirm");
+  await expect(page).toHaveURL(/\/dashboard\/index\.html#verification$/);
+  await expect(page.locator("#logout-btn")).toBeEnabled();
+  await expect(configSave).toBeVisible();
+  await expect(configSave).toBeEnabled();
+
+  const domState = await dashboardDomClassState(page);
+  expect(domState.bodyDisconnectedClassPresent).toBeFalsy();
+
+  if (initialChecked !== await jsRequiredToggle.isChecked()) {
+    await jsRequiredToggle.click();
+    await expect(configSave).toBeHidden();
+  }
+});
+
+test("logout with unsaved config changes prompts once before redirecting to login", async ({ page }) => {
+  await openDashboard(page);
+  await openTab(page, "verification");
+
+  const jsRequiredToggle = page.locator("#js-required-enforced-toggle");
+  const configSave = page.locator("#save-verification-all");
+  if (!(await jsRequiredToggle.isVisible()) || !(await jsRequiredToggle.isEnabled())) {
+    await expect(configSave).toBeHidden();
+    return;
+  }
+
+  await jsRequiredToggle.click();
+  await expect(configSave).toBeVisible();
+  await expect(configSave).toBeEnabled();
+
+  const dialogs = [];
+  const handleDialog = async (dialog) => {
+    dialogs.push({
+      type: dialog.type(),
+      message: dialog.message()
+    });
+    await dialog.accept();
+  };
+  page.on("dialog", handleDialog);
+
+  try {
+    await page.click("#logout-btn");
+    await expect(page).toHaveURL(/\/dashboard\/login\.html\?next=/);
+    await page.waitForTimeout(500);
+  } finally {
+    page.off("dialog", handleDialog);
+  }
+
+  expect(dialogs).toHaveLength(1);
+  expect(dialogs[0].type).toBe("confirm");
+});
