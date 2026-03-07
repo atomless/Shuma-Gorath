@@ -1664,6 +1664,26 @@ mod admin_config_tests {
             .uri("/internal/adversary-sim/beat")
             .header("host", "localhost:3000")
             .header("authorization", authorization.as_str())
+            .header("x-shuma-forwarded-secret", "test-forwarded-secret")
+            .header("x-forwarded-proto", "https")
+            .header("x-forwarded-for", "127.0.0.1")
+            .header("x-shuma-internal-supervisor", "adversary-sim")
+            .body(Vec::new());
+        builder.build()
+    }
+
+    fn make_internal_supervisor_status_request(api_key: &str) -> Request {
+        let authorization = format!("Bearer {}", api_key);
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Get)
+            .uri("/admin/adversary-sim/status")
+            .header("host", "localhost:3000")
+            .header("authorization", authorization.as_str())
+            .header("x-shuma-forwarded-secret", "test-forwarded-secret")
+            .header("x-forwarded-proto", "https")
+            .header("x-forwarded-for", "127.0.0.1")
+            .header("x-shuma-internal-supervisor", "adversary-sim")
             .body(Vec::new());
         builder.build()
     }
@@ -3695,6 +3715,48 @@ mod admin_config_tests {
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
         std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_internal_supervisor_bypass_is_scoped_to_status_and_beat_paths() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+        std::env::set_var("SHUMA_ADMIN_IP_ALLOWLIST", "203.0.113.10/32");
+
+        let status_req = make_internal_supervisor_status_request("test-admin-key");
+        assert!(request_bypasses_admin_ip_allowlist(
+            &status_req,
+            "/admin/adversary-sim/status"
+        ));
+
+        let beat_req = make_internal_beat_request("test-admin-key");
+        assert!(request_bypasses_admin_ip_allowlist(
+            &beat_req,
+            INTERNAL_ADVERSARY_SIM_BEAT_PATH
+        ));
+
+        let mut other = Request::builder();
+        other
+            .method(Method::Get)
+            .uri("/admin/config")
+            .header("host", "localhost:3000")
+            .header("authorization", "Bearer test-admin-key")
+            .header("x-shuma-forwarded-secret", "test-forwarded-secret")
+            .header("x-forwarded-proto", "https")
+            .header("x-forwarded-for", "127.0.0.1")
+            .header("x-shuma-internal-supervisor", "adversary-sim");
+        let other_req = other.body(Vec::new()).build();
+        assert!(!request_bypasses_admin_ip_allowlist(
+            &other_req,
+            "/admin/config"
+        ));
+
+        clear_env(&[
+            "SHUMA_API_KEY",
+            "SHUMA_FORWARDED_IP_SECRET",
+            "SHUMA_ADMIN_IP_ALLOWLIST",
+        ]);
     }
 
     #[test]
@@ -12157,6 +12219,11 @@ fn handle_admin_adversary_sim_status(
     Response::new(200, body)
 }
 
+fn request_bypasses_admin_ip_allowlist(req: &Request, path: &str) -> bool {
+    matches!(path, "/admin/adversary-sim/status" | INTERNAL_ADVERSARY_SIM_BEAT_PATH)
+        && crate::admin::auth::is_internal_adversary_sim_supervisor_request(req)
+}
+
 fn handle_admin_adversary_sim_history_cleanup(
     req: &Request,
     store: &impl crate::challenge::KeyValueStore,
@@ -12863,7 +12930,9 @@ fn handle_admin_adversary_sim_control(
 /// Currently supports:
 ///   - POST /internal/adversary-sim/beat: run one bounded autonomous supervisor beat
 pub fn handle_internal(req: &Request) -> Response {
-    if !crate::admin::auth::is_admin_ip_allowed(req) {
+    if !request_bypasses_admin_ip_allowlist(req, req.path())
+        && !crate::admin::auth::is_admin_ip_allowed(req)
+    {
         return Response::new(403, "Forbidden");
     }
     if !crate::admin::auth::is_admin_api_key_configured() {
@@ -12912,15 +12981,16 @@ pub fn handle_internal(req: &Request) -> Response {
 ///   - GET /admin/tarpit/preview: Render a non-operational progressive tarpit preview for operators
 ///   - GET /admin: API help
 pub fn handle_admin(req: &Request) -> Response {
+    let path = req.path();
     // Optional admin IP allowlist
-    if !crate::admin::auth::is_admin_ip_allowed(req) {
+    if !request_bypasses_admin_ip_allowlist(req, path)
+        && !crate::admin::auth::is_admin_ip_allowed(req)
+    {
         return Response::new(403, "Forbidden");
     }
     if !crate::admin::auth::is_admin_api_key_configured() {
         return Response::new(503, "Admin API disabled: key not configured");
     }
-
-    let path = req.path();
     if !sanitize_path(path) {
         return Response::new(400, "Bad Request: Invalid admin endpoint");
     }

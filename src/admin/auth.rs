@@ -401,6 +401,32 @@ pub fn is_admin_ip_allowed(req: &Request) -> bool {
     allowlist::is_allowlisted(&ip, &list)
 }
 
+pub fn is_internal_adversary_sim_supervisor_request(req: &Request) -> bool {
+    let marker = req
+        .header("x-shuma-internal-supervisor")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .unwrap_or("");
+    if marker != "adversary-sim" {
+        return false;
+    }
+
+    if bearer_access_level(req) != Some(AdminAccessLevel::ReadWrite) {
+        return false;
+    }
+
+    if !crate::forwarded_ip_trusted(req) || !crate::request_is_https(req) {
+        return false;
+    }
+
+    req.header("x-forwarded-for")
+        .and_then(|value| value.as_str())
+        .and_then(|value| value.split(',').next())
+        .map(str::trim)
+        .map(|value| value == "127.0.0.1" || value == "::1")
+        .unwrap_or(false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -621,5 +647,68 @@ mod tests {
             &req,
             AdminAuthFailureScope::Endpoint
         ));
+    }
+
+    fn internal_supervisor_request() -> Request {
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Post)
+            .uri("/internal/adversary-sim/beat")
+            .header("authorization", "Bearer test-admin-key")
+            .header("x-shuma-forwarded-secret", "test-forwarded-secret")
+            .header("x-forwarded-proto", "https")
+            .header("x-forwarded-for", "127.0.0.1")
+            .header("x-shuma-internal-supervisor", "adversary-sim");
+        builder.build()
+    }
+
+    #[test]
+    fn internal_adversary_sim_supervisor_request_requires_marker_bearer_secret_https_and_loopback() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let req = internal_supervisor_request();
+        assert!(is_internal_adversary_sim_supervisor_request(&req));
+
+        let mut missing_marker = Request::builder();
+        missing_marker
+            .method(Method::Post)
+            .uri("/internal/adversary-sim/beat")
+            .header("authorization", "Bearer test-admin-key")
+            .header("x-shuma-forwarded-secret", "test-forwarded-secret")
+            .header("x-forwarded-proto", "https")
+            .header("x-forwarded-for", "127.0.0.1");
+        assert!(!is_internal_adversary_sim_supervisor_request(
+            &missing_marker.build()
+        ));
+
+        let mut wrong_ip = Request::builder();
+        wrong_ip
+            .method(Method::Post)
+            .uri("/internal/adversary-sim/beat")
+            .header("authorization", "Bearer test-admin-key")
+            .header("x-shuma-forwarded-secret", "test-forwarded-secret")
+            .header("x-forwarded-proto", "https")
+            .header("x-forwarded-for", "203.0.113.9")
+            .header("x-shuma-internal-supervisor", "adversary-sim");
+        assert!(!is_internal_adversary_sim_supervisor_request(
+            &wrong_ip.build()
+        ));
+
+        let mut insecure = Request::builder();
+        insecure
+            .method(Method::Post)
+            .uri("/internal/adversary-sim/beat")
+            .header("authorization", "Bearer test-admin-key")
+            .header("x-shuma-forwarded-secret", "test-forwarded-secret")
+            .header("x-forwarded-for", "127.0.0.1")
+            .header("x-shuma-internal-supervisor", "adversary-sim");
+        assert!(!is_internal_adversary_sim_supervisor_request(
+            &insecure.build()
+        ));
+
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
     }
 }

@@ -188,6 +188,7 @@ Dashboard adversary-sim orchestration control contract:
 - Control submissions must include `Idempotency-Key`, pass strict origin/referer + fetch-metadata trust checks, and return `operation_id` + `decision`.
 - `GET /admin/adversary-sim/status` is read-only and returns lifecycle phase, fixed guardrails, desired/actual state, and controller reconciliation/lease metadata.
 - `POST /internal/adversary-sim/beat` is an internal-only endpoint used by host-side supervisor workers; dashboard clients never call it directly.
+- Host-side supervisor requests must satisfy trusted-forwarding (`X-Shuma-Forwarded-Secret`, loopback `X-Forwarded-For`, `X-Forwarded-Proto: https`) and send the internal supervisor marker header. Only `/admin/adversary-sim/status` and `/internal/adversary-sim/beat` bypass the public admin IP allowlist under that internal supervisor contract.
 - Runtime generation cadence ownership is backend/supervisor-only: dashboard refresh cadence must not control traffic generation.
 - Toggle-driven runs use `adversary_sim_duration_seconds` (default `180`, hard-bounded `30..900`) under backend autonomous heartbeat generation, and dashboard surfaces lifecycle state only (`off`, `running`, `stopping`) without procedural progress rendering.
 - If no frontier provider keys are configured, OFF -> ON toggle attempts must show a warning dialog with two outcomes:

@@ -168,7 +168,7 @@ fn request_beat(config: &Config) -> Result<HttpResponse, String> {
     let _ = stream.set_write_timeout(Some(Duration::from_millis(config.io_timeout_ms)));
 
     let mut request = format!(
-        "POST {BEAT_PATH} HTTP/1.1\r\nHost: {}:{}\r\nAuthorization: Bearer {}\r\nX-Forwarded-For: 127.0.0.1\r\nContent-Length: 0\r\nConnection: close\r\n",
+        "POST {BEAT_PATH} HTTP/1.1\r\nHost: {}:{}\r\nAuthorization: Bearer {}\r\nX-Forwarded-For: 127.0.0.1\r\nX-Forwarded-Proto: https\r\nX-Shuma-Internal-Supervisor: adversary-sim\r\nContent-Length: 0\r\nConnection: close\r\n",
         config.host, config.port, config.api_key
     );
     if let Some(secret) = config.forwarded_secret.as_ref() {

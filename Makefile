@@ -680,6 +680,7 @@ test-adversary-sim-lifecycle: ## Fast adversary-sim lifecycle regression gate (t
 	@cargo test adversary_sim_status_reconciles_idle_enabled_state_to_off -- --nocapture
 	@cargo test adversary_sim_status_forces_off_when_run_owned_by_previous_process_instance -- --nocapture
 	@cargo test adversary_sim_internal_beat_updates_generation_diagnostics_contract -- --nocapture
+	@python3 -m unittest scripts/tests/test_adversary_sim_supervisor.py
 	@$(MAKE) --no-print-directory test-adversarial-deterministic-corpus
 
 adversary-sim-supervisor-build: ## Build the host-side adversary-sim supervisor worker binary

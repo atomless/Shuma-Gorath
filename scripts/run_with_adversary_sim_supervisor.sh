@@ -24,7 +24,12 @@ is_generation_active() {
     return 1
   fi
 
-  local headers=(-H "Authorization: Bearer ${ADMIN_API_KEY}" -H "X-Forwarded-For: 127.0.0.1")
+  local headers=(
+    -H "Authorization: Bearer ${ADMIN_API_KEY}"
+    -H "X-Forwarded-For: 127.0.0.1"
+    -H "X-Forwarded-Proto: https"
+    -H "X-Shuma-Internal-Supervisor: adversary-sim"
+  )
   if [[ -n "${FORWARDED_SECRET}" ]]; then
     headers+=(-H "X-Shuma-Forwarded-Secret: ${FORWARDED_SECRET}")
   fi
