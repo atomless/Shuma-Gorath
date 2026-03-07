@@ -72,6 +72,8 @@ This file provides instructions for coding agents working in this repository.
    - prepend new completion entries to the top of `todos/completed-todo-history.md`,
    - include the completion date for the moved entries,
    - preserve the original TODO section title(s) as headings in the archive entry.
+   - immediately after completing any TODO tranche, review the recently completed TODOs and their linked plan requirements as a consistency check,
+   - confirm the delivered result actually met the planned requirements and did so with the architectural, security, and operational excellence demanded by this project; if it did not, continue the work or reopen the TODO instead of reporting completion.
 12. For any new `SHUMA_*` variable, follow the single-source-of-truth lifecycle:
    - define/update canonical default in `config/defaults.env` first and classify it as env-only or KV-tunable,
    - wire seeding/bootstrap paths so `make config-seed`/`make setup` produce a correct local baseline (at minimum update `scripts/config_seed.sh`, `scripts/bootstrap/setup.sh`, and `Makefile` env wiring/help as applicable),
