@@ -79,8 +79,20 @@ make prepare-linode-shared-host PREPARE_LINODE_ARGS="--docroot /abs/path/to/site
 ```
 
 That helper can persist `LINODE_TOKEN`, `SHUMA_ADMIN_IP_ALLOWLIST`, and `GATEWAY_SURFACE_CATALOG_PATH` to gitignored `.env.local` and write `.spin/linode-shared-host-setup.json` with the instance id and public IP.
+It also emits `.spin/remotes/<name>.json` so routine day-2 operations can switch to the generic remote layer after the first successful deploy.
 
 If the Linode host and same-box origin are already prepared, use `--existing-instance-id <linode-id>` to attach Shuma without reprovisioning.
+
+After the first successful shared-host deploy, routine SSH-managed day-2 operations are:
+
+```bash
+make remote-use REMOTE=blog-prod
+make remote-status
+make remote-logs
+make remote-start
+make remote-stop
+make remote-open-dashboard
+```
 
 Dashboard:
 - `http://127.0.0.1:3000/dashboard/index.html`

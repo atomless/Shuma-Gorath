@@ -4,7 +4,7 @@
 
 Run this before provisioning.
 
-If the setup helper already ran, `.env.local` may already contain `LINODE_TOKEN`, `SHUMA_ADMIN_IP_ALLOWLIST`, and `GATEWAY_SURFACE_CATALOG_PATH`, and `.spin/linode-shared-host-setup.json` may already contain the instance id plus SSH key paths. Reuse those artifacts instead of re-asking the operator.
+If the setup helper already ran, `.env.local` may already contain `LINODE_TOKEN`, `SHUMA_ADMIN_IP_ALLOWLIST`, and `GATEWAY_SURFACE_CATALOG_PATH`, `.spin/linode-shared-host-setup.json` may already contain the instance id plus SSH key paths, and `.spin/remotes/<name>.json` may already hold the normalized day-2 target contract. Reuse those artifacts instead of re-asking the operator.
 
 Fresh-host preflight:
 
@@ -37,6 +37,8 @@ make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--existing-instance-id 123456 --
 ```
 
 For an interactive local attach where success should end with the hosted dashboard opening in a browser tab, add `--open-dashboard` to the final non-preflight deploy command.
+
+If you want the normalized day-2 receipt to use a stable friendly name rather than the default domain-derived name, include `--remote-name <name>` in the final deploy command.
 
 Run gateway contract guardrails before production cutover:
 
@@ -83,6 +85,21 @@ SHUMA_SMOKE_FORWARD_PATH=/stable/public/path GATEWAY_SURFACE_CATALOG_PATH=/abs/p
 Live proof reference:
 
 - [`../../../docs/research/2026-03-06-linode-shared-host-live-proof.md`](../../../docs/research/2026-03-06-linode-shared-host-live-proof.md)
+
+## Day-2 Remote Maintenance
+
+Once deploy succeeds, shift to the normalized day-2 remote layer:
+
+```bash
+make remote-use REMOTE=blog-prod
+make remote-status
+make remote-logs
+make remote-start
+make remote-stop
+make remote-open-dashboard
+```
+
+Those commands read `.spin/remotes/<name>.json` and work at the generic `ssh_systemd` contract level rather than through Linode-specific provider logic.
 
 ## Live-Proven Gotchas
 

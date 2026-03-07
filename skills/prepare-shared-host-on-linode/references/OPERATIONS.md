@@ -29,6 +29,7 @@ Useful flags:
 - `--site-mode static-html-docroot`
 - `--site-mode php-docroot`
 - `--existing-instance-id <id>`
+- `--remote-name <name>`
 - `--admin-ip <cidr>`
 - `--yes`
 - `--label <linode-label>`
@@ -51,12 +52,26 @@ The helper persists local secrets and setup state in the right places:
   - SSH key paths
   - catalog path
   - setup mode
+- `.spin/remotes/<name>.json`
+  - normalized `ssh_systemd` day-2 contract
+  - provider kind
+  - public base URL
+  - service name / SSH transport
 
 Never write the raw Linode token into the receipt.
 
 ## Receipt Semantics
 
 The receipt is the deploy handoff artifact.
+
+The normalized remote receipt is the day-2 maintenance artifact for:
+
+- `make remote-use REMOTE=<name>`
+- `make remote-status`
+- `make remote-logs`
+- `make remote-start`
+- `make remote-stop`
+- `make remote-open-dashboard`
 
 Expected shape:
 
@@ -71,6 +86,14 @@ Expected shape:
 - `admin_allowlist`
 
 If the receipt is missing any of those, treat setup as incomplete.
+
+The normalized remote receipt should additionally contain:
+
+- `identity.backend_kind=ssh_systemd`
+- `runtime.service_name=shuma-gorath`
+- `runtime.public_base_url`
+- `ssh.host`
+- `ssh.private_key_path`
 
 ## Admin Allowlist Rule
 

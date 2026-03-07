@@ -42,30 +42,11 @@ Reference context:
 - [`skills/deploy-shuma-on-linode/SKILL.md`](../skills/deploy-shuma-on-linode/SKILL.md)
 
 Current focus:
-- This is the immediate post-Linode-proof day-2 operations tranche.
-- Scope is provider-agnostic maintenance for normalized `ssh_systemd` targets only; provider-specific provisioning/setup remains separate.
+- The low-risk normalized `ssh_systemd` remote day-2 slice is now in place.
+- The remaining remote-ops work is `remote-update`, which stays deferred until the config-seeding lifecycle cleanup makes that command truthful.
 
 ### REMOTE-OPS-1: Generic SSH Remote Target Layer
-- [ ] REMOTE-OPS-1-1 Define the normalized gitignored remote receipt contract at `.spin/remotes/<name>.json` with:
-  - target identity (`name`, `backend_kind`, `provider_kind`)
-  - SSH transport (`host`, `port`, `user`, `private_key_path`)
-  - runtime contract (`app_dir`, `service_name`, `public_base_url`)
-  - deploy contract (`spin_manifest_path`, `surface_catalog_path`, `smoke_path`)
-  - metadata (`last_deployed_commit`, `last_deployed_at_utc`)
-- [ ] REMOTE-OPS-1-2 Keep `.env.local` limited to the active remote selector (`SHUMA_ACTIVE_REMOTE=<name>`) plus normal env-only secrets; do not store structured remote target state there.
-- [ ] REMOTE-OPS-1-3 Make provider-specific setup/deploy paths write the same normalized receipt schema, with provider-specific extension fields allowed but ignored by generic remote maintenance commands.
-- [ ] REMOTE-OPS-1-4 Implement the first generic backend as `ssh_systemd`; do not claim identical lifecycle semantics for non-SSH backends such as Fermyon in this tranche.
-- [ ] REMOTE-OPS-1-5 Add thin repo-local helper dispatch for:
-  - `make remote-use REMOTE=<name>`
-  - `make remote-update`
-  - `make remote-start`
-  - `make remote-stop`
-  - `make remote-status`
-  - `make remote-logs`
-  - `make remote-open-dashboard`
 - [ ] REMOTE-OPS-1-6 Define `make remote-update` truthfully as: build the exact local committed `HEAD` bundle, upload/install it on the selected `ssh_systemd` remote, restart the service, run smoke, and update receipt metadata; do not imply uncommitted worktree sync.
-- [ ] REMOTE-OPS-1-7 Keep target naming truthful: do not add ambiguous generic commands such as `make dev-remote` or `make dev-prod-remote` unless the implementation can guarantee those semantics across the supported backend contract.
-- [ ] REMOTE-OPS-1-8 Update deploy/setup skills and operator docs so the Linode path becomes one provider-specific writer of the generic remote receipt, while the day-2 remote maintenance path is provider-agnostic within the `ssh_systemd` contract.
 
 ## P1 Shared-Host Discovery Baseline
 

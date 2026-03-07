@@ -75,7 +75,8 @@ That helper is agent-oriented. It can:
 - propose and persist `SHUMA_ADMIN_IP_ALLOWLIST`,
 - generate `GATEWAY_SURFACE_CATALOG_PATH`,
 - create or inspect the Linode instance,
-- write `.spin/linode-shared-host-setup.json`.
+- write `.spin/linode-shared-host-setup.json`,
+- emit a normalized day-2 target receipt under `.spin/remotes/<name>.json`.
 
 After that, `make deploy-linode-one-shot` can reuse the persisted `.env.local` state plus the SSH key paths stored in `.spin/linode-shared-host-setup.json` instead of asking the operator for those inputs again.
 
@@ -110,6 +111,7 @@ Requirements:
 This workflow runs local production preflight, builds an exact local git `HEAD` release bundle, provisions the VM, bootstraps runtime dependencies on the server, validates remote single-host posture with `make deploy-self-hosted-minimal`, runs `make smoke-single-host` (including forwarded public-path parity against the configured upstream origin plus reserved-route/admin checks), installs a `systemd` unit that starts the already-prepared runtime with `make prod-start`, and prints the final dashboard URL. When `--open-dashboard` is set, it also opens `/dashboard` locally after success.
 For shared-host gateway deployments, the canonical path also renders a deployment-specific Spin manifest from [`spin.toml`](../spin.toml) so the runtime keeps the repo template deny-by-default while the deployed host gets the exact upstream allowlist it needs.
 For admin-route smoke checks, `make smoke-single-host` derives an allowlisted forwarded IP from `SHUMA_ADMIN_IP_ALLOWLIST` by default. Override it with `SHUMA_SMOKE_ADMIN_FORWARDED_IP` when the first allowlist entry is not the right trusted operator IP for the check.
+On successful deploy, the Linode path also refreshes `.spin/remotes/<name>.json` so later `make remote-*` day-2 operations can use the provider-agnostic `ssh_systemd` contract instead of rerunning provider-specific setup.
 
 If you already have a prepared Linode instance with a same-host origin listening on a local-only upstream such as `http://127.0.0.1:8080`, attach Shuma without reprovisioning by using `--existing-instance-id`:
 
@@ -130,6 +132,26 @@ Related repo-local deployment skills:
 - [`../skills/prepare-shared-host-on-linode/SKILL.md`](../skills/prepare-shared-host-on-linode/SKILL.md)
 - [`../skills/deploy-shuma-on-linode/SKILL.md`](../skills/deploy-shuma-on-linode/SKILL.md)
 - [`../skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](../skills/deploy-shuma-on-akamai-fermyon/SKILL.md)
+
+## 🐙 Generic SSH Remote Day-2 Operations
+
+Once a shared-host deploy has succeeded and `.spin/remotes/<name>.json` exists, routine operations should move to the provider-agnostic remote layer:
+
+```bash
+make remote-use REMOTE=blog-prod
+make remote-status
+make remote-logs
+make remote-start
+make remote-stop
+make remote-open-dashboard
+```
+
+Rules:
+
+- `.env.local` keeps only `SHUMA_ACTIVE_REMOTE=<name>` for remote selection.
+- structured remote target state lives in `.spin/remotes/<name>.json`.
+- the current generic backend contract is `ssh_systemd` only.
+- `remote-update` is intentionally deferred until the config-seeding lifecycle cleanup makes that command truthful.
 
 ## 🐙 10-Minute `self_hosted_minimal` Runbook (Start + Health + Rollback)
 

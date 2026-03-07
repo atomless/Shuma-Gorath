@@ -44,7 +44,8 @@ What the helper does:
 - ensures a dedicated SSH keypair exists,
 - creates a fresh Linode instance or inspects an existing one,
 - builds `GATEWAY_SURFACE_CATALOG_PATH` from the local docroot,
-- writes a receipt to `.spin/linode-shared-host-setup.json`.
+- writes a provider setup receipt to `.spin/linode-shared-host-setup.json`,
+- writes a normalized day-2 remote receipt to `.spin/remotes/<name>.json`.
 
 What the helper must not do:
 
@@ -66,8 +67,9 @@ After a successful run, expect:
   - SSH key paths
   - catalog path
   - setup mode (`fresh-instance` or `existing-instance`)
+- `.spin/remotes/<name>.json` contains the normalized `ssh_systemd` contract for later `make remote-*` day-2 operations.
 
-Treat the receipt as the handoff artifact for the deploy skill.
+Treat the provider setup receipt as the deploy handoff artifact, and the normalized remote receipt as the future day-2 operations artifact.
 
 ## Canonical Usage
 
@@ -75,6 +77,12 @@ Fresh-instance setup using the first static acid test:
 
 ```bash
 make prepare-linode-shared-host PREPARE_LINODE_ARGS="--docroot /Users/jamestindall/Projects/dummy_static_site --site-mode static-html-docroot"
+```
+
+If you want the day-2 remote to use a stable friendly name instead of the Linode label, set it explicitly:
+
+```bash
+make prepare-linode-shared-host PREPARE_LINODE_ARGS="--docroot /abs/path/to/site --remote-name blog-prod"
 ```
 
 Prepared-instance attach:

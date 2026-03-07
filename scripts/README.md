@@ -8,14 +8,17 @@ Automation scripts used by the Makefile live here.
   - `setup.sh`: dependency/bootstrap workflow used by `make setup`
   - `verify-setup.sh`: setup verification used by `make verify`
 - `deploy/`
+  - `local_env.py`: shared helpers for gitignored operator env files such as `.env.local`
   - `gateway_surface_catalog.py`: shared catalog parsing, reserved-route matching, and forward-probe path selection helpers
   - `render_gateway_spin_manifest.py`: renders a deployment-specific Spin manifest with the exact gateway upstream allowlist for shared-host runtime/preflight use
+  - `remote_target.py`: normalized `ssh_systemd` remote receipt helpers and generic day-2 remote command dispatch
   - `select_gateway_smoke_path.py`: selects a deterministic non-reserved public path from a surface catalog for post-deploy smoke forwarding checks
   - `spin_manifest.py`: shared manifest normalization/render helpers used by deploy validation and gateway harnesses
   - `validate_gateway_contract.py`: validates gateway env contract + effective Spin manifest outbound-host alignment (invoked by `make deploy-env-validate`)
   - `validate_gateway_route_collisions.py`: validates discovered origin surface catalog against Shuma/Spin reserved routes and writes a deterministic preflight report (invoked by `make deploy-env-validate`)
   - `probe_gateway_origin_bypass.py`: optional active probe that compares gateway vs direct-origin reachability and classifies origin-bypass posture (invoked by `make test-gateway-origin-bypass-probe`)
 - `build_site_surface_catalog.py`: compiles a deterministic site-surface catalog from a local docroot so setup flows do not require a human-authored sitemap
+- `manage_remote_target.py`: CLI entrypoint for normalized `ssh_systemd` day-2 remote operations (`make remote-*`)
 - `prepare_linode_shared_host.py`: agent-oriented shared-host setup entrypoint that captures/persists local Linode handoff state and writes a setup receipt
 - `site_surface_catalog.py`: shared local docroot and sitemap inventory helpers used by the generic site-surface catalog builder
 - `tests/`

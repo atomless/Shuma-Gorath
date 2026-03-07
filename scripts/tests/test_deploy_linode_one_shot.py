@@ -1,3 +1,4 @@
+import json
 import os
 import stat
 import subprocess
@@ -37,6 +38,7 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         self.open_log = self.temp_dir / "open.log"
         self.captured_manifest = self.temp_dir / "captured-spin.toml"
         self.catalog_path = self.temp_dir / "catalog.json"
+        self.remote_receipts_dir = self.temp_dir / ".spin" / "remotes"
         self.catalog_path.write_text('{"inventory":[{"path":"/"}]}\n', encoding="utf-8")
 
         write_executable(
@@ -143,6 +145,7 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         env["SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED"] = "true"
         env["SHUMA_GATEWAY_TLS_STRICT"] = "true"
         env["GATEWAY_SURFACE_CATALOG_PATH"] = str(self.catalog_path)
+        env["REMOTE_RECEIPTS_DIR"] = str(self.remote_receipts_dir)
         return env
 
     def run_script(
@@ -251,6 +254,8 @@ class DeployLinodeOneShotTests(unittest.TestCase):
 
     def test_existing_instance_deploy_does_not_create_new_linode(self) -> None:
         result = self.run_script(
+            "--remote-name",
+            "blog-prod",
             "--domain",
             "shuma.example.com",
             "--existing-instance-id",
@@ -261,6 +266,13 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         self.assertNotIn("POST https://api.linode.com/v4/linode/instances\n", curl_log)
         self.assertIn("Host IP:   198.51.100.24", result.stdout)
         self.assertIn("Dashboard: https://shuma.example.com/dashboard", result.stdout)
+        remote_receipt = json.loads(
+            (self.remote_receipts_dir / "blog-prod.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(remote_receipt["schema"], "shuma.remote_target.v1")
+        self.assertEqual(remote_receipt["identity"]["name"], "blog-prod")
+        self.assertEqual(remote_receipt["runtime"]["public_base_url"], "https://shuma.example.com")
+        self.assertTrue(remote_receipt["metadata"]["last_deployed_commit"])
 
     def test_open_dashboard_flag_launches_local_dashboard_url(self) -> None:
         result = self.run_script(

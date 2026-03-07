@@ -78,6 +78,7 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
         self.env_file = self.temp_dir / ".env.local"
         self.catalog_path = self.temp_dir / ".spin" / "site.surface-catalog.json"
         self.receipt_path = self.temp_dir / ".spin" / "linode-shared-host-setup.json"
+        self.remote_receipts_dir = self.temp_dir / ".spin" / "remotes"
 
     def test_prompts_for_token_persists_env_and_writes_receipt(self) -> None:
         client = FakeLinodeClient("linode-secret")
@@ -109,6 +110,10 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
                     str(self.catalog_path),
                     "--receipt-output",
                     str(self.receipt_path),
+                    "--remote-name",
+                    "blog-prod",
+                    "--remote-receipts-dir",
+                    str(self.remote_receipts_dir),
                     "--label",
                     "shuma-test",
                 ]
@@ -129,6 +134,14 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
         self.assertEqual(receipt["linode"]["public_ipv4"], "198.51.100.24")
         self.assertEqual(receipt["admin_allowlist"], "203.0.113.8/32")
         self.assertEqual(receipt["catalog_path"], str(self.catalog_path.resolve()))
+        remote_receipt = json.loads(
+            (self.remote_receipts_dir / "blog-prod.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(remote_receipt["schema"], "shuma.remote_target.v1")
+        self.assertEqual(remote_receipt["identity"]["name"], "blog-prod")
+        self.assertEqual(remote_receipt["identity"]["backend_kind"], "ssh_systemd")
+        self.assertEqual(remote_receipt["runtime"]["service_name"], "shuma-gorath")
+        self.assertEqual(remote_receipt["provider"]["linode"]["instance_id"], 123)
 
     def test_existing_instance_uses_saved_token_without_prompt(self) -> None:
         self.env_file.write_text("LINODE_TOKEN=stored-token\n", encoding="utf-8")
@@ -157,6 +170,10 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
                     str(self.catalog_path),
                     "--receipt-output",
                     str(self.receipt_path),
+                    "--remote-name",
+                    "blog-prod",
+                    "--remote-receipts-dir",
+                    str(self.remote_receipts_dir),
                     "--existing-instance-id",
                     "456",
                     "--admin-ip",
@@ -172,6 +189,11 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
         self.assertEqual(receipt["mode"], "existing-instance")
         self.assertEqual(receipt["linode"]["instance_id"], 456)
         self.assertEqual(receipt["admin_allowlist"], "198.51.100.9/32")
+        remote_receipt = json.loads(
+            (self.remote_receipts_dir / "blog-prod.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(remote_receipt["ssh"]["host"], "198.51.100.25")
+        self.assertEqual(remote_receipt["runtime"]["public_base_url"], "https://198.51.100.25.sslip.io")
 
     def test_make_target_passes_env_local_deploy_inputs_to_script(self) -> None:
         self.catalog_path.parent.mkdir(parents=True, exist_ok=True)

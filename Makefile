@@ -1,4 +1,4 @@
-.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean test test-unit unit-test test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean test test-unit unit-test test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host remote-use remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot logs status stop help setup setup-runtime verify verify-runtime config-seed dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -24,6 +24,7 @@ ifneq ("$(wildcard $(ENV_LOCAL))","")
 include $(ENV_LOCAL)
 endif
 LINODE_SETUP_RECEIPT ?= .spin/linode-shared-host-setup.json
+REMOTE_RECEIPTS_DIR ?= .spin/remotes
 
 # Normalize optional quoted values from .env.local (handles KEY=value and KEY="value")
 strip_wrapping_quotes = $(patsubst "%",%,$(patsubst '%',%,$(strip $(1))))
@@ -72,6 +73,7 @@ SHUMA_GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS := $(call strip_wrapping_quotes,$(SHUMA_G
 SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS))
 SHUMA_GATEWAY_TLS_STRICT := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_TLS_STRICT))
 SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED))
+SHUMA_ACTIVE_REMOTE := $(call strip_wrapping_quotes,$(SHUMA_ACTIVE_REMOTE))
 SHUMA_RUNTIME_ENV := $(if $(strip $(SHUMA_RUNTIME_ENV)),$(SHUMA_RUNTIME_ENV),runtime-prod)
 SHUMA_ADVERSARY_SIM_AVAILABLE := $(if $(strip $(SHUMA_ADVERSARY_SIM_AVAILABLE)),$(SHUMA_ADVERSARY_SIM_AVAILABLE),false)
 SHUMA_FRONTIER_OPENAI_MODEL := $(if $(strip $(SHUMA_FRONTIER_OPENAI_MODEL)),$(SHUMA_FRONTIER_OPENAI_MODEL),gpt-5-mini)
@@ -199,6 +201,8 @@ SHUMA_DASHBOARD_BUNDLE_MAX_JS_CHUNK_BYTES ?= 150000
 SHUMA_DASHBOARD_BUNDLE_MAX_CSS_ASSET_BYTES ?= 30000
 SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE ?= 0
 DEPLOY_LINODE_ARGS ?=
+REMOTE ?=
+REMOTE_NAME_ARG := $(if $(strip $(REMOTE)),--name "$(REMOTE)",)
 DEV_WATCH_IGNORES := -i '*.wasm' -i 'dist/wasm/shuma_gorath.wasm' -i '.spin/**' -i 'dashboard/.svelte-kit' -i 'dashboard/.svelte-kit/**' -i 'dashboard/.vite' -i 'dashboard/.vite/**'
 ADVERSARY_SIM_SUPERVISOR_BASE_URL ?= http://127.0.0.1:3000
 GATEWAY_TLS_WASM_REPORT ?= scripts/tests/adversarial/gateway_tls_wasm_harness_report.json
@@ -427,6 +431,7 @@ deploy-enterprise-akamai: deploy-profile-baseline ## Profile wrapper: enterprise
 
 deploy-linode-one-shot: ## Provision Linode VM + deploy Shuma runtime in one command (requires LINODE_TOKEN and SHUMA_ADMIN_IP_ALLOWLIST)
 	@LINODE_TOKEN="$(LINODE_TOKEN)" \
+	REMOTE_RECEIPTS_DIR="$(REMOTE_RECEIPTS_DIR)" \
 	SSH_PRIVATE_KEY_FILE="$(SSH_PRIVATE_KEY_FILE)" \
 	SSH_PUBLIC_KEY_FILE="$(SSH_PUBLIC_KEY_FILE)" \
 	$(DEPLOY_ENV_ONLY) \
@@ -444,6 +449,24 @@ smoke-single-host: ## Run post-deploy single-host smoke checks (health/admin aut
 
 prepare-linode-shared-host: ## Agent-oriented Linode shared-host setup (persist token/admin allowlist, create or inspect instance, build catalog, write receipt)
 	@python3 ./scripts/prepare_linode_shared_host.py $(PREPARE_LINODE_ARGS)
+
+remote-use: ## Select the active normalized ssh_systemd remote target (REMOTE=<name>)
+	@python3 ./scripts/manage_remote_target.py --env-file "$(ENV_LOCAL)" --receipts-dir "$(REMOTE_RECEIPTS_DIR)" use --name "$(REMOTE)"
+
+remote-status: ## Show systemd status for the active normalized ssh_systemd remote
+	@python3 ./scripts/manage_remote_target.py --env-file "$(ENV_LOCAL)" --receipts-dir "$(REMOTE_RECEIPTS_DIR)" status $(REMOTE_NAME_ARG)
+
+remote-logs: ## Show recent journal logs for the active normalized ssh_systemd remote
+	@python3 ./scripts/manage_remote_target.py --env-file "$(ENV_LOCAL)" --receipts-dir "$(REMOTE_RECEIPTS_DIR)" logs $(REMOTE_NAME_ARG)
+
+remote-start: ## Start the systemd service on the active normalized ssh_systemd remote
+	@python3 ./scripts/manage_remote_target.py --env-file "$(ENV_LOCAL)" --receipts-dir "$(REMOTE_RECEIPTS_DIR)" start $(REMOTE_NAME_ARG)
+
+remote-stop: ## Stop the systemd service on the active normalized ssh_systemd remote
+	@python3 ./scripts/manage_remote_target.py --env-file "$(ENV_LOCAL)" --receipts-dir "$(REMOTE_RECEIPTS_DIR)" stop $(REMOTE_NAME_ARG)
+
+remote-open-dashboard: ## Open the hosted dashboard for the active normalized ssh_systemd remote
+	@python3 ./scripts/manage_remote_target.py --env-file "$(ENV_LOCAL)" --receipts-dir "$(REMOTE_RECEIPTS_DIR)" open-dashboard $(REMOTE_NAME_ARG)
 
 test: ## Run umbrella tests in series: unit, maze benchmark, integration, adversarial matrix, SIM2 realtime gates, and dashboard e2e
 	@echo "$(CYAN)============================================$(NC)"
@@ -600,6 +623,7 @@ test-deploy-linode: ## Validate Linode deploy-path helpers and production input 
 	@python3 -m unittest scripts/tests/test_build_linode_release_bundle.py
 	@python3 -m unittest scripts/tests/test_build_site_surface_catalog.py
 	@python3 -m unittest scripts/tests/test_prepare_linode_shared_host.py
+	@python3 -m unittest scripts/tests/test_remote_target.py
 	@python3 -m unittest scripts/tests/test_render_gateway_spin_manifest.py
 	@python3 -m unittest scripts/tests/test_deploy_linode_one_shot.py
 	@python3 -m unittest scripts/tests/test_prod_start_spin_manifest.py

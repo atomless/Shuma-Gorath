@@ -22,6 +22,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from scripts.deploy.local_env import ensure_env_file, read_env_value, upsert_env_value
+from scripts.deploy.remote_target import (
+    DEFAULT_REMOTE_RECEIPTS_DIR,
+    default_public_base_url,
+    write_remote_receipt,
+)
 from scripts.site_surface_catalog import SUPPORTED_MODES, build_payload
 
 DEFAULT_ENV_FILE = REPO_ROOT / ".env.local"
@@ -34,46 +40,6 @@ DEFAULT_PROFILE_TYPES = {
     "medium": "g6-standard-1",
     "large": "g6-standard-2",
 }
-
-
-def strip_wrapping_quotes(value: str) -> str:
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
-        return value[1:-1]
-    return value
-
-
-def ensure_env_file(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.exists():
-        path.write_text("", encoding="utf-8")
-    path.chmod(0o600)
-
-
-def read_env_value(path: Path, key: str) -> str:
-    if not path.exists():
-        return ""
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        if raw_line.startswith(f"{key}="):
-            return strip_wrapping_quotes(raw_line.split("=", 1)[1])
-    return ""
-
-
-def upsert_env_value(path: Path, key: str, value: str) -> None:
-    ensure_env_file(path)
-    new_line = f"{key}={value}"
-    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
-    replaced = False
-    updated: list[str] = []
-    for line in lines:
-        if line.startswith(f"{key}="):
-            updated.append(new_line)
-            replaced = True
-        else:
-            updated.append(line)
-    if not replaced:
-        updated.append(new_line)
-    path.write_text("\n".join(updated).rstrip() + "\n", encoding="utf-8")
-    path.chmod(0o600)
 
 
 def is_interactive_session() -> bool:
@@ -286,6 +252,15 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="Where to write the setup receipt JSON",
     )
     parser.add_argument(
+        "--remote-name",
+        help="Normalized day-2 remote target name to emit under .spin/remotes/<name>.json",
+    )
+    parser.add_argument(
+        "--remote-receipts-dir",
+        default=str(DEFAULT_REMOTE_RECEIPTS_DIR),
+        help="Where to write normalized day-2 remote target receipts",
+    )
+    parser.add_argument(
         "--env-file",
         default=str(DEFAULT_ENV_FILE),
         help="gitignored local env file used to persist token and admin allowlist",
@@ -445,7 +420,32 @@ def main(argv: Sequence[str] | None = None) -> int:
     receipt_path = Path(args.receipt_output).expanduser().resolve()
     write_json(receipt_path, receipt)
 
+    remote_name = (
+        args.remote_name
+        or str(instance_details.get("label", ""))
+        or f"linode-{receipt['linode']['instance_id']}"
+    )
+    remote_receipt_path = write_remote_receipt(
+        receipts_dir=Path(args.remote_receipts_dir).expanduser().resolve(),
+        name=remote_name,
+        provider_kind="linode",
+        host=receipt["linode"]["public_ipv4"],
+        private_key_path=str(private_key_path),
+        public_base_url=default_public_base_url(receipt["linode"]["public_ipv4"]),
+        surface_catalog_path=str(catalog_output),
+        provider_extension={
+            "linode": {
+                "instance_id": receipt["linode"]["instance_id"],
+                "label": receipt["linode"]["label"],
+                "region": receipt["linode"]["region"],
+                "type": receipt["linode"]["type"],
+                "image": receipt["linode"]["image"],
+            }
+        },
+    )
+
     print(f"Receipt written: {receipt_path}")
+    print(f"Remote receipt written: {remote_receipt_path}")
     print(f"Linode instance id: {receipt['linode']['instance_id']}")
     print(f"Linode public IPv4: {receipt['linode']['public_ipv4']}")
     print(f"Catalog path: {catalog_output}")

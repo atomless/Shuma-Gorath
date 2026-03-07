@@ -2,6 +2,42 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-07)
+
+### REMOTE-OPS-1: Generic SSH Remote Target Layer
+
+- [x] REMOTE-OPS-1-1 Define the normalized gitignored remote receipt contract at `.spin/remotes/<name>.json` with target identity, SSH transport, runtime contract, deploy contract, and deploy metadata.
+- [x] REMOTE-OPS-1-2 Keep `.env.local` limited to the active remote selector (`SHUMA_ACTIVE_REMOTE=<name>`) plus normal env-only secrets; do not store structured remote target state there.
+- [x] REMOTE-OPS-1-3 Make provider-specific setup/deploy paths write the same normalized receipt schema, with provider-specific extension fields allowed but ignored by generic remote maintenance commands.
+- [x] REMOTE-OPS-1-4 Implement the first generic backend as `ssh_systemd`; do not claim identical lifecycle semantics for non-SSH backends such as Fermyon in this tranche.
+- [x] REMOTE-OPS-1-5 Add thin repo-local helper dispatch for:
+  - `make remote-use REMOTE=<name>`
+  - `make remote-start`
+  - `make remote-stop`
+  - `make remote-status`
+  - `make remote-logs`
+  - `make remote-open-dashboard`
+- [x] REMOTE-OPS-1-7 Keep target naming truthful: do not add ambiguous generic commands such as `make dev-remote` or `make dev-prod-remote` unless the implementation can guarantee those semantics across the supported backend contract.
+- [x] REMOTE-OPS-1-8 Update deploy/setup skills and operator docs so the Linode path becomes one provider-specific writer of the generic remote receipt, while the day-2 remote maintenance path is provider-agnostic within the `ssh_systemd` contract.
+- [x] Evidence:
+  - `docs/plans/2026-03-07-generic-ssh-remote-maintenance-layer-design.md`
+  - `scripts/deploy/remote_target.py`
+  - `scripts/deploy/local_env.py`
+  - `scripts/manage_remote_target.py`
+  - `scripts/deploy/linode_shared_host_setup.py`
+  - `scripts/deploy_linode_one_shot.sh`
+  - `scripts/tests/test_remote_target.py`
+  - `scripts/tests/test_prepare_linode_shared_host.py`
+  - `scripts/tests/test_deploy_linode_one_shot.py`
+  - `Makefile`
+  - `docs/deployment.md`
+  - `README.md`
+  - `scripts/README.md`
+  - `skills/prepare-shared-host-on-linode/SKILL.md`
+  - `skills/prepare-shared-host-on-linode/references/OPERATIONS.md`
+  - `skills/deploy-shuma-on-linode/SKILL.md`
+  - `skills/deploy-shuma-on-linode/references/OPERATIONS.md`
+
 ## Additional completions (2026-03-06)
 
 ### P0 Shared-Host Deployment Readiness

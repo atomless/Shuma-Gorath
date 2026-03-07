@@ -53,6 +53,7 @@ Options:
   --type <value>                       Linode type/plan override (profile-derived by default)
   --image <value>                      Linode image slug (default: linode/ubuntu24.04)
   --existing-instance-id <id>          Use an already prepared Linode instance instead of creating a new VM
+  --remote-name <name>                 Day-2 remote target name to write under .spin/remotes/
   --ssh-public-key-file <path>         SSH public key for first access (default: ~/.ssh/id_ed25519.pub, fallback ~/.ssh/id_rsa.pub)
   --ssh-private-key-file <path>        SSH private key paired with the public key (default: public key without .pub)
   --domain <fqdn>                      Required canonical public domain; enables Caddy reverse proxy/TLS
@@ -133,6 +134,8 @@ LINODE_REGION="${LINODE_REGION:-us-east}"
 LINODE_TYPE="${LINODE_TYPE:-}"
 LINODE_IMAGE="${LINODE_IMAGE:-linode/ubuntu24.04}"
 EXISTING_INSTANCE_ID="${EXISTING_INSTANCE_ID:-}"
+REMOTE_NAME="${REMOTE_NAME:-}"
+REMOTE_RECEIPTS_DIR="${REMOTE_RECEIPTS_DIR:-${REPO_ROOT}/.spin/remotes}"
 SSH_PUBLIC_KEY_FILE="${SSH_PUBLIC_KEY_FILE:-}"
 SSH_PRIVATE_KEY_FILE="${SSH_PRIVATE_KEY_FILE:-}"
 DOMAIN_NAME="${DOMAIN_NAME:-}"
@@ -186,6 +189,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --existing-instance-id)
       EXISTING_INSTANCE_ID="${2:-}"
+      shift 2
+      ;;
+    --remote-name)
+      REMOTE_NAME="${2:-}"
       shift 2
       ;;
     --ssh-public-key-file)
@@ -366,6 +373,7 @@ run_local_production_preflight() {
 # Keep long-running API operations deterministic by using explicit polling and optional cleanup.
 INSTANCE_ID=""
 INSTANCE_IPV4=""
+INSTANCE_LABEL=""
 TMP_FILES=()
 
 cleanup() {
@@ -444,6 +452,7 @@ load_existing_instance_details() {
   details="$(linode_api_json GET "/linode/instances/${EXISTING_INSTANCE_ID}")"
   status="$(jq -r '.status // ""' <<<"${details}")"
   ip="$(jq -r '.ipv4[0] // ""' <<<"${details}")"
+  INSTANCE_LABEL="$(jq -r '.label // ""' <<<"${details}")"
 
   [[ -n "${ip}" ]] || fail "Existing Linode instance ${EXISTING_INSTANCE_ID} does not have an IPv4 address."
   [[ "${status}" == "running" ]] || fail "Existing Linode instance ${EXISTING_INSTANCE_ID} is not running (status=${status})."
@@ -548,6 +557,7 @@ EOF_CLOUD_INIT
   CREATE_RESPONSE="$(linode_api_json POST /linode/instances "${CREATE_PAYLOAD}")"
   INSTANCE_ID="$(jq -r '.id // empty' <<<"${CREATE_RESPONSE}")"
   INSTANCE_IPV4="$(jq -r '.ipv4[0] // empty' <<<"${CREATE_RESPONSE}")"
+  INSTANCE_LABEL="${LINODE_LABEL}"
   [[ -n "${INSTANCE_ID}" ]] || fail "Linode API did not return an instance id."
   success "Instance created with id=${INSTANCE_ID}"
 
@@ -805,6 +815,32 @@ else
   BASE_URL="http://${INSTANCE_IPV4}:3000"
 fi
 DASHBOARD_URL="${BASE_URL}/dashboard"
+REMOTE_TARGET_NAME="${REMOTE_NAME:-}"
+if [[ -z "${REMOTE_TARGET_NAME}" ]]; then
+  if [[ -n "${DOMAIN_NAME}" ]]; then
+    REMOTE_TARGET_NAME="${DOMAIN_NAME}"
+  elif [[ -n "${INSTANCE_LABEL}" ]]; then
+    REMOTE_TARGET_NAME="${INSTANCE_LABEL}"
+  else
+    REMOTE_TARGET_NAME="linode-${INSTANCE_ID}"
+  fi
+fi
+REMOTE_DEPLOYED_AT_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+REMOTE_RECEIPT_PATH="$(python3 "${REPO_ROOT}/scripts/manage_remote_target.py" \
+  --receipts-dir "${REMOTE_RECEIPTS_DIR}" \
+  write-linode-receipt \
+  --name "${REMOTE_TARGET_NAME}" \
+  --host "${INSTANCE_IPV4}" \
+  --private-key-path "${SSH_PRIVATE_KEY_FILE}" \
+  --public-base-url "${BASE_URL}" \
+  --surface-catalog-path "${GATEWAY_SURFACE_CATALOG_PATH}" \
+  --last-deployed-commit "${RELEASE_COMMIT_SHA}" \
+  --last-deployed-at-utc "${REMOTE_DEPLOYED_AT_UTC}" \
+  --instance-id "${INSTANCE_ID}" \
+  --label "${INSTANCE_LABEL}" \
+  --region "${LINODE_REGION}" \
+  --linode-type "${LINODE_TYPE}" \
+  --image "${LINODE_IMAGE}")"
 
 if [[ "${ENABLE_CADDY_NORM}" == "true" ]]; then
   echo ""
@@ -822,6 +858,8 @@ fi
 echo "Linode ID: ${INSTANCE_ID}"
 echo "Host IP:   ${INSTANCE_IPV4}"
 echo "Commit:    ${RELEASE_COMMIT_SHA}"
+echo "Remote:    ${REMOTE_TARGET_NAME}"
+echo "Receipt:   ${REMOTE_RECEIPT_PATH}"
 echo ""
 echo "Dashboard login key (SHUMA_API_KEY, reused from local if already set): ${SHUMA_API_KEY_VALUE}"
 echo "Health secret (SHUMA_HEALTH_SECRET): ${SHUMA_HEALTH_SECRET_VALUE}"
