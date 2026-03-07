@@ -27,10 +27,18 @@ def parse_bool(value: str, default: bool) -> bool:
 
 
 class RuntimeToggleSurfaceGate:
-    def __init__(self, base_url: str, api_key: str, forwarded_secret: str, timeout_seconds: int):
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        forwarded_secret: str,
+        health_secret: str,
+        timeout_seconds: int,
+    ):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.forwarded_secret = forwarded_secret.strip()
+        self.health_secret = health_secret.strip()
         self.timeout_seconds = timeout_seconds
         self.opener = urllib.request.build_opener()
 
@@ -43,6 +51,12 @@ class RuntimeToggleSurfaceGate:
             headers["X-Shuma-Forwarded-Secret"] = self.forwarded_secret
         if include_json:
             headers["Content-Type"] = "application/json"
+        return headers
+
+    def _health_headers(self) -> Dict[str, str]:
+        headers = self._headers()
+        if self.health_secret:
+            headers["X-Shuma-Health-Secret"] = self.health_secret
         return headers
 
     def request(
@@ -97,7 +111,7 @@ class RuntimeToggleSurfaceGate:
             return 0
 
     def ensure_health(self) -> None:
-        response = self.request("GET", "/health")
+        response = self.request("GET", "/health", extra_headers=self._health_headers())
         if response["status"] != 200:
             raise RuntimeError(f"health check failed: status={response['status']} body={response['raw'][:200]}")
 
@@ -234,10 +248,12 @@ def main() -> int:
         return 2
 
     forwarded_secret = os.environ.get("SHUMA_FORWARDED_IP_SECRET", "")
+    health_secret = os.environ.get("SHUMA_HEALTH_SECRET", "")
     gate = RuntimeToggleSurfaceGate(
         base_url=args.base_url,
         api_key=api_key,
         forwarded_secret=forwarded_secret,
+        health_secret=health_secret,
         timeout_seconds=max(10, int(args.timeout_seconds)),
     )
 
