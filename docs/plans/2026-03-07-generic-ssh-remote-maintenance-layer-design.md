@@ -96,7 +96,7 @@ Required top-level shape:
   },
   "deploy": {
     "spin_manifest_path": "/opt/shuma-gorath/spin.gateway.toml",
-    "surface_catalog_path": "/opt/shuma-gorath/site.surface-catalog.json",
+    "surface_catalog_path": "/Users/example/Projects/Shuma-Gorath/.spin/site.surface-catalog.json",
     "smoke_path": "/health"
   },
   "metadata": {
@@ -117,6 +117,7 @@ Rules:
 - provider-specific fields must live under a provider extension block,
 - raw provider tokens must never be persisted in the receipt,
 - secret env values remain in `.env.local` or other local secret sources, not in receipts.
+- `deploy.surface_catalog_path` is a local operator-side path, not a remote-host path; `remote-update` needs it locally for upload and public smoke.
 
 ## Active Remote Selection
 
