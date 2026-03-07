@@ -1745,6 +1745,7 @@ class Runner:
                 "honeypot_enabled": True,
                 "maze_enabled": True,
                 "maze_auto_ban": False,
+                "js_required_enforced": True,
                 "not_a_bot_enabled": True,
                 "challenge_puzzle_enabled": True,
                 "rate_limit": 100,

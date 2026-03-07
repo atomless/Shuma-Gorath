@@ -1724,6 +1724,39 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertIsInstance(result.realism, dict)
         self.assertIn("request_sequence_count", result.realism or {})
 
+    def test_reset_baseline_config_restores_js_required_default(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        captured = {}
+
+        def fake_admin_patch(payload, reason="admin_config_patch"):
+            captured["payload"] = dict(payload)
+            captured["reason"] = reason
+
+        sim_runner.admin_patch = fake_admin_patch  # type: ignore[assignment]
+        sim_runner.reset_baseline_config()
+
+        self.assertEqual(captured.get("reason"), "reset_baseline_config")
+        self.assertIs(captured.get("payload", {}).get("js_required_enforced"), True)
+
     def test_validate_manifest_full_coverage_requires_scheduler_and_realism_retry_contract(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")
         profile = manifest["profiles"].pop("test_profile")
