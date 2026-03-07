@@ -31,6 +31,22 @@ Reference context:
 - [ ] SIM2-R4-CONN-1-5 Add regression and end-to-end coverage for the transition graph, hysteresis thresholds, and concurrent polling loops.
 - [ ] SIM2-R4-CONN-1-6 Update dashboard/operator diagnostics and rollback guidance for connection-state incidents.
 
+## P1 Production Adversary-Sim Operating Contract
+
+Reference context:
+- [`docs/research/2026-03-03-adversary-sim-production-availability-decision-criteria.md`](../docs/research/2026-03-03-adversary-sim-production-availability-decision-criteria.md)
+- [`docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+- [`docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](../docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
+
+Current stance:
+- Production adversary-sim control is part of Shuma's operating model and must not be runtime-prod-disabled.
+- The remaining work is operating-envelope hardening, not approval for production availability.
+
+### SIM-DEPLOY-2: Production Adversary-Sim Operating Envelope
+- [ ] SIM-DEPLOY-2-1 Define the production-default runtime lane/resource posture now that adversary-sim surfaces are production-capable by default.
+- [ ] SIM-DEPLOY-2-2 Add explicit production kill-switch, diagnostics, and no-impact verification for normal user traffic under live operator use.
+- [ ] SIM-DEPLOY-2-3 Update deployment/operator docs and evidence receipts so production adversary-sim usage is documented as a first-class operating path rather than a gated exception.
+
 ## P1 Remote Maintenance Contract
 
 Reference context:

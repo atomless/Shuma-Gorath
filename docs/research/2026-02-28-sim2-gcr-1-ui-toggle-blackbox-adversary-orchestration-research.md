@@ -5,7 +5,7 @@ Status: Recommended architecture selected
 
 ## Objective
 
-Identify the best architecture for triggering/stopping a black-box LLM adversary from a dev-only admin UI toggle, with strong trust boundaries, deterministic control semantics, and clear operational visibility.
+Identify the best architecture for triggering/stopping a black-box LLM adversary from an admin UI toggle, with strong trust boundaries, deterministic control semantics, and clear operational visibility.
 
 ## Repository Baseline (Current State)
 
@@ -47,7 +47,7 @@ Current model is functional, but it blends command submission and reconciliation
 A controller loop reconciles desired state to actual state using lease/fencing for single active orchestrator authority.  
 UI reads status/operation resources for progress and terminal outcomes.
 
-### Option D: External Workflow Engine for Dev Toggle Control
+### Option D: External Workflow Engine for Toggle Control
 
 Use external orchestration backend (queue/workflow platform) for command handling and lifecycle state.
 
@@ -58,13 +58,13 @@ Use external orchestration backend (queue/workflow platform) for command handlin
 | A. Synchronous request-path execution | Simple mental model, minimal new primitives | Timeout/race risk, duplicate submissions can duplicate starts, mixes admin request path with execution lifecycle | Low initial, high debugging cost | Weakest; large privileged request surface | Low |
 | B. Current shape (state flip + poll reconcile) | Already present, fast responses | Reconcile side effects on read path, weak operation idempotency/correlation, cross-instance ownership ambiguity | Low-medium | Moderate; acceptable but fragile under retries/races | Low |
 | C. Command + controller + lease (recommended) | Clear separation of submit/read/execute, retry-safe via idempotency key, deterministic ownership semantics, auditable lifecycle | Requires new operation store/controller loop and lease logic | Medium | Strong; least-authority and explicit control boundaries | Medium |
-| D. External workflow engine | Mature orchestration features, robust retries/visibility | Overkill for dev-only control, dependency + ops complexity | High | Strong but operationally heavy | High |
+| D. External workflow engine | Mature orchestration features, robust retries/visibility | Overkill for the current in-product control surface, dependency + ops complexity | High | Strong but operationally heavy | High |
 
 ## Recommendation
 
 Adopt **Option C**: idempotent command submission plus explicit controller reconciliation with lease/fencing ownership.
 
-This preserves dev-only simplicity while giving production-grade control semantics:
+This preserves pre-launch simplicity while giving production-grade control semantics:
 
 1. **Command submission is cheap and retry-safe**: `POST /admin/adversary-sim/control` writes command + desired state and returns `operation_id`.
 2. **Reconciliation is centralized**: one controller loop mutates actual state; read endpoints do not perform heavy reconciliation side effects.

@@ -1,19 +1,20 @@
 # Adversary-Sim Production Availability Decision Criteria
 
 Date: 2026-03-03
-Status: Decision criteria established (`SIM-DEPLOY-1`)
+Status: Superseded as a production-availability gate on 2026-03-07; retained as ongoing hardening criteria for `SIM-DEPLOY-2`
 
 ## Objective
 
-Define explicit approval criteria for promoting adversary simulation beyond `runtime-dev` while preserving operator safety, tenant isolation, and predictable resource usage.
+Define explicit hardening criteria for operating adversary simulation in production while preserving operator safety, tenant isolation, and predictable resource usage.
 
 ## Decision Criteria
 
-Production availability may only be approved when all criteria below are satisfied:
+Production adversary-sim operation should continue to satisfy all criteria below:
 
-1. Explicit operator consent model is in place.
-   - Runtime default remains disabled.
-   - Enablement requires an explicit production opt-in switch.
+1. Operator control model is explicit and predictable.
+   - The control surface is available by default.
+   - Traffic generation remains off until an operator enables it.
+   - Deployments may still disable the surface entirely with `SHUMA_ADVERSARY_SIM_AVAILABLE=false`.
 2. Strict execution lifecycle guarantees are enforced.
    - Generation worker starts only when simulation is actively enabled.
    - Worker exits on toggle-off, run-window expiry, server stop, and sustained unreachability.
@@ -35,15 +36,15 @@ Production availability may only be approved when all criteria below are satisfi
    - Simulation events are distinguishable by metadata tags only.
    - Operational diagnostics identify control, heartbeat, and generation failure causes without synthetic success states.
 
-## Current Decision (2026-03-03)
+## Current Decision
 
-Production availability is **not approved yet**.
+As of 2026-03-07, adversary simulation is part of Shuma's production operating stance and must not be runtime-prod-disabled.
 
-Rationale:
+Implications:
 
-1. Deterministic runtime lane and out-of-process heartbeat decoupling are now stable.
-2. Strategic production controls (explicit production opt-in contract, deployment-specific runbook hardening, and LLM runtime lane completion) are still in progress.
-3. `SIM-DEPLOY-2` remains the implementation gate for any production enablement.
+1. Production availability is no longer gated behind a separate approval step.
+2. `SIM-DEPLOY-2` remains active as the hardening tranche for production lane posture, resource envelopes, kill switch behavior, and no-impact verification.
+3. This document now serves as the checklist for that hardening work instead of a blocker against production use.
 
 ## Rollback Baseline
 

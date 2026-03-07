@@ -9,7 +9,7 @@ Reference research:
 
 ## Objective
 
-Implement a dev-only adversary toggle architecture that is:
+Implement an adversary toggle architecture that is:
 
 1. retry-safe and idempotent,
 2. explicit about desired vs actual lifecycle state,
@@ -20,7 +20,7 @@ Implement a dev-only adversary toggle architecture that is:
 ## Non-goals
 
 1. Introducing external workflow/orchestration dependencies for this phase.
-2. Expanding adversary availability to runtime-prod.
+2. Defining lane-selection or resource-envelope policy beyond the toggle/control contract itself.
 3. Replacing deterministic release gating with stochastic frontier outcomes.
 
 ## Architecture Decisions
@@ -92,7 +92,7 @@ Acceptance criteria:
 
 1. Lifecycle race and idempotency regressions fail deterministically with explicit diagnostics.
 2. Makefile-driven adversarial and integration gates remain green.
-3. New behavior remains dev-only and fail-closed in runtime-prod.
+3. New behavior remains compatible with both runtime classes and fails closed whenever the adversary-sim surface is disabled.
 
 ## Verification Strategy
 
@@ -114,4 +114,3 @@ Acceptance criteria:
 3. Lease/fencing prevents split-brain lifecycle mutation.
 4. Audit trail is sufficient for operator diagnosis and incident review.
 5. Makefile verification remains the canonical passing gate.
-

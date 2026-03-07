@@ -9,7 +9,8 @@ Related:
 - [`docs/plans/2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md`](2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md)
 - [`scripts/tests/adversarial/hybrid_lane_contract.v1.json`](../../scripts/tests/adversarial/hybrid_lane_contract.v1.json)
 - [`docs/adversarial-operator-guide.md`](../adversarial-operator-guide.md)
-- [`todos/blocked-todo.md`](../../todos/blocked-todo.md) (`SIM-SCR-LANE-1`, `SIM-LLM-1`, `SIM-DEPLOY-2`, `SIM-BREACH-REPLAY-1`)
+- [`todos/todo.md`](../../todos/todo.md) (`SIM-DEPLOY-2`)
+- [`todos/blocked-todo.md`](../../todos/blocked-todo.md) (`SIM-SCR-LANE-1`, `SIM-LLM-1`, `SIM-BREACH-REPLAY-1`)
 
 ## Objective
 
@@ -40,7 +41,7 @@ Implement a hosted-site public-surface simulation model with:
 ## Explicit Assumptions
 
 1. Repository is pre-launch; avoid backward-compatibility shims unless explicitly requested.
-2. Operators may run simulation in runtime-dev and approved production modes (subject to existing feature gates).
+2. Operators may run simulation in both runtime classes, subject to the active adversary-sim operating envelope and deployment guardrails.
 3. Hosted public surface can be discovered from sitemap/robots/crawl/telemetry, but final catalog activation remains operator-approved.
 
 ## Verified Current Runtime Baseline (Code-Truth, 2026-03-04)

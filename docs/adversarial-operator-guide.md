@@ -128,8 +128,8 @@ Adversary-generated traffic is tagged at request time with:
 Storage and read-path policy:
 
 1. Simulation telemetry writes to canonical event/monitoring stores and is identified by metadata fields (`sim_run_id`, `sim_profile`, `sim_lane`, `is_simulation`).
-2. Admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/monitoring/delta`, `/admin/monitoring/stream`, `/admin/ip-bans/delta`, `/admin/ip-bans/stream`) include tagged simulation rows in runtime-dev by default, with pseudonymized sensitive identifiers unless explicit forensic break-glass is acknowledged (`forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`).
-3. Non-dev runtime remains default-safe because adversary simulation control surfaces are unavailable.
+2. Admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/monitoring/delta`, `/admin/monitoring/stream`, `/admin/ip-bans/delta`, `/admin/ip-bans/stream`) include tagged simulation rows whenever adversary simulation is active, with pseudonymized sensitive identifiers unless explicit forensic break-glass is acknowledged (`forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`).
+3. Deployments remain default-safe because adversary traffic generation stays off until `adversary_sim_enabled=true`, even though the control surface is available by default.
 4. Unsigned/invalid/stale/replayed simulation tags must not activate simulation context; requests stay in normal telemetry partition.
 5. Invalid simulation-tag attempts emit explicit policy-signal telemetry:
    - `S_SIM_TAG_MISSING_SECRET`
@@ -151,7 +151,7 @@ Containerized attacker-lane handling:
 Rotation policy:
 
 1. Rotate `SHUMA_SIM_TELEMETRY_SECRET` whenever adversarial runner hosts are reprovisioned or when simulation-tag validation anomalies are detected.
-2. Rotate by updating the secret in `.env.local`/deploy environment, restarting runtime-dev, and re-running `make test-adversarial-fast`.
+2. Rotate by updating the secret in `.env.local`/deploy environment, restarting the affected runtime, and re-running `make test-adversarial-fast`.
 3. Do not share this secret with containerized attacker lanes; only deterministic host-side signers should hold it.
 4. Local dev cadence must rotate at least every 30 days when adversarial lanes are used regularly.
 5. CI lanes must use centrally managed secret storage and must not commit raw secret values to repository files.
@@ -161,13 +161,13 @@ Compromise-response workflow:
 
 1. Detect: identify leak signal (`S_SIM_TAG_SIGNATURE_MISMATCH` spikes, unexpected nonce replay, or secret exposure evidence).
 2. Contain: disable adversarial protected lanes temporarily and rotate `SHUMA_SIM_TELEMETRY_SECRET` in all affected environments.
-3. Recover: restart runtime-dev/CI runners, run `make test-adversarial-preflight`, then run `make test-adversarial-fast`.
+3. Recover: restart the affected runtime/CI runners, run `make test-adversarial-preflight`, then run `make test-adversarial-fast`.
 4. Verify: confirm signature and replay failures return to baseline, then re-enable normal adversarial schedules.
 5. Record: capture incident notes with rotation timestamp and impacted environments.
 
 Troubleshooting sequence for failed sim tagging:
 
-1. Confirm runtime guards: `SHUMA_RUNTIME_ENV=runtime-dev` and `SHUMA_ADVERSARY_SIM_AVAILABLE=true`.
+1. Confirm adversary-sim surface availability: `SHUMA_ADVERSARY_SIM_AVAILABLE=true`.
 2. Confirm secret presence on host runner and runtime process: `SHUMA_SIM_TELEMETRY_SECRET` is non-empty.
 3. Run `make test-adversarial-preflight` to verify required secret posture (`missing` vs `placeholder` vs `invalid format`).
 4. Run `make test-adversarial-sim-tag-contract` to verify contract parity.
@@ -593,7 +593,7 @@ Failure-handling rules:
 
 1. Unauthenticated, unauthorized, and CSRF-invalid control attempts must be rejected and written to admin event log.
 2. If stop does not converge to zero-active state before stop timeout, orchestrator must force-kill and return to safe `off` state.
-3. If runtime is not `runtime-dev` or `SHUMA_ADVERSARY_SIM_AVAILABLE=false`, control/status endpoints must fail closed (`404`).
+3. If `SHUMA_ADVERSARY_SIM_AVAILABLE=false`, control/status endpoints must fail closed (`404`) regardless of runtime class.
 4. Status polling and lifecycle-state rendering are presentation only; defense behavior remains server-authoritative.
 5. Use explicit cleanup only when history reset is required; auto-off must not be treated as data deletion.
    Use `make telemetry-clean` (shared local keyspace cleanup). In `runtime-prod`, the endpoint requires explicit cleanup acknowledgement header (the Make target sends it).

@@ -1,7 +1,7 @@
 {
   "test_mode": "Logs detections/actions without enforcing blocks.",
-  "adversary_sim_enabled": "Enables/disables dev-only adversary simulation orchestration in runtime configuration.",
-  "adversary_sim_duration_seconds": "Dashboard orchestration run-window duration in seconds (bounded by hard-coded dev guardrails).",
+  "adversary_sim_enabled": "Enables/disables adversary simulation orchestration in runtime configuration.",
+  "adversary_sim_duration_seconds": "Dashboard orchestration run-window duration in seconds (bounded by runtime guardrails).",
   "frontier_mode": "Frontier adversary role mode: disabled, single-provider self-play, or multi-provider playoff.",
   "frontier_provider_count": "Count of configured frontier provider API keys detected by runtime env-only settings.",
   "frontier_diversity_confidence": "Frontier diversity confidence label derived from configured provider count.",
@@ -156,7 +156,7 @@
   "edge_integration_mode": "How Akamai outcomes affect local routing: off, additive, authoritative.",
   "admin_config_write_enabled": "Enables/disables admin API config writes.",
   "runtime_environment": "Trusted runtime environment class reported by server (`runtime-dev` or `runtime-prod`).",
-  "adversary_sim_available": "Env-only availability gate for exposing adversary simulation surfaces in this runtime.",
+  "adversary_sim_available": "Env-only availability gate for exposing adversary simulation surfaces in this runtime. Set false only when a deployment must hide the adversary-sim surface entirely.",
   "kv_store_fail_open": "KV outage posture. true=fail-open, false=fail-closed.",
   "https_enforced": "Reject non-HTTPS requests when enabled.",
   "forwarded_header_trust_configured": "Indicates forwarded header trust secret is configured.",

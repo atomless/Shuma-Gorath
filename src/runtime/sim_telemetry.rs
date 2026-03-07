@@ -459,12 +459,12 @@ fn metadata_from_request_with_now(
 
 pub(crate) fn metadata_from_request(
     req: &Request,
-    runtime_environment: crate::config::RuntimeEnvironment,
+    _runtime_environment: crate::config::RuntimeEnvironment,
     env_available: bool,
 ) -> Option<SimulationRequestMetadata> {
     set_last_validation_failure(None);
 
-    if !runtime_environment.is_dev() || !env_available {
+    if !env_available {
         return None;
     }
 
@@ -550,7 +550,7 @@ mod tests {
     }
 
     #[test]
-    fn metadata_requires_dev_env_and_valid_signature() {
+    fn metadata_accepts_valid_signature_when_surface_is_opted_in_in_both_runtime_classes() {
         let _serial = lock_test_serial();
         let _lock = crate::test_support::lock_env();
         reset_nonce_replay_window_for_tests();
@@ -567,16 +567,19 @@ mod tests {
             "nonce-1",
         );
 
-        let metadata = metadata_from_request(
-            &req,
+        for runtime_environment in [
             crate::config::RuntimeEnvironment::RuntimeDev,
-            true,
-        )
-        .expect("expected valid metadata");
-        assert_eq!(metadata.sim_run_id, "run_123");
-        assert_eq!(metadata.sim_profile, "fast_smoke");
-        assert_eq!(metadata.sim_lane, "deterministic_black_box");
-        assert_eq!(take_last_validation_failure(), None);
+            crate::config::RuntimeEnvironment::RuntimeProd,
+        ] {
+            reset_nonce_replay_window_for_tests();
+            set_last_validation_failure(None);
+            let metadata = metadata_from_request(&req, runtime_environment, true)
+                .expect("expected valid metadata");
+            assert_eq!(metadata.sim_run_id, "run_123");
+            assert_eq!(metadata.sim_profile, "fast_smoke");
+            assert_eq!(metadata.sim_lane, "deterministic_black_box");
+            assert_eq!(take_last_validation_failure(), None);
+        }
 
         std::env::remove_var(SIM_TELEMETRY_SECRET_ENV);
     }

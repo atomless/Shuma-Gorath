@@ -23,7 +23,7 @@ Refresh behavior:
 - Supports manual refresh and optional auto-refresh.
 - Auto-refresh is only available on this tab and `IP Bans`.
 - Uses consolidated `/admin/monitoring` snapshot refresh and bounded local cache.
-- Simulation-tagged events are included in monitoring data by default in runtime-dev and remain distinguishable via per-event simulation metadata fields.
+- Simulation-tagged events are included in monitoring data whenever simulation traffic is present and remain distinguishable via per-event simulation metadata fields.
 - Recent-events empty states are explicit:
   - degraded/stale freshness uses warning language,
   - filter mismatch states are distinct from true no-data states,

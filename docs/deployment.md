@@ -37,16 +37,18 @@ Stochastic single-run frontier anomalies must not block release directly; only d
 
 ## 🐙 Simulation Data-Plane Separation Contract
 
-Adversary simulation telemetry is isolated from production by runtime guardrails and environment separation:
+Adversary simulation telemetry is isolated by authenticated tagging and explicit surface guardrails rather than by forbidding `runtime-prod`:
 
 1. Simulation-tagged request telemetry writes to canonical event/monitoring stores:
    - event log: `eventlog:v2:*`
    - monitoring counters: `monitoring:v1:*`
 2. Simulation rows remain identifiable via metadata (`sim_run_id`, `sim_profile`, `sim_lane`, `is_simulation`).
-3. Runtime-prod fail-fast guardrail:
-   - `SHUMA_RUNTIME_ENV=runtime-prod` with `SHUMA_ADVERSARY_SIM_AVAILABLE=true` is rejected during env validation.
+3. Production-capable control surface:
+   - `SHUMA_ADVERSARY_SIM_AVAILABLE` defaults to `true` in both runtime classes so deployed operators can use adversary-sim controls in production.
+   - Traffic generation still remains off until `adversary_sim_enabled=true`.
+   - Deployments that must hide the surface entirely may set `SHUMA_ADVERSARY_SIM_AVAILABLE=false`.
 
-This separation does not require different admin API keys between dev/prod; isolation is enforced by runtime-mode policy and deployment environment boundaries.
+This separation does not require different admin API keys between dev/prod; isolation is enforced by authenticated simulation metadata, operator-controlled lifecycle state, and deployment environment boundaries.
 
 ## 🐙 Setup Path Selection
 
@@ -647,4 +649,4 @@ make api-key-show
 ```
 
 `make dev` enables local dashboard operation with local-write defaults (`WRITE=true`). Use `DEV_ADMIN_CONFIG_WRITE_ENABLED=false` to simulate an operator-disabled read-only admin-config deployment.
-Use `make dev-prod` to keep local watch-mode ergonomics while forcing production runtime posture (`runtime-prod`, `DEBUG_HEADERS=false`, adversary simulation unavailable) with admin writes still enabled for local config tuning and persistence checks.
+Use `make dev-prod` to keep local watch-mode ergonomics while forcing production runtime posture (`runtime-prod`, `DEBUG_HEADERS=false`) with adversary-sim availability following `SHUMA_ADVERSARY_SIM_AVAILABLE` and admin writes still enabled for local config tuning and persistence checks.

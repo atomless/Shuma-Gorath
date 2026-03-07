@@ -668,10 +668,10 @@ fn runtime_environment_defaults_to_runtime_prod_and_parses_runtime_dev() {
 }
 
 #[test]
-fn adversary_sim_available_defaults_false_and_parses_bool_values() {
+fn adversary_sim_available_defaults_true_and_parses_bool_values() {
     let _lock = crate::test_support::lock_env();
     std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
-    assert!(!adversary_sim_available());
+    assert!(adversary_sim_available());
 
     std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
     assert!(adversary_sim_available());
@@ -680,7 +680,7 @@ fn adversary_sim_available_defaults_false_and_parses_bool_values() {
     assert!(!adversary_sim_available());
 
     std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "invalid");
-    assert!(!adversary_sim_available());
+    assert!(adversary_sim_available());
 
     std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
 }
@@ -855,7 +855,7 @@ fn validate_env_rejects_invalid_optional_runtime_environment() {
 }
 
 #[test]
-fn validate_env_rejects_sim_available_in_runtime_prod() {
+fn validate_env_accepts_sim_available_in_runtime_prod_when_gateway_contract_is_satisfied() {
     let _lock = crate::test_support::lock_env();
     clear_gateway_env();
     clear_env(&[
@@ -883,14 +883,12 @@ fn validate_env_rejects_sim_available_in_runtime_prod() {
     std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
     std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
     std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+    set_gateway_env_baseline();
 
     let result = validate_env_only_once();
-    assert!(result.is_err());
-    assert!(result
-        .err()
-        .unwrap()
-        .contains("SHUMA_ADVERSARY_SIM_AVAILABLE must be false"));
+    assert!(result.is_ok());
 
+    clear_gateway_env();
     clear_env(&[
         "SHUMA_VALIDATE_ENV_IN_TESTS",
         "SHUMA_API_KEY",

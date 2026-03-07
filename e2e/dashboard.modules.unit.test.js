@@ -2113,6 +2113,58 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
   });
 });
 
+test('dashboard adversary-sim control availability follows explicit surface opt-in in both runtime classes', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const adversaryModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-adversary-sim.js');
+
+    assert.deepEqual(
+      adversaryModule.deriveAdversarySimControlState({
+        configSnapshot: {
+          runtime_environment: 'runtime-prod',
+          adversary_sim_available: true
+        }
+      }),
+      {
+        runtimeEnvironment: 'runtime-prod',
+        surfaceAvailable: true,
+        controlAvailable: true
+      }
+    );
+
+    assert.deepEqual(
+      adversaryModule.deriveAdversarySimControlState({
+        configSnapshot: {
+          runtime_environment: 'runtime-dev',
+          adversary_sim_available: true
+        }
+      }),
+      {
+        runtimeEnvironment: 'runtime-dev',
+        surfaceAvailable: true,
+        controlAvailable: true
+      }
+    );
+
+    assert.deepEqual(
+      adversaryModule.deriveAdversarySimControlState({
+        configSnapshot: {
+          runtime_environment: 'runtime-prod',
+          adversary_sim_available: false
+        },
+        adversarySimStatus: {
+          runtime_environment: 'runtime-prod',
+          adversary_sim_available: false
+        }
+      }),
+      {
+        runtimeEnvironment: 'runtime-prod',
+        surfaceAvailable: false,
+        controlAvailable: false
+      }
+    );
+  });
+});
+
 test('config form utils and JSON object helpers preserve parser contracts', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const formUtils = await importBrowserModule('dashboard/src/lib/domain/config-form-utils.js');
@@ -2716,6 +2768,7 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /\$lib\/runtime\/dashboard-route-controller\.js/);
   assert.match(source, /\$lib\/runtime\/dashboard-body-classes\.js/);
   assert.match(source, /\$lib\/runtime\/dashboard-adversary-sim\.js/);
+  assert.match(source, /deriveAdversarySimControlState/);
   assert.match(source, /deriveDashboardBodyClassState\(configSnapshot,\s*\{/);
   assert.match(source, /runtimeClassHint/);
   assert.match(source, /const DASHBOARD_LOADED_CLASS = 'dashboard-loaded';/);
@@ -2754,6 +2807,10 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /let adversarySimStatusRequestInFlight = null;/);
   assert.match(source, /if \(adversarySimStatusRequestInFlight\) \{/);
   assert.match(source, /return adversarySimStatusRequestInFlight;/);
+  assert.match(
+    source,
+    /if \(runtimeReady && bootstrapAdversarySimControlState\.controlAvailable\) \{\s*await refreshAdversarySimStatus\('bootstrap'\);/s
+  );
   assert.match(source, /onGlobalTestModeToggleChange/);
   assert.match(source, /onGlobalAdversarySimToggleChange/);
   assert.match(source, /function isAuthSessionExpiredError\(error\)/);

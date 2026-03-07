@@ -72,9 +72,9 @@ These are read from process env at runtime (not from <abbr title="Key-Value">KV<
 | `SHUMA_KV_STORE_FAIL_OPEN` | Yes | `true` | <abbr title="Key-Value">KV</abbr> failure policy (`true` fail-open, `false` fail-closed). |
 | `SHUMA_ENFORCE_HTTPS` | Yes | `false` | Rejects non-<abbr title="Hypertext Transfer Protocol Secure">HTTPS</abbr> requests when `true` (proxy/header trust rules still apply). |
 | `SHUMA_DEBUG_HEADERS` | Yes | `false` | Enables internal debug headers (for example health diagnostics). Keep `false` in production. |
-| `SHUMA_RUNTIME_ENV` | No | `runtime-prod` | Trusted runtime environment class (`runtime-dev` or `runtime-prod`) used for fail-closed dev-only orchestration guards. |
-| `SHUMA_ADVERSARY_SIM_AVAILABLE` | No | `false` | Env-only availability gate for adversary simulation surfaces; dev workflows override to `true`. Runtime-prod must keep this `false`; startup env validation fails fast when `SHUMA_RUNTIME_ENV=runtime-prod` and this is `true`. |
-| `SHUMA_SIM_TELEMETRY_SECRET` | No | empty | Dev/test simulation-tag signing key used to authenticate `x-shuma-sim-*` telemetry headers. Required for adversarial simulation lanes that stamp simulation metadata; keep unset in production where simulation tagging is fail-closed by environment guards. |
+| `SHUMA_RUNTIME_ENV` | No | `runtime-prod` | Trusted runtime environment class (`runtime-dev` or `runtime-prod`) surfaced to admin/dashboard/runtime diagnostics and policy telemetry. |
+| `SHUMA_ADVERSARY_SIM_AVAILABLE` | No | `true` | Env-only availability gate for adversary simulation surfaces in both `runtime-dev` and `runtime-prod`. Default is `true` so deployed operators can use the adversary-sim control surface immediately; set `false` only when a deployment must hide adversary-sim control, status, and simulation-public surfaces entirely. |
+| `SHUMA_SIM_TELEMETRY_SECRET` | No | empty | Simulation-tag signing key used to authenticate `x-shuma-sim-*` telemetry headers when signed tags are used. Required for adversarial simulation lanes that stamp simulation metadata via headers. |
 | `SHUMA_FRONTIER_OPENAI_API_KEY` | No | empty | Optional OpenAI API key for frontier adversary planner/attacker/critic roles. |
 | `SHUMA_FRONTIER_ANTHROPIC_API_KEY` | No | empty | Optional Anthropic API key for frontier adversary provider rotation. |
 | `SHUMA_FRONTIER_GOOGLE_API_KEY` | No | empty | Optional Google API key for frontier adversary provider rotation. |
@@ -121,7 +121,7 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `SHUMA_TEST_MODE` | `false` | Enables test-mode behavior for controlled local testing. |
-| `SHUMA_ADVERSARY_SIM_ENABLED` | `false` | Enables dev-only adversary simulation orchestration (including `/sim/public/*` crawl-surface pages) when env availability/runtime guards also allow it. |
+| `SHUMA_ADVERSARY_SIM_ENABLED` | `false` | Enables adversary simulation orchestration (including `/sim/public/*` crawl-surface pages) when the env-level adversary-sim surface is available. Default remains `false`, so generation stays off until an operator enables it. |
 | `SHUMA_ADVERSARY_SIM_DURATION_SECONDS` | `180` | Run-window duration for dashboard-triggered adversary simulation orchestration. Value must be between `30` and `900` seconds (inclusive). |
 | `SHUMA_JS_REQUIRED_ENFORCED` | `true` | Enforces <abbr title="JavaScript">JS</abbr> verification (`js_verified` cookie gate). |
 | `SHUMA_MODE_RATE` | `both` | Rate module mode: `off`, `signal`, `enforce`, `both`. |

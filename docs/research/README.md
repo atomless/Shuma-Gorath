@@ -59,7 +59,7 @@ Completed archive index:
 3. [`2026-02-27-sim2-shortfall-3-traffic-model-execution-realism.md`](2026-02-27-sim2-shortfall-3-traffic-model-execution-realism.md)  
    Realism-focused research for making `traffic_model` semantics execution-effective and measurable.
 4. [`2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity.md`](2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity.md)  
-   Trust-boundary research for capability-authenticated simulation telemetry tagging in runtime-dev.
+   Trust-boundary research for capability-authenticated simulation telemetry tagging across production-capable adversary-sim surfaces.
 5. [`2026-02-27-sim2-architecture-shortfall-orchestration-capability.md`](2026-02-27-sim2-architecture-shortfall-orchestration-capability.md)  
    Architecture research for reducing centralized imperative orchestration and moving toward capability-by-construction.
 6. [`2026-02-28-sim2-gcr-1-ui-toggle-blackbox-adversary-orchestration-research.md`](2026-02-28-sim2-gcr-1-ui-toggle-blackbox-adversary-orchestration-research.md)  

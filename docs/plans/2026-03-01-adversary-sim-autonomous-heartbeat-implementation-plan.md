@@ -8,7 +8,8 @@ Related:
 - [`docs/adr/0007-adversary-sim-toggle-command-controller.md`](../adr/0007-adversary-sim-toggle-command-controller.md)
 - [`docs/adr/0008-realtime-monitoring-cursor-sse-hybrid.md`](../adr/0008-realtime-monitoring-cursor-sse-hybrid.md)
 - [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](2026-02-26-adversarial-simulation-v2-plan.md)
-- [`todos/blocked-todo.md`](../../todos/blocked-todo.md) (`SIM-DEPLOY-2`, `SIM-LLM-1`)
+- [`todos/todo.md`](../../todos/todo.md) (`SIM-DEPLOY-2`)
+- [`todos/blocked-todo.md`](../../todos/blocked-todo.md) (`SIM-LLM-1`)
 - [`todos/completed-todo-history.md`](../../todos/completed-todo-history.md) (`SIM-DEPLOY-1`)
 
 ## Objective
@@ -24,7 +25,7 @@ Implement ADR 0010 in bounded, reviewable slices so adversary traffic generation
 
 ## Non-goals
 
-1. Shipping production-default adversary simulation availability in this tranche.
+1. Defining the final production availability default in this tranche.
 2. Implementing full frontier/LLM emergent lane orchestration (`SIM-LLM-1` follow-up).
 3. Changing monitoring transport architecture beyond freshness ownership cleanup.
 

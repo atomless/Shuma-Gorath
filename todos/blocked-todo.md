@@ -1,6 +1,6 @@
 # Blocked TODO Roadmap
 
-Last updated: 2026-03-06
+Last updated: 2026-03-07
 
 This file holds gated, contingent, or explicitly deferred work that is not execution-ready.
 Move an item back into `todos/todo.md` only when its blocking condition is cleared.
@@ -13,10 +13,7 @@ Security finding validity and closure status live in `todos/security-review.md`.
   Blocker: do not start until `SIM-SH-SURFACE-1` is complete with real shared-host evidence per [`docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](../docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md).
 
 - [ ] SIM-LLM-1 Full LLM-orchestrated, instruction-driven, containerized adversary lane as a first-class runtime actor.
-  Blocker: keep blocked until shared-host discovery is complete, the runtime lane model is proven safe, and production-safe operating mode gates are approved.
-
-- [ ] SIM-DEPLOY-2 Production-safe adversary-sim operating modes (explicit opt-in, spawn-on-enable lifecycle, strict rate/resource envelopes, kill switch, auditability, and no-impact guarantees for normal user traffic).
-  Blocker: production availability remains gated by [`docs/research/2026-03-03-adversary-sim-production-availability-decision-criteria.md`](../docs/research/2026-03-03-adversary-sim-production-availability-decision-criteria.md).
+  Blocker: keep blocked until shared-host discovery is complete, the runtime lane model is proven safe, and the active `SIM-DEPLOY-2` operating-envelope tranche establishes acceptable production bounds.
 
 ## P1 Blocked by Roadmap Reprioritisation After Deployment Baseline
 

@@ -484,10 +484,10 @@ pub enum StartError {
 }
 
 pub fn control_surface_available(
-    runtime_environment: crate::config::RuntimeEnvironment,
+    _runtime_environment: crate::config::RuntimeEnvironment,
     env_available: bool,
 ) -> bool {
-    runtime_environment.is_dev() && env_available
+    env_available
 }
 
 pub fn process_instance_id() -> &'static str {

@@ -2211,20 +2211,28 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn admin_config_rejects_enabling_adversary_sim_in_runtime_prod() {
+    fn admin_config_allows_enabling_adversary_sim_in_runtime_prod_when_surface_is_opted_in() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
 
         let body = br#"{"adversary_sim_enabled":true}"#.to_vec();
         let req = make_request(Method::Post, "/admin/config", body);
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
-        assert_eq!(*resp.status(), 400u16);
-        assert!(String::from_utf8_lossy(resp.body()).contains("runtime-prod"));
+        assert_eq!(*resp.status(), 200u16);
+        let json: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(
+            json.get("config")
+                .and_then(|v| v.get("adversary_sim_enabled"))
+                .and_then(|v| v.as_bool()),
+            Some(true)
+        );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
     }
 
     #[test]
@@ -2435,6 +2443,52 @@ mod admin_config_tests {
         let saved_bytes = store.get("config:default").unwrap().unwrap();
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
         assert!(!saved_cfg.adversary_sim_enabled);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_control_and_status_are_available_in_runtime_prod_when_opted_in() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let on_req = make_request(
+            Method::Post,
+            "/admin/adversary-sim/control",
+            br#"{"enabled":true}"#.to_vec(),
+        );
+        let on_resp = handle_admin_adversary_sim_control(&on_req, &store, "default", &auth);
+        assert_eq!(*on_resp.status(), 200u16);
+
+        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
+        assert_eq!(*status_resp.status(), 200u16);
+        let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
+        assert_eq!(
+            status_json
+                .get("runtime_environment")
+                .and_then(|value| value.as_str()),
+            Some("runtime-prod")
+        );
+        assert_eq!(
+            status_json
+                .get("adversary_sim_available")
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            status_json
+                .get("adversary_sim_enabled")
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -8803,12 +8857,6 @@ fn handle_admin_config_internal(
         if let Some(adversary_sim_enabled) =
             json.get("adversary_sim_enabled").and_then(|v| v.as_bool())
         {
-            if adversary_sim_enabled && crate::config::runtime_environment().is_prod() {
-                return Response::new(
-                    400,
-                    "adversary_sim_enabled cannot be set to true when SHUMA_RUNTIME_ENV=runtime-prod",
-                );
-            }
             if !validate_only {
                 crate::config::set_runtime_adversary_sim_enabled_override(
                     site_id,
@@ -12856,7 +12904,7 @@ pub fn handle_internal(req: &Request) -> Response {
 ///   - POST /admin/config: Update config (e.g., toggle test_mode)
 ///   - POST /admin/config/validate: Validate a config patch without persisting changes
 ///   - GET /admin/config/export: Export non-secret runtime config for immutable deploy handoff
-///   - POST /admin/adversary-sim/control: Start/stop dev adversary simulation orchestration
+///   - POST /admin/adversary-sim/control: Start/stop adversary simulation orchestration
 ///   - GET /admin/adversary-sim/status: Read orchestration state and guardrails
 ///   - POST /admin/adversary-sim/history/cleanup: Explicitly clear retained telemetry history
 ///     (runtime-dev, or runtime-prod with X-Shuma-Telemetry-Cleanup-Ack acknowledgement header)

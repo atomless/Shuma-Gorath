@@ -75,7 +75,7 @@ SHUMA_GATEWAY_TLS_STRICT := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_TLS_STR
 SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED))
 SHUMA_ACTIVE_REMOTE := $(call strip_wrapping_quotes,$(SHUMA_ACTIVE_REMOTE))
 SHUMA_RUNTIME_ENV := $(if $(strip $(SHUMA_RUNTIME_ENV)),$(SHUMA_RUNTIME_ENV),runtime-prod)
-SHUMA_ADVERSARY_SIM_AVAILABLE := $(if $(strip $(SHUMA_ADVERSARY_SIM_AVAILABLE)),$(SHUMA_ADVERSARY_SIM_AVAILABLE),false)
+SHUMA_ADVERSARY_SIM_AVAILABLE := $(if $(strip $(SHUMA_ADVERSARY_SIM_AVAILABLE)),$(SHUMA_ADVERSARY_SIM_AVAILABLE),true)
 SHUMA_FRONTIER_OPENAI_MODEL := $(if $(strip $(SHUMA_FRONTIER_OPENAI_MODEL)),$(SHUMA_FRONTIER_OPENAI_MODEL),gpt-5-mini)
 SHUMA_FRONTIER_ANTHROPIC_MODEL := $(if $(strip $(SHUMA_FRONTIER_ANTHROPIC_MODEL)),$(SHUMA_FRONTIER_ANTHROPIC_MODEL),claude-3-5-haiku-latest)
 SHUMA_FRONTIER_GOOGLE_MODEL := $(if $(strip $(SHUMA_FRONTIER_GOOGLE_MODEL)),$(SHUMA_FRONTIER_GOOGLE_MODEL),gemini-2.0-flash-lite)
@@ -192,7 +192,7 @@ DEV_ADMIN_IP_ALLOWLIST ?=
 DEV_RUNTIME_ENV ?= runtime-dev
 DEV_ADVERSARY_SIM_AVAILABLE ?= true
 SPIN_DEV_OVERRIDES := --env SHUMA_DEBUG_HEADERS=$(DEV_DEBUG_HEADERS) --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_ADMIN_IP_ALLOWLIST=$(DEV_ADMIN_IP_ALLOWLIST) --env SHUMA_RUNTIME_ENV=$(DEV_RUNTIME_ENV) --env SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE)
-SPIN_PROD_OVERRIDES := --env SHUMA_DEBUG_HEADERS=false --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_RUNTIME_ENV=runtime-prod --env SHUMA_ADVERSARY_SIM_AVAILABLE=false
+SPIN_PROD_OVERRIDES := --env SHUMA_DEBUG_HEADERS=false --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_RUNTIME_ENV=runtime-prod --env SHUMA_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE)
 SPIN_READY_TIMEOUT_SECONDS ?= 90
 SHUMA_DASHBOARD_BUNDLE_MAX_TOTAL_BYTES ?= 352000
 SHUMA_DASHBOARD_BUNDLE_MAX_JS_BYTES ?= 330000
@@ -286,7 +286,7 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 		-s 'pkill -x spin 2>/dev/null || true; $(MAKE) --no-print-directory config-seed >/dev/null 2>&1; $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1; RUNTIME_INSTANCE_ID="$$(uuidgen)"; SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) SPIN_ALWAYS_BUILD=0 ./scripts/run_with_adversary_sim_supervisor.sh spin up --direct-mounts $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000'
 
 dev-prod: ## Build and run with file watching using runtime-prod posture (admin writes remain enabled for local tuning)
-	@$(MAKE) --no-print-directory dev DEV_RUNTIME_ENV=runtime-prod DEV_ADVERSARY_SIM_AVAILABLE=false DEV_DEBUG_HEADERS=false DEV_ADMIN_CONFIG_WRITE_ENABLED=true
+	@$(MAKE) --no-print-directory dev DEV_RUNTIME_ENV=runtime-prod DEV_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE) DEV_DEBUG_HEADERS=false DEV_ADMIN_CONFIG_WRITE_ENABLED=true
 
 dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=false (fail-closed)
 	@echo "$(CYAN)🚨 Starting development server with SHUMA_KV_STORE_FAIL_OPEN=false (fail-closed)...$(NC)"
@@ -384,7 +384,7 @@ build: build-runtime ## Alias for runtime/deploy release build
 prod-start: ## Start production server using existing build artifacts and env (no build/config-seed)
 	@echo "$(CYAN)🚀 Starting production server...$(NC)"
 	@pkill -x spin 2>/dev/null || true
-	@RUNTIME_INSTANCE_ID=$$(uuidgen); SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=false ./scripts/run_with_adversary_sim_supervisor.sh spin up --from $(SPIN_UP_MANIFEST) $(SPIN_ENV_ONLY_BASE) $(SPIN_PROD_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 0.0.0.0:3000
+	@RUNTIME_INSTANCE_ID=$$(uuidgen); SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE) ./scripts/run_with_adversary_sim_supervisor.sh spin up --from $(SPIN_UP_MANIFEST) $(SPIN_ENV_ONLY_BASE) $(SPIN_PROD_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 0.0.0.0:3000
 
 prod: build-runtime ## Build for production and start server
 	@$(MAKE) --no-print-directory config-seed >/dev/null
@@ -673,7 +673,7 @@ test-adversarial-deterministic-corpus: ## Validate shared deterministic attack c
 	@echo "$(CYAN)🧪 Validating shared deterministic attack corpus parity...$(NC)"
 	@python3 scripts/tests/check_adversarial_deterministic_corpus.py
 
-test-adversary-sim-lifecycle: ## Fast runtime-dev adversary-sim lifecycle regression gate (toggle/state/heartbeat contracts)
+test-adversary-sim-lifecycle: ## Fast adversary-sim lifecycle regression gate (toggle/state/heartbeat contracts)
 	@echo "$(CYAN)🧪 Running adversary-sim lifecycle regression gate...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test adversary_sim_control_start_stop_and_status_round_trip -- --nocapture

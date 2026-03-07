@@ -4,6 +4,18 @@ const DEFAULT_DURATION_SECONDS = 180;
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 
 /**
+ * @param {unknown} value
+ * @returns {'' | 'runtime-dev' | 'runtime-prod'}
+ */
+function normalizeRuntimeEnvironment(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'runtime-dev' || normalized === 'runtime-prod') {
+    return normalized;
+  }
+  return '';
+}
+
+/**
  * @param {Record<string, unknown>} source
  * @param {string} snakeCaseKey
  * @param {string} camelCaseKey
@@ -184,5 +196,27 @@ export function normalizeAdversarySimStatus(payload) {
         pick(generationDiagnostics, 'last_generation_error', 'lastGenerationError', '') || ''
       )
     }
+  };
+}
+
+/**
+ * @param {{ configSnapshot?: Record<string, unknown>, adversarySimStatus?: unknown }} source
+ * @returns {{ runtimeEnvironment: '' | 'runtime-dev' | 'runtime-prod', surfaceAvailable: boolean, controlAvailable: boolean }}
+ */
+export function deriveAdversarySimControlState(source = {}) {
+  const configSnapshot =
+    source && source.configSnapshot && typeof source.configSnapshot === 'object'
+      ? /** @type {Record<string, unknown>} */ (source.configSnapshot)
+      : {};
+  const normalizedStatus = normalizeAdversarySimStatus(source?.adversarySimStatus);
+  const runtimeEnvironment = normalizeRuntimeEnvironment(
+    normalizedStatus.runtimeEnvironment || configSnapshot.runtime_environment || ''
+  );
+  const surfaceAvailable =
+    normalizedStatus.available === true || configSnapshot.adversary_sim_available === true;
+  return {
+    runtimeEnvironment,
+    surfaceAvailable,
+    controlAvailable: surfaceAvailable === true
   };
 }

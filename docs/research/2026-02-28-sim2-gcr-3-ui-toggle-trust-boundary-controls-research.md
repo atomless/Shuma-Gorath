@@ -58,7 +58,7 @@ Require extra approval ceremony (step-up prompt or MFA-like second factor) for e
 | A. Generic controls only | Minimal implementation effort | Leaves replay/race/abuse/audit gaps for sensitive control endpoint | Low | Weakest | Low |
 | B. Endpoint hardening only | Better immediate posture than baseline | Still weak contract consistency; replay and status linkage drift risk | Low-medium | Moderate | Low |
 | C. Typed contract + policy bundle (recommended) | Coherent trust boundary, replay-safe semantics, testable controls, auditable operations | Requires new typed control-policy modules and tests | Medium | Strong | Medium |
-| D. Always-on step-up approval | Strong human-in-loop friction | High operator friction in dev, complexity not justified pre-launch dev-only toggle | Medium-high | Strong but usability-heavy | Medium |
+| D. Always-on step-up approval | Strong human-in-loop friction | High operator friction for the in-product toggle, complexity not justified in the current posture | Medium-high | Strong but usability-heavy | Medium |
 
 ## Recommendation
 

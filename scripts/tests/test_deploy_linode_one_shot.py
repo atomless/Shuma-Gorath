@@ -329,10 +329,19 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         self.assertIn('SHUMA_ADMIN_CONFIG_WRITE_ENABLED=${SHUMA_ADMIN_CONFIG_WRITE_ENABLED_VALUE}', script)
         self.assertNotIn('SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false', script)
 
-    def test_makefile_defaults_prod_admin_config_writes_on_but_respects_override(self) -> None:
+    def test_remote_env_defaults_adversary_surface_on_but_respects_override(self) -> None:
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('SHUMA_ADVERSARY_SIM_AVAILABLE_VALUE="${SHUMA_ADVERSARY_SIM_AVAILABLE:-true}"', script)
+        self.assertIn('SHUMA_ADVERSARY_SIM_AVAILABLE=${SHUMA_ADVERSARY_SIM_AVAILABLE_VALUE}', script)
+
+    def test_makefile_defaults_prod_admin_config_writes_on_and_adversary_surface_available(self) -> None:
         makefile = MAKEFILE.read_text(encoding="utf-8")
         self.assertIn(
             "SHUMA_ADMIN_CONFIG_WRITE_ENABLED := $(if $(strip $(SHUMA_ADMIN_CONFIG_WRITE_ENABLED)),$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED),true)",
+            makefile,
+        )
+        self.assertIn(
+            "SHUMA_ADVERSARY_SIM_AVAILABLE := $(if $(strip $(SHUMA_ADVERSARY_SIM_AVAILABLE)),$(SHUMA_ADVERSARY_SIM_AVAILABLE),true)",
             makefile,
         )
         self.assertIn(
@@ -340,7 +349,7 @@ class DeployLinodeOneShotTests(unittest.TestCase):
             makefile,
         )
         self.assertIn(
-            "SPIN_PROD_OVERRIDES := --env SHUMA_DEBUG_HEADERS=false --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_RUNTIME_ENV=runtime-prod --env SHUMA_ADVERSARY_SIM_AVAILABLE=false",
+            "SPIN_PROD_OVERRIDES := --env SHUMA_DEBUG_HEADERS=false --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_RUNTIME_ENV=runtime-prod --env SHUMA_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE)",
             makefile,
         )
 

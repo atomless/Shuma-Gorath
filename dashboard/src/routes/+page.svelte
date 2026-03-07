@@ -13,6 +13,7 @@
     syncDashboardBodyClasses
   } from '$lib/runtime/dashboard-body-classes.js';
   import {
+    deriveAdversarySimControlState,
     normalizeAdversarySimStatus
   } from '$lib/runtime/dashboard-adversary-sim.js';
   import { createDashboardRouteController } from '$lib/runtime/dashboard-route-controller.js';
@@ -201,14 +202,13 @@
   }
   $: normalizedAdversarySimStatus = normalizeAdversarySimStatus(adversarySimStatus);
   $: adversarySimToggleEnabled = normalizedAdversarySimStatus.enabled;
-  $: adversarySimRuntimeEnvironment = String(
-    normalizedAdversarySimStatus.runtimeEnvironment || configSnapshot.runtime_environment || ''
-  );
-  $: adversarySimSurfaceAvailable =
-    normalizedAdversarySimStatus.available === true ||
-    configSnapshot.adversary_sim_available === true;
-  $: adversarySimControlAvailable =
-    adversarySimRuntimeEnvironment === 'runtime-dev' && adversarySimSurfaceAvailable;
+  $: adversarySimControlState = deriveAdversarySimControlState({
+    configSnapshot,
+    adversarySimStatus
+  });
+  $: adversarySimRuntimeEnvironment = adversarySimControlState.runtimeEnvironment;
+  $: adversarySimSurfaceAvailable = adversarySimControlState.surfaceAvailable;
+  $: adversarySimControlAvailable = adversarySimControlState.controlAvailable;
   $: frontierProviderCount = Number.isFinite(Number(configSnapshot.frontier_provider_count))
     ? Math.max(0, Math.floor(Number(configSnapshot.frontier_provider_count)))
     : 0;
@@ -244,7 +244,7 @@
       adminConfigWritable: configSnapshot.admin_config_write_enabled,
       unavailableMessage: adversarySimControlAvailable
         ? ''
-        : 'Unavailable because adversary simulation control is only enabled for runtime-dev deployments with the simulation surface active.'
+        : 'Unavailable because adversary simulation control requires the simulation surface to be active in this deployment.'
     })
     : '';
   $: adversarySimRetentionHours = Math.max(0, Number(normalizedAdversarySimStatus.historyRetentionHours || 0));
@@ -439,7 +439,11 @@
         basePath: dashboardBasePath
       });
       runtimeReady = bootstrapped === true;
-      if (runtimeReady) {
+      const bootstrapAdversarySimControlState = deriveAdversarySimControlState({
+        configSnapshot: dashboardStore.getState()?.snapshots?.config || {},
+        adversarySimStatus
+      });
+      if (runtimeReady && bootstrapAdversarySimControlState.controlAvailable) {
         await refreshAdversarySimStatus('bootstrap');
       }
     } catch (error) {

@@ -9,11 +9,11 @@ Reference research:
 
 ## Objective
 
-Ensure simulation data-plane tagging in runtime-dev is capability-authenticated, not header-by-convention.
+Ensure simulation data-plane tagging is capability-authenticated, not header-by-convention, on every adversary-sim-capable deployment.
 
 ## Non-goals
 
-1. Enabling simulation tagging in production.
+1. Changing adversary-sim lane or budget policy beyond telemetry-tag authenticity.
 2. Replacing current monitoring/event storage architecture.
 
 ## Architecture Decisions
@@ -38,7 +38,7 @@ Acceptance criteria:
 ### Phase 2: Runtime Verification in `sim_telemetry`
 
 1. Verify signature, timestamp skew, and nonce replay window before activating simulation context.
-2. Preserve current `runtime-dev` and `adversary_sim_available` guards.
+2. Preserve explicit `adversary_sim_available` gating while removing any dependence on runtime class.
 
 Acceptance criteria:
 
@@ -75,8 +75,8 @@ Acceptance criteria:
 
 ## Operational and Security Notes
 
-1. Prevents simulation data-plane spoofing in runtime-dev.
-2. Preserves production fail-closed behavior.
+1. Prevents simulation data-plane spoofing on adversary-sim-capable runtimes.
+2. Preserves fail-closed behavior when the adversary-sim surface is disabled or signatures are invalid.
 
 ## Definition of Done
 

@@ -13,7 +13,7 @@ Implement a control-plane policy bundle for adversary toggle operations so admin
 
 ## Non-goals
 
-1. Expanding adversary simulation into runtime-prod.
+1. Defining lane/resource-envelope policy for production adversary simulation.
 2. Introducing interactive MFA/step-up UX for every toggle in this phase.
 3. Replacing command controller architecture selected in `SIM2-GCR-1`.
 
@@ -123,4 +123,4 @@ Acceptance criteria:
 1. Control endpoint trust boundaries are explicit, enforced, and test-covered.
 2. Replay and abuse risks are bounded with deterministic behavior.
 3. Audit output is actionable for operators and security review.
-4. Behavior remains aligned with dev-only adversary availability policy.
+4. Behavior remains aligned with the deployment's adversary availability posture and fails closed when the surface is disabled.

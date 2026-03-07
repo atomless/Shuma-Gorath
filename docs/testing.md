@@ -176,8 +176,8 @@ Available profiles:
 - `make test-frontier-governance` - fail-fast guard for forbidden frontier artifact fields and secret leaks
 - `make test-frontier-unavailability-policy` - degraded-threshold policy evaluation and refresh-action artifact
 
-Dev/test simulation realism pages are available at `/sim/public/landing`, `/sim/public/docs`, `/sim/public/pricing`, `/sim/public/contact`, and `/sim/public/search?q=...` only when all three gates are true: `SHUMA_RUNTIME_ENV=runtime-dev`, `SHUMA_ADVERSARY_SIM_AVAILABLE=true`, and KV `adversary_sim_enabled=true`.
-Dashboard DOM-class contract for dev-only affordances:
+Simulation realism pages are available at `/sim/public/landing`, `/sim/public/docs`, `/sim/public/pricing`, `/sim/public/contact`, and `/sim/public/search?q=...` only when both availability gates are true: `SHUMA_ADVERSARY_SIM_AVAILABLE=true` and KV `adversary_sim_enabled=true`.
+Dashboard DOM-class contract for runtime/simulation affordances:
 - `<html>` must include exactly one runtime environment class: `runtime-dev` or `runtime-prod` (derived from trusted runtime config).
 - `<html>` connection state classes are heartbeat-owned: runtime boots in `disconnected`, flips to `connected` after successful heartbeat, enters `degraded` on heartbeat failures, and transitions to `disconnected` after configured hysteresis threshold (`N`) of consecutive heartbeat failures.
 - `<body>` must include `adversary-sim` only when `adversary_sim_enabled=true`.
@@ -259,7 +259,7 @@ Live loop controls:
   The canonical lane contract is versioned in `scripts/tests/adversarial/lane_contract.v1.json`.
   The signing contract is versioned in `scripts/tests/adversarial/sim_tag_contract.v1.json`.
   Attacker-plane requests must not include privileged headers (including `X-Shuma-Forwarded-Secret`).
-  Runtime tagging is accepted only when `SHUMA_RUNTIME_ENV=runtime-dev`, `SHUMA_ADVERSARY_SIM_AVAILABLE=true`, and signature/timestamp/nonce verification succeeds under `SHUMA_SIM_TELEMETRY_SECRET`.
+  Runtime tagging is accepted only when `SHUMA_ADVERSARY_SIM_AVAILABLE=true` and signature/timestamp/nonce verification succeeds under `SHUMA_SIM_TELEMETRY_SECRET`.
   Container black-box workers receive bounded pre-signed sim-tag envelopes from the host runner (no runtime signing secret is injected into the container).
 - `latest_report.json` includes quantitative `gates` and separate `coverage_gates` sections with per-check `threshold_source`.
 - `latest_report.json` `coverage_gates` section includes `defense_noop_checks` for defense-level telemetry presence validation in `full_coverage`.
@@ -301,7 +301,7 @@ Frontier lane policy:
 - Deterministic replay/coverage remains the release-blocking oracle; stochastic one-off frontier anomalies do not block until deterministic replay confirms them.
 - Degraded-threshold tracker (`make test-frontier-unavailability-policy`) opens/updates a refresh action when protected lanes remain degraded for 10 consecutive runs or 7 days.
 Simulation telemetry read policy:
-- `/admin/events`, `/admin/cdp/events`, and `/admin/monitoring` include simulation-tagged rows in `runtime-dev` by default.
+- `/admin/events`, `/admin/cdp/events`, and `/admin/monitoring` include simulation-tagged rows whenever tagged simulation traffic is present.
 - Tagged rows remain identifiable via `sim_run_id`, `sim_profile`, `sim_lane`, and `is_simulation`.
 - `POST /admin/adversary-sim/history/cleanup` is the explicit cleanup control path; auto-off is not a retention cleanup action.
   In `runtime-prod`, cleanup requires `X-Shuma-Telemetry-Cleanup-Ack: I_UNDERSTAND_TELEMETRY_CLEANUP` (the Make target sends this header).

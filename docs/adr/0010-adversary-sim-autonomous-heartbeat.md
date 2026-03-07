@@ -6,7 +6,8 @@
 - Related:
   - [`0007-adversary-sim-toggle-command-controller.md`](0007-adversary-sim-toggle-command-controller.md)
   - [`0008-realtime-monitoring-cursor-sse-hybrid.md`](0008-realtime-monitoring-cursor-sse-hybrid.md)
-  - [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md) (`SIM-LLM-1`, `SIM-DEPLOY-2`)
+  - [`../../todos/todo.md`](../../todos/todo.md) (`SIM-DEPLOY-2`)
+  - [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md) (`SIM-LLM-1`)
   - [`../../todos/completed-todo-history.md`](../../todos/completed-todo-history.md) (`SIM-DEPLOY-1`)
 
 ## Context
@@ -35,7 +36,7 @@ At the product level, adversary simulation is also being reconsidered as potenti
    - remains active regardless of dashboard tab presence.
 4. Keep monitoring freshness as backend source-of-truth; UI renders backend freshness and does not synthesize competing freshness ownership.
 5. Keep deterministic lane as release-blocking regression oracle; LLM/containerized lane remains discovery/promotable corpus.
-6. Production availability is not enabled by this ADR by default. Any production rollout must be explicit opt-in and satisfy `SIM-DEPLOY-*` safeguards.
+6. This ADR makes the adversary-sim runtime production-capable; ongoing production operating-envelope hardening lives in `SIM-DEPLOY-*`.
 
 ## Alternatives Considered
 
@@ -63,7 +64,7 @@ At the product level, adversary simulation is also being reconsidered as potenti
 
 - Improves security posture by removing UI-driven generation side effects.
 - Requires strict least-authority capability model for supervisor control surface.
-- Requires explicit abuse controls and opt-in policy before any production availability.
+- Requires explicit abuse controls and bounded operating envelopes for production use.
 
 ## Human Friction Impact
 
@@ -82,7 +83,7 @@ At the product level, adversary simulation is also being reconsidered as potenti
   - add supervisor runtime path (local and deployment profiles) with explicit lifecycle management.
 - Config:
   - add cadence/backoff/guardrail controls for supervisor-driven ticks.
-  - maintain explicit opt-in gating for any production rollout.
+  - maintain explicit lifecycle and resource guardrails for any production rollout.
 - Monitoring/alerts:
   - add supervisor heartbeat health/lag diagnostics and failure taxonomy.
 - Rollback:
@@ -115,4 +116,4 @@ At the product level, adversary simulation is also being reconsidered as potenti
 
 - Implement supervisor-driven generation path and remove dashboard-owned tick cadence.
 - Remove frontend tick loop and related optimistic state races once backend heartbeat is live.
-- `SIM-DEPLOY-1` decision is complete; if production availability is approved, execute `SIM-DEPLOY-2` production-safe rollout work.
+- `SIM-DEPLOY-1` decision is complete; continue `SIM-DEPLOY-2` as the production operating-envelope hardening tranche.

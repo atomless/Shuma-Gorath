@@ -79,11 +79,11 @@ impl SimPublicAvailability {
 }
 
 pub(crate) fn sim_public_enabled(
-    runtime_environment: RuntimeEnvironment,
+    _runtime_environment: RuntimeEnvironment,
     env_available: bool,
     cfg_enabled: bool,
 ) -> bool {
-    runtime_environment.is_dev() && env_available && cfg_enabled
+    env_available && cfg_enabled
 }
 
 pub(crate) fn availability_from_runtime(cfg: &Config) -> SimPublicAvailability {
@@ -299,24 +299,24 @@ mod tests {
     }
 
     #[test]
-    fn sim_public_enabled_requires_dev_env_plus_all_gates() {
+    fn sim_public_enabled_requires_surface_opt_in_and_cfg_enabled() {
         assert!(sim_public_enabled(
             RuntimeEnvironment::RuntimeDev,
             true,
             true
         ));
-        assert!(!sim_public_enabled(
+        assert!(sim_public_enabled(
             RuntimeEnvironment::RuntimeProd,
             true,
             true
         ));
         assert!(!sim_public_enabled(
-            RuntimeEnvironment::RuntimeDev,
+            RuntimeEnvironment::RuntimeProd,
             false,
             true
         ));
         assert!(!sim_public_enabled(
-            RuntimeEnvironment::RuntimeDev,
+            RuntimeEnvironment::RuntimeProd,
             true,
             false
         ));

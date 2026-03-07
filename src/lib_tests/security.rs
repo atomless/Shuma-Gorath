@@ -129,6 +129,7 @@ fn health_secret_required_when_configured() {
 #[test]
 fn health_endpoint_rejects_when_health_secret_missing() {
     let _lock = crate::test_support::lock_env();
+    std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
     std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
     std::env::set_var("SHUMA_HEALTH_SECRET", "health-secret-value");
     let req = crate::test_support::request_with_headers(
@@ -142,6 +143,7 @@ fn health_endpoint_rejects_when_health_secret_missing() {
     let resp = crate::handle_bot_defence_impl(&req);
     assert_eq!(*resp.status(), 403u16);
 
+    std::env::remove_var("SHUMA_RUNTIME_ENV");
     std::env::remove_var("SHUMA_HEALTH_SECRET");
     std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
 }
@@ -168,6 +170,7 @@ fn https_enforcement_blocks_insecure_admin_requests() {
 #[test]
 fn https_enforcement_allows_trusted_forwarded_https_to_reach_admin_auth() {
     let _lock = crate::test_support::lock_env();
+    std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
     std::env::set_var("SHUMA_ENFORCE_HTTPS", "true");
     std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
     std::env::set_var("SHUMA_API_KEY", "test-admin-key");
@@ -184,6 +187,7 @@ fn https_enforcement_allows_trusted_forwarded_https_to_reach_admin_auth() {
 
     assert_eq!(*resp.status(), 401u16);
 
+    std::env::remove_var("SHUMA_RUNTIME_ENV");
     std::env::remove_var("SHUMA_ENFORCE_HTTPS");
     std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
     std::env::remove_var("SHUMA_API_KEY");

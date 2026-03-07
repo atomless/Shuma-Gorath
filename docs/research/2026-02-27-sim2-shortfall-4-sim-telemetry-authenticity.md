@@ -5,11 +5,11 @@ Status: Completed
 
 ## Shortfall Statement
 
-SIM telemetry currently uses dev-only header presence checks to mark requests as simulation traffic. Because these tags are not cryptographically bound to a trusted simulation capability, classification can be spoofed by any caller who can send the three headers in runtime-dev.
+At the time of this research, SIM telemetry used header-presence checks to mark requests as simulation traffic. Because those tags were not cryptographically bound to a trusted simulation capability, classification could be spoofed by any caller who could send the three headers on an adversary-sim-capable runtime.
 
 ## Current-State Evidence
 
-1. Simulation metadata activation requires runtime-dev + availability + three headers, but no signature/capability verification.  
+1. Simulation metadata activation required runtime guard + availability + three headers, but no signature/capability verification.  
    Evidence: `src/runtime/sim_telemetry.rs:45-53`.
 2. Monitoring prefix selection switches by `is_simulation_context_active()` only.  
    Evidence: `src/observability/monitoring.rs:156-161`.
@@ -36,7 +36,7 @@ SIM telemetry currently uses dev-only header presence checks to mark requests as
 
 ## Addressing Options
 
-1. Keep unsigned headers; rely on dev-only runtime guard.
+1. Keep unsigned headers; rely on runtime-class and availability guards.
 2. Add simulation metadata signature (HMAC) with timestamp/nonce and strict validation.
 3. Move all simulation telemetry onto separate ingress endpoint/process and remove per-request tagging.
 
@@ -46,14 +46,14 @@ Adopt option 2 now (strong authenticity, minimal architecture disruption), and p
 
 Recommended controls:
 
-1. Add env-only dev/test secret for telemetry signing (for example `SHUMA_SIM_TELEMETRY_SECRET`).
+1. Add env-only signing secret for telemetry tagging (for example `SHUMA_SIM_TELEMETRY_SECRET`).
 2. Require additional metadata headers:
    - signature,
    - issued-at timestamp,
    - nonce.
 3. Verify signature and freshness window before entering simulation context.
 4. Reject/ignore invalid tags and emit explicit `sim_tag_invalid_signature` telemetry.
-5. Keep production hard-off behavior unchanged.
+5. Keep explicit adversary-sim availability guardrails and treat invalid signed tags as non-simulation traffic in every runtime class.
 
 ## Success Signals
 

@@ -1788,7 +1788,7 @@ class Runner:
         if result.status != 200:
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(
-                "Failed to clear retained runtime-dev telemetry history via /admin/adversary-sim/history/cleanup: "
+                "Failed to clear retained telemetry history via /admin/adversary-sim/history/cleanup: "
                 f"status={result.status} body={detail}"
             )
         payload = parse_json_or_raise(
@@ -1800,7 +1800,7 @@ class Runner:
         if status not in {"cleared", "cleaned"} and not cleaned_flag:
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(
-                "Failed to clear retained runtime-dev telemetry history via /admin/adversary-sim/history/cleanup: "
+                "Failed to clear retained telemetry history via /admin/adversary-sim/history/cleanup: "
                 f"unexpected status={status or 'missing'} body={detail}"
             )
 
