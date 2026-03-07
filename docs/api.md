@@ -32,7 +32,7 @@ If `SHUMA_HEALTH_SECRET` is configured, `/health` also requires:
 ## 🐙 Public Endpoints
 
 - `GET /` - Main bot defence handler
-- `GET /health` - Health check (loopback only)
+- `GET /health` - Health check (exact loopback or trusted forwarded loopback)
 - `GET /metrics` - Prometheus metrics (no auth)
 - `GET /instaban` - Honeypot (triggers ban)
 - `GET /pow` - <abbr title="Proof of Work">PoW</abbr> challenge seed (when enabled)
@@ -116,9 +116,20 @@ If `js_required_enforced=false`:
 
 ### 🐙 Health Check Example
 
+When `SHUMA_HEALTH_SECRET` is unset:
+
 ```bash
 curl -H "X-Forwarded-For: 127.0.0.1" \
   -H "X-Shuma-Forwarded-Secret: $SHUMA_FORWARDED_IP_SECRET" \
+  http://127.0.0.1:3000/health
+```
+
+When `SHUMA_HEALTH_SECRET` is set, you must also send:
+
+```bash
+curl -H "X-Forwarded-For: 127.0.0.1" \
+  -H "X-Shuma-Forwarded-Secret: $SHUMA_FORWARDED_IP_SECRET" \
+  -H "X-Shuma-Health-Secret: $SHUMA_HEALTH_SECRET" \
   http://127.0.0.1:3000/health
 ```
 
@@ -149,7 +160,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `POST /admin/config/validate` - Validate a config patch without persisting changes (returns `{ valid, issues[] }` with field/expected/received hints when invalid)
 - `GET /admin/config/export` - Export non-secret runtime config as deploy-ready env key/value output
 - `POST /admin/adversary-sim/control` - Explicit adversary-sim lifecycle command submission (`{"enabled":true|false,"reason":"optional"}`), admin-auth + CSRF protected, strict same-origin/fetch-metadata checks, and required `Idempotency-Key` header
-- `GET /admin/adversary-sim/status` - Read-only adversary-sim lifecycle status (no reconcile-on-read mutation), including desired vs actual state, reconciliation-needed signal, and controller lease metadata
+- `GET /admin/adversary-sim/status` - Adversary-sim lifecycle status read path, including desired vs actual state, reconciliation-needed signal, and controller lease metadata. Current implementation may reconcile stale persisted state before responding.
 - `POST /admin/adversary-sim/history/cleanup` - Explicitly clear retained telemetry history (`eventlog:v2:*`, `monitoring:v1:*`, and derived monitoring detail counters) without changing adversary-sim control state.
   - In `runtime-dev`: endpoint is available without extra cleanup acknowledgement.
   - In `runtime-prod`: endpoint requires header `X-Shuma-Telemetry-Cleanup-Ack: I_UNDERSTAND_TELEMETRY_CLEANUP`.

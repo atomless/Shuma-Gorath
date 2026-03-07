@@ -24,6 +24,14 @@ make build-full-dev # Build release artifact with dashboard budget reporting (se
 make build          # Alias of make build-runtime
 make prod           # Build for production and start server
 make smoke-single-host # Post-deploy smoke: health/admin/metrics/challenge + forwarded public-path parity when gateway inputs are present
+make prepare-linode-shared-host # Agent-oriented Linode shared-host setup + receipt generation
+make deploy-linode-one-shot # Provision Linode VM + deploy runtime in one command
+make remote-update  # Upload exact committed HEAD to the active ssh_systemd remote, restart, smoke, refresh receipt
+make remote-status  # Show systemd status for the active ssh_systemd remote
+make remote-logs    # Show recent journal logs for the active ssh_systemd remote
+make remote-start   # Start the active ssh_systemd remote service
+make remote-stop    # Stop the active ssh_systemd remote service
+make remote-open-dashboard # Open the hosted dashboard for the active ssh_systemd remote
 make stop           # Stop running Spin server
 make status         # Check if server is running
 make clean          # Clean build artifacts
@@ -47,6 +55,8 @@ make test-integration      # In terminal 2
 make test-gateway-profile-shared-server # Shared-server gateway verification
 make test-gateway-profile-edge          # Edge/Fermyon gateway verification
 make smoke-gateway-mode                 # Fast gateway smoke checks
+make test-adversary-sim-lifecycle       # Focused adversary-sim lifecycle regression gate
+make test-adversary-sim-runtime-surface # Runtime-toggle defense-surface telemetry gate
 
 # Live adversarial detection drill (Spin environment required)
 make dev                   # In terminal 1
@@ -62,7 +72,7 @@ make test-dashboard-e2e    # In terminal 2
 
 ### 🐙 Public Endpoints
 - `GET /` - Main bot defence (may show block page, <abbr title="JavaScript">JS</abbr> challenge, or pass through)
-- `GET /health` - Health check (localhost only)
+- `GET /health` - Health check (exact loopback or trusted forwarded loopback)
 - `GET /instaban` - Honeypot (triggers ban)
 - `GET /metrics` - Prometheus metrics
 - `GET /robots.txt` - robots.txt (configurable)
@@ -72,18 +82,33 @@ make test-dashboard-e2e    # In terminal 2
 - `POST /fingerprint-report` - External/edge fingerprint intake (currently Akamai-only mapping)
 - `POST /challenge/puzzle` - Submit puzzle challenge answer (if challenge is served)
 
-### 🐙 Admin <abbr title="Application Programming Interface">API</abbr> (requires `Authorization: Bearer <SHUMA_API_KEY>`)
+### 🐙 Admin <abbr title="Application Programming Interface">API</abbr>
+- Supports read/write bearer auth (`SHUMA_API_KEY`), optional read-only bearer auth (`SHUMA_ADMIN_READONLY_API_KEY`), and same-origin admin sessions from `/admin/login`.
+- Mutating session-authenticated calls also require `X-Shuma-CSRF`.
+- If `SHUMA_ADMIN_IP_ALLOWLIST` is set, the client <abbr title="Internet Protocol">IP</abbr> must be allowlisted.
+
+- `POST /admin/login` - Exchange `SHUMA_API_KEY` for an admin session cookie
+- `GET /admin/session` - Current auth/session state
+- `POST /admin/logout` - Clear the admin session cookie
 - `GET /admin/ban` - List all bans
 - `POST /admin/ban` - Manually ban <abbr title="Internet Protocol">IP</abbr> (<abbr title="JavaScript Object Notation">JSON</abbr>: `{"ip":"x.x.x.x","duration":3600}`; reason is always `manual_ban`)
 - `POST /admin/unban?ip=x.x.x.x` - Unban an <abbr title="Internet Protocol">IP</abbr>
 - `GET /admin/analytics` - Get ban statistics
 - `GET /admin/events?hours=24` - Get recent events
 - `GET /admin/monitoring?hours=24&limit=10` - Get consolidated monitoring summaries + detail payload (`analytics`, `events`, `bans`, `maze`, `cdp`, `cdp_events`) for dashboard Monitoring refresh
+- `GET /admin/monitoring/delta?...` - Cursor-ordered monitoring deltas
+- `GET /admin/monitoring/stream?...` - One-shot monitoring SSE delta
+- `GET /admin/ip-bans/delta?...` - Cursor-ordered ban/unban deltas
+- `GET /admin/ip-bans/stream?...` - One-shot IP-ban SSE delta
 - Expensive admin reads (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/ban` `GET`) are per-<abbr title="Internet Protocol">IP</abbr> rate-limited and return `429` + `Retry-After: 60` when limited.
 - `GET /admin/config` - Get current configuration
 - `POST /admin/config` - Update configuration (test_mode, ban_durations, robots serving, <abbr title="Artificial Intelligence">AI</abbr> bot policy, <abbr title="Chrome DevTools Protocol">CDP</abbr>, etc.)
+- `POST /admin/config/validate` - Validate a config patch without persisting it
 - `GET /admin/config/export` - Export non-secret runtime config for immutable redeploy handoff
   - Redis provider URLs are treated as secrets and excluded from this export.
+- `POST /admin/adversary-sim/control` - Submit adversary-sim ON/OFF command
+- `GET /admin/adversary-sim/status` - Read lifecycle state and diagnostics
+- `POST /admin/adversary-sim/history/cleanup` - Explicitly clear retained simulation telemetry history
 - `GET /admin/maze` - maze statistics
 - `GET /admin/maze/preview?path=<maze_entry_path>...` - non-operational maze preview surface
 - `GET /admin/robots` - robots.txt configuration and preview
@@ -170,10 +195,10 @@ Full configuration reference (including configuration-class explanation): [`docs
 
 ## 🐙 Dashboard
 
-1. Open `http://127.0.0.1:3000/dashboard/index.html` in browser
-2. Enter <abbr title="Application Programming Interface">API</abbr> endpoint: `http://127.0.0.1:3000`
-3. Enter <abbr title="Application Programming Interface">API</abbr> key from `make api-key-show` (local dev) or deployed `SHUMA_API_KEY`
-4. View analytics and manage bans
+1. Open `http://127.0.0.1:3000/dashboard/login.html` in browser
+2. Enter the key from `make api-key-show` (local dev) or the deployed `SHUMA_API_KEY`
+3. Dashboard auth becomes a same-origin admin session cookie after login
+4. After login, use `http://127.0.0.1:3000/dashboard/index.html` (or `/dashboard`) for the full tabbed UI
 
 ## 🐙 Common Tasks
 
@@ -260,8 +285,8 @@ scripts/tests/integration.sh # Spin integration scenarios
 
 ## 🐙 Next Steps
 
-1. **Production Deployment**: Deploy to Fermyon Cloud or compatible platform
-2. **Custom Config**: Update config in <abbr title="Key-Value">KV</abbr> store for your needs
-3. **Monitor**: Use dashboard to track bans and events
-4. **Tune**: Use test mode to validate before enforcing blocks
-5. **Extend**: See roadmap in README for agentic <abbr title="Artificial Intelligence">AI</abbr> features
+1. **Shared-host Deploy**: Use `make prepare-linode-shared-host` and `make deploy-linode-one-shot` for the canonical Linode/shared-host path
+2. **Routine Remote Ops**: Use `make remote-update`, `make remote-status`, and `make remote-open-dashboard` once the first SSH-managed remote is deployed
+3. **Custom Config**: Update config in <abbr title="Key-Value">KV</abbr> store for your needs
+4. **Monitor and Tune**: Use dashboard monitoring plus test mode/adversary sim to validate before tightening enforcement
+5. **Enterprise/Egress Work**: Use [`docs/deployment.md`](deployment.md) for the staged enterprise/Akamai/Fermyon posture and gateway guardrails

@@ -186,7 +186,7 @@ Dashboard DOM-class contract for runtime/simulation affordances:
 Dashboard adversary-sim orchestration control contract:
 - `POST /admin/adversary-sim/control` is the explicit admin-authenticated + CSRF-protected control path for ON/OFF transitions.
 - Control submissions must include `Idempotency-Key`, pass strict origin/referer + fetch-metadata trust checks, and return `operation_id` + `decision`.
-- `GET /admin/adversary-sim/status` is read-only and returns lifecycle phase, fixed guardrails, desired/actual state, and controller reconciliation/lease metadata.
+- `GET /admin/adversary-sim/status` is the operator/dashboard read path and returns lifecycle phase, fixed guardrails, desired/actual state, and controller reconciliation/lease metadata. Current implementation may also reconcile stale persisted state on read; strict non-mutating status remains an open contract cleanup item.
 - `POST /internal/adversary-sim/beat` is an internal-only endpoint used by host-side supervisor workers; dashboard clients never call it directly.
 - Host-side supervisor requests must satisfy trusted-forwarding (`X-Shuma-Forwarded-Secret`, loopback `X-Forwarded-For`, `X-Forwarded-Proto: https`) and send the internal supervisor marker header. Only `/admin/adversary-sim/status` and `/internal/adversary-sim/beat` bypass the public admin IP allowlist under that internal supervisor contract.
 - Runtime generation cadence ownership is backend/supervisor-only: dashboard refresh cadence must not control traffic generation.
@@ -202,7 +202,7 @@ Host-side supervisor launch adapters:
 - Build/run helper targets:
   - `make adversary-sim-supervisor-build`
   - `make adversary-sim-supervisor`
-- Single-host/systemd style deployment should run the same binary (`target/tools/adversary_sim_supervisor`) against `POST /internal/adversary-sim/beat` with `SHUMA_API_KEY` injected via service env/secret manager.
+- Single-host/systemd style deployment should use the same wrapper/runtime contract as `make prod-start`: launch `scripts/run_with_adversary_sim_supervisor.sh` around `spin up`, with `SHUMA_API_KEY` injected via service env/secret manager. That wrapper manages the `target/tools/adversary_sim_supervisor` worker and polls `GET /admin/adversary-sim/status` before sending `POST /internal/adversary-sim/beat`.
 - Containerized deployment can run the same worker as a sidecar process sharing network reachability to the Shuma instance.
 - Edge/no-local-process environments can run an external supervisor service that calls the same internal beat endpoint.
 

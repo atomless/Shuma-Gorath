@@ -58,7 +58,7 @@ The preflight verifies:
 
 - local `make deploy-env-validate`,
 - local rendered Spin manifest alignment via `scripts/deploy/render_gateway_spin_manifest.py`,
-- Linode token can query API,
+- Linode Personal Access Token can query API,
 - fresh-create mode: region slug, instance type, and image lookup,
 - prepared-host mode: the named existing Linode instance exists, is running, and has an IPv4 address.
 

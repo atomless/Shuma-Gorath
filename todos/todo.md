@@ -43,6 +43,7 @@ Current stance:
 - [ ] SIM-DEPLOY-2-1 Define the production-default runtime lane/resource posture now that adversary-sim surfaces are production-capable by default.
 - [ ] SIM-DEPLOY-2-2 Add explicit production kill-switch, diagnostics, and no-impact verification for normal user traffic under live operator use.
 - [ ] SIM-DEPLOY-2-3 Update deployment/operator docs and evidence receipts so production adversary-sim usage is documented as a first-class operating path rather than a gated exception.
+- [ ] SIM-DEPLOY-2-4 Resolve the `/admin/adversary-sim/status` contract mismatch: current runtime reconciles and persists stale lifecycle state on `GET`, while boundary/plan docs still require a non-mutating read path. Either remove write-on-read behavior or explicitly approve/document the exception via ADR and operator docs.
 
 ## P1 Shared-Host Discovery Baseline
 

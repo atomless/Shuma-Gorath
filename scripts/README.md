@@ -8,8 +8,10 @@ Automation scripts used by the Makefile live here.
   - `setup.sh`: dependency/bootstrap workflow used by `make setup`
   - `verify-setup.sh`: setup verification used by `make verify`
 - `deploy/`
+  - `build_linode_release_bundle.py`: builds an exact local `HEAD` release bundle for Linode/shared-host deploy and remote-update flows
   - `local_env.py`: shared helpers for gitignored operator env files such as `.env.local`
   - `gateway_surface_catalog.py`: shared catalog parsing, reserved-route matching, and forward-probe path selection helpers
+  - `linode_shared_host_setup.py`: Linode setup orchestration used by `make prepare-linode-shared-host`
   - `render_gateway_spin_manifest.py`: renders a deployment-specific Spin manifest with the exact gateway upstream allowlist for shared-host runtime/preflight use
   - `remote_target.py`: normalized `ssh_systemd` remote receipt helpers and generic day-2 remote command dispatch
   - `select_gateway_smoke_path.py`: selects a deterministic non-reserved public path from a surface catalog for post-deploy smoke forwarding checks

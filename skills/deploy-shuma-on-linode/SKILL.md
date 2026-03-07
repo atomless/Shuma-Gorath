@@ -33,7 +33,7 @@ Do not provision anything until all required inputs are known and validated.
 
 Required:
 
-- `LINODE_TOKEN`: Linode API token with Linodes read/write scope.
+- `LINODE_TOKEN`: Linode Personal Access Token with Linodes read/write scope.
 - `SHUMA_ADMIN_IP_ALLOWLIST`: trusted admin IP/CIDR list.
 - `SHUMA_GATEWAY_UPSTREAM_ORIGIN`: existing origin in `scheme://host[:port]` form.
 - `SHUMA_GATEWAY_DEPLOYMENT_PROFILE=shared-server`.

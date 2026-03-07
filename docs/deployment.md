@@ -107,7 +107,7 @@ Requirements:
 
 - run from a cloned `Shuma-Gorath` repository
 - local SSH keypair available (default public key lookup: `~/.ssh/id_ed25519.pub`, fallback `~/.ssh/id_rsa.pub`)
-- Linode API token with Linodes read/write scope
+- Linode Personal Access Token (exported locally as `LINODE_TOKEN`) with Linodes read/write scope
 - domain/TLS is mandatory for the canonical production path
 - local `make deploy-env-validate` must pass before provisioning
 

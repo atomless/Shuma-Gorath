@@ -23,6 +23,8 @@ cd Shuma-Gorath
 - [`../skills/prepare-shared-host-on-linode/SKILL.md`](../skills/prepare-shared-host-on-linode/SKILL.md) - Repo-local agent skill for shared-host Linode setup and deploy handoff preparation
 - [`../skills/deploy-shuma-on-linode/SKILL.md`](../skills/deploy-shuma-on-linode/SKILL.md) - Repo-local agent skill for one-command Linode provisioning + deployment
 - [`../skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](../skills/deploy-shuma-on-akamai-fermyon/SKILL.md) - Repo-local agent skill for staged enterprise Akamai/Fermyon edge deployment
+- [`research/2026-03-06-linode-shared-host-live-proof.md`](research/2026-03-06-linode-shared-host-live-proof.md) - First live proof of the shared-host Linode setup + deploy path
+- [`plans/2026-03-07-generic-ssh-remote-maintenance-layer-design.md`](plans/2026-03-07-generic-ssh-remote-maintenance-layer-design.md) - Provider-agnostic `ssh_systemd` day-2 remote operations contract
 - [`api.md`](api.md) - <abbr title="Application Programming Interface">API</abbr> usage and endpoint details
 - [`configuration.md`](configuration.md) - Runtime configuration reference
 - [`fingerprinting-terminology.md`](fingerprinting-terminology.md) - Canonical fingerprinting/JS verification terminology map

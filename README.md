@@ -72,6 +72,8 @@ GATEWAY_SURFACE_CATALOG_PATH=/abs/path/to/catalog.json \
 make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--domain shuma.example.com --region gb-lon --type g6-standard-1"
 ```
 
+`LINODE_TOKEN` is the Linode Personal Access Token created in Cloud Manager.
+
 If you are starting from a local site plus a Linode account, first run:
 
 ```bash
