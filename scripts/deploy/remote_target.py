@@ -503,7 +503,7 @@ fi
 printf 'status=%s body=%s\\n' "${{status}}" "${{body}}" >&2
 exit 1
 """
-    remote_command = f"bash -lc {shlex.quote(shell_script)}"
+    remote_command = f"bash -c {shlex.quote(shell_script)}"
     attempts = 6
     for attempt in range(1, attempts + 1):
         result = subprocess.run(
