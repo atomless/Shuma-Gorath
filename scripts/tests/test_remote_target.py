@@ -15,6 +15,7 @@ class RemoteTargetTests(unittest.TestCase):
         self.receipts_dir = self.temp_dir / ".spin" / "remotes"
         self.receipts_dir.mkdir(parents=True, exist_ok=True)
         self.receipt_path = self.receipts_dir / "blog-prod.json"
+        (self.temp_dir / "catalog.json").write_text('{"inventory":[{"path":"/"}]}\n', encoding="utf-8")
         remote_target.write_json(
             self.receipt_path,
             {
@@ -183,6 +184,117 @@ class RemoteTargetTests(unittest.TestCase):
 
         self.assertIn("schema", str(exc.exception))
 
+    def test_update_builds_uploads_restarts_smokes_and_refreshes_receipt_metadata(self) -> None:
+        self.env_file.write_text("SHUMA_ACTIVE_REMOTE=blog-prod\n", encoding="utf-8")
+        bundle_dir = self.temp_dir / "bundle"
+        bundle_dir.mkdir()
+        archive_path = bundle_dir / "release.tar.gz"
+        archive_path.write_text("bundle\n", encoding="utf-8")
+        metadata_path = bundle_dir / "release.json"
+        metadata_path.write_text(
+            json.dumps(
+                {
+                    "commit": "deadbeef",
+                    "dirty_worktree": False,
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        update_script_path = bundle_dir / "remote-update.sh"
+        update_script_path.write_text("#!/bin/sh\n", encoding="utf-8")
+
+        with patch.object(
+            remote_target,
+            "build_release_bundle",
+            return_value=(archive_path, metadata_path, {"commit": "deadbeef", "dirty_worktree": False}),
+        ), patch.object(
+            remote_target, "write_remote_update_script", return_value=update_script_path
+        ), patch.object(
+            remote_target, "copy_file_to_remote"
+        ) as copy_file, patch.object(
+            remote_target, "run_remote_update_install", return_value=0
+        ) as run_install, patch.object(
+            remote_target, "run_remote_smoke", return_value=0
+        ) as run_smoke:
+            rc = remote_target.main(
+                [
+                    "--env-file",
+                    str(self.env_file),
+                    "--receipts-dir",
+                    str(self.receipts_dir),
+                    "update",
+                ]
+            )
+
+        self.assertEqual(rc, 0)
+        copied_remote_paths = [call.args[2] for call in copy_file.call_args_list]
+        self.assertEqual(
+            copied_remote_paths,
+            [
+                "/tmp/shuma-remote-update-release.tar.gz",
+                "/tmp/shuma-remote-update-release.json",
+                "/tmp/shuma-remote-update-surface-catalog.json",
+                "/tmp/shuma-remote-update.sh",
+            ],
+        )
+        run_install.assert_called_once()
+        run_smoke.assert_called_once()
+        receipt = json.loads(self.receipt_path.read_text(encoding="utf-8"))
+        self.assertEqual(receipt["metadata"]["last_deployed_commit"], "deadbeef")
+        self.assertTrue(receipt["metadata"]["last_deployed_at_utc"].endswith("Z"))
+
+    def test_update_attempts_rollback_when_smoke_fails(self) -> None:
+        self.env_file.write_text("SHUMA_ACTIVE_REMOTE=blog-prod\n", encoding="utf-8")
+        bundle_dir = self.temp_dir / "bundle"
+        bundle_dir.mkdir()
+        archive_path = bundle_dir / "release.tar.gz"
+        archive_path.write_text("bundle\n", encoding="utf-8")
+        metadata_path = bundle_dir / "release.json"
+        metadata_path.write_text(
+            json.dumps(
+                {
+                    "commit": "deadbeef",
+                    "dirty_worktree": False,
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        update_script_path = bundle_dir / "remote-update.sh"
+        update_script_path.write_text("#!/bin/sh\n", encoding="utf-8")
+
+        with patch.object(
+            remote_target,
+            "build_release_bundle",
+            return_value=(archive_path, metadata_path, {"commit": "deadbeef", "dirty_worktree": False}),
+        ), patch.object(
+            remote_target, "write_remote_update_script", return_value=update_script_path
+        ), patch.object(
+            remote_target, "copy_file_to_remote"
+        ), patch.object(
+            remote_target, "run_remote_update_install", return_value=0
+        ), patch.object(
+            remote_target, "run_remote_smoke", return_value=1
+        ), patch.object(
+            remote_target, "rollback_remote_update", return_value=0
+        ) as rollback_remote_update:
+            with self.assertRaises(SystemExit) as exc:
+                remote_target.main(
+                    [
+                        "--env-file",
+                        str(self.env_file),
+                        "--receipts-dir",
+                        str(self.receipts_dir),
+                        "update",
+                    ]
+                )
+
+        self.assertIn("rollback attempted", str(exc.exception).lower())
+        rollback_remote_update.assert_called_once()
+        receipt = json.loads(self.receipt_path.read_text(encoding="utf-8"))
+        self.assertEqual(receipt["metadata"]["last_deployed_commit"], "abc123")
+
     def test_make_targets_dispatch_to_remote_helper(self) -> None:
         result = subprocess.run(
             [
@@ -196,6 +308,7 @@ class RemoteTargetTests(unittest.TestCase):
                 "remote-logs",
                 "remote-start",
                 "remote-stop",
+                "remote-update",
                 "remote-open-dashboard",
             ],
             cwd=remote_target.REPO_ROOT,
@@ -212,6 +325,7 @@ class RemoteTargetTests(unittest.TestCase):
         self.assertIn(" logs --name ", result.stdout)
         self.assertIn(" start --name ", result.stdout)
         self.assertIn(" stop --name ", result.stdout)
+        self.assertIn(" update --name ", result.stdout)
         self.assertIn(" open-dashboard --name ", result.stdout)
 
 

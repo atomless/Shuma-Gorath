@@ -67,6 +67,7 @@ The receipt is the deploy handoff artifact.
 The normalized remote receipt is the day-2 maintenance artifact for:
 
 - `make remote-use REMOTE=<name>`
+- `make remote-update`
 - `make remote-status`
 - `make remote-logs`
 - `make remote-start`

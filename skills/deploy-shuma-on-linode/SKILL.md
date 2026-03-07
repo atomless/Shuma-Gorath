@@ -190,6 +190,7 @@ If the origin ever logs paths that start with `/http://...`, the host is running
 After first successful deploy, routine operations should use the generic remote layer instead of rerunning Linode-specific setup logic:
 
 ```bash
+make remote-update
 make remote-status
 make remote-logs
 make remote-start
@@ -197,7 +198,7 @@ make remote-stop
 make remote-open-dashboard
 ```
 
-The successful deploy already selected the emitted remote locally. Use `make remote-use REMOTE=<name>` later only when you want to switch targets. `remote-update` is intentionally not part of this skill yet. It stays deferred until the config-seeding lifecycle is cleaned up so the command can be truthful about how it updates a live remote.
+The successful deploy already selected the emitted remote locally. Use `make remote-use REMOTE=<name>` later only when you want to switch targets. `remote-update` now ships the exact committed local `HEAD`, preserves the remote `.env.local` and `.spin`, restarts the service, runs smoke, refreshes the receipt metadata, and attempts rollback if smoke fails.
 
 ## Gateway Cutover and Rollback
 

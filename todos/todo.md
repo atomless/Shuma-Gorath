@@ -44,24 +44,6 @@ Current stance:
 - [ ] SIM-DEPLOY-2-2 Add explicit production kill-switch, diagnostics, and no-impact verification for normal user traffic under live operator use.
 - [ ] SIM-DEPLOY-2-3 Update deployment/operator docs and evidence receipts so production adversary-sim usage is documented as a first-class operating path rather than a gated exception.
 
-## P1 Remote Maintenance Contract
-
-Reference context:
-- [`docs/deployment.md`](../docs/deployment.md)
-- [`docs/research/2026-03-06-linode-shared-host-live-proof.md`](../docs/research/2026-03-06-linode-shared-host-live-proof.md)
-- [`docs/plans/2026-03-07-generic-ssh-remote-maintenance-layer-design.md`](../docs/plans/2026-03-07-generic-ssh-remote-maintenance-layer-design.md)
-- [`docs/plans/2026-03-06-linode-shared-host-readiness-implementation-plan.md`](../docs/plans/2026-03-06-linode-shared-host-readiness-implementation-plan.md)
-- [`skills/prepare-shared-host-on-linode/SKILL.md`](../skills/prepare-shared-host-on-linode/SKILL.md)
-- [`skills/deploy-shuma-on-linode/SKILL.md`](../skills/deploy-shuma-on-linode/SKILL.md)
-
-Current focus:
-- The low-risk normalized `ssh_systemd` remote day-2 slice is now in place, including automatic selection of the emitted remote receipt after successful setup/deploy.
-- The config-seeding lifecycle preconditions for truthful day-2 updates are now in place.
-- The remaining remote-ops work is `remote-update`, which must preserve explicit config verification and must not reintroduce implicit persisted-config mutation.
-
-### REMOTE-OPS-1: Generic SSH Remote Target Layer
-- [ ] REMOTE-OPS-1-6 Define `make remote-update` truthfully as: build the exact local committed `HEAD` bundle, upload/install it on the selected `ssh_systemd` remote, restart the service, run smoke, and update receipt metadata; do not imply uncommitted worktree sync.
-
 ## P1 Shared-Host Discovery Baseline
 
 Reference plan:

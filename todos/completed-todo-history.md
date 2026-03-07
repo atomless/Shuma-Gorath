@@ -28,11 +28,13 @@ Moved from active TODO files on 2026-02-14.
 - [x] REMOTE-OPS-1-4 Implement the first generic backend as `ssh_systemd`; do not claim identical lifecycle semantics for non-SSH backends such as Fermyon in this tranche.
 - [x] REMOTE-OPS-1-5 Add thin repo-local helper dispatch for:
   - `make remote-use REMOTE=<name>`
+  - `make remote-update`
   - `make remote-start`
   - `make remote-stop`
   - `make remote-status`
   - `make remote-logs`
   - `make remote-open-dashboard`
+- [x] REMOTE-OPS-1-6 Define `make remote-update` truthfully as: build the exact local committed `HEAD` bundle, upload/install it on the selected `ssh_systemd` remote, preserve remote `.env.local` and `.spin`, restart the service, run smoke, refresh receipt metadata, and attempt rollback if smoke fails; do not imply uncommitted worktree sync.
 - [x] REMOTE-OPS-1-7 Keep target naming truthful: do not add ambiguous generic commands such as `make dev-remote` or `make dev-prod-remote` unless the implementation can guarantee those semantics across the supported backend contract.
 - [x] REMOTE-OPS-1-8 Update deploy/setup skills and operator docs so the Linode path becomes one provider-specific writer of the generic remote receipt, while the day-2 remote maintenance path is provider-agnostic within the `ssh_systemd` contract.
 - [x] Evidence:

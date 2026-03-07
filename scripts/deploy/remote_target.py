@@ -5,15 +5,18 @@ from __future__ import annotations
 import argparse
 import ipaddress
 import json
+import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
 
-from scripts.deploy.local_env import ensure_env_file, read_env_value, upsert_env_value
+from scripts.deploy.local_env import ensure_env_file, read_env_file, read_env_value, upsert_env_value
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ENV_FILE = REPO_ROOT / ".env.local"
@@ -24,6 +27,11 @@ DEFAULT_APP_DIR = "/opt/shuma-gorath"
 DEFAULT_SERVICE_NAME = "shuma-gorath"
 DEFAULT_SPIN_MANIFEST_PATH = "/opt/shuma-gorath/spin.gateway.toml"
 DEFAULT_SMOKE_PATH = "/health"
+RELEASE_BUNDLE_SCRIPT = REPO_ROOT / "scripts" / "deploy" / "build_linode_release_bundle.py"
+REMOTE_UPDATE_ARCHIVE_PATH = "/tmp/shuma-remote-update-release.tar.gz"
+REMOTE_UPDATE_METADATA_PATH = "/tmp/shuma-remote-update-release.json"
+REMOTE_UPDATE_SURFACE_CATALOG_PATH = "/tmp/shuma-remote-update-surface-catalog.json"
+REMOTE_UPDATE_SCRIPT_PATH = "/tmp/shuma-remote-update.sh"
 
 
 def fail(message: str) -> None:
@@ -251,6 +259,22 @@ def ssh_command_for_operation(receipt: dict[str, Any], remote_command: str) -> l
     ]
 
 
+def scp_command_for_copy(receipt: dict[str, Any], local_path: Path, remote_path: str) -> list[str]:
+    ssh = receipt["ssh"]
+    return [
+        "scp",
+        "-q",
+        "-o",
+        "StrictHostKeyChecking=accept-new",
+        "-P",
+        str(ssh["port"]),
+        "-i",
+        ssh["private_key_path"],
+        str(local_path),
+        f"{ssh['user']}@{ssh['host']}:{remote_path}",
+    ]
+
+
 def run_ssh_operation(receipt: dict[str, Any], remote_command: str) -> int:
     result = subprocess.run(ssh_command_for_operation(receipt, remote_command), check=False)
     return int(result.returncode)
@@ -274,6 +298,231 @@ def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def shell_env_assignments(values: dict[str, str]) -> str:
+    return " ".join(f"{key}={shlex.quote(value)}" for key, value in values.items())
+
+
+def ensure_local_file(path_value: str, description: str) -> Path:
+    path = Path(path_value).expanduser()
+    if not path.exists():
+        fail(f"Missing {description}: {path}")
+    return path.resolve()
+
+
+def build_release_bundle(
+    *, repo_root: Path, work_dir: Path
+) -> tuple[Path, Path, dict[str, Any]]:
+    archive_path = work_dir / "shuma-release.tar.gz"
+    metadata_path = work_dir / "shuma-release.json"
+    result = subprocess.run(
+        [
+            "python3",
+            str(RELEASE_BUNDLE_SCRIPT),
+            "--repo-root",
+            str(repo_root),
+            "--archive-output",
+            str(archive_path),
+            "--metadata-output",
+            str(metadata_path),
+        ],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.stdout.strip():
+        print(result.stdout.strip())
+    if result.stderr.strip():
+        print(result.stderr.strip(), file=sys.stderr)
+    if result.returncode != 0:
+        fail(result.stderr.strip() or result.stdout.strip() or "Failed to build release bundle.")
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        fail(f"Failed to read release bundle metadata: {exc}")
+    return archive_path, metadata_path, metadata
+
+
+def write_remote_update_script(work_dir: Path) -> Path:
+    script_path = work_dir / "remote-update.sh"
+    script_path.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+
+ACTION="${1:-install}"
+: "${REMOTE_APP_DIR:?missing REMOTE_APP_DIR}"
+: "${REMOTE_SERVICE_NAME:?missing REMOTE_SERVICE_NAME}"
+
+NEXT_APP_DIR="${REMOTE_APP_DIR}.next"
+PREV_APP_DIR="${REMOTE_APP_DIR}.prev"
+FAILED_APP_DIR="${REMOTE_APP_DIR}.failed"
+
+install_release() {
+  : "${RELEASE_ARCHIVE_PATH:?missing RELEASE_ARCHIVE_PATH}"
+  : "${RELEASE_METADATA_PATH:?missing RELEASE_METADATA_PATH}"
+  : "${GATEWAY_SURFACE_CATALOG_REMOTE_PATH:?missing GATEWAY_SURFACE_CATALOG_REMOTE_PATH}"
+
+  if [[ ! -d "${REMOTE_APP_DIR}" ]]; then
+    echo "Missing existing remote app dir: ${REMOTE_APP_DIR}" >&2
+    exit 1
+  fi
+  if [[ ! -f "${REMOTE_APP_DIR}/.env.local" ]]; then
+    echo "Missing existing remote .env.local: ${REMOTE_APP_DIR}/.env.local" >&2
+    exit 1
+  fi
+
+  rm -rf "${NEXT_APP_DIR}"
+  mkdir -p "${NEXT_APP_DIR}"
+  tar -xzf "${RELEASE_ARCHIVE_PATH}" -C "${NEXT_APP_DIR}"
+  cp "${REMOTE_APP_DIR}/.env.local" "${NEXT_APP_DIR}/.env.local"
+  if [[ -d "${REMOTE_APP_DIR}/.spin" ]]; then
+    cp -a "${REMOTE_APP_DIR}/.spin" "${NEXT_APP_DIR}/.spin"
+  fi
+  cp "${RELEASE_METADATA_PATH}" "${NEXT_APP_DIR}/.shuma-release.json"
+
+  cd "${NEXT_APP_DIR}"
+  chmod 600 .env.local
+  set -a
+  source .env.local
+  set +a
+  python3 scripts/deploy/render_gateway_spin_manifest.py \
+    --manifest "${NEXT_APP_DIR}/spin.toml" \
+    --output "${NEXT_APP_DIR}/spin.gateway.toml" \
+    --upstream-origin "${SHUMA_GATEWAY_UPSTREAM_ORIGIN}"
+  GATEWAY_SURFACE_CATALOG_PATH="${GATEWAY_SURFACE_CATALOG_REMOTE_PATH}" make deploy-self-hosted-minimal
+
+  rm -rf "${PREV_APP_DIR}"
+  mv "${REMOTE_APP_DIR}" "${PREV_APP_DIR}"
+  mv "${NEXT_APP_DIR}" "${REMOTE_APP_DIR}"
+  sudo systemctl daemon-reload
+  if ! sudo systemctl restart "${REMOTE_SERVICE_NAME}"; then
+    echo "Remote service restart failed; attempting rollback." >&2
+    rollback_release || true
+    exit 1
+  fi
+}
+
+rollback_release() {
+  if [[ ! -d "${PREV_APP_DIR}" ]]; then
+    echo "No previous app dir available for rollback: ${PREV_APP_DIR}" >&2
+    exit 1
+  fi
+
+  sudo systemctl stop "${REMOTE_SERVICE_NAME}" || true
+  rm -rf "${FAILED_APP_DIR}"
+  if [[ -d "${REMOTE_APP_DIR}" ]]; then
+    mv "${REMOTE_APP_DIR}" "${FAILED_APP_DIR}"
+  fi
+  mv "${PREV_APP_DIR}" "${REMOTE_APP_DIR}"
+  sudo systemctl start "${REMOTE_SERVICE_NAME}"
+}
+
+case "${ACTION}" in
+  install)
+    install_release
+    ;;
+  rollback)
+    rollback_release
+    ;;
+  *)
+    echo "Unknown action: ${ACTION}" >&2
+    exit 1
+    ;;
+esac
+""",
+        encoding="utf-8",
+    )
+    script_path.chmod(0o755)
+    return script_path
+
+
+def copy_file_to_remote(receipt: dict[str, Any], local_path: Path, remote_path: str) -> None:
+    result = subprocess.run(scp_command_for_copy(receipt, local_path, remote_path), check=False)
+    if result.returncode != 0:
+        fail(f"Failed to upload {local_path} to {remote_path}.")
+
+
+def run_remote_update_install(receipt: dict[str, Any]) -> int:
+    runtime = receipt["runtime"]
+    remote_command = (
+        f"{shell_env_assignments({'REMOTE_APP_DIR': runtime['app_dir'], 'REMOTE_SERVICE_NAME': runtime['service_name'], 'RELEASE_ARCHIVE_PATH': REMOTE_UPDATE_ARCHIVE_PATH, 'RELEASE_METADATA_PATH': REMOTE_UPDATE_METADATA_PATH, 'GATEWAY_SURFACE_CATALOG_REMOTE_PATH': REMOTE_UPDATE_SURFACE_CATALOG_PATH})} "
+        f"bash {shlex.quote(REMOTE_UPDATE_SCRIPT_PATH)} install"
+    )
+    return run_ssh_operation(receipt, remote_command)
+
+
+def rollback_remote_update(receipt: dict[str, Any]) -> int:
+    runtime = receipt["runtime"]
+    remote_command = (
+        f"{shell_env_assignments({'REMOTE_APP_DIR': runtime['app_dir'], 'REMOTE_SERVICE_NAME': runtime['service_name']})} "
+        f"bash {shlex.quote(REMOTE_UPDATE_SCRIPT_PATH)} rollback"
+    )
+    return run_ssh_operation(receipt, remote_command)
+
+
+def run_remote_smoke(env_file: Path, receipt: dict[str, Any]) -> int:
+    smoke_env = os.environ.copy()
+    smoke_env.update(read_env_file(env_file))
+    smoke_env["SHUMA_BASE_URL"] = receipt["runtime"]["public_base_url"]
+    smoke_env["GATEWAY_SURFACE_CATALOG_PATH"] = str(
+        ensure_local_file(receipt["deploy"]["surface_catalog_path"], "local surface catalog")
+    )
+    result = subprocess.run(
+        ["make", "--no-print-directory", "smoke-single-host"],
+        cwd=str(REPO_ROOT),
+        env=smoke_env,
+        check=False,
+    )
+    return int(result.returncode)
+
+
+def refresh_remote_receipt_metadata(
+    receipts_dir: Path,
+    name: str,
+    *,
+    last_deployed_commit: str,
+    last_deployed_at_utc: str,
+) -> None:
+    receipt = load_remote_receipt(receipts_dir, name)
+    receipt["metadata"]["last_deployed_commit"] = last_deployed_commit
+    receipt["metadata"]["last_deployed_at_utc"] = last_deployed_at_utc
+    write_json(remote_receipt_path(receipts_dir, name), receipt)
+
+
+def perform_remote_update(receipt: dict[str, Any], env_file: Path, receipts_dir: Path) -> int:
+    ensure_local_file(receipt["deploy"]["surface_catalog_path"], "local surface catalog")
+    with tempfile.TemporaryDirectory(prefix="shuma-remote-update-") as temp_dir:
+        work_dir = Path(temp_dir)
+        archive_path, metadata_path, metadata = build_release_bundle(repo_root=REPO_ROOT, work_dir=work_dir)
+        update_script_path = write_remote_update_script(work_dir)
+        copy_file_to_remote(receipt, archive_path, REMOTE_UPDATE_ARCHIVE_PATH)
+        copy_file_to_remote(receipt, metadata_path, REMOTE_UPDATE_METADATA_PATH)
+        copy_file_to_remote(
+            receipt,
+            ensure_local_file(receipt["deploy"]["surface_catalog_path"], "local surface catalog"),
+            REMOTE_UPDATE_SURFACE_CATALOG_PATH,
+        )
+        copy_file_to_remote(receipt, update_script_path, REMOTE_UPDATE_SCRIPT_PATH)
+        if run_remote_update_install(receipt) != 0:
+            fail("Remote update install/restart failed; rollback was attempted on the host.")
+        if run_remote_smoke(env_file, receipt) != 0:
+            rollback_result = rollback_remote_update(receipt)
+            if rollback_result == 0:
+                fail("Remote smoke failed after update; rollback attempted.")
+            fail("Remote smoke failed after update, and rollback also failed.")
+        refresh_remote_receipt_metadata(
+            receipts_dir,
+            receipt["identity"]["name"],
+            last_deployed_commit=str(metadata.get("commit") or ""),
+            last_deployed_at_utc=utc_now_iso(),
+        )
+        print(
+            f"Remote updated: {receipt['identity']['name']} -> {receipt['runtime']['public_base_url']} "
+            f"(commit={metadata.get('commit', '')})"
+        )
+    return 0
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Manage normalized Shuma ssh_systemd remote targets.")
     parser.add_argument(
@@ -294,6 +543,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     for command in ("status", "logs", "start", "stop", "open-dashboard"):
         action_parser = subparsers.add_parser(command, help=f"Run {command} against the selected remote")
         action_parser.add_argument("--name", help="Override the active remote target")
+    update_parser = subparsers.add_parser(
+        "update",
+        help="Upload the exact committed HEAD bundle, restart the selected ssh_systemd remote, and run smoke",
+    )
+    update_parser.add_argument("--name", help="Override the active remote target")
 
     write_parser = subparsers.add_parser("write-linode-receipt", help="Write a normalized Linode remote receipt")
     write_parser.add_argument("--name", required=True, help="Remote target name")
@@ -368,6 +622,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     receipt = select_remote(getattr(args, "name", None), env_file, receipts_dir)
+    if args.command == "update":
+        return perform_remote_update(receipt, env_file, receipts_dir)
     service_name = receipt["runtime"]["service_name"]
     command_map = {
         "status": f"sudo systemctl status {service_name} --no-pager",

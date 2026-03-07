@@ -86,6 +86,7 @@ If the Linode host and same-box origin are already prepared, use `--existing-ins
 After the first successful shared-host deploy, routine SSH-managed day-2 operations are:
 
 ```bash
+make remote-update
 make remote-status
 make remote-logs
 make remote-start
@@ -93,6 +94,7 @@ make remote-stop
 make remote-open-dashboard
 ```
 
+`make remote-update` ships the exact committed local `HEAD`, preserves the remote `.env.local` and `.spin` state, restarts the service, runs smoke, refreshes the receipt metadata, and attempts rollback if smoke fails.
 Use `make remote-use REMOTE=<name>` later only when you want to switch the active remote.
 
 Dashboard:

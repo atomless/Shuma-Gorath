@@ -27,6 +27,22 @@ def read_env_value(path: Path, key: str) -> str:
     return ""
 
 
+def read_env_file(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    if not path.exists():
+        return values
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key:
+            continue
+        values[key] = strip_wrapping_quotes(value.strip())
+    return values
+
+
 def upsert_env_value(path: Path, key: str, value: str) -> None:
     ensure_env_file(path)
     new_line = f"{key}={value}"

@@ -91,6 +91,7 @@ Live proof reference:
 Once deploy succeeds, shift straight to the normalized day-2 remote layer:
 
 ```bash
+make remote-update
 make remote-status
 make remote-logs
 make remote-start

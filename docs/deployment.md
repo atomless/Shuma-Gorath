@@ -141,6 +141,7 @@ Related repo-local deployment skills:
 Once setup or deploy succeeds, the emitted `.spin/remotes/<name>.json` receipt is auto-selected into `.env.local`, so routine operations can move straight to the provider-agnostic remote layer:
 
 ```bash
+make remote-update
 make remote-status
 make remote-logs
 make remote-start
@@ -153,7 +154,7 @@ Rules:
 - `.env.local` keeps only `SHUMA_ACTIVE_REMOTE=<name>` for remote selection, and successful setup/deploy now updates it automatically.
 - structured remote target state lives in `.spin/remotes/<name>.json`.
 - the current generic backend contract is `ssh_systemd` only.
-- `remote-update` is intentionally deferred until the config-seeding lifecycle cleanup makes that command truthful.
+- `remote-update` now means: ship the exact committed local `HEAD`, preserve remote `.env.local` and `.spin`, validate and restart on the remote host, run smoke against the public base URL, refresh local receipt metadata, and attempt rollback if smoke fails.
 - `make remote-use REMOTE=<name>` remains the manual switch command when you want to change the active target later.
 
 ## 🐙 10-Minute `self_hosted_minimal` Runbook (Start + Health + Rollback)
