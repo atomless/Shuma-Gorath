@@ -4856,6 +4856,19 @@ mod admin_config_tests {
         assert!(cfg.get("robots_allow_search_engines").is_none());
 
         let saved_bytes = store.get("config:default").unwrap().unwrap();
+        let saved_json: serde_json::Value = serde_json::from_slice(&saved_bytes).unwrap();
+        assert_eq!(
+            saved_json.get("ai_policy_block_training"),
+            Some(&serde_json::Value::Bool(false))
+        );
+        assert_eq!(
+            saved_json.get("ai_policy_block_search"),
+            Some(&serde_json::Value::Bool(true))
+        );
+        assert_eq!(
+            saved_json.get("ai_policy_allow_search_engines"),
+            Some(&serde_json::Value::Bool(false))
+        );
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
         assert!(!saved_cfg.robots_block_ai_training);
         assert!(saved_cfg.robots_block_ai_search);
@@ -8853,7 +8866,7 @@ fn persist_site_config(
     cfg: &crate::config::Config,
 ) -> Result<(), ()> {
     let key = format!("config:{}", site_id);
-    let encoded = serde_json::to_vec(cfg).map_err(|_| ())?;
+    let encoded = crate::config::serialize_persisted_kv_config(cfg).map_err(|_| ())?;
     store.set(&key, &encoded).map_err(|_| ())?;
     crate::config::invalidate_runtime_cache(site_id);
     Ok(())

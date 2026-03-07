@@ -1283,6 +1283,25 @@ pub fn defaults() -> &'static Config {
     &DEFAULT_CONFIG
 }
 
+pub fn serialize_persisted_kv_config(cfg: &Config) -> Result<Vec<u8>, serde_json::Error> {
+    let mut value = serde_json::to_value(cfg)?;
+    if let Some(obj) = value.as_object_mut() {
+        obj.insert(
+            "ai_policy_block_training".to_string(),
+            serde_json::Value::Bool(cfg.robots_block_ai_training),
+        );
+        obj.insert(
+            "ai_policy_block_search".to_string(),
+            serde_json::Value::Bool(cfg.robots_block_ai_search),
+        );
+        obj.insert(
+            "ai_policy_allow_search_engines".to_string(),
+            serde_json::Value::Bool(cfg.robots_allow_search_engines),
+        );
+    }
+    serde_json::to_vec(&value)
+}
+
 pub fn validate_env_only_once() -> Result<(), String> {
     if cfg!(test) {
         if validate_env_in_tests_enabled() {
