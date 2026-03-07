@@ -198,7 +198,7 @@ make remote-stop
 make remote-open-dashboard
 ```
 
-The successful deploy already selected the emitted remote locally. Use `make remote-use REMOTE=<name>` later only when you want to switch targets. `remote-update` now ships the exact committed local `HEAD`, preserves the remote `.env.local` and `.spin`, restarts the service, runs smoke, refreshes the receipt metadata, and attempts rollback if smoke fails.
+The successful deploy already selected the emitted remote locally and persists any generated operator secrets needed for dashboard/admin/smoke access into local `.env.local`. Use `make remote-use REMOTE=<name>` later only when you want to switch targets. `remote-update` now ships the exact committed local `HEAD`, preserves the remote `.env.local` and `.spin`, restarts the service, runs smoke, refreshes the receipt metadata, and attempts rollback if smoke fails. If an older host is missing smoke-critical secrets locally, the helper hydrates them from the remote `.env.local` first.
 
 ## Gateway Cutover and Rollback
 

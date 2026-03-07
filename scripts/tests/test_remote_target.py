@@ -310,6 +310,41 @@ class RemoteTargetTests(unittest.TestCase):
         self.assertEqual(env["SHUMA_SMOKE_ADMIN_FORWARDED_IP"], "198.51.100.10")
         self.assertEqual(env["GATEWAY_SURFACE_CATALOG_PATH"], str((self.temp_dir / "catalog.json").resolve()))
 
+    def test_run_remote_smoke_hydrates_missing_secrets_from_remote_env(self) -> None:
+        self.env_file.write_text("SHUMA_ADMIN_IP_ALLOWLIST=198.51.100.10/32\n", encoding="utf-8")
+        receipt = remote_target.load_remote_receipt(self.receipts_dir, "blog-prod")
+
+        def fake_run(*args, **kwargs):
+            command = args[0]
+            if command[0] == "ssh":
+                return subprocess.CompletedProcess(
+                    args=command,
+                    returncode=0,
+                    stdout="\n".join(
+                        [
+                            "SHUMA_API_KEY=remote-api-key",
+                            "SHUMA_FORWARDED_IP_SECRET=remote-forward-secret",
+                            "SHUMA_HEALTH_SECRET=remote-health-secret",
+                        ]
+                    )
+                    + "\n",
+                    stderr="",
+                )
+            return subprocess.CompletedProcess(args=command, returncode=0)
+
+        with patch.object(subprocess, "run", side_effect=fake_run) as run:
+            rc = remote_target.run_remote_smoke(self.env_file, receipt)
+
+        self.assertEqual(rc, 0)
+        env = run.call_args.kwargs["env"]
+        self.assertEqual(env["SHUMA_API_KEY"], "remote-api-key")
+        self.assertEqual(env["SHUMA_FORWARDED_IP_SECRET"], "remote-forward-secret")
+        self.assertEqual(env["SHUMA_HEALTH_SECRET"], "remote-health-secret")
+        env_text = self.env_file.read_text(encoding="utf-8")
+        self.assertIn("SHUMA_API_KEY=remote-api-key", env_text)
+        self.assertIn("SHUMA_FORWARDED_IP_SECRET=remote-forward-secret", env_text)
+        self.assertIn("SHUMA_HEALTH_SECRET=remote-health-secret", env_text)
+
     def test_make_targets_dispatch_to_remote_helper(self) -> None:
         result = subprocess.run(
             [

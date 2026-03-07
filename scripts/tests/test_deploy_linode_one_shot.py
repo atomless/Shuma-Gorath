@@ -280,6 +280,24 @@ class DeployLinodeOneShotTests(unittest.TestCase):
             self.env_file.read_text(encoding="utf-8"),
         )
 
+    def test_existing_instance_deploy_persists_generated_operator_secrets_locally(self) -> None:
+        result = self.run_script(
+            "--remote-name",
+            "blog-prod",
+            "--domain",
+            "shuma.example.com",
+            "--existing-instance-id",
+            "123",
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        env_text = self.env_file.read_text(encoding="utf-8")
+        self.assertRegex(env_text, r"SHUMA_API_KEY=[0-9a-f]{64}")
+        self.assertRegex(env_text, r"SHUMA_JS_SECRET=[0-9a-f]{64}")
+        self.assertRegex(env_text, r"SHUMA_FORWARDED_IP_SECRET=[0-9a-f]{64}")
+        self.assertRegex(env_text, r"SHUMA_HEALTH_SECRET=[0-9a-f]{64}")
+        self.assertRegex(env_text, r"SHUMA_SIM_TELEMETRY_SECRET=[0-9a-f]{64}")
+        self.assertIn("SHUMA_ADMIN_IP_ALLOWLIST=203.0.113.0/24", env_text)
+
     def test_open_dashboard_flag_launches_local_dashboard_url(self) -> None:
         result = self.run_script(
             "--domain",

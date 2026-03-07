@@ -127,6 +127,24 @@ open_local_url() {
   fi
 }
 
+persist_local_env_values() {
+  local env_file="$1"
+  shift
+  python3 - "$env_file" "$@" <<'PY_ENV_LOCAL'
+from pathlib import Path
+import sys
+
+from scripts.deploy.local_env import upsert_env_value
+
+env_path = Path(sys.argv[1])
+pairs = sys.argv[2:]
+for pair in pairs:
+    key, value = pair.split("=", 1)
+    if value:
+        upsert_env_value(env_path, key, value)
+PY_ENV_LOCAL
+}
+
 LINODE_API_URL="https://api.linode.com/v4"
 LINODE_LABEL="shuma-$(date -u +%Y%m%d%H%M%S)"
 LINODE_PROFILE="${LINODE_PROFILE:-small}"
@@ -828,6 +846,14 @@ if [[ -z "${REMOTE_TARGET_NAME}" ]]; then
   fi
 fi
 REMOTE_DEPLOYED_AT_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+persist_local_env_values "${ENV_LOCAL}" \
+  "SHUMA_API_KEY=${SHUMA_API_KEY_VALUE}" \
+  "SHUMA_JS_SECRET=${SHUMA_JS_SECRET_VALUE}" \
+  "SHUMA_FORWARDED_IP_SECRET=${SHUMA_FORWARDED_IP_SECRET_VALUE}" \
+  "SHUMA_HEALTH_SECRET=${SHUMA_HEALTH_SECRET_VALUE}" \
+  "SHUMA_SIM_TELEMETRY_SECRET=${SHUMA_SIM_TELEMETRY_SECRET_VALUE}" \
+  "SHUMA_ADMIN_IP_ALLOWLIST=${SHUMA_ADMIN_IP_ALLOWLIST}"
+
 REMOTE_RECEIPT_PATH="$(python3 "${REPO_ROOT}/scripts/manage_remote_target.py" \
   --receipts-dir "${REMOTE_RECEIPTS_DIR}" \
   write-linode-receipt \

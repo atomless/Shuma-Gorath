@@ -80,6 +80,7 @@ make prepare-linode-shared-host PREPARE_LINODE_ARGS="--docroot /abs/path/to/site
 
 That helper can persist `LINODE_TOKEN`, `SHUMA_ADMIN_IP_ALLOWLIST`, and `GATEWAY_SURFACE_CATALOG_PATH` to gitignored `.env.local` and write `.spin/linode-shared-host-setup.json` with the instance id and public IP.
 It also emits `.spin/remotes/<name>.json` and auto-selects it in `.env.local` so routine day-2 operations can switch to the generic remote layer with no extra step after the first successful deploy.
+The deploy step now also persists any generated operator secrets needed for dashboard/admin/smoke access back into local `.env.local`.
 
 If the Linode host and same-box origin are already prepared, use `--existing-instance-id <linode-id>` to attach Shuma without reprovisioning.
 
@@ -94,7 +95,7 @@ make remote-stop
 make remote-open-dashboard
 ```
 
-`make remote-update` ships the exact committed local `HEAD`, preserves the remote `.env.local` and `.spin` state, restarts the service, runs smoke, refreshes the receipt metadata, and attempts rollback if smoke fails.
+`make remote-update` ships the exact committed local `HEAD`, preserves the remote `.env.local` and `.spin` state, restarts the service, runs smoke, refreshes the receipt metadata, and attempts rollback if smoke fails. If an older host is missing smoke-critical secrets in local `.env.local`, the helper hydrates them from the remote `.env.local` first and persists them locally.
 Use `make remote-use REMOTE=<name>` later only when you want to switch the active remote.
 
 Dashboard:

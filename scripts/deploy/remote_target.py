@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
 
-from scripts.deploy.local_env import ensure_env_file, read_env_file, read_env_value, upsert_env_value
+from scripts.deploy.local_env import ensure_env_file, parse_env_text, read_env_file, read_env_value, upsert_env_value
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ENV_FILE = REPO_ROOT / ".env.local"
@@ -33,6 +33,12 @@ REMOTE_UPDATE_ARCHIVE_PATH = "/tmp/shuma-remote-update-release.tar.gz"
 REMOTE_UPDATE_METADATA_PATH = "/tmp/shuma-remote-update-release.json"
 REMOTE_UPDATE_SURFACE_CATALOG_PATH = "/tmp/shuma-remote-update-surface-catalog.json"
 REMOTE_UPDATE_SCRIPT_PATH = "/tmp/shuma-remote-update.sh"
+REMOTE_SMOKE_ENV_KEYS = (
+    "SHUMA_API_KEY",
+    "SHUMA_FORWARDED_IP_SECRET",
+    "SHUMA_HEALTH_SECRET",
+    "SHUMA_ADMIN_IP_ALLOWLIST",
+)
 
 
 def fail(message: str) -> None:
@@ -473,9 +479,43 @@ def rollback_remote_update(receipt: dict[str, Any]) -> int:
     return run_ssh_operation(receipt, remote_command)
 
 
+def fetch_remote_env_values(receipt: dict[str, Any], keys: Sequence[str]) -> dict[str, str]:
+    if not keys:
+        return {}
+    env_path = f"{receipt['runtime']['app_dir']}/.env.local"
+    remote_command = f"cat {shlex.quote(env_path)}"
+    result = subprocess.run(
+        ssh_command_for_operation(receipt, remote_command),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        fail(
+            "Failed to read remote operator env values required for smoke:\n"
+            + (result.stderr.strip() or result.stdout.strip() or "remote command failed")
+        )
+    parsed = parse_env_text(result.stdout or "")
+    return {key: parsed.get(key, "") for key in keys}
+
+
+def hydrate_missing_local_operator_env(env_file: Path, receipt: dict[str, Any], keys: Sequence[str]) -> dict[str, str]:
+    env_values = read_env_file(env_file)
+    missing_keys = [key for key in keys if not env_values.get(key, "").strip()]
+    if not missing_keys:
+        return env_values
+    remote_values = fetch_remote_env_values(receipt, missing_keys)
+    for key in missing_keys:
+        value = remote_values.get(key, "").strip()
+        if value:
+            upsert_env_value(env_file, key, value)
+            env_values[key] = value
+    return env_values
+
+
 def run_remote_smoke(env_file: Path, receipt: dict[str, Any]) -> int:
     smoke_env = os.environ.copy()
-    env_values = read_env_file(env_file)
+    env_values = hydrate_missing_local_operator_env(env_file, receipt, REMOTE_SMOKE_ENV_KEYS)
     smoke_env.update(env_values)
     smoke_env["SHUMA_BASE_URL"] = receipt["runtime"]["public_base_url"]
     smoke_env["GATEWAY_SURFACE_CATALOG_PATH"] = str(
