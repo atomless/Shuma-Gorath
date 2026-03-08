@@ -104,14 +104,22 @@ class DeployLinodeOneShotTests(unittest.TestCase):
                 f"""\
                 #!/bin/sh
                 printf '%s\\n' "$@" >> "{self.make_log}"
+                manifest_path="$SHUMA_SPIN_MANIFEST"
+                for arg in "$@"; do
+                  case "$arg" in
+                    SHUMA_SPIN_MANIFEST=*)
+                      manifest_path="${{arg#SHUMA_SPIN_MANIFEST=}}"
+                      ;;
+                  esac
+                done
                 for arg in "$@"; do
                   if [ "$arg" = "dashboard-build" ]; then
                     mkdir -p dist/dashboard
                     printf '<h1>Dashboard</h1>\\n' > dist/dashboard/index.html
                   fi
                 done
-                if [ -n "$SHUMA_SPIN_MANIFEST" ] && [ -f "$SHUMA_SPIN_MANIFEST" ]; then
-                  cp "$SHUMA_SPIN_MANIFEST" "{self.captured_manifest}"
+                if [ -n "$manifest_path" ] && [ -f "$manifest_path" ]; then
+                  cp "$manifest_path" "{self.captured_manifest}"
                 fi
                 exit 0
                 """
@@ -205,6 +213,29 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
         self.assertTrue(self.make_log.exists())
         self.assertIn("deploy-env-validate", self.make_log.read_text(encoding="utf-8"))
+
+    def test_preflight_passes_gateway_overrides_as_nested_make_arguments(self) -> None:
+        result = self.run_script(
+            "--domain",
+            "shuma.example.com",
+            "--existing-instance-id",
+            "123",
+            "--preflight-only",
+            env_overrides={
+                "SHUMA_GATEWAY_UPSTREAM_ORIGIN": "http://127.0.0.1:8080",
+                "SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED": "true",
+                "SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED": "true",
+                "SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED": "true",
+                "SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED": "true",
+            },
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        make_log = self.make_log.read_text(encoding="utf-8")
+        self.assertIn('SHUMA_GATEWAY_UPSTREAM_ORIGIN=http://127.0.0.1:8080', make_log)
+        self.assertIn('SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=true', make_log)
+        self.assertIn('SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=true', make_log)
+        self.assertIn('SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true', make_log)
+        self.assertIn('SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true', make_log)
 
     def test_preflight_renders_gateway_manifest_for_validation(self) -> None:
         result = self.run_script(
@@ -367,7 +398,11 @@ class DeployLinodeOneShotTests(unittest.TestCase):
 
     def test_remote_bootstrap_waits_for_spin_readiness_before_smoke(self) -> None:
         script = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn('SPIN_READY_TIMEOUT_SECONDS=90 make spin-wait-ready', script)
+        self.assertIn('REMOTE_SPIN_READY_TIMEOUT_SECONDS="${REMOTE_SPIN_READY_TIMEOUT_SECONDS:-300}"', script)
+        self.assertIn(
+            'SPIN_READY_TIMEOUT_SECONDS="${REMOTE_SPIN_READY_TIMEOUT_SECONDS}" make spin-wait-ready',
+            script,
+        )
         self.assertNotIn('curl -fsS -H "X-Shuma-Health-Secret:', script)
 
     def test_http_upstream_overlay_enables_insecure_local_gateway_flag(self) -> None:
@@ -397,7 +432,11 @@ class DeployLinodeOneShotTests(unittest.TestCase):
             makefile,
         )
         self.assertIn(
-            'SHUMA_ADMIN_CONFIG_WRITE_ENABLED="$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED)"',
+            'SHUMA_ADMIN_CONFIG_WRITE_ENABLED="$(DEPLOY_SHUMA_ADMIN_CONFIG_WRITE_ENABLED)"',
+            makefile,
+        )
+        self.assertIn(
+            'SHUMA_GATEWAY_UPSTREAM_ORIGIN="$(DEPLOY_SHUMA_GATEWAY_UPSTREAM_ORIGIN)"',
             makefile,
         )
         self.assertIn(

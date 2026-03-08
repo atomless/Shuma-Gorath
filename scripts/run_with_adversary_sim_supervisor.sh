@@ -8,6 +8,7 @@ fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SUPERVISOR_MANAGER_PID=""
+SUPERVISOR_WORKER_PID=""
 APP_PID=""
 
 SIM_AVAILABLE_RAW="${SHUMA_ADVERSARY_SIM_AVAILABLE:-true}"
@@ -45,30 +46,28 @@ is_generation_active() {
   return 1
 }
 
+cleanup_worker() {
+  if [[ -n "${SUPERVISOR_WORKER_PID}" ]]; then
+    kill "${SUPERVISOR_WORKER_PID}" 2>/dev/null || true
+    wait "${SUPERVISOR_WORKER_PID}" 2>/dev/null || true
+    SUPERVISOR_WORKER_PID=""
+  fi
+}
+
 run_supervisor_manager() {
-  local worker_pid=""
-
-  cleanup_worker() {
-    if [[ -n "${worker_pid}" ]]; then
-      kill "${worker_pid}" 2>/dev/null || true
-      wait "${worker_pid}" 2>/dev/null || true
-      worker_pid=""
-    fi
-  }
-
   trap cleanup_worker EXIT INT TERM
 
   while kill -0 "${APP_PID}" 2>/dev/null; do
-    if [[ -n "${worker_pid}" ]] && ! kill -0 "${worker_pid}" 2>/dev/null; then
-      worker_pid=""
+    if [[ -n "${SUPERVISOR_WORKER_PID}" ]] && ! kill -0 "${SUPERVISOR_WORKER_PID}" 2>/dev/null; then
+      SUPERVISOR_WORKER_PID=""
     fi
 
     if is_generation_active; then
-      if [[ -z "${worker_pid}" ]]; then
+      if [[ -z "${SUPERVISOR_WORKER_PID}" ]]; then
         SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL="${BASE_URL}" \
           SHUMA_ADVERSARY_SIM_SUPERVISOR_EXIT_WHEN_OFF=1 \
           "${ROOT_DIR}/scripts/adversary_sim_supervisor_launch.sh" --exit-when-off --base-url "${BASE_URL}" &
-        worker_pid=$!
+        SUPERVISOR_WORKER_PID=$!
       fi
     fi
 

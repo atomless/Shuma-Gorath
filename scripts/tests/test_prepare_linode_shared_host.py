@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -330,6 +331,59 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
         self.assertIn('SSH_PRIVATE_KEY_FILE="/Users/test/.ssh/shuma-linode"', result.stdout)
         self.assertIn('SSH_PUBLIC_KEY_FILE="/Users/test/.ssh/shuma-linode.pub"', result.stdout)
+
+    def test_make_target_prefers_process_env_over_stale_env_local_for_deploy_inputs(self) -> None:
+        self.catalog_path.parent.mkdir(parents=True, exist_ok=True)
+        self.catalog_path.write_text('{"inventory":[{"path":"/"}]}\n', encoding="utf-8")
+        self.env_file.write_text(
+            "\n".join(
+                [
+                    "LINODE_TOKEN=stored-token",
+                    "SHUMA_ADMIN_IP_ALLOWLIST=203.0.113.10/32",
+                    "SHUMA_GATEWAY_UPSTREAM_ORIGIN=https://stale.example.com",
+                    "SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=false",
+                    "SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=false",
+                    "SHUMA_GATEWAY_TLS_STRICT=true",
+                    "SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=false",
+                    "SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=false",
+                    f"GATEWAY_SURFACE_CATALOG_PATH={self.catalog_path}",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        env = os.environ.copy()
+        env.update(
+            {
+                "SHUMA_GATEWAY_UPSTREAM_ORIGIN": "http://127.0.0.1:8080",
+                "SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED": "true",
+                "SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED": "true",
+                "SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED": "true",
+                "SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED": "true",
+            }
+        )
+        result = subprocess.run(
+            [
+                "make",
+                "-n",
+                f"ENV_LOCAL={self.env_file}",
+                'DEPLOY_LINODE_ARGS=--domain shuma.example.com --preflight-only',
+                "deploy-linode-one-shot",
+            ],
+            cwd=setup.REPO_ROOT,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        self.assertIn('SHUMA_GATEWAY_UPSTREAM_ORIGIN="http://127.0.0.1:8080"', result.stdout)
+        self.assertIn('SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED="true"', result.stdout)
+        self.assertIn('SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED="true"', result.stdout)
+        self.assertIn('SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED="true"', result.stdout)
+        self.assertIn('SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED="true"', result.stdout)
 
     def test_cli_entrypoint_help_runs(self) -> None:
         result = subprocess.run(

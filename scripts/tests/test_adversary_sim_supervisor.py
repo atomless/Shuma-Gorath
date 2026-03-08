@@ -18,6 +18,10 @@ class AdversarySimSupervisorContractTests(unittest.TestCase):
         self.assertIn("X-Forwarded-Proto: https", source)
         self.assertIn("X-Shuma-Internal-Supervisor: adversary-sim", source)
 
+    def test_supervisor_manager_worker_pid_is_not_trap_scoped_local(self) -> None:
+        script = SUPERVISOR_MANAGER_SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn('local worker_pid=""', script)
+
 
 if __name__ == "__main__":
     unittest.main()
