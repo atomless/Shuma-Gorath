@@ -131,6 +131,24 @@ function runtimeFailures(page) {
   return [...guard.failures];
 }
 
+function clearRuntimeFailures(page) {
+  const guard = runtimeGuards.get(page);
+  if (!guard || !Array.isArray(guard.failures)) {
+    return;
+  }
+  guard.failures.length = 0;
+}
+
+function hasOnlyTransientStaticDisconnectFailures(page) {
+  const failures = runtimeFailures(page);
+  if (failures.length === 0) {
+    return false;
+  }
+  return failures.every((failure) =>
+    /requestfailed:\s+GET\s+.*\/dashboard\/_app\/immutable\/.*ERR_CONNECTION_REFUSED/i.test(failure)
+  );
+}
+
 function parsePrometheusLabeledCounters(text, metricName, labelName) {
   const counters = {};
   const escapedMetric = metricName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -371,28 +389,44 @@ async function openDashboard(page, options = {}) {
   const initialTab = typeof options.initialTab === "string" ? options.initialTab : "monitoring";
   const targetUrl = `${BASE_URL}/dashboard/index.html#${initialTab}`;
   ensureRuntimeGuard(page);
-  await page.goto(targetUrl);
-  await page.waitForTimeout(250);
-  if (page.url().includes("/dashboard/login.html")) {
-    await bootstrapDashboardSession(page, targetUrl);
-    await expect(page).toHaveURL(/\/dashboard\/index\.html/);
+  let lastError = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    clearRuntimeFailures(page);
+    try {
+      await page.goto(targetUrl);
+      await page.waitForTimeout(250);
+      if (page.url().includes("/dashboard/login.html")) {
+        await bootstrapDashboardSession(page, targetUrl);
+        await expect(page).toHaveURL(/\/dashboard\/index\.html/);
+      }
+      if (!page.url().endsWith(`#${initialTab}`)) {
+        await page.evaluate((tab) => {
+          window.location.hash = tab;
+        }, initialTab);
+        await expect(page).toHaveURL(new RegExp(`#${initialTab}$`));
+      }
+      await page.waitForSelector("#logout-btn", { timeout: 15000 });
+      await expect(page.locator("#logout-btn")).toBeEnabled();
+      if (initialTab === "monitoring") {
+        await page.waitForFunction(() => {
+          const total = document.getElementById("total-events")?.textContent?.trim();
+          return Boolean(total && total !== "-" && total !== "...");
+        }, { timeout: 15000 });
+      }
+      await assertActiveTabPanelVisibility(page, initialTab);
+      assertNoRuntimeFailures(page);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt === 0 && hasOnlyTransientStaticDisconnectFailures(page)) {
+        clearRuntimeFailures(page);
+        await page.waitForTimeout(1000);
+        continue;
+      }
+      throw error;
+    }
   }
-  if (!page.url().endsWith(`#${initialTab}`)) {
-    await page.evaluate((tab) => {
-      window.location.hash = tab;
-    }, initialTab);
-    await expect(page).toHaveURL(new RegExp(`#${initialTab}$`));
-  }
-  await page.waitForSelector("#logout-btn", { timeout: 15000 });
-  await expect(page.locator("#logout-btn")).toBeEnabled();
-  if (initialTab === "monitoring") {
-    await page.waitForFunction(() => {
-      const total = document.getElementById("total-events")?.textContent?.trim();
-      return Boolean(total && total !== "-" && total !== "...");
-    }, { timeout: 15000 });
-  }
-  await assertActiveTabPanelVisibility(page, initialTab);
-  assertNoRuntimeFailures(page);
+  throw lastError;
 }
 
 async function openTab(page, tab, options = {}) {

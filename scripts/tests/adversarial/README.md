@@ -198,6 +198,7 @@ Notes:
 - Frontier threshold lane (`make test-frontier-unavailability-policy`) tracks protected-lane degraded streaks and emits actionability state for model-refresh ownership workflows.
 - Secret/setup preflight:
   - `make test-adversarial-preflight` fails early on missing placeholder or malformed `SHUMA_API_KEY`/`SHUMA_SIM_TELEMETRY_SECRET`.
+  - It also provisions or verifies the repo-local Playwright Chromium runtime used by browser-realistic adversarial lanes.
   - Use preflight before smoke/coverage/promote/container black-box lanes to keep failures actionable.
 - Container lane is complementary and non-replacing in this phase:
   - run `make test-adversarial-container-isolation` to validate isolation contract first,

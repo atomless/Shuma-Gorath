@@ -25,6 +25,16 @@ from http.cookies import SimpleCookie
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.tests.playwright_runtime import (
+    DEFAULT_PLAYWRIGHT_BROWSER_CACHE,
+    PlaywrightRuntimeStatus,
+    build_playwright_env,
+    ensure_playwright_chromium,
+)
 
 LANE_CONTRACT_PATH = Path("scripts/tests/adversarial/lane_contract.v1.json")
 SIM_TAG_CONTRACT_PATH = Path("scripts/tests/adversarial/sim_tag_contract.v1.json")
@@ -1277,6 +1287,7 @@ class Runner:
             "node",
             str(self.browser_driver_script_path),
         ]
+        self.browser_driver_env = dict(os.environ)
         self.browser_driver_max_attempts = clamp_int_env(
             "SHUMA_ADVERSARIAL_BROWSER_RETRIES",
             minimum=1,
@@ -1331,6 +1342,18 @@ class Runner:
             raise SimulationError(
                 "browser-realistic profile requires browser driver script "
                 f"{self.browser_driver_script_path}, but it was not found."
+            )
+        if profile_has_browser_realistic:
+            try:
+                playwright_status = ensure_playwright_chromium()
+            except RuntimeError as exc:
+                raise SimulationError(
+                    "browser-realistic profile requires a Playwright Chromium runtime. "
+                    "Run make test-adversarial-preflight (or make setup) before adversarial tests. "
+                    f"Detail: {exc}"
+                ) from exc
+            self.browser_driver_env = build_playwright_env(
+                browser_cache=Path(playwright_status.browser_cache)
             )
 
     def next_control_plane_ip(self) -> str:
@@ -2784,6 +2807,7 @@ class Runner:
                     capture_output=True,
                     timeout=command_timeout,
                     check=False,
+                    env=self.browser_driver_env,
                 )
             except subprocess.TimeoutExpired:
                 last_error = (

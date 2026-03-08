@@ -16,6 +16,25 @@ class AdversarialPreflightUnitTests(unittest.TestCase):
         self.assertTrue(payload["status"]["passed"])
         self.assertEqual(payload["status"]["failure_count"], 0)
 
+    def test_evaluate_reports_missing_playwright_runtime(self):
+        payload = preflight.evaluate(
+            {
+                "SHUMA_API_KEY": "a" * 64,
+                "SHUMA_SIM_TELEMETRY_SECRET": "1" * 64,
+            },
+            browser_runtime_status={
+                "passed": False,
+                "failure": "preflight_missing_playwright_chromium",
+                "browser_cache": ".cache/ms-playwright",
+                "chromium_executable": "",
+            },
+        )
+        self.assertFalse(payload["status"]["passed"])
+        joined = " ".join(payload["status"]["failures"])
+        self.assertIn("preflight_missing_playwright_chromium", joined)
+        self.assertTrue(payload["checked_values"]["PLAYWRIGHT_CHROMIUM_present"] is False)
+        self.assertGreaterEqual(len(payload["guidance"]), 1)
+
     def test_evaluate_fails_with_missing_and_placeholder_secrets(self):
         payload = preflight.evaluate(
             {

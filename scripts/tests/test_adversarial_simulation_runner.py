@@ -1589,6 +1589,42 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(realism["browser_launch_duration_ms"], 0)
         self.assertEqual(realism["browser_total_duration_ms"], 0)
 
+    def test_runner_initialization_ensures_playwright_runtime_for_browser_realistic_profiles(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        browser_status = runner.PlaywrightRuntimeStatus(
+            browser_cache=str(runner.DEFAULT_PLAYWRIGHT_BROWSER_CACHE),
+            chromium_executable="/tmp/chromium/chrome",
+            installed_now=False,
+        )
+
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ), patch(
+            "scripts.tests.adversarial_simulation_runner.ensure_playwright_chromium",
+            return_value=browser_status,
+        ) as ensure_mock:
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        ensure_mock.assert_called_once()
+        self.assertEqual(
+            sim_runner.browser_driver_env.get("PLAYWRIGHT_BROWSERS_PATH"),
+            str(runner.DEFAULT_PLAYWRIGHT_BROWSER_CACHE),
+        )
+
     def test_admin_read_request_retries_throttled_reads(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")
         with patch.dict(

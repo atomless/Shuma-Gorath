@@ -170,7 +170,7 @@ Troubleshooting sequence for failed sim tagging:
 
 1. Confirm adversary-sim surface availability: `SHUMA_ADVERSARY_SIM_AVAILABLE=true`.
 2. Confirm secret presence on host runner and runtime process: `SHUMA_SIM_TELEMETRY_SECRET` is non-empty.
-3. Run `make test-adversarial-preflight` to verify required secret posture (`missing` vs `placeholder` vs `invalid format`).
+3. Run `make test-adversarial-preflight` to verify required secret posture (`missing` vs `placeholder` vs `invalid format`) and browser-lane Chromium readiness.
 4. Run `make test-adversarial-sim-tag-contract` to verify contract parity.
 5. Inspect `/metrics` for `bot_defence_policy_signals_total{signal=\"S_SIM_TAG_*\"}` counters and identify dominant failure reason.
 6. If failures persist, restart `make dev` to clear stale process env and rerun `make test-adversarial-fast`.
