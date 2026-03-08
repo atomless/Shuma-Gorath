@@ -108,6 +108,9 @@ Those commands read `.shuma/remotes/<name>.json` and work at the generic `ssh_sy
 - If the origin logs requests that begin with `/http://...`, the deployed runtime is too old and must be redeployed. That was a real gateway forwarding bug fixed by commit `05a0376`.
 - Same-host internal origins at `http://127.0.0.1:8080` are supported by the canonical Linode deploy path. If you bypass that path and start the runtime manually, you must preserve the equivalent gateway local-HTTP allowance yourself.
 - The deploy bundle still ships committed `HEAD` only. Dirty worktree warnings are truthful and must be resolved by committing the intended deploy state.
+- First cold start on a fresh host can take materially longer than a day-2 update. The remote bootstrap now allows a 300-second readiness window before smoke, because initial Spin component preparation on a virgin instance can be slow.
+- A long quiet-looking period after `Running remote bootstrap` can still be normal while the remote host installs packages, verifies Rust/Spin, rebuilds the release Wasm, and prepares the first Spin component cache.
+- Some local/operator networks intercept `sslip.io`. If local browser verification opens a filter or captive page, treat that as a network-specific verification problem and confirm the deploy via remote-host curls/systemd status or a real domain instead.
 
 ## Common Issues
 
@@ -209,6 +212,38 @@ Meaning:
 Fix:
 
 - commit the exact state you intend to deploy, then rerun the Linode path.
+
+### Fresh-host cold start exceeds the old readiness window
+
+Symptoms:
+
+- remote bootstrap reaches service start but the first readiness wait takes much longer than a warmed host.
+
+Meaning:
+
+- the virgin host is still paying first-run package, runtime, release-build, and Spin component preparation costs.
+
+Response:
+
+- allow the canonical 300-second cold-start window,
+- if it still misses that window, inspect `sudo journalctl -u shuma-gorath -n 200 --no-pager` before changing the deploy flow,
+- do not misclassify the first heavy build/start segment as a generic deploy hang.
+
+### Local verification via sslip.io looks wrong
+
+Symptoms:
+
+- opening the derived `https://<ip>.sslip.io/...` URL locally lands on an ISP/router filter or captive page instead of the deployed dashboard.
+
+Meaning:
+
+- local-network DNS or HTTP filtering is interfering with operator-side verification.
+
+Response:
+
+- verify from the Linode host itself with `curl`,
+- or verify from a different network or real domain,
+- do not conclude the remote deploy failed solely from a filtered local `sslip.io` open.
 
 ### TLS/Caddy not serving
 

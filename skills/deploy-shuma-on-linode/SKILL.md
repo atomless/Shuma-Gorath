@@ -17,6 +17,7 @@ Use the repository-native one-shot deployment path:
 - Upload the release bundle and bootstrap from that bundle on the server.
 - Reuse existing runtime workflow (`make setup-runtime`, `make deploy-self-hosted-minimal`, `make smoke-single-host`, `make prod-start`, `make stop`) without introducing a parallel pipeline.
   `make smoke-single-host` now includes forwarded public-path parity against the upstream origin plus reserved-route/admin checks.
+- Expect the first cold attach on a virgin host to be materially heavier than a day-2 update: package install, Rust/Spin verification, release build, and first Spin component preparation can take several minutes before smoke completes.
 - In interactive local runs, treat success as the hosted dashboard loading on the operator machine. Use `--open-dashboard` for that finish line.
 
 Production posture is gateway-only (`client -> shuma -> existing origin`). This path is for existing-site protection, not in-app front-door hosting.
@@ -181,6 +182,7 @@ If the origin ever logs paths that start with `/http://...`, the host is running
 7. Installs/starts a `systemd` unit for persistent runtime.
    The runtime uses `SHUMA_SPIN_MANIFEST=/opt/shuma-gorath/spin.gateway.toml`.
    The smoke run also derives a public forward-probe path from `GATEWAY_SURFACE_CATALOG_PATH`; if that path is too dynamic, rerun with `SHUMA_SMOKE_FORWARD_PATH=/stable/public/path`.
+   The first cold ready wait now budgets 300 seconds on the remote host because initial Spin component preparation on a fresh instance can exceed the old 90-second default.
 8. Configures Caddy reverse proxy for domain/TLS.
 9. Enables firewall rules for SSH and serving ports.
 10. Writes or refreshes `.shuma/remotes/<name>.json` and auto-selects it in `.env.local` so generic `make remote-*` day-2 operations can take over from provider-specific deploy plumbing.
@@ -199,6 +201,11 @@ make remote-open-dashboard
 ```
 
 The successful deploy already selected the emitted remote locally and persists any generated operator secrets needed for dashboard/admin/smoke access into local `.env.local`. Use `make remote-use REMOTE=<name>` later only when you want to switch targets. `remote-update` now ships the exact committed local `HEAD`, preserves the remote `.env.local` and `.spin`, runs a remote loopback `/health` check plus public-route smoke, refreshes the receipt metadata, and attempts rollback if smoke fails. If an older host is missing smoke-critical secrets locally, the helper hydrates them from the remote `.env.local` first.
+
+Fresh-proof hitch notes:
+
+- on a fresh host, a long pause between `Running remote bootstrap` and the final smoke output can still be normal; the expensive segment is remote package/runtime/build work, not a silent no-op.
+- some operator networks intercept or filter `sslip.io`; if `--open-dashboard` lands on a filter/captive page locally, verify from the remote host itself, from an unfiltered network, or with a real domain rather than assuming Shuma failed.
 
 ## Gateway Cutover and Rollback
 

@@ -24,6 +24,10 @@ The human boundary is intentionally small:
 
 Everything else should be agent work.
 
+Observed setup hitch from the 2026-03-08 fresh proof:
+
+- a fresh-instance run can look quiet for a while after the create request while Linode status and SSH readiness are still settling; treat that as normal polling time unless the helper exits with an actual timeout or failure.
+
 Live proof reference:
 
 - [`../../docs/research/2026-03-06-linode-shared-host-live-proof.md`](../../docs/research/2026-03-06-linode-shared-host-live-proof.md)
@@ -115,6 +119,7 @@ The live `dummy_static_site` proof confirmed this boundary is correct:
 - setup creates the receipt and catalog,
 - deploy attaches to that receipt,
 - origin staging remains a separate site-specific step and must already be complete before Shuma attach.
+- when that origin is a simple same-host service such as `python3 -m http.server`, the first loopback probe can race service startup; retry once after a short delay before treating the origin as broken.
 
 ## Operations Reference
 

@@ -166,6 +166,22 @@ Add `LINODE_TOKEN` to `.env.local` first or rerun interactively so the helper ca
 
 For PHP sites, point at the served docroot such as `public_html`, not the repository root.
 
+### Fresh instance appears quiet after create
+
+Symptoms:
+
+- the helper has created the Linode but then appears idle for a while.
+
+Meaning:
+
+- the helper is still waiting for Linode status and SSH readiness to settle.
+- on the 2026-03-08 fresh proof this pause was real but benign.
+
+Response:
+
+- allow the poll window to continue unless the helper exits with a timeout,
+- do not assume the run is hung just because there is a quiet period after instance creation.
+
 ### Over-trusting the detected admin IP
 
 If the operator uses VPN, office egress, or unstable residential IPs, require an explicit replacement CIDR.
@@ -173,3 +189,18 @@ If the operator uses VPN, office egress, or unstable residential IPs, require an
 ### Treating receipt creation as proof of deployability
 
 The receipt proves host/setup readiness only. It does not prove the upstream origin is live.
+
+### Same-host origin fails its first loopback probe
+
+Symptoms:
+
+- a freshly staged same-host origin such as `python3 -m http.server` fails the first `curl http://127.0.0.1:8080/...` check.
+
+Meaning:
+
+- simple origin services can race their own first startup.
+
+Response:
+
+- retry once after a short delay before assuming the origin staging failed,
+- only continue to Shuma attach once the origin is consistently reachable on the intended loopback contract.
