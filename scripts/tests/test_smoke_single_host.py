@@ -168,6 +168,11 @@ class SmokeSingleHostTests(unittest.TestCase):
         result = self.run_smoke({"SHUMA_TEST_ADMIN_REDIRECT_UNAUTH": "1"})
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
 
+    def test_skip_admin_auth_allows_proof_domain_smoke_without_admin_api_probe(self) -> None:
+        result = self.run_smoke({"SHUMA_SMOKE_SKIP_ADMIN_AUTH": "true"})
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        self.assertIn("Skipping /admin/config auth checks", result.stdout)
+
     def test_skip_health_allows_public_route_smoke_without_public_health_probe(self) -> None:
         result = self.run_smoke(
             {
