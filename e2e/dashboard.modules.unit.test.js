@@ -3061,7 +3061,8 @@ test('login route exposes native password-manager-friendly form-post semantics',
   assert.match(source, /name="username"/);
   assert.match(source, /id="username"/);
   assert.match(source, /type="text"/);
-  assert.match(source, /class="hidden"/);
+  assert.match(source, /class="visually-hidden"/);
+  assert.match(source, /<label class="visually-hidden" for="username">Username<\/label>/);
   assert.match(source, /autocomplete="username"/);
   assert.match(source, /value=\{passwordManagerIdentity\}/);
   assert.match(source, /name="next"/);
