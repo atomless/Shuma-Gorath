@@ -2,6 +2,36 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-08)
+
+### P0 Durable Operator State Lifecycle
+
+- [x] OPS-STATE-1 Move durable operator state out of `.spin` into `.shuma`, narrow `make clean`, add `make reset-local-state`, and prove the full Linode setup/deploy/cleanup/remote-update path end to end.
+- [x] Evidence:
+  - `docs/plans/2026-03-08-durable-operator-state-and-clean-reset-semantics-plan.md`
+  - `Makefile`
+  - `.gitignore`
+  - `scripts/deploy/remote_target.py`
+  - `scripts/deploy/linode_shared_host_setup.py`
+  - `scripts/deploy_linode_one_shot.sh`
+  - `scripts/build_site_surface_catalog.py`
+  - `docs/deployment.md`
+  - `docs/quick-reference.md`
+  - `README.md`
+  - `skills/prepare-shared-host-on-linode/SKILL.md`
+  - `skills/prepare-shared-host-on-linode/references/OPERATIONS.md`
+  - `skills/deploy-shuma-on-linode/SKILL.md`
+  - `skills/deploy-shuma-on-linode/references/OPERATIONS.md`
+  - live proof artifacts under `.shuma/`:
+    - `linode-shared-host-setup.json`
+    - `catalogs/dummy_static_site.surface-catalog.json`
+    - `remotes/dummy-static-site-prod.json`
+  - live proof outcomes:
+    - fresh Linode setup + Shuma deploy on `https://172.239.98.201.sslip.io/dashboard`
+    - `make clean` preserved durable `.shuma` state and `make remote-status` remained usable
+    - `make remote-update` deployed a temporary dashboard CSS marker to the live host
+    - a second `make remote-update` removed that marker and refreshed the remote receipt metadata
+
 ## Additional completions (2026-03-07)
 
 ### SIM2-R4-4: Config Seeding Lifecycle and Test-Mode Semantics

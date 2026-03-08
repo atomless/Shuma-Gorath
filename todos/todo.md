@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-07
+Last updated: 2026-03-08
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -15,15 +15,6 @@ Reference context:
 - [`docs/plans/2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md`](../docs/plans/2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md)
 - [`docs/configuration.md`](../docs/configuration.md)
 - [`docs/testing.md`](../docs/testing.md)
-
-## P0 Durable Operator State Lifecycle
-
-Reference context:
-- [`docs/plans/2026-03-08-durable-operator-state-and-clean-reset-semantics-plan.md`](../docs/plans/2026-03-08-durable-operator-state-and-clean-reset-semantics-plan.md)
-- [`docs/plans/2026-03-07-generic-ssh-remote-maintenance-layer-design.md`](../docs/plans/2026-03-07-generic-ssh-remote-maintenance-layer-design.md)
-- [`docs/deployment.md`](../docs/deployment.md)
-
-- [ ] OPS-STATE-1 Move durable operator state out of `.spin` into `.shuma`, narrow `make clean`, add `make reset-local-state`, and prove the full Linode setup/deploy/cleanup/remote-update path end to end.
 
 ### SIM2-R4-4: Config Seeding Lifecycle and Test-Mode Semantics
 - [ ] SIM2-R4-4-4 Resolve `test_mode` semantics end-to-end, defaulting to ephemeral runtime/session state unless a narrower exception is deliberately approved.
