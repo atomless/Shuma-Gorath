@@ -320,6 +320,19 @@ class RemoteTargetTests(unittest.TestCase):
         self.assertEqual(env["SHUMA_SMOKE_ADMIN_FORWARDED_IP"], "198.51.100.10")
         self.assertEqual(env["GATEWAY_SURFACE_CATALOG_PATH"], str((self.temp_dir / "catalog.json").resolve()))
 
+    def test_run_remote_smoke_relaxes_tls_only_for_sslip_proof_domains(self) -> None:
+        self.env_file.write_text("SHUMA_ADMIN_IP_ALLOWLIST=198.51.100.10/32\n", encoding="utf-8")
+        receipt = remote_target.load_remote_receipt(self.receipts_dir, "blog-prod")
+        receipt["runtime"]["public_base_url"] = "https://172.239.98.201.sslip.io"
+
+        with patch.object(subprocess, "run") as run:
+            run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
+            rc = remote_target.run_remote_smoke(self.env_file, receipt)
+
+        self.assertEqual(rc, 0)
+        env = run.call_args.kwargs["env"]
+        self.assertEqual(env["SHUMA_SMOKE_INSECURE_TLS"], "true")
+
     def test_run_remote_smoke_hydrates_missing_secrets_from_remote_env(self) -> None:
         self.env_file.write_text("SHUMA_ADMIN_IP_ALLOWLIST=198.51.100.10/32\n", encoding="utf-8")
         receipt = remote_target.load_remote_receipt(self.receipts_dir, "blog-prod")

@@ -45,9 +45,14 @@ class SmokeSingleHostTests(unittest.TestCase):
                 args = sys.argv[1:]
                 headers = []
                 url = ""
+                insecure_tls = False
                 i = 0
                 while i < len(args):
                     arg = args[i]
+                    if arg == "-k":
+                        insecure_tls = True
+                        i += 1
+                        continue
                     if arg == "-H":
                         headers.append(args[i + 1])
                         i += 2
@@ -69,11 +74,17 @@ class SmokeSingleHostTests(unittest.TestCase):
                 status = "500"
 
                 require_https_forward_proto = os.environ.get("SHUMA_REQUIRE_HTTPS_FORWARD_PROTO") == "1"
+                require_insecure_tls_flag = os.environ.get("SHUMA_REQUIRE_INSECURE_TLS_FLAG") == "1"
                 required_admin_ip = os.environ.get("SHUMA_TEST_ADMIN_ALLOWLIST_IP", "").strip()
                 forwarded_ip = forwarded_for_header.split(":", 1)[1].strip() if ":" in forwarded_for_header else ""
 
-                gateway_request = url.startswith("http://gateway.example.com")
-                if require_https_forward_proto and gateway_request and forwarded_proto_header.lower() != "x-forwarded-proto: https":
+                gateway_request = (
+                    url.startswith("http://gateway.example.com")
+                    or url.startswith("https://172.239.98.201.sslip.io")
+                )
+                if require_insecure_tls_flag and not insecure_tls:
+                    body, status = "TLS validation failed", "000"
+                elif require_https_forward_proto and gateway_request and forwarded_proto_header.lower() != "x-forwarded-proto: https":
                     body, status = "HTTPS required", "403"
                 elif url.endswith("/admin/config") and required_admin_ip and forwarded_ip != required_admin_ip:
                     body, status = "Forbidden", "403"
@@ -88,7 +99,7 @@ class SmokeSingleHostTests(unittest.TestCase):
                     body, status = "bot_defence_requests_total 1\\n", "200"
                 elif url.endswith("/challenge/not-a-bot-checkbox"):
                     body, status = "I am not a bot", "200"
-                elif url == "http://gateway.example.com/public/page":
+                elif url in {"http://gateway.example.com/public/page", "https://172.239.98.201.sslip.io/public/page"}:
                     body, status = os.environ.get("SHUMA_TEST_GATEWAY_FORWARD_BODY", "same-body"), "200"
                 elif url == "https://origin.example.com/public/page":
                     body, status = os.environ.get("SHUMA_TEST_ORIGIN_FORWARD_BODY", "same-body"), "200"
@@ -102,7 +113,7 @@ class SmokeSingleHostTests(unittest.TestCase):
         )
 
     def run_smoke(
-        self, env_overrides: Optional[Dict[str, str]] = None
+        self, env_overrides: Optional[Dict[str, str]] = None, *, base_url: str = "http://gateway.example.com"
     ) -> subprocess.CompletedProcess:
         env = os.environ.copy()
         env["PATH"] = f"{self.stub_dir}:{env['PATH']}"
@@ -116,7 +127,7 @@ class SmokeSingleHostTests(unittest.TestCase):
                 "bash",
                 str(SCRIPT),
                 "--base-url",
-                "http://gateway.example.com",
+                base_url,
                 "--challenge-path",
                 "/challenge/not-a-bot-checkbox",
                 "--challenge-expect",
@@ -160,6 +171,16 @@ class SmokeSingleHostTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
         self.assertIn("Skipping /health check", result.stdout)
+
+    def test_insecure_tls_flag_adds_k_for_sslip_proof_domains(self) -> None:
+        result = self.run_smoke(
+            {
+                "SHUMA_SMOKE_INSECURE_TLS": "true",
+                "SHUMA_REQUIRE_INSECURE_TLS_FLAG": "1",
+            },
+            base_url="https://172.239.98.201.sslip.io",
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
 
 
 

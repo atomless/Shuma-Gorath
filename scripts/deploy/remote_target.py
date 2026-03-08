@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from urllib.parse import urlparse
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
@@ -569,6 +570,9 @@ def run_remote_smoke(env_file: Path, receipt: dict[str, Any]) -> int:
     smoke_env.update(env_values)
     smoke_env["SHUMA_BASE_URL"] = receipt["runtime"]["public_base_url"]
     smoke_env["SHUMA_SMOKE_SKIP_HEALTH"] = "1"
+    public_host = urlparse(receipt["runtime"]["public_base_url"]).hostname or ""
+    if public_host.endswith(".sslip.io"):
+        smoke_env["SHUMA_SMOKE_INSECURE_TLS"] = "true"
     smoke_env["GATEWAY_SURFACE_CATALOG_PATH"] = str(
         ensure_local_file(receipt["deploy"]["surface_catalog_path"], "local surface catalog")
     )

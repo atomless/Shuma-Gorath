@@ -24,6 +24,7 @@ CHALLENGE_PATH="${SHUMA_SMOKE_CHALLENGE_PATH:-}"
 CHALLENGE_EXPECT="${SHUMA_SMOKE_CHALLENGE_EXPECT:-}"
 FORWARD_PATH="${SHUMA_SMOKE_FORWARD_PATH:-}"
 SKIP_HEALTH="${SHUMA_SMOKE_SKIP_HEALTH:-}"
+INSECURE_TLS="${SHUMA_SMOKE_INSECURE_TLS:-}"
 GATEWAY_UPSTREAM_ORIGIN="${SHUMA_GATEWAY_UPSTREAM_ORIGIN:-}"
 GATEWAY_SURFACE_CATALOG_PATH="${GATEWAY_SURFACE_CATALOG_PATH:-}"
 
@@ -150,9 +151,13 @@ http_request() {
   local method="$1"
   local url="$2"
   shift 2
+  local curl_args=(-s --max-time 8 -X "$method")
+  if [[ "$(normalize_bool "${INSECURE_TLS}")" == "true" ]]; then
+    curl_args+=(-k)
+  fi
   local response
   response="$(
-    curl -s --max-time 8 -X "$method" "$@" -w $'\n__HTTP_STATUS__:%{http_code}' "$url" 2>/dev/null || true
+    curl "${curl_args[@]}" "$@" -w $'\n__HTTP_STATUS__:%{http_code}' "$url" 2>/dev/null || true
   )"
   HTTP_BODY="${response%$'\n'__HTTP_STATUS__:*}"
   HTTP_STATUS="${response##*$'\n'__HTTP_STATUS__:}"
