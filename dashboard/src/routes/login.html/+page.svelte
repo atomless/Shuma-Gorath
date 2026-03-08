@@ -11,7 +11,6 @@
   } from '$lib/runtime/dashboard-paths.js';
 
   let apiKey = '';
-  let submitting = false;
   let messageText = '';
   let messageKind = 'info';
   let runtimeStateAvailable = false;
@@ -71,70 +70,39 @@
     syncDashboardBodyClasses(document, classState);
   }
 
-  async function loginErrorMessage(response) {
-    if (response.status === 401) {
+  function loginMessageFromQuery(params) {
+    const errorCode = String(params.get('error') || '').trim().toLowerCase();
+    if (!errorCode) return '';
+    if (errorCode === 'invalid_key') {
       return 'Login failed. Check your key.';
     }
-    if (response.status === 403) {
+    if (errorCode === 'access_blocked') {
       if (isLocalDevHost()) {
         return 'Login blocked by local admin access policy. Check SHUMA_ADMIN_IP_ALLOWLIST.';
       }
       return 'Login failed.';
     }
-    if (response.status === 429) {
-      const retryAfter = (response.headers.get('Retry-After') || '').trim();
+    if (errorCode === 'rate_limited') {
+      const retryAfter = String(params.get('retry_after') || '').trim();
       if (retryAfter && isLocalDevHost()) {
         return `Too many login attempts. Retry in ${retryAfter}s.`;
       }
       return 'Login temporarily unavailable. Retry shortly.';
     }
-
-    try {
-      const text = (await response.text()).trim();
-      if (text) {
-        return `Login failed: ${text}`;
-      }
-    } catch (_e) {}
-    return `Login failed (Hypertext Transfer Protocol status ${response.status}).`;
-  }
-
-  async function submitLogin(event) {
-    event.preventDefault();
-    if (!runtimeStateAvailable) {
-      setMessage('Login unavailable while runtime state is unavailable. Refresh and retry.', 'error');
-      return;
+    if (errorCode === 'invalid_request') {
+      return 'Login failed. Refresh and retry.';
     }
-    const normalized = String(apiKey || '').trim();
-    if (!normalized) {
-      setMessage('Enter your key.', 'error');
-      return;
-    }
-
-    submitting = true;
-    setMessage('', 'info');
-
-    try {
-      const resp = await fetch('/admin/login', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key: normalized })
-      });
-      if (!resp.ok) {
-        throw new Error(await loginErrorMessage(resp));
-      }
-      apiKey = '';
-      window.location.replace(nextPath);
-    } catch (error) {
-      setMessage(error.message || 'Login failed.', 'error');
-      submitting = false;
-    }
+    return 'Login failed.';
   }
 
   onMount(async () => {
     syncLoginRootClasses('');
     const params = new URLSearchParams(window.location.search || '');
     nextPath = safeNextPath(params.get('next') || '');
+    const queryMessage = loginMessageFromQuery(params);
+    if (queryMessage) {
+      setMessage(queryMessage, 'error');
+    }
     const session = await getSessionState();
     const runtimeEnvironment = normalizeRuntimeEnvironment(session?.runtime_environment);
     runtimeStateAvailable = runtimeEnvironment.length > 0;
@@ -156,8 +124,9 @@
 <main class="login-shell">
   <section class="login-card panel panel-border pad-md" aria-labelledby="login-title">
     <h1 id="login-title" class="hidden">Dashboard Login</h1>
-    <form id="login-form" class="login-form" novalidate on:submit={submitLogin}>
+    <form id="login-form" class="login-form" method="POST" action="/admin/login">
       <input type="hidden" name="username" autocomplete="username" value={passwordManagerIdentity}>
+      <input type="hidden" name="next" value={nextPath}>
       <label class="control-label" for="login-apikey">Enter your API key</label>
       <input
         id="login-apikey"
@@ -176,9 +145,9 @@
         id="login-submit"
         class="btn btn-submit"
         type="submit"
-        disabled={submitting || !runtimeStateAvailable}
+        disabled={!runtimeStateAvailable}
       >
-        {submitting ? 'Logging in...' : 'Login'}
+        Login
       </button>
     </form>
     <p id="login-msg" class={`message ${messageKind}`}>{messageText}</p>

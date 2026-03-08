@@ -962,7 +962,10 @@ test("dashboard login route remains functional after direct navigation and refre
   ensureRuntimeGuard(page);
   await page.goto(`${BASE_URL}/dashboard/login.html?next=%2Fdashboard%2Findex.html`);
   await expect(page.locator("#login-form")).toBeVisible();
+  await expect(page.locator("#login-form")).toHaveAttribute("method", "POST");
+  await expect(page.locator("#login-form")).toHaveAttribute("action", "/admin/login");
   await expect(page.locator('input[type="hidden"][name="username"]')).toHaveValue("admin");
+  await expect(page.locator('input[type="hidden"][name="next"]')).toHaveValue("/dashboard/index.html");
   await expect(page.locator("#login-apikey")).toHaveAttribute("name", "password");
   await expect(page.locator("#login-apikey")).toHaveAttribute("autocomplete", "current-password");
   await page.reload();

@@ -6041,8 +6041,40 @@ mod admin_auth_tests {
         builder
             .method(Method::Post)
             .uri("/admin/login")
-            .header("content-type", "application/json")
-            .body(format!(r#"{{"api_key":"{}"}}"#, api_key).into_bytes());
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(
+                format!(
+                    "password={}&next=%2Fdashboard%2Findex.html",
+                    percent_encoding::utf8_percent_encode(
+                        api_key,
+                        percent_encoding::NON_ALPHANUMERIC
+                    )
+                )
+                .into_bytes(),
+            );
+        builder.build()
+    }
+
+    fn login_request_with_next(api_key: &str, next: &str) -> Request {
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Post)
+            .uri("/admin/login")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(
+                format!(
+                    "password={}&next={}",
+                    percent_encoding::utf8_percent_encode(
+                        api_key,
+                        percent_encoding::NON_ALPHANUMERIC
+                    ),
+                    percent_encoding::utf8_percent_encode(
+                        next,
+                        percent_encoding::NON_ALPHANUMERIC
+                    )
+                )
+                .into_bytes(),
+            );
         builder.build()
     }
 
@@ -6067,15 +6099,69 @@ mod admin_auth_tests {
 
         let req = login_request("wrong-key");
         let first = handle_admin_login(&req, &store);
-        assert_eq!(*first.status(), 401u16);
+        assert_eq!(*first.status(), 303u16);
+        assert_eq!(
+            first.header("location").and_then(|value| value.as_str()),
+            Some("/dashboard/login.html?next=%2Fdashboard%2Findex.html&error=invalid_key")
+        );
 
         let second = handle_admin_login(&req, &store);
-        assert_eq!(*second.status(), 401u16);
+        assert_eq!(*second.status(), 303u16);
+        assert_eq!(
+            second.header("location").and_then(|value| value.as_str()),
+            Some("/dashboard/login.html?next=%2Fdashboard%2Findex.html&error=invalid_key")
+        );
 
         let third = handle_admin_login(&req, &store);
-        assert_eq!(*third.status(), 429u16);
+        assert_eq!(*third.status(), 303u16);
+        assert_eq!(
+            third.header("location").and_then(|value| value.as_str()),
+            Some("/dashboard/login.html?next=%2Fdashboard%2Findex.html&error=rate_limited&retry_after=60")
+        );
 
         std::env::remove_var("SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE");
+        std::env::remove_var("SHUMA_API_KEY");
+    }
+
+    #[test]
+    fn login_success_sets_session_cookie_and_redirects_to_safe_next_path() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+        let store = TestStore::default();
+
+        let req = login_request("test-admin-key");
+        let resp = handle_admin_login(&req, &store);
+
+        assert_eq!(*resp.status(), 303u16);
+        assert_eq!(
+            resp.header("location").and_then(|value| value.as_str()),
+            Some("/dashboard/index.html")
+        );
+        assert!(
+            resp.header("set-cookie")
+                .and_then(|value| value.as_str())
+                .map(|value| value.contains("shuma_admin_session="))
+                .unwrap_or(false)
+        );
+
+        std::env::remove_var("SHUMA_API_KEY");
+    }
+
+    #[test]
+    fn login_success_rejects_external_next_path_and_redirects_to_dashboard_index() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+        let store = TestStore::default();
+
+        let req = login_request_with_next("test-admin-key", "https://evil.example.com/phish");
+        let resp = handle_admin_login(&req, &store);
+
+        assert_eq!(*resp.status(), 303u16);
+        assert_eq!(
+            resp.header("location").and_then(|value| value.as_str()),
+            Some("/dashboard/index.html")
+        );
+
         std::env::remove_var("SHUMA_API_KEY");
     }
 
@@ -6255,6 +6341,100 @@ fn clear_session_cookie_value() -> String {
         crate::admin::auth::admin_session_cookie_name(),
         secure
     )
+}
+
+const DASHBOARD_LOGIN_PATH: &str = "/dashboard/login.html";
+const DASHBOARD_INDEX_PATH: &str = "/dashboard/index.html";
+const DASHBOARD_LOGIN_QUERY_COMPONENT_ENCODE_SET: &percent_encoding::AsciiSet =
+    &percent_encoding::CONTROLS
+        .add(b' ')
+        .add(b'"')
+        .add(b'#')
+        .add(b'$')
+        .add(b'%')
+        .add(b'&')
+        .add(b'+')
+        .add(b',')
+        .add(b'/')
+        .add(b':')
+        .add(b';')
+        .add(b'<')
+        .add(b'=')
+        .add(b'>')
+        .add(b'?')
+        .add(b'@')
+        .add(b'[')
+        .add(b'\\')
+        .add(b']')
+        .add(b'^')
+        .add(b'`')
+        .add(b'{')
+        .add(b'|')
+        .add(b'}');
+
+fn encode_dashboard_login_query_component(value: &str) -> String {
+    percent_encoding::utf8_percent_encode(value, DASHBOARD_LOGIN_QUERY_COMPONENT_ENCODE_SET)
+        .to_string()
+}
+
+fn login_redirect_location(next: &str, error_code: Option<&str>, retry_after: Option<&str>) -> String {
+    let mut location = format!(
+        "{}?next={}",
+        DASHBOARD_LOGIN_PATH,
+        encode_dashboard_login_query_component(next)
+    );
+    if let Some(code) = error_code {
+        location.push_str("&error=");
+        location.push_str(encode_dashboard_login_query_component(code).as_str());
+    }
+    if let Some(seconds) = retry_after {
+        location.push_str("&retry_after=");
+        location.push_str(encode_dashboard_login_query_component(seconds).as_str());
+    }
+    location
+}
+
+fn build_login_redirect_response(next: &str, error_code: Option<&str>, retry_after: Option<&str>) -> Response {
+    Response::builder()
+        .status(303)
+        .header(
+            "Location",
+            login_redirect_location(next, error_code, retry_after).as_str(),
+        )
+        .header("Cache-Control", "no-store")
+        .body(Vec::new())
+        .build()
+}
+
+fn normalize_dashboard_login_next(raw: Option<&str>) -> String {
+    let fallback = DASHBOARD_INDEX_PATH.to_string();
+    let Some(raw_value) = raw else {
+        return fallback;
+    };
+    let trimmed = raw_value.trim();
+    if trimmed.is_empty() || trimmed.starts_with("//") {
+        return fallback;
+    }
+    if trimmed.chars().any(|ch| ch.is_control()) {
+        return fallback;
+    }
+    if !trimmed.starts_with("/dashboard/") {
+        return fallback;
+    }
+    trimmed.to_string()
+}
+
+fn request_has_form_urlencoded_content_type(req: &Request) -> bool {
+    req.header("content-type")
+        .and_then(|value| value.as_str())
+        .map(|value| {
+            value
+                .split(';')
+                .next()
+                .map(|mime| mime.trim().eq_ignore_ascii_case("application/x-www-form-urlencoded"))
+                .unwrap_or(false)
+        })
+        .unwrap_or(false)
 }
 
 fn too_many_admin_auth_attempts_response() -> Response {
@@ -6526,39 +6706,56 @@ where
         return Response::new(405, "Method Not Allowed");
     }
 
-    let json = match crate::request_validation::parse_json_body(req.body(), 2048) {
+    let fallback_next = DASHBOARD_INDEX_PATH.to_string();
+    if !request_has_form_urlencoded_content_type(req) {
+        return build_login_redirect_response(
+            fallback_next.as_str(),
+            Some("invalid_request"),
+            None,
+        );
+    }
+
+    let form = match crate::request_validation::parse_form_urlencoded_body(req.body(), 2048) {
         Ok(v) => v,
-        Err(msg) => return Response::new(400, msg),
+        Err(_) => {
+            return build_login_redirect_response(
+                fallback_next.as_str(),
+                Some("invalid_request"),
+                None,
+            )
+        }
     };
-    let Some(api_key) = json.get("api_key").and_then(|v| v.as_str()) else {
-        return Response::new(400, "Bad Request: api_key is required");
+    let next_path =
+        normalize_dashboard_login_next(form.get("next").map(std::string::String::as_str));
+    let Some(api_key) = form.get("password").map(|value| value.trim()) else {
+        return build_login_redirect_response(next_path.as_str(), Some("invalid_request"), None);
     };
+    if api_key.is_empty() {
+        return build_login_redirect_response(next_path.as_str(), Some("invalid_request"), None);
+    }
 
     if !crate::admin::auth::verify_admin_api_key_candidate(api_key) {
         if register_failure() {
-            return too_many_admin_auth_attempts_response();
+            return build_login_redirect_response(next_path.as_str(), Some("rate_limited"), Some("60"));
         }
-        return Response::new(401, "Unauthorized");
+        return build_login_redirect_response(next_path.as_str(), Some("invalid_key"), None);
     }
 
     let (session_id, csrf_token, expires_at) = match crate::admin::auth::create_admin_session(store)
     {
         Ok(v) => v,
-        Err(_) => return Response::new(500, "Key-value store error"),
+        Err(_) => {
+            return build_login_redirect_response(next_path.as_str(), Some("login_failed"), None)
+        }
     };
-
-    let body = serde_json::to_string(&json!({
-        "authenticated": true,
-        "csrf_token": csrf_token,
-        "expires_at": expires_at
-    }))
-    .unwrap();
+    let _ = csrf_token;
+    let _ = expires_at;
     Response::builder()
-        .status(200)
-        .header("Content-Type", "application/json")
+        .status(303)
+        .header("Location", next_path.as_str())
         .header("Cache-Control", "no-store")
         .header("Set-Cookie", session_cookie_value(&session_id))
-        .body(body)
+        .body(Vec::new())
         .build()
 }
 

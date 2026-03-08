@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use percent_encoding::percent_decode_str;
 use serde_json::Value;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
 
 pub const MAX_ADMIN_JSON_BYTES: usize = 64 * 1024;
@@ -48,6 +48,40 @@ pub fn enforce_body_size(body: &[u8], max_bytes: usize) -> Result<(), &'static s
 pub fn parse_json_body(body: &[u8], max_bytes: usize) -> Result<Value, &'static str> {
     enforce_body_size(body, max_bytes)?;
     serde_json::from_slice::<Value>(body).map_err(|_| "Invalid JSON")
+}
+
+fn decode_urlencoded_component(raw: &str, plus_as_space: bool) -> String {
+    let normalized = if plus_as_space {
+        raw.replace('+', " ")
+    } else {
+        raw.to_string()
+    };
+    percent_decode_str(&normalized).decode_utf8_lossy().to_string()
+}
+
+pub fn parse_form_urlencoded_body(
+    body: &[u8],
+    max_bytes: usize,
+) -> Result<HashMap<String, String>, &'static str> {
+    enforce_body_size(body, max_bytes)?;
+    let raw = std::str::from_utf8(body).map_err(|_| "Invalid form body")?;
+    let mut params = HashMap::new();
+    for pair in raw.split('&') {
+        if pair.is_empty() {
+            continue;
+        }
+        let mut parts = pair.splitn(2, '=');
+        let Some(raw_key) = parts.next() else {
+            continue;
+        };
+        let key = decode_urlencoded_component(raw_key, true);
+        if key.is_empty() {
+            continue;
+        }
+        let value = decode_urlencoded_component(parts.next().unwrap_or(""), true);
+        params.insert(key, value);
+    }
+    Ok(params)
 }
 
 pub fn normalize_country_code_iso(value: &str) -> Option<String> {
@@ -170,7 +204,7 @@ pub fn query_param(query: &str, key: &str) -> Option<String> {
             return None;
         }
         let raw = parts.next().unwrap_or("");
-        Some(percent_decode_str(raw).decode_utf8_lossy().to_string())
+        Some(decode_urlencoded_component(raw, false))
     })
 }
 
@@ -227,6 +261,22 @@ mod tests {
         let big = vec![b'a'; MAX_POW_VERIFY_BYTES + 1];
         let err = parse_json_body(&big, MAX_POW_VERIFY_BYTES).unwrap_err();
         assert_eq!(err, "Payload too large");
+    }
+
+    #[test]
+    fn parse_form_urlencoded_body_decodes_percent_and_plus() {
+        let form = parse_form_urlencoded_body(
+            b"password=abc%2B123&next=%2Fdashboard%2Findex.html%23status&note=hello+world",
+            MAX_ADMIN_JSON_BYTES,
+        )
+        .unwrap();
+
+        assert_eq!(form.get("password").map(String::as_str), Some("abc+123"));
+        assert_eq!(
+            form.get("next").map(String::as_str),
+            Some("/dashboard/index.html#status")
+        );
+        assert_eq!(form.get("note").map(String::as_str), Some("hello world"));
     }
 
     #[test]

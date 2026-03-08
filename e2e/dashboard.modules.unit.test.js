@@ -3045,27 +3045,31 @@ test('login route syncs disconnected + runtime classes onto html root and gates 
   assert.match(source, /normalizeRuntimeEnvironment/);
   assert.equal(source.includes('inferRuntimeEnvironment'), false);
   assert.match(source, /if \(!runtimeStateAvailable\) \{/);
-  assert.match(source, /disabled=\{submitting \|\| !runtimeStateAvailable\}/);
+  assert.match(source, /disabled=\{!runtimeStateAvailable\}/);
   assert.match(source, /backendConnectionState:\s*'disconnected'/);
   assert.match(source, /runtime_environment/);
 });
 
-test('login route exposes password-manager-friendly sign-in semantics', () => {
+test('login route exposes native password-manager-friendly form-post semantics', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/routes/login.html/+page.svelte'),
     'utf8'
   );
 
   assert.match(source, /const passwordManagerIdentity = 'admin';/);
+  assert.match(source, /<form id="login-form" class="login-form" method="POST" action="\/admin\/login">/);
   assert.match(source, /name="username"/);
   assert.match(source, /type="hidden"/);
   assert.match(source, /autocomplete="username"/);
   assert.match(source, /value=\{passwordManagerIdentity\}/);
+  assert.match(source, /name="next"/);
+  assert.match(source, /value=\{nextPath\}/);
   assert.match(source, /name="password"/);
   assert.match(source, /autocomplete="current-password"/);
   assert.equal(source.includes('autocomplete="off"'), false);
-  assert.equal(source.includes('PasswordCredential'), false);
-  assert.equal(source.includes('navigator.credentials.store'), false);
+  assert.equal(source.includes("fetch('/admin/login'"), false);
+  assert.equal(source.includes('JSON.stringify({ api_key: normalized })'), false);
+  assert.equal(source.includes('event.preventDefault()'), false);
 });
 
 test('monitoring tab applies bounded sanitization and redraw guards', () => {

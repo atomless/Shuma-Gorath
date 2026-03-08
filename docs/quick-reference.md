@@ -101,7 +101,7 @@ make test-dashboard-e2e    # In terminal 2
 - Mutating session-authenticated calls also require `X-Shuma-CSRF`.
 - If `SHUMA_ADMIN_IP_ALLOWLIST` is set, the client <abbr title="Internet Protocol">IP</abbr> must be allowlisted.
 
-- `POST /admin/login` - Exchange `SHUMA_API_KEY` for an admin session cookie
+- `POST /admin/login` - Native dashboard login form endpoint (`application/x-www-form-urlencoded` `password=<SHUMA_API_KEY>`, optional `next=...`) that sets the admin session cookie and redirects
 - `GET /admin/session` - Current auth/session state
 - `POST /admin/logout` - Clear the admin session cookie
 - `GET /admin/ban` - List all bans
@@ -211,7 +211,7 @@ Full configuration reference (including configuration-class explanation): [`docs
 
 1. Open `http://127.0.0.1:3000/dashboard/login.html` in browser
 2. Enter the key from `make api-key-show` (local dev) or the deployed `SHUMA_API_KEY`
-3. Dashboard auth becomes a same-origin admin session cookie after login
+3. Dashboard login submits a native form to `/admin/login`, which sets the same-origin admin session cookie and redirects into the dashboard
 4. After login, use `http://127.0.0.1:3000/dashboard/index.html` (or `/dashboard`) for the full tabbed UI
 
 ## 🐙 Common Tasks

@@ -5,7 +5,7 @@
 Admin endpoints support two auth modes:
 - Bearer token (read/write): `Authorization: Bearer <SHUMA_API_KEY>`
 - Bearer token (read-only, optional): `Authorization: Bearer <SHUMA_ADMIN_READONLY_API_KEY>`
-- Session cookie: `POST /admin/login` with `{"api_key":"<SHUMA_API_KEY>"}` sets a short-lived `HttpOnly` cookie
+- Session cookie: `POST /admin/login` as `application/x-www-form-urlencoded` with `password=<SHUMA_API_KEY>` (and optional `next=/dashboard/index.html`) sets a short-lived `HttpOnly` cookie and redirects with `303 See Other`
 
 Write endpoints (`POST`, `PUT`, `PATCH`, `DELETE` on mutating admin routes) require read/write access.
 Read-only bearer tokens can access non-mutating admin endpoints only.
@@ -13,7 +13,7 @@ Read-only bearer tokens can access non-mutating admin endpoints only.
 If `SHUMA_ADMIN_IP_ALLOWLIST` is set, the client <abbr title="Internet Protocol">IP</abbr> must be in the allowlist.
 
 For session-authenticated write requests (`POST`, `PUT`, `PATCH`, `DELETE`), include:
-- `X-Shuma-CSRF: <csrf_token>` (returned by `/admin/login` and `/admin/session`)
+- `X-Shuma-CSRF: <csrf_token>` (returned by `/admin/session`)
 
 If `SHUMA_FORWARDED_IP_SECRET` is configured, any request that relies on `X-Forwarded-For` must also include:
 - `X-Shuma-Forwarded-Secret: <SHUMA_FORWARDED_IP_SECRET>`
@@ -140,7 +140,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 ## 🐙 Admin Endpoints
 
 - `GET /admin` - <abbr title="Application Programming Interface">API</abbr> help
-- `POST /admin/login` - Exchange <abbr title="Application Programming Interface">API</abbr> key for short-lived admin session cookie
+- `POST /admin/login` - Native dashboard login form endpoint; accepts `application/x-www-form-urlencoded` `password=<SHUMA_API_KEY>` plus optional `next=...`, sets the admin session cookie, and redirects
 - `GET /admin/session` - Current auth/session state
 - `POST /admin/logout` - Clear admin session cookie
 - `GET /admin/ban` - List active bans
