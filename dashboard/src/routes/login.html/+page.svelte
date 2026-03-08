@@ -15,6 +15,7 @@
   let messageText = '';
   let messageKind = 'info';
   let runtimeStateAvailable = false;
+  const passwordManagerIdentity = 'admin';
   const dashboardBasePath = normalizeDashboardBasePath(base);
   const fallbackNextPath = dashboardIndexPath(dashboardBasePath);
   let nextPath = fallbackNextPath;
@@ -46,6 +47,21 @@
   function setMessage(text, kind) {
     messageText = text;
     messageKind = kind;
+  }
+
+  async function storePasswordManagerCredential(secret) {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
+    if (!window.isSecureContext) return;
+    if (typeof window.PasswordCredential !== 'function') return;
+    if (!navigator.credentials || typeof navigator.credentials.store !== 'function') return;
+    try {
+      const credential = new window.PasswordCredential({
+        id: passwordManagerIdentity,
+        password: secret,
+        name: 'Shuma Dashboard Admin'
+      });
+      await navigator.credentials.store(credential);
+    } catch (_e) {}
   }
 
   function isLocalDevHost() {
@@ -122,6 +138,7 @@
       if (!resp.ok) {
         throw new Error(await loginErrorMessage(resp));
       }
+      await storePasswordManagerCredential(normalized);
       apiKey = '';
       window.location.replace(nextPath);
     } catch (error) {
@@ -156,13 +173,17 @@
   <section class="login-card panel panel-border pad-md" aria-labelledby="login-title">
     <h1 id="login-title" class="hidden">Dashboard Login</h1>
     <form id="login-form" class="login-form" novalidate on:submit={submitLogin}>
-      <label class="control-label" for="login-apikey">Enter your key</label>
+      <input type="hidden" name="username" autocomplete="username" value={passwordManagerIdentity}>
+      <label class="control-label" for="login-apikey">Enter your API key</label>
       <input
         id="login-apikey"
         class="input-field input-field--mono"
         type="password"
-        autocomplete="off"
+        name="password"
+        autocomplete="current-password"
         spellcheck="false"
+        autocapitalize="none"
+        autocorrect="off"
         required
         aria-label="Application Programming Interface key"
         bind:value={apiKey}

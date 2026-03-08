@@ -48,8 +48,9 @@ make test-dashboard   # Manual dashboard checklist
 
 Notes:
 - Use Makefile commands only (avoid running scripts directly)
-- Integration tests require a running Spin server (`make dev` or `make dev-prod`); test targets do not start Spin.
+- Integration tests require a running Spin server; targeted integration-only commands can run against `make dev` or `make dev-prod`, but the full umbrella `make test` contract requires `make dev` (`runtime-dev`).
 - `make test`, `make test-integration`, and `make test-dashboard-e2e` wait for `/health` readiness before failing.
+- `make test` now also checks `/admin/session` and fails fast if the running server is `runtime-prod`, because the full adversarial/dashboard contract is defined against `make dev`.
 - `make test` includes maze asymmetry benchmark gating, the mandatory fast adversarial matrix (`smoke + abuse + Akamai`), SIM2 realtime gates, and Playwright dashboard e2e. If Docker is unavailable, the container black-box lane degrades to the advisory SIM2 verification matrix path instead of hard-failing the umbrella run.
 - Gateway profile gates are explicit and runnable independently:
   - `make test-gateway-profile-shared-server`

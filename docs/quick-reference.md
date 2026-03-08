@@ -52,7 +52,7 @@ make remote-open-dashboard # Open the hosted dashboard for the active ssh_system
 ### 🐙 Testing
 ```bash
 # All tests (recommended)
-make test                  # Full suite: unit + integration + dashboard e2e (waits for existing server readiness)
+make test                  # Full suite: unit + integration + dashboard e2e (requires existing make dev server)
 
 # Unit tests only (native Rust, NO Spin required)
 make test-unit             # Run all unit tests
@@ -260,7 +260,8 @@ curl -H "X-Forwarded-For: 1.2.3.4" \
 
 ### 🐙 Tests Failing
 - Use Makefile targets (`make test`, `make test-unit`, `make test-dashboard-unit`, `make test-integration`, `make test-dashboard-e2e`)
-- `make test` waits for existing Spin readiness (`/health`) before running integration/dashboard suites
+- `make test` waits for existing Spin readiness (`/health`) and requires the running server to report `runtime-dev`
+- `make dev-prod` is for prod-like localhost observation; stop it and restart with `make dev` before `make test`
 - If startup is slow, increase wait timeout: `make test SPIN_READY_TIMEOUT_SECONDS=180`
 - Check logs with `make logs`
 

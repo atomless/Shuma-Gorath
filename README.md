@@ -131,7 +131,7 @@ make config-verify    # Read-only KV config lifecycle check
 make config-seed      # Explicit KV config seed/backfill/repair
 make dev              # Start dev server with file watching
 make dev-prod         # Start watched local server in runtime-prod local-direct posture (admin writes enabled)
-make test             # Full suite: unit + integration + dashboard e2e (requires running server)
+make test             # Full suite: unit + integration + dashboard e2e (requires running make dev server)
 make test-unit        # Unit tests only
 make test-integration # Integration tests (requires running server)
 make test-gateway-harness # Gateway harness + guardrail parser checks

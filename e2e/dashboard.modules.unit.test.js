@@ -3012,6 +3012,24 @@ test('login route syncs disconnected + runtime classes onto html root and gates 
   assert.match(source, /runtime_environment/);
 });
 
+test('login route exposes password-manager-friendly sign-in semantics', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/routes/login.html/+page.svelte'),
+    'utf8'
+  );
+
+  assert.match(source, /const passwordManagerIdentity = 'admin';/);
+  assert.match(source, /name="username"/);
+  assert.match(source, /type="hidden"/);
+  assert.match(source, /autocomplete="username"/);
+  assert.match(source, /value=\{passwordManagerIdentity\}/);
+  assert.match(source, /name="password"/);
+  assert.match(source, /autocomplete="current-password"/);
+  assert.equal(source.includes('autocomplete="off"'), false);
+  assert.match(source, /window\.PasswordCredential/);
+  assert.match(source, /navigator\.credentials\.store/);
+});
+
 test('monitoring tab applies bounded sanitization and redraw guards', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/MonitoringTab.svelte'),
