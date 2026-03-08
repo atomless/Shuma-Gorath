@@ -332,7 +332,7 @@ class RemoteTargetTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         env = run.call_args.kwargs["env"]
         self.assertEqual(env["SHUMA_SMOKE_INSECURE_TLS"], "true")
-        self.assertEqual(env["SHUMA_SMOKE_SKIP_ADMIN_AUTH"], "true")
+        self.assertEqual(env["SHUMA_SMOKE_SKIP_RESERVED_ROUTES"], "true")
 
     def test_run_remote_smoke_hydrates_missing_secrets_from_remote_env(self) -> None:
         self.env_file.write_text("SHUMA_ADMIN_IP_ALLOWLIST=198.51.100.10/32\n", encoding="utf-8")

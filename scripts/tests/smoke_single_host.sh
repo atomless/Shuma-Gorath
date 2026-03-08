@@ -24,6 +24,7 @@ CHALLENGE_PATH="${SHUMA_SMOKE_CHALLENGE_PATH:-}"
 CHALLENGE_EXPECT="${SHUMA_SMOKE_CHALLENGE_EXPECT:-}"
 FORWARD_PATH="${SHUMA_SMOKE_FORWARD_PATH:-}"
 SKIP_HEALTH="${SHUMA_SMOKE_SKIP_HEALTH:-}"
+SKIP_RESERVED_ROUTES="${SHUMA_SMOKE_SKIP_RESERVED_ROUTES:-}"
 SKIP_ADMIN_AUTH="${SHUMA_SMOKE_SKIP_ADMIN_AUTH:-}"
 INSECURE_TLS="${SHUMA_SMOKE_INSECURE_TLS:-}"
 GATEWAY_UPSTREAM_ORIGIN="${SHUMA_GATEWAY_UPSTREAM_ORIGIN:-}"
@@ -236,35 +237,34 @@ if [[ -n "${SHUMA_FORWARDED_IP_SECRET:-}" ]]; then
   ADMIN_FORWARDED_HEADERS+=(-H "X-Shuma-Forwarded-Secret: ${SHUMA_FORWARDED_IP_SECRET}")
 fi
 
-if [[ "$(normalize_bool "${SKIP_ADMIN_AUTH}")" == "true" ]]; then
-  info "Skipping /admin/config auth checks"
+if [[ "$(normalize_bool "${SKIP_RESERVED_ROUTES}")" == "true" ]]; then
+  info "Skipping reserved-route smoke probes (/admin/config, /metrics)"
 else
-  http_request GET "${BASE_URL}/admin/config" "${ADMIN_FORWARDED_HEADERS[@]}"
-  if [[ "${HTTP_STATUS}" == "401" || "${HTTP_STATUS}" == "403" || "${HTTP_STATUS}" == "302" ]]; then
-    pass "/admin/config requires auth"
+  if [[ "$(normalize_bool "${SKIP_ADMIN_AUTH}")" == "true" ]]; then
+    info "Skipping /admin/config auth checks"
   else
-    fail "/admin/config should reject unauthenticated access (status=${HTTP_STATUS})"
+    http_request GET "${BASE_URL}/admin/config" "${ADMIN_FORWARDED_HEADERS[@]}"
+    if [[ "${HTTP_STATUS}" == "401" || "${HTTP_STATUS}" == "403" || "${HTTP_STATUS}" == "302" ]]; then
+      pass "/admin/config requires auth"
+    else
+      fail "/admin/config should reject unauthenticated access (status=${HTTP_STATUS})"
+    fi
+
+    http_request GET "${BASE_URL}/admin/config" "${ADMIN_FORWARDED_HEADERS[@]}" -H "Authorization: Bearer ${SHUMA_API_KEY}"
+    if [[ "${HTTP_STATUS}" == "200" ]] && grep -q '"rate_limit"' <<< "${HTTP_BODY}"; then
+      pass "/admin/config accepts authenticated access"
+    else
+      fail "/admin/config auth check failed (status=${HTTP_STATUS})"
+    fi
+    ADMIN_CONFIG_BODY="${HTTP_BODY}"
   fi
 
-  http_request GET "${BASE_URL}/admin/config" "${ADMIN_FORWARDED_HEADERS[@]}" -H "Authorization: Bearer ${SHUMA_API_KEY}"
-  if [[ "${HTTP_STATUS}" == "200" ]] && grep -q '"rate_limit"' <<< "${HTTP_BODY}"; then
-    pass "/admin/config accepts authenticated access"
+  http_request GET "${BASE_URL}/metrics" "${FORWARDED_HEADERS[@]}"
+  if [[ "${HTTP_STATUS}" == "200" ]] && grep -q "bot_defence_requests_total" <<< "${HTTP_BODY}"; then
+    pass "/metrics returns Prometheus families"
   else
-    fail "/admin/config auth check failed (status=${HTTP_STATUS})"
+    fail "/metrics check failed (status=${HTTP_STATUS})"
   fi
-  ADMIN_CONFIG_BODY="${HTTP_BODY}"
-fi
-
-http_request GET "${BASE_URL}/metrics" "${FORWARDED_HEADERS[@]}"
-if [[ "${HTTP_STATUS}" == "200" ]] && grep -q "bot_defence_requests_total" <<< "${HTTP_BODY}"; then
-  pass "/metrics returns Prometheus families"
-else
-  fail "/metrics check failed (status=${HTTP_STATUS})"
-fi
-
-if [[ "$(normalize_bool "${SKIP_ADMIN_AUTH}")" == "true" ]]; then
-  pass "reserved Shuma routes remain local (/health, /metrics)"
-else
   pass "reserved Shuma routes remain local (/health, /metrics, /admin/config)"
 fi
 

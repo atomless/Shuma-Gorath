@@ -173,6 +173,11 @@ class SmokeSingleHostTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
         self.assertIn("Skipping /admin/config auth checks", result.stdout)
 
+    def test_skip_reserved_routes_allows_public_smoke_without_admin_or_metrics_probes(self) -> None:
+        result = self.run_smoke({"SHUMA_SMOKE_SKIP_RESERVED_ROUTES": "true"})
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        self.assertIn("Skipping reserved-route smoke probes", result.stdout)
+
     def test_skip_health_allows_public_route_smoke_without_public_health_probe(self) -> None:
         result = self.run_smoke(
             {

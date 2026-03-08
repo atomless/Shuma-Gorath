@@ -573,7 +573,7 @@ def run_remote_smoke(env_file: Path, receipt: dict[str, Any]) -> int:
     public_host = urlparse(receipt["runtime"]["public_base_url"]).hostname or ""
     if public_host.endswith(".sslip.io"):
         smoke_env["SHUMA_SMOKE_INSECURE_TLS"] = "true"
-        smoke_env["SHUMA_SMOKE_SKIP_ADMIN_AUTH"] = "true"
+        smoke_env["SHUMA_SMOKE_SKIP_RESERVED_ROUTES"] = "true"
     smoke_env["GATEWAY_SURFACE_CATALOG_PATH"] = str(
         ensure_local_file(receipt["deploy"]["surface_catalog_path"], "local surface catalog")
     )
