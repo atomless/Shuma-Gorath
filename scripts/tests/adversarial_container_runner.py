@@ -705,6 +705,25 @@ def prepare_command_channel(
     }
 
 
+def worker_frontier_actions_payload(actions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    payload: List[Dict[str, Any]] = []
+    for action in actions:
+        entry = {
+            "action_type": str(action.get("action_type") or "").strip(),
+            "path": str(action.get("path") or "").strip(),
+        }
+        query = action.get("query")
+        if isinstance(query, dict) and query:
+            entry["query"] = {
+                str(key).strip(): str(value).strip() for key, value in query.items()
+            }
+        label = str(action.get("label") or "").strip()
+        if label:
+            entry["label"] = label
+        payload.append(entry)
+    return payload
+
+
 def container_command(
     image_tag: str,
     mode: str,
@@ -1189,7 +1208,8 @@ def main() -> int:
         )
 
     sim_tag_envelopes_json = json.dumps(sim_tag_envelopes, separators=(",", ":"))
-    frontier_actions_json = json.dumps(frontier_actions, separators=(",", ":"))
+    worker_frontier_actions = worker_frontier_actions_payload(frontier_actions)
+    frontier_actions_json = json.dumps(worker_frontier_actions, separators=(",", ":"))
     if args.mode == "blackbox":
         capability_verify_key, capability_envelopes = build_action_capability_envelopes(
             sim_tag_secret,

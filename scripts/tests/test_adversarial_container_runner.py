@@ -8,6 +8,10 @@ import unittest
 from pathlib import Path
 
 import scripts.tests.adversarial_container_runner as container_runner
+from scripts.tests.frontier_action_contract import (
+    load_frontier_action_contract,
+    resolve_frontier_actions,
+)
 
 
 class AdversarialContainerRunnerUnitTests(unittest.TestCase):
@@ -58,6 +62,56 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         self.assertIn("BLACKBOX_ACTIONS=", joined)
         self.assertIn("BLACKBOX_ACTION_ENVELOPES=", joined)
         self.assertIn("BLACKBOX_CAPABILITY_VERIFY_KEY=", joined)
+
+    def test_worker_frontier_actions_payload_strips_resolved_only_fields(self):
+        payload = container_runner.worker_frontier_actions_payload(
+            [
+                {
+                    "action_index": 1,
+                    "action_type": "http_get",
+                    "method": "GET",
+                    "path": "/sim/public/docs",
+                    "query": {"q": "adaptive frontier probe"},
+                    "label": "docs",
+                    "url": "http://host.docker.internal:3000/sim/public/docs?q=adaptive+frontier+probe",
+                    "target_origin": "http://host.docker.internal:3000",
+                }
+            ]
+        )
+        self.assertEqual(
+            payload,
+            [
+                {
+                    "action_type": "http_get",
+                    "path": "/sim/public/docs",
+                    "query": {"q": "adaptive frontier probe"},
+                    "label": "docs",
+                }
+            ],
+        )
+
+    def test_worker_frontier_actions_payload_round_trips_through_contract(self):
+        contract = load_frontier_action_contract(
+            Path("scripts/tests/adversarial/frontier_action_contract.v1.json")
+        )
+        resolved_actions = resolve_frontier_actions(
+            "",
+            contract=contract,
+            base_url="http://host.docker.internal:3000",
+            allowed_origins=["http://host.docker.internal:3000"],
+            request_budget=24,
+        )
+        worker_payload = container_runner.worker_frontier_actions_payload(resolved_actions)
+        rerendered = resolve_frontier_actions(
+            json.dumps(worker_payload),
+            contract=contract,
+            base_url="http://host.docker.internal:3000",
+            allowed_origins=["http://host.docker.internal:3000"],
+            request_budget=24,
+        )
+        self.assertEqual(len(rerendered), len(resolved_actions))
+        self.assertEqual(rerendered[0]["path"], resolved_actions[0]["path"])
+        self.assertEqual(rerendered[0]["action_type"], resolved_actions[0]["action_type"])
 
     def test_extract_frontier_actions_from_attack_plan_uses_candidate_path_hints(self):
         attack_plan = {
