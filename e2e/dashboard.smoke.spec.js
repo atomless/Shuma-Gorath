@@ -584,7 +584,7 @@ async function bootstrapDashboardSession(page, targetUrl) {
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     await page.goto(loginUrl);
     await page.waitForSelector("#login-form", { timeout: 10000 });
-    await page.fill("#login-apikey", API_KEY);
+    await page.fill("#current-password", API_KEY);
     await page.click("#login-submit");
 
     await page.waitForFunction(() => {
@@ -964,13 +964,13 @@ test("dashboard login route remains functional after direct navigation and refre
   await expect(page.locator("#login-form")).toBeVisible();
   await expect(page.locator("#login-form")).toHaveAttribute("method", "POST");
   await expect(page.locator("#login-form")).toHaveAttribute("action", "/admin/login");
-  await expect(page.locator('input[type="hidden"][name="username"]')).toHaveValue("admin");
+  await expect(page.locator('input#username[name="username"]')).toHaveValue("admin");
   await expect(page.locator('input[type="hidden"][name="next"]')).toHaveValue("/dashboard/index.html");
-  await expect(page.locator("#login-apikey")).toHaveAttribute("name", "password");
-  await expect(page.locator("#login-apikey")).toHaveAttribute("autocomplete", "current-password");
+  await expect(page.locator("#current-password")).toHaveAttribute("name", "password");
+  await expect(page.locator("#current-password")).toHaveAttribute("autocomplete", "current-password");
   await page.reload();
   await expect(page.locator("#login-form")).toBeVisible();
-  await page.fill("#login-apikey", API_KEY);
+  await page.fill("#current-password", API_KEY);
   await page.click("#login-submit");
   await expect(page).toHaveURL(/\/dashboard\/index\.html/);
   assertNoRuntimeFailures(page);
