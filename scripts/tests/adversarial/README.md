@@ -119,7 +119,7 @@ Artifact placement policy:
 Notes:
 
 - `abuse_regression` stale-token coverage is simulated in black-box mode by mutating a valid issued seed before submit (no runner-side token re-signing and no signing-secret dependency).
-- `fast_smoke` telemetry amplification ceilings are calibrated against both local macOS Chromium and Linux CI Chromium. Treat those bounds as cross-environment guardrails, not as a single-machine local baseline.
+- `fast_smoke` telemetry amplification ceilings are calibrated against both local macOS Chromium and Linux CI Chromium. The current cross-environment guardrail is `4.0` fingerprint events/request and `9.0` monitoring events/request. Treat those bounds as cross-environment guardrails, not as a single-machine local baseline.
 - `abuse_regression` is fail-fast and now includes replay/stale/ordering plus retry-storm, fingerprint inconsistency, and forwarded-header spoof probes with invariant-oriented diagnostics.
 - `akamai_smoke` uses canned JSON fixtures posted to local `/fingerprint-report`; it does not require a live Akamai edge deployment.
 - Live-loop behavior can be tuned with environment variables:

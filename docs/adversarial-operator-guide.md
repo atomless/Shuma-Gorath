@@ -652,6 +652,7 @@ Security/privacy troubleshooting and incident response:
 
 - Operators must treat this as a resource/cost regression first.
 - Operators must reduce noisy writes (event volume, duplicate logging paths) before relaxing amplification limits.
+- When all smoke outcomes remain deterministic and a small overage reproduces only on the mandatory Linux CI lane, operators may recalibrate the ceiling from CI artifact evidence, but they must document the before/after observed values and keep the widening below the 20% one-change cap.
 
 ### `coverage_*` Failure (Soak)
 

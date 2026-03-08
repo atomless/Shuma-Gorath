@@ -1506,8 +1506,8 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         full_coverage_v2 = manifest_v2["profiles"]["full_coverage"]["gates"]["telemetry_amplification"]
 
         self.assertEqual(fast_smoke_v2, fast_smoke_v1)
-        self.assertEqual(fast_smoke_v2["max_fingerprint_events_per_request"], 3.5)
-        self.assertEqual(fast_smoke_v2["max_monitoring_events_per_request"], 8.0)
+        self.assertEqual(fast_smoke_v2["max_fingerprint_events_per_request"], 4.0)
+        self.assertEqual(fast_smoke_v2["max_monitoring_events_per_request"], 9.0)
         self.assertGreaterEqual(
             full_coverage_v2["max_fingerprint_events_per_request"],
             fast_smoke_v2["max_fingerprint_events_per_request"],

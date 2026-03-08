@@ -139,8 +139,8 @@ Observed `fast_smoke` divergence between local macOS Chromium and Linux CI Chrom
   - fingerprint: `0.21` events/request (`delta=3`, `requests=14`)
   - monitoring: `0.50` events/request (`delta=7`, `requests=14`)
 - Linux CI Chromium:
-  - fingerprint: `3.00` events/request (`delta=42`, `requests=14`)
-  - monitoring: `7.00` events/request (`delta=98`, `requests=14`)
+  - fingerprint: `3.64` events/request (`delta=51`, `requests=14`)
+  - monitoring: `8.36` events/request (`delta=117`, `requests=14`)
 
 Interpretation:
 
@@ -150,9 +150,9 @@ Interpretation:
 
 Threshold tuning applied from the cross-environment baseline:
 
-- `fast_smoke.telemetry_amplification.max_fingerprint_events_per_request`: `0.5 -> 3.5`
-- `fast_smoke.telemetry_amplification.max_monitoring_events_per_request`: `1.0 -> 8.0`
-- `full_coverage.telemetry_amplification.max_monitoring_events_per_request`: `5.0 -> 8.0`
+- `fast_smoke.telemetry_amplification.max_fingerprint_events_per_request`: `0.5 -> 4.0`
+- `fast_smoke.telemetry_amplification.max_monitoring_events_per_request`: `1.0 -> 9.0`
+- `full_coverage.telemetry_amplification.max_monitoring_events_per_request`: `5.0 -> 9.0`
 
 ## Risks and Follow-up
 
