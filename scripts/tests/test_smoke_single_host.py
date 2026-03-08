@@ -115,7 +115,11 @@ class SmokeSingleHostTests(unittest.TestCase):
         )
 
     def run_smoke(
-        self, env_overrides: Optional[Dict[str, str]] = None, *, base_url: str = "http://gateway.example.com"
+        self,
+        env_overrides: Optional[Dict[str, str]] = None,
+        *,
+        base_url: str = "http://gateway.example.com",
+        auto_challenge: bool = False,
     ) -> subprocess.CompletedProcess:
         env = os.environ.copy()
         env["PATH"] = f"{self.stub_dir}:{env['PATH']}"
@@ -124,17 +128,23 @@ class SmokeSingleHostTests(unittest.TestCase):
         env["SHUMA_TEST_ORIGIN_FORWARD_BODY"] = "same-body"
         if env_overrides:
             env.update(env_overrides)
+        command = [
+            "bash",
+            str(SCRIPT),
+            "--base-url",
+            base_url,
+        ]
+        if not auto_challenge:
+            command.extend(
+                [
+                    "--challenge-path",
+                    "/challenge/not-a-bot-checkbox",
+                    "--challenge-expect",
+                    "I am not a bot",
+                ]
+            )
         return subprocess.run(
-            [
-                "bash",
-                str(SCRIPT),
-                "--base-url",
-                base_url,
-                "--challenge-path",
-                "/challenge/not-a-bot-checkbox",
-                "--challenge-expect",
-                "I am not a bot",
-            ],
+            command,
             cwd=str(self.temp_dir),
             env=env,
             capture_output=True,
@@ -177,6 +187,11 @@ class SmokeSingleHostTests(unittest.TestCase):
         result = self.run_smoke({"SHUMA_SMOKE_SKIP_RESERVED_ROUTES": "true"})
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
         self.assertIn("Skipping reserved-route smoke probes", result.stdout)
+
+    def test_skip_reserved_routes_can_auto_select_default_challenge_without_admin_config(self) -> None:
+        result = self.run_smoke({"SHUMA_SMOKE_SKIP_RESERVED_ROUTES": "true"}, auto_challenge=True)
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        self.assertIn("/challenge/not-a-bot-checkbox challenge route responds with expected content", result.stdout)
 
     def test_skip_health_allows_public_route_smoke_without_public_health_probe(self) -> None:
         result = self.run_smoke(

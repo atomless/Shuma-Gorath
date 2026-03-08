@@ -530,6 +530,39 @@ exit 1
     return 1
 
 
+def run_remote_public_smoke_via_ssh(receipt: dict[str, Any], env_values: dict[str, str]) -> int:
+    runtime = receipt["runtime"]
+    smoke_values = {
+        "SHUMA_BASE_URL": runtime["public_base_url"],
+        "SHUMA_SMOKE_SKIP_HEALTH": "1",
+        "SHUMA_SMOKE_INSECURE_TLS": "true",
+        "SHUMA_SMOKE_SKIP_RESERVED_ROUTES": "true",
+        "GATEWAY_SURFACE_CATALOG_PATH": REMOTE_UPDATE_SURFACE_CATALOG_PATH,
+    }
+    allowlisted_ip = first_ip_from_allowlist(env_values.get("SHUMA_ADMIN_IP_ALLOWLIST", ""))
+    if allowlisted_ip:
+        smoke_values["SHUMA_SMOKE_FORWARDED_IP"] = allowlisted_ip
+        smoke_values["SHUMA_SMOKE_ADMIN_FORWARDED_IP"] = allowlisted_ip
+    remote_command = (
+        f"cd {shlex.quote(runtime['app_dir'])} && "
+        f"{shell_env_assignments(smoke_values)} "
+        "bash ./scripts/tests/smoke_single_host.sh"
+    )
+    attempts = 6
+    for attempt in range(1, attempts + 1):
+        result = subprocess.run(ssh_command_for_operation(receipt, remote_command), check=False)
+        if result.returncode == 0:
+            return 0
+        if attempt == attempts:
+            return int(result.returncode)
+        print(
+            f"Remote smoke attempt {attempt}/{attempts} failed; retrying in 2s...",
+            file=sys.stderr,
+        )
+        time.sleep(2)
+    return 1
+
+
 def fetch_remote_env_values(receipt: dict[str, Any], keys: Sequence[str]) -> dict[str, str]:
     if not keys:
         return {}
@@ -565,15 +598,15 @@ def hydrate_missing_local_operator_env(env_file: Path, receipt: dict[str, Any], 
 
 
 def run_remote_smoke(env_file: Path, receipt: dict[str, Any]) -> int:
-    smoke_env = os.environ.copy()
     env_values = hydrate_missing_local_operator_env(env_file, receipt, REMOTE_SMOKE_ENV_KEYS)
+    public_host = urlparse(receipt["runtime"]["public_base_url"]).hostname or ""
+    if public_host.endswith(".sslip.io"):
+        return run_remote_public_smoke_via_ssh(receipt, env_values)
+
+    smoke_env = os.environ.copy()
     smoke_env.update(env_values)
     smoke_env["SHUMA_BASE_URL"] = receipt["runtime"]["public_base_url"]
     smoke_env["SHUMA_SMOKE_SKIP_HEALTH"] = "1"
-    public_host = urlparse(receipt["runtime"]["public_base_url"]).hostname or ""
-    if public_host.endswith(".sslip.io"):
-        smoke_env["SHUMA_SMOKE_INSECURE_TLS"] = "true"
-        smoke_env["SHUMA_SMOKE_SKIP_RESERVED_ROUTES"] = "true"
     smoke_env["GATEWAY_SURFACE_CATALOG_PATH"] = str(
         ensure_local_file(receipt["deploy"]["surface_catalog_path"], "local surface catalog")
     )

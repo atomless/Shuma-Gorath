@@ -330,9 +330,15 @@ class RemoteTargetTests(unittest.TestCase):
             rc = remote_target.run_remote_smoke(self.env_file, receipt)
 
         self.assertEqual(rc, 0)
-        env = run.call_args.kwargs["env"]
-        self.assertEqual(env["SHUMA_SMOKE_INSECURE_TLS"], "true")
-        self.assertEqual(env["SHUMA_SMOKE_SKIP_RESERVED_ROUTES"], "true")
+        remote_command = run.call_args.args[0][-1]
+        self.assertIn("smoke_single_host.sh", remote_command)
+        self.assertIn("SHUMA_BASE_URL=https://172.239.98.201.sslip.io", remote_command)
+        self.assertIn("SHUMA_SMOKE_INSECURE_TLS=true", remote_command)
+        self.assertIn("SHUMA_SMOKE_SKIP_RESERVED_ROUTES=true", remote_command)
+        self.assertIn(
+            "GATEWAY_SURFACE_CATALOG_PATH=/tmp/shuma-remote-update-surface-catalog.json",
+            remote_command,
+        )
 
     def test_run_remote_smoke_hydrates_missing_secrets_from_remote_env(self) -> None:
         self.env_file.write_text("SHUMA_ADMIN_IP_ALLOWLIST=198.51.100.10/32\n", encoding="utf-8")
