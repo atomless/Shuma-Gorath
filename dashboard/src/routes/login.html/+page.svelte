@@ -49,21 +49,6 @@
     messageKind = kind;
   }
 
-  async function storePasswordManagerCredential(secret) {
-    if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
-    if (!window.isSecureContext) return;
-    if (typeof window.PasswordCredential !== 'function') return;
-    if (!navigator.credentials || typeof navigator.credentials.store !== 'function') return;
-    try {
-      const credential = new window.PasswordCredential({
-        id: passwordManagerIdentity,
-        password: secret,
-        name: 'Shuma Dashboard Admin'
-      });
-      await navigator.credentials.store(credential);
-    } catch (_e) {}
-  }
-
   function isLocalDevHost() {
     const host = String(window.location.hostname || '').toLowerCase();
     return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
@@ -138,7 +123,6 @@
       if (!resp.ok) {
         throw new Error(await loginErrorMessage(resp));
       }
-      await storePasswordManagerCredential(normalized);
       apiKey = '';
       window.location.replace(nextPath);
     } catch (error) {

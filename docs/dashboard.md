@@ -59,7 +59,7 @@ Development:
 Notes:
 
 - Login page: `/dashboard/login.html`
-- Login form uses standard `username` + `current-password` semantics so browsers/password managers can offer to remember the dashboard API key for this origin.
+- Login form uses standard `username` + `current-password` semantics so browsers/password managers can offer to remember the dashboard API key for this origin without Shuma forcing a save prompt on every successful login.
 - Admin session uses same-origin cookie + CSRF header for state-changing calls.
 - Config panes are editable only when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`.
 - Adversary Sim OFF -> ON toggles show a frontier-key warning when no frontier provider keys are configured:

@@ -3026,8 +3026,8 @@ test('login route exposes password-manager-friendly sign-in semantics', () => {
   assert.match(source, /name="password"/);
   assert.match(source, /autocomplete="current-password"/);
   assert.equal(source.includes('autocomplete="off"'), false);
-  assert.match(source, /window\.PasswordCredential/);
-  assert.match(source, /navigator\.credentials\.store/);
+  assert.equal(source.includes('PasswordCredential'), false);
+  assert.equal(source.includes('navigator.credentials.store'), false);
 });
 
 test('monitoring tab applies bounded sanitization and redraw guards', () => {
