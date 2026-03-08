@@ -478,15 +478,53 @@ async function controlAdversarySimViaAdmin(
 }
 
 async function forceAdversarySimDisabled(request, ip = "127.0.0.1") {
+  const timeoutMs = 95_000;
+  const deadline = Date.now() + timeoutMs;
+  let lastState = adversarySimStatusState({});
+  let lastControlError = "";
+  let consecutiveSettledPolls = 0;
+  let nextControlAttemptAt = 0;
+
   await updateAdminConfig(request, {
     adversary_sim_enabled: false,
     adversary_sim_duration_seconds: 180
   }, ip);
-  const currentState = adversarySimStatusState(await fetchAdversarySimStatus(request, ip));
-  if (currentState.enabled === true || currentState.generationActive === true || currentState.phase !== "off") {
-    await controlAdversarySimViaAdmin(request, false, ip);
+
+  while (Date.now() < deadline) {
+    lastState = adversarySimStatusState(await fetchAdversarySimStatus(request, ip));
+    if (lastState.enabled !== true && lastState.generationActive !== true && lastState.phase === "off") {
+      consecutiveSettledPolls += 1;
+      if (consecutiveSettledPolls >= 3) {
+        return lastState;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      continue;
+    }
+
+    consecutiveSettledPolls = 0;
+    if (Date.now() >= nextControlAttemptAt) {
+      try {
+        await controlAdversarySimViaAdmin(
+          request,
+          false,
+          ip,
+          Math.max(5_000, Math.min(20_000, deadline - Date.now()))
+        );
+        lastControlError = "";
+      } catch (error) {
+        lastControlError = error && typeof error.message === "string"
+          ? error.message.trim()
+          : String(error || "").trim();
+      }
+      nextControlAttemptAt = Date.now() + 2_000;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  await waitForAdversarySimEnabledState(request, false, 30000, ip);
+
+  throw new Error(
+    `adversary sim disable cleanup did not settle within ${timeoutMs}ms ` +
+    `(last_state=${JSON.stringify(lastState)}${lastControlError ? ` last_control_error=${lastControlError}` : ""})`
+  );
 }
 
 async function withRestoredAdversarySimConfig(request, callback, ip = "127.0.0.1") {
