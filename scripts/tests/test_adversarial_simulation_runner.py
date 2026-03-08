@@ -167,6 +167,121 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             "forwarded-secret",
         )
 
+    def test_deterministic_helper_requests_opt_into_trusted_forwarded_identity(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        scenario = {
+            "id": "sim_t1_pow_success",
+            "ip": "10.0.0.77",
+            "user_agent": "UnitTest/1.0",
+        }
+        calls = []
+
+        def _request(method, path, headers=None, json_body=None, form_body=None, count_request=False, trusted_forwarded=False):
+            calls.append(
+                {
+                    "method": method,
+                    "path": path,
+                    "count_request": count_request,
+                    "trusted_forwarded": trusted_forwarded,
+                    "json_body": json_body,
+                    "form_body": form_body,
+                }
+            )
+            if path == "/pow":
+                return runner.HttpResult(
+                    status=200,
+                    body=json.dumps({"seed": "pow-seed", "difficulty": 3}),
+                    headers={},
+                    latency_ms=1,
+                )
+            if path == "/pow/verify":
+                return runner.HttpResult(
+                    status=200,
+                    body=json.dumps({"status": "ok"}),
+                    headers={},
+                    latency_ms=1,
+                )
+            if path == "/challenge/not-a-bot-checkbox":
+                return runner.HttpResult(
+                    status=200,
+                    body=(
+                        '<h2>I am not a bot</h2>'
+                        '<input type="hidden" name="seed" value="nab-seed">'
+                    ),
+                    headers={},
+                    latency_ms=1,
+                )
+            if path == "/challenge/puzzle":
+                if method == "GET":
+                    return runner.HttpResult(
+                        status=200,
+                        body=(
+                            '<h2>Puzzle</h2>'
+                            '<input type="hidden" name="seed" value="puzzle-seed">'
+                            '<input type="hidden" name="output" value="0000">'
+                        ),
+                        headers={},
+                        latency_ms=1,
+                    )
+                return runner.HttpResult(status=200, body="ok", headers={}, latency_ms=1)
+            raise AssertionError(f"unexpected helper request path: {path}")
+
+        sim_runner.attacker_client.request = _request  # type: ignore[assignment]
+
+        seed, difficulty = sim_runner.fetch_pow_seed(scenario)
+        verify_result = sim_runner.submit_pow_verify(seed, "nonce", scenario)
+        not_a_bot_seed, not_a_bot_page = sim_runner.fetch_not_a_bot_seed(scenario)
+        not_a_bot_submit = sim_runner.submit_not_a_bot(
+            not_a_bot_seed,
+            scenario,
+            telemetry={"checked": True},
+        )
+        puzzle_seed, puzzle_output = sim_runner.fetch_challenge_puzzle_seed_and_output(scenario)
+        puzzle_submit = sim_runner.submit_challenge_puzzle(puzzle_seed, puzzle_output, scenario)
+
+        self.assertEqual(seed, "pow-seed")
+        self.assertEqual(difficulty, 3)
+        self.assertEqual(verify_result.status, 200)
+        self.assertEqual(not_a_bot_seed, "nab-seed")
+        self.assertEqual(not_a_bot_page.status, 200)
+        self.assertEqual(not_a_bot_submit.status, 200)
+        self.assertEqual(puzzle_seed, "puzzle-seed")
+        self.assertEqual(puzzle_output, "0000")
+        self.assertEqual(puzzle_submit.status, 200)
+
+        self.assertEqual(
+            [(call["method"], call["path"]) for call in calls],
+            [
+                ("GET", "/pow"),
+                ("POST", "/pow/verify"),
+                ("GET", "/challenge/not-a-bot-checkbox"),
+                ("POST", "/challenge/not-a-bot-checkbox"),
+                ("GET", "/challenge/puzzle"),
+                ("POST", "/challenge/puzzle"),
+            ],
+        )
+        self.assertTrue(all(call["count_request"] for call in calls))
+        self.assertTrue(all(call["trusted_forwarded"] for call in calls))
+
     def test_control_plane_headers_split_health_loopback_and_admin_isolation(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")
         with patch.dict(
@@ -795,6 +910,33 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             ["sim_t4_ordering_cadence_abuse"],
         )
 
+    def test_build_coverage_depth_checks_uses_scenario_contributions_when_recent_event_window_is_capped(self):
+        depth_requirements = {
+            "event_stream_health_depth": {
+                "required_metrics": {"recent_event_count": 2},
+                "required_scenarios": [
+                    "sim_t3_replay_abuse",
+                    "sim_t4_ordering_cadence_abuse",
+                ],
+                "verification_matrix_row_id": "event_stream_integrity",
+            }
+        }
+        checks, diagnostics = runner.build_coverage_depth_checks(
+            depth_requirements,
+            coverage_deltas={"recent_event_count": 0},
+            scenario_execution_evidence={
+                "sim_t3_replay_abuse": {"coverage_deltas": {"recent_event_count": 1}},
+                "sim_t4_ordering_cadence_abuse": {"coverage_deltas": {"recent_event_count": 1}},
+            },
+        )
+        self.assertEqual(len(checks), 1)
+        self.assertTrue(checks[0]["passed"])
+        self.assertEqual(
+            checks[0]["observed"]["observed"]["recent_event_count"],
+            2,
+        )
+        self.assertEqual(diagnostics[0]["missing_evidence"], [])
+
     def test_build_retention_lifecycle_report_maps_health_fields(self):
         section = runner.build_retention_lifecycle_report(
             {
@@ -973,10 +1115,31 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(evidence["scenario_id"], "scenario_a")
         self.assertEqual(evidence["runtime_request_count"], 3)
         self.assertEqual(evidence["monitoring_total_delta"], 2)
-        self.assertEqual(evidence["coverage_delta_total"], 1)
+        self.assertEqual(evidence["coverage_delta_total"], 2)
         self.assertEqual(evidence["coverage_deltas"]["honeypot_hits"], 1)
+        self.assertEqual(evidence["coverage_deltas"]["recent_event_count"], 1)
         self.assertEqual(evidence["simulation_event_count_delta"], 1)
         self.assertEqual(evidence["simulation_event_reasons_delta"], ["cdp_detected:tier=high"])
+        self.assertTrue(evidence["has_runtime_telemetry_evidence"])
+
+    def test_build_scenario_execution_evidence_uses_reason_delta_when_event_count_is_window_capped(self):
+        evidence = runner.build_scenario_execution_evidence(
+            scenario_id="scenario_event_stream",
+            request_count_before=4,
+            request_count_after=5,
+            monitoring_before={"monitoring_total": 0, "coverage": {"recent_event_count": 50}},
+            monitoring_after={"monitoring_total": 0, "coverage": {"recent_event_count": 50}},
+            simulation_event_count_before=50,
+            simulation_event_count_after=50,
+            simulation_event_reasons_before=["not_a_bot_fail"],
+            simulation_event_reasons_after=["not_a_bot_fail", "not_a_bot_submit_fail_maze"],
+        )
+        self.assertEqual(evidence["simulation_event_count_delta"], 1)
+        self.assertEqual(
+            evidence["simulation_event_reasons_delta"],
+            ["not_a_bot_submit_fail_maze"],
+        )
+        self.assertEqual(evidence["coverage_deltas"]["recent_event_count"], 1)
         self.assertTrue(evidence["has_runtime_telemetry_evidence"])
 
     def test_build_scenario_execution_evidence_includes_browser_fields_for_browser_realistic_driver(self):
@@ -1008,6 +1171,47 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(evidence["browser_correlation_ids"], ["nonce-a"])
         self.assertEqual(evidence["browser_request_lineage_count"], 4)
         self.assertTrue(evidence["has_browser_execution_evidence"])
+
+    def test_seed_ip_range_suggestion_prerequisites_uses_trusted_forwarded_requests(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        trusted_forwarded_flags = []
+        sim_runner.admin_patch = lambda payload, reason="": None  # type: ignore[assignment]
+        sim_runner.admin_unban = lambda ip, reason="": None  # type: ignore[assignment]
+        sim_runner.ip_range_suggestions_snapshot = lambda hours=24, limit=20: {  # type: ignore[assignment]
+            "summary": {"suggestions_total": 0},
+            "suggestions": [],
+        }
+
+        def _request(method, path, headers=None, json_body=None, form_body=None, count_request=False, trusted_forwarded=False):
+            trusted_forwarded_flags.append(trusted_forwarded)
+            return runner.HttpResult(status=200, body="ok", headers={}, latency_ms=1)
+
+        sim_runner.attacker_client.request = _request  # type: ignore[assignment]
+
+        evidence = sim_runner.seed_ip_range_suggestion_prerequisites()
+
+        self.assertEqual(evidence["seed_prefix"], "10.222.77.0/24")
+        self.assertGreater(len(trusted_forwarded_flags), 0)
+        self.assertTrue(all(trusted_forwarded_flags))
 
     def test_build_runtime_telemetry_evidence_checks_fail_when_passed_scenario_missing_telemetry(self):
         results = [

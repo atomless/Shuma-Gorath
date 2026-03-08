@@ -38,6 +38,16 @@ class AdversarialCoverageContractUnitTests(unittest.TestCase):
         with self.assertRaises(sim_runner.SimulationError):
             sim_runner.validate_manifest(manifest_path, modified, "full_coverage")
 
+    def test_coverage_contract_reflects_current_proven_depth_rows(self):
+        contract = json.loads(
+            Path("scripts/tests/adversarial/coverage_contract.v2.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        depth_rows = contract["coverage_depth_requirements"]
+        self.assertNotIn("tarpit_progression_depth", depth_rows)
+        self.assertIn("event_stream_health_depth", depth_rows)
+
 
 if __name__ == "__main__":
     unittest.main()

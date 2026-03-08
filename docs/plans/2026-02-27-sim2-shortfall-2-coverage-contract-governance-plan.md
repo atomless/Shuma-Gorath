@@ -28,7 +28,7 @@ Make SIM2 full-coverage requirements immutable and drift-resistant by moving fro
 ### Phase 1: Canonical Contract Definition
 
 1. Define canonical coverage categories and minimum evidence values.
-2. Include explicit rows for tarpit progression and event-stream minimums.
+2. Include explicit rows for event-stream minimums, and only add tarpit progression depth rows once a dedicated progress-walker scenario exists and is proven end to end.
 
 Acceptance criteria:
 

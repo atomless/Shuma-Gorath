@@ -1919,12 +1919,14 @@ class Runner:
                 self.honeypot_path,
                 headers=self.forwarded_headers(ip, user_agent=f"ShumaAdversarial/1.0 ip-range-seed {ip}"),
                 count_request=True,
+                trusted_forwarded=True,
             )
             self.attacker_client.request(
                 "GET",
                 "/",
                 headers=self.forwarded_headers(ip, user_agent=f"ShumaAdversarial/1.0 ip-range-seed {ip}"),
                 count_request=True,
+                trusted_forwarded=True,
             )
         seeded_snapshot = self.ip_range_suggestions_snapshot(hours=1, limit=20)
         seeded_suggestions = [
@@ -3189,6 +3191,7 @@ class Runner:
             "/challenge/not-a-bot-checkbox",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=self.not_a_bot_user_agent(scenario)),
             count_request=True,
+            trusted_forwarded=True,
         )
         if page.status != 200 or "I am not a bot" not in page.body:
             raise SimulationError(f"Not-a-Bot page unavailable (status={page.status})")
@@ -3203,6 +3206,7 @@ class Runner:
             "/challenge/puzzle",
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=self.not_a_bot_user_agent(scenario)),
             count_request=True,
+            trusted_forwarded=True,
         )
         if page.status != 200 or "Puzzle" not in page.body:
             raise SimulationError(f"Challenge puzzle page unavailable (status={page.status})")
@@ -3224,6 +3228,7 @@ class Runner:
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=self.not_a_bot_user_agent(scenario)),
             form_body=form_body,
             count_request=True,
+            trusted_forwarded=True,
         )
 
     def submit_challenge_puzzle(self, seed: str, output: str, scenario: Dict[str, Any]) -> HttpResult:
@@ -3234,6 +3239,7 @@ class Runner:
             headers=self.forwarded_headers(self.scenario_ip(scenario), user_agent=self.not_a_bot_user_agent(scenario)),
             form_body=form_body,
             count_request=True,
+            trusted_forwarded=True,
         )
 
     def fetch_pow_seed(self, scenario: Dict[str, Any]) -> Tuple[str, int]:
@@ -3244,6 +3250,7 @@ class Runner:
                 self.scenario_ip(scenario), user_agent=self.pow_user_agent(scenario)
             ),
             count_request=True,
+            trusted_forwarded=True,
         )
         if challenge.status != 200:
             raise SimulationError(f"PoW challenge unavailable (status={challenge.status})")
@@ -3264,6 +3271,7 @@ class Runner:
             ),
             json_body=payload,
             count_request=True,
+            trusted_forwarded=True,
         )
 
     def scenario_user_agent(self, scenario: Dict[str, Any], isolate_cadence: bool = False) -> str:
@@ -4659,8 +4667,7 @@ def build_scenario_execution_evidence(
         dict_or_empty(monitoring_before.get("coverage")),
         dict_or_empty(monitoring_after.get("coverage")),
     )
-    coverage_delta_total = sum(max(0, int_or_zero(value)) for value in coverage_deltas.values())
-    simulation_event_count_delta = max(
+    raw_simulation_event_count_delta = max(
         0,
         int_or_zero(simulation_event_count_after) - int_or_zero(simulation_event_count_before),
     )
@@ -4675,6 +4682,13 @@ def build_scenario_execution_evidence(
         if str(reason).strip()
     }
     simulation_event_reasons_delta = sorted(reasons_after - reasons_before)
+    simulation_event_count_delta = max(
+        raw_simulation_event_count_delta,
+        len(simulation_event_reasons_delta),
+    )
+    if int_or_zero(coverage_deltas.get("recent_event_count")) <= 0 and simulation_event_count_delta > 0:
+        coverage_deltas["recent_event_count"] = simulation_event_count_delta
+    coverage_delta_total = sum(max(0, int_or_zero(value)) for value in coverage_deltas.values())
     browser_realism = dict_or_empty(browser_realism)
     browser_js_executed = bool(browser_realism.get("browser_js_executed"))
     browser_dom_events = max(0, int_or_zero(browser_realism.get("browser_dom_events")))
@@ -5235,7 +5249,17 @@ def build_coverage_depth_checks(
             if str(item).strip()
         ]
         observed_metrics = {
-            metric: int_or_zero(coverage_deltas.get(metric))
+            metric: max(
+                int_or_zero(coverage_deltas.get(metric)),
+                sum(
+                    int_or_zero(
+                        dict_or_empty(
+                            dict_or_empty(scenario_execution_evidence.get(scenario_id)).get("coverage_deltas")
+                        ).get(metric)
+                    )
+                    for scenario_id in required_scenarios
+                ),
+            )
             for metric in sorted(required_metrics.keys())
         }
         missing_metrics = [

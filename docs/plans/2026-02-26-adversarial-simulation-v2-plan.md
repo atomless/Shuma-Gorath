@@ -167,6 +167,8 @@ Create sister adversary repo only if two or more criteria hold:
 1. `SIM-V2-1`: Manifest v2 schema + compatibility migration for existing scenarios.
 2. `SIM-V2-2`: Coverage contract evaluator and report section (`coverage_gates`).
 3. `SIM-V2-3`: Add missing scenario families (rate, GEO block, PoW fail/success, CDP, tarpit progression, IP-range-triggered behavior).
+   Current status note:
+   `full_coverage` now proves tarpit bootstrap entry, but advanced tarpit progression remains deferred until a dedicated progress-following scenario lands.
 4. `SIM-V2-4`: Add minimal dev/test public sim pages and crawl graph.
 5. `SIM-V2-5`: Add `full_coverage` profile and make target.
 6. `SIM-V2-6`: CI policy update for mandatory vs scheduled tiers.

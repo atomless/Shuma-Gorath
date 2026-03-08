@@ -427,6 +427,8 @@ For every failing run, operators must capture:
 
 1. Exact command used (`make` target + env overrides).
 2. Report artifact (`scripts/tests/adversarial/latest_report.json`).
+   - During `make test`, this report reflects the last fast-profile run and is consumed by the advisory SIM2 matrix.
+   - Strict deterministic SIM2 coverage proof comes from `make test-adversarial-coverage` / `make test-adversarial-soak`.
 3. Attack plan artifact (`scripts/tests/adversarial/attack_plan.json`).
 4. Runtime config snapshot (`GET /admin/config`) from the failing environment.
 5. Monitoring snapshot (`GET /admin/monitoring?hours=24&limit=10` in dev runtime) from the same time window.

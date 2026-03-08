@@ -62,7 +62,8 @@ Notes:
   - `make test-gateway-origin-bypass-probe` is optional/operator-run and requires `GATEWAY_PROBE_GATEWAY_URL` + `GATEWAY_PROBE_ORIGIN_URL`.
     - optional strict mode: set `GATEWAY_PROBE_FAIL_ON_INCONCLUSIVE=1`.
 - `make test-sim2-operational-regressions` enforces retention/cost/security domains and treats `failure_injection` + `prod_mode_monitoring` as optional when absent from the active deterministic profile artifact. Use `make test-sim2-operational-regressions-strict` when you need full-domain enforcement.
-- Deep adversarial soak coverage (`full_coverage`) is run via `make test-adversarial-soak` and is intended for scheduled/manual gates rather than every `make test` execution.
+- `make test` keeps the fast adversarial matrix in the routine local/full-suite path and runs the SIM2 matrix in advisory mode against the resulting fast-profile artifact.
+- `make test-adversarial-coverage` and `make test-adversarial-soak` remain the strict deterministic `full_coverage` oracle paths for deeper protected-lane verification.
 - `make test-dashboard-e2e` now verifies the running Spin instance is serving the current `dist/dashboard/index.html` before Playwright runs; restart Spin after `make dashboard-build` if this check fails.
 - `make test` now reseeds dashboard sample data at the end, so charts/tables stay populated for local inspection after the run.
 
@@ -161,8 +162,9 @@ Available profiles:
 - `make test-adversarial-smoke` - mandatory fast smoke gate (`SIM-T0`..`SIM-T4`)
 - `make test-adversarial-abuse` - mandatory replay/stale/order-cadence abuse regressions
 - `make test-adversarial-akamai` - mandatory Akamai signal fixture coverage
-- `make test-adversarial-coverage` - expanded coverage contract profile (`full_coverage`) including PoW success/failure, puzzle-failure fallback, replay-to-tarpit abuse, CDP deny path, rate-limit enforcement, and GEO block coverage
+- `make test-adversarial-coverage` - expanded coverage contract profile (`full_coverage`) including PoW success/failure, puzzle-failure fallback, replay-to-tarpit bootstrap abuse, CDP deny path, rate-limit enforcement, and GEO block coverage
   - includes defense no-op detector checks (`coverage_gates.defense_noop_checks`) that fail when targeted defenses emit zero telemetry deltas
+- PR CI and release-gate workflows use this target for strict deterministic coverage proof; routine `make test` remains on the fast/advisory path.
 - `make test-adversarial-sim-selftest` - minimal deterministic simulator mechanics harness (seed/order/budget/retry/gate math/teardown), intentionally non-circular
 - `make test-adversarial-soak` - deep soak alias for `full_coverage` (scheduled/manual gate)
 - `make test-adversarial-manifest` - schema/fixture validation without server
@@ -277,6 +279,7 @@ Live loop controls:
 `test-adversarial-coverage` enforces `test-adversarial-sim-tag-contract`, `test-adversarial-coverage-contract`, and `test-frontier-governance` after artifact generation.
 `test-adversarial-coverage` forces deterministic cleanup plus per-run scenario-IP rotation (`SHUMA_ADVERSARIAL_PRESERVE_STATE=0`, `SHUMA_ADVERSARIAL_ROTATE_IPS=1`) to avoid stale local cadence/persistence collisions.
 Monitoring tab now includes explicit tarpit progression telemetry (activations, progression outcomes, budget fallbacks, escalation outcomes, and top active bucket) sourced from `/admin/monitoring`.
+Current `full_coverage` proves tarpit bootstrap entry and event-stream minimums, but it does not yet claim advanced tarpit progress-walker telemetry; reintroduce strict `tarpit_progress_advanced` depth gates only alongside a dedicated progress-following scenario.
 Container black-box controls:
 - worker image path: `scripts/tests/adversarial_container/Dockerfile` (non-root user, no workspace mount, read-only rootfs at runtime)
 - runtime guardrails: dropped capabilities + `no-new-privileges` + bounded CPU/memory/pids + tmpfs `/tmp`
@@ -289,7 +292,7 @@ Repeatability controls:
 - drift policy: scenario pass/outcome vectors must match exactly; latency variance is bounded by `ADVERSARIAL_REPEATABILITY_LATENCY_TOLERANCE_MS` (default `250`).
 CI policy is tiered:
 - Push to `main`: `ci.yml` runs `make test` plus gateway profile gates (`make test-gateway-profile-shared-server`, `make test-gateway-profile-edge`, `make smoke-gateway-mode`).
-- PR to `main`: `ci.yml` additionally runs `make test-adversarial-coverage`, `make test-adversarial-frontier-attempt`, and `make test-adversarial-promote-candidates`.
+- PR to `main`: `ci.yml` runs `make test`, then `make test-adversarial-coverage`, `make test-adversarial-frontier-attempt`, and `make test-adversarial-promote-candidates`.
 - Release gate (`release-gate.yml`): blocks on gateway profile gates, `make test-adversarial-coverage`, and deterministic confirmed-regression triage (`make test-adversarial-promote-candidates`), and records `make test-adversarial-frontier-attempt` as advisory status.
 - Scheduled/manual deep soak: `adversarial-soak.yml` runs `make test-adversarial-soak`, `make test-adversarial-container-isolation`, and `make test-adversarial-container-blackbox`.
 Deterministic/container coexistence contract:

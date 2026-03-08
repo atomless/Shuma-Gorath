@@ -211,6 +211,7 @@ class Sim2VerificationMatrixUnitTests(unittest.TestCase):
             sample_report(),
             container_report=None,
             allow_missing_container_report=True,
+            allow_missing_report_scenarios=True,
         )
         self.assertTrue(payload["status"]["passed"])
         self.assertEqual(payload["status"]["failure_count"], 0)

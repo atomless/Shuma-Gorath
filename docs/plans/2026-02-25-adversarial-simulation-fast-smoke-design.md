@@ -90,7 +90,8 @@ New targets:
 Umbrella integration:
 
 - `make test` includes `make test-adversarial-fast` as the mandatory adversarial gate before dashboard e2e.
-- `make test-adversarial-soak` is used by scheduled/manual CI for deep adversarial coverage.
+- `make test-adversarial-soak` remains the explicit deep-soak alias for `full_coverage`.
+- `make test` consumes the fast-profile artifact in advisory SIM2 mode; strict deterministic coverage proof remains a separate `full_coverage` lane.
 
 ## Quantitative Gate Contract (initial)
 

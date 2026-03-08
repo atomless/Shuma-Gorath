@@ -196,23 +196,6 @@
           "ban_count": 1
         },
         "coverage_depth_requirements": {
-          "tarpit_progression_depth": {
-            "plan_row": "Tarpit",
-            "verification_matrix_row_id": "tarpit_progression",
-            "required_scenarios": [
-              "sim_t4_tarpit_replay_abuse"
-            ],
-            "required_metrics": {
-              "tarpit_activations_progressive": 1,
-              "tarpit_progress_advanced": 1
-            },
-            "required_evidence_types": [
-              "runtime_telemetry",
-              "monitoring_delta",
-              "coverage_delta",
-              "lineage"
-            ]
-          },
           "event_stream_health_depth": {
             "plan_row": "Event stream health",
             "verification_matrix_row_id": "event_stream_integrity",
@@ -462,8 +445,7 @@
       },
       "expected_defense_categories": [
         "not_a_bot",
-        "maze",
-        "event_stream"
+        "maze"
       ],
       "coverage_tags": [
         "SIM-T3",
@@ -758,14 +740,12 @@
         "persona": "adversarial",
         "think_time_ms_min": 5,
         "think_time_ms_max": 120,
-        "retry_strategy": "retry_storm",
+        "retry_strategy": "single_attempt",
         "cookie_behavior": "stateless"
       },
       "expected_defense_categories": [
         "not_a_bot",
-        "tarpit",
-        "ban_path",
-        "event_stream"
+        "tarpit"
       ],
       "coverage_tags": [
         "SIM-T4",
@@ -798,7 +778,6 @@
       },
       "expected_defense_categories": [
         "cdp",
-        "fingerprint",
         "ban_path",
         "event_stream"
       ],

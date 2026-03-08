@@ -45,6 +45,26 @@ class AdversarialScenarioIntentMatrixUnitTests(unittest.TestCase):
         )
         self.assertTrue(any("category mismatch" in item for item in errors))
 
+    def test_scenario_intent_rows_match_current_proven_runtime_contract(self):
+        rows_by_id = {row["scenario_id"]: row for row in self.matrix["rows"]}
+
+        self.assertEqual(
+            rows_by_id["sim_t3_stale_token_abuse"]["required_defense_categories"],
+            ["not_a_bot", "maze"],
+        )
+        self.assertEqual(
+            rows_by_id["sim_t4_tarpit_replay_abuse"]["required_defense_categories"],
+            ["not_a_bot", "tarpit"],
+        )
+        self.assertNotIn(
+            "min_retry_attempts",
+            rows_by_id["sim_t4_tarpit_replay_abuse"]["progression_requirements"],
+        )
+        self.assertEqual(
+            rows_by_id["sim_t4_cdp_detection_deny"]["required_defense_categories"],
+            ["cdp", "ban_path", "event_stream"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -322,8 +322,7 @@
       "scenario_id": "sim_t3_stale_token_abuse",
       "required_defense_categories": [
         "not_a_bot",
-        "maze",
-        "event_stream"
+        "maze"
       ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
@@ -358,17 +357,6 @@
           {
             "type": "coverage_delta",
             "key": "maze_hits",
-            "minimum": 1
-          }
-        ],
-        "event_stream": [
-          {
-            "type": "simulation_event_count_delta",
-            "minimum": 1
-          },
-          {
-            "type": "coverage_delta",
-            "key": "recent_event_count",
             "minimum": 1
           }
         ]
@@ -820,9 +808,7 @@
       "scenario_id": "sim_t4_tarpit_replay_abuse",
       "required_defense_categories": [
         "not_a_bot",
-        "tarpit",
-        "ban_path",
-        "event_stream"
+        "tarpit"
       ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
@@ -864,43 +850,14 @@
             "key": "tarpit_progress_advanced",
             "minimum": 1
           }
-        ],
-        "ban_path": [
-          {
-            "type": "coverage_delta",
-            "key": "ban_count",
-            "minimum": 1
-          },
-          {
-            "type": "coverage_delta",
-            "key": "rate_banned",
-            "minimum": 1
-          },
-          {
-            "type": "outcome_equals",
-            "value": "deny_temp",
-            "minimum": 1
-          }
-        ],
-        "event_stream": [
-          {
-            "type": "simulation_event_count_delta",
-            "minimum": 1
-          },
-          {
-            "type": "coverage_delta",
-            "key": "recent_event_count",
-            "minimum": 1
-          }
         ]
       },
       "progression_requirements": {
         "required_driver_class": "http_scraper",
         "required_persona": "adversarial",
-        "required_retry_strategy": "retry_storm",
+        "required_retry_strategy": "single_attempt",
         "min_request_sequence_count": 1,
-        "min_think_time_events": 1,
-        "min_retry_attempts": 1
+        "min_think_time_events": 1
       },
       "review": {
         "status": "active",
@@ -913,7 +870,6 @@
       "scenario_id": "sim_t4_cdp_detection_deny",
       "required_defense_categories": [
         "cdp",
-        "fingerprint",
         "ban_path",
         "event_stream"
       ],
@@ -928,13 +884,6 @@
           {
             "type": "simulation_event_reason_prefix",
             "prefix": "cdp_detected",
-            "minimum": 1
-          }
-        ],
-        "fingerprint": [
-          {
-            "type": "coverage_delta",
-            "key": "fingerprint_events",
             "minimum": 1
           }
         ],

@@ -39,6 +39,7 @@
   - Canonical attacker/control capability boundary contract for black-box simulation lanes.
 - `coverage_contract.v2.json` (+ temporary `coverage_contract.v1.json` compatibility)
   - Canonical `full_coverage` contract (minimum coverage categories + event/outcome obligations + depth-row minima) used for drift checks across plan rows, manifests, runner metrics, and verification matrix bindings.
+  - Current depth-row contract covers event-stream minimums; deeper tarpit progression proof is intentionally deferred until a dedicated progress-walker scenario exists.
   - Compatibility policy: v1 fallback is temporary and must be removed by `2026-04-30`.
 - `scenario_intent_matrix.v1.json`
   - Canonical per-scenario intent matrix mapping each scenario to required defense categories, accepted evidence signals, minimum runtime evidence thresholds, and progression realism requirements.
@@ -131,12 +132,13 @@ Notes:
   - Live-loop quality gate rejects admin-only event noise; cycles must emit meaningful defense event reasons.
 - `full_coverage` adds profile-level coverage gates (`gates.coverage_requirements`) using monitoring deltas captured over the run.
 - `full_coverage` now emits `coverage_gates.defense_noop_checks` for `pow`, `challenge`, `maze`, `honeypot`, `cdp`, `rate_limit`, and `geo`; any targeted defense with zero telemetry delta fails the run.
-- `full_coverage` now includes explicit PoW success/failure, challenge puzzle-failure fallback, replay-to-tarpit abuse, CDP deny path, rate-limit enforcement, and GEO block scenarios in addition to existing challenge/maze/honeypot/Akamai families.
+- `full_coverage` now includes explicit PoW success/failure, challenge puzzle-failure fallback, replay-to-tarpit bootstrap abuse, CDP deny path, rate-limit enforcement, and GEO block scenarios in addition to existing challenge/maze/honeypot/Akamai families.
+- `full_coverage` currently proves tarpit bootstrap entry (`window.__shumaTarpit` outcome) rather than advanced progress-walker telemetry; add a dedicated progress-following scenario before reintroducing strict `tarpit_progress_advanced` depth gates.
 - `full_coverage` also enforces persona and taxonomy gates:
   - `human_like_collateral_max_ratio`,
   - `required_event_reasons`,
   - `ip_range_suggestion_seed_required` (with deterministic seed traffic + evidence snapshot),
-  - `persona_scheduler=round_robin` and `realism.required_retry_attempts.retry_storm>=1`.
+  - `persona_scheduler=round_robin`.
 - Plane separation contract:
   - attacker-plane requests are restricted to public paths and reject privileged headers (`Authorization`, health/admin/signing secret headers),
   - orchestrator-only setup/reset/config hooks remain on the control plane via admin-authenticated calls.
@@ -188,7 +190,8 @@ Notes:
   - backlog candidate stubs for newly regressed scenarios.
 - Verification matrix governance:
   - `verification_matrix.v1.json` maps defense categories to required scenarios, lanes, and evidence assertions.
-  - `make test-sim2-verification-matrix` validates matrix structure and report evidence diagnostics.
+- `make test-sim2-verification-matrix` validates matrix structure and report evidence diagnostics.
+- `make test-sim2-verification-matrix-advisory` is the fast-path variant used by `make test`; it validates only the rows evidenced by the current fast-profile report and tolerates a missing container report.
   - `make test-sim2-verification-e2e` executes matrix-required deterministic + frontier lanes and fails on missing row/evidence/lineage diagnostics.
 - Operational regressions governance:
   - `make test-sim2-operational-regressions` enforces failure-injection, prod non-sim freshness, retention, cost, and security/privacy regression thresholds.

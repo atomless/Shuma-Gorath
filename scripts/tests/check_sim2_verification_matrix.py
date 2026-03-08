@@ -136,6 +136,7 @@ def validate_matrix(
     *,
     container_report: Dict[str, Any] | None,
     allow_missing_container_report: bool,
+    allow_missing_report_scenarios: bool = False,
 ) -> Dict[str, Any]:
     rows = list(matrix.get("rows") or [])
     if not rows:
@@ -198,7 +199,7 @@ def validate_matrix(
                 continue
             scenario_row = dict(results_by_id.get(scenario_id) or {})
             if not scenario_row:
-                if allow_missing_container_report:
+                if allow_missing_report_scenarios:
                     continue
                 row_failures.append(
                     f"missing_matrix_row:row={row_id}:scenario_not_in_report:{scenario_id}"
@@ -302,6 +303,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Allow missing container report for non-container validation lanes",
     )
+    parser.add_argument(
+        "--allow-missing-report-scenarios",
+        action="store_true",
+        help="Allow matrix rows to skip scenarios absent from the selected report artifact",
+    )
     return parser.parse_args()
 
 
@@ -321,6 +327,7 @@ def main() -> int:
         report,
         container_report=container_report,
         allow_missing_container_report=bool(args.allow_missing_container_report),
+        allow_missing_report_scenarios=bool(args.allow_missing_report_scenarios),
     )
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)

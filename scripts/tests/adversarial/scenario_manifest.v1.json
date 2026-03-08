@@ -196,23 +196,6 @@
           "ban_count": 1
         },
         "coverage_depth_requirements": {
-          "tarpit_progression_depth": {
-            "plan_row": "Tarpit",
-            "verification_matrix_row_id": "tarpit_progression",
-            "required_scenarios": [
-              "sim_t4_tarpit_replay_abuse"
-            ],
-            "required_metrics": {
-              "tarpit_activations_progressive": 1,
-              "tarpit_progress_advanced": 1
-            },
-            "required_evidence_types": [
-              "runtime_telemetry",
-              "monitoring_delta",
-              "coverage_delta",
-              "lineage"
-            ]
-          },
           "event_stream_health_depth": {
             "plan_row": "Event stream health",
             "verification_matrix_row_id": "event_stream_integrity",

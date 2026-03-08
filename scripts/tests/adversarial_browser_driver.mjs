@@ -160,6 +160,34 @@ function appendDomPath(evidence, action, selector) {
   evidence.challenge_dom_path.push(`${action}:${selector}`);
 }
 
+function buildWrongChallengeOutput(currentOutput) {
+  const normalized = String(currentOutput || "");
+  const baseline = normalized || "0".repeat(16);
+  const first = baseline[0] === "0" ? "1" : "0";
+  return `${first}${baseline.slice(1)}`;
+}
+
+export async function applyChallengePuzzleWrongOutput(page, evidence) {
+  const outputGrid = page.locator("#challenge-output-grid");
+  if (!(await outputGrid.isVisible())) {
+    throw new Error("browser_puzzle_output_grid_missing");
+  }
+  appendDomPath(evidence, "read", "#challenge-output-grid");
+
+  const outputField = page.locator("#challenge-output");
+  if ((await outputField.count()) < 1) {
+    throw new Error("browser_puzzle_output_field_missing");
+  }
+
+  const currentOutput = String(await outputField.inputValue());
+  const wrongOutput = buildWrongChallengeOutput(currentOutput);
+  await outputField.evaluate((node, value) => {
+    node.value = value;
+  }, wrongOutput);
+  appendDomPath(evidence, "write", "#challenge-output");
+  return wrongOutput;
+}
+
 function maybeRecordLineage(evidence, row) {
   if (evidence.request_lineage.length >= MAX_LINEAGE_ENTRIES) {
     return;
@@ -385,18 +413,7 @@ async function runScenario(payload) {
           throw new Error("browser_puzzle_heading_missing");
         }
         appendDomPath(evidence, "read", "h2");
-        const outputField = page.locator("#challenge-output");
-        if (!(await outputField.isVisible())) {
-          throw new Error("browser_puzzle_output_field_missing");
-        }
-        let currentOutput = String(await outputField.inputValue());
-        if (!currentOutput) {
-          currentOutput = "0".repeat(16);
-        }
-        const first = currentOutput[0] === "0" ? "1" : "0";
-        const wrongOutput = `${first}${currentOutput.slice(1)}`;
-        await outputField.fill(wrongOutput);
-        appendDomPath(evidence, "write", "#challenge-output");
+        await applyChallengePuzzleWrongOutput(page, evidence);
 
         const submitResponsePromise = page.waitForResponse(
           (response) =>
@@ -583,4 +600,9 @@ async function main() {
   }
 }
 
-await main();
+const invokedAsScript =
+  process.argv[1] && new URL(`file://${process.argv[1]}`).href === import.meta.url;
+
+if (invokedAsScript) {
+  await main();
+}
