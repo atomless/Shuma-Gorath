@@ -2021,6 +2021,42 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(captured.get("reason"), "reset_baseline_config")
         self.assertIs(captured.get("payload", {}).get("js_required_enforced"), True)
 
+    def test_header_spoofing_setup_patch_disables_rate_defence_to_avoid_profile_leak_collateral(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        patch_payload = sim_runner.scenario_setup_patch(
+            {
+                "id": "sim_t3_header_spoofing_abuse",
+                "driver": "header_spoofing_probe",
+                "geo_country": "RU",
+            }
+        )
+
+        self.assertEqual(
+            patch_payload.get("defence_modes", {}).get("rate"),
+            "off",
+        )
+        self.assertEqual(patch_payload.get("geo_block"), ["RU"])
+        self.assertIs(patch_payload.get("browser_policy_enabled"), False)
+
     def test_validate_manifest_full_coverage_requires_scheduler_and_realism_retry_contract(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")
         profile = manifest["profiles"].pop("test_profile")

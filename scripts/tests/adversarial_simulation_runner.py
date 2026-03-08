@@ -2481,6 +2481,7 @@ class Runner:
         if driver_name == "header_spoofing_probe":
             return {
                 "test_mode": False,
+                "defence_modes": {"rate": "off"},
                 "geo_edge_headers_enabled": True,
                 "geo_risk": [],
                 "geo_allow": [],

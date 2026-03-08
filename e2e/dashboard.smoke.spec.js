@@ -45,6 +45,10 @@ const ROBOTS_RESTORE_PATHS = Object.freeze([
   "ai_policy_block_search",
   "ai_policy_allow_search_engines"
 ]);
+const ADVERSARY_SIM_RESTORE_PATHS = Object.freeze([
+  "adversary_sim_enabled",
+  "adversary_sim_duration_seconds"
+]);
 const runtimeGuards = new WeakMap();
 
 function ensureRequiredEnv() {
@@ -242,6 +246,14 @@ function dashboardRelativePath(url) {
   }
 }
 
+function isDashboardLoginUrl(url) {
+  return String(url || "").includes("/dashboard/login.html");
+}
+
+function newDashboardIdempotencyKey() {
+  return `dash-e2e-${Date.now().toString(16)}-${Math.floor(Math.random() * 0x1_0000_0000).toString(16).padStart(8, "0")}`;
+}
+
 async function dashboardDomClassState(page) {
   return page.evaluate(() => {
     const rootClasses = Array.from(document?.documentElement?.classList || []);
@@ -331,6 +343,168 @@ async function fetchRuntimeEnvironment(request, ip = "127.0.0.1") {
   return runtimeEnvironment;
 }
 
+async function fetchAdversarySimStatus(request, ip = "127.0.0.1") {
+  const response = await request.get(`${BASE_URL}/admin/adversary-sim/status`, {
+    headers: buildAdminAuthHeaders(ip)
+  });
+  if (!response.ok()) {
+    const body = await response.text();
+    throw new Error(`adversary sim status read should succeed: ${response.status()} ${body}`);
+  }
+  return response.json();
+}
+
+function adversarySimStatusState(payload) {
+  const source = payload && typeof payload === "object" ? payload : {};
+  return {
+    enabled:
+      source.adversary_sim_enabled === true ||
+      source.enabled === true,
+    generationActive:
+      source.generation_active === true ||
+      source.generationActive === true,
+    phase: String(source.phase || "off").trim().toLowerCase()
+  };
+}
+
+async function waitForAdversarySimEnabledState(request, desiredEnabled, timeoutMs = 30000, ip = "127.0.0.1") {
+  const desired = desiredEnabled === true;
+  const deadline = Date.now() + Math.max(1000, Number(timeoutMs || 0));
+  let lastState = adversarySimStatusState({});
+  while (Date.now() < deadline) {
+    lastState = adversarySimStatusState(await fetchAdversarySimStatus(request, ip));
+    if (desired) {
+      if (lastState.enabled === true) {
+        return lastState;
+      }
+    } else if (lastState.enabled !== true && lastState.generationActive !== true && lastState.phase === "off") {
+      return lastState;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error(
+    `adversary sim did not settle to enabled=${desired} within ${timeoutMs}ms (last_state=${JSON.stringify(lastState)})`
+  );
+}
+
+async function waitForDashboardAdversarySimUiState(
+  page,
+  request,
+  desiredEnabled,
+  timeoutMs = 30000,
+  ip = "127.0.0.1"
+) {
+  const desired = desiredEnabled === true;
+  await waitForAdversarySimEnabledState(request, desired, timeoutMs, ip);
+
+  const toggle = page.locator("#global-adversary-sim-toggle");
+  if (desired) {
+    await expect(toggle).toBeChecked({ timeout: timeoutMs });
+  } else {
+    await expect(toggle).not.toBeChecked({ timeout: timeoutMs });
+  }
+
+  await expect
+    .poll(async () => {
+      const state = await dashboardDomClassState(page);
+      return state.hasAdversarySim === true;
+    }, { timeout: timeoutMs })
+    .toBe(desired);
+}
+
+async function controlAdversarySimViaAdmin(
+  request,
+  desiredEnabled,
+  ip = "127.0.0.1",
+  timeoutMs = 95_000
+) {
+  const deadline = Date.now() + Math.max(5_000, Number(timeoutMs || 0));
+  let lastStatus = 0;
+  let lastBody = "";
+  while (Date.now() < deadline) {
+    const response = await request.post(`${BASE_URL}/admin/adversary-sim/control`, {
+      headers: {
+        ...buildAdminAuthHeaders(ip),
+        "Content-Type": "application/json",
+        "Idempotency-Key": newDashboardIdempotencyKey(),
+        Origin: BASE_URL,
+        "Sec-Fetch-Site": "same-origin"
+      },
+      data: { enabled: desiredEnabled === true }
+    });
+    if (response.ok()) {
+      return response.json();
+    }
+    lastStatus = response.status();
+    lastBody = await response.text();
+    if (lastStatus === 409 || lastStatus === 429) {
+      const fallbackDelayMs = lastStatus === 409 ? 2_000 : 1_100;
+      await new Promise((resolve) => setTimeout(resolve, controlRetryDelayMs(response, fallbackDelayMs)));
+      continue;
+    }
+    throw new Error(`adversary sim control should succeed: ${lastStatus} ${lastBody}`);
+  }
+  throw new Error(
+    `adversary sim control should succeed before timeout: last_status=${lastStatus} body=${lastBody}`
+  );
+}
+
+async function forceAdversarySimDisabled(request, ip = "127.0.0.1") {
+  await updateAdminConfig(request, {
+    adversary_sim_enabled: false,
+    adversary_sim_duration_seconds: 180
+  }, ip);
+  const currentState = adversarySimStatusState(await fetchAdversarySimStatus(request, ip));
+  if (currentState.enabled === true || currentState.generationActive === true || currentState.phase !== "off") {
+    await controlAdversarySimViaAdmin(request, false, ip);
+  }
+  await waitForAdversarySimEnabledState(request, false, 30000, ip);
+}
+
+async function withRestoredAdversarySimConfig(request, callback, ip = "127.0.0.1") {
+  const restorePatch = extractConfigPatchFromPaths(
+    await fetchAdminConfig(request, ip),
+    ADVERSARY_SIM_RESTORE_PATHS
+  );
+  try {
+    return await callback(restorePatch);
+  } finally {
+    if (Object.keys(restorePatch).length === 0) return;
+    await updateAdminConfig(request, restorePatch, ip);
+    const desiredEnabled = restorePatch.adversary_sim_enabled === true;
+    if (desiredEnabled) {
+      const currentState = adversarySimStatusState(await fetchAdversarySimStatus(request, ip));
+      if (currentState.enabled !== true) {
+        await controlAdversarySimViaAdmin(request, true, ip);
+      }
+      await waitForAdversarySimEnabledState(request, true, 30000, ip);
+    } else {
+      await forceAdversarySimDisabled(request, ip);
+    }
+    const restoredPatch = extractConfigPatchFromPaths(await fetchAdminConfig(request, ip), ADVERSARY_SIM_RESTORE_PATHS);
+    expect(restoredPatch).toEqual(restorePatch);
+  }
+}
+
+async function waitForDashboardSessionAuthenticated(page, timeoutMs = 10000) {
+  await page.waitForFunction(async () => {
+    try {
+      const response = await fetch("/admin/session", {
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store"
+      });
+      if (!response.ok) return false;
+      const payload = await response.json();
+      const runtimeEnvironment = String(payload?.runtime_environment || "").trim().toLowerCase();
+      return payload?.authenticated === true &&
+        (runtimeEnvironment === "runtime-dev" || runtimeEnvironment === "runtime-prod");
+    } catch (_error) {
+      return false;
+    }
+  }, { timeout: timeoutMs });
+}
+
 function expectDashboardRuntimeClass(bodyState, runtimeEnvironment) {
   expect(bodyState.runtimeClassCount).toBe(1);
   expect(bodyState.hasRuntimeDev).toBe(runtimeEnvironment === "runtime-dev");
@@ -362,7 +536,8 @@ async function bootstrapDashboardSession(page, targetUrl) {
     } else {
       await page.goto(targetUrl);
       await page.waitForTimeout(200);
-      if (!page.url().includes("/dashboard/login.html")) {
+      if (!isDashboardLoginUrl(page.url())) {
+        await waitForDashboardSessionAuthenticated(page);
         return;
       }
       failureMessage = "redirected back to login after successful submit";
@@ -395,7 +570,7 @@ async function openDashboard(page, options = {}) {
     try {
       await page.goto(targetUrl);
       await page.waitForTimeout(250);
-      if (page.url().includes("/dashboard/login.html")) {
+      if (isDashboardLoginUrl(page.url())) {
         await bootstrapDashboardSession(page, targetUrl);
         await expect(page).toHaveURL(/\/dashboard\/index\.html/);
       }
@@ -405,6 +580,7 @@ async function openDashboard(page, options = {}) {
         }, initialTab);
         await expect(page).toHaveURL(new RegExp(`#${initialTab}$`));
       }
+      await waitForDashboardSessionAuthenticated(page, 15000);
       await page.waitForSelector("#logout-btn", { timeout: 15000 });
       await expect(page.locator("#logout-btn")).toBeEnabled();
       if (initialTab === "monitoring") {
@@ -418,6 +594,12 @@ async function openDashboard(page, options = {}) {
       return;
     } catch (error) {
       lastError = error;
+      if (attempt === 0 && isDashboardLoginUrl(page.url())) {
+        clearRuntimeFailures(page);
+        await bootstrapDashboardSession(page, targetUrl);
+        await page.waitForTimeout(250);
+        continue;
+      }
       if (attempt === 0 && hasOnlyTransientStaticDisconnectFailures(page)) {
         clearRuntimeFailures(page);
         await page.waitForTimeout(1000);
@@ -472,12 +654,15 @@ async function clearDashboardClientCache(page) {
   });
 }
 
-async function clickAdversaryToggleWithRetry(page, desiredEnabled, timeoutMs = 60000) {
+async function clickAdversaryToggleWithRetry(page, desiredEnabled, timeoutMs = 60000, request = null) {
   const toggle = page.locator("#global-adversary-sim-toggle");
   const toggleSwitch = page.locator("label.toggle-switch[for='global-adversary-sim-toggle']");
   await expect(toggle).toBeEnabled({ timeout: timeoutMs });
   const desired = desiredEnabled === true;
   if ((await toggle.isChecked()) === desired) {
+    if (request) {
+      await waitForDashboardAdversarySimUiState(page, request, desired, timeoutMs);
+    }
     return null;
   }
 
@@ -506,6 +691,9 @@ async function clickAdversaryToggleWithRetry(page, desiredEnabled, timeoutMs = 6
     const response = await responsePromise;
     lastStatus = response.status();
     if (lastStatus === 200) {
+      if (request) {
+        await waitForDashboardAdversarySimUiState(page, request, desired, timeoutMs);
+      }
       return response;
     }
     if (lastStatus === 429 || lastStatus === 409) {
@@ -1506,162 +1694,161 @@ test("session survives reload and time-range controls refresh chart data", async
 });
 
 test("dashboard class contract tracks runtime on html and adversary-sim on body", async ({ page, request }) => {
-  await updateAdminConfig(request, { adversary_sim_enabled: false, adversary_sim_duration_seconds: 180 });
-  const runtimeEnvironment = await fetchRuntimeEnvironment(request);
-  await openDashboard(page);
-  const toggle = page.locator("#global-adversary-sim-toggle");
+  test.setTimeout(180_000);
+  await withRestoredAdversarySimConfig(request, async () => {
+    await forceAdversarySimDisabled(request);
+    const runtimeEnvironment = await fetchRuntimeEnvironment(request);
+    await openDashboard(page);
+    await waitForDashboardAdversarySimUiState(page, request, false);
+    const toggle = page.locator("#global-adversary-sim-toggle");
 
-  let bodyState = await dashboardDomClassState(page);
-  expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
-  expect(bodyState.hasAdversarySim).toBeFalsy();
-  expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
-  expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
+    let bodyState = await dashboardDomClassState(page);
+    expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
+    expect(bodyState.hasAdversarySim).toBeFalsy();
+    expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
+    expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
 
-  await openTab(page, "status");
-  bodyState = await dashboardDomClassState(page);
-  expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
-  expect(bodyState.hasAdversarySim).toBeFalsy();
-  expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
-  expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
+    await openTab(page, "status");
+    bodyState = await dashboardDomClassState(page);
+    expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
+    expect(bodyState.hasAdversarySim).toBeFalsy();
+    expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
+    expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
 
-  if (await toggle.isChecked()) {
-    await clickAdversaryToggleWithRetry(page, false, 60000);
-  }
-  await clickAdversaryToggleWithRetry(page, true, 60000);
-  await expect(toggle).toBeChecked();
-  bodyState = await dashboardDomClassState(page);
-  expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
-  expect(bodyState.hasAdversarySim).toBeTruthy();
-  expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
-  expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
+    await expect(toggle).not.toBeChecked();
+    await clickAdversaryToggleWithRetry(page, true, 60000, request);
+    await expect(toggle).toBeChecked();
+    bodyState = await dashboardDomClassState(page);
+    expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
+    expect(bodyState.hasAdversarySim).toBeTruthy();
+    expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
+    expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
 
-  await openTab(page, "verification");
-  bodyState = await dashboardDomClassState(page);
-  expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
-  expect(bodyState.hasAdversarySim).toBeTruthy();
-  expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
-  expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
+    await openTab(page, "verification");
+    bodyState = await dashboardDomClassState(page);
+    expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
+    expect(bodyState.hasAdversarySim).toBeTruthy();
+    expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
+    expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
 
-  await clickAdversaryToggleWithRetry(page, false, 60000);
-  await expect(toggle).not.toBeChecked();
-  bodyState = await dashboardDomClassState(page);
-  expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
-  expect(bodyState.hasAdversarySim).toBeFalsy();
-  expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
-  expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
+    await clickAdversaryToggleWithRetry(page, false, 60000, request);
+    await expect(toggle).not.toBeChecked();
+    bodyState = await dashboardDomClassState(page);
+    expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
+    expect(bodyState.hasAdversarySim).toBeFalsy();
+    expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
+    expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
+  });
 });
 
 test("adversary sim global toggle drives orchestration control lifecycle state", async ({ page, request }) => {
   test.setTimeout(180_000);
-  await updateAdminConfig(request, { adversary_sim_enabled: false, adversary_sim_duration_seconds: 180 });
-  await openDashboard(page);
+  await withRestoredAdversarySimConfig(request, async () => {
+    await forceAdversarySimDisabled(request);
+    await openDashboard(page);
+    await waitForDashboardAdversarySimUiState(page, request, false);
 
-  const toggle = page.locator("#global-adversary-sim-toggle");
-  const lifecycleCopy = page.locator("#adversary-sim-lifecycle-copy");
-  await expect(toggle).toBeEnabled();
-  if (await toggle.isChecked()) {
-    await clickAdversaryToggleWithRetry(page, false);
-  }
-  await expect(toggle).not.toBeChecked();
-  await expect(lifecycleCopy).toContainText("Generation inactive");
+    const toggle = page.locator("#global-adversary-sim-toggle");
+    const lifecycleCopy = page.locator("#adversary-sim-lifecycle-copy");
+    await expect(toggle).toBeEnabled();
+    await expect(toggle).not.toBeChecked();
+    await expect(lifecycleCopy).toContainText("Generation inactive");
 
-  const onResponse = await clickAdversaryToggleWithRetry(page, true);
-  const onBody = await onResponse.json();
-  expect(onBody?.requested_enabled).toBe(true);
-  await expect(toggle).toBeChecked();
-  await expect(lifecycleCopy).toContainText("Generation active");
-  let bodyState = await dashboardDomClassState(page);
-  expect(bodyState.hasAdversarySim).toBeTruthy();
+    const onResponse = await clickAdversaryToggleWithRetry(page, true, 60000, request);
+    const onBody = await onResponse.json();
+    expect(onBody?.requested_enabled).toBe(true);
+    await expect(toggle).toBeChecked();
+    await expect(lifecycleCopy).toContainText("Generation active");
+    let bodyState = await dashboardDomClassState(page);
+    expect(bodyState.hasAdversarySim).toBeTruthy();
 
-  const offResponse = await clickAdversaryToggleWithRetry(page, false);
-  const offBody = await offResponse.json();
-  expect(offBody?.requested_enabled).toBe(false);
-  await expect(toggle).not.toBeChecked();
-  await expect(lifecycleCopy).toContainText("Generation inactive");
-  await expect(lifecycleCopy).toContainText("Retained telemetry remains visible");
-  bodyState = await dashboardDomClassState(page);
-  expect(bodyState.hasAdversarySim).toBeFalsy();
+    const offResponse = await clickAdversaryToggleWithRetry(page, false, 60000, request);
+    const offBody = await offResponse.json();
+    expect(offBody?.requested_enabled).toBe(false);
+    await expect(toggle).not.toBeChecked();
+    await expect(lifecycleCopy).toContainText("Generation inactive");
+    await expect(lifecycleCopy).toContainText("Retained telemetry remains visible");
+    bodyState = await dashboardDomClassState(page);
+    expect(bodyState.hasAdversarySim).toBeFalsy();
+  });
 });
 
 test("adversary sim toggle emits fresh telemetry visible in monitoring raw feed", async ({ page, request }) => {
   test.setTimeout(180_000);
-  await updateAdminConfig(request, { adversary_sim_enabled: false, adversary_sim_duration_seconds: 180 });
-  await openDashboard(page);
-  await openTab(page, "monitoring");
-  await setAutoRefresh(page, true);
+  await withRestoredAdversarySimConfig(request, async () => {
+    await forceAdversarySimDisabled(request);
+    await openDashboard(page);
+    await waitForDashboardAdversarySimUiState(page, request, false);
+    await openTab(page, "monitoring");
+    await setAutoRefresh(page, true);
 
-  const toggle = page.locator("#global-adversary-sim-toggle");
-  await expect(toggle).toBeEnabled({ timeout: 15000 });
-  if (await toggle.isChecked()) {
-    await clickAdversaryToggleWithRetry(page, false, 90000);
-  }
-  await expect(toggle).not.toBeChecked();
+    const toggle = page.locator("#global-adversary-sim-toggle");
+    await expect(toggle).toBeEnabled({ timeout: 15000 });
+    await expect(toggle).not.toBeChecked();
 
-  const baselineMonitoring = await fetchMonitoringSnapshot(request, 24, 200);
-  const baselineTs = maxSimulationEventTs(baselineMonitoring);
+    const baselineMonitoring = await fetchMonitoringSnapshot(request, 24, 200);
+    const baselineTs = maxSimulationEventTs(baselineMonitoring);
 
-  try {
-    await clickAdversaryToggleWithRetry(page, true);
-    await expect(toggle).toBeChecked();
+    try {
+      await clickAdversaryToggleWithRetry(page, true, 60000, request);
+      await expect(toggle).toBeChecked();
 
-    const advancedTs = await waitForSimulationEventAdvance(request, baselineTs, 20000);
-    await expect(page.locator("#monitoring-raw-feed tbody")).toContainText(`"ts":${advancedTs}`);
-  } finally {
-    if (await toggle.isChecked()) {
-      await clickAdversaryToggleWithRetry(page, false, 90000);
+      const advancedTs = await waitForSimulationEventAdvance(request, baselineTs, 20000);
+      await expect(page.locator("#monitoring-raw-feed tbody")).toContainText(`"ts":${advancedTs}`);
+    } finally {
+      await forceAdversarySimDisabled(request);
     }
-    await updateAdminConfig(request, { adversary_sim_enabled: false, adversary_sim_duration_seconds: 180 });
-  }
-  await page.reload();
-  await expect(toggle).not.toBeChecked();
+    await page.reload();
+    await waitForDashboardAdversarySimUiState(page, request, false);
+  });
 });
 
 test("adversary sim toggle cancel path avoids orchestration request when frontier keys are missing", async ({ page, request }) => {
-  await updateAdminConfig(request, { adversary_sim_enabled: false, adversary_sim_duration_seconds: 180 });
   const frontierProviderCount = await fetchFrontierProviderCount(request);
   test.skip(
     frontierProviderCount > 0,
     "requires frontier provider keys to be absent in runtime env"
   );
-  await openDashboard(page);
+  await withRestoredAdversarySimConfig(request, async () => {
+    await forceAdversarySimDisabled(request);
+    await openDashboard(page);
+    await waitForDashboardAdversarySimUiState(page, request, false);
 
-  const toggle = page.locator("#global-adversary-sim-toggle");
-  const toggleSwitch = page.locator("label.toggle-switch[for='global-adversary-sim-toggle']");
-  if (!(await toggle.isEnabled())) {
-    // If the monitoring bootstrap hit transient read throttling, force a config-backed
-    // tab refresh to repopulate control availability before asserting toggle readiness.
-    await openTab(page, "status", { waitForReady: true });
-    await openTab(page, "monitoring");
-  }
-  await expect(toggle).toBeEnabled({ timeout: 15000 });
-  if (await toggle.isChecked()) {
-    await clickAdversaryToggleWithRetry(page, false, 60000);
-  }
-  await expect(toggle).not.toBeChecked();
-
-  let controlRequestCount = 0;
-  page.on("request", (req) => {
-    if (
-      req.url().includes("/admin/adversary-sim/control") &&
-      req.method() === "POST"
-    ) {
-      controlRequestCount += 1;
+    const toggle = page.locator("#global-adversary-sim-toggle");
+    const toggleSwitch = page.locator("label.toggle-switch[for='global-adversary-sim-toggle']");
+    if (!(await toggle.isEnabled())) {
+      // If the monitoring bootstrap hit transient read throttling, force a config-backed
+      // tab refresh to repopulate control availability before asserting toggle readiness.
+      await openTab(page, "status", { waitForReady: true });
+      await openTab(page, "monitoring");
     }
-  });
+    await expect(toggle).toBeEnabled({ timeout: 15000 });
+    await expect(toggle).not.toBeChecked();
 
-  const dialogHandledPromise = page.waitForEvent("dialog").then(async (dialog) => {
-    expect(dialog.message()).toContain("No frontier model provider keys are configured");
-    await dialog.dismiss();
-  });
-  await Promise.all([
-    dialogHandledPromise,
-    toggleSwitch.click()
-  ]);
+    let controlRequestCount = 0;
+    page.on("request", (req) => {
+      if (
+        req.url().includes("/admin/adversary-sim/control") &&
+        req.method() === "POST"
+      ) {
+        controlRequestCount += 1;
+      }
+    });
 
-  await expect(toggle).not.toBeChecked();
-  await expect(page.locator("#admin-msg")).toContainText("Add SHUMA_FRONTIER_*_API_KEY");
-  await page.waitForTimeout(250);
-  expect(controlRequestCount).toBe(0);
+    const dialogHandledPromise = page.waitForEvent("dialog").then(async (dialog) => {
+      expect(dialog.message()).toContain("No frontier model provider keys are configured");
+      await dialog.dismiss();
+    });
+    await Promise.all([
+      dialogHandledPromise,
+      toggleSwitch.click()
+    ]);
+
+    await expect(toggle).not.toBeChecked();
+    await expect(page.locator("#admin-msg")).toContainText("Add SHUMA_FRONTIER_*_API_KEY");
+    await page.waitForTimeout(250);
+    expect(controlRequestCount).toBe(0);
+  });
 });
 
 test("auto refresh defaults off and is only available on monitoring/ip-bans tabs", async ({ page }) => {
