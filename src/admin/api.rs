@@ -12464,8 +12464,7 @@ fn handle_admin_adversary_sim_control(
             "trust_boundary_ok".to_string(),
             crate::admin::adversary_sim_control::TrustDecision::Allow,
         ),
-        Err(reason @ ("origin_missing" | "fetch_metadata_missing"))
-            if session_origin_fallback_allowed =>
+        Err("origin_missing" | "fetch_metadata_missing") if session_origin_fallback_allowed =>
         {
             (
                 "session_csrf_origin_fallback".to_string(),

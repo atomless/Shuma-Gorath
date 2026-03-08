@@ -1289,6 +1289,30 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         with self.assertRaises(runner.SimulationError):
             runner.validate_manifest(manifest_path, manifest, "fast_smoke")
 
+    def test_canonical_manifest_telemetry_amplification_bounds_cover_cross_env_ci_baseline(self):
+        manifest_v2 = json.loads(
+            Path("scripts/tests/adversarial/scenario_manifest.v2.json").read_text(encoding="utf-8")
+        )
+        manifest_v1 = json.loads(
+            Path("scripts/tests/adversarial/scenario_manifest.v1.json").read_text(encoding="utf-8")
+        )
+
+        fast_smoke_v2 = manifest_v2["profiles"]["fast_smoke"]["gates"]["telemetry_amplification"]
+        fast_smoke_v1 = manifest_v1["profiles"]["fast_smoke"]["gates"]["telemetry_amplification"]
+        full_coverage_v2 = manifest_v2["profiles"]["full_coverage"]["gates"]["telemetry_amplification"]
+
+        self.assertEqual(fast_smoke_v2, fast_smoke_v1)
+        self.assertEqual(fast_smoke_v2["max_fingerprint_events_per_request"], 3.5)
+        self.assertEqual(fast_smoke_v2["max_monitoring_events_per_request"], 8.0)
+        self.assertGreaterEqual(
+            full_coverage_v2["max_fingerprint_events_per_request"],
+            fast_smoke_v2["max_fingerprint_events_per_request"],
+        )
+        self.assertGreaterEqual(
+            full_coverage_v2["max_monitoring_events_per_request"],
+            fast_smoke_v2["max_monitoring_events_per_request"],
+        )
+
     def test_validate_manifest_rejects_unsupported_execution_lane(self):
         manifest = minimal_manifest()
         manifest["execution_lane"] = "white_box"

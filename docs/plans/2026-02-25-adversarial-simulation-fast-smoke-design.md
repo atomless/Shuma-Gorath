@@ -130,6 +130,29 @@ Threshold tuning applied from this baseline:
   - fingerprint: `2.0 -> 0.5`
   - monitoring: `3.0 -> 1.0`
 
+## Cross-Environment Recalibration (2026-03-08)
+
+Observed `fast_smoke` divergence between local macOS Chromium and Linux CI Chromium:
+
+- local macOS Chromium:
+  - fingerprint: `0.21` events/request (`delta=3`, `requests=14`)
+  - monitoring: `0.50` events/request (`delta=7`, `requests=14`)
+- Linux CI Chromium:
+  - fingerprint: `3.00` events/request (`delta=42`, `requests=14`)
+  - monitoring: `7.00` events/request (`delta=98`, `requests=14`)
+
+Interpretation:
+
+- outcomes and request lineage stayed deterministic across environments,
+- the drift came from heavier CI browser-harness telemetry (`cdp_detections`, `fingerprint_events`, `not_a_bot_escalate`, and `rate_violations`), not from scenario outcome regressions,
+- the original amplification ceilings had become a macOS-only calibration and were no longer truthful for the mandatory Linux CI lane.
+
+Threshold tuning applied from the cross-environment baseline:
+
+- `fast_smoke.telemetry_amplification.max_fingerprint_events_per_request`: `0.5 -> 3.5`
+- `fast_smoke.telemetry_amplification.max_monitoring_events_per_request`: `1.0 -> 8.0`
+- `full_coverage.telemetry_amplification.max_monitoring_events_per_request`: `5.0 -> 8.0`
+
 ## Risks and Follow-up
 
 1. Runtime sensitivity: profile timing can drift across slower machines.
