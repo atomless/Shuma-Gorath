@@ -8,6 +8,7 @@ import hashlib
 import hmac
 import json
 import os
+import platform
 import selectors
 import subprocess
 import sys
@@ -115,6 +116,34 @@ def normalize_container_base_url(base_url: str) -> str:
             (parsed.scheme, netloc, parsed.path, parsed.params, parsed.query, parsed.fragment)
         )
     return base_url
+
+
+def build_container_transport_plan(
+    base_url: str,
+    *,
+    platform_system: str | None = None,
+) -> Dict[str, Any]:
+    parsed = urllib.parse.urlparse(base_url)
+    hostname = str(parsed.hostname or "").strip().lower()
+    system = str(platform_system or platform.system()).strip().lower()
+    if hostname in {"127.0.0.1", "localhost"} and system == "linux":
+        return {
+            "container_base_url": base_url,
+            "allowed_origin": target_origin(base_url),
+            "docker_flags": ["--network=host"],
+            "network_mode": "host",
+        }
+
+    container_base_url = normalize_container_base_url(base_url)
+    return {
+        "container_base_url": container_base_url,
+        "allowed_origin": target_origin(container_base_url),
+        "docker_flags": [
+            "--add-host=host.docker.internal:host-gateway",
+            "--network=bridge",
+        ],
+        "network_mode": "bridge",
+    }
 
 
 def target_origin(url: str) -> str:
@@ -322,6 +351,15 @@ def load_container_runtime_profile(path: Path) -> Dict[str, Any]:
         values = payload.get(key)
         if not isinstance(values, list):
             raise RuntimeError(f"container runtime profile {key} must be an array")
+    required_flag_groups_any_of = payload.get("required_flag_groups_any_of", [])
+    if required_flag_groups_any_of:
+        if not isinstance(required_flag_groups_any_of, list):
+            raise RuntimeError("container runtime profile required_flag_groups_any_of must be an array")
+        for group in required_flag_groups_any_of:
+            if not isinstance(group, list) or not all(str(item).strip() for item in group):
+                raise RuntimeError(
+                    "container runtime profile required_flag_groups_any_of entries must be non-empty arrays"
+                )
     required_user_mode = str(payload.get("required_user_mode") or "").strip()
     if required_user_mode != "non_root_image_user":
         raise RuntimeError(
@@ -344,6 +382,23 @@ def evaluate_container_command_against_profile(
     for required in required_flags:
         if required not in tokens:
             violations.append(f"missing_required_flag:{required}")
+
+    required_flag_groups_any_of = list(runtime_profile.get("required_flag_groups_any_of") or [])
+    if required_flag_groups_any_of:
+        group_satisfied = False
+        for group in required_flag_groups_any_of:
+            normalized_group = [str(item).strip() for item in list(group or []) if str(item).strip()]
+            if normalized_group and all(item in tokens for item in normalized_group):
+                group_satisfied = True
+                break
+        if not group_satisfied:
+            group_labels = [
+                "+".join(str(item).strip() for item in list(group or []) if str(item).strip())
+                for group in required_flag_groups_any_of
+            ]
+            violations.append(
+                "missing_required_flag_group_any_of:" + "|".join(label for label in group_labels if label)
+            )
 
     forbidden_prefixes = [
         str(item).strip()
@@ -736,7 +791,9 @@ def container_command(
     frontier_actions_json: str,
     capability_envelopes_json: str,
     capability_verify_key: str,
+    docker_flags: List[str] | None = None,
 ) -> List[str]:
+    normalized_docker_flags = [str(flag).strip() for flag in list(docker_flags or []) if str(flag).strip()]
     command = [
         "docker",
         "run",
@@ -748,8 +805,9 @@ def container_command(
         "--memory=256m",
         "--cpus=1.0",
         "--tmpfs=/tmp:rw,nosuid,nodev,size=64m",
-        "--add-host=host.docker.internal:host-gateway",
-        "--network=bridge",
+    ]
+    command.extend(normalized_docker_flags)
+    command.extend([
         "-e",
         f"BLACKBOX_MODE={mode}",
         "-e",
@@ -771,7 +829,7 @@ def container_command(
         "-e",
         f"{CAPABILITY_VERIFY_KEY_ENV}={capability_verify_key}",
         image_tag,
-    ]
+    ])
     return command
 
 
@@ -787,6 +845,7 @@ def run_container_worker(
     frontier_actions_json: str,
     capability_envelopes_json: str,
     capability_verify_key: str,
+    docker_flags: List[str],
     runtime_profile: Dict[str, Any],
     kill_switch_file: str,
     heartbeat_timeout_seconds: int,
@@ -804,6 +863,7 @@ def run_container_worker(
         frontier_actions_json=frontier_actions_json,
         capability_envelopes_json=capability_envelopes_json,
         capability_verify_key=capability_verify_key,
+        docker_flags=docker_flags,
     )
     violations = evaluate_container_command_against_profile(command, runtime_profile)
     if violations:
@@ -1076,8 +1136,14 @@ def main() -> int:
         return 2
 
     host_base_url = args.base_url.rstrip("/")
-    container_base_url = normalize_container_base_url(host_base_url)
-    allowed_origin = target_origin(container_base_url)
+    transport_plan = build_container_transport_plan(host_base_url)
+    container_base_url = str(transport_plan.get("container_base_url") or "").strip()
+    allowed_origin = str(transport_plan.get("allowed_origin") or "").strip()
+    docker_flags = [
+        str(flag).strip()
+        for flag in list(transport_plan.get("docker_flags") or [])
+        if str(flag).strip()
+    ]
     run_id = f"container-{int(time.time())}"
     try:
         frontier_action_contract = load_frontier_action_contract(
@@ -1240,6 +1306,7 @@ def main() -> int:
             frontier_actions_json=frontier_actions_json,
             capability_envelopes_json=capability_envelopes_json,
             capability_verify_key=capability_verify_key,
+            docker_flags=docker_flags,
             runtime_profile=runtime_profile,
             kill_switch_file=str(args.kill_switch_file),
             heartbeat_timeout_seconds=heartbeat_timeout_seconds,
@@ -1369,6 +1436,7 @@ def main() -> int:
         "host_base_url": host_base_url,
         "container_base_url": container_base_url,
         "allowed_origin": allowed_origin,
+        "transport_plan": transport_plan,
         "request_budget": request_budget,
         "time_budget_seconds": time_budget_seconds,
         "frontier_action_contract": {
@@ -1426,6 +1494,7 @@ def main() -> int:
         },
         "runtime_flags": {
             "docker_command": command,
+            "container_network_mode": str(transport_plan.get("network_mode") or ""),
         },
         "execution_control": execution_control,
         "terminal_failure": terminal_failure,

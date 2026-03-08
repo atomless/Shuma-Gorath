@@ -19,6 +19,29 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         rewritten = container_runner.normalize_container_base_url("http://127.0.0.1:3000")
         self.assertEqual(rewritten, "http://host.docker.internal:3000")
 
+    def test_build_container_transport_plan_uses_bridge_gateway_for_non_linux_loopback(self):
+        plan = container_runner.build_container_transport_plan(
+            "http://127.0.0.1:3000",
+            platform_system="Darwin",
+        )
+        self.assertEqual(plan["container_base_url"], "http://host.docker.internal:3000")
+        self.assertEqual(plan["allowed_origin"], "http://host.docker.internal:3000")
+        self.assertEqual(
+            plan["docker_flags"],
+            ["--add-host=host.docker.internal:host-gateway", "--network=bridge"],
+        )
+        self.assertEqual(plan["network_mode"], "bridge")
+
+    def test_build_container_transport_plan_uses_host_network_for_linux_loopback(self):
+        plan = container_runner.build_container_transport_plan(
+            "http://127.0.0.1:3000",
+            platform_system="Linux",
+        )
+        self.assertEqual(plan["container_base_url"], "http://127.0.0.1:3000")
+        self.assertEqual(plan["allowed_origin"], "http://127.0.0.1:3000")
+        self.assertEqual(plan["docker_flags"], ["--network=host"])
+        self.assertEqual(plan["network_mode"], "host")
+
     def test_target_origin_returns_scheme_and_netloc(self):
         origin = container_runner.target_origin("https://example.com:8443/path?q=1")
         self.assertEqual(origin, "https://example.com:8443")
@@ -51,6 +74,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
             frontier_actions_json='[{"action_type":"http_get","path":"/"}]',
             capability_envelopes_json='[{"run_id":"r","step_id":1,"action_type":"http_get","path":"/","nonce":"n","issued_at":1,"expires_at":2,"key_id":"k","signature":"s"}]',
             capability_verify_key="verify-key",
+            docker_flags=["--add-host=host.docker.internal:host-gateway", "--network=bridge"],
         )
         joined = " ".join(command)
         self.assertIn("--read-only", joined)
@@ -185,6 +209,13 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         )
         self.assertEqual(profile["schema_version"], "container-runtime-profile.v1")
         self.assertIn("--read-only", profile["required_flags"])
+        self.assertEqual(
+            profile["required_flag_groups_any_of"],
+            [
+                ["--add-host=host.docker.internal:host-gateway", "--network=bridge"],
+                ["--network=host"],
+            ],
+        )
 
     def test_validate_attack_plan_candidate_payload_detects_secret_literal(self):
         payload = {
@@ -208,8 +239,15 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
             "run",
             "--rm",
             "--privileged",
-            "--network=host",
+            "--network=bridge",
+            "--add-host=host.docker.internal:host-gateway",
             "--read-only",
+            "--cap-drop=ALL",
+            "--security-opt=no-new-privileges",
+            "--pids-limit=128",
+            "--memory=256m",
+            "--cpus=1.0",
+            "--tmpfs=/tmp:rw,nosuid,nodev,size=64m",
             "test:image",
         ]
         violations = container_runner.evaluate_container_command_against_profile(
@@ -217,7 +255,48 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
             profile,
         )
         self.assertTrue(any("forbidden_flag:--privileged" == item for item in violations))
-        self.assertTrue(any("forbidden_flag:--network=host" == item for item in violations))
+
+    def test_evaluate_container_command_against_profile_accepts_supported_network_groups(self):
+        profile = container_runner.load_container_runtime_profile(
+            Path("scripts/tests/adversarial/container_runtime_profile.v1.json")
+        )
+        bridge_command = [
+            "docker",
+            "run",
+            "--rm",
+            "--read-only",
+            "--cap-drop=ALL",
+            "--security-opt=no-new-privileges",
+            "--pids-limit=128",
+            "--memory=256m",
+            "--cpus=1.0",
+            "--tmpfs=/tmp:rw,nosuid,nodev,size=64m",
+            "--add-host=host.docker.internal:host-gateway",
+            "--network=bridge",
+            "test:image",
+        ]
+        host_command = [
+            "docker",
+            "run",
+            "--rm",
+            "--read-only",
+            "--cap-drop=ALL",
+            "--security-opt=no-new-privileges",
+            "--pids-limit=128",
+            "--memory=256m",
+            "--cpus=1.0",
+            "--tmpfs=/tmp:rw,nosuid,nodev,size=64m",
+            "--network=host",
+            "test:image",
+        ]
+        self.assertEqual(
+            container_runner.evaluate_container_command_against_profile(bridge_command, profile),
+            [],
+        )
+        self.assertEqual(
+            container_runner.evaluate_container_command_against_profile(host_command, profile),
+            [],
+        )
 
     def test_evaluate_container_command_against_profile_detects_missing_hardening_flags(self):
         profile = container_runner.load_container_runtime_profile(
@@ -233,6 +312,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         self.assertTrue(
             any(item == "missing_required_flag:--security-opt=no-new-privileges" for item in violations)
         )
+        self.assertTrue(any(item.startswith("missing_required_flag_group_any_of:") for item in violations))
 
     def test_evaluate_container_command_against_profile_detects_forbidden_host_mounts(self):
         profile = container_runner.load_container_runtime_profile(

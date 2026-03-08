@@ -8,14 +8,21 @@
     "--pids-limit=128",
     "--memory=256m",
     "--cpus=1.0",
-    "--tmpfs=/tmp:rw,nosuid,nodev,size=64m",
-    "--network=bridge"
+    "--tmpfs=/tmp:rw,nosuid,nodev,size=64m"
+  ],
+  "required_flag_groups_any_of": [
+    [
+      "--add-host=host.docker.internal:host-gateway",
+      "--network=bridge"
+    ],
+    [
+      "--network=host"
+    ]
   ],
   "forbidden_flag_prefixes": [
     "--privileged",
     "--pid=host",
     "--ipc=host",
-    "--network=host",
     "--uts=host",
     "--userns=host"
   ],

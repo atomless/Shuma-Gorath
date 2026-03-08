@@ -211,6 +211,7 @@ Notes:
   - lineage evidence is emitted in `container_blackbox_report.json -> frontier_lineage` linking model suggestion -> executed action -> runtime/admin event surfaces.
   - degraded execution state is explicit in `container_blackbox_report.json -> frontier_runtime_state` and marks fallback/outage conditions as non-passing.
   - runtime launch is blocked when `container_runtime_profile.v1.json` hardening requirements are violated.
+  - loopback-hosted Spin targets use a platform-aware container transport: bridge + `host.docker.internal` where supported, and Linux host-network mode when Docker cannot reach host loopback through the bridge path.
   - each executable action must include a signed capability envelope; signature/expiry/replay/scope violations are fail-closed before request execution.
   - artifact lifecycle cleanup runs each container lane invocation with bounded TTL-based deletion and diagnostics in `container_*_report.json -> cleanup_policy`.
   - command channel semantics are explicit and bounded (`host -> worker`, queue-capacity enforced, overflow fail-closed) with evidence-channel append-only expectations in report metadata.

@@ -65,6 +65,7 @@ Simulation-tag signing contract is versioned in `scripts/tests/adversarial/sim_t
 Full-coverage category obligations are versioned in `scripts/tests/adversarial/coverage_contract.v2.json` (with temporary v1 compatibility) and validated by `make test-adversarial-coverage-contract`.
 Container frontier action grammar contract is versioned in `scripts/tests/adversarial/frontier_action_contract.v1.json` and enforced as reject-by-default by host and worker validators.
 Container runtime hardening profile is versioned in `scripts/tests/adversarial/container_runtime_profile.v1.json` and must pass before worker launch.
+For loopback-hosted Spin targets, the runner selects the least-surprising reachable Docker transport per host platform: bridge + `host.docker.internal` where that reaches host loopback, and Linux host-network mode when bridge reachability would otherwise fail against a `127.0.0.1`-bound server.
 Signed capability envelopes for executable worker actions are enforced via `scripts/tests/frontier_capability_envelope.py` host/worker validation.
 Browser-lane execution proof is enforced via `latest_report.json -> gates.browser_execution_gates`.
 `make test-adversarial-live` now classifies failures as `transient` or `fatal`, retries transient cycles with capped backoff, and only terminates after `ADVERSARIAL_FATAL_CYCLE_LIMIT` consecutive fatal cycles.

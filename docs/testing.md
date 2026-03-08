@@ -52,6 +52,7 @@ Notes:
 - `make test`, `make test-integration`, and `make test-dashboard-e2e` wait for `/health` readiness before failing.
 - `make test` now also checks `/admin/session` and fails fast if the running server is `runtime-prod`, because the full adversarial/dashboard contract is defined against `make dev`.
 - `make test` includes maze asymmetry benchmark gating, the mandatory fast adversarial matrix (`smoke + abuse + Akamai`), SIM2 realtime gates, and Playwright dashboard e2e. If Docker is unavailable, the container black-box lane degrades to the advisory SIM2 verification matrix path instead of hard-failing the umbrella run.
+- The container black-box runner chooses its own Docker reachability mode for loopback-hosted Spin instances: bridge + `host.docker.internal` on non-Linux hosts, and host-network mode on Linux when the target base URL is loopback-only. This keeps `make dev` bound to `127.0.0.1` while preserving container reachability in CI.
 - Gateway profile gates are explicit and runnable independently:
   - `make test-gateway-profile-shared-server`
   - `make test-gateway-profile-edge`
