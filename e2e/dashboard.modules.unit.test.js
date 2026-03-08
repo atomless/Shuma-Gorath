@@ -497,6 +497,44 @@ test('dashboard API client adds CSRF + same-origin for session-auth writes and s
   });
 });
 
+test('dashboard API client bypasses caches for adversary-sim status reads', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
+    const calls = [];
+    const client = apiModule.create({
+      getAdminContext: () => ({
+        endpoint: 'https://edge.local',
+        apikey: 'test-key',
+        sessionAuth: true,
+        csrfToken: 'csrf-token'
+      }),
+      request: async (url, init = {}) => {
+        calls.push({ url, init });
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({
+            adversary_sim_enabled: false,
+            generation_active: false,
+            phase: 'off'
+          }),
+          text: async () => JSON.stringify({
+            adversary_sim_enabled: false,
+            generation_active: false,
+            phase: 'off'
+          })
+        };
+      }
+    });
+
+    await client.getAdversarySimStatus();
+    assert.equal(calls.length, 1);
+    assert.match(String(calls[0].url), /\/admin\/adversary-sim\/status$/);
+    assert.equal(calls[0].init.cache, 'no-store');
+  });
+});
+
 test('dashboard API client exposes cursor-delta and stream URL helpers for realtime tabs', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');

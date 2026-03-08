@@ -343,13 +343,20 @@ async function fetchRuntimeEnvironment(request, ip = "127.0.0.1") {
   return runtimeEnvironment;
 }
 
-async function fetchAdversarySimStatus(request, ip = "127.0.0.1") {
-  const response = await request.get(`${BASE_URL}/admin/adversary-sim/status`, {
-    headers: buildAdminAuthHeaders(ip)
+async function fetchAdversarySimStatus(_request, ip = "127.0.0.1") {
+  const cacheBuster = `${Date.now().toString(16)}-${Math.floor(Math.random() * 0x1_0000_0000).toString(16)}`;
+  const response = await fetch(`${BASE_URL}/admin/adversary-sim/status?cache_bust=${cacheBuster}`, {
+    method: "GET",
+    headers: {
+      ...buildAdminAuthHeaders(ip),
+      "Cache-Control": "no-store",
+      Pragma: "no-cache"
+    },
+    cache: "no-store"
   });
-  if (!response.ok()) {
+  if (!response.ok) {
     const body = await response.text();
-    throw new Error(`adversary sim status read should succeed: ${response.status()} ${body}`);
+    throw new Error(`adversary sim status read should succeed: ${response.status} ${body}`);
   }
   return response.json();
 }
@@ -371,14 +378,21 @@ async function waitForAdversarySimEnabledState(request, desiredEnabled, timeoutM
   const desired = desiredEnabled === true;
   const deadline = Date.now() + Math.max(1000, Number(timeoutMs || 0));
   let lastState = adversarySimStatusState({});
+  let consecutiveSettledPolls = 0;
   while (Date.now() < deadline) {
     lastState = adversarySimStatusState(await fetchAdversarySimStatus(request, ip));
     if (desired) {
       if (lastState.enabled === true) {
         return lastState;
       }
+      consecutiveSettledPolls = 0;
     } else if (lastState.enabled !== true && lastState.generationActive !== true && lastState.phase === "off") {
-      return lastState;
+      consecutiveSettledPolls += 1;
+      if (consecutiveSettledPolls >= 3) {
+        return lastState;
+      }
+    } else {
+      consecutiveSettledPolls = 0;
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
@@ -397,6 +411,12 @@ async function waitForDashboardAdversarySimUiState(
   const desired = desiredEnabled === true;
   await waitForAdversarySimEnabledState(request, desired, timeoutMs, ip);
 
+  await waitForDashboardAdversarySimUiConvergence(page, desired, timeoutMs);
+}
+
+async function waitForDashboardAdversarySimUiConvergence(page, desiredEnabled, timeoutMs = 30000) {
+  const desired = desiredEnabled === true;
+
   const toggle = page.locator("#global-adversary-sim-toggle");
   if (desired) {
     await expect(toggle).toBeChecked({ timeout: timeoutMs });
@@ -410,6 +430,14 @@ async function waitForDashboardAdversarySimUiState(
       return state.hasAdversarySim === true;
     }, { timeout: timeoutMs })
     .toBe(desired);
+}
+
+function adversarySimStateMatchesDesired(state, desiredEnabled) {
+  const desired = desiredEnabled === true;
+  if (desired) {
+    return state.enabled === true;
+  }
+  return state.enabled !== true && state.generationActive !== true && state.phase === "off";
 }
 
 async function controlAdversarySimViaAdmin(
@@ -691,10 +719,14 @@ async function clickAdversaryToggleWithRetry(page, desiredEnabled, timeoutMs = 6
     const response = await responsePromise;
     lastStatus = response.status();
     if (lastStatus === 200) {
-      if (request) {
+      const payload = await response.json();
+      const backendState = adversarySimStatusState(payload && typeof payload === "object" ? payload.status : {});
+      if (request && !adversarySimStateMatchesDesired(backendState, desired)) {
         await waitForDashboardAdversarySimUiState(page, request, desired, timeoutMs);
+      } else {
+        await waitForDashboardAdversarySimUiConvergence(page, desired, timeoutMs);
       }
-      return response;
+      return payload;
     }
     if (lastStatus === 429 || lastStatus === 409) {
       await page.waitForTimeout(controlRetryDelayMs(response));
@@ -1754,16 +1786,14 @@ test("adversary sim global toggle drives orchestration control lifecycle state",
     await expect(toggle).not.toBeChecked();
     await expect(lifecycleCopy).toContainText("Generation inactive");
 
-    const onResponse = await clickAdversaryToggleWithRetry(page, true, 60000, request);
-    const onBody = await onResponse.json();
+    const onBody = await clickAdversaryToggleWithRetry(page, true, 60000, request);
     expect(onBody?.requested_enabled).toBe(true);
     await expect(toggle).toBeChecked();
     await expect(lifecycleCopy).toContainText("Generation active");
     let bodyState = await dashboardDomClassState(page);
     expect(bodyState.hasAdversarySim).toBeTruthy();
 
-    const offResponse = await clickAdversaryToggleWithRetry(page, false, 60000, request);
-    const offBody = await offResponse.json();
+    const offBody = await clickAdversaryToggleWithRetry(page, false, 60000, request);
     expect(offBody?.requested_enabled).toBe(false);
     await expect(toggle).not.toBeChecked();
     await expect(lifecycleCopy).toContainText("Generation inactive");

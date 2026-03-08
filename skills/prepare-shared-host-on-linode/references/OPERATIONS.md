@@ -46,19 +46,20 @@ The helper persists local secrets and setup state in the right places:
   - `LINODE_TOKEN`
   - `SHUMA_ADMIN_IP_ALLOWLIST`
   - `GATEWAY_SURFACE_CATALOG_PATH`
-- `.spin/linode-shared-host-setup.json`
+- `.shuma/linode-shared-host-setup.json`
   - instance id
   - public IPv4
   - SSH key paths
   - catalog path
   - setup mode
-- `.spin/remotes/<name>.json`
+- `.shuma/remotes/<name>.json`
   - normalized `ssh_systemd` day-2 contract
   - provider kind
   - public base URL
   - service name / SSH transport
 
 Never write the raw Linode token into the receipt.
+`make clean` must not delete those `.shuma` artifacts; use `make reset-local-state` only when you intentionally want to wipe `.spin`.
 
 ## Receipt Semantics
 

@@ -35,6 +35,7 @@ make smoke-single-host # Post-deploy smoke: health/admin/metrics/challenge + for
 make stop           # Stop running Spin server
 make status         # Check if server is running
 make clean          # Clean build artifacts
+make reset-local-state # Wipe local .spin runtime/test state while preserving durable .shuma operator state
 ```
 
 ### 🐙 Build & Run: Remote
@@ -79,6 +80,7 @@ make dev                   # In terminal 1
 make test-dashboard-e2e    # In terminal 2
 ```
 **Important:** Unit tests run in native Rust. Integration and dashboard e2e tests MUST run against a running Spin server; test targets do not start Spin.
+`make clean` removes reproducible build/test artifacts only. Use `make reset-local-state` when you intentionally want to wipe `.spin` runtime/test state without deleting durable operator artifacts under `.shuma`.
 
 ## 🐙 <abbr title="Application Programming Interface">API</abbr> Endpoints
 

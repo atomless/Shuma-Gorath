@@ -2,9 +2,9 @@
 
 **Goal:** Add a provider-agnostic day-2 remote maintenance layer for Shuma deployments that already satisfy a normalized SSH + `systemd` host contract.
 
-**Architecture:** Keep provider-specific setup and first deploy flows responsible for creating a remote that satisfies the contract, then hand off to a generic maintenance layer that reads a normalized gitignored receipt under `.spin/remotes/<name>.json`. Keep `.env.local` limited to selecting the active remote target (`SHUMA_ACTIVE_REMOTE=<name>`) plus normal env-only secrets. Do not pretend non-SSH platforms share identical lifecycle semantics in this tranche.
+**Architecture:** Keep provider-specific setup and first deploy flows responsible for creating a remote that satisfies the contract, then hand off to a generic maintenance layer that reads a normalized gitignored receipt under `.shuma/remotes/<name>.json`. Keep `.env.local` limited to selecting the active remote target (`SHUMA_ACTIVE_REMOTE=<name>`) plus normal env-only secrets. Treat `.shuma/` as durable operator state and `.spin/` as ephemeral local runtime/test state. Do not pretend non-SSH platforms share identical lifecycle semantics in this tranche.
 
-**Tech Stack:** Makefile orchestration, Python helper/receipt management, SSH, `systemd`, existing release-bundle shipping path, gitignored local state under `.spin/`.
+**Tech Stack:** Makefile orchestration, Python helper/receipt management, SSH, `systemd`, existing release-bundle shipping path, gitignored durable local state under `.shuma/`, and ephemeral local runtime/test state under `.spin/`.
 
 ---
 
@@ -20,7 +20,7 @@ The repository already has the correct foundational pattern for remote operation
 Today, that pattern is Linode-specific:
 
 - `.env.local` is the local operator env source,
-- `.spin/linode-shared-host-setup.json` stores provider-specific handoff data,
+- `.shuma/linode-shared-host-setup.json` stores provider-specific handoff data,
 - Linode deploy installs a `systemd` unit with:
   - `ExecStart=/usr/bin/make prod-start`
   - `ExecStop=/usr/bin/make stop`
@@ -33,7 +33,7 @@ This design generalizes the day-2 operations layer without generalizing provider
 2. `.env.local` stores only the active remote selector:
    - `SHUMA_ACTIVE_REMOTE=<name>`
 3. Structured remote target state lives in gitignored receipts:
-   - `.spin/remotes/<name>.json`
+   - `.shuma/remotes/<name>.json`
 4. Provider-specific setup/deploy writers must emit the same normalized receipt schema, with optional provider extension fields.
 5. Successful provider-specific setup/deploy writers should also auto-activate the emitted receipt locally by updating `SHUMA_ACTIVE_REMOTE`, while preserving `make remote-use REMOTE=<name>` as the explicit switch command.
 6. Generic maintenance commands must consume the normalized receipt, not provider-specific files.
@@ -71,7 +71,7 @@ Today, those capabilities are tied to provider-specific setup/deploy flows rathe
 
 The normalized receipt lives at:
 
-- `.spin/remotes/<name>.json`
+- `.shuma/remotes/<name>.json`
 
 Required top-level shape:
 
@@ -96,7 +96,7 @@ Required top-level shape:
   },
   "deploy": {
     "spin_manifest_path": "/opt/shuma-gorath/spin.gateway.toml",
-    "surface_catalog_path": "/Users/example/Projects/Shuma-Gorath/.spin/site.surface-catalog.json",
+    "surface_catalog_path": "/Users/example/Projects/Shuma-Gorath/.shuma/catalogs/site.surface-catalog.json",
     "smoke_path": "/health"
   },
   "metadata": {
@@ -129,7 +129,7 @@ SHUMA_ACTIVE_REMOTE=blog-prod
 
 `make remote-use REMOTE=<name>` should:
 
-1. validate that `.spin/remotes/<name>.json` exists,
+1. validate that `.shuma/remotes/<name>.json` exists,
 2. validate the receipt schema/version,
 3. upsert `SHUMA_ACTIVE_REMOTE=<name>` into `.env.local`,
 4. print the selected target summary.
@@ -216,7 +216,7 @@ Reason:
 The existing Linode setup/deploy path should become one provider-specific writer of the generic receipt:
 
 1. Linode setup may continue to write its provider receipt.
-2. Linode deploy should also emit `.spin/remotes/<name>.json` in normalized form.
+2. Linode deploy should also emit `.shuma/remotes/<name>.json` in normalized form.
 3. The normalized receipt should be the source of truth for day-2 commands.
 4. Linode-specific skills remain responsible for setup/provisioning, not for all future remote maintenance.
 

@@ -23,3 +23,4 @@ scripts/tests/adversarial/latest_report.json
 .claude/
 # Spin runtime data
 .spin/
+.shuma/

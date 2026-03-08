@@ -53,7 +53,7 @@ Options:
   --type <value>                       Linode type/plan override (profile-derived by default)
   --image <value>                      Linode image slug (default: linode/ubuntu24.04)
   --existing-instance-id <id>          Use an already prepared Linode instance instead of creating a new VM
-  --remote-name <name>                 Day-2 remote target name to write under .spin/remotes/
+  --remote-name <name>                 Day-2 remote target name to write under the durable local remote-receipts directory
   --ssh-public-key-file <path>         SSH public key for first access (default: ~/.ssh/id_ed25519.pub, fallback ~/.ssh/id_rsa.pub)
   --ssh-private-key-file <path>        SSH private key paired with the public key (default: public key without .pub)
   --domain <fqdn>                      Required canonical public domain; enables Caddy reverse proxy/TLS
@@ -153,7 +153,7 @@ LINODE_TYPE="${LINODE_TYPE:-}"
 LINODE_IMAGE="${LINODE_IMAGE:-linode/ubuntu24.04}"
 EXISTING_INSTANCE_ID="${EXISTING_INSTANCE_ID:-}"
 REMOTE_NAME="${REMOTE_NAME:-}"
-REMOTE_RECEIPTS_DIR="${REMOTE_RECEIPTS_DIR:-${REPO_ROOT}/.spin/remotes}"
+REMOTE_RECEIPTS_DIR="${REMOTE_RECEIPTS_DIR:-${REPO_ROOT}/.shuma/remotes}"
 ENV_LOCAL="${ENV_LOCAL:-${REPO_ROOT}/.env.local}"
 SSH_PUBLIC_KEY_FILE="${SSH_PUBLIC_KEY_FILE:-}"
 SSH_PRIVATE_KEY_FILE="${SSH_PRIVATE_KEY_FILE:-}"
@@ -467,17 +467,29 @@ load_existing_instance_details() {
   local details
   local status
   local ip
+  local region
+  local instance_type
+  local image
 
   details="$(linode_api_json GET "/linode/instances/${EXISTING_INSTANCE_ID}")"
   status="$(jq -r '.status // ""' <<<"${details}")"
   ip="$(jq -r '.ipv4[0] // ""' <<<"${details}")"
   INSTANCE_LABEL="$(jq -r '.label // ""' <<<"${details}")"
+  region="$(jq -r '.region // ""' <<<"${details}")"
+  instance_type="$(jq -r '.type // ""' <<<"${details}")"
+  image="$(jq -r '.image // ""' <<<"${details}")"
 
   [[ -n "${ip}" ]] || fail "Existing Linode instance ${EXISTING_INSTANCE_ID} does not have an IPv4 address."
   [[ "${status}" == "running" ]] || fail "Existing Linode instance ${EXISTING_INSTANCE_ID} is not running (status=${status})."
+  [[ -n "${region}" ]] || fail "Existing Linode instance ${EXISTING_INSTANCE_ID} did not return a region."
+  [[ -n "${instance_type}" ]] || fail "Existing Linode instance ${EXISTING_INSTANCE_ID} did not return a type."
+  [[ -n "${image}" ]] || fail "Existing Linode instance ${EXISTING_INSTANCE_ID} did not return an image."
 
   INSTANCE_ID="${EXISTING_INSTANCE_ID}"
   INSTANCE_IPV4="${ip}"
+  LINODE_REGION="${region}"
+  LINODE_TYPE="${instance_type}"
+  LINODE_IMAGE="${image}"
   success "Existing Linode instance validated: id=${INSTANCE_ID} ip=${INSTANCE_IPV4}"
 }
 

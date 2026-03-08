@@ -21,6 +21,7 @@ import {
  * @property {BodyInit | null} [body]
  * @property {AbortSignal} [signal]
  * @property {number} [timeoutMs]
+ * @property {RequestCache} [cache]
  * @property {HTMLElement | null} [messageTarget]
  * @property {{ tab?: string, reason?: string, source?: string }} [telemetry]
  */
@@ -567,6 +568,7 @@ export const create = (options = {}) => {
       response = await requestImpl(`${context.endpoint}${path}`, {
         method,
         headers,
+        cache: options.cache,
         credentials: context && context.sessionAuth === true ? 'same-origin' : undefined,
         body: method === 'GET' || method === 'HEAD' ? undefined : body,
         signal: requestSignal.signal
@@ -752,7 +754,10 @@ export const create = (options = {}) => {
    * @param {RequestOptions} [requestOptions]
    */
   const getAdversarySimStatus = async (requestOptions = {}) =>
-    adaptAdversarySimStatus(await request('/admin/adversary-sim/status', requestOptions));
+    adaptAdversarySimStatus(await request('/admin/adversary-sim/status', {
+      ...requestOptions,
+      cache: 'no-store'
+    }));
 
   /**
    * @param {{hours?: number, limit?: number}} [options]

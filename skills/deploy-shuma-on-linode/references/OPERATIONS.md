@@ -4,7 +4,7 @@
 
 Run this before provisioning.
 
-If the setup helper already ran, `.env.local` may already contain `LINODE_TOKEN`, `SHUMA_ADMIN_IP_ALLOWLIST`, and `GATEWAY_SURFACE_CATALOG_PATH`, `.spin/linode-shared-host-setup.json` may already contain the instance id plus SSH key paths, and `.spin/remotes/<name>.json` may already hold the normalized day-2 target contract. Reuse those artifacts instead of re-asking the operator.
+If the setup helper already ran, `.env.local` may already contain `LINODE_TOKEN`, `SHUMA_ADMIN_IP_ALLOWLIST`, and `GATEWAY_SURFACE_CATALOG_PATH`, `.shuma/linode-shared-host-setup.json` may already contain the instance id plus SSH key paths, and `.shuma/remotes/<name>.json` may already hold the normalized day-2 target contract. Reuse those artifacts instead of re-asking the operator.
 
 Fresh-host preflight:
 
@@ -99,7 +99,7 @@ make remote-stop
 make remote-open-dashboard
 ```
 
-Those commands read `.spin/remotes/<name>.json` and work at the generic `ssh_systemd` contract level rather than through Linode-specific provider logic. Successful deploy now auto-selects the emitted remote in `.env.local` and persists any generated operator secrets needed for dashboard/admin/smoke access there; use `make remote-use REMOTE=<name>` only to switch targets later. `make remote-update` also hydrates missing smoke-critical secrets from the remote `.env.local` for older hosts, runs a remote loopback `/health` check, and then runs public-route smoke.
+Those commands read `.shuma/remotes/<name>.json` and work at the generic `ssh_systemd` contract level rather than through Linode-specific provider logic. Successful deploy now auto-selects the emitted remote in `.env.local` and persists any generated operator secrets needed for dashboard/admin/smoke access there; use `make remote-use REMOTE=<name>` only to switch targets later. `make remote-update` also hydrates missing smoke-critical secrets from the remote `.env.local` for older hosts, runs a remote loopback `/health` check, and then runs public-route smoke. `make clean` must not delete those `.shuma` artifacts; use `make reset-local-state` only when you intentionally want to wipe `.spin`.
 
 ## Live-Proven Gotchas
 

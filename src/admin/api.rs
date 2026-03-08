@@ -2421,6 +2421,12 @@ mod admin_config_tests {
         let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
         let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
         assert_eq!(*status_resp.status(), 200u16);
+        assert_eq!(
+            status_resp
+                .header("cache-control")
+                .and_then(|value| value.as_str()),
+            Some("no-store")
+        );
         let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
         assert_eq!(
             status_json
@@ -12243,7 +12249,11 @@ fn handle_admin_adversary_sim_status(
 
     let body = serde_json::to_string(&adversary_sim_status_payload(store, site_id, &cfg, &state, now))
         .unwrap();
-    Response::new(200, body)
+    Response::builder()
+        .status(200)
+        .header("Cache-Control", "no-store")
+        .body(body)
+        .build()
 }
 
 fn request_bypasses_admin_ip_allowlist(req: &Request, path: &str) -> bool {

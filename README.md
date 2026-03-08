@@ -81,8 +81,8 @@ If you are starting from a local site plus a Linode account, first run:
 make prepare-linode-shared-host PREPARE_LINODE_ARGS="--docroot /abs/path/to/site"
 ```
 
-That helper can persist `LINODE_TOKEN`, `SHUMA_ADMIN_IP_ALLOWLIST`, and `GATEWAY_SURFACE_CATALOG_PATH` to gitignored `.env.local` and write `.spin/linode-shared-host-setup.json` with the instance id and public IP.
-It also emits `.spin/remotes/<name>.json` and auto-selects it in `.env.local` so routine day-2 operations can switch to the generic remote layer with no extra step after the first successful deploy.
+That helper can persist `LINODE_TOKEN`, `SHUMA_ADMIN_IP_ALLOWLIST`, and `GATEWAY_SURFACE_CATALOG_PATH` to gitignored `.env.local` and write `.shuma/linode-shared-host-setup.json` with the instance id and public IP.
+It also emits `.shuma/remotes/<name>.json` and auto-selects it in `.env.local` so routine day-2 operations can switch to the generic remote layer with no extra step after the first successful deploy.
 The deploy step now also persists any generated operator secrets needed for dashboard/admin/smoke access back into local `.env.local`.
 
 If the Linode host and same-box origin are already prepared, use `--existing-instance-id <linode-id>` to attach Shuma without reprovisioning.
@@ -100,6 +100,7 @@ make remote-open-dashboard
 
 `make remote-update` ships the exact committed local `HEAD`, preserves the remote `.env.local` and `.spin` state, runs a remote loopback `/health` check plus public-route smoke, refreshes the receipt metadata, and attempts rollback if smoke fails. If an older host is missing smoke-critical secrets in local `.env.local`, the helper hydrates them from the remote `.env.local` first and persists them locally.
 Use `make remote-use REMOTE=<name>` later only when you want to switch the active remote.
+`make clean` now removes only reproducible build/test artifacts. Use `make reset-local-state` when you intentionally want to wipe local `.spin` runtime/test state without touching durable operator receipts under `.shuma`.
 
 Dashboard:
 - `http://127.0.0.1:3000/dashboard/index.html`
@@ -145,6 +146,7 @@ make prepare-linode-shared-host # Agent-oriented Linode shared-host setup + rece
 make deploy-self-hosted-minimal # self_hosted_minimal profile wrapper
 make deploy-enterprise-akamai   # enterprise overlay wrapper on shared baseline
 make deploy-linode-one-shot     # Provision Linode VM + deploy runtime in one command
+make reset-local-state # Destructively wipe local .spin runtime/test state while preserving .shuma operator state
 make stop             # Stop Spin server
 make status           # Check server status
 make api-key-show     # Show local dashboard login key from .env.local

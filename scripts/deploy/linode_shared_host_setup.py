@@ -24,6 +24,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from scripts.deploy.local_env import ensure_env_file, read_env_value, upsert_env_value
 from scripts.deploy.remote_target import (
+    DEFAULT_DURABLE_STATE_DIR,
     DEFAULT_REMOTE_RECEIPTS_DIR,
     activate_remote,
     default_public_base_url,
@@ -32,7 +33,8 @@ from scripts.deploy.remote_target import (
 from scripts.site_surface_catalog import SUPPORTED_MODES, build_payload
 
 DEFAULT_ENV_FILE = REPO_ROOT / ".env.local"
-DEFAULT_RECEIPT_PATH = REPO_ROOT / ".spin" / "linode-shared-host-setup.json"
+DEFAULT_RECEIPT_PATH = DEFAULT_DURABLE_STATE_DIR / "linode-shared-host-setup.json"
+DEFAULT_SURFACE_CATALOG_DIR = DEFAULT_DURABLE_STATE_DIR / "catalogs"
 DEFAULT_LINODE_API_URL = "https://api.linode.com/v4"
 DEFAULT_PUBLIC_IP_URL = "https://api.ipify.org?format=json"
 DEFAULT_IMAGE = "linode/ubuntu24.04"
@@ -80,7 +82,7 @@ def detect_public_ip(url: str = DEFAULT_PUBLIC_IP_URL, timeout_seconds: int = 10
 
 
 def default_catalog_output(docroot: Path) -> Path:
-    return REPO_ROOT / ".spin" / f"{docroot.name}.surface-catalog.json"
+    return DEFAULT_SURFACE_CATALOG_DIR / f"{docroot.name}.surface-catalog.json"
 
 
 def ensure_ssh_keypair(private_key_path: Path, comment: str = "shuma-linode") -> tuple[Path, Path, str]:
@@ -254,7 +256,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--remote-name",
-        help="Normalized day-2 remote target name to emit under .spin/remotes/<name>.json",
+        help="Normalized day-2 remote target name to emit under the durable local remote-receipts directory",
     )
     parser.add_argument(
         "--remote-receipts-dir",

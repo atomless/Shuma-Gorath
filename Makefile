@@ -1,4 +1,4 @@
-.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean test test-unit unit-test test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-config-lifecycle test-runtime-preflight-unit test-runtime-preflight test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host remote-use remote-update remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot logs status stop help setup setup-runtime verify verify-runtime config-seed config-verify dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean reset-local-state test test-unit unit-test test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-config-lifecycle test-runtime-preflight-unit test-runtime-preflight test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host remote-use remote-update remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot logs status stop help setup setup-runtime verify verify-runtime config-seed config-verify dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -23,8 +23,9 @@ ENV_LOCAL ?= .env.local
 ifneq ("$(wildcard $(ENV_LOCAL))","")
 include $(ENV_LOCAL)
 endif
-LINODE_SETUP_RECEIPT ?= .spin/linode-shared-host-setup.json
-REMOTE_RECEIPTS_DIR ?= .spin/remotes
+SHUMA_LOCAL_STATE_DIR ?= .shuma
+LINODE_SETUP_RECEIPT ?= $(SHUMA_LOCAL_STATE_DIR)/linode-shared-host-setup.json
+REMOTE_RECEIPTS_DIR ?= $(SHUMA_LOCAL_STATE_DIR)/remotes
 
 # Normalize optional quoted values from .env.local (handles KEY=value and KEY="value")
 strip_wrapping_quotes = $(patsubst "%",%,$(patsubst '%',%,$(strip $(1))))
@@ -646,6 +647,7 @@ test-deploy-linode: ## Validate Linode deploy-path helpers and production input 
 	@echo "$(CYAN)🧪 Running Linode deploy-path verification...$(NC)"
 	@python3 -m unittest scripts/tests/test_build_linode_release_bundle.py
 	@python3 -m unittest scripts/tests/test_build_site_surface_catalog.py
+	@python3 -m unittest scripts/tests/test_local_state_contract.py
 	@python3 -m unittest scripts/tests/test_validate_gateway_route_collisions.py
 	@python3 -m unittest scripts/tests/test_prepare_linode_shared_host.py
 	@python3 -m unittest scripts/tests/test_remote_target.py
@@ -1139,10 +1141,15 @@ clean: ## Clean build artifacts
 	@echo "$(CYAN)🧹 Cleaning build artifacts...$(NC)"
 	@cargo clean
 	@rm -rf dist/wasm
-	@rm -rf .spin
+	@rm -f .spin/dev-watch.lock
 	@rm -rf playwright-report test-results
 	@rm -f src/*.wasm
 	@echo "$(GREEN)✅ Clean complete$(NC)"
+
+reset-local-state: ## Destructively remove local runtime/test state under .spin while preserving durable operator state
+	@echo "$(CYAN)🧨 Resetting local runtime/test state under .spin...$(NC)"
+	@rm -rf .spin
+	@echo "$(GREEN)✅ Local runtime/test state reset complete$(NC)"
 
 logs: ## View Spin component logs
 	@echo "$(CYAN)📜 Spin logs:$(NC)"
@@ -1404,4 +1411,4 @@ help: ## Show this help message
 	@grep -h -E '^(test.*|smoke-single-host):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Utilities:$(NC)"
-	@grep -h -E '^(stop|status|clean|logs|env-help|telemetry-clean|adversary-sim-supervisor|api-key-generate|gen-admin-api-key|api-key-show|api-key-rotate|api-key-validate|deploy-env-validate|help|remote-use|remote-update|remote-start|remote-stop|remote-status|remote-logs|remote-open-dashboard):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'
+	@grep -h -E '^(stop|status|clean|reset-local-state|logs|env-help|telemetry-clean|adversary-sim-supervisor|api-key-generate|gen-admin-api-key|api-key-show|api-key-rotate|api-key-validate|deploy-env-validate|help|remote-use|remote-update|remote-start|remote-stop|remote-status|remote-logs|remote-open-dashboard):.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-25s %s\n", $$1, $$2}'

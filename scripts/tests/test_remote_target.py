@@ -12,7 +12,7 @@ class RemoteTargetTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = Path(tempfile.mkdtemp(prefix="remote-target-"))
         self.env_file = self.temp_dir / ".env.local"
-        self.receipts_dir = self.temp_dir / ".spin" / "remotes"
+        self.receipts_dir = self.temp_dir / ".shuma" / "remotes"
         self.receipts_dir.mkdir(parents=True, exist_ok=True)
         self.receipt_path = self.receipts_dir / "blog-prod.json"
         (self.temp_dir / "catalog.json").write_text('{"inventory":[{"path":"/"}]}\n', encoding="utf-8")
@@ -52,6 +52,10 @@ class RemoteTargetTests(unittest.TestCase):
                 },
             },
         )
+
+    def test_default_remote_receipts_dir_uses_durable_local_state_dir_not_spin(self) -> None:
+        self.assertEqual(remote_target.DEFAULT_REMOTE_RECEIPTS_DIR, remote_target.REPO_ROOT / ".shuma" / "remotes")
+        self.assertNotIn("/.spin/", str(remote_target.DEFAULT_REMOTE_RECEIPTS_DIR))
 
     def test_use_command_persists_active_remote_in_env_file(self) -> None:
         rc = remote_target.main(

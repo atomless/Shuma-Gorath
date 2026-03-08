@@ -21,7 +21,7 @@ Use the repository-native one-shot deployment path:
 
 Production posture is gateway-only (`client -> shuma -> existing origin`). This path is for existing-site protection, not in-app front-door hosting.
 
-If you are starting from a local site plus a Linode account rather than an already-prepared upstream, use [`../prepare-shared-host-on-linode/SKILL.md`](../prepare-shared-host-on-linode/SKILL.md) first. That setup skill is agent-facing: it captures or validates `LINODE_TOKEN`, proposes `SHUMA_ADMIN_IP_ALLOWLIST`, generates `GATEWAY_SURFACE_CATALOG_PATH`, writes `.spin/linode-shared-host-setup.json`, emits the normalized day-2 remote receipt under `.spin/remotes/<name>.json`, and auto-selects that remote in `.env.local`.
+If you are starting from a local site plus a Linode account rather than an already-prepared upstream, use [`../prepare-shared-host-on-linode/SKILL.md`](../prepare-shared-host-on-linode/SKILL.md) first. That setup skill is agent-facing: it captures or validates `LINODE_TOKEN`, proposes `SHUMA_ADMIN_IP_ALLOWLIST`, generates `GATEWAY_SURFACE_CATALOG_PATH`, writes `.shuma/linode-shared-host-setup.json`, emits the normalized day-2 remote receipt under `.shuma/remotes/<name>.json`, and auto-selects that remote in `.env.local`.
 
 Live proof reference:
 
@@ -50,7 +50,7 @@ These may already be satisfied by the setup helper:
 - `LINODE_TOKEN` from `.env.local`
 - `SHUMA_ADMIN_IP_ALLOWLIST` from `.env.local`
 - `GATEWAY_SURFACE_CATALOG_PATH` from `.env.local`
-- `--existing-instance-id <linode-id>` from `.spin/linode-shared-host-setup.json`
+- `--existing-instance-id <linode-id>` from `.shuma/linode-shared-host-setup.json`
 
 Prepared same-host rule:
 
@@ -183,7 +183,7 @@ If the origin ever logs paths that start with `/http://...`, the host is running
    The smoke run also derives a public forward-probe path from `GATEWAY_SURFACE_CATALOG_PATH`; if that path is too dynamic, rerun with `SHUMA_SMOKE_FORWARD_PATH=/stable/public/path`.
 8. Configures Caddy reverse proxy for domain/TLS.
 9. Enables firewall rules for SSH and serving ports.
-10. Writes or refreshes `.spin/remotes/<name>.json` and auto-selects it in `.env.local` so generic `make remote-*` day-2 operations can take over from provider-specific deploy plumbing.
+10. Writes or refreshes `.shuma/remotes/<name>.json` and auto-selects it in `.env.local` so generic `make remote-*` day-2 operations can take over from provider-specific deploy plumbing.
 
 ## Day-2 Handoff
 

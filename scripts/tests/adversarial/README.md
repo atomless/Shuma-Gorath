@@ -113,7 +113,7 @@ The runner writes machine-readable artifacts to:
 Artifact placement policy:
 
 - Keep repo-resident adversarial runner contracts and operator-facing reports in `scripts/tests/adversarial/`.
-- Keep deploy-local and setup-local receipts under `.spin/` so `make clean` removes them and source directories do not accumulate one-off environment artifacts.
+- Keep ephemeral deploy-local preflight reports under `.spin/`, and keep durable operator receipts under `.shuma/` so `make clean` remains truthful while `make reset-local-state` can still wipe local runtime/test scratch space.
 - Reserved-route collision preflight reports therefore live under `.spin/deploy/` by default, not in this directory.
 
 Notes:

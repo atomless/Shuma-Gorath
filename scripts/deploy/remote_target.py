@@ -21,7 +21,8 @@ from scripts.deploy.local_env import ensure_env_file, parse_env_text, read_env_f
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ENV_FILE = REPO_ROOT / ".env.local"
-DEFAULT_REMOTE_RECEIPTS_DIR = REPO_ROOT / ".spin" / "remotes"
+DEFAULT_DURABLE_STATE_DIR = REPO_ROOT / ".shuma"
+DEFAULT_REMOTE_RECEIPTS_DIR = DEFAULT_DURABLE_STATE_DIR / "remotes"
 REMOTE_RECEIPT_SCHEMA = "shuma.remote_target.v1"
 DEFAULT_BACKEND_KIND = "ssh_systemd"
 DEFAULT_APP_DIR = "/opt/shuma-gorath"

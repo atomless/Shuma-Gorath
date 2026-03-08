@@ -44,8 +44,8 @@ What the helper does:
 - ensures a dedicated SSH keypair exists,
 - creates a fresh Linode instance or inspects an existing one,
 - builds `GATEWAY_SURFACE_CATALOG_PATH` from the local docroot,
-- writes a provider setup receipt to `.spin/linode-shared-host-setup.json`,
-- writes a normalized day-2 remote receipt to `.spin/remotes/<name>.json`,
+- writes a provider setup receipt to `.shuma/linode-shared-host-setup.json`,
+- writes a normalized day-2 remote receipt to `.shuma/remotes/<name>.json`,
 - auto-selects that remote into `.env.local` for later `make remote-*` commands.
 
 What the helper must not do:
@@ -62,15 +62,16 @@ After a successful run, expect:
   - `LINODE_TOKEN`
   - `SHUMA_ADMIN_IP_ALLOWLIST`
   - `GATEWAY_SURFACE_CATALOG_PATH`
-- `.spin/linode-shared-host-setup.json` contains:
+- `.shuma/linode-shared-host-setup.json` contains:
   - Linode instance id
   - Linode public IPv4
   - SSH key paths
   - catalog path
   - setup mode (`fresh-instance` or `existing-instance`)
-- `.spin/remotes/<name>.json` contains the normalized `ssh_systemd` contract for later `make remote-*` day-2 operations.
+- `.shuma/remotes/<name>.json` contains the normalized `ssh_systemd` contract for later `make remote-*` day-2 operations.
 
 Treat the provider setup receipt as the deploy handoff artifact, and the normalized remote receipt as the future day-2 operations artifact. Successful setup now also leaves that remote selected locally; `make remote-use REMOTE=<name>` is only for switching later.
+`make clean` must not delete those `.shuma` artifacts; only `make reset-local-state` wipes `.spin`.
 
 ## Canonical Usage
 

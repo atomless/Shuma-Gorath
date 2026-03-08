@@ -394,6 +394,7 @@ These directories are generated locally/<abbr title="Continuous Integration">CI<
 - `.cache/playwright-home/` - repo-local Playwright HOME/config sandbox
 
 `make clean` removes core build/test outputs, including stale local `src/*.wasm` artifacts.
+Use `make reset-local-state` when you intentionally want to wipe local `.spin` runtime/test state (SQLite KV, logs, local deploy receipts, and verification receipt) while preserving durable operator artifacts under `.shuma`.
 
 ## 🐙 Manual Test Sequence (Optional)
 

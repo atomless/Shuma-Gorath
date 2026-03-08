@@ -76,9 +76,19 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
         (self.docroot / "index.html").write_text("<h1>Hello</h1>\n", encoding="utf-8")
         (self.docroot / "about.html").write_text("<p>About</p>\n", encoding="utf-8")
         self.env_file = self.temp_dir / ".env.local"
-        self.catalog_path = self.temp_dir / ".spin" / "site.surface-catalog.json"
-        self.receipt_path = self.temp_dir / ".spin" / "linode-shared-host-setup.json"
-        self.remote_receipts_dir = self.temp_dir / ".spin" / "remotes"
+        self.catalog_path = self.temp_dir / ".shuma" / "catalogs" / "site.surface-catalog.json"
+        self.receipt_path = self.temp_dir / ".shuma" / "linode-shared-host-setup.json"
+        self.remote_receipts_dir = self.temp_dir / ".shuma" / "remotes"
+
+    def test_default_paths_use_durable_local_state_dir_not_spin(self) -> None:
+        catalog_path = setup.default_catalog_output(self.docroot)
+        self.assertEqual(
+            catalog_path,
+            setup.REPO_ROOT / ".shuma" / "catalogs" / f"{self.docroot.name}.surface-catalog.json",
+        )
+        self.assertEqual(setup.DEFAULT_RECEIPT_PATH, setup.REPO_ROOT / ".shuma" / "linode-shared-host-setup.json")
+        self.assertEqual(setup.DEFAULT_REMOTE_RECEIPTS_DIR, setup.REPO_ROOT / ".shuma" / "remotes")
+        self.assertNotIn("/.spin/", str(catalog_path))
 
     def test_prompts_for_token_persists_env_and_writes_receipt(self) -> None:
         client = FakeLinodeClient("linode-secret")
@@ -270,7 +280,7 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
     def test_make_target_uses_receipt_ssh_paths_when_env_is_blank(self) -> None:
         self.catalog_path.parent.mkdir(parents=True, exist_ok=True)
         self.catalog_path.write_text('{"inventory":[{"path":"/"}]}\n', encoding="utf-8")
-        receipt_path = self.temp_dir / ".spin" / "linode-shared-host-setup.json"
+        receipt_path = self.temp_dir / ".shuma" / "linode-shared-host-setup.json"
         receipt_path.parent.mkdir(parents=True, exist_ok=True)
         receipt_path.write_text(
             json.dumps(

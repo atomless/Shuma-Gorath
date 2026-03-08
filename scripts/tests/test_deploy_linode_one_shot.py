@@ -38,7 +38,7 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         self.open_log = self.temp_dir / "open.log"
         self.captured_manifest = self.temp_dir / "captured-spin.toml"
         self.catalog_path = self.temp_dir / "catalog.json"
-        self.remote_receipts_dir = self.temp_dir / ".spin" / "remotes"
+        self.remote_receipts_dir = self.temp_dir / ".shuma" / "remotes"
         self.env_file = self.temp_dir / ".env.local"
         self.catalog_path.write_text('{"inventory":[{"path":"/"}]}\n', encoding="utf-8")
 
@@ -80,7 +80,15 @@ class DeployLinodeOneShotTests(unittest.TestCase):
                 elif "/images" in url:
                     payload = {"data": [{"id": "linode/ubuntu24.04"}]}
                 elif "/linode/instances/123" in url:
-                    payload = {"id": 123, "status": "running", "ipv4": ["198.51.100.24"]}
+                    payload = {
+                        "id": 123,
+                        "label": "existing-shuma-host",
+                        "status": "running",
+                        "ipv4": ["198.51.100.24"],
+                        "region": "gb-lon",
+                        "type": "g6-standard-1",
+                        "image": "linode/ubuntu24.04",
+                    }
                 else:
                     payload = {"data": []}
 
@@ -279,6 +287,26 @@ class DeployLinodeOneShotTests(unittest.TestCase):
             "SHUMA_ACTIVE_REMOTE=blog-prod",
             self.env_file.read_text(encoding="utf-8"),
         )
+
+    def test_existing_instance_deploy_writes_actual_instance_provider_metadata(self) -> None:
+        result = self.run_script(
+            "--remote-name",
+            "blog-prod",
+            "--domain",
+            "shuma.example.com",
+            "--existing-instance-id",
+            "123",
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        remote_receipt = json.loads(
+            (self.remote_receipts_dir / "blog-prod.json").read_text(encoding="utf-8")
+        )
+        provider = remote_receipt["provider"]["linode"]
+        self.assertEqual(provider["instance_id"], 123)
+        self.assertEqual(provider["label"], "existing-shuma-host")
+        self.assertEqual(provider["region"], "gb-lon")
+        self.assertEqual(provider["type"], "g6-standard-1")
+        self.assertEqual(provider["image"], "linode/ubuntu24.04")
 
     def test_existing_instance_deploy_persists_generated_operator_secrets_locally(self) -> None:
         result = self.run_script(

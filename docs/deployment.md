@@ -78,10 +78,10 @@ That helper is agent-oriented. It can:
 - propose and persist `SHUMA_ADMIN_IP_ALLOWLIST`,
 - generate `GATEWAY_SURFACE_CATALOG_PATH`,
 - create or inspect the Linode instance,
-- write `.spin/linode-shared-host-setup.json`,
-- emit a normalized day-2 target receipt under `.spin/remotes/<name>.json`.
+- write `.shuma/linode-shared-host-setup.json`,
+- emit a normalized day-2 target receipt under `.shuma/remotes/<name>.json`.
 
-After that, `make deploy-linode-one-shot` can reuse the persisted `.env.local` state plus the SSH key paths stored in `.spin/linode-shared-host-setup.json` instead of asking the operator for those inputs again.
+After that, `make deploy-linode-one-shot` can reuse the persisted `.env.local` state plus the SSH key paths stored in `.shuma/linode-shared-host-setup.json` instead of asking the operator for those inputs again.
 
 For a fresh Linode account/host bootstrap, you can provision and deploy from this repository in one command:
 
@@ -114,7 +114,7 @@ Requirements:
 This workflow runs local production preflight, builds an exact local git `HEAD` release bundle, provisions the VM, bootstraps runtime dependencies on the server, validates remote single-host posture with `make deploy-self-hosted-minimal`, runs `make smoke-single-host` (including forwarded public-path parity against the configured upstream origin plus reserved-route/admin checks), installs a `systemd` unit that starts the already-prepared runtime with `make prod-start`, and prints the final dashboard URL. When `--open-dashboard` is set, it also opens `/dashboard` locally after success.
 For shared-host gateway deployments, the canonical path also renders a deployment-specific Spin manifest from [`spin.toml`](../spin.toml) so the runtime keeps the repo template deny-by-default while the deployed host gets the exact upstream allowlist it needs.
 For admin-route smoke checks, `make smoke-single-host` derives an allowlisted forwarded IP from `SHUMA_ADMIN_IP_ALLOWLIST` by default. Override it with `SHUMA_SMOKE_ADMIN_FORWARDED_IP` when the first allowlist entry is not the right trusted operator IP for the check.
-On successful deploy, the Linode path also refreshes `.spin/remotes/<name>.json` so later `make remote-*` day-2 operations can use the provider-agnostic `ssh_systemd` contract instead of rerunning provider-specific setup.
+On successful deploy, the Linode path also refreshes `.shuma/remotes/<name>.json` so later `make remote-*` day-2 operations can use the provider-agnostic `ssh_systemd` contract instead of rerunning provider-specific setup.
 
 If you already have a prepared Linode instance with a same-host origin listening on a local-only upstream such as `http://127.0.0.1:8080`, attach Shuma without reprovisioning by using `--existing-instance-id`:
 
@@ -138,7 +138,7 @@ Related repo-local deployment skills:
 
 ## 🐙 Generic SSH Remote Day-2 Operations
 
-Once setup or deploy succeeds, the emitted `.spin/remotes/<name>.json` receipt is auto-selected into `.env.local`, so routine operations can move straight to the provider-agnostic remote layer:
+Once setup or deploy succeeds, the emitted `.shuma/remotes/<name>.json` receipt is auto-selected into `.env.local`, so routine operations can move straight to the provider-agnostic remote layer:
 
 ```bash
 make remote-update
@@ -152,10 +152,11 @@ make remote-open-dashboard
 Rules:
 
 - `.env.local` keeps only `SHUMA_ACTIVE_REMOTE=<name>` for remote selection, and successful setup/deploy now updates it automatically.
-- structured remote target state lives in `.spin/remotes/<name>.json`.
+- structured remote target state lives in `.shuma/remotes/<name>.json`.
 - the current generic backend contract is `ssh_systemd` only.
 - `remote-update` now means: ship the exact committed local `HEAD`, preserve remote `.env.local` and `.spin`, validate and restart on the remote host, run a remote loopback `/health` check plus public-route smoke against the public base URL, refresh local receipt metadata, and attempt rollback if smoke fails. If an older host is missing smoke-critical secrets in local `.env.local`, the helper hydrates those values from the remote `.env.local` first and persists them locally.
 - `make remote-use REMOTE=<name>` remains the manual switch command when you want to change the active target later.
+- `make clean` must not remove `.shuma`; use `make reset-local-state` only when you intentionally want to wipe local `.spin` runtime/test state.
 
 ## 🐙 10-Minute `self_hosted_minimal` Runbook (Start + Health + Rollback)
 
@@ -340,7 +341,7 @@ Gateway onboarding with shared-host discovery outputs:
      python3 scripts/build_site_surface_catalog.py \
        --docroot /abs/path/to/site/docroot \
        --mode static-html-docroot \
-       --output /abs/path/to/.spin/site.surface-catalog.json
+       --output /abs/path/to/.shuma/catalogs/site.surface-catalog.json
      ```
 
    - This helper inventories the docroot first, then merges local sitemap evidence when present. A human-authored sitemap is not required for the initial deterministic artifact.
