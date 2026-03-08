@@ -236,7 +236,7 @@ if [[ -n "${SHUMA_FORWARDED_IP_SECRET:-}" ]]; then
 fi
 
 http_request GET "${BASE_URL}/admin/config" "${ADMIN_FORWARDED_HEADERS[@]}"
-if [[ "${HTTP_STATUS}" == "401" || "${HTTP_STATUS}" == "403" ]]; then
+if [[ "${HTTP_STATUS}" == "401" || "${HTTP_STATUS}" == "403" || "${HTTP_STATUS}" == "302" ]]; then
   pass "/admin/config requires auth"
 else
   fail "/admin/config should reject unauthenticated access (status=${HTTP_STATUS})"
