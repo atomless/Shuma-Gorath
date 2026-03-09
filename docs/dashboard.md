@@ -60,6 +60,7 @@ Notes:
 
 - Login page: `/dashboard/login.html`
 - Login form uses a native form `POST` to `/admin/login`, a visible readonly `Account` field with `autocomplete="username"`, and `current-password` semantics for the API key field so browsers/password managers can recognize it as a normal sign-in flow and associate the saved key with the dashboard account for this origin.
+- When the login page is ready for a new session, it focuses the API key field automatically so operators can paste the key immediately on local and remote dashboards.
 - Admin session uses same-origin cookie + CSRF header for state-changing calls.
 - Config panes are editable only when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`.
 - Adversary Sim OFF -> ON toggles show a frontier-key warning when no frontier provider keys are configured:

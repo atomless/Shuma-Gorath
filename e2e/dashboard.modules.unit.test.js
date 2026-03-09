@@ -3061,6 +3061,8 @@ test('login route syncs disconnected + runtime classes onto html root and gates 
   assert.match(source, /disabled=\{!runtimeStateAvailable\}/);
   assert.match(source, /backendConnectionState:\s*'disconnected'/);
   assert.match(source, /runtime_environment/);
+  assert.match(source, /let apiKeyInput = null;/);
+  assert.match(source, /apiKeyInput\.focus\(\)/);
 });
 
 test('login route exposes native password-manager-friendly form-post semantics', () => {

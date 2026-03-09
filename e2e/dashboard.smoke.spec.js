@@ -970,8 +970,10 @@ test("dashboard login route remains functional after direct navigation and refre
   await expect(page.locator('input[type="hidden"][name="next"]')).toHaveValue("/dashboard/index.html");
   await expect(page.locator("#current-password")).toHaveAttribute("name", "password");
   await expect(page.locator("#current-password")).toHaveAttribute("autocomplete", "current-password");
+  await expect(page.locator("#current-password")).toBeFocused();
   await page.reload();
   await expect(page.locator("#login-form")).toBeVisible();
+  await expect(page.locator("#current-password")).toBeFocused();
   await page.fill("#current-password", API_KEY);
   await page.click("#login-submit");
   await expect(page).toHaveURL(/\/dashboard\/index\.html/);

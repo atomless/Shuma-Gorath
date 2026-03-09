@@ -1,6 +1,6 @@
 <script>
   import { base } from '$app/paths';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import {
     deriveDashboardBodyClassState,
     syncDashboardBodyClasses
@@ -11,6 +11,7 @@
   } from '$lib/runtime/dashboard-paths.js';
 
   let apiKey = '';
+  let apiKeyInput = null;
   let messageText = '';
   let messageKind = 'info';
   let runtimeStateAvailable = false;
@@ -70,6 +71,12 @@
     syncDashboardBodyClasses(document, classState);
   }
 
+  async function focusApiKeyInput() {
+    if (typeof document === 'undefined' || !apiKeyInput) return;
+    await tick();
+    apiKeyInput.focus();
+  }
+
   function loginMessageFromQuery(params) {
     const errorCode = String(params.get('error') || '').trim().toLowerCase();
     if (!errorCode) return '';
@@ -113,7 +120,9 @@
     syncLoginRootClasses(runtimeEnvironment);
     if (session && session.authenticated === true && session.method === 'session') {
       window.location.replace(nextPath);
+      return;
     }
+    await focusApiKeyInput();
   });
 </script>
 
@@ -151,6 +160,7 @@
         required
         aria-label="Application Programming Interface key"
         bind:value={apiKey}
+        bind:this={apiKeyInput}
       >
       <button
         id="login-submit"
