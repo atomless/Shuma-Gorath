@@ -50,6 +50,21 @@ make remote-stop    # Stop the active ssh_systemd remote service
 make remote-open-dashboard # Open the hosted dashboard for the active ssh_systemd remote
 ```
 
+## 🐙 Runtime and Deployment Posture Matrix
+
+| Posture | `SHUMA_RUNTIME_ENV` | `SHUMA_DEBUG_HEADERS` | `SHUMA_ADMIN_IP_ALLOWLIST` | `SHUMA_ENFORCE_HTTPS` | `SHUMA_GATEWAY_UPSTREAM_ORIGIN` | `SHUMA_LOCAL_PROD_DIRECT_MODE` |
+| --- | --- | --- | --- | --- | --- | --- |
+| `make dev` | `runtime-dev` | `true` | empty by default | `false` by default | not required | `false` (normally) |
+| `make dev-prod` | `runtime-prod` | `false` | empty by default | `false` by default | not required (local-direct) | `true` |
+| deployed production | `runtime-prod` | `false` | required and must be narrow | `true` | required | `false` |
+
+Notes:
+- `make dev` is intentionally permissive for local debugging and dashboard/operator iteration.
+- `make dev-prod` is a localhost-only prod-like posture for observing `runtime-prod` behavior without a real gateway upstream. It is not a deployment substitute.
+- deployed production adds deployment guardrails beyond the table above: non-overbroad admin allowlisting, edge rate-limit attestation, API-key rotation attestation, gateway origin lock confirmation, reserved-route collision proof, and strict gateway TLS posture.
+- `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` now defaults to `true` in all three postures; disable it only when you explicitly want a read-only admin config surface.
+- `SHUMA_ADVERSARY_SIM_AVAILABLE` now defaults to `true` in all three postures; set it to `false` only when a deployment must hide adversary-sim surfaces entirely.
+
 ### 🐙 Testing
 ```bash
 # All tests (recommended)

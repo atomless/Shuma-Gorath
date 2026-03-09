@@ -1963,8 +1963,21 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(runtimePostureItem?.status, 'RUNTIME-PROD / LOCAL-DIRECT');
     assert.equal(adminWritePostureItem?.status, 'DISABLED');
     assert.equal(retentionFreshnessItem?.status, 'DEGRADED');
+    assert.match(
+      String(runtimePostureItem?.description || ''),
+      /https:\/\/github\.com\/atomless\/Shuma-Gorath\/blob\/main\/docs\/quick-reference\.md#runtime-and-deployment-posture-matrix/
+    );
     assert.equal(statusItems.some((item) => stripHtml(item.title) === 'Challenge'), false);
   });
+});
+
+test('quick reference documents the runtime and deployment posture matrix', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '..', 'docs', 'quick-reference.md'), 'utf8');
+  assert.match(source, /## 🐙 Runtime and Deployment Posture Matrix/);
+  assert.match(source, /\| Posture \| `SHUMA_RUNTIME_ENV` \| `SHUMA_DEBUG_HEADERS` \| `SHUMA_ADMIN_IP_ALLOWLIST` \| `SHUMA_ENFORCE_HTTPS` \| `SHUMA_GATEWAY_UPSTREAM_ORIGIN` \| `SHUMA_LOCAL_PROD_DIRECT_MODE` \|/);
+  assert.match(source, /\| `make dev` \| `runtime-dev` \| `true` \| empty by default \| `false` by default \| not required \| `false` \(normally\) \|/);
+  assert.match(source, /\| `make dev-prod` \| `runtime-prod` \| `false` \| empty by default \| `false` by default \| not required \(local-direct\) \| `true` \|/);
+  assert.match(source, /\| deployed production \| `runtime-prod` \| `false` \| required and must be narrow \| `true` \| required \| `false` \|/);
 });
 
 test('status refresh hydrates monitoring retention/freshness snapshot without monitoring-tab bootstrap', { concurrency: false }, async () => {

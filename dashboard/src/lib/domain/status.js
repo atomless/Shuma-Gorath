@@ -102,6 +102,8 @@ function withAbbrMarkup(text) {
   }
 
 const EMPTY_VAR_MEANINGS = Object.freeze({});
+const QUICK_REFERENCE_RUNTIME_MATRIX_URL =
+  'https://github.com/atomless/Shuma-Gorath/blob/main/docs/quick-reference.md#runtime-and-deployment-posture-matrix';
 
 const VAR_GROUP_DEFINITIONS = Object.freeze([
     {
@@ -575,7 +577,8 @@ const STATUS_DEFINITIONS = [
         `(<strong>${escapeHtml(snapshot.runtimeEnvironment || 'unknown')}</strong>). ` +
         `Deployment profile comes from ${envVar('SHUMA_GATEWAY_DEPLOYMENT_PROFILE')} ` +
         `(<strong>${escapeHtml(snapshot.gatewayDeploymentProfile || 'unknown')}</strong>). ` +
-        `When ${envVar('SHUMA_LOCAL_PROD_DIRECT_MODE')} is true, localhost prod-like runs are treated as <strong>local-direct</strong> and do not require ${envVar('SHUMA_GATEWAY_UPSTREAM_ORIGIN')}.`
+        `When ${envVar('SHUMA_LOCAL_PROD_DIRECT_MODE')} is true, localhost prod-like runs are treated as <strong>local-direct</strong> and do not require ${envVar('SHUMA_GATEWAY_UPSTREAM_ORIGIN')}. ` +
+        `See the <a href="${QUICK_REFERENCE_RUNTIME_MATRIX_URL}" target="_blank" rel="noopener noreferrer">runtime and deployment posture matrix</a> for the exact dev versus local prod-like versus deployed production differences.`
       ),
       status: snapshot => formatDeploymentPosture(snapshot)
     },
