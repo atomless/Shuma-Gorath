@@ -2631,13 +2631,6 @@ test("geo and tuning save flows cover GEO lists, botness controls, and browser p
     const geoSave = page.locator("#save-geo-config");
     await expect(geoSave).toBeHidden();
 
-    const geoSignalToggle = page.locator("#geo-edge-header-enabled-toggle");
-    const geoSignalSwitch = page.locator("label.toggle-switch[for='geo-edge-header-enabled-toggle']");
-    if (await geoSignalSwitch.isVisible() && await geoSignalToggle.isEnabled()) {
-      await geoSignalSwitch.click();
-      await submitConfigSave(page, geoSave);
-    }
-
     const geoScoringToggle = page.locator("#geo-scoring-toggle");
     const geoScoringSwitch = page.locator("label.toggle-switch[for='geo-scoring-toggle']");
     if (await geoScoringSwitch.isVisible() && await geoScoringToggle.isEnabled()) {
@@ -2734,7 +2727,18 @@ test("geo and tuning save flows cover GEO lists, botness controls, and browser p
   });
 });
 
-test("rate-limiting tab save flows cover local controls and external backend toggle", async ({ page, request }) => {
+test("geo tab hides trusted edge header controls outside edge-fermyon posture", async ({ page }) => {
+  await openDashboard(page);
+  await openTab(page, "geo");
+
+  await expect(page.locator("#geo-edge-header-enabled-toggle")).toHaveCount(0);
+  await expect(page.locator("#geo-edge-unavailable-message")).toContainText(
+    "available only when Shuma-Gorath is deployed on Akamai edge"
+  );
+  await expect(page.locator("#save-geo-config")).toBeHidden();
+});
+
+test("rate-limiting tab save flows cover local controls", async ({ page, request }) => {
   await withRestoredAdminConfig(request, RATE_LIMITING_RESTORE_PATHS, async () => {
     await openDashboard(page);
     await openTab(page, "rate-limiting");
@@ -2757,14 +2761,17 @@ test("rate-limiting tab save flows cover local controls and external backend tog
       await rateEnabledSwitch.click();
       await submitConfigSave(page, saveButton);
     }
-
-    const externalBackendToggle = page.locator("#rate-external-backend-enabled-toggle");
-    const externalBackendSwitch = page.locator("label.toggle-switch[for='rate-external-backend-enabled-toggle']");
-    if (await externalBackendSwitch.isVisible() && await externalBackendToggle.isEnabled()) {
-      await externalBackendSwitch.click();
-      await submitConfigSave(page, saveButton);
-    }
   });
+});
+
+test("rate-limiting tab hides external backend controls outside edge-fermyon posture", async ({ page }) => {
+  await openDashboard(page);
+  await openTab(page, "rate-limiting");
+
+  await expect(page.locator("#rate-external-backend-enabled-toggle")).toHaveCount(0);
+  await expect(page.locator("#rate-edge-unavailable-message")).toContainText(
+    "available only when Shuma-Gorath is deployed on Akamai edge"
+  );
 });
 
 test("fingerprinting tab hides Akamai controls outside edge-fermyon posture", async ({ page }) => {

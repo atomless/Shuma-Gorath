@@ -22,6 +22,7 @@
   let savingGeo = false;
   let warnOnUnload = false;
   let lastAppliedConfigVersion = -1;
+  let akamaiEdgeAvailable = false;
 
   let geoRiskList = '';
   let geoAllowList = '';
@@ -57,6 +58,7 @@
 
   const applyConfig = (config = {}) => {
     writable = config.admin_config_write_enabled !== false;
+    akamaiEdgeAvailable = config.akamai_edge_available === true;
     geoRiskList = formatCountryCodes(config.geo_risk);
     geoAllowList = formatCountryCodes(config.geo_allow);
     geoChallengeList = formatCountryCodes(config.geo_challenge);
@@ -211,6 +213,7 @@
   );
   $: geoEdgeHeaderDirty =
     readBool(geoEdgeHeaderSignalEnabled) !== baseline.edgeHeaderSignal.enabled;
+  $: geoEdgeControlsVisible = akamaiEdgeAvailable === true;
 
   $: hasUnsavedChanges = geoScoringDirty || geoRoutingDirty || geoEdgeHeaderDirty;
   $: saveGeoDisabled = !writable || !hasUnsavedChanges || !geoValid || savingGeo;
@@ -247,17 +250,23 @@
   <div class="controls-grid controls-grid--config">
     <ConfigPanel writable={writable} dirty={geoEdgeHeaderDirty}>
       <ConfigPanelHeading title="Trusted GEO Edge Header Signal">
-        <label class="toggle-switch" for="geo-edge-header-enabled-toggle">
-          <input
-            type="checkbox"
-            id="geo-edge-header-enabled-toggle"
-            aria-label="Enable trusted GEO edge header signal ingestion"
-            bind:checked={geoEdgeHeaderSignalEnabled}
-          >
-          <span class="toggle-slider"></span>
-        </label>
+        {#if geoEdgeControlsVisible}
+          <label class="toggle-switch" for="geo-edge-header-enabled-toggle">
+            <input
+              type="checkbox"
+              id="geo-edge-header-enabled-toggle"
+              aria-label="Enable trusted GEO edge header signal ingestion"
+              bind:checked={geoEdgeHeaderSignalEnabled}
+            >
+            <span class="toggle-slider"></span>
+          </label>
+        {/if}
       </ConfigPanelHeading>
-      <p class="control-desc text-muted">When enabled, Shuma-Gorath accepts a trusted edge-provided country header for GEO scoring and routing decisions. The current runtime expects the upstream edge layer to map provider-native GEO data into <code>X-Geo-Country</code>; this is not yet a direct Akamai EdgeScape parser.</p>
+      {#if geoEdgeControlsVisible}
+        <p class="control-desc text-muted">When enabled, Shuma-Gorath accepts a trusted edge-provided country header for GEO scoring and routing decisions. The current runtime expects the upstream edge layer to map provider-native GEO data into <code>X-Geo-Country</code>; this is not yet a direct Akamai EdgeScape parser.</p>
+      {:else}
+        <p id="geo-edge-unavailable-message" class="control-desc text-muted">Trusted GEO edge-header controls are available only when Shuma-Gorath is deployed on Akamai edge (`gateway_deployment_profile=edge-fermyon`). Shared-server and other non-edge postures keep this integration hidden.</p>
+      {/if}
     </ConfigPanel>
 
     <ConfigGeoSection

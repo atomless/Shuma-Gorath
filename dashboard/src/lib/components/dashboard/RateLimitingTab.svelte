@@ -23,6 +23,7 @@
   let savingRateLimiting = false;
   let warnOnUnload = false;
   let lastAppliedConfigVersion = -1;
+  let akamaiEdgeAvailable = false;
 
   let rateLimitingEnabled = true;
   let rateLimitThreshold = 80;
@@ -48,6 +49,7 @@
 
   const applyConfig = (config = {}) => {
     writable = config.admin_config_write_enabled !== false;
+    akamaiEdgeAvailable = config.akamai_edge_available === true;
     rateLimitThreshold = parseInteger(config.rate_limit, 80);
     rateLimitingEnabled = rateEnforcementEnabledFromMode(config?.defence_modes?.rate ?? 'both');
     externalRateBackendEnabled =
@@ -119,6 +121,7 @@
   );
   $: externalRateBackendDirty =
     readBool(externalRateBackendEnabled) !== baseline.externalBackend.enabled;
+  $: rateEdgeControlsVisible = akamaiEdgeAvailable === true;
   $: hasUnsavedChanges = rateLimitDirty || externalRateBackendDirty;
   $: rateLimitingValid = rateLimitValid;
   $: saveRateLimitingDisabled =
@@ -156,17 +159,23 @@
   <div class="controls-grid controls-grid--config">
     <ConfigPanel writable={writable} dirty={externalRateBackendDirty}>
       <ConfigPanelHeading title="External Rate Limiter Backend">
-        <label class="toggle-switch" for="rate-external-backend-enabled-toggle">
-          <input
-            type="checkbox"
-            id="rate-external-backend-enabled-toggle"
-            aria-label="Enable external rate limiter backend"
-            bind:checked={externalRateBackendEnabled}
-          >
-          <span class="toggle-slider"></span>
-        </label>
+        {#if rateEdgeControlsVisible}
+          <label class="toggle-switch" for="rate-external-backend-enabled-toggle">
+            <input
+              type="checkbox"
+              id="rate-external-backend-enabled-toggle"
+              aria-label="Enable external rate limiter backend"
+              bind:checked={externalRateBackendEnabled}
+            >
+            <span class="toggle-slider"></span>
+          </label>
+        {/if}
       </ConfigPanelHeading>
-      <p class="control-desc text-muted">Enable this when the deployment provides a trusted distributed rate-limiter backend path. Today this switches Shuma-Gorath between its internal limiter and the external provider backend on <code>provider_backends.rate_limiter</code>; it is not yet direct Akamai rate-signal ingestion.</p>
+      {#if rateEdgeControlsVisible}
+        <p class="control-desc text-muted">Enable this when the deployment provides a trusted distributed rate-limiter backend path. Today this switches Shuma-Gorath between its internal limiter and the external provider backend on <code>provider_backends.rate_limiter</code>; it is not yet direct Akamai rate-signal ingestion.</p>
+      {:else}
+        <p id="rate-edge-unavailable-message" class="control-desc text-muted">External rate-backend controls are available only when Shuma-Gorath is deployed on Akamai edge (`gateway_deployment_profile=edge-fermyon`). Shared-server and other non-edge postures keep this integration hidden.</p>
+      {/if}
     </ConfigPanel>
 
     <ConfigPanel writable={writable} dirty={rateLimitDirty}>
