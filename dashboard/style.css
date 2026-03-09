@@ -140,7 +140,7 @@
   transition: filter .6s ease-in;
 }
 :root.connected.runtime-prod {
-  filter: saturate(1.7);
+  filter: saturate(1.2);
 }
 
 :root.disconnected {
