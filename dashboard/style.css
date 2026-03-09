@@ -131,7 +131,7 @@
 }
 
 :root.runtime-prod {
-  --hue: 206;
+  --hue: -93;
   --striped-testmode-bg: repeating-linear-gradient(-45deg, hsla(320, 35%, 65%, 0.85), hsla(320, 35%, 65%, 0.85) 10px, hsl(320, 59%, 69%) 10px, hsl(320, 59%, 69%) 20px);
 }
 
@@ -396,7 +396,7 @@ body {
 }
 
 :root.runtime-prod:not(.disconnected) .shuma-gorath-img {
-  filter: sepia(1) hue-rotate(170deg) saturate(1);
+  filter: sepia(0.7) hue-rotate(-123deg) saturate(2);
   transition: all .6s ease-in;
 }
 
