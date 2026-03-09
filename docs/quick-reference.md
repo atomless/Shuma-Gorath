@@ -90,6 +90,9 @@ make test-adversary-sim-runtime-surface # Runtime-toggle defense-surface telemet
 make dev                   # In terminal 1
 make test-adversarial-live # In terminal 2 (Ctrl+C to stop)
 
+# Live remote trusted-edge signal proof (active ssh_systemd remote required)
+make test-remote-edge-signal-smoke # Proves live fingerprint-report additive/authoritative + trusted GEO challenge/maze/block
+
 # Dashboard e2e smoke tests only (Spin environment required)
 make dev                   # In terminal 1
 make test-dashboard-e2e    # In terminal 2

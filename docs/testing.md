@@ -312,6 +312,11 @@ Simulation telemetry read policy:
 - `POST /admin/adversary-sim/history/cleanup` is the explicit cleanup control path; auto-off is not a retention cleanup action.
   In `runtime-prod`, cleanup requires `X-Shuma-Telemetry-Cleanup-Ack: I_UNDERSTAND_TELEMETRY_CLEANUP` (the Make target sends this header).
 `test-adversarial-akamai` is fixture-driven (local `/fingerprint-report` with canned payloads) and does not require a live Akamai edge instance.
+`test-remote-edge-signal-smoke` is the live ssh-managed-host proof for the currently implemented trusted-edge surfaces. It runs against the active normalized remote, uses SSH loopback transport to `127.0.0.1:3000` on the host, and proves:
+- additive `/fingerprint-report` ingestion,
+- authoritative `/fingerprint-report` ban behavior,
+- trusted GEO country-header routing for challenge, maze, and block.
+It does not yet prove future Akamai-native rate or rich-geo augmentations; those remain separate backlog work.
 Operator interpretation and tuning workflow is documented in `docs/adversarial-operator-guide.md`.
 
 Manifest and fixtures live under:
