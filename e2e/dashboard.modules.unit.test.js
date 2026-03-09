@@ -2870,7 +2870,7 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(rateLimitingSource, /await onSaveConfig\(payload/);
   assert.match(rateLimitingSource, /id="rate-limiting-enabled-toggle"/);
   assert.match(rateLimitingSource, /id="rate-limit-threshold"/);
-  assert.match(rateLimitingSource, /id="rate-akamai-enabled-toggle"/);
+  assert.match(rateLimitingSource, /id="rate-external-backend-enabled-toggle"/);
   assert.match(rateLimitingSource, /buttonId="save-rate-limiting-config"/);
   assert.match(rateLimitingSource, /window\.addEventListener\('beforeunload'/);
 
@@ -2879,7 +2879,7 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(geoSource, /<ConfigGeoSection/);
   assert.match(configGeoSource, /id="geo-scoring-toggle"/);
   assert.match(configGeoSource, /id="geo-routing-toggle"/);
-  assert.match(geoSource, /id="geo-akamai-enabled-toggle"/);
+  assert.match(geoSource, /id="geo-edge-header-enabled-toggle"/);
   assert.match(geoSource, /geo_edge_headers_enabled/);
   assert.match(geoSource, /buttonId="save-geo-config"/);
   assert.match(geoSource, /window\.addEventListener\('beforeunload'/);

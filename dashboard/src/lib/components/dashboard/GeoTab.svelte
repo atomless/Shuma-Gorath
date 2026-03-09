@@ -30,7 +30,7 @@
   let geoBlockList = '';
   let geoScoringEnabled = true;
   let geoRoutingEnabled = true;
-  let akamaiGeoSignalEnabled = false;
+  let geoEdgeHeaderSignalEnabled = false;
 
   let baseline = {
     geo: {
@@ -42,7 +42,7 @@
       maze: '',
       block: ''
     },
-    akamai: {
+    edgeHeaderSignal: {
       enabled: false
     }
   };
@@ -65,7 +65,7 @@
     const geoToggleState = geoToggleStateFromMode(config?.defence_modes?.geo);
     geoScoringEnabled = geoToggleState.scoringEnabled;
     geoRoutingEnabled = geoToggleState.routingEnabled;
-    akamaiGeoSignalEnabled = config.geo_edge_headers_enabled === true;
+    geoEdgeHeaderSignalEnabled = config.geo_edge_headers_enabled === true;
 
     baseline = {
       geo: {
@@ -77,8 +77,8 @@
         maze: normalizeCountryCodesForCompare(geoMazeList),
         block: normalizeCountryCodesForCompare(geoBlockList)
       },
-      akamai: {
-        enabled: akamaiGeoSignalEnabled === true
+      edgeHeaderSignal: {
+        enabled: geoEdgeHeaderSignalEnabled === true
       }
     };
   };
@@ -102,8 +102,8 @@
       payload.geo_maze = parseCountryCodesStrict(geoMazeList);
       payload.geo_block = parseCountryCodesStrict(geoBlockList);
     }
-    if (akamaiGeoDirty) {
-      payload.geo_edge_headers_enabled = akamaiGeoSignalEnabled === true;
+    if (geoEdgeHeaderDirty) {
+      payload.geo_edge_headers_enabled = geoEdgeHeaderSignalEnabled === true;
     }
 
     try {
@@ -121,8 +121,8 @@
             maze: normalizeCountryCodesForCompare(geoMazeList),
             block: normalizeCountryCodesForCompare(geoBlockList)
           },
-          akamai: {
-            enabled: akamaiGeoSignalEnabled === true
+          edgeHeaderSignal: {
+            enabled: geoEdgeHeaderSignalEnabled === true
           }
         };
       }
@@ -209,9 +209,10 @@
     geoMazeNormalized !== baseline.geo.maze ||
     geoBlockNormalized !== baseline.geo.block
   );
-  $: akamaiGeoDirty = readBool(akamaiGeoSignalEnabled) !== baseline.akamai.enabled;
+  $: geoEdgeHeaderDirty =
+    readBool(geoEdgeHeaderSignalEnabled) !== baseline.edgeHeaderSignal.enabled;
 
-  $: hasUnsavedChanges = geoScoringDirty || geoRoutingDirty || akamaiGeoDirty;
+  $: hasUnsavedChanges = geoScoringDirty || geoRoutingDirty || geoEdgeHeaderDirty;
   $: saveGeoDisabled = !writable || !hasUnsavedChanges || !geoValid || savingGeo;
   $: saveGeoLabel = savingGeo ? 'Saving...' : 'Save GEO settings';
   $: saveGeoSummary = hasUnsavedChanges
@@ -244,19 +245,19 @@
 >
   <TabStateMessage tab="geo" status={tabStatus} />
   <div class="controls-grid controls-grid--config">
-    <ConfigPanel writable={writable} dirty={akamaiGeoDirty}>
-      <ConfigPanelHeading title="Akamai GEO Signal">
-        <label class="toggle-switch" for="geo-akamai-enabled-toggle">
+    <ConfigPanel writable={writable} dirty={geoEdgeHeaderDirty}>
+      <ConfigPanelHeading title="Trusted GEO Edge Header Signal">
+        <label class="toggle-switch" for="geo-edge-header-enabled-toggle">
           <input
             type="checkbox"
-            id="geo-akamai-enabled-toggle"
-            aria-label="Enable Akamai GEO signal ingestion"
-            bind:checked={akamaiGeoSignalEnabled}
+            id="geo-edge-header-enabled-toggle"
+            aria-label="Enable trusted GEO edge header signal ingestion"
+            bind:checked={geoEdgeHeaderSignalEnabled}
           >
           <span class="toggle-slider"></span>
         </label>
       </ConfigPanelHeading>
-      <p class="control-desc text-muted">When enabled, Shuma-Gorath accepts trusted edge-provided country headers for GEO scoring and routing decisions. Disable this to force GEO behavior off even when upstream headers are present.</p>
+      <p class="control-desc text-muted">When enabled, Shuma-Gorath accepts a trusted edge-provided country header for GEO scoring and routing decisions. The current runtime expects the upstream edge layer to map provider-native GEO data into <code>X-Geo-Country</code>; this is not yet a direct Akamai EdgeScape parser.</p>
     </ConfigPanel>
 
     <ConfigGeoSection

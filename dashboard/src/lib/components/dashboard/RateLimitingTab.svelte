@@ -26,14 +26,14 @@
 
   let rateLimitingEnabled = true;
   let rateLimitThreshold = 80;
-  let akamaiRateSignalEnabled = false;
+  let externalRateBackendEnabled = false;
 
   let baseline = {
     rate: {
       enabled: true,
       value: 80
     },
-    akamai: {
+    externalBackend: {
       enabled: false
     }
   };
@@ -50,15 +50,16 @@
     writable = config.admin_config_write_enabled !== false;
     rateLimitThreshold = parseInteger(config.rate_limit, 80);
     rateLimitingEnabled = rateEnforcementEnabledFromMode(config?.defence_modes?.rate ?? 'both');
-    akamaiRateSignalEnabled = String(config?.provider_backends?.rate_limiter || '').toLowerCase() === 'external';
+    externalRateBackendEnabled =
+      String(config?.provider_backends?.rate_limiter || '').toLowerCase() === 'external';
 
     baseline = {
       rate: {
         enabled: rateLimitingEnabled === true,
         value: Number(rateLimitThreshold)
       },
-      akamai: {
-        enabled: akamaiRateSignalEnabled === true
+      externalBackend: {
+        enabled: externalRateBackendEnabled === true
       }
     };
   };
@@ -74,9 +75,9 @@
         rate: rateModeNormalized
       };
     }
-    if (akamaiRateDirty) {
+    if (externalRateBackendDirty) {
       payload.provider_backends = {
-        rate_limiter: akamaiRateSignalEnabled ? 'external' : 'internal'
+        rate_limiter: externalRateBackendEnabled ? 'external' : 'internal'
       };
     }
 
@@ -90,8 +91,8 @@
             enabled: rateLimitingEnabled === true,
             value: Number(rateLimitThreshold)
           },
-          akamai: {
-            enabled: akamaiRateSignalEnabled === true
+          externalBackend: {
+            enabled: externalRateBackendEnabled === true
           }
         };
       }
@@ -116,8 +117,9 @@
     readBool(rateLimitingEnabled) !== baseline.rate.enabled ||
     Number(rateLimitThreshold) !== baseline.rate.value
   );
-  $: akamaiRateDirty = readBool(akamaiRateSignalEnabled) !== baseline.akamai.enabled;
-  $: hasUnsavedChanges = rateLimitDirty || akamaiRateDirty;
+  $: externalRateBackendDirty =
+    readBool(externalRateBackendEnabled) !== baseline.externalBackend.enabled;
+  $: hasUnsavedChanges = rateLimitDirty || externalRateBackendDirty;
   $: rateLimitingValid = rateLimitValid;
   $: saveRateLimitingDisabled =
     !writable || !hasUnsavedChanges || !rateLimitingValid || savingRateLimiting;
@@ -152,20 +154,19 @@
 >
   <TabStateMessage tab="rate-limiting" status={tabStatus} />
   <div class="controls-grid controls-grid--config">
-    <ConfigPanel writable={writable} dirty={akamaiRateDirty}>
-      <ConfigPanelHeading title="Akamai Rate Signal">
-        <label class="toggle-switch" for="rate-akamai-enabled-toggle">
+    <ConfigPanel writable={writable} dirty={externalRateBackendDirty}>
+      <ConfigPanelHeading title="External Rate Limiter Backend">
+        <label class="toggle-switch" for="rate-external-backend-enabled-toggle">
           <input
             type="checkbox"
-            id="rate-akamai-enabled-toggle"
-            aria-label="Enable Akamai rate signal backend"
-            bind:checked={akamaiRateSignalEnabled}
+            id="rate-external-backend-enabled-toggle"
+            aria-label="Enable external rate limiter backend"
+            bind:checked={externalRateBackendEnabled}
           >
           <span class="toggle-slider"></span>
         </label>
       </ConfigPanelHeading>
-      <p class="control-desc text-muted">Enable this when Akamai/Fermyon deployment provides a trusted distributed rate-limiter backend path. When disabled, Shuma-Gorath uses its internal rate limiter.</p>
-      <p class="text-muted">This toggle controls <code>provider_backends.rate_limiter</code>.</p>
+      <p class="control-desc text-muted">Enable this when the deployment provides a trusted distributed rate-limiter backend path. Today this switches Shuma-Gorath between its internal limiter and the external provider backend on <code>provider_backends.rate_limiter</code>; it is not yet direct Akamai rate-signal ingestion.</p>
     </ConfigPanel>
 
     <ConfigPanel writable={writable} dirty={rateLimitDirty}>

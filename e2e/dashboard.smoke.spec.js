@@ -2635,8 +2635,8 @@ test("geo and tuning save flows cover GEO lists, botness controls, and browser p
     const geoSave = page.locator("#save-geo-config");
     await expect(geoSave).toBeHidden();
 
-    const geoSignalToggle = page.locator("#geo-akamai-enabled-toggle");
-    const geoSignalSwitch = page.locator("label.toggle-switch[for='geo-akamai-enabled-toggle']");
+    const geoSignalToggle = page.locator("#geo-edge-header-enabled-toggle");
+    const geoSignalSwitch = page.locator("label.toggle-switch[for='geo-edge-header-enabled-toggle']");
     if (await geoSignalSwitch.isVisible() && await geoSignalToggle.isEnabled()) {
       await geoSignalSwitch.click();
       await submitConfigSave(page, geoSave);
@@ -2738,7 +2738,7 @@ test("geo and tuning save flows cover GEO lists, botness controls, and browser p
   });
 });
 
-test("rate-limiting tab save flows cover local controls and Akamai backend toggle", async ({ page, request }) => {
+test("rate-limiting tab save flows cover local controls and external backend toggle", async ({ page, request }) => {
   await withRestoredAdminConfig(request, RATE_LIMITING_RESTORE_PATHS, async () => {
     await openDashboard(page);
     await openTab(page, "rate-limiting");
@@ -2762,10 +2762,10 @@ test("rate-limiting tab save flows cover local controls and Akamai backend toggl
       await submitConfigSave(page, saveButton);
     }
 
-    const akamaiToggle = page.locator("#rate-akamai-enabled-toggle");
-    const akamaiSwitch = page.locator("label.toggle-switch[for='rate-akamai-enabled-toggle']");
-    if (await akamaiSwitch.isVisible() && await akamaiToggle.isEnabled()) {
-      await akamaiSwitch.click();
+    const externalBackendToggle = page.locator("#rate-external-backend-enabled-toggle");
+    const externalBackendSwitch = page.locator("label.toggle-switch[for='rate-external-backend-enabled-toggle']");
+    if (await externalBackendSwitch.isVisible() && await externalBackendToggle.isEnabled()) {
+      await externalBackendSwitch.click();
       await submitConfigSave(page, saveButton);
     }
   });

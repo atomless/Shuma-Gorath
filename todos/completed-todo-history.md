@@ -2,6 +2,20 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-09)
+
+### P2 Edge Control Expansion
+
+- [x] AK-RG-1 Write a concise architecture note (or ADR if scope broadens) that defines exact semantics for Akamai controls on Rate Limiting and GEO (`off`, `additive`, `authoritative` behavior, precedence, fallback, and trust boundaries).
+- [x] Evidence:
+  - `docs/plans/2026-03-09-akamai-rate-geo-integration-semantics-note.md`
+  - `dashboard/src/lib/components/dashboard/GeoTab.svelte`
+  - `dashboard/src/lib/components/dashboard/RateLimitingTab.svelte`
+  - `docs/dashboard-tabs/geo.md`
+  - `docs/dashboard-tabs/rate-limiting.md`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+
 ## Additional completions (2026-03-08)
 
 ### P0 Durable Operator State Lifecycle
