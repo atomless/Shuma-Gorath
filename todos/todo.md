@@ -80,18 +80,16 @@ Reference plan:
 - [ ] SEC-GDPR-3 Add an optional event-log IP minimization mode (raw vs masked or pseudonymized) for privacy-sensitive deployments, with explicit tradeoff documentation.
 - [ ] SEC-GDPR-4 Add a deployer-ready privacy and cookie disclosure template in docs (lawful basis, retention table, storage inventory, and rights-handling workflow).
 
-## P2 Edge Control Expansion
+## P1 Fermyon / Akamai Edge Deployment Baseline
 
 Architecture alignment reference:
 - [`docs/plans/2026-03-09-akamai-rate-geo-integration-semantics-note.md`](../docs/plans/2026-03-09-akamai-rate-geo-integration-semantics-note.md)
+- [`docs/plans/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`](../docs/plans/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md)
+- [`../skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](../skills/deploy-shuma-on-akamai-fermyon/SKILL.md)
 
-- [ ] AK-RG-2 Define config surface and naming for Rate and GEO Akamai integration controls, including defaults and whether each is a simple toggle or toggle-plus-mode control.
-- [ ] AK-RG-3 Implement admin API and runtime config validation for the new Rate and GEO Akamai controls with explicit guardrails and clear validation errors.
-- [ ] AK-RG-4 Implement runtime behavior wiring so Akamai Rate and GEO signals can influence decisions according to the defined mode semantics without bypassing Shuma policy ownership.
-- [ ] AK-RG-5 Add dashboard controls and help text for Rate and GEO Akamai integration in the top-level tabs, including disabled-state behavior and operator warnings.
-- [ ] AK-RG-6 Add observability and policy-event taxonomy coverage for Rate and GEO Akamai decisions (source, mode, action, fallback reason, and downgrade behavior).
-- [ ] AK-RG-7 Add integration and end-to-end tests for mode precedence, downgrade/fallback safety, and regression against internal-only behavior.
-- [ ] AK-RG-8 Document rollout and rollback guidance for enabling Rate and GEO Akamai integration in enterprise deployments, including promotion gates and emergency disable steps.
+- [ ] FERM-SKILL-1 Create an agent-oriented Fermyon / Akamai edge setup skill that captures the required account, mode, edge property, origin, and secret inputs, and leaves a deploy-ready handoff comparable to the Linode setup path.
+- [ ] FERM-SKILL-2 Refactor and tighten the existing Fermyon deploy skill so it is an agent-executable deploy path rather than a human runbook, with truthful mode selection, artifacts, and failure handling.
+- [ ] FERM-SKILL-3 Run a real Fermyon / Akamai edge deployment proof, capture the happy path and crucial gotchas, and fold the verified steps back into the Fermyon setup and deploy skills.
 
 ## P2 Hardening and Coverage
 

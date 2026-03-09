@@ -2197,6 +2197,10 @@ mod admin_config_tests {
             Some("shared-server")
         );
         assert_eq!(
+            body.get("akamai_edge_available").and_then(|v| v.as_bool()),
+            Some(false)
+        );
+        assert_eq!(
             body.get("local_prod_direct_mode").and_then(|v| v.as_bool()),
             Some(true)
         );
@@ -2205,6 +2209,29 @@ mod admin_config_tests {
         std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
         std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
         std::env::remove_var("SHUMA_LOCAL_PROD_DIRECT_MODE");
+    }
+
+    #[test]
+    fn admin_config_reports_akamai_edge_availability_for_edge_fermyon_profile() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+
+        let req = make_request(Method::Get, "/admin/config", Vec::new());
+        let store = TestStore::default();
+        let resp = handle_admin_config(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+
+        assert_eq!(
+            body.get("gateway_deployment_profile").and_then(|v| v.as_str()),
+            Some("edge-fermyon")
+        );
+        assert_eq!(
+            body.get("akamai_edge_available").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
     }
 
     #[test]
@@ -8719,6 +8746,10 @@ fn admin_config_payload(
                 .as_str()
                 .to_string(),
         ),
+    );
+    obj.insert(
+        "akamai_edge_available".to_string(),
+        serde_json::Value::Bool(crate::config::gateway_deployment_profile().is_edge()),
     );
     obj.insert(
         "local_prod_direct_mode".to_string(),

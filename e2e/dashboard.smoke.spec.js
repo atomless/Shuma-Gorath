@@ -34,10 +34,6 @@ const RATE_LIMITING_RESTORE_PATHS = Object.freeze([
   "defence_modes.rate",
   "provider_backends.rate_limiter"
 ]);
-const FINGERPRINTING_RESTORE_PATHS = Object.freeze([
-  "edge_integration_mode",
-  "provider_backends.fingerprint_signal"
-]);
 const ROBOTS_RESTORE_PATHS = Object.freeze([
   "robots_enabled",
   "robots_crawl_delay",
@@ -2771,30 +2767,16 @@ test("rate-limiting tab save flows cover local controls and external backend tog
   });
 });
 
-test("fingerprinting tab save flows cover Akamai toggle and additive/authoritative mode controls", async ({ page, request }) => {
-  await withRestoredAdminConfig(request, FINGERPRINTING_RESTORE_PATHS, async () => {
-    await openDashboard(page);
-    await openTab(page, "fingerprinting");
+test("fingerprinting tab hides Akamai controls outside edge-fermyon posture", async ({ page }) => {
+  await openDashboard(page);
+  await openTab(page, "fingerprinting");
 
-    const saveButton = page.locator("#save-fingerprinting-config");
-    await expect(saveButton).toBeHidden();
-
-    const akamaiToggle = page.locator("#fingerprinting-akamai-enabled-toggle");
-    const akamaiToggleSwitch = page.locator("label.toggle-switch[for='fingerprinting-akamai-enabled-toggle']");
-    const edgeModeSelect = page.locator("#fingerprinting-edge-mode-select");
-
-    if (await edgeModeSelect.isVisible() && await edgeModeSelect.isEnabled()) {
-      const edgeModeInitial = await edgeModeSelect.inputValue();
-      const edgeModeNext = edgeModeInitial === "additive" ? "authoritative" : "additive";
-      await edgeModeSelect.selectOption(edgeModeNext);
-      await submitConfigSave(page, saveButton);
-    }
-
-    if (await akamaiToggleSwitch.isVisible() && await akamaiToggle.isEnabled()) {
-      await akamaiToggleSwitch.click();
-      await submitConfigSave(page, saveButton);
-    }
-  });
+  await expect(page.locator("#fingerprinting-akamai-enabled-toggle")).toHaveCount(0);
+  await expect(page.locator("#fingerprinting-edge-mode-select")).toHaveCount(0);
+  await expect(page.locator("#fingerprinting-akamai-unavailable-message")).toContainText(
+    "available only when Shuma-Gorath is deployed on Akamai edge"
+  );
+  await expect(page.locator("#save-fingerprinting-config")).toBeHidden();
 });
 
 test("robots tab save flows cover robots serving and AI policy controls", async ({ page, request }) => {

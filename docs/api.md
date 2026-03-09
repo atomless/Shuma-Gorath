@@ -156,6 +156,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `GET /admin/ip-bans/stream?after_cursor=...&limit=N&hours=M` - One-shot <abbr title="Server-Sent Events">SSE</abbr> IP-ban delta (`text/event-stream`) with `Last-Event-ID` resume using the same cursor namespace. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
 - `GET /admin/ip-range/suggestions?hours=N&limit=M` - Suggested IP-range candidates with collateral-risk scoring
 - `GET /admin/config` - Read configuration
+  - includes `gateway_deployment_profile` and `akamai_edge_available` so the dashboard can posture-gate Akamai-edge-only controls.
 - `POST /admin/config` - Update configuration (partial <abbr title="JavaScript Object Notation">JSON</abbr>, disabled when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`)
 - `POST /admin/config/validate` - Validate a config patch without persisting changes (returns `{ valid, issues[] }` with field/expected/received hints when invalid)
 - `GET /admin/config/export` - Export non-secret runtime config as deploy-ready env key/value output

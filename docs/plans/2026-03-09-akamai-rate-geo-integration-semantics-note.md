@@ -62,6 +62,8 @@ Future Akamai Rate control modes must mean:
 
 ## Immediate Follow-on Work
 
+- Akamai-edge-specific implementation work is execution-blocked until a verified Fermyon/Akamai edge setup and deploy path exists. The prerequisite tranche is the creation and real-world verification of agent-oriented Fermyon setup/deploy skills comparable to the Linode path.
+- The posture and prerequisite boundary is defined in [`2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`](2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md).
 - `AK-RG-2`: define the config surface and naming for the new Akamai Rate and GEO controls.
 - `AK-RG-3..8`: runtime wiring, dashboard controls, observability, tests, and rollout guidance.
 - Keep the live proof target focused on the already implemented fingerprint and trusted GEO surfaces until the new controls actually exist.

@@ -1,5 +1,11 @@
 # Akamai + Fermyon Deploy Operations
 
+Maturity note:
+
+- treat this as deploy-path operations guidance, not yet as a fully verified setup-to-day-2 operator baseline;
+- the prerequisite setup skill and real deployment proof remain tracked in `FERM-SKILL-1..3`;
+- Akamai-edge-only operator controls and future Akamai Rate/GEO work stay blocked until that edge baseline is proven.
+
 ## Preflight Checklist
 
 Run before any deploy:

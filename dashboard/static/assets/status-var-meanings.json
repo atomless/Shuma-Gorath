@@ -162,6 +162,7 @@
   "admin_config_write_enabled": "Enables/disables admin API config writes.",
   "runtime_environment": "Trusted runtime environment class reported by server (`runtime-dev` or `runtime-prod`).",
   "gateway_deployment_profile": "Gateway deployment profile reported by server (`shared-server` or `edge-fermyon`).",
+  "akamai_edge_available": "Whether the current deployment posture exposes Akamai-edge-only integrations.",
   "local_prod_direct_mode": "True when localhost prod-like runs intentionally bypass the upstream-origin requirement for local direct observation.",
   "adversary_sim_available": "Env-only availability gate for exposing adversary simulation surfaces in this runtime. Set false only when a deployment must hide the adversary-sim surface entirely.",
   "kv_store_fail_open": "KV outage posture. true=fail-open, false=fail-closed.",

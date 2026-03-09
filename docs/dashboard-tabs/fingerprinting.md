@@ -5,7 +5,7 @@ Component: [`dashboard/src/lib/components/dashboard/FingerprintingTab.svelte`](.
 
 Purpose:
 
-- Configure Akamai bot-signal influence on fingerprinting and inspect runtime fingerprint diagnostics.
+- Configure Akamai-edge bot-signal influence on fingerprinting and inspect runtime fingerprint diagnostics.
 
 Panels:
 
@@ -19,5 +19,6 @@ Panels:
 
 Behavior notes:
 
+- Akamai bot-signal controls are available only when the deployment reports `gateway_deployment_profile=edge-fermyon` (`akamai_edge_available=true` in `/admin/config`). Non-edge deployments hide the controls and show an availability note instead.
 - When Akamai bot signals are disabled, influence mode is disabled in the UI.
 - `authoritative` mode surfaces a warning because high-confidence edge outcomes can directly drive stronger actions.

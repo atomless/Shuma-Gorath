@@ -2897,8 +2897,10 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(fingerprintingSource, /export let cdpSnapshot = null;/);
   assert.match(fingerprintingSource, /export let onSaveConfig = null;/);
   assert.match(fingerprintingSource, /await onSaveConfig\(payload/);
+  assert.match(fingerprintingSource, /config\.akamai_edge_available === true/);
   assert.match(fingerprintingSource, /id="fingerprinting-akamai-enabled-toggle"/);
   assert.match(fingerprintingSource, /id="fingerprinting-edge-mode-select"/);
+  assert.match(fingerprintingSource, /id="fingerprinting-akamai-unavailable-message"/);
   assert.equal(fingerprintingSource.includes('id="fingerprinting-provider-backend-select"'), false);
   assert.equal(fingerprintingSource.includes('id="fingerprinting-cdp-enabled-toggle"'), false);
   assert.equal(fingerprintingSource.includes('id="fingerprinting-cdp-threshold-slider"'), false);

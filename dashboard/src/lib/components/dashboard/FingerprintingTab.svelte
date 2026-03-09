@@ -19,6 +19,7 @@
   let warnOnUnload = false;
   let lastAppliedConfigVersion = -1;
 
+  let akamaiEdgeAvailable = false;
   let akamaiBotSignalEnabled = false;
   let edgeIntegrationMode = 'additive';
 
@@ -43,6 +44,7 @@
 
   function applyConfig(config = {}) {
     writable = config.admin_config_write_enabled === true;
+    akamaiEdgeAvailable = config.akamai_edge_available === true;
     akamaiBotSignalEnabled = String(config?.provider_backends?.fingerprint_signal || '').toLowerCase() === 'external';
     edgeIntegrationMode = normalizedModeFromConfig(config.edge_integration_mode);
 
@@ -55,7 +57,7 @@
   }
 
   async function saveFingerprintingConfig() {
-    if (saveFingerprintingDisabled || typeof onSaveConfig !== 'function') return;
+    if (saveFingerprintingDisabled || typeof onSaveConfig !== 'function' || !akamaiEdgeAvailable) return;
 
     savingFingerprinting = true;
     const payload = {
@@ -96,6 +98,7 @@
     readBool(akamaiBotSignalEnabled) !== baseline.akamai.enabled ||
     normalizeEdgeMode(edgeIntegrationMode) !== baseline.akamai.mode
   );
+  $: fingerprintingControlsVisible = akamaiEdgeAvailable === true;
 
   $: saveFingerprintingDisabled = !writable || !hasUnsavedChanges || !fingerprintingValid || savingFingerprinting;
   $: saveFingerprintingLabel = savingFingerprinting ? 'Saving...' : 'Save fingerprinting settings';
@@ -160,33 +163,39 @@
   <div class="controls-grid controls-grid--config">
     <ConfigPanel writable={writable} dirty={hasUnsavedChanges}>
       <ConfigPanelHeading title="Akamai Bot Signal">
-        <label class="toggle-switch" for="fingerprinting-akamai-enabled-toggle">
-          <input
-            type="checkbox"
-            id="fingerprinting-akamai-enabled-toggle"
-            aria-label="Enable Akamai bot signals"
-            bind:checked={akamaiBotSignalEnabled}
-          >
-          <span class="toggle-slider"></span>
-        </label>
+        {#if fingerprintingControlsVisible}
+          <label class="toggle-switch" for="fingerprinting-akamai-enabled-toggle">
+            <input
+              type="checkbox"
+              id="fingerprinting-akamai-enabled-toggle"
+              aria-label="Enable Akamai bot signals"
+              bind:checked={akamaiBotSignalEnabled}
+            >
+            <span class="toggle-slider"></span>
+          </label>
+        {/if}
       </ConfigPanelHeading>
-      <p class="control-desc text-muted">When calculating bot fingerprinting, Akamai can contribute transport and network-layer telemetry that Shuma-Gorath cannot directly observe at app level. Enable this only when your edge forwards trusted bot outcomes.</p>
-      <div class="admin-controls">
-        <div class="input-row" class:input-row--disabled={!akamaiBotSignalEnabled}>
-          <label class="control-label control-label--wide" for="fingerprinting-edge-mode-select">Akamai Influence Mode</label>
-          <select
-            class="input-field input-row-control"
-            id="fingerprinting-edge-mode-select"
-            aria-label="Akamai influence mode"
-            bind:value={edgeIntegrationMode}
-            disabled={!akamaiBotSignalEnabled}
-          >
-            <option value="additive">additive</option>
-            <option value="authoritative">authoritative</option>
-          </select>
+      {#if fingerprintingControlsVisible}
+        <p class="control-desc text-muted">When calculating bot fingerprinting, Akamai can contribute transport and network-layer telemetry that Shuma-Gorath cannot directly observe at app level. Enable this only when your deployment is hosted on Akamai edge and forwards trusted bot outcomes.</p>
+        <div class="admin-controls">
+          <div class="input-row" class:input-row--disabled={!akamaiBotSignalEnabled}>
+            <label class="control-label control-label--wide" for="fingerprinting-edge-mode-select">Akamai Influence Mode</label>
+            <select
+              class="input-field input-row-control"
+              id="fingerprinting-edge-mode-select"
+              aria-label="Akamai influence mode"
+              bind:value={edgeIntegrationMode}
+              disabled={!akamaiBotSignalEnabled}
+            >
+              <option value="additive">additive</option>
+              <option value="authoritative">authoritative</option>
+            </select>
+          </div>
+          <p class="text-muted">Effective posture: {effectivePosture}</p>
         </div>
-        <p class="text-muted">Effective posture: {effectivePosture}</p>
-      </div>
+      {:else}
+        <p id="fingerprinting-akamai-unavailable-message" class="control-desc text-muted">Akamai bot-signal controls are available only when Shuma-Gorath is deployed on Akamai edge (`gateway_deployment_profile=edge-fermyon`). Shared-server and other non-edge postures keep this integration hidden.</p>
+      {/if}
     </ConfigPanel>
 
     <ConfigPanel writable={true}>

@@ -9,6 +9,12 @@ description: Use when deploying this repository to Fermyon (`spin aka` or `spin 
 
 Use this skill for enterprise edge rollout where Akamai and Shuma operate as complementary layers.
 
+Current maturity boundary:
+
+- this skill is the deploy-side half of the Akamai/Fermyon edge story,
+- the matching setup skill and real end-to-end deployment proof are still active work in `FERM-SKILL-1..3`,
+- Akamai-edge-only operator surfaces and future Akamai Rate/GEO work remain blocked until that baseline is verified.
+
 This workflow stays Makefile-first:
 
 - validate enterprise posture with existing guardrails,

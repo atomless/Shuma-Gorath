@@ -3,6 +3,9 @@
 Shuma-Gorath is designed to run on Spin (local or cloud). Use the Makefile paths as the official workflow.
 
 Shuma-Gorath is intended to complement enterprise bot defenses (for example Akamai Bot Manager), but can run standalone.
+Akamai-specific operator controls belong only to the Akamai edge posture (`SHUMA_GATEWAY_DEPLOYMENT_PROFILE=edge-fermyon`). Shared-server and other non-edge deployments keep the baseline and generic trusted-header surfaces, but must not present themselves as Akamai-edge integrations.
+
+The remaining Akamai-edge-specific Rate and GEO expansion work is blocked on the verified Fermyon/Akamai edge setup and deploy baseline (`FERM-SKILL-1..3`). Until that prerequisite is complete, only the already-implemented fingerprint edge adapter and generic trusted GEO header path are in scope.
 
 For the current deployment-track execution backlog (single-host baseline and enterprise multi-instance sync hardening), see:
 [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md).
