@@ -22,6 +22,17 @@ REFRESH_LABEL = "frontier-model-refresh"
 TRACKER_MARKER = "<!-- frontier-lane-tracker -->"
 
 
+class GitHubRequestError(RuntimeError):
+    def __init__(self, method: str, path: str, status_code: int, detail: str):
+        self.method = method
+        self.path = path
+        self.status_code = int(status_code)
+        self.detail = detail
+        super().__init__(
+            f"github API {method} {path} failed: status={status_code} body={detail[:300]}"
+        )
+
+
 def load_json(path: Path) -> Dict[str, Any]:
     if not path.exists():
         raise ValueError(f"missing JSON file: {path}")
@@ -153,7 +164,13 @@ def github_request(
             return {"items": parsed} if isinstance(parsed, list) else {}
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"github API {method} {path} failed: status={exc.code} body={detail[:300]}")
+        raise GitHubRequestError(method, path, exc.code, detail)
+
+
+def github_issues_disabled(exc: Exception) -> bool:
+    return isinstance(exc, GitHubRequestError) and exc.status_code == 410 and (
+        "Issues has been disabled" in exc.detail
+    )
 
 
 def github_list_open_issues(repo: str, token: str, label: str) -> List[Dict[str, Any]]:
@@ -287,77 +304,88 @@ def main() -> int:
     )
     tracker_issue_url = ""
     refresh_issue_url = ""
+    github_issue_tracking_status = "not_requested"
+    github_issue_tracking_note = ""
 
     if args.enable_github:
+        github_issue_tracking_status = "enabled"
         repo = str(os.environ.get("GITHUB_REPOSITORY", "")).strip()
         token = str(os.environ.get("GITHUB_TOKEN", "")).strip()
         if not repo or not token:
             raise RuntimeError(
                 "--enable-github requires GITHUB_REPOSITORY and GITHUB_TOKEN"
             )
-
-        tracker_issues = github_list_open_issues(repo, token, TRACKER_LABEL)
-        tracker_issue = github_find_issue_by_title(tracker_issues, TRACKER_TITLE)
-        previous_state = parse_tracker_state_from_body(
-            str(dict(tracker_issue or {}).get("body") or "")
-        )
-        tracker_state = update_tracker_state(
-            previous=previous_state,
-            lane_status=lane_status_code,
-            now_unix=now_unix,
-        )
-        tracker_body = render_tracker_body(tracker_state)
-
-        if tracker_issue:
-            issue_number = int(tracker_issue.get("number") or 0)
-            updated = github_update_issue(
-                repo,
-                token,
-                issue_number,
-                {"body": tracker_body},
+        try:
+            tracker_issues = github_list_open_issues(repo, token, TRACKER_LABEL)
+            tracker_issue = github_find_issue_by_title(tracker_issues, TRACKER_TITLE)
+            previous_state = parse_tracker_state_from_body(
+                str(dict(tracker_issue or {}).get("body") or "")
             )
-            tracker_issue_url = str(updated.get("html_url") or "")
-        elif lane_status_code != "ok":
-            created = github_create_issue(
-                repo,
-                token,
-                title=TRACKER_TITLE,
-                body=tracker_body,
-                labels=[TRACKER_LABEL],
+            tracker_state = update_tracker_state(
+                previous=previous_state,
+                lane_status=lane_status_code,
+                now_unix=now_unix,
             )
-            tracker_issue_url = str(created.get("html_url") or "")
+            tracker_body = render_tracker_body(tracker_state)
 
-        reached = threshold_reached(
-            tracker_state,
-            max_consecutive_runs=max(1, int(args.max_consecutive_runs)),
-            max_degraded_days=max(1, int(args.max_degraded_days)),
-            now_unix=now_unix,
-        )
-        if reached and lane_status_code != "ok":
-            refresh_issues = github_list_open_issues(repo, token, REFRESH_LABEL)
-            refresh_issue = github_find_issue_by_title(refresh_issues, REFRESH_TITLE)
-            refresh_body = refresh_issue_body(tracker_state, lane_status)
-            if refresh_issue:
-                issue_number = int(refresh_issue.get("number") or 0)
+            if tracker_issue:
+                issue_number = int(tracker_issue.get("number") or 0)
                 updated = github_update_issue(
                     repo,
                     token,
                     issue_number,
-                    {"body": refresh_body},
+                    {"body": tracker_body},
                 )
-                refresh_issue_url = str(updated.get("html_url") or "")
-                github_assign_issue(repo, token, issue_number, args.owner)
-            else:
+                tracker_issue_url = str(updated.get("html_url") or "")
+            elif lane_status_code != "ok":
                 created = github_create_issue(
                     repo,
                     token,
-                    title=REFRESH_TITLE,
-                    body=refresh_body,
-                    labels=[REFRESH_LABEL],
+                    title=TRACKER_TITLE,
+                    body=tracker_body,
+                    labels=[TRACKER_LABEL],
                 )
-                issue_number = int(created.get("number") or 0)
-                refresh_issue_url = str(created.get("html_url") or "")
-                github_assign_issue(repo, token, issue_number, args.owner)
+                tracker_issue_url = str(created.get("html_url") or "")
+
+            reached = threshold_reached(
+                tracker_state,
+                max_consecutive_runs=max(1, int(args.max_consecutive_runs)),
+                max_degraded_days=max(1, int(args.max_degraded_days)),
+                now_unix=now_unix,
+            )
+            if reached and lane_status_code != "ok":
+                refresh_issues = github_list_open_issues(repo, token, REFRESH_LABEL)
+                refresh_issue = github_find_issue_by_title(refresh_issues, REFRESH_TITLE)
+                refresh_body = refresh_issue_body(tracker_state, lane_status)
+                if refresh_issue:
+                    issue_number = int(refresh_issue.get("number") or 0)
+                    updated = github_update_issue(
+                        repo,
+                        token,
+                        issue_number,
+                        {"body": refresh_body},
+                    )
+                    refresh_issue_url = str(updated.get("html_url") or "")
+                    github_assign_issue(repo, token, issue_number, args.owner)
+                else:
+                    created = github_create_issue(
+                        repo,
+                        token,
+                        title=REFRESH_TITLE,
+                        body=refresh_body,
+                        labels=[REFRESH_LABEL],
+                    )
+                    issue_number = int(created.get("number") or 0)
+                    refresh_issue_url = str(created.get("html_url") or "")
+                    github_assign_issue(repo, token, issue_number, args.owner)
+        except GitHubRequestError as exc:
+            if not github_issues_disabled(exc):
+                raise
+            github_issue_tracking_status = "issues_disabled"
+            github_issue_tracking_note = (
+                "GitHub Issues are disabled for this repository; frontier policy remains artifact-only."
+            )
+            print(f"[frontier-policy] warning: {github_issue_tracking_note}")
 
     reached = threshold_reached(
         tracker_state,
@@ -379,6 +407,8 @@ def main() -> int:
         "action_required": action_required,
         "tracker_issue_url": tracker_issue_url,
         "refresh_issue_url": refresh_issue_url,
+        "github_issue_tracking_status": github_issue_tracking_status,
+        "github_issue_tracking_note": github_issue_tracking_note,
     }
     save_json(Path(args.output), summary)
 

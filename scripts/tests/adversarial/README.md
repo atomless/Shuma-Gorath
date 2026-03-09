@@ -81,7 +81,7 @@ The runner writes machine-readable artifacts to:
 - `scripts/tests/adversarial/latest_report.json`
 - `scripts/tests/adversarial/attack_plan.json`
 - `scripts/tests/adversarial/frontier_lane_status.json` (from `make test-adversarial-frontier-attempt`)
-- `scripts/tests/adversarial/frontier_unavailability_policy.json` (from `make test-frontier-unavailability-policy`)
+- `scripts/tests/adversarial/frontier_unavailability_policy.json` (from `make test-frontier-unavailability-policy`; if repository Issues are disabled, this remains artifact-only and records that issue tracking is unavailable)
 - `scripts/tests/adversarial/repeatability_report.json` (from `make test-adversarial-repeatability`)
 - `scripts/tests/adversarial/promotion_candidates_report.json` (from `make test-adversarial-promote-candidates`)
 - `scripts/tests/adversarial/container_isolation_report.json` (from `make test-adversarial-container-isolation`)

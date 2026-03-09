@@ -36,6 +36,7 @@ Release cut/deploy lanes must enforce the same adversarial policy as protected C
    - `make test-adversarial-frontier-attempt`
 3. Frontier unavailability threshold policy:
    - `make test-frontier-unavailability-policy` (with `FRONTIER_POLICY_ENABLE_GITHUB=1` in CI) updates degraded streak tracking and opens/assigns refresh action when threshold is crossed.
+   - If repository Issues are disabled, the policy must degrade to artifact-only mode and must not fail the deploy lane solely because GitHub issue creation is unavailable.
 
 Stochastic single-run frontier anomalies must not block release directly; only deterministic confirmed regressions are release blockers.
 

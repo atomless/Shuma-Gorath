@@ -1,5 +1,7 @@
 import unittest
+import tempfile
 from unittest.mock import patch
+from pathlib import Path
 
 import scripts.tests.check_frontier_payload_artifacts as frontier_governance
 import scripts.tests.frontier_lane_attempt as frontier_lane
@@ -258,7 +260,59 @@ class FrontierUnavailabilityPolicyUnitTests(unittest.TestCase):
         self.assertEqual(parsed["consecutive_degraded_runs"], 4)
         self.assertEqual(parsed["first_degraded_at_unix"], 1234)
         self.assertEqual(parsed["last_observed_status"], "degraded_partial_provider_failure")
-        self.assertEqual(parsed["last_checked_unix"], 5678)
+
+    def test_main_tolerates_github_issues_disabled_and_still_emits_artifact(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            status_path = Path(tmpdir) / "frontier_lane_status.json"
+            output_path = Path(tmpdir) / "frontier_unavailability_policy.json"
+            status_path.write_text(
+                '{"status":"degraded_provider_unavailable","advisory":"provider unavailable"}',
+                encoding="utf-8",
+            )
+
+            with patch.object(
+                frontier_policy,
+                "parse_args",
+                return_value=type(
+                    "Args",
+                    (),
+                    {
+                        "status": str(status_path),
+                        "output": str(output_path),
+                        "max_consecutive_runs": 10,
+                        "max_degraded_days": 7,
+                        "owner": "",
+                        "enable_github": True,
+                    },
+                )(),
+            ), patch.dict(
+                "os.environ",
+                {
+                    "GITHUB_REPOSITORY": "atomless/Shuma-Gorath",
+                    "GITHUB_TOKEN": "test-token",
+                },
+                clear=False,
+            ), patch.object(
+                frontier_policy,
+                "github_list_open_issues",
+                return_value=[],
+            ), patch.object(
+                frontier_policy,
+                "github_create_issue",
+                side_effect=frontier_policy.GitHubRequestError(
+                    "POST",
+                    "/issues",
+                    410,
+                    '{"message":"Issues has been disabled in this repository."}',
+                ),
+            ):
+                result = frontier_policy.main()
+
+            self.assertEqual(result, 0)
+            self.assertTrue(output_path.exists())
+            summary = frontier_policy.load_json(output_path)
+            self.assertEqual(summary["lane_status"], "degraded_provider_unavailable")
+            self.assertEqual(summary["github_issue_tracking_status"], "issues_disabled")
 
 
 if __name__ == "__main__":

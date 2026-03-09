@@ -247,6 +247,7 @@ Live loop controls:
 - Runner also emits `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
 - Promotion lane emits `scripts/tests/adversarial/promotion_candidates_report.json` with candidate -> replay -> promotion lineage and owner-review requirements.
 - Frontier threshold lane emits `scripts/tests/adversarial/frontier_unavailability_policy.json` and can auto-open/assign model-refresh action when protected-lane degradation thresholds are exceeded.
+  - If repository Issues are disabled, it must remain artifact-only and report that status in the output summary instead of failing the lane.
 - Browser-realistic lane executes through Playwright (`scripts/tests/adversarial_browser_driver.mjs`) instead of HTTP emulation.
   - Browser runner controls:
   - `SHUMA_ADVERSARIAL_BROWSER_DRIVER_ENABLED` (default `true`) toggles browser-driver execution.

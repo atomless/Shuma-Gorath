@@ -214,6 +214,7 @@ Rules:
 3. Frontier attempt output (`scripts/tests/adversarial/frontier_lane_status.json`) must be archived for PR/release auditing.
 4. If frontier status remains degraded for 10 consecutive protected-lane runs or 7 days (whichever comes first), operators must open and assign a supported-model refresh action and update frontier model documentation.
 5. Protected-lane automation uses `make test-frontier-unavailability-policy` (with `FRONTIER_POLICY_ENABLE_GITHUB=1`) to update tracker state and open/assign refresh action issues when the threshold is crossed.
+   - If repository Issues are disabled, the same command must stay artifact-only and record that GitHub issue tracking is unavailable instead of failing the automation.
 
 ## Frontier Finding Triage + Promotion (SIM-V2-18)
 
