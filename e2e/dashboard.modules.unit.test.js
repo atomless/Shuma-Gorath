@@ -3058,13 +3058,15 @@ test('login route exposes native password-manager-friendly form-post semantics',
 
   assert.match(source, /const passwordManagerIdentity = 'admin';/);
   assert.match(source, /<form id="login-form" class="login-form" method="POST" action="\/admin\/login">/);
+  assert.match(source, /<label class="control-label" for="username">Account<\/label>/);
   assert.match(source, /name="username"/);
   assert.match(source, /id="username"/);
   assert.match(source, /type="text"/);
-  assert.match(source, /class="visually-hidden"/);
-  assert.match(source, /<label class="visually-hidden" for="username">Username<\/label>/);
+  assert.match(source, /class="input-field"/);
   assert.match(source, /autocomplete="username"/);
   assert.match(source, /value=\{passwordManagerIdentity\}/);
+  assert.match(source, /readonly/);
+  assert.equal(source.includes('visually-hidden" for="username"'), false);
   assert.match(source, /name="next"/);
   assert.match(source, /value=\{nextPath\}/);
   assert.match(source, /id="current-password"/);

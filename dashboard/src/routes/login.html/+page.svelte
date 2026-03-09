@@ -125,15 +125,17 @@
   <section class="login-card panel panel-border pad-md" aria-labelledby="login-title">
     <h1 id="login-title" class="hidden">Dashboard Login</h1>
     <form id="login-form" class="login-form" method="POST" action="/admin/login">
-      <label class="visually-hidden" for="username">Username</label>
+      <label class="control-label" for="username">Account</label>
       <input
         id="username"
-        class="visually-hidden"
+        class="input-field"
         type="text"
         name="username"
         autocomplete="username"
         value={passwordManagerIdentity}
-        tabindex="-1"
+        readonly
+        aria-readonly="true"
+        spellcheck="false"
       >
       <input type="hidden" name="next" value={nextPath}>
       <label class="control-label" for="current-password">Enter your API key</label>

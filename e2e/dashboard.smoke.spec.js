@@ -964,9 +964,9 @@ test("dashboard login route remains functional after direct navigation and refre
   await expect(page.locator("#login-form")).toBeVisible();
   await expect(page.locator("#login-form")).toHaveAttribute("method", "POST");
   await expect(page.locator("#login-form")).toHaveAttribute("action", "/admin/login");
-  await expect(page.locator('label.visually-hidden[for="username"]')).toHaveText("Username");
+  await expect(page.locator('label.control-label[for="username"]')).toHaveText("Account");
   await expect(page.locator('input#username[name="username"]')).toHaveValue("admin");
-  await expect(page.locator('#username')).toHaveClass(/visually-hidden/);
+  await expect(page.locator('#username')).toHaveAttribute("readonly", "");
   await expect(page.locator('input[type="hidden"][name="next"]')).toHaveValue("/dashboard/index.html");
   await expect(page.locator("#current-password")).toHaveAttribute("name", "password");
   await expect(page.locator("#current-password")).toHaveAttribute("autocomplete", "current-password");
