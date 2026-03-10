@@ -133,7 +133,7 @@ Stop and leave the baseline unproven if either of these is true:
 - no real Akamai/Fermyon deploy receipt is written.
 
 If the helper reports the known upstream plugin panic, treat that as a real blocker in `FERM-SKILL-3`, not operator error.
-If browser auth succeeds but Fermyon returns `User is not allow-listed!`, treat that as a provider-access blocker and stop.
+If browser auth succeeds but Fermyon returns `User is not allow-listed!`, treat that as a provider-access blocker, expect the setup receipt to remain in `status=blocked` form, and stop.
 
 ## Operations Reference
 

@@ -202,7 +202,7 @@ make prepare-fermyon-akamai-edge PREPARE_FERMYON_ARGS="--upstream-origin https:/
 make deploy-fermyon-akamai-edge
 ```
 
-If PAT login panics, the helper falls back to Fermyon device login in interactive sessions. If browser auth then says `User is not allow-listed!`, provider access is still pending and the real edge proof remains blocked.
+If PAT login panics, the helper falls back to Fermyon device login in interactive sessions. If browser auth then says `User is not allow-listed!`, provider access is still pending, the setup receipt is left behind in `status=blocked` form, and the real edge proof remains blocked.
 
 For more deployment detail, see [`docs/deployment.md`](deployment.md).
 

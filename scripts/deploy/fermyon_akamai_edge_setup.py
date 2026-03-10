@@ -30,6 +30,7 @@ from scripts.site_surface_catalog import SUPPORTED_MODES, build_payload
 DEFAULT_RECEIPT_PATH = REPO_ROOT / ".shuma" / "fermyon-akamai-edge-setup.json"
 DEFAULT_DEPLOY_RECEIPT_PATH = REPO_ROOT / ".shuma" / "fermyon-akamai-edge-deploy.json"
 DEFAULT_RENDERED_MANIFEST_PATH = REPO_ROOT / ".shuma" / "manifests" / "fermyon-akamai-edge.spin.toml"
+SETUP_RECEIPT_SCHEMA = "shuma.fermyon.akamai_edge_setup.v2"
 DEFAULT_APP_NAME = "shuma-gorath"
 DEFAULT_ORIGIN_AUTH_HEADER_NAME = "x-shuma-origin-auth"
 DEFAULT_EDGE_INTEGRATION_MODE = "additive"
@@ -294,6 +295,84 @@ def ensure_env_secret(env_file: Path, key: str, existing: str = "") -> str:
     return value
 
 
+def build_setup_receipt(
+    *,
+    token_source: str,
+    spin_version: str,
+    aka_plugin_version: str,
+    account_id: str,
+    account_name: str,
+    app_name: str,
+    edge_hostname: str,
+    staging_hostname: str,
+    account_info: dict[str, Any],
+    upstream_origin: str,
+    admin_allowlist: str,
+    origin_auth_header_name: str,
+    origin_lock_confirmed: bool,
+    reserved_route_collision_check_passed: bool,
+    admin_edge_rate_limits_confirmed: bool,
+    admin_api_key_rotation_confirmed: bool,
+    surface_catalog_path: str,
+    surface_catalog_source: str,
+    deploy_receipt_path: Path,
+    rendered_manifest_path: Path,
+    status: str,
+    auth_mode: str,
+    last_completed_step: str,
+    blocked_at_step: str,
+    blocked_reason: str,
+    next_operator_action: str,
+) -> dict[str, Any]:
+    return {
+        "schema": SETUP_RECEIPT_SCHEMA,
+        "generated_at_utc": utc_now_iso(),
+        "mode": "aka",
+        "status": status,
+        "auth_mode": auth_mode,
+        "token_source": token_source,
+        "progress": {
+            "last_completed_step": last_completed_step,
+            "blocked_at_step": blocked_at_step,
+            "blocked_reason": blocked_reason,
+            "next_operator_action": next_operator_action,
+        },
+        "spin": {
+            "spin_version": spin_version,
+            "aka_plugin_version": aka_plugin_version,
+        },
+        "fermyon": {
+            "account_id": account_id,
+            "account_name": account_name,
+            "app_name": app_name,
+            "edge_hostname": edge_hostname,
+            "staging_hostname": staging_hostname,
+            "info": account_info,
+        },
+        "gateway": {
+            "runtime_env": DEFAULT_RUNTIME_ENV,
+            "deployment_profile": "edge-fermyon",
+            "enterprise_multi_instance": True,
+            "edge_integration_mode": DEFAULT_EDGE_INTEGRATION_MODE,
+            "upstream_origin": upstream_origin,
+            "admin_allowlist": admin_allowlist,
+            "tls_strict": True,
+            "origin_auth_mode": "signed_header",
+            "origin_auth_header_name": origin_auth_header_name,
+            "origin_lock_confirmed": origin_lock_confirmed,
+            "reserved_route_collision_check_passed": reserved_route_collision_check_passed,
+            "admin_edge_rate_limits_confirmed": admin_edge_rate_limits_confirmed,
+            "admin_api_key_rotation_confirmed": admin_api_key_rotation_confirmed,
+            "surface_catalog_path": surface_catalog_path,
+            "surface_catalog_source": surface_catalog_source,
+        },
+        "artifacts": {
+            "deploy_receipt_path": str(deploy_receipt_path),
+            "rendered_manifest_path": str(rendered_manifest_path),
+        },
+    }
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     env_file = Path(args.env_file).expanduser().resolve()
@@ -347,52 +426,82 @@ def main(argv: Sequence[str] | None = None) -> int:
     ensure_env_secret(env_file, "SHUMA_HEALTH_SECRET")
     ensure_env_secret(env_file, "SHUMA_SIM_TELEMETRY_SECRET")
 
+    receipt_path = Path(args.receipt_output).expanduser().resolve()
+    deploy_receipt_path = Path(args.deploy_receipt_output).expanduser().resolve()
+    rendered_manifest_path = Path(args.rendered_manifest_output).expanduser().resolve()
     spin_version = parse_version_line(run_command(["spin", "--version"]).stdout)
     aka_plugin_version = ensure_aka_plugin()
-    account_info, auth_mode = validate_aka_login(token)
+    account_id = args.account_id or ""
+    account_name = args.account_name or ""
+    app_name = args.app_name.strip() or DEFAULT_APP_NAME
+    edge_hostname = (args.edge_hostname or "").strip()
+    staging_hostname = (args.staging_hostname or "").strip()
 
-    receipt = {
-        "schema": "shuma.fermyon.akamai_edge_setup.v1",
-        "generated_at_utc": utc_now_iso(),
-        "mode": "aka",
-        "auth_mode": auth_mode,
-        "token_source": token_source,
-        "spin": {
-            "spin_version": spin_version,
-            "aka_plugin_version": aka_plugin_version,
-        },
-        "fermyon": {
-            "account_id": args.account_id or "",
-            "account_name": args.account_name or "",
-            "app_name": args.app_name.strip() or DEFAULT_APP_NAME,
-            "edge_hostname": (args.edge_hostname or "").strip(),
-            "staging_hostname": (args.staging_hostname or "").strip(),
-            "info": account_info,
-        },
-        "gateway": {
-            "runtime_env": DEFAULT_RUNTIME_ENV,
-            "deployment_profile": "edge-fermyon",
-            "enterprise_multi_instance": True,
-            "edge_integration_mode": DEFAULT_EDGE_INTEGRATION_MODE,
-            "upstream_origin": upstream_origin,
-            "admin_allowlist": admin_allowlist,
-            "tls_strict": True,
-            "origin_auth_mode": "signed_header",
-            "origin_auth_header_name": origin_auth_header_name,
-            "origin_lock_confirmed": origin_lock_confirmed,
-            "reserved_route_collision_check_passed": reserved_route_collision_check_passed,
-            "admin_edge_rate_limits_confirmed": admin_edge_rate_limits_confirmed,
-            "admin_api_key_rotation_confirmed": admin_api_key_rotation_confirmed,
-            "surface_catalog_path": surface_catalog_path,
-            "surface_catalog_source": surface_catalog_source,
-        },
-        "artifacts": {
-            "deploy_receipt_path": str(Path(args.deploy_receipt_output).expanduser().resolve()),
-            "rendered_manifest_path": str(Path(args.rendered_manifest_output).expanduser().resolve()),
-        },
-    }
+    try:
+        account_info, auth_mode = validate_aka_login(token)
+    except SystemExit as exc:
+        blocked_receipt = build_setup_receipt(
+            token_source=token_source,
+            spin_version=spin_version,
+            aka_plugin_version=aka_plugin_version,
+            account_id=account_id,
+            account_name=account_name,
+            app_name=app_name,
+            edge_hostname=edge_hostname,
+            staging_hostname=staging_hostname,
+            account_info={},
+            upstream_origin=upstream_origin,
+            admin_allowlist=admin_allowlist,
+            origin_auth_header_name=origin_auth_header_name,
+            origin_lock_confirmed=origin_lock_confirmed,
+            reserved_route_collision_check_passed=reserved_route_collision_check_passed,
+            admin_edge_rate_limits_confirmed=admin_edge_rate_limits_confirmed,
+            admin_api_key_rotation_confirmed=admin_api_key_rotation_confirmed,
+            surface_catalog_path=surface_catalog_path,
+            surface_catalog_source=surface_catalog_source,
+            deploy_receipt_path=deploy_receipt_path,
+            rendered_manifest_path=rendered_manifest_path,
+            status="blocked",
+            auth_mode="",
+            last_completed_step="local_state_prepared",
+            blocked_at_step="auth_validation",
+            blocked_reason=str(exc),
+            next_operator_action=(
+                "Resolve the Fermyon authentication/access blocker, then rerun "
+                "`make prepare-fermyon-akamai-edge` to refresh the setup receipt."
+            ),
+        )
+        write_json(receipt_path, blocked_receipt)
+        raise
 
-    receipt_path = Path(args.receipt_output).expanduser().resolve()
+    receipt = build_setup_receipt(
+        token_source=token_source,
+        spin_version=spin_version,
+        aka_plugin_version=aka_plugin_version,
+        account_id=account_id,
+        account_name=account_name,
+        app_name=app_name,
+        edge_hostname=edge_hostname,
+        staging_hostname=staging_hostname,
+        account_info=account_info,
+        upstream_origin=upstream_origin,
+        admin_allowlist=admin_allowlist,
+        origin_auth_header_name=origin_auth_header_name,
+        origin_lock_confirmed=origin_lock_confirmed,
+        reserved_route_collision_check_passed=reserved_route_collision_check_passed,
+        admin_edge_rate_limits_confirmed=admin_edge_rate_limits_confirmed,
+        admin_api_key_rotation_confirmed=admin_api_key_rotation_confirmed,
+        surface_catalog_path=surface_catalog_path,
+        surface_catalog_source=surface_catalog_source,
+        deploy_receipt_path=deploy_receipt_path,
+        rendered_manifest_path=rendered_manifest_path,
+        status="ready",
+        auth_mode=auth_mode,
+        last_completed_step="auth_validated",
+        blocked_at_step="",
+        blocked_reason="",
+        next_operator_action="Run `make deploy-fermyon-akamai-edge` to continue.",
+    )
     write_json(receipt_path, receipt)
     print(f"Receipt written: {receipt_path}")
     print(f"Aka plugin: {aka_plugin_version}")

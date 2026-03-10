@@ -105,7 +105,7 @@ make deploy-fermyon-akamai-edge
 
 If `spin aka login` panics with `plugin/src/commands/login.rs` and `index out of bounds`, treat it as an upstream plugin blocker and stop. Do not fabricate a successful deploy receipt.
 
-If the helper falls back to device login and the browser finishes with `User is not allow-listed!`, stop there too. The account still is not enabled for Wasm Functions on Akamai.
+If the helper falls back to device login and the browser finishes with `User is not allow-listed!`, stop there too. The account still is not enabled for Wasm Functions on Akamai, and the setup receipt should remain in `status=blocked` form until access is granted and setup is rerun.
 
 ### Akamai staging gate failure
 

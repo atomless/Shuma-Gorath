@@ -55,7 +55,8 @@ Interpretation:
 1. Ensure the Wasm Functions access request is approved.
 2. Confirm the browser login is using the same identity that requested access.
 3. If the device-login page still says `User is not allow-listed!`, contact Fermyon support / Discord and include the exact error.
-4. Once access is enabled, rerun:
+4. Use the blocked setup receipt at `.shuma/fermyon-akamai-edge-setup.json` to see the recorded blocker and resume instruction instead of rediscovering the failure manually.
+5. Once access is enabled, rerun:
 
 ```bash
 make prepare-fermyon-akamai-edge PREPARE_FERMYON_ARGS="..."

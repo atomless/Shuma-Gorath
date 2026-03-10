@@ -68,6 +68,8 @@ After a successful run, expect:
   - `SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE`
   - required Shuma runtime secrets such as `SHUMA_API_KEY`, `SHUMA_JS_SECRET`, `SHUMA_FORWARDED_IP_SECRET`, `SHUMA_HEALTH_SECRET`, and `SHUMA_SIM_TELEMETRY_SECRET`
 - `.shuma/fermyon-akamai-edge-setup.json` contains:
+  - `status=ready` or `status=blocked`
+  - resumable progress metadata (`last_completed_step`, `blocked_at_step`, `blocked_reason`, `next_operator_action`)
   - app/account targeting metadata
   - upstream origin and gateway posture
   - explicit guardrail attestations
@@ -112,6 +114,7 @@ If the helper reports the known upstream plugin panic:
 If device login completes browser auth but returns `User is not allow-listed!`:
 
 - treat that as a provider-access blocker, not as a repo bug,
+- expect the setup receipt to be left behind in `status=blocked` form with the exact blocker and rerun instruction,
 - wait for Wasm Functions access approval or support intervention,
 - then rerun the helper.
 

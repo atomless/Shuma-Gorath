@@ -67,8 +67,13 @@ The setup receipt is the deploy handoff artifact.
 
 Expected shape:
 
-- `schema=shuma.fermyon.akamai_edge_setup.v1`
+- `schema=shuma.fermyon.akamai_edge_setup.v2`
 - `mode=aka`
+- `status=ready|blocked`
+- `progress.last_completed_step`
+- `progress.blocked_at_step`
+- `progress.blocked_reason`
+- `progress.next_operator_action`
 - `spin.spin_version`
 - `spin.aka_plugin_version`
 - `fermyon.account_id`
@@ -84,7 +89,7 @@ Expected shape:
 - `artifacts.deploy_receipt_path`
 - `artifacts.rendered_manifest_path`
 
-If any of those are missing, treat setup as incomplete.
+If setup is blocked, the receipt must still be written so the next agent can resume from the recorded blocker instead of rediscovering it.
 
 ## Upstream-Origin Rule
 
@@ -152,6 +157,7 @@ Response:
 - verify the Wasm Functions access request has been approved,
 - verify the browser login is using the same identity that requested access,
 - if the message persists, contact Fermyon support / Discord with the exact text,
+- expect the helper to leave `.shuma/fermyon-akamai-edge-setup.json` in `status=blocked` form with `blocked_at_step=auth_validation`,
 - do not mark `FERM-SKILL-3` complete until the provider allowlist is enabled.
 
 ### Missing or stale account targeting

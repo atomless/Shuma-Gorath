@@ -36,8 +36,16 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         self.setup_receipt.write_text(
             json.dumps(
                 {
-                    "schema": "shuma.fermyon.akamai_edge_setup.v1",
+                    "schema": "shuma.fermyon.akamai_edge_setup.v2",
                     "mode": "aka",
+                    "status": "ready",
+                    "auth_mode": "token",
+                    "progress": {
+                        "last_completed_step": "auth_validated",
+                        "blocked_at_step": "",
+                        "blocked_reason": "",
+                        "next_operator_action": "Run `make deploy-fermyon-akamai-edge` to continue.",
+                    },
                     "fermyon": {
                         "account_id": "acc_123",
                         "account_name": "",
@@ -66,6 +74,47 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
             + "\n",
             encoding="utf-8",
         )
+
+    def test_load_receipt_rejects_blocked_setup_receipt_with_resume_context(self) -> None:
+        self.setup_receipt.write_text(
+            json.dumps(
+                {
+                    "schema": "shuma.fermyon.akamai_edge_setup.v2",
+                    "mode": "aka",
+                    "status": "blocked",
+                    "auth_mode": "",
+                    "progress": {
+                        "last_completed_step": "local_state_prepared",
+                        "blocked_at_step": "auth_validation",
+                        "blocked_reason": "User is not allow-listed!",
+                        "next_operator_action": "Wait for access approval, then rerun `make prepare-fermyon-akamai-edge`.",
+                    },
+                    "fermyon": {
+                        "account_id": "acc_123",
+                        "account_name": "",
+                        "app_name": "shuma-edge-prod",
+                    },
+                    "gateway": {
+                        "upstream_origin": "https://origin.example.com",
+                        "surface_catalog_path": str(self.surface_catalog.resolve()),
+                    },
+                    "artifacts": {
+                        "rendered_manifest_path": str(self.rendered_manifest.resolve()),
+                    },
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        with self.assertRaises(SystemExit) as exc:
+            deploy.load_receipt(self.setup_receipt)
+
+        message = str(exc.exception)
+        self.assertIn("status='blocked'", message)
+        self.assertIn("blocked_at_step=auth_validation", message)
+        self.assertIn("User is not allow-listed!", message)
+        self.assertIn("make prepare-fermyon-akamai-edge", message)
 
     def test_preflight_only_shapes_make_targets_and_manifest_render(self) -> None:
         calls: list[tuple[list[str], dict[str, str] | None]] = []

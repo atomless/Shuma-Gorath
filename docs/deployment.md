@@ -633,7 +633,7 @@ Current honest boundary:
 - this path is `spin aka` only,
 - it does not participate in `SHUMA_ACTIVE_REMOTE` or `make remote-*`,
 - if `spin aka` PAT login panics, the helper falls back to device login in interactive sessions,
-- if device login still ends with `User is not allow-listed!`, treat that as a real provider-access blocker and leave `FERM-SKILL-3` open.
+- if device login still ends with `User is not allow-listed!`, treat that as a real provider-access blocker, expect the setup receipt to remain in `status=blocked` form, and leave `FERM-SKILL-3` open.
 
 Observed live-proof blockers are archived in:
 

@@ -96,9 +96,13 @@ class PrepareFermyonAkamaiEdgeTests(unittest.TestCase):
         self.assertIn("SHUMA_SIM_TELEMETRY_SECRET=", env_text)
 
         receipt = json.loads(self.receipt_path.read_text(encoding="utf-8"))
-        self.assertEqual(receipt["schema"], "shuma.fermyon.akamai_edge_setup.v1")
+        self.assertEqual(receipt["schema"], "shuma.fermyon.akamai_edge_setup.v2")
         self.assertEqual(receipt["mode"], "aka")
+        self.assertEqual(receipt["status"], "ready")
         self.assertEqual(receipt["auth_mode"], "token")
+        self.assertEqual(receipt["progress"]["last_completed_step"], "auth_validated")
+        self.assertEqual(receipt["progress"]["blocked_at_step"], "")
+        self.assertEqual(receipt["progress"]["blocked_reason"], "")
         self.assertEqual(receipt["fermyon"]["account_id"], "acc_123")
         self.assertEqual(receipt["fermyon"]["app_name"], "shuma-edge-prod")
         self.assertEqual(receipt["gateway"]["upstream_origin"], "https://origin.example.com")
@@ -151,6 +155,54 @@ class PrepareFermyonAkamaiEdgeTests(unittest.TestCase):
         self.assertEqual(auth_mode, "device_login")
         self.assertEqual(info["account"]["id"], "acc_123")
         self.assertEqual(calls[1], (["spin", "aka", "login"], False))
+
+    def test_main_writes_blocked_receipt_when_authentication_cannot_complete(self) -> None:
+        with patch.object(setup, "ensure_aka_plugin", return_value="spin-aka 0.6.0"), patch.object(
+            setup,
+            "run_command",
+            return_value=SimpleNamespace(returncode=0, stdout="spin 3.5.1\n", stderr=""),
+        ), patch.object(
+            setup,
+            "validate_aka_login",
+            side_effect=SystemExit("User is not allow-listed!"),
+        ):
+            with self.assertRaises(SystemExit) as exc:
+                setup.main(
+                    [
+                        "--env-file",
+                        str(self.env_file),
+                        "--receipt-output",
+                        str(self.receipt_path),
+                        "--deploy-receipt-output",
+                        str(self.deploy_receipt),
+                        "--rendered-manifest-output",
+                        str(self.rendered_manifest),
+                        "--fermyon-token",
+                        "fermyon-secret",
+                        "--account-id",
+                        "acc_123",
+                        "--app-name",
+                        "shuma-edge-prod",
+                        "--upstream-origin",
+                        "https://origin.example.com",
+                        "--admin-ip",
+                        "203.0.113.8/32",
+                        "--docroot",
+                        str(self.docroot),
+                        "--catalog-output",
+                        str(self.temp_dir / ".shuma" / "catalogs" / "dummy_static_site.surface-catalog.json"),
+                    ]
+                )
+
+        self.assertIn("User is not allow-listed!", str(exc.exception))
+        receipt = json.loads(self.receipt_path.read_text(encoding="utf-8"))
+        self.assertEqual(receipt["schema"], "shuma.fermyon.akamai_edge_setup.v2")
+        self.assertEqual(receipt["status"], "blocked")
+        self.assertEqual(receipt["auth_mode"], "")
+        self.assertEqual(receipt["progress"]["last_completed_step"], "local_state_prepared")
+        self.assertEqual(receipt["progress"]["blocked_at_step"], "auth_validation")
+        self.assertEqual(receipt["progress"]["blocked_reason"], "User is not allow-listed!")
+        self.assertIn("make prepare-fermyon-akamai-edge", receipt["progress"]["next_operator_action"])
 
     def test_ensure_aka_plugin_upgrades_legacy_install_without_json_info(self) -> None:
         calls: list[list[str]] = []

@@ -47,8 +47,21 @@ def load_receipt(path: Path) -> dict[str, Any]:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise SystemExit(f"Setup receipt is not valid JSON: {path} ({exc})") from exc
-    if payload.get("schema") != "shuma.fermyon.akamai_edge_setup.v1":
+    if payload.get("schema") != "shuma.fermyon.akamai_edge_setup.v2":
         raise SystemExit(f"Unexpected setup receipt schema for {path}: {payload.get('schema')!r}")
+    if payload.get("status") != "ready":
+        progress = payload.get("progress", {})
+        blocked_at_step = str(progress.get("blocked_at_step", "")).strip()
+        blocked_reason = str(progress.get("blocked_reason", "")).strip()
+        next_operator_action = str(progress.get("next_operator_action", "")).strip()
+        message = [f"Setup receipt is not ready for deploy: status={payload.get('status')!r}"]
+        if blocked_at_step:
+            message.append(f"blocked_at_step={blocked_at_step}")
+        if blocked_reason:
+            message.append(blocked_reason)
+        if next_operator_action:
+            message.append(next_operator_action)
+        raise SystemExit(" ".join(message))
     return payload
 
 
