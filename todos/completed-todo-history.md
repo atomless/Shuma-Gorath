@@ -2,6 +2,34 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-10)
+
+### P1 Fermyon / Akamai Edge Deployment Baseline
+
+- [x] FERM-SKILL-1 Create an agent-oriented Fermyon / Akamai edge setup skill that captures the required account, mode, edge property, origin, and secret inputs, and leaves a deploy-ready handoff comparable to the Linode setup path.
+- [x] FERM-SKILL-2 Refactor and tighten the existing Fermyon deploy skill so it is an agent-executable deploy path rather than a human runbook, with truthful mode selection, artifacts, and failure handling.
+- [x] Evidence:
+  - `docs/plans/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`
+  - `docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`
+  - `scripts/deploy/setup_common.py`
+  - `scripts/deploy/fermyon_akamai_edge_setup.py`
+  - `scripts/deploy/fermyon_akamai_edge_deploy.py`
+  - `scripts/prepare_fermyon_akamai_edge.py`
+  - `scripts/deploy_fermyon_akamai_edge.py`
+  - `scripts/tests/test_prepare_fermyon_akamai_edge.py`
+  - `scripts/tests/test_deploy_fermyon_akamai_edge.py`
+  - `Makefile`
+  - `skills/prepare-shuma-on-akamai-fermyon/SKILL.md`
+  - `skills/prepare-shuma-on-akamai-fermyon/references/OPERATIONS.md`
+  - `skills/deploy-shuma-on-akamai-fermyon/SKILL.md`
+  - `skills/deploy-shuma-on-akamai-fermyon/references/OPERATIONS.md`
+  - `docs/deployment.md`
+  - `docs/quick-reference.md`
+  - `docs/index.md`
+  - `README.md`
+  - `make test-deploy-fermyon`
+  - live proof reached the real Fermyon device-login boundary after the helper automatically handled the known `spin aka` PAT-login panic; the remaining external blocker is recorded separately under `FERM-SKILL-3`
+
 ## Additional completions (2026-03-09)
 
 ### P2 Edge Control Expansion

@@ -1,64 +1,29 @@
 ---
 name: deploy-shuma-on-akamai-fermyon
-description: Use when deploying this repository to Fermyon (`spin aka` or `spin cloud`) with enterprise Akamai edge posture and you need a staged, guardrail-first rollout.
+description: Use when an agent needs to deploy this repository to Fermyon Wasm Functions on Akamai from a prepared Akamai-edge setup receipt.
 ---
 
 # Deploy Shuma-Gorath On Akamai + Fermyon
 
 ## Overview
 
-Use this skill for enterprise edge rollout where Akamai and Shuma operate as complementary layers.
+Use this skill for the deploy-side half of the Akamai-edge-only Fermyon baseline.
+
+This skill is agent-facing. It is not a human checklist.
+
+Use it only after [`../prepare-shuma-on-akamai-fermyon/SKILL.md`](../prepare-shuma-on-akamai-fermyon/SKILL.md) has produced a setup receipt.
 
 Current maturity boundary:
 
-- this skill is the deploy-side half of the Akamai/Fermyon edge story,
-- the matching setup skill and real end-to-end deployment proof are still active work in `FERM-SKILL-1..3`,
-- Akamai-edge-only operator surfaces and future Akamai Rate/GEO work remain blocked until that baseline is verified.
+- this skill targets `spin aka` only,
+- plain `spin cloud` is out of scope for this tranche,
+- Akamai-edge-only operator surfaces and future Akamai Rate/GEO work remain blocked until a real edge proof closes `FERM-SKILL-3`.
 
-This workflow stays Makefile-first:
-
-- validate enterprise posture with existing guardrails,
-- select an explicit deployment command family (`aka` or `cloud`) before deploy,
-- deploy via the selected Spin command family,
-- preserve staged additive-to-authoritative rollout discipline.
-
-Production posture is gateway-only (`client -> shuma -> existing origin`) with edge profile guardrails.
-
-## Mandatory Mode Gate (Required)
-
-You must choose exactly one deployment mode before any deploy action:
-
-- `SHUMA_FERMYON_DEPLOY_MODE=aka` uses Fermyon Wasm Functions on Akamai (`spin aka ...`)
-- `SHUMA_FERMYON_DEPLOY_MODE=cloud` uses Fermyon Cloud (`spin cloud ...`)
-
-Do not deploy if this is unset or ambiguous.
-
-Run mode preflight from repository root:
-
-```bash
-spin --version
-
-case "${SHUMA_FERMYON_DEPLOY_MODE:-}" in
-  aka)
-    spin aka --help >/dev/null
-    spin aka login --help >/dev/null
-    spin aka deploy --help >/dev/null
-    ;;
-  cloud)
-    spin cloud --help >/dev/null
-    spin cloud login --help >/dev/null
-    spin cloud deploy --help >/dev/null
-    ;;
-  *)
-    echo "SHUMA_FERMYON_DEPLOY_MODE must be exactly 'aka' or 'cloud'." >&2
-    exit 1
-    ;;
-esac
-```
+Production posture is gateway-only (`client -> shuma -> existing origin`) with `edge-fermyon` guardrails.
 
 ## Mandatory Input Gate
 
-Do not deploy until these are explicitly set in environment or `.env.local`.
+Do not deploy until the setup receipt exists and these are already real in `.env.local` or the receipt:
 
 Required baseline secrets/hardening:
 
@@ -87,42 +52,51 @@ Required gateway posture (edge/Fermyon):
 - `SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=true`
 - `GATEWAY_SURFACE_CATALOG_PATH=<catalog-json-path>`
 
-Recommended distributed-state posture for enterprise reliability:
+Required Akamai/Fermyon auth:
 
-- `SHUMA_PROVIDER_RATE_LIMITER=external`
-- `SHUMA_PROVIDER_BAN_STORE=external`
-- `SHUMA_RATE_LIMITER_REDIS_URL=redis://...` or `rediss://...`
-- `SHUMA_BAN_STORE_REDIS_URL=redis://...` or `rediss://...`
-- `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN=fallback_internal|fail_open|fail_closed`
-- `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH=fallback_internal|fail_open|fail_closed`
+- `SPIN_AKA_ACCESS_TOKEN`
+- working `spin aka login`
+
+## Agent Contract
+
+Run the canonical helper instead of narrating raw `spin aka` steps:
+
+```bash
+make deploy-fermyon-akamai-edge
+```
+
+What the helper does:
+
+- loads `.shuma/fermyon-akamai-edge-setup.json`,
+- renders a deployment-specific Spin manifest,
+- validates enterprise edge posture through the canonical Make targets,
+- attempts to reuse an existing `spin aka` session,
+- otherwise attempts non-interactive `spin aka` login and falls back to device login when the known token-login panic occurs in an interactive session,
+- runs `spin aka deploy` with explicit account/app targeting,
+- writes `.shuma/fermyon-akamai-edge-deploy.json`.
+
+What the helper must not do:
+
+- it must not pretend plain `spin cloud` is part of this path,
+- it must not continue after a `spin aka login` panic,
+- it must not overload the SSH `remote-*` contract.
 
 ## Canonical Command Path
 
 Run from repository root:
 
 ```bash
-# 1) Enterprise posture validation + baseline build (always)
-make deploy-enterprise-akamai
-make deploy-env-validate
-make test-gateway-profile-edge
-make smoke-gateway-mode
-
-# 2) Deploy using selected mode
-if [ "${SHUMA_FERMYON_DEPLOY_MODE}" = "aka" ]; then
-  spin aka login
-  spin aka deploy
-else
-  spin cloud login
-  make deploy
-fi
+make deploy-fermyon-akamai-edge
 ```
 
 Notes:
 
-- `make deploy-enterprise-akamai` enforces enterprise-mode guardrails before any deploy command family.
-- `make deploy-env-validate` enforces gateway contract + outbound alignment + reserved-route preflight contract.
-- `make deploy` reruns API/deployment validation before `spin cloud deploy`.
-- `aka` mode uses the same pre-deploy guardrails by running `make deploy-enterprise-akamai` first, then `spin aka deploy`.
+- the helper already runs:
+  - `make deploy-enterprise-akamai`
+  - `make test-gateway-profile-edge`
+  - `make smoke-gateway-mode`
+- `make deploy-enterprise-akamai` already includes `make deploy-env-validate`.
+- use `DEPLOY_FERMYON_ARGS="--preflight-only"` when you want to stop after guardrails and auth validation.
 
 ## Mandatory Akamai Staging Gate (Before Production)
 
@@ -151,6 +125,16 @@ Signed-header origin-auth lifecycle requirement:
 - `SHUMA_EDGE_INTEGRATION_MODE=authoritative`
 - only after additive stage is stable and distributed-state posture is proven.
 
+## Honest Boundary
+
+Stop and leave the baseline unproven if either of these is true:
+
+- `spin aka login` fails or panics,
+- no real Akamai/Fermyon deploy receipt is written.
+
+If the helper reports the known upstream plugin panic, treat that as a real blocker in `FERM-SKILL-3`, not operator error.
+If browser auth succeeds but Fermyon returns `User is not allow-listed!`, treat that as a provider-access blocker and stop.
+
 ## Operations Reference
 
 For troubleshooting, rollback, and failure-mode handling:
@@ -161,5 +145,4 @@ For troubleshooting, rollback, and failure-mode handling:
 
 - Fermyon Wasm Functions deploy docs: https://developer.fermyon.com/wasm-functions/deploy
 - Fermyon `spin aka` command reference: https://developer.fermyon.com/wasm-functions/aka-command-reference
-- Fermyon `spin cloud` command reference: https://developer.fermyon.com/cloud/cloud-command-reference
 - Akamai staging test guidance: https://techdocs.akamai.com/ion/docs/test-your-ion-property

@@ -180,7 +180,9 @@ Deployment policy note: `SHUMA_KV_STORE_FAIL_OPEN` is a critical choice (fail-op
 - [`docs/deployment.md`](docs/deployment.md) - Production/deploy configuration
 - [`skills/prepare-shared-host-on-linode/SKILL.md`](skills/prepare-shared-host-on-linode/SKILL.md) - Agent skill for preparing a Linode shared host and surface-catalog handoff before Shuma deploy
 - [`skills/deploy-shuma-on-linode/SKILL.md`](skills/deploy-shuma-on-linode/SKILL.md) - Agent skill for one-command Linode provisioning + deployment
-- [`skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](skills/deploy-shuma-on-akamai-fermyon/SKILL.md) - Deploy-side agent skill for staged enterprise Akamai/Fermyon edge rollout; full setup-and-proof baseline remains tracked in `FERM-SKILL-1..3`
+- [`skills/prepare-shuma-on-akamai-fermyon/SKILL.md`](skills/prepare-shuma-on-akamai-fermyon/SKILL.md) - Agent skill for Akamai-edge-only Fermyon setup and deploy handoff preparation
+- [`skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](skills/deploy-shuma-on-akamai-fermyon/SKILL.md) - Deploy-side agent skill for Akamai-edge-only Fermyon rollout from a prepared setup receipt; real edge proof remains tracked in `FERM-SKILL-3`
+- [`docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md) - Current live Fermyon/Akamai edge proof blockers and recovery path
 - [`docs/api.md`](docs/api.md) - <abbr title="Application Programming Interface">API</abbr> usage and endpoint details
 - [`docs/configuration.md`](docs/configuration.md) - Runtime configuration reference
 - [`docs/security-hardening.md`](docs/security-hardening.md) - Deployment security checklist

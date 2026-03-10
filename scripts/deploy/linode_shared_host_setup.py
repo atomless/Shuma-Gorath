@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import base64
-import getpass
 import ipaddress
 import json
 import os
@@ -30,59 +29,30 @@ from scripts.deploy.remote_target import (
     default_public_base_url,
     write_remote_receipt,
 )
+from scripts.deploy.setup_common import (
+    DEFAULT_ENV_FILE,
+    DEFAULT_PUBLIC_IP_URL,
+    DEFAULT_SURFACE_CATALOG_DIR,
+    detect_public_ip,
+    is_interactive_session,
+    prompt_confirm,
+    prompt_secret,
+    prompt_text,
+    resolve_admin_allowlist,
+    resolve_catalog_output,
+    utc_now_iso,
+    write_json,
+)
 from scripts.site_surface_catalog import SUPPORTED_MODES, build_payload
 
-DEFAULT_ENV_FILE = REPO_ROOT / ".env.local"
 DEFAULT_RECEIPT_PATH = DEFAULT_DURABLE_STATE_DIR / "linode-shared-host-setup.json"
-DEFAULT_SURFACE_CATALOG_DIR = DEFAULT_DURABLE_STATE_DIR / "catalogs"
 DEFAULT_LINODE_API_URL = "https://api.linode.com/v4"
-DEFAULT_PUBLIC_IP_URL = "https://api.ipify.org?format=json"
 DEFAULT_IMAGE = "linode/ubuntu24.04"
 DEFAULT_PROFILE_TYPES = {
     "small": "g6-nanode-1",
     "medium": "g6-standard-1",
     "large": "g6-standard-2",
 }
-
-
-def is_interactive_session() -> bool:
-    return sys.stdin.isatty() and sys.stdout.isatty()
-
-
-def prompt_secret(prompt: str) -> str:
-    return getpass.getpass(prompt)
-
-
-def prompt_confirm(prompt: str, *, default_yes: bool = True) -> bool:
-    suffix = " [Y/n]: " if default_yes else " [y/N]: "
-    answer = input(f"{prompt}{suffix}").strip().lower()
-    if not answer:
-        return default_yes
-    return answer in {"y", "yes"}
-
-
-def prompt_text(prompt: str) -> str:
-    return input(prompt)
-
-
-def parse_ip_response(body: str) -> str:
-    candidate = body.strip()
-    if candidate.startswith("{"):
-        payload = json.loads(candidate)
-        candidate = str(payload.get("ip", "")).strip()
-    ipaddress.ip_address(candidate)
-    return candidate
-
-
-def detect_public_ip(url: str = DEFAULT_PUBLIC_IP_URL, timeout_seconds: int = 10) -> str:
-    request = urllib.request.Request(url, method="GET")
-    with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-        body = response.read().decode("utf-8")
-    return parse_ip_response(body)
-
-
-def default_catalog_output(docroot: Path) -> Path:
-    return DEFAULT_SURFACE_CATALOG_DIR / f"{docroot.name}.surface-catalog.json"
 
 
 def ensure_ssh_keypair(private_key_path: Path, comment: str = "shuma-linode") -> tuple[Path, Path, str]:
@@ -318,45 +288,10 @@ def resolve_token(args: argparse.Namespace, env_file: Path) -> tuple[str, str]:
     )
 
 
-def resolve_admin_allowlist(args: argparse.Namespace, env_file: Path) -> str:
-    for candidate in (
-        args.admin_ip,
-        os.environ.get("SHUMA_ADMIN_IP_ALLOWLIST", "").strip(),
-        read_env_value(env_file, "SHUMA_ADMIN_IP_ALLOWLIST").strip(),
-    ):
-        if candidate:
-            return candidate
-
-    detected = f"{detect_public_ip()}/32"
-    if args.yes:
-        return detected
-    if not is_interactive_session():
-        raise SystemExit(
-            "SHUMA_ADMIN_IP_ALLOWLIST is missing. Pass --admin-ip or rerun interactively to confirm the detected public IP."
-        )
-    if prompt_confirm(f"Use {detected} for SHUMA_ADMIN_IP_ALLOWLIST?", default_yes=True):
-        return detected
-    entered = prompt_text("Enter SHUMA_ADMIN_IP_ALLOWLIST value: ").strip()
-    if not entered:
-        raise SystemExit("SHUMA_ADMIN_IP_ALLOWLIST cannot be blank.")
-    return entered
-
-
-def resolve_catalog_output(docroot: Path, requested_output: str | None) -> Path:
-    if requested_output:
-        return Path(requested_output).expanduser().resolve()
-    return default_catalog_output(docroot).resolve()
-
-
 def resolve_label(requested_label: str | None) -> str:
     if requested_label:
         return requested_label
     return f"shuma-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
-
-
-def write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -372,7 +307,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not args.no_store_token and token_source != "env_file":
         upsert_env_value(env_file, "LINODE_TOKEN", token)
 
-    admin_allowlist = resolve_admin_allowlist(args, env_file)
+    admin_allowlist = resolve_admin_allowlist(
+        explicit_value=args.admin_ip or "",
+        env_value=os.environ.get("SHUMA_ADMIN_IP_ALLOWLIST", "").strip(),
+        persisted_value=read_env_value(env_file, "SHUMA_ADMIN_IP_ALLOWLIST").strip(),
+        accept_detected_default=args.yes,
+    )
     upsert_env_value(env_file, "SHUMA_ADMIN_IP_ALLOWLIST", admin_allowlist)
 
     catalog_output = resolve_catalog_output(docroot, args.catalog_output)
@@ -405,7 +345,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     receipt = {
         "schema": "shuma.linode.shared_host_setup.v1",
-        "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "generated_at_utc": utc_now_iso(),
         "mode": mode,
         "docroot": str(docroot),
         "site_mode": args.site_mode if args.site_mode != "auto" else payload["mode"],

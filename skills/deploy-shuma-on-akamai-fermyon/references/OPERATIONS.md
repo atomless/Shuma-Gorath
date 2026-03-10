@@ -2,8 +2,8 @@
 
 Maturity note:
 
-- treat this as deploy-path operations guidance, not yet as a fully verified setup-to-day-2 operator baseline;
-- the prerequisite setup skill and real deployment proof remain tracked in `FERM-SKILL-1..3`;
+- treat this as deploy-path operations guidance for the `spin aka` path, not yet as a fully verified setup-to-day-2 operator baseline;
+- the real deployment proof remains tracked in `FERM-SKILL-3`;
 - Akamai-edge-only operator controls and future Akamai Rate/GEO work stay blocked until that edge baseline is proven.
 
 ## Preflight Checklist
@@ -11,46 +11,27 @@ Maturity note:
 Run before any deploy:
 
 ```bash
-export SHUMA_FERMYON_DEPLOY_MODE=aka   # or cloud
-
 spin --version
-case "${SHUMA_FERMYON_DEPLOY_MODE:-}" in
-  aka)
-    spin aka --help >/dev/null
-    spin aka login --help >/dev/null
-    spin aka deploy --help >/dev/null
-    ;;
-  cloud)
-    spin cloud --help >/dev/null
-    spin cloud login --help >/dev/null
-    spin cloud deploy --help >/dev/null
-    ;;
-  *)
-    echo "SHUMA_FERMYON_DEPLOY_MODE must be aka or cloud" >&2
-    exit 1
-    ;;
-esac
-
-make deploy-enterprise-akamai
-make deploy-env-validate
-make test-gateway-profile-edge
-make smoke-gateway-mode
+spin aka --help >/dev/null
+spin aka login --help >/dev/null
+spin aka deploy --help >/dev/null
+test -f .shuma/fermyon-akamai-edge-setup.json
 ```
 
-This checks enterprise posture and fails fast when guardrails are not satisfied.
+The deploy helper itself performs the enterprise guardrails and writes the deploy receipt.
 
 ## Deploy Execution
 
-Use exactly one command family per run:
+Use the Make target, not raw ad hoc `spin aka` invocations:
 
 ```bash
-if [ "${SHUMA_FERMYON_DEPLOY_MODE}" = "aka" ]; then
-  spin aka login
-  spin aka deploy
-else
-  spin cloud login
-  make deploy
-fi
+make deploy-fermyon-akamai-edge
+```
+
+Optional preflight-only run:
+
+```bash
+make deploy-fermyon-akamai-edge DEPLOY_FERMYON_ARGS="--preflight-only"
 ```
 
 ## Required Akamai Staging Property Gate
@@ -70,18 +51,6 @@ curl -sS -D- -o /dev/null "https://<staging-host>/dashboard/index.html"
 ```
 
 ## Common Issues
-
-### Mode mismatch / wrong command family
-
-Symptoms:
-
-- `spin aka ...` fails in a cloud-only setup.
-- `spin cloud ...` fails in an Akamai/Wasm Functions setup.
-
-Fix:
-
-- set `SHUMA_FERMYON_DEPLOY_MODE` to exactly one value: `aka` or `cloud`.
-- run only the matching command family for that deploy run.
 
 ### Enterprise flag/mode mismatch
 
@@ -121,19 +90,6 @@ Fix:
 - run reserved-route preflight with valid `GATEWAY_SURFACE_CATALOG_PATH`,
 - keep `SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=true` only when origin lock is actually enforced.
 
-### Cloud deploy auth failure
-
-Symptoms:
-
-- `make deploy` fails at `spin cloud deploy` with auth/permission error.
-
-Fix:
-
-```bash
-spin cloud login
-make deploy
-```
-
 ### Akamai/Wasm Functions deploy auth failure
 
 Symptoms:
@@ -143,9 +99,13 @@ Symptoms:
 Fix:
 
 ```bash
-spin aka login
-spin aka deploy
+make prepare-fermyon-akamai-edge PREPARE_FERMYON_ARGS="..."
+make deploy-fermyon-akamai-edge
 ```
+
+If `spin aka login` panics with `plugin/src/commands/login.rs` and `index out of bounds`, treat it as an upstream plugin blocker and stop. Do not fabricate a successful deploy receipt.
+
+If the helper falls back to device login and the browser finishes with `User is not allow-listed!`, stop there too. The account still is not enabled for Wasm Functions on Akamai.
 
 ### Akamai staging gate failure
 
@@ -192,7 +152,7 @@ Preferred fast rollback (safe posture):
 3. redeploy:
 
 ```bash
-make deploy
+make deploy-fermyon-akamai-edge
 ```
 
 Important:

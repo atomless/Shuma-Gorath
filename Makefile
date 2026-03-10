@@ -1,4 +1,4 @@
-.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean reset-local-state test test-unit unit-test test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-config-lifecycle test-runtime-preflight-unit test-runtime-preflight test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-remote-edge-signal-smoke telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-frontier-unavailability-policy-unit test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host remote-use remote-update remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot logs status stop help setup setup-runtime verify verify-runtime config-seed config-verify dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean reset-local-state test test-unit unit-test test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-deploy-fermyon test-config-lifecycle test-runtime-preflight-unit test-runtime-preflight test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-remote-edge-signal-smoke telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-frontier-unavailability-policy-unit test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host prepare-fermyon-akamai-edge remote-use remote-update remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot deploy-fermyon-akamai-edge logs status stop help setup setup-runtime verify verify-runtime config-seed config-verify dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -25,6 +25,9 @@ include $(ENV_LOCAL)
 endif
 SHUMA_LOCAL_STATE_DIR ?= .shuma
 LINODE_SETUP_RECEIPT ?= $(SHUMA_LOCAL_STATE_DIR)/linode-shared-host-setup.json
+FERMYON_AKAMAI_SETUP_RECEIPT ?= $(SHUMA_LOCAL_STATE_DIR)/fermyon-akamai-edge-setup.json
+FERMYON_AKAMAI_DEPLOY_RECEIPT ?= $(SHUMA_LOCAL_STATE_DIR)/fermyon-akamai-edge-deploy.json
+FERMYON_AKAMAI_RENDERED_MANIFEST ?= $(SHUMA_LOCAL_STATE_DIR)/manifests/fermyon-akamai-edge.spin.toml
 REMOTE_RECEIPTS_DIR ?= $(SHUMA_LOCAL_STATE_DIR)/remotes
 
 # Normalize optional quoted values from .env.local (handles KEY=value and KEY="value")
@@ -489,6 +492,12 @@ smoke-single-host: ## Run post-deploy single-host smoke checks (health/admin aut
 prepare-linode-shared-host: ## Agent-oriented Linode shared-host setup (persist token/admin allowlist, create or inspect instance, build catalog, write receipt)
 	@python3 ./scripts/prepare_linode_shared_host.py $(PREPARE_LINODE_ARGS)
 
+prepare-fermyon-akamai-edge: ## Agent-oriented Fermyon/Akamai edge setup (persist PAT, validate spin aka, build handoff receipt)
+	@python3 ./scripts/prepare_fermyon_akamai_edge.py --env-file "$(ENV_LOCAL)" --receipt-output "$(FERMYON_AKAMAI_SETUP_RECEIPT)" --deploy-receipt-output "$(FERMYON_AKAMAI_DEPLOY_RECEIPT)" --rendered-manifest-output "$(FERMYON_AKAMAI_RENDERED_MANIFEST)" $(PREPARE_FERMYON_ARGS)
+
+deploy-fermyon-akamai-edge: ## Deploy to Fermyon Wasm Functions on Akamai using the durable setup receipt
+	@python3 ./scripts/deploy_fermyon_akamai_edge.py --env-file "$(ENV_LOCAL)" --setup-receipt "$(FERMYON_AKAMAI_SETUP_RECEIPT)" --deploy-receipt-output "$(FERMYON_AKAMAI_DEPLOY_RECEIPT)" $(DEPLOY_FERMYON_ARGS)
+
 remote-use: ## Select the active normalized ssh_systemd remote target (REMOTE=<name>)
 	@python3 ./scripts/manage_remote_target.py --env-file "$(ENV_LOCAL)" --receipts-dir "$(REMOTE_RECEIPTS_DIR)" use --name "$(REMOTE)"
 
@@ -693,6 +702,11 @@ test-deploy-linode: ## Validate Linode deploy-path helpers and production input 
 	@python3 -m unittest scripts/tests/test_setup_runtime_spin_install.py
 	@python3 -m unittest scripts/tests/test_smoke_single_host.py
 	@python3 -m unittest scripts/tests/test_wait_for_spin_ready.py
+
+test-deploy-fermyon: ## Validate Fermyon/Akamai edge setup and deploy helpers
+	@echo "$(CYAN)🧪 Running Fermyon/Akamai edge deploy-path verification...$(NC)"
+	@python3 -m unittest scripts/tests/test_prepare_fermyon_akamai_edge.py
+	@python3 -m unittest scripts/tests/test_deploy_fermyon_akamai_edge.py
 
 test-config-lifecycle: ## Validate read-only runtime config lifecycle checks and explicit seed/backfill flows
 	@echo "$(CYAN)🧪 Running config lifecycle verification...$(NC)"

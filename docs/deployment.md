@@ -5,7 +5,7 @@ Shuma-Gorath is designed to run on Spin (local or cloud). Use the Makefile paths
 Shuma-Gorath is intended to complement enterprise bot defenses (for example Akamai Bot Manager), but can run standalone.
 Akamai-specific operator controls belong only to the Akamai edge posture (`SHUMA_GATEWAY_DEPLOYMENT_PROFILE=edge-fermyon`). Shared-server and other non-edge deployments keep the baseline and generic trusted-header surfaces, but must not present themselves as Akamai-edge integrations.
 
-The remaining Akamai-edge-specific Rate and GEO expansion work is blocked on the verified Fermyon/Akamai edge setup and deploy baseline (`FERM-SKILL-1..3`). Until that prerequisite is complete, only the already-implemented fingerprint edge adapter and generic trusted GEO header path are in scope.
+The remaining Akamai-edge-specific Rate and GEO expansion work is blocked on the verified Fermyon/Akamai edge live proof (`FERM-SKILL-3`). The setup and deploy skills are now implemented, but until the live proof is complete only the already-implemented fingerprint edge adapter and generic trusted GEO header path are in scope.
 
 For the current deployment-track execution backlog (single-host baseline and enterprise multi-instance sync hardening), see:
 [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md).
@@ -138,6 +138,7 @@ Related repo-local deployment skills:
 
 - [`../skills/prepare-shared-host-on-linode/SKILL.md`](../skills/prepare-shared-host-on-linode/SKILL.md)
 - [`../skills/deploy-shuma-on-linode/SKILL.md`](../skills/deploy-shuma-on-linode/SKILL.md)
+- [`../skills/prepare-shuma-on-akamai-fermyon/SKILL.md`](../skills/prepare-shuma-on-akamai-fermyon/SKILL.md)
 - [`../skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](../skills/deploy-shuma-on-akamai-fermyon/SKILL.md)
 
 ## 🐙 Generic SSH Remote Day-2 Operations
@@ -610,9 +611,35 @@ allowed_outbound_hosts = []
 Only add explicit hosts if a new feature requires outbound calls.
 For the canonical shared-host gateway deployment path, keep [`spin.toml`](../spin.toml) as the deny-by-default template and render a deployment-specific manifest with `scripts/deploy/render_gateway_spin_manifest.py`.
 
-## 🐙 Fermyon / Spin Cloud
+## 🐙 Fermyon / Akamai Edge
 
-Example variable wiring:
+Canonical Akamai-edge-only helper path:
+
+```bash
+make prepare-fermyon-akamai-edge PREPARE_FERMYON_ARGS="--upstream-origin https://origin.example.com --surface-catalog-path /abs/path/to/catalog.json --origin-lock-confirmed true --reserved-route-collision-check-passed true --admin-edge-rate-limits-confirmed true --admin-api-key-rotation-confirmed true"
+make deploy-fermyon-akamai-edge
+```
+
+What the helpers do:
+
+- persist `SPIN_AKA_ACCESS_TOKEN` in `.env.local`,
+- write `.shuma/fermyon-akamai-edge-setup.json`,
+- render a deployment-specific Spin manifest,
+- run enterprise edge preflight through the canonical Make targets,
+- write `.shuma/fermyon-akamai-edge-deploy.json` after a successful `spin aka deploy`.
+
+Current honest boundary:
+
+- this path is `spin aka` only,
+- it does not participate in `SHUMA_ACTIVE_REMOTE` or `make remote-*`,
+- if `spin aka` PAT login panics, the helper falls back to device login in interactive sessions,
+- if device login still ends with `User is not allow-listed!`, treat that as a real provider-access blocker and leave `FERM-SKILL-3` open.
+
+Observed live-proof blockers are archived in:
+
+- [`research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md)
+
+Example variable wiring for the rendered edge manifest:
 
 ```toml
 [variables]
@@ -626,13 +653,6 @@ environment = {
   SHUMA_JS_SECRET = "{{ js_secret }}",
   SHUMA_FORWARDED_IP_SECRET = "{{ forwarded_ip_secret }}"
 }
-```
-
-Deploy:
-
-```bash
-spin cloud login
-make deploy
 ```
 
 ### 🐙 Edge-Chain Placement Note (Fermyon)

@@ -176,10 +176,11 @@ Local dev (Makefile): `make dev` sets a dev-only default and passes it to Spin. 
 make dev SHUMA_FORWARDED_IP_SECRET="your-dev-secret"
 ```
 
-Fermyon / Spin Cloud (recommended):
+Fermyon / Akamai edge (agent path):
 1. Define an application variable in `spin.toml`.
 2. Map it into the component environment.
-3. Set the variable in your cloud environment (<abbr title="Command-Line Interface">CLI</abbr> or console) at deploy time.
+3. Prepare the Akamai-edge setup receipt.
+4. Deploy through the Akamai-edge helper.
 
 Example `spin.toml` wiring (no secret committed):
 ```toml
@@ -193,6 +194,15 @@ environment = { SHUMA_FORWARDED_IP_SECRET = "{{ forwarded_ip_secret }}" }
 Other deploy targets:
 - Set `SHUMA_FORWARDED_IP_SECRET` as an environment variable in your platform's secrets/config (Kubernetes, Docker, systemd, etc.).
 - Ensure your proxy/<abbr title="Content Delivery Network">CDN</abbr> sends `X-Shuma-Forwarded-Secret` with the same value on each request.
+
+Canonical commands:
+
+```bash
+make prepare-fermyon-akamai-edge PREPARE_FERMYON_ARGS="--upstream-origin https://origin.example.com --surface-catalog-path /abs/path/to/catalog.json --origin-lock-confirmed true --reserved-route-collision-check-passed true --admin-edge-rate-limits-confirmed true --admin-api-key-rotation-confirmed true"
+make deploy-fermyon-akamai-edge
+```
+
+If PAT login panics, the helper falls back to Fermyon device login in interactive sessions. If browser auth then says `User is not allow-listed!`, provider access is still pending and the real edge proof remains blocked.
 
 For more deployment detail, see [`docs/deployment.md`](deployment.md).
 
