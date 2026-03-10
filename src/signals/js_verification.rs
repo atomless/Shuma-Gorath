@@ -32,6 +32,8 @@ use sha2::Sha256;
 use spin_sdk::http::{Request, Response};
 use spin_sdk::key_value::Store;
 
+const VERIFYING_VISIBILITY_DELAY_MS: u64 = 200;
+
 /// Secret used for HMAC token generation for JS verification cookies.
 /// Pull from env to avoid a repo-known static secret in production.
 fn get_js_secret() -> String {
@@ -192,18 +194,33 @@ pub fn inject_js_challenge(
                     document.body.innerText = 'Proof-of-work requires a modern browser.';
                     return;
                 }}
-                document.body.innerText = 'Verifying...';
-                const nonce = await solvePow(POW_SEED, SHUMA_POW_DIFFICULTY);
-                const resp = await fetch('/pow/verify', {{
-                    method: 'POST',
-                    headers: {{ 'Content-Type': 'application/json' }},
-                    body: JSON.stringify({{ seed: POW_SEED, nonce: nonce }})
-                }});
-                if (resp.ok) {{
-                    document.cookie = '{fp_marker_cookie}';
-                    window.location.reload();
-                }} else {{
-                    document.body.innerText = 'Verification failed. Please refresh.';
+                let verifyingTimer = null;
+
+                function showVerifying() {{
+                    verifyingTimer = null;
+                    document.body.innerText = 'Verifying...';
+                }}
+
+                verifyingTimer = setTimeout(showVerifying, {verifying_delay_ms});
+
+                try {{
+                    const nonce = await solvePow(POW_SEED, SHUMA_POW_DIFFICULTY);
+                    const resp = await fetch('/pow/verify', {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify({{ seed: POW_SEED, nonce: nonce }})
+                    }});
+                    if (resp.ok) {{
+                        document.cookie = '{fp_marker_cookie}';
+                        window.location.reload();
+                    }} else {{
+                        document.body.innerText = 'Verification failed. Please refresh.';
+                    }}
+                }} finally {{
+                    if (verifyingTimer !== null) {{
+                        clearTimeout(verifyingTimer);
+                        verifyingTimer = null;
+                    }}
                 }}
             }}
 
@@ -214,6 +231,7 @@ pub fn inject_js_challenge(
     "#,
             seed = challenge.seed,
             difficulty = challenge.difficulty,
+            verifying_delay_ms = VERIFYING_VISIBILITY_DELAY_MS,
             fp_marker_cookie = fingerprint_marker_cookie(),
         );
         return Response::new(200, html);
@@ -286,5 +304,41 @@ mod tests {
         );
         let body = String::from_utf8_lossy(resp.body());
         assert!(body.contains("fetch('/cdp-report'"));
+    }
+
+    #[test]
+    fn js_verification_pow_interstitial_delays_verifying_copy_until_threshold() {
+        let resp = inject_js_challenge(
+            "203.0.113.22",
+            "Mozilla/5.0",
+            "/fingerprint-report",
+            true,
+            15,
+            120,
+            crate::config::CdpProbeFamily::V1,
+            100,
+        );
+        let body = String::from_utf8_lossy(resp.body());
+        assert!(body.contains("setTimeout(showVerifying, 200);"));
+        assert!(body.contains("function showVerifying()"));
+        assert!(!body.contains("document.body.innerText = 'Verifying...';\n                const nonce"));
+    }
+
+    #[test]
+    fn js_verification_non_pow_interstitial_remains_immediate_and_invisible() {
+        let resp = inject_js_challenge(
+            "203.0.113.23",
+            "Mozilla/5.0",
+            "/fingerprint-report",
+            false,
+            15,
+            120,
+            crate::config::CdpProbeFamily::V1,
+            100,
+        );
+        let body = String::from_utf8_lossy(resp.body());
+        assert!(!body.contains("Verifying..."));
+        assert!(!body.contains("showVerifying"));
+        assert!(body.contains("document.cookie = 'js_verified="));
     }
 }

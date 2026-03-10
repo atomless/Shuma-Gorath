@@ -307,6 +307,7 @@ Current exception:
 
 - `js_required_enforced=true` routes visitors without a valid `js_verified` cookie to <abbr title="JavaScript">JS</abbr> verification.
 - `pow_enabled=true` adds server-verified <abbr title="Proof of Work">PoW</abbr> to that verification flow.
+- When the <abbr title="Proof of Work">PoW</abbr> flow is active, the `Verifying...` copy is delayed so very fast solves stay visually invisible while slower solves still get explicit status feedback.
 - `js_required_enforced=false` bypasses <abbr title="JavaScript">JS</abbr> verification for normal requests (and therefore bypasses <abbr title="Proof of Work">PoW</abbr> on that path).
 - `challenge_puzzle_enabled=false` disables challenge-page serving; challenge-tier routes fall back to maze when `maze_enabled=true`, otherwise hard block.
 

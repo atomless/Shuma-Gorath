@@ -100,7 +100,7 @@ Normal routing can enforce a <abbr title="JavaScript">JS</abbr> verification gat
 
 1. If `js_required_enforced=true` and the request has no valid `js_verified` cookie, the server returns an inline <abbr title="JavaScript">JS</abbr> verification interstitial for the requested path.
 2. That interstitial performs <abbr title="Chrome DevTools Protocol">CDP</abbr> reporting (`POST /cdp-report`) as telemetry.
-3. If `SHUMA_POW_ENABLED=true`, the interstitial solves <abbr title="Proof of Work">PoW</abbr> and submits `POST /pow/verify`.
+3. If `SHUMA_POW_ENABLED=true`, the interstitial solves <abbr title="Proof of Work">PoW</abbr> and submits `POST /pow/verify`. The user-facing `Verifying...` copy is intentionally delayed so fast solves stay visually invisible; it appears only when the solve takes longer than the short threshold baked into the interstitial.
 4. `/pow/verify` validates the proof and returns `Set-Cookie: js_verified=...`.
 5. After a valid `js_verified` cookie is set, the page reloads and the original route is retried.
 
