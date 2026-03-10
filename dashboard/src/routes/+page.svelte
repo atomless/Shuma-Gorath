@@ -68,6 +68,10 @@
   const shumaImageSrc = typeof data?.shumaImageSrc === 'string'
     ? data.shumaImageSrc
     : resolveDashboardAssetPath(dashboardBasePath, 'assets/shuma-gorath-pencil.png');
+  const faviconHref = resolveDashboardAssetPath(
+    dashboardBasePath,
+    'assets/shuma-gorath-pencil-closed.png'
+  );
 
   const dashboardStore = createDashboardStore({ initialTab: 'monitoring' });
 
@@ -926,6 +930,7 @@
 </script>
 <svelte:head>
   <title>Shuma-Gorath Dashboard</title>
+  <link rel="icon" type="image/png" href={faviconHref}>
 </svelte:head>
 <svelte:window on:hashchange={onWindowHashChange} />
 <svelte:document on:visibilitychange={onDocumentVisibilityChange} />

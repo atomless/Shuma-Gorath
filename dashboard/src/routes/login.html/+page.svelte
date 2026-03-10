@@ -1,5 +1,4 @@
 <script>
-  import { base } from '$app/paths';
   import { onMount, tick } from 'svelte';
   import {
     deriveDashboardBodyClassState,
@@ -7,17 +6,24 @@
   } from '$lib/runtime/dashboard-body-classes.js';
   import {
     dashboardIndexPath,
-    normalizeDashboardBasePath
+    normalizeDashboardBasePath,
+    resolveDashboardAssetPath
   } from '$lib/runtime/dashboard-paths.js';
 
+  export let data;
   let apiKey = '';
   let apiKeyInput = null;
   let messageText = '';
   let messageKind = 'info';
   let runtimeStateAvailable = false;
   const passwordManagerIdentity = 'admin';
-  const dashboardBasePath = normalizeDashboardBasePath(base);
+  const dashboardBasePath = typeof data?.dashboardBasePath === 'string'
+    ? data.dashboardBasePath
+    : normalizeDashboardBasePath();
   const fallbackNextPath = dashboardIndexPath(dashboardBasePath);
+  const faviconHref = typeof data?.faviconHref === 'string'
+    ? data.faviconHref
+    : resolveDashboardAssetPath(dashboardBasePath, 'assets/shuma-gorath-pencil-closed.png');
   let nextPath = fallbackNextPath;
 
   function safeNextPath(raw) {
@@ -128,6 +134,7 @@
 
 <svelte:head>
   <title>Shuma-Gorath Dashboard Login</title>
+  <link rel="icon" type="image/png" href={faviconHref}>
 </svelte:head>
 
 <main class="login-shell">

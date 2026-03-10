@@ -958,6 +958,10 @@ test("dashboard login route remains functional after direct navigation and refre
   ensureRuntimeGuard(page);
   await page.goto(`${BASE_URL}/dashboard/login.html?next=%2Fdashboard%2Findex.html`);
   await expect(page.locator("#login-form")).toBeVisible();
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
+    "href",
+    /\/dashboard\/assets\/shuma-gorath-pencil-closed\.png$/
+  );
   await expect(page.locator("#login-form")).toHaveAttribute("method", "POST");
   await expect(page.locator("#login-form")).toHaveAttribute("action", "/admin/login");
   await expect(page.locator('label.control-label[for="username"]')).toHaveText("Account");
@@ -969,6 +973,10 @@ test("dashboard login route remains functional after direct navigation and refre
   await expect(page.locator("#current-password")).toBeFocused();
   await page.reload();
   await expect(page.locator("#login-form")).toBeVisible();
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
+    "href",
+    /\/dashboard\/assets\/shuma-gorath-pencil-closed\.png$/
+  );
   await expect(page.locator("#current-password")).toBeFocused();
   await page.fill("#current-password", API_KEY);
   await page.click("#login-submit");

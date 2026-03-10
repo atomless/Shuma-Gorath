@@ -3072,7 +3072,20 @@ test('login route exposes native password-manager-friendly form-post semantics',
     path.join(DASHBOARD_ROOT, 'src/routes/login.html/+page.svelte'),
     'utf8'
   );
+  const loadSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/routes/login.html/+page.js'),
+    'utf8'
+  );
 
+  assert.match(source, /resolveDashboardAssetPath/);
+  assert.match(source, /export let data;/);
+  assert.match(source, /const dashboardBasePath = typeof data\?\.dashboardBasePath === 'string'/);
+  assert.match(source, /const faviconHref = typeof data\?\.faviconHref === 'string'/);
+  assert.match(source, /<link rel="icon" type="image\/png" href=\{faviconHref\}>/);
+  assert.match(loadSource, /export function load\(\)/);
+  assert.match(loadSource, /dashboardBasePath/);
+  assert.match(loadSource, /faviconHref/);
+  assert.match(loadSource, /assets\/shuma-gorath-pencil-closed\.png/);
   assert.match(source, /const passwordManagerIdentity = 'admin';/);
   assert.match(source, /<form id="login-form" class="login-form" method="POST" action="\/admin\/login">/);
   assert.match(source, /<label class="control-label" for="username">Account<\/label>/);
@@ -3093,6 +3106,16 @@ test('login route exposes native password-manager-friendly form-post semantics',
   assert.equal(source.includes("fetch('/admin/login'"), false);
   assert.equal(source.includes('JSON.stringify({ api_key: normalized })'), false);
   assert.equal(source.includes('event.preventDefault()'), false);
+});
+
+test('dashboard routes advertise an explicit dashboard-scoped favicon', () => {
+  const mainSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
+    'utf8'
+  );
+
+  assert.match(mainSource, /const faviconHref = resolveDashboardAssetPath\(\s*dashboardBasePath,\s*'assets\/shuma-gorath-pencil-closed\.png'\s*\)/s);
+  assert.match(mainSource, /<link rel="icon" type="image\/png" href=\{faviconHref\}>/);
 });
 
 test('monitoring tab applies bounded sanitization and redraw guards', () => {
