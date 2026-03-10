@@ -132,13 +132,14 @@
 
 :root.runtime-prod {
   --hue: -93;
-  --striped-testmode-bg: repeating-linear-gradient(-45deg, hsla(320, 35%, 65%, 0.85), hsla(320, 35%, 65%, 0.85) 10px, hsl(320, 59%, 69%) 10px, hsl(320, 59%, 69%) 20px);
+  /* --striped-testmode-bg: repeating-linear-gradient(-45deg, hsla(320, 35%, 65%, 0.85), hsla(320, 35%, 65%, 0.85) 10px, hsl(320, 59%, 69%) 10px, hsl(320, 59%, 69%) 20px); */
 }
 
 :root.connected {
   filter: saturate(1);
   transition: filter .6s ease-in;
 }
+
 :root.connected.runtime-prod {
   filter: saturate(1.2);
 }
@@ -527,7 +528,7 @@ h1 {
   margin: 0;
 }
 
-.dashboard-global-control-copy-block + .dashboard-global-control-copy-block {
+.dashboard-global-control-copy-block+.dashboard-global-control-copy-block {
   margin-top: 6px;
 }
 
