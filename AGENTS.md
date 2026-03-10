@@ -69,6 +69,7 @@ This file provides instructions for coding agents working in this repository.
 11. TODO housekeeping is immediate, not batched:
    - when any TODO checklist item is completed, move it from `todos/todo.md` to `todos/completed-todo-history.md` at the point of completion,
    - when a TODO becomes explicitly blocked or contingent rather than execution-ready, move it from `todos/todo.md` to `todos/blocked-todo.md` with a short blocking condition,
+   - when code or behavior work is completed without a pre-written TODO entry, agents MUST still add a dated completion record to `todos/completed-todo-history.md` describing the work delivered, why it was done, and the main evidence/verification, so every lasting change leaves an auditable paper trail,
    - prepend new completion entries to the top of `todos/completed-todo-history.md`,
    - include the completion date for the moved entries,
    - preserve the original TODO section title(s) as headings in the archive entry.

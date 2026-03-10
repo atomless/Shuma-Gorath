@@ -4,6 +4,16 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-10)
 
+### Process Auditability and Completion Recording
+
+- [x] Record the requirement that ad hoc code-change tasks without pre-written TODOs must still leave a dated completion entry in `todos/completed-todo-history.md`, with a clear description of what changed, why it was done, and the evidence/verification.
+- [x] Why:
+  - ad hoc bugfixes and small architecture/process slices were leaving less durable audit trail than backlog-driven work
+  - completion history must remain the minimum durable record even when there was no active TODO entry to move
+- [x] Evidence:
+  - `AGENTS.md`
+  - `todos/completed-todo-history.md`
+
 ### P1 Fermyon / Akamai Edge Deployment Baseline
 
 - [x] FERM-SKILL-1 Create an agent-oriented Fermyon / Akamai edge setup skill that captures the required account, mode, edge property, origin, and secret inputs, and leaves a deploy-ready handoff comparable to the Linode setup path.
