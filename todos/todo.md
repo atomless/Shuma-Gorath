@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-08
+Last updated: 2026-03-10
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -95,6 +95,20 @@ Architecture alignment reference:
 
 ## P2 Later Product Work
 
+- [ ] WALK-1: Ephemeral Admin Challenge Walkthrough Mode
+  - Reference context:
+    - [`docs/challenge-verification.md`](../docs/challenge-verification.md)
+    - [`docs/tarpit.md`](../docs/tarpit.md)
+    - [`docs/dashboard-tabs/verification.md`](../docs/dashboard-tabs/verification.md)
+    - [`src/runtime/policy_graph.rs`](../src/runtime/policy_graph.rs)
+    - [`src/runtime/request_flow.rs`](../src/runtime/request_flow.rs)
+  - [ ] WALK-1-1 Write a short design note that defines the exact contract: admin-only toggle, current authed admin IP derived server-side, ephemeral state with explicit expiry, no freeform IP entry, and no persisted `always_challenge_ips` config surface in normal config or Advanced JSON.
+  - [ ] WALK-1-2 Add runtime state and admin API primitives for activate/deactivate/status so the walkthrough binds to the currently authed admin IP under trusted admin auth, survives page refreshes for a bounded TTL, and expires/cleans up deterministically.
+  - [ ] WALK-1-3 Integrate the request path so an active walkthrough IP is forced through the live step-up ladder for observation without globally distorting thresholds or affecting other visitors; keep the walkthrough focused on the normal human-risk ladder (`JS` -> `Not-a-Bot` -> `Puzzle` -> `Maze`) rather than a blanket global "always challenge" switch.
+  - [ ] WALK-1-4 Keep tarpit out of the automatic walkthrough ladder unless a separate explicit admin-only confirmed-attack simulation contract is designed and approved; document and preserve the current non-mutating tarpit preview as the truthful operator surface meanwhile.
+  - [ ] WALK-1-5 Add the Verification-tab control as a simple toggle plus status/expiry copy, with no operator IP input field and no ability to accumulate arbitrary target IPs.
+  - [ ] WALK-1-6 Add unit, integration, and dashboard end-to-end coverage proving activation, expiry, trusted admin IP rebinding, non-admin isolation, cleanup on disable, and correct ladder ordering without persistent bans/collateral state leakage.
+  - [ ] WALK-1-7 Update operator docs and verification guidance so admins know exactly what the walkthrough exercises, what it intentionally does not exercise, and how to observe each step safely on local and deployed environments.
 - [ ] SIM-DET-L1 Add optional deterministic seed input for runtime-toggle runs to support exact tune-confirm-repeat replay when desired; keep default behavior non-seeded.
 - [ ] NAB-12 Evaluate optional PAT-style private attestation signal ingestion as additive evidence only (non-blocking).
 - [ ] NAB-13 Execute short Not-a-Bot hardening sprint per [`docs/plans/2026-02-21-not-a-bot-hardening-sprint.md`](../docs/plans/2026-02-21-not-a-bot-hardening-sprint.md).
