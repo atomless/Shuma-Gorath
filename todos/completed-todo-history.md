@@ -4,6 +4,21 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-11)
 
+### Ad Hoc Dashboard UX: Test-Mode Header Eye Overlay
+
+- [x] Overlay the dashboard header image with the `eye.png` marker only while `test_mode` is enabled, so operators can see at a glance that the current session is in logging-only posture without adding more permanent chrome.
+- [x] Why:
+  - test mode already changes runtime semantics, but the dashboard header gave no persistent visual cue once the operator scrolled past the banner/toggle area
+  - the requested cue needed to stay local to the existing header and avoid disturbing the broader dashboard visual language
+- [x] Evidence:
+  - `dashboard/src/routes/+page.svelte`
+  - `dashboard/static/assets/eye.png`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+  - `docs/dashboard.md`
+  - `make test-dashboard-unit`
+  - `make test-dashboard-e2e PLAYWRIGHT_ARGS="--grep 'dashboard header overlays the eye only while test mode is enabled|dashboard login route remains functional after direct navigation and refresh'"`
+
 ### Ad Hoc Runtime Reliability: Remote Deploy Env Default Seeding
 
 - [x] Ensure Linode deploy/update flows seed the latest `.env.local` defaults before restoring overlay values so newly introduced `SHUMA_*` runtime vars do not leave existing remotes in a stale or blank env state.

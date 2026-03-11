@@ -9,6 +9,9 @@ const ADMIN_TABS = Object.freeze(["ip-bans", "status", "verification", "traps", 
 const VERIFICATION_RESTORE_PATHS = Object.freeze([
   "js_required_enforced"
 ]);
+const TEST_MODE_RESTORE_PATHS = Object.freeze([
+  "test_mode"
+]);
 const GEO_AND_TUNING_RESTORE_PATHS = Object.freeze([
   "defence_modes.geo",
   "geo_edge_headers_enabled",
@@ -1417,6 +1420,25 @@ test("dashboard loads and shows seeded operational data", async ({ page }) => {
   await expect(page.locator("#cdp-events tbody tr").first()).toBeVisible();
   await expect(page.locator("#cdp-total-detections")).not.toHaveText("-");
   await expect(page.locator('label[for="global-test-mode-toggle"]')).toBeVisible();
+  await expect(page.locator(".dashboard-test-mode-eye")).toHaveCount(0);
+});
+
+test("dashboard header overlays the eye only while test mode is enabled", async ({ page, request }) => {
+  await withRestoredAdminConfig(request, TEST_MODE_RESTORE_PATHS, async () => {
+    await openDashboard(page);
+
+    const eyeOverlay = page.locator(".dashboard-test-mode-eye");
+
+    await expect(eyeOverlay).toHaveCount(0);
+
+    await updateAdminConfig(request, { test_mode: true });
+    await page.reload();
+    await expect(eyeOverlay).toBeVisible();
+
+    await updateAdminConfig(request, { test_mode: false });
+    await page.reload();
+    await expect(eyeOverlay).toHaveCount(0);
+  });
 });
 
 test("dashboard monitoring totals stay in parity with /metrics monitoring families", async ({ page, request }) => {

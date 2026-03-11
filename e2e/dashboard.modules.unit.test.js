@@ -3311,6 +3311,18 @@ test('dashboard route imports native runtime actions directly', () => {
   assert.equal(source.includes("routeController.refreshTab(activeTabKey, 'adversary-sim-toggle')"), false);
 });
 
+test('dashboard route overlays a test-mode eye on the header image only when test mode is enabled', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
+    'utf8'
+  );
+
+  assert.match(source, /assets\/eye\.png/);
+  assert.match(source, /\{#if testModeEnabled\}/);
+  assert.match(source, /dashboard-test-mode-eye/);
+  assert.match(source, /Test mode active/);
+});
+
 test('dashboard route controller gates polling to auto-enabled eligible tabs', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/runtime/dashboard-route-controller.js'),

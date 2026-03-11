@@ -68,6 +68,7 @@
   const shumaImageSrc = typeof data?.shumaImageSrc === 'string'
     ? data.shumaImageSrc
     : resolveDashboardAssetPath(dashboardBasePath, 'assets/shuma-gorath-pencil.png');
+  const testModeEyeSrc = resolveDashboardAssetPath(dashboardBasePath, 'assets/eye.png');
   const faviconHref = resolveDashboardAssetPath(
     dashboardBasePath,
     'assets/shuma-gorath-pencil-closed.png'
@@ -984,6 +985,12 @@
   <header>
     <div class="shuma-image-wrapper">
       <img src={shumaImageSrc} alt="Shuma-Gorath" class="shuma-gorath-img">
+      {#if testModeEnabled}
+        <span class="dashboard-test-mode-eye" aria-hidden="true">
+          <img src={testModeEyeSrc} alt="" class="dashboard-test-mode-eye-image">
+        </span>
+        <span class="visually-hidden">Test mode active</span>
+      {/if}
     </div>
     <h1>Shuma-Gorath</h1>
     <p class="subtitle text-muted"><a href="https://read.dukeupress.edu/books/book/27/Staying-with-the-TroubleMaking-Kin-in-the" target="_blank">Chthulucene</a> Bot Defence</p>
@@ -1318,3 +1325,24 @@
     <p class="message info">Loading dashboard runtime...</p>
   {/if}
 </div>
+
+<style>
+  .shuma-image-wrapper {
+    position: relative;
+  }
+
+  .dashboard-test-mode-eye {
+    position: absolute;
+    top: 0.1rem;
+    left: 0.3rem;
+    width: clamp(2rem, 18%, 3rem);
+    pointer-events: none;
+  }
+
+  .dashboard-test-mode-eye-image {
+    display: block;
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 0.15rem 0.35rem rgba(0, 0, 0, 0.45));
+  }
+</style>
