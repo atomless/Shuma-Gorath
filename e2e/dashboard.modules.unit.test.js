@@ -3312,15 +3312,25 @@ test('dashboard route imports native runtime actions directly', () => {
 });
 
 test('dashboard route overlays a test-mode eye on the header image only when test mode is enabled', () => {
-  const source = fs.readFileSync(
+  const routeSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
     'utf8'
   );
+  const styleSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'style.css'),
+    'utf8'
+  );
 
-  assert.match(source, /assets\/eye\.png/);
-  assert.match(source, /\{#if testModeEnabled\}/);
-  assert.match(source, /dashboard-test-mode-eye/);
-  assert.match(source, /Test mode active/);
+  assert.match(routeSource, /assets\/eye\.png/);
+  assert.match(routeSource, /\{#if testModeEnabled\}/);
+  assert.match(routeSource, /dashboard-test-mode-eye/);
+  assert.match(routeSource, /Test mode active/);
+  assert.equal(routeSource.includes("<style>"), false);
+
+  assert.match(styleSource, /\.shuma-image-wrapper\s*\{\s*position:\s*relative;/m);
+  assert.match(styleSource, /\.dashboard-test-mode-eye\s*\{\s*position:\s*absolute;\s*top:\s*-38px;\s*left:\s*calc\(50%\s*-\s*179px\);\s*width:\s*25rem;\s*pointer-events:\s*none;/m);
+  assert.match(styleSource, /\.dashboard-test-mode-eye-image\s*\{\s*display:\s*block;\s*width:\s*100%;\s*height:\s*auto;/m);
+  assert.equal(styleSource.includes("drop-shadow"), false);
 });
 
 test('dashboard route controller gates polling to auto-enabled eligible tabs', () => {

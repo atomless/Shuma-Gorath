@@ -9,7 +9,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] Overlay the dashboard header image with the `eye.png` marker only while `test_mode` is enabled, so operators can see at a glance that the current session is in logging-only posture without adding more permanent chrome.
 - [x] Why:
   - test mode already changes runtime semantics, but the dashboard header gave no persistent visual cue once the operator scrolled past the banner/toggle area
-  - the requested cue needed to stay local to the existing header and avoid disturbing the broader dashboard visual language
+  - the requested cue needed to stay local to the existing header, avoid disturbing the broader dashboard visual language, and keep the styling in the canonical dashboard stylesheet rather than route-local style blocks
 - [x] Evidence:
   - `dashboard/src/routes/+page.svelte`
   - `dashboard/static/assets/eye.png`

@@ -386,6 +386,24 @@ body {
   pointer-events: none;
 }
 
+.shuma-image-wrapper {
+  position: relative;
+}
+
+.dashboard-test-mode-eye {
+  position: absolute;
+  top: -38px;
+  left: calc(50% - 179px);
+  width: 25rem;
+  pointer-events: none;
+}
+
+.dashboard-test-mode-eye-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 :root.disconnected .shuma-gorath-img {
   filter: sepia(0) hue-rotate(0deg) saturate(0);
   transition: all .6s ease-in;

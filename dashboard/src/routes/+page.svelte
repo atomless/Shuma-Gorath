@@ -1325,24 +1325,3 @@
     <p class="message info">Loading dashboard runtime...</p>
   {/if}
 </div>
-
-<style>
-  .shuma-image-wrapper {
-    position: relative;
-  }
-
-  .dashboard-test-mode-eye {
-    position: absolute;
-    top: 0.1rem;
-    left: 0.3rem;
-    width: clamp(2rem, 18%, 3rem);
-    pointer-events: none;
-  }
-
-  .dashboard-test-mode-eye-image {
-    display: block;
-    width: 100%;
-    height: auto;
-    filter: drop-shadow(0 0.15rem 0.35rem rgba(0, 0, 0, 0.45));
-  }
-</style>

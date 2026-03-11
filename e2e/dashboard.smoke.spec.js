@@ -1429,6 +1429,8 @@ test("dashboard header overlays the eye only while test mode is enabled", async 
 
     const eyeOverlay = page.locator(".dashboard-test-mode-eye");
 
+    await updateAdminConfig(request, { test_mode: false });
+    await page.reload();
     await expect(eyeOverlay).toHaveCount(0);
 
     await updateAdminConfig(request, { test_mode: true });
