@@ -64,6 +64,10 @@ class AdversarialScenarioIntentMatrixUnitTests(unittest.TestCase):
             rows_by_id["sim_t4_cdp_detection_deny"]["required_defense_categories"],
             ["cdp", "ban_path", "event_stream"],
         )
+        self.assertEqual(
+            rows_by_id["sim_t3_header_spoofing_abuse"]["required_defense_categories"],
+            ["fingerprint"],
+        )
 
 
 if __name__ == "__main__":

@@ -24,6 +24,15 @@ class IntegrationCleanupContractTests(unittest.TestCase):
         self.assertIn('else\n    # Fallback only when the original snapshot could not be captured.', cleanup_body)
         self.assertNotIn("Ensure edge/Akamai toggles return to secure defaults", cleanup_body)
 
+    def test_tarpit_dynamic_ips_are_part_of_cleanup_and_preflight_unban_contract(self):
+        source = INTEGRATION_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('TEST_TARPIT_TAMPER_IP="10.0.${TARPIT_TEST_SUBNET}.41"', source)
+        self.assertIn('TARPIT_BURST_IPS=(', source)
+        self.assertIn('"${TEST_TARPIT_TAMPER_IP}"', source)
+        self.assertIn('"${TARPIT_BURST_IPS[@]}"', source)
+        self.assertIn('info "Clearing tarpit integration test IPs..."', source)
+        self.assertIn('for ip in "${TEST_TARPIT_IP}" "${TEST_TARPIT_TAMPER_IP}" "${TARPIT_BURST_IPS[@]}"; do', source)
+
 
 if __name__ == "__main__":
     unittest.main()

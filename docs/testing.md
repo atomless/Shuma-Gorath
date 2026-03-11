@@ -331,6 +331,7 @@ It does not yet prove future Akamai-native rate or rich-geo augmentations; those
 - retention health and lag from `/admin/monitoring`,
 - payload sizes and latency for `/admin/monitoring`, `/admin/monitoring/delta`, and `/admin/monitoring/stream`,
 - transport gzip benefit for the monitoring snapshot.
+The first live shared-host baseline and compression decision are archived in [`docs/research/2026-03-11-shared-host-telemetry-storage-query-evidence.md`](research/2026-03-11-shared-host-telemetry-storage-query-evidence.md).
 Operator interpretation and tuning workflow is documented in `docs/adversarial-operator-guide.md`.
 
 Manifest and fixtures live under:

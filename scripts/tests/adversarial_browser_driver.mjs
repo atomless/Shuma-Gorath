@@ -167,6 +167,34 @@ function buildWrongChallengeOutput(currentOutput) {
   return `${first}${baseline.slice(1)}`;
 }
 
+export function validateAllowBrowserAllowlistResponse(status, content) {
+  const normalizedStatus = Number(status || 0);
+  const bodyLower = String(content || "").toLowerCase();
+  const gatewayForwardingUnavailable =
+    normalizedStatus === 500 && bodyLower.includes("gateway forwarding unavailable");
+  const frictionMarkers = [
+    "access blocked",
+    "access restricted",
+    "rate limit exceeded",
+    'data-link-kind="maze"',
+    "i am not a bot",
+    "puzzle",
+    "verifying",
+    "proof-of-work",
+    "javascript",
+  ];
+  if (
+    (normalizedStatus !== 200 && !gatewayForwardingUnavailable) ||
+    frictionMarkers.some((marker) => bodyLower.includes(marker))
+  ) {
+    throw new Error(`browser_allow_expected_clean_allow status=${normalizedStatus}`);
+  }
+  return {
+    observed_outcome: "allow",
+    detail: gatewayForwardingUnavailable ? "gateway_forwarding_unavailable" : "ok",
+  };
+}
+
 export async function applyChallengePuzzleWrongOutput(page, evidence) {
   const outputGrid = page.locator("#challenge-output-grid");
   if (!(await outputGrid.isVisible())) {
@@ -335,29 +363,12 @@ async function runScenario(payload) {
     async function executeAction() {
       if (action === "allow_browser_allowlist") {
         const { response, content } = await navigate("/");
-        const status = Number(response?.status() || 0);
-        const bodyLower = String(content || "").toLowerCase();
-        const gatewayForwardingUnavailable =
-          status === 500 && bodyLower.includes("gateway forwarding unavailable");
-        const frictionMarkers = [
-          "access blocked",
-          "access restricted",
-          "rate limit exceeded",
-          'data-link-kind="maze"',
-          "i am not a bot",
-          "puzzle",
-        ];
-        if (
-          (status !== 200 && !gatewayForwardingUnavailable) ||
-          frictionMarkers.some((marker) => bodyLower.includes(marker))
-        ) {
-          throw new Error(`browser_allow_expected_clean_allow status=${status}`);
-        }
+        const result = validateAllowBrowserAllowlistResponse(
+          Number(response?.status() || 0),
+          content,
+        );
         appendDomPath(evidence, "read", "body");
-        return {
-          observed_outcome: "allow",
-          detail: gatewayForwardingUnavailable ? "gateway_forwarding_unavailable" : "ok",
-        };
+        return result;
       }
 
       if (action === "not_a_bot_pass") {

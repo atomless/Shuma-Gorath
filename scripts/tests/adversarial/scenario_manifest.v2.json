@@ -846,7 +846,7 @@
         "cookie_behavior": "stateless"
       },
       "expected_defense_categories": [
-        "event_stream"
+        "fingerprint"
       ],
       "coverage_tags": [
         "SIM-T3",

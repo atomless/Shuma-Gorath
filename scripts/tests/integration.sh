@@ -54,6 +54,20 @@ TEST_JS_ALLOWLIST_IP="10.0.0.177"
 TARPIT_TEST_SUBNET=$(( (RANDOM % 200) + 30 ))
 TEST_TARPIT_IP="10.0.${TARPIT_TEST_SUBNET}.40"
 TEST_TARPIT_TAMPER_IP="10.0.${TARPIT_TEST_SUBNET}.41"
+TARPIT_BURST_IPS=(
+  "10.0.${TARPIT_TEST_SUBNET}.50"
+  "10.0.${TARPIT_TEST_SUBNET}.51"
+  "10.0.${TARPIT_TEST_SUBNET}.52"
+  "10.0.${TARPIT_TEST_SUBNET}.53"
+  "10.0.${TARPIT_TEST_SUBNET}.54"
+  "10.0.${TARPIT_TEST_SUBNET}.55"
+  "10.0.${TARPIT_TEST_SUBNET}.56"
+  "10.0.${TARPIT_TEST_SUBNET}.57"
+  "10.0.${TARPIT_TEST_SUBNET}.58"
+  "10.0.${TARPIT_TEST_SUBNET}.59"
+  "10.0.${TARPIT_TEST_SUBNET}.60"
+  "10.0.${TARPIT_TEST_SUBNET}.61"
+)
 HONEYPOT_PATH="/instaban"
 INTEGRATION_USER_AGENT="ShumaIntegration/1.0-${RANDOM}-$$-$(date +%s)"
 NOT_A_BOT_TELEMETRY='{"has_pointer":true,"pointer_move_count":42,"pointer_path_length":560.0,"pointer_direction_changes":18,"down_up_ms":220,"focus_changes":1,"visibility_changes":0,"interaction_elapsed_ms":1800,"keyboard_used":false,"touch_used":false,"events_order_valid":true,"activation_method":"pointer","activation_trusted":true,"activation_count":1,"control_focused":true}'
@@ -91,6 +105,8 @@ TEST_CLEANUP_IPS=(
   10.0.0.231
   10.0.0.232
   "${TEST_TARPIT_IP}"
+  "${TEST_TARPIT_TAMPER_IP}"
+  "${TARPIT_BURST_IPS[@]}"
   10.0.1.10
   10.0.1.11
   10.0.1.12
@@ -764,6 +780,11 @@ curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.1
 
 # Test 14: Tarpit abuse routing + progressive propagation
 info "Testing tarpit abuse routing and progressive propagation..."
+info "Clearing tarpit integration test IPs..."
+for ip in "${TEST_TARPIT_IP}" "${TEST_TARPIT_TAMPER_IP}" "${TARPIT_BURST_IPS[@]}"; do
+  curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
+    "$BASE_URL/admin/unban?ip=${ip}" > /dev/null || true
+done
 tarpit_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
   -d '{"test_mode":true,"maze_enabled":true,"tarpit_enabled":true,"tarpit_progress_token_ttl_seconds":120,"tarpit_progress_replay_ttl_seconds":300,"tarpit_hashcash_min_difficulty":8,"tarpit_hashcash_max_difficulty":16,"tarpit_hashcash_base_difficulty":10,"tarpit_hashcash_adaptive":true,"tarpit_step_chunk_base_bytes":4096,"tarpit_step_chunk_max_bytes":12288,"tarpit_step_jitter_percent":15,"tarpit_shard_rotation_enabled":true,"tarpit_egress_window_seconds":60,"tarpit_egress_global_bytes_per_window":8388608,"tarpit_egress_per_ip_bucket_bytes_per_window":1048576,"tarpit_egress_per_flow_max_bytes":524288,"tarpit_egress_per_flow_max_duration_seconds":120,"tarpit_max_concurrent_global":10000,"tarpit_max_concurrent_per_ip_bucket":256,"tarpit_fallback_action":"maze"}' \
   "$BASE_URL/admin/config")
@@ -851,12 +872,7 @@ else
   tarpit_saturation_seen=false
   for attempt in 1 2 3; do
     status_file=$(mktemp)
-    burst_ips=(
-      10.0.${TARPIT_TEST_SUBNET}.50 10.0.${TARPIT_TEST_SUBNET}.51 10.0.${TARPIT_TEST_SUBNET}.52 10.0.${TARPIT_TEST_SUBNET}.53
-      10.0.${TARPIT_TEST_SUBNET}.54 10.0.${TARPIT_TEST_SUBNET}.55 10.0.${TARPIT_TEST_SUBNET}.56 10.0.${TARPIT_TEST_SUBNET}.57
-      10.0.${TARPIT_TEST_SUBNET}.58 10.0.${TARPIT_TEST_SUBNET}.59 10.0.${TARPIT_TEST_SUBNET}.60 10.0.${TARPIT_TEST_SUBNET}.61
-    )
-    for ip in "${burst_ips[@]}"; do
+    for ip in "${TARPIT_BURST_IPS[@]}"; do
       (
         status=$(curl -s -o /dev/null -w "%{http_code}" \
           "${FORWARDED_SECRET_HEADER[@]}" \

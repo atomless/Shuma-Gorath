@@ -3020,6 +3020,22 @@ mod admin_config_tests {
                 .unwrap_or(0)
                 >= 1
         );
+        assert!(
+            cleanup_json
+                .get("deleted_by_family")
+                .and_then(|value| value.get("retention_bucket_index"))
+                .and_then(|value| value.as_u64())
+                .unwrap_or(0)
+                >= 1
+        );
+        assert!(
+            cleanup_json
+                .get("deleted_by_family")
+                .and_then(|value| value.get("retention_catalog"))
+                .and_then(|value| value.as_u64())
+                .unwrap_or(0)
+                >= 1
+        );
 
         let monitoring_req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=10", Vec::new());
         let monitoring_resp = handle_admin_monitoring(&monitoring_req, &store);
@@ -3118,6 +3134,22 @@ mod admin_config_tests {
         assert!(
             cleanup_json
                 .get("deleted_keys")
+                .and_then(|value| value.as_u64())
+                .unwrap_or(0)
+                >= 1
+        );
+        assert!(
+            cleanup_json
+                .get("deleted_by_family")
+                .and_then(|value| value.get("retention_bucket_index"))
+                .and_then(|value| value.as_u64())
+                .unwrap_or(0)
+                >= 1
+        );
+        assert!(
+            cleanup_json
+                .get("deleted_by_family")
+                .and_then(|value| value.get("retention_catalog"))
                 .and_then(|value| value.as_u64())
                 .unwrap_or(0)
                 >= 1
@@ -11928,6 +11960,9 @@ fn classify_telemetry_history_key(
     if key.starts_with("monitoring:v1:") {
         return Some("monitoring");
     }
+    if key.starts_with("monitoring_rollup:v1:") {
+        return Some("monitoring_rollup");
+    }
     if key.starts_with("metrics:") {
         return Some("metrics");
     }
@@ -11948,6 +11983,15 @@ fn classify_telemetry_history_key(
     }
     if key == tarpit_global_key || key.starts_with(tarpit_bucket_prefix) {
         return Some("tarpit_active");
+    }
+    if key.starts_with("telemetry:retention:v1:bucket:") {
+        return Some("retention_bucket_index");
+    }
+    if key.starts_with("telemetry:retention:v1:catalog:") {
+        return Some("retention_catalog");
+    }
+    if key == "telemetry:retention:v1:worker_state" {
+        return Some("retention_worker_state");
     }
     None
 }

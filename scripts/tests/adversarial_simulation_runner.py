@@ -1769,6 +1769,7 @@ class Runner:
                 "maze_enabled": True,
                 "maze_auto_ban": False,
                 "js_required_enforced": True,
+                "pow_enabled": True,
                 "not_a_bot_enabled": True,
                 "challenge_puzzle_enabled": True,
                 "rate_limit": 100,
@@ -2380,6 +2381,8 @@ class Runner:
                 "test_mode": False,
                 "browser_policy_enabled": False,
                 "browser_allowlist": [["Chrome", 120]],
+                "js_required_enforced": False,
+                "pow_enabled": False,
             }
         if driver_name == "not_a_bot_pass":
             return {"test_mode": True, "not_a_bot_enabled": True, "challenge_puzzle_enabled": True}
@@ -2482,6 +2485,8 @@ class Runner:
             return {
                 "test_mode": False,
                 "defence_modes": {"rate": "off"},
+                "js_required_enforced": False,
+                "pow_enabled": False,
                 "geo_edge_headers_enabled": True,
                 "geo_risk": [],
                 "geo_allow": [],
@@ -2489,6 +2494,8 @@ class Runner:
                 "geo_maze": [],
                 "geo_block": [geo_country or "RU"],
                 "browser_policy_enabled": False,
+                "cdp_detection_enabled": False,
+                "cdp_auto_ban": False,
             }
         if driver_name == "cdp_high_confidence_deny":
             return {

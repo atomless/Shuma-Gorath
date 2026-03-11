@@ -974,18 +974,14 @@
     {
       "scenario_id": "sim_t3_header_spoofing_abuse",
       "required_defense_categories": [
-        "event_stream"
+        "fingerprint"
       ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
-        "event_stream": [
-          {
-            "type": "simulation_event_count_delta",
-            "minimum": 1
-          },
+        "fingerprint": [
           {
             "type": "coverage_delta",
-            "key": "recent_event_count",
+            "key": "fingerprint_events",
             "minimum": 1
           }
         ]

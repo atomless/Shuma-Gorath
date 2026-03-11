@@ -17,17 +17,6 @@ Reference context:
 - [`docs/configuration.md`](../docs/configuration.md)
 - [`docs/testing.md`](../docs/testing.md)
 
-### TEL-STORE-1: Telemetry Storage and Query Efficiency Excellence
-- [ ] TEL-STORE-1-1 Capture shared-host telemetry evidence and cost baselines: monitoring/event key counts, telemetry-adjacent monitoring-detail key counts (`maze_hits:*`, tarpit active-bucket state, and other remaining scans), keys per retained hour, retention lag, payload sizes, and read latency for `/admin/monitoring`, `/admin/monitoring/delta`, and `/admin/monitoring/stream`.
-- [ ] TEL-STORE-1-2 Replace whole-keyspace scans in monitoring summary reads with bucket-catalog/index-driven reads so normal monitoring refresh cost scales with requested window, not total keyspace size.
-- [ ] TEL-STORE-1-3 Replace whole-keyspace scans in event-history, monitoring-delta, and monitoring-stream reads with bucket-catalog/index-driven reads while preserving cursor semantics, forensic-mode behavior, and bounded response shaping.
-- [ ] TEL-STORE-1-4 Eliminate or explicitly bound the remaining telemetry-adjacent scans in normal monitoring details (for example `maze_hits:*` and tarpit active-bucket state) so the full operator monitoring surface no longer quietly depends on whole-keyspace enumeration.
-- [ ] TEL-STORE-1-5 Define and implement a smarter retention-tier contract separating raw event evidence, operational monitoring counters, and longer-lived derived rollups, with an explicit config contract for whether those tiers remain under one governing knob or split into separate `SHUMA_*` retention controls.
-- [ ] TEL-STORE-1-6 Add derived telemetry rollups for the dominant monitoring views so dashboard summary reads do not repeatedly reconstruct long-window aggregates from base counters and raw events.
-- [ ] TEL-STORE-1-7 Upgrade monitoring cost governance from simple `hours * limit` heuristics to storage/query-aware budgets that account for bucket density, payload size, response shaping, and residual scan dependence.
-- [ ] TEL-STORE-1-8 Evaluate cold-tier compression only after the new read path and retention tiers are measured; reject hot-path KV compression unless evidence shows clear net benefit without harming retrieval/searchability.
-- [ ] TEL-STORE-1-9 Add focused verification, operator docs, and evidence receipts proving the revised telemetry model reduces shared-host storage/query cost without degrading operator visibility or forensic utility.
-
 ### SIM2-R4-4: Config Seeding Lifecycle and Test-Mode Semantics
 - [ ] SIM2-R4-4-4 Resolve `test_mode` semantics end-to-end, defaulting to ephemeral runtime/session state unless a narrower exception is deliberately approved.
 - [ ] SIM2-R4-4-5 Update operator docs and record the final lifecycle contract in an architecture note or ADR if the scope widens.

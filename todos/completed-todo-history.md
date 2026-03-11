@@ -2,6 +2,81 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-11)
+
+### Ad Hoc Runtime Reliability: Remote Deploy Env Default Seeding
+
+- [x] Ensure Linode deploy/update flows seed the latest `.env.local` defaults before restoring overlay values so newly introduced `SHUMA_*` runtime vars do not leave existing remotes in a stale or blank env state.
+- [x] Why:
+  - the telemetry tranche added `SHUMA_MONITORING_RETENTION_HOURS` and `SHUMA_MONITORING_ROLLUP_RETENTION_HOURS`
+  - the live Linode proof exposed that `make remote-update` was copying the old remote `.env.local` forward verbatim, so pre-existing remotes could panic on admin reads when new required runtime vars were introduced
+  - the deploy/update path now shares a reusable env-overlay merger and reseeds defaults before applying prior remote overrides
+- [x] Evidence:
+  - `scripts/deploy/merge_env_overlay.py`
+  - `scripts/deploy/remote_target.py`
+  - `scripts/deploy_linode_one_shot.sh`
+  - `scripts/tests/test_remote_target.py`
+  - `scripts/tests/test_deploy_linode_one_shot.py`
+  - `scripts/tests/test_prepare_linode_shared_host.py`
+  - `Makefile`
+  - `make test-deploy-linode`
+  - `make remote-update`
+
+### Ad Hoc Verification Reliability: Telemetry Cleanup and Harness Boundary Hardening
+
+- [x] Fix verification-only issues uncovered while proving `TEL-STORE-1` end to end: retained telemetry cleanup now clears retention bucket catalogs/worker state, adversarial browser/setup scenarios reset first-touch challenge state truthfully, header-spoofing abuse aligns to the fingerprint contract rather than stale event-stream expectations, and integration tarpit cleanup explicitly unbans all dynamically generated abuse IPs.
+- [x] Why:
+  - the first full-suite telemetry proof exposed a false `query_budget_exceeded` failure caused by stale `telemetry:retention:v1:*` metadata surviving `make telemetry-clean`
+  - `allow_browser_allowlist` and header-spoofing scenarios were still inheriting unrelated JS/PoW/CDP/rate-pressure friction, which made fast/adversarial verification less truthful than the actual intended contracts
+  - the integration tarpit cleanup path was not clearing every dynamically generated IP, leaving avoidable state leakage between runs
+- [x] Evidence:
+  - `src/admin/api.rs`
+  - `scripts/tests/adversarial_browser_driver.mjs`
+  - `scripts/tests/test_adversarial_browser_driver.mjs`
+  - `scripts/tests/adversarial_simulation_runner.py`
+  - `scripts/tests/test_adversarial_simulation_runner.py`
+  - `scripts/tests/adversarial/scenario_manifest.v2.json`
+  - `scripts/tests/adversarial/scenario_intent_matrix.v1.json`
+  - `scripts/tests/test_adversarial_scenario_intent_matrix.py`
+  - `scripts/tests/integration.sh`
+  - `scripts/tests/test_integration_cleanup.py`
+  - `make test-adversarial-fast`
+  - `make test-sim2-operational-regressions`
+  - `make test`
+
+### TEL-STORE-1: Telemetry Storage and Query Efficiency Excellence
+
+- [x] TEL-STORE-1-1 Capture shared-host telemetry evidence and cost baselines: monitoring/event key counts, telemetry-adjacent monitoring-detail key counts (`maze_hits:*`, tarpit active-bucket state, and other remaining scans), keys per retained hour, retention lag, payload sizes, and read latency for `/admin/monitoring`, `/admin/monitoring/delta`, and `/admin/monitoring/stream`.
+- [x] TEL-STORE-1-2 Replace whole-keyspace scans in monitoring summary reads with bucket-catalog/index-driven reads so normal monitoring refresh cost scales with requested window, not total keyspace size.
+- [x] TEL-STORE-1-3 Replace whole-keyspace scans in event-history, monitoring-delta, and monitoring-stream reads with bucket-catalog/index-driven reads while preserving cursor semantics, forensic-mode behavior, and bounded response shaping.
+- [x] TEL-STORE-1-4 Eliminate or explicitly bound the remaining telemetry-adjacent scans in normal monitoring details (for example `maze_hits:*` and tarpit active-bucket state) so the full operator monitoring surface no longer quietly depends on whole-keyspace enumeration.
+- [x] TEL-STORE-1-5 Define and implement a smarter retention-tier contract separating raw event evidence, operational monitoring counters, and longer-lived derived rollups, with an explicit config contract for whether those tiers remain under one governing knob or split into separate `SHUMA_*` retention controls.
+- [x] TEL-STORE-1-6 Add derived telemetry rollups for the dominant monitoring views so dashboard summary reads do not repeatedly reconstruct long-window aggregates from base counters and raw events.
+- [x] TEL-STORE-1-7 Upgrade monitoring cost governance from simple `hours * limit` heuristics to storage/query-aware budgets that account for bucket density, payload size, response shaping, and residual scan dependence.
+- [x] TEL-STORE-1-8 Evaluate cold-tier compression only after the new read path and retention tiers are measured; reject hot-path KV compression unless evidence shows clear net benefit without harming retrieval/searchability.
+- [x] TEL-STORE-1-9 Add focused verification, operator docs, and evidence receipts proving the revised telemetry model reduces shared-host storage/query cost without degrading operator visibility or forensic utility.
+- [x] Evidence:
+  - `docs/plans/2026-03-11-telemetry-storage-query-efficiency-excellence-plan.md`
+  - `docs/research/2026-03-11-shared-host-telemetry-storage-query-evidence.md`
+  - `.spin/telemetry_shared_host_evidence.json`
+  - `src/observability/key_catalog.rs`
+  - `src/observability/monitoring.rs`
+  - `src/observability/retention.rs`
+  - `src/admin/api.rs`
+  - `src/maze/mod.rs`
+  - `src/tarpit/runtime.rs`
+  - `src/deception/primitives.rs`
+  - `config/defaults.env`
+  - `scripts/tests/telemetry_shared_host_evidence.py`
+  - `scripts/tests/test_telemetry_shared_host_evidence.py`
+  - `docs/observability.md`
+  - `docs/testing.md`
+  - `todos/security-review.md`
+  - `make test-telemetry-storage`
+  - `make test-deploy-linode`
+  - `make remote-update`
+  - `make telemetry-shared-host-evidence`
+
 ## Additional completions (2026-03-10)
 
 ### Process Auditability and Completion Recording

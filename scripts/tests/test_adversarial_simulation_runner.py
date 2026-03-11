@@ -2020,6 +2020,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
 
         self.assertEqual(captured.get("reason"), "reset_baseline_config")
         self.assertIs(captured.get("payload", {}).get("js_required_enforced"), True)
+        self.assertIs(captured.get("payload", {}).get("pow_enabled"), True)
 
     def test_header_spoofing_setup_patch_disables_rate_defence_to_avoid_profile_leak_collateral(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")
@@ -2056,6 +2057,43 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         )
         self.assertEqual(patch_payload.get("geo_block"), ["RU"])
         self.assertIs(patch_payload.get("browser_policy_enabled"), False)
+        self.assertIs(patch_payload.get("js_required_enforced"), False)
+        self.assertIs(patch_payload.get("pow_enabled"), False)
+        self.assertIs(patch_payload.get("cdp_detection_enabled"), False)
+        self.assertIs(patch_payload.get("cdp_auto_ban"), False)
+
+    def test_allow_browser_allowlist_setup_patch_disables_first_touch_friction(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        patch_payload = sim_runner.scenario_setup_patch(
+            {
+                "id": "sim_t0_allow_browser_allowlist",
+                "driver": "allow_browser_allowlist",
+            }
+        )
+
+        self.assertIs(patch_payload.get("browser_policy_enabled"), False)
+        self.assertEqual(patch_payload.get("browser_allowlist"), [["Chrome", 120]])
+        self.assertIs(patch_payload.get("js_required_enforced"), False)
+        self.assertIs(patch_payload.get("pow_enabled"), False)
 
     def test_validate_manifest_full_coverage_requires_scheduler_and_realism_retry_contract(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")

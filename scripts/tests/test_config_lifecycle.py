@@ -155,6 +155,14 @@ class ConfigLifecycleTests(unittest.TestCase):
             '@$(MAKE) --no-print-directory dev DEV_RUNTIME_ENV=runtime-prod DEV_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE) DEV_DEBUG_HEADERS=false DEV_ADMIN_CONFIG_WRITE_ENABLED=true DEV_LOCAL_PROD_DIRECT_MODE=true',
             makefile,
         )
+        self.assertIn(
+            "SHUMA_MONITORING_RETENTION_HOURS := $(if $(strip $(SHUMA_MONITORING_RETENTION_HOURS)),$(SHUMA_MONITORING_RETENTION_HOURS),$(call defaults_env_lookup,SHUMA_MONITORING_RETENTION_HOURS))",
+            makefile,
+        )
+        self.assertIn(
+            "SHUMA_MONITORING_ROLLUP_RETENTION_HOURS := $(if $(strip $(SHUMA_MONITORING_ROLLUP_RETENTION_HOURS)),$(SHUMA_MONITORING_ROLLUP_RETENTION_HOURS),$(call defaults_env_lookup,SHUMA_MONITORING_ROLLUP_RETENTION_HOURS))",
+            makefile,
+        )
         self.assertIn("make --no-print-directory config-verify", verify_runtime_script)
         self.assertNotIn("make --no-print-directory config-seed", verify_runtime_script)
         self.assertIn("make --no-print-directory config-verify", verify_setup_script)

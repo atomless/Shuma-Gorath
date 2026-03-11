@@ -2,7 +2,10 @@
 
 import assert from "node:assert/strict";
 
-import { applyChallengePuzzleWrongOutput } from "./adversarial_browser_driver.mjs";
+import {
+  applyChallengePuzzleWrongOutput,
+  validateAllowBrowserAllowlistResponse,
+} from "./adversarial_browser_driver.mjs";
 
 class FakeLocator {
   constructor({ visible = false, count = 0, inputValue = "", onEvaluate = null } = {}) {
@@ -90,3 +93,40 @@ async function testMissingPuzzleOutputFieldFails() {
 
 await testHiddenPuzzleOutputFieldIsAccepted();
 await testMissingPuzzleOutputFieldFails();
+
+function testAllowBrowserAllowlistRejectsVerificationInterstitial() {
+  assert.throws(
+    () =>
+      validateAllowBrowserAllowlistResponse(
+        200,
+        "<html><body>Verifying...<script>/* challenge */</script></body></html>",
+      ),
+    /browser_allow_expected_clean_allow/,
+  );
+}
+
+function testAllowBrowserAllowlistAcceptsGatewayFailClosedFallback() {
+  const result = validateAllowBrowserAllowlistResponse(
+    500,
+    "<html><body>Gateway forwarding unavailable</body></html>",
+  );
+  assert.deepEqual(result, {
+    observed_outcome: "allow",
+    detail: "gateway_forwarding_unavailable",
+  });
+}
+
+function testAllowBrowserAllowlistAcceptsCleanAllowBody() {
+  const result = validateAllowBrowserAllowlistResponse(
+    200,
+    "<html><body><h1>Welcome</h1></body></html>",
+  );
+  assert.deepEqual(result, {
+    observed_outcome: "allow",
+    detail: "ok",
+  });
+}
+
+testAllowBrowserAllowlistRejectsVerificationInterstitial();
+testAllowBrowserAllowlistAcceptsGatewayFailClosedFallback();
+testAllowBrowserAllowlistAcceptsCleanAllowBody();
