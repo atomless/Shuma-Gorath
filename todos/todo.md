@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-10
+Last updated: 2026-03-11
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -13,8 +13,19 @@ Keep durable workflow and policy guidance in `docs/project-principles.md`, `CONT
 Reference context:
 - [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
 - [`docs/plans/2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md`](../docs/plans/2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md)
+- [`docs/plans/2026-03-11-telemetry-storage-query-efficiency-excellence-plan.md`](../docs/plans/2026-03-11-telemetry-storage-query-efficiency-excellence-plan.md)
 - [`docs/configuration.md`](../docs/configuration.md)
 - [`docs/testing.md`](../docs/testing.md)
+
+### TEL-STORE-1: Telemetry Storage and Query Efficiency Excellence
+- [ ] TEL-STORE-1-1 Capture shared-host telemetry evidence and cost baselines: monitoring/event key counts, keys per retained hour, retention lag, payload sizes, and read latency for `/admin/monitoring`, `/admin/monitoring/delta`, and `/admin/monitoring/stream`.
+- [ ] TEL-STORE-1-2 Replace whole-keyspace scans in monitoring summary reads with bucket-catalog/index-driven reads so normal monitoring refresh cost scales with requested window, not total keyspace size.
+- [ ] TEL-STORE-1-3 Replace whole-keyspace scans in event-history, monitoring-delta, and monitoring-stream reads with bucket-catalog/index-driven reads while preserving cursor semantics, forensic-mode behavior, and bounded response shaping.
+- [ ] TEL-STORE-1-4 Define and implement a smarter retention-tier contract separating raw event evidence, operational monitoring counters, and longer-lived derived rollups, with explicit operator-visible health for each retained tier.
+- [ ] TEL-STORE-1-5 Add derived telemetry rollups for the dominant monitoring views so dashboard summary reads do not repeatedly reconstruct long-window aggregates from base counters and raw events.
+- [ ] TEL-STORE-1-6 Upgrade monitoring cost governance from simple `hours * limit` heuristics to storage/query-aware budgets that account for bucket density, payload size, and response shaping.
+- [ ] TEL-STORE-1-7 Evaluate cold-tier compression only after the new read path and retention tiers are measured; reject hot-path KV compression unless evidence shows clear net benefit without harming retrieval/searchability.
+- [ ] TEL-STORE-1-8 Add focused verification, operator docs, and evidence receipts proving the revised telemetry model reduces shared-host storage/query cost without degrading operator visibility or forensic utility.
 
 ### SIM2-R4-4: Config Seeding Lifecycle and Test-Mode Semantics
 - [ ] SIM2-R4-4-4 Resolve `test_mode` semantics end-to-end, defaulting to ephemeral runtime/session state unless a narrower exception is deliberately approved.
