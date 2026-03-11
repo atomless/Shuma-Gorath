@@ -8,6 +8,7 @@ Reference context:
 - [`docs/plans/2026-02-28-sim2-gcr-5-telemetry-retention-storage-lifecycle-plan.md`](../plans/2026-02-28-sim2-gcr-5-telemetry-retention-storage-lifecycle-plan.md)
 - [`docs/research/2026-02-28-sim2-gcr-5-telemetry-retention-storage-lifecycle-research.md`](../research/2026-02-28-sim2-gcr-5-telemetry-retention-storage-lifecycle-research.md)
 - [`docs/research/2026-02-28-sim2-gcr-6-monitoring-cost-efficiency-patterns-research.md`](../research/2026-02-28-sim2-gcr-6-monitoring-cost-efficiency-patterns-research.md)
+- [`docs/research/2026-02-28-rust-edge-sync-telemetry-delta-research.md`](../research/2026-02-28-rust-edge-sync-telemetry-delta-research.md)
 - [`todos/security-review.md`](../../todos/security-review.md)
 
 ## Objective
@@ -21,6 +22,7 @@ Reassess and improve KV-backed operational telemetry now that shared-host deploy
 3. Monitoring summary and recent-event reads still enumerate `store.get_keys()` and filter in process, which means query cost grows with whole-keyspace size rather than the requested telemetry window.
 4. Monitoring response gzip is already implemented, so transport compression is not the primary missing capability.
 5. Event logs are stored as immutable per-event KV records, which preserves evidence fidelity but can become expensive for cursor, snapshot, and recent-history reads as volume grows.
+6. Monitoring details still include additional keyspace scans outside the `monitoring:v1` and eventlog families (`maze_hits:*`, tarpit active-bucket state, and similar telemetry-adjacent keys), so the full operator surface is broader than the summary and delta handlers alone.
 
 ## Problem Statement
 
@@ -28,8 +30,9 @@ The storage lifecycle tranche solved deterministic purge and retention visibilit
 
 1. Storage cost rises with every new hourly counter key and raw event record.
 2. Query cost rises because summary, delta, and stream handlers still walk the global keyspace before narrowing to the requested window.
-3. Retention policy is smarter than before, but not yet tiered enough for long-lived operational summaries versus short-lived forensic raw data.
-4. Compression is already present on transport, but the repository has not yet proven whether at-rest compression would produce meaningful savings relative to its retrieval and complexity costs.
+3. Monitoring details still perform additional non-bucket-addressable scans for adjacent telemetry families, so fixing only `monitoring:v1` and eventlog reads would leave part of the operator path scaling with total key count.
+4. Retention policy is smarter than before, but not yet tiered enough for long-lived operational summaries versus short-lived forensic raw data, and it still lacks an explicit config contract if those tiers diverge.
+5. Compression is already present on transport, but the repository has not yet proven whether at-rest compression would produce meaningful savings relative to its retrieval and complexity costs.
 
 ## Principles
 
@@ -96,9 +99,11 @@ The likely candidates are archived raw event bundles or future cold-history expo
 1. Capture real shared-host telemetry evidence:
    - total monitoring key count
    - total eventlog key count
+   - total key counts for telemetry-adjacent families surfaced in monitoring details (`maze_hits:*`, tarpit active-bucket state, and any remaining monitoring-side scans)
    - keys/hour by domain
    - payload sizes for `/admin/monitoring`, `/admin/monitoring/delta`, and `/admin/monitoring/stream`
    - latency/cost of those endpoints under the live shared-host profile
+   - read amplification indicators (`get_keys()` dependence, keys visited per request, and bucket/index payload sizes)
 2. Record acceptable operating targets for:
    - query latency
    - payload size
@@ -114,13 +119,15 @@ Acceptance criteria:
 
 1. Replace whole-keyspace scans in monitoring summary aggregation with bucket-catalog-driven reads.
 2. Replace whole-keyspace scans in recent event loading, delta, and stream endpoints with bucket-catalog-driven reads.
-3. Preserve current cursor semantics and forensic-mode behavior.
+3. Eliminate or explicitly bound the remaining telemetry-adjacent scans inside monitoring details (for example `maze_hits:*` and tarpit active-bucket state) so the full operator monitoring path no longer quietly depends on whole-keyspace enumeration.
+4. Preserve current cursor semantics and forensic-mode behavior.
 
 Acceptance criteria:
 
 1. Monitoring summary no longer calls `store.get_keys()` across the whole keyspace for normal reads.
 2. Event delta/stream no longer call `store.get_keys()` across the whole keyspace for normal reads.
-3. Regression tests prove requested-window cost no longer scales with unrelated historical key accumulation.
+3. Monitoring details no longer call `store.get_keys()` across the whole keyspace for telemetry families that are part of the normal operator surface, unless a documented bounded exception is explicitly approved.
+4. Regression tests prove requested-window cost no longer scales with unrelated historical key accumulation.
 
 ### Phase 3: Tiered Retention and Rollups
 
@@ -129,28 +136,31 @@ Acceptance criteria:
    - operational monitoring counters
    - derived rollups
 2. Add rollup generation and lifecycle management aligned to the read patterns that matter most.
-3. Expose tier health and lag in existing retention/cost governance payloads.
+3. Define the configuration contract for those tiers explicitly: either keep one governing knob by deliberate policy or introduce separate `SHUMA_*` retention controls with clear env/KV classification and operator guidance.
+4. Expose tier health and lag in existing retention/cost governance payloads.
 
 Acceptance criteria:
 
 1. Operators can distinguish raw retention from summary/rollup retention.
 2. Dashboard summary reads prefer rollups where available.
 3. Storage growth per retained day is lower for long-horizon monitoring views.
+4. The retention-tier config contract is explicit enough that bootstrap, config seed, admin export, and docs can implement it without ambiguity.
 
 ### Phase 4: Cost Governance Hardening
 
-1. Replace simplistic `hours * limit` query-budget heuristics with estimates that account for bucket density and response shaping.
+1. Replace simplistic `hours * limit` query-budget heuristics with estimates that account for bucket density, response shaping, and actual read-surface complexity.
 2. Add regression thresholds for:
    - payload size
    - query latency
    - bucket read count
    - retention lag
+   - residual keyspace-scan dependence
 3. Surface degraded-state reasons when telemetry cost envelopes are exceeded.
 
 Acceptance criteria:
 
 1. Monitoring cost governance reflects real storage/query behavior rather than only request parameters.
-2. CI/verification fails when keyspace-scan regressions or payload regressions are reintroduced.
+2. CI/verification fails when keyspace-scan regressions, payload regressions, or undocumented scan exceptions are reintroduced.
 
 ### Phase 5: Cold-Tier Compression Decision
 
@@ -172,6 +182,7 @@ Acceptance criteria:
 2. Keep `make test` as the umbrella gate after those focused targets exist.
 3. Add explicit verification for:
    - no whole-keyspace scan in normal monitoring summary/delta/stream paths
+   - no hidden whole-keyspace scan in normal monitoring-details paths
    - retention-lag health behavior
    - payload-size and query-budget degradation states
    - rollup correctness against raw-source truth
@@ -181,11 +192,13 @@ Acceptance criteria:
 1. Security-critical event classes must remain unsampled and queryable within their declared raw retention window.
 2. Shorter raw retention must not silently reduce operator forensic capability; any reduction must be explicit in docs and monitoring payloads.
 3. Derived rollups must not become the only source of security-significant truth.
+4. Backpressure or write-buffer behavior must remain bounded and measurable enough that a storage/query optimization does not simply move the problem to silent write-side loss or lag.
 
 ## Definition of Done
 
 1. Normal monitoring and event-history reads are bucket-addressable and no longer depend on whole-keyspace scans.
-2. Retention is tiered enough to distinguish raw evidence from longer-lived operational summaries.
-3. Monitoring cost governance reflects real storage/query behavior and exposes degraded states honestly.
-4. Shared-host evidence proves the revised approach reduces storage/query cost without degrading operator UX.
-5. Compression decisions are evidence-based and limited to tiers where they clearly help.
+2. Normal monitoring-details reads are also bucket-addressable or explicitly bounded and documented where direct bucketing is not justified.
+3. Retention is tiered enough to distinguish raw evidence from longer-lived operational summaries, with an explicit config contract.
+4. Monitoring cost governance reflects real storage/query behavior and exposes degraded states honestly.
+5. Shared-host evidence proves the revised approach reduces storage/query cost without degrading operator UX.
+6. Compression decisions are evidence-based and limited to tiers where they clearly help.
