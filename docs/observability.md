@@ -34,7 +34,13 @@ Prometheus parity scope for Monitoring widgets is tracked in:
 
 - Monitoring counter writes are coalesced in a short in-memory buffer before <abbr title="Key-Value">KV</abbr> flushes to reduce hot-path read/modify/write amplification.
 - Path dimensions are normalized and cardinality-capped (`<=3` segments plus wildcard tail, dynamic/high-entropy segments collapsed to `:id`) to prevent unbounded key growth.
-- Retention cleanup scans run on monitoring summary read paths (not each telemetry write) and delete keys older than `SHUMA_EVENT_LOG_RETENTION_HOURS`.
+- Retention cleanup runs through a bounded background worker over hourly bucket catalogs rather than opportunistic summary-read cleanup.
+- Operational monitoring counters, raw event records, and derived daily rollups now have separate retention tiers:
+  - `SHUMA_MONITORING_RETENTION_HOURS` for hourly monitoring counters and bucket indexes,
+  - `SHUMA_EVENT_LOG_RETENTION_HOURS` for requested raw event retention, with high-risk raw operator views capped to `72h`,
+  - `SHUMA_MONITORING_ROLLUP_RETENTION_HOURS` for derived daily monitoring rollups.
+- Monitoring summary, delta, stream, and normal monitoring-details reads use bucket indexes and key catalogs instead of whole-keyspace `get_keys()` scans.
+- Monitoring query budgets account for requested window, bucket count, key count, residual scans, and dense-bucket penalty rather than only `hours * limit`.
 
 ### 🐙 Metrics Included
 

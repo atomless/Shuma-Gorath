@@ -283,8 +283,9 @@ For <abbr title="Chrome DevTools Protocol">CDP</abbr>-only operational views wit
 - `sampling` (`eligible_low_risk_classes`, `sampled_count`, `unsampled_count`)
 - `payload_budget` (`p95_max_kb`, `estimated_current_payload_kb`, `status`) and `payload_budget_status`
 - `compression` (`status`, `negotiated`, `algorithm`, `input_bytes`, `output_bytes`, `reduction_percent`, `min_percent`)
-- `query_budget` (`cost_units`, `cost_class`, `avg_req_per_sec_client_target`, `max_req_per_sec_client`, `status`) and `query_budget_status`
+- `query_budget` (`cost_units`, `cost_class`, `avg_req_per_sec_client_target`, `max_req_per_sec_client`, `status`, `estimated_bucket_count`, `estimated_keys_visited`, `response_event_rows`, `bucket_density`, `density_penalty_units`, `residual_scan_keys`) and `query_budget_status`
 - `degraded_state` (`normal|degraded`) and `degraded_reasons`
+- `read_surface` (`monitoring_buckets`, `monitoring_keys`, `rollup_buckets`, `rollup_keys`, `eventlog_buckets`, `eventlog_keys`, `detail_catalog_keys`, `residual_scan_keys`)
 - `security_privacy`:
 - `classification` (`version`, `field_classification_enforced`, schema mapping)
 - `sanitization` (`secret_scrub_actions_total`, `secret_canary_leak_count`, `secret_canary_detected_total`)

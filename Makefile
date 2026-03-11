@@ -1,4 +1,4 @@
-.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean reset-local-state test test-unit unit-test test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-deploy-fermyon test-config-lifecycle test-js-verification-unit test-runtime-preflight-unit test-runtime-preflight test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-remote-edge-signal-smoke telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-frontier-unavailability-policy-unit test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host prepare-fermyon-akamai-edge remote-use remote-update remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot deploy-fermyon-akamai-edge logs status stop help setup setup-runtime verify verify-runtime config-seed config-verify dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean reset-local-state test test-unit unit-test test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-deploy-fermyon test-config-lifecycle test-js-verification-unit test-runtime-preflight-unit test-runtime-preflight test-telemetry-storage telemetry-shared-host-evidence test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-remote-edge-signal-smoke telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-frontier-unavailability-policy-unit test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host prepare-fermyon-akamai-edge remote-use remote-update remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot deploy-fermyon-akamai-edge logs status stop help setup setup-runtime verify verify-runtime config-seed config-verify dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -29,6 +29,7 @@ FERMYON_AKAMAI_SETUP_RECEIPT ?= $(SHUMA_LOCAL_STATE_DIR)/fermyon-akamai-edge-set
 FERMYON_AKAMAI_DEPLOY_RECEIPT ?= $(SHUMA_LOCAL_STATE_DIR)/fermyon-akamai-edge-deploy.json
 FERMYON_AKAMAI_RENDERED_MANIFEST ?= $(SHUMA_LOCAL_STATE_DIR)/manifests/fermyon-akamai-edge.spin.toml
 REMOTE_RECEIPTS_DIR ?= $(SHUMA_LOCAL_STATE_DIR)/remotes
+TELEMETRY_SHARED_HOST_EVIDENCE_REPORT ?= .spin/telemetry_shared_host_evidence.json
 
 # Normalize optional quoted values from .env.local (handles KEY=value and KEY="value")
 strip_wrapping_quotes = $(patsubst "%",%,$(patsubst '%',%,$(strip $(1))))
@@ -47,6 +48,8 @@ SHUMA_HEALTH_SECRET := $(call strip_wrapping_quotes,$(SHUMA_HEALTH_SECRET))
 SHUMA_ADMIN_IP_ALLOWLIST := $(call strip_wrapping_quotes,$(SHUMA_ADMIN_IP_ALLOWLIST))
 SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE := $(call strip_wrapping_quotes,$(SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE))
 SHUMA_EVENT_LOG_RETENTION_HOURS := $(call strip_wrapping_quotes,$(SHUMA_EVENT_LOG_RETENTION_HOURS))
+SHUMA_MONITORING_RETENTION_HOURS := $(call strip_wrapping_quotes,$(SHUMA_MONITORING_RETENTION_HOURS))
+SHUMA_MONITORING_ROLLUP_RETENTION_HOURS := $(call strip_wrapping_quotes,$(SHUMA_MONITORING_ROLLUP_RETENTION_HOURS))
 SHUMA_ADMIN_CONFIG_WRITE_ENABLED := $(call strip_wrapping_quotes,$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED))
 SHUMA_KV_STORE_FAIL_OPEN := $(call strip_wrapping_quotes,$(SHUMA_KV_STORE_FAIL_OPEN))
 SHUMA_ENFORCE_HTTPS := $(call strip_wrapping_quotes,$(SHUMA_ENFORCE_HTTPS))
@@ -182,6 +185,8 @@ SPIN_ENV_ONLY_BASE := \
 	--env SHUMA_ADMIN_IP_ALLOWLIST=$(SHUMA_ADMIN_IP_ALLOWLIST) \
 	--env SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE=$(SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE) \
 	--env SHUMA_EVENT_LOG_RETENTION_HOURS=$(SHUMA_EVENT_LOG_RETENTION_HOURS) \
+	--env SHUMA_MONITORING_RETENTION_HOURS=$(SHUMA_MONITORING_RETENTION_HOURS) \
+	--env SHUMA_MONITORING_ROLLUP_RETENTION_HOURS=$(SHUMA_MONITORING_ROLLUP_RETENTION_HOURS) \
 	--env SHUMA_KV_STORE_FAIL_OPEN=$(SHUMA_KV_STORE_FAIL_OPEN) \
 	--env SHUMA_ENFORCE_HTTPS=$(SHUMA_ENFORCE_HTTPS) \
 	--env SHUMA_RUNTIME_ENV=$(SHUMA_RUNTIME_ENV) \
@@ -717,6 +722,20 @@ test-js-verification-unit: ## Run focused JS verification interstitial unit chec
 	@./scripts/set_crate_type.sh rlib
 	@cargo test signals::js_verification::tests:: -- --nocapture
 
+test-telemetry-storage: ## Run focused telemetry storage/query verification for indexed reads, retention tiers, rollups, and shared-host evidence tooling
+	@echo "$(CYAN)🧪 Running telemetry storage/query verification...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test observability::monitoring::tests::summarize_uses_bucket_indexes_without_full_keyspace_scan -- --exact --nocapture
+	@cargo test observability::monitoring::tests::summarize_builds_and_reuses_day_rollups_for_complete_prior_days -- --exact --nocapture
+	@cargo test admin::api::admin_config_tests::admin_monitoring_delta_reads_bucket_indexes_without_keyspace_scan -- --exact --nocapture
+	@cargo test admin::api::admin_config_tests::admin_monitoring_cost_governance_accounts_for_bucket_density -- --exact --nocapture
+	@cargo test observability::retention::tests::eventlog_retention_is_capped_while_monitoring_retention_tracks_config -- --exact --nocapture
+	@cargo test observability::retention::tests::worker_purges_expired_bucket_and_updates_watermark -- --exact --nocapture
+	@python3 -m unittest scripts/tests/test_telemetry_shared_host_evidence.py
+
+telemetry-shared-host-evidence: ## Capture live shared-host telemetry storage/query evidence for the active ssh_systemd remote
+	@python3 ./scripts/tests/telemetry_shared_host_evidence.py --env-file "$(ENV_LOCAL)" --receipts-dir "$(REMOTE_RECEIPTS_DIR)" --report-path "$(TELEMETRY_SHARED_HOST_EVIDENCE_REPORT)" $(REMOTE_NAME_ARG)
+
 test-adversarial-manifest: ## Validate adversarial simulation manifest and fixtures (no server required)
 	@echo "$(CYAN)🧪 Validating adversarial simulation manifest...$(NC)"
 	@$(MAKE) --no-print-directory test-adversarial-python-unit
@@ -1246,6 +1265,8 @@ env-help: ## Show supported env-only runtime overrides
 	@echo "  SHUMA_ADMIN_IP_ALLOWLIST"
 	@echo "  SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE"
 	@echo "  SHUMA_EVENT_LOG_RETENTION_HOURS"
+	@echo "  SHUMA_MONITORING_RETENTION_HOURS"
+	@echo "  SHUMA_MONITORING_ROLLUP_RETENTION_HOURS"
 	@echo "  SHUMA_ADMIN_CONFIG_WRITE_ENABLED"
 	@echo "  SHUMA_KV_STORE_FAIL_OPEN"
 	@echo "  SHUMA_ENFORCE_HTTPS"

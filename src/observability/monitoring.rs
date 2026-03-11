@@ -1,7 +1,7 @@
 use base64::{engine::general_purpose, Engine as _};
 #[cfg(not(test))]
 use once_cell::sync::Lazy;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::hash::{Hash, Hasher};
 use std::sync::Mutex;
@@ -174,8 +174,8 @@ fn normalize_top_limit(limit: usize) -> usize {
     limit.clamp(1, MAX_TOP_LIMIT)
 }
 
-fn event_log_retention_hours() -> u64 {
-    crate::config::event_log_retention_hours()
+fn monitoring_retention_hours() -> u64 {
+    crate::config::monitoring_retention_hours()
 }
 
 fn monitoring_prefix_for_active_context() -> &'static str {
@@ -783,7 +783,7 @@ fn top_entries(map: &HashMap<String, u64>, limit: usize) -> Vec<CountEntry> {
     rows
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct TrendAccumulator {
     totals: HashMap<u64, u64>,
     reasons: HashMap<u64, HashMap<String, u64>>,
@@ -819,6 +819,461 @@ fn build_trend(
     trend
 }
 
+const MONITORING_DAY_ROLLUP_SCHEMA_VERSION: &str = "monitoring-day-rollup.v1";
+const MONITORING_DAY_HOURS: u64 = 24;
+const MONITORING_ROLLUP_KEY_PREFIX: &str = "monitoring_rollup:v1:day";
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct MonitoringAccumulator {
+    honeypot_total: u64,
+    honeypot_ip_counts: HashMap<String, u64>,
+    honeypot_path_counts: HashMap<String, u64>,
+    challenge_total: u64,
+    challenge_ip_counts: HashMap<String, u64>,
+    challenge_reason_counts: HashMap<String, u64>,
+    challenge_trend: TrendAccumulator,
+    not_a_bot_served_total: u64,
+    not_a_bot_submitted_total: u64,
+    not_a_bot_outcomes: HashMap<String, u64>,
+    not_a_bot_latency_buckets: HashMap<String, u64>,
+    pow_total: u64,
+    pow_success_total: u64,
+    pow_ip_counts: HashMap<String, u64>,
+    pow_reason_counts: HashMap<String, u64>,
+    pow_outcomes: HashMap<String, u64>,
+    pow_trend: TrendAccumulator,
+    rate_total: u64,
+    rate_ip_counts: HashMap<String, u64>,
+    rate_path_counts: HashMap<String, u64>,
+    rate_outcomes: HashMap<String, u64>,
+    geo_total: u64,
+    geo_actions: HashMap<String, u64>,
+    geo_countries: HashMap<String, u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MonitoringDayRollup {
+    schema_version: String,
+    day_start_hour: u64,
+    day_end_hour: u64,
+    accumulator: MonitoringAccumulator,
+}
+
+impl MonitoringAccumulator {
+    fn add_count(map: &mut HashMap<String, u64>, key: &str, count: u64) {
+        let entry = map.entry(key.to_string()).or_insert(0);
+        *entry = entry.saturating_add(count);
+    }
+
+    fn merge_count_maps(target: &mut HashMap<String, u64>, source: &HashMap<String, u64>) {
+        for (key, count) in source {
+            let entry = target.entry(key.clone()).or_insert(0);
+            *entry = entry.saturating_add(*count);
+        }
+    }
+
+    fn merge_trend(target: &mut TrendAccumulator, source: &TrendAccumulator) {
+        for (hour, total) in &source.totals {
+            let entry = target.totals.entry(*hour).or_insert(0);
+            *entry = entry.saturating_add(*total);
+        }
+        for (hour, reasons) in &source.reasons {
+            let target_row = target.reasons.entry(*hour).or_default();
+            for (reason, count) in reasons {
+                let entry = target_row.entry(reason.clone()).or_insert(0);
+                *entry = entry.saturating_add(*count);
+            }
+        }
+    }
+
+    fn consume_counter(&mut self, section: &str, metric: &str, dimension: Option<&str>, hour: u64, count: u64) {
+        match section {
+            "honeypot" => match metric {
+                "total" => self.honeypot_total = self.honeypot_total.saturating_add(count),
+                "ip" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.honeypot_ip_counts, dim, count);
+                    }
+                }
+                "path" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.honeypot_path_counts, dim, count);
+                    }
+                }
+                _ => {}
+            },
+            "challenge" => match metric {
+                "total" => {
+                    self.challenge_total = self.challenge_total.saturating_add(count);
+                    let entry = self.challenge_trend.totals.entry(hour).or_insert(0);
+                    *entry = entry.saturating_add(count);
+                }
+                "ip" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.challenge_ip_counts, dim, count);
+                    }
+                }
+                "reason" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.challenge_reason_counts, dim, count);
+                        let row = self.challenge_trend.reasons.entry(hour).or_default();
+                        let reason_entry = row.entry(dim.to_string()).or_insert(0);
+                        *reason_entry = reason_entry.saturating_add(count);
+                    }
+                }
+                _ => {}
+            },
+            "not_a_bot" => match metric {
+                "served" => {
+                    self.not_a_bot_served_total =
+                        self.not_a_bot_served_total.saturating_add(count)
+                }
+                "submitted" => {
+                    self.not_a_bot_submitted_total =
+                        self.not_a_bot_submitted_total.saturating_add(count)
+                }
+                "outcome" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.not_a_bot_outcomes, dim, count);
+                    }
+                }
+                "solve_ms_bucket" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.not_a_bot_latency_buckets, dim, count);
+                    }
+                }
+                _ => {}
+            },
+            "pow" => match metric {
+                "total" => {
+                    self.pow_total = self.pow_total.saturating_add(count);
+                    let entry = self.pow_trend.totals.entry(hour).or_insert(0);
+                    *entry = entry.saturating_add(count);
+                }
+                "success" => {
+                    self.pow_success_total = self.pow_success_total.saturating_add(count);
+                }
+                "ip" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.pow_ip_counts, dim, count);
+                    }
+                }
+                "reason" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.pow_reason_counts, dim, count);
+                        let row = self.pow_trend.reasons.entry(hour).or_default();
+                        let reason_entry = row.entry(dim.to_string()).or_insert(0);
+                        *reason_entry = reason_entry.saturating_add(count);
+                    }
+                }
+                "outcome" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.pow_outcomes, dim, count);
+                    }
+                }
+                _ => {}
+            },
+            "rate" => match metric {
+                "total" => self.rate_total = self.rate_total.saturating_add(count),
+                "ip" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.rate_ip_counts, dim, count);
+                    }
+                }
+                "path" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.rate_path_counts, dim, count);
+                    }
+                }
+                "outcome" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.rate_outcomes, dim, count);
+                    }
+                }
+                _ => {}
+            },
+            "geo" => match metric {
+                "total" => self.geo_total = self.geo_total.saturating_add(count),
+                "action" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.geo_actions, dim, count);
+                    }
+                }
+                "country" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.geo_countries, dim, count);
+                    }
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+
+    fn merge_rollup(&mut self, source: &MonitoringAccumulator) {
+        self.honeypot_total = self.honeypot_total.saturating_add(source.honeypot_total);
+        Self::merge_count_maps(&mut self.honeypot_ip_counts, &source.honeypot_ip_counts);
+        Self::merge_count_maps(&mut self.honeypot_path_counts, &source.honeypot_path_counts);
+        self.challenge_total = self.challenge_total.saturating_add(source.challenge_total);
+        Self::merge_count_maps(&mut self.challenge_ip_counts, &source.challenge_ip_counts);
+        Self::merge_count_maps(
+            &mut self.challenge_reason_counts,
+            &source.challenge_reason_counts,
+        );
+        Self::merge_trend(&mut self.challenge_trend, &source.challenge_trend);
+        self.not_a_bot_served_total = self
+            .not_a_bot_served_total
+            .saturating_add(source.not_a_bot_served_total);
+        self.not_a_bot_submitted_total = self
+            .not_a_bot_submitted_total
+            .saturating_add(source.not_a_bot_submitted_total);
+        Self::merge_count_maps(&mut self.not_a_bot_outcomes, &source.not_a_bot_outcomes);
+        Self::merge_count_maps(
+            &mut self.not_a_bot_latency_buckets,
+            &source.not_a_bot_latency_buckets,
+        );
+        self.pow_total = self.pow_total.saturating_add(source.pow_total);
+        self.pow_success_total = self.pow_success_total.saturating_add(source.pow_success_total);
+        Self::merge_count_maps(&mut self.pow_ip_counts, &source.pow_ip_counts);
+        Self::merge_count_maps(&mut self.pow_reason_counts, &source.pow_reason_counts);
+        Self::merge_count_maps(&mut self.pow_outcomes, &source.pow_outcomes);
+        Self::merge_trend(&mut self.pow_trend, &source.pow_trend);
+        self.rate_total = self.rate_total.saturating_add(source.rate_total);
+        Self::merge_count_maps(&mut self.rate_ip_counts, &source.rate_ip_counts);
+        Self::merge_count_maps(&mut self.rate_path_counts, &source.rate_path_counts);
+        Self::merge_count_maps(&mut self.rate_outcomes, &source.rate_outcomes);
+        self.geo_total = self.geo_total.saturating_add(source.geo_total);
+        Self::merge_count_maps(&mut self.geo_actions, &source.geo_actions);
+        Self::merge_count_maps(&mut self.geo_countries, &source.geo_countries);
+    }
+
+    fn finalize(self, now: u64, hours: u64, top_limit: usize, start_hour: u64, end_hour: u64) -> MonitoringSummary {
+        let mut challenge_reason_map = build_seeded_map(&CHALLENGE_REASON_KEYS);
+        for (key, value) in self.challenge_reason_counts {
+            let entry = challenge_reason_map.entry(key).or_insert(0);
+            *entry = entry.saturating_add(value);
+        }
+
+        let mut pow_reason_map = build_seeded_map(&POW_REASON_KEYS);
+        for (key, value) in self.pow_reason_counts {
+            let entry = pow_reason_map.entry(key).or_insert(0);
+            *entry = entry.saturating_add(value);
+        }
+
+        let mut not_a_bot_outcome_map = build_seeded_map(&NOT_A_BOT_OUTCOME_KEYS);
+        for (key, value) in self.not_a_bot_outcomes {
+            let entry = not_a_bot_outcome_map.entry(key).or_insert(0);
+            *entry = entry.saturating_add(value);
+        }
+
+        let mut not_a_bot_latency_map = build_seeded_map(&NOT_A_BOT_SOLVE_MS_BUCKET_KEYS);
+        for (key, value) in self.not_a_bot_latency_buckets {
+            let entry = not_a_bot_latency_map.entry(key).or_insert(0);
+            *entry = entry.saturating_add(value);
+        }
+
+        let not_a_bot_abandonments =
+            self.not_a_bot_served_total.saturating_sub(self.not_a_bot_submitted_total);
+        let not_a_bot_abandonment_ratio = if self.not_a_bot_served_total == 0 {
+            0.0
+        } else {
+            not_a_bot_abandonments as f64 / self.not_a_bot_served_total as f64
+        };
+
+        let mut pow_outcome_map = build_seeded_map(&POW_OUTCOME_KEYS);
+        for (key, value) in self.pow_outcomes {
+            let entry = pow_outcome_map.entry(key).or_insert(0);
+            *entry = entry.saturating_add(value);
+        }
+        let pow_outcome_failures = pow_outcome_map.get("failure").copied().unwrap_or(0);
+        let pow_outcome_successes = pow_outcome_map.get("success").copied().unwrap_or(0);
+        let pow_total_failures = self.pow_total.max(pow_outcome_failures);
+        let pow_total_successes = self.pow_success_total.max(pow_outcome_successes);
+        let pow_total_attempts = pow_total_failures.saturating_add(pow_total_successes);
+        let pow_success_ratio = if pow_total_attempts == 0 {
+            0.0
+        } else {
+            pow_total_successes as f64 / pow_total_attempts as f64
+        };
+
+        let mut rate_outcome_map = build_seeded_map(&RATE_OUTCOME_KEYS);
+        for (key, value) in self.rate_outcomes {
+            let entry = rate_outcome_map.entry(key).or_insert(0);
+            *entry = entry.saturating_add(value);
+        }
+
+        let mut geo_action_map = build_seeded_map(&GEO_ACTION_KEYS);
+        for (key, value) in self.geo_actions {
+            let entry = geo_action_map.entry(key).or_insert(0);
+            *entry = entry.saturating_add(value);
+        }
+
+        MonitoringSummary {
+            generated_at: now,
+            hours,
+            honeypot: HoneypotSummary {
+                total_hits: self.honeypot_total,
+                unique_crawlers: self.honeypot_ip_counts.len() as u64,
+                top_crawlers: top_entries(&self.honeypot_ip_counts, top_limit),
+                top_paths: top_entries(&self.honeypot_path_counts, top_limit),
+            },
+            challenge: FailureSummary {
+                total_failures: self.challenge_total,
+                unique_offenders: self.challenge_ip_counts.len() as u64,
+                top_offenders: top_entries(&self.challenge_ip_counts, top_limit),
+                reasons: challenge_reason_map,
+                trend: build_trend(start_hour, end_hour, &CHALLENGE_REASON_KEYS, self.challenge_trend),
+            },
+            not_a_bot: NotABotSummary {
+                served: self.not_a_bot_served_total,
+                submitted: self.not_a_bot_submitted_total,
+                pass: *not_a_bot_outcome_map.get("pass").unwrap_or(&0),
+                escalate: *not_a_bot_outcome_map.get("escalate").unwrap_or(&0),
+                fail: *not_a_bot_outcome_map.get("fail").unwrap_or(&0),
+                replay: *not_a_bot_outcome_map.get("replay").unwrap_or(&0),
+                outcomes: not_a_bot_outcome_map,
+                solve_latency_buckets: not_a_bot_latency_map,
+                abandonments_estimated: not_a_bot_abandonments,
+                abandonment_ratio: not_a_bot_abandonment_ratio,
+            },
+            pow: PowSummary {
+                total_failures: pow_total_failures,
+                total_successes: pow_total_successes,
+                total_attempts: pow_total_attempts,
+                success_ratio: pow_success_ratio,
+                unique_offenders: self.pow_ip_counts.len() as u64,
+                top_offenders: top_entries(&self.pow_ip_counts, top_limit),
+                reasons: pow_reason_map,
+                outcomes: pow_outcome_map,
+                trend: build_trend(start_hour, end_hour, &POW_REASON_KEYS, self.pow_trend),
+            },
+            rate: RateSummary {
+                total_violations: self.rate_total,
+                unique_offenders: self.rate_ip_counts.len() as u64,
+                top_offenders: top_entries(&self.rate_ip_counts, top_limit),
+                top_paths: top_entries(&self.rate_path_counts, top_limit),
+                outcomes: rate_outcome_map,
+            },
+            geo: GeoSummary {
+                total_violations: self.geo_total,
+                actions: geo_action_map,
+                top_countries: top_entries(&self.geo_countries, top_limit),
+            },
+        }
+    }
+}
+
+fn monitoring_day_rollup_key(day_start_hour: u64) -> String {
+    format!("{MONITORING_ROLLUP_KEY_PREFIX}:{day_start_hour}")
+}
+
+fn day_start_hour(hour: u64) -> u64 {
+    hour.saturating_sub(hour % MONITORING_DAY_HOURS)
+}
+
+fn load_monitoring_day_rollup<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    day_start_hour: u64,
+) -> Option<MonitoringDayRollup> {
+    store
+        .get(monitoring_day_rollup_key(day_start_hour).as_str())
+        .ok()
+        .flatten()
+        .and_then(|bytes| serde_json::from_slice::<MonitoringDayRollup>(bytes.as_slice()).ok())
+        .filter(|rollup| {
+            rollup.schema_version == MONITORING_DAY_ROLLUP_SCHEMA_VERSION
+                && rollup.day_start_hour == day_start_hour
+        })
+}
+
+fn build_monitoring_day_rollup<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    day_start_hour: u64,
+    prefixes: &[&str],
+) -> Option<MonitoringDayRollup> {
+    let day_end_hour = day_start_hour.saturating_add(MONITORING_DAY_HOURS - 1);
+    let mut accumulator = MonitoringAccumulator::default();
+    let mut matched_any = false;
+    for key in crate::observability::retention::bucket_window_keys(
+        store,
+        crate::observability::retention::RETENTION_DOMAIN_MONITORING,
+        day_start_hour,
+        day_end_hour,
+    ) {
+        let Some(prefix) = matching_monitoring_prefix(key.as_str(), prefixes) else {
+            continue;
+        };
+        let Some((section, metric, dimension, hour)) =
+            parse_monitoring_key_with_prefix(key.as_str(), prefix)
+        else {
+            continue;
+        };
+        if hour < day_start_hour || hour > day_end_hour {
+            continue;
+        }
+        let count = read_counter(store, key.as_str());
+        if count == 0 {
+            continue;
+        }
+        matched_any = true;
+        accumulator.consume_counter(
+            section.as_str(),
+            metric.as_str(),
+            dimension.as_deref(),
+            hour,
+            count,
+        );
+    }
+    if !matched_any {
+        return None;
+    }
+    Some(MonitoringDayRollup {
+        schema_version: MONITORING_DAY_ROLLUP_SCHEMA_VERSION.to_string(),
+        day_start_hour,
+        day_end_hour,
+        accumulator,
+    })
+}
+
+fn load_or_build_monitoring_day_rollup<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    day_start_hour: u64,
+    prefixes: &[&str],
+) -> Option<MonitoringDayRollup> {
+    if let Some(existing) = load_monitoring_day_rollup(store, day_start_hour) {
+        return Some(existing);
+    }
+    let rollup = build_monitoring_day_rollup(store, day_start_hour, prefixes)?;
+    let key = monitoring_day_rollup_key(day_start_hour);
+    if let Ok(payload) = serde_json::to_vec(&rollup) {
+        if store.set(key.as_str(), payload.as_slice()).is_ok() {
+            crate::observability::retention::register_monitoring_rollup_key(
+                store,
+                day_start_hour,
+                key.as_str(),
+            );
+            crate::observability::retention::run_worker_if_due(store);
+        }
+    }
+    Some(rollup)
+}
+
+fn summarize_rollup_day_starts(start_hour: u64, end_hour: u64) -> Vec<u64> {
+    if start_hour > end_hour {
+        return Vec::new();
+    }
+    let mut days = Vec::new();
+    let mut day = day_start_hour(start_hour.saturating_add(MONITORING_DAY_HOURS - 1));
+    let current_day_start = day_start_hour(end_hour);
+    while day.saturating_add(MONITORING_DAY_HOURS - 1) <= end_hour && day < current_day_start {
+        if day >= start_hour {
+            days.push(day);
+        }
+        day = day.saturating_add(MONITORING_DAY_HOURS);
+    }
+    days
+}
+
 fn summarize_with_store_prefixes<S: crate::challenge::KeyValueStore>(
     store: &S,
     hours: u64,
@@ -832,302 +1287,50 @@ fn summarize_with_store_prefixes<S: crate::challenge::KeyValueStore>(
     let top_limit = normalize_top_limit(limit);
     let end_hour = now / 3600;
     let start_hour = end_hour.saturating_sub(hours.saturating_sub(1));
-
-    let mut honeypot_total = 0u64;
-    let mut honeypot_ip_counts: HashMap<String, u64> = HashMap::new();
-    let mut honeypot_path_counts: HashMap<String, u64> = HashMap::new();
-
-    let mut challenge_total = 0u64;
-    let mut challenge_ip_counts: HashMap<String, u64> = HashMap::new();
-    let mut challenge_reason_counts: HashMap<String, u64> = HashMap::new();
-    let mut challenge_trend = TrendAccumulator::default();
-
-    let mut not_a_bot_served_total = 0u64;
-    let mut not_a_bot_submitted_total = 0u64;
-    let mut not_a_bot_outcomes: HashMap<String, u64> = HashMap::new();
-    let mut not_a_bot_latency_buckets: HashMap<String, u64> = HashMap::new();
-
-    let mut pow_total = 0u64;
-    let mut pow_success_total = 0u64;
-    let mut pow_ip_counts: HashMap<String, u64> = HashMap::new();
-    let mut pow_reason_counts: HashMap<String, u64> = HashMap::new();
-    let mut pow_outcomes: HashMap<String, u64> = HashMap::new();
-    let mut pow_trend = TrendAccumulator::default();
-
-    let mut rate_total = 0u64;
-    let mut rate_ip_counts: HashMap<String, u64> = HashMap::new();
-    let mut rate_path_counts: HashMap<String, u64> = HashMap::new();
-    let mut rate_outcomes: HashMap<String, u64> = HashMap::new();
-
-    let mut geo_total = 0u64;
-    let mut geo_actions: HashMap<String, u64> = HashMap::new();
-    let mut geo_countries: HashMap<String, u64> = HashMap::new();
-
-    if let Ok(keys) = store.get_keys() {
-        for key in keys {
-            let Some(prefix) = matching_monitoring_prefix(key.as_str(), prefixes) else {
-                continue;
-            };
-            let Some((section, metric, dimension, hour)) =
-                parse_monitoring_key_with_prefix(key.as_str(), prefix)
-            else {
-                continue;
-            };
-            if hour < start_hour || hour > end_hour {
-                continue;
-            }
-            let count = read_counter(store, key.as_str());
-            if count == 0 {
-                continue;
-            }
-
-            match section.as_str() {
-                "honeypot" => match metric.as_str() {
-                    "total" => honeypot_total = honeypot_total.saturating_add(count),
-                    "ip" => {
-                        if let Some(dim) = dimension {
-                            let entry = honeypot_ip_counts.entry(dim).or_insert(0);
-                            *entry = entry.saturating_add(count);
-                        }
-                    }
-                    "path" => {
-                        if let Some(dim) = dimension {
-                            let entry = honeypot_path_counts.entry(dim).or_insert(0);
-                            *entry = entry.saturating_add(count);
-                        }
-                    }
-                    _ => {}
-                },
-                "challenge" => match metric.as_str() {
-                    "total" => {
-                        challenge_total = challenge_total.saturating_add(count);
-                        let entry = challenge_trend.totals.entry(hour).or_insert(0);
-                        *entry = entry.saturating_add(count);
-                    }
-                    "ip" => {
-                        if let Some(dim) = dimension {
-                            let entry = challenge_ip_counts.entry(dim).or_insert(0);
-                            *entry = entry.saturating_add(count);
-                        }
-                    }
-                    "reason" => {
-                        if let Some(dim) = dimension {
-                            let entry = challenge_reason_counts.entry(dim.clone()).or_insert(0);
-                            *entry = entry.saturating_add(count);
-
-                            let row = challenge_trend.reasons.entry(hour).or_default();
-                            let reason_entry = row.entry(dim).or_insert(0);
-                            *reason_entry = reason_entry.saturating_add(count);
-                        }
-                    }
-                    _ => {}
-                },
-                "not_a_bot" => match metric.as_str() {
-                    "served" => not_a_bot_served_total = not_a_bot_served_total.saturating_add(count),
-                    "submitted" => {
-                        not_a_bot_submitted_total = not_a_bot_submitted_total.saturating_add(count)
-                    }
-                    "outcome" => {
-                        if let Some(dim) = dimension {
-                            let entry = not_a_bot_outcomes.entry(dim).or_insert(0);
-                            *entry = entry.saturating_add(count);
-                        }
-                    }
-                    "solve_ms_bucket" => {
-                        if let Some(dim) = dimension {
-                            let entry = not_a_bot_latency_buckets.entry(dim).or_insert(0);
-                            *entry = entry.saturating_add(count);
-                        }
-                    }
-                    _ => {}
-                },
-                "pow" => match metric.as_str() {
-                    "total" => {
-                        pow_total = pow_total.saturating_add(count);
-                        let entry = pow_trend.totals.entry(hour).or_insert(0);
-                        *entry = entry.saturating_add(count);
-                    }
-                    "success" => {
-                        pow_success_total = pow_success_total.saturating_add(count);
-                    }
-                    "ip" => {
-                        if let Some(dim) = dimension {
-                            let entry = pow_ip_counts.entry(dim).or_insert(0);
-                            *entry = entry.saturating_add(count);
-                        }
-                    }
-                    "reason" => {
-                        if let Some(dim) = dimension {
-                            let entry = pow_reason_counts.entry(dim.clone()).or_insert(0);
-                            *entry = entry.saturating_add(count);
-
-                            let row = pow_trend.reasons.entry(hour).or_default();
-                            let reason_entry = row.entry(dim).or_insert(0);
-                            *reason_entry = reason_entry.saturating_add(count);
-                        }
-                    }
-                    "outcome" => {
-                        if let Some(dim) = dimension {
-                            let entry = pow_outcomes.entry(dim).or_insert(0);
-                            *entry = entry.saturating_add(count);
-                        }
-                    }
-                    _ => {}
-                },
-                "rate" => match metric.as_str() {
-                    "total" => rate_total = rate_total.saturating_add(count),
-                    "ip" => {
-                        if let Some(dim) = dimension {
-                            let entry = rate_ip_counts.entry(dim).or_insert(0);
-                            *entry = entry.saturating_add(count);
-                        }
-                    }
-                    "path" => {
-                        if let Some(dim) = dimension {
-                            let entry = rate_path_counts.entry(dim).or_insert(0);
-                            *entry = entry.saturating_add(count);
-                        }
-                    }
-                    "outcome" => {
-                        if let Some(dim) = dimension {
-                            let entry = rate_outcomes.entry(dim).or_insert(0);
-                            *entry = entry.saturating_add(count);
-                        }
-                    }
-                    _ => {}
-                },
-                "geo" => match metric.as_str() {
-                    "total" => geo_total = geo_total.saturating_add(count),
-                    "action" => {
-                        if let Some(dim) = dimension {
-                            let entry = geo_actions.entry(dim).or_insert(0);
-                            *entry = entry.saturating_add(count);
-                        }
-                    }
-                    "country" => {
-                        if let Some(dim) = dimension {
-                            let entry = geo_countries.entry(dim).or_insert(0);
-                            *entry = entry.saturating_add(count);
-                        }
-                    }
-                    _ => {}
-                },
-                _ => {}
-            }
+    let mut accumulator = MonitoringAccumulator::default();
+    let rollup_days = summarize_rollup_day_starts(start_hour, end_hour);
+    for day_start in &rollup_days {
+        if let Some(rollup) = load_or_build_monitoring_day_rollup(store, *day_start, prefixes) {
+            accumulator.merge_rollup(&rollup.accumulator);
         }
     }
 
-    let mut challenge_reason_map = build_seeded_map(&CHALLENGE_REASON_KEYS);
-    for (key, value) in challenge_reason_counts {
-        let entry = challenge_reason_map.entry(key).or_insert(0);
-        *entry = entry.saturating_add(value);
+    let covered_day_hours: std::collections::HashSet<u64> = rollup_days
+        .iter()
+        .flat_map(|day_start| *day_start..=day_start.saturating_add(MONITORING_DAY_HOURS - 1))
+        .collect();
+
+    for key in crate::observability::retention::bucket_window_keys(
+        store,
+        crate::observability::retention::RETENTION_DOMAIN_MONITORING,
+        start_hour,
+        end_hour,
+    ) {
+        let Some(prefix) = matching_monitoring_prefix(key.as_str(), prefixes) else {
+            continue;
+        };
+        let Some((section, metric, dimension, hour)) =
+            parse_monitoring_key_with_prefix(key.as_str(), prefix)
+        else {
+            continue;
+        };
+        if hour < start_hour || hour > end_hour || covered_day_hours.contains(&hour) {
+            continue;
+        }
+        let count = read_counter(store, key.as_str());
+        if count == 0 {
+            continue;
+        }
+        accumulator.consume_counter(
+            section.as_str(),
+            metric.as_str(),
+            dimension.as_deref(),
+            hour,
+            count,
+        );
     }
 
-    let mut pow_reason_map = build_seeded_map(&POW_REASON_KEYS);
-    for (key, value) in pow_reason_counts {
-        let entry = pow_reason_map.entry(key).or_insert(0);
-        *entry = entry.saturating_add(value);
-    }
-
-    let mut not_a_bot_outcome_map = build_seeded_map(&NOT_A_BOT_OUTCOME_KEYS);
-    for (key, value) in not_a_bot_outcomes {
-        let entry = not_a_bot_outcome_map.entry(key).or_insert(0);
-        *entry = entry.saturating_add(value);
-    }
-
-    let mut not_a_bot_latency_map = build_seeded_map(&NOT_A_BOT_SOLVE_MS_BUCKET_KEYS);
-    for (key, value) in not_a_bot_latency_buckets {
-        let entry = not_a_bot_latency_map.entry(key).or_insert(0);
-        *entry = entry.saturating_add(value);
-    }
-
-    let not_a_bot_abandonments = not_a_bot_served_total.saturating_sub(not_a_bot_submitted_total);
-    let not_a_bot_abandonment_ratio = if not_a_bot_served_total == 0 {
-        0.0
-    } else {
-        not_a_bot_abandonments as f64 / not_a_bot_served_total as f64
-    };
-
-    let mut pow_outcome_map = build_seeded_map(&POW_OUTCOME_KEYS);
-    for (key, value) in pow_outcomes {
-        let entry = pow_outcome_map.entry(key).or_insert(0);
-        *entry = entry.saturating_add(value);
-    }
-    let pow_outcome_failures = pow_outcome_map.get("failure").copied().unwrap_or(0);
-    let pow_outcome_successes = pow_outcome_map.get("success").copied().unwrap_or(0);
-    let pow_total_failures = pow_total.max(pow_outcome_failures);
-    let pow_total_successes = pow_success_total.max(pow_outcome_successes);
-    let pow_total_attempts = pow_total_failures.saturating_add(pow_total_successes);
-    let pow_success_ratio = if pow_total_attempts == 0 {
-        0.0
-    } else {
-        pow_total_successes as f64 / pow_total_attempts as f64
-    };
-
-    let mut rate_outcome_map = build_seeded_map(&RATE_OUTCOME_KEYS);
-    for (key, value) in rate_outcomes {
-        let entry = rate_outcome_map.entry(key).or_insert(0);
-        *entry = entry.saturating_add(value);
-    }
-
-    let mut geo_action_map = build_seeded_map(&GEO_ACTION_KEYS);
-    for (key, value) in geo_actions {
-        let entry = geo_action_map.entry(key).or_insert(0);
-        *entry = entry.saturating_add(value);
-    }
-
-    MonitoringSummary {
-        generated_at: now,
-        hours,
-        honeypot: HoneypotSummary {
-            total_hits: honeypot_total,
-            unique_crawlers: honeypot_ip_counts.len() as u64,
-            top_crawlers: top_entries(&honeypot_ip_counts, top_limit),
-            top_paths: top_entries(&honeypot_path_counts, top_limit),
-        },
-        challenge: FailureSummary {
-            total_failures: challenge_total,
-            unique_offenders: challenge_ip_counts.len() as u64,
-            top_offenders: top_entries(&challenge_ip_counts, top_limit),
-            reasons: challenge_reason_map,
-            trend: build_trend(start_hour, end_hour, &CHALLENGE_REASON_KEYS, challenge_trend),
-        },
-        not_a_bot: NotABotSummary {
-            served: not_a_bot_served_total,
-            submitted: not_a_bot_submitted_total,
-            pass: *not_a_bot_outcome_map.get("pass").unwrap_or(&0),
-            escalate: *not_a_bot_outcome_map.get("escalate").unwrap_or(&0),
-            fail: *not_a_bot_outcome_map.get("fail").unwrap_or(&0),
-            replay: *not_a_bot_outcome_map.get("replay").unwrap_or(&0),
-            outcomes: not_a_bot_outcome_map,
-            solve_latency_buckets: not_a_bot_latency_map,
-            abandonments_estimated: not_a_bot_abandonments,
-            abandonment_ratio: not_a_bot_abandonment_ratio,
-        },
-        pow: PowSummary {
-            total_failures: pow_total_failures,
-            total_successes: pow_total_successes,
-            total_attempts: pow_total_attempts,
-            success_ratio: pow_success_ratio,
-            unique_offenders: pow_ip_counts.len() as u64,
-            top_offenders: top_entries(&pow_ip_counts, top_limit),
-            reasons: pow_reason_map,
-            outcomes: pow_outcome_map,
-            trend: build_trend(start_hour, end_hour, &POW_REASON_KEYS, pow_trend),
-        },
-        rate: RateSummary {
-            total_violations: rate_total,
-            unique_offenders: rate_ip_counts.len() as u64,
-            top_offenders: top_entries(&rate_ip_counts, top_limit),
-            top_paths: top_entries(&rate_path_counts, top_limit),
-            outcomes: rate_outcome_map,
-        },
-        geo: GeoSummary {
-            total_violations: geo_total,
-            actions: geo_action_map,
-            top_countries: top_entries(&geo_countries, top_limit),
-        },
-    }
+    accumulator.finalize(now, hours, top_limit, start_hour, end_hour)
 }
 
 pub(crate) fn summarize_with_store<S: crate::challenge::KeyValueStore>(
@@ -1141,7 +1344,7 @@ pub(crate) fn summarize_with_store<S: crate::challenge::KeyValueStore>(
 pub(crate) fn summarize_metrics_window<S: crate::challenge::KeyValueStore>(
     store: &S,
 ) -> MonitoringSummary {
-    let retention_hours = event_log_retention_hours();
+    let retention_hours = monitoring_retention_hours();
     // Keep Prometheus monitoring parity aligned with dashboard default 24h summaries.
     let hours = if retention_hours == 0 {
         24
@@ -1160,6 +1363,7 @@ mod tests {
     #[derive(Default)]
     struct MockStore {
         map: Mutex<HashMap<String, Vec<u8>>>,
+        get_keys_calls: Mutex<u64>,
     }
 
     impl crate::challenge::KeyValueStore for MockStore {
@@ -1181,8 +1385,15 @@ mod tests {
         }
 
         fn get_keys(&self) -> Result<Vec<String>, ()> {
+            *self.get_keys_calls.lock().unwrap() += 1;
             let map = self.map.lock().unwrap();
             Ok(map.keys().cloned().collect())
+        }
+    }
+
+    impl MockStore {
+        fn get_keys_calls(&self) -> u64 {
+            *self.get_keys_calls.lock().unwrap()
         }
     }
 
@@ -1190,6 +1401,9 @@ mod tests {
         store
             .set(key, value.to_string().as_bytes())
             .expect("counter write should succeed");
+        if let Some((_, _, _, hour)) = parse_monitoring_key_with_prefix(key, MONITORING_PREFIX) {
+            crate::observability::retention::register_monitoring_key(store, hour, key);
+        }
     }
 
     #[test]
@@ -1516,6 +1730,65 @@ mod tests {
     }
 
     #[test]
+    fn summarize_uses_bucket_indexes_without_full_keyspace_scan() {
+        let store = MockStore::default();
+        let now_hour = now_ts() / 3600;
+        let counter_key = format!("{}:challenge:total:{}", MONITORING_PREFIX, now_hour);
+        set_counter(&store, counter_key.as_str(), 4);
+        crate::observability::retention::register_monitoring_key(&store, now_hour, counter_key.as_str());
+        store
+            .set("unrelated:telemetry:key", b"17")
+            .expect("set unrelated");
+
+        let summary = summarize_with_store(&store, 1, 10);
+        assert_eq!(summary.challenge.total_failures, 4);
+        assert_eq!(store.get_keys_calls(), 0);
+    }
+
+    #[test]
+    fn summarize_builds_and_reuses_day_rollups_for_complete_prior_days() {
+        let store = MockStore::default();
+        let now_hour = now_ts() / 3600;
+        let previous_day_start = day_start_hour(now_hour.saturating_sub(MONITORING_DAY_HOURS));
+        let current_day_start = day_start_hour(now_hour);
+
+        for hour in previous_day_start..previous_day_start.saturating_add(MONITORING_DAY_HOURS) {
+            set_counter(
+                &store,
+                format!("{}:challenge:total:{}", MONITORING_PREFIX, hour).as_str(),
+                1,
+            );
+        }
+        for hour in current_day_start..=now_hour {
+            set_counter(
+                &store,
+                format!("{}:challenge:total:{}", MONITORING_PREFIX, hour).as_str(),
+                1,
+            );
+        }
+
+        let first_summary = summarize_with_store(&store, 48, 10);
+        let rollup_key = monitoring_day_rollup_key(previous_day_start);
+        assert!(
+            store
+                .get(rollup_key.as_str())
+                .expect("rollup read should succeed")
+                .is_some()
+        );
+
+        for hour in previous_day_start..previous_day_start.saturating_add(MONITORING_DAY_HOURS) {
+            let key = format!("{}:challenge:total:{}", MONITORING_PREFIX, hour);
+            store.delete(key.as_str()).expect("delete hourly key");
+        }
+
+        let second_summary = summarize_with_store(&store, 48, 10);
+        assert_eq!(
+            second_summary.challenge.total_failures,
+            first_summary.challenge.total_failures
+        );
+    }
+
+    #[test]
     fn normalize_telemetry_path_caps_dynamic_cardinality() {
         assert_eq!(normalize_telemetry_path("/"), "/");
         assert_eq!(
@@ -1631,7 +1904,9 @@ mod tests {
         let now_hour = now_ts() / 3600;
         let expired_hour = now_hour.saturating_sub(6);
         let expired_key = monitoring_key("pow", "total", None, expired_hour);
-        set_counter(&store, expired_key.as_str(), 1);
+        store
+            .set(expired_key.as_str(), b"1")
+            .expect("counter write should succeed");
 
         record_pow_failure(&store, "203.0.113.9", "invalid_proof");
         let _ = summarize_with_store(&store, 24, 10);

@@ -887,6 +887,7 @@ pub(crate) fn serve(
         SharedBudgetGovernor {
             global_active_key: BUDGET_GLOBAL_ACTIVE_KEY,
             bucket_active_prefix: BUDGET_BUCKET_ACTIVE_PREFIX,
+            bucket_catalog_key: None,
             max_concurrent_global: cfg.maze_max_concurrent_global,
             max_concurrent_per_ip_bucket: cfg.maze_max_concurrent_per_ip_bucket,
         },

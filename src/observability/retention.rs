@@ -2,8 +2,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
 const RETENTION_SCHEMA_VERSION: &str = "telemetry-retention.v1";
-const RETENTION_DOMAIN_MONITORING: &str = "monitoring";
-const RETENTION_DOMAIN_EVENTLOG: &str = "eventlog";
+pub(crate) const RETENTION_DOMAIN_MONITORING: &str = "monitoring";
+pub(crate) const RETENTION_DOMAIN_EVENTLOG: &str = "eventlog";
+pub(crate) const RETENTION_DOMAIN_MONITORING_ROLLUP: &str = "monitoring_rollup";
 const RETENTION_BUCKET_INDEX_PREFIX: &str = "telemetry:retention:v1:bucket";
 const RETENTION_BUCKET_CATALOG_PREFIX: &str = "telemetry:retention:v1:catalog";
 const RETENTION_WORKER_STATE_KEY: &str = "telemetry:retention:v1:worker_state";
@@ -29,6 +30,13 @@ struct TelemetryBucketCatalog {
     schema_version: String,
     domain: String,
     hours: Vec<u64>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct BucketWindowStats {
+    pub bucket_hours: Vec<u64>,
+    pub bucket_count: u64,
+    pub key_count: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,16 +85,21 @@ pub(crate) struct RetentionHealth {
 }
 
 pub(crate) fn monitoring_retention_hours() -> u64 {
-    crate::config::event_log_retention_hours()
+    crate::config::monitoring_retention_hours()
 }
 
 pub(crate) fn event_log_high_risk_retention_hours() -> u64 {
-    monitoring_retention_hours().min(EVENT_LOG_HIGH_RISK_RETENTION_MAX_HOURS)
+    crate::config::event_log_retention_hours().min(EVENT_LOG_HIGH_RISK_RETENTION_MAX_HOURS)
+}
+
+pub(crate) fn monitoring_rollup_retention_hours() -> u64 {
+    crate::config::monitoring_rollup_retention_hours()
 }
 
 fn retention_hours_for_domain(domain: &str) -> u64 {
     match domain {
         RETENTION_DOMAIN_EVENTLOG => event_log_high_risk_retention_hours(),
+        RETENTION_DOMAIN_MONITORING_ROLLUP => monitoring_rollup_retention_hours(),
         _ => monitoring_retention_hours(),
     }
 }
@@ -184,6 +197,54 @@ fn insert_hour_unique_sorted(hours: &mut Vec<u64>, hour: u64) {
     }
 }
 
+pub(crate) fn bucket_window_stats(
+    store: &impl crate::challenge::KeyValueStore,
+    domain: &str,
+    start_hour: u64,
+    end_hour: u64,
+) -> BucketWindowStats {
+    if start_hour > end_hour {
+        return BucketWindowStats::default();
+    }
+
+    let catalog = load_bucket_catalog(store, domain);
+    let bucket_hours: Vec<u64> = catalog
+        .hours
+        .into_iter()
+        .filter(|hour| *hour >= start_hour && *hour <= end_hour)
+        .collect();
+
+    let mut key_count = 0u64;
+    for hour in &bucket_hours {
+        if let Some(index) = load_bucket_index(store, domain, *hour) {
+            let unique_keys: BTreeSet<String> = index.keys.into_iter().collect();
+            key_count = key_count.saturating_add(unique_keys.len() as u64);
+        }
+    }
+
+    BucketWindowStats {
+        bucket_count: bucket_hours.len() as u64,
+        key_count,
+        bucket_hours,
+    }
+}
+
+pub(crate) fn bucket_window_keys(
+    store: &impl crate::challenge::KeyValueStore,
+    domain: &str,
+    start_hour: u64,
+    end_hour: u64,
+) -> Vec<String> {
+    let stats = bucket_window_stats(store, domain, start_hour, end_hour);
+    let mut unique_keys = BTreeSet::new();
+    for hour in stats.bucket_hours {
+        if let Some(index) = load_bucket_index(store, domain, hour) {
+            unique_keys.extend(index.keys.into_iter());
+        }
+    }
+    unique_keys.into_iter().collect()
+}
+
 fn register_bucket_key(
     store: &impl crate::challenge::KeyValueStore,
     domain: &str,
@@ -240,6 +301,19 @@ pub(crate) fn register_monitoring_key(
     }
 }
 
+pub(crate) fn register_monitoring_rollup_key(
+    store: &impl crate::challenge::KeyValueStore,
+    hour: u64,
+    key: &str,
+) {
+    if let Err(err) = register_bucket_key(store, RETENTION_DOMAIN_MONITORING_ROLLUP, hour, key, 1) {
+        eprintln!(
+            "[telemetry-retention] failed to register monitoring rollup key domain={} hour={} key={} error={}",
+            RETENTION_DOMAIN_MONITORING_ROLLUP, hour, key, err
+        );
+    }
+}
+
 fn purge_bucket(
     store: &impl crate::challenge::KeyValueStore,
     domain: &str,
@@ -292,6 +366,7 @@ fn compute_health(
     let catalogs = vec![
         load_bucket_catalog(store, RETENTION_DOMAIN_MONITORING),
         load_bucket_catalog(store, RETENTION_DOMAIN_EVENTLOG),
+        load_bucket_catalog(store, RETENTION_DOMAIN_MONITORING_ROLLUP),
     ];
     let pending_expired_buckets = catalog_pending_expired_buckets(&catalogs, now_hour);
     let oldest_retained_hour = catalog_oldest_retained_hour(&catalogs).unwrap_or(0);
@@ -372,6 +447,7 @@ fn run_worker_if_due_at(store: &impl crate::challenge::KeyValueStore, now: u64) 
     let mut catalogs = vec![
         load_bucket_catalog(store, RETENTION_DOMAIN_MONITORING),
         load_bucket_catalog(store, RETENTION_DOMAIN_EVENTLOG),
+        load_bucket_catalog(store, RETENTION_DOMAIN_MONITORING_ROLLUP),
     ];
 
     let mut processed = 0usize;
@@ -523,13 +599,22 @@ mod tests {
     fn eventlog_retention_is_capped_while_monitoring_retention_tracks_config() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "240");
-        assert_eq!(monitoring_retention_hours(), 240);
+        std::env::set_var("SHUMA_MONITORING_RETENTION_HOURS", "336");
+        std::env::set_var("SHUMA_MONITORING_ROLLUP_RETENTION_HOURS", "720");
+        assert_eq!(monitoring_retention_hours(), 336);
         assert_eq!(event_log_high_risk_retention_hours(), 72);
+        assert_eq!(monitoring_rollup_retention_hours(), 720);
         assert_eq!(
             retention_hours_for_domain(RETENTION_DOMAIN_MONITORING),
-            240
+            336
         );
         assert_eq!(retention_hours_for_domain(RETENTION_DOMAIN_EVENTLOG), 72);
+        assert_eq!(
+            retention_hours_for_domain(RETENTION_DOMAIN_MONITORING_ROLLUP),
+            720
+        );
+        std::env::remove_var("SHUMA_MONITORING_ROLLUP_RETENTION_HOURS");
+        std::env::remove_var("SHUMA_MONITORING_RETENTION_HOURS");
         std::env::remove_var("SHUMA_EVENT_LOG_RETENTION_HOURS");
     }
 

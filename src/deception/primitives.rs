@@ -21,6 +21,7 @@ where
 pub(crate) struct SharedBudgetGovernor<'a> {
     pub global_active_key: &'a str,
     pub bucket_active_prefix: &'a str,
+    pub bucket_catalog_key: Option<&'a str>,
     pub max_concurrent_global: u32,
     pub max_concurrent_per_ip_bucket: u32,
 }
@@ -104,6 +105,18 @@ pub(crate) fn try_acquire_shared_budget<'a, S: DeceptionStateStore + ?Sized>(
 
     increment_counter(store, governor.global_active_key);
     increment_counter(store, bucket_key.as_str());
+    if let Some(catalog_key) = governor.bucket_catalog_key {
+        if let Err(err) = crate::observability::key_catalog::register_key_with_deception_store(
+            store,
+            catalog_key,
+            bucket_key.as_str(),
+        ) {
+            eprintln!(
+                "[deception] failed to register budget bucket key={} catalog={} err={}",
+                bucket_key, catalog_key, err
+            );
+        }
+    }
     Some(BudgetLease {
         store,
         global_key: governor.global_active_key.to_string(),
@@ -182,6 +195,7 @@ mod tests {
         let governor = SharedBudgetGovernor {
             global_active_key: "budget:global",
             bucket_active_prefix: "budget:bucket",
+            bucket_catalog_key: None,
             max_concurrent_global: 1,
             max_concurrent_per_ip_bucket: 1,
         };
@@ -193,6 +207,7 @@ mod tests {
                 SharedBudgetGovernor {
                     global_active_key: "budget:global",
                     bucket_active_prefix: "budget:bucket",
+                    bucket_catalog_key: None,
                     max_concurrent_global: 1,
                     max_concurrent_per_ip_bucket: 1,
                 },
@@ -207,6 +222,7 @@ mod tests {
                 SharedBudgetGovernor {
                     global_active_key: "budget:global",
                     bucket_active_prefix: "budget:bucket",
+                    bucket_catalog_key: None,
                     max_concurrent_global: 1,
                     max_concurrent_per_ip_bucket: 1,
                 },

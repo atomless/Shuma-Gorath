@@ -956,6 +956,15 @@ pub(crate) fn serve_maze_with_tracking(
             "[maze] failed to persist hit counter {}: {:?}",
             maze_key, e
         ));
+    } else if let Err(err) = crate::observability::key_catalog::register_key(
+        store,
+        crate::maze::maze_hits_catalog_key(),
+        maze_key.as_str(),
+    ) {
+        log_line(&format!(
+            "[maze] failed to register hit counter catalog key={} error={}",
+            maze_key, err
+        ));
     }
 
     if hits >= cfg.maze_auto_ban_threshold && cfg.maze_auto_ban {

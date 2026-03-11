@@ -34,8 +34,9 @@ Notes:
 
 | Dataset | Stored shape | Retention/control |
 | --- | --- | --- |
-| Event log (`eventlog:v2:*`) | `ts`, `event`, `ip`, `reason`, `outcome`, `admin` | bounded by `SHUMA_EVENT_LOG_RETENTION_HOURS` (default `168`) |
-| Monitoring counters (`monitoring:v1:*`) | aggregated counters by hour; dimensions include <abbr title="Internet Protocol">IP</abbr> bucket, normalized path, reason/outcome/country | bounded by `SHUMA_EVENT_LOG_RETENTION_HOURS` |
+| Event log (`eventlog:v2:*`) | `ts`, `event`, `ip`, `reason`, `outcome`, `admin` | requested by `SHUMA_EVENT_LOG_RETENTION_HOURS`, but high-risk raw operator retention is capped to `72h` |
+| Monitoring counters (`monitoring:v1:*`) | aggregated counters by hour; dimensions include <abbr title="Internet Protocol">IP</abbr> bucket, normalized path, reason/outcome/country | bounded by `SHUMA_MONITORING_RETENTION_HOURS` |
+| Monitoring rollups (`monitoring_rollup:v1:day:*`) | derived daily aggregates for longer-window summary reads | bounded by `SHUMA_MONITORING_ROLLUP_RETENTION_HOURS` |
 | Ban records (`ban:*`) | <abbr title="Internet Protocol">IP</abbr>, reason, expiry, optional fingerprint summary | per-ban expiry (`ban_duration*`) |
 | Fingerprint state (`fp:*`) | bounded-window mismatch/coherence state; pseudonymized when enabled | opportunistic read-path expiry plus prior-flow-bucket cleanup; follow-up deterministic sweep hardening recommended |
 | Admin session <abbr title="Key-Value">KV</abbr> (`admin_session:*`) | <abbr title="Cross-Site Request Forgery">CSRF</abbr> token + expiry | session <abbr title="Time To Live">TTL</abbr> (`3600s`) with expiry checks |

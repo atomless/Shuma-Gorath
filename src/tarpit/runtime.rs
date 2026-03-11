@@ -23,6 +23,7 @@ const TOKEN_PREFIX: &str = "trp1";
 const MAX_PROGRESS_TOKEN_BYTES: usize = 4096;
 const TARPIT_BUDGET_GLOBAL_ACTIVE_PREFIX: &str = "tarpit:budget:active:global";
 const TARPIT_BUDGET_BUCKET_ACTIVE_PREFIX: &str = "tarpit:budget:active:bucket";
+const TARPIT_BUDGET_BUCKET_ACTIVE_CATALOG_PREFIX: &str = "tarpit:budget:active:bucket:catalog";
 const TARPIT_PERSISTENCE_PREFIX: &str = "tarpit:persistence";
 const TARPIT_PROGRESS_REPLAY_PREFIX: &str = "tarpit:progress:seen";
 const TARPIT_PROGRESS_CHAIN_PREFIX: &str = "tarpit:progress:chain";
@@ -301,6 +302,10 @@ pub(crate) fn tarpit_budget_bucket_active_prefix(site_id: &str) -> String {
     format!("{}:{}", TARPIT_BUDGET_BUCKET_ACTIVE_PREFIX, site_id)
 }
 
+pub(crate) fn tarpit_budget_bucket_active_catalog_key(site_id: &str) -> String {
+    format!("{}:{}", TARPIT_BUDGET_BUCKET_ACTIVE_CATALOG_PREFIX, site_id)
+}
+
 pub(crate) fn now_duration_ms(started_at: u64) -> u64 {
     now_ms().saturating_sub(started_at)
 }
@@ -365,11 +370,13 @@ pub(crate) fn try_acquire_entry_budget<'a>(
 ) -> Option<BudgetLease<'a, Store>> {
     let budget_global_key = tarpit_budget_global_active_key(site_id);
     let budget_bucket_prefix = tarpit_budget_bucket_active_prefix(site_id);
+    let budget_bucket_catalog_key = tarpit_budget_bucket_active_catalog_key(site_id);
     try_acquire_shared_budget(
         store,
         SharedBudgetGovernor {
             global_active_key: budget_global_key.as_str(),
             bucket_active_prefix: budget_bucket_prefix.as_str(),
+            bucket_catalog_key: Some(budget_bucket_catalog_key.as_str()),
             max_concurrent_global: cfg.tarpit_max_concurrent_global,
             max_concurrent_per_ip_bucket: cfg.tarpit_max_concurrent_per_ip_bucket,
         },

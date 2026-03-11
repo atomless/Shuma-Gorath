@@ -15,10 +15,16 @@ pub(crate) mod state;
 pub(crate) mod token;
 mod types;
 
+const MAZE_HITS_CATALOG_KEY: &str = "maze_hits:catalog:v1";
+
 pub use http::{
     assets_prefix, checkpoint_path, default_preview_path, entry_path, is_maze_path,
     issue_links_path, path_prefix,
 };
+
+pub(crate) fn maze_hits_catalog_key() -> &'static str {
+    MAZE_HITS_CATALOG_KEY
+}
 
 #[cfg(test)]
 mod tests {

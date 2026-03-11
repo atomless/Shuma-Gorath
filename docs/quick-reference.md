@@ -48,6 +48,7 @@ make remote-logs    # Show recent journal logs for the active ssh_systemd remote
 make remote-start   # Start the active ssh_systemd remote service
 make remote-stop    # Stop the active ssh_systemd remote service
 make remote-open-dashboard # Open the hosted dashboard for the active ssh_systemd remote
+make telemetry-shared-host-evidence # Capture live telemetry storage/query evidence for the active ssh_systemd remote
 ```
 
 ## 🐙 Runtime and Deployment Posture Matrix
@@ -160,7 +161,9 @@ environment = { SHUMA_API_KEY = "your-secret-key-here", SHUMA_JS_SECRET = "your-
 `SHUMA_JS_SECRET` is used to sign the `js_verified` cookie for the <abbr title="JavaScript">JS</abbr> challenge.
 `SHUMA_FORWARDED_IP_SECRET` is optional and is used to trust `X-Forwarded-For` from your proxy/<abbr title="Content Delivery Network">CDN</abbr> (it must also send `X-Shuma-Forwarded-Secret`). If you set it, include that header in integration tests.
 `SHUMA_HEALTH_SECRET` is optional and, when set, `/health` also requires `X-Shuma-Health-Secret`.
-`SHUMA_EVENT_LOG_RETENTION_HOURS` controls how long event logs are kept (set to `0` to disable cleanup).
+`SHUMA_EVENT_LOG_RETENTION_HOURS` requests raw event retention, but high-risk raw operator views are capped to `72h`.
+`SHUMA_MONITORING_RETENTION_HOURS` controls how long hourly monitoring counters and bucket indexes are kept.
+`SHUMA_MONITORING_ROLLUP_RETENTION_HOURS` controls how long derived daily monitoring rollups are kept for longer-window summary reads.
 `SHUMA_ADMIN_IP_ALLOWLIST` limits admin <abbr title="Application Programming Interface">API</abbr> access to specific IPs/CIDRs (comma-separated).
 `SHUMA_KV_STORE_FAIL_OPEN` controls fail-open/closed behavior when the <abbr title="Key-Value">KV</abbr> store is unavailable (`true`=open, `false`=closed).
 `SHUMA_POW_ENABLED` enables proof-of-work before <abbr title="JavaScript">JS</abbr> verification (default: true in dev).

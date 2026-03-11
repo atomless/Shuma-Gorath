@@ -2460,6 +2460,14 @@ pub fn event_log_retention_hours() -> u64 {
     env_u64_required("SHUMA_EVENT_LOG_RETENTION_HOURS")
 }
 
+pub fn monitoring_retention_hours() -> u64 {
+    env_u64_required("SHUMA_MONITORING_RETENTION_HOURS")
+}
+
+pub fn monitoring_rollup_retention_hours() -> u64 {
+    env_u64_required("SHUMA_MONITORING_ROLLUP_RETENTION_HOURS")
+}
+
 pub fn env_string_required(name: &str) -> String {
     if cfg!(test) {
         return env::var(name).ok().unwrap_or_else(|| defaults_raw(name));

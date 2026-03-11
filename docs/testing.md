@@ -318,6 +318,19 @@ Simulation telemetry read policy:
 - authoritative `/fingerprint-report` ban behavior,
 - trusted GEO country-header routing for challenge, maze, and block.
 It does not yet prove future Akamai-native rate or rich-geo augmentations; those remain separate backlog work.
+`test-telemetry-storage` is the focused telemetry-storage regression target for this tranche. It proves:
+- monitoring summary and delta reads stay on bucket-indexed paths,
+- daily monitoring rollups are built and reused,
+- retention honors separate raw-event and monitoring retention controls,
+- density-aware query budgeting trips when a narrow window becomes too key-dense,
+- the shared-host evidence harness shape remains stable.
+`make telemetry-shared-host-evidence` captures a live shared-host evidence report for the active normalized remote at `.spin/telemetry_shared_host_evidence.json`. Use it after deploying the current committed `HEAD` to confirm:
+- total key counts by telemetry family,
+- keys per retained hour for monitoring, eventlog, and rollups,
+- telemetry-adjacent monitoring-detail key counts (`maze_hits:*`, tarpit active-bucket state),
+- retention health and lag from `/admin/monitoring`,
+- payload sizes and latency for `/admin/monitoring`, `/admin/monitoring/delta`, and `/admin/monitoring/stream`,
+- transport gzip benefit for the monitoring snapshot.
 Operator interpretation and tuning workflow is documented in `docs/adversarial-operator-guide.md`.
 
 Manifest and fixtures live under:

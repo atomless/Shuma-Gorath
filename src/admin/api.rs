@@ -833,6 +833,7 @@ mod tests {
         store
             .set(&key, serde_json::to_vec(&entry).unwrap().as_slice())
             .unwrap();
+        crate::observability::retention::register_event_log_key(&store, hour, key.as_str());
 
         let events = load_recent_events(&store, now, 1);
         assert_eq!(events.len(), 1);
@@ -876,6 +877,12 @@ mod tests {
         store
             .set(&sim_key, serde_json::to_vec(&sim).unwrap().as_slice())
             .unwrap();
+        crate::observability::retention::register_event_log_key(
+            &store,
+            hour,
+            non_sim_key.as_str(),
+        );
+        crate::observability::retention::register_event_log_key(&store, hour, sim_key.as_str());
 
         let records = load_recent_event_records(&store, now, 1);
         assert_eq!(records.len(), 2);
@@ -947,6 +954,7 @@ mod tests {
         store
             .set(&key, serde_json::to_vec(&event).unwrap().as_slice())
             .unwrap();
+        crate::observability::retention::register_event_log_key(&store, hour, key.as_str());
 
         let mut builder = Request::builder();
         builder
@@ -992,6 +1000,7 @@ mod tests {
         store
             .set(&key, serde_json::to_vec(&event).unwrap().as_slice())
             .unwrap();
+        crate::observability::retention::register_event_log_key(&store, hour, key.as_str());
 
         let mut builder = Request::builder();
         builder
@@ -1038,6 +1047,7 @@ mod tests {
         store
             .set(&key, serde_json::to_vec(&event).unwrap().as_slice())
             .unwrap();
+        crate::observability::retention::register_event_log_key(&store, hour, key.as_str());
 
         let mut baseline_builder = Request::builder();
         baseline_builder
@@ -1116,6 +1126,16 @@ mod tests {
         store
             .set(&second_key, serde_json::to_vec(&second_event).unwrap().as_slice())
             .unwrap();
+        crate::observability::retention::register_event_log_key(
+            &store,
+            hour,
+            first_key.as_str(),
+        );
+        crate::observability::retention::register_event_log_key(
+            &store,
+            hour,
+            second_key.as_str(),
+        );
 
         let first_cursor = build_event_cursor(now, first_key.as_str());
         let second_cursor = build_event_cursor(second_ts, second_key.as_str());
@@ -1187,6 +1207,16 @@ mod tests {
         store
             .set(&second_key, serde_json::to_vec(&second_event).unwrap().as_slice())
             .unwrap();
+        crate::observability::retention::register_event_log_key(
+            &store,
+            hour,
+            first_key.as_str(),
+        );
+        crate::observability::retention::register_event_log_key(
+            &store,
+            hour,
+            second_key.as_str(),
+        );
 
         let first_cursor = build_event_cursor(now, first_key.as_str());
         let second_cursor = build_event_cursor(second_ts, second_key.as_str());
@@ -1259,6 +1289,17 @@ mod tests {
                 serde_json::to_vec(&challenge_event).unwrap().as_slice(),
             )
             .unwrap();
+        crate::observability::retention::register_event_log_key(&store, hour, ban_key.as_str());
+        crate::observability::retention::register_event_log_key(
+            &store,
+            hour,
+            unban_key.as_str(),
+        );
+        crate::observability::retention::register_event_log_key(
+            &store,
+            hour,
+            challenge_key.as_str(),
+        );
 
         let mut builder = Request::builder();
         builder.method(Method::Get).uri("/admin/ip-bans/delta?hours=1&limit=10");
@@ -1714,6 +1755,7 @@ mod admin_config_tests {
 
     struct TestStore {
         map: Mutex<HashMap<String, Vec<u8>>>,
+        get_keys_calls: Mutex<u64>,
     }
 
     impl Default for TestStore {
@@ -1726,6 +1768,7 @@ mod admin_config_tests {
             );
             Self {
                 map: Mutex::new(map),
+                get_keys_calls: Mutex::new(0),
             }
         }
     }
@@ -1747,8 +1790,15 @@ mod admin_config_tests {
         }
 
         fn get_keys(&self) -> Result<Vec<String>, ()> {
+            *self.get_keys_calls.lock().unwrap() += 1;
             let m = self.map.lock().unwrap();
             Ok(m.keys().cloned().collect())
+        }
+    }
+
+    impl TestStore {
+        fn get_keys_calls(&self) -> u64 {
+            *self.get_keys_calls.lock().unwrap()
         }
     }
 
@@ -4162,6 +4212,32 @@ mod admin_config_tests {
                 .map(|v| v.is_array())
                 .unwrap_or(false)
         );
+        assert_eq!(store.get_keys_calls(), 0);
+    }
+
+    #[test]
+    fn admin_monitoring_delta_reads_bucket_indexes_without_keyspace_scan() {
+        let store = TestStore::default();
+        let now = now_ts();
+        let hour = now / 3600;
+        let key = format!("eventlog:v2:{}:{}-delta-bucketed", hour, now);
+        let event = EventLogEntry {
+            ts: now,
+            event: EventType::Challenge,
+            ip: Some("198.51.100.144".to_string()),
+            reason: Some("challenge_served".to_string()),
+            outcome: Some("ok".to_string()),
+            admin: Some("ops".to_string()),
+        };
+        store
+            .set(&key, serde_json::to_vec(&event).unwrap().as_slice())
+            .unwrap();
+        crate::observability::retention::register_event_log_key(&store, hour, key.as_str());
+
+        let req = make_request(Method::Get, "/admin/monitoring/delta?hours=1&limit=10", Vec::new());
+        let resp = handle_admin_monitoring_delta(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+        assert_eq!(store.get_keys_calls(), 0);
     }
 
     #[test]
@@ -4540,6 +4616,50 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn admin_monitoring_cost_governance_accounts_for_bucket_density() {
+        let _lock = crate::test_support::lock_env();
+        let store = TestStore::default();
+        let now_hour = now_ts() / 3600;
+        for idx in 0..320u64 {
+            let key = format!("monitoring:v1:challenge:reason:dense-{}:{}", idx, now_hour);
+            store.set(key.as_str(), b"1").unwrap();
+            crate::observability::retention::register_monitoring_key(&store, now_hour, key.as_str());
+        }
+
+        let req = make_request(Method::Get, "/admin/monitoring?hours=1&limit=1", Vec::new());
+        let resp = handle_admin_monitoring(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+        assert_eq!(
+            resp.header("x-shuma-monitoring-query-budget")
+                .and_then(|value| value.as_str()),
+            Some("exceeded")
+        );
+
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        let cost = body
+            .get("details")
+            .and_then(|value| value.get("cost_governance"))
+            .expect("cost_governance");
+        assert_eq!(
+            cost.get("query_budget_status").and_then(|value| value.as_str()),
+            Some("exceeded")
+        );
+        assert!(
+            cost.get("query_budget")
+                .and_then(|value| value.get("estimated_keys_visited"))
+                .and_then(|value| value.as_u64())
+                .unwrap_or(0)
+                >= 320
+        );
+        assert_eq!(
+            cost.get("read_surface")
+                .and_then(|value| value.get("residual_scan_keys"))
+                .and_then(|value| value.as_u64()),
+            Some(0)
+        );
+    }
+
+    #[test]
     fn admin_monitoring_negotiates_gzip_and_reports_compression() {
         let _lock = crate::test_support::lock_env();
         let store = TestStore::default();
@@ -4696,6 +4816,25 @@ mod admin_config_tests {
         store
             .set("tarpit:budget:active:bucket:other-site:bucket-z", b"7")
             .unwrap();
+        crate::observability::key_catalog::register_key(
+            &store,
+            crate::tarpit::runtime::tarpit_budget_bucket_active_catalog_key("default").as_str(),
+            "tarpit:budget:active:bucket:default:bucket-a",
+        )
+        .unwrap();
+        crate::observability::key_catalog::register_key(
+            &store,
+            crate::tarpit::runtime::tarpit_budget_bucket_active_catalog_key("default").as_str(),
+            "tarpit:budget:active:bucket:default:bucket-b",
+        )
+        .unwrap();
+        crate::observability::key_catalog::register_key(
+            &store,
+            crate::tarpit::runtime::tarpit_budget_bucket_active_catalog_key("other-site")
+                .as_str(),
+            "tarpit:budget:active:bucket:other-site:bucket-z",
+        )
+        .unwrap();
 
         let details = monitoring_details_payload(&store, "default", 24, 10, false);
         let tarpit = details.get("tarpit").unwrap();
@@ -7145,6 +7284,25 @@ struct MonitoringQueryBudget {
     avg_req_per_sec_client: f64,
     max_req_per_sec_client: f64,
     status: &'static str,
+    estimated_bucket_count: u64,
+    estimated_keys_visited: u64,
+    response_event_rows: u64,
+    residual_scan_keys: u64,
+    bucket_density: f64,
+    density_penalty_units: u64,
+}
+
+#[derive(Debug, Clone, Default)]
+struct MonitoringQueryShape {
+    monitoring_buckets: u64,
+    monitoring_keys: u64,
+    rollup_buckets: u64,
+    rollup_keys: u64,
+    eventlog_buckets: u64,
+    eventlog_keys: u64,
+    detail_catalog_keys: u64,
+    response_event_rows: u64,
+    residual_scan_keys: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -7157,8 +7315,95 @@ struct MonitoringCompressionReport {
     output_bytes: usize,
 }
 
-fn monitoring_query_budget(hours: u64, limit: usize) -> MonitoringQueryBudget {
-    let cost_units = hours.saturating_mul(limit as u64);
+fn monitoring_query_shape<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    start_hour: u64,
+    end_hour: u64,
+    response_event_rows: u64,
+) -> MonitoringQueryShape {
+    let monitoring = crate::observability::retention::bucket_window_stats(
+        store,
+        crate::observability::retention::RETENTION_DOMAIN_MONITORING,
+        start_hour,
+        end_hour,
+    );
+    let rollup = crate::observability::retention::bucket_window_stats(
+        store,
+        crate::observability::retention::RETENTION_DOMAIN_MONITORING_ROLLUP,
+        start_hour,
+        end_hour,
+    );
+    let eventlog = crate::observability::retention::bucket_window_stats(
+        store,
+        crate::observability::retention::RETENTION_DOMAIN_EVENTLOG,
+        start_hour,
+        end_hour,
+    );
+    let maze_catalog_keys =
+        crate::observability::key_catalog::list_keys(store, crate::maze::maze_hits_catalog_key())
+            .len() as u64;
+    let tarpit_catalog_keys = crate::observability::key_catalog::list_keys(
+        store,
+        crate::tarpit::runtime::tarpit_budget_bucket_active_catalog_key(site_id).as_str(),
+    )
+    .len() as u64;
+
+    MonitoringQueryShape {
+        monitoring_buckets: monitoring.bucket_count,
+        monitoring_keys: monitoring.key_count,
+        rollup_buckets: rollup.bucket_count,
+        rollup_keys: rollup.key_count,
+        eventlog_buckets: eventlog.bucket_count,
+        eventlog_keys: eventlog.key_count,
+        detail_catalog_keys: maze_catalog_keys.saturating_add(tarpit_catalog_keys),
+        response_event_rows,
+        residual_scan_keys: 0,
+    }
+}
+
+fn monitoring_query_budget(
+    hours: u64,
+    limit: usize,
+    shape: &MonitoringQueryShape,
+) -> MonitoringQueryBudget {
+    let request_units = hours.saturating_mul(limit as u64);
+    let bucket_count = shape
+        .monitoring_buckets
+        .saturating_add(shape.rollup_buckets)
+        .saturating_add(shape.eventlog_buckets);
+    let key_count = shape
+        .monitoring_keys
+        .saturating_add(shape.rollup_keys)
+        .saturating_add(shape.eventlog_keys)
+        .saturating_add(shape.detail_catalog_keys);
+    let bucket_units = shape
+        .monitoring_buckets
+        .saturating_mul(4)
+        .saturating_add(shape.eventlog_buckets.saturating_mul(4))
+        .saturating_add(shape.rollup_buckets.saturating_mul(2));
+    let key_units = shape
+        .monitoring_keys
+        .saturating_add(shape.eventlog_keys)
+        .saturating_add(shape.rollup_keys.saturating_mul(2))
+        .saturating_add(shape.detail_catalog_keys);
+    let response_units = shape.response_event_rows.saturating_mul(8);
+    let residual_scan_penalty = shape.residual_scan_keys.saturating_mul(16);
+    let bucket_density = if bucket_count == 0 {
+        0.0
+    } else {
+        key_count as f64 / bucket_count as f64
+    };
+    // Dense buckets are disproportionately expensive even without whole-keyspace scans because a
+    // narrow requested window can still force many point reads and JSON decodes from a single hour.
+    let dense_bucket_excess = key_count.saturating_sub(bucket_count.saturating_mul(64));
+    let density_penalty_units = dense_bucket_excess.saturating_mul(16);
+    let cost_units = request_units
+        .saturating_add(bucket_units)
+        .saturating_add(key_units)
+        .saturating_add(response_units)
+        .saturating_add(residual_scan_penalty)
+        .saturating_add(density_penalty_units);
     if cost_units <= MONITORING_QUERY_BUDGET_STANDARD_MAX_COST_UNITS {
         return MonitoringQueryBudget {
             cost_units,
@@ -7166,6 +7411,12 @@ fn monitoring_query_budget(hours: u64, limit: usize) -> MonitoringQueryBudget {
             avg_req_per_sec_client: 0.5,
             max_req_per_sec_client: MONITORING_QUERY_BUDGET_REQUESTS_PER_SECOND as f64,
             status: "within_budget",
+            estimated_bucket_count: bucket_count,
+            estimated_keys_visited: key_count,
+            response_event_rows: shape.response_event_rows,
+            residual_scan_keys: shape.residual_scan_keys,
+            bucket_density,
+            density_penalty_units,
         };
     }
     if cost_units <= MONITORING_QUERY_BUDGET_ELEVATED_MAX_COST_UNITS {
@@ -7175,6 +7426,12 @@ fn monitoring_query_budget(hours: u64, limit: usize) -> MonitoringQueryBudget {
             avg_req_per_sec_client: 0.75,
             max_req_per_sec_client: MONITORING_QUERY_BUDGET_REQUESTS_PER_SECOND as f64,
             status: "within_budget",
+            estimated_bucket_count: bucket_count,
+            estimated_keys_visited: key_count,
+            response_event_rows: shape.response_event_rows,
+            residual_scan_keys: shape.residual_scan_keys,
+            bucket_density,
+            density_penalty_units,
         };
     }
     if cost_units <= MONITORING_QUERY_BUDGET_HEAVY_MAX_COST_UNITS {
@@ -7184,6 +7441,12 @@ fn monitoring_query_budget(hours: u64, limit: usize) -> MonitoringQueryBudget {
             avg_req_per_sec_client: MONITORING_QUERY_BUDGET_REQUESTS_PER_SECOND as f64,
             max_req_per_sec_client: MONITORING_QUERY_BUDGET_REQUESTS_PER_SECOND as f64,
             status: "within_budget",
+            estimated_bucket_count: bucket_count,
+            estimated_keys_visited: key_count,
+            response_event_rows: shape.response_event_rows,
+            residual_scan_keys: shape.residual_scan_keys,
+            bucket_density,
+            density_penalty_units,
         };
     }
     MonitoringQueryBudget {
@@ -7192,6 +7455,12 @@ fn monitoring_query_budget(hours: u64, limit: usize) -> MonitoringQueryBudget {
         avg_req_per_sec_client: 1.25,
         max_req_per_sec_client: MONITORING_QUERY_BUDGET_REQUESTS_PER_SECOND as f64,
         status: "exceeded",
+        estimated_bucket_count: bucket_count,
+        estimated_keys_visited: key_count,
+        response_event_rows: shape.response_event_rows,
+        residual_scan_keys: shape.residual_scan_keys,
+        bucket_density,
+        density_penalty_units,
     }
 }
 
@@ -7450,33 +7719,36 @@ fn load_recent_event_records_with_keys<S: crate::challenge::KeyValueStore>(
     let window_start = now.saturating_sub(hours.saturating_mul(3600));
     let window_start_hour = window_start / 3600;
 
-    if let Ok(keys) = store.get_keys() {
-        for key in keys {
-            let Some(event_hour) = parse_v2_event_key(&key) else {
+    for key in crate::observability::retention::bucket_window_keys(
+        store,
+        crate::observability::retention::RETENTION_DOMAIN_EVENTLOG,
+        window_start_hour,
+        now_hour,
+    ) {
+        let Some(event_hour) = parse_v2_event_key(&key) else {
+            continue;
+        };
+        if event_hour < window_start_hour || event_hour > now_hour {
+            continue;
+        }
+        if let Ok(Some(val)) = store.get(&key) {
+            let parsed_record = serde_json::from_slice::<EventLogRecord>(&val)
+                .ok()
+                .or_else(|| {
+                    serde_json::from_slice::<EventLogEntry>(&val)
+                        .ok()
+                        .map(EventLogRecord::from_entry)
+                });
+            let Some(record) = parsed_record else {
                 continue;
             };
-            if event_hour < window_start_hour || event_hour > now_hour {
+            if record.entry.ts < window_start {
                 continue;
             }
-            if let Ok(Some(val)) = store.get(&key) {
-                let parsed_record = serde_json::from_slice::<EventLogRecord>(&val)
-                    .ok()
-                    .or_else(|| {
-                        serde_json::from_slice::<EventLogEntry>(&val)
-                            .ok()
-                            .map(EventLogRecord::from_entry)
-                    });
-                let Some(record) = parsed_record else {
-                    continue;
-                };
-                if record.entry.ts < window_start {
-                    continue;
-                }
-                events.push(StoredEventLogRecord {
-                    storage_key: key,
-                    record,
-                });
-            }
+            events.push(StoredEventLogRecord {
+                storage_key: key,
+                record,
+            });
         }
     }
 
@@ -11152,7 +11424,6 @@ where
     let limit = query_u64_param(req.query(), "limit", 10).clamp(1, 50) as usize;
     let forensic_mode = forensic_access_mode(req.query());
     let now = now_ts();
-    let query_budget = monitoring_query_budget(hours, limit);
     let summary = crate::observability::monitoring::summarize_with_store(store, hours, limit);
     let details = monitoring_details_payload(store, "default", hours, limit, forensic_mode);
     let snapshot_latest_ts = latest_monitoring_snapshot_ts(&details);
@@ -11214,7 +11485,15 @@ where
         .header("Cache-Control", "no-store")
         .header("X-Shuma-Monitoring-Cost-State", cost_state)
         .header("X-Shuma-Monitoring-Security-Mode", security_view_mode_label(forensic_mode))
-        .header("X-Shuma-Monitoring-Query-Budget", query_budget.status);
+        .header(
+            "X-Shuma-Monitoring-Query-Budget",
+            payload
+                .get("details")
+                .and_then(|details| details.get("cost_governance"))
+                .and_then(|cost| cost.get("query_budget_status"))
+                .and_then(|value| value.as_str())
+                .unwrap_or("within_budget"),
+        );
     if final_compression.negotiated {
         builder
             .header("Content-Encoding", "gzip")
@@ -11641,6 +11920,7 @@ fn classify_telemetry_history_key(
     key: &str,
     tarpit_global_key: &str,
     tarpit_bucket_prefix: &str,
+    tarpit_bucket_catalog_key: &str,
 ) -> Option<&'static str> {
     if key.starts_with("eventlog:v2:") {
         return Some("eventlog");
@@ -11660,6 +11940,12 @@ fn classify_telemetry_history_key(
     if key.starts_with("maze_hits:") {
         return Some("maze_hits");
     }
+    if key == crate::maze::maze_hits_catalog_key() {
+        return Some("maze_hits");
+    }
+    if key == tarpit_bucket_catalog_key {
+        return Some("tarpit_active");
+    }
     if key == tarpit_global_key || key.starts_with(tarpit_bucket_prefix) {
         return Some("tarpit_active");
     }
@@ -11675,6 +11961,8 @@ where
         "{}:",
         crate::providers::internal::tarpit_budget_bucket_active_prefix(site_id)
     );
+    let tarpit_bucket_catalog_key =
+        crate::tarpit::runtime::tarpit_budget_bucket_active_catalog_key(site_id);
     let mut result = TelemetryHistoryCleanupResult::default();
     if let Ok(keys) = store.get_keys() {
         for key in keys {
@@ -11682,6 +11970,7 @@ where
                 key.as_str(),
                 tarpit_global_key.as_str(),
                 tarpit_bucket_prefix.as_str(),
+                tarpit_bucket_catalog_key.as_str(),
             ) else {
                 continue;
             };
@@ -11711,7 +12000,12 @@ where
 {
     let now = now_ts();
     let mut events = load_recent_event_records(store, now, hours);
-    let query_budget = monitoring_query_budget(hours, limit);
+    let end_hour = now / 3600;
+    let start_hour = end_hour.saturating_sub(hours.saturating_sub(1));
+    let requested_recent_event_cap = (limit.saturating_mul(10)).clamp(20, 100) as u64;
+    let initial_query_shape =
+        monitoring_query_shape(store, site_id, start_hour, end_hour, requested_recent_event_cap);
+    let query_budget = monitoring_query_budget(hours, limit, &initial_query_shape);
     let mut ip_counts = std::collections::HashMap::new();
     let mut event_counts = std::collections::HashMap::new();
 
@@ -11736,12 +12030,20 @@ where
     let recent_event_cap = if query_budget.status == "exceeded" {
         20
     } else {
-        (limit.saturating_mul(10)).clamp(20, 100)
+        requested_recent_event_cap as usize
     };
     let total_recent_events_in_window = events.len();
     let recent_events_raw: Vec<_> = events.iter().take(recent_event_cap).cloned().collect();
     let recent_events = present_event_records(recent_events_raw.as_slice(), forensic_mode);
     let recent_events_has_more = total_recent_events_in_window > recent_events.len();
+    let query_shape = monitoring_query_shape(
+        store,
+        site_id,
+        start_hour,
+        end_hour,
+        recent_events_raw.len() as u64,
+    );
+    let query_budget = monitoring_query_budget(hours, limit, &query_shape);
 
     let cdp_events_limit = 500usize;
     let mut cdp_events: Vec<EventLogRecord> = events
@@ -11804,19 +12106,21 @@ where
 
     let mut maze_ips: Vec<(String, u32)> = Vec::new();
     let mut total_hits: u32 = 0;
-    if let Ok(keys) = store.get_keys() {
-        for key in keys {
-            if key.starts_with("maze_hits:") {
-                let ip = key
-                    .strip_prefix("maze_hits:")
-                    .unwrap_or("unknown")
-                    .to_string();
-                if let Ok(Some(value)) = store.get(&key) {
-                    if let Ok(hits) = String::from_utf8_lossy(&value).parse::<u32>() {
-                        total_hits += hits;
-                        maze_ips.push((ip, hits));
-                    }
+    for key in crate::observability::key_catalog::list_keys(
+        store,
+        crate::maze::maze_hits_catalog_key(),
+    ) {
+        let ip = key
+            .strip_prefix("maze_hits:")
+            .unwrap_or("unknown")
+            .to_string();
+        if let Ok(Some(value)) = store.get(&key) {
+            if let Ok(hits) = String::from_utf8_lossy(&value).parse::<u32>() {
+                if hits == 0 {
+                    continue;
                 }
+                total_hits += hits;
+                maze_ips.push((ip, hits));
             }
         }
     }
@@ -11851,18 +12155,22 @@ where
     let tarpit_bucket_prefix = crate::providers::internal::tarpit_budget_bucket_active_prefix(site_id);
     let tarpit_bucket_key_prefix = format!("{}:", tarpit_bucket_prefix);
     let mut tarpit_active_bucket_counts: Vec<(String, u64)> = Vec::new();
-    if let Ok(keys) = store.get_keys() {
-        for key in keys {
-            if !key.starts_with(tarpit_bucket_key_prefix.as_str()) {
-                continue;
-            }
-            let bucket = key
-                .strip_prefix(tarpit_bucket_key_prefix.as_str())
-                .unwrap_or("unknown")
-                .to_string();
-            let count = read_u64_counter(store, key.as_str());
-            tarpit_active_bucket_counts.push((bucket, count));
+    for key in crate::observability::key_catalog::list_keys(
+        store,
+        crate::tarpit::runtime::tarpit_budget_bucket_active_catalog_key(site_id).as_str(),
+    ) {
+        if !key.starts_with(tarpit_bucket_key_prefix.as_str()) {
+            continue;
         }
+        let bucket = key
+            .strip_prefix(tarpit_bucket_key_prefix.as_str())
+            .unwrap_or("unknown")
+            .to_string();
+        let count = read_u64_counter(store, key.as_str());
+        if count == 0 {
+            continue;
+        }
+        tarpit_active_bucket_counts.push((bucket, count));
     }
     tarpit_active_bucket_counts.sort_by(|a, b| b.1.cmp(&a.1));
     let tarpit_top_active_buckets: Vec<_> = tarpit_active_bucket_counts
@@ -11880,7 +12188,7 @@ where
     };
     let retention_health = crate::observability::retention::retention_health(store);
     let cost_governance =
-        monitoring_cost_governance_payload(store, events.as_slice(), now, &query_budget);
+        monitoring_cost_governance_payload(store, events.as_slice(), now, &query_budget, &query_shape);
     let security_privacy = security_privacy_payload(store, now, hours, forensic_mode);
 
     json!({
@@ -12040,6 +12348,7 @@ fn monitoring_cost_governance_payload<S>(
     events: &[EventLogRecord],
     now: u64,
     query_budget: &MonitoringQueryBudget,
+    query_shape: &MonitoringQueryShape,
 ) -> serde_json::Value
 where
     S: crate::challenge::KeyValueStore,
@@ -12052,17 +12361,20 @@ where
     let mut observed_guarded_dimension_cardinality_max = 0u64;
     let mut overflow_bucket_count = 0u64;
 
-    if let Ok(keys) = store.get_keys() {
-        for key in keys {
-            if key.starts_with(count_prefix) && key.ends_with(count_suffix.as_str()) {
-                observed_guarded_dimension_cardinality_max =
-                    observed_guarded_dimension_cardinality_max.max(read_u64_counter(store, key.as_str()));
-                continue;
-            }
-            if key.starts_with(overflow_prefix) && key.ends_with(count_suffix.as_str()) {
-                overflow_bucket_count =
-                    overflow_bucket_count.saturating_add(read_u64_counter(store, key.as_str()));
-            }
+    for key in crate::observability::retention::bucket_window_keys(
+        store,
+        crate::observability::retention::RETENTION_DOMAIN_MONITORING,
+        now_hour,
+        now_hour,
+    ) {
+        if key.starts_with(count_prefix) && key.ends_with(count_suffix.as_str()) {
+            observed_guarded_dimension_cardinality_max =
+                observed_guarded_dimension_cardinality_max.max(read_u64_counter(store, key.as_str()));
+            continue;
+        }
+        if key.starts_with(overflow_prefix) && key.ends_with(count_suffix.as_str()) {
+            overflow_bucket_count =
+                overflow_bucket_count.saturating_add(read_u64_counter(store, key.as_str()));
         }
     }
 
@@ -12150,11 +12462,27 @@ where
             "cost_class": query_budget.cost_class,
             "avg_req_per_sec_client_target": query_budget.avg_req_per_sec_client,
             "max_req_per_sec_client": query_budget.max_req_per_sec_client,
-            "status": query_budget.status
+            "status": query_budget.status,
+            "estimated_bucket_count": query_budget.estimated_bucket_count,
+            "estimated_keys_visited": query_budget.estimated_keys_visited,
+            "response_event_rows": query_budget.response_event_rows,
+            "bucket_density": query_budget.bucket_density,
+            "density_penalty_units": query_budget.density_penalty_units,
+            "residual_scan_keys": query_budget.residual_scan_keys
         },
         "query_budget_status": query_budget.status,
         "degraded_state": if query_budget.status == "exceeded" { "degraded" } else { "normal" },
-        "degraded_reasons": if query_budget.status == "exceeded" { vec!["query_budget_exceeded"] } else { Vec::<&str>::new() }
+        "degraded_reasons": if query_budget.status == "exceeded" { vec!["query_budget_exceeded"] } else { Vec::<&str>::new() },
+        "read_surface": {
+            "monitoring_buckets": query_shape.monitoring_buckets,
+            "monitoring_keys": query_shape.monitoring_keys,
+            "rollup_buckets": query_shape.rollup_buckets,
+            "rollup_keys": query_shape.rollup_keys,
+            "eventlog_buckets": query_shape.eventlog_buckets,
+            "eventlog_keys": query_shape.eventlog_keys,
+            "detail_catalog_keys": query_shape.detail_catalog_keys,
+            "residual_scan_keys": query_shape.residual_scan_keys
+        }
     })
 }
 
@@ -13732,19 +14060,21 @@ pub fn handle_admin(req: &Request) -> Response {
             let mut maze_ips: Vec<(String, u32)> = Vec::new();
             let mut total_hits: u32 = 0;
 
-            if let Ok(keys) = store.get_keys() {
-                for k in keys {
-                    if k.starts_with("maze_hits:") {
-                        let ip = k
-                            .strip_prefix("maze_hits:")
-                            .unwrap_or("unknown")
-                            .to_string();
-                        if let Ok(Some(val)) = store.get(&k) {
-                            if let Ok(hits) = String::from_utf8_lossy(&val).parse::<u32>() {
-                                total_hits += hits;
-                                maze_ips.push((ip, hits));
-                            }
+            for key in crate::observability::key_catalog::list_keys(
+                &store,
+                crate::maze::maze_hits_catalog_key(),
+            ) {
+                let ip = key
+                    .strip_prefix("maze_hits:")
+                    .unwrap_or("unknown")
+                    .to_string();
+                if let Ok(Some(val)) = store.get(&key) {
+                    if let Ok(hits) = String::from_utf8_lossy(&val).parse::<u32>() {
+                        if hits == 0 {
+                            continue;
                         }
+                        total_hits += hits;
+                        maze_ips.push((ip, hits));
                     }
                 }
             }

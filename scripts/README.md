@@ -26,6 +26,7 @@ Automation scripts used by the Makefile live here.
 - `tests/`
   - `integration.sh`: HTTP integration scenarios used by `make test` and `make test-integration`
   - `gateway_tls_wasm_harness.py`: wasm32 TLS failure matrix harness (expired/self-signed/hostname-mismatch cert paths) used by `make test-gateway-wasm-tls-harness`
+  - `telemetry_shared_host_evidence.py`: captures live shared-host telemetry storage/query evidence from the active normalized remote (`make telemetry-shared-host-evidence`)
 - `config_seed.sh`: seeds KV tunables from `config/defaults.env` and, with `--verify-only`, provides the read-only persisted-config lifecycle gate used by `make verify`, `make verify-runtime`, and runtime start paths
 - `set_crate_type.sh`: switches crate type between native-test and WASM build modes
 - `deploy_linode_one_shot.sh`: provisions a new Linode VM or attaches to a prepared Linode instance and deploys Shuma runtime (invoked by `make deploy-linode-one-shot`)
