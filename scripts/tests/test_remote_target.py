@@ -522,6 +522,21 @@ class RemoteTargetTests(unittest.TestCase):
         self.assertIn(" update --name ", result.stdout)
         self.assertIn(" open-dashboard --name ", result.stdout)
 
+    def test_remote_update_script_seeds_latest_env_defaults_before_restoring_remote_overlay(self) -> None:
+        work_dir = self.temp_dir / "script-work"
+        work_dir.mkdir()
+
+        script_path = remote_target.write_remote_update_script(work_dir)
+        script = script_path.read_text(encoding="utf-8")
+
+        self.assertIn('make setup-runtime', script)
+        self.assertIn('cp "${REMOTE_APP_DIR}/.env.local" "${PREV_ENV_OVERLAY_PATH}"', script)
+        self.assertIn(
+            'python3 scripts/deploy/merge_env_overlay.py --overlay "${PREV_ENV_OVERLAY_PATH}" --env-file ".env.local"',
+            script,
+        )
+        self.assertNotIn('cp "${REMOTE_APP_DIR}/.env.local" "${NEXT_APP_DIR}/.env.local"', script)
+
 
 if __name__ == "__main__":
     unittest.main()

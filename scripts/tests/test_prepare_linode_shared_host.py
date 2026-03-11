@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scripts.deploy import linode_shared_host_setup as setup
+from scripts.deploy import setup_common
 
 
 class FakeLinodeClient:
@@ -82,7 +83,7 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
         self.remote_receipts_dir = self.temp_dir / ".shuma" / "remotes"
 
     def test_default_paths_use_durable_local_state_dir_not_spin(self) -> None:
-        catalog_path = setup.default_catalog_output(self.docroot)
+        catalog_path = setup.resolve_catalog_output(self.docroot, None)
         self.assertEqual(
             catalog_path,
             setup.REPO_ROOT / ".shuma" / "catalogs" / f"{self.docroot.name}.surface-catalog.json",
@@ -95,7 +96,7 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
         client = FakeLinodeClient("linode-secret")
 
         with patch.object(setup, "LinodeApiClient", return_value=client), patch.object(
-            setup, "detect_public_ip", return_value="203.0.113.8"
+            setup_common, "detect_public_ip", return_value="203.0.113.8"
         ), patch.object(
             setup,
             "ensure_ssh_keypair",
@@ -109,7 +110,9 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
         ), patch.object(
             setup, "prompt_secret", return_value="linode-secret"
         ), patch.object(
-            setup, "prompt_confirm", return_value=True
+            setup_common, "is_interactive_session", return_value=True
+        ), patch.object(
+            setup_common, "prompt_confirm", return_value=True
         ):
             rc = setup.main(
                 [
@@ -230,6 +233,8 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
                     "SHUMA_GATEWAY_TLS_STRICT=true",
                     "SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true",
                     "SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true",
+                    "SHUMA_MONITORING_RETENTION_HOURS=240",
+                    "SHUMA_MONITORING_ROLLUP_RETENTION_HOURS=960",
                     f"GATEWAY_SURFACE_CATALOG_PATH={self.catalog_path}",
                     "",
                 ]
@@ -275,6 +280,8 @@ class PrepareLinodeSharedHostTests(unittest.TestCase):
             result.stdout,
         )
         self.assertIn('SHUMA_ADMIN_IP_ALLOWLIST="203.0.113.10/32"', result.stdout)
+        self.assertIn('SHUMA_MONITORING_RETENTION_HOURS="240"', result.stdout)
+        self.assertIn('SHUMA_MONITORING_ROLLUP_RETENTION_HOURS="960"', result.stdout)
         self.assertIn(f'GATEWAY_SURFACE_CATALOG_PATH="{self.catalog_path}"', result.stdout)
         self.assertIn("./scripts/deploy_linode_one_shot.sh", result.stdout)
 

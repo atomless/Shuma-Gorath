@@ -393,7 +393,10 @@ class DeployLinodeOneShotTests(unittest.TestCase):
     def test_remote_bootstrap_merges_env_overlay_into_seeded_env_file(self) -> None:
         script = SCRIPT.read_text(encoding="utf-8")
         self.assertIn('make setup-runtime', script)
-        self.assertIn('python3 - "${ENV_FILE_PATH}" ".env.local" <<\'PY_ENV_MERGE\'', script)
+        self.assertIn(
+            'python3 scripts/deploy/merge_env_overlay.py --overlay "${ENV_FILE_PATH}" --env-file ".env.local"',
+            script,
+        )
         self.assertNotIn('cp "${ENV_FILE_PATH}" .env.local', script)
 
     def test_remote_bootstrap_waits_for_spin_readiness_before_smoke(self) -> None:
@@ -420,6 +423,19 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         script = SCRIPT.read_text(encoding="utf-8")
         self.assertIn('SHUMA_ADVERSARY_SIM_AVAILABLE_VALUE="${SHUMA_ADVERSARY_SIM_AVAILABLE:-true}"', script)
         self.assertIn('SHUMA_ADVERSARY_SIM_AVAILABLE=${SHUMA_ADVERSARY_SIM_AVAILABLE_VALUE}', script)
+
+    def test_remote_env_overlay_carries_monitoring_retention_overrides_when_set(self) -> None:
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('if [[ -n "${SHUMA_MONITORING_RETENTION_HOURS:-}" ]]; then', script)
+        self.assertIn(
+            'printf \'%s\\n\' "SHUMA_MONITORING_RETENTION_HOURS=${SHUMA_MONITORING_RETENTION_HOURS}" >>"${LOCAL_ENV_FILE}"',
+            script,
+        )
+        self.assertIn('if [[ -n "${SHUMA_MONITORING_ROLLUP_RETENTION_HOURS:-}" ]]; then', script)
+        self.assertIn(
+            'printf \'%s\\n\' "SHUMA_MONITORING_ROLLUP_RETENTION_HOURS=${SHUMA_MONITORING_ROLLUP_RETENTION_HOURS}" >>"${LOCAL_ENV_FILE}"',
+            script,
+        )
 
     def test_makefile_defaults_prod_admin_config_writes_on_and_adversary_surface_available(self) -> None:
         makefile = MAKEFILE.read_text(encoding="utf-8")
@@ -451,7 +467,10 @@ class DeployLinodeOneShotTests(unittest.TestCase):
 
     def test_remote_bootstrap_merges_env_overlay_without_duplicate_append(self) -> None:
         script = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn('python3 - "${ENV_FILE_PATH}" ".env.local" <<\'PY_ENV_MERGE\'', script)
+        self.assertIn(
+            'python3 scripts/deploy/merge_env_overlay.py --overlay "${ENV_FILE_PATH}" --env-file ".env.local"',
+            script,
+        )
         self.assertNotIn('cat "${ENV_FILE_PATH}" >> .env.local', script)
 
 

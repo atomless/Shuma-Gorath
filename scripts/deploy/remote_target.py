@@ -377,6 +377,7 @@ ACTION="${1:-install}"
 NEXT_APP_DIR="${REMOTE_APP_DIR}.next"
 PREV_APP_DIR="${REMOTE_APP_DIR}.prev"
 FAILED_APP_DIR="${REMOTE_APP_DIR}.failed"
+PREV_ENV_OVERLAY_PATH="${REMOTE_APP_DIR}.env.overlay"
 
 install_release() {
   : "${RELEASE_ARCHIVE_PATH:?missing RELEASE_ARCHIVE_PATH}"
@@ -395,13 +396,15 @@ install_release() {
   rm -rf "${NEXT_APP_DIR}"
   mkdir -p "${NEXT_APP_DIR}"
   tar -xzf "${RELEASE_ARCHIVE_PATH}" -C "${NEXT_APP_DIR}"
-  cp "${REMOTE_APP_DIR}/.env.local" "${NEXT_APP_DIR}/.env.local"
+  cp "${REMOTE_APP_DIR}/.env.local" "${PREV_ENV_OVERLAY_PATH}"
   if [[ -d "${REMOTE_APP_DIR}/.spin" ]]; then
     cp -a "${REMOTE_APP_DIR}/.spin" "${NEXT_APP_DIR}/.spin"
   fi
   cp "${RELEASE_METADATA_PATH}" "${NEXT_APP_DIR}/.shuma-release.json"
 
   cd "${NEXT_APP_DIR}"
+  make setup-runtime
+  python3 scripts/deploy/merge_env_overlay.py --overlay "${PREV_ENV_OVERLAY_PATH}" --env-file ".env.local"
   chmod 600 .env.local
   set -a
   source .env.local
