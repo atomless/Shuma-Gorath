@@ -24,16 +24,17 @@ Reference context:
 
 ### TMON-1: Test-Mode Shadow Telemetry and Monitoring Truthfulness
 
-This tranche is the concrete monitoring/ops delivery path that must land before `SIM2-R4-4-4/5` can be considered complete. `test_mode` is not semantically complete while long-running operator use still depends on per-request stdout logging and monitoring still blurs simulated actions with enforced outcomes.
+This tranche is the concrete monitoring/ops delivery path that must land before `SIM2-R4-4-4/5` can be considered complete. `test_mode` is not semantically complete while long-running operator use still depends on per-request stdout logging, monitoring still blurs simulated actions with enforced outcomes, and the runtime still relies on an early test-mode short-circuit rather than the normal policy/effect path.
 
-- [ ] TMON-1-1 Define the canonical shadow telemetry contract for test mode: backend-authored execution semantics (`shadow` vs `enforced`, intended action, enforcement applied, and source) instead of relying on free-text `"[TEST MODE]"` / `would_*` parsing in the dashboard.
-- [ ] TMON-1-2 Remove default per-request stdout logging from the hosted test-mode path, or explicitly isolate any retained logging behind a deliberate local-only debug contract; do not leave noisy terminal output as the implicit operator surface.
-- [ ] TMON-1-3 Keep shadow observability storage-bounded by distinguishing between raw-event-worthy shadow outcomes and aggregate-only pass/no-op traffic; do not solve the current gap by logging one raw event for every clean pass on busy sites.
+- [ ] TMON-1-1 Rebase test mode on the normal policy graph and effect/plan boundary instead of the current early `src/runtime/test_mode/mod.rs` short-circuit, so shadow mode observes the same `PolicyDecision` path as real enforcement.
+- [ ] TMON-1-2 Define the canonical shadow telemetry contract for test mode: backend-authored execution semantics (`shadow` vs `enforced`, intended action, enforcement applied, and source) instead of relying on free-text `"[TEST MODE]"` / `would_*` parsing in the dashboard.
+- [ ] TMON-1-3 Remove default per-request stdout logging from the hosted test-mode path, or explicitly isolate any retained logging behind a deliberate local-only debug contract; do not leave noisy terminal output as the implicit operator surface.
+- [ ] TMON-1-4 Keep shadow observability storage-bounded by distinguishing between raw-event-worthy shadow outcomes and aggregate-only pass/no-op traffic; do not solve the current gap by logging one raw event for every clean pass on busy sites.
 - [ ] TMON-1-3a Preserve telemetry-efficiency guarantees while doing this work: no new whole-keyspace scan paths, no new shadow-specific unbounded cardinality dimensions, and no parallel storage/query path that escapes existing bucket-indexed retention, rollup, and query-budget governance.
-- [ ] TMON-1-4 Update `/admin/monitoring`, delta/stream payloads, and any related presentation helpers so monitoring surfaces can distinguish "would challenge/block/maze/tarpit" from actions actually enforced.
-- [ ] TMON-1-5 Update dashboard monitoring summaries, trend blocks, filters, and raw-feed helpers so operators can inspect long-running test mode as a truthful shadow posture without heuristic string parsing or misleading enforcement language.
-- [ ] TMON-1-6 Add unit, integration, and dashboard end-to-end coverage proving quiet stdout behavior, shadow telemetry presence, bounded storage impact, and correct monitoring rendering under sustained test-mode traffic.
-- [ ] TMON-1-7 Update operator docs and verification guidance so test mode is described as a long-running shadow-tuning posture for hosted deployments, and close the remaining `SIM2-R4-4` semantics/docs items against that delivered contract.
+- [ ] TMON-1-5 Update `/admin/monitoring`, delta/stream payloads, and any related presentation helpers so monitoring surfaces can distinguish "would challenge/block/maze/tarpit" from actions actually enforced.
+- [ ] TMON-1-6 Update dashboard monitoring summaries, trend blocks, filters, and raw-feed helpers so operators can inspect long-running test mode as a truthful shadow posture without heuristic string parsing or misleading enforcement language.
+- [ ] TMON-1-7 Add unit, integration, and dashboard end-to-end coverage proving quiet stdout behavior, shadow telemetry presence, bounded storage impact, correct monitoring rendering, and reuse of the normal policy/effect path under sustained test-mode traffic.
+- [ ] TMON-1-8 Update operator docs and verification guidance so test mode is described as a long-running shadow-tuning posture for hosted deployments, and close the remaining `SIM2-R4-4` semantics/docs items against that delivered contract.
 
 ### SIM2-R4-CONN-1: Dashboard Connection-State Hardening
 - [ ] SIM2-R4-CONN-1-1 Add passive request-failure classification and dedicated heartbeat diagnostics before any global state-machine change.

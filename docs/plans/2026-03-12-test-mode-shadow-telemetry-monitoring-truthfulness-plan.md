@@ -40,22 +40,35 @@ Make `test_mode` a truthful long-running operator shadow mode:
 
 ## Architecture Decisions
 
-### 1. Treat test mode as a first-class shadow-execution contract
+### 1. Reuse the normal policy graph and effect boundary
 
-The runtime must stop relying on free-text strings as the authoritative source of truth for test-mode behavior.
+The cleanest design is not to keep expanding the current early `test_mode` short-circuit path. Today `test_mode` returns before the normal policy graph and effect execution pipeline runs, which means later ladder decisions are never evaluated through the same contract as normal enforcement.
 
-Instead, monitoring/event surfaces should receive backend-authored execution semantics, for example:
+That architecture is not good enough for a truthful long-running shadow mode. The runtime should instead:
+
+1. evaluate the same `PolicyDecision` sequence it would in normal mode,
+2. route those decisions through the existing plan/effect boundary,
+3. execute them in either `enforced` or `shadow` mode,
+4. emit telemetry from that boundary-authored execution result.
+
+This keeps the system-path under inspection identical to the real runtime and avoids maintaining a parallel shadow-only decision tree.
+
+### 2. Treat test mode as a first-class shadow-execution contract
+
+Once shadow mode is anchored on the normal policy/effect path, the runtime must stop relying on free-text strings as the authoritative source of truth for test-mode behavior.
+
+Monitoring/event surfaces should receive backend-authored execution semantics, for example:
 
 - execution mode: `enforced` or `shadow`,
 - intended action: `allow`, `challenge`, `maze`, `block`, `tarpit`, `ip_range_action`, etc,
 - enforcement applied: `true` or `false`,
 - shadow source: `test_mode`.
 
-Pre-launch, the cleanest place to carry this is the stored/presented event record contract or a monitoring-specific backend enrichment layer. The dashboard must consume those explicit semantics, not infer them by parsing `"[TEST MODE]"` or `would_*`.
+Pre-launch, the cleanest place to carry this is the stored/presented event record contract or a monitoring-specific backend enrichment layer authored from the shared decision/effect boundary. The dashboard must consume those explicit semantics, not infer them by parsing `"[TEST MODE]"` or `would_*`.
 
 This must reuse the existing monitoring/event storage path rather than inventing a parallel shadow-specific storage family. The telemetry-efficiency tranche already established bucket-indexed reads, retention tiers, rollups, and query-budget accounting as the canonical path. Test-mode truthfulness must enrich that path, not bypass it.
 
-### 2. Remove default per-request stdout logging from hosted test mode
+### 3. Remove default per-request stdout logging from hosted test mode
 
 Structured telemetry already exists and is the right operator surface.
 
@@ -66,7 +79,7 @@ Default stdout logging for every shadow decision is operationally noisy and scal
 
 If a local developer-only debug path is still desired later, it must be explicit and opt-in, not the default hosted behavior.
 
-### 3. Keep raw-event storage bounded by separating "interesting shadow decisions" from aggregate shadow totals
+### 4. Keep raw-event storage bounded by separating "interesting shadow decisions" from aggregate shadow totals
 
 The system must not compensate for under-modeled shadow telemetry by logging one raw event for every clean pass.
 
@@ -84,7 +97,7 @@ This also means:
 - no new unbounded/high-cardinality dimensions may be introduced purely for test mode,
 - shadow-mode counters and rollups must remain compatible with the existing bucket-indexed retention/query model.
 
-### 4. Monitoring must render shadow and enforced outcomes as different operator truths
+### 5. Monitoring must render shadow and enforced outcomes as different operator truths
 
 Monitoring should not show "blocks imposed" when test mode only simulated those blocks.
 
@@ -99,7 +112,7 @@ The operator-facing model should instead distinguish:
 
 Raw feeds should preserve the exact underlying payload, while summary cards/trend blocks/filter labels should render the shadow distinction explicitly.
 
-### 5. Keep this work activation-source-agnostic
+### 6. Keep this work activation-source-agnostic
 
 `SIM2-R4-4` is still open on whether `test_mode` remains persisted config or becomes narrower runtime/session state. This tranche must therefore avoid hard-coding assumptions about where activation comes from.
 
@@ -107,27 +120,30 @@ The shadow telemetry contract must hang off the resolved effective runtime flag 
 
 ## Recommended Delivery Sequence
 
-### Phase 1: Backend Contract First
+### Phase 1: Policy/Effect Boundary Refactor First
+
+1. Rebase test mode on the normal policy graph and effect/plan boundary instead of the current early shadow short-circuit.
+2. Ensure shadow mode can observe the same `PolicyDecision` sequence as normal enforcement without executing friction/block side effects.
+3. Keep the existing response surface truthful while the telemetry contract migrates.
+
+Acceptance criteria:
+
+1. Test mode no longer depends on a parallel shadow-only decision tree for later ladder behavior.
+2. The same policy decisions can be executed in either `enforced` or `shadow` mode.
+
+### Phase 2: Backend Contract and Logging Discipline
 
 1. Define the canonical shadow-enforcement telemetry vocabulary.
 2. Add backend-authored shadow metadata to event/monitoring presentation paths.
-3. Preserve raw event compatibility while the dashboard migrates.
+3. Remove default stdout logging from the test-mode runtime path.
+4. Decide which shadow outcomes warrant raw event rows and which belong only in aggregate counters.
+5. Add/adjust counters so quiet pass-through traffic is represented without per-request raw event amplification.
 
 Acceptance criteria:
 
 1. No dashboard logic needs to detect test mode by parsing `"[TEST MODE]"`.
-2. Shadow versus enforced semantics are explicit in backend payloads.
-
-### Phase 2: Logging and Storage Discipline
-
-1. Remove default stdout logging from the test-mode runtime path.
-2. Decide which shadow outcomes warrant raw event rows and which belong only in aggregate counters.
-3. Add/adjust counters so quiet pass-through traffic is represented without per-request raw event amplification.
-
-Acceptance criteria:
-
-1. Long-running hosted test mode does not flood stdout/journald.
-2. High-volume shadow-mode traffic remains storage-bounded.
+2. Long-running hosted test mode does not flood stdout/journald.
+3. High-volume shadow-mode traffic remains storage-bounded.
 
 ### Phase 3: Monitoring UI Truthfulness
 
@@ -154,10 +170,11 @@ Acceptance criteria:
 ## Changes That Should Happen First or Alongside This Work
 
 1. `SIM2-R4-4-4` should remain open until this shadow telemetry contract is defined, because test-mode semantics are not truthful end-to-end otherwise.
-2. Dashboard changes should not happen before backend-authored shadow semantics exist; otherwise the UI will keep relying on fragile string parsing.
-3. Any decision to preserve local-only stdout debug logging should be made explicitly during this tranche, not left implicit.
-4. Verification must include real hosted-style traffic volume checks so the storage/logging claims are proven against operator use, not only local development.
-5. Telemetry-efficiency guarantees from [`docs/plans/2026-03-11-telemetry-storage-query-efficiency-excellence-plan.md`](./2026-03-11-telemetry-storage-query-efficiency-excellence-plan.md) remain release-blocking for this work:
+2. The current early `src/runtime/test_mode/mod.rs` short-circuit should not be expanded as the long-term solution; the first implementation step must be to move test-mode truthfulness onto the normal policy/effect boundary.
+3. Dashboard changes should not happen before backend-authored shadow semantics exist; otherwise the UI will keep relying on fragile string parsing.
+4. Any decision to preserve local-only stdout debug logging should be made explicitly during this tranche, not left implicit.
+5. Verification must include real hosted-style traffic volume checks so the storage/logging claims are proven against operator use, not only local development.
+6. Telemetry-efficiency guarantees from [`docs/plans/2026-03-11-telemetry-storage-query-efficiency-excellence-plan.md`](./2026-03-11-telemetry-storage-query-efficiency-excellence-plan.md) remain release-blocking for this work:
    - normal monitoring reads must stay bucket-addressable,
    - no new whole-keyspace scans may be added for test-mode rendering,
    - shadow telemetry must not introduce a parallel storage/query path that escapes existing retention and query-budget governance.
@@ -176,9 +193,10 @@ Acceptance criteria:
 
 ## Definition of Done
 
-1. Test mode no longer depends on default per-request stdout logging for operator visibility.
-2. Monitoring and event payloads expose first-class shadow semantics.
-3. Dashboard monitoring distinguishes simulated actions from enforced actions without heuristic string parsing.
-4. Shadow-mode observability remains bounded under sustained traffic.
-5. `SIM2-R4-4` can close its remaining semantics/docs items based on this delivered contract.
-6. The tranche does not regress telemetry-efficiency guarantees: no added whole-keyspace scans, no unbounded shadow-specific cardinality growth, and no new storage/query path outside the existing bucket-indexed retention model.
+1. Test mode reuses the normal policy/effect path rather than a parallel shadow-only decision tree.
+2. Test mode no longer depends on default per-request stdout logging for operator visibility.
+3. Monitoring and event payloads expose first-class shadow semantics.
+4. Dashboard monitoring distinguishes simulated actions from enforced actions without heuristic string parsing.
+5. Shadow-mode observability remains bounded under sustained traffic.
+6. `SIM2-R4-4` can close its remaining semantics/docs items based on this delivered contract.
+7. The tranche does not regress telemetry-efficiency guarantees: no added whole-keyspace scans, no unbounded shadow-specific cardinality growth, and no new storage/query path outside the existing bucket-indexed retention model.
