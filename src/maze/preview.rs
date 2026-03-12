@@ -21,9 +21,7 @@ fn now_secs() -> u64 {
 }
 
 fn preview_secret_from_env() -> String {
-    std::env::var("SHUMA_MAZE_PREVIEW_SECRET")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
+    crate::config::runtime_var_trimmed_optional("SHUMA_MAZE_PREVIEW_SECRET")
         .unwrap_or_else(|| format!("preview::{}", super::token::secret_from_env()))
 }
 

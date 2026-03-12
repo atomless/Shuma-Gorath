@@ -47,6 +47,13 @@ def read_env_file(path: Path) -> dict[str, str]:
     return parse_env_text(path.read_text(encoding="utf-8"))
 
 
+def read_env_files(*paths: Path) -> dict[str, str]:
+    merged: dict[str, str] = {}
+    for path in paths:
+        merged.update(read_env_file(path))
+    return merged
+
+
 def upsert_env_value(path: Path, key: str, value: str) -> None:
     ensure_env_file(path)
     new_line = f"{key}={value}"

@@ -2,9 +2,9 @@
 
 Maturity note:
 
-- treat this as deploy-path operations guidance for the `spin aka` path, not yet as a fully verified setup-to-day-2 operator baseline;
-- the real deployment proof remains tracked in `FERM-SKILL-3`;
-- Akamai-edge-only operator controls and future Akamai Rate/GEO work stay blocked until that edge baseline is proven.
+- this is now a live-proven deploy-path operations guide for the `spin aka` path;
+- the Akamai edge baseline is proven, but provider-specific gotchas remain important operational knowledge;
+- shared day-2 verbs are still a later design slice because this path does not participate in `ssh_systemd` remote management.
 
 ## Preflight Checklist
 
@@ -104,8 +104,33 @@ make deploy-fermyon-akamai-edge
 ```
 
 If `spin aka login` panics with `plugin/src/commands/login.rs` and `index out of bounds`, treat it as an upstream plugin blocker and stop. Do not fabricate a successful deploy receipt.
+In interactive runs, prefer the helper's device-login fallback over raw PAT login retries.
 
 If the helper falls back to device login and the browser finishes with `User is not allow-listed!`, stop there too. The account still is not enabled for Wasm Functions on Akamai, and the setup receipt should remain in `status=blocked` form until access is granted and setup is rerun.
+
+### Runtime starts but immediately panics on empty-string env vars
+
+Symptoms:
+
+- edge app deploys, but `/index.html` and `/admin/config` return `500`
+- `spin aka logs` shows panics such as `Invalid integer env var SHUMA_MONITORING_RETENTION_HOURS=`
+
+Fix:
+
+- ensure the deploy helper is loading `config/defaults.env` as well as `.env.local`
+- redeploy so defaulted runtime variables are passed explicitly as Spin variables instead of arriving as empty-string manifest defaults
+
+### Fresh edge app returns `500 Configuration unavailable`
+
+Symptoms:
+
+- public and admin routes fail immediately after first deploy
+- authenticated `GET /admin/config` returns missing-config `500`
+
+Fix:
+
+- let the deploy helper seed config through `POST /admin/config/bootstrap`
+- do not post full seeded config to `POST /admin/config`; that endpoint is the patch surface, not the bootstrap surface
 
 ### Akamai staging gate failure
 

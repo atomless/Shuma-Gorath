@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.deploy.spin_manifest import render_gateway_manifest
+from scripts.deploy.spin_manifest import render_fermyon_edge_manifest, render_gateway_manifest
 
 
 def parse_args() -> argparse.Namespace:
@@ -21,6 +21,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--manifest", required=True, help="Path to source Spin manifest")
     parser.add_argument("--output", required=True, help="Path to rendered Spin manifest")
     parser.add_argument("--upstream-origin", required=True, help="Gateway upstream origin")
+    parser.add_argument(
+        "--profile",
+        choices=("shared-server", "edge-fermyon"),
+        default="shared-server",
+        help="Deployment profile for manifest rendering",
+    )
     return parser.parse_args()
 
 
@@ -35,6 +41,9 @@ def main() -> int:
 
     try:
         rendered = render_gateway_manifest(
+            manifest_path.read_text(encoding="utf-8"),
+            args.upstream_origin,
+        ) if args.profile == "shared-server" else render_fermyon_edge_manifest(
             manifest_path.read_text(encoding="utf-8"),
             args.upstream_origin,
         )

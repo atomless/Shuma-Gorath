@@ -13,7 +13,6 @@ use serde::Serialize;
 use spin_sdk::http::{Method, Request, Response};
 use spin_sdk::http_component;
 use spin_sdk::key_value::Store;
-use std::env;
 use std::io::Write;
 
 mod admin; // Admin API endpoints
@@ -46,8 +45,8 @@ impl LibCapabilityToken {
 /// Returns true if forwarded IP headers should be trusted for this request.
 /// If SHUMA_FORWARDED_IP_SECRET is set, require a matching X-Shuma-Forwarded-Secret header.
 pub(crate) fn forwarded_ip_trusted(req: &Request) -> bool {
-    match env::var("SHUMA_FORWARDED_IP_SECRET") {
-        Ok(secret) if !secret.trim().is_empty() => req
+    match crate::config::runtime_var_trimmed_optional("SHUMA_FORWARDED_IP_SECRET") {
+        Some(secret) => req
             .header("x-shuma-forwarded-secret")
             .and_then(|v| v.as_str())
             .map(|v| v == secret)
@@ -87,11 +86,23 @@ fn forwarded_proto_is_https(req: &Request) -> bool {
     false
 }
 
+fn edge_full_url_is_https(req: &Request) -> bool {
+    if !crate::config::gateway_deployment_profile().is_edge() {
+        return false;
+    }
+    req.header("spin-full-url")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_ascii_lowercase().starts_with("https://"))
+        .unwrap_or(false)
+}
+
 pub(crate) fn request_is_https(req: &Request) -> bool {
     if req.uri().trim_start().starts_with("https://") {
         return true;
     }
-    forwarded_proto_is_https(req)
+    forwarded_proto_is_https(req) || edge_full_url_is_https(req)
 }
 
 const STATIC_BYPASS_PREFIXES: [&str; 8] = [
@@ -196,6 +207,17 @@ fn constant_time_eq(a: &str, b: &str) -> bool {
 
 /// Extract the best available client IP from the request.
 pub(crate) fn extract_client_ip(req: &Request) -> String {
+    if crate::config::gateway_deployment_profile().is_edge() {
+        if let Some(ip) = req
+            .header("true-client-ip")
+            .and_then(|value| value.as_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty() && *value != "unknown")
+        {
+            return ip.to_string();
+        }
+    }
+
     // Prefer X-Forwarded-For (may be a comma-separated list) when trusted
     if forwarded_ip_trusted(req) {
         if let Some(h) = req.header("x-forwarded-for") {
@@ -259,9 +281,8 @@ fn extract_health_client_ip(req: &Request) -> String {
 }
 
 fn health_secret_authorized(req: &Request) -> bool {
-    let expected = match env::var("SHUMA_HEALTH_SECRET") {
-        Ok(secret) => secret.trim().to_string(),
-        Err(_) => return true,
+    let Some(expected) = crate::config::runtime_var_trimmed_optional("SHUMA_HEALTH_SECRET") else {
+        return true;
     };
     if expected.is_empty() {
         return true;
@@ -290,7 +311,7 @@ fn fail_mode_label(fail_open: bool) -> &'static str {
 }
 
 fn debug_headers_enabled() -> bool {
-    env::var("SHUMA_DEBUG_HEADERS")
+    crate::config::runtime_var_trimmed_optional("SHUMA_DEBUG_HEADERS")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
 }

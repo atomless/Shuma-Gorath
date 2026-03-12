@@ -827,14 +827,8 @@ fn lane_actor_ip(third_octet: u8, tick_count: u64, rotate_every_ticks: u64, lane
 
 #[cfg(not(test))]
 fn challenge_signing_secret() -> Option<String> {
-    std::env::var("SHUMA_CHALLENGE_SECRET")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-        .or_else(|| {
-            std::env::var("SHUMA_JS_SECRET")
-                .ok()
-                .filter(|value| !value.trim().is_empty())
-        })
+    crate::config::runtime_var_trimmed_optional("SHUMA_CHALLENGE_SECRET")
+        .or_else(|| crate::config::runtime_var_trimmed_optional("SHUMA_JS_SECRET"))
 }
 
 #[cfg(not(test))]
@@ -1088,10 +1082,7 @@ pub fn run_internal_generation_tick(
     };
     #[cfg(not(test))]
     {
-        let forwarded_secret = std::env::var("SHUMA_FORWARDED_IP_SECRET")
-            .ok()
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty());
+        let forwarded_secret = crate::config::runtime_var_trimmed_optional("SHUMA_FORWARDED_IP_SECRET");
 
         let mut dispatch_request = |request: Request| {
             let _guard = crate::runtime::sim_telemetry::enter(Some(metadata.clone()));

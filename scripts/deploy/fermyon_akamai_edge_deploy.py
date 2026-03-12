@@ -5,10 +5,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import pty
+import select
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Sequence
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
@@ -25,8 +29,11 @@ from scripts.deploy.fermyon_akamai_edge_setup import (
     run_command,
     validate_aka_login,
 )
-from scripts.deploy.local_env import ensure_env_file, read_env_file, read_env_value
+from scripts.deploy.local_env import ensure_env_file, read_env_file, read_env_files, read_env_value
+from scripts.deploy.spin_manifest import FERMYON_EDGE_RUNTIME_ENV_KEYS, spin_variable_name
 from scripts.deploy.setup_common import utc_now_iso, write_json
+
+DEFAULTS_ENV_FILE = REPO_ROOT / "config" / "defaults.env"
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -102,6 +109,8 @@ def render_manifest(receipt: dict[str, Any], rendered_manifest_path: Path, env_v
             str(rendered_manifest_path),
             "--upstream-origin",
             upstream_origin,
+            "--profile",
+            "edge-fermyon",
         ],
         env=os.environ.copy(),
     )
@@ -115,6 +124,9 @@ def deploy_env(receipt: dict[str, Any], env_file_values: dict[str, str], setup_r
     env.update(env_file_values)
     env["SHUMA_RUNTIME_ENV"] = gateway.get("runtime_env", DEFAULT_RUNTIME_ENV)
     env["SHUMA_ENTERPRISE_MULTI_INSTANCE"] = "true" if gateway.get("enterprise_multi_instance") else "false"
+    env["SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED"] = (
+        "true" if gateway.get("enterprise_unsynced_state_exception_confirmed") else "false"
+    )
     env["SHUMA_EDGE_INTEGRATION_MODE"] = gateway.get("edge_integration_mode", "additive")
     env["SHUMA_GATEWAY_DEPLOYMENT_PROFILE"] = gateway.get("deployment_profile", "edge-fermyon")
     env["SHUMA_GATEWAY_UPSTREAM_ORIGIN"] = gateway["upstream_origin"]
@@ -135,6 +147,11 @@ def deploy_env(receipt: dict[str, Any], env_file_values: dict[str, str], setup_r
     env["FERMYON_AKA_APP_NAME"] = receipt["fermyon"]["app_name"]
     env["FERMYON_AKAMAI_SETUP_RECEIPT"] = str(setup_receipt_path)
     required_env_value(env, SPIN_AKA_TOKEN_KEY)
+    required_env_value(env, "SHUMA_API_KEY")
+    required_env_value(env, "SHUMA_JS_SECRET")
+    required_env_value(env, "SHUMA_FORWARDED_IP_SECRET")
+    required_env_value(env, "SHUMA_HEALTH_SECRET")
+    required_env_value(env, "SHUMA_ADMIN_IP_ALLOWLIST")
     required_env_value(env, "SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE")
     return env
 
@@ -190,10 +207,85 @@ def fetch_app_status(*, env: dict[str, str], app_name: str, app_id: str, account
         return {"raw_status_output": status.stdout.strip()}
 
 
+MAKE_OVERRIDE_KEYS = (
+    "SHUMA_ENTERPRISE_MULTI_INSTANCE",
+    "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
+    "SHUMA_EDGE_INTEGRATION_MODE",
+    "SHUMA_GATEWAY_DEPLOYMENT_PROFILE",
+    "SHUMA_GATEWAY_UPSTREAM_ORIGIN",
+    "SHUMA_GATEWAY_TLS_STRICT",
+    "SHUMA_GATEWAY_ORIGIN_AUTH_MODE",
+    "SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME",
+    "SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE",
+    "SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED",
+    "SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED",
+    "SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED",
+    "SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED",
+    "GATEWAY_SURFACE_CATALOG_PATH",
+    "SHUMA_SPIN_MANIFEST",
+)
+
+
 def run_make_target(target: str, env: dict[str, str]) -> None:
-    result = run_command(["make", "--no-print-directory", target], env=env, cwd=REPO_ROOT)
+    command = ["make", "--no-print-directory"]
+    for key in MAKE_OVERRIDE_KEYS:
+        value = env.get(key, "")
+        if value:
+            command.append(f"{key}={value}")
+    command.append(target)
+    result = run_command(command, env=env, cwd=REPO_ROOT)
     if result.returncode != 0:
         raise SystemExit(result.stderr.strip() or result.stdout.strip() or f"make {target} failed")
+
+
+def run_interactive_command(
+    command: Sequence[str],
+    *,
+    env: dict[str, str] | None = None,
+    cwd: Path | None = None,
+) -> subprocess.CompletedProcess[str]:
+    master_fd, slave_fd = pty.openpty()
+    try:
+        process = subprocess.Popen(
+            list(command),
+            cwd=str(cwd or REPO_ROOT),
+            env=env,
+            stdin=slave_fd,
+            stdout=slave_fd,
+            stderr=slave_fd,
+            text=False,
+            close_fds=True,
+        )
+    finally:
+        os.close(slave_fd)
+
+    output = bytearray()
+    try:
+        while True:
+            ready, _, _ = select.select([master_fd], [], [], 0.25)
+            process_exited = process.poll() is not None
+            if master_fd in ready:
+                try:
+                    chunk = os.read(master_fd, 4096)
+                except OSError:
+                    chunk = b""
+                if chunk:
+                    output.extend(chunk)
+                    sys.stdout.buffer.write(chunk)
+                    sys.stdout.buffer.flush()
+                elif process_exited:
+                    break
+            if process_exited and master_fd not in ready:
+                break
+    finally:
+        os.close(master_fd)
+
+    return subprocess.CompletedProcess(
+        args=list(command),
+        returncode=process.wait(),
+        stdout=output.decode("utf-8", errors="replace"),
+        stderr="",
+    )
 
 
 def git_head() -> str:
@@ -203,11 +295,139 @@ def git_head() -> str:
     return result.stdout.strip()
 
 
+def deploy_variable_args(env: dict[str, str]) -> list[str]:
+    args: list[str] = []
+    for env_key in FERMYON_EDGE_RUNTIME_ENV_KEYS:
+        value = env.get(env_key, "").strip()
+        if not value:
+            continue
+        args.extend(["--variable", f"{spin_variable_name(env_key)}={value}"])
+    return args
+
+
+def export_seeded_config_payload(env: dict[str, str]) -> dict[str, Any]:
+    result = run_command(
+        ["bash", str(REPO_ROOT / "scripts" / "config_seed.sh"), "--print-json"],
+        env=env,
+        cwd=REPO_ROOT,
+    )
+    if result.returncode != 0:
+        raise SystemExit(
+            result.stderr.strip() or result.stdout.strip() or "Failed to export canonical seeded config JSON."
+        )
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"Canonical seeded config JSON was invalid: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise SystemExit("Canonical seeded config export must be a JSON object.")
+    return payload
+
+
+def app_urls(status_payload: dict[str, Any]) -> list[str]:
+    urls = status_payload.get("urls") if isinstance(status_payload, dict) else None
+    if not isinstance(urls, list):
+        return []
+    return [str(url).strip() for url in urls if str(url or "").strip()]
+
+
+def http_text_request(
+    *,
+    method: str,
+    url: str,
+    headers: dict[str, str] | None = None,
+    body: bytes | None = None,
+    timeout_seconds: int = 30,
+) -> tuple[int, str]:
+    request = urllib_request.Request(url, data=body, method=method.upper())
+    for key, value in (headers or {}).items():
+        request.add_header(key, value)
+    try:
+        with urllib_request.urlopen(request, timeout=timeout_seconds) as response:
+            return response.getcode(), response.read().decode("utf-8", errors="replace")
+    except urllib_error.HTTPError as exc:
+        return exc.code, exc.read().decode("utf-8", errors="replace")
+    except urllib_error.URLError as exc:
+        raise SystemExit(f"HTTP request failed for {url}: {exc}") from exc
+
+
+def admin_auth_headers(env: dict[str, str], base_url: str) -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {required_env_value(env, 'SHUMA_API_KEY')}",
+        "Origin": base_url.rstrip("/"),
+    }
+
+
+def bootstrap_remote_config_if_missing(base_url: str, env: dict[str, str]) -> None:
+    config_url = f"{base_url.rstrip('/')}/admin/config"
+    bootstrap_url = f"{base_url.rstrip('/')}/admin/config/bootstrap"
+    headers = admin_auth_headers(env, base_url)
+    status, body = http_text_request(method="GET", url=config_url, headers=headers)
+    if status == 200:
+        return
+    if status != 500 or "missing KV config" not in body:
+        raise SystemExit(
+            f"Edge config bootstrap probe failed for {config_url}: status={status} body={body.strip() or '<empty>'}"
+        )
+
+    payload = export_seeded_config_payload(env)
+    post_headers = {
+        **headers,
+        "Content-Type": "application/json",
+    }
+    post_status, post_body = http_text_request(
+        method="POST",
+        url=bootstrap_url,
+        headers=post_headers,
+        body=json.dumps(payload, separators=(",", ":")).encode("utf-8"),
+    )
+    if post_status != 200:
+        raise SystemExit(
+            f"Edge config bootstrap failed for {bootstrap_url}: status={post_status} body={post_body.strip() or '<empty>'}"
+        )
+
+    verify_status, verify_body = http_text_request(method="GET", url=config_url, headers=headers)
+    if verify_status != 200:
+        raise SystemExit(
+            f"Edge config bootstrap verification failed for {config_url}: status={verify_status} body={verify_body.strip() or '<empty>'}"
+        )
+
+
+def smoke_deployed_app(base_url: str, env: dict[str, str]) -> None:
+    login_status, login_body = http_text_request(
+        method="GET",
+        url=f"{base_url.rstrip('/')}/dashboard/login.html",
+    )
+    if login_status != 200 or "<!doctype html>" not in login_body.lower():
+        raise SystemExit(
+            f"Edge dashboard login smoke failed for {base_url}: status={login_status}"
+        )
+
+    index_status, index_body = http_text_request(
+        method="GET",
+        url=f"{base_url.rstrip('/')}/index.html",
+    )
+    if index_status != 200 or "Configuration unavailable" in index_body:
+        raise SystemExit(
+            f"Edge public-route smoke failed for {base_url}: status={index_status} body={index_body.strip()[:200]}"
+        )
+
+    config_status, config_body = http_text_request(
+        method="GET",
+        url=f"{base_url.rstrip('/')}/admin/config",
+        headers=admin_auth_headers(env, base_url),
+    )
+    if config_status != 200:
+        raise SystemExit(
+            f"Edge admin-config smoke failed for {base_url}: status={config_status} body={config_body.strip()[:200]}"
+        )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     env_file = Path(args.env_file).expanduser().resolve()
     ensure_env_file(env_file)
-    env_file_values = read_env_file(env_file)
+    env_file_values = read_env_files(DEFAULTS_ENV_FILE, env_file)
 
     setup_receipt_path = Path(args.setup_receipt).expanduser().resolve()
     receipt = load_receipt(setup_receipt_path)
@@ -257,9 +477,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         deploy_command.extend(["--app-id", existing_app_id])
     else:
         deploy_command.extend(["--create-name", app_name])
-    deploy = run_command(deploy_command, env=env)
+    deploy_command.extend(deploy_variable_args(env))
+    deploy = run_interactive_command(deploy_command, env=env)
     if deploy.returncode != 0:
-        raise SystemExit(deploy.stderr.strip() or deploy.stdout.strip() or "spin aka deploy failed")
+        stderr = (deploy.stderr or "").strip()
+        stdout = (deploy.stdout or "").strip()
+        raise SystemExit(stderr or stdout or "spin aka deploy failed")
 
     status_payload = fetch_app_status(
         env=env,
@@ -269,6 +492,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         account_name=account_name,
     )
     app_id = existing_app_id or extract_app_id(status_payload)
+    urls = app_urls(status_payload)
+    if not urls:
+        raise SystemExit("Fermyon deploy succeeded but app status returned no public URLs.")
+    primary_url = urls[0]
+    bootstrap_remote_config_if_missing(primary_url, env)
+    smoke_deployed_app(primary_url, env)
 
     deploy_receipt = {
         "schema": "shuma.fermyon.akamai_edge_deploy.v1",
@@ -282,6 +511,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "account_name": account_name,
             "app_id": app_id,
             "app_name": app_name,
+            "primary_url": primary_url,
             "auth_mode": auth_mode,
             "info": account_info,
             "status": status_payload,
@@ -295,6 +525,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     write_json(deploy_receipt_path, deploy_receipt)
     print(f"Deploy receipt written: {deploy_receipt_path}")
     print(f"App name: {app_name}")
+    for url in urls:
+        print(f"App URL: {url}")
     return 0
 
 

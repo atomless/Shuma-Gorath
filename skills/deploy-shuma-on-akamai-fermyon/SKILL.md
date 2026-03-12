@@ -17,7 +17,7 @@ Current maturity boundary:
 
 - this skill targets `spin aka` only,
 - plain `spin cloud` is out of scope for this tranche,
-- Akamai-edge-only operator surfaces and future Akamai Rate/GEO work remain blocked until a real edge proof closes `FERM-SKILL-3`.
+- the Akamai edge baseline is now live-proven, so follow-on Akamai Rate/GEO work may proceed from this posture.
 
 Production posture is gateway-only (`client -> shuma -> existing origin`) with `edge-fermyon` guardrails.
 
@@ -127,12 +127,12 @@ Signed-header origin-auth lifecycle requirement:
 
 ## Honest Boundary
 
-Stop and leave the baseline unproven if either of these is true:
+Stop and treat the current run as unproven if either of these is true:
 
 - `spin aka login` fails or panics,
 - no real Akamai/Fermyon deploy receipt is written.
 
-If the helper reports the known upstream plugin panic, treat that as a real blocker in `FERM-SKILL-3`, not operator error.
+If the helper reports the known upstream plugin panic, treat that as an upstream CLI defect and fall back to device login in interactive sessions instead of pretending PAT login worked.
 If browser auth succeeds but Fermyon returns `User is not allow-listed!`, treat that as a provider-access blocker, expect the setup receipt to remain in `status=blocked` form, and stop.
 
 ## Operations Reference

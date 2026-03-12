@@ -143,7 +143,7 @@ Response:
 - in interactive mode, allow the helper to fall back to Fermyon device login,
 - in non-interactive mode, do not treat the token as accepted,
 - do not continue to deploy,
-- capture the exact failure in the receipt/logs/docs and leave the edge proof backlog open.
+- capture the exact failure in the receipt/logs/docs.
 
 ### Device login says `User is not allow-listed!`
 
@@ -156,9 +156,10 @@ Response:
 
 - verify the Wasm Functions access request has been approved,
 - verify the browser login is using the same identity that requested access,
+- remember that the browser page is asking for the code displayed in the terminal session running the helper,
 - if the message persists, contact Fermyon support / Discord with the exact text,
 - expect the helper to leave `.shuma/fermyon-akamai-edge-setup.json` in `status=blocked` form with `blocked_at_step=auth_validation`,
-- do not mark `FERM-SKILL-3` complete until the provider allowlist is enabled.
+- rerun setup once provider access is enabled.
 
 ### Missing or stale account targeting
 

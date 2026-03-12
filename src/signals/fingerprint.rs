@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use spin_sdk::http::Request;
-use std::env;
 #[cfg(not(test))]
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -199,9 +198,7 @@ fn extract_transport_evidence(req: &Request, headers_trusted: bool) -> Transport
 }
 
 fn fingerprint_secret() -> String {
-    env::var("SHUMA_JS_SECRET")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
+    crate::config::runtime_var_trimmed_optional("SHUMA_JS_SECRET")
         .unwrap_or_else(|| "shuma-fingerprint-default-secret".to_string())
 }
 

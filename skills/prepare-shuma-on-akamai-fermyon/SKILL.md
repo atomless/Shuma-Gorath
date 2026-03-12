@@ -108,8 +108,8 @@ Stop after setup if either of these is still false:
 If the helper reports the known upstream plugin panic:
 
 - do not fabricate account metadata,
-- do not mark the edge baseline as proven,
-- leave `FERM-SKILL-3` open until the real `spin aka` path works.
+- use the interactive device-login fallback instead of pretending PAT login succeeded,
+- keep the failure visible in the setup receipt and operator notes.
 
 If device login completes browser auth but returns `User is not allow-listed!`:
 
@@ -117,6 +117,8 @@ If device login completes browser auth but returns `User is not allow-listed!`:
 - expect the setup receipt to be left behind in `status=blocked` form with the exact blocker and rerun instruction,
 - wait for Wasm Functions access approval or support intervention,
 - then rerun the helper.
+
+The live edge baseline is now proven, so a successful rerun after provider approval should continue cleanly into `make deploy-fermyon-akamai-edge`.
 
 ## Operations Reference
 

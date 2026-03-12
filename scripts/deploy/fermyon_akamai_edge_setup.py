@@ -29,7 +29,7 @@ from scripts.site_surface_catalog import SUPPORTED_MODES, build_payload
 
 DEFAULT_RECEIPT_PATH = REPO_ROOT / ".shuma" / "fermyon-akamai-edge-setup.json"
 DEFAULT_DEPLOY_RECEIPT_PATH = REPO_ROOT / ".shuma" / "fermyon-akamai-edge-deploy.json"
-DEFAULT_RENDERED_MANIFEST_PATH = REPO_ROOT / ".shuma" / "manifests" / "fermyon-akamai-edge.spin.toml"
+DEFAULT_RENDERED_MANIFEST_PATH = REPO_ROOT / "spin.fermyon-akamai-edge.toml"
 SETUP_RECEIPT_SCHEMA = "shuma.fermyon.akamai_edge_setup.v2"
 DEFAULT_APP_NAME = "shuma-gorath"
 DEFAULT_ORIGIN_AUTH_HEADER_NAME = "x-shuma-origin-auth"
@@ -93,6 +93,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         choices=("true", "false"),
         help="Explicit SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED attestation",
     )
+    parser.add_argument(
+        "--enterprise-unsynced-state-exception-confirmed",
+        choices=("true", "false"),
+        help="Explicit SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED attestation for temporary additive/off edge rollout without distributed state",
+    )
     parser.add_argument("--docroot", help="Local site docroot for surface-catalog generation")
     parser.add_argument(
         "--site-mode",
@@ -139,6 +144,10 @@ def ensure_required_https_origin(args: argparse.Namespace, env_file: Path) -> st
     return normalized
 
 
+def upsert_bool_env_value(env_file: Path, key: str, value: bool) -> None:
+    upsert_env_value(env_file, key, "true" if value else "false")
+
+
 def resolve_attestation(
     *,
     explicit_value: str,
@@ -177,6 +186,44 @@ def resolve_surface_catalog(args: argparse.Namespace, env_file: Path) -> tuple[s
     payload = build_payload(docroot, args.site_mode)
     write_json(output, payload)
     return str(output), "generated"
+
+
+def resolve_account_target(
+    *,
+    explicit_account_id: str,
+    explicit_account_name: str,
+    account_info: dict[str, Any],
+) -> tuple[str, str]:
+    account_id = explicit_account_id.strip()
+    account_name = explicit_account_name.strip()
+    auth_info = account_info.get("auth_info")
+    accounts = auth_info.get("accounts") if isinstance(auth_info, dict) else None
+    normalized_accounts: list[tuple[str, str]] = []
+    if isinstance(accounts, list):
+        for account in accounts:
+            if not isinstance(account, dict):
+                continue
+            candidate_id = str(account.get("id", "")).strip()
+            candidate_name = str(account.get("name", "")).strip()
+            if candidate_id or candidate_name:
+                normalized_accounts.append((candidate_id, candidate_name))
+
+    if account_id or account_name:
+        for candidate_id, candidate_name in normalized_accounts:
+            if account_id and candidate_id == account_id:
+                return account_id, account_name or candidate_name
+            if account_name and candidate_name == account_name:
+                return account_id or candidate_id, account_name
+        return account_id, account_name
+
+    if not normalized_accounts:
+        return "", ""
+    if len(normalized_accounts) == 1:
+        return normalized_accounts[0]
+    raise SystemExit(
+        "Multiple Fermyon accounts are available for this identity. "
+        "Rerun setup with --account-id or --account-name to choose the deploy target explicitly."
+    )
 
 
 def run_command(
@@ -313,6 +360,7 @@ def build_setup_receipt(
     reserved_route_collision_check_passed: bool,
     admin_edge_rate_limits_confirmed: bool,
     admin_api_key_rotation_confirmed: bool,
+    enterprise_unsynced_state_exception_confirmed: bool,
     surface_catalog_path: str,
     surface_catalog_source: str,
     deploy_receipt_path: Path,
@@ -353,6 +401,7 @@ def build_setup_receipt(
             "runtime_env": DEFAULT_RUNTIME_ENV,
             "deployment_profile": "edge-fermyon",
             "enterprise_multi_instance": True,
+            "enterprise_unsynced_state_exception_confirmed": enterprise_unsynced_state_exception_confirmed,
             "edge_integration_mode": DEFAULT_EDGE_INTEGRATION_MODE,
             "upstream_origin": upstream_origin,
             "admin_allowlist": admin_allowlist,
@@ -394,6 +443,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     upsert_env_value(env_file, "GATEWAY_SURFACE_CATALOG_PATH", surface_catalog_path)
 
     upstream_origin = ensure_required_https_origin(args, env_file)
+    upsert_env_value(env_file, "SHUMA_GATEWAY_UPSTREAM_ORIGIN", upstream_origin)
     origin_lock_confirmed = resolve_attestation(
         explicit_value=args.origin_lock_confirmed or "",
         env_file=env_file,
@@ -413,6 +463,32 @@ def main(argv: Sequence[str] | None = None) -> int:
         explicit_value=args.admin_api_key_rotation_confirmed or "",
         env_file=env_file,
         key="SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED",
+    )
+    enterprise_unsynced_state_exception_confirmed = resolve_attestation(
+        explicit_value=args.enterprise_unsynced_state_exception_confirmed or "",
+        env_file=env_file,
+        key="SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
+    )
+    upsert_bool_env_value(env_file, "SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED", origin_lock_confirmed)
+    upsert_bool_env_value(
+        env_file,
+        "SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED",
+        reserved_route_collision_check_passed,
+    )
+    upsert_bool_env_value(
+        env_file,
+        "SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED",
+        admin_edge_rate_limits_confirmed,
+    )
+    upsert_bool_env_value(
+        env_file,
+        "SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED",
+        admin_api_key_rotation_confirmed,
+    )
+    upsert_bool_env_value(
+        env_file,
+        "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
+        enterprise_unsynced_state_exception_confirmed,
     )
     origin_auth_header_name = (
         read_env_value(env_file, "SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME").strip()
@@ -438,7 +514,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     staging_hostname = (args.staging_hostname or "").strip()
 
     try:
-        account_info, auth_mode = validate_aka_login(token)
+        try:
+            account_info = fetch_aka_info(session_auth_environment())
+            auth_mode = "existing_session"
+        except SystemExit:
+            account_info, auth_mode = validate_aka_login(token)
+        account_id, account_name = resolve_account_target(
+            explicit_account_id=args.account_id or "",
+            explicit_account_name=args.account_name or "",
+            account_info=account_info,
+        )
     except SystemExit as exc:
         blocked_receipt = build_setup_receipt(
             token_source=token_source,
@@ -457,6 +542,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             reserved_route_collision_check_passed=reserved_route_collision_check_passed,
             admin_edge_rate_limits_confirmed=admin_edge_rate_limits_confirmed,
             admin_api_key_rotation_confirmed=admin_api_key_rotation_confirmed,
+            enterprise_unsynced_state_exception_confirmed=enterprise_unsynced_state_exception_confirmed,
             surface_catalog_path=surface_catalog_path,
             surface_catalog_source=surface_catalog_source,
             deploy_receipt_path=deploy_receipt_path,
@@ -471,6 +557,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "`make prepare-fermyon-akamai-edge` to refresh the setup receipt."
             ),
         )
+        message = str(exc)
+        if "Multiple Fermyon accounts are available" in message:
+            blocked_receipt["progress"]["blocked_at_step"] = "account_target_resolution"
+            blocked_receipt["progress"]["last_completed_step"] = "auth_validated"
+            blocked_receipt["progress"]["next_operator_action"] = (
+                "Rerun `make prepare-fermyon-akamai-edge` with --account-id or --account-name "
+                "to choose the deploy target explicitly."
+            )
         write_json(receipt_path, blocked_receipt)
         raise
 
@@ -491,6 +585,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         reserved_route_collision_check_passed=reserved_route_collision_check_passed,
         admin_edge_rate_limits_confirmed=admin_edge_rate_limits_confirmed,
         admin_api_key_rotation_confirmed=admin_api_key_rotation_confirmed,
+        enterprise_unsynced_state_exception_confirmed=enterprise_unsynced_state_exception_confirmed,
         surface_catalog_path=surface_catalog_path,
         surface_catalog_source=surface_catalog_source,
         deploy_receipt_path=deploy_receipt_path,

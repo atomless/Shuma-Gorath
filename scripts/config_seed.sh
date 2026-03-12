@@ -13,11 +13,12 @@ MODE="seed"
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/config_seed.sh [--verify-only]
+  ./scripts/config_seed.sh [--verify-only|--print-json]
 
 Modes:
   default       Seed missing KV config and backfill/repair explicit persisted config state.
   --verify-only Read-only verification for missing, stale, or invalid persisted KV config.
+  --print-json  Emit the canonical merged config JSON to stdout without mutating persisted KV state.
 
 Environment overrides (primarily for tests):
   SHUMA_CONFIG_DEFAULTS_FILE
@@ -36,6 +37,9 @@ if [[ $# -eq 1 ]]; then
   case "$1" in
     --verify-only)
       MODE="verify"
+      ;;
+    --print-json)
+      MODE="print"
       ;;
     --help|-h)
       usage
@@ -417,7 +421,7 @@ else:
         else:
             state = "ready"
 
-if mode == "seed" and isinstance(merged, dict):
+if mode in {"seed", "print"} and isinstance(merged, dict):
     default_test_mode = bool(defaults.get("test_mode", False))
     if merged.get("test_mode") != default_test_mode:
         merged["test_mode"] = default_test_mode
@@ -467,6 +471,11 @@ PY
 state="$(report_field state)"
 missing_paths="$(report_field missing_paths)"
 invalid_paths="$(report_field invalid_paths)"
+
+if [[ "${MODE}" == "print" ]]; then
+  cat "${tmp_merged}"
+  exit 0
+fi
 
 if [[ "${MODE}" == "verify" ]]; then
   case "${state}" in

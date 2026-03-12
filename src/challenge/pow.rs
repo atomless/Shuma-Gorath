@@ -64,13 +64,9 @@ fn try_open_default_store() -> Option<Store> {
 }
 
 fn get_pow_secret() -> String {
-    match std::env::var("SHUMA_POW_SECRET") {
-        Ok(secret) if !secret.trim().is_empty() => secret,
-        _ => std::env::var("SHUMA_JS_SECRET")
-            .ok()
-            .filter(|secret| !secret.trim().is_empty())
-            .unwrap_or_else(|| "pow-default-secret".to_string()),
-    }
+    crate::config::runtime_var_trimmed_optional("SHUMA_POW_SECRET")
+        .or_else(|| crate::config::runtime_var_trimmed_optional("SHUMA_JS_SECRET"))
+        .unwrap_or_else(|| "pow-default-secret".to_string())
 }
 
 fn sign_payload(payload: &str) -> Vec<u8> {

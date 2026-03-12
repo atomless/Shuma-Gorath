@@ -7,10 +7,11 @@
 1. Akamai-specific operator controls are only available when the deployment posture reports `gateway_deployment_profile=edge-fermyon`.
 2. Generic shared-host and generic trusted-edge behavior remain available outside Akamai edge posture.
 3. Future Akamai Rate and GEO expansion work is execution-blocked until the Fermyon / Akamai edge path has the same setup, deploy, and proof maturity that the Linode shared-host path now has.
+4. Once the live proof is complete, move `AK-RG-2..8` back into the active queue and keep the proof note linked from that active tranche.
 
 ## Required Baseline Before Akamai Edge Expansion
 
-The following tranche must be complete before `AK-RG-2..8` move back into the active queue:
+The following tranche had to be complete before `AK-RG-2..8` could move back into the active queue:
 
 - `FERM-SKILL-1`: agent-oriented Fermyon / Akamai edge setup skill
 - `FERM-SKILL-2`: verified, agent-executable Fermyon deploy skill

@@ -27,7 +27,7 @@ SHUMA_LOCAL_STATE_DIR ?= .shuma
 LINODE_SETUP_RECEIPT ?= $(SHUMA_LOCAL_STATE_DIR)/linode-shared-host-setup.json
 FERMYON_AKAMAI_SETUP_RECEIPT ?= $(SHUMA_LOCAL_STATE_DIR)/fermyon-akamai-edge-setup.json
 FERMYON_AKAMAI_DEPLOY_RECEIPT ?= $(SHUMA_LOCAL_STATE_DIR)/fermyon-akamai-edge-deploy.json
-FERMYON_AKAMAI_RENDERED_MANIFEST ?= $(SHUMA_LOCAL_STATE_DIR)/manifests/fermyon-akamai-edge.spin.toml
+FERMYON_AKAMAI_RENDERED_MANIFEST ?= spin.fermyon-akamai-edge.toml
 REMOTE_RECEIPTS_DIR ?= $(SHUMA_LOCAL_STATE_DIR)/remotes
 TELEMETRY_SHARED_HOST_EVIDENCE_REPORT ?= .spin/telemetry_shared_host_evidence.json
 
@@ -448,9 +448,10 @@ deploy: build-runtime ## Deploy to Fermyon Cloud
 	@spin cloud deploy
 	@echo "$(GREEN)✅ Deployment complete!$(NC)"
 
-deploy-profile-baseline: ## Profile wrapper baseline: verify seeded config + runtime build
+deploy-profile-baseline: ## Profile wrapper baseline: verify seeded config + dashboard/runtime build
 	@echo "$(CYAN)🔧 Running shared deployment baseline...$(NC)"
 	@$(MAKE) --no-print-directory config-verify
+	@$(MAKE) --no-print-directory dashboard-build >/dev/null
 	@$(MAKE) --no-print-directory build-runtime
 	@echo "$(GREEN)✅ Shared deployment baseline complete.$(NC)"
 
@@ -715,8 +716,19 @@ test-deploy-linode: ## Validate Linode deploy-path helpers and production input 
 
 test-deploy-fermyon: ## Validate Fermyon/Akamai edge setup and deploy helpers
 	@echo "$(CYAN)🧪 Running Fermyon/Akamai edge deploy-path verification...$(NC)"
+	@python3 -m unittest scripts/tests/test_deploy_profile_baseline.py
+	@python3 -m unittest scripts/tests/test_render_gateway_spin_manifest.py
 	@python3 -m unittest scripts/tests/test_prepare_fermyon_akamai_edge.py
 	@python3 -m unittest scripts/tests/test_deploy_fermyon_akamai_edge.py
+	@python3 -m unittest scripts/tests/test_config_lifecycle.py
+	@cargo test validate_env_only_accepts_spin_variables_in_tests --lib
+	@cargo test env_string_required_uses_spin_variable_when_env_missing --lib
+	@cargo test runtime_var_uses_spin_variable_when_env_is_missing --lib
+	@cargo test default_seeded_config_matches_defaults_snapshot --lib
+	@cargo test admin_config_bootstraps_missing_config_from_defaults_on_write --lib
+	@cargo test edge_fermyon_uses_true_client_ip_for_client_ip_extraction --lib
+	@cargo test edge_fermyon_treats_spin_full_url_https_as_https --lib
+	@cargo test admin_ip_allowlist_uses_true_client_ip_on_edge_fermyon --lib
 
 test-config-lifecycle: ## Validate read-only runtime config lifecycle checks and explicit seed/backfill flows
 	@echo "$(CYAN)🧪 Running config lifecycle verification...$(NC)"

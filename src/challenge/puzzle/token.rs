@@ -17,10 +17,8 @@ pub(crate) enum SeedTokenError {
 }
 
 fn get_challenge_secret() -> String {
-    match std::env::var("SHUMA_CHALLENGE_SECRET") {
-        Ok(secret) if !secret.trim().is_empty() => secret,
-        _ => crate::config::env_string_required("SHUMA_JS_SECRET"),
-    }
+    crate::config::runtime_var_trimmed_optional("SHUMA_CHALLENGE_SECRET")
+        .unwrap_or_else(|| crate::config::env_string_required("SHUMA_JS_SECRET"))
 }
 
 fn sign_payload(payload: &str) -> Vec<u8> {

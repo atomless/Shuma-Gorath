@@ -26,6 +26,12 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
             "\n".join(
                 [
                     "SPIN_AKA_ACCESS_TOKEN=fermyon-secret",
+                    "SHUMA_API_KEY=test-admin-key",
+                    "SHUMA_JS_SECRET=test-js-secret",
+                    "SHUMA_FORWARDED_IP_SECRET=test-forwarded-secret",
+                    "SHUMA_HEALTH_SECRET=test-health-secret",
+                    "SHUMA_ADMIN_IP_ALLOWLIST=203.0.113.8/32",
+                    "SHUMA_DEBUG_HEADERS=false",
                     "SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE=origin-secret",
                     "",
                 ]
@@ -55,6 +61,7 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
                         "runtime_env": "runtime-prod",
                         "deployment_profile": "edge-fermyon",
                         "enterprise_multi_instance": True,
+                        "enterprise_unsynced_state_exception_confirmed": True,
                         "edge_integration_mode": "additive",
                         "upstream_origin": "https://origin.example.com",
                         "tls_strict": True,
@@ -116,6 +123,16 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         self.assertIn("User is not allow-listed!", message)
         self.assertIn("make prepare-fermyon-akamai-edge", message)
 
+    def test_run_interactive_command_returns_after_child_exit(self) -> None:
+        completed = deploy.run_interactive_command(
+            ["/bin/sh", "-lc", "printf 'edge deploy ok\\n'"],
+            env={**deploy.os.environ},
+            cwd=deploy.REPO_ROOT,
+        )
+
+        self.assertEqual(completed.returncode, 0)
+        self.assertIn("edge deploy ok", completed.stdout)
+
     def test_preflight_only_shapes_make_targets_and_manifest_render(self) -> None:
         calls: list[tuple[list[str], dict[str, str] | None]] = []
 
@@ -125,11 +142,11 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
                 self.rendered_manifest.parent.mkdir(parents=True, exist_ok=True)
                 self.rendered_manifest.write_text("allowed_outbound_hosts = []\n", encoding="utf-8")
                 return result(stdout="rendered gateway Spin manifest\n")
-            if command[:3] == ["make", "--no-print-directory", "deploy-enterprise-akamai"]:
+            if command[:2] == ["make", "--no-print-directory"] and command[-1] == "deploy-enterprise-akamai":
                 return result()
-            if command[:3] == ["make", "--no-print-directory", "test-gateway-profile-edge"]:
+            if command[:2] == ["make", "--no-print-directory"] and command[-1] == "test-gateway-profile-edge":
                 return result()
-            if command[:3] == ["make", "--no-print-directory", "smoke-gateway-mode"]:
+            if command[:2] == ["make", "--no-print-directory"] and command[-1] == "smoke-gateway-mode":
                 return result()
             raise AssertionError(f"Unexpected command: {command}")
 
@@ -161,10 +178,130 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         self.assertEqual(env["SHUMA_ENTERPRISE_MULTI_INSTANCE"], "true")
         self.assertEqual(env["SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE"], "origin-secret")
         self.assertEqual(env["SHUMA_SPIN_MANIFEST"], str(self.rendered_manifest.resolve()))
+        make_calls = [call[0] for call in calls if call[0][:2] == ["make", "--no-print-directory"]]
         self.assertEqual(
-            [call[0][2] for call in calls if call[0][:2] == ["make", "--no-print-directory"]],
+            [call[-1] for call in make_calls],
             ["deploy-enterprise-akamai", "test-gateway-profile-edge", "smoke-gateway-mode"],
         )
+        self.assertIn("SHUMA_GATEWAY_UPSTREAM_ORIGIN=https://origin.example.com", make_calls[0])
+        self.assertIn("SHUMA_GATEWAY_DEPLOYMENT_PROFILE=edge-fermyon", make_calls[0])
+        self.assertIn("SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=true", make_calls[0])
+        self.assertIn(f"SHUMA_SPIN_MANIFEST={self.rendered_manifest.resolve()}", make_calls[0])
+
+    def test_deploy_passes_runtime_env_only_values_as_spin_variables(self) -> None:
+        calls: list[list[str]] = []
+        interactive_calls: list[list[str]] = []
+
+        def fake_run(command, *, env=None, cwd=None, capture_output=True):
+            calls.append(list(command))
+            if command[:3] == [
+                "python3",
+                str(deploy.REPO_ROOT / "scripts" / "deploy" / "render_gateway_spin_manifest.py"),
+                "--manifest",
+            ]:
+                self.rendered_manifest.parent.mkdir(parents=True, exist_ok=True)
+                self.rendered_manifest.write_text("allowed_outbound_hosts = []\n", encoding="utf-8")
+                return result(stdout="rendered gateway Spin manifest\n")
+            if command[:2] == ["make", "--no-print-directory"]:
+                return result()
+            if command[:4] == ["spin", "aka", "app", "status"]:
+                return result(stdout='{"app":{"id":"app_existing_123"},"urls":["https://app.example.com"]}\n')
+            if command[:3] == ["spin", "--version"]:
+                return result(stdout="spin 3.5.1\n")
+            if command[:3] == ["spin", "aka", "--version"]:
+                return result(stdout="spin-aka 0.6.0\n")
+            if command[:3] == ["git", "rev-parse", "HEAD"]:
+                return result(stdout="deadbeef\n")
+            raise AssertionError(f"Unexpected command: {command}")
+
+        def fake_interactive(command, *, env=None, cwd=None):
+            interactive_calls.append(list(command))
+            return result(stdout="deploy ok\n")
+
+        with patch.object(deploy, "ensure_aka_plugin", return_value="spin-aka 0.6.0"), patch.object(
+            deploy, "run_command", side_effect=fake_run
+        ), patch.object(
+            deploy, "run_interactive_command", side_effect=fake_interactive
+        ), patch.object(
+            deploy, "bootstrap_remote_config_if_missing"
+        ) as bootstrap_mock, patch.object(
+            deploy, "smoke_deployed_app"
+        ) as smoke_mock, patch.object(
+            deploy, "fetch_aka_info", return_value={"account": {"id": "acc_123"}}
+        ):
+            rc = deploy.main(
+                [
+                    "--env-file",
+                    str(self.env_file),
+                    "--setup-receipt",
+                    str(self.setup_receipt),
+                    "--deploy-receipt-output",
+                    str(self.deploy_receipt),
+                ]
+            )
+
+        self.assertEqual(rc, 0)
+        self.assertEqual(len(interactive_calls), 1)
+        bootstrap_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
+        smoke_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
+        deploy_command = interactive_calls[0]
+        self.assertIn("--variable", deploy_command)
+        self.assertIn("shuma_api_key=test-admin-key", deploy_command)
+        self.assertIn("shuma_js_secret=test-js-secret", deploy_command)
+        self.assertIn("shuma_forwarded_ip_secret=test-forwarded-secret", deploy_command)
+        self.assertIn("shuma_health_secret=test-health-secret", deploy_command)
+        self.assertIn("shuma_admin_ip_allowlist=203.0.113.8/32", deploy_command)
+        self.assertIn("shuma_debug_headers=false", deploy_command)
+        self.assertIn("shuma_event_log_retention_hours=168", deploy_command)
+        self.assertIn("shuma_monitoring_retention_hours=168", deploy_command)
+        self.assertIn("shuma_monitoring_rollup_retention_hours=720", deploy_command)
+
+    def test_deploy_env_merges_defaults_env_before_env_file(self) -> None:
+        defaults_file = self.temp_dir / "defaults.env"
+        defaults_file.write_text(
+            "\n".join(
+                [
+                    'SHUMA_MONITORING_RETENTION_HOURS="432"',
+                    'SHUMA_MONITORING_ROLLUP_RETENTION_HOURS="720"',
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        merged = deploy.read_env_files(defaults_file, self.env_file)
+
+        with patch.object(deploy, "DEFAULTS_ENV_FILE", defaults_file):
+            env = deploy.deploy_env(
+                deploy.load_receipt(self.setup_receipt),
+                deploy.read_env_files(deploy.DEFAULTS_ENV_FILE, self.env_file),
+                self.setup_receipt,
+            )
+
+        self.assertEqual(merged["SHUMA_MONITORING_RETENTION_HOURS"], "432")
+        self.assertEqual(merged["SHUMA_MONITORING_ROLLUP_RETENTION_HOURS"], "720")
+        self.assertEqual(env["SHUMA_MONITORING_RETENTION_HOURS"], "432")
+        self.assertEqual(env["SHUMA_MONITORING_ROLLUP_RETENTION_HOURS"], "720")
+
+    def test_deploy_env_requires_core_runtime_secrets(self) -> None:
+        self.env_file.write_text(
+            "\n".join(
+                [
+                    "SPIN_AKA_ACCESS_TOKEN=fermyon-secret",
+                    "SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE=origin-secret",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        with self.assertRaises(SystemExit) as exc:
+            deploy.deploy_env(
+                deploy.load_receipt(self.setup_receipt),
+                deploy.read_env_file(self.env_file),
+                self.setup_receipt,
+            )
+
+        self.assertIn("Required env value is missing: SHUMA_API_KEY", str(exc.exception))
 
     def test_preflight_surfaces_login_plugin_panic_clearly(self) -> None:
         def fake_run(command, *, env=None, cwd=None, capture_output=True):
@@ -217,6 +354,7 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         )
 
         calls: list[list[str]] = []
+        interactive_calls: list[list[str]] = []
 
         def fake_run(command, *, env=None, cwd=None, capture_output=True):
             calls.append(list(command))
@@ -230,10 +368,8 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
                 return result(stdout="rendered gateway Spin manifest\n")
             if command[:2] == ["make", "--no-print-directory"]:
                 return result()
-            if command[:4] == ["spin", "aka", "deploy", "-f"]:
-                return result(stdout="deploy ok\n")
             if command[:4] == ["spin", "aka", "app", "status"]:
-                return result(stdout='{"app":{"id":"app_existing_123"}}\n')
+                return result(stdout='{"app":{"id":"app_existing_123"},"urls":["https://app.example.com"]}\n')
             if command[:3] == ["spin", "--version"]:
                 return result(stdout="spin 3.5.1\n")
             if command[:3] == ["spin", "aka", "--version"]:
@@ -242,9 +378,19 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
                 return result(stdout="deadbeef\n")
             raise AssertionError(f"Unexpected command: {command}")
 
+        def fake_interactive(command, *, env=None, cwd=None):
+            interactive_calls.append(list(command))
+            return result(stdout="deploy ok\n")
+
         with patch.object(deploy, "ensure_aka_plugin", return_value="spin-aka 0.6.0"), patch.object(
             deploy, "run_command", side_effect=fake_run
         ), patch.object(
+            deploy, "run_interactive_command", side_effect=fake_interactive
+        ), patch.object(
+            deploy, "bootstrap_remote_config_if_missing"
+        ) as bootstrap_mock, patch.object(
+            deploy, "smoke_deployed_app"
+        ) as smoke_mock, patch.object(
             deploy, "fetch_aka_info", return_value={"account": {"id": "acc_123"}}
         ):
             rc = deploy.main(
@@ -259,10 +405,65 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
             )
 
         self.assertEqual(rc, 0)
-        deploy_call = next(call for call in calls if call[:3] == ["spin", "aka", "deploy"])
+        bootstrap_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
+        smoke_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
+        self.assertEqual(len(interactive_calls), 1)
+        deploy_call = interactive_calls[0]
         self.assertIn("--app-id", deploy_call)
         self.assertIn("app_existing_123", deploy_call)
         self.assertNotIn("--create-name", deploy_call)
 
         updated_receipt = json.loads(self.deploy_receipt.read_text(encoding="utf-8"))
         self.assertEqual(updated_receipt["fermyon"]["app_id"], "app_existing_123")
+        self.assertEqual(updated_receipt["fermyon"]["primary_url"], "https://app.example.com")
+
+    def test_bootstrap_remote_config_posts_seeded_json_when_admin_config_missing(self) -> None:
+        env = {
+            "SHUMA_API_KEY": "test-admin-key",
+        }
+        http_calls: list[tuple[str, str, dict[str, str] | None, bytes | None]] = []
+
+        def fake_http(*, method, url, headers=None, body=None, timeout_seconds=30):
+            http_calls.append((method, url, headers, body))
+            if len(http_calls) == 1:
+                return 500, "Configuration unavailable (missing KV config; run setup/config-seed)"
+            if len(http_calls) == 2:
+                return 200, '{"ok":true}'
+            if len(http_calls) == 3:
+                return 200, '{"config":{"rate_limit":321}}'
+            raise AssertionError(f"Unexpected HTTP call {len(http_calls)}")
+
+        with patch.object(deploy, "http_text_request", side_effect=fake_http), patch.object(
+            deploy, "export_seeded_config_payload", return_value={"rate_limit": 321}
+        ):
+            deploy.bootstrap_remote_config_if_missing("https://app.example.com", env)
+
+        self.assertEqual(http_calls[0][0], "GET")
+        self.assertEqual(http_calls[0][1], "https://app.example.com/admin/config")
+        self.assertEqual(http_calls[1][0], "POST")
+        self.assertEqual(http_calls[1][1], "https://app.example.com/admin/config/bootstrap")
+        self.assertEqual(
+            json.loads(http_calls[1][3].decode("utf-8")),
+            {"rate_limit": 321},
+        )
+
+    def test_smoke_deployed_app_rejects_configuration_unavailable_public_route(self) -> None:
+        env = {
+            "SHUMA_API_KEY": "test-admin-key",
+        }
+
+        responses = iter(
+            [
+                (200, "<!doctype html><html></html>"),
+                (500, "Configuration unavailable"),
+            ]
+        )
+
+        def fake_http(*, method, url, headers=None, body=None, timeout_seconds=30):
+            return next(responses)
+
+        with patch.object(deploy, "http_text_request", side_effect=fake_http):
+            with self.assertRaises(SystemExit) as exc:
+                deploy.smoke_deployed_app("https://app.example.com", env)
+
+        self.assertIn("Edge public-route smoke failed", str(exc.exception))

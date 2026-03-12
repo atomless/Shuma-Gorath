@@ -181,7 +181,7 @@ Deployment policy note: `SHUMA_KV_STORE_FAIL_OPEN` is a critical choice (fail-op
 - [`skills/prepare-shared-host-on-linode/SKILL.md`](skills/prepare-shared-host-on-linode/SKILL.md) - Agent skill for preparing a Linode shared host and surface-catalog handoff before Shuma deploy
 - [`skills/deploy-shuma-on-linode/SKILL.md`](skills/deploy-shuma-on-linode/SKILL.md) - Agent skill for one-command Linode provisioning + deployment
 - [`skills/prepare-shuma-on-akamai-fermyon/SKILL.md`](skills/prepare-shuma-on-akamai-fermyon/SKILL.md) - Agent skill for Akamai-edge-only Fermyon setup and deploy handoff preparation
-- [`skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](skills/deploy-shuma-on-akamai-fermyon/SKILL.md) - Deploy-side agent skill for Akamai-edge-only Fermyon rollout from a prepared setup receipt; real edge proof remains tracked in `FERM-SKILL-3`
+- [`skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](skills/deploy-shuma-on-akamai-fermyon/SKILL.md) - Deploy-side agent skill for Akamai-edge-only Fermyon rollout from a prepared setup receipt; the edge baseline is now live-proven
 - [`docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md) - Current live Fermyon/Akamai edge proof blockers and recovery path
 - [`docs/api.md`](docs/api.md) - <abbr title="Application Programming Interface">API</abbr> usage and endpoint details
 - [`docs/configuration.md`](docs/configuration.md) - Runtime configuration reference

@@ -1,7 +1,8 @@
 use spin_sdk::http::Method;
 
 use crate::{
-    extract_health_client_ip, forwarded_ip_trusted, health_secret_authorized, maze_response,
+    extract_client_ip, extract_health_client_ip, forwarded_ip_trusted, health_secret_authorized,
+    maze_response, request_is_https,
     response_with_optional_debug_headers, should_bypass_expensive_bot_checks_for_static,
 };
 
@@ -238,6 +239,34 @@ fn forwarded_headers_are_trusted_with_matching_secret() {
         ],
     );
     assert!(forwarded_ip_trusted(&req));
+}
+
+#[test]
+fn edge_fermyon_uses_true_client_ip_for_client_ip_extraction() {
+    let _lock = crate::test_support::lock_env();
+    std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+
+    let req = crate::test_support::request_with_headers(
+        "/admin/config",
+        &[("true-client-ip", "203.0.113.8")],
+    );
+
+    assert_eq!(extract_client_ip(&req), "203.0.113.8");
+    std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+}
+
+#[test]
+fn edge_fermyon_treats_spin_full_url_https_as_https() {
+    let _lock = crate::test_support::lock_env();
+    std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+
+    let req = crate::test_support::request_with_headers(
+        "/dashboard/login.html",
+        &[("spin-full-url", "https://example.edge/dashboard/login.html")],
+    );
+
+    assert!(request_is_https(&req));
+    std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
 }
 
 #[test]

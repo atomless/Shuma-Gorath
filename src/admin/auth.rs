@@ -159,27 +159,25 @@ fn parse_cookie(req: &Request, key: &str) -> Option<String> {
 }
 
 fn get_admin_api_key() -> Option<String> {
-    let key = std::env::var("SHUMA_API_KEY").ok()?;
-    let key = key.trim();
+    let key = crate::config::runtime_var_trimmed_optional("SHUMA_API_KEY")?;
     if key.is_empty() {
         return None;
     }
     if key == INSECURE_DEFAULT_API_KEY {
         return None;
     }
-    Some(key.to_string())
+    Some(key)
 }
 
 fn get_admin_readonly_api_key() -> Option<String> {
-    let key = std::env::var("SHUMA_ADMIN_READONLY_API_KEY").ok()?;
-    let key = key.trim();
+    let key = crate::config::runtime_var_trimmed_optional("SHUMA_ADMIN_READONLY_API_KEY")?;
     if key.is_empty() {
         return None;
     }
     if key == INSECURE_DEFAULT_API_KEY {
         return None;
     }
-    Some(key.to_string())
+    Some(key)
 }
 
 pub fn is_admin_api_key_configured() -> bool {
@@ -337,8 +335,7 @@ fn parse_admin_auth_failure_limit(value: Option<&str>) -> u32 {
 
 pub fn admin_auth_failure_limit_per_minute() -> u32 {
     parse_admin_auth_failure_limit(
-        std::env::var("SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE")
-            .ok()
+        crate::config::runtime_var_trimmed_optional("SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE")
             .as_deref(),
     )
 }
@@ -382,20 +379,17 @@ pub fn register_admin_auth_failure_with_provider(
 /// Returns true if admin access is allowed from this IP.
 /// If SHUMA_ADMIN_IP_ALLOWLIST is unset, all IPs are allowed (auth still required).
 pub fn is_admin_ip_allowed(req: &Request) -> bool {
-    let list = match std::env::var("SHUMA_ADMIN_IP_ALLOWLIST") {
-        Ok(v) => {
-            let items: Vec<String> = v
-                .split(',')
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-                .collect();
-            if items.is_empty() {
-                return true;
-            }
-            items
-        }
-        Err(_) => return true,
+    let Some(raw_allowlist) = crate::config::runtime_var_raw_optional("SHUMA_ADMIN_IP_ALLOWLIST") else {
+        return true;
     };
+    let list: Vec<String> = raw_allowlist
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    if list.is_empty() {
+        return true;
+    }
 
     let ip = crate::extract_client_ip(req);
     allowlist::is_allowlisted(&ip, &list)
@@ -541,6 +535,26 @@ mod tests {
         assert_eq!(auth.access_label(), "read_write");
         assert_eq!(auth.audit_actor_label(), "admin_bearer_rw");
         assert_eq!(get_admin_id(&req), "admin_rw");
+    }
+
+    #[test]
+    fn admin_ip_allowlist_uses_true_client_ip_on_edge_fermyon() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+        std::env::set_var("SHUMA_ADMIN_IP_ALLOWLIST", "203.0.113.8/32");
+
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Get)
+            .uri("/admin/config")
+            .header("authorization", "Bearer test-admin-key")
+            .header("true-client-ip", "203.0.113.8");
+        let req = builder.build();
+
+        assert!(is_admin_ip_allowed(&req));
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_ADMIN_IP_ALLOWLIST");
     }
 
     #[test]

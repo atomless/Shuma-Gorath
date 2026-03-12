@@ -92,6 +92,47 @@ Moved from active TODO files on 2026-02-14.
   - `make remote-update`
   - `make telemetry-shared-host-evidence`
 
+## Additional completions (2026-03-12)
+
+### P1 Fermyon / Akamai Edge Deployment Baseline
+
+- [x] FERM-SKILL-3 Run a real Fermyon / Akamai edge deployment proof, capture the happy path and crucial gotchas, and fold the verified steps back into the Fermyon setup and deploy skills.
+- [x] Why:
+  - the Akamai-edge-only backlog and UI gating were intentionally blocked on a real `gateway_deployment_profile=edge-fermyon` proof rather than repo-local assumptions
+  - the live path exposed real deployment-contract gaps that helper tests alone did not cover: missing defaults propagation into the Python deploy helper, missing full-config bootstrap path for fresh edge apps, and missing edge trust extraction for client IP / HTTPS posture
+- [x] Evidence:
+  - `docs/research/2026-03-12-fermyon-akamai-edge-live-proof.md`
+  - `docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`
+  - `docs/plans/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`
+  - `docs/plans/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`
+  - `scripts/deploy/fermyon_akamai_edge_setup.py`
+  - `scripts/deploy/fermyon_akamai_edge_deploy.py`
+  - `scripts/deploy/spin_manifest.py`
+  - `scripts/config_seed.sh`
+  - `scripts/tests/test_prepare_fermyon_akamai_edge.py`
+  - `scripts/tests/test_deploy_fermyon_akamai_edge.py`
+  - `scripts/tests/test_render_gateway_spin_manifest.py`
+  - `scripts/tests/test_config_lifecycle.py`
+  - `src/config/runtime_env.rs`
+  - `src/config/mod.rs`
+  - `src/config/tests.rs`
+  - `src/lib.rs`
+  - `src/lib_tests/security.rs`
+  - `src/admin/api.rs`
+  - `src/admin/auth.rs`
+  - `skills/prepare-shuma-on-akamai-fermyon/SKILL.md`
+  - `skills/prepare-shuma-on-akamai-fermyon/references/OPERATIONS.md`
+  - `skills/deploy-shuma-on-akamai-fermyon/SKILL.md`
+  - `skills/deploy-shuma-on-akamai-fermyon/references/OPERATIONS.md`
+  - `.shuma/fermyon-akamai-edge-setup.json`
+  - `.shuma/fermyon-akamai-edge-deploy.json`
+  - `make test-deploy-fermyon`
+  - `make deploy-fermyon-akamai-edge`
+  - live proof checks:
+    - `GET /dashboard/login.html -> 200`
+    - `GET /index.html -> 200`
+    - authenticated `GET /admin/config -> 200`
+
 ## Additional completions (2026-03-10)
 
 ### Process Auditability and Completion Recording

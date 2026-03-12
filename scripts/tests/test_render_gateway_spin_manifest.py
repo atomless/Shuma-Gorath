@@ -66,6 +66,51 @@ class RenderGatewaySpinManifestTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Invalid upstream origin", result.stderr)
 
+    def test_edge_profile_injects_bot_defence_variable_wiring(self) -> None:
+        result, output_path = run_render(
+            textwrap.dedent(
+                """
+                spin_manifest_version = 2
+                [component.bot-defence]
+                source = "dist/wasm/shuma_gorath.wasm"
+                allowed_outbound_hosts = []
+                """
+            ),
+            "https://origin.example.com",
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        rendered = output_path.read_text(encoding="utf-8")
+        self.assertNotIn('[variables]', rendered)
+        self.assertNotIn('SHUMA_API_KEY = "{{ shuma_api_key }}"', rendered)
+
+        edge_result = subprocess.run(
+            [
+                "python3",
+                str(SCRIPT),
+                "--manifest",
+                str(output_path.parent / "spin.toml"),
+                "--output",
+                str(output_path),
+                "--upstream-origin",
+                "https://origin.example.com",
+                "--profile",
+                "edge-fermyon",
+            ],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(edge_result.returncode, 0, msg=edge_result.stderr or edge_result.stdout)
+        edge_rendered = output_path.read_text(encoding="utf-8")
+        self.assertIn("[variables]", edge_rendered)
+        self.assertIn('shuma_api_key = { default = "" }', edge_rendered)
+        self.assertIn('shuma_debug_headers = { default = "" }', edge_rendered)
+        self.assertIn("[component.bot-defence.variables]", edge_rendered)
+        self.assertIn('shuma_api_key = "{{ shuma_api_key }}"', edge_rendered)
+        self.assertIn('shuma_debug_headers = "{{ shuma_debug_headers }}"', edge_rendered)
+        self.assertNotIn('environment = { SHUMA_API_KEY = "{{ shuma_api_key }}"', edge_rendered)
+
 
 if __name__ == "__main__":
     unittest.main()

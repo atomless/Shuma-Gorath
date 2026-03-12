@@ -23,8 +23,9 @@ cd Shuma-Gorath
 - [`../skills/prepare-shared-host-on-linode/SKILL.md`](../skills/prepare-shared-host-on-linode/SKILL.md) - Repo-local agent skill for shared-host Linode setup and deploy handoff preparation
 - [`../skills/deploy-shuma-on-linode/SKILL.md`](../skills/deploy-shuma-on-linode/SKILL.md) - Repo-local agent skill for one-command Linode provisioning + deployment
 - [`../skills/prepare-shuma-on-akamai-fermyon/SKILL.md`](../skills/prepare-shuma-on-akamai-fermyon/SKILL.md) - Repo-local agent skill for Akamai-edge-only Fermyon setup and deploy handoff preparation
-- [`../skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](../skills/deploy-shuma-on-akamai-fermyon/SKILL.md) - Repo-local agent skill for Akamai-edge-only Fermyon deploy execution from a prepared setup receipt; real edge proof remains tracked in `FERM-SKILL-3`
-- [`research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md) - Live Fermyon/Akamai edge proof blockers and the current provider-access recovery path
+- [`../skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](../skills/deploy-shuma-on-akamai-fermyon/SKILL.md) - Repo-local agent skill for Akamai-edge-only Fermyon deploy execution from a prepared setup receipt; the edge baseline is now live-proven
+- [`research/2026-03-12-fermyon-akamai-edge-live-proof.md`](research/2026-03-12-fermyon-akamai-edge-live-proof.md) - Completed live Fermyon/Akamai edge proof and the verified happy path/gotchas
+- [`research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md) - Historical first-pass blocker note for the Fermyon/Akamai edge proof
 - [`research/2026-03-06-linode-shared-host-live-proof.md`](research/2026-03-06-linode-shared-host-live-proof.md) - First live proof of the shared-host Linode setup + deploy path
 - [`plans/2026-03-07-generic-ssh-remote-maintenance-layer-design.md`](plans/2026-03-07-generic-ssh-remote-maintenance-layer-design.md) - Provider-agnostic `ssh_systemd` day-2 remote operations contract
 - [`api.md`](api.md) - <abbr title="Application Programming Interface">API</abbr> usage and endpoint details

@@ -1,6 +1,6 @@
 # Blocked TODO Roadmap
 
-Last updated: 2026-03-10
+Last updated: 2026-03-12
 
 This file holds gated, contingent, or explicitly deferred work that is not execution-ready.
 Move an item back into `todos/todo.md` only when its blocking condition is cleared.
@@ -24,44 +24,6 @@ Security finding validity and closure status live in `todos/security-review.md`.
 
 - [ ] DEP-ENT-6 Optional asynchronous mirror of high-confidence bans to Akamai Network Lists.
   Blocker: wait until `DEP-ENT-1..5` establish the authoritative enterprise distributed-state baseline.
-
-## P1 Blocked by Fermyon / Akamai Edge Provider Access
-
-Reference context:
-- [`docs/plans/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`](../docs/plans/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md)
-- [`docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](../docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md)
-- [`../skills/prepare-shuma-on-akamai-fermyon/SKILL.md`](../skills/prepare-shuma-on-akamai-fermyon/SKILL.md)
-- [`../skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](../skills/deploy-shuma-on-akamai-fermyon/SKILL.md)
-
-- [ ] FERM-SKILL-3 Run a real Fermyon / Akamai edge deployment proof, capture the happy path and crucial gotchas, and fold the verified steps back into the Fermyon setup and deploy skills.
-  Blocker: the helper now reaches live Fermyon browser auth, but the provider currently ends the session with `User is not allow-listed!`. Wait for Wasm Functions access approval or support intervention, confirm the approved identity matches the browser login, then rerun `make prepare-fermyon-akamai-edge` and `make deploy-fermyon-akamai-edge`.
-
-## P1 Blocked by Fermyon / Akamai Edge Deployment Baseline
-
-Reference context:
-- [`docs/plans/2026-03-09-akamai-rate-geo-integration-semantics-note.md`](../docs/plans/2026-03-09-akamai-rate-geo-integration-semantics-note.md)
-- [`docs/plans/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`](../docs/plans/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md)
-
-- [ ] AK-RG-2 Define config surface and naming for Rate and GEO Akamai integration controls, including defaults and whether each is a simple toggle or toggle-plus-mode control.
-  Blocker: do not start until `FERM-SKILL-3` is complete and a real edge deployment proof confirms `gateway_deployment_profile=edge-fermyon` posture is operational.
-
-- [ ] AK-RG-3 Implement admin API and runtime config validation for the new Rate and GEO Akamai controls with explicit guardrails and clear validation errors.
-  Blocker: do not start until `FERM-SKILL-3` is complete and a real edge deployment proof confirms `gateway_deployment_profile=edge-fermyon` posture is operational.
-
-- [ ] AK-RG-4 Implement runtime behavior wiring so Akamai Rate and GEO signals can influence decisions according to the defined mode semantics without bypassing Shuma policy ownership.
-  Blocker: do not start until `FERM-SKILL-3` is complete and a real edge deployment proof confirms `gateway_deployment_profile=edge-fermyon` posture is operational.
-
-- [ ] AK-RG-5 Add dashboard controls and help text for Rate and GEO Akamai integration in the top-level tabs, including disabled-state behavior and operator warnings.
-  Blocker: do not start until `FERM-SKILL-3` is complete and a real edge deployment proof confirms `gateway_deployment_profile=edge-fermyon` posture is operational.
-
-- [ ] AK-RG-6 Add observability and policy-event taxonomy coverage for Rate and GEO Akamai decisions (source, mode, action, fallback reason, and downgrade behavior).
-  Blocker: do not start until `FERM-SKILL-3` is complete and a real edge deployment proof confirms `gateway_deployment_profile=edge-fermyon` posture is operational.
-
-- [ ] AK-RG-7 Add integration and end-to-end tests for mode precedence, downgrade/fallback safety, and regression against internal-only behavior.
-  Blocker: do not start until `FERM-SKILL-3` is complete and a real edge deployment proof confirms `gateway_deployment_profile=edge-fermyon` posture is operational.
-
-- [ ] AK-RG-8 Document rollout and rollback guidance for enabling Rate and GEO Akamai integration in enterprise deployments, including promotion gates and emergency disable steps.
-  Blocker: do not start until `FERM-SKILL-3` is complete and a real edge deployment proof confirms `gateway_deployment_profile=edge-fermyon` posture is operational.
 
 - [ ] OUT-4 ADR for non-Redis external integrations (for example webhook notifications or cross-service sync) that defines the approved pattern in Spin (`allowed_outbound_hosts` expansion vs sidecar/bridge service).
   Blocker: wait until a concrete non-Redis integration target is approved.

@@ -16,6 +16,12 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::challenge::KeyValueStore;
 
+mod runtime_env;
+
+#[cfg(test)]
+pub(crate) use runtime_env::{clear_test_spin_variables, set_test_spin_variable};
+pub(crate) use runtime_env::{runtime_var_raw_optional, runtime_var_trimmed_optional};
+
 const DEFAULTS_ENV_TEXT: &str = include_str!("../../config/defaults.env");
 
 pub const POW_DIFFICULTY_MIN: u8 = 12;
@@ -965,6 +971,17 @@ impl Config {
     }
 }
 
+pub fn default_seeded_config() -> Config {
+    let mut cfg =
+        serde_json::from_str::<Config>("{}").expect("config defaults JSON must deserialize");
+    clamp_config_values(&mut cfg);
+    cfg
+}
+
+pub(crate) fn normalize_persisted_config(cfg: &mut Config) {
+    clamp_config_values(cfg);
+}
+
 static RUNTIME_CONFIG_CACHE: Lazy<Mutex<HashMap<String, CachedConfig>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 static RUNTIME_EPHEMERAL_FLAGS: Lazy<Mutex<HashMap<String, RuntimeEphemeralFlags>>> =
@@ -976,14 +993,12 @@ fn runtime_ephemeral_flags(site_id: &str) -> RuntimeEphemeralFlags {
 }
 
 fn runtime_env_test_mode_override() -> Option<bool> {
-    env::var("SHUMA_TEST_MODE")
-        .ok()
+    runtime_var_raw_optional("SHUMA_TEST_MODE")
         .and_then(|value| parse_bool_like(value.as_str()))
 }
 
 fn runtime_env_adversary_sim_enabled_override() -> Option<bool> {
-    env::var("SHUMA_ADVERSARY_SIM_ENABLED")
-        .ok()
+    runtime_var_raw_optional("SHUMA_ADVERSARY_SIM_ENABLED")
         .and_then(|value| parse_bool_like(value.as_str()))
 }
 
@@ -1349,8 +1364,7 @@ fn validate_env_only_impl() -> Result<(), String> {
 }
 
 fn validate_gateway_contract_env() -> Result<(), String> {
-    let profile_raw = env::var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE")
-        .ok()
+    let profile_raw = runtime_var_raw_optional("SHUMA_GATEWAY_DEPLOYMENT_PROFILE")
         .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_DEPLOYMENT_PROFILE"));
     let profile = parse_gateway_deployment_profile(profile_raw.as_str()).ok_or_else(|| {
         format!(
@@ -1359,8 +1373,7 @@ fn validate_gateway_contract_env() -> Result<(), String> {
         )
     })?;
 
-    let origin_auth_mode_raw = env::var("SHUMA_GATEWAY_ORIGIN_AUTH_MODE")
-        .ok()
+    let origin_auth_mode_raw = runtime_var_raw_optional("SHUMA_GATEWAY_ORIGIN_AUTH_MODE")
         .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_ORIGIN_AUTH_MODE"));
     let origin_auth_mode =
         parse_gateway_origin_auth_mode(origin_auth_mode_raw.as_str()).ok_or_else(|| {
@@ -1669,7 +1682,7 @@ fn validate_env_in_tests_enabled() -> bool {
 }
 
 fn validate_non_empty(name: &str) -> Result<(), String> {
-    let value = env::var(name).map_err(|_| format!("Missing required env var {}", name))?;
+    let value = runtime_var_raw_optional(name).ok_or_else(|| format!("Missing required env var {}", name))?;
     if value.trim().is_empty() {
         return Err(format!("Invalid empty env var {}", name));
     }
@@ -1677,7 +1690,7 @@ fn validate_non_empty(name: &str) -> Result<(), String> {
 }
 
 fn validate_bool_like_var(name: &str) -> Result<(), String> {
-    let value = env::var(name).map_err(|_| format!("Missing required env var {}", name))?;
+    let value = runtime_var_raw_optional(name).ok_or_else(|| format!("Missing required env var {}", name))?;
     if parse_bool_like(&value).is_none() {
         return Err(format!("Invalid boolean env var {}={}", name, value));
     }
@@ -1685,7 +1698,7 @@ fn validate_bool_like_var(name: &str) -> Result<(), String> {
 }
 
 fn validate_optional_bool_like_var(name: &str) -> Result<(), String> {
-    let Some(value) = env::var(name).ok() else {
+    let Some(value) = runtime_var_raw_optional(name) else {
         return Ok(());
     };
     if parse_bool_like(&value).is_none() {
@@ -1695,7 +1708,7 @@ fn validate_optional_bool_like_var(name: &str) -> Result<(), String> {
 }
 
 fn validate_optional_runtime_environment_var(name: &str) -> Result<(), String> {
-    let Some(value) = env::var(name).ok() else {
+    let Some(value) = runtime_var_raw_optional(name) else {
         return Ok(());
     };
     if value.trim().is_empty() {
@@ -1711,7 +1724,7 @@ fn validate_optional_runtime_environment_var(name: &str) -> Result<(), String> {
 }
 
 fn validate_optional_redis_url_var(name: &str) -> Result<(), String> {
-    let Some(value) = env::var(name).ok() else {
+    let Some(value) = runtime_var_raw_optional(name) else {
         return Ok(());
     };
     if value.trim().is_empty() {
@@ -1727,7 +1740,7 @@ fn validate_optional_redis_url_var(name: &str) -> Result<(), String> {
 }
 
 fn validate_optional_rate_limiter_outage_mode_var(name: &str) -> Result<(), String> {
-    let Some(value) = env::var(name).ok() else {
+    let Some(value) = runtime_var_raw_optional(name) else {
         return Ok(());
     };
     if value.trim().is_empty() {
@@ -1743,7 +1756,7 @@ fn validate_optional_rate_limiter_outage_mode_var(name: &str) -> Result<(), Stri
 }
 
 fn validate_optional_model_id_var(name: &str) -> Result<(), String> {
-    let Some(value) = env::var(name).ok() else {
+    let Some(value) = runtime_var_raw_optional(name) else {
         return Ok(());
     };
     let trimmed = value.trim();
@@ -1760,7 +1773,7 @@ fn validate_optional_model_id_var(name: &str) -> Result<(), String> {
 }
 
 fn validate_optional_secret_var(name: &str) -> Result<(), String> {
-    let Some(value) = env::var(name).ok() else {
+    let Some(value) = runtime_var_raw_optional(name) else {
         return Ok(());
     };
     let trimmed = value.trim();
@@ -1777,7 +1790,7 @@ fn validate_optional_secret_var(name: &str) -> Result<(), String> {
 }
 
 fn validate_u64_var(name: &str) -> Result<(), String> {
-    let value = env::var(name).map_err(|_| format!("Missing required env var {}", name))?;
+    let value = runtime_var_raw_optional(name).ok_or_else(|| format!("Missing required env var {}", name))?;
     if value.trim().parse::<u64>().is_err() {
         return Err(format!("Invalid integer env var {}={}", name, value));
     }
@@ -1785,15 +1798,13 @@ fn validate_u64_var(name: &str) -> Result<(), String> {
 }
 
 fn parse_env_bool_optional(name: &str, default: bool) -> Option<bool> {
-    let raw = env::var(name)
-        .ok()
+    let raw = runtime_var_raw_optional(name)
         .unwrap_or_else(|| if default { "true" } else { "false" }.to_string());
     parse_bool_like(raw.as_str())
 }
 
 fn env_u8_optional(name: &str, default: u8) -> Option<u8> {
-    env::var(name)
-        .ok()
+    runtime_var_raw_optional(name)
         .unwrap_or_else(|| default.to_string())
         .trim()
         .parse::<u8>()
@@ -1801,8 +1812,7 @@ fn env_u8_optional(name: &str, default: u8) -> Option<u8> {
 }
 
 fn env_u32_optional(name: &str, default: u32) -> Option<u32> {
-    env::var(name)
-        .ok()
+    runtime_var_raw_optional(name)
         .unwrap_or_else(|| default.to_string())
         .trim()
         .parse::<u32>()
@@ -1810,14 +1820,12 @@ fn env_u32_optional(name: &str, default: u32) -> Option<u32> {
 }
 
 fn invalid_boolean_env(name: &str, fallback_raw: &str) -> String {
-    let value = env::var(name)
-        .ok()
-        .unwrap_or_else(|| fallback_raw.to_string());
+    let value = runtime_var_raw_optional(name).unwrap_or_else(|| fallback_raw.to_string());
     format!("Invalid boolean env var {}={}", name, value)
 }
 
 fn invalid_integer_env(name: &str) -> String {
-    let value = env::var(name).ok().unwrap_or_default();
+    let value = runtime_var_raw_optional(name).unwrap_or_default();
     if value.trim().is_empty() {
         format!("Invalid integer env var {}=<empty>", name)
     } else {
@@ -2050,10 +2058,7 @@ pub fn debug_headers_enabled() -> bool {
 }
 
 pub fn forwarded_header_trust_configured() -> bool {
-    env::var("SHUMA_FORWARDED_IP_SECRET")
-        .ok()
-        .map(|v| !v.trim().is_empty())
-        .unwrap_or(false)
+    runtime_var_trimmed_optional("SHUMA_FORWARDED_IP_SECRET").is_some()
 }
 
 pub fn kv_store_fail_open() -> bool {
@@ -2061,17 +2066,13 @@ pub fn kv_store_fail_open() -> bool {
 }
 
 fn env_bool_optional(name: &str, default: bool) -> bool {
-    env::var(name)
-        .ok()
+    runtime_var_raw_optional(name)
         .and_then(|v| parse_bool_like(v.as_str()))
         .unwrap_or(default)
 }
 
 fn env_trimmed_optional(name: &str) -> Option<String> {
-    env::var(name)
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
+    runtime_var_trimmed_optional(name)
 }
 
 fn frontier_provider_model(name: &str, default_value: &str) -> String {
@@ -2091,8 +2092,7 @@ pub fn enterprise_unsynced_state_exception_confirmed() -> bool {
 }
 
 pub fn gateway_deployment_profile() -> GatewayDeploymentProfile {
-    env::var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE")
-        .ok()
+    runtime_var_raw_optional("SHUMA_GATEWAY_DEPLOYMENT_PROFILE")
         .and_then(|value| parse_gateway_deployment_profile(value.as_str()))
         .unwrap_or_else(|| {
             parse_gateway_deployment_profile(defaults_raw("SHUMA_GATEWAY_DEPLOYMENT_PROFILE").as_str())
@@ -2101,8 +2101,7 @@ pub fn gateway_deployment_profile() -> GatewayDeploymentProfile {
 }
 
 pub fn gateway_origin_auth_mode() -> GatewayOriginAuthMode {
-    env::var("SHUMA_GATEWAY_ORIGIN_AUTH_MODE")
-        .ok()
+    runtime_var_raw_optional("SHUMA_GATEWAY_ORIGIN_AUTH_MODE")
         .and_then(|value| parse_gateway_origin_auth_mode(value.as_str()))
         .unwrap_or_else(|| {
             parse_gateway_origin_auth_mode(defaults_raw("SHUMA_GATEWAY_ORIGIN_AUTH_MODE").as_str())
@@ -2111,8 +2110,7 @@ pub fn gateway_origin_auth_mode() -> GatewayOriginAuthMode {
 }
 
 pub fn runtime_environment() -> RuntimeEnvironment {
-    env::var("SHUMA_RUNTIME_ENV")
-        .ok()
+    runtime_var_raw_optional("SHUMA_RUNTIME_ENV")
         .and_then(|value| parse_runtime_environment(value.as_str()))
         .unwrap_or(RuntimeEnvironment::RuntimeProd)
 }
@@ -2150,16 +2148,14 @@ pub fn gateway_allow_insecure_http_special_use_ips() -> bool {
 }
 
 pub fn gateway_insecure_http_special_use_ip_allowlist() -> String {
-    env::var("SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST")
-        .ok()
+    runtime_var_raw_optional("SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST")
         .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_INSECURE_HTTP_SPECIAL_USE_IP_ALLOWLIST"))
         .trim()
         .to_string()
 }
 
 pub fn gateway_public_authorities() -> String {
-    env::var("SHUMA_GATEWAY_PUBLIC_AUTHORITIES")
-        .ok()
+    runtime_var_raw_optional("SHUMA_GATEWAY_PUBLIC_AUTHORITIES")
         .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_PUBLIC_AUTHORITIES"))
         .trim()
         .to_string()
@@ -2185,16 +2181,14 @@ pub fn gateway_origin_lock_confirmed() -> bool {
 }
 
 pub fn gateway_origin_auth_header_name() -> String {
-    env::var("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME")
-        .ok()
+    runtime_var_raw_optional("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME")
         .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME"))
         .trim()
         .to_string()
 }
 
 pub fn gateway_origin_auth_header_value() -> String {
-    env::var("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE")
-        .ok()
+    runtime_var_raw_optional("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE")
         .unwrap_or_else(|| defaults_raw("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE"))
         .trim()
         .to_string()
@@ -2283,23 +2277,18 @@ pub fn frontier_summary() -> FrontierSummary {
 }
 
 pub fn rate_limiter_redis_url() -> Option<String> {
-    env::var("SHUMA_RATE_LIMITER_REDIS_URL")
-        .ok()
-        .and_then(|value| parse_redis_url(&value))
+    runtime_var_raw_optional("SHUMA_RATE_LIMITER_REDIS_URL").and_then(|value| parse_redis_url(&value))
 }
 
 pub fn ban_store_redis_url() -> Option<String> {
-    env::var("SHUMA_BAN_STORE_REDIS_URL")
-        .ok()
-        .and_then(|value| parse_redis_url(&value))
+    runtime_var_raw_optional("SHUMA_BAN_STORE_REDIS_URL").and_then(|value| parse_redis_url(&value))
 }
 
 fn env_rate_limiter_outage_mode(
     name: &str,
     default: RateLimiterOutageMode,
 ) -> RateLimiterOutageMode {
-    env::var(name)
-        .ok()
+    runtime_var_raw_optional(name)
         .and_then(|value| parse_rate_limiter_outage_mode(value.as_str()))
         .unwrap_or(default)
 }
@@ -2470,30 +2459,28 @@ pub fn monitoring_rollup_retention_hours() -> u64 {
 
 pub fn env_string_required(name: &str) -> String {
     if cfg!(test) {
-        return env::var(name).ok().unwrap_or_else(|| defaults_raw(name));
+        return runtime_var_raw_optional(name).unwrap_or_else(|| defaults_raw(name));
     }
-    env::var(name).unwrap_or_else(|_| panic!("Missing required env var {}", name))
+    runtime_var_raw_optional(name).unwrap_or_else(|| panic!("Missing required env var {}", name))
 }
 
 fn env_bool_required(name: &str) -> bool {
     if cfg!(test) {
-        return env::var(name)
-            .ok()
+        return runtime_var_raw_optional(name)
             .and_then(|v| parse_bool_like(v.as_str()))
             .unwrap_or_else(|| defaults_bool(name));
     }
-    let value = env::var(name).unwrap_or_else(|_| panic!("Missing required env var {}", name));
+    let value = runtime_var_raw_optional(name).unwrap_or_else(|| panic!("Missing required env var {}", name));
     parse_bool_like(&value).unwrap_or_else(|| panic!("Invalid boolean env var {}={}", name, value))
 }
 
 fn env_u64_required(name: &str) -> u64 {
     if cfg!(test) {
-        return env::var(name)
-            .ok()
+        return runtime_var_raw_optional(name)
             .and_then(|v| v.trim().parse::<u64>().ok())
             .unwrap_or_else(|| defaults_u64(name));
     }
-    let value = env::var(name).unwrap_or_else(|_| panic!("Missing required env var {}", name));
+    let value = runtime_var_raw_optional(name).unwrap_or_else(|| panic!("Missing required env var {}", name));
     value
         .trim()
         .parse::<u64>()

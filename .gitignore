@@ -24,3 +24,5 @@ scripts/tests/adversarial/latest_report.json
 # Spin runtime data
 .spin/
 .shuma/
+spin.fermyon-akamai-edge.toml
+.spin-aka/

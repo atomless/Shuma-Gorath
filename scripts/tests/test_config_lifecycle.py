@@ -94,6 +94,7 @@ class ConfigLifecycleTests(unittest.TestCase):
         self.assertEqual(seeded.returncode, 0, msg=seeded.stderr or seeded.stdout)
         current = self.read_config()
         current.pop("rate_limit", None)
+        current["test_mode"] = True
         self.write_raw_config(json.dumps(current))
 
         stale = self.run_config_seed("--verify-only")
@@ -120,6 +121,29 @@ class ConfigLifecycleTests(unittest.TestCase):
         ready = self.run_config_seed("--verify-only")
         self.assertEqual(ready.returncode, 0, msg=ready.stderr or ready.stdout)
         self.assertIn("schema-complete", ready.stdout)
+
+    def test_print_json_emits_canonical_merged_config_without_mutating_store(self) -> None:
+        printed_missing = self.run_config_seed("--print-json")
+        self.assertEqual(printed_missing.returncode, 0, msg=printed_missing.stderr or printed_missing.stdout)
+        missing_payload = json.loads(printed_missing.stdout)
+        self.assertIn("rate_limit", missing_payload)
+        self.assertFalse(self.db_path.exists(), "print-json must not create the sqlite store")
+
+        seeded = self.run_config_seed()
+        self.assertEqual(seeded.returncode, 0, msg=seeded.stderr or seeded.stdout)
+        current = self.read_config()
+        current.pop("rate_limit", None)
+        self.write_raw_config(json.dumps(current))
+
+        printed_stale = self.run_config_seed("--print-json")
+        self.assertEqual(printed_stale.returncode, 0, msg=printed_stale.stderr or printed_stale.stdout)
+        stale_payload = json.loads(printed_stale.stdout)
+        self.assertIn("rate_limit", stale_payload)
+        self.assertFalse(stale_payload["test_mode"], "print-json must normalize runtime-ephemeral toggles")
+
+        verify = self.run_config_seed("--verify-only")
+        self.assertNotEqual(verify.returncode, 0)
+        self.assertIn("stale KV config", verify.stderr + verify.stdout)
 
     def test_make_targets_use_read_only_config_verification(self) -> None:
         makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")

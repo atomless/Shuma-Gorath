@@ -5034,6 +5034,70 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn admin_config_bootstraps_missing_config_from_defaults_on_write() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+        store.map.lock().unwrap().remove("config:default");
+
+        let post_req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"rate_limit":321}"#.to_vec(),
+        );
+        let post_resp = handle_admin_config(&post_req, &store, "default");
+        assert_eq!(*post_resp.status(), 200u16, "{:?}", post_resp.body());
+
+        let saved_bytes = store.get("config:default").unwrap().unwrap();
+        let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
+        assert_eq!(saved_cfg.rate_limit, 321);
+        assert_eq!(
+            saved_cfg.js_required_enforced,
+            crate::config::defaults().js_required_enforced
+        );
+        assert_eq!(
+            saved_cfg.challenge_puzzle_enabled,
+            crate::config::defaults().challenge_puzzle_enabled
+        );
+
+        let effective_cfg = crate::config::load_runtime_cached(&store, "default").unwrap();
+        assert_eq!(effective_cfg.rate_limit, 321);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
+    fn admin_config_bootstrap_endpoint_seeds_missing_config_from_full_payload() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+        store.map.lock().unwrap().remove("config:default");
+
+        let mut payload = serde_json::to_value(crate::config::default_seeded_config()).unwrap();
+        payload["rate_limit"] = serde_json::json!(444);
+        let req = make_request(
+            Method::Post,
+            "/admin/config/bootstrap",
+            serde_json::to_vec(&payload).unwrap(),
+        );
+
+        let resp = handle_admin_config_bootstrap(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16, "{:?}", resp.body());
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(body.get("bootstrapped"), Some(&serde_json::Value::Bool(true)));
+
+        let saved_cfg: crate::config::Config =
+            serde_json::from_slice(&store.get("config:default").unwrap().unwrap()).unwrap();
+        assert_eq!(saved_cfg.rate_limit, 444);
+        assert_eq!(
+            saved_cfg.ip_range_suggestions_high_collateral_percent,
+            crate::config::default_seeded_config().ip_range_suggestions_high_collateral_percent
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
     fn admin_config_updates_ai_policy_fields_via_first_class_keys() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
@@ -6403,6 +6467,10 @@ mod admin_auth_tests {
     fn write_access_matrix_covers_only_mutating_admin_routes() {
         assert!(request_requires_admin_write("/admin/config", &Method::Post));
         assert!(request_requires_admin_write(
+            "/admin/config/bootstrap",
+            &Method::Post
+        ));
+        assert!(request_requires_admin_write(
             "/admin/config/validate",
             &Method::Post
         ));
@@ -6433,6 +6501,10 @@ mod admin_auth_tests {
             &Method::Post
         ));
         assert!(!request_requires_admin_write("/admin/config", &Method::Get));
+        assert!(!request_requires_admin_write(
+            "/admin/config/bootstrap",
+            &Method::Get
+        ));
         assert!(!request_requires_admin_write(
             "/admin/config/validate",
             &Method::Get
@@ -6489,6 +6561,7 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/analytics"
             | "/admin/events"
             | "/admin/config"
+            | "/admin/config/bootstrap"
             | "/admin/config/validate"
             | "/admin/config/export"
             | "/admin/adversary-sim/control"
@@ -6837,6 +6910,7 @@ fn request_requires_admin_write(path: &str, method: &Method) -> bool {
         "/admin/ban"
             | "/admin/unban"
             | "/admin/config"
+            | "/admin/config/bootstrap"
             | "/admin/config/validate"
             | "/admin/adversary-sim/control"
             | "/admin/adversary-sim/history/cleanup"
@@ -7915,7 +7989,7 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
     vec![
         (
             "SHUMA_ADMIN_IP_ALLOWLIST".to_string(),
-            std::env::var("SHUMA_ADMIN_IP_ALLOWLIST").unwrap_or_default(),
+            crate::config::runtime_var_raw_optional("SHUMA_ADMIN_IP_ALLOWLIST").unwrap_or_default(),
         ),
         (
             "SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE".to_string(),
@@ -9462,6 +9536,7 @@ fn handle_admin_config_internal(
         // Load current config
         let mut cfg = match crate::config::Config::load(store, site_id) {
             Ok(cfg) => cfg,
+            Err(crate::config::ConfigLoadError::MissingConfig) => crate::config::default_seeded_config(),
             Err(err) => return Response::new(500, err.user_message()),
         };
         let mut changed = false;
@@ -11158,6 +11233,56 @@ fn handle_admin_config(
     site_id: &str,
 ) -> Response {
     handle_admin_config_internal(req, store, site_id, false)
+}
+
+fn handle_admin_config_bootstrap(
+    req: &Request,
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+) -> Response {
+    if *req.method() != spin_sdk::http::Method::Post {
+        return Response::new(405, "Method Not Allowed");
+    }
+    if !crate::config::admin_config_write_enabled() {
+        return Response::new(
+            403,
+            "Config updates are disabled when SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false",
+        );
+    }
+
+    match crate::config::Config::load(store, site_id) {
+        Ok(_) => return Response::new(409, "Config already seeded"),
+        Err(crate::config::ConfigLoadError::MissingConfig) => {}
+        Err(err) => return Response::new(500, err.user_message()),
+    }
+
+    let body = match crate::request_validation::parse_json_body(
+        req.body(),
+        crate::request_validation::MAX_ADMIN_JSON_BYTES,
+    ) {
+        Ok(value) => value,
+        Err(err) => return Response::new(400, format!("Invalid config payload: {}", err)),
+    };
+
+    let mut cfg = match serde_json::from_value::<crate::config::Config>(body) {
+        Ok(cfg) => cfg,
+        Err(err) => return Response::new(400, format!("Invalid config payload: {}", err)),
+    };
+    crate::config::normalize_persisted_config(&mut cfg);
+
+    if persist_site_config(store, site_id, &cfg).is_err() {
+        return Response::new(500, "Key-value store error");
+    }
+
+    let challenge_default = challenge_threshold_default();
+    let not_a_bot_default = not_a_bot_threshold_default();
+    let maze_default = maze_threshold_default();
+    let response_body = serde_json::to_string(&json!({
+        "bootstrapped": true,
+        "config": admin_config_payload(&cfg, challenge_default, not_a_bot_default, maze_default)
+    }))
+    .unwrap();
+    Response::new(200, response_body)
 }
 
 fn handle_admin_config_validate(
@@ -13607,6 +13732,7 @@ pub fn handle_internal(req: &Request) -> Response {
 ///   - GET /admin/ip-range/suggestions: Query IP range recommendation suggestions
 ///   - GET /admin/config: Get current config including test_mode status
 ///   - POST /admin/config: Update config (e.g., toggle test_mode)
+///   - POST /admin/config/bootstrap: Seed missing KV config explicitly from a full config payload
 ///   - POST /admin/config/validate: Validate a config patch without persisting changes
 ///   - GET /admin/config/export: Export non-secret runtime config for immutable deploy handoff
 ///   - POST /admin/adversary-sim/control: Start/stop adversary simulation orchestration
@@ -14054,6 +14180,9 @@ pub fn handle_admin(req: &Request) -> Response {
         "/admin/config" => {
             return handle_admin_config(req, &store, site_id);
         }
+        "/admin/config/bootstrap" => {
+            return handle_admin_config_bootstrap(req, &store, site_id);
+        }
         "/admin/config/validate" => {
             return handle_admin_config_validate(req, &store, site_id);
         }
@@ -14094,7 +14223,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/bootstrap, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics

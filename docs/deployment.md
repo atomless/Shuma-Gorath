@@ -5,7 +5,7 @@ Shuma-Gorath is designed to run on Spin (local or cloud). Use the Makefile paths
 Shuma-Gorath is intended to complement enterprise bot defenses (for example Akamai Bot Manager), but can run standalone.
 Akamai-specific operator controls belong only to the Akamai edge posture (`SHUMA_GATEWAY_DEPLOYMENT_PROFILE=edge-fermyon`). Shared-server and other non-edge deployments keep the baseline and generic trusted-header surfaces, but must not present themselves as Akamai-edge integrations.
 
-The remaining Akamai-edge-specific Rate and GEO expansion work is blocked on the verified Fermyon/Akamai edge live proof (`FERM-SKILL-3`). The setup and deploy skills are now implemented, but until the live proof is complete only the already-implemented fingerprint edge adapter and generic trusted GEO header path are in scope.
+The Fermyon / Akamai edge baseline is now live-proven. Akamai-edge-specific Rate and GEO expansion work can proceed from that posture, but only for deployments that actually run with `SHUMA_GATEWAY_DEPLOYMENT_PROFILE=edge-fermyon`.
 
 For the current deployment-track execution backlog (single-host baseline and enterprise multi-instance sync hardening), see:
 [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md).
@@ -261,7 +261,7 @@ Current implementation note:
 Use wrappers so every path starts from one baseline and layers profile-specific checks:
 
 - Shared baseline:
-  - `make deploy-profile-baseline` (config seed + runtime build)
+  - `make deploy-profile-baseline` (config verification + dashboard/runtime build)
 - Single-host profile:
   - `make deploy-self-hosted-minimal`
 - Enterprise overlay:
@@ -633,26 +633,25 @@ Current honest boundary:
 - this path is `spin aka` only,
 - it does not participate in `SHUMA_ACTIVE_REMOTE` or `make remote-*`,
 - if `spin aka` PAT login panics, the helper falls back to device login in interactive sessions,
-- if device login still ends with `User is not allow-listed!`, treat that as a real provider-access blocker, expect the setup receipt to remain in `status=blocked` form, and leave `FERM-SKILL-3` open.
+- if device login still ends with `User is not allow-listed!`, treat that as a real provider-access blocker and expect the setup receipt to remain in `status=blocked` form until provider approval is active.
 
-Observed live-proof blockers are archived in:
+Live proof and historical blockers are recorded in:
 
+- [`research/2026-03-12-fermyon-akamai-edge-live-proof.md`](research/2026-03-12-fermyon-akamai-edge-live-proof.md)
 - [`research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md)
 
 Example variable wiring for the rendered edge manifest:
 
 ```toml
 [variables]
-api_key = { default = "" }
-js_secret = { default = "" }
-forwarded_ip_secret = { default = "" }
+shuma_api_key = { default = "" }
+shuma_js_secret = { default = "" }
+shuma_forwarded_ip_secret = { default = "" }
 
-[component.bot-defence]
-environment = {
-  SHUMA_API_KEY = "{{ api_key }}",
-  SHUMA_JS_SECRET = "{{ js_secret }}",
-  SHUMA_FORWARDED_IP_SECRET = "{{ forwarded_ip_secret }}"
-}
+[component.bot-defence.variables]
+shuma_api_key = "{{ shuma_api_key }}"
+shuma_js_secret = "{{ shuma_js_secret }}"
+shuma_forwarded_ip_secret = "{{ shuma_forwarded_ip_secret }}"
 ```
 
 ### 🐙 Edge-Chain Placement Note (Fermyon)

@@ -1,7 +1,10 @@
 # Fermyon / Akamai Edge Live-Proof Blockers
 
 **Date:** 2026-03-10  
-**Status:** Open external blocker
+**Status:** Historical blocker note
+
+This document records the initial live-proof blockers encountered on 2026-03-10.
+Those blockers have since been resolved and the completed live proof is now in [`2026-03-12-fermyon-akamai-edge-live-proof.md`](2026-03-12-fermyon-akamai-edge-live-proof.md).
 
 ## Summary
 
@@ -44,9 +47,9 @@ Interpretation:
 
 ## What This Means
 
-- `FERM-SKILL-1` and `FERM-SKILL-2` are complete as implementation tranches.
-- `FERM-SKILL-3` remains blocked externally.
-- The blocker is no longer “missing repo setup/deploy automation”; it is:
+- At that point, `FERM-SKILL-1` and `FERM-SKILL-2` were complete as implementation tranches.
+- At that point, `FERM-SKILL-3` was blocked externally.
+- The blocker was no longer “missing repo setup/deploy automation”; it was:
   1. upstream `spin aka` PAT-login instability, and
   2. provider-side Wasm Functions allowlisting for the authenticated account.
 

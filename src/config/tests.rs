@@ -1855,3 +1855,66 @@ fn runtime_adversary_sim_enablement_ignores_persisted_kv_state() {
     std::env::remove_var("SHUMA_ADVERSARY_SIM_ENABLED");
     clear_runtime_cache_for_tests();
 }
+
+#[test]
+fn validate_env_only_accepts_spin_variables_in_tests() {
+    let _lock = crate::test_support::lock_env();
+    clear_runtime_cache_for_tests();
+    clear_test_spin_variables();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
+    ]);
+
+    std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
+    set_test_spin_variable("SHUMA_API_KEY", "spin-admin-key");
+    set_test_spin_variable("SHUMA_JS_SECRET", "spin-js-secret");
+    set_test_spin_variable("SHUMA_FORWARDED_IP_SECRET", "spin-forwarded-secret");
+    set_test_spin_variable("SHUMA_EVENT_LOG_RETENTION_HOURS", "168");
+    set_test_spin_variable("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+    set_test_spin_variable("SHUMA_KV_STORE_FAIL_OPEN", "true");
+    set_test_spin_variable("SHUMA_ENFORCE_HTTPS", "false");
+    set_test_spin_variable("SHUMA_DEBUG_HEADERS", "false");
+    set_test_spin_variable("SHUMA_RUNTIME_ENV", "runtime-dev");
+
+    let result = validate_env_only_once();
+
+    std::env::remove_var("SHUMA_VALIDATE_ENV_IN_TESTS");
+    clear_test_spin_variables();
+    assert!(result.is_ok(), "expected spin variables to satisfy env validation, got {result:?}");
+}
+
+#[test]
+fn env_string_required_uses_spin_variable_when_env_missing() {
+    let _lock = crate::test_support::lock_env();
+    clear_test_spin_variables();
+    std::env::remove_var("SHUMA_API_KEY");
+    set_test_spin_variable("SHUMA_API_KEY", "spin-admin-key");
+
+    let value = env_string_required("SHUMA_API_KEY");
+
+    clear_test_spin_variables();
+    assert_eq!(value, "spin-admin-key");
+}
+
+#[test]
+fn default_seeded_config_matches_defaults_snapshot() {
+    let cfg = default_seeded_config();
+    let defaults_cfg = defaults().clone();
+
+    assert_eq!(cfg.rate_limit, defaults_cfg.rate_limit);
+    assert_eq!(cfg.js_required_enforced, defaults_cfg.js_required_enforced);
+    assert_eq!(cfg.challenge_puzzle_enabled, defaults_cfg.challenge_puzzle_enabled);
+    assert_eq!(cfg.not_a_bot_enabled, defaults_cfg.not_a_bot_enabled);
+    assert_eq!(cfg.maze_enabled, defaults_cfg.maze_enabled);
+    assert_eq!(cfg.provider_backends.rate_limiter, defaults_cfg.provider_backends.rate_limiter);
+    assert_eq!(cfg.edge_integration_mode, defaults_cfg.edge_integration_mode);
+}

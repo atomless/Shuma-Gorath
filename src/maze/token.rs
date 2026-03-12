@@ -95,19 +95,11 @@ pub(crate) fn secret_from_env() -> String {
 
 #[cfg(not(test))]
 pub(crate) fn secret_from_env() -> String {
-    std::env::var("SHUMA_MAZE_SECRET")
-        .ok()
-        .filter(|v| !v.trim().is_empty())
+    crate::config::runtime_var_trimmed_optional("SHUMA_MAZE_SECRET")
         .or_else(|| {
-            std::env::var("SHUMA_CHALLENGE_SECRET")
-                .ok()
-                .filter(|v| !v.trim().is_empty())
+            crate::config::runtime_var_trimmed_optional("SHUMA_CHALLENGE_SECRET")
         })
-        .or_else(|| {
-            std::env::var("SHUMA_JS_SECRET")
-                .ok()
-                .filter(|v| !v.trim().is_empty())
-        })
+        .or_else(|| crate::config::runtime_var_trimmed_optional("SHUMA_JS_SECRET"))
         .unwrap_or_else(|| "maze-default-secret".to_string())
 }
 

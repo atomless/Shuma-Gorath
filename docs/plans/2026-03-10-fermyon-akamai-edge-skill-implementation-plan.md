@@ -1,7 +1,7 @@
 # Fermyon / Akamai Edge Skill Implementation Plan
 
 **Date:** 2026-03-10  
-**Status:** In progress; implementation complete, live proof blocked externally  
+**Status:** Complete; implementation and live proof complete  
 **Owners:** Codex / project maintainers
 
 ## Goal
@@ -99,15 +99,11 @@ To close `FERM-SKILL-1..3`, the project needs:
 
 ## Current Proof Status
 
-- `FERM-SKILL-1` implementation is complete.
-- `FERM-SKILL-2` implementation is complete.
-- `FERM-SKILL-3` is still open.
-
-Current live blockers:
-
-1. `spin aka` PAT login panics on this machine/token path.
-2. Helper fallback to Fermyon device login reaches browser auth, but the provider currently returns `User is not allow-listed!`.
+- `FERM-SKILL-1` is complete.
+- `FERM-SKILL-2` is complete.
+- `FERM-SKILL-3` is complete.
 
 Reference:
 
+- [`../research/2026-03-12-fermyon-akamai-edge-live-proof.md`](../research/2026-03-12-fermyon-akamai-edge-live-proof.md)
 - [`../research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](../research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md)
