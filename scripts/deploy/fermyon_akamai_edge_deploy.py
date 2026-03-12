@@ -635,6 +635,15 @@ def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
         raise SystemExit(
             f"Edge adversary-sim enable smoke failed for {base_url}: status={enable_status} body={enable_body.strip()[:200]}"
         )
+    accepted_status = enable_payload.get("status") if isinstance(enable_payload, dict) else {}
+    accepted_generation = accepted_status.get("generation") if isinstance(accepted_status, dict) else {}
+    accepted_generation_obj = (
+        accepted_generation if isinstance(accepted_generation, dict) else {}
+    )
+    primed_generation_observed = (
+        int(accepted_generation_obj.get("tick_count") or 0) > 0
+        and int(accepted_generation_obj.get("request_count") or 0) > 0
+    )
 
     baseline_status, baseline_payload, baseline_raw = admin_json_request(
         opener=opener,
@@ -686,7 +695,7 @@ def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
                 monitoring_raw = monitoring_body
                 if monitoring_status == 200 and monitoring_delta_contains_simulation_event(monitoring_payload):
                     monitoring_visible = True
-                generation_observed = (
+                generation_observed = primed_generation_observed or (
                     (tick_count > baseline_tick_count and request_count > baseline_request_count)
                     if require_follow_up_tick
                     else (tick_count > 0 and request_count > 0)

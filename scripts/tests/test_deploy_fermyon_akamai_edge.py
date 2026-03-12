@@ -590,10 +590,20 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         responses = iter(
             [
                 (200, {"window_end_cursor": "cursor-0"}, '{"window_end_cursor":"cursor-0"}'),
-                (200, {"requested_enabled": True}, '{"requested_enabled":true}'),
-                (200, {"generation": {"tick_count": 0, "request_count": 0}}, '{"generation":{"tick_count":0,"request_count":0}}'),
+                (
+                    200,
+                    {
+                        "requested_enabled": True,
+                        "status": {
+                            "generation": {"tick_count": 1, "request_count": 40},
+                        },
+                    },
+                    '{"requested_enabled":true,"status":{"generation":{"tick_count":1,"request_count":40}}}',
+                ),
+                (200, {"generation": {"tick_count": 1, "request_count": 40}}, '{"generation":{"tick_count":1,"request_count":40}}'),
                 (200, {"generation": {"tick_count": 1, "request_count": 40}}, '{"generation":{"tick_count":1,"request_count":40}}'),
                 (200, {"events": [{"is_simulation": True, "event": "Challenge"}]}, '{"events":[{"is_simulation":true}]}'),
+                (200, {"adversary_sim_enabled": True}, '{"adversary_sim_enabled":true}'),
                 (200, {"adversary_sim_enabled": False}, '{"adversary_sim_enabled":false}'),
             ]
         )
@@ -605,7 +615,7 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         with patch.object(deploy, "admin_session_opener", return_value=(object(), "csrf")), patch.object(
             deploy, "admin_json_request", side_effect=fake_admin_json_request
         ), patch.object(
-            deploy.time, "time", side_effect=[0, 0]
+            deploy.time, "time", side_effect=[0, 0, 0]
         ), patch.object(
             deploy.time, "sleep"
         ):
@@ -614,6 +624,37 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         self.assertTrue(
             any("/admin/monitoring/delta?hours=24&limit=20&after_cursor=cursor-0" in url for url in calls)
         )
+
+    def test_smoke_adversary_sim_generation_treats_edge_prime_as_sufficient_generation(self) -> None:
+        responses = iter(
+            [
+                (200, {"window_end_cursor": "cursor-0"}, '{"window_end_cursor":"cursor-0"}'),
+                (
+                    200,
+                    {
+                        "requested_enabled": True,
+                        "status": {
+                            "generation": {"tick_count": 1, "request_count": 40},
+                        },
+                    },
+                    '{"requested_enabled":true,"status":{"generation":{"tick_count":1,"request_count":40}}}',
+                ),
+                (200, {"generation": {"tick_count": 1, "request_count": 40}}, '{"generation":{"tick_count":1,"request_count":40}}'),
+                (200, {"generation": {"tick_count": 1, "request_count": 40}}, '{"generation":{"tick_count":1,"request_count":40}}'),
+                (200, {"events": [{"is_simulation": True, "event": "Challenge"}]}, '{"events":[{"is_simulation":true}]}'),
+                (200, {"adversary_sim_enabled": True}, '{"adversary_sim_enabled":true}'),
+                (200, {"adversary_sim_enabled": False}, '{"adversary_sim_enabled":false}'),
+            ]
+        )
+
+        with patch.object(deploy, "admin_session_opener", return_value=(object(), "csrf")), patch.object(
+            deploy, "admin_json_request", side_effect=lambda **_: next(responses)
+        ), patch.object(
+            deploy.time, "time", side_effect=[0, 0, 0]
+        ), patch.object(
+            deploy.time, "sleep"
+        ):
+            deploy.smoke_adversary_sim_generation("https://edge.example.com", {})
 
     def test_bootstrap_remote_config_posts_seeded_json_when_admin_config_missing(self) -> None:
         env = {
