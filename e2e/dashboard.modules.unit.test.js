@@ -1482,6 +1482,98 @@ test('manual refresh bypasses monitoring cache while passive reasons honor cache
   });
 });
 
+test('monitoring bootstrap does not wait for cursor seeding before config-backed controls can become ready', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    let resolveSeedCursor;
+    const seedCursorPromise = new Promise((resolve) => {
+      resolveSeedCursor = resolve;
+    });
+    let configFetchCount = 0;
+    let monitoringFetchCount = 0;
+    let seedCursorCount = 0;
+
+    const apiClient = {
+      async getMonitoring() {
+        monitoringFetchCount += 1;
+        return {
+          summary: {},
+          freshness: { state: 'fresh', transport: 'snapshot_poll' },
+          details: {
+            analytics: { ban_count: 0, test_mode: false, fail_mode: 'open' },
+            events: { recent_events: [] },
+            bans: { bans: [] },
+            maze: {},
+            cdp: {},
+            cdp_events: { events: [] }
+          }
+        };
+      },
+      async getConfig() {
+        configFetchCount += 1;
+        return {
+          admin_config_write_enabled: true,
+          runtime_environment: 'runtime-prod'
+        };
+      },
+      async getMonitoringDelta(params = {}) {
+        if (Number(params.limit || 0) === 1) {
+          seedCursorCount += 1;
+          return seedCursorPromise;
+        }
+        return {
+          after_cursor: '',
+          window_end_cursor: '',
+          next_cursor: '',
+          has_more: false,
+          overflow: 'none',
+          events: [],
+          freshness: { state: 'fresh' }
+        };
+      }
+    };
+
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => apiClient,
+      getStateStore: () => store,
+      deriveMonitoringAnalytics: (_configSnapshot, analyticsResponse = {}) => ({
+        ban_count: Number(analyticsResponse.ban_count || 0),
+        test_mode: analyticsResponse.test_mode === true,
+        fail_mode: String(analyticsResponse.fail_mode || 'open')
+      }),
+      storage: null
+    });
+
+    const refreshCompleted = await Promise.race([
+      runtime.refreshDashboardForTab('monitoring', 'session-restored').then(() => true),
+      new Promise((resolve) => setTimeout(() => resolve(false), 50))
+    ]);
+
+    assert.equal(refreshCompleted, true);
+    assert.equal(monitoringFetchCount, 1);
+    assert.equal(configFetchCount, 1);
+    assert.equal(seedCursorCount, 1);
+    assert.equal(
+      (store.getSnapshot('config') || {}).admin_config_write_enabled,
+      true
+    );
+
+    resolveSeedCursor({
+      after_cursor: '',
+      window_end_cursor: 'cursor-1',
+      next_cursor: 'cursor-1',
+      has_more: false,
+      overflow: 'none',
+      events: [],
+      freshness: { state: 'fresh' }
+    });
+  });
+});
+
 test('monitoring refresh recovers cleanly after transient failure without synthetic freshness overwrite', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');

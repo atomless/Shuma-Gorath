@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-12)
 
+### Ad Hoc Fermyon Reliability: Dashboard Bootstrap Readiness Must Not Wait on Slow Cursor Seeding
+
+- [x] Shorten the live Fermyon dashboard bootstrap critical path so the global Test Mode and Adversary Sim controls become usable once monitoring/config data is loaded, instead of staying disabled behind slow edge cursor-seeding work.
+- [x] Why:
+  - the live Fermyon backend was responsive, but the dashboard still looked broken because the initial Monitoring-tab bootstrap awaited slow edge cursor seeding before it loaded config or marked runtime bootstrap complete.
+  - that left the global controls disabled with `Waiting for the dashboard to finish loading.` and made the live edge deployment appear non-responsive even though `/admin/session`, `/admin/config`, and `/admin/monitoring` were all succeeding.
+  - the clean fix was to keep cursor seeding off the readiness critical path and stop serializing monitoring/config fetches during bootstrap, while locking that behavior in with focused dashboard regression coverage.
+- [x] Evidence:
+  - `dashboard/src/lib/runtime/dashboard-runtime-refresh.js`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+  - `make test-deploy-fermyon`
+  - live `make deploy-fermyon-akamai-edge`
+  - live browser verification on the deployed Fermyon app showing the dashboard becoming ready and enabling the global toggles in roughly 8s instead of remaining stuck in the bootstrap-disabled state
+  - live browser verification that Test Mode and Adversary Sim controls responded again on the deployed Fermyon app after bootstrap completed
+
 ### Ad Hoc Fermyon Reliability: Edge Adversary-Sim Generation Proof
 
 - [x] Repair the live Fermyon / Akamai-edge adversary-sim path so enabling it on the deployed app produces observable monitoring traffic, and harden the deploy helper/tests so that failure cannot slip through again.

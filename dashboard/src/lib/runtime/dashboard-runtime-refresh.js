@@ -397,6 +397,10 @@ export function createDashboardRefreshRuntime(options = {}) {
     return cursorState[key] || '';
   }
 
+  function seedCursorToWindowEndDeferred(tab, requestOptions = {}) {
+    void seedCursorToWindowEnd(tab, requestOptions).catch(() => {});
+  }
+
   function applyMonitoringDeltaSnapshots(delta = {}, transport = 'cursor_delta_poll') {
     const dashboardState = getStateStore();
     const snapshots = dashboardState ? dashboardState.getState().snapshots || {} : {};
@@ -594,9 +598,7 @@ export function createDashboardRefreshRuntime(options = {}) {
         typeof dashboardApiClient.getMonitoringDelta === 'function' &&
         !cursorState.monitoring.trim();
       if (shouldSeedCursor) {
-        try {
-          await seedCursorToWindowEnd('monitoring', requestOptions);
-        } catch (_error) {}
+        seedCursorToWindowEndDeferred('monitoring', requestOptions);
       }
     };
 
@@ -884,10 +886,14 @@ export function createDashboardRefreshRuntime(options = {}) {
 
   const TAB_REFRESH_HANDLERS = Object.freeze({
     monitoring: async (reason = 'manual', runtimeOptions = {}) => {
-      await refreshMonitoringTab(reason, runtimeOptions);
-      if (reason !== 'auto-refresh') {
-        await refreshSharedConfig(reason, runtimeOptions);
+      if (reason === 'auto-refresh') {
+        await refreshMonitoringTab(reason, runtimeOptions);
+        return;
       }
+      await Promise.all([
+        refreshMonitoringTab(reason, runtimeOptions),
+        refreshSharedConfig(reason, runtimeOptions)
+      ]);
     },
     'ip-bans': refreshIpBansTab,
     status: refreshStatusTab,
