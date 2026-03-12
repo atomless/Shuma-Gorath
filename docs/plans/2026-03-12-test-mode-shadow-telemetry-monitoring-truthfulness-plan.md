@@ -53,6 +53,8 @@ Instead, monitoring/event surfaces should receive backend-authored execution sem
 
 Pre-launch, the cleanest place to carry this is the stored/presented event record contract or a monitoring-specific backend enrichment layer. The dashboard must consume those explicit semantics, not infer them by parsing `"[TEST MODE]"` or `would_*`.
 
+This must reuse the existing monitoring/event storage path rather than inventing a parallel shadow-specific storage family. The telemetry-efficiency tranche already established bucket-indexed reads, retention tiers, rollups, and query-budget accounting as the canonical path. Test-mode truthfulness must enrich that path, not bypass it.
+
 ### 2. Remove default per-request stdout logging from hosted test mode
 
 Structured telemetry already exists and is the right operator surface.
@@ -75,6 +77,12 @@ The clean shape is:
 - dashboard monitoring summaries that surface both shadow pressure and actual enforcement pressure.
 
 This preserves observability while avoiding event-log amplification.
+
+This also means:
+
+- no new whole-keyspace scan path may be introduced for shadow-mode visibility,
+- no new unbounded/high-cardinality dimensions may be introduced purely for test mode,
+- shadow-mode counters and rollups must remain compatible with the existing bucket-indexed retention/query model.
 
 ### 4. Monitoring must render shadow and enforced outcomes as different operator truths
 
@@ -149,6 +157,10 @@ Acceptance criteria:
 2. Dashboard changes should not happen before backend-authored shadow semantics exist; otherwise the UI will keep relying on fragile string parsing.
 3. Any decision to preserve local-only stdout debug logging should be made explicitly during this tranche, not left implicit.
 4. Verification must include real hosted-style traffic volume checks so the storage/logging claims are proven against operator use, not only local development.
+5. Telemetry-efficiency guarantees from [`docs/plans/2026-03-11-telemetry-storage-query-efficiency-excellence-plan.md`](./2026-03-11-telemetry-storage-query-efficiency-excellence-plan.md) remain release-blocking for this work:
+   - normal monitoring reads must stay bucket-addressable,
+   - no new whole-keyspace scans may be added for test-mode rendering,
+   - shadow telemetry must not introduce a parallel storage/query path that escapes existing retention and query-budget governance.
 
 ## Verification Strategy
 
@@ -169,3 +181,4 @@ Acceptance criteria:
 3. Dashboard monitoring distinguishes simulated actions from enforced actions without heuristic string parsing.
 4. Shadow-mode observability remains bounded under sustained traffic.
 5. `SIM2-R4-4` can close its remaining semantics/docs items based on this delivered contract.
+6. The tranche does not regress telemetry-efficiency guarantees: no added whole-keyspace scans, no unbounded shadow-specific cardinality growth, and no new storage/query path outside the existing bucket-indexed retention model.
