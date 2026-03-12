@@ -14,9 +14,18 @@ Reference context:
 - [`docs/plans/2026-02-26-adversarial-simulation-v2-plan.md`](../docs/plans/2026-02-26-adversarial-simulation-v2-plan.md)
 - [`docs/plans/2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md`](../docs/plans/2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md)
 - [`docs/plans/2026-03-11-telemetry-storage-query-efficiency-excellence-plan.md`](../docs/plans/2026-03-11-telemetry-storage-query-efficiency-excellence-plan.md)
+- [`docs/plans/2026-03-12-unified-telemetry-hot-read-architecture-plan.md`](../docs/plans/2026-03-12-unified-telemetry-hot-read-architecture-plan.md)
 - [`docs/plans/2026-03-12-test-mode-shadow-telemetry-monitoring-truthfulness-plan.md`](../docs/plans/2026-03-12-test-mode-shadow-telemetry-monitoring-truthfulness-plan.md)
 - [`docs/configuration.md`](../docs/configuration.md)
 - [`docs/testing.md`](../docs/testing.md)
+
+### TEL-HOT-1: Unified Hot-Read Telemetry Architecture
+- [ ] TEL-HOT-1-1 Define the durable hot-read document contract for monitoring bootstrap and supporting summaries (schema, freshness, bounded size, rebuild rules, and which fields remain drill-down-only).
+- [ ] TEL-HOT-1-2 Update flush, event-append, retention, and relevant admin mutation paths so the hot-read documents are maintained centrally as projections of the existing KV source of truth rather than rebuilt in the request path.
+- [ ] TEL-HOT-1-3 Rewrite `/admin/monitoring?bootstrap=1...` and adjacent hot monitoring reads to prefer the materialized hot-read documents, while keeping bounded bucket/raw reads for lazy detail, cursor, delta, and forensic follow-up.
+- [ ] TEL-HOT-1-4 Prove the design stays shared across Fermyon and Linode: no Fermyon-only telemetry store, no SQLite split, no new external database requirement, and no new whole-keyspace scans or shadow storage paths.
+- [ ] TEL-HOT-1-5 Add canonical verification and live proof for telemetry-read budgets on Fermyon edge and shared-host deploys, and update deploy skills/docs so telemetry responsiveness is part of the operator acceptance contract.
+- [ ] TEL-HOT-1-6 Reassess only after the shared hot-read architecture lands whether any secondary in-memory memoization or cold-tier compression is still justified.
 
 ### SIM2-R4-4: Config Seeding Lifecycle and Test-Mode Semantics
 
