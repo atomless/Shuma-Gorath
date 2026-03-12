@@ -179,6 +179,30 @@ Acceptance criteria:
    - no new whole-keyspace scans may be added for test-mode rendering,
    - shadow telemetry must not introduce a parallel storage/query path that escapes existing retention and query-budget governance.
 
+## Implementation Guardrails
+
+Before touching code, the first implementation slice should explicitly lock down these five decisions:
+
+1. **Shadow behavior matrix for intents and responses**
+   - Define which `EffectIntent` and `ResponseIntent` categories remain active in shadow mode, which are suppressed, and which become telemetry-only.
+   - The important minimum is that ban/tarpit/block/friction side effects must not execute, while metrics/event/monitoring visibility remains truthful.
+
+2. **Submit-path `test_mode` exceptions must fold into the same model**
+   - Existing challenge-submit abuse branches in `src/runtime/request_router.rs` (`test_mode_no_ban`, maze fallback in place of tarpit/short-ban) must not remain a separate semantics island.
+   - They should be rewritten or wrapped so they use the same shared shadow-execution contract as the main request path.
+
+3. **Choose one authoritative shadow metadata contract**
+   - Decide whether shadow semantics live on the stored `EventLogRecord` contract or only in backend-authored monitoring presentation payloads.
+   - Pre-launch, prefer the cleaner record-level contract unless a measured storage/query reason proves that enrichment must remain presentation-only.
+
+4. **Define bounded accounting for shadow pass/no-op traffic**
+   - Quiet pass-through traffic must be visible through counters/rollups, not one raw event row per request.
+   - The chosen accounting must reuse the existing retention/query model and stay within the telemetry-efficiency constraints.
+
+5. **Confirm direct challenge-page gating against effective shadow semantics**
+   - `serve_not_a_bot_page(...)` and `serve_challenge_page(...)` currently key off `test_mode`.
+   - The tranche must decide whether that remains the truthful gate or whether the effective shadow execution mode should become the single source of truth for those surfaces.
+
 ## Verification Strategy
 
 1. `make test-unit`
