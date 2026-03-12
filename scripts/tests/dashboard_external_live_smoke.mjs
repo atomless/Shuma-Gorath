@@ -3,6 +3,22 @@ import { chromium, expect } from '@playwright/test';
 const BASE_URL = String(process.env.SHUMA_BASE_URL || '').trim().replace(/\/$/, '');
 const API_KEY = String(process.env.SHUMA_API_KEY || '').trim();
 const READY_TIMEOUT_MS = 20_000;
+const READY_BUDGET_MS = Math.max(
+  1_000,
+  Number.parseInt(String(process.env.SHUMA_DASHBOARD_READY_BUDGET_MS || '8000').trim(), 10) || 8_000
+);
+const ACTIVE_SIM_CONTROL_READY_BUDGET_MS = Math.max(
+  1_000,
+  Number.parseInt(String(process.env.SHUMA_DASHBOARD_ACTIVE_SIM_CONTROL_BUDGET_MS || '3500').trim(), 10) || 3_500
+);
+const ACTIVE_SIM_FEED_READY_BUDGET_MS = Math.max(
+  1_000,
+  Number.parseInt(String(process.env.SHUMA_DASHBOARD_ACTIVE_SIM_FEED_BUDGET_MS || '8000').trim(), 10) || 8_000
+);
+const MONITORING_SNAPSHOT_BUDGET_MS = Math.max(
+  1_000,
+  Number.parseInt(String(process.env.SHUMA_DASHBOARD_MONITORING_SNAPSHOT_BUDGET_MS || '12000').trim(), 10) || 12_000
+);
 const CONTROL_TIMEOUT_MS = 15_000;
 const MONITORING_TIMEOUT_MS = 60_000;
 
@@ -44,7 +60,51 @@ async function controlAdversarySimViaApi(desiredEnabled) {
   });
 }
 
-async function forceAdversarySimDisabled() {
+async function controlAdversarySimViaSessionApi(page, desiredEnabled) {
+  const result = await page.evaluate(async ({ desiredEnabled }) => {
+    const sessionResponse = await fetch('/admin/session', {
+      method: 'GET',
+      credentials: 'same-origin'
+    });
+    const sessionText = await sessionResponse.text();
+    let sessionPayload = {};
+    try {
+      sessionPayload = JSON.parse(sessionText || '{}');
+    } catch (_error) {}
+    const csrfToken = typeof sessionPayload?.csrf_token === 'string'
+      ? sessionPayload.csrf_token.trim()
+      : '';
+    const headers = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'Idempotency-Key': `dash-live-session-${Date.now().toString(16)}-${Math.floor(Math.random() * 0x1_0000_0000).toString(16).padStart(8, '0')}`
+    };
+    if (csrfToken) {
+      headers['X-Shuma-CSRF'] = csrfToken;
+    }
+    const response = await fetch('/admin/adversary-sim/control', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers,
+      body: JSON.stringify({ enabled: desiredEnabled === true })
+    });
+    const text = await response.text();
+    return {
+      ok: response.ok,
+      status: response.status,
+      text
+    };
+  }, { desiredEnabled: desiredEnabled === true });
+
+  if (!result?.ok) {
+    throw new Error(
+      `session POST /admin/adversary-sim/control failed: ${result?.status || 0} ${String(result?.text || '').slice(0, 200)}`
+    );
+  }
+  return JSON.parse(String(result?.text || '{}') || '{}');
+}
+
+async function forceAdversarySimDisabled(page) {
   const deadline = Date.now() + 95_000;
   let lastError = '';
   while (Date.now() < deadline) {
@@ -53,7 +113,7 @@ async function forceAdversarySimDisabled() {
       return;
     }
     try {
-      await controlAdversarySimViaApi(false);
+      await controlAdversarySimViaSessionApi(page, false);
       lastError = '';
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
@@ -61,6 +121,15 @@ async function forceAdversarySimDisabled() {
     await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
   throw new Error(`failed to force adversary sim disabled within cleanup window (${lastError})`);
+}
+
+async function disableAdversarySimAndWaitOff(page) {
+  await forceAdversarySimDisabled(page);
+  try {
+    await waitForDashboardAdversarySimUiState(page, false, 30_000);
+  } catch (_error) {
+    // Cleanup truth is backend state; the browser can be behind during teardown.
+  }
 }
 
 async function fetchAdversarySimStatus() {
@@ -89,15 +158,6 @@ function adversarySimStateMatchesDesired(state, desiredEnabled) {
     return state.enabled === true;
   }
   return state.enabled !== true && state.generationActive !== true && state.phase === 'off';
-}
-
-function controlRetryDelayMs(retryAfterHeader, fallbackMs = 1100) {
-  const fallback = Math.max(250, Number(fallbackMs || 0));
-  const retryAfterSeconds = Number.parseInt(String(retryAfterHeader || '').trim(), 10);
-  if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
-    return retryAfterSeconds * 1000 + 250;
-  }
-  return fallback;
 }
 
 async function waitForAdversarySimEnabledState(desiredEnabled, timeoutMs = 30_000) {
@@ -148,7 +208,39 @@ async function waitForDashboardAdversarySimUiState(page, desiredEnabled, timeout
   await waitForDashboardAdversarySimUiConvergence(page, desiredEnabled, timeoutMs);
 }
 
-async function clickAdversaryToggleWithRetry(page, desiredEnabled, timeoutMs = 60_000) {
+async function waitForDashboardAdversarySimUiConsistency(page, timeoutMs = 30_000) {
+  const status = adversarySimStatusState(await fetchAdversarySimStatus());
+  await waitForDashboardAdversarySimUiConvergence(page, status.enabled === true, timeoutMs);
+  return status;
+}
+
+async function waitForDashboardMonitoringFeed(page, timeoutMs = READY_TIMEOUT_MS) {
+  await page.waitForFunction(() => {
+    const feedRows = Array.from(
+      document.querySelectorAll('#monitoring-raw-feed tbody tr')
+    ).filter((row) => row.querySelector('code'));
+    return feedRows.length > 0;
+  }, null, { timeout: timeoutMs });
+}
+
+async function assertDashboardReadyWithActiveSim(page) {
+  const toggle = page.locator('#global-adversary-sim-toggle');
+  const controlStart = Date.now();
+  await expect(toggle).toBeEnabled({ timeout: ACTIVE_SIM_CONTROL_READY_BUDGET_MS });
+  await expect(toggle).toBeChecked({ timeout: ACTIVE_SIM_CONTROL_READY_BUDGET_MS });
+  const controlElapsedMs = Date.now() - controlStart;
+
+  const feedStart = Date.now();
+  await waitForDashboardMonitoringFeed(page, ACTIVE_SIM_FEED_READY_BUDGET_MS);
+  const feedElapsedMs = Date.now() - feedStart;
+
+  return {
+    controlElapsedMs,
+    feedElapsedMs
+  };
+}
+
+async function setAdversaryToggleViaUi(page, desiredEnabled, timeoutMs = 60_000) {
   const toggle = page.locator('#global-adversary-sim-toggle');
   const toggleSwitch = page.locator("label.toggle-switch[for='global-adversary-sim-toggle']");
   await expect(toggle).toBeEnabled({ timeout: timeoutMs });
@@ -157,55 +249,35 @@ async function clickAdversaryToggleWithRetry(page, desiredEnabled, timeoutMs = 6
     await waitForDashboardAdversarySimUiState(page, desired, timeoutMs);
     return null;
   }
-
-  const deadline = Date.now() + Math.max(2_000, Number(timeoutMs || 0));
-  let lastStatus = 0;
-  while (Date.now() < deadline) {
-    if ((await toggle.isChecked()) === desired) {
-      return null;
-    }
-
-    const responsePromise = page.waitForResponse((response) => (
-      response.url().includes('/admin/adversary-sim/control') &&
-      response.request().method() === 'POST'
-    ), { timeout: 6_000 }).catch(() => null);
-
+  const controlResponses = [];
+  const onResponse = (response) => {
+    if (!response.url().includes('/admin/adversary-sim/control')) return;
+    if (response.request().method() !== 'POST') return;
+    controlResponses.push({
+      status: response.status(),
+      retryAfter: response.headers()['retry-after'] || ''
+    });
+  };
+  page.on('response', onResponse);
+  try {
     await toggleSwitch.click({ timeout: CONTROL_TIMEOUT_MS });
-
-    const response = await responsePromise;
-    if (!response) {
-      try {
-        await waitForDashboardAdversarySimUiState(page, desired, 5_000);
-        return null;
-      } catch (_error) {
-        await page.waitForTimeout(750);
-        continue;
-      }
-    }
-    lastStatus = response.status();
-    if (lastStatus === 200) {
-      const payload = await response.json();
-      const backendState = adversarySimStatusState(
-        payload && typeof payload === 'object' ? payload.status : {}
-      );
-      if (!adversarySimStateMatchesDesired(backendState, desired)) {
-        await waitForDashboardAdversarySimUiState(page, desired, timeoutMs);
-      } else {
-        await waitForDashboardAdversarySimUiConvergence(page, desired, timeoutMs);
-      }
-      return payload;
-    }
-    if (lastStatus === 409 || lastStatus === 429) {
-      await page.waitForTimeout(controlRetryDelayMs(response.headers()['retry-after']));
-      continue;
-    }
-    const body = await response.text().catch(() => '');
-    throw new Error(`adversary toggle control request failed with ${lastStatus}: ${body}`);
+    await waitForDashboardAdversarySimUiState(page, desired, timeoutMs);
+  } catch (error) {
+    const controlSummary = controlResponses.length > 0
+      ? controlResponses.map((entry) => (
+        entry.retryAfter
+          ? `${entry.status} (retry-after=${entry.retryAfter})`
+          : `${entry.status}`
+      )).join(', ')
+      : 'none observed';
+    throw new Error(
+      `adversary toggle did not converge to desired state=${desired} within ${timeoutMs}ms ` +
+      `(control_responses=${controlSummary}): ${error instanceof Error ? error.message : String(error)}`
+    );
+  } finally {
+    page.off('response', onResponse);
   }
-
-  throw new Error(
-    `adversary toggle did not reach desired state=${desired} before timeout; last_status=${lastStatus}`
-  );
+  return controlResponses;
 }
 
 async function setAutoRefresh(page, enabled) {
@@ -222,8 +294,30 @@ async function setAutoRefresh(page, enabled) {
   }
 }
 
+async function setTestModeViaUi(page, desiredEnabled, timeoutMs = 20_000) {
+  const toggle = page.locator('#global-test-mode-toggle');
+  const toggleSwitch = page.locator("label.toggle-switch[for='global-test-mode-toggle']");
+  await expect(toggle).toBeEnabled({ timeout: timeoutMs });
+  const desired = desiredEnabled === true;
+  if ((await toggle.isChecked()) !== desired) {
+    await toggleSwitch.click({ timeout: CONTROL_TIMEOUT_MS });
+  }
+  if (desired) {
+    await expect(toggle).toBeChecked({ timeout: timeoutMs });
+  } else {
+    await expect(toggle).not.toBeChecked({ timeout: timeoutMs });
+  }
+}
+
 async function fetchMonitoringBootstrap() {
   return requestJson('/admin/monitoring?hours=24&limit=50&bootstrap=1', {
+    method: 'GET',
+    headers: adminHeaders({ 'Content-Type': 'application/json' })
+  });
+}
+
+async function fetchMonitoringSnapshot(limit = 50) {
+  return requestJson(`/admin/monitoring?hours=24&limit=${encodeURIComponent(String(limit))}`, {
     method: 'GET',
     headers: adminHeaders({ 'Content-Type': 'application/json' })
   });
@@ -281,14 +375,6 @@ async function main() {
   requireEnv('SHUMA_BASE_URL', BASE_URL);
   requireEnv('SHUMA_API_KEY', API_KEY);
 
-  const baselineMonitoring = await fetchMonitoringBootstrap();
-  const baselineTs = maxSimulationEventTs(baselineMonitoring);
-  const baselineCursor = String(
-    baselineMonitoring?.window_end_cursor ||
-    baselineMonitoring?.next_cursor ||
-    ''
-  ).trim();
-
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   try {
@@ -326,13 +412,31 @@ async function main() {
       );
     }
     const readyElapsedMs = Date.now() - readyStart;
+    if (readyElapsedMs > READY_BUDGET_MS) {
+      throw new Error(
+        `Dashboard monitoring readiness exceeded budget (${readyElapsedMs}ms > ${READY_BUDGET_MS}ms).`
+      );
+    }
+
+    await waitForDashboardAdversarySimUiConsistency(page, 30_000);
+    await disableAdversarySimAndWaitOff(page);
+    await setTestModeViaUi(page, true, 20_000);
+    await setTestModeViaUi(page, false, 20_000);
+
+    const baselineMonitoring = await fetchMonitoringBootstrap();
+    const baselineTs = maxSimulationEventTs(baselineMonitoring);
+    const baselineCursor = String(
+      baselineMonitoring?.window_end_cursor ||
+      baselineMonitoring?.next_cursor ||
+      ''
+    ).trim();
 
     const toggle = page.locator('#global-adversary-sim-toggle');
     await expect(toggle).toBeEnabled({ timeout: READY_TIMEOUT_MS });
     await expect(toggle).not.toBeChecked();
 
     const controlStart = Date.now();
-    await clickAdversaryToggleWithRetry(page, true, 60_000);
+    await setAdversaryToggleViaUi(page, true, 60_000);
     const controlElapsedMs = Date.now() - controlStart;
 
     const simulationTs = await waitForSimulationEventAdvance(baselineTs, baselineCursor);
@@ -362,15 +466,41 @@ async function main() {
     }
     await waitForDashboardAdversarySimUiState(page, true, MONITORING_TIMEOUT_MS);
 
+    const monitoringSnapshotStart = Date.now();
+    const monitoringSnapshot = await fetchMonitoringSnapshot(200);
+    const monitoringSnapshotElapsedMs = Date.now() - monitoringSnapshotStart;
+    if (monitoringSnapshotElapsedMs > MONITORING_SNAPSHOT_BUDGET_MS) {
+      throw new Error(
+        `Monitoring snapshot exceeded budget (${monitoringSnapshotElapsedMs}ms > ${MONITORING_SNAPSHOT_BUDGET_MS}ms).`
+      );
+    }
+    if (
+      monitoringSnapshot?.details?.events?.recent_events_window?.response_shaping_reason !==
+      'edge_profile_bounded_details'
+    ) {
+      throw new Error(
+        `Expected edge bounded monitoring details, received ${JSON.stringify(
+          monitoringSnapshot?.details?.events?.recent_events_window?.response_shaping_reason || ''
+        )}.`
+      );
+    }
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForURL(/\/dashboard\/index\.html/, { timeout: READY_TIMEOUT_MS });
+    const postReload = await assertDashboardReadyWithActiveSim(page);
+
     console.log(JSON.stringify({
       base_url: BASE_URL,
       ready_elapsed_ms: readyElapsedMs,
       control_elapsed_ms: controlElapsedMs,
-      simulation_event_ts: simulationTs
+      simulation_event_ts: simulationTs,
+      monitoring_snapshot_elapsed_ms: monitoringSnapshotElapsedMs,
+      active_sim_reload_control_elapsed_ms: postReload.controlElapsedMs,
+      active_sim_reload_feed_elapsed_ms: postReload.feedElapsedMs
     }, null, 2));
   } finally {
     try {
-      await forceAdversarySimDisabled();
+      await forceAdversarySimDisabled(page);
     } catch (error) {
       console.error(`cleanup_warning=${error instanceof Error ? error.message : String(error)}`);
     }

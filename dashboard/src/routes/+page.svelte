@@ -15,8 +15,15 @@
   import {
     deriveAdversarySimControlState,
     normalizeAdversarySimStatus,
-    adversarySimStateMatchesDesired
+    adversarySimStateMatchesDesired,
+    controlAdversarySimWithRetry
   } from '$lib/runtime/dashboard-adversary-sim.js';
+  import {
+    deriveAdversarySimToggleEnabled,
+    deriveGlobalControlDisabled,
+    shouldPrimeAdversarySimStatus
+  } from '$lib/runtime/dashboard-global-controls.js';
+  import { deriveDashboardRequestBudgets } from '$lib/runtime/dashboard-request-budgets.js';
   import { createDashboardRouteController } from '$lib/runtime/dashboard-route-controller.js';
   import {
     banDashboardIp,
@@ -97,6 +104,7 @@
   let adversarySimStatus = {};
   let adversarySimStatusPollTimer = null;
   let adversarySimStatusRequestInFlight = null;
+  let adversarySimStatusBootstrapPromise = null;
   let IpBansTabComponent = null;
   let StatusTabComponent = null;
   let VerificationTabComponent = null;
@@ -215,10 +223,11 @@
     }
   }
   $: normalizedAdversarySimStatus = normalizeAdversarySimStatus(adversarySimStatus);
-  $: adversarySimToggleEnabled =
-    adversarySimPendingEnabled === null
-      ? normalizedAdversarySimStatus.enabled
-      : adversarySimPendingEnabled === true;
+  $: adversarySimToggleEnabled = deriveAdversarySimToggleEnabled({
+    pendingEnabled: adversarySimPendingEnabled,
+    adversarySimStatus,
+    configSnapshot
+  });
   $: adversarySimControlState = deriveAdversarySimControlState({
     configSnapshot,
     adversarySimStatus
@@ -229,19 +238,22 @@
   $: frontierProviderCount = Number.isFinite(Number(configSnapshot.frontier_provider_count))
     ? Math.max(0, Math.floor(Number(configSnapshot.frontier_provider_count)))
     : 0;
-  $: globalTestModeToggleDisabled =
-    !runtimeReady ||
-    loggingOut ||
-    savingGlobalTestMode ||
-    dashboardState?.session?.authenticated !== true ||
-    configSnapshot.admin_config_write_enabled !== true;
-  $: globalAdversarySimToggleDisabled =
-    !runtimeReady ||
-    loggingOut ||
-    savingGlobalAdversarySim ||
-    dashboardState?.session?.authenticated !== true ||
-    configSnapshot.admin_config_write_enabled !== true ||
-    !adversarySimControlAvailable;
+  $: globalTestModeToggleDisabled = deriveGlobalControlDisabled({
+    runtimeMounted: routeController.getRuntimeMounted(),
+    loggingOut,
+    saving: savingGlobalTestMode,
+    authenticated: dashboardState?.session?.authenticated === true,
+    adminConfigWritable: configSnapshot.admin_config_write_enabled === true,
+    surfaceAvailable: true
+  });
+  $: globalAdversarySimToggleDisabled = deriveGlobalControlDisabled({
+    runtimeMounted: routeController.getRuntimeMounted(),
+    loggingOut,
+    saving: savingGlobalAdversarySim,
+    authenticated: dashboardState?.session?.authenticated === true,
+    adminConfigWritable: configSnapshot.admin_config_write_enabled === true,
+    surfaceAvailable: adversarySimControlAvailable
+  });
   $: globalTestModeToggleDisabledReason = globalTestModeToggleDisabled
     ? describeGlobalControlDisabledState({
       runtimeReady,
@@ -268,6 +280,7 @@
   $: adversarySimCleanupCommand =
     String(normalizedAdversarySimStatus.historyCleanupCommand || '').trim() || 'make telemetry-clean';
   $: adversarySimGenerationDiagnostics = normalizedAdversarySimStatus.generationDiagnostics || {};
+  $: dashboardRequestBudgets = deriveDashboardRequestBudgets(configSnapshot);
   $: adversarySimLifecycleCopy = normalizedAdversarySimStatus.generationActive
         ? (
           String(adversarySimGenerationDiagnostics.health || '') === 'ok'
@@ -280,6 +293,17 @@
     : normalizedAdversarySimStatus.historicalDataVisible
       ? `Generation inactive. Retained telemetry remains visible for ${adversarySimRetentionHours}h or until ${adversarySimCleanupCommand} is run.`
       : 'Generation inactive.';
+  $: if (
+    shouldPrimeAdversarySimStatus({
+      runtimeMounted: routeController.getRuntimeMounted(),
+      authenticated: dashboardState?.session?.authenticated === true,
+      bootstrapInFlight: adversarySimStatusBootstrapPromise !== null,
+      configSnapshot,
+      adversarySimStatus
+    })
+  ) {
+    void bootstrapAdversarySimStatus();
+  }
 
   function registerTabLink(node, tab) {
     let key = normalizeTab(tab);
@@ -498,13 +522,10 @@
         basePath: dashboardBasePath
       });
       runtimeReady = bootstrapped === true;
-      const bootstrapAdversarySimControlState = deriveAdversarySimControlState({
-        configSnapshot: dashboardStore.getState()?.snapshots?.config || {},
-        adversarySimStatus
-      });
-      if (runtimeReady && bootstrapAdversarySimControlState.controlAvailable) {
-        await refreshAdversarySimStatus('bootstrap');
+      if (bootstrapped === true) {
+        await bootstrapAdversarySimStatus();
       }
+      syncAdversarySimTimers();
     } catch (error) {
       runtimeError = error && error.message ? error.message : 'Dashboard bootstrap failed.';
     }
@@ -607,7 +628,8 @@
         { test_mode: nextValue },
         {
           successMessage: `Test mode ${nextValue ? 'enabled (logging only)' : 'disabled (blocking active)'}`,
-          refresh: false
+          refresh: false,
+          timeoutMs: dashboardRequestBudgets.configWriteTimeoutMs
         }
       );
       const persistedValue =
@@ -649,6 +671,55 @@
     }
   }
 
+  async function bootstrapAdversarySimStatus() {
+    if (adversarySimStatusBootstrapPromise) {
+      return adversarySimStatusBootstrapPromise;
+    }
+    const bootstrapAdversarySimControlState = deriveAdversarySimControlState({
+      configSnapshot: dashboardStore.getState()?.snapshots?.config || {},
+      adversarySimStatus
+    });
+    if (!bootstrapAdversarySimControlState.controlAvailable) return;
+    adversarySimStatusBootstrapPromise = (async () => {
+      try {
+        const status = await withRefreshedSessionOnAuthError(
+          () => getDashboardAdversarySimStatus({
+            timeoutMs: dashboardRequestBudgets.adversarySimStatusTimeoutMs,
+            telemetry: {
+              tab: 'status',
+              reason: 'bootstrap',
+              source: 'adversary-sim-status-bootstrap'
+            }
+          })
+        );
+        adversarySimStatus = status && typeof status === 'object' ? status : {};
+      } catch (error) {
+        if (error && Number(error.status) === 404) {
+          adversarySimStatus = {
+            runtime_environment: dashboardStore.getState()?.snapshots?.config?.runtime_environment,
+            adversary_sim_available: false,
+            adversary_sim_enabled: false
+          };
+          return adversarySimStatus;
+        }
+        if (isAuthSessionExpiredError(error)) {
+          setAdminMessage(
+            'Adversary simulation status bootstrap expired. Redirecting to login...',
+            'warning'
+          );
+          redirectToLogin();
+          return null;
+        }
+        throw error;
+      } finally {
+        adversarySimStatusBootstrapPromise = null;
+        syncAdversarySimTimers();
+      }
+      return adversarySimStatus;
+    })();
+    return adversarySimStatusBootstrapPromise;
+  }
+
   async function refreshAdversarySimStatus(_reason = 'manual') {
     if (!routeController.getRuntimeMounted() || !runtimeReady) return;
     if (adversarySimStatusRequestInFlight) {
@@ -657,6 +728,7 @@
     adversarySimStatusRequestInFlight = (async () => {
       try {
         const status = await getDashboardAdversarySimStatus({
+          timeoutMs: dashboardRequestBudgets.adversarySimStatusTimeoutMs,
           telemetry: {
             tab: 'status',
             reason: _reason,
@@ -683,10 +755,15 @@
   async function waitForAdversarySimStatusConvergence(desiredEnabled, timeoutMs = 15000) {
     const desired = desiredEnabled === true;
     const deadline = Date.now() + Math.max(1000, Number(timeoutMs || 0));
+    const statusRequestTimeoutMs = Math.min(
+      dashboardRequestBudgets.adversarySimStatusTimeoutMs,
+      Math.max(1000, Number(timeoutMs || 0))
+    );
     let consecutiveSettledPolls = 0;
     while (Date.now() < deadline) {
       const status = await withRefreshedSessionOnAuthError(
         () => getDashboardAdversarySimStatus({
+          timeoutMs: statusRequestTimeoutMs,
           telemetry: {
             tab: 'status',
             reason: 'adversary-sim-toggle-convergence',
@@ -751,20 +828,31 @@
     savingGlobalAdversarySim = true;
     adversarySimPendingEnabled = nextValue;
     try {
-      const result = await withRefreshedSessionOnAuthError(
-        () => controlDashboardAdversarySim(nextValue, {
-          telemetry: {
-            tab: 'status',
-            reason: 'adversary-sim-toggle',
-            source: 'adversary-sim-control'
-          }
-        })
+      const result = await controlAdversarySimWithRetry(
+        () => withRefreshedSessionOnAuthError(
+          () => controlDashboardAdversarySim(nextValue, {
+            timeoutMs: dashboardRequestBudgets.adversarySimControlTimeoutMs,
+            telemetry: {
+              tab: 'status',
+              reason: 'adversary-sim-toggle',
+              source: 'adversary-sim-control'
+            }
+          })
+        ),
+        nextValue,
+        {
+          timeoutMs: nextValue
+            ? dashboardRequestBudgets.adversarySimEnableTimeoutMs
+            : dashboardRequestBudgets.adversarySimDisableTimeoutMs
+        }
       );
       const status = result && result.status ? result.status : {};
       adversarySimStatus = status && typeof status === 'object' ? status : {};
       await waitForAdversarySimStatusConvergence(
         nextValue,
-        nextValue ? 15000 : 30000
+        nextValue
+          ? dashboardRequestBudgets.adversarySimEnableTimeoutMs
+          : dashboardRequestBudgets.adversarySimDisableTimeoutMs
       );
       if (activeTabKey === 'monitoring' && autoRefreshEnabled === true) {
         void routeController.refreshTab('monitoring', 'auto-refresh');
@@ -838,6 +926,10 @@
     try {
       const nextConfig = await withRefreshedSessionOnAuthError(
         () => updateDashboardConfig(patch || {}, {
+          timeoutMs: Math.max(
+            1_000,
+            Number(options?.timeoutMs || 0) || dashboardRequestBudgets.configWriteTimeoutMs
+          ),
           telemetry: {
             tab: activeTabKey,
             reason: 'config-save',

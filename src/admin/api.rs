@@ -3619,6 +3619,66 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn adversary_sim_status_keeps_edge_run_enabled_across_instance_changes() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        let now = now_ts();
+
+        let stale_running_state = crate::admin::adversary_sim::ControlState {
+            phase: crate::admin::adversary_sim::ControlPhase::Running,
+            desired_enabled: true,
+            owner_instance_id: Some("simproc-previous".to_string()),
+            run_id: Some("simrun-edge-previous".to_string()),
+            started_at: Some(now.saturating_sub(5)),
+            ends_at: Some(now.saturating_add(120)),
+            active_run_count: 1,
+            active_lane_count: 2,
+            last_transition_reason: Some("manual_on".to_string()),
+            updated_at: now.saturating_sub(5),
+            ..crate::admin::adversary_sim::ControlState::default()
+        };
+        crate::admin::adversary_sim::save_state(&store, "default", &stale_running_state).unwrap();
+        crate::config::set_runtime_adversary_sim_enabled_override("default", true);
+
+        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
+        assert_eq!(*status_resp.status(), 200u16);
+        let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
+        assert_eq!(
+            status_json.get("phase").and_then(|value| value.as_str()),
+            Some("running")
+        );
+        assert_eq!(
+            status_json
+                .get("adversary_sim_enabled")
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            status_json
+                .get("last_transition_reason")
+                .and_then(|value| value.as_str()),
+            Some("manual_on")
+        );
+
+        let persisted = crate::admin::adversary_sim::load_state(&store, "default");
+        assert_eq!(persisted.phase, crate::admin::adversary_sim::ControlPhase::Running);
+        assert!(persisted.desired_enabled);
+
+        crate::config::set_runtime_adversary_sim_enabled_override("default", false);
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
     fn adversary_sim_status_auto_window_expiry_clears_runtime_enabled_override() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
@@ -3972,6 +4032,13 @@ mod admin_config_tests {
         );
         assert_eq!(*second.status(), 409u16);
         assert!(String::from_utf8_lossy(second.body()).contains("lease is currently held"));
+        let retry_after_seconds = second
+            .header("Retry-After")
+            .and_then(|value| value.as_str())
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or_default();
+        assert!(retry_after_seconds >= 1);
+        assert!(retry_after_seconds <= crate::admin::adversary_sim_control::LEASE_TTL_SECONDS);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -4552,6 +4619,45 @@ mod admin_config_tests {
                 .unwrap_or(false)
         );
         assert_eq!(store.get_keys_calls(), 0);
+    }
+
+    #[test]
+    fn admin_monitoring_uses_bounded_details_for_edge_profiles() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+        let store = TestStore::default();
+        let now = now_ts();
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now,
+                event: EventType::Challenge,
+                ip: Some("198.51.100.71".to_string()),
+                reason: Some("edge_profile_probe".to_string()),
+                outcome: Some("challenge_failed".to_string()),
+                admin: Some("ops".to_string()),
+            },
+        );
+
+        let req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=50", Vec::new());
+        let resp = handle_admin_monitoring(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(
+            body.get("details")
+                .and_then(|value| value.get("events"))
+                .and_then(|value| value.get("recent_events_window"))
+                .and_then(|value| value.get("response_shaping_reason"))
+                .and_then(|value| value.as_str()),
+            Some("edge_profile_bounded_details")
+        );
+        assert!(body
+            .get("window_end_cursor")
+            .and_then(|value| value.as_str())
+            .map(|value| !value.is_empty())
+            .unwrap_or(false));
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
     }
 
     #[test]
@@ -12055,7 +12161,11 @@ where
         .map(|value| matches!(value.trim(), "1" | "true" | "yes"))
         .unwrap_or(false);
     let summary = crate::observability::monitoring::summarize_with_store(store, hours, limit);
-    let (details, bootstrap_window_end_cursor) = if bootstrap_mode {
+    let edge_bounded_details_mode =
+        !bootstrap_mode && crate::config::gateway_deployment_profile().is_edge();
+    let (mut details, bootstrap_window_end_cursor) = if bootstrap_mode {
+        monitoring_bootstrap_details_payload(store, "default", hours, limit, forensic_mode)
+    } else if edge_bounded_details_mode {
         monitoring_bootstrap_details_payload(store, "default", hours, limit, forensic_mode)
     } else {
         (
@@ -12063,6 +12173,18 @@ where
             None,
         )
     };
+    if edge_bounded_details_mode {
+        if let Some(recent_events_window) = details
+            .get_mut("events")
+            .and_then(|events| events.get_mut("recent_events_window"))
+            .and_then(|value| value.as_object_mut())
+        {
+            recent_events_window.insert(
+                "response_shaping_reason".to_string(),
+                serde_json::Value::String("edge_profile_bounded_details".to_string()),
+            );
+        }
+    }
     let snapshot_latest_ts = latest_monitoring_snapshot_ts(&details);
     let freshness = freshness_health_payload(now, snapshot_latest_ts, false, "none", "snapshot_poll");
     let retention_health = crate::observability::retention::retention_health(store);
@@ -14034,7 +14156,16 @@ fn handle_admin_adversary_sim_control(
                 },
                 capabilities.audit_write(),
             );
-            return Response::new(409, "Adversary simulation controller lease is currently held");
+            let retry_after_seconds = current_lease
+                .as_ref()
+                .map(|lease| lease.expires_at.saturating_sub(now).max(1))
+                .unwrap_or(crate::admin::adversary_sim_control::LEASE_TTL_SECONDS);
+            let mut response = Response::builder();
+            response
+                .status(409)
+                .header("Retry-After", retry_after_seconds.to_string())
+                .body("Adversary simulation controller lease is currently held");
+            return response.build();
         }
     };
     if crate::admin::adversary_sim_control::save_controller_lease(

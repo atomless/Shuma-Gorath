@@ -19,6 +19,7 @@ test -f .shuma/fermyon-akamai-edge-setup.json
 ```
 
 The deploy helper itself performs the enterprise guardrails, provisions the managed adversary-sim edge cron set, and writes the deploy receipt.
+It also runs the canonical external live dashboard smoke so the proof includes real UI readiness, control convergence, and monitoring visibility on the deployed edge app.
 
 ## Deploy Execution
 
@@ -134,6 +135,31 @@ Fix:
 - ensure the helper provisions the five staggered `shuma-adversary-sim-beat-*` cron jobs
 - remember that Fermyon edge cron invokes the beat path as `GET`, not `POST`
 - redeploy with the current helper so edge enable primes one bounded first tick and deploy smoke waits for a later cron-driven follow-up tick
+
+### Dashboard controls or monitoring still look broken on the live edge app
+
+Symptoms:
+
+- Test Mode or Adversary Sim toggles appear to flip back after a long wait
+- Monitoring looks empty for several seconds even though backend endpoints respond
+- `/admin/config` and `/admin/monitoring` succeed, but the dashboard still appears non-responsive
+
+Fix:
+
+- use the current deploy helper, which now budgets edge dashboard writes/reads differently from shared-host flows and proves the live UI through the external smoke
+- if you need to reproduce manually, run:
+
+```bash
+SHUMA_BASE_URL="https://<app>.fwf.app" \
+SHUMA_API_KEY="<local-admin-key>" \
+node scripts/tests/dashboard_external_live_smoke.mjs
+```
+
+- do not treat endpoint-only success as sufficient proof; the edge dashboard must show:
+  - ready state within the live smoke budget,
+  - Test Mode control convergence,
+  - Adversary Sim control convergence,
+  - and a fresh simulation event visible in Monitoring
 
 ### `spin aka cron create` rejects once-per-minute schedules
 

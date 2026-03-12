@@ -77,6 +77,11 @@ What the helper does:
 - provisions a managed five-job adversary-sim cron set so the effective edge cadence is one beat per minute while each individual job still respects Fermyon's five-minute minimum,
 - bootstraps config when the edge KV is still empty,
 - proves adversary-sim generation live by requiring an immediate primed tick and a later cron-driven follow-up tick,
+- proves live dashboard truthfulness against the deployed edge app by checking:
+  - dashboard readiness,
+  - Test Mode UI control convergence,
+  - Adversary Sim UI control convergence,
+  - and monitoring visibility of a fresh simulation event,
 - writes `.shuma/fermyon-akamai-edge-deploy.json`.
 
 What the helper must not do:
@@ -138,6 +143,7 @@ Stop and treat the current run as unproven if either of these is true:
 
 If the helper reports the known upstream plugin panic, treat that as an upstream CLI defect and fall back to device login in interactive sessions instead of pretending PAT login worked.
 If browser auth succeeds but Fermyon returns `User is not allow-listed!`, treat that as a provider-access blocker, expect the setup receipt to remain in `status=blocked` form, and stop.
+If the live edge dashboard still appears broken after deploy, do not trust endpoint-only probes alone; rerun the canonical helper or the standalone external live smoke and prove the actual UI toggles and monitoring surfaces behave correctly before claiming success.
 
 ## Operations Reference
 

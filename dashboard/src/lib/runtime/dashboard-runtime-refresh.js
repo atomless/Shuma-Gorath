@@ -1,3 +1,5 @@
+import { deriveDashboardRequestBudgets } from './dashboard-request-budgets.js';
+
 export function createDashboardRefreshRuntime(options = {}) {
   const MONITORING_CACHE_KEY = 'shuma_dashboard_cache_monitoring_v1';
   const IP_BANS_CACHE_KEY = 'shuma_dashboard_cache_ip_bans_v1';
@@ -575,6 +577,16 @@ export function createDashboardRefreshRuntime(options = {}) {
       reason,
       source: 'tab-refresh'
     });
+    const currentConfigSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
+    const requestBudgets = deriveDashboardRequestBudgets(currentConfigSnapshot);
+    const monitoringRequestOptions = {
+      ...requestOptions,
+      timeoutMs: requestBudgets.monitoringRequestTimeoutMs
+    };
+    const monitoringDeltaRequestOptions = {
+      ...requestOptions,
+      timeoutMs: requestBudgets.monitoringDeltaTimeoutMs
+    };
     const applyMonitoringSnapshot = (monitoringData = {}, { writeCursor = false } = {}) => {
       const configSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
       const monitoringSnapshots = buildMonitoringSnapshots(monitoringData, configSnapshot);
@@ -613,6 +625,9 @@ export function createDashboardRefreshRuntime(options = {}) {
         .then((monitoringData) => {
           applyMonitoringSnapshot(monitoringData, { writeCursor: !cursorState.monitoring.trim() });
           showMonitoringStateMessage();
+          if (requestBudgets.autoHydrateFullMonitoring !== true) {
+            return null;
+          }
           return fetchFullMonitoring();
         })
         .catch(() => {});
@@ -620,7 +635,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     const fetchFullMonitoring = async () => {
       const monitoringData = await dashboardApiClient.getMonitoring(
         { hours: 24, limit: MONITORING_FULL_RECENT_EVENTS_LIMIT },
-        requestOptions
+        monitoringRequestOptions
       );
       applyMonitoringSnapshot(monitoringData, { writeCursor: false });
       const shouldSeedCursor =
@@ -628,7 +643,7 @@ export function createDashboardRefreshRuntime(options = {}) {
         typeof dashboardApiClient.getMonitoringDelta === 'function' &&
         !cursorState.monitoring.trim();
       if (shouldSeedCursor) {
-        seedCursorToWindowEndDeferred('monitoring', requestOptions);
+        seedCursorToWindowEndDeferred('monitoring', monitoringDeltaRequestOptions);
       }
     };
 
@@ -643,7 +658,7 @@ export function createDashboardRefreshRuntime(options = {}) {
       const bootstrapPromise = canUseBootstrap
         ? dashboardApiClient.getMonitoringBootstrap(
           { hours: 24, limit: MONITORING_FULL_RECENT_EVENTS_LIMIT },
-          requestOptions
+          monitoringRequestOptions
         )
         : null;
       try {
@@ -653,7 +668,7 @@ export function createDashboardRefreshRuntime(options = {}) {
             limit: MONITORING_BOOTSTRAP_DELTA_LIMIT,
             after_cursor: ''
           },
-          requestOptions
+          monitoringDeltaRequestOptions
         );
         syncCursorFromDelta('monitoring', delta);
         applyMonitoringDeltaSnapshots(delta, 'cursor_delta_bootstrap');
@@ -661,7 +676,7 @@ export function createDashboardRefreshRuntime(options = {}) {
         showMonitoringStateMessage();
         if (bootstrapPromise) {
           queueDetailedMonitoringHydration(bootstrapPromise);
-        } else {
+        } else if (requestBudgets.autoHydrateFullMonitoring === true) {
           void fetchFullMonitoring().catch(() => {});
         }
         return;
@@ -671,7 +686,9 @@ export function createDashboardRefreshRuntime(options = {}) {
             const monitoringData = await bootstrapPromise;
             applyMonitoringSnapshot(monitoringData, { writeCursor: true });
             showMonitoringStateMessage();
-            void fetchFullMonitoring().catch(() => {});
+            if (requestBudgets.autoHydrateFullMonitoring === true) {
+              void fetchFullMonitoring().catch(() => {});
+            }
             return;
           } catch (_bootstrapError) {}
         }
@@ -681,11 +698,13 @@ export function createDashboardRefreshRuntime(options = {}) {
       try {
         const monitoringData = await dashboardApiClient.getMonitoringBootstrap(
           { hours: 24, limit: MONITORING_FULL_RECENT_EVENTS_LIMIT },
-          requestOptions
+          monitoringRequestOptions
         );
         applyMonitoringSnapshot(monitoringData, { writeCursor: true });
         showMonitoringStateMessage();
-        void fetchFullMonitoring().catch(() => {});
+        if (requestBudgets.autoHydrateFullMonitoring === true) {
+          void fetchFullMonitoring().catch(() => {});
+        }
         return;
       } catch (_error) {}
     }
@@ -698,7 +717,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     if (canUseDelta) {
       try {
         if (!cursorState.monitoring.trim()) {
-          await seedCursorToWindowEnd('monitoring', requestOptions);
+          await seedCursorToWindowEnd('monitoring', monitoringDeltaRequestOptions);
         }
         const delta = await dashboardApiClient.getMonitoringDelta(
           {
@@ -706,7 +725,7 @@ export function createDashboardRefreshRuntime(options = {}) {
             limit: MONITORING_DELTA_LIMIT,
             after_cursor: cursorState.monitoring
           },
-          requestOptions
+          monitoringDeltaRequestOptions
         );
         syncCursorFromDelta('monitoring', delta);
         applyMonitoringDeltaSnapshots(delta, 'cursor_delta_poll');
@@ -861,15 +880,20 @@ export function createDashboardRefreshRuntime(options = {}) {
       reason,
       source: 'status-operational-refresh'
     });
+    const dashboardState = getStateStore();
+    const configSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
+    const requestBudgets = deriveDashboardRequestBudgets(configSnapshot);
 
     try {
       const monitoringData = await dashboardApiClient.getMonitoring(
         { hours: 24, limit: 1 },
-        requestOptions
+        {
+          ...requestOptions,
+          timeoutMs: requestBudgets.monitoringRequestTimeoutMs
+        }
       );
-      const dashboardState = getStateStore();
-      const configSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
-      const monitoringSnapshots = buildMonitoringSnapshots(monitoringData, configSnapshot);
+      const currentConfigSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
+      const monitoringSnapshots = buildMonitoringSnapshots(monitoringData, currentConfigSnapshot);
       applySnapshots(monitoringSnapshots);
       updateFreshnessSnapshot(
         'monitoring',

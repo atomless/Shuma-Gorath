@@ -4,6 +4,37 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-12)
 
+### Ad Hoc Fermyon Reliability: Live Dashboard Control Convergence and Monitoring Truthfulness
+
+- [x] Raise edge-specific dashboard request budgets, add retry-aware adversary-sim control handling, and extend the canonical Fermyon proof so success requires the real dashboard UI and Monitoring tab to behave correctly on the deployed edge app.
+- [x] Why:
+  - the earlier Fermyon proof was still incomplete because endpoint-level success and cron generation did not prove that the real dashboard UI worked under edge latency and controller-lease behavior.
+  - on the deployed edge app, Test Mode and Adversary Sim writes could take longer than shared-host/local defaults and adversary-sim control could transiently return controller-lease `409` responses with `Retry-After`.
+  - that caused the UI to roll toggles back even though the backend finished enabling shortly afterwards, which made the dashboard appear broken and hid real Monitoring activity behind a misleading client-side failure.
+  - the clean fix was to treat `edge-fermyon` as a distinct dashboard request-budget posture, preserve `Retry-After`, retry bounded lease/throttle failures, and require a real external dashboard smoke in the canonical deploy helper instead of trusting endpoint-only probes.
+- [x] Evidence:
+  - `dashboard/src/lib/domain/api-client.js`
+  - `dashboard/src/lib/runtime/dashboard-adversary-sim.js`
+  - `dashboard/src/lib/runtime/dashboard-global-controls.js`
+  - `dashboard/src/lib/runtime/dashboard-request-budgets.js`
+  - `dashboard/src/lib/runtime/dashboard-runtime-refresh.js`
+  - `dashboard/src/routes/+page.svelte`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `scripts/tests/dashboard_external_live_smoke.mjs`
+  - `scripts/tests/test_deploy_fermyon_akamai_edge.py`
+  - `scripts/deploy/fermyon_akamai_edge_deploy.py`
+  - `src/admin/api.rs`
+  - `src/admin/adversary_sim.rs`
+  - `docs/research/2026-03-12-fermyon-akamai-edge-live-proof.md`
+  - `skills/deploy-shuma-on-akamai-fermyon/SKILL.md`
+  - `skills/deploy-shuma-on-akamai-fermyon/references/OPERATIONS.md`
+  - `docs/deployment.md`
+  - `make test-dashboard-unit`
+  - `make test-deploy-fermyon`
+  - live `make deploy-fermyon-akamai-edge`
+  - standalone external smoke against `https://79b823de-37b6-4a85-b3cc-16a40738c5a7.fwf.app`
+  - live dashboard verification that Test Mode and Adversary Sim toggles converged from the real UI and Monitoring showed a fresh simulation event
+
 ### Ad Hoc Fermyon Reliability: Dashboard Bootstrap Readiness Must Not Wait on Slow Cursor Seeding
 
 - [x] Shorten the live Fermyon dashboard bootstrap critical path so the global Test Mode and Adversary Sim controls become usable once monitoring/config data is loaded, instead of staying disabled behind slow edge cursor-seeding work.

@@ -534,6 +534,10 @@ pub fn process_instance_id() -> &'static str {
     PROCESS_INSTANCE_ID.as_str()
 }
 
+fn requires_single_process_ownership() -> bool {
+    !crate::config::gateway_deployment_profile().is_edge()
+}
+
 pub fn state_key(site_id: &str) -> String {
     format!("{}{}", STATE_KEY_PREFIX, site_id)
 }
@@ -633,7 +637,8 @@ pub fn reconcile_state(
     next.desired_enabled = cfg_enabled;
     let mut transitions: Vec<Transition> = Vec::new();
 
-    if next.phase != ControlPhase::Off
+    if requires_single_process_ownership()
+        && next.phase != ControlPhase::Off
         && next.owner_instance_id.as_deref() != Some(process_instance_id())
     {
         let (stopping, mut phase_transitions) = stop_state(now, "process_restart", &next);
@@ -1723,6 +1728,34 @@ mod tests {
         let no_traffic = generation_diagnostics(170, true, &state);
         assert_eq!(no_traffic.health, "no_traffic");
         assert_eq!(no_traffic.reason, "edge_cron_no_traffic_yet");
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    }
+
+    #[test]
+    fn reconcile_state_keeps_edge_runs_active_across_instance_changes() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+
+        let current = ControlState {
+            phase: ControlPhase::Running,
+            desired_enabled: true,
+            owner_instance_id: Some("simproc-other".to_string()),
+            run_id: Some("run-edge".to_string()),
+            started_at: Some(100),
+            ends_at: Some(400),
+            active_run_count: 1,
+            active_lane_count: deterministic_runtime_profile().active_lane_count,
+            last_transition_reason: Some("manual_on".to_string()),
+            updated_at: 110,
+            ..ControlState::default()
+        };
+
+        let (next, transitions) = reconcile_state(130, true, &current);
+        assert_eq!(next.phase, ControlPhase::Running);
+        assert!(transitions.is_empty());
+        assert!(next.desired_enabled);
+        assert_eq!(next.owner_instance_id.as_deref(), Some("simproc-other"));
 
         std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
     }

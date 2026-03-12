@@ -228,6 +228,10 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         ) as bootstrap_mock, patch.object(
             deploy, "smoke_deployed_app"
         ) as smoke_mock, patch.object(
+            deploy, "wait_for_adversary_sim_control_lease_release"
+        ) as lease_release_mock, patch.object(
+            deploy, "smoke_external_dashboard"
+        ) as external_smoke_mock, patch.object(
             deploy,
             "ensure_adversary_sim_edge_cron",
             return_value={"job_name_prefix": "shuma-adversary-sim-beat", "job_count": 5},
@@ -251,6 +255,8 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         self.assertEqual(len(interactive_calls), 1)
         bootstrap_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
         smoke_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
+        lease_release_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
+        external_smoke_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
         cron_mock.assert_called_once_with(
             env=unittest.mock.ANY,
             app_id="app_existing_123",
@@ -520,6 +526,10 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         ) as bootstrap_mock, patch.object(
             deploy, "smoke_deployed_app"
         ) as smoke_mock, patch.object(
+            deploy, "wait_for_adversary_sim_control_lease_release"
+        ) as lease_release_mock, patch.object(
+            deploy, "smoke_external_dashboard"
+        ) as external_smoke_mock, patch.object(
             deploy,
             "ensure_adversary_sim_edge_cron",
             return_value={"job_name_prefix": "shuma-adversary-sim-beat", "job_count": 5},
@@ -542,6 +552,7 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         bootstrap_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
         smoke_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
+        lease_release_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
         cron_mock.assert_called_once_with(
             env=unittest.mock.ANY,
             app_id="app_existing_123",
@@ -549,6 +560,7 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
             account_name="",
         )
         sim_smoke_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
+        external_smoke_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
         self.assertEqual(len(interactive_calls), 1)
         deploy_call = interactive_calls[0]
         self.assertIn("--app-id", deploy_call)
@@ -594,17 +606,39 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
                     200,
                     {
                         "requested_enabled": True,
-                        "status": {
-                            "generation": {"tick_count": 1, "request_count": 40},
-                        },
+                        "status": {},
                     },
-                    '{"requested_enabled":true,"status":{"generation":{"tick_count":1,"request_count":40}}}',
+                    '{"requested_enabled":true,"status":{}}',
                 ),
-                (200, {"generation": {"tick_count": 1, "request_count": 40}}, '{"generation":{"tick_count":1,"request_count":40}}'),
-                (200, {"generation": {"tick_count": 1, "request_count": 40}}, '{"generation":{"tick_count":1,"request_count":40}}'),
+                (
+                    200,
+                    {
+                        "lifecycle_diagnostics": {
+                            "supervisor": {
+                                "generated_tick_count": 1,
+                                "generated_request_count": 40,
+                                "last_successful_beat_at": 100,
+                            }
+                        }
+                    },
+                    '{"lifecycle_diagnostics":{"supervisor":{"generated_tick_count":1,"generated_request_count":40,"last_successful_beat_at":100}}}',
+                ),
+                (
+                    200,
+                    {
+                        "lifecycle_diagnostics": {
+                            "supervisor": {
+                                "generated_tick_count": 2,
+                                "generated_request_count": 64,
+                                "last_successful_beat_at": 200,
+                            }
+                        }
+                    },
+                    '{"lifecycle_diagnostics":{"supervisor":{"generated_tick_count":2,"generated_request_count":64,"last_successful_beat_at":200}}}',
+                ),
                 (200, {"events": [{"is_simulation": True, "event": "Challenge"}]}, '{"events":[{"is_simulation":true}]}'),
                 (200, {"adversary_sim_enabled": True}, '{"adversary_sim_enabled":true}'),
-                (200, {"adversary_sim_enabled": False}, '{"adversary_sim_enabled":false}'),
+                (200, {"disabled": True}, '{"disabled":true}'),
             ]
         )
 
@@ -625,7 +659,7 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
             any("/admin/monitoring/delta?hours=24&limit=20&after_cursor=cursor-0" in url for url in calls)
         )
 
-    def test_smoke_adversary_sim_generation_treats_edge_prime_as_sufficient_generation(self) -> None:
+    def test_smoke_adversary_sim_generation_requires_follow_up_tick_beyond_prime(self) -> None:
         responses = iter(
             [
                 (200, {"window_end_cursor": "cursor-0"}, '{"window_end_cursor":"cursor-0"}'),
@@ -633,28 +667,53 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
                     200,
                     {
                         "requested_enabled": True,
-                        "status": {
-                            "generation": {"tick_count": 1, "request_count": 40},
-                        },
+                        "status": {},
                     },
-                    '{"requested_enabled":true,"status":{"generation":{"tick_count":1,"request_count":40}}}',
+                    '{"requested_enabled":true,"status":{}}',
                 ),
-                (200, {"generation": {"tick_count": 1, "request_count": 40}}, '{"generation":{"tick_count":1,"request_count":40}}'),
-                (200, {"generation": {"tick_count": 1, "request_count": 40}}, '{"generation":{"tick_count":1,"request_count":40}}'),
+                (
+                    200,
+                    {
+                        "lifecycle_diagnostics": {
+                            "supervisor": {
+                                "generated_tick_count": 1,
+                                "generated_request_count": 40,
+                                "last_successful_beat_at": 100,
+                            }
+                        }
+                    },
+                    '{"lifecycle_diagnostics":{"supervisor":{"generated_tick_count":1,"generated_request_count":40,"last_successful_beat_at":100}}}',
+                ),
+                (
+                    200,
+                    {
+                        "lifecycle_diagnostics": {
+                            "supervisor": {
+                                "generated_tick_count": 1,
+                                "generated_request_count": 40,
+                                "last_successful_beat_at": 100,
+                            }
+                        }
+                    },
+                    '{"lifecycle_diagnostics":{"supervisor":{"generated_tick_count":1,"generated_request_count":40,"last_successful_beat_at":100}}}',
+                ),
                 (200, {"events": [{"is_simulation": True, "event": "Challenge"}]}, '{"events":[{"is_simulation":true}]}'),
                 (200, {"adversary_sim_enabled": True}, '{"adversary_sim_enabled":true}'),
-                (200, {"adversary_sim_enabled": False}, '{"adversary_sim_enabled":false}'),
+                (200, {"disabled": True}, '{"disabled":true}'),
             ]
         )
 
         with patch.object(deploy, "admin_session_opener", return_value=(object(), "csrf")), patch.object(
             deploy, "admin_json_request", side_effect=lambda **_: next(responses)
         ), patch.object(
-            deploy.time, "time", side_effect=[0, 0, 0]
+            deploy.time, "time", side_effect=[0, 0, 200]
         ), patch.object(
             deploy.time, "sleep"
         ):
-            deploy.smoke_adversary_sim_generation("https://edge.example.com", {})
+            with self.assertRaises(SystemExit) as exc:
+                deploy.smoke_adversary_sim_generation("https://edge.example.com", {})
+
+        self.assertIn("no generated traffic was observed", str(exc.exception))
 
     def test_bootstrap_remote_config_posts_seeded_json_when_admin_config_missing(self) -> None:
         env = {

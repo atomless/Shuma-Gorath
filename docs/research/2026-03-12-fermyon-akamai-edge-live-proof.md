@@ -21,8 +21,13 @@ The following live checks passed after deploy:
 - `GET /dashboard/login.html` returned `200` HTML
 - `GET /index.html` returned `200`
 - authenticated `GET /admin/config` returned `200`
+- live dashboard readiness completed in roughly `2.1s - 2.3s` on the deployed edge app
+- the live Monitoring tab rendered its first real feed rows in roughly `2.6s`
+- toggling Test Mode from the real dashboard UI converged successfully on the deployed edge app
+- toggling Adversary Sim from the real dashboard UI converged successfully on the deployed edge app
 - enabling adversary sim immediately produced a bounded first tick on the live edge app
 - a later cron-driven follow-up tick arrived after enable without manual intervention
+- the canonical external dashboard smoke passed against the deployed edge app, including a fresh simulation event observed in monitoring
 - deploy receipt captured the live app id, account metadata, primary URL, and managed edge-cron metadata
 
 ## Real Friction and Resolutions
@@ -135,12 +140,40 @@ Resolution:
 - supervisor/generation diagnostics now report edge-cron cadence truthfully before and after the first tick,
 - deploy smoke now requires both the initial prime and a later follow-up tick beyond that baseline, so the proof covers real autonomous generation instead of a one-off manual kick.
 
+### 10. Edge dashboard writes needed explicit timeout budgets and retry-aware convergence
+
+Observed behavior:
+
+- the first edge proof was still incomplete even after cron generation was fixed, because the real dashboard UI could still look broken.
+- global Test Mode and Adversary Sim toggles used the same short write budgets as shared-host/local flows.
+- on the live edge app, adversary-sim control could legitimately take longer than the default dashboard timeout and could transiently return controller-lease `409` responses with `Retry-After`.
+- the UI then rolled back toggles even though the backend finished enabling shortly afterwards, which made the dashboard appear non-responsive and hid real monitoring activity behind a misleading client-side failure.
+
+Resolution:
+
+- the dashboard now derives request budgets from `gateway_deployment_profile`,
+- edge-fermyon uses longer write/status budgets than shared-server/local flows,
+- the API client now preserves `Retry-After` on control failures,
+- adversary-sim control now retries bounded `409`/`429` edge write failures instead of treating them as final,
+- the canonical Fermyon deploy helper now runs an external live dashboard smoke that proves:
+  - dashboard readiness,
+  - global toggle convergence from the real UI,
+  - monitoring visibility of a fresh simulation event,
+  - and healthy reload behavior while adversary sim is already active.
+
 ## Evidence
 
 - `make test-deploy-fermyon`
 - `make deploy-fermyon-akamai-edge`
+- standalone external smoke:
+  - `SHUMA_BASE_URL=https://79b823de-37b6-4a85-b3cc-16a40738c5a7.fwf.app SHUMA_API_KEY=<local-key> node scripts/tests/dashboard_external_live_smoke.mjs`
 - live authenticated `POST /admin/adversary-sim/control` on the deployed app returned status with `generation.tick_count >= 1`, `generation.request_count > 0`, and `supervisor.heartbeat_active=true`
 - live authenticated polling of `/admin/adversary-sim/status` after enable showed a later tick and request-count increase beyond that primed baseline
+- live dashboard interaction proved:
+  - Test Mode toggle on -> off converged from the real UI,
+  - Adversary Sim toggle off -> on converged from the real UI without client rollback,
+  - Monitoring loaded fresh simulation rows after enable,
+  - and a reload while adversary sim was still active preserved truthful control/feed state
 - live probes against:
   - `https://79b823de-37b6-4a85-b3cc-16a40738c5a7.fwf.app/dashboard/login.html`
   - `https://79b823de-37b6-4a85-b3cc-16a40738c5a7.fwf.app/index.html`

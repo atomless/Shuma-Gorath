@@ -535,6 +535,37 @@ test('dashboard API client bypasses caches for adversary-sim status reads', { co
   });
 });
 
+test('dashboard API client exposes Retry-After seconds on adversary-sim control errors', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
+    const client = apiModule.create({
+      getAdminContext: () => ({
+        endpoint: 'https://edge.local',
+        apikey: 'test-key',
+        sessionAuth: true,
+        csrfToken: 'csrf-token'
+      }),
+      request: async () => ({
+        ok: false,
+        status: 409,
+        headers: new Headers({ 'retry-after': '13', 'content-type': 'application/json' }),
+        json: async () => ({ error: 'Adversary simulation controller lease is currently held' }),
+        text: async () => '{"error":"Adversary simulation controller lease is currently held"}'
+      })
+    });
+
+    await assert.rejects(
+      () => client.controlAdversarySim(true),
+      (error) => {
+        assert.equal(error.name, 'DashboardApiError');
+        assert.equal(error.status, 409);
+        assert.equal(error.retryAfterSeconds, 13);
+        return true;
+      }
+    );
+  });
+});
+
 test('dashboard API client exposes cursor-delta and stream URL helpers for realtime tabs', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
@@ -2636,6 +2667,208 @@ test('dashboard adversary-sim desired-state matcher tolerates eventual-consisten
   });
 });
 
+test('dashboard adversary-sim control retry helper honors retryable lease/throttle responses before succeeding', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const adversaryModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-adversary-sim.js');
+    const attempts = [];
+    const sleeps = [];
+    let callCount = 0;
+
+    const result = await adversaryModule.controlAdversarySimWithRetry(
+      async (desiredEnabled) => {
+        callCount += 1;
+        attempts.push(desiredEnabled);
+        if (callCount === 1) {
+          const error = new Error('lease held');
+          error.status = 409;
+          error.retryAfterSeconds = 3;
+          throw error;
+        }
+        if (callCount === 2) {
+          const error = new Error('throttled');
+          error.status = 429;
+          error.retryAfterSeconds = 1;
+          throw error;
+        }
+        return { ok: true };
+      },
+      true,
+      {
+        timeoutMs: 10_000,
+        sleep: async (ms) => {
+          sleeps.push(ms);
+        }
+      }
+    );
+
+    assert.deepEqual(attempts, [true, true, true]);
+    assert.deepEqual(sleeps, [3250, 1250]);
+    assert.deepEqual(result, { ok: true });
+  });
+});
+
+test('dashboard adversary-sim control retry helper does not swallow non-retryable errors', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const adversaryModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-adversary-sim.js');
+    let callCount = 0;
+
+    await assert.rejects(
+      () => adversaryModule.controlAdversarySimWithRetry(
+        async () => {
+          callCount += 1;
+          const error = new Error('bad request');
+          error.status = 400;
+          throw error;
+        },
+        false,
+        {
+          timeoutMs: 5_000,
+          sleep: async () => {
+            throw new Error('sleep should not be called');
+          }
+        }
+      ),
+      /bad request/
+    );
+
+    assert.equal(callCount, 1);
+  });
+});
+
+test('dashboard global control helper enables authenticated writable controls before monitoring hydration completes', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const controlModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-global-controls.js');
+
+    assert.equal(
+      controlModule.deriveGlobalControlDisabled({
+        runtimeMounted: true,
+        loggingOut: false,
+        saving: false,
+        authenticated: true,
+        adminConfigWritable: true,
+        surfaceAvailable: true
+      }),
+      false
+    );
+
+    assert.equal(
+      controlModule.deriveGlobalControlDisabled({
+        runtimeMounted: false,
+        loggingOut: false,
+        saving: false,
+        authenticated: true,
+        adminConfigWritable: true,
+        surfaceAvailable: true
+      }),
+      true
+    );
+  });
+});
+
+test('dashboard global control helper uses config-backed provisional adversary-sim state before explicit status arrives', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const controlModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-global-controls.js');
+
+    assert.equal(
+      controlModule.deriveAdversarySimToggleEnabled({
+        pendingEnabled: null,
+        adversarySimStatus: {},
+        configSnapshot: { adversary_sim_enabled: true }
+      }),
+      true
+    );
+
+    assert.equal(
+      controlModule.deriveAdversarySimToggleEnabled({
+        pendingEnabled: null,
+        adversarySimStatus: { adversary_sim_enabled: false },
+        configSnapshot: { adversary_sim_enabled: true }
+      }),
+      false
+    );
+
+    assert.equal(
+      controlModule.deriveAdversarySimToggleEnabled({
+        pendingEnabled: true,
+        adversarySimStatus: { adversary_sim_enabled: false },
+        configSnapshot: { adversary_sim_enabled: false }
+      }),
+      true
+    );
+  });
+});
+
+test('dashboard global control helper primes adversary-sim status once authenticated config shows the surface is available', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const controlModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-global-controls.js');
+
+    assert.equal(
+      controlModule.shouldPrimeAdversarySimStatus({
+        runtimeMounted: true,
+        authenticated: true,
+        bootstrapInFlight: false,
+        configSnapshot: { adversary_sim_available: true },
+        adversarySimStatus: {}
+      }),
+      true
+    );
+
+    assert.equal(
+      controlModule.shouldPrimeAdversarySimStatus({
+        runtimeMounted: true,
+        authenticated: true,
+        bootstrapInFlight: true,
+        configSnapshot: { adversary_sim_available: true },
+        adversarySimStatus: {}
+      }),
+      false
+    );
+
+    assert.equal(
+      controlModule.shouldPrimeAdversarySimStatus({
+        runtimeMounted: true,
+        authenticated: true,
+        bootstrapInFlight: false,
+        configSnapshot: { adversary_sim_available: true },
+        adversarySimStatus: { adversary_sim_enabled: true, phase: 'running' }
+      }),
+      false
+    );
+  });
+});
+
+test('dashboard request budgets widen edge-fermyon control and monitoring timeouts', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const budgetModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-request-budgets.js');
+
+    const edgeBudgets = budgetModule.deriveDashboardRequestBudgets({
+      gateway_deployment_profile: 'edge-fermyon'
+    });
+    assert.equal(edgeBudgets.gatewayDeploymentProfile, 'edge-fermyon');
+    assert.equal(edgeBudgets.autoHydrateFullMonitoring, false);
+    assert.equal(edgeBudgets.monitoringRequestTimeoutMs, 45_000);
+    assert.equal(edgeBudgets.monitoringDeltaTimeoutMs, 20_000);
+    assert.equal(edgeBudgets.configWriteTimeoutMs, 45_000);
+    assert.equal(edgeBudgets.adversarySimControlTimeoutMs, 45_000);
+    assert.equal(edgeBudgets.adversarySimEnableTimeoutMs, 90_000);
+    assert.equal(edgeBudgets.adversarySimDisableTimeoutMs, 45_000);
+    assert.equal(edgeBudgets.adversarySimStatusTimeoutMs, 30_000);
+
+    const sharedBudgets = budgetModule.deriveDashboardRequestBudgets({
+      gateway_deployment_profile: 'shared-server'
+    });
+    assert.equal(sharedBudgets.gatewayDeploymentProfile, 'shared-server');
+    assert.equal(sharedBudgets.autoHydrateFullMonitoring, true);
+    assert.equal(sharedBudgets.monitoringRequestTimeoutMs, 12_000);
+    assert.equal(sharedBudgets.monitoringDeltaTimeoutMs, 12_000);
+    assert.equal(sharedBudgets.configWriteTimeoutMs, 12_000);
+    assert.equal(sharedBudgets.adversarySimControlTimeoutMs, 15_000);
+    assert.equal(sharedBudgets.adversarySimEnableTimeoutMs, 45_000);
+    assert.equal(sharedBudgets.adversarySimDisableTimeoutMs, 30_000);
+    assert.equal(sharedBudgets.adversarySimStatusTimeoutMs, 12_000);
+  });
+});
+
 test('config form utils and JSON object helpers preserve parser contracts', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const formUtils = await importBrowserModule('dashboard/src/lib/domain/config-form-utils.js');
@@ -3328,19 +3561,43 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /let adversarySimStatusRequestInFlight = null;/);
   assert.match(source, /if \(adversarySimStatusRequestInFlight\) \{/);
   assert.match(source, /return adversarySimStatusRequestInFlight;/);
+  assert.match(source, /let adversarySimStatusBootstrapPromise = null;/);
+  assert.match(source, /async function bootstrapAdversarySimStatus\(\)/);
+  assert.match(source, /source: 'adversary-sim-status-bootstrap'/);
+  assert.match(source, /shouldPrimeAdversarySimStatus\(/);
   assert.match(
     source,
-    /if \(runtimeReady && bootstrapAdversarySimControlState\.controlAvailable\) \{\s*await refreshAdversarySimStatus\('bootstrap'\);/s
+    /runtimeReady = bootstrapped === true;\s*if \(bootstrapped === true\) \{\s*await bootstrapAdversarySimStatus\(\);\s*\}\s*syncAdversarySimTimers\(\);/s
   );
   assert.match(source, /onGlobalTestModeToggleChange/);
   assert.match(source, /onGlobalAdversarySimToggleChange/);
+  assert.match(source, /controlAdversarySimWithRetry/);
+  assert.match(source, /deriveDashboardRequestBudgets/);
   assert.match(source, /function isAuthSessionExpiredError\(error\)/);
   assert.match(source, /function withRefreshedSessionOnAuthError\(action\)/);
   assert.match(source, /const restored = await restoreDashboardSession\(\);/);
   assert.match(source, /if \(restored !== true\) throw error;/);
   assert.match(source, /await withRefreshedSessionOnAuthError\(/);
-  assert.match(source, /controlDashboardAdversarySim\(nextValue,\s*\{/);
-  assert.match(source, /updateDashboardConfig\(patch \|\| \{\},\s*\{/);
+  assert.match(source, /controlAdversarySimWithRetry\(\s*\(\) => withRefreshedSessionOnAuthError\(/);
+  assert.match(source, /dashboardRequestBudgets = deriveDashboardRequestBudgets\(configSnapshot\)/);
+  assert.match(source, /dashboardRequestBudgets\.configWriteTimeoutMs/);
+  assert.match(source, /dashboardRequestBudgets\.adversarySimControlTimeoutMs/);
+  assert.match(source, /dashboardRequestBudgets\.adversarySimEnableTimeoutMs/);
+  assert.match(source, /dashboardRequestBudgets\.adversarySimStatusTimeoutMs/);
+  assert.match(
+    source,
+    /waitForAdversarySimStatusConvergence\(\s*nextValue,\s*nextValue\s*\?\s*dashboardRequestBudgets\.adversarySimEnableTimeoutMs\s*:\s*dashboardRequestBudgets\.adversarySimDisableTimeoutMs/s
+  );
+  assert.match(source, /deriveAdversarySimToggleEnabled/);
+  assert.match(source, /deriveGlobalControlDisabled/);
+  assert.match(
+    source,
+    /updateDashboardConfig\(patch \|\| \{\},\s*\{\s*timeoutMs:\s*Math\.max\(\s*1_000,\s*Number\(options\?\.timeoutMs \|\| 0\) \|\| dashboardRequestBudgets\.configWriteTimeoutMs/s
+  );
+  assert.match(
+    source,
+    /controlDashboardAdversarySim\(nextValue,\s*\{\s*timeoutMs:\s*dashboardRequestBudgets\.adversarySimControlTimeoutMs/s
+  );
   assert.match(source, /banDashboardIp\(ip, duration, 'manual_ban',\s*\{/);
   assert.match(source, /unbanDashboardIp\(ip,\s*\{/);
   assert.match(source, /status === 401/);
@@ -3355,10 +3612,29 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   );
   assert.match(source, /let adversarySimPendingEnabled = null;/);
   assert.match(source, /function waitForAdversarySimStatusConvergence\(/);
-  assert.match(source, /adversarySimPendingEnabled === null/);
+  assert.match(source, /adversarySimToggleEnabled = deriveAdversarySimToggleEnabled\(/);
+  assert.match(source, /globalAdversarySimToggleDisabled = deriveGlobalControlDisabled\(/);
   assert.match(source, /await waitForAdversarySimStatusConvergence\(/);
   assert.equal(source.includes('adversary-sim-progress-line'), false);
   assert.match(source, /id="admin-msg"/);
+});
+
+test('dashboard monitoring runtime keeps edge-fermyon on bounded monitoring hydration', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/runtime/dashboard-runtime-refresh.js'),
+    'utf8'
+  );
+
+  assert.match(source, /deriveDashboardRequestBudgets/);
+  assert.match(
+    source,
+    /monitoringRequestOptions = \{\s*\.\.\.requestOptions,\s*timeoutMs: requestBudgets\.monitoringRequestTimeoutMs/s
+  );
+  assert.match(
+    source,
+    /monitoringDeltaRequestOptions = \{\s*\.\.\.requestOptions,\s*timeoutMs: requestBudgets\.monitoringDeltaTimeoutMs/s
+  );
+  assert.match(source, /requestBudgets\.autoHydrateFullMonitoring !== true/);
 });
 
 test('dashboard stylesheet applies disconnected visual treatment via root class', () => {

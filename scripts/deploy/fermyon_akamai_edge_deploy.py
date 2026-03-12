@@ -48,6 +48,7 @@ EDGE_CRON_SCHEDULES = (
 )
 EDGE_CRON_SECRET_QUERY_KEY = "edge_cron_secret"
 EDGE_ADVERSARY_SIM_SMOKE_TIMEOUT_SECONDS = 185
+EDGE_CONTROL_LEASE_RELEASE_TIMEOUT_SECONDS = 45
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -635,15 +636,12 @@ def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
         raise SystemExit(
             f"Edge adversary-sim enable smoke failed for {base_url}: status={enable_status} body={enable_body.strip()[:200]}"
         )
-    accepted_status = enable_payload.get("status") if isinstance(enable_payload, dict) else {}
-    accepted_generation = accepted_status.get("generation") if isinstance(accepted_status, dict) else {}
-    accepted_generation_obj = (
-        accepted_generation if isinstance(accepted_generation, dict) else {}
-    )
-    primed_generation_observed = (
-        int(accepted_generation_obj.get("tick_count") or 0) > 0
-        and int(accepted_generation_obj.get("request_count") or 0) > 0
-    )
+
+    def lifecycle_supervisor(payload: dict[str, Any]) -> dict[str, Any]:
+        lifecycle = payload.get("lifecycle_diagnostics") if isinstance(payload, dict) else {}
+        lifecycle_obj = lifecycle if isinstance(lifecycle, dict) else {}
+        supervisor = lifecycle_obj.get("supervisor")
+        return supervisor if isinstance(supervisor, dict) else {}
 
     baseline_status, baseline_payload, baseline_raw = admin_json_request(
         opener=opener,
@@ -655,11 +653,10 @@ def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
         raise SystemExit(
             f"Edge adversary-sim baseline status smoke failed for {base_url}: status={baseline_status} body={baseline_raw.strip()[:200]}"
         )
-    baseline_generation = baseline_payload.get("generation") if isinstance(baseline_payload, dict) else {}
-    baseline_generation_obj = baseline_generation if isinstance(baseline_generation, dict) else {}
-    baseline_tick_count = int(baseline_generation_obj.get("tick_count") or 0)
-    baseline_request_count = int(baseline_generation_obj.get("request_count") or 0)
-    require_follow_up_tick = baseline_tick_count > 0 or baseline_request_count > 0
+    baseline_supervisor = lifecycle_supervisor(baseline_payload)
+    baseline_tick_count = int(baseline_supervisor.get("generated_tick_count") or 0)
+    baseline_request_count = int(baseline_supervisor.get("generated_request_count") or 0)
+    baseline_last_beat_at = int(baseline_supervisor.get("last_successful_beat_at") or 0)
 
     deadline = time.time() + EDGE_ADVERSARY_SIM_SMOKE_TIMEOUT_SECONDS
     last_payload: dict[str, Any] = {}
@@ -677,10 +674,10 @@ def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
             last_payload = payload
             last_raw = raw
             if status_code == 200:
-                generation = payload.get("generation") if isinstance(payload, dict) else {}
-                generation_obj = generation if isinstance(generation, dict) else {}
-                tick_count = int(generation_obj.get("tick_count") or 0)
-                request_count = int(generation_obj.get("request_count") or 0)
+                supervisor = lifecycle_supervisor(payload)
+                tick_count = int(supervisor.get("generated_tick_count") or 0)
+                request_count = int(supervisor.get("generated_request_count") or 0)
+                last_successful_beat_at = int(supervisor.get("last_successful_beat_at") or 0)
                 monitoring_delta_url = monitoring_delta_base_url
                 if baseline_monitoring_cursor:
                     monitoring_delta_url = (
@@ -695,12 +692,12 @@ def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
                 monitoring_raw = monitoring_body
                 if monitoring_status == 200 and monitoring_delta_contains_simulation_event(monitoring_payload):
                     monitoring_visible = True
-                generation_observed = primed_generation_observed or (
-                    (tick_count > baseline_tick_count and request_count > baseline_request_count)
-                    if require_follow_up_tick
-                    else (tick_count > 0 and request_count > 0)
+                follow_up_tick_observed = (
+                    tick_count > baseline_tick_count
+                    and request_count > baseline_request_count
+                    and last_successful_beat_at > baseline_last_beat_at
                 )
-                if generation_observed and monitoring_visible:
+                if follow_up_tick_observed and monitoring_visible:
                     return
             time.sleep(5)
     finally:
@@ -711,6 +708,52 @@ def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
         f"{EDGE_ADVERSARY_SIM_SMOKE_TIMEOUT_SECONDS}s. Last status: {last_raw[:400]} "
         f"Last monitoring delta: {monitoring_raw[:400]}"
     )
+
+
+def wait_for_adversary_sim_control_lease_release(base_url: str, env: dict[str, str]) -> None:
+    opener, _ = admin_session_opener(base_url, env)
+    origin = base_url.rstrip("/")
+    status_url = f"{origin}/admin/adversary-sim/status"
+    deadline = time.time() + EDGE_CONTROL_LEASE_RELEASE_TIMEOUT_SECONDS
+    last_raw = ""
+
+    while time.time() < deadline:
+        status_code, payload, raw = admin_json_request(
+            opener=opener,
+            method="GET",
+            url=status_url,
+            origin=origin,
+        )
+        last_raw = raw
+        if status_code == 200:
+            lease = payload.get("controller_lease") if isinstance(payload, dict) else None
+            lease_obj = lease if isinstance(lease, dict) else {}
+            lease_expires_at = int(lease_obj.get("expires_at") or 0)
+            enabled = bool(payload.get("adversary_sim_enabled"))
+            phase = str(payload.get("phase") or "").strip().lower()
+            lease_released = not lease_obj or lease_expires_at <= int(time.time())
+            if lease_released and not enabled and phase == "off":
+                return
+        time.sleep(1)
+
+    raise SystemExit(
+        "Edge adversary-sim controller lease did not drain before external dashboard smoke. "
+        f"Last status: {last_raw[:400]}"
+    )
+
+
+def smoke_external_dashboard(base_url: str, env: dict[str, str]) -> None:
+    command = [
+        "make",
+        "--no-print-directory",
+        f"SHUMA_BASE_URL={base_url}",
+        f"SHUMA_API_KEY={required_env_value(env, 'SHUMA_API_KEY')}",
+        f"SHUMA_FORWARDED_IP_SECRET={required_env_value(env, 'SHUMA_FORWARDED_IP_SECRET')}",
+        "test-dashboard-e2e-external",
+    ]
+    result = run_interactive_command(command, env=env, cwd=REPO_ROOT)
+    if result.returncode != 0:
+        raise SystemExit(result.stdout.strip() or "External dashboard live smoke failed.")
 
 
 def bootstrap_remote_config_if_missing(base_url: str, env: dict[str, str]) -> None:
@@ -868,9 +911,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         account_id=account_id,
         account_name=account_name,
     )
+    print("Smoke step 1/4: bootstrap remote config if missing")
     bootstrap_remote_config_if_missing(primary_url, env)
+    print("Smoke step 2/4: verify dashboard/public/admin routes")
     smoke_deployed_app(primary_url, env)
+    print("Smoke step 3/4: verify adversary sim generation (initial prime tick + scheduled follow-up beat)")
     smoke_adversary_sim_generation(primary_url, env)
+    wait_for_adversary_sim_control_lease_release(primary_url, env)
+    print("Smoke step 4/4: verify external dashboard truthfulness against live edge deployment")
+    smoke_external_dashboard(primary_url, env)
 
     deploy_receipt = {
         "schema": "shuma.fermyon.akamai_edge_deploy.v1",

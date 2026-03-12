@@ -234,3 +234,64 @@ export function adversarySimStateMatchesDesired(payload, desiredEnabled) {
   }
   return normalized.enabled !== true && normalized.generationActive !== true && normalized.phase === 'off';
 }
+
+/**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+export function isRetryableAdversarySimControlError(error) {
+  const status = Number(error?.status || 0);
+  return status === 409 || status === 429;
+}
+
+/**
+ * @param {unknown} error
+ * @returns {number}
+ */
+export function adversarySimControlRetryDelayMs(error) {
+  const status = Number(error?.status || 0);
+  const retryAfterSeconds = Number(error?.retryAfterSeconds || 0);
+  if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+    return retryAfterSeconds * 1000 + 250;
+  }
+  return status === 409 ? 2_000 : 1_100;
+}
+
+/**
+ * @param {(desiredEnabled: boolean) => Promise<unknown>} controlFn
+ * @param {boolean} desiredEnabled
+ * @param {{ timeoutMs?: number, sleep?: (ms: number) => Promise<void> }} [options]
+ * @returns {Promise<unknown>}
+ */
+export async function controlAdversarySimWithRetry(
+  controlFn,
+  desiredEnabled,
+  options = {}
+) {
+  if (typeof controlFn !== 'function') {
+    throw new Error('Adversary sim control callback is required.');
+  }
+  const timeoutMs = Math.max(1_000, Number(options.timeoutMs || 0) || 30_000);
+  const sleep = typeof options.sleep === 'function'
+    ? options.sleep
+    : (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const deadline = Date.now() + timeoutMs;
+  let lastError = null;
+
+  while (Date.now() < deadline) {
+    try {
+      return await controlFn(desiredEnabled === true);
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableAdversarySimControlError(error)) {
+        throw error;
+      }
+      const remainingMs = deadline - Date.now();
+      if (remainingMs <= 0) break;
+      const delayMs = Math.min(adversarySimControlRetryDelayMs(error), remainingMs);
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError || new Error('Adversary simulation control retry budget exhausted.');
+}

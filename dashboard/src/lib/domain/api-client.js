@@ -56,8 +56,22 @@ export function DashboardApiError(message, status, path, method) {
   error.path = String(path || '');
   /** @type {string} */
   error.method = String(method || 'GET').toUpperCase();
+  /** @type {number | null} */
+  error.retryAfterSeconds = null;
   return error;
 }
+
+/**
+ * @param {string | null} value
+ * @returns {number | null}
+ */
+const parseRetryAfterSeconds = (value) => {
+  const normalized = String(value || '').trim();
+  if (!normalized) return null;
+  const seconds = Number.parseInt(normalized, 10);
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  return seconds;
+};
 
 /**
  * @param {unknown} value
@@ -649,6 +663,7 @@ export const create = (options = {}) => {
         path,
         method
       );
+      apiError.retryAfterSeconds = parseRetryAfterSeconds(response.headers.get('retry-after'));
       emitRequestTelemetry({
         outcome: 'failure',
         failureClass: classifyRequestFailure(apiError, { statusCode: response.status }),
