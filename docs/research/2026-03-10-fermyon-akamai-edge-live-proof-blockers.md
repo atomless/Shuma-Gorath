@@ -8,7 +8,7 @@ Those blockers have since been resolved and the completed live proof is now in [
 
 ## Summary
 
-The in-repo Fermyon / Akamai edge setup and deploy helpers are implemented and the focused helper verification path passes, but the first real edge proof is currently blocked by Fermyon account access and an upstream CLI login defect.
+At that point, the in-repo Fermyon / Akamai edge setup and deploy helpers were implemented and the focused helper verification path passed, but the first real edge proof was blocked by Fermyon account access and an upstream CLI login defect.
 
 ## Observed Friction
 
