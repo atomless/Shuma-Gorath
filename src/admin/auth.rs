@@ -421,6 +421,35 @@ pub fn is_internal_adversary_sim_supervisor_request(req: &Request) -> bool {
         .unwrap_or(false)
 }
 
+pub fn is_internal_adversary_sim_edge_cron_request(req: &Request) -> bool {
+    if !crate::config::gateway_deployment_profile().is_edge()
+        || !matches!(req.method(), &Method::Get | &Method::Post)
+    {
+        return false;
+    }
+
+    if !crate::request_is_https(req) {
+        return false;
+    }
+
+    let expected_secret =
+        crate::config::runtime_var_trimmed_optional("SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET")
+            .unwrap_or_default();
+    if expected_secret.is_empty() {
+        return false;
+    }
+
+    crate::request_validation::query_param(req.query(), "edge_cron_secret")
+        .as_deref()
+        .map(str::trim)
+        .map(|value| value == expected_secret)
+        .unwrap_or(false)
+}
+
+pub fn is_internal_adversary_sim_beat_request(req: &Request) -> bool {
+    is_internal_adversary_sim_supervisor_request(req) || is_internal_adversary_sim_edge_cron_request(req)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -676,6 +705,18 @@ mod tests {
         builder.build()
     }
 
+    fn internal_edge_cron_request() -> Request {
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Get)
+            .uri("/internal/adversary-sim/beat?edge_cron_secret=test-edge-cron-secret")
+            .header(
+                "spin-full-url",
+                "https://edge.example.com/internal/adversary-sim/beat?edge_cron_secret=test-edge-cron-secret",
+            );
+        builder.build()
+    }
+
     #[test]
     fn internal_adversary_sim_supervisor_request_requires_marker_bearer_secret_https_and_loopback() {
         let _lock = crate::test_support::lock_env();
@@ -724,5 +765,45 @@ mod tests {
 
         std::env::remove_var("SHUMA_API_KEY");
         std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    }
+
+    #[test]
+    fn internal_adversary_sim_edge_cron_request_requires_edge_profile_https_and_secret() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+        std::env::set_var(
+            "SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET",
+            "test-edge-cron-secret",
+        );
+
+        let req = internal_edge_cron_request();
+        assert!(is_internal_adversary_sim_edge_cron_request(&req));
+        assert!(is_internal_adversary_sim_beat_request(&req));
+
+        let mut wrong_secret = Request::builder();
+        wrong_secret
+            .method(Method::Get)
+            .uri("/internal/adversary-sim/beat?edge_cron_secret=wrong")
+            .header(
+                "spin-full-url",
+                "https://edge.example.com/internal/adversary-sim/beat?edge_cron_secret=wrong",
+            );
+        assert!(!is_internal_adversary_sim_edge_cron_request(
+            &wrong_secret.build()
+        ));
+
+        let mut insecure = Request::builder();
+        insecure
+            .method(Method::Get)
+            .uri("/internal/adversary-sim/beat?edge_cron_secret=test-edge-cron-secret");
+        assert!(!is_internal_adversary_sim_edge_cron_request(
+            &insecure.build()
+        ));
+
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        assert!(!is_internal_adversary_sim_edge_cron_request(&req));
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET");
     }
 }

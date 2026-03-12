@@ -66,7 +66,7 @@ After a successful run, expect:
   - `GATEWAY_SURFACE_CATALOG_PATH`
   - `SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME`
   - `SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE`
-  - required Shuma runtime secrets such as `SHUMA_API_KEY`, `SHUMA_JS_SECRET`, `SHUMA_FORWARDED_IP_SECRET`, `SHUMA_HEALTH_SECRET`, and `SHUMA_SIM_TELEMETRY_SECRET`
+  - required Shuma runtime secrets such as `SHUMA_API_KEY`, `SHUMA_JS_SECRET`, `SHUMA_FORWARDED_IP_SECRET`, `SHUMA_HEALTH_SECRET`, `SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET`, and `SHUMA_SIM_TELEMETRY_SECRET`
 - `.shuma/fermyon-akamai-edge-setup.json` contains:
   - `status=ready` or `status=blocked`
   - resumable progress metadata (`last_completed_step`, `blocked_at_step`, `blocked_reason`, `next_operator_action`)

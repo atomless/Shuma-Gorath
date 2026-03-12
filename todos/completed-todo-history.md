@@ -4,6 +4,36 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-12)
 
+### Ad Hoc Fermyon Reliability: Edge Adversary-Sim Generation Proof
+
+- [x] Repair the live Fermyon / Akamai-edge adversary-sim path so enabling it on the deployed app produces observable monitoring traffic, and harden the deploy helper/tests so that failure cannot slip through again.
+- [x] Why:
+  - the first "live-proven" Fermyon edge baseline was incomplete because enabling adversary sim on the deployed app did not actually generate telemetry, which exposed both a real deploy/runtime gap and a coverage shortfall in the helper proof.
+  - the live platform contract forced a more precise solution than the original implementation assumed: Fermyon cron requires each individual job to run no more frequently than every five minutes, the edge cron beat arrives as `GET`, and truthful operator feedback needed an immediate bounded prime on enable plus proof of a later autonomous follow-up tick.
+- [x] Evidence:
+  - `config/defaults.env`
+  - `scripts/bootstrap/setup.sh`
+  - `scripts/deploy/spin_manifest.py`
+  - `scripts/deploy/fermyon_akamai_edge_setup.py`
+  - `scripts/deploy/fermyon_akamai_edge_deploy.py`
+  - `scripts/tests/test_prepare_fermyon_akamai_edge.py`
+  - `scripts/tests/test_deploy_fermyon_akamai_edge.py`
+  - `src/config/mod.rs`
+  - `src/config/tests.rs`
+  - `src/admin/auth.rs`
+  - `src/admin/api.rs`
+  - `src/admin/adversary_sim.rs`
+  - `docs/research/2026-03-12-fermyon-akamai-edge-live-proof.md`
+  - `skills/prepare-shuma-on-akamai-fermyon/SKILL.md`
+  - `skills/prepare-shuma-on-akamai-fermyon/references/OPERATIONS.md`
+  - `skills/deploy-shuma-on-akamai-fermyon/SKILL.md`
+  - `skills/deploy-shuma-on-akamai-fermyon/references/OPERATIONS.md`
+  - `docs/deployment.md`
+  - `docs/quick-reference.md`
+  - `make test-deploy-fermyon`
+  - live `make deploy-fermyon-akamai-edge`
+  - live edge proof that enable returned `generation.tick_count >= 1` and later polling showed a follow-up cron-driven tick beyond that baseline
+
 ### SIM2-R4-4: Config Seeding Lifecycle and Test-Mode Semantics
 
 - [x] SIM2-R4-4-4 Resolve `test_mode` semantics end-to-end, defaulting to ephemeral runtime/session state unless a narrower exception is deliberately approved.

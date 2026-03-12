@@ -500,6 +500,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     ensure_env_secret(env_file, "SHUMA_JS_SECRET")
     ensure_env_secret(env_file, "SHUMA_FORWARDED_IP_SECRET")
     ensure_env_secret(env_file, "SHUMA_HEALTH_SECRET")
+    ensure_env_secret(env_file, "SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET")
     ensure_env_secret(env_file, "SHUMA_SIM_TELEMETRY_SECRET")
 
     receipt_path = Path(args.receipt_output).expanduser().resolve()

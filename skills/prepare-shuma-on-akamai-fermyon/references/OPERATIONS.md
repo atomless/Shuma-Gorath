@@ -50,7 +50,7 @@ The helper persists local secrets and setup state in the right places:
   - `GATEWAY_SURFACE_CATALOG_PATH`
   - `SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME`
   - `SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE`
-  - required Shuma runtime secrets
+  - required Shuma runtime secrets, including `SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET`
 - `.shuma/fermyon-akamai-edge-setup.json`
   - app/account metadata
   - gateway posture and upstream origin

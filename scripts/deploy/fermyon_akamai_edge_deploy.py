@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 import argparse
+import http.cookiejar
 import json
 import os
 import pty
 import select
 import subprocess
 import sys
+import time
+import uuid
 from pathlib import Path
 from typing import Any, Sequence
 from urllib import error as urllib_error
+from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -34,6 +38,16 @@ from scripts.deploy.spin_manifest import FERMYON_EDGE_RUNTIME_ENV_KEYS, spin_var
 from scripts.deploy.setup_common import utc_now_iso, write_json
 
 DEFAULTS_ENV_FILE = REPO_ROOT / "config" / "defaults.env"
+EDGE_CRON_JOB_NAME_PREFIX = "shuma-adversary-sim-beat"
+EDGE_CRON_SCHEDULES = (
+    "*/5 * * * *",
+    "1-59/5 * * * *",
+    "2-59/5 * * * *",
+    "3-59/5 * * * *",
+    "4-59/5 * * * *",
+)
+EDGE_CRON_SECRET_QUERY_KEY = "edge_cron_secret"
+EDGE_ADVERSARY_SIM_SMOKE_TIMEOUT_SECONDS = 185
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -151,6 +165,7 @@ def deploy_env(receipt: dict[str, Any], env_file_values: dict[str, str], setup_r
     required_env_value(env, "SHUMA_JS_SECRET")
     required_env_value(env, "SHUMA_FORWARDED_IP_SECRET")
     required_env_value(env, "SHUMA_HEALTH_SECRET")
+    required_env_value(env, "SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET")
     required_env_value(env, "SHUMA_ADMIN_IP_ALLOWLIST")
     required_env_value(env, "SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE")
     return env
@@ -338,12 +353,17 @@ def http_text_request(
     headers: dict[str, str] | None = None,
     body: bytes | None = None,
     timeout_seconds: int = 30,
+    opener: Any | None = None,
 ) -> tuple[int, str]:
     request = urllib_request.Request(url, data=body, method=method.upper())
     for key, value in (headers or {}).items():
         request.add_header(key, value)
     try:
-        with urllib_request.urlopen(request, timeout=timeout_seconds) as response:
+        if opener is None:
+            response_context = urllib_request.urlopen(request, timeout=timeout_seconds)
+        else:
+            response_context = opener.open(request, timeout=timeout_seconds)
+        with response_context as response:
             return response.getcode(), response.read().decode("utf-8", errors="replace")
     except urllib_error.HTTPError as exc:
         return exc.code, exc.read().decode("utf-8", errors="replace")
@@ -356,6 +376,286 @@ def admin_auth_headers(env: dict[str, str], base_url: str) -> dict[str, str]:
         "Authorization": f"Bearer {required_env_value(env, 'SHUMA_API_KEY')}",
         "Origin": base_url.rstrip("/"),
     }
+
+
+def edge_cron_path_and_query(env: dict[str, str]) -> str:
+    secret = required_env_value(env, "SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET")
+    query = urllib_parse.urlencode({EDGE_CRON_SECRET_QUERY_KEY: secret})
+    return f"/internal/adversary-sim/beat?{query}"
+
+
+def redacted_edge_cron_path_and_query() -> str:
+    return f"/internal/adversary-sim/beat?{EDGE_CRON_SECRET_QUERY_KEY}=<redacted>"
+
+
+def cron_scope_args(*, app_id: str, account_id: str, account_name: str) -> list[str]:
+    args: list[str] = []
+    if app_id:
+        args.extend(["--app-id", app_id])
+    if account_id:
+        args.extend(["--account-id", account_id])
+    elif account_name:
+        args.extend(["--account-name", account_name])
+    return args
+
+
+def listed_cron_job_names(output: str) -> list[str]:
+    names: list[str] = []
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("+"):
+            continue
+        if line.startswith("|"):
+            columns = [column.strip() for column in line.strip("|").split("|")]
+            if not columns:
+                continue
+            first_column = columns[0]
+            if not first_column or first_column.lower() == "name":
+                continue
+            names.append(first_column)
+            continue
+        first_token = line.split()[0].strip()
+        if first_token and first_token.lower() != "name":
+            names.append(first_token)
+    return names
+
+
+def edge_cron_jobs(env: dict[str, str]) -> list[dict[str, str]]:
+    path_and_query = edge_cron_path_and_query(env)
+    jobs: list[dict[str, str]] = []
+    for index, schedule in enumerate(EDGE_CRON_SCHEDULES):
+        jobs.append(
+            {
+                "name": f"{EDGE_CRON_JOB_NAME_PREFIX}-{index}",
+                "schedule": schedule,
+                "path_and_query": path_and_query,
+            }
+        )
+    return jobs
+
+
+def ensure_adversary_sim_edge_cron(*, env: dict[str, str], app_id: str, account_id: str, account_name: str) -> dict[str, str]:
+    scope_args = cron_scope_args(app_id=app_id, account_id=account_id, account_name=account_name)
+    list_command = ["spin", "aka", "cron", "list", *scope_args]
+    listed = run_command(list_command, env=env, cwd=REPO_ROOT)
+    if listed.returncode != 0:
+        raise SystemExit(listed.stderr.strip() or listed.stdout.strip() or "spin aka cron list failed")
+    existing_names = set(listed_cron_job_names(listed.stdout))
+    managed_jobs = edge_cron_jobs(env)
+    managed_names = {job["name"] for job in managed_jobs}
+    managed_names.add(EDGE_CRON_JOB_NAME_PREFIX)
+
+    for existing_name in sorted(existing_names):
+        if existing_name not in managed_names and not existing_name.startswith(f"{EDGE_CRON_JOB_NAME_PREFIX}-"):
+            continue
+        delete_command = ["spin", "aka", "cron", "delete", *scope_args, existing_name]
+        deleted = run_command(delete_command, env=env, cwd=REPO_ROOT)
+        if deleted.returncode != 0:
+            raise SystemExit(
+                deleted.stderr.strip() or deleted.stdout.strip() or f"spin aka cron delete failed for {existing_name}"
+            )
+
+    for job in managed_jobs:
+        create_command = [
+            "spin",
+            "aka",
+            "cron",
+            "create",
+            *scope_args,
+            "--name",
+            job["name"],
+            "--schedule",
+            job["schedule"],
+            "--path-and-query",
+            job["path_and_query"],
+        ]
+        created = run_command(create_command, env=env, cwd=REPO_ROOT)
+        if created.returncode != 0:
+            raise SystemExit(
+                created.stderr.strip() or created.stdout.strip() or f"spin aka cron create failed for {job['name']}"
+            )
+
+    verified = run_command(list_command, env=env, cwd=REPO_ROOT)
+    verified_names = set(listed_cron_job_names(verified.stdout))
+    if verified.returncode != 0 or any(job["name"] not in verified_names for job in managed_jobs):
+        raise SystemExit("Fermyon edge cron verification failed: expected beat jobs were not present after create")
+
+    return {
+        "job_name_prefix": EDGE_CRON_JOB_NAME_PREFIX,
+        "job_count": len(managed_jobs),
+        "schedules": [job["schedule"] for job in managed_jobs],
+        "path_and_query": redacted_edge_cron_path_and_query(),
+    }
+
+
+def admin_session_opener(base_url: str, env: dict[str, str]) -> tuple[Any, str]:
+    cookie_jar = http.cookiejar.CookieJar()
+    opener = urllib_request.build_opener(urllib_request.HTTPCookieProcessor(cookie_jar))
+    login_body = urllib_parse.urlencode(
+        {
+            "username": "admin",
+            "password": required_env_value(env, "SHUMA_API_KEY"),
+            "next": "/dashboard/index.html",
+        }
+    ).encode("utf-8")
+    login_status, login_response_body = http_text_request(
+        method="POST",
+        url=f"{base_url.rstrip('/')}/admin/login",
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Origin": base_url.rstrip("/"),
+        },
+        body=login_body,
+        opener=opener,
+    )
+    if login_status not in {200, 303}:
+        raise SystemExit(
+            f"Edge admin login smoke failed for {base_url}: status={login_status} body={login_response_body.strip()[:200]}"
+        )
+
+    session_status, session_body = http_text_request(
+        method="GET",
+        url=f"{base_url.rstrip('/')}/admin/session",
+        headers={"Origin": base_url.rstrip("/")},
+        opener=opener,
+    )
+    if session_status != 200:
+        raise SystemExit(
+            f"Edge admin session smoke failed for {base_url}: status={session_status} body={session_body.strip()[:200]}"
+        )
+    try:
+        payload = json.loads(session_body)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"Edge admin session response was invalid JSON: {exc}") from exc
+    csrf_token = str(payload.get("csrf_token") or "").strip()
+    if not csrf_token:
+        raise SystemExit("Edge admin session response did not include csrf_token")
+    return opener, csrf_token
+
+
+def admin_json_request(
+    *,
+    opener: Any,
+    method: str,
+    url: str,
+    csrf_token: str | None = None,
+    origin: str,
+    payload: dict[str, Any] | None = None,
+) -> tuple[int, dict[str, Any], str]:
+    headers = {"Origin": origin}
+    body = None
+    if csrf_token:
+        headers["X-Shuma-CSRF"] = csrf_token
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    if url.endswith("/admin/adversary-sim/control"):
+        headers["Idempotency-Key"] = str(uuid.uuid4())
+    status, text = http_text_request(
+        method=method,
+        url=url,
+        headers=headers,
+        body=body,
+        opener=opener,
+        timeout_seconds=30,
+    )
+    try:
+        parsed = json.loads(text) if text else {}
+    except json.JSONDecodeError:
+        parsed = {}
+    return status, parsed, text
+
+
+def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
+    opener, csrf_token = admin_session_opener(base_url, env)
+    origin = base_url.rstrip("/")
+    status_url = f"{origin}/admin/adversary-sim/status"
+    control_url = f"{origin}/admin/adversary-sim/control"
+
+    def disable_if_running() -> None:
+        try:
+            _, status_payload, _ = admin_json_request(
+                opener=opener,
+                method="GET",
+                url=status_url,
+                origin=origin,
+            )
+            if bool(status_payload.get("adversary_sim_enabled")):
+                admin_json_request(
+                    opener=opener,
+                    method="POST",
+                    url=control_url,
+                    csrf_token=csrf_token,
+                    origin=origin,
+                    payload={"enabled": False, "reason": "fermyon_edge_deploy_smoke"},
+                )
+        except SystemExit:
+            raise
+        except Exception:
+            return
+
+    enable_status, enable_payload, enable_body = admin_json_request(
+        opener=opener,
+        method="POST",
+        url=control_url,
+        csrf_token=csrf_token,
+        origin=origin,
+        payload={"enabled": True, "reason": "fermyon_edge_deploy_smoke"},
+    )
+    if enable_status != 200:
+        raise SystemExit(
+            f"Edge adversary-sim enable smoke failed for {base_url}: status={enable_status} body={enable_body.strip()[:200]}"
+        )
+
+    baseline_status, baseline_payload, baseline_raw = admin_json_request(
+        opener=opener,
+        method="GET",
+        url=status_url,
+        origin=origin,
+    )
+    if baseline_status != 200:
+        raise SystemExit(
+            f"Edge adversary-sim baseline status smoke failed for {base_url}: status={baseline_status} body={baseline_raw.strip()[:200]}"
+        )
+    baseline_generation = baseline_payload.get("generation") if isinstance(baseline_payload, dict) else {}
+    baseline_generation_obj = baseline_generation if isinstance(baseline_generation, dict) else {}
+    baseline_tick_count = int(baseline_generation_obj.get("tick_count") or 0)
+    baseline_request_count = int(baseline_generation_obj.get("request_count") or 0)
+    require_follow_up_tick = baseline_tick_count > 0 or baseline_request_count > 0
+
+    deadline = time.time() + EDGE_ADVERSARY_SIM_SMOKE_TIMEOUT_SECONDS
+    last_payload: dict[str, Any] = {}
+    last_raw = ""
+    try:
+        while time.time() < deadline:
+            status_code, payload, raw = admin_json_request(
+                opener=opener,
+                method="GET",
+                url=status_url,
+                origin=origin,
+            )
+            last_payload = payload
+            last_raw = raw
+            if status_code == 200:
+                generation = payload.get("generation") if isinstance(payload, dict) else {}
+                generation_obj = generation if isinstance(generation, dict) else {}
+                tick_count = int(generation_obj.get("tick_count") or 0)
+                request_count = int(generation_obj.get("request_count") or 0)
+                if require_follow_up_tick:
+                    if tick_count > baseline_tick_count and request_count > baseline_request_count:
+                        return
+                elif tick_count > 0 and request_count > 0:
+                    return
+            time.sleep(5)
+    finally:
+        disable_if_running()
+
+    raise SystemExit(
+        "Edge adversary-sim smoke failed: no generated traffic was observed within "
+        f"{EDGE_ADVERSARY_SIM_SMOKE_TIMEOUT_SECONDS}s. Last status: {last_raw[:400]}"
+    )
 
 
 def bootstrap_remote_config_if_missing(base_url: str, env: dict[str, str]) -> None:
@@ -496,8 +796,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not urls:
         raise SystemExit("Fermyon deploy succeeded but app status returned no public URLs.")
     primary_url = urls[0]
+    cron_job = ensure_adversary_sim_edge_cron(
+        env=env,
+        app_id=app_id,
+        account_id=account_id,
+        account_name=account_name,
+    )
     bootstrap_remote_config_if_missing(primary_url, env)
     smoke_deployed_app(primary_url, env)
+    smoke_adversary_sim_generation(primary_url, env)
 
     deploy_receipt = {
         "schema": "shuma.fermyon.akamai_edge_deploy.v1",
@@ -513,6 +820,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "app_name": app_name,
             "primary_url": primary_url,
             "auth_mode": auth_mode,
+            "cron": cron_job,
             "info": account_info,
             "status": status_payload,
         },

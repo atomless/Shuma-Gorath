@@ -19,8 +19,12 @@ pub const MAX_CPU_MILLICORES: u32 = 1000;
 pub const MAX_MEMORY_MIB: u32 = 512;
 pub const QUEUE_POLICY: &str = "reject_new";
 pub const STOP_TIMEOUT_SECONDS: u64 = 10;
-pub const AUTONOMOUS_HEARTBEAT_INTERVAL_SECONDS: u64 = 1;
-pub const AUTONOMOUS_HEARTBEAT_MAX_CATCHUP_TICKS_PER_INVOCATION: u64 = 2;
+pub const AUTONOMOUS_SHARED_SERVER_HEARTBEAT_INTERVAL_SECONDS: u64 = 1;
+pub const AUTONOMOUS_SHARED_SERVER_MAX_CATCHUP_TICKS_PER_INVOCATION: u64 = 2;
+pub const AUTONOMOUS_EDGE_FERMYON_HEARTBEAT_INTERVAL_SECONDS: u64 = 60;
+pub const AUTONOMOUS_EDGE_FERMYON_MAX_CATCHUP_TICKS_PER_INVOCATION: u64 = 1;
+pub const AUTONOMOUS_EDGE_FERMYON_CRON_SCHEDULE: &str =
+    "staggered 5x cron set (one run per minute, each job every 5 minutes)";
 const DETERMINISTIC_ATTACK_CORPUS_SCHEMA_VERSION: &str = "sim-deterministic-attack-corpus.v1";
 const DETERMINISTIC_ATTACK_CORPUS_PATH: &str =
     "scripts/tests/adversarial/deterministic_attack_corpus.v1.json";
@@ -470,6 +474,15 @@ pub struct AutonomousHeartbeatTickSummary {
     pub last_response_status: Option<u16>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AutonomousExecutionProfile {
+    pub cadence_seconds: u64,
+    pub max_catchup_ticks_per_invocation: u64,
+    pub trigger_surface: &'static str,
+    pub beat_endpoint: &'static str,
+    pub cron_schedule: Option<&'static str>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Transition {
     pub from: ControlPhase,
@@ -488,6 +501,33 @@ pub fn control_surface_available(
     env_available: bool,
 ) -> bool {
     env_available
+}
+
+pub fn autonomous_execution_profile() -> AutonomousExecutionProfile {
+    match crate::config::gateway_deployment_profile() {
+        crate::config::GatewayDeploymentProfile::SharedServer => AutonomousExecutionProfile {
+            cadence_seconds: AUTONOMOUS_SHARED_SERVER_HEARTBEAT_INTERVAL_SECONDS,
+            max_catchup_ticks_per_invocation:
+                AUTONOMOUS_SHARED_SERVER_MAX_CATCHUP_TICKS_PER_INVOCATION,
+            trigger_surface: "internal_beat_endpoint",
+            beat_endpoint: "/internal/adversary-sim/beat",
+            cron_schedule: None,
+        },
+        crate::config::GatewayDeploymentProfile::EdgeFermyon => AutonomousExecutionProfile {
+            cadence_seconds: AUTONOMOUS_EDGE_FERMYON_HEARTBEAT_INTERVAL_SECONDS,
+            max_catchup_ticks_per_invocation:
+                AUTONOMOUS_EDGE_FERMYON_MAX_CATCHUP_TICKS_PER_INVOCATION,
+            trigger_surface: "edge_cron",
+            beat_endpoint: "/internal/adversary-sim/beat",
+            cron_schedule: Some(AUTONOMOUS_EDGE_FERMYON_CRON_SCHEDULE),
+        },
+    }
+}
+
+fn generation_diagnostic_grace_seconds(profile: AutonomousExecutionProfile) -> u64 {
+    profile
+        .cadence_seconds
+        .saturating_add(GENERATION_DIAGNOSTIC_GRACE_SECONDS)
 }
 
 pub fn process_instance_id() -> &'static str {
@@ -925,6 +965,8 @@ pub fn generation_diagnostics(
     cfg_enabled: bool,
     state: &ControlState,
 ) -> GenerationDiagnostics {
+    let profile = autonomous_execution_profile();
+    let diagnostic_grace_seconds = generation_diagnostic_grace_seconds(profile);
     let mut health = "inactive".to_string();
     let mut reason = "simulation_off".to_string();
     let mut recommended_action = "Enable adversary simulation to generate telemetry.".to_string();
@@ -935,23 +977,40 @@ pub fn generation_diagnostics(
             .map(|value| !value.trim().is_empty())
             .unwrap_or(false);
         let started_at = state.started_at.unwrap_or(now);
-        let idle_window_elapsed = now
-            >= started_at.saturating_add(GENERATION_DIAGNOSTIC_GRACE_SECONDS);
+        let idle_window_elapsed = now >= started_at.saturating_add(diagnostic_grace_seconds);
         if has_error {
             health = "error".to_string();
             reason = "tick_execution_failed".to_string();
             recommended_action = "Inspect generation_diagnostics.last_generation_error and restart the run if needed.".to_string();
         } else if state.generated_request_count == 0 && idle_window_elapsed {
             health = "no_traffic".to_string();
-            reason = "supervisor_no_traffic_yet".to_string();
-            recommended_action =
-                "Verify backend supervisor heartbeat diagnostics and confirm simulation remains running.".to_string();
+            reason = if profile.cron_schedule.is_some() {
+                "edge_cron_no_traffic_yet".to_string()
+            } else {
+                "supervisor_no_traffic_yet".to_string()
+            };
+            recommended_action = if profile.cron_schedule.is_some() {
+                "Verify the edge cron heartbeat is provisioned and allow one full cron interval for first generated traffic."
+                    .to_string()
+            } else {
+                "Verify backend supervisor heartbeat diagnostics and confirm simulation remains running."
+                    .to_string()
+            };
         } else if let Some(last_generated_at) = state.last_generated_at {
-            if now >= last_generated_at.saturating_add(GENERATION_DIAGNOSTIC_GRACE_SECONDS) {
+            if now >= last_generated_at.saturating_add(diagnostic_grace_seconds) {
                 health = "stalled".to_string();
-                reason = "supervisor_tick_stalled".to_string();
-                recommended_action =
-                    "Check backend supervisor heartbeat state and re-enable adversary simulation if needed.".to_string();
+                reason = if profile.cron_schedule.is_some() {
+                    "edge_cron_tick_stalled".to_string()
+                } else {
+                    "supervisor_tick_stalled".to_string()
+                };
+                recommended_action = if profile.cron_schedule.is_some() {
+                    "Check edge cron scheduling state and re-enable adversary simulation if needed."
+                        .to_string()
+                } else {
+                    "Check backend supervisor heartbeat state and re-enable adversary simulation if needed."
+                        .to_string()
+                };
             } else {
                 health = "ok".to_string();
                 reason = "traffic_observed".to_string();
@@ -960,8 +1019,16 @@ pub fn generation_diagnostics(
             }
         } else {
             health = "warming".to_string();
-            reason = "waiting_for_first_supervisor_tick".to_string();
-            recommended_action = "Allow one heartbeat interval for first generated traffic.".to_string();
+            reason = if profile.cron_schedule.is_some() {
+                "waiting_for_first_edge_cron_tick".to_string()
+            } else {
+                "waiting_for_first_supervisor_tick".to_string()
+            };
+            recommended_action = if profile.cron_schedule.is_some() {
+                "Allow one full cron interval for first generated traffic.".to_string()
+            } else {
+                "Allow one heartbeat interval for first generated traffic.".to_string()
+            };
         }
     } else if cfg_enabled {
         health = "degraded".to_string();
@@ -985,7 +1052,15 @@ pub fn supervisor_status_payload(
     cfg_enabled: bool,
     state: &ControlState,
 ) -> serde_json::Value {
-    let heartbeat_active = cfg_enabled && state.phase == ControlPhase::Running;
+    let profile = autonomous_execution_profile();
+    let heartbeat_expected = cfg_enabled && state.phase == ControlPhase::Running;
+    let heartbeat_active = heartbeat_expected
+        && state
+            .last_generated_at
+            .map(|last_generated_at| {
+                now < last_generated_at.saturating_add(profile.cadence_seconds.saturating_mul(2))
+            })
+            .unwrap_or(false);
     let off_state_inert = !cfg_enabled
         && state.phase == ControlPhase::Off
         && state.active_run_count == 0
@@ -995,15 +1070,17 @@ pub fn supervisor_status_payload(
         .map(|last_generated_at| now.saturating_sub(last_generated_at));
     json!({
         "owner": "backend_autonomous_supervisor",
-        "cadence_seconds": AUTONOMOUS_HEARTBEAT_INTERVAL_SECONDS,
-        "max_catchup_ticks_per_invocation": AUTONOMOUS_HEARTBEAT_MAX_CATCHUP_TICKS_PER_INVOCATION,
+        "cadence_seconds": profile.cadence_seconds,
+        "max_catchup_ticks_per_invocation": profile.max_catchup_ticks_per_invocation,
+        "heartbeat_expected": heartbeat_expected,
         "heartbeat_active": heartbeat_active,
         "worker_active": heartbeat_active,
         "last_heartbeat_at": state.last_generated_at,
         "idle_seconds": idle_seconds,
         "off_state_inert": off_state_inert,
-        "trigger_surface": "internal_beat_endpoint",
-        "beat_endpoint": "/internal/adversary-sim/beat",
+        "trigger_surface": profile.trigger_surface,
+        "beat_endpoint": profile.beat_endpoint,
+        "cron_schedule": profile.cron_schedule,
         "deterministic_attack_corpus": deterministic_corpus_metadata_payload()
     })
 }
@@ -1012,18 +1089,19 @@ fn autonomous_heartbeat_due_ticks(now: u64, state: &ControlState) -> u64 {
     if state.phase != ControlPhase::Running {
         return 0;
     }
+    let profile = autonomous_execution_profile();
     let due = match state.last_generated_at {
         None => 1,
         Some(last_generated_at) => {
             let elapsed_seconds = now.saturating_sub(last_generated_at);
-            if elapsed_seconds < AUTONOMOUS_HEARTBEAT_INTERVAL_SECONDS {
+            if elapsed_seconds < profile.cadence_seconds {
                 0
             } else {
-                elapsed_seconds / AUTONOMOUS_HEARTBEAT_INTERVAL_SECONDS
+                elapsed_seconds / profile.cadence_seconds
             }
         }
     };
-    due.min(AUTONOMOUS_HEARTBEAT_MAX_CATCHUP_TICKS_PER_INVOCATION)
+    due.min(profile.max_catchup_ticks_per_invocation)
 }
 
 pub fn run_autonomous_supervisor_ticks(
@@ -1537,11 +1615,11 @@ mod tests {
         let summary = run_autonomous_supervisor_ticks(&store, &mut state, 200);
         assert_eq!(
             summary.executed_ticks,
-            AUTONOMOUS_HEARTBEAT_MAX_CATCHUP_TICKS_PER_INVOCATION
+            AUTONOMOUS_SHARED_SERVER_MAX_CATCHUP_TICKS_PER_INVOCATION
         );
         assert_eq!(
             state.generated_tick_count,
-            AUTONOMOUS_HEARTBEAT_MAX_CATCHUP_TICKS_PER_INVOCATION
+            AUTONOMOUS_SHARED_SERVER_MAX_CATCHUP_TICKS_PER_INVOCATION
         );
     }
 
@@ -1568,6 +1646,82 @@ mod tests {
                 .and_then(|value| value.as_str()),
             Some(DETERMINISTIC_ATTACK_CORPUS_SCHEMA_VERSION)
         );
+    }
+
+    #[test]
+    fn supervisor_status_payload_reports_edge_cron_truthfully_before_first_tick() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+        let state = ControlState {
+            phase: ControlPhase::Running,
+            desired_enabled: true,
+            run_id: Some("run-edge".to_string()),
+            started_at: Some(100),
+            ends_at: Some(400),
+            active_run_count: 1,
+            active_lane_count: deterministic_runtime_profile().active_lane_count,
+            ..ControlState::default()
+        };
+
+        let payload = supervisor_status_payload(130, true, &state);
+        assert_eq!(
+            payload
+                .get("heartbeat_expected")
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .get("heartbeat_active")
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
+        assert_eq!(
+            payload
+                .get("trigger_surface")
+                .and_then(|value| value.as_str()),
+            Some("edge_cron")
+        );
+        assert_eq!(
+            payload
+                .get("cadence_seconds")
+                .and_then(|value| value.as_u64()),
+            Some(AUTONOMOUS_EDGE_FERMYON_HEARTBEAT_INTERVAL_SECONDS)
+        );
+        assert_eq!(
+            payload
+                .get("cron_schedule")
+                .and_then(|value| value.as_str()),
+            Some(AUTONOMOUS_EDGE_FERMYON_CRON_SCHEDULE)
+        );
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    }
+
+    #[test]
+    fn generation_diagnostics_waits_full_edge_interval_before_no_traffic() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+        let state = ControlState {
+            phase: ControlPhase::Running,
+            desired_enabled: true,
+            run_id: Some("run-edge".to_string()),
+            started_at: Some(100),
+            ends_at: Some(400),
+            active_run_count: 1,
+            active_lane_count: deterministic_runtime_profile().active_lane_count,
+            ..ControlState::default()
+        };
+
+        let warming = generation_diagnostics(130, true, &state);
+        assert_eq!(warming.health, "warming");
+        assert_eq!(warming.reason, "waiting_for_first_edge_cron_tick");
+
+        let no_traffic = generation_diagnostics(170, true, &state);
+        assert_eq!(no_traffic.health, "no_traffic");
+        assert_eq!(no_traffic.reason, "edge_cron_no_traffic_yet");
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
     }
 
     #[test]

@@ -626,6 +626,9 @@ What the helpers do:
 - write `.shuma/fermyon-akamai-edge-setup.json`,
 - render a deployment-specific Spin manifest,
 - run enterprise edge preflight through the canonical Make targets,
+- provision a managed five-job adversary-sim edge cron set,
+- bootstrap edge config if the KV is still empty,
+- verify adversary-sim generation with both an immediate primed tick and a later cron-driven follow-up,
 - write `.shuma/fermyon-akamai-edge-deploy.json` after a successful `spin aka deploy`.
 
 Current honest boundary:

@@ -18,7 +18,7 @@ spin aka deploy --help >/dev/null
 test -f .shuma/fermyon-akamai-edge-setup.json
 ```
 
-The deploy helper itself performs the enterprise guardrails and writes the deploy receipt.
+The deploy helper itself performs the enterprise guardrails, provisions the managed adversary-sim edge cron set, and writes the deploy receipt.
 
 ## Deploy Execution
 
@@ -119,6 +119,33 @@ Fix:
 
 - ensure the deploy helper is loading `config/defaults.env` as well as `.env.local`
 - redeploy so defaulted runtime variables are passed explicitly as Spin variables instead of arriving as empty-string manifest defaults
+
+### Adversary sim shows `running` but generates no traffic
+
+Symptoms:
+
+- `/admin/adversary-sim/status` reports enabled/running
+- `generated_tick_count` and `generated_request_count` stay at `0`
+- monitoring surfaces do not show adversary-sim traffic
+
+Fix:
+
+- ensure the edge deploy includes `SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET`
+- ensure the helper provisions the five staggered `shuma-adversary-sim-beat-*` cron jobs
+- remember that Fermyon edge cron invokes the beat path as `GET`, not `POST`
+- redeploy with the current helper so edge enable primes one bounded first tick and deploy smoke waits for a later cron-driven follow-up tick
+
+### `spin aka cron create` rejects once-per-minute schedules
+
+Symptoms:
+
+- cron creation fails during deploy with a minimum-cadence validation error
+
+Fix:
+
+- do not try to force a single once-per-minute job
+- use the managed staggered five-job set created by the deploy helper
+- treat the effective cadence as one beat per minute across the set, not per individual cron job
 
 ### Fresh edge app returns `500 Configuration unavailable`
 

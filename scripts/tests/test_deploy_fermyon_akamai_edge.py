@@ -30,6 +30,7 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
                     "SHUMA_JS_SECRET=test-js-secret",
                     "SHUMA_FORWARDED_IP_SECRET=test-forwarded-secret",
                     "SHUMA_HEALTH_SECRET=test-health-secret",
+                    "SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET=test-edge-cron-secret",
                     "SHUMA_ADMIN_IP_ALLOWLIST=203.0.113.8/32",
                     "SHUMA_DEBUG_HEADERS=false",
                     "SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE=origin-secret",
@@ -227,6 +228,12 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         ) as bootstrap_mock, patch.object(
             deploy, "smoke_deployed_app"
         ) as smoke_mock, patch.object(
+            deploy,
+            "ensure_adversary_sim_edge_cron",
+            return_value={"job_name_prefix": "shuma-adversary-sim-beat", "job_count": 5},
+        ) as cron_mock, patch.object(
+            deploy, "smoke_adversary_sim_generation"
+        ) as sim_smoke_mock, patch.object(
             deploy, "fetch_aka_info", return_value={"account": {"id": "acc_123"}}
         ):
             rc = deploy.main(
@@ -244,17 +251,139 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         self.assertEqual(len(interactive_calls), 1)
         bootstrap_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
         smoke_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
+        cron_mock.assert_called_once_with(
+            env=unittest.mock.ANY,
+            app_id="app_existing_123",
+            account_id="acc_123",
+            account_name="",
+        )
+        sim_smoke_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
         deploy_command = interactive_calls[0]
         self.assertIn("--variable", deploy_command)
         self.assertIn("shuma_api_key=test-admin-key", deploy_command)
         self.assertIn("shuma_js_secret=test-js-secret", deploy_command)
         self.assertIn("shuma_forwarded_ip_secret=test-forwarded-secret", deploy_command)
         self.assertIn("shuma_health_secret=test-health-secret", deploy_command)
+        self.assertIn("shuma_adversary_sim_edge_cron_secret=test-edge-cron-secret", deploy_command)
         self.assertIn("shuma_admin_ip_allowlist=203.0.113.8/32", deploy_command)
         self.assertIn("shuma_debug_headers=false", deploy_command)
         self.assertIn("shuma_event_log_retention_hours=168", deploy_command)
         self.assertIn("shuma_monitoring_retention_hours=168", deploy_command)
         self.assertIn("shuma_monitoring_rollup_retention_hours=720", deploy_command)
+
+    def test_ensure_adversary_sim_edge_cron_recreates_staggered_job_set(self) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run(command, *, env=None, cwd=None, capture_output=True):
+            calls.append(list(command))
+            if command[:4] == ["spin", "aka", "cron", "list"] and len(calls) == 1:
+                return result(
+                    stdout="\n".join(
+                        [
+                            "+----------------------------+----------------+-------------------------+",
+                            "| Name                       | Schedule       | Next Run                |",
+                            "+=======================================================================+",
+                            "| shuma-adversary-sim-beat   | */5 * * * *    | 2026-03-12 13:05:00 UTC |",
+                            "| shuma-adversary-sim-beat-0 | */5 * * * *    | 2026-03-12 13:05:00 UTC |",
+                            "| shuma-adversary-sim-beat-1 | 1-59/5 * * * * | 2026-03-12 13:06:00 UTC |",
+                            "+----------------------------+----------------+-------------------------+",
+                        ]
+                    )
+                    + "\n"
+                )
+            if command[:4] == ["spin", "aka", "cron", "delete"]:
+                return result(stdout="deleted\n")
+            if command[:4] == ["spin", "aka", "cron", "create"]:
+                return result(stdout="created\n")
+            if command[:4] == ["spin", "aka", "cron", "list"] and len(calls) == 10:
+                return result(
+                    stdout="\n".join(
+                        [
+                            "+----------------------------+----------------+-------------------------+",
+                            "| Name                       | Schedule       | Next Run                |",
+                            "+=======================================================================+",
+                            *[
+                                f"| shuma-adversary-sim-beat-{index} | {schedule:<14} | 2026-03-12 13:05:00 UTC |"
+                                for index, schedule in enumerate(deploy.EDGE_CRON_SCHEDULES)
+                            ],
+                            "+----------------------------+----------------+-------------------------+",
+                        ]
+                    )
+                    + "\n"
+                )
+            raise AssertionError(f"Unexpected command: {command}")
+
+        with patch.object(deploy, "run_command", side_effect=fake_run):
+            cron = deploy.ensure_adversary_sim_edge_cron(
+                env={"SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET": "test-edge-cron-secret"},
+                app_id="app_123",
+                account_id="acc_123",
+                account_name="",
+            )
+
+        self.assertEqual(
+            calls[0],
+            ["spin", "aka", "cron", "list", "--app-id", "app_123", "--account-id", "acc_123"],
+        )
+        self.assertEqual(
+            calls[1],
+            [
+                "spin",
+                "aka",
+                "cron",
+                "delete",
+                "--app-id",
+                "app_123",
+                "--account-id",
+                "acc_123",
+                "shuma-adversary-sim-beat",
+            ],
+        )
+        self.assertEqual(
+            calls[2],
+            [
+                "spin",
+                "aka",
+                "cron",
+                "delete",
+                "--app-id",
+                "app_123",
+                "--account-id",
+                "acc_123",
+                "shuma-adversary-sim-beat-0",
+            ],
+        )
+        self.assertEqual(
+            calls[3],
+            [
+                "spin",
+                "aka",
+                "cron",
+                "delete",
+                "--app-id",
+                "app_123",
+                "--account-id",
+                "acc_123",
+                "shuma-adversary-sim-beat-1",
+            ],
+        )
+        self.assertEqual(
+            calls[4][:8],
+            ["spin", "aka", "cron", "create", "--app-id", "app_123", "--account-id", "acc_123"],
+        )
+        self.assertEqual(
+            [calls[index][calls[index].index("--name") + 1] for index in range(4, 9)],
+            [f"shuma-adversary-sim-beat-{index}" for index in range(5)],
+        )
+        self.assertEqual(
+            [calls[index][calls[index].index("--schedule") + 1] for index in range(4, 9)],
+            list(deploy.EDGE_CRON_SCHEDULES),
+        )
+        self.assertTrue(all("edge_cron_secret=test-edge-cron-secret" in calls[index][-1] for index in range(4, 9)))
+        self.assertEqual(cron["job_name_prefix"], "shuma-adversary-sim-beat")
+        self.assertEqual(cron["job_count"], 5)
+        self.assertEqual(cron["schedules"], list(deploy.EDGE_CRON_SCHEDULES))
+        self.assertEqual(cron["path_and_query"], "/internal/adversary-sim/beat?edge_cron_secret=<redacted>")
 
     def test_deploy_env_merges_defaults_env_before_env_file(self) -> None:
         defaults_file = self.temp_dir / "defaults.env"
@@ -391,6 +520,12 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         ) as bootstrap_mock, patch.object(
             deploy, "smoke_deployed_app"
         ) as smoke_mock, patch.object(
+            deploy,
+            "ensure_adversary_sim_edge_cron",
+            return_value={"job_name_prefix": "shuma-adversary-sim-beat", "job_count": 5},
+        ) as cron_mock, patch.object(
+            deploy, "smoke_adversary_sim_generation"
+        ) as sim_smoke_mock, patch.object(
             deploy, "fetch_aka_info", return_value={"account": {"id": "acc_123"}}
         ):
             rc = deploy.main(
@@ -407,6 +542,13 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         bootstrap_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
         smoke_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
+        cron_mock.assert_called_once_with(
+            env=unittest.mock.ANY,
+            app_id="app_existing_123",
+            account_id="acc_123",
+            account_name="",
+        )
+        sim_smoke_mock.assert_called_once_with("https://app.example.com", unittest.mock.ANY)
         self.assertEqual(len(interactive_calls), 1)
         deploy_call = interactive_calls[0]
         self.assertIn("--app-id", deploy_call)
@@ -416,6 +558,8 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         updated_receipt = json.loads(self.deploy_receipt.read_text(encoding="utf-8"))
         self.assertEqual(updated_receipt["fermyon"]["app_id"], "app_existing_123")
         self.assertEqual(updated_receipt["fermyon"]["primary_url"], "https://app.example.com")
+        self.assertEqual(updated_receipt["fermyon"]["cron"]["job_name_prefix"], "shuma-adversary-sim-beat")
+        self.assertEqual(updated_receipt["fermyon"]["cron"]["job_count"], 5)
 
     def test_bootstrap_remote_config_posts_seeded_json_when_admin_config_missing(self) -> None:
         env = {

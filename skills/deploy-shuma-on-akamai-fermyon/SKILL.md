@@ -31,6 +31,7 @@ Required baseline secrets/hardening:
 - `SHUMA_JS_SECRET`
 - `SHUMA_FORWARDED_IP_SECRET`
 - `SHUMA_HEALTH_SECRET`
+- `SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET`
 - `SHUMA_ADMIN_IP_ALLOWLIST`
 - `SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true`
 - `SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true`
@@ -73,6 +74,9 @@ What the helper does:
 - attempts to reuse an existing `spin aka` session,
 - otherwise attempts non-interactive `spin aka` login and falls back to device login when the known token-login panic occurs in an interactive session,
 - runs `spin aka deploy` with explicit account/app targeting,
+- provisions a managed five-job adversary-sim cron set so the effective edge cadence is one beat per minute while each individual job still respects Fermyon's five-minute minimum,
+- bootstraps config when the edge KV is still empty,
+- proves adversary-sim generation live by requiring an immediate primed tick and a later cron-driven follow-up tick,
 - writes `.shuma/fermyon-akamai-edge-deploy.json`.
 
 What the helper must not do:

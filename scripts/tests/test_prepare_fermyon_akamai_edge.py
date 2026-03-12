@@ -110,6 +110,7 @@ class PrepareFermyonAkamaiEdgeTests(unittest.TestCase):
         self.assertIn("SHUMA_JS_SECRET=", env_text)
         self.assertIn("SHUMA_FORWARDED_IP_SECRET=", env_text)
         self.assertIn("SHUMA_HEALTH_SECRET=", env_text)
+        self.assertIn("SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET=", env_text)
         self.assertIn("SHUMA_SIM_TELEMETRY_SECRET=", env_text)
 
         receipt = json.loads(self.receipt_path.read_text(encoding="utf-8"))

@@ -1347,6 +1347,7 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_optional_runtime_environment_var("SHUMA_RUNTIME_ENV")?;
     validate_optional_bool_like_var("SHUMA_LOCAL_PROD_DIRECT_MODE")?;
     validate_optional_bool_like_var("SHUMA_ADVERSARY_SIM_AVAILABLE")?;
+    validate_optional_secret_var("SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET")?;
     validate_optional_secret_var("SHUMA_SIM_TELEMETRY_SECRET")?;
     validate_optional_model_id_var("SHUMA_FRONTIER_OPENAI_MODEL")?;
     validate_optional_model_id_var("SHUMA_FRONTIER_ANTHROPIC_MODEL")?;
@@ -1666,6 +1667,17 @@ fn validate_gateway_contract_env() -> Result<(), String> {
             "Invalid gateway posture: SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED must be true when SHUMA_RUNTIME_ENV=runtime-prod"
                 .to_string(),
         );
+    }
+
+    if profile.is_edge() {
+        let edge_cron_secret = env_trimmed_optional("SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET")
+            .unwrap_or_else(|| defaults_raw("SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET"));
+        if edge_cron_secret.is_empty() {
+            return Err(
+                "Invalid adversary-sim edge posture: SHUMA_GATEWAY_DEPLOYMENT_PROFILE=edge-fermyon requires SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET"
+                    .to_string(),
+            );
+        }
     }
 
     Ok(())

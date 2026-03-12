@@ -1811,6 +1811,22 @@ mod admin_config_tests {
         builder.build()
     }
 
+    fn make_edge_cron_beat_request(secret: &str) -> Request {
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Get)
+            .uri(format!("/internal/adversary-sim/beat?edge_cron_secret={secret}").as_str())
+            .header(
+                "spin-full-url",
+                format!(
+                    "https://edge.example.com/internal/adversary-sim/beat?edge_cron_secret={secret}"
+                )
+                .as_str(),
+            )
+            .body(Vec::new());
+        builder.build()
+    }
+
     fn make_internal_supervisor_status_request(api_key: &str) -> Request {
         let authorization = format!("Bearer {}", api_key);
         let mut builder = Request::builder();
@@ -2719,6 +2735,58 @@ mod admin_config_tests {
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
         std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_control_enable_primes_initial_tick_on_edge_fermyon() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let on_resp = handle_admin_adversary_sim_control(
+            &make_control_request(true, "edge-prime-start"),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*on_resp.status(), 200u16);
+        let on_json: serde_json::Value = serde_json::from_slice(on_resp.body()).unwrap();
+        assert!(
+            on_json
+                .get("status")
+                .and_then(|v| v.get("generation"))
+                .and_then(|v| v.get("tick_count"))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0)
+                >= 1
+        );
+        assert!(
+            on_json
+                .get("status")
+                .and_then(|v| v.get("generation"))
+                .and_then(|v| v.get("request_count"))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0)
+                > 0
+        );
+        assert_eq!(
+            on_json
+                .get("status")
+                .and_then(|v| v.get("supervisor"))
+                .and_then(|v| v.get("heartbeat_active"))
+                .and_then(|v| v.as_bool()),
+            Some(true)
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
     }
 
     #[test]
@@ -3993,6 +4061,43 @@ mod admin_config_tests {
         clear_env(&[
             "SHUMA_API_KEY",
             "SHUMA_FORWARDED_IP_SECRET",
+            "SHUMA_ADMIN_IP_ALLOWLIST",
+        ]);
+    }
+
+    #[test]
+    fn adversary_sim_edge_cron_bypass_is_scoped_to_beat_path_only() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+        std::env::set_var(
+            "SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET",
+            "test-edge-cron-secret",
+        );
+        std::env::set_var("SHUMA_ADMIN_IP_ALLOWLIST", "203.0.113.10/32");
+
+        let beat_req = make_edge_cron_beat_request("test-edge-cron-secret");
+        assert!(request_bypasses_admin_ip_allowlist(
+            &beat_req,
+            INTERNAL_ADVERSARY_SIM_BEAT_PATH
+        ));
+
+        let mut status = Request::builder();
+        status
+            .method(Method::Get)
+            .uri("/admin/adversary-sim/status?edge_cron_secret=test-edge-cron-secret")
+            .header(
+                "spin-full-url",
+                "https://edge.example.com/admin/adversary-sim/status?edge_cron_secret=test-edge-cron-secret",
+            );
+        let status_req = status.body(Vec::new()).build();
+        assert!(!request_bypasses_admin_ip_allowlist(
+            &status_req,
+            "/admin/adversary-sim/status"
+        ));
+
+        clear_env(&[
+            "SHUMA_GATEWAY_DEPLOYMENT_PROFILE",
+            "SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET",
             "SHUMA_ADMIN_IP_ALLOWLIST",
         ]);
     }
@@ -13081,8 +13186,11 @@ fn handle_admin_adversary_sim_status(
 }
 
 fn request_bypasses_admin_ip_allowlist(req: &Request, path: &str) -> bool {
-    matches!(path, "/admin/adversary-sim/status" | INTERNAL_ADVERSARY_SIM_BEAT_PATH)
-        && crate::admin::auth::is_internal_adversary_sim_supervisor_request(req)
+    match path {
+        "/admin/adversary-sim/status" => crate::admin::auth::is_internal_adversary_sim_supervisor_request(req),
+        INTERNAL_ADVERSARY_SIM_BEAT_PATH => crate::admin::auth::is_internal_adversary_sim_beat_request(req),
+        _ => false,
+    }
 }
 
 fn handle_admin_adversary_sim_history_cleanup(
@@ -13148,11 +13256,8 @@ fn handle_admin_adversary_sim_history_cleanup(
     Response::new(200, body)
 }
 
-fn internal_adversary_supervisor_is_authorized(req: &Request) -> bool {
-    matches!(
-        crate::admin::auth::bearer_access_level(req),
-        Some(crate::admin::auth::AdminAccessLevel::ReadWrite)
-    )
+fn internal_adversary_sim_beat_is_authorized(req: &Request) -> bool {
+    crate::admin::auth::is_internal_adversary_sim_beat_request(req)
 }
 
 fn handle_internal_adversary_sim_beat(
@@ -13160,7 +13265,8 @@ fn handle_internal_adversary_sim_beat(
     store: &impl crate::challenge::KeyValueStore,
     site_id: &str,
 ) -> Response {
-    if *req.method() != Method::Post {
+    let edge_cron_request = crate::admin::auth::is_internal_adversary_sim_edge_cron_request(req);
+    if *req.method() != Method::Post && !(edge_cron_request && *req.method() == Method::Get) {
         return Response::new(405, "Method Not Allowed");
     }
 
@@ -13170,8 +13276,8 @@ fn handle_internal_adversary_sim_beat(
         return Response::new(404, "Not Found");
     }
 
-    if !internal_adversary_supervisor_is_authorized(req) {
-        return Response::new(401, "Unauthorized: Internal supervisor authorization required");
+    if !internal_adversary_sim_beat_is_authorized(req) {
+        return Response::new(401, "Unauthorized: Internal adversary-sim beat authorization required");
     }
 
     let mut cfg = match crate::config::load_runtime_cached(store, site_id) {
@@ -13658,6 +13764,22 @@ fn handle_admin_adversary_sim_control(
     if state.phase == crate::admin::adversary_sim::ControlPhase::Off && desired_enabled {
         desired_enabled = false;
     }
+
+    let should_prime_edge_enable = desired_enabled
+        && crate::config::gateway_deployment_profile().is_edge()
+        && transitions
+            .iter()
+            .any(|transition| transition.to == crate::admin::adversary_sim::ControlPhase::Running);
+    if should_prime_edge_enable && state.phase == crate::admin::adversary_sim::ControlPhase::Running {
+        let summary = crate::admin::adversary_sim::run_autonomous_supervisor_ticks(store, &mut state, now);
+        if summary.executed_ticks > 0 {
+            crate::log_line(&format!(
+                "[adversary-sim-edge-prime] executed_ticks={} generated_requests={} failed_requests={}",
+                summary.executed_ticks, summary.generated_requests, summary.failed_requests
+            ));
+        }
+    }
+
     if save_adversary_sim_state_with_capability(store, site_id, &state, capabilities.state_write())
         .is_err()
     {
@@ -13788,18 +13910,22 @@ fn handle_admin_adversary_sim_control(
 /// Handles host-side internal control-plane endpoints (no browser/UI callers).
 ///
 /// Currently supports:
-///   - POST /internal/adversary-sim/beat: run one bounded autonomous supervisor beat
+///   - POST /internal/adversary-sim/beat: run one bounded host-side autonomous supervisor beat
+///   - GET /internal/adversary-sim/beat?edge_cron_secret=...: run one bounded edge cron beat
 pub fn handle_internal(req: &Request) -> Response {
-    if !request_bypasses_admin_ip_allowlist(req, req.path())
+    let path = req.path();
+    let internal_beat_authorized =
+        path == INTERNAL_ADVERSARY_SIM_BEAT_PATH && internal_adversary_sim_beat_is_authorized(req);
+    if !internal_beat_authorized
+        && !request_bypasses_admin_ip_allowlist(req, path)
         && !crate::admin::auth::is_admin_ip_allowed(req)
     {
         return Response::new(403, "Forbidden");
     }
-    if !crate::admin::auth::is_admin_api_key_configured() {
+    if !internal_beat_authorized && !crate::admin::auth::is_admin_api_key_configured() {
         return Response::new(503, "Internal API disabled: admin key not configured");
     }
 
-    let path = req.path();
     match path {
         INTERNAL_ADVERSARY_SIM_BEAT_PATH => {
             let store = match Store::open_default() {

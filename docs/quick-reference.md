@@ -206,6 +206,7 @@ make deploy-fermyon-akamai-edge
 ```
 
 If PAT login panics, the helper falls back to Fermyon device login in interactive sessions. If browser auth then says `User is not allow-listed!`, provider access is still pending, the setup receipt is left behind in `status=blocked` form, and rerunning setup after provider approval resumes cleanly.
+The deploy helper also provisions the managed five-job adversary-sim edge cron set and verifies both the immediate primed tick and a later cron-driven follow-up tick before treating the deploy as proven.
 
 For more deployment detail, see [`docs/deployment.md`](deployment.md).
 
