@@ -1,274 +1,51 @@
 use spin_sdk::http::Response;
 
-fn log_test_mode_event(
-    event: crate::admin::EventType,
-    reason: &str,
-    outcome: &str,
-    record_test_mode_action: &impl Fn(),
-    record_test_mode_event: &impl Fn(crate::admin::EventType, &str, &str),
-) {
-    record_test_mode_action();
-    record_test_mode_event(event, reason, outcome);
+use crate::runtime::effect_intents::{ExecutionMode, ShadowAction, ShadowSource};
+
+pub(crate) fn effective_execution_mode(cfg: &crate::config::Config) -> ExecutionMode {
+    if cfg.test_mode {
+        ExecutionMode::Shadow {
+            source: ShadowSource::TestMode,
+        }
+    } else {
+        ExecutionMode::Enforced
+    }
 }
 
-pub(crate) fn maybe_handle_test_mode<S, F, G, H>(
-    store: &S,
-    cfg: &crate::config::Config,
-    site_id: &str,
-    ip: &str,
-    path: &str,
-    ip_range_evaluation: &crate::signals::ip_range_policy::Evaluation,
-    geo_route: crate::signals::geo::GeoPolicyRoute,
-    needs_js_verification: F,
-    record_test_mode_action: G,
-    record_test_mode_event: H,
-) -> Option<Response>
-where
-    S: crate::challenge::KeyValueStore,
-    F: Fn() -> bool,
-    G: Fn(),
-    H: Fn(crate::admin::EventType, &str, &str),
-{
-    if !cfg.test_mode {
-        return None;
-    }
+pub(crate) fn shadow_mode_active(cfg: &crate::config::Config) -> bool {
+    effective_execution_mode(cfg).shadow_source().is_some()
+}
 
-    if path.starts_with("/pow") {
-        return Some(Response::new(200, "TEST MODE: PoW bypassed"));
-    }
+pub(crate) fn shadow_passthrough_available() -> bool {
+    crate::config::gateway_upstream_origin()
+        .map(|value| !value.trim().is_empty())
+        .unwrap_or(false)
+        && crate::runtime::upstream_proxy::forwarding_available_in_current_runtime()
+}
 
-    match ip_range_evaluation {
-        crate::signals::ip_range_policy::Evaluation::NoMatch => {}
-        crate::signals::ip_range_policy::Evaluation::EmergencyAllowlisted { matched_cidr } => {
-            crate::log_line(&format!(
-                "[TEST MODE] Would allow IP {ip} via IP range emergency allowlist ({matched_cidr})"
-            ));
-            log_test_mode_event(
-                crate::admin::EventType::AdminAction,
-                "ip_range_emergency_allowlist [TEST MODE]",
-                format!("would_allow matched_cidr={}", matched_cidr).as_str(),
-                &record_test_mode_action,
-                &record_test_mode_event,
-            );
-            return Some(Response::new(
-                200,
-                "TEST MODE: Would allow (ip range emergency allowlist)",
-            ));
-        }
-        crate::signals::ip_range_policy::Evaluation::Matched(details) => {
-            let source = match details.source {
-                crate::signals::ip_range_policy::MatchSource::CustomRule => "custom",
-            };
-            crate::log_line(&format!(
-                "[TEST MODE] Would apply IP range action {} for IP {} (source={} source_id={} cidr={})",
-                details.action.as_str(),
-                ip,
-                source,
-                details.source_id,
-                details.matched_cidr
-            ));
-            let event_type = match details.action {
-                crate::config::IpRangePolicyAction::Maze
-                | crate::config::IpRangePolicyAction::Tarpit
-                | crate::config::IpRangePolicyAction::Redirect308 => crate::admin::EventType::Challenge,
-                crate::config::IpRangePolicyAction::Forbidden403
-                | crate::config::IpRangePolicyAction::CustomMessage
-                | crate::config::IpRangePolicyAction::DropConnection
-                | crate::config::IpRangePolicyAction::RateLimit
-                | crate::config::IpRangePolicyAction::Honeypot => crate::admin::EventType::Block,
-            };
-            log_test_mode_event(
-                event_type,
-                "ip_range_policy [TEST MODE]",
-                format!(
-                    "would_apply source={} source_id={} action={} cidr={}",
-                    source,
-                    details.source_id,
-                    details.action.as_str(),
-                    details.matched_cidr
-                )
-                .as_str(),
-                &record_test_mode_action,
-                &record_test_mode_event,
-            );
-            return Some(Response::new(
-                200,
-                format!(
-                    "TEST MODE: Would apply IP range action ({})",
-                    details.action.as_str()
-                )
-                .as_str(),
-            ));
-        }
-    }
+pub(crate) fn synthetic_shadow_response(action: ShadowAction) -> Response {
+    Response::new(200, synthetic_shadow_body(action))
+}
 
-    if cfg.honeypot_enabled && crate::enforcement::honeypot::is_honeypot(path, &cfg.honeypots) {
-        crate::log_line(&format!("[TEST MODE] Would ban IP {ip} for honeypot"));
-        log_test_mode_event(
-            crate::admin::EventType::Block,
-            "honeypot [TEST MODE]",
-            "would_block",
-            &record_test_mode_action,
-            &record_test_mode_event,
-        );
-        return Some(Response::new(200, "TEST MODE: Would block (honeypot)"));
-    }
+pub(crate) fn synthetic_shadow_allow_response() -> Response {
+    Response::new(200, synthetic_shadow_allow_body())
+}
 
-    if !crate::enforcement::rate::check_rate_limit(store, site_id, ip, cfg.rate_limit) {
-        crate::log_line(&format!("[TEST MODE] Would ban IP {ip} for rate limit"));
-        log_test_mode_event(
-            crate::admin::EventType::Block,
-            "rate_limit [TEST MODE]",
-            "would_block",
-            &record_test_mode_action,
-            &record_test_mode_event,
-        );
-        return Some(Response::new(200, "TEST MODE: Would block (rate limit)"));
-    }
+pub(crate) fn synthetic_shadow_allow_body() -> &'static str {
+    "TEST MODE: Would allow"
+}
 
-    if crate::enforcement::ban::is_banned(store, site_id, ip) {
-        crate::log_line(&format!(
-            "[TEST MODE] Would serve challenge to banned IP {ip}"
-        ));
-        log_test_mode_event(
-            crate::admin::EventType::Block,
-            "banned [TEST MODE]",
-            "would_serve_challenge",
-            &record_test_mode_action,
-            &record_test_mode_event,
-        );
-        return Some(Response::new(200, "TEST MODE: Would serve challenge"));
+pub(crate) fn synthetic_shadow_body(action: ShadowAction) -> &'static str {
+    match action {
+        ShadowAction::NotABot => "TEST MODE: Would serve Not-a-Bot",
+        ShadowAction::Challenge => "TEST MODE: Would serve challenge",
+        ShadowAction::JsChallenge => "TEST MODE: Would inject JS challenge",
+        ShadowAction::Maze => "TEST MODE: Would route to maze",
+        ShadowAction::Block => "TEST MODE: Would block",
+        ShadowAction::Tarpit => "TEST MODE: Would tarpit",
+        ShadowAction::Redirect => "TEST MODE: Would redirect",
+        ShadowAction::DropConnection => "TEST MODE: Would drop connection",
     }
-
-    if cfg.js_required_enforced && path != "/health" && needs_js_verification() {
-        crate::log_line(&format!(
-            "[TEST MODE] Would inject JS challenge for IP {ip}"
-        ));
-        log_test_mode_event(
-            crate::admin::EventType::Challenge,
-            "js_verification [TEST MODE]",
-            "would_challenge",
-            &record_test_mode_action,
-            &record_test_mode_event,
-        );
-        return Some(Response::new(200, "TEST MODE: Would inject JS challenge"));
-    }
-
-    match geo_route {
-        crate::signals::geo::GeoPolicyRoute::Block => {
-            crate::log_line(&format!("[TEST MODE] Would block IP {ip} for GEO policy"));
-            log_test_mode_event(
-                crate::admin::EventType::Block,
-                "geo_policy_block [TEST MODE]",
-                "would_block",
-                &record_test_mode_action,
-                &record_test_mode_event,
-            );
-            return Some(Response::new(200, "TEST MODE: Would block (geo policy)"));
-        }
-        crate::signals::geo::GeoPolicyRoute::Maze => {
-            if cfg.maze_enabled {
-                crate::log_line(&format!(
-                    "[TEST MODE] Would route IP {ip} to maze for GEO policy"
-                ));
-                log_test_mode_event(
-                    crate::admin::EventType::Challenge,
-                    "geo_policy_maze [TEST MODE]",
-                    "would_route_maze",
-                    &record_test_mode_action,
-                    &record_test_mode_event,
-                );
-                return Some(Response::new(
-                    200,
-                    "TEST MODE: Would route to maze (geo policy)",
-                ));
-            }
-            if cfg.challenge_puzzle_enabled {
-                crate::log_line(&format!(
-                    "[TEST MODE] Would challenge IP {ip} for GEO maze fallback"
-                ));
-                log_test_mode_event(
-                    crate::admin::EventType::Challenge,
-                    "geo_policy_challenge_fallback [TEST MODE]",
-                    "would_challenge",
-                    &record_test_mode_action,
-                    &record_test_mode_event,
-                );
-                return Some(Response::new(
-                    200,
-                    "TEST MODE: Would serve challenge (geo maze fallback)",
-                ));
-            }
-            crate::log_line(&format!(
-                "[TEST MODE] Would block IP {ip} for GEO maze fallback with challenge disabled"
-            ));
-            log_test_mode_event(
-                crate::admin::EventType::Block,
-                "geo_policy_challenge_disabled_fallback_block [TEST MODE]",
-                "would_block",
-                &record_test_mode_action,
-                &record_test_mode_event,
-            );
-            return Some(Response::new(
-                200,
-                "TEST MODE: Would block (geo maze fallback, challenge disabled)",
-            ));
-        }
-        crate::signals::geo::GeoPolicyRoute::Challenge => {
-            if cfg.challenge_puzzle_enabled {
-                crate::log_line(&format!(
-                    "[TEST MODE] Would challenge IP {ip} for GEO policy"
-                ));
-                log_test_mode_event(
-                    crate::admin::EventType::Challenge,
-                    "geo_policy_challenge [TEST MODE]",
-                    "would_challenge",
-                    &record_test_mode_action,
-                    &record_test_mode_event,
-                );
-                return Some(Response::new(
-                    200,
-                    "TEST MODE: Would serve challenge (geo policy)",
-                ));
-            }
-            if cfg.maze_enabled {
-                crate::log_line(&format!(
-                    "[TEST MODE] Would route IP {ip} to maze for GEO challenge fallback"
-                ));
-                log_test_mode_event(
-                    crate::admin::EventType::Challenge,
-                    "geo_policy_challenge_fallback_maze [TEST MODE]",
-                    "would_route_maze",
-                    &record_test_mode_action,
-                    &record_test_mode_event,
-                );
-                return Some(Response::new(
-                    200,
-                    "TEST MODE: Would route to maze (geo challenge fallback)",
-                ));
-            }
-            crate::log_line(&format!(
-                "[TEST MODE] Would block IP {ip} for GEO challenge fallback with challenge disabled"
-            ));
-            log_test_mode_event(
-                crate::admin::EventType::Block,
-                "geo_policy_challenge_disabled_fallback_block [TEST MODE]",
-                "would_block",
-                &record_test_mode_action,
-                &record_test_mode_event,
-            );
-            return Some(Response::new(
-                200,
-                "TEST MODE: Would block (geo challenge fallback, challenge disabled)",
-            ));
-        }
-        crate::signals::geo::GeoPolicyRoute::Allow | crate::signals::geo::GeoPolicyRoute::None => {}
-    }
-
-    Some(Response::new(
-        200,
-        "TEST MODE: Would allow (passed bot defence)",
-    ))
 }
 
 #[cfg(test)]

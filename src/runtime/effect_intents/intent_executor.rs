@@ -6,8 +6,101 @@ use crate::runtime::capabilities::{
     PolicyExecutionCapabilities, PostResponseFlushCapabilities, RequestBootstrapCapabilities,
 };
 
-use super::intent_types::{DecisionPlan, EffectExecutionContext, EffectIntent};
-use super::response_renderer::execute_response_intent;
+use super::intent_types::{
+    DecisionPlan, EffectExecutionContext, EffectIntent, ExecutionMode, ShadowAction,
+};
+use super::response_renderer::{execute_response_intent, render_shadow_allow_response};
+
+fn shadow_action_for_response(response: &super::intent_types::ResponseIntent) -> Option<ShadowAction> {
+    match response {
+        super::intent_types::ResponseIntent::Continue
+        | super::intent_types::ResponseIntent::ForwardAllow { .. } => None,
+        super::intent_types::ResponseIntent::BlockPage { .. }
+        | super::intent_types::ResponseIntent::PlainTextBlock { .. } => Some(ShadowAction::Block),
+        super::intent_types::ResponseIntent::DropConnection => Some(ShadowAction::DropConnection),
+        super::intent_types::ResponseIntent::Redirect { .. } => Some(ShadowAction::Redirect),
+        super::intent_types::ResponseIntent::Maze { .. } => Some(ShadowAction::Maze),
+        super::intent_types::ResponseIntent::Challenge => Some(ShadowAction::Challenge),
+        super::intent_types::ResponseIntent::NotABot => Some(ShadowAction::NotABot),
+        super::intent_types::ResponseIntent::JsChallenge => Some(ShadowAction::JsChallenge),
+        super::intent_types::ResponseIntent::IpRangeTarpit { .. } => Some(ShadowAction::Tarpit),
+    }
+}
+
+fn suppress_shadow_metric(metric: crate::observability::metrics::MetricName) -> bool {
+    matches!(
+        metric,
+        crate::observability::metrics::MetricName::BansTotal
+            | crate::observability::metrics::MetricName::BlocksTotal
+            | crate::observability::metrics::MetricName::ChallengesTotal
+    )
+}
+
+fn suppress_shadow_monitoring_intent(intent: &EffectIntent) -> bool {
+    matches!(
+        intent,
+        EffectIntent::RecordRateViolation { .. }
+            | EffectIntent::RecordGeoViolation { .. }
+            | EffectIntent::RecordHoneypotHit { .. }
+            | EffectIntent::RecordNotABotServed
+            | EffectIntent::RecordNotABotSubmit { .. }
+            | EffectIntent::RecordChallengeFailure { .. }
+            | EffectIntent::RecordIpRangeChallengeSolved
+            | EffectIntent::RecordLikelyHumanSample { .. }
+    )
+}
+
+fn shadow_event_metadata(
+    context: &EffectExecutionContext<'_>,
+    action: Option<ShadowAction>,
+) -> Option<crate::admin::EventExecutionMetadata> {
+    let source = context.execution_mode.shadow_source()?;
+    let intended_action = action?;
+    Some(crate::admin::EventExecutionMetadata {
+        execution_mode: Some("shadow".to_string()),
+        shadow_source: Some(source.as_str().to_string()),
+        intended_action: Some(intended_action.as_str().to_string()),
+        enforcement_applied: Some(false),
+    })
+}
+
+fn prepare_intents_for_execution(
+    intents: Vec<EffectIntent>,
+    execution_mode: ExecutionMode,
+    response: &super::intent_types::ResponseIntent,
+) -> (Vec<EffectIntent>, Option<ShadowAction>) {
+    let shadow_action = match execution_mode {
+        ExecutionMode::Enforced => None,
+        ExecutionMode::Shadow { .. } => shadow_action_for_response(response),
+    };
+    let Some(shadow_action) = shadow_action else {
+        return (intents, None);
+    };
+
+    let mut prepared = vec![
+        EffectIntent::IncrementMetric {
+            metric: crate::observability::metrics::MetricName::TestModeActions,
+            label: None,
+        },
+        EffectIntent::RecordShadowAction {
+            action: shadow_action,
+            source: execution_mode
+                .shadow_source()
+                .expect("shadow action requires shadow source"),
+        },
+    ];
+
+    for intent in intents {
+        match &intent {
+            EffectIntent::IncrementMetric { metric, .. } if suppress_shadow_metric(*metric) => {}
+            EffectIntent::Ban(_) => {}
+            _ if suppress_shadow_monitoring_intent(&intent) => {}
+            _ => prepared.push(intent),
+        }
+    }
+
+    (prepared, Some(shadow_action))
+}
 
 pub(super) fn apply_metric_intent(
     _capability: &MetricsCapability,
@@ -29,6 +122,9 @@ pub(super) fn apply_metric_intent(
             if let Some(cfg) = cfg {
                 crate::observability::metrics::record_botness_visibility(store, cfg, &assessment);
             }
+            None
+        }
+        EffectIntent::RecordShadowAction { .. } | EffectIntent::RecordShadowPassThrough { .. } => {
             None
         }
         other => Some(other),
@@ -91,6 +187,16 @@ fn apply_monitoring_intent(
             );
             None
         }
+        EffectIntent::RecordShadowAction { action, source } => {
+            let _ = source;
+            crate::observability::monitoring::record_shadow_action(store, action);
+            None
+        }
+        EffectIntent::RecordShadowPassThrough { source } => {
+            let _ = source;
+            crate::observability::monitoring::record_shadow_pass_through(store);
+            None
+        }
         EffectIntent::FlushPendingMonitoringCounters => {
             crate::observability::monitoring::flush_pending_counters(store);
             None
@@ -103,6 +209,7 @@ pub(super) fn apply_event_log_intent(
     _capability: &EventLogCapability,
     store: &Store,
     ip: &str,
+    shadow_metadata: Option<&crate::admin::EventExecutionMetadata>,
     intent: EffectIntent,
 ) -> Option<EffectIntent> {
     match intent {
@@ -111,7 +218,7 @@ pub(super) fn apply_event_log_intent(
             reason,
             outcome,
         } => {
-            crate::admin::log_event(
+            crate::admin::log_event_with_execution_metadata(
                 store,
                 &crate::admin::EventLogEntry {
                     ts: crate::admin::now_ts(),
@@ -121,6 +228,7 @@ pub(super) fn apply_event_log_intent(
                     outcome: Some(outcome),
                     admin: None,
                 },
+                shadow_metadata.cloned(),
             );
             None
         }
@@ -157,7 +265,12 @@ pub(crate) fn execute_plan(
     context: &EffectExecutionContext<'_>,
     capabilities: &PolicyExecutionCapabilities,
 ) -> Option<Response> {
-    execute_effect_intents(plan.intents, context, capabilities);
+    let (prepared_intents, shadow_action) =
+        prepare_intents_for_execution(plan.intents, context.execution_mode, &plan.response);
+    execute_effect_intents(prepared_intents, context, capabilities, shadow_action);
+    if let Some(shadow_action) = shadow_action {
+        return Some(render_shadow_allow_response(context, shadow_action));
+    }
     execute_response_intent(plan.response, facts, context, capabilities)
 }
 
@@ -165,7 +278,9 @@ pub(crate) fn execute_effect_intents(
     intents: Vec<EffectIntent>,
     context: &EffectExecutionContext<'_>,
     capabilities: &PolicyExecutionCapabilities,
+    shadow_action: Option<ShadowAction>,
 ) {
+    let shadow_metadata = shadow_event_metadata(context, shadow_action);
     for intent in intents {
         let Some(intent) =
             apply_metric_intent(capabilities.metrics(), context.store, Some(context.cfg), intent)
@@ -178,7 +293,13 @@ pub(crate) fn execute_effect_intents(
             continue;
         };
         let Some(intent) =
-            apply_event_log_intent(capabilities.event_log(), context.store, context.ip, intent)
+            apply_event_log_intent(
+                capabilities.event_log(),
+                context.store,
+                context.ip,
+                shadow_metadata.as_ref(),
+                intent,
+            )
         else {
             continue;
         };
@@ -217,5 +338,89 @@ pub(crate) fn execute_monitoring_store_intents(
             continue;
         };
         let _ = unhandled;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prepare_intents_for_shadow_suppresses_enforcement_and_records_shadow_action() {
+        let intents = vec![
+            EffectIntent::IncrementMetric {
+                metric: crate::observability::metrics::MetricName::BlocksTotal,
+                label: None,
+            },
+            EffectIntent::RecordHoneypotHit {
+                path: "/trap".to_string(),
+            },
+            EffectIntent::LogEvent {
+                event: crate::admin::EventType::Block,
+                reason: "honeypot".to_string(),
+                outcome: "blocked".to_string(),
+            },
+            EffectIntent::Ban(super::super::intent_types::BanIntent {
+                reason: "honeypot".to_string(),
+                duration_seconds: 60,
+                score: None,
+                signals: vec!["honeypot".to_string()],
+                summary: None,
+            }),
+        ];
+
+        let (prepared, shadow_action) = prepare_intents_for_execution(
+            intents,
+            ExecutionMode::Shadow {
+                source: super::super::intent_types::ShadowSource::TestMode,
+            },
+            &super::super::intent_types::ResponseIntent::BlockPage {
+                status: 403,
+                reason: crate::enforcement::block_page::BlockReason::Honeypot,
+            },
+        );
+
+        assert_eq!(shadow_action, Some(ShadowAction::Block));
+        assert!(matches!(
+            prepared[0],
+            EffectIntent::IncrementMetric {
+                metric: crate::observability::metrics::MetricName::TestModeActions,
+                ..
+            }
+        ));
+        assert!(matches!(
+            prepared[1],
+            EffectIntent::RecordShadowAction {
+                action: ShadowAction::Block,
+                ..
+            }
+        ));
+        assert!(prepared.iter().any(|intent| matches!(intent, EffectIntent::LogEvent { .. })));
+        assert!(!prepared.iter().any(|intent| matches!(intent, EffectIntent::Ban(_))));
+        assert!(!prepared.iter().any(|intent| matches!(intent, EffectIntent::RecordHoneypotHit { .. })));
+    }
+
+    #[test]
+    fn prepare_intents_for_shadow_clean_allow_does_not_inject_shadow_action() {
+        let intents = vec![EffectIntent::RecordShadowPassThrough {
+            source: super::super::intent_types::ShadowSource::TestMode,
+        }];
+
+        let (prepared, shadow_action) = prepare_intents_for_execution(
+            intents,
+            ExecutionMode::Shadow {
+                source: super::super::intent_types::ShadowSource::TestMode,
+            },
+            &super::super::intent_types::ResponseIntent::ForwardAllow {
+                reason: "policy_clean_allow".to_string(),
+            },
+        );
+
+        assert_eq!(shadow_action, None);
+        assert_eq!(prepared.len(), 1);
+        assert!(matches!(
+            prepared[0],
+            EffectIntent::RecordShadowPassThrough { .. }
+        ));
     }
 }

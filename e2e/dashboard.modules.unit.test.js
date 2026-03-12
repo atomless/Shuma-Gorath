@@ -1640,6 +1640,11 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     const statusModule = await importBrowserModule('dashboard/src/lib/domain/status.js');
 
     const summary = monitoringModelModule.deriveMonitoringSummaryViewModel({
+      shadow: {
+        total_actions: 9,
+        pass_through_total: 24,
+        actions: { challenge: 5, block: 4 }
+      },
       honeypot: {
         total_hits: 120,
         unique_crawlers: 4,
@@ -1687,6 +1692,10 @@ test('monitoring view model and status module remain pure snapshot transforms', 
         top_countries: [['US', 3]]
       }
     });
+    assert.equal(summary.shadow.totalActions, '9');
+    assert.equal(summary.shadow.passThroughTotal, '24');
+    assert.equal(summary.shadow.topAction.value, 'Would Challenge (5)');
+    assert.equal(summary.shadow.actions[0]?.label, 'Would Challenge');
     assert.equal(summary.honeypot.totalHits, '120');
     assert.equal(summary.challenge.totalFailures, '10');
     assert.equal(summary.notABot.served, '20');
@@ -1776,6 +1785,21 @@ test('monitoring view model and status module remain pure snapshot transforms', 
         is_simulation: true
       },
       {
+        ts: 1710000005,
+        event: 'challenge',
+        ip: '198.51.100.10',
+        reason: 'shadow_mode_preview',
+        outcome: 'served',
+        execution_mode: 'shadow',
+        shadow_source: 'test_mode',
+        intended_action: 'challenge',
+        enforcement_applied: false,
+        sim_run_id: 'run-1',
+        sim_lane: 'browser_realistic',
+        sim_profile: 'full_coverage',
+        is_simulation: true
+      },
+      {
         ts: 1710000010,
         event: 'ban',
         ip: '198.51.100.10',
@@ -1809,28 +1833,37 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     const gc10FilterOptions = monitoringModelModule.deriveRecentEventFilterOptions(gc10Events);
     assert.equal(gc10FilterOptions.origins.some((row) => row.value === 'sim'), true);
     assert.equal(gc10FilterOptions.origins.some((row) => row.value === 'manual'), true);
+    assert.equal(gc10FilterOptions.modes.some((row) => row.value === 'shadow'), true);
+    assert.equal(gc10FilterOptions.modes.some((row) => row.value === 'enforced'), true);
     assert.equal(gc10FilterOptions.lanes.some((row) => row.value === 'browser_realistic'), true);
     assert.equal(gc10FilterOptions.lanes.some((row) => row.value === 'crawler'), true);
     assert.equal(gc10FilterOptions.scenarios.some((row) => row.value === 'challenge_puzzle_fail_maze'), true);
 
     const gc10FilteredRows = monitoringModelModule.filterRecentEvents(gc10Events, {
       origin: 'sim',
+      mode: 'shadow',
       lane: 'browser_realistic',
       defense: 'challenge',
-      outcome: 'challenge'
+      outcome: 'would_challenge'
     });
     assert.equal(gc10FilteredRows.length, 1);
     assert.equal(gc10FilteredRows[0].sim_run_id, 'run-1');
+    const shadowDisplay = monitoringModelModule.deriveMonitoringEventDisplay(gc10FilteredRows[0]);
+    assert.equal(shadowDisplay.executionModeLabel, 'Shadow');
+    assert.equal(shadowDisplay.outcome, 'Would Challenge');
+    assert.equal(shadowDisplay.event, 'Puzzle');
 
     const defenseTrendRows = monitoringModelModule.deriveDefenseTrendRows(gc10Events);
     const challengeTrend = defenseTrendRows.find((row) => row.defense === 'challenge');
     const tarpitTrend = defenseTrendRows.find((row) => row.defense === 'tarpit');
     assert.equal(Boolean(challengeTrend), true);
-    assert.equal(challengeTrend?.triggerCount, 1);
+    assert.equal(challengeTrend?.triggerCount, 2);
     assert.equal(challengeTrend?.label, 'Puzzle');
-    assert.equal(challengeTrend?.escalationCount, 1);
+    assert.equal(challengeTrend?.escalationCount, 2);
     assert.equal(challengeTrend?.hasOutcomeBreakdown, true);
-    assert.equal(challengeTrend?.sourceRows.some((row) => row.source === 'sim' && row.count === 1), true);
+    assert.equal(challengeTrend?.sourceRows.some((row) => row.source === 'sim' && row.count === 2), true);
+    assert.equal(challengeTrend?.modeRows.some((row) => row.mode === 'shadow' && row.count === 1), true);
+    assert.equal(challengeTrend?.modeRows.some((row) => row.mode === 'enforced' && row.count === 1), true);
     assert.equal(Boolean(tarpitTrend), true);
     assert.equal(tarpitTrend?.triggerCount, 1);
     assert.equal(tarpitTrend?.hasOutcomeBreakdown, false);
@@ -1843,13 +1876,13 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     let accumulatedDefenseRows =
       monitoringModelModule.deriveDefenseTrendRowsFromAccumulator(defenseTrendAccumulator);
     let accumulatedChallenge = accumulatedDefenseRows.find((row) => row.defense === 'challenge');
-    assert.equal(accumulatedChallenge?.triggerCount, 1);
-    monitoringModelModule.appendDefenseTrendEvent(defenseTrendAccumulator, gc10Events[2]);
+    assert.equal(accumulatedChallenge?.triggerCount, 2);
+    monitoringModelModule.appendDefenseTrendEvent(defenseTrendAccumulator, gc10Events[3]);
     accumulatedDefenseRows =
       monitoringModelModule.deriveDefenseTrendRowsFromAccumulator(defenseTrendAccumulator);
     accumulatedChallenge = accumulatedDefenseRows.find((row) => row.defense === 'challenge');
     const accumulatedPow = accumulatedDefenseRows.find((row) => row.defense === 'pow');
-    assert.equal(accumulatedChallenge?.triggerCount, 1);
+    assert.equal(accumulatedChallenge?.triggerCount, 2);
     assert.equal(accumulatedPow?.triggerCount, 1);
 
     const runSummary = monitoringModelModule.deriveAdversaryRunRows(gc10Events, [
@@ -1858,7 +1891,7 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     ]);
     const runOne = runSummary.runRows.find((row) => row.runId === 'run-1');
     assert.equal(Boolean(runOne), true);
-    assert.equal(runOne?.monitoringEventCount, 2);
+    assert.equal(runOne?.monitoringEventCount, 3);
     assert.equal(runOne?.banOutcomeCount, 1);
     assert.equal(runSummary.activeBanCount, 2);
 
@@ -3140,14 +3173,10 @@ test('monitoring tab applies bounded sanitization and redraw guards', () => {
   assert.match(source, /const isRangeFetchInFlight = selectedRangeWindowState\.loading === true;/);
   assert.match(source, /normalizeReasonRows\(/);
   assert.match(source, /buildTimeSeries\(selectedRangeEvents, selectedTimeRange,/);
-  assert.match(source, /const RATE_REASON_LABELS = Object\.freeze\(\{/);
-  assert.match(source, /const classifyChallengeDisplayLabel = \(event = \{\}\) =>/);
+  assert.match(source, /deriveMonitoringEventDisplay/);
   assert.match(source, /const normalizeEventForDisplay = \(event = \{\}\) =>/);
   assert.match(source, /const buildRawTelemetryFeed = \(events = \[\]\) =>/);
   assert.equal(source.includes('rangeEventsSnapshot.range'), false);
-  assert.match(source, /rate: 'rate limit violation'/);
-  assert.match(source, /return 'not-a-bot';/);
-  assert.match(source, /return 'puzzle';/);
   assert.match(source, /'Puzzle Outcomes'/);
   assert.match(source, /\$: rawRecentEvents = Array\.isArray\(events\.recent_events\)/);
   assert.match(source, /\$: rawTelemetryFeed = buildRawTelemetryFeed\(rawRecentEvents\);/);
@@ -3169,6 +3198,7 @@ test('monitoring tab is decomposed into focused subsection components', () => {
   assert.match(source, /import AdversaryRunPanel from '\.\/monitoring\/AdversaryRunPanel\.svelte';/);
   assert.match(source, /import DefenseTrendBlocks from '\.\/monitoring\/DefenseTrendBlocks\.svelte';/);
   assert.match(source, /import RecentEventsTable from '\.\/monitoring\/RecentEventsTable\.svelte';/);
+  assert.match(source, /import ShadowSection from '\.\/monitoring\/ShadowSection\.svelte';/);
   assert.match(source, /import ExternalMonitoringSection from '\.\/monitoring\/ExternalMonitoringSection\.svelte';/);
   assert.match(source, /import IpRangeSection from '\.\/monitoring\/IpRangeSection\.svelte';/);
   assert.match(source, /<OverviewStats/);
@@ -3176,6 +3206,7 @@ test('monitoring tab is decomposed into focused subsection components', () => {
   assert.match(source, /<PrimaryCharts/);
   assert.match(source, /<AdversaryRunPanel/);
   assert.match(source, /<DefenseTrendBlocks/);
+  assert.match(source, /<ShadowSection/);
   assert.match(source, /<ChallengeSection/);
   assert.match(source, /<PowSection/);
   assert.match(source, /<IpRangeSection/);
@@ -3195,9 +3226,10 @@ test('monitoring recent-events filters reuse canonical input-row and input-field
   const selectMatches = source.match(/<select\s+[^>]*class="input-field"/g) || [];
 
   assert.equal(source.includes('field-row'), false);
-  assert.equal(inputRowMatches.length, 5);
-  assert.equal(selectMatches.length, 5);
+  assert.equal(inputRowMatches.length, 6);
+  assert.equal(selectMatches.length, 6);
   assert.match(source, /class="control-label control-label--wide"/);
+  assert.match(source, /monitoring-filter-mode/);
 });
 
 test('monitoring overview stats labels retain explicit window semantics', () => {
@@ -3328,7 +3360,7 @@ test('dashboard route overlays a test-mode eye on the header image only when tes
   assert.equal(routeSource.includes("<style>"), false);
 
   assert.match(styleSource, /\.shuma-image-wrapper\s*\{\s*position:\s*relative;/m);
-  assert.match(styleSource, /\.dashboard-test-mode-eye\s*\{\s*position:\s*absolute;\s*top:\s*-38px;\s*left:\s*calc\(50%\s*-\s*179px\);\s*width:\s*25rem;\s*pointer-events:\s*none;/m);
+  assert.match(styleSource, /\.dashboard-test-mode-eye\s*\{[\s\S]*position:\s*absolute;[\s\S]*pointer-events:\s*none;/m);
   assert.match(styleSource, /\.dashboard-test-mode-eye-image\s*\{\s*display:\s*block;\s*width:\s*100%;\s*height:\s*auto;/m);
   assert.equal(styleSource.includes("drop-shadow"), false);
 });

@@ -1,262 +1,60 @@
 use super::*;
 
 #[test]
-fn maybe_handle_test_mode_returns_none_when_disabled() {
-    let store = crate::test_support::InMemoryStore::default();
+fn effective_execution_mode_is_enforced_when_test_mode_disabled() {
     let mut cfg = crate::config::defaults().clone();
     cfg.test_mode = false;
 
-    let resp = maybe_handle_test_mode(
-        &store,
-        &cfg,
-        "default",
-        "1.2.3.4",
-        "/",
-        &crate::signals::ip_range_policy::Evaluation::NoMatch,
-        crate::signals::geo::GeoPolicyRoute::None,
-        || false,
-        || {},
-        |_, _, _| {},
-    );
-
-    assert!(resp.is_none());
+    assert_eq!(effective_execution_mode(&cfg), ExecutionMode::Enforced);
+    assert!(!shadow_mode_active(&cfg));
 }
 
 #[test]
-fn maybe_handle_test_mode_pow_path_bypasses() {
-    let store = crate::test_support::InMemoryStore::default();
+fn effective_execution_mode_is_shadow_when_test_mode_enabled() {
     let mut cfg = crate::config::defaults().clone();
     cfg.test_mode = true;
 
-    let resp = maybe_handle_test_mode(
-        &store,
-        &cfg,
-        "default",
-        "1.2.3.4",
-        "/pow",
-        &crate::signals::ip_range_policy::Evaluation::NoMatch,
-        crate::signals::geo::GeoPolicyRoute::None,
-        || false,
-        || {},
-        |_, _, _| {},
-    )
-    .unwrap();
-
-    assert_eq!(*resp.status(), 200u16);
     assert_eq!(
-        String::from_utf8(resp.into_body()).unwrap(),
-        "TEST MODE: PoW bypassed"
+        effective_execution_mode(&cfg),
+        ExecutionMode::Shadow {
+            source: ShadowSource::TestMode
+        }
     );
+    assert!(shadow_mode_active(&cfg));
 }
 
 #[test]
-fn maybe_handle_test_mode_honeypot_blocks_without_calling_js_check() {
-    let store = crate::test_support::InMemoryStore::default();
-    let mut cfg = crate::config::defaults().clone();
-    cfg.test_mode = true;
-    cfg.honeypots = vec!["/trap-me".to_string()];
-
-    let resp = maybe_handle_test_mode(
-        &store,
-        &cfg,
-        "default",
-        "1.2.3.4",
-        "/trap-me",
-        &crate::signals::ip_range_policy::Evaluation::NoMatch,
-        crate::signals::geo::GeoPolicyRoute::None,
-        || panic!("js check should not run for honeypot branch"),
-        || {},
-        |_, _, _| {},
-    )
-    .unwrap();
-
-    assert_eq!(*resp.status(), 200u16);
+fn synthetic_shadow_body_uses_stable_labels() {
+    assert_eq!(synthetic_shadow_allow_body(), "TEST MODE: Would allow");
     assert_eq!(
-        String::from_utf8(resp.into_body()).unwrap(),
-        "TEST MODE: Would block (honeypot)"
+        synthetic_shadow_body(ShadowAction::JsChallenge),
+        "TEST MODE: Would inject JS challenge"
+    );
+    assert_eq!(
+        synthetic_shadow_body(ShadowAction::Maze),
+        "TEST MODE: Would route to maze"
+    );
+    assert_eq!(
+        synthetic_shadow_body(ShadowAction::Block),
+        "TEST MODE: Would block"
     );
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn maybe_handle_test_mode_honeypot_disabled_does_not_block() {
-    let store = crate::test_support::InMemoryStore::default();
-    let mut cfg = crate::config::defaults().clone();
-    cfg.test_mode = true;
-    cfg.honeypot_enabled = false;
-    cfg.honeypots = vec!["/trap-me".to_string()];
+fn shadow_passthrough_requires_native_forwarding_capability_on_host_runtime() {
+    let original_mode = std::env::var("SHUMA_GATEWAY_NATIVE_TEST_MODE").ok();
+    std::env::set_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN", "https://origin.example.com");
+    std::env::remove_var("SHUMA_GATEWAY_NATIVE_TEST_MODE");
+    assert!(!shadow_passthrough_available());
 
-    let resp = maybe_handle_test_mode(
-        &store,
-        &cfg,
-        "default",
-        "1.2.3.4",
-        "/trap-me",
-        &crate::signals::ip_range_policy::Evaluation::NoMatch,
-        crate::signals::geo::GeoPolicyRoute::Allow,
-        || false,
-        || {},
-        |_, _, _| {},
-    )
-    .unwrap();
+    std::env::set_var("SHUMA_GATEWAY_NATIVE_TEST_MODE", "echo");
+    assert!(shadow_passthrough_available());
 
-    assert_eq!(*resp.status(), 200u16);
-    assert_eq!(
-        String::from_utf8(resp.into_body()).unwrap(),
-        "TEST MODE: Would allow (passed bot defence)"
-    );
-}
-
-#[test]
-fn maybe_handle_test_mode_allows_when_no_checks_trigger() {
-    let store = crate::test_support::InMemoryStore::default();
-    let mut cfg = crate::config::defaults().clone();
-    cfg.test_mode = true;
-    cfg.rate_limit = 10;
-    cfg.js_required_enforced = false;
-    cfg.honeypots = vec!["/trap-only".to_string()];
-
-    let resp = maybe_handle_test_mode(
-        &store,
-        &cfg,
-        "default",
-        "1.2.3.4",
-        "/home",
-        &crate::signals::ip_range_policy::Evaluation::NoMatch,
-        crate::signals::geo::GeoPolicyRoute::Allow,
-        || false,
-        || {},
-        |_, _, _| {},
-    )
-    .unwrap();
-
-    assert_eq!(*resp.status(), 200u16);
-    assert_eq!(
-        String::from_utf8(resp.into_body()).unwrap(),
-        "TEST MODE: Would allow (passed bot defence)"
-    );
-}
-
-#[test]
-fn maybe_handle_test_mode_does_not_directly_block_for_browser_policy_match() {
-    let store = crate::test_support::InMemoryStore::default();
-    let mut cfg = crate::config::defaults().clone();
-    cfg.test_mode = true;
-    cfg.js_required_enforced = false;
-    cfg.browser_policy_enabled = true;
-
-    let resp = maybe_handle_test_mode(
-        &store,
-        &cfg,
-        "default",
-        "1.2.3.4",
-        "/",
-        &crate::signals::ip_range_policy::Evaluation::NoMatch,
-        crate::signals::geo::GeoPolicyRoute::Allow,
-        || false,
-        || {},
-        |_, _, _| {},
-    )
-    .unwrap();
-
-    assert_eq!(*resp.status(), 200u16);
-    assert_eq!(
-        String::from_utf8(resp.into_body()).unwrap(),
-        "TEST MODE: Would allow (passed bot defence)"
-    );
-}
-
-#[test]
-fn maybe_handle_test_mode_geo_challenge_falls_back_to_maze_when_challenge_disabled() {
-    let store = crate::test_support::InMemoryStore::default();
-    let mut cfg = crate::config::defaults().clone();
-    cfg.test_mode = true;
-    cfg.challenge_puzzle_enabled = false;
-    cfg.maze_enabled = true;
-
-    let resp = maybe_handle_test_mode(
-        &store,
-        &cfg,
-        "default",
-        "1.2.3.4",
-        "/",
-        &crate::signals::ip_range_policy::Evaluation::NoMatch,
-        crate::signals::geo::GeoPolicyRoute::Challenge,
-        || false,
-        || {},
-        |_, _, _| {},
-    )
-    .unwrap();
-
-    assert_eq!(*resp.status(), 200u16);
-    assert_eq!(
-        String::from_utf8(resp.into_body()).unwrap(),
-        "TEST MODE: Would route to maze (geo challenge fallback)"
-    );
-}
-
-#[test]
-fn maybe_handle_test_mode_geo_challenge_falls_back_to_block_when_disabled() {
-    let store = crate::test_support::InMemoryStore::default();
-    let mut cfg = crate::config::defaults().clone();
-    cfg.test_mode = true;
-    cfg.challenge_puzzle_enabled = false;
-    cfg.maze_enabled = false;
-
-    let resp = maybe_handle_test_mode(
-        &store,
-        &cfg,
-        "default",
-        "1.2.3.4",
-        "/",
-        &crate::signals::ip_range_policy::Evaluation::NoMatch,
-        crate::signals::geo::GeoPolicyRoute::Challenge,
-        || false,
-        || {},
-        |_, _, _| {},
-    )
-    .unwrap();
-
-    assert_eq!(*resp.status(), 200u16);
-    assert_eq!(
-        String::from_utf8(resp.into_body()).unwrap(),
-        "TEST MODE: Would block (geo challenge fallback, challenge disabled)"
-    );
-}
-
-#[test]
-fn maybe_handle_test_mode_reports_ip_range_actions() {
-    let store = crate::test_support::InMemoryStore::default();
-    let mut cfg = crate::config::defaults().clone();
-    cfg.test_mode = true;
-
-    let ip_range = crate::signals::ip_range_policy::Evaluation::Matched(
-        crate::signals::ip_range_policy::MatchDetails {
-            source: crate::signals::ip_range_policy::MatchSource::CustomRule,
-            source_id: "deny_dc".to_string(),
-            action: crate::config::IpRangePolicyAction::Forbidden403,
-            matched_cidr: "203.0.113.0/24".to_string(),
-            redirect_url: None,
-            custom_message: None,
-        },
-    );
-
-    let resp = maybe_handle_test_mode(
-        &store,
-        &cfg,
-        "default",
-        "203.0.113.4",
-        "/",
-        &ip_range,
-        crate::signals::geo::GeoPolicyRoute::Allow,
-        || false,
-        || {},
-        |_, _, _| {},
-    )
-    .unwrap();
-
-    assert_eq!(*resp.status(), 200u16);
-    assert_eq!(
-        String::from_utf8(resp.into_body()).unwrap(),
-        "TEST MODE: Would apply IP range action (forbidden_403)"
-    );
+    std::env::remove_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN");
+    if let Some(value) = original_mode {
+        std::env::set_var("SHUMA_GATEWAY_NATIVE_TEST_MODE", value);
+    } else {
+        std::env::remove_var("SHUMA_GATEWAY_NATIVE_TEST_MODE");
+    }
 }

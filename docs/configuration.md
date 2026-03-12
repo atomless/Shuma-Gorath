@@ -305,6 +305,17 @@ Shuma targets a 2-class model:
 Current exception:
 - `ip_range_suggestions_*` thresholds are still <abbr title="Key-Value">KV</abbr>-backed and visible in the Advanced runtime inventory, but they are not writable through `POST /admin/config` yet. Treat them as read-only runtime knobs until their final classification is resolved.
 
+## 🐙 Test Mode
+
+- `test_mode=true` now runs through the normal policy graph in shadow mode rather than a separate shortened decision tree.
+- Shadow mode records the actions Shuma would have taken without imposing those actions on visitors.
+- Monitoring and raw event views distinguish shadow traffic explicitly:
+  - `execution_mode=shadow`
+  - `intended_action=...`
+  - `enforcement_applied=false`
+- Shadow-mode clean pass-through traffic is counted in aggregate monitoring, but it does not emit one raw event per clean request.
+- Default stdout spam for would-act branches is intentionally removed; operators should inspect Monitoring and `/metrics` instead of relying on terminal logs.
+
 ## 🐙 <abbr title="JavaScript">JS</abbr> Verification + <abbr title="Proof of Work">PoW</abbr>
 
 - `js_required_enforced=true` routes visitors without a valid `js_verified` cookie to <abbr title="JavaScript">JS</abbr> verification.

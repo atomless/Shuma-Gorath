@@ -20,7 +20,9 @@ pub(crate) fn spin_variable_name(name: &str) -> Option<String> {
 
 #[cfg(test)]
 pub(crate) fn set_test_spin_variable(name: &str, value: &str) {
-    let key = spin_variable_name(name).unwrap_or_else(|| name.trim().to_string());
+    let Some(key) = spin_variable_name(name) else {
+        return;
+    };
     TEST_SPIN_VARIABLES
         .lock()
         .unwrap()
@@ -44,7 +46,7 @@ pub(crate) fn runtime_var_trimmed_optional(name: &str) -> Option<String> {
 
 #[cfg(test)]
 fn spin_variable_raw_optional(name: &str) -> Option<String> {
-    let key = spin_variable_name(name).unwrap_or_else(|| name.trim().to_string());
+    let key = spin_variable_name(name)?;
     TEST_SPIN_VARIABLES.lock().unwrap().get(&key).cloned()
 }
 

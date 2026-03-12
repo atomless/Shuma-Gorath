@@ -12,6 +12,7 @@
     RATE_OUTCOME_LABELS,
     deriveAdversaryRunRows,
     deriveDefenseTrendRows,
+    deriveMonitoringEventDisplay,
     deriveRecentEventFilterOptions,
     filterRecentEvents,
     deriveIpRangeMonitoringViewModel,
@@ -50,6 +51,7 @@
   import RecentEventsTable from './monitoring/RecentEventsTable.svelte';
   import CdpSection from './monitoring/CdpSection.svelte';
   import MazeSection from './monitoring/MazeSection.svelte';
+  import ShadowSection from './monitoring/ShadowSection.svelte';
   import TarpitSection from './monitoring/TarpitSection.svelte';
   import HoneypotSection from './monitoring/HoneypotSection.svelte';
   import ChallengeSection from './monitoring/ChallengeSection.svelte';
@@ -102,6 +104,7 @@
   let selectedTimeRange = 'hour';
   let eventFilters = {
     origin: 'all',
+    mode: 'all',
     scenario: 'all',
     lane: 'all',
     defense: 'all',
@@ -137,10 +140,6 @@
     degraded: 'Degraded',
     stale: 'Stale'
   });
-  const RATE_REASON_LABELS = Object.freeze({
-    rate: 'rate limit violation'
-  });
-
   const clearTimer = (timerId) => {
     if (timerId === null) return null;
     clearTimeout(timerId);
@@ -278,33 +277,8 @@
     return payload;
   };
 
-  const classifyChallengeDisplayLabel = (event = {}) => {
-    const reason = normalizeLowerTrimmed(event?.reason || '');
-    const outcome = normalizeLowerTrimmed(event?.outcome || '');
-    const combined = `${reason} ${outcome}`;
-    if (combined.includes('not_a_bot') || combined.includes('not-a-bot')) {
-      return 'not-a-bot';
-    }
-    return 'puzzle';
-  };
-
-  const normalizeReasonForDisplay = (reasonRaw = '') => {
-    const normalized = normalizeLowerTrimmed(reasonRaw);
-    if (Object.prototype.hasOwnProperty.call(RATE_REASON_LABELS, normalized)) {
-      return RATE_REASON_LABELS[normalized];
-    }
-    return String(reasonRaw || '');
-  };
-
   const normalizeEventForDisplay = (event = {}) => {
-    const source = event && typeof event === 'object' ? event : {};
-    const normalized = { ...source };
-    const eventType = normalizeLowerTrimmed(source.event || '');
-    if (eventType === 'challenge') {
-      normalized.event = classifyChallengeDisplayLabel(source);
-    }
-    normalized.reason = normalizeReasonForDisplay(source.reason);
-    return normalized;
+    return deriveMonitoringEventDisplay(event);
   };
 
   const buildRawFeedLine = (event = {}) => {
@@ -1035,6 +1009,11 @@
     {activeBans}
     {eventCount}
     {uniqueIps}
+  />
+
+  <ShadowSection
+    loading={tabStatus?.loading === true}
+    shadowSummary={monitoringSummary.shadow}
   />
 
   <PrimaryCharts

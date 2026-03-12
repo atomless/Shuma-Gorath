@@ -26,6 +26,18 @@ pub struct EventLogEntry {
     pub admin: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct EventExecutionMetadata {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_mode: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadow_source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub intended_action: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enforcement_applied: Option<bool>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct EventLogRecord {
     #[serde(flatten)]
@@ -38,6 +50,8 @@ struct EventLogRecord {
     pub sim_lane: Option<String>,
     #[serde(default)]
     pub is_simulation: bool,
+    #[serde(flatten)]
+    pub execution: EventExecutionMetadata,
 }
 
 impl EventLogRecord {
@@ -48,6 +62,7 @@ impl EventLogRecord {
             sim_profile: None,
             sim_lane: None,
             is_simulation: false,
+            execution: EventExecutionMetadata::default(),
         }
     }
 }
@@ -377,6 +392,26 @@ fn telemetry_field_classification_schema() -> serde_json::Value {
             "persistence": "allow_masked_default"
         },
         {
+            "field": "event.execution_mode",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.shadow_source",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.intended_action",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.enforcement_applied",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
             "field": "artifact.raw_secret_like_value",
             "class": "secret-prohibited",
             "persistence": "deny_fail_closed"
@@ -487,9 +522,16 @@ fn security_privacy_payload<S: crate::challenge::KeyValueStore>(
     })
 }
 
-pub fn log_event<S: crate::challenge::KeyValueStore>(store: &S, entry: &EventLogEntry) {
+pub fn log_event_with_execution_metadata<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    entry: &EventLogEntry,
+    execution: Option<EventExecutionMetadata>,
+) {
     // Write each event to a distinct immutable key to avoid read-modify-write races.
     let mut record = EventLogRecord::from_entry(entry.clone());
+    if let Some(execution) = execution {
+        record.execution = execution;
+    }
     if let Some(sim_metadata) = crate::runtime::sim_telemetry::current_metadata() {
         record.sim_run_id = Some(sim_metadata.sim_run_id);
         record.sim_profile = Some(sim_metadata.sim_profile);
@@ -583,6 +625,10 @@ pub fn log_event<S: crate::challenge::KeyValueStore>(store: &S, entry: &EventLog
             key
         ),
     }
+}
+
+pub fn log_event<S: crate::challenge::KeyValueStore>(store: &S, entry: &EventLogEntry) {
+    log_event_with_execution_metadata(store, entry, None);
 }
 
 #[cfg(test)]
@@ -697,6 +743,57 @@ mod tests {
             payload.get("is_simulation").and_then(|v| v.as_bool()),
             Some(true)
         );
+    }
+
+    #[test]
+    fn log_event_with_execution_metadata_persists_shadow_fields() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let entry = EventLogEntry {
+            ts: now,
+            event: EventType::Challenge,
+            ip: Some("203.0.113.20".to_string()),
+            reason: Some("honeypot".to_string()),
+            outcome: Some("blocked".to_string()),
+            admin: None,
+        };
+        log_event_with_execution_metadata(
+            &store,
+            &entry,
+            Some(EventExecutionMetadata {
+                execution_mode: Some("shadow".to_string()),
+                shadow_source: Some("test_mode".to_string()),
+                intended_action: Some("block".to_string()),
+                enforcement_applied: Some(false),
+            }),
+        );
+
+        let hour = now / 3600;
+        let prefix = format!("eventlog:v2:{}:", hour);
+        let records: Vec<Vec<u8>> = store
+            .map
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(key, _)| key.starts_with(&prefix))
+            .map(|(_, value)| value.clone())
+            .collect();
+        assert_eq!(records.len(), 1);
+
+        let payload: EventLogRecord = serde_json::from_slice(records[0].as_slice()).unwrap();
+        assert_eq!(
+            payload.execution.execution_mode.as_deref(),
+            Some("shadow")
+        );
+        assert_eq!(
+            payload.execution.shadow_source.as_deref(),
+            Some("test_mode")
+        );
+        assert_eq!(
+            payload.execution.intended_action.as_deref(),
+            Some("block")
+        );
+        assert_eq!(payload.execution.enforcement_applied, Some(false));
     }
 
     #[test]
@@ -867,6 +964,7 @@ mod tests {
             sim_profile: Some("fast_smoke".to_string()),
             sim_lane: Some("deterministic_black_box".to_string()),
             is_simulation: true,
+            execution: EventExecutionMetadata::default(),
         };
 
         let non_sim_key = format!("eventlog:v2:{}:{}-non-sim", hour, now);
@@ -4144,6 +4242,7 @@ mod admin_config_tests {
         assert!(summary.get("pow").is_some());
         assert!(summary.get("rate").is_some());
         assert!(summary.get("geo").is_some());
+        assert!(summary.get("shadow").is_some());
         assert!(details.get("analytics").is_some());
         assert!(details.get("events").is_some());
         assert!(details.get("bans").is_some());

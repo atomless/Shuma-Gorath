@@ -171,7 +171,9 @@ export function validateAllowBrowserAllowlistResponse(status, content) {
   const normalizedStatus = Number(status || 0);
   const bodyLower = String(content || "").toLowerCase();
   const gatewayForwardingUnavailable =
-    normalizedStatus === 500 && bodyLower.includes("gateway forwarding unavailable");
+    normalizedStatus >= 500 &&
+    normalizedStatus < 600 &&
+    bodyLower.includes("gateway forwarding unavailable");
   const frictionMarkers = [
     "access blocked",
     "access restricted",

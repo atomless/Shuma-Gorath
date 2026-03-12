@@ -731,9 +731,10 @@ pub(crate) fn serve_maze_with_tracking(
         site_id: "default",
         ip,
         ua: user_agent,
+        execution_mode: runtime::test_mode::effective_execution_mode(cfg),
     };
     let execute_intents = |intents: Vec<runtime::effect_intents::EffectIntent>| {
-        runtime::effect_intents::execute_effect_intents(intents, &context, &capabilities);
+        runtime::effect_intents::execute_effect_intents(intents, &context, &capabilities, None);
     };
     let maze_decision =
         crate::maze::runtime::serve(store, cfg, req, ip, user_agent, path, botness_hint);

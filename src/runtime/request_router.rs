@@ -28,8 +28,9 @@ fn execute_capability_gated_intents(
         site_id: SITE_ID_DEFAULT,
         ip,
         ua,
+        execution_mode: crate::runtime::test_mode::effective_execution_mode(cfg),
     };
-    crate::runtime::effect_intents::execute_effect_intents(intents, &context, &capabilities);
+    crate::runtime::effect_intents::execute_effect_intents(intents, &context, &capabilities, None);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -383,7 +384,7 @@ fn handle_not_a_bot_submit(
                     )
                 }
                 ChallengeFailureEnforcement::TarpitOrShortBan => {
-                    if cfg.test_mode {
+                    if crate::runtime::test_mode::shadow_mode_active(cfg) {
                         let event_outcome = format!("{:?} test_mode_no_ban", submit_result.outcome);
                         return render_maze_or_block_failure(
                             req,
@@ -741,7 +742,7 @@ pub(crate) fn maybe_handle_early_route(
                         ));
                     }
                     ChallengeFailureEnforcement::TarpitOrShortBan => {
-                        if cfg.test_mode {
+                        if crate::runtime::test_mode::shadow_mode_active(&cfg) {
                             let event_outcome = format!("{:?} test_mode_no_ban", outcome);
                             return Some(render_maze_or_block_failure(
                                 req,

@@ -68,6 +68,7 @@ pub(crate) fn maybe_handle_policy_graph_first_tranche(
     ip_range_evaluation: &crate::signals::ip_range_policy::Evaluation,
     capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
 ) -> Option<Response> {
+    let execution_mode = crate::runtime::test_mode::effective_execution_mode(cfg);
     let context = crate::runtime::effect_intents::EffectExecutionContext {
         req,
         store,
@@ -76,15 +77,23 @@ pub(crate) fn maybe_handle_policy_graph_first_tranche(
         site_id,
         ip,
         ua,
+        execution_mode,
     };
 
     let honeypot_hit =
         cfg.honeypot_enabled && crate::enforcement::honeypot::is_honeypot(path, &cfg.honeypots);
     let rate_limit_exceeded = if cfg.rate_action_enabled() {
-        provider_registry
-            .rate_limiter_provider()
-            .check_rate_limit(store, site_id, ip, cfg.rate_limit)
-            != crate::providers::contracts::RateLimitDecision::Allowed
+        if crate::runtime::test_mode::shadow_mode_active(cfg) {
+            provider_registry
+                .rate_limiter_provider()
+                .current_rate_usage(store, site_id, ip)
+                >= cfg.rate_limit
+        } else {
+            provider_registry
+                .rate_limiter_provider()
+                .check_rate_limit(store, site_id, ip, cfg.rate_limit)
+                != crate::providers::contracts::RateLimitDecision::Allowed
+        }
     } else {
         false
     };
@@ -132,6 +141,7 @@ pub(crate) fn maybe_handle_policy_graph_second_tranche(
     ip_range_evaluation: &crate::signals::ip_range_policy::Evaluation,
     capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
 ) -> Option<Response> {
+    let execution_mode = crate::runtime::test_mode::effective_execution_mode(cfg);
     let context = crate::runtime::effect_intents::EffectExecutionContext {
         req,
         store,
@@ -140,6 +150,7 @@ pub(crate) fn maybe_handle_policy_graph_second_tranche(
         site_id,
         ip,
         ua,
+        execution_mode,
     };
 
     let needs_js = compute_needs_js(req, store, cfg, site_id, path, ip);
@@ -177,6 +188,7 @@ pub(crate) fn maybe_handle_policy_graph_second_tranche(
         }],
         &context,
         capabilities,
+        None,
     );
 
     let facts = crate::runtime::request_facts::build_request_facts(

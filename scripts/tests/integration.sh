@@ -83,7 +83,7 @@ info() { echo -e "${YELLOW}INFO${NC} $1"; }
 is_gateway_forward_unavailable() {
   local status="$1"
   local body="$2"
-  [[ "$status" == "500" ]] && echo "$body" | grep -q "Gateway forwarding unavailable"
+  [[ "$status" =~ ^50[0-9]$ ]] && echo "$body" | grep -q "Gateway forwarding unavailable"
 }
 
 BASE_URL="http://127.0.0.1:3000"
@@ -732,16 +732,16 @@ info "Testing test_mode behavior (honeypot should not block)..."
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.99" > /dev/null
 # Hit honeypot with test IP
 honeypot_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.99" "$BASE_URL$HONEYPOT_PATH")
-if echo "$honeypot_resp" | grep -q 'TEST MODE'; then
-  pass "Test mode returns TEST MODE response for honeypot"
+if ! echo "$honeypot_resp" | grep -q 'Access Blocked'; then
+  pass "Test mode suppresses honeypot enforcement side effects"
 else
-  fail "Test mode did not return expected TEST MODE response"
+  fail "Test mode honeypot request still produced a blocking response"
   echo -e "${YELLOW}DEBUG honeypot response:${NC} $honeypot_resp"
 fi
 
 # Verify IP was NOT actually banned
 subsequent_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.99" "$BASE_URL/")
-if echo "$subsequent_resp" | grep -q 'TEST MODE'; then
+if ! echo "$subsequent_resp" | grep -q 'Access Blocked'; then
   pass "Test mode: IP not actually banned after honeypot"
 else
   fail "Test mode: IP was banned when it should not have been"

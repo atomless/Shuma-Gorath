@@ -6,6 +6,7 @@
   export let recentEvents = [];
   export let filterOptions = {
     origins: [],
+    modes: [],
     scenarios: [],
     lanes: [],
     defenses: [],
@@ -13,6 +14,7 @@
   };
   export let filters = {
     origin: 'all',
+    mode: 'all',
     scenario: 'all',
     lane: 'all',
     defense: 'all',
@@ -42,6 +44,20 @@
       >
         <option value="all">All</option>
         {#each filterOptions.origins as option}
+          <option value={option.value}>{option.label}</option>
+        {/each}
+      </select>
+    </div>
+    <div class="input-row">
+      <label class="control-label control-label--wide" for="monitoring-filter-mode">Mode</label>
+      <select
+        class="input-field"
+        id="monitoring-filter-mode"
+        value={filters.mode}
+        on:change={(event) => onFilterChange('mode', event?.currentTarget?.value || 'all')}
+      >
+        <option value="all">All</option>
+        {#each filterOptions.modes as option}
           <option value={option.value}>{option.label}</option>
         {/each}
       </select>
@@ -109,6 +125,7 @@
         <tr>
           <th class="caps-label">Time</th>
           <th class="caps-label">Type</th>
+          <th class="caps-label">Mode</th>
           <th class="caps-label"><abbr title="Internet Protocol">IP</abbr></th>
           <th class="caps-label">Reason</th>
           <th class="caps-label">Outcome</th>
@@ -117,7 +134,7 @@
       </thead>
       <tbody>
         {#if recentEvents.length === 0}
-          <TableEmptyRow colspan={6}>
+          <TableEmptyRow colspan={7}>
             {emptyState.message || 'No recent events'}
           </TableEmptyRow>
         {:else}
@@ -125,6 +142,7 @@
             <tr>
               <td>{formatTime(ev.ts)}</td>
               <td><span class={eventBadgeClass(ev.event)}>{ev.event || '-'}</span></td>
+              <td>{ev.executionModeLabel || '-'}</td>
               <td><code>{ev.ip || '-'}</code></td>
               <td>{ev.reason || '-'}</td>
               <td>{ev.outcome || '-'}</td>

@@ -19,6 +19,7 @@ GET /admin/monitoring?hours=24&limit=10
 ```
 
 This endpoint returns bounded-cardinality summaries for:
+- test-mode shadow actions (`would challenge`, `would block`, `would maze`, and pass-through totals)
 - honeypot hits (top crawler buckets + top paths)
 - challenge rejections and attack signals (reasons + trend)
 - <abbr title="Proof of Work">PoW</abbr> verification outcomes (success/failure + reasons + trend)
@@ -26,6 +27,14 @@ This endpoint returns bounded-cardinality summaries for:
 - <abbr title="Geolocation">GEO</abbr> violations (actions + top countries)
 
 Use this endpoint for dashboard <abbr title="User Experience">UX</abbr> and operator <abbr title="Application Programming Interface">API</abbr> queries; use `/metrics` for external time-series scraping.
+
+Recent event rows also carry explicit execution metadata:
+- `execution_mode="enforced|shadow"`
+- `shadow_source="test_mode"` when shadowed
+- `intended_action="challenge|block|maze|..."` for shadow rows
+- `enforcement_applied=false` for shadow rows
+
+Dashboard monitoring uses those fields directly rather than inferring shadow semantics from free-text reasons/outcomes.
 
 Prometheus parity scope for Monitoring widgets is tracked in:
 - [`docs/monitoring-prometheus-parity-audit.md`](monitoring-prometheus-parity-audit.md)
@@ -56,6 +65,8 @@ Prometheus parity scope for Monitoring widgets is tracked in:
 - `bot_defence_cdp_detections_total`
 - `bot_defence_allowlisted_total`
 - `bot_defence_test_mode_actions_total`
+- `bot_defence_monitoring_shadow_actions_total{action="challenge|block|maze|..."}`
+- `bot_defence_monitoring_shadow_pass_through_total`
 - `bot_defence_maze_hits_total`
 - `bot_defence_maze_token_outcomes_total{outcome="entry|validated|invalid|expired|replay|binding_mismatch|depth_exceeded|budget_exceeded|checkpoint_missing|micro_pow_failed"}`
 - `bot_defence_maze_checkpoint_outcomes_total{outcome="accepted|method_not_allowed|binding_mismatch|invalid"}`

@@ -89,19 +89,26 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         site_id,
         ip: &ip,
         ua,
+        execution_mode: crate::runtime::test_mode::effective_execution_mode(&cfg),
     };
     let execute_request_intents = |intents: Vec<crate::runtime::effect_intents::EffectIntent>| {
         crate::runtime::effect_intents::execute_effect_intents(
             intents,
             &request_effect_context,
             &request_capabilities,
+            None,
         );
     };
     let forward_allow_response = |reason: &str| {
+        if crate::runtime::test_mode::shadow_mode_active(&cfg)
+            && !crate::runtime::test_mode::shadow_passthrough_available()
+        {
+            return crate::runtime::test_mode::synthetic_shadow_allow_response();
+        }
         crate::runtime::effect_intents::render_forward_allow_response(&request_effect_context, reason)
     };
     let record_allow_clean = || {
-        execute_request_intents(vec![
+        let mut intents = vec![
             crate::runtime::effect_intents::EffectIntent::RecordPolicyMatch(
                 crate::runtime::policy_taxonomy::PolicyTransition::AllowClean,
             ),
@@ -109,7 +116,15 @@ pub(crate) fn handle_request(req: &Request) -> Response {
                 sample_percent: cfg.ip_range_suggestions_likely_human_sample_percent,
                 sample_hint: path.to_string(),
             },
-        ]);
+        ];
+        if crate::runtime::test_mode::shadow_mode_active(&cfg) {
+            intents.push(
+                crate::runtime::effect_intents::EffectIntent::RecordShadowPassThrough {
+                    source: crate::runtime::effect_intents::ShadowSource::TestMode,
+                },
+            );
+        }
+        execute_request_intents(intents);
     };
     execute_request_intents(crate::provider_backend_visibility_intents(&provider_registry));
     execute_request_intents(vec![crate::policy_signal_intent(
@@ -213,31 +228,6 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         return forward_allow_response("ip_allowlist");
     }
     let ip_range_evaluation = crate::signals::ip_range_policy::evaluate(&cfg, &ip);
-    if let Some(response) = crate::runtime::test_mode::maybe_handle_test_mode(
-        store,
-        &cfg,
-        site_id,
-        &ip,
-        path,
-        &ip_range_evaluation,
-        geo_assessment.route,
-        || crate::signals::js_verification::needs_js_verification(req, store, site_id, &ip),
-        || {
-            execute_request_intents(vec![crate::increment_metric_intent(
-                crate::observability::metrics::MetricName::TestModeActions,
-                None,
-            )])
-        },
-        |event, reason, outcome| {
-            execute_request_intents(vec![crate::runtime::effect_intents::EffectIntent::LogEvent {
-                event,
-                reason: reason.to_string(),
-                outcome: outcome.to_string(),
-            }])
-        },
-    ) {
-        return response;
-    }
     if let Some(response) = crate::runtime::policy_pipeline::maybe_handle_policy_graph_first_tranche(
         req,
         store,

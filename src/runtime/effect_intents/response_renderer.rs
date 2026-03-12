@@ -3,7 +3,7 @@ use spin_sdk::http::Response;
 use crate::runtime::capabilities::PolicyExecutionCapabilities;
 
 use super::intent_executor::{apply_ban_intent, apply_event_log_intent, apply_metric_intent};
-use super::intent_types::{EffectExecutionContext, EffectIntent, ResponseIntent};
+use super::intent_types::{EffectExecutionContext, EffectIntent, ResponseIntent, ShadowAction};
 
 pub(crate) fn render_forward_allow_response(
     context: &EffectExecutionContext<'_>,
@@ -25,6 +25,17 @@ pub(crate) fn render_forward_allow_response(
         crate::observability::metrics::record_forward_success(context.store, latency_ms);
     }
     forward.response
+}
+
+pub(crate) fn render_shadow_allow_response(
+    context: &EffectExecutionContext<'_>,
+    action: ShadowAction,
+) -> Response {
+    if crate::runtime::test_mode::shadow_passthrough_available() {
+        let reason = format!("test_mode_shadow_{}", action.as_str());
+        return render_forward_allow_response(context, reason.as_str());
+    }
+    crate::runtime::test_mode::synthetic_shadow_response(action)
 }
 
 pub(super) fn execute_response_intent(
@@ -149,7 +160,13 @@ pub(super) fn execute_response_intent(
                     outcome: policy_match.annotate_outcome(base_outcome.as_str()),
                 };
                 if let Some(intent) =
-                    apply_event_log_intent(capabilities.event_log(), context.store, context.ip, intent)
+                    apply_event_log_intent(
+                        capabilities.event_log(),
+                        context.store,
+                        context.ip,
+                        None,
+                        intent,
+                    )
                 {
                     apply_ban_intent(
                         capabilities.ban_write(),
@@ -211,7 +228,13 @@ pub(super) fn execute_response_intent(
                 ),
             };
             if let Some(intent) =
-                apply_event_log_intent(capabilities.event_log(), context.store, context.ip, log_intent)
+                apply_event_log_intent(
+                    capabilities.event_log(),
+                    context.store,
+                    context.ip,
+                    None,
+                    log_intent,
+                )
             {
                 apply_ban_intent(
                     capabilities.ban_write(),

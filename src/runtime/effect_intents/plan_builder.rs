@@ -822,6 +822,8 @@ mod tests {
             EffectIntent::RecordIpRangeChallengeSolved => "record_ip_range_challenge_solved",
             EffectIntent::RecordBotnessVisibility { .. } => "record_botness_visibility",
             EffectIntent::RecordLikelyHumanSample { .. } => "record_likely_human_sample",
+            EffectIntent::RecordShadowAction { .. } => "record_shadow_action",
+            EffectIntent::RecordShadowPassThrough { .. } => "record_shadow_pass_through",
             EffectIntent::FlushPendingMonitoringCounters => "flush_pending_monitoring_counters",
             EffectIntent::LogEvent { .. } => "log_event",
             EffectIntent::Ban(_) => "ban",

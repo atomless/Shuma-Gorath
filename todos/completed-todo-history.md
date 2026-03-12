@@ -2,6 +2,76 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-12)
+
+### SIM2-R4-4: Config Seeding Lifecycle and Test-Mode Semantics
+
+- [x] SIM2-R4-4-4 Resolve `test_mode` semantics end-to-end, defaulting to ephemeral runtime/session state unless a narrower exception is deliberately approved.
+- [x] SIM2-R4-4-5 Update operator docs and record the final lifecycle contract in an architecture note or ADR if the scope widens.
+- [x] Why:
+  - `test_mode` was still semantically incomplete after the config-seeding work because the runtime relied on a separate early short-circuit path, long-running hosted use still emitted noisy per-request stdout logs, and monitoring blurred simulated actions with enforced outcomes.
+  - the final contract is now a true shadow-execution posture layered on the normal policy/effect path, with explicit backend-authored execution metadata and operator docs describing test mode as a long-running shadow-tuning tool rather than a short-lived terminal-only diagnostic.
+- [x] Evidence:
+  - `docs/plans/2026-03-12-test-mode-shadow-telemetry-monitoring-truthfulness-plan.md`
+  - `src/runtime/policy_pipeline.rs`
+  - `src/runtime/request_flow.rs`
+  - `src/runtime/request_router.rs`
+  - `src/runtime/test_mode/mod.rs`
+  - `src/runtime/effect_intents/intent_executor.rs`
+  - `src/admin/api.rs`
+  - `docs/configuration.md`
+  - `docs/observability.md`
+  - `docs/dashboard-tabs/monitoring.md`
+  - `make test-test-mode-shadow`
+  - `make test-integration`
+  - `make test`
+
+### TMON-1: Test-Mode Shadow Telemetry and Monitoring Truthfulness
+
+- [x] TMON-1-1 Rebase test mode on the normal policy graph and effect/plan boundary instead of the current early `src/runtime/test_mode/mod.rs` short-circuit, so shadow mode observes the same `PolicyDecision` path as real enforcement.
+- [x] TMON-1-2 Define the canonical shadow telemetry contract for test mode: backend-authored execution semantics (`shadow` vs `enforced`, intended action, enforcement applied, and source) instead of relying on free-text `"[TEST MODE]"` / `would_*` parsing in the dashboard.
+- [x] TMON-1-3 Remove default per-request stdout logging from the hosted test-mode path, or explicitly isolate any retained logging behind a deliberate local-only debug contract; do not leave noisy terminal output as the implicit operator surface.
+- [x] TMON-1-4 Keep shadow observability storage-bounded by distinguishing between raw-event-worthy shadow outcomes and aggregate-only pass/no-op traffic; do not solve the current gap by logging one raw event for every clean pass on busy sites.
+- [x] TMON-1-3a Preserve telemetry-efficiency guarantees while doing this work: no new whole-keyspace scan paths, no new shadow-specific unbounded cardinality dimensions, and no parallel storage/query path that escapes existing bucket-indexed retention, rollup, and query-budget governance.
+- [x] TMON-1-5 Update `/admin/monitoring`, delta/stream payloads, and any related presentation helpers so monitoring surfaces can distinguish "would challenge/block/maze/tarpit" from actions actually enforced.
+- [x] TMON-1-6 Update dashboard monitoring summaries, trend blocks, filters, and raw-feed helpers so operators can inspect long-running test mode as a truthful shadow posture without heuristic string parsing or misleading enforcement language.
+- [x] TMON-1-7 Add unit, integration, and dashboard end-to-end coverage proving quiet stdout behavior, shadow telemetry presence, bounded storage impact, correct monitoring rendering, and reuse of the normal policy/effect path under sustained test-mode traffic.
+- [x] TMON-1-8 Update operator docs and verification guidance so test mode is described as a long-running shadow-tuning posture for hosted deployments, and close the remaining `SIM2-R4-4` semantics/docs items against that delivered contract.
+- [x] Why:
+  - operators need to observe Shuma’s simulated behaviour on live traffic without confusing “would have happened” telemetry with real enforcement or paying avoidable storage/query costs for long-running shadow mode.
+  - the clean implementation had to reuse the real policy graph and effect executor, suppress enforcement side effects at a single boundary, keep clean pass-through traffic aggregate-only, and make monitoring truthfully distinguish shadow from enforced behaviour.
+- [x] Evidence:
+  - `src/runtime/effect_intents/intent_types.rs`
+  - `src/runtime/effect_intents/intent_executor.rs`
+  - `src/runtime/effect_intents/response_renderer.rs`
+  - `src/runtime/effect_intents/plan_builder.rs`
+  - `src/runtime/effect_intents.rs`
+  - `src/runtime/test_mode/mod.rs`
+  - `src/runtime/test_mode/tests.rs`
+  - `src/runtime/policy_pipeline.rs`
+  - `src/runtime/request_flow.rs`
+  - `src/runtime/request_router.rs`
+  - `src/observability/monitoring.rs`
+  - `src/admin/api.rs`
+  - `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+  - `dashboard/src/lib/components/dashboard/monitoring-view-model.js`
+  - `dashboard/src/lib/components/dashboard/monitoring/ShadowSection.svelte`
+  - `dashboard/src/lib/components/dashboard/monitoring/RecentEventsTable.svelte`
+  - `dashboard/src/lib/components/dashboard/monitoring/DefenseTrendBlocks.svelte`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+  - `scripts/tests/integration.sh`
+  - `scripts/tests/adversarial_browser_driver.mjs`
+  - `scripts/tests/test_adversarial_browser_driver.mjs`
+  - `scripts/tests/test_config_lifecycle.py`
+  - `docs/configuration.md`
+  - `docs/observability.md`
+  - `docs/dashboard-tabs/monitoring.md`
+  - `make test-test-mode-shadow`
+  - `make test-dashboard-unit`
+  - `make test-integration`
+  - `make test`
+
 ## Additional completions (2026-03-11)
 
 ### Ad Hoc Dashboard UX: Test-Mode Header Eye Overlay

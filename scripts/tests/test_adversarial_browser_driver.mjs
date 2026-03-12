@@ -107,7 +107,7 @@ function testAllowBrowserAllowlistRejectsVerificationInterstitial() {
 
 function testAllowBrowserAllowlistAcceptsGatewayFailClosedFallback() {
   const result = validateAllowBrowserAllowlistResponse(
-    500,
+    502,
     "<html><body>Gateway forwarding unavailable</body></html>",
   );
   assert.deepEqual(result, {

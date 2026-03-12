@@ -397,6 +397,24 @@ fn dispatch_outbound(request: Request) -> Result<Response, String> {
     Err("outbound forwarding is only available on wasm32 runtime".to_string())
 }
 
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn forwarding_available_in_current_runtime() -> bool {
+    true
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn forwarding_available_in_current_runtime() -> bool {
+    matches!(
+        std::env::var(NATIVE_TEST_MODE_ENV)
+            .ok()
+            .unwrap_or_default()
+            .trim()
+            .to_ascii_lowercase()
+            .as_str(),
+        "echo" | "redirect_cookie"
+    )
+}
+
 fn canonicalize_upstream_response(
     context: ForwardRequestContext<'_>,
     upstream: &UpstreamOrigin,

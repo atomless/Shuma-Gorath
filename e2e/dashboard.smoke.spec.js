@@ -1290,6 +1290,11 @@ test("monitoring summary sections render data and cap oversized result lists", a
       contentType: "application/json",
       body: JSON.stringify({
         summary: {
+          shadow: {
+            total_actions: 11,
+            pass_through_total: 27,
+            actions: { challenge: 7, block: 4 }
+          },
           honeypot: {
             total_hits: 125,
             unique_crawlers: 17,
@@ -1340,6 +1345,10 @@ test("monitoring summary sections render data and cap oversized result lists", a
                 ip: "198.51.100.44",
                 reason: "challenge_reason_1",
                 outcome: "served",
+                execution_mode: "shadow",
+                shadow_source: "test_mode",
+                intended_action: "challenge",
+                enforcement_applied: false,
                 admin: "ops"
               }
             ],
@@ -1358,6 +1367,9 @@ test("monitoring summary sections render data and cap oversized result lists", a
 
   await openDashboard(page);
   await expect(page.locator("#honeypot-total-hits")).toHaveText("125");
+  await expect(page.locator("#shadow-total-actions")).toHaveText("11");
+  await expect(page.locator("#shadow-pass-through-total")).toHaveText("27");
+  await expect(page.locator("#shadow-action-list")).toContainText("Would Challenge: 7");
   await expect(page.locator("#challenge-failures-total")).toHaveText("41");
   await expect(page.locator("#pow-total-attempts")).toHaveText("100");
   await expect(page.locator("#pow-failures-total")).toHaveText("20");
@@ -1370,6 +1382,8 @@ test("monitoring summary sections render data and cap oversized result lists", a
   await expect(page.locator("#challenge-failure-reasons tr")).toHaveCount(10);
   await expect(page.locator("#pow-failure-reasons tr")).toHaveCount(10);
   await expect(page.locator("#geo-top-countries .crawler-item")).toHaveCount(10);
+  await expect(page.locator("#monitoring-events tbody")).toContainText("Shadow");
+  await expect(page.locator("#monitoring-events tbody")).toContainText("Would Challenge");
 });
 
 test("status/verification/rate-limiting/geo/fingerprinting/tuning show empty state when config snapshot is empty", async ({ page }) => {
@@ -2158,10 +2172,10 @@ test("monitoring recent-event filters use canonical shared control classes", asy
   await openDashboard(page);
   await openTab(page, "monitoring");
 
-  await expect(page.locator("#monitoring-event-filters .input-row")).toHaveCount(5);
+  await expect(page.locator("#monitoring-event-filters .input-row")).toHaveCount(6);
   await expect(page.locator("#monitoring-event-filters .field-row")).toHaveCount(0);
-  await expect(page.locator("#monitoring-event-filters .control-label.control-label--wide")).toHaveCount(5);
-  await expect(page.locator("#monitoring-event-filters select.input-field")).toHaveCount(5);
+  await expect(page.locator("#monitoring-event-filters .control-label.control-label--wide")).toHaveCount(6);
+  await expect(page.locator("#monitoring-event-filters select.input-field")).toHaveCount(6);
 });
 
 test("route remount preserves keyboard navigation, ban/unban, verification save, and polling", async ({ page, request }) => {

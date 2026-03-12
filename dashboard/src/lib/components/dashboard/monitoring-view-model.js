@@ -131,6 +131,22 @@ const EVENT_ORIGIN_LABELS = Object.freeze({
   other: 'Other'
 });
 
+const EXECUTION_MODE_LABELS = Object.freeze({
+  enforced: 'Enforced',
+  shadow: 'Shadow'
+});
+
+const SHADOW_ACTION_LABELS = Object.freeze({
+  not_a_bot: 'Would Not-a-Bot',
+  challenge: 'Would Challenge',
+  js_challenge: 'Would JS Challenge',
+  maze: 'Would Maze',
+  block: 'Would Block',
+  tarpit: 'Would Tarpit',
+  redirect: 'Would Redirect',
+  drop_connection: 'Would Drop Connection'
+});
+
 const DEFENSE_LABELS = Object.freeze({
   challenge: 'Puzzle',
   not_a_bot: 'Not-a-Bot',
@@ -154,6 +170,13 @@ const OUTCOME_BUCKET_LABELS = Object.freeze({
   unknown: 'Unknown'
 });
 
+const EVENT_DISPLAY_LABELS = Object.freeze({
+  challenge: 'Puzzle',
+  not_a_bot: 'Not-a-Bot',
+  pow: 'Proof of Work',
+  rate_limit: 'Rate Limit'
+});
+
 const OUTCOME_BUCKET_SUPPORTED_DEFENSES = new Set([
   'challenge',
   'not_a_bot',
@@ -172,6 +195,28 @@ const classifyEventOrigin = (event) => {
   }
   return 'other';
 };
+
+const classifyExecutionMode = (event) => {
+  const mode = normalizeToken(event?.execution_mode);
+  if (mode === 'shadow') return 'shadow';
+  if (event?.enforcement_applied === false) return 'shadow';
+  return 'enforced';
+};
+
+const classifyShadowAction = (event) => normalizeToken(event?.intended_action);
+
+const classifyChallengeDisplayLabel = (event = {}) => {
+  const eventType = normalizeToken(event?.event);
+  if (EVENT_DISPLAY_LABELS[eventType]) {
+    return EVENT_DISPLAY_LABELS[eventType];
+  }
+  return formatMetricLabel(String(event?.event || '-'));
+};
+
+const normalizeReasonForDisplay = (reason) =>
+  String(reason || '')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 const classifyEventLane = (event) => {
   const lane = normalizeToken(event?.sim_lane);
@@ -213,6 +258,46 @@ const classifyDefense = (event) => {
   return 'other';
 };
 
+const deriveDisplayedOutcome = (event) => {
+  if (classifyExecutionMode(event) === 'shadow') {
+    const action = classifyShadowAction(event);
+    if (action && SHADOW_ACTION_LABELS[action]) {
+      return {
+        token: `would_${action}`,
+        label: SHADOW_ACTION_LABELS[action]
+      };
+    }
+    return {
+      token: 'would_act',
+      label: 'Would Act'
+    };
+  }
+
+  const token = normalizeToken(event?.outcome) || 'unknown';
+  return {
+    token,
+    label: formatMetricLabel(token)
+  };
+};
+
+const classifyShadowOutcomeBucket = (event) => {
+  const action = classifyShadowAction(event);
+  if (!action) return 'unknown';
+  if (action === 'block' || action === 'tarpit' || action === 'drop_connection') {
+    return 'fail';
+  }
+  if (
+    action === 'challenge'
+    || action === 'js_challenge'
+    || action === 'not_a_bot'
+    || action === 'maze'
+    || action === 'redirect'
+  ) {
+    return 'escalate';
+  }
+  return 'unknown';
+};
+
 const classifyOutcomeBucket = (outcomeRaw) => {
   const outcome = normalizeToken(outcomeRaw);
   if (outcome.includes('success')) return 'pass';
@@ -236,6 +321,9 @@ const defenseSupportsOutcomeBuckets = (defense) =>
 const classifyOutcomeBucketForDefense = (defense, event) => {
   if (!defenseSupportsOutcomeBuckets(defense)) {
     return 'unknown';
+  }
+  if (classifyExecutionMode(event) === 'shadow') {
+    return classifyShadowOutcomeBucket(event);
   }
   const outcome = normalizeToken(event?.outcome);
   const reason = normalizeToken(event?.reason);
@@ -284,6 +372,7 @@ const classifyOutcomeBucketForDefense = (defense, event) => {
 };
 
 const isBanOutcomeEvent = (event) => {
+  if (classifyExecutionMode(event) === 'shadow') return false;
   const eventType = normalizeToken(event?.event);
   if (eventType === 'ban') return true;
   const outcome = normalizeToken(event?.outcome);
@@ -312,39 +401,47 @@ const toOptionRows = (values, labels = null) => values
 export const deriveRecentEventFilterOptions = (events = []) => {
   const rows = Array.isArray(events) ? events : [];
   const origins = new Set();
+  const modes = new Set();
   const scenarios = new Set();
   const lanes = new Set();
   const defenses = new Set();
-  const outcomes = new Set();
+  const outcomes = new Map();
   rows.forEach((event) => {
     origins.add(classifyEventOrigin(event));
+    modes.add(classifyExecutionMode(event));
     scenarios.add(classifyEventScenario(event));
     lanes.add(classifyEventLane(event));
     defenses.add(classifyDefense(event));
-    outcomes.add(normalizeToken(event?.outcome) || 'unknown');
+    const outcome = deriveDisplayedOutcome(event);
+    outcomes.set(outcome.token, outcome.label);
   });
   return {
     origins: toOptionRows(Array.from(origins), EVENT_ORIGIN_LABELS),
+    modes: toOptionRows(Array.from(modes), EXECUTION_MODE_LABELS),
     scenarios: toOptionRows(Array.from(scenarios)),
     lanes: toOptionRows(Array.from(lanes)),
     defenses: toOptionRows(Array.from(defenses), DEFENSE_LABELS),
-    outcomes: toOptionRows(Array.from(outcomes))
+    outcomes: Array.from(outcomes.entries())
+      .sort((left, right) => String(left[1] || '').localeCompare(String(right[1] || '')))
+      .map(([value, label]) => ({ value, label }))
   };
 };
 
 export const filterRecentEvents = (events = [], filters = {}) => {
   const rows = Array.isArray(events) ? events : [];
   const sourceFilter = normalizeToken(filters.origin);
+  const modeFilter = normalizeToken(filters.mode);
   const scenarioFilter = normalizeToken(filters.scenario);
   const laneFilter = normalizeToken(filters.lane);
   const defenseFilter = normalizeToken(filters.defense);
   const outcomeFilter = normalizeToken(filters.outcome);
   return rows.filter((event) => {
     if (sourceFilter && sourceFilter !== 'all' && classifyEventOrigin(event) !== sourceFilter) return false;
+    if (modeFilter && modeFilter !== 'all' && classifyExecutionMode(event) !== modeFilter) return false;
     if (scenarioFilter && scenarioFilter !== 'all' && normalizeToken(classifyEventScenario(event)) !== scenarioFilter) return false;
     if (laneFilter && laneFilter !== 'all' && classifyEventLane(event) !== laneFilter) return false;
     if (defenseFilter && defenseFilter !== 'all' && classifyDefense(event) !== defenseFilter) return false;
-    if (outcomeFilter && outcomeFilter !== 'all' && (normalizeToken(event?.outcome) || 'unknown') !== outcomeFilter) return false;
+    if (outcomeFilter && outcomeFilter !== 'all' && deriveDisplayedOutcome(event).token !== outcomeFilter) return false;
     return true;
   });
 };
@@ -365,6 +462,7 @@ export const appendDefenseTrendEvent = (accumulator, event) => {
   const grouped = accumulator instanceof Map ? accumulator : createDefenseTrendAccumulator();
   const defense = classifyDefense(event);
   const source = classifyEventOrigin(event);
+  const executionMode = classifyExecutionMode(event);
   const existing = grouped.get(defense) || {
     defense,
     triggerCount: 0,
@@ -372,6 +470,7 @@ export const appendDefenseTrendEvent = (accumulator, event) => {
     failCount: 0,
     escalationCount: 0,
     banOutcomeCount: 0,
+    executionCounts: {},
     sourceCounts: {}
   };
   existing.triggerCount += 1;
@@ -379,7 +478,8 @@ export const appendDefenseTrendEvent = (accumulator, event) => {
   if (outcomeBucket === 'pass') existing.passCount += 1;
   if (outcomeBucket === 'fail') existing.failCount += 1;
   if (outcomeBucket === 'escalate') existing.escalationCount += 1;
-  if (isBanOutcomeEvent(event)) existing.banOutcomeCount += 1;
+  if (executionMode === 'enforced' && isBanOutcomeEvent(event)) existing.banOutcomeCount += 1;
+  existing.executionCounts[executionMode] = Number(existing.executionCounts[executionMode] || 0) + 1;
   existing.sourceCounts[source] = Number(existing.sourceCounts[source] || 0) + 1;
   grouped.set(defense, existing);
   return grouped;
@@ -398,6 +498,11 @@ export const deriveDefenseTrendRowsFromAccumulator = (accumulator) => {
       failCount: row.failCount,
       escalationCount: row.escalationCount,
       banOutcomeCount: row.banOutcomeCount,
+      modeRows: toOptionRows(Object.keys(row.executionCounts), EXECUTION_MODE_LABELS).map((entry) => ({
+        mode: entry.value,
+        label: entry.label,
+        count: row.executionCounts[entry.value] || 0
+      })),
       sourceRows: toOptionRows(Object.keys(row.sourceCounts), EVENT_ORIGIN_LABELS).map((entry) => ({
         source: entry.value,
         label: entry.label,
@@ -630,6 +735,7 @@ export const deriveTarpitViewModel = (data = {}) => {
 };
 
 export const deriveMonitoringSummaryViewModel = (summary = {}) => {
+  const shadow = summary.shadow || {};
   const honeypot = summary.honeypot || {};
   const challenge = summary.challenge || {};
   const notABot = summary.not_a_bot || {};
@@ -694,8 +800,26 @@ export const deriveMonitoringSummaryViewModel = (summary = {}) => {
     : (notABotServed > 0
       ? Math.min(1, Math.max(0, notABotAbandonments / notABotServed))
       : 0);
+  const shadowActionRows = sortCountEntries(shadow.actions)
+    .filter(([, count]) => Number(count || 0) > 0);
+  const topShadowAction = shadowActionRows.length > 0 ? shadowActionRows[0] : null;
 
   return {
+    shadow: {
+      totalActions: formatCompactNumber(shadow.total_actions, '0'),
+      passThroughTotal: formatCompactNumber(shadow.pass_through_total, '0'),
+      topAction: {
+        label: 'Top Simulated Action',
+        value: topShadowAction
+          ? `${SHADOW_ACTION_LABELS[topShadowAction[0]] || formatMetricLabel(topShadowAction[0])} (${formatCompactNumber(topShadowAction[1], '0')})`
+          : 'None'
+      },
+      actions: shadowActionRows.map(([key, count]) => ({
+        key,
+        label: SHADOW_ACTION_LABELS[key] || formatMetricLabel(key),
+        count: Number(count || 0)
+      }))
+    },
     honeypot: {
       totalHits: formatCompactNumber(honeypot.total_hits, '0'),
       uniqueCrawlers: formatCompactNumber(honeypot.unique_crawlers, '0'),
@@ -771,6 +895,23 @@ export const deriveMonitoringSummaryViewModel = (summary = {}) => {
   };
 };
 
+export const deriveMonitoringEventDisplay = (event = {}) => {
+  const source = event && typeof event === 'object' ? event : {};
+  const normalized = { ...source };
+  const eventType = normalizeToken(source.event || '');
+  if (eventType === 'challenge') {
+    normalized.event = classifyChallengeDisplayLabel(source);
+  }
+  normalized.reason = normalizeReasonForDisplay(source.reason);
+  const executionMode = classifyExecutionMode(source);
+  normalized.executionMode = executionMode;
+  normalized.executionModeLabel = EXECUTION_MODE_LABELS[executionMode] || 'Enforced';
+  const outcome = deriveDisplayedOutcome(source);
+  normalized.outcome = outcome.label;
+  normalized.outcomeToken = outcome.token;
+  return normalized;
+};
+
 export const derivePrometheusHelperViewModel = (prometheusData = {}, origin = '') => {
   const readString = (value) => (typeof value === 'string' ? value.trim() : '');
   const sanitizeExternalUrl = (value) => {
@@ -810,6 +951,7 @@ export const derivePrometheusHelperViewModel = (prometheusData = {}, origin = ''
 
 export {
   CHALLENGE_REASON_LABELS,
+  EXECUTION_MODE_LABELS,
   IP_RANGE_ACTION_LABELS,
   IP_RANGE_FALLBACK_LABELS,
   IP_RANGE_SOURCE_LABELS,
@@ -817,5 +959,6 @@ export {
   NOT_A_BOT_LATENCY_LABELS,
   POW_REASON_LABELS,
   RATE_OUTCOME_LABELS,
+  SHADOW_ACTION_LABELS,
   normalizeOffenderBucketLabel
 };

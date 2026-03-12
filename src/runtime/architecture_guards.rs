@@ -196,5 +196,6 @@ fn privileged_effect_executors_require_phase_specific_capability_types() {
         Vec<crate::runtime::effect_intents::EffectIntent>,
         &crate::runtime::effect_intents::EffectExecutionContext<'a>,
         &crate::runtime::capabilities::PolicyExecutionCapabilities,
+        Option<crate::runtime::effect_intents::ShadowAction>,
     ) = crate::runtime::effect_intents::execute_effect_intents;
 }

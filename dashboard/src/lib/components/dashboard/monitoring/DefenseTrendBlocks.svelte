@@ -30,6 +30,16 @@
             {/if}
             <li><strong>Ban Outcomes:</strong> {formatCompactNumber(row.banOutcomeCount, '0')}</li>
             <li>
+              <strong>Modes:</strong>
+              {#if row.modeRows.length === 0}
+                none
+              {:else}
+                {#each row.modeRows as mode, index}
+                  {mode.label}:{formatCompactNumber(mode.count, '0')}{index < row.modeRows.length - 1 ? ', ' : ''}
+                {/each}
+              {/if}
+            </li>
+            <li>
               <strong>Sources:</strong>
               {#if row.sourceRows.length === 0}
                 none

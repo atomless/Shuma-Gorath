@@ -37,6 +37,16 @@ const NOT_A_BOT_OUTCOME_KEYS: [&str; 4] = ["pass", "escalate", "fail", "replay"]
 const NOT_A_BOT_SOLVE_MS_BUCKET_KEYS: [&str; 4] = ["lt_1s", "1_3s", "3_10s", "10s_plus"];
 const RATE_OUTCOME_KEYS: [&str; 4] = ["limited", "banned", "fallback_allow", "fallback_deny"];
 const GEO_ACTION_KEYS: [&str; 3] = ["block", "challenge", "maze"];
+const SHADOW_ACTION_KEYS: [&str; 8] = [
+    "not_a_bot",
+    "challenge",
+    "js_challenge",
+    "maze",
+    "block",
+    "tarpit",
+    "redirect",
+    "drop_connection",
+];
 const GUARDED_DIMENSION_CARDINALITY_CAP_PER_HOUR: u64 = 1000;
 const GUARDED_DIMENSION_OVERFLOW_VALUE: &str = "other";
 const UNSAMPLEABLE_SECURITY_EVENT_CLASSES: [&str; 8] = [
@@ -137,6 +147,13 @@ pub(crate) struct GeoSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
+pub(crate) struct ShadowSummary {
+    pub total_actions: u64,
+    pub pass_through_total: u64,
+    pub actions: BTreeMap<String, u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
 pub(crate) struct NotABotSummary {
     pub served: u64,
     pub submitted: u64,
@@ -154,6 +171,7 @@ pub(crate) struct NotABotSummary {
 pub(crate) struct MonitoringSummary {
     pub generated_at: u64,
     pub hours: u64,
+    pub shadow: ShadowSummary,
     pub honeypot: HoneypotSummary,
     pub challenge: FailureSummary,
     pub not_a_bot: NotABotSummary,
@@ -311,6 +329,12 @@ fn normalize_not_a_bot_outcome(outcome: &str) -> &'static str {
         "fail" => "fail",
         _ => "fail",
     }
+}
+
+fn normalize_shadow_action(
+    action: crate::runtime::effect_intents::ShadowAction,
+) -> &'static str {
+    action.as_str()
 }
 
 fn normalize_ip_range_human_signal(signal: &str) -> &'static str {
@@ -722,6 +746,19 @@ pub(crate) fn record_not_a_bot_submit<S: crate::challenge::KeyValueStore>(
     }
 }
 
+pub(crate) fn record_shadow_action<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    action: crate::runtime::effect_intents::ShadowAction,
+) {
+    let normalized_action = normalize_shadow_action(action);
+    record_with_dimension(store, "shadow", "total", None);
+    record_with_dimension(store, "shadow", "action", Some(normalized_action));
+}
+
+pub(crate) fn record_shadow_pass_through<S: crate::challenge::KeyValueStore>(store: &S) {
+    record_with_dimension(store, "shadow", "pass_through", None);
+}
+
 fn record_ip_range_human_signal<S: crate::challenge::KeyValueStore>(store: &S, ip: &str, signal: &str) {
     let normalized_signal = normalize_ip_range_human_signal(signal);
     let ip_bucket = crate::signals::ip_identity::bucket_ip(ip);
@@ -825,6 +862,9 @@ const MONITORING_ROLLUP_KEY_PREFIX: &str = "monitoring_rollup:v1:day";
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct MonitoringAccumulator {
+    shadow_total: u64,
+    shadow_pass_through_total: u64,
+    shadow_actions: HashMap<String, u64>,
     honeypot_total: u64,
     honeypot_ip_counts: HashMap<String, u64>,
     honeypot_path_counts: HashMap<String, u64>,
@@ -888,6 +928,19 @@ impl MonitoringAccumulator {
 
     fn consume_counter(&mut self, section: &str, metric: &str, dimension: Option<&str>, hour: u64, count: u64) {
         match section {
+            "shadow" => match metric {
+                "total" => self.shadow_total = self.shadow_total.saturating_add(count),
+                "pass_through" => {
+                    self.shadow_pass_through_total =
+                        self.shadow_pass_through_total.saturating_add(count)
+                }
+                "action" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.shadow_actions, dim, count);
+                    }
+                }
+                _ => {}
+            },
             "honeypot" => match metric {
                 "total" => self.honeypot_total = self.honeypot_total.saturating_add(count),
                 "ip" => {
@@ -1011,6 +1064,11 @@ impl MonitoringAccumulator {
     }
 
     fn merge_rollup(&mut self, source: &MonitoringAccumulator) {
+        self.shadow_total = self.shadow_total.saturating_add(source.shadow_total);
+        self.shadow_pass_through_total = self
+            .shadow_pass_through_total
+            .saturating_add(source.shadow_pass_through_total);
+        Self::merge_count_maps(&mut self.shadow_actions, &source.shadow_actions);
         self.honeypot_total = self.honeypot_total.saturating_add(source.honeypot_total);
         Self::merge_count_maps(&mut self.honeypot_ip_counts, &source.honeypot_ip_counts);
         Self::merge_count_maps(&mut self.honeypot_path_counts, &source.honeypot_path_counts);
@@ -1108,9 +1166,20 @@ impl MonitoringAccumulator {
             *entry = entry.saturating_add(value);
         }
 
+        let mut shadow_action_map = build_seeded_map(&SHADOW_ACTION_KEYS);
+        for (key, value) in self.shadow_actions {
+            let entry = shadow_action_map.entry(key).or_insert(0);
+            *entry = entry.saturating_add(value);
+        }
+
         MonitoringSummary {
             generated_at: now,
             hours,
+            shadow: ShadowSummary {
+                total_actions: self.shadow_total,
+                pass_through_total: self.shadow_pass_through_total,
+                actions: shadow_action_map,
+            },
             honeypot: HoneypotSummary {
                 total_hits: self.honeypot_total,
                 unique_crawlers: self.honeypot_ip_counts.len() as u64,
@@ -1410,6 +1479,12 @@ mod tests {
     fn summarize_returns_seeded_maps_when_empty() {
         let store = MockStore::default();
         let summary = summarize_with_store(&store, 24, 10);
+        assert_eq!(summary.shadow.total_actions, 0);
+        assert_eq!(summary.shadow.pass_through_total, 0);
+        assert_eq!(
+            summary.shadow.actions.get("block").copied().unwrap_or(99),
+            0
+        );
         assert_eq!(summary.honeypot.total_hits, 0);
         assert_eq!(summary.challenge.total_failures, 0);
         assert_eq!(summary.not_a_bot.served, 0);
@@ -1742,6 +1817,27 @@ mod tests {
 
         let summary = summarize_with_store(&store, 1, 10);
         assert_eq!(summary.challenge.total_failures, 4);
+        assert_eq!(store.get_keys_calls(), 0);
+    }
+
+    #[test]
+    fn summarize_shadow_metrics_uses_bucket_indexes_without_full_keyspace_scan() {
+        let store = MockStore::default();
+        let now_hour = now_ts() / 3600;
+        let total_key = format!("{}:shadow:total:{}", MONITORING_PREFIX, now_hour);
+        let action_key = format!("{}:shadow:action:{}:{}", MONITORING_PREFIX, "block", now_hour);
+        let pass_through_key = format!("{}:shadow:pass_through:{}", MONITORING_PREFIX, now_hour);
+        set_counter(&store, total_key.as_str(), 3);
+        set_counter(&store, action_key.as_str(), 2);
+        set_counter(&store, pass_through_key.as_str(), 5);
+        store
+            .set("unrelated:shadow:key", b"17")
+            .expect("set unrelated");
+
+        let summary = summarize_with_store(&store, 1, 10);
+        assert_eq!(summary.shadow.total_actions, 3);
+        assert_eq!(summary.shadow.pass_through_total, 5);
+        assert_eq!(summary.shadow.actions.get("block").copied(), Some(2));
         assert_eq!(store.get_keys_calls(), 0);
     }
 

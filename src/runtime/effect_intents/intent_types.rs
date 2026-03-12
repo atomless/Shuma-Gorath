@@ -9,6 +9,61 @@ pub(crate) struct BanIntent {
     pub summary: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ShadowSource {
+    TestMode,
+}
+
+impl ShadowSource {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            ShadowSource::TestMode => "test_mode",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ExecutionMode {
+    Enforced,
+    Shadow { source: ShadowSource },
+}
+
+impl ExecutionMode {
+    pub(crate) fn shadow_source(self) -> Option<ShadowSource> {
+        match self {
+            ExecutionMode::Enforced => None,
+            ExecutionMode::Shadow { source } => Some(source),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ShadowAction {
+    NotABot,
+    Challenge,
+    JsChallenge,
+    Maze,
+    Block,
+    Tarpit,
+    Redirect,
+    DropConnection,
+}
+
+impl ShadowAction {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            ShadowAction::NotABot => "not_a_bot",
+            ShadowAction::Challenge => "challenge",
+            ShadowAction::JsChallenge => "js_challenge",
+            ShadowAction::Maze => "maze",
+            ShadowAction::Block => "block",
+            ShadowAction::Tarpit => "tarpit",
+            ShadowAction::Redirect => "redirect",
+            ShadowAction::DropConnection => "drop_connection",
+        }
+    }
+}
+
 pub(crate) enum EffectIntent {
     RecordPolicyMatch(crate::runtime::policy_taxonomy::PolicyTransition),
     IncrementMetric {
@@ -41,6 +96,13 @@ pub(crate) enum EffectIntent {
     RecordLikelyHumanSample {
         sample_percent: u8,
         sample_hint: String,
+    },
+    RecordShadowAction {
+        action: ShadowAction,
+        source: ShadowSource,
+    },
+    RecordShadowPassThrough {
+        source: ShadowSource,
     },
     FlushPendingMonitoringCounters,
     LogEvent {
@@ -95,4 +157,5 @@ pub(crate) struct EffectExecutionContext<'a> {
     pub site_id: &'a str,
     pub ip: &'a str,
     pub ua: &'a str,
+    pub execution_mode: ExecutionMode,
 }
