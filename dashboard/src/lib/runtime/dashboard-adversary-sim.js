@@ -220,3 +220,17 @@ export function deriveAdversarySimControlState(source = {}) {
     controlAvailable: surfaceAvailable === true
   };
 }
+
+/**
+ * @param {unknown} payload
+ * @param {boolean} desiredEnabled
+ * @returns {boolean}
+ */
+export function adversarySimStateMatchesDesired(payload, desiredEnabled) {
+  const normalized = normalizeAdversarySimStatus(payload);
+  const desired = desiredEnabled === true;
+  if (desired) {
+    return normalized.enabled === true;
+  }
+  return normalized.enabled !== true && normalized.generationActive !== true && normalized.phase === 'off';
+}

@@ -1600,6 +1600,8 @@ mod tests {
 
     #[test]
     fn autonomous_supervisor_caps_catchup_ticks_per_invocation() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
         let store = InMemoryStore::default();
         let mut state = ControlState {
             phase: ControlPhase::Running,
@@ -1621,6 +1623,7 @@ mod tests {
             state.generated_tick_count,
             AUTONOMOUS_SHARED_SERVER_MAX_CATCHUP_TICKS_PER_INVOCATION
         );
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
     }
 
     #[test]

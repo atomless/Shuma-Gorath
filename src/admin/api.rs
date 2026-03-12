@@ -196,6 +196,19 @@ fn parse_v2_event_key(key: &str) -> Option<u64> {
     }
 }
 
+fn parse_v2_event_key_metadata(key: &str) -> Option<(u64, u64)> {
+    let mut parts = key.splitn(5, ':');
+    match (parts.next(), parts.next(), parts.next(), parts.next()) {
+        (Some("eventlog"), Some("v2"), Some(hour), Some(tail)) => {
+            let hour = hour.parse::<u64>().ok()?;
+            let (ts, _) = tail.split_once('-')?;
+            let ts = ts.parse::<u64>().ok()?;
+            Some((hour, ts))
+        }
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 struct EventSecuritySanitizationResult {
     scrubbed_fields: u64,
@@ -653,6 +666,51 @@ mod tests {
 
     impl crate::challenge::KeyValueStore for MockStore {
         fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()> {
+            let m = self.map.lock().unwrap();
+            Ok(m.get(key).cloned())
+        }
+        fn set(&self, key: &str, value: &[u8]) -> Result<(), ()> {
+            let mut m = self.map.lock().unwrap();
+            m.insert(key.to_string(), value.to_vec());
+            Ok(())
+        }
+        fn delete(&self, key: &str) -> Result<(), ()> {
+            let mut m = self.map.lock().unwrap();
+            m.remove(key);
+            Ok(())
+        }
+        fn get_keys(&self) -> Result<Vec<String>, ()> {
+            let m = self.map.lock().unwrap();
+            Ok(m.keys().cloned().collect())
+        }
+    }
+
+    struct CountingStore {
+        map: Mutex<HashMap<String, Vec<u8>>>,
+        get_keys_seen: Mutex<Vec<String>>,
+    }
+
+    impl CountingStore {
+        fn new() -> Self {
+            Self {
+                map: Mutex::new(HashMap::new()),
+                get_keys_seen: Mutex::new(Vec::new()),
+            }
+        }
+
+        fn eventlog_get_count(&self) -> usize {
+            self.get_keys_seen
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|key| key.starts_with("eventlog:v2:"))
+                .count()
+        }
+    }
+
+    impl crate::challenge::KeyValueStore for CountingStore {
+        fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()> {
+            self.get_keys_seen.lock().unwrap().push(key.to_string());
             let m = self.map.lock().unwrap();
             Ok(m.get(key).cloned())
         }
@@ -1190,6 +1248,49 @@ mod tests {
                 .and_then(|value| value.get("state"))
                 .and_then(|value| value.as_str()),
             Some("fresh")
+        );
+    }
+
+    #[test]
+    fn handle_admin_monitoring_delta_reads_only_requested_page_of_event_values() {
+        let store = CountingStore::new();
+        let now = now_ts();
+        let hour = now / 3600;
+        for offset in 0..40u64 {
+            let ts = now.saturating_sub(offset);
+            let key = format!("eventlog:v2:{}:{}-bounded-{:02}", hour, ts, offset);
+            let event = EventLogEntry {
+                ts,
+                event: EventType::Challenge,
+                ip: Some(format!("198.51.100.{}", offset % 8)),
+                reason: Some("challenge_served".to_string()),
+                outcome: Some("ok".to_string()),
+                admin: Some("ops".to_string()),
+            };
+            store
+                .set(&key, serde_json::to_vec(&event).unwrap().as_slice())
+                .unwrap();
+            crate::observability::retention::register_event_log_key(&store, hour, key.as_str());
+        }
+
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Get)
+            .uri("/admin/monitoring/delta?hours=1&limit=10");
+        let req = builder.build();
+        let resp = handle_admin_monitoring_delta(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+        let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        let rows = payload
+            .get("events")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(rows.len(), 10);
+        assert!(
+            store.eventlog_get_count() <= 11,
+            "expected <= 11 eventlog value reads, saw {}",
+            store.eventlog_get_count()
         );
     }
 
@@ -2796,6 +2897,7 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
         std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
         std::env::set_var("SHUMA_API_KEY", "sim-internal-beat-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
 
         let store = TestStore::default();
         let auth = bearer_rw_auth();
@@ -2885,6 +2987,7 @@ mod admin_config_tests {
         std::env::remove_var("SHUMA_RUNTIME_ENV");
         std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
         std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
     }
 
     #[test]
@@ -7433,6 +7536,31 @@ struct CursorEventRecord {
     record: EventLogRecord,
 }
 
+#[derive(Debug, Clone)]
+struct EventCursorMeta {
+    cursor: String,
+    storage_key: String,
+    ts: u64,
+}
+
+#[derive(Debug, Clone)]
+struct CursorPageSelection {
+    metas: Vec<EventCursorMeta>,
+    next_cursor: String,
+    window_end_cursor: String,
+    has_more: bool,
+    overflow: &'static str,
+    latest_window_ts: Option<u64>,
+}
+
+#[derive(Debug, Clone)]
+struct RecentEventWindow {
+    records: Vec<EventLogRecord>,
+    window_end_cursor: String,
+    total_events_in_window: usize,
+    has_more: bool,
+}
+
 fn build_event_cursor(ts: u64, storage_key: &str) -> String {
     format!("{:020}|{}", ts, storage_key)
 }
@@ -8016,6 +8144,144 @@ fn paginate_cursor_rows(
         .unwrap_or_else(|| after_cursor.to_string());
     let overflow = if has_more { "limit_exceeded" } else { "none" };
     (filtered, next_cursor, has_more, overflow)
+}
+
+fn load_event_cursor_metas<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    now: u64,
+    hours: u64,
+) -> Vec<EventCursorMeta> {
+    let hours = effective_event_log_query_hours(hours);
+    let now_hour = now / 3600;
+    let mut metas: Vec<EventCursorMeta> = Vec::new();
+    let window_start = now.saturating_sub(hours.saturating_mul(3600));
+    let window_start_hour = window_start / 3600;
+
+    for key in crate::observability::retention::bucket_window_keys(
+        store,
+        crate::observability::retention::RETENTION_DOMAIN_EVENTLOG,
+        window_start_hour,
+        now_hour,
+    ) {
+        let Some((event_hour, ts)) = parse_v2_event_key_metadata(&key) else {
+            continue;
+        };
+        if event_hour < window_start_hour || event_hour > now_hour || ts < window_start {
+            continue;
+        }
+        metas.push(EventCursorMeta {
+            cursor: build_event_cursor(ts, key.as_str()),
+            storage_key: key,
+            ts,
+        });
+    }
+
+    metas
+}
+
+fn paginate_event_cursor_metas(
+    mut metas: Vec<EventCursorMeta>,
+    after_cursor: &str,
+    limit: usize,
+) -> CursorPageSelection {
+    metas.sort_by(|a, b| a.cursor.cmp(&b.cursor));
+    let latest_window_ts = metas.iter().map(|meta| meta.ts).max();
+    let window_end_cursor = metas
+        .iter()
+        .map(|meta| meta.cursor.clone())
+        .max()
+        .unwrap_or_default();
+    let mut filtered: Vec<EventCursorMeta> = metas
+        .into_iter()
+        .filter(|meta| after_cursor.is_empty() || meta.cursor.as_str() > after_cursor)
+        .collect();
+    let has_more = filtered.len() > limit;
+    if has_more {
+        filtered.truncate(limit);
+    }
+    let next_cursor = filtered
+        .last()
+        .map(|meta| meta.cursor.clone())
+        .unwrap_or_else(|| after_cursor.to_string());
+    let overflow = if has_more { "limit_exceeded" } else { "none" };
+    CursorPageSelection {
+        metas: filtered,
+        next_cursor,
+        window_end_cursor,
+        has_more,
+        overflow,
+        latest_window_ts,
+    }
+}
+
+fn load_cursor_rows_for_metas<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    metas: &[EventCursorMeta],
+    forensic_mode: bool,
+) -> Vec<CursorEventRecord> {
+    let mut rows = Vec::with_capacity(metas.len());
+    for meta in metas {
+        let Ok(Some(val)) = store.get(meta.storage_key.as_str()) else {
+            continue;
+        };
+        let parsed_record = serde_json::from_slice::<EventLogRecord>(&val)
+            .ok()
+            .or_else(|| {
+                serde_json::from_slice::<EventLogEntry>(&val)
+                    .ok()
+                    .map(EventLogRecord::from_entry)
+            });
+        let Some(record) = parsed_record else {
+            continue;
+        };
+        rows.push(CursorEventRecord {
+            cursor: meta.cursor.clone(),
+            record: present_event_record(&record, forensic_mode),
+        });
+    }
+    rows
+}
+
+fn load_recent_event_window<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    now: u64,
+    hours: u64,
+    limit: usize,
+) -> RecentEventWindow {
+    let mut metas = load_event_cursor_metas(store, now, hours);
+    metas.sort_by(|a, b| b.cursor.cmp(&a.cursor));
+    let total_events_in_window = metas.len();
+    let window_end_cursor = metas
+        .iter()
+        .map(|meta| meta.cursor.clone())
+        .max()
+        .unwrap_or_default();
+    let has_more = metas.len() > limit;
+    let selected: Vec<EventCursorMeta> = metas.into_iter().take(limit).collect();
+    let mut records = Vec::with_capacity(selected.len());
+    for meta in selected {
+        let Ok(Some(val)) = store.get(meta.storage_key.as_str()) else {
+            continue;
+        };
+        let parsed_record = serde_json::from_slice::<EventLogRecord>(&val)
+            .ok()
+            .or_else(|| {
+                serde_json::from_slice::<EventLogEntry>(&val)
+                    .ok()
+                    .map(EventLogRecord::from_entry)
+            });
+        let Some(record) = parsed_record else {
+            continue;
+        };
+        records.push(record);
+    }
+    records.sort_by(|a, b| b.entry.ts.cmp(&a.entry.ts));
+    RecentEventWindow {
+        records,
+        window_end_cursor,
+        total_events_in_window,
+        has_more,
+    }
 }
 
 fn load_recent_event_records_with_keys<S: crate::challenge::KeyValueStore>(
@@ -11785,8 +12051,18 @@ where
     let limit = query_u64_param(req.query(), "limit", 10).clamp(1, 50) as usize;
     let forensic_mode = forensic_access_mode(req.query());
     let now = now_ts();
+    let bootstrap_mode = crate::request_validation::query_param(req.query(), "bootstrap")
+        .map(|value| matches!(value.trim(), "1" | "true" | "yes"))
+        .unwrap_or(false);
     let summary = crate::observability::monitoring::summarize_with_store(store, hours, limit);
-    let details = monitoring_details_payload(store, "default", hours, limit, forensic_mode);
+    let (details, bootstrap_window_end_cursor) = if bootstrap_mode {
+        monitoring_bootstrap_details_payload(store, "default", hours, limit, forensic_mode)
+    } else {
+        (
+            monitoring_details_payload(store, "default", hours, limit, forensic_mode),
+            None,
+        )
+    };
     let snapshot_latest_ts = latest_monitoring_snapshot_ts(&details);
     let freshness = freshness_health_payload(now, snapshot_latest_ts, false, "none", "snapshot_poll");
     let retention_health = crate::observability::retention::retention_health(store);
@@ -11804,6 +12080,9 @@ where
         "retention_health": retention_health,
         "security_privacy": security_privacy
     });
+    if let Some(window_end_cursor) = bootstrap_window_end_cursor {
+        payload["window_end_cursor"] = serde_json::Value::String(window_end_cursor);
+    }
 
     let supports_gzip = request_accepts_gzip(req);
     let initial_uncompressed =
@@ -11877,21 +12156,14 @@ where
     }
 
     let now = now_ts();
-    let rows: Vec<CursorEventRecord> = load_recent_event_records_with_keys(store, now, hours)
-        .into_iter()
-        .map(|stored| CursorEventRecord {
-            cursor: build_event_cursor(stored.record.entry.ts, stored.storage_key.as_str()),
-            record: present_event_record(&stored.record, forensic_mode),
-        })
-        .collect();
-    let latest_window_ts = latest_event_ts(rows.as_slice());
-    let window_end_cursor = rows
-        .iter()
-        .map(|row: &CursorEventRecord| row.cursor.clone())
-        .max()
-        .unwrap_or_default();
-    let (page_rows, next_cursor, has_more, overflow) =
-        paginate_cursor_rows(rows, after_cursor.as_str(), limit);
+    let selection =
+        paginate_event_cursor_metas(load_event_cursor_metas(store, now, hours), after_cursor.as_str(), limit);
+    let latest_window_ts = selection.latest_window_ts;
+    let window_end_cursor = selection.window_end_cursor.clone();
+    let next_cursor = selection.next_cursor.clone();
+    let has_more = selection.has_more;
+    let overflow = selection.overflow;
+    let page_rows = load_cursor_rows_for_metas(store, selection.metas.as_slice(), forensic_mode);
     let event_rows: Vec<serde_json::Value> = page_rows.iter().map(cursor_event_row_payload).collect();
     let etag = delta_page_etag(next_cursor.as_str(), event_rows.len(), has_more, overflow);
     let freshness = freshness_health_payload(
@@ -11962,21 +12234,14 @@ where
     }
 
     let now = now_ts();
-    let rows: Vec<CursorEventRecord> = load_recent_event_records_with_keys(store, now, hours)
-        .into_iter()
-        .map(|stored| CursorEventRecord {
-            cursor: build_event_cursor(stored.record.entry.ts, stored.storage_key.as_str()),
-            record: present_event_record(&stored.record, forensic_mode),
-        })
-        .collect();
-    let latest_window_ts = latest_event_ts(rows.as_slice());
-    let window_end_cursor = rows
-        .iter()
-        .map(|row: &CursorEventRecord| row.cursor.clone())
-        .max()
-        .unwrap_or_default();
-    let (page_rows, next_cursor, has_more, overflow) =
-        paginate_cursor_rows(rows, after_cursor.as_str(), limit);
+    let selection =
+        paginate_event_cursor_metas(load_event_cursor_metas(store, now, hours), after_cursor.as_str(), limit);
+    let latest_window_ts = selection.latest_window_ts;
+    let window_end_cursor = selection.window_end_cursor.clone();
+    let next_cursor = selection.next_cursor.clone();
+    let has_more = selection.has_more;
+    let overflow = selection.overflow;
+    let page_rows = load_cursor_rows_for_metas(store, selection.metas.as_slice(), forensic_mode);
     let freshness = freshness_health_payload(
         now,
         latest_window_ts,
@@ -12714,6 +12979,65 @@ where
             }
         }
     })
+}
+
+fn monitoring_bootstrap_details_payload<S>(
+    store: &S,
+    site_id: &str,
+    hours: u64,
+    limit: usize,
+    forensic_mode: bool,
+) -> (serde_json::Value, Option<String>)
+where
+    S: crate::challenge::KeyValueStore,
+{
+    let now = now_ts();
+    let bootstrap_recent_event_cap = (limit.saturating_mul(3)).clamp(12, 40);
+    let window = load_recent_event_window(store, now, hours, bootstrap_recent_event_cap);
+    let recent_events = present_event_records(window.records.as_slice(), forensic_mode);
+    let cfg = crate::config::Config::load(store, site_id).ok();
+    let fail_mode = if crate::config::kv_store_fail_open() {
+        "open"
+    } else {
+        "closed"
+    };
+    let retention_health = crate::observability::retention::retention_health(store);
+    let security_privacy = security_privacy_payload(store, now, hours, forensic_mode);
+
+    (
+        json!({
+            "retention_health": retention_health,
+            "security_privacy": security_privacy,
+            "analytics": {
+                "ban_count": crate::enforcement::ban::list_active_bans(store, site_id).len(),
+                "test_mode": cfg.as_ref().map(|value| value.test_mode).unwrap_or(false),
+                "fail_mode": fail_mode
+            },
+            "events": {
+                "recent_events": recent_events,
+                "security_mode": security_view_mode_label(forensic_mode),
+                "event_counts": {},
+                "top_ips": [],
+                "unique_ips": 0,
+                "recent_events_window": {
+                    "hours": hours,
+                    "requested_limit": limit,
+                    "applied_recent_event_cap": bootstrap_recent_event_cap,
+                    "total_events_in_window": window.total_events_in_window,
+                    "returned_events": recent_events.len(),
+                    "has_more": window.has_more,
+                    "continue_via": format!("/admin/monitoring/delta?hours={hours}&limit={}", limit.clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS)),
+                    "response_shaping_reason": "bootstrap_recent_tail"
+                }
+            },
+            "bans": { "bans": [] },
+            "maze": {},
+            "tarpit": {},
+            "cdp": {},
+            "cdp_events": { "events": [] }
+        }),
+        (!window.window_end_cursor.is_empty()).then_some(window.window_end_cursor),
+    )
 }
 
 fn monitoring_cost_governance_payload<S>(

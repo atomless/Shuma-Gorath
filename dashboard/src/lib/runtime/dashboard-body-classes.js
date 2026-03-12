@@ -64,7 +64,7 @@ const getDashboardClassLists = (doc) => ({
 
 /**
  * @param {unknown} configSnapshot
- * @param {{ backendConnected?: unknown, backendConnectionState?: unknown, runtimeClassHint?: unknown }} [options]
+ * @param {{ backendConnected?: unknown, backendConnectionState?: unknown, runtimeClassHint?: unknown, adversarySimEnabled?: unknown }} [options]
  * @returns {{ runtimeClass: '' | 'runtime-dev' | 'runtime-prod', adversarySimEnabled: boolean, connectionState: 'connected' | 'degraded' | 'disconnected' }}
  */
 export function deriveDashboardBodyClassState(configSnapshot = {}, options = {}) {
@@ -77,6 +77,9 @@ export function deriveDashboardBodyClassState(configSnapshot = {}, options = {})
     : undefined;
   const optionRuntimeClassHint = options && typeof options === 'object'
     ? options.runtimeClassHint
+    : undefined;
+  const optionAdversarySimEnabled = options && typeof options === 'object'
+    ? options.adversarySimEnabled
     : undefined;
   const runtimeEnvironment = normalizeRuntimeClass(source.runtime_environment);
   const runtimeClass = runtimeEnvironment
@@ -93,7 +96,9 @@ export function deriveDashboardBodyClassState(configSnapshot = {}, options = {})
   const guardedConnectionState = runtimeClass ? connectionState : DISCONNECTED_CLASS;
   return {
     runtimeClass,
-    adversarySimEnabled: parseBoolLike(source.adversary_sim_enabled, false),
+    adversarySimEnabled: optionAdversarySimEnabled !== undefined
+      ? parseBoolLike(optionAdversarySimEnabled, false)
+      : parseBoolLike(source.adversary_sim_enabled, false),
     connectionState: guardedConnectionState
   };
 }

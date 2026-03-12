@@ -561,6 +561,60 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         self.assertEqual(updated_receipt["fermyon"]["cron"]["job_name_prefix"], "shuma-adversary-sim-beat")
         self.assertEqual(updated_receipt["fermyon"]["cron"]["job_count"], 5)
 
+    def test_smoke_adversary_sim_generation_requires_monitoring_visibility(self) -> None:
+        responses = iter(
+            [
+                (200, {"window_end_cursor": "cursor-0"}, '{"window_end_cursor":"cursor-0"}'),
+                (200, {"requested_enabled": True}, '{"requested_enabled":true}'),
+                (200, {"generation": {"tick_count": 0, "request_count": 0}}, '{"generation":{"tick_count":0,"request_count":0}}'),
+                (200, {"generation": {"tick_count": 1, "request_count": 40}}, '{"generation":{"tick_count":1,"request_count":40}}'),
+                (200, {"events": []}, '{"events":[]}'),
+                (200, {"adversary_sim_enabled": False}, '{"adversary_sim_enabled":false}'),
+            ]
+        )
+
+        with patch.object(deploy, "admin_session_opener", return_value=(object(), "csrf")), patch.object(
+            deploy, "admin_json_request", side_effect=lambda **_: next(responses)
+        ), patch.object(
+            deploy.time, "time", side_effect=[0, 0, deploy.EDGE_ADVERSARY_SIM_SMOKE_TIMEOUT_SECONDS + 1]
+        ), patch.object(
+            deploy.time, "sleep"
+        ):
+            with self.assertRaises(SystemExit) as exc:
+                deploy.smoke_adversary_sim_generation("https://edge.example.com", {})
+
+        self.assertIn("Last monitoring delta", str(exc.exception))
+
+    def test_smoke_adversary_sim_generation_accepts_monitoring_visible_sim_events(self) -> None:
+        calls: list[str] = []
+        responses = iter(
+            [
+                (200, {"window_end_cursor": "cursor-0"}, '{"window_end_cursor":"cursor-0"}'),
+                (200, {"requested_enabled": True}, '{"requested_enabled":true}'),
+                (200, {"generation": {"tick_count": 0, "request_count": 0}}, '{"generation":{"tick_count":0,"request_count":0}}'),
+                (200, {"generation": {"tick_count": 1, "request_count": 40}}, '{"generation":{"tick_count":1,"request_count":40}}'),
+                (200, {"events": [{"is_simulation": True, "event": "Challenge"}]}, '{"events":[{"is_simulation":true}]}'),
+                (200, {"adversary_sim_enabled": False}, '{"adversary_sim_enabled":false}'),
+            ]
+        )
+
+        def fake_admin_json_request(*, url, **kwargs):
+            calls.append(url)
+            return next(responses)
+
+        with patch.object(deploy, "admin_session_opener", return_value=(object(), "csrf")), patch.object(
+            deploy, "admin_json_request", side_effect=fake_admin_json_request
+        ), patch.object(
+            deploy.time, "time", side_effect=[0, 0]
+        ), patch.object(
+            deploy.time, "sleep"
+        ):
+            deploy.smoke_adversary_sim_generation("https://edge.example.com", {})
+
+        self.assertTrue(
+            any("/admin/monitoring/delta?hours=24&limit=20&after_cursor=cursor-0" in url for url in calls)
+        )
+
     def test_bootstrap_remote_config_posts_seeded_json_when_admin_config_missing(self) -> None:
         env = {
             "SHUMA_API_KEY": "test-admin-key",
@@ -611,3 +665,22 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
                 deploy.smoke_deployed_app("https://app.example.com", env)
 
         self.assertIn("Edge public-route smoke failed", str(exc.exception))
+
+    def test_smoke_deployed_app_accepts_defended_public_route(self) -> None:
+        env = {
+            "SHUMA_API_KEY": "test-admin-key",
+        }
+
+        responses = iter(
+            [
+                (200, "<!doctype html><html></html>"),
+                (403, "<!DOCTYPE html><html><body><h1>Access Blocked</h1></body></html>"),
+                (200, '{"config":{"rate_limit":120}}'),
+            ]
+        )
+
+        def fake_http(*, method, url, headers=None, body=None, timeout_seconds=30):
+            return next(responses)
+
+        with patch.object(deploy, "http_text_request", side_effect=fake_http):
+            deploy.smoke_deployed_app("https://app.example.com", env)

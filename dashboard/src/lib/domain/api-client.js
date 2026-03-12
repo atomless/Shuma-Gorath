@@ -258,6 +258,7 @@ export const adaptMonitoring = (payload) => {
     load_envelope: asRecord(source.load_envelope),
     freshness: asRecord(source.freshness),
     retention_health: asRecord(source.retention_health),
+    window_end_cursor: String(source.window_end_cursor || ''),
     details
   };
 };
@@ -775,6 +776,21 @@ export const create = (options = {}) => {
   };
 
   /**
+   * @param {{hours?: number, limit?: number}} [options]
+   * @param {RequestOptions} [requestOptions]
+   */
+  const getMonitoringBootstrap = async (options = {}, requestOptions = {}) => {
+    const hours = Number.isFinite(options.hours) ? Number(options.hours) : 24;
+    const limit = Number.isFinite(options.limit) ? Number(options.limit) : 10;
+    return adaptMonitoring(
+      await request(
+        `/admin/monitoring?hours=${encodeURIComponent(String(hours))}&limit=${encodeURIComponent(String(limit))}&bootstrap=1`,
+        requestOptions
+      )
+    );
+  };
+
+  /**
    * @param {{hours?: number, limit?: number, after_cursor?: string}} [options]
    * @param {RequestOptions} [requestOptions]
    */
@@ -931,6 +947,7 @@ export const create = (options = {}) => {
     getCdp,
     getCdpEvents,
     getMonitoring,
+    getMonitoringBootstrap,
     getMonitoringDelta,
     getIpBansDelta,
     getMonitoringStreamUrl,

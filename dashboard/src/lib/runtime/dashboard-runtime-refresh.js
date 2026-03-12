@@ -7,6 +7,7 @@ export function createDashboardRefreshRuntime(options = {}) {
   const MONITORING_CACHE_MAX_BANS = 100;
   const IP_BANS_CACHE_MAX_SUGGESTIONS = 50;
   const MONITORING_DELTA_LIMIT = 120;
+  const MONITORING_BOOTSTRAP_DELTA_LIMIT = 40;
   const IP_BANS_DELTA_LIMIT = 120;
   const MONITORING_FULL_RECENT_EVENTS_LIMIT = 200;
   const IP_RANGE_SUGGESTIONS_HOURS = 24;
@@ -574,11 +575,7 @@ export function createDashboardRefreshRuntime(options = {}) {
       reason,
       source: 'tab-refresh'
     });
-    const fetchFullMonitoring = async () => {
-      const monitoringData = await dashboardApiClient.getMonitoring(
-        { hours: 24, limit: MONITORING_FULL_RECENT_EVENTS_LIMIT },
-        requestOptions
-      );
+    const applyMonitoringSnapshot = (monitoringData = {}, { writeCursor = false } = {}) => {
       const configSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
       const monitoringSnapshots = buildMonitoringSnapshots(monitoringData, configSnapshot);
       const compactMonitoring = compactMonitoringSnapshot(monitoringData);
@@ -593,6 +590,39 @@ export function createDashboardRefreshRuntime(options = {}) {
         monitoringData.freshness || {},
         'snapshot_poll'
       );
+      if (writeCursor) {
+        const windowEndCursor =
+          monitoringData && typeof monitoringData.window_end_cursor === 'string'
+            ? monitoringData.window_end_cursor.trim()
+            : '';
+        if (windowEndCursor) {
+          cursorState.monitoring = windowEndCursor;
+        }
+      }
+    };
+    const showMonitoringStateMessage = () => {
+      if (dashboardState && dashboardState.getDerivedState().monitoringEmpty) {
+        showTabEmpty('monitoring', 'No operational events yet. Monitoring will populate as traffic arrives.');
+      } else {
+        clearTabStateMessage('monitoring');
+      }
+    };
+    const queueDetailedMonitoringHydration = (monitoringPromise) => {
+      if (!monitoringPromise || typeof monitoringPromise.then !== 'function') return;
+      void monitoringPromise
+        .then((monitoringData) => {
+          applyMonitoringSnapshot(monitoringData, { writeCursor: !cursorState.monitoring.trim() });
+          showMonitoringStateMessage();
+          return fetchFullMonitoring();
+        })
+        .catch(() => {});
+    };
+    const fetchFullMonitoring = async () => {
+      const monitoringData = await dashboardApiClient.getMonitoring(
+        { hours: 24, limit: MONITORING_FULL_RECENT_EVENTS_LIMIT },
+        requestOptions
+      );
+      applyMonitoringSnapshot(monitoringData, { writeCursor: false });
       const shouldSeedCursor =
         !shouldForceFullMonitoringSnapshot(reason) &&
         typeof dashboardApiClient.getMonitoringDelta === 'function' &&
@@ -601,6 +631,64 @@ export function createDashboardRefreshRuntime(options = {}) {
         seedCursorToWindowEndDeferred('monitoring', requestOptions);
       }
     };
+
+    const canUseBootstrap =
+      !baselineState.monitoring &&
+      typeof dashboardApiClient.getMonitoringBootstrap === 'function';
+    const canUseDeltaBootstrap =
+      !baselineState.monitoring &&
+      typeof dashboardApiClient.getMonitoringDelta === 'function' &&
+      shouldUseCursorDelta(reason);
+    if (canUseDeltaBootstrap) {
+      const bootstrapPromise = canUseBootstrap
+        ? dashboardApiClient.getMonitoringBootstrap(
+          { hours: 24, limit: MONITORING_FULL_RECENT_EVENTS_LIMIT },
+          requestOptions
+        )
+        : null;
+      try {
+        const delta = await dashboardApiClient.getMonitoringDelta(
+          {
+            hours: LIVE_HOURS_WINDOW,
+            limit: MONITORING_BOOTSTRAP_DELTA_LIMIT,
+            after_cursor: ''
+          },
+          requestOptions
+        );
+        syncCursorFromDelta('monitoring', delta);
+        applyMonitoringDeltaSnapshots(delta, 'cursor_delta_bootstrap');
+        baselineState.monitoring = true;
+        showMonitoringStateMessage();
+        if (bootstrapPromise) {
+          queueDetailedMonitoringHydration(bootstrapPromise);
+        } else {
+          void fetchFullMonitoring().catch(() => {});
+        }
+        return;
+      } catch (_error) {
+        if (bootstrapPromise) {
+          try {
+            const monitoringData = await bootstrapPromise;
+            applyMonitoringSnapshot(monitoringData, { writeCursor: true });
+            showMonitoringStateMessage();
+            void fetchFullMonitoring().catch(() => {});
+            return;
+          } catch (_bootstrapError) {}
+        }
+      }
+    }
+    if (canUseBootstrap) {
+      try {
+        const monitoringData = await dashboardApiClient.getMonitoringBootstrap(
+          { hours: 24, limit: MONITORING_FULL_RECENT_EVENTS_LIMIT },
+          requestOptions
+        );
+        applyMonitoringSnapshot(monitoringData, { writeCursor: true });
+        showMonitoringStateMessage();
+        void fetchFullMonitoring().catch(() => {});
+        return;
+      } catch (_error) {}
+    }
 
     const canUseDelta =
       !shouldForceFullMonitoringSnapshot(reason) &&
@@ -632,11 +720,7 @@ export function createDashboardRefreshRuntime(options = {}) {
       await fetchFullMonitoring();
     }
 
-    if (dashboardState && dashboardState.getDerivedState().monitoringEmpty) {
-      showTabEmpty('monitoring', 'No operational events yet. Monitoring will populate as traffic arrives.');
-    } else {
-      clearTabStateMessage('monitoring');
-    }
+    showMonitoringStateMessage();
   }
 
   async function refreshIpBansTab(reason = 'manual', runtimeOptions = {}) {

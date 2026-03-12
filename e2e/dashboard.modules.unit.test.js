@@ -1085,15 +1085,10 @@ test('refresh runtime bootstraps monitoring baseline before cursor deltas and ke
 
     await runtime.refreshMonitoringTab('manual');
     assert.equal(fullFetchCount, 1);
-    assert.deepEqual(callOrder.slice(0, 2), ['monitoring_full', 'monitoring_delta']);
+    assert.deepEqual(callOrder.slice(0, 2), ['monitoring_delta', 'monitoring_full']);
     assert.equal(deltaCalls.length, 1);
-    assert.equal(deltaCalls[0].limit, 1);
+    assert.equal(deltaCalls[0].limit, 40);
 
-    const baselineEvents = (store.getSnapshot('events') || {}).recent_events || [];
-    assert.equal(
-      baselineEvents.some((entry) => String(entry.reason || '') === 'historical-baseline'),
-      true
-    );
     const baselineFreshness = store.getSnapshot('monitoringFreshness') || {};
     assert.equal(baselineFreshness.state, 'fresh');
     assert.equal(Number(baselineFreshness.last_event_ts || 0), now);
@@ -1126,7 +1121,7 @@ test('monitoring auto-refresh refreshes monitoring snapshots without extra ip-ba
 
     const now = 1_700_000_200;
     let monitoringCalls = 0;
-    let monitoringDeltaSeedCalls = 0;
+    let monitoringDeltaBootstrapCalls = 0;
     let monitoringDeltaCalls = 0;
     let bansCalls = 0;
     let suggestionsCalls = 0;
@@ -1189,8 +1184,8 @@ test('monitoring auto-refresh refreshes monitoring snapshots without extra ip-ba
         };
       },
       async getMonitoringDelta(params = {}) {
-        if (Number(params.limit || 0) === 1) {
-          monitoringDeltaSeedCalls += 1;
+        if (Number(params.limit || 0) === 40) {
+          monitoringDeltaBootstrapCalls += 1;
           return {
             after_cursor: '',
             window_end_cursor: 'monitoring-window-end',
@@ -1278,9 +1273,9 @@ test('monitoring auto-refresh refreshes monitoring snapshots without extra ip-ba
     });
 
     await runtime.refreshDashboardForTab('monitoring', 'auto-refresh');
-
+    await new Promise((resolve) => setTimeout(resolve, 0));
     assert.equal(monitoringCalls, 1);
-    assert.equal(monitoringDeltaSeedCalls, 1);
+    assert.equal(monitoringDeltaBootstrapCalls, 1);
     assert.equal(monitoringDeltaCalls, 0);
     await runtime.refreshDashboardForTab('monitoring', 'auto-refresh');
     assert.equal(monitoringCalls, 1);
@@ -1363,7 +1358,7 @@ test('refresh runtime seeds monitoring cursor from window end instead of replayi
     await runtime.refreshMonitoringTab('manual');
 
     assert.equal(deltaCalls.length, 2);
-    assert.equal(deltaCalls[0].limit, 1);
+    assert.equal(deltaCalls[0].limit, 40);
     assert.equal(deltaCalls[1].after_cursor, 'cursor-window-end');
   });
 });
@@ -1574,6 +1569,146 @@ test('monitoring bootstrap does not wait for cursor seeding before config-backed
   });
 });
 
+test('monitoring tab shows bootstrap telemetry before slow full monitoring details resolve', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    let resolveBootstrapMonitoring;
+    const bootstrapMonitoringPromise = new Promise((resolve) => {
+      resolveBootstrapMonitoring = resolve;
+    });
+    let resolveFullMonitoring;
+    const fullMonitoringPromise = new Promise((resolve) => {
+      resolveFullMonitoring = resolve;
+    });
+    let bootstrapFetchCount = 0;
+    let deltaFetchCount = 0;
+    let fullFetchCount = 0;
+
+    const apiClient = {
+      async getMonitoringBootstrap() {
+        bootstrapFetchCount += 1;
+        return bootstrapMonitoringPromise;
+      },
+      async getMonitoring() {
+        fullFetchCount += 1;
+        return fullMonitoringPromise;
+      },
+      async getConfig() {
+        return {
+          admin_config_write_enabled: true,
+          runtime_environment: 'runtime-prod'
+        };
+      },
+      async getMonitoringDelta() {
+        deltaFetchCount += 1;
+        return {
+          after_cursor: '',
+          window_end_cursor: '00000000000000000002|eventlog:v2:1:2-b',
+          next_cursor: '00000000000000000002|eventlog:v2:1:2-b',
+          has_more: false,
+          overflow: 'none',
+          events: [
+            {
+              ts: 2,
+              event: 'Challenge',
+              reason: 'challenge_served',
+              outcome: 'served'
+            }
+          ],
+          freshness: { state: 'fresh', transport: 'cursor_delta_bootstrap' }
+        };
+      }
+    };
+
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => apiClient,
+      getStateStore: () => store,
+      deriveMonitoringAnalytics: (_configSnapshot, analyticsResponse = {}) => ({
+        ban_count: Number(analyticsResponse.ban_count || 0),
+        test_mode: analyticsResponse.test_mode === true,
+        fail_mode: String(analyticsResponse.fail_mode || 'open')
+      }),
+      storage: null
+    });
+
+    const refreshCompleted = await Promise.race([
+      runtime.refreshDashboardForTab('monitoring', 'manual').then(() => true),
+      new Promise((resolve) => setTimeout(() => resolve(false), 50))
+    ]);
+
+    assert.equal(refreshCompleted, true);
+    assert.equal(deltaFetchCount, 1);
+    assert.equal(bootstrapFetchCount, 1);
+    assert.equal(fullFetchCount, 0);
+    assert.equal(
+      (store.getSnapshot('events') || {}).recent_events?.[0]?.event,
+      'Challenge'
+    );
+
+    resolveBootstrapMonitoring({
+          summary: { requests_total: 4 },
+          freshness: { state: 'fresh', transport: 'snapshot_poll' },
+          window_end_cursor: '00000000000000000002|eventlog:v2:1:2-b',
+          details: {
+            analytics: { ban_count: 0, test_mode: false, fail_mode: 'open' },
+            events: {
+              recent_events: [
+                {
+                  ts: 2,
+                  event: 'Challenge',
+                  reason: 'challenge_served',
+                  outcome: 'served'
+                }
+              ],
+              event_counts: {},
+              top_ips: []
+            },
+            bans: { bans: [] },
+            maze: {},
+            cdp: {},
+            cdp_events: { events: [] }
+          }
+        });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal((store.getSnapshot('analytics') || {}).ban_count, 0);
+    assert.equal(fullFetchCount, 1);
+    assert.equal((store.getSnapshot('events') || {}).recent_events?.[0]?.event, 'Challenge');
+
+    resolveFullMonitoring({
+      summary: { requests_total: 8 },
+      freshness: { state: 'fresh', transport: 'snapshot_poll' },
+      details: {
+        analytics: { ban_count: 1, test_mode: false, fail_mode: 'open' },
+        events: {
+          recent_events: [
+            {
+              ts: 3,
+              event: 'Ban',
+              reason: 'rate_limit_exceeded',
+              outcome: 'blocked'
+            }
+          ],
+          event_counts: { Ban: 1 },
+          top_ips: [['203.0.113.4', 1]]
+        },
+        bans: { bans: [{ ip: '203.0.113.4' }] },
+        maze: {},
+        cdp: {},
+        cdp_events: { events: [] }
+      }
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal((store.getSnapshot('analytics') || {}).ban_count, 1);
+    assert.equal((store.getSnapshot('events') || {}).recent_events?.[0]?.event, 'Ban');
+  });
+});
+
 test('monitoring refresh recovers cleanly after transient failure without synthetic freshness overwrite', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
@@ -1602,7 +1737,8 @@ test('monitoring refresh recovers cleanly after transient failure without synthe
       }
     };
 
-    let shouldFail = true;
+    let deltaShouldFail = true;
+    let fullShouldFail = true;
     const apiClient = {
       async getConfig() {
         return {};
@@ -1622,8 +1758,8 @@ test('monitoring refresh recovers cleanly after transient failure without synthe
         };
       },
       async getMonitoring() {
-        if (shouldFail) {
-          shouldFail = false;
+        if (fullShouldFail) {
+          fullShouldFail = false;
           throw new Error('transient monitoring read failure');
         }
         return {
@@ -1655,6 +1791,10 @@ test('monitoring refresh recovers cleanly after transient failure without synthe
         };
       },
       async getMonitoringDelta(params = {}) {
+        if (deltaShouldFail) {
+          deltaShouldFail = false;
+          throw new Error('bootstrap delta failure');
+        }
         return {
           after_cursor: String(params.after_cursor || ''),
           window_end_cursor: 'cursor-after-recovery',
@@ -2203,6 +2343,17 @@ test('dashboard class runtime keeps exactly one environment class on html and ad
       runtimeClassHint: 'runtime-unknown'
     });
     assert.equal(invalidHintedRuntimeState.runtimeClass, '');
+    const liveOverrideState = bodyClassModule.deriveDashboardBodyClassState({
+      runtime_environment: 'runtime-prod',
+      adversary_sim_enabled: false
+    }, {
+      adversarySimEnabled: true
+    });
+    assert.deepEqual(toPlain(liveOverrideState), {
+      runtimeClass: 'runtime-prod',
+      adversarySimEnabled: true,
+      connectionState: 'disconnected'
+    });
 
     const classList = createMutableClassList(['runtime-prod', 'adversary-sim', 'connected']);
     const rootClassList = createMutableClassList(['runtime-prod', 'adversary-sim', 'connected']);
@@ -2443,6 +2594,44 @@ test('dashboard adversary-sim control availability follows explicit surface opt-
         surfaceAvailable: false,
         controlAvailable: false
       }
+    );
+  });
+});
+
+test('dashboard adversary-sim desired-state matcher tolerates eventual-consistency settle windows', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const adversaryModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-adversary-sim.js');
+
+    assert.equal(
+      adversaryModule.adversarySimStateMatchesDesired({
+        adversary_sim_enabled: true,
+        phase: 'running'
+      }, true),
+      true
+    );
+    assert.equal(
+      adversaryModule.adversarySimStateMatchesDesired({
+        adversary_sim_enabled: false,
+        generation_active: true,
+        phase: 'running'
+      }, true),
+      false
+    );
+    assert.equal(
+      adversaryModule.adversarySimStateMatchesDesired({
+        adversary_sim_enabled: false,
+        generation_active: false,
+        phase: 'off'
+      }, false),
+      true
+    );
+    assert.equal(
+      adversaryModule.adversarySimStateMatchesDesired({
+        adversary_sim_enabled: false,
+        generation_active: true,
+        phase: 'stopping'
+      }, false),
+      false
     );
   });
 });
@@ -3160,7 +3349,14 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /trust boundary/);
   assert.match(source, /Adversary simulation control session expired\. Redirecting to login\.\.\./);
   assert.match(source, /dashboard-global-control-label/);
-  assert.equal(source.includes("await routeController.refreshTab(activeTabKey, 'auto-refresh');"), false);
+  assert.match(
+    source,
+    /if \(checked && autoRefreshSupported && runtimeReady\) \{\s*void routeController\.refreshTab\(activeTabKey, 'auto-refresh'\);/s
+  );
+  assert.match(source, /let adversarySimPendingEnabled = null;/);
+  assert.match(source, /function waitForAdversarySimStatusConvergence\(/);
+  assert.match(source, /adversarySimPendingEnabled === null/);
+  assert.match(source, /await waitForAdversarySimStatusConvergence\(/);
   assert.equal(source.includes('adversary-sim-progress-line'), false);
   assert.match(source, /id="admin-msg"/);
 });

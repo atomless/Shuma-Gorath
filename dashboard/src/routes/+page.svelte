@@ -14,7 +14,8 @@
   } from '$lib/runtime/dashboard-body-classes.js';
   import {
     deriveAdversarySimControlState,
-    normalizeAdversarySimStatus
+    normalizeAdversarySimStatus,
+    adversarySimStateMatchesDesired
   } from '$lib/runtime/dashboard-adversary-sim.js';
   import { createDashboardRouteController } from '$lib/runtime/dashboard-route-controller.js';
   import {
@@ -87,6 +88,7 @@
   let suppressBeforeUnloadPrompt = false;
   let savingGlobalTestMode = false;
   let savingGlobalAdversarySim = false;
+  let adversarySimPendingEnabled = null;
   let autoRefreshEnabled = false;
   let authExpiryTimer = null;
   let authExpiryAtSeconds = 0;
@@ -191,7 +193,11 @@
   $: runtimeClassHint = sessionRuntimeClassHint || rootRuntimeClassHint;
   $: bodyClassState = deriveDashboardBodyClassState(configSnapshot, {
     backendConnectionState,
-    runtimeClassHint
+    runtimeClassHint,
+    adversarySimEnabled:
+      adversarySimPendingEnabled === true ||
+      normalizedAdversarySimStatus.enabled === true ||
+      normalizedAdversarySimStatus.generationActive === true
   });
   $: if (typeof document !== 'undefined') {
     syncDashboardBodyClasses(document, bodyClassState);
@@ -209,7 +215,10 @@
     }
   }
   $: normalizedAdversarySimStatus = normalizeAdversarySimStatus(adversarySimStatus);
-  $: adversarySimToggleEnabled = normalizedAdversarySimStatus.enabled;
+  $: adversarySimToggleEnabled =
+    adversarySimPendingEnabled === null
+      ? normalizedAdversarySimStatus.enabled
+      : adversarySimPendingEnabled === true;
   $: adversarySimControlState = deriveAdversarySimControlState({
     configSnapshot,
     adversarySimStatus
@@ -570,7 +579,7 @@
     writeAutoRefreshPreference(checked);
     routeController.schedulePolling('auto-refresh-toggle');
     if (checked && autoRefreshSupported && runtimeReady) {
-      void routeController.refreshTab(activeTabKey, 'manual-refresh');
+      void routeController.refreshTab(activeTabKey, 'auto-refresh');
     }
   }
 
@@ -671,6 +680,41 @@
     return adversarySimStatusRequestInFlight;
   }
 
+  async function waitForAdversarySimStatusConvergence(desiredEnabled, timeoutMs = 15000) {
+    const desired = desiredEnabled === true;
+    const deadline = Date.now() + Math.max(1000, Number(timeoutMs || 0));
+    let consecutiveSettledPolls = 0;
+    while (Date.now() < deadline) {
+      const status = await withRefreshedSessionOnAuthError(
+        () => getDashboardAdversarySimStatus({
+          telemetry: {
+            tab: 'status',
+            reason: 'adversary-sim-toggle-convergence',
+            source: 'adversary-sim-status'
+          }
+        })
+      );
+      adversarySimStatus = status && typeof status === 'object' ? status : {};
+      if (desired) {
+        if (adversarySimStateMatchesDesired(adversarySimStatus, true)) {
+          return adversarySimStatus;
+        }
+        consecutiveSettledPolls = 0;
+      } else if (adversarySimStateMatchesDesired(adversarySimStatus, false)) {
+        consecutiveSettledPolls += 1;
+        if (consecutiveSettledPolls >= 3) {
+          return adversarySimStatus;
+        }
+      } else {
+        consecutiveSettledPolls = 0;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    throw new Error(
+      `Adversary simulation did not settle to enabled=${desired} within ${timeoutMs}ms.`
+    );
+  }
+
   async function onGlobalAdversarySimToggleChange(event) {
     const target = event && event.currentTarget ? event.currentTarget : null;
     const nextValue = target && target.checked === true;
@@ -705,6 +749,7 @@
         ? { ...adversarySimStatus }
         : {};
     savingGlobalAdversarySim = true;
+    adversarySimPendingEnabled = nextValue;
     try {
       const result = await withRefreshedSessionOnAuthError(
         () => controlDashboardAdversarySim(nextValue, {
@@ -716,9 +761,14 @@
         })
       );
       const status = result && result.status ? result.status : {};
-      const normalizedStatus = normalizeAdversarySimStatus(status);
       adversarySimStatus = status && typeof status === 'object' ? status : {};
-      if (target) target.checked = normalizedStatus.enabled;
+      await waitForAdversarySimStatusConvergence(
+        nextValue,
+        nextValue ? 15000 : 30000
+      );
+      if (activeTabKey === 'monitoring' && autoRefreshEnabled === true) {
+        void routeController.refreshTab('monitoring', 'auto-refresh');
+      }
       setAdminMessage(
         nextValue
           ? 'Adversary simulation run started.'
@@ -740,9 +790,7 @@
       setAdminMessage(`Error: ${message}`, 'error');
     } finally {
       savingGlobalAdversarySim = false;
-      try {
-        await refreshAdversarySimStatus('toggle');
-      } catch (_error) {}
+      adversarySimPendingEnabled = null;
     }
   }
 

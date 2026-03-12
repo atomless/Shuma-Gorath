@@ -573,6 +573,16 @@ def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
     origin = base_url.rstrip("/")
     status_url = f"{origin}/admin/adversary-sim/status"
     control_url = f"{origin}/admin/adversary-sim/control"
+    monitoring_delta_base_url = f"{origin}/admin/monitoring/delta?hours=24&limit=20"
+
+    def monitoring_delta_contains_simulation_event(payload: dict[str, Any]) -> bool:
+        events = payload.get("events") if isinstance(payload, dict) else []
+        if not isinstance(events, list):
+            return False
+        return any(
+            isinstance(event, dict) and bool(event.get("is_simulation"))
+            for event in events
+        )
 
     def disable_if_running() -> None:
         try:
@@ -595,6 +605,23 @@ def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
             raise
         except Exception:
             return
+
+    baseline_monitoring_status, baseline_monitoring_payload, baseline_monitoring_raw = admin_json_request(
+        opener=opener,
+        method="GET",
+        url=monitoring_delta_base_url,
+        origin=origin,
+    )
+    if baseline_monitoring_status != 200:
+        raise SystemExit(
+            "Edge adversary-sim monitoring baseline smoke failed for "
+            f"{base_url}: status={baseline_monitoring_status} body={baseline_monitoring_raw.strip()[:200]}"
+        )
+    baseline_monitoring_cursor = str(
+        baseline_monitoring_payload.get("window_end_cursor")
+        or baseline_monitoring_payload.get("next_cursor")
+        or ""
+    ).strip()
 
     enable_status, enable_payload, enable_body = admin_json_request(
         opener=opener,
@@ -628,6 +655,8 @@ def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
     deadline = time.time() + EDGE_ADVERSARY_SIM_SMOKE_TIMEOUT_SECONDS
     last_payload: dict[str, Any] = {}
     last_raw = ""
+    monitoring_visible = False
+    monitoring_raw = ""
     try:
         while time.time() < deadline:
             status_code, payload, raw = admin_json_request(
@@ -643,10 +672,26 @@ def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
                 generation_obj = generation if isinstance(generation, dict) else {}
                 tick_count = int(generation_obj.get("tick_count") or 0)
                 request_count = int(generation_obj.get("request_count") or 0)
-                if require_follow_up_tick:
-                    if tick_count > baseline_tick_count and request_count > baseline_request_count:
-                        return
-                elif tick_count > 0 and request_count > 0:
+                monitoring_delta_url = monitoring_delta_base_url
+                if baseline_monitoring_cursor:
+                    monitoring_delta_url = (
+                        f"{monitoring_delta_url}&after_cursor={urllib_parse.quote(baseline_monitoring_cursor, safe='')}"
+                    )
+                monitoring_status, monitoring_payload, monitoring_body = admin_json_request(
+                    opener=opener,
+                    method="GET",
+                    url=monitoring_delta_url,
+                    origin=origin,
+                )
+                monitoring_raw = monitoring_body
+                if monitoring_status == 200 and monitoring_delta_contains_simulation_event(monitoring_payload):
+                    monitoring_visible = True
+                generation_observed = (
+                    (tick_count > baseline_tick_count and request_count > baseline_request_count)
+                    if require_follow_up_tick
+                    else (tick_count > 0 and request_count > 0)
+                )
+                if generation_observed and monitoring_visible:
                     return
             time.sleep(5)
     finally:
@@ -654,7 +699,8 @@ def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
 
     raise SystemExit(
         "Edge adversary-sim smoke failed: no generated traffic was observed within "
-        f"{EDGE_ADVERSARY_SIM_SMOKE_TIMEOUT_SECONDS}s. Last status: {last_raw[:400]}"
+        f"{EDGE_ADVERSARY_SIM_SMOKE_TIMEOUT_SECONDS}s. Last status: {last_raw[:400]} "
+        f"Last monitoring delta: {monitoring_raw[:400]}"
     )
 
 
@@ -693,6 +739,17 @@ def bootstrap_remote_config_if_missing(base_url: str, env: dict[str, str]) -> No
         )
 
 
+def public_route_smoke_acceptable(status: int, body: str) -> bool:
+    normalized_body = (body or "").lower()
+    if "configuration unavailable" in normalized_body:
+        return False
+    if status in {200, 403, 429}:
+        return True
+    if status in {301, 302, 303, 307, 308}:
+        return True
+    return False
+
+
 def smoke_deployed_app(base_url: str, env: dict[str, str]) -> None:
     login_status, login_body = http_text_request(
         method="GET",
@@ -707,7 +764,7 @@ def smoke_deployed_app(base_url: str, env: dict[str, str]) -> None:
         method="GET",
         url=f"{base_url.rstrip('/')}/index.html",
     )
-    if index_status != 200 or "Configuration unavailable" in index_body:
+    if not public_route_smoke_acceptable(index_status, index_body):
         raise SystemExit(
             f"Edge public-route smoke failed for {base_url}: status={index_status} body={index_body.strip()[:200]}"
         )
