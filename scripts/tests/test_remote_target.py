@@ -539,9 +539,11 @@ class RemoteTargetTests(unittest.TestCase):
         self.assertIn('make setup-runtime', script)
         self.assertIn('cp "${REMOTE_APP_DIR}/.env.local" "${PREV_ENV_OVERLAY_PATH}"', script)
         self.assertIn(
-            'python3 scripts/deploy/merge_env_overlay.py --overlay "${PREV_ENV_OVERLAY_PATH}" --env-file ".env.local" --set "SHUMA_GATEWAY_UPSTREAM_ORIGIN=${REMOTE_UPSTREAM_ORIGIN}"',
+            'python3 scripts/deploy/merge_env_overlay.py --overlay "${PREV_ENV_OVERLAY_PATH}" --env-file ".env.local" --set "SHUMA_GATEWAY_UPSTREAM_ORIGIN=${REMOTE_UPSTREAM_ORIGIN}" --set "SHUMA_SPIN_MANIFEST=${REMOTE_APP_DIR}/spin.gateway.toml"',
             script,
         )
+        self.assertIn('export SHUMA_GATEWAY_UPSTREAM_ORIGIN="${REMOTE_UPSTREAM_ORIGIN}"', script)
+        self.assertIn('export SHUMA_SPIN_MANIFEST="${NEXT_APP_DIR}/spin.gateway.toml"', script)
         self.assertIn(
             'GATEWAY_SURFACE_CATALOG_PATH="${GATEWAY_SURFACE_CATALOG_REMOTE_PATH}" make deploy-self-hosted-minimal-prebuilt',
             script,

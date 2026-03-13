@@ -6,6 +6,15 @@ Moved from active TODO files on 2026-02-14.
 
 ### Ad Hoc Completion Records
 
+- [x] Fix SSH remote prebuilt updates to validate against the freshly rendered `.next` Spin manifest instead of the previous deployment’s persisted `SHUMA_SPIN_MANIFEST`.
+- [x] Why:
+  - after isolating the SSH remote upstream-origin contract, the next live `remote-update` failure showed that overlay merge was also restoring `SHUMA_SPIN_MANIFEST` from the current deployment.
+  - that caused `deploy-env-validate` inside the pre-swap install to inspect the old manifest and old allowed outbound hosts, which made the update path fail even though the freshly rendered `.next/spin.gateway.toml` was correct.
+- [x] Evidence:
+  - `scripts/deploy/remote_target.py`
+  - `scripts/tests/test_remote_target.py`
+  - `make test-deploy-linode`
+
 - [x] Fix SSH remote day-2 operations so they use the remote receipt’s authoritative upstream origin instead of leaking cross-target `SHUMA_GATEWAY_UPSTREAM_ORIGIN` from shared `.env.local` state.
 - [x] Why:
   - while closing the TEL-HOT live-evidence path, the active Linode `remote-update` started comparing forwarded smoke traffic against the Fermyon edge upstream because the shared local env had been updated by the Fermyon setup lane.

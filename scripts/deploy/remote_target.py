@@ -415,11 +415,13 @@ install_release() {
 
   cd "${NEXT_APP_DIR}"
   make setup-runtime
-  python3 scripts/deploy/merge_env_overlay.py --overlay "${PREV_ENV_OVERLAY_PATH}" --env-file ".env.local" --set "SHUMA_GATEWAY_UPSTREAM_ORIGIN=${REMOTE_UPSTREAM_ORIGIN}"
+  python3 scripts/deploy/merge_env_overlay.py --overlay "${PREV_ENV_OVERLAY_PATH}" --env-file ".env.local" --set "SHUMA_GATEWAY_UPSTREAM_ORIGIN=${REMOTE_UPSTREAM_ORIGIN}" --set "SHUMA_SPIN_MANIFEST=${REMOTE_APP_DIR}/spin.gateway.toml"
   chmod 600 .env.local
   set -a
   source .env.local
   set +a
+  export SHUMA_GATEWAY_UPSTREAM_ORIGIN="${REMOTE_UPSTREAM_ORIGIN}"
+  export SHUMA_SPIN_MANIFEST="${NEXT_APP_DIR}/spin.gateway.toml"
   python3 scripts/deploy/render_gateway_spin_manifest.py \
     --manifest "${NEXT_APP_DIR}/spin.toml" \
     --output "${NEXT_APP_DIR}/spin.gateway.toml" \
