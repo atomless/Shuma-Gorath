@@ -99,10 +99,11 @@ class BuildLinodeReleaseBundleTests(unittest.TestCase):
         metadata = json.loads(metadata_output.read_text(encoding="utf-8"))
         self.assertTrue(metadata["dirty_worktree"])
 
-    def test_shuma_like_repo_builds_dashboard_assets_into_bundle(self) -> None:
+    def test_shuma_like_repo_builds_dashboard_and_runtime_artifacts_into_bundle(self) -> None:
         repo_root = self.create_git_repo()
         (repo_root / "Makefile").write_text(
-            "dashboard-build:\n\t@mkdir -p dist/dashboard\n\t@printf '<h1>Dashboard</h1>\\n' > dist/dashboard/index.html\n",
+            "dashboard-build:\n\t@mkdir -p dist/dashboard\n\t@printf '<h1>Dashboard</h1>\\n' > dist/dashboard/index.html\n"
+            "build-runtime:\n\t@mkdir -p dist/wasm\n\t@printf 'wasm-binary' > dist/wasm/shuma_gorath.wasm\n",
             encoding="utf-8",
         )
         (repo_root / "spin.toml").write_text(
@@ -133,9 +134,11 @@ class BuildLinodeReleaseBundleTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
         metadata = json.loads(metadata_output.read_text(encoding="utf-8"))
         self.assertTrue(metadata["dashboard_built"])
+        self.assertTrue(metadata["runtime_built"])
 
         with tarfile.open(archive_output, "r:gz") as archive:
             self.assertIn("dist/dashboard/index.html", archive.getnames())
+            self.assertIn("dist/wasm/shuma_gorath.wasm", archive.getnames())
             self.assertNotIn("node_modules", archive.getnames())
 
 

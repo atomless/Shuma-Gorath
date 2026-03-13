@@ -117,6 +117,10 @@ class DeployLinodeOneShotTests(unittest.TestCase):
                     mkdir -p dist/dashboard
                     printf '<h1>Dashboard</h1>\\n' > dist/dashboard/index.html
                   fi
+                  if [ "$arg" = "build-runtime" ]; then
+                    mkdir -p dist/wasm
+                    printf 'wasm-binary' > dist/wasm/shuma_gorath.wasm
+                  fi
                 done
                 if [ -n "$manifest_path" ] && [ -f "$manifest_path" ]; then
                   cp "$manifest_path" "{self.captured_manifest}"

@@ -76,6 +76,23 @@ def maybe_build_dashboard(repo_root: Path, checkout_root: Path) -> bool:
     if not dist_dashboard.is_dir():
         raise RuntimeError(
             "Dashboard build completed without producing dist/dashboard for Linode bundle."
+    )
+    return True
+
+
+def maybe_build_runtime(repo_root: Path, checkout_root: Path) -> bool:
+    if not shuma_dashboard_build_required(repo_root):
+        return False
+
+    result = run_command(checkout_root, "make", "--no-print-directory", "build-runtime")
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or "build-runtime failed"
+        raise RuntimeError(f"Failed to build runtime artifact for release bundle: {detail}")
+
+    runtime_artifact = checkout_root / "dist" / "wasm" / "shuma_gorath.wasm"
+    if not runtime_artifact.is_file():
+        raise RuntimeError(
+            "Runtime build completed without producing dist/wasm/shuma_gorath.wasm for release bundle."
         )
     return True
 
@@ -124,6 +141,7 @@ def main() -> int:
             staging_root = Path(temp_dir)
             extract_head_tree(repo_root, staging_root)
             dashboard_built = maybe_build_dashboard(repo_root, staging_root)
+            runtime_built = maybe_build_runtime(repo_root, staging_root)
             write_release_archive(staging_root, archive_output)
 
         metadata_output.write_text(
@@ -131,6 +149,7 @@ def main() -> int:
                 {
                     "commit": commit,
                     "dashboard_built": dashboard_built,
+                    "runtime_built": runtime_built,
                     "dirty_worktree": dirty_worktree,
                     "repo_root": str(repo_root),
                 },

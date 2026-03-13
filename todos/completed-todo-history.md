@@ -6,6 +6,16 @@ Moved from active TODO files on 2026-02-14.
 
 ### Ad Hoc Completion Records
 
+- [x] Fix the Linode release-bundle builder to ship the prebuilt Wasm runtime artifact alongside the prebuilt dashboard assets.
+- [x] Why:
+  - once `remote-update` was corrected to use a prebuilt deploy baseline, the next live blocker showed up immediately: the release bundle builder only created `dist/dashboard`, so the remote prebuilt baseline correctly rejected the bundle for missing `dist/wasm/shuma_gorath.wasm`.
+  - that meant the exact-committed-bundle contract was still incomplete at the bundle-builder layer, even though the remote update flow was now checking it honestly.
+- [x] Evidence:
+  - `scripts/deploy/build_linode_release_bundle.py`
+  - `scripts/tests/test_build_linode_release_bundle.py`
+  - `scripts/tests/test_deploy_linode_one_shot.py`
+  - `make test-deploy-linode`
+
 - [x] Fix `make remote-update` to use a truthful prebuilt deploy baseline on SSH remotes instead of the normal build-on-host deployment baseline.
 - [x] Why:
   - the live TEL-HOT proof exposed that `remote-update` was calling `deploy-self-hosted-minimal` on the remote host, which rebuilds dashboard/runtime artifacts and therefore depends on remote build tooling.
