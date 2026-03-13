@@ -30,9 +30,10 @@ This tranche is specifically about the *hot read path* for operator monitoring, 
 ### Platform facts
 
 1. Fermyon Wasm Functions supports the Spin key-value interfaces, and the service describes that KV as low-latency, persisted, and globally replicated, but query rates are limited and only key-value operations are available. This is a good fit for state and bounded lookups, not query-heavy analytics assembly.
-2. Fermyon Wasm Functions does **not** support Spin SQLite storage today, so any SQLite-first design would immediately split the architecture between local/shared-host and Fermyon edge.
-3. Fermyon Wasm Functions does support external PostgreSQL and MySQL, but that introduces extra infrastructure, network cost, credentials, and a second storage model.
-4. Spin KV itself exposes `get`, `set`, `delete`, `exists`, and `get-keys`; it is intentionally a simple non-relational store, and each unnecessary extra call is a real trip to storage. Fermyon’s own TypeScript KV guidance explicitly notes that `exists() + get()` is slower than a single `get()` because it causes two trips.
+2. Fermyon Wasm Functions does **not** support the `wasi:keyvalue/atomic` interface, and the platform only guarantees read-your-writes within a request. That means shared read-modify-write patterns across concurrent edge instances are not a safe foundation for exact telemetry projections.
+3. Fermyon Wasm Functions does **not** support Spin SQLite storage today, so any SQLite-first design would immediately split the architecture between local/shared-host and Fermyon edge.
+4. Fermyon Wasm Functions does support external PostgreSQL and MySQL, but that introduces extra infrastructure, network cost, credentials, and a second storage model.
+5. Spin KV itself exposes `get`, `set`, `delete`, `exists`, and `get-keys`; it is intentionally a simple non-relational store, and each unnecessary extra call is a real trip to storage. Fermyon’s own TypeScript KV guidance explicitly notes that `exists() + get()` is slower than a single `get()` because it causes two trips.
 
 ### Repository facts
 
@@ -47,6 +48,7 @@ This tranche is specifically about the *hot read path* for operator monitoring, 
    - recent event windows are reloaded from bucket indexes and records,
    - config and ban summaries are rebuilt,
    - all of this is done in the request path.
+4. Current monitoring counters and retention catalogs are themselves maintained with `get` + `set` read-modify-write patterns over shared KV state. That is acceptable on local and usually masked on single-host deployments, but it is not a strong correctness basis for multi-writer edge projections.
 
 ## Architectural Conclusion
 
@@ -57,6 +59,11 @@ The best cross-target architecture is:
 3. add **materialized hot-read documents** maintained at write/flush time,
 4. make dashboard bootstrap read those materialized documents in O(1-5) key reads instead of reconstructing them from many fine-grained keys,
 5. reserve the existing bucketed/raw paths for detailed drill-down, deltas, streams, and forensic reads.
+
+However, one architectural guardrail is non-negotiable: the hot-read layer must not be implemented as shared read-modify-write mutation of a projection document by concurrent writers. On Fermyon edge, the projection layer must be either:
+
+1. overwritten from a deterministic rebuild source, or
+2. derived from append-only or otherwise commutative intermediate state whose correctness does not rely on unsupported atomic KV semantics.
 
 This avoids:
 
@@ -108,7 +115,7 @@ Rejected as the primary design because:
 Keep the current layered telemetry model:
 
 1. immutable raw event records,
-2. bucketed counters and rollups,
+2. bucketed counters and rollups where their exactness contract is explicitly understood,
 3. retention catalogs and worker state.
 
 Add a fourth layer:
@@ -130,7 +137,7 @@ This document should contain exactly the data needed for the first dashboard/mon
 5. recent-events tail metadata and the first small recent-events window,
 6. cursors or continuation metadata for delta/detail follow-up.
 
-It must be cheap to read and cheap to replace atomically.
+It must be cheap to read and cheap to replace as a single bounded document.
 
 ### 3. Materialize bounded secondary summaries
 
@@ -153,6 +160,12 @@ The project already buffers and flushes monitoring writes. The preferred place t
 4. explicit config/admin mutations where headline operational posture changes.
 
 This keeps extra write cost bounded and avoids adding per-request synchronous recomputation.
+
+Implementation guardrail:
+
+1. do not maintain hot-read documents via concurrent incremental `get` + modify + `set` over the existing shared projection document,
+2. do not assume current mutable monitoring counters or mutable bucket catalogs are sufficiently exact for multi-writer edge truth without an explicit decision,
+3. prefer deterministic overwrite from already-bounded canonical inputs over shared projection mutation.
 
 ### 5. Keep raw/drill-down paths separate
 
@@ -221,15 +234,20 @@ These targets are aggressive by design and should only be relaxed with measured 
 
 ### Phase 1: Hot-read document contract
 
-1. Define the exact schema for bootstrap and supporting summary documents.
-2. Define freshness, update triggers, and bounded size rules.
-3. Define which fields are authoritative hot-read projections versus drill-down-only.
+1. Resolve the authoritative-source and correctness contract first:
+   - which telemetry values remain exact under non-atomic KV,
+   - which existing counters/catalogs are best-effort only,
+   - and whether hot-read documents will be rebuilt from canonical immutable inputs or from explicitly accepted approximate rollups.
+2. Define the exact schema for bootstrap and supporting summary documents.
+3. Define freshness, update triggers, and bounded size rules.
+4. Define which fields are authoritative hot-read projections versus drill-down-only.
 
 ### Phase 2: Write-path projection
 
-1. Update flush/event/retention paths to maintain the hot-read documents.
+1. Update flush/event/retention paths to maintain the hot-read documents without relying on shared multi-writer projection read-modify-write.
 2. Keep update logic centralized and shared across targets.
 3. Add bounded repair/rebuild logic for missing or stale projections.
+4. Prove concurrent edge writers cannot lose or corrupt projection state under the chosen contract.
 
 ### Phase 3: Monitoring bootstrap rewrite
 
@@ -257,5 +275,6 @@ Required proof for completion:
 1. One shared telemetry storage/read architecture is used across Fermyon and Linode.
 2. No Fermyon-only telemetry store or SQLite split has been introduced.
 3. Hot monitoring/dashboard reads use durable materialized documents instead of expensive on-demand reconstruction.
-4. Host cost stays low by avoiding new infrastructure and reducing repeated read amplification.
-5. Edge and shared-host operator UX both improve measurably.
+4. The hot-read layer does not depend on unsafe multi-writer shared projection mutation over non-atomic KV.
+5. Host cost stays low by avoiding new infrastructure and reducing repeated read amplification.
+6. Edge and shared-host operator UX both improve measurably.
