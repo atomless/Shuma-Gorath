@@ -51,6 +51,7 @@ Prometheus parity scope for Monitoring widgets is tracked in:
 - Monitoring summary, delta, stream, and normal monitoring-details reads use bucket indexes and key catalogs instead of whole-keyspace `get_keys()` scans.
 - Monitoring query budgets account for requested window, bucket count, key count, residual scans, and dense-bucket penalty rather than only `hours * limit`.
 - The first live shared-host baseline and the current hot-path compression decision are archived in [`docs/research/2026-03-11-shared-host-telemetry-storage-query-evidence.md`](research/2026-03-11-shared-host-telemetry-storage-query-evidence.md).
+- The hot-read telemetry contract is now explicit in code: current bootstrap candidates derived from immutable event records or direct state snapshots are treated as exact, while summaries derived from mutable shared counters or retention catalogs are treated as best-effort until the unified hot-read architecture replaces those sources with a non-racy projection path. See [`src/observability/hot_read_contract.rs`](../src/observability/hot_read_contract.rs) and [`docs/plans/2026-03-12-unified-telemetry-hot-read-architecture-plan.md`](plans/2026-03-12-unified-telemetry-hot-read-architecture-plan.md).
 
 ### 🐙 Metrics Included
 

@@ -2,6 +2,24 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-13)
+
+### TEL-HOT-1: Unified Hot-Read Telemetry Architecture
+
+- [x] TEL-HOT-1-1 Resolve the authoritative-source and correctness contract for telemetry under non-atomic KV: identify which current counters/catalogs are exact versus best-effort, and choose a hot-read projection model that does not rely on unsafe shared read-modify-write across concurrent edge writers.
+- [x] Why:
+  - the unified hot-read plan was not ready for implementation until the repository made the current telemetry truth contract explicit in code, because Fermyon edge KV does not support atomic multi-key mutation and the existing monitoring counters plus retention catalogs still use shared read-modify-write patterns.
+  - without codifying that distinction first, it would have been too easy to build a fast bootstrap path on top of telemetry sources that are still race-prone under concurrent edge writers.
+  - the clean first slice was to make the exact versus best-effort sources explicit, record the projection guardrails in a dedicated observability module, and keep the plan, docs, and backlog aligned to that contract before any hot-read document implementation starts.
+- [x] Evidence:
+  - `src/observability/hot_read_contract.rs`
+  - `src/observability/mod.rs`
+  - `docs/observability.md`
+  - `docs/plans/2026-03-12-unified-telemetry-hot-read-architecture-plan.md`
+  - `todos/todo.md`
+  - `Makefile`
+  - `make test-telemetry-hot-read-contract`
+
 ## Additional completions (2026-03-12)
 
 ### Ad Hoc Fermyon Reliability: Live Dashboard Control Convergence and Monitoring Truthfulness
