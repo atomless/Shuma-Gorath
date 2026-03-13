@@ -2,6 +2,35 @@ use super::*;
 use crate::challenge::KeyValueStore;
 
 #[test]
+fn ban_and_unban_refresh_hot_read_bootstrap_projection() {
+    let store = crate::test_support::InMemoryStore::default();
+    let site_id = "default";
+    let ip = "203.0.113.77";
+
+    ban_ip(&store, site_id, ip, "test", 60);
+
+    let bootstrap_key =
+        crate::observability::hot_read_documents::monitoring_bootstrap_document_key(site_id);
+    let bytes = store
+        .get(bootstrap_key.as_str())
+        .expect("bootstrap read")
+        .expect("bootstrap present after ban");
+    let bootstrap: crate::observability::hot_read_documents::MonitoringBootstrapHotReadDocument =
+        serde_json::from_slice(bytes.as_slice()).expect("bootstrap decode");
+    assert_eq!(bootstrap.payload.analytics.ban_count, 1);
+
+    unban_ip(&store, site_id, ip);
+
+    let bytes = store
+        .get(bootstrap_key.as_str())
+        .expect("bootstrap reread")
+        .expect("bootstrap present after unban");
+    let bootstrap: crate::observability::hot_read_documents::MonitoringBootstrapHotReadDocument =
+        serde_json::from_slice(bytes.as_slice()).expect("bootstrap decode after unban");
+    assert_eq!(bootstrap.payload.analytics.ban_count, 0);
+}
+
+#[test]
 fn test_ban_and_expiry() {
     let store = crate::test_support::InMemoryStore::default();
     let site_id = "testsite";

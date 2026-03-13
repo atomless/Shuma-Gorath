@@ -440,6 +440,10 @@ fn security_view_mode_label(forensic_mode: bool) -> &'static str {
     }
 }
 
+pub(crate) fn monitoring_security_view_mode_label(forensic_mode: bool) -> &'static str {
+    security_view_mode_label(forensic_mode)
+}
+
 fn present_event_record(record: &EventLogRecord, forensic_mode: bool) -> EventLogRecord {
     if forensic_mode {
         return record.clone();
@@ -533,6 +537,15 @@ fn security_privacy_payload<S: crate::challenge::KeyValueStore>(
             "last_incident": last_incident
         }
     })
+}
+
+pub(crate) fn monitoring_security_privacy_payload<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    now: u64,
+    hours: u64,
+    forensic_mode: bool,
+) -> serde_json::Value {
+    security_privacy_payload(store, now, hours, forensic_mode)
 }
 
 pub fn log_event_with_execution_metadata<S: crate::challenge::KeyValueStore>(
@@ -632,6 +645,9 @@ pub fn log_event_with_execution_metadata<S: crate::challenge::KeyValueStore>(
             }
             crate::observability::retention::register_event_log_key(store, hour, key.as_str());
             crate::observability::retention::run_worker_if_due(store);
+            crate::observability::hot_read_projection::refresh_after_event_append(
+                store, "default",
+            );
         }
         Err(_) => eprintln!(
             "[log_event] serialization error; dropping event for key {}",
@@ -852,6 +868,49 @@ mod tests {
             Some("block")
         );
         assert_eq!(payload.execution.enforcement_applied, Some(false));
+    }
+
+    #[test]
+    fn log_event_refreshes_hot_read_recent_events_tail_projection() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let entry = EventLogEntry {
+            ts: now,
+            event: EventType::Challenge,
+            ip: Some("203.0.113.40".to_string()),
+            reason: Some("example".to_string()),
+            outcome: Some("served".to_string()),
+            admin: None,
+        };
+
+        log_event(&store, &entry);
+
+        let recent_bytes = store
+            .get(
+                crate::observability::hot_read_documents::monitoring_recent_events_tail_document_key(
+                    "default",
+                )
+                .as_str(),
+            )
+            .expect("recent tail read")
+            .expect("recent tail document");
+        let recent: crate::observability::hot_read_documents::MonitoringRecentEventsTailDocument =
+            serde_json::from_slice(recent_bytes.as_slice()).expect("recent tail doc decode");
+        assert_eq!(recent.payload.recent_events_window.returned_events, 1);
+
+        let bootstrap_bytes = store
+            .get(
+                crate::observability::hot_read_documents::monitoring_bootstrap_document_key(
+                    "default",
+                )
+                .as_str(),
+            )
+            .expect("bootstrap read")
+            .expect("bootstrap document");
+        let bootstrap: crate::observability::hot_read_documents::MonitoringBootstrapHotReadDocument =
+            serde_json::from_slice(bootstrap_bytes.as_slice()).expect("bootstrap doc decode");
+        assert_eq!(bootstrap.payload.analytics.ban_count, 0);
+        assert_eq!(bootstrap.payload.recent_events.len(), 1);
     }
 
     #[test]
@@ -2031,6 +2090,32 @@ mod admin_config_tests {
         for key in keys {
             std::env::remove_var(key);
         }
+    }
+
+    #[test]
+    fn admin_config_post_refreshes_hot_read_bootstrap_projection() {
+        let store = TestStore::default();
+        let req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"test_mode":true}"#.to_vec(),
+        );
+
+        let response = handle_admin_config_internal(&req, &store, "default", false);
+        assert_eq!(*response.status(), 200u16);
+
+        let bootstrap_bytes = store
+            .get(
+                crate::observability::hot_read_documents::monitoring_bootstrap_document_key(
+                    "default",
+                )
+                .as_str(),
+            )
+            .expect("bootstrap read")
+            .expect("bootstrap document");
+        let bootstrap: crate::observability::hot_read_documents::MonitoringBootstrapHotReadDocument =
+            serde_json::from_slice(bootstrap_bytes.as_slice()).expect("bootstrap doc decode");
+        assert!(bootstrap.payload.analytics.test_mode);
     }
 
     #[test]
@@ -8390,6 +8475,37 @@ fn load_recent_event_window<S: crate::challenge::KeyValueStore>(
     }
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct PresentedRecentEventTail {
+    pub recent_events: Vec<serde_json::Value>,
+    pub total_events_in_window: usize,
+    pub returned_events: usize,
+    pub has_more: bool,
+}
+
+pub(crate) fn monitoring_presented_recent_event_tail<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    now: u64,
+    hours: u64,
+    limit: usize,
+    forensic_mode: bool,
+) -> PresentedRecentEventTail {
+    let window = load_recent_event_window(store, now, hours, limit);
+    let recent_events: Vec<serde_json::Value> = present_event_records(
+        window.records.as_slice(),
+        forensic_mode,
+    )
+    .into_iter()
+    .filter_map(|record| serde_json::to_value(record).ok())
+    .collect();
+    PresentedRecentEventTail {
+        total_events_in_window: window.total_events_in_window,
+        returned_events: recent_events.len(),
+        has_more: window.has_more,
+        recent_events,
+    }
+}
+
 fn load_recent_event_records_with_keys<S: crate::challenge::KeyValueStore>(
     store: &S,
     now: u64,
@@ -10081,6 +10197,7 @@ fn persist_site_config(
     let encoded = crate::config::serialize_persisted_kv_config(cfg).map_err(|_| ())?;
     store.set(&key, &encoded).map_err(|_| ())?;
     crate::config::invalidate_runtime_cache(site_id);
+    crate::observability::hot_read_projection::refresh_after_admin_mutation(store, site_id);
     Ok(())
 }
 

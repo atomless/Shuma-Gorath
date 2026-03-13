@@ -230,6 +230,7 @@ pub fn ban_ip_with_fingerprint(
             eprintln!("[ban] failed to persist ban {}: {:?}", key, e);
         } else {
             add_to_ban_index(store, site_id, ip);
+            crate::observability::hot_read_projection::refresh_after_admin_mutation(store, site_id);
             // log: ban_add
         }
     }
@@ -242,6 +243,7 @@ pub fn unban_ip(store: &impl KeyValueStore, site_id: &str, ip: &str) {
         eprintln!("[ban] failed to delete ban {}: {:?}", key, e);
     }
     remove_from_ban_index(store, site_id, ip);
+    crate::observability::hot_read_projection::refresh_after_admin_mutation(store, site_id);
 }
 
 /// Returns the current UNIX timestamp in seconds (used for ban expiry).

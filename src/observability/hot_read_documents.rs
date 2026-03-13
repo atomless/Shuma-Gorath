@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use crate::observability::hot_read_contract::{
     monitoring_bootstrap_component_contracts, HotReadProjectionModel, TelemetryExactness,
 };
+use crate::observability::monitoring::MonitoringSummary;
 use crate::observability::retention::RetentionHealth;
 
 const HOT_READ_PREFIX: &str = "telemetry:hot_read:v1";
@@ -14,12 +15,15 @@ const HOT_READ_BOOTSTRAP_SCHEMA_VERSION: &str = "telemetry-hot-read-bootstrap.v1
 const HOT_READ_RETENTION_SCHEMA_VERSION: &str = "telemetry-hot-read-retention.v1";
 const HOT_READ_SECURITY_PRIVACY_SCHEMA_VERSION: &str = "telemetry-hot-read-security-privacy.v1";
 const HOT_READ_RECENT_EVENTS_TAIL_SCHEMA_VERSION: &str = "telemetry-hot-read-recent-events.v1";
+const HOT_READ_MONITORING_SUMMARY_SCHEMA_VERSION: &str = "telemetry-hot-read-summary.v1";
 const HOT_READ_BOOTSTRAP_WINDOW_HOURS: u64 = 24;
 const HOT_READ_BOOTSTRAP_MAX_BYTES: usize = 64 * 1024;
 const HOT_READ_SECURITY_PRIVACY_MAX_BYTES: usize = 16 * 1024;
 const HOT_READ_RETENTION_MAX_BYTES: usize = 8 * 1024;
 const HOT_READ_RECENT_EVENTS_TAIL_MAX_BYTES: usize = 32 * 1024;
+const HOT_READ_MONITORING_SUMMARY_MAX_BYTES: usize = 24 * 1024;
 const HOT_READ_RECENT_EVENTS_TAIL_MAX_RECORDS: usize = 40;
+const HOT_READ_MONITORING_SUMMARY_TOP_LIMIT: usize = 10;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -117,6 +121,7 @@ pub(crate) type MonitoringRetentionSummaryDocument = HotReadDocumentEnvelope<Ret
 pub(crate) type MonitoringSecurityPrivacySummaryDocument = HotReadDocumentEnvelope<Value>;
 pub(crate) type MonitoringRecentEventsTailDocument =
     HotReadDocumentEnvelope<MonitoringRecentEventsTailPayload>;
+pub(crate) type MonitoringSummaryHotReadDocument = HotReadDocumentEnvelope<MonitoringSummary>;
 
 const MONITORING_BOOTSTRAP_UPDATE_TRIGGERS: [HotReadUpdateTrigger; 4] = [
     HotReadUpdateTrigger::MonitoringFlush,
@@ -214,6 +219,22 @@ const MONITORING_RECENT_EVENTS_TAIL_DOCUMENT_CONTRACT: HotReadDocumentContract =
         projection_model: HotReadProjectionModel::DeterministicRebuild,
     };
 
+const MONITORING_SUMMARY_DOCUMENT_CONTRACT: HotReadDocumentContract = HotReadDocumentContract {
+    document_key: "telemetry:hot_read:v1:monitoring_summary:<site>",
+    schema_version: HOT_READ_MONITORING_SUMMARY_SCHEMA_VERSION,
+    max_serialized_bytes: HOT_READ_MONITORING_SUMMARY_MAX_BYTES,
+    freshness: HotReadFreshnessBudget {
+        stale_after_seconds: 15,
+        rebuild_after_seconds: 90,
+    },
+    repair_policy: HotReadRepairPolicy {
+        rebuild_on_missing: true,
+        rebuild_on_schema_mismatch: true,
+        rebuild_on_decode_error: true,
+    },
+    projection_model: HotReadProjectionModel::DeterministicRebuild,
+};
+
 pub(crate) fn monitoring_bootstrap_document_contract() -> HotReadDocumentContract {
     MONITORING_BOOTSTRAP_DOCUMENT_CONTRACT
 }
@@ -228,6 +249,10 @@ pub(crate) fn monitoring_security_privacy_summary_document_contract() -> HotRead
 
 pub(crate) fn monitoring_recent_events_tail_document_contract() -> HotReadDocumentContract {
     MONITORING_RECENT_EVENTS_TAIL_DOCUMENT_CONTRACT
+}
+
+pub(crate) fn monitoring_summary_document_contract() -> HotReadDocumentContract {
+    MONITORING_SUMMARY_DOCUMENT_CONTRACT
 }
 
 pub(crate) fn monitoring_bootstrap_update_triggers() -> &'static [HotReadUpdateTrigger] {
@@ -254,6 +279,10 @@ pub(crate) fn monitoring_recent_events_tail_max_records() -> usize {
     HOT_READ_RECENT_EVENTS_TAIL_MAX_RECORDS
 }
 
+pub(crate) fn monitoring_summary_top_limit() -> usize {
+    HOT_READ_MONITORING_SUMMARY_TOP_LIMIT
+}
+
 pub(crate) fn monitoring_bootstrap_document_key(site_id: &str) -> String {
     format!("{HOT_READ_PREFIX}:bootstrap:{site_id}")
 }
@@ -268,6 +297,10 @@ pub(crate) fn monitoring_security_privacy_summary_document_key(site_id: &str) ->
 
 pub(crate) fn monitoring_recent_events_tail_document_key(site_id: &str) -> String {
     format!("{HOT_READ_PREFIX}:recent_events_tail:{site_id}")
+}
+
+pub(crate) fn monitoring_summary_document_key(site_id: &str) -> String {
+    format!("{HOT_READ_PREFIX}:monitoring_summary:{site_id}")
 }
 
 pub(crate) fn monitoring_hot_read_component_metadata(
@@ -296,6 +329,8 @@ mod tests {
         monitoring_recent_events_tail_document_contract, monitoring_recent_events_tail_max_records,
         monitoring_recent_events_tail_update_triggers,
         monitoring_retention_summary_document_contract,
+        monitoring_summary_document_contract, monitoring_summary_document_key,
+        monitoring_summary_top_limit,
         monitoring_security_privacy_summary_document_contract, HotReadUpdateTrigger,
     };
     use crate::observability::hot_read_contract::TelemetryExactness;
@@ -316,11 +351,14 @@ mod tests {
         let retention = monitoring_retention_summary_document_contract();
         let security_privacy = monitoring_security_privacy_summary_document_contract();
         let recent_events = monitoring_recent_events_tail_document_contract();
+        let monitoring_summary = monitoring_summary_document_contract();
 
         assert!(retention.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert!(security_privacy.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert!(recent_events.max_serialized_bytes < bootstrap.max_serialized_bytes);
+        assert!(monitoring_summary.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert_eq!(recent_events.freshness.stale_after_seconds, 10);
+        assert_eq!(monitoring_summary_top_limit(), 10);
     }
 
     #[test]
@@ -371,6 +409,10 @@ mod tests {
         assert_eq!(
             monitoring_bootstrap_document_key("default"),
             "telemetry:hot_read:v1:bootstrap:default"
+        );
+        assert_eq!(
+            monitoring_summary_document_key("default"),
+            "telemetry:hot_read:v1:monitoring_summary:default"
         );
     }
 }

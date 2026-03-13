@@ -430,14 +430,14 @@ fn compute_health(
     }
 }
 
-fn run_worker_if_due_at(store: &impl crate::challenge::KeyValueStore, now: u64) {
+fn run_worker_if_due_at(store: &impl crate::challenge::KeyValueStore, now: u64) -> bool {
     let retention_hours = monitoring_retention_hours();
     if retention_hours == 0 {
-        return;
+        return false;
     }
     let mut state = load_worker_state(store);
     if now.saturating_sub(state.last_attempt_ts) < RETENTION_WORKER_CADENCE_SECONDS {
-        return;
+        return false;
     }
     state.last_attempt_ts = now;
     state.last_error = None;
@@ -509,10 +509,13 @@ fn run_worker_if_due_at(store: &impl crate::challenge::KeyValueStore, now: u64) 
             RETENTION_WORKER_STATE_KEY, err
         );
     }
+    true
 }
 
 pub(crate) fn run_worker_if_due(store: &impl crate::challenge::KeyValueStore) {
-    run_worker_if_due_at(store, crate::admin::now_ts());
+    if run_worker_if_due_at(store, crate::admin::now_ts()) {
+        crate::observability::hot_read_projection::refresh_after_retention_worker(store, "default");
+    }
 }
 
 pub(crate) fn retention_health(store: &impl crate::challenge::KeyValueStore) -> RetentionHealth {
@@ -706,6 +709,19 @@ mod tests {
         assert!(store.get(stale_key.as_str()).expect("get stale").is_none());
 
         std::env::remove_var("SHUMA_EVENT_LOG_RETENTION_HOURS");
+    }
+
+    #[test]
+    fn run_worker_if_due_refreshes_hot_read_retention_projection() {
+        let store = MockStore::new();
+        run_worker_if_due(&store);
+
+        let key =
+            crate::observability::hot_read_documents::monitoring_retention_summary_document_key(
+                "default",
+            );
+        let bytes = store.get(key.as_str()).expect("retention doc read");
+        assert!(bytes.is_some());
     }
 
     #[test]

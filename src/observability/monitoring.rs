@@ -87,20 +87,20 @@ struct PendingCounterBuffer {
     deltas: HashMap<String, u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct CountEntry {
     pub label: String,
     pub count: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct TrendPoint {
     pub ts: u64,
     pub total: u64,
     pub reasons: BTreeMap<String, u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct HoneypotSummary {
     pub total_hits: u64,
     pub unique_crawlers: u64,
@@ -108,7 +108,7 @@ pub(crate) struct HoneypotSummary {
     pub top_paths: Vec<CountEntry>,
 }
 
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct FailureSummary {
     pub total_failures: u64,
     pub unique_offenders: u64,
@@ -117,7 +117,7 @@ pub(crate) struct FailureSummary {
     pub trend: Vec<TrendPoint>,
 }
 
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct PowSummary {
     pub total_failures: u64,
     pub total_successes: u64,
@@ -130,7 +130,7 @@ pub(crate) struct PowSummary {
     pub trend: Vec<TrendPoint>,
 }
 
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct RateSummary {
     pub total_violations: u64,
     pub unique_offenders: u64,
@@ -139,21 +139,21 @@ pub(crate) struct RateSummary {
     pub outcomes: BTreeMap<String, u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct GeoSummary {
     pub total_violations: u64,
     pub actions: BTreeMap<String, u64>,
     pub top_countries: Vec<CountEntry>,
 }
 
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct ShadowSummary {
     pub total_actions: u64,
     pub pass_through_total: u64,
     pub actions: BTreeMap<String, u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct NotABotSummary {
     pub served: u64,
     pub submitted: u64,
@@ -167,7 +167,7 @@ pub(crate) struct NotABotSummary {
     pub abandonment_ratio: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct MonitoringSummary {
     pub generated_at: u64,
     pub hours: u64,
@@ -424,6 +424,7 @@ fn flush_counter_deltas<S: crate::challenge::KeyValueStore>(
     }
     if wrote_any {
         crate::observability::retention::run_worker_if_due(store);
+        crate::observability::hot_read_projection::refresh_after_counter_flush(store, "default");
     }
 }
 
@@ -464,6 +465,7 @@ fn increment_counter<S: crate::challenge::KeyValueStore>(store: &S, key: &str) {
         }
     }
     crate::observability::retention::run_worker_if_due(store);
+    crate::observability::hot_read_projection::refresh_after_counter_flush(store, "default");
 }
 
 #[cfg(not(test))]

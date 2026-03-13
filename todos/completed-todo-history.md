@@ -6,6 +6,27 @@ Moved from active TODO files on 2026-02-14.
 
 ### TEL-HOT-1: Unified Hot-Read Telemetry Architecture
 
+- [x] TEL-HOT-1-3 Update flush, event-append, retention, and relevant admin mutation paths so the hot-read documents are maintained centrally as projections of the existing KV source of truth rather than rebuilt in the request path, without introducing multi-writer projection races.
+- [x] Why:
+  - the hot-read architecture was still only descriptive until the existing write paths actually maintained the new documents.
+  - without that central projection layer, the eventual bootstrap rewrite would have been forced either to rebuild the same expensive monitoring payloads in the request path again or to trust documents that were never refreshed by the real event, config, ban, and retention mutations that operators cause.
+  - the clean slice was to keep one shared projection module, expose only the narrow admin helpers it needed, and hook it into the existing source-of-truth write paths: counter flush, immutable event append, retention worker passes, persisted config changes, and ban/unban mutations.
+  - this also let us close a small contract gap from the earlier document-definition slice by adding a first-class hot-read contract for the top-level monitoring summary, because bootstrap reads need both `summary` and `details` to become cheap together.
+- [x] Evidence:
+  - `src/observability/hot_read_projection.rs`
+  - `src/observability/hot_read_documents.rs`
+  - `src/observability/monitoring.rs`
+  - `src/observability/retention.rs`
+  - `src/admin/api.rs`
+  - `src/admin/mod.rs`
+  - `src/enforcement/ban/mod.rs`
+  - `src/enforcement/ban/tests.rs`
+  - `docs/observability.md`
+  - `todos/todo.md`
+  - `Makefile`
+  - `make test-telemetry-hot-read-contract`
+  - `make test-telemetry-hot-read-projection`
+
 - [x] TEL-HOT-1-2 Define the durable hot-read document contract for monitoring bootstrap and supporting summaries (schema, freshness, bounded size, rebuild rules, and which fields remain drill-down-only).
 - [x] Why:
   - the telemetry plan was ready to move past abstract architecture only once the repository had one explicit, versioned schema for what the fast monitoring bootstrap is allowed to store and serve.
