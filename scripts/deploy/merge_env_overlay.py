@@ -11,7 +11,7 @@ from pathlib import Path
 KEY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
 
-def merge_env_overlay(overlay_path: Path, env_path: Path) -> None:
+def merge_env_overlay(overlay_path: Path, env_path: Path, explicit_updates: dict[str, str] | None = None) -> None:
     existing_lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
     overlay_lines = overlay_path.read_text(encoding="utf-8").splitlines()
 
@@ -21,6 +21,10 @@ def merge_env_overlay(overlay_path: Path, env_path: Path) -> None:
         if not KEY_PATTERN.match(raw_line):
             continue
         key, value = raw_line.split("=", 1)
+        if key not in overlay_updates:
+            overlay_order.append(key)
+        overlay_updates[key] = value
+    for key, value in (explicit_updates or {}).items():
         if key not in overlay_updates:
             overlay_order.append(key)
         overlay_updates[key] = value
@@ -48,12 +52,25 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Merge a KEY=value overlay into an env file.")
     parser.add_argument("--overlay", required=True, help="Path to the overlay env file")
     parser.add_argument("--env-file", required=True, help="Path to the env file to update in place")
+    parser.add_argument(
+        "--set",
+        dest="explicit_updates",
+        action="append",
+        default=[],
+        help="Additional KEY=value pairs to apply after the overlay is merged (may be passed multiple times).",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    merge_env_overlay(Path(args.overlay), Path(args.env_file))
+    explicit_updates: dict[str, str] = {}
+    for raw in args.explicit_updates:
+        if not KEY_PATTERN.match(raw):
+            raise SystemExit(f"Invalid --set value {raw!r}; expected KEY=value.")
+        key, value = raw.split("=", 1)
+        explicit_updates[key] = value
+    merge_env_overlay(Path(args.overlay), Path(args.env_file), explicit_updates=explicit_updates)
     return 0
 
 

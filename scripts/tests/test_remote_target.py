@@ -41,6 +41,7 @@ class RemoteTargetTests(unittest.TestCase):
                     "spin_manifest_path": "/opt/shuma-gorath/spin.gateway.toml",
                     "surface_catalog_path": str(self.temp_dir / "catalog.json"),
                     "smoke_path": "/health",
+                    "upstream_origin": "http://127.0.0.1:8080",
                 },
                 "metadata": {
                     "last_deployed_commit": "abc123",
@@ -306,7 +307,10 @@ class RemoteTargetTests(unittest.TestCase):
         self.assertEqual(receipt["metadata"]["last_deployed_commit"], "abc123")
 
     def test_run_remote_smoke_uses_allowlisted_forwarded_ip_for_public_remote(self) -> None:
-        self.env_file.write_text("SHUMA_ADMIN_IP_ALLOWLIST=198.51.100.10/32\n", encoding="utf-8")
+        self.env_file.write_text(
+            "SHUMA_ADMIN_IP_ALLOWLIST=198.51.100.10/32\nSHUMA_GATEWAY_UPSTREAM_ORIGIN=https://foreign.example.com\n",
+            encoding="utf-8",
+        )
         receipt = remote_target.load_remote_receipt(self.receipts_dir, "blog-prod")
 
         with patch.object(subprocess, "run") as run:
@@ -317,6 +321,7 @@ class RemoteTargetTests(unittest.TestCase):
         env = run.call_args.kwargs["env"]
         self.assertEqual(env["SHUMA_BASE_URL"], "https://blog.example.com")
         self.assertEqual(env["SHUMA_SMOKE_SKIP_HEALTH"], "1")
+        self.assertEqual(env["SHUMA_GATEWAY_UPSTREAM_ORIGIN"], "http://127.0.0.1:8080")
         self.assertEqual(env["SHUMA_SMOKE_FORWARDED_IP"], "198.51.100.10")
         self.assertEqual(env["SHUMA_SMOKE_ADMIN_FORWARDED_IP"], "198.51.100.10")
         self.assertEqual(env["GATEWAY_SURFACE_CATALOG_PATH"], str((self.temp_dir / "catalog.json").resolve()))
@@ -334,6 +339,7 @@ class RemoteTargetTests(unittest.TestCase):
         remote_command = run.call_args.args[0][-1]
         self.assertIn("smoke_single_host.sh", remote_command)
         self.assertIn("SHUMA_BASE_URL=https://172.239.98.201.sslip.io", remote_command)
+        self.assertIn("SHUMA_GATEWAY_UPSTREAM_ORIGIN=http://127.0.0.1:8080", remote_command)
         self.assertIn("SHUMA_SMOKE_INSECURE_TLS=true", remote_command)
         self.assertIn("SHUMA_SMOKE_SKIP_RESERVED_ROUTES=true", remote_command)
         self.assertIn(
@@ -533,7 +539,7 @@ class RemoteTargetTests(unittest.TestCase):
         self.assertIn('make setup-runtime', script)
         self.assertIn('cp "${REMOTE_APP_DIR}/.env.local" "${PREV_ENV_OVERLAY_PATH}"', script)
         self.assertIn(
-            'python3 scripts/deploy/merge_env_overlay.py --overlay "${PREV_ENV_OVERLAY_PATH}" --env-file ".env.local"',
+            'python3 scripts/deploy/merge_env_overlay.py --overlay "${PREV_ENV_OVERLAY_PATH}" --env-file ".env.local" --set "SHUMA_GATEWAY_UPSTREAM_ORIGIN=${REMOTE_UPSTREAM_ORIGIN}"',
             script,
         )
         self.assertIn(
@@ -547,6 +553,15 @@ class RemoteTargetTests(unittest.TestCase):
             )
         )
         self.assertNotIn('cp "${REMOTE_APP_DIR}/.env.local" "${NEXT_APP_DIR}/.env.local"', script)
+
+    def test_load_remote_receipt_backfills_default_linode_upstream_origin_for_old_receipts(self) -> None:
+        payload = json.loads(self.receipt_path.read_text(encoding="utf-8"))
+        payload["deploy"].pop("upstream_origin", None)
+        self.receipt_path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+        receipt = remote_target.load_remote_receipt(self.receipts_dir, "blog-prod")
+
+        self.assertEqual(receipt["deploy"]["upstream_origin"], remote_target.DEFAULT_SHARED_HOST_UPSTREAM_ORIGIN)
 
 
 if __name__ == "__main__":

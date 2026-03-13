@@ -717,6 +717,7 @@ test-deploy-linode: ## Validate Linode deploy-path helpers and production input 
 	@python3 -m unittest scripts/tests/test_local_state_contract.py
 	@python3 -m unittest scripts/tests/test_validate_gateway_route_collisions.py
 	@python3 -m unittest scripts/tests/test_prepare_linode_shared_host.py
+	@python3 -m unittest scripts/tests/test_merge_env_overlay.py
 	@python3 -m unittest scripts/tests/test_remote_target.py
 	@python3 -m unittest scripts/tests/test_remote_edge_signal_smoke.py
 	@python3 -m unittest scripts/tests/test_render_gateway_spin_manifest.py

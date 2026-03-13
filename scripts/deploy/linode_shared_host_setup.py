@@ -25,6 +25,7 @@ from scripts.deploy.local_env import ensure_env_file, read_env_value, upsert_env
 from scripts.deploy.remote_target import (
     DEFAULT_DURABLE_STATE_DIR,
     DEFAULT_REMOTE_RECEIPTS_DIR,
+    DEFAULT_SHARED_HOST_UPSTREAM_ORIGIN,
     activate_remote,
     default_public_base_url,
     write_remote_receipt,
@@ -376,6 +377,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         private_key_path=str(private_key_path),
         public_base_url=default_public_base_url(receipt["linode"]["public_ipv4"]),
         surface_catalog_path=str(catalog_output),
+        upstream_origin=DEFAULT_SHARED_HOST_UPSTREAM_ORIGIN,
         provider_extension={
             "linode": {
                 "instance_id": receipt["linode"]["instance_id"],

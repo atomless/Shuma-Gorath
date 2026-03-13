@@ -30,6 +30,7 @@ DEFAULT_APP_DIR = "/opt/shuma-gorath"
 DEFAULT_SERVICE_NAME = "shuma-gorath"
 DEFAULT_SPIN_MANIFEST_PATH = "/opt/shuma-gorath/spin.gateway.toml"
 DEFAULT_SMOKE_PATH = "/health"
+DEFAULT_SHARED_HOST_UPSTREAM_ORIGIN = "http://127.0.0.1:8080"
 RELEASE_BUNDLE_SCRIPT = REPO_ROOT / "scripts" / "deploy" / "build_linode_release_bundle.py"
 REMOTE_UPDATE_ARCHIVE_PATH = "/tmp/shuma-remote-update-release.tar.gz"
 REMOTE_UPDATE_METADATA_PATH = "/tmp/shuma-remote-update-release.json"
@@ -80,6 +81,7 @@ def build_remote_receipt(
     private_key_path: str,
     public_base_url: str,
     surface_catalog_path: str,
+    upstream_origin: str = DEFAULT_SHARED_HOST_UPSTREAM_ORIGIN,
     app_dir: str = DEFAULT_APP_DIR,
     service_name: str = DEFAULT_SERVICE_NAME,
     spin_manifest_path: str = DEFAULT_SPIN_MANIFEST_PATH,
@@ -111,6 +113,7 @@ def build_remote_receipt(
             "spin_manifest_path": spin_manifest_path,
             "surface_catalog_path": surface_catalog_path,
             "smoke_path": smoke_path,
+            "upstream_origin": upstream_origin,
         },
         "metadata": {
             "last_deployed_commit": last_deployed_commit,
@@ -135,6 +138,7 @@ def write_remote_receipt(
     private_key_path: str,
     public_base_url: str,
     surface_catalog_path: str,
+    upstream_origin: str = DEFAULT_SHARED_HOST_UPSTREAM_ORIGIN,
     app_dir: str = DEFAULT_APP_DIR,
     service_name: str = DEFAULT_SERVICE_NAME,
     spin_manifest_path: str = DEFAULT_SPIN_MANIFEST_PATH,
@@ -153,6 +157,7 @@ def write_remote_receipt(
         private_key_path=private_key_path,
         public_base_url=public_base_url,
         surface_catalog_path=surface_catalog_path,
+        upstream_origin=upstream_origin,
         app_dir=app_dir,
         service_name=service_name,
         spin_manifest_path=spin_manifest_path,
@@ -224,6 +229,12 @@ def load_remote_receipt(receipts_dir: Path, name: str) -> dict[str, Any]:
     _require_string(deploy, "spin_manifest_path")
     _require_string(deploy, "surface_catalog_path")
     _require_string(deploy, "smoke_path")
+    upstream_origin = deploy.get("upstream_origin")
+    if not isinstance(upstream_origin, str) or not upstream_origin.strip():
+        if identity.get("provider_kind") == "linode":
+            deploy["upstream_origin"] = DEFAULT_SHARED_HOST_UPSTREAM_ORIGIN
+        else:
+            fail("Invalid remote receipt: deploy.upstream_origin must be a non-empty string.")
     if not isinstance(metadata.get("last_deployed_commit"), str):
         fail("Invalid remote receipt: metadata.last_deployed_commit must be a string.")
     if not isinstance(metadata.get("last_deployed_at_utc"), str):
@@ -404,7 +415,7 @@ install_release() {
 
   cd "${NEXT_APP_DIR}"
   make setup-runtime
-  python3 scripts/deploy/merge_env_overlay.py --overlay "${PREV_ENV_OVERLAY_PATH}" --env-file ".env.local"
+  python3 scripts/deploy/merge_env_overlay.py --overlay "${PREV_ENV_OVERLAY_PATH}" --env-file ".env.local" --set "SHUMA_GATEWAY_UPSTREAM_ORIGIN=${REMOTE_UPSTREAM_ORIGIN}"
   chmod 600 .env.local
   set -a
   source .env.local
@@ -469,7 +480,7 @@ def copy_file_to_remote(receipt: dict[str, Any], local_path: Path, remote_path: 
 def run_remote_update_install(receipt: dict[str, Any]) -> int:
     runtime = receipt["runtime"]
     remote_command = (
-        f"{shell_env_assignments({'REMOTE_APP_DIR': runtime['app_dir'], 'REMOTE_SERVICE_NAME': runtime['service_name'], 'RELEASE_ARCHIVE_PATH': REMOTE_UPDATE_ARCHIVE_PATH, 'RELEASE_METADATA_PATH': REMOTE_UPDATE_METADATA_PATH, 'GATEWAY_SURFACE_CATALOG_REMOTE_PATH': REMOTE_UPDATE_SURFACE_CATALOG_PATH})} "
+        f"{shell_env_assignments({'REMOTE_APP_DIR': runtime['app_dir'], 'REMOTE_SERVICE_NAME': runtime['service_name'], 'RELEASE_ARCHIVE_PATH': REMOTE_UPDATE_ARCHIVE_PATH, 'RELEASE_METADATA_PATH': REMOTE_UPDATE_METADATA_PATH, 'GATEWAY_SURFACE_CATALOG_REMOTE_PATH': REMOTE_UPDATE_SURFACE_CATALOG_PATH, 'REMOTE_UPSTREAM_ORIGIN': receipt['deploy']['upstream_origin']})} "
         f"bash {shlex.quote(REMOTE_UPDATE_SCRIPT_PATH)} install"
     )
     return run_ssh_operation(receipt, remote_command)
@@ -541,6 +552,7 @@ def run_remote_public_smoke_via_ssh(receipt: dict[str, Any], env_values: dict[st
         "SHUMA_SMOKE_INSECURE_TLS": "true",
         "SHUMA_SMOKE_SKIP_RESERVED_ROUTES": "true",
         "GATEWAY_SURFACE_CATALOG_PATH": REMOTE_UPDATE_SURFACE_CATALOG_PATH,
+        "SHUMA_GATEWAY_UPSTREAM_ORIGIN": receipt["deploy"]["upstream_origin"],
     }
     allowlisted_ip = first_ip_from_allowlist(env_values.get("SHUMA_ADMIN_IP_ALLOWLIST", ""))
     if allowlisted_ip:
@@ -610,6 +622,7 @@ def run_remote_smoke(env_file: Path, receipt: dict[str, Any]) -> int:
     smoke_env.update(env_values)
     smoke_env["SHUMA_BASE_URL"] = receipt["runtime"]["public_base_url"]
     smoke_env["SHUMA_SMOKE_SKIP_HEALTH"] = "1"
+    smoke_env["SHUMA_GATEWAY_UPSTREAM_ORIGIN"] = receipt["deploy"]["upstream_origin"]
     smoke_env["GATEWAY_SURFACE_CATALOG_PATH"] = str(
         ensure_local_file(receipt["deploy"]["surface_catalog_path"], "local surface catalog")
     )
@@ -724,6 +737,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     write_parser.add_argument("--private-key-path", required=True)
     write_parser.add_argument("--public-base-url", required=True)
     write_parser.add_argument("--surface-catalog-path", required=True)
+    write_parser.add_argument("--upstream-origin", default=DEFAULT_SHARED_HOST_UPSTREAM_ORIGIN)
     write_parser.add_argument("--app-dir", default=DEFAULT_APP_DIR)
     write_parser.add_argument("--service-name", default=DEFAULT_SERVICE_NAME)
     write_parser.add_argument("--spin-manifest-path", default=DEFAULT_SPIN_MANIFEST_PATH)
@@ -777,6 +791,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             private_key_path=args.private_key_path,
             public_base_url=args.public_base_url,
             surface_catalog_path=args.surface_catalog_path,
+            upstream_origin=args.upstream_origin,
             app_dir=args.app_dir,
             service_name=args.service_name,
             spin_manifest_path=args.spin_manifest_path,

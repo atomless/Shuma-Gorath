@@ -844,6 +844,7 @@ REMOTE_RECEIPT_PATH="$(python3 "${REPO_ROOT}/scripts/manage_remote_target.py" \
   --private-key-path "${SSH_PRIVATE_KEY_FILE}" \
   --public-base-url "${BASE_URL}" \
   --surface-catalog-path "${GATEWAY_SURFACE_CATALOG_PATH}" \
+  --upstream-origin "${SHUMA_GATEWAY_UPSTREAM_ORIGIN}" \
   --last-deployed-commit "${RELEASE_COMMIT_SHA}" \
   --last-deployed-at-utc "${REMOTE_DEPLOYED_AT_UTC}" \
   --instance-id "${INSTANCE_ID}" \

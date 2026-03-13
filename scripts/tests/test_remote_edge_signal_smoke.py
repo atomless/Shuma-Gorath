@@ -95,6 +95,7 @@ class RemoteEdgeSignalSmokeTests(unittest.TestCase):
                         "spin_manifest_path": "/opt/shuma-gorath/spin.gateway.toml",
                         "surface_catalog_path": str(self.temp_dir / "surface-catalog.json"),
                         "smoke_path": "/health",
+                        "upstream_origin": "http://127.0.0.1:8080",
                     },
                     "metadata": {
                         "last_deployed_commit": "",

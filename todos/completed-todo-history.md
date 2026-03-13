@@ -6,6 +6,20 @@ Moved from active TODO files on 2026-02-14.
 
 ### Ad Hoc Completion Records
 
+- [x] Fix SSH remote day-2 operations so they use the remote receipt’s authoritative upstream origin instead of leaking cross-target `SHUMA_GATEWAY_UPSTREAM_ORIGIN` from shared `.env.local` state.
+- [x] Why:
+  - while closing the TEL-HOT live-evidence path, the active Linode `remote-update` started comparing forwarded smoke traffic against the Fermyon edge upstream because the shared local env had been updated by the Fermyon setup lane.
+  - that meant the generic SSH remote layer was no longer target-truthful: provider-specific deploy state was bleeding across targets, and the remote update path was also failing to restore the SSH remote’s own upstream origin after overlay merge.
+- [x] Evidence:
+  - `scripts/deploy/remote_target.py`
+  - `scripts/deploy/merge_env_overlay.py`
+  - `scripts/deploy/linode_shared_host_setup.py`
+  - `scripts/deploy_linode_one_shot.sh`
+  - `scripts/tests/test_merge_env_overlay.py`
+  - `scripts/tests/test_remote_target.py`
+  - `scripts/tests/test_remote_edge_signal_smoke.py`
+  - `make test-deploy-linode`
+
 - [x] Fix shared-host forwarding parity smoke so it compares the forwarded public page after JS verification has been satisfied, rather than comparing the JS verification interstitial against the direct origin page.
 - [x] Why:
   - the first live `make remote-update` proof after the TEL-HOT evidence tooling work failed on `/about.html` even though both gateway and origin returned `200`, because the gateway quite correctly served the JS verification page while the direct origin served the real document.
