@@ -2074,6 +2074,10 @@ mod admin_config_tests {
         fn get_keys_calls(&self) -> u64 {
             *self.get_keys_calls.lock().unwrap()
         }
+
+        fn reset_get_keys_calls(&self) {
+            *self.get_keys_calls.lock().unwrap() = 0;
+        }
     }
 
     impl crate::maze::state::MazeStateStore for TestStore {
@@ -2116,6 +2120,89 @@ mod admin_config_tests {
         let bootstrap: crate::observability::hot_read_documents::MonitoringBootstrapHotReadDocument =
             serde_json::from_slice(bootstrap_bytes.as_slice()).expect("bootstrap doc decode");
         assert!(bootstrap.payload.analytics.test_mode);
+    }
+
+    #[test]
+    fn admin_monitoring_bootstrap_prefers_materialized_hot_read_documents_without_keyspace_scan() {
+        let store = TestStore::default();
+        crate::observability::monitoring::record_shadow_action(
+            &store,
+            crate::runtime::effect_intents::ShadowAction::Challenge,
+        );
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now_ts(),
+                event: EventType::Challenge,
+                ip: Some("198.51.100.51".to_string()),
+                reason: Some("example".to_string()),
+                outcome: Some("served".to_string()),
+                admin: None,
+            },
+        );
+        crate::observability::hot_read_projection::refresh_after_counter_flush(&store, "default");
+
+        let summary_key =
+            crate::observability::hot_read_documents::monitoring_summary_document_key("default");
+        let summary_bytes = store
+            .get(summary_key.as_str())
+            .expect("summary read")
+            .expect("summary doc");
+        let mut summary: crate::observability::hot_read_documents::MonitoringSummaryHotReadDocument =
+            serde_json::from_slice(summary_bytes.as_slice()).expect("summary doc decode");
+        summary.payload.shadow.total_actions = 999;
+        store
+            .set(
+                summary_key.as_str(),
+                serde_json::to_vec(&summary).expect("summary encode").as_slice(),
+            )
+            .expect("summary rewrite");
+
+        let bootstrap_key =
+            crate::observability::hot_read_documents::monitoring_bootstrap_document_key("default");
+        let bootstrap_bytes = store
+            .get(bootstrap_key.as_str())
+            .expect("bootstrap read")
+            .expect("bootstrap doc");
+        let mut bootstrap: crate::observability::hot_read_documents::MonitoringBootstrapHotReadDocument =
+            serde_json::from_slice(bootstrap_bytes.as_slice()).expect("bootstrap doc decode");
+        bootstrap.payload.analytics.fail_mode = "hot_read_marker".to_string();
+        store
+            .set(
+                bootstrap_key.as_str(),
+                serde_json::to_vec(&bootstrap).expect("bootstrap encode").as_slice(),
+            )
+            .expect("bootstrap rewrite");
+
+        store.reset_get_keys_calls();
+
+        let req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=10&bootstrap=1", Vec::new());
+        let response = handle_admin_monitoring(&req, &store);
+        assert_eq!(*response.status(), 200u16);
+        let body: serde_json::Value = serde_json::from_slice(response.body()).expect("monitoring body");
+        assert_eq!(
+            body.get("summary")
+                .and_then(|value| value.get("shadow"))
+                .and_then(|value| value.get("total_actions"))
+                .and_then(|value| value.as_u64()),
+            Some(999)
+        );
+        assert_eq!(
+            body.get("details")
+                .and_then(|value| value.get("analytics"))
+                .and_then(|value| value.get("fail_mode"))
+                .and_then(|value| value.as_str()),
+            Some("hot_read_marker")
+        );
+        assert_eq!(
+            body.get("details")
+                .and_then(|value| value.get("events"))
+                .and_then(|value| value.get("recent_events"))
+                .and_then(|value| value.as_array())
+                .map(|value| value.len()),
+            Some(1)
+        );
+        assert_eq!(store.get_keys_calls(), 0);
     }
 
     #[test]
@@ -8481,6 +8568,7 @@ pub(crate) struct PresentedRecentEventTail {
     pub total_events_in_window: usize,
     pub returned_events: usize,
     pub has_more: bool,
+    pub window_end_cursor: Option<String>,
 }
 
 pub(crate) fn monitoring_presented_recent_event_tail<S: crate::challenge::KeyValueStore>(
@@ -8502,6 +8590,7 @@ pub(crate) fn monitoring_presented_recent_event_tail<S: crate::challenge::KeyVal
         total_events_in_window: window.total_events_in_window,
         returned_events: recent_events.len(),
         has_more: window.has_more,
+        window_end_cursor: (!window.window_end_cursor.is_empty()).then_some(window.window_end_cursor),
         recent_events,
     }
 }
@@ -12266,6 +12355,50 @@ where
     Response::new(200, body)
 }
 
+fn monitoring_hot_read_request_eligible(hours: u64, limit: usize, forensic_mode: bool) -> bool {
+    !forensic_mode
+        && hours == crate::observability::hot_read_documents::monitoring_bootstrap_window_hours()
+        && limit == crate::observability::hot_read_documents::monitoring_summary_top_limit()
+}
+
+fn monitoring_bootstrap_hot_read_payload<S>(
+    store: &S,
+    site_id: &str,
+) -> (
+    crate::observability::monitoring::MonitoringSummary,
+    serde_json::Value,
+    Option<String>,
+)
+where
+    S: crate::challenge::KeyValueStore,
+{
+    let now = now_ts();
+    let summary =
+        crate::observability::hot_read_projection::load_monitoring_summary_hot_read(store, site_id, now);
+    let bootstrap =
+        crate::observability::hot_read_projection::load_monitoring_bootstrap_hot_read(store, site_id, now);
+    let window_end_cursor = bootstrap.payload.window_end_cursor.clone();
+    let details = json!({
+        "retention_health": bootstrap.payload.retention_health,
+        "security_privacy": bootstrap.payload.security_privacy,
+        "analytics": bootstrap.payload.analytics,
+        "events": {
+            "recent_events": bootstrap.payload.recent_events,
+            "security_mode": bootstrap.payload.security_mode,
+            "event_counts": {},
+            "top_ips": [],
+            "unique_ips": 0,
+            "recent_events_window": bootstrap.payload.recent_events_window
+        },
+        "bans": { "bans": [] },
+        "maze": {},
+        "tarpit": {},
+        "cdp": {},
+        "cdp_events": { "events": [] }
+    });
+    (summary.payload, details, window_end_cursor)
+}
+
 fn handle_admin_monitoring<S>(req: &Request, store: &S) -> Response
 where
     S: crate::challenge::KeyValueStore,
@@ -12277,18 +12410,26 @@ where
     let bootstrap_mode = crate::request_validation::query_param(req.query(), "bootstrap")
         .map(|value| matches!(value.trim(), "1" | "true" | "yes"))
         .unwrap_or(false);
-    let summary = crate::observability::monitoring::summarize_with_store(store, hours, limit);
     let edge_bounded_details_mode =
         !bootstrap_mode && crate::config::gateway_deployment_profile().is_edge();
-    let (mut details, bootstrap_window_end_cursor) = if bootstrap_mode {
-        monitoring_bootstrap_details_payload(store, "default", hours, limit, forensic_mode)
-    } else if edge_bounded_details_mode {
-        monitoring_bootstrap_details_payload(store, "default", hours, limit, forensic_mode)
+    let hot_read_eligible = monitoring_hot_read_request_eligible(hours, limit, forensic_mode);
+    let (summary, mut details, bootstrap_window_end_cursor) = if hot_read_eligible
+        && (bootstrap_mode || edge_bounded_details_mode)
+    {
+        monitoring_bootstrap_hot_read_payload(store, "default")
     } else {
-        (
-            monitoring_details_payload(store, "default", hours, limit, forensic_mode),
-            None,
-        )
+        let summary = crate::observability::monitoring::summarize_with_store(store, hours, limit);
+        let (details, window_end_cursor) = if bootstrap_mode {
+            monitoring_bootstrap_details_payload(store, "default", hours, limit, forensic_mode)
+        } else if edge_bounded_details_mode {
+            monitoring_bootstrap_details_payload(store, "default", hours, limit, forensic_mode)
+        } else {
+            (
+                monitoring_details_payload(store, "default", hours, limit, forensic_mode),
+                None,
+            )
+        };
+        (summary, details, window_end_cursor)
     };
     if edge_bounded_details_mode {
         if let Some(recent_events_window) = details
@@ -12304,7 +12445,10 @@ where
     }
     let snapshot_latest_ts = latest_monitoring_snapshot_ts(&details);
     let freshness = freshness_health_payload(now, snapshot_latest_ts, false, "none", "snapshot_poll");
-    let retention_health = crate::observability::retention::retention_health(store);
+    let retention_health = details
+        .get("retention_health")
+        .cloned()
+        .unwrap_or_else(|| serde_json::to_value(crate::observability::retention::retention_health(store)).unwrap_or_else(|_| json!({})));
     let security_privacy = details
         .get("security_privacy")
         .cloned()

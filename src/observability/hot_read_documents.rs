@@ -106,6 +106,7 @@ pub(crate) struct MonitoringBootstrapHotReadPayload {
     pub security_mode: String,
     pub recent_events: Vec<Value>,
     pub recent_events_window: MonitoringRecentEventsWindowSummary,
+    pub window_end_cursor: Option<String>,
     pub drill_down_only_fields: Vec<String>,
 }
 
@@ -113,6 +114,7 @@ pub(crate) struct MonitoringBootstrapHotReadPayload {
 pub(crate) struct MonitoringRecentEventsTailPayload {
     pub recent_events: Vec<Value>,
     pub recent_events_window: MonitoringRecentEventsWindowSummary,
+    pub window_end_cursor: Option<String>,
 }
 
 pub(crate) type MonitoringBootstrapHotReadDocument =

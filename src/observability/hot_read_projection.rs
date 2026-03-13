@@ -148,6 +148,7 @@ fn build_recent_events_tail_document<S: KeyValueStore>(
                 continue_via,
                 response_shaping_reason: "bootstrap_recent_tail".to_string(),
             },
+            window_end_cursor: recent.window_end_cursor,
         },
     }
 }
@@ -209,6 +210,56 @@ fn ensure_recent_events_tail_document<S: KeyValueStore>(
     })
 }
 
+fn ensure_monitoring_summary_document<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    generated_at_ts: u64,
+) -> MonitoringSummaryHotReadDocument {
+    let contract = monitoring_summary_document_contract();
+    let key = monitoring_summary_document_key(site_id);
+    read_document(store, key.clone(), contract.schema_version).unwrap_or_else(|| {
+        let document = build_monitoring_summary_document(
+            store,
+            site_id,
+            generated_at_ts,
+            HotReadUpdateTrigger::RepairRebuild,
+        );
+        let _ = write_document(store, key, &document);
+        document
+    })
+}
+
+fn ensure_bootstrap_document<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    generated_at_ts: u64,
+) -> MonitoringBootstrapHotReadDocument {
+    let contract = monitoring_bootstrap_document_contract();
+    let key = monitoring_bootstrap_document_key(site_id);
+    read_document(store, key.clone(), contract.schema_version).unwrap_or_else(|| {
+        let document =
+            rebuild_bootstrap_document(store, site_id, generated_at_ts, HotReadUpdateTrigger::RepairRebuild);
+        let _ = write_document(store, key, &document);
+        document
+    })
+}
+
+pub(crate) fn load_monitoring_summary_hot_read<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    generated_at_ts: u64,
+) -> MonitoringSummaryHotReadDocument {
+    ensure_monitoring_summary_document(store, site_id, generated_at_ts)
+}
+
+pub(crate) fn load_monitoring_bootstrap_hot_read<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    generated_at_ts: u64,
+) -> MonitoringBootstrapHotReadDocument {
+    ensure_bootstrap_document(store, site_id, generated_at_ts)
+}
+
 fn rebuild_bootstrap_document<S: KeyValueStore>(
     store: &S,
     site_id: &str,
@@ -246,6 +297,7 @@ fn rebuild_bootstrap_document<S: KeyValueStore>(
             security_mode: crate::admin::monitoring_security_view_mode_label(false).to_string(),
             recent_events: recent_events.payload.recent_events,
             recent_events_window: recent_events.payload.recent_events_window,
+            window_end_cursor: recent_events.payload.window_end_cursor,
             drill_down_only_fields: monitoring_bootstrap_drill_down_only_fields()
                 .iter()
                 .map(|value| value.to_string())

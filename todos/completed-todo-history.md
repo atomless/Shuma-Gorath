@@ -6,6 +6,22 @@ Moved from active TODO files on 2026-02-14.
 
 ### TEL-HOT-1: Unified Hot-Read Telemetry Architecture
 
+- [x] TEL-HOT-1-4 Rewrite `/admin/monitoring?bootstrap=1...` and adjacent hot monitoring reads to prefer the materialized hot-read documents, while keeping bounded bucket/raw reads for lazy detail, cursor, delta, and forensic follow-up.
+- [x] Why:
+  - the write-path projection work was only half the architecture; operators still would not feel the benefit until the admin monitoring bootstrap stopped rebuilding the same expensive payloads in the request path.
+  - the clean next step was not a broad monitoring rewrite. It was to move only the canonical hot path onto the new documents: the default 24-hour, top-10 bootstrap shape used by the dashboard and the edge bounded-details posture.
+  - that keeps one shared storage model while preserving the existing bounded raw paths for custom windows, forensic reads, deltas, streams, and drill-down sections.
+  - the slice also closed the bootstrap cursor contract by carrying `window_end_cursor` through the hot-read documents so dashboard follow-up semantics remain intact.
+- [x] Evidence:
+  - `src/admin/api.rs`
+  - `src/observability/hot_read_documents.rs`
+  - `src/observability/hot_read_projection.rs`
+  - `docs/observability.md`
+  - `todos/todo.md`
+  - `Makefile`
+  - `make test-telemetry-hot-read-projection`
+  - `make test-telemetry-hot-read-bootstrap`
+
 - [x] TEL-HOT-1-3 Update flush, event-append, retention, and relevant admin mutation paths so the hot-read documents are maintained centrally as projections of the existing KV source of truth rather than rebuilt in the request path, without introducing multi-writer projection races.
 - [x] Why:
   - the hot-read architecture was still only descriptive until the existing write paths actually maintained the new documents.
