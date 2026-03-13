@@ -133,6 +133,9 @@ fi
 if [[ -z "${SHUMA_FORWARDED_IP_SECRET:-}" ]]; then
   SHUMA_FORWARDED_IP_SECRET="$(read_env_local_value SHUMA_FORWARDED_IP_SECRET || true)"
 fi
+if [[ -z "${SHUMA_JS_SECRET:-}" ]]; then
+  SHUMA_JS_SECRET="$(read_env_local_value SHUMA_JS_SECRET || true)"
+fi
 if [[ -z "${SHUMA_HEALTH_SECRET:-}" ]]; then
   SHUMA_HEALTH_SECRET="$(read_env_local_value SHUMA_HEALTH_SECRET || true)"
 fi
@@ -170,6 +173,22 @@ body_matches_expect() {
   local pattern="$1"
   local body="$2"
   grep -Eq "$pattern" <<< "$body"
+}
+
+build_js_verified_cookie() {
+  local ip="$1"
+  local secret="$2"
+  python3 - "$ip" "$secret" <<'PY'
+import base64
+import hashlib
+import hmac
+import sys
+
+ip = sys.argv[1]
+secret = sys.argv[2]
+token = base64.b64encode(hmac.new(secret.encode("utf-8"), ip.encode("utf-8"), hashlib.sha256).digest()).decode("ascii")
+print(f"js_verified={token}")
+PY
 }
 
 normalize_path() {
@@ -277,7 +296,12 @@ if [[ -n "${GATEWAY_UPSTREAM_ORIGIN}" ]]; then
     FORWARD_PATH="$(normalize_path "${FORWARD_PATH}")"
     info "Forward parity probe: ${FORWARD_PATH}"
 
-    http_request GET "${BASE_URL}${FORWARD_PATH}" "${FORWARDED_HEADERS[@]}" -H "User-Agent: ShumaSmoke/1.0"
+    FORWARD_GATEWAY_HEADERS=("${FORWARDED_HEADERS[@]}" -H "User-Agent: ShumaSmoke/1.0")
+    if [[ -n "${SHUMA_JS_SECRET:-}" ]]; then
+      FORWARD_GATEWAY_HEADERS+=(-H "Cookie: $(build_js_verified_cookie "${FORWARDED_IP}" "${SHUMA_JS_SECRET}")")
+    fi
+
+    http_request GET "${BASE_URL}${FORWARD_PATH}" "${FORWARD_GATEWAY_HEADERS[@]}"
     FORWARD_GATEWAY_STATUS="${HTTP_STATUS}"
     FORWARD_GATEWAY_BODY="${HTTP_BODY}"
 

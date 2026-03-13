@@ -29,6 +29,7 @@ class SmokeSingleHostTests(unittest.TestCase):
                 SHUMA_API_KEY=test-admin-key
                 SHUMA_ADMIN_IP_ALLOWLIST=198.51.100.8/32
                 SHUMA_GATEWAY_UPSTREAM_ORIGIN=https://origin.example.com
+                SHUMA_JS_SECRET=test-js-secret
                 """
             ),
             encoding="utf-8",
@@ -70,13 +71,23 @@ class SmokeSingleHostTests(unittest.TestCase):
                 auth_header = next((value for value in headers if value.lower().startswith("authorization:")), "")
                 forwarded_proto_header = next((value for value in headers if value.lower().startswith("x-forwarded-proto:")), "")
                 forwarded_for_header = next((value for value in headers if value.lower().startswith("x-forwarded-for:")), "")
+                cookie_header = next((value for value in headers if value.lower().startswith("cookie:")), "")
                 body = ""
                 status = "500"
 
                 require_https_forward_proto = os.environ.get("SHUMA_REQUIRE_HTTPS_FORWARD_PROTO") == "1"
                 require_insecure_tls_flag = os.environ.get("SHUMA_REQUIRE_INSECURE_TLS_FLAG") == "1"
+                require_js_verified_for_forward = os.environ.get("SHUMA_TEST_REQUIRE_JS_VERIFIED_FOR_FORWARD") == "1"
                 required_admin_ip = os.environ.get("SHUMA_TEST_ADMIN_ALLOWLIST_IP", "").strip()
                 forwarded_ip = forwarded_for_header.split(":", 1)[1].strip() if ":" in forwarded_for_header else ""
+                js_secret = os.environ.get("SHUMA_JS_SECRET", "test-js-secret")
+
+                def expected_js_cookie(ip):
+                    import base64
+                    import hashlib
+                    import hmac
+                    token = base64.b64encode(hmac.new(js_secret.encode("utf-8"), ip.encode("utf-8"), hashlib.sha256).digest()).decode("ascii")
+                    return f"js_verified={token}"
 
                 gateway_request = (
                     url.startswith("http://gateway.example.com")
@@ -102,7 +113,11 @@ class SmokeSingleHostTests(unittest.TestCase):
                 elif url.endswith("/challenge/not-a-bot-checkbox"):
                     body, status = "I am not a bot", "200"
                 elif url in {"http://gateway.example.com/public/page", "https://172.239.98.201.sslip.io/public/page"}:
-                    body, status = os.environ.get("SHUMA_TEST_GATEWAY_FORWARD_BODY", "same-body"), "200"
+                    cookie_value = cookie_header.split(":", 1)[1].strip() if ":" in cookie_header else ""
+                    if require_js_verified_for_forward and cookie_value != expected_js_cookie(forwarded_ip):
+                        body, status = "Verifying...", "200"
+                    else:
+                        body, status = os.environ.get("SHUMA_TEST_GATEWAY_FORWARD_BODY", "same-body"), "200"
                 elif url == "https://origin.example.com/public/page":
                     body, status = os.environ.get("SHUMA_TEST_ORIGIN_FORWARD_BODY", "same-body"), "200"
                 else:
@@ -165,6 +180,10 @@ class SmokeSingleHostTests(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("/public/page", result.stdout + result.stderr)
+
+    def test_forwarded_path_parity_uses_js_verified_cookie_when_secret_is_available(self) -> None:
+        result = self.run_smoke({"SHUMA_TEST_REQUIRE_JS_VERIFIED_FOR_FORWARD": "1"})
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
 
     def test_includes_forwarded_proto_for_https_enforced_loopback_checks(self) -> None:
         result = self.run_smoke({"SHUMA_REQUIRE_HTTPS_FORWARD_PROTO": "1"})

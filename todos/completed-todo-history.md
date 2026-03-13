@@ -6,6 +6,15 @@ Moved from active TODO files on 2026-02-14.
 
 ### Ad Hoc Completion Records
 
+- [x] Fix shared-host forwarding parity smoke so it compares the forwarded public page after JS verification has been satisfied, rather than comparing the JS verification interstitial against the direct origin page.
+- [x] Why:
+  - the first live `make remote-update` proof after the TEL-HOT evidence tooling work failed on `/about.html` even though both gateway and origin returned `200`, because the gateway quite correctly served the JS verification page while the direct origin served the real document.
+  - that exposed a proof bug in the canonical shared-host smoke contract: forwarded parity is meant to validate origin forwarding fidelity, not first-touch verification gating.
+- [x] Evidence:
+  - `scripts/tests/smoke_single_host.sh`
+  - `scripts/tests/test_smoke_single_host.py`
+  - `make test-deploy-linode`
+
 - [x] Fix the Linode release-bundle builder to ship the prebuilt Wasm runtime artifact alongside the prebuilt dashboard assets.
 - [x] Why:
   - once `remote-update` was corrected to use a prebuilt deploy baseline, the next live blocker showed up immediately: the release bundle builder only created `dist/dashboard`, so the remote prebuilt baseline correctly rejected the bundle for missing `dist/wasm/shuma_gorath.wasm`.
