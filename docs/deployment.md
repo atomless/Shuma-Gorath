@@ -160,6 +160,7 @@ Rules:
 - structured remote target state lives in `.shuma/remotes/<name>.json`.
 - the current generic backend contract is `ssh_systemd` only.
 - `remote-update` now means: ship the exact committed local `HEAD`, preserve remote `.env.local` and `.spin`, validate and restart on the remote host, run a remote loopback `/health` check plus public-route smoke against the public base URL, refresh local receipt metadata, and attempt rollback if smoke fails. If an older host is missing smoke-critical secrets in local `.env.local`, the helper hydrates those values from the remote `.env.local` first and persists them locally.
+- `remote-update` must use the shipped prebuilt release bundle on the host. It must not rebuild dashboard or runtime artifacts remotely, because day-2 updates must stay tied to the exact committed local bundle rather than to ad hoc remote build tooling.
 - `make remote-use REMOTE=<name>` remains the manual switch command when you want to change the active target later.
 - `make clean` must not remove `.shuma`; use `make reset-local-state` only when you intentionally want to wipe local `.spin` runtime/test state.
 

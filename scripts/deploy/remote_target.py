@@ -413,7 +413,7 @@ install_release() {
     --manifest "${NEXT_APP_DIR}/spin.toml" \
     --output "${NEXT_APP_DIR}/spin.gateway.toml" \
     --upstream-origin "${SHUMA_GATEWAY_UPSTREAM_ORIGIN}"
-  GATEWAY_SURFACE_CATALOG_PATH="${GATEWAY_SURFACE_CATALOG_REMOTE_PATH}" make deploy-self-hosted-minimal
+  GATEWAY_SURFACE_CATALOG_PATH="${GATEWAY_SURFACE_CATALOG_REMOTE_PATH}" make deploy-self-hosted-minimal-prebuilt
 
   rm -rf "${PREV_APP_DIR}"
   mv "${REMOTE_APP_DIR}" "${PREV_APP_DIR}"

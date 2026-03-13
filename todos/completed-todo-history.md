@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-13)
 
+### Ad Hoc Completion Records
+
+- [x] Fix `make remote-update` to use a truthful prebuilt deploy baseline on SSH remotes instead of the normal build-on-host deployment baseline.
+- [x] Why:
+  - the live TEL-HOT proof exposed that `remote-update` was calling `deploy-self-hosted-minimal` on the remote host, which rebuilds dashboard/runtime artifacts and therefore depends on remote build tooling.
+  - that violated the exact-committed-bundle contract for day-2 updates and blocked the Linode proof when remote dashboard build prerequisites were not present.
+  - the correct architecture is a separate prebuilt baseline that verifies seeded config and shipped artifacts only, then runs the normal deploy posture checks.
+- [x] Evidence:
+  - `Makefile`
+  - `scripts/deploy/remote_target.py`
+  - `scripts/tests/test_remote_target.py`
+  - `docs/deployment.md`
+  - `skills/deploy-shuma-on-linode/SKILL.md`
+  - `skills/deploy-shuma-on-linode/references/OPERATIONS.md`
+  - `make test-deploy-linode`
+
+## Additional completions (2026-03-13)
+
 ### TEL-HOT-1: Unified Hot-Read Telemetry Architecture
 
 - [x] TEL-HOT-1-4 Rewrite `/admin/monitoring?bootstrap=1...` and adjacent hot monitoring reads to prefer the materialized hot-read documents, while keeping bounded bucket/raw reads for lazy detail, cursor, delta, and forensic follow-up.

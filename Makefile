@@ -456,10 +456,22 @@ deploy-profile-baseline: ## Profile wrapper baseline: verify seeded config + das
 	@$(MAKE) --no-print-directory build-runtime
 	@echo "$(GREEN)✅ Shared deployment baseline complete.$(NC)"
 
+deploy-profile-baseline-prebuilt: ## Profile wrapper baseline for prebuilt release bundles: verify seeded config + shipped dashboard/runtime artifacts
+	@echo "$(CYAN)🔧 Running prebuilt deployment baseline...$(NC)"
+	@$(MAKE) --no-print-directory config-verify
+	@test -f "$(WASM_ARTIFACT)" || (echo "$(RED)❌ Missing prebuilt runtime artifact: $(WASM_ARTIFACT).$(NC)" && exit 1)
+	@test -f "dist/dashboard/index.html" || (echo "$(RED)❌ Missing prebuilt dashboard artifact: dist/dashboard/index.html.$(NC)" && exit 1)
+	@echo "$(GREEN)✅ Prebuilt deployment baseline complete.$(NC)"
+
 deploy-self-hosted-minimal: deploy-profile-baseline ## Profile wrapper: self_hosted_minimal pre-deploy guardrails
 	@echo "$(CYAN)🏠 Validating self_hosted_minimal deployment posture...$(NC)"
 	@SHUMA_ENTERPRISE_MULTI_INSTANCE=false $(MAKE) --no-print-directory deploy-env-validate
 	@echo "$(GREEN)✅ self_hosted_minimal pre-deploy checks passed.$(NC)"
+
+deploy-self-hosted-minimal-prebuilt: deploy-profile-baseline-prebuilt ## Profile wrapper: self_hosted_minimal pre-deploy guardrails for prebuilt release bundles
+	@echo "$(CYAN)🏠 Validating self_hosted_minimal deployment posture (prebuilt)...$(NC)"
+	@SHUMA_ENTERPRISE_MULTI_INSTANCE=false $(MAKE) --no-print-directory deploy-env-validate
+	@echo "$(GREEN)✅ self_hosted_minimal prebuilt pre-deploy checks passed.$(NC)"
 
 deploy-enterprise-akamai: deploy-profile-baseline ## Profile wrapper: enterprise_akamai overlay checks on top of baseline
 	@echo "$(CYAN)🏢 Validating enterprise_akamai overlay posture...$(NC)"

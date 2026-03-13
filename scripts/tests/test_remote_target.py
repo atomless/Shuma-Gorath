@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 import tempfile
 import unittest
@@ -534,6 +535,16 @@ class RemoteTargetTests(unittest.TestCase):
         self.assertIn(
             'python3 scripts/deploy/merge_env_overlay.py --overlay "${PREV_ENV_OVERLAY_PATH}" --env-file ".env.local"',
             script,
+        )
+        self.assertIn(
+            'GATEWAY_SURFACE_CATALOG_PATH="${GATEWAY_SURFACE_CATALOG_REMOTE_PATH}" make deploy-self-hosted-minimal-prebuilt',
+            script,
+        )
+        self.assertIsNone(
+            re.search(
+                r'GATEWAY_SURFACE_CATALOG_PATH="\$\{GATEWAY_SURFACE_CATALOG_REMOTE_PATH\}" make deploy-self-hosted-minimal(?:\s|$)',
+                script,
+            )
         )
         self.assertNotIn('cp "${REMOTE_APP_DIR}/.env.local" "${NEXT_APP_DIR}/.env.local"', script)
 
