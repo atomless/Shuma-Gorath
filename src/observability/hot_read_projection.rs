@@ -138,6 +138,7 @@ fn build_recent_events_tail_document<S: KeyValueStore>(
         metadata: document_metadata(contract.schema_version, site_id, generated_at_ts, trigger),
         payload: MonitoringRecentEventsTailPayload {
             recent_events: recent.recent_events,
+            recent_event_rows: recent.recent_event_rows,
             recent_events_window: MonitoringRecentEventsWindowSummary {
                 hours: monitoring_bootstrap_window_hours(),
                 requested_limit: monitoring_recent_events_tail_max_records(),
@@ -260,6 +261,22 @@ pub(crate) fn load_monitoring_bootstrap_hot_read<S: KeyValueStore>(
     ensure_bootstrap_document(store, site_id, generated_at_ts)
 }
 
+pub(crate) fn load_monitoring_recent_events_tail_hot_read<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    generated_at_ts: u64,
+) -> MonitoringRecentEventsTailDocument {
+    ensure_recent_events_tail_document(store, site_id, generated_at_ts)
+}
+
+pub(crate) fn load_monitoring_security_privacy_summary_hot_read<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    generated_at_ts: u64,
+) -> MonitoringSecurityPrivacySummaryDocument {
+    ensure_security_privacy_summary_document(store, site_id, generated_at_ts)
+}
+
 fn rebuild_bootstrap_document<S: KeyValueStore>(
     store: &S,
     site_id: &str,
@@ -290,6 +307,7 @@ fn rebuild_bootstrap_document<S: KeyValueStore>(
     HotReadDocumentEnvelope {
         metadata: document_metadata(contract.schema_version, site_id, generated_at_ts, trigger),
         payload: MonitoringBootstrapHotReadPayload {
+            summary: ensure_monitoring_summary_document(store, site_id, generated_at_ts).payload,
             component_metadata,
             analytics: analytics_summary(store, site_id),
             retention_health: retention.payload,

@@ -219,6 +219,19 @@ Checks:
 - verify Shuma trusts forwarded headers via matching `X-Shuma-Forwarded-Secret` and `SHUMA_FORWARDED_IP_SECRET`.
 - verify runtime mode and provider posture match intended rollout stage.
 
+### Edge dashboard telemetry feels slow
+
+Checks:
+
+- run `make telemetry-fermyon-edge-evidence`
+- confirm `/admin/monitoring?bootstrap=1...` and `/admin/monitoring/delta` remain within the published budget envelope
+- if the evidence passes but the dashboard still feels slow, investigate dashboard bootstrap/render behavior separately rather than assuming edge compute is slow
+
+Interpretation:
+
+- a slow edge dashboard is usually a telemetry read-shape problem, not a Wasm execution problem
+- the current acceptance contract requires live telemetry-read proof after deploy, not just endpoint and auth smoke
+
 ## Rollback
 
 Preferred fast rollback (safe posture):

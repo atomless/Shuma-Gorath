@@ -144,6 +144,7 @@ Stop and treat the current run as unproven if either of these is true:
 If the helper reports the known upstream plugin panic, treat that as an upstream CLI defect and fall back to device login in interactive sessions instead of pretending PAT login worked.
 If browser auth succeeds but Fermyon returns `User is not allow-listed!`, treat that as a provider-access blocker, expect the setup receipt to remain in `status=blocked` form, and stop.
 If the live edge dashboard still appears broken after deploy, do not trust endpoint-only probes alone; rerun the canonical helper or the standalone external live smoke and prove the actual UI toggles and monitoring surfaces behave correctly before claiming success.
+Treat telemetry responsiveness as part of the same acceptance contract: after a successful deploy, run `make telemetry-fermyon-edge-evidence` and require the edge monitoring bootstrap and delta paths to stay within budget before calling the deploy good.
 
 ## Operations Reference
 

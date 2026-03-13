@@ -446,7 +446,6 @@ def main(argv: list[str] | None = None) -> int:
         remote_name=args.name,
         report_path=Path(args.report_path).expanduser(),
         hours=args.hours,
-        limit=args.limit,
     )
     report = collector.run()
     print(json.dumps(report, indent=2, sort_keys=True))

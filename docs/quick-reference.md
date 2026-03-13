@@ -49,6 +49,8 @@ make remote-start   # Start the active ssh_systemd remote service
 make remote-stop    # Stop the active ssh_systemd remote service
 make remote-open-dashboard # Open the hosted dashboard for the active ssh_systemd remote
 make telemetry-shared-host-evidence # Capture live telemetry storage/query evidence for the active ssh_systemd remote
+make telemetry-fermyon-edge-evidence # Capture live telemetry hot-read evidence for the current Fermyon edge deploy
+make test-telemetry-hot-read-live-evidence # Prove telemetry hot-read budgets on both shared-host and Fermyon
 ```
 
 ## 🐙 Runtime and Deployment Posture Matrix

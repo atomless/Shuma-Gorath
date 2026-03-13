@@ -11,10 +11,10 @@ use crate::observability::monitoring::MonitoringSummary;
 use crate::observability::retention::RetentionHealth;
 
 const HOT_READ_PREFIX: &str = "telemetry:hot_read:v1";
-const HOT_READ_BOOTSTRAP_SCHEMA_VERSION: &str = "telemetry-hot-read-bootstrap.v1";
+const HOT_READ_BOOTSTRAP_SCHEMA_VERSION: &str = "telemetry-hot-read-bootstrap.v2";
 const HOT_READ_RETENTION_SCHEMA_VERSION: &str = "telemetry-hot-read-retention.v1";
 const HOT_READ_SECURITY_PRIVACY_SCHEMA_VERSION: &str = "telemetry-hot-read-security-privacy.v1";
-const HOT_READ_RECENT_EVENTS_TAIL_SCHEMA_VERSION: &str = "telemetry-hot-read-recent-events.v1";
+const HOT_READ_RECENT_EVENTS_TAIL_SCHEMA_VERSION: &str = "telemetry-hot-read-recent-events.v2";
 const HOT_READ_MONITORING_SUMMARY_SCHEMA_VERSION: &str = "telemetry-hot-read-summary.v1";
 const HOT_READ_BOOTSTRAP_WINDOW_HOURS: u64 = 24;
 const HOT_READ_BOOTSTRAP_MAX_BYTES: usize = 64 * 1024;
@@ -99,6 +99,7 @@ pub(crate) struct MonitoringRecentEventsWindowSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct MonitoringBootstrapHotReadPayload {
+    pub summary: MonitoringSummary,
     pub component_metadata: BTreeMap<String, HotReadComponentMetadata>,
     pub analytics: MonitoringBootstrapAnalyticsSummary,
     pub retention_health: RetentionHealth,
@@ -113,6 +114,7 @@ pub(crate) struct MonitoringBootstrapHotReadPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct MonitoringRecentEventsTailPayload {
     pub recent_events: Vec<Value>,
+    pub recent_event_rows: Vec<Value>,
     pub recent_events_window: MonitoringRecentEventsWindowSummary,
     pub window_end_cursor: Option<String>,
 }

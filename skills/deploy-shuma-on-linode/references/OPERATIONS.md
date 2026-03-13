@@ -256,6 +256,14 @@ ssh -i <private-key> shuma@<instance-ip> 'sudo systemctl status caddy --no-pager
 - verify DNS A/AAAA points to the Linode public IP.
 - restart Caddy after DNS propagation.
 
+For a clean operator acceptance pass after deploy, also run:
+
+```bash
+make telemetry-shared-host-evidence
+```
+
+That live proof is part of the current hot-read telemetry contract and confirms the monitoring bootstrap, delta, and stream paths stay within budget on the active shared-host remote.
+
 ## Cutover and Rollback
 
 Cutover:

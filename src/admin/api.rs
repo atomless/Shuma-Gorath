@@ -2030,6 +2030,7 @@ mod admin_config_tests {
     struct TestStore {
         map: Mutex<HashMap<String, Vec<u8>>>,
         get_keys_calls: Mutex<u64>,
+        get_seen: Mutex<Vec<String>>,
     }
 
     impl Default for TestStore {
@@ -2043,12 +2044,14 @@ mod admin_config_tests {
             Self {
                 map: Mutex::new(map),
                 get_keys_calls: Mutex::new(0),
+                get_seen: Mutex::new(Vec::new()),
             }
         }
     }
 
     impl crate::challenge::KeyValueStore for TestStore {
         fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()> {
+            self.get_seen.lock().unwrap().push(key.to_string());
             let m = self.map.lock().unwrap();
             Ok(m.get(key).cloned())
         }
@@ -2077,6 +2080,19 @@ mod admin_config_tests {
 
         fn reset_get_keys_calls(&self) {
             *self.get_keys_calls.lock().unwrap() = 0;
+        }
+
+        fn eventlog_get_count(&self) -> usize {
+            self.get_seen
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|key| key.starts_with("eventlog:v2:"))
+                .count()
+        }
+
+        fn reset_eventlog_get_count(&self) {
+            self.get_seen.lock().unwrap().clear();
         }
     }
 
@@ -2142,22 +2158,6 @@ mod admin_config_tests {
         );
         crate::observability::hot_read_projection::refresh_after_counter_flush(&store, "default");
 
-        let summary_key =
-            crate::observability::hot_read_documents::monitoring_summary_document_key("default");
-        let summary_bytes = store
-            .get(summary_key.as_str())
-            .expect("summary read")
-            .expect("summary doc");
-        let mut summary: crate::observability::hot_read_documents::MonitoringSummaryHotReadDocument =
-            serde_json::from_slice(summary_bytes.as_slice()).expect("summary doc decode");
-        summary.payload.shadow.total_actions = 999;
-        store
-            .set(
-                summary_key.as_str(),
-                serde_json::to_vec(&summary).expect("summary encode").as_slice(),
-            )
-            .expect("summary rewrite");
-
         let bootstrap_key =
             crate::observability::hot_read_documents::monitoring_bootstrap_document_key("default");
         let bootstrap_bytes = store
@@ -2166,6 +2166,7 @@ mod admin_config_tests {
             .expect("bootstrap doc");
         let mut bootstrap: crate::observability::hot_read_documents::MonitoringBootstrapHotReadDocument =
             serde_json::from_slice(bootstrap_bytes.as_slice()).expect("bootstrap doc decode");
+        bootstrap.payload.summary.shadow.total_actions = 999;
         bootstrap.payload.analytics.fail_mode = "hot_read_marker".to_string();
         store
             .set(
@@ -2203,6 +2204,70 @@ mod admin_config_tests {
             Some(1)
         );
         assert_eq!(store.get_keys_calls(), 0);
+    }
+
+    #[test]
+    fn admin_monitoring_edge_profile_bootstrap_prefers_hot_read_even_with_oversized_limit() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+        let store = TestStore::default();
+        crate::observability::monitoring::record_shadow_action(
+            &store,
+            crate::runtime::effect_intents::ShadowAction::Challenge,
+        );
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now_ts(),
+                event: EventType::Challenge,
+                ip: Some("198.51.100.72".to_string()),
+                reason: Some("edge_hot_read_bootstrap".to_string()),
+                outcome: Some("served".to_string()),
+                admin: None,
+            },
+        );
+        crate::observability::hot_read_projection::refresh_after_counter_flush(&store, "default");
+
+        let bootstrap_key =
+            crate::observability::hot_read_documents::monitoring_bootstrap_document_key("default");
+        let bootstrap_bytes = store
+            .get(bootstrap_key.as_str())
+            .expect("bootstrap read")
+            .expect("bootstrap doc");
+        let mut bootstrap: crate::observability::hot_read_documents::MonitoringBootstrapHotReadDocument =
+            serde_json::from_slice(bootstrap_bytes.as_slice()).expect("bootstrap doc decode");
+        bootstrap.payload.analytics.fail_mode = "edge_hot_read_marker".to_string();
+        store
+            .set(
+                bootstrap_key.as_str(),
+                serde_json::to_vec(&bootstrap).expect("bootstrap encode").as_slice(),
+            )
+            .expect("bootstrap rewrite");
+
+        store.reset_get_keys_calls();
+
+        let req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=200&bootstrap=1", Vec::new());
+        let resp = handle_admin_monitoring(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).expect("monitoring body");
+        assert_eq!(
+            body.get("details")
+                .and_then(|value| value.get("analytics"))
+                .and_then(|value| value.get("fail_mode"))
+                .and_then(|value| value.as_str()),
+            Some("edge_hot_read_marker")
+        );
+        assert_eq!(
+            body.get("details")
+                .and_then(|value| value.get("events"))
+                .and_then(|value| value.get("recent_events_window"))
+                .and_then(|value| value.get("response_shaping_reason"))
+                .and_then(|value| value.as_str()),
+            Some("bootstrap_recent_tail")
+        );
+        assert_eq!(store.get_keys_calls(), 0);
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
     }
 
     #[test]
@@ -4855,6 +4920,74 @@ mod admin_config_tests {
         let resp = handle_admin_monitoring_delta(&req, &store);
         assert_eq!(*resp.status(), 200u16);
         assert_eq!(store.get_keys_calls(), 0);
+    }
+
+    #[test]
+    fn admin_monitoring_delta_bootstrap_prefers_hot_read_tail_and_security_summary() {
+        let store = TestStore::default();
+        let now = now_ts();
+        let hour = now / 3600;
+        for offset in 0..40u64 {
+            let ts = now.saturating_sub(offset);
+            let key = format!("eventlog:v2:{}:{}-delta-hot-read-{:02}", hour, ts, offset);
+            let event = EventLogEntry {
+                ts,
+                event: EventType::Challenge,
+                ip: Some(format!("198.51.100.{}", offset % 8)),
+                reason: Some(format!("hot_read_seed_{offset:02}")),
+                outcome: Some("ok".to_string()),
+                admin: Some("ops".to_string()),
+            };
+            store
+                .set(&key, serde_json::to_vec(&event).unwrap().as_slice())
+                .unwrap();
+            crate::observability::retention::register_event_log_key(&store, hour, key.as_str());
+        }
+        crate::observability::monitoring::record_shadow_action(
+            &store,
+            crate::runtime::effect_intents::ShadowAction::Challenge,
+        );
+        crate::observability::hot_read_projection::refresh_after_counter_flush(&store, "default");
+        crate::observability::hot_read_projection::refresh_after_event_append(&store, "default");
+
+        let security_key = crate::observability::hot_read_documents::monitoring_security_privacy_summary_document_key("default");
+        let security_bytes = store
+            .get(security_key.as_str())
+            .expect("security read")
+            .expect("security doc");
+        let mut security: crate::observability::hot_read_documents::MonitoringSecurityPrivacySummaryDocument =
+            serde_json::from_slice(security_bytes.as_slice()).expect("security doc decode");
+        security.payload["classification"]["mode"] = serde_json::Value::String("delta_hot_read_marker".to_string());
+        store
+            .set(
+                security_key.as_str(),
+                serde_json::to_vec(&security).expect("security encode").as_slice(),
+            )
+            .expect("security rewrite");
+
+        store.reset_eventlog_get_count();
+
+        let req = make_request(Method::Get, "/admin/monitoring/delta?hours=24&limit=40", Vec::new());
+        let resp = handle_admin_monitoring_delta(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+        let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(
+            payload
+                .get("security_privacy")
+                .and_then(|value| value.get("classification"))
+                .and_then(|value| value.get("mode"))
+                .and_then(|value| value.as_str()),
+            Some("delta_hot_read_marker")
+        );
+        assert_eq!(
+            payload.get("events").and_then(|value| value.as_array()).map(|rows| rows.len()),
+            Some(40)
+        );
+        assert!(
+            store.eventlog_get_count() == 0,
+            "expected no raw eventlog value reads during delta bootstrap hot-read path, saw {}",
+            store.eventlog_get_count()
+        );
     }
 
     #[test]
@@ -7834,6 +7967,7 @@ struct CursorPageSelection {
 #[derive(Debug, Clone)]
 struct RecentEventWindow {
     records: Vec<EventLogRecord>,
+    cursor_rows: Vec<CursorEventRecord>,
     window_end_cursor: String,
     total_events_in_window: usize,
     has_more: bool,
@@ -8537,6 +8671,7 @@ fn load_recent_event_window<S: crate::challenge::KeyValueStore>(
     let has_more = metas.len() > limit;
     let selected: Vec<EventCursorMeta> = metas.into_iter().take(limit).collect();
     let mut records = Vec::with_capacity(selected.len());
+    let mut cursor_rows = Vec::with_capacity(selected.len());
     for meta in selected {
         let Ok(Some(val)) = store.get(meta.storage_key.as_str()) else {
             continue;
@@ -8551,11 +8686,17 @@ fn load_recent_event_window<S: crate::challenge::KeyValueStore>(
         let Some(record) = parsed_record else {
             continue;
         };
+        cursor_rows.push(CursorEventRecord {
+            cursor: meta.cursor.clone(),
+            record: record.clone(),
+        });
         records.push(record);
     }
     records.sort_by(|a, b| b.entry.ts.cmp(&a.entry.ts));
+    cursor_rows.sort_by(|a, b| b.record.entry.ts.cmp(&a.record.entry.ts));
     RecentEventWindow {
         records,
+        cursor_rows,
         window_end_cursor,
         total_events_in_window,
         has_more,
@@ -8565,6 +8706,7 @@ fn load_recent_event_window<S: crate::challenge::KeyValueStore>(
 #[derive(Debug, Clone)]
 pub(crate) struct PresentedRecentEventTail {
     pub recent_events: Vec<serde_json::Value>,
+    pub recent_event_rows: Vec<serde_json::Value>,
     pub total_events_in_window: usize,
     pub returned_events: usize,
     pub has_more: bool,
@@ -8586,12 +8728,18 @@ pub(crate) fn monitoring_presented_recent_event_tail<S: crate::challenge::KeyVal
     .into_iter()
     .filter_map(|record| serde_json::to_value(record).ok())
     .collect();
+    let recent_event_rows: Vec<serde_json::Value> = window
+        .cursor_rows
+        .iter()
+        .map(cursor_event_row_payload)
+        .collect();
     PresentedRecentEventTail {
         total_events_in_window: window.total_events_in_window,
         returned_events: recent_events.len(),
         has_more: window.has_more,
         window_end_cursor: (!window.window_end_cursor.is_empty()).then_some(window.window_end_cursor),
         recent_events,
+        recent_event_rows,
     }
 }
 
@@ -12355,10 +12503,9 @@ where
     Response::new(200, body)
 }
 
-fn monitoring_hot_read_request_eligible(hours: u64, limit: usize, forensic_mode: bool) -> bool {
+fn monitoring_bootstrap_hot_read_request_eligible(hours: u64, forensic_mode: bool) -> bool {
     !forensic_mode
         && hours == crate::observability::hot_read_documents::monitoring_bootstrap_window_hours()
-        && limit == crate::observability::hot_read_documents::monitoring_summary_top_limit()
 }
 
 fn monitoring_bootstrap_hot_read_payload<S>(
@@ -12373,12 +12520,11 @@ where
     S: crate::challenge::KeyValueStore,
 {
     let now = now_ts();
-    let summary =
-        crate::observability::hot_read_projection::load_monitoring_summary_hot_read(store, site_id, now);
     let bootstrap =
         crate::observability::hot_read_projection::load_monitoring_bootstrap_hot_read(store, site_id, now);
     let window_end_cursor = bootstrap.payload.window_end_cursor.clone();
     let details = json!({
+        "hot_read_component_metadata": bootstrap.payload.component_metadata,
         "retention_health": bootstrap.payload.retention_health,
         "security_privacy": bootstrap.payload.security_privacy,
         "analytics": bootstrap.payload.analytics,
@@ -12396,7 +12542,74 @@ where
         "cdp": {},
         "cdp_events": { "events": [] }
     });
-    (summary.payload, details, window_end_cursor)
+    (bootstrap.payload.summary, details, window_end_cursor)
+}
+
+fn monitoring_delta_hot_read_bootstrap_eligible(
+    hours: u64,
+    limit: usize,
+    forensic_mode: bool,
+    after_cursor: &str,
+) -> bool {
+    !forensic_mode
+        && after_cursor.trim().is_empty()
+        && hours == crate::observability::hot_read_documents::monitoring_bootstrap_window_hours()
+        && limit <= crate::observability::hot_read_documents::monitoring_recent_events_tail_max_records()
+}
+
+fn monitoring_delta_hot_read_bootstrap_payload<S>(
+    store: &S,
+    site_id: &str,
+    now: u64,
+    limit: usize,
+) -> (
+    Vec<serde_json::Value>,
+    Option<u64>,
+    String,
+    String,
+    bool,
+    &'static str,
+    serde_json::Value,
+)
+where
+    S: crate::challenge::KeyValueStore,
+{
+    let recent =
+        crate::observability::hot_read_projection::load_monitoring_recent_events_tail_hot_read(
+            store, site_id, now,
+        );
+    let security_privacy =
+        crate::observability::hot_read_projection::load_monitoring_security_privacy_summary_hot_read(
+            store, site_id, now,
+        );
+    let mut rows = recent.payload.recent_event_rows;
+    let source_has_more = recent.payload.recent_events_window.has_more;
+    let mut has_more = source_has_more;
+    if rows.len() > limit {
+        rows.truncate(limit);
+        has_more = true;
+    }
+    let overflow = if has_more { "limit_exceeded" } else { "none" };
+    let next_cursor = rows
+        .last()
+        .and_then(|row| row.get("cursor"))
+        .and_then(|value| value.as_str())
+        .unwrap_or_default()
+        .to_string();
+    let latest_window_ts = rows
+        .iter()
+        .filter_map(|row| row.get("ts").and_then(|value| value.as_u64()))
+        .max();
+    let window_end_cursor = recent.payload.window_end_cursor.unwrap_or_default();
+    (
+        rows,
+        latest_window_ts,
+        window_end_cursor,
+        next_cursor,
+        has_more,
+        overflow,
+        security_privacy.payload,
+    )
 }
 
 fn handle_admin_monitoring<S>(req: &Request, store: &S) -> Response
@@ -12412,7 +12625,7 @@ where
         .unwrap_or(false);
     let edge_bounded_details_mode =
         !bootstrap_mode && crate::config::gateway_deployment_profile().is_edge();
-    let hot_read_eligible = monitoring_hot_read_request_eligible(hours, limit, forensic_mode);
+    let hot_read_eligible = monitoring_bootstrap_hot_read_request_eligible(hours, forensic_mode);
     let (summary, mut details, bootstrap_window_end_cursor) = if hot_read_eligible
         && (bootstrap_mode || edge_bounded_details_mode)
     {
@@ -12539,15 +12752,33 @@ where
     }
 
     let now = now_ts();
-    let selection =
-        paginate_event_cursor_metas(load_event_cursor_metas(store, now, hours), after_cursor.as_str(), limit);
-    let latest_window_ts = selection.latest_window_ts;
-    let window_end_cursor = selection.window_end_cursor.clone();
-    let next_cursor = selection.next_cursor.clone();
-    let has_more = selection.has_more;
-    let overflow = selection.overflow;
-    let page_rows = load_cursor_rows_for_metas(store, selection.metas.as_slice(), forensic_mode);
-    let event_rows: Vec<serde_json::Value> = page_rows.iter().map(cursor_event_row_payload).collect();
+    let (event_rows, latest_window_ts, window_end_cursor, next_cursor, has_more, overflow, security_privacy) =
+        if monitoring_delta_hot_read_bootstrap_eligible(hours, limit, forensic_mode, after_cursor.as_str()) {
+            monitoring_delta_hot_read_bootstrap_payload(store, "default", now, limit)
+        } else {
+            let selection = paginate_event_cursor_metas(
+                load_event_cursor_metas(store, now, hours),
+                after_cursor.as_str(),
+                limit,
+            );
+            let latest_window_ts = selection.latest_window_ts;
+            let window_end_cursor = selection.window_end_cursor.clone();
+            let next_cursor = selection.next_cursor.clone();
+            let has_more = selection.has_more;
+            let overflow = selection.overflow;
+            let page_rows = load_cursor_rows_for_metas(store, selection.metas.as_slice(), forensic_mode);
+            let event_rows: Vec<serde_json::Value> =
+                page_rows.iter().map(cursor_event_row_payload).collect();
+            (
+                event_rows,
+                latest_window_ts,
+                window_end_cursor,
+                next_cursor,
+                has_more,
+                overflow,
+                security_privacy_payload(store, now, hours, forensic_mode),
+            )
+        };
     let etag = delta_page_etag(next_cursor.as_str(), event_rows.len(), has_more, overflow);
     let freshness = freshness_health_payload(
         now,
@@ -12574,7 +12805,7 @@ where
             "overflow_taxonomy": ["none", "limit_exceeded"]
         },
         "security_mode": security_view_mode_label(forensic_mode),
-        "security_privacy": security_privacy_payload(store, now, hours, forensic_mode),
+        "security_privacy": security_privacy,
         "freshness_slo": freshness_slo_payload(),
         "load_envelope": load_envelope_payload(),
         "hours": hours,

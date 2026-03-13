@@ -332,6 +332,15 @@ It does not yet prove future Akamai-native rate or rich-geo augmentations; those
 - payload sizes and latency for `/admin/monitoring`, `/admin/monitoring/delta`, and `/admin/monitoring/stream`,
 - transport gzip benefit for the monitoring snapshot.
 The first live shared-host baseline and compression decision are archived in [`docs/research/2026-03-11-shared-host-telemetry-storage-query-evidence.md`](research/2026-03-11-shared-host-telemetry-storage-query-evidence.md).
+`make telemetry-fermyon-edge-evidence` captures the equivalent live hot-read budget report for the current Fermyon/Akamai-edge deploy receipt at `.spin/telemetry_fermyon_edge_evidence.json`. Use it after deploying the current committed `HEAD` to confirm:
+- bootstrap latency for `/admin/monitoring?bootstrap=1...`,
+- delta latency for `/admin/monitoring/delta`,
+- response shaping still comes from the bounded hot-read path,
+- the live edge app stays within the current budget envelope.
+`make test-telemetry-hot-read-live-evidence` is the canonical cross-target acceptance proof for the TEL-HOT tranche. It must pass against:
+- the active shared-host SSH remote,
+- the current Fermyon/Akamai-edge deploy receipt.
+The unified shared-architecture proof and the decision not to add secondary memoization or cold-tier compression are archived in [`docs/research/2026-03-13-unified-hot-read-telemetry-live-evidence.md`](research/2026-03-13-unified-hot-read-telemetry-live-evidence.md).
 Operator interpretation and tuning workflow is documented in `docs/adversarial-operator-guide.md`.
 
 Manifest and fixtures live under:

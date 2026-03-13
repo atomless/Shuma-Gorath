@@ -23,10 +23,11 @@ Automation scripts used by the Makefile live here.
 - `manage_remote_target.py`: CLI entrypoint for normalized `ssh_systemd` day-2 remote operations (`make remote-*`)
 - `prepare_linode_shared_host.py`: agent-oriented shared-host setup entrypoint that captures/persists local Linode handoff state and writes a setup receipt
 - `site_surface_catalog.py`: shared local docroot and sitemap inventory helpers used by the generic site-surface catalog builder
-- `tests/`
+  - `tests/`
   - `integration.sh`: HTTP integration scenarios used by `make test` and `make test-integration`
   - `gateway_tls_wasm_harness.py`: wasm32 TLS failure matrix harness (expired/self-signed/hostname-mismatch cert paths) used by `make test-gateway-wasm-tls-harness`
   - `telemetry_shared_host_evidence.py`: captures live shared-host telemetry storage/query evidence from the active normalized remote (`make telemetry-shared-host-evidence`)
+  - `telemetry_fermyon_edge_evidence.py`: captures live Fermyon/Akamai-edge telemetry hot-read evidence from the current edge deploy receipt (`make telemetry-fermyon-edge-evidence`)
 - `config_seed.sh`: seeds KV tunables from `config/defaults.env` and, with `--verify-only`, provides the read-only persisted-config lifecycle gate used by `make verify`, `make verify-runtime`, and runtime start paths
 - `set_crate_type.sh`: switches crate type between native-test and WASM build modes
 - `deploy_linode_one_shot.sh`: provisions a new Linode VM or attaches to a prepared Linode instance and deploys Shuma runtime (invoked by `make deploy-linode-one-shot`)

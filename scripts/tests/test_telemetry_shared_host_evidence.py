@@ -289,6 +289,73 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
                 "/admin/monitoring/delta?hours=24&limit=40",
             )
 
+    def test_main_cli_uses_current_argument_shape(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="telemetry-shared-host-cli-") as temp_dir:
+            temp_path = Path(temp_dir)
+            env_file = temp_path / ".env.local"
+            receipts_dir = temp_path / ".shuma" / "remotes"
+            report_path = temp_path / "report.json"
+            receipts_dir.mkdir(parents=True)
+            env_file.write_text(
+                "SHUMA_API_KEY=test-admin-key\nSHUMA_ACTIVE_REMOTE=blog-prod\n",
+                encoding="utf-8",
+            )
+            (receipts_dir / "blog-prod.json").write_text(
+                json.dumps(
+                    {
+                        "schema": "shuma.remote_target.v1",
+                        "identity": {
+                            "name": "blog-prod",
+                            "backend_kind": "ssh_systemd",
+                            "provider_kind": "linode",
+                        },
+                        "ssh": {
+                            "host": "203.0.113.10",
+                            "port": 22,
+                            "user": "shuma",
+                            "private_key_path": "/tmp/key",
+                        },
+                        "runtime": {
+                            "app_dir": "/opt/shuma-gorath",
+                            "service_name": "shuma-gorath",
+                            "public_base_url": "https://shuma.example.com",
+                        },
+                        "deploy": {
+                            "spin_manifest_path": "/opt/shuma-gorath/spin.gateway.toml",
+                            "surface_catalog_path": str(temp_path / "surface.json"),
+                            "smoke_path": "/health",
+                            "upstream_origin": "http://127.0.0.1:8080",
+                        },
+                        "metadata": {
+                            "last_deployed_commit": "",
+                            "last_deployed_at_utc": "",
+                        },
+                        "provider": {},
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            with patch.object(
+                TELEMETRY_SHARED_HOST_EVIDENCE.TelemetrySharedHostEvidence,
+                "run",
+                return_value={"budgets": {"bootstrap_within_budget": True, "delta_within_budget": True}},
+            ):
+                rc = TELEMETRY_SHARED_HOST_EVIDENCE.main(
+                    [
+                        "--env-file",
+                        str(env_file),
+                        "--receipts-dir",
+                        str(receipts_dir),
+                        "--report-path",
+                        str(report_path),
+                    ]
+                )
+
+        self.assertEqual(rc, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -803,6 +803,8 @@ test-telemetry-hot-read-bootstrap: ## Run focused telemetry bootstrap hot-read c
 	@echo "$(CYAN)🧪 Running telemetry hot-read bootstrap checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test admin::api::admin_config_tests::admin_monitoring_bootstrap_prefers_materialized_hot_read_documents_without_keyspace_scan -- --exact --nocapture
+	@cargo test admin::api::admin_config_tests::admin_monitoring_edge_profile_bootstrap_prefers_hot_read_even_with_oversized_limit -- --exact --nocapture
+	@cargo test admin::api::admin_config_tests::admin_monitoring_delta_bootstrap_prefers_hot_read_tail_and_security_summary -- --exact --nocapture
 
 test-telemetry-hot-read-evidence: ## Run focused telemetry hot-read live-evidence tooling checks
 	@echo "$(CYAN)🧪 Running telemetry hot-read evidence checks...$(NC)"

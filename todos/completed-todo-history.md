@@ -4,6 +4,38 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-13)
 
+### TEL-HOT-1: Unified Hot-Read Telemetry Architecture
+
+- [x] TEL-HOT-1-7 Reassess only after the shared hot-read architecture lands whether any secondary in-memory memoization or cold-tier compression is still justified.
+- [x] TEL-HOT-1-6 Add canonical verification and live proof for telemetry-read budgets on Fermyon edge and shared-host deploys, including concurrent-writer correctness checks where the chosen projection contract depends on it, and update deploy skills/docs so telemetry responsiveness is part of the operator acceptance contract.
+- [x] TEL-HOT-1-5 Prove the design stays shared across Fermyon and Linode: no Fermyon-only telemetry store, no SQLite split, no new external database requirement, no new whole-keyspace scans or shadow storage paths, and no correctness dependence on non-atomic shared KV mutation.
+- [x] Why:
+  - the earlier TEL-HOT slices had defined and wired the hot-read documents, but the tranche was not complete until the live evidence proved the design stayed unified across both deployment classes instead of quietly turning into a Fermyon-special telemetry system.
+  - the final architecture proof came from two places together: backend regression coverage proving the hot bootstrap and initial delta paths stay on bounded hot-read documents without raw eventlog or whole-keyspace scans, and live budget evidence proving the same shared KV-backed design is fast on both Linode and Fermyon.
+  - that live evidence also answered the final architectural question from the plan: no secondary in-memory memoization or cold-tier compression is justified now. The shared hot-read documents alone are already fast enough on both targets, so another cache/compression layer would add complexity and freshness risk without a demonstrated host-cost win.
+  - this slice also closed the operator acceptance loop by making telemetry responsiveness part of the deploy contract in the Linode and Fermyon skills/docs, rather than leaving it as an undocumented manual check after health/auth smoke.
+- [x] Evidence:
+  - `src/admin/api.rs`
+  - `src/observability/hot_read_documents.rs`
+  - `src/observability/hot_read_projection.rs`
+  - `scripts/tests/telemetry_shared_host_evidence.py`
+  - `scripts/tests/test_telemetry_shared_host_evidence.py`
+  - `Makefile`
+  - `docs/research/2026-03-13-unified-hot-read-telemetry-live-evidence.md`
+  - `docs/testing.md`
+  - `docs/quick-reference.md`
+  - `docs/deployment.md`
+  - `skills/deploy-shuma-on-linode/SKILL.md`
+  - `skills/deploy-shuma-on-linode/references/OPERATIONS.md`
+  - `skills/deploy-shuma-on-akamai-fermyon/SKILL.md`
+  - `skills/deploy-shuma-on-akamai-fermyon/references/OPERATIONS.md`
+  - `make test-telemetry-hot-read-bootstrap`
+  - `make test-telemetry-hot-read-evidence`
+  - `make test-deploy-fermyon`
+  - `make telemetry-shared-host-evidence`
+  - `make telemetry-fermyon-edge-evidence`
+  - `make test-telemetry-hot-read-live-evidence`
+
 ### Ad Hoc Completion Records
 
 - [x] Fix the SSH remote day-2 update/install path so live Linode `make remote-update` stays truthful through pre-swap validation and post-swap startup.

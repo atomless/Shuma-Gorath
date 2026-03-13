@@ -186,6 +186,7 @@ If the origin ever logs paths that start with `/http://...`, the host is running
 8. Configures Caddy reverse proxy for domain/TLS.
 9. Enables firewall rules for SSH and serving ports.
 10. Writes or refreshes `.shuma/remotes/<name>.json` and auto-selects it in `.env.local` so generic `make remote-*` day-2 operations can take over from provider-specific deploy plumbing.
+11. The acceptance path should also prove monitoring responsiveness with `make telemetry-shared-host-evidence`; a deploy is not fully accepted if the admin telemetry bootstrap path is regressing even when health/auth smoke passes.
 
 ## Day-2 Handoff
 
