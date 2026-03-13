@@ -768,6 +768,7 @@ test-telemetry-hot-read-contract: ## Run focused telemetry hot-read exactness/pr
 	@echo "$(CYAN)🧪 Running telemetry hot-read contract checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test observability::hot_read_contract::tests:: -- --nocapture
+	@cargo test observability::hot_read_documents::tests:: -- --nocapture
 	@python3 -m unittest scripts/tests/test_telemetry_shared_host_evidence.py
 
 telemetry-shared-host-evidence: ## Capture live shared-host telemetry storage/query evidence for the active ssh_systemd remote

@@ -6,6 +6,19 @@ Moved from active TODO files on 2026-02-14.
 
 ### TEL-HOT-1: Unified Hot-Read Telemetry Architecture
 
+- [x] TEL-HOT-1-2 Define the durable hot-read document contract for monitoring bootstrap and supporting summaries (schema, freshness, bounded size, rebuild rules, and which fields remain drill-down-only).
+- [x] Why:
+  - the telemetry plan was ready to move past abstract architecture only once the repository had one explicit, versioned schema for what the fast monitoring bootstrap is allowed to store and serve.
+  - without that contract, the next implementation slice risked slipping into ad hoc JSON blobs, drifting freshness rules, and an unbounded bootstrap payload that would help neither Fermyon edge nor shared-host operators.
+  - the clean slice was to define one shared hot-read document family for bootstrap and its supporting summaries: site-scoped storage keys, freshness and repair budgets, bounded payload caps, allowed update triggers, and a hard list of expensive fields that must remain lazy drill-down rather than creeping back into the hot path.
+- [x] Evidence:
+  - `src/observability/hot_read_documents.rs`
+  - `src/observability/mod.rs`
+  - `docs/observability.md`
+  - `todos/todo.md`
+  - `Makefile`
+  - `make test-telemetry-hot-read-contract`
+
 - [x] TEL-HOT-1-1 Resolve the authoritative-source and correctness contract for telemetry under non-atomic KV: identify which current counters/catalogs are exact versus best-effort, and choose a hot-read projection model that does not rely on unsafe shared read-modify-write across concurrent edge writers.
 - [x] Why:
   - the unified hot-read plan was not ready for implementation until the repository made the current telemetry truth contract explicit in code, because Fermyon edge KV does not support atomic multi-key mutation and the existing monitoring counters plus retention catalogs still use shared read-modify-write patterns.

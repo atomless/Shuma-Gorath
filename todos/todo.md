@@ -20,7 +20,6 @@ Reference context:
 - [`docs/testing.md`](../docs/testing.md)
 
 ### TEL-HOT-1: Unified Hot-Read Telemetry Architecture
-- [ ] TEL-HOT-1-2 Define the durable hot-read document contract for monitoring bootstrap and supporting summaries (schema, freshness, bounded size, rebuild rules, and which fields remain drill-down-only).
 - [ ] TEL-HOT-1-3 Update flush, event-append, retention, and relevant admin mutation paths so the hot-read documents are maintained centrally as projections of the existing KV source of truth rather than rebuilt in the request path, without introducing multi-writer projection races.
 - [ ] TEL-HOT-1-4 Rewrite `/admin/monitoring?bootstrap=1...` and adjacent hot monitoring reads to prefer the materialized hot-read documents, while keeping bounded bucket/raw reads for lazy detail, cursor, delta, and forensic follow-up.
 - [ ] TEL-HOT-1-5 Prove the design stays shared across Fermyon and Linode: no Fermyon-only telemetry store, no SQLite split, no new external database requirement, no new whole-keyspace scans or shadow storage paths, and no correctness dependence on non-atomic shared KV mutation.
