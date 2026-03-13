@@ -29,10 +29,18 @@ from scripts.deploy.remote_target import (
     select_remote,
     ssh_command_for_operation,
 )
+from scripts.tests.telemetry_evidence_common import (
+    compression_ratio_percent,
+    evaluate_budget_report as evaluate_budget_report_common,
+    utc_now_iso,
+)
 
 DEFAULT_REPORT_PATH = REPO_ROOT / ".spin" / "telemetry_shared_host_evidence.json"
 DEFAULT_HOURS = 24
-DEFAULT_LIMIT = 50
+DEFAULT_BOOTSTRAP_LIMIT = 10
+DEFAULT_DELTA_LIMIT = 40
+BOOTSTRAP_BUDGET_MS = 750.0
+DELTA_BUDGET_MS = 250.0
 REMOTE_SQLITE_KV_PATH = ".spin/sqlite_key_value.db"
 TARPIT_ACTIVE_BUCKET_PREFIX = "tarpit:budget:active:bucket:"
 TARPIT_ACTIVE_BUCKET_CATALOG_PREFIX = "tarpit:budget:active:bucket:catalog:"
@@ -42,11 +50,6 @@ RETENTION_CATALOG_PREFIX = "telemetry:retention:v1:catalog:"
 
 class EvidenceFailure(RuntimeError):
     pass
-
-
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -59,7 +62,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--receipts-dir", default=str(DEFAULT_REMOTE_RECEIPTS_DIR))
     parser.add_argument("--name", help="Override the active remote target")
     parser.add_argument("--hours", type=int, default=DEFAULT_HOURS)
-    parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
     parser.add_argument("--report-path", default=str(DEFAULT_REPORT_PATH))
     return parser.parse_args(argv)
 
@@ -189,36 +191,44 @@ def summarize_remote_keys(keys: list[str]) -> dict[str, Any]:
     }
 
 
-def compression_ratio_percent(plain_bytes: int, compressed_bytes: int) -> float | None:
-    if plain_bytes <= 0 or compressed_bytes <= 0 or compressed_bytes >= plain_bytes:
-        if plain_bytes > 0 and compressed_bytes == plain_bytes:
-            return 0.0
-        return None
-    ratio = (1.0 - (compressed_bytes / plain_bytes)) * 100.0
-    return round(ratio, 2)
+def evaluate_budget_report(
+    *,
+    bootstrap_measurement: dict[str, Any],
+    delta_measurement: dict[str, Any],
+) -> dict[str, float | bool]:
+    return evaluate_budget_report_common(
+        bootstrap_measurement=bootstrap_measurement,
+        delta_measurement=delta_measurement,
+        bootstrap_budget_ms=BOOTSTRAP_BUDGET_MS,
+        delta_budget_ms=DELTA_BUDGET_MS,
+    )
 
 
 def build_evidence_report(
     *,
     remote: dict[str, Any],
     keyspace_summary: dict[str, Any],
-    snapshot_measurement: dict[str, Any],
-    snapshot_gzip_measurement: dict[str, Any],
+    bootstrap_measurement: dict[str, Any],
+    bootstrap_gzip_measurement: dict[str, Any],
     delta_measurement: dict[str, Any],
     stream_measurement: dict[str, Any],
 ) -> dict[str, Any]:
-    snapshot_payload = snapshot_measurement.get("payload", {})
+    bootstrap_payload = bootstrap_measurement.get("payload", {})
     retention_health = (
-        snapshot_payload.get("details", {}).get("retention_health", {}) if isinstance(snapshot_payload, dict) else {}
+        bootstrap_payload.get("details", {}).get("retention_health", {}) if isinstance(bootstrap_payload, dict) else {}
     )
     cost_governance = (
-        snapshot_payload.get("details", {}).get("cost_governance", {}) if isinstance(snapshot_payload, dict) else {}
+        bootstrap_payload.get("details", {}).get("cost_governance", {}) if isinstance(bootstrap_payload, dict) else {}
     )
     query_budget = cost_governance.get("query_budget", {}) if isinstance(cost_governance, dict) else {}
     read_surface = cost_governance.get("read_surface", {}) if isinstance(cost_governance, dict) else {}
     gzip_ratio = compression_ratio_percent(
-        snapshot_measurement.get("response_bytes", 0),
-        snapshot_gzip_measurement.get("response_bytes", 0),
+        bootstrap_measurement.get("response_bytes", 0),
+        bootstrap_gzip_measurement.get("response_bytes", 0),
+    )
+    budgets = evaluate_budget_report(
+        bootstrap_measurement=bootstrap_measurement,
+        delta_measurement=delta_measurement,
     )
 
     return {
@@ -231,6 +241,7 @@ def build_evidence_report(
         },
         "keyspace": keyspace_summary,
         "retention_health": retention_health,
+        "budgets": budgets,
         "query_cost": {
             "query_budget_status": cost_governance.get("query_budget_status"),
             "cost_units": query_budget.get("cost_units"),
@@ -240,17 +251,17 @@ def build_evidence_report(
             "read_surface": read_surface,
         },
         "payloads": {
-            "monitoring_snapshot": {
-                "status": snapshot_measurement.get("status"),
-                "latency_ms": snapshot_measurement.get("latency_ms"),
-                "response_bytes": snapshot_measurement.get("response_bytes"),
-                "content_encoding": snapshot_measurement.get("content_encoding"),
+            "monitoring_bootstrap": {
+                "status": bootstrap_measurement.get("status"),
+                "latency_ms": bootstrap_measurement.get("latency_ms"),
+                "response_bytes": bootstrap_measurement.get("response_bytes"),
+                "content_encoding": bootstrap_measurement.get("content_encoding"),
             },
-            "monitoring_snapshot_gzip": {
-                "status": snapshot_gzip_measurement.get("status"),
-                "latency_ms": snapshot_gzip_measurement.get("latency_ms"),
-                "response_bytes": snapshot_gzip_measurement.get("response_bytes"),
-                "content_encoding": snapshot_gzip_measurement.get("content_encoding"),
+            "monitoring_bootstrap_gzip": {
+                "status": bootstrap_gzip_measurement.get("status"),
+                "latency_ms": bootstrap_gzip_measurement.get("latency_ms"),
+                "response_bytes": bootstrap_gzip_measurement.get("response_bytes"),
+                "content_encoding": bootstrap_gzip_measurement.get("content_encoding"),
                 "compression_ratio_percent": gzip_ratio,
             },
             "monitoring_delta": {
@@ -279,13 +290,11 @@ class TelemetrySharedHostEvidence:
         remote_name: str | None,
         report_path: Path,
         hours: int = DEFAULT_HOURS,
-        limit: int = DEFAULT_LIMIT,
     ) -> None:
         self.env_file = env_file
         self.receipts_dir = receipts_dir
         self.report_path = report_path
         self.hours = max(1, int(hours))
-        self.limit = max(1, int(limit))
         self.receipt = select_remote(remote_name, env_file, receipts_dir)
         self.local_env = read_env_file(env_file)
         self.api_key = self.local_env.get("SHUMA_API_KEY", "").strip()
@@ -399,21 +408,31 @@ PY"""
 
     def run(self) -> dict[str, Any]:
         keyspace_summary = self.collect_remote_keyspace_summary()
-        snapshot_path = f"/admin/monitoring?hours={self.hours}&limit={self.limit}"
-        delta_path = f"/admin/monitoring/delta?hours={self.hours}&limit={self.limit}"
-        stream_path = f"/admin/monitoring/stream?hours={self.hours}&limit={self.limit}"
-        snapshot_measurement = self.measure_json_endpoint(snapshot_path)
-        snapshot_gzip_measurement = self.measure_json_endpoint(snapshot_path, accept_gzip=True)
+        bootstrap_path = (
+            f"/admin/monitoring?hours={self.hours}&limit={DEFAULT_BOOTSTRAP_LIMIT}&bootstrap=1"
+        )
+        delta_path = f"/admin/monitoring/delta?hours={self.hours}&limit={DEFAULT_DELTA_LIMIT}"
+        stream_path = f"/admin/monitoring/stream?hours={self.hours}&limit={DEFAULT_DELTA_LIMIT}"
+        bootstrap_measurement = self.measure_json_endpoint(bootstrap_path)
+        bootstrap_gzip_measurement = self.measure_json_endpoint(bootstrap_path, accept_gzip=True)
         delta_measurement = self.measure_json_endpoint(delta_path)
         stream_measurement = self.measure_stream_endpoint(stream_path)
         report = build_evidence_report(
             remote=self.receipt,
             keyspace_summary=keyspace_summary,
-            snapshot_measurement=snapshot_measurement,
-            snapshot_gzip_measurement=snapshot_gzip_measurement,
+            bootstrap_measurement=bootstrap_measurement,
+            bootstrap_gzip_measurement=bootstrap_gzip_measurement,
             delta_measurement=delta_measurement,
             stream_measurement=stream_measurement,
         )
+        if not report["budgets"]["bootstrap_within_budget"] or not report["budgets"]["delta_within_budget"]:
+            raise EvidenceFailure(
+                "Shared-host telemetry hot-read budgets exceeded: "
+                f"bootstrap={report['payloads']['monitoring_bootstrap']['latency_ms']}ms "
+                f"(budget={report['budgets']['bootstrap_budget_ms']}ms), "
+                f"delta={report['payloads']['monitoring_delta']['latency_ms']}ms "
+                f"(budget={report['budgets']['delta_budget_ms']}ms)."
+            )
         self.report_path.parent.mkdir(parents=True, exist_ok=True)
         self.report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return report

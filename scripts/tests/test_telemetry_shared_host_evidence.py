@@ -15,6 +15,22 @@ SPEC.loader.exec_module(TELEMETRY_SHARED_HOST_EVIDENCE)
 
 
 class TelemetrySharedHostEvidenceTests(unittest.TestCase):
+    def test_budget_evaluation_uses_canonical_bootstrap_and_delta_targets(self) -> None:
+        budget_report = TELEMETRY_SHARED_HOST_EVIDENCE.evaluate_budget_report(
+            bootstrap_measurement={"latency_ms": 640.0},
+            delta_measurement={"latency_ms": 200.0},
+        )
+
+        self.assertEqual(
+            budget_report,
+            {
+                "bootstrap_budget_ms": 750.0,
+                "bootstrap_within_budget": True,
+                "delta_budget_ms": 250.0,
+                "delta_within_budget": True,
+            },
+        )
+
     def test_summarize_remote_keys_counts_domains_and_adjacent_surfaces(self) -> None:
         summary = TELEMETRY_SHARED_HOST_EVIDENCE.summarize_remote_keys(
             [
@@ -132,8 +148,8 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
         report = TELEMETRY_SHARED_HOST_EVIDENCE.build_evidence_report(
             remote=remote,
             keyspace_summary=keyspace_summary,
-            snapshot_measurement=snapshot_measurement,
-            snapshot_gzip_measurement=snapshot_gzip_measurement,
+            bootstrap_measurement=snapshot_measurement,
+            bootstrap_gzip_measurement=snapshot_gzip_measurement,
             delta_measurement=delta_measurement,
             stream_measurement=stream_measurement,
         )
@@ -142,11 +158,15 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
         self.assertEqual(report["retention_health"]["state"], "healthy")
         self.assertEqual(report["query_cost"]["query_budget_status"], "within_budget")
         self.assertEqual(report["query_cost"]["density_penalty_units"], 0)
-        self.assertEqual(report["payloads"]["monitoring_snapshot"]["response_bytes"], 12000)
-        self.assertEqual(report["payloads"]["monitoring_snapshot_gzip"]["response_bytes"], 4000)
+        self.assertEqual(report["payloads"]["monitoring_bootstrap"]["response_bytes"], 12000)
+        self.assertEqual(report["payloads"]["monitoring_bootstrap_gzip"]["response_bytes"], 4000)
         self.assertEqual(
-            report["payloads"]["monitoring_snapshot_gzip"]["compression_ratio_percent"], 66.67
+            report["payloads"]["monitoring_bootstrap_gzip"]["compression_ratio_percent"], 66.67
         )
+        self.assertEqual(report["budgets"]["bootstrap_budget_ms"], 750.0)
+        self.assertTrue(report["budgets"]["bootstrap_within_budget"])
+        self.assertEqual(report["budgets"]["delta_budget_ms"], 250.0)
+        self.assertTrue(report["budgets"]["delta_within_budget"])
 
     def test_run_writes_report_with_remote_measurements(self) -> None:
         with tempfile.TemporaryDirectory(prefix="telemetry-shared-host-evidence-") as temp_dir:
@@ -239,7 +259,7 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
                         "payload": {},
                     },
                 ],
-            ), patch.object(
+            ) as measure_json_endpoint, patch.object(
                 collector,
                 "measure_stream_endpoint",
                 return_value={
@@ -256,6 +276,18 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
             self.assertTrue(report_path.exists())
             persisted = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(persisted["remote"]["base_url"], "https://shuma.example.com")
+            self.assertEqual(
+                measure_json_endpoint.call_args_list[0].args[0],
+                "/admin/monitoring?hours=24&limit=10&bootstrap=1",
+            )
+            self.assertEqual(
+                measure_json_endpoint.call_args_list[1].args[0],
+                "/admin/monitoring?hours=24&limit=10&bootstrap=1",
+            )
+            self.assertEqual(
+                measure_json_endpoint.call_args_list[2].args[0],
+                "/admin/monitoring/delta?hours=24&limit=40",
+            )
 
 
 if __name__ == "__main__":
