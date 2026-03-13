@@ -6,6 +6,20 @@ Moved from active TODO files on 2026-02-14.
 
 ### Ad Hoc Completion Records
 
+- [x] Fix the SSH remote day-2 update/install path so live Linode `make remote-update` stays truthful through pre-swap validation and post-swap startup.
+- [x] Why:
+  - after the TEL-HOT live-evidence work forced a real shared-host proof, the Linode `remote-update` path exposed three coupled correctness bugs that the focused unit coverage had not yet covered end to end: nested deploy validation was reading the stale current-app Spin manifest instead of the freshly rendered `.next` manifest, the recursive `make` path was not honoring the intended manifest override strongly enough, and the post-swap runtime env was not deriving `SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL=true` for the local `http://127.0.0.1:8080` origin.
+  - those bugs did not just break the update path. They also threatened the architectural truth of the generic SSH day-2 model by letting env-file residue and shared-host local-origin posture drift break a supposedly zero-friction update.
+  - the fix set now makes the precedence explicit and robust: `SHUMA_SPIN_MANIFEST` can prefer process env where needed, nested deploy validation is forwarded explicitly, the generated remote update script passes the fresh manifest/upstream as GNU make command-line vars, and the local-origin insecure-http allowance is derived the same way the original Linode deploy already does.
+  - this restores the broader project goal here: one truthful SSH remote update path that is low-friction for operators, but still strict about deploy validation and production posture.
+- [x] Evidence:
+  - `Makefile`
+  - `scripts/deploy/remote_target.py`
+  - `scripts/tests/test_prod_start_spin_manifest.py`
+  - `scripts/tests/test_remote_target.py`
+  - `make test-deploy-linode`
+  - live `make remote-update` against `dummy-static-site-fresh` on `https://shuma.jamestindall.org`
+
 - [x] Fix SSH remote prebuilt updates to validate against the freshly rendered `.next` Spin manifest instead of the previous deployment’s persisted `SHUMA_SPIN_MANIFEST`.
 - [x] Why:
   - after isolating the SSH remote upstream-origin contract, the next live `remote-update` failure showed that overlay merge was also restoring `SHUMA_SPIN_MANIFEST` from the current deployment.

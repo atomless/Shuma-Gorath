@@ -71,6 +71,10 @@ def default_public_base_url(host: str) -> str:
     return f"https://{candidate}.sslip.io"
 
 
+def insecure_http_local_allowed(upstream_origin: str) -> str:
+    return "true" if upstream_origin.strip().lower().startswith("http://") else "false"
+
+
 def build_remote_receipt(
     *,
     name: str,
@@ -415,18 +419,24 @@ install_release() {
 
   cd "${NEXT_APP_DIR}"
   make setup-runtime
-  python3 scripts/deploy/merge_env_overlay.py --overlay "${PREV_ENV_OVERLAY_PATH}" --env-file ".env.local" --set "SHUMA_GATEWAY_UPSTREAM_ORIGIN=${REMOTE_UPSTREAM_ORIGIN}" --set "SHUMA_SPIN_MANIFEST=${REMOTE_APP_DIR}/spin.gateway.toml"
+  python3 scripts/deploy/merge_env_overlay.py --overlay "${PREV_ENV_OVERLAY_PATH}" --env-file ".env.local" --set "SHUMA_GATEWAY_UPSTREAM_ORIGIN=${REMOTE_UPSTREAM_ORIGIN}" --set "SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL=${REMOTE_ALLOW_INSECURE_HTTP_LOCAL}" --set "SHUMA_SPIN_MANIFEST=${REMOTE_APP_DIR}/spin.gateway.toml"
   chmod 600 .env.local
   set -a
   source .env.local
   set +a
   export SHUMA_GATEWAY_UPSTREAM_ORIGIN="${REMOTE_UPSTREAM_ORIGIN}"
+  export SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL="${REMOTE_ALLOW_INSECURE_HTTP_LOCAL}"
   export SHUMA_SPIN_MANIFEST="${NEXT_APP_DIR}/spin.gateway.toml"
   python3 scripts/deploy/render_gateway_spin_manifest.py \
     --manifest "${NEXT_APP_DIR}/spin.toml" \
     --output "${NEXT_APP_DIR}/spin.gateway.toml" \
     --upstream-origin "${SHUMA_GATEWAY_UPSTREAM_ORIGIN}"
-  GATEWAY_SURFACE_CATALOG_PATH="${GATEWAY_SURFACE_CATALOG_REMOTE_PATH}" make deploy-self-hosted-minimal-prebuilt
+  make \
+    GATEWAY_SURFACE_CATALOG_PATH="${GATEWAY_SURFACE_CATALOG_REMOTE_PATH}" \
+    SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL="${REMOTE_ALLOW_INSECURE_HTTP_LOCAL}" \
+    SHUMA_SPIN_MANIFEST="${NEXT_APP_DIR}/spin.gateway.toml" \
+    SHUMA_GATEWAY_UPSTREAM_ORIGIN="${REMOTE_UPSTREAM_ORIGIN}" \
+    deploy-self-hosted-minimal-prebuilt
 
   rm -rf "${PREV_APP_DIR}"
   mv "${REMOTE_APP_DIR}" "${PREV_APP_DIR}"
@@ -482,7 +492,7 @@ def copy_file_to_remote(receipt: dict[str, Any], local_path: Path, remote_path: 
 def run_remote_update_install(receipt: dict[str, Any]) -> int:
     runtime = receipt["runtime"]
     remote_command = (
-        f"{shell_env_assignments({'REMOTE_APP_DIR': runtime['app_dir'], 'REMOTE_SERVICE_NAME': runtime['service_name'], 'RELEASE_ARCHIVE_PATH': REMOTE_UPDATE_ARCHIVE_PATH, 'RELEASE_METADATA_PATH': REMOTE_UPDATE_METADATA_PATH, 'GATEWAY_SURFACE_CATALOG_REMOTE_PATH': REMOTE_UPDATE_SURFACE_CATALOG_PATH, 'REMOTE_UPSTREAM_ORIGIN': receipt['deploy']['upstream_origin']})} "
+        f"{shell_env_assignments({'REMOTE_APP_DIR': runtime['app_dir'], 'REMOTE_SERVICE_NAME': runtime['service_name'], 'RELEASE_ARCHIVE_PATH': REMOTE_UPDATE_ARCHIVE_PATH, 'RELEASE_METADATA_PATH': REMOTE_UPDATE_METADATA_PATH, 'GATEWAY_SURFACE_CATALOG_REMOTE_PATH': REMOTE_UPDATE_SURFACE_CATALOG_PATH, 'REMOTE_UPSTREAM_ORIGIN': receipt['deploy']['upstream_origin'], 'REMOTE_ALLOW_INSECURE_HTTP_LOCAL': insecure_http_local_allowed(receipt['deploy']['upstream_origin'])})} "
         f"bash {shlex.quote(REMOTE_UPDATE_SCRIPT_PATH)} install"
     )
     return run_ssh_operation(receipt, remote_command)

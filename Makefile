@@ -106,7 +106,7 @@ SHUMA_GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS := $(if $(strip $(SHUMA_GATEWAY_
 SHUMA_GATEWAY_TLS_STRICT := $(if $(strip $(SHUMA_GATEWAY_TLS_STRICT)),$(SHUMA_GATEWAY_TLS_STRICT),true)
 SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED := $(if $(strip $(SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED)),$(SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED),false)
 SHUMA_ADMIN_CONFIG_WRITE_ENABLED := $(if $(strip $(SHUMA_ADMIN_CONFIG_WRITE_ENABLED)),$(SHUMA_ADMIN_CONFIG_WRITE_ENABLED),true)
-SHUMA_SPIN_MANIFEST := $(call strip_wrapping_quotes,$(SHUMA_SPIN_MANIFEST))
+SHUMA_SPIN_MANIFEST := $(call prefer_process_env,SHUMA_SPIN_MANIFEST)
 GATEWAY_SURFACE_CATALOG_PATH := $(call strip_wrapping_quotes,$(GATEWAY_SURFACE_CATALOG_PATH))
 SSH_PRIVATE_KEY_FILE := $(call strip_wrapping_quotes,$(SSH_PRIVATE_KEY_FILE))
 SSH_PUBLIC_KEY_FILE := $(call strip_wrapping_quotes,$(SSH_PUBLIC_KEY_FILE))
@@ -176,6 +176,11 @@ DEPLOY_ENV_ONLY := \
 	SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED="$(DEPLOY_SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED)" \
 	SHUMA_GATEWAY_TLS_STRICT="$(DEPLOY_SHUMA_GATEWAY_TLS_STRICT)" \
 	GATEWAY_SURFACE_CATALOG_PATH="$(DEPLOY_GATEWAY_SURFACE_CATALOG_PATH)"
+
+DEPLOY_VALIDATE_FORWARD_VARS := \
+	SHUMA_SPIN_MANIFEST="$(SHUMA_SPIN_MANIFEST)" \
+	SHUMA_GATEWAY_UPSTREAM_ORIGIN="$(SHUMA_GATEWAY_UPSTREAM_ORIGIN)" \
+	GATEWAY_SURFACE_CATALOG_PATH="$(GATEWAY_SURFACE_CATALOG_PATH)"
 
 # Inject env-only runtime keys into Spin from .env.local / shell env.
 # This list is the operator-facing copy surface for deploy-time env overrides.
@@ -444,7 +449,7 @@ prod: build-runtime ## Build for production and start server
 
 deploy: build-runtime ## Deploy to Fermyon Cloud
 	@$(MAKE) --no-print-directory api-key-validate
-	@$(MAKE) --no-print-directory deploy-env-validate
+	@$(DEPLOY_VALIDATE_FORWARD_VARS) $(MAKE) --no-print-directory deploy-env-validate
 	@echo "$(CYAN)☁️  Deploying to Fermyon Cloud...$(NC)"
 	@spin cloud deploy
 	@echo "$(GREEN)✅ Deployment complete!$(NC)"
@@ -465,12 +470,12 @@ deploy-profile-baseline-prebuilt: ## Profile wrapper baseline for prebuilt relea
 
 deploy-self-hosted-minimal: deploy-profile-baseline ## Profile wrapper: self_hosted_minimal pre-deploy guardrails
 	@echo "$(CYAN)🏠 Validating self_hosted_minimal deployment posture...$(NC)"
-	@SHUMA_ENTERPRISE_MULTI_INSTANCE=false $(MAKE) --no-print-directory deploy-env-validate
+	@$(DEPLOY_VALIDATE_FORWARD_VARS) SHUMA_ENTERPRISE_MULTI_INSTANCE=false $(MAKE) --no-print-directory deploy-env-validate
 	@echo "$(GREEN)✅ self_hosted_minimal pre-deploy checks passed.$(NC)"
 
 deploy-self-hosted-minimal-prebuilt: deploy-profile-baseline-prebuilt ## Profile wrapper: self_hosted_minimal pre-deploy guardrails for prebuilt release bundles
 	@echo "$(CYAN)🏠 Validating self_hosted_minimal deployment posture (prebuilt)...$(NC)"
-	@SHUMA_ENTERPRISE_MULTI_INSTANCE=false $(MAKE) --no-print-directory deploy-env-validate
+	@$(DEPLOY_VALIDATE_FORWARD_VARS) SHUMA_ENTERPRISE_MULTI_INSTANCE=false $(MAKE) --no-print-directory deploy-env-validate
 	@echo "$(GREEN)✅ self_hosted_minimal prebuilt pre-deploy checks passed.$(NC)"
 
 deploy-enterprise-akamai: deploy-profile-baseline ## Profile wrapper: enterprise_akamai overlay checks on top of baseline
@@ -491,7 +496,7 @@ deploy-enterprise-akamai: deploy-profile-baseline ## Profile wrapper: enterprise
 			echo "$(RED)❌ SHUMA_EDGE_INTEGRATION_MODE must be additive or authoritative for deploy-enterprise-akamai.$(NC)"; \
 			exit 1 ;; \
 	esac
-	@$(MAKE) --no-print-directory deploy-env-validate
+	@$(DEPLOY_VALIDATE_FORWARD_VARS) $(MAKE) --no-print-directory deploy-env-validate
 	@echo "$(GREEN)✅ enterprise_akamai overlay pre-deploy checks passed.$(NC)"
 
 deploy-linode-one-shot: ## Provision Linode VM + deploy Shuma runtime in one command (requires LINODE_TOKEN and SHUMA_ADMIN_IP_ALLOWLIST)

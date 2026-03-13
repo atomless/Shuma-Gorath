@@ -70,6 +70,136 @@ class ProdStartSpinManifestTests(unittest.TestCase):
         self.assertIn("--from", spin_args)
         self.assertIn(str(custom_manifest), spin_args)
 
+    def test_deploy_env_validate_prefers_process_manifest_over_stale_env_file_value(self) -> None:
+        temp_dir = Path(tempfile.mkdtemp(prefix="deploy-env-validate-manifest-"))
+        stale_manifest = temp_dir / "stale-spin.toml"
+        custom_manifest = temp_dir / "custom-spin.toml"
+        env_file = temp_dir / ".env.local"
+        catalog_path = temp_dir / "surface-catalog.json"
+
+        stale_manifest.write_text(
+            textwrap.dedent(
+                """
+                spin_manifest_version = 2
+                [component.bot-defence]
+                allowed_outbound_hosts = ["https://stale.example.com:443"]
+                """
+            ),
+            encoding="utf-8",
+        )
+        custom_manifest.write_text(
+            textwrap.dedent(
+                """
+                spin_manifest_version = 2
+                [component.bot-defence]
+                allowed_outbound_hosts = ["https://origin.example.com:443"]
+                """
+            ),
+            encoding="utf-8",
+        )
+        env_file.write_text(f"SHUMA_SPIN_MANIFEST={stale_manifest}\n", encoding="utf-8")
+        catalog_path.write_text('{"inventory":[{"path":"/index.html"}]}\n', encoding="utf-8")
+
+        env = os.environ.copy()
+        env["ENV_LOCAL"] = str(env_file)
+        env["SHUMA_SPIN_MANIFEST"] = str(custom_manifest)
+        env["GATEWAY_SURFACE_CATALOG_PATH"] = str(catalog_path)
+        env["SHUMA_RUNTIME_ENV"] = "runtime-prod"
+        env["SHUMA_DEBUG_HEADERS"] = "false"
+        env["SHUMA_ADMIN_IP_ALLOWLIST"] = "203.0.113.1/32"
+        env["SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED"] = "true"
+        env["SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED"] = "true"
+        env["SHUMA_ENTERPRISE_MULTI_INSTANCE"] = "false"
+        env["SHUMA_GATEWAY_DEPLOYMENT_PROFILE"] = "shared-server"
+        env["SHUMA_GATEWAY_UPSTREAM_ORIGIN"] = "https://origin.example.com"
+        env["SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED"] = "true"
+        env["SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED"] = "true"
+
+        result = subprocess.run(
+            ["make", "--no-print-directory", "deploy-env-validate"],
+            cwd=str(REPO_ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+
+    def test_prebuilt_deploy_validation_prefers_process_manifest_over_stale_env_file_value(self) -> None:
+        temp_dir = Path(tempfile.mkdtemp(prefix="deploy-prebuilt-manifest-"))
+        stale_manifest = temp_dir / "stale-spin.toml"
+        custom_manifest = temp_dir / "custom-spin.toml"
+        env_file = temp_dir / ".env.local"
+        catalog_path = temp_dir / "surface-catalog.json"
+        config_db = temp_dir / "sqlite_key_value.db"
+        wasm_dir = REPO_ROOT / "dist" / "wasm"
+        dashboard_dir = REPO_ROOT / "dist" / "dashboard"
+        wasm_dir.mkdir(parents=True, exist_ok=True)
+        dashboard_dir.mkdir(parents=True, exist_ok=True)
+        (wasm_dir / "shuma_gorath.wasm").write_text("wasm-binary", encoding="utf-8")
+        (dashboard_dir / "index.html").write_text("<h1>Dashboard</h1>\n", encoding="utf-8")
+
+        stale_manifest.write_text(
+            textwrap.dedent(
+                """
+                spin_manifest_version = 2
+                [component.bot-defence]
+                allowed_outbound_hosts = ["https://stale.example.com:443"]
+                """
+            ),
+            encoding="utf-8",
+        )
+        custom_manifest.write_text(
+            textwrap.dedent(
+                """
+                spin_manifest_version = 2
+                [component.bot-defence]
+                allowed_outbound_hosts = ["https://origin.example.com:443"]
+                """
+            ),
+            encoding="utf-8",
+        )
+        env_file.write_text(f"SHUMA_SPIN_MANIFEST={stale_manifest}\n", encoding="utf-8")
+        catalog_path.write_text('{"inventory":[{"path":"/index.html"}]}\n', encoding="utf-8")
+
+        env = os.environ.copy()
+        env["ENV_LOCAL"] = str(env_file)
+        env["SHUMA_CONFIG_DB_PATH"] = str(config_db)
+        env["SHUMA_SPIN_MANIFEST"] = str(custom_manifest)
+        env["GATEWAY_SURFACE_CATALOG_PATH"] = str(catalog_path)
+        env["SHUMA_RUNTIME_ENV"] = "runtime-prod"
+        env["SHUMA_DEBUG_HEADERS"] = "false"
+        env["SHUMA_ADMIN_IP_ALLOWLIST"] = "203.0.113.1/32"
+        env["SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED"] = "true"
+        env["SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED"] = "true"
+        env["SHUMA_ENTERPRISE_MULTI_INSTANCE"] = "false"
+        env["SHUMA_GATEWAY_DEPLOYMENT_PROFILE"] = "shared-server"
+        env["SHUMA_GATEWAY_UPSTREAM_ORIGIN"] = "https://origin.example.com"
+        env["SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED"] = "true"
+        env["SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED"] = "true"
+
+        seed_result = subprocess.run(
+            ["bash", str(REPO_ROOT / "scripts" / "config_seed.sh")],
+            cwd=str(REPO_ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(seed_result.returncode, 0, msg=seed_result.stderr or seed_result.stdout)
+
+        result = subprocess.run(
+            ["make", "--no-print-directory", "deploy-self-hosted-minimal-prebuilt"],
+            cwd=str(REPO_ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
