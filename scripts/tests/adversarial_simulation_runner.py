@@ -2587,12 +2587,11 @@ class Runner:
             finally:
                 realism = self.end_scenario_execution()
 
-            latency_ms = int((time.monotonic() - execution_start) * 1000)
-            browser_action_latency_ms = max(
-                0, int_or_zero(dict_or_empty(realism).get("browser_action_duration_ms"))
+            latency_ms = effective_scenario_latency_ms(
+                scenario,
+                int((time.monotonic() - execution_start) * 1000),
+                realism,
             )
-            if scenario_driver_class(scenario) == "browser_realistic" and browser_action_latency_ms > 0:
-                latency_ms = browser_action_latency_ms
 
             if observed_outcome != scenario["expected_outcome"]:
                 return ScenarioResult(
@@ -2660,11 +2659,7 @@ class Runner:
                 latency_ms = int((time.monotonic() - scenario_start) * 1000)
             if realism is None:
                 realism = self.end_scenario_execution()
-            browser_action_latency_ms = max(
-                0, int_or_zero(dict_or_empty(realism).get("browser_action_duration_ms"))
-            )
-            if scenario_driver_class(scenario) == "browser_realistic" and browser_action_latency_ms > 0:
-                latency_ms = browser_action_latency_ms
+            latency_ms = effective_scenario_latency_ms(scenario, latency_ms, realism)
             return ScenarioResult(
                 id=scenario_id,
                 tier=scenario["tier"],
@@ -3429,6 +3424,8 @@ class Runner:
             "attempts_total": 0,
             "retry_attempts": 0,
             "retry_backoff_ms_total": 0,
+            "request_latency_ms_total": 0,
+            "request_latency_ms_max": 0,
             "think_time_events": 0,
             "think_time_ms_total": 0,
             "cookie_headers_sent": 0,
@@ -3479,6 +3476,8 @@ class Runner:
             "attempts_total": attempts_total,
             "retry_attempts": max(0, int_or_zero(evidence.get("retry_attempts"))),
             "retry_backoff_ms_total": max(0, int_or_zero(evidence.get("retry_backoff_ms_total"))),
+            "request_latency_ms_total": max(0, int_or_zero(evidence.get("request_latency_ms_total"))),
+            "request_latency_ms_max": max(0, int_or_zero(evidence.get("request_latency_ms_max"))),
             "state_headers_sent": max(0, int_or_zero(evidence.get("cookie_headers_sent"))),
             "state_token_observed": max(0, int_or_zero(evidence.get("set_cookie_observed"))),
             "state_store_resets": max(0, int_or_zero(evidence.get("cookie_jar_resets"))),
@@ -3689,6 +3688,13 @@ class Runner:
                 plane="attacker",
                 count_request=count_request,
                 trusted_forwarded=trusted_forwarded,
+            )
+            evidence["request_latency_ms_total"] = (
+                int_or_zero(evidence.get("request_latency_ms_total")) + max(0, result.latency_ms)
+            )
+            evidence["request_latency_ms_max"] = max(
+                int_or_zero(evidence.get("request_latency_ms_max")),
+                max(0, result.latency_ms),
             )
             self.update_cookie_jar_from_response(policy, evidence, cookie_jar, result)
             if not self.should_retry_status(retry_strategy, result.status):
@@ -6152,6 +6158,25 @@ def validate_execution_lane(lane: str) -> str:
             f"execution_lane must be one of {sorted(SUPPORTED_EXECUTION_LANES)} (got {normalized})"
         )
     return normalized
+
+
+def effective_scenario_latency_ms(
+    scenario: Dict[str, Any], wall_clock_latency_ms: int, realism: Optional[Dict[str, Any]]
+) -> int:
+    latency_ms = max(0, int_or_zero(wall_clock_latency_ms))
+    realism_data = dict_or_empty(realism)
+    browser_action_latency_ms = max(0, int_or_zero(realism_data.get("browser_action_duration_ms")))
+    if scenario_driver_class(scenario) == "browser_realistic" and browser_action_latency_ms > 0:
+        return browser_action_latency_ms
+    if scenario_driver_class(scenario) == "edge_fixture":
+        explicit_latency_ms = (
+            max(0, int_or_zero(realism_data.get("request_latency_ms_total")))
+            + max(0, int_or_zero(realism_data.get("think_time_ms_total")))
+            + max(0, int_or_zero(realism_data.get("retry_backoff_ms_total")))
+        )
+        if explicit_latency_ms > 0:
+            return explicit_latency_ms
+    return latency_ms
 
 
 def scenario_max_latency_ms(scenario: Dict[str, Any]) -> int:

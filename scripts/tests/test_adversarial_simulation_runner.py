@@ -1736,6 +1736,8 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(realism["retry_attempts"], 1)
         self.assertEqual(realism["attempts_total"], 3)
         self.assertEqual(realism["state_headers_sent"], 1)
+        self.assertEqual(realism["request_latency_ms_total"], 3)
+        self.assertEqual(realism["request_latency_ms_max"], 1)
 
     def test_execute_browser_realistic_driver_invokes_node_and_records_browser_evidence(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")
@@ -1987,6 +1989,61 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertTrue(result.passed)
         self.assertIsInstance(result.realism, dict)
         self.assertIn("request_sequence_count", result.realism or {})
+
+    def test_run_scenario_uses_explicit_request_latency_for_edge_fixture_scenarios(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        scenario = manifest["scenarios"][0]
+        scenario["driver_class"] = "edge_fixture"
+        scenario["traffic_model"] = {
+            "persona": "suspicious_automation",
+            "think_time_ms_min": 0,
+            "think_time_ms_max": 0,
+            "retry_strategy": "single_attempt",
+            "cookie_behavior": "stateless",
+        }
+        scenario["cost_assertions"] = {"max_latency_ms": 500}
+
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        sim_runner.preserve_state = True
+        sim_runner.reset_baseline_config = lambda: None  # type: ignore[assignment]
+        sim_runner.apply_scenario_setup_preset = lambda scenario: None  # type: ignore[assignment]
+
+        def fake_execute(active_scenario):
+            state = sim_runner._active_execution_state or {}
+            evidence = state.get("evidence")
+            if isinstance(evidence, dict):
+                evidence["request_latency_ms_total"] = 120
+                evidence["request_latency_ms_max"] = 70
+            return active_scenario["expected_outcome"]
+
+        sim_runner.execute_scenario_driver = fake_execute  # type: ignore[assignment]
+
+        with patch(
+            "scripts.tests.adversarial_simulation_runner.time.monotonic",
+            side_effect=[100.0, 101.0, 103.5],
+        ):
+            result = sim_runner.run_scenario(scenario)
+
+        self.assertTrue(result.passed)
+        self.assertEqual(result.latency_ms, 120)
 
     def test_reset_baseline_config_restores_js_required_default(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")
