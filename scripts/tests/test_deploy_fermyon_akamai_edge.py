@@ -391,6 +391,87 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         self.assertEqual(cron["schedules"], list(deploy.EDGE_CRON_SCHEDULES))
         self.assertEqual(cron["path_and_query"], "/internal/adversary-sim/beat?edge_cron_secret=<redacted>")
 
+    def test_ensure_adversary_sim_edge_cron_tolerates_delete_when_job_is_already_gone(self) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run(command, *, env=None, cwd=None, capture_output=True):
+            calls.append(list(command))
+            if command[:4] == ["spin", "aka", "cron", "list"] and len(calls) == 1:
+                return result(
+                    stdout="\n".join(
+                        [
+                            "+----------------------------+----------------+-------------------------+",
+                            "| Name                       | Schedule       | Next Run                |",
+                            "+=======================================================================+",
+                            "| shuma-adversary-sim-beat-4 | 4-59/5 * * * * | 2026-03-12 13:09:00 UTC |",
+                            "+----------------------------+----------------+-------------------------+",
+                        ]
+                    )
+                    + "\n"
+                )
+            if command[:4] == ["spin", "aka", "cron", "delete"]:
+                return result(returncode=1)
+            if command[:4] == ["spin", "aka", "cron", "list"] and len(calls) == 3:
+                return result(
+                    stdout="\n".join(
+                        [
+                            "+----------------------------+----------------+-------------------------+",
+                            "| Name                       | Schedule       | Next Run                |",
+                            "+=======================================================================+",
+                            "+----------------------------+----------------+-------------------------+",
+                        ]
+                    )
+                    + "\n"
+                )
+            if command[:4] == ["spin", "aka", "cron", "create"]:
+                return result(stdout="created\n")
+            if command[:4] == ["spin", "aka", "cron", "list"] and len(calls) == 9:
+                return result(
+                    stdout="\n".join(
+                        [
+                            "+----------------------------+----------------+-------------------------+",
+                            "| Name                       | Schedule       | Next Run                |",
+                            "+=======================================================================+",
+                            *[
+                                f"| shuma-adversary-sim-beat-{index} | {schedule:<14} | 2026-03-12 13:05:00 UTC |"
+                                for index, schedule in enumerate(deploy.EDGE_CRON_SCHEDULES)
+                            ],
+                            "+----------------------------+----------------+-------------------------+",
+                        ]
+                    )
+                    + "\n"
+                )
+            raise AssertionError(f"Unexpected command: {command}")
+
+        with patch.object(deploy, "run_command", side_effect=fake_run):
+            cron = deploy.ensure_adversary_sim_edge_cron(
+                env={"SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET": "test-edge-cron-secret"},
+                app_id="app_123",
+                account_id="acc_123",
+                account_name="",
+            )
+
+        self.assertEqual(
+            calls[1],
+            [
+                "spin",
+                "aka",
+                "cron",
+                "delete",
+                "--app-id",
+                "app_123",
+                "--account-id",
+                "acc_123",
+                "shuma-adversary-sim-beat-4",
+            ],
+        )
+        self.assertEqual(
+            calls[2],
+            ["spin", "aka", "cron", "list", "--app-id", "app_123", "--account-id", "acc_123"],
+        )
+        self.assertEqual(cron["job_count"], 5)
+        self.assertEqual(cron["schedules"], list(deploy.EDGE_CRON_SCHEDULES))
+
     def test_deploy_env_merges_defaults_env_before_env_file(self) -> None:
         defaults_file = self.temp_dir / "defaults.env"
         defaults_file.write_text(
@@ -657,6 +738,70 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
 
         self.assertTrue(
             any("/admin/monitoring/delta?hours=24&limit=20&after_cursor=cursor-0" in url for url in calls)
+        )
+
+    def test_smoke_adversary_sim_generation_uses_extended_timeout_for_control_posts(self) -> None:
+        calls: list[tuple[str, int]] = []
+        responses = iter(
+            [
+                (200, {"window_end_cursor": "cursor-0"}, '{"window_end_cursor":"cursor-0"}'),
+                (200, {"requested_enabled": True}, '{"requested_enabled":true}'),
+                (
+                    200,
+                    {
+                        "lifecycle_diagnostics": {
+                            "supervisor": {
+                                "generated_tick_count": 1,
+                                "generated_request_count": 40,
+                                "last_successful_beat_at": 100,
+                            }
+                        }
+                    },
+                    '{"lifecycle_diagnostics":{"supervisor":{"generated_tick_count":1,"generated_request_count":40,"last_successful_beat_at":100}}}',
+                ),
+                (
+                    200,
+                    {
+                        "lifecycle_diagnostics": {
+                            "supervisor": {
+                                "generated_tick_count": 2,
+                                "generated_request_count": 64,
+                                "last_successful_beat_at": 200,
+                            }
+                        }
+                    },
+                    '{"lifecycle_diagnostics":{"supervisor":{"generated_tick_count":2,"generated_request_count":64,"last_successful_beat_at":200}}}',
+                ),
+                (200, {"events": [{"is_simulation": True}]}, '{"events":[{"is_simulation":true}]}'),
+                (200, {"adversary_sim_enabled": True}, '{"adversary_sim_enabled":true}'),
+                (200, {"disabled": True}, '{"disabled":true}'),
+            ]
+        )
+
+        def fake_admin_json_request(*, url, timeout_seconds=30, **kwargs):
+            calls.append((url, timeout_seconds))
+            return next(responses)
+
+        with patch.object(deploy, "admin_session_opener", return_value=(object(), "csrf")), patch.object(
+            deploy, "admin_json_request", side_effect=fake_admin_json_request
+        ), patch.object(
+            deploy.time, "time", side_effect=[0, 0, 0]
+        ), patch.object(
+            deploy.time, "sleep"
+        ):
+            deploy.smoke_adversary_sim_generation("https://edge.example.com", {})
+
+        control_timeouts = [
+            timeout_seconds
+            for url, timeout_seconds in calls
+            if url == "https://edge.example.com/admin/adversary-sim/control"
+        ]
+        self.assertEqual(
+            control_timeouts,
+            [
+                deploy.EDGE_ADVERSARY_SIM_CONTROL_TIMEOUT_SECONDS,
+                deploy.EDGE_ADVERSARY_SIM_CONTROL_TIMEOUT_SECONDS,
+            ],
         )
 
     def test_smoke_adversary_sim_generation_requires_follow_up_tick_beyond_prime(self) -> None:

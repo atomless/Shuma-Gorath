@@ -48,6 +48,7 @@ EDGE_CRON_SCHEDULES = (
 )
 EDGE_CRON_SECRET_QUERY_KEY = "edge_cron_secret"
 EDGE_ADVERSARY_SIM_SMOKE_TIMEOUT_SECONDS = 185
+EDGE_ADVERSARY_SIM_CONTROL_TIMEOUT_SECONDS = 90
 EDGE_CONTROL_LEASE_RELEASE_TIMEOUT_SECONDS = 45
 
 
@@ -423,6 +424,14 @@ def listed_cron_job_names(output: str) -> list[str]:
     return names
 
 
+def listed_cron_job_names_for_scope(*, env: dict[str, str], app_id: str, account_id: str, account_name: str) -> set[str]:
+    list_command = ["spin", "aka", "cron", "list", *cron_scope_args(app_id=app_id, account_id=account_id, account_name=account_name)]
+    listed = run_command(list_command, env=env, cwd=REPO_ROOT)
+    if listed.returncode != 0:
+        raise SystemExit(listed.stderr.strip() or listed.stdout.strip() or "spin aka cron list failed")
+    return set(listed_cron_job_names(listed.stdout))
+
+
 def edge_cron_jobs(env: dict[str, str]) -> list[dict[str, str]]:
     path_and_query = edge_cron_path_and_query(env)
     jobs: list[dict[str, str]] = []
@@ -440,10 +449,12 @@ def edge_cron_jobs(env: dict[str, str]) -> list[dict[str, str]]:
 def ensure_adversary_sim_edge_cron(*, env: dict[str, str], app_id: str, account_id: str, account_name: str) -> dict[str, str]:
     scope_args = cron_scope_args(app_id=app_id, account_id=account_id, account_name=account_name)
     list_command = ["spin", "aka", "cron", "list", *scope_args]
-    listed = run_command(list_command, env=env, cwd=REPO_ROOT)
-    if listed.returncode != 0:
-        raise SystemExit(listed.stderr.strip() or listed.stdout.strip() or "spin aka cron list failed")
-    existing_names = set(listed_cron_job_names(listed.stdout))
+    existing_names = listed_cron_job_names_for_scope(
+        env=env,
+        app_id=app_id,
+        account_id=account_id,
+        account_name=account_name,
+    )
     managed_jobs = edge_cron_jobs(env)
     managed_names = {job["name"] for job in managed_jobs}
     managed_names.add(EDGE_CRON_JOB_NAME_PREFIX)
@@ -454,6 +465,14 @@ def ensure_adversary_sim_edge_cron(*, env: dict[str, str], app_id: str, account_
         delete_command = ["spin", "aka", "cron", "delete", *scope_args, existing_name]
         deleted = run_command(delete_command, env=env, cwd=REPO_ROOT)
         if deleted.returncode != 0:
+            remaining_names = listed_cron_job_names_for_scope(
+                env=env,
+                app_id=app_id,
+                account_id=account_id,
+                account_name=account_name,
+            )
+            if existing_name not in remaining_names:
+                continue
             raise SystemExit(
                 deleted.stderr.strip() or deleted.stdout.strip() or f"spin aka cron delete failed for {existing_name}"
             )
@@ -478,9 +497,13 @@ def ensure_adversary_sim_edge_cron(*, env: dict[str, str], app_id: str, account_
                 created.stderr.strip() or created.stdout.strip() or f"spin aka cron create failed for {job['name']}"
             )
 
-    verified = run_command(list_command, env=env, cwd=REPO_ROOT)
-    verified_names = set(listed_cron_job_names(verified.stdout))
-    if verified.returncode != 0 or any(job["name"] not in verified_names for job in managed_jobs):
+    verified_names = listed_cron_job_names_for_scope(
+        env=env,
+        app_id=app_id,
+        account_id=account_id,
+        account_name=account_name,
+    )
+    if any(job["name"] not in verified_names for job in managed_jobs):
         raise SystemExit("Fermyon edge cron verification failed: expected beat jobs were not present after create")
 
     return {
@@ -544,6 +567,7 @@ def admin_json_request(
     csrf_token: str | None = None,
     origin: str,
     payload: dict[str, Any] | None = None,
+    timeout_seconds: int = 30,
 ) -> tuple[int, dict[str, Any], str]:
     headers = {"Origin": origin}
     body = None
@@ -560,7 +584,7 @@ def admin_json_request(
         headers=headers,
         body=body,
         opener=opener,
-        timeout_seconds=30,
+        timeout_seconds=timeout_seconds,
     )
     try:
         parsed = json.loads(text) if text else {}
@@ -601,6 +625,7 @@ def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
                     csrf_token=csrf_token,
                     origin=origin,
                     payload={"enabled": False, "reason": "fermyon_edge_deploy_smoke"},
+                    timeout_seconds=EDGE_ADVERSARY_SIM_CONTROL_TIMEOUT_SECONDS,
                 )
         except SystemExit:
             raise
@@ -631,6 +656,7 @@ def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
         csrf_token=csrf_token,
         origin=origin,
         payload={"enabled": True, "reason": "fermyon_edge_deploy_smoke"},
+        timeout_seconds=EDGE_ADVERSARY_SIM_CONTROL_TIMEOUT_SECONDS,
     )
     if enable_status != 200:
         raise SystemExit(
