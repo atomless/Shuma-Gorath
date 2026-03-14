@@ -7,11 +7,6 @@ Move an item back into `todos/todo.md` only when its blocking condition is clear
 Completed work lives in `todos/completed-todo-history.md`.
 Security finding validity and closure status live in `todos/security-review.md`.
 
-## P0 Blocked by Telemetry Follow-on Dependency Gate
-
-- [ ] TEL-EVT-1-6 Once `TEL-EVT-1` lands with live size evidence, write the follow-on retention/lifecycle plan and active TODO tranche that re-evaluates raw event, summarized hot-read, and rollup retention windows in light of the new compact schema, preserving automatic purge/default-on lifecycle governance.
-  Blocker: keep blocked until `TEL-EVT-1-5` clears its live proof review gate and the compact schema has a measured deployed footprint worth re-basing retention around; the retention/lifecycle reassessment must be driven by that final live evidence, not an intermediate failed proof.
-
 ## P0 Blocked by Shared-Host Discovery and Runtime-Safety Gates
 
 - [ ] SIM-SCR-LANE-1 Three-lane runtime migration and Scrapling integration.

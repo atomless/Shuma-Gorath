@@ -6,6 +6,31 @@ Moved from active TODO files on 2026-02-14.
 
 ### TEL-EVT-1: Compact Event Telemetry and Raw-Feed Truthfulness
 
+- [x] TEL-EVT-1-5 Extend live telemetry evidence to capture representative persisted-row bytes, recent-events-tail document bytes, and bootstrap payload bytes, and prove the compact event contract improves storage/payload weight while preserving analysis and dashboard usability; treat any regression in the current `TEL-HOT` live budget envelope as tranche-blocking and treat failure to achieve a material challenge-heavy sample size reduction as a review gate.
+- [x] Why:
+  - the compact schema work was not done until live receipts proved it actually changed stored and served bytes on deployed targets instead of only in unit tests.
+  - the refreshed shared-host evidence now shows a fresh compact `js_verification` row at `146 B` versus retained legacy rows at `259-260 B`, while shared-host bootstrap and delta stay well inside budget at `86.77 ms` / `64.15 ms`.
+  - the live retained-byte breakdown also exposed the next real optimization frontier: on the current low-volume shared host, hot-read documents (`17295 B`) and retention metadata outweigh raw eventlog values (`2411 B`), so the follow-on retention reassessment has to reason about tier balance, not only raw-row compaction.
+- [x] Evidence:
+  - `docs/research/2026-03-14-compact-event-telemetry-live-evidence.md`
+  - `.spin/telemetry_shared_host_evidence.json`
+  - `.spin/telemetry_fermyon_edge_evidence.json`
+  - `scripts/tests/telemetry_shared_host_evidence.py`
+  - `scripts/tests/test_telemetry_shared_host_evidence.py`
+  - `make test-telemetry-hot-read-evidence`
+  - `make test-telemetry-hot-read-live-evidence`
+
+- [x] TEL-EVT-1-6 Once `TEL-EVT-1` lands with live size evidence, write the follow-on retention/lifecycle plan and active TODO tranche that re-evaluates raw event, summarized hot-read, and rollup retention windows in light of the new compact schema, preserving automatic purge/default-on lifecycle governance.
+- [x] Why:
+  - now that the compact schema has measured deployed footprint, leaving the next retention/lifecycle move stranded in `blocked-todo.md` would hide the real follow-on work.
+  - the new live evidence makes two things explicit: compact raw rows are a real win, and the currently retained footprint is still shaped heavily by hot-read documents and retention metadata on low-volume hosts.
+  - this completion closes the dependency gate by converting the blocked reminder into an execution-ready plan plus active `TEL-RET-2` TODO tranche, which keeps retention decisions evidence-driven and lifecycle-governed instead of speculative.
+- [x] Evidence:
+  - `docs/plans/2026-03-14-telemetry-retention-rebaseline-implementation-plan.md`
+  - `docs/research/2026-03-14-compact-event-telemetry-live-evidence.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+
 - [x] TEL-EVT-1-2 Replace verbose blended challenge outcome strings with a compact structured event contract that preserves analysis value without duplicating human-readable and machine-readable variants in storage, avoids per-event default provider/mode/state matrices unless a genuine non-default event deviation exists, and remains compatible with the existing hot-read bootstrap/delta path.
 - [x] TEL-EVT-1-3 Make the dashboard Monitoring feed truthful: either expose a true raw persisted-event feed plus a rendered feed, or rename/reframe the current feed so it stops claiming to be raw, and keep any display-side hydration cheap enough that it does not erode the `TEL-HOT` latency gains or create duplicate heavyweight raw/rendered event objects.
 - [x] TEL-EVT-1-4 Update hot-read document and monitoring bootstrap/delta paths so they use the compact event shape without regressing current latency budgets on Fermyon or shared-host targets, without reintroducing whole-keyspace scans or alternate hot-read storage paths, and without relying on schema-minification or reference-dictionary hydration tricks.
