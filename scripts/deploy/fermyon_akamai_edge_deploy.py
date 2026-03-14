@@ -50,6 +50,7 @@ EDGE_CRON_SECRET_QUERY_KEY = "edge_cron_secret"
 EDGE_ADVERSARY_SIM_SMOKE_TIMEOUT_SECONDS = 185
 EDGE_ADVERSARY_SIM_CONTROL_TIMEOUT_SECONDS = 90
 EDGE_CONTROL_LEASE_RELEASE_TIMEOUT_SECONDS = 45
+WORKSPACE_RENDERED_MANIFEST_NAME = "spin.fermyon-akamai-edge.toml"
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -132,6 +133,19 @@ def render_manifest(receipt: dict[str, Any], rendered_manifest_path: Path, env_v
     )
     if result.returncode != 0:
         raise SystemExit(result.stderr.strip() or result.stdout.strip() or "Failed to render edge Spin manifest.")
+
+
+def resolve_rendered_manifest_path(receipt: dict[str, Any]) -> Path:
+    workspace_manifest_path = (REPO_ROOT / WORKSPACE_RENDERED_MANIFEST_NAME).resolve()
+    artifacts = receipt.get("artifacts") if isinstance(receipt, dict) else {}
+    artifacts_mapping = artifacts if isinstance(artifacts, dict) else {}
+    recorded_path = str(artifacts_mapping.get("rendered_manifest_path") or "").strip()
+    if not recorded_path:
+        return workspace_manifest_path
+    candidate = Path(recorded_path).expanduser().resolve()
+    if candidate == workspace_manifest_path:
+        return candidate
+    return workspace_manifest_path
 
 
 def deploy_env(receipt: dict[str, Any], env_file_values: dict[str, str], setup_receipt_path: Path) -> dict[str, str]:
@@ -866,7 +880,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     setup_receipt_path = Path(args.setup_receipt).expanduser().resolve()
     receipt = load_receipt(setup_receipt_path)
-    rendered_manifest_path = Path(receipt["artifacts"]["rendered_manifest_path"]).expanduser().resolve()
+    rendered_manifest_path = resolve_rendered_manifest_path(receipt)
     rendered_manifest_path.parent.mkdir(parents=True, exist_ok=True)
 
     ensure_aka_plugin()

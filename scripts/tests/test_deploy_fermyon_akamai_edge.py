@@ -15,10 +15,12 @@ def result(returncode: int = 0, stdout: str = "", stderr: str = "") -> SimpleNam
 class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = Path(tempfile.mkdtemp(prefix="deploy-fermyon-"))
+        self.repo_root_patcher = patch.object(deploy, "REPO_ROOT", self.temp_dir)
+        self.repo_root_patcher.start()
         self.env_file = self.temp_dir / ".env.local"
         self.setup_receipt = self.temp_dir / ".shuma" / "fermyon-akamai-edge-setup.json"
         self.deploy_receipt = self.temp_dir / ".shuma" / "fermyon-akamai-edge-deploy.json"
-        self.rendered_manifest = self.temp_dir / ".shuma" / "manifests" / "edge.spin.toml"
+        self.rendered_manifest = self.temp_dir / "spin.fermyon-akamai-edge.toml"
         self.surface_catalog = self.temp_dir / ".shuma" / "catalogs" / "site.surface-catalog.json"
         self.surface_catalog.parent.mkdir(parents=True, exist_ok=True)
         self.surface_catalog.write_text('{"inventory":[{"path":"/"}]}\n', encoding="utf-8")
@@ -83,6 +85,9 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def tearDown(self) -> None:
+        self.repo_root_patcher.stop()
+
     def test_load_receipt_rejects_blocked_setup_receipt_with_resume_context(self) -> None:
         self.setup_receipt.write_text(
             json.dumps(
@@ -133,6 +138,15 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
 
         self.assertEqual(completed.returncode, 0)
         self.assertIn("edge deploy ok", completed.stdout)
+
+    def test_resolve_rendered_manifest_path_rehomes_external_receipt_path_into_current_workspace(self) -> None:
+        external_manifest = self.temp_dir.parent / "other-workspace" / "spin.fermyon-akamai-edge.toml"
+        receipt = deploy.load_receipt(self.setup_receipt)
+        receipt["artifacts"]["rendered_manifest_path"] = str(external_manifest)
+
+        resolved = deploy.resolve_rendered_manifest_path(receipt)
+
+        self.assertEqual(resolved, self.rendered_manifest.resolve())
 
     def test_preflight_only_shapes_make_targets_and_manifest_render(self) -> None:
         calls: list[tuple[list[str], dict[str, str] | None]] = []
