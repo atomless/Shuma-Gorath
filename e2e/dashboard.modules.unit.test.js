@@ -4159,6 +4159,15 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /noticeText=\{paneNoticeValues\.verification\?\.text \|\| ''\}/);
 });
 
+test('dashboard smoke soak test owns an explicit timeout budget', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'dashboard.smoke.spec.js'), 'utf8');
+
+  assert.match(
+    source,
+    /test\("native remount soak keeps refresh p95 and polling cadence within bounds", async \(\{ page \}\) => \{\s+test\.setTimeout\(90_000\);/s
+  );
+});
+
 test('dashboard monitoring runtime keeps edge-fermyon on bounded monitoring hydration', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/runtime/dashboard-runtime-refresh.js'),

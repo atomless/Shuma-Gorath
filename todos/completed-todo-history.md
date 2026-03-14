@@ -4,6 +4,19 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-14)
 
+### Dashboard CI Repair: Give The Native Remount Soak Test Its Own Timeout Budget
+
+- [x] Repair the remaining `main` CI failure after the Red Team notice fix by giving the deliberate native-remount soak smoke test an explicit test-local timeout budget instead of forcing it through Playwright's default 30-second cap.
+- [x] Why:
+  - once the no-frontier Red Team regression was fixed, GitHub Actions revealed the remaining failure was not a product bug but a test-budget mismatch: the soak test intentionally spends multiple cadence windows waiting through remount cycles, and the global 30-second budget was too tight for CI hardware jitter.
+  - the failure was deterministic in Actions because the test timed out during its own `page.waitForTimeout(soakWindowMs)` block on both attempts, which means the soak coverage itself was still valuable but the enclosing timeout was wrong.
+  - this completion keeps the cadence and latency assertions intact, adds an explicit 90-second budget to the soak test, and pins that requirement with a dashboard unit contract so future edits cannot silently drop the dedicated timeout.
+- [x] Evidence:
+  - `e2e/dashboard.smoke.spec.js`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+  - `make test`
+
 ### Dashboard CI Repair: Restore Reactive Red Team Pane Notice Projection
 
 - [x] Repair the `main` CI regression where the Red Team no-frontier cancel path raised the confirmation dialog but failed to surface the follow-up operator warning in the tab notice area.

@@ -2476,6 +2476,7 @@ test("repeated route remount loops keep polling request fan-out bounded", async 
 });
 
 test("native remount soak keeps refresh p95 and polling cadence within bounds", async ({ page }) => {
+  test.setTimeout(90_000);
   const soakWindowMs = 1300;
   const maxExpectedRequestsInWindow = 4;
   const maxFetchP95Ms = 2500;

@@ -3,8 +3,8 @@
   "source_report": {
     "profile": "akamai_smoke",
     "execution_lane": "black_box",
-    "generated_at_unix": 1773508771,
-    "suite_runtime_ms": 492,
+    "generated_at_unix": 1773510248,
+    "suite_runtime_ms": 649,
     "passed": true
   },
   "timeline_snapshots": [
@@ -33,7 +33,6 @@
       "deny_temp": 1
     },
     "defenses_touched": [
-      "ban_count",
       "fingerprint_events",
       "recent_event_count"
     ],
@@ -58,7 +57,7 @@
       "sequence": 2,
       "check": "latency_p95",
       "passed": true,
-      "detail": "p95=131ms limit=2000ms"
+      "detail": "p95=195ms limit=2000ms"
     },
     {
       "domain": "gate_checks",
@@ -93,14 +92,14 @@
       "sequence": 7,
       "check": "realism_persona_think_time_envelope_adversarial",
       "passed": true,
-      "detail": "observed_total=40ms expected=[5,200]ms events=1"
+      "detail": "observed_total=103ms expected=[5,200]ms events=1"
     },
     {
       "domain": "gate_checks",
       "sequence": 8,
       "check": "realism_persona_think_time_envelope_suspicious_automation",
       "passed": true,
-      "detail": "observed_total=102ms expected=[5,200]ms events=1"
+      "detail": "observed_total=163ms expected=[5,200]ms events=1"
     },
     {
       "domain": "gate_checks",
@@ -149,7 +148,7 @@
       "sequence": 15,
       "check": "suite_runtime_budget",
       "passed": true,
-      "detail": "runtime=492ms limit=45000ms"
+      "detail": "runtime=649ms limit=45000ms"
     },
     {
       "domain": "gate_checks",
@@ -317,14 +316,14 @@
       "sequence": 3,
       "check": "realism_persona_think_time_envelope_adversarial",
       "passed": true,
-      "detail": "observed_total=40ms expected=[5,200]ms events=1"
+      "detail": "observed_total=103ms expected=[5,200]ms events=1"
     },
     {
       "domain": "realism_checks",
       "sequence": 4,
       "check": "realism_persona_think_time_envelope_suspicious_automation",
       "passed": true,
-      "detail": "observed_total=102ms expected=[5,200]ms events=1"
+      "detail": "observed_total=163ms expected=[5,200]ms events=1"
     },
     {
       "domain": "realism_checks",
