@@ -54,6 +54,8 @@ TEST_JS_ALLOWLIST_IP="10.0.0.177"
 TARPIT_TEST_SUBNET=$(( (RANDOM % 200) + 30 ))
 TEST_TARPIT_IP="10.0.${TARPIT_TEST_SUBNET}.40"
 TEST_TARPIT_TAMPER_IP="10.0.${TARPIT_TEST_SUBNET}.41"
+RATE_FALLBACK_TEST_SUBNET=$(( (RANDOM % 200) + 30 ))
+TEST_RATE_FALLBACK_IP="10.2.${RATE_FALLBACK_TEST_SUBNET}.232"
 TARPIT_BURST_IPS=(
   "10.0.${TARPIT_TEST_SUBNET}.50"
   "10.0.${TARPIT_TEST_SUBNET}.51"
@@ -103,7 +105,7 @@ TEST_CLEANUP_IPS=(
   10.0.0.212
   10.0.0.230
   10.0.0.231
-  10.0.0.232
+  "${TEST_RATE_FALLBACK_IP}"
   "${TEST_TARPIT_IP}"
   "${TEST_TARPIT_TAMPER_IP}"
   "${TARPIT_BURST_IPS[@]}"
@@ -1378,7 +1380,11 @@ fi
 
 # Test 25: External rate limiter missing backend explicitly downgrades to internal behavior
 info "Testing external rate limiter downgrade-to-internal behavior..."
-rate_fallback_payload=$(printf '{"provider_backends":{"rate_limiter":"external"},"edge_integration_mode":"additive","defence_modes":{"rate":"both"},"rate_limit":%s}' "${DEFAULT_RATE_LIMIT}")
+# Keep this deterministic:
+# - the runtime limiter buckets IPv4 to /24, so a dedicated /24 avoids earlier test traffic
+# - a small limit avoids crossing the minute window while proving internal fallback enforcement
+RATE_FALLBACK_LIMIT=5
+rate_fallback_payload=$(printf '{"provider_backends":{"rate_limiter":"external"},"edge_integration_mode":"additive","defence_modes":{"rate":"both"},"rate_limit":%s}' "${RATE_FALLBACK_LIMIT}")
 rate_fallback_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
   -d "${rate_fallback_payload}" \
@@ -1397,8 +1403,8 @@ print(provider.get("rate_limiter",""))' <<< "$rate_fallback_cfg")
     echo -e "${YELLOW}DEBUG rate fallback config:${NC} $rate_fallback_cfg"
   fi
 
-  curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.232" > /dev/null
-  rate_outage_before=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/metrics" | python3 -c 'import sys
+  curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=${TEST_RATE_FALLBACK_IP}" > /dev/null
+  rate_outage_before=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_RATE_FALLBACK_IP}" "$BASE_URL/metrics" | python3 -c 'import sys
 total = 0
 for line in sys.stdin:
     line = line.strip()
@@ -1419,12 +1425,12 @@ print(total)')
     rate_outage_before=0
   fi
 
-  rate_attempts=$((DEFAULT_RATE_LIMIT + 2))
+  rate_attempts=$((RATE_FALLBACK_LIMIT + 2))
   rate_blocked=false
   rate_first=""
   rate_last=""
   for ((i=1; i<=rate_attempts; i++)); do
-    rate_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/")
+    rate_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_RATE_FALLBACK_IP}" "$BASE_URL/")
     rate_body=$(echo "$rate_resp" | sed -e 's/HTTPSTATUS:.*//')
     rate_status=$(echo "$rate_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
     if [[ $i -eq 1 ]]; then
@@ -1437,7 +1443,7 @@ print(total)')
     fi
   done
 
-  rate_outage_after=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/metrics" | python3 -c 'import sys
+  rate_outage_after=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_RATE_FALLBACK_IP}" "$BASE_URL/metrics" | python3 -c 'import sys
 total = 0
 for line in sys.stdin:
     line = line.strip()
@@ -1461,13 +1467,13 @@ print(total)')
   rate_outage_delta=$((rate_outage_after - rate_outage_before))
 
   if [[ "$rate_blocked" != "true" ]]; then
-    burst_attempts=$((DEFAULT_RATE_LIMIT + 10))
+    burst_attempts=$((RATE_FALLBACK_LIMIT + 10))
     for ((i=1; i<=burst_attempts; i++)); do
-      curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/" > /dev/null &
+      curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_RATE_FALLBACK_IP}" "$BASE_URL/" > /dev/null &
     done
     wait
 
-    rate_probe=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.232" "$BASE_URL/")
+    rate_probe=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_RATE_FALLBACK_IP}" "$BASE_URL/")
     rate_probe_body=$(echo "$rate_probe" | sed -e 's/HTTPSTATUS:.*//')
     rate_probe_status=$(echo "$rate_probe" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
     rate_last="status=${rate_probe_status} body=${rate_probe_body}"

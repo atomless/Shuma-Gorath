@@ -594,7 +594,7 @@ h1 {
   width: 0;
   height: 198px;
   background: var(--striped-bright-bg);
-  animation: dashboard-adversary-sim-progress-stripes 10s linear infinite;
+  animation: dashboard-adversary-sim-progress-stripes 1.5s linear infinite;
 }
 
 @keyframes dashboard-adversary-sim-progress-stripes {
@@ -603,7 +603,7 @@ h1 {
   }
 
   to {
-    background-position: 0 -40px;
+    background-position: 0 -198px;
   }
 }
 

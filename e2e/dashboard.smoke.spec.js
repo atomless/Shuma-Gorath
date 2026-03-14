@@ -1997,6 +1997,7 @@ test("adversary sim toggle cancel path avoids orchestration request when frontie
     ]);
 
     await expect(toggle).not.toBeChecked();
+    await expect(page.locator('[data-tab-notice="red-team"]')).toContainText("Add SHUMA_FRONTIER_*_API_KEY");
     await page.waitForTimeout(250);
     expect(controlRequestCount).toBe(0);
   });

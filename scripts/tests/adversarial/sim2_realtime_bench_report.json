@@ -1,6 +1,6 @@
 {
   "schema_version": "sim2-realtime-bench.v1",
-  "generated_at_unix": 1772879086,
+  "generated_at_unix": 1773507111,
   "workload": {
     "profile": "baseline",
     "duration_ms": 120000,

@@ -3998,8 +3998,8 @@ test('red team adversary-sim progress bar animates stripe motion and respects re
     'utf8'
   );
 
-  assert.match(styleSource, /\.dashboard-adversary-sim-progress__fill\s*\{[\s\S]*animation:\s*dashboard-adversary-sim-progress-stripes\s+10s\s+linear\s+infinite;[\s\S]*\}/m);
-  assert.match(styleSource, /@keyframes dashboard-adversary-sim-progress-stripes\s*\{[\s\S]*background-position:\s*0 0;[\s\S]*background-position:\s*0 -40px;[\s\S]*\}/m);
+  assert.match(styleSource, /\.dashboard-adversary-sim-progress__fill\s*\{[\s\S]*animation:\s*dashboard-adversary-sim-progress-stripes\s+1\.5s\s+linear\s+infinite;[\s\S]*\}/m);
+  assert.match(styleSource, /@keyframes dashboard-adversary-sim-progress-stripes\s*\{[\s\S]*background-position:\s*0 0;[\s\S]*background-position:\s*0 -198px;[\s\S]*\}/m);
   assert.match(styleSource, /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*\.dashboard-adversary-sim-progress__fill\s*\{[\s\S]*animation:\s*none;[\s\S]*\}[\s\S]*\}/m);
 });
 
@@ -4152,12 +4152,9 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.equal(source.includes('adversary-sim-progress-line'), false);
   assert.equal(source.includes('id="admin-msg"'), false);
   assert.equal(source.includes('setAdminMessage('), false);
-  assert.match(source, /\$: paneNoticeValues = DASHBOARD_TABS\.reduce\(\(next, tab\) => \{/);
-  assert.match(source, /const notice = paneNotices\[tab\];/);
-  assert.match(source, /noticeText=\{paneNoticeValues\['red-team'\]\?\.text \|\| ''\}/);
-  assert.match(source, /noticeText=\{paneNoticeValues\['ip-bans'\]\?\.text \|\| ''\}/);
-  assert.match(source, /noticeText=\{paneNoticeValues\.verification\?\.text \|\| ''\}/);
-  assert.equal(source.includes('function readPaneNotice('), false);
+  assert.match(source, /readPaneNotice\('red-team'\)\.text/);
+  assert.match(source, /readPaneNotice\('ip-bans'\)\.text/);
+  assert.match(source, /noticeText=\{readPaneNotice\('verification'\)\.text\}/);
 });
 
 test('dashboard monitoring runtime keeps edge-fermyon on bounded monitoring hydration', () => {

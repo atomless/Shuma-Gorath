@@ -4,6 +4,49 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-14)
 
+### Runtime Surface Gate Stabilization: Separate JS-Required Proof From Geo Preemption
+
+- [x] Stabilize the runtime-toggle adversary-sim surface gate so it deterministically proves `js_required` under the compact telemetry shape instead of depending on a single mixed profile where geo and not-a-bot precedence can preempt `JsChallengeRequired`.
+- [x] Why:
+  - the gate had drifted behind two real system changes at once: compact telemetry now carries the JS-missing signal in taxonomy, and the runtime policy graph evaluates geo and not-a-bot before JS.
+  - the sim’s primary public probes also inject `RU` geo headers on `/sim/public/*`, so the old one-phase profile could collect geo/rate/maze/ban surfaces while never emitting any JS-required event at all.
+  - this completion updates the gate to read taxonomy signals, adds a short JS-focused preemption-free phase to surface `js_required`, then restores the broader runtime profile to gather the rest of the categories.
+- [x] Evidence:
+  - `scripts/tests/adversary_runtime_toggle_surface_gate.py`
+  - `scripts/tests/test_adversary_runtime_toggle_surface_gate.py`
+  - `make test-adversarial-python-unit`
+  - `make test-adversary-sim-runtime-surface`
+  - `make test`
+
+### Integration Test Stabilization: Deterministic External Rate-Limiter Fallback Proof
+
+- [x] Stabilize the external rate-limiter fallback integration contract so `make test` no longer depends on unrelated earlier requests sharing the same `/24` rate bucket or on a high production-style limit crossing the minute window during the proof loop.
+- [x] Why:
+  - the runtime rate limiter intentionally buckets IPv4 traffic to `/24`, but the integration suite had been using `10.0.0.232`, which shared a bucket with many earlier `10.0.0.*` test actors in the same run.
+  - the old test also reused the default limit (`80`), which made the downgrade proof slower and timing-sensitive for a contract that only needs to show fallback enforcement, not production-volume behavior.
+  - this completion moves the check onto a dedicated fresh `/24` and a small deterministic fallback limit so the test proves the intended behavior without inheriting suite-order or minute-window flakiness.
+- [x] Evidence:
+  - `scripts/tests/integration.sh`
+  - `make test-integration`
+  - `make test`
+
+### Dashboard Rescue: Restore Live Red Team Follow-up After Worktree Cleanup
+
+- [x] Recover the live Red Team/dashboard follow-up that was accidentally removed from the working tree during root-worktree cleanup, restore the intended route/animation/operator-warning behavior on `main`, and re-verify the dashboard surfaces before retiring the rescue artifacts.
+- [x] Why:
+  - the root-worktree cleanup correctly backed the dirty state up into a stash and patch archive, but it incorrectly treated “recoverable” as equivalent to “still present in the live tree,” which dropped an in-progress dashboard follow-up from the working copy.
+  - the highest-impact lost behavior was the progress-bar stripe timing change, but the rescued local slice also included a route-side pane-notice cleanup and an explicit operator warning when the Red Team toggle is cancelled because frontier provider keys are missing.
+  - this completion restores the live behavior that still fits current `main`, keeps the older stale smoke-spec reshuffle shelved instead of replaying it blindly, and proves the restored state with the canonical dashboard make targets rather than leaving the fix half-recovered.
+- [x] Evidence:
+  - `dashboard/src/routes/+page.svelte`
+  - `dashboard/style.css`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+  - `.spin/worktree-backups/20260314T153724Z-codex-tel-evt-live-proof/substantive-red-team-followup.patch`
+  - `git stash list -n 1`
+  - `make test-dashboard-unit`
+  - `make test-dashboard-e2e`
+
 ### Mainline Merge Closure, CI Stabilization, and Verification-Docs Truthfulness
 
 - [x] Merge the validated `codex/*` work onto `main`, fix the flaky Akamai adversarial latency accounting on `main`, and refresh the testing/operator docs so they describe the real verification contract and the fixture-vs-live edge distinction truthfully.

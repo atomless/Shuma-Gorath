@@ -76,7 +76,7 @@
     {
       "id": "cost_payload_budget",
       "passed": true,
-      "detail": "payload_p95_kb=49.23 payload_p95_max_kb=512.00"
+      "detail": "payload_p95_kb=194.17 payload_p95_max_kb=512.00"
     },
     {
       "id": "cost_compression_effectiveness",

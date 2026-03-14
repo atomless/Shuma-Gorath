@@ -7,7 +7,9 @@
   },
   "checked_values": {
     "SHUMA_API_KEY_present": true,
-    "SHUMA_SIM_TELEMETRY_SECRET_present": true
+    "SHUMA_SIM_TELEMETRY_SECRET_present": true,
+    "PLAYWRIGHT_BROWSER_CACHE": "/Users/jamestindall/Projects/Shuma-Gorath/.cache/ms-playwright",
+    "PLAYWRIGHT_CHROMIUM_present": true
   },
   "guidance": []
 }

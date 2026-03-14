@@ -43,6 +43,88 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
         self.assertEqual(opener.requests[0]["x-shuma-forwarded-secret"], "forwarded-secret")
         self.assertEqual(opener.requests[0]["x-forwarded-for"], "127.0.0.1")
 
+    def test_poll_categories_reads_js_required_from_taxonomy_signals(self) -> None:
+        gate = runtime_surface_gate.RuntimeToggleSurfaceGate(
+            base_url="http://127.0.0.1:3000",
+            api_key="test-api-key",
+            forwarded_secret="forwarded-secret",
+            health_secret="health-secret",
+            timeout_seconds=1,
+        )
+
+        monitoring_body = {
+            "summary": {
+                "pow": {"total_attempts": 1},
+                "rate": {"total_violations": 1},
+                "geo": {"total_violations": 1},
+            },
+            "details": {
+                "analytics": {"ban_count": 1},
+                "cdp": {
+                    "stats": {"total_detections": 1},
+                    "fingerprint_stats": {"events": 1},
+                },
+                "tarpit": {"metrics": {"activations": {"progressive": 1}}},
+                "events": {
+                    "recent_events": [
+                        {
+                            "event": "Challenge",
+                            "reason": "botness_gate_maze",
+                            "outcome": None,
+                            "taxonomy": {
+                                "level": "L7_DECEPTION_EXPLICIT",
+                                "signals": ["S_JS_REQUIRED_MISSING"],
+                            },
+                            "is_simulation": True,
+                        }
+                    ]
+                },
+            },
+        }
+
+        def fake_request(method, path, payload=None, extra_headers=None):
+            self.assertEqual(method, "GET")
+            self.assertIn("/admin/monitoring", path)
+            return {"status": 200, "body": monitoring_body, "raw": ""}
+
+        gate.request = fake_request
+
+        seen = gate.poll_categories()
+
+        self.assertTrue(seen["challenge"])
+        self.assertTrue(seen["js_required"])
+        self.assertTrue(all(seen.values()))
+
+    def test_configure_js_required_profile_disables_geo_and_not_a_bot_preemption(self) -> None:
+        gate = runtime_surface_gate.RuntimeToggleSurfaceGate(
+            base_url="http://127.0.0.1:3000",
+            api_key="test-api-key",
+            forwarded_secret="forwarded-secret",
+            health_secret="health-secret",
+            timeout_seconds=1,
+        )
+
+        captured = {}
+
+        def fake_request(method, path, payload=None, extra_headers=None):
+            captured["method"] = method
+            captured["path"] = path
+            captured["payload"] = payload
+            return {"status": 200, "body": {}, "raw": ""}
+
+        gate.request = fake_request
+
+        gate.configure_js_required_profile()
+
+        self.assertEqual(captured["method"], "POST")
+        self.assertEqual(captured["path"], "/admin/config")
+        self.assertEqual(captured["payload"]["defence_modes"]["rate"], "signal")
+        self.assertEqual(captured["payload"]["rate_limit"], 1000)
+        self.assertTrue(captured["payload"]["js_required_enforced"])
+        self.assertFalse(captured["payload"]["not_a_bot_enabled"])
+        self.assertFalse(captured["payload"]["geo_edge_headers_enabled"])
+        self.assertEqual(captured["payload"]["geo_challenge"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -110,6 +110,20 @@ class RuntimeToggleSurfaceGate:
         except (TypeError, ValueError):
             return 0
 
+    @staticmethod
+    def _taxonomy_signals(event: Dict[str, Any]) -> set[str]:
+        taxonomy = event.get("taxonomy")
+        if not isinstance(taxonomy, dict):
+            return set()
+        signals = taxonomy.get("signals")
+        if not isinstance(signals, list):
+            return set()
+        return {
+            str(signal).strip().lower()
+            for signal in signals
+            if str(signal).strip()
+        }
+
     def ensure_health(self) -> None:
         response = self.request("GET", "/health", extra_headers=self._health_headers())
         if response["status"] != 200:
@@ -119,6 +133,7 @@ class RuntimeToggleSurfaceGate:
         payload = {
             "defence_modes": {"rate": "both", "geo": "both", "js": "both"},
             "js_required_enforced": True,
+            "not_a_bot_enabled": True,
             "geo_edge_headers_enabled": True,
             "geo_challenge": ["RU"],
             "geo_maze": [],
@@ -128,6 +143,23 @@ class RuntimeToggleSurfaceGate:
         if response["status"] != 200:
             raise RuntimeError(
                 f"failed to apply runtime surface config profile: status={response['status']} body={response['raw'][:200]}"
+            )
+
+    def configure_js_required_profile(self) -> None:
+        payload = {
+            "defence_modes": {"rate": "signal", "geo": "both", "js": "both"},
+            "rate_limit": 1000,
+            "js_required_enforced": True,
+            "not_a_bot_enabled": False,
+            "geo_edge_headers_enabled": False,
+            "geo_challenge": [],
+            "geo_maze": [],
+            "geo_block": [],
+        }
+        response = self.request("POST", "/admin/config", payload)
+        if response["status"] != 200:
+            raise RuntimeError(
+                f"failed to apply js-required config profile: status={response['status']} body={response['raw'][:200]}"
             )
 
     def toggle(self, enabled: bool, suffix: str) -> None:
@@ -153,9 +185,13 @@ class RuntimeToggleSurfaceGate:
                 f"toggle {enabled} failed: status={response['status']} body={response['raw'][:200]}"
             )
 
-    def poll_categories(self) -> Dict[str, bool]:
+    def poll_categories(
+        self,
+        existing: Optional[Dict[str, bool]] = None,
+        required: Optional[set[str]] = None,
+    ) -> Dict[str, bool]:
         deadline = time.time() + float(self.timeout_seconds)
-        seen = {
+        seen = dict(existing or {
             "challenge": False,
             "js_required": False,
             "pow": False,
@@ -164,7 +200,8 @@ class RuntimeToggleSurfaceGate:
             "maze_or_tarpit": False,
             "fingerprint_or_cdp": False,
             "ban": False,
-        }
+        })
+        required_names = required or set(seen.keys())
 
         while time.time() < deadline:
             monitoring = self.request("GET", "/admin/monitoring?hours=24&limit=200")
@@ -208,13 +245,18 @@ class RuntimeToggleSurfaceGate:
                 name = str(event.get("event") or "").strip().lower()
                 reason = str(event.get("reason") or "").strip().lower()
                 outcome = str(event.get("outcome") or "").strip().lower()
+                taxonomy_signals = self._taxonomy_signals(event)
 
                 if name == "challenge" or "challenge" in reason:
                     seen["challenge"] = True
                 if reason == "js_verification":
                     seen["js_required"] = True
                     seen["challenge"] = True
-                if "s_js_required_missing" in outcome or "js_verification_required:active" in outcome:
+                if (
+                    "s_js_required_missing" in outcome
+                    or "js_verification_required:active" in outcome
+                    or "s_js_required_missing" in taxonomy_signals
+                ):
                     seen["js_required"] = True
                 if "pow" in reason or "pow_" in outcome:
                     seen["pow"] = True
@@ -229,7 +271,7 @@ class RuntimeToggleSurfaceGate:
                 if name == "ban":
                     seen["ban"] = True
 
-            if all(seen.values()):
+            if all(seen.get(name, False) for name in required_names):
                 return seen
             time.sleep(1)
 
@@ -259,9 +301,11 @@ def main() -> int:
 
     try:
         gate.ensure_health()
-        gate.configure_runtime_surface_profile()
+        gate.configure_js_required_profile()
         gate.toggle(True, "on")
-        seen = gate.poll_categories()
+        seen = gate.poll_categories(required={"challenge", "js_required"})
+        gate.configure_runtime_surface_profile()
+        seen = gate.poll_categories(existing=seen)
     except Exception as exc:  # noqa: BLE001
         print(f"[runtime-surface-gate] error: {exc}", file=sys.stderr)
         try:
