@@ -48,6 +48,7 @@ Prometheus parity scope for Monitoring widgets is tracked in:
   - `SHUMA_MONITORING_RETENTION_HOURS` for hourly monitoring counters and bucket indexes,
   - `SHUMA_EVENT_LOG_RETENTION_HOURS` for requested raw event retention, with high-risk raw operator views capped to `72h`,
   - `SHUMA_MONITORING_ROLLUP_RETENTION_HOURS` for derived daily monitoring rollups.
+- the 2026-03-14 post-compaction retention rebaseline kept those default windows unchanged: compact raw rows are materially smaller, but live retained-byte evidence shows hot-read documents and retention metadata still dominate the retained footprint on the measured shared-host sample.
 - Monitoring summary, delta, stream, and normal monitoring-details reads use bucket indexes and key catalogs instead of whole-keyspace `get_keys()` scans.
 - Monitoring query budgets account for requested window, bucket count, key count, residual scans, and dense-bucket penalty rather than only `hours * limit`.
 - The first live shared-host baseline and the current hot-path compression decision are archived in [`docs/research/2026-03-11-shared-host-telemetry-storage-query-evidence.md`](research/2026-03-11-shared-host-telemetry-storage-query-evidence.md).

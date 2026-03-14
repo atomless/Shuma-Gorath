@@ -22,12 +22,6 @@ Reference context:
 - [`docs/configuration.md`](../docs/configuration.md)
 - [`docs/testing.md`](../docs/testing.md)
 
-### TEL-RET-2: Post-Compaction Telemetry Retention Rebaseline
-- [ ] TEL-RET-2-1 Capture or refresh a challenge-heavy telemetry evidence sample with retained-byte pressure by tier so raw event rows, hot-read documents, and retention metadata can be compared from live compact-schema deployments rather than from anecdotal low-volume receipts.
-- [ ] TEL-RET-2-2 Decide whether the current effective retention windows (`72h` high-risk raw events, `168h` monitoring summaries, `720h` monitoring rollups) should remain or change, with explicit rationale tied to the compact-schema live evidence and ADR 0009 lifecycle governance.
-- [ ] TEL-RET-2-3 If the evidence justifies changing retention windows, implement the config/default/bootstrap/docs/test updates together while preserving automatic purge, truthful retention health, and the current single-architecture telemetry model.
-- [ ] TEL-RET-2-4 Re-prove shared-host and Fermyon live telemetry budgets plus retention health after the retention decision so the tranche closes on measured operator truth, not local-only assumptions.
-
 ### SIM2-R4-4: Config Seeding Lifecycle and Test-Mode Semantics
 
 ### SIM2-R4-CONN-1: Dashboard Connection-State Hardening

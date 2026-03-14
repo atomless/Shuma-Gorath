@@ -12,9 +12,30 @@ SPEC = importlib.util.spec_from_file_location("telemetry_shared_host_evidence", 
 TELEMETRY_SHARED_HOST_EVIDENCE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(TELEMETRY_SHARED_HOST_EVIDENCE)
+from scripts.tests.telemetry_evidence_common import summarize_recent_event_rows
 
 
 class TelemetrySharedHostEvidenceTests(unittest.TestCase):
+    def test_recent_event_summary_marks_compact_challenge_heavy_sample(self) -> None:
+        summary = summarize_recent_event_rows(
+            [
+                {
+                    "event": "Challenge",
+                    "reason": "js_verification",
+                    "outcome_code": "required",
+                    "taxonomy": {"level": "L4_VERIFY_JS"},
+                }
+                for _ in range(12)
+            ]
+            + [{"event": "AdminAction", "reason": "config_view"} for _ in range(8)]
+        )
+
+        self.assertTrue(summary["challenge_heavy_sample"])
+        self.assertFalse(summary["low_volume_sample"])
+        self.assertEqual(summary["js_verification_rows"], 12)
+        self.assertEqual(summary["compact_js_verification_rows"], 12)
+        self.assertEqual(summary["legacy_js_verification_rows"], 0)
+
     def test_budget_evaluation_uses_canonical_bootstrap_and_delta_targets(self) -> None:
         budget_report = TELEMETRY_SHARED_HOST_EVIDENCE.evaluate_budget_report(
             bootstrap_measurement={"latency_ms": 640.0},
@@ -153,6 +174,28 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
             "content_encoding": "none",
             "payload": {"event_count": 1},
         }
+        forensic_measurement = {
+            "status": 200,
+            "latency_ms": 31.0,
+            "response_bytes": 2600,
+            "content_encoding": "none",
+            "payload": {
+                "details": {
+                    "events": {
+                        "recent_events": [
+                            {
+                                "event": "Challenge",
+                                "reason": "js_verification",
+                                "outcome_code": "required",
+                                "taxonomy": {"level": "L4_VERIFY_JS"},
+                            }
+                            for _ in range(11)
+                        ]
+                        + [{"event": "AdminAction", "reason": "config_view"} for _ in range(3)]
+                    }
+                }
+            },
+        }
 
         report = TELEMETRY_SHARED_HOST_EVIDENCE.build_evidence_report(
             remote=remote,
@@ -194,6 +237,7 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
             bootstrap_gzip_measurement=snapshot_gzip_measurement,
             delta_measurement=delta_measurement,
             stream_measurement=stream_measurement,
+            forensic_measurement=forensic_measurement,
         )
 
         self.assertEqual(report["remote"]["name"], "blog-prod")
@@ -214,6 +258,8 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
         )
         self.assertEqual(report["storage_pressure"]["hot_read_documents_total_value_bytes"], 6144)
         self.assertEqual(report["storage_pressure"]["telemetry_total_value_bytes"], 8216)
+        self.assertTrue(report["recent_event_sample"]["challenge_heavy_sample"])
+        self.assertEqual(report["recent_event_sample"]["compact_js_verification_rows"], 11)
         self.assertEqual(report["payloads"]["monitoring_bootstrap"]["response_bytes"], 12000)
         self.assertEqual(report["payloads"]["monitoring_bootstrap_gzip"]["response_bytes"], 4000)
         self.assertEqual(
@@ -362,6 +408,26 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
                         "content_encoding": "none",
                         "payload": {},
                     },
+                    {
+                        "status": 200,
+                        "latency_ms": 8.5,
+                        "response_bytes": 300,
+                        "content_encoding": "none",
+                        "payload": {
+                            "details": {
+                                "events": {
+                                    "recent_events": [
+                                        {
+                                            "event": "Challenge",
+                                            "reason": "js_verification",
+                                            "outcome_code": "required",
+                                            "taxonomy": {"level": "L4_VERIFY_JS"},
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                    },
                 ],
             ) as measure_json_endpoint, patch.object(
                 collector,
@@ -386,6 +452,7 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
             self.assertEqual(
                 persisted["storage_pressure"]["domains"]["eventlog"]["bytes_per_active_window"], 144.0
             )
+            self.assertEqual(persisted["recent_event_sample"]["compact_js_verification_rows"], 1)
             self.assertEqual(
                 measure_json_endpoint.call_args_list[0].args[0],
                 "/admin/monitoring?hours=24&limit=10&bootstrap=1",
@@ -397,6 +464,10 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
             self.assertEqual(
                 measure_json_endpoint.call_args_list[2].args[0],
                 "/admin/monitoring/delta?hours=24&limit=40",
+            )
+            self.assertEqual(
+                measure_json_endpoint.call_args_list[3].args[0],
+                "/admin/monitoring?hours=24&limit=40&bootstrap=1&forensic=1",
             )
 
     def test_main_cli_uses_current_argument_shape(self) -> None:

@@ -57,11 +57,34 @@ class TelemetryFermyonEdgeEvidenceTests(unittest.TestCase):
             "content_encoding": "none",
             "payload": {"events": []},
         }
+        forensic_measurement = {
+            "status": 200,
+            "latency_ms": 620.0,
+            "response_bytes": 2400,
+            "content_encoding": "none",
+            "payload": {
+                "details": {
+                    "events": {
+                        "recent_events": [
+                            {
+                                "event": "Challenge",
+                                "reason": "js_verification",
+                                "outcome_code": "required",
+                                "taxonomy": {"level": "L4_VERIFY_JS"},
+                            }
+                            for _ in range(12)
+                        ]
+                        + [{"event": "AdminAction", "reason": "config_view"} for _ in range(8)]
+                    }
+                }
+            },
+        }
 
         report = TELEMETRY_FERMYON_EDGE_EVIDENCE.build_evidence_report(
             receipt=receipt,
             bootstrap_measurement=bootstrap_measurement,
             delta_measurement=delta_measurement,
+            forensic_measurement=forensic_measurement,
         )
 
         self.assertEqual(report["edge"]["app_name"], "shuma-edge-prod")
@@ -74,6 +97,8 @@ class TelemetryFermyonEdgeEvidenceTests(unittest.TestCase):
             report["payloads"]["monitoring_bootstrap"]["response_shaping_reason"],
             "edge_profile_bounded_details",
         )
+        self.assertTrue(report["recent_event_sample"]["challenge_heavy_sample"])
+        self.assertEqual(report["recent_event_sample"]["compact_js_verification_rows"], 12)
 
     def test_run_reads_receipt_and_writes_report(self) -> None:
         with tempfile.TemporaryDirectory(prefix="telemetry-fermyon-edge-evidence-") as temp_dir:
@@ -128,6 +153,26 @@ class TelemetryFermyonEdgeEvidenceTests(unittest.TestCase):
                         "content_encoding": "none",
                         "payload": {"events": []},
                     },
+                    {
+                        "status": 200,
+                        "latency_ms": 410.0,
+                        "response_bytes": 640,
+                        "content_encoding": "none",
+                        "payload": {
+                            "details": {
+                                "events": {
+                                    "recent_events": [
+                                        {
+                                            "event": "Challenge",
+                                            "reason": "js_verification",
+                                            "outcome_code": "required",
+                                            "taxonomy": {"level": "L4_VERIFY_JS"},
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                    },
                 ],
             ) as measure_json_endpoint:
                 report = collector.run()
@@ -135,6 +180,7 @@ class TelemetryFermyonEdgeEvidenceTests(unittest.TestCase):
             self.assertEqual(report["edge"]["base_url"], "https://edge.example.com")
             persisted = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(persisted["edge"]["app_id"], "app-123")
+            self.assertEqual(persisted["recent_event_sample"]["compact_js_verification_rows"], 1)
             self.assertEqual(
                 measure_json_endpoint.call_args_list[0].args[0],
                 "/admin/monitoring?hours=24&limit=10&bootstrap=1",
@@ -142,4 +188,8 @@ class TelemetryFermyonEdgeEvidenceTests(unittest.TestCase):
             self.assertEqual(
                 measure_json_endpoint.call_args_list[1].args[0],
                 "/admin/monitoring/delta?hours=24&limit=40",
+            )
+            self.assertEqual(
+                measure_json_endpoint.call_args_list[2].args[0],
+                "/admin/monitoring?hours=24&limit=40&bootstrap=1&forensic=1",
             )

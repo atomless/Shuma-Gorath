@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-14)
 
+### TEL-RET-2: Post-Compaction Telemetry Retention Rebaseline
+
+- [x] TEL-RET-2-1 Capture or refresh a challenge-heavy telemetry evidence sample with retained-byte pressure by tier so raw event rows, hot-read documents, and retention metadata can be compared from live compact-schema deployments rather than from anecdotal low-volume receipts.
+- [x] TEL-RET-2-2 Decide whether the current effective retention windows (`72h` high-risk raw events, `168h` monitoring summaries, `720h` monitoring rollups) should remain or change, with explicit rationale tied to the compact-schema live evidence and ADR 0009 lifecycle governance.
+- [x] TEL-RET-2-3 If the evidence justifies changing retention windows, implement the config/default/bootstrap/docs/test updates together while preserving automatic purge, truthful retention health, and the current single-architecture telemetry model.
+- [x] TEL-RET-2-4 Re-prove shared-host and Fermyon live telemetry budgets plus retention health after the retention decision so the tranche closes on measured operator truth, not local-only assumptions.
+- [x] Why:
+  - the first post-compaction receipt was still too low-volume to justify a lifecycle decision, so this tranche strengthened the live evidence until both shared-host and Fermyon had challenge-heavy recent-event samples carrying the compact `js_verification` shape.
+  - the final shared-host proof shows `22` `js_verification` rows in a `27`-row recent-event sample, with sampled compact challenge rows uniformly at `146 B`, but the same host still spends far more retained bytes on hot-read documents (`26551 B`) and retention metadata than on raw eventlog values (`5039 B`).
+  - because of that measured tier balance, the correct retention decision was to keep the current windows unchanged: raw compaction alone does not justify longer high-risk raw retention, and the current summary/rollup windows are already budget-green on both shared-host and Fermyon.
+  - no config/default changes were made in this tranche because the evidence did not justify them; making no retention change was the correct outcome, not unfinished work.
+- [x] Evidence:
+  - `docs/research/2026-03-14-compact-event-telemetry-live-evidence.md`
+  - `scripts/tests/telemetry_evidence_common.py`
+  - `scripts/tests/telemetry_shared_host_evidence.py`
+  - `scripts/tests/telemetry_fermyon_edge_evidence.py`
+  - `scripts/tests/test_telemetry_shared_host_evidence.py`
+  - `scripts/tests/test_telemetry_fermyon_edge_evidence.py`
+  - `docs/configuration.md`
+  - `docs/observability.md`
+  - `make test-telemetry-hot-read-evidence`
+  - `make test-telemetry-hot-read-live-evidence`
+
 ### TEL-EVT-1: Compact Event Telemetry and Raw-Feed Truthfulness
 
 - [x] TEL-EVT-1-5 Extend live telemetry evidence to capture representative persisted-row bytes, recent-events-tail document bytes, and bootstrap payload bytes, and prove the compact event contract improves storage/payload weight while preserving analysis and dashboard usability; treat any regression in the current `TEL-HOT` live budget envelope as tranche-blocking and treat failure to achieve a material challenge-heavy sample size reduction as a review gate.

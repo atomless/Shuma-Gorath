@@ -32,6 +32,7 @@ from scripts.deploy.remote_target import (
 from scripts.tests.telemetry_evidence_common import (
     compression_ratio_percent,
     evaluate_budget_report as evaluate_budget_report_common,
+    summarize_recent_event_rows,
     utc_now_iso,
 )
 
@@ -39,6 +40,7 @@ DEFAULT_REPORT_PATH = REPO_ROOT / ".spin" / "telemetry_shared_host_evidence.json
 DEFAULT_HOURS = 24
 DEFAULT_BOOTSTRAP_LIMIT = 10
 DEFAULT_DELTA_LIMIT = 40
+DEFAULT_FORENSIC_LIMIT = 40
 BOOTSTRAP_BUDGET_MS = 750.0
 DELTA_BUDGET_MS = 250.0
 REMOTE_SQLITE_KV_PATH = ".spin/sqlite_key_value.db"
@@ -215,6 +217,7 @@ def build_evidence_report(
     bootstrap_gzip_measurement: dict[str, Any],
     delta_measurement: dict[str, Any],
     stream_measurement: dict[str, Any],
+    forensic_measurement: dict[str, Any],
 ) -> dict[str, Any]:
     bootstrap_payload = bootstrap_measurement.get("payload", {})
     retention_health = (
@@ -274,6 +277,15 @@ def build_evidence_report(
         )
         + hot_read_total_value_bytes
     )
+    forensic_events = (
+        forensic_measurement.get("payload", {})
+        .get("details", {})
+        .get("events", {})
+        .get("recent_events", [])
+    )
+    recent_event_sample = summarize_recent_event_rows(
+        forensic_events if isinstance(forensic_events, list) else []
+    )
 
     return {
         "captured_at_utc": utc_now_iso(),
@@ -286,6 +298,7 @@ def build_evidence_report(
         "keyspace": keyspace_summary,
         "storage": storage_samples,
         "storage_pressure": retained_value_pressure,
+        "recent_event_sample": recent_event_sample,
         "retention_health": retention_health,
         "budgets": budgets,
         "query_cost": {
@@ -556,10 +569,14 @@ PY"""
         )
         delta_path = f"/admin/monitoring/delta?hours={self.hours}&limit={DEFAULT_DELTA_LIMIT}"
         stream_path = f"/admin/monitoring/stream?hours={self.hours}&limit={DEFAULT_DELTA_LIMIT}"
+        forensic_path = (
+            f"/admin/monitoring?hours={self.hours}&limit={DEFAULT_FORENSIC_LIMIT}&bootstrap=1&forensic=1"
+        )
         bootstrap_measurement = self.measure_json_endpoint(bootstrap_path)
         bootstrap_gzip_measurement = self.measure_json_endpoint(bootstrap_path, accept_gzip=True)
         delta_measurement = self.measure_json_endpoint(delta_path)
         stream_measurement = self.measure_stream_endpoint(stream_path)
+        forensic_measurement = self.measure_json_endpoint(forensic_path)
         report = build_evidence_report(
             remote=self.receipt,
             keyspace_summary=keyspace_summary,
@@ -568,6 +585,7 @@ PY"""
             bootstrap_gzip_measurement=bootstrap_gzip_measurement,
             delta_measurement=delta_measurement,
             stream_measurement=stream_measurement,
+            forensic_measurement=forensic_measurement,
         )
         if not report["budgets"]["bootstrap_within_budget"] or not report["budgets"]["delta_within_budget"]:
             raise EvidenceFailure(

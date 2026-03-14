@@ -77,6 +77,12 @@ These are read from process env at runtime (not from <abbr title="Key-Value">KV<
 | `SHUMA_EVENT_LOG_RETENTION_HOURS` | Yes | `168` | Requested raw event retention window in hours. High-risk raw event retention is capped to `72` hours in operator telemetry surfaces even when this value is higher; set `0` to disable cleanup entirely. |
 | `SHUMA_MONITORING_RETENTION_HOURS` | Yes | `168` | Retention window in hours for operational monitoring counters and hourly bucket indexes. |
 | `SHUMA_MONITORING_ROLLUP_RETENTION_HOURS` | Yes | `720` | Retention window in hours for derived daily monitoring rollups used by longer-window summary reads. |
+
+Post-compaction retention rebaseline note:
+
+- the 2026-03-14 live review kept these defaults unchanged.
+- compact event rows materially reduced raw challenge-row size, but the measured retained footprint on the live shared-host sample is still dominated by hot-read documents and retention metadata rather than raw event rows.
+- because of that, the project does not currently justify lengthening raw retention or shortening summary windows based on compaction alone.
 | `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` | Yes | `true` | Enables/disables admin config writes to <abbr title="Key-Value">KV</abbr> (`POST /admin/config`). Set `false` when an operator explicitly wants read-only admin config in a deployment. |
 | `SHUMA_KV_STORE_FAIL_OPEN` | Yes | `true` | <abbr title="Key-Value">KV</abbr> failure policy (`true` fail-open, `false` fail-closed). |
 | `SHUMA_ENFORCE_HTTPS` | Yes | `false` | Rejects non-<abbr title="Hypertext Transfer Protocol Secure">HTTPS</abbr> requests when `true` (proxy/header trust rules still apply). |

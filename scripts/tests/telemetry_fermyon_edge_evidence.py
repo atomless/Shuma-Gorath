@@ -20,6 +20,7 @@ if str(REPO_ROOT) not in sys.path:
 from scripts.deploy.local_env import read_env_file
 from scripts.tests.telemetry_evidence_common import (
     evaluate_budget_report as evaluate_budget_report_common,
+    summarize_recent_event_rows,
     utc_now_iso,
 )
 
@@ -29,6 +30,7 @@ DEFAULT_REPORT_PATH = REPO_ROOT / ".spin" / "telemetry_fermyon_edge_evidence.jso
 DEFAULT_HOURS = 24
 DEFAULT_BOOTSTRAP_LIMIT = 10
 DEFAULT_DELTA_LIMIT = 40
+DEFAULT_FORENSIC_LIMIT = 40
 BOOTSTRAP_BUDGET_MS = 2000.0
 DELTA_BUDGET_MS = 750.0
 
@@ -66,6 +68,7 @@ def build_evidence_report(
     receipt: dict[str, Any],
     bootstrap_measurement: dict[str, Any],
     delta_measurement: dict[str, Any],
+    forensic_measurement: dict[str, Any],
 ) -> dict[str, Any]:
     budgets = evaluate_budget_report(
         bootstrap_measurement=bootstrap_measurement,
@@ -78,6 +81,12 @@ def build_evidence_report(
         .get("recent_events_window", {})
         .get("response_shaping_reason")
     )
+    forensic_events = (
+        forensic_measurement.get("payload", {})
+        .get("details", {})
+        .get("events", {})
+        .get("recent_events", [])
+    )
     fermyon = receipt.get("fermyon", {})
     return {
         "captured_at_utc": utc_now_iso(),
@@ -89,6 +98,9 @@ def build_evidence_report(
             "git_head": receipt.get("git_head"),
         },
         "budgets": budgets,
+        "recent_event_sample": summarize_recent_event_rows(
+            forensic_events if isinstance(forensic_events, list) else []
+        ),
         "payloads": {
             "monitoring_bootstrap": {
                 "status": bootstrap_measurement.get("status"),
@@ -172,10 +184,14 @@ class TelemetryFermyonEdgeEvidence:
         delta_measurement = self.measure_json_endpoint(
             f"/admin/monitoring/delta?hours={self.hours}&limit={DEFAULT_DELTA_LIMIT}"
         )
+        forensic_measurement = self.measure_json_endpoint(
+            f"/admin/monitoring?hours={self.hours}&limit={DEFAULT_FORENSIC_LIMIT}&bootstrap=1&forensic=1"
+        )
         report = build_evidence_report(
             receipt=self.receipt,
             bootstrap_measurement=bootstrap_measurement,
             delta_measurement=delta_measurement,
+            forensic_measurement=forensic_measurement,
         )
         if not report["budgets"]["bootstrap_within_budget"] or not report["budgets"]["delta_within_budget"]:
             raise EvidenceFailure(
