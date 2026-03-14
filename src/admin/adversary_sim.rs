@@ -859,11 +859,11 @@ const FULL_SUPPLEMENTAL_LANES: [SupplementalLane; 7] = [
 ];
 // Fermyon Wasm Functions cap request handlers at 30s, so edge beats need a smaller
 // per-invocation envelope than the shared-server runtime toggle uses.
-const EDGE_FERMYON_PRIMARY_REQUESTS_PER_TICK: usize = 4;
-const EDGE_FERMYON_SUPPLEMENTAL_LANES_PER_TICK: usize = 2;
-const EDGE_FERMYON_RATE_BURST_LOW: u64 = 2;
-const EDGE_FERMYON_RATE_BURST_MEDIUM: u64 = 4;
-const EDGE_FERMYON_RATE_BURST_HIGH: u64 = 6;
+const EDGE_FERMYON_PRIMARY_REQUESTS_PER_TICK: usize = 2;
+const EDGE_FERMYON_SUPPLEMENTAL_LANES_PER_TICK: usize = 1;
+const EDGE_FERMYON_RATE_BURST_LOW: u64 = 1;
+const EDGE_FERMYON_RATE_BURST_MEDIUM: u64 = 2;
+const EDGE_FERMYON_RATE_BURST_HIGH: u64 = 3;
 
 fn primary_request_budget_for_profile(profile: crate::config::GatewayDeploymentProfile) -> usize {
     match profile {
@@ -1935,28 +1935,28 @@ mod tests {
                 crate::config::GatewayDeploymentProfile::EdgeFermyon,
                 0,
             ),
-            12
+            6
         );
         assert_eq!(
             deterministic_generated_request_target_for_profile(
                 crate::config::GatewayDeploymentProfile::EdgeFermyon,
                 1,
             ),
-            8
+            4
         );
         assert_eq!(
             deterministic_generated_request_target_for_profile(
                 crate::config::GatewayDeploymentProfile::EdgeFermyon,
                 3,
             ),
-            10
+            5
         );
     }
 
     #[test]
     fn edge_fermyon_supplemental_lane_rotation_covers_full_contract() {
         let mut observed = std::collections::BTreeSet::new();
-        for tick in 0..4 {
+        for tick in 0..FULL_SUPPLEMENTAL_LANES.len() as u64 {
             for lane in supplemental_lanes_for_profile(
                 crate::config::GatewayDeploymentProfile::EdgeFermyon,
                 tick,
