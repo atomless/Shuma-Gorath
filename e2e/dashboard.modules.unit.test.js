@@ -4152,9 +4152,11 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.equal(source.includes('adversary-sim-progress-line'), false);
   assert.equal(source.includes('id="admin-msg"'), false);
   assert.equal(source.includes('setAdminMessage('), false);
-  assert.match(source, /readPaneNotice\('red-team'\)\.text/);
-  assert.match(source, /readPaneNotice\('ip-bans'\)\.text/);
-  assert.match(source, /noticeText=\{readPaneNotice\('verification'\)\.text\}/);
+  assert.match(source, /paneNoticeValues = DASHBOARD_TABS\.reduce\(/);
+  assert.match(source, /const notice = paneNotices\[tab\];/);
+  assert.match(source, /noticeText=\{paneNoticeValues\['red-team'\]\?\.text \|\| ''\}/);
+  assert.match(source, /noticeText=\{paneNoticeValues\['ip-bans'\]\?\.text \|\| ''\}/);
+  assert.match(source, /noticeText=\{paneNoticeValues\.verification\?\.text \|\| ''\}/);
 });
 
 test('dashboard monitoring runtime keeps edge-fermyon on bounded monitoring hydration', () => {

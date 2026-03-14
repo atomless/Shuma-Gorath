@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-14)
 
+### Dashboard CI Repair: Restore Reactive Red Team Pane Notice Projection
+
+- [x] Repair the `main` CI regression where the Red Team no-frontier cancel path raised the confirmation dialog but failed to surface the follow-up operator warning in the tab notice area.
+- [x] Why:
+  - the route had been refactored from an explicit reactive `paneNoticeValues` projection into inline `readPaneNotice(...)` calls in markup.
+  - that looked equivalent in source, but it removed the template's direct reactive dependency on `paneNotices`, so the managed Red Team tab could miss notice prop updates even though `setPaneNotice(...)` ran.
+  - GitHub Actions caught the real consequence in the dashboard smoke lane: the no-frontier cancel flow showed the confirm dialog and still left `[data-tab-notice="red-team"]` empty.
+  - this completion restores the explicit reactive projection and adds a dashboard unit contract that pins the route to that dependency-safe pattern so the regression cannot silently re-enter.
+- [x] Evidence:
+  - `dashboard/src/routes/+page.svelte`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+  - `make test`
+
 ### Runtime Surface Gate Stabilization: Separate JS-Required Proof From Geo Preemption
 
 - [x] Stabilize the runtime-toggle adversary-sim surface gate so it deterministically proves `js_required` under the compact telemetry shape instead of depending on a single mixed profile where geo and not-a-bot precedence can preempt `JsChallengeRequired`.
