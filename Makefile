@@ -1292,7 +1292,6 @@ test-dashboard-e2e-external: ## Run focused live dashboard smoke against an alre
 	@if [ ! -d node_modules/.pnpm ] || [ ! -x node_modules/.bin/vite ] || [ ! -x node_modules/.bin/svelte-check ] || [ ! -d node_modules/svelte ] || [ ! -d node_modules/@sveltejs/kit ] || [ ! -d node_modules/@playwright/test ]; then \
 		corepack pnpm install --offline --frozen-lockfile || corepack pnpm install --frozen-lockfile; \
 	fi
-	@$(MAKE) --no-print-directory test-dashboard-unit || exit 1
 	@corepack pnpm exec node ./scripts/tests/dashboard_external_live_smoke.mjs $(PLAYWRIGHT_ARGS)
 
 seed-dashboard-data: ## Seed dashboard sample records for local monitoring UI validation (requires running server)

@@ -1,5 +1,6 @@
 import unittest
 from pathlib import Path
+import re
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -17,6 +18,18 @@ class DeployProfileBaselineTests(unittest.TestCase):
         source = MAKEFILE.read_text(encoding="utf-8")
         self.assertIn("FERMYON_AKAMAI_RENDERED_MANIFEST ?= spin.fermyon-akamai-edge.toml", source)
         self.assertNotIn("FERMYON_AKAMAI_RENDERED_MANIFEST ?= $(SHUMA_LOCAL_STATE_DIR)/manifests/fermyon-akamai-edge.spin.toml", source)
+
+    def test_external_dashboard_live_smoke_target_stays_focused_on_hosted_deployments(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-dashboard-e2e-external:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("dashboard_external_live_smoke.mjs", body)
+        self.assertNotIn("test-dashboard-unit", body)
 
 
 if __name__ == "__main__":
