@@ -92,7 +92,16 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
         }
         keyspace_summary = {
             "default_store_total_keys": 400,
-            "domains": {},
+            "domains": {
+                "monitoring": {"keys_per_hour": [{"hour": 100, "key_count": 2}]},
+                "monitoring_rollup": {"keys_per_hour": [{"day_start_hour": 72, "key_count": 1}]},
+                "eventlog": {
+                    "keys_per_hour": [
+                        {"hour": 99, "key_count": 2},
+                        {"hour": 100, "key_count": 1},
+                    ]
+                },
+            },
             "telemetry_adjacent": {},
         }
         snapshot_measurement = {
@@ -163,6 +172,23 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
                     "bootstrap_document_bytes": 4096,
                     "recent_events_tail_document_bytes": 2048,
                 },
+                "retained_value_bytes": {
+                    "domains": {
+                        "monitoring": 640,
+                        "monitoring_rollup": 320,
+                        "eventlog": 768,
+                    },
+                    "retention_bucket_indexes": {
+                        "monitoring": 96,
+                        "monitoring_rollup": 48,
+                        "eventlog": 128,
+                    },
+                    "retention_catalogs": {
+                        "monitoring": 32,
+                        "monitoring_rollup": 16,
+                        "eventlog": 24,
+                    },
+                },
             },
             bootstrap_measurement=snapshot_measurement,
             bootstrap_gzip_measurement=snapshot_gzip_measurement,
@@ -178,6 +204,16 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
         self.assertEqual(
             report["storage"]["hot_read_documents"]["recent_events_tail_document_bytes"], 2048
         )
+        self.assertEqual(
+            report["storage_pressure"]["domains"]["eventlog"],
+            {
+                "total_value_bytes": 768,
+                "active_windows": 2,
+                "bytes_per_active_window": 384.0,
+            },
+        )
+        self.assertEqual(report["storage_pressure"]["hot_read_documents_total_value_bytes"], 6144)
+        self.assertEqual(report["storage_pressure"]["telemetry_total_value_bytes"], 8216)
         self.assertEqual(report["payloads"]["monitoring_bootstrap"]["response_bytes"], 12000)
         self.assertEqual(report["payloads"]["monitoring_bootstrap_gzip"]["response_bytes"], 4000)
         self.assertEqual(
@@ -239,7 +275,15 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
             with patch.object(
                 collector,
                 "collect_remote_keyspace_summary",
-                return_value={"default_store_total_keys": 3, "domains": {}, "telemetry_adjacent": {}},
+                return_value={
+                    "default_store_total_keys": 3,
+                    "domains": {
+                        "monitoring": {"keys_per_hour": []},
+                        "monitoring_rollup": {"keys_per_hour": []},
+                        "eventlog": {"keys_per_hour": [{"hour": 1, "key_count": 1}]},
+                    },
+                    "telemetry_adjacent": {},
+                },
             ), patch.object(
                 collector,
                 "collect_remote_storage_samples",
@@ -261,6 +305,23 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
                     "hot_read_documents": {
                         "bootstrap_document_bytes": 5120,
                         "recent_events_tail_document_bytes": 2048,
+                    },
+                    "retained_value_bytes": {
+                        "domains": {
+                            "monitoring": 0,
+                            "monitoring_rollup": 0,
+                            "eventlog": 144,
+                        },
+                        "retention_bucket_indexes": {
+                            "monitoring": 0,
+                            "monitoring_rollup": 0,
+                            "eventlog": 64,
+                        },
+                        "retention_catalogs": {
+                            "monitoring": 0,
+                            "monitoring_rollup": 0,
+                            "eventlog": 16,
+                        },
                     },
                 },
             ), patch.object(
@@ -321,6 +382,9 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
             self.assertEqual(persisted["remote"]["base_url"], "https://shuma.example.com")
             self.assertEqual(
                 persisted["storage"]["hot_read_documents"]["recent_events_tail_document_bytes"], 2048
+            )
+            self.assertEqual(
+                persisted["storage_pressure"]["domains"]["eventlog"]["bytes_per_active_window"], 144.0
             )
             self.assertEqual(
                 measure_json_endpoint.call_args_list[0].args[0],

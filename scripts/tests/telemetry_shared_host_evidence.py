@@ -233,6 +233,47 @@ def build_evidence_report(
         bootstrap_measurement=bootstrap_measurement,
         delta_measurement=delta_measurement,
     )
+    retained_value_bytes = storage_samples.get("retained_value_bytes", {})
+    retained_domains = retained_value_bytes.get("domains", {}) if isinstance(retained_value_bytes, dict) else {}
+    keyspace_domains = keyspace_summary.get("domains", {}) if isinstance(keyspace_summary, dict) else {}
+
+    retained_value_pressure = {"domains": {}}
+    for domain in ("monitoring", "monitoring_rollup", "eventlog"):
+        domain_summary = keyspace_domains.get(domain, {}) if isinstance(keyspace_domains, dict) else {}
+        active_windows = len(domain_summary.get("keys_per_hour", []) or domain_summary.get("keys_per_day_start_hour", []))
+        total_value_bytes = retained_domains.get(domain)
+        bytes_per_active_window = None
+        if isinstance(total_value_bytes, int) and active_windows > 0:
+            bytes_per_active_window = round(total_value_bytes / active_windows, 2)
+        retained_value_pressure["domains"][domain] = {
+            "total_value_bytes": total_value_bytes,
+            "active_windows": active_windows,
+            "bytes_per_active_window": bytes_per_active_window,
+        }
+
+    hot_read_documents = storage_samples.get("hot_read_documents", {})
+    hot_read_total_value_bytes = sum(
+        int(value)
+        for value in hot_read_documents.values()
+        if isinstance(value, int)
+    )
+    retained_value_pressure["retention_bucket_indexes"] = retained_value_bytes.get("retention_bucket_indexes", {})
+    retained_value_pressure["retention_catalogs"] = retained_value_bytes.get("retention_catalogs", {})
+    retained_value_pressure["hot_read_documents_total_value_bytes"] = hot_read_total_value_bytes
+    retained_value_pressure["telemetry_total_value_bytes"] = (
+        sum(int(value) for value in retained_domains.values() if isinstance(value, int))
+        + sum(
+            int(value)
+            for value in retained_value_bytes.get("retention_bucket_indexes", {}).values()
+            if isinstance(value, int)
+        )
+        + sum(
+            int(value)
+            for value in retained_value_bytes.get("retention_catalogs", {}).values()
+            if isinstance(value, int)
+        )
+        + hot_read_total_value_bytes
+    )
 
     return {
         "captured_at_utc": utc_now_iso(),
@@ -244,6 +285,7 @@ def build_evidence_report(
         },
         "keyspace": keyspace_summary,
         "storage": storage_samples,
+        "storage_pressure": retained_value_pressure,
         "retention_health": retention_health,
         "budgets": budgets,
         "query_cost": {
@@ -431,6 +473,13 @@ def row_length(key):
     ).fetchone()
     return int(row[0]) if row and row[0] is not None else None
 
+def prefix_total_bytes(prefix):
+    row = cur.execute(
+        "SELECT COALESCE(SUM(length(value)), 0) FROM spin_key_value WHERE store = 'default' AND key LIKE ?",
+        (f"{prefix}%",),
+    ).fetchone()
+    return int(row[0] or 0)
+
 event_rows = []
 for key, value in cur.execute(
     "SELECT key, value FROM spin_key_value WHERE store = 'default' AND key LIKE 'eventlog:v2:%' ORDER BY key DESC LIMIT 10"
@@ -460,6 +509,23 @@ summary = {
     "hot_read_documents": {
         "bootstrap_document_bytes": row_length(BOOTSTRAP_KEY),
         "recent_events_tail_document_bytes": row_length(RECENT_TAIL_KEY),
+    },
+    "retained_value_bytes": {
+        "domains": {
+            "monitoring": prefix_total_bytes("monitoring:v1:"),
+            "monitoring_rollup": prefix_total_bytes("monitoring_rollup:v1:"),
+            "eventlog": prefix_total_bytes("eventlog:v2:"),
+        },
+        "retention_bucket_indexes": {
+            "monitoring": prefix_total_bytes("telemetry:retention:v1:bucket:monitoring:"),
+            "monitoring_rollup": prefix_total_bytes("telemetry:retention:v1:bucket:monitoring_rollup:"),
+            "eventlog": prefix_total_bytes("telemetry:retention:v1:bucket:eventlog:"),
+        },
+        "retention_catalogs": {
+            "monitoring": row_length("telemetry:retention:v1:catalog:monitoring") or 0,
+            "monitoring_rollup": row_length("telemetry:retention:v1:catalog:monitoring_rollup") or 0,
+            "eventlog": row_length("telemetry:retention:v1:catalog:eventlog") or 0,
+        },
     },
 }
 print(json.dumps(summary))
