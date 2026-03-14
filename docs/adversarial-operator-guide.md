@@ -547,7 +547,7 @@ Common SIM-v2 checks and expected operator response:
 
 ## Dashboard Toggle Orchestration (SIM-V2-9A)
 
-The dashboard `Adversary Sim` global toggle is the only supported UI control path for dev orchestration lifecycle.
+The dashboard `Red Team` toggle is the only supported UI control path for dev orchestration lifecycle.
 
 Control-plane endpoints:
 
@@ -558,7 +558,7 @@ Control-plane endpoints:
 Mandatory lifecycle incident reference:
 
 1. [`docs/research/2026-03-02-adversary-toggle-incident-report-and-lifecycle-invariants.md`](./research/2026-03-02-adversary-toggle-incident-report-and-lifecycle-invariants.md)
-2. Before merging SIM tranche changes, run `make test-adversary-sim-lifecycle`.
+2. Before merging SIM tranche changes, run both `make test-adversary-sim-lifecycle` and `make test-adversary-sim-runtime-surface`.
 
 Lifecycle semantics:
 
@@ -642,6 +642,8 @@ Security/privacy troubleshooting and incident response:
 
 - Operators must verify runtime saturation before relaxing latency limits.
 - Operators must not widen thresholds by more than 20% in one change.
+- For fixture-driven `edge_fixture` scenarios (currently the Akamai profile), interpret latency from explicit request timing plus modeled think/retry time, not incidental runner wall-clock outside the simulated traffic model.
+- If CI host jitter is suspected, compare the scenario/request latency evidence first; do not relax thresholds solely because a runner was briefly descheduled.
 
 ### `ratio_*` Failure
 

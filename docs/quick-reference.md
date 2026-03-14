@@ -75,7 +75,7 @@ Notes:
 ### 🐙 Testing
 ```bash
 # All tests (recommended)
-make test                  # Full suite: unit + integration + dashboard e2e (requires existing make dev server)
+make test                  # Full suite: unit + maze benchmark + integration + adversary runtime-surface + fast adversarial matrix + SIM2 advisory gates + dashboard e2e (requires existing make dev server)
 
 # Unit tests only (native Rust, NO Spin required)
 make test-unit             # Run all unit tests
@@ -87,6 +87,8 @@ make test-dashboard-unit   # Run dashboard JS/module contract tests
 # Integration tests only (Spin environment required)
 make dev                   # In terminal 1
 make test-integration      # In terminal 2
+make test-adversarial-fast               # Fast smoke + abuse + Akamai matrix
+make test-adversarial-akamai             # Local Akamai fixture profile (no live edge required)
 make test-gateway-profile-shared-server # Shared-server gateway verification
 make test-gateway-profile-edge          # Edge/Fermyon gateway verification
 make smoke-gateway-mode                 # Fast gateway smoke checks
@@ -106,6 +108,7 @@ make dev                   # In terminal 1
 make test-dashboard-e2e    # In terminal 2
 ```
 **Important:** Unit tests run in native Rust. Integration and dashboard e2e tests MUST run against a running Spin server; test targets do not start Spin.
+`make test-adversarial-akamai` and `make test-adversarial-fast` use local canned edge payloads; use `make test-fermyon-edge-signal-smoke` for live Fermyon/Akamai proof.
 `make clean` removes reproducible build/test artifacts only. Use `make reset-local-state` when you intentionally want to wipe `.spin` runtime/test state without deleting durable operator artifacts under `.shuma`.
 
 ## 🐙 <abbr title="Application Programming Interface">API</abbr> Endpoints

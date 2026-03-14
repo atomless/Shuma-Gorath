@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-14)
 
+### Mainline Merge Closure, CI Stabilization, and Verification-Docs Truthfulness
+
+- [x] Merge the validated `codex/*` work onto `main`, fix the flaky Akamai adversarial latency accounting on `main`, and refresh the testing/operator docs so they describe the real verification contract and the fixture-vs-live edge distinction truthfully.
+- [x] Why:
+  - the merge tranche was not actually complete until `main` itself was green end to end locally and on GitHub, and the Akamai adversarial lane was still carrying a CI-only failure mode where coarse runner wall-clock could exceed the latency budget even when request-level evidence was healthy.
+  - the fix moved `edge_fixture` latency accounting onto explicit request latency plus modeled think/retry time, which matches what the scenario is intended to measure and prevents incidental runner descheduling from masquerading as a product regression.
+  - the accompanying docs audit corrected the user/operator surface that had drifted from reality: `make test` scope had grown beyond the old summaries, `make test-adversarial-akamai` is a local fixture proof rather than a live edge proof, and the dashboard/operator wording needed to align with the `Red Team` control path.
+  - closing the merge responsibly also meant cleaning up merged remote/local topic branches while leaving the user’s still-dirty root worktree untouched.
+- [x] Evidence:
+  - `scripts/tests/adversarial_simulation_runner.py`
+  - `scripts/tests/test_adversarial_simulation_runner.py`
+  - `docs/testing.md`
+  - `docs/adversarial-operator-guide.md`
+  - `docs/quick-reference.md`
+  - `make test-adversarial-python-unit`
+  - `make test-adversarial-akamai`
+  - `make test`
+  - `gh run list -R atomless/Shuma-Gorath --commit 49016ab3b5faf944fe1d3a7c58bd3d928a8ae0cd --limit 10 --json databaseId,workflowName,status,conclusion,url`
+
 ### Documentation Audit and Architecture-Review Backlog Refresh
 
 - [x] Audit the dashboard/adversary-sim docs against current `main`, add the missing `Red Team` tab guide, and convert the code-review findings from this pass into execution-ready TODO items instead of leaving them as ephemeral notes.

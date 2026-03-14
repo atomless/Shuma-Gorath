@@ -3,7 +3,7 @@
 ## 🐙 Quick Commands (Official)
 
 ```bash
-make test             # Full umbrella suite: unit + maze benchmark + Spin integration + mandatory fast adversarial matrix + dashboard e2e
+make test             # Full umbrella suite: unit + maze benchmark + Spin integration + adversary runtime-surface gate + mandatory fast adversarial matrix + SIM2 advisory gates + dashboard e2e
 make test-unit        # Unit tests only (native Rust)
 make unit-test        # alias for make test-unit
 make test-maze-benchmark # Deterministic maze asymmetry benchmark gate
@@ -53,7 +53,7 @@ Notes:
 - Integration tests require a running Spin server; targeted integration-only commands can run against `make dev` or `make dev-prod`, but the full umbrella `make test` contract requires `make dev` (`runtime-dev`).
 - `make test`, `make test-integration`, and `make test-dashboard-e2e` wait for `/health` readiness before failing.
 - `make test` now also checks `/admin/session` and fails fast if the running server is `runtime-prod`, because the full adversarial/dashboard contract is defined against `make dev`.
-- `make test` includes maze asymmetry benchmark gating, the mandatory fast adversarial matrix (`smoke + abuse + Akamai`), SIM2 realtime gates, and Playwright dashboard e2e. If Docker is unavailable, the container black-box lane degrades to the advisory SIM2 verification matrix path instead of hard-failing the umbrella run.
+- `make test` includes maze asymmetry benchmark gating, the adversary runtime-surface gate, the mandatory fast adversarial matrix (`smoke + abuse + Akamai`), SIM2 realtime/advisory gates, and Playwright dashboard e2e. If Docker is unavailable, the container black-box lane degrades to the advisory SIM2 verification matrix path instead of hard-failing the umbrella run.
 - The container black-box runner chooses its own Docker reachability mode for loopback-hosted Spin instances: bridge + `host.docker.internal` on non-Linux hosts, and host-network mode on Linux when the target base URL is loopback-only. This keeps `make dev` bound to `127.0.0.1` while preserving container reachability in CI.
 - Gateway profile gates are explicit and runnable independently:
   - `make test-gateway-profile-shared-server`
@@ -164,6 +164,8 @@ Available profiles:
 - `make test-adversarial-smoke` - mandatory fast smoke gate (`SIM-T0`..`SIM-T4`)
 - `make test-adversarial-abuse` - mandatory replay/stale/order-cadence abuse regressions
 - `make test-adversarial-akamai` - mandatory Akamai signal fixture coverage
+  - this lane is local and fixture-driven (`/fingerprint-report` with canned payloads), not a live edge proof
+  - `edge_fixture` scenario latency uses explicit request latency plus modeled think/retry time, so incidental runner scheduling stalls do not masquerade as product regressions
 - `make test-adversarial-coverage` - expanded coverage contract profile (`full_coverage`) including PoW success/failure, puzzle-failure fallback, replay-to-tarpit bootstrap abuse, CDP deny path, rate-limit enforcement, and GEO block coverage
   - includes defense no-op detector checks (`coverage_gates.defense_noop_checks`) that fail when targeted defenses emit zero telemetry deltas
 - PR CI and release-gate workflows use this target for strict deterministic coverage proof; routine `make test` remains on the fast/advisory path.
