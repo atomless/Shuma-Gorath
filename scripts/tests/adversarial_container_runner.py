@@ -16,6 +16,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -270,24 +271,46 @@ def orchestrator_reset_hook(base_url: str, api_key: str, forwarded_secret: str) 
             "performed": False,
             "reason": "missing_api_key",
         }
-    config_url = base_url.rstrip("/") + "/admin/config"
-    payload = {
-        "test_mode": False,
-        "adversary_sim_enabled": False,
-    }
-    body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-    request = urllib.request.Request(config_url, method="POST", data=body)
-    request.add_header("Authorization", f"Bearer {api_key}")
-    request.add_header("Content-Type", "application/json")
-    if forwarded_secret:
-        request.add_header("X-Shuma-Forwarded-Secret", forwarded_secret)
     try:
-        with urllib.request.urlopen(request, timeout=10.0) as response:
-            return {
-                "hook": "orchestrator_reset",
-                "performed": response.status == 200,
-                "status": response.status,
-            }
+        config_reset = admin_write_json(
+            base_url,
+            api_key,
+            forwarded_secret,
+            "/admin/config",
+            {"test_mode": False},
+        )
+        control_reset = admin_write_json(
+            base_url,
+            api_key,
+            forwarded_secret,
+            "/admin/adversary-sim/control",
+            {"enabled": False, "reason": "container_blackbox_reset"},
+            extra_headers={
+                "Idempotency-Key": str(uuid.uuid4()),
+                "Origin": target_origin(base_url),
+                "Sec-Fetch-Site": "same-origin",
+            },
+        )
+        performed = config_reset.get("status") == 200 and control_reset.get("status") == 200
+        result = {
+            "hook": "orchestrator_reset",
+            "performed": performed,
+            "status": int(control_reset.get("status") or config_reset.get("status") or 0),
+            "config_reset": {
+                "performed": config_reset.get("status") == 200,
+                "status": int(config_reset.get("status") or 0),
+            },
+            "control_reset": {
+                "performed": control_reset.get("status") == 200,
+                "status": int(control_reset.get("status") or 0),
+            },
+        }
+        if not performed:
+            if config_reset.get("status") != 200:
+                result["error"] = f"config_reset_http_{config_reset.get('status')}"
+            elif control_reset.get("status") != 200:
+                result["error"] = f"control_reset_http_{control_reset.get('status')}"
+        return result
     except urllib.error.HTTPError as exc:
         return {
             "hook": "orchestrator_reset",
@@ -574,6 +597,44 @@ def admin_read_json(
     if not isinstance(payload, dict):
         raise RuntimeError(f"admin read {path} did not return JSON object")
     return payload
+
+
+def admin_write_json(
+    base_url: str,
+    api_key: str,
+    forwarded_secret: str,
+    path: str,
+    payload: Dict[str, Any],
+    *,
+    extra_headers: Dict[str, str] | None = None,
+) -> Dict[str, Any]:
+    if not api_key:
+        raise RuntimeError("missing_api_key")
+    url = base_url.rstrip("/") + path
+    body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    request = urllib.request.Request(url, method="POST", data=body)
+    request.add_header("Authorization", f"Bearer {api_key}")
+    request.add_header("Content-Type", "application/json")
+    if forwarded_secret:
+        request.add_header("X-Shuma-Forwarded-Secret", forwarded_secret)
+    for key, value in dict(extra_headers or {}).items():
+        header = str(key).strip()
+        header_value = str(value).strip()
+        if not header or not header_value:
+            continue
+        request.add_header(header, header_value)
+    try:
+        with urllib.request.urlopen(request, timeout=10.0) as response:
+            status = int(getattr(response, "status", 0) or 0)
+            text = response.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as exc:
+        status = int(exc.code)
+        text = exc.read().decode("utf-8", errors="replace")
+    try:
+        parsed = json.loads(text) if text else {}
+    except json.JSONDecodeError:
+        parsed = {}
+    return {"status": status, "body": parsed, "raw": text}
 
 
 def collect_run_events_from_payload(payload: Dict[str, Any], run_id: str) -> List[Dict[str, Any]]:

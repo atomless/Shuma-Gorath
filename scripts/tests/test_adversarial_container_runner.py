@@ -6,6 +6,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import scripts.tests.adversarial_container_runner as container_runner
 from scripts.tests.frontier_action_contract import (
@@ -45,6 +46,70 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
     def test_target_origin_returns_scheme_and_netloc(self):
         origin = container_runner.target_origin("https://example.com:8443/path?q=1")
         self.assertEqual(origin, "https://example.com:8443")
+
+    def test_orchestrator_reset_hook_uses_control_endpoint_for_sim_disable(self):
+        requests = []
+
+        class FakeResponse:
+            def __init__(self, status: int):
+                self.status = status
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self) -> bytes:
+                return b"{}"
+
+        def fake_urlopen(request, timeout=0):
+            requests.append(
+                {
+                    "url": request.full_url,
+                    "method": request.get_method(),
+                    "headers": {key.lower(): value for key, value in request.header_items()},
+                    "body": request.data.decode("utf-8") if request.data else "",
+                }
+            )
+            return FakeResponse(200)
+
+        with patch(
+            "scripts.tests.adversarial_container_runner.urllib.request.urlopen",
+            side_effect=fake_urlopen,
+        ):
+            result = container_runner.orchestrator_reset_hook(
+                "http://127.0.0.1:3000",
+                "test-api-key",
+                "forwarded-secret",
+            )
+
+        self.assertTrue(result["performed"])
+        self.assertEqual(len(requests), 2)
+
+        config_request, control_request = requests
+        self.assertEqual(config_request["url"], "http://127.0.0.1:3000/admin/config")
+        self.assertEqual(config_request["method"], "POST")
+        self.assertEqual(json.loads(config_request["body"]), {"test_mode": False})
+        self.assertNotIn("adversary_sim_enabled", config_request["body"])
+
+        self.assertEqual(
+            control_request["url"],
+            "http://127.0.0.1:3000/admin/adversary-sim/control",
+        )
+        self.assertEqual(control_request["method"], "POST")
+        self.assertEqual(
+            json.loads(control_request["body"]),
+            {"enabled": False, "reason": "container_blackbox_reset"},
+        )
+        self.assertEqual(control_request["headers"]["authorization"], "Bearer test-api-key")
+        self.assertEqual(
+            control_request["headers"]["x-shuma-forwarded-secret"],
+            "forwarded-secret",
+        )
+        self.assertEqual(control_request["headers"]["origin"], "http://127.0.0.1:3000")
+        self.assertEqual(control_request["headers"]["sec-fetch-site"], "same-origin")
+        self.assertTrue(control_request["headers"]["idempotency-key"])
 
     def test_build_sim_tag_envelopes_uses_unique_nonces(self):
         envelopes = container_runner.build_sim_tag_envelopes(

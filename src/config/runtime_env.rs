@@ -70,6 +70,7 @@ mod tests {
 
     #[test]
     fn runtime_var_prefers_process_env_over_spin_variable() {
+        let _lock = crate::test_support::lock_env();
         clear_test_spin_variables();
         std::env::set_var("SHUMA_API_KEY", "env-secret");
         set_test_spin_variable("SHUMA_API_KEY", "spin-secret");
@@ -83,6 +84,7 @@ mod tests {
 
     #[test]
     fn runtime_var_uses_spin_variable_when_env_is_missing() {
+        let _lock = crate::test_support::lock_env();
         clear_test_spin_variables();
         std::env::remove_var("SHUMA_API_KEY");
         set_test_spin_variable("SHUMA_API_KEY", "spin-secret");
@@ -95,6 +97,7 @@ mod tests {
 
     #[test]
     fn runtime_var_trimmed_optional_discards_blank_spin_variable_values() {
+        let _lock = crate::test_support::lock_env();
         clear_test_spin_variables();
         std::env::remove_var("SHUMA_API_KEY");
         set_test_spin_variable("SHUMA_API_KEY", "   ");
@@ -107,6 +110,7 @@ mod tests {
 
     #[test]
     fn runtime_var_does_not_attempt_spin_lookup_for_non_shuma_keys() {
+        let _lock = crate::test_support::lock_env();
         clear_test_spin_variables();
         std::env::remove_var("RUNTIME_INSTANCE_ID");
         set_test_spin_variable("RUNTIME_INSTANCE_ID", "ignored");
