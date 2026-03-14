@@ -21,15 +21,8 @@ fn ip_range_base_outcome(details: &crate::signals::ip_range_policy::MatchDetails
     )
 }
 
-fn botness_base_outcome(facts: &crate::runtime::request_facts::RequestFacts) -> String {
-    format!(
-        "score={} signals={} signal_states={} {} providers={}",
-        facts.botness_score,
-        facts.botness_summary,
-        facts.botness_state_summary,
-        facts.runtime_metadata_summary,
-        facts.provider_summary
-    )
+fn compact_botness_outcome(outcome_code: &str, score: u8) -> String {
+    format!("{outcome_code} score={score}")
 }
 
 pub(crate) fn plan_for_decision(
@@ -639,7 +632,6 @@ pub(crate) fn plan_for_decision(
         PolicyDecision::BotnessMaze { score, signal_ids } => {
             let policy_match =
                 resolve_policy_match(PolicyTransition::BotnessGateMaze(signal_ids.clone()));
-            let base_outcome = botness_base_outcome(facts);
             DecisionPlan {
                 intents: vec![EffectIntent::RecordPolicyMatch(
                     PolicyTransition::BotnessGateMaze(signal_ids.clone()),
@@ -647,15 +639,15 @@ pub(crate) fn plan_for_decision(
                 response: ResponseIntent::Maze {
                     entry_path: crate::maze::entry_path("botness-gate"),
                     event_reason: "botness_gate_maze".to_string(),
-                    event_outcome: policy_match.annotate_outcome(base_outcome.as_str()),
+                    event_outcome: policy_match
+                        .annotate_outcome(compact_botness_outcome("served", *score).as_str()),
                     botness_score: Some(*score),
                 },
             }
         }
-        PolicyDecision::BotnessNotABot { score: _, signal_ids } => {
+        PolicyDecision::BotnessNotABot { score, signal_ids } => {
             let policy_match =
                 resolve_policy_match(PolicyTransition::BotnessGateNotABot(signal_ids.clone()));
-            let base_outcome = botness_base_outcome(facts);
             DecisionPlan {
                 intents: vec![
                     EffectIntent::RecordPolicyMatch(PolicyTransition::BotnessGateNotABot(
@@ -673,16 +665,16 @@ pub(crate) fn plan_for_decision(
                     EffectIntent::LogEvent {
                         event: crate::admin::EventType::Challenge,
                         reason: "botness_gate_not_a_bot".to_string(),
-                        outcome: policy_match.annotate_outcome(base_outcome.as_str()),
+                        outcome: policy_match
+                            .annotate_outcome(compact_botness_outcome("served", *score).as_str()),
                     },
                 ],
                 response: ResponseIntent::NotABot,
             }
         }
-        PolicyDecision::BotnessChallenge { score: _, signal_ids } => {
+        PolicyDecision::BotnessChallenge { score, signal_ids } => {
             let policy_match =
                 resolve_policy_match(PolicyTransition::BotnessGateChallenge(signal_ids.clone()));
-            let base_outcome = botness_base_outcome(facts);
             DecisionPlan {
                 intents: vec![
                     EffectIntent::RecordPolicyMatch(PolicyTransition::BotnessGateChallenge(
@@ -699,7 +691,8 @@ pub(crate) fn plan_for_decision(
                     EffectIntent::LogEvent {
                         event: crate::admin::EventType::Challenge,
                         reason: "botness_gate_challenge".to_string(),
-                        outcome: policy_match.annotate_outcome(base_outcome.as_str()),
+                        outcome: policy_match
+                            .annotate_outcome(compact_botness_outcome("served", *score).as_str()),
                     },
                 ],
                 response: ResponseIntent::Challenge,
@@ -709,7 +702,6 @@ pub(crate) fn plan_for_decision(
             let policy_match = resolve_policy_match(PolicyTransition::ChallengeDisabledFallbackMaze(
                 signal_ids.clone(),
             ));
-            let base_outcome = botness_base_outcome(facts);
             DecisionPlan {
                 intents: vec![EffectIntent::RecordPolicyMatch(
                     PolicyTransition::ChallengeDisabledFallbackMaze(signal_ids.clone()),
@@ -718,17 +710,18 @@ pub(crate) fn plan_for_decision(
                     entry_path: crate::maze::entry_path("botness-challenge-fallback"),
                     event_reason: "botness_gate_challenge_disabled_fallback_maze".to_string(),
                     event_outcome: policy_match
-                        .annotate_outcome(format!("{} challenge_disabled", base_outcome).as_str()),
+                        .annotate_outcome(
+                            compact_botness_outcome("fallback_maze", *score).as_str(),
+                        ),
                     botness_score: Some(*score),
                 },
             }
         }
-        PolicyDecision::BotnessChallengeFallbackBlock { score: _, signal_ids } => {
+        PolicyDecision::BotnessChallengeFallbackBlock { score, signal_ids } => {
             let policy_match =
                 resolve_policy_match(PolicyTransition::ChallengeDisabledFallbackBlock(
                     signal_ids.clone(),
                 ));
-            let base_outcome = botness_base_outcome(facts);
             DecisionPlan {
                 intents: vec![
                     EffectIntent::RecordPolicyMatch(PolicyTransition::ChallengeDisabledFallbackBlock(
@@ -742,7 +735,7 @@ pub(crate) fn plan_for_decision(
                         event: crate::admin::EventType::Block,
                         reason: "botness_gate_challenge_disabled_fallback_block".to_string(),
                         outcome: policy_match.annotate_outcome(
-                            format!("{} challenge_disabled maze_disabled", base_outcome).as_str(),
+                            compact_botness_outcome("fallback_block", *score).as_str(),
                         ),
                     },
                 ],
@@ -764,7 +757,7 @@ pub(crate) fn plan_for_decision(
                     EffectIntent::LogEvent {
                         event: crate::admin::EventType::Challenge,
                         reason: "js_verification".to_string(),
-                        outcome: policy_match.annotate_outcome("js challenge"),
+                        outcome: policy_match.annotate_outcome("required"),
                     },
                 ],
                 response: ResponseIntent::JsChallenge,
@@ -1008,5 +1001,38 @@ mod tests {
         let observed = lines.join("\n");
         let expected = include_str!("plan_builder_characterization_snapshot.txt").trim();
         assert_eq!(observed, expected);
+    }
+
+    #[test]
+    fn botness_challenge_plan_avoids_verbose_blended_outcome_strings() {
+        let mut facts = facts();
+        facts.botness_score = 8;
+        facts.botness_summary = "js_required,rate_high".to_string();
+        facts.botness_state_summary = "js_required:active,rate_high:active".to_string();
+        facts.provider_summary = "challenge_engine:internal".to_string();
+
+        let decision = crate::runtime::policy_graph::PolicyDecision::BotnessChallenge {
+            score: 8,
+            signal_ids: vec![crate::runtime::policy_taxonomy::SignalId::GeoRisk],
+        };
+
+        let mut cfg = cfg();
+        cfg.challenge_puzzle_enabled = true;
+        cfg.challenge_puzzle_risk_threshold = 7;
+        cfg.botness_maze_threshold = 9;
+
+        let plan = plan_for_decision(&decision, &facts, &cfg);
+        let outcome = plan
+            .intents
+            .iter()
+            .find_map(|intent| match intent {
+                EffectIntent::LogEvent { outcome, .. } => Some(outcome.as_str()),
+                _ => None,
+            })
+            .expect("expected botness challenge log intent");
+
+        assert!(!outcome.contains("score=8 signals="));
+        assert!(!outcome.contains("signal_states="));
+        assert!(!outcome.contains("providers="));
     }
 }

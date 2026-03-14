@@ -776,6 +776,10 @@ test-test-mode-shadow: ## Run focused shadow-mode backend truthfulness checks
 test-telemetry-storage: ## Run focused telemetry storage/query verification for indexed reads, retention tiers, rollups, and shared-host evidence tooling
 	@echo "$(CYAN)🧪 Running telemetry storage/query verification...$(NC)"
 	@./scripts/set_crate_type.sh rlib
+	@cargo test runtime::effect_intents::plan_builder::tests::botness_challenge_plan_avoids_verbose_blended_outcome_strings -- --exact --nocapture
+	@cargo test admin::api::tests::log_event_omits_absent_optional_fields_in_persisted_row -- --exact --nocapture
+	@cargo test admin::api::tests::log_event_persists_structured_taxonomy_separately_from_outcome_text -- --exact --nocapture
+	@cargo test admin::api::tests::log_event_persists_compact_botness_outcome_fields_without_verbose_challenge_payload -- --exact --nocapture
 	@cargo test observability::monitoring::tests::summarize_uses_bucket_indexes_without_full_keyspace_scan -- --exact --nocapture
 	@cargo test observability::monitoring::tests::summarize_builds_and_reuses_day_rollups_for_complete_prior_days -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::admin_monitoring_delta_reads_bucket_indexes_without_keyspace_scan -- --exact --nocapture
@@ -802,6 +806,7 @@ test-telemetry-hot-read-projection: ## Run focused telemetry hot-read projection
 test-telemetry-hot-read-bootstrap: ## Run focused telemetry bootstrap hot-read consumption checks
 	@echo "$(CYAN)🧪 Running telemetry hot-read bootstrap checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
+	@cargo test admin::api::admin_config_tests::admin_monitoring_returns_compact_recent_event_shape_in_default_and_forensic_modes -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::admin_monitoring_bootstrap_prefers_materialized_hot_read_documents_without_keyspace_scan -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::admin_monitoring_edge_profile_bootstrap_prefers_hot_read_even_with_oversized_limit -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::admin_monitoring_delta_bootstrap_prefers_hot_read_tail_and_security_summary -- --exact --nocapture

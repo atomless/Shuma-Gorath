@@ -61,10 +61,22 @@ export const formatIpRangeReasonLabel = (reason) => {
     .replace(/\b[a-z]/g, (char) => char.toUpperCase());
 };
 
-export const parseIpRangeOutcome = (outcome) => {
+export const parseIpRangeOutcome = (outcome, taxonomy = null) => {
   const rawOutcome = normalizeTrimmed(outcome);
   const taxonomyMatch = /taxonomy\[([^\]]+)\]/i.exec(rawOutcome);
-  const taxonomyPairs = parseKeyValuePairs(taxonomyMatch ? taxonomyMatch[1] : '');
+  const taxonomyPairs = taxonomy && typeof taxonomy === 'object'
+    ? {
+      detection: normalizeTrimmed(taxonomy.detection),
+      level: normalizeTrimmed(taxonomy.level),
+      action: normalizeTrimmed(taxonomy.action),
+      signals: Array.isArray(taxonomy.signals)
+        ? taxonomy.signals
+          .map((signal) => normalizeTrimmed(signal))
+          .filter((signal) => signal.length > 0)
+          .join(',')
+        : ''
+    }
+    : parseKeyValuePairs(taxonomyMatch ? taxonomyMatch[1] : '');
   const outcomeWithoutTaxonomy = taxonomyMatch
     ? rawOutcome.replace(taxonomyMatch[0], '').trim()
     : rawOutcome;

@@ -11,10 +11,10 @@ use crate::observability::monitoring::MonitoringSummary;
 use crate::observability::retention::RetentionHealth;
 
 const HOT_READ_PREFIX: &str = "telemetry:hot_read:v1";
-const HOT_READ_BOOTSTRAP_SCHEMA_VERSION: &str = "telemetry-hot-read-bootstrap.v2";
+const HOT_READ_BOOTSTRAP_SCHEMA_VERSION: &str = "telemetry-hot-read-bootstrap.v3";
 const HOT_READ_RETENTION_SCHEMA_VERSION: &str = "telemetry-hot-read-retention.v1";
 const HOT_READ_SECURITY_PRIVACY_SCHEMA_VERSION: &str = "telemetry-hot-read-security-privacy.v1";
-const HOT_READ_RECENT_EVENTS_TAIL_SCHEMA_VERSION: &str = "telemetry-hot-read-recent-events.v2";
+const HOT_READ_RECENT_EVENTS_TAIL_SCHEMA_VERSION: &str = "telemetry-hot-read-recent-events.v3";
 const HOT_READ_MONITORING_SUMMARY_SCHEMA_VERSION: &str = "telemetry-hot-read-summary.v1";
 const HOT_READ_BOOTSTRAP_WINDOW_HOURS: u64 = 24;
 const HOT_READ_BOOTSTRAP_MAX_BYTES: usize = 64 * 1024;
@@ -342,7 +342,7 @@ mod tests {
     #[test]
     fn monitoring_bootstrap_contract_is_bounded_to_payload_budget() {
         let contract = monitoring_bootstrap_document_contract();
-        assert_eq!(contract.schema_version, "telemetry-hot-read-bootstrap.v1");
+        assert_eq!(contract.schema_version, "telemetry-hot-read-bootstrap.v3");
         assert_eq!(contract.max_serialized_bytes, 64 * 1024);
         assert_eq!(monitoring_bootstrap_window_hours(), 24);
         assert_eq!(monitoring_recent_events_tail_max_records(), 40);

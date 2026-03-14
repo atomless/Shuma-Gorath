@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-13
+Last updated: 2026-03-14
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -19,14 +19,6 @@ Reference context:
 - [`docs/plans/2026-03-12-test-mode-shadow-telemetry-monitoring-truthfulness-plan.md`](../docs/plans/2026-03-12-test-mode-shadow-telemetry-monitoring-truthfulness-plan.md)
 - [`docs/configuration.md`](../docs/configuration.md)
 - [`docs/testing.md`](../docs/testing.md)
-
-### TEL-EVT-1: Compact Event Telemetry and Raw-Feed Truthfulness
-- [ ] TEL-EVT-1-1 Define the compact persisted event schema as a strict evolution of the completed `TEL-HOT` architecture: separate canonical machine fields from display-derived fields, make rows sparse where semantically safe, document which fields must remain explicit instead of omitted, and forbid any new parallel telemetry storage/query path.
-- [ ] TEL-EVT-1-2 Replace verbose blended challenge outcome strings with a compact structured event contract that preserves analysis value without duplicating human-readable and machine-readable variants in storage, avoids per-event default provider/mode/state matrices unless a genuine non-default event deviation exists, and remains compatible with the existing hot-read bootstrap/delta path.
-- [ ] TEL-EVT-1-3 Make the dashboard Monitoring feed truthful: either expose a true raw persisted-event feed plus a rendered feed, or rename/reframe the current feed so it stops claiming to be raw, and keep any display-side hydration cheap enough that it does not erode the `TEL-HOT` latency gains or create duplicate heavyweight raw/rendered event objects.
-- [ ] TEL-EVT-1-4 Update hot-read document and monitoring bootstrap/delta paths so they use the compact event shape without regressing current latency budgets on Fermyon or shared-host targets, without reintroducing whole-keyspace scans or alternate hot-read storage paths, and without relying on schema-minification or reference-dictionary hydration tricks.
-- [ ] TEL-EVT-1-5 Extend live telemetry evidence to capture representative persisted-row bytes, recent-events-tail document bytes, and bootstrap payload bytes, and prove the compact event contract improves storage/payload weight while preserving analysis and dashboard usability; treat any regression in the current `TEL-HOT` live budget envelope as tranche-blocking and treat failure to achieve a material challenge-heavy sample size reduction as a review gate.
-- [ ] TEL-EVT-1-6 Once `TEL-EVT-1` lands with live size evidence, write the follow-on retention/lifecycle plan and active TODO tranche that re-evaluates raw event, summarized hot-read, and rollup retention windows in light of the new compact schema, preserving automatic purge/default-on lifecycle governance.
 
 ### SIM2-R4-4: Config Seeding Lifecycle and Test-Mode Semantics
 

@@ -3,6 +3,7 @@ use crate::challenge::KeyValueStore;
 
 #[test]
 fn ban_and_unban_refresh_hot_read_bootstrap_projection() {
+    let _lock = crate::test_support::lock_env();
     let store = crate::test_support::InMemoryStore::default();
     let site_id = "default";
     let ip = "203.0.113.77";
@@ -32,6 +33,7 @@ fn ban_and_unban_refresh_hot_read_bootstrap_projection() {
 
 #[test]
 fn test_ban_and_expiry() {
+    let _lock = crate::test_support::lock_env();
     let store = crate::test_support::InMemoryStore::default();
     let site_id = "testsite";
     let ip = "1.2.3.4";
@@ -41,6 +43,7 @@ fn test_ban_and_expiry() {
 
 #[test]
 fn test_ban_and_unban_unknown_ip() {
+    let _lock = crate::test_support::lock_env();
     let store = crate::test_support::InMemoryStore::default();
     let site_id = "testsite";
     let ip = "unknown";
@@ -52,6 +55,7 @@ fn test_ban_and_unban_unknown_ip() {
 
 #[test]
 fn test_unban_ip_function() {
+    let _lock = crate::test_support::lock_env();
     let store = crate::test_support::InMemoryStore::default();
     let site_id = "testsite";
     let ip = "192.168.1.100";
@@ -71,6 +75,7 @@ fn test_unban_ip_function() {
 
 #[test]
 fn test_unban_ip_nonexistent() {
+    let _lock = crate::test_support::lock_env();
     let store = crate::test_support::InMemoryStore::default();
     let site_id = "testsite";
     let ip = "10.0.0.1";
@@ -114,6 +119,7 @@ fn test_legacy_ban_entry_deserializes_with_defaults() {
 
 #[test]
 fn test_ban_metadata_is_sanitized_before_persist() {
+    let _lock = crate::test_support::lock_env();
     let store = crate::test_support::InMemoryStore::default();
     let site_id = "testsite";
     let ip = "198.51.100.10";

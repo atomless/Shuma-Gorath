@@ -2,7 +2,111 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-14)
+
+### TEL-EVT-1: Compact Event Telemetry and Raw-Feed Truthfulness
+
+- [x] TEL-EVT-1-2 Replace verbose blended challenge outcome strings with a compact structured event contract that preserves analysis value without duplicating human-readable and machine-readable variants in storage, avoids per-event default provider/mode/state matrices unless a genuine non-default event deviation exists, and remains compatible with the existing hot-read bootstrap/delta path.
+- [x] TEL-EVT-1-3 Make the dashboard Monitoring feed truthful: either expose a true raw persisted-event feed plus a rendered feed, or rename/reframe the current feed so it stops claiming to be raw, and keep any display-side hydration cheap enough that it does not erode the `TEL-HOT` latency gains or create duplicate heavyweight raw/rendered event objects.
+- [x] TEL-EVT-1-4 Update hot-read document and monitoring bootstrap/delta paths so they use the compact event shape without regressing current latency budgets on Fermyon or shared-host targets, without reintroducing whole-keyspace scans or alternate hot-read storage paths, and without relying on schema-minification or reference-dictionary hydration tricks.
+- [x] Why:
+  - botness-driven challenge and maze rows were still paying to store blended `score/signals/signal_states/providers` prose even though the canonical analysis value was the compact state, botness score, and taxonomy.
+  - the dashboard’s so-called raw feed was also serializing display-normalized rows rather than the persisted event shape, and the default monitoring path was still hiding `taxonomy` while reconstructing the legacy `outcome ... taxonomy[...]` string.
+  - this slice replaces those verbose producer strings with compact `outcome_code`/`botness_score` persistence, keeps default monitoring and hot-read bootstrap/delta on the same compact row shape as forensic mode, and makes the dashboard raw feed stringify the raw row instead of a derived display model.
+- [x] Evidence:
+  - `src/runtime/effect_intents/plan_builder.rs`
+  - `src/lib.rs`
+  - `src/admin/api.rs`
+  - `src/observability/hot_read_documents.rs`
+  - `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+  - `dashboard/src/lib/components/dashboard/monitoring-view-model.js`
+  - `dashboard/src/lib/domain/ip-range-policy.js`
+  - `dashboard/src/lib/components/dashboard/monitoring/RawTelemetryFeed.svelte`
+  - `docs/api.md`
+  - `docs/configuration.md`
+  - `Makefile`
+  - `make test-unit`
+  - `make test-dashboard-unit` (telemetry regressions green; one unrelated pre-existing progress-bar stylesheet failure remains)
+
+- [x] TEL-EVT-1-1 Define the compact persisted event schema as a strict evolution of the completed `TEL-HOT` architecture: separate canonical machine fields from display-derived fields, make rows sparse where semantically safe, document which fields must remain explicit instead of omitted, and forbid any new parallel telemetry storage/query path.
+- [x] Why:
+  - persisted `eventlog:v2` rows were still storing absent optionals as explicit `null` and were blending operator-readable outcome text together with machine taxonomy in a single `outcome` string.
+  - this slice keeps the existing event-log plus hot-read architecture intact while compacting the stored row: absent optionals are now omitted, canonical taxonomy is stored in a sparse structured `taxonomy` object, and default monitoring keeps the legacy rendered `outcome ... taxonomy[...]` shape only as a compatibility presentation layer.
+  - forensic/raw monitoring now exposes the compact split representation directly, which gives the next telemetry tranches a truthful machine-oriented base without introducing a second storage or query path.
+- [x] Evidence:
+  - `src/admin/api.rs`
+  - `src/runtime/policy_taxonomy.rs`
+  - `docs/api.md`
+  - `docs/configuration.md`
+  - `Makefile`
+  - `make test-telemetry-storage`
+  - `make test-telemetry-hot-read-bootstrap`
+
 ## Additional completions (2026-03-13)
+
+### Red Team adversary-sim duration progress bar
+
+- [x] Add a pane-local adversary-sim duration progress bar at the bottom of the `Red Team` control panel that grows across the backend-reported run window and snaps back to zero width when the operator turns the sim off.
+- [x] Why:
+  - the Red Team pane already had lifecycle text, but it did not visually communicate how far through the allowed sim window the current run had progressed.
+  - this slice keeps the change local to the Red Team pane and uses backend truth instead of inventing a browser-only timer: the dashboard now preserves `started_at`, `ends_at`, and `remaining_seconds` from the status payload, derives progress from that timing window, and only ticks the visual bar while the pane is visible.
+  - the progress fill reuses the existing striped dashboard accent background and stays inset within the shared config-panel padding so it reads as part of the pane rather than a separate chrome layer.
+- [x] Evidence:
+  - `dashboard/src/lib/runtime/dashboard-adversary-sim.js`
+  - `dashboard/src/lib/components/dashboard/RedTeamTab.svelte`
+  - `dashboard/src/routes/+page.svelte`
+  - `dashboard/style.css`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+
+### Dashboard pane-scoped feedback cleanup
+
+- [x] Remove the global bottom dashboard message bar and route only valuable feedback into the owning pane or control.
+- [x] Why:
+  - the old bottom bar was frequently off-screen and mixed unrelated save chatter, test-mode notices, adversary-sim warnings, and IP-ban actions into one global sink that was easy to miss and hard to trust.
+  - this slice keeps feedback close to the control surface that owns it: pane-local notices now render through the shared tab-state primitive, Red Team owns sim warnings/errors, IP Bans owns ban/unban errors, and config-save flows stop emitting generic success/progress noise.
+  - the redundant `Test mode disabled (blocking active)` message is gone because the page header already communicates test-mode state, while test-mode write failures still surface near that header control.
+- [x] Evidence:
+  - `dashboard/src/routes/+page.svelte`
+  - `dashboard/src/lib/components/dashboard/primitives/TabStateMessage.svelte`
+  - `dashboard/src/lib/components/dashboard/RedTeamTab.svelte`
+  - `dashboard/src/lib/components/dashboard/IpBansTab.svelte`
+  - `dashboard/src/lib/components/dashboard/VerificationTab.svelte`
+  - `dashboard/src/lib/components/dashboard/TrapsTab.svelte`
+  - `dashboard/src/lib/components/dashboard/RateLimitingTab.svelte`
+  - `dashboard/src/lib/components/dashboard/GeoTab.svelte`
+  - `dashboard/src/lib/components/dashboard/FingerprintingTab.svelte`
+  - `dashboard/src/lib/components/dashboard/RobotsTab.svelte`
+  - `dashboard/src/lib/components/dashboard/TuningTab.svelte`
+  - `dashboard/src/lib/components/dashboard/AdvancedTab.svelte`
+  - `dashboard/style.css`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+  - `make test-dashboard-unit`
+  - `make test-dashboard-e2e PLAYWRIGHT_ARGS='--grep "route remount preserves keyboard navigation, ban/unban, verification save, and polling"'`
+
+### Adversary-Sim Red Team tab and single-writer contract cleanup
+
+- [x] Move adversary-sim controls into a dedicated top-level `Red Team` dashboard tab, add a page-scoped debounced controller, separate immediate UI intent from backend truth, remove `adversary_sim_enabled` from writable Advanced JSON/admin config writes, and make `GET /admin/adversary-sim/status` read-only.
+- [x] Why:
+  - the existing adversary-sim flow had three conflicting authorities across config, status, and pending UI state, which made the toggle feel fast but unreliable and let the page root class disagree with backend lifecycle truth.
+  - this tranche tightened the architecture around one operator-facing control path, one read-only status path, and a dedicated controller that keeps the switch responsive without letting optimistic intent masquerade as backend state.
+  - the dashboard now renders the sim inside a dedicated `Red Team` tab, keeps the switch on the latest operator intent, keeps lifecycle copy/root classes tied to backend status, and removes stale helper/config surfaces that encoded the older multi-authority behavior.
+  - on the backend, `/admin/config` now rejects `adversary_sim_enabled` with explicit guidance to use `/admin/adversary-sim/control`, while `/admin/adversary-sim/status` reports `controller_reconciliation_required` instead of mutating stored state on read.
+- [x] Evidence:
+  - `dashboard/src/lib/components/dashboard/RedTeamTab.svelte`
+  - `dashboard/src/lib/runtime/dashboard-red-team-controller.js`
+  - `dashboard/src/lib/runtime/dashboard-body-classes.js`
+  - `dashboard/src/lib/runtime/dashboard-global-controls.js`
+  - `dashboard/src/routes/+page.svelte`
+  - `dashboard/src/lib/domain/config-schema.js`
+  - `src/admin/api.rs`
+  - `docs/plans/2026-03-13-red-team-tab-adversary-sim-toggle-plan.md`
+  - `docs/api.md`
+  - `docs/configuration.md`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+  - `make test-unit`
 
 ### TEL-HOT-1: Unified Hot-Read Telemetry Architecture
 

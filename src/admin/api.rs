@@ -20,9 +20,13 @@ pub enum EventType {
 pub struct EventLogEntry {
     pub ts: u64, // unix timestamp
     pub event: EventType,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ip: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub outcome: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub admin: Option<String>,
 }
 
@@ -43,6 +47,12 @@ struct EventLogRecord {
     #[serde(flatten)]
     pub entry: EventLogEntry,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub taxonomy: Option<crate::runtime::policy_taxonomy::PolicyTelemetryTaxonomy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub outcome_code: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub botness_score: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sim_run_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sim_profile: Option<String>,
@@ -58,6 +68,9 @@ impl EventLogRecord {
     fn from_entry(entry: EventLogEntry) -> Self {
         EventLogRecord {
             entry,
+            taxonomy: None,
+            outcome_code: None,
+            botness_score: None,
             sim_run_id: None,
             sim_profile: None,
             sim_lane: None,
@@ -341,6 +354,55 @@ fn sanitize_event_record_for_persistence(record: &mut EventLogRecord) -> EventSe
     result
 }
 
+fn compact_event_record_for_persistence(record: &mut EventLogRecord) {
+    if let Some(outcome) = record.entry.outcome.clone() {
+        let parsed = crate::runtime::policy_taxonomy::parse_annotated_outcome(outcome.as_str());
+        if let Some(taxonomy) = parsed.taxonomy {
+            record.taxonomy = Some(taxonomy);
+            record.entry.outcome = parsed.outcome_text;
+        }
+    }
+
+    if record.outcome_code.is_some() || record.botness_score.is_some() {
+        return;
+    }
+
+    let reason = record.entry.reason.as_deref().unwrap_or_default().trim();
+    if !(reason.starts_with("botness_gate_") || reason == "js_verification") {
+        return;
+    }
+
+    let Some(outcome) = record.entry.outcome.as_deref().map(str::trim) else {
+        return;
+    };
+    if outcome.is_empty() {
+        return;
+    }
+
+    let mut parts = outcome.split_whitespace();
+    let Some(outcome_code) = parts.next() else {
+        return;
+    };
+    if outcome_code.contains('=') {
+        return;
+    }
+
+    let mut botness_score: Option<u8> = None;
+    for part in parts {
+        let Some(score_value) = part.strip_prefix("score=") else {
+            return;
+        };
+        let Ok(score) = score_value.parse::<u8>() else {
+            return;
+        };
+        botness_score = Some(score);
+    }
+
+    record.outcome_code = Some(outcome_code.to_string());
+    record.botness_score = botness_score;
+    record.entry.outcome = None;
+}
+
 fn forensic_access_mode(query: &str) -> bool {
     let forensic_requested = crate::request_validation::query_param(query, "forensic")
         .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
@@ -398,6 +460,36 @@ fn telemetry_field_classification_schema() -> serde_json::Value {
             "field": "event.outcome",
             "class": "internal",
             "persistence": "allow_with_secret_scrub"
+        },
+        {
+            "field": "event.outcome_code",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.botness_score",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.taxonomy.level",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.taxonomy.action",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.taxonomy.detection",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.taxonomy.signals",
+            "class": "public",
+            "persistence": "allow"
         },
         {
             "field": "event.admin",
@@ -564,6 +656,7 @@ pub fn log_event_with_execution_metadata<S: crate::challenge::KeyValueStore>(
         record.sim_lane = Some(sim_metadata.sim_lane);
         record.is_simulation = true;
     }
+    compact_event_record_for_persistence(&mut record);
 
     let hour = record.entry.ts / 3600;
     let key = make_v2_event_key(hour, record.entry.ts);
@@ -871,6 +964,172 @@ mod tests {
     }
 
     #[test]
+    fn log_event_omits_absent_optional_fields_in_persisted_row() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let entry = EventLogEntry {
+            ts: now,
+            event: EventType::Challenge,
+            ip: None,
+            reason: None,
+            outcome: None,
+            admin: None,
+        };
+
+        log_event(&store, &entry);
+
+        let hour = now / 3600;
+        let prefix = format!("eventlog:v2:{}:", hour);
+        let records: Vec<Vec<u8>> = store
+            .map
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(key, _)| key.starts_with(&prefix))
+            .map(|(_, value)| value.clone())
+            .collect();
+        assert_eq!(records.len(), 1);
+
+        let payload: serde_json::Value = serde_json::from_slice(records[0].as_slice()).unwrap();
+        assert!(payload.get("ip").is_none());
+        assert!(payload.get("reason").is_none());
+        assert!(payload.get("outcome").is_none());
+        assert!(payload.get("admin").is_none());
+        assert!(payload.get("sim_run_id").is_none());
+        assert!(payload.get("sim_profile").is_none());
+        assert!(payload.get("sim_lane").is_none());
+        assert!(payload.get("taxonomy").is_none());
+    }
+
+    #[test]
+    fn log_event_persists_structured_taxonomy_separately_from_outcome_text() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let entry = EventLogEntry {
+            ts: now,
+            event: EventType::Challenge,
+            ip: Some("203.0.113.20".to_string()),
+            reason: Some("ip_range_policy_forbidden".to_string()),
+            outcome: Some(
+                "source=custom source_id=manual-block action=forbidden_403 matched_cidr=203.0.113.0/24 taxonomy[level=L11_DENY_HARD action=A_DENY_HARD detection=D_IP_RANGE_FORBIDDEN signals=S_IP_RANGE_CUSTOM]".to_string(),
+            ),
+            admin: None,
+        };
+
+        log_event(&store, &entry);
+
+        let hour = now / 3600;
+        let prefix = format!("eventlog:v2:{}:", hour);
+        let records: Vec<Vec<u8>> = store
+            .map
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(key, _)| key.starts_with(&prefix))
+            .map(|(_, value)| value.clone())
+            .collect();
+        assert_eq!(records.len(), 1);
+
+        let payload: serde_json::Value = serde_json::from_slice(records[0].as_slice()).unwrap();
+        assert_eq!(
+            payload.get("outcome").and_then(|value| value.as_str()),
+            Some("source=custom source_id=manual-block action=forbidden_403 matched_cidr=203.0.113.0/24")
+        );
+        assert_eq!(
+            payload
+                .get("taxonomy")
+                .and_then(|value| value.get("level"))
+                .and_then(|value| value.as_str()),
+            Some("L11_DENY_HARD")
+        );
+        assert_eq!(
+            payload
+                .get("taxonomy")
+                .and_then(|value| value.get("action"))
+                .and_then(|value| value.as_str()),
+            Some("A_DENY_HARD")
+        );
+        assert_eq!(
+            payload
+                .get("taxonomy")
+                .and_then(|value| value.get("detection"))
+                .and_then(|value| value.as_str()),
+            Some("D_IP_RANGE_FORBIDDEN")
+        );
+        assert_eq!(
+            payload
+                .get("taxonomy")
+                .and_then(|value| value.get("signals"))
+                .and_then(|value| value.as_array())
+                .map(|values| {
+                    values
+                        .iter()
+                        .filter_map(|value| value.as_str().map(str::to_string))
+                        .collect::<Vec<String>>()
+                }),
+            Some(vec!["S_IP_RANGE_CUSTOM".to_string()])
+        );
+        assert!(payload.get("executionModeLabel").is_none());
+        assert!(payload.get("outcomeToken").is_none());
+    }
+
+    #[test]
+    fn log_event_persists_compact_botness_outcome_fields_without_verbose_challenge_payload() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let entry = EventLogEntry {
+            ts: now,
+            event: EventType::Challenge,
+            ip: Some("203.0.113.21".to_string()),
+            reason: Some("botness_gate_challenge".to_string()),
+            outcome: Some(
+                "served score=8 taxonomy[level=L6_CHALLENGE_STRONG action=A_CHALLENGE_STRONG detection=D_BOTNESS_GATE_CHALLENGE signals=S_GEO_RISK]"
+                    .to_string(),
+            ),
+            admin: None,
+        };
+
+        log_event(&store, &entry);
+
+        let hour = now / 3600;
+        let prefix = format!("eventlog:v2:{}:", hour);
+        let records: Vec<Vec<u8>> = store
+            .map
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(key, _)| key.starts_with(&prefix))
+            .map(|(_, value)| value.clone())
+            .collect();
+        assert_eq!(records.len(), 1);
+
+        let payload: serde_json::Value = serde_json::from_slice(records[0].as_slice()).unwrap();
+        assert!(payload.get("outcome").is_none());
+        assert_eq!(
+            payload.get("outcome_code").and_then(|value| value.as_str()),
+            Some("served")
+        );
+        assert_eq!(
+            payload.get("botness_score").and_then(|value| value.as_u64()),
+            Some(8)
+        );
+
+        let legacy_entry = EventLogEntry {
+            ts: now,
+            event: EventType::Challenge,
+            ip: Some("203.0.113.21".to_string()),
+            reason: Some("botness_gate_challenge".to_string()),
+            outcome: Some(
+                "score=8 signals=js_required,rate_high signal_states=js_required:active,rate_high:active execution_mode=enforced fail_mode=closed providers=challenge_engine:internal taxonomy[level=L6_CHALLENGE_STRONG action=A_CHALLENGE_STRONG detection=D_BOTNESS_GATE_CHALLENGE signals=S_GEO_RISK]"
+                    .to_string(),
+            ),
+            admin: None,
+        };
+        let legacy_bytes = serde_json::to_vec(&EventLogRecord::from_entry(legacy_entry)).unwrap();
+        assert!(records[0].len() < legacy_bytes.len());
+    }
+
+    #[test]
     fn log_event_refreshes_hot_read_recent_events_tail_projection() {
         let store = MockStore::new();
         let now = now_ts();
@@ -1077,6 +1336,9 @@ mod tests {
                 outcome: Some("ok".to_string()),
                 admin: Some("me".to_string()),
             },
+            taxonomy: None,
+            outcome_code: None,
+            botness_score: None,
             sim_run_id: Some("run_001".to_string()),
             sim_profile: Some("fast_smoke".to_string()),
             sim_lane: Some("deterministic_black_box".to_string()),
@@ -2096,6 +2358,64 @@ mod admin_config_tests {
         }
     }
 
+    struct RacingAdversaryBeatStore {
+        map: Mutex<HashMap<String, Vec<u8>>>,
+        state_key: String,
+        raced_state_payload: Vec<u8>,
+        raced_state_applied: Mutex<bool>,
+    }
+
+    impl RacingAdversaryBeatStore {
+        fn from_test_store(
+            store: &TestStore,
+            site_id: &str,
+            raced_state: &crate::admin::adversary_sim::ControlState,
+        ) -> Self {
+            Self {
+                map: Mutex::new(store.map.lock().unwrap().clone()),
+                state_key: crate::admin::adversary_sim::state_key(site_id),
+                raced_state_payload: serde_json::to_vec(raced_state).unwrap(),
+                raced_state_applied: Mutex::new(false),
+            }
+        }
+    }
+
+    impl crate::challenge::KeyValueStore for RacingAdversaryBeatStore {
+        fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()> {
+            let mut map = self.map.lock().unwrap();
+            if key == self.state_key {
+                let mut raced_state_applied = self.raced_state_applied.lock().unwrap();
+                if !*raced_state_applied {
+                    *raced_state_applied = true;
+                    let current = map.get(key).cloned();
+                    if current.is_some() {
+                        map.insert(self.state_key.clone(), self.raced_state_payload.clone());
+                        crate::config::set_runtime_adversary_sim_enabled_override("default", false);
+                    }
+                    return Ok(current);
+                }
+            }
+            Ok(map.get(key).cloned())
+        }
+
+        fn set(&self, key: &str, value: &[u8]) -> Result<(), ()> {
+            let mut map = self.map.lock().unwrap();
+            map.insert(key.to_string(), value.to_vec());
+            Ok(())
+        }
+
+        fn delete(&self, key: &str) -> Result<(), ()> {
+            let mut map = self.map.lock().unwrap();
+            map.remove(key);
+            Ok(())
+        }
+
+        fn get_keys(&self) -> Result<Vec<String>, ()> {
+            let map = self.map.lock().unwrap();
+            Ok(map.keys().cloned().collect())
+        }
+    }
+
     impl crate::maze::state::MazeStateStore for TestStore {
         fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()> {
             crate::challenge::KeyValueStore::get(self, key)
@@ -2785,32 +3105,7 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn admin_config_allows_enabling_adversary_sim_in_runtime_prod_when_surface_is_opted_in() {
-        let _lock = crate::test_support::lock_env();
-        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
-        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
-
-        let body = br#"{"adversary_sim_enabled":true}"#.to_vec();
-        let req = make_request(Method::Post, "/admin/config", body);
-        let store = TestStore::default();
-        let resp = handle_admin_config(&req, &store, "default");
-        assert_eq!(*resp.status(), 200u16);
-        let json: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
-        assert_eq!(
-            json.get("config")
-                .and_then(|v| v.get("adversary_sim_enabled"))
-                .and_then(|v| v.as_bool()),
-            Some(true)
-        );
-
-        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
-        std::env::remove_var("SHUMA_RUNTIME_ENV");
-        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
-    }
-
-    #[test]
-    fn admin_config_allows_enabling_adversary_sim_in_runtime_dev() {
+    fn admin_config_rejects_adversary_sim_enabled_patch_with_control_guidance() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
@@ -2819,20 +3114,9 @@ mod admin_config_tests {
         let req = make_request(Method::Post, "/admin/config", body);
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
-        assert_eq!(*resp.status(), 200u16);
-        let json: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
-        assert_eq!(
-            json.get("config")
-                .and_then(|v| v.get("adversary_sim_enabled"))
-                .and_then(|v| v.as_bool()),
-            Some(true)
-        );
-
-        let saved_bytes = store.get("config:default").unwrap().unwrap();
-        let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
-        assert!(!saved_cfg.adversary_sim_enabled);
-        let effective_cfg = crate::config::load_runtime_cached(&store, "default").unwrap();
-        assert!(effective_cfg.adversary_sim_enabled);
+        assert_eq!(*resp.status(), 400u16);
+        let message = String::from_utf8_lossy(resp.body());
+        assert!(message.contains("/admin/adversary-sim/control"));
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -3219,6 +3503,81 @@ mod admin_config_tests {
                 .unwrap_or(0)
                 > 0
         );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    }
+
+    #[test]
+    fn adversary_sim_internal_beat_does_not_restore_running_state_after_concurrent_manual_off() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_API_KEY", "sim-internal-beat-race-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let base_store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let on_resp = handle_admin_adversary_sim_control(
+            &make_control_request(true, "race-start"),
+            &base_store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*on_resp.status(), 200u16);
+
+        let running_state = crate::admin::adversary_sim::load_state(&base_store, "default");
+        assert_eq!(running_state.phase, crate::admin::adversary_sim::ControlPhase::Running);
+        assert!(running_state.desired_enabled);
+
+        let now = now_ts();
+        let (stopping_state, _) =
+            crate::admin::adversary_sim::stop_state(now, "manual_off", &running_state);
+        let (off_state, _) =
+            crate::admin::adversary_sim::reconcile_state(now, false, &stopping_state);
+        assert_eq!(off_state.phase, crate::admin::adversary_sim::ControlPhase::Off);
+        assert!(!off_state.desired_enabled);
+
+        let racing_store =
+            RacingAdversaryBeatStore::from_test_store(&base_store, "default", &off_state);
+        let beat_req = make_internal_beat_request("sim-internal-beat-race-test-key");
+        let beat_resp = handle_internal_adversary_sim_beat(&beat_req, &racing_store, "default");
+        assert_eq!(*beat_resp.status(), 200u16);
+
+        let beat_json: serde_json::Value = serde_json::from_slice(beat_resp.body()).unwrap();
+        assert_eq!(
+            beat_json
+                .get("generation_active")
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
+        assert_eq!(
+            beat_json.get("should_exit").and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            beat_json
+                .get("status")
+                .and_then(|value| value.get("adversary_sim_enabled"))
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
+        assert_eq!(
+            beat_json
+                .get("status")
+                .and_then(|value| value.get("phase"))
+                .and_then(|value| value.as_str()),
+            Some("off")
+        );
+
+        let persisted_state = crate::admin::adversary_sim::load_state(&racing_store, "default");
+        assert_eq!(persisted_state.phase, crate::admin::adversary_sim::ControlPhase::Off);
+        assert!(!persisted_state.desired_enabled);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -3694,49 +4053,7 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn adversary_sim_status_reconciles_idle_enabled_state_to_off() {
-        let _lock = crate::test_support::lock_env();
-        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
-        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
-        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
-
-        let store = TestStore::default();
-        let auth = bearer_rw_auth();
-
-        let enable_req = make_request(
-            Method::Post,
-            "/admin/config",
-            br#"{"adversary_sim_enabled":true}"#.to_vec(),
-        );
-        let enable_resp = handle_admin_config(&enable_req, &store, "default");
-        assert_eq!(*enable_resp.status(), 200u16);
-
-        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
-        let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
-        assert_eq!(*status_resp.status(), 200u16);
-        let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
-        assert_eq!(
-            status_json
-                .get("adversary_sim_enabled")
-                .and_then(|value| value.as_bool()),
-            Some(false)
-        );
-        assert_eq!(
-            status_json.get("phase").and_then(|value| value.as_str()),
-            Some("off")
-        );
-
-        let saved_bytes = store.get("config:default").unwrap().unwrap();
-        let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
-        assert!(!saved_cfg.adversary_sim_enabled);
-
-        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
-        std::env::remove_var("SHUMA_RUNTIME_ENV");
-        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
-    }
-
-    #[test]
-    fn adversary_sim_status_reconciles_stale_running_state_when_disabled() {
+    fn adversary_sim_status_reports_reconciliation_required_for_stale_running_state_when_disabled() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
@@ -3785,14 +4102,17 @@ mod admin_config_tests {
         );
         assert_eq!(
             status_json.get("phase").and_then(|value| value.as_str()),
-            Some("off")
+            Some("running")
         );
         assert_eq!(
             status_json
-                .get("generation_active")
+                .get("controller_reconciliation_required")
                 .and_then(|value| value.as_bool()),
-            Some(false)
+            Some(true)
         );
+        let persisted = crate::admin::adversary_sim::load_state(&store, "default");
+        assert_eq!(persisted.phase, crate::admin::adversary_sim::ControlPhase::Running);
+        assert!(!persisted.desired_enabled);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -3800,7 +4120,7 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn adversary_sim_status_forces_off_when_run_owned_by_previous_process_instance() {
+    fn adversary_sim_status_reports_previous_process_ownership_without_mutating() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
@@ -3831,24 +4151,30 @@ mod admin_config_tests {
         let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
         assert_eq!(
             status_json.get("phase").and_then(|value| value.as_str()),
-            Some("off")
+            Some("running")
         );
         assert_eq!(
             status_json
                 .get("adversary_sim_enabled")
                 .and_then(|value| value.as_bool()),
-            Some(false)
+            Some(true)
         );
         assert_eq!(
             status_json
                 .get("last_transition_reason")
                 .and_then(|value| value.as_str()),
-            Some("process_restart")
+            Some("manual_on")
+        );
+        assert_eq!(
+            status_json
+                .get("controller_reconciliation_required")
+                .and_then(|value| value.as_bool()),
+            Some(true)
         );
 
         let persisted = crate::admin::adversary_sim::load_state(&store, "default");
-        assert_eq!(persisted.phase, crate::admin::adversary_sim::ControlPhase::Off);
-        assert!(!persisted.desired_enabled);
+        assert_eq!(persisted.phase, crate::admin::adversary_sim::ControlPhase::Running);
+        assert!(persisted.desired_enabled);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -3916,7 +4242,7 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn adversary_sim_status_auto_window_expiry_clears_runtime_enabled_override() {
+    fn adversary_sim_status_reports_auto_window_expiry_without_clearing_runtime_enabled_override() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
@@ -3947,18 +4273,27 @@ mod admin_config_tests {
         let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
         assert_eq!(
             status_json.get("phase").and_then(|value| value.as_str()),
-            Some("off")
+            Some("running")
         );
         assert_eq!(
             status_json
                 .get("adversary_sim_enabled")
                 .and_then(|value| value.as_bool()),
-            Some(false)
+            Some(true)
+        );
+        assert_eq!(
+            status_json
+                .get("controller_reconciliation_required")
+                .and_then(|value| value.as_bool()),
+            Some(true)
         );
         let effective_cfg = crate::config::load_runtime_cached(&store, "default").unwrap();
-        assert!(!effective_cfg.adversary_sim_enabled);
+        assert!(effective_cfg.adversary_sim_enabled);
         let persisted_cfg = crate::config::Config::load(&store, "default").unwrap();
         assert!(!persisted_cfg.adversary_sim_enabled);
+        let persisted_state = crate::admin::adversary_sim::load_state(&store, "default");
+        assert_eq!(persisted_state.phase, crate::admin::adversary_sim::ControlPhase::Running);
+        assert!(persisted_state.desired_enabled);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -4379,7 +4714,7 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn adversary_sim_status_read_path_reconciles_stale_state() {
+    fn adversary_sim_status_read_path_reports_stale_state_without_mutating() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
@@ -4419,11 +4754,15 @@ mod admin_config_tests {
             status_json
                 .get("controller_reconciliation_required")
                 .and_then(|value| value.as_bool()),
-            Some(false)
+            Some(true)
+        );
+        assert_eq!(
+            status_json.get("phase").and_then(|value| value.as_str()),
+            Some("running")
         );
 
         let persisted = crate::admin::adversary_sim::load_state(&store, "default");
-        assert_eq!(persisted.phase, crate::admin::adversary_sim::ControlPhase::Off);
+        assert_eq!(persisted.phase, crate::admin::adversary_sim::ControlPhase::Running);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -5254,6 +5593,130 @@ mod admin_config_tests {
         assert_eq!(
             event_forensic.get("admin").and_then(|value| value.as_str()),
             Some("operator@example.com")
+        );
+    }
+
+    #[test]
+    fn admin_monitoring_returns_compact_recent_event_shape_in_default_and_forensic_modes() {
+        let store = TestStore::default();
+        let now = now_ts();
+        let raw_ip = "203.0.113.25";
+        let pseudo_ip = pseudonymize_ip_identifier(raw_ip);
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now,
+                event: EventType::Challenge,
+                ip: Some(raw_ip.to_string()),
+                reason: Some("botness_gate_challenge".to_string()),
+                outcome: Some(
+                    "served score=8 taxonomy[level=L6_CHALLENGE_STRONG action=A_CHALLENGE_STRONG detection=D_BOTNESS_GATE_CHALLENGE signals=S_GEO_RISK]"
+                        .to_string(),
+                ),
+                admin: Some("operator@example.com".to_string()),
+            },
+        );
+
+        let req_default = make_request(Method::Get, "/admin/monitoring?hours=24&limit=5", Vec::new());
+        let resp_default = handle_admin_monitoring(&req_default, &store);
+        assert_eq!(*resp_default.status(), 200u16);
+        let body_default: serde_json::Value = serde_json::from_slice(resp_default.body()).unwrap();
+        let event_default = body_default
+            .get("details")
+            .and_then(|value| value.get("events"))
+            .and_then(|value| value.get("recent_events"))
+            .and_then(|value| value.as_array())
+            .and_then(|rows| {
+                rows.iter().find(|row| {
+                    row.get("reason").and_then(|value| value.as_str())
+                        == Some("botness_gate_challenge")
+                })
+            })
+            .cloned()
+            .expect("expected default monitoring event row");
+        assert_eq!(
+            event_default.get("ip").and_then(|value| value.as_str()),
+            Some(pseudo_ip.as_str())
+        );
+        assert_eq!(
+            event_default.get("admin").and_then(|value| value.as_str()),
+            Some("[masked]")
+        );
+        assert!(event_default.get("outcome").is_none());
+        assert_eq!(
+            event_default
+                .get("outcome_code")
+                .and_then(|value| value.as_str()),
+            Some("served")
+        );
+        assert_eq!(
+            event_default
+                .get("botness_score")
+                .and_then(|value| value.as_u64()),
+            Some(8)
+        );
+        assert_eq!(
+            event_default
+                .get("taxonomy")
+                .and_then(|value| value.get("level"))
+                .and_then(|value| value.as_str()),
+            Some("L6_CHALLENGE_STRONG")
+        );
+
+        let req_forensic = make_request(
+            Method::Get,
+            format!(
+                "/admin/monitoring?hours=24&limit=5&forensic=1&forensic_ack={}",
+                SECURITY_FORENSIC_ACK_VALUE
+            )
+            .as_str(),
+            Vec::new(),
+        );
+        let resp_forensic = handle_admin_monitoring(&req_forensic, &store);
+        assert_eq!(*resp_forensic.status(), 200u16);
+        let body_forensic: serde_json::Value = serde_json::from_slice(resp_forensic.body()).unwrap();
+        let event_forensic = body_forensic
+            .get("details")
+            .and_then(|value| value.get("events"))
+            .and_then(|value| value.get("recent_events"))
+            .and_then(|value| value.as_array())
+            .and_then(|rows| {
+                rows.iter().find(|row| {
+                    row.get("reason").and_then(|value| value.as_str())
+                        == Some("botness_gate_challenge")
+                })
+            })
+            .cloned()
+            .expect("expected forensic monitoring event row");
+        assert_eq!(
+            event_forensic.get("ip").and_then(|value| value.as_str()),
+            Some(raw_ip)
+        );
+        assert_eq!(
+            event_forensic
+                .get("admin")
+                .and_then(|value| value.as_str()),
+            Some("operator@example.com")
+        );
+        assert!(event_forensic.get("outcome").is_none());
+        assert_eq!(
+            event_forensic
+                .get("outcome_code")
+                .and_then(|value| value.as_str()),
+            Some("served")
+        );
+        assert_eq!(
+            event_forensic
+                .get("botness_score")
+                .and_then(|value| value.as_u64()),
+            Some(8)
+        );
+        assert_eq!(
+            event_forensic
+                .get("taxonomy")
+                .and_then(|value| value.get("level"))
+                .and_then(|value| value.as_str()),
+            Some("L6_CHALLENGE_STRONG")
         );
     }
 
@@ -8731,7 +9194,11 @@ pub(crate) fn monitoring_presented_recent_event_tail<S: crate::challenge::KeyVal
     let recent_event_rows: Vec<serde_json::Value> = window
         .cursor_rows
         .iter()
-        .map(cursor_event_row_payload)
+        .map(|row| CursorEventRecord {
+            cursor: row.cursor.clone(),
+            record: present_event_record(&row.record, forensic_mode),
+        })
+        .map(|row| cursor_event_row_payload(&row))
         .collect();
     PresentedRecentEventTail {
         total_events_in_window: window.total_events_in_window,
@@ -10171,7 +10638,6 @@ struct AdminProviderBackendsPatch {
 #[serde(default, deny_unknown_fields)]
 struct AdminConfigPatch {
     test_mode: Option<bool>,
-    adversary_sim_enabled: Option<bool>,
     adversary_sim_duration_seconds: Option<u64>,
     ban_duration: Option<u64>,
     rate_limit: Option<u64>,
@@ -10291,6 +10757,16 @@ struct AdminConfigPatch {
 }
 
 fn validate_admin_config_patch_shape(json: &serde_json::Value) -> Result<(), String> {
+    if json
+        .as_object()
+        .map(|object| object.contains_key("adversary_sim_enabled"))
+        .unwrap_or(false)
+    {
+        return Err(
+            "Invalid config payload: adversary_sim_enabled must be changed via POST /admin/adversary-sim/control"
+                .to_string(),
+        );
+    }
     serde_json::from_value::<AdminConfigPatch>(json.clone())
         .map(|_| ())
         .map_err(|err| format!("Invalid config payload: {}", err))
@@ -10470,7 +10946,7 @@ fn handle_admin_config_internal(
             Err(err) => return Response::new(500, err.user_message()),
         };
         let mut changed = false;
-        let mut effective_adversary_sim_enabled =
+        let effective_adversary_sim_enabled =
             crate::config::runtime_adversary_sim_enabled_for_site(site_id);
 
         // Update test_mode if provided.
@@ -10493,18 +10969,6 @@ fn handle_admin_config_internal(
                     );
                 }
             }
-        }
-        // Update adversary_sim_enabled if provided.
-        if let Some(adversary_sim_enabled) =
-            json.get("adversary_sim_enabled").and_then(|v| v.as_bool())
-        {
-            if !validate_only {
-                crate::config::set_runtime_adversary_sim_enabled_override(
-                    site_id,
-                    adversary_sim_enabled,
-                );
-            }
-            effective_adversary_sim_enabled = adversary_sim_enabled;
         }
         if let Some(adversary_sim_duration_seconds) = json
             .get("adversary_sim_duration_seconds")
@@ -13927,6 +14391,20 @@ fn save_adversary_sim_state_with_capability<S: crate::challenge::KeyValueStore>(
     crate::admin::adversary_sim::save_state(store, site_id, state)
 }
 
+fn save_adversary_sim_beat_state_if_unchanged<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    previous_state: &crate::admin::adversary_sim::ControlState,
+    next_state: &crate::admin::adversary_sim::ControlState,
+) -> Result<bool, ()> {
+    let current_state = crate::admin::adversary_sim::load_state(store, site_id);
+    if current_state != *previous_state {
+        return Ok(false);
+    }
+    crate::admin::adversary_sim::save_state(store, site_id, next_state)?;
+    Ok(true)
+}
+
 fn adversary_sim_status_payload(
     store: &impl crate::challenge::KeyValueStore,
     site_id: &str,
@@ -14101,18 +14579,8 @@ fn handle_admin_adversary_sim_status(
         Err(err) => return Response::new(500, err.user_message()),
     };
     let now = now_ts();
-    let mut state = crate::admin::adversary_sim::load_state(store, site_id);
+    let state = crate::admin::adversary_sim::load_state(store, site_id);
     cfg.adversary_sim_enabled = effective_adversary_sim_enabled(&cfg, &state);
-    let (reconciled_state, _) =
-        crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
-    if reconciled_state != state {
-        state = reconciled_state;
-        if crate::admin::adversary_sim::save_state(store, site_id, &state).is_err() {
-            return Response::new(500, "Key-value store error");
-        }
-    }
-    cfg.adversary_sim_enabled = effective_adversary_sim_enabled(&cfg, &state);
-    reconcile_adversary_sim_enabled_runtime_override(site_id, &mut cfg, &state);
 
     let body = serde_json::to_string(&adversary_sim_status_payload(store, site_id, &cfg, &state, now))
         .unwrap();
@@ -14234,8 +14702,24 @@ fn handle_internal_adversary_sim_beat(
     reconcile_adversary_sim_enabled_runtime_override(site_id, &mut cfg, &state);
 
     let summary = crate::admin::adversary_sim::run_autonomous_supervisor_ticks(store, &mut state, now);
-    if state != previous_state && crate::admin::adversary_sim::save_state(store, site_id, &state).is_err() {
-        return Response::new(500, "Key-value store error");
+    if state != previous_state {
+        match save_adversary_sim_beat_state_if_unchanged(store, site_id, &previous_state, &state) {
+            Ok(true) => {}
+            Ok(false) => {
+                cfg = match crate::config::load_runtime_cached(store, site_id) {
+                    Ok(cfg) => cfg,
+                    Err(err) => return Response::new(500, err.user_message()),
+                };
+                state = crate::admin::adversary_sim::load_state(store, site_id);
+                cfg.adversary_sim_enabled = effective_adversary_sim_enabled(&cfg, &state);
+                let (reconciled_state, _) =
+                    crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
+                state = reconciled_state;
+                cfg.adversary_sim_enabled = effective_adversary_sim_enabled(&cfg, &state);
+                reconcile_adversary_sim_enabled_runtime_override(site_id, &mut cfg, &state);
+            }
+            Err(()) => return Response::new(500, "Key-value store error"),
+        }
     }
 
     if summary.executed_ticks > 0 {

@@ -9,7 +9,7 @@
 
 <SectionBlock
   title="Raw Telemetry Feed"
-  description="Rolling raw event/telemetry/action lines from monitoring ingestion (newest first)."
+  description="Rolling raw persisted-event rows from monitoring ingestion (newest first)."
 >
   <p id="monitoring-raw-feed-meta" class="control-desc text-muted">
     Retains the most recent {maxLines} lines. Each new line is prepended; overflow drops the oldest line.

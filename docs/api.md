@@ -161,7 +161,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `POST /admin/config/validate` - Validate a config patch without persisting changes (returns `{ valid, issues[] }` with field/expected/received hints when invalid)
 - `GET /admin/config/export` - Export non-secret runtime config as deploy-ready env key/value output
 - `POST /admin/adversary-sim/control` - Explicit adversary-sim lifecycle command submission (`{"enabled":true|false,"reason":"optional"}`), admin-auth + CSRF protected, strict same-origin/fetch-metadata checks, and required `Idempotency-Key` header
-- `GET /admin/adversary-sim/status` - Adversary-sim lifecycle status read path, including desired vs actual state, reconciliation-needed signal, and controller lease metadata. Current implementation may reconcile stale persisted state before responding.
+- `GET /admin/adversary-sim/status` - Adversary-sim lifecycle status read path, including desired vs actual state, reconciliation-needed signal, and controller lease metadata. This endpoint is read-only: it reports stale persisted state via `controller_reconciliation_required` and does not reconcile or persist state as part of the read.
 - `POST /admin/adversary-sim/history/cleanup` - Explicitly clear retained telemetry history (`eventlog:v2:*`, `monitoring:v1:*`, and derived monitoring detail counters) without changing adversary-sim control state.
   - In `runtime-dev`: endpoint is available without extra cleanup acknowledgement.
   - In `runtime-prod`: endpoint requires header `X-Shuma-Telemetry-Cleanup-Ack: I_UNDERSTAND_TELEMETRY_CLEANUP`.
@@ -351,11 +351,25 @@ The stream path is intentionally one-shot in this phase; the browser reconnect l
 - `safer_alternatives` (narrower CIDR candidates when high-collateral parent suggestions are split)
 - `guardrail_notes` (explanations for suppression/split/clamp behavior)
 
-Event `outcome` values may include canonical taxonomy metadata:
+Compact persisted event rows now use sparse omission for semantically absent fields:
+
+- `ip`, `reason`, `outcome`, `outcome_code`, `botness_score`, `admin`, `taxonomy`, `sim_*`, and execution metadata fields are omitted when absent.
+- `ts`, `event`, and `is_simulation` remain explicit in stored rows.
+
+Raw monitoring event rows may include:
+
+- `taxonomy.level`
+- `taxonomy.action`
+- `taxonomy.detection`
+- `taxonomy.signals[]`
+- `outcome_code`
+- `botness_score`
+
+Legacy rows may still carry canonical taxonomy metadata inside `outcome` as:
 
 - `taxonomy[level=L* action=A* detection=D* signals=S_*...]`
 
-This uses the same public ladder documented in [`/docs/bot-defence.md`](bot-defence.md) (`Escalation Ladder (L0-L11)`).
+This remains the same event-log plus hot-read document architecture; no parallel telemetry storage or query path is introduced.
 
 ### 🐙 <abbr title="Chrome DevTools Protocol">CDP</abbr> + Fingerprint Admin View
 

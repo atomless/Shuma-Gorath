@@ -955,10 +955,7 @@ pub(crate) fn serve_maze_with_tracking(
     served_intents.push(runtime::effect_intents::EffectIntent::LogEvent {
         event: crate::admin::EventType::Challenge,
         reason: event_reason.to_string(),
-        outcome: format!(
-            "{} variant={} depth={} flow={} bytes={} render_ms={}",
-            event_outcome, served.variant_id, served.depth, served.flow_id, served.bytes, served.render_ms
-        ),
+        outcome: event_outcome.to_string(),
     });
     execute_intents(served_intents);
 

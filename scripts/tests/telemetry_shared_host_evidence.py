@@ -46,6 +46,8 @@ TARPIT_ACTIVE_BUCKET_PREFIX = "tarpit:budget:active:bucket:"
 TARPIT_ACTIVE_BUCKET_CATALOG_PREFIX = "tarpit:budget:active:bucket:catalog:"
 RETENTION_BUCKET_INDEX_PREFIX = "telemetry:retention:v1:bucket:"
 RETENTION_CATALOG_PREFIX = "telemetry:retention:v1:catalog:"
+HOT_READ_BOOTSTRAP_KEY = "telemetry:hot_read:v1:bootstrap:default"
+HOT_READ_RECENT_EVENTS_TAIL_KEY = "telemetry:hot_read:v1:recent_events_tail:default"
 
 
 class EvidenceFailure(RuntimeError):
@@ -208,6 +210,7 @@ def build_evidence_report(
     *,
     remote: dict[str, Any],
     keyspace_summary: dict[str, Any],
+    storage_samples: dict[str, Any],
     bootstrap_measurement: dict[str, Any],
     bootstrap_gzip_measurement: dict[str, Any],
     delta_measurement: dict[str, Any],
@@ -240,6 +243,7 @@ def build_evidence_report(
             "app_dir": remote["runtime"]["app_dir"],
         },
         "keyspace": keyspace_summary,
+        "storage": storage_samples,
         "retention_health": retention_health,
         "budgets": budgets,
         "query_cost": {
@@ -406,8 +410,81 @@ PY"""
         summary["kv_path"] = payload.get("kv_path", sqlite_path)
         return summary
 
+    def collect_remote_storage_samples(self) -> dict[str, Any]:
+        runtime = self.receipt["runtime"]
+        sqlite_path = f"{runtime['app_dir']}/{REMOTE_SQLITE_KV_PATH}"
+        remote_script = """python3 - <<'PY'
+import json
+import os
+import sqlite3
+
+BOOTSTRAP_KEY = os.environ["SHUMA_HOT_READ_BOOTSTRAP_KEY"]
+RECENT_TAIL_KEY = os.environ["SHUMA_HOT_READ_RECENT_EVENTS_TAIL_KEY"]
+db_path = os.environ["SHUMA_REMOTE_KV_PATH"]
+conn = sqlite3.connect(db_path)
+cur = conn.cursor()
+
+def row_length(key):
+    row = cur.execute(
+        "SELECT length(value) FROM spin_key_value WHERE store = 'default' AND key = ?",
+        (key,),
+    ).fetchone()
+    return int(row[0]) if row and row[0] is not None else None
+
+event_rows = []
+for key, value in cur.execute(
+    "SELECT key, value FROM spin_key_value WHERE store = 'default' AND key LIKE 'eventlog:v2:%' ORDER BY key DESC LIMIT 10"
+).fetchall():
+    row = {"key": key, "bytes": len(value)}
+    try:
+        payload = json.loads(value.decode("utf-8"))
+    except Exception:
+        payload = {}
+    taxonomy = payload.get("taxonomy") if isinstance(payload, dict) else {}
+    row["event"] = payload.get("event") if isinstance(payload, dict) else None
+    row["reason"] = payload.get("reason") if isinstance(payload, dict) else None
+    row["outcome_code"] = payload.get("outcome_code") if isinstance(payload, dict) else None
+    row["botness_score"] = payload.get("botness_score") if isinstance(payload, dict) else None
+    row["taxonomy_level"] = taxonomy.get("level") if isinstance(taxonomy, dict) else None
+    event_rows.append(row)
+
+row_bytes = [row["bytes"] for row in event_rows]
+summary = {
+    "eventlog_rows": {
+        "sample_count": len(event_rows),
+        "min_bytes": min(row_bytes) if row_bytes else None,
+        "max_bytes": max(row_bytes) if row_bytes else None,
+        "avg_bytes": round(sum(row_bytes) / len(row_bytes), 2) if row_bytes else None,
+        "rows": event_rows,
+    },
+    "hot_read_documents": {
+        "bootstrap_document_bytes": row_length(BOOTSTRAP_KEY),
+        "recent_events_tail_document_bytes": row_length(RECENT_TAIL_KEY),
+    },
+}
+print(json.dumps(summary))
+PY"""
+        remote_command = (
+            f"SHUMA_REMOTE_KV_PATH={shlex.quote(sqlite_path)} "
+            f"SHUMA_HOT_READ_BOOTSTRAP_KEY={shlex.quote(HOT_READ_BOOTSTRAP_KEY)} "
+            f"SHUMA_HOT_READ_RECENT_EVENTS_TAIL_KEY={shlex.quote(HOT_READ_RECENT_EVENTS_TAIL_KEY)} "
+            f"bash -c {shlex.quote(remote_script)}"
+        )
+        result = subprocess.run(
+            ssh_command_for_operation(self.receipt, remote_command),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise EvidenceFailure(
+                f"Failed to query remote telemetry storage samples: {(result.stderr or result.stdout).strip()}"
+            )
+        return json.loads((result.stdout or "").strip())
+
     def run(self) -> dict[str, Any]:
         keyspace_summary = self.collect_remote_keyspace_summary()
+        storage_samples = self.collect_remote_storage_samples()
         bootstrap_path = (
             f"/admin/monitoring?hours={self.hours}&limit={DEFAULT_BOOTSTRAP_LIMIT}&bootstrap=1"
         )
@@ -420,6 +497,7 @@ PY"""
         report = build_evidence_report(
             remote=self.receipt,
             keyspace_summary=keyspace_summary,
+            storage_samples=storage_samples,
             bootstrap_measurement=bootstrap_measurement,
             bootstrap_gzip_measurement=bootstrap_gzip_measurement,
             delta_measurement=delta_measurement,

@@ -1957,6 +1957,73 @@ fn validate_env_only_accepts_spin_variables_in_tests() {
 }
 
 #[test]
+fn validate_env_only_rejects_invalid_monitoring_retention_hours() {
+    let _lock = crate::test_support::lock_env();
+    clear_runtime_cache_for_tests();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_MONITORING_RETENTION_HOURS",
+        "SHUMA_MONITORING_ROLLUP_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
+    ]);
+
+    std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
+    std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+    std::env::set_var("SHUMA_JS_SECRET", "test-js-secret");
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+    std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "168");
+    std::env::set_var("SHUMA_MONITORING_RETENTION_HOURS", "not-a-number");
+    std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "false");
+    std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
+    std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
+    std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
+    std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+
+    let result = validate_env_only_once();
+
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_MONITORING_RETENTION_HOURS",
+        "SHUMA_MONITORING_ROLLUP_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
+    ]);
+    assert_eq!(
+        result,
+        Err("Invalid integer env var SHUMA_MONITORING_RETENTION_HOURS=not-a-number".to_string())
+    );
+}
+
+#[test]
+fn env_u64_defaulted_uses_defaults_when_env_is_missing() {
+    let _lock = crate::test_support::lock_env();
+    clear_env(&[
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_MONITORING_RETENTION_HOURS",
+        "SHUMA_MONITORING_ROLLUP_RETENTION_HOURS",
+    ]);
+
+    assert_eq!(env_u64_defaulted("SHUMA_EVENT_LOG_RETENTION_HOURS"), 168);
+    assert_eq!(env_u64_defaulted("SHUMA_MONITORING_RETENTION_HOURS"), 168);
+    assert_eq!(env_u64_defaulted("SHUMA_MONITORING_ROLLUP_RETENTION_HOURS"), 720);
+}
+
+#[test]
 fn env_string_required_uses_spin_variable_when_env_missing() {
     let _lock = crate::test_support::lock_env();
     clear_test_spin_variables();

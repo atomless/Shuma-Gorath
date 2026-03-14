@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EscalationLevelId {
@@ -83,6 +85,180 @@ impl ActionId {
             ActionId::DenyTemp => "A_DENY_TEMP",
             ActionId::DenyHard => "A_DENY_HARD",
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct PolicyTelemetryTaxonomy {
+    pub level: String,
+    pub action: String,
+    pub detection: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub signals: Vec<String>,
+}
+
+impl PolicyTelemetryTaxonomy {
+    fn from_policy_match(matched: &PolicyMatch) -> Self {
+        Self {
+            level: matched.level_id().to_string(),
+            action: matched.action_id().to_string(),
+            detection: matched.detection_id().to_string(),
+            signals: matched
+                .signal_ids()
+                .into_iter()
+                .map(str::to_string)
+                .collect(),
+        }
+    }
+
+    fn annotation_suffix(&self) -> String {
+        format!(
+            "taxonomy[level={} action={} detection={} signals={}]",
+            self.level,
+            self.action,
+            self.detection,
+            self.signals.join(",")
+        )
+    }
+
+    pub(crate) fn annotate_outcome(&self, outcome: Option<&str>) -> String {
+        let suffix = self.annotation_suffix();
+        match outcome.map(str::trim).filter(|value| !value.is_empty()) {
+            Some(base) => format!("{base} {suffix}"),
+            None => suffix,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ParsedAnnotatedOutcome {
+    pub outcome_text: Option<String>,
+    pub taxonomy: Option<PolicyTelemetryTaxonomy>,
+}
+
+fn is_canonical_taxonomy_token(raw: &str) -> bool {
+    !raw.is_empty()
+        && raw
+            .bytes()
+            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_')
+}
+
+pub(crate) fn parse_annotated_outcome(raw: &str) -> ParsedAnnotatedOutcome {
+    let trimmed = raw.trim();
+    let Some(annotation_start) = trimmed.rfind("taxonomy[") else {
+        return ParsedAnnotatedOutcome {
+            outcome_text: (!trimmed.is_empty()).then(|| trimmed.to_string()),
+            taxonomy: None,
+        };
+    };
+    let Some(annotation) = trimmed.get(annotation_start..) else {
+        return ParsedAnnotatedOutcome {
+            outcome_text: (!trimmed.is_empty()).then(|| trimmed.to_string()),
+            taxonomy: None,
+        };
+    };
+    if !annotation.ends_with(']') {
+        return ParsedAnnotatedOutcome {
+            outcome_text: (!trimmed.is_empty()).then(|| trimmed.to_string()),
+            taxonomy: None,
+        };
+    }
+
+    let mut level: Option<String> = None;
+    let mut action: Option<String> = None;
+    let mut detection: Option<String> = None;
+    let mut signals: Option<Vec<String>> = None;
+    let inner = &annotation["taxonomy[".len()..annotation.len() - 1];
+    for pair in inner.split_whitespace() {
+        let Some((key, value)) = pair.split_once('=') else {
+            return ParsedAnnotatedOutcome {
+                outcome_text: (!trimmed.is_empty()).then(|| trimmed.to_string()),
+                taxonomy: None,
+            };
+        };
+        match key {
+            "level" => {
+                if !is_canonical_taxonomy_token(value) {
+                    return ParsedAnnotatedOutcome {
+                        outcome_text: (!trimmed.is_empty()).then(|| trimmed.to_string()),
+                        taxonomy: None,
+                    };
+                }
+                level = Some(value.to_string());
+            }
+            "action" => {
+                if !is_canonical_taxonomy_token(value) {
+                    return ParsedAnnotatedOutcome {
+                        outcome_text: (!trimmed.is_empty()).then(|| trimmed.to_string()),
+                        taxonomy: None,
+                    };
+                }
+                action = Some(value.to_string());
+            }
+            "detection" => {
+                if !is_canonical_taxonomy_token(value) {
+                    return ParsedAnnotatedOutcome {
+                        outcome_text: (!trimmed.is_empty()).then(|| trimmed.to_string()),
+                        taxonomy: None,
+                    };
+                }
+                detection = Some(value.to_string());
+            }
+            "signals" => {
+                let parsed = if value.is_empty() {
+                    Vec::new()
+                } else {
+                    let mut next = Vec::new();
+                    for signal in value.split(',') {
+                        if !is_canonical_taxonomy_token(signal) {
+                            return ParsedAnnotatedOutcome {
+                                outcome_text: (!trimmed.is_empty()).then(|| trimmed.to_string()),
+                                taxonomy: None,
+                            };
+                        }
+                        next.push(signal.to_string());
+                    }
+                    next
+                };
+                signals = Some(parsed);
+            }
+            _ => {
+                return ParsedAnnotatedOutcome {
+                    outcome_text: (!trimmed.is_empty()).then(|| trimmed.to_string()),
+                    taxonomy: None,
+                };
+            }
+        }
+    }
+
+    let Some(level) = level else {
+        return ParsedAnnotatedOutcome {
+            outcome_text: (!trimmed.is_empty()).then(|| trimmed.to_string()),
+            taxonomy: None,
+        };
+    };
+    let Some(action) = action else {
+        return ParsedAnnotatedOutcome {
+            outcome_text: (!trimmed.is_empty()).then(|| trimmed.to_string()),
+            taxonomy: None,
+        };
+    };
+    let Some(detection) = detection else {
+        return ParsedAnnotatedOutcome {
+            outcome_text: (!trimmed.is_empty()).then(|| trimmed.to_string()),
+            taxonomy: None,
+        };
+    };
+
+    ParsedAnnotatedOutcome {
+        outcome_text: (!trimmed[..annotation_start].trim().is_empty())
+            .then(|| trimmed[..annotation_start].trim().to_string()),
+        taxonomy: Some(PolicyTelemetryTaxonomy {
+            level,
+            action,
+            detection,
+            signals: signals.unwrap_or_default(),
+        }),
     }
 }
 
@@ -378,18 +554,7 @@ impl PolicyMatch {
     }
 
     pub fn annotate_outcome(&self, outcome: &str) -> String {
-        let taxonomy = format!(
-            "taxonomy[level={} action={} detection={} signals={}]",
-            self.level_id(),
-            self.action_id(),
-            self.detection_id(),
-            self.signal_ids().into_iter().collect::<Vec<_>>().join(",")
-        );
-        if outcome.trim().is_empty() {
-            taxonomy
-        } else {
-            format!("{} {}", outcome, taxonomy)
-        }
+        PolicyTelemetryTaxonomy::from_policy_match(self).annotate_outcome(Some(outcome))
     }
 }
 

@@ -148,6 +148,22 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
         report = TELEMETRY_SHARED_HOST_EVIDENCE.build_evidence_report(
             remote=remote,
             keyspace_summary=keyspace_summary,
+            storage_samples={
+                "eventlog_rows": {
+                    "sample_count": 2,
+                    "min_bytes": 128,
+                    "max_bytes": 256,
+                    "avg_bytes": 192.0,
+                    "rows": [
+                        {"key": "eventlog:v2:1:1-a", "bytes": 128, "reason": "botness_gate_challenge"},
+                        {"key": "eventlog:v2:1:2-b", "bytes": 256, "reason": "ip_range_policy_forbidden"},
+                    ],
+                },
+                "hot_read_documents": {
+                    "bootstrap_document_bytes": 4096,
+                    "recent_events_tail_document_bytes": 2048,
+                },
+            },
             bootstrap_measurement=snapshot_measurement,
             bootstrap_gzip_measurement=snapshot_gzip_measurement,
             delta_measurement=delta_measurement,
@@ -158,6 +174,10 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
         self.assertEqual(report["retention_health"]["state"], "healthy")
         self.assertEqual(report["query_cost"]["query_budget_status"], "within_budget")
         self.assertEqual(report["query_cost"]["density_penalty_units"], 0)
+        self.assertEqual(report["storage"]["eventlog_rows"]["sample_count"], 2)
+        self.assertEqual(
+            report["storage"]["hot_read_documents"]["recent_events_tail_document_bytes"], 2048
+        )
         self.assertEqual(report["payloads"]["monitoring_bootstrap"]["response_bytes"], 12000)
         self.assertEqual(report["payloads"]["monitoring_bootstrap_gzip"]["response_bytes"], 4000)
         self.assertEqual(
@@ -222,6 +242,29 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
                 return_value={"default_store_total_keys": 3, "domains": {}, "telemetry_adjacent": {}},
             ), patch.object(
                 collector,
+                "collect_remote_storage_samples",
+                return_value={
+                    "eventlog_rows": {
+                        "sample_count": 1,
+                        "min_bytes": 144,
+                        "max_bytes": 144,
+                        "avg_bytes": 144.0,
+                        "rows": [
+                            {
+                                "key": "eventlog:v2:1:1-a",
+                                "bytes": 144,
+                                "reason": "botness_gate_challenge",
+                                "outcome_code": "served",
+                            }
+                        ],
+                    },
+                    "hot_read_documents": {
+                        "bootstrap_document_bytes": 5120,
+                        "recent_events_tail_document_bytes": 2048,
+                    },
+                },
+            ), patch.object(
+                collector,
                 "measure_json_endpoint",
                 side_effect=[
                     {
@@ -276,6 +319,9 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
             self.assertTrue(report_path.exists())
             persisted = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(persisted["remote"]["base_url"], "https://shuma.example.com")
+            self.assertEqual(
+                persisted["storage"]["hot_read_documents"]["recent_events_tail_document_bytes"], 2048
+            )
             self.assertEqual(
                 measure_json_endpoint.call_args_list[0].args[0],
                 "/admin/monitoring?hours=24&limit=10&bootstrap=1",

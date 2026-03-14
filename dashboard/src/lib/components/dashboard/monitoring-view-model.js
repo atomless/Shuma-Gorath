@@ -177,6 +177,13 @@ const EVENT_DISPLAY_LABELS = Object.freeze({
   rate_limit: 'Rate Limit'
 });
 
+const OUTCOME_CODE_LABELS = Object.freeze({
+  served: 'Served',
+  required: 'Required',
+  fallback_maze: 'Fallback Maze',
+  fallback_block: 'Fallback Block'
+});
+
 const OUTCOME_BUCKET_SUPPORTED_DEFENSES = new Set([
   'challenge',
   'not_a_bot',
@@ -205,7 +212,25 @@ const classifyExecutionMode = (event) => {
 
 const classifyShadowAction = (event) => normalizeToken(event?.intended_action);
 
+const classificationText = (event = {}) => {
+  const eventType = normalizeToken(event?.event);
+  const reason = normalizeToken(event?.reason);
+  const outcome = normalizeToken(event?.outcome);
+  const outcomeCode = normalizeToken(event?.outcome_code);
+  return `${eventType} ${reason} ${outcomeCode} ${outcome}`;
+};
+
 const classifyChallengeDisplayLabel = (event = {}) => {
+  const combined = classificationText(event);
+  if (combined.includes('not_a_bot') || combined.includes('not-a-bot')) {
+    return 'Not-a-Bot';
+  }
+  if (combined.includes('js_verification') || combined.includes('js_challenge')) {
+    return 'JS Challenge';
+  }
+  if (combined.includes('maze')) {
+    return 'Maze';
+  }
   const eventType = normalizeToken(event?.event);
   if (EVENT_DISPLAY_LABELS[eventType]) {
     return EVENT_DISPLAY_LABELS[eventType];
@@ -242,7 +267,8 @@ const classifyDefense = (event) => {
   const eventType = normalizeToken(event?.event);
   const reason = normalizeToken(event?.reason);
   const outcome = normalizeToken(event?.outcome);
-  const combined = `${eventType} ${reason} ${outcome}`;
+  const outcomeCode = normalizeToken(event?.outcome_code);
+  const combined = `${eventType} ${reason} ${outcomeCode} ${outcome}`;
   if (combined.includes('honeypot')) return 'honeypot';
   if (combined.includes('tarpit')) return 'tarpit';
   if (combined.includes('maze')) return 'maze';
@@ -270,6 +296,14 @@ const deriveDisplayedOutcome = (event) => {
     return {
       token: 'would_act',
       label: 'Would Act'
+    };
+  }
+
+  const outcomeCode = normalizeToken(event?.outcome_code);
+  if (outcomeCode) {
+    return {
+      token: outcomeCode,
+      label: OUTCOME_CODE_LABELS[outcomeCode] || formatMetricLabel(outcomeCode)
     };
   }
 
@@ -325,7 +359,7 @@ const classifyOutcomeBucketForDefense = (defense, event) => {
   if (classifyExecutionMode(event) === 'shadow') {
     return classifyShadowOutcomeBucket(event);
   }
-  const outcome = normalizeToken(event?.outcome);
+  const outcome = normalizeToken(event?.outcome_code || event?.outcome);
   const reason = normalizeToken(event?.reason);
   const combined = `${outcome} ${reason}`;
   if (defense === 'challenge') {
@@ -375,7 +409,7 @@ const isBanOutcomeEvent = (event) => {
   if (classifyExecutionMode(event) === 'shadow') return false;
   const eventType = normalizeToken(event?.event);
   if (eventType === 'ban') return true;
-  const outcome = normalizeToken(event?.outcome);
+  const outcome = normalizeToken(event?.outcome_code || event?.outcome);
   const reason = normalizeToken(event?.reason);
   return (
     outcome.includes('deny')
@@ -610,7 +644,7 @@ export const deriveIpRangeMonitoringViewModel = (
     if (!isIpRangeReason(reason)) return;
     totalMatches += 1;
 
-    const parsed = parseIpRangeOutcome(entry?.outcome);
+    const parsed = parseIpRangeOutcome(entry?.outcome, entry?.taxonomy);
     const source = String(parsed.source || 'unknown').toLowerCase();
     const action = String(parsed.action || 'unknown').toLowerCase();
     const detection = String(parsed.detection || 'unknown').toUpperCase();

@@ -1339,6 +1339,8 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_non_empty("SHUMA_JS_SECRET")?;
     validate_non_empty("SHUMA_FORWARDED_IP_SECRET")?;
     validate_u64_var("SHUMA_EVENT_LOG_RETENTION_HOURS")?;
+    validate_optional_u64_var("SHUMA_MONITORING_RETENTION_HOURS")?;
+    validate_optional_u64_var("SHUMA_MONITORING_ROLLUP_RETENTION_HOURS")?;
 
     validate_bool_like_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED")?;
     validate_bool_like_var("SHUMA_KV_STORE_FAIL_OPEN")?;
@@ -1805,6 +1807,16 @@ fn validate_u64_var(name: &str) -> Result<(), String> {
     let value = runtime_var_raw_optional(name).ok_or_else(|| format!("Missing required env var {}", name))?;
     if value.trim().parse::<u64>().is_err() {
         return Err(format!("Invalid integer env var {}={}", name, value));
+    }
+    Ok(())
+}
+
+fn validate_optional_u64_var(name: &str) -> Result<(), String> {
+    let Some(value) = runtime_var_raw_optional(name) else {
+        return Ok(());
+    };
+    if value.trim().parse::<u64>().is_err() {
+        return Err(invalid_integer_env(name));
     }
     Ok(())
 }
@@ -2458,15 +2470,15 @@ pub(crate) fn parse_gateway_origin_auth_mode(value: &str) -> Option<GatewayOrigi
 }
 
 pub fn event_log_retention_hours() -> u64 {
-    env_u64_required("SHUMA_EVENT_LOG_RETENTION_HOURS")
+    env_u64_defaulted("SHUMA_EVENT_LOG_RETENTION_HOURS")
 }
 
 pub fn monitoring_retention_hours() -> u64 {
-    env_u64_required("SHUMA_MONITORING_RETENTION_HOURS")
+    env_u64_defaulted("SHUMA_MONITORING_RETENTION_HOURS")
 }
 
 pub fn monitoring_rollup_retention_hours() -> u64 {
-    env_u64_required("SHUMA_MONITORING_ROLLUP_RETENTION_HOURS")
+    env_u64_defaulted("SHUMA_MONITORING_ROLLUP_RETENTION_HOURS")
 }
 
 pub fn env_string_required(name: &str) -> String {
@@ -2486,17 +2498,15 @@ fn env_bool_required(name: &str) -> bool {
     parse_bool_like(&value).unwrap_or_else(|| panic!("Invalid boolean env var {}={}", name, value))
 }
 
-fn env_u64_required(name: &str) -> u64 {
-    if cfg!(test) {
-        return runtime_var_raw_optional(name)
-            .and_then(|v| v.trim().parse::<u64>().ok())
-            .unwrap_or_else(|| defaults_u64(name));
-    }
-    let value = runtime_var_raw_optional(name).unwrap_or_else(|| panic!("Missing required env var {}", name));
-    value
-        .trim()
-        .parse::<u64>()
-        .unwrap_or_else(|_| panic!("Invalid integer env var {}={}", name, value))
+fn env_u64_defaulted(name: &str) -> u64 {
+    runtime_var_raw_optional(name)
+        .map(|value| {
+            value
+                .trim()
+                .parse::<u64>()
+                .unwrap_or_else(|_| panic!("Invalid integer env var {}={}", name, value))
+        })
+        .unwrap_or_else(|| defaults_u64(name))
 }
 
 fn clamp_pow_difficulty(value: u8) -> u8 {

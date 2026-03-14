@@ -266,19 +266,14 @@
 
   const rawFeedPayload = (event = {}) => {
     const source = event && typeof event === 'object' ? event : {};
-    const normalizedSource = normalizeEventForDisplay(source);
     const payload = {};
-    Object.keys(normalizedSource)
+    Object.keys(source)
       .sort()
       .forEach((key) => {
-        if (normalizedSource[key] === undefined) return;
-        payload[key] = normalizedSource[key];
+        if (source[key] === undefined) return;
+        payload[key] = source[key];
       });
     return payload;
-  };
-
-  const normalizeEventForDisplay = (event = {}) => {
-    return deriveMonitoringEventDisplay(event);
   };
 
   const buildRawFeedLine = (event = {}) => {
@@ -724,7 +719,7 @@
   $: defenseTrendRows = deriveDefenseTrendRows(rawRecentEvents);
   $: eventFilterOptions = deriveRecentEventFilterOptions(rawRecentEvents);
   $: filteredRecentEvents = filterRecentEvents(rawRecentEvents.slice(0, EVENT_ROW_RENDER_LIMIT), eventFilters);
-  $: recentEvents = filteredRecentEvents.map((event) => normalizeEventForDisplay(event));
+  $: recentEvents = filteredRecentEvents.map((event) => deriveMonitoringEventDisplay(event));
   $: recentCdpEvents = Array.isArray(cdpEventsData.events)
     ? cdpEventsData.events.slice(0, CDP_ROW_RENDER_LIMIT)
     : [];
