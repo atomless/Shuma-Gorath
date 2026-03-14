@@ -6,7 +6,7 @@
 
 # 🐙 Shuma-Gorath [Pre-Launch]
 
-Our websites and the human sys admins that maintain them are increasingly overwhelmed by an onslaught of bots. [Shuma-Gorath](https://en.wikipedia.org/wiki/Shuma-Gorath) shifts the burden of bot onslaught onto the the bots themselves. Using the code and skills in this repository, the bots will write and maintain the codebase, they will run it, test it, debug it, tweak and improve it, then they will deploy it to your server for you and there run red team adversaries against which they will fine tune the defences of your live site until it slows and blocks bot traffic according to your desired level of bot access vs bot blocking.
+Our websites and the human sys admins that maintain them are increasingly overwhelmed by an onslaught of bots. [Shuma-Gorath](https://en.wikipedia.org/wiki/Shuma-Gorath) switches the burden of the bot onslaught back onto the bots themselves. Using the code and skills in this repository, the bots will write and maintain the codebase, they will run it, test it, debug it, tweak and improve it, then they will deploy it to your server for you and there they will run red team adversaries against which they will fine tune Shuma's defence of your live site until bot traffic is slowed and blocked according to your desired level of bot access vs bot blocking.
 
 This is bot defence for the [Chthulucene](https://read.dukeupress.edu/books/book/27/Staying-with-the-TroubleMaking-Kin-in-the). The project includes skills for both single-server hosting and enterprise edge servers where it will invisibly handle synchronisation across instances.
 
