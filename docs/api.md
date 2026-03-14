@@ -351,19 +351,25 @@ The stream path is intentionally one-shot in this phase; the browser reconnect l
 - `safer_alternatives` (narrower CIDR candidates when high-collateral parent suggestions are split)
 - `guardrail_notes` (explanations for suppression/split/clamp behavior)
 
-Compact persisted event rows now use sparse omission for semantically absent fields:
+Compact persisted event rows now use sparse omission for semantically absent or implied fields:
 
 - `ip`, `reason`, `outcome`, `outcome_code`, `botness_score`, `admin`, `taxonomy`, `sim_*`, and execution metadata fields are omitted when absent.
-- `ts`, `event`, and `is_simulation` remain explicit in stored rows.
+- `ts` and `event` remain explicit in stored rows.
+- `is_simulation` is stored only for simulation-tagged rows (`true`); non-simulation rows omit it.
 
 Raw monitoring event rows may include:
 
 - `taxonomy.level`
-- `taxonomy.action`
-- `taxonomy.detection`
-- `taxonomy.signals[]`
+- `taxonomy.action` when the action is not intentionally omitted as derivable from `taxonomy.level`
+- `taxonomy.detection` when the detection is not intentionally omitted as derivable from `reason`
+- `taxonomy.signals[]` when the active signal set is not intentionally omitted as derivable from `reason`
 - `outcome_code`
 - `botness_score`
+
+Challenge-heavy rows intentionally compact redundant taxonomy facts:
+
+- `js_verification` rows keep `taxonomy.level` and `outcome_code`, but omit `taxonomy.action`, `taxonomy.detection`, and `taxonomy.signals[]` because the canonical `reason` already implies those facts.
+- `botness_gate_*` rows omit `taxonomy.action` and the matching `taxonomy.detection` when those are implied by `taxonomy.level` plus `reason`, while still preserving `taxonomy.signals[]` when the signal set carries event-specific analysis value.
 
 Legacy rows may still carry canonical taxonomy metadata inside `outcome` as:
 

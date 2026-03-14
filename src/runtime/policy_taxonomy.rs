@@ -91,8 +91,10 @@ impl ActionId {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct PolicyTelemetryTaxonomy {
     pub level: String,
-    pub action: String,
-    pub detection: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub action: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detection: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub signals: Vec<String>,
 }
@@ -101,8 +103,8 @@ impl PolicyTelemetryTaxonomy {
     fn from_policy_match(matched: &PolicyMatch) -> Self {
         Self {
             level: matched.level_id().to_string(),
-            action: matched.action_id().to_string(),
-            detection: matched.detection_id().to_string(),
+            action: Some(matched.action_id().to_string()),
+            detection: Some(matched.detection_id().to_string()),
             signals: matched
                 .signal_ids()
                 .into_iter()
@@ -112,13 +114,15 @@ impl PolicyTelemetryTaxonomy {
     }
 
     fn annotation_suffix(&self) -> String {
-        format!(
-            "taxonomy[level={} action={} detection={} signals={}]",
-            self.level,
-            self.action,
-            self.detection,
-            self.signals.join(",")
-        )
+        let mut parts = vec![format!("level={}", self.level)];
+        if let Some(action) = self.action.as_deref() {
+            parts.push(format!("action={action}"));
+        }
+        if let Some(detection) = self.detection.as_deref() {
+            parts.push(format!("detection={detection}"));
+        }
+        parts.push(format!("signals={}", self.signals.join(",")));
+        format!("taxonomy[{}]", parts.join(" "))
     }
 
     pub(crate) fn annotate_outcome(&self, outcome: Option<&str>) -> String {
@@ -127,6 +131,71 @@ impl PolicyTelemetryTaxonomy {
             Some(base) => format!("{base} {suffix}"),
             None => suffix,
         }
+    }
+
+    pub(crate) fn compact_for_persistence(&mut self, reason: Option<&str>) {
+        let normalized_reason = reason.unwrap_or_default().trim();
+        let compact_challenge_taxonomy =
+            normalized_reason == "js_verification" || normalized_reason.starts_with("botness_gate_");
+        if !compact_challenge_taxonomy {
+            return;
+        }
+
+        if self.action.as_deref() == implied_action_id_for_level(self.level.as_str()) {
+            self.action = None;
+        }
+
+        if self.detection.as_deref() == implied_detection_id_for_reason(normalized_reason) {
+            self.detection = None;
+        }
+
+        if let Some(implied_signals) = implied_signal_ids_for_reason(normalized_reason) {
+            let current = self.signals.iter().map(String::as_str).collect::<Vec<_>>();
+            if current == implied_signals {
+                self.signals.clear();
+            }
+        }
+    }
+}
+
+fn implied_action_id_for_level(level: &str) -> Option<&'static str> {
+    match level {
+        "L0_ALLOW_CLEAN" => Some("A_ALLOW"),
+        "L1_ALLOW_TAGGED" => Some("A_ALLOW_TAGGED"),
+        "L2_MONITOR" => Some("A_MONITOR"),
+        "L3_SHAPE" => Some("A_SHAPE"),
+        "L4_VERIFY_JS" => Some("A_VERIFY_JS"),
+        "L5_NOT_A_BOT" => Some("A_NOT_A_BOT"),
+        "L6_CHALLENGE_STRONG" => Some("A_CHALLENGE_STRONG"),
+        "L7_DECEPTION_EXPLICIT" => Some("A_DECEPTION_EXPLICIT"),
+        "L8_DECEPTION_COVERT" => Some("A_DECEPTION_COVERT"),
+        "L9_COST_IMPOSITION" => Some("A_COST_IMPOSITION"),
+        "L10_DENY_TEMP" => Some("A_DENY_TEMP"),
+        "L11_DENY_HARD" => Some("A_DENY_HARD"),
+        _ => None,
+    }
+}
+
+fn implied_detection_id_for_reason(reason: &str) -> Option<&'static str> {
+    match reason {
+        "js_verification" => Some("D_JS_VERIFICATION_REQUIRED"),
+        "botness_gate_not_a_bot" => Some("D_BOTNESS_GATE_NOT_A_BOT"),
+        "botness_gate_challenge" => Some("D_BOTNESS_GATE_CHALLENGE"),
+        "botness_gate_maze" => Some("D_BOTNESS_GATE_MAZE"),
+        "botness_gate_challenge_disabled_fallback_maze" => {
+            Some("D_CHALLENGE_DISABLED_FALLBACK_MAZE")
+        }
+        "botness_gate_challenge_disabled_fallback_block" => {
+            Some("D_CHALLENGE_DISABLED_FALLBACK_BLOCK")
+        }
+        _ => None,
+    }
+}
+
+fn implied_signal_ids_for_reason(reason: &str) -> Option<Vec<&'static str>> {
+    match reason {
+        "js_verification" => Some(vec!["S_JS_REQUIRED_MISSING"]),
+        _ => None,
     }
 }
 
@@ -255,8 +324,8 @@ pub(crate) fn parse_annotated_outcome(raw: &str) -> ParsedAnnotatedOutcome {
             .then(|| trimmed[..annotation_start].trim().to_string()),
         taxonomy: Some(PolicyTelemetryTaxonomy {
             level,
-            action,
-            detection,
+            action: Some(action),
+            detection: Some(detection),
             signals: signals.unwrap_or_default(),
         }),
     }

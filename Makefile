@@ -780,6 +780,8 @@ test-telemetry-storage: ## Run focused telemetry storage/query verification for 
 	@cargo test admin::api::tests::log_event_omits_absent_optional_fields_in_persisted_row -- --exact --nocapture
 	@cargo test admin::api::tests::log_event_persists_structured_taxonomy_separately_from_outcome_text -- --exact --nocapture
 	@cargo test admin::api::tests::log_event_persists_compact_botness_outcome_fields_without_verbose_challenge_payload -- --exact --nocapture
+	@cargo test admin::api::tests::log_event_persists_sparse_js_verification_taxonomy_and_omits_default_simulation_flag -- --exact --nocapture
+	@cargo test admin::api::tests::log_event_persists_sparse_botness_taxonomy_without_redundant_action_or_detection -- --exact --nocapture
 	@cargo test observability::monitoring::tests::summarize_uses_bucket_indexes_without_full_keyspace_scan -- --exact --nocapture
 	@cargo test observability::monitoring::tests::summarize_builds_and_reuses_day_rollups_for_complete_prior_days -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::admin_monitoring_delta_reads_bucket_indexes_without_keyspace_scan -- --exact --nocapture

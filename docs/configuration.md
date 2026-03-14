@@ -501,8 +501,9 @@ Use these as startup presets, then tune incrementally:
 - Compact persisted/raw event rows instead expose:
   - `outcome_code` for the compact served/fallback state,
   - `botness_score` when the event meaningfully carries one,
-  - structured `taxonomy.{level,action,detection,signals[]}` fields,
-  - sparse omission of absent optional fields instead of serializing `null`.
+  - structured `taxonomy.{level,action,detection,signals[]}` fields, with sparse omission when `action` is derivable from `level` or `detection`/`signals[]` are derivable from the canonical `reason`,
+  - sparse omission of absent optional fields instead of serializing `null`,
+  - `is_simulation=true` only on simulation-tagged rows; non-simulation rows omit the field.
 
 ### Public Escalation Ladder Reference
 

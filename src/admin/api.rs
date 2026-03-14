@@ -58,7 +58,7 @@ struct EventLogRecord {
     pub sim_profile: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sim_lane: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "is_false")]
     pub is_simulation: bool,
     #[serde(flatten)]
     pub execution: EventExecutionMetadata,
@@ -78,6 +78,10 @@ impl EventLogRecord {
             execution: EventExecutionMetadata::default(),
         }
     }
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 /// Event log storage notes:
@@ -357,7 +361,8 @@ fn sanitize_event_record_for_persistence(record: &mut EventLogRecord) -> EventSe
 fn compact_event_record_for_persistence(record: &mut EventLogRecord) {
     if let Some(outcome) = record.entry.outcome.clone() {
         let parsed = crate::runtime::policy_taxonomy::parse_annotated_outcome(outcome.as_str());
-        if let Some(taxonomy) = parsed.taxonomy {
+        if let Some(mut taxonomy) = parsed.taxonomy {
+            taxonomy.compact_for_persistence(record.entry.reason.as_deref());
             record.taxonomy = Some(taxonomy);
             record.entry.outcome = parsed.outcome_text;
         }
@@ -1130,6 +1135,136 @@ mod tests {
     }
 
     #[test]
+    fn log_event_persists_sparse_js_verification_taxonomy_and_omits_default_simulation_flag() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let entry = EventLogEntry {
+            ts: now,
+            event: EventType::Challenge,
+            ip: Some("203.0.113.22".to_string()),
+            reason: Some("js_verification".to_string()),
+            outcome: Some(
+                "required taxonomy[level=L4_VERIFY_JS action=A_VERIFY_JS detection=D_JS_VERIFICATION_REQUIRED signals=S_JS_REQUIRED_MISSING]"
+                    .to_string(),
+            ),
+            admin: None,
+        };
+
+        log_event(&store, &entry);
+
+        let hour = now / 3600;
+        let prefix = format!("eventlog:v2:{}:", hour);
+        let records: Vec<Vec<u8>> = store
+            .map
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(key, _)| key.starts_with(&prefix))
+            .map(|(_, value)| value.clone())
+            .collect();
+        assert_eq!(records.len(), 1);
+
+        let payload: serde_json::Value = serde_json::from_slice(records[0].as_slice()).unwrap();
+        assert!(payload.get("outcome").is_none());
+        assert_eq!(
+            payload.get("outcome_code").and_then(|value| value.as_str()),
+            Some("required")
+        );
+        assert_eq!(
+            payload
+                .get("taxonomy")
+                .and_then(|value| value.get("level"))
+                .and_then(|value| value.as_str()),
+            Some("L4_VERIFY_JS")
+        );
+        assert!(payload
+            .get("taxonomy")
+            .and_then(|value| value.get("action"))
+            .is_none());
+        assert!(payload
+            .get("taxonomy")
+            .and_then(|value| value.get("detection"))
+            .is_none());
+        assert!(payload
+            .get("taxonomy")
+            .and_then(|value| value.get("signals"))
+            .is_none());
+        assert!(payload.get("is_simulation").is_none());
+
+        let legacy_bytes = serde_json::to_vec(&EventLogRecord::from_entry(entry)).unwrap();
+        assert!(
+            records[0].len() * 4 <= legacy_bytes.len() * 3,
+            "expected sparse js-verification row to be at least 25% smaller (new={} legacy={})",
+            records[0].len(),
+            legacy_bytes.len()
+        );
+    }
+
+    #[test]
+    fn log_event_persists_sparse_botness_taxonomy_without_redundant_action_or_detection() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let entry = EventLogEntry {
+            ts: now,
+            event: EventType::Challenge,
+            ip: Some("203.0.113.23".to_string()),
+            reason: Some("botness_gate_challenge".to_string()),
+            outcome: Some(
+                "served score=8 taxonomy[level=L6_CHALLENGE_STRONG action=A_CHALLENGE_STRONG detection=D_BOTNESS_GATE_CHALLENGE signals=S_GEO_RISK,S_JS_REQUIRED_MISSING]"
+                    .to_string(),
+            ),
+            admin: None,
+        };
+
+        log_event(&store, &entry);
+
+        let hour = now / 3600;
+        let prefix = format!("eventlog:v2:{}:", hour);
+        let records: Vec<Vec<u8>> = store
+            .map
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(key, _)| key.starts_with(&prefix))
+            .map(|(_, value)| value.clone())
+            .collect();
+        assert_eq!(records.len(), 1);
+
+        let payload: serde_json::Value = serde_json::from_slice(records[0].as_slice()).unwrap();
+        assert_eq!(
+            payload
+                .get("taxonomy")
+                .and_then(|value| value.get("level"))
+                .and_then(|value| value.as_str()),
+            Some("L6_CHALLENGE_STRONG")
+        );
+        assert!(payload
+            .get("taxonomy")
+            .and_then(|value| value.get("action"))
+            .is_none());
+        assert!(payload
+            .get("taxonomy")
+            .and_then(|value| value.get("detection"))
+            .is_none());
+        assert_eq!(
+            payload
+                .get("taxonomy")
+                .and_then(|value| value.get("signals"))
+                .and_then(|value| value.as_array())
+                .map(|values| {
+                    values
+                        .iter()
+                        .filter_map(|value| value.as_str().map(str::to_string))
+                        .collect::<Vec<String>>()
+                }),
+            Some(vec![
+                "S_GEO_RISK".to_string(),
+                "S_JS_REQUIRED_MISSING".to_string()
+            ])
+        );
+    }
+
+    #[test]
     fn log_event_refreshes_hot_read_recent_events_tail_projection() {
         let store = MockStore::new();
         let now = now_ts();
@@ -1896,7 +2031,7 @@ mod tests {
                 && row.get("sim_run_id").and_then(|value| value.as_str()) == Some("run-ipbans-sim")
         }));
         assert!(events.iter().any(|row| {
-            row.get("is_simulation").and_then(|value| value.as_bool()) == Some(false)
+            row.get("is_simulation").and_then(|value| value.as_bool()) != Some(true)
                 && row.get("reason").and_then(|value| value.as_str()) == Some("baseline_ban")
         }));
     }
@@ -3928,11 +4063,11 @@ mod admin_config_tests {
                 .and_then(|value| value.as_str()),
             Some("telemetry_history_cleanup")
         );
-        assert_eq!(
+        assert_ne!(
             recent_events[0]
                 .get("is_simulation")
                 .and_then(|value| value.as_bool()),
-            Some(false)
+            Some(true)
         );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
@@ -5491,7 +5626,9 @@ mod admin_config_tests {
         assert_eq!(
             equivalent
                 .iter()
-                .filter(|entry| entry.get("is_simulation").and_then(|value| value.as_bool()) == Some(false))
+                .filter(|entry| {
+                    entry.get("is_simulation").and_then(|value| value.as_bool()) != Some(true)
+                })
                 .count(),
             1
         );
