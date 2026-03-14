@@ -874,6 +874,59 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
 
         self.assertIn("no generated traffic was observed", str(exc.exception))
 
+    def test_smoke_adversary_sim_generation_accepts_first_cron_tick_without_prime(self) -> None:
+        responses = iter(
+            [
+                (200, {"window_end_cursor": "cursor-0"}, '{"window_end_cursor":"cursor-0"}'),
+                (
+                    200,
+                    {
+                        "requested_enabled": True,
+                        "status": {},
+                    },
+                    '{"requested_enabled":true,"status":{}}',
+                ),
+                (
+                    200,
+                    {
+                        "lifecycle_diagnostics": {
+                            "supervisor": {
+                                "generated_tick_count": 0,
+                                "generated_request_count": 0,
+                                "last_successful_beat_at": 0,
+                            }
+                        }
+                    },
+                    '{"lifecycle_diagnostics":{"supervisor":{"generated_tick_count":0,"generated_request_count":0,"last_successful_beat_at":0}}}',
+                ),
+                (
+                    200,
+                    {
+                        "lifecycle_diagnostics": {
+                            "supervisor": {
+                                "generated_tick_count": 1,
+                                "generated_request_count": 40,
+                                "last_successful_beat_at": 100,
+                            }
+                        }
+                    },
+                    '{"lifecycle_diagnostics":{"supervisor":{"generated_tick_count":1,"generated_request_count":40,"last_successful_beat_at":100}}}',
+                ),
+                (200, {"events": [{"is_simulation": True, "event": "Challenge"}]}, '{"events":[{"is_simulation":true}]}'),
+                (200, {"adversary_sim_enabled": True}, '{"adversary_sim_enabled":true}'),
+                (200, {"disabled": True}, '{"disabled":true}'),
+            ]
+        )
+
+        with patch.object(deploy, "admin_session_opener", return_value=(object(), "csrf")), patch.object(
+            deploy, "admin_json_request", side_effect=lambda **_: next(responses)
+        ), patch.object(
+            deploy.time, "time", side_effect=[0, 0, 0]
+        ), patch.object(
+            deploy.time, "sleep"
+        ):
+            deploy.smoke_adversary_sim_generation("https://edge.example.com", {})
+
     def test_bootstrap_remote_config_posts_seeded_json_when_admin_config_missing(self) -> None:
         env = {
             "SHUMA_API_KEY": "test-admin-key",

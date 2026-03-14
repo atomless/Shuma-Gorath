@@ -955,7 +955,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     bootstrap_remote_config_if_missing(primary_url, env)
     print("Smoke step 2/4: verify dashboard/public/admin routes")
     smoke_deployed_app(primary_url, env)
-    print("Smoke step 3/4: verify adversary sim generation (initial prime tick + scheduled follow-up beat)")
+    print("Smoke step 3/4: verify adversary sim generation (enable -> first cron beat -> monitoring visibility)")
     smoke_adversary_sim_generation(primary_url, env)
     wait_for_adversary_sim_control_lease_release(primary_url, env)
     print("Smoke step 4/4: verify external dashboard truthfulness against live edge deployment")

@@ -3495,7 +3495,7 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn adversary_sim_control_enable_primes_initial_tick_on_edge_fermyon() {
+    fn adversary_sim_control_enable_reports_edge_cron_warming_before_first_tick() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
@@ -3513,23 +3513,21 @@ mod admin_config_tests {
         );
         assert_eq!(*on_resp.status(), 200u16);
         let on_json: serde_json::Value = serde_json::from_slice(on_resp.body()).unwrap();
-        assert!(
+        assert_eq!(
             on_json
                 .get("status")
                 .and_then(|v| v.get("generation"))
                 .and_then(|v| v.get("tick_count"))
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0)
-                >= 1
+                .and_then(|v| v.as_u64()),
+            Some(0)
         );
-        assert!(
+        assert_eq!(
             on_json
                 .get("status")
                 .and_then(|v| v.get("generation"))
                 .and_then(|v| v.get("request_count"))
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0)
-                > 0
+                .and_then(|v| v.as_u64()),
+            Some(0)
         );
         assert_eq!(
             on_json
@@ -3537,7 +3535,15 @@ mod admin_config_tests {
                 .and_then(|v| v.get("supervisor"))
                 .and_then(|v| v.get("heartbeat_active"))
                 .and_then(|v| v.as_bool()),
-            Some(true)
+            Some(false)
+        );
+        assert_eq!(
+            on_json
+                .get("status")
+                .and_then(|v| v.get("generation_diagnostics"))
+                .and_then(|v| v.get("reason"))
+                .and_then(|v| v.as_str()),
+            Some("waiting_for_first_edge_cron_tick")
         );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
@@ -15331,21 +15337,6 @@ fn handle_admin_adversary_sim_control(
 
     if state.phase == crate::admin::adversary_sim::ControlPhase::Off && desired_enabled {
         desired_enabled = false;
-    }
-
-    let should_prime_edge_enable = desired_enabled
-        && crate::config::gateway_deployment_profile().is_edge()
-        && transitions
-            .iter()
-            .any(|transition| transition.to == crate::admin::adversary_sim::ControlPhase::Running);
-    if should_prime_edge_enable && state.phase == crate::admin::adversary_sim::ControlPhase::Running {
-        let summary = crate::admin::adversary_sim::run_autonomous_supervisor_ticks(store, &mut state, now);
-        if summary.executed_ticks > 0 {
-            crate::log_line(&format!(
-                "[adversary-sim-edge-prime] executed_ticks={} generated_requests={} failed_requests={}",
-                summary.executed_ticks, summary.generated_requests, summary.failed_requests
-            ));
-        }
     }
 
     if save_adversary_sim_state_with_capability(store, site_id, &state, capabilities.state_write())

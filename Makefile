@@ -751,9 +751,11 @@ test-deploy-fermyon: ## Validate Fermyon/Akamai edge setup and deploy helpers
 	@cargo test admin_ip_allowlist_uses_true_client_ip_on_edge_fermyon --lib
 	@cargo test internal_adversary_sim_edge_cron_request_requires_edge_profile_https_and_secret --lib
 	@cargo test adversary_sim_edge_cron_bypass_is_scoped_to_beat_path_only --lib
-	@cargo test adversary_sim_control_enable_primes_initial_tick_on_edge_fermyon --lib
+	@cargo test adversary_sim_control_enable_reports_edge_cron_warming_before_first_tick --lib
 	@cargo test supervisor_status_payload_reports_edge_cron_truthfully_before_first_tick --lib
 	@cargo test generation_diagnostics_waits_full_edge_interval_before_no_traffic --lib
+	@cargo test edge_fermyon_generated_request_target_stays_within_bounded_budget --lib
+	@cargo test edge_fermyon_supplemental_lane_rotation_covers_full_contract --lib
 
 test-config-lifecycle: ## Validate read-only runtime config lifecycle checks and explicit seed/backfill flows
 	@echo "$(CYAN)🧪 Running config lifecycle verification...$(NC)"

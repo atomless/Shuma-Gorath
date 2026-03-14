@@ -837,15 +837,97 @@ fn should_emit_honeypot_probe(tick_count: u64) -> bool {
         .any(|modulus| tick_count % *modulus == 0)
 }
 
-fn rate_burst_requests_for_tick(tick_count: u64) -> u64 {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum SupplementalLane {
+    ChallengeSubmit,
+    NotABotFail,
+    NotABotEscalate,
+    PowVerify,
+    TarpitProgress,
+    FingerprintProbe,
+    CdpReport,
+}
+
+const FULL_SUPPLEMENTAL_LANES: [SupplementalLane; 7] = [
+    SupplementalLane::ChallengeSubmit,
+    SupplementalLane::NotABotFail,
+    SupplementalLane::NotABotEscalate,
+    SupplementalLane::PowVerify,
+    SupplementalLane::TarpitProgress,
+    SupplementalLane::FingerprintProbe,
+    SupplementalLane::CdpReport,
+];
+// Fermyon Wasm Functions cap request handlers at 30s, so edge beats need a smaller
+// per-invocation envelope than the shared-server runtime toggle uses.
+const EDGE_FERMYON_PRIMARY_REQUESTS_PER_TICK: usize = 4;
+const EDGE_FERMYON_SUPPLEMENTAL_LANES_PER_TICK: usize = 2;
+const EDGE_FERMYON_RATE_BURST_LOW: u64 = 2;
+const EDGE_FERMYON_RATE_BURST_MEDIUM: u64 = 4;
+const EDGE_FERMYON_RATE_BURST_HIGH: u64 = 6;
+
+fn primary_request_budget_for_profile(profile: crate::config::GatewayDeploymentProfile) -> usize {
+    match profile {
+        crate::config::GatewayDeploymentProfile::SharedServer => {
+            deterministic_runtime_profile().primary_request_count as usize
+        }
+        crate::config::GatewayDeploymentProfile::EdgeFermyon => {
+            EDGE_FERMYON_PRIMARY_REQUESTS_PER_TICK
+        }
+    }
+}
+
+fn supplemental_lanes_for_profile(
+    profile: crate::config::GatewayDeploymentProfile,
+    tick_count: u64,
+) -> Vec<SupplementalLane> {
+    match profile {
+        crate::config::GatewayDeploymentProfile::SharedServer => FULL_SUPPLEMENTAL_LANES.to_vec(),
+        crate::config::GatewayDeploymentProfile::EdgeFermyon => {
+            let lane_count = EDGE_FERMYON_SUPPLEMENTAL_LANES_PER_TICK.min(FULL_SUPPLEMENTAL_LANES.len());
+            let start = ((tick_count as usize) * lane_count) % FULL_SUPPLEMENTAL_LANES.len();
+            (0..lane_count)
+                .map(|offset| FULL_SUPPLEMENTAL_LANES[(start + offset) % FULL_SUPPLEMENTAL_LANES.len()])
+                .collect()
+        }
+    }
+}
+
+fn rate_burst_requests_for_profile(
+    profile: crate::config::GatewayDeploymentProfile,
+    tick_count: u64,
+) -> u64 {
     let burst = &deterministic_runtime_profile().rate_burst;
     if burst.high_modulus > 0 && tick_count % burst.high_modulus == 0 {
-        burst.high
+        match profile {
+            crate::config::GatewayDeploymentProfile::SharedServer => burst.high,
+            crate::config::GatewayDeploymentProfile::EdgeFermyon => EDGE_FERMYON_RATE_BURST_HIGH,
+        }
     } else if burst.medium_modulus > 0 && tick_count % burst.medium_modulus == 0 {
-        burst.medium
+        match profile {
+            crate::config::GatewayDeploymentProfile::SharedServer => burst.medium,
+            crate::config::GatewayDeploymentProfile::EdgeFermyon => EDGE_FERMYON_RATE_BURST_MEDIUM,
+        }
     } else {
-        burst.low
+        match profile {
+            crate::config::GatewayDeploymentProfile::SharedServer => burst.low,
+            crate::config::GatewayDeploymentProfile::EdgeFermyon => EDGE_FERMYON_RATE_BURST_LOW,
+        }
     }
+}
+
+#[cfg(not(test))]
+fn rate_burst_requests_for_tick(tick_count: u64) -> u64 {
+    rate_burst_requests_for_profile(crate::config::gateway_deployment_profile(), tick_count)
+}
+
+#[cfg(test)]
+fn deterministic_generated_request_target_for_profile(
+    profile: crate::config::GatewayDeploymentProfile,
+    tick_count: u64,
+) -> u64 {
+    primary_request_budget_for_profile(profile) as u64
+        + supplemental_lanes_for_profile(profile, tick_count).len() as u64
+        + rate_burst_requests_for_profile(profile, tick_count)
 }
 
 #[cfg(not(test))]
@@ -960,9 +1042,10 @@ fn build_not_a_bot_submit_body(seed_token: &str, profile: NotABotSubmissionProfi
 
 #[cfg(test)]
 fn deterministic_generated_request_target_for_tick(tick_count: u64) -> u64 {
-    deterministic_runtime_profile().primary_request_count
-        + deterministic_runtime_profile().supplemental_request_count
-        + rate_burst_requests_for_tick(tick_count)
+    deterministic_generated_request_target_for_profile(
+        crate::config::gateway_deployment_profile(),
+        tick_count,
+    )
 }
 
 pub fn generation_diagnostics(
@@ -1165,7 +1248,11 @@ pub fn run_internal_generation_tick(
     };
     #[cfg(not(test))]
     {
+        let deployment_profile = crate::config::gateway_deployment_profile();
         let forwarded_secret = crate::config::runtime_var_trimmed_optional("SHUMA_FORWARDED_IP_SECRET");
+        let selected_supplemental_lanes =
+            supplemental_lanes_for_profile(deployment_profile, state.generated_tick_count);
+        let includes_lane = |lane: SupplementalLane| selected_supplemental_lanes.contains(&lane);
 
         let mut dispatch_request = |request: Request| {
             let _guard = crate::runtime::sim_telemetry::enter(Some(metadata.clone()));
@@ -1179,7 +1266,11 @@ pub fn run_internal_generation_tick(
         };
 
         let paths = simulated_request_paths(run_id.as_str(), state.generated_tick_count);
-        for (index, path) in paths.iter().enumerate() {
+        for (index, path) in paths
+            .iter()
+            .take(primary_request_budget_for_profile(deployment_profile))
+            .enumerate()
+        {
             let user_agent = format!("ShumaAdversarySim/1.0 slot={} path={}", index, path);
             let mut builder = Request::builder();
             let simulated_ip = simulated_request_ip(state.generated_tick_count, index);
@@ -1271,136 +1362,152 @@ pub fn run_internal_generation_tick(
             runtime_profile.lane_ip_entropy_salts.not_a_bot_escalate,
         );
 
-        let challenge_abuse_body = b"answer=bad&seed=invalid&return_to=%2Fsim%2Fpublic%2Flanding".to_vec();
-        let mut challenge_submit = Request::builder();
-        challenge_submit
-            .method(Method::Post)
-            .uri(runtime_profile.paths.challenge_submit.as_str())
-            .header("x-forwarded-for", challenge_abuse_ip.as_str())
-            .header("x-forwarded-proto", "https")
-            .header("content-type", "application/x-www-form-urlencoded")
-            .header("user-agent", "ShumaAdversarySim/1.0 challenge-submit");
-        if let Some(secret) = forwarded_secret.as_deref() {
-            challenge_submit.header("x-shuma-forwarded-secret", secret);
-        }
-        dispatch_request(challenge_submit.body(challenge_abuse_body).build());
-
-        if let Some(fail_seed) = build_signed_not_a_bot_seed_token(
-            now,
-            not_a_bot_fail_ip.as_str(),
-            "ShumaAdversarySim/1.0 not-a-bot-fail",
-            "/sim/public/docs",
-            deterministic_lane_entropy(run_id.as_str(), state.generated_tick_count, 101),
-            1 + (state.generated_tick_count % 5),
-        ) {
-            let fail_body = build_not_a_bot_submit_body(&fail_seed, NotABotSubmissionProfile::Fail);
-            let mut not_a_bot_fail_submit = Request::builder();
-            not_a_bot_fail_submit
+        if includes_lane(SupplementalLane::ChallengeSubmit) {
+            let challenge_abuse_body =
+                b"answer=bad&seed=invalid&return_to=%2Fsim%2Fpublic%2Flanding".to_vec();
+            let mut challenge_submit = Request::builder();
+            challenge_submit
                 .method(Method::Post)
-                .uri(runtime_profile.paths.not_a_bot_checkbox.as_str())
-                .header("x-forwarded-for", not_a_bot_fail_ip.as_str())
+                .uri(runtime_profile.paths.challenge_submit.as_str())
+                .header("x-forwarded-for", challenge_abuse_ip.as_str())
                 .header("x-forwarded-proto", "https")
                 .header("content-type", "application/x-www-form-urlencoded")
-                .header("user-agent", "ShumaAdversarySim/1.0 not-a-bot-fail");
+                .header("user-agent", "ShumaAdversarySim/1.0 challenge-submit");
             if let Some(secret) = forwarded_secret.as_deref() {
-                not_a_bot_fail_submit.header("x-shuma-forwarded-secret", secret);
+                challenge_submit.header("x-shuma-forwarded-secret", secret);
             }
-            dispatch_request(not_a_bot_fail_submit.body(fail_body).build());
+            dispatch_request(challenge_submit.body(challenge_abuse_body).build());
         }
 
-        if let Some(escalate_seed) = build_signed_not_a_bot_seed_token(
-            now,
-            not_a_bot_escalate_ip.as_str(),
-            "ShumaAdversarySim/1.0 not-a-bot-escalate",
-            "/sim/public/pricing",
-            deterministic_lane_entropy(run_id.as_str(), state.generated_tick_count, 102),
-            2 + (state.generated_tick_count.wrapping_mul(3) % 7),
-        ) {
-            let escalate_body =
-                build_not_a_bot_submit_body(&escalate_seed, NotABotSubmissionProfile::EscalatePuzzle);
-            let mut not_a_bot_escalate_submit = Request::builder();
-            not_a_bot_escalate_submit
+        if includes_lane(SupplementalLane::NotABotFail) {
+            if let Some(fail_seed) = build_signed_not_a_bot_seed_token(
+                now,
+                not_a_bot_fail_ip.as_str(),
+                "ShumaAdversarySim/1.0 not-a-bot-fail",
+                "/sim/public/docs",
+                deterministic_lane_entropy(run_id.as_str(), state.generated_tick_count, 101),
+                1 + (state.generated_tick_count % 5),
+            ) {
+                let fail_body = build_not_a_bot_submit_body(&fail_seed, NotABotSubmissionProfile::Fail);
+                let mut not_a_bot_fail_submit = Request::builder();
+                not_a_bot_fail_submit
+                    .method(Method::Post)
+                    .uri(runtime_profile.paths.not_a_bot_checkbox.as_str())
+                    .header("x-forwarded-for", not_a_bot_fail_ip.as_str())
+                    .header("x-forwarded-proto", "https")
+                    .header("content-type", "application/x-www-form-urlencoded")
+                    .header("user-agent", "ShumaAdversarySim/1.0 not-a-bot-fail");
+                if let Some(secret) = forwarded_secret.as_deref() {
+                    not_a_bot_fail_submit.header("x-shuma-forwarded-secret", secret);
+                }
+                dispatch_request(not_a_bot_fail_submit.body(fail_body).build());
+            }
+        }
+
+        if includes_lane(SupplementalLane::NotABotEscalate) {
+            if let Some(escalate_seed) = build_signed_not_a_bot_seed_token(
+                now,
+                not_a_bot_escalate_ip.as_str(),
+                "ShumaAdversarySim/1.0 not-a-bot-escalate",
+                "/sim/public/pricing",
+                deterministic_lane_entropy(run_id.as_str(), state.generated_tick_count, 102),
+                2 + (state.generated_tick_count.wrapping_mul(3) % 7),
+            ) {
+                let escalate_body =
+                    build_not_a_bot_submit_body(&escalate_seed, NotABotSubmissionProfile::EscalatePuzzle);
+                let mut not_a_bot_escalate_submit = Request::builder();
+                not_a_bot_escalate_submit
+                    .method(Method::Post)
+                    .uri(runtime_profile.paths.not_a_bot_checkbox.as_str())
+                    .header("x-forwarded-for", not_a_bot_escalate_ip.as_str())
+                    .header("x-forwarded-proto", "https")
+                    .header("content-type", "application/x-www-form-urlencoded")
+                    .header("user-agent", "ShumaAdversarySim/1.0 not-a-bot-escalate");
+                if let Some(secret) = forwarded_secret.as_deref() {
+                    not_a_bot_escalate_submit.header("x-shuma-forwarded-secret", secret);
+                }
+                dispatch_request(not_a_bot_escalate_submit.body(escalate_body).build());
+            }
+        }
+
+        if includes_lane(SupplementalLane::PowVerify) {
+            let pow_verify_body = br#"{"seed":"invalid-seed","nonce":"invalid-nonce"}"#.to_vec();
+            let mut pow_verify = Request::builder();
+            pow_verify
                 .method(Method::Post)
-                .uri(runtime_profile.paths.not_a_bot_checkbox.as_str())
-                .header("x-forwarded-for", not_a_bot_escalate_ip.as_str())
+                .uri(runtime_profile.paths.pow_verify.as_str())
+                .header("x-forwarded-for", pow_abuse_ip.as_str())
                 .header("x-forwarded-proto", "https")
-                .header("content-type", "application/x-www-form-urlencoded")
-                .header("user-agent", "ShumaAdversarySim/1.0 not-a-bot-escalate");
+                .header("content-type", "application/json")
+                .header("user-agent", "ShumaAdversarySim/1.0 pow-verify-submit");
             if let Some(secret) = forwarded_secret.as_deref() {
-                not_a_bot_escalate_submit.header("x-shuma-forwarded-secret", secret);
+                pow_verify.header("x-shuma-forwarded-secret", secret);
             }
-            dispatch_request(not_a_bot_escalate_submit.body(escalate_body).build());
+            dispatch_request(pow_verify.body(pow_verify_body).build());
         }
 
-        let pow_verify_body = br#"{"seed":"invalid-seed","nonce":"invalid-nonce"}"#.to_vec();
-        let mut pow_verify = Request::builder();
-        pow_verify
-            .method(Method::Post)
-            .uri(runtime_profile.paths.pow_verify.as_str())
-            .header("x-forwarded-for", pow_abuse_ip.as_str())
-            .header("x-forwarded-proto", "https")
-            .header("content-type", "application/json")
-            .header("user-agent", "ShumaAdversarySim/1.0 pow-verify-submit");
-        if let Some(secret) = forwarded_secret.as_deref() {
-            pow_verify.header("x-shuma-forwarded-secret", secret);
+        if includes_lane(SupplementalLane::TarpitProgress) {
+            let tarpit_progress_body =
+                br#"{"token":"invalid","operation_id":"invalid","proof_nonce":"invalid"}"#.to_vec();
+            let mut tarpit_progress = Request::builder();
+            tarpit_progress
+                .method(Method::Post)
+                .uri(crate::tarpit::progress_path())
+                .header("x-forwarded-for", tarpit_abuse_ip.as_str())
+                .header("x-forwarded-proto", "https")
+                .header("content-type", "application/json")
+                .header("user-agent", "ShumaAdversarySim/1.0 tarpit-progress-submit");
+            if let Some(secret) = forwarded_secret.as_deref() {
+                tarpit_progress.header("x-shuma-forwarded-secret", secret);
+            }
+            dispatch_request(tarpit_progress.body(tarpit_progress_body).build());
         }
-        dispatch_request(pow_verify.body(pow_verify_body).build());
 
-        let tarpit_progress_body = br#"{"token":"invalid","operation_id":"invalid","proof_nonce":"invalid"}"#.to_vec();
-        let mut tarpit_progress = Request::builder();
-        tarpit_progress
-            .method(Method::Post)
-            .uri(crate::tarpit::progress_path())
-            .header("x-forwarded-for", tarpit_abuse_ip.as_str())
-            .header("x-forwarded-proto", "https")
-            .header("content-type", "application/json")
-            .header("user-agent", "ShumaAdversarySim/1.0 tarpit-progress-submit");
-        if let Some(secret) = forwarded_secret.as_deref() {
-            tarpit_progress.header("x-shuma-forwarded-secret", secret);
+        if includes_lane(SupplementalLane::FingerprintProbe) {
+            let fingerprint_probe_path =
+                format!("{}?q=fingerprint-mismatch", runtime_profile.paths.public_search);
+            let mut fingerprint_probe = Request::builder();
+            fingerprint_probe
+                .method(Method::Get)
+                .uri(fingerprint_probe_path.as_str())
+                .header("x-forwarded-for", fingerprint_probe_ip.as_str())
+                .header("x-forwarded-proto", "https")
+                .header(
+                    "user-agent",
+                    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148",
+                )
+                .header(
+                    "sec-ch-ua",
+                    "\"Chromium\";v=\"120\", \"Not_A Brand\";v=\"99\"",
+                )
+                .header("sec-ch-ua-platform", "\"Windows\"")
+                .header("sec-ch-ua-mobile", "?0");
+            if let Some(secret) = forwarded_secret.as_deref() {
+                fingerprint_probe.header("x-shuma-forwarded-secret", secret);
+            }
+            dispatch_request(fingerprint_probe.body(Vec::new()).build());
         }
-        dispatch_request(tarpit_progress.body(tarpit_progress_body).build());
 
-        let fingerprint_probe_path =
-            format!("{}?q=fingerprint-mismatch", runtime_profile.paths.public_search);
-        let mut fingerprint_probe = Request::builder();
-        fingerprint_probe
-            .method(Method::Get)
-            .uri(fingerprint_probe_path.as_str())
-            .header("x-forwarded-for", fingerprint_probe_ip.as_str())
-            .header("x-forwarded-proto", "https")
-            .header(
-                "user-agent",
-                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148",
-            )
-            .header(
-                "sec-ch-ua",
-                "\"Chromium\";v=\"120\", \"Not_A Brand\";v=\"99\"",
-            )
-            .header("sec-ch-ua-platform", "\"Windows\"")
-            .header("sec-ch-ua-mobile", "?0");
-        if let Some(secret) = forwarded_secret.as_deref() {
-            fingerprint_probe.header("x-shuma-forwarded-secret", secret);
+        if includes_lane(SupplementalLane::CdpReport) {
+            let cdp_probe_body = serde_json::to_vec(&json!({
+                "cdp_detected": true,
+                "score": 4.8,
+                "checks": ["webdriver", "automation_props", "cdp_timing", "micro_timing"]
+            }))
+            .unwrap_or_else(|_| b"{\"cdp_detected\":true,\"score\":4.8,\"checks\":[\"webdriver\"]}".to_vec());
+            let mut cdp_builder = Request::builder();
+            cdp_builder
+                .method(Method::Post)
+                .uri(runtime_profile.paths.cdp_report.as_str())
+                .header("x-forwarded-for", cdp_report_ip.as_str())
+                .header("x-forwarded-proto", "https")
+                .header("content-type", "application/json")
+                .header("user-agent", "ShumaAdversarySim/1.0 cdp-probe");
+            if let Some(secret) = forwarded_secret.as_deref() {
+                cdp_builder.header("x-shuma-forwarded-secret", secret);
+            }
+            dispatch_request(cdp_builder.body(cdp_probe_body).build());
         }
-        dispatch_request(fingerprint_probe.body(Vec::new()).build());
-
-        let cdp_probe_body = serde_json::to_vec(&json!({
-            "cdp_detected": true,
-            "score": 4.8,
-            "checks": ["webdriver", "automation_props", "cdp_timing", "micro_timing"]
-        }))
-        .unwrap_or_else(|_| b"{\"cdp_detected\":true,\"score\":4.8,\"checks\":[\"webdriver\"]}".to_vec());
-        let mut cdp_builder = Request::builder();
-        cdp_builder
-            .method(Method::Post)
-            .uri(runtime_profile.paths.cdp_report.as_str())
-            .header("x-forwarded-for", cdp_report_ip.as_str())
-            .header("x-forwarded-proto", "https")
-            .header("content-type", "application/json")
-            .header("user-agent", "ShumaAdversarySim/1.0 cdp-probe");
-        if let Some(secret) = forwarded_secret.as_deref() {
-            cdp_builder.header("x-shuma-forwarded-secret", secret);
-        }
-        dispatch_request(cdp_builder.body(cdp_probe_body).build());
 
         let rate_burst_requests = rate_burst_requests_for_tick(state.generated_tick_count);
         for burst_index in 0..rate_burst_requests {
@@ -1789,26 +1896,76 @@ mod tests {
     }
 
     #[test]
-    fn deterministic_generated_request_target_matches_batch_contract() {
+    fn shared_server_generated_request_target_matches_batch_contract() {
         let runtime_profile = deterministic_runtime_profile();
         let burst = &runtime_profile.rate_burst;
         assert_eq!(
-            deterministic_generated_request_target_for_tick(0),
+            deterministic_generated_request_target_for_profile(
+                crate::config::GatewayDeploymentProfile::SharedServer,
+                0,
+            ),
             runtime_profile.primary_request_count
                 + runtime_profile.supplemental_request_count
                 + burst.high
         );
         assert_eq!(
-            deterministic_generated_request_target_for_tick(1),
+            deterministic_generated_request_target_for_profile(
+                crate::config::GatewayDeploymentProfile::SharedServer,
+                1,
+            ),
             runtime_profile.primary_request_count
                 + runtime_profile.supplemental_request_count
                 + burst.low
         );
         assert_eq!(
-            deterministic_generated_request_target_for_tick(3),
+            deterministic_generated_request_target_for_profile(
+                crate::config::GatewayDeploymentProfile::SharedServer,
+                3,
+            ),
             runtime_profile.primary_request_count
                 + runtime_profile.supplemental_request_count
                 + burst.medium
         );
+    }
+
+    #[test]
+    fn edge_fermyon_generated_request_target_stays_within_bounded_budget() {
+        assert_eq!(
+            deterministic_generated_request_target_for_profile(
+                crate::config::GatewayDeploymentProfile::EdgeFermyon,
+                0,
+            ),
+            12
+        );
+        assert_eq!(
+            deterministic_generated_request_target_for_profile(
+                crate::config::GatewayDeploymentProfile::EdgeFermyon,
+                1,
+            ),
+            8
+        );
+        assert_eq!(
+            deterministic_generated_request_target_for_profile(
+                crate::config::GatewayDeploymentProfile::EdgeFermyon,
+                3,
+            ),
+            10
+        );
+    }
+
+    #[test]
+    fn edge_fermyon_supplemental_lane_rotation_covers_full_contract() {
+        let mut observed = std::collections::BTreeSet::new();
+        for tick in 0..4 {
+            for lane in supplemental_lanes_for_profile(
+                crate::config::GatewayDeploymentProfile::EdgeFermyon,
+                tick,
+            ) {
+                observed.insert(lane);
+            }
+        }
+
+        let expected = std::collections::BTreeSet::from(FULL_SUPPLEMENTAL_LANES);
+        assert_eq!(observed, expected);
     }
 }
