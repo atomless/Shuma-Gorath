@@ -29,21 +29,9 @@ from scripts.deploy.remote_target import (
     select_remote,
     ssh_command_for_operation,
 )
+from scripts.tests.edge_signal_smoke_common import EdgeSignalSmokeBase, SmokeFailure
 
 DEFAULT_REPORT_PATH = REPO_ROOT / ".spin" / "remote_edge_signal_smoke.json"
-FINGERPRINT_FIXTURE_DIR = REPO_ROOT / "scripts" / "tests" / "fixtures" / "akamai"
-ADDITIVE_FIXTURE_PATH = FINGERPRINT_FIXTURE_DIR / "fingerprint_additive_deny_signal.json"
-AUTHORITATIVE_FIXTURE_PATH = FINGERPRINT_FIXTURE_DIR / "fingerprint_authoritative_deny_signal.json"
-
-FINGERPRINT_ADDITIVE_IP = "10.0.0.230"
-FINGERPRINT_AUTHORITATIVE_IP = "10.0.0.231"
-GEO_CHALLENGE_IP = "10.0.0.210"
-GEO_MAZE_IP = "10.0.0.211"
-GEO_BLOCK_IP = "10.0.0.212"
-
-
-class SmokeFailure(RuntimeError):
-    pass
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -60,38 +48,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def merge_nested_dicts(base: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
-    merged = json.loads(json.dumps(base))
-    for key, value in patch.items():
-        if isinstance(value, dict) and isinstance(merged.get(key), dict):
-            merged[key] = merge_nested_dicts(merged[key], value)
-        else:
-            merged[key] = value
-    return merged
-
-
-def nested_restore_payload(config: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "provider_backends": {
-            "fingerprint_signal": config.get("provider_backends", {}).get(
-                "fingerprint_signal", "internal"
-            )
-        },
-        "edge_integration_mode": config.get("edge_integration_mode", "off"),
-        "cdp_detection_enabled": config.get("cdp_detection_enabled", True),
-        "cdp_auto_ban": config.get("cdp_auto_ban", True),
-        "geo_edge_headers_enabled": config.get("geo_edge_headers_enabled", False),
-        "geo_risk": config.get("geo_risk", []),
-        "geo_allow": config.get("geo_allow", []),
-        "geo_challenge": config.get("geo_challenge", []),
-        "geo_maze": config.get("geo_maze", []),
-        "geo_block": config.get("geo_block", []),
-        "maze_enabled": config.get("maze_enabled", True),
-        "maze_auto_ban": config.get("maze_auto_ban", True),
-    }
-
-
-class RemoteEdgeSignalSmoke:
+class RemoteEdgeSignalSmoke(EdgeSignalSmokeBase):
     def __init__(
         self,
         *,
@@ -102,24 +59,37 @@ class RemoteEdgeSignalSmoke:
     ) -> None:
         self.env_file = env_file
         self.receipts_dir = receipts_dir
-        self.report_path = report_path
         self.receipt = select_remote(remote_name, env_file, receipts_dir)
-        self.base_url = self.receipt["runtime"]["public_base_url"].rstrip("/")
         self.transport_mode = self._select_transport_mode()
         self.local_env = read_env_file(env_file)
         self.remote_env: dict[str, str] | None = None
         env_values = self.local_env
-        self.api_key = env_values.get("SHUMA_API_KEY", "").strip()
-        if not self.api_key:
+        api_key = env_values.get("SHUMA_API_KEY", "").strip()
+        if not api_key:
             raise SmokeFailure("SHUMA_API_KEY must be present in the active smoke transport env.")
-        self.forwarded_ip_secret = env_values.get("SHUMA_FORWARDED_IP_SECRET", "").strip()
-        self.admin_forwarded_ip = first_ip_from_allowlist(
+        forwarded_ip_secret = env_values.get("SHUMA_FORWARDED_IP_SECRET", "").strip()
+        admin_forwarded_ip = first_ip_from_allowlist(
             env_values.get("SHUMA_ADMIN_IP_ALLOWLIST", "").strip()
         ) or "127.0.0.1"
-        self.ssl_context = self._build_ssl_context()
-        self.original_config: dict[str, Any] | None = None
-        self.checks: list[dict[str, Any]] = []
-        self.restore_error: str = ""
+        self.ssl_context = self._build_ssl_context(self.receipt["runtime"]["public_base_url"])
+        super().__init__(
+            base_url=self.receipt["runtime"]["public_base_url"],
+            report_path=report_path,
+            api_key=api_key,
+            forwarded_ip_secret=forwarded_ip_secret,
+            admin_forwarded_ip=admin_forwarded_ip,
+            synthetic_forwarding=True,
+        )
+
+    def _target_report_key(self) -> str:
+        return "remote"
+
+    def _target_report_metadata(self) -> dict[str, Any]:
+        return {
+            "name": self.receipt["identity"]["name"],
+            "base_url": self.base_url,
+            "transport_mode": self.transport_mode,
+        }
 
     def _select_transport_mode(self) -> str:
         ssh = self.receipt.get("ssh", {})
@@ -138,8 +108,8 @@ class RemoteEdgeSignalSmoke:
             return "ssh_loopback"
         return "direct_http"
 
-    def _build_ssl_context(self):
-        hostname = urlparse(self.base_url).hostname or ""
+    def _build_ssl_context(self, base_url: str):
+        hostname = urlparse(base_url).hostname or ""
         if hostname.endswith(".sslip.io"):
             return ssl._create_unverified_context()
         return None
@@ -159,22 +129,6 @@ class RemoteEdgeSignalSmoke:
                 f"Failed to read remote env for edge signal smoke: {stderr or 'unknown SSH error'}"
             )
         return parse_env_text(result.stdout)
-
-    def _trusted_headers(
-        self,
-        *,
-        forwarded_ip: str,
-        extra_headers: dict[str, str] | None = None,
-    ) -> dict[str, str]:
-        headers = {
-            "X-Forwarded-For": forwarded_ip,
-            "X-Forwarded-Proto": "https",
-        }
-        if self.forwarded_ip_secret:
-            headers["X-Shuma-Forwarded-Secret"] = self.forwarded_ip_secret
-        if extra_headers:
-            headers.update(extra_headers)
-        return headers
 
     def _ensure_transport_env_loaded(self) -> None:
         if self.transport_mode != "ssh_loopback" or self.remote_env is not None:
@@ -276,9 +230,8 @@ PY"""
                 expected_statuses=expected_statuses,
             )
         url = f"{self.base_url}{path}"
-        request_headers = dict(headers or {})
         request = urllib.request.Request(url, data=body, method=method.upper())
-        for key, value in request_headers.items():
+        for key, value in (headers or {}).items():
             request.add_header(key, value)
         try:
             with urllib.request.urlopen(
@@ -294,279 +247,6 @@ PY"""
         if status not in expected_statuses:
             raise SmokeFailure(f"{method} {path} returned {status}: {payload}")
         return status, payload
-
-    def _get_config(self) -> dict[str, Any]:
-        _, body = self._request(
-            "GET",
-            "/admin/config",
-            headers=self._trusted_headers(
-                forwarded_ip=self.admin_forwarded_ip,
-                extra_headers={"Authorization": f"Bearer {self.api_key}"},
-            ),
-        )
-        try:
-            payload = json.loads(body)
-        except json.JSONDecodeError as exc:
-            raise SmokeFailure(f"/admin/config returned invalid JSON: {exc}") from exc
-        if not isinstance(payload, dict):
-            raise SmokeFailure("/admin/config returned a non-object payload.")
-        return payload
-
-    def _patch_config(self, patch: dict[str, Any]) -> dict[str, Any]:
-        body = json.dumps(patch).encode("utf-8")
-        _, payload = self._request(
-            "POST",
-            "/admin/config",
-            body=body,
-            headers=self._trusted_headers(
-                forwarded_ip=self.admin_forwarded_ip,
-                extra_headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-            ),
-        )
-        try:
-            parsed = json.loads(payload)
-        except json.JSONDecodeError as exc:
-            raise SmokeFailure(f"/admin/config update returned invalid JSON: {exc}") from exc
-        if not isinstance(parsed, dict):
-            raise SmokeFailure("/admin/config update returned a non-object payload.")
-        return parsed
-
-    def _unban(self, ip: str) -> None:
-        self._request(
-            "POST",
-            f"/admin/unban?ip={ip}",
-            headers=self._trusted_headers(
-                forwarded_ip=self.admin_forwarded_ip,
-                extra_headers={"Authorization": f"Bearer {self.api_key}"},
-            ),
-        )
-
-    def _root_request(self, *, forwarded_ip: str, geo_country: str = "") -> tuple[int, str]:
-        headers = self._trusted_headers(forwarded_ip=forwarded_ip)
-        if geo_country:
-            headers["X-Geo-Country"] = geo_country
-        return self._request("GET", "/", headers=headers, expected_statuses=(200, 403))
-
-    def _post_fingerprint_fixture(self, fixture_path: Path, *, forwarded_ip: str) -> tuple[int, str]:
-        payload = fixture_path.read_bytes()
-        return self._request(
-            "POST",
-            "/fingerprint-report",
-            body=payload,
-            headers=self._trusted_headers(
-                forwarded_ip=forwarded_ip,
-                extra_headers={"Content-Type": "application/json"},
-            ),
-        )
-
-    def _record_check(self, name: str, ok: bool, details: str) -> None:
-        self.checks.append({"name": name, "ok": ok, "details": details})
-        prefix = "PASS" if ok else "FAIL"
-        print(f"{prefix} {name}: {details}")
-
-    def _assert_contains(self, body: str, needle: str, *, context: str) -> None:
-        if needle not in body:
-            raise SmokeFailure(f"{context}: expected {needle!r} in response body {body!r}")
-
-    def _assert_contains_any(
-        self,
-        body: str,
-        needles: tuple[str, ...],
-        *,
-        context: str,
-    ) -> None:
-        if any(needle in body for needle in needles):
-            return
-        raise SmokeFailure(
-            f"{context}: expected one of {needles!r} in response body {body!r}"
-        )
-
-    def _run_additive_fingerprint_check(self) -> None:
-        patch = {
-            "provider_backends": {"fingerprint_signal": "external"},
-            "edge_integration_mode": "additive",
-            "cdp_detection_enabled": True,
-            "cdp_auto_ban": True,
-        }
-        self._patch_config(patch)
-        self._unban(FINGERPRINT_ADDITIVE_IP)
-        _, body = self._post_fingerprint_fixture(
-            ADDITIVE_FIXTURE_PATH,
-            forwarded_ip=FINGERPRINT_ADDITIVE_IP,
-        )
-        self._assert_contains(
-            body,
-            "External fingerprint report received (additive)",
-            context="additive fingerprint report",
-        )
-        status, followup = self._root_request(forwarded_ip=FINGERPRINT_ADDITIVE_IP)
-        if status == 403 or "Access Blocked" in followup:
-            raise SmokeFailure(
-                f"additive fingerprint follow-up unexpectedly blocked: status={status} body={followup!r}"
-            )
-        self._record_check(
-            "akamai_fingerprint_additive",
-            True,
-            "strong Akamai fixture is accepted without an immediate ban",
-        )
-
-    def _run_authoritative_fingerprint_check(self) -> None:
-        patch = {
-            "provider_backends": {"fingerprint_signal": "external"},
-            "edge_integration_mode": "authoritative",
-            "cdp_detection_enabled": True,
-            "cdp_auto_ban": True,
-        }
-        self._patch_config(patch)
-        self._unban(FINGERPRINT_AUTHORITATIVE_IP)
-        _, body = self._post_fingerprint_fixture(
-            AUTHORITATIVE_FIXTURE_PATH,
-            forwarded_ip=FINGERPRINT_AUTHORITATIVE_IP,
-        )
-        self._assert_contains(
-            body,
-            "External fingerprint automation detected - banned",
-            context="authoritative fingerprint report",
-        )
-        status, followup = self._root_request(forwarded_ip=FINGERPRINT_AUTHORITATIVE_IP)
-        if status != 403 or "Access Blocked" not in followup:
-            raise SmokeFailure(
-                f"authoritative fingerprint follow-up did not block: status={status} body={followup!r}"
-            )
-        self._record_check(
-            "akamai_fingerprint_authoritative",
-            True,
-            "strong Akamai fixture triggers immediate authoritative ban",
-        )
-
-    def _run_geo_check(
-        self,
-        *,
-        name: str,
-        patch: dict[str, Any],
-        forwarded_ip: str,
-        country: str,
-        expect_status: int,
-        expect_fragments: tuple[str, ...],
-        details: str,
-    ) -> None:
-        self._patch_config(
-            merge_nested_dicts(
-                {
-                    "provider_backends": {"fingerprint_signal": "internal"},
-                    "edge_integration_mode": "off",
-                },
-                patch,
-            )
-        )
-        status, body = self._root_request(forwarded_ip=forwarded_ip, geo_country=country)
-        if status != expect_status:
-            raise SmokeFailure(f"{name} returned {status}, expected {expect_status}: {body!r}")
-        self._assert_contains_any(body, expect_fragments, context=name)
-        self._record_check(name, True, details)
-
-    def _restore_original_state(self) -> None:
-        if self.original_config is None:
-            return
-        try:
-            self._patch_config(nested_restore_payload(self.original_config))
-            for ip in (FINGERPRINT_ADDITIVE_IP, FINGERPRINT_AUTHORITATIVE_IP):
-                self._unban(ip)
-        except Exception as exc:  # pragma: no cover - reported in the final JSON
-            self.restore_error = str(exc)
-
-    def write_report(self) -> None:
-        self.report_path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "remote": {
-                "name": self.receipt["identity"]["name"],
-                "base_url": self.base_url,
-                "transport_mode": self.transport_mode,
-            },
-            "checks": self.checks,
-            "restore_error": self.restore_error,
-        }
-        self.report_path.write_text(
-            json.dumps(payload, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
-
-    def run(self) -> int:
-        failure: SmokeFailure | None = None
-        try:
-            self.original_config = self._get_config()
-            self._run_additive_fingerprint_check()
-            self._run_geo_check(
-                name="trusted_geo_challenge",
-                patch={
-                    "geo_edge_headers_enabled": True,
-                    "geo_risk": [],
-                    "geo_allow": [],
-                    "geo_challenge": ["BR"],
-                    "geo_maze": [],
-                    "geo_block": [],
-                },
-                forwarded_ip=GEO_CHALLENGE_IP,
-                country="BR",
-                expect_status=200,
-                expect_fragments=("Puzzle",),
-                details="trusted country header routes to challenge tier",
-            )
-            self._run_geo_check(
-                name="trusted_geo_maze",
-                patch={
-                    "geo_edge_headers_enabled": True,
-                    "geo_risk": [],
-                    "geo_allow": [],
-                    "geo_challenge": [],
-                    "geo_maze": ["RU"],
-                    "geo_block": [],
-                    "maze_enabled": True,
-                    "maze_auto_ban": False,
-                },
-                forwarded_ip=GEO_MAZE_IP,
-                country="RU",
-                expect_status=200,
-                expect_fragments=('data-link-kind="maze"',),
-                details="trusted country header routes to maze tier",
-            )
-            self._run_geo_check(
-                name="trusted_geo_block",
-                patch={
-                    "geo_edge_headers_enabled": True,
-                    "geo_risk": [],
-                    "geo_allow": [],
-                    "geo_challenge": [],
-                    "geo_maze": [],
-                    "geo_block": ["KP"],
-                },
-                forwarded_ip=GEO_BLOCK_IP,
-                country="KP",
-                expect_status=403,
-                expect_fragments=("Access Blocked", "Access Restricted"),
-                details="trusted country header routes to block tier",
-            )
-            self._run_authoritative_fingerprint_check()
-        except SmokeFailure as exc:
-            failure = exc
-        finally:
-            self._restore_original_state()
-            if failure is not None:
-                self._record_check("remote_edge_signal_smoke", False, str(failure))
-            self.write_report()
-
-        if self.restore_error:
-            print(f"FAIL restore: {self.restore_error}", file=sys.stderr)
-            return 1
-        if failure is not None:
-            print(f"FAIL remote edge signal smoke: {failure}", file=sys.stderr)
-            return 1
-
-        print(f"Report written: {self.report_path}")
-        return 0
 
 
 def main(argv: list[str] | None = None) -> int:

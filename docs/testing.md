@@ -14,6 +14,8 @@ make test-gateway-wasm-tls-harness # wasm32 TLS cert-failure matrix (expired/sel
 make test-gateway-origin-bypass-probe # Optional active direct-origin bypass probe (requires URL args)
 make test-gateway-profile-shared-server # Shared-server gateway contract + forwarding checks
 make test-gateway-profile-edge # Edge/Fermyon gateway contract + signed-header origin-auth checks
+make test-remote-edge-signal-smoke # Live shared-host trusted-edge proof (ssh-managed remote)
+make test-fermyon-edge-signal-smoke # Live Fermyon/Akamai trusted-edge proof (current deploy receipt)
 make smoke-gateway-mode # Fast gateway smoke (allow forward, enforcement-local, fail-closed outage)
 make test-adversarial-manifest # Validate adversarial scenario manifest + fixture references
 make test-adversarial-coverage-contract # Validate canonical full_coverage contract parity (plan + manifests + runner)
@@ -317,7 +319,11 @@ Simulation telemetry read policy:
 - additive `/fingerprint-report` ingestion,
 - authoritative `/fingerprint-report` ban behavior,
 - trusted GEO country-header routing for challenge, maze, and block.
-It does not yet prove future Akamai-native rate or rich-geo augmentations; those remain separate backlog work.
+`test-fermyon-edge-signal-smoke` is the live Fermyon/Akamai proof for the same currently implemented surfaces. It runs against the current Fermyon deploy receipt using real edge client identity semantics rather than synthetic `X-Forwarded-For`, and proves:
+- additive `/fingerprint-report` ingestion,
+- trusted GEO country-header routing for challenge, maze, and block,
+- authoritative `/fingerprint-report` either produces a visible ban when state allows it or returns the expected enterprise-state guardrail that is verified via `spin aka logs`.
+Neither target proves future Akamai-native rate or rich-geo augmentations; those remain separate backlog work.
 `test-telemetry-storage` is the focused telemetry-storage regression target for this tranche. It proves:
 - monitoring summary and delta reads stay on bucket-indexed paths,
 - daily monitoring rollups are built and reused,

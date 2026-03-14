@@ -2,24 +2,26 @@ import http.server
 import importlib.util
 import json
 import socketserver
-import subprocess
 import tempfile
 import threading
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = REPO_ROOT / "scripts" / "tests" / "remote_edge_signal_smoke.py"
-SPEC = importlib.util.spec_from_file_location("remote_edge_signal_smoke", SCRIPT)
-REMOTE_EDGE_SIGNAL_SMOKE = importlib.util.module_from_spec(SPEC)
+SCRIPT = REPO_ROOT / "scripts" / "tests" / "fermyon_edge_signal_smoke.py"
+SPEC = importlib.util.spec_from_file_location("fermyon_edge_signal_smoke", SCRIPT)
+FERMYON_EDGE_SIGNAL_SMOKE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
-SPEC.loader.exec_module(REMOTE_EDGE_SIGNAL_SMOKE)
+SPEC.loader.exec_module(FERMYON_EDGE_SIGNAL_SMOKE)
 
 
 class _StubState:
-    def __init__(self) -> None:
+    def __init__(self, *, guard_authoritative: bool) -> None:
+        self.guard_authoritative = guard_authoritative
+        self.actual_ip = "203.0.113.99"
         self.original_config = {
             "admin_config_write_enabled": True,
             "provider_backends": {
@@ -46,73 +48,28 @@ class _ThreadedServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
 
 
-class RemoteEdgeSignalSmokeTests(unittest.TestCase):
+class FermyonEdgeSignalSmokeTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.temp_dir = Path(tempfile.mkdtemp(prefix="remote-edge-signal-smoke-"))
+        self.temp_dir = Path(tempfile.mkdtemp(prefix="fermyon-edge-signal-smoke-"))
         self.env_file = self.temp_dir / ".env.local"
-        self.receipts_dir = self.temp_dir / ".shuma" / "remotes"
-        self.receipts_dir.mkdir(parents=True)
+        self.deploy_receipt = self.temp_dir / ".shuma" / "fermyon-akamai-edge-deploy.json"
         self.report_path = self.temp_dir / "report.json"
-        self.state = _StubState()
 
-        handler = self._build_handler(self.state)
+    def _start_server(self, state: _StubState) -> str:
+        handler = self._build_handler(state)
         self.server = _ThreadedServer(("127.0.0.1", 0), handler)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
-        self.base_url = f"http://127.0.0.1:{self.server.server_port}"
-
-        self.env_file.write_text(
-            "\n".join(
-                [
-                    "SHUMA_API_KEY=test-admin-key",
-                    "SHUMA_ACTIVE_REMOTE=stub-remote",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
-        (self.receipts_dir / "stub-remote.json").write_text(
-            json.dumps(
-                {
-                    "schema": "shuma.remote_target.v1",
-                    "identity": {
-                        "name": "stub-remote",
-                        "backend_kind": "ssh_systemd",
-                        "provider_kind": "test",
-                    },
-                    "ssh": {
-                        "host": "127.0.0.1",
-                        "port": 22,
-                        "user": "shuma",
-                        "private_key_path": "/tmp/test-key",
-                    },
-                    "runtime": {
-                        "app_dir": "/opt/shuma-gorath",
-                        "service_name": "shuma-gorath",
-                        "public_base_url": self.base_url,
-                    },
-                    "deploy": {
-                        "spin_manifest_path": "/opt/shuma-gorath/spin.gateway.toml",
-                        "surface_catalog_path": str(self.temp_dir / "surface-catalog.json"),
-                        "smoke_path": "/health",
-                        "upstream_origin": "http://127.0.0.1:8080",
-                    },
-                    "metadata": {
-                        "last_deployed_commit": "",
-                        "last_deployed_at_utc": "",
-                    },
-                    "provider": {},
-                },
-                indent=2,
-            )
-            + "\n",
-            encoding="utf-8",
-        )
+        return f"http://127.0.0.1:{self.server.server_port}"
 
     def tearDown(self) -> None:
-        self.server.shutdown()
-        self.server.server_close()
-        self.thread.join(timeout=2)
+        server = getattr(self, "server", None)
+        if server is not None:
+            server.shutdown()
+            server.server_close()
+        thread = getattr(self, "thread", None)
+        if thread is not None:
+            thread.join(timeout=2)
 
     def _build_handler(self, state: _StubState):
         class Handler(http.server.BaseHTTPRequestHandler):
@@ -172,13 +129,12 @@ class RemoteEdgeSignalSmokeTests(unittest.TestCase):
                     return
 
                 if parsed.path == "/":
-                    forwarded_ip = self.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip()
                     country = self.headers.get("X-Geo-Country", "").strip().upper()
-                    if forwarded_ip in state.banned_ips:
+                    if state.actual_ip in state.banned_ips:
                         self._send_text("Access Blocked", 403)
                         return
                     if country and country in state.config.get("geo_block", []):
-                        self._send_text("Access Blocked", 403)
+                        self._send_text("Access Restricted", 403)
                         return
                     if (
                         country
@@ -216,8 +172,7 @@ class RemoteEdgeSignalSmokeTests(unittest.TestCase):
                     if not self._require_auth():
                         self._send_text("Unauthorized", 401)
                         return
-                    params = parse_qs(parsed.query)
-                    ip = params.get("ip", [""])[0]
+                    ip = parse_qs(parsed.query).get("ip", [""])[0]
                     if ip:
                         state.banned_ips.discard(ip)
                         state.unban_calls.append(ip)
@@ -226,7 +181,6 @@ class RemoteEdgeSignalSmokeTests(unittest.TestCase):
 
                 if parsed.path == "/fingerprint-report":
                     payload = self._read_json()
-                    ip = self.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip()
                     backend = state.config.get("provider_backends", {}).get("fingerprint_signal")
                     mode = state.config.get("edge_integration_mode")
                     if backend != "external":
@@ -236,7 +190,10 @@ class RemoteEdgeSignalSmokeTests(unittest.TestCase):
                         self._send_text("External fingerprint report received (additive)")
                         return
                     if mode == "authoritative" and payload.get("action") == "deny":
-                        state.banned_ips.add(ip)
+                        if state.guard_authoritative:
+                            self._send_text("Server configuration error", 503)
+                            return
+                        state.banned_ips.add(state.actual_ip)
                         self._send_text("External fingerprint automation detected - banned")
                         return
                     self._send_text("External fingerprint report received")
@@ -249,56 +206,97 @@ class RemoteEdgeSignalSmokeTests(unittest.TestCase):
 
         return Handler
 
-    def test_live_remote_edge_signal_smoke_restores_config_after_success(self) -> None:
-        result = subprocess.run(
-            [
-                "python3",
-                str(SCRIPT),
-                "--env-file",
-                str(self.env_file),
-                "--receipts-dir",
-                str(self.receipts_dir),
-                "--report-path",
-                str(self.report_path),
-            ],
-            cwd=str(REPO_ROOT),
-            capture_output=True,
-            text=True,
-            check=False,
+    def _write_env_and_receipt(self, base_url: str) -> None:
+        self.env_file.write_text(
+            "\n".join(
+                [
+                    "SHUMA_API_KEY=test-admin-key",
+                    "SHUMA_FORWARDED_IP_SECRET=test-forwarded-secret",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
         )
-        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.deploy_receipt.parent.mkdir(parents=True, exist_ok=True)
+        self.deploy_receipt.write_text(
+            json.dumps(
+                {
+                    "schema": "shuma.fermyon.akamai_edge_deploy.v1",
+                    "setup_receipt_path": str(self.temp_dir / ".shuma" / "setup.json"),
+                    "fermyon": {
+                        "account_id": "acc_123",
+                        "account_name": "",
+                        "app_id": "app_123",
+                        "app_name": "shuma-edge-test",
+                        "primary_url": base_url,
+                    },
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
 
+    def test_live_fermyon_edge_signal_smoke_accepts_authoritative_guardrail(self) -> None:
+        state = _StubState(guard_authoritative=True)
+        base_url = self._start_server(state)
+        self._write_env_and_receipt(base_url)
+        logs_output = (
+            "2026-03-14 11:27:23 [bot-defence] "
+            "[ENTERPRISE STATE ERROR] path=/fingerprint-report "
+            "enterprise multi-instance rollout cannot run with local-only rate/ban state in authoritative mode\n"
+        )
+
+        def fake_run(command, capture_output=True, text=True, check=False):
+            if command[:3] == ["spin", "aka", "logs"]:
+                return type("Completed", (), {"returncode": 0, "stdout": logs_output, "stderr": ""})()
+            raise AssertionError(f"Unexpected command: {command}")
+
+        with patch.object(FERMYON_EDGE_SIGNAL_SMOKE.subprocess, "run", side_effect=fake_run):
+            runner = FERMYON_EDGE_SIGNAL_SMOKE.FermyonEdgeSignalSmoke(
+                env_file=self.env_file,
+                deploy_receipt_path=self.deploy_receipt,
+                report_path=self.report_path,
+            )
+            rc = runner.run()
+
+        self.assertEqual(rc, 0)
         report = json.loads(self.report_path.read_text(encoding="utf-8"))
-        self.assertEqual(report["remote"]["name"], "stub-remote")
-        self.assertEqual(report["remote"]["base_url"], self.base_url)
-        self.assertEqual(
-            [check["ok"] for check in report["checks"]],
-            [True, True, True, True, True],
-        )
-        self.assertEqual(self.state.config, self.state.original_config)
-        self.assertEqual(
-            self.state.unban_calls,
-            ["10.0.0.231"],
-        )
+        self.assertEqual(report["fermyon"]["app_name"], "shuma-edge-test")
+        self.assertEqual(report["fermyon"]["base_url"], base_url)
+        self.assertTrue(all(check["ok"] for check in report["checks"]))
+        auth_checks = [check for check in report["checks"] if check["name"] == "akamai_fingerprint_authoritative"]
+        self.assertEqual(len(auth_checks), 1)
+        self.assertIn("guardrail", auth_checks[0]["details"])
+        self.assertEqual(state.banned_ips, set())
+        self.assertEqual(state.unban_calls, [])
+        self.assertEqual(state.config, state.original_config)
 
-    def test_auto_transport_prefers_ssh_loopback_for_real_remote_receipts(self) -> None:
-        private_key = self.temp_dir / "id_ed25519"
-        private_key.write_text("dummy", encoding="utf-8")
-        receipt_path = self.receipts_dir / "stub-remote.json"
-        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-        receipt["ssh"]["host"] = "198.51.100.25"
-        receipt["ssh"]["private_key_path"] = str(private_key)
-        receipt["runtime"]["public_base_url"] = "https://remote.example.com"
-        receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+    def test_live_fermyon_edge_signal_smoke_accepts_authoritative_ban_when_state_allows_it(self) -> None:
+        state = _StubState(guard_authoritative=False)
+        base_url = self._start_server(state)
+        self._write_env_and_receipt(base_url)
 
-        runner = REMOTE_EDGE_SIGNAL_SMOKE.RemoteEdgeSignalSmoke(
-            env_file=self.env_file,
-            receipts_dir=self.receipts_dir,
-            remote_name="stub-remote",
-            report_path=self.report_path,
-        )
+        def fake_run(command, capture_output=True, text=True, check=False):
+            if command[:3] == ["spin", "aka", "logs"]:
+                return type("Completed", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+            raise AssertionError(f"Unexpected command: {command}")
 
-        self.assertEqual(runner.transport_mode, "ssh_loopback")
+        with patch.object(FERMYON_EDGE_SIGNAL_SMOKE.subprocess, "run", side_effect=fake_run):
+            runner = FERMYON_EDGE_SIGNAL_SMOKE.FermyonEdgeSignalSmoke(
+                env_file=self.env_file,
+                deploy_receipt_path=self.deploy_receipt,
+                report_path=self.report_path,
+            )
+            rc = runner.run()
+
+        self.assertEqual(rc, 0)
+        report = json.loads(self.report_path.read_text(encoding="utf-8"))
+        auth_checks = [check for check in report["checks"] if check["name"] == "akamai_fingerprint_authoritative"]
+        self.assertEqual(len(auth_checks), 1)
+        self.assertIn("immediate authoritative ban", auth_checks[0]["details"])
+        self.assertEqual(state.banned_ips, set())
+        self.assertEqual(state.unban_calls, [state.actual_ip])
+        self.assertEqual(state.config, state.original_config)
 
 
 if __name__ == "__main__":

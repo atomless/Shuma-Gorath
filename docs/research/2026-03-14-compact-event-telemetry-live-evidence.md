@@ -86,8 +86,10 @@ Interpretation:
 
 Environment:
 
-- App URL: `https://79b823de-37b6-4a85-b3cc-16a40738c5a7.fwf.app`
+- App URL: `https://1f24a784-4585-42da-933c-7673ac5e25d8.fwf.app`
+- App: `shuma-edge-fresh-20260314-112021`
 - Account: `atomless`
+- Deploy receipt head: `a19697ddb7ea8c6fb38cb6f54611f93fa76cce99`
 
 Budgets:
 
@@ -97,11 +99,11 @@ Budgets:
 Observed:
 
 - `/admin/monitoring?bootstrap=1...`
-  - `165.81 ms`
-  - `27347 B`
+  - `168.96 ms`
+  - `30120 B`
 - `/admin/monitoring/delta`
-  - `672.93 ms`
-  - `15987 B`
+  - `140.12 ms`
+  - `18699 B`
 
 Result:
 
@@ -110,43 +112,19 @@ Result:
 
 Direct live compact-row proof:
 
-- the current Fermyon recent-event sample is challenge-heavy and compact:
+- the fresh blank-slate Fermyon recent-event sample is compact and operator-truthful:
   - `40` rows total
-  - `29` challenge rows
-  - `23` `js_verification` rows
-  - `23/23` `js_verification` rows in the sample use the compact shape
-- a fresh Fermyon `js_verification` recent-event row is now:
+  - `13` challenge rows
+  - `3` `js_verification` rows
+  - `3/3` `js_verification` rows in the sample use the compact shape
+  - `0` legacy `js_verification` rows remain in the sampled recent tail
+- this fresh-app rerun is not as challenge-heavy as the shared-host sample, but it still proves that the current edge deployment is serving the compact contract directly on a newly created app rather than on an older carried-forward receipt.
 
-```json
-{
-  "event": "Challenge",
-  "ip": "88.215.1.0",
-  "outcome_code": "required",
-  "reason": "js_verification",
-  "taxonomy": {
-    "level": "L4_VERIFY_JS"
-  },
-  "ts": 1773483872
-}
-```
+## Fresh-Receipt Exactness
 
-That row shape confirms the edge deployment is serving the compact contract directly:
+The earlier Fermyon caveat about stale deploy-receipt head is now cleared for the current live evidence set.
 
-1. no blended verbose `outcome` narrative,
-2. no `is_simulation: false`,
-3. no redundant `taxonomy.action`,
-4. no redundant `taxonomy.detection`,
-5. no fixed `taxonomy.signals` bundle for `js_verification`.
-
-## Caveat
-
-The Fermyon live-evidence receipt still reports deploy receipt head `5d30b0be9abcc281f550e1cf03d6e09f854dbdf2`.
-
-That receipt lag remains a deploy-helper caveat, not a telemetry-proof failure:
-
-1. live bootstrap and delta requests are budget-green,
-2. direct live recent-event queries show the compact row shape on edge,
-3. the stale receipt head is caused by the post-publish adversary-sim smoke failure that still prevents the helper from rewriting the final receipt.
+The refreshed receipt reports deploy head `a19697ddb7ea8c6fb38cb6f54611f93fa76cce99`, which matches the fresh blank-slate deploy receipt captured by the Fermyon helper.
 
 ## Conclusion
 
@@ -156,7 +134,7 @@ The compact schema now has live proof that:
 
 1. challenge-heavy persisted rows are materially smaller,
 2. hot-read payload budgets remain green on both shared-host and Fermyon,
-3. analysis/dashboard usability is preserved through the compact raw shape,
+3. analysis/dashboard usability is preserved through the compact raw shape, including on a fresh Fermyon edge deploy receipt with exact current head,
 4. the next retention tranche should focus on measured tier balance, not assume raw-row compaction alone justifies longer raw retention.
 
 ## Retention Decision

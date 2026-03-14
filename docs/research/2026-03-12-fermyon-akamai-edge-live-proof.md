@@ -2,6 +2,14 @@
 
 Date: 2026-03-12
 
+Update (2026-03-14):
+
+This note records the first live Fermyon baseline. It is extended by [`2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`](2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md), which adds:
+
+- a fresh blank-slate app setup and deploy proof,
+- a Fermyon-native trusted-edge signal proof path,
+- and a refreshed telemetry evidence pass tied to the current deploy receipt head.
+
 ## Outcome
 
 The Fermyon / Akamai edge setup and deploy path is now proven live.

@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-14)
 
+### Ad Hoc Fermyon Reliability: Blank-Slate Deploy, Edge Signals, and Telemetry Exactness
+
+- [x] Re-prove the Fermyon / Akamai path from a blank-slate app, add a Fermyon-native trusted-edge signal smoke, and refresh live telemetry receipts against that fresh deploy so the edge baseline is exact instead of inferred from older happy-path checks.
+- [x] Why:
+  - the earlier Fermyon "working" claim was incomplete because it did not prove a fresh app from zero state and did not exercise the real edge signal contract with Fermyon-native request identity semantics.
+  - a shared-host-shaped trusted-forwarding smoke is not a truthful Fermyon proof, so this slice split the proof paths: SSH loopback remains the shared-host proof, while Fermyon now has its own deploy-receipt-based live signal smoke.
+  - the fresh Fermyon app now proves the full operator path end to end: setup, deploy, config bootstrap, adversary-sim traffic generation, and live signal handling.
+  - authoritative fingerprint on enterprise Fermyon is now documented and proven as an explicit distributed-state guardrail until `DEP-ENT-1..5` land, instead of being misread as either a generic success or a hidden failure.
+  - telemetry evidence was rerun against the same fresh app so the current live Fermyon receipt carries the exact deployed `git_head` rather than the older stale-receipt caveat.
+- [x] Evidence:
+  - `scripts/tests/edge_signal_smoke_common.py`
+  - `scripts/tests/fermyon_edge_signal_smoke.py`
+  - `scripts/tests/remote_edge_signal_smoke.py`
+  - `scripts/tests/test_fermyon_edge_signal_smoke.py`
+  - `scripts/tests/test_remote_edge_signal_smoke.py`
+  - `Makefile`
+  - `docs/research/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`
+  - `docs/research/2026-03-14-compact-event-telemetry-live-evidence.md`
+  - `.shuma/shuma-edge-fresh-20260314-112021/fermyon-akamai-edge-deploy.json`
+  - `.spin/fermyon_edge_signal_smoke.json`
+  - `.spin/telemetry_fermyon_edge_evidence.json`
+  - `make test-deploy-fermyon`
+  - `make test-deploy-linode`
+  - `make test-fermyon-edge-signal-smoke ENV_LOCAL=/Users/jamestindall/Projects/Shuma-Gorath/.env.local SHUMA_LOCAL_STATE_DIR=/Users/jamestindall/Projects/Shuma-Gorath/.worktrees/tel-evt-sparse-rows/.shuma/shuma-edge-fresh-20260314-112021`
+  - `make telemetry-fermyon-edge-evidence ENV_LOCAL=/Users/jamestindall/Projects/Shuma-Gorath/.env.local SHUMA_LOCAL_STATE_DIR=/Users/jamestindall/Projects/Shuma-Gorath/.worktrees/tel-evt-sparse-rows/.shuma/shuma-edge-fresh-20260314-112021`
+  - `make test-telemetry-hot-read-live-evidence ENV_LOCAL=/Users/jamestindall/Projects/Shuma-Gorath/.env.local SHUMA_LOCAL_STATE_DIR=/Users/jamestindall/Projects/Shuma-Gorath/.worktrees/tel-evt-sparse-rows/.shuma/shuma-edge-fresh-20260314-112021 REMOTE_RECEIPTS_DIR=/Users/jamestindall/Projects/Shuma-Gorath/.shuma/remotes`
+
 ### TEL-RET-2: Post-Compaction Telemetry Retention Rebaseline
 
 - [x] TEL-RET-2-1 Capture or refresh a challenge-heavy telemetry evidence sample with retained-byte pressure by tier so raw event rows, hot-read documents, and retention metadata can be compared from live compact-schema deployments rather than from anecdotal low-volume receipts.

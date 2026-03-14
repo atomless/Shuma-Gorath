@@ -2,7 +2,12 @@
 
 **Goal:** Define the exact semantics for future Akamai controls on Rate Limiting and GEO so the repo stops teaching unfinished behavior as if it already exists, and so later implementation work has one authoritative contract.
 
-**Current reality:** The implemented Akamai-facing surface today is the fingerprint edge adapter on `POST /fingerprint-report`, plus a generic trusted edge GEO country-header path (`X-Geo-Country`) that is not a native Akamai EdgeScape parser. The current Rate tab toggle is infrastructure selection for `provider_backends.rate_limiter`, not Akamai rate-signal ingestion. The live proof target `make test-remote-edge-signal-smoke` proves only the implemented fingerprint and trusted GEO surfaces on a running `ssh_systemd` remote.
+**Current reality:** The implemented Akamai-facing surface today is the fingerprint edge adapter on `POST /fingerprint-report`, plus a generic trusted edge GEO country-header path (`X-Geo-Country`) that is not a native Akamai EdgeScape parser. The current Rate tab toggle is infrastructure selection for `provider_backends.rate_limiter`, not Akamai rate-signal ingestion. The live proof targets are:
+
+- `make test-remote-edge-signal-smoke` for the ssh-managed shared-host contract using synthetic trusted forwarding over SSH loopback.
+- `make test-fermyon-edge-signal-smoke` for the current Fermyon/Akamai deploy receipt using real edge identity semantics.
+
+On the current enterprise Fermyon baseline, authoritative fingerprint is expected to hit the explicit distributed-state guardrail rather than create a live ban when rate/ban state is still local-only. That guardrail is part of the current truthful contract, not an implementation gap to paper over.
 
 ---
 
@@ -62,8 +67,8 @@ Future Akamai Rate control modes must mean:
 
 ## Immediate Follow-on Work
 
-- Akamai-edge-specific implementation work is execution-blocked until a verified Fermyon/Akamai edge setup and deploy path exists. The prerequisite tranche is the creation and real-world verification of agent-oriented Fermyon setup/deploy skills comparable to the Linode path.
-- The posture and prerequisite boundary is defined in [`2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`](2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md).
+- The Fermyon/Akamai edge baseline prerequisite is now satisfied and tracked by the live-proof notes in [`../research/2026-03-12-fermyon-akamai-edge-live-proof.md`](../research/2026-03-12-fermyon-akamai-edge-live-proof.md) and [`../research/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`](../research/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md).
+- The posture and prerequisite boundary remains defined in [`2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`](2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md).
 - `AK-RG-2`: define the config surface and naming for the new Akamai Rate and GEO controls.
 - `AK-RG-3..8`: runtime wiring, dashboard controls, observability, tests, and rollout guidance.
-- Keep the live proof target focused on the already implemented fingerprint and trusted GEO surfaces until the new controls actually exist.
+- Keep the live proof targets focused on the already implemented fingerprint and trusted GEO surfaces until the new controls actually exist.

@@ -41,13 +41,17 @@ make reset-local-state # Wipe local .spin runtime/test state while preserving du
 ### 🐙 Build & Run: Remote
 ```bash
 make prepare-linode-shared-host # Agent-oriented Linode shared-host setup + receipt generation
+make prepare-fermyon-akamai-edge # Agent-oriented Fermyon/Akamai edge setup + receipt generation
 make deploy-linode-one-shot # Provision Linode VM + deploy runtime in one command
+make deploy-fermyon-akamai-edge # Deploy current committed HEAD to the prepared Fermyon/Akamai edge app
 make remote-update  # Upload exact committed HEAD to the active ssh_systemd remote, restart, smoke, refresh receipt
 make remote-status  # Show systemd status for the active ssh_systemd remote
 make remote-logs    # Show recent journal logs for the active ssh_systemd remote
 make remote-start   # Start the active ssh_systemd remote service
 make remote-stop    # Stop the active ssh_systemd remote service
 make remote-open-dashboard # Open the hosted dashboard for the active ssh_systemd remote
+make test-remote-edge-signal-smoke # Live shared-host trusted-edge proof (active ssh_systemd remote)
+make test-fermyon-edge-signal-smoke # Live Fermyon/Akamai trusted-edge proof (current deploy receipt)
 make telemetry-shared-host-evidence # Capture live telemetry storage/query evidence for the active ssh_systemd remote
 make telemetry-fermyon-edge-evidence # Capture live telemetry hot-read evidence for the current Fermyon edge deploy
 make test-telemetry-hot-read-live-evidence # Prove telemetry hot-read budgets on both shared-host and Fermyon
@@ -93,8 +97,9 @@ make test-adversary-sim-runtime-surface # Runtime-toggle defense-surface telemet
 make dev                   # In terminal 1
 make test-adversarial-live # In terminal 2 (Ctrl+C to stop)
 
-# Live remote trusted-edge signal proof (active ssh_systemd remote required)
-make test-remote-edge-signal-smoke # Proves live fingerprint-report additive/authoritative + trusted GEO challenge/maze/block
+# Live trusted-edge signal proof
+make test-remote-edge-signal-smoke # Shared-host ssh-loopback proof for fingerprint additive/authoritative + trusted GEO challenge/maze/block
+make test-fermyon-edge-signal-smoke # Fermyon/Akamai proof using the current deploy receipt and real edge identity semantics
 
 # Dashboard e2e smoke tests only (Spin environment required)
 make dev                   # In terminal 1
