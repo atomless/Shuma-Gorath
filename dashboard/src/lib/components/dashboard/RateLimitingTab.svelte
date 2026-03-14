@@ -18,6 +18,8 @@
   export let configSnapshot = null;
   export let configVersion = 0;
   export let onSaveConfig = null;
+  export let noticeText = '';
+  export let noticeKind = 'info';
 
   let writable = false;
   let savingRateLimiting = false;
@@ -155,7 +157,7 @@
   hidden={managed ? !isActive : false}
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
-  <TabStateMessage tab="rate-limiting" status={tabStatus} />
+  <TabStateMessage tab="rate-limiting" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
   <div class="controls-grid controls-grid--config">
     <ConfigPanel writable={writable} dirty={externalRateBackendDirty}>
       <ConfigPanelHeading title="External Rate Limiter Backend">

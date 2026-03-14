@@ -66,7 +66,10 @@ function normalizePhase(value) {
  *   historyCleanupCommand: string,
  *   phase: 'off' | 'running' | 'stopping',
  *   runId: string,
+ *   startedAt: number,
+ *   endsAt: number,
  *   durationSeconds: number,
+ *   remainingSeconds: number,
  *   activeRunCount: number,
  *   activeLaneCount: number,
  *   queuePolicy: string,
@@ -116,6 +119,14 @@ export function normalizeAdversarySimStatus(payload) {
       DEFAULT_DURATION_SECONDS
     ))
   );
+  const startedAt = Math.max(
+    0,
+    Math.floor(toSafeNumber(pick(source, 'started_at', 'startedAt', 0), 0))
+  );
+  const endsAt = Math.max(
+    0,
+    Math.floor(toSafeNumber(pick(source, 'ends_at', 'endsAt', 0), 0))
+  );
   const runIdValue = pick(source, 'run_id', 'runId', '');
   return {
     runtimeEnvironment: String(pick(source, 'runtime_environment', 'runtimeEnvironment', '') || ''),
@@ -131,7 +142,13 @@ export function normalizeAdversarySimStatus(payload) {
     historyCleanupCommand: String(pick(historyRetention, 'cleanup_command', 'cleanupCommand', '') || ''),
     phase,
     runId: typeof runIdValue === 'string' ? runIdValue : '',
+    startedAt,
+    endsAt,
     durationSeconds,
+    remainingSeconds: Math.max(
+      0,
+      Math.floor(toSafeNumber(pick(source, 'remaining_seconds', 'remainingSeconds', 0), 0))
+    ),
     activeRunCount: Math.max(
       0,
       Math.floor(toSafeNumber(pick(source, 'active_run_count', 'activeRunCount', 0), 0))
@@ -218,6 +235,102 @@ export function deriveAdversarySimControlState(source = {}) {
     runtimeEnvironment,
     surfaceAvailable,
     controlAvailable: surfaceAvailable === true
+  };
+}
+
+/**
+ * @param {{
+ *   status?: unknown,
+ *   controllerState?: Record<string, unknown> | null
+ * }} source
+ * @returns {string}
+ */
+export function deriveAdversarySimLifecycleCopy(source = {}) {
+  const normalizedStatus = normalizeAdversarySimStatus(source?.status);
+  const controllerState =
+    source && source.controllerState && typeof source.controllerState === 'object'
+      ? /** @type {Record<string, unknown>} */ (source.controllerState)
+      : {};
+  const controllerPhase = String(controllerState.controllerPhase || '').trim().toLowerCase();
+  const uiDesiredEnabled = controllerState.uiDesiredEnabled === true;
+
+  if (
+    controllerPhase === 'debouncing' ||
+    controllerPhase === 'submitting' ||
+    controllerPhase === 'converging'
+  ) {
+    return uiDesiredEnabled
+      ? 'Starting adversary simulation. Awaiting backend convergence.'
+      : 'Stopping adversary simulation. Awaiting backend convergence.';
+  }
+
+  const generationDiagnostics = normalizedStatus.generationDiagnostics || {};
+  if (normalizedStatus.generationActive) {
+    return String(generationDiagnostics.health || '') === 'ok'
+      ? 'Generation active. Auto-off stops new simulation traffic only; retained telemetry stays visible.'
+      : `Generation active. ${
+        String(generationDiagnostics.recommendedAction || '').trim() ||
+        'No observable traffic yet. Check supervisor diagnostics for stalled heartbeat state.'
+      }`;
+  }
+
+  const retentionHours = Math.max(0, Number(normalizedStatus.historyRetentionHours || 0));
+  const cleanupCommand =
+    String(normalizedStatus.historyCleanupCommand || '').trim() || 'make telemetry-clean';
+  return normalizedStatus.historicalDataVisible
+    ? `Generation inactive. Retained telemetry remains visible for ${retentionHours}h or until ${cleanupCommand} is run.`
+    : 'Generation inactive.';
+}
+
+/**
+ * @param {{
+ *   status?: unknown,
+ *   controllerState?: Record<string, unknown> | null,
+ *   nowMs?: number
+ * }} source
+ * @returns {{ active: boolean, progressPercent: number, remainingMs: number }}
+ */
+export function deriveAdversarySimProgressState(source = {}) {
+  const normalizedStatus = normalizeAdversarySimStatus(source?.status);
+  const controllerState =
+    source && source.controllerState && typeof source.controllerState === 'object'
+      ? /** @type {Record<string, unknown>} */ (source.controllerState)
+      : {};
+  const controllerPhase = String(controllerState.controllerPhase || '').trim().toLowerCase();
+  const uiDesiredEnabled = controllerState.uiDesiredEnabled === true;
+
+  if (
+    uiDesiredEnabled !== true ||
+    controllerPhase === 'error' ||
+    normalizedStatus.generationActive !== true ||
+    normalizedStatus.phase !== 'running'
+  ) {
+    return {
+      active: false,
+      progressPercent: 0,
+      remainingMs: 0
+    };
+  }
+
+  const durationMs = Math.max(1, normalizedStatus.durationSeconds * 1000);
+  const nowMs = Math.max(0, Number(source?.nowMs || Date.now()) || 0);
+  const startedAtMs = normalizedStatus.startedAt > 0 ? normalizedStatus.startedAt * 1000 : 0;
+  const endsAtMs = normalizedStatus.endsAt > 0 ? normalizedStatus.endsAt * 1000 : 0;
+
+  let remainingMs = Math.max(0, normalizedStatus.remainingSeconds * 1000);
+  let progressPercent = Math.max(0, Math.min(100, ((durationMs - remainingMs) / durationMs) * 100));
+
+  if (startedAtMs > 0 && endsAtMs > startedAtMs) {
+    const boundedNowMs = Math.min(Math.max(nowMs, startedAtMs), endsAtMs);
+    const elapsedMs = boundedNowMs - startedAtMs;
+    remainingMs = Math.max(0, endsAtMs - boundedNowMs);
+    progressPercent = Math.max(0, Math.min(100, (elapsedMs / (endsAtMs - startedAtMs)) * 100));
+  }
+
+  return {
+    active: true,
+    progressPercent,
+    remainingMs
   };
 }
 

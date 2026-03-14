@@ -332,6 +332,12 @@ export function createDashboardRefreshRuntime(options = {}) {
     dashboardState.setTabError(tab, message);
   }
 
+  function errorMessage(error, fallback = 'Refresh failed') {
+    const message = error && typeof error === 'object' ? error.message : '';
+    const trimmed = String(message || '').trim();
+    return trimmed || fallback;
+  }
+
   function showTabEmpty(tab, message) {
     const dashboardState = getStateStore();
     if (!dashboardState) return;
@@ -619,10 +625,19 @@ export function createDashboardRefreshRuntime(options = {}) {
         clearTabStateMessage('monitoring');
       }
     };
+    const handledBootstrapResult = (promise) =>
+      promise
+        .then((value) => ({ ok: true, value }))
+        .catch((error) => ({ ok: false, error }));
     const queueDetailedMonitoringHydration = (monitoringPromise) => {
       if (!monitoringPromise || typeof monitoringPromise.then !== 'function') return;
       void monitoringPromise
-        .then((monitoringData) => {
+        .then((result) => {
+          if (!result || result.ok !== true) {
+            showTabError('monitoring', errorMessage(result?.error, 'Failed to load monitoring data.'));
+            return null;
+          }
+          const monitoringData = result.value;
           applyMonitoringSnapshot(monitoringData, { writeCursor: !cursorState.monitoring.trim() });
           showMonitoringStateMessage();
           if (requestBudgets.autoHydrateFullMonitoring !== true) {
@@ -656,10 +671,10 @@ export function createDashboardRefreshRuntime(options = {}) {
       shouldUseCursorDelta(reason);
     if (canUseDeltaBootstrap) {
       const bootstrapPromise = canUseBootstrap
-        ? dashboardApiClient.getMonitoringBootstrap(
+        ? handledBootstrapResult(dashboardApiClient.getMonitoringBootstrap(
           { hours: 24, limit: MONITORING_FULL_RECENT_EVENTS_LIMIT },
           monitoringRequestOptions
-        )
+        ))
         : null;
       try {
         const delta = await dashboardApiClient.getMonitoringDelta(
@@ -682,15 +697,21 @@ export function createDashboardRefreshRuntime(options = {}) {
         return;
       } catch (_error) {
         if (bootstrapPromise) {
-          try {
-            const monitoringData = await bootstrapPromise;
+          const bootstrapResult = await bootstrapPromise;
+          if (bootstrapResult && bootstrapResult.ok === true) {
+            const monitoringData = bootstrapResult.value;
             applyMonitoringSnapshot(monitoringData, { writeCursor: true });
             showMonitoringStateMessage();
             if (requestBudgets.autoHydrateFullMonitoring === true) {
               void fetchFullMonitoring().catch(() => {});
             }
             return;
-          } catch (_bootstrapError) {}
+          }
+          showTabError(
+            'monitoring',
+            errorMessage(bootstrapResult?.error, 'Failed to load monitoring data.')
+          );
+          return;
         }
       }
     }
@@ -903,6 +924,15 @@ export function createDashboardRefreshRuntime(options = {}) {
     } catch (_error) {}
   }
 
+  const refreshRedTeamTab = (reason = 'manual', runtimeOptions = {}) =>
+    refreshConfigBackedTab(
+      'red-team',
+      reason,
+      'Loading red team controls...',
+      'No red team control snapshot available yet.',
+      runtimeOptions
+    );
+
   const refreshVerificationTab = (reason = 'manual', runtimeOptions = {}) =>
     refreshConfigBackedTab(
       'verification',
@@ -1005,6 +1035,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     },
     'ip-bans': refreshIpBansTab,
     status: refreshStatusTab,
+    'red-team': refreshRedTeamTab,
     verification: refreshVerificationTab,
     traps: refreshTrapsTab,
     advanced: refreshAdvancedTab,
@@ -1061,6 +1092,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     refreshMonitoringTab,
     refreshIpBansTab,
     refreshStatusTab,
+    refreshRedTeamTab,
     refreshVerificationTab,
     refreshTrapsTab,
     refreshAdvancedTab,

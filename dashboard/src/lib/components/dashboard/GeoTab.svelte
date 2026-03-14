@@ -17,6 +17,8 @@
   export let configSnapshot = null;
   export let configVersion = 0;
   export let onSaveConfig = null;
+  export let noticeText = '';
+  export let noticeKind = 'info';
 
   let writable = false;
   let savingGeo = false;
@@ -246,7 +248,7 @@
   hidden={managed ? !isActive : false}
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
-  <TabStateMessage tab="geo" status={tabStatus} />
+  <TabStateMessage tab="geo" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
   <div class="controls-grid controls-grid--config">
     <ConfigPanel writable={writable} dirty={geoEdgeHeaderDirty}>
       <ConfigPanelHeading title="Trusted GEO Edge Header Signal">

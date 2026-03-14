@@ -24,6 +24,8 @@
   export let configSnapshot = null;
   export let configVersion = 0;
   export let onSaveConfig = null;
+  export let noticeText = '';
+  export let noticeKind = 'info';
 
   const MAX_DURATION_SECONDS = 31536000;
   const MIN_DURATION_SECONDS = 60;
@@ -400,7 +402,7 @@
   hidden={managed ? !isActive : false}
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
-  <TabStateMessage tab="tuning" status={tabStatus} />
+  <TabStateMessage tab="tuning" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
   <div class="controls-grid controls-grid--config">
     <div class="control-group panel-soft pad-md">
       <h3>Botness Scoring</h3>

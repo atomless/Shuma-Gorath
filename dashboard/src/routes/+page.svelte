@@ -14,17 +14,16 @@
   } from '$lib/runtime/dashboard-body-classes.js';
   import {
     deriveAdversarySimControlState,
+    deriveAdversarySimLifecycleCopy,
     normalizeAdversarySimStatus,
-    adversarySimStateMatchesDesired,
     controlAdversarySimWithRetry
   } from '$lib/runtime/dashboard-adversary-sim.js';
   import {
-    deriveAdversarySimToggleEnabled,
-    deriveGlobalControlDisabled,
-    shouldPrimeAdversarySimStatus
+    deriveGlobalControlDisabled
   } from '$lib/runtime/dashboard-global-controls.js';
   import { deriveDashboardRequestBudgets } from '$lib/runtime/dashboard-request-budgets.js';
   import { createDashboardRouteController } from '$lib/runtime/dashboard-route-controller.js';
+  import { createDashboardRedTeamController } from '$lib/runtime/dashboard-red-team-controller.js';
   import {
     banDashboardIp,
     controlDashboardAdversarySim,
@@ -53,6 +52,7 @@
     monitoring: 'Loading monitoring data...',
     'ip-bans': 'Loading ban list...',
     status: 'Loading status signals...',
+    'red-team': 'Loading red team controls...',
     verification: 'Loading verification controls...',
     traps: 'Loading trap controls...',
     advanced: 'Loading advanced controls...',
@@ -94,19 +94,17 @@
   let loggingOut = false;
   let suppressBeforeUnloadPrompt = false;
   let savingGlobalTestMode = false;
-  let savingGlobalAdversarySim = false;
-  let adversarySimPendingEnabled = null;
   let autoRefreshEnabled = false;
   let authExpiryTimer = null;
   let authExpiryAtSeconds = 0;
-  let adminMessageText = '';
-  let adminMessageKind = 'info';
-  let adversarySimStatus = {};
-  let adversarySimStatusPollTimer = null;
-  let adversarySimStatusRequestInFlight = null;
-  let adversarySimStatusBootstrapPromise = null;
+  let paneNotices = {};
+  let testModeNoticeText = '';
+  let testModeNoticeKind = 'info';
+  let adversarySimControllerState = null;
+  let adversarySimControllerUnsubscribe = () => {};
   let IpBansTabComponent = null;
   let StatusTabComponent = null;
+  let RedTeamTabComponent = null;
   let VerificationTabComponent = null;
   let TrapsTabComponent = null;
   let AdvancedTabComponent = null;
@@ -117,6 +115,7 @@
   let TuningTabComponent = null;
   const tabLinks = {};
   let rootRuntimeClassHint = '';
+  let redTeamTabActive = false;
 
   function normalizeRuntimeClassHint(value) {
     const normalized = String(value || '').trim().toLowerCase();
@@ -124,6 +123,45 @@
       return normalized;
     }
     return '';
+  }
+
+  function normalizeNoticeKind(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'success' || normalized === 'warning' || normalized === 'error') {
+      return normalized;
+    }
+    return 'info';
+  }
+
+  function setPaneNotice(tab, text = '', kind = 'info') {
+    const key = normalizeTab(tab);
+    const message = String(text || '').trim();
+    const next = { ...paneNotices };
+    if (!message) {
+      delete next[key];
+    } else {
+      next[key] = {
+        text: message,
+        kind: normalizeNoticeKind(kind)
+      };
+    }
+    paneNotices = next;
+  }
+
+  function readPaneNotice(tab) {
+    const notice = paneNotices[normalizeTab(tab)];
+    if (!notice || typeof notice !== 'object') {
+      return { text: '', kind: 'info' };
+    }
+    return {
+      text: String(notice.text || '').trim(),
+      kind: normalizeNoticeKind(notice.kind)
+    };
+  }
+
+  function setTestModeNotice(text = '', kind = 'info') {
+    testModeNoticeText = String(text || '').trim();
+    testModeNoticeKind = normalizeNoticeKind(kind);
   }
 
   function readRootRuntimeClassHint(doc = null) {
@@ -199,13 +237,13 @@
   $: lostConnectionVisible = dashboardLoaded && backendConnectionState === 'disconnected';
   $: sessionRuntimeClassHint = normalizeRuntimeClassHint(dashboardState?.session?.runtimeEnvironment || '');
   $: runtimeClassHint = sessionRuntimeClassHint || rootRuntimeClassHint;
+  $: adversarySimStatus = adversarySimControllerState?.backendStatus || {};
+  $: normalizedAdversarySimStatus = normalizeAdversarySimStatus(adversarySimStatus);
   $: bodyClassState = deriveDashboardBodyClassState(configSnapshot, {
     backendConnectionState,
     runtimeClassHint,
-    adversarySimEnabled:
-      adversarySimPendingEnabled === true ||
-      normalizedAdversarySimStatus.enabled === true ||
-      normalizedAdversarySimStatus.generationActive === true
+    testModeEnabled: currentTestModeValue,
+    adversarySimEnabled: normalizedAdversarySimStatus.enabled === true
   });
   $: if (typeof document !== 'undefined') {
     syncDashboardBodyClasses(document, bodyClassState);
@@ -222,12 +260,7 @@
       dashboardLoaded = true;
     }
   }
-  $: normalizedAdversarySimStatus = normalizeAdversarySimStatus(adversarySimStatus);
-  $: adversarySimToggleEnabled = deriveAdversarySimToggleEnabled({
-    pendingEnabled: adversarySimPendingEnabled,
-    adversarySimStatus,
-    configSnapshot
-  });
+  $: adversarySimToggleEnabled = adversarySimControllerState?.uiDesiredEnabled === true;
   $: adversarySimControlState = deriveAdversarySimControlState({
     configSnapshot,
     adversarySimStatus
@@ -249,7 +282,7 @@
   $: globalAdversarySimToggleDisabled = deriveGlobalControlDisabled({
     runtimeMounted: routeController.getRuntimeMounted(),
     loggingOut,
-    saving: savingGlobalAdversarySim,
+    saving: false,
     authenticated: dashboardState?.session?.authenticated === true,
     adminConfigWritable: configSnapshot.admin_config_write_enabled === true,
     surfaceAvailable: adversarySimControlAvailable
@@ -268,7 +301,7 @@
     ? describeGlobalControlDisabledState({
       runtimeReady,
       loggingOut,
-      saving: savingGlobalAdversarySim,
+      saving: false,
       authenticated: dashboardState?.session?.authenticated,
       adminConfigWritable: configSnapshot.admin_config_write_enabled,
       unavailableMessage: adversarySimControlAvailable
@@ -276,33 +309,20 @@
         : 'Unavailable because adversary simulation control requires the simulation surface to be active in this deployment.'
     })
     : '';
-  $: adversarySimRetentionHours = Math.max(0, Number(normalizedAdversarySimStatus.historyRetentionHours || 0));
-  $: adversarySimCleanupCommand =
-    String(normalizedAdversarySimStatus.historyCleanupCommand || '').trim() || 'make telemetry-clean';
-  $: adversarySimGenerationDiagnostics = normalizedAdversarySimStatus.generationDiagnostics || {};
   $: dashboardRequestBudgets = deriveDashboardRequestBudgets(configSnapshot);
-  $: adversarySimLifecycleCopy = normalizedAdversarySimStatus.generationActive
-        ? (
-          String(adversarySimGenerationDiagnostics.health || '') === 'ok'
-            ? 'Generation active. Auto-off stops new simulation traffic only; retained telemetry stays visible.'
-            : `Generation active. ${
-              String(adversarySimGenerationDiagnostics.recommendedAction || '').trim() ||
-              'No observable traffic yet. Check supervisor diagnostics for stalled heartbeat state.'
-            }`
-        )
-    : normalizedAdversarySimStatus.historicalDataVisible
-      ? `Generation inactive. Retained telemetry remains visible for ${adversarySimRetentionHours}h or until ${adversarySimCleanupCommand} is run.`
-      : 'Generation inactive.';
-  $: if (
-    shouldPrimeAdversarySimStatus({
-      runtimeMounted: routeController.getRuntimeMounted(),
-      authenticated: dashboardState?.session?.authenticated === true,
-      bootstrapInFlight: adversarySimStatusBootstrapPromise !== null,
-      configSnapshot,
-      adversarySimStatus
-    })
-  ) {
-    void bootstrapAdversarySimStatus();
+  $: adversarySimLifecycleCopy = deriveAdversarySimLifecycleCopy({
+    status: adversarySimStatus,
+    controllerState: adversarySimControllerState
+  });
+  $: {
+    const nextRedTeamActive =
+      activeTabKey === 'red-team' &&
+      runtimeReady === true &&
+      routeController.getRuntimeMounted() === true;
+    if (nextRedTeamActive && !redTeamTabActive) {
+      void adversarySimController.handleTabActivated();
+    }
+    redTeamTabActive = nextRedTeamActive;
   }
 
   function registerTabLink(node, tab) {
@@ -462,6 +482,85 @@
     redirectToLogin
   });
 
+  const adversarySimController = createDashboardRedTeamController({
+    initialStatus: {},
+    pollIntervalMs: 1000,
+    isPollingAllowed: () => routeController.getRuntimeMounted() && runtimeReady === true,
+    resolveConvergenceTimeoutMs: (desiredEnabled) =>
+      desiredEnabled === true
+        ? dashboardRequestBudgets.adversarySimEnableTimeoutMs
+        : dashboardRequestBudgets.adversarySimDisableTimeoutMs,
+    submitControl: async (desiredEnabled) =>
+      controlAdversarySimWithRetry(
+        () => withRefreshedSessionOnAuthError(
+          () => controlDashboardAdversarySim(desiredEnabled, {
+            timeoutMs: dashboardRequestBudgets.adversarySimControlTimeoutMs,
+            telemetry: {
+              tab: 'red-team',
+              reason: 'adversary-sim-toggle',
+              source: 'adversary-sim-control'
+            }
+          })
+        ),
+        desiredEnabled,
+        {
+          timeoutMs: desiredEnabled
+            ? dashboardRequestBudgets.adversarySimEnableTimeoutMs
+            : dashboardRequestBudgets.adversarySimDisableTimeoutMs
+        }
+      ),
+    fetchStatus: async (reason = 'manual') => {
+      try {
+        return await withRefreshedSessionOnAuthError(
+          () => getDashboardAdversarySimStatus({
+            timeoutMs: dashboardRequestBudgets.adversarySimStatusTimeoutMs,
+            telemetry: {
+              tab: 'red-team',
+              reason,
+              source: reason === 'bootstrap'
+                ? 'adversary-sim-status-bootstrap'
+                : 'adversary-sim-status'
+            }
+          })
+        );
+      } catch (error) {
+        if (error && Number(error.status) === 404) {
+          return {
+            runtime_environment: dashboardStore.getState()?.snapshots?.config?.runtime_environment,
+            adversary_sim_available: false,
+            adversary_sim_enabled: false,
+            generation_active: false,
+            phase: 'off'
+          };
+        }
+        if (isAuthSessionExpiredError(error)) {
+          setPaneNotice(
+            'red-team',
+            'Adversary simulation session expired. Redirecting to login...',
+            'warning'
+          );
+          redirectToLogin();
+          return {
+            runtime_environment: dashboardStore.getState()?.snapshots?.config?.runtime_environment,
+            adversary_sim_available: false,
+            adversary_sim_enabled: false,
+            generation_active: false,
+            phase: 'off'
+          };
+        }
+        throw error;
+      }
+    },
+    onControlAccepted: () => {
+      if (activeTabKey === 'monitoring' && autoRefreshEnabled === true) {
+        void routeController.refreshTab('monitoring', 'auto-refresh');
+      }
+    },
+    onError: (message) => {
+      setPaneNotice('red-team', `Error: ${message}`, 'error');
+    }
+  });
+
   onMount(async () => {
     if (typeof window !== 'undefined') {
       window.addEventListener('beforeunload', handleConfirmedLogoutBeforeUnload, true);
@@ -481,9 +580,13 @@
     telemetryUnsubscribe = dashboardStore.runtimeTelemetryStore.subscribe((value) => {
       runtimeTelemetry = value;
     });
+    adversarySimControllerUnsubscribe = adversarySimController.subscribe((value) => {
+      adversarySimControllerState = value;
+    });
 
     try {
       const [
+        { default: loadedRedTeamTab },
         { default: loadedIpBansTab },
         { default: loadedStatusTab },
         { default: loadedVerificationTab },
@@ -495,6 +598,7 @@
         { default: loadedRobotsTab },
         { default: loadedTuningTab }
       ] = await Promise.all([
+        import('$lib/components/dashboard/RedTeamTab.svelte'),
         import('$lib/components/dashboard/IpBansTab.svelte'),
         import('$lib/components/dashboard/StatusTab.svelte'),
         import('$lib/components/dashboard/VerificationTab.svelte'),
@@ -506,6 +610,7 @@
         import('$lib/components/dashboard/RobotsTab.svelte'),
         import('$lib/components/dashboard/TuningTab.svelte')
       ]);
+      RedTeamTabComponent = loadedRedTeamTab;
       IpBansTabComponent = loadedIpBansTab;
       StatusTabComponent = loadedStatusTab;
       VerificationTabComponent = loadedVerificationTab;
@@ -523,9 +628,8 @@
       });
       runtimeReady = bootstrapped === true;
       if (bootstrapped === true) {
-        await bootstrapAdversarySimStatus();
+        await adversarySimController.bootstrap();
       }
-      syncAdversarySimTimers();
     } catch (error) {
       runtimeError = error && error.message ? error.message : 'Dashboard bootstrap failed.';
     }
@@ -536,7 +640,8 @@
     routeController.dispose();
     storeUnsubscribe();
     telemetryUnsubscribe();
-    clearAdversarySimStatusPollTimer();
+    adversarySimControllerUnsubscribe();
+    adversarySimController.dispose();
     clearAuthExpiryTimer();
     suppressBeforeUnloadPrompt = false;
     if (typeof window !== 'undefined') {
@@ -587,11 +692,9 @@
 
   function onDocumentVisibilityChange() {
     routeController.handleVisibilityChange();
-  }
-
-  function setAdminMessage(text = '', kind = 'info') {
-    adminMessageText = String(text || '');
-    adminMessageKind = String(kind || 'info');
+    if (typeof document === 'undefined' || document.visibilityState !== 'hidden') {
+      void adversarySimController.handleVisibilityResume();
+    }
   }
 
   function onAutoRefreshToggle(event) {
@@ -624,12 +727,12 @@
 
     savingGlobalTestMode = true;
     try {
-      const nextConfig = await onSaveConfig(
+      const nextConfig = await persistConfigPatch(
         { test_mode: nextValue },
         {
-          successMessage: `Test mode ${nextValue ? 'enabled (logging only)' : 'disabled (blocking active)'}`,
           refresh: false,
-          timeoutMs: dashboardRequestBudgets.configWriteTimeoutMs
+          timeoutMs: dashboardRequestBudgets.configWriteTimeoutMs,
+          noticeTarget: 'test-mode'
         }
       );
       const persistedValue =
@@ -644,158 +747,10 @@
     }
   }
 
-  function clearAdversarySimStatusPollTimer() {
-    if (adversarySimStatusPollTimer) {
-      clearInterval(adversarySimStatusPollTimer);
-      adversarySimStatusPollTimer = null;
-    }
-    adversarySimStatusRequestInFlight = null;
-  }
-
-  function syncAdversarySimTimers() {
-    const shouldPollStatus =
-      routeController.getRuntimeMounted() &&
-      runtimeReady &&
-      (normalizedAdversarySimStatus.enabled === true ||
-        normalizedAdversarySimStatus.phase === 'running' ||
-        normalizedAdversarySimStatus.phase === 'stopping');
-
-    if (shouldPollStatus) {
-      if (!adversarySimStatusPollTimer) {
-        adversarySimStatusPollTimer = setInterval(() => {
-          void refreshAdversarySimStatus('poll');
-        }, 1000);
-      }
-    } else {
-      clearAdversarySimStatusPollTimer();
-    }
-  }
-
-  async function bootstrapAdversarySimStatus() {
-    if (adversarySimStatusBootstrapPromise) {
-      return adversarySimStatusBootstrapPromise;
-    }
-    const bootstrapAdversarySimControlState = deriveAdversarySimControlState({
-      configSnapshot: dashboardStore.getState()?.snapshots?.config || {},
-      adversarySimStatus
-    });
-    if (!bootstrapAdversarySimControlState.controlAvailable) return;
-    adversarySimStatusBootstrapPromise = (async () => {
-      try {
-        const status = await withRefreshedSessionOnAuthError(
-          () => getDashboardAdversarySimStatus({
-            timeoutMs: dashboardRequestBudgets.adversarySimStatusTimeoutMs,
-            telemetry: {
-              tab: 'status',
-              reason: 'bootstrap',
-              source: 'adversary-sim-status-bootstrap'
-            }
-          })
-        );
-        adversarySimStatus = status && typeof status === 'object' ? status : {};
-      } catch (error) {
-        if (error && Number(error.status) === 404) {
-          adversarySimStatus = {
-            runtime_environment: dashboardStore.getState()?.snapshots?.config?.runtime_environment,
-            adversary_sim_available: false,
-            adversary_sim_enabled: false
-          };
-          return adversarySimStatus;
-        }
-        if (isAuthSessionExpiredError(error)) {
-          setAdminMessage(
-            'Adversary simulation status bootstrap expired. Redirecting to login...',
-            'warning'
-          );
-          redirectToLogin();
-          return null;
-        }
-        throw error;
-      } finally {
-        adversarySimStatusBootstrapPromise = null;
-        syncAdversarySimTimers();
-      }
-      return adversarySimStatus;
-    })();
-    return adversarySimStatusBootstrapPromise;
-  }
-
-  async function refreshAdversarySimStatus(_reason = 'manual') {
-    if (!routeController.getRuntimeMounted() || !runtimeReady) return;
-    if (adversarySimStatusRequestInFlight) {
-      return adversarySimStatusRequestInFlight;
-    }
-    adversarySimStatusRequestInFlight = (async () => {
-      try {
-        const status = await getDashboardAdversarySimStatus({
-          timeoutMs: dashboardRequestBudgets.adversarySimStatusTimeoutMs,
-          telemetry: {
-            tab: 'status',
-            reason: _reason,
-            source: 'adversary-sim-status'
-          }
-        });
-        adversarySimStatus = status && typeof status === 'object' ? status : {};
-      } catch (error) {
-        if (error && Number(error.status) === 404) {
-          adversarySimStatus = {
-            runtime_environment: configSnapshot.runtime_environment,
-            adversary_sim_available: false,
-            adversary_sim_enabled: false
-          };
-        }
-      } finally {
-        adversarySimStatusRequestInFlight = null;
-      }
-      syncAdversarySimTimers();
-    })();
-    return adversarySimStatusRequestInFlight;
-  }
-
-  async function waitForAdversarySimStatusConvergence(desiredEnabled, timeoutMs = 15000) {
-    const desired = desiredEnabled === true;
-    const deadline = Date.now() + Math.max(1000, Number(timeoutMs || 0));
-    const statusRequestTimeoutMs = Math.min(
-      dashboardRequestBudgets.adversarySimStatusTimeoutMs,
-      Math.max(1000, Number(timeoutMs || 0))
-    );
-    let consecutiveSettledPolls = 0;
-    while (Date.now() < deadline) {
-      const status = await withRefreshedSessionOnAuthError(
-        () => getDashboardAdversarySimStatus({
-          timeoutMs: statusRequestTimeoutMs,
-          telemetry: {
-            tab: 'status',
-            reason: 'adversary-sim-toggle-convergence',
-            source: 'adversary-sim-status'
-          }
-        })
-      );
-      adversarySimStatus = status && typeof status === 'object' ? status : {};
-      if (desired) {
-        if (adversarySimStateMatchesDesired(adversarySimStatus, true)) {
-          return adversarySimStatus;
-        }
-        consecutiveSettledPolls = 0;
-      } else if (adversarySimStateMatchesDesired(adversarySimStatus, false)) {
-        consecutiveSettledPolls += 1;
-        if (consecutiveSettledPolls >= 3) {
-          return adversarySimStatus;
-        }
-      } else {
-        consecutiveSettledPolls = 0;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-    throw new Error(
-      `Adversary simulation did not settle to enabled=${desired} within ${timeoutMs}ms.`
-    );
-  }
-
   async function onGlobalAdversarySimToggleChange(event) {
     const target = event && event.currentTarget ? event.currentTarget : null;
     const nextValue = target && target.checked === true;
-    const previousValue = normalizedAdversarySimStatus.enabled === true;
+    const previousValue = adversarySimControllerState?.uiDesiredEnabled === true;
     if (globalAdversarySimToggleDisabled) {
       if (target) target.checked = previousValue;
       return;
@@ -809,77 +764,23 @@
         : false;
       if (!continueWithoutFrontier) {
         if (target) target.checked = previousValue;
-        setAdminMessage(
+        setPaneNotice(
+          'red-team',
           'Frontier provider keys are missing. Add SHUMA_FRONTIER_*_API_KEY values to .env.local, restart make dev, then toggle again (or continue without frontier calls).',
           'warning'
         );
         return;
       }
-      setAdminMessage(
+      setPaneNotice(
+        'red-team',
         'Continuing without frontier provider calls for this run.',
         'warning'
       );
+    } else {
+      setPaneNotice('red-team', '');
     }
 
-    const previousStatusSnapshot =
-      adversarySimStatus && typeof adversarySimStatus === 'object'
-        ? { ...adversarySimStatus }
-        : {};
-    savingGlobalAdversarySim = true;
-    adversarySimPendingEnabled = nextValue;
-    try {
-      const result = await controlAdversarySimWithRetry(
-        () => withRefreshedSessionOnAuthError(
-          () => controlDashboardAdversarySim(nextValue, {
-            timeoutMs: dashboardRequestBudgets.adversarySimControlTimeoutMs,
-            telemetry: {
-              tab: 'status',
-              reason: 'adversary-sim-toggle',
-              source: 'adversary-sim-control'
-            }
-          })
-        ),
-        nextValue,
-        {
-          timeoutMs: nextValue
-            ? dashboardRequestBudgets.adversarySimEnableTimeoutMs
-            : dashboardRequestBudgets.adversarySimDisableTimeoutMs
-        }
-      );
-      const status = result && result.status ? result.status : {};
-      adversarySimStatus = status && typeof status === 'object' ? status : {};
-      await waitForAdversarySimStatusConvergence(
-        nextValue,
-        nextValue
-          ? dashboardRequestBudgets.adversarySimEnableTimeoutMs
-          : dashboardRequestBudgets.adversarySimDisableTimeoutMs
-      );
-      if (activeTabKey === 'monitoring' && autoRefreshEnabled === true) {
-        void routeController.refreshTab('monitoring', 'auto-refresh');
-      }
-      setAdminMessage(
-        nextValue
-          ? 'Adversary simulation run started.'
-          : 'Adversary simulation run stopped.',
-        'success'
-      );
-    } catch (error) {
-      adversarySimStatus = previousStatusSnapshot;
-      if (target) target.checked = previousValue;
-      if (isAuthSessionExpiredError(error)) {
-        setAdminMessage(
-          'Adversary simulation control session expired. Redirecting to login...',
-          'warning'
-        );
-        redirectToLogin();
-        return;
-      }
-      const message = formatActionError(error, 'Failed to toggle adversary simulation.');
-      setAdminMessage(`Error: ${message}`, 'error');
-    } finally {
-      savingGlobalAdversarySim = false;
-      adversarySimPendingEnabled = null;
-    }
+    void adversarySimController.handleToggleIntent(nextValue);
   }
 
   function formatActionError(error, fallback = 'Action failed.') {
@@ -917,12 +818,29 @@
     }
   }
 
-  async function onSaveConfig(patch, options = {}) {
-    const successMessage = options && typeof options.successMessage === 'string'
-      ? options.successMessage
-      : 'Configuration saved';
+  async function persistConfigPatch(patch, options = {}) {
     const shouldRefresh = options?.refresh !== false;
-    setAdminMessage('Saving configuration...', 'info');
+    const noticeTarget = String(options?.noticeTarget || 'active-tab').trim().toLowerCase();
+    const requestTab = activeTabKey;
+    const clearScopedNotice = () => {
+      if (noticeTarget === 'test-mode') {
+        setTestModeNotice('');
+        return;
+      }
+      if (noticeTarget === 'none') return;
+      setPaneNotice(requestTab, '');
+    };
+    const setScopedError = (message) => {
+      if (!message) return;
+      if (noticeTarget === 'test-mode') {
+        setTestModeNotice(`Error: ${message}`, 'error');
+        return;
+      }
+      if (noticeTarget === 'none') return;
+      setPaneNotice(requestTab, `Error: ${message}`, 'error');
+    };
+
+    clearScopedNotice();
     try {
       const nextConfig = await withRefreshedSessionOnAuthError(
         () => updateDashboardConfig(patch || {}, {
@@ -931,27 +849,30 @@
             Number(options?.timeoutMs || 0) || dashboardRequestBudgets.configWriteTimeoutMs
           ),
           telemetry: {
-            tab: activeTabKey,
+            tab: requestTab,
             reason: 'config-save',
             source: 'config-update'
           }
         })
       );
       if (shouldRefresh) {
-        await routeController.refreshTab(activeTabKey, 'config-save');
+        await routeController.refreshTab(requestTab, 'config-save');
       }
-      setAdminMessage(successMessage, 'success');
+      clearScopedNotice();
       return nextConfig;
     } catch (error) {
       if (isAuthSessionExpiredError(error)) {
-        setAdminMessage('Configuration save session expired. Redirecting to login...', 'warning');
         redirectToLogin();
         throw error;
       }
       const message = formatActionError(error, 'Failed to save configuration.');
-      setAdminMessage(`Error: ${message}`, 'error');
+      setScopedError(message);
       throw error;
     }
+  }
+
+  async function onSaveConfig(patch, options = {}) {
+    return persistConfigPatch(patch, options);
   }
 
   async function onValidateConfig(patch) {
@@ -968,7 +889,7 @@
     const ip = String(payload.ip || '').trim();
     const duration = Number(payload.duration || 0);
     if (!ip || !Number.isFinite(duration) || duration <= 0) return;
-    setAdminMessage(`Banning ${ip}...`, 'info');
+    setPaneNotice('ip-bans', '');
     try {
       await withRefreshedSessionOnAuthError(
         () => banDashboardIp(ip, duration, 'manual_ban', {
@@ -980,15 +901,14 @@
         })
       );
       await routeController.refreshTab('ip-bans', 'ban-save');
-      setAdminMessage(`Banned ${ip} for ${duration}s`, 'success');
+      setPaneNotice('ip-bans', '');
     } catch (error) {
       if (isAuthSessionExpiredError(error)) {
-        setAdminMessage('Ban action session expired. Redirecting to login...', 'warning');
         redirectToLogin();
         throw error;
       }
       const message = formatActionError(error, 'Failed to ban Internet Protocol address.');
-      setAdminMessage(`Error: ${message}`, 'error');
+      setPaneNotice('ip-bans', `Error: ${message}`, 'error');
       throw error;
     }
   }
@@ -996,7 +916,7 @@
   async function onUnban(payload = {}) {
     const ip = String(payload.ip || '').trim();
     if (!ip) return;
-    setAdminMessage(`Unbanning ${ip}...`, 'info');
+    setPaneNotice('ip-bans', '');
     try {
       await withRefreshedSessionOnAuthError(() => unbanDashboardIp(ip, {
         telemetry: {
@@ -1006,15 +926,14 @@
         }
       }));
       await routeController.refreshTab('ip-bans', 'unban-save');
-      setAdminMessage(`Unbanned ${ip}`, 'success');
+      setPaneNotice('ip-bans', '');
     } catch (error) {
       if (isAuthSessionExpiredError(error)) {
-        setAdminMessage('Unban action session expired. Redirecting to login...', 'warning');
         redirectToLogin();
         throw error;
       }
       const message = formatActionError(error, 'Failed to unban Internet Protocol address.');
-      setAdminMessage(`Error: ${message}`, 'error');
+      setPaneNotice('ip-bans', `Error: ${message}`, 'error');
       throw error;
     }
   }
@@ -1055,7 +974,7 @@
     try {
       suppressBeforeUnloadPrompt = hasUnsavedConfigChanges;
       routeController.abortInFlightRefresh();
-      clearAdversarySimStatusPollTimer();
+      adversarySimController.dispose();
       await logoutDashboardSession();
       dashboardStore.setSession({ authenticated: false, csrfToken: '' });
       routeController.clearPolling();
@@ -1097,24 +1016,9 @@
     </label>
     <span class="dashboard-global-control-label" class:dashboard-global-control-label--disabled={globalTestModeToggleDisabled} title={globalTestModeToggleDisabledReason}>Test Mode</span>
   </div>
-  <div class="dashboard-global-control dashboard-adversary-sim-control">
-    <label class="toggle-switch" for="global-adversary-sim-toggle" title={globalAdversarySimToggleDisabledReason}>
-      <input
-        id="global-adversary-sim-toggle"
-        type="checkbox"
-        aria-label="Enable adversary simulation"
-        checked={adversarySimToggleEnabled}
-        disabled={globalAdversarySimToggleDisabled}
-        title={globalAdversarySimToggleDisabledReason}
-        on:change={onGlobalAdversarySimToggleChange}
-      >
-      <span class="toggle-slider"></span>
-    </label>
-    <span class="dashboard-global-control-label" class:dashboard-global-control-label--disabled={globalAdversarySimToggleDisabled} title={globalAdversarySimToggleDisabledReason}>Adversary Sim</span>
-  </div>
-  <div id="adversary-sim-lifecycle-copy" class="dashboard-adversary-sim-hint text-muted">
-    <p class="dashboard-global-control-copy-block">{adversarySimLifecycleCopy}</p>
-  </div>
+  {#if testModeNoticeText}
+    <div id="test-mode-toggle-notice" class={`message ${testModeNoticeKind} dashboard-test-mode-notice`}>{testModeNoticeText}</div>
+  {/if}
   <button
     id="logout-btn"
     class="btn btn-subtle dashboard-logout"
@@ -1125,10 +1029,10 @@
   <header>
     <div class="shuma-image-wrapper">
       <img src={shumaImageSrc} alt="Shuma-Gorath" class="shuma-gorath-img">
+      <span class="dashboard-test-mode-eye" aria-hidden="true">
+        <img src={testModeEyeSrc} alt="" class="dashboard-test-mode-eye-image">
+      </span>
       {#if testModeEnabled}
-        <span class="dashboard-test-mode-eye" aria-hidden="true">
-          <img src={testModeEyeSrc} alt="" class="dashboard-test-mode-eye-image">
-        </span>
         <span class="visually-hidden">Test mode active</span>
       {/if}
     </div>
@@ -1154,6 +1058,8 @@
         >
           {#if tab === 'ip-bans'}
             <abbr title="Internet Protocol">IP</abbr>&nbsp;Bans
+          {:else if tab === 'red-team'}
+            Red Team
           {:else if tab === 'rate-limiting'}
             Rate Limiting
           {:else if tab === 'geo'}
@@ -1224,12 +1130,42 @@
     aria-hidden={activeTabKey === 'monitoring' ? 'true' : 'false'}
   >
     <div class="admin-groups">
+      {#if RedTeamTabComponent}
+        <svelte:component
+          this={RedTeamTabComponent}
+          managed={true}
+          isActive={activeTabKey === 'red-team'}
+          tabStatus={tabStatus['red-team'] || {}}
+          noticeText={readPaneNotice('red-team').text}
+          noticeKind={readPaneNotice('red-team').kind}
+          toggleEnabled={adversarySimToggleEnabled}
+          toggleDisabled={globalAdversarySimToggleDisabled}
+          toggleDisabledReason={globalAdversarySimToggleDisabledReason}
+          adversarySimStatus={adversarySimStatus}
+          controllerState={adversarySimControllerState}
+          lifecycleCopy={adversarySimLifecycleCopy}
+          onToggleChange={onGlobalAdversarySimToggleChange}
+        />
+      {:else}
+        <section
+          id="dashboard-panel-red-team"
+          class="admin-group"
+          data-dashboard-tab-panel="red-team"
+          aria-labelledby="dashboard-tab-red-team"
+          hidden={activeTabKey !== 'red-team'}
+          aria-hidden={activeTabKey === 'red-team' ? 'false' : 'true'}
+        >
+          <p class="message info">Loading red team controls...</p>
+        </section>
+      {/if}
       {#if IpBansTabComponent}
         <svelte:component
           this={IpBansTabComponent}
           managed={true}
           isActive={activeTabKey === 'ip-bans'}
           tabStatus={tabStatus['ip-bans'] || {}}
+          noticeText={readPaneNotice('ip-bans').text}
+          noticeKind={readPaneNotice('ip-bans').kind}
           bansSnapshot={snapshots.bans}
           ipBansFreshnessSnapshot={snapshots.ipBansFreshness}
           ipRangeSuggestionsSnapshot={snapshots.ipRangeSuggestions}
@@ -1280,6 +1216,8 @@
           managed={true}
           isActive={activeTabKey === 'verification'}
           tabStatus={tabStatus.verification || {}}
+          noticeText={readPaneNotice('verification').text}
+          noticeKind={readPaneNotice('verification').kind}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
@@ -1302,6 +1240,8 @@
           managed={true}
           isActive={activeTabKey === 'traps'}
           tabStatus={tabStatus.traps || {}}
+          noticeText={readPaneNotice('traps').text}
+          noticeKind={readPaneNotice('traps').kind}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
@@ -1324,6 +1264,8 @@
           managed={true}
           isActive={activeTabKey === 'rate-limiting'}
           tabStatus={tabStatus['rate-limiting'] || {}}
+          noticeText={readPaneNotice('rate-limiting').text}
+          noticeKind={readPaneNotice('rate-limiting').kind}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
@@ -1346,6 +1288,8 @@
           managed={true}
           isActive={activeTabKey === 'geo'}
           tabStatus={tabStatus.geo || {}}
+          noticeText={readPaneNotice('geo').text}
+          noticeKind={readPaneNotice('geo').kind}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
@@ -1368,6 +1312,8 @@
           managed={true}
           isActive={activeTabKey === 'fingerprinting'}
           tabStatus={tabStatus.fingerprinting || {}}
+          noticeText={readPaneNotice('fingerprinting').text}
+          noticeKind={readPaneNotice('fingerprinting').kind}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           cdpSnapshot={snapshots.cdp}
@@ -1391,6 +1337,8 @@
           managed={true}
           isActive={activeTabKey === 'robots'}
           tabStatus={tabStatus.robots || {}}
+          noticeText={readPaneNotice('robots').text}
+          noticeKind={readPaneNotice('robots').kind}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
@@ -1414,6 +1362,8 @@
           managed={true}
           isActive={activeTabKey === 'tuning'}
           tabStatus={tabStatus.tuning || {}}
+          noticeText={readPaneNotice('tuning').text}
+          noticeKind={readPaneNotice('tuning').kind}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
@@ -1436,6 +1386,8 @@
           managed={true}
           isActive={activeTabKey === 'advanced'}
           tabStatus={tabStatus.advanced || {}}
+          noticeText={readPaneNotice('advanced').text}
+          noticeKind={readPaneNotice('advanced').kind}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           dashboardBasePath={dashboardBasePath}
@@ -1455,7 +1407,6 @@
         </section>
       {/if}
     </div>
-    <div id="admin-msg" class={`message ${adminMessageKind}`}>{adminMessageText}</div>
   </div>
 
   {#if runtimeError}

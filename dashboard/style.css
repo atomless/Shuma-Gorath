@@ -131,22 +131,35 @@
 }
 
 :root.runtime-prod {
-  --hue: -93;
-  /* --striped-testmode-bg: repeating-linear-gradient(-45deg, hsla(320, 35%, 65%, 0.85), hsla(320, 35%, 65%, 0.85) 10px, hsl(320, 59%, 69%) 10px, hsl(320, 59%, 69%) 20px); */
+  --hue: -88;
+}
+:root.adversary-sim {
+  --hue: -16;
+}
+:root.test-mode {
+  --hue: -256;
 }
 
 :root.connected {
-  filter: saturate(1);
-  transition: filter .6s ease-in;
+  filter: saturate(1.3);
+  transition: filter 1s ease-in;
 }
 
 :root.connected.runtime-prod {
-  filter: saturate(1.2);
+  filter: saturate(1.4);
+}
+
+:root.connected.adversary-sim {
+  filter: saturate(1.9);
+}
+
+:root.connected.test-mode {
+  filter: saturate(1.4);
 }
 
 :root.disconnected {
   filter: saturate(0);
-  transition: filter .6s ease-in;
+  transition: filter 1s ease-in;
 }
 
 :root.disconnected * {
@@ -280,7 +293,7 @@
 input:read-only {
   background: var(--striped-bg);
   opacity: 0.5;
-  pointer-events: none;
+  pointer-events: none !important;
 }
 
 .input-field--mono {
@@ -399,9 +412,10 @@ body {
 .dashboard-test-mode-eye {
   position: absolute;
   top: -34px;
-  left: calc(50% - 174px);
+  left: calc(50% - 173px);
   width: 24.5rem;
   pointer-events: none;
+  visibility: hidden;
 }
 
 .dashboard-test-mode-eye-image {
@@ -410,19 +424,38 @@ body {
   height: auto;
 }
 
+:root.disconnected .dashboard-test-mode-eye, 
 :root.disconnected .shuma-gorath-img {
   filter: hue-rotate(0deg) saturate(0);
-  transition: all .6s ease-in;
+  transition: all .4s ease-in;
 }
 
+:root.runtime-dev:not(.disconnected) .dashboard-test-mode-eye, 
 :root.runtime-dev:not(.disconnected) .shuma-gorath-img {
   filter: hue-rotate(0deg) saturate(1);
-  transition: all .6s ease-in;
+  transition: all .4s ease-in;
 }
 
+:root.runtime-prod:not(.disconnected) .dashboard-test-mode-eye, 
 :root.runtime-prod:not(.disconnected) .shuma-gorath-img {
-  filter: hue-rotate(-123deg) saturate(2);
-  transition: all .6s ease-in;
+  filter: hue-rotate(318deg) saturate(1);
+  transition: all .4s ease-in;
+}
+
+:root.adversary-sim:not(.disconnected) .dashboard-test-mode-eye, 
+:root.adversary-sim:not(.disconnected) .shuma-gorath-img {
+  filter: hue-rotate(-333deg) saturate(1);
+  transition: all .4s ease-in;
+}
+
+:root.test-mode:not(.disconnected) .shuma-gorath-img {
+  filter: hue-rotate(167deg) saturate(1);
+  transition: all .4s ease-in;
+}
+:root.test-mode:not(.disconnected) .dashboard-test-mode-eye {
+  visibility: visible;
+  filter: hue-rotate(167deg) saturate(1.1) brightness(0.9) !important;
+  transition: all .4s ease-in;
 }
 
 /* ===========================================
@@ -534,26 +567,50 @@ h1 {
   opacity: 0.7;
 }
 
+.dashboard-test-mode-notice {
+  position: absolute;
+  top: 64px;
+  left: 30px;
+  max-width: min(360px, calc(100% - 60px));
+  margin-top: 0;
+  text-align: left;
+  z-index: 20;
+}
+
 .dashboard-adversary-sim-control {
   top: 60px;
 }
 
-.dashboard-adversary-sim-hint {
-  position: absolute;
-  top: 90px;
-  left: 30px;
-  max-width: 380px;
-  font-size: var(--text-xs);
-  line-height: 1.3;
-  z-index: 20;
+.dashboard-adversary-sim-progress {
+  margin-top: 15px;
+  width: 100%;
+  height: 10px;
+  overflow: hidden;
+  background: var(--color-200);
+  box-shadow: inset 0 0 0 2px var(--color-300);
 }
 
-.dashboard-global-control-copy-block {
-  margin: 0;
+.dashboard-adversary-sim-progress__fill {
+  width: 0;
+  height: 198px;
+  background: var(--striped-bright-bg);
+  animation: dashboard-adversary-sim-progress-stripes 10s linear infinite;
 }
 
-.dashboard-global-control-copy-block+.dashboard-global-control-copy-block {
-  margin-top: 6px;
+@keyframes dashboard-adversary-sim-progress-stripes {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: 0 -40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-adversary-sim-progress__fill {
+    animation: none;
+  }
 }
 
 .subtitle {
@@ -1288,6 +1345,15 @@ a:focus-visible {
   background: var(--color-50);
   color: var(--color-700);
 }
+
+.login-card {
+  padding-top: 0;
+  margin-top: -42vh;
+}
+
+.login-card #username { height: 0; overflow: hidden; padding: 0; margin: 0; }
+.login-card .control-label:first-of-type,
+.login-card .message.info { display: none; }
 
 /* ===========================================
    Test Mode & Fail Mode Banners

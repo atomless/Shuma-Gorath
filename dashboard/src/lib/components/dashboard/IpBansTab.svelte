@@ -37,6 +37,8 @@
   export let onSaveConfig = null;
   export let onBan = null;
   export let onUnban = null;
+  export let noticeText = '';
+  export let noticeKind = 'info';
 
   const MANUAL_BAN_FALLBACK_SECONDS = 21600;
   const CHART_RESIZE_REDRAW_DEBOUNCE_MS = 180;
@@ -933,7 +935,7 @@
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
   tabindex="-1"
 >
-  <TabStateMessage tab="ip-bans" status={tabStatus} />
+  <TabStateMessage tab="ip-bans" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
   <div class="control-group panel-soft pad-sm">
     <p id="ip-bans-freshness-state" class="control-desc text-muted">
       Freshness: <strong>{freshnessStateLabel}</strong> | lag: {freshnessLagText} | last event: {freshnessLastEventText}

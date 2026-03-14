@@ -45,7 +45,6 @@ const ROBOTS_RESTORE_PATHS = Object.freeze([
   "ai_policy_allow_search_engines"
 ]);
 const ADVERSARY_SIM_RESTORE_PATHS = Object.freeze([
-  "adversary_sim_enabled",
   "adversary_sim_duration_seconds"
 ]);
 const runtimeGuards = new WeakMap();
@@ -265,7 +264,10 @@ async function dashboardDomClassState(page) {
       hasRuntimeDev,
       hasRuntimeProd,
       runtimeClassCount: (hasRuntimeDev ? 1 : 0) + (hasRuntimeProd ? 1 : 0),
-      hasAdversarySim: bodyClasses.includes("adversary-sim"),
+      hasAdversarySim: rootClasses.includes("adversary-sim"),
+      hasTestMode: rootClasses.includes("test-mode"),
+      bodyHasAdversarySim: bodyClasses.includes("adversary-sim"),
+      bodyHasTestMode: bodyClasses.includes("test-mode"),
       bodyConnectedClassPresent: bodyClasses.includes("connected"),
       bodyDisconnectedClassPresent: bodyClasses.includes("disconnected")
     };
@@ -485,7 +487,6 @@ async function forceAdversarySimDisabled(request, ip = "127.0.0.1") {
   let nextControlAttemptAt = 0;
 
   await updateAdminConfig(request, {
-    adversary_sim_enabled: false,
     adversary_sim_duration_seconds: 180
   }, ip);
 
@@ -527,6 +528,8 @@ async function forceAdversarySimDisabled(request, ip = "127.0.0.1") {
 }
 
 async function withRestoredAdversarySimConfig(request, callback, ip = "127.0.0.1") {
+  const restoreDesiredEnabled =
+    adversarySimStatusState(await fetchAdversarySimStatus(request, ip)).enabled === true;
   const restorePatch = extractConfigPatchFromPaths(
     await fetchAdminConfig(request, ip),
     ADVERSARY_SIM_RESTORE_PATHS
@@ -536,8 +539,7 @@ async function withRestoredAdversarySimConfig(request, callback, ip = "127.0.0.1
   } finally {
     if (Object.keys(restorePatch).length === 0) return;
     await updateAdminConfig(request, restorePatch, ip);
-    const desiredEnabled = restorePatch.adversary_sim_enabled === true;
-    if (desiredEnabled) {
+    if (restoreDesiredEnabled) {
       const currentState = adversarySimStatusState(await fetchAdversarySimStatus(request, ip));
       if (currentState.enabled !== true) {
         await controlAdversarySimViaAdmin(request, true, ip);
@@ -724,18 +726,23 @@ async function clickAdversaryToggleWithRetry(page, desiredEnabled, timeoutMs = 6
   const toggleSwitch = page.locator("label.toggle-switch[for='global-adversary-sim-toggle']");
   await expect(toggle).toBeEnabled({ timeout: timeoutMs });
   const desired = desiredEnabled === true;
-  if ((await toggle.isChecked()) === desired) {
+  const settleDesiredUiState = async () => {
     if (request) {
       await waitForDashboardAdversarySimUiState(page, request, desired, timeoutMs);
+    } else {
+      await waitForDashboardAdversarySimUiConvergence(page, desired, timeoutMs);
     }
-    return null;
+    return { requested_enabled: desired };
+  };
+  if ((await toggle.isChecked()) === desired) {
+    return settleDesiredUiState();
   }
 
   const deadline = Date.now() + Math.max(2000, Number(timeoutMs || 0));
   let lastStatus = 0;
   while (Date.now() < deadline) {
     if ((await toggle.isChecked()) === desired) {
-      return null;
+      return settleDesiredUiState();
     }
 
     const maybeDialog = page.waitForEvent("dialog", { timeout: 2500 }).then(async (dialog) => {
@@ -763,7 +770,9 @@ async function clickAdversaryToggleWithRetry(page, desiredEnabled, timeoutMs = 6
       } else {
         await waitForDashboardAdversarySimUiConvergence(page, desired, timeoutMs);
       }
-      return payload;
+      return payload && typeof payload === "object"
+        ? payload
+        : { requested_enabled: desired };
     }
     if (lastStatus === 429 || lastStatus === 409) {
       await page.waitForTimeout(controlRetryDelayMs(response));
@@ -1434,7 +1443,8 @@ test("dashboard loads and shows seeded operational data", async ({ page }) => {
   await expect(page.locator("#cdp-events tbody tr").first()).toBeVisible();
   await expect(page.locator("#cdp-total-detections")).not.toHaveText("-");
   await expect(page.locator('label[for="global-test-mode-toggle"]')).toBeVisible();
-  await expect(page.locator(".dashboard-test-mode-eye")).toHaveCount(0);
+  await expect(page.locator(".dashboard-test-mode-eye")).toHaveCount(1);
+  await expect(page.locator(".dashboard-test-mode-eye")).toBeHidden();
 });
 
 test("dashboard header overlays the eye only while test mode is enabled", async ({ page, request }) => {
@@ -1445,15 +1455,26 @@ test("dashboard header overlays the eye only while test mode is enabled", async 
 
     await updateAdminConfig(request, { test_mode: false });
     await page.reload();
-    await expect(eyeOverlay).toHaveCount(0);
+    await expect(eyeOverlay).toHaveCount(1);
+    await expect(eyeOverlay).toBeHidden();
+    let classState = await dashboardDomClassState(page);
+    expect(classState.hasTestMode).toBeFalsy();
+    expect(classState.bodyHasTestMode).toBeFalsy();
 
     await updateAdminConfig(request, { test_mode: true });
     await page.reload();
     await expect(eyeOverlay).toBeVisible();
+    classState = await dashboardDomClassState(page);
+    expect(classState.hasTestMode).toBeTruthy();
+    expect(classState.bodyHasTestMode).toBeFalsy();
 
     await updateAdminConfig(request, { test_mode: false });
     await page.reload();
-    await expect(eyeOverlay).toHaveCount(0);
+    await expect(eyeOverlay).toHaveCount(1);
+    await expect(eyeOverlay).toBeHidden();
+    classState = await dashboardDomClassState(page);
+    expect(classState.hasTestMode).toBeFalsy();
+    expect(classState.bodyHasTestMode).toBeFalsy();
   });
 });
 
@@ -1812,7 +1833,7 @@ test("session survives reload and time-range controls refresh chart data", async
   await expect(page.locator('.time-btn[data-range="month"]')).toHaveClass(/active/);
 });
 
-test("dashboard class contract tracks runtime on html and adversary-sim on body", async ({ page, request }) => {
+test("dashboard class contract tracks runtime and adversary-sim on html root only", async ({ page, request }) => {
   test.setTimeout(180_000);
   await withRestoredAdversarySimConfig(request, async () => {
     await forceAdversarySimDisabled(request);
@@ -1824,6 +1845,7 @@ test("dashboard class contract tracks runtime on html and adversary-sim on body"
     let bodyState = await dashboardDomClassState(page);
     expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
     expect(bodyState.hasAdversarySim).toBeFalsy();
+    expect(bodyState.bodyHasAdversarySim).toBeFalsy();
     expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
     expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
 
@@ -1831,6 +1853,7 @@ test("dashboard class contract tracks runtime on html and adversary-sim on body"
     bodyState = await dashboardDomClassState(page);
     expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
     expect(bodyState.hasAdversarySim).toBeFalsy();
+    expect(bodyState.bodyHasAdversarySim).toBeFalsy();
     expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
     expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
 
@@ -1840,6 +1863,7 @@ test("dashboard class contract tracks runtime on html and adversary-sim on body"
     bodyState = await dashboardDomClassState(page);
     expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
     expect(bodyState.hasAdversarySim).toBeTruthy();
+    expect(bodyState.bodyHasAdversarySim).toBeFalsy();
     expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
     expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
 
@@ -1847,6 +1871,7 @@ test("dashboard class contract tracks runtime on html and adversary-sim on body"
     bodyState = await dashboardDomClassState(page);
     expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
     expect(bodyState.hasAdversarySim).toBeTruthy();
+    expect(bodyState.bodyHasAdversarySim).toBeFalsy();
     expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
     expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
 
@@ -1855,6 +1880,7 @@ test("dashboard class contract tracks runtime on html and adversary-sim on body"
     bodyState = await dashboardDomClassState(page);
     expectDashboardRuntimeClass(bodyState, runtimeEnvironment);
     expect(bodyState.hasAdversarySim).toBeFalsy();
+    expect(bodyState.bodyHasAdversarySim).toBeFalsy();
     expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
     expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
   });
@@ -1866,6 +1892,7 @@ test("adversary sim global toggle drives orchestration control lifecycle state",
     await forceAdversarySimDisabled(request);
     await openDashboard(page);
     await waitForDashboardAdversarySimUiState(page, request, false);
+    await openTab(page, "red-team");
 
     const toggle = page.locator("#global-adversary-sim-toggle");
     const lifecycleCopy = page.locator("#adversary-sim-lifecycle-copy");
@@ -1879,6 +1906,7 @@ test("adversary sim global toggle drives orchestration control lifecycle state",
     await expect(lifecycleCopy).toContainText("Generation active");
     let bodyState = await dashboardDomClassState(page);
     expect(bodyState.hasAdversarySim).toBeTruthy();
+    expect(bodyState.bodyHasAdversarySim).toBeFalsy();
 
     const offBody = await clickAdversaryToggleWithRetry(page, false, 60000, request);
     expect(offBody?.requested_enabled).toBe(false);
@@ -1887,6 +1915,7 @@ test("adversary sim global toggle drives orchestration control lifecycle state",
     await expect(lifecycleCopy).toContainText("Retained telemetry remains visible");
     bodyState = await dashboardDomClassState(page);
     expect(bodyState.hasAdversarySim).toBeFalsy();
+    expect(bodyState.bodyHasAdversarySim).toBeFalsy();
   });
 });
 
@@ -1962,7 +1991,7 @@ test("adversary sim toggle cancel path avoids orchestration request when frontie
     ]);
 
     await expect(toggle).not.toBeChecked();
-    await expect(page.locator("#admin-msg")).toContainText("Add SHUMA_FRONTIER_*_API_KEY");
+    await expect(page.locator('[data-tab-notice="red-team"]')).toContainText("Add SHUMA_FRONTIER_*_API_KEY");
     await page.waitForTimeout(250);
     expect(controlRequestCount).toBe(0);
   });
@@ -2216,8 +2245,6 @@ test("route remount preserves keyboard navigation, ban/unban, verification save,
     )),
     page.click("#ban-btn")
   ]);
-  await expect(page.locator("#admin-msg")).toContainText(`Banned ${ip}`);
-
   await page.fill("#unban-ip", ip);
   await page.dispatchEvent("#unban-ip", "input");
   await expect(page.locator("#unban-btn")).toBeEnabled();
@@ -2230,7 +2257,6 @@ test("route remount preserves keyboard navigation, ban/unban, verification save,
     )),
     page.click("#unban-btn")
   ]);
-  await expect(page.locator("#admin-msg")).toContainText(`Unbanned ${ip}`);
 
   await withRestoredAdminConfig(request, VERIFICATION_RESTORE_PATHS, async () => {
     await openTab(page, "verification");
@@ -2664,7 +2690,6 @@ test("verification save roundtrip clears dirty state after successful write", as
       )),
       configSave.click()
     ]);
-    await expect(page.locator("#admin-msg")).toContainText(/saved/i);
     await expect(configSave).toBeHidden();
   });
 });

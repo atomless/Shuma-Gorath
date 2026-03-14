@@ -208,6 +208,43 @@ function createRecordingClassList(initial = []) {
   };
 }
 
+function createManualScheduler() {
+  let now = 0;
+  let nextId = 1;
+  let tasks = [];
+
+  return {
+    nowMs() {
+      return now;
+    },
+    schedule(callback, delayMs = 0) {
+      const id = nextId++;
+      tasks.push({
+        id,
+        at: now + Math.max(0, Number(delayMs || 0)),
+        callback
+      });
+      tasks.sort((left, right) => left.at - right.at || left.id - right.id);
+      return id;
+    },
+    cancelScheduled(id) {
+      tasks = tasks.filter((task) => task.id !== id);
+    },
+    async advanceBy(delayMs = 0) {
+      const target = now + Math.max(0, Number(delayMs || 0));
+      while (tasks.length > 0) {
+        tasks.sort((left, right) => left.at - right.at || left.id - right.id);
+        const nextTask = tasks[0];
+        if (!nextTask || nextTask.at > target) break;
+        tasks.shift();
+        now = nextTask.at;
+        nextTask.callback();
+      }
+      now = target;
+    }
+  };
+}
+
 function listJsFilesRecursively(rootDir) {
   const entries = fs.readdirSync(rootDir, { withFileTypes: true });
   const files = [];
@@ -881,6 +918,10 @@ test('dashboard state and store contracts remain immutable and bounded with hear
   await withBrowserGlobals({}, async () => {
     const stateModule = await importBrowserModule('dashboard/src/lib/domain/dashboard-state.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    assert.equal(stateModule.DASHBOARD_TABS.includes('red-team'), true);
+    assert.equal(storeModule.DASHBOARD_TABS.includes('red-team'), true);
+    assert.equal(stateModule.normalizeTab('red-team'), 'red-team');
 
     const initial = stateModule.createInitialState('monitoring');
     const next = stateModule.reduceState(initial, { type: 'set-active-tab', tab: 'verification' });
@@ -1740,6 +1781,66 @@ test('monitoring tab shows bootstrap telemetry before slow full monitoring detai
   });
 });
 
+test('monitoring tab surfaces bootstrap failure as a tab-scoped error when delta bootstrap already rendered telemetry', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const apiClient = {
+      async getMonitoringBootstrap() {
+        const error = new Error('monitoring pipeline unavailable');
+        error.status = 503;
+        throw error;
+      },
+      async getMonitoringDelta() {
+        return {
+          after_cursor: '',
+          window_end_cursor: '00000000000000000002|eventlog:v2:1:2-b',
+          next_cursor: '00000000000000000002|eventlog:v2:1:2-b',
+          has_more: false,
+          overflow: 'none',
+          events: [
+            {
+              ts: 2,
+              event: 'Challenge',
+              reason: 'challenge_served',
+              outcome: 'served'
+            }
+          ],
+          freshness: { state: 'fresh', transport: 'cursor_delta_bootstrap' }
+        };
+      },
+      async getConfig() {
+        return {
+          admin_config_write_enabled: true,
+          runtime_environment: 'runtime-prod'
+        };
+      }
+    };
+
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => apiClient,
+      getStateStore: () => store,
+      deriveMonitoringAnalytics: (_configSnapshot, analyticsResponse = {}) => ({
+        ban_count: Number(analyticsResponse.ban_count || 0),
+        test_mode: analyticsResponse.test_mode === true,
+        fail_mode: String(analyticsResponse.fail_mode || 'open')
+      }),
+      storage: null
+    });
+
+    await runtime.refreshDashboardForTab('monitoring', 'manual');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const monitoringStatus = store.getState().tabStatus.monitoring;
+    assert.equal(monitoringStatus.loading, false);
+    assert.equal(monitoringStatus.error, 'monitoring pipeline unavailable');
+    assert.equal((store.getSnapshot('events') || {}).recent_events?.[0]?.event, 'Challenge');
+  });
+});
+
 test('monitoring refresh recovers cleanly after transient failure without synthetic freshness overwrite', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
@@ -2002,7 +2103,13 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(helper.apiLink, 'https://example.com/api');
 
     const parsedOutcome = ipRangePolicyModule.parseIpRangeOutcome(
-      'source=custom source_id=manual-block action=forbidden_403 matched_cidr=203.0.113.0/24 taxonomy[level=L11 action=A_DENY_HARD detection=D_IP_RANGE_FORBIDDEN signals=S_IP_RANGE_CUSTOM]'
+      'source=custom source_id=manual-block action=forbidden_403 matched_cidr=203.0.113.0/24',
+      {
+        level: 'L11',
+        action: 'A_DENY_HARD',
+        detection: 'D_IP_RANGE_FORBIDDEN',
+        signals: ['S_IP_RANGE_CUSTOM']
+      }
     );
     assert.equal(parsedOutcome.source, 'custom');
     assert.equal(parsedOutcome.sourceId, 'manual-block');
@@ -2014,12 +2121,24 @@ test('monitoring view model and status module remain pure snapshot transforms', 
       {
         ts: Math.floor(Date.now() / 1000),
         reason: 'ip_range_policy_forbidden',
-        outcome: 'source=custom source_id=manual-block action=forbidden_403 matched_cidr=203.0.113.0/24 taxonomy[level=L11 action=A_DENY_HARD detection=D_IP_RANGE_FORBIDDEN signals=S_IP_RANGE_CUSTOM]'
+        outcome: 'source=custom source_id=manual-block action=forbidden_403 matched_cidr=203.0.113.0/24',
+        taxonomy: {
+          level: 'L11',
+          action: 'A_DENY_HARD',
+          detection: 'D_IP_RANGE_FORBIDDEN',
+          signals: ['S_IP_RANGE_CUSTOM']
+        }
       },
       {
         ts: Math.floor(Date.now() / 1000),
         reason: 'ip_range_policy_maze_fallback_block',
-        outcome: 'source=custom source_id=manual-bad-range action=maze matched_cidr=198.51.100.0/24 taxonomy[level=L10 action=A_DENY_TEMP detection=D_IP_RANGE_MAZE signals=S_IP_RANGE_CUSTOM]'
+        outcome: 'source=custom source_id=manual-bad-range action=maze matched_cidr=198.51.100.0/24',
+        taxonomy: {
+          level: 'L10',
+          action: 'A_DENY_TEMP',
+          detection: 'D_IP_RANGE_MAZE',
+          signals: ['S_IP_RANGE_CUSTOM']
+        }
       }
     ], {
       ip_range_policy_mode: 'enforce',
@@ -2157,6 +2276,17 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(runOne?.monitoringEventCount, 3);
     assert.equal(runOne?.banOutcomeCount, 1);
     assert.equal(runSummary.activeBanCount, 2);
+
+    const compactBotnessDisplay = monitoringModelModule.deriveMonitoringEventDisplay({
+      ts: 1710000040,
+      event: 'challenge',
+      reason: 'botness_gate_not_a_bot',
+      outcome_code: 'served',
+      botness_score: 4
+    });
+    assert.equal(compactBotnessDisplay.event, 'Not-a-Bot');
+    assert.equal(compactBotnessDisplay.outcome, 'Served');
+    assert.equal(compactBotnessDisplay.outcomeToken, 'served');
 
     assert.equal(monitoringNormalizers.shouldFetchRange('week'), true);
     assert.equal(monitoringNormalizers.shouldFetchRange('day'), false);
@@ -2343,26 +2473,29 @@ test('status refresh hydrates monitoring retention/freshness snapshot without mo
   });
 });
 
-test('dashboard class runtime keeps exactly one environment class on html and adversary-sim state on body', { concurrency: false }, async () => {
+test('dashboard class runtime keeps runtime, test-mode, and adversary-sim state on html only', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const bodyClassModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-body-classes.js');
 
     const defaultState = bodyClassModule.deriveDashboardBodyClassState({});
     assert.deepEqual(toPlain(defaultState), {
       runtimeClass: '',
+      testModeEnabled: false,
       adversarySimEnabled: false,
       connectionState: 'disconnected'
     });
 
     const explicitDevState = bodyClassModule.deriveDashboardBodyClassState({
       runtime_environment: 'runtime-dev',
+      test_mode: true,
       adversary_sim_enabled: true
     }, {
       backendConnectionState: 'connected'
     });
     assert.deepEqual(toPlain(explicitDevState), {
       runtimeClass: 'runtime-dev',
-      adversarySimEnabled: true,
+      testModeEnabled: true,
+      adversarySimEnabled: false,
       connectionState: 'connected'
     });
 
@@ -2376,18 +2509,21 @@ test('dashboard class runtime keeps exactly one environment class on html and ad
     assert.equal(invalidHintedRuntimeState.runtimeClass, '');
     const liveOverrideState = bodyClassModule.deriveDashboardBodyClassState({
       runtime_environment: 'runtime-prod',
+      test_mode: false,
       adversary_sim_enabled: false
     }, {
+      testModeEnabled: true,
       adversarySimEnabled: true
     });
     assert.deepEqual(toPlain(liveOverrideState), {
       runtimeClass: 'runtime-prod',
+      testModeEnabled: true,
       adversarySimEnabled: true,
       connectionState: 'disconnected'
     });
 
-    const classList = createMutableClassList(['runtime-prod', 'adversary-sim', 'connected']);
-    const rootClassList = createMutableClassList(['runtime-prod', 'adversary-sim', 'connected']);
+    const classList = createMutableClassList(['runtime-prod', 'test-mode', 'adversary-sim', 'connected']);
+    const rootClassList = createMutableClassList(['runtime-prod', 'test-mode', 'adversary-sim', 'connected']);
     const doc = {
       body: {
         classList
@@ -2399,17 +2535,20 @@ test('dashboard class runtime keeps exactly one environment class on html and ad
 
     bodyClassModule.syncDashboardBodyClasses(doc, {
       runtimeClass: explicitDevState.runtimeClass,
+      testModeEnabled: explicitDevState.testModeEnabled,
       adversarySimEnabled: explicitDevState.adversarySimEnabled,
       connectionState: explicitDevState.connectionState
     });
     assert.equal(classList.contains('runtime-dev'), false);
     assert.equal(classList.contains('runtime-prod'), false);
-    assert.equal(classList.contains('adversary-sim'), true);
+    assert.equal(classList.contains('test-mode'), false);
+    assert.equal(classList.contains('adversary-sim'), false);
     assert.equal(classList.contains('connected'), false);
     assert.equal(classList.contains('degraded'), false);
     assert.equal(classList.contains('disconnected'), false);
     assert.equal(rootClassList.contains('runtime-dev'), true);
     assert.equal(rootClassList.contains('runtime-prod'), false);
+    assert.equal(rootClassList.contains('test-mode'), true);
     assert.equal(rootClassList.contains('adversary-sim'), false);
     assert.equal(rootClassList.contains('connected'), true);
     assert.equal(rootClassList.contains('degraded'), false);
@@ -2417,26 +2556,34 @@ test('dashboard class runtime keeps exactly one environment class on html and ad
 
     bodyClassModule.syncDashboardBodyClasses(doc, {
       runtimeClass: 'runtime-dev',
+      testModeEnabled: true,
       adversarySimEnabled: false,
       connectionState: 'degraded'
     });
+    assert.equal(classList.contains('test-mode'), false);
+    assert.equal(classList.contains('adversary-sim'), false);
+    assert.equal(rootClassList.contains('test-mode'), true);
+    assert.equal(rootClassList.contains('adversary-sim'), false);
     assert.equal(rootClassList.contains('connected'), false);
     assert.equal(rootClassList.contains('degraded'), true);
     assert.equal(rootClassList.contains('disconnected'), false);
 
     bodyClassModule.syncDashboardBodyClasses(doc, {
       runtimeClass: 'runtime-prod',
+      testModeEnabled: false,
       adversarySimEnabled: false,
       connectionState: 'disconnected'
     });
     assert.equal(classList.contains('runtime-dev'), false);
     assert.equal(classList.contains('runtime-prod'), false);
+    assert.equal(classList.contains('test-mode'), false);
     assert.equal(classList.contains('adversary-sim'), false);
     assert.equal(classList.contains('connected'), false);
     assert.equal(classList.contains('degraded'), false);
     assert.equal(classList.contains('disconnected'), false);
     assert.equal(rootClassList.contains('runtime-dev'), false);
     assert.equal(rootClassList.contains('runtime-prod'), true);
+    assert.equal(rootClassList.contains('test-mode'), false);
     assert.equal(rootClassList.contains('adversary-sim'), false);
     assert.equal(rootClassList.contains('connected'), false);
     assert.equal(rootClassList.contains('degraded'), false);
@@ -2448,6 +2595,8 @@ test('dashboard class runtime keeps exactly one environment class on html and ad
     });
     assert.equal(rootClassList.contains('runtime-dev'), false);
     assert.equal(rootClassList.contains('runtime-prod'), false);
+    assert.equal(rootClassList.contains('test-mode'), false);
+    assert.equal(rootClassList.contains('adversary-sim'), false);
     assert.equal(rootClassList.contains('degraded'), false);
     assert.equal(rootClassList.contains('connected'), false);
     assert.equal(rootClassList.contains('disconnected'), true);
@@ -2455,12 +2604,14 @@ test('dashboard class runtime keeps exactly one environment class on html and ad
     bodyClassModule.clearDashboardBodyClasses(doc);
     assert.equal(classList.contains('runtime-dev'), false);
     assert.equal(classList.contains('runtime-prod'), false);
+    assert.equal(classList.contains('test-mode'), false);
     assert.equal(classList.contains('adversary-sim'), false);
     assert.equal(classList.contains('connected'), false);
     assert.equal(classList.contains('degraded'), false);
     assert.equal(classList.contains('disconnected'), false);
     assert.equal(rootClassList.contains('runtime-dev'), false);
     assert.equal(rootClassList.contains('runtime-prod'), false);
+    assert.equal(rootClassList.contains('test-mode'), false);
     assert.equal(rootClassList.contains('adversary-sim'), false);
     assert.equal(rootClassList.contains('connected'), false);
     assert.equal(rootClassList.contains('degraded'), false);
@@ -2560,8 +2711,11 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
     assert.equal(normalized.historyCleanupCommand, 'make telemetry-clean');
     assert.equal(normalized.phase, 'running');
     assert.equal(normalized.runId, 'simrun-123');
+    assert.equal(normalized.startedAt, 1000);
+    assert.equal(normalized.endsAt, 1180);
     assert.equal(normalized.activeRunCount, 1);
     assert.equal(normalized.activeLaneCount, 2);
+    assert.equal(normalized.remainingSeconds, 120);
     assert.equal(normalized.supervisor.owner, 'backend_autonomous_supervisor');
     assert.equal(normalized.supervisor.cadenceSeconds, 1);
     assert.equal(normalized.supervisor.heartbeatActive, true);
@@ -2573,6 +2727,9 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
     assert.equal(renormalized.enabled, true);
     assert.equal(renormalized.available, true);
     assert.equal(renormalized.durationSeconds, 180);
+    assert.equal(renormalized.startedAt, 1000);
+    assert.equal(renormalized.endsAt, 1180);
+    assert.equal(renormalized.remainingSeconds, 120);
     assert.equal(renormalized.generationDiagnostics.health, 'ok');
   });
 });
@@ -2667,6 +2824,143 @@ test('dashboard adversary-sim desired-state matcher tolerates eventual-consisten
   });
 });
 
+test('dashboard adversary-sim lifecycle copy prioritizes controller convergence over steady-state backend copy', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const adversaryModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-adversary-sim.js');
+
+    assert.equal(
+      adversaryModule.deriveAdversarySimLifecycleCopy({
+        status: {
+          adversary_sim_enabled: false,
+          generation_active: false,
+          historical_data_visible: true,
+          history_retention: {
+            retention_hours: 168,
+            cleanup_command: 'make telemetry-clean'
+          },
+          phase: 'off'
+        },
+        controllerState: {
+          controllerPhase: 'converging',
+          uiDesiredEnabled: true
+        }
+      }),
+      'Starting adversary simulation. Awaiting backend convergence.'
+    );
+
+    assert.equal(
+      adversaryModule.deriveAdversarySimLifecycleCopy({
+        status: {
+          adversary_sim_enabled: true,
+          generation_active: true,
+          phase: 'running'
+        },
+        controllerState: {
+          controllerPhase: 'submitting',
+          uiDesiredEnabled: false
+        }
+      }),
+      'Stopping adversary simulation. Awaiting backend convergence.'
+    );
+
+    assert.equal(
+      adversaryModule.deriveAdversarySimLifecycleCopy({
+        status: {
+          adversary_sim_enabled: true,
+          generation_active: true,
+          historical_data_visible: true,
+          history_retention: {
+            retention_hours: 168,
+            cleanup_command: 'make telemetry-clean'
+          },
+          phase: 'running',
+          generation_diagnostics: {
+            health: 'ok',
+            recommended_action: 'No action required; simulation traffic is being generated.'
+          }
+        },
+        controllerState: {
+          controllerPhase: 'idle',
+          uiDesiredEnabled: true
+        }
+      }),
+      'Generation active. Auto-off stops new simulation traffic only; retained telemetry stays visible.'
+    );
+
+    assert.equal(
+      adversaryModule.deriveAdversarySimLifecycleCopy({
+        status: {
+          adversary_sim_enabled: false,
+          generation_active: false,
+          historical_data_visible: true,
+          history_retention: {
+            retention_hours: 168,
+            cleanup_command: 'make telemetry-clean'
+          },
+          phase: 'off'
+        },
+        controllerState: {
+          controllerPhase: 'idle',
+          uiDesiredEnabled: false
+        }
+      }),
+      'Generation inactive. Retained telemetry remains visible for 168h or until make telemetry-clean is run.'
+    );
+  });
+});
+
+test('dashboard adversary-sim progress state uses backend run timing and resets immediately when intent turns off', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const adversaryModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-adversary-sim.js');
+
+    assert.deepEqual(
+      adversaryModule.deriveAdversarySimProgressState({
+        status: {
+          adversary_sim_enabled: true,
+          generation_active: true,
+          phase: 'running',
+          started_at: 1000,
+          ends_at: 1180,
+          duration_seconds: 180
+        },
+        controllerState: {
+          controllerPhase: 'idle',
+          uiDesiredEnabled: true
+        },
+        nowMs: 1090_000
+      }),
+      {
+        active: true,
+        progressPercent: 50,
+        remainingMs: 90_000
+      }
+    );
+
+    assert.deepEqual(
+      adversaryModule.deriveAdversarySimProgressState({
+        status: {
+          adversary_sim_enabled: true,
+          generation_active: true,
+          phase: 'running',
+          started_at: 1000,
+          ends_at: 1180,
+          duration_seconds: 180
+        },
+        controllerState: {
+          controllerPhase: 'converging',
+          uiDesiredEnabled: false
+        },
+        nowMs: 1090_000
+      }),
+      {
+        active: false,
+        progressPercent: 0,
+        remainingMs: 0
+      }
+    );
+  });
+});
+
 test('dashboard adversary-sim control retry helper honors retryable lease/throttle responses before succeeding', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const adversaryModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-adversary-sim.js');
@@ -2735,6 +3029,251 @@ test('dashboard adversary-sim control retry helper does not swallow non-retryabl
   });
 });
 
+test('dashboard red team controller flips desired state immediately and drops a rapid reversal back to confirmed backend state', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    let controllerModule = null;
+    try {
+      controllerModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-red-team-controller.js');
+    } catch (error) {
+      assert.fail(`dashboard red team controller module is missing: ${error.message}`);
+    }
+
+    const scheduler = createManualScheduler();
+    const controlCalls = [];
+    const controller = controllerModule.createDashboardRedTeamController({
+      initialStatus: {
+        adversary_sim_enabled: false,
+        generation_active: false,
+        phase: 'off'
+      },
+      debounceMs: 200,
+      nowMs: () => scheduler.nowMs(),
+      schedule: (callback, delayMs) => scheduler.schedule(callback, delayMs),
+      cancelScheduled: (id) => scheduler.cancelScheduled(id),
+      submitControl: async (desiredEnabled) => {
+        controlCalls.push(desiredEnabled);
+        return {
+          status: {
+            adversary_sim_enabled: desiredEnabled,
+            generation_active: desiredEnabled,
+            phase: desiredEnabled ? 'running' : 'off'
+          }
+        };
+      },
+      fetchStatus: async () => ({
+        adversary_sim_enabled: false,
+        generation_active: false,
+        phase: 'off'
+      })
+    });
+
+    controller.handleToggleIntent(true);
+    assert.equal(controller.getState().uiDesiredEnabled, true);
+    assert.equal(controller.getState().controllerPhase, 'debouncing');
+    assert.deepEqual(controlCalls, []);
+
+    controller.handleToggleIntent(false);
+    assert.equal(controller.getState().uiDesiredEnabled, false);
+
+    await scheduler.advanceBy(200);
+
+    assert.deepEqual(controlCalls, []);
+    assert.equal(controller.getState().controllerPhase, 'idle');
+    assert.equal(controller.getState().uiDesiredEnabled, false);
+  });
+});
+
+test('dashboard red team controller preserves latest intent when a status poll lands during debounce', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    let controllerModule = null;
+    try {
+      controllerModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-red-team-controller.js');
+    } catch (error) {
+      assert.fail(`dashboard red team controller module is missing: ${error.message}`);
+    }
+
+    const scheduler = createManualScheduler();
+    const controlCalls = [];
+    const fetchReasons = [];
+    const controller = controllerModule.createDashboardRedTeamController({
+      initialStatus: {
+        adversary_sim_enabled: true,
+        generation_active: true,
+        phase: 'running'
+      },
+      debounceMs: 300,
+      pollIntervalMs: 1000,
+      nowMs: () => scheduler.nowMs(),
+      schedule: (callback, delayMs) => scheduler.schedule(callback, delayMs),
+      cancelScheduled: (id) => scheduler.cancelScheduled(id),
+      submitControl: async (desiredEnabled) => {
+        controlCalls.push(desiredEnabled);
+        return {
+          status: {
+            adversary_sim_enabled: desiredEnabled,
+            generation_active: desiredEnabled,
+            phase: desiredEnabled ? 'running' : 'off'
+          }
+        };
+      },
+      fetchStatus: async (reason) => {
+        fetchReasons.push(reason);
+        return {
+          adversary_sim_enabled: true,
+          generation_active: true,
+          phase: 'running'
+        };
+      }
+    });
+
+    await controller.bootstrap();
+    await scheduler.advanceBy(750);
+
+    controller.handleToggleIntent(false);
+    assert.equal(controller.getState().uiDesiredEnabled, false);
+    assert.equal(controller.getState().controllerPhase, 'debouncing');
+
+    await scheduler.advanceBy(250);
+
+    assert.deepEqual(fetchReasons, ['poll']);
+    assert.equal(controller.getState().uiDesiredEnabled, false);
+    assert.equal(controller.getState().controllerPhase, 'debouncing');
+    assert.deepEqual(controlCalls, []);
+
+    await scheduler.advanceBy(50);
+
+    assert.deepEqual(controlCalls, [false]);
+    assert.equal(controller.getState().uiDesiredEnabled, false);
+    assert.equal(controller.getState().controllerPhase, 'idle');
+  });
+});
+
+test('dashboard red team controller queues a reversal while a control request is in flight', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    let controllerModule = null;
+    try {
+      controllerModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-red-team-controller.js');
+    } catch (error) {
+      assert.fail(`dashboard red team controller module is missing: ${error.message}`);
+    }
+
+    const scheduler = createManualScheduler();
+    const controlCalls = [];
+    let resolveFirstControl = null;
+    const firstControlPromise = new Promise((resolve) => {
+      resolveFirstControl = resolve;
+    });
+    const controller = controllerModule.createDashboardRedTeamController({
+      initialStatus: {
+        adversary_sim_enabled: false,
+        generation_active: false,
+        phase: 'off'
+      },
+      debounceMs: 200,
+      nowMs: () => scheduler.nowMs(),
+      schedule: (callback, delayMs) => scheduler.schedule(callback, delayMs),
+      cancelScheduled: (id) => scheduler.cancelScheduled(id),
+      submitControl: async (desiredEnabled) => {
+        controlCalls.push(desiredEnabled);
+        if (controlCalls.length === 1) {
+          return firstControlPromise;
+        }
+        return {
+          status: {
+            adversary_sim_enabled: false,
+            generation_active: false,
+            phase: 'off'
+          }
+        };
+      },
+      fetchStatus: async () => ({
+        adversary_sim_enabled: false,
+        generation_active: false,
+        phase: 'off'
+      })
+    });
+
+    controller.handleToggleIntent(true);
+    await scheduler.advanceBy(200);
+    assert.deepEqual(controlCalls, [true]);
+    assert.equal(controller.getState().controllerPhase, 'submitting');
+
+    controller.handleToggleIntent(false);
+    assert.equal(controller.getState().uiDesiredEnabled, false);
+
+    await scheduler.advanceBy(200);
+    assert.deepEqual(controlCalls, [true]);
+
+    resolveFirstControl({
+      status: {
+        adversary_sim_enabled: true,
+        generation_active: true,
+        phase: 'running'
+      }
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    await scheduler.advanceBy(0);
+    await Promise.resolve();
+
+    assert.deepEqual(controlCalls, [true, false]);
+  });
+});
+
+test('dashboard red team controller reports when a submitted desired state has converged', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    let controllerModule = null;
+    try {
+      controllerModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-red-team-controller.js');
+    } catch (error) {
+      assert.fail(`dashboard red team controller module is missing: ${error.message}`);
+    }
+
+    const scheduler = createManualScheduler();
+    const settledStates = [];
+    const controller = controllerModule.createDashboardRedTeamController({
+      initialStatus: {
+        adversary_sim_enabled: false,
+        generation_active: false,
+        phase: 'off'
+      },
+      debounceMs: 200,
+      nowMs: () => scheduler.nowMs(),
+      schedule: (callback, delayMs) => scheduler.schedule(callback, delayMs),
+      cancelScheduled: (id) => scheduler.cancelScheduled(id),
+      submitControl: async (desiredEnabled) => ({
+        status: {
+          adversary_sim_enabled: desiredEnabled,
+          generation_active: desiredEnabled,
+          phase: desiredEnabled ? 'running' : 'off'
+        }
+      }),
+      fetchStatus: async () => ({
+        adversary_sim_enabled: true,
+        generation_active: true,
+        phase: 'running'
+      }),
+      onSettled: (desiredEnabled, status) => {
+        settledStates.push({
+          desiredEnabled,
+          phase: status?.phase
+        });
+      }
+    });
+
+    controller.handleToggleIntent(true);
+    await scheduler.advanceBy(200);
+
+    assert.deepEqual(settledStates, [
+      {
+        desiredEnabled: true,
+        phase: 'running'
+      }
+    ]);
+    assert.equal(controller.getState().controllerPhase, 'idle');
+  });
+});
+
 test('dashboard global control helper enables authenticated writable controls before monitoring hydration completes', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const controlModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-global-controls.js');
@@ -2765,75 +3304,13 @@ test('dashboard global control helper enables authenticated writable controls be
   });
 });
 
-test('dashboard global control helper uses config-backed provisional adversary-sim state before explicit status arrives', { concurrency: false }, async () => {
+test('dashboard global control helper no longer exposes legacy adversary-sim toggle truth helpers', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const controlModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-global-controls.js');
 
-    assert.equal(
-      controlModule.deriveAdversarySimToggleEnabled({
-        pendingEnabled: null,
-        adversarySimStatus: {},
-        configSnapshot: { adversary_sim_enabled: true }
-      }),
-      true
-    );
-
-    assert.equal(
-      controlModule.deriveAdversarySimToggleEnabled({
-        pendingEnabled: null,
-        adversarySimStatus: { adversary_sim_enabled: false },
-        configSnapshot: { adversary_sim_enabled: true }
-      }),
-      false
-    );
-
-    assert.equal(
-      controlModule.deriveAdversarySimToggleEnabled({
-        pendingEnabled: true,
-        adversarySimStatus: { adversary_sim_enabled: false },
-        configSnapshot: { adversary_sim_enabled: false }
-      }),
-      true
-    );
-  });
-});
-
-test('dashboard global control helper primes adversary-sim status once authenticated config shows the surface is available', { concurrency: false }, async () => {
-  await withBrowserGlobals({}, async () => {
-    const controlModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-global-controls.js');
-
-    assert.equal(
-      controlModule.shouldPrimeAdversarySimStatus({
-        runtimeMounted: true,
-        authenticated: true,
-        bootstrapInFlight: false,
-        configSnapshot: { adversary_sim_available: true },
-        adversarySimStatus: {}
-      }),
-      true
-    );
-
-    assert.equal(
-      controlModule.shouldPrimeAdversarySimStatus({
-        runtimeMounted: true,
-        authenticated: true,
-        bootstrapInFlight: true,
-        configSnapshot: { adversary_sim_available: true },
-        adversarySimStatus: {}
-      }),
-      false
-    );
-
-    assert.equal(
-      controlModule.shouldPrimeAdversarySimStatus({
-        runtimeMounted: true,
-        authenticated: true,
-        bootstrapInFlight: false,
-        configSnapshot: { adversary_sim_available: true },
-        adversarySimStatus: { adversary_sim_enabled: true, phase: 'running' }
-      }),
-      false
-    );
+    assert.equal(typeof controlModule.deriveAdversarySimToggleEnabled, 'undefined');
+    assert.equal(typeof controlModule.hasExplicitAdversarySimStatus, 'undefined');
+    assert.equal(typeof controlModule.shouldPrimeAdversarySimStatus, 'undefined');
   });
 });
 
@@ -2994,6 +3471,7 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
     assert.equal(json.resolveJsonFieldLine('missing_field', fieldLineMap), null);
     assert.equal(Array.isArray(schema.advancedConfigTemplatePaths), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('test_mode'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('adversary_sim_enabled'), false);
     assert.equal(schema.advancedConfigTemplatePaths.includes('adversary_sim_duration_seconds'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('browser_policy_enabled'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('bypass_allowlists_enabled'), true);
@@ -3085,6 +3563,7 @@ test('runtime variable inventory meanings match writable and read-only admin con
   expectedReadOnlyPaths.push('botness_signal_definitions.scored_signals');
   expectedReadOnlyPaths.push('botness_signal_definitions.terminal_signals');
   [
+    'adversary_sim_enabled',
     'ip_range_suggestions_min_observations',
     'ip_range_suggestions_min_bot_events',
     'ip_range_suggestions_min_confidence_percent',
@@ -3492,6 +3971,52 @@ test('dashboard route does not add unapproved read-only chrome to config tabs', 
   assert.equal(dashboardRouteSource.includes('This deployment is read-only.'), false);
 });
 
+test('red team tab reuses verification-style config panel primitives for its adversary sim pane', () => {
+  const redTeamTabSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/RedTeamTab.svelte'),
+    'utf8'
+  );
+
+  assert.match(redTeamTabSource, /import ConfigPanel from '.\/primitives\/ConfigPanel\.svelte';/);
+  assert.match(
+    redTeamTabSource,
+    /import ConfigPanelHeading from '.\/primitives\/ConfigPanelHeading\.svelte';/
+  );
+  assert.match(redTeamTabSource, /class="controls-grid controls-grid--config"/);
+  assert.match(redTeamTabSource, /<ConfigPanel writable=\{true\} dirty=\{false\}>/);
+  assert.match(redTeamTabSource, /<p id="adversary-sim-lifecycle-copy" class="control-desc text-muted">\{lifecycleCopy\}<\/p>/);
+  assert.match(redTeamTabSource, /class="dashboard-adversary-sim-progress"/);
+  assert.match(redTeamTabSource, /class="dashboard-adversary-sim-progress__fill"/);
+  assert.equal(redTeamTabSource.includes('dashboard-adversary-sim-hint'), false);
+  assert.equal(redTeamTabSource.includes('dashboard-global-control-copy-block'), false);
+  assert.equal(redTeamTabSource.includes('control-group panel-soft pad-md'), false);
+});
+
+test('red team adversary-sim progress bar animates stripe motion and respects reduced motion', () => {
+  const styleSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'style.css'),
+    'utf8'
+  );
+
+  assert.match(styleSource, /\.dashboard-adversary-sim-progress__fill\s*\{[\s\S]*animation:\s*dashboard-adversary-sim-progress-stripes\s+10s\s+linear\s+infinite;[\s\S]*\}/m);
+  assert.match(styleSource, /@keyframes dashboard-adversary-sim-progress-stripes\s*\{[\s\S]*background-position:\s*0 0;[\s\S]*background-position:\s*0 -40px;[\s\S]*\}/m);
+  assert.match(styleSource, /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*\.dashboard-adversary-sim-progress__fill\s*\{[\s\S]*animation:\s*none;[\s\S]*\}[\s\S]*\}/m);
+});
+
+test('tab state message supports pane-scoped notices alongside loading and error states', () => {
+  const tabStateMessageSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/primitives/TabStateMessage.svelte'),
+    'utf8'
+  );
+
+  assert.match(tabStateMessageSource, /export let noticeText = '';/);
+  assert.match(tabStateMessageSource, /export let noticeKind = 'info';/);
+  assert.match(tabStateMessageSource, /data-tab-notice=\{tab\}/);
+  assert.match(tabStateMessageSource, /\$:\s+paneNoticeKind = readNoticeKind\(noticeKind\);/);
+  assert.match(tabStateMessageSource, /class=\{`message \$\{paneNoticeKind\}`\}/);
+  assert.equal(tabStateMessageSource.includes('id="admin-msg"'), false);
+});
+
 test('dashboard route preflights dirty config logout before mutating session state', () => {
   const dashboardRouteSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
@@ -3504,13 +4029,14 @@ test('dashboard route preflights dirty config logout before mutating session sta
   assert.match(dashboardRouteSource, /stopImmediatePropagation\(\)/);
   assert.match(
     dashboardRouteSource,
-    /const hasUnsavedConfigChanges = hasVisibleUnsavedConfigChanges\(\);\s+if \(!confirmDiscardUnsavedConfigChanges\(\)\) return;\s+let redirectingToLogin = false;\s+loggingOut = true;\s+try \{\s+suppressBeforeUnloadPrompt = hasUnsavedConfigChanges;\s+routeController\.abortInFlightRefresh\(\);\s+clearAdversarySimStatusPollTimer\(\);\s+await logoutDashboardSession\(\);/s
+    /const hasUnsavedConfigChanges = hasVisibleUnsavedConfigChanges\(\);\s+if \(!confirmDiscardUnsavedConfigChanges\(\)\) return;\s+let redirectingToLogin = false;\s+loggingOut = true;\s+try \{\s+suppressBeforeUnloadPrompt = hasUnsavedConfigChanges;\s+routeController\.abortInFlightRefresh\(\);\s+adversarySimController\.dispose\(\);\s+await logoutDashboardSession\(\);/s
   );
 });
 
 test('dashboard route lazily loads heavy tabs and keeps orchestration local', () => {
   const source = fs.readFileSync(path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'), 'utf8');
 
+  assert.match(source, /import\('\$lib\/components\/dashboard\/RedTeamTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/VerificationTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/TrapsTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/AdvancedTab\.svelte'\)/);
@@ -3522,6 +4048,7 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /\$lib\/runtime\/dashboard-route-controller\.js/);
   assert.match(source, /\$lib\/runtime\/dashboard-body-classes\.js/);
   assert.match(source, /\$lib\/runtime\/dashboard-adversary-sim\.js/);
+  assert.match(source, /\$lib\/runtime\/dashboard-red-team-controller\.js/);
   assert.match(source, /deriveAdversarySimControlState/);
   assert.match(source, /deriveDashboardBodyClassState\(configSnapshot,\s*\{/);
   assert.match(source, /runtimeClassHint/);
@@ -3554,20 +4081,19 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /ipRangeSuggestionsSnapshot=\{snapshots\.ipRangeSuggestions\}/);
   assert.match(source, /cdpSnapshot=\{snapshots\.cdp\}/);
   assert.match(source, /id="global-test-mode-toggle"/);
-  assert.match(source, /id="global-adversary-sim-toggle"/);
-  assert.match(source, /id="adversary-sim-lifecycle-copy"/);
+  assert.match(source, /dashboard-panel-red-team/);
+  assert.equal(source.includes('id="global-adversary-sim-toggle"'), false);
+  assert.equal(source.includes('id="adversary-sim-lifecycle-copy"'), false);
   assert.match(source, /id="connection-status"/);
   assert.match(source, /id="lost-connection"/);
-  assert.match(source, /let adversarySimStatusRequestInFlight = null;/);
-  assert.match(source, /if \(adversarySimStatusRequestInFlight\) \{/);
-  assert.match(source, /return adversarySimStatusRequestInFlight;/);
-  assert.match(source, /let adversarySimStatusBootstrapPromise = null;/);
-  assert.match(source, /async function bootstrapAdversarySimStatus\(\)/);
-  assert.match(source, /source: 'adversary-sim-status-bootstrap'/);
-  assert.match(source, /shouldPrimeAdversarySimStatus\(/);
+  assert.match(source, /const adversarySimController = createDashboardRedTeamController\(/);
+  assert.match(source, /adversarySimController\.subscribe\(/);
+  assert.match(source, /await adversarySimController\.bootstrap\(\)/);
+  assert.match(source, /void adversarySimController\.handleTabActivated\(\)/);
+  assert.match(source, /void adversarySimController\.handleVisibilityResume\(\)/);
   assert.match(
     source,
-    /runtimeReady = bootstrapped === true;\s*if \(bootstrapped === true\) \{\s*await bootstrapAdversarySimStatus\(\);\s*\}\s*syncAdversarySimTimers\(\);/s
+    /runtimeReady = bootstrapped === true;\s*if \(bootstrapped === true\) \{\s*await adversarySimController\.bootstrap\(\);\s*\}/s
   );
   assert.match(source, /onGlobalTestModeToggleChange/);
   assert.match(source, /onGlobalAdversarySimToggleChange/);
@@ -3584,11 +4110,8 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /dashboardRequestBudgets\.adversarySimControlTimeoutMs/);
   assert.match(source, /dashboardRequestBudgets\.adversarySimEnableTimeoutMs/);
   assert.match(source, /dashboardRequestBudgets\.adversarySimStatusTimeoutMs/);
-  assert.match(
-    source,
-    /waitForAdversarySimStatusConvergence\(\s*nextValue,\s*nextValue\s*\?\s*dashboardRequestBudgets\.adversarySimEnableTimeoutMs\s*:\s*dashboardRequestBudgets\.adversarySimDisableTimeoutMs/s
-  );
-  assert.match(source, /deriveAdversarySimToggleEnabled/);
+  assert.equal(source.includes('waitForAdversarySimStatusConvergence('), false);
+  assert.equal(source.includes('deriveAdversarySimToggleEnabled'), false);
   assert.match(source, /deriveGlobalControlDisabled/);
   assert.match(
     source,
@@ -3596,7 +4119,7 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   );
   assert.match(
     source,
-    /controlDashboardAdversarySim\(nextValue,\s*\{\s*timeoutMs:\s*dashboardRequestBudgets\.adversarySimControlTimeoutMs/s
+    /controlDashboardAdversarySim\(desiredEnabled,\s*\{\s*timeoutMs:\s*dashboardRequestBudgets\.adversarySimControlTimeoutMs/s
   );
   assert.match(source, /banDashboardIp\(ip, duration, 'manual_ban',\s*\{/);
   assert.match(source, /unbanDashboardIp\(ip,\s*\{/);
@@ -3604,19 +4127,34 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /status !== 403/);
   assert.match(source, /csrf/);
   assert.match(source, /trust boundary/);
-  assert.match(source, /Adversary simulation control session expired\. Redirecting to login\.\.\./);
+  assert.match(source, /Adversary simulation session expired\. Redirecting to login\.\.\./);
+  assert.match(source, /deriveAdversarySimLifecycleCopy/);
+  assert.match(source, /adversarySimLifecycleCopy = deriveAdversarySimLifecycleCopy\(\{/);
+  assert.equal(source.includes('Adversary simulation run starting...'), false);
+  assert.equal(source.includes('Adversary simulation run stopping...'), false);
+  assert.equal(source.includes('onSettled:'), false);
+  assert.equal(source.includes('Test mode disabled (blocking active)'), false);
   assert.match(source, /dashboard-global-control-label/);
   assert.match(
     source,
     /if \(checked && autoRefreshSupported && runtimeReady\) \{\s*void routeController\.refreshTab\(activeTabKey, 'auto-refresh'\);/s
   );
-  assert.match(source, /let adversarySimPendingEnabled = null;/);
-  assert.match(source, /function waitForAdversarySimStatusConvergence\(/);
-  assert.match(source, /adversarySimToggleEnabled = deriveAdversarySimToggleEnabled\(/);
+  assert.equal(source.includes('let adversarySimPendingEnabled = null;'), false);
+  assert.equal(source.includes('function waitForAdversarySimStatusConvergence('), false);
+  assert.match(
+    source,
+    /adversarySimToggleEnabled = adversarySimControllerState\??\.uiDesiredEnabled === true/
+  );
+  assert.match(source, /adversarySimEnabled:\s*normalizedAdversarySimStatus\.enabled === true/);
+  assert.equal(source.includes('adversarySimControllerState?.uiDesiredEnabled === true ||'), false);
   assert.match(source, /globalAdversarySimToggleDisabled = deriveGlobalControlDisabled\(/);
-  assert.match(source, /await waitForAdversarySimStatusConvergence\(/);
+  assert.match(source, /void adversarySimController\.handleToggleIntent\(nextValue\);/);
   assert.equal(source.includes('adversary-sim-progress-line'), false);
-  assert.match(source, /id="admin-msg"/);
+  assert.equal(source.includes('id="admin-msg"'), false);
+  assert.equal(source.includes('setAdminMessage('), false);
+  assert.match(source, /readPaneNotice\('red-team'\)\.text/);
+  assert.match(source, /readPaneNotice\('ip-bans'\)\.text/);
+  assert.match(source, /noticeText=\{readPaneNotice\('verification'\)\.text\}/);
 });
 
 test('dashboard monitoring runtime keeps edge-fermyon on bounded monitoring hydration', () => {
@@ -3738,7 +4276,9 @@ test('monitoring tab applies bounded sanitization and redraw guards', () => {
   assert.match(source, /normalizeReasonRows\(/);
   assert.match(source, /buildTimeSeries\(selectedRangeEvents, selectedTimeRange,/);
   assert.match(source, /deriveMonitoringEventDisplay/);
-  assert.match(source, /const normalizeEventForDisplay = \(event = \{\}\) =>/);
+  assert.match(source, /const rawFeedPayload = \(event = \{\}\) =>/);
+  assert.match(source, /Object\.keys\(source\)/);
+  assert.equal(source.includes('const normalizeEventForDisplay = (event = {}) =>'), false);
   assert.match(source, /const buildRawTelemetryFeed = \(events = \[\]\) =>/);
   assert.equal(source.includes('rangeEventsSnapshot.range'), false);
   assert.match(source, /'Puzzle Outcomes'/);
@@ -3907,7 +4447,7 @@ test('dashboard route imports native runtime actions directly', () => {
   assert.equal(source.includes("routeController.refreshTab(activeTabKey, 'adversary-sim-toggle')"), false);
 });
 
-test('dashboard route overlays a test-mode eye on the header image only when test mode is enabled', () => {
+test('dashboard route keeps the test-mode eye overlay mounted and lets CSS reveal it when enabled', () => {
   const routeSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
     'utf8'
@@ -3918,14 +4458,14 @@ test('dashboard route overlays a test-mode eye on the header image only when tes
   );
 
   assert.match(routeSource, /assets\/eye\.png/);
-  assert.match(routeSource, /\{#if testModeEnabled\}/);
   assert.match(routeSource, /dashboard-test-mode-eye/);
   assert.match(routeSource, /Test mode active/);
   assert.equal(routeSource.includes("<style>"), false);
 
   assert.match(styleSource, /\.shuma-image-wrapper\s*\{\s*position:\s*relative;/m);
-  assert.match(styleSource, /\.dashboard-test-mode-eye\s*\{[\s\S]*position:\s*absolute;[\s\S]*pointer-events:\s*none;/m);
+  assert.match(styleSource, /\.dashboard-test-mode-eye\s*\{[\s\S]*position:\s*absolute;[\s\S]*pointer-events:\s*none;[\s\S]*visibility:\s*hidden;/m);
   assert.match(styleSource, /\.dashboard-test-mode-eye-image\s*\{\s*display:\s*block;\s*width:\s*100%;\s*height:\s*auto;/m);
+  assert.match(styleSource, /:root\.test-mode:not\(\.disconnected\)\s+\.dashboard-test-mode-eye\s*\{[\s\S]*visibility:\s*visible;/m);
   assert.equal(styleSource.includes("drop-shadow"), false);
 });
 

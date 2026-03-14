@@ -18,6 +18,8 @@
   export let configSnapshot = null;
   export let configVersion = 0;
   export let onSaveConfig = null;
+  export let noticeText = '';
+  export let noticeKind = 'info';
 
   let writable = false;
   let savingTraps = false;
@@ -202,7 +204,7 @@
   hidden={managed ? !isActive : false}
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
-  <TabStateMessage tab="traps" status={tabStatus} />
+  <TabStateMessage tab="traps" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
   <div class="controls-grid controls-grid--config">
     <ConfigMazeSection
       bind:writable

@@ -13,6 +13,8 @@
   export let configVersion = 0;
   export let cdpSnapshot = null;
   export let onSaveConfig = null;
+  export let noticeText = '';
+  export let noticeKind = 'info';
 
   let writable = false;
   let savingFingerprinting = false;
@@ -159,7 +161,7 @@
   hidden={managed ? !isActive : false}
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
-  <TabStateMessage tab="fingerprinting" status={tabStatus} />
+  <TabStateMessage tab="fingerprinting" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
   <div class="controls-grid controls-grid--config">
     <ConfigPanel writable={writable} dirty={hasUnsavedChanges}>
       <ConfigPanelHeading title="Akamai Bot Signal">

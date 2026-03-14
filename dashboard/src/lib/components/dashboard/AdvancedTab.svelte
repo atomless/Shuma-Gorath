@@ -26,6 +26,8 @@
   export let dashboardBasePath = '/dashboard';
   export let onSaveConfig = null;
   export let onValidateConfig = null;
+  export let noticeText = '';
+  export let noticeKind = 'info';
 
   const STATUS_VAR_MEANINGS_ASSET = 'assets/status-var-meanings.json';
   const ADVANCED_VALIDATE_DEBOUNCE_MS = 350;
@@ -373,7 +375,7 @@
   hidden={managed ? !isActive : false}
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
-  <TabStateMessage tab="advanced" status={tabStatus} />
+  <TabStateMessage tab="advanced" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
   <div class="controls-grid controls-grid--config">
     <div class="control-group panel-soft pad-md status-inventory-group">
       <h3>Runtime Variable Inventory</h3>

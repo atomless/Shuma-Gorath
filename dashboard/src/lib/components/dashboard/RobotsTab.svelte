@@ -13,6 +13,8 @@
   export let configVersion = 0;
   export let onSaveConfig = null;
   export let onFetchRobotsPreview = null;
+  export let noticeText = '';
+  export let noticeKind = 'info';
 
   const ROBOTS_PREVIEW_AUTO_REFRESH_DEBOUNCE_MS = 120;
 
@@ -221,7 +223,7 @@
   hidden={managed ? !isActive : false}
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
-  <TabStateMessage tab="robots" status={tabStatus} />
+  <TabStateMessage tab="robots" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
   <div class="controls-grid controls-grid--config">
     <ConfigRobotsSection
       bind:writable

@@ -2,6 +2,7 @@
 
 const RUNTIME_DEV_CLASS = 'runtime-dev';
 const RUNTIME_PROD_CLASS = 'runtime-prod';
+const TEST_MODE_CLASS = 'test-mode';
 const ADVERSARY_SIM_CLASS = 'adversary-sim';
 const CONNECTED_CLASS = 'connected';
 const DEGRADED_CLASS = 'degraded';
@@ -64,8 +65,8 @@ const getDashboardClassLists = (doc) => ({
 
 /**
  * @param {unknown} configSnapshot
- * @param {{ backendConnected?: unknown, backendConnectionState?: unknown, runtimeClassHint?: unknown, adversarySimEnabled?: unknown }} [options]
- * @returns {{ runtimeClass: '' | 'runtime-dev' | 'runtime-prod', adversarySimEnabled: boolean, connectionState: 'connected' | 'degraded' | 'disconnected' }}
+ * @param {{ backendConnected?: unknown, backendConnectionState?: unknown, runtimeClassHint?: unknown, testModeEnabled?: unknown, adversarySimEnabled?: unknown }} [options]
+ * @returns {{ runtimeClass: '' | 'runtime-dev' | 'runtime-prod', testModeEnabled: boolean, adversarySimEnabled: boolean, connectionState: 'connected' | 'degraded' | 'disconnected' }}
  */
 export function deriveDashboardBodyClassState(configSnapshot = {}, options = {}) {
   const source = asRecord(configSnapshot);
@@ -77,6 +78,9 @@ export function deriveDashboardBodyClassState(configSnapshot = {}, options = {})
     : undefined;
   const optionRuntimeClassHint = options && typeof options === 'object'
     ? options.runtimeClassHint
+    : undefined;
+  const optionTestModeEnabled = options && typeof options === 'object'
+    ? options.testModeEnabled
     : undefined;
   const optionAdversarySimEnabled = options && typeof options === 'object'
     ? options.adversarySimEnabled
@@ -96,17 +100,19 @@ export function deriveDashboardBodyClassState(configSnapshot = {}, options = {})
   const guardedConnectionState = runtimeClass ? connectionState : DISCONNECTED_CLASS;
   return {
     runtimeClass,
-    adversarySimEnabled: optionAdversarySimEnabled !== undefined
-      ? parseBoolLike(optionAdversarySimEnabled, false)
-      : parseBoolLike(source.adversary_sim_enabled, false),
+    testModeEnabled: optionTestModeEnabled !== undefined
+      ? parseBoolLike(optionTestModeEnabled, false)
+      : parseBoolLike(source.test_mode, false),
+    // The root adversary-sim class must follow backend truth only, never config intent.
+    adversarySimEnabled: parseBoolLike(optionAdversarySimEnabled, false),
     connectionState: guardedConnectionState
   };
 }
 
 /**
  * @param {unknown} doc
- * @param {{ runtimeClass?: unknown, adversarySimEnabled?: unknown, backendConnected?: unknown, connectionState?: unknown }} state
- * @returns {{ runtimeClass: '' | 'runtime-dev' | 'runtime-prod', adversarySimEnabled: boolean, connectionState: 'connected' | 'degraded' | 'disconnected' }}
+ * @param {{ runtimeClass?: unknown, testModeEnabled?: unknown, adversarySimEnabled?: unknown, backendConnected?: unknown, connectionState?: unknown }} state
+ * @returns {{ runtimeClass: '' | 'runtime-dev' | 'runtime-prod', testModeEnabled: boolean, adversarySimEnabled: boolean, connectionState: 'connected' | 'degraded' | 'disconnected' }}
  */
 export function syncDashboardBodyClasses(doc, state = {}) {
   const { bodyClassList, rootClassList } = getDashboardClassLists(doc);
@@ -115,6 +121,7 @@ export function syncDashboardBodyClasses(doc, state = {}) {
     : (parseBoolLike(state.backendConnected, false) ? CONNECTED_CLASS : DISCONNECTED_CLASS);
   const normalizedState = {
     runtimeClass: normalizeRuntimeClass(state.runtimeClass),
+    testModeEnabled: parseBoolLike(state.testModeEnabled, false),
     adversarySimEnabled: parseBoolLike(state.adversarySimEnabled, false),
     connectionState: normalizeConnectionState(
       state.connectionState === undefined ? fallbackConnectionState : state.connectionState
@@ -127,18 +134,20 @@ export function syncDashboardBodyClasses(doc, state = {}) {
 
   if (rootClassList) {
     applyRuntimeClass(rootClassList, normalizedState.runtimeClass);
+    rootClassList.toggle(TEST_MODE_CLASS, normalizedState.testModeEnabled);
+    rootClassList.toggle(ADVERSARY_SIM_CLASS, normalizedState.adversarySimEnabled);
     rootClassList.toggle(CONNECTED_CLASS, normalizedState.connectionState === CONNECTED_CLASS);
     rootClassList.toggle(DEGRADED_CLASS, normalizedState.connectionState === DEGRADED_CLASS);
     rootClassList.toggle(DISCONNECTED_CLASS, normalizedState.connectionState === DISCONNECTED_CLASS);
-    rootClassList.remove(ADVERSARY_SIM_CLASS);
   }
 
   if (bodyClassList) {
     applyRuntimeClass(bodyClassList, '');
+    bodyClassList.remove(TEST_MODE_CLASS);
     bodyClassList.remove(CONNECTED_CLASS);
     bodyClassList.remove(DEGRADED_CLASS);
     bodyClassList.remove(DISCONNECTED_CLASS);
-    bodyClassList.toggle(ADVERSARY_SIM_CLASS, normalizedState.adversarySimEnabled);
+    bodyClassList.remove(ADVERSARY_SIM_CLASS);
   }
   return normalizedState;
 }
@@ -154,6 +163,7 @@ export function clearDashboardBodyClasses(doc) {
     for (const runtimeClass of RUNTIME_CLASSES) {
       rootClassList.remove(runtimeClass);
     }
+    rootClassList.remove(TEST_MODE_CLASS);
     rootClassList.remove(ADVERSARY_SIM_CLASS);
     rootClassList.remove(CONNECTED_CLASS);
     rootClassList.remove(DEGRADED_CLASS);
@@ -164,6 +174,7 @@ export function clearDashboardBodyClasses(doc) {
     for (const runtimeClass of RUNTIME_CLASSES) {
       bodyClassList.remove(runtimeClass);
     }
+    bodyClassList.remove(TEST_MODE_CLASS);
     bodyClassList.remove(ADVERSARY_SIM_CLASS);
     bodyClassList.remove(CONNECTED_CLASS);
     bodyClassList.remove(DEGRADED_CLASS);
