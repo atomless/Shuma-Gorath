@@ -4,8 +4,8 @@ const { seedDashboardData } = require("./seed-dashboard-data");
 const BASE_URL = process.env.SHUMA_BASE_URL || "http://127.0.0.1:3000";
 const API_KEY = (process.env.SHUMA_API_KEY || "").trim();
 const FORWARDED_IP_SECRET = (process.env.SHUMA_FORWARDED_IP_SECRET || "").trim();
-const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"]);
-const ADMIN_TABS = Object.freeze(["ip-bans", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"]);
+const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "status", "red-team", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"]);
+const ADMIN_TABS = Object.freeze(["ip-bans", "status", "red-team", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"]);
 const VERIFICATION_RESTORE_PATHS = Object.freeze([
   "js_required_enforced"
 ]);
@@ -218,7 +218,8 @@ async function assertActiveTabPanelVisibility(page, activeTab) {
   }
 
   await expect(page.locator("#dashboard-panel-monitoring")).toBeHidden();
-  await expect(page.locator("#dashboard-admin-section")).toBeVisible();
+  await expect(page.locator("#dashboard-admin-section")).toHaveJSProperty("hidden", false);
+  await expect(page.locator("#dashboard-admin-section")).toHaveAttribute("aria-hidden", "false");
   for (const tab of ADMIN_TABS) {
     const panel = page.locator(`#dashboard-panel-${tab}`);
     if (tab === activeTab) {
@@ -1857,6 +1858,7 @@ test("dashboard class contract tracks runtime and adversary-sim on html root onl
     expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
     expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
 
+    await openTab(page, "red-team");
     await expect(toggle).not.toBeChecked();
     await clickAdversaryToggleWithRetry(page, true, 60000, request);
     await expect(toggle).toBeChecked();
@@ -1875,6 +1877,7 @@ test("dashboard class contract tracks runtime and adversary-sim on html root onl
     expect(bodyState.bodyConnectedClassPresent).toBeFalsy();
     expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
 
+    await openTab(page, "red-team");
     await clickAdversaryToggleWithRetry(page, false, 60000, request);
     await expect(toggle).not.toBeChecked();
     bodyState = await dashboardDomClassState(page);
@@ -1936,10 +1939,12 @@ test("adversary sim toggle emits fresh telemetry visible in monitoring raw feed"
     const baselineTs = maxSimulationEventTs(baselineMonitoring);
 
     try {
+      await openTab(page, "red-team");
       await clickAdversaryToggleWithRetry(page, true, 60000, request);
       await expect(toggle).toBeChecked();
 
       const advancedTs = await waitForSimulationEventAdvance(request, baselineTs, 20000);
+      await openTab(page, "monitoring");
       await expect(page.locator("#monitoring-raw-feed tbody")).toContainText(`"ts":${advancedTs}`);
     } finally {
       await forceAdversarySimDisabled(request);
@@ -1959,6 +1964,7 @@ test("adversary sim toggle cancel path avoids orchestration request when frontie
     await forceAdversarySimDisabled(request);
     await openDashboard(page);
     await waitForDashboardAdversarySimUiState(page, request, false);
+    await openTab(page, "red-team");
 
     const toggle = page.locator("#global-adversary-sim-toggle");
     const toggleSwitch = page.locator("label.toggle-switch[for='global-adversary-sim-toggle']");
@@ -1966,7 +1972,7 @@ test("adversary sim toggle cancel path avoids orchestration request when frontie
       // If the monitoring bootstrap hit transient read throttling, force a config-backed
       // tab refresh to repopulate control availability before asserting toggle readiness.
       await openTab(page, "status", { waitForReady: true });
-      await openTab(page, "monitoring");
+      await openTab(page, "red-team");
     }
     await expect(toggle).toBeEnabled({ timeout: 15000 });
     await expect(toggle).not.toBeChecked();
@@ -1991,7 +1997,6 @@ test("adversary sim toggle cancel path avoids orchestration request when frontie
     ]);
 
     await expect(toggle).not.toBeChecked();
-    await expect(page.locator('[data-tab-notice="red-team"]')).toContainText("Add SHUMA_FRONTIER_*_API_KEY");
     await page.waitForTimeout(250);
     expect(controlRequestCount).toBe(0);
   });

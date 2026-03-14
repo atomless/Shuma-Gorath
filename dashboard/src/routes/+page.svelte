@@ -98,6 +98,7 @@
   let authExpiryTimer = null;
   let authExpiryAtSeconds = 0;
   let paneNotices = {};
+  let paneNoticeValues = {};
   let testModeNoticeText = '';
   let testModeNoticeKind = 'info';
   let adversarySimControllerState = null;
@@ -146,17 +147,6 @@
       };
     }
     paneNotices = next;
-  }
-
-  function readPaneNotice(tab) {
-    const notice = paneNotices[normalizeTab(tab)];
-    if (!notice || typeof notice !== 'object') {
-      return { text: '', kind: 'info' };
-    }
-    return {
-      text: String(notice.text || '').trim(),
-      kind: normalizeNoticeKind(notice.kind)
-    };
   }
 
   function setTestModeNotice(text = '', kind = 'info') {
@@ -265,6 +255,16 @@
     configSnapshot,
     adversarySimStatus
   });
+  $: paneNoticeValues = DASHBOARD_TABS.reduce((next, tab) => {
+    const notice = paneNotices[tab];
+    next[tab] = !notice || typeof notice !== 'object'
+      ? { text: '', kind: 'info' }
+      : {
+        text: String(notice.text || '').trim(),
+        kind: normalizeNoticeKind(notice.kind)
+      };
+    return next;
+  }, {});
   $: adversarySimRuntimeEnvironment = adversarySimControlState.runtimeEnvironment;
   $: adversarySimSurfaceAvailable = adversarySimControlState.surfaceAvailable;
   $: adversarySimControlAvailable = adversarySimControlState.controlAvailable;
@@ -764,11 +764,6 @@
         : false;
       if (!continueWithoutFrontier) {
         if (target) target.checked = previousValue;
-        setPaneNotice(
-          'red-team',
-          'Frontier provider keys are missing. Add SHUMA_FRONTIER_*_API_KEY values to .env.local, restart make dev, then toggle again (or continue without frontier calls).',
-          'warning'
-        );
         return;
       }
       setPaneNotice(
@@ -1136,8 +1131,8 @@
           managed={true}
           isActive={activeTabKey === 'red-team'}
           tabStatus={tabStatus['red-team'] || {}}
-          noticeText={readPaneNotice('red-team').text}
-          noticeKind={readPaneNotice('red-team').kind}
+          noticeText={paneNoticeValues['red-team']?.text || ''}
+          noticeKind={paneNoticeValues['red-team']?.kind || 'info'}
           toggleEnabled={adversarySimToggleEnabled}
           toggleDisabled={globalAdversarySimToggleDisabled}
           toggleDisabledReason={globalAdversarySimToggleDisabledReason}
@@ -1164,8 +1159,8 @@
           managed={true}
           isActive={activeTabKey === 'ip-bans'}
           tabStatus={tabStatus['ip-bans'] || {}}
-          noticeText={readPaneNotice('ip-bans').text}
-          noticeKind={readPaneNotice('ip-bans').kind}
+          noticeText={paneNoticeValues['ip-bans']?.text || ''}
+          noticeKind={paneNoticeValues['ip-bans']?.kind || 'info'}
           bansSnapshot={snapshots.bans}
           ipBansFreshnessSnapshot={snapshots.ipBansFreshness}
           ipRangeSuggestionsSnapshot={snapshots.ipRangeSuggestions}
@@ -1216,8 +1211,8 @@
           managed={true}
           isActive={activeTabKey === 'verification'}
           tabStatus={tabStatus.verification || {}}
-          noticeText={readPaneNotice('verification').text}
-          noticeKind={readPaneNotice('verification').kind}
+          noticeText={paneNoticeValues.verification?.text || ''}
+          noticeKind={paneNoticeValues.verification?.kind || 'info'}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
@@ -1240,8 +1235,8 @@
           managed={true}
           isActive={activeTabKey === 'traps'}
           tabStatus={tabStatus.traps || {}}
-          noticeText={readPaneNotice('traps').text}
-          noticeKind={readPaneNotice('traps').kind}
+          noticeText={paneNoticeValues.traps?.text || ''}
+          noticeKind={paneNoticeValues.traps?.kind || 'info'}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
@@ -1264,8 +1259,8 @@
           managed={true}
           isActive={activeTabKey === 'rate-limiting'}
           tabStatus={tabStatus['rate-limiting'] || {}}
-          noticeText={readPaneNotice('rate-limiting').text}
-          noticeKind={readPaneNotice('rate-limiting').kind}
+          noticeText={paneNoticeValues['rate-limiting']?.text || ''}
+          noticeKind={paneNoticeValues['rate-limiting']?.kind || 'info'}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
@@ -1288,8 +1283,8 @@
           managed={true}
           isActive={activeTabKey === 'geo'}
           tabStatus={tabStatus.geo || {}}
-          noticeText={readPaneNotice('geo').text}
-          noticeKind={readPaneNotice('geo').kind}
+          noticeText={paneNoticeValues.geo?.text || ''}
+          noticeKind={paneNoticeValues.geo?.kind || 'info'}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
@@ -1312,8 +1307,8 @@
           managed={true}
           isActive={activeTabKey === 'fingerprinting'}
           tabStatus={tabStatus.fingerprinting || {}}
-          noticeText={readPaneNotice('fingerprinting').text}
-          noticeKind={readPaneNotice('fingerprinting').kind}
+          noticeText={paneNoticeValues.fingerprinting?.text || ''}
+          noticeKind={paneNoticeValues.fingerprinting?.kind || 'info'}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           cdpSnapshot={snapshots.cdp}
@@ -1337,8 +1332,8 @@
           managed={true}
           isActive={activeTabKey === 'robots'}
           tabStatus={tabStatus.robots || {}}
-          noticeText={readPaneNotice('robots').text}
-          noticeKind={readPaneNotice('robots').kind}
+          noticeText={paneNoticeValues.robots?.text || ''}
+          noticeKind={paneNoticeValues.robots?.kind || 'info'}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
@@ -1362,8 +1357,8 @@
           managed={true}
           isActive={activeTabKey === 'tuning'}
           tabStatus={tabStatus.tuning || {}}
-          noticeText={readPaneNotice('tuning').text}
-          noticeKind={readPaneNotice('tuning').kind}
+          noticeText={paneNoticeValues.tuning?.text || ''}
+          noticeKind={paneNoticeValues.tuning?.kind || 'info'}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
@@ -1386,8 +1381,8 @@
           managed={true}
           isActive={activeTabKey === 'advanced'}
           tabStatus={tabStatus.advanced || {}}
-          noticeText={readPaneNotice('advanced').text}
-          noticeKind={readPaneNotice('advanced').kind}
+          noticeText={paneNoticeValues.advanced?.text || ''}
+          noticeKind={paneNoticeValues.advanced?.kind || 'info'}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
           dashboardBasePath={dashboardBasePath}

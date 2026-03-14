@@ -1,6 +1,6 @@
 {
   "test_mode": "Logs detections/actions without enforcing blocks.",
-  "adversary_sim_enabled": "Enables/disables adversary simulation orchestration in runtime configuration.",
+  "adversary_sim_enabled": "Read-only desired state reported by the runtime for adversary simulation orchestration.",
   "adversary_sim_duration_seconds": "Dashboard orchestration run-window duration in seconds (bounded by runtime guardrails).",
   "frontier_mode": "Frontier adversary role mode: disabled, single-provider self-play, or multi-provider playoff.",
   "frontier_provider_count": "Count of configured frontier provider API keys detected by runtime env-only settings.",
