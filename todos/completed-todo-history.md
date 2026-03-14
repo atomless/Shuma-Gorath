@@ -4,6 +4,39 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-14)
 
+### Documentation Audit and Architecture-Review Backlog Refresh
+
+- [x] Audit the dashboard/adversary-sim docs against current `main`, add the missing `Red Team` tab guide, and convert the code-review findings from this pass into execution-ready TODO items instead of leaving them as ephemeral notes.
+- [x] Why:
+  - current `main` had already moved adversary-sim control into the `Red Team` tab and made `/admin/adversary-sim/status` read-only, but several docs and one active TODO still described the superseded contract.
+  - the same audit exposed a few architecture-maintenance gaps that are better tracked explicitly: duplicated dashboard tab registries, the mixed writable/read-only `/admin/config` payload contract, the still-split backend adversary-sim desired state, and one remaining env-mutating test file that bypasses `lock_env()`.
+  - recording those as durable TODOs keeps the repo honest about what is done, what is merely reviewed, and what still needs deliberate cleanup for long-term maintainability.
+- [x] Evidence:
+  - `README.md`
+  - `docs/dashboard.md`
+  - `docs/dashboard-tabs/README.md`
+  - `docs/dashboard-tabs/red-team.md`
+  - `docs/testing.md`
+  - `docs/deployment.md`
+  - `docs/adversarial-operator-guide.md`
+  - `docs/api.md`
+  - `docs/configuration.md`
+  - `todos/todo.md`
+
+### SIM-DEPLOY-2-4: Adversary-Sim Status Read Path Contract Closure
+
+- [x] SIM-DEPLOY-2-4 Resolve the `/admin/adversary-sim/status` contract mismatch so the status read path is non-mutating and the active docs/backlog no longer claim write-on-read behaviour.
+- [x] Why:
+  - the Red Team single-writer tranche had already removed write-on-read behavior from current `main`, but the active TODO and a few operator docs still described the older contract, which made the backlog and written guidance untruthful.
+  - this cleanup closes the stale active item, updates the operator/testing/API docs to the actual read-only status contract, and keeps the remaining `SIM-DEPLOY-2` queue focused on real production-envelope work rather than already-delivered behavior.
+- [x] Evidence:
+  - `src/admin/api.rs`
+  - `docs/api.md`
+  - `docs/testing.md`
+  - `docs/dashboard.md`
+  - `docs/dashboard-tabs/red-team.md`
+  - `todos/todo.md`
+
 ### Ad Hoc Fermyon Reliability: Blank-Slate Deploy, Edge Signals, and Telemetry Exactness
 
 - [x] Re-prove the Fermyon / Akamai path from a blank-slate app, add a Fermyon-native trusted-edge signal smoke, and refresh live telemetry receipts against that fresh deploy so the edge baseline is exact instead of inferred from older happy-path checks.

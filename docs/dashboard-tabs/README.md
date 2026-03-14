@@ -7,6 +7,7 @@ Top-level tabs and routes:
 - [`monitoring.md`](monitoring.md) - `#monitoring`
 - [`ip-bans.md`](ip-bans.md) - `#ip-bans`
 - [`status.md`](status.md) - `#status`
+- [`red-team.md`](red-team.md) - `#red-team`
 - [`verification.md`](verification.md) - `#verification`
 - [`traps.md`](traps.md) - `#traps`
 - [`rate-limiting.md`](rate-limiting.md) - `#rate-limiting`

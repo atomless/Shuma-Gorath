@@ -131,7 +131,7 @@ Storage and read-path policy:
 
 1. Simulation telemetry writes to canonical event/monitoring stores and is identified by metadata fields (`sim_run_id`, `sim_profile`, `sim_lane`, `is_simulation`).
 2. Admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/monitoring/delta`, `/admin/monitoring/stream`, `/admin/ip-bans/delta`, `/admin/ip-bans/stream`) include tagged simulation rows whenever adversary simulation is active, with pseudonymized sensitive identifiers unless explicit forensic break-glass is acknowledged (`forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`).
-3. Deployments remain default-safe because adversary traffic generation stays off until `adversary_sim_enabled=true`, even though the control surface is available by default.
+3. Deployments remain default-safe because adversary traffic generation stays off until an operator enables it through `POST /admin/adversary-sim/control` (or the dashboard `Red Team` toggle), even though the control surface is available by default. `SHUMA_ADVERSARY_SIM_ENABLED` seeds only the initial desired state.
 4. Unsigned/invalid/stale/replayed simulation tags must not activate simulation context; requests stay in normal telemetry partition.
 5. Invalid simulation-tag attempts emit explicit policy-signal telemetry:
    - `S_SIM_TAG_MISSING_SECRET`

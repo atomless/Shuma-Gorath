@@ -182,20 +182,21 @@ Available profiles:
 - `make test-frontier-governance` - fail-fast guard for forbidden frontier artifact fields and secret leaks
 - `make test-frontier-unavailability-policy` - degraded-threshold policy evaluation and refresh-action artifact
 
-Simulation realism pages are available at `/sim/public/landing`, `/sim/public/docs`, `/sim/public/pricing`, `/sim/public/contact`, and `/sim/public/search?q=...` only when both availability gates are true: `SHUMA_ADVERSARY_SIM_AVAILABLE=true` and KV `adversary_sim_enabled=true`.
+Simulation realism pages are available at `/sim/public/landing`, `/sim/public/docs`, `/sim/public/pricing`, `/sim/public/contact`, and `/sim/public/search?q=...` only when both availability gates are true: `SHUMA_ADVERSARY_SIM_AVAILABLE=true` and the effective adversary-sim desired state is enabled (seeded initially by `SHUMA_ADVERSARY_SIM_ENABLED`, then changed via `POST /admin/adversary-sim/control`).
 Dashboard DOM-class contract for runtime/simulation affordances:
 - `<html>` must include exactly one runtime environment class: `runtime-dev` or `runtime-prod` (derived from trusted runtime config).
 - `<html>` connection state classes are heartbeat-owned: runtime boots in `disconnected`, flips to `connected` after successful heartbeat, enters `degraded` on heartbeat failures, and transitions to `disconnected` after configured hysteresis threshold (`N`) of consecutive heartbeat failures.
-- `<body>` must include `adversary-sim` only when `adversary_sim_enabled=true`.
+- `<html>` must include `adversary-sim` only when backend truth reports `adversary_sim_enabled=true`.
 - These classes are presentational hooks only and must not alter defence/auth behavior directly.
 
 Dashboard adversary-sim orchestration control contract:
 - `POST /admin/adversary-sim/control` is the explicit admin-authenticated + CSRF-protected control path for ON/OFF transitions.
 - Control submissions must include `Idempotency-Key`, pass strict origin/referer + fetch-metadata trust checks, and return `operation_id` + `decision`.
-- `GET /admin/adversary-sim/status` is the operator/dashboard read path and returns lifecycle phase, fixed guardrails, desired/actual state, and controller reconciliation/lease metadata. Current implementation may also reconcile stale persisted state on read; strict non-mutating status remains an open contract cleanup item.
+- `GET /admin/adversary-sim/status` is the operator/dashboard read path and returns lifecycle phase, fixed guardrails, desired/actual state, and controller reconciliation/lease metadata. This endpoint is read-only: it reports reconciliation need via `controller_reconciliation_required` and does not mutate/persist state on read.
 - `POST /internal/adversary-sim/beat` is an internal-only endpoint used by host-side supervisor workers; dashboard clients never call it directly.
 - Host-side supervisor requests must satisfy trusted-forwarding (`X-Shuma-Forwarded-Secret`, loopback `X-Forwarded-For`, `X-Forwarded-Proto: https`) and send the internal supervisor marker header. Only `/admin/adversary-sim/status` and `/internal/adversary-sim/beat` bypass the public admin IP allowlist under that internal supervisor contract.
 - Runtime generation cadence ownership is backend/supervisor-only: dashboard refresh cadence must not control traffic generation.
+- The dashboard `Red Team` controller is page-scoped: the toggle reflects latest operator intent immediately, while status polling continues through submit/converge/running phases even if another top-level tab is selected.
 - Toggle-driven runs use `adversary_sim_duration_seconds` (default `180`, hard-bounded `30..900`) under backend autonomous heartbeat generation, and dashboard surfaces lifecycle state only (`off`, `running`, `stopping`) without procedural progress rendering.
 - If no frontier provider keys are configured, OFF -> ON toggle attempts must show a warning dialog with two outcomes:
   - continue without frontier calls, or

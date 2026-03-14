@@ -47,7 +47,7 @@ Current stance:
 - [ ] SIM-DEPLOY-2-1 Define the production-default runtime lane/resource posture now that adversary-sim surfaces are production-capable by default.
 - [ ] SIM-DEPLOY-2-2 Add explicit production kill-switch, diagnostics, and no-impact verification for normal user traffic under live operator use.
 - [ ] SIM-DEPLOY-2-3 Update deployment/operator docs and evidence receipts so production adversary-sim usage is documented as a first-class operating path rather than a gated exception.
-- [ ] SIM-DEPLOY-2-4 Resolve the `/admin/adversary-sim/status` contract mismatch: current runtime reconciles and persists stale lifecycle state on `GET`, while boundary/plan docs still require a non-mutating read path. Either remove write-on-read behavior or explicitly approve/document the exception via ADR and operator docs.
+- [ ] SIM-DEPLOY-2-5 Collapse adversary-sim desired state to one backend source of truth instead of the current runtime-override plus `ControlState.desired_enabled` split, then factor status/control/beat handlers onto one shared lifecycle snapshot helper so status/control contract drift cannot reappear.
 
 ## P1 Shared-Host Discovery Baseline
 
@@ -104,6 +104,7 @@ Reference context:
 Architecture alignment reference:
 - [`docs/plans/2026-02-23-maze-tarpit-architecture-alignment-plan.md`](../docs/plans/2026-02-23-maze-tarpit-architecture-alignment-plan.md)
 
+- [ ] TEST-ENV-1 Enforce repo-wide Rust test env-isolation discipline so any test that mutates process env must hold `lock_env()` (and fix the remaining offender in `src/runtime/test_mode/tests.rs`).
 - [ ] TAH-11 Expand tarpit observability: progression admissions and denials, proof verify outcomes, chain violations, bytes sent, duration, budget exhaustion reason, fallback action, and escalation outcomes (including top offender buckets with cardinality guardrails).
 - [ ] TAH-12 Add dashboard and admin visibility for the new tarpit progression and egress metrics plus operator guidance for safe tuning.
 - [ ] TAH-19 Before launch, tighten collateral-risk controls (especially bucket-based persistence escalation), then re-evaluate tarpit defaults.
@@ -137,6 +138,8 @@ Architecture alignment reference:
 
 ## P3 Platform and Configuration Clarity
 
+- [ ] Separate `GET /admin/config` operational overlays from the writable `POST /admin/config` contract so fields like `adversary_sim_enabled` stop masquerading as normal config writes and the dashboard/docs/test surfaces stay truthful by construction.
+- [ ] Centralize dashboard tab metadata (tab ids, loading copy, refresh defaults, and invalidation scopes) into one shared registry consumed by route, route-controller, refresh-runtime, and native-runtime code so stale fallback tabs/messages cannot drift.
 - [ ] Resolve the `ip_range_suggestions_*` classification exception so the documented config model stays honest: either make those runtime-visible KV knobs admin-writable with Advanced JSON parity, or move them out of the persisted read-only exception path and document the chosen contract.
 - [ ] Write objective criteria for future repository splits (API stability, release cadence, ownership, operational coupling).
 - [ ] Design runtime-agnostic architecture that keeps core detection logic portable while preserving Fermyon-first performance paths.

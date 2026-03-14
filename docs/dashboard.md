@@ -18,6 +18,7 @@ The dashboard uses URL hash routes:
 - `#monitoring` - [`dashboard-tabs/monitoring.md`](dashboard-tabs/monitoring.md)
 - `#ip-bans` - [`dashboard-tabs/ip-bans.md`](dashboard-tabs/ip-bans.md)
 - `#status` - [`dashboard-tabs/status.md`](dashboard-tabs/status.md)
+- `#red-team` - [`dashboard-tabs/red-team.md`](dashboard-tabs/red-team.md)
 - `#verification` - [`dashboard-tabs/verification.md`](dashboard-tabs/verification.md)
 - `#traps` - [`dashboard-tabs/traps.md`](dashboard-tabs/traps.md)
 - `#rate-limiting` - [`dashboard-tabs/rate-limiting.md`](dashboard-tabs/rate-limiting.md)
@@ -36,9 +37,12 @@ Behavior:
 
 ## 🐙 Refresh Model
 
-- Polling and refresh are scoped to the active tab.
 - Auto-refresh is available only on `Monitoring` and `IP Bans`.
-- All other tabs refresh on initial load, on explicit refresh events, and after relevant save flows.
+- Most tabs refresh on initial load, on explicit refresh events, and after relevant save flows.
+- The `Red Team` adversary-sim controller is page-scoped rather than tab-scoped:
+  - it forces a status refresh on dashboard bootstrap, `Red Team` tab activation, and page-visibility resume,
+  - it keeps status polling alive while a control request is submitting/converging and while backend truth reports the sim as `running` or `stopping`,
+  - hiding the `Red Team` panel does not pause a running sim or let backend status go stale.
 - Monitoring and IP-bans snapshots use bounded local cache to reduce repeated admin API load on rapid remount/revisit.
 
 ## 🐙 Runtime Architecture
@@ -46,6 +50,7 @@ Behavior:
 - UI is SvelteKit static output served from `dist/dashboard`.
 - Route orchestration lives in [`dashboard/src/routes/+page.svelte`](../dashboard/src/routes/+page.svelte).
 - Tab list/state contracts are defined in [`dashboard/src/lib/domain/dashboard-state.js`](../dashboard/src/lib/domain/dashboard-state.js).
+- The page-scoped adversary-sim intent controller lives in [`dashboard/src/lib/runtime/dashboard-red-team-controller.js`](../dashboard/src/lib/runtime/dashboard-red-team-controller.js).
 - Refresh orchestration is in [`dashboard/src/lib/runtime/dashboard-runtime-refresh.js`](../dashboard/src/lib/runtime/dashboard-runtime-refresh.js).
 - Runtime session/config mutation boundary is [`dashboard/src/lib/runtime/dashboard-native-runtime.js`](../dashboard/src/lib/runtime/dashboard-native-runtime.js).
 

@@ -50,7 +50,7 @@ Adversary simulation telemetry is isolated by authenticated tagging and explicit
 2. Simulation rows remain identifiable via metadata (`sim_run_id`, `sim_profile`, `sim_lane`, `is_simulation`).
 3. Production-capable control surface:
    - `SHUMA_ADVERSARY_SIM_AVAILABLE` defaults to `true` in both runtime classes so deployed operators can use adversary-sim controls in production.
-   - Traffic generation still remains off until `adversary_sim_enabled=true`.
+   - Traffic generation remains off until an operator enables it through `POST /admin/adversary-sim/control` (or the dashboard `Red Team` toggle). `SHUMA_ADVERSARY_SIM_ENABLED` seeds only the initial desired state.
    - Deployments that must hide the surface entirely may set `SHUMA_ADVERSARY_SIM_AVAILABLE=false`.
 
 This separation does not require different admin API keys between dev/prod; isolation is enforced by authenticated simulation metadata, operator-controlled lifecycle state, and deployment environment boundaries.
