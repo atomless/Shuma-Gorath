@@ -7,13 +7,10 @@ Move an item back into `todos/todo.md` only when its blocking condition is clear
 Completed work lives in `todos/completed-todo-history.md`.
 Security finding validity and closure status live in `todos/security-review.md`.
 
-## P0 Blocked by Telemetry Live-Evidence Deployment Gate
-
-- [ ] TEL-EVT-1-5 Extend live telemetry evidence to capture representative persisted-row bytes, recent-events-tail document bytes, and bootstrap payload bytes, and prove the compact event contract improves storage/payload weight while preserving analysis and dashboard usability; treat any regression in the current `TEL-HOT` live budget envelope as tranche-blocking and treat failure to achieve a material challenge-heavy sample size reduction as a review gate.
-  Blocker: wait until the compact-event telemetry changes are deployed to the shared-host and Fermyon evidence targets, then re-run `make test-telemetry-hot-read-live-evidence` against the updated deployments so the measured row/document/payload sizes reflect the new schema rather than pre-change receipts.
+## P0 Blocked by Telemetry Follow-on Dependency Gate
 
 - [ ] TEL-EVT-1-6 Once `TEL-EVT-1` lands with live size evidence, write the follow-on retention/lifecycle plan and active TODO tranche that re-evaluates raw event, summarized hot-read, and rollup retention windows in light of the new compact schema, preserving automatic purge/default-on lifecycle governance.
-  Blocker: keep blocked until `TEL-EVT-1-5` produces live post-deploy size evidence for the compact schema; the retention/lifecycle reassessment must be based on the measured deployed footprint, not pre-deploy estimates.
+  Blocker: keep blocked until `TEL-EVT-1-5` clears its live proof review gate and the compact schema has a measured deployed footprint worth re-basing retention around; the retention/lifecycle reassessment must be driven by that final live evidence, not an intermediate failed proof.
 
 ## P0 Blocked by Shared-Host Discovery and Runtime-Safety Gates
 

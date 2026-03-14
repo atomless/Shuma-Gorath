@@ -20,6 +20,9 @@ Reference context:
 - [`docs/configuration.md`](../docs/configuration.md)
 - [`docs/testing.md`](../docs/testing.md)
 
+### TEL-EVT-1: Compact Event Telemetry and Raw-Feed Truthfulness
+- [ ] TEL-EVT-1-5 Extend live telemetry evidence to capture representative persisted-row bytes, recent-events-tail document bytes, and bootstrap payload bytes, and prove the compact event contract improves storage/payload weight while preserving analysis and dashboard usability; treat any regression in the current `TEL-HOT` live budget envelope as tranche-blocking and treat failure to achieve a material challenge-heavy sample size reduction as a review gate.
+
 ### SIM2-R4-4: Config Seeding Lifecycle and Test-Mode Semantics
 
 ### SIM2-R4-CONN-1: Dashboard Connection-State Hardening
