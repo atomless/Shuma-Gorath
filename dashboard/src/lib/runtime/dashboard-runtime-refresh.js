@@ -924,14 +924,16 @@ export function createDashboardRefreshRuntime(options = {}) {
     } catch (_error) {}
   }
 
-  const refreshRedTeamTab = (reason = 'manual', runtimeOptions = {}) =>
-    refreshConfigBackedTab(
-      'red-team',
-      reason,
-      'Loading red team controls...',
-      'No red team control snapshot available yet.',
-      runtimeOptions
-    );
+  const refreshRedTeamTab = async (reason = 'manual', runtimeOptions = {}) => {
+    if (reason === 'auto-refresh') {
+      await refreshMonitoringTab(reason, runtimeOptions);
+      return;
+    }
+    await Promise.all([
+      refreshMonitoringTab(reason, runtimeOptions),
+      refreshSharedConfig(reason, runtimeOptions)
+    ]);
+  };
 
   const refreshVerificationTab = (reason = 'manual', runtimeOptions = {}) =>
     refreshConfigBackedTab(

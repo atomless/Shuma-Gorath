@@ -11,11 +11,13 @@ Panels:
 
 - `Akamai Bot Signal`:
   - enable toggle (`provider_backends.fingerprint_signal` internal/external),
-  - influence mode selector (`edge_integration_mode`: `additive` or `authoritative`).
+  - influence mode selector (`edge_integration_mode`: `additive` or `authoritative`),
+  - current additive scored contribution (`fp_akamai_edge_additive`) when Akamai edge posture controls are available.
 - `Diagnostics` (read-only):
   - runtime counters,
   - selected fingerprint mismatch counters,
-  - scored fingerprint signals from `botness_signal_definitions`.
+  - botness scoring signals from `botness_signal_definitions`, including fingerprint-specific signals and passive corroboration inputs such as JS verification, browser policy match, GEO risk, and rate pressure.
+  - excludes the dedicated Akamai additive edge contribution, which is surfaced in the `Akamai Bot Signal` pane instead.
 
 Behavior notes:
 

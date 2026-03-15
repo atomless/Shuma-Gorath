@@ -12,7 +12,6 @@ Panels:
 - `Botness Scoring`:
   - thresholds: `not_a_bot_risk_threshold`, `challenge_puzzle_risk_threshold`, `botness_maze_threshold`.
   - signal weights: `botness_weights.js_required`, `botness_weights.geo_risk`, `botness_weights.rate_medium`, `botness_weights.rate_high`.
-  - read-only status/default values and scored/terminal signal inventories.
 - `Ban Durations`:
   - per-trigger duration tuples for `honeypot`, `rate_limit`, `cdp`, `admin`.
 - `Browser Policy`:

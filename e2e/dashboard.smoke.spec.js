@@ -2003,7 +2003,7 @@ test("adversary sim toggle cancel path avoids orchestration request when frontie
   });
 });
 
-test("auto refresh defaults off and is only available on monitoring/ip-bans tabs", async ({ page }) => {
+test("auto refresh defaults off and is only available on monitoring, ip-bans, and red-team tabs", async ({ page }) => {
   await openDashboard(page);
   await openTab(page, "monitoring");
   await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeVisible();
@@ -2016,6 +2016,11 @@ test("auto refresh defaults off and is only available on monitoring/ip-bans tabs
 
   await openTab(page, "status");
   await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeHidden();
+  await expect(page.locator("#refresh-now-btn")).toBeHidden();
+
+  await openTab(page, "red-team");
+  await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeVisible();
+  await expect(page.locator("#auto-refresh-toggle")).toBeChecked();
   await expect(page.locator("#refresh-now-btn")).toBeHidden();
 
   await openTab(page, "ip-bans");

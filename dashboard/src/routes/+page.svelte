@@ -63,7 +63,7 @@
     tuning: 'Loading tuning values...'
   });
   const AUTO_REFRESH_INTERVAL_MS = 1000;
-  const AUTO_REFRESH_TABS = new Set(['monitoring', 'ip-bans']);
+  const AUTO_REFRESH_TABS = new Set(['monitoring', 'ip-bans', 'red-team']);
   const AUTO_REFRESH_PREF_KEY = 'shuma_dashboard_auto_refresh_v1';
   const DASHBOARD_LOADED_CLASS = 'dashboard-loaded';
   const ACTIVE_DIRTY_CONFIG_SAVE_BAR_SELECTOR =
@@ -1143,6 +1143,9 @@
           toggleDisabledReason={globalAdversarySimToggleDisabledReason}
           adversarySimStatus={adversarySimStatus}
           controllerState={adversarySimControllerState}
+          eventsSnapshot={snapshots.events}
+          bansSnapshot={snapshots.bans}
+          monitoringFreshnessSnapshot={snapshots.monitoringFreshness}
           lifecycleCopy={adversarySimLifecycleCopy}
           onToggleChange={onGlobalAdversarySimToggleChange}
         />

@@ -415,7 +415,8 @@ body {
   left: calc(50% - 173px);
   width: 24.5rem;
   pointer-events: none;
-  visibility: hidden;
+  height: 0;
+  overflow:hidden;
 }
 
 .dashboard-test-mode-eye-image {
@@ -453,7 +454,7 @@ body {
   transition: all .4s ease-in;
 }
 :root.test-mode:not(.disconnected) .dashboard-test-mode-eye {
-  visibility: visible;
+  height: 343px;
   filter: hue-rotate(167deg) saturate(1.1) brightness(0.9) !important;
   transition: all .4s ease-in;
 }

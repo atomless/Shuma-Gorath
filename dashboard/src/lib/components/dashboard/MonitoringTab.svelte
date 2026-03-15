@@ -10,7 +10,6 @@
     NOT_A_BOT_LATENCY_LABELS,
     POW_REASON_LABELS,
     RATE_OUTCOME_LABELS,
-    deriveAdversaryRunRows,
     deriveDefenseTrendRows,
     deriveMonitoringEventDisplay,
     deriveRecentEventFilterOptions,
@@ -53,7 +52,6 @@
   import OverviewStats from './monitoring/OverviewStats.svelte';
   import PrimaryCharts from './monitoring/PrimaryCharts.svelte';
   import RawTelemetryFeed from './monitoring/RawTelemetryFeed.svelte';
-  import AdversaryRunPanel from './monitoring/AdversaryRunPanel.svelte';
   import DefenseTrendBlocks from './monitoring/DefenseTrendBlocks.svelte';
   import RecentEventsTable from './monitoring/RecentEventsTable.svelte';
   import CdpSection from './monitoring/CdpSection.svelte';
@@ -750,10 +748,6 @@
   $: recentCdpEvents = Array.isArray(cdpEventsData.events)
     ? cdpEventsData.events.slice(0, CDP_ROW_RENDER_LIMIT)
     : [];
-  $: adversaryRunSummary = deriveAdversaryRunRows(rawRecentEvents, bans);
-  $: adversaryRunRows = Array.isArray(adversaryRunSummary?.runRows)
-    ? adversaryRunSummary.runRows.slice(0, 8)
-    : [];
 
   $: eventCounts = normalizeEventCounts(events.event_counts);
   $: eventWindowTotal = toNonNegativeIntOrNull(events?.recent_events_window?.total_events_in_window);
@@ -1048,14 +1042,6 @@
     bind:eventTypesCanvas
     bind:topIpsCanvas
     bind:timeSeriesCanvas
-  />
-
-  <AdversaryRunPanel
-    loading={tabStatus?.loading === true}
-    runRows={adversaryRunRows}
-    activeBanCount={adversaryRunSummary?.activeBanCount || activeBans}
-    {freshnessStateKey}
-    {formatTime}
   />
 
   <DefenseTrendBlocks

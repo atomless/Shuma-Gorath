@@ -1,5 +1,8 @@
 <script>
   import { onDestroy } from 'svelte';
+  import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
+  import { deriveAdversaryRunRows } from './monitoring-view-model.js';
+  import AdversaryRunPanel from './monitoring/AdversaryRunPanel.svelte';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
@@ -13,6 +16,9 @@
   export let toggleDisabledReason = '';
   export let adversarySimStatus = null;
   export let controllerState = null;
+  export let eventsSnapshot = null;
+  export let bansSnapshot = null;
+  export let monitoringFreshnessSnapshot = null;
   export let lifecycleCopy = '';
   export let noticeText = '';
   export let noticeKind = 'info';
@@ -20,6 +26,8 @@
 
   let nowMs = Date.now();
   let progressTimer = null;
+
+  const formatTime = (rawTs) => formatUnixSecondsLocal(rawTs, '-');
 
   function handleToggleChange(event) {
     if (typeof onToggleChange === 'function') {
@@ -48,6 +56,17 @@
     controllerState,
     nowMs
   });
+  $: events = eventsSnapshot && typeof eventsSnapshot === 'object' ? eventsSnapshot : {};
+  $: bans = Array.isArray(bansSnapshot?.bans) ? bansSnapshot.bans : [];
+  $: freshness = monitoringFreshnessSnapshot && typeof monitoringFreshnessSnapshot === 'object'
+    ? monitoringFreshnessSnapshot
+    : {};
+  $: freshnessStateKey = String(freshness.state || 'stale').trim().toLowerCase() || 'stale';
+  $: rawRecentEvents = Array.isArray(events.recent_events) ? events.recent_events : [];
+  $: adversaryRunSummary = deriveAdversaryRunRows(rawRecentEvents, bans);
+  $: adversaryRunRows = Array.isArray(adversaryRunSummary?.runRows)
+    ? adversaryRunSummary.runRows.slice(0, 8)
+    : [];
   $: progressWidth = `${Number(progressState.progressPercent || 0).toFixed(3)}%`;
   $: shouldTickProgress = progressState.active === true && (managed ? isActive : true);
   $: syncProgressTimer(shouldTickProgress);
@@ -92,4 +111,17 @@
       </div>
     </ConfigPanel>
   </div>
+
+  <AdversaryRunPanel
+    loading={tabStatus?.loading === true}
+    runRows={adversaryRunRows}
+    activeBanCount={adversaryRunSummary?.activeBanCount || bans.length}
+    {freshnessStateKey}
+    {formatTime}
+    title="Recent Red Team Runs"
+    description="Recent adversary simulation runs linked to monitoring and IP ban outcomes."
+    summaryLabel="Active bans linked to recent runs"
+    emptyText="No recent adversary simulation runs were observed in the current monitoring window."
+    degradedText="Monitoring freshness is degraded or stale. Missing red team run rows may indicate delayed telemetry rather than no simulation activity."
+  />
 </section>

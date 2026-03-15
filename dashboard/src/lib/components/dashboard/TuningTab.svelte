@@ -253,19 +253,6 @@
 
   $: writable = configSnapshot && configSnapshot.admin_config_write_enabled === true;
   $: hasConfigSnapshot = configSnapshot && typeof configSnapshot === 'object' && Object.keys(configSnapshot).length > 0;
-  $: notABotDefault = parseInteger(configSnapshot?.not_a_bot_risk_threshold_default, 2);
-  $: challengeDefault = parseInteger(configSnapshot?.challenge_puzzle_risk_threshold_default, 3);
-  $: mazeDefault = parseInteger(configSnapshot?.botness_maze_threshold_default, 6);
-  $: signalDefinitions = configSnapshot && typeof configSnapshot.botness_signal_definitions === 'object'
-    ? configSnapshot.botness_signal_definitions
-    : {};
-  $: scoredSignals = Array.isArray(signalDefinitions.scored_signals)
-    ? signalDefinitions.scored_signals
-    : [];
-  $: terminalSignals = Array.isArray(signalDefinitions.terminal_signals)
-    ? signalDefinitions.terminal_signals
-    : [];
-
   $: notABotThresholdValid = (
     inRange(notABotThreshold, 1, 10) &&
     (Number(challengeThreshold) <= 1 || Number(notABotThreshold) < Number(challengeThreshold))
@@ -415,55 +402,6 @@
         <NumericInputRow id="weight-geo-risk" label="Weight: Geo (points)" min="0" max="10" step="1" inputmode="numeric" ariaLabel="Weight for high-risk geography" ariaInvalid={weightGeoRiskValid ? 'false' : 'true'} bind:value={weightGeoRisk} disabled={!writable} />
         <NumericInputRow id="weight-rate-medium" label="Weight: Rate 50% (points)" min="0" max="10" step="1" inputmode="numeric" ariaLabel="Weight for medium rate pressure" ariaInvalid={weightRateMediumValid ? 'false' : 'true'} bind:value={weightRateMedium} disabled={!writable} />
         <NumericInputRow id="weight-rate-high" label="Weight: Rate 80% (points)" min="0" max="10" step="1" inputmode="numeric" ariaLabel="Weight for high rate pressure" ariaInvalid={weightRateHighValid ? 'false' : 'true'} bind:value={weightRateHigh} disabled={!writable} />
-        <div class="info-panel">
-          <h4>Status</h4>
-          <div class="info-row">
-            <span class="info-label text-muted">Config:</span>
-            <span id="botness-config-status" class="status-value">{writable ? 'EDITABLE' : 'READ ONLY'}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Default Not-a-Bot:</span>
-            <span id="not-a-bot-default">{notABotDefault}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Default Challenge:</span>
-            <span id="challenge-puzzle-default">{challengeDefault}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Default Maze:</span>
-            <span id="maze-threshold-default">{mazeDefault}</span>
-          </div>
-        </div>
-        <div class="info-panel">
-          <h4>Scored Signals</h4>
-          <div id="botness-signal-list">
-            {#if scoredSignals.length === 0}
-              <p class="text-muted">No scored signals</p>
-            {:else}
-              {#each scoredSignals as signal}
-                <div class="info-row">
-                  <span class="info-label">{signal.label || '--'}</span>
-                  <span>{signal.weight ?? '--'}</span>
-                </div>
-              {/each}
-            {/if}
-          </div>
-        </div>
-        <div class="info-panel">
-          <h4>Terminal Signals</h4>
-          <div id="botness-terminal-list">
-            {#if terminalSignals.length === 0}
-              <p class="text-muted">No terminal signals</p>
-            {:else}
-              {#each terminalSignals as signal}
-                <div class="info-row">
-                  <span class="info-label">{signal.label || '--'}</span>
-                  <span>{signal.action ?? '--'}</span>
-                </div>
-              {/each}
-            {/if}
-          </div>
-        </div>
       </div>
     </div>
 

@@ -4,6 +4,62 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-15)
 
+### Dashboard Tuning Cleanup: Remove Redundant Botness Status Readout
+
+- [x] Remove the read-only `Status` info block from the `Tuning` tab's `Botness Scoring` section and delete the associated unused default-threshold wiring.
+- [x] Follow up by removing the read-only `Terminal Signals` info block from the same `Botness Scoring` section and delete the associated unused terminal-signal wiring.
+- [x] Finish the cleanup by removing the remaining read-only `Scored Signals` inventory from `Tuning` and re-home the useful botness-scoring signal context into the canonical diagnostics surface on `Fingerprinting`.
+- [x] Move the dedicated `Fingerprint Akamai edge signal (additive)` readout out of the generic fingerprinting diagnostics list and surface it in the `Akamai Bot Signal` pane where operators expect Akamai-specific contribution details.
+- [x] Why:
+  - the `Config`, `Default Not-a-Bot`, `Default Challenge`, and `Default Maze` readouts were duplicating information already available more clearly in the dedicated tabs and config surfaces, while adding visual noise to the Tuning workflow.
+  - the `Terminal Signals` inventory had the same problem: it repeated model facts that are already surfaced elsewhere, but did not add an actionable tuning control in this tab.
+  - the remaining `Scored Signals` inventory in `Tuning` was similarly non-actionable, but a subset of those signals does belong in the operator mental model for fingerprinting because they are passive scoring inputs that corroborate botness.
+  - re-homing the scored-signal inventory into `Fingerprinting` gives operators one diagnostics surface for score contributions, while leaving `Tuning` focused on editable thresholds and weights.
+  - the dedicated Akamai additive signal is conceptually owned by the Akamai integration settings, so leaving it in the generic diagnostics list made the dashboard imply it was just another internal passive fingerprint signal.
+  - removing the now-unused reactive defaults and signal-definition wiring keeps the `Tuning` component honest and avoids carrying dead local state for UI that no longer exists.
+- [x] Evidence:
+  - `dashboard/src/lib/components/dashboard/FingerprintingTab.svelte`
+  - `dashboard/src/lib/components/dashboard/TuningTab.svelte`
+  - `docs/dashboard-tabs/fingerprinting.md`
+  - `docs/dashboard-tabs/tuning.md`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+
+### Dashboard Refresh Alignment: Put Red Team On The Shared Auto-Refresh Path
+
+- [x] Let the `Red Team` tab participate in the same dashboard auto-refresh affordance used by `Monitoring` and `IP Bans`, and make the tab refresh hydrate the monitoring-backed run table instead of only refreshing config chrome.
+- [x] Why:
+  - the `Recent Red Team Runs` panel is derived from monitoring snapshots, so leaving `red-team` outside the auto-refresh tab set made the table go stale while operators were actively using the tab.
+  - the grouping logic was already correct for distinct `sim_run_id` values; the real issue was that the Red Team tab was not pulling fresh monitoring snapshots, so rapid successive runs could collapse to one visible row simply because only one run survived in the stale or bounded recent-event input.
+  - this completion keeps the existing grouping model intact, reuses the canonical dashboard refresh path instead of inventing a parallel poller, and updates the smoke/unit/docs contracts so the behavior is explicit.
+- [x] Evidence:
+  - `dashboard/src/routes/+page.svelte`
+  - `dashboard/src/lib/runtime/dashboard-runtime-refresh.js`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+  - `docs/dashboard-tabs/red-team.md`
+  - `docs/dashboard-tabs/monitoring.md`
+  - `make test-dashboard-unit`
+  - `make test-dashboard-e2e`
+
+### Dashboard UX: Move Recent Adversary Runs From Monitoring To Red Team
+
+- [x] Move the `Recent Adversary Runs` surface out of the `Monitoring` tab and place it at the bottom of the `Red Team` tab with copy tuned to the adversary-simulation workflow instead of generic monitoring language.
+- [x] Why:
+  - the panel is more actionable in `Red Team`, where operators start, stop, and reason about adversary simulation runs, than in the broader `Monitoring` surface.
+  - the move keeps the existing run-row derivation and linkage to `Monitoring` and `IP Bans`, but removes one simulation-specific panel from `Monitoring` so that tab stays focused on general live defense telemetry.
+  - the copy refresh clarifies that the panel is about recent adversary-simulation runs and preserves freshness-aware empty-state messaging so delayed telemetry is not mistaken for no activity.
+- [x] Evidence:
+  - `dashboard/src/lib/components/dashboard/RedTeamTab.svelte`
+  - `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+  - `dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`
+  - `dashboard/src/routes/+page.svelte`
+  - `docs/dashboard-tabs/red-team.md`
+  - `docs/dashboard-tabs/monitoring.md`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+  - `make test-dashboard-e2e`
+
 ### Agentic-Era Oversight Research, Design, and Phased Plan Capture
 
 - [x] Capture the long-horizon research synthesis for Shuma's agentic-era operating model and write repo-native design and implementation-plan documents covering the oversight control contract, budget schema, deployment adapters, and rollout stages.

@@ -1520,6 +1520,163 @@ test('monitoring auto-refresh refreshes monitoring snapshots without extra ip-ba
   });
 });
 
+test('red-team auto-refresh refreshes monitoring-backed run snapshots without extra config reads', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    const store = storeModule.createDashboardStore({ initialTab: 'red-team' });
+    const storage = {
+      getItem() {
+        return null;
+      },
+      setItem() {},
+      removeItem() {}
+    };
+
+    const now = 1_700_000_240;
+    let monitoringCalls = 0;
+    let monitoringDeltaBootstrapCalls = 0;
+    let monitoringDeltaCalls = 0;
+    let configCalls = 0;
+    const apiClient = {
+      async getMonitoring(params = {}) {
+        monitoringCalls += 1;
+        assert.equal(Number(params.limit || 0), 200);
+        return {
+          freshness: {
+            state: 'fresh',
+            lag_ms: 0,
+            last_event_ts: now,
+            transport: 'snapshot_poll'
+          },
+          summary: {
+            honeypot: { total_hits: 0, unique_crawlers: 0, top_crawlers: [], top_paths: [] },
+            challenge: { total_failures: 0, unique_offenders: 0, top_offenders: [], reasons: {}, trend: [] },
+            pow: {
+              total_failures: 0,
+              total_successes: 0,
+              total_attempts: 0,
+              success_ratio: 0,
+              unique_offenders: 0,
+              top_offenders: [],
+              reasons: {},
+              outcomes: {},
+              trend: []
+            },
+            rate: { total_violations: 0, unique_offenders: 0, top_offenders: [], outcomes: {} },
+            geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
+          },
+          details: {
+            analytics: { ban_count: 1, test_mode: false, fail_mode: 'open' },
+            events: {
+              recent_events: [{
+                ts: now,
+                event: 'Ban',
+                ip: '198.51.100.1',
+                reason: 'tarpit escalation',
+                outcome: 'deny_temp',
+                sim_run_id: 'simrun-red-team-1',
+                sim_profile: 'runtime_toggle',
+                sim_lane: 'deterministic_black_box',
+                is_simulation: true
+              }],
+              event_counts: { Ban: 1 },
+              top_ips: [['198.51.100.1', 1]],
+              unique_ips: 1
+            },
+            bans: {
+              bans: [{
+                ip: '198.51.100.55',
+                reason: 'rate',
+                banned_at: now,
+                expires: now + 300
+              }]
+            },
+            maze: { total_hits: 0, unique_crawlers: 0, maze_auto_bans: 0, top_crawlers: [] },
+            cdp: { stats: { total_detections: 0, auto_bans: 0 }, config: {}, fingerprint_stats: {} },
+            cdp_events: { events: [] }
+          }
+        };
+      },
+      async getMonitoringDelta(params = {}) {
+        if (Number(params.limit || 0) === 40) {
+          monitoringDeltaBootstrapCalls += 1;
+          return {
+            after_cursor: '',
+            window_end_cursor: 'monitoring-window-end',
+            next_cursor: 'monitoring-window-end',
+            has_more: false,
+            overflow: 'none',
+            events: [],
+            freshness: { state: 'fresh', lag_ms: 0 }
+          };
+        }
+        monitoringDeltaCalls += 1;
+        return {
+          after_cursor: String(params.after_cursor || ''),
+          window_end_cursor: 'monitoring-window-end',
+          next_cursor: 'monitoring-window-end',
+          has_more: false,
+          overflow: 'none',
+          events: [{
+            ts: now + 1,
+            event: 'Challenge',
+            ip: '198.51.100.2',
+            reason: 'challenge_required',
+            outcome: 'challenge',
+            sim_run_id: 'simrun-red-team-2',
+            sim_profile: 'runtime_toggle',
+            sim_lane: 'deterministic_black_box',
+            is_simulation: true
+          }],
+          freshness: { state: 'fresh', lag_ms: 0 }
+        };
+      },
+      async getConfig() {
+        configCalls += 1;
+        return {
+          runtime_environment: 'runtime-prod',
+          gateway_deployment_profile: 'shared-server',
+          local_prod_direct_mode: false,
+          admin_config_write_enabled: true,
+          kv_store_fail_open: true
+        };
+      }
+    };
+
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => apiClient,
+      getStateStore: () => store,
+      deriveMonitoringAnalytics: () => ({ ban_count: 1, test_mode: false, fail_mode: 'open' }),
+      storage
+    });
+
+    await runtime.refreshDashboardForTab('red-team', 'auto-refresh');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(monitoringCalls, 1);
+    assert.equal(monitoringDeltaBootstrapCalls, 1);
+    assert.equal(monitoringDeltaCalls, 0);
+    assert.equal(configCalls, 0);
+
+    await runtime.refreshDashboardForTab('red-team', 'auto-refresh');
+    assert.equal(monitoringCalls, 1);
+    assert.equal(monitoringDeltaCalls, 1);
+    assert.equal(configCalls, 0);
+
+    const eventsSnapshot = store.getSnapshot('events') || {};
+    assert.equal(Array.isArray(eventsSnapshot.recent_events), true);
+    assert.equal(
+      eventsSnapshot.recent_events.some((entry) => String(entry.sim_run_id || '') === 'simrun-red-team-2'),
+      true
+    );
+    const bansSnapshot = store.getSnapshot('bans') || {};
+    assert.equal(Array.isArray(bansSnapshot.bans), true);
+    assert.equal(bansSnapshot.bans.length, 1);
+  });
+});
+
 test('refresh runtime seeds monitoring cursor from window end instead of replaying oldest page cursor', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
@@ -4095,7 +4252,17 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.equal(fingerprintingSource.includes('id="fingerprinting-cdp-threshold-slider"'), false);
   assert.match(fingerprintingSource, /buttonId="save-fingerprinting-config"/);
   assert.match(fingerprintingSource, /window\.addEventListener\('beforeunload'/);
+  assert.match(fingerprintingSource, /const AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY = 'fp_akamai_edge_additive';/);
+  assert.match(fingerprintingSource, /<h4>Current Akamai Edge Contribution<\/h4>/);
+  assert.match(fingerprintingSource, /id="fingerprinting-akamai-signal-list"/);
+  assert.match(fingerprintingSource, /key !== AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY/);
   assert.match(fingerprintingSurfaceSource, /id="fingerprinting-total-detections"/);
+  assert.equal(fingerprintingSource.includes('<h4>Scored Fingerprint Signals</h4>'), false);
+  assert.match(fingerprintingSource, /<h4>Botness Scoring Signals<\/h4>/);
+  assert.match(fingerprintingSource, /id="fingerprinting-botness-signal-list"/);
+  assert.match(fingerprintingSource, /js_verification_required/);
+  assert.match(fingerprintingSource, /browser_outdated/);
+  assert.equal(fingerprintingSource.includes("String(signal?.key || '').startsWith('fp_')"), false);
 
   assert.match(tuningSource, /export let onSaveConfig = null;/);
   assert.match(tuningSource, /await onSaveConfig\(payload/);
@@ -4111,6 +4278,17 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(tuningSource, /import SaveChangesBar from '\.\/primitives\/SaveChangesBar\.svelte';/);
   assert.match(tuningSource, /window\.addEventListener\('beforeunload'/);
   assert.equal(tuningSource.includes('id="save-botness-config"'), false);
+  assert.equal(tuningSource.includes('<h4>Status</h4>'), false);
+  assert.equal(tuningSource.includes('id="botness-config-status"'), false);
+  assert.equal(tuningSource.includes('id="not-a-bot-default"'), false);
+  assert.equal(tuningSource.includes('id="challenge-puzzle-default"'), false);
+  assert.equal(tuningSource.includes('id="maze-threshold-default"'), false);
+  assert.equal(tuningSource.includes('<h4>Scored Signals</h4>'), false);
+  assert.equal(tuningSource.includes('id="botness-signal-list"'), false);
+  assert.equal(tuningSource.includes('scoredSignals = Array.isArray('), false);
+  assert.equal(tuningSource.includes('<h4>Terminal Signals</h4>'), false);
+  assert.equal(tuningSource.includes('id="botness-terminal-list"'), false);
+  assert.equal(tuningSource.includes('terminalSignals = Array.isArray('), false);
   assert.match(tuningSurfaceSource, /dayId="dur-honeypot-days"/);
   assert.match(tuningSurfaceSource, /dayId="dur-rate-limit-days"/);
   assert.match(tuningSurfaceSource, /id="browser-policy-toggle"/);
@@ -4344,6 +4522,18 @@ test('dashboard smoke spec keeps status and red-team tab order aligned with the 
   );
 });
 
+test('dashboard route exposes auto-refresh controls on monitoring, ip-bans, and red-team', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
+    'utf8'
+  );
+
+  assert.match(
+    source,
+    /const AUTO_REFRESH_TABS = new Set\(\['monitoring', 'ip-bans', 'red-team'\]\);/
+  );
+});
+
 test('dashboard monitoring runtime keeps edge-fermyon on bounded monitoring hydration', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/runtime/dashboard-runtime-refresh.js'),
@@ -4491,7 +4681,6 @@ test('monitoring tab is decomposed into focused subsection components', () => {
   assert.match(source, /import RawTelemetryFeed from '\.\/monitoring\/RawTelemetryFeed\.svelte';/);
   assert.match(source, /import OverviewStats from '\.\/monitoring\/OverviewStats\.svelte';/);
   assert.match(source, /import PrimaryCharts from '\.\/monitoring\/PrimaryCharts\.svelte';/);
-  assert.match(source, /import AdversaryRunPanel from '\.\/monitoring\/AdversaryRunPanel\.svelte';/);
   assert.match(source, /import DefenseTrendBlocks from '\.\/monitoring\/DefenseTrendBlocks\.svelte';/);
   assert.match(source, /import RecentEventsTable from '\.\/monitoring\/RecentEventsTable\.svelte';/);
   assert.match(source, /import ShadowSection from '\.\/monitoring\/ShadowSection\.svelte';/);
@@ -4501,7 +4690,6 @@ test('monitoring tab is decomposed into focused subsection components', () => {
   assert.match(source, /<RawTelemetryFeed/);
   assert.match(source, /<PrimaryCharts/);
   assert.match(source, /\{eventTypesReadout\}/);
-  assert.match(source, /<AdversaryRunPanel/);
   assert.match(source, /<DefenseTrendBlocks/);
   assert.match(source, /<ShadowSection/);
   assert.match(source, /<ChallengeSection/);
@@ -4511,6 +4699,28 @@ test('monitoring tab is decomposed into focused subsection components', () => {
   assert.match(source, /filterOptions=\{eventFilterOptions\}/);
   assert.match(source, /onFilterChange=\{onEventFilterChange\}/);
   assert.match(source, /RAW_FEED_MAX_LINES = 200/);
+  assert.equal(source.includes('deriveAdversaryRunRows'), false);
+  assert.equal(source.includes('AdversaryRunPanel'), false);
+});
+
+test('red team tab renders the recent adversary runs panel with red-team-specific copy', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/RedTeamTab.svelte'),
+    'utf8'
+  );
+
+  assert.match(source, /import AdversaryRunPanel from '\.\/monitoring\/AdversaryRunPanel\.svelte';/);
+  assert.match(source, /import \{ deriveAdversaryRunRows \} from '\.\/monitoring-view-model\.js';/);
+  assert.match(source, /export let eventsSnapshot = null;/);
+  assert.match(source, /export let bansSnapshot = null;/);
+  assert.match(source, /export let monitoringFreshnessSnapshot = null;/);
+  assert.match(source, /\$: adversaryRunSummary = deriveAdversaryRunRows\(rawRecentEvents, bans\);/);
+  assert.match(source, /<AdversaryRunPanel/);
+  assert.match(source, /title="Recent Red Team Runs"/);
+  assert.match(source, /description="Recent adversary simulation runs linked to monitoring and IP ban outcomes\."\/?/);
+  assert.match(source, /summaryLabel="Active bans linked to recent runs"/);
+  assert.match(source, /emptyText="No recent adversary simulation runs were observed in the current monitoring window\."/);
+  assert.match(source, /degradedText="Monitoring freshness is degraded or stale\. Missing red team run rows may indicate delayed telemetry rather than no simulation activity\."/);
 });
 
 test('primary charts reuse the shared half doughnut shell for event-type readouts', () => {

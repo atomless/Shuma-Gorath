@@ -31,6 +31,14 @@
       mode: 'additive'
     }
   };
+  const AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY = 'fp_akamai_edge_additive';
+  const FINGERPRINTING_BOTNESS_SIGNAL_KEYS = new Set([
+    'js_verification_required',
+    'browser_outdated',
+    'geo_risk',
+    'rate_pressure_medium',
+    'rate_pressure_high'
+  ]);
 
   const readBool = (value) => value === true;
   const normalizedModeFromConfig = (value) => {
@@ -125,7 +133,14 @@
   $: scoredSignals = Array.isArray(signalDefinitions.scored_signals)
     ? signalDefinitions.scored_signals
     : [];
-  $: fingerprintSignals = scoredSignals.filter((signal) => String(signal?.key || '').startsWith('fp_'));
+  $: akamaiEdgeAdditiveSignal = scoredSignals.find(
+    (signal) => String(signal?.key || '') === AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY
+  ) || null;
+  $: fingerprintingBotnessSignals = scoredSignals.filter((signal) => {
+    const key = String(signal?.key || '');
+    return key !== AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY
+      && (FINGERPRINTING_BOTNESS_SIGNAL_KEYS.has(key) || key.startsWith('fp_'));
+  });
 
   $: effectivePosture = (() => {
     if (!akamaiBotSignalEnabled) {
@@ -194,6 +209,20 @@
             </select>
           </div>
           <p class="text-muted">Effective posture: {effectivePosture}</p>
+          <div class="info-panel">
+            <h4>Current Akamai Edge Contribution</h4>
+            <div id="fingerprinting-akamai-signal-list">
+              {#if akamaiEdgeAdditiveSignal}
+                <div class="info-row">
+                  <span class="info-label">{akamaiEdgeAdditiveSignal.label || 'Akamai edge bot signal (additive)'}</span>
+                  <span>{akamaiEdgeAdditiveSignal.weight ?? '--'}</span>
+                </div>
+              {:else}
+                <p class="text-muted">No Akamai additive edge signal definition is available.</p>
+              {/if}
+            </div>
+            <p class="text-muted">This scored contribution is used only when Akamai bot signals are enabled and the edge mode is `additive`.</p>
+          </div>
         </div>
       {:else}
         <p id="fingerprinting-akamai-unavailable-message" class="control-desc text-muted">Akamai bot-signal controls are available only when Shuma-Gorath is deployed on Akamai edge (`gateway_deployment_profile=edge-fermyon`). Shared-server and other non-edge postures keep this integration hidden.</p>
@@ -204,7 +233,7 @@
       <ConfigPanelHeading title="Diagnostics">
         <span class="status-value text-muted">Read-only</span>
       </ConfigPanelHeading>
-      <p class="control-desc text-muted">Current runtime counters and active internal fingerprint signal definitions.</p>
+      <p class="control-desc text-muted">Current runtime counters and active botness scoring signal definitions used for passive fingerprint corroboration.</p>
       <div class="admin-controls">
         <div class="info-panel">
           <h4>Runtime Counters</h4>
@@ -235,17 +264,19 @@
         </div>
 
         <div class="info-panel">
-          <h4>Scored Fingerprint Signals</h4>
-          {#if fingerprintSignals.length === 0}
-            <p class="text-muted">No fingerprint signals available in the current scoring definition.</p>
-          {:else}
-            {#each fingerprintSignals as signal}
-              <div class="info-row">
-                <span class="info-label">{signal.label || signal.key || '--'}</span>
-                <span>{signal.weight ?? '--'}</span>
-              </div>
-            {/each}
-          {/if}
+          <h4>Botness Scoring Signals</h4>
+          <div id="fingerprinting-botness-signal-list">
+            {#if fingerprintingBotnessSignals.length === 0}
+              <p class="text-muted">No botness scoring signals available in the current scoring definition.</p>
+            {:else}
+              {#each fingerprintingBotnessSignals as signal}
+                <div class="info-row">
+                  <span class="info-label">{signal.label || signal.key || '--'}</span>
+                  <span>{signal.weight ?? '--'}</span>
+                </div>
+              {/each}
+            {/if}
+          </div>
         </div>
       </div>
     </ConfigPanel>

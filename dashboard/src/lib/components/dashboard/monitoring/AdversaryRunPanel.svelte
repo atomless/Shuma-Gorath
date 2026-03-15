@@ -9,24 +9,30 @@
   export let activeBanCount = 0;
   export let freshnessStateKey = 'stale';
   export let formatTime = () => '-';
+  export let title = 'Recent Adversary Runs';
+  export let description = 'Run identifiers linked to defense deltas in monitoring and ban workflows.';
+  export let summaryLabel = 'Active bans visible in <a href="#ip-bans">IP Bans</a>';
+  export let emptyText = 'No adversary run identifiers were observed in the current monitoring window.';
+  export let degradedText =
+    'Monitoring freshness is degraded or stale. Missing run rows may indicate delayed telemetry rather than no attacks.';
 
   $: isDegraded = freshnessStateKey === 'degraded' || freshnessStateKey === 'stale';
 </script>
 
 <SectionBlock
-  title="Recent Adversary Runs"
-  description="Run identifiers linked to defense deltas in monitoring and ban workflows."
+  {title}
+  {description}
 >
   <p id="adversary-run-summary" class="control-desc text-muted">
-    Active bans visible in <a href="#ip-bans">IP Bans</a>: {formatCompactNumber(activeBanCount, '0')}
+    {@html summaryLabel}: {formatCompactNumber(activeBanCount, '0')}
   </p>
   {#if !loading && runRows.length === 0 && isDegraded}
     <p id="adversary-run-state-degraded" class="message warning">
-      Monitoring freshness is degraded or stale. Missing run rows may indicate delayed telemetry rather than no attacks.
+      {degradedText}
     </p>
   {:else if !loading && runRows.length === 0}
     <p id="adversary-run-state-empty" class="text-muted">
-      No adversary run identifiers were observed in the current monitoring window.
+      {emptyText}
     </p>
   {/if}
   <TableWrapper>
