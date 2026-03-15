@@ -742,26 +742,14 @@ export const deriveTarpitViewModel = (data = {}) => {
     metrics.escalation_outcomes && typeof metrics.escalation_outcomes === 'object'
       ? metrics.escalation_outcomes
       : {};
-  const active = source.active && typeof source.active === 'object' ? source.active : {};
-  const topBucket =
-    Array.isArray(active.top_buckets) && active.top_buckets.length > 0
-      ? active.top_buckets[0]
-      : null;
 
   return {
-    enabled: source.enabled === true,
     activationsProgressive: formatCompactNumber(activations.progressive, '0'),
     progressAdvanced: formatCompactNumber(progressOutcomes.advanced, '0'),
     fallbackMaze: formatCompactNumber(budgetOutcomes.fallback_maze, '0'),
     fallbackBlock: formatCompactNumber(budgetOutcomes.fallback_block, '0'),
     escalationShortBan: formatCompactNumber(escalationOutcomes.short_ban, '0'),
     escalationBlock: formatCompactNumber(escalationOutcomes.block, '0'),
-    topActiveBucket: deriveTopOffenderViewModel(
-      topBucket?.bucket,
-      topBucket?.active,
-      'active stream',
-      'active streams'
-    ),
     progressOutcomes: sortCountEntries(progressOutcomes),
     budgetOutcomes: sortCountEntries(budgetOutcomes),
     escalationOutcomes: sortCountEntries(escalationOutcomes)

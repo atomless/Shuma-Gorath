@@ -5,7 +5,7 @@ Component: [`dashboard/src/lib/components/dashboard/FingerprintingTab.svelte`](.
 
 Purpose:
 
-- Configure Akamai-edge bot-signal influence on fingerprinting and inspect runtime fingerprint diagnostics.
+- Configure Akamai-edge bot-signal influence on fingerprinting and inspect fingerprint-related botness scoring definitions.
 
 Panels:
 
@@ -13,10 +13,8 @@ Panels:
   - enable toggle (`provider_backends.fingerprint_signal` internal/external),
   - influence mode selector (`edge_integration_mode`: `additive` or `authoritative`),
   - current additive scored contribution (`fp_akamai_edge_additive`) when Akamai edge posture controls are available.
-- `Diagnostics` (read-only):
-  - runtime counters,
-  - selected fingerprint mismatch counters,
-  - botness scoring signals from `botness_signal_definitions`, including fingerprint-specific signals and passive corroboration inputs such as JS verification, browser policy match, GEO risk, and rate pressure.
+- `Botness Scoring Signals` (read-only):
+  - additive "botness" fingerprinting signals from `botness_signal_definitions`, including fingerprint-specific signals and passive corroboration inputs such as JS verification, browser policy match, GEO risk, and rate pressure.
   - excludes the dedicated Akamai additive edge contribution, which is surfaced in the `Akamai Bot Signal` pane instead.
 
 Behavior notes:

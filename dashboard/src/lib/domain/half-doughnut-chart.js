@@ -1,6 +1,6 @@
 // @ts-check
 
-import { formatNumber } from './core/format.js';
+import { formatCompactNumber } from './core/format.js';
 
 const DEFAULT_INACTIVE_LABEL = '';
 const DEFAULT_ACTIVE_LABEL = 'Unknown';
@@ -117,7 +117,7 @@ export const buildHalfDoughnutReadout = (
       label: inactiveLabel
     };
   }
-  const formatValue = typeof options.formatValue === 'function' ? options.formatValue : formatNumber;
+  const formatValue = typeof options.formatValue === 'function' ? options.formatValue : formatCompactNumber;
   return {
     label: normalizeText(labels[activeIndex], DEFAULT_ACTIVE_LABEL),
     value: formatValue(values[activeIndex], '0'),

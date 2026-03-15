@@ -5,14 +5,12 @@
 
   export let loading = false;
   export let tarpitSummary = {
-    enabled: false,
     activationsProgressive: '0',
     progressAdvanced: '0',
     fallbackMaze: '0',
     fallbackBlock: '0',
     escalationShortBan: '0',
     escalationBlock: '0',
-    topActiveBucket: { label: 'Top Offender', value: 'None' },
     progressOutcomes: [],
     budgetOutcomes: [],
     escalationOutcomes: []
@@ -25,12 +23,6 @@
 >
   <div class="stats-cards stats-cards--compact">
     <MetricStatCard
-      title="State"
-      valueId="tarpit-state"
-      {loading}
-      value={tarpitSummary.enabled ? 'ENABLED' : 'DISABLED'}
-    />
-    <MetricStatCard
       title="Activations"
       valueId="tarpit-activations-progressive"
       {loading}
@@ -41,13 +33,6 @@
       valueId="tarpit-progress-advanced"
       {loading}
       value={tarpitSummary.progressAdvanced}
-    />
-    <MetricStatCard
-      title={loading ? 'Top Offender' : tarpitSummary.topActiveBucket.label}
-      titleId="tarpit-top-active-bucket-label"
-      valueId="tarpit-top-active-bucket"
-      {loading}
-      value={tarpitSummary.topActiveBucket.value}
     />
   </div>
 

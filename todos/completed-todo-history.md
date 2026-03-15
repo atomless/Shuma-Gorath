@@ -4,23 +4,65 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-15)
 
+### Dashboard Monitoring Cleanup: Remove Duplicated Tarpit State Chrome
+
+- [x] Remove the `State` and active-bucket/top-offender cards from the Monitoring tab's `Tarpit Progression` section, leaving only progression and outcome telemetry that is actionable in monitoring.
+- [x] Why:
+  - tarpit enabled/disabled state already belongs in `Traps` and `Status`, so repeating it in Monitoring added duplication without helping operators diagnose behavior.
+  - the active-bucket card mixed ephemeral live budget state into a section otherwise dominated by cumulative outcome counters, which made the tarpit surface read as contradictory.
+- [x] Evidence:
+  - `dashboard/src/lib/components/dashboard/monitoring/TarpitSection.svelte`
+  - `dashboard/src/lib/components/dashboard/monitoring-view-model.js`
+  - `docs/testing.md`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+
+### Dashboard Fingerprinting Copy Cleanup: Promote The Real Panel Title
+
+- [x] Remove the defunct `Diagnostics` heading from the fingerprinting signal panel, promote `Botness Scoring Signals` to the canonical panel title, and replace the helper copy so the panel explains that these additive signals help route bot-like traffic.
+- [x] Why:
+  - once the nested `Botness Scoring Signals` block became the real content of the panel, leaving `Diagnostics` as the outer title created redundant chrome and a weaker information scent than the actual subject of the panel.
+  - the helper text should describe operator intent, not internal implementation language, so routing-oriented copy is clearer than generic "active definitions" wording.
+- [x] Evidence:
+  - `dashboard/src/lib/components/dashboard/FingerprintingTab.svelte`
+  - `docs/dashboard-tabs/fingerprinting.md`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+
+### Dashboard Chart Formatting Alignment: Reuse Compact Stat Readouts In Half-Doughnut Charts
+
+- [x] Change the shared half-doughnut readout helper so chart center values reuse the canonical compact-number formatter already used by dashboard stat cards, instead of falling back to plain full-number formatting.
+- [x] Why:
+  - the doughnut readout is a stat-value presentation surface, so using a different magnitude format from the surrounding cards made the UI feel inconsistent and implied a second formatting policy where there should only be one.
+  - the correct fix is at the shared helper boundary, because both `Monitoring` and `IP Bans` consume the same half-doughnut readout path and should inherit the same number formatting automatically.
+- [x] Evidence:
+  - `dashboard/src/lib/domain/half-doughnut-chart.js`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+
 ### Dashboard Tuning Cleanup: Remove Redundant Botness Status Readout
 
 - [x] Remove the read-only `Status` info block from the `Tuning` tab's `Botness Scoring` section and delete the associated unused default-threshold wiring.
 - [x] Follow up by removing the read-only `Terminal Signals` info block from the same `Botness Scoring` section and delete the associated unused terminal-signal wiring.
 - [x] Finish the cleanup by removing the remaining read-only `Scored Signals` inventory from `Tuning` and re-home the useful botness-scoring signal context into the canonical diagnostics surface on `Fingerprinting`.
 - [x] Move the dedicated `Fingerprint Akamai edge signal (additive)` readout out of the generic fingerprinting diagnostics list and surface it in the `Akamai Bot Signal` pane where operators expect Akamai-specific contribution details.
+- [x] Remove duplicated runtime counters from `Fingerprinting`, move the useful fingerprint mismatch counters into `Monitoring`'s CDP section, and rename the ban summary wording there so it reads as detection-caused bans rather than unexplained "auto-bans".
 - [x] Why:
   - the `Config`, `Default Not-a-Bot`, `Default Challenge`, and `Default Maze` readouts were duplicating information already available more clearly in the dedicated tabs and config surfaces, while adding visual noise to the Tuning workflow.
   - the `Terminal Signals` inventory had the same problem: it repeated model facts that are already surfaced elsewhere, but did not add an actionable tuning control in this tab.
   - the remaining `Scored Signals` inventory in `Tuning` was similarly non-actionable, but a subset of those signals does belong in the operator mental model for fingerprinting because they are passive scoring inputs that corroborate botness.
   - re-homing the scored-signal inventory into `Fingerprinting` gives operators one diagnostics surface for score contributions, while leaving `Tuning` focused on editable thresholds and weights.
   - the dedicated Akamai additive signal is conceptually owned by the Akamai integration settings, so leaving it in the generic diagnostics list made the dashboard imply it was just another internal passive fingerprint signal.
+  - the fingerprint runtime counters were live telemetry rather than configuration context, and the two headline counts were already duplicated in Monitoring, so keeping them under `Fingerprinting` blurred the line between tuning surfaces and observability surfaces.
   - removing the now-unused reactive defaults and signal-definition wiring keeps the `Tuning` component honest and avoids carrying dead local state for UI that no longer exists.
 - [x] Evidence:
   - `dashboard/src/lib/components/dashboard/FingerprintingTab.svelte`
+  - `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+  - `dashboard/src/lib/components/dashboard/monitoring/CdpSection.svelte`
+  - `dashboard/src/routes/+page.svelte`
   - `dashboard/src/lib/components/dashboard/TuningTab.svelte`
   - `docs/dashboard-tabs/fingerprinting.md`
+  - `docs/dashboard-tabs/monitoring.md`
   - `docs/dashboard-tabs/tuning.md`
   - `e2e/dashboard.modules.unit.test.js`
   - `make test-dashboard-unit`

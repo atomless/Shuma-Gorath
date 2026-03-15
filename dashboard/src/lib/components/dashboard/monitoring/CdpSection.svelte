@@ -8,7 +8,9 @@
   export let loading = false;
   export let cdpDetections = 0;
   export let cdpAutoBans = 0;
-  export let cdpFingerprintEvents = 0;
+  export let cdpFingerprintUaClientHintMismatch = 0;
+  export let cdpFingerprintUaTransportMismatch = 0;
+  export let cdpFingerprintTemporalTransitions = 0;
   export let cdpFingerprintFlowViolations = 0;
   export let recentCdpEvents = [];
   export let formatTime = () => '-';
@@ -17,12 +19,14 @@
 
 <SectionBlock
   title='<abbr title="Chrome DevTools Protocol">CDP</abbr> Detections'
-  description='Browser automation detection and bans in the last 24hrs'
+  description='Browser automation and passive fingerprint telemetry in the last 24hrs'
 >
   <div class="stats-cards stats-cards--compact">
     <MetricStatCard title="Total Detections" valueId="cdp-total-detections" {loading} value={formatCompactNumber(cdpDetections, '0')} />
-    <MetricStatCard title="Auto-Bans" valueId="cdp-total-auto-bans" {loading} value={formatCompactNumber(cdpAutoBans, '0')} />
-    <MetricStatCard title='<abbr title="Fingerprint">FP</abbr> Mismatch Events' valueId="cdp-fp-events" {loading} value={formatCompactNumber(cdpFingerprintEvents, '0')} />
+    <MetricStatCard title="Detection-Triggered Bans" valueId="cdp-total-auto-bans" {loading} value={formatCompactNumber(cdpAutoBans, '0')} />
+    <MetricStatCard title="UA/client-hint mismatch" valueId="cdp-fp-ua-client-hint-mismatch" {loading} value={formatCompactNumber(cdpFingerprintUaClientHintMismatch, '0')} />
+    <MetricStatCard title="UA/transport mismatch" valueId="cdp-fp-ua-transport-mismatch" {loading} value={formatCompactNumber(cdpFingerprintUaTransportMismatch, '0')} />
+    <MetricStatCard title="Temporal transition" valueId="cdp-fp-temporal-transition" {loading} value={formatCompactNumber(cdpFingerprintTemporalTransitions, '0')} />
     <MetricStatCard title='<abbr title="Fingerprint">FP</abbr> Flow Violations' valueId="cdp-fp-flow-violations" {loading} value={formatCompactNumber(cdpFingerprintFlowViolations, '0')} />
   </div>
   <TableWrapper>
@@ -40,7 +44,7 @@
       <tbody>
         {#if recentCdpEvents.length === 0}
           <TableEmptyRow colspan={6}>
-            No <abbr title="Chrome DevTools Protocol">CDP</abbr> detections or auto-bans in the selected window
+            No <abbr title="Chrome DevTools Protocol">CDP</abbr> detections or detection-triggered bans in the selected window
           </TableEmptyRow>
         {:else}
           {#each recentCdpEvents as ev}
@@ -51,7 +55,7 @@
             {@const tier = readCdpField(tierSource, 'tier').toUpperCase()}
             {@const score = readCdpField(tierSource, 'score')}
             {@const details = isBan
-              ? `Auto-ban: ${outcome}`
+              ? `Detection-triggered ban: ${outcome}`
               : (outcome.toLowerCase().startsWith('checks:') ? outcome.replace(/^checks:/i, 'Checks: ') : outcome)}
             <tr>
               <td>{formatTime(ev.ts)}</td>

@@ -14,7 +14,7 @@ What it shows:
 - Charts: event types, top IPs, and time-series events for `60m/24h/7d/30d`.
 - Per-defense trend blocks (trigger volume, pass/fail/escalate mix, ban outcomes, execution mode, source-label breakdown).
 - Recent Events table with fast filters (`origin`, `mode`, `scenario`, `lane`, `defense`, `outcome`).
-- CDP detections table and summary cards.
+- CDP detections table and summary cards, including total detections, detection-triggered bans, and fingerprint mismatch/transition counters.
 - Maze, honeypot, challenge, PoW, rate-limiting, GEO, and IP-range monitoring sections.
 - External monitoring helper with Prometheus and JSON API examples.
 

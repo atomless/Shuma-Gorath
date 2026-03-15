@@ -916,6 +916,7 @@ test('monitoring chart presets enforce shared palette and stable x-axis layout',
 
 test('half doughnut chart helpers expose shared semicircle and hover readout behavior', { concurrency: false }, async () => {
   const helpers = await importBrowserModule('dashboard/src/lib/domain/half-doughnut-chart.js');
+  const format = await importBrowserModule('dashboard/src/lib/domain/core/format.js');
 
   assert.equal(helpers.HALF_DOUGHNUT_ROTATION, -90);
   assert.equal(helpers.HALF_DOUGHNUT_CIRCUMFERENCE, 180);
@@ -971,7 +972,7 @@ test('half doughnut chart helpers expose shared semicircle and hover readout beh
   );
   assert.deepEqual(activeReadout, {
     label: 'Challenge',
-    value: '1,200',
+    value: format.formatCompactNumber(1200, '0'),
     active: true
   });
 
@@ -2401,10 +2402,10 @@ test('monitoring view model and status module remain pure snapshot transforms', 
         escalation_outcomes: { short_ban: 3, block: 1 }
       }
     });
-    assert.equal(tarpitSummary.enabled, true);
+    assert.equal(Object.hasOwn(tarpitSummary, 'enabled'), false);
     assert.equal(tarpitSummary.activationsProgressive, '11');
     assert.equal(tarpitSummary.progressAdvanced, '7');
-    assert.equal(tarpitSummary.topActiveBucket.value, '198.51.100.0/24');
+    assert.equal(Object.hasOwn(tarpitSummary, 'topActiveBucket'), false);
     assert.equal(
       tarpitSummary.budgetOutcomes.some((row) => row[0] === 'fallback_maze' && Number(row[1]) === 2),
       true
@@ -4007,6 +4008,10 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigDurationsSection.svelte'),
     'utf8'
   );
+  const monitoringCdpSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/CdpSection.svelte'),
+    'utf8'
+  );
   const configGeoSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigGeoSection.svelte'),
     'utf8'
@@ -4240,7 +4245,7 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(robotsSurfaceSource, /id="open-robots-txt-link"/);
   assert.match(robotsSurfaceSource, /id="preview-robots"/);
 
-  assert.match(fingerprintingSource, /export let cdpSnapshot = null;/);
+  assert.equal(fingerprintingSource.includes('export let cdpSnapshot = null;'), false);
   assert.match(fingerprintingSource, /export let onSaveConfig = null;/);
   assert.match(fingerprintingSource, /await onSaveConfig\(payload/);
   assert.match(fingerprintingSource, /config\.akamai_edge_available === true/);
@@ -4256,13 +4261,25 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(fingerprintingSource, /<h4>Current Akamai Edge Contribution<\/h4>/);
   assert.match(fingerprintingSource, /id="fingerprinting-akamai-signal-list"/);
   assert.match(fingerprintingSource, /key !== AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY/);
-  assert.match(fingerprintingSurfaceSource, /id="fingerprinting-total-detections"/);
+  assert.equal(fingerprintingSource.includes('<h4>Runtime Counters</h4>'), false);
+  assert.equal(fingerprintingSurfaceSource.includes('id="fingerprinting-total-detections"'), false);
+  assert.equal(fingerprintingSurfaceSource.includes('id="fingerprinting-auto-bans"'), false);
   assert.equal(fingerprintingSource.includes('<h4>Scored Fingerprint Signals</h4>'), false);
-  assert.match(fingerprintingSource, /<h4>Botness Scoring Signals<\/h4>/);
+  assert.equal(fingerprintingSource.includes('<ConfigPanelHeading title="Diagnostics">'), false);
+  assert.match(fingerprintingSource, /<ConfigPanelHeading title="Botness Scoring Signals">/);
+  assert.match(fingerprintingSource, /Additive "botness" fingerprinting signals used to decide how to route bot-like traffic\./);
+  assert.equal(fingerprintingSource.includes('<h4>Botness Scoring Signals</h4>'), false);
   assert.match(fingerprintingSource, /id="fingerprinting-botness-signal-list"/);
   assert.match(fingerprintingSource, /js_verification_required/);
   assert.match(fingerprintingSource, /browser_outdated/);
   assert.equal(fingerprintingSource.includes("String(signal?.key || '').startsWith('fp_')"), false);
+  assert.match(monitoringCdpSource, /title="Detection-Triggered Bans"/);
+  assert.match(monitoringCdpSource, /valueId="cdp-total-auto-bans"/);
+  assert.match(monitoringCdpSource, /valueId="cdp-fp-ua-client-hint-mismatch"/);
+  assert.match(monitoringCdpSource, /valueId="cdp-fp-ua-transport-mismatch"/);
+  assert.match(monitoringCdpSource, /valueId="cdp-fp-temporal-transition"/);
+  assert.match(monitoringCdpSource, /valueId="cdp-fp-flow-violations"/);
+  assert.equal(monitoringCdpSource.includes('valueId="cdp-fp-events"'), false);
 
   assert.match(tuningSource, /export let onSaveConfig = null;/);
   assert.match(tuningSource, /await onSaveConfig\(payload/);
@@ -4701,6 +4718,20 @@ test('monitoring tab is decomposed into focused subsection components', () => {
   assert.match(source, /RAW_FEED_MAX_LINES = 200/);
   assert.equal(source.includes('deriveAdversaryRunRows'), false);
   assert.equal(source.includes('AdversaryRunPanel'), false);
+});
+
+test('tarpit monitoring section keeps only progression and outcome telemetry cards', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/TarpitSection.svelte'),
+    'utf8'
+  );
+
+  assert.match(source, /title="Activations"/);
+  assert.match(source, /title="Progress Advanced"/);
+  assert.equal(source.includes('valueId="tarpit-state"'), false);
+  assert.equal(source.includes('valueId="tarpit-top-active-bucket"'), false);
+  assert.equal(source.includes('title="State"'), false);
+  assert.equal(source.includes('Top Offender'), false);
 });
 
 test('red team tab renders the recent adversary runs panel with red-team-specific copy', () => {

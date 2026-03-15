@@ -892,7 +892,6 @@ h1 {
 
 .chart-doughnut-readout .stat-value {
   font-size: var(--half-doughnut-stat-value-size, var(--text-6xl));
-  min-height: 1em;
   line-height: 0.9;
 }
 

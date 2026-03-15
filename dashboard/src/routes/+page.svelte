@@ -1319,7 +1319,6 @@
           noticeKind={paneNoticeValues.fingerprinting?.kind || 'info'}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
-          cdpSnapshot={snapshots.cdp}
           onSaveConfig={onSaveConfig}
         />
       {:else}

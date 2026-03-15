@@ -771,10 +771,9 @@
 
   $: cdpDetections = Number(cdp?.stats?.total_detections || 0);
   $: cdpAutoBans = Number(cdp?.stats?.auto_bans || 0);
-  $: cdpFingerprintEvents =
-    Number(cdp?.fingerprint_stats?.ua_client_hint_mismatch || 0) +
-    Number(cdp?.fingerprint_stats?.ua_transport_mismatch || 0) +
-    Number(cdp?.fingerprint_stats?.temporal_transition || 0);
+  $: cdpFingerprintUaClientHintMismatch = Number(cdp?.fingerprint_stats?.ua_client_hint_mismatch || 0);
+  $: cdpFingerprintUaTransportMismatch = Number(cdp?.fingerprint_stats?.ua_transport_mismatch || 0);
+  $: cdpFingerprintTemporalTransitions = Number(cdp?.fingerprint_stats?.temporal_transition || 0);
   $: cdpFingerprintFlowViolations = Number(cdp?.fingerprint_stats?.flow_violation || 0);
 
   $: mazeStats = deriveMazeStatsViewModel(maze || {}) || defaultMazeStats;
@@ -1063,7 +1062,9 @@
     loading={tabStatus?.loading === true}
     {cdpDetections}
     {cdpAutoBans}
-    {cdpFingerprintEvents}
+    {cdpFingerprintUaClientHintMismatch}
+    {cdpFingerprintUaTransportMismatch}
+    {cdpFingerprintTemporalTransitions}
     {cdpFingerprintFlowViolations}
     {recentCdpEvents}
     {formatTime}

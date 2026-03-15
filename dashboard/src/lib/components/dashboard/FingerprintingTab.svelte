@@ -11,7 +11,6 @@
   export let tabStatus = null;
   export let configSnapshot = null;
   export let configVersion = 0;
-  export let cdpSnapshot = null;
   export let onSaveConfig = null;
   export let noticeText = '';
   export let noticeKind = 'info';
@@ -121,12 +120,6 @@
   $: warnOnUnload = writable && hasUnsavedChanges;
   $: hasConfigSnapshot = configSnapshot && typeof configSnapshot === 'object' && Object.keys(configSnapshot).length > 0;
 
-  $: cdpData = cdpSnapshot && typeof cdpSnapshot === 'object' ? cdpSnapshot : {};
-  $: cdpStats = cdpData.stats && typeof cdpData.stats === 'object' ? cdpData.stats : {};
-  $: fingerprintStats = cdpData.fingerprint_stats && typeof cdpData.fingerprint_stats === 'object'
-    ? cdpData.fingerprint_stats
-    : {};
-
   $: signalDefinitions = configSnapshot && typeof configSnapshot.botness_signal_definitions === 'object'
     ? configSnapshot.botness_signal_definitions
     : {};
@@ -230,41 +223,12 @@
     </ConfigPanel>
 
     <ConfigPanel writable={true}>
-      <ConfigPanelHeading title="Diagnostics">
+      <ConfigPanelHeading title="Botness Scoring Signals">
         <span class="status-value text-muted">Read-only</span>
       </ConfigPanelHeading>
-      <p class="control-desc text-muted">Current runtime counters and active botness scoring signal definitions used for passive fingerprint corroboration.</p>
+      <p class="control-desc text-muted">Additive "botness" fingerprinting signals used to decide how to route bot-like traffic.</p>
       <div class="admin-controls">
         <div class="info-panel">
-          <h4>Runtime Counters</h4>
-          <div class="info-row">
-            <span class="info-label text-muted">Total detections</span>
-            <span id="fingerprinting-total-detections">{Number(cdpStats.total_detections || 0)}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Auto-bans</span>
-            <span id="fingerprinting-auto-bans">{Number(cdpStats.auto_bans || 0)}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">UA/client-hint mismatch</span>
-            <span>{Number(fingerprintStats.ua_client_hint_mismatch || 0)}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">UA/transport mismatch</span>
-            <span>{Number(fingerprintStats.ua_transport_mismatch || 0)}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Temporal transition</span>
-            <span>{Number(fingerprintStats.temporal_transition || 0)}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Flow violations</span>
-            <span>{Number(fingerprintStats.flow_violation || 0)}</span>
-          </div>
-        </div>
-
-        <div class="info-panel">
-          <h4>Botness Scoring Signals</h4>
           <div id="fingerprinting-botness-signal-list">
             {#if fingerprintingBotnessSignals.length === 0}
               <p class="text-muted">No botness scoring signals available in the current scoring definition.</p>
