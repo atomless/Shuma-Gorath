@@ -2,6 +2,24 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-15)
+
+### Agentic-Era Oversight Research, Design, and Phased Plan Capture
+
+- [x] Capture the long-horizon research synthesis for Shuma's agentic-era operating model and write repo-native design and implementation-plan documents covering the oversight control contract, budget schema, deployment adapters, and rollout stages.
+- [x] Why:
+  - the previous response produced the strategy in-chat, but this repository expects durable architecture and plan context to live in docs rather than disappear into conversation history.
+  - Shuma already has the core ingredients for autonomous oversight (`adversary-sim` control discipline, hot-read telemetry, config validation/write surfaces, and AI-policy outputs), so the right next step was to formalize how those pieces become a bounded oversight plane instead of leaving the idea as an informal note.
+  - documenting the work now keeps future implementation aligned with current project principles: request-path logic remains deterministic and Rust-owned, autonomous change is budgeted and reversible, and scheduler choice stays adapter-level rather than architecture-defining.
+- [x] Evidence:
+  - `docs/research/2026-03-15-agentic-era-oversight-research-synthesis.md`
+  - `docs/plans/2026-03-15-agentic-era-oversight-design.md`
+  - `docs/plans/2026-03-15-agentic-era-oversight-implementation-plan.md`
+  - `docs/research/README.md`
+  - `docs/index.md`
+  - docs-only slice: verification intentionally skipped per repo policy
+  - external sources captured in the new research synthesis
+
 ## Additional completions (2026-03-14)
 
 ### Dashboard CI Repair: Give The Native Remount Soak Test Its Own Timeout Budget

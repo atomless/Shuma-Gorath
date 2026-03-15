@@ -1,9 +1,11 @@
 <script>
+  import HalfDoughnutChart from '../primitives/HalfDoughnutChart.svelte';
   import SectionBlock from '../primitives/SectionBlock.svelte';
 
   export let selectedTimeRange = 'hour';
   export let onSelectTimeRange = null;
   export let eventTypesCanvas = null;
+  export let eventTypesReadout = null;
   export let topIpsCanvas = null;
   export let timeSeriesCanvas = null;
 
@@ -17,7 +19,12 @@
 <div class="charts-row">
   <div class="chart-container panel-soft panel-border pad-md">
     <h2>Event Types (24h)</h2>
-    <canvas id="eventTypesChart" bind:this={eventTypesCanvas}></canvas>
+    <HalfDoughnutChart
+      canvasId="eventTypesChart"
+      ariaLabel="Event types chart"
+      bind:canvas={eventTypesCanvas}
+      readout={eventTypesReadout}
+    />
   </div>
   <div class="chart-container panel-soft panel-border pad-md">
     <h2>Top 10 <abbr title="Internet Protocol">IP</abbr>s by Events</h2>

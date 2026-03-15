@@ -28,6 +28,9 @@ cd Shuma-Gorath
 - [`research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md) - Historical first-pass blocker note for the Fermyon/Akamai edge proof
 - [`research/2026-03-06-linode-shared-host-live-proof.md`](research/2026-03-06-linode-shared-host-live-proof.md) - First live proof of the shared-host Linode setup + deploy path
 - [`plans/2026-03-07-generic-ssh-remote-maintenance-layer-design.md`](plans/2026-03-07-generic-ssh-remote-maintenance-layer-design.md) - Provider-agnostic `ssh_systemd` day-2 remote operations contract
+- [`research/2026-03-15-agentic-era-oversight-research-synthesis.md`](research/2026-03-15-agentic-era-oversight-research-synthesis.md) - Research synthesis for Shuma's agentic-era operating model, verified-agent identity, and bounded autonomous oversight
+- [`plans/2026-03-15-agentic-era-oversight-design.md`](plans/2026-03-15-agentic-era-oversight-design.md) - Proposed design for a backend-owned oversight plane, control contract, and budget schema
+- [`plans/2026-03-15-agentic-era-oversight-implementation-plan.md`](plans/2026-03-15-agentic-era-oversight-implementation-plan.md) - Phased implementation plan for oversight snapshots, reconcile control, scheduler adapters, and bounded autonomous apply
 - [`api.md`](api.md) - <abbr title="Application Programming Interface">API</abbr> usage and endpoint details
 - [`configuration.md`](configuration.md) - Runtime configuration reference
 - [`fingerprinting-terminology.md`](fingerprinting-terminology.md) - Canonical fingerprinting/JS verification terminology map

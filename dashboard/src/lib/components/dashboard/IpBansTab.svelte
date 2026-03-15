@@ -24,6 +24,14 @@
     parseIpRangeOutcome
   } from '../../domain/ip-range-policy.js';
   import { resolveMonitoringChartTheme } from '../../domain/monitoring-chart-presets.js';
+  import HalfDoughnutChart from './primitives/HalfDoughnutChart.svelte';
+  import {
+    buildHalfDoughnutSeries,
+    EMPTY_HALF_DOUGHNUT_READOUT,
+    HALF_DOUGHNUT_LEGEND_OFFSET_PLUGIN,
+    buildHalfDoughnutOptions,
+    syncHalfDoughnutReadout
+  } from '../../domain/half-doughnut-chart.js';
 
   export let managed = false;
   export let isActive = false;
@@ -75,6 +83,7 @@
   let lastAppliedSuggestionsVersion = -1;
   let banReasonCanvas = null;
   let banReasonChart = null;
+  let banReasonReadout = EMPTY_HALF_DOUGHNUT_READOUT;
   let chartRefreshNonce = 0;
   let resizeRedrawTimer = null;
   let wasActive = false;
@@ -226,7 +235,13 @@
     return Number.isFinite(rect.width) && Number.isFinite(rect.height) && rect.width > 0 && rect.height > 0;
   };
 
-  const updateBanReasonChart = (chart, canvas, entries, refreshNonce = 0) => {
+  const updateBanReasonChart = (
+    chart,
+    canvas,
+    entries,
+    refreshNonce = 0,
+    onReadoutChange = null
+  ) => {
     const chartCtor = getChartConstructor();
     if (!chartCtor || !canvas || !Array.isArray(entries) || entries.length === 0) {
       return chart;
@@ -235,14 +250,14 @@
       return chart;
     }
     const chartTheme = resolveMonitoringChartTheme();
-    const labels = entries.map((entry) => entry.label);
-    const values = entries.map((entry) => entry.value);
+    const { labels, values } = buildHalfDoughnutSeries(entries);
     const colors = labels.map((_, index) => chartTheme.palette[index % chartTheme.palette.length]);
     const ctx = canvas.getContext('2d');
     if (!ctx) return chart;
     if (!chart) {
-      return stampChartRefresh(new chartCtor(ctx, {
+      const nextChart = stampChartRefresh(new chartCtor(ctx, {
         type: 'doughnut',
+        plugins: [HALF_DOUGHNUT_LEGEND_OFFSET_PLUGIN],
         data: {
           labels,
           datasets: [{
@@ -253,21 +268,16 @@
             hoverBorderWidth: 0
           }]
         },
-        options: {
-          responsive: true,
+        options: buildHalfDoughnutOptions({
+          legendColor: chartTheme.legendColor,
           maintainAspectRatio: false,
           resizeDelay: 0,
           animation: false,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: {
-                color: chartTheme.legendColor
-              }
-            }
-          }
-        }
+          onReadoutChange
+        })
       }), refreshNonce);
+      syncHalfDoughnutReadout(nextChart, onReadoutChange);
+      return nextChart;
     }
     const needsRefresh = chartNeedsRefresh(chart, refreshNonce);
     const hasSameSeries = sameSeries(chart, labels, values);
@@ -280,12 +290,34 @@
       chart.data.datasets[0].borderColor = 'rgba(0, 0, 0, 0)';
       chart.data.datasets[0].borderWidth = 0;
       chart.data.datasets[0].hoverBorderWidth = 0;
+      const halfDoughnutOptions = buildHalfDoughnutOptions({
+        legendColor: chartTheme.legendColor,
+        maintainAspectRatio: false,
+        resizeDelay: 0,
+        animation: false,
+        onReadoutChange
+      });
+      chart.options.rotation = halfDoughnutOptions.rotation;
+      chart.options.circumference = halfDoughnutOptions.circumference;
+      chart.options.cutout = halfDoughnutOptions.cutout;
+      chart.options.maintainAspectRatio = halfDoughnutOptions.maintainAspectRatio;
+      chart.options.onHover = halfDoughnutOptions.onHover;
+      chart.options.resizeDelay = halfDoughnutOptions.resizeDelay;
+      chart.options.animation = halfDoughnutOptions.animation;
+      if (chart.options?.plugins?.tooltip) {
+        chart.options.plugins.tooltip.enabled = false;
+      }
+      if (chart.options?.plugins?.legend) {
+        chart.options.plugins.legend.position = halfDoughnutOptions.plugins.legend.position;
+      }
       if (chart.options?.plugins?.legend?.labels) {
         chart.options.plugins.legend.labels.color = chartTheme.legendColor;
       }
       chart.update('none');
     }
-    return stampChartRefresh(chart, refreshNonce);
+    const nextChart = stampChartRefresh(chart, refreshNonce);
+    syncHalfDoughnutReadout(nextChart, onReadoutChange);
+    return nextChart;
   };
 
   const isValidIpv4 = (value) => {
@@ -844,12 +876,7 @@
       const reason = normalizeBanReasonLabel(row?.ban?.reason);
       reasonCounts.set(reason, Number(reasonCounts.get(reason) || 0) + 1);
     });
-    banReasonEntries = Array.from(reasonCounts.entries())
-      .map(([label, value]) => ({ label, value }))
-      .sort((a, b) => {
-        if (b.value !== a.value) return b.value - a.value;
-        return a.label.localeCompare(b.label);
-      });
+    banReasonEntries = buildHalfDoughnutSeries(Array.from(reasonCounts.entries())).entries;
   }
   $: banDurationSeconds = (
     (Number(banDurationDays) * 24 * 60 * 60) +
@@ -883,6 +910,7 @@
   }
   $: {
     if (!banReasonCanvas || banReasonEntries.length === 0 || !isActive) {
+      banReasonReadout = EMPTY_HALF_DOUGHNUT_READOUT;
       if (banReasonChart && typeof banReasonChart.destroy === 'function') {
         banReasonChart.destroy();
       }
@@ -895,7 +923,10 @@
         banReasonChart,
         banReasonCanvas,
         banReasonEntries,
-        chartRefreshNonce
+        chartRefreshNonce,
+        (nextReadout) => {
+          banReasonReadout = nextReadout;
+        }
       );
     }
   }
@@ -952,9 +983,13 @@
     {#if banReasonEntries.length === 0}
       <p class="control-desc text-muted">No active ban reasons in this view.</p>
     {:else}
-      <div class="chart-canvas-shell chart-canvas-shell--ip-bans">
-        <canvas id="ip-ban-reasons-chart" bind:this={banReasonCanvas} aria-label="IP ban reason spread chart"></canvas>
-      </div>
+      <HalfDoughnutChart
+        canvasId="ip-ban-reasons-chart"
+        ariaLabel="IP ban reason spread chart"
+        shellClass="chart-canvas-shell--ip-bans"
+        bind:canvas={banReasonCanvas}
+        readout={banReasonReadout}
+      />
     {/if}
   </div>
   <div class="control-group panel-soft pad-sm">

@@ -134,7 +134,7 @@
   --hue: -88;
 }
 :root.adversary-sim {
-  --hue: -16;
+  --hue: 0;
 }
 :root.test-mode {
   --hue: -256;
@@ -444,7 +444,7 @@ body {
 
 :root.adversary-sim:not(.disconnected) .dashboard-test-mode-eye, 
 :root.adversary-sim:not(.disconnected) .shuma-gorath-img {
-  filter: hue-rotate(-333deg) saturate(1);
+  filter: hue-rotate(-317deg) saturate(1.1);
   transition: all .4s ease-in;
 }
 
@@ -823,7 +823,7 @@ h1 {
 .chart-container h2 {
   font-size: var(--text-2xl);
   color: var(--heading-fg);
-  margin-bottom: 15px;
+  margin-bottom: 8px;
   line-height: 1;
 }
 
@@ -837,16 +837,62 @@ h1 {
 .chart-canvas-shell {
   position: relative;
   width: 100%;
+  container-type: inline-size;
+}
+
+.chart-canvas-shell--half-doughnut {
+  --half-doughnut-stat-value-size: clamp(var(--text-6xl), 17cqw, calc(var(--text-6xl) * 3));
+  width: min(100%, 600px);
+  max-width: 600px;
+  margin-inline: auto;
+  aspect-ratio: 2 / 1;
 }
 
 .chart-canvas-shell--ip-bans {
-  height: clamp(220px, 50vh, 520px);
+  width: min(100%, calc(clamp(220px, 50vh, 520px) * 2));
+  max-width: calc(clamp(220px, 50vh, 520px) * 2);
+  margin-inline: auto;
+  aspect-ratio: 2 / 1;
 }
 
+.chart-canvas-shell--half-doughnut canvas,
 .chart-canvas-shell--ip-bans canvas {
   width: 100% !important;
   height: 100% !important;
   max-height: 100%;
+}
+
+.chart-doughnut-readout {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 44%;
+  bottom: 15px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  padding-bottom: clamp(2px, 1cqw, 8px);
+  pointer-events: none;
+  text-align: center;
+}
+
+.chart-doughnut-readout__label,
+.chart-doughnut-readout__value {
+  margin: 0;
+}
+
+.chart-doughnut-readout .caps-label {
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.chart-doughnut-readout .stat-value {
+  font-size: var(--half-doughnut-stat-value-size, var(--text-6xl));
+  min-height: 1em;
+  line-height: 0.9;
 }
 
 /* ===========================================

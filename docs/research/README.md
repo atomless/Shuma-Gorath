@@ -50,6 +50,11 @@ Completed archive index:
 3. [`2026-03-05-gateway-first-post-tranche-cleanup-review.md`](2026-03-05-gateway-first-post-tranche-cleanup-review.md)  
    Post-tranche cleanup and knock-on architecture review, including follow-on hardening opportunities.
 
+## 🐙 Agentic-Era Oversight
+
+1. [`2026-03-15-agentic-era-oversight-research-synthesis.md`](2026-03-15-agentic-era-oversight-research-synthesis.md)
+   Research synthesis for Shuma's long-horizon operating model in the agentic era, covering crawler economics, verified-agent identity, scheduler patterns, low-cost agent handling, and bounded autonomous oversight.
+
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 
 1. [`2026-02-27-sim2-shortfall-1-black-box-capability-enforcement.md`](2026-02-27-sim2-shortfall-1-black-box-capability-enforcement.md)  

@@ -40,6 +40,13 @@
   } from '../../domain/monitoring-chart-presets.js';
   import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
   import { arraysEqualShallow } from '../../domain/core/format.js';
+  import {
+    buildHalfDoughnutSeries,
+    EMPTY_HALF_DOUGHNUT_READOUT,
+    HALF_DOUGHNUT_LEGEND_OFFSET_PLUGIN,
+    buildHalfDoughnutOptions,
+    syncHalfDoughnutReadout
+  } from '../../domain/half-doughnut-chart.js';
   import { normalizeLowerTrimmed } from '../../domain/core/strings.js';
   import { formatIpRangeReasonLabel } from '../../domain/ip-range-policy.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
@@ -121,6 +128,7 @@
   let filteredRecentEvents = [];
   let rawTelemetryFeed = [];
   let defenseTrendRows = [];
+  let eventTypesReadout = EMPTY_HALF_DOUGHNUT_READOUT;
 
   let copyButtonLabel = 'Copy JavaScript Example';
   let copyCurlButtonLabel = 'Copy Curl Example';
@@ -406,20 +414,26 @@
     return stampChartRefresh(chart, refreshNonce);
   };
 
-  const updateDoughnutChart = (chart, canvas, counts, refreshNonce = 0) => {
+  const updateDoughnutChart = (
+    chart,
+    canvas,
+    counts,
+    refreshNonce = 0,
+    onReadoutChange = null
+  ) => {
     const chartCtor = getChartConstructor();
     if (!canvas || !chartCtor) return chart;
     const ctx = canvas.getContext('2d');
     if (!ctx) return chart;
     const chartTheme = resolveMonitoringChartTheme();
     const palette = chartTheme.palette;
-    const labels = Object.keys(counts || {});
-    const data = Object.values(counts || {});
+    const { labels, values: data } = buildHalfDoughnutSeries(counts);
     const colors = data.map((_, index) => palette[index % palette.length]);
 
     if (!chart) {
-      return stampChartRefresh(new chartCtor(ctx, {
+      const nextChart = stampChartRefresh(new chartCtor(ctx, {
         type: 'doughnut',
+        plugins: [HALF_DOUGHNUT_LEGEND_OFFSET_PLUGIN],
         data: {
           labels,
           datasets: [{
@@ -430,20 +444,14 @@
             hoverBorderWidth: 0
           }]
         },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          aspectRatio: 2.2,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: {
-                color: chartTheme.legendColor
-              }
-            }
-          }
-        }
+        options: buildHalfDoughnutOptions({
+          legendColor: chartTheme.legendColor,
+          maintainAspectRatio: false,
+          onReadoutChange
+        })
       }), refreshNonce);
+      syncHalfDoughnutReadout(nextChart, onReadoutChange);
+      return nextChart;
     }
 
     const needsRefresh = chartNeedsRefresh(chart, refreshNonce);
@@ -459,11 +467,30 @@
     chart.data.datasets[0].borderColor = 'rgba(0, 0, 0, 0)';
     chart.data.datasets[0].borderWidth = 0;
     chart.data.datasets[0].hoverBorderWidth = 0;
+    const halfDoughnutOptions = buildHalfDoughnutOptions({
+      legendColor: chartTheme.legendColor,
+      maintainAspectRatio: false,
+      onReadoutChange
+    });
+    chart.options.rotation = halfDoughnutOptions.rotation;
+    chart.options.circumference = halfDoughnutOptions.circumference;
+    chart.options.cutout = halfDoughnutOptions.cutout;
+    chart.options.aspectRatio = halfDoughnutOptions.aspectRatio;
+    chart.options.maintainAspectRatio = halfDoughnutOptions.maintainAspectRatio;
+    chart.options.onHover = halfDoughnutOptions.onHover;
+    if (chart.options?.plugins?.tooltip) {
+      chart.options.plugins.tooltip.enabled = false;
+    }
+    if (chart.options?.plugins?.legend) {
+      chart.options.plugins.legend.position = halfDoughnutOptions.plugins.legend.position;
+    }
     if (chart.options?.plugins?.legend?.labels) {
       chart.options.plugins.legend.labels.color = chartTheme.legendColor;
     }
     chart.update('none');
-    return stampChartRefresh(chart, refreshNonce);
+    const nextChart = stampChartRefresh(chart, refreshNonce);
+    syncHalfDoughnutReadout(nextChart, onReadoutChange);
+    return nextChart;
   };
 
   const updateTopIpsChart = (chart, canvas, topIps, refreshNonce = 0) => {
@@ -891,7 +918,10 @@
       eventTypesChart,
       eventTypesCanvas,
       events.event_counts || {},
-      chartRefreshNonce
+      chartRefreshNonce,
+      (nextReadout) => {
+        eventTypesReadout = nextReadout;
+      }
     );
   }
 
@@ -1013,6 +1043,7 @@
 
   <PrimaryCharts
     {selectedTimeRange}
+    {eventTypesReadout}
     onSelectTimeRange={selectTimeRange}
     bind:eventTypesCanvas
     bind:topIpsCanvas

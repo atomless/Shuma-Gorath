@@ -914,13 +914,172 @@ test('monitoring chart presets enforce shared palette and stable x-axis layout',
   assert.equal(estimatedLargeTickCount <= countAxisLarge.ticks.maxTicksLimit, true);
 });
 
+test('half doughnut chart helpers expose shared semicircle and hover readout behavior', { concurrency: false }, async () => {
+  const helpers = await importBrowserModule('dashboard/src/lib/domain/half-doughnut-chart.js');
+
+  assert.equal(helpers.HALF_DOUGHNUT_ROTATION, -90);
+  assert.equal(helpers.HALF_DOUGHNUT_CIRCUMFERENCE, 180);
+  assert.equal(helpers.HALF_DOUGHNUT_CUTOUT, '72%');
+  assert.equal(helpers.HALF_DOUGHNUT_LEGEND_OFFSET_PX, 5);
+  assert.deepEqual(helpers.EMPTY_HALF_DOUGHNUT_READOUT, {
+    label: '',
+    value: '',
+    active: false
+  });
+  assert.equal(helpers.HALF_DOUGHNUT_LEGEND_OFFSET_PLUGIN.id, 'shuma-half-doughnut-legend-offset');
+
+  const shiftedLegend = {
+    top: 20,
+    bottom: 40,
+    options: { position: 'bottom' },
+    legendHitBoxes: [{ top: 22 }, { top: 28 }]
+  };
+  helpers.HALF_DOUGHNUT_LEGEND_OFFSET_PLUGIN.afterUpdate({ legend: shiftedLegend });
+  assert.equal(shiftedLegend.top, 25);
+  assert.equal(shiftedLegend.bottom, 45);
+  assert.deepEqual(shiftedLegend.legendHitBoxes, [{ top: 27 }, { top: 33 }]);
+
+  const fromCountsObject = helpers.buildHalfDoughnutSeries({
+    Maze: 7,
+    Challenge: 1200,
+    Ban: 42,
+    Alpha: 42
+  });
+  assert.deepEqual(fromCountsObject, {
+    entries: [
+      { label: 'Challenge', value: 1200 },
+      { label: 'Alpha', value: 42 },
+      { label: 'Ban', value: 42 },
+      { label: 'Maze', value: 7 }
+    ],
+    labels: ['Challenge', 'Alpha', 'Ban', 'Maze'],
+    values: [1200, 42, 42, 7]
+  });
+
+  const fromEntryList = helpers.buildHalfDoughnutSeries([
+    { label: 'Maze', value: 7 },
+    { label: 'Challenge', value: 1200 },
+    { label: 'Ban', value: 42 },
+    { label: 'Alpha', value: 42 }
+  ]);
+  assert.deepEqual(fromEntryList, fromCountsObject);
+
+  const activeReadout = helpers.buildHalfDoughnutReadout(
+    ['Challenge', 'Maze'],
+    [1200, 7],
+    [{ index: 0 }]
+  );
+  assert.deepEqual(activeReadout, {
+    label: 'Challenge',
+    value: '1,200',
+    active: true
+  });
+
+  const inactiveReadout = helpers.buildHalfDoughnutReadout(
+    ['Challenge'],
+    [5],
+    [],
+    { inactiveLabel: '' }
+  );
+  assert.deepEqual(inactiveReadout, {
+    label: '',
+    value: '',
+    active: false
+  });
+
+  const nextReadouts = [];
+  const options = helpers.buildHalfDoughnutOptions({
+    legendColor: 'rgb(10, 20, 30)',
+    maintainAspectRatio: false,
+    resizeDelay: 0,
+    animation: false,
+    onReadoutChange(nextReadout) {
+      nextReadouts.push(nextReadout);
+    }
+  });
+  assert.equal(options.rotation, -90);
+  assert.equal(options.circumference, 180);
+  assert.equal(options.cutout, '72%');
+  assert.equal(options.maintainAspectRatio, false);
+  assert.equal(options.resizeDelay, 0);
+  assert.equal(options.animation, false);
+  assert.deepEqual(options.plugins.tooltip, { enabled: false });
+  assert.equal(options.plugins.legend.position, 'bottom');
+  assert.equal(options.plugins.legend.labels.color, 'rgb(10, 20, 30)');
+  assert.equal(options.plugins.legend.labels.usePointStyle, true);
+  assert.equal(options.plugins.legend.labels.pointStyle, 'circle');
+
+  options.onHover(
+    null,
+    [{ index: 1 }],
+    {
+      data: {
+        labels: ['Challenge', 'Maze'],
+        datasets: [{ data: [12, 34] }]
+      }
+    }
+  );
+  assert.deepEqual(nextReadouts, [{
+    label: 'Maze',
+    value: '34',
+    active: true
+  }]);
+
+  const syncedReadouts = [];
+  helpers.syncHalfDoughnutReadout(
+    {
+      data: {
+        labels: ['Ban'],
+        datasets: [{ data: [9] }]
+      },
+      getActiveElements() {
+        return [{ index: 0 }];
+      }
+    },
+    (nextReadout) => {
+      syncedReadouts.push(nextReadout);
+    }
+  );
+  assert.deepEqual(syncedReadouts, [{
+    label: 'Ban',
+    value: '9',
+    active: true
+  }]);
+});
+
 test('dashboard state and store contracts remain immutable and bounded with heartbeat-owned connection telemetry', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const stateModule = await importBrowserModule('dashboard/src/lib/domain/dashboard-state.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
-    assert.equal(stateModule.DASHBOARD_TABS.includes('red-team'), true);
-    assert.equal(storeModule.DASHBOARD_TABS.includes('red-team'), true);
+    assert.deepEqual(toPlain(stateModule.DASHBOARD_TABS), [
+      'monitoring',
+      'ip-bans',
+      'red-team',
+      'status',
+      'verification',
+      'traps',
+      'rate-limiting',
+      'geo',
+      'fingerprinting',
+      'robots',
+      'tuning',
+      'advanced'
+    ]);
+    assert.deepEqual(toPlain(storeModule.DASHBOARD_TABS), [
+      'monitoring',
+      'ip-bans',
+      'red-team',
+      'status',
+      'verification',
+      'traps',
+      'rate-limiting',
+      'geo',
+      'fingerprinting',
+      'robots',
+      'tuning',
+      'advanced'
+    ]);
     assert.equal(stateModule.normalizeTab('red-team'), 'red-team');
 
     const initial = stateModule.createInitialState('monitoring');
@@ -3757,8 +3916,12 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(ipBansSource, /export let ipRangeSuggestionsSnapshot = null;/);
   assert.match(ipBansSource, /let banFilter = 'all';/);
   assert.match(ipBansSource, /id="ip-ban-filter"/);
-  assert.match(ipBansSource, /class="chart-canvas-shell chart-canvas-shell--ip-bans"/);
-  assert.match(ipBansSource, /id="ip-ban-reasons-chart"/);
+  assert.match(ipBansSource, /import HalfDoughnutChart from '\.\/primitives\/HalfDoughnutChart\.svelte';/);
+  assert.match(ipBansSource, /buildHalfDoughnutOptions/);
+  assert.match(ipBansSource, /syncHalfDoughnutReadout/);
+  assert.match(ipBansSource, /canvasId="ip-ban-reasons-chart"/);
+  assert.match(ipBansSource, /shellClass="chart-canvas-shell--ip-bans"/);
+  assert.match(ipBansSource, /readout=\{banReasonReadout\}/);
   assert.match(ipBansSource, /type: 'doughnut'/);
   assert.match(ipBansSource, /animation: false,/);
   assert.match(ipBansSource, /maintainAspectRatio: false,/);
@@ -4168,6 +4331,19 @@ test('dashboard smoke soak test owns an explicit timeout budget', () => {
   );
 });
 
+test('dashboard smoke spec keeps status and red-team tab order aligned with the canonical registry', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'dashboard.smoke.spec.js'), 'utf8');
+
+  assert.match(
+    source,
+    /const DASHBOARD_TABS = Object\.freeze\(\["monitoring", "ip-bans", "red-team", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"\]\);/
+  );
+  assert.match(
+    source,
+    /const ADMIN_TABS = Object\.freeze\(\["ip-bans", "red-team", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"\]\);/
+  );
+});
+
 test('dashboard monitoring runtime keeps edge-fermyon on bounded monitoring hydration', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/runtime/dashboard-runtime-refresh.js'),
@@ -4275,7 +4451,11 @@ test('monitoring tab applies bounded sanitization and redraw guards', () => {
   assert.match(source, /const RANGE_EVENTS_REQUEST_TIMEOUT_MS = 10000;/);
   assert.match(source, /const RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS = 180000;/);
   assert.match(source, /from '\.\.\/\.\.\/domain\/monitoring-chart-presets\.js';/);
+  assert.match(source, /from '\.\.\/\.\.\/domain\/half-doughnut-chart\.js';/);
   assert.match(source, /resolveMonitoringChartTheme/);
+  assert.match(source, /buildHalfDoughnutOptions/);
+  assert.match(source, /syncHalfDoughnutReadout/);
+  assert.match(source, /maintainAspectRatio: false,/);
   assert.match(source, /x: buildMonitoringTimeSeriesXAxis\(\),/);
   assert.match(source, /const fillColor = chartTheme\.timeSeriesFill\.events/);
   assert.match(source, /'challenge'/);
@@ -4299,6 +4479,7 @@ test('monitoring tab applies bounded sanitization and redraw guards', () => {
   assert.match(source, /\$: totalBans = \(\(\) => \{/);
   assert.match(source, /const byEventType = getEventCountByName\(eventCounts, 'Ban'\);/);
   assert.match(source, /\$: activeBans = bans\.length;/);
+  assert.match(source, /eventTypesReadout = EMPTY_HALF_DOUGHNUT_READOUT;/);
 });
 
 test('monitoring tab is decomposed into focused subsection components', () => {
@@ -4319,6 +4500,7 @@ test('monitoring tab is decomposed into focused subsection components', () => {
   assert.match(source, /<OverviewStats/);
   assert.match(source, /<RawTelemetryFeed/);
   assert.match(source, /<PrimaryCharts/);
+  assert.match(source, /\{eventTypesReadout\}/);
   assert.match(source, /<AdversaryRunPanel/);
   assert.match(source, /<DefenseTrendBlocks/);
   assert.match(source, /<ShadowSection/);
@@ -4329,6 +4511,87 @@ test('monitoring tab is decomposed into focused subsection components', () => {
   assert.match(source, /filterOptions=\{eventFilterOptions\}/);
   assert.match(source, /onFilterChange=\{onEventFilterChange\}/);
   assert.match(source, /RAW_FEED_MAX_LINES = 200/);
+});
+
+test('primary charts reuse the shared half doughnut shell for event-type readouts', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/PrimaryCharts.svelte'),
+    'utf8'
+  );
+
+  assert.match(source, /import HalfDoughnutChart from '\.\.\/primitives\/HalfDoughnutChart\.svelte';/);
+  assert.match(source, /export let eventTypesReadout = null;/);
+  assert.match(source, /<HalfDoughnutChart/);
+  assert.match(source, /canvasId="eventTypesChart"/);
+  assert.match(source, /readout=\{eventTypesReadout\}/);
+});
+
+test('monitoring and ip-ban doughnuts share the canonical largest-to-smallest series normalizer', () => {
+  const monitoringSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/MonitoringTab.svelte'),
+    'utf8'
+  );
+  const ipBansSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/IpBansTab.svelte'),
+    'utf8'
+  );
+
+  assert.match(monitoringSource, /buildHalfDoughnutSeries,/);
+  assert.match(monitoringSource, /const \{ labels, values: data \} = buildHalfDoughnutSeries\(counts\);/);
+  assert.match(ipBansSource, /buildHalfDoughnutSeries,/);
+  assert.match(ipBansSource, /const \{ labels, values \} = buildHalfDoughnutSeries\(entries\);/);
+  assert.match(ipBansSource, /banReasonEntries = buildHalfDoughnutSeries\(Array\.from\(reasonCounts\.entries\(\)\)\)\.entries;/);
+});
+
+test('half doughnut readout reuses canonical monitoring typography classes', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/primitives/HalfDoughnutChart.svelte'),
+    'utf8'
+  );
+
+  assert.match(source, /class="caps-label chart-doughnut-readout__label"/);
+  assert.match(source, /class="stat-value chart-doughnut-readout__value"/);
+});
+
+test('dashboard stylesheet scales shared half doughnut readouts for larger shells', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'style.css'),
+    'utf8'
+  );
+
+  assert.match(source, /\.chart-canvas-shell\s*\{[\s\S]*container-type:\s*inline-size;/);
+  assert.match(source, /\.chart-doughnut-readout \.stat-value\s*\{[\s\S]*font-size:\s*var\(--half-doughnut-stat-value-size,\s*var\(--text-6xl\)\);/);
+  assert.match(
+    source,
+    /\.chart-canvas-shell--half-doughnut\s*\{[\s\S]*--half-doughnut-stat-value-size:\s*clamp\(var\(--text-6xl\),\s*17cqw,\s*calc\(var\(--text-6xl\)\s*\*\s*3\)\);/
+  );
+});
+
+test('dashboard stylesheet bottom-aligns half doughnut readouts and tightens label spacing', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'style.css'),
+    'utf8'
+  );
+
+  assert.match(
+    source,
+    /\.chart-doughnut-readout\s*\{[\s\S]*bottom:\s*15px;[\s\S]*justify-content:\s*flex-end;[\s\S]*gap:\s*2px;[\s\S]*padding-bottom:\s*clamp\(2px,\s*1cqw,\s*8px\);/
+  );
+  assert.match(source, /\.chart-doughnut-readout \.stat-value\s*\{[\s\S]*min-height:\s*1em;[\s\S]*line-height:\s*0\.9;/);
+});
+
+test('dashboard stylesheet keeps ip-ban half doughnut on the shared rectangular aspect ratio while preserving its larger cap', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'style.css'),
+    'utf8'
+  );
+
+  assert.match(
+    source,
+    /\.chart-canvas-shell--ip-bans\s*\{[\s\S]*width:\s*min\(100%,\s*calc\(clamp\(220px,\s*50vh,\s*520px\)\s*\*\s*2\)\);[\s\S]*max-width:\s*calc\(clamp\(220px,\s*50vh,\s*520px\)\s*\*\s*2\);[\s\S]*margin-inline:\s*auto;[\s\S]*aspect-ratio:\s*2 \/ 1;/
+  );
+  assert.doesNotMatch(source, /\.chart-canvas-shell--ip-bans\s*\{[\s\S]*aspect-ratio:\s*auto;/);
+  assert.doesNotMatch(source, /\.chart-canvas-shell--ip-bans\s*\{[\s\S]*height:\s*clamp\(220px,\s*50vh,\s*520px\);/);
 });
 
 test('monitoring recent-events filters reuse canonical input-row and input-field styles', () => {
