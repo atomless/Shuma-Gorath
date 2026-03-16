@@ -1,7 +1,7 @@
 <script>
   import { onDestroy } from 'svelte';
   import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
-  import { deriveAdversaryRunRows } from './monitoring-view-model.js';
+  import { deriveAdversaryRunRowsFromSummaries } from './monitoring-view-model.js';
   import AdversaryRunPanel from './monitoring/AdversaryRunPanel.svelte';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
@@ -62,8 +62,8 @@
     ? monitoringFreshnessSnapshot
     : {};
   $: freshnessStateKey = String(freshness.state || 'stale').trim().toLowerCase() || 'stale';
-  $: rawRecentEvents = Array.isArray(events.recent_events) ? events.recent_events : [];
-  $: adversaryRunSummary = deriveAdversaryRunRows(rawRecentEvents, bans);
+  $: rawRecentSimRuns = Array.isArray(events.recent_sim_runs) ? events.recent_sim_runs : [];
+  $: adversaryRunSummary = deriveAdversaryRunRowsFromSummaries(rawRecentSimRuns, bans);
   $: adversaryRunRows = Array.isArray(adversaryRunSummary?.runRows)
     ? adversaryRunSummary.runRows.slice(0, 8)
     : [];
@@ -121,7 +121,7 @@
     title="Recent Red Team Runs"
     description="Recent adversary simulation runs linked to monitoring and IP ban outcomes."
     summaryLabel="Active bans linked to recent runs"
-    emptyText="No recent adversary simulation runs were observed in the current monitoring window."
+    emptyText="No recent adversary simulation runs are currently retained in the compact run history."
     degradedText="Monitoring freshness is degraded or stale. Missing red team run rows may indicate delayed telemetry rather than no simulation activity."
   />
 </section>

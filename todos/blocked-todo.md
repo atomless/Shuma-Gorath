@@ -1,6 +1,6 @@
 # Blocked TODO Roadmap
 
-Last updated: 2026-03-14
+Last updated: 2026-03-16
 
 This file holds gated, contingent, or explicitly deferred work that is not execution-ready.
 Move an item back into `todos/todo.md` only when its blocking condition is cleared.
@@ -19,6 +19,32 @@ Security finding validity and closure status live in `todos/security-review.md`.
 
 - [ ] SIM-BREACH-REPLAY-1 External breach to replayable attack pipeline.
   Blocker: defer until shared-host deployment readiness and discovery baseline are complete, then re-assess capture, retention, and replay governance against the deployed operating model.
+
+## P1 Deferred Pre-Launch Roadmap Captures
+
+Reference context:
+- [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+- [`docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](../docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
+- [`docs/plans/2026-03-15-agentic-era-oversight-design.md`](../docs/plans/2026-03-15-agentic-era-oversight-design.md)
+- [`docs/plans/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md`](../docs/plans/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md)
+
+- [ ] SIM-MAT-1 Mature adversary-sim completion roadmap.
+  Blocker: do not expand beyond the current deterministic baseline and already-captured shared-host/Scrapling/LLM gates until there is one explicit end-state roadmap that ties deterministic, Scrapling, and containerized frontier lanes into the future tuning and oversight loop.
+
+- [ ] TUNE-SURFACE-1 Complete the Tuning tab and related config-control surfaces as the full operator contract for route, defence, ban, recidive, and intelligence thresholds.
+  Blocker: defer execution until the operator monitoring overhaul defines which knobs are actionable, which remain diagnostic, and which are safe for future controller tuning.
+
+- [ ] MON-OVERHAUL-1 Redesign Monitoring as an operator decision surface with explicit enforced-vs-shadow separation and clear attacker-effectiveness vs human-friction visibility.
+  Blocker: defer execution until the roadmap capture is turned into an implementation-ready plan that defines the core operator questions, required telemetry contracts, and section ownership across Monitoring, Status, and Red Team.
+
+- [ ] SIM-RET-1 Define a dedicated retention and disposal model for adversary-sim telemetry distinct from real-traffic telemetry.
+  Blocker: defer execution until mature adversary-sim lane planning settles the expected telemetry classes, retention value horizon, and audit residue needed after tune-confirm-act loops.
+
+- [ ] CTI-ARCH-1 Plan central-intelligence storage and service architecture, including source-trust model, freshness, governance, and whether Shuma uses a standalone service, managed provider, or other shared data plane.
+  Blocker: defer execution until the current local recidive/jitter/intelligence design is ready to be broken into service/API/storage contracts; do not treat the Git repository itself as the default shared-intelligence transport.
+
+- [ ] OVR-AGENT-2 Plan the scheduled agent analyzer/recommender/reconfigurer workflow, including model/runtime choice, config-vs-code scope, and whether PR/code-change suggestions are part of the same system or a separate reviewed path.
+  Blocker: defer execution until monitoring, tuning, sim-evidence, and central-intelligence contracts are mature enough that the agent loop can be planned against truthful inputs and bounded outputs.
 
 ## P1 Blocked by Enterprise Baseline Maturity
 

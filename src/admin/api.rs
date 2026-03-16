@@ -1296,6 +1296,125 @@ mod tests {
     }
 
     #[test]
+    fn log_event_refreshes_recent_sim_run_history_without_event_tail_eviction() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let run_one_started_at = now.saturating_sub(300);
+        let run_two_started_at = now.saturating_sub(120);
+
+        {
+            let _guard = crate::runtime::sim_telemetry::enter(Some(
+                crate::runtime::sim_telemetry::SimulationRequestMetadata {
+                    sim_run_id: "simrun-history-1".to_string(),
+                    sim_profile: "runtime_toggle".to_string(),
+                    sim_lane: "deterministic_black_box".to_string(),
+                },
+            ));
+            for offset in 0..2u64 {
+                log_event(
+                    &store,
+                    &EventLogEntry {
+                        ts: run_one_started_at.saturating_add(offset),
+                        event: EventType::Challenge,
+                        ip: Some("198.51.100.40".to_string()),
+                        reason: Some("challenge_required".to_string()),
+                        outcome: Some("challenge".to_string()),
+                        admin: None,
+                    },
+                );
+            }
+        }
+
+        {
+            let _guard = crate::runtime::sim_telemetry::enter(Some(
+                crate::runtime::sim_telemetry::SimulationRequestMetadata {
+                    sim_run_id: "simrun-history-2".to_string(),
+                    sim_profile: "runtime_toggle".to_string(),
+                    sim_lane: "deterministic_black_box".to_string(),
+                },
+            ));
+            for offset in 0..45u64 {
+                log_event(
+                    &store,
+                    &EventLogEntry {
+                        ts: run_two_started_at.saturating_add(offset),
+                        event: EventType::Challenge,
+                        ip: Some("198.51.100.41".to_string()),
+                        reason: Some("challenge_required".to_string()),
+                        outcome: Some("challenge".to_string()),
+                        admin: None,
+                    },
+                );
+            }
+        }
+
+        let recent_bytes = store
+            .get(
+                crate::observability::hot_read_documents::monitoring_recent_events_tail_document_key(
+                    "default",
+                )
+                .as_str(),
+            )
+            .expect("recent tail read")
+            .expect("recent tail document");
+        let recent: crate::observability::hot_read_documents::MonitoringRecentEventsTailDocument =
+            serde_json::from_slice(recent_bytes.as_slice()).expect("recent tail doc decode");
+        assert_eq!(recent.payload.recent_events.len(), 40);
+        assert!(recent.payload.recent_events.iter().all(|event| {
+            event
+                .get("sim_run_id")
+                .and_then(|value| value.as_str())
+                == Some("simrun-history-2")
+        }));
+
+        let recent_runs_bytes = store
+            .get(
+                crate::observability::hot_read_documents::monitoring_recent_sim_runs_document_key(
+                    "default",
+                )
+                .as_str(),
+            )
+            .expect("recent sim runs read")
+            .expect("recent sim runs document");
+        let recent_runs: crate::observability::hot_read_documents::MonitoringRecentSimRunsDocument =
+            serde_json::from_slice(recent_runs_bytes.as_slice())
+                .expect("recent sim runs doc decode");
+        assert_eq!(recent_runs.payload.recent_sim_runs.len(), 2);
+        assert_eq!(recent_runs.payload.recent_sim_runs[0].run_id, "simrun-history-2");
+        assert_eq!(
+            recent_runs
+                .payload
+                .recent_sim_runs
+                .iter()
+                .find(|row| row.run_id == "simrun-history-1")
+                .map(|row| row.monitoring_event_count),
+            Some(2)
+        );
+        assert_eq!(
+            recent_runs
+                .payload
+                .recent_sim_runs
+                .iter()
+                .find(|row| row.run_id == "simrun-history-2")
+                .map(|row| row.monitoring_event_count),
+            Some(45)
+        );
+
+        let bootstrap_bytes = store
+            .get(
+                crate::observability::hot_read_documents::monitoring_bootstrap_document_key(
+                    "default",
+                )
+                .as_str(),
+            )
+            .expect("bootstrap read")
+            .expect("bootstrap document");
+        let bootstrap: crate::observability::hot_read_documents::MonitoringBootstrapHotReadDocument =
+            serde_json::from_slice(bootstrap_bytes.as_slice()).expect("bootstrap doc decode");
+        assert_eq!(bootstrap.payload.recent_sim_runs.len(), 2);
+    }
+
+    #[test]
     fn log_event_scrubs_secret_like_fields_before_persistence() {
         let store = MockStore::new();
         let now = now_ts();
@@ -2588,6 +2707,26 @@ mod admin_config_tests {
             &store,
             crate::runtime::effect_intents::ShadowAction::Challenge,
         );
+        {
+            let _guard = crate::runtime::sim_telemetry::enter(Some(
+                crate::runtime::sim_telemetry::SimulationRequestMetadata {
+                    sim_run_id: "bootstrap-hot-read-run".to_string(),
+                    sim_profile: "runtime_toggle".to_string(),
+                    sim_lane: "deterministic_black_box".to_string(),
+                },
+            ));
+            log_event(
+                &store,
+                &EventLogEntry {
+                    ts: now_ts(),
+                    event: EventType::Challenge,
+                    ip: Some("198.51.100.50".to_string()),
+                    reason: Some("bootstrap_hot_read_sim".to_string()),
+                    outcome: Some("served".to_string()),
+                    admin: None,
+                },
+            );
+        }
         log_event(
             &store,
             &EventLogEntry {
@@ -2642,6 +2781,14 @@ mod admin_config_tests {
             body.get("details")
                 .and_then(|value| value.get("events"))
                 .and_then(|value| value.get("recent_events"))
+                .and_then(|value| value.as_array())
+                .map(|value| value.len()),
+            Some(2)
+        );
+        assert_eq!(
+            body.get("details")
+                .and_then(|value| value.get("events"))
+                .and_then(|value| value.get("recent_sim_runs"))
                 .and_then(|value| value.as_array())
                 .map(|value| value.len()),
             Some(1)
@@ -5395,6 +5542,26 @@ mod admin_config_tests {
         let store = TestStore::default();
         let now = now_ts();
         let hour = now / 3600;
+        {
+            let _guard = crate::runtime::sim_telemetry::enter(Some(
+                crate::runtime::sim_telemetry::SimulationRequestMetadata {
+                    sim_run_id: "delta-hot-read-run".to_string(),
+                    sim_profile: "runtime_toggle".to_string(),
+                    sim_lane: "deterministic_black_box".to_string(),
+                },
+            ));
+            log_event(
+                &store,
+                &EventLogEntry {
+                    ts: now.saturating_sub(50),
+                    event: EventType::Challenge,
+                    ip: Some("198.51.100.200".to_string()),
+                    reason: Some("delta_hot_read_sim".to_string()),
+                    outcome: Some("served".to_string()),
+                    admin: None,
+                },
+            );
+        }
         for offset in 0..40u64 {
             let ts = now.saturating_sub(offset);
             let key = format!("eventlog:v2:{}:{}-delta-hot-read-{:02}", hour, ts, offset);
@@ -5450,6 +5617,15 @@ mod admin_config_tests {
         assert_eq!(
             payload.get("events").and_then(|value| value.as_array()).map(|rows| rows.len()),
             Some(40)
+        );
+        assert_eq!(
+            payload
+                .get("recent_sim_runs")
+                .and_then(|value| value.as_array())
+                .and_then(|rows| rows.first())
+                .and_then(|value| value.get("run_id"))
+                .and_then(|value| value.as_str()),
+            Some("delta-hot-read-run")
         );
         assert!(
             store.eventlog_get_count() == 0,
@@ -5528,6 +5704,19 @@ mod admin_config_tests {
         assert!(include_events
             .iter()
             .any(|entry| entry.get("is_simulation").and_then(|value| value.as_bool()) == Some(true)));
+        let recent_sim_runs = body_default
+            .get("details")
+            .and_then(|details| details.get("events"))
+            .and_then(|events| events.get("recent_sim_runs"))
+            .and_then(|events| events.as_array())
+            .expect("recent_sim_runs");
+        assert_eq!(recent_sim_runs.len(), 1);
+        assert_eq!(
+            recent_sim_runs[0]
+                .get("run_id")
+                .and_then(|value| value.as_str()),
+            Some("run_abc")
+        );
     }
 
     #[test]
@@ -9341,6 +9530,189 @@ pub(crate) fn monitoring_presented_recent_event_tail<S: crate::challenge::KeyVal
     }
 }
 
+#[derive(Debug, Default)]
+struct MonitoringRecentSimRunAccumulator {
+    run_id: String,
+    lane: String,
+    profile: String,
+    first_ts: u64,
+    last_ts: u64,
+    monitoring_event_count: u64,
+    defense_keys: HashSet<String>,
+    ban_outcome_count: u64,
+}
+
+fn normalize_monitoring_event_token(value: Option<&str>) -> String {
+    value
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase()
+        .replace('-', "_")
+}
+
+fn classify_monitoring_sim_run_defense(record: &EventLogRecord) -> String {
+    let event_type = format!("{:?}", record.entry.event).to_ascii_lowercase();
+    let reason = normalize_monitoring_event_token(record.entry.reason.as_deref());
+    let outcome = normalize_monitoring_event_token(record.entry.outcome.as_deref());
+    let outcome_code = normalize_monitoring_event_token(record.outcome_code.as_deref());
+    let combined = format!("{event_type} {reason} {outcome_code} {outcome}");
+    if combined.contains("honeypot") {
+        return "honeypot".to_string();
+    }
+    if combined.contains("tarpit") {
+        return "tarpit".to_string();
+    }
+    if combined.contains("maze") {
+        return "maze".to_string();
+    }
+    if combined.contains("not_a_bot") || combined.contains("not-a-bot") {
+        return "not_a_bot".to_string();
+    }
+    if combined.contains("pow") || combined.contains("proof") {
+        return "pow".to_string();
+    }
+    if combined.contains("rate") {
+        return "rate_limit".to_string();
+    }
+    if combined.contains("geo") {
+        return "geo".to_string();
+    }
+    if combined.contains("cdp") {
+        return "cdp".to_string();
+    }
+    if combined.contains("fingerprint") {
+        return "fingerprint".to_string();
+    }
+    if combined.contains("challenge") {
+        return "challenge".to_string();
+    }
+    if combined.contains("ban") || combined.contains("deny_temp") || combined.contains("block") {
+        return "ban_path".to_string();
+    }
+    if record
+        .sim_run_id
+        .as_deref()
+        .map(|value| !value.trim().is_empty())
+        .unwrap_or(false)
+    {
+        return "event_stream".to_string();
+    }
+    "other".to_string()
+}
+
+fn monitoring_sim_run_is_ban_outcome(record: &EventLogRecord) -> bool {
+    if record.execution.execution_mode.as_deref() == Some("shadow") {
+        return false;
+    }
+    if matches!(record.entry.event, EventType::Ban) {
+        return true;
+    }
+    let outcome = normalize_monitoring_event_token(
+        record
+            .outcome_code
+            .as_deref()
+            .or(record.entry.outcome.as_deref()),
+    );
+    let reason = normalize_monitoring_event_token(record.entry.reason.as_deref());
+    outcome.contains("deny")
+        || outcome.contains("block")
+        || outcome.contains("banned")
+        || reason.contains("ban")
+}
+
+pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    now: u64,
+    hours: u64,
+    limit: usize,
+) -> Vec<crate::observability::hot_read_documents::MonitoringRecentSimRunSummary> {
+    let mut grouped: BTreeMap<String, MonitoringRecentSimRunAccumulator> = BTreeMap::new();
+
+    for stored in load_recent_event_records_with_keys(store, now, hours) {
+        let run_id = stored
+            .record
+            .sim_run_id
+            .as_deref()
+            .map(str::trim)
+            .unwrap_or_default()
+            .to_string();
+        if run_id.is_empty() {
+            continue;
+        }
+        let ts = stored.record.entry.ts;
+        let lane = stored
+            .record
+            .sim_lane
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("none")
+            .to_string();
+        let profile = stored
+            .record
+            .sim_profile
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("unknown")
+            .to_string();
+        let defense = classify_monitoring_sim_run_defense(&stored.record);
+        let accumulator = grouped.entry(run_id.clone()).or_insert_with(|| {
+            MonitoringRecentSimRunAccumulator {
+                run_id: run_id.clone(),
+                lane: lane.clone(),
+                profile: profile.clone(),
+                first_ts: ts,
+                last_ts: ts,
+                monitoring_event_count: 0,
+                defense_keys: HashSet::new(),
+                ban_outcome_count: 0,
+            }
+        });
+        accumulator.monitoring_event_count = accumulator.monitoring_event_count.saturating_add(1);
+        if ts > 0 {
+            accumulator.first_ts = if accumulator.first_ts == 0 {
+                ts
+            } else {
+                accumulator.first_ts.min(ts)
+            };
+            accumulator.last_ts = accumulator.last_ts.max(ts);
+        }
+        if accumulator.lane == "none" && lane != "none" {
+            accumulator.lane = lane;
+        }
+        if accumulator.profile == "unknown" && profile != "unknown" {
+            accumulator.profile = profile;
+        }
+        accumulator.defense_keys.insert(defense);
+        if monitoring_sim_run_is_ban_outcome(&stored.record) {
+            accumulator.ban_outcome_count = accumulator.ban_outcome_count.saturating_add(1);
+        }
+    }
+
+    let mut rows: Vec<_> = grouped
+        .into_values()
+        .map(|row| crate::observability::hot_read_documents::MonitoringRecentSimRunSummary {
+            run_id: row.run_id,
+            lane: row.lane,
+            profile: row.profile,
+            first_ts: row.first_ts,
+            last_ts: row.last_ts,
+            monitoring_event_count: row.monitoring_event_count,
+            defense_delta_count: row.defense_keys.len() as u64,
+            ban_outcome_count: row.ban_outcome_count,
+        })
+        .collect();
+    rows.sort_by(|left, right| {
+        right
+            .last_ts
+            .cmp(&left.last_ts)
+            .then_with(|| left.run_id.cmp(&right.run_id))
+    });
+    rows.truncate(limit);
+    rows
+}
+
 fn load_recent_event_records_with_keys<S: crate::challenge::KeyValueStore>(
     store: &S,
     now: u64,
@@ -13125,6 +13497,7 @@ where
         "analytics": bootstrap.payload.analytics,
         "events": {
             "recent_events": bootstrap.payload.recent_events,
+            "recent_sim_runs": bootstrap.payload.recent_sim_runs,
             "security_mode": bootstrap.payload.security_mode,
             "event_counts": {},
             "top_ips": [],
@@ -13159,6 +13532,7 @@ fn monitoring_delta_hot_read_bootstrap_payload<S>(
     limit: usize,
 ) -> (
     Vec<serde_json::Value>,
+    Vec<crate::observability::hot_read_documents::MonitoringRecentSimRunSummary>,
     Option<u64>,
     String,
     String,
@@ -13171,6 +13545,10 @@ where
 {
     let recent =
         crate::observability::hot_read_projection::load_monitoring_recent_events_tail_hot_read(
+            store, site_id, now,
+        );
+    let recent_sim_runs =
+        crate::observability::hot_read_projection::load_monitoring_recent_sim_runs_hot_read(
             store, site_id, now,
         );
     let security_privacy =
@@ -13198,6 +13576,7 @@ where
     let window_end_cursor = recent.payload.window_end_cursor.unwrap_or_default();
     (
         rows,
+        recent_sim_runs.payload.recent_sim_runs,
         latest_window_ts,
         window_end_cursor,
         next_cursor,
@@ -13347,7 +13726,16 @@ where
     }
 
     let now = now_ts();
-    let (event_rows, latest_window_ts, window_end_cursor, next_cursor, has_more, overflow, security_privacy) =
+    let (
+        event_rows,
+        recent_sim_runs,
+        latest_window_ts,
+        window_end_cursor,
+        next_cursor,
+        has_more,
+        overflow,
+        security_privacy,
+    ) =
         if monitoring_delta_hot_read_bootstrap_eligible(hours, limit, forensic_mode, after_cursor.as_str()) {
             monitoring_delta_hot_read_bootstrap_payload(store, "default", now, limit)
         } else {
@@ -13364,8 +13752,15 @@ where
             let page_rows = load_cursor_rows_for_metas(store, selection.metas.as_slice(), forensic_mode);
             let event_rows: Vec<serde_json::Value> =
                 page_rows.iter().map(cursor_event_row_payload).collect();
+            let recent_sim_runs =
+                crate::observability::hot_read_projection::load_monitoring_recent_sim_runs_hot_read(
+                    store, "default", now,
+                )
+                .payload
+                .recent_sim_runs;
             (
                 event_rows,
+                recent_sim_runs,
                 latest_window_ts,
                 window_end_cursor,
                 next_cursor,
@@ -13411,6 +13806,7 @@ where
         "has_more": has_more,
         "overflow": overflow,
         "events": event_rows,
+        "recent_sim_runs": recent_sim_runs,
         "freshness": freshness,
         "stream_supported": true,
         "stream_endpoint": "/admin/monitoring/stream"
@@ -13479,6 +13875,9 @@ where
         "has_more": has_more,
         "overflow": overflow,
         "events": event_rows,
+        "recent_sim_runs": crate::observability::hot_read_projection::load_monitoring_recent_sim_runs_hot_read(
+            store, "default", now,
+        ).payload.recent_sim_runs,
         "freshness": freshness
     });
     let event_id = payload
@@ -13882,6 +14281,12 @@ where
     let total_recent_events_in_window = events.len();
     let recent_events_raw: Vec<_> = events.iter().take(recent_event_cap).cloned().collect();
     let recent_events = present_event_records(recent_events_raw.as_slice(), forensic_mode);
+    let recent_sim_runs = monitoring_recent_sim_run_summaries(
+        store,
+        now,
+        hours,
+        crate::observability::hot_read_documents::monitoring_recent_sim_runs_max_records(),
+    );
     let recent_events_has_more = total_recent_events_in_window > recent_events.len();
     let query_shape = monitoring_query_shape(
         store,
@@ -14049,6 +14454,7 @@ where
         },
         "events": {
             "recent_events": recent_events,
+            "recent_sim_runs": recent_sim_runs,
             "security_mode": security_view_mode_label(forensic_mode),
             "event_counts": event_counts,
             "top_ips": top_ips,
@@ -14204,6 +14610,12 @@ where
     let bootstrap_recent_event_cap = (limit.saturating_mul(3)).clamp(12, 40);
     let window = load_recent_event_window(store, now, hours, bootstrap_recent_event_cap);
     let recent_events = present_event_records(window.records.as_slice(), forensic_mode);
+    let recent_sim_runs = monitoring_recent_sim_run_summaries(
+        store,
+        now,
+        hours,
+        crate::observability::hot_read_documents::monitoring_recent_sim_runs_max_records(),
+    );
     let cfg = crate::config::Config::load(store, site_id).ok();
     let fail_mode = if crate::config::kv_store_fail_open() {
         "open"
@@ -14224,6 +14636,7 @@ where
             },
             "events": {
                 "recent_events": recent_events,
+                "recent_sim_runs": recent_sim_runs,
                 "security_mode": security_view_mode_label(forensic_mode),
                 "event_counts": {},
                 "top_ips": [],

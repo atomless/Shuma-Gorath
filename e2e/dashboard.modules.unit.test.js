@@ -336,10 +336,13 @@ test('dashboard API adapters normalize sparse payloads safely', { concurrency: f
 
     const events = api.adaptEvents({
       recent_events: [{ ip: '198.51.100.1' }, null, 'ignored'],
+      recent_sim_runs: [{ run_id: 'simrun-1' }, null, 'ignored'],
       top_ips: [['198.51.100.1', '9'], ['198.51.100.2', 4], ['bad']],
       unique_ips: '11'
     });
     assert.equal(events.recent_events.length, 1);
+    assert.equal(events.recent_sim_runs.length, 1);
+    assert.equal(events.recent_sim_runs[0].run_id, 'simrun-1');
     assert.deepEqual(toPlain(events.top_ips), [
       ['198.51.100.1', 9],
       ['198.51.100.2', 4]
@@ -416,12 +419,15 @@ test('dashboard API adapters normalize sparse payloads safely', { concurrency: f
       has_more: false,
       overflow: 'none',
       events: [{ cursor: 'c3', event: 'Challenge', ts: 1700000000 }],
+      recent_sim_runs: [{ run_id: 'simrun-delta-1' }, null, 'ignored'],
       freshness: { state: 'fresh', lag_ms: 120, transport: 'sse' }
     });
     assert.equal(delta.after_cursor, 'c1');
     assert.equal(delta.window_end_cursor, 'c9');
     assert.equal(delta.next_cursor, 'c3');
     assert.equal(delta.events.length, 1);
+    assert.equal(delta.recent_sim_runs.length, 1);
+    assert.equal(delta.recent_sim_runs[0].run_id, 'simrun-delta-1');
     assert.equal(delta.freshness.state, 'fresh');
   });
 });
@@ -1582,6 +1588,16 @@ test('red-team auto-refresh refreshes monitoring-backed run snapshots without ex
                 sim_lane: 'deterministic_black_box',
                 is_simulation: true
               }],
+              recent_sim_runs: [{
+                run_id: 'simrun-red-team-1',
+                lane: 'deterministic_black_box',
+                profile: 'runtime_toggle',
+                first_ts: now,
+                last_ts: now,
+                monitoring_event_count: 1,
+                defense_delta_count: 1,
+                ban_outcome_count: 1
+              }],
               event_counts: { Ban: 1 },
               top_ips: [['198.51.100.1', 1]],
               unique_ips: 1
@@ -1631,6 +1647,28 @@ test('red-team auto-refresh refreshes monitoring-backed run snapshots without ex
             sim_lane: 'deterministic_black_box',
             is_simulation: true
           }],
+          recent_sim_runs: [
+            {
+              run_id: 'simrun-red-team-2',
+              lane: 'deterministic_black_box',
+              profile: 'runtime_toggle',
+              first_ts: now + 1,
+              last_ts: now + 1,
+              monitoring_event_count: 1,
+              defense_delta_count: 1,
+              ban_outcome_count: 0
+            },
+            {
+              run_id: 'simrun-red-team-1',
+              lane: 'deterministic_black_box',
+              profile: 'runtime_toggle',
+              first_ts: now,
+              last_ts: now,
+              monitoring_event_count: 1,
+              defense_delta_count: 1,
+              ban_outcome_count: 1
+            }
+          ],
           freshness: { state: 'fresh', lag_ms: 0 }
         };
       },
@@ -1670,6 +1708,15 @@ test('red-team auto-refresh refreshes monitoring-backed run snapshots without ex
     assert.equal(Array.isArray(eventsSnapshot.recent_events), true);
     assert.equal(
       eventsSnapshot.recent_events.some((entry) => String(entry.sim_run_id || '') === 'simrun-red-team-2'),
+      true
+    );
+    assert.equal(Array.isArray(eventsSnapshot.recent_sim_runs), true);
+    assert.equal(
+      eventsSnapshot.recent_sim_runs.some((entry) => String(entry.run_id || '') === 'simrun-red-team-1'),
+      true
+    );
+    assert.equal(
+      eventsSnapshot.recent_sim_runs.some((entry) => String(entry.run_id || '') === 'simrun-red-team-2'),
       true
     );
     const bansSnapshot = store.getSnapshot('bans') || {};
@@ -1779,7 +1826,7 @@ test('manual refresh bypasses monitoring cache while passive reasons honor cache
       expires: now + 3600
     }));
     storage.setItem(
-      'shuma_dashboard_cache_monitoring_v1',
+      'shuma_dashboard_cache_monitoring_v2',
       JSON.stringify({
         cachedAt: Date.now(),
         payload: {
@@ -1787,7 +1834,7 @@ test('manual refresh bypasses monitoring cache while passive reasons honor cache
             summary: {},
             details: {
               analytics: { ban_count: 100, shadow_mode: false, fail_mode: 'open' },
-              events: { recent_events: [] },
+              events: { recent_events: [], recent_sim_runs: [] },
               bans: { bans: compactedBans },
               maze: {},
               cdp: {},
@@ -2598,6 +2645,37 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(runOne?.monitoringEventCount, 3);
     assert.equal(runOne?.banOutcomeCount, 1);
     assert.equal(runSummary.activeBanCount, 2);
+
+    const summarizedRuns = monitoringModelModule.deriveAdversaryRunRowsFromSummaries([
+      {
+        run_id: 'run-summary-2',
+        lane: 'crawler',
+        profile: 'fast_smoke',
+        first_ts: 1710000100,
+        last_ts: 1710000200,
+        monitoring_event_count: 11,
+        defense_delta_count: 2,
+        ban_outcome_count: 1
+      },
+      {
+        run_id: 'run-summary-1',
+        lane: 'browser_realistic',
+        profile: 'full_coverage',
+        first_ts: 1710000000,
+        last_ts: 1710000050,
+        monitoring_event_count: 3,
+        defense_delta_count: 1,
+        ban_outcome_count: 0
+      }
+    ], [
+      { ip: '198.51.100.200' }
+    ]);
+    assert.deepEqual(
+      summarizedRuns.runRows.map((row) => row.runId),
+      ['run-summary-2', 'run-summary-1']
+    );
+    assert.equal(summarizedRuns.runRows[0].defenseDeltaCount, 2);
+    assert.equal(summarizedRuns.activeBanCount, 1);
 
     const compactBotnessDisplay = monitoringModelModule.deriveMonitoringEventDisplay({
       ts: 1710000040,
@@ -4628,16 +4706,17 @@ test('red team tab renders the recent adversary runs panel with red-team-specifi
   );
 
   assert.match(source, /import AdversaryRunPanel from '\.\/monitoring\/AdversaryRunPanel\.svelte';/);
-  assert.match(source, /import \{ deriveAdversaryRunRows \} from '\.\/monitoring-view-model\.js';/);
+  assert.match(source, /import \{ deriveAdversaryRunRowsFromSummaries \} from '\.\/monitoring-view-model\.js';/);
   assert.match(source, /export let eventsSnapshot = null;/);
   assert.match(source, /export let bansSnapshot = null;/);
   assert.match(source, /export let monitoringFreshnessSnapshot = null;/);
-  assert.match(source, /\$: adversaryRunSummary = deriveAdversaryRunRows\(rawRecentEvents, bans\);/);
+  assert.match(source, /\$: rawRecentSimRuns = Array\.isArray\(events\.recent_sim_runs\) \? events\.recent_sim_runs : \[\];/);
+  assert.match(source, /\$: adversaryRunSummary = deriveAdversaryRunRowsFromSummaries\(rawRecentSimRuns, bans\);/);
   assert.match(source, /<AdversaryRunPanel/);
   assert.match(source, /title="Recent Red Team Runs"/);
   assert.match(source, /description="Recent adversary simulation runs linked to monitoring and IP ban outcomes\."\/?/);
   assert.match(source, /summaryLabel="Active bans linked to recent runs"/);
-  assert.match(source, /emptyText="No recent adversary simulation runs were observed in the current monitoring window\."/);
+  assert.match(source, /emptyText="No recent adversary simulation runs are currently retained in the compact run history\."/);
   assert.match(source, /degradedText="Monitoring freshness is degraded or stale\. Missing red team run rows may indicate delayed telemetry rather than no simulation activity\."/);
 });
 
@@ -4767,7 +4846,7 @@ test('dashboard native runtime owns session heartbeat, tab normalization, and ac
 test('dashboard refresh runtime owns bounded cache, delta, and red-team monitoring refresh flows', () => {
   const source = fs.readFileSync(DASHBOARD_REFRESH_RUNTIME_PATH, 'utf8');
 
-  assert.match(source, /const MONITORING_CACHE_KEY = 'shuma_dashboard_cache_monitoring_v1';/);
+  assert.match(source, /const MONITORING_CACHE_KEY = 'shuma_dashboard_cache_monitoring_v2';/);
   assert.match(source, /const IP_BANS_CACHE_KEY = 'shuma_dashboard_cache_ip_bans_v1';/);
   assert.match(source, /const MONITORING_CACHE_MAX_RECENT_EVENTS = 25;/);
   assert.match(source, /const MONITORING_CACHE_MAX_CDP_EVENTS = 50;/);

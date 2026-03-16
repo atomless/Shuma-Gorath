@@ -1,10 +1,11 @@
 import { deriveDashboardRequestBudgets } from './dashboard-request-budgets.js';
 
 export function createDashboardRefreshRuntime(options = {}) {
-  const MONITORING_CACHE_KEY = 'shuma_dashboard_cache_monitoring_v1';
+  const MONITORING_CACHE_KEY = 'shuma_dashboard_cache_monitoring_v2';
   const IP_BANS_CACHE_KEY = 'shuma_dashboard_cache_ip_bans_v1';
   const DEFAULT_CACHE_TTL_MS = 60000;
   const MONITORING_CACHE_MAX_RECENT_EVENTS = 25;
+  const MONITORING_CACHE_MAX_RECENT_SIM_RUNS = 12;
   const MONITORING_CACHE_MAX_CDP_EVENTS = 50;
   const MONITORING_CACHE_MAX_BANS = 100;
   const IP_BANS_CACHE_MAX_SUGGESTIONS = 50;
@@ -175,7 +176,8 @@ export function createDashboardRefreshRuntime(options = {}) {
         ...details,
         events: {
           ...events,
-          recent_events: toArray(events.recent_events).slice(0, MONITORING_CACHE_MAX_RECENT_EVENTS)
+          recent_events: toArray(events.recent_events).slice(0, MONITORING_CACHE_MAX_RECENT_EVENTS),
+          recent_sim_runs: toArray(events.recent_sim_runs).slice(0, MONITORING_CACHE_MAX_RECENT_SIM_RUNS)
         },
         bans: compactBansSnapshot(bans),
         cdp_events: {
@@ -424,9 +426,13 @@ export function createDashboardRefreshRuntime(options = {}) {
       : {};
     const incomingEvents = toArray(delta.events);
     const mergedRecentEvents = mergeRecentEvents(priorEvents.recent_events, incomingEvents);
+    const hasRecentSimRuns = Object.prototype.hasOwnProperty.call(delta || {}, 'recent_sim_runs');
     const nextEvents = {
       ...priorEvents,
-      recent_events: mergedRecentEvents
+      recent_events: mergedRecentEvents,
+      recent_sim_runs: hasRecentSimRuns
+        ? toArray(delta.recent_sim_runs).slice(0, MONITORING_CACHE_MAX_RECENT_SIM_RUNS)
+        : toArray(priorEvents.recent_sim_runs).slice(0, MONITORING_CACHE_MAX_RECENT_SIM_RUNS)
     };
     const nextMonitoring = {
       ...priorMonitoring,

@@ -808,6 +808,7 @@ test-telemetry-hot-read-projection: ## Run focused telemetry hot-read projection
 	@./scripts/set_crate_type.sh rlib
 	@cargo test observability::hot_read_projection::tests:: -- --nocapture
 	@cargo test admin::api::tests::log_event_refreshes_hot_read_recent_events_tail_projection -- --exact --nocapture
+	@cargo test admin::api::tests::log_event_refreshes_recent_sim_run_history_without_event_tail_eviction -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::admin_config_post_refreshes_hot_read_bootstrap_projection -- --exact --nocapture
 	@cargo test observability::retention::tests::run_worker_if_due_refreshes_hot_read_retention_projection -- --exact --nocapture
 	@cargo test enforcement::ban::tests::ban_and_unban_refresh_hot_read_bootstrap_projection -- --exact --nocapture

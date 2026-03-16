@@ -15,14 +15,17 @@ const HOT_READ_BOOTSTRAP_SCHEMA_VERSION: &str = "telemetry-hot-read-bootstrap.v4
 const HOT_READ_RETENTION_SCHEMA_VERSION: &str = "telemetry-hot-read-retention.v1";
 const HOT_READ_SECURITY_PRIVACY_SCHEMA_VERSION: &str = "telemetry-hot-read-security-privacy.v1";
 const HOT_READ_RECENT_EVENTS_TAIL_SCHEMA_VERSION: &str = "telemetry-hot-read-recent-events.v4";
+const HOT_READ_RECENT_SIM_RUNS_SCHEMA_VERSION: &str = "telemetry-hot-read-recent-sim-runs.v1";
 const HOT_READ_MONITORING_SUMMARY_SCHEMA_VERSION: &str = "telemetry-hot-read-summary.v1";
 const HOT_READ_BOOTSTRAP_WINDOW_HOURS: u64 = 24;
 const HOT_READ_BOOTSTRAP_MAX_BYTES: usize = 64 * 1024;
 const HOT_READ_SECURITY_PRIVACY_MAX_BYTES: usize = 16 * 1024;
 const HOT_READ_RETENTION_MAX_BYTES: usize = 8 * 1024;
 const HOT_READ_RECENT_EVENTS_TAIL_MAX_BYTES: usize = 32 * 1024;
+const HOT_READ_RECENT_SIM_RUNS_MAX_BYTES: usize = 8 * 1024;
 const HOT_READ_MONITORING_SUMMARY_MAX_BYTES: usize = 24 * 1024;
 const HOT_READ_RECENT_EVENTS_TAIL_MAX_RECORDS: usize = 40;
+const HOT_READ_RECENT_SIM_RUNS_MAX_RECORDS: usize = 12;
 const HOT_READ_MONITORING_SUMMARY_TOP_LIMIT: usize = 10;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -106,6 +109,7 @@ pub(crate) struct MonitoringBootstrapHotReadPayload {
     pub security_privacy: Value,
     pub security_mode: String,
     pub recent_events: Vec<Value>,
+    pub recent_sim_runs: Vec<MonitoringRecentSimRunSummary>,
     pub recent_events_window: MonitoringRecentEventsWindowSummary,
     pub window_end_cursor: Option<String>,
     pub drill_down_only_fields: Vec<String>,
@@ -119,12 +123,33 @@ pub(crate) struct MonitoringRecentEventsTailPayload {
     pub window_end_cursor: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct MonitoringRecentSimRunSummary {
+    pub run_id: String,
+    pub lane: String,
+    pub profile: String,
+    pub first_ts: u64,
+    pub last_ts: u64,
+    pub monitoring_event_count: u64,
+    pub defense_delta_count: u64,
+    pub ban_outcome_count: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct MonitoringRecentSimRunsPayload {
+    pub recent_sim_runs: Vec<MonitoringRecentSimRunSummary>,
+    pub window_hours: u64,
+    pub applied_recent_run_cap: usize,
+}
+
 pub(crate) type MonitoringBootstrapHotReadDocument =
     HotReadDocumentEnvelope<MonitoringBootstrapHotReadPayload>;
 pub(crate) type MonitoringRetentionSummaryDocument = HotReadDocumentEnvelope<RetentionHealth>;
 pub(crate) type MonitoringSecurityPrivacySummaryDocument = HotReadDocumentEnvelope<Value>;
 pub(crate) type MonitoringRecentEventsTailDocument =
     HotReadDocumentEnvelope<MonitoringRecentEventsTailPayload>;
+pub(crate) type MonitoringRecentSimRunsDocument =
+    HotReadDocumentEnvelope<MonitoringRecentSimRunsPayload>;
 pub(crate) type MonitoringSummaryHotReadDocument = HotReadDocumentEnvelope<MonitoringSummary>;
 
 const MONITORING_BOOTSTRAP_UPDATE_TRIGGERS: [HotReadUpdateTrigger; 4] = [
@@ -223,6 +248,23 @@ const MONITORING_RECENT_EVENTS_TAIL_DOCUMENT_CONTRACT: HotReadDocumentContract =
         projection_model: HotReadProjectionModel::DeterministicRebuild,
     };
 
+const MONITORING_RECENT_SIM_RUNS_DOCUMENT_CONTRACT: HotReadDocumentContract =
+    HotReadDocumentContract {
+        document_key: "telemetry:hot_read:v1:recent_sim_runs:<site>",
+        schema_version: HOT_READ_RECENT_SIM_RUNS_SCHEMA_VERSION,
+        max_serialized_bytes: HOT_READ_RECENT_SIM_RUNS_MAX_BYTES,
+        freshness: HotReadFreshnessBudget {
+            stale_after_seconds: 10,
+            rebuild_after_seconds: 60,
+        },
+        repair_policy: HotReadRepairPolicy {
+            rebuild_on_missing: true,
+            rebuild_on_schema_mismatch: true,
+            rebuild_on_decode_error: true,
+        },
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+    };
+
 const MONITORING_SUMMARY_DOCUMENT_CONTRACT: HotReadDocumentContract = HotReadDocumentContract {
     document_key: "telemetry:hot_read:v1:monitoring_summary:<site>",
     schema_version: HOT_READ_MONITORING_SUMMARY_SCHEMA_VERSION,
@@ -255,6 +297,10 @@ pub(crate) fn monitoring_recent_events_tail_document_contract() -> HotReadDocume
     MONITORING_RECENT_EVENTS_TAIL_DOCUMENT_CONTRACT
 }
 
+pub(crate) fn monitoring_recent_sim_runs_document_contract() -> HotReadDocumentContract {
+    MONITORING_RECENT_SIM_RUNS_DOCUMENT_CONTRACT
+}
+
 pub(crate) fn monitoring_summary_document_contract() -> HotReadDocumentContract {
     MONITORING_SUMMARY_DOCUMENT_CONTRACT
 }
@@ -283,6 +329,10 @@ pub(crate) fn monitoring_recent_events_tail_max_records() -> usize {
     HOT_READ_RECENT_EVENTS_TAIL_MAX_RECORDS
 }
 
+pub(crate) fn monitoring_recent_sim_runs_max_records() -> usize {
+    HOT_READ_RECENT_SIM_RUNS_MAX_RECORDS
+}
+
 pub(crate) fn monitoring_summary_top_limit() -> usize {
     HOT_READ_MONITORING_SUMMARY_TOP_LIMIT
 }
@@ -301,6 +351,10 @@ pub(crate) fn monitoring_security_privacy_summary_document_key(site_id: &str) ->
 
 pub(crate) fn monitoring_recent_events_tail_document_key(site_id: &str) -> String {
     format!("{HOT_READ_PREFIX}:recent_events_tail:{site_id}")
+}
+
+pub(crate) fn monitoring_recent_sim_runs_document_key(site_id: &str) -> String {
+    format!("{HOT_READ_PREFIX}:recent_sim_runs:{site_id}")
 }
 
 pub(crate) fn monitoring_summary_document_key(site_id: &str) -> String {
@@ -331,7 +385,8 @@ mod tests {
         monitoring_bootstrap_drill_down_only_fields, monitoring_bootstrap_update_triggers,
         monitoring_bootstrap_window_hours, monitoring_hot_read_component_metadata,
         monitoring_recent_events_tail_document_contract, monitoring_recent_events_tail_max_records,
-        monitoring_recent_events_tail_update_triggers,
+        monitoring_recent_events_tail_update_triggers, monitoring_recent_sim_runs_document_contract,
+        monitoring_recent_sim_runs_document_key, monitoring_recent_sim_runs_max_records,
         monitoring_retention_summary_document_contract,
         monitoring_summary_document_contract, monitoring_summary_document_key,
         monitoring_summary_top_limit,
@@ -355,14 +410,18 @@ mod tests {
         let retention = monitoring_retention_summary_document_contract();
         let security_privacy = monitoring_security_privacy_summary_document_contract();
         let recent_events = monitoring_recent_events_tail_document_contract();
+        let recent_sim_runs = monitoring_recent_sim_runs_document_contract();
         let monitoring_summary = monitoring_summary_document_contract();
 
         assert!(retention.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert!(security_privacy.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert!(recent_events.max_serialized_bytes < bootstrap.max_serialized_bytes);
+        assert!(recent_sim_runs.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert!(monitoring_summary.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert_eq!(recent_events.freshness.stale_after_seconds, 10);
+        assert_eq!(recent_sim_runs.freshness.stale_after_seconds, 10);
         assert_eq!(monitoring_summary_top_limit(), 10);
+        assert_eq!(monitoring_recent_sim_runs_max_records(), 12);
     }
 
     #[test]
@@ -385,6 +444,13 @@ mod tests {
             metadata
                 .get("recent_events_tail")
                 .expect("recent events metadata")
+                .exactness,
+            TelemetryExactness::Exact
+        );
+        assert_eq!(
+            metadata
+                .get("recent_sim_runs_summary")
+                .expect("recent sim runs metadata")
                 .exactness,
             TelemetryExactness::Exact
         );
@@ -417,6 +483,10 @@ mod tests {
         assert_eq!(
             monitoring_summary_document_key("default"),
             "telemetry:hot_read:v1:monitoring_summary:default"
+        );
+        assert_eq!(
+            monitoring_recent_sim_runs_document_key("default"),
+            "telemetry:hot_read:v1:recent_sim_runs:default"
         );
     }
 }

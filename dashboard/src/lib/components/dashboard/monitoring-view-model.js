@@ -581,6 +581,46 @@ export const deriveDefenseTrendRowsFromAccumulator = (accumulator) => {
     }));
 };
 
+const shapeAdversaryRunRows = (rows = [], activeBans = []) => {
+  const normalizedRows = Array.isArray(rows) ? rows : [];
+  const normalizedBans = Array.isArray(activeBans) ? activeBans : [];
+  const runRows = normalizedRows
+    .sort((left, right) => right.lastTs - left.lastTs)
+    .map((row) => {
+      const defenseCounts = row && typeof row.defenseCounts === 'object' ? row.defenseCounts : {};
+      const defenseRows = Array.isArray(row?.defenseRows)
+        ? row.defenseRows
+        : Object.entries(defenseCounts)
+          .sort((left, right) => Number(right[1]) - Number(left[1]))
+          .map(([defense, count]) => ({
+            defense,
+            label: DEFENSE_LABELS[defense] || defense,
+            count: Number(count || 0)
+          }));
+      const defenseDeltaCount = Number.isFinite(Number(row?.defenseDeltaCount))
+        ? Number(row.defenseDeltaCount)
+        : Object.keys(defenseCounts).length;
+      return {
+        runId: row.runId,
+        lane: row.lane,
+        profile: row.profile,
+        firstTs: row.firstTs,
+        lastTs: row.lastTs,
+        monitoringEventCount: row.monitoringEventCount,
+        defenseDeltaCount,
+        defenseRows,
+        banOutcomeCount: row.banOutcomeCount,
+        monitoringHref: '#monitoring',
+        ipBansHref: '#ip-bans'
+      };
+    });
+  return {
+    runRows,
+    totalSimulationEvents: runRows.reduce((total, row) => total + row.monitoringEventCount, 0),
+    activeBanCount: normalizedBans.length
+  };
+};
+
 export const deriveAdversaryRunRows = (events = [], bans = []) => {
   const rows = Array.isArray(events) ? events : [];
   const activeBans = Array.isArray(bans) ? bans : [];
@@ -614,32 +654,25 @@ export const deriveAdversaryRunRows = (events = [], bans = []) => {
     }
     grouped.set(runId, existing);
   });
-  const runRows = Array.from(grouped.values())
-    .sort((left, right) => right.lastTs - left.lastTs)
-    .map((row) => ({
-      runId: row.runId,
-      lane: row.lane,
-      profile: row.profile,
-      firstTs: row.firstTs,
-      lastTs: row.lastTs,
-      monitoringEventCount: row.monitoringEventCount,
-      defenseDeltaCount: Object.keys(row.defenseCounts).length,
-      defenseRows: Object.entries(row.defenseCounts)
-        .sort((left, right) => Number(right[1]) - Number(left[1]))
-        .map(([defense, count]) => ({
-          defense,
-          label: DEFENSE_LABELS[defense] || defense,
-          count: Number(count || 0)
-        })),
-      banOutcomeCount: row.banOutcomeCount,
-      monitoringHref: '#monitoring',
-      ipBansHref: '#ip-bans'
-    }));
-  return {
-    runRows,
-    totalSimulationEvents: runRows.reduce((total, row) => total + row.monitoringEventCount, 0),
-    activeBanCount: activeBans.length
-  };
+  return shapeAdversaryRunRows(Array.from(grouped.values()), activeBans);
+};
+
+export const deriveAdversaryRunRowsFromSummaries = (summaries = [], bans = []) => {
+  const rows = Array.isArray(summaries) ? summaries : [];
+  const shapedRows = rows
+    .map((summary) => ({
+      runId: String(summary?.run_id || '').trim(),
+      lane: String(summary?.lane || 'none').trim() || 'none',
+      profile: String(summary?.profile || 'unknown').trim() || 'unknown',
+      firstTs: Number(summary?.first_ts || 0),
+      lastTs: Number(summary?.last_ts || 0),
+      monitoringEventCount: Number(summary?.monitoring_event_count || 0),
+      defenseDeltaCount: Number(summary?.defense_delta_count || 0),
+      defenseRows: [],
+      banOutcomeCount: Number(summary?.ban_outcome_count || 0)
+    }))
+    .filter((row) => row.runId.length > 0);
+  return shapeAdversaryRunRows(shapedRows, bans);
 };
 
 const incrementCount = (target, key, amount = 1) => {

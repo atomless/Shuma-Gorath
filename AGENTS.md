@@ -50,6 +50,8 @@ This file provides instructions for coding agents working in this repository.
    Direct ad-hoc tool invocations (for example `cargo test`, `cargo build`, `corepack pnpm run ...`, `playwright test`, `node e2e/...`, `spin up`) are not the canonical path for normal contributor/agent workflow.
    If a required workflow is missing from `Makefile`, add/update the target first, then run it via `make` (do not bypass and "fix later").
    Keep docs/PR notes/user guidance aligned to `make` commands so contributors follow one documented path.
+   For dashboard/browser verification, agents MUST choose the smallest relevant `make` path that proves the changed behavior. Do not default to broad dashboard e2e coverage when a focused `make test-dashboard-e2e PLAYWRIGHT_ARGS='--grep "..."'` run or an existing narrower `make` target can prove the exact rendered contract.
+   If the current `Makefile` does not expose a focused path for the affected dashboard behavior, add or refine the target first, then verify through that target instead of falling back to unrelated suite-wide churn.
    Keep `make dev` watch inputs scoped to source-of-truth files and explicitly exclude generated dashboard artifacts (for example `dashboard/.svelte-kit/**` and `dashboard/.vite/**`) to avoid self-triggered restart loops while preserving live reload for `dashboard/src/**`, `dashboard/static/**`, and `dashboard/style.css` edits.
    For `make test`, integration and dashboard e2e tests are mandatory and must not be skipped: start Spin first with `make dev` (separate terminal/session), then run `make test`.
    Exception: if a change is documentation-only (`*.md` and no behavior/config/runtime code changes), do not run tests; document that verification was intentionally skipped because the slice is docs-only.
@@ -94,6 +96,8 @@ This file provides instructions for coding agents working in this repository.
 15. Non-negotiable completion proof for large tranches/refactors (release-blocking):
    - for any large feature tranche, cross-cutting refactor, or architecture migration, agents MUST NOT claim "working", "complete", or "done" without end-to-end proof across runtime, CI, and UI surfaces;
    - Definition of Done for such work MUST include explicit acceptance checks proving expected traffic/data flow and shape at every boundary: generation/emission, persistence/telemetry, API read paths, and dashboard rendering/refresh behavior;
+   - for dashboard telemetry or hot-read changes specifically, proof MUST cover the full data path end-to-end: backend emission/materialization, admin API payload shape, dashboard API-client normalization/adaptation, runtime/store merge, and the rendered tab or panel DOM that operators actually use;
+   - unit or source-contract coverage for only one boundary is insufficient for dashboard telemetry changes. Agents MUST add or update tests at the boundary where the regression could be hidden, and MUST include at least one rendered proof when the user-facing dashboard output changes;
    - for adversary-simulation work specifically, completion MUST prove (1) traffic is generated, (2) traffic is persisted/observable in monitoring APIs, (3) traffic is rendered in dashboard sections expected by spec, and (4) CI/runtime gates assert those outcomes;
    - when any required proof is missing or flaky, agents MUST report the slice as incomplete, continue debugging, and must not present status as complete.
 16. Non-negotiable Make target truth-in-naming rule (release-blocking):

@@ -712,7 +712,7 @@ async function setAutoRefresh(page, enabled) {
 async function clearDashboardClientCache(page) {
   await page.evaluate(() => {
     const keys = [
-      "shuma_dashboard_cache_monitoring_v1",
+      "shuma_dashboard_cache_monitoring_v2",
       "shuma_dashboard_cache_ip_bans_v1",
       "shuma_dashboard_auto_refresh_v1"
     ];
@@ -2091,6 +2091,103 @@ test("monitoring initial load hydrates from full snapshot even when first delta 
 
   await openDashboard(page);
   await expect(page.locator("#monitoring-events tbody")).toContainText("historical-baseline-visible");
+});
+
+test("red team recent runs table renders compact run-history rows from monitoring payloads", async ({ page }) => {
+  const now = Math.floor(Date.now() / 1000);
+  const buildMonitoringPayload = () => ({
+    summary: {
+      honeypot: { total_hits: 0, unique_crawlers: 0, top_crawlers: [], top_paths: [] },
+      challenge: { total_failures: 0, unique_offenders: 0, top_offenders: [], reasons: {}, trend: [] },
+      pow: {
+        total_failures: 0,
+        total_successes: 0,
+        total_attempts: 0,
+        success_ratio: 0,
+        unique_offenders: 0,
+        top_offenders: [],
+        reasons: {},
+        outcomes: {},
+        trend: []
+      },
+      rate: { total_violations: 0, unique_offenders: 0, top_offenders: [], outcomes: {} },
+      geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
+    },
+    prometheus: { endpoint: "/metrics", notes: [] },
+    details: {
+      analytics: { ban_count: 1, shadow_mode: false, fail_mode: "open" },
+      events: {
+        recent_events: [],
+        recent_sim_runs: [
+          {
+            run_id: "simrun-ui-2",
+            lane: "deterministic_black_box",
+            profile: "runtime_toggle",
+            first_ts: now - 10,
+            last_ts: now,
+            monitoring_event_count: 11,
+            defense_delta_count: 3,
+            ban_outcome_count: 1
+          },
+          {
+            run_id: "simrun-ui-1",
+            lane: "deterministic_black_box",
+            profile: "runtime_toggle",
+            first_ts: now - 30,
+            last_ts: now - 20,
+            monitoring_event_count: 2,
+            defense_delta_count: 1,
+            ban_outcome_count: 0
+          }
+        ],
+        event_counts: {},
+        top_ips: [],
+        unique_ips: 0
+      },
+      bans: {
+        bans: [{
+          ip: "198.51.100.55",
+          reason: "rate",
+          banned_at: now,
+          expires: now + 300
+        }]
+      },
+      maze: { total_hits: 0, unique_crawlers: 0, maze_auto_bans: 0, top_crawlers: [] },
+      cdp: { stats: { total_detections: 0, auto_bans: 0 }, config: {}, fingerprint_stats: {} },
+      cdp_events: { events: [] }
+    }
+  });
+
+  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(buildMonitoringPayload())
+    });
+  });
+  await page.route("**/admin/monitoring/delta?hours=*&limit=*", async (route) => {
+    const url = new URL(route.request().url());
+    const afterCursor = (url.searchParams.get("after_cursor") || "").trim();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        after_cursor: afterCursor,
+        window_end_cursor: "cursor-run-history",
+        next_cursor: "cursor-run-history",
+        has_more: false,
+        overflow: "none",
+        events: [],
+        recent_sim_runs: buildMonitoringPayload().details.events.recent_sim_runs,
+        freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
+      })
+    });
+  });
+
+  await openDashboard(page);
+  await openTab(page, "red-team");
+  await expect(page.locator("#adversary-runs tbody")).toContainText("simrun-ui-2");
+  await expect(page.locator("#adversary-runs tbody")).toContainText("simrun-ui-1");
 });
 
 test("manual refresh button appends new monitoring delta events when auto-refresh is off", async ({ page }) => {

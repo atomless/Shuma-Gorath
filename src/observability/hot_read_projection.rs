@@ -9,6 +9,8 @@ use crate::observability::hot_read_documents::{
     monitoring_bootstrap_drill_down_only_fields, monitoring_bootstrap_window_hours,
     monitoring_hot_read_component_metadata, monitoring_recent_events_tail_document_contract,
     monitoring_recent_events_tail_document_key, monitoring_recent_events_tail_max_records,
+    monitoring_recent_sim_runs_document_contract, monitoring_recent_sim_runs_document_key,
+    monitoring_recent_sim_runs_max_records,
     monitoring_retention_summary_document_contract, monitoring_retention_summary_document_key,
     monitoring_security_privacy_summary_document_contract,
     monitoring_security_privacy_summary_document_key, monitoring_summary_document_contract,
@@ -16,6 +18,7 @@ use crate::observability::hot_read_documents::{
     HotReadDocumentMetadata, HotReadUpdateTrigger, MonitoringBootstrapAnalyticsSummary,
     MonitoringBootstrapHotReadDocument, MonitoringBootstrapHotReadPayload,
     MonitoringRecentEventsTailDocument, MonitoringRecentEventsTailPayload,
+    MonitoringRecentSimRunsDocument, MonitoringRecentSimRunsPayload,
     MonitoringRetentionSummaryDocument, MonitoringSecurityPrivacySummaryDocument,
     MonitoringSummaryHotReadDocument, MonitoringRecentEventsWindowSummary,
 };
@@ -154,6 +157,28 @@ fn build_recent_events_tail_document<S: KeyValueStore>(
     }
 }
 
+fn build_recent_sim_runs_document<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    generated_at_ts: u64,
+    trigger: HotReadUpdateTrigger,
+) -> MonitoringRecentSimRunsDocument {
+    let contract = monitoring_recent_sim_runs_document_contract();
+    HotReadDocumentEnvelope {
+        metadata: document_metadata(contract.schema_version, site_id, generated_at_ts, trigger),
+        payload: MonitoringRecentSimRunsPayload {
+            recent_sim_runs: crate::admin::monitoring_recent_sim_run_summaries(
+                store,
+                generated_at_ts,
+                monitoring_bootstrap_window_hours(),
+                monitoring_recent_sim_runs_max_records(),
+            ),
+            window_hours: monitoring_bootstrap_window_hours(),
+            applied_recent_run_cap: monitoring_recent_sim_runs_max_records(),
+        },
+    }
+}
+
 fn ensure_retention_summary_document<S: KeyValueStore>(
     store: &S,
     site_id: &str,
@@ -201,6 +226,25 @@ fn ensure_recent_events_tail_document<S: KeyValueStore>(
     let key = monitoring_recent_events_tail_document_key(site_id);
     read_document(store, key.clone(), contract.schema_version).unwrap_or_else(|| {
         let document = build_recent_events_tail_document(
+            store,
+            site_id,
+            generated_at_ts,
+            HotReadUpdateTrigger::RepairRebuild,
+        );
+        let _ = write_document(store, key, &document);
+        document
+    })
+}
+
+fn ensure_recent_sim_runs_document<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    generated_at_ts: u64,
+) -> MonitoringRecentSimRunsDocument {
+    let contract = monitoring_recent_sim_runs_document_contract();
+    let key = monitoring_recent_sim_runs_document_key(site_id);
+    read_document(store, key.clone(), contract.schema_version).unwrap_or_else(|| {
+        let document = build_recent_sim_runs_document(
             store,
             site_id,
             generated_at_ts,
@@ -269,6 +313,14 @@ pub(crate) fn load_monitoring_recent_events_tail_hot_read<S: KeyValueStore>(
     ensure_recent_events_tail_document(store, site_id, generated_at_ts)
 }
 
+pub(crate) fn load_monitoring_recent_sim_runs_hot_read<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    generated_at_ts: u64,
+) -> MonitoringRecentSimRunsDocument {
+    ensure_recent_sim_runs_document(store, site_id, generated_at_ts)
+}
+
 pub(crate) fn load_monitoring_security_privacy_summary_hot_read<S: KeyValueStore>(
     store: &S,
     site_id: &str,
@@ -287,6 +339,7 @@ fn rebuild_bootstrap_document<S: KeyValueStore>(
     let retention = ensure_retention_summary_document(store, site_id, generated_at_ts);
     let security_privacy = ensure_security_privacy_summary_document(store, site_id, generated_at_ts);
     let recent_events = ensure_recent_events_tail_document(store, site_id, generated_at_ts);
+    let recent_sim_runs = ensure_recent_sim_runs_document(store, site_id, generated_at_ts);
     let mut component_metadata = monitoring_hot_read_component_metadata(generated_at_ts);
     if let Some(metadata) = component_metadata.get_mut("retention_health_summary") {
         metadata.refreshed_at_ts = retention.metadata.generated_at_ts;
@@ -296,6 +349,9 @@ fn rebuild_bootstrap_document<S: KeyValueStore>(
     }
     if let Some(metadata) = component_metadata.get_mut("recent_events_tail") {
         metadata.refreshed_at_ts = recent_events.metadata.generated_at_ts;
+    }
+    if let Some(metadata) = component_metadata.get_mut("recent_sim_runs_summary") {
+        metadata.refreshed_at_ts = recent_sim_runs.metadata.generated_at_ts;
     }
     if let Some(metadata) = component_metadata.get_mut("runtime_posture_summary") {
         metadata.refreshed_at_ts = generated_at_ts;
@@ -314,6 +370,7 @@ fn rebuild_bootstrap_document<S: KeyValueStore>(
             security_privacy: security_privacy.payload,
             security_mode: crate::admin::monitoring_security_view_mode_label(false).to_string(),
             recent_events: recent_events.payload.recent_events,
+            recent_sim_runs: recent_sim_runs.payload.recent_sim_runs,
             recent_events_window: recent_events.payload.recent_events_window,
             window_end_cursor: recent_events.payload.window_end_cursor,
             drill_down_only_fields: monitoring_bootstrap_drill_down_only_fields()
@@ -382,6 +439,15 @@ pub(crate) fn refresh_after_event_append<S: KeyValueStore>(store: &S, site_id: &
             site_id
         );
     }
+    let sim_runs_key = monitoring_recent_sim_runs_document_key(site_id);
+    let sim_runs =
+        build_recent_sim_runs_document(store, site_id, now, HotReadUpdateTrigger::EventAppend);
+    if write_document(store, sim_runs_key, &sim_runs).is_err() {
+        eprintln!(
+            "[telemetry-hot-read] failed writing recent sim runs site={} trigger=event_append",
+            site_id
+        );
+    }
     write_bootstrap_document(store, site_id, now, HotReadUpdateTrigger::EventAppend);
 }
 
@@ -424,6 +490,7 @@ pub(crate) fn refresh_after_admin_mutation<S: KeyValueStore>(store: &S, site_id:
 mod tests {
     use super::{
         monitoring_bootstrap_document_key, monitoring_recent_events_tail_document_key,
+        monitoring_recent_sim_runs_document_key,
         monitoring_retention_summary_document_key,
         monitoring_security_privacy_summary_document_key, monitoring_summary_document_key,
         read_document, refresh_after_admin_mutation, refresh_after_counter_flush,
@@ -525,6 +592,17 @@ mod tests {
         );
         assert!(recent.is_some());
         assert_eq!(recent.unwrap().payload.recent_events.len(), 1);
+        let recent_sim_runs = read_document::<
+            _,
+            crate::observability::hot_read_documents::MonitoringRecentSimRunsPayload,
+        >(
+            &store,
+            monitoring_recent_sim_runs_document_key("default"),
+            crate::observability::hot_read_documents::monitoring_recent_sim_runs_document_contract()
+                .schema_version,
+        );
+        assert!(recent_sim_runs.is_some());
+        assert_eq!(recent_sim_runs.unwrap().payload.recent_sim_runs.len(), 0);
     }
 
     #[test]

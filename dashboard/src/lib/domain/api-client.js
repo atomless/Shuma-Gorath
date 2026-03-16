@@ -199,6 +199,7 @@ export const adaptEvents = (payload) => {
   const source = asRecord(payload);
   return {
     recent_events: asObjectArray(source.recent_events),
+    recent_sim_runs: asObjectArray(source.recent_sim_runs),
     event_counts: asRecord(source.event_counts),
     top_ips: adaptTopIps(source.top_ips),
     unique_ips: Number(source.unique_ips || 0)
@@ -295,6 +296,7 @@ export const adaptCursorDelta = (payload) => {
     has_more: source.has_more === true,
     overflow: String(source.overflow || 'none'),
     events: asObjectArray(source.events),
+    recent_sim_runs: asObjectArray(source.recent_sim_runs),
     active_bans: asObjectArray(source.active_bans),
     freshness: asRecord(source.freshness),
     stream_supported: source.stream_supported === true,

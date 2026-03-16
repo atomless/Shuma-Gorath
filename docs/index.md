@@ -34,6 +34,7 @@ cd Shuma-Gorath
 - [`research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md`](research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md) - Research synthesis for ban jitter, local repeat-offender escalation, and central intelligence as coordinated agentic-era cost-shaping features
 - [`plans/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md`](plans/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md) - Proposed coordinated design for banded ban jitter, local recidive memory, shared intelligence, and oversight-controller tuning
 - [`plans/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-implementation-plan.md`](plans/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-implementation-plan.md) - Phased implementation plan for the jitter, recidive, intelligence, telemetry, and controller-integration tranches
+- [`plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md) - Forward roadmap capture for still-missing pre-launch planning tracks and their recommended sequencing
 - [`api.md`](api.md) - <abbr title="Application Programming Interface">API</abbr> usage and endpoint details
 - [`configuration.md`](configuration.md) - Runtime configuration reference
 - [`fingerprinting-terminology.md`](fingerprinting-terminology.md) - Canonical fingerprinting/JS verification terminology map

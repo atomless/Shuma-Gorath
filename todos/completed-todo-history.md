@@ -4,6 +4,62 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-16)
 
+### Red Team Run History Follow-Up: Fix The Dropped Dashboard Payload Boundary And Tighten Verification Methodology
+
+- [x] Repair the broken `Recent Red Team Runs` rendering path after the new `recent_sim_runs` hot-read field was found to be disappearing before it reached dashboard state, then strengthen repo methodology so future dashboard telemetry changes are verified through the smallest rendered proof path that actually covers the changed boundary.
+- [x] Why:
+  - the initial hot-read implementation was not enough on its own because the new `recent_sim_runs` field was silently dropped in the dashboard API normalization layer, so the Red Team tab rendered no rows even though backend hot-read tests were green.
+  - that exposed a verification shortfall: proving backend documents and refresh-runtime behavior was insufficient without also proving the API adapter boundary and the final rendered tab DOM.
+  - the correct response was not to rely on a broad dashboard suite by default, but to add focused boundary coverage and a minimal rendered browser proof targeted at the exact regression surface.
+- [x] Evidence:
+  - `dashboard/src/lib/domain/api-client.js`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+  - `AGENTS.md`
+  - `make test-dashboard-unit`
+  - `make test-dashboard-e2e PLAYWRIGHT_ARGS='--grep "red team recent runs table renders compact run-history rows from monitoring payloads"'`
+  - `git diff --check`
+
+### Red Team Run History: Stop Deriving Recent Runs From The Evictable Event Tail
+
+- [x] Add a compact exact `recent_sim_runs` hot-read summary, thread it through Monitoring bootstrap/delta payloads, and switch the Red Team tab to consume that run-history surface instead of grouping the bounded raw-event tail.
+- [x] Why:
+  - the old `Recent Red Team Runs` table was not actually a run-history view. It grouped `events.recent_events`, so a noisy newer run could quickly evict an older run’s events from the bounded tail and make the older row disappear.
+  - the hot-read architecture already prefers bounded materialized read models over UI-side reconstruction from raw telemetry, so the correct fix was a compact run-history document rather than inflating the recent-event cap or adding a scan-heavy endpoint.
+  - keeping the run-history summary on the shared Monitoring refresh path preserves the existing operator flow while making the table truthful and resilient to event-tail churn.
+- [x] Evidence:
+  - `src/observability/hot_read_contract.rs`
+  - `src/observability/hot_read_documents.rs`
+  - `src/observability/hot_read_projection.rs`
+  - `src/admin/api.rs`
+  - `src/admin/mod.rs`
+  - `dashboard/src/lib/runtime/dashboard-runtime-refresh.js`
+  - `dashboard/src/lib/components/dashboard/monitoring-view-model.js`
+  - `dashboard/src/lib/components/dashboard/RedTeamTab.svelte`
+  - `docs/dashboard-tabs/red-team.md`
+  - `Makefile`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+  - `make test-telemetry-hot-read-contract`
+  - `make test-telemetry-hot-read-projection`
+  - `make test-telemetry-hot-read-bootstrap`
+  - `make test-dashboard-unit`
+  - `git diff --check`
+
+### Pre-Launch Roadmap Capture: Surface The Missing Planning Tracks And Sequence Them
+
+- [x] Capture the major pre-launch work that Shuma still needs but had not yet been turned into a coordinated roadmap, then record deferred stub backlog entries for those tracks without pretending they are execution-ready implementation tasks.
+- [x] Why:
+  - several major areas were known but not yet clearly held together in one sequencing view: mature adversary-sim beyond the deterministic lane, completion of the tuning surface, operator-grade monitoring and shadow/enforced separation, distinct adversary-sim telemetry retention, central-intelligence storage architecture, and the scheduled agent analyzer/recommender/reconfigurer.
+  - because the repo treats `todos/todo.md` as the execution-ready queue, the cleanest way to capture these without creating fake-ready work was to add a roadmap note plus deferred `blocked-todo` stubs that point back to the roadmap and existing plans.
+  - this keeps the pre-launch pursuit of excellence explicit while reducing the risk of opportunistic slices that would conflict with the intended architecture.
+- [x] Evidence:
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `todos/blocked-todo.md`
+  - `docs/index.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Agentic-Era Defence Research: Banded Ban Jitter, Local Recidive, And Central Intelligence
 
 - [x] Gather fresh primary-source research and turn it into repo-native documentation for three coordinated features:

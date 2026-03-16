@@ -42,7 +42,7 @@ pub(crate) struct HotReadProjectionContract {
     pub external_database_required: bool,
 }
 
-const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 5] = [
+const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 6] = [
     HotReadComponentContract {
         key: "runtime_posture_summary",
         exactness: TelemetryExactness::Exact,
@@ -56,6 +56,13 @@ const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 5] = [
         canonical_source: HotReadCanonicalSource::ImmutableEventLog,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
         note: "Must remain rebuildable from immutable event records so edge writers do not race on tail mutation.",
+    },
+    HotReadComponentContract {
+        key: "recent_sim_runs_summary",
+        exactness: TelemetryExactness::Exact,
+        canonical_source: HotReadCanonicalSource::ImmutableEventLog,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Compact recent run history must remain rebuildable from immutable simulation-tagged event records rather than mutable run-state caches.",
     },
     HotReadComponentContract {
         key: "security_privacy_summary",
@@ -113,6 +120,20 @@ mod tests {
     #[test]
     fn recent_events_tail_is_exact_and_immutable() {
         let contract = contract_for("recent_events_tail");
+        assert_eq!(contract.exactness, TelemetryExactness::Exact);
+        assert_eq!(
+            contract.canonical_source,
+            HotReadCanonicalSource::ImmutableEventLog
+        );
+        assert_eq!(
+            contract.projection_model,
+            HotReadProjectionModel::DeterministicRebuild
+        );
+    }
+
+    #[test]
+    fn recent_sim_runs_summary_is_exact_and_immutable() {
+        let contract = contract_for("recent_sim_runs_summary");
         assert_eq!(contract.exactness, TelemetryExactness::Exact);
         assert_eq!(
             contract.canonical_source,
