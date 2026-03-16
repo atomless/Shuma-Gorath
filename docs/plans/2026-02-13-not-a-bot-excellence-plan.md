@@ -70,7 +70,7 @@ Runtime intent order for the core ladder is:
 
 - `POST /challenge/not-a-bot-checkbox` validates the signed seed plus compact telemetry summary and produces `pass`, `escalate_puzzle`, or `maze_or_block` routing.
 - Live traffic is normally served the Not-a-Bot page through policy-driven response rendering, not by direct operator navigation to the route.
-- Direct `GET /challenge/not-a-bot-checkbox` exists as a test-mode preview and verification path; outside `test_mode` it returns `404`.
+- Direct `GET /challenge/not-a-bot-checkbox` exists as a shadow-mode preview and verification path; outside `shadow_mode` it returns `404`.
 - Interaction is one-step only: checkbox-like activation progresses immediately and there is no secondary Continue button.
 
 ### Signed nonce and continuity marker model

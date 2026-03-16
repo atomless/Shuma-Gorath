@@ -1,4 +1,4 @@
-# Test-Mode Shadow Telemetry and Monitoring Truthfulness Plan
+# Shadow-Mode Telemetry and Monitoring Truthfulness Plan
 
 Date: 2026-03-12  
 Status: Proposed
@@ -8,7 +8,7 @@ Reference context:
 - [`docs/configuration.md`](../configuration.md)
 - [`docs/observability.md`](../observability.md)
 - [`docs/dashboard-tabs/monitoring.md`](../dashboard-tabs/monitoring.md)
-- [`src/runtime/test_mode/mod.rs`](../../src/runtime/test_mode/mod.rs)
+- [`src/runtime/shadow_mode/mod.rs`](../../src/runtime/shadow_mode/mod.rs)
 - [`src/runtime/request_flow.rs`](../../src/runtime/request_flow.rs)
 - [`src/admin/api.rs`](../../src/admin/api.rs)
 - [`dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](../../dashboard/src/lib/components/dashboard/MonitoringTab.svelte)
@@ -17,7 +17,7 @@ Reference context:
 
 ## Objective
 
-Make `test_mode` a truthful long-running operator shadow mode:
+Make `shadow_mode` a truthful long-running operator shadow mode:
 
 1. no noisy per-request terminal logging by default,
 2. first-class backend-authored shadow telemetry semantics,
@@ -26,23 +26,23 @@ Make `test_mode` a truthful long-running operator shadow mode:
 
 ## Current-State Shortfalls
 
-1. Test mode still writes per-request stdout lines for most shadow decisions via `crate::log_line(...)`, which assumes short-lived local debugging rather than long-running hosted operator use.
+1. Shadow mode still writes per-request stdout lines for most shadow decisions via `crate::log_line(...)`, which assumes short-lived local debugging rather than long-running hosted operator use.
 2. The runtime records shadow meaning indirectly through free-text `reason`/`outcome` strings such as `"[TEST MODE]"` and `would_block`, rather than through explicit structured execution semantics.
 3. Monitoring/event UI derives defense and outcome meaning heuristically from those strings, so aggregate monitoring can blur simulated actions with real enforcement.
-4. Test mode currently under-represents clean-pass traffic: "would allow" is returned to the client, but no corresponding structured event is recorded.
+4. Shadow mode currently under-represents clean-pass traffic: "would allow" is returned to the client, but no corresponding structured event is recorded.
 5. Any fix that starts logging every clean pass as a raw event would create unacceptable event-log amplification on busy sites.
 
 ## Non-goals
 
 1. Replacing the current monitoring storage architecture.
-2. Redesigning test-mode activation source or lifecycle beyond what is necessary to keep this work compatible with the open `SIM2-R4-4` lifecycle tranche.
-3. Changing normal enforcement semantics in non-test mode.
+2. Redesigning shadow-mode activation source or lifecycle beyond what is necessary to keep this work compatible with the open `SIM2-R4-4` lifecycle tranche.
+3. Changing normal enforcement semantics outside shadow mode.
 
 ## Architecture Decisions
 
 ### 1. Reuse the normal policy graph and effect boundary
 
-The cleanest design is not to keep expanding the current early `test_mode` short-circuit path. Today `test_mode` returns before the normal policy graph and effect execution pipeline runs, which means later ladder decisions are never evaluated through the same contract as normal enforcement.
+The cleanest design is not to keep expanding the current early `shadow_mode` short-circuit path. Today `shadow_mode` returns before the normal policy graph and effect execution pipeline runs, which means later ladder decisions are never evaluated through the same contract as normal enforcement.
 
 That architecture is not good enough for a truthful long-running shadow mode. The runtime should instead:
 
@@ -53,28 +53,27 @@ That architecture is not good enough for a truthful long-running shadow mode. Th
 
 This keeps the system-path under inspection identical to the real runtime and avoids maintaining a parallel shadow-only decision tree.
 
-### 2. Treat test mode as a first-class shadow-execution contract
+### 2. Treat shadow mode as a first-class shadow-execution contract
 
-Once shadow mode is anchored on the normal policy/effect path, the runtime must stop relying on free-text strings as the authoritative source of truth for test-mode behavior.
+Once shadow mode is anchored on the normal policy/effect path, the runtime must stop relying on free-text strings as the authoritative source of truth for shadow-mode behavior.
 
 Monitoring/event surfaces should receive backend-authored execution semantics, for example:
 
 - execution mode: `enforced` or `shadow`,
 - intended action: `allow`, `challenge`, `maze`, `block`, `tarpit`, `ip_range_action`, etc,
 - enforcement applied: `true` or `false`,
-- shadow source: `test_mode`.
 
 Pre-launch, the cleanest place to carry this is the stored/presented event record contract or a monitoring-specific backend enrichment layer authored from the shared decision/effect boundary. The dashboard must consume those explicit semantics, not infer them by parsing `"[TEST MODE]"` or `would_*`.
 
-This must reuse the existing monitoring/event storage path rather than inventing a parallel shadow-specific storage family. The telemetry-efficiency tranche already established bucket-indexed reads, retention tiers, rollups, and query-budget accounting as the canonical path. Test-mode truthfulness must enrich that path, not bypass it.
+This must reuse the existing monitoring/event storage path rather than inventing a parallel shadow-specific storage family. The telemetry-efficiency tranche already established bucket-indexed reads, retention tiers, rollups, and query-budget accounting as the canonical path. Shadow-mode truthfulness must enrich that path, not bypass it.
 
-### 3. Remove default per-request stdout logging from hosted test mode
+### 3. Remove default per-request stdout logging from hosted shadow mode
 
 Structured telemetry already exists and is the right operator surface.
 
 Default stdout logging for every shadow decision is operationally noisy and scales with traffic volume. That is the wrong default for post-deploy shadow tuning on a real site. The default posture should therefore be:
 
-- no per-request terminal/stdout test-mode decision logging,
+- no per-request terminal/stdout shadow-mode decision logging,
 - visibility through monitoring/event telemetry only.
 
 If a local developer-only debug path is still desired later, it must be explicit and opt-in, not the default hosted behavior.
@@ -94,12 +93,12 @@ This preserves observability while avoiding event-log amplification.
 This also means:
 
 - no new whole-keyspace scan path may be introduced for shadow-mode visibility,
-- no new unbounded/high-cardinality dimensions may be introduced purely for test mode,
+- no new unbounded/high-cardinality dimensions may be introduced purely for shadow mode,
 - shadow-mode counters and rollups must remain compatible with the existing bucket-indexed retention/query model.
 
 ### 5. Monitoring must render shadow and enforced outcomes as different operator truths
 
-Monitoring should not show "blocks imposed" when test mode only simulated those blocks.
+Monitoring should not show "blocks imposed" when shadow mode only simulated those blocks.
 
 The operator-facing model should instead distinguish:
 
@@ -114,7 +113,7 @@ Raw feeds should preserve the exact underlying payload, while summary cards/tren
 
 ### 6. Keep this work activation-source-agnostic
 
-`SIM2-R4-4` is still open on whether `test_mode` remains persisted config or becomes narrower runtime/session state. This tranche must therefore avoid hard-coding assumptions about where activation comes from.
+`SIM2-R4-4` is still open on whether `shadow_mode` remains persisted config or becomes narrower runtime/session state. This tranche must therefore avoid hard-coding assumptions about where activation comes from.
 
 The shadow telemetry contract must hang off the resolved effective runtime flag for the current request, so it remains correct whether activation later comes from persisted config, an ephemeral operator session, or a narrower runtime toggle.
 
@@ -122,33 +121,33 @@ The shadow telemetry contract must hang off the resolved effective runtime flag 
 
 ### Phase 1: Policy/Effect Boundary Refactor First
 
-1. Rebase test mode on the normal policy graph and effect/plan boundary instead of the current early shadow short-circuit.
+1. Rebase shadow mode on the normal policy graph and effect/plan boundary instead of the current early shadow short-circuit.
 2. Ensure shadow mode can observe the same `PolicyDecision` sequence as normal enforcement without executing friction/block side effects.
 3. Keep the existing response surface truthful while the telemetry contract migrates.
 
 Acceptance criteria:
 
-1. Test mode no longer depends on a parallel shadow-only decision tree for later ladder behavior.
+1. Shadow mode no longer depends on a parallel shadow-only decision tree for later ladder behavior.
 2. The same policy decisions can be executed in either `enforced` or `shadow` mode.
 
 ### Phase 2: Backend Contract and Logging Discipline
 
 1. Define the canonical shadow-enforcement telemetry vocabulary.
 2. Add backend-authored shadow metadata to event/monitoring presentation paths.
-3. Remove default stdout logging from the test-mode runtime path.
+3. Remove default stdout logging from the shadow-mode runtime path.
 4. Decide which shadow outcomes warrant raw event rows and which belong only in aggregate counters.
 5. Add/adjust counters so quiet pass-through traffic is represented without per-request raw event amplification.
 
 Acceptance criteria:
 
-1. No dashboard logic needs to detect test mode by parsing `"[TEST MODE]"`.
-2. Long-running hosted test mode does not flood stdout/journald.
+1. No dashboard logic needs to detect shadow mode by parsing `"[TEST MODE]"`.
+2. Long-running hosted shadow mode does not flood stdout/journald.
 3. High-volume shadow-mode traffic remains storage-bounded.
 
 ### Phase 3: Monitoring UI Truthfulness
 
 1. Update monitoring summaries, trend blocks, recent events, and raw feed helpers to render shadow outcomes explicitly.
-2. Make test-mode monitoring language say "would have happened" instead of implying enforcement.
+2. Make shadow-mode monitoring language say "would have happened" instead of implying enforcement.
 3. Keep raw feed fidelity while preventing summary charts from overstating enforcement.
 
 Acceptance criteria:
@@ -158,25 +157,25 @@ Acceptance criteria:
 
 ### Phase 4: Docs and Verification
 
-1. Update operator docs for long-running test mode usage.
+1. Update operator docs for long-running shadow mode usage.
 2. Add unit, integration, and dashboard coverage for shadow semantics.
 3. Tie the final lifecycle wording back into `SIM2-R4-4`.
 
 Acceptance criteria:
 
-1. Docs describe test mode as a credible long-running operator shadow posture.
+1. Docs describe shadow mode as a credible long-running operator shadow posture.
 2. Verification proves stdout quieting, shadow telemetry presence, and truthful monitoring rendering.
 
 ## Changes That Should Happen First or Alongside This Work
 
-1. `SIM2-R4-4-4` should remain open until this shadow telemetry contract is defined, because test-mode semantics are not truthful end-to-end otherwise.
-2. The current early `src/runtime/test_mode/mod.rs` short-circuit should not be expanded as the long-term solution; the first implementation step must be to move test-mode truthfulness onto the normal policy/effect boundary.
+1. `SIM2-R4-4-4` should remain open until this shadow telemetry contract is defined, because shadow-mode semantics are not truthful end-to-end otherwise.
+2. The current early `src/runtime/shadow_mode/mod.rs` short-circuit should not be expanded as the long-term solution; the first implementation step must be to move shadow-mode truthfulness onto the normal policy/effect boundary.
 3. Dashboard changes should not happen before backend-authored shadow semantics exist; otherwise the UI will keep relying on fragile string parsing.
 4. Any decision to preserve local-only stdout debug logging should be made explicitly during this tranche, not left implicit.
 5. Verification must include real hosted-style traffic volume checks so the storage/logging claims are proven against operator use, not only local development.
 6. Telemetry-efficiency guarantees from [`docs/plans/2026-03-11-telemetry-storage-query-efficiency-excellence-plan.md`](./2026-03-11-telemetry-storage-query-efficiency-excellence-plan.md) remain release-blocking for this work:
    - normal monitoring reads must stay bucket-addressable,
-   - no new whole-keyspace scans may be added for test-mode rendering,
+   - no new whole-keyspace scans may be added for shadow-mode rendering,
    - shadow telemetry must not introduce a parallel storage/query path that escapes existing retention and query-budget governance.
 
 ## Implementation Guardrails
@@ -187,8 +186,8 @@ Before touching code, the first implementation slice should explicitly lock down
    - Define which `EffectIntent` and `ResponseIntent` categories remain active in shadow mode, which are suppressed, and which become telemetry-only.
    - The important minimum is that ban/tarpit/block/friction side effects must not execute, while metrics/event/monitoring visibility remains truthful.
 
-2. **Submit-path `test_mode` exceptions must fold into the same model**
-   - Existing challenge-submit abuse branches in `src/runtime/request_router.rs` (`test_mode_no_ban`, maze fallback in place of tarpit/short-ban) must not remain a separate semantics island.
+2. **Submit-path shadow-mode exceptions must fold into the same model**
+   - Existing challenge-submit abuse branches in `src/runtime/request_router.rs` (`shadow_mode_no_ban`, maze fallback in place of tarpit/short-ban) must not remain a separate semantics island.
    - They should be rewritten or wrapped so they use the same shared shadow-execution contract as the main request path.
 
 3. **Choose one authoritative shadow metadata contract**
@@ -200,7 +199,7 @@ Before touching code, the first implementation slice should explicitly lock down
    - The chosen accounting must reuse the existing retention/query model and stay within the telemetry-efficiency constraints.
 
 5. **Confirm direct challenge-page gating against effective shadow semantics**
-   - `serve_not_a_bot_page(...)` and `serve_challenge_page(...)` currently key off `test_mode`.
+   - `serve_not_a_bot_page(...)` and `serve_challenge_page(...)` currently key off `shadow_mode`.
    - The tranche must decide whether that remains the truthful gate or whether the effective shadow execution mode should become the single source of truth for those surfaces.
 
 ## Verification Strategy
@@ -209,7 +208,7 @@ Before touching code, the first implementation slice should explicitly lock down
 2. `make test-integration`
 3. `make test-dashboard-e2e`
 4. `make test`
-5. Focused shared-host verification with `test_mode=true` and sustained traffic proving:
+5. Focused shared-host verification with `shadow_mode=true` and sustained traffic proving:
    - bounded stdout behavior,
    - shadow telemetry visibility,
    - truthful monitoring rendering,
@@ -217,8 +216,8 @@ Before touching code, the first implementation slice should explicitly lock down
 
 ## Definition of Done
 
-1. Test mode reuses the normal policy/effect path rather than a parallel shadow-only decision tree.
-2. Test mode no longer depends on default per-request stdout logging for operator visibility.
+1. Shadow mode reuses the normal policy/effect path rather than a parallel shadow-only decision tree.
+2. Shadow mode no longer depends on default per-request stdout logging for operator visibility.
 3. Monitoring and event payloads expose first-class shadow semantics.
 4. Dashboard monitoring distinguishes simulated actions from enforced actions without heuristic string parsing.
 5. Shadow-mode observability remains bounded under sustained traffic.

@@ -18,7 +18,7 @@
 
 <div class="charts-row">
   <div class="chart-container panel-soft panel-border pad-md">
-    <h2>Event Types (24h)</h2>
+    <h2>Event Types (Enforced, 24h)</h2>
     <HalfDoughnutChart
       canvasId="eventTypesChart"
       ariaLabel="Event types chart"
@@ -27,14 +27,14 @@
     />
   </div>
   <div class="chart-container panel-soft panel-border pad-md">
-    <h2>Top 10 <abbr title="Internet Protocol">IP</abbr>s by Events</h2>
+    <h2>Top 10 <abbr title="Internet Protocol">IP</abbr>s by Enforced Events (24h)</h2>
     <canvas id="topIpsChart" bind:this={topIpsCanvas}></canvas>
   </div>
 </div>
 
 <SectionBlock
   title="Events Over Time"
-  description="Recent events plotted over various time windows"
+  description="Enforced events plotted over various time windows"
   rootClass="section"
 >
   <div class="chart-header">

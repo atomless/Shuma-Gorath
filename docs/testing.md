@@ -138,7 +138,7 @@ Integration coverage includes:
 1. Health endpoint and <abbr title="Key-Value">KV</abbr> availability
 2. Root endpoint behavior (block page / <abbr title="JavaScript">JS</abbr> challenge)
 3. Honeypot ban flow
-4. Admin config + test-mode toggling
+4. Admin config + shadow-mode toggling
 5. Challenge single-use behavior (`Incorrect` then replay `Expired`)
 6. Metrics endpoint
 7. <abbr title="Chrome DevTools Protocol">CDP</abbr> report ingestion and auto-ban flow
@@ -492,14 +492,14 @@ curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
 Expected: the <abbr title="Internet Protocol">IP</abbr> removed from the ban list.
 Optional: verify with `GET /admin/ban` that the entry is gone.
 
-6. Test mode toggle:
+6. Shadow mode toggle:
 ```bash
 curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"test_mode": true}' \
+  -d '{"shadow_mode": true}' \
   http://127.0.0.1:3000/admin/config
 ```
-Expected: a <abbr title="JavaScript Object Notation">JSON</abbr> response with `"test_mode":true`.
+Expected: a <abbr title="JavaScript Object Notation">JSON</abbr> response with `"shadow_mode":true`.
 
 7. Metrics endpoint:
 ```bash
@@ -581,12 +581,12 @@ curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Authorization: Bearer $SHUMA
   "$BASE_URL/admin/unban?ip=1.2.3.4"
 echo ""
 
-echo "6) Test mode on, then off"
+echo "6) Shadow mode on, then off"
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
-  -H "Content-Type: application/json" -d '{"test_mode": true}' \
+  -H "Content-Type: application/json" -d '{"shadow_mode": true}' \
   "$BASE_URL/admin/config"
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
-  -H "Content-Type: application/json" -d '{"test_mode": false}' \
+  -H "Content-Type: application/json" -d '{"shadow_mode": false}' \
   "$BASE_URL/admin/config"
 echo ""
 
@@ -652,7 +652,7 @@ Verify:
 - Stats update on refresh
 - Charts render correctly
 - Ban/unban controls work
-- Test mode toggle updates banner
+- Shadow mode toggle updates banner
 - Fail-open/closed indicator matches deployment policy
 - Login key should match `make api-key-show` (or your deployed `SHUMA_API_KEY`)
 - Use the dashboard Ban <abbr title="Internet Protocol">IP</abbr> and Unban actions to validate the admin <abbr title="Application Programming Interface">API</abbr> wiring

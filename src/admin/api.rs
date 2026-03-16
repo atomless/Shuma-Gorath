@@ -35,8 +35,6 @@ pub(crate) struct EventExecutionMetadata {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_mode: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub shadow_source: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub intended_action: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enforcement_applied: Option<bool>,
@@ -507,11 +505,6 @@ fn telemetry_field_classification_schema() -> serde_json::Value {
             "persistence": "allow"
         },
         {
-            "field": "event.shadow_source",
-            "class": "internal",
-            "persistence": "allow"
-        },
-        {
             "field": "event.intended_action",
             "class": "internal",
             "persistence": "allow"
@@ -918,7 +911,7 @@ mod tests {
     }
 
     #[test]
-    fn log_event_with_execution_metadata_persists_shadow_fields() {
+    fn log_event_with_execution_metadata_persists_shadow_fields_without_source_field() {
         let store = MockStore::new();
         let now = now_ts();
         let entry = EventLogEntry {
@@ -934,7 +927,6 @@ mod tests {
             &entry,
             Some(EventExecutionMetadata {
                 execution_mode: Some("shadow".to_string()),
-                shadow_source: Some("test_mode".to_string()),
                 intended_action: Some("block".to_string()),
                 enforcement_applied: Some(false),
             }),
@@ -956,10 +948,6 @@ mod tests {
         assert_eq!(
             payload.execution.execution_mode.as_deref(),
             Some("shadow")
-        );
-        assert_eq!(
-            payload.execution.shadow_source.as_deref(),
-            Some("test_mode")
         );
         assert_eq!(
             payload.execution.intended_action.as_deref(),
@@ -2573,7 +2561,7 @@ mod admin_config_tests {
         let req = make_request(
             Method::Post,
             "/admin/config",
-            br#"{"test_mode":true}"#.to_vec(),
+            br#"{"shadow_mode":true}"#.to_vec(),
         );
 
         let response = handle_admin_config_internal(&req, &store, "default", false);
@@ -2590,7 +2578,7 @@ mod admin_config_tests {
             .expect("bootstrap document");
         let bootstrap: crate::observability::hot_read_documents::MonitoringBootstrapHotReadDocument =
             serde_json::from_slice(bootstrap_bytes.as_slice()).expect("bootstrap doc decode");
-        assert!(bootstrap.payload.analytics.test_mode);
+        assert!(bootstrap.payload.analytics.shadow_mode);
     }
 
     #[test]
@@ -3283,11 +3271,11 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn admin_config_test_mode_toggle_updates_runtime_config() {
+    fn admin_config_shadow_mode_toggle_updates_runtime_config() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
 
-        let body = br#"{"test_mode":true}"#.to_vec();
+        let body = br#"{"shadow_mode":true}"#.to_vec();
         let req = make_request(Method::Post, "/admin/config", body);
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
@@ -3295,16 +3283,16 @@ mod admin_config_tests {
         let json: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
         assert_eq!(
             json.get("config")
-                .and_then(|v| v.get("test_mode"))
+                .and_then(|v| v.get("shadow_mode"))
                 .and_then(|v| v.as_bool()),
             Some(true)
         );
 
         let saved_bytes = store.get("config:default").unwrap().unwrap();
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
-        assert!(saved_cfg.test_mode);
+        assert!(saved_cfg.shadow_mode);
         let effective_cfg = crate::config::load_runtime_cached(&store, "default").unwrap();
-        assert!(effective_cfg.test_mode);
+        assert!(effective_cfg.shadow_mode);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
     }
@@ -6230,7 +6218,7 @@ mod admin_config_tests {
     fn admin_config_rejects_updates_when_admin_config_write_disabled() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "false");
-        let body = br#"{"test_mode":true}"#.to_vec();
+        let body = br#"{"shadow_mode":true}"#.to_vec();
         let req = make_request(Method::Post, "/admin/config", body);
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
@@ -9655,8 +9643,8 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
             bool_env(crate::config::gateway_reserved_route_collision_check_passed()).to_string(),
         ),
         (
-            "SHUMA_TEST_MODE".to_string(),
-            bool_env(cfg.test_mode).to_string(),
+            "SHUMA_SHADOW_MODE".to_string(),
+            bool_env(cfg.shadow_mode).to_string(),
         ),
         (
             "SHUMA_ADVERSARY_SIM_ENABLED".to_string(),
@@ -10780,7 +10768,7 @@ struct AdminProviderBackendsPatch {
 #[derive(Debug, Deserialize, Default)]
 #[serde(default, deny_unknown_fields)]
 struct AdminConfigPatch {
-    test_mode: Option<bool>,
+    shadow_mode: Option<bool>,
     adversary_sim_duration_seconds: Option<u64>,
     ban_duration: Option<u64>,
     rate_limit: Option<u64>,
@@ -11064,7 +11052,7 @@ fn handle_admin_config_internal(
     validate_only: bool,
 ) -> Response {
     // GET: Return current config
-    // POST: Update config (supports {"test_mode": true/false})
+    // POST: Update config (supports {"shadow_mode": true/false})
     if *req.method() == spin_sdk::http::Method::Post {
         if !crate::config::admin_config_write_enabled() {
             return Response::new(
@@ -11092,11 +11080,11 @@ fn handle_admin_config_internal(
         let effective_adversary_sim_enabled =
             crate::config::runtime_adversary_sim_enabled_for_site(site_id);
 
-        // Update test_mode if provided.
-        if let Some(test_mode) = json.get("test_mode").and_then(|v| v.as_bool()) {
-            let old_value = cfg.test_mode;
-            if old_value != test_mode {
-                cfg.test_mode = test_mode;
+        // Update shadow_mode if provided.
+        if let Some(shadow_mode) = json.get("shadow_mode").and_then(|v| v.as_bool()) {
+            let old_value = cfg.shadow_mode;
+            if old_value != shadow_mode {
+                cfg.shadow_mode = shadow_mode;
                 changed = true;
                 if !validate_only {
                     log_event(
@@ -11105,8 +11093,8 @@ fn handle_admin_config_internal(
                             ts: now_ts(),
                             event: EventType::AdminAction,
                             ip: None,
-                            reason: Some("test_mode_toggle".to_string()),
-                            outcome: Some(format!("{} -> {}", old_value, test_mode)),
+                            reason: Some("shadow_mode_toggle".to_string()),
+                            outcome: Some(format!("{} -> {}", old_value, shadow_mode)),
                             admin: Some(crate::admin::auth::get_admin_id(req)),
                         },
                     );
@@ -12746,7 +12734,7 @@ fn handle_admin_config_internal(
             event: EventType::AdminAction,
             ip: None,
             reason: Some("config_view".to_string()),
-            outcome: Some(format!("test_mode={}", cfg.test_mode)),
+            outcome: Some(format!("shadow_mode={}", cfg.shadow_mode)),
             admin: Some(crate::admin::auth::get_admin_id(req)),
         },
     );
@@ -14056,7 +14044,7 @@ where
         "security_privacy": security_privacy,
         "analytics": {
             "ban_count": active_bans.len(),
-            "test_mode": cfg.as_ref().map(|v| v.test_mode).unwrap_or(false),
+            "shadow_mode": cfg.as_ref().map(|v| v.shadow_mode).unwrap_or(false),
             "fail_mode": fail_mode
         },
         "events": {
@@ -14231,7 +14219,7 @@ where
             "security_privacy": security_privacy,
             "analytics": {
                 "ban_count": crate::enforcement::ban::list_active_bans(store, site_id).len(),
-                "test_mode": cfg.as_ref().map(|value| value.test_mode).unwrap_or(false),
+                "shadow_mode": cfg.as_ref().map(|value| value.shadow_mode).unwrap_or(false),
                 "fail_mode": fail_mode
             },
             "events": {
@@ -15505,7 +15493,7 @@ pub fn handle_internal(req: &Request) -> Response {
 ///   - GET /admin/ban: List all bans for the site
 ///   - POST /admin/ban: Manually ban an IP (expects JSON body: {"ip": "1.2.3.4", "duration": 3600}; reason is fixed to "manual_ban")
 ///   - POST /admin/unban?ip=...: Remove a ban for an IP
-///   - GET /admin/analytics: Return ban count and test_mode status
+///   - GET /admin/analytics: Return ban count and shadow_mode status
 ///   - GET /admin/events: Query event log
 ///   - GET /admin/cdp/events: Query CDP-only events
 ///   - GET /admin/monitoring: Query consolidated monitoring telemetry summaries
@@ -15514,8 +15502,8 @@ pub fn handle_internal(req: &Request) -> Response {
 ///   - GET /admin/ip-bans/delta: Cursor-based ban/unban deltas plus active-ban snapshot
 ///   - GET /admin/ip-bans/stream: One-shot SSE ban delta (`Last-Event-ID` resume supported)
 ///   - GET /admin/ip-range/suggestions: Query IP range recommendation suggestions
-///   - GET /admin/config: Get current config including test_mode status
-///   - POST /admin/config: Update config (e.g., toggle test_mode)
+///   - GET /admin/config: Get current config including shadow_mode status
+///   - POST /admin/config: Update config (e.g., toggle shadow_mode)
 ///   - POST /admin/config/bootstrap: Seed missing KV config explicitly from a full config payload
 ///   - POST /admin/config/validate: Validate a config patch without persisting changes
 ///   - GET /admin/config/export: Export non-secret runtime config for immutable deploy handoff
@@ -15941,7 +15929,7 @@ pub fn handle_admin(req: &Request) -> Response {
             Response::new(200, "Unbanned")
         }
         "/admin/analytics" => {
-            // Return analytics: ban count and test_mode status
+            // Return analytics: ban count and shadow_mode status
             let cfg = match crate::config::load_runtime_cached(&store, site_id) {
                 Ok(cfg) => cfg,
                 Err(err) => return Response::new(500, err.user_message()),
@@ -15955,7 +15943,7 @@ pub fn handle_admin(req: &Request) -> Response {
             };
             let body = serde_json::to_string(&json!({
                 "ban_count": ban_count,
-                "test_mode": cfg.test_mode,
+                "shadow_mode": cfg.shadow_mode,
                 "fail_mode": fail_mode
             }))
             .unwrap();

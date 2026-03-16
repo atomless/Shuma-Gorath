@@ -343,7 +343,7 @@ mod tests {
     }
 
     #[test]
-    fn serve_challenge_page_requires_test_mode() {
+    fn serve_challenge_page_requires_shadow_mode() {
         let req = Request::builder()
             .method(Method::Get)
             .uri("/challenge/puzzle")

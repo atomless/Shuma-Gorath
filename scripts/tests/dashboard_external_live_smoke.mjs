@@ -294,9 +294,9 @@ async function setAutoRefresh(page, enabled) {
   }
 }
 
-async function setTestModeViaUi(page, desiredEnabled, timeoutMs = 20_000) {
-  const toggle = page.locator('#global-test-mode-toggle');
-  const toggleSwitch = page.locator("label.toggle-switch[for='global-test-mode-toggle']");
+async function setShadowModeViaUi(page, desiredEnabled, timeoutMs = 20_000) {
+  const toggle = page.locator('#global-shadow-mode-toggle');
+  const toggleSwitch = page.locator("label.toggle-switch[for='global-shadow-mode-toggle']");
   await expect(toggle).toBeEnabled({ timeout: timeoutMs });
   const desired = desiredEnabled === true;
   if ((await toggle.isChecked()) !== desired) {
@@ -389,12 +389,12 @@ async function main() {
     const readyStart = Date.now();
     try {
       await page.waitForFunction(() => {
-        const testModeToggle = document.querySelector('#global-test-mode-toggle');
+        const shadowModeToggle = document.querySelector('#global-shadow-mode-toggle');
         const adversaryToggle = document.querySelector('#global-adversary-sim-toggle');
         return Boolean(
-          testModeToggle &&
+          shadowModeToggle &&
           adversaryToggle &&
-          !testModeToggle.disabled &&
+          !shadowModeToggle.disabled &&
           !adversaryToggle.disabled
         );
       }, null, { timeout: READY_TIMEOUT_MS });
@@ -420,8 +420,8 @@ async function main() {
 
     await waitForDashboardAdversarySimUiConsistency(page, 30_000);
     await disableAdversarySimAndWaitOff(page);
-    await setTestModeViaUi(page, true, 20_000);
-    await setTestModeViaUi(page, false, 20_000);
+    await setShadowModeViaUi(page, true, 20_000);
+    await setShadowModeViaUi(page, false, 20_000);
 
     const baselineMonitoring = await fetchMonitoringBootstrap();
     const baselineTs = maxSimulationEventTs(baselineMonitoring);

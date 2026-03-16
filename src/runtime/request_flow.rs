@@ -89,7 +89,7 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         site_id,
         ip: &ip,
         ua,
-        execution_mode: crate::runtime::test_mode::effective_execution_mode(&cfg),
+        execution_mode: crate::runtime::shadow_mode::effective_execution_mode(&cfg),
     };
     let execute_request_intents = |intents: Vec<crate::runtime::effect_intents::EffectIntent>| {
         crate::runtime::effect_intents::execute_effect_intents(
@@ -100,10 +100,10 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         );
     };
     let forward_allow_response = |reason: &str| {
-        if crate::runtime::test_mode::shadow_mode_active(&cfg)
-            && !crate::runtime::test_mode::shadow_passthrough_available()
+        if crate::runtime::shadow_mode::shadow_mode_active(&cfg)
+            && !crate::runtime::shadow_mode::shadow_passthrough_available()
         {
-            return crate::runtime::test_mode::synthetic_shadow_allow_response();
+            return crate::runtime::shadow_mode::synthetic_shadow_allow_response();
         }
         crate::runtime::effect_intents::render_forward_allow_response(&request_effect_context, reason)
     };
@@ -117,12 +117,8 @@ pub(crate) fn handle_request(req: &Request) -> Response {
                 sample_hint: path.to_string(),
             },
         ];
-        if crate::runtime::test_mode::shadow_mode_active(&cfg) {
-            intents.push(
-                crate::runtime::effect_intents::EffectIntent::RecordShadowPassThrough {
-                    source: crate::runtime::effect_intents::ShadowSource::TestMode,
-                },
-            );
+        if crate::runtime::shadow_mode::shadow_mode_active(&cfg) {
+            intents.push(crate::runtime::effect_intents::EffectIntent::RecordShadowPassThrough);
         }
         execute_request_intents(intents);
     };

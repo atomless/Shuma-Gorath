@@ -382,7 +382,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             )
         )
         sim_runner.set_execution_phase(runner.SUITE_PHASE_SETUP, "unit_test_setup_phase")
-        sim_runner.admin_patch({"test_mode": True}, reason="unit_test_patch")
+        sim_runner.admin_patch({"shadow_mode": True}, reason="unit_test_patch")
 
         self.assertEqual(len(sim_runner.control_plane_mutations), 1)
         mutation = sim_runner.control_plane_mutations[0]
@@ -391,7 +391,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(mutation.get("reason"), "unit_test_patch")
         self.assertEqual(
             runner.dict_or_empty(mutation.get("details")).get("keys"),
-            ["test_mode"],
+            ["shadow_mode"],
         )
 
     def test_admin_patch_rejects_control_plane_mutation_during_attacker_phase(self):
@@ -419,7 +419,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             runner.SUITE_PHASE_ATTACKER_EXECUTION, "unit_test_attack_phase"
         )
         with self.assertRaises(runner.SimulationError):
-            sim_runner.admin_patch({"test_mode": True}, reason="unit_test_forbidden_patch")
+            sim_runner.admin_patch({"shadow_mode": True}, reason="unit_test_forbidden_patch")
 
     def test_admin_patch_rejects_setup_mutation_after_attacker_phase_started(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")
@@ -449,7 +449,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             runner.SUITE_PHASE_SETUP, "unit_test_illegal_setup_after_attack"
         )
         with self.assertRaises(runner.SimulationError):
-            sim_runner.admin_patch({"test_mode": False}, reason="unit_test_late_setup_patch")
+            sim_runner.admin_patch({"shadow_mode": False}, reason="unit_test_late_setup_patch")
 
     def test_cleanup_simulation_telemetry_history_records_mutation_audit(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")

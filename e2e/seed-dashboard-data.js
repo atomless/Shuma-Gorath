@@ -66,15 +66,15 @@ async function seedDashboardData() {
   const banIp = `203.0.113.${(now % 200) + 20}`;
   const cdpIp = `198.51.100.${(Math.floor(now / 7) % 200) + 20}`;
   let fingerprintReportPath = "/cdp-report";
-  let originalTestMode = false;
-  let restoreTestMode = false;
+  let originalShadowMode = false;
+  let restoreShadowMode = false;
 
   const config = await request(baseURL, "/admin/config", {
     headers: adminHeaders()
   });
-  if (config && typeof config.test_mode === "boolean") {
-    originalTestMode = config.test_mode;
-    restoreTestMode = true;
+  if (config && typeof config.shadow_mode === "boolean") {
+    originalShadowMode = config.shadow_mode;
+    restoreShadowMode = true;
   }
   if (config?.provider_backends?.fingerprint_signal === "external") {
     fingerprintReportPath = "/fingerprint-report";
@@ -87,7 +87,7 @@ async function seedDashboardData() {
         ...adminHeaders(),
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ test_mode: false })
+      body: JSON.stringify({ shadow_mode: false })
     });
 
     await request(baseURL, "/admin/ban", {
@@ -138,14 +138,14 @@ async function seedDashboardData() {
       eventCount: events.recent_events.length
     };
   } finally {
-    if (restoreTestMode) {
+    if (restoreShadowMode) {
       await request(baseURL, "/admin/config", {
         method: "POST",
         headers: {
           ...adminHeaders(),
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ test_mode: originalTestMode })
+        body: JSON.stringify({ shadow_mode: originalShadowMode })
       }).catch(() => {});
     }
     await safeUnban(baseURL, banIp);

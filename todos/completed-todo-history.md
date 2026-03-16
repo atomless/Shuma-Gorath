@@ -2,7 +2,49 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-16)
+
+### Agentic-Era Defence Research: Banded Ban Jitter, Local Recidive, And Central Intelligence
+
+- [x] Gather fresh primary-source research and turn it into repo-native documentation for three coordinated features:
+  - percentage-banded ban jitter,
+  - repeat-offender escalation with bounded local recidive memory,
+  - and optional central intelligence in the style of advisory CTI plus higher-confidence deny feeds.
+- [x] Why:
+  - these features should not be designed in isolation, because in Shuma they sit across different horizons of the same system: immediate request-path cost shaping, short-lived local memory, medium-horizon shared intelligence, and long-horizon oversight-controller tuning.
+  - the new documentation needed to preserve the agentic-era model already established in the repo: separate automation lanes, cryptographic agent identity, low-friction beneficial-agent handling, and controller-plus-budgets rather than free-form agent autonomy.
+  - the research pass re-grounded the design in current evidence from AWS, Fail2ban, CrowdSec, Spamhaus, OpenAI, Anthropic, Google, Cloudflare, the IETF, and Kubernetes so Shuma's next policy primitives stay current and defensible.
+- [x] Evidence:
+  - `docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md`
+  - `docs/plans/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md`
+  - `docs/plans/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-implementation-plan.md`
+  - `docs/index.md`
+  - `docs/research/README.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ## Additional completions (2026-03-15)
+
+### Test Audit Cleanup: Remove Low-Value Dashboard Archaeology Checks And Reframe Telemetry Contracts
+
+- [x] Audit the current test surface for low-value or stale checks, trim the worst dashboard source-contract archaeology assertions, and replace old-shape telemetry evidence language with present-tense contract checks.
+- [x] Why:
+  - the biggest concentration of low-signal tests had drifted into `e2e/dashboard.modules.unit.test.js`, where several assertions were mostly proving that old helper names, old ids, or removed chrome were absent rather than proving the current dashboard contract worked.
+  - keeping the valuable positive assertions while deleting or relaxing those archaeology checks makes the test lane more useful: it now validates current shared panels, runtime responsibilities, refresh paths, and monitoring/fingerprinting/tuning surfaces without overfitting to historical implementation details.
+  - the telemetry evidence helper previously reported `legacy_js_verification_rows`, which framed the check as compatibility archaeology. Renaming that signal to `js_verification_contract_violations` makes the tests assert the actual desired contract: compact JS-verification rows remain structurally correct with zero violations.
+  - the audit also surfaced real missing coverage, so new TODOs were added for rendered monitoring shadow-mode truthfulness, Red Team multi-run row coverage, and continued replacement of source-string archaeology with behavior-level dashboard tests.
+- [x] Evidence:
+  - `e2e/dashboard.modules.unit.test.js`
+  - `scripts/tests/telemetry_evidence_common.py`
+  - `scripts/tests/test_telemetry_shared_host_evidence.py`
+  - `scripts/tests/test_telemetry_fermyon_edge_evidence.py`
+  - `todos/todo.md`
+  - `make test-unit`
+  - `make test-config-lifecycle`
+  - `make test-telemetry-hot-read-evidence`
+  - `make test-adversarial-python-unit`
+  - `make test-dashboard-unit`
+  - `git diff --check`
 
 ### Dashboard Monitoring Cleanup: Remove Duplicated Tarpit State Chrome
 
@@ -376,9 +418,9 @@ Moved from active TODO files on 2026-02-14.
 
 - [x] Remove the global bottom dashboard message bar and route only valuable feedback into the owning pane or control.
 - [x] Why:
-  - the old bottom bar was frequently off-screen and mixed unrelated save chatter, test-mode notices, adversary-sim warnings, and IP-ban actions into one global sink that was easy to miss and hard to trust.
+  - the old bottom bar was frequently off-screen and mixed unrelated save chatter, shadow-mode notices, adversary-sim warnings, and IP-ban actions into one global sink that was easy to miss and hard to trust.
   - this slice keeps feedback close to the control surface that owns it: pane-local notices now render through the shared tab-state primitive, Red Team owns sim warnings/errors, IP Bans owns ban/unban errors, and config-save flows stop emitting generic success/progress noise.
-  - the redundant `Test mode disabled (blocking active)` message is gone because the page header already communicates test-mode state, while test-mode write failures still surface near that header control.
+  - the redundant `Shadow mode disabled (blocking active)` message is gone because the page header already communicates shadow-mode state, while shadow-mode write failures still surface near that header control.
 - [x] Evidence:
   - `dashboard/src/routes/+page.svelte`
   - `dashboard/src/lib/components/dashboard/primitives/TabStateMessage.svelte`
@@ -600,7 +642,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] Raise edge-specific dashboard request budgets, add retry-aware adversary-sim control handling, and extend the canonical Fermyon proof so success requires the real dashboard UI and Monitoring tab to behave correctly on the deployed edge app.
 - [x] Why:
   - the earlier Fermyon proof was still incomplete because endpoint-level success and cron generation did not prove that the real dashboard UI worked under edge latency and controller-lease behavior.
-  - on the deployed edge app, Test Mode and Adversary Sim writes could take longer than shared-host/local defaults and adversary-sim control could transiently return controller-lease `409` responses with `Retry-After`.
+  - on the deployed edge app, Shadow Mode and Adversary Sim writes could take longer than shared-host/local defaults and adversary-sim control could transiently return controller-lease `409` responses with `Retry-After`.
   - that caused the UI to roll toggles back even though the backend finished enabling shortly afterwards, which made the dashboard appear broken and hid real Monitoring activity behind a misleading client-side failure.
   - the clean fix was to treat `edge-fermyon` as a distinct dashboard request-budget posture, preserve `Retry-After`, retry bounded lease/throttle failures, and require a real external dashboard smoke in the canonical deploy helper instead of trusting endpoint-only probes.
 - [x] Evidence:
@@ -624,11 +666,11 @@ Moved from active TODO files on 2026-02-14.
   - `make test-deploy-fermyon`
   - live `make deploy-fermyon-akamai-edge`
   - standalone external smoke against `https://79b823de-37b6-4a85-b3cc-16a40738c5a7.fwf.app`
-  - live dashboard verification that Test Mode and Adversary Sim toggles converged from the real UI and Monitoring showed a fresh simulation event
+  - live dashboard verification that Shadow Mode and Adversary Sim toggles converged from the real UI and Monitoring showed a fresh simulation event
 
 ### Ad Hoc Fermyon Reliability: Dashboard Bootstrap Readiness Must Not Wait on Slow Cursor Seeding
 
-- [x] Shorten the live Fermyon dashboard bootstrap critical path so the global Test Mode and Adversary Sim controls become usable once monitoring/config data is loaded, instead of staying disabled behind slow edge cursor-seeding work.
+- [x] Shorten the live Fermyon dashboard bootstrap critical path so the global Shadow Mode and Adversary Sim controls become usable once monitoring/config data is loaded, instead of staying disabled behind slow edge cursor-seeding work.
 - [x] Why:
   - the live Fermyon backend was responsive, but the dashboard still looked broken because the initial Monitoring-tab bootstrap awaited slow edge cursor seeding before it loaded config or marked runtime bootstrap complete.
   - that left the global controls disabled with `Waiting for the dashboard to finish loading.` and made the live edge deployment appear non-responsive even though `/admin/session`, `/admin/config`, and `/admin/monitoring` were all succeeding.
@@ -640,7 +682,7 @@ Moved from active TODO files on 2026-02-14.
   - `make test-deploy-fermyon`
   - live `make deploy-fermyon-akamai-edge`
   - live browser verification on the deployed Fermyon app showing the dashboard becoming ready and enabling the global toggles in roughly 8s instead of remaining stuck in the bootstrap-disabled state
-  - live browser verification that Test Mode and Adversary Sim controls responded again on the deployed Fermyon app after bootstrap completed
+  - live browser verification that Shadow Mode and Adversary Sim controls responded again on the deployed Fermyon app after bootstrap completed
 
 ### Ad Hoc Fermyon Reliability: Edge Adversary-Sim Generation Proof
 
@@ -672,39 +714,39 @@ Moved from active TODO files on 2026-02-14.
   - live `make deploy-fermyon-akamai-edge`
   - live edge proof that enable returned `generation.tick_count >= 1` and later polling showed a follow-up cron-driven tick beyond that baseline
 
-### SIM2-R4-4: Config Seeding Lifecycle and Test-Mode Semantics
+### SIM2-R4-4: Config Seeding Lifecycle and Shadow-Mode Semantics
 
-- [x] SIM2-R4-4-4 Resolve `test_mode` semantics end-to-end, defaulting to ephemeral runtime/session state unless a narrower exception is deliberately approved.
+- [x] SIM2-R4-4-4 Resolve `shadow_mode` semantics end-to-end, defaulting to ephemeral runtime/session state unless a narrower exception is deliberately approved.
 - [x] SIM2-R4-4-5 Update operator docs and record the final lifecycle contract in an architecture note or ADR if the scope widens.
 - [x] Why:
-  - `test_mode` was still semantically incomplete after the config-seeding work because the runtime relied on a separate early short-circuit path, long-running hosted use still emitted noisy per-request stdout logs, and monitoring blurred simulated actions with enforced outcomes.
-  - the final contract is now a true shadow-execution posture layered on the normal policy/effect path, with explicit backend-authored execution metadata and operator docs describing test mode as a long-running shadow-tuning tool rather than a short-lived terminal-only diagnostic.
+  - `shadow_mode` was still semantically incomplete after the config-seeding work because the runtime relied on a separate early short-circuit path, long-running hosted use still emitted noisy per-request stdout logs, and monitoring blurred simulated actions with enforced outcomes.
+  - the final contract is now a true shadow-execution posture layered on the normal policy/effect path, with explicit backend-authored execution metadata and operator docs describing shadow mode as a long-running shadow-tuning tool rather than a short-lived terminal-only diagnostic.
 - [x] Evidence:
-  - `docs/plans/2026-03-12-test-mode-shadow-telemetry-monitoring-truthfulness-plan.md`
+  - `docs/plans/2026-03-12-shadow-mode-telemetry-monitoring-truthfulness-plan.md`
   - `src/runtime/policy_pipeline.rs`
   - `src/runtime/request_flow.rs`
   - `src/runtime/request_router.rs`
-  - `src/runtime/test_mode/mod.rs`
+  - `src/runtime/shadow_mode/mod.rs`
   - `src/runtime/effect_intents/intent_executor.rs`
   - `src/admin/api.rs`
   - `docs/configuration.md`
   - `docs/observability.md`
   - `docs/dashboard-tabs/monitoring.md`
-  - `make test-test-mode-shadow`
+  - `make test-shadow-mode`
   - `make test-integration`
   - `make test`
 
-### TMON-1: Test-Mode Shadow Telemetry and Monitoring Truthfulness
+### TMON-1: Shadow-Mode Telemetry and Monitoring Truthfulness
 
-- [x] TMON-1-1 Rebase test mode on the normal policy graph and effect/plan boundary instead of the current early `src/runtime/test_mode/mod.rs` short-circuit, so shadow mode observes the same `PolicyDecision` path as real enforcement.
-- [x] TMON-1-2 Define the canonical shadow telemetry contract for test mode: backend-authored execution semantics (`shadow` vs `enforced`, intended action, enforcement applied, and source) instead of relying on free-text `"[TEST MODE]"` / `would_*` parsing in the dashboard.
-- [x] TMON-1-3 Remove default per-request stdout logging from the hosted test-mode path, or explicitly isolate any retained logging behind a deliberate local-only debug contract; do not leave noisy terminal output as the implicit operator surface.
+- [x] TMON-1-1 Rebase shadow mode on the normal policy graph and effect/plan boundary instead of the current early `src/runtime/shadow_mode/mod.rs` short-circuit, so shadow mode observes the same `PolicyDecision` path as real enforcement.
+- [x] TMON-1-2 Define the canonical shadow telemetry contract for shadow mode: backend-authored execution semantics (`shadow` vs `enforced`, intended action, enforcement applied, and source) instead of relying on free-text `"[TEST MODE]"` / `would_*` parsing in the dashboard.
+- [x] TMON-1-3 Remove default per-request stdout logging from the hosted shadow-mode path, or explicitly isolate any retained logging behind a deliberate local-only debug contract; do not leave noisy terminal output as the implicit operator surface.
 - [x] TMON-1-4 Keep shadow observability storage-bounded by distinguishing between raw-event-worthy shadow outcomes and aggregate-only pass/no-op traffic; do not solve the current gap by logging one raw event for every clean pass on busy sites.
 - [x] TMON-1-3a Preserve telemetry-efficiency guarantees while doing this work: no new whole-keyspace scan paths, no new shadow-specific unbounded cardinality dimensions, and no parallel storage/query path that escapes existing bucket-indexed retention, rollup, and query-budget governance.
 - [x] TMON-1-5 Update `/admin/monitoring`, delta/stream payloads, and any related presentation helpers so monitoring surfaces can distinguish "would challenge/block/maze/tarpit" from actions actually enforced.
-- [x] TMON-1-6 Update dashboard monitoring summaries, trend blocks, filters, and raw-feed helpers so operators can inspect long-running test mode as a truthful shadow posture without heuristic string parsing or misleading enforcement language.
-- [x] TMON-1-7 Add unit, integration, and dashboard end-to-end coverage proving quiet stdout behavior, shadow telemetry presence, bounded storage impact, correct monitoring rendering, and reuse of the normal policy/effect path under sustained test-mode traffic.
-- [x] TMON-1-8 Update operator docs and verification guidance so test mode is described as a long-running shadow-tuning posture for hosted deployments, and close the remaining `SIM2-R4-4` semantics/docs items against that delivered contract.
+- [x] TMON-1-6 Update dashboard monitoring summaries, trend blocks, filters, and raw-feed helpers so operators can inspect long-running shadow mode as a truthful shadow posture without heuristic string parsing or misleading enforcement language.
+- [x] TMON-1-7 Add unit, integration, and dashboard end-to-end coverage proving quiet stdout behavior, shadow telemetry presence, bounded storage impact, correct monitoring rendering, and reuse of the normal policy/effect path under sustained shadow-mode traffic.
+- [x] TMON-1-8 Update operator docs and verification guidance so shadow mode is described as a long-running shadow-tuning posture for hosted deployments, and close the remaining `SIM2-R4-4` semantics/docs items against that delivered contract.
 - [x] Why:
   - operators need to observe Shuma’s simulated behaviour on live traffic without confusing “would have happened” telemetry with real enforcement or paying avoidable storage/query costs for long-running shadow mode.
   - the clean implementation had to reuse the real policy graph and effect executor, suppress enforcement side effects at a single boundary, keep clean pass-through traffic aggregate-only, and make monitoring truthfully distinguish shadow from enforced behaviour.
@@ -714,8 +756,8 @@ Moved from active TODO files on 2026-02-14.
   - `src/runtime/effect_intents/response_renderer.rs`
   - `src/runtime/effect_intents/plan_builder.rs`
   - `src/runtime/effect_intents.rs`
-  - `src/runtime/test_mode/mod.rs`
-  - `src/runtime/test_mode/tests.rs`
+  - `src/runtime/shadow_mode/mod.rs`
+  - `src/runtime/shadow_mode/tests.rs`
   - `src/runtime/policy_pipeline.rs`
   - `src/runtime/request_flow.rs`
   - `src/runtime/request_router.rs`
@@ -735,18 +777,18 @@ Moved from active TODO files on 2026-02-14.
   - `docs/configuration.md`
   - `docs/observability.md`
   - `docs/dashboard-tabs/monitoring.md`
-  - `make test-test-mode-shadow`
+  - `make test-shadow-mode`
   - `make test-dashboard-unit`
   - `make test-integration`
   - `make test`
 
 ## Additional completions (2026-03-11)
 
-### Ad Hoc Dashboard UX: Test-Mode Header Eye Overlay
+### Ad Hoc Dashboard UX: Shadow-Mode Header Eye Overlay
 
-- [x] Overlay the dashboard header image with the `eye.png` marker only while `test_mode` is enabled, so operators can see at a glance that the current session is in logging-only posture without adding more permanent chrome.
+- [x] Overlay the dashboard header image with the `eye.png` marker only while `shadow_mode` is enabled, so operators can see at a glance that the current session is in logging-only posture without adding more permanent chrome.
 - [x] Why:
-  - test mode already changes runtime semantics, but the dashboard header gave no persistent visual cue once the operator scrolled past the banner/toggle area
+  - shadow mode already changes runtime semantics, but the dashboard header gave no persistent visual cue once the operator scrolled past the banner/toggle area
   - the requested cue needed to stay local to the existing header, avoid disturbing the broader dashboard visual language, and keep the styling in the canonical dashboard stylesheet rather than route-local style blocks
 - [x] Evidence:
   - `dashboard/src/routes/+page.svelte`
@@ -755,7 +797,7 @@ Moved from active TODO files on 2026-02-14.
   - `e2e/dashboard.smoke.spec.js`
   - `docs/dashboard.md`
   - `make test-dashboard-unit`
-  - `make test-dashboard-e2e PLAYWRIGHT_ARGS="--grep 'dashboard header overlays the eye only while test mode is enabled|dashboard login route remains functional after direct navigation and refresh'"`
+  - `make test-dashboard-e2e PLAYWRIGHT_ARGS="--grep 'dashboard header overlays the eye only while shadow mode is enabled|dashboard login route remains functional after direct navigation and refresh'"`
 
 ### Ad Hoc Runtime Reliability: Remote Deploy Env Default Seeding
 
@@ -955,7 +997,7 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-07)
 
-### SIM2-R4-4: Config Seeding Lifecycle and Test-Mode Semantics
+### SIM2-R4-4: Config Seeding Lifecycle and Shadow-Mode Semantics
 
 - [x] SIM2-R4-4-1 Make runtime start paths (`make dev`, `make dev-closed`, `make run`, `make run-prebuilt`, `make prod`) read-only with respect to persisted KV config.
 - [x] SIM2-R4-4-2 Keep setup/backfill explicit via `make setup`, `make setup-runtime`, and `make config-seed`, with clear diagnostics for missing, stale, and invalid persisted config.
@@ -1118,7 +1160,7 @@ Moved from active TODO files on 2026-02-14.
 
 #### DEP-GW-POST: Gateway Follow-On Hardening
 
-- [x] DEP-GW-POST-1 Add a wasm32-capable TLS failure integration harness (expired/untrusted/hostname-mismatch cert matrix) to strengthen upstream trust-path testing beyond native test-mode transport stubs.
+- [x] DEP-GW-POST-1 Add a wasm32-capable TLS failure integration harness (expired/untrusted/hostname-mismatch cert matrix) to strengthen upstream trust-path testing beyond native shadow-mode transport stubs.
 - [x] Added wasm TLS trust-path harness and unit coverage:
   - `scripts/tests/gateway_tls_wasm_harness.py`
   - `scripts/tests/test_gateway_tls_wasm_harness.py`
@@ -1433,7 +1475,7 @@ Acceptance criteria (archived):
 
 - [x] SIM2-EX2-1 Define capability lattice by operation class (`metrics_write`, `monitoring_write`, `event_log_write`, `ban_write`, optional `response_privileged`) and by orchestration phase. (Artifact: `src/runtime/capabilities.rs`)
 - [x] SIM2-EX2-2 Replace single coarse `RuntimeCapabilities::for_request_path()` minting with phase-specific capability construction and explicit capability passing per execution step. (Artifacts: `src/runtime/capabilities.rs`, `src/runtime/request_flow.rs`, `src/runtime/policy_pipeline.rs`, `src/runtime/effect_intents/intent_executor.rs`, `src/runtime/effect_intents/response_renderer.rs`, `src/lib.rs`)
-- [x] SIM2-EX2-3 Eliminate direct privileged helper calls that bypass capability checks; route every write path through capability-gated executor APIs. (Artifacts: `src/runtime/request_router.rs`, `src/runtime/test_mode/mod.rs`, `src/runtime/request_flow.rs`, `src/runtime/policy_pipeline.rs`, `src/runtime/effect_intents/intent_types.rs`, `src/runtime/effect_intents/intent_executor.rs`, `src/runtime/effect_intents/plan_builder.rs`)
+- [x] SIM2-EX2-3 Eliminate direct privileged helper calls that bypass capability checks; route every write path through capability-gated executor APIs. (Artifacts: `src/runtime/request_router.rs`, `src/runtime/shadow_mode/mod.rs`, `src/runtime/request_flow.rs`, `src/runtime/policy_pipeline.rs`, `src/runtime/effect_intents/intent_types.rs`, `src/runtime/effect_intents/intent_executor.rs`, `src/runtime/effect_intents/plan_builder.rs`)
 - [x] SIM2-EX2-4 Add compile-time sealing for capability constructors so capabilities can only be minted at trust-boundary entrypoints. (Artifacts: `src/runtime/capabilities.rs`, `src/runtime/request_flow.rs`, `src/lib.rs`, `src/runtime/request_router.rs`, `src/runtime/request_router/tests.rs`)
 - [x] SIM2-EX2-5 Add negative-path tests proving privileged effects fail/are impossible when capability is absent. (Artifact: `src/runtime/architecture_guards.rs`)
 - [x] SIM2-EX2-6 Add regression tests ensuring no fallback path silently executes privileged writes outside capability-guarded APIs. (Artifact: `src/runtime/architecture_guards.rs`)
@@ -2276,9 +2318,9 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 ## todos/todo.md
 
 - [x] Define sprint guardrails: refactor-only, no behavior changes, no new dependencies, tests must pass before each checkoff.
-- [x] M1 Extract inline test-mode block from `src/lib.rs` into dedicated test-mode module (`src/runtime/test_mode/mod.rs`).
-- [x] M2 Add focused unit tests for extracted test-mode behavior (cover bypass, block, and allow outcomes).
-- [x] M3 Keep `src/lib.rs` behavior identical by routing existing test-mode flow through the new module.
+- [x] M1 Extract inline shadow-mode block from `src/lib.rs` into dedicated shadow-mode module (`src/runtime/shadow_mode/mod.rs`).
+- [x] M2 Add focused unit tests for extracted shadow-mode behavior (cover bypass, block, and allow outcomes).
+- [x] M3 Keep `src/lib.rs` behavior identical by routing existing shadow-mode flow through the new module.
 - [x] M4 Run verification (`cargo test` and integration smoke path) and record result.
 - [x] M5 Plan and execute next extraction slice from `src/lib.rs` (routing/decision helpers) with similarly scoped checklist items.
 - [x] M5.1 Extract early endpoint routing (`/health`, `/admin`, `/metrics`, `/robots.txt`, challenge endpoints) into a dedicated router helper/module without changing semantics.
@@ -2348,7 +2390,7 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 - [x] Incrementally migrate top-level `src/*_tests.rs` files into colocated module tests and/or `tests/` integration suites (no behavior changes).
 - [x] Keep test discovery and CI commands stable (`cargo test`, Make targets) throughout migration.
 - [x] Add/adjust regression tests to ensure routing and enforcement order remain stable while tests move (runtime-backed early routes should be covered in integration-level tests, not native unit tests).
-- [x] H2 slice A completed: moved ban/CDP/GEO/request-router/test-mode/allowlist test files to module-local paths and removed corresponding top-level test module wiring in `src/lib.rs`.
+- [x] H2 slice A completed: moved ban/CDP/GEO/request-router/shadow-mode/allowlist test files to module-local paths and removed corresponding top-level test module wiring in `src/lib.rs`.
 - [x] H2 slice A completed: added shared unit-test helpers in `src/test_support.rs` and adopted them in env-sensitive suites.
 - [x] H2 slice A verification: `cargo test` passes after migration with no behavior changes.
 - [x] H2 slice B completed: migrated config tests from `src/config_tests.rs` to module-local `src/config/tests.rs`, including shared env-lock adoption.
@@ -2674,7 +2716,7 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 - [x] DSH-FUP-5 Add a shared status-panel patch helper to coalesce `statusPanel.update(...)` + `statusPanel.render()` across dashboard modules and remove duplicate render-trigger code paths.
 - [x] DSH-FUP-6 Move monitoring loading placeholder reset logic out of `dashboard/dashboard.js` and into `dashboard/modules/monitoring-view.js` so monitoring rendering state is feature-owned.
 - [x] DSH-FUP-7 Reduce `configControls.bind(...)` coupling by replacing the broad callback bag with a focused domain API object (typed by shape and covered by module tests).
-- [x] DSH-FUP-8 Replace inline style mutations for test-mode visual state with semantic classes/CSS tokens and add coverage to prevent style regressions.
+- [x] DSH-FUP-8 Replace inline style mutations for shadow-mode visual state with semantic classes/CSS tokens and add coverage to prevent style regressions.
 - [x] DSH-FUP-9 Expand dashboard save-flow test coverage for robots serving, AI policy, GEO scoring/routing, CDP config, and botness config to catch regressions that unit adapter tests miss.
 
 ## Additional completions (2026-02-17, section-preserving archive)

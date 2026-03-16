@@ -99,6 +99,7 @@ class TelemetryFermyonEdgeEvidenceTests(unittest.TestCase):
         )
         self.assertTrue(report["recent_event_sample"]["challenge_heavy_sample"])
         self.assertEqual(report["recent_event_sample"]["compact_js_verification_rows"], 12)
+        self.assertEqual(report["recent_event_sample"]["js_verification_contract_violations"], 0)
 
     def test_run_reads_receipt_and_writes_report(self) -> None:
         with tempfile.TemporaryDirectory(prefix="telemetry-fermyon-edge-evidence-") as temp_dir:
@@ -181,6 +182,7 @@ class TelemetryFermyonEdgeEvidenceTests(unittest.TestCase):
             persisted = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(persisted["edge"]["app_id"], "app-123")
             self.assertEqual(persisted["recent_event_sample"]["compact_js_verification_rows"], 1)
+            self.assertEqual(persisted["recent_event_sample"]["js_verification_contract_violations"], 0)
             self.assertEqual(
                 measure_json_endpoint.call_args_list[0].args[0],
                 "/admin/monitoring?hours=24&limit=10&bootstrap=1",

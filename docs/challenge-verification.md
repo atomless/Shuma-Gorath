@@ -27,7 +27,7 @@ For the capability-level research and value map, see [`value-proposition.md`](va
 ## 🐙 Challenge Routes
 
 - `GET /challenge/puzzle`
-  - Serves the challenge page when `test_mode=true` in runtime config
+  - Serves the challenge page when `shadow_mode=true` in runtime config
 - `POST /challenge/puzzle`
   - Submits and verifies the answer
 

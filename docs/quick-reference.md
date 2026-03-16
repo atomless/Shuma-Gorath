@@ -145,7 +145,7 @@ make test-dashboard-e2e    # In terminal 2
 - `GET /admin/ip-bans/stream?...` - One-shot IP-ban SSE delta
 - Expensive admin reads (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/ban` `GET`) are per-<abbr title="Internet Protocol">IP</abbr> rate-limited and return `429` + `Retry-After: 60` when limited.
 - `GET /admin/config` - Get current configuration
-- `POST /admin/config` - Update configuration (test_mode, ban_durations, robots serving, <abbr title="Artificial Intelligence">AI</abbr> bot policy, <abbr title="Chrome DevTools Protocol">CDP</abbr>, etc.)
+- `POST /admin/config` - Update configuration (shadow_mode, ban_durations, robots serving, <abbr title="Artificial Intelligence">AI</abbr> bot policy, <abbr title="Chrome DevTools Protocol">CDP</abbr>, etc.)
 - `POST /admin/config/validate` - Validate a config patch without persisting it
 - `GET /admin/config/export` - Export non-secret runtime config for immutable redeploy handoff
   - Redis provider URLs are treated as secrets and excluded from this export.
@@ -220,17 +220,17 @@ The deploy helper also provisions the managed five-job adversary-sim edge cron s
 
 For more deployment detail, see [`docs/deployment.md`](deployment.md).
 
-### 🐙 Test Mode
-Enable for safe production testing (logs but doesn't block):
+### 🐙 Shadow Mode
+Enable for safe production testing (logs but does not block):
 
-**Via Dashboard:** Use the Test Mode toggle in Admin Controls
+**Via Dashboard:** Use the Shadow Mode toggle in Admin Controls
 
 **Via <abbr title="Application Programming Interface">API</abbr>:**
 ```bash
-# Enable test mode
+# Enable shadow mode
 curl -X POST -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"test_mode": true}' \
+  -d '{"shadow_mode": true}' \
   http://127.0.0.1:3000/admin/config
 
 # Check current status
@@ -238,7 +238,7 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
   http://127.0.0.1:3000/admin/config
 ```
 
-Test mode is a <abbr title="Key-Value">KV</abbr>-backed admin-editable runtime setting; use dashboard or `POST /admin/config` to change it.
+Shadow mode is a <abbr title="Key-Value">KV</abbr>-backed admin-editable runtime setting; use dashboard or `POST /admin/config` to change it.
 
 ### 🐙 Default Config
 Defaults are defined in `config/defaults.env` and seeded into <abbr title="Key-Value">KV</abbr> for admin-editable runtime settings:
@@ -325,7 +325,7 @@ src/
 ├── maze/                  # Maze barrier logic
 ├── observability/         # Metrics/export
 ├── providers/             # Provider contracts + registry + internal adapters
-├── runtime/               # Request router/policy pipeline/test-mode helpers
+├── runtime/               # Request router/policy pipeline/shadow-mode helpers
 └── signals/               # Browser/CDP/GEO/IP/JS/allowlist signals
 
 dashboard/                 # Web dashboard UI
@@ -345,5 +345,5 @@ scripts/tests/integration.sh # Spin integration scenarios
 1. **Shared-host Deploy**: Use `make prepare-linode-shared-host` and `make deploy-linode-one-shot` for the canonical Linode/shared-host path
 2. **Routine Remote Ops**: Use `make remote-update`, `make remote-status`, and `make remote-open-dashboard` once the first SSH-managed remote is deployed
 3. **Custom Config**: Update config in <abbr title="Key-Value">KV</abbr> store for your needs
-4. **Monitor and Tune**: Use dashboard monitoring plus test mode/adversary sim to validate before tightening enforcement
+4. **Monitor and Tune**: Use dashboard monitoring plus shadow mode/adversary sim to validate before tightening enforcement
 5. **Enterprise/Egress Work**: Use [`docs/deployment.md`](deployment.md) for the staged enterprise/Akamai/Fermyon posture and gateway guardrails

@@ -58,12 +58,12 @@ If your monitoring goes through a proxy, set:
 For defense in depth, set `SHUMA_HEALTH_SECRET` and require:
 - `X-Shuma-Health-Secret: <SHUMA_HEALTH_SECRET>`
 
-## 🐙 Test Mode vs Fail Mode
+## 🐙 Shadow Mode vs Fail Mode
 
-- Test mode logs actions without enforcing blocks
+- Shadow mode logs actions without enforcing blocks
 - Fail mode only applies when the <abbr title="Key-Value">KV</abbr> store is unavailable
 
-Do not treat test mode as a substitute for fail-open/closed behavior.
+Do not treat shadow mode as a substitute for fail-open/closed behavior.
 
 ## 🐙 Event Retention
 

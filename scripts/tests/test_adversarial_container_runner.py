@@ -90,7 +90,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         config_request, control_request = requests
         self.assertEqual(config_request["url"], "http://127.0.0.1:3000/admin/config")
         self.assertEqual(config_request["method"], "POST")
-        self.assertEqual(json.loads(config_request["body"]), {"test_mode": False})
+        self.assertEqual(json.loads(config_request["body"]), {"shadow_mode": False})
         self.assertNotIn("adversary_sim_enabled", config_request["body"])
 
         self.assertEqual(

@@ -20,7 +20,7 @@ High Priority
 9. [Mostly Done] Silent error suppression — Multiple let _ = patterns (e.g., lib.rs:387-388) discard errors silently. KV write failures go unreported, making production debugging difficult.
 
 ## Medium Priority
-10. Test mode block is 150+ lines inline — lib.rs:625-774 embeds the entire test-mode logic in the main handler. Should be extracted to a dedicated function/module for maintainability.
+10. Shadow mode block is 150+ lines inline — lib.rs:625-774 embeds the entire shadow-mode logic in the main handler. Should be extracted to a dedicated function/module for maintainability.
 
 11. In-memory metrics lost on crash — metrics.rs buffers metrics in memory before flushing to KV. If the WASM module restarts, buffered data is lost with no recovery mechanism.
 

@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-14
+Last updated: 2026-03-15
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -17,12 +17,12 @@ Reference context:
 - [`docs/plans/2026-03-12-unified-telemetry-hot-read-architecture-plan.md`](../docs/plans/2026-03-12-unified-telemetry-hot-read-architecture-plan.md)
 - [`docs/plans/2026-03-13-compact-event-telemetry-implementation-plan.md`](../docs/plans/2026-03-13-compact-event-telemetry-implementation-plan.md)
 - [`docs/plans/2026-03-14-telemetry-retention-rebaseline-implementation-plan.md`](../docs/plans/2026-03-14-telemetry-retention-rebaseline-implementation-plan.md)
-- [`docs/plans/2026-03-12-test-mode-shadow-telemetry-monitoring-truthfulness-plan.md`](../docs/plans/2026-03-12-test-mode-shadow-telemetry-monitoring-truthfulness-plan.md)
+- [`docs/plans/2026-03-12-shadow-mode-telemetry-monitoring-truthfulness-plan.md`](../docs/plans/2026-03-12-shadow-mode-telemetry-monitoring-truthfulness-plan.md)
 - [`docs/research/2026-03-14-compact-event-telemetry-live-evidence.md`](../docs/research/2026-03-14-compact-event-telemetry-live-evidence.md)
 - [`docs/configuration.md`](../docs/configuration.md)
 - [`docs/testing.md`](../docs/testing.md)
 
-### SIM2-R4-4: Config Seeding Lifecycle and Test-Mode Semantics
+### SIM2-R4-4: Config Seeding Lifecycle and Shadow-Mode Semantics
 
 ### SIM2-R4-CONN-1: Dashboard Connection-State Hardening
 - [ ] SIM2-R4-CONN-1-1 Add passive request-failure classification and dedicated heartbeat diagnostics before any global state-machine change.
@@ -105,7 +105,10 @@ Architecture alignment reference:
 - [`docs/plans/2026-02-23-maze-tarpit-architecture-alignment-plan.md`](../docs/plans/2026-02-23-maze-tarpit-architecture-alignment-plan.md)
 
 - [ ] TEST-HYGIENE-2 Keep canonical `make test` worktree-clean by moving routine adversarial/SIM2 generated receipts out of tracked fixture paths (or otherwise making them reproducible without churn), so verification does not rewrite committed JSON artifacts like `preflight_report.json`, `sim2_ci_diagnostics.json`, `sim2_operational_regressions_report.json`, and `sim2_realtime_bench_report.json`.
-- [ ] TEST-ENV-1 Enforce repo-wide Rust test env-isolation discipline so any test that mutates process env must hold `lock_env()` (and fix the remaining offender in `src/runtime/test_mode/tests.rs`).
+- [ ] TEST-HYGIENE-3 Replace the remaining dashboard source-contract archaeology checks with rendered-behavior coverage where practical, especially for tab-surface ownership and monitoring section composition, so tests prove operator-visible behavior instead of string-level absence of old implementations.
+- [ ] TEST-HYGIENE-4 Add a focused dashboard behavior test proving two distinct adversary-simulation `sim_run_id` values render as two `Recent Red Team Runs` rows when both runs are still present in the bounded monitoring window.
+- [ ] TEST-HYGIENE-5 Add dashboard coverage that proves Monitoring headline charts remain enforced-only while shadow-mode labeling stays explicit in the raw/recent-event surfaces, so shadow truthfulness is verified at the rendered UI level instead of inferred from source structure.
+- [ ] TEST-ENV-1 Enforce repo-wide Rust test env-isolation discipline so any test that mutates process env must hold `lock_env()` (and fix the remaining offender in `src/runtime/shadow_mode/tests.rs`).
 - [ ] BUILD-HYGIENE-1 Restore warning-free canonical verification by fixing cfg/dead-code hygiene in native test builds, including `src/config/runtime_env.rs::spin_variable_name`, so `make test` output stays signal-rich and release gates do not normalize away compiler warnings.
 - [ ] CI-WF-1 Refresh GitHub Actions dependencies off the Node 20-backed majors (`actions/checkout@v4`, `actions/setup-node@v4`, `actions/upload-artifact@v4`) and re-prove the workflows without deprecation annotations before the hosted-runner cutoff forces emergency maintenance.
 - [ ] TAH-11 Expand tarpit observability: progression admissions and denials, proof verify outcomes, chain violations, bytes sent, duration, budget exhaustion reason, fallback action, and escalation outcomes (including top offender buckets with cardinality guardrails).

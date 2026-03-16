@@ -40,7 +40,7 @@
   --border-hairline: 0.5px solid var(--color-300);
   --striped-bg: repeating-linear-gradient(-45deg, hsl(var(--hue), 100%, 99%), hsl(var(--hue), 100%, 99%) 10px, hsl(var(--hue), 44%, 96%) 10px, hsl(var(--hue), 44%, 96%) 20px);
   --striped-bright-bg: repeating-linear-gradient(-45deg, hsla(var(--hue), 100%, 99%, 0.5), hsla(var(--hue), 100%, 99%, 0.5) 10px, hsl(var(--hue), 97%, 72%) 10px, hsl(var(--hue), 97%, 72%) 20px);
-  --striped-testmode-bg: repeating-linear-gradient(-45deg, hsla(var(--hue), 35%, 65%, 0.85), hsla(var(--hue), 35%, 65%, 0.85) 10px, hsl(var(--hue), 49%, 49%) 10px, hsl(var(--hue), 49%, 49%) 20px);
+  --striped-shadow-mode-bg: repeating-linear-gradient(-45deg, hsla(var(--hue), 35%, 65%, 0.85), hsla(var(--hue), 35%, 65%, 0.85) 10px, hsl(var(--hue), 49%, 49%) 10px, hsl(var(--hue), 49%, 49%) 20px);
 
   /* Semantic panel colors that follow the page theme. */
   --page-bg: var(--color-back);
@@ -136,7 +136,7 @@
 :root.adversary-sim {
   --hue: 0;
 }
-:root.test-mode {
+:root.shadow-mode {
   --hue: -256;
 }
 
@@ -153,7 +153,7 @@
   filter: saturate(1.9);
 }
 
-:root.connected.test-mode {
+:root.connected.shadow-mode {
   filter: saturate(1.4);
 }
 
@@ -409,51 +409,53 @@ body {
   position: relative;
 }
 
-.dashboard-test-mode-eye {
+.dashboard-shadow-mode-eye {
   position: absolute;
   top: -34px;
   left: calc(50% - 173px);
   width: 24.5rem;
   pointer-events: none;
+  visibility: hidden;
   height: 0;
-  overflow:hidden;
+  overflow: hidden;
 }
 
-.dashboard-test-mode-eye-image {
+.dashboard-shadow-mode-eye-image {
   display: block;
   width: 100%;
   height: auto;
 }
 
-:root.disconnected .dashboard-test-mode-eye, 
+:root.disconnected .dashboard-shadow-mode-eye,
 :root.disconnected .shuma-gorath-img {
   filter: hue-rotate(0deg) saturate(0);
   transition: all .4s ease-in;
 }
 
-:root.runtime-dev:not(.disconnected) .dashboard-test-mode-eye, 
+:root.runtime-dev:not(.disconnected) .dashboard-shadow-mode-eye,
 :root.runtime-dev:not(.disconnected) .shuma-gorath-img {
   filter: hue-rotate(0deg) saturate(1);
   transition: all .4s ease-in;
 }
 
-:root.runtime-prod:not(.disconnected) .dashboard-test-mode-eye, 
+:root.runtime-prod:not(.disconnected) .dashboard-shadow-mode-eye,
 :root.runtime-prod:not(.disconnected) .shuma-gorath-img {
   filter: hue-rotate(318deg) saturate(1);
   transition: all .4s ease-in;
 }
 
-:root.adversary-sim:not(.disconnected) .dashboard-test-mode-eye, 
+:root.adversary-sim:not(.disconnected) .dashboard-shadow-mode-eye,
 :root.adversary-sim:not(.disconnected) .shuma-gorath-img {
   filter: hue-rotate(-317deg) saturate(1.1);
   transition: all .4s ease-in;
 }
 
-:root.test-mode:not(.disconnected) .shuma-gorath-img {
+:root.shadow-mode:not(.disconnected) .shuma-gorath-img {
   filter: hue-rotate(167deg) saturate(1);
   transition: all .4s ease-in;
 }
-:root.test-mode:not(.disconnected) .dashboard-test-mode-eye {
+:root.shadow-mode:not(.disconnected) .dashboard-shadow-mode-eye {
+  visibility: visible;
   height: 343px;
   filter: hue-rotate(167deg) saturate(1.1) brightness(0.9) !important;
   transition: all .4s ease-in;
@@ -568,7 +570,7 @@ h1 {
   opacity: 0.7;
 }
 
-.dashboard-test-mode-notice {
+.dashboard-shadow-mode-notice {
   position: absolute;
   top: 64px;
   left: 30px;
@@ -874,7 +876,7 @@ h1 {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  gap: 2px;
+  gap: 0;
   padding-bottom: clamp(2px, 1cqw, 8px);
   pointer-events: none;
   text-align: center;
@@ -1402,15 +1404,15 @@ a:focus-visible {
 .login-card .message.info { display: none; }
 
 /* ===========================================
-   Test Mode & Fail Mode Banners
+   Shadow Mode & Fail Mode Banners
    =========================================== */
 
-.test-mode-banner {
+.shadow-mode-banner {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
-  background: var(--striped-testmode-bg);
+  background: var(--striped-shadow-mode-bg);
   background-attachment: fixed;
   color: var(--color-back);
   padding: 12px 20px;
@@ -1420,7 +1422,7 @@ a:focus-visible {
   animation: pulse 2s infinite;
 }
 
-.test-mode-banner.hidden {
+.shadow-mode-banner.hidden {
   display: none;
 }
 

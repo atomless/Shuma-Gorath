@@ -1,19 +1,17 @@
 use spin_sdk::http::Response;
 
-use crate::runtime::effect_intents::{ExecutionMode, ShadowAction, ShadowSource};
+use crate::runtime::effect_intents::{ExecutionMode, ShadowAction};
 
 pub(crate) fn effective_execution_mode(cfg: &crate::config::Config) -> ExecutionMode {
-    if cfg.test_mode {
-        ExecutionMode::Shadow {
-            source: ShadowSource::TestMode,
-        }
+    if cfg.shadow_mode {
+        ExecutionMode::Shadow
     } else {
         ExecutionMode::Enforced
     }
 }
 
 pub(crate) fn shadow_mode_active(cfg: &crate::config::Config) -> bool {
-    effective_execution_mode(cfg).shadow_source().is_some()
+    matches!(effective_execution_mode(cfg), ExecutionMode::Shadow)
 }
 
 pub(crate) fn shadow_passthrough_available() -> bool {
@@ -32,19 +30,19 @@ pub(crate) fn synthetic_shadow_allow_response() -> Response {
 }
 
 pub(crate) fn synthetic_shadow_allow_body() -> &'static str {
-    "TEST MODE: Would allow"
+    "SHADOW MODE: Would allow"
 }
 
 pub(crate) fn synthetic_shadow_body(action: ShadowAction) -> &'static str {
     match action {
-        ShadowAction::NotABot => "TEST MODE: Would serve Not-a-Bot",
-        ShadowAction::Challenge => "TEST MODE: Would serve challenge",
-        ShadowAction::JsChallenge => "TEST MODE: Would inject JS challenge",
-        ShadowAction::Maze => "TEST MODE: Would route to maze",
-        ShadowAction::Block => "TEST MODE: Would block",
-        ShadowAction::Tarpit => "TEST MODE: Would tarpit",
-        ShadowAction::Redirect => "TEST MODE: Would redirect",
-        ShadowAction::DropConnection => "TEST MODE: Would drop connection",
+        ShadowAction::NotABot => "SHADOW MODE: Would serve Not-a-Bot",
+        ShadowAction::Challenge => "SHADOW MODE: Would serve challenge",
+        ShadowAction::JsChallenge => "SHADOW MODE: Would inject JS challenge",
+        ShadowAction::Maze => "SHADOW MODE: Would route to maze",
+        ShadowAction::Block => "SHADOW MODE: Would block",
+        ShadowAction::Tarpit => "SHADOW MODE: Would tarpit",
+        ShadowAction::Redirect => "SHADOW MODE: Would redirect",
+        ShadowAction::DropConnection => "SHADOW MODE: Would drop connection",
     }
 }
 

@@ -167,7 +167,7 @@ pub enum MetricName {
     ChallengeIncorrectTotal,
     ChallengeExpiredReplayTotal,
     AllowlistedTotal,
-    TestModeActions,
+    ShadowModeActions,
     MazeHits,
     MazeTokenOutcomes,
     MazeCheckpointOutcomes,
@@ -210,7 +210,7 @@ impl MetricName {
             MetricName::ChallengeIncorrectTotal => "challenge_incorrect_total",
             MetricName::ChallengeExpiredReplayTotal => "challenge_expired_replay_total",
             MetricName::AllowlistedTotal => "allowlisted_total",
-            MetricName::TestModeActions => "test_mode_actions_total",
+            MetricName::ShadowModeActions => "shadow_mode_actions_total",
             MetricName::MazeHits => "maze_hits_total",
             MetricName::MazeTokenOutcomes => "maze_token_outcomes_total",
             MetricName::MazeCheckpointOutcomes => "maze_checkpoint_outcomes_total",
@@ -599,12 +599,12 @@ pub fn render_metrics(store: &Store) -> String {
     let allowlisted = get_counter(store, &format!("{}allowlisted_total", METRICS_PREFIX));
     output.push_str(&format!("bot_defence_allowlisted_total {}\n", allowlisted));
 
-    // Test mode actions
-    output.push_str("\n# TYPE bot_defence_test_mode_actions_total counter\n");
-    let test_mode = get_counter(store, &format!("{}test_mode_actions_total", METRICS_PREFIX));
+    // Shadow mode actions
+    output.push_str("\n# TYPE bot_defence_shadow_mode_actions_total counter\n");
+    let shadow_mode = get_counter(store, &format!("{}shadow_mode_actions_total", METRICS_PREFIX));
     output.push_str(&format!(
-        "bot_defence_test_mode_actions_total {}\n",
-        test_mode
+        "bot_defence_shadow_mode_actions_total {}\n",
+        shadow_mode
     ));
 
     // Maze hits
@@ -1097,14 +1097,14 @@ pub fn render_metrics(store: &Store) -> String {
     let active_bans = count_active_bans(store);
     output.push_str(&format!("bot_defence_active_bans {}\n", active_bans));
 
-    // Test mode enabled (gauge, 0 or 1)
-    output.push_str("\n# TYPE bot_defence_test_mode_enabled gauge\n");
-    let test_mode_enabled = crate::config::load_runtime_cached(store, "default")
-        .map(|cfg| if cfg.test_mode { 1 } else { 0 })
+    // Shadow mode enabled (gauge, 0 or 1)
+    output.push_str("\n# TYPE bot_defence_shadow_mode_enabled gauge\n");
+    let shadow_mode_enabled = crate::config::load_runtime_cached(store, "default")
+        .map(|cfg| if cfg.shadow_mode { 1 } else { 0 })
         .unwrap_or(0);
     output.push_str(&format!(
-        "bot_defence_test_mode_enabled {}\n",
-        test_mode_enabled
+        "bot_defence_shadow_mode_enabled {}\n",
+        shadow_mode_enabled
     ));
 
     output

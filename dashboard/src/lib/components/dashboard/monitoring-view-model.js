@@ -115,6 +115,13 @@ const sortCountEntries = (source) =>
   Object.entries(source && typeof source === 'object' ? source : {})
     .sort((left, right) => Number(right[1] || 0) - Number(left[1] || 0));
 
+const sortCountEntryPairs = (source, limit = 10) =>
+  Object.entries(source && typeof source === 'object' ? source : {})
+    .sort((left, right) =>
+      Number(right[1] || 0) - Number(left[1] || 0) || String(left[0] || '').localeCompare(String(right[0] || ''))
+    )
+    .slice(0, Math.max(0, Number(limit || 0)));
+
 const deriveTrendSeries = (trend = []) => {
   const points = Array.isArray(trend) ? trend : [];
   return {
@@ -208,6 +215,35 @@ const classifyExecutionMode = (event) => {
   if (mode === 'shadow') return 'shadow';
   if (event?.enforcement_applied === false) return 'shadow';
   return 'enforced';
+};
+
+export const deriveEnforcedMonitoringChartRows = (events = [], options = {}) => {
+  const source = Array.isArray(events) ? events : [];
+  const topIpLimit = Math.max(1, Number(options.topIpLimit || 10));
+  const enforcedEvents = [];
+  const eventCounts = {};
+  const ipCounts = {};
+
+  for (const event of source) {
+    if (classifyExecutionMode(event) === 'shadow') continue;
+    enforcedEvents.push(event);
+
+    const eventName = String(event?.event || '').trim();
+    if (eventName) {
+      eventCounts[eventName] = Number(eventCounts[eventName] || 0) + 1;
+    }
+
+    const ip = String(event?.ip || '').trim();
+    if (ip) {
+      ipCounts[ip] = Number(ipCounts[ip] || 0) + 1;
+    }
+  }
+
+  return {
+    events: enforcedEvents,
+    eventCounts,
+    topIps: sortCountEntryPairs(ipCounts, topIpLimit)
+  };
 };
 
 const classifyShadowAction = (event) => normalizeToken(event?.intended_action);
@@ -757,7 +793,6 @@ export const deriveTarpitViewModel = (data = {}) => {
 };
 
 export const deriveMonitoringSummaryViewModel = (summary = {}) => {
-  const shadow = summary.shadow || {};
   const honeypot = summary.honeypot || {};
   const challenge = summary.challenge || {};
   const notABot = summary.not_a_bot || {};
@@ -822,26 +857,7 @@ export const deriveMonitoringSummaryViewModel = (summary = {}) => {
     : (notABotServed > 0
       ? Math.min(1, Math.max(0, notABotAbandonments / notABotServed))
       : 0);
-  const shadowActionRows = sortCountEntries(shadow.actions)
-    .filter(([, count]) => Number(count || 0) > 0);
-  const topShadowAction = shadowActionRows.length > 0 ? shadowActionRows[0] : null;
-
   return {
-    shadow: {
-      totalActions: formatCompactNumber(shadow.total_actions, '0'),
-      passThroughTotal: formatCompactNumber(shadow.pass_through_total, '0'),
-      topAction: {
-        label: 'Top Simulated Action',
-        value: topShadowAction
-          ? `${SHADOW_ACTION_LABELS[topShadowAction[0]] || formatMetricLabel(topShadowAction[0])} (${formatCompactNumber(topShadowAction[1], '0')})`
-          : 'None'
-      },
-      actions: shadowActionRows.map(([key, count]) => ({
-        key,
-        label: SHADOW_ACTION_LABELS[key] || formatMetricLabel(key),
-        count: Number(count || 0)
-      }))
-    },
     honeypot: {
       totalHits: formatCompactNumber(honeypot.total_hits, '0'),
       uniqueCrawlers: formatCompactNumber(honeypot.unique_crawlers, '0'),

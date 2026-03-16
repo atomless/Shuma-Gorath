@@ -1,5 +1,5 @@
 {
-  "test_mode": "Logs detections/actions without enforcing blocks.",
+  "shadow_mode": "Logs detections/actions without enforcing blocks.",
   "adversary_sim_enabled": "Read-only desired state reported by the runtime for adversary simulation orchestration.",
   "adversary_sim_duration_seconds": "Dashboard orchestration run-window duration in seconds (bounded by runtime guardrails).",
   "frontier_mode": "Frontier adversary role mode: disabled, single-provider self-play, or multi-provider playoff.",

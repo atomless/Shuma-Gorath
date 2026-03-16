@@ -1764,7 +1764,7 @@ class Runner:
     def reset_baseline_config(self) -> None:
         self.admin_patch(
             {
-                "test_mode": False,
+                "shadow_mode": False,
                 "honeypot_enabled": True,
                 "maze_enabled": True,
                 "maze_auto_ban": False,
@@ -2378,26 +2378,26 @@ class Runner:
 
         if driver_name == "allow_browser_allowlist":
             return {
-                "test_mode": False,
+                "shadow_mode": False,
                 "browser_policy_enabled": False,
                 "browser_allowlist": [["Chrome", 120]],
                 "js_required_enforced": False,
                 "pow_enabled": False,
             }
         if driver_name == "not_a_bot_pass":
-            return {"test_mode": True, "not_a_bot_enabled": True, "challenge_puzzle_enabled": True}
+            return {"shadow_mode": True, "not_a_bot_enabled": True, "challenge_puzzle_enabled": True}
         if driver_name == "challenge_puzzle_fail_maze":
-            return {"test_mode": True, "maze_enabled": True, "challenge_puzzle_enabled": True}
+            return {"shadow_mode": True, "maze_enabled": True, "challenge_puzzle_enabled": True}
         if driver_name in {"pow_success", "pow_invalid_proof"}:
             return {
-                "test_mode": False,
+                "shadow_mode": False,
                 "pow_enabled": True,
                 "pow_difficulty": 12,
                 "pow_ttl_seconds": 120,
             }
         if driver_name in {"rate_limit_enforce", "retry_storm_enforce"}:
             return {
-                "test_mode": False,
+                "shadow_mode": False,
                 "rate_limit": 2,
                 "js_required_enforced": False,
                 "defence_modes": {"rate": "both"},
@@ -2407,7 +2407,7 @@ class Runner:
             }
         if driver_name == "geo_challenge":
             return {
-                "test_mode": False,
+                "shadow_mode": False,
                 "geo_edge_headers_enabled": True,
                 "geo_risk": [],
                 "geo_allow": [],
@@ -2417,7 +2417,7 @@ class Runner:
             }
         if driver_name == "geo_maze":
             return {
-                "test_mode": False,
+                "shadow_mode": False,
                 "maze_enabled": True,
                 "maze_auto_ban": False,
                 "geo_edge_headers_enabled": True,
@@ -2429,7 +2429,7 @@ class Runner:
             }
         if driver_name == "geo_block":
             return {
-                "test_mode": False,
+                "shadow_mode": False,
                 "geo_edge_headers_enabled": True,
                 "geo_risk": [],
                 "geo_allow": [],
@@ -2438,20 +2438,20 @@ class Runner:
                 "geo_block": [geo_country] if geo_country else [],
             }
         if driver_name == "honeypot_deny_temp":
-            return {"test_mode": False, "honeypot_enabled": True}
+            return {"shadow_mode": False, "honeypot_enabled": True}
         if driver_name in {
             "not_a_bot_replay_abuse",
             "not_a_bot_stale_token_abuse",
             "not_a_bot_ordering_cadence_abuse",
         }:
             return {
-                "test_mode": True,
+                "shadow_mode": True,
                 "maze_enabled": True,
                 "not_a_bot_nonce_ttl_seconds": 300,
             }
         if driver_name == "not_a_bot_replay_tarpit_abuse":
             return {
-                "test_mode": True,
+                "shadow_mode": True,
                 "maze_enabled": True,
                 "tarpit_enabled": True,
                 "tarpit_progress_token_ttl_seconds": 120,
@@ -2475,7 +2475,7 @@ class Runner:
             }
         if driver_name == "fingerprint_inconsistent_payload":
             return {
-                "test_mode": False,
+                "shadow_mode": False,
                 "provider_backends": {"fingerprint_signal": "external"},
                 "edge_integration_mode": "additive",
                 "cdp_detection_enabled": True,
@@ -2483,7 +2483,7 @@ class Runner:
             }
         if driver_name == "header_spoofing_probe":
             return {
-                "test_mode": False,
+                "shadow_mode": False,
                 "defence_modes": {"rate": "off"},
                 "js_required_enforced": False,
                 "pow_enabled": False,
@@ -2499,7 +2499,7 @@ class Runner:
             }
         if driver_name == "cdp_high_confidence_deny":
             return {
-                "test_mode": False,
+                "shadow_mode": False,
                 "provider_backends": {"fingerprint_signal": "internal"},
                 "edge_integration_mode": "off",
                 "cdp_detection_enabled": True,
@@ -2507,7 +2507,7 @@ class Runner:
             }
         if driver_name == "akamai_additive_report":
             return {
-                "test_mode": False,
+                "shadow_mode": False,
                 "provider_backends": {"fingerprint_signal": "external"},
                 "edge_integration_mode": "additive",
                 "cdp_detection_enabled": True,
@@ -2515,7 +2515,7 @@ class Runner:
             }
         if driver_name == "akamai_authoritative_deny":
             return {
-                "test_mode": False,
+                "shadow_mode": False,
                 "provider_backends": {"fingerprint_signal": "external"},
                 "edge_integration_mode": "authoritative",
                 "cdp_detection_enabled": True,
@@ -2552,7 +2552,7 @@ class Runner:
         self._scenario_setup_context[scenario_id]["tarpit_replay_seed"] = seed
         self.admin_patch(
             {
-                "test_mode": False,
+                "shadow_mode": False,
                 "maze_enabled": True,
                 "tarpit_enabled": True,
                 "tarpit_fallback_action": "maze",

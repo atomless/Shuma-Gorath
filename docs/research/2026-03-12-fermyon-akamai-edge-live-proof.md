@@ -31,7 +31,7 @@ The following live checks passed after deploy:
 - authenticated `GET /admin/config` returned `200`
 - live dashboard readiness completed in roughly `2.1s - 2.3s` on the deployed edge app
 - the live Monitoring tab rendered its first real feed rows in roughly `2.6s`
-- toggling Test Mode from the real dashboard UI converged successfully on the deployed edge app
+- toggling Shadow Mode from the real dashboard UI converged successfully on the deployed edge app
 - toggling Adversary Sim from the real dashboard UI converged successfully on the deployed edge app
 - enabling adversary sim immediately produced a bounded first tick on the live edge app
 - a later cron-driven follow-up tick arrived after enable without manual intervention
@@ -153,7 +153,7 @@ Resolution:
 Observed behavior:
 
 - the first edge proof was still incomplete even after cron generation was fixed, because the real dashboard UI could still look broken.
-- global Test Mode and Adversary Sim toggles used the same short write budgets as shared-host/local flows.
+- global Shadow Mode and Adversary Sim toggles used the same short write budgets as shared-host/local flows.
 - on the live edge app, adversary-sim control could legitimately take longer than the default dashboard timeout and could transiently return controller-lease `409` responses with `Retry-After`.
 - the UI then rolled back toggles even though the backend finished enabling shortly afterwards, which made the dashboard appear non-responsive and hid real monitoring activity behind a misleading client-side failure.
 
@@ -178,7 +178,7 @@ Resolution:
 - live authenticated `POST /admin/adversary-sim/control` on the deployed app returned status with `generation.tick_count >= 1`, `generation.request_count > 0`, and `supervisor.heartbeat_active=true`
 - live authenticated polling of `/admin/adversary-sim/status` after enable showed a later tick and request-count increase beyond that primed baseline
 - live dashboard interaction proved:
-  - Test Mode toggle on -> off converged from the real UI,
+  - Shadow Mode toggle on -> off converged from the real UI,
   - Adversary Sim toggle off -> on converged from the real UI without client rollback,
   - Monitoring loaded fresh simulation rows after enable,
   - and a reload while adversary sim was still active preserved truthful control/feed state

@@ -153,7 +153,7 @@ cat > "${tmp_json}" <<EOF
   "ip_range_suggestions_ipv4_min_prefix_len": ${SHUMA_IP_RANGE_SUGGESTIONS_IPV4_MIN_PREFIX_LEN},
   "ip_range_suggestions_ipv6_min_prefix_len": ${SHUMA_IP_RANGE_SUGGESTIONS_IPV6_MIN_PREFIX_LEN},
   "ip_range_suggestions_likely_human_sample_percent": ${SHUMA_IP_RANGE_SUGGESTIONS_LIKELY_HUMAN_SAMPLE_PERCENT},
-  "test_mode": $(bool_norm "${SHUMA_TEST_MODE}"),
+  "shadow_mode": $(bool_norm "${SHUMA_SHADOW_MODE}"),
   "adversary_sim_enabled": $(bool_norm "${SHUMA_ADVERSARY_SIM_ENABLED}"),
   "adversary_sim_duration_seconds": ${SHUMA_ADVERSARY_SIM_DURATION_SECONDS},
   "maze_enabled": $(bool_norm "${SHUMA_MAZE_ENABLED}"),
@@ -422,9 +422,9 @@ else:
             state = "ready"
 
 if mode in {"seed", "print"} and isinstance(merged, dict):
-    default_test_mode = bool(defaults.get("test_mode", False))
-    if merged.get("test_mode") != default_test_mode:
-        merged["test_mode"] = default_test_mode
+    default_shadow_mode = bool(defaults.get("shadow_mode", False))
+    if merged.get("shadow_mode") != default_shadow_mode:
+        merged["shadow_mode"] = default_shadow_mode
         changed = True
     default_adversary_sim_enabled = bool(defaults.get("adversary_sim_enabled", False))
     if merged.get("adversary_sim_enabled") != default_adversary_sim_enabled:

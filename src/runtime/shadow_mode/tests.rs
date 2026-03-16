@@ -1,42 +1,37 @@
 use super::*;
 
 #[test]
-fn effective_execution_mode_is_enforced_when_test_mode_disabled() {
+fn effective_execution_mode_is_enforced_when_shadow_mode_disabled() {
     let mut cfg = crate::config::defaults().clone();
-    cfg.test_mode = false;
+    cfg.shadow_mode = false;
 
     assert_eq!(effective_execution_mode(&cfg), ExecutionMode::Enforced);
     assert!(!shadow_mode_active(&cfg));
 }
 
 #[test]
-fn effective_execution_mode_is_shadow_when_test_mode_enabled() {
+fn effective_execution_mode_is_shadow_when_shadow_mode_enabled() {
     let mut cfg = crate::config::defaults().clone();
-    cfg.test_mode = true;
+    cfg.shadow_mode = true;
 
-    assert_eq!(
-        effective_execution_mode(&cfg),
-        ExecutionMode::Shadow {
-            source: ShadowSource::TestMode
-        }
-    );
+    assert_eq!(effective_execution_mode(&cfg), ExecutionMode::Shadow);
     assert!(shadow_mode_active(&cfg));
 }
 
 #[test]
 fn synthetic_shadow_body_uses_stable_labels() {
-    assert_eq!(synthetic_shadow_allow_body(), "TEST MODE: Would allow");
+    assert_eq!(synthetic_shadow_allow_body(), "SHADOW MODE: Would allow");
     assert_eq!(
         synthetic_shadow_body(ShadowAction::JsChallenge),
-        "TEST MODE: Would inject JS challenge"
+        "SHADOW MODE: Would inject JS challenge"
     );
     assert_eq!(
         synthetic_shadow_body(ShadowAction::Maze),
-        "TEST MODE: Would route to maze"
+        "SHADOW MODE: Would route to maze"
     );
     assert_eq!(
         synthetic_shadow_body(ShadowAction::Block),
-        "TEST MODE: Would block"
+        "SHADOW MODE: Would block"
     );
 }
 

@@ -45,7 +45,7 @@ ADMIN_NOISE_REASON_PREFIXES = (
     "admin_",
     "config_",
     "provider_selection_update",
-    "test_mode_toggle",
+    "shadow_mode_toggle",
 )
 
 

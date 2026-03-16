@@ -31,11 +31,11 @@ pub(crate) fn render_shadow_allow_response(
     context: &EffectExecutionContext<'_>,
     action: ShadowAction,
 ) -> Response {
-    if crate::runtime::test_mode::shadow_passthrough_available() {
-        let reason = format!("test_mode_shadow_{}", action.as_str());
+    if crate::runtime::shadow_mode::shadow_passthrough_available() {
+        let reason = format!("shadow_mode_shadow_{}", action.as_str());
         return render_forward_allow_response(context, reason.as_str());
     }
-    crate::runtime::test_mode::synthetic_shadow_response(action)
+    crate::runtime::shadow_mode::synthetic_shadow_response(action)
 }
 
 pub(super) fn execute_response_intent(

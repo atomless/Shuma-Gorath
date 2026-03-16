@@ -54,11 +54,12 @@ fn shadow_event_metadata(
     context: &EffectExecutionContext<'_>,
     action: Option<ShadowAction>,
 ) -> Option<crate::admin::EventExecutionMetadata> {
-    let source = context.execution_mode.shadow_source()?;
+    if !matches!(context.execution_mode, ExecutionMode::Shadow) {
+        return None;
+    }
     let intended_action = action?;
     Some(crate::admin::EventExecutionMetadata {
         execution_mode: Some("shadow".to_string()),
-        shadow_source: Some(source.as_str().to_string()),
         intended_action: Some(intended_action.as_str().to_string()),
         enforcement_applied: Some(false),
     })
@@ -71,7 +72,7 @@ fn prepare_intents_for_execution(
 ) -> (Vec<EffectIntent>, Option<ShadowAction>) {
     let shadow_action = match execution_mode {
         ExecutionMode::Enforced => None,
-        ExecutionMode::Shadow { .. } => shadow_action_for_response(response),
+        ExecutionMode::Shadow => shadow_action_for_response(response),
     };
     let Some(shadow_action) = shadow_action else {
         return (intents, None);
@@ -79,15 +80,10 @@ fn prepare_intents_for_execution(
 
     let mut prepared = vec![
         EffectIntent::IncrementMetric {
-            metric: crate::observability::metrics::MetricName::TestModeActions,
+            metric: crate::observability::metrics::MetricName::ShadowModeActions,
             label: None,
         },
-        EffectIntent::RecordShadowAction {
-            action: shadow_action,
-            source: execution_mode
-                .shadow_source()
-                .expect("shadow action requires shadow source"),
-        },
+        EffectIntent::RecordShadowAction { action: shadow_action },
     ];
 
     for intent in intents {
@@ -124,7 +120,7 @@ pub(super) fn apply_metric_intent(
             }
             None
         }
-        EffectIntent::RecordShadowAction { .. } | EffectIntent::RecordShadowPassThrough { .. } => {
+        EffectIntent::RecordShadowAction { .. } | EffectIntent::RecordShadowPassThrough => {
             None
         }
         other => Some(other),
@@ -187,13 +183,11 @@ fn apply_monitoring_intent(
             );
             None
         }
-        EffectIntent::RecordShadowAction { action, source } => {
-            let _ = source;
+        EffectIntent::RecordShadowAction { action } => {
             crate::observability::monitoring::record_shadow_action(store, action);
             None
         }
-        EffectIntent::RecordShadowPassThrough { source } => {
-            let _ = source;
+        EffectIntent::RecordShadowPassThrough => {
             crate::observability::monitoring::record_shadow_pass_through(store);
             None
         }
@@ -371,9 +365,7 @@ mod tests {
 
         let (prepared, shadow_action) = prepare_intents_for_execution(
             intents,
-            ExecutionMode::Shadow {
-                source: super::super::intent_types::ShadowSource::TestMode,
-            },
+            ExecutionMode::Shadow,
             &super::super::intent_types::ResponseIntent::BlockPage {
                 status: 403,
                 reason: crate::enforcement::block_page::BlockReason::Honeypot,
@@ -384,7 +376,7 @@ mod tests {
         assert!(matches!(
             prepared[0],
             EffectIntent::IncrementMetric {
-                metric: crate::observability::metrics::MetricName::TestModeActions,
+                metric: crate::observability::metrics::MetricName::ShadowModeActions,
                 ..
             }
         ));
@@ -402,15 +394,11 @@ mod tests {
 
     #[test]
     fn prepare_intents_for_shadow_clean_allow_does_not_inject_shadow_action() {
-        let intents = vec![EffectIntent::RecordShadowPassThrough {
-            source: super::super::intent_types::ShadowSource::TestMode,
-        }];
+        let intents = vec![EffectIntent::RecordShadowPassThrough];
 
         let (prepared, shadow_action) = prepare_intents_for_execution(
             intents,
-            ExecutionMode::Shadow {
-                source: super::super::intent_types::ShadowSource::TestMode,
-            },
+            ExecutionMode::Shadow,
             &super::super::intent_types::ResponseIntent::ForwardAllow {
                 reason: "policy_clean_allow".to_string(),
             },
@@ -420,7 +408,7 @@ mod tests {
         assert_eq!(prepared.len(), 1);
         assert!(matches!(
             prepared[0],
-            EffectIntent::RecordShadowPassThrough { .. }
+            EffectIntent::RecordShadowPassThrough
         ));
     }
 }

@@ -62,7 +62,7 @@ fn analytics_summary<S: KeyValueStore>(store: &S, site_id: &str) -> MonitoringBo
     };
     MonitoringBootstrapAnalyticsSummary {
         ban_count: crate::enforcement::ban::list_active_bans(store, site_id).len() as u64,
-        test_mode: cfg.as_ref().map(|value| value.test_mode).unwrap_or(false),
+        shadow_mode: cfg.as_ref().map(|value| value.shadow_mode).unwrap_or(false),
         fail_mode: fail_mode.to_string(),
     }
 }

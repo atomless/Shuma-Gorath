@@ -84,14 +84,14 @@ pub(crate) trait ChallengeEngineProvider {
     fn serve_challenge_page(
         &self,
         req: &Request,
-        test_mode: bool,
+        shadow_mode: bool,
         transform_count: usize,
         seed_ttl_seconds: u64,
     ) -> Response;
     fn serve_not_a_bot_page(
         &self,
         req: &Request,
-        test_mode: bool,
+        shadow_mode: bool,
         cfg: &crate::config::Config,
     ) -> Response;
     fn handle_challenge_submit_with_outcome(

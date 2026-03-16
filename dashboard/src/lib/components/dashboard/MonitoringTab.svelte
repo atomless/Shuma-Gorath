@@ -11,6 +11,7 @@
     POW_REASON_LABELS,
     RATE_OUTCOME_LABELS,
     deriveDefenseTrendRows,
+    deriveEnforcedMonitoringChartRows,
     deriveMonitoringEventDisplay,
     deriveRecentEventFilterOptions,
     filterRecentEvents,
@@ -56,7 +57,6 @@
   import RecentEventsTable from './monitoring/RecentEventsTable.svelte';
   import CdpSection from './monitoring/CdpSection.svelte';
   import MazeSection from './monitoring/MazeSection.svelte';
-  import ShadowSection from './monitoring/ShadowSection.svelte';
   import TarpitSection from './monitoring/TarpitSection.svelte';
   import HoneypotSection from './monitoring/HoneypotSection.svelte';
   import ChallengeSection from './monitoring/ChallengeSection.svelte';
@@ -861,7 +861,10 @@
         : defaultRangeEvents
     )
     : defaultRangeEvents;
-  $: timeSeries = buildTimeSeries(selectedRangeEvents, selectedTimeRange, {
+  $: enforcedRecentChartRows = deriveEnforcedMonitoringChartRows(defaultRangeEvents, { topIpLimit: 10 });
+  $: enforcedSelectedRangeEvents =
+    deriveEnforcedMonitoringChartRows(selectedRangeEvents, { topIpLimit: 10 }).events;
+  $: timeSeries = buildTimeSeries(enforcedSelectedRangeEvents, selectedTimeRange, {
     maxEvents: RANGE_EVENTS_FETCH_LIMIT
   });
 
@@ -910,7 +913,7 @@
     eventTypesChart = updateDoughnutChart(
       eventTypesChart,
       eventTypesCanvas,
-      events.event_counts || {},
+      enforcedRecentChartRows.eventCounts,
       chartRefreshNonce,
       (nextReadout) => {
         eventTypesReadout = nextReadout;
@@ -919,7 +922,12 @@
   }
 
   $: if (browser && topIpsCanvas) {
-    topIpsChart = updateTopIpsChart(topIpsChart, topIpsCanvas, events.top_ips || [], chartRefreshNonce);
+    topIpsChart = updateTopIpsChart(
+      topIpsChart,
+      topIpsCanvas,
+      enforcedRecentChartRows.topIps,
+      chartRefreshNonce
+    );
   }
 
   $: if (browser && timeSeriesCanvas) {
@@ -1027,11 +1035,6 @@
     {activeBans}
     {eventCount}
     {uniqueIps}
-  />
-
-  <ShadowSection
-    loading={tabStatus?.loading === true}
-    shadowSummary={monitoringSummary.shadow}
   />
 
   <PrimaryCharts

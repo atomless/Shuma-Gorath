@@ -1,7 +1,7 @@
 // @ts-check
 
 export const advancedConfigTemplatePaths = Object.freeze([
-    'test_mode',
+    'shadow_mode',
     'adversary_sim_duration_seconds',
     'ban_duration',
     'ban_durations.honeypot',

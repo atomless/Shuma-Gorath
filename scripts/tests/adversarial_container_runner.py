@@ -277,7 +277,7 @@ def orchestrator_reset_hook(base_url: str, api_key: str, forwarded_secret: str) 
             api_key,
             forwarded_secret,
             "/admin/config",
-            {"test_mode": False},
+            {"shadow_mode": False},
         )
         control_reset = admin_write_json(
             base_url,

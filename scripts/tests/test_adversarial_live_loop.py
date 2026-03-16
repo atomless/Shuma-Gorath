@@ -21,7 +21,7 @@ class AdversarialLiveLoopUnitTests(unittest.TestCase):
             [
                 "admin_unban",
                 "config_export",
-                "test_mode_toggle",
+                "shadow_mode_toggle",
             ]
         )
         self.assertFalse(meaningful)

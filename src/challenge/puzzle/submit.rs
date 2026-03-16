@@ -49,12 +49,12 @@ fn challenge_incorrect_response() -> Response {
 #[cfg(test)]
 pub(crate) fn serve_challenge_page(
     req: &Request,
-    test_mode: bool,
+    shadow_mode: bool,
     transform_count: usize,
 ) -> Response {
     serve_challenge_page_with_seed_ttl(
         req,
-        test_mode,
+        shadow_mode,
         transform_count,
         crate::config::defaults().challenge_puzzle_seed_ttl_seconds,
     )
@@ -62,11 +62,11 @@ pub(crate) fn serve_challenge_page(
 
 pub(crate) fn serve_challenge_page_with_seed_ttl(
     req: &Request,
-    test_mode: bool,
+    shadow_mode: bool,
     transform_count: usize,
     seed_ttl_seconds: u64,
 ) -> Response {
-    if !test_mode {
+    if !shadow_mode {
         return challenge_response(404, "Not Found");
     }
     render_challenge_with_seed_ttl(req, transform_count, seed_ttl_seconds)

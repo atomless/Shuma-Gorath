@@ -613,8 +613,8 @@ pub struct Config {
     pub ip_range_suggestions_ipv6_min_prefix_len: u8,
     #[serde(default = "default_ip_range_suggestions_likely_human_sample_percent")]
     pub ip_range_suggestions_likely_human_sample_percent: u8,
-    #[serde(default = "default_test_mode")]
-    pub test_mode: bool,
+    #[serde(default = "default_shadow_mode")]
+    pub shadow_mode: bool,
     #[serde(default = "default_adversary_sim_enabled")]
     pub adversary_sim_enabled: bool,
     #[serde(default = "default_adversary_sim_duration_seconds")]
@@ -817,7 +817,7 @@ struct CachedConfig {
 
 #[derive(Debug, Clone, Copy, Default)]
 struct RuntimeEphemeralFlags {
-    test_mode_override: Option<bool>,
+    shadow_mode_override: Option<bool>,
     adversary_sim_enabled_override: Option<bool>,
 }
 
@@ -992,8 +992,8 @@ fn runtime_ephemeral_flags(site_id: &str) -> RuntimeEphemeralFlags {
     cache.get(site_id).copied().unwrap_or_default()
 }
 
-fn runtime_env_test_mode_override() -> Option<bool> {
-    runtime_var_raw_optional("SHUMA_TEST_MODE")
+fn runtime_env_shadow_mode_override() -> Option<bool> {
+    runtime_var_raw_optional("SHUMA_SHADOW_MODE")
         .and_then(|value| parse_bool_like(value.as_str()))
 }
 
@@ -1011,10 +1011,10 @@ pub fn runtime_adversary_sim_enabled_for_site(site_id: &str) -> bool {
 }
 
 #[cfg(test)]
-pub fn set_runtime_test_mode_override(site_id: &str, enabled: bool) {
+pub fn set_runtime_shadow_mode_override(site_id: &str, enabled: bool) {
     let mut cache = RUNTIME_EPHEMERAL_FLAGS.lock().unwrap();
     let entry = cache.entry(site_id.to_string()).or_default();
-    entry.test_mode_override = Some(enabled);
+    entry.shadow_mode_override = Some(enabled);
 }
 
 pub fn set_runtime_adversary_sim_enabled_override(site_id: &str, enabled: bool) {
@@ -1026,10 +1026,10 @@ pub fn set_runtime_adversary_sim_enabled_override(site_id: &str, enabled: bool) 
 pub fn apply_runtime_ephemeral_overrides(site_id: &str, cfg: &mut Config) {
     let overrides = runtime_ephemeral_flags(site_id);
     if let Some(value) = overrides
-        .test_mode_override
-        .or_else(runtime_env_test_mode_override)
+        .shadow_mode_override
+        .or_else(runtime_env_shadow_mode_override)
     {
-        cfg.test_mode = value;
+        cfg.shadow_mode = value;
     }
     // Adversary simulation enablement is runtime-ephemeral by design.
     // Durable KV config must not retain an "on" control-plane state.
@@ -1160,7 +1160,7 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
             default_ip_range_suggestions_ipv6_min_prefix_len(),
         ip_range_suggestions_likely_human_sample_percent:
             default_ip_range_suggestions_likely_human_sample_percent(),
-        test_mode: defaults_bool("SHUMA_TEST_MODE"),
+        shadow_mode: defaults_bool("SHUMA_SHADOW_MODE"),
         adversary_sim_enabled: defaults_bool("SHUMA_ADVERSARY_SIM_ENABLED"),
         adversary_sim_duration_seconds: default_adversary_sim_duration_seconds(),
         maze_enabled: defaults_bool("SHUMA_MAZE_ENABLED"),
@@ -3213,8 +3213,8 @@ fn default_ip_range_suggestions_likely_human_sample_percent() -> u8 {
     ))
 }
 
-fn default_test_mode() -> bool {
-    defaults_bool("SHUMA_TEST_MODE")
+fn default_shadow_mode() -> bool {
+    defaults_bool("SHUMA_SHADOW_MODE")
 }
 
 fn default_adversary_sim_enabled() -> bool {

@@ -10,31 +10,9 @@ pub(crate) struct BanIntent {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ShadowSource {
-    TestMode,
-}
-
-impl ShadowSource {
-    pub(crate) fn as_str(self) -> &'static str {
-        match self {
-            ShadowSource::TestMode => "test_mode",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ExecutionMode {
     Enforced,
-    Shadow { source: ShadowSource },
-}
-
-impl ExecutionMode {
-    pub(crate) fn shadow_source(self) -> Option<ShadowSource> {
-        match self {
-            ExecutionMode::Enforced => None,
-            ExecutionMode::Shadow { source } => Some(source),
-        }
-    }
+    Shadow,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -99,11 +77,8 @@ pub(crate) enum EffectIntent {
     },
     RecordShadowAction {
         action: ShadowAction,
-        source: ShadowSource,
     },
-    RecordShadowPassThrough {
-        source: ShadowSource,
-    },
+    RecordShadowPassThrough,
     FlushPendingMonitoringCounters,
     LogEvent {
         event: crate::admin::EventType,

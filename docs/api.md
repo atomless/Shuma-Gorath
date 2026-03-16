@@ -46,7 +46,7 @@ If `SHUMA_HEALTH_SECRET` is configured, `/health` also requires:
 - `GET <maze_assets_prefix>/maze-worker.<hash>.min.js` - Maze worker asset (expansion + micro-<abbr title="Proof of Work">PoW</abbr> off-main-thread)
 - `GET /robots.txt` - robots.txt (configurable)
 - `GET /dashboard/...` - Dashboard static assets
-- `GET /challenge/puzzle` - Dev-only puzzle challenge page (`test_mode=true` in runtime config)
+- `GET /challenge/puzzle` - Dev-only puzzle challenge page (`shadow_mode=true` in runtime config)
 - `POST /challenge/puzzle` - Puzzle challenge answer submission
 
 Maze route note:
@@ -224,7 +224,7 @@ Adversary-sim command contract (`adversary-sim-control.v1`) highlights:
 
 `GET /admin/analytics` returns:
 - `ban_count`
-- `test_mode`
+- `shadow_mode`
 - `fail_mode`
 
 ### 🐙 Admin Events Response
@@ -328,7 +328,7 @@ The stream path is intentionally one-shot in this phase; the browser reconnect l
 - `endpoint` (`/metrics`), helper notes, and scrape examples for external platforms
 - `details` (dashboard Monitoring-tab refresh contract):
 - `retention_health`: same lifecycle contract as top-level (`state/guidance/lag/pending/error`)
-- `analytics`: `ban_count`, `test_mode`, `fail_mode`
+- `analytics`: `ban_count`, `shadow_mode`, `fail_mode`
 - `events`: `recent_events`, `event_counts`, `top_ips`, `unique_ips`, `recent_events_window` (`hours`, `requested_limit`, `applied_recent_event_cap`, `total_events_in_window`, `returned_events`, `has_more`, `continue_via`, `response_shaping_reason`)
 - `cost_governance`: same contract described above
 - `bans`: `bans`

@@ -34,7 +34,7 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
         self.assertFalse(summary["low_volume_sample"])
         self.assertEqual(summary["js_verification_rows"], 12)
         self.assertEqual(summary["compact_js_verification_rows"], 12)
-        self.assertEqual(summary["legacy_js_verification_rows"], 0)
+        self.assertEqual(summary["js_verification_contract_violations"], 0)
 
     def test_budget_evaluation_uses_canonical_bootstrap_and_delta_targets(self) -> None:
         budget_report = TELEMETRY_SHARED_HOST_EVIDENCE.evaluate_budget_report(
@@ -260,6 +260,7 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
         self.assertEqual(report["storage_pressure"]["telemetry_total_value_bytes"], 8216)
         self.assertTrue(report["recent_event_sample"]["challenge_heavy_sample"])
         self.assertEqual(report["recent_event_sample"]["compact_js_verification_rows"], 11)
+        self.assertEqual(report["recent_event_sample"]["js_verification_contract_violations"], 0)
         self.assertEqual(report["payloads"]["monitoring_bootstrap"]["response_bytes"], 12000)
         self.assertEqual(report["payloads"]["monitoring_bootstrap_gzip"]["response_bytes"], 4000)
         self.assertEqual(
@@ -453,6 +454,7 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
                 persisted["storage_pressure"]["domains"]["eventlog"]["bytes_per_active_window"], 144.0
             )
             self.assertEqual(persisted["recent_event_sample"]["compact_js_verification_rows"], 1)
+            self.assertEqual(persisted["recent_event_sample"]["js_verification_contract_violations"], 0)
             self.assertEqual(
                 measure_json_endpoint.call_args_list[0].args[0],
                 "/admin/monitoring?hours=24&limit=10&bootstrap=1",

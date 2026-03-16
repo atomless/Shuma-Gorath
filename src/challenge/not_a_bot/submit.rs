@@ -19,10 +19,10 @@ struct AttemptState {
 
 pub(crate) fn serve_not_a_bot_page(
     req: &Request,
-    test_mode: bool,
+    shadow_mode: bool,
     cfg: &crate::config::Config,
 ) -> spin_sdk::http::Response {
-    if !test_mode {
+    if !shadow_mode {
         return crate::challenge::challenge_response(404, "Not Found");
     }
     super::render::render_not_a_bot(req, cfg)

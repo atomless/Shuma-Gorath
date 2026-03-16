@@ -208,7 +208,7 @@ mod tests {
         cfg.geo_block = vec![];
         cfg.allowlist = vec![];
         cfg.path_allowlist = vec![];
-        cfg.test_mode = false;
+        cfg.shadow_mode = false;
         cfg.maze_enabled = true;
         cfg.maze_auto_ban = true;
         cfg.maze_auto_ban_threshold = 50;

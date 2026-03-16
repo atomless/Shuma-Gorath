@@ -15,7 +15,7 @@
 - <abbr title="Chrome DevTools Protocol">CDP</abbr> automation detection and reporting (`/cdp-report`)
 - robots.txt generation and policy controls
 - Admin <abbr title="Application Programming Interface">API</abbr> (ban/unban, analytics, events, config, maze, robots, <abbr title="Chrome DevTools Protocol">CDP</abbr>)
-- Test mode (log-only, no enforcement)
+- Shadow mode (log-only, no enforcement)
 - Event logging with retention (`SHUMA_EVENT_LOG_RETENTION_HOURS`)
 - Prometheus metrics (`/metrics`)
 - Composable defence modes per module (`off` / `signal` / `enforce` / `both`) for `rate`, `geo`, and `js`

@@ -76,7 +76,7 @@
   const shumaImageSrc = typeof data?.shumaImageSrc === 'string'
     ? data.shumaImageSrc
     : resolveDashboardAssetPath(dashboardBasePath, 'assets/shuma-gorath-pencil.png');
-  const testModeEyeSrc = resolveDashboardAssetPath(dashboardBasePath, 'assets/eye.png');
+  const shadowModeEyeSrc = resolveDashboardAssetPath(dashboardBasePath, 'assets/eye.png');
   const faviconHref = resolveDashboardAssetPath(
     dashboardBasePath,
     'assets/shuma-gorath-pencil-closed.png'
@@ -93,14 +93,14 @@
   let runtimeError = '';
   let loggingOut = false;
   let suppressBeforeUnloadPrompt = false;
-  let savingGlobalTestMode = false;
+  let savingGlobalShadowMode = false;
   let autoRefreshEnabled = false;
   let authExpiryTimer = null;
   let authExpiryAtSeconds = 0;
   let paneNotices = {};
   let paneNoticeValues = {};
-  let testModeNoticeText = '';
-  let testModeNoticeKind = 'info';
+  let shadowModeNoticeText = '';
+  let shadowModeNoticeKind = 'info';
   let adversarySimControllerState = null;
   let adversarySimControllerUnsubscribe = () => {};
   let IpBansTabComponent = null;
@@ -149,9 +149,9 @@
     paneNotices = next;
   }
 
-  function setTestModeNotice(text = '', kind = 'info') {
-    testModeNoticeText = String(text || '').trim();
-    testModeNoticeKind = normalizeNoticeKind(kind);
+  function setShadowModeNotice(text = '', kind = 'info') {
+    shadowModeNoticeText = String(text || '').trim();
+    shadowModeNoticeKind = normalizeNoticeKind(kind);
   }
 
   function readRootRuntimeClassHint(doc = null) {
@@ -212,11 +212,11 @@
   $: analyticsSnapshot = snapshots.analytics || {};
   $: configSnapshot = snapshots.config || {};
   $: hasConfigSnapshot = Object.keys(configSnapshot).length > 0;
-  $: hasConfigTestMode = typeof configSnapshot.test_mode === 'boolean';
-  $: currentTestModeValue = hasConfigTestMode
-    ? configSnapshot.test_mode === true
-    : analyticsSnapshot.test_mode === true;
-  $: testModeEnabled = currentTestModeValue;
+  $: hasConfigShadowMode = typeof configSnapshot.shadow_mode === 'boolean';
+  $: currentShadowModeValue = hasConfigShadowMode
+    ? configSnapshot.shadow_mode === true
+    : analyticsSnapshot.shadow_mode === true;
+  $: shadowModeEnabled = currentShadowModeValue;
   $: backendConnectionState = String(runtimeTelemetry?.connection?.state || 'disconnected')
     .trim()
     .toLowerCase();
@@ -232,7 +232,7 @@
   $: bodyClassState = deriveDashboardBodyClassState(configSnapshot, {
     backendConnectionState,
     runtimeClassHint,
-    testModeEnabled: currentTestModeValue,
+    shadowModeEnabled: currentShadowModeValue,
     adversarySimEnabled: normalizedAdversarySimStatus.enabled === true
   });
   $: if (typeof document !== 'undefined') {
@@ -271,10 +271,10 @@
   $: frontierProviderCount = Number.isFinite(Number(configSnapshot.frontier_provider_count))
     ? Math.max(0, Math.floor(Number(configSnapshot.frontier_provider_count)))
     : 0;
-  $: globalTestModeToggleDisabled = deriveGlobalControlDisabled({
+  $: globalShadowModeToggleDisabled = deriveGlobalControlDisabled({
     runtimeMounted: routeController.getRuntimeMounted(),
     loggingOut,
-    saving: savingGlobalTestMode,
+    saving: savingGlobalShadowMode,
     authenticated: dashboardState?.session?.authenticated === true,
     adminConfigWritable: configSnapshot.admin_config_write_enabled === true,
     surfaceAvailable: true
@@ -287,11 +287,11 @@
     adminConfigWritable: configSnapshot.admin_config_write_enabled === true,
     surfaceAvailable: adversarySimControlAvailable
   });
-  $: globalTestModeToggleDisabledReason = globalTestModeToggleDisabled
+  $: globalShadowModeToggleDisabledReason = globalShadowModeToggleDisabled
     ? describeGlobalControlDisabledState({
       runtimeReady,
       loggingOut,
-      saving: savingGlobalTestMode,
+      saving: savingGlobalShadowMode,
       authenticated: dashboardState?.session?.authenticated,
       adminConfigWritable: configSnapshot.admin_config_write_enabled,
       unavailableMessage: ''
@@ -715,35 +715,35 @@
     await routeController.refreshTab(activeTabKey, 'manual-refresh');
   }
 
-  async function onGlobalTestModeToggleChange(event) {
+  async function onGlobalShadowModeToggleChange(event) {
     const target = event && event.currentTarget ? event.currentTarget : null;
     const nextValue = target && target.checked === true;
-    const previousValue = currentTestModeValue;
-    if (globalTestModeToggleDisabled || typeof onSaveConfig !== 'function') {
+    const previousValue = currentShadowModeValue;
+    if (globalShadowModeToggleDisabled || typeof onSaveConfig !== 'function') {
       if (target) target.checked = previousValue;
       return;
     }
     if (nextValue === previousValue) return;
 
-    savingGlobalTestMode = true;
+    savingGlobalShadowMode = true;
     try {
       const nextConfig = await persistConfigPatch(
-        { test_mode: nextValue },
+        { shadow_mode: nextValue },
         {
           refresh: false,
           timeoutMs: dashboardRequestBudgets.configWriteTimeoutMs,
-          noticeTarget: 'test-mode'
+          noticeTarget: 'shadow-mode'
         }
       );
       const persistedValue =
         nextConfig && typeof nextConfig === 'object'
-          ? nextConfig.test_mode === true
+          ? nextConfig.shadow_mode === true
           : nextValue;
       if (target) target.checked = persistedValue;
     } catch (_error) {
       if (target) target.checked = previousValue;
     } finally {
-      savingGlobalTestMode = false;
+      savingGlobalShadowMode = false;
     }
   }
 
@@ -823,8 +823,8 @@
     const noticeTarget = String(options?.noticeTarget || 'active-tab').trim().toLowerCase();
     const requestTab = activeTabKey;
     const clearScopedNotice = () => {
-      if (noticeTarget === 'test-mode') {
-        setTestModeNotice('');
+      if (noticeTarget === 'shadow-mode') {
+        setShadowModeNotice('');
         return;
       }
       if (noticeTarget === 'none') return;
@@ -832,8 +832,8 @@
     };
     const setScopedError = (message) => {
       if (!message) return;
-      if (noticeTarget === 'test-mode') {
-        setTestModeNotice(`Error: ${message}`, 'error');
+      if (noticeTarget === 'shadow-mode') {
+        setShadowModeNotice(`Error: ${message}`, 'error');
         return;
       }
       if (noticeTarget === 'none') return;
@@ -997,27 +997,27 @@
 <div id="lost-connection" aria-live="polite" aria-hidden={lostConnectionVisible ? 'false' : 'true'}>
   <div id="connection-status">offline!</div>
 </div>
-<div class="container panel panel-border" data-dashboard-runtime-mode="native">
-  <div id="test-mode-banner" class="test-mode-banner" class:hidden={!testModeEnabled}>
-    TEST MODE ACTIVE - Logging only, no active defences
+  <div class="container panel panel-border" data-dashboard-runtime-mode="native">
+  <div id="shadow-mode-banner" class="shadow-mode-banner" class:hidden={!shadowModeEnabled}>
+    SHADOW MODE ACTIVE - Logging only, no active defences
   </div>
-  <div class="dashboard-global-control dashboard-test-mode-control">
-    <label class="toggle-switch" for="global-test-mode-toggle" title={globalTestModeToggleDisabledReason}>
+  <div class="dashboard-global-control dashboard-shadow-mode-control">
+    <label class="toggle-switch" for="global-shadow-mode-toggle" title={globalShadowModeToggleDisabledReason}>
       <input
-        id="global-test-mode-toggle"
+        id="global-shadow-mode-toggle"
         type="checkbox"
-        aria-label="Enable test mode"
-        checked={currentTestModeValue}
-        disabled={globalTestModeToggleDisabled}
-        title={globalTestModeToggleDisabledReason}
-        on:change={onGlobalTestModeToggleChange}
+        aria-label="Enable shadow mode"
+        checked={currentShadowModeValue}
+        disabled={globalShadowModeToggleDisabled}
+        title={globalShadowModeToggleDisabledReason}
+        on:change={onGlobalShadowModeToggleChange}
       >
       <span class="toggle-slider"></span>
     </label>
-    <span class="dashboard-global-control-label" class:dashboard-global-control-label--disabled={globalTestModeToggleDisabled} title={globalTestModeToggleDisabledReason}>Test Mode</span>
+    <span class="dashboard-global-control-label" class:dashboard-global-control-label--disabled={globalShadowModeToggleDisabled} title={globalShadowModeToggleDisabledReason}>Shadow Mode</span>
   </div>
-  {#if testModeNoticeText}
-    <div id="test-mode-toggle-notice" class={`message ${testModeNoticeKind} dashboard-test-mode-notice`}>{testModeNoticeText}</div>
+  {#if shadowModeNoticeText}
+    <div id="shadow-mode-toggle-notice" class={`message ${shadowModeNoticeKind} dashboard-shadow-mode-notice`}>{shadowModeNoticeText}</div>
   {/if}
   <button
     id="logout-btn"
@@ -1029,11 +1029,11 @@
   <header>
     <div class="shuma-image-wrapper">
       <img src={shumaImageSrc} alt="Shuma-Gorath" class="shuma-gorath-img">
-      <span class="dashboard-test-mode-eye" aria-hidden="true">
-        <img src={testModeEyeSrc} alt="" class="dashboard-test-mode-eye-image">
+      <span class="dashboard-shadow-mode-eye" aria-hidden="true">
+        <img src={shadowModeEyeSrc} alt="" class="dashboard-shadow-mode-eye-image">
       </span>
-      {#if testModeEnabled}
-        <span class="visually-hidden">Test mode active</span>
+      {#if shadowModeEnabled}
+        <span class="visually-hidden">Shadow mode active</span>
       {/if}
     </div>
     <h1>Shuma-Gorath</h1>

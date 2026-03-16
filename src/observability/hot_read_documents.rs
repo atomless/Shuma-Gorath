@@ -81,7 +81,7 @@ pub(crate) struct HotReadDocumentEnvelope<T> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct MonitoringBootstrapAnalyticsSummary {
     pub ban_count: u64,
-    pub test_mode: bool,
+    pub shadow_mode: bool,
     pub fail_mode: String,
 }
 

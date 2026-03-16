@@ -9,8 +9,8 @@ const ADMIN_TABS = Object.freeze(["ip-bans", "red-team", "status", "verification
 const VERIFICATION_RESTORE_PATHS = Object.freeze([
   "js_required_enforced"
 ]);
-const TEST_MODE_RESTORE_PATHS = Object.freeze([
-  "test_mode"
+const SHADOW_MODE_RESTORE_PATHS = Object.freeze([
+  "shadow_mode"
 ]);
 const GEO_AND_TUNING_RESTORE_PATHS = Object.freeze([
   "defence_modes.geo",
@@ -266,9 +266,9 @@ async function dashboardDomClassState(page) {
       hasRuntimeProd,
       runtimeClassCount: (hasRuntimeDev ? 1 : 0) + (hasRuntimeProd ? 1 : 0),
       hasAdversarySim: rootClasses.includes("adversary-sim"),
-      hasTestMode: rootClasses.includes("test-mode"),
+      hasShadowMode: rootClasses.includes("shadow-mode"),
       bodyHasAdversarySim: bodyClasses.includes("adversary-sim"),
-      bodyHasTestMode: bodyClasses.includes("test-mode"),
+      bodyHasShadowMode: bodyClasses.includes("shadow-mode"),
       bodyConnectedClassPresent: bodyClasses.includes("connected"),
       bodyDisconnectedClassPresent: bodyClasses.includes("disconnected")
     };
@@ -1004,7 +1004,7 @@ test("not-a-bot browser lifecycle captures telemetry and rejects replayed submit
   });
   expect(currentConfigResponse.ok()).toBe(true);
   const currentConfig = await currentConfigResponse.json();
-  const originalTestMode = currentConfig && currentConfig.test_mode === true;
+  const originalTestMode = currentConfig && currentConfig.shadow_mode === true;
   const originalNotABotEnabled = currentConfig && currentConfig.not_a_bot_enabled !== false;
   const originalNotABotPassMin = Number.isFinite(currentConfig?.not_a_bot_pass_score)
     ? currentConfig.not_a_bot_pass_score
@@ -1020,7 +1020,7 @@ test("not-a-bot browser lifecycle captures telemetry and rejects replayed submit
     : 300;
 
   await updateAdminConfig(request, {
-    test_mode: true,
+    shadow_mode: true,
     not_a_bot_enabled: true,
     not_a_bot_pass_score: 2,
     not_a_bot_fail_score: 1,
@@ -1097,7 +1097,7 @@ test("not-a-bot browser lifecycle captures telemetry and rejects replayed submit
     assertNoRuntimeFailures(page);
   } finally {
     await updateAdminConfig(request, {
-      test_mode: originalTestMode,
+      shadow_mode: originalTestMode,
       not_a_bot_enabled: originalNotABotEnabled,
       not_a_bot_pass_score: originalNotABotPassMin,
       not_a_bot_fail_score: originalNotABotFailScore,
@@ -1165,7 +1165,7 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
     cdp_auto_ban_threshold: 0.9,
     rate_limit: 80,
     js_required_enforced: true,
-    test_mode: false,
+    shadow_mode: false,
     kv_store_fail_open: true,
     edge_integration_mode: "off",
     geo_risk: [],
@@ -1199,7 +1199,7 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
         },
         prometheus: { endpoint: "/metrics", notes: [] },
         details: {
-          analytics: { ban_count: 0, test_mode: false, fail_mode: "open" },
+          analytics: { ban_count: 0, shadow_mode: false, fail_mode: "open" },
           events: { recent_events: [], event_counts: {}, top_ips: [], unique_ips: 0 },
           bans: { bans: [] },
           maze: { total_hits: 0, unique_crawlers: 0, maze_auto_bans: 0, top_crawlers: [] },
@@ -1300,11 +1300,6 @@ test("monitoring summary sections render data and cap oversized result lists", a
       contentType: "application/json",
       body: JSON.stringify({
         summary: {
-          shadow: {
-            total_actions: 11,
-            pass_through_total: 27,
-            actions: { challenge: 7, block: 4 }
-          },
           honeypot: {
             total_hits: 125,
             unique_crawlers: 17,
@@ -1346,7 +1341,7 @@ test("monitoring summary sections render data and cap oversized result lists", a
         },
         prometheus: { endpoint: "/metrics", notes: [] },
         details: {
-          analytics: { ban_count: 2, test_mode: false, fail_mode: "open" },
+          analytics: { ban_count: 2, shadow_mode: false, fail_mode: "open" },
           events: {
             recent_events: [
               {
@@ -1356,7 +1351,6 @@ test("monitoring summary sections render data and cap oversized result lists", a
                 reason: "challenge_reason_1",
                 outcome: "served",
                 execution_mode: "shadow",
-                shadow_source: "test_mode",
                 intended_action: "challenge",
                 enforcement_applied: false,
                 admin: "ops"
@@ -1377,9 +1371,6 @@ test("monitoring summary sections render data and cap oversized result lists", a
 
   await openDashboard(page);
   await expect(page.locator("#honeypot-total-hits")).toHaveText("125");
-  await expect(page.locator("#shadow-total-actions")).toHaveText("11");
-  await expect(page.locator("#shadow-pass-through-total")).toHaveText("27");
-  await expect(page.locator("#shadow-action-list")).toContainText("Would Challenge: 7");
   await expect(page.locator("#challenge-failures-total")).toHaveText("41");
   await expect(page.locator("#pow-total-attempts")).toHaveText("100");
   await expect(page.locator("#pow-failures-total")).toHaveText("20");
@@ -1443,39 +1434,39 @@ test("dashboard loads and shows seeded operational data", async ({ page }) => {
 
   await expect(page.locator("#cdp-events tbody tr").first()).toBeVisible();
   await expect(page.locator("#cdp-total-detections")).not.toHaveText("-");
-  await expect(page.locator('label[for="global-test-mode-toggle"]')).toBeVisible();
-  await expect(page.locator(".dashboard-test-mode-eye")).toHaveCount(1);
-  await expect(page.locator(".dashboard-test-mode-eye")).toBeHidden();
+  await expect(page.locator('label[for="global-shadow-mode-toggle"]')).toBeVisible();
+  await expect(page.locator(".dashboard-shadow-mode-eye")).toHaveCount(1);
+  await expect(page.locator(".dashboard-shadow-mode-eye")).toBeHidden();
 });
 
-test("dashboard header overlays the eye only while test mode is enabled", async ({ page, request }) => {
-  await withRestoredAdminConfig(request, TEST_MODE_RESTORE_PATHS, async () => {
+test("dashboard header overlays the eye only while shadow mode is enabled", async ({ page, request }) => {
+  await withRestoredAdminConfig(request, SHADOW_MODE_RESTORE_PATHS, async () => {
     await openDashboard(page);
 
-    const eyeOverlay = page.locator(".dashboard-test-mode-eye");
+    const eyeOverlay = page.locator(".dashboard-shadow-mode-eye");
 
-    await updateAdminConfig(request, { test_mode: false });
+    await updateAdminConfig(request, { shadow_mode: false });
     await page.reload();
     await expect(eyeOverlay).toHaveCount(1);
     await expect(eyeOverlay).toBeHidden();
     let classState = await dashboardDomClassState(page);
-    expect(classState.hasTestMode).toBeFalsy();
-    expect(classState.bodyHasTestMode).toBeFalsy();
+    expect(classState.hasShadowMode).toBeFalsy();
+    expect(classState.bodyHasShadowMode).toBeFalsy();
 
-    await updateAdminConfig(request, { test_mode: true });
+    await updateAdminConfig(request, { shadow_mode: true });
     await page.reload();
     await expect(eyeOverlay).toBeVisible();
     classState = await dashboardDomClassState(page);
-    expect(classState.hasTestMode).toBeTruthy();
-    expect(classState.bodyHasTestMode).toBeFalsy();
+    expect(classState.hasShadowMode).toBeTruthy();
+    expect(classState.bodyHasShadowMode).toBeFalsy();
 
-    await updateAdminConfig(request, { test_mode: false });
+    await updateAdminConfig(request, { shadow_mode: false });
     await page.reload();
     await expect(eyeOverlay).toHaveCount(1);
     await expect(eyeOverlay).toBeHidden();
     classState = await dashboardDomClassState(page);
-    expect(classState.hasTestMode).toBeFalsy();
-    expect(classState.bodyHasTestMode).toBeFalsy();
+    expect(classState.hasShadowMode).toBeFalsy();
+    expect(classState.bodyHasShadowMode).toBeFalsy();
   });
 });
 
@@ -1591,7 +1582,7 @@ test("status tab resolves fail mode without requiring monitoring bootstrap", asy
   await expect(page.locator("#status-items .status-item h3", { hasText: "Runtime and Deployment Posture" })).toHaveCount(1);
   await expect(page.locator("#status-items .status-item h3", { hasText: "Admin Config Write Posture" })).toHaveCount(1);
   await expect(page.locator("#status-items .status-item h3", { hasText: "Retention and Freshness Health" })).toHaveCount(1);
-  await expect(page.locator("#status-items .status-item h3", { hasText: "Test Mode" })).toHaveCount(0);
+  await expect(page.locator("#status-items .status-item h3", { hasText: "Shadow Mode" })).toHaveCount(0);
   await expect(page.locator("#status-items .status-item h3", { hasText: /^Challenge$/ })).toHaveCount(0);
 
   await expect(page.locator("#runtime-fetch-latency-last")).toContainText("ms");
@@ -1610,7 +1601,7 @@ test("advanced tab shows runtime variable inventory groups", async ({ page }) =>
   expect(await statusVarRows.count()).toBeGreaterThan(20);
   const testModeRow = page
     .locator("#status-vars-groups .status-vars-table tbody tr")
-    .filter({ has: page.locator("code", { hasText: "test_mode" }) });
+    .filter({ has: page.locator("code", { hasText: "shadow_mode" }) });
   await expect(testModeRow).toHaveCount(1);
   await expect(testModeRow).toHaveClass(/status-var-row--admin-write/);
   await expect(testModeRow.locator("td").nth(2)).not.toHaveText("");
@@ -2052,7 +2043,7 @@ test("monitoring initial load hydrates from full snapshot even when first delta 
     },
     prometheus: { endpoint: "/metrics", notes: [] },
     details: {
-      analytics: { ban_count: 0, test_mode: false, fail_mode: "open" },
+      analytics: { ban_count: 0, shadow_mode: false, fail_mode: "open" },
       events: {
         recent_events: [{
           ts: now,
@@ -2124,7 +2115,7 @@ test("manual refresh button appends new monitoring delta events when auto-refres
     },
     prometheus: { endpoint: "/metrics", notes: [] },
     details: {
-      analytics: { ban_count: 0, test_mode: false, fail_mode: "open" },
+      analytics: { ban_count: 0, shadow_mode: false, fail_mode: "open" },
       events: {
         recent_events: [{
           ts: now,
@@ -2322,7 +2313,7 @@ test("monitoring auto-refresh avoids placeholder flicker and bounds table churn"
         },
         prometheus: { endpoint: "/metrics", notes: [] },
         details: {
-          analytics: { ban_count: 1, test_mode: false, fail_mode: "open" },
+          analytics: { ban_count: 1, shadow_mode: false, fail_mode: "open" },
           events: {
             recent_events: [
               {

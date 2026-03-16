@@ -94,7 +94,7 @@ class ConfigLifecycleTests(unittest.TestCase):
         self.assertEqual(seeded.returncode, 0, msg=seeded.stderr or seeded.stdout)
         current = self.read_config()
         current.pop("rate_limit", None)
-        current["test_mode"] = True
+        current["shadow_mode"] = True
         self.write_raw_config(json.dumps(current))
 
         stale = self.run_config_seed("--verify-only")
@@ -139,7 +139,7 @@ class ConfigLifecycleTests(unittest.TestCase):
         self.assertEqual(printed_stale.returncode, 0, msg=printed_stale.stderr or printed_stale.stdout)
         stale_payload = json.loads(printed_stale.stdout)
         self.assertIn("rate_limit", stale_payload)
-        self.assertFalse(stale_payload["test_mode"], "print-json must normalize runtime-ephemeral toggles")
+        self.assertFalse(stale_payload["shadow_mode"], "print-json must normalize runtime-ephemeral toggles")
 
         verify = self.run_config_seed("--verify-only")
         self.assertNotEqual(verify.returncode, 0)

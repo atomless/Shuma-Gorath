@@ -23,7 +23,7 @@ Scanned files:
 2. `src/runtime/request_router.rs`
 3. `src/runtime/policy_pipeline.rs`
 4. `src/runtime/effect_intents.rs`
-5. `src/runtime/test_mode/mod.rs`
+5. `src/runtime/shadow_mode/mod.rs`
 
 Pattern family used for inventory:
 
@@ -40,7 +40,7 @@ Pattern family used for inventory:
 | `src/runtime/request_router.rs` | 41 | `migrate` |
 | `src/runtime/policy_pipeline.rs` | 97 | `delete` (legacy dead-code handlers) + one `migrate` in active tranche path |
 | `src/runtime/effect_intents.rs` | 8 | `retain` (canonical executor boundary) |
-| `src/runtime/test_mode/mod.rs` | 1 | `migrate` |
+| `src/runtime/shadow_mode/mod.rs` | 1 | `migrate` |
 
 ## Classified Inventory
 
@@ -79,9 +79,9 @@ Pattern family used for inventory:
 8. `src/runtime/policy_pipeline.rs:1385-1464` (`maybe_handle_policy_graph_second_tranche`)
    - Active path still writes `record_botness_visibility` before decision execution.
    - Target: explicit pre-decision effect intent or dedicated telemetry stage.
-9. `src/runtime/test_mode/mod.rs:3-23` (`log_test_mode_event`)
-   - Direct event log write in test-mode helper.
-   - Target: test-mode effect intent adapter using same capability boundary.
+9. `src/runtime/shadow_mode/mod.rs:3-23` (`log_shadow_mode_event`)
+   - Direct event log write in shadow-mode helper.
+   - Target: shadow-mode effect intent adapter using same capability boundary.
 
 ### `delete`
 

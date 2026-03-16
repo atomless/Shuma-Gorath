@@ -425,7 +425,7 @@
     },
     {
       "id": "sim_t3_stale_token_abuse",
-      "description": "Stale Not-a-Bot token is rejected as abuse and falls into maze in test mode.",
+      "description": "Stale Not-a-Bot token is rejected as abuse and falls into maze in shadow mode.",
       "tier": "SIM-T3",
       "driver": "not_a_bot_stale_token_abuse",
       "expected_outcome": "maze",
@@ -725,7 +725,7 @@
     },
     {
       "id": "sim_t4_tarpit_replay_abuse",
-      "description": "Replay abuse with test mode disabled must route into tarpit progressive bootstrap.",
+      "description": "Replay abuse with shadow mode disabled must route into tarpit progressive bootstrap.",
       "tier": "SIM-T4",
       "driver": "not_a_bot_replay_tarpit_abuse",
       "expected_outcome": "tarpit",

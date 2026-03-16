@@ -42,7 +42,7 @@ def summarize_recent_event_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
     event_counts: dict[str, int] = {}
     js_verification_rows = 0
     compact_js_verification_rows = 0
-    legacy_js_verification_rows = 0
+    js_verification_contract_violations = 0
 
     for row in rows:
         if not isinstance(row, dict):
@@ -65,7 +65,7 @@ def summarize_recent_event_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
         if compact_shape:
             compact_js_verification_rows += 1
         else:
-            legacy_js_verification_rows += 1
+            js_verification_contract_violations += 1
 
     challenge_rows = event_counts.get("Challenge", 0)
     return {
@@ -75,7 +75,7 @@ def summarize_recent_event_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "challenge_rows": challenge_rows,
         "js_verification_rows": js_verification_rows,
         "compact_js_verification_rows": compact_js_verification_rows,
-        "legacy_js_verification_rows": legacy_js_verification_rows,
+        "js_verification_contract_violations": js_verification_contract_violations,
         "challenge_heavy_sample": js_verification_rows >= 10,
         "low_volume_sample": len([row for row in rows if isinstance(row, dict)]) < 20,
     }

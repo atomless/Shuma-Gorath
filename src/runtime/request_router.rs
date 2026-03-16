@@ -28,7 +28,7 @@ fn execute_capability_gated_intents(
         site_id: SITE_ID_DEFAULT,
         ip,
         ua,
-        execution_mode: crate::runtime::test_mode::effective_execution_mode(cfg),
+        execution_mode: crate::runtime::shadow_mode::effective_execution_mode(cfg),
     };
     crate::runtime::effect_intents::execute_effect_intents(intents, &context, &capabilities, None);
 }
@@ -384,8 +384,8 @@ fn handle_not_a_bot_submit(
                     )
                 }
                 ChallengeFailureEnforcement::TarpitOrShortBan => {
-                    if crate::runtime::test_mode::shadow_mode_active(cfg) {
-                        let event_outcome = format!("{:?} test_mode_no_ban", submit_result.outcome);
+                    if crate::runtime::shadow_mode::shadow_mode_active(cfg) {
+                        let event_outcome = format!("{:?} shadow_mode_no_ban", submit_result.outcome);
                         return render_maze_or_block_failure(
                             req,
                             store,
@@ -393,8 +393,8 @@ fn handle_not_a_bot_submit(
                             &provider_registry,
                             ip.as_str(),
                             ua,
-                            "not-a-bot-abuse-test-mode",
-                            "not_a_bot_submit_abuse_test_mode_maze",
+                            "not-a-bot-abuse-shadow-mode",
+                            "not_a_bot_submit_abuse_shadow_mode_maze",
                             event_outcome.as_str(),
                         );
                     }
@@ -504,7 +504,7 @@ pub(crate) fn maybe_handle_early_route(
             let provider_registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
             let ip = crate::extract_client_ip(req);
             let ua = request_user_agent(req);
-            let response = crate::boundaries::serve_not_a_bot_page(req, cfg.test_mode, &cfg);
+            let response = crate::boundaries::serve_not_a_bot_page(req, cfg.shadow_mode, &cfg);
             if *response.status() == 200 {
                 execute_capability_gated_intents(
                     req,
@@ -742,8 +742,8 @@ pub(crate) fn maybe_handle_early_route(
                         ));
                     }
                     ChallengeFailureEnforcement::TarpitOrShortBan => {
-                        if crate::runtime::test_mode::shadow_mode_active(&cfg) {
-                            let event_outcome = format!("{:?} test_mode_no_ban", outcome);
+                        if crate::runtime::shadow_mode::shadow_mode_active(&cfg) {
+                            let event_outcome = format!("{:?} shadow_mode_no_ban", outcome);
                             return Some(render_maze_or_block_failure(
                                 req,
                                 &store,
@@ -751,8 +751,8 @@ pub(crate) fn maybe_handle_early_route(
                                 &provider_registry,
                                 challenge_ip.as_str(),
                                 challenge_ua,
-                                "challenge-puzzle-abuse-test-mode",
-                                "challenge_puzzle_submit_abuse_test_mode_maze",
+                                "challenge-puzzle-abuse-shadow-mode",
+                                "challenge_puzzle_submit_abuse_shadow_mode_maze",
                                 event_outcome.as_str(),
                             ));
                         }
@@ -786,7 +786,7 @@ pub(crate) fn maybe_handle_early_route(
             let ua = request_user_agent(req);
             let response = crate::boundaries::serve_challenge_page(
                 req,
-                cfg.test_mode,
+                cfg.shadow_mode,
                 cfg.challenge_puzzle_transform_count as usize,
                 cfg.challenge_puzzle_seed_ttl_seconds,
             );

@@ -18,10 +18,10 @@
 #   6. Health check after ban/unban (GET /health)
 #   7. Config API - get config (GET /admin/config)
 #   8. Test mode toggle (POST /admin/config)
-#   9. Challenge failure routing flow (wrong/replay -> maze in test mode)
+#   9. Challenge failure routing flow (wrong/replay -> maze in shadow mode)
 #   10. Test mode behavior verification
 #   11. Test mode disable and blocking resumes
-#   12. Verify blocking after test mode disabled
+#   12. Verify blocking after shadow mode is disabled
 #   13. GEO policy challenge route
 #   14. GEO policy maze route
 #   15. GEO policy block route
@@ -257,10 +257,10 @@ if [[ -z "${ORIGINAL_CONFIG_RESTORE_PAYLOAD}" ]]; then
 fi
 
 # Preflight: normalize runtime config so tests are deterministic
-info "Resetting test_mode=false before integration scenarios..."
+info "Resetting shadow_mode=false before integration scenarios..."
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
-  -d '{"test_mode": false, "honeypot_enabled": true, "rate_limit": 1000, "not_a_bot_pass_score": 6, "not_a_bot_fail_score": 3, "not_a_bot_attempt_limit_per_window": 100, "not_a_bot_attempt_window_seconds": 300}' \
+  -d '{"shadow_mode": false, "honeypot_enabled": true, "rate_limit": 1000, "not_a_bot_pass_score": 6, "not_a_bot_fail_score": 3, "not_a_bot_attempt_limit_per_window": 100, "not_a_bot_attempt_window_seconds": 300}' \
   "$BASE_URL/admin/config" > /dev/null || true
 
 info "Resetting GEO policy lists to empty defaults..."
@@ -336,7 +336,7 @@ while [[ $pow_attempt -le 3 ]]; do
     break
   fi
   if ! python3 -c 'import json,sys; json.loads(sys.stdin.read())' <<< "$pow_body" >/dev/null 2>&1; then
-    fail "PoW challenge did not return JSON (check forwarded secret and test_mode)"
+    fail "PoW challenge did not return JSON (check forwarded secret and shadow_mode)"
     echo -e "${YELLOW}DEBUG /pow status:${NC} $pow_status"
     echo -e "${YELLOW}DEBUG /pow body:${NC} $pow_body"
     break
@@ -591,31 +591,31 @@ fi
 # Test 7: Get config via admin API
 info "Testing GET /admin/config..."
 config_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" "$BASE_URL/admin/config")
-if echo "$config_resp" | grep -q '"test_mode"'; then
-  pass "GET /admin/config returns test_mode field"
+if echo "$config_resp" | grep -q '"shadow_mode"'; then
+  pass "GET /admin/config returns shadow_mode field"
 else
-  fail "GET /admin/config did not return test_mode"
+  fail "GET /admin/config did not return shadow_mode"
   echo -e "${YELLOW}DEBUG config response:${NC} $config_resp"
 fi
 
-# Test 8: Enable test mode
-info "Testing POST /admin/config to enable test_mode..."
+# Test 8: Enable shadow mode
+info "Testing POST /admin/config to enable shadow_mode..."
 enable_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-  -d '{"test_mode": true}' "$BASE_URL/admin/config")
-if echo "$enable_resp" | grep -q '"test_mode":true'; then
-  pass "POST /admin/config enables test_mode"
+  -d '{"shadow_mode": true}' "$BASE_URL/admin/config")
+if echo "$enable_resp" | grep -q '"shadow_mode":true'; then
+  pass "POST /admin/config enables shadow_mode"
 else
-  fail "POST /admin/config did not enable test_mode"
+  fail "POST /admin/config did not enable shadow_mode"
   echo -e "${YELLOW}DEBUG enable response:${NC} $enable_resp"
 fi
 
-# Test 9: Not-a-Bot flow validates pass + replay rejection in test mode
+# Test 9: Not-a-Bot flow validates pass + replay rejection in shadow mode
 info "Testing /challenge/not-a-bot-checkbox flow..."
 not_a_bot_page=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_NOT_A_BOT_IP}" -H "User-Agent: ${INTEGRATION_USER_AGENT}" "$BASE_URL/challenge/not-a-bot-checkbox")
 if echo "$not_a_bot_page" | grep -q 'I am not a bot'; then
-  pass "GET /challenge/not-a-bot-checkbox returns not-a-bot page in test mode"
+  pass "GET /challenge/not-a-bot-checkbox returns not-a-bot page in shadow mode"
 else
-  fail "GET /challenge/not-a-bot-checkbox did not return not-a-bot page in test mode"
+  fail "GET /challenge/not-a-bot-checkbox did not return not-a-bot page in shadow mode"
   echo -e "${YELLOW}DEBUG not-a-bot page:${NC} $not_a_bot_page"
 fi
 
@@ -666,13 +666,13 @@ else
   rm -f "$not_a_bot_headers" "$not_a_bot_body"
 fi
 
-# Test 10: Challenge failures route to maze in test mode (no short-ban side effects)
+# Test 10: Challenge failures route to maze in shadow mode (no short-ban side effects)
 info "Testing /challenge/puzzle failure routing flow..."
 challenge_page=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.150" -H "User-Agent: ${INTEGRATION_USER_AGENT}" "$BASE_URL/challenge/puzzle")
 if echo "$challenge_page" | grep -q 'Puzzle'; then
-  pass "GET /challenge/puzzle returns challenge page in test mode"
+  pass "GET /challenge/puzzle returns challenge page in shadow mode"
 else
-  fail "GET /challenge/puzzle did not return challenge page in test mode"
+  fail "GET /challenge/puzzle did not return challenge page in shadow mode"
   echo -e "${YELLOW}DEBUG challenge page:${NC} $challenge_page"
 fi
 
@@ -705,7 +705,7 @@ else
   incorrect_body=$(echo "$incorrect_resp" | sed -e 's/HTTPSTATUS:.*//')
   incorrect_status=$(echo "$incorrect_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
   if [[ "$incorrect_status" == "200" ]] && echo "$incorrect_body" | grep -q 'data-link-kind="maze"'; then
-    pass "POST /challenge/puzzle routes wrong answer to maze in test mode"
+    pass "POST /challenge/puzzle routes wrong answer to maze in shadow mode"
   else
     fail "POST /challenge/puzzle did not return expected maze response for wrong answer"
     echo -e "${YELLOW}DEBUG incorrect status:${NC} $incorrect_status"
@@ -720,7 +720,7 @@ else
   replay_body=$(echo "$replay_resp" | sed -e 's/HTTPSTATUS:.*//')
   replay_status=$(echo "$replay_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
   if [[ "$replay_status" == "200" ]] && echo "$replay_body" | grep -q 'data-link-kind="maze"'; then
-    pass "Replay submit routes to maze in test mode"
+    pass "Replay submit routes to maze in shadow mode"
   else
     fail "Replay submit did not return expected maze response"
     echo -e "${YELLOW}DEBUG replay status:${NC} $replay_status"
@@ -728,50 +728,50 @@ else
   fi
 fi
 
-# Test 11: Test mode allows honeypot access without blocking
-info "Testing test_mode behavior (honeypot should not block)..."
+# Test 11: Shadow mode allows honeypot access without blocking
+info "Testing shadow_mode behavior (honeypot should not block)..."
 # First, unban the test IP to ensure clean state
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.99" > /dev/null
 # Hit honeypot with test IP
 honeypot_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.99" "$BASE_URL$HONEYPOT_PATH")
 if ! echo "$honeypot_resp" | grep -q 'Access Blocked'; then
-  pass "Test mode suppresses honeypot enforcement side effects"
+  pass "Shadow mode suppresses honeypot enforcement side effects"
 else
-  fail "Test mode honeypot request still produced a blocking response"
+  fail "Shadow mode honeypot request still produced a blocking response"
   echo -e "${YELLOW}DEBUG honeypot response:${NC} $honeypot_resp"
 fi
 
 # Verify IP was NOT actually banned
 subsequent_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.99" "$BASE_URL/")
 if ! echo "$subsequent_resp" | grep -q 'Access Blocked'; then
-  pass "Test mode: IP not actually banned after honeypot"
+  pass "Shadow mode: IP not actually banned after honeypot"
 else
-  fail "Test mode: IP was banned when it should not have been"
+  fail "Shadow mode: IP was banned when it should not have been"
   echo -e "${YELLOW}DEBUG subsequent response:${NC} $subsequent_resp"
 fi
 
-# Test 12: Disable test mode and verify blocking resumes
-info "Testing POST /admin/config to disable test_mode..."
+# Test 12: Disable shadow mode and verify blocking resumes
+info "Testing POST /admin/config to disable shadow_mode..."
 disable_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-  -d '{"test_mode": false}' "$BASE_URL/admin/config")
-if echo "$disable_resp" | grep -q '"test_mode":false'; then
-  pass "POST /admin/config disables test_mode"
+  -d '{"shadow_mode": false}' "$BASE_URL/admin/config")
+if echo "$disable_resp" | grep -q '"shadow_mode":false'; then
+  pass "POST /admin/config disables shadow_mode"
 else
-  fail "POST /admin/config did not disable test_mode"
+  fail "POST /admin/config did not disable shadow_mode"
   echo -e "${YELLOW}DEBUG disable response:${NC} $disable_resp"
 fi
 
-# Test 13: Verify blocking works again after test mode disabled
-info "Testing that blocking resumes after test_mode disabled..."
+# Test 13: Verify blocking works again after shadow mode is disabled
+info "Testing that blocking resumes after shadow_mode disabled..."
 # Unban first to get clean state
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.100" > /dev/null
 # Hit honeypot - should now actually ban
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.100" "$BASE_URL$HONEYPOT_PATH" > /dev/null
 block_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.100" "$BASE_URL/")
 if echo "$block_resp" | grep -q 'Access Blocked'; then
-  pass "Blocking resumes: honeypot triggers real ban after test_mode disabled"
+  pass "Blocking resumes: honeypot triggers real ban after shadow_mode disabled"
 else
-  fail "Blocking did not resume after test_mode disabled"
+  fail "Blocking did not resume after shadow_mode disabled"
   echo -e "${YELLOW}DEBUG block response:${NC} $block_resp"
 fi
 
@@ -788,7 +788,7 @@ for ip in "${TEST_TARPIT_IP}" "${TEST_TARPIT_TAMPER_IP}" "${TARPIT_BURST_IPS[@]}
     "$BASE_URL/admin/unban?ip=${ip}" > /dev/null || true
 done
 tarpit_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-  -d '{"test_mode":true,"maze_enabled":true,"tarpit_enabled":true,"tarpit_progress_token_ttl_seconds":120,"tarpit_progress_replay_ttl_seconds":300,"tarpit_hashcash_min_difficulty":8,"tarpit_hashcash_max_difficulty":16,"tarpit_hashcash_base_difficulty":10,"tarpit_hashcash_adaptive":true,"tarpit_step_chunk_base_bytes":4096,"tarpit_step_chunk_max_bytes":12288,"tarpit_step_jitter_percent":15,"tarpit_shard_rotation_enabled":true,"tarpit_egress_window_seconds":60,"tarpit_egress_global_bytes_per_window":8388608,"tarpit_egress_per_ip_bucket_bytes_per_window":1048576,"tarpit_egress_per_flow_max_bytes":524288,"tarpit_egress_per_flow_max_duration_seconds":120,"tarpit_max_concurrent_global":10000,"tarpit_max_concurrent_per_ip_bucket":256,"tarpit_fallback_action":"maze"}' \
+  -d '{"shadow_mode":true,"maze_enabled":true,"tarpit_enabled":true,"tarpit_progress_token_ttl_seconds":120,"tarpit_progress_replay_ttl_seconds":300,"tarpit_hashcash_min_difficulty":8,"tarpit_hashcash_max_difficulty":16,"tarpit_hashcash_base_difficulty":10,"tarpit_hashcash_adaptive":true,"tarpit_step_chunk_base_bytes":4096,"tarpit_step_chunk_max_bytes":12288,"tarpit_step_jitter_percent":15,"tarpit_shard_rotation_enabled":true,"tarpit_egress_window_seconds":60,"tarpit_egress_global_bytes_per_window":8388608,"tarpit_egress_per_ip_bucket_bytes_per_window":1048576,"tarpit_egress_per_flow_max_bytes":524288,"tarpit_egress_per_flow_max_duration_seconds":120,"tarpit_max_concurrent_global":10000,"tarpit_max_concurrent_per_ip_bucket":256,"tarpit_fallback_action":"maze"}' \
   "$BASE_URL/admin/config")
 if ! echo "$tarpit_cfg" | grep -q '"status":"updated"'; then
   fail "Failed to apply tarpit config"
@@ -813,11 +813,11 @@ else
       fail "Could not prime not-a-bot seed for replay-abuse tarpit path"
       echo -e "${YELLOW}DEBUG replay-prime status:${NC} $replay_prime_status"
     else
-      disable_test_mode_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-        -d '{"test_mode": false}' "$BASE_URL/admin/config")
-      if ! echo "$disable_test_mode_resp" | grep -q '"test_mode":false'; then
-        fail "Failed to disable test_mode before tarpit replay-abuse assertion"
-        echo -e "${YELLOW}DEBUG disable test_mode response:${NC} $disable_test_mode_resp"
+      disable_shadow_mode_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
+        -d '{"shadow_mode": false}' "$BASE_URL/admin/config")
+      if ! echo "$disable_shadow_mode_resp" | grep -q '"shadow_mode":false'; then
+        fail "Failed to disable shadow_mode before tarpit replay-abuse assertion"
+        echo -e "${YELLOW}DEBUG disable shadow_mode response:${NC} $disable_shadow_mode_resp"
       else
         tarpit_replay_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" \
           "${FORWARDED_SECRET_HEADER[@]}" \
@@ -865,7 +865,7 @@ fi
 # Test 15: Tarpit budget saturation fallback
 info "Testing tarpit budget saturation fallback (block) under concurrent abuse..."
 tarpit_budget_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-  -d '{"test_mode":false,"maze_enabled":true,"tarpit_enabled":true,"tarpit_progress_token_ttl_seconds":120,"tarpit_progress_replay_ttl_seconds":300,"tarpit_hashcash_min_difficulty":8,"tarpit_hashcash_max_difficulty":16,"tarpit_hashcash_base_difficulty":10,"tarpit_hashcash_adaptive":true,"tarpit_step_chunk_base_bytes":4096,"tarpit_step_chunk_max_bytes":12288,"tarpit_step_jitter_percent":15,"tarpit_shard_rotation_enabled":true,"tarpit_egress_window_seconds":60,"tarpit_egress_global_bytes_per_window":8388608,"tarpit_egress_per_ip_bucket_bytes_per_window":1048576,"tarpit_egress_per_flow_max_bytes":524288,"tarpit_egress_per_flow_max_duration_seconds":120,"tarpit_max_concurrent_global":1,"tarpit_max_concurrent_per_ip_bucket":1,"tarpit_fallback_action":"block"}' \
+  -d '{"shadow_mode":false,"maze_enabled":true,"tarpit_enabled":true,"tarpit_progress_token_ttl_seconds":120,"tarpit_progress_replay_ttl_seconds":300,"tarpit_hashcash_min_difficulty":8,"tarpit_hashcash_max_difficulty":16,"tarpit_hashcash_base_difficulty":10,"tarpit_hashcash_adaptive":true,"tarpit_step_chunk_base_bytes":4096,"tarpit_step_chunk_max_bytes":12288,"tarpit_step_jitter_percent":15,"tarpit_shard_rotation_enabled":true,"tarpit_egress_window_seconds":60,"tarpit_egress_global_bytes_per_window":8388608,"tarpit_egress_per_ip_bucket_bytes_per_window":1048576,"tarpit_egress_per_flow_max_bytes":524288,"tarpit_egress_per_flow_max_duration_seconds":120,"tarpit_max_concurrent_global":1,"tarpit_max_concurrent_per_ip_bucket":1,"tarpit_fallback_action":"block"}' \
   "$BASE_URL/admin/config")
 if ! echo "$tarpit_budget_cfg" | grep -q '"status":"updated"'; then
   fail "Failed to apply tarpit budget saturation config"

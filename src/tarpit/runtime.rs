@@ -352,7 +352,7 @@ pub(crate) fn persistence_escalation(
     cfg: &crate::config::Config,
     persistence_count: u32,
 ) -> PersistenceEscalation {
-    if cfg.test_mode || persistence_count < TARPIT_ESCALATION_SHORT_BAN_THRESHOLD {
+    if cfg.shadow_mode || persistence_count < TARPIT_ESCALATION_SHORT_BAN_THRESHOLD {
         return PersistenceEscalation::None;
     }
     if persistence_count >= TARPIT_ESCALATION_BLOCK_THRESHOLD {

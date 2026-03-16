@@ -187,7 +187,7 @@ export const adaptAnalytics = (payload) => {
   const source = asRecord(payload);
   return {
     ban_count: Number(source.ban_count || 0),
-    test_mode: source.test_mode === true,
+    shadow_mode: source.shadow_mode === true,
     fail_mode: source.fail_mode || 'open'
   };
 };

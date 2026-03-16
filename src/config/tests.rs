@@ -1846,29 +1846,29 @@ fn runtime_config_cache_invalidation_forces_reload() {
 fn runtime_ephemeral_overrides_apply_without_persisting_to_kv() {
     let _lock = crate::test_support::lock_env();
     clear_runtime_cache_for_tests();
-    clear_env(&["SHUMA_TEST_MODE", "SHUMA_ADVERSARY_SIM_ENABLED"]);
+    clear_env(&["SHUMA_SHADOW_MODE", "SHUMA_ADVERSARY_SIM_ENABLED"]);
 
     let store = crate::test_support::InMemoryStore::default();
     let mut persisted = defaults().clone();
-    persisted.test_mode = false;
+    persisted.shadow_mode = false;
     persisted.adversary_sim_enabled = false;
     store
         .set("config:default", &serde_json::to_vec(&persisted).unwrap())
         .unwrap();
 
     let initial = load_runtime_cached_for_tests(&store, "default", 100, 2).unwrap();
-    assert!(!initial.test_mode);
+    assert!(!initial.shadow_mode);
     assert!(!initial.adversary_sim_enabled);
 
-    set_runtime_test_mode_override("default", true);
+    set_runtime_shadow_mode_override("default", true);
     set_runtime_adversary_sim_enabled_override("default", true);
 
     let effective = load_runtime_cached_for_tests(&store, "default", 101, 2).unwrap();
-    assert!(effective.test_mode);
+    assert!(effective.shadow_mode);
     assert!(effective.adversary_sim_enabled);
 
     let raw = Config::load(&store, "default").unwrap();
-    assert!(!raw.test_mode);
+    assert!(!raw.shadow_mode);
     assert!(!raw.adversary_sim_enabled);
     clear_runtime_cache_for_tests();
 }
@@ -1877,22 +1877,22 @@ fn runtime_ephemeral_overrides_apply_without_persisting_to_kv() {
 fn runtime_ephemeral_defaults_honor_env_startup_overrides() {
     let _lock = crate::test_support::lock_env();
     clear_runtime_cache_for_tests();
-    std::env::set_var("SHUMA_TEST_MODE", "true");
+    std::env::set_var("SHUMA_SHADOW_MODE", "true");
     std::env::set_var("SHUMA_ADVERSARY_SIM_ENABLED", "true");
 
     let store = crate::test_support::InMemoryStore::default();
     let mut persisted = defaults().clone();
-    persisted.test_mode = false;
+    persisted.shadow_mode = false;
     persisted.adversary_sim_enabled = false;
     store
         .set("config:default", &serde_json::to_vec(&persisted).unwrap())
         .unwrap();
 
     let effective = load_runtime_cached_for_tests(&store, "default", 100, 2).unwrap();
-    assert!(effective.test_mode);
+    assert!(effective.shadow_mode);
     assert!(effective.adversary_sim_enabled);
 
-    std::env::remove_var("SHUMA_TEST_MODE");
+    std::env::remove_var("SHUMA_SHADOW_MODE");
     std::env::remove_var("SHUMA_ADVERSARY_SIM_ENABLED");
     clear_runtime_cache_for_tests();
 }

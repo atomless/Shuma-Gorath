@@ -10,8 +10,7 @@ Purpose:
 What it shows:
 
 - Overview cards: total bans, active bans, events (24h), unique IPs.
-- Shadow Mode summary: simulated action totals, pass-through totals, and top would-act outcomes when `test_mode` is enabled.
-- Charts: event types, top IPs, and time-series events for `60m/24h/7d/30d`.
+- Charts: enforced event types, top IPs by enforced events, and enforced-event time series for `60m/24h/7d/30d`.
 - Per-defense trend blocks (trigger volume, pass/fail/escalate mix, ban outcomes, execution mode, source-label breakdown).
 - Recent Events table with fast filters (`origin`, `mode`, `scenario`, `lane`, `defense`, `outcome`).
 - CDP detections table and summary cards, including total detections, detection-triggered bans, and fingerprint mismatch/transition counters.
@@ -24,8 +23,8 @@ Refresh behavior:
 - Auto-refresh is available on this tab, `IP Bans`, and `Red Team`.
 - Uses consolidated `/admin/monitoring` snapshot refresh and bounded local cache.
 - Simulation-tagged events are included in monitoring data whenever simulation traffic is present and remain distinguishable via per-event simulation metadata fields.
-- Test-mode shadow events remain visually distinct from enforced events:
-  - summary cards report `Would ...` action totals separately from real enforcement,
+- Shadow-mode traffic remains visually distinct from enforced traffic:
+  - primary charts stay focused on enforced activity,
   - Recent Events include an explicit execution `Mode`,
   - defense trend rows split `Enforced` and `Shadow` counts.
 - Recent-events empty states are explicit:

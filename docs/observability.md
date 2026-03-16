@@ -19,7 +19,7 @@ GET /admin/monitoring?hours=24&limit=10
 ```
 
 This endpoint returns bounded-cardinality summaries for:
-- test-mode shadow actions (`would challenge`, `would block`, `would maze`, and pass-through totals)
+- shadow-mode action totals (`would challenge`, `would block`, `would maze`, and pass-through totals)
 - honeypot hits (top crawler buckets + top paths)
 - challenge rejections and attack signals (reasons + trend)
 - <abbr title="Proof of Work">PoW</abbr> verification outcomes (success/failure + reasons + trend)
@@ -30,7 +30,6 @@ Use this endpoint for dashboard <abbr title="User Experience">UX</abbr> and oper
 
 Recent event rows also carry explicit execution metadata:
 - `execution_mode="enforced|shadow"`
-- `shadow_source="test_mode"` when shadowed
 - `intended_action="challenge|block|maze|..."` for shadow rows
 - `enforcement_applied=false` for shadow rows
 
@@ -69,7 +68,7 @@ Prometheus parity scope for Monitoring widgets is tracked in:
 - `bot_defence_challenge_expired_replay_total`
 - `bot_defence_cdp_detections_total`
 - `bot_defence_allowlisted_total`
-- `bot_defence_test_mode_actions_total`
+- `bot_defence_shadow_mode_actions_total`
 - `bot_defence_monitoring_shadow_actions_total{action="challenge|block|maze|..."}`
 - `bot_defence_monitoring_shadow_pass_through_total`
 - `bot_defence_maze_hits_total`
@@ -79,7 +78,7 @@ Prometheus parity scope for Monitoring widgets is tracked in:
 - `bot_defence_maze_proof_outcomes_total{outcome="required|passed|failed"}`
 - `bot_defence_maze_entropy_variants_total{variant="...",provider="internal|operator",metadata_only="true|false"}`
 - `bot_defence_active_bans`
-- `bot_defence_test_mode_enabled`
+- `bot_defence_shadow_mode_enabled`
 - `bot_defence_botness_signal_state_total{signal="...",state="active|disabled|unavailable"}`
 - `bot_defence_defence_mode_effective_total{module="rate|geo|js",configured="off|signal|enforce|both",signal_enabled="true|false",action_enabled="true|false"}`
 - `bot_defence_edge_integration_mode_total{mode="off|additive|authoritative"}`
@@ -109,7 +108,7 @@ scrape_configs:
 ## 🐙 Grafana Integration
 
 1. Add Prometheus as a data source
-2. Build panels for requests total, bans by reason, active bans, challenges/blocks over time, test mode status, and composability visibility (signal-state and effective-mode counters)
+2. Build panels for requests total, bans by reason, active bans, challenges/blocks over time, shadow mode status, and composability visibility (signal-state and effective-mode counters)
 
 ## 🐙 Botness Visibility
 

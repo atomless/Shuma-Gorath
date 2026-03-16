@@ -82,7 +82,7 @@ function deriveMonitoringAnalytics(configSnapshot = {}, analyticsSnapshot = {}) 
   const analytics = isObject(analyticsSnapshot) ? analyticsSnapshot : {};
   return {
     ban_count: Number(analytics.ban_count || 0),
-    test_mode: parseBoolLike(config.test_mode, analytics.test_mode === true),
+    shadow_mode: parseBoolLike(config.shadow_mode, analytics.shadow_mode === true),
     fail_mode: parseBoolLike(config.kv_store_fail_open, true) ? 'open' : 'closed'
   };
 }

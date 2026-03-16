@@ -31,13 +31,13 @@ impl ChallengeBoundary for DefaultChallengeBoundary {
     fn serve_challenge_page(
         &self,
         req: &Request,
-        test_mode: bool,
+        shadow_mode: bool,
         transform_count: usize,
         seed_ttl_seconds: u64,
     ) -> Response {
         crate::challenge::serve_challenge_page_with_seed_ttl(
             req,
-            test_mode,
+            shadow_mode,
             transform_count,
             seed_ttl_seconds,
         )
@@ -46,10 +46,10 @@ impl ChallengeBoundary for DefaultChallengeBoundary {
     fn serve_not_a_bot_page(
         &self,
         req: &Request,
-        test_mode: bool,
+        shadow_mode: bool,
         cfg: &crate::config::Config,
     ) -> Response {
-        crate::challenge::serve_not_a_bot_page(req, test_mode, cfg)
+        crate::challenge::serve_not_a_bot_page(req, shadow_mode, cfg)
     }
 
     fn handle_challenge_submit_with_outcome<S: crate::challenge::KeyValueStore>(
@@ -119,19 +119,19 @@ pub(crate) fn render_not_a_bot(req: &Request, cfg: &crate::config::Config) -> Re
 
 pub(crate) fn serve_challenge_page(
     req: &Request,
-    test_mode: bool,
+    shadow_mode: bool,
     transform_count: usize,
     seed_ttl_seconds: u64,
 ) -> Response {
-    CHALLENGE.serve_challenge_page(req, test_mode, transform_count, seed_ttl_seconds)
+    CHALLENGE.serve_challenge_page(req, shadow_mode, transform_count, seed_ttl_seconds)
 }
 
 pub(crate) fn serve_not_a_bot_page(
     req: &Request,
-    test_mode: bool,
+    shadow_mode: bool,
     cfg: &crate::config::Config,
 ) -> Response {
-    CHALLENGE.serve_not_a_bot_page(req, test_mode, cfg)
+    CHALLENGE.serve_not_a_bot_page(req, shadow_mode, cfg)
 }
 
 pub(crate) fn handle_challenge_submit_with_outcome<S: crate::challenge::KeyValueStore>(

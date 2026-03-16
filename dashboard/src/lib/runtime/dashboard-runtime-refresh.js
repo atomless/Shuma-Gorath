@@ -52,7 +52,7 @@ export function createDashboardRefreshRuntime(options = {}) {
   const deriveMonitoringAnalytics =
     typeof options.deriveMonitoringAnalytics === 'function'
       ? options.deriveMonitoringAnalytics
-      : () => ({ ban_count: 0, test_mode: false, fail_mode: 'open' });
+      : () => ({ ban_count: 0, shadow_mode: false, fail_mode: 'open' });
   const storage = options.storage && typeof options.storage === 'object'
     ? options.storage
     : (typeof window !== 'undefined' && window.localStorage ? window.localStorage : null);

@@ -10,7 +10,7 @@ const INITIAL_STATE = Object.freeze({
     gatewayDeploymentProfile: '',
     localProdDirectMode: false,
     adminConfigWriteEnabled: false,
-    testMode: false,
+    shadowMode: false,
     powEnabled: false,
     mazeEnabled: false,
     tarpitEnabled: false,
@@ -110,7 +110,7 @@ const VAR_GROUP_DEFINITIONS = Object.freeze([
       key: 'policy_runtime',
       title: 'Policy and Runtime Controls',
       matches: path => (
-        path === 'test_mode' ||
+        path === 'shadow_mode' ||
         path === 'ban_duration' ||
         path.startsWith('ban_durations.') ||
         path === 'rate_limit' ||
@@ -330,7 +330,7 @@ export function deriveStatusSnapshot(configSnapshot = {}) {
       gatewayDeploymentProfile: normalizeGatewayDeploymentProfile(config.gateway_deployment_profile),
       localProdDirectMode: parseBoolLike(config.local_prod_direct_mode, false),
       adminConfigWriteEnabled: parseBoolLike(config.admin_config_write_enabled, false),
-      testMode: parseBoolLike(config.test_mode, false),
+      shadowMode: parseBoolLike(config.shadow_mode, false),
       powEnabled: parseBoolLike(config.pow_enabled, true),
       mazeEnabled: parseBoolLike(config.maze_enabled, true),
       tarpitEnabled: parseBoolLike(config.tarpit_enabled, true),

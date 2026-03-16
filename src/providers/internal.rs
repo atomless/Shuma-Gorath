@@ -259,13 +259,13 @@ impl ChallengeEngineProvider for InternalChallengeEngineProvider {
     fn serve_challenge_page(
         &self,
         req: &Request,
-        test_mode: bool,
+        shadow_mode: bool,
         transform_count: usize,
         seed_ttl_seconds: u64,
     ) -> Response {
         crate::boundaries::serve_challenge_page(
             req,
-            test_mode,
+            shadow_mode,
             transform_count,
             seed_ttl_seconds,
         )
@@ -274,10 +274,10 @@ impl ChallengeEngineProvider for InternalChallengeEngineProvider {
     fn serve_not_a_bot_page(
         &self,
         req: &Request,
-        test_mode: bool,
+        shadow_mode: bool,
         cfg: &crate::config::Config,
     ) -> Response {
-        crate::boundaries::serve_not_a_bot_page(req, test_mode, cfg)
+        crate::boundaries::serve_not_a_bot_page(req, shadow_mode, cfg)
     }
 
     fn handle_challenge_submit_with_outcome(

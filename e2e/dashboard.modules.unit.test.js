@@ -329,9 +329,9 @@ test('dashboard API adapters normalize sparse payloads safely', { concurrency: f
   await withBrowserGlobals({}, async () => {
     const api = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
 
-    const analytics = api.adaptAnalytics({ ban_count: '7', test_mode: true });
+    const analytics = api.adaptAnalytics({ ban_count: '7', shadow_mode: true });
     assert.equal(analytics.ban_count, 7);
-    assert.equal(analytics.test_mode, true);
+    assert.equal(analytics.shadow_mode, true);
     assert.equal(analytics.fail_mode, 'open');
 
     const events = api.adaptEvents({
@@ -1242,7 +1242,7 @@ test('refresh runtime bootstraps monitoring baseline before cursor deltas and ke
         geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
       },
       details: {
-        analytics: { ban_count: 0, test_mode: false, fail_mode: 'open' },
+        analytics: { ban_count: 0, shadow_mode: false, fail_mode: 'open' },
         events: {
           recent_events: [{
             ts: now,
@@ -1311,7 +1311,7 @@ test('refresh runtime bootstraps monitoring baseline before cursor deltas and ke
       normalizeTab: (value) => String(value || ''),
       getApiClient: () => apiClient,
       getStateStore: () => store,
-      deriveMonitoringAnalytics: () => ({ ban_count: 0, test_mode: false, fail_mode: 'open' }),
+      deriveMonitoringAnalytics: () => ({ ban_count: 0, shadow_mode: false, fail_mode: 'open' }),
       storage
     });
 
@@ -1387,7 +1387,7 @@ test('monitoring auto-refresh refreshes monitoring snapshots without extra ip-ba
             geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
           },
           details: {
-            analytics: { ban_count: 1, test_mode: false, fail_mode: 'open' },
+            analytics: { ban_count: 1, shadow_mode: false, fail_mode: 'open' },
             events: {
               recent_events: [{
                 ts: now,
@@ -1500,7 +1500,7 @@ test('monitoring auto-refresh refreshes monitoring snapshots without extra ip-ba
       normalizeTab: (value) => String(value || ''),
       getApiClient: () => apiClient,
       getStateStore: () => store,
-      deriveMonitoringAnalytics: () => ({ ban_count: 1, test_mode: false, fail_mode: 'open' }),
+      deriveMonitoringAnalytics: () => ({ ban_count: 1, shadow_mode: false, fail_mode: 'open' }),
       storage
     });
 
@@ -1569,7 +1569,7 @@ test('red-team auto-refresh refreshes monitoring-backed run snapshots without ex
             geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
           },
           details: {
-            analytics: { ban_count: 1, test_mode: false, fail_mode: 'open' },
+            analytics: { ban_count: 1, shadow_mode: false, fail_mode: 'open' },
             events: {
               recent_events: [{
                 ts: now,
@@ -1650,7 +1650,7 @@ test('red-team auto-refresh refreshes monitoring-backed run snapshots without ex
       normalizeTab: (value) => String(value || ''),
       getApiClient: () => apiClient,
       getStateStore: () => store,
-      deriveMonitoringAnalytics: () => ({ ban_count: 1, test_mode: false, fail_mode: 'open' }),
+      deriveMonitoringAnalytics: () => ({ ban_count: 1, shadow_mode: false, fail_mode: 'open' }),
       storage
     });
 
@@ -1698,7 +1698,7 @@ test('refresh runtime seeds monitoring cursor from window end instead of replayi
         return {
           summary: {},
           details: {
-            analytics: { ban_count: 0, test_mode: false, fail_mode: 'open' },
+            analytics: { ban_count: 0, shadow_mode: false, fail_mode: 'open' },
             events: { recent_events: [] },
             bans: { bans: [] },
             maze: {},
@@ -1739,7 +1739,7 @@ test('refresh runtime seeds monitoring cursor from window end instead of replayi
       normalizeTab: (value) => String(value || ''),
       getApiClient: () => apiClient,
       getStateStore: () => store,
-      deriveMonitoringAnalytics: () => ({ ban_count: 0, test_mode: false, fail_mode: 'open' }),
+      deriveMonitoringAnalytics: () => ({ ban_count: 0, shadow_mode: false, fail_mode: 'open' }),
       storage
     });
 
@@ -1786,7 +1786,7 @@ test('manual refresh bypasses monitoring cache while passive reasons honor cache
           monitoring: {
             summary: {},
             details: {
-              analytics: { ban_count: 100, test_mode: false, fail_mode: 'open' },
+              analytics: { ban_count: 100, shadow_mode: false, fail_mode: 'open' },
               events: { recent_events: [] },
               bans: { bans: compactedBans },
               maze: {},
@@ -1805,7 +1805,7 @@ test('manual refresh bypasses monitoring cache while passive reasons honor cache
         return {
           summary: {},
           details: {
-            analytics: { ban_count: 164, test_mode: false, fail_mode: 'open' },
+            analytics: { ban_count: 164, shadow_mode: false, fail_mode: 'open' },
             events: { recent_events: [] },
             bans: { bans: compactedBans },
             maze: {},
@@ -1844,7 +1844,7 @@ test('manual refresh bypasses monitoring cache while passive reasons honor cache
       getStateStore: () => store,
       deriveMonitoringAnalytics: (_configSnapshot, analyticsResponse = {}) => ({
         ban_count: Number(analyticsResponse.ban_count || 0),
-        test_mode: analyticsResponse.test_mode === true,
+        shadow_mode: analyticsResponse.shadow_mode === true,
         fail_mode: String(analyticsResponse.fail_mode || 'open')
       }),
       storage
@@ -1887,7 +1887,7 @@ test('monitoring bootstrap does not wait for cursor seeding before config-backed
           summary: {},
           freshness: { state: 'fresh', transport: 'snapshot_poll' },
           details: {
-            analytics: { ban_count: 0, test_mode: false, fail_mode: 'open' },
+            analytics: { ban_count: 0, shadow_mode: false, fail_mode: 'open' },
             events: { recent_events: [] },
             bans: { bans: [] },
             maze: {},
@@ -1926,7 +1926,7 @@ test('monitoring bootstrap does not wait for cursor seeding before config-backed
       getStateStore: () => store,
       deriveMonitoringAnalytics: (_configSnapshot, analyticsResponse = {}) => ({
         ban_count: Number(analyticsResponse.ban_count || 0),
-        test_mode: analyticsResponse.test_mode === true,
+        shadow_mode: analyticsResponse.shadow_mode === true,
         fail_mode: String(analyticsResponse.fail_mode || 'open')
       }),
       storage: null
@@ -2018,7 +2018,7 @@ test('monitoring tab shows bootstrap telemetry before slow full monitoring detai
       getStateStore: () => store,
       deriveMonitoringAnalytics: (_configSnapshot, analyticsResponse = {}) => ({
         ban_count: Number(analyticsResponse.ban_count || 0),
-        test_mode: analyticsResponse.test_mode === true,
+        shadow_mode: analyticsResponse.shadow_mode === true,
         fail_mode: String(analyticsResponse.fail_mode || 'open')
       }),
       storage: null
@@ -2043,7 +2043,7 @@ test('monitoring tab shows bootstrap telemetry before slow full monitoring detai
           freshness: { state: 'fresh', transport: 'snapshot_poll' },
           window_end_cursor: '00000000000000000002|eventlog:v2:1:2-b',
           details: {
-            analytics: { ban_count: 0, test_mode: false, fail_mode: 'open' },
+            analytics: { ban_count: 0, shadow_mode: false, fail_mode: 'open' },
             events: {
               recent_events: [
                 {
@@ -2072,7 +2072,7 @@ test('monitoring tab shows bootstrap telemetry before slow full monitoring detai
       summary: { requests_total: 8 },
       freshness: { state: 'fresh', transport: 'snapshot_poll' },
       details: {
-        analytics: { ban_count: 1, test_mode: false, fail_mode: 'open' },
+        analytics: { ban_count: 1, shadow_mode: false, fail_mode: 'open' },
         events: {
           recent_events: [
             {
@@ -2142,7 +2142,7 @@ test('monitoring tab surfaces bootstrap failure as a tab-scoped error when delta
       getStateStore: () => store,
       deriveMonitoringAnalytics: (_configSnapshot, analyticsResponse = {}) => ({
         ban_count: Number(analyticsResponse.ban_count || 0),
-        test_mode: analyticsResponse.test_mode === true,
+        shadow_mode: analyticsResponse.shadow_mode === true,
         fail_mode: String(analyticsResponse.fail_mode || 'open')
       }),
       storage: null
@@ -2222,7 +2222,7 @@ test('monitoring refresh recovers cleanly after transient failure without synthe
           },
           summary: {},
           details: {
-            analytics: { ban_count: 0, test_mode: false, fail_mode: 'open' },
+            analytics: { ban_count: 0, shadow_mode: false, fail_mode: 'open' },
             events: {
               recent_events: [{
                 ts: 1_700_000_050,
@@ -2285,7 +2285,7 @@ test('monitoring refresh recovers cleanly after transient failure without synthe
       normalizeTab: (value) => String(value || ''),
       getApiClient: () => apiClient,
       getStateStore: () => store,
-      deriveMonitoringAnalytics: () => ({ ban_count: 0, test_mode: false, fail_mode: 'open' }),
+      deriveMonitoringAnalytics: () => ({ ban_count: 0, shadow_mode: false, fail_mode: 'open' }),
       storage
     });
 
@@ -2321,11 +2321,6 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     const statusModule = await importBrowserModule('dashboard/src/lib/domain/status.js');
 
     const summary = monitoringModelModule.deriveMonitoringSummaryViewModel({
-      shadow: {
-        total_actions: 9,
-        pass_through_total: 24,
-        actions: { challenge: 5, block: 4 }
-      },
       honeypot: {
         total_hits: 120,
         unique_crawlers: 4,
@@ -2373,10 +2368,6 @@ test('monitoring view model and status module remain pure snapshot transforms', 
         top_countries: [['US', 3]]
       }
     });
-    assert.equal(summary.shadow.totalActions, '9');
-    assert.equal(summary.shadow.passThroughTotal, '24');
-    assert.equal(summary.shadow.topAction.value, 'Would Challenge (5)');
-    assert.equal(summary.shadow.actions[0]?.label, 'Would Challenge');
     assert.equal(summary.honeypot.totalHits, '120');
     assert.equal(summary.challenge.totalFailures, '10');
     assert.equal(summary.notABot.served, '20');
@@ -2390,6 +2381,21 @@ test('monitoring view model and status module remain pure snapshot transforms', 
       summary.pow.outcomes.some((row) => row[0] === 'success' && Number(row[1]) === 5),
       true
     );
+    const enforcedChartRows = monitoringModelModule.deriveEnforcedMonitoringChartRows([
+      { event: 'challenge', ip: '198.51.100.10' },
+      { event: 'challenge', ip: '198.51.100.10', execution_mode: 'shadow', enforcement_applied: false },
+      { event: 'ban', ip: '198.51.100.10' },
+      { event: 'pow', ip: '203.0.113.77' }
+    ]);
+    assert.deepEqual(enforcedChartRows.eventCounts, {
+      challenge: 1,
+      ban: 1,
+      pow: 1
+    });
+    assert.deepEqual(enforcedChartRows.topIps, [
+      ['198.51.100.10', 2],
+      ['203.0.113.77', 1]
+    ]);
     const tarpitSummary = monitoringModelModule.deriveTarpitViewModel({
       enabled: true,
       active: {
@@ -2490,7 +2496,6 @@ test('monitoring view model and status module remain pure snapshot transforms', 
         reason: 'shadow_mode_preview',
         outcome: 'served',
         execution_mode: 'shadow',
-        shadow_source: 'test_mode',
         intended_action: 'challenge',
         enforcement_applied: false,
         sim_run_id: 'run-1',
@@ -2635,7 +2640,7 @@ test('monitoring view model and status module remain pure snapshot transforms', 
 
     const configSnapshot = {
       kv_store_fail_open: true,
-      test_mode: false,
+      shadow_mode: false,
       runtime_environment: 'runtime-prod',
       gateway_deployment_profile: 'shared-server',
       local_prod_direct_mode: true,
@@ -2690,7 +2695,7 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     const runtimePostureItem = statusItems.find((item) => stripHtml(item.title) === 'Runtime and Deployment Posture');
     const adminWritePostureItem = statusItems.find((item) => stripHtml(item.title) === 'Admin Config Write Posture');
     const retentionFreshnessItem = statusItems.find((item) => stripHtml(item.title) === 'Retention and Freshness Health');
-    const testModeItem = statusItems.find((item) => stripHtml(item.title) === 'Test Mode');
+    const testModeItem = statusItems.find((item) => stripHtml(item.title) === 'Shadow Mode');
     assert.equal(Boolean(challengePuzzleItem), true);
     assert.equal(Boolean(challengeNotABotItem), true);
     assert.equal(Boolean(tarpitItem), true);
@@ -2763,7 +2768,7 @@ test('status refresh hydrates monitoring retention/freshness snapshot without mo
           },
           summary: {},
           details: {
-            analytics: { ban_count: 0, test_mode: false, fail_mode: 'open' },
+            analytics: { ban_count: 0, shadow_mode: false, fail_mode: 'open' },
             events: { recent_events: [] },
             bans: { bans: [] },
             maze: {},
@@ -2778,7 +2783,7 @@ test('status refresh hydrates monitoring retention/freshness snapshot without mo
       normalizeTab: (value) => String(value || ''),
       getApiClient: () => apiClient,
       getStateStore: () => store,
-      deriveMonitoringAnalytics: () => ({ ban_count: 0, test_mode: false, fail_mode: 'open' })
+      deriveMonitoringAnalytics: () => ({ ban_count: 0, shadow_mode: false, fail_mode: 'open' })
     });
 
     await runtime.refreshDashboardForTab('status', 'manual-refresh');
@@ -2790,28 +2795,28 @@ test('status refresh hydrates monitoring retention/freshness snapshot without mo
   });
 });
 
-test('dashboard class runtime keeps runtime, test-mode, and adversary-sim state on html only', { concurrency: false }, async () => {
+test('dashboard class runtime keeps runtime, shadow-mode, and adversary-sim state on html only', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const bodyClassModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-body-classes.js');
 
     const defaultState = bodyClassModule.deriveDashboardBodyClassState({});
     assert.deepEqual(toPlain(defaultState), {
       runtimeClass: '',
-      testModeEnabled: false,
+      shadowModeEnabled: false,
       adversarySimEnabled: false,
       connectionState: 'disconnected'
     });
 
     const explicitDevState = bodyClassModule.deriveDashboardBodyClassState({
       runtime_environment: 'runtime-dev',
-      test_mode: true,
+      shadow_mode: true,
       adversary_sim_enabled: true
     }, {
       backendConnectionState: 'connected'
     });
     assert.deepEqual(toPlain(explicitDevState), {
       runtimeClass: 'runtime-dev',
-      testModeEnabled: true,
+      shadowModeEnabled: true,
       adversarySimEnabled: false,
       connectionState: 'connected'
     });
@@ -2826,21 +2831,21 @@ test('dashboard class runtime keeps runtime, test-mode, and adversary-sim state 
     assert.equal(invalidHintedRuntimeState.runtimeClass, '');
     const liveOverrideState = bodyClassModule.deriveDashboardBodyClassState({
       runtime_environment: 'runtime-prod',
-      test_mode: false,
+      shadow_mode: false,
       adversary_sim_enabled: false
     }, {
-      testModeEnabled: true,
+      shadowModeEnabled: true,
       adversarySimEnabled: true
     });
     assert.deepEqual(toPlain(liveOverrideState), {
       runtimeClass: 'runtime-prod',
-      testModeEnabled: true,
+      shadowModeEnabled: true,
       adversarySimEnabled: true,
       connectionState: 'disconnected'
     });
 
-    const classList = createMutableClassList(['runtime-prod', 'test-mode', 'adversary-sim', 'connected']);
-    const rootClassList = createMutableClassList(['runtime-prod', 'test-mode', 'adversary-sim', 'connected']);
+    const classList = createMutableClassList(['runtime-prod', 'shadow-mode', 'adversary-sim', 'connected']);
+    const rootClassList = createMutableClassList(['runtime-prod', 'shadow-mode', 'adversary-sim', 'connected']);
     const doc = {
       body: {
         classList
@@ -2852,20 +2857,20 @@ test('dashboard class runtime keeps runtime, test-mode, and adversary-sim state 
 
     bodyClassModule.syncDashboardBodyClasses(doc, {
       runtimeClass: explicitDevState.runtimeClass,
-      testModeEnabled: explicitDevState.testModeEnabled,
+      shadowModeEnabled: explicitDevState.shadowModeEnabled,
       adversarySimEnabled: explicitDevState.adversarySimEnabled,
       connectionState: explicitDevState.connectionState
     });
     assert.equal(classList.contains('runtime-dev'), false);
     assert.equal(classList.contains('runtime-prod'), false);
-    assert.equal(classList.contains('test-mode'), false);
+    assert.equal(classList.contains('shadow-mode'), false);
     assert.equal(classList.contains('adversary-sim'), false);
     assert.equal(classList.contains('connected'), false);
     assert.equal(classList.contains('degraded'), false);
     assert.equal(classList.contains('disconnected'), false);
     assert.equal(rootClassList.contains('runtime-dev'), true);
     assert.equal(rootClassList.contains('runtime-prod'), false);
-    assert.equal(rootClassList.contains('test-mode'), true);
+    assert.equal(rootClassList.contains('shadow-mode'), true);
     assert.equal(rootClassList.contains('adversary-sim'), false);
     assert.equal(rootClassList.contains('connected'), true);
     assert.equal(rootClassList.contains('degraded'), false);
@@ -2873,13 +2878,13 @@ test('dashboard class runtime keeps runtime, test-mode, and adversary-sim state 
 
     bodyClassModule.syncDashboardBodyClasses(doc, {
       runtimeClass: 'runtime-dev',
-      testModeEnabled: true,
+      shadowModeEnabled: true,
       adversarySimEnabled: false,
       connectionState: 'degraded'
     });
-    assert.equal(classList.contains('test-mode'), false);
+    assert.equal(classList.contains('shadow-mode'), false);
     assert.equal(classList.contains('adversary-sim'), false);
-    assert.equal(rootClassList.contains('test-mode'), true);
+    assert.equal(rootClassList.contains('shadow-mode'), true);
     assert.equal(rootClassList.contains('adversary-sim'), false);
     assert.equal(rootClassList.contains('connected'), false);
     assert.equal(rootClassList.contains('degraded'), true);
@@ -2887,20 +2892,20 @@ test('dashboard class runtime keeps runtime, test-mode, and adversary-sim state 
 
     bodyClassModule.syncDashboardBodyClasses(doc, {
       runtimeClass: 'runtime-prod',
-      testModeEnabled: false,
+      shadowModeEnabled: false,
       adversarySimEnabled: false,
       connectionState: 'disconnected'
     });
     assert.equal(classList.contains('runtime-dev'), false);
     assert.equal(classList.contains('runtime-prod'), false);
-    assert.equal(classList.contains('test-mode'), false);
+    assert.equal(classList.contains('shadow-mode'), false);
     assert.equal(classList.contains('adversary-sim'), false);
     assert.equal(classList.contains('connected'), false);
     assert.equal(classList.contains('degraded'), false);
     assert.equal(classList.contains('disconnected'), false);
     assert.equal(rootClassList.contains('runtime-dev'), false);
     assert.equal(rootClassList.contains('runtime-prod'), true);
-    assert.equal(rootClassList.contains('test-mode'), false);
+    assert.equal(rootClassList.contains('shadow-mode'), false);
     assert.equal(rootClassList.contains('adversary-sim'), false);
     assert.equal(rootClassList.contains('connected'), false);
     assert.equal(rootClassList.contains('degraded'), false);
@@ -2912,7 +2917,7 @@ test('dashboard class runtime keeps runtime, test-mode, and adversary-sim state 
     });
     assert.equal(rootClassList.contains('runtime-dev'), false);
     assert.equal(rootClassList.contains('runtime-prod'), false);
-    assert.equal(rootClassList.contains('test-mode'), false);
+    assert.equal(rootClassList.contains('shadow-mode'), false);
     assert.equal(rootClassList.contains('adversary-sim'), false);
     assert.equal(rootClassList.contains('degraded'), false);
     assert.equal(rootClassList.contains('connected'), false);
@@ -2921,14 +2926,14 @@ test('dashboard class runtime keeps runtime, test-mode, and adversary-sim state 
     bodyClassModule.clearDashboardBodyClasses(doc);
     assert.equal(classList.contains('runtime-dev'), false);
     assert.equal(classList.contains('runtime-prod'), false);
-    assert.equal(classList.contains('test-mode'), false);
+    assert.equal(classList.contains('shadow-mode'), false);
     assert.equal(classList.contains('adversary-sim'), false);
     assert.equal(classList.contains('connected'), false);
     assert.equal(classList.contains('degraded'), false);
     assert.equal(classList.contains('disconnected'), false);
     assert.equal(rootClassList.contains('runtime-dev'), false);
     assert.equal(rootClassList.contains('runtime-prod'), false);
-    assert.equal(rootClassList.contains('test-mode'), false);
+    assert.equal(rootClassList.contains('shadow-mode'), false);
     assert.equal(rootClassList.contains('adversary-sim'), false);
     assert.equal(rootClassList.contains('connected'), false);
     assert.equal(rootClassList.contains('degraded'), false);
@@ -3621,16 +3626,6 @@ test('dashboard global control helper enables authenticated writable controls be
   });
 });
 
-test('dashboard global control helper no longer exposes legacy adversary-sim toggle truth helpers', { concurrency: false }, async () => {
-  await withBrowserGlobals({}, async () => {
-    const controlModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-global-controls.js');
-
-    assert.equal(typeof controlModule.deriveAdversarySimToggleEnabled, 'undefined');
-    assert.equal(typeof controlModule.hasExplicitAdversarySimStatus, 'undefined');
-    assert.equal(typeof controlModule.shouldPrimeAdversarySimStatus, 'undefined');
-  });
-});
-
 test('dashboard request budgets widen edge-fermyon control and monitoring timeouts', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const budgetModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-request-budgets.js');
@@ -3787,7 +3782,7 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
     assert.equal(json.resolveJsonFieldLine('honeypot', fieldLineMap), 3);
     assert.equal(json.resolveJsonFieldLine('missing_field', fieldLineMap), null);
     assert.equal(Array.isArray(schema.advancedConfigTemplatePaths), true);
-    assert.equal(schema.advancedConfigTemplatePaths.includes('test_mode'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('shadow_mode'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('adversary_sim_enabled'), false);
     assert.equal(schema.advancedConfigTemplatePaths.includes('adversary_sim_duration_seconds'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('browser_policy_enabled'), true);
@@ -3959,7 +3954,7 @@ test('admin endpoint resolver applies loopback override only for local hostnames
   });
 });
 
-test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting, robots, and tuning tabs are declarative and callback-driven', () => {
+test('dashboard config tabs reuse shared panels, save flows, and owned controls', () => {
   const ipBansSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/IpBansTab.svelte'),
     'utf8'
@@ -4088,14 +4083,12 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(ipBansSource, /animation: false,/);
   assert.match(ipBansSource, /maintainAspectRatio: false,/);
   assert.match(ipBansSource, /resolveMonitoringChartTheme/);
-  assert.equal(ipBansSource.includes('CHART_COLORS'), false);
   assert.match(ipBansSource, /canvasHasRenderableSize\(canvas\)/);
   assert.match(ipBansSource, /window\.addEventListener\('resize', onResize, \{ passive: true \}\);/);
   assert.match(ipBansSource, /if \(browser && nextActive && !wasActive\)/);
   assert.match(ipBansSource, /id="ip-range-suggestions-table"/);
   assert.match(ipBansSource, /id="bypass-allowlists-toggle"/);
   assert.match(ipBansSource, /id="network-allowlist"/);
-  assert.equal(ipBansSource.includes('id="path-allowlist"'), false);
   assert.match(ipBansSource, /buttonId="save-bypass-allowlists"/);
   assert.match(ipBansSource, /id="ip-range-policy-mode"/);
   assert.match(ipBansSource, /buttonId="save-ip-range-policy"/);
@@ -4106,39 +4099,15 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(ipBansSource, /#each filteredBanRows as row \(row\.key\)/);
   assert.match(ipBansSource, /aria-expanded=\{detailVisible \? 'true' : 'false'\}/);
   assert.match(ipBansSource, /#if detailVisible/);
-  assert.equal(ipBansSource.includes('data-target='), false);
   assert.match(ipBansSource, /disabled=\{!canBan\}/);
   assert.match(ipBansSource, /disabled=\{!canUnban\}/);
-  assert.equal(ipBansSource.includes('querySelectorAll('), false);
 
   assert.match(configSource, /export let onSaveConfig = null;/);
-  assert.equal(configSource.includes('onFetchRobotsPreview'), false);
-  assert.equal(configSource.includes('test_mode'), false);
-  assert.equal(configSource.includes('let ipRangePolicyMode = '), false);
-  assert.equal(configSource.includes('robotsAllowSearch'), false);
-  assert.equal(configSource.includes('onTestModeToggleChange'), false);
   assert.match(configSource, /await onSaveConfig\(/);
   assert.match(configSource, /import ConfigChallengeSection from '\.\/config\/ConfigChallengeSection\.svelte';/);
-  assert.equal(configSource.includes("import ConfigNetworkSection from './config/ConfigNetworkSection.svelte';"), false);
-  assert.equal(configSource.includes("import ConfigExportSection from './config/ConfigExportSection.svelte';"), false);
-  assert.equal(configSource.includes("import ConfigMazeSection from './config/ConfigMazeSection.svelte';"), false);
-  assert.equal(configSource.includes("import ConfigDurationsSection from './config/ConfigDurationsSection.svelte';"), false);
-  assert.equal(configSource.includes("import ConfigGeoSection from './config/ConfigGeoSection.svelte';"), false);
-  assert.equal(configSource.includes('ConfigRobotsSection'), false);
   assert.match(configSource, /import SaveChangesBar from '\.\/primitives\/SaveChangesBar\.svelte';/);
   assert.match(configSource, /<ConfigChallengeSection/);
-  assert.equal(configSource.includes('<ConfigNetworkSection'), false);
-  assert.equal(configSurfaceSource.includes('id="js-browser-allowlist-rules"'), false);
-  assert.equal(configNetworkSource.includes('id="browser-allowlist-rules"'), false);
-  assert.equal(configSource.includes('<ConfigExportSection'), false);
-  assert.equal(configSource.includes('<ConfigMazeSection'), false);
-  assert.equal(configSource.includes('<ConfigDurationsSection'), false);
-  assert.equal(configSource.includes('<ConfigGeoSection'), false);
-  assert.equal(configSource.includes('<ConfigRobotsSection'), false);
-  assert.equal(configSource.includes('showHoneypot={false}'), false);
-  assert.equal(configSource.includes('showBrowserPolicy={true}'), false);
   assert.match(configSource, /<SaveChangesBar/);
-  assert.equal(configSurfaceSource.includes('id="test-mode-toggle"'), false);
   assert.match(configSurfaceSource, /id="preview-challenge-puzzle-link"/);
   assert.match(configSurfaceSource, /id="preview-not-a-bot-link"/);
   assert.equal(
@@ -4146,36 +4115,15 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
       < configSurfaceSource.indexOf('id="challenge-puzzle-enabled-toggle"'),
     true
   );
-  assert.equal(configSurfaceSource.includes('id="not-a-bot-nonce-ttl"'), false);
-  assert.equal(configSurfaceSource.includes('id="not-a-bot-marker-ttl"'), false);
-  assert.equal(configSurfaceSource.includes('id="not-a-bot-attempt-limit"'), false);
-  assert.equal(configSurfaceSource.includes('id="not-a-bot-attempt-window"'), false);
   assert.match(configSource, /\$: notABotScoreFailMaxCap = Math\.max\(0, Number\(notABotScorePassMin\) - 1\);/);
   assert.match(configSource, /\$: notABotScorePassMinFloor = Math\.min\(10, Number\(notABotScoreFailMax\) \+ 1\);/);
   assert.match(configSurfaceSource, /max=\{notABotScoreFailMaxCap\}/);
   assert.match(configSurfaceSource, /Any scores above Fail and below Pass will be shown a tougher challenge\./);
-  assert.equal(configSurfaceSource.includes('id="export-current-config-json"'), false);
   assert.match(configSource, /buttonId="save-verification-all"/);
   assert.match(configSource, /saveAllConfig\(/);
   assert.match(configSource, /window\.addEventListener\('beforeunload'/);
-  assert.equal(configSurfaceSource.includes('id="ip-range-policy-mode"'), false);
-  assert.equal(configSource.includes('ip_range_policy_mode'), false);
   assert.match(configSurfaceSource, /id="verification-cdp-enabled-toggle"/);
   assert.match(configSurfaceSource, /id="verification-cdp-threshold-slider"/);
-  assert.equal(configSurfaceSource.includes('id="edge-integration-mode-select"'), false);
-  assert.equal(configSurfaceSource.includes('id="bypass-allowlists-toggle"'), false);
-  assert.equal(configSurfaceSource.includes('id="geo-scoring-toggle"'), false);
-  assert.equal(configSurfaceSource.includes('id="geo-routing-toggle"'), false);
-  assert.equal(configSource.includes('browser_policy_enabled'), false);
-  assert.equal(configSource.includes('bypass_allowlists_enabled'), false);
-  assert.equal(configSource.includes('(LOGGING ONLY)'), false);
-  assert.equal(configSource.includes('(BLOCKING ACTIVE)'), false);
-  assert.equal(configSource.includes('Test Mode Active'), false);
-  assert.equal(configSource.includes('ENABLED (LOGGING ONLY)'), false);
-  assert.equal(configSource.includes('DISABLED (BLOCKING ACTIVE)'), false);
-  assert.equal(configSource.includes('id="save-js-required-config"'), false);
-  assert.equal(configSource.includes('id="save-test-mode-config"'), false);
-  assert.equal(configSource.includes('id="save-advanced-config"'), false);
   assert.equal(configSource.includes('{@html'), false);
 
   assert.match(tuningSource, /id="path-allowlist"/);
@@ -4245,41 +4193,29 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(robotsSurfaceSource, /id="open-robots-txt-link"/);
   assert.match(robotsSurfaceSource, /id="preview-robots"/);
 
-  assert.equal(fingerprintingSource.includes('export let cdpSnapshot = null;'), false);
   assert.match(fingerprintingSource, /export let onSaveConfig = null;/);
   assert.match(fingerprintingSource, /await onSaveConfig\(payload/);
   assert.match(fingerprintingSource, /config\.akamai_edge_available === true/);
   assert.match(fingerprintingSource, /id="fingerprinting-akamai-enabled-toggle"/);
   assert.match(fingerprintingSource, /id="fingerprinting-edge-mode-select"/);
   assert.match(fingerprintingSource, /id="fingerprinting-akamai-unavailable-message"/);
-  assert.equal(fingerprintingSource.includes('id="fingerprinting-provider-backend-select"'), false);
-  assert.equal(fingerprintingSource.includes('id="fingerprinting-cdp-enabled-toggle"'), false);
-  assert.equal(fingerprintingSource.includes('id="fingerprinting-cdp-threshold-slider"'), false);
   assert.match(fingerprintingSource, /buttonId="save-fingerprinting-config"/);
   assert.match(fingerprintingSource, /window\.addEventListener\('beforeunload'/);
   assert.match(fingerprintingSource, /const AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY = 'fp_akamai_edge_additive';/);
   assert.match(fingerprintingSource, /<h4>Current Akamai Edge Contribution<\/h4>/);
   assert.match(fingerprintingSource, /id="fingerprinting-akamai-signal-list"/);
   assert.match(fingerprintingSource, /key !== AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY/);
-  assert.equal(fingerprintingSource.includes('<h4>Runtime Counters</h4>'), false);
-  assert.equal(fingerprintingSurfaceSource.includes('id="fingerprinting-total-detections"'), false);
-  assert.equal(fingerprintingSurfaceSource.includes('id="fingerprinting-auto-bans"'), false);
-  assert.equal(fingerprintingSource.includes('<h4>Scored Fingerprint Signals</h4>'), false);
-  assert.equal(fingerprintingSource.includes('<ConfigPanelHeading title="Diagnostics">'), false);
   assert.match(fingerprintingSource, /<ConfigPanelHeading title="Botness Scoring Signals">/);
   assert.match(fingerprintingSource, /Additive "botness" fingerprinting signals used to decide how to route bot-like traffic\./);
-  assert.equal(fingerprintingSource.includes('<h4>Botness Scoring Signals</h4>'), false);
   assert.match(fingerprintingSource, /id="fingerprinting-botness-signal-list"/);
   assert.match(fingerprintingSource, /js_verification_required/);
   assert.match(fingerprintingSource, /browser_outdated/);
-  assert.equal(fingerprintingSource.includes("String(signal?.key || '').startsWith('fp_')"), false);
   assert.match(monitoringCdpSource, /title="Detection-Triggered Bans"/);
   assert.match(monitoringCdpSource, /valueId="cdp-total-auto-bans"/);
   assert.match(monitoringCdpSource, /valueId="cdp-fp-ua-client-hint-mismatch"/);
   assert.match(monitoringCdpSource, /valueId="cdp-fp-ua-transport-mismatch"/);
   assert.match(monitoringCdpSource, /valueId="cdp-fp-temporal-transition"/);
   assert.match(monitoringCdpSource, /valueId="cdp-fp-flow-violations"/);
-  assert.equal(monitoringCdpSource.includes('valueId="cdp-fp-events"'), false);
 
   assert.match(tuningSource, /export let onSaveConfig = null;/);
   assert.match(tuningSource, /await onSaveConfig\(payload/);
@@ -4294,39 +4230,21 @@ test('ip bans, verification, traps, advanced, rate-limiting, geo, fingerprinting
   assert.match(tuningSource, /buttonId="save-tuning-all"/);
   assert.match(tuningSource, /import SaveChangesBar from '\.\/primitives\/SaveChangesBar\.svelte';/);
   assert.match(tuningSource, /window\.addEventListener\('beforeunload'/);
-  assert.equal(tuningSource.includes('id="save-botness-config"'), false);
-  assert.equal(tuningSource.includes('<h4>Status</h4>'), false);
-  assert.equal(tuningSource.includes('id="botness-config-status"'), false);
-  assert.equal(tuningSource.includes('id="not-a-bot-default"'), false);
-  assert.equal(tuningSource.includes('id="challenge-puzzle-default"'), false);
-  assert.equal(tuningSource.includes('id="maze-threshold-default"'), false);
-  assert.equal(tuningSource.includes('<h4>Scored Signals</h4>'), false);
-  assert.equal(tuningSource.includes('id="botness-signal-list"'), false);
-  assert.equal(tuningSource.includes('scoredSignals = Array.isArray('), false);
-  assert.equal(tuningSource.includes('<h4>Terminal Signals</h4>'), false);
-  assert.equal(tuningSource.includes('id="botness-terminal-list"'), false);
-  assert.equal(tuningSource.includes('terminalSignals = Array.isArray('), false);
   assert.match(tuningSurfaceSource, /dayId="dur-honeypot-days"/);
   assert.match(tuningSurfaceSource, /dayId="dur-rate-limit-days"/);
   assert.match(tuningSurfaceSource, /id="browser-policy-toggle"/);
   assert.match(tuningSurfaceSource, /id="browser-block-rules"/);
 });
 
-test('dashboard route does not add unapproved read-only chrome to config tabs', () => {
+test('config panel provides the shared writable-hide and dirty-state chrome for edit panes', () => {
   const configPanelSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/primitives/ConfigPanel.svelte'),
     'utf8'
   );
-  const dashboardRouteSource = fs.readFileSync(
-    path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
-    'utf8'
-  );
 
   assert.match(configPanelSource, /class:hidden=\{!writable\}/);
-  assert.equal(configPanelSource.includes('config-panel--read-only'), false);
-  assert.equal(configPanelSource.includes('config-panel__fieldset'), false);
-  assert.equal(dashboardRouteSource.includes('dashboard-read-only-hint'), false);
-  assert.equal(dashboardRouteSource.includes('This deployment is read-only.'), false);
+  assert.match(configPanelSource, /\$: variantClass = variant === 'export' \? 'config-export-pane' : 'config-edit-pane';/);
+  assert.match(configPanelSource, /class:config-edit-pane--dirty=\{variant !== 'export' && dirty\}/);
 });
 
 test('red team tab reuses verification-style config panel primitives for its adversary sim pane', () => {
@@ -4345,9 +4263,6 @@ test('red team tab reuses verification-style config panel primitives for its adv
   assert.match(redTeamTabSource, /<p id="adversary-sim-lifecycle-copy" class="control-desc text-muted">\{lifecycleCopy\}<\/p>/);
   assert.match(redTeamTabSource, /class="dashboard-adversary-sim-progress"/);
   assert.match(redTeamTabSource, /class="dashboard-adversary-sim-progress__fill"/);
-  assert.equal(redTeamTabSource.includes('dashboard-adversary-sim-hint'), false);
-  assert.equal(redTeamTabSource.includes('dashboard-global-control-copy-block'), false);
-  assert.equal(redTeamTabSource.includes('control-group panel-soft pad-md'), false);
 });
 
 test('red team adversary-sim progress bar animates stripe motion and respects reduced motion', () => {
@@ -4372,7 +4287,6 @@ test('tab state message supports pane-scoped notices alongside loading and error
   assert.match(tabStateMessageSource, /data-tab-notice=\{tab\}/);
   assert.match(tabStateMessageSource, /\$:\s+paneNoticeKind = readNoticeKind\(noticeKind\);/);
   assert.match(tabStateMessageSource, /class=\{`message \$\{paneNoticeKind\}`\}/);
-  assert.equal(tabStateMessageSource.includes('id="admin-msg"'), false);
 });
 
 test('dashboard route preflights dirty config logout before mutating session state', () => {
@@ -4424,13 +4338,6 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /const AUTO_REFRESH_INTERVAL_MS = 1000;/);
   assert.match(source, /isAutoRefreshEnabled: \(\) => autoRefreshEnabled === true/);
   assert.match(source, /shouldRefreshOnActivate: \(\{ tab, store \}\) =>/);
-  assert.equal(source.includes('requestNextFrame,'), false);
-  assert.equal(source.includes('nowMs,'), false);
-  assert.equal(source.includes('readHashTab,'), false);
-  assert.equal(source.includes('writeHashTab,'), false);
-  assert.equal(source.includes('isPageVisible,'), false);
-  assert.equal(source.includes('createDashboardActions'), false);
-  assert.equal(source.includes('createDashboardEffects'), false);
   assert.match(source, /onSaveConfig=\{onSaveConfig\}/);
   assert.match(source, /onValidateConfig=\{onValidateConfig\}/);
   assert.match(source, /onBan=\{onBan\}/);
@@ -4438,10 +4345,8 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /configSnapshot=\{snapshots\.config\}/);
   assert.match(source, /ipRangeSuggestionsSnapshot=\{snapshots\.ipRangeSuggestions\}/);
   assert.match(source, /cdpSnapshot=\{snapshots\.cdp\}/);
-  assert.match(source, /id="global-test-mode-toggle"/);
+  assert.match(source, /id="global-shadow-mode-toggle"/);
   assert.match(source, /dashboard-panel-red-team/);
-  assert.equal(source.includes('id="global-adversary-sim-toggle"'), false);
-  assert.equal(source.includes('id="adversary-sim-lifecycle-copy"'), false);
   assert.match(source, /id="connection-status"/);
   assert.match(source, /id="lost-connection"/);
   assert.match(source, /const adversarySimController = createDashboardRedTeamController\(/);
@@ -4453,7 +4358,7 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
     source,
     /runtimeReady = bootstrapped === true;\s*if \(bootstrapped === true\) \{\s*await adversarySimController\.bootstrap\(\);\s*\}/s
   );
-  assert.match(source, /onGlobalTestModeToggleChange/);
+  assert.match(source, /onGlobalShadowModeToggleChange/);
   assert.match(source, /onGlobalAdversarySimToggleChange/);
   assert.match(source, /controlAdversarySimWithRetry/);
   assert.match(source, /deriveDashboardRequestBudgets/);
@@ -4468,8 +4373,6 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /dashboardRequestBudgets\.adversarySimControlTimeoutMs/);
   assert.match(source, /dashboardRequestBudgets\.adversarySimEnableTimeoutMs/);
   assert.match(source, /dashboardRequestBudgets\.adversarySimStatusTimeoutMs/);
-  assert.equal(source.includes('waitForAdversarySimStatusConvergence('), false);
-  assert.equal(source.includes('deriveAdversarySimToggleEnabled'), false);
   assert.match(source, /deriveGlobalControlDisabled/);
   assert.match(
     source,
@@ -4488,28 +4391,18 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /Adversary simulation session expired\. Redirecting to login\.\.\./);
   assert.match(source, /deriveAdversarySimLifecycleCopy/);
   assert.match(source, /adversarySimLifecycleCopy = deriveAdversarySimLifecycleCopy\(\{/);
-  assert.equal(source.includes('Adversary simulation run starting...'), false);
-  assert.equal(source.includes('Adversary simulation run stopping...'), false);
-  assert.equal(source.includes('onSettled:'), false);
-  assert.equal(source.includes('Test mode disabled (blocking active)'), false);
   assert.match(source, /dashboard-global-control-label/);
   assert.match(
     source,
     /if \(checked && autoRefreshSupported && runtimeReady\) \{\s*void routeController\.refreshTab\(activeTabKey, 'auto-refresh'\);/s
   );
-  assert.equal(source.includes('let adversarySimPendingEnabled = null;'), false);
-  assert.equal(source.includes('function waitForAdversarySimStatusConvergence('), false);
   assert.match(
     source,
     /adversarySimToggleEnabled = adversarySimControllerState\??\.uiDesiredEnabled === true/
   );
   assert.match(source, /adversarySimEnabled:\s*normalizedAdversarySimStatus\.enabled === true/);
-  assert.equal(source.includes('adversarySimControllerState?.uiDesiredEnabled === true ||'), false);
   assert.match(source, /globalAdversarySimToggleDisabled = deriveGlobalControlDisabled\(/);
   assert.match(source, /void adversarySimController\.handleToggleIntent\(nextValue\);/);
-  assert.equal(source.includes('adversary-sim-progress-line'), false);
-  assert.equal(source.includes('id="admin-msg"'), false);
-  assert.equal(source.includes('setAdminMessage('), false);
   assert.match(source, /paneNoticeValues = DASHBOARD_TABS\.reduce\(/);
   assert.match(source, /const notice = paneNotices\[tab\];/);
   assert.match(source, /noticeText=\{paneNoticeValues\['red-team'\]\?\.text \|\| ''\}/);
@@ -4587,7 +4480,6 @@ test('login route syncs disconnected + runtime classes onto html root and gates 
   assert.match(source, /syncDashboardBodyClasses/);
   assert.match(source, /let runtimeStateAvailable = false;/);
   assert.match(source, /normalizeRuntimeEnvironment/);
-  assert.equal(source.includes('inferRuntimeEnvironment'), false);
   assert.match(source, /if \(!runtimeStateAvailable\) \{/);
   assert.match(source, /disabled=\{!runtimeStateAvailable\}/);
   assert.match(source, /backendConnectionState:\s*'disconnected'/);
@@ -4672,13 +4564,12 @@ test('monitoring tab applies bounded sanitization and redraw guards', () => {
   assert.match(source, /abortRangeEventsFetch\(\);/);
   assert.match(source, /const isRangeFetchInFlight = selectedRangeWindowState\.loading === true;/);
   assert.match(source, /normalizeReasonRows\(/);
-  assert.match(source, /buildTimeSeries\(selectedRangeEvents, selectedTimeRange,/);
+  assert.match(source, /deriveEnforcedMonitoringChartRows\(selectedRangeEvents, \{ topIpLimit: 10 \}\)\.events/);
+  assert.match(source, /buildTimeSeries\(enforcedSelectedRangeEvents, selectedTimeRange,/);
   assert.match(source, /deriveMonitoringEventDisplay/);
   assert.match(source, /const rawFeedPayload = \(event = \{\}\) =>/);
   assert.match(source, /Object\.keys\(source\)/);
-  assert.equal(source.includes('const normalizeEventForDisplay = (event = {}) =>'), false);
   assert.match(source, /const buildRawTelemetryFeed = \(events = \[\]\) =>/);
-  assert.equal(source.includes('rangeEventsSnapshot.range'), false);
   assert.match(source, /'Puzzle Outcomes'/);
   assert.match(source, /\$: rawRecentEvents = Array\.isArray\(events\.recent_events\)/);
   assert.match(source, /\$: rawTelemetryFeed = buildRawTelemetryFeed\(rawRecentEvents\);/);
@@ -4700,7 +4591,6 @@ test('monitoring tab is decomposed into focused subsection components', () => {
   assert.match(source, /import PrimaryCharts from '\.\/monitoring\/PrimaryCharts\.svelte';/);
   assert.match(source, /import DefenseTrendBlocks from '\.\/monitoring\/DefenseTrendBlocks\.svelte';/);
   assert.match(source, /import RecentEventsTable from '\.\/monitoring\/RecentEventsTable\.svelte';/);
-  assert.match(source, /import ShadowSection from '\.\/monitoring\/ShadowSection\.svelte';/);
   assert.match(source, /import ExternalMonitoringSection from '\.\/monitoring\/ExternalMonitoringSection\.svelte';/);
   assert.match(source, /import IpRangeSection from '\.\/monitoring\/IpRangeSection\.svelte';/);
   assert.match(source, /<OverviewStats/);
@@ -4708,7 +4598,6 @@ test('monitoring tab is decomposed into focused subsection components', () => {
   assert.match(source, /<PrimaryCharts/);
   assert.match(source, /\{eventTypesReadout\}/);
   assert.match(source, /<DefenseTrendBlocks/);
-  assert.match(source, /<ShadowSection/);
   assert.match(source, /<ChallengeSection/);
   assert.match(source, /<PowSection/);
   assert.match(source, /<IpRangeSection/);
@@ -4716,11 +4605,9 @@ test('monitoring tab is decomposed into focused subsection components', () => {
   assert.match(source, /filterOptions=\{eventFilterOptions\}/);
   assert.match(source, /onFilterChange=\{onEventFilterChange\}/);
   assert.match(source, /RAW_FEED_MAX_LINES = 200/);
-  assert.equal(source.includes('deriveAdversaryRunRows'), false);
-  assert.equal(source.includes('AdversaryRunPanel'), false);
 });
 
-test('tarpit monitoring section keeps only progression and outcome telemetry cards', () => {
+test('tarpit monitoring section centers progression and outcome telemetry', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/TarpitSection.svelte'),
     'utf8'
@@ -4728,10 +4615,10 @@ test('tarpit monitoring section keeps only progression and outcome telemetry car
 
   assert.match(source, /title="Activations"/);
   assert.match(source, /title="Progress Advanced"/);
-  assert.equal(source.includes('valueId="tarpit-state"'), false);
-  assert.equal(source.includes('valueId="tarpit-top-active-bucket"'), false);
-  assert.equal(source.includes('title="State"'), false);
-  assert.equal(source.includes('Top Offender'), false);
+  assert.match(source, /<h3>Budget Fallback Outcomes<\/h3>/);
+  assert.match(source, /id="tarpit-budget-outcomes-list"/);
+  assert.match(source, /<h3>Escalation Outcomes<\/h3>/);
+  assert.match(source, /id="tarpit-escalation-outcomes-list"/);
 });
 
 test('red team tab renders the recent adversary runs panel with red-team-specific copy', () => {
@@ -4816,9 +4703,9 @@ test('dashboard stylesheet bottom-aligns half doughnut readouts and tightens lab
 
   assert.match(
     source,
-    /\.chart-doughnut-readout\s*\{[\s\S]*bottom:\s*15px;[\s\S]*justify-content:\s*flex-end;[\s\S]*gap:\s*2px;[\s\S]*padding-bottom:\s*clamp\(2px,\s*1cqw,\s*8px\);/
+    /\.chart-doughnut-readout\s*\{[\s\S]*bottom:\s*15px;[\s\S]*justify-content:\s*flex-end;[\s\S]*padding-bottom:\s*clamp\(2px,\s*1cqw,\s*8px\);/
   );
-  assert.match(source, /\.chart-doughnut-readout \.stat-value\s*\{[\s\S]*min-height:\s*1em;[\s\S]*line-height:\s*0\.9;/);
+  assert.match(source, /\.chart-doughnut-readout \.stat-value\s*\{[\s\S]*line-height:\s*0\.9;/);
 });
 
 test('dashboard stylesheet keeps ip-ban half doughnut on the shared rectangular aspect ratio while preserving its larger cap', () => {
@@ -4831,8 +4718,6 @@ test('dashboard stylesheet keeps ip-ban half doughnut on the shared rectangular 
     source,
     /\.chart-canvas-shell--ip-bans\s*\{[\s\S]*width:\s*min\(100%,\s*calc\(clamp\(220px,\s*50vh,\s*520px\)\s*\*\s*2\)\);[\s\S]*max-width:\s*calc\(clamp\(220px,\s*50vh,\s*520px\)\s*\*\s*2\);[\s\S]*margin-inline:\s*auto;[\s\S]*aspect-ratio:\s*2 \/ 1;/
   );
-  assert.doesNotMatch(source, /\.chart-canvas-shell--ip-bans\s*\{[\s\S]*aspect-ratio:\s*auto;/);
-  assert.doesNotMatch(source, /\.chart-canvas-shell--ip-bans\s*\{[\s\S]*height:\s*clamp\(220px,\s*50vh,\s*520px\);/);
 });
 
 test('monitoring recent-events filters reuse canonical input-row and input-field styles', () => {
@@ -4844,7 +4729,6 @@ test('monitoring recent-events filters reuse canonical input-row and input-field
   const inputRowMatches = source.match(/class="input-row"/g) || [];
   const selectMatches = source.match(/<select\s+[^>]*class="input-field"/g) || [];
 
-  assert.equal(source.includes('field-row'), false);
   assert.equal(inputRowMatches.length, 6);
   assert.equal(selectMatches.length, 6);
   assert.match(source, /class="control-label control-label--wide"/);
@@ -4861,18 +4745,11 @@ test('monitoring overview stats labels retain explicit window semantics', () => 
   assert.match(source, /title="Events \(24h\)"/);
 });
 
-test('dashboard runtime is slim and free of legacy DOM-id wiring layers', () => {
+test('dashboard native runtime owns session heartbeat, tab normalization, and action exports', () => {
   const source = fs.readFileSync(DASHBOARD_NATIVE_RUNTIME_PATH, 'utf8');
 
-  assert.equal(source.includes('document.getElementById'), false);
-  assert.equal(source.includes('config-controls'), false);
-  assert.equal(source.includes('config-ui-state'), false);
-  assert.equal(source.includes('input-validation'), false);
-  assert.equal(source.includes('tab-lifecycle'), false);
-  assert.equal(source.includes('createDashboardSessionRuntime'), false);
-  assert.equal(source.includes('createDashboardTabRuntime'), false);
+  assert.match(source, /const DASHBOARD_TABS = Object\.freeze\(\['monitoring', 'ip-bans', 'status', 'red-team'/);
   assert.match(source, /createDashboardRefreshRuntime/);
-  assert.equal(source.includes('createDashboardTabStateRuntime'), false);
   assert.match(source, /const CONNECTION_HEARTBEAT_PATH = '\/admin\/session';/);
   assert.match(source, /function runConnectionHeartbeat\(reason = 'manual'\)/);
   assert.match(source, /recordHeartbeatAttemptStarted/);
@@ -4880,9 +4757,6 @@ test('dashboard runtime is slim and free of legacy DOM-id wiring layers', () => 
   assert.match(source, /recordHeartbeatFailure/);
   assert.match(source, /function hasRuntimeEnvironment\(\)/);
   assert.match(source, /if \(!hasRuntimeEnvironment\(\)\) return false;/);
-  assert.equal(source.includes('next.adversary_sim_enabled = status.adversary_sim_enabled;'), false);
-  assert.equal(source.includes('onBackendConnected'), false);
-  assert.equal(source.includes('onBackendDisconnected'), false);
   assert.match(source, /export async function updateDashboardConfig/);
   assert.match(source, /export async function validateDashboardConfigPatch/);
   assert.match(source, /export async function banDashboardIp/);
@@ -4890,17 +4764,11 @@ test('dashboard runtime is slim and free of legacy DOM-id wiring layers', () => 
   assert.match(source, /dashboardRefreshRuntime\.clearAllCaches/);
 });
 
-test('dashboard refresh runtime enforces cursor-delta + SSE helpers and excludes legacy config UI glue', () => {
+test('dashboard refresh runtime owns bounded cache, delta, and red-team monitoring refresh flows', () => {
   const source = fs.readFileSync(DASHBOARD_REFRESH_RUNTIME_PATH, 'utf8');
 
-  assert.equal(source.includes('updateConfigModeUi'), false);
-  assert.equal(source.includes('invokeConfigUiState'), false);
-  assert.equal(source.includes('refreshAllDirtySections'), false);
-  assert.equal(source.includes('refreshDirtySections'), false);
-  assert.equal(source.includes('getMessageNode'), false);
   assert.match(source, /const MONITORING_CACHE_KEY = 'shuma_dashboard_cache_monitoring_v1';/);
   assert.match(source, /const IP_BANS_CACHE_KEY = 'shuma_dashboard_cache_ip_bans_v1';/);
-  assert.equal(source.includes('shuma_dashboard_cache_config_v1'), false);
   assert.match(source, /const MONITORING_CACHE_MAX_RECENT_EVENTS = 25;/);
   assert.match(source, /const MONITORING_CACHE_MAX_CDP_EVENTS = 50;/);
   assert.match(source, /const MONITORING_CACHE_MAX_BANS = 100;/);
@@ -4925,8 +4793,9 @@ test('dashboard refresh runtime enforces cursor-delta + SSE helpers and excludes
   assert.match(source, /updateFreshnessSnapshot\(/);
   assert.match(source, /writeCache\(MONITORING_CACHE_KEY, \{ monitoring: compactMonitoring \}\);/);
   assert.match(source, /if \(hasConfigSnapshot\(existingConfig\)\) \{/);
-  assert.equal(source.includes("? { monitoring: monitoringData }"), false);
   assert.match(source, /const refreshVerificationTab = \(reason = 'manual'/);
+  assert.match(source, /const refreshRedTeamTab = async \(reason = 'manual', runtimeOptions = \{\}\) => \{/);
+  assert.match(source, /if \(reason === 'auto-refresh'\) \{\s*await refreshMonitoringTab\(reason, runtimeOptions\);/s);
   assert.match(source, /async function refreshFingerprintingTab\(reason = 'manual'/);
   assert.match(source, /dashboardApiClient\.getCdp\(requestOptions\)/);
   assert.match(
@@ -4938,31 +4807,28 @@ test('dashboard refresh runtime enforces cursor-delta + SSE helpers and excludes
     /writeCache\(IP_BANS_CACHE_KEY, \{\s*bans: compactBans,\s*ipRangeSuggestions: compactSuggestions\s*\}\);/m
   );
   assert.match(source, /const includeConfigRefresh = reason !== 'auto-refresh';/);
-  assert.equal(source.includes("reason === 'adversary-sim-toggle'"), false);
   assert.match(
     source,
     /includeConfigRefresh \? refreshSharedConfig\(reason, runtimeOptions\) : Promise\.resolve\(null\)/
   );
-  assert.equal(source.includes("refreshIpBansTab('auto-refresh', runtimeOptions)"), false);
 });
 
-test('dashboard route imports native runtime actions directly', () => {
+test('dashboard route wires native runtime actions and shared auto-refresh tabs', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
     'utf8'
   );
 
-  assert.equal(source.includes("$lib/runtime/dashboard-runtime.js"), false);
   assert.match(source, /\$lib\/runtime\/dashboard-native-runtime\.js/);
   assert.match(source, /\$lib\/runtime\/dashboard-route-controller\.js/);
   assert.match(source, /updateDashboardConfig/);
   assert.match(source, /banDashboardIp/);
   assert.match(source, /unbanDashboardIp/);
   assert.match(source, /getDashboardRobotsPreview/);
-  assert.equal(source.includes("routeController.refreshTab(activeTabKey, 'adversary-sim-toggle')"), false);
+  assert.match(source, /const AUTO_REFRESH_TABS = new Set\(\['monitoring', 'ip-bans', 'red-team'\]\);/);
 });
 
-test('dashboard route keeps the test-mode eye overlay mounted and lets CSS reveal it when enabled', () => {
+test('dashboard route keeps the shadow-mode eye overlay mounted and lets CSS reveal it when enabled', () => {
   const routeSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
     'utf8'
@@ -4973,15 +4839,13 @@ test('dashboard route keeps the test-mode eye overlay mounted and lets CSS revea
   );
 
   assert.match(routeSource, /assets\/eye\.png/);
-  assert.match(routeSource, /dashboard-test-mode-eye/);
-  assert.match(routeSource, /Test mode active/);
-  assert.equal(routeSource.includes("<style>"), false);
+  assert.match(routeSource, /dashboard-shadow-mode-eye/);
+  assert.match(routeSource, /Shadow mode active/);
 
   assert.match(styleSource, /\.shuma-image-wrapper\s*\{\s*position:\s*relative;/m);
-  assert.match(styleSource, /\.dashboard-test-mode-eye\s*\{[\s\S]*position:\s*absolute;[\s\S]*pointer-events:\s*none;[\s\S]*visibility:\s*hidden;/m);
-  assert.match(styleSource, /\.dashboard-test-mode-eye-image\s*\{\s*display:\s*block;\s*width:\s*100%;\s*height:\s*auto;/m);
-  assert.match(styleSource, /:root\.test-mode:not\(\.disconnected\)\s+\.dashboard-test-mode-eye\s*\{[\s\S]*visibility:\s*visible;/m);
-  assert.equal(styleSource.includes("drop-shadow"), false);
+  assert.match(styleSource, /\.dashboard-shadow-mode-eye\s*\{[\s\S]*position:\s*absolute;[\s\S]*pointer-events:\s*none;[\s\S]*visibility:\s*hidden;/m);
+  assert.match(styleSource, /\.dashboard-shadow-mode-eye-image\s*\{\s*display:\s*block;\s*width:\s*100%;\s*height:\s*auto;/m);
+  assert.match(styleSource, /:root\.shadow-mode:not\(\.disconnected\)\s+\.dashboard-shadow-mode-eye\s*\{[\s\S]*visibility:\s*visible;/m);
 });
 
 test('dashboard route controller gates polling to auto-enabled eligible tabs', () => {

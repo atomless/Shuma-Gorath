@@ -136,7 +136,7 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `SHUMA_TEST_MODE` | `false` | Enables test-mode behavior for controlled local testing. |
+| `SHUMA_SHADOW_MODE` | `false` | Enables shadow-mode behavior for controlled local testing. |
 | `SHUMA_ADVERSARY_SIM_ENABLED` | `false` | Seeds the initial adversary-sim desired state (including `/sim/public/*` crawl-surface pages) when the env-level adversary-sim surface is available. Default remains `false`, so generation stays off until an operator enables it. Runtime on/off changes must go through `POST /admin/adversary-sim/control`. |
 | `SHUMA_ADVERSARY_SIM_DURATION_SECONDS` | `180` | Run-window duration for control-triggered adversary simulation orchestration. Value must be between `30` and `900` seconds (inclusive). |
 | `SHUMA_JS_REQUIRED_ENFORCED` | `true` | Enforces <abbr title="JavaScript">JS</abbr> verification (`js_verified` cookie gate). |
@@ -296,7 +296,7 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 
 The following <abbr title="Key-Value">KV</abbr>-backed fields are currently writable via admin <abbr title="Application Programming Interface">API</abbr>:
 
-- Core: `test_mode`, `rate_limit`, `ban_duration`, `ban_durations.{honeypot,rate_limit,admin,cdp}`, `honeypot_enabled`, `honeypots`, `browser_policy_enabled`, `browser_block`, `browser_allowlist`, `bypass_allowlists_enabled`, `allowlist`, `path_allowlist_enabled`, `path_allowlist`, `ip_range_policy_mode`, `ip_range_emergency_allowlist`, `ip_range_custom_rules`, `js_required_enforced`.
+- Core: `shadow_mode`, `rate_limit`, `ban_duration`, `ban_durations.{honeypot,rate_limit,admin,cdp}`, `honeypot_enabled`, `honeypots`, `browser_policy_enabled`, `browser_block`, `browser_allowlist`, `bypass_allowlists_enabled`, `allowlist`, `path_allowlist_enabled`, `path_allowlist`, `ip_range_policy_mode`, `ip_range_emergency_allowlist`, `ip_range_custom_rules`, `js_required_enforced`.
 - <abbr title="Geolocation">GEO</abbr> routing/policy: `geo_risk`, `geo_allow`, `geo_challenge`, `geo_maze`, `geo_block`, `geo_edge_headers_enabled`.
 - Maze/Tarpit: `maze_enabled`, `tarpit_enabled`, `tarpit_progress_token_ttl_seconds`, `tarpit_progress_replay_ttl_seconds`, `tarpit_hashcash_min_difficulty`, `tarpit_hashcash_max_difficulty`, `tarpit_hashcash_base_difficulty`, `tarpit_hashcash_adaptive`, `tarpit_step_chunk_base_bytes`, `tarpit_step_chunk_max_bytes`, `tarpit_step_jitter_percent`, `tarpit_shard_rotation_enabled`, `tarpit_egress_window_seconds`, `tarpit_egress_global_bytes_per_window`, `tarpit_egress_per_ip_bucket_bytes_per_window`, `tarpit_egress_per_flow_max_bytes`, `tarpit_egress_per_flow_max_duration_seconds`, `tarpit_max_concurrent_global`, `tarpit_max_concurrent_per_ip_bucket`, `tarpit_fallback_action`, `maze_auto_ban`, `maze_auto_ban_threshold`, `maze_rollout_phase`, `maze_token_ttl_seconds`, `maze_token_max_depth`, `maze_token_branch_budget`, `maze_replay_ttl_seconds`, `maze_entropy_window_seconds`, `maze_client_expansion_enabled`, `maze_checkpoint_every_nodes`, `maze_checkpoint_every_ms`, `maze_step_ahead_max`, `maze_no_js_fallback_max_depth`, `maze_micro_pow_enabled`, `maze_micro_pow_depth_start`, `maze_micro_pow_base_difficulty`, `maze_max_concurrent_global`, `maze_max_concurrent_per_ip_bucket`, `maze_max_response_bytes`, `maze_max_response_duration_ms`, `maze_server_visible_links`, `maze_max_links`, `maze_max_paragraphs`, `maze_path_entropy_segment_len`, `maze_covert_decoys_enabled`, `maze_seed_provider`, `maze_seed_refresh_interval_seconds`, `maze_seed_refresh_rate_limit_per_hour`, `maze_seed_refresh_max_sources`, `maze_seed_metadata_only`.
 - Robots/<abbr title="Artificial Intelligence">AI</abbr> policy: `robots_enabled`, `robots_crawl_delay`, `ai_policy_block_training`, `ai_policy_block_search`, `ai_policy_allow_search_engines`.
@@ -311,9 +311,9 @@ Shuma targets a 2-class model:
 Current exception:
 - `ip_range_suggestions_*` thresholds are still <abbr title="Key-Value">KV</abbr>-backed and visible in the Advanced runtime inventory, but they are not writable through `POST /admin/config` yet. Treat them as read-only runtime knobs until their final classification is resolved.
 
-## 🐙 Test Mode
+## 🐙 Shadow Mode
 
-- `test_mode=true` now runs through the normal policy graph in shadow mode rather than a separate shortened decision tree.
+- `shadow_mode=true` now runs through the normal policy graph in shadow mode rather than a separate shortened decision tree.
 - Shadow mode records the actions Shuma would have taken without imposing those actions on visitors.
 - Monitoring and raw event views distinguish shadow traffic explicitly:
   - `execution_mode=shadow`
@@ -343,7 +343,7 @@ Tarpit activation requires all of:
 - `maze_enabled=true`
 - `tarpit_enabled=true`
 - request reached a confirmed-attack tarpit-capable route
-- runtime is not in `test_mode` simulation bypass
+- runtime is not in `shadow_mode` simulation bypass
 - tarpit persistence escalation has not already forced short-ban/block
 - tarpit concurrency budgets are available
 
