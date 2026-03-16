@@ -1119,6 +1119,7 @@
     cdpEventsSnapshot={snapshots.cdpEvents}
     monitoringSnapshot={snapshots.monitoring}
     monitoringFreshnessSnapshot={snapshots.monitoringFreshness}
+    ipBansFreshnessSnapshot={snapshots.ipBansFreshness}
     configSnapshot={snapshots.config}
     onFetchEventsRange={onFetchEventsRange}
   />
@@ -1170,7 +1171,6 @@
           noticeText={paneNoticeValues['ip-bans']?.text || ''}
           noticeKind={paneNoticeValues['ip-bans']?.kind || 'info'}
           bansSnapshot={snapshots.bans}
-          ipBansFreshnessSnapshot={snapshots.ipBansFreshness}
           ipRangeSuggestionsSnapshot={snapshots.ipRangeSuggestions}
           configSnapshot={snapshots.config}
           configVersion={snapshotVersions.config || 0}
@@ -1200,6 +1200,8 @@
           tabStatus={tabStatus.status || {}}
           configSnapshot={snapshots.config}
           monitoringSnapshot={snapshots.monitoring}
+          monitoringFreshnessSnapshot={snapshots.monitoringFreshness}
+          ipBansFreshnessSnapshot={snapshots.ipBansFreshness}
         />
       {:else}
         <section

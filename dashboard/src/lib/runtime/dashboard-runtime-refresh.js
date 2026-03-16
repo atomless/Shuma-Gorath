@@ -928,6 +928,27 @@ export function createDashboardRefreshRuntime(options = {}) {
         'snapshot_poll'
       );
     } catch (_error) {}
+
+    if (typeof dashboardApiClient.getIpBansDelta !== 'function') return;
+
+    try {
+      const ipBansDelta = await dashboardApiClient.getIpBansDelta(
+        {
+          hours: LIVE_HOURS_WINDOW,
+          limit: 1,
+          after_cursor: ''
+        },
+        {
+          ...requestOptions,
+          timeoutMs: requestBudgets.monitoringDeltaTimeoutMs
+        }
+      );
+      updateFreshnessSnapshot(
+        'ip-bans',
+        ipBansDelta && typeof ipBansDelta === 'object' ? ipBansDelta.freshness || {} : {},
+        'cursor_delta_poll'
+      );
+    } catch (_error) {}
   }
 
   const refreshRedTeamTab = async (reason = 'manual', runtimeOptions = {}) => {

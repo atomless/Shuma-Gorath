@@ -818,6 +818,7 @@ test('chart runtime adapter lazily loads once and tears down on final release', 
     const win = { location: { pathname: '/dashboard/index.html' }, Chart: undefined };
     let loaderCalls = 0;
     const ChartMock = function ChartMock() {};
+    ChartMock.defaults = {};
     const loader = async () => {
       loaderCalls += 1;
       return { Chart: ChartMock };
@@ -830,11 +831,29 @@ test('chart runtime adapter lazily loads once and tears down on final release', 
     assert.equal(one, two);
     assert.equal(one, ChartMock);
     assert.equal(loaderCalls, 1);
+    assert.equal(one.defaults.animation.duration, 0);
 
     adapter.releaseChartRuntime({ window: win });
     assert.equal(typeof win.Chart, 'function');
     adapter.releaseChartRuntime({ window: win });
     assert.equal(win.Chart, undefined);
+  });
+});
+
+test('chart runtime adapter applies zero-duration animation defaults to preloaded chart runtimes', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const adapter = await importBrowserModule('dashboard/src/lib/domain/services/chart-runtime-adapter.js');
+    const ChartMock = function ChartMock() {};
+    ChartMock.defaults = {};
+    const win = { location: { pathname: '/dashboard/index.html' }, Chart: ChartMock };
+
+    const chart = await adapter.acquireChartRuntime({ window: win });
+
+    assert.equal(chart, ChartMock);
+    assert.equal(chart.defaults.animation.duration, 0);
+
+    adapter.releaseChartRuntime({ window: win });
+    assert.equal(win.Chart, ChartMock);
   });
 });
 
@@ -2772,7 +2791,6 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     const ipRangeItem = statusItems.find((item) => stripHtml(item.title) === 'IP Range Policy');
     const runtimePostureItem = statusItems.find((item) => stripHtml(item.title) === 'Runtime and Deployment Posture');
     const adminWritePostureItem = statusItems.find((item) => stripHtml(item.title) === 'Admin Config Write Posture');
-    const retentionFreshnessItem = statusItems.find((item) => stripHtml(item.title) === 'Retention and Freshness Health');
     const testModeItem = statusItems.find((item) => stripHtml(item.title) === 'Shadow Mode');
     assert.equal(Boolean(challengePuzzleItem), true);
     assert.equal(Boolean(challengeNotABotItem), true);
@@ -2780,7 +2798,7 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(Boolean(ipRangeItem), true);
     assert.equal(Boolean(runtimePostureItem), true);
     assert.equal(Boolean(adminWritePostureItem), true);
-    assert.equal(Boolean(retentionFreshnessItem), true);
+    assert.equal(statusItems.some((item) => stripHtml(item.title) === 'Retention and Freshness Health'), false);
     assert.equal(Boolean(testModeItem), false);
     assert.equal(challengePuzzleItem?.status, 'ENABLED');
     assert.equal(challengeNotABotItem?.status, 'ENABLED');
@@ -2788,7 +2806,6 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(ipRangeItem?.status, 'LOGGING-ONLY');
     assert.equal(runtimePostureItem?.status, 'RUNTIME-PROD / LOCAL-DIRECT');
     assert.equal(adminWritePostureItem?.status, 'DISABLED');
-    assert.equal(retentionFreshnessItem?.status, 'DEGRADED');
     assert.match(
       String(runtimePostureItem?.description || ''),
       /https:\/\/github\.com\/atomless\/Shuma-Gorath\/blob\/main\/docs\/quick-reference\.md#runtime-and-deployment-posture-matrix/
@@ -2806,7 +2823,7 @@ test('quick reference documents the runtime and deployment posture matrix', () =
   assert.match(source, /\| deployed production \| `runtime-prod` \| `false` \| required and must be narrow \| `true` \| required \| `false` \|/);
 });
 
-test('status refresh hydrates monitoring retention/freshness snapshot without monitoring-tab bootstrap', { concurrency: false }, async () => {
+test('status refresh hydrates monitoring retention/freshness and ip-ban freshness snapshots without tab bootstrap', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
@@ -2814,6 +2831,7 @@ test('status refresh hydrates monitoring retention/freshness snapshot without mo
     const store = storeModule.createDashboardStore({ initialTab: 'status' });
     let configCalls = 0;
     let monitoringCalls = 0;
+    let ipBansDeltaCalls = 0;
     const apiClient = {
       async getConfig() {
         configCalls += 1;
@@ -2854,6 +2872,23 @@ test('status refresh hydrates monitoring retention/freshness snapshot without mo
             cdp_events: { events: [] }
           }
         };
+      },
+      async getIpBansDelta(params = {}) {
+        ipBansDeltaCalls += 1;
+        assert.equal(Number(params.limit || 0), 1);
+        assert.equal(String(params.after_cursor || ''), '');
+        return {
+          active_bans: [],
+          freshness: {
+            state: 'degraded',
+            lag_ms: 250,
+            last_event_ts: 1_700_000_005,
+            transport: 'cursor_delta_poll'
+          },
+          next_cursor: '',
+          has_more: false,
+          overflow: 'none'
+        };
       }
     };
 
@@ -2868,8 +2903,11 @@ test('status refresh hydrates monitoring retention/freshness snapshot without mo
 
     assert.equal(configCalls, 1);
     assert.equal(monitoringCalls, 1);
+    assert.equal(ipBansDeltaCalls, 1);
     assert.equal((store.getSnapshot('monitoring') || {}).retention_health?.state, 'healthy');
     assert.equal((store.getSnapshot('monitoringFreshness') || {}).state, 'fresh');
+    assert.equal((store.getSnapshot('ipBansFreshness') || {}).state, 'degraded');
+    assert.equal((store.getSnapshot('ipBansFreshness') || {}).transport, 'cursor_delta_poll');
   });
 });
 
@@ -4093,6 +4131,10 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigExportSection.svelte'),
     'utf8'
   );
+  const statusSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/StatusTab.svelte'),
+    'utf8'
+  );
   const configAdvancedSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigAdvancedSection.svelte'),
     'utf8'
@@ -4158,7 +4200,7 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.match(ipBansSource, /shellClass="chart-canvas-shell--ip-bans"/);
   assert.match(ipBansSource, /readout=\{banReasonReadout\}/);
   assert.match(ipBansSource, /type: 'doughnut'/);
-  assert.match(ipBansSource, /animation: false,/);
+  assert.doesNotMatch(ipBansSource, /animation: false,/);
   assert.match(ipBansSource, /maintainAspectRatio: false,/);
   assert.match(ipBansSource, /resolveMonitoringChartTheme/);
   assert.match(ipBansSource, /canvasHasRenderableSize\(canvas\)/);
@@ -4179,6 +4221,32 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.match(ipBansSource, /#if detailVisible/);
   assert.match(ipBansSource, /disabled=\{!canBan\}/);
   assert.match(ipBansSource, /disabled=\{!canUnban\}/);
+  assert.doesNotMatch(ipBansSource, /id="ip-bans-freshness-state"/);
+  assert.doesNotMatch(ipBansSource, /id="ip-bans-freshness-meta"/);
+
+  assert.match(statusSource, /export let monitoringFreshnessSnapshot = null;/);
+  assert.match(statusSource, /export let ipBansFreshnessSnapshot = null;/);
+  assert.match(statusSource, /class="admin-group admin-group--status"/);
+  assert.doesNotMatch(statusSource, /<h3>Dashboard and Telemetry Health<\/h3>/);
+  assert.match(statusSource, /<h3>Dashboard Connectivity<\/h3>/);
+  assert.match(statusSource, /id="status-connection-state"/);
+  assert.doesNotMatch(statusSource, /id="status-connection-reason"/);
+  assert.match(statusSource, /<h3>Telemetry Delivery Health<\/h3>/);
+  assert.match(statusSource, />Monitoring feed status:</);
+  assert.match(statusSource, /id="status-monitoring-freshness-state"/);
+  assert.doesNotMatch(statusSource, />Monitoring update path:</);
+  assert.match(statusSource, />IP bans feed status:</);
+  assert.match(statusSource, /id="status-ip-bans-freshness-state"/);
+  assert.doesNotMatch(statusSource, />IP bans update path:</);
+  assert.match(statusSource, /<h3>Retention Health<\/h3>/);
+  assert.match(statusSource, /id="status-retention-health-state"/);
+  assert.match(statusSource, /<h3>Runtime Performance Telemetry<\/h3>/);
+  assert.match(statusSource, /Operator thresholds for auto-refresh tabs/);
+  assert.match(statusSource, /<code>monitoring<\/code>, <code>ip-bans<\/code>, and\s*<code>red-team<\/code>/);
+  assert.doesNotMatch(statusSource, /Operator thresholds for auto-refresh tabs \(\s*<code>monitoring<\/code> and <code>ip-bans<\/code>\)/);
+  assert.match(statusSource, />Fetch latency \(last \/ rolling\):</);
+  assert.match(statusSource, />Render timing \(last \/ rolling\):</);
+  assert.match(statusSource, />Polling skip \/ resume:</);
 
   assert.match(configSource, /export let onSaveConfig = null;/);
   assert.match(configSource, /await onSaveConfig\(/);
@@ -4663,26 +4731,60 @@ test('monitoring tab is decomposed into focused subsection components', () => {
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/MonitoringTab.svelte'),
     'utf8'
   );
+  const diagnosticsSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/DiagnosticsSection.svelte'),
+    'utf8'
+  );
+  const rawFeedSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/RawTelemetryFeed.svelte'),
+    'utf8'
+  );
+  const disclosureSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/primitives/DisclosureSection.svelte'),
+    'utf8'
+  );
 
-  assert.match(source, /import RawTelemetryFeed from '\.\/monitoring\/RawTelemetryFeed\.svelte';/);
+  assert.match(source, /import DiagnosticsSection from '\.\/monitoring\/DiagnosticsSection\.svelte';/);
   assert.match(source, /import OverviewStats from '\.\/monitoring\/OverviewStats\.svelte';/);
   assert.match(source, /import PrimaryCharts from '\.\/monitoring\/PrimaryCharts\.svelte';/);
   assert.match(source, /import DefenseTrendBlocks from '\.\/monitoring\/DefenseTrendBlocks\.svelte';/);
   assert.match(source, /import RecentEventsTable from '\.\/monitoring\/RecentEventsTable\.svelte';/);
   assert.match(source, /import ExternalMonitoringSection from '\.\/monitoring\/ExternalMonitoringSection\.svelte';/);
   assert.match(source, /import IpRangeSection from '\.\/monitoring\/IpRangeSection\.svelte';/);
+  assert.match(source, /export let ipBansFreshnessSnapshot = null;/);
   assert.match(source, /<OverviewStats/);
-  assert.match(source, /<RawTelemetryFeed/);
+  assert.match(source, /<DiagnosticsSection/);
+  assert.match(source, /monitoringFreshnessSnapshot=\{monitoringFreshnessSnapshot\}/);
+  assert.match(source, /ipBansFreshnessSnapshot=\{ipBansFreshnessSnapshot\}/);
+  assert.match(source, /rawTelemetryFeed=\{rawTelemetryFeed\}/);
   assert.match(source, /<PrimaryCharts/);
   assert.match(source, /\{eventTypesReadout\}/);
   assert.match(source, /<DefenseTrendBlocks/);
   assert.match(source, /<ChallengeSection/);
   assert.match(source, /<PowSection/);
   assert.match(source, /<IpRangeSection/);
+  assert.equal(source.indexOf('<DiagnosticsSection') < source.indexOf('<ExternalMonitoringSection'), true);
   assert.match(source, /<ExternalMonitoringSection/);
   assert.match(source, /filterOptions=\{eventFilterOptions\}/);
   assert.match(source, /onFilterChange=\{onEventFilterChange\}/);
   assert.match(source, /RAW_FEED_MAX_LINES = 200/);
+  assert.doesNotMatch(source, /id="monitoring-freshness-state"/);
+  assert.doesNotMatch(source, /id="monitoring-freshness-meta"/);
+
+  assert.match(diagnosticsSource, /import DisclosureSection from '\.\.\/primitives\/DisclosureSection\.svelte';/);
+  assert.match(diagnosticsSource, /import RawTelemetryFeed from '\.\/RawTelemetryFeed\.svelte';/);
+  assert.match(diagnosticsSource, /title="Telemetry Diagnostics"/);
+  assert.match(diagnosticsSource, /<RawTelemetryFeed[\s\S]*wrapped=\{false\}/);
+  assert.match(diagnosticsSource, /Monitoring Feed/);
+  assert.match(diagnosticsSource, /IP Bans Feed/);
+
+  assert.match(rawFeedSource, /export let wrapped = true;/);
+  assert.match(rawFeedSource, /{#if wrapped}/);
+  assert.match(rawFeedSource, /{#if !wrapped}/);
+
+  assert.match(disclosureSource, /export let open = false;/);
+  assert.match(disclosureSource, /<details/);
+  assert.match(disclosureSource, /<summary/);
 });
 
 test('tarpit monitoring section centers progression and outcome telemetry', () => {
@@ -4812,6 +4914,17 @@ test('monitoring recent-events filters reuse canonical input-row and input-field
   assert.equal(selectMatches.length, 6);
   assert.match(source, /class="control-label control-label--wide"/);
   assert.match(source, /monitoring-filter-mode/);
+});
+
+test('monitoring recent-events table omits admin actor columns from the external-traffic surface', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/RecentEventsTable.svelte'),
+    'utf8'
+  );
+
+  assert.doesNotMatch(source, /caps-label">Admin</);
+  assert.doesNotMatch(source, /ev\.admin/);
+  assert.match(source, /<TableEmptyRow colspan=\{6\}>/);
 });
 
 test('monitoring overview stats labels retain explicit window semantics', () => {

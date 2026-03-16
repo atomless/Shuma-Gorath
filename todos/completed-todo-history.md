@@ -4,6 +4,160 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-16)
 
+### Telemetry Cleanup: Restore Architectural Clarity, Keep Monitoring External-Only, And Revalidate The Full Suite
+
+- [x] Complete the external-only monitoring cleanup by removing operator-originated activity from Monitoring surfaces, keeping active ban state separate, tightening the adversarial browser harness to satisfy the real not-a-bot contract, restoring the shared half-doughnut style contract, and aligning stale dashboard smoke expectations to the intentionally updated operator UI.
+- [x] Why:
+  - the architectural intent of the cleanup is that Monitoring represents observed external traffic only, while operator actions, current active ban state, and low-level diagnostics each stay in their own clearer surfaces.
+  - the first verification pass proved some lower layers but missed a full rendered dashboard path, so this tranche explicitly corrected that methodology and carried the work through the complete repo test suite.
+  - keeping telemetry excellence here meant fixing harnesses and tests to match truthful current contracts rather than weakening runtime behavior or reintroducing muddied monitoring semantics.
+- [x] Evidence:
+  - `src/admin/api.rs`
+  - `scripts/tests/adversarial_browser_driver.mjs`
+  - `dashboard/style.css`
+  - `e2e/dashboard.smoke.spec.js`
+  - `Makefile`
+  - `.spin/last-full-test-pass.json`
+  - `make test-monitoring-telemetry-contract`
+  - `make test-adversarial-smoke`
+  - `make test-dashboard-unit`
+  - `make test`
+  - `git diff --check`
+
+### Monitoring Telemetry: Exclude Operator-Originated Events From Monitoring Surfaces While Preserving Active Ban State
+
+- [x] Remove admin/dashboard/config/manual-ban activity from Monitoring-facing telemetry so Monitoring, monitoring deltas/stream, range event reads, and the raw telemetry feed all reflect external traffic only, while `IP Bans` continues to expose the real active ban state for the site.
+- [x] Why:
+  - mixing operator actions into Monitoring made the dashboard harder to interpret and risked misleading both humans and future tuning agents about what was actually happening on the public traffic surface.
+  - manual ban/unban actions are operational interventions, not observed incoming traffic, so they belong in active ban state and future audit surfaces rather than in Monitoring charts, recent-event tables, or raw monitoring feeds.
+  - the delta/stream fix had to preserve the bounded-read intent of the monitoring cursor contract, so the implementation now skips operator-originated rows without regressing into a full-window page scan.
+- [x] Evidence:
+  - `src/admin/api.rs`
+  - `dashboard/src/lib/components/dashboard/monitoring/RecentEventsTable.svelte`
+  - `dashboard/src/lib/components/dashboard/monitoring/RawTelemetryFeed.svelte`
+  - `docs/dashboard-tabs/monitoring.md`
+  - `docs/dashboard-tabs/ip-bans.md`
+  - `Makefile`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-monitoring-telemetry-contract`
+  - `git diff --check`
+
+### Dashboard Charts: Disable First-Paint Growth Animation Via Shared Zero-Duration Chart Runtime Defaults
+
+- [x] Apply a shared Chart.js runtime default of `duration: 0` so dashboard charts render instantly instead of animating awkwardly from the top-left on first paint, and remove the local one-off animation override from the IP Bans doughnut path.
+- [x] Why:
+  - the current first-paint chart growth animation is visually poor and inconsistent with the rest of the dashboard's controlled design language.
+  - this behavior belonged in the shared chart runtime contract, not as scattered per-chart overrides.
+  - removing the IP Bans-only override restores the reuse-first rule and keeps future chart behavior aligned through one canonical path.
+- [x] Evidence:
+  - `dashboard/src/lib/domain/services/chart-runtime-adapter.js`
+  - `dashboard/src/lib/components/dashboard/IpBansTab.svelte`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+  - `git diff --check`
+
+### Monitoring Diagnostics: Move Freshness, Transport, Overflow, And Raw Feed Into One Collapsed Bottom Section
+
+- [x] Remove the contributor-style freshness and transport strips from the top of `Monitoring` and `IP Bans`, and consolidate those low-level diagnostics with the raw telemetry feed into one collapsed `Telemetry Diagnostics` section at the bottom of `Monitoring`, immediately before the Prometheus helper.
+- [x] Why:
+  - the top-of-tab freshness and transport strips were crowding the operator surfaces with low-level read-path details that are useful for contributors and diagnostics, but not the right default reading experience for operators or future controller-facing monitoring.
+  - the IP-ban partial-view warning is only meaningful as bounded recent-feed diagnostics, not as a headline state for the operational ban-management surface.
+  - consolidating those details into one collapsed diagnostics section preserves the evidence for debugging without letting it dominate the primary monitoring and ban-management views.
+- [x] Evidence:
+  - `dashboard/src/lib/components/dashboard/primitives/DisclosureSection.svelte`
+  - `dashboard/src/lib/components/dashboard/monitoring/DiagnosticsSection.svelte`
+  - `dashboard/src/lib/components/dashboard/monitoring/RawTelemetryFeed.svelte`
+  - `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+  - `dashboard/src/lib/components/dashboard/IpBansTab.svelte`
+  - `dashboard/src/routes/+page.svelte`
+  - `dashboard/style.css`
+  - `docs/dashboard-tabs/monitoring.md`
+  - `docs/dashboard-tabs/ip-bans.md`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+  - `git diff --check`
+
+### Status Tab: Remove Internal Transport Rows And Align Runtime Telemetry Copy With Shared Auto-Refresh Tabs
+
+- [x] Remove the `Monitoring update path` and `IP bans update path` rows from the Status tab's `Telemetry Delivery Health` section and update the `Runtime Performance Telemetry` copy so it correctly names all shared auto-refresh tabs, including `red-team`.
+- [x] Why:
+  - the update-path rows exposed internal transport details with no real operator choice or action attached, so they added noise rather than useful health signal.
+  - the runtime-performance guidance had drifted behind the actual dashboard refresh model and still described only `monitoring` and `ip-bans`, even though `red-team` now shares that auto-refresh path too.
+  - this keeps the Status surface focused on actionable health facts while preserving consistent copy with the current shared refresh contract.
+- [x] Evidence:
+  - `dashboard/src/lib/components/dashboard/StatusTab.svelte`
+  - `docs/dashboard-tabs/status.md`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+  - `git diff --check`
+
+### Status Tab: Hydrate IP-Ban Freshness Without Visiting The IP Bans Tab First
+
+- [x] Extend the Status-tab refresh path so it hydrates `ipBansFreshness` from the lightweight IP-ban cursor-delta endpoint, allowing the IP-ban health rows to render immediately without requiring an operator to visit the `IP Bans` tab first.
+- [x] Why:
+  - the new `Telemetry Delivery Health` section in `Status` correctly consumed `ipBansFreshness`, but the shared refresh runtime only populated that snapshot when the `IP Bans` tab itself had already refreshed.
+  - that made the Status surface look broken and violated the operator-health intent of the connection-state hardening tranche, because one of the core health rows was blank until another tab happened to bootstrap it.
+  - the fix keeps ownership boundaries clean by reading only the lightweight freshness delta from `Status`, without mutating IP-ban cursors or pretending the `IP Bans` tab dataset has been fully loaded.
+- [x] Evidence:
+  - `dashboard/src/lib/runtime/dashboard-runtime-refresh.js`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+  - `git diff --check`
+
+### Status Tab: Remove Superfluous Dashboard Connectivity "Last Change" Row
+
+- [x] Remove the `Last Change` row from the Status tab's `Dashboard Connectivity` section and delete the now-unused connection-reason formatting helper so the section keeps only the operator-relevant heartbeat state and timing facts.
+- [x] Why:
+  - the row added little value once the connectivity section already showed current status, last success, last failure, and consecutive failures against threshold.
+  - removing it keeps the section tighter and less interpretive while avoiding another low-signal line in the operator health surface.
+- [x] Evidence:
+  - `dashboard/src/lib/components/dashboard/StatusTab.svelte`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+
+### Status Tab: Remove Redundant Health Wrapper Heading And Keep Both Panels On The Same Heading Hierarchy
+
+- [x] Remove the redundant `Dashboard and Telemetry Health` wrapper heading/copy from the Status tab and promote the lower-pane subsection headings so the health pane matches the heading hierarchy and visual rhythm of the status inventory above it.
+- [x] Why:
+  - the wrapper heading added no real information and made the lower pane feel like a nested sub-surface instead of a peer panel.
+  - the subsection titles below it were visually one level lower than the status items above, which made the pane look inconsistent even after the row-based telemetry cleanup.
+- [x] Evidence:
+  - `dashboard/src/lib/components/dashboard/StatusTab.svelte`
+  - `docs/dashboard-tabs/status.md`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+
+### Status Tab: Promote Connection, Telemetry Delivery, And Retention Health Into A Dedicated Operator Surface
+
+- [x] Restructure the dashboard `Status` tab so the generic feature-status inventory no longer carries `Retention and Freshness Health`, and instead the tab presents a dedicated operator health panel for heartbeat-owned connection state, monitoring-feed freshness, IP-ban-feed freshness, retention-worker posture, and runtime performance telemetry.
+- [x] Why:
+  - the duplicated freshness and transport strips in Monitoring and IP Bans were diagnostic in tone, while the Status tab lacked the explicit operator health view needed by the planned connection-state hardening tranche.
+  - retention and freshness were previously rendered as if they were just another config-derived status card, which made an operational read-path concern look like a static feature posture.
+  - this change keeps Monitoring and IP Bans focused on operational outcomes while making Status the clearer home for “can I trust what this dashboard is telling me right now?”
+- [x] Evidence:
+  - `dashboard/src/lib/components/dashboard/StatusTab.svelte`
+  - `dashboard/src/lib/domain/status.js`
+  - `dashboard/src/lib/domain/telemetry-freshness.js`
+  - `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+  - `dashboard/src/lib/components/dashboard/IpBansTab.svelte`
+  - `dashboard/src/routes/+page.svelte`
+  - `docs/dashboard-tabs/status.md`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `make test-dashboard-unit`
+
+### Roadmap Sequencing Note: Insert Existing Backlog Prerequisites And Release Gates Into The Master Order
+
+- [x] Update the roadmap sequence so it explicitly includes the already-listed backlog items that materially change ordering: dashboard connection-state hardening, admin-config contract truthfulness, production adversary-sim operating-envelope work, shared-host discovery baseline, privacy/state-minimization gates, and the final pre-launch performance gate.
+- [x] Why:
+  - those items were already present in `todos/todo.md` and `todos/security-review.md`, but the roadmap still read as if monitoring, tuning, verified identity, mature sim, and central intelligence were the only sequence-defining stages.
+  - in practice, several of those backlog items are prerequisites for a truthful control plane or a safe later stage: connection-state and config truth before operator surfaces, sim operating-envelope and shared-host discovery before mature emergent lanes, privacy/state-minimization before shared intelligence, and a final performance gate before launch.
+  - the roadmap now also marks optional Akamai list mirroring and breach-to-replay work as side branches rather than accidentally implying they belong on the mainline critical path.
+- [x] Evidence:
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `todos/completed-todo-history.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Roadmap Sequencing Note: Place Edge-Instance Ban Sync Before Mature Sim And Keep It Separate From Central Intelligence
 
 - [x] Update the roadmap and central-intelligence design docs so Shuma's planned edge-instance ban synchronization is explicitly scheduled before mature adversary-sim and clearly separated from the later centralized worst-offender or intelligence layer.

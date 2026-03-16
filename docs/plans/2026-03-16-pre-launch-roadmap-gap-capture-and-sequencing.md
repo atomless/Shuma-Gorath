@@ -74,6 +74,30 @@ Gap:
 
 1. storage architecture, governance, and sequencing relative to monitoring, tuning, and oversight are not yet broken out as their own roadmap work.
 
+## 4. Several sequence-critical backlog items already exist, but were not yet reflected in the master order
+
+Already captured in backlog:
+
+1. dashboard connection-state hardening,
+2. admin config contract truthfulness cleanup,
+3. production adversary-sim operating-envelope hardening,
+4. shared-host discovery baseline,
+5. privacy and state-minimization follow-up,
+6. final pre-launch performance gate.
+
+Current references:
+
+1. `SIM2-R4-CONN-1` in [`../../todos/todo.md`](../../todos/todo.md)
+2. config contract truthfulness item in [`../../todos/todo.md`](../../todos/todo.md)
+3. `SIM-DEPLOY-2` in [`../../todos/todo.md`](../../todos/todo.md)
+4. `SIM-SH-SURFACE-1` in [`../../todos/todo.md`](../../todos/todo.md)
+5. `SEC-GDPR-2` and `SEC-GDPR-3` in [`../../todos/todo.md`](../../todos/todo.md) and [`../../todos/security-review.md`](../../todos/security-review.md)
+6. `PERF-LAUNCH-1` in [`../../todos/todo.md`](../../todos/todo.md)
+
+Gap:
+
+1. these items materially change sequencing, but they were not yet called out in the roadmap as explicit prerequisites or release gates.
+
 # Major Missing Planning Tracks
 
 ## A. Mature Adversary-Sim As An Operating Input, Not Just A Contributor Tool
@@ -219,7 +243,31 @@ This must clearly separate:
 
 Those are not the same risk class and should not be treated as one automation mode.
 
+## I. Privacy, State-Minimization, And Final Launch Gates
+
+Shuma also needs explicit late-stage gates that should not be left implicit:
+
+1. deterministic cleanup for stale fingerprint state,
+2. optional event-log IP minimization for privacy-sensitive deployments,
+3. and a final performance and optimization gate before launch.
+
+These are not optional polish items because:
+
+1. richer monitoring, verified identity, mature adversary-sim, and any later shared intelligence all increase the importance of retention discipline and privacy posture,
+2. and a final performance gate is the point where Shuma proves its defences are effective without imposing unacceptable CPU, memory, or latency cost.
+
 # Recommended Sequencing
+
+## Stage 0: Operator-Surface Truth Prerequisites
+
+1. Dashboard connection-state hardening.
+2. Clear heartbeat-owned connection-state contract and diagnostics.
+3. Separate `GET /admin/config` operational overlays from the writable `POST /admin/config` contract.
+
+Reason:
+
+1. operator surfaces should be truthful before Shuma invests in a full monitoring overhaul or treats the Tuning tab as the control-plane contract.
+2. otherwise the project risks rebuilding operator UX on top of noisy connection state or misleading config semantics.
 
 ## Stage 1: Monitoring And Tuning Foundations
 
@@ -257,20 +305,29 @@ Reason:
 2. This gives later sim lanes a truthful beneficial-agent and spoofed-agent target model to test against.
 3. It also keeps trust-boundary controls out of later autonomous tuning work until those controls exist explicitly.
 
-## Stage 4: Mature Adversary-Sim As A Tuning Input
+## Stage 4: Adversary-Sim Foundations
 
-1. Shared-host discovery baseline.
-2. Scrapling lane.
-3. Containerized frontier lane as a bounded emergent actor.
-4. Verified-agent, spoofed-agent, and replay-attempt scenarios against the identity lane.
-5. Multi-instance convergence scenarios against enterprise ban-sync posture.
-6. Explicit mapping from each lane's evidence to tuning confidence.
+1. Production adversary-sim operating envelope hardening.
+2. Shared-host discovery baseline.
+
+Reason:
+
+1. Shuma should settle production posture, kill-switches, desired-state truth, and no-impact guarantees before broadening the sim.
+2. realistic Scrapling and containerized lanes should start from a truthful discovered public-surface baseline rather than ad hoc targets.
+
+## Stage 5: Mature Adversary-Sim As A Tuning Input
+
+1. Scrapling lane.
+2. Containerized frontier lane as a bounded emergent actor.
+3. Verified-agent, spoofed-agent, and replay-attempt scenarios against the identity lane.
+4. Multi-instance convergence scenarios against enterprise ban-sync posture.
+5. Explicit mapping from each lane's evidence to tuning confidence.
 
 Reason:
 
 1. Shuma needs realistic attacker input before automated tuning can be trusted to optimize against the actual agentic threat landscape.
 
-## Stage 5: Sim-Telemetry Lifecycle
+## Stage 6: Sim-Telemetry Lifecycle
 
 1. Separate retention and disposal policy for sim telemetry.
 2. Clear distinction between actioned and unactioned sim evidence.
@@ -280,7 +337,17 @@ Reason:
 
 1. once emergent and frontier lanes exist, sim telemetry volume and cost will matter much more.
 
-## Stage 6: Central Intelligence Architecture
+## Stage 7: Privacy And State-Minimization Gate
+
+1. Deterministic cleanup for stale fingerprint state.
+2. Optional event-log IP minimization mode and explicit tradeoff docs.
+3. Re-check telemetry retention posture against the richer evidence surfaces now in play.
+
+Reason:
+
+1. before central intelligence or later autonomous oversight, Shuma should have a cleaner answer for what state persists, how long it persists, and when raw IP retention is actually necessary.
+
+## Stage 8: Central Intelligence Architecture
 
 1. Storage and service architecture.
 2. Governance and false-positive process.
@@ -293,7 +360,7 @@ Reason:
 2. this must follow verified identity so Shuma keeps "who is this?" separate from "what does outside reputation say about it?"
 3. this must also follow edge-instance ban sync so the exact local active-ban plane is already cleanly separated from cross-site reputation and worst-offender memory.
 
-## Stage 7: Scheduled Agent Operator Loop
+## Stage 9: Scheduled Agent Operator Loop
 
 1. Recommend-only scheduled agent.
 2. Narrow config auto-apply with canary and rollback.
@@ -304,28 +371,55 @@ Reason:
 
 1. the agent loop should stand on truthful monitoring, explicit identity policy, deployment-local sync correctness, mature sim evidence, tuned config surfaces, and explicit central-intelligence governance.
 
+## Stage 10: Final Pre-Launch Performance Gate
+
+1. Execute the final performance and optimization pass.
+2. Enforce bundle, latency, CPU, memory, and high-cost request-path acceptance thresholds.
+3. Lock release thresholds and final launch criteria.
+
+Reason:
+
+1. this is the point where Shuma proves the complete system is both effective and efficient enough to launch.
+
 # Recommended Design Calls To Lock Early
 
 1. Keep request-path logic deterministic and Rust-only.
-2. Treat monitoring overhaul as a prerequisite for serious autonomous tuning.
-3. Treat tuning-tab completion as a control-plane contract, not a cosmetic dashboard task.
-4. Treat edge-instance ban sync as deployment-local state correctness and schedule it before mature multi-instance sim or cross-site intelligence work.
-5. Formalize verified bot identity before mature sim, central intelligence, or scheduled agentic reconfiguration so identity, authorization, and reputation are separated cleanly.
-6. Keep adversary-sim telemetry retention distinct from real-traffic retention.
-7. Treat central intelligence as a separate service or data plane concern, not a side effect of the Git repository.
-8. Keep config auto-tuning and code-change/PR generation as separate systems with separate permissions and review paths.
+2. Harden dashboard connection-state truth and admin-config truth before relying on those surfaces as operator control planes.
+3. Treat monitoring overhaul as a prerequisite for serious autonomous tuning.
+4. Treat tuning-tab completion as a control-plane contract, not a cosmetic dashboard task.
+5. Treat edge-instance ban sync as deployment-local state correctness and schedule it before mature multi-instance sim or cross-site intelligence work.
+6. Formalize verified bot identity before mature sim, central intelligence, or scheduled agentic reconfiguration so identity, authorization, and reputation are separated cleanly.
+7. Settle production adversary-sim posture and shared-host discovery before expanding emergent lanes.
+8. Keep adversary-sim telemetry retention distinct from real-traffic retention.
+9. Add a privacy and state-minimization gate before central intelligence so richer telemetry and shared-memory work do not outpace retention discipline.
+10. Treat central intelligence as a separate service or data plane concern, not a side effect of the Git repository.
+11. Keep config auto-tuning and code-change/PR generation as separate systems with separate permissions and review paths.
+12. Treat the final performance gate as a release stage, not a cleanup afterthought.
+
+# Side Branches, Not Mainline Sequence
+
+These items should remain explicitly off the mainline sequence:
+
+1. optional asynchronous mirroring of high-confidence bans to Akamai Network Lists
+   - only after `DEP-ENT-1..5` establish the enterprise distributed-state baseline;
+2. external breach to replayable attack pipeline
+   - only after shared-host discovery, mature adversary-sim, and retention governance are established.
 
 # Roadmap Outcome
 
 This roadmap suggests that the next pre-launch excellence sequence should be:
 
-1. operator-grade monitoring,
-2. tuning-surface completion,
-3. edge-instance ban sync and distributed state correctness,
-4. verified bot identity and Web Bot Auth foundation,
-5. mature adversary-sim lanes,
-6. sim-telemetry retention lifecycle,
-7. central-intelligence architecture,
-8. scheduled agent analyzer and reconfigurer.
+1. operator-surface truth prerequisites,
+2. operator-grade monitoring,
+3. tuning-surface completion,
+4. edge-instance ban sync and distributed state correctness,
+5. verified bot identity and Web Bot Auth foundation,
+6. adversary-sim foundations,
+7. mature adversary-sim lanes,
+8. sim-telemetry retention lifecycle,
+9. privacy and state-minimization gate,
+10. central-intelligence architecture,
+11. scheduled agent analyzer and reconfigurer,
+12. final pre-launch performance gate.
 
 That order makes the future autonomous loop far more likely to be truthful, low-risk, and actually useful.

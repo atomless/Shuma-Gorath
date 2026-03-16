@@ -250,18 +250,6 @@ function normalizeGatewayDeploymentProfile(value) {
     return '';
   }
 
-function normalizeFreshnessState(value) {
-    const normalized = String(value || '').trim().toLowerCase();
-    if (normalized === 'fresh' || normalized === 'degraded' || normalized === 'stale') return normalized;
-    return 'unknown';
-  }
-
-function normalizeRetentionHealthState(value) {
-    const normalized = String(value || '').trim().toLowerCase();
-    if (normalized === 'healthy' || normalized === 'degraded' || normalized === 'stalled') return normalized;
-    return 'unknown';
-  }
-
 function formatDeploymentPosture(snapshot) {
     const runtime = snapshot.runtimeEnvironment ? snapshot.runtimeEnvironment.toUpperCase() : 'UNKNOWN';
     if (snapshot.localProdDirectMode === true) {
@@ -271,42 +259,6 @@ function formatDeploymentPosture(snapshot) {
       return `${runtime} / ${String(snapshot.gatewayDeploymentProfile || '').toUpperCase()}`;
     }
     return runtime;
-  }
-
-function formatRetentionFreshnessStatus(statusOperationalSnapshot = {}) {
-    const source = statusOperationalSnapshot && typeof statusOperationalSnapshot === 'object'
-      ? statusOperationalSnapshot
-      : {};
-    const freshness = source.freshness && typeof source.freshness === 'object' ? source.freshness : {};
-    const retentionHealth =
-      source.retention_health && typeof source.retention_health === 'object'
-        ? source.retention_health
-        : {};
-    const freshnessState = normalizeFreshnessState(freshness.state);
-    const retentionState = normalizeRetentionHealthState(retentionHealth.state);
-
-    if (retentionState === 'stalled' || freshnessState === 'stale') return 'STALLED';
-    if (retentionState === 'degraded' || freshnessState === 'degraded') return 'DEGRADED';
-    if (retentionState === 'healthy' && freshnessState === 'fresh') return 'HEALTHY';
-    return 'UNKNOWN';
-  }
-
-function formatLagHours(value) {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric) || numeric < 0) return 'n/a';
-    return `${numeric.toFixed(1)}h`;
-  }
-
-function formatLagMs(value) {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric) || numeric < 0) return 'n/a';
-    return `${Math.round(numeric)} ms`;
-  }
-
-function formatUnixTimestamp(value) {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric) || numeric <= 0) return 'n/a';
-    return new Date(numeric * 1000).toISOString();
   }
 
 function formatIpRangeModeLabel(mode) {
@@ -590,35 +542,6 @@ const STATUS_DEFINITIONS = [
         `When disabled, write-dependent controls across config tabs must stay hidden and operators must treat the dashboard as observation-only for live defense tuning.`
       ),
       status: snapshot => boolStatus(snapshot.adminConfigWriteEnabled)
-    },
-    {
-      title: 'Retention and Freshness Health',
-      description: (_snapshot, options = {}) => {
-        const source = options.statusOperationalSnapshot && typeof options.statusOperationalSnapshot === 'object'
-          ? options.statusOperationalSnapshot
-          : {};
-        const freshness = source.freshness && typeof source.freshness === 'object' ? source.freshness : {};
-        const retentionHealth =
-          source.retention_health && typeof source.retention_health === 'object'
-            ? source.retention_health
-            : {};
-        const freshnessState = normalizeFreshnessState(freshness.state);
-        const retentionState = normalizeRetentionHealthState(retentionHealth.state);
-        const retentionHours = Number(retentionHealth.retention_hours);
-        const pendingExpiredBuckets = Number(retentionHealth.pending_expired_buckets || 0);
-        const lastPurgeError = String(retentionHealth.last_purge_error || '').trim();
-        return (
-          `Telemetry retention is governed by ${envVar('SHUMA_EVENT_LOG_RETENTION_HOURS')} ` +
-          `(configured window: <strong>${Number.isFinite(retentionHours) && retentionHours > 0 ? `${Math.floor(retentionHours)}h` : 'n/a'}</strong>). ` +
-          `Current monitoring freshness is <strong>${escapeHtml(freshnessState)}</strong> ` +
-          `(lag: <strong>${escapeHtml(formatLagMs(freshness.lag_ms))}</strong>, last event: <strong>${escapeHtml(formatUnixTimestamp(freshness.last_event_ts))}</strong>). ` +
-          `Retention worker health is <strong>${escapeHtml(retentionState)}</strong> ` +
-          `(purge lag: <strong>${escapeHtml(formatLagHours(retentionHealth.purge_lag_hours))}</strong>, pending expired buckets: <strong>${Number.isFinite(pendingExpiredBuckets) ? pendingExpiredBuckets : 0}</strong>, oldest retained: <strong>${escapeHtml(formatUnixTimestamp(retentionHealth.oldest_retained_ts))}</strong>). ` +
-          `Last purge success: <strong>${escapeHtml(formatUnixTimestamp(retentionHealth.last_purge_success_ts))}</strong>. ` +
-          `${lastPurgeError ? `Last purge error: <code>${escapeHtml(lastPurgeError)}</code>.` : ''}`
-        );
-      },
-      status: (_snapshot, options = {}) => formatRetentionFreshnessStatus(options.statusOperationalSnapshot)
     }
   ];
 

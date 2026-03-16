@@ -1265,7 +1265,7 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
     /No (recent events|events loaded while freshness is degraded\/stale)/i
   );
   await expect(page.locator("#cdp-events tbody")).toContainText(
-    "No CDP detections or auto-bans in the selected window"
+    "No CDP detections or detection-triggered bans in the selected window"
   );
   await expect(page.locator("#maze-top-offender")).toHaveText("None");
   await expect(page.locator("#honeypot-top-paths")).toContainText("No honeypot path data yet");
@@ -1581,13 +1581,17 @@ test("status tab resolves fail mode without requiring monitoring bootstrap", asy
   await expect(page.locator("#status-items .status-item h3", { hasText: "Tarpit" })).toHaveCount(1);
   await expect(page.locator("#status-items .status-item h3", { hasText: "Runtime and Deployment Posture" })).toHaveCount(1);
   await expect(page.locator("#status-items .status-item h3", { hasText: "Admin Config Write Posture" })).toHaveCount(1);
-  await expect(page.locator("#status-items .status-item h3", { hasText: "Retention and Freshness Health" })).toHaveCount(1);
   await expect(page.locator("#status-items .status-item h3", { hasText: "Shadow Mode" })).toHaveCount(0);
   await expect(page.locator("#status-items .status-item h3", { hasText: /^Challenge$/ })).toHaveCount(0);
+  await expect(page.locator(".status-item h3", { hasText: "Dashboard Connectivity" })).toHaveCount(1);
+  await expect(page.locator(".status-item h3", { hasText: "Telemetry Delivery Health" })).toHaveCount(1);
+  await expect(page.locator(".status-item h3", { hasText: "Retention Health" })).toHaveCount(1);
+  await expect(page.locator(".status-item h3", { hasText: "Runtime Performance Telemetry" })).toHaveCount(1);
+  await expect(page.locator("#status-items .status-item h3", { hasText: "Retention and Freshness Health" })).toHaveCount(0);
 
   await expect(page.locator("#runtime-fetch-latency-last")).toContainText("ms");
   await expect(page.locator("#runtime-render-timing-last")).toContainText("ms");
-  await expect(page.locator("#runtime-polling-resume-count")).toContainText("resumes:");
+  await expect(page.locator("#runtime-polling-skip-count")).toContainText("/");
 });
 
 test("advanced tab shows runtime variable inventory groups", async ({ page }) => {
@@ -2609,7 +2613,7 @@ test("native remount soak keeps refresh p95 and polling cadence within bounds", 
     const telemetry = await page.evaluate(() => {
       const parseP95 = (id) => {
         const text = document.getElementById(id)?.textContent || "";
-        const match = /p95:\s*([0-9]+(?:\.[0-9]+)?)\s*ms/i.exec(text);
+        const match = /p95:?\s*([0-9]+(?:\.[0-9]+)?)\s*ms/i.exec(text);
         return match ? Number(match[1]) : NaN;
       };
       return {

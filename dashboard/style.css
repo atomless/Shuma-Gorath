@@ -137,7 +137,7 @@
   --hue: 0;
 }
 :root.shadow-mode {
-  --hue: -256;
+  --hue: -307;
 }
 
 :root.connected {
@@ -451,13 +451,13 @@ body {
 }
 
 :root.shadow-mode:not(.disconnected) .shuma-gorath-img {
-  filter: hue-rotate(167deg) saturate(1);
+  filter: hue-rotate(108deg) saturate(1.9);
   transition: all .4s ease-in;
 }
 :root.shadow-mode:not(.disconnected) .dashboard-shadow-mode-eye {
   visibility: visible;
   height: 343px;
-  filter: hue-rotate(167deg) saturate(1.1) brightness(0.9) !important;
+  filter: hue-rotate(103deg) saturate(1.9) !important;
   transition: all .4s ease-in;
 }
 
@@ -867,19 +867,15 @@ h1 {
 
 .chart-doughnut-readout {
   position: absolute;
-  left: 12%;
-  right: 12%;
-  top: 44%;
   bottom: 15px;
   z-index: 1;
+  pointer-events: none;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: flex-end;
-  gap: 0;
-  padding-bottom: clamp(2px, 1cqw, 8px);
-  pointer-events: none;
   text-align: center;
+  width: 100%;
+  padding-bottom: clamp(2px, 1cqw, 8px);
 }
 
 .chart-doughnut-readout__label,
@@ -921,6 +917,32 @@ h1 {
   padding: 0;
   margin-bottom: 20px;
   /* keep spacing but no panel visuals */
+}
+
+.disclosure-section {
+  padding-bottom: 20px;
+}
+
+.disclosure-summary {
+  cursor: pointer;
+}
+
+.disclosure-summary-copy {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.disclosure-summary h2 {
+  margin: 0;
+}
+
+.disclosure-summary .section-desc {
+  margin: 0;
+}
+
+.disclosure-body {
+  margin-top: 20px;
 }
 
 /* ===========================================
@@ -1173,6 +1195,10 @@ code.env-var {
 
 .controls-grid--config .panel-soft {
   border-bottom: var(--border-hairline);
+}
+.config-save-bar + .panel-soft,
+.panel-soft:last-of-type {
+  border-bottom: none !important;
 }
 
 .controls-grid--status .panel {

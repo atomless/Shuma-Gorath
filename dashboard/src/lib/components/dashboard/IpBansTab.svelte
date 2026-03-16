@@ -37,7 +37,6 @@
   export let isActive = false;
   export let tabStatus = null;
   export let bansSnapshot = null;
-  export let ipBansFreshnessSnapshot = null;
   export let ipRangeSuggestionsSnapshot = null;
   export let configSnapshot = null;
   export let configVersion = 0;
@@ -61,12 +60,6 @@
     'tarpit'
   ]);
   const EMPTY_JSON_ARRAY = Object.freeze([]);
-  const FRESHNESS_STATE_LABELS = Object.freeze({
-    fresh: 'Fresh',
-    degraded: 'Degraded',
-    stale: 'Stale'
-  });
-
   let expandedRows = {};
   let banIp = '';
   let unbanIp = '';
@@ -139,14 +132,6 @@
       chartRefreshNonce += 1;
     }, Math.max(0, Number(delayMs) || 0));
   };
-  const toFiniteNumberOrNaN = (value) => {
-    if (value === null || value === undefined || value === '') {
-      return Number.NaN;
-    }
-    const numeric = Number(value);
-    return Number.isFinite(numeric) ? numeric : Number.NaN;
-  };
-
   const handleBeforeUnload = (event) => {
     if (!warnOnUnload) return;
     event.preventDefault();
@@ -272,7 +257,6 @@
           legendColor: chartTheme.legendColor,
           maintainAspectRatio: false,
           resizeDelay: 0,
-          animation: false,
           onReadoutChange
         })
       }), refreshNonce);
@@ -294,7 +278,6 @@
         legendColor: chartTheme.legendColor,
         maintainAspectRatio: false,
         resizeDelay: 0,
-        animation: false,
         onReadoutChange
       });
       chart.options.rotation = halfDoughnutOptions.rotation;
@@ -303,7 +286,6 @@
       chart.options.maintainAspectRatio = halfDoughnutOptions.maintainAspectRatio;
       chart.options.onHover = halfDoughnutOptions.onHover;
       chart.options.resizeDelay = halfDoughnutOptions.resizeDelay;
-      chart.options.animation = halfDoughnutOptions.animation;
       if (chart.options?.plugins?.tooltip) {
         chart.options.plugins.tooltip.enabled = false;
       }
@@ -885,22 +867,6 @@
   );
   $: canBan = isValidIp(banIp) && banDurationSeconds > 0 && !banning;
   $: canUnban = isValidIp(unbanIp) && !unbanning;
-  $: freshness = ipBansFreshnessSnapshot && typeof ipBansFreshnessSnapshot === 'object'
-    ? ipBansFreshnessSnapshot
-    : {};
-  $: freshnessStateKey = String(freshness.state || 'stale').trim().toLowerCase();
-  $: freshnessStateLabel = FRESHNESS_STATE_LABELS[freshnessStateKey] || FRESHNESS_STATE_LABELS.stale;
-  $: freshnessLagMs = toFiniteNumberOrNaN(freshness.lag_ms);
-  $: freshnessLagText = Number.isFinite(freshnessLagMs) && freshnessLagMs >= 0
-    ? `${Math.round(freshnessLagMs)} ms`
-    : 'n/a';
-  $: freshnessLastEventTs = toFiniteNumberOrNaN(freshness.last_event_ts);
-  $: freshnessLastEventText = Number.isFinite(freshnessLastEventTs) && freshnessLastEventTs > 0
-    ? formatTimestamp(freshness.last_event_ts)
-    : 'n/a';
-  $: freshnessTransport = String(freshness.transport || 'polling');
-  $: freshnessSlowConsumerState = String(freshness.slow_consumer_lag_state || 'normal');
-  $: freshnessOverflow = String(freshness.overflow || 'none');
   $: {
     const nextActive = isActive === true;
     if (browser && nextActive && !wasActive) {
@@ -967,14 +933,6 @@
   tabindex="-1"
 >
   <TabStateMessage tab="ip-bans" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
-  <div class="control-group panel-soft pad-sm">
-    <p id="ip-bans-freshness-state" class="control-desc text-muted">
-      Freshness: <strong>{freshnessStateLabel}</strong> | lag: {freshnessLagText} | last event: {freshnessLastEventText}
-    </p>
-    <p id="ip-bans-freshness-meta" class="control-desc text-muted">
-      transport: <code>{freshnessTransport}</code> | slow consumer: <code>{freshnessSlowConsumerState}</code> | overflow: <code>{freshnessOverflow}</code>
-    </p>
-  </div>
   <div class="chart-container panel-soft panel-border pad-md">
     <h2>Ban Reason Spread</h2>
     <p class="control-desc text-muted">

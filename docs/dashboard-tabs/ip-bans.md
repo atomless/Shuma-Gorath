@@ -6,6 +6,8 @@ Component: [`dashboard/src/lib/components/dashboard/IpBansTab.svelte`](../../das
 Purpose:
 
 - Operate active bans and configure IP range policy and bypass allowlists.
+- Keep contributor diagnostics off the main ban-operations surface; low-level freshness/transport/raw-feed diagnostics now live in Monitoring's collapsed `Telemetry Diagnostics` section instead.
+- Show the real active ban state for the site, including manual interventions, even though Monitoring excludes operator-originated actions from its external-traffic telemetry.
 
 Panels and behavior:
 
@@ -16,6 +18,7 @@ Panels and behavior:
 - Suggested ranges panel (`Last 24h`):
   - Shows candidate CIDRs with confidence and collateral risk.
   - Shows recommended action/mode plus safer alternatives.
+  - Suggestion evidence is derived from external traffic telemetry, not operator-originated admin actions.
   - Supports one-click apply into custom rules (`Add as logging-only`, `Add as enforce`).
 - IP Range Policy panel:
   - Mode: `off`, `logging-only` (runtime `advisory`), `enforce`.

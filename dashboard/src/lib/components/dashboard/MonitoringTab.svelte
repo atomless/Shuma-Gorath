@@ -52,7 +52,7 @@
   import TabStateMessage from './primitives/TabStateMessage.svelte';
   import OverviewStats from './monitoring/OverviewStats.svelte';
   import PrimaryCharts from './monitoring/PrimaryCharts.svelte';
-  import RawTelemetryFeed from './monitoring/RawTelemetryFeed.svelte';
+  import DiagnosticsSection from './monitoring/DiagnosticsSection.svelte';
   import DefenseTrendBlocks from './monitoring/DefenseTrendBlocks.svelte';
   import RecentEventsTable from './monitoring/RecentEventsTable.svelte';
   import CdpSection from './monitoring/CdpSection.svelte';
@@ -91,6 +91,7 @@
   export let cdpEventsSnapshot = null;
   export let monitoringSnapshot = null;
   export let monitoringFreshnessSnapshot = null;
+  export let ipBansFreshnessSnapshot = null;
   export let configSnapshot = null;
   export let onFetchEventsRange = null;
   export let autoRefreshEnabled = false;
@@ -141,11 +142,6 @@
   const defaultMazeStats = deriveMazeStatsViewModel({});
   const defaultTarpitSummary = deriveTarpitViewModel({});
   const defaultPrometheusHelper = derivePrometheusHelperViewModel({}, '');
-  const FRESHNESS_STATE_LABELS = Object.freeze({
-    fresh: 'Fresh',
-    degraded: 'Degraded',
-    stale: 'Stale'
-  });
   const clearTimer = (timerId) => {
     if (timerId === null) return null;
     clearTimeout(timerId);
@@ -211,13 +207,6 @@
   };
 
   const formatTime = (rawTs) => formatUnixSecondsLocal(rawTs, '-');
-  const toFiniteNumberOrNaN = (value) => {
-    if (value === null || value === undefined || value === '') {
-      return Number.NaN;
-    }
-    const numeric = Number(value);
-    return Number.isFinite(numeric) ? numeric : Number.NaN;
-  };
   const toNonNegativeIntOrNull = (value) => {
     const numeric = Number(value);
     if (!Number.isFinite(numeric) || numeric < 0) return null;
@@ -720,22 +709,7 @@
   $: monitoring = monitoringSnapshot && typeof monitoringSnapshot === 'object'
     ? monitoringSnapshot
     : {};
-  $: freshness = monitoringFreshnessSnapshot && typeof monitoringFreshnessSnapshot === 'object'
-    ? monitoringFreshnessSnapshot
-    : {};
-  $: freshnessStateKey = normalizeLowerTrimmed(freshness.state || 'stale');
-  $: freshnessStateLabel = FRESHNESS_STATE_LABELS[freshnessStateKey] || FRESHNESS_STATE_LABELS.stale;
-  $: freshnessLagMs = toFiniteNumberOrNaN(freshness.lag_ms);
-  $: freshnessLagText = Number.isFinite(freshnessLagMs) && freshnessLagMs >= 0
-    ? `${Math.round(freshnessLagMs)} ms`
-    : 'n/a';
-  $: freshnessLastEventTs = toFiniteNumberOrNaN(freshness.last_event_ts);
-  $: freshnessLastEventText = Number.isFinite(freshnessLastEventTs) && freshnessLastEventTs > 0
-    ? formatTime(freshness.last_event_ts)
-    : 'n/a';
-  $: freshnessTransport = String(freshness.transport || 'polling');
-  $: freshnessSlowConsumerState = String(freshness.slow_consumer_lag_state || 'normal');
-  $: freshnessOverflow = String(freshness.overflow || 'none');
+  $: freshnessStateKey = String(monitoringFreshnessSnapshot?.state || '').trim().toLowerCase();
 
   $: rawRecentEvents = Array.isArray(events.recent_events)
     ? events.recent_events.slice(0, RAW_FEED_MAX_LINES)
@@ -1015,19 +989,6 @@
   tabindex="-1"
 >
   <TabStateMessage tab="monitoring" status={tabStatus} />
-  <div class="control-group panel-soft pad-sm">
-    <p id="monitoring-freshness-state" class="control-desc text-muted">
-      Freshness: <strong>{freshnessStateLabel}</strong> | lag: {freshnessLagText} | last event: {freshnessLastEventText}
-    </p>
-    <p id="monitoring-freshness-meta" class="control-desc text-muted">
-      transport: <code>{freshnessTransport}</code> | slow consumer: <code>{freshnessSlowConsumerState}</code> | overflow: <code>{freshnessOverflow}</code>
-    </p>
-  </div>
-
-  <RawTelemetryFeed
-    lines={rawTelemetryFeed}
-    maxLines={RAW_FEED_MAX_LINES}
-  />
 
   <OverviewStats
     loading={tabStatus?.loading === true}
@@ -1130,6 +1091,13 @@
     sourceIdRows={ipRangeSourceIdRows}
     fallbackRows={ipRangeFallbackRows}
     trendRows={ipRangeTrendRows}
+  />
+
+  <DiagnosticsSection
+    monitoringFreshnessSnapshot={monitoringFreshnessSnapshot}
+    ipBansFreshnessSnapshot={ipBansFreshnessSnapshot}
+    rawTelemetryFeed={rawTelemetryFeed}
+    rawFeedMaxLines={RAW_FEED_MAX_LINES}
   />
 
   <ExternalMonitoringSection

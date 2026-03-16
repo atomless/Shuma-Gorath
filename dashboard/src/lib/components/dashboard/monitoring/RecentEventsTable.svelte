@@ -129,12 +129,11 @@
           <th class="caps-label"><abbr title="Internet Protocol">IP</abbr></th>
           <th class="caps-label">Reason</th>
           <th class="caps-label">Outcome</th>
-          <th class="caps-label">Admin</th>
         </tr>
       </thead>
       <tbody>
         {#if recentEvents.length === 0}
-          <TableEmptyRow colspan={7}>
+          <TableEmptyRow colspan={6}>
             {emptyState.message || 'No recent events'}
           </TableEmptyRow>
         {:else}
@@ -146,7 +145,6 @@
               <td><code>{ev.ip || '-'}</code></td>
               <td>{ev.reason || '-'}</td>
               <td>{ev.outcome || '-'}</td>
-              <td>{ev.admin || '-'}</td>
             </tr>
           {/each}
         {/if}

@@ -362,6 +362,38 @@ async function runScenario(payload) {
       return { response, content };
     }
 
+    async function countNamedCookies(cookieName) {
+      const cookies = await context.cookies(baseUrl);
+      return cookies.filter((cookie) => cookie.name === cookieName).length;
+    }
+
+    async function performHumanLikeCheckboxActivation(checkbox) {
+      const box = await checkbox.boundingBox();
+      if (!box) {
+        throw new Error("browser_not_a_bot_checkbox_bounds_missing");
+      }
+      const targetX = box.x + box.width / 2;
+      const targetY = box.y + box.height / 2;
+      const entryX = Math.max(8, targetX - 48);
+      const entryY = Math.max(8, targetY + 26);
+      const approachX = targetX - 10;
+      const approachY = targetY + 6;
+
+      await page.mouse.move(entryX, entryY);
+      await page.waitForTimeout(140);
+      scriptedDelayMs += 140;
+      await page.mouse.move(approachX, approachY, { steps: 8 });
+      await page.waitForTimeout(90);
+      scriptedDelayMs += 90;
+      await page.mouse.move(targetX, targetY, { steps: 8 });
+      await page.waitForTimeout(70);
+      scriptedDelayMs += 70;
+      await page.mouse.down();
+      await page.waitForTimeout(80);
+      scriptedDelayMs += 80;
+      await page.mouse.up();
+    }
+
     async function executeAction() {
       if (action === "allow_browser_allowlist") {
         const { response, content } = await navigate("/");
@@ -395,12 +427,22 @@ async function runScenario(payload) {
             response.url().includes("/challenge/not-a-bot-checkbox"),
           { timeout: timeoutMs },
         );
+        const redirectPromise = page
+          .waitForURL((url) => {
+            try {
+              return new URL(url).pathname === "/";
+            } catch {
+              return false;
+            }
+          }, { timeout: timeoutMs })
+          .catch(() => null);
 
-        await checkbox.click();
+        await performHumanLikeCheckboxActivation(checkbox);
         appendDomPath(evidence, "click", "#not-a-bot-checkbox");
 
         const submitRequest = await submitRequestPromise;
         const submitResponse = await submitResponsePromise;
+        await redirectPromise;
         const submitStatus = submitResponse.status();
         const submitHeaders = await submitResponse.allHeaders();
         const postData = String(submitRequest.postData() || "");
@@ -408,9 +450,11 @@ async function runScenario(payload) {
           throw new Error("browser_not_a_bot_submit_missing_checked_or_telemetry");
         }
         const setCookie = String(submitHeaders["set-cookie"] || "");
-        if (submitStatus !== 303 || !setCookie.includes("shuma_not_a_bot=")) {
+        const markerCookieCount = await countNamedCookies("shuma_not_a_bot");
+        evidence.set_cookie_observed = markerCookieCount;
+        if (submitStatus !== 303 || (markerCookieCount < 1 && !setCookie.includes("shuma_not_a_bot="))) {
           throw new Error(
-            `browser_not_a_bot_submit_unexpected status=${submitStatus} set_cookie=${setCookie.length > 0}`,
+            `browser_not_a_bot_submit_unexpected status=${submitStatus} set_cookie=${setCookie.length > 0} cookie_count=${markerCookieCount}`,
           );
         }
         return {

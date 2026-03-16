@@ -224,6 +224,20 @@ fn parse_v2_event_key_metadata(key: &str) -> Option<(u64, u64)> {
     }
 }
 
+fn read_event_log_record<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    key: &str,
+) -> Option<EventLogRecord> {
+    let val = store.get(key).ok().flatten()?;
+    serde_json::from_slice::<EventLogRecord>(&val)
+        .ok()
+        .or_else(|| serde_json::from_slice::<EventLogEntry>(&val).ok().map(EventLogRecord::from_entry))
+}
+
+fn is_external_monitoring_event(record: &EventLogRecord) -> bool {
+    !matches!(record.entry.event, EventType::AdminAction) && record.entry.admin.is_none()
+}
+
 #[derive(Debug, Clone, Default)]
 struct EventSecuritySanitizationResult {
     scrubbed_fields: u64,
@@ -812,6 +826,10 @@ mod tests {
                 .iter()
                 .filter(|key| key.starts_with("eventlog:v2:"))
                 .count()
+        }
+
+        fn reset_get_count(&self) {
+            self.get_keys_seen.lock().unwrap().clear();
         }
     }
 
@@ -1532,7 +1550,7 @@ mod tests {
     }
 
     #[test]
-    fn load_recent_events_includes_v2_records() {
+    fn load_recent_event_records_include_v2_records() {
         let store = MockStore::new();
         let now = now_ts();
         let entry = EventLogEntry {
@@ -1550,9 +1568,9 @@ mod tests {
             .unwrap();
         crate::observability::retention::register_event_log_key(&store, hour, key.as_str());
 
-        let events = load_recent_events(&store, now, 1);
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].reason.as_deref(), Some("test"));
+        let records = load_recent_event_records(&store, now, 1);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].entry.reason.as_deref(), Some("test"));
     }
 
     #[test]
@@ -1668,7 +1686,7 @@ mod tests {
             ip: Some("198.51.100.44".to_string()),
             reason: Some("challenge_served".to_string()),
             outcome: Some("ok".to_string()),
-            admin: Some("ops".to_string()),
+            admin: None,
         };
         store
             .set(&key, serde_json::to_vec(&event).unwrap().as_slice())
@@ -1714,7 +1732,7 @@ mod tests {
             ip: Some("198.51.100.61".to_string()),
             reason: Some("challenge_served".to_string()),
             outcome: Some("ok".to_string()),
-            admin: Some("ops".to_string()),
+            admin: None,
         };
         store
             .set(&key, serde_json::to_vec(&event).unwrap().as_slice())
@@ -1761,7 +1779,7 @@ mod tests {
             ip: Some("198.51.100.50".to_string()),
             reason: Some("challenge_served".to_string()),
             outcome: Some("ok".to_string()),
-            admin: Some("ops".to_string()),
+            admin: None,
         };
         store
             .set(&key, serde_json::to_vec(&event).unwrap().as_slice())
@@ -1828,13 +1846,15 @@ mod tests {
                 ip: Some(format!("198.51.100.{}", offset % 8)),
                 reason: Some("challenge_served".to_string()),
                 outcome: Some("ok".to_string()),
-                admin: Some("ops".to_string()),
+                admin: None,
             };
             store
                 .set(&key, serde_json::to_vec(&event).unwrap().as_slice())
                 .unwrap();
             crate::observability::retention::register_event_log_key(&store, hour, key.as_str());
         }
+        crate::observability::hot_read_projection::refresh_after_event_append(&store, "default");
+        store.reset_get_count();
 
         let mut builder = Request::builder();
         builder
@@ -1851,8 +1871,8 @@ mod tests {
             .unwrap_or_default();
         assert_eq!(rows.len(), 10);
         assert!(
-            store.eventlog_get_count() <= 11,
-            "expected <= 11 eventlog value reads, saw {}",
+            store.eventlog_get_count() <= 12,
+            "expected <= 12 eventlog value reads, saw {}",
             store.eventlog_get_count()
         );
     }
@@ -1872,7 +1892,7 @@ mod tests {
             ip: Some("203.0.113.1".to_string()),
             reason: Some("challenge_served".to_string()),
             outcome: Some("ok".to_string()),
-            admin: Some("ops".to_string()),
+            admin: None,
         };
         let second_event = EventLogEntry {
             ts: second_ts,
@@ -1880,7 +1900,7 @@ mod tests {
             ip: Some("203.0.113.2".to_string()),
             reason: Some("blocked".to_string()),
             outcome: Some("blocked".to_string()),
-            admin: Some("ops".to_string()),
+            admin: None,
         };
         store
             .set(&first_key, serde_json::to_vec(&first_event).unwrap().as_slice())
@@ -1953,7 +1973,7 @@ mod tests {
             ip: Some("198.51.100.2".to_string()),
             reason: Some("challenge_served".to_string()),
             outcome: Some("ok".to_string()),
-            admin: Some("ops".to_string()),
+            admin: None,
         };
         let second_event = EventLogEntry {
             ts: second_ts,
@@ -1961,7 +1981,7 @@ mod tests {
             ip: Some("198.51.100.3".to_string()),
             reason: Some("blocked".to_string()),
             outcome: Some("blocked".to_string()),
-            admin: Some("ops".to_string()),
+            admin: None,
         };
         store
             .set(&first_key, serde_json::to_vec(&first_event).unwrap().as_slice())
@@ -2144,7 +2164,7 @@ mod tests {
     }
 
     #[test]
-    fn load_recent_events_ignores_legacy_v1_pages() {
+    fn load_recent_event_records_ignore_legacy_v1_pages() {
         let store = MockStore::new();
         let now = now_ts();
         let entry = EventLogEntry {
@@ -2162,8 +2182,8 @@ mod tests {
             .set(&key, serde_json::to_vec(&page).unwrap().as_slice())
             .unwrap();
 
-        let events = load_recent_events(&store, now, 1);
-        assert!(events.is_empty());
+        let records = load_recent_event_records(&store, now, 1);
+        assert!(records.is_empty());
     }
 
     #[test]
@@ -4031,11 +4051,11 @@ mod admin_config_tests {
                 &store,
                 &EventLogEntry {
                     ts: now,
-                    event: EventType::AdminAction,
+                    event: EventType::Challenge,
                     ip: Some("198.51.100.77".to_string()),
                     reason: Some("sim_history_visibility_probe".to_string()),
-                    outcome: Some("ok".to_string()),
-                    admin: Some("me".to_string()),
+                    outcome: Some("challenge_failed".to_string()),
+                    admin: None,
                 },
             );
         }
@@ -4100,6 +4120,20 @@ mod admin_config_tests {
                 })
                 .unwrap_or(false)
         );
+        assert_eq!(
+            monitoring_json
+                .get("details")
+                .and_then(|v| v.get("events"))
+                .and_then(|v| v.get("recent_sim_runs"))
+                .and_then(|v| v.as_array())
+                .map(|runs| {
+                    runs.iter().any(|run| {
+                        run.get("run_id").and_then(|value| value.as_str())
+                            == Some("run_history_001")
+                    })
+                }),
+            Some(true)
+        );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -4134,11 +4168,11 @@ mod admin_config_tests {
                 &store,
                 &EventLogEntry {
                     ts: now,
-                    event: EventType::AdminAction,
+                    event: EventType::Challenge,
                     ip: Some("198.51.100.88".to_string()),
                     reason: Some("sim_history_cleanup_probe".to_string()),
-                    outcome: Some("ok".to_string()),
-                    admin: Some("me".to_string()),
+                    outcome: Some("challenge_failed".to_string()),
+                    admin: None,
                 },
             );
         }
@@ -4197,17 +4231,14 @@ mod admin_config_tests {
             .and_then(|v| v.get("recent_events"))
             .and_then(|v| v.as_array())
             .expect("recent_events");
-        assert_eq!(recent_events.len(), 1);
+        assert!(recent_events.is_empty());
         assert_eq!(
-            recent_events[0]
-                .get("reason")
-                .and_then(|value| value.as_str()),
-            Some("telemetry_history_cleanup")
-        );
-        assert_ne!(
-            recent_events[0]
-                .get("is_simulation")
-                .and_then(|value| value.as_bool()),
+            monitoring_json
+                .get("details")
+                .and_then(|v| v.get("events"))
+                .and_then(|v| v.get("recent_sim_runs"))
+                .and_then(|v| v.as_array())
+                .map(|runs| runs.is_empty()),
             Some(true)
         );
 
@@ -4253,11 +4284,11 @@ mod admin_config_tests {
             &store,
             &EventLogEntry {
                 ts: now,
-                event: EventType::AdminAction,
+                event: EventType::Challenge,
                 ip: Some("198.51.100.19".to_string()),
                 reason: Some("prod_history_cleanup_probe".to_string()),
-                outcome: Some("ok".to_string()),
-                admin: Some("me".to_string()),
+                outcome: Some("challenge_failed".to_string()),
+                admin: None,
             },
         );
 
@@ -4315,12 +4346,15 @@ mod admin_config_tests {
             .and_then(|v| v.get("recent_events"))
             .and_then(|v| v.as_array())
             .expect("recent_events");
-        assert_eq!(recent_events.len(), 1);
+        assert!(recent_events.is_empty());
         assert_eq!(
-            recent_events[0]
-                .get("reason")
-                .and_then(|value| value.as_str()),
-            Some("telemetry_history_cleanup")
+            monitoring_json
+                .get("details")
+                .and_then(|v| v.get("events"))
+                .and_then(|v| v.get("recent_sim_runs"))
+                .and_then(|v| v.as_array())
+                .map(|runs| runs.is_empty()),
+            Some(true)
         );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
@@ -5487,7 +5521,7 @@ mod admin_config_tests {
                 ip: Some("198.51.100.71".to_string()),
                 reason: Some("edge_profile_probe".to_string()),
                 outcome: Some("challenge_failed".to_string()),
-                admin: Some("ops".to_string()),
+                admin: None,
             },
         );
 
@@ -5524,7 +5558,7 @@ mod admin_config_tests {
             ip: Some("198.51.100.144".to_string()),
             reason: Some("challenge_served".to_string()),
             outcome: Some("ok".to_string()),
-            admin: Some("ops".to_string()),
+            admin: None,
         };
         store
             .set(&key, serde_json::to_vec(&event).unwrap().as_slice())
@@ -5571,7 +5605,7 @@ mod admin_config_tests {
                 ip: Some(format!("198.51.100.{}", offset % 8)),
                 reason: Some(format!("hot_read_seed_{offset:02}")),
                 outcome: Some("ok".to_string()),
-                admin: Some("ops".to_string()),
+                admin: None,
             };
             store
                 .set(&key, serde_json::to_vec(&event).unwrap().as_slice())
@@ -5635,6 +5669,143 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn admin_monitoring_excludes_admin_originated_rows_from_external_telemetry() {
+        let store = TestStore::default();
+        let now = now_ts();
+
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now,
+                event: EventType::Challenge,
+                ip: Some("198.51.100.10".to_string()),
+                reason: Some("external_probe".to_string()),
+                outcome: Some("served".to_string()),
+                admin: None,
+            },
+        );
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now.saturating_add(1),
+                event: EventType::AdminAction,
+                ip: Some("198.51.100.11".to_string()),
+                reason: Some("config_patch".to_string()),
+                outcome: Some("ok".to_string()),
+                admin: Some("ops".to_string()),
+            },
+        );
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now.saturating_add(2),
+                event: EventType::Ban,
+                ip: Some("198.51.100.12".to_string()),
+                reason: Some("manual_ban".to_string()),
+                outcome: Some("deny_temp".to_string()),
+                admin: Some("ops".to_string()),
+            },
+        );
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now.saturating_add(3),
+                event: EventType::Unban,
+                ip: Some("198.51.100.12".to_string()),
+                reason: Some("admin_unban".to_string()),
+                outcome: Some("ok".to_string()),
+                admin: Some("ops".to_string()),
+            },
+        );
+
+        let monitoring_req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=10", Vec::new());
+        let monitoring_resp = handle_admin_monitoring(&monitoring_req, &store);
+        assert_eq!(*monitoring_resp.status(), 200u16);
+        let monitoring_payload: serde_json::Value =
+            serde_json::from_slice(monitoring_resp.body()).unwrap();
+        let monitoring_events = monitoring_payload
+            .get("details")
+            .and_then(|value| value.get("events"))
+            .and_then(|value| value.get("recent_events"))
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(monitoring_events.len(), 1);
+        assert_eq!(
+            monitoring_events[0]
+                .get("reason")
+                .and_then(|value| value.as_str()),
+            Some("external_probe")
+        );
+        assert_eq!(
+            monitoring_payload
+                .get("details")
+                .and_then(|value| value.get("events"))
+                .and_then(|value| value.get("recent_events_window"))
+                .and_then(|value| value.get("total_events_in_window"))
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+
+        let delta_req = make_request(Method::Get, "/admin/monitoring/delta?hours=24&limit=10", Vec::new());
+        let delta_resp = handle_admin_monitoring_delta(&delta_req, &store);
+        assert_eq!(*delta_resp.status(), 200u16);
+        let delta_payload: serde_json::Value = serde_json::from_slice(delta_resp.body()).unwrap();
+        let delta_events = delta_payload
+            .get("events")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(delta_events.len(), 1);
+        assert_eq!(
+            delta_events[0]
+                .get("reason")
+                .and_then(|value| value.as_str()),
+            Some("external_probe")
+        );
+
+        let events_req = make_request(Method::Get, "/admin/events?hours=24", Vec::new());
+        let events_resp = handle_admin_events(&events_req, &store);
+        assert_eq!(*events_resp.status(), 200u16);
+        let events_payload: serde_json::Value = serde_json::from_slice(events_resp.body()).unwrap();
+        let recent_events = events_payload
+            .get("recent_events")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(recent_events.len(), 1);
+        assert_eq!(
+            recent_events[0]
+                .get("reason")
+                .and_then(|value| value.as_str()),
+            Some("external_probe")
+        );
+
+        let stream_req = make_request(Method::Get, "/admin/monitoring/stream?hours=24&limit=10", Vec::new());
+        let stream_resp = handle_admin_monitoring_stream(&stream_req, &store);
+        assert_eq!(*stream_resp.status(), 200u16);
+        let stream_body = String::from_utf8_lossy(stream_resp.body()).to_string();
+        let stream_payload_line = stream_body
+            .lines()
+            .find(|line| line.starts_with("data: "))
+            .expect("expected monitoring stream payload");
+        let stream_payload: serde_json::Value =
+            serde_json::from_str(stream_payload_line.trim_start_matches("data: ")).unwrap();
+        let stream_events = stream_payload
+            .get("events")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(stream_events.len(), 1);
+        assert_eq!(
+            stream_events[0]
+                .get("reason")
+                .and_then(|value| value.as_str()),
+            Some("external_probe")
+        );
+    }
+
+    #[test]
     fn admin_monitoring_includes_simulation_and_baseline_events() {
         let store = TestStore::default();
         let now = now_ts();
@@ -5648,11 +5819,11 @@ mod admin_config_tests {
             &store,
             &EventLogEntry {
                 ts: now,
-                event: EventType::AdminAction,
+                event: EventType::Challenge,
                 ip: Some("198.51.100.7".to_string()),
                 reason: Some("baseline_event".to_string()),
                 outcome: Some("ok".to_string()),
-                admin: Some("me".to_string()),
+                admin: None,
             },
         );
 
@@ -5673,11 +5844,11 @@ mod admin_config_tests {
                 &store,
                 &EventLogEntry {
                     ts: now,
-                    event: EventType::AdminAction,
+                    event: EventType::Challenge,
                     ip: Some("198.51.100.8".to_string()),
                     reason: Some("sim_event".to_string()),
                     outcome: Some("ok".to_string()),
-                    admin: Some("me".to_string()),
+                    admin: None,
                 },
             );
         }
@@ -5737,7 +5908,7 @@ mod admin_config_tests {
                 ip: Some("198.51.100.31".to_string()),
                 reason: Some("challenge_submit".to_string()),
                 outcome: Some("challenge_failed".to_string()),
-                admin: Some("ops".to_string()),
+                admin: None,
             },
         );
 
@@ -5762,7 +5933,7 @@ mod admin_config_tests {
                     ip: Some("198.51.100.31".to_string()),
                     reason: Some("challenge_submit".to_string()),
                     outcome: Some("challenge_failed".to_string()),
-                    admin: Some("ops".to_string()),
+                    admin: None,
                 },
             );
         }
@@ -5827,11 +5998,11 @@ mod admin_config_tests {
             &store,
             &EventLogEntry {
                 ts: now,
-                event: EventType::AdminAction,
+                event: EventType::Challenge,
                 ip: Some(raw_ip.to_string()),
                 reason: Some("security_mode_probe".to_string()),
                 outcome: Some("ok".to_string()),
-                admin: Some("operator@example.com".to_string()),
+                admin: None,
             },
         );
 
@@ -5862,10 +6033,7 @@ mod admin_config_tests {
             event_default.get("ip").and_then(|value| value.as_str()),
             Some(pseudo_ip.as_str())
         );
-        assert_eq!(
-            event_default.get("admin").and_then(|value| value.as_str()),
-            Some("[masked]")
-        );
+        assert!(event_default.get("admin").is_none());
         assert_eq!(
             body_default
                 .get("security_privacy")
@@ -5910,10 +6078,7 @@ mod admin_config_tests {
             event_forensic.get("ip").and_then(|value| value.as_str()),
             Some(raw_ip)
         );
-        assert_eq!(
-            event_forensic.get("admin").and_then(|value| value.as_str()),
-            Some("operator@example.com")
-        );
+        assert!(event_forensic.get("admin").is_none());
     }
 
     #[test]
@@ -5933,7 +6098,7 @@ mod admin_config_tests {
                     "served score=8 taxonomy[level=L6_CHALLENGE_STRONG action=A_CHALLENGE_STRONG detection=D_BOTNESS_GATE_CHALLENGE signals=S_GEO_RISK]"
                         .to_string(),
                 ),
-                admin: Some("operator@example.com".to_string()),
+                admin: None,
             },
         );
 
@@ -5958,10 +6123,7 @@ mod admin_config_tests {
             event_default.get("ip").and_then(|value| value.as_str()),
             Some(pseudo_ip.as_str())
         );
-        assert_eq!(
-            event_default.get("admin").and_then(|value| value.as_str()),
-            Some("[masked]")
-        );
+        assert!(event_default.get("admin").is_none());
         assert!(event_default.get("outcome").is_none());
         assert_eq!(
             event_default
@@ -6012,12 +6174,7 @@ mod admin_config_tests {
             event_forensic.get("ip").and_then(|value| value.as_str()),
             Some(raw_ip)
         );
-        assert_eq!(
-            event_forensic
-                .get("admin")
-                .and_then(|value| value.as_str()),
-            Some("operator@example.com")
-        );
+        assert!(event_forensic.get("admin").is_none());
         assert!(event_forensic.get("outcome").is_none());
         assert_eq!(
             event_forensic
@@ -6050,11 +6207,11 @@ mod admin_config_tests {
             &store,
             &EventLogEntry {
                 ts: now,
-                event: EventType::AdminAction,
+                event: EventType::Challenge,
                 ip: Some(raw_ip.to_string()),
                 reason: Some("delta_security_mode_probe".to_string()),
                 outcome: Some("ok".to_string()),
-                admin: Some("ops".to_string()),
+                admin: None,
             },
         );
 
@@ -6076,6 +6233,7 @@ mod admin_config_tests {
                 && row.get("ip").and_then(|value| value.as_str())
                     == Some(pseudo_ip.as_str())
         }));
+        assert!(events_default.iter().all(|row| row.get("admin").is_none()));
 
         let req_forensic = make_request(
             Method::Get,
@@ -6098,6 +6256,7 @@ mod admin_config_tests {
             row.get("reason").and_then(|value| value.as_str()) == Some("delta_security_mode_probe")
                 && row.get("ip").and_then(|value| value.as_str()) == Some(raw_ip)
         }));
+        assert!(events_forensic.iter().all(|row| row.get("admin").is_none()));
     }
 
     #[test]
@@ -6202,7 +6361,7 @@ mod admin_config_tests {
                 &store,
                 &EventLogEntry {
                     ts: now.saturating_sub(idx),
-                    event: EventType::AdminAction,
+                    event: EventType::Challenge,
                     ip: Some(format!("198.51.100.{}", idx % 255)),
                     reason: Some(
                         format!(
@@ -6213,7 +6372,7 @@ mod admin_config_tests {
                     outcome: Some(
                         "large_payload_seed_outcome_value_for_monitoring_compression_path".to_string(),
                     ),
-                    admin: Some("ops".to_string()),
+                    admin: None,
                 },
             );
         }
@@ -6327,6 +6486,51 @@ mod admin_config_tests {
                 .and_then(|value| value.as_str())
                 .is_some()
         );
+    }
+
+    #[test]
+    fn admin_ip_range_suggestions_ignore_operator_originated_events() {
+        let _lock = crate::test_support::lock_env();
+        let store = TestStore::default();
+        let now = now_ts();
+
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now,
+                event: EventType::Ban,
+                ip: Some("198.51.100.25".to_string()),
+                reason: Some("manual_ban".to_string()),
+                outcome: Some("banned".to_string()),
+                admin: Some("ops".to_string()),
+            },
+        );
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now,
+                event: EventType::Challenge,
+                ip: Some("203.0.113.25".to_string()),
+                reason: Some("challenge_served".to_string()),
+                outcome: Some("ok".to_string()),
+                admin: None,
+            },
+        );
+
+        let req = make_request(
+            Method::Get,
+            "/admin/ip-range/suggestions?hours=24&limit=5",
+            Vec::new(),
+        );
+        let resp = handle_admin_ip_range_suggestions(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        let suggestions = body
+            .get("suggestions")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        assert!(suggestions.is_empty());
     }
 
     #[test]
@@ -8707,12 +8911,12 @@ fn admin_robots_response(cfg: &crate::config::Config) -> Response {
         .build()
 }
 
-fn load_recent_events<S: crate::challenge::KeyValueStore>(
+fn load_recent_monitoring_events<S: crate::challenge::KeyValueStore>(
     store: &S,
     now: u64,
     hours: u64,
 ) -> Vec<EventLogEntry> {
-    load_recent_event_records(store, now, hours)
+    load_recent_monitoring_event_records(store, now, hours)
         .into_iter()
         .map(|record| record.entry)
         .collect()
@@ -8738,22 +8942,13 @@ struct EventCursorMeta {
 }
 
 #[derive(Debug, Clone)]
-struct CursorPageSelection {
-    metas: Vec<EventCursorMeta>,
+struct MonitoringCursorPage {
+    rows: Vec<CursorEventRecord>,
     next_cursor: String,
     window_end_cursor: String,
     has_more: bool,
     overflow: &'static str,
     latest_window_ts: Option<u64>,
-}
-
-#[derive(Debug, Clone)]
-struct RecentEventWindow {
-    records: Vec<EventLogRecord>,
-    cursor_rows: Vec<CursorEventRecord>,
-    window_end_cursor: String,
-    total_events_in_window: usize,
-    has_more: bool,
 }
 
 fn build_event_cursor(ts: u64, storage_key: &str) -> String {
@@ -9374,115 +9569,67 @@ fn load_event_cursor_metas<S: crate::challenge::KeyValueStore>(
     metas
 }
 
-fn paginate_event_cursor_metas(
-    mut metas: Vec<EventCursorMeta>,
+fn load_monitoring_cursor_page<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    now: u64,
+    hours: u64,
     after_cursor: &str,
     limit: usize,
-) -> CursorPageSelection {
+    forensic_mode: bool,
+) -> MonitoringCursorPage {
+    let mut metas = load_event_cursor_metas(store, now, hours);
     metas.sort_by(|a, b| a.cursor.cmp(&b.cursor));
-    let latest_window_ts = metas.iter().map(|meta| meta.ts).max();
-    let window_end_cursor = metas
-        .iter()
-        .map(|meta| meta.cursor.clone())
-        .max()
-        .unwrap_or_default();
-    let mut filtered: Vec<EventCursorMeta> = metas
-        .into_iter()
-        .filter(|meta| after_cursor.is_empty() || meta.cursor.as_str() > after_cursor)
-        .collect();
-    let has_more = filtered.len() > limit;
-    if has_more {
-        filtered.truncate(limit);
+
+    let mut latest_window_ts = None;
+    let mut window_end_cursor = String::new();
+    for meta in metas.iter().rev() {
+        let Some(record) = read_event_log_record(store, meta.storage_key.as_str()) else {
+            continue;
+        };
+        if !is_external_monitoring_event(&record) {
+            continue;
+        }
+        latest_window_ts = Some(meta.ts);
+        window_end_cursor = meta.cursor.clone();
+        break;
     }
-    let next_cursor = filtered
+
+    let mut rows = Vec::with_capacity(limit.saturating_add(1));
+    for meta in metas
+        .iter()
+        .filter(|meta| after_cursor.is_empty() || meta.cursor.as_str() > after_cursor)
+    {
+        let Some(record) = read_event_log_record(store, meta.storage_key.as_str()) else {
+            continue;
+        };
+        if !is_external_monitoring_event(&record) {
+            continue;
+        }
+        rows.push(CursorEventRecord {
+            cursor: meta.cursor.clone(),
+            record: present_event_record(&record, forensic_mode),
+        });
+        if rows.len() > limit {
+            break;
+        }
+    }
+
+    let has_more = rows.len() > limit;
+    if has_more {
+        rows.truncate(limit);
+    }
+    let next_cursor = rows
         .last()
-        .map(|meta| meta.cursor.clone())
+        .map(|row| row.cursor.clone())
         .unwrap_or_else(|| after_cursor.to_string());
     let overflow = if has_more { "limit_exceeded" } else { "none" };
-    CursorPageSelection {
-        metas: filtered,
+    MonitoringCursorPage {
+        rows,
         next_cursor,
         window_end_cursor,
         has_more,
         overflow,
         latest_window_ts,
-    }
-}
-
-fn load_cursor_rows_for_metas<S: crate::challenge::KeyValueStore>(
-    store: &S,
-    metas: &[EventCursorMeta],
-    forensic_mode: bool,
-) -> Vec<CursorEventRecord> {
-    let mut rows = Vec::with_capacity(metas.len());
-    for meta in metas {
-        let Ok(Some(val)) = store.get(meta.storage_key.as_str()) else {
-            continue;
-        };
-        let parsed_record = serde_json::from_slice::<EventLogRecord>(&val)
-            .ok()
-            .or_else(|| {
-                serde_json::from_slice::<EventLogEntry>(&val)
-                    .ok()
-                    .map(EventLogRecord::from_entry)
-            });
-        let Some(record) = parsed_record else {
-            continue;
-        };
-        rows.push(CursorEventRecord {
-            cursor: meta.cursor.clone(),
-            record: present_event_record(&record, forensic_mode),
-        });
-    }
-    rows
-}
-
-fn load_recent_event_window<S: crate::challenge::KeyValueStore>(
-    store: &S,
-    now: u64,
-    hours: u64,
-    limit: usize,
-) -> RecentEventWindow {
-    let mut metas = load_event_cursor_metas(store, now, hours);
-    metas.sort_by(|a, b| b.cursor.cmp(&a.cursor));
-    let total_events_in_window = metas.len();
-    let window_end_cursor = metas
-        .iter()
-        .map(|meta| meta.cursor.clone())
-        .max()
-        .unwrap_or_default();
-    let has_more = metas.len() > limit;
-    let selected: Vec<EventCursorMeta> = metas.into_iter().take(limit).collect();
-    let mut records = Vec::with_capacity(selected.len());
-    let mut cursor_rows = Vec::with_capacity(selected.len());
-    for meta in selected {
-        let Ok(Some(val)) = store.get(meta.storage_key.as_str()) else {
-            continue;
-        };
-        let parsed_record = serde_json::from_slice::<EventLogRecord>(&val)
-            .ok()
-            .or_else(|| {
-                serde_json::from_slice::<EventLogEntry>(&val)
-                    .ok()
-                    .map(EventLogRecord::from_entry)
-            });
-        let Some(record) = parsed_record else {
-            continue;
-        };
-        cursor_rows.push(CursorEventRecord {
-            cursor: meta.cursor.clone(),
-            record: record.clone(),
-        });
-        records.push(record);
-    }
-    records.sort_by(|a, b| b.entry.ts.cmp(&a.entry.ts));
-    cursor_rows.sort_by(|a, b| b.record.entry.ts.cmp(&a.record.entry.ts));
-    RecentEventWindow {
-        records,
-        cursor_rows,
-        window_end_cursor,
-        total_events_in_window,
-        has_more,
     }
 }
 
@@ -9503,28 +9650,39 @@ pub(crate) fn monitoring_presented_recent_event_tail<S: crate::challenge::KeyVal
     limit: usize,
     forensic_mode: bool,
 ) -> PresentedRecentEventTail {
-    let window = load_recent_event_window(store, now, hours, limit);
+    let mut rows = load_recent_monitoring_event_records_with_keys(store, now, hours);
+    rows.sort_by(|left, right| right.record.entry.ts.cmp(&left.record.entry.ts));
+    let total_events_in_window = rows.len();
+    let has_more = total_events_in_window > limit;
+    let selected_rows: Vec<StoredEventLogRecord> = rows.into_iter().take(limit).collect();
+    let window_end_cursor = selected_rows
+        .iter()
+        .map(|row| build_event_cursor(row.record.entry.ts, row.storage_key.as_str()))
+        .max();
     let recent_events: Vec<serde_json::Value> = present_event_records(
-        window.records.as_slice(),
+        selected_rows
+            .iter()
+            .map(|row| row.record.clone())
+            .collect::<Vec<EventLogRecord>>()
+            .as_slice(),
         forensic_mode,
     )
     .into_iter()
     .filter_map(|record| serde_json::to_value(record).ok())
     .collect();
-    let recent_event_rows: Vec<serde_json::Value> = window
-        .cursor_rows
+    let recent_event_rows: Vec<serde_json::Value> = selected_rows
         .iter()
         .map(|row| CursorEventRecord {
-            cursor: row.cursor.clone(),
+            cursor: build_event_cursor(row.record.entry.ts, row.storage_key.as_str()),
             record: present_event_record(&row.record, forensic_mode),
         })
         .map(|row| cursor_event_row_payload(&row))
         .collect();
     PresentedRecentEventTail {
-        total_events_in_window: window.total_events_in_window,
+        total_events_in_window,
         returned_events: recent_events.len(),
-        has_more: window.has_more,
-        window_end_cursor: (!window.window_end_cursor.is_empty()).then_some(window.window_end_cursor),
+        has_more,
+        window_end_cursor,
         recent_events,
         recent_event_rows,
     }
@@ -9628,7 +9786,7 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
 ) -> Vec<crate::observability::hot_read_documents::MonitoringRecentSimRunSummary> {
     let mut grouped: BTreeMap<String, MonitoringRecentSimRunAccumulator> = BTreeMap::new();
 
-    for stored in load_recent_event_records_with_keys(store, now, hours) {
+    for stored in load_recent_monitoring_event_records_with_keys(store, now, hours) {
         let run_id = stored
             .record
             .sim_run_id
@@ -9736,25 +9894,16 @@ fn load_recent_event_records_with_keys<S: crate::challenge::KeyValueStore>(
         if event_hour < window_start_hour || event_hour > now_hour {
             continue;
         }
-        if let Ok(Some(val)) = store.get(&key) {
-            let parsed_record = serde_json::from_slice::<EventLogRecord>(&val)
-                .ok()
-                .or_else(|| {
-                    serde_json::from_slice::<EventLogEntry>(&val)
-                        .ok()
-                        .map(EventLogRecord::from_entry)
-                });
-            let Some(record) = parsed_record else {
-                continue;
-            };
-            if record.entry.ts < window_start {
-                continue;
-            }
-            events.push(StoredEventLogRecord {
-                storage_key: key,
-                record,
-            });
+        let Some(record) = read_event_log_record(store, key.as_str()) else {
+            continue;
+        };
+        if record.entry.ts < window_start {
+            continue;
         }
+        events.push(StoredEventLogRecord {
+            storage_key: key,
+            record,
+        });
     }
 
     events
@@ -9766,6 +9915,28 @@ fn load_recent_event_records<S: crate::challenge::KeyValueStore>(
     hours: u64,
 ) -> Vec<EventLogRecord> {
     load_recent_event_records_with_keys(store, now, hours)
+        .into_iter()
+        .map(|stored| stored.record)
+        .collect()
+}
+
+fn load_recent_monitoring_event_records_with_keys<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    now: u64,
+    hours: u64,
+) -> Vec<StoredEventLogRecord> {
+    load_recent_event_records_with_keys(store, now, hours)
+        .into_iter()
+        .filter(|stored| is_external_monitoring_event(&stored.record))
+        .collect()
+}
+
+fn load_recent_monitoring_event_records<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    now: u64,
+    hours: u64,
+) -> Vec<EventLogRecord> {
+    load_recent_monitoring_event_records_with_keys(store, now, hours)
         .into_iter()
         .map(|stored| stored.record)
         .collect()
@@ -13586,6 +13757,50 @@ where
     )
 }
 
+fn handle_admin_events<S>(req: &Request, store: &S) -> Response
+where
+    S: crate::challenge::KeyValueStore,
+{
+    let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
+    let forensic_mode = forensic_access_mode(req.query());
+    let now = now_ts();
+    let mut events = load_recent_monitoring_event_records(store, now, hours);
+    let mut ip_counts = std::collections::HashMap::new();
+    let mut event_counts = std::collections::HashMap::new();
+
+    for event in &events {
+        if let Some(ip) = &event.entry.ip {
+            let key = if forensic_mode {
+                ip.clone()
+            } else {
+                pseudonymize_ip_identifier(ip.as_str())
+            };
+            *ip_counts.entry(key).or_insert(0u32) += 1;
+        }
+        *event_counts
+            .entry(format!("{:?}", event.entry.event))
+            .or_insert(0u32) += 1;
+    }
+
+    events.sort_by(|a, b| b.entry.ts.cmp(&a.entry.ts));
+    let unique_ips = ip_counts.len();
+    let mut top_ips: Vec<_> = ip_counts.into_iter().collect();
+    top_ips.sort_by(|a, b| b.1.cmp(&a.1));
+    let top_ips: Vec<_> = top_ips.into_iter().take(10).collect();
+    let recent_events_raw: Vec<_> = events.iter().take(100).cloned().collect();
+    let recent_events = present_event_records(recent_events_raw.as_slice(), forensic_mode);
+    let body = serde_json::to_string(&json!({
+        "recent_events": recent_events,
+        "event_counts": event_counts,
+        "top_ips": top_ips,
+        "unique_ips": unique_ips,
+        "security_mode": security_view_mode_label(forensic_mode),
+        "security_privacy": security_privacy_payload(store, now, hours, forensic_mode)
+    }))
+    .unwrap();
+    Response::new(200, body)
+}
+
 fn handle_admin_monitoring<S>(req: &Request, store: &S) -> Response
 where
     S: crate::challenge::KeyValueStore,
@@ -13739,17 +13954,14 @@ where
         if monitoring_delta_hot_read_bootstrap_eligible(hours, limit, forensic_mode, after_cursor.as_str()) {
             monitoring_delta_hot_read_bootstrap_payload(store, "default", now, limit)
         } else {
-            let selection = paginate_event_cursor_metas(
-                load_event_cursor_metas(store, now, hours),
-                after_cursor.as_str(),
-                limit,
-            );
+            let selection =
+                load_monitoring_cursor_page(store, now, hours, after_cursor.as_str(), limit, forensic_mode);
             let latest_window_ts = selection.latest_window_ts;
             let window_end_cursor = selection.window_end_cursor.clone();
             let next_cursor = selection.next_cursor.clone();
             let has_more = selection.has_more;
             let overflow = selection.overflow;
-            let page_rows = load_cursor_rows_for_metas(store, selection.metas.as_slice(), forensic_mode);
+            let page_rows = selection.rows;
             let event_rows: Vec<serde_json::Value> =
                 page_rows.iter().map(cursor_event_row_payload).collect();
             let recent_sim_runs =
@@ -13840,13 +14052,13 @@ where
 
     let now = now_ts();
     let selection =
-        paginate_event_cursor_metas(load_event_cursor_metas(store, now, hours), after_cursor.as_str(), limit);
+        load_monitoring_cursor_page(store, now, hours, after_cursor.as_str(), limit, forensic_mode);
     let latest_window_ts = selection.latest_window_ts;
     let window_end_cursor = selection.window_end_cursor.clone();
     let next_cursor = selection.next_cursor.clone();
     let has_more = selection.has_more;
     let overflow = selection.overflow;
-    let page_rows = load_cursor_rows_for_metas(store, selection.metas.as_slice(), forensic_mode);
+    let page_rows = selection.rows;
     let freshness = freshness_health_payload(
         now,
         latest_window_ts,
@@ -14117,7 +14329,7 @@ where
     let limit =
         crate::signals::ip_range_suggestions::normalize_suggestion_limit(safe_limit_u64 as usize);
     let now = now_ts();
-    let events = load_recent_events(store, now, hours);
+    let events = load_recent_monitoring_events(store, now, hours);
     let payload = crate::signals::ip_range_suggestions::build_ip_range_suggestions(
         store, &cfg, &events, now, hours, limit,
     );
@@ -14245,7 +14457,7 @@ where
     S: crate::challenge::KeyValueStore,
 {
     let now = now_ts();
-    let mut events = load_recent_event_records(store, now, hours);
+    let mut events = load_recent_monitoring_event_records(store, now, hours);
     let end_hour = now / 3600;
     let start_hour = end_hour.saturating_sub(hours.saturating_sub(1));
     let requested_recent_event_cap = (limit.saturating_mul(10)).clamp(20, 100) as u64;
@@ -14608,8 +14820,20 @@ where
 {
     let now = now_ts();
     let bootstrap_recent_event_cap = (limit.saturating_mul(3)).clamp(12, 40);
-    let window = load_recent_event_window(store, now, hours, bootstrap_recent_event_cap);
-    let recent_events = present_event_records(window.records.as_slice(), forensic_mode);
+    let mut records = load_recent_monitoring_event_records(store, now, hours);
+    records.sort_by(|left, right| right.entry.ts.cmp(&left.entry.ts));
+    let total_events_in_window = records.len();
+    let has_more = total_events_in_window > bootstrap_recent_event_cap;
+    let recent_events_raw: Vec<EventLogRecord> = records
+        .into_iter()
+        .take(bootstrap_recent_event_cap)
+        .collect();
+    let recent_events = present_event_records(recent_events_raw.as_slice(), forensic_mode);
+    let window_end_cursor = recent_events_raw
+        .iter()
+        .map(|record| build_event_cursor(record.entry.ts, "monitoring"))
+        .max()
+        .unwrap_or_default();
     let recent_sim_runs = monitoring_recent_sim_run_summaries(
         store,
         now,
@@ -14645,9 +14869,9 @@ where
                     "hours": hours,
                     "requested_limit": limit,
                     "applied_recent_event_cap": bootstrap_recent_event_cap,
-                    "total_events_in_window": window.total_events_in_window,
+                    "total_events_in_window": total_events_in_window,
                     "returned_events": recent_events.len(),
-                    "has_more": window.has_more,
+                    "has_more": has_more,
                     "continue_via": format!("/admin/monitoring/delta?hours={hours}&limit={}", limit.clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS)),
                     "response_shaping_reason": "bootstrap_recent_tail"
                 }
@@ -14658,7 +14882,7 @@ where
             "cdp": {},
             "cdp_events": { "events": [] }
         }),
-        (!window.window_end_cursor.is_empty()).then_some(window.window_end_cursor),
+        (!window_end_cursor.is_empty()).then_some(window_end_cursor),
     )
 }
 
@@ -16056,48 +16280,7 @@ pub fn handle_admin(req: &Request) -> Response {
             if expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref()) {
                 return too_many_admin_read_requests_response();
             }
-            // Query event log for recent events, top IPs, and event statistics
-            // Query params: ?hours=N (default 24, max 720)
-            let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
-            let forensic_mode = forensic_access_mode(req.query());
-            let now = now_ts();
-            let mut events = load_recent_event_records(&store, now, hours);
-            let mut ip_counts = std::collections::HashMap::new();
-            let mut event_counts = std::collections::HashMap::new();
-
-            for e in &events {
-                if let Some(ip) = &e.entry.ip {
-                    let key = if forensic_mode {
-                        ip.clone()
-                    } else {
-                        pseudonymize_ip_identifier(ip.as_str())
-                    };
-                    *ip_counts.entry(key).or_insert(0u32) += 1;
-                }
-                *event_counts
-                    .entry(format!("{:?}", e.entry.event))
-                    .or_insert(0u32) += 1;
-            }
-            // Sort events by timestamp descending
-            events.sort_by(|a, b| b.entry.ts.cmp(&a.entry.ts));
-            // Unique IP count before consuming the map
-            let unique_ips = ip_counts.len();
-            // Top 10 IPs
-            let mut top_ips: Vec<_> = ip_counts.into_iter().collect();
-            top_ips.sort_by(|a, b| b.1.cmp(&a.1));
-            let top_ips: Vec<_> = top_ips.into_iter().take(10).collect();
-            let recent_events_raw: Vec<_> = events.iter().take(100).cloned().collect();
-            let recent_events = present_event_records(recent_events_raw.as_slice(), forensic_mode);
-            let body = serde_json::to_string(&json!({
-                "recent_events": recent_events,
-                "event_counts": event_counts,
-                "top_ips": top_ips,
-                "unique_ips": unique_ips,
-                "security_mode": security_view_mode_label(forensic_mode),
-                "security_privacy": security_privacy_payload(&store, now, hours, forensic_mode)
-            }))
-            .unwrap();
-            Response::new(200, body)
+            handle_admin_events(req, &store)
         }
         "/admin/cdp/events" => {
             if expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref()) {

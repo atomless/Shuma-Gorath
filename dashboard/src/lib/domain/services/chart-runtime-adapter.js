@@ -5,8 +5,27 @@ let refCount = 0;
 let adapterOwnedGlobal = false;
 let runtimeWindowRef = null;
 
+export const SHUMA_CHART_ANIMATION_DURATION_MS = 0;
+
 const chartConstructorFrom = (win) =>
   win && typeof win.Chart === 'function' ? win.Chart : null;
+
+const applySharedChartDefaults = (ctor) => {
+  if (typeof ctor !== 'function') {
+    return ctor;
+  }
+  const defaults =
+    ctor.defaults && typeof ctor.defaults === 'object'
+      ? ctor.defaults
+      : (ctor.defaults = {});
+  const animation =
+    defaults.animation && typeof defaults.animation === 'object'
+      ? { ...defaults.animation }
+      : {};
+  animation.duration = SHUMA_CHART_ANIMATION_DURATION_MS;
+  defaults.animation = animation;
+  return ctor;
+};
 
 const resolveChartCtor = async (loader) => {
   const loaded = await loader();
@@ -32,7 +51,7 @@ export async function acquireChartRuntime(options = {}) {
   const existing = chartConstructorFrom(win);
   if (existing) {
     refCount += 1;
-    return existing;
+    return applySharedChartDefaults(existing);
   }
 
   if (!loadPromise) {
@@ -42,7 +61,7 @@ export async function acquireChartRuntime(options = {}) {
         win.Chart = ctor;
         adapterOwnedGlobal = true;
       }
-      return chartConstructorFrom(win);
+      return applySharedChartDefaults(chartConstructorFrom(win));
     });
   }
 
