@@ -56,6 +56,8 @@ Completed archive index:
    Research synthesis for Shuma's long-horizon operating model in the agentic era, covering crawler economics, verified-agent identity, scheduler patterns, low-cost agent handling, and bounded autonomous oversight.
 2. [`2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md`](2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md)
    Research synthesis for banded ban jitter, local repeat-offender escalation, and central intelligence as coordinated cost-shaping features within Shuma's agentic-era defence model.
+3. [`2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-research-synthesis.md`](2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-research-synthesis.md)
+   Research synthesis for Web Bot Auth, HTTP Message Signatures, signed agents, verified bots, and the local policy and trust model Shuma needs for authenticated automated traffic.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

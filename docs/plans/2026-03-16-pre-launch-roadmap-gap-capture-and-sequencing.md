@@ -7,6 +7,7 @@ Related context:
 - [`2026-03-15-agentic-era-oversight-design.md`](2026-03-15-agentic-era-oversight-design.md)
 - [`2026-03-15-agentic-era-oversight-implementation-plan.md`](2026-03-15-agentic-era-oversight-implementation-plan.md)
 - [`2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md`](2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md)
+- [`2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-design.md`](2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-design.md)
 - [`../observability.md`](../observability.md)
 - [`../../todos/todo.md`](../../todos/todo.md)
 - [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
@@ -153,7 +154,52 @@ Questions still open:
 
 This must be planned before implementation because the storage, trust, and governance model will shape every later API and telemetry contract.
 
-## F. Scheduled Agent Analyzer, Recommender, And Reconfigurer
+## F. Verified Bot Identity And Web Bot Auth Foundation
+
+Shuma now has research and design direction for verified bot identity, but its placement in the execution order must be explicit.
+
+This track should formalize:
+
+1. a dedicated verified-identity lane,
+2. native Web Bot Auth and HTTP Message Signatures handling,
+3. provider-normalized verified-bot and signed-agent inputs,
+4. named local allow, restrict, and deny policy for authenticated bots and agents,
+5. and lower-cost service profiles for beneficial authenticated agents.
+
+This track must land before:
+
+1. mature adversary-sim,
+2. central intelligence,
+3. and the scheduled agent operator loop.
+
+Reason:
+
+1. adversary-sim should be able to exercise both legitimate verified agents and spoofed or replayed signed-agent attempts,
+2. central intelligence must remain separate from identity and must not mint it,
+3. and the future agent loop must not be asked to tune or reason about trust-boundary controls before they are formalized.
+
+## G. Edge-Instance Ban Sync And Distributed State Correctness
+
+Shuma already has planned work for enterprise multi-instance ban synchronization, and this roadmap should state clearly where it fits.
+
+This track is about:
+
+1. one site or one deployment,
+2. exact active ban state,
+3. converged enforcement across instances,
+4. synchronized unban and expiry behavior,
+5. and observable sync lag, outage posture, and drift.
+
+This is not the same thing as central intelligence or a centralized worst-offender record.
+
+It should remain separate because:
+
+1. edge-instance ban sync is site-local operational correctness,
+2. central intelligence is cross-site or fleet memory and enrichment,
+3. ban sync mirrors exact current enforcement state,
+4. while central intelligence should stay advisory-first or high-confidence-feed-driven and must not become a blind active-ban replication channel across unrelated sites.
+
+## H. Scheduled Agent Analyzer, Recommender, And Reconfigurer
 
 Shuma still needs a full plan for the scheduled agentic operator loop:
 
@@ -185,18 +231,46 @@ Reason:
 
 1. without truthful operator monitoring and a complete tuning surface, neither human operators nor future scheduled agents have a solid control plane.
 
-## Stage 2: Mature Adversary-Sim As A Tuning Input
+## Stage 2: Edge-Instance Ban Sync And Distributed State Correctness
+
+1. Strict distributed ban-store mode for enterprise authoritative operation.
+2. Ban and unban convergence observability and sync-lag truth surfaces.
+3. Two-instance and failure-mode verification for convergence and outage posture.
+
+Reason:
+
+1. multi-instance enforcement correctness is a deployment-local prerequisite, not an optional intelligence feature.
+2. mature multi-instance adversary-sim should not be trusted until Shuma can prove that locally issued bans converge across instances.
+3. this keeps the exact current-enforcement plane separate from later shared-intelligence work.
+
+## Stage 3: Verified Identity Foundation
+
+1. Canonical verified-identity contract.
+2. Native Web Bot Auth and HTTP Message Signatures handling.
+3. Provider-normalized verified-bot and signed-agent inputs.
+4. Named local allow, restrict, and deny policy for authenticated bots and agents.
+5. Verified-agent monitoring and policy truth surfaces.
+
+Reason:
+
+1. Shuma should formalize identity before sim, intelligence, or agentic reconfiguration so authentication, authorization, and reputation remain separate from the outset.
+2. This gives later sim lanes a truthful beneficial-agent and spoofed-agent target model to test against.
+3. It also keeps trust-boundary controls out of later autonomous tuning work until those controls exist explicitly.
+
+## Stage 4: Mature Adversary-Sim As A Tuning Input
 
 1. Shared-host discovery baseline.
 2. Scrapling lane.
 3. Containerized frontier lane as a bounded emergent actor.
-4. Explicit mapping from each lane's evidence to tuning confidence.
+4. Verified-agent, spoofed-agent, and replay-attempt scenarios against the identity lane.
+5. Multi-instance convergence scenarios against enterprise ban-sync posture.
+6. Explicit mapping from each lane's evidence to tuning confidence.
 
 Reason:
 
 1. Shuma needs realistic attacker input before automated tuning can be trusted to optimize against the actual agentic threat landscape.
 
-## Stage 3: Sim-Telemetry Lifecycle
+## Stage 5: Sim-Telemetry Lifecycle
 
 1. Separate retention and disposal policy for sim telemetry.
 2. Clear distinction between actioned and unactioned sim evidence.
@@ -206,7 +280,7 @@ Reason:
 
 1. once emergent and frontier lanes exist, sim telemetry volume and cost will matter much more.
 
-## Stage 4: Central Intelligence Architecture
+## Stage 6: Central Intelligence Architecture
 
 1. Storage and service architecture.
 2. Governance and false-positive process.
@@ -216,8 +290,10 @@ Reason:
 Reason:
 
 1. external and shared memory should not be wired into runtime policy before its trust and blast-radius model is explicit.
+2. this must follow verified identity so Shuma keeps "who is this?" separate from "what does outside reputation say about it?"
+3. this must also follow edge-instance ban sync so the exact local active-ban plane is already cleanly separated from cross-site reputation and worst-offender memory.
 
-## Stage 5: Scheduled Agent Operator Loop
+## Stage 7: Scheduled Agent Operator Loop
 
 1. Recommend-only scheduled agent.
 2. Narrow config auto-apply with canary and rollback.
@@ -226,16 +302,18 @@ Reason:
 
 Reason:
 
-1. the agent loop should stand on truthful monitoring, mature sim evidence, tuned config surfaces, and explicit central-intelligence governance.
+1. the agent loop should stand on truthful monitoring, explicit identity policy, deployment-local sync correctness, mature sim evidence, tuned config surfaces, and explicit central-intelligence governance.
 
 # Recommended Design Calls To Lock Early
 
 1. Keep request-path logic deterministic and Rust-only.
 2. Treat monitoring overhaul as a prerequisite for serious autonomous tuning.
 3. Treat tuning-tab completion as a control-plane contract, not a cosmetic dashboard task.
-4. Keep adversary-sim telemetry retention distinct from real-traffic retention.
-5. Treat central intelligence as a separate service or data plane concern, not a side effect of the Git repository.
-6. Keep config auto-tuning and code-change/PR generation as separate systems with separate permissions and review paths.
+4. Treat edge-instance ban sync as deployment-local state correctness and schedule it before mature multi-instance sim or cross-site intelligence work.
+5. Formalize verified bot identity before mature sim, central intelligence, or scheduled agentic reconfiguration so identity, authorization, and reputation are separated cleanly.
+6. Keep adversary-sim telemetry retention distinct from real-traffic retention.
+7. Treat central intelligence as a separate service or data plane concern, not a side effect of the Git repository.
+8. Keep config auto-tuning and code-change/PR generation as separate systems with separate permissions and review paths.
 
 # Roadmap Outcome
 
@@ -243,9 +321,11 @@ This roadmap suggests that the next pre-launch excellence sequence should be:
 
 1. operator-grade monitoring,
 2. tuning-surface completion,
-3. mature adversary-sim lanes,
-4. sim-telemetry retention lifecycle,
-5. central-intelligence architecture,
-6. scheduled agent analyzer and reconfigurer.
+3. edge-instance ban sync and distributed state correctness,
+4. verified bot identity and Web Bot Auth foundation,
+5. mature adversary-sim lanes,
+6. sim-telemetry retention lifecycle,
+7. central-intelligence architecture,
+8. scheduled agent analyzer and reconfigurer.
 
 That order makes the future autonomous loop far more likely to be truthful, low-risk, and actually useful.

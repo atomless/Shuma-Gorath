@@ -225,6 +225,31 @@ Because the ladder is:
 
 ## C. Central Intelligence
 
+### What central intelligence is not
+
+Central intelligence is not deployment-local active ban synchronization.
+
+Shuma should keep these as separate systems:
+
+1. edge-instance ban sync
+   - one site or deployment,
+   - exact current active bans,
+   - fast convergence,
+   - synchronized unban and expiry,
+   - operational correctness;
+2. central intelligence
+   - cross-site or fleet memory,
+   - advisory reputation or high-confidence deny feeds,
+   - broader retention horizon,
+   - governance and false-positive process,
+   - reputation or deny-candidate enrichment.
+
+This distinction matters because:
+
+1. active ban sync is an authoritative mirror of what one deployment has already decided,
+2. central intelligence is a separate evidence source that may influence a later local decision,
+3. and local unban semantics should not be coupled automatically to fleet or community reputation state.
+
 ### Design split
 
 Central intelligence should be modeled as two classes, not one.
@@ -256,6 +281,20 @@ Default effects:
 
 1. explicit deny or hard block eligibility,
 2. with tighter governance and stronger operator surfacing.
+
+### Interaction with edge-instance ban sync
+
+The clean interaction model is:
+
+1. central intelligence may bias or inform a local decision,
+2. once Shuma makes a local ban decision for a site, that active ban is propagated through the deployment-local ban-sync mechanism,
+3. but the local active ban record and the central intelligence record remain distinct objects with distinct TTL, governance, and removal workflows.
+
+Examples:
+
+1. a worst-offender feed may make a request more likely to be challenged or denied locally,
+2. but it should not be treated as "already banned on this site" until the local site actually issues a ban,
+3. and a local manual unban should clear the site's synced active ban without silently deleting a fleet-level worst-offender record.
 
 ### Central intelligence operating modes
 

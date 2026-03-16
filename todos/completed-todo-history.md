@@ -4,6 +4,50 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-16)
 
+### Roadmap Sequencing Note: Place Edge-Instance Ban Sync Before Mature Sim And Keep It Separate From Central Intelligence
+
+- [x] Update the roadmap and central-intelligence design docs so Shuma's planned edge-instance ban synchronization is explicitly scheduled before mature adversary-sim and clearly separated from the later centralized worst-offender or intelligence layer.
+- [x] Why:
+  - the repo already had a planned multi-instance enterprise ban-sync track, but the higher-level roadmap did not yet spell out where that work belongs relative to verified identity, mature sim, central intelligence, and the scheduled agent loop.
+  - edge-instance ban sync is deployment-local correctness for exact active bans, not cross-site memory, so it should land before serious multi-instance adversary-sim and well before any centralized worst-offender record or CTI-style architecture.
+  - making this distinction explicit reduces the risk of future work blurring local authoritative enforcement state with advisory or high-confidence shared reputation data.
+- [x] Evidence:
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/plans/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md`
+  - `todos/completed-todo-history.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
+### Roadmap Sequencing Note: Place Verified Bot Identity Before Mature Sim, Central Intelligence, And Scheduled Agentic Reconfiguration
+
+- [x] Update the roadmap documents so the planned sequence explicitly places verified bot identity and Web Bot Auth work after monitoring and tuning foundations, but before mature adversary-sim, central intelligence, and the scheduled agent operator loop.
+- [x] Why:
+  - the new verified-identity research and design made it clear that Shuma should formalize authentication and local authorization before layering on realistic verified-agent adversary simulation, external intelligence, or autonomous recommendation and reconfiguration.
+  - making that ordering explicit in the roadmap reduces the chance of later implementation slices blurring identity, authorization, reputation, and autonomy concerns.
+  - the feature-specific implementation plan now also states its roadmap placement directly, so the sequencing is visible both in the master roadmap and in the verified-identity plan itself.
+- [x] Evidence:
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md`
+  - `todos/completed-todo-history.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
+### Verified Bot Identity Research And Planning: Web Bot Auth, Signed Agents, And Named Agent Policy
+
+- [x] Gather current primary-source research and write repo-native design docs for Shuma's verified bot identity lane, including Web Bot Auth, HTTP Message Signatures, signed agents, verified bots, local authorization policy, and low-cost authenticated-agent handling.
+- [x] Why:
+  - the existing March 15 and March 16 agentic-era docs established that cryptographic bot identity matters, but Shuma still lacked a dedicated deep synthesis and implementation plan for how verified identity should actually work in the product.
+  - this area is moving quickly, and the current ecosystem now includes active IETF work, vendor support from Cloudflare and Vercel, signed user-triggered agent traffic from OpenAI, and clearer crawler/agent splits from Anthropic and Google.
+  - the resulting docs make the critical Shuma design separation explicit: identity/authentication, local authorization policy, crawler preference signaling, and central intelligence must remain distinct even though they work together in the broader bot-defence system.
+- [x] Evidence:
+  - `docs/research/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-research-synthesis.md`
+  - `docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-design.md`
+  - `docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md`
+  - `docs/research/README.md`
+  - `docs/index.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Red Team Run History Follow-Up: Fix The Dropped Dashboard Payload Boundary And Tighten Verification Methodology
 
 - [x] Repair the broken `Recent Red Team Runs` rendering path after the new `recent_sim_runs` hot-read field was found to be disappearing before it reached dashboard state, then strengthen repo methodology so future dashboard telemetry changes are verified through the smallest rendered proof path that actually covers the changed boundary.
